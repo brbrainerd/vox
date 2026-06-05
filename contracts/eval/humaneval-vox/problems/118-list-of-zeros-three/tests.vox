@@ -1,6 +1,0 @@
-fn list_of_zeros_three() to list[int] {
-    return [0, 0, 0]
-}
-
-@test
-fn t_len() to Unit { assert(len(list_of_zeros_three()) is 3) }

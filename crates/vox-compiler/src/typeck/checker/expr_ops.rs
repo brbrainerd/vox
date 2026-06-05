@@ -227,11 +227,11 @@ impl<'a> Checker<'a> {
                 Ty::Option(inner) if name == "Some" && fields.len() == 1 => {
                     self.bind_pattern(&fields[0], inner.as_ref(), mutable);
                 }
-                Ty::Result(inner) if name == "Ok" && fields.len() == 1 => {
-                    self.bind_pattern(&fields[0], inner.as_ref(), mutable);
+                Ty::Result(ok, _err) if name == "Ok" && fields.len() == 1 => {
+                    self.bind_pattern(&fields[0], ok.as_ref(), mutable);
                 }
-                Ty::Result(_) if (name == "Error" || name == "Err") && fields.len() == 1 => {
-                    self.bind_pattern(&fields[0], &Ty::Str, mutable);
+                Ty::Result(_ok, err) if (name == "Error" || name == "Err") && fields.len() == 1 => {
+                    self.bind_pattern(&fields[0], err.as_ref(), mutable);
                 }
                 Ty::Option(_) if name == "None" && fields.is_empty() => {}
                 _ => {

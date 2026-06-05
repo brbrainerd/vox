@@ -1,3 +1,0 @@
-fn leq(a: int, b: int) to bool {
-    return a <= b
-}

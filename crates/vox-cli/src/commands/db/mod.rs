@@ -150,6 +150,8 @@ mod tests {
                 order_by: None,
                 has_limit: false,
                 capabilities: HirDbPlanCapabilities::default(),
+                predicate_args: Vec::new(),
+                limit_value: None,
             },
         };
         let line = serde_json::to_string(&row).expect("serialize");

@@ -12,7 +12,6 @@
 // @training_prompt: Write a minimal CRUD-oriented Vox module: @table, @query, @mutation, one query endpoint, and db.Table operations (get/all, insert).
 // ANCHOR: display
 @table type User {
-    id: int
     name: str
     active: bool
 }
@@ -39,3 +38,17 @@ fn seed_user(name: str) to str {
     return len(db.User.all())
 }
 // ANCHOR_END: display
+
+// Behavioral coverage: exercise the db.* surface under `--mode interp` so the
+// data layer is verified end-to-end, not just typechecked.
+@test fn db_insert_and_query_roundtrip() {
+    // Exercise the actual @mutation / @query handlers end-to-end.
+    assert(seed_user("ada") is "created")
+    assert(seed_user("alan") is "created")
+    assert(user_count() is 2)
+    assert(all_users() is 2)
+    // And the raw db.* surface.
+    let id = db.User.insert({ name: "grace", active: true })
+    assert(id.unwrap() is 2)
+    assert(len(db.User.filter({ active: true })) is 3)
+}

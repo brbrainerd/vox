@@ -1,3 +1,0 @@
-fn list_len(xs: list[int]) to int {
-    return len(xs)
-}

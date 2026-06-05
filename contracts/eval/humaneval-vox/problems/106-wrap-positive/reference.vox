@@ -1,6 +1,0 @@
-fn wrap_positive(n: int) to Option[int] {
-    if n > 0 {
-        return Some(n)
-    }
-    return None
-}

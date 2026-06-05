@@ -554,7 +554,18 @@ impl Parser {
         }
 
         let is_object = if let Some(
-            Token::Ident(_) | Token::TypeIdent(_) | Token::StringLit(_) | Token::SingleStringLit(_),
+            Token::Ident(_)
+            | Token::TypeIdent(_)
+            | Token::StringLit(_)
+            | Token::SingleStringLit(_)
+            // Phonetic keywords usable as object keys (db query-predicate
+            // vocabulary: `{ and: [..] }`, `{ or: [..] }`, `{ not: {..} }`,
+            // `{ field: { in: [..] } }`). Disambiguated as an object literal —
+            // not a block — by the trailing `:` check below.
+            | Token::And
+            | Token::Or
+            | Token::Not
+            | Token::In,
         ) = self.tokens.get(i).map(|t| &t.token)
         {
             let mut j = i + 1;
@@ -595,6 +606,28 @@ impl Parser {
                 Token::StringLit(s) | Token::SingleStringLit(s) => {
                     self.advance();
                     s
+                }
+                // Phonetic keyword combinators/operators are valid object keys —
+                // the db query-predicate vocabulary uses them
+                // (`{ and: [..] }`, `{ or: [..] }`, `{ not: {..} }`,
+                // `{ field: { in: [..] } }`). Without this they lex to keyword
+                // tokens and fail key parsing, leaving the lowering's
+                // and/or/not/in predicate branches unreachable from source.
+                Token::And => {
+                    self.advance();
+                    "and".to_string()
+                }
+                Token::Or => {
+                    self.advance();
+                    "or".to_string()
+                }
+                Token::Not => {
+                    self.advance();
+                    "not".to_string()
+                }
+                Token::In => {
+                    self.advance();
+                    "in".to_string()
                 }
                 _ => {
                     self.errors.push(ParseError::classified(

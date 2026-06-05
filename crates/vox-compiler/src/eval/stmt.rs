@@ -96,13 +96,26 @@ pub fn eval_pattern(
                     }
                 } else if (name == "Err" || name == "Error") && args.len() == 1 {
                     if let Err(msg) = res {
-                        eval_pattern(interp, &args[0], VoxValue::Str(msg))?;
+                        eval_pattern(interp, &args[0], *msg)?;
                         Ok(())
                     } else {
                         Err(EvalError::AssertionFailed("Matched Err on Ok".into()))
                     }
                 } else {
                     Err(EvalError::AssertionFailed("Variant mismatch".into()))
+                }
+            }
+            // A bare *nullary* variant value (e.g. `Red`) is held as
+            // `VoxValue::Constructor("Red")` — never applied to fields, so it is
+            // never lowered to `Tagged`. A nullary constructor pattern matches it
+            // when the names agree and the pattern itself takes no fields.
+            VoxValue::Constructor(tag_name) => {
+                if tag_name == *name && args.is_empty() {
+                    Ok(())
+                } else {
+                    Err(EvalError::AssertionFailed(format!(
+                        "Variant mismatch: expected {name}, got {tag_name}"
+                    )))
                 }
             }
             _ => Err(EvalError::AssertionFailed("Not a constructor value".into())),

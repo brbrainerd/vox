@@ -1,9 +1,0 @@
-id = "humaneval-vox-028-power-of-two"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `is_pow2_small(n: int) to bool` returning true when n is
-one of 1, 2, 4, 8, 16, 32, or 64. False otherwise.
-"""

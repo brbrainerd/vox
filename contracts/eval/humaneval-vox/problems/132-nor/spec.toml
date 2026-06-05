@@ -1,8 +1,0 @@
-id = "humaneval-vox-132-nor"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `nor(a: bool, b: bool) to bool` returning the NOT-OR of a and b.
-"""

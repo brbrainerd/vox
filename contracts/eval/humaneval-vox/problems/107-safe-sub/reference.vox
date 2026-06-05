@@ -1,6 +1,0 @@
-fn safe_sub(a: int, b: int) to Result[int] {
-    if a < b {
-        return Error("underflow")
-    }
-    return Ok(a - b)
-}

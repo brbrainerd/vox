@@ -1,8 +1,0 @@
-id = "humaneval-vox-137-list-len-equals"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `list_len_equals(xs: list[int], n: int) to bool` returning true when xs has exactly n elements.
-"""

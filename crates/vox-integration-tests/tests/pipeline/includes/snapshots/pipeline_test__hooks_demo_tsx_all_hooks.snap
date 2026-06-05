@@ -1,5 +1,6 @@
 ---
 source: crates/vox-integration-tests/tests/pipeline/includes/include_02.rs
+assertion_line: 96
 expression: tsx.1
 ---
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
@@ -11,6 +12,7 @@ export function HooksDemo(): React.ReactElement {
     const increment = useCallback(((_e) => (set_count(count + 1))));
     useEffect(((_x) => (count)));
   return (
+    <div className="px-4">
     <div className={["flex", "flex-col", "hooks_demo"].filter(Boolean).join(" ")}>
       <div className={["flex", "flex-col", "count-row"].filter(Boolean).join(" ")}>
         {count}
@@ -21,6 +23,7 @@ export function HooksDemo(): React.ReactElement {
       <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", "increment-btn"].filter(Boolean).join(" ")} onClick={increment}>
         {"+"}
       </button>
+    </div>
     </div>
   );
 }

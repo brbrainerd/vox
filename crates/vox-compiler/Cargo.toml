@@ -29,6 +29,10 @@ secrecy = { workspace = true }
 which = { workspace = true }
 glob = "0.3.1"
 regex = { workspace = true }
+# Blocking HTTP for the `--mode interp` std.http tier (web-app language: real
+# network I/O in interp, not just codegen). Inherits the workspace rustls-tls
+# stack; `blocking` is run on a worker thread (interp executes inside tokio).
+reqwest = { workspace = true, features = ["blocking"] }
 workspace-hack = { workspace = true }
 vox-foundation.workspace = true
 tokio = { workspace = true }

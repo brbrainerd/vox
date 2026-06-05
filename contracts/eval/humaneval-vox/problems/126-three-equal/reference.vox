@@ -1,6 +1,0 @@
-fn three_equal(a: int, b: int, c: int) to bool {
-    if a is b {
-        return b is c
-    }
-    return false
-}

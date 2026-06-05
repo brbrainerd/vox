@@ -1,0 +1,33 @@
+# Gitleaks configuration for the Vox monorepo.
+#
+# Extends the upstream default ruleset and allowlists locations that legitimately
+# contain *fake* secrets — documentation examples, test code, and the security
+# detector's own positive fixtures. Verified: every match these paths suppress is
+# a placeholder (e.g. `sk-test-…`, repeated-hex `aabbcc…`, RFC nonces, did:key
+# test vectors, or metric names like `tokens_per_sec`), not a real credential.
+#
+# The scanner runs via the MIT-licensed gitleaks CLI (see
+# `.github/workflows/gitleaks.yml`); gitleaks auto-discovers this file at the repo
+# root, so no `--config` flag is needed.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Docs, tests, and detector fixtures — placeholders, not real secrets."
+paths = [
+  # Build artifacts (object files / rmeta embed string tables).
+  '''^target/''',
+  # Documentation: example payloads, RFC nonces, fake hex, metric names.
+  '''^docs/''',
+  # Security-detector positive fixtures (intentional fake secrets the detector must catch).
+  '''^contracts/.*/fixtures/''',
+  # Test code (directories and inline `tests.rs` / `*_test(s).rs` modules).
+  '''(^|/)tests?/''',
+  '''(^|/)tests\.rs$''',
+  '''_tests?\.rs$''',
+  # Secret-handling source whose inline test modules carry `sk-test-…` vectors.
+  '''/sources/auth_json\.rs$''',
+  # Pre-registration signing-key round-trip vectors (repeated-hex placeholders).
+  '''/preregistration/trusty_uri\.rs$''',
+]

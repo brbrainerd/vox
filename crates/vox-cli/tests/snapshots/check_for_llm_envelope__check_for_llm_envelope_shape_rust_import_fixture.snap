@@ -21,6 +21,16 @@ expression: v
       "file_path": "tests/fixtures/golden_rust_import_lowering.vox",
       "found_type": null,
       "message": "Rust import 'serde_json' includes explicit dependency metadata, but full app codegen templates may own this crate version/path and ignore import-level pins.",
+      "minimal_repro": {
+        "excerpt": "import rust:serde_json(version: \"1\") as sj_a\nimport rust:serde_json(version: \"2\") as sj_b\nfn main() {}",
+        "excerpt_first_line": 1,
+        "local_span": {
+          "end_col": 1,
+          "end_line": 2,
+          "start_col": 8,
+          "start_line": 1
+        }
+      },
       "missing_cases": [],
       "related_spans": [],
       "severity": "Warning",
@@ -48,6 +58,16 @@ expression: v
       "file_path": "tests/fixtures/golden_rust_import_lowering.vox",
       "found_type": null,
       "message": "Rust import 'serde_json' includes explicit dependency metadata, but full app codegen templates may own this crate version/path and ignore import-level pins.",
+      "minimal_repro": {
+        "excerpt": "import rust:serde_json(version: \"1\") as sj_a\nimport rust:serde_json(version: \"2\") as sj_b\nfn main() {}",
+        "excerpt_first_line": 1,
+        "local_span": {
+          "end_col": 1,
+          "end_line": 3,
+          "start_col": 8,
+          "start_line": 2
+        }
+      },
       "missing_cases": [],
       "related_spans": [],
       "severity": "Warning",
@@ -75,6 +95,16 @@ expression: v
       "file_path": "tests/fixtures/golden_rust_import_lowering.vox",
       "found_type": null,
       "message": "Conflicting dependency specifications for rust crate 'serde_json': versions/path/git metadata must match across imports for the same crate name",
+      "minimal_repro": {
+        "excerpt": "import rust:serde_json(version: \"1\") as sj_a\nimport rust:serde_json(version: \"2\") as sj_b\nfn main() {}",
+        "excerpt_first_line": 1,
+        "local_span": {
+          "end_col": 1,
+          "end_line": 3,
+          "start_col": 8,
+          "start_line": 2
+        }
+      },
       "missing_cases": [],
       "related_spans": [],
       "severity": "Error",

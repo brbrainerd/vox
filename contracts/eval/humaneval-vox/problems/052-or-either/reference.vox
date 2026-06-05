@@ -1,6 +1,0 @@
-fn or_either(a: bool, b: bool) to bool {
-    if a {
-        return true
-    }
-    return b
-}

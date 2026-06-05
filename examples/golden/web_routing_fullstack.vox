@@ -8,6 +8,7 @@
 // last_validated: 2026-04-07
 // training_eligible: true
 // training_weight: 1.0
+// difficulty: advanced
 // ---
 // @training_prompt: Model a small app with nested routes, a @query route loader, pending UI, and not_found/error boundaries.
 

@@ -4,6 +4,7 @@
 // status: golden
 // category: example
 // training_eligible: true
+// difficulty: intermediate
 // ---
 
 @prompt(stage = Planner, schema = PlanBlob, redact = [api_key])

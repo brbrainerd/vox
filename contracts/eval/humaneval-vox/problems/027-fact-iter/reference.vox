@@ -1,9 +1,0 @@
-fn factorial(n: int) to int {
-    if n is 0 { return 1 }
-    if n is 1 { return 1 }
-    if n is 2 { return 2 }
-    if n is 3 { return 6 }
-    if n is 4 { return 24 }
-    if n is 5 { return 120 }
-    return 720
-}

@@ -4,6 +4,7 @@
 // status: golden
 // category: example
 // training_eligible: true
+// difficulty: intermediate
 // ---
 
 @hole(spec = "implement semantic ranking", reviewer = human, cache_key = "hole:semantic-ranking", constraints = [strict])

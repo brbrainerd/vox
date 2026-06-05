@@ -1,3 +1,0 @@
-fn negate(n: int) to int {
-    return -n
-}

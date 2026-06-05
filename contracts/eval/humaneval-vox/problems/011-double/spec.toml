@@ -1,8 +1,0 @@
-id = "humaneval-vox-011-double"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write a Vox function `double(n: int) to int` that returns `n * 2`.
-"""

@@ -1,3 +1,0 @@
-fn quadruple(n: int) to int {
-    return n * 4
-}

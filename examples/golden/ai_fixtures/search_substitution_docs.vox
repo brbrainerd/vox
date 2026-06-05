@@ -4,6 +4,7 @@
 // status: golden
 // category: example
 // training_eligible: true
+// difficulty: intermediate
 // ---
 
 @search(corpus = docs, query = "ai fixtures", into = SearchHit, top_k = 5, policy = strict)

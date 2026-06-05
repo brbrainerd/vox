@@ -1,7 +1,0 @@
-fn mod_positive(n: int, m: int) to int {
-    let r = n % m
-    if r < 0 {
-        return r + m
-    }
-    return r
-}

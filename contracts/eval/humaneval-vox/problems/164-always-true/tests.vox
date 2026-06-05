@@ -1,6 +1,0 @@
-fn always_true() to bool {
-    return true
-}
-
-@test
-fn t_returns_true() to Unit { assert(always_true() is true) }

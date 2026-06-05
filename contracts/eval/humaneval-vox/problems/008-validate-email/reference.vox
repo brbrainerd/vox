@@ -1,6 +1,0 @@
-fn validate_email(email: str) to Result[str] {
-    if len(email) < 5 {
-        return Error("email too short")
-    }
-    return Ok(email)
-}

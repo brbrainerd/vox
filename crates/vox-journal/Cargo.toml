@@ -1,6 +1,6 @@
 [package]
 name = "vox-journal"
-version = "0.6.0"
+version.workspace = true
 edition = "2024"
 description = "Generic append-only JSON Lines file journal for Vox. Crash-safe via per-record sync_data; replays on open. Used as the durable substrate by vox-workflow-runtime, vox-actor-runtime, and the mobile-shipped vox-runtime-rn (via uniffi)."
 license = "Apache-2.0"

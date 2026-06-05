@@ -1,7 +1,0 @@
-fn roundtrip_some(n: int) to int {
-    let o = Some(n)
-    match o {
-        Some(v) => return v
-        None    => return 0
-    }
-}

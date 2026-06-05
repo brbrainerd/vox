@@ -13338,6 +13338,7 @@ dependencies = [
  "proptest",
  "rayon",
  "regex",
+ "reqwest 0.12.28",
  "rust_decimal",
  "secrecy",
  "serde",
@@ -14052,7 +14053,7 @@ dependencies = [
 
 [[package]]
 name = "vox-openclaw-runtime"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -14420,7 +14421,7 @@ dependencies = [
 
 [[package]]
 name = "vox-plugin-cloud"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "abi_stable",
  "vox-plugin-api",
@@ -14453,7 +14454,7 @@ dependencies = [
 
 [[package]]
 name = "vox-plugin-mens-candle-cuda"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "abi_stable",
  "anyhow",
@@ -14486,7 +14487,7 @@ dependencies = [
 
 [[package]]
 name = "vox-plugin-mens-candle-metal"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "abi_stable",
  "anyhow",
@@ -14533,7 +14534,7 @@ dependencies = [
 
 [[package]]
 name = "vox-plugin-oratio"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "abi_stable",
  "anyhow",
@@ -14560,7 +14561,7 @@ dependencies = [
 
 [[package]]
 name = "vox-plugin-populi-mesh"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "abi_stable",
  "async-trait",
@@ -14617,7 +14618,7 @@ dependencies = [
 
 [[package]]
 name = "vox-plugin-runtime-container"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "abi_stable",
  "anyhow",
@@ -14633,7 +14634,7 @@ dependencies = [
 
 [[package]]
 name = "vox-plugin-runtime-wasm"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "abi_stable",
  "anyhow",
@@ -14668,7 +14669,7 @@ dependencies = [
 
 [[package]]
 name = "vox-plugin-webhook"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "abi_stable",
  "anyhow",
@@ -15095,7 +15096,7 @@ dependencies = [
 
 [[package]]
 name = "vox-tauri-stt"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",

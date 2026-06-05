@@ -33,6 +33,322 @@ fn for_loop_with_index_binds_index_in_body() {
     );
 }
 
+/// B1 — exact decimal arithmetic in the interpreter. `0.1dec + 0.2dec is 0.3dec`
+/// must be exactly `true`. Under the old `DecimalLit -> f64` approximation this
+/// was silently `false` (0.1 + 0.2 != 0.3 in IEEE-754), so `decimal_math.vox`'s
+/// asserts held under `--mode script` but failed under `--mode interp`.
+#[test]
+fn decimal_arithmetic_is_exact_in_interp() {
+    let source = "
+    fn main() -> bool {
+        return 0.1dec + 0.2dec is 0.3dec
+    }
+    ";
+
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("Failed to parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+
+    let mut interpreter = vox_compiler::eval::Interpreter::new(100_000);
+    interpreter
+        .run_module(&lowered)
+        .expect("Failed to run module");
+
+    let res = interpreter
+        .call("main", vec![])
+        .expect("Failed to call main");
+    assert_eq!(
+        res,
+        vox_compiler::eval::value::VoxValue::Bool(true),
+        "0.1dec + 0.2dec is 0.3dec must be exactly true under --mode interp"
+    );
+}
+
+/// A returned `Option` that is `None` must compare equal to the `None` literal.
+/// Bare `None` is stored as `Constructor("None")` until normalized; without
+/// normalizing both `is` operands, `mk() is None` was silently `false`.
+#[test]
+fn returned_none_is_equal_to_none_literal() {
+    let source = "
+    fn mk() to Option[int] {
+        return None
+    }
+    fn main() to bool {
+        return mk() is None
+    }
+    ";
+
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("Failed to parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+
+    let mut interpreter = vox_compiler::eval::Interpreter::new(100_000);
+    interpreter
+        .run_module(&lowered)
+        .expect("Failed to run module");
+
+    let res = interpreter
+        .call("main", vec![])
+        .expect("Failed to call main");
+    assert_eq!(
+        res,
+        vox_compiler::eval::value::VoxValue::Bool(true),
+        "`mk() is None` (mk returns None) must be true"
+    );
+}
+
+/// C1 runtime: `Result[T, E]` carries a real error VALUE at runtime, not a
+/// stringified form. `Error(Timeout(30))` round-trips through the Err arm and
+/// matches back to the ADT variant (was a `String` before the Err-widening).
+#[test]
+fn result_carries_typed_error_value() {
+    let source = "
+    type ErrKind = | NotFound | Timeout(ms: int)
+    fn f() to Result[int, ErrKind] {
+        return Error(Timeout(30))
+    }
+    fn main() to int {
+        return match f() {
+            Ok(x) => x
+            Error(e) => match e {
+                Timeout(ms) => ms
+                NotFound => 0
+            }
+        }
+    }
+    ";
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+    let mut interp = vox_compiler::eval::Interpreter::new(100_000);
+    interp.run_module(&lowered).expect("run_module");
+    let res = interp.call("main", vec![]).expect("call main");
+    assert_eq!(
+        res,
+        vox_compiler::eval::value::VoxValue::Int(30),
+        "Error(Timeout(30)) should carry the ADT to the match, yielding 30"
+    );
+}
+
+/// Nullary-variant match regression: a bare capitalized pattern (`Red`) is a
+/// *nullary constructor* pattern, not a binding. Before the parser fix it
+/// lowered to `Pattern::Ident`, so the FIRST arm bound the scrutinee
+/// unconditionally and became a catch-all — `match Green { Red => .. }` wrongly
+/// took the `Red` arm. Each arm must match only its own variant.
+#[test]
+fn nullary_variant_match_is_not_catch_all() {
+    let source = "
+    type Color = | Red | Green | Blue
+    fn pick() to Color {
+        return Green
+    }
+    fn main() to int {
+        return match pick() {
+            Red => 1
+            Green => 2
+            Blue => 3
+        }
+    }
+    ";
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+    let mut interp = vox_compiler::eval::Interpreter::new(100_000);
+    interp.run_module(&lowered).expect("run_module");
+    let res = interp.call("main", vec![]).expect("call main");
+    assert_eq!(
+        res,
+        vox_compiler::eval::value::VoxValue::Int(2),
+        "match pick() (=Green) must take the Green arm (2), not the first arm"
+    );
+}
+
+/// Gap Finding 1: `for` over a map (yields (k,v) tuples) and over a string
+/// (yields chars) must run, not crash with TypeError{expected:"List"}.
+#[test]
+fn for_over_map_and_string_iterate() {
+    let source = "
+    fn count_map() to int {
+        let m = { a: 1, b: 2, c: 3 }
+        let mut n = 0
+        for entry in m { n = n + 1 }
+        return n
+    }
+    fn count_str() to int {
+        let mut n = 0
+        for ch in \"abcd\" { n = n + 1 }
+        return n
+    }
+    fn main() to int {
+        return count_map() + count_str()
+    }
+    ";
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+    let mut interp = vox_compiler::eval::Interpreter::new(100_000);
+    interp.run_module(&lowered).expect("run_module");
+    let res = interp.call("main", vec![]).expect("call main");
+    assert_eq!(
+        res,
+        vox_compiler::eval::value::VoxValue::Int(7),
+        "for over map (3) + for over string (4) = 7"
+    );
+}
+
+/// Gap Finding 2: mixed Int/Float arithmetic must promote to Float (the
+/// typechecker already does), not crash.
+#[test]
+fn mixed_int_float_arithmetic() {
+    let source = "
+    fn main() to float {
+        let x = 1
+        let y = 2.0
+        return x + y
+    }
+    ";
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+    let mut interp = vox_compiler::eval::Interpreter::new(100_000);
+    interp.run_module(&lowered).expect("run_module");
+    let res = interp.call("main", vec![]).expect("call main");
+    assert_eq!(res, vox_compiler::eval::value::VoxValue::Float(3.0));
+}
+
+/// Gap Finding 3: cross-numeric `is` is value equality (consistent with
+/// arithmetic promotion) — `1 is 1.0` is true, not silently false.
+#[test]
+fn cross_numeric_is_equality() {
+    let source = "
+    fn main() to bool {
+        return 1 is 1.0
+    }
+    ";
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+    let mut interp = vox_compiler::eval::Interpreter::new(100_000);
+    interp.run_module(&lowered).expect("run_module");
+    let res = interp.call("main", vec![]).expect("call main");
+    assert_eq!(res, vox_compiler::eval::value::VoxValue::Bool(true));
+}
+
+/// B2 — compiled-regex object idiom in the interpreter. `std.regex.compile`
+/// must return a real Regex value whose `.find()` yields a Match with `.group(i)`
+/// (the form `regex_stdlib.vox` teaches). Previously `compile` returned a bare
+/// string, so `re.find(...).group(1)` was unreachable under `--mode interp`.
+#[test]
+fn compiled_regex_find_group_in_interp() {
+    let source = r#"
+    fn main() -> Option {
+        let compiled = std.regex.compile("(?:mood|feeling).*?(\\d)")
+        return match compiled {
+            Ok(re) => match re.find("my mood is 7 today") {
+                Some(m) => m.group(1)
+                None => None
+            }
+            Error(_) => None
+        }
+    }
+    "#;
+
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("Failed to parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+
+    let mut interpreter = vox_compiler::eval::Interpreter::new(100_000);
+    interpreter
+        .run_module(&lowered)
+        .expect("Failed to run module");
+
+    let res = interpreter
+        .call("main", vec![])
+        .expect("Failed to call main");
+    assert_eq!(
+        res,
+        vox_compiler::eval::value::VoxValue::Option(Some(Box::new(
+            vox_compiler::eval::value::VoxValue::Str("7".to_string())
+        ))),
+        "compiled regex re.find(...).group(1) should extract \"7\" under --mode interp"
+    );
+}
+
+/// B4 — `std.time.now_ms()` must resolve under `--mode interp`. It was declared
+/// in typeck + codegen but had no interpreter dispatch arm, so it errored as an
+/// unreachable namespace. We can't assert an exact value (it's wall-clock), but
+/// it must return a positive Int.
+#[test]
+fn std_time_now_ms_runs_in_interp() {
+    let source = "
+    fn main() -> int {
+        return std.time.now_ms()
+    }
+    ";
+
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("Failed to parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+
+    let mut interpreter = vox_compiler::eval::Interpreter::new(100_000);
+    interpreter
+        .run_module(&lowered)
+        .expect("Failed to run module");
+
+    let res = interpreter
+        .call("main", vec![])
+        .expect("Failed to call main");
+    match res {
+        vox_compiler::eval::value::VoxValue::Int(ms) => {
+            assert!(
+                ms > 0,
+                "std.time.now_ms() should be a positive epoch ms, got {ms}"
+            );
+        }
+        other => panic!("std.time.now_ms() should return Int, got {other:?}"),
+    }
+}
+
+/// B3 — `std.http` performs a REAL request under `--mode interp` (Vox is a
+/// web-app language). An empty URL makes reqwest fail to build the request, so
+/// the call returns `Result::Err` with a transport/URL error — NOT the old
+/// "use --mode script" stub. This exercises the real interp HTTP path without
+/// depending on external network availability.
+#[test]
+fn std_http_get_text_performs_real_request_in_interp() {
+    let source = "
+    fn main() -> Result {
+        return std.http.get_text(\"\")
+    }
+    ";
+
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("Failed to parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+
+    let mut interpreter = vox_compiler::eval::Interpreter::new(100_000);
+    interpreter
+        .run_module(&lowered)
+        .expect("Failed to run module");
+
+    let res = interpreter
+        .call("main", vec![])
+        .expect("Failed to call main");
+    match res {
+        vox_compiler::eval::value::VoxValue::Result(Err(msg)) => {
+            // Err side is now a boxed VoxValue; the http transport error is a Str.
+            let msg = format!("{:?}", *msg);
+            assert!(
+                !msg.contains("--mode script"),
+                "std.http should perform a real request in interp, not return a stub: {msg}"
+            );
+        }
+        other => {
+            panic!("std.http.get_text on an invalid URL should return Result::Err, got {other:?}")
+        }
+    }
+}
+
 #[test]
 fn test_interpreter_basic() {
     let source = "

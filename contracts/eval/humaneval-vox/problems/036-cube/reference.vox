@@ -1,3 +1,0 @@
-fn cube(n: int) to int {
-    return n * n * n
-}

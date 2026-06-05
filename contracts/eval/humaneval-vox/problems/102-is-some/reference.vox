@@ -1,6 +1,0 @@
-fn is_some(o: Option[int]) to bool {
-    match o {
-        Some(_) => return true
-        None    => return false
-    }
-}

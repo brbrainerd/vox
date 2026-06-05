@@ -8,6 +8,7 @@
 // last_validated: 2026-03-26
 // training_eligible: true
 // training_weight: 1.0
+// difficulty: beginner
 // ---
 // @training_prompt: Represent database settings as a Vox ADT and expose deployment-shaped helpers.
 // ANCHOR: display

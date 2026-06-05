@@ -1,3 +1,0 @@
-fn option_bool_some_true() to Option[bool] {
-    return Some(true)
-}

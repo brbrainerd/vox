@@ -1,6 +1,0 @@
-fn maybe_double(o: Option[int]) to Option[int] {
-    match o {
-        Some(n) => return Some(n * 2)
-        None    => return None
-    }
-}

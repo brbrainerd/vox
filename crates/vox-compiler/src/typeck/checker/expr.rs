@@ -12,6 +12,18 @@ use super::match_exhaust::check_hir_match_exhaustiveness;
 
 impl<'a> Checker<'a> {
     #[allow(dead_code)]
+    /// Row fields backing a db query expression: the base `db.Table`'s fields,
+    /// or — for a chained method whose receiver is a prior query — the Record
+    /// nested inside that query's `Result[List[Record]]`.
+    fn db_query_record_fields(ty: &Ty) -> Vec<(String, Ty)> {
+        match ty {
+            Ty::Table(_, fields) | Ty::Collection(_, fields) | Ty::Record(fields) => fields.clone(),
+            Ty::Result(ok, _) => Self::db_query_record_fields(ok),
+            Ty::List(inner) | Ty::Option(inner) => Self::db_query_record_fields(inner),
+            _ => Vec::new(),
+        }
+    }
+
     fn check_db_select_projection(
         &mut self,
         fields: &[(String, Ty)],
@@ -378,18 +390,53 @@ impl<'a> Checker<'a> {
                 }
             }
             HirExpr::MethodCall(object, method, args, opt_plan, span) => {
-                if opt_plan.is_some() && matches!(method.as_str(), "limit" | "order_by") {
-                    self.diags.push(Diagnostic::error(
-                        format!(
-                            "db query chaining via '.{method}(...)' is not supported yet; use typed db.Table operations directly"
-                        ),
-                        *span,
-                        self.source,
-                    ));
-                    return Ty::Error;
-                }
                 let obj_ty = self.check_expr(object, None);
                 let obj_ty = self.uf.resolve(&obj_ty);
+
+                // Typed db query-plan chaining. `.where/.filter/.order_by/.limit/
+                // .select` (+ capability modifiers) carry an `opt_plan` from
+                // lowering; they are not methods on the receiver's type. They
+                // typecheck to the query result `Result[List[Record]]`, with the
+                // row fields threaded through the chain (the base `db.Table`'s
+                // fields, then each prior query's Record). Predicate field-
+                // validation is a follow-on; codegen already emits the SQL. See
+                // specs/2026-06-03-db-query-plan-typecheck-design.md.
+                if let Some(plan) = opt_plan
+                    && matches!(
+                        method.as_str(),
+                        "where"
+                            | "filter"
+                            | "order_by"
+                            | "limit"
+                            | "select"
+                            | "using"
+                            | "live"
+                            | "scope"
+                            | "sync"
+                    )
+                {
+                    for a in args {
+                        let _ = self.check_expr(&a.value, None);
+                    }
+                    let row_fields = Self::db_query_record_fields(&obj_ty);
+                    // `.select(cols...)` projection validation. Only the `.select`
+                    // node carries a `projection`, so this fires exactly once per
+                    // chain (inner `.where`/`.filter` nodes have `projection:
+                    // None`) — no double-reporting. Guarded on a known field set:
+                    // if the row fields could not be resolved we skip rather than
+                    // flag every column as unknown. Predicate field-validation
+                    // remains the deferred follow-on (see
+                    // specs/2026-06-03-db-query-plan-typecheck-design.md).
+                    if let Some(cols) = &plan.projection
+                        && !row_fields.is_empty()
+                    {
+                        self.check_db_select_projection(&row_fields, cols, *span);
+                    }
+                    return Ty::Result(
+                        Box::new(Ty::List(Box::new(Ty::Record(row_fields)))),
+                        Box::new(Ty::Str),
+                    );
+                }
 
                 // Namespace-method dispatch on Record-typed receivers — used
                 // by alias-form intra-project imports
@@ -411,11 +458,11 @@ impl<'a> Checker<'a> {
                     let bindings = match &obj_ty {
                         Ty::List(inner)
                         | Ty::Option(inner)
-                        | Ty::Result(inner)
                         | Ty::Stream(inner)
                         | Ty::Set(inner) => {
                             vec![inner.as_ref().clone()]
                         }
+                        Ty::Result(ok, _err) => vec![ok.as_ref().clone()],
                         Ty::Map(k, v) => vec![k.as_ref().clone(), v.as_ref().clone()],
                         _ => vec![],
                     };
@@ -697,7 +744,8 @@ impl<'a> Checker<'a> {
             HirExpr::With(resource, options, span) => {
                 let res_ty = self.check_expr(resource, None);
                 self.check_with_options(options.as_ref(), *span);
-                let expected = Ty::Result(Box::new(self.uf.fresh_var()));
+                let expected =
+                    Ty::Result(Box::new(self.uf.fresh_var()), Box::new(self.uf.fresh_var()));
                 if let Err(msg) = self.uf.unify(&res_ty, &expected) {
                     self.diags.push(Diagnostic::error(
                         format!(
@@ -789,11 +837,11 @@ impl<'a> Checker<'a> {
                 let resolved = self.uf.resolve(&inner_ty);
                 let resolved = self.uf.instantiate(&resolved);
                 match resolved {
-                    Ty::Result(ok_ty) => {
+                    Ty::Result(ok_ty, _err_ty) => {
                         if let Some(expected_ret) = self.env.current_return_type() {
                             let expected_ret_inst = self.uf.instantiate(expected_ret);
                             match self.uf.resolve(&expected_ret_inst) {
-                                Ty::Result(_) => {}
+                                Ty::Result(_, _) => {}
                                 Ty::Error => {}
                                 _ => {
                                     self.diags.push(Diagnostic::error(

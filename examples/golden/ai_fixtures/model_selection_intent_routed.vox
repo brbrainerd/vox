@@ -4,6 +4,7 @@
 // status: golden
 // category: example
 // training_eligible: true
+// difficulty: intermediate
 // ---
 
 @ai(task_category = CodeGen, strengths = [codegen, reasoning], tier_max = Pro, cost_ceiling_usd_per_call = 0.6)

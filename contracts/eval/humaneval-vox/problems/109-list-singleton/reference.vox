@@ -1,3 +1,0 @@
-fn list_singleton(n: int) to list[int] {
-    return [n]
-}

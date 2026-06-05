@@ -10,10 +10,8 @@
 // training_weight: 1.0
 // ---
 // @training_prompt: Draft an IoT device telemetry service demonstrating event sourcing using tables.
-// Note: db.Table.filter() is not yet implemented — use db.Table.all() with len() guards.
 // ANCHOR: display
 @table type DeviceLog {
-    id: int
     device_id: str
     temperature: float
     status_code: int
@@ -21,7 +19,6 @@
 }
 
 @table type DeviceRegistry {
-    id: int
     device_id: str
     active: bool
 }
@@ -44,10 +41,22 @@ fn get_log_count(id: str) to int {
 
 @query
 fn get_average_temperature(id: str) to float {
-    let logs = db.DeviceLog.all()
-    if len(logs) is 0 {
-        return 0.0
+    match db.DeviceLog.all() {
+        Ok(logs) => {
+            let mut total = 0.0
+            let mut count = 0.0
+            for entry in logs {
+                total = total + entry.temperature
+                count = count + 1.0
+            }
+            if count is 0.0 {
+                return 0.0
+            }
+            return total / count
+        }
+        Error(e) => {
+            return 0.0
+        }
     }
-    return 42.0 // Mock aggregate for compilation AST target
 }
 // ANCHOR_END: display

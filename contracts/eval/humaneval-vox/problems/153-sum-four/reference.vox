@@ -1,3 +1,0 @@
-fn sum_four(a: int, b: int, c: int, d: int) to int {
-    return a + b + c + d
-}

@@ -23,6 +23,19 @@ fn emit(src: &str) -> String {
         .join("\n")
 }
 
+/// Emit and return the content of a single generated file by path.
+fn emit_file(src: &str, path: &str) -> String {
+    let m = parse(lex(src)).expect("parse");
+    let hir = lower_module(&m);
+    generate(&hir)
+        .expect("emit")
+        .files
+        .into_iter()
+        .find(|(p, _)| p == path)
+        .unwrap_or_else(|| panic!("no emitted file `{path}`"))
+        .1
+}
+
 #[test]
 fn on_mount_endpoint_call_emits_vox_client_import() {
     let src = r#"
@@ -124,26 +137,17 @@ component Panel() {
 
 #[test]
 fn no_spurious_self_import() {
-    // A component that references only itself-shaped tags must not import itself.
+    // A component's own file must not import itself. (Scoped to `Solo.tsx`: the
+    // web bootstrap `vox-app.tsx` legitimately imports the root component to
+    // render `<Solo />`, so a combined-files scan would false-positive on that.)
     let src = r#"
 component Solo() {
     view: column { text { "alone" } }
 }
 "#;
-    // Scope the invariant to the `Solo.tsx` COMPONENT file: the root component
-    // must not import itself. The emitted `vox-app.tsx` bootstrap legitimately
-    // imports the root component `Solo`, so a whole-bundle join would false-fail.
-    let m = parse(lex(src)).expect("parse");
-    let hir = lower_module(&m);
-    let solo = generate(&hir)
-        .expect("emit")
-        .files
-        .iter()
-        .find(|(name, _)| name == "Solo.tsx")
-        .map(|(_, c)| c.clone())
-        .expect("Solo.tsx must be emitted");
+    let solo = emit_file(src, "Solo.tsx");
     assert!(
         !solo.contains("import { Solo } from \"./Solo\""),
-        "component must not self-import; got:\n{solo}"
+        "component's own file must not self-import; got:\n{solo}"
     );
 }

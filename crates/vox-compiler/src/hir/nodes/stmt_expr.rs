@@ -74,7 +74,9 @@ pub struct HirDbPlanCapabilities {
 }
 
 /// Backend-neutral query/mutation plan representation attached to DB expressions.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+// No `PartialEq`/`Eq`: `predicate_args`/`limit_value` carry `HirExpr`, which is
+// not comparable (it holds `f64` literals). Nothing compares plans by value.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirDbQueryPlan {
     pub table: String,
     pub op: HirDbTableOp,
@@ -83,6 +85,19 @@ pub struct HirDbQueryPlan {
     pub order_by: Option<(String, bool)>,
     pub has_limit: bool,
     pub capabilities: HirDbPlanCapabilities,
+    /// Flattened predicate comparison values in predicate DFS order — the same
+    /// order [`HirDbPredicate`] leaves are visited. Carried on the plan so a
+    /// *fused* query chain (`.where({..}).select(..)`) keeps its `where` values
+    /// even though the surface MethodCall args belong to the outer modifier.
+    /// Empty when the plan has no predicate. (The interpreter threads these
+    /// positionally against `predicate`; codegen has its own arg path and
+    /// ignores them.)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub predicate_args: Vec<HirArg>,
+    /// The `limit(n)` value expression, when present — carried so a fused chain
+    /// retains the limit even when `.limit` is not the outermost call.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit_value: Option<Box<HirExpr>>,
 }
 
 /// Type representation in HIR (resolved from [`crate::ast::types::TypeExpr`]).

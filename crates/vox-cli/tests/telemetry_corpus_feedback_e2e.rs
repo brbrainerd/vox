@@ -71,6 +71,7 @@ fn model_call() -> TelemetryEvent {
         model: "x".into(),
         provider: "x".into(),
         route_profile: None,
+        selection_rationale: None,
         prompt_tokens: 0,
         completion_tokens: 0,
         cache_read_input_tokens: None,
@@ -84,7 +85,6 @@ fn model_call() -> TelemetryEvent {
         parent_task_id: None,
         trace_id: None,
         caller_agent_id: None,
-        selection_rationale: None,
     })
 }
 

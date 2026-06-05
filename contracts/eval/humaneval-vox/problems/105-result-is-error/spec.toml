@@ -1,8 +1,0 @@
-id = "humaneval-vox-105-result-is-error"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `result_is_error(r: Result[int]) to bool` returning true when r is Error(_).
-"""

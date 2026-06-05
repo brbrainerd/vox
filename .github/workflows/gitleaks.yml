@@ -32,8 +32,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}  # required for org repos
+      # Run the MIT-licensed gitleaks CLI directly rather than
+      # `gitleaks/gitleaks-action@v2`, which requires a paid `GITLEAKS_LICENSE`
+      # for organization-owned repos. The CLI is the same scanner with no license
+      # gate; it fails the job (exit 1) on any finding — exactly what a gate needs.
+      - name: Install gitleaks
+        run: |
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      # Scan the working tree (`dir`) rather than full history (`git`): a PR gate
+      # should flag secrets being *added*, not re-litigate every historical
+      # commit. gitleaks auto-discovers `.gitleaks.toml` at the repo root, which
+      # allowlists docs/test/fixture placeholders.
+      - name: Gitleaks scan
+        run: gitleaks dir . --redact --verbose --exit-code 1

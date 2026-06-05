@@ -1,6 +1,0 @@
-fn result_is_error(r: Result[int]) to bool {
-    match r {
-        Ok(_)    => return false
-        Error(_) => return true
-    }
-}

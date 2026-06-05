@@ -1,8 +1,0 @@
-id = "humaneval-vox-151-int-min"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `int_min(a: int, b: int) to int` returning the smaller of two integers.
-"""

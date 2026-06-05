@@ -1,9 +1,0 @@
-id = "humaneval-vox-005-is-valid-username"
-training_eligible = false
-provenance = "examples-golden-lift"
-derived_from = "examples/golden/control_flow_if.vox"
-
-prompt = """
-Write a Vox function `is_valid_username(name: str) to bool` returning
-true when `name` length is between 3 and 32 inclusive, otherwise false.
-"""

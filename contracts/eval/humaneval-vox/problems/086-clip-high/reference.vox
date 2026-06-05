@@ -1,6 +1,0 @@
-fn clip_high(n: int, hi: int) to int {
-    if n > hi {
-        return hi
-    }
-    return n
-}

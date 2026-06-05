@@ -227,6 +227,62 @@ pub fn call_builtin_method(
     }
 
     match obj {
+        // ── compiled Regex (std.regex.compile) ────────────────────────
+        VoxValue::Regex(re) => match method {
+            "matches" | "is_match" => match args.first() {
+                Some(VoxValue::Str(s)) => Some(VoxValue::Bool(re.is_match(s))),
+                _ => Some(VoxValue::Bool(false)),
+            },
+            "find" => match args.first() {
+                Some(VoxValue::Str(s)) => Some(VoxValue::Option(re.captures(s).map(|caps| {
+                    let groups: Vec<core::option::Option<String>> = caps
+                        .iter()
+                        .map(|g| g.map(|m| m.as_str().to_string()))
+                        .collect();
+                    Box::new(VoxValue::Match(groups))
+                }))),
+                _ => Some(VoxValue::Option(None)),
+            },
+            "find_all" => match args.first() {
+                Some(VoxValue::Str(s)) => {
+                    let all: Vec<VoxValue> = re
+                        .captures_iter(s)
+                        .map(|caps| {
+                            let groups: Vec<core::option::Option<String>> = caps
+                                .iter()
+                                .map(|g| g.map(|m| m.as_str().to_string()))
+                                .collect();
+                            VoxValue::Match(groups)
+                        })
+                        .collect();
+                    Some(VoxValue::List(all))
+                }
+                _ => Some(VoxValue::List(vec![])),
+            },
+            _ => None,
+        },
+        // ── Regex Match (capture groups; group 0 = whole match) ───────
+        VoxValue::Match(groups) => match method {
+            "group" => {
+                let idx = match args.first() {
+                    Some(VoxValue::Int(i)) => *i as usize,
+                    _ => return Some(VoxValue::Option(None)),
+                };
+                Some(VoxValue::Option(
+                    groups
+                        .get(idx)
+                        .and_then(|g| g.clone())
+                        .map(|s| Box::new(VoxValue::Str(s))),
+                ))
+            }
+            "groups" => Some(VoxValue::List(
+                groups
+                    .iter()
+                    .map(|g| VoxValue::Str(g.clone().unwrap_or_default()))
+                    .collect(),
+            )),
+            _ => None,
+        },
         // ── List ──────────────────────────────────────────────────────
         VoxValue::List(v) => match method {
             "len" => Some(VoxValue::Int(v.len() as i64)),
@@ -723,22 +779,21 @@ pub fn call_builtin_method(
             )),
             // `err()` — returns Some(err_msg) for Err, None for Ok.
             "err" => Some(VoxValue::Option(
-                res.as_ref()
-                    .err()
-                    .map(|e| Box::new(VoxValue::Str(e.clone()))),
+                res.as_ref().err().map(|e| Box::new((**e).clone())),
             )),
             // `unwrap()` panics on Err with the Err message. The _Panic
             // sentinel is caught upstream and converted to an EvalError.
             "unwrap" => Some(match res.as_ref() {
                 Ok(v) => (**v).clone(),
-                Err(e) => {
-                    VoxValue::_Panic(format!("called `Result.unwrap()` on an Err value: {e}"))
-                }
+                Err(e) => VoxValue::_Panic(format!(
+                    "called `Result.unwrap()` on an Err value: {}",
+                    vox_value_display(e)
+                )),
             }),
             // `unwrap_err()` panics on Ok — the inverse of unwrap. Prior
             // impl returned empty Str on Ok, masking the misuse silently.
             "unwrap_err" => Some(match res.as_ref() {
-                Err(e) => VoxValue::Str(e.clone()),
+                Err(e) => (**e).clone(),
                 Ok(_) => {
                     VoxValue::_Panic("called `Result.unwrap_err()` on an Ok value".to_string())
                 }
@@ -761,7 +816,7 @@ pub fn call_builtin_method(
                         Some(VoxValue::Str(s)) => s,
                         _ => "expected Ok, found Err".to_string(),
                     };
-                    VoxValue::_Panic(format!("Result.expect: {ctx} ({e})"))
+                    VoxValue::_Panic(format!("Result.expect: {ctx} ({})", vox_value_display(e)))
                 }
             }),
             _ => None,
@@ -923,7 +978,7 @@ pub fn call_builtin_method(
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
                             Err(e) => Err(e.to_string()),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     // Interp parity: typecheck + native codegen expose these fs ops,
                     // so the interpreter must too (else "Method not found" at --interp).
@@ -938,7 +993,7 @@ pub fn call_builtin_method(
                             ))),
                             Err(e) => Err(e.to_string()),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     "canonicalize" => {
                         let path = match args.into_iter().next() {
@@ -949,7 +1004,7 @@ pub fn call_builtin_method(
                             Ok(p) => Ok(Box::new(VoxValue::Str(p.to_string_lossy().to_string()))),
                             Err(e) => Err(e.to_string()),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     // `write_to_file` is the Rust-style alias of write/write_file.
                     "write" | "write_file" | "write_to_file" => {
@@ -966,7 +1021,7 @@ pub fn call_builtin_method(
                             Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
                             Err(e) => Err(e.to_string()),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     // `cwd` — current working directory. Mirrors
                     // `std::env::current_dir()`. Returns a Result because
@@ -977,7 +1032,7 @@ pub fn call_builtin_method(
                             Ok(p) => Ok(Box::new(VoxValue::Str(p.to_string_lossy().to_string()))),
                             Err(e) => Err(e.to_string()),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     // `copy(src, dst)` — copies a file. Audit doc §10
                     // confirmed this as a needed primitive (no good substitute).
@@ -995,7 +1050,7 @@ pub fn call_builtin_method(
                             Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
                             Err(e) => Err(e.to_string()),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     // `remove(path)` — deletes a file. For directories use
                     // `remove_dir_all` (already registered).
@@ -1008,7 +1063,7 @@ pub fn call_builtin_method(
                             Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
                             Err(e) => Err(e.to_string()),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     // `walk(dir)` — recursive lister. Eval delegates to
                     // the glob impl via `**/*` since fs.walk and fs.glob are
@@ -1034,7 +1089,9 @@ pub fn call_builtin_method(
                                 }
                                 Some(VoxValue::Result(Ok(Box::new(VoxValue::List(entries)))))
                             }
-                            Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
+                            Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                e.to_string(),
+                            )))),
                         }
                     }
                     "exists" => {
@@ -1067,7 +1124,7 @@ pub fn call_builtin_method(
                             Ok(()) => Ok(Box::new(VoxValue::Null)),
                             Err(e) => Err(e.to_string()),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     "list_dir" => {
                         let path = match args.into_iter().next() {
@@ -1083,7 +1140,7 @@ pub fn call_builtin_method(
                         } else {
                             Err("failed to list directory".to_string())
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     "glob" => {
                         let pattern = match args.into_iter().next() {
@@ -1107,7 +1164,7 @@ pub fn call_builtin_method(
                             }
                             Err(e) => Err(e.to_string()),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     "list_dir_detailed" => {
                         let path = match args.into_iter().next() {
@@ -1134,7 +1191,7 @@ pub fn call_builtin_method(
                             }
                             Err(e) => Err(e),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     "stat" => {
                         let path = match args.into_iter().next() {
@@ -1153,7 +1210,7 @@ pub fn call_builtin_method(
                             ]))),
                             Err(e) => Err(e),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     "mkdir" => {
                         let path = match args.into_iter().next() {
@@ -1164,7 +1221,7 @@ pub fn call_builtin_method(
                             Ok(()) => Ok(Box::new(VoxValue::Bool(true))),
                             Err(e) => Err(e.to_string()),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     _ => None,
                 },
@@ -1173,7 +1230,8 @@ pub fn call_builtin_method(
                     // Interpreter parity with native codegen
                     // (vox_actor_runtime::builtins::vox_now_ms) and the typeck
                     // signature (`time.now_ms -> Int`) in builtin_registry.rs.
-                    "now_ms" => {
+                    // `now` is an alias (merged from main's std.time arm).
+                    "now_ms" | "now" => {
                         let ms = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
                             .map(|d| d.as_millis() as i64)
@@ -1337,7 +1395,7 @@ pub fn call_builtin_method(
                             }
                             Err(e) => Err(e.to_string()),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     _ => None,
                 },
@@ -1462,7 +1520,7 @@ pub fn call_builtin_method(
                             }
                             Err(e) => Err(e.to_string()),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     "spawn_background" => {
                         let mut it = args.into_iter();
@@ -1487,10 +1545,10 @@ pub fn call_builtin_method(
                         let handle = match tokio::runtime::Handle::try_current() {
                             Ok(h) => h,
                             Err(_) => {
-                                return Some(VoxValue::Result(Err(
+                                return Some(VoxValue::Result(Err(crate::eval::value::err_str(
                                     "spawn_background must be run within a Tokio runtime"
                                         .to_string(),
-                                )));
+                                ))));
                             }
                         };
 
@@ -1505,7 +1563,9 @@ pub fn call_builtin_method(
                                 });
                                 Some(VoxValue::Result(Ok(Box::new(VoxValue::Int(id as i64)))))
                             }
-                            Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
+                            Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                e.to_string(),
+                            )))),
                         }
                     }
                     "exec" => {
@@ -1532,7 +1592,9 @@ pub fn call_builtin_method(
                         {
                             use std::os::unix::process::CommandExt;
                             let err = std::process::Command::new(cmd_name).args(cmd_args).exec();
-                            Some(VoxValue::Result(Err(err.to_string())))
+                            Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                err.to_string(),
+                            ))))
                         }
                         #[cfg(not(unix))]
                         {
@@ -1541,7 +1603,9 @@ pub fn call_builtin_method(
                                     vox_flush_exit_commands();
                                     std::process::exit(st.code().unwrap_or(1))
                                 }
-                                Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
+                                Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                    e.to_string(),
+                                )))),
                             }
                         }
                     }
@@ -1601,7 +1665,7 @@ pub fn call_builtin_method(
                         let res = interp_process_run_capture_json(&cmd_name, &cmd_args);
                         Some(VoxValue::Result(match res {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(crate::eval::value::err_str(e)),
                         }))
                     }
                     "run_capture_lines" => {
@@ -1628,7 +1692,7 @@ pub fn call_builtin_method(
                             Ok(lines) => Ok(Box::new(VoxValue::List(
                                 lines.into_iter().map(VoxValue::Str).collect(),
                             ))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(crate::eval::value::err_str(e)),
                         }))
                     }
                     // Interp parity: run_capture / run_capture_ex return the full
@@ -1678,7 +1742,7 @@ pub fn call_builtin_method(
                             ]))),
                             Err(e) => Err(e.to_string()),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     // `process.cwd` — same op as `fs.cwd`, aliased here for the
                     // call sites that reach for it under the `process` namespace.
@@ -1688,7 +1752,7 @@ pub fn call_builtin_method(
                             Ok(p) => Ok(Box::new(VoxValue::Str(p.to_string_lossy().to_string()))),
                             Err(e) => Err(e.to_string()),
                         };
-                        Some(VoxValue::Result(res))
+                        Some(VoxValue::Result(res.map_err(crate::eval::value::err_str)))
                     }
                     // `process.which(cmd)` — locate a binary on PATH, returning
                     // its absolute path or None if not found. Cross-platform —
@@ -1732,7 +1796,7 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(match interp_csv_parse(&s) {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(crate::eval::value::err_str(e)),
                         }))
                     }
                     "parse_records" => {
@@ -1742,7 +1806,7 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(match interp_csv_parse_records(&s) {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(crate::eval::value::err_str(e)),
                         }))
                     }
                     "render" => {
@@ -1753,14 +1817,14 @@ pub fn call_builtin_method(
                         let rows = match voxvalue_as_table_str(&rows_v) {
                             Some(r) => r,
                             None => {
-                                return Some(VoxValue::Result(Err(
+                                return Some(VoxValue::Result(Err(crate::eval::value::err_str(
                                     "csv.render: expected list[list[str]]".into(),
-                                )));
+                                ))));
                             }
                         };
                         Some(VoxValue::Result(match interp_csv_render(&rows) {
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(crate::eval::value::err_str(e)),
                         }))
                     }
                     _ => None,
@@ -1773,7 +1837,7 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(match interp_toml_parse(&s) {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(crate::eval::value::err_str(e)),
                         }))
                     }
                     "render" => {
@@ -1784,7 +1848,7 @@ pub fn call_builtin_method(
                         let j = vox_to_json(v);
                         Some(VoxValue::Result(match interp_toml_render(&j) {
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(crate::eval::value::err_str(e)),
                         }))
                     }
                     _ => None,
@@ -1797,7 +1861,7 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(match interp_yaml_parse(&s) {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(crate::eval::value::err_str(e)),
                         }))
                     }
                     "render" => {
@@ -1808,7 +1872,7 @@ pub fn call_builtin_method(
                         let j = vox_to_json(v);
                         Some(VoxValue::Result(match interp_yaml_render(&j) {
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(crate::eval::value::err_str(e)),
                         }))
                     }
                     _ => None,
@@ -1821,7 +1885,7 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(match interp_io_open(&path) {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(crate::eval::value::err_str(e)),
                         }))
                     }
                     "save" => {
@@ -1837,7 +1901,7 @@ pub fn call_builtin_method(
                         let j = vox_to_json(val);
                         Some(VoxValue::Result(match interp_io_save(&path, &j) {
                             Ok(()) => Ok(Box::new(VoxValue::Null)),
-                            Err(e) => Err(e),
+                            Err(e) => Err(crate::eval::value::err_str(e)),
                         }))
                     }
                     _ => None,
@@ -1850,14 +1914,16 @@ pub fn call_builtin_method(
                         let s = match args.into_iter().next() {
                             Some(VoxValue::Str(s)) => s,
                             _ => {
-                                return Some(VoxValue::Result(Err(
+                                return Some(VoxValue::Result(Err(crate::eval::value::err_str(
                                     "json.parse: expected string argument".into(),
-                                )));
+                                ))));
                             }
                         };
                         match serde_json::from_str::<serde_json::Value>(&s) {
                             Ok(v) => Some(VoxValue::Result(Ok(Box::new(json_to_vox(v))))),
-                            Err(e) => Some(VoxValue::Result(Err(format!("json.parse: {e}")))),
+                            Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                format!("json.parse: {e}"),
+                            )))),
                         }
                     }
                     "render" | "stringify" | "encode" => {
@@ -1869,7 +1935,7 @@ pub fn call_builtin_method(
                         let res = serde_json::to_string(&j).map_err(|e| e.to_string());
                         Some(VoxValue::Result(match res {
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(crate::eval::value::err_str(e)),
                         }))
                     }
                     // Interp parity with vox_json_read_str/read_f64/quote (native).
@@ -1898,7 +1964,7 @@ pub fn call_builtin_method(
                         })();
                         Some(VoxValue::Result(match res {
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(crate::eval::value::err_str(e)),
                         }))
                     }
                     "read_f64" => {
@@ -1926,7 +1992,7 @@ pub fn call_builtin_method(
                         })();
                         Some(VoxValue::Result(match res {
                             Ok(f) => Ok(Box::new(VoxValue::Float(f))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(crate::eval::value::err_str(e)),
                         }))
                     }
                     "quote" => {
@@ -1936,6 +2002,51 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Str(
                             serde_json::to_string(&s).unwrap_or_else(|_| "\"\"".to_string()),
+                        ))
+                    }
+                    _ => None,
+                },
+                Some("http") => match method {
+                    // Real blocking HTTP in the interpreter (Vox is a web-app
+                    // language). Mirrors the codegen path so std.http behaves the
+                    // same under --mode interp and --mode script.
+                    "get_text" => {
+                        let url = match args.first() {
+                            Some(VoxValue::Str(s)) => s.clone(),
+                            _ => {
+                                return Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                    "std.http.get_text expects a url string".to_string(),
+                                ))));
+                            }
+                        };
+                        Some(VoxValue::Result(
+                            http_blocking_get_text(&url)
+                                .map(|s| Box::new(VoxValue::Str(s)))
+                                .map_err(crate::eval::value::err_str),
+                        ))
+                    }
+                    "post_json" => {
+                        let mut it = args.iter();
+                        let url = match it.next() {
+                            Some(VoxValue::Str(s)) => s.clone(),
+                            _ => {
+                                return Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                    "std.http.post_json expects (url, body) strings".to_string(),
+                                ))));
+                            }
+                        };
+                        let body = match it.next() {
+                            Some(VoxValue::Str(s)) => s.clone(),
+                            _ => {
+                                return Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                    "std.http.post_json expects a json body string".to_string(),
+                                ))));
+                            }
+                        };
+                        Some(VoxValue::Result(
+                            http_blocking_post_json(&url, &body)
+                                .map(|s| Box::new(VoxValue::Str(s)))
+                                .map_err(crate::eval::value::err_str),
                         ))
                     }
                     _ => None,
@@ -2049,21 +2160,20 @@ pub fn call_builtin_method(
                                 Some(VoxValue::Str(s)) => s,
                                 _ => {
                                     return Some(VoxValue::Result(Err(
-                                        "regex.compile expected a string pattern".to_string(),
+                                        crate::eval::value::err_str(
+                                            "regex.compile expected a string pattern".to_string(),
+                                        ),
                                     )));
                                 }
                             };
                             match regex::Regex::new(&pattern) {
-                                // Return a compiled-Regex VALUE (Tagged "Regex") so
+                                // Return the compiled `VoxValue::Regex` value so
                                 // re.matches/find/find_all dispatch in the interpreter,
-                                // matching the typeck Result[Regex] contract (a golden
-                                // does `re.matches(s)`). Previously returned a bare str,
-                                // which crashed under --interp on `.matches`.
-                                Ok(_) => Some(VoxValue::Result(Ok(Box::new(VoxValue::Tagged {
-                                    name: "Regex".to_string(),
-                                    fields: vec![VoxValue::Str(pattern)],
-                                })))),
-                                Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
+                                // matching the typeck `Result[Regex]` contract.
+                                Ok(re) => Some(VoxValue::Result(Ok(Box::new(VoxValue::Regex(re))))),
+                                Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                    e.to_string(),
+                                )))),
                             }
                         }
                         _ => None,
@@ -2255,6 +2365,15 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
         }
         "len" => {
             let v = args.into_iter().next()?;
+            // Measure transparently through a `Result`/`Option` container so the
+            // canonical db idiom `len(db.User.all())` — where `all()` is
+            // `Result[List[Record]]` and typechecks under `len` — yields the row
+            // count rather than `Null`. `Err`/`None` count as 0.
+            let v = match v {
+                VoxValue::Result(Ok(inner)) | VoxValue::Option(Some(inner)) => *inner,
+                VoxValue::Result(Err(_)) | VoxValue::Option(None) => return Some(VoxValue::Int(0)),
+                other => other,
+            };
             match v {
                 VoxValue::List(ls) => Some(VoxValue::Int(ls.len() as i64)),
                 VoxValue::Str(s) => Some(VoxValue::Int(s.len() as i64)),
@@ -2414,6 +2533,9 @@ pub fn vox_value_type_name(v: &VoxValue) -> &'static str {
     match v {
         VoxValue::Int(_) => "Int",
         VoxValue::Float(_) => "Float",
+        VoxValue::Decimal(_) => "Decimal",
+        VoxValue::Regex(_) => "Regex",
+        VoxValue::Match(_) => "Match",
         VoxValue::Str(_) => "Str",
         VoxValue::Bool(_) => "Bool",
         VoxValue::List(_) => "List",
@@ -2467,8 +2589,53 @@ pub fn vox_value_display(v: &VoxValue) -> String {
             let items: Vec<String> = t.iter().map(vox_value_display).collect();
             format!("({})", items.join(", "))
         }
+        VoxValue::Decimal(d) => d.to_string(),
+        VoxValue::Regex(re) => re.as_str().to_string(),
         _ => format!("{v:?}"),
     }
+}
+
+/// Blocking HTTP GET for the `--mode interp` `std.http` tier. Runs on a dedicated
+/// OS thread: the interpreter executes inside the CLI's tokio runtime, and
+/// `reqwest::blocking` panics if constructed in an async runtime context. This
+/// mirrors the codegen path (`vox_actor_runtime::builtins::vox_http_get_text`),
+/// so `std.http.get_text` behaves the same under `--mode interp` and `--mode script`.
+fn http_blocking_get_text(url: &str) -> Result<String, String> {
+    let url = url.to_string();
+    std::thread::spawn(move || -> Result<String, String> {
+        let client = reqwest::blocking::Client::builder()
+            .user_agent(concat!("vox-interp/", env!("CARGO_PKG_VERSION")))
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .map_err(|e| e.to_string())?;
+        let resp = client.get(&url).send().map_err(|e| e.to_string())?;
+        resp.text().map_err(|e| e.to_string())
+    })
+    .join()
+    .map_err(|_| "std.http.get_text worker thread panicked".to_string())?
+}
+
+/// Blocking HTTP POST (JSON body) for the `--mode interp` `std.http` tier. See
+/// [`http_blocking_get_text`] for why this runs on a dedicated thread.
+fn http_blocking_post_json(url: &str, body: &str) -> Result<String, String> {
+    let url = url.to_string();
+    let body = body.to_string();
+    std::thread::spawn(move || -> Result<String, String> {
+        let client = reqwest::blocking::Client::builder()
+            .user_agent(concat!("vox-interp/", env!("CARGO_PKG_VERSION")))
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .map_err(|e| e.to_string())?;
+        let resp = client
+            .post(&url)
+            .header("content-type", "application/json")
+            .body(body)
+            .send()
+            .map_err(|e| e.to_string())?;
+        resp.text().map_err(|e| e.to_string())
+    })
+    .join()
+    .map_err(|_| "std.http.post_json worker thread panicked".to_string())?
 }
 
 #[cfg(test)]

@@ -1,8 +1,0 @@
-id = "humaneval-vox-102-is-some"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `is_some(o: Option[int]) to bool` returning true when o is Some(_).
-"""

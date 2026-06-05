@@ -102,9 +102,12 @@ fn resolve_type(te: &TypeExpr, env: &TypeEnv) -> Ty {
                 "Option" => Ty::Option(Box::new(
                     inner_args.into_iter().next().unwrap_or(Ty::TypeVar(0)),
                 )),
-                "Result" => Ty::Result(Box::new(
-                    inner_args.into_iter().next().unwrap_or(Ty::TypeVar(0)),
-                )),
+                "Result" => {
+                    let mut result_args = inner_args.into_iter();
+                    let ok = result_args.next().unwrap_or(Ty::TypeVar(0));
+                    let err = result_args.next().unwrap_or(Ty::Str);
+                    Ty::Result(Box::new(ok), Box::new(err))
+                }
                 _ => Ty::Named(name.clone()),
             }
         }

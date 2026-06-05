@@ -4,6 +4,7 @@
 // status: golden
 // category: example
 // training_eligible: true
+// difficulty: advanced
 // ---
 
 @ai(task_category = CodeGen, strengths = [codegen], tier_max = Pro)

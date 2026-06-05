@@ -1,3 +1,0 @@
-fn discount(price: int, percent: int) to int {
-    return price - ((price * percent) / 100)
-}

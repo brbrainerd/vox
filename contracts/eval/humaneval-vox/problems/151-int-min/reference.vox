@@ -1,6 +1,0 @@
-fn int_min(a: int, b: int) to int {
-    if a < b {
-        return a
-    }
-    return b
-}

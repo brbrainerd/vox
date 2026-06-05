@@ -146,8 +146,11 @@ crates/*/target.stale-*/
 /jobs.json
 /runs.json
 
-# Generated test fixture snapshots (re-created by build)
-crates/vox-populi/tests/fixtures/
+# Generated test fixture artifacts (heavy weights etc. re-created by build), but
+# keep the small static HF `config.json` inputs that hf_load_config.rs reads.
+crates/vox-populi/tests/fixtures/**
+!crates/vox-populi/tests/fixtures/**/
+!crates/vox-populi/tests/fixtures/**/*.json
 docs/book/
 
 # Large model and data artifacts

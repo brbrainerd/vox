@@ -1,9 +1,0 @@
-fn tax_bracket_3(income: int) to int {
-    if income <= 10000 {
-        return 0
-    }
-    if income <= 50000 {
-        return 15
-    }
-    return 30
-}

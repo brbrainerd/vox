@@ -8,6 +8,7 @@
 // last_validated: 2026-04-13
 // training_eligible: true
 // training_weight: 1.0
+// difficulty: intermediate
 // ---
 // @training_prompt: Demonstrate nested composite types in Vox: List of Maps, Result wrapping List, and Option wrapping Result.
 // ANCHOR: display

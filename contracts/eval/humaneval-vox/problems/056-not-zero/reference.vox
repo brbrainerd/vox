@@ -1,6 +1,0 @@
-fn not_zero(n: int) to bool {
-    if n is 0 {
-        return false
-    }
-    return true
-}

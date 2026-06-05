@@ -1,6 +1,0 @@
-fn result_or_msg(r: Result[str]) to str {
-    match r {
-        Ok(s)    => return s
-        Error(_) => return "(error)"
-    }
-}

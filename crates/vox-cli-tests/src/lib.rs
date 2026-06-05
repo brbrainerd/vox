@@ -300,9 +300,19 @@ impl BuildRun {
             });
         }
 
-        // Point tsc's module resolution at the shared node_modules so emitted
-        // `import { ... } from "react"` resolves without per-fixture npm install.
+        // Make the shared node_modules resolvable from the out dir via the
+        // standard ancestor lookup, by linking it in as `<out_dir>/node_modules`.
+        //
+        // `--baseUrl <node_modules>` alone is NOT enough: with it, a bare
+        // `import React from "react"` resolves the module (so `React.createElement`
+        // type-checks), but TypeScript does not fully apply the `@types/react`
+        // class+interface declaration merge for `React.Component`, so inherited
+        // members like `this.setState` / `this.props` spuriously report TS2339.
+        // Linking node_modules as an ancestor restores normal `@types` resolution.
         let shared_node_modules = tests_dir.join("node_modules");
+        let linked_node_modules = self.out_dir.path().join("node_modules");
+        link_node_modules(&shared_node_modules, &linked_node_modules);
+
         let mut cmd = Command::new(&program);
         for a in &prefix_args {
             cmd.arg(a);
@@ -310,14 +320,24 @@ impl BuildRun {
         cmd.arg("--noEmit");
         cmd.arg("--project");
         cmd.arg(self.out_dir.path());
-        cmd.arg("--baseUrl");
-        cmd.arg(&shared_node_modules);
-        cmd.env(
-            "NODE_PATH",
-            shared_node_modules
-                .to_str()
-                .expect("non-utf8 node_modules path"),
-        );
+        // Deliberately NO `--baseUrl` here: pointing tsc's base at node_modules
+        // is what suppresses the `@types/react` `Component` declaration merge
+        // (TS2339 on `this.setState`/`this.props`). The linked
+        // `<out_dir>/node_modules` above resolves every import — `react`,
+        // `@types/*`, `@tanstack/react-query`, etc. — via the normal ancestor
+        // lookup, so the base override is neither needed nor wanted.
+        if !linked_node_modules.exists() {
+            // Linking failed (e.g. no symlink privilege and no `mklink`); fall
+            // back to the base-url resolution so non-`@types` imports still work.
+            cmd.arg("--baseUrl");
+            cmd.arg(&shared_node_modules);
+            cmd.env(
+                "NODE_PATH",
+                shared_node_modules
+                    .to_str()
+                    .expect("non-utf8 node_modules path"),
+            );
+        }
         let output = cmd
             .output()
             .unwrap_or_else(|e| panic!("spawn tsc for {}: {e}", self.fixture_name));
@@ -407,6 +427,33 @@ fn walk_files(root: &Path) -> Vec<PathBuf> {
         }
     }
     out
+}
+
+/// Link the shared `node_modules` into the emit out dir (`link_path`) so tsc
+/// resolves `@types/*` via the normal ancestor lookup rather than `--baseUrl`
+/// alone (which drops the React class+interface declaration merge — see
+/// `assert_tsc_compiles`). Best-effort: a symlink (Unix, or Windows with the
+/// symlink privilege), else a Windows directory junction (`mklink /J`, no
+/// privilege required), else a no-op (the `--baseUrl` fallback still resolves
+/// most non-`@types` imports).
+fn link_node_modules(target: &Path, link_path: &Path) {
+    if link_path.exists() {
+        return;
+    }
+    #[cfg(unix)]
+    {
+        let _ = std::os::unix::fs::symlink(target, link_path);
+    }
+    #[cfg(windows)]
+    {
+        if std::os::windows::fs::symlink_dir(target, link_path).is_err() {
+            let _ = Command::new("cmd")
+                .args(["/C", "mklink", "/J"])
+                .arg(link_path)
+                .arg(target)
+                .output();
+        }
+    }
 }
 
 /// Run `npm install` in `tests/` so emitted TypeScript can resolve `react`,

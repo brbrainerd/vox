@@ -1,8 +1,0 @@
-id = "humaneval-vox-039-average-two"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `average_two(a: int, b: int) to int` returning the integer average of a and b (floor-divide by 2).
-"""

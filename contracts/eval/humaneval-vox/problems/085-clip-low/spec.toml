@@ -1,8 +1,0 @@
-id = "humaneval-vox-085-clip-low"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `clip_low(n: int, lo: int) to int` returning n raised to at least lo (i.e. max(n, lo)).
-"""

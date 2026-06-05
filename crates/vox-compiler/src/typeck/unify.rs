@@ -56,7 +56,9 @@ impl InferenceContext {
             }
             Ty::List(inner) => Ty::List(Box::new(self.resolve(inner))),
             Ty::Option(inner) => Ty::Option(Box::new(self.resolve(inner))),
-            Ty::Result(inner) => Ty::Result(Box::new(self.resolve(inner))),
+            Ty::Result(ok, err) => {
+                Ty::Result(Box::new(self.resolve(ok)), Box::new(self.resolve(err)))
+            }
             Ty::Stream(inner) => Ty::Stream(Box::new(self.resolve(inner))),
             Ty::Map(k, v) => Ty::Map(Box::new(self.resolve(k)), Box::new(self.resolve(v))),
             Ty::Set(inner) => Ty::Set(Box::new(self.resolve(inner))),
@@ -111,7 +113,10 @@ impl InferenceContext {
             Ty::GenericParam(id) => map.entry(id).or_insert_with(|| self.fresh_var()).clone(),
             Ty::List(inner) => Ty::List(Box::new(self.instantiate_inner(*inner, map))),
             Ty::Option(inner) => Ty::Option(Box::new(self.instantiate_inner(*inner, map))),
-            Ty::Result(inner) => Ty::Result(Box::new(self.instantiate_inner(*inner, map))),
+            Ty::Result(ok, err) => Ty::Result(
+                Box::new(self.instantiate_inner(*ok, map)),
+                Box::new(self.instantiate_inner(*err, map)),
+            ),
             Ty::Stream(inner) => Ty::Stream(Box::new(self.instantiate_inner(*inner, map))),
             Ty::Set(inner) => Ty::Set(Box::new(self.instantiate_inner(*inner, map))),
             Ty::Map(k, v) => Ty::Map(
@@ -158,11 +163,10 @@ impl InferenceContext {
     fn occurs(&self, id: u32, ty: &Ty) -> bool {
         match self.resolve(ty) {
             Ty::TypeVar(other_id) => id == other_id,
-            Ty::List(inner)
-            | Ty::Set(inner)
-            | Ty::Stream(inner)
-            | Ty::Option(inner)
-            | Ty::Result(inner) => self.occurs(id, &inner),
+            Ty::List(inner) | Ty::Set(inner) | Ty::Stream(inner) | Ty::Option(inner) => {
+                self.occurs(id, &inner)
+            }
+            Ty::Result(ok, err) => self.occurs(id, &ok) || self.occurs(id, &err),
             Ty::Map(k, v) => self.occurs(id, &k) || self.occurs(id, &v),
             Ty::Tuple(elems) => elems.iter().any(|e| self.occurs(id, e)),
             Ty::Fn(params, ret) => {
@@ -227,7 +231,10 @@ impl InferenceContext {
             }
             (Ty::List(a_inner), Ty::List(b_inner)) => self.unify(a_inner, b_inner),
             (Ty::Option(a_inner), Ty::Option(b_inner)) => self.unify(a_inner, b_inner),
-            (Ty::Result(a_inner), Ty::Result(b_inner)) => self.unify(a_inner, b_inner),
+            (Ty::Result(a_ok, a_err), Ty::Result(b_ok, b_err)) => {
+                self.unify(a_ok, b_ok)?;
+                self.unify(a_err, b_err)
+            }
             (Ty::Stream(a_inner), Ty::Stream(b_inner)) => self.unify(a_inner, b_inner),
             (Ty::Set(a_inner), Ty::Set(b_inner)) => self.unify(a_inner, b_inner),
             (Ty::Map(ak, av), Ty::Map(bk, bv)) => {

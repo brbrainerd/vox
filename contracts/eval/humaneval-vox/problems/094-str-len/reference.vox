@@ -1,3 +1,0 @@
-fn str_len(s: str) to int {
-    return len(s)
-}

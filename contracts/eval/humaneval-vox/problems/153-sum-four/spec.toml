@@ -1,8 +1,0 @@
-id = "humaneval-vox-153-sum-four"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `sum_four(a: int, b: int, c: int, d: int) to int` returning a + b + c + d.
-"""

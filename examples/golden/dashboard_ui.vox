@@ -8,6 +8,7 @@
 // last_validated: 2026-05-02
 // training_eligible: true
 // training_weight: 1.0
+// difficulty: intermediate
 // ---
 // @training_prompt: Create a minimal dashboard page with a chart component and a route table.
 // ANCHOR: display

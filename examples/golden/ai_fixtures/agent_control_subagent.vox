@@ -4,6 +4,7 @@
 // status: golden
 // category: example
 // training_eligible: true
+// difficulty: intermediate
 // ---
 
 @subagent(policy = parallel, max_depth = 2, budget_usd = 0.5, description = "parallel fanout")

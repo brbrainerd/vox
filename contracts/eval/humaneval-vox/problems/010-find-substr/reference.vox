@@ -1,3 +1,0 @@
-fn find(haystack: str, needle: str) to Option[int] {
-    return haystack.index_of(needle)
-}

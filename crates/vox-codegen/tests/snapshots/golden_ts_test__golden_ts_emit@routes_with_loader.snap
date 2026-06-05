@@ -1,5 +1,6 @@
 ---
 source: crates/vox-codegen/tests/golden_ts_test.rs
+assertion_line: 56
 expression: combined
 ---
 === Home.tsx ===

@@ -5,7 +5,8 @@
 //! - `React.useState` for every visible field
 //! - client-side validation (required, max_len, min_len)
 //! - async submit handler that calls the bound `@mutation` (or `@server`) function
-//! - optional `navigate()` redirect on success
+//! - optional router-agnostic redirect on success (`history.pushState` +
+//!   `popstate`, so any router that observes `popstate` navigates)
 //! - accessible `<label>` / `<input>` pairs with ARIA error associations
 //! - a banner error `<div>` for server-side failures
 

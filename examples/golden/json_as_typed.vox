@@ -1,3 +1,15 @@
+// ---
+// title: "Typed JSON deserialization with @json_as"
+// description: "@json_as typed JSON: structs, camelCase naming, @field_name overrides, defaults, and tagged-enum ADT dispatch with round-trip."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [@json_as, @field_name, type, match, fn]
+// last_validated: 2026-06-03
+// training_eligible: true
+// training_weight: 1.0
+// difficulty: advanced
+// ---
 // Golden example: @json_as(TypeName) typed JSON deserialization.
 // RFC: docs/src/architecture/json-as-rfc-2026-05-24.md
 // Phase M — Steps 1-6 (complete).

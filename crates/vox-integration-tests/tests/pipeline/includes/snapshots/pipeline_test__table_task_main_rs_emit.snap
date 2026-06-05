@@ -1,6 +1,6 @@
 ---
 source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
-assertion_line: 319
+assertion_line: 325
 expression: main_rs
 ---
 // vox-generated rust_app_shell=AxumLocalServer
@@ -91,7 +91,12 @@ async fn main() {
     // ── Database setup (Codex / vox_db) ──
     let cfg = vox_db::DbConfig::resolve_canonical().expect("resolve Codex DB config (VOX_DB_URL+TOKEN, or VOX_DB_PATH)");
     let codex = vox_db::Codex::connect(cfg).await.expect("Failed to open Codex database");
-    codex.connection().execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;").await.expect("PRAGMA failed");
+    {
+        let mut __vox_jm = codex.connection().query("PRAGMA journal_mode=WAL;", ()).await
+            .expect("PRAGMA journal_mode failed");
+        while __vox_jm.next().await.expect("PRAGMA journal_mode row").is_some() {}
+    }
+    codex.connection().execute_batch("PRAGMA foreign_keys=ON;").await.expect("PRAGMA foreign_keys failed");
     codex.connection().execute_batch(r#"
 CREATE TABLE IF NOT EXISTS task (
 _id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -100,7 +105,7 @@ _id INTEGER PRIMARY KEY AUTOINCREMENT,
     priority INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_task_by_done ON task (done, priority);
-#"#).await.expect("schema migration failed");
+"#).await.expect("schema migration failed");
     let db = Arc::new(codex);
 
     // 1. Initialize the durable database.
@@ -127,7 +132,7 @@ CREATE INDEX IF NOT EXISTS idx_task_by_done ON task (done, priority);
 /// `HirModule`. Called once from `main()` to register the process-global
 /// module for `current_hir_module()` lookups (ADR-041 §6(b)).
 fn load_hir_module_from_embedded() -> ::vox_compiler::hir::HirModule {
-    const EMBEDDED_HIR: &str = r#"{"imports":[],"rust_imports":[],"functions":[],"types":[],"tests":[],"foralls":[],"endpoint_fns":[],"tables":[{"id":0,"name":"Task","fields":[{"name":"title","type_ann":{"Named":"str"},"span":{"start":23,"end":34}},{"name":"done","type_ann":{"Named":"bool"},"span":{"start":38,"end":49}},{"name":"priority","type_ann":{"Named":"int"},"span":{"start":53,"end":67}}],"is_pub":false,"is_deprecated":false,"span":{"start":0,"end":69}}],"indexes":[{"table_name":"Task","index_name":"by_done","columns":["done","priority"],"span":{"start":70,"end":110}}],"collections":[],"vector_indexes":[],"search_indexes":[],"mcp_tools":[],"mcp_resources":[],"agents":[],"environments":[],"components":[],"client_routes":[],"url_decls":[],"state_machines":[],"fragments":[],"reactive_modules":[],"forms":[],"back_button":null,"deep_link":null,"push":null,"token_decls":[],"route_ids":[],"inferred_types":{},"legacy_ast_nodes":[]}"#;
+    const EMBEDDED_HIR: &str = r#"{"imports":[],"rust_imports":[],"functions":[],"types":[],"tests":[],"examples":[],"foralls":[],"endpoint_fns":[],"tables":[{"id":0,"name":"Task","fields":[{"name":"title","type_ann":{"Named":"str"},"span":{"start":23,"end":34}},{"name":"done","type_ann":{"Named":"bool"},"span":{"start":38,"end":49}},{"name":"priority","type_ann":{"Named":"int"},"span":{"start":53,"end":67}}],"is_pub":false,"is_deprecated":false,"span":{"start":0,"end":69}}],"indexes":[{"table_name":"Task","index_name":"by_done","columns":["done","priority"],"span":{"start":70,"end":110}}],"collections":[],"vector_indexes":[],"search_indexes":[],"mcp_tools":[],"mcp_resources":[],"agents":[],"environments":[],"components":[],"client_routes":[],"url_decls":[],"state_machines":[],"fragments":[],"reactive_modules":[],"forms":[],"back_button":null,"deep_link":null,"push":null,"token_decls":[],"route_ids":[],"inferred_types":{},"legacy_ast_nodes":[]}"#;
     ::serde_json::from_str(EMBEDDED_HIR)
         .expect("embedded HirModule deserializes (codegen wrote it; should round-trip)")
 }

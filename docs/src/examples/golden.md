@@ -119,7 +119,7 @@ Typed configuration blocks and named environment definitions. `config` generates
 Counter demo using the current `component` surface: `state`, `derived`, `effect`, `on mount`, `on cleanup`, and a `view` with click handlers.
 
 ```vox
-{{#include ../../../examples/golden/reactive_counter.vox}}
+{{#include ../../../examples/golden/reactive_counter.vox:display}}
 ```
 
 ---
@@ -129,7 +129,7 @@ Counter demo using the current `component` surface: `state`, `derived`, `effect`
 Narrow host HTTP helpers on `std.http` (dotted path; see parser tests). Suitable for scripting and smoke tests against real endpoints.
 
 ```vox
-{{#include ../../../examples/golden/std_http_wrappers.vox}}
+{{#include ../../../examples/golden/std_http_wrappers.vox:display}}
 ```
 
 ---
@@ -139,7 +139,7 @@ Narrow host HTTP helpers on `std.http` (dotted path; see parser tests). Suitable
 Small UI handlers using the mobile namespace pattern (`onclick={fn() { … }}`).
 
 ```vox
-{{#include ../../../examples/golden/mobile_test.vox}}
+{{#include ../../../examples/golden/mobile_test.vox:display}}
 ```
 
 ---
@@ -149,7 +149,7 @@ Small UI handlers using the mobile namespace pattern (`onclick={fn() { … }}`).
 Bundled as `/opt/vox/mesh-noop.vox` in the Docker image for compose-based workers (`vox run --mode script`).
 
 ```vox
-{{#include ../../../examples/golden/mesh/noop.vox}}
+{{#include ../../../examples/golden/mesh/noop.vox:display}}
 ```
 
 ---

@@ -1,9 +1,0 @@
-fn clamp(n: int, lo: int, hi: int) to int {
-    if n < lo {
-        return lo
-    }
-    if n > hi {
-        return hi
-    }
-    return n
-}

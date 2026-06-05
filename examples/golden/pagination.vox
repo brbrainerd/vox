@@ -8,6 +8,7 @@
 // last_validated: 2026-05-13
 // training_eligible: true
 // training_weight: 1.0
+// difficulty: intermediate
 // ---
 // @training_prompt: Implement cursor-based pagination over database tables.
 // Note: db.Table.filter() is not yet implemented — use db.Table.all() with application-side pagination.

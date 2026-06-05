@@ -1,6 +1,0 @@
-fn result_or_zero(r: Result[int]) to int {
-    match r {
-        Ok(n)    => return n
-        Error(_) => return 0
-    }
-}

@@ -80,8 +80,14 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
         // Exact decimal arithmetic is a future enhancement; for now the corpus
         // programs only use integer arithmetic or float literals.
         HirExpr::DecimalLit(s, _) => {
-            let f: f64 = s.parse().unwrap_or(0.0);
-            Ok(VoxValue::Float(f))
+            // Exact fixed-point decimal — mirrors the Rust codegen path
+            // (`rust_decimal::Decimal::from_str_exact`). Falls back to a lenient
+            // parse, then zero, so a malformed literal never panics the interp.
+            use std::str::FromStr;
+            let d = rust_decimal::Decimal::from_str_exact(s)
+                .or_else(|_| rust_decimal::Decimal::from_str(s))
+                .unwrap_or_default();
+            Ok(VoxValue::Decimal(d))
         }
         HirExpr::ObjectLit(fields, _) => {
             let mut obj = Vec::new();
@@ -158,8 +164,15 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                         EvalError::AssertionFailed(format!("integer modulo overflow: {a} % {b}"))
                     })
                 }
-                (HirBinOp::Is, a, b) => Ok(VoxValue::Bool(a == b)),
-                (HirBinOp::Isnt, a, b) => Ok(VoxValue::Bool(a != b)),
+                // Normalize bare nullary constructors (`None` is stored as
+                // Constructor("None") until used as a value) so `opt is None`
+                // compares against the canonical Option(None) form on both sides.
+                (HirBinOp::Is, a, b) => Ok(VoxValue::Bool(
+                    normalize_constructor(a) == normalize_constructor(b),
+                )),
+                (HirBinOp::Isnt, a, b) => Ok(VoxValue::Bool(
+                    normalize_constructor(a) != normalize_constructor(b),
+                )),
                 (HirBinOp::Lt, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a < b)),
                 (HirBinOp::Gt, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a > b)),
                 (HirBinOp::Lte, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a <= b)),
@@ -194,12 +207,95 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 (HirBinOp::Gte, VoxValue::Float(a), VoxValue::Float(b)) => {
                     Ok(VoxValue::Bool(a >= b))
                 }
+                // Exact decimal arithmetic (rust_decimal) — matches the Rust
+                // codegen path so `dec` programs run identically in interp.
+                (HirBinOp::Add, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    Ok(VoxValue::Decimal(a + b))
+                }
+                (HirBinOp::Sub, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    Ok(VoxValue::Decimal(a - b))
+                }
+                (HirBinOp::Mul, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    Ok(VoxValue::Decimal(a * b))
+                }
+                (HirBinOp::Div, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    if b == rust_decimal::Decimal::ZERO {
+                        Err(EvalError::AssertionFailed(
+                            "decimal division by zero".to_string(),
+                        ))
+                    } else {
+                        Ok(VoxValue::Decimal(a / b))
+                    }
+                }
+                (HirBinOp::Lt, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    Ok(VoxValue::Bool(a < b))
+                }
+                (HirBinOp::Gt, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    Ok(VoxValue::Bool(a > b))
+                }
+                (HirBinOp::Lte, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    Ok(VoxValue::Bool(a <= b))
+                }
+                (HirBinOp::Gte, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    Ok(VoxValue::Bool(a >= b))
+                }
                 // Mixed Int + Float (or any other type pair the arms above
                 // didn't catch) used to silently return Null — a health
                 // foot-gun (audit doc §10.4 health-corrections section). An
                 // explicit `to_float()` conversion is required if the user
                 // wants mixed-arithmetic semantics; the error message names
                 // both operand types so the diagnostic is actionable.
+                // Mixed Int/Float — the typechecker promotes these to Float
+                // (checker/expr_ops.rs), so the interpreter must compute them in
+                // f64 rather than erroring.
+                (HirBinOp::Add, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Float(a as f64 + b))
+                }
+                (HirBinOp::Add, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Float(a + b as f64))
+                }
+                (HirBinOp::Sub, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Float(a as f64 - b))
+                }
+                (HirBinOp::Sub, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Float(a - b as f64))
+                }
+                (HirBinOp::Mul, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Float(a as f64 * b))
+                }
+                (HirBinOp::Mul, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Float(a * b as f64))
+                }
+                (HirBinOp::Div, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Float(a as f64 / b))
+                }
+                (HirBinOp::Div, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Float(a / b as f64))
+                }
+                (HirBinOp::Lt, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Bool((a as f64) < b))
+                }
+                (HirBinOp::Lt, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Bool(a < b as f64))
+                }
+                (HirBinOp::Gt, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Bool((a as f64) > b))
+                }
+                (HirBinOp::Gt, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Bool(a > b as f64))
+                }
+                (HirBinOp::Lte, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Bool((a as f64) <= b))
+                }
+                (HirBinOp::Lte, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Bool(a <= b as f64))
+                }
+                (HirBinOp::Gte, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Bool((a as f64) >= b))
+                }
+                (HirBinOp::Gte, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Bool(a >= b as f64))
+                }
                 (op, l, r) => Err(EvalError::AssertionFailed(format!(
                     "unsupported binary op `{op:?}` for operands {} and {}",
                     crate::eval::builtins::vox_value_type_name(&l),
@@ -213,6 +309,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 (HirUnOp::Not, VoxValue::Bool(b)) => Ok(VoxValue::Bool(!b)),
                 (HirUnOp::Neg, VoxValue::Int(n)) => Ok(VoxValue::Int(-n)),
                 (HirUnOp::Neg, VoxValue::Float(f)) => Ok(VoxValue::Float(-f)),
+                (HirUnOp::Neg, VoxValue::Decimal(d)) => Ok(VoxValue::Decimal(-d)),
                 (op, other) => Err(EvalError::AssertionFailed(format!(
                     "unsupported unary op `{op:?}` for operand {}",
                     crate::eval::builtins::vox_value_type_name(&other),
@@ -223,10 +320,10 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             let c = eval_expr(interp, cond)?;
             let b = match c {
                 VoxValue::Bool(b) => b,
-                _ => {
+                other => {
                     return Err(EvalError::TypeError {
                         expected: "bool",
-                        found: "other".into(),
+                        found: super::builtins::vox_value_type_name(&other).into(),
                     });
                 }
             };
@@ -333,24 +430,35 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                         eval_args.into_iter().next().unwrap(),
                     )))),
                     "Err" | "Error" if eval_args.len() == 1 => {
-                        let msg = match eval_args.into_iter().next().unwrap() {
-                            VoxValue::Str(s) => s,
-                            other => format!("{other:?}"),
-                        };
-                        Ok(VoxValue::Result(Err(msg)))
+                        // Box the actual error value so typed errors `Error(MyAdt)`
+                        // survive at runtime; `Error("string")` boxes to Str.
+                        let err_val = eval_args.into_iter().next().unwrap();
+                        Ok(VoxValue::Result(Err(Box::new(err_val))))
                     }
                     _ => Ok(VoxValue::Tagged {
                         name,
                         fields: eval_args,
                     }),
                 },
-                _ => Err(EvalError::TypeError {
+                other => Err(EvalError::TypeError {
                     expected: "function",
-                    found: "other".into(),
+                    found: super::builtins::vox_value_type_name(&other).into(),
                 }),
             }
         }
-        HirExpr::MethodCall(obj, method, args, _, _) => {
+        HirExpr::MethodCall(obj, method, args, opt_plan, _) => {
+            // DB query-plan execution. `db.Table.op(...)` lowers to a MethodCall
+            // carrying a query plan; the `db.Table` receiver is not a real value
+            // (evaluating it would fail as `UndefinedVariable("db")`), so we
+            // intercept here, evaluate the call args, and run the plan against
+            // the interpreter's in-memory store — before touching the receiver.
+            if let Some(plan) = opt_plan {
+                let mut plan_args: Vec<(Option<String>, VoxValue)> = Vec::new();
+                for a in args {
+                    plan_args.push((a.name.clone(), eval_expr(interp, &a.value)?));
+                }
+                return super::db::execute_db_plan(interp, plan, plan_args);
+            }
             // Detect the `str.method(receiver, ...)` / `list.method(receiver, ...)`
             // free-function-style call. These were never valid in Vox — string and
             // list operations are method-only — but the previous error message
@@ -457,39 +565,46 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
         }
         HirExpr::For(binding, index, iterable, body, _, _) => {
             let c = eval_expr(interp, iterable)?;
-            let mut results = Vec::new();
-            if let VoxValue::List(ls) = c {
-                interp.scope.push_frame();
-                for (i, l) in ls.into_iter().enumerate() {
-                    interp.scope.set(binding.clone(), l);
-                    if let Some(idx_name) = index {
-                        interp.scope.set(idx_name.clone(), VoxValue::Int(i as i64));
-                    }
-                    let val = eval_expr(interp, body)?;
-                    match val {
-                        // Propagate early-exit signals out of the for loop.
-                        VoxValue::_Return(_) | VoxValue::_Break | VoxValue::_Panic(_) => {
-                            interp.scope.pop_frame();
-                            return Ok(val);
-                        }
-                        VoxValue::_Continue => {
-                            // skip pushing this iteration's result, continue loop
-                        }
-                        other => results.push(other),
-                    }
+            // Iterate List, Map (as (key, value) tuples — matching the
+            // typechecker's Map element type), and Str (as one-char strings).
+            let items: Vec<VoxValue> = match c {
+                VoxValue::List(ls) => ls,
+                VoxValue::Object(pairs) => pairs
+                    .into_iter()
+                    .map(|(k, v)| VoxValue::Tuple(vec![VoxValue::Str(k), v]))
+                    .collect(),
+                VoxValue::Str(s) => s.chars().map(|ch| VoxValue::Str(ch.to_string())).collect(),
+                other => {
+                    return Err(EvalError::TypeError {
+                        expected: "List",
+                        found: crate::eval::builtins::vox_value_type_name(&other).into(),
+                    });
                 }
-                interp.scope.pop_frame();
-                Ok(VoxValue::List(results))
-            } else {
-                Err(EvalError::TypeError {
-                    expected: "List",
-                    found: "other".into(),
-                })
+            };
+            let mut results = Vec::new();
+            interp.scope.push_frame();
+            for (i, l) in items.into_iter().enumerate() {
+                interp.scope.set(binding.clone(), l);
+                if let Some(idx_name) = index {
+                    interp.scope.set(idx_name.clone(), VoxValue::Int(i as i64));
+                }
+                let val = eval_expr(interp, body)?;
+                match val {
+                    // Propagate early-exit signals out of the for loop.
+                    VoxValue::_Return(_) | VoxValue::_Break | VoxValue::_Panic(_) => {
+                        interp.scope.pop_frame();
+                        return Ok(val);
+                    }
+                    VoxValue::_Continue => {}
+                    other => results.push(other),
+                }
             }
+            interp.scope.pop_frame();
+            Ok(VoxValue::List(results))
         }
         HirExpr::FieldAccess(obj, field, _) => {
             let o = eval_expr(interp, obj)?;
-            if let VoxValue::Object(fields) = o {
+            if let VoxValue::Object(fields) = &o {
                 fields
                     .iter()
                     .find(|(k, _)| k == field)
@@ -500,7 +615,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             } else {
                 Err(EvalError::TypeError {
                     expected: "Object",
-                    found: "other".into(),
+                    found: super::builtins::vox_value_type_name(&o).into(),
                 })
             }
         }
@@ -778,15 +893,10 @@ fn apply_closure_method(
         (VoxValue::Result(res), "map_err") => match res.as_ref() {
             Ok(v) => Ok(Some(VoxValue::Result(Ok(v.clone())))),
             Err(e) => {
-                let mapped = apply_closure(interp, &closure, vec![VoxValue::Str(e.clone())])?;
-                if let VoxValue::Str(new_msg) = mapped {
-                    Ok(Some(VoxValue::Result(Err(new_msg))))
-                } else {
-                    Err(EvalError::TypeError {
-                        expected: "str",
-                        found: super::builtins::vox_value_type_name(&mapped).into(),
-                    })
-                }
+                // Pass the real error value to the closure and box whatever it
+                // returns (no longer restricted to str-in / str-out).
+                let mapped = apply_closure(interp, &closure, vec![(**e).clone()])?;
+                Ok(Some(VoxValue::Result(Err(Box::new(mapped)))))
             }
         },
         (VoxValue::Result(res), "and_then") => match res.as_ref() {

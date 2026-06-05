@@ -1,5 +1,6 @@
 ---
 source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
+assertion_line: 515
 expression: component.1
 ---
 import React, { useState, useEffect } from "react";
@@ -8,8 +9,10 @@ export function Timer(): React.ReactElement {
     const [count, set_count] = useState(0);
     useEffect(((_x) => (count)));
   return (
+    <div className="px-4">
     <div className={["flex", "flex-col", "timer"].filter(Boolean).join(" ")}>
       {count}
+    </div>
     </div>
   );
 }

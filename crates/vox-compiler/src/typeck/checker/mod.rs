@@ -862,7 +862,7 @@ pub(crate) fn pretty_print_unresolved_type(ty: &Ty) -> String {
         Ty::Never => "Never".to_string(),
         Ty::List(inner) => format!("List[{}]", pretty_print_unresolved_type(inner)),
         Ty::Option(inner) => format!("Option[{}]", pretty_print_unresolved_type(inner)),
-        Ty::Result(inner) => format!("Result[{}]", pretty_print_unresolved_type(inner)),
+        Ty::Result(ok, _err) => format!("Result[{}]", pretty_print_unresolved_type(ok)),
         Ty::Fn(_, _) => "fn(...)".to_string(),
         _ => format!("{ty:?}"),
     }

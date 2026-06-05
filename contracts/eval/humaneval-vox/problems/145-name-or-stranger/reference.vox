@@ -1,6 +1,0 @@
-fn name_or_stranger(o: Option[str]) to str {
-    match o {
-        Some(s) => return s
-        None    => return "stranger"
-    }
-}

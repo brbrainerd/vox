@@ -2,68 +2,163 @@
   "schema_version": 1,
   "corpus": "humaneval-vox",
   "total_fixtures": 164,
-  "held_out_count": 10,
-  "corpus_hash": "blake3:feaf32ed39b465f134bc1e4af700374361091fa6190d940ad4ed34efbbc59d2a",
+  "held_out_count": 31,
+  "corpus_hash": "sha256:8a2f155a4010a0112a5dab8ab6ebc1a577d3349dd56201f4495a25ff74fdb54e",
   "entries": [
     {
-      "id": "humaneval-vox-001-greet",
-      "provenance": "examples-golden-lift",
-      "derived_from": "examples/golden/hello.vox",
-      "fixture_hash": "blake3:cc198c51b77e2d91cdf1882716291d00845bed562bfc0940b791bba93060f473"
+      "id": "humaneval-vox-041-nth-prime",
+      "provenance": "original",
+      "fixture_hash": "blake3:915ebe1db542f04f296e9053d474955f37c77c63e782070ad1d07a3ffa354795"
     },
     {
-      "id": "humaneval-vox-002-first-three",
-      "provenance": "examples-golden-lift",
-      "derived_from": "examples/golden/str_utils.vox",
-      "fixture_hash": "blake3:b4d9cb9d2898008626dd861b8cac7be96d4d961818639844ba21fda8b7d11a72"
+      "id": "humaneval-vox-042-reverse-list",
+      "provenance": "original",
+      "fixture_hash": "blake3:8b7b3906b584af709c92d8ed90f767b066c1b8fb58ab847485a96cbd2d9f55e0"
     },
     {
-      "id": "humaneval-vox-003-classify-score",
-      "provenance": "examples-golden-lift",
-      "derived_from": "examples/golden/control_flow_if.vox",
-      "fixture_hash": "blake3:0de5b8c80dc547bf47a3a0ccee6d2a01928ad86f6d3035caa7a3aebb42853e03"
+      "id": "humaneval-vox-043-triangle-valid",
+      "provenance": "original",
+      "fixture_hash": "blake3:58b3d499bc378d40f11fff2329e57d6ace0719decd377e3bfa042dce6537829f"
     },
     {
-      "id": "humaneval-vox-004-shipping-cost",
-      "provenance": "examples-golden-lift",
-      "derived_from": "examples/golden/control_flow_if.vox",
-      "fixture_hash": "blake3:b35ec46b0e0bb0e063fa7abdf8064408a2380d958f28f93234fa8d168b44a217"
+      "id": "humaneval-vox-044-digital-root",
+      "provenance": "original",
+      "fixture_hash": "blake3:5735fb074a1ec70debacd13e6db29234fa22be35ebdf74d97a52517587de9160"
     },
     {
-      "id": "humaneval-vox-005-is-valid-username",
-      "provenance": "examples-golden-lift",
-      "derived_from": "examples/golden/control_flow_if.vox",
-      "fixture_hash": "blake3:d3ffa7a4cbb9916ad0a201a84a74ba6f86bd72439cdc6faf5f4978f94c2166ea"
+      "id": "humaneval-vox-045-caesar-shift",
+      "provenance": "original",
+      "fixture_hash": "blake3:3d16ffd5d78d20173277a414f724256b745e36716bb108dc0b312257d29b1052"
     },
     {
-      "id": "humaneval-vox-006-parse-int",
-      "provenance": "examples-golden-lift",
-      "derived_from": "examples/golden/error_propagation.vox",
-      "fixture_hash": "blake3:8924139aa14ccaa2e4ce6d10d72aaa7909cdcb0cb4344b84fbf04fa94c6618c2"
+      "id": "humaneval-vox-046-count-primes-up-to",
+      "provenance": "original",
+      "fixture_hash": "blake3:599b0ce87742d9e2a5a519c7ff8d9af6cc847de8880c58d80db6a9159e37a1e8"
     },
     {
-      "id": "humaneval-vox-007-divide-safe",
-      "provenance": "examples-golden-lift",
-      "derived_from": "examples/golden/error_propagation.vox",
-      "fixture_hash": "blake3:35f1872113eda5249eda393e01cde52b19d2ec8667b370b61ca44407f3516a88"
+      "id": "humaneval-vox-047-partition-by-sign",
+      "provenance": "original",
+      "fixture_hash": "blake3:75a3b7922939d66daa39b256d37f3735e5ae053f56a9ed1d11b3f75f494a5b73"
     },
     {
-      "id": "humaneval-vox-008-validate-email",
-      "provenance": "examples-golden-lift",
-      "derived_from": "examples/golden/error_propagation.vox",
-      "fixture_hash": "blake3:0ca7e3cbeb514adfd6b18806b13f6881c2ef38b0059826c57d9b5cc07444afae"
+      "id": "humaneval-vox-048-collatz-length",
+      "provenance": "original",
+      "fixture_hash": "blake3:4b1242dab2344835f9a7f3a93957c85cd5ce0dff989ecff0dfa76eb8ac2de0b0"
     },
     {
-      "id": "humaneval-vox-009-access-level",
-      "provenance": "examples-golden-lift",
-      "derived_from": "examples/golden/control_flow_if.vox",
-      "fixture_hash": "blake3:4928b452b2b2086b4531981d22209a76a165e62dbe91c1ef79681c77a0bbebeb"
+      "id": "humaneval-vox-049-merge-sorted",
+      "provenance": "original",
+      "fixture_hash": "blake3:746e1236e6bf910b9536a128da269520c2d30847eee6bace0937213009b591d0"
     },
     {
-      "id": "humaneval-vox-010-find-substr",
-      "provenance": "examples-golden-lift",
-      "derived_from": "examples/golden/str_utils.vox",
-      "fixture_hash": "blake3:ea27111ab996d4a8d594a4366ec97cca64ebf54d85769a07d72c27e25eac35d9"
+      "id": "humaneval-vox-050-selection-sort",
+      "provenance": "original",
+      "fixture_hash": "blake3:436f689c6b0b3ae1f787b748191d2677b8aaa4974801c2219f74be4abfd96a74"
+    },
+    {
+      "id": "humaneval-vox-065-rotate-right",
+      "provenance": "original",
+      "fixture_hash": "blake3:38e36b470dd4b7d3a32030fc6fd018858023c6ae1d89ac3fe6639ceda3c54626"
+    },
+    {
+      "id": "humaneval-vox-066-max-subarray-sum",
+      "provenance": "original",
+      "fixture_hash": "blake3:4da9082e77cfabca2257ea09995a26d7785644fdfcd9274e9738d3183015bbcf"
+    },
+    {
+      "id": "humaneval-vox-067-bubble-sort",
+      "provenance": "original",
+      "fixture_hash": "blake3:71156b561fd1f9308dc36b2ea049d46214d3f3014ada23bc206dbdf736c31289"
+    },
+    {
+      "id": "humaneval-vox-068-insertion-sort",
+      "provenance": "original",
+      "fixture_hash": "blake3:3978e2d02abaf348dc37841b8d3e869176da77ada9503d7ea8d5744d7c777202"
+    },
+    {
+      "id": "humaneval-vox-069-binary-search",
+      "provenance": "original",
+      "fixture_hash": "blake3:64aec35685bc280596adff8087d0496f1597d1b2809ba9fc5e3802fc7365b47d"
+    },
+    {
+      "id": "humaneval-vox-070-count-set-bits",
+      "provenance": "original",
+      "fixture_hash": "blake3:21c1301ce14844df2bfccfe839d9729d61645f068cf6bd3dcb505cbf1c859d56"
+    },
+    {
+      "id": "humaneval-vox-071-is-perfect",
+      "provenance": "original",
+      "fixture_hash": "blake3:7f0d5ba6eef333459446b1c8c7ccde3b07f896fc2869d9a39013c01137cc1512"
+    },
+    {
+      "id": "humaneval-vox-072-triangular-number",
+      "provenance": "original",
+      "fixture_hash": "blake3:0ca90a3ae3c8dbe47e660d10a79c98fc6e5904cc9ddb8c95aeb2a50aedf5226b"
+    },
+    {
+      "id": "humaneval-vox-073-two-sum-exists",
+      "provenance": "original",
+      "fixture_hash": "blake3:41b016718f6716de2decd8c19c1b0f448b58bef3db9f8e741ac0906615336788"
+    },
+    {
+      "id": "humaneval-vox-074-chunk-list",
+      "provenance": "original",
+      "fixture_hash": "blake3:d0a1bdf602b8b042bfa961265c971df35378d5e1e76171116a3b54485cb35220"
+    },
+    {
+      "id": "humaneval-vox-075-sum-even-squares",
+      "provenance": "original",
+      "fixture_hash": "blake3:b481d6d897e90ac37808efe85392a91f70ba420b2475841c62456fad251883c9"
+    },
+    {
+      "id": "humaneval-vox-098-is-power-of-n",
+      "provenance": "original",
+      "fixture_hash": "blake3:8c3d86d1d671355b57d4ba13b9e0b08c1d2c6959f8d0f2d4a0d434dd8383bc56"
+    },
+    {
+      "id": "humaneval-vox-099-hamming-distance",
+      "provenance": "original",
+      "fixture_hash": "blake3:630ddac6f4029db70af826fba04debcb4720e8496c90ff99bc0d8521ea61022c"
+    },
+    {
+      "id": "humaneval-vox-100-pangram-check",
+      "provenance": "original",
+      "fixture_hash": "blake3:e0eb550220017e4e05220c155cc14530827cb01c9fee16a650a78add588de161"
+    },
+    {
+      "id": "humaneval-vox-128-caesar-decode",
+      "provenance": "original",
+      "fixture_hash": "blake3:6e604a479e6bed2dafe97d7063e69134521b9defa8cc3c1d7a42d48d7f2f114b"
+    },
+    {
+      "id": "humaneval-vox-148-is-sorted-unique",
+      "provenance": "original",
+      "fixture_hash": "blake3:0fe46e087f4cbf4179bcb9baa6a7c5fcb8f3a9959fa0d44a1e34d5f921db3a31"
+    },
+    {
+      "id": "humaneval-vox-160-list-intersection-sorted",
+      "provenance": "original",
+      "fixture_hash": "blake3:27dcf8a70190ed72d5c2f1404d97fda88ed36b2998aa838f1392603374ba9d3e"
+    },
+    {
+      "id": "humaneval-vox-161-to-hex",
+      "provenance": "original",
+      "fixture_hash": "blake3:fefaf5e14622dfe8c0d96345195a1862867e86d90aef3e960eead09b75391428"
+    },
+    {
+      "id": "humaneval-vox-162-from-hex",
+      "provenance": "original",
+      "fixture_hash": "blake3:5040b63f2ffca3bd95e2f1efa8ec248aa7f13713d10d19f3db0743173337b12c"
+    },
+    {
+      "id": "humaneval-vox-163-str-compress",
+      "provenance": "original",
+      "fixture_hash": "blake3:0c0a7fa0ce3474bac80802b5100988a17cdd6120a7a236d457dae2668241276e"
+    },
+    {
+      "id": "humaneval-vox-164-str-decompress",
+      "provenance": "original",
+      "fixture_hash": "blake3:a57d2f344aa7397a58f00096b3d3644c50a6d0052e2c69acd1c441bcf2b1c80a"
     }
   ]
 }

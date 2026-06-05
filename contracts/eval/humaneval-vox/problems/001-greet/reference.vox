@@ -1,3 +1,0 @@
-fn greet(name: str) to str {
-    return "Hello " + name + "!"
-}
