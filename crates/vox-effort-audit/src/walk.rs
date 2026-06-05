@@ -139,14 +139,16 @@ fn build_record(
     let sha = oid.to_string();
     let parent_sha = commit.parent_ids().next().map(|p| p.detach().to_string());
 
-    // commit_ts from the commit's time field (seconds since epoch).
-    let secs = decoded.time().seconds;
+    // commit_ts from the commit's time (seconds since epoch).
+    // gix 0.84: CommitRef::time() now returns Result; Time::seconds is still a field.
+    let secs = decoded.time().map(|t| t.seconds).unwrap_or(0);
     let commit_ts = Utc.timestamp_opt(secs, 0).single().unwrap_or_else(Utc::now);
 
-    // author email -> sha256 hex
-    let email_bytes: &[u8] = decoded.author.email.as_ref();
+    // author email -> sha256 hex. gix 0.84: CommitRef::author() now returns Result<SignatureRef>.
     let mut hasher = Sha256::new();
-    hasher.update(email_bytes);
+    if let Ok(sig) = decoded.author() {
+        hasher.update(sig.email);
+    }
     let author_email_sha256 = format!("{:x}", hasher.finalize());
 
     // Full message (subject + body).
