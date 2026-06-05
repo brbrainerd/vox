@@ -69,9 +69,9 @@ mod ops_publication;
 mod ops_questioning;
 mod ops_retention;
 mod ops_scientia;
+mod ops_user_identity;
 
 pub use ops_finding_candidates::{FindingCandidateClass, FindingCandidateRow, InsertOutcome};
-mod ops_user_identity;
 pub use ops_user_identity::{NanopubRow, UserIdentityRow};
 mod ops_secrets_cloudless;
 mod ops_visus;
