@@ -27,11 +27,11 @@ pub const HOTSPOT_TIER2_RUST: &[&str] = &[
     "crates/vox-forge/src/types.rs",
     "crates/vox-package/src/store/ops.rs",
     "crates/vox-codegen-rust/src/emit.rs",
-    "crates/vox-dei-shim/src/research/orchestrator/mod.rs",
+    "crates/vox-research-shim/src/research/orchestrator/mod.rs",
     "crates/vox-gamify/src/db.rs",
     "crates/vox-orchestrator-mcp/src/chat_tools/mod.rs",
     // selection/mod.rs removed: selection/ was WIP and not part of the active module tree
-    // (see vox-dei-shim/src/lib.rs for context)
+    // (see vox-research-shim/src/lib.rs for context)
     "crates/vox-db/src/schema_digest.rs",
     "crates/vox-cli/src/cli_actions.rs",
     "crates/vox-compiler/src/ast/decl/mod.rs",

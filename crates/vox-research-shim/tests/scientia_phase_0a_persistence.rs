@@ -1,4 +1,4 @@
-use vox_dei_shim::research::persistence::{slug_from_query, write_research_doc};
+use vox_research_shim::research::persistence::{slug_from_query, write_research_doc};
 
 #[test]
 fn slug_from_query_basic() {

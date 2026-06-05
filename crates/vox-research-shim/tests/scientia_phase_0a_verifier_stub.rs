@@ -1,4 +1,4 @@
-use vox_dei_shim::research::{
+use vox_research_shim::research::{
     claims::Claim, provider::ProviderRegistry, verifier::verify_claims_with_config,
 };
 
@@ -12,7 +12,7 @@ async fn verify_claims_without_evidence_returns_empty() {
         is_named_event: false,
     }];
     let registry = ProviderRegistry::default();
-    let cfg = vox_dei_shim::research::verifier::VerifierConfig::default();
+    let cfg = vox_research_shim::research::verifier::VerifierConfig::default();
     let verdicts = verify_claims_with_config(&claims, "q", &[], &registry, &cfg, None, None).await;
     assert!(
         verdicts.is_empty(),

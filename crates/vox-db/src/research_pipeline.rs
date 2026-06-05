@@ -1,6 +1,6 @@
 //! Codex methods for the SCIENTIA research pipeline (Phase 0d).
 //!
-//! These implement the DB half of the stubs in `vox-dei-shim/src/research/orchestrator/pipeline.rs`.
+//! These implement the DB half of the stubs in `vox-research-shim/src/research/orchestrator/pipeline.rs`.
 
 use crate::VoxDb;
 use crate::store::StoreError;

@@ -121,7 +121,7 @@ vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
 vox-journal             = { layer = 2 }                          # append-only JSONL journal; deps vox-runtime (L1) (PR #97)
 # L3: both consume the vox-actor-runtime (L3) LLM facade — every actor-runtime
-# consumer (vox-search, vox-tensor, vox-dei-shim, vox-orchestrator) is L3, so
+# consumer (vox-search, vox-tensor, vox-research-shim, vox-orchestrator) is L3, so
 # these are too (a heavy-runtime consumer is L3, not an L2 pure-data library).
 vox-effort-audit        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-effort-route        = { layer = 3, kind = "library", max_loc = 4_000 }
@@ -145,7 +145,7 @@ vox-scientia-jsonschema-codegen = { layer = 3, kind = "binary" }               #
 vox-ml-cli              = { layer = 3, kind = "binary", max_loc = 20_000 }
 vox-publisher           = { layer = 3, max_loc = 22_000 }  # raised from 20_000 (was at 19,951 / 20,000 headroom)
 vox-orchestrator        = { layer = 3, max_dependents = 30, max_loc = 70_000 }
-vox-dei-shim            = { layer = 3, max_loc = 8_000, staleness_exempt = true }  # A-12 wedge: DEI research + model-selection extracted from vox-orchestrator
+vox-research-shim            = { layer = 3, max_loc = 8_000, staleness_exempt = true }  # A-12 wedge: DEI research + model-selection extracted from vox-orchestrator
 vox-orchestrator-test-helpers = { layer = 3, kind = "test-only", max_dependents = 25, staleness_exempt = true }
 vox-actor-runtime       = { layer = 3, max_loc = 15_000 }
 vox-populi              = { layer = 3, max_loc = 20_000 }

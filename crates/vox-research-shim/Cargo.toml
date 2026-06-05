@@ -1,5 +1,5 @@
 [package]
-name = "vox-dei-shim"
+name = "vox-research-shim"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

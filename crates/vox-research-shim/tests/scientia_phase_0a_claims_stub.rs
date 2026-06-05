@@ -1,4 +1,4 @@
-use vox_dei_shim::research::claims::{Claim, extract_claims_with_model};
+use vox_research_shim::research::claims::{Claim, extract_claims_with_model};
 
 #[tokio::test]
 async fn extract_claims_without_available_model_falls_back_to_empty() {
