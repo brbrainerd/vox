@@ -185,9 +185,7 @@ pub fn org_policy_disabled() -> bool {
         let bare = line.split('#').next().unwrap_or("").trim();
         // Match `enabled = false` / `enabled=false` / `enabled = 0` / `enabled = "false"`.
         if let Some(rest) = bare.strip_prefix("enabled") {
-            let rest = rest
-                .trim_start_matches([' ', '='])
-                .trim();
+            let rest = rest.trim_start_matches([' ', '=']).trim();
             let rest = rest.trim_matches('"').trim_matches('\'');
             if matches!(rest, "false" | "0" | "off") {
                 return true;
@@ -299,10 +297,11 @@ fn parse_user_config(text: &str) -> UserConfig {
         }
         // Section header? Update `in_telemetry`.
         if let Some(rest) = line.strip_prefix('[')
-            && let Some(name) = rest.strip_suffix(']') {
-                in_telemetry = name.trim() == "telemetry";
-                continue;
-            }
+            && let Some(name) = rest.strip_suffix(']')
+        {
+            in_telemetry = name.trim() == "telemetry";
+            continue;
+        }
         if !in_telemetry {
             continue;
         }
@@ -419,9 +418,7 @@ mod tests {
             }
             let bare = line.split('#').next().unwrap_or("").trim();
             if let Some(rest) = bare.strip_prefix("enabled") {
-                let rest = rest
-                    .trim_start_matches([' ', '='])
-                    .trim();
+                let rest = rest.trim_start_matches([' ', '=']).trim();
                 let rest = rest.trim_matches('"').trim_matches('\'');
                 if matches!(rest, "false" | "0" | "off") {
                     return true;

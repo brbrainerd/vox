@@ -125,9 +125,10 @@ pub fn fill_task_root_summary(event: &mut TaskRootSummaryEvent) {
     event.max_span_depth = event.max_span_depth.max(agg.max_span_depth);
     event.subagent_fanout = agg.subagent_fanout;
     if event.wall_time_ms == 0
-        && let Some(started) = agg.started_at {
-            event.wall_time_ms = started.elapsed().as_millis() as u64;
-        }
+        && let Some(started) = agg.started_at
+    {
+        event.wall_time_ms = started.elapsed().as_millis() as u64;
+    }
 }
 
 #[cfg(test)]
