@@ -40,6 +40,9 @@ fn extract_version(s: str) to Option[str] {
     }
 }
 
+// EXPECT: email valid: true
+// EXPECT: redacted: card ***-***-***-*** expires ***/***
+// EXPECT: version: 1.23.4
 fn main() {
     // Demonstrate all three free-function entry points.
     let matched = regex.is_match("user@example.com", "^[\\w.+-]+@[\\w-]+\\.[a-z]{2,}$")
