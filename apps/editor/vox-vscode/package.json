@@ -426,7 +426,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vscode/webview-ui-toolkit": "^1.4.0",
-    "@xyflow/react": "^12.10.1",
+    "@xyflow/react": "^12.11.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",
