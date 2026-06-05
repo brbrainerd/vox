@@ -1213,7 +1213,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             }
         }
     }
-    report.workspace_dep_warns.sort_by(|a, b| b.1.cmp(&a.1));
+    report.workspace_dep_warns.sort_by_key(|b| std::cmp::Reverse(b.1));
     prof("rule 15 (workspace-dep budget)", &mut prof_last);
     if profile_on {
         eprintln!("[profile] TOTAL: {}ms", profile_start.elapsed().as_millis());
