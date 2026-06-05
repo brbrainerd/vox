@@ -227,6 +227,17 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
     for f in &mut script_module.functions {
         f.is_pub = true;
     }
+    // Script mode runs the bin (`cargo run`), not `cargo test`. `@test` fns are
+    // emitted with `#[test]`, which a normal build strips (`cfg(test)`-only) —
+    // but a user's `main` may call them directly (the interpreter registers
+    // tests as ordinary callables, so it works under `--mode interp`). Re-home
+    // them as plain `pub fn`s here so they exist in the lib and are reachable
+    // from main.rs. App-mode `emit_lib` still emits them as `#[test]`.
+    let mut tests_as_fns = std::mem::take(&mut script_module.tests);
+    for t in &mut tests_as_fns {
+        t.is_pub = true;
+    }
+    script_module.functions.append(&mut tests_as_fns);
     files.insert("src/lib.rs".to_string(), emit::emit_lib(&script_module));
 
     // Emit a script-mode main.rs: just `use crate::*;` and the user's main fn body
