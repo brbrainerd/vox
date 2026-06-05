@@ -19,7 +19,7 @@ The two execution arms are **fully divergent**, not subtly drifting:
 | Arm | main()-goldens that work |
 |---|---|
 | `--mode interp` (tree-walking interpreter) | **10 / 10** run and match their `// EXPECT:` output |
-| `--mode script` (codegen-rust → `cargo` compile + run) | **0 / 10** — *none compile* |
+| `--mode script` (codegen-rust → `cargo` compile + run) | **1 / 10** (was 0/10; `mesh/noop` fixed 2026-06-05, backlog #1) |
 
 The interpreter is production-shaped for these programs. The codegen-rust
 arm **cannot compile even the trivial program** `fn main() to int { return 0 }`
@@ -48,13 +48,13 @@ All `interp`-passing; all `script`-failing.
 Each is a distinct defect. Ordered by leverage (a fix unblocks many programs).
 
 1. **`fn main() to <T>` return type not handled** *(highest leverage — every
-   value-returning main hits it)*. Codegen emits the user's `return 0` /
-   `return "ok"` verbatim into a Rust `fn main() {` (unit return) → `E0308
-   mismatched types`. Fix: in `crates/vox-codegen/src/codegen_rust/pipeline.rs`
-   (~line 238, the `func.name == "main"` branch), special-case a non-unit
-   main — drop/print the return value to mirror interp (which prints main's
-   display value), or map `to int` to `std::process::exit(n)`.
-   Triggers: `noop`, and all `to str` mains.
+   value-returning main hits it)*. **✅ FIXED 2026-06-05 (commit f982b90ac3).**
+   codegen-rust now runs a non-Unit main's body in a closure and prints the
+   result, mirroring interp. `mesh/noop.vox` (`fn main() to int { return 0 }`)
+   compiles, runs, and prints `0` — CR-F2 ratcheted **0/10 → 1/10**. The other
+   value-returning mains (`tuple_destructure`, `range_and_indexing`,
+   `closures_hof`, `json_as_typed`) cleared the main-return error and now fail
+   on their *separate* body bugs below (#5/#6).
 
 2. **Missing generated `[dependencies]`** for `dec` and regex. The Native
    `Cargo.toml` template (`pipeline.rs` ~line 173) has a fixed dep set
