@@ -226,3 +226,6 @@ docs/src/architecture/architecture-index.md
 # insta pending-review snapshots — local-only, regenerated each test run
 **/*.snap.new
 _bundle_ai_fixture_*
+
+# Vox GUI dev run logs
+gui-*.log
