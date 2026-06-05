@@ -32,8 +32,22 @@ pub struct NanopubProfile {
     pub orcid: String,
     /// Human-readable signer name.
     pub name: String,
-    /// RSA private key in PEM (PKCS#8 or PKCS#1) form.
-    pub rsa_private_key_pem: String,
+    /// RSA private key as base64-encoded PKCS#8 (the normalized form `nanopub`
+    /// emits from [`gen_keys`] and accepts in `ProfileBuilder`).
+    pub rsa_private_key_b64: String,
+}
+
+/// Generate a fresh RSA keypair for nanopub signing, returning
+/// `(private_b64, public_b64)` as normalized base64 PKCS#8 strings.
+///
+/// Thin re-export of the upstream `nanopub` keygen so consumers (e.g. the
+/// identity resolver in `vox-cli`) need not depend on the `nanopub` crate
+/// directly.
+///
+/// # Errors
+/// Propagates [`nanopub::error::NpError`] if key generation fails.
+pub fn gen_keys() -> Result<(String, String), nanopub::error::NpError> {
+    nanopub::profile::gen_keys()
 }
 
 /// Errors from the build/sign/validate round-trip.
@@ -55,7 +69,7 @@ pub fn build_and_sign(
 ) -> Result<SignedNanopubDoc, NanopubSpecError> {
     let trig = assemble_unsigned_trig(assertion_ttl, attributed_to_orcid, generated_at_unix);
 
-    let np_profile = ProfileBuilder::new(profile.rsa_private_key_pem.clone())
+    let np_profile = ProfileBuilder::new(profile.rsa_private_key_b64.clone())
         .with_orcid(profile.orcid.clone())
         .with_name(profile.name.clone())
         .build()?;
@@ -133,7 +147,7 @@ mod tests {
         let profile = NanopubProfile {
             orcid: "https://orcid.org/0000-0002-1267-0234".to_string(),
             name: "Vox Scientia Test".to_string(),
-            rsa_private_key_pem: throwaway_rsa_private_key(),
+            rsa_private_key_b64: throwaway_rsa_private_key(),
         };
 
         let assertion = "scientia:claim1 scientia:text \"mosquitoes transmit malaria\" .";
@@ -169,7 +183,7 @@ mod tests {
         let profile = NanopubProfile {
             orcid: "https://orcid.org/0000-0002-1267-0234".to_string(),
             name: "Vox Scientia Test".to_string(),
-            rsa_private_key_pem: throwaway_rsa_private_key(),
+            rsa_private_key_b64: throwaway_rsa_private_key(),
         };
 
         let signed = build_and_sign(
