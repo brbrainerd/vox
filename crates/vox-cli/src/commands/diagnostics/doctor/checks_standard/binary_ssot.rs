@@ -45,13 +45,10 @@ fn candidate_paths() -> Vec<PathBuf> {
             }
         }
     }
-    // The two known install roots, even if not on PATH.
+    // The two known install roots, even if not on PATH: the canonical
+    // voxup-managed `~/.vox/bin` and the `cargo install` `~/.cargo/bin`.
     push(canonical_install_path());
-    let voxup = crate::fs_utils::user_home_dir()
-        .join(".vox")
-        .join("bin")
-        .join(name);
-    push(voxup);
+    push(crate::freshness::cargo_install_path());
 
     out.into_iter()
         .filter(|p| std::fs::metadata(p).is_ok())

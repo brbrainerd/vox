@@ -32,12 +32,13 @@ pub const SKIP_ENV: &str = "VOX_SKIP_FRESHNESS_CHECK";
 
 /// Refresh guidance shown in staleness diagnostics.
 ///
-/// Install-method aware: a source checkout refreshes via `cargo install` (the
-/// argv is the [`crate::utils::install_policy`] SSOT), a release install via
-/// `vox upgrade`. The embedded `crates/vox-cli` path is asserted to match the
-/// SSOT by a unit test so the two cannot drift.
-pub(crate) const REFRESH_GUIDANCE: &str = "from a source checkout run \
-     `cargo install --locked --path crates/vox-cli --force`; from a release install run `vox upgrade`";
+/// Install-method aware and ordered by the canonical model: the managed
+/// `~/.vox/bin` install refreshes via `vox upgrade`; a source checkout via
+/// `cargo install` (argv is the [`crate::utils::install_policy`] SSOT). The
+/// embedded `crates/vox-cli` path is asserted to match the SSOT by a unit test
+/// so the two cannot drift.
+pub(crate) const REFRESH_GUIDANCE: &str = "for a managed install run `vox upgrade`; \
+     from a source checkout run `cargo install --locked --path crates/vox-cli --force`";
 
 /// True when `dir` is a Cargo build-output directory (`…/target/{debug,release}`
 /// and below). Such dirs land on a developer's `PATH` and would otherwise make
@@ -57,13 +58,26 @@ pub fn vox_binary_name() -> &'static str {
     if cfg!(windows) { "vox.exe" } else { "vox" }
 }
 
-/// Canonical install location for the `vox` binary: `~/.cargo/bin/<vox>`.
+/// Canonical install location for the `vox` binary: `~/.vox/bin/<vox>`.
 ///
-/// This is what `cargo install -p vox-cli` (or `--path crates/vox-cli`)
-/// produces and is declared the single source of truth. A second binary at
-/// `~/.vox/bin` that reports a different build number is a divergence that
-/// [`crate::commands::diagnostics::doctor`] flags.
+/// Per the maintainer decision (2026-06-05), the voxup-managed `~/.vox/bin`
+/// entry is the single source of truth (it is the user-facing proxy that
+/// forwards to a managed toolchain). A second binary at `~/.cargo/bin` (see
+/// [`cargo_install_path`]) that reports a different build number is a divergence
+/// that [`crate::commands::diagnostics::doctor`] flags.
 pub fn canonical_install_path() -> std::path::PathBuf {
+    crate::fs_utils::user_home_dir()
+        .join(".vox")
+        .join("bin")
+        .join(vox_binary_name())
+}
+
+/// The `cargo install` location for the `vox` binary: `~/.cargo/bin/<vox>`.
+///
+/// A known install root (what `cargo install --path crates/vox-cli` produces),
+/// enumerated by the binary-SSOT check but **not** canonical — see
+/// [`canonical_install_path`].
+pub fn cargo_install_path() -> std::path::PathBuf {
     crate::fs_utils::user_home_dir()
         .join(".cargo")
         .join("bin")
