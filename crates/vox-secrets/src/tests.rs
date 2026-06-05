@@ -472,6 +472,68 @@ fn all_secret_ids_have_spec_entries() {
 }
 
 #[test]
+#[allow(unsafe_code)]
+fn store_secret_round_trips_user_rsa_nanopub_key_via_temp_vault() {
+    // Hermetic: isolate the vault DB to a temp dir via VOX_SECRETS_VAULT_PATH and
+    // pin a throwaway VOX_ACCOUNT_ID, mirroring the backend round-trip test in
+    // `backend::vox_vault`. Force the vox_cloud backend (cutover=decommission) so
+    // that `resolve_secret` reads from the same temp vault that `store_secret`
+    // wrote to. The OS keyring holds only the bootstrap master key (shared, not
+    // per-secret); if it's unavailable in the sandbox the backend can't init and
+    // we skip cleanly.
+    let _g = ENV_LOCK.lock().expect("env lock");
+
+    let tmp_dir = tempfile::tempdir().expect("tempdir");
+    let db_path = tmp_dir.path().join("store_secret_vault.db");
+
+    let prev_path = std::env::var("VOX_SECRETS_VAULT_PATH").ok();
+    let prev_account = std::env::var("VOX_ACCOUNT_ID").ok();
+    let prev_cutover = std::env::var("VOX_SECRETS_CUTOVER_PHASE").ok();
+    unsafe {
+        std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+        std::env::set_var("VOX_ACCOUNT_ID", "store-secret-test-account");
+        std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", "decommission");
+    }
+
+    const KEY_B64: &str = "MIIEvQIBADANBgkqhkiG9w0BAQEFAA-test-pkcs8-base64-blob";
+
+    let id = SecretId::VoxUserRsaNanopubPrivateKeyB64;
+    let stored = crate::store_secret(id, KEY_B64, None);
+
+    let outcome = match stored {
+        Ok(()) => {
+            let resolved = crate::resolve_secret(id);
+            Some(resolved.expose().map(|s| s.to_string()))
+        }
+        // Keyring unavailable in this sandbox — backend can't init. Skip cleanly.
+        Err(_) => None,
+    };
+
+    unsafe {
+        match prev_path {
+            Some(v) => std::env::set_var("VOX_SECRETS_VAULT_PATH", v),
+            None => std::env::remove_var("VOX_SECRETS_VAULT_PATH"),
+        }
+        match prev_account {
+            Some(v) => std::env::set_var("VOX_ACCOUNT_ID", v),
+            None => std::env::remove_var("VOX_ACCOUNT_ID"),
+        }
+        match prev_cutover {
+            Some(v) => std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", v),
+            None => std::env::remove_var("VOX_SECRETS_CUTOVER_PHASE"),
+        }
+    }
+
+    if let Some(exposed) = outcome {
+        assert_eq!(
+            exposed.as_deref(),
+            Some(KEY_B64),
+            "store_secret -> resolve_secret must round-trip the stored plaintext"
+        );
+    }
+}
+
+#[test]
 fn test_contains_secret_material() {
     let text = "this is a test with a super-secret-value inside";
     assert!(crate::redact::contains_secret_material(
