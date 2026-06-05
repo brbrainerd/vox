@@ -724,13 +724,11 @@ pub fn run_candle_qlora_train(
                     |key_w: &str, rows: usize, fallback: Option<usize>| -> Option<Tensor> {
                         let bias_key = key_w.replace(".weight", ".bias");
                         let mut t = vb_mmap.get((rows,), &bias_key).ok();
-                        if t.is_none() {
-                            if let Some(fb) = fallback {
-                                t = vb_mmap
-                                    .get((fb,), &bias_key)
-                                    .ok()
-                                    .and_then(|t| t.narrow(0, 0, rows).ok());
-                            }
+                        if let (true, Some(fb)) = (t.is_none(), fallback) {
+                            t = vb_mmap
+                                .get((fb,), &bias_key)
+                                .ok()
+                                .and_then(|t| t.narrow(0, 0, rows).ok());
                         }
                         t.and_then(|t| t.to_dtype(DType::F32).ok())
                     };

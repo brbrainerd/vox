@@ -1,0 +1,98 @@
+// vox:caps fs subprocess env
+// scripts/fmt.vox
+//
+// Windows-safe, crate-agnostic workspace Rust formatter — the single source of
+// truth for "format all Rust in this repo".
+//
+// WHY THIS EXISTS: `cargo fmt --all` collects the target-root path of every
+// crate and passes them to ONE `rustfmt` invocation. On this large workspace
+// with long absolute paths that command line overflows the Windows
+// `CreateProcess` limit (~32 KB) and dies with `os error 206`
+// ("The filename or extension is too long"). cargo has no built-in chunking, so
+// every agent/contributor on Windows that runs `cargo fmt --all` hits the same
+// wall. Instead we format each crate via `cargo fmt --manifest-path
+// crates/<crate>/Cargo.toml`: each call carries a single manifest path (well
+// under the limit on every OS), while cargo still resolves `rustfmt.toml` +
+// per-crate edition for full fidelity (unlike a raw `rustfmt` loop, which loses
+// the workspace config when handed Windows `\\?\` extended-length paths).
+//
+// This is the WRITE counterpart to the read-side `check_fmt` in
+// crates/vox-cli/src/commands/ci/pre_push.rs (which chunks `rustfmt --check`
+// over target roots for the same reason).
+//
+// Usage (run from the repo root):
+//   vox run scripts/fmt.vox                    # write: format the whole workspace
+//   VOX_FMT_CHECK=1 vox run scripts/fmt.vox    # check only: nonzero exit on drift (CI parity)
+//
+// See AGENTS.md "Formatting Rust (Windows-safe)".
+
+fn env_flag(name: str) to bool {
+    let opt = std.env.get(name);
+    if opt.is_some() {
+        return opt.unwrap() == "1";
+    }
+    return false;
+}
+
+fn norm(p: str) to str {
+    return p.replace("\\", "/");
+}
+
+fn main() {
+    let check = env_flag("VOX_FMT_CHECK");
+
+    let g = std.fs.glob("crates/*/Cargo.toml");
+    if g.is_err() {
+        log.error("fmt: could not glob crates/*/Cargo.toml (run from the repo root)");
+        process.exit(1);
+    }
+    let manifests = g.unwrap();
+    if manifests.is_empty() {
+        log.error("fmt: no crate manifests under crates/*/Cargo.toml (run from the repo root)");
+        process.exit(1);
+    }
+
+    if check {
+        print("Checking Rust formatting across " + str(manifests.len()) + " crates (Windows-safe, per-crate)...");
+    } else {
+        print("Formatting Rust across " + str(manifests.len()) + " crates (Windows-safe, per-crate)...");
+    }
+
+    let mut failed = 0;
+    for m in manifests {
+        let mut args = ["fmt", "--manifest-path", m];
+        if check {
+            args = args.push("--");
+            args = args.push("--check");
+        }
+        let proc = process.run("cargo", args);
+        if proc is null {
+            log.error("fmt: could not spawn cargo for " + norm(m));
+            failed = failed + 1;
+        } else {
+            let res = proc.unwrap();
+            if res.code != 0 {
+                failed = failed + 1;
+                print("  [needs-format] " + norm(m));
+                if res.stdout != "" {
+                    print(res.stdout);
+                }
+            }
+        }
+    }
+
+    if failed == 0 {
+        if check {
+            print("fmt: clean across all crates.");
+        } else {
+            print("fmt: formatted all crates.");
+        }
+    } else {
+        if check {
+            log.error("fmt: " + str(failed) + " crate(s) need formatting. Run `vox run scripts/fmt.vox` to fix.");
+        } else {
+            log.error("fmt: " + str(failed) + " crate(s) failed to format.");
+        }
+        process.exit(1);
+    }
+}

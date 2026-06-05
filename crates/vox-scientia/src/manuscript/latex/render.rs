@@ -49,11 +49,7 @@ fn write_preamble(out: &mut String, input: &ScaffoldInput) {
     out.push_str(&escape_latex(&input.title_hint));
     out.push_str("}\n");
     out.push_str("\\author{");
-    let authors_joined: Vec<String> = input
-        .authors
-        .iter()
-        .map(|a| render_author_inline(a))
-        .collect();
+    let authors_joined: Vec<String> = input.authors.iter().map(render_author_inline).collect();
     if authors_joined.is_empty() {
         // Required by \maketitle; comment marks it as TODO.
         out.push_str("Anonymous \\thanks{TODO: replace with author list}");

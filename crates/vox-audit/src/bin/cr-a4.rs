@@ -174,8 +174,8 @@ fn check_lifecycle(body: &str) -> LifecycleCheck {
                 // intervening blank lines).
                 if raw.is_empty() {
                     let base_indent = line.len() - trimmed.len();
-                    for j in (idx + 1)..lines.len().min(idx + 7) {
-                        let nl = lines[j];
+                    let end = lines.len().min(idx + 7);
+                    for &nl in &lines[(idx + 1)..end] {
                         let nt = nl.trim_start();
                         let nl_indent = nl.len() - nt.len();
                         if nt.is_empty() {
@@ -214,17 +214,17 @@ fn check_lifecycle(body: &str) -> LifecycleCheck {
             }
         }
         // toml form: `lifecycle = "stable"` (table-scoped)
-        if trimmed.starts_with("lifecycle =") || trimmed.starts_with("stability =") {
-            if let Some(eq) = trimmed.find('=') {
-                let raw = trimmed[eq + 1..]
-                    .trim()
-                    .trim_start_matches('"')
-                    .trim_end_matches('"')
-                    .to_string();
-                let lower = raw.to_ascii_lowercase();
-                if matches!(lower.as_str(), "experimental" | "stable" | "deprecated") {
-                    found_value = Some(lower);
-                }
+        if (trimmed.starts_with("lifecycle =") || trimmed.starts_with("stability ="))
+            && let Some(eq) = trimmed.find('=')
+        {
+            let raw = trimmed[eq + 1..]
+                .trim()
+                .trim_start_matches('"')
+                .trim_end_matches('"')
+                .to_string();
+            let lower = raw.to_ascii_lowercase();
+            if matches!(lower.as_str(), "experimental" | "stable" | "deprecated") {
+                found_value = Some(lower);
             }
         }
     }

@@ -218,7 +218,7 @@ pub async fn critic_approve(
     if let Err(e) = db
         .insert_scientia_cost_telemetry(
             "scientia-critic",
-            &publication_id.to_string(),
+            publication_id,
             "vox-scientia",
             "critic",
             None,
@@ -378,7 +378,7 @@ pub async fn publication_extract_claims(publication_id: &str) -> Result<()> {
     if let Err(e) = db
         .insert_scientia_cost_telemetry(
             "scientia-extractor",
-            &publication_id.to_string(),
+            publication_id,
             "vox-scientia",
             "extraction",
             None,

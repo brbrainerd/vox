@@ -10,7 +10,7 @@ impl ModelAdmissionFilter {
     /// Returns the number of models that were promoted.
     pub async fn promote_calibrated_models(
         db: &VoxDb,
-        models: &mut Vec<ModelSpec>,
+        models: &mut [ModelSpec],
     ) -> anyhow::Result<usize> {
         let pricing = db.get_pricing_catalog().await?;
         let mut promoted_count = 0;

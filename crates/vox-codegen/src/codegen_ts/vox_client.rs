@@ -795,7 +795,7 @@ fn referenced_table_names(
 ) -> HashSet<String> {
     let table_names: HashSet<&str> = hir.tables.iter().map(|t| t.name.as_str()).collect();
     let mut out: HashSet<String> = HashSet::new();
-    let mut note_ty = |ty: &HirType, out: &mut HashSet<String>| {
+    let note_ty = |ty: &HirType, out: &mut HashSet<String>| {
         let mut stack = vec![ty];
         while let Some(t) = stack.pop() {
             match t {

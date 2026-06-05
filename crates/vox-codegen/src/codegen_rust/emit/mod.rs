@@ -341,7 +341,7 @@ use {}::*;
         let ret_type = sf
             .return_type
             .as_ref()
-            .map(|t| types::emit_type(t))
+            .map(types::emit_type)
             .unwrap_or_else(|| "()".to_string());
 
         if ret_type != "()" {

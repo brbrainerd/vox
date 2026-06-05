@@ -1362,12 +1362,12 @@ mod namespace_builtin_parity_tests {
     fn shape_matches(ty: &Ty, val: &VoxValue) -> bool {
         match ty {
             Ty::Result(inner) => match val {
-                VoxValue::Result(Ok(b)) => shape_matches(inner, &**b),
+                VoxValue::Result(Ok(b)) => shape_matches(inner, b),
                 VoxValue::Result(Err(_)) => true,
                 _ => false,
             },
             Ty::Option(inner) => match val {
-                VoxValue::Option(Some(b)) => shape_matches(inner, &**b),
+                VoxValue::Option(Some(b)) => shape_matches(inner, b),
                 VoxValue::Option(None) => true,
                 _ => false,
             },

@@ -1,7 +1,7 @@
 //! CLI / UX output gating (anti-spam, verbosity).
 
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crate::config_gate;
 

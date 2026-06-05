@@ -105,11 +105,7 @@ pub fn run(root: &Path) -> Result<()> {
         "✓".green()
     );
 
-    println!(
-        "{} {}",
-        "PASS".green().bold(),
-        "Model routing contract is valid."
-    );
+    println!("{} Model routing contract is valid.", "PASS".green().bold());
     Ok(())
 }
 

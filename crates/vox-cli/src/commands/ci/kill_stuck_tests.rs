@@ -50,12 +50,10 @@ pub fn run(root: &Path, what_if: bool) -> Result<()> {
             found = true;
             if what_if {
                 println!("Would stop PID {}: {}", pid, cmd_str);
+            } else if process.kill() {
+                println!("Stopped PID {}", pid);
             } else {
-                if process.kill() {
-                    println!("Stopped PID {}", pid);
-                } else {
-                    println!("Failed to stop PID {}", pid);
-                }
+                println!("Failed to stop PID {}", pid);
             }
         }
     }

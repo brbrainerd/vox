@@ -349,14 +349,14 @@ impl Interpreter {
                     .parent()
                     .unwrap_or(std::path::Path::new("."))
                     .join(nested);
-                if let Ok(nested_canon) = std::fs::canonicalize(&nested_joined) {
-                    if nested_canon == canonical {
-                        return Err(EvalError::AssertionFailed(format!(
-                            "Intra-project import cycle: `{}` imports itself (via `{}`)",
-                            canonical.display(),
-                            nested
-                        )));
-                    }
+                if let Ok(nested_canon) = std::fs::canonicalize(&nested_joined)
+                    && nested_canon == canonical
+                {
+                    return Err(EvalError::AssertionFailed(format!(
+                        "Intra-project import cycle: `{}` imports itself (via `{}`)",
+                        canonical.display(),
+                        nested
+                    )));
                 }
                 self.resolve_local_file_import(nested, imp.local_file_alias.as_deref())?;
             }

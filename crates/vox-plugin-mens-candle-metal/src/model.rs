@@ -527,9 +527,7 @@ impl CandleModel {
         let path = std::path::Path::new(model_path);
         let engine =
             crate::inference::InferenceEngine::load(path, &crate::device::DeviceKind::Best)?;
-        let _inner = match engine.model {
-            crate::inference::InferenceModel::Qwen35(m) => m,
-        };
+        let crate::inference::InferenceModel::Qwen35(_inner) = engine.model;
         Ok(Self {
             _inner,
             model_path: model_path.to_string(),

@@ -728,7 +728,7 @@ fn select_via_scorer(
     // Install this request's axes as the scorer's base weights for the duration
     // of the pass, so per-task SelectionAxes actually drive the choice (not just
     // the global VOX_AUTO_ROUTING_PRIORITY env). Restored on drop.
-    let _axes_guard = crate::models::scoring::AxesOverrideGuard::set(effective_axes.clone());
+    let _axes_guard = crate::models::scoring::AxesOverrideGuard::set(effective_axes);
     let model = registry.best_for_with_filter(
         intent.task,
         intent.complexity,
@@ -796,7 +796,7 @@ fn score_for_intent(m: &ModelSpec, intent: &SelectionIntent) -> f64 {
     }
     // Prefer models with stronger strength match.
     let want = crate::models::task_category_strength(intent.task);
-    if m.strengths.iter().any(|t| *t == want) {
+    if m.strengths.contains(&want) {
         s += 0.5;
     }
     // Tie-breaker: larger context.
@@ -816,6 +816,11 @@ pub fn select_with_default_registry(intent: &SelectionIntent) -> Option<Selectio
 
 #[cfg(test)]
 mod tests {
+    // Env-mutating tests exercise `from_env` cascades; they are `#[serial]` so no
+    // other env-mutating test runs concurrently, and each restores the prior value.
+    #![allow(unsafe_code)]
+    use serial_test::serial;
+
     use super::*;
 
     #[test]
@@ -872,6 +877,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn from_env_returns_default_when_unset() {
         // SAFETY: tests are gated by the parent test serialization; we restore.
         let prior = std::env::var("VOX_MODEL_AXES").ok();
@@ -885,6 +891,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn from_env_parses_custom_axes() {
         let prior = std::env::var("VOX_MODEL_AXES").ok();
         unsafe {
@@ -983,6 +990,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn exploration_budget_gate_blocks_unknown_when_exhausted() {
         let prior_enable = std::env::var("VOX_ROUTING_ENABLE_EXPLORATION").ok();
         let prior_budget = std::env::var("VOX_EXPLORATION_BUDGET_EXHAUSTED").ok();
@@ -1054,8 +1062,8 @@ mod tests {
         let intent = SelectionIntent::for_task(TaskCategory::CodeGen);
         // An empty policy carries no steps, so the resolver yields nothing and
         // `select_with_policy` falls through to the pre-existing `select` cascade.
-        let policy = super::policy::SelectionPolicy::default();
-        let ctx = super::policy::PolicyContext::default();
+        let policy = crate::models::policy::SelectionPolicy::default();
+        let ctx = crate::models::policy::PolicyContext::default();
         let via_policy = select_with_policy(&intent, &registry, &policy, &ctx)
             .expect("a model exists for codegen");
         let via_cascade = select(&intent, &registry).expect("a model exists for codegen");

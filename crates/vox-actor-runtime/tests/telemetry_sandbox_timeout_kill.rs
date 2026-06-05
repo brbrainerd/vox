@@ -4,7 +4,6 @@
 //! `OnceLock` write doesn't collide with siblings.
 
 use std::sync::{Arc, Mutex, OnceLock};
-use std::time::Duration;
 
 use vox_actor_runtime::activity::{
     ActivityError, ActivityOptions, ActivityResult, execute_activity,

@@ -95,7 +95,7 @@ impl TrainingSession for MockDistributedSession {
         // 2. Register shard with coordinator
         let is_ready = {
             let mut lock = self.coordinator.ranks_at_step.lock().unwrap();
-            let shards = lock.entry(self.step).or_insert_with(Vec::new);
+            let shards = lock.entry(self.step).or_default();
             shards.push(shard.clone());
             shards.len() >= self.world_size as usize
         };
@@ -161,11 +161,11 @@ mod tests {
             keypairs.push((sk, vk));
         }
 
-        let mut sessions = MockDistributedSession::new_cluster(sid, world_size, keypairs);
+        let sessions = MockDistributedSession::new_cluster(sid, world_size, keypairs);
         let mut set = JoinSet::new();
 
         for (i, mut sess) in sessions.into_iter().enumerate() {
-            let vk = vks[i].clone();
+            let _vk = vks[i].clone();
             set.spawn(async move {
                 sess.step(Batch { batch_id: 100 }).await.unwrap();
                 let hash = [i as u8; 64];

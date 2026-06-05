@@ -121,13 +121,11 @@ impl PolicyEngine {
                     untouched
                 ));
             }
-        } else {
-            if !att.declared_non_placeholder {
-                return PolicyCheckResult::ScopeDenied(
-                    "Completion policy denied: declared_non_placeholder must be true for no-write tasks"
-                        .to_string(),
-                );
-            }
+        } else if !att.declared_non_placeholder {
+            return PolicyCheckResult::ScopeDenied(
+                "Completion policy denied: declared_non_placeholder must be true for no-write tasks"
+                    .to_string(),
+            );
         }
         let summary_ok = match &att.completion_summary {
             Some(s) => s.trim().len() >= 24 && !Self::has_placeholder_marker(s),

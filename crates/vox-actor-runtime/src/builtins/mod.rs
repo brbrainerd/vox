@@ -279,10 +279,8 @@ impl VoxJson {
     pub fn length(&self) -> Option<i64> {
         if let Some(a) = self.0.as_array() {
             Some(a.len() as i64)
-        } else if let Some(o) = self.0.as_object() {
-            Some(o.len() as i64)
         } else {
-            None
+            self.0.as_object().map(|o| o.len() as i64)
         }
     }
 

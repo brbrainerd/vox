@@ -83,7 +83,7 @@ fn pipeline_integration_chatbot_fixture_classic_css_module_import() {
 fn pipeline_mixed_surface_endpoint_fn_emit_contains_api_x() {
     let tokens = lex(MIXED_SURFACE_SRC);
     let module = parse(tokens).expect("parse");
-    let hir = vox_compiler::hir::lower_module(&module);
+    let _hir = vox_compiler::hir::lower_module(&module);
     // Express emit test decommissioned
 }
 
@@ -93,10 +93,10 @@ fn pipeline_reactive_view_whitespace_parity_legacy_vs_web_ir_env() {
 
     use vox_codegen::codegen_ts::hir_emit::{EmitCtx, emit_hir_expr};
 
-    use vox_compiler::hir::HirReactiveMember;
     use vox_codegen::web_ir::emit_tsx::emit_component_view_tsx;
     use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
     use vox_codegen::web_ir::validate::validate_web_ir;
+    use vox_compiler::hir::HirReactiveMember;
 
     let src = r#"
 component T() {
@@ -107,10 +107,7 @@ component T() {
     let tokens = lex(src);
     let module = parse(tokens).expect("parse T");
     let hir = vox_compiler::hir::lower_module(&module);
-    let rc = hir
-        .components
-        .first()
-        .expect("one reactive component");
+    let rc = hir.components.first().expect("one reactive component");
     let view = rc.view.as_ref().expect("view");
     let state_name = match &rc.members[0] {
         HirReactiveMember::State(s) => s.name.clone(),
@@ -120,7 +117,10 @@ component T() {
     let legacy = emit_hir_expr(view, &EmitCtx::new(&state_set));
     let web = lower_hir_to_web_ir(&hir);
     let validate_diags = validate_web_ir(&web);
-    assert!(validate_diags.is_empty(), "validate_web_ir: {validate_diags:?}");
+    assert!(
+        validate_diags.is_empty(),
+        "validate_web_ir: {validate_diags:?}"
+    );
     let preview = emit_component_view_tsx(&web, "T").expect("emit_component_view_tsx");
     assert_eq!(
         vox_codegen::codegen_ts::reactive::normalize_reactive_view_jsx_ws(&legacy),

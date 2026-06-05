@@ -12,7 +12,7 @@ use axum::Json;
 use axum::Router;
 use axum::extract::{ConnectInfo, Path, State};
 use axum::http::HeaderMap;
-use axum::routing::{get, post, put};
+use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::net::SocketAddr;

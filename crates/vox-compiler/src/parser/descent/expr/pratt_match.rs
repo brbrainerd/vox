@@ -876,10 +876,10 @@ impl super::super::Parser {
     ) -> Result<Vec<StringPart>, ()> {
         let mut parts = Vec::new();
         let mut current = String::new();
-        let mut chars = s.chars().peekable();
+        let chars = s.chars().peekable();
         let mut in_interp = false;
 
-        while let Some(c) = chars.next() {
+        for c in chars {
             if c == '{' && !in_interp {
                 // Start of interpolation
                 if !current.is_empty() {

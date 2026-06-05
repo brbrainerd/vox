@@ -186,6 +186,15 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
     }
 }
 
+/// Canonical JSON bytes for stable app-contract hashing (sorted object keys at every depth).
+pub fn canonical_app_contract_bytes(
+    module: &AppContractModule,
+) -> Result<Vec<u8>, serde_json::Error> {
+    let mut v = serde_json::to_value(module)?;
+    crate::canonical_json::sort_json_value_keys(&mut v);
+    serde_json::to_vec(&v)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -304,13 +313,4 @@ mod tests {
         assert_eq!(app.query_fns[0].name, "c");
         assert_eq!(app.query_fns[0].route_path, "/api/query/c");
     }
-}
-
-/// Canonical JSON bytes for stable app-contract hashing (sorted object keys at every depth).
-pub fn canonical_app_contract_bytes(
-    module: &AppContractModule,
-) -> Result<Vec<u8>, serde_json::Error> {
-    let mut v = serde_json::to_value(module)?;
-    crate::canonical_json::sort_json_value_keys(&mut v);
-    serde_json::to_vec(&v)
 }

@@ -8,7 +8,6 @@ use vox_orchestrator::models::{
 };
 use vox_orchestrator::route_policy::route_policy_allows_model;
 use vox_orchestrator::types::TaskCategory;
-use vox_orchestrator::usage::{RemainingBudget, UsageTracker};
 
 use super::super::MCP_GLOBAL_LLM_AGENT;
 use super::policy::{apply_gemini_policy, enforce_free_tier_if_needed, mcp_local_model_allowed};
@@ -155,17 +154,9 @@ pub fn resolve_mcp_chat_model_sync(
     user_prompt: &str,
     pref: Option<&str>,
     res: McpChatModelResolution,
-    availability_hint: Option<&[RemainingBudget]>,
 ) -> Result<(ModelSpec, bool), String> {
     let mut _rationale = None;
-    resolve_mcp_chat_model_sync_inner(
-        orch,
-        user_prompt,
-        pref,
-        res,
-        availability_hint,
-        &mut _rationale,
-    )
+    resolve_mcp_chat_model_sync_inner(orch, user_prompt, pref, res, &mut _rationale)
 }
 
 /// Sync resolver that also surfaces the selection rationale (for telemetry).
@@ -174,17 +165,10 @@ pub fn resolve_mcp_chat_model_sync_with_rationale(
     user_prompt: &str,
     pref: Option<&str>,
     res: McpChatModelResolution,
-    availability_hint: Option<&[RemainingBudget]>,
 ) -> Result<McpModelChoice, String> {
     let mut rationale = None;
-    let (model, is_free) = resolve_mcp_chat_model_sync_inner(
-        orch,
-        user_prompt,
-        pref,
-        res,
-        availability_hint,
-        &mut rationale,
-    )?;
+    let (model, is_free) =
+        resolve_mcp_chat_model_sync_inner(orch, user_prompt, pref, res, &mut rationale)?;
     Ok(McpModelChoice {
         model,
         is_free,
@@ -197,7 +181,6 @@ fn resolve_mcp_chat_model_sync_inner(
     user_prompt: &str,
     pref: Option<&str>,
     res: McpChatModelResolution,
-    availability_hint: Option<&[RemainingBudget]>,
     rationale_out: &mut Option<String>,
 ) -> Result<(ModelSpec, bool), String> {
     if crate::llm_bridge::infer_test_stub::infer_stub_env_active() {
@@ -385,25 +368,9 @@ pub async fn resolve_mcp_chat_model(
     user_prompt: &str,
     pref: Option<&str>,
     res: McpChatModelResolution,
-    user_id: Option<&str>,
+    _user_id: Option<&str>,
 ) -> Result<(ModelSpec, bool), String> {
-    let availability = if let Some(db) = state.db.as_ref() {
-        let tracker = if let Some(uid) = user_id {
-            UsageTracker::with_user(db.as_ref(), uid)
-        } else {
-            UsageTracker::new_ref(db.as_ref())
-        };
-        tracker.remaining_all().await.ok()
-    } else {
-        None
-    };
-    resolve_mcp_chat_model_sync(
-        &state.orchestrator,
-        user_prompt,
-        pref,
-        res,
-        availability.as_deref(),
-    )
+    resolve_mcp_chat_model_sync(&state.orchestrator, user_prompt, pref, res)
 }
 
 /// Async resolver that also surfaces the selection rationale (for telemetry).
@@ -412,25 +379,9 @@ pub async fn resolve_mcp_chat_model_with_rationale(
     user_prompt: &str,
     pref: Option<&str>,
     res: McpChatModelResolution,
-    user_id: Option<&str>,
+    _user_id: Option<&str>,
 ) -> Result<McpModelChoice, String> {
-    let availability = if let Some(db) = state.db.as_ref() {
-        let tracker = if let Some(uid) = user_id {
-            UsageTracker::with_user(db.as_ref(), uid)
-        } else {
-            UsageTracker::new_ref(db.as_ref())
-        };
-        tracker.remaining_all().await.ok()
-    } else {
-        None
-    };
-    resolve_mcp_chat_model_sync_with_rationale(
-        &state.orchestrator,
-        user_prompt,
-        pref,
-        res,
-        availability.as_deref(),
-    )
+    resolve_mcp_chat_model_sync_with_rationale(&state.orchestrator, user_prompt, pref, res)
 }
 
 /// Telemetry `(provider_family, route_choice)` — delegates to [`vox_actor_runtime::model_resolution::backend_telemetry_labels`]

@@ -310,7 +310,7 @@ fn emit_hir_embed_helper(module: &HirModule) -> String {
             break;
         }
     }
-    let hashes: String = std::iter::repeat('#').take(hash_count).collect();
+    let hashes: String = std::iter::repeat_n('#', hash_count).collect();
 
     let mut out = String::new();
     out.push_str(

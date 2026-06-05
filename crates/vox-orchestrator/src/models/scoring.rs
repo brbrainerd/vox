@@ -283,11 +283,11 @@ pub fn install_base_routing_priority(axes: Option<AutoRoutingPriority>) {
 /// process-global base ([`install_base_routing_priority`]), else the
 /// `VOX_AUTO_ROUTING_PRIORITY` env default.
 fn base_routing_weights() -> AutoRoutingPriority {
-    if let Some(axes) = AXES_OVERRIDE.with(|c| c.borrow().clone()) {
+    if let Some(axes) = AXES_OVERRIDE.with(|c| *c.borrow()) {
         return axes;
     }
     if let Ok(g) = BASE_AXES.read() {
-        if let Some(axes) = g.clone() {
+        if let Some(axes) = *g {
             return axes;
         }
     }

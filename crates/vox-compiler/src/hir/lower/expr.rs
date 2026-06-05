@@ -79,7 +79,7 @@ impl LowerCtx {
                 method,
                 args,
                 span,
-            } => return self.lower_method_call_expr(e, object, method, args, *span),
+            } => self.lower_method_call_expr(e, object, method, args, *span),
             Expr::FieldAccess {
                 object,
                 field,

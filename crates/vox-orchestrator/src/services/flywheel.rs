@@ -1,7 +1,7 @@
 use crate::Orchestrator;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::time::{Duration, interval};
+use tokio::time::interval;
 use vox_corpus::flywheel::{FlywheelConfig, FlywheelSignal, FlywheelState};
 
 /// Background service that monitors corpus diversity and triggers training.

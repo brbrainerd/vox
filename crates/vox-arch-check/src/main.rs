@@ -1000,10 +1000,10 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                 let manifest_dir = Path::new(pkg.manifest_path.as_str())
                     .parent()
                     .unwrap_or(Path::new("."));
-                if let Some(last_commit) = git_last_commit_date(manifest_dir) {
-                    if last_commit < release_date {
-                        report.staleness_warns.push((name.to_string(), last_commit));
-                    }
+                if let Some(last_commit) = git_last_commit_date(manifest_dir)
+                    && last_commit < release_date
+                {
+                    report.staleness_warns.push((name.to_string(), last_commit));
                 }
             }
         }
@@ -1285,10 +1285,10 @@ fn git_loc_at_tag_batch(
     let mut src_to_manifest: HashMap<String, PathBuf> = HashMap::new();
     for md in manifest_dirs {
         let rel_src = md.join("src");
-        if let Ok(stripped) = rel_src.strip_prefix(workspace_root) {
-            if let Some(s) = stripped.to_str() {
-                src_to_manifest.insert(s.replace('\\', "/"), md.clone());
-            }
+        if let Ok(stripped) = rel_src.strip_prefix(workspace_root)
+            && let Some(s) = stripped.to_str()
+        {
+            src_to_manifest.insert(s.replace('\\', "/"), md.clone());
         }
     }
     if src_to_manifest.is_empty() {

@@ -97,7 +97,7 @@ impl RepairSession {
             start.parent().map(|p| p.to_path_buf())
         };
         for _ in 0..32 {
-            let Some(here) = cur else { return None };
+            let here = cur?;
             if here.join("Vox.toml").exists() {
                 return here
                     .file_name()
