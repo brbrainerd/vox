@@ -163,11 +163,10 @@ fn newest_dated_json(dir: &Path) -> Option<(PathBuf, u32)> {
             continue;
         }
         let parsed_date = parse_artifact_date(stem);
-        if let Some(date) = parsed_date {
-            if best.as_ref().map(|(_, d)| date > *d).unwrap_or(true) {
+        if let Some(date) = parsed_date
+            && best.as_ref().map(|(_, d)| date > *d).unwrap_or(true) {
                 best = Some((path.clone(), date));
             }
-        }
     }
     let (path, date) = best?;
     let today = chrono::Utc::now().date_naive();

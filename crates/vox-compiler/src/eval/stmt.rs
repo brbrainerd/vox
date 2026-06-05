@@ -12,16 +12,13 @@ use crate::hir::nodes::{HirExpr, HirPattern, HirStmt};
 /// Must be called **after** the enclosing expression has been evaluated so
 /// that `eval_expr` has already read the original (un-popped) list.
 fn apply_pop_side_effect(interp: &mut Interpreter, expr: &HirExpr) {
-    if let HirExpr::MethodCall(obj_expr, method_name, _, _, _) = expr {
-        if method_name == "pop" {
-            if let HirExpr::Ident(name, _) = obj_expr.as_ref() {
-                if let Some(VoxValue::List(mut items)) = interp.scope.get(name).cloned() {
+    if let HirExpr::MethodCall(obj_expr, method_name, _, _, _) = expr
+        && method_name == "pop"
+            && let HirExpr::Ident(name, _) = obj_expr.as_ref()
+                && let Some(VoxValue::List(mut items)) = interp.scope.get(name).cloned() {
                     items.pop();
                     interp.scope.set_mut(name, VoxValue::List(items));
                 }
-            }
-        }
-    }
 }
 
 pub fn eval_pattern(
@@ -148,8 +145,8 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
             // never fire.  We detect this case explicitly: evaluate the call
             // (getting the popped element), then write the shortened list back
             // to the variable.
-            if let HirExpr::MethodCall(obj_expr, _, _, _, _) = expr {
-                if let HirExpr::Ident(name, _) = obj_expr.as_ref() {
+            if let HirExpr::MethodCall(obj_expr, _, _, _, _) = expr
+                && let HirExpr::Ident(name, _) = obj_expr.as_ref() {
                     let result = super::expr::eval_expr(interp, expr)?;
                     // pop() special case: shrink the list variable (handled by
                     // the same helper used in Let/Assign; must run before the
@@ -175,7 +172,6 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
                     }
                     return Ok(result);
                 }
-            }
             super::expr::eval_expr(interp, expr)
         }
         HirStmt::Return { value, .. } => {
@@ -221,19 +217,18 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
                         let idx_val = super::expr::eval_expr(interp, idx_expr)?;
                         match idx_val {
                             VoxValue::Int(i) => {
-                                if let Some(list_val) = interp.scope.get(name).cloned() {
-                                    if let VoxValue::List(mut items) = list_val {
+                                if let Some(list_val) = interp.scope.get(name).cloned()
+                                    && let VoxValue::List(mut items) = list_val {
                                         let ui = i as usize;
                                         if i >= 0 && ui < items.len() {
                                             items[ui] = v;
                                             interp.scope.set_mut(name, VoxValue::List(items));
                                         }
                                     }
-                                }
                             }
                             VoxValue::Str(key) => {
-                                if let Some(dict_val) = interp.scope.get(name).cloned() {
-                                    if let VoxValue::Object(mut fields) = dict_val {
+                                if let Some(dict_val) = interp.scope.get(name).cloned()
+                                    && let VoxValue::Object(mut fields) = dict_val {
                                         if let Some(entry) =
                                             fields.iter_mut().find(|(k, _)| k == &key)
                                         {
@@ -243,7 +238,6 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
                                         }
                                         interp.scope.set_mut(name, VoxValue::Object(fields));
                                     }
-                                }
                             }
                             _ => {}
                         }

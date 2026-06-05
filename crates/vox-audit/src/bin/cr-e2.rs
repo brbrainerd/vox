@@ -247,7 +247,7 @@ fn gzip_size(bytes: &[u8]) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
+    
 
     #[test]
     fn gzip_size_is_deterministic() {

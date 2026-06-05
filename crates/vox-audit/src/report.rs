@@ -15,7 +15,9 @@ use serde::{Deserialize, Serialize};
 /// Stable: `Json` is the default; `Markdown` is the human-readable form;
 /// `Html` is reserved for the dashboard surface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum ReportFormat {
+    #[default]
     Json,
     Markdown,
     Html,
@@ -35,11 +37,6 @@ impl ReportFormat {
     }
 }
 
-impl Default for ReportFormat {
-    fn default() -> Self {
-        ReportFormat::Json
-    }
-}
 
 /// Canonical audit-subcommand exit code (mirrors contract §exit_codes).
 ///

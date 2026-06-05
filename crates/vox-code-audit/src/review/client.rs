@@ -3,7 +3,6 @@ use super::prompts::{build_diff_review_prompt, build_review_prompt, review_syste
 use super::providers::{ReviewProvider, auto_discover_providers};
 use super::types::ReviewFinding;
 use crate::rules::{Finding, Language, SourceFile};
-use std::time::Duration;
 use vox_orchestrator_types::socrates_policy::ConfidencePolicy;
 
 /// Performs AI-powered code review using the configured provider cascade.

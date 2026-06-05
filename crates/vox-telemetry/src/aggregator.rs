@@ -124,11 +124,10 @@ pub fn fill_task_root_summary(event: &mut TaskRootSummaryEvent) {
     event.child_call_count = agg.child_call_count;
     event.max_span_depth = event.max_span_depth.max(agg.max_span_depth);
     event.subagent_fanout = agg.subagent_fanout;
-    if event.wall_time_ms == 0 {
-        if let Some(started) = agg.started_at {
+    if event.wall_time_ms == 0
+        && let Some(started) = agg.started_at {
             event.wall_time_ms = started.elapsed().as_millis() as u64;
         }
-    }
 }
 
 #[cfg(test)]
@@ -268,10 +267,16 @@ mod tests {
         // wall_time_ms may be 0 or very small (Instant elapsed since model call) but
         // the key guarantee is that it does NOT stay 0 after a model call was observed.
         // In practice the sleep ensures > 0; use >= 0 to avoid flakiness on fast machines.
-        assert!(
-            summary.wall_time_ms >= 0,
-            "wall_time_ms should be non-negative; got {}",
-            summary.wall_time_ms
-        );
+        // `wall_time_ms` is unsigned so `>= 0` is trivially true — the assert documents
+        // the non-negative invariant (and guards a future signed type) rather than testing
+        // a reachable failure, hence the lint allows.
+        #[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
+        {
+            assert!(
+                summary.wall_time_ms >= 0,
+                "wall_time_ms should be non-negative; got {}",
+                summary.wall_time_ms
+            );
+        }
     }
 }

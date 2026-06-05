@@ -214,8 +214,8 @@ fn check_lifecycle(body: &str) -> LifecycleCheck {
             }
         }
         // toml form: `lifecycle = "stable"` (table-scoped)
-        if trimmed.starts_with("lifecycle =") || trimmed.starts_with("stability =") {
-            if let Some(eq) = trimmed.find('=') {
+        if (trimmed.starts_with("lifecycle =") || trimmed.starts_with("stability ="))
+            && let Some(eq) = trimmed.find('=') {
                 let raw = trimmed[eq + 1..]
                     .trim()
                     .trim_start_matches('"')
@@ -226,7 +226,6 @@ fn check_lifecycle(body: &str) -> LifecycleCheck {
                     found_value = Some(lower);
                 }
             }
-        }
     }
     let Some(value) = found_value else {
         return LifecycleCheck::Missing;

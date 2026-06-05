@@ -294,11 +294,10 @@ pub fn call_builtin_method(
             // remove_at(i) → List[T]: new list without element at index i.
             "remove_at" => {
                 let mut owned = v.clone();
-                if let Some(VoxValue::Int(i)) = args.into_iter().next() {
-                    if i >= 0 && (i as usize) < owned.len() {
+                if let Some(VoxValue::Int(i)) = args.into_iter().next()
+                    && i >= 0 && (i as usize) < owned.len() {
                         owned.remove(i as usize);
                     }
-                }
                 Some(VoxValue::List(owned))
             }
             // zip(other) → List[List[T]]: pairs of [a, b] elements.
@@ -344,7 +343,7 @@ pub fn call_builtin_method(
                     Some(VoxValue::Str(s)) => s,
                     _ => String::new(),
                 };
-                let strings: Vec<String> = v.iter().map(|x| vox_value_display(x)).collect();
+                let strings: Vec<String> = v.iter().map(vox_value_display).collect();
                 Some(VoxValue::Str(strings.join(&sep)))
             }
             "reverse" => {
@@ -359,7 +358,7 @@ pub fn call_builtin_method(
             }
             "sorted" => {
                 let mut owned = v.clone();
-                owned.sort_by(|a, b| vox_value_cmp(a, b));
+                owned.sort_by(vox_value_cmp);
                 Some(VoxValue::List(owned))
             }
             "sum" => {
@@ -1655,13 +1654,12 @@ pub fn call_builtin_method(
                         };
                         let mut cmd = std::process::Command::new(&cmd_name);
                         cmd.args(&cmd_args);
-                        if with_cwd {
-                            if let Some(VoxValue::Str(cwd)) = it.next() {
+                        if with_cwd
+                            && let Some(VoxValue::Str(cwd)) = it.next() {
                                 cmd.current_dir(&cwd);
                             }
                             // env list (arg 4) intentionally ignored here, matching
                             // the run_ex interpreter behavior.
-                        }
                         let res = match cmd.output() {
                             Ok(out) => Ok(Box::new(VoxValue::Object(vec![
                                 (
@@ -2342,7 +2340,7 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
                 }
                 // max(list) — single list argument
                 (Some(VoxValue::List(items)), None) => {
-                    items.into_iter().max_by(|a, b| vox_value_cmp(a, b))
+                    items.into_iter().max_by(vox_value_cmp)
                 }
                 _ => None,
             }
@@ -2357,7 +2355,7 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
                 }
                 // min(list) — single list argument
                 (Some(VoxValue::List(items)), None) => {
-                    items.into_iter().min_by(|a, b| vox_value_cmp(a, b))
+                    items.into_iter().min_by(vox_value_cmp)
                 }
                 _ => None,
             }
@@ -2366,7 +2364,7 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
         "sorted" => {
             let v = args.into_iter().next()?;
             if let VoxValue::List(mut items) = v {
-                items.sort_by(|a, b| vox_value_cmp(a, b));
+                items.sort_by(vox_value_cmp);
                 Some(VoxValue::List(items))
             } else {
                 None

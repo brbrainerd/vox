@@ -901,14 +901,14 @@ fn emit_openclaw_or_browser_registry_call(
 
 /// Helper to determine if a builtin function argument should be passed by reference.
 fn is_builtin_arg_borrowed(namespace: &str, fn_name: &str, arg_index: usize) -> bool {
-    match (namespace, fn_name, arg_index) {
-        ("fs", "read" | "read_to_string" | "write" | "remove_file", 0) => true,
-        ("path", "exists" | "is_dir" | "is_file", 0) => true,
-        ("env", "get" | "set" | "remove", 0) => true,
-        ("http", "get" | "post" | "put" | "delete", 0) => true,
-        ("std", "print" | "println", _) => true,
-        _ => false,
-    }
+    matches!(
+        (namespace, fn_name, arg_index),
+        ("fs", "read" | "read_to_string" | "write" | "remove_file", 0)
+            | ("path", "exists" | "is_dir" | "is_file", 0)
+            | ("env", "get" | "set" | "remove", 0)
+            | ("http", "get" | "post" | "put" | "delete", 0)
+            | ("std", "print" | "println", _)
+    )
 }
 
 #[cfg(test)]

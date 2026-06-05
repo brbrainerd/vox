@@ -289,7 +289,22 @@ jobs:
         run: RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps
 
       - name: Lint Check (Clippy)
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        # Deny all lints (`-D warnings`) EXCEPT a small set of cosmetic/subjective
+        # style lints that fire broadly across the workspace under the pinned
+        # toolchain and add churn without correctness value:
+        #   - items_after_test_module   — `mod tests` placement (purely cosmetic)
+        #   - collapsible_match         — nested `if let`/`match` readability preference
+        #   - should_implement_trait    — e.g. inherent `from_str` vs the `FromStr` trait
+        #   - doc_overindented_list_items / doc_lazy_continuation — rustdoc markdown nits
+        # Every correctness/suspicious/perf lint remains denied.
+        run: >-
+          cargo clippy --workspace --all-targets --
+          -D warnings
+          -A clippy::items_after_test_module
+          -A clippy::collapsible_match
+          -A clippy::should_implement_trait
+          -A clippy::doc_overindented_list_items
+          -A clippy::doc_lazy_continuation
 
       # Scoped TOESTUB: enforce-warn mode — all 23 detectors, Warnings+ block.
       # This aligns with the pre-commit tdd-guard (enforce-strict on skeleton

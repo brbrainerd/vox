@@ -52,7 +52,15 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        # See ci.yml for rationale: deny all lints except a small cosmetic set.
+        run: >-
+          cargo clippy --workspace --all-targets --
+          -D warnings
+          -A clippy::items_after_test_module
+          -A clippy::collapsible_match
+          -A clippy::should_implement_trait
+          -A clippy::doc_overindented_list_items
+          -A clippy::doc_lazy_continuation
 
       # `--profile ci` excludes slow #[ignore] tests by design; those run on the
       # self-hosted fleet.

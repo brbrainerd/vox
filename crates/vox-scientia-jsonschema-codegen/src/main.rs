@@ -28,18 +28,6 @@ fn module_name(schema_path: &Path) -> String {
         .collect()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn module_name_normalises_dots_and_hyphens() {
-        let p = PathBuf::from("foo.bar-baz.schema.json");
-        // Strip last extension only: file_stem -> "foo.bar-baz.schema" -> normalised.
-        assert_eq!(module_name(&p), "foo_bar_baz_schema");
-    }
-}
-
 fn main() -> Result<()> {
     let repo = repo_root();
     let scientia = repo.join("contracts/scientia");
@@ -92,4 +80,16 @@ fn main() -> Result<()> {
     fs::write(&out_path, out).with_context(|| format!("write {}", out_path.display()))?;
     eprintln!("wrote {}", out_path.display());
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn module_name_normalises_dots_and_hyphens() {
+        let p = PathBuf::from("foo.bar-baz.schema.json");
+        // Strip last extension only: file_stem -> "foo.bar-baz.schema" -> normalised.
+        assert_eq!(module_name(&p), "foo_bar_baz_schema");
+    }
 }

@@ -269,7 +269,7 @@ mod tests {
         // most 95 days wide.
         let days = (end - start) / (1000 * 60 * 60 * 24);
         assert!(
-            days >= 80 && days <= 95,
+            (80..=95).contains(&days),
             "unexpected quarter width: {days} days"
         );
     }

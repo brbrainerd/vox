@@ -10,7 +10,6 @@
 //! API directly; this file exercises the sink layer that sits in front of it.
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use vox_db::telemetry_sink::ResearchMetricsSink;
 use vox_db::{DbConfig, VoxDb};
@@ -30,11 +29,9 @@ async fn wait_for_session_rows(
         if let Ok(rows) = db
             .list_research_metrics_by_session(session_id_prefix, None, 10)
             .await
-        {
-            if !rows.is_empty() {
+            && !rows.is_empty() {
                 return rows;
             }
-        }
         tokio::time::sleep(vox_config::timeouts::D_50MS).await;
     }
     Vec::new()
@@ -45,11 +42,10 @@ async fn wait_for_type_rows(
     metric_type: &str,
 ) -> Vec<(String, Option<f64>, Option<String>)> {
     for _ in 0..60 {
-        if let Ok(rows) = db.list_research_metrics_by_type(metric_type, "%", 10).await {
-            if !rows.is_empty() {
+        if let Ok(rows) = db.list_research_metrics_by_type(metric_type, "%", 10).await
+            && !rows.is_empty() {
                 return rows;
             }
-        }
         tokio::time::sleep(vox_config::timeouts::D_50MS).await;
     }
     Vec::new()

@@ -857,11 +857,9 @@ fn method_not_found_diag(
 ) -> Diagnostic {
     let pretty = super::pretty_print_unresolved_type(obj_ty);
     let hint = if pretty == "<unknown>" {
-        format!(
-            "Add an explicit type annotation upstream so the receiver type \
-             can be resolved. For closure params use `fn(x: <Type>) {{ ... }}` \
-             per the closures RFC §11."
-        )
+        "Add an explicit type annotation upstream so the receiver type \
+             can be resolved. For closure params use `fn(x: <Type>) { ... }` \
+             per the closures RFC §11.".to_string()
     } else {
         format!(
             "If `{pretty}` is unexpected, check whether the value came from \

@@ -88,16 +88,14 @@ pub fn is_allowed_artifact_path(path: &Path, root: &Path) -> bool {
     }
 
     // Under workspace root: forbid repo-root `target-*` / `target_*` siblings (sprawl).
-    if path.starts_with(root) {
-        if let Ok(rel) = path.strip_prefix(root) {
-            if let Some(Component::Normal(first)) = rel.components().next() {
+    if path.starts_with(root)
+        && let Ok(rel) = path.strip_prefix(root)
+            && let Some(Component::Normal(first)) = rel.components().next() {
                 let n = first.to_string_lossy();
                 if n.starts_with("target-") || n.starts_with("target_") {
                     return false;
                 }
             }
-        }
-    }
 
     false
 }

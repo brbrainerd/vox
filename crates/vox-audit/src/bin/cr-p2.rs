@@ -220,7 +220,7 @@ fn resolve_probe_url(app: &AppEntry) -> String {
 fn probe_health(url: &str) -> (bool, Option<u16>, Option<String>) {
     use std::io::Read;
     use std::net::TcpStream;
-    use std::time::Duration;
+    
     let (host, port, path) = match parse_http_url(url) {
         Some(t) => t,
         None => return (false, None, Some(format!("malformed url: {url}"))),

@@ -467,12 +467,10 @@ fn parse_style_selector(s: &str) -> StyleSelector {
         StyleSelector::Class(rest.to_string())
     } else if let Some(rest) = s.strip_prefix('#') {
         StyleSelector::Id(rest.to_string())
+    } else if s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+        StyleSelector::Element(s.to_string())
     } else {
-        if s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
-            StyleSelector::Element(s.to_string())
-        } else {
-            StyleSelector::Unparsed(s.to_string())
-        }
+        StyleSelector::Unparsed(s.to_string())
     }
 }
 

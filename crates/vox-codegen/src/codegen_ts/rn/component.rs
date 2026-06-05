@@ -93,7 +93,7 @@ fn class_string_to_style_key(class_tokens: &[&str]) -> Option<&'static str> {
     if class_tokens.is_empty() {
         return None;
     }
-    let joined: Vec<&str> = class_tokens.iter().copied().collect();
+    let joined: Vec<&str> = class_tokens.to_vec();
     if joined.contains(&"flex") && joined.contains(&"flex-col") {
         Some("col")
     } else if joined.contains(&"flex") && joined.contains(&"flex-row") {
@@ -1427,6 +1427,5 @@ fn hir_type_to_ts(ty: &vox_compiler::hir::HirType) -> String {
         }
         HirType::Unit => "void".to_string(),
         HirType::Decimal => "string".to_string(),
-        _ => "any".to_string(),
     }
 }

@@ -65,9 +65,9 @@ pub fn is_adr_path(path: &std::path::Path) -> bool {
     }
     // Filename-prefix match: `NNNN-...md` for 1-4 digit N.
     if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
-        let mut chars = filename.chars();
+        let chars = filename.chars();
         let mut digit_count = 0;
-        while let Some(c) = chars.next() {
+        for c in chars {
             if c.is_ascii_digit() {
                 digit_count += 1;
             } else if c == '-' && (1..=4).contains(&digit_count) {
@@ -118,11 +118,10 @@ fn walk_adrs(dir: &std::path::Path, on_adr: &mut dyn FnMut(&std::path::Path, &st
         let path = entry.path();
         if path.is_dir() {
             walk_adrs(&path, on_adr);
-        } else if is_adr_path(&path) {
-            if let Ok(contents) = std::fs::read_to_string(&path) {
+        } else if is_adr_path(&path)
+            && let Ok(contents) = std::fs::read_to_string(&path) {
                 on_adr(&path, &contents);
             }
-        }
     }
 }
 

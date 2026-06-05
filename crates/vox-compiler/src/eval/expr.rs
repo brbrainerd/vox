@@ -357,8 +357,8 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             // ("Method foo not found") was confusing because the call site is
             // syntactically a free function, not a method on a value.
             // See: docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md §6 #9.
-            if let HirExpr::Ident(ns_name, _) = obj.as_ref() {
-                if (ns_name == "str" || ns_name == "list") && !args.is_empty() {
+            if let HirExpr::Ident(ns_name, _) = obj.as_ref()
+                && (ns_name == "str" || ns_name == "list") && !args.is_empty() {
                     return Err(EvalError::AssertionFailed(format!(
                         "`{ns}.{m}(receiver, ...)` is not a valid call form in Vox; \
                          use the method form `receiver.{m}(...)` instead. \
@@ -368,7 +368,6 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                         m = method,
                     )));
                 }
-            }
             let o = eval_expr(interp, obj)?;
             let mut eval_args = Vec::new();
             for a in args {
@@ -390,8 +389,8 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             // Field is looked up; if it's a callable (Fn or Constructor) it
             // is applied with the call arguments. Falls through to builtin
             // dispatch otherwise so things like `process.run(...)` still work.
-            if let VoxValue::Object(fields) = &o {
-                if let Some((_, val)) = fields.iter().find(|(k, _)| k == method) {
+            if let VoxValue::Object(fields) = &o
+                && let Some((_, val)) = fields.iter().find(|(k, _)| k == method) {
                     match val.clone() {
                         VoxValue::Fn { .. } => {
                             return apply_closure(interp, &val.clone(), eval_args);
@@ -409,7 +408,6 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                         }
                     }
                 }
-            }
 
             if let Some(r) =
                 super::builtins::call_builtin_method(&o, method, eval_args, interp.caps.as_ref())

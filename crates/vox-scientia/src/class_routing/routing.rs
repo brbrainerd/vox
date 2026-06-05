@@ -4,10 +4,10 @@ use super::defaults::{ClassDefaults, FindingClass};
 
 /// Return the recommended-venues list for `class`, or an empty slice if no
 /// policy is configured.
-pub fn recommended_venues_for<'a>(
-    defaults: &'a ClassDefaults,
+pub fn recommended_venues_for(
+    defaults: &ClassDefaults,
     class: FindingClass,
-) -> &'a [String] {
+) -> &[String] {
     defaults
         .policy_for(class)
         .map(|p| p.recommended_venues.as_slice())

@@ -368,99 +368,6 @@ pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPay
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_reject_macros_e091() {
-        let source = "macro_rules! my_macro { () => {} }";
-        let diagnostics = check_file(source, "test.vox");
-        assert_eq!(diagnostics.len(), 1);
-        assert_eq!(diagnostics[0].error_code, "E091".to_string());
-        assert!(
-            diagnostics[0]
-                .message
-                .contains("SyntacticConfigurabilityNotAllowed")
-        );
-
-        // Also test run_frontend_str
-        let frontend_res = run_frontend_str(source, "test.vox").unwrap();
-        assert_eq!(frontend_res.diagnostics.len(), 1);
-        assert_eq!(frontend_res.diagnostics[0].code, Some("E091".to_string()));
-    }
-
-    // ADR-041 (supersedes ADR-028): `workflow`, `activity`, `actor`, `@scheduled`, and
-    // `@durable` are public-grammar features backed by a real runtime. The frontend must
-    // NOT emit an ADR-028-style reservation error for them. These tests pin the gate-lift.
-
-    fn assert_no_adr028_reservation_error(diagnostics: &[VoxCompilerDiagnosticPayload]) {
-        for d in diagnostics {
-            assert!(
-                !d.message.contains("reserved for a future release"),
-                "ADR-028 reservation gate should be lifted (ADR-041); got: {:?}",
-                d.message
-            );
-            assert_ne!(
-                d.error_code.as_str(),
-                "E028",
-                "E028 reservation code must not appear after ADR-041; full diag: {:?}",
-                d
-            );
-        }
-    }
-
-    #[test]
-    fn test_accept_workflow_keyword_adr041() {
-        let source = r#"workflow order(amount: int) to int { return amount }"#;
-        let diagnostics = check_file(source, "test.vox");
-        assert_no_adr028_reservation_error(&diagnostics);
-    }
-
-    #[test]
-    fn test_accept_activity_keyword_adr041() {
-        let source = r#"activity charge(amount: int) to int { return amount }"#;
-        let diagnostics = check_file(source, "test.vox");
-        assert_no_adr028_reservation_error(&diagnostics);
-    }
-
-    #[test]
-    fn test_accept_workflow_plus_activity_adr041() {
-        // Exercises the canonical golden shape: an activity used by a workflow.
-        let source = r#"
-activity charge(amount: int) to int { return amount }
-workflow checkout(amount: int) to int { return charge(amount) }
-"#;
-        let diagnostics = check_file(source, "test.vox");
-        assert_no_adr028_reservation_error(&diagnostics);
-    }
-
-    #[test]
-    fn test_accept_scheduled_decorator_adr041() {
-        let source = r#"@scheduled("1h") fn tick() to int { return 0 }"#;
-        let diagnostics = check_file(source, "test.vox");
-        assert_no_adr028_reservation_error(&diagnostics);
-    }
-
-    #[test]
-    fn test_actor_still_compiles_adr041() {
-        // actor is retained per ADR-041 — must produce zero errors at the frontend layer.
-        let source = r#"actor Counter { on increment(n: int) to int { return n } }"#;
-        let diagnostics = check_file(source, "test.vox");
-        assert_no_adr028_reservation_error(&diagnostics);
-        assert!(
-            diagnostics
-                .iter()
-                .all(|d| d.severity != crate::typeck::diagnostics::TypeckSeverity::Error),
-            "actor should still compile successfully (ADR-041 retains actor); errors: {:?}",
-            diagnostics
-                .iter()
-                .filter(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error)
-                .collect::<Vec<_>>()
-        );
-    }
-}
-
 /// Inline pub fn / pub type-variant decls from an intra-project
 /// `import "./foo.vox"` directive into the importing file's HIR.
 ///
@@ -557,5 +464,98 @@ fn inline_imported_decls(
         // would need a synthesized prefix that ripples into match patterns.
         // Eval-side alias dispatch handles it via Object lookup at runtime;
         // codegen-side alias type imports are a follow-on.
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_reject_macros_e091() {
+        let source = "macro_rules! my_macro { () => {} }";
+        let diagnostics = check_file(source, "test.vox");
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].error_code, "E091".to_string());
+        assert!(
+            diagnostics[0]
+                .message
+                .contains("SyntacticConfigurabilityNotAllowed")
+        );
+
+        // Also test run_frontend_str
+        let frontend_res = run_frontend_str(source, "test.vox").unwrap();
+        assert_eq!(frontend_res.diagnostics.len(), 1);
+        assert_eq!(frontend_res.diagnostics[0].code, Some("E091".to_string()));
+    }
+
+    // ADR-041 (supersedes ADR-028): `workflow`, `activity`, `actor`, `@scheduled`, and
+    // `@durable` are public-grammar features backed by a real runtime. The frontend must
+    // NOT emit an ADR-028-style reservation error for them. These tests pin the gate-lift.
+
+    fn assert_no_adr028_reservation_error(diagnostics: &[VoxCompilerDiagnosticPayload]) {
+        for d in diagnostics {
+            assert!(
+                !d.message.contains("reserved for a future release"),
+                "ADR-028 reservation gate should be lifted (ADR-041); got: {:?}",
+                d.message
+            );
+            assert_ne!(
+                d.error_code.as_str(),
+                "E028",
+                "E028 reservation code must not appear after ADR-041; full diag: {:?}",
+                d
+            );
+        }
+    }
+
+    #[test]
+    fn test_accept_workflow_keyword_adr041() {
+        let source = r#"workflow order(amount: int) to int { return amount }"#;
+        let diagnostics = check_file(source, "test.vox");
+        assert_no_adr028_reservation_error(&diagnostics);
+    }
+
+    #[test]
+    fn test_accept_activity_keyword_adr041() {
+        let source = r#"activity charge(amount: int) to int { return amount }"#;
+        let diagnostics = check_file(source, "test.vox");
+        assert_no_adr028_reservation_error(&diagnostics);
+    }
+
+    #[test]
+    fn test_accept_workflow_plus_activity_adr041() {
+        // Exercises the canonical golden shape: an activity used by a workflow.
+        let source = r#"
+activity charge(amount: int) to int { return amount }
+workflow checkout(amount: int) to int { return charge(amount) }
+"#;
+        let diagnostics = check_file(source, "test.vox");
+        assert_no_adr028_reservation_error(&diagnostics);
+    }
+
+    #[test]
+    fn test_accept_scheduled_decorator_adr041() {
+        let source = r#"@scheduled("1h") fn tick() to int { return 0 }"#;
+        let diagnostics = check_file(source, "test.vox");
+        assert_no_adr028_reservation_error(&diagnostics);
+    }
+
+    #[test]
+    fn test_actor_still_compiles_adr041() {
+        // actor is retained per ADR-041 — must produce zero errors at the frontend layer.
+        let source = r#"actor Counter { on increment(n: int) to int { return n } }"#;
+        let diagnostics = check_file(source, "test.vox");
+        assert_no_adr028_reservation_error(&diagnostics);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::typeck::diagnostics::TypeckSeverity::Error),
+            "actor should still compile successfully (ADR-041 retains actor); errors: {:?}",
+            diagnostics
+                .iter()
+                .filter(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error)
+                .collect::<Vec<_>>()
+        );
     }
 }

@@ -52,7 +52,7 @@ fn write_preamble(out: &mut String, input: &ScaffoldInput) {
     let authors_joined: Vec<String> = input
         .authors
         .iter()
-        .map(|a| render_author_inline(a))
+        .map(render_author_inline)
         .collect();
     if authors_joined.is_empty() {
         // Required by \maketitle; comment marks it as TODO.
