@@ -33,6 +33,12 @@ fn candidate_paths() -> Vec<PathBuf> {
 
     if let Some(path) = std::env::var_os("PATH") {
         for dir in std::env::split_paths(&path) {
+            // Skip Cargo build dirs (`…/target/{debug,release}`): a developer's
+            // in-progress local build is not an "installed" binary, and counting
+            // it would flag a divergence on every active checkout.
+            if crate::freshness::is_cargo_build_dir(&dir) {
+                continue;
+            }
             let cand = dir.join(name);
             if cand.is_file() {
                 push(cand);
@@ -115,9 +121,9 @@ pub fn run(checks: &mut Vec<Check>) {
         CHECK_NAME,
         format!(
             "installed vox binaries disagree on build number ({listing}). Canonical is {} — \
-             refresh it with `cargo install --path crates/vox-cli --force` and remove or update \
-             any earlier-on-PATH copy.",
-            canonical.display()
+             refresh it ({}) and remove or update any earlier-on-PATH copy.",
+            canonical.display(),
+            crate::freshness::REFRESH_GUIDANCE,
         ),
     ));
 }

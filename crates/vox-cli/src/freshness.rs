@@ -30,8 +30,27 @@ pub const EMBEDDED_GIT_HASH: &str = env!("VOX_GIT_HASH");
 /// Environment variable that downgrades the `vox ci *` hard-fail to a note.
 pub const SKIP_ENV: &str = "VOX_SKIP_FRESHNESS_CHECK";
 
-/// Canonical refresh command shown in staleness diagnostics.
-const REINSTALL_HINT: &str = "cargo install --path crates/vox-cli --force";
+/// Refresh guidance shown in staleness diagnostics.
+///
+/// Install-method aware: a source checkout refreshes via `cargo install` (the
+/// argv is the [`crate::utils::install_policy`] SSOT), a release install via
+/// `vox upgrade`. The embedded `crates/vox-cli` path is asserted to match the
+/// SSOT by a unit test so the two cannot drift.
+pub(crate) const REFRESH_GUIDANCE: &str = "from a source checkout run \
+     `cargo install --locked --path crates/vox-cli --force`; from a release install run `vox upgrade`";
+
+/// True when `dir` is a Cargo build-output directory (`…/target/{debug,release}`
+/// and below). Such dirs land on a developer's `PATH` and would otherwise make
+/// the binary-SSOT check flag every in-progress local build as a divergence.
+pub fn is_cargo_build_dir(dir: &std::path::Path) -> bool {
+    let comps: Vec<&str> = dir
+        .components()
+        .filter_map(|c| c.as_os_str().to_str())
+        .collect();
+    comps
+        .windows(2)
+        .any(|w| w[0] == "target" && (w[1] == "debug" || w[1] == "release"))
+}
 
 /// Platform basename of the `vox` executable (`vox.exe` on Windows).
 pub fn vox_binary_name() -> &'static str {
@@ -150,7 +169,7 @@ fn staleness_message(freshness: &Freshness) -> Option<String> {
         Freshness::Stale { embedded, live } => Some(format!(
             "installed vox is stale: built at commit {embedded} ({EMBEDDED_GIT_HASH}), \
              but the working tree is at commit {live}. Its guard logic and allowlists \
-             may be outdated. Refresh with `{REINSTALL_HINT}`."
+             may be outdated. Refresh: {REFRESH_GUIDANCE}."
         )),
         Freshness::Fresh | Freshness::Unknown(_) => None,
     }
@@ -256,6 +275,28 @@ mod tests {
         // No marker / dev build → None.
         assert_eq!(build_number_from_version_line("vox 0.6.0 (dev)"), None);
         assert_eq!(build_number_from_version_line("vox 0.6.0+build.dev"), None);
+    }
+
+    #[test]
+    fn refresh_guidance_matches_install_policy_ssot() {
+        // The source-install path embedded in the message must equal the SSOT,
+        // and the release path must mention `vox upgrade`.
+        assert!(
+            REFRESH_GUIDANCE.contains(crate::utils::install_policy::SOURCE_INSTALL_CLI_REL_PATH)
+        );
+        assert!(REFRESH_GUIDANCE.contains("--locked"));
+        assert!(REFRESH_GUIDANCE.contains("vox upgrade"));
+    }
+
+    #[test]
+    fn cargo_build_dirs_recognized() {
+        use std::path::Path;
+        assert!(is_cargo_build_dir(Path::new("/repo/target/debug")));
+        assert!(is_cargo_build_dir(Path::new("/repo/target/debug/deps")));
+        assert!(is_cargo_build_dir(Path::new("/repo/target/release")));
+        assert!(!is_cargo_build_dir(Path::new("/home/user/.cargo/bin")));
+        assert!(!is_cargo_build_dir(Path::new("/home/user/.vox/bin")));
+        assert!(!is_cargo_build_dir(Path::new("/usr/local/bin")));
     }
 
     #[test]
