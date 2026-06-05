@@ -1,7 +1,7 @@
-use crate::ast::expr::{Expr, Param};
-use crate::ast::span::Span;
-use crate::ast::stmt::Stmt;
-use crate::ast::types::TypeExpr;
+use crate::expr::{Expr, Param};
+use crate::span::Span;
+use crate::stmt::Stmt;
+use crate::types::TypeExpr;
 
 /// Verification mode for contracts and assertions.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -219,7 +219,7 @@ pub struct TestDecl {
 /// Example declaration (wraps a function with @example semantics).
 ///
 /// Examples are authored reference demonstrations lowered into
-/// [`crate::hir::nodes::decl::HirModule::examples`] rather than `tests` so
+/// `vox_compiler::hir::nodes::decl::HirModule::examples` rather than `tests` so
 /// corpus-mining and doc tooling can enumerate them without scanning the
 /// regression-test set.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

@@ -1,6 +1,6 @@
-use crate::ast::decl::fundecl::{FnDecl, StyleBlock};
-use crate::ast::span::Span;
-use crate::ast::types::TypeExpr;
+use crate::decl::fundecl::{FnDecl, StyleBlock};
+use crate::span::Span;
+use crate::types::TypeExpr;
 
 /// v0.dev AI-generated component declaration.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -107,17 +107,17 @@ pub struct FragmentDecl {
     /// Fragment name (PascalCase by convention).
     pub name: String,
     /// Typed parameters; same shape as a function or component parameter list.
-    pub params: Vec<crate::ast::expr::Param>,
+    pub params: Vec<crate::expr::Param>,
     /// Single markup body — currently parsed as a generic Expr; the codegen slice
     /// will validate that it's a JSX/markup expression once Phase 6 primitives land.
-    pub body: crate::ast::expr::Expr,
+    pub body: crate::expr::Expr,
     /// Source span.
     pub span: Span,
 }
 
 /// Project-level design-token declaration block (`@tokens { … }`).
 ///
-/// Groups tokens by category. Lowered to [`crate::hir::nodes::tokens::HirTokensDecl`]
+/// Groups tokens by category. Lowered to `vox_compiler::hir::nodes::tokens::HirTokensDecl`
 /// at the HIR layer where the contrast typecheck pass validates color pairs.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TokensDecl {
@@ -183,11 +183,11 @@ pub struct ReactiveComponentDecl {
     /// Component name.
     pub name: String,
     /// Props/parameters.
-    pub params: Vec<crate::ast::expr::Param>,
+    pub params: Vec<crate::expr::Param>,
     /// Body members: state, derived, effect, on_mount, on_cleanup.
     pub members: Vec<ReactiveMemberDecl>,
     /// Optional view expression (JSX).
-    pub view: Option<crate::ast::expr::Expr>,
+    pub view: Option<crate::expr::Expr>,
     /// Scoped CSS blocks following the component body (same as classic `@component fn`).
     #[serde(default)]
     pub styles: Vec<StyleBlock>,
@@ -209,7 +209,7 @@ pub enum ReactiveMemberDecl {
     /// Runs on component teardown.
     OnCleanup(OnCleanupDecl),
     /// Imperative prelude: `let` bindings, hook calls (`use_effect(...)`), assignments, etc.
-    Stmt(crate::ast::stmt::Stmt),
+    Stmt(crate::stmt::Stmt),
 }
 
 /// `state name: Type = init_expr`
@@ -220,7 +220,7 @@ pub struct StateDecl {
     /// Optional type annotation.
     pub ty: Option<TypeExpr>,
     /// Initial value expression.
-    pub init: crate::ast::expr::Expr,
+    pub init: crate::expr::Expr,
     /// Source span.
     pub span: Span,
 }
@@ -233,7 +233,7 @@ pub struct DerivedDecl {
     /// Optional type annotation.
     pub ty: Option<TypeExpr>,
     /// Computation expression.
-    pub expr: crate::ast::expr::Expr,
+    pub expr: crate::expr::Expr,
     /// Source span.
     pub span: Span,
 }
@@ -242,7 +242,7 @@ pub struct DerivedDecl {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct EffectDecl {
     /// Effect body expression.
-    pub body: crate::ast::expr::Expr,
+    pub body: crate::expr::Expr,
     /// Explicit dependency list from `effect depends_on (a, b):` clause.
     /// When `Some`, the lint `lint.effect.unresolvable_deps` is suppressed.
     pub explicit_deps: Option<Vec<String>>,
@@ -254,7 +254,7 @@ pub struct EffectDecl {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct OnMountDecl {
     /// Mount body expression.
-    pub body: crate::ast::expr::Expr,
+    pub body: crate::expr::Expr,
     /// Source span.
     pub span: Span,
 }
@@ -263,7 +263,7 @@ pub struct OnMountDecl {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct OnCleanupDecl {
     /// Cleanup body expression.
-    pub body: crate::ast::expr::Expr,
+    pub body: crate::expr::Expr,
     /// Source span.
     pub span: Span,
 }

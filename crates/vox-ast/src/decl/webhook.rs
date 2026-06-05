@@ -1,9 +1,9 @@
 //! AST type for the `@webhook(provider:, secret:, replay_window_secs:)` decorator (GA-16).
 //!
-//! Lowered to [`crate::hir::nodes::boilerplate_grafts::HirWebhookDecl`] in the
+//! Lowered to `vox_compiler::hir::nodes::boilerplate_grafts::HirWebhookDecl` in the
 //! HIR phase; validated by `typeck::boilerplate_grafts::check_webhook_decl`.
 
-use crate::ast::span::Span;
+use crate::span::Span;
 
 /// Parsed `@webhook(...)` decorator on an endpoint or function.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

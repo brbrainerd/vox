@@ -1,16 +1,16 @@
 //! Expression AST: literals, control flow, calls, JSX, blocks.
 //!
-//! Expressions may contain [`crate::ast::stmt::Stmt`] sequences only inside `Expr::Block`, `Expr::If`
+//! Expressions may contain [`crate::stmt::Stmt`] sequences only inside `Expr::Block`, `Expr::If`
 //! branches, and similar nodes. The parser does not distinguish “statement context” vs “expression
 //! context” in the type system—that distinction is enforced during typechecking.
 //!
-//! **Tooling:** Prefer matching on [`Expr`](crate::ast::expr::Expr) variants and using embedded
-//! [`Span`](crate::ast::span) fields for
+//! **Tooling:** Prefer matching on [`Expr`](crate::expr::Expr) variants and using embedded
+//! [`Span`](crate::span) fields for
 //! diagnostics; do not assume expression shapes mirror HIR 1:1 until after lowering.
 
-use crate::ast::pattern::Pattern;
-use crate::ast::span::Span;
-use crate::ast::types::TypeExpr;
+use crate::pattern::Pattern;
+use crate::span::Span;
+use crate::types::TypeExpr;
 
 /// Call argument: optional label (`name = value`) plus value expression.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -260,9 +260,9 @@ pub enum Expr {
         /// Condition expression.
         condition: Box<Expr>,
         /// `then` branch statements.
-        then_body: Vec<crate::ast::stmt::Stmt>,
+        then_body: Vec<crate::stmt::Stmt>,
         /// Optional `else` branch statements.
-        else_body: Option<Vec<crate::ast::stmt::Stmt>>,
+        else_body: Option<Vec<crate::stmt::Stmt>>,
         /// Span covering the whole `if`.
         span: Span,
     },
@@ -359,7 +359,7 @@ pub enum Expr {
     /// (typically the tail must be an expression or `return`).
     Block {
         /// Statements executed in order.
-        stmts: Vec<crate::ast::stmt::Stmt>,
+        stmts: Vec<crate::stmt::Stmt>,
         /// Span covering the `{` … `}` block.
         span: Span,
     },
@@ -368,7 +368,7 @@ pub enum Expr {
     /// lower time; the workflow determinism check is exempt inside the block.
     SideEffect {
         /// Body statements (allowed to call `time.now()`, `random.*`, etc.).
-        stmts: Vec<crate::ast::stmt::Stmt>,
+        stmts: Vec<crate::stmt::Stmt>,
         /// Span covering the `side_effect { … }` expression.
         span: Span,
     },

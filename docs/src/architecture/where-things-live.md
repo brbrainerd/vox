@@ -43,6 +43,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Crate | One-line scope |
 |---|---|
 | [`vox-arch-check`](../../../crates/vox-arch-check/) | CI guard binary; enforces layers.toml. Walk-based rules skip artifact trees (built-in + optional `[arch_check.walk_prune]`); Rule 8 staleness uses one batched `git log` when available. |
+| [`vox-ast`](../../../crates/vox-ast/) | Pure-data Vox AST (decl/expr/stmt/pattern/types/scalar_mapping/span); serde-only L0 leaf extracted from `vox-compiler` and re-exported there as `vox_compiler::ast`. Depend on this (not `vox-compiler`) if you only need the declaration AST — e.g. `vox-db`'s DDL emitter. |
 | [`vox-build-meta`](../../../crates/vox-build-meta/) | Build-time helper emitting `VOX_BUILD_NUMBER` / `VOX_GIT_HASH`; use as `[build-dependencies]` only. |
 | [`vox-db-types`](../../../crates/vox-db-types/) | Pure-data L0 leaf for vox-db: row types, IDs, schema descriptors. |
 | [`vox-mesh-types`](../../../crates/vox-mesh-types/) | Pure-data mesh transport types. |

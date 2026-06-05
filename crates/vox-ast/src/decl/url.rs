@@ -1,5 +1,5 @@
-use crate::ast::span::Span;
-use crate::ast::types::TypeExpr;
+use crate::span::Span;
+use crate::types::TypeExpr;
 
 /// A typed URL path declaration: `url Path { Home; Task(id: Id[Task]) }`.
 ///

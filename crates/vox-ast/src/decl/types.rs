@@ -1,6 +1,6 @@
 //! Core Decl surface types: imports, HTTP method, [Decl], [Module] (OP-0207).
 
-use crate::ast::span::Span;
+use crate::span::Span;
 
 use super::*;
 
@@ -108,7 +108,7 @@ pub struct ImportDecl {
     pub span: Span,
 }
 
-/// One item in a [`crate::Module`]: any construct that can appear at column 0 (after indentation) in a file.
+/// One item in a `vox_compiler::Module`: any construct that can appear at column 0 (after indentation) in a file.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Decl {
     /// Top-level or nested function.
@@ -173,7 +173,7 @@ pub enum Decl {
     /// `.vox.ui` reactive module — a top-level container for reactive members
     /// (`state` / `derived` / `effect` / `on mount` / `on cleanup`) shared across
     /// components. Per ADR-032, only legal in files classified as
-    /// [`crate::module::FileKind::ReactiveModule`]. Lowers to a generated React
+    /// `vox_compiler::module::FileKind::ReactiveModule`. Lowers to a generated React
     /// context + provider + `use<Name>()` hook.
     ReactiveModule(ReactiveModuleDecl),
     /// Typed parametric fragment (ADR-033). `fragment Name(arg: T) { <markup> }` —

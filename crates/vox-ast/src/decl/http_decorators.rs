@@ -4,7 +4,7 @@
 //! and lower to HIR `http_ergonomics` / `boilerplate_grafts` types in the
 //! HIR phase.
 
-use crate::ast::span::Span;
+use crate::span::Span;
 
 // ── GA-06 — @cors ──────────────────────────────────────────────────────────
 

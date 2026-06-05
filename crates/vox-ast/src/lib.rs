@@ -1,7 +1,10 @@
 //! Abstract syntax tree (AST) for the Vox language.
 //!
-//! This crate is **compiler-internal**: `vox-parser` builds these trees from tokens; `vox-hir`
-//! lowers them; `vox-typeck` and codegen consume HIR. The AST is **lossy only where the parser
+//! This is a **standalone L0 leaf** (serde-only) re-exported by `vox-compiler` as
+//! `vox_compiler::ast`, so downstream crates that only need the declaration AST (e.g. `vox-db`'s
+//! DDL emitter) can depend on `vox-ast` without pulling in the whole compiler. The parser builds
+//! these trees from tokens; the HIR phase lowers them; typeck and codegen consume HIR. The AST is
+//! **lossy only where the parser
 //! chooses not to model trivia**—names are **not** resolved: `Ident` and `Named` types carry
 //! spellings as written, and it is up to later passes to bind them to definitions.
 //!
@@ -13,7 +16,7 @@
 //! - [`types`] — type **syntax** only (generics, `fn(…) -> …`); not the internal type algebra.
 //!
 //! # Spans
-//! [`crate::ast::span`] is **byte offsets into the original UTF-8 source** (`start` inclusive, `end` exclusive).
+//! [`crate::span`] is **byte offsets into the original UTF-8 source** (`start` inclusive, `end` exclusive).
 //! Diagnostics and LSP use these directly; they are not grapheme- or line-aware.
 //!
 //! See `docs/src/reference/lexicon.md` for naming aligned with the grammar.

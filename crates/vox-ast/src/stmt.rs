@@ -1,13 +1,13 @@
 //! Imperative statements inside function, component, and handler bodies.
 //!
-//! Vox uses **expression-oriented** blocks: a [`crate::ast::expr::Expr::Block`] contains statements,
+//! Vox uses **expression-oriented** blocks: a [`crate::expr::Expr::Block`] contains statements,
 //! and the block’s value is the last expression (not a separate `return` type in the AST). `return`
 //! is only modeled here as `Stmt::Return`.
 
-use crate::ast::expr::Expr;
-use crate::ast::pattern::Pattern;
-use crate::ast::span::Span;
-use crate::ast::types::TypeExpr;
+use crate::expr::Expr;
+use crate::pattern::Pattern;
+use crate::span::Span;
+use crate::types::TypeExpr;
 
 /// Statement: binding, assignment, return, or effectful expression.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

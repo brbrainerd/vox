@@ -1,5 +1,5 @@
-use crate::ast::expr::Expr;
-use crate::ast::span::Span;
+use crate::expr::Expr;
+use crate::span::Span;
 
 /// Pattern matching nodes for let bindings and match arms.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

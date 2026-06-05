@@ -1,5 +1,5 @@
-use crate::ast::span::Span;
-use crate::ast::types::TypeExpr;
+use crate::span::Span;
+use crate::types::TypeExpr;
 
 /// ADT variant in a type definition.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

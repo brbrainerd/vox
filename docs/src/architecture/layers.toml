@@ -76,6 +76,7 @@ vox-orchestrator-types = { layer = 0 }
 
 vox-db-types           = { layer = 0 }
 vox-mesh-types         = { layer = 0 }
+vox-ast                = { layer = 0, max_dependents = 40 }   # pure-data Vox AST (serde-only); extracted from vox-compiler 2026-06-05, re-exported as vox_compiler::ast
 workspace-hack         = { layer = 0, max_dependents = 80, staleness_exempt = true }
 vox-arch-check         = { layer = 0, kind = "binary" }
 vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only helper; intentionally stable — must not be folded into vox-foundation

@@ -1,7 +1,7 @@
 //! Mobile primitive declarations: `@back_button`, `@deep_link`, `@push`. These lower
 //! through the `@vox/runtime` adapter (Tauri 2 on desktop, React Native + Expo on mobile).
 
-use crate::ast::span::Span;
+use crate::span::Span;
 
 /// `@back_button { on_press: handler [fallback: handler] }` —
 /// wires the `@vox/runtime` `onBackButton` handler (Tauri 2 event API on desktop, React Native `BackHandler` on mobile).

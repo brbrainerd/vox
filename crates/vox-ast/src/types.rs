@@ -1,4 +1,4 @@
-use crate::ast::span::Span;
+use crate::span::Span;
 
 /// Type expressions in Vox source code.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

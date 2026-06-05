@@ -1,6 +1,6 @@
 //! `@form` declaration — generates a full form component with validation.
 
-use crate::ast::{expr::Expr, span::Span, types::TypeExpr};
+use crate::{expr::Expr, span::Span, types::TypeExpr};
 
 /// A `@form` declaration in Vox source.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

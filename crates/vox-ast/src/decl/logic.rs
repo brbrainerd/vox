@@ -1,13 +1,13 @@
-use crate::ast::expr::Param;
-use crate::ast::span::Span;
-use crate::ast::stmt::Stmt;
-use crate::ast::types::TypeExpr;
+use crate::expr::Param;
+use crate::span::Span;
+use crate::stmt::Stmt;
+use crate::types::TypeExpr;
 
 /// Actor declaration (TASK-2.6 Path A — bare keyword supported).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ActorDecl {
     pub name: String,
-    pub state_fields: Vec<crate::ast::decl::typedef::VariantField>,
+    pub state_fields: Vec<crate::decl::typedef::VariantField>,
     pub handlers: Vec<ActorHandler>,
     pub is_deprecated: bool,
     pub span: Span,
@@ -48,7 +48,7 @@ pub struct ActivityDecl {
     pub params: Vec<Param>,
     pub return_type: Option<TypeExpr>,
     pub body: Vec<Stmt>,
-    pub options: Option<crate::ast::expr::Expr>,
+    pub options: Option<crate::expr::Expr>,
     pub prompt: Option<String>,
     pub is_traced: bool,
     pub is_deprecated: bool,
@@ -60,7 +60,7 @@ pub struct ActivityDecl {
 pub struct AgentDecl {
     pub name: String,
     pub version: Option<String>,
-    pub state_fields: Vec<crate::ast::decl::typedef::VariantField>,
+    pub state_fields: Vec<crate::decl::typedef::VariantField>,
     pub handlers: Vec<AgentHandler>,
     pub migrations: Vec<MigrationRule>,
     pub is_deprecated: bool,
@@ -90,7 +90,7 @@ pub struct MigrationRule {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MessageDecl {
     pub name: String,
-    pub fields: Vec<crate::ast::decl::typedef::VariantField>,
+    pub fields: Vec<crate::decl::typedef::VariantField>,
     pub is_deprecated: bool,
     pub span: Span,
 }
@@ -98,7 +98,7 @@ pub struct MessageDecl {
 /// HTTP route declaration.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HttpRouteDecl {
-    pub method: crate::ast::decl::HttpMethod,
+    pub method: crate::decl::HttpMethod,
     pub path: String,
     pub params: Vec<Param>,
     pub return_type: Option<TypeExpr>,

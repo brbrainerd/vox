@@ -13044,6 +13044,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-ast"
+version = "0.6.0"
+dependencies = [
+ "serde",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-audit"
 version = "0.6.0"
 dependencies = [
@@ -13351,6 +13359,7 @@ dependencies = [
  "tokio",
  "toml 0.8.23",
  "tracing",
+ "vox-ast",
  "vox-codegen",
  "vox-config",
  "vox-eval",
@@ -13477,7 +13486,7 @@ dependencies = [
  "tracing",
  "turso",
  "uuid",
- "vox-compiler",
+ "vox-ast",
  "vox-config",
  "vox-db-types",
  "vox-mesh-types",

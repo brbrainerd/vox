@@ -1,4 +1,4 @@
-use crate::ast::span::Span;
+use crate::span::Span;
 
 /// `@embed(model: "...", dimensions: N, source_field: "...")` decorator (GA-24).
 ///

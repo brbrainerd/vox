@@ -11,8 +11,8 @@
 ///   on Retire    from any     -> Retired
 /// }
 /// ```
-use crate::ast::span::Span;
-use crate::ast::types::TypeExpr;
+use crate::span::Span;
+use crate::types::TypeExpr;
 
 /// Top-level `state_machine Name { … }` declaration.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

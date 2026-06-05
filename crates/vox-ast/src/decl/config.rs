@@ -1,6 +1,6 @@
-use crate::ast::expr::Expr;
-use crate::ast::span::Span;
-use crate::ast::types::TypeExpr;
+use crate::expr::Expr;
+use crate::span::Span;
+use crate::types::TypeExpr;
 
 /// Constant declaration.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -19,7 +19,7 @@ pub struct ConstDecl {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ConfigDecl {
     pub name: String,
-    pub fields: Vec<crate::ast::decl::db::TableField>,
+    pub fields: Vec<crate::decl::db::TableField>,
     pub is_deprecated: bool,
     pub span: Span,
 }
