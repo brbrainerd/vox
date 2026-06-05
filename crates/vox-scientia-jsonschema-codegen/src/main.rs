@@ -62,17 +62,22 @@ fn main() -> Result<()> {
 
     for path in &paths {
         eprintln!("[codegen] processing {}", path.display());
-        let raw = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
-        let root_schema: RootSchema =
-            serde_json::from_str(&raw).with_context(|| format!("parse {}", path.display()))?;
         let rel = path
             .strip_prefix(&repo)
             .unwrap_or(path)
             .display()
             .to_string();
 
+        // ALL fallible work — including the file read and JSON parse — runs inside
+        // catch_unwind. A bare `?` out here would return from `main` while the silent
+        // panic hook (installed above) is still in place, leaking it; routing genuine
+        // errors through the closure's `Result` keeps every exit path on the
+        // hook-restoring `hard_error`/`break` route.
         let rendered =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<String> {
+                let raw = fs::read_to_string(path).with_context(|| format!("read {rel}"))?;
+                let root_schema: RootSchema =
+                    serde_json::from_str(&raw).with_context(|| format!("parse {rel}"))?;
                 let mut type_space = TypeSpace::default();
                 type_space
                     .add_root_schema(root_schema)
@@ -89,10 +94,17 @@ fn main() -> Result<()> {
                 hard_error = Some(e);
                 break;
             }
-            Err(_panic) => {
+            Err(panic) => {
+                // Surface the panic payload so a *genuine* (non-typify) panic isn't
+                // silently disguised as a benign "validation-only" skip.
+                let payload = panic
+                    .downcast_ref::<&str>()
+                    .map(|s| (*s).to_string())
+                    .or_else(|| panic.downcast_ref::<String>().cloned())
+                    .unwrap_or_else(|| "<non-string panic>".to_string());
                 eprintln!(
                     "[codegen] WARNING: typify could not model {rel} — skipping \
-                     (validation-only schema; no Rust types emitted)"
+                     (validation-only schema; no Rust types emitted). panic: {payload}"
                 );
                 out.push_str(&format!(
                     "// --- {rel} : SKIPPED — typify could not model this schema (validation-only) ---\n\n"
