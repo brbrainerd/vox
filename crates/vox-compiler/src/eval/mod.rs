@@ -269,12 +269,26 @@ impl Interpreter {
             }
         }
 
-        // Register all functions in both scopes
+        // Register all functions in both scopes.
+        //
+        // Top-level functions capture an EMPTY environment, not
+        // `self.scope.clone()`. Every top-level binding (constructors, ADT
+        // variants, sibling functions) is mirrored into `self.module_scope`,
+        // and identifier resolution at call time falls back to `module_scope`
+        // (see `eval::expr` Identifier arm), so an empty captured env resolves
+        // identically — while a per-function snapshot of the growing scope made
+        // each function deep-clone every previously-registered function (with
+        // its own captured env), i.e. O(2^N) in the number of top-level
+        // functions. That exponential blew up module setup for files with many
+        // generated functions (e.g. `@json_as` types + helpers), hanging the
+        // interpreter. Genuine closures (lambdas) still capture their real
+        // environment in the `eval::expr` Lambda arm — only top-level
+        // registration is changed here.
         for f in &module.functions {
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: f.body.clone(),
-                env: self.scope.clone(),
+                env: Scope::new(),
             };
             self.scope.set(f.name.clone(), val.clone());
             self.module_scope.set(f.name.clone(), val);
@@ -284,7 +298,7 @@ impl Interpreter {
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: f.body.clone(),
-                env: self.scope.clone(),
+                env: Scope::new(),
             };
             self.scope.set(f.name.clone(), val.clone());
             self.module_scope.set(f.name.clone(), val);
@@ -300,7 +314,7 @@ impl Interpreter {
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: f.body.clone(),
-                env: self.scope.clone(),
+                env: Scope::new(),
             };
             self.scope.set(f.name.clone(), val.clone());
             self.module_scope.set(f.name.clone(), val);
