@@ -958,6 +958,27 @@ jobs:
           pnpm install --prefer-offline
           pnpm typecheck
 
+      # Registry-driven visual-audit sweep: screenshots every GUI surface (derived from
+      # SURFACE_REGISTRY, so new surfaces are covered automatically) and asserts no error-
+      # boundary trip / uncaught error / console error. Reuses the deps installed above and
+      # only pulls Chromium (cached on this browser runner), so it costs seconds — and runs
+      # before the heavier Rust golden route so a broken surface fails fast.
+      - name: GUI visual-audit sweep (Playwright)
+        run: |
+          cd crates/vox-gui/ui
+          pnpm exec playwright install chromium
+          pnpm exec playwright test --project=chromium --workers=4
+
+      - name: Upload GUI visual-audit screenshots
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gui-visual-audit
+          path: |
+            crates/vox-gui/ui/e2e/screens
+            crates/vox-gui/ui/playwright-report
+          if-no-files-found: ignore
+
       - name: Cache Cargo
         uses: actions/cache@v5
         with:
