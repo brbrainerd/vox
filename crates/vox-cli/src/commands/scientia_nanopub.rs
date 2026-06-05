@@ -14,6 +14,27 @@ use vox_db::store::UserIdentityRow;
 use vox_scientia::nanopub::spec::{NanopubProfile, gen_keys};
 use vox_secrets::SecretId;
 
+/// Resolve the effective ORCID via the canonical precedence: the explicit
+/// `param` wins; else the stored `row_orcid`; else an error.
+///
+/// This is the single source of truth for the ORCID-precedence rule used by
+/// [`resolve_or_create_identity`]. Pure: no DB, no vault, no I/O.
+///
+/// # Errors
+/// Returns an error (mentioning ORCID) when neither source supplies one.
+fn effective_orcid(param: Option<&str>, row_orcid: Option<&str>) -> anyhow::Result<String> {
+    param
+        .map(str::to_string)
+        .or_else(|| row_orcid.map(str::to_string))
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "an ORCID is required to sign a nanopublication; \
+                 pass one explicitly (e.g. https://orcid.org/0000-0002-1825-0097) or \
+                 store one on the user identity first"
+            )
+        })
+}
+
 /// Get-or-create the per-user nanopublication signing identity.
 ///
 /// 1. Reads the stored `user_identities` row (if any).
@@ -37,17 +58,11 @@ pub async fn resolve_or_create_identity(
 ) -> anyhow::Result<NanopubProfile> {
     let existing = db.get_user_identity(user_id).await?;
 
-    // Choose the ORCID: explicit arg first, then the stored one.
-    let chosen_orcid = orcid
-        .map(str::to_string)
-        .or_else(|| existing.as_ref().and_then(|row| row.orcid_id.clone()))
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "an ORCID is required to sign a nanopublication for user `{user_id}`; \
-                 pass one explicitly (e.g. https://orcid.org/0000-0002-1825-0097) or \
-                 store one on the user identity first"
-            )
-        })?;
+    // Choose the ORCID: explicit arg first, then the stored one (single source
+    // of truth for the precedence rule lives in `effective_orcid`).
+    let row_orcid = existing.as_ref().and_then(|row| row.orcid_id.as_deref());
+    let chosen_orcid = effective_orcid(orcid, row_orcid)
+        .map_err(|e| anyhow::anyhow!("{e} (for user `{user_id}`)"))?;
 
     let key_id = SecretId::VoxUserRsaNanopubPrivateKeyB64;
 
@@ -99,6 +114,32 @@ mod tests {
     use super::*;
     use std::sync::Mutex;
     use vox_db::{DbConfig, VoxDb};
+
+    // Pure, vault-free, DB-free unit tests for the ORCID precedence (param wins,
+    // then row fallback, then error). These run in-sandbox with no I/O.
+    #[test]
+    fn effective_orcid_param_wins_over_row() {
+        let got = effective_orcid(Some("https://orcid.org/A"), Some("https://orcid.org/B"))
+            .expect("param orcid should win");
+        assert_eq!(got, "https://orcid.org/A");
+    }
+
+    #[test]
+    fn effective_orcid_falls_back_to_row() {
+        let got = effective_orcid(None, Some("https://orcid.org/B"))
+            .expect("row orcid should be used when param is absent");
+        assert_eq!(got, "https://orcid.org/B");
+    }
+
+    #[test]
+    fn effective_orcid_errors_when_none() {
+        let err = effective_orcid(None, None).expect_err("no orcid available must error");
+        let msg = err.to_string();
+        assert!(
+            msg.to_uppercase().contains("ORCID"),
+            "error message must mention ORCID, got: {msg}"
+        );
+    }
 
     // Serialize env-var mutation across tests in this module.
     static ENV_LOCK: Mutex<()> = Mutex::new(());
