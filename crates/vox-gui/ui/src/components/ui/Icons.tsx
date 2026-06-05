@@ -190,4 +190,39 @@ export const Icon = {
       <path d="M6 15l6-6 6 6" />
     </svg>
   ),
+  branch: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <circle cx="6" cy="6" r="2.5" />
+      <circle cx="6" cy="18" r="2.5" />
+      <circle cx="18" cy="7" r="2.5" />
+      <path d="M6 8.5v7" />
+      <path d="M18 9.5v2a4 4 0 0 1-4 4H8.5" />
+    </svg>
+  ),
+  puzzle: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" {...p}>
+      <path d="M9 4a2 2 0 1 1 4 0c0 .6.1 1 .6 1H16a1 1 0 0 1 1 1v2.4c0 .5.4.6 1 .6a2 2 0 1 1 0 4c-.6 0-1 .1-1 .6V17a1 1 0 0 1-1 1h-2.4c-.5 0-.6.4-.6 1a2 2 0 1 1-4 0c0-.6-.1-1-.6-1H6a1 1 0 0 1-1-1v-2.4c0-.5-.4-.6-1-.6a2 2 0 1 1 0-4c.6 0 1-.1 1-.6V6a1 1 0 0 1 1-1h2.4c.5 0 .6-.4.6-1Z" />
+    </svg>
+  ),
+  beaker: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M9 3h6" />
+      <path d="M10 3v6.5L5.2 18.4A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.3-2.6L14 9.5V3" />
+      <path d="M7.5 14.5h9" />
+    </svg>
+  ),
+  brain: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M12 5.5a2.8 2.8 0 0 0-3 2.6 2.6 2.6 0 0 0-1 5V16a2 2 0 0 0 2 2h2V5.5Z" />
+      <path d="M12 5.5a2.8 2.8 0 0 1 3 2.6 2.6 2.6 0 0 1 1 5V16a2 2 0 0 1-2 2h-2V5.5Z" />
+    </svg>
+  ),
+  users: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3.5 19a5.5 5.5 0 0 1 11 0" />
+      <path d="M16 5.3a3 3 0 0 1 0 5.4" />
+      <path d="M17.5 13.6a5.5 5.5 0 0 1 3 5.4" />
+    </svg>
+  ),
 };
