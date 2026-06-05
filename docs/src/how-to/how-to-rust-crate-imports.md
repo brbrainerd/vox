@@ -62,7 +62,7 @@ flowchart LR
 ```
 
 1. **Parse** — `rust:` is recognized only when the first segment is the identifier `rust` followed by `:`; see `crates/vox-compiler/src/parser/descent/decl/head.rs` (`parse_import_path`).
-2. **AST** — `ImportPath` carries `ImportPathKind::RustCrate(RustCrateImport)` plus optional alias; see `crates/vox-compiler/src/ast/decl/types.rs`.
+2. **AST** — `ImportPath` carries `ImportPathKind::RustCrate(RustCrateImport)` plus optional alias; see `crates/vox-ast/src/decl/types.rs`.
 3. **HIR** — Lowering fills `HirModule::rust_imports` (`HirRustImport`: crate name, alias, version/path/git/rev, span); symbol-style imports still populate `HirModule::imports`; see `crates/vox-compiler/src/hir/lower/mod.rs`.
 4. **Validation** — `crates/vox-compiler/src/hir/validate.rs` checks empty names, conflicting path+git, etc.
 5. **Type checking** — `register_hir_module` binds the alias to an internal `Ty::Named("RustCrate::<crate>")` and reports alias clashes with other top-level names; conflicting metadata for the same crate name emits `DiagnosticCategory::Lowering`; see `crates/vox-compiler/src/typeck/registration.rs`.
