@@ -4,6 +4,7 @@
 
 pub mod network;
 pub mod signing;
+pub mod spec;
 pub mod trig;
 
 pub use network::{NanopubNetworkConfig, PublishResult, publish_stub};
