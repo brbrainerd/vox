@@ -114,6 +114,7 @@ vox-capability-registry = { layer = 2 }
 
 vox-project-scaffold    = { layer = 2 }
 vox-quantize            = { layer = 2, max_loc = 4_000 }
+vox-nanopub             = { layer = 2, max_loc = 1_000 }  # SCIENTIA nanopublication leaf (vox-crypto + sha2 + hex); extracted from vox-scientia 2026-06-05
 vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
@@ -360,7 +361,6 @@ reason           = "Application package manifests use @tauri-apps/* per ADR 037.
 [planned]
 vox-claim-extractor      = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
 vox-inspect-bridge       = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 3 }
-vox-nanopub              = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
 vox-prereg               = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
 vox-ro-crate             = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
 vox-scientia-ingest      = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 3 }

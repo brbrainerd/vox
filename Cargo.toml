@@ -51,6 +51,7 @@ debug = 0
 
 [workspace.dependencies]
 vox-scientia = { path = "crates/vox-scientia" }
+vox-nanopub               = { path = "crates/vox-nanopub" }
 workspace-hack            = { path = "crates/workspace-hack" }
 # Internal crates
 vox-build-meta            = { path = "crates/vox-build-meta" }

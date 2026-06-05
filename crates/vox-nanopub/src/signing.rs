@@ -1,4 +1,4 @@
-use crate::nanopub::trig::NanopubDocument;
+use crate::trig::NanopubDocument;
 pub use vox_crypto::facades::SigningKey;
 pub use vox_crypto::facades::VerifyingKey;
 use vox_crypto::facades::{sign, verify};
@@ -32,7 +32,7 @@ pub fn verify_nanopub(signed: &SignedNanopub, verifying_key: &VerifyingKey) -> b
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nanopub::trig::build_nanopub;
+    use crate::trig::build_nanopub;
     use vox_crypto::facades::generate_signing_keypair;
 
     #[test]

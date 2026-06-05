@@ -14040,6 +14040,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-nanopub"
+version = "0.6.0"
+dependencies = [
+ "hex",
+ "sha2",
+ "vox-crypto",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-openai"
 version = "0.6.0"
 dependencies = [
@@ -14968,6 +14978,7 @@ dependencies = [
  "vox-db",
  "vox-db-types",
  "vox-http-client",
+ "vox-nanopub",
  "vox-research-events",
  "vox-search",
 ]
