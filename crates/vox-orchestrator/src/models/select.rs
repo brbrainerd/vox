@@ -816,9 +816,11 @@ pub fn select_with_default_registry(intent: &SelectionIntent) -> Option<Selectio
 
 #[cfg(test)]
 mod tests {
-    // Tests set/remove process env vars to exercise `from_env` cascades.
-    // SAFETY: each test snapshots and restores the var; runner is single-threaded.
+    // Env-mutating tests exercise `from_env` cascades; they are `#[serial]` so no
+    // other env-mutating test runs concurrently, and each restores the prior value.
     #![allow(unsafe_code)]
+    use serial_test::serial;
+
     use super::*;
 
     #[test]
@@ -875,6 +877,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn from_env_returns_default_when_unset() {
         // SAFETY: tests are gated by the parent test serialization; we restore.
         let prior = std::env::var("VOX_MODEL_AXES").ok();
@@ -888,6 +891,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn from_env_parses_custom_axes() {
         let prior = std::env::var("VOX_MODEL_AXES").ok();
         unsafe {
@@ -986,6 +990,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn exploration_budget_gate_blocks_unknown_when_exhausted() {
         let prior_enable = std::env::var("VOX_ROUTING_ENABLE_EXPLORATION").ok();
         let prior_budget = std::env::var("VOX_EXPLORATION_BUDGET_EXHAUSTED").ok();

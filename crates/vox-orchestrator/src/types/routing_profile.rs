@@ -105,9 +105,11 @@ pub fn config_to_routing_profile(cfg: &crate::config::OrchestratorConfig) -> Rou
 
 #[cfg(test)]
 mod tests {
-    // Tests remove/restore VOX_ROUTING_PROFILE to exercise deterministic branches.
-    // SAFETY: each test snapshots and restores the var; runner is single-threaded.
+    // The env-mutating test removes/restores VOX_ROUTING_PROFILE; it is `#[serial]`
+    // so no other env-mutating test runs concurrently, and it restores the prior value.
     #![allow(unsafe_code)]
+    use serial_test::serial;
+
     use super::*;
     use std::str::FromStr;
 
@@ -170,6 +172,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn config_maps_cost_preference_when_secret_unset() {
         // The secret overlay reads VOX_ROUTING_PROFILE; remove it so the
         // CostPreference branch is exercised deterministically.

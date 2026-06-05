@@ -151,9 +151,11 @@ impl TelemetryRecorder for CorpusFeedbackJsonlSink {
 
 #[cfg(test)]
 mod tests {
-    // Tests set/restore EVENTS_DIR_ENV to drive env-resolution branches.
-    // SAFETY (per block below): single-threaded runner; var restored after each test.
+    // Env-mutating tests set/restore EVENTS_DIR_ENV; they are `#[serial]` so no
+    // other env-mutating test runs concurrently, and each restores the prior value.
     #![allow(unsafe_code)]
+    use serial_test::serial;
+
     use super::*;
     use vox_telemetry::{LintFindingEvent, ModelCallEvent, RepairOutcomeEvent};
 
@@ -264,6 +266,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn disabled_sentinel_resolves_to_none() {
         // SAFETY: tests are single-threaded with respect to this env var; we
         // restore it after the assertion.
@@ -285,6 +288,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn explicit_env_path_overrides_cwd_default() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let prior = std::env::var(EVENTS_DIR_ENV).ok();

@@ -370,6 +370,8 @@ pub fn chat_route_to_llm_config(route: &ChatProviderRouteKind) -> LlmConfig {
 
 #[cfg(test)]
 mod tests {
+    use serial_test::serial;
+
     use super::*;
 
     #[test]
@@ -558,9 +560,11 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn selector_model_env_precedes_default_cascade() {
         let prior = std::env::var("VOX_SELECTOR_MODEL").ok();
-        // SAFETY: single-threaded test; no other thread reads the environment concurrently.
+        // SAFETY: `#[serial]` prevents other env-mutating tests from running
+        // concurrently; the prior value is snapshotted above and restored below.
         #[allow(unsafe_code)]
         unsafe {
             std::env::set_var("VOX_SELECTOR_MODEL", "openai/gpt-4o-mini")
@@ -586,7 +590,7 @@ mod tests {
             }
             other => panic!("expected selector openrouter route, got {other:?}"),
         }
-        // SAFETY: single-threaded test; no other thread reads the environment concurrently.
+        // SAFETY: serialized via `#[serial]`; restore the snapshotted prior value.
         #[allow(unsafe_code)]
         unsafe {
             match prior {
