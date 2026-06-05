@@ -175,6 +175,8 @@ tokio = {{ version = "1", features = ["full"] }}
 serde = {{ version = "1", features = ["derive"] }}
 serde_json = "1"
 tracing = "0.1"
+rust_decimal = "1.36"
+regex = "1"
 vox-actor-runtime = {{ path = "{runtime_path_str}" }}
 {rust_import_deps}
 "#,
