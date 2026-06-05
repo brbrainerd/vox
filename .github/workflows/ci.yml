@@ -110,7 +110,21 @@ jobs:
         run: cargo run -p vox-cli --quiet -- ci manifest
 
       - name: Format Check
-        run: cargo fmt --all -- --check
+        # Per-manifest, NOT `cargo fmt --all`: the latter passes every crate's
+        # target root to one rustfmt process, overflowing the Windows
+        # CreateProcess command-line limit (os error 206) on this large
+        # workspace. The per-manifest form keeps each invocation tiny and stays
+        # identical on Linux/macOS/Windows runners. Local writer: `vox run
+        # scripts/fmt.vox`. See AGENTS.md "Formatting Rust (Windows-safe)".
+        run: |
+          fail=0
+          for m in crates/*/Cargo.toml; do
+            cargo fmt --manifest-path "$m" -- --check || fail=1
+          done
+          if [ "$fail" != 0 ]; then
+            echo "::error::rustfmt found unformatted files — run 'vox run scripts/fmt.vox' to fix"
+            exit 1
+          fi
 
       - name: Install cargo-deny + cargo-audit
         uses: taiki-e/install-action@v2

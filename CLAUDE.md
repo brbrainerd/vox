@@ -18,6 +18,7 @@ This project uses `AGENTS.md` as the cross-tool policy surface (required reading
 - **Any `.md` you create under `docs/src/` must start with YAML frontmatter** (`title`/`description`/`category`) — write it as you create the file, never as an afterthought. The pre-push doc-pipeline blocks pushes without it. See [`AGENTS.md §Authored Markdown Frontmatter`](AGENTS.md) and the SSOT [`documentation-governance.md`](docs/src/contributors/documentation-governance.md). Prefer making fenced `vox` blocks compile; use `// vox:skip` + a reason only for genuine out-of-file excerpts.
 - Do not store project-specific research in your IDE memory; write to `docs/src/architecture/` instead.
 - **Automation scripts are `.vox` files.** Do not generate `.ps1`, `.sh`, or `.py` scripts for project automation. Use `vox run scripts/foo.vox` instead. See [`AGENTS.md §VoxScript-First Glue Code`](AGENTS.md).
+- **Never run `cargo fmt --all`** (it overflows the Windows command-line limit → `os error 206`). Format the workspace with `vox run scripts/fmt.vox` (check: `VOX_FMT_CHECK=1 vox run scripts/fmt.vox`), or a single crate with `cargo fmt -p <crate>`. See [`AGENTS.md §Formatting Rust (Windows-safe)`](AGENTS.md).
 
 See: [AGENTS.md](AGENTS.md) for full policy.
 

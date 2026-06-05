@@ -175,6 +175,15 @@ All project automation — CI prep, corpus transforms, training pipelines, insta
 
 **Do NOT use Python or shell for glue.** Vox is the glue language. Python and shell are retired glue surfaces in this repository.
 
+**Formatting Rust (Windows-safe).** Never run `cargo fmt --all` on this workspace — it passes every crate's target root to a single `rustfmt` process, which overflows the Windows `CreateProcess` command-line limit and dies with `os error 206` ("The filename or extension is too long"). Format the whole workspace with:
+
+```
+vox run scripts/fmt.vox                    # write (fix) — Windows/Linux/macOS
+VOX_FMT_CHECK=1 vox run scripts/fmt.vox    # check only (nonzero exit on drift)
+```
+
+`scripts/fmt.vox` formats each crate via `cargo fmt --manifest-path crates/<crate>/Cargo.toml`, so every invocation is tiny while cargo still resolves `rustfmt.toml` + per-crate edition (full fidelity — a raw `rustfmt` loop loses the config on Windows `\\?\` paths and emits phantom diffs). The pre-push gate (`vox ci pre-push` → `check_fmt`) and both CI workflows use the same per-crate strategy. To fix a single crate: `cargo fmt -p <crate>`.
+
 Full rationale, execution tier map, security model, and migration plan: background research in `docs/src/archive/research-2026-q1/` (do not ingest — see §Archival Protocol).
 
 ## Grammar Unification (Vox Source Syntax)
