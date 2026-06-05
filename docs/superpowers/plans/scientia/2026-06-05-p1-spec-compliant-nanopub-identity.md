@@ -18,7 +18,7 @@
 - Trusty URI: `nanopub.info.uri.as_str()` (hash form `RA<base64url>`).
 - TriG out: `Nanopub::rdf() -> Result<String, NpError>`.
 - Offline validate: `Nanopub::check() -> Result<Nanopub, NpError>` (re-derives trusty hash + RSA-verifies embedded signature; **no network**). ⚠️ prints `✅ … is valid` to **stdout** on success — callers emitting JSON (Task 6) must suppress/redirect this.
-- Keygen: `nanopub::profile::gen_keys() -> Result<(String, String), NpError>` → (private, public) as **normalized base64 PKCS#8** strings. NOTE: `ProfileBuilder::new` takes this **base64 key string** (not a PEM block) — so the stored secret + `user_identities` column should hold the **base64 key**, not a PEM. Rename `rsa_private_key_pem`→`rsa_private_key_b64` and `nanopub_pubkey_pem`→`nanopub_pubkey_b64` in Tasks 2–4 accordingly. The Task 1 wrapper already exists as `vox_scientia::nanopub::spec::{SignedNanopubDoc, NanopubProfile, build_and_sign, validate_offline}`.
+- Keygen: `nanopub::profile::gen_keys() -> Result<(String, String), NpError>` → (private, public) as **normalized base64 PKCS#8** strings. NOTE: `ProfileBuilder::new` takes this **base64 key string** (not a PEM block) — so the stored secret + `user_identities` column hold the **base64 key**, not a PEM. The signing-key fields are therefore named `rsa_private_key_b64` and `nanopub_pubkey_b64` (and the SecretId/env `VOX_USER_RSA_NANOPUB_PRIVATE_KEY_B64`) throughout Tasks 2–4. The Task 1 wrapper already exists as `vox_scientia::nanopub::spec::{SignedNanopubDoc, NanopubProfile, build_and_sign, validate_offline}`.
 
 ---
 
@@ -44,10 +44,9 @@
 - **Modify** `crates/vox-scientia/Cargo.toml` + workspace `Cargo.toml` — add `nanopub` dep.
 - **Modify** `crates/vox-db/src/schema/domains/scientia.rs` — add `user_identities` + `scientia_nanopubs` tables.
 - **Modify** `crates/vox-db/src/schema/manifest.rs` — bump `BASELINE_VERSION` 70 → 71.
-- **Create** `crates/vox-db/src/store/ops_user_identity.rs` — upsert/get for both tables.
-- **Modify** `crates/vox-db-types/src/store_types/…` — `UserIdentityRow`, `NanopubRow`.
+- **Create** `crates/vox-db/src/store/ops_user_identity.rs` — `UserIdentityRow`/`NanopubRow` (defined inline here) + upsert/get for both tables; re-export the rows via `store/mod.rs`.
 - **Modify** `crates/vox-secrets/src/lib.rs` — public `store_secret`.
-- **Modify** `crates/vox-secrets/src/spec/ids.rs` + `registry/scholarly.rs` — `VoxUserRsaNanopubPrivateKeyPem` SecretId.
+- **Modify** `crates/vox-secrets/src/spec/ids.rs` + `registry/scholarly.rs` — `VoxUserRsaNanopubPrivateKeyB64` SecretId.
 - **Create** `crates/vox-cli/src/commands/scientia_nanopub.rs` — `publication-nanopub-build` handler (identity resolve → build → sign → validate → print; NO publish).
 - **Modify** `crates/vox-cli/src/commands/scientia.rs` + `db_cli/*` — wire the subcommand.
 - **Create** `crates/vox-scientia/tests/nanopub_conformance.rs` + vendored vectors under `crates/vox-scientia/tests/fixtures/nanopub-testsuite/`.
@@ -75,8 +74,8 @@
 // crates/vox-scientia/src/nanopub/spec.rs  (#[cfg(test)] mod tests)
 #[test]
 fn sign_then_validate_offline_round_trips() {
-    // A minimal RSA keypair generated for the test (PEM), and a tiny assertion.
-    let profile = test_profile(); // helper from Step 5 (orcid, name, rsa_pem)
+    // A minimal RSA keypair generated for the test (base64 PKCS#8), and a tiny assertion.
+    let profile = test_profile(); // helper from Step 5 (orcid, name, rsa_private_key_b64)
     let assertion_ttl = ":claim1 a <https://vox.scientia/vocab#AtomicClaim> ; \
         <https://vox.scientia/vocab#text> \"p95 latency rose by 12ms\" .";
     let signed = build_and_sign(assertion_ttl, "https://orcid.org/0000-0002-1825-0097",
@@ -88,10 +87,10 @@ fn sign_then_validate_offline_round_trips() {
 }
 ```
 
-- [ ] **Step 5: Implement the wrapper against the real API.** Define `pub struct SignedNanopubDoc { pub trig: String, pub trusty_uri: String }`, `pub struct NanopubProfile { pub orcid: String, pub name: String, pub rsa_private_key_pem: String }`, and:
+- [ ] **Step 5: Implement the wrapper against the real API.** Define `pub struct SignedNanopubDoc { pub trig: String, pub trusty_uri: String }`, `pub struct NanopubProfile { pub orcid: String, pub name: String, pub rsa_private_key_b64: String }`, and:
   - `pub fn build_and_sign(assertion_ttl: &str, attributed_to_orcid: &str, generated_at_unix: i64, profile: &NanopubProfile) -> Result<SignedNanopubDoc, NanopubError>` — assemble the four named graphs (head/assertion/provenance/pubinfo), construct a `nanopub::Nanopub` from the TriG, sign with a `NpProfile`/`ProfileBuilder` built from `profile`, and read back the signed RDF + trusty URI.
   - `pub fn validate_offline(trig: &str) -> Result<(), NanopubError>` — parse + `check()` the artifact with no network.
-  - `test_profile()` generates a throwaway RSA PEM (via the crate's keygen, discovered in Step 3) for tests.
+  - `test_profile()` generates a throwaway RSA base64 PKCS#8 key (via the crate's keygen, discovered in Step 3) for tests.
   - Use the names recorded in Step 3; adjust until it compiles.
 
 - [ ] **Step 6: Run the test.** Run: `cargo test -p vox-scientia nanopub::spec::tests::sign_then_validate_offline_round_trips`. Expected: PASS.
@@ -104,8 +103,8 @@ fn sign_then_validate_offline_round_trips() {
 
 **Files:**
 - Modify: `crates/vox-db/src/schema/domains/scientia.rs`, `crates/vox-db/src/schema/manifest.rs:11`
-- Modify: `crates/vox-db-types/src/store_types/…` (mirror an existing scientia row module)
-- Test: `crates/vox-db/tests/` (mirror `migration_tests.rs`)
+- Create: `crates/vox-db/src/store/ops_user_identity.rs` (`UserIdentityRow`/`NanopubRow` inline; re-export via `store/mod.rs`)
+- Test: `crates/vox-db/tests/` (mirror `migration_tests.rs`); use `VoxDb::connect(DbConfig::Memory)`
 
 - [ ] **Step 1: Write the failing migration/shape test.**
 
@@ -113,13 +112,13 @@ fn sign_then_validate_offline_round_trips() {
 // crates/vox-db/tests/user_identity_schema_test.rs
 #[tokio::test]
 async fn user_identities_table_exists_and_round_trips() {
-    let db = vox_db::VoxDb::connect_in_memory().await.unwrap();
+    let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory).await.unwrap();
     db.upsert_user_identity("local-user", Some("https://orcid.org/0000-0002-1825-0097"),
-        Some("-----BEGIN PUBLIC KEY-----\nMFw...\n-----END PUBLIC KEY-----"),
-        "VOX_USER_RSA_NANOPUB_PRIVATE_KEY_PEM").await.unwrap();
+        Some("MFw...base64-pkcs8-pubkey..."),
+        "VOX_USER_RSA_NANOPUB_PRIVATE_KEY_B64").await.unwrap();
     let row = db.get_user_identity("local-user").await.unwrap().unwrap();
     assert_eq!(row.orcid_id.as_deref(), Some("https://orcid.org/0000-0002-1825-0097"));
-    assert_eq!(row.nanopub_key_ref, "VOX_USER_RSA_NANOPUB_PRIVATE_KEY_PEM");
+    assert_eq!(row.nanopub_key_ref, "VOX_USER_RSA_NANOPUB_PRIVATE_KEY_B64");
 }
 ```
 
@@ -132,8 +131,8 @@ async fn user_identities_table_exists_and_round_trips() {
 CREATE TABLE IF NOT EXISTS user_identities (
     user_id           TEXT    PRIMARY KEY,
     orcid_id          TEXT,
-    nanopub_pubkey_pem TEXT,
-    nanopub_key_ref   TEXT    NOT NULL DEFAULT '',  -- SecretId canonical env that holds the private key
+    nanopub_pubkey_b64 TEXT,
+    nanopub_key_ref   TEXT    NOT NULL DEFAULT '',  -- SecretId canonical env that holds the private key (non-empty enforced in Rust)
     created_at_ms     INTEGER NOT NULL,
     updated_at_ms     INTEGER NOT NULL
 );
@@ -160,9 +159,9 @@ CREATE INDEX IF NOT EXISTS idx_scientia_nanopubs_claim ON scientia_nanopubs(clai
 pub const BASELINE_VERSION: i64 = 71; // +1: user_identities + scientia_nanopubs (per-user nanopub identity, design §4.1)
 ```
 
-- [ ] **Step 5: Add row types.** Add `UserIdentityRow { user_id, orcid_id: Option<String>, nanopub_pubkey_pem: Option<String>, nanopub_key_ref: String, created_at_ms, updated_at_ms }` and `NanopubRow { … }` mirroring an existing scientia row module in `vox-db-types`.
+- [ ] **Step 5: Add row types (inline).** Define `UserIdentityRow { user_id, orcid_id: Option<String>, nanopub_pubkey_b64: Option<String>, nanopub_key_ref: String, created_at_ms, updated_at_ms }` and `NanopubRow { … }` **inline in `crates/vox-db/src/store/ops_user_identity.rs`** (the scientia-style convention) and re-export both via `store/mod.rs` — NOT in `vox-db-types`. Mirror `ops_finding_candidates.rs`.
 
-- [ ] **Step 6: Implement store ops** (Task 3 file or `ops_user_identity.rs`) `upsert_user_identity` + `get_user_identity` mirroring an existing `INSERT … ON CONFLICT … / SELECT` op in `ops_publication.rs`.
+- [ ] **Step 6: Implement store ops** in `ops_user_identity.rs`: `upsert_user_identity` + `get_user_identity` mirroring an existing `INSERT … ON CONFLICT … / SELECT` op in `ops_publication.rs`. Reject an empty `nanopub_key_ref` in Rust (Turso has no CHECK constraints).
 
 - [ ] **Step 7: Run the test.** Run: `cargo test -p vox-db user_identities_table_exists_and_round_trips`. Expected: PASS. Also run `cargo test -p vox-db migration` to confirm the baseline bump is consistent.
 
@@ -176,16 +175,16 @@ pub const BASELINE_VERSION: i64 = 71; // +1: user_identities + scientia_nanopubs
 - Modify: `crates/vox-secrets/src/lib.rs`, `crates/vox-secrets/src/spec/ids.rs`, `crates/vox-secrets/src/spec/registry/scholarly.rs`
 - Test: inline in `lib.rs` / `crates/vox-secrets/src/tests.rs`
 
-- [ ] **Step 1: Register the SecretId.** In `spec/ids.rs` add enum variant `VoxUserRsaNanopubPrivateKeyPem`, its `metadata()` arm with `persistable_account_secret: true, shareable: false`, and in `registry/scholarly.rs` add the `SecretSpec` (mirror the existing `VoxNanopubSigningKeyHex` block, line ~336):
+- [ ] **Step 1: Register the SecretId.** In `spec/ids.rs` add enum variant `VoxUserRsaNanopubPrivateKeyB64`, its `metadata()` arm with `persistable_account_secret: true, shareable: false` (and, for a private signing key, `allow_env_in_strict: false, allow_compat_sources_in_strict: false`), and in `registry/scholarly.rs` add the `SecretSpec` (mirror the existing `VoxNanopubSigningKeyHex` block, line ~336):
 
 ```rust
 SecretSpec {
-    id: SecretId::VoxUserRsaNanopubPrivateKeyPem,
-    canonical_env: "VOX_USER_RSA_NANOPUB_PRIVATE_KEY_PEM",
+    id: SecretId::VoxUserRsaNanopubPrivateKeyB64,
+    canonical_env: "VOX_USER_RSA_NANOPUB_PRIVATE_KEY_B64",
     aliases: &[], deprecated_aliases: &[], backend_key: None, auth_registry: None,
     policy: SecretPolicy::optional_skip(),
     remediation: "Auto-generated per-user RSA key for nanopublication signing; stored in Clavis.",
-    scope_description: "Per-user RSA private key (PEM) for nanopub signing; account/profile-scoped.",
+    scope_description: "Per-user RSA private key (base64 PKCS#8) for nanopub signing; account/profile-scoped.",
 },
 ```
 
@@ -195,14 +194,14 @@ SecretSpec {
 // crates/vox-secrets/src/tests.rs
 #[test]
 fn store_and_resolve_round_trips_user_key() {
-    let pem = "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIB...\n-----END RSA PRIVATE KEY-----";
-    vox_secrets::store_secret(SecretId::VoxUserRsaNanopubPrivateKeyPem, pem, None).unwrap();
-    let got = vox_secrets::resolve_secret(SecretId::VoxUserRsaNanopubPrivateKeyPem);
-    assert_eq!(got.expose(), Some(pem));
+    let key_b64 = "MIIEvQIBADANBgkqhkiG9w0BAQEFAA...base64-pkcs8...";
+    vox_secrets::store_secret(SecretId::VoxUserRsaNanopubPrivateKeyB64, key_b64, None).unwrap();
+    let got = vox_secrets::resolve_secret(SecretId::VoxUserRsaNanopubPrivateKeyB64);
+    assert_eq!(got.expose(), Some(key_b64));
 }
 ```
 
-- [ ] **Step 3: Run it; verify it fails.** Run: `cargo test -p vox-secrets store_and_resolve_round_trips_user_key`. Expected: FAIL (`store_secret` missing).
+- [ ] **Step 3: Run it; verify it fails.** Run: `cargo test -p vox-secrets store_and_resolve_round_trips_user_key`. Expected: FAIL (`store_secret` missing). (Hermetic vault tests must skip cleanly ONLY on vault/keyring-unavailable errors and `panic!`/`assert!` on any other error — never false-pass.)
 
 - [ ] **Step 4: Implement the public API** in `lib.rs` (wraps the existing non-public `write_secret_v2`):
 
@@ -232,17 +231,17 @@ pub fn store_secret(id: SecretId, plaintext: &str, profile: Option<&str>) -> Res
 ```rust
 #[tokio::test]
 async fn resolve_identity_is_get_or_create() {
-    let db = vox_db::VoxDb::connect_in_memory().await.unwrap();
+    let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory).await.unwrap();
     let id1 = resolve_or_create_identity(&db, "local-user", Some("https://orcid.org/0000-0002-1825-0097")).await.unwrap();
     let id2 = resolve_or_create_identity(&db, "local-user", None).await.unwrap();
-    assert_eq!(id1.rsa_private_key_pem, id2.rsa_private_key_pem, "must reuse the same key");
+    assert_eq!(id1.rsa_private_key_b64, id2.rsa_private_key_b64, "must reuse the same key");
     assert_eq!(id2.orcid, "https://orcid.org/0000-0002-1825-0097", "orcid persists");
 }
 ```
 
 - [ ] **Step 2: Run it; verify it fails.** Run: `cargo test -p vox-cli resolve_identity_is_get_or_create`. Expected: FAIL.
 
-- [ ] **Step 3: Implement** `resolve_or_create_identity(db, user_id, orcid_opt) -> Result<NanopubProfile>`: read `user_identities`; if absent or key-secret missing, generate an RSA keypair via the `nanopub` crate (the keygen discovered in Task 1 Step 3), `vox_secrets::store_secret(VoxUserRsaNanopubPrivateKeyPem, pem, None)`, write the pubkey PEM + `nanopub_key_ref` + orcid into `user_identities`; return a `vox_scientia::nanopub::spec::NanopubProfile`. On reuse, read the PEM back via `resolve_secret`. **Per-user, never shared** (design §4.1) — keyed by `local_user_id()`.
+- [ ] **Step 3: Implement** `resolve_or_create_identity(db, user_id, orcid_opt) -> Result<NanopubProfile>`: read `user_identities`; if absent or key-secret missing, generate an RSA keypair via the `nanopub` crate (the keygen discovered in Task 1 Step 3), `vox_secrets::store_secret(VoxUserRsaNanopubPrivateKeyB64, key_b64, None)`, write the pubkey (base64 PKCS#8) + `nanopub_key_ref` + orcid into `user_identities`; return a `vox_scientia::nanopub::spec::NanopubProfile`. On reuse, read the base64 key back via `resolve_secret`. **Per-user, never shared** (design §4.1) — keyed by `local_user_id()`.
 
 - [ ] **Step 4: Run the test.** Run: `cargo test -p vox-cli resolve_identity_is_get_or_create`. Expected: PASS.
 

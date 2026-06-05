@@ -3,7 +3,6 @@ title: "SCIENTIA Micro-Publication, SSOT Unification & Discovery-Surfacing Desig
 description: "Design for a claim-centric single source of truth across micro-publication (nanopub), long-form scholarly publication, and social syndication; with a human-gated discovery-review workflow (no auto-publishing), spec-compliant nanopublication identity/signing, and concrete fixes to novelty and claim detection so new discoveries surface accurately. Grounded in a 2026-06-05 code audit and the nanopublication / Trusty-URI specs."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-06-05"
 training_eligible: true
 training_rationale: "Establishes the target architecture for the micro-publication and syndication legs of SCIENTIA: a human-gated, claim-centric SSOT; spec-compliant nanopub identity/signing with an offline compatibility-verification path; and the accuracy fixes for novelty/claim detection. Informs the next round of phase plans."
 ---

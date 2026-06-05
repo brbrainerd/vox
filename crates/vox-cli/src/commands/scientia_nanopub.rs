@@ -262,6 +262,24 @@ mod tests {
     // Serialize env-var mutation across tests in this module.
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
+    /// True only when an error indicates the sandbox vault/keyring is unavailable
+    /// (so the test may skip cleanly). Any other error is a real regression and
+    /// must fail CI rather than false-pass.
+    fn is_sandbox_vault_unavailable(err: &anyhow::Error) -> bool {
+        let msg = format!("{err:#}").to_lowercase();
+        [
+            "vault",
+            "keyring",
+            "invalid filename",
+            "i/o error",
+            "unavailable",
+            "backend misconfigured",
+            "active tokio runtime",
+        ]
+        .iter()
+        .any(|needle| msg.contains(needle))
+    }
+
     // A multi-threaded runtime is REQUIRED: the vox-secrets vault backend bridges
     // its async ops via `tokio::task::block_in_place`, which panics on the default
     // current-thread runtime. Without this flavor the create path always errors and
@@ -306,6 +324,9 @@ mod tests {
                 Some((id1, id2))
             }
             Err(e) => {
+                if !is_sandbox_vault_unavailable(&e) {
+                    panic!("unexpected failure: {e:#}");
+                }
                 eprintln!(
                     "SKIP reuses_key_and_persists_orcid_across_calls: vault unavailable in sandbox ({e})"
                 );
@@ -425,6 +446,9 @@ mod tests {
                 Some((signed, row))
             }
             Err(e) => {
+                if !is_sandbox_vault_unavailable(&e) {
+                    panic!("unexpected failure: {e:#}");
+                }
                 eprintln!(
                     "SKIP nanopub_build_persists_local_offline_validated_artifact: \
                      vault unavailable in sandbox ({e})"

@@ -647,8 +647,10 @@ impl SecretId {
                 persistable_account_secret: true,
                 shareable: false,
                 device_local_only: false,
-                allow_env_in_strict: true,
-                allow_compat_sources_in_strict: true,
+                // A private signing key must be vault-only in strict mode: never
+                // sourced from the environment or compat fallbacks.
+                allow_env_in_strict: false,
+                allow_compat_sources_in_strict: false,
                 rotation_policy: RotationPolicy::Manual,
                 taxonomy_class: TaxonomyClass::ScholarlyPublication,
                 lifecycle: LifecycleMeta::MANUAL,

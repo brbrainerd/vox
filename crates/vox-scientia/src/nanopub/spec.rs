@@ -55,6 +55,13 @@ pub fn gen_keys() -> Result<(String, String), nanopub::error::NpError> {
 pub enum NanopubSpecError {
     #[error("nanopub error: {0}")]
     Nanopub(#[from] nanopub::error::NpError),
+    #[error(
+        "profile ORCID `{profile_orcid}` does not match attributed ORCID `{attributed_to_orcid}`"
+    )]
+    OrcidMismatch {
+        profile_orcid: String,
+        attributed_to_orcid: String,
+    },
 }
 
 /// Build a full nanopublication TriG around `assertion_ttl` (the inner assertion
@@ -67,6 +74,16 @@ pub fn build_and_sign(
     generated_at_unix: i64,
     profile: &NanopubProfile,
 ) -> Result<SignedNanopubDoc, NanopubSpecError> {
+    // The provenance graph attributes the assertion to `attributed_to_orcid`,
+    // but the RSA signature is produced from `profile`. If these diverge the
+    // artifact claims an authorship it did not sign — reject before building.
+    if profile.orcid != attributed_to_orcid {
+        return Err(NanopubSpecError::OrcidMismatch {
+            profile_orcid: profile.orcid.clone(),
+            attributed_to_orcid: attributed_to_orcid.to_string(),
+        });
+    }
+
     let trig = assemble_unsigned_trig(assertion_ttl, attributed_to_orcid, generated_at_unix);
 
     let np_profile = ProfileBuilder::new(profile.rsa_private_key_b64.clone())

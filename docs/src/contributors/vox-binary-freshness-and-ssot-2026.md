@@ -3,7 +3,6 @@ title: "Vox Binary Freshness & Single-Source-of-Truth (2026)"
 description: "Design for preventing a stale installed vox binary from misleading CI-guard diagnostics, and for establishing a single source of truth for which vox binary tooling should use. Motivated by a 0.5.0-vs-0.6.0 staleness incident."
 category: "Contributors"
 status: "research"
-last_updated: "2026-06-05"
 training_eligible: true
 training_rationale: "Documents the binary-staleness failure mode and a concrete prevention design (build-number freshness self-check + canonical binary location) so it can be implemented before the next version bump."
 ---

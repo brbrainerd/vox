@@ -505,8 +505,28 @@ fn store_secret_round_trips_user_rsa_nanopub_key_via_temp_vault() {
             let resolved = crate::resolve_secret(id);
             Some(resolved.expose().map(|s| s.to_string()))
         }
-        // Keyring unavailable in this sandbox — backend can't init. Skip cleanly.
-        Err(_) => None,
+        // Keyring/vault unavailable in this sandbox — backend can't init. Skip
+        // cleanly only in that case; any other error is a real regression and
+        // must fail rather than false-pass.
+        Err(e) => {
+            let msg = e.to_string().to_lowercase();
+            // The vault backend can't initialize in this sandbox when there is no
+            // OS keyring / no active runtime — those are documented skip cases.
+            // Any other error (e.g. a real write/schema fault) must fail.
+            let sandbox_unavailable = [
+                "vault",
+                "keyring",
+                "invalid filename",
+                "i/o error",
+                "unavailable",
+                "backend misconfigured",
+                "active tokio runtime",
+            ]
+            .iter()
+            .any(|needle| msg.contains(needle));
+            assert!(sandbox_unavailable, "unexpected store_secret failure: {e}");
+            None
+        }
     };
 
     unsafe {

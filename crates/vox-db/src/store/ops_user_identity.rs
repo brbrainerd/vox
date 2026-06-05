@@ -42,7 +42,18 @@ pub struct NanopubRow {
 
 impl VoxDb {
     /// Insert or replace the identity binding for `row.user_id` (PK upsert).
+    ///
+    /// `nanopub_key_ref` must be non-empty: it names the `SecretId` that holds
+    /// the signing key, so an empty ref would silently orphan the identity from
+    /// its key material. Enforced in Rust because Turso/libSQL does not support
+    /// SQL `CHECK` constraints.
     pub async fn upsert_user_identity(&self, row: &UserIdentityRow) -> Result<(), StoreError> {
+        if row.nanopub_key_ref.trim().is_empty() {
+            return Err(StoreError::Db(
+                "user_identities.nanopub_key_ref must be a non-empty SecretId reference"
+                    .to_string(),
+            ));
+        }
         self.conn
             .execute(
                 "INSERT INTO user_identities(\
@@ -153,5 +164,56 @@ impl VoxDb {
         } else {
             Ok(None)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{DbConfig, VoxDb};
+
+    #[tokio::test]
+    async fn upsert_then_get_user_identity_round_trips() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let row = UserIdentityRow {
+            user_id: "local-user".into(),
+            orcid_id: Some("https://orcid.org/0000-0002-1825-0097".into()),
+            nanopub_pubkey_b64: Some("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8_fake_b64".into()),
+            nanopub_key_ref: "VOX_USER_RSA_NANOPUB_PRIVATE_KEY_B64".into(),
+            created_at_ms: 1_747_000_000_000,
+            updated_at_ms: 1_747_000_000_000,
+        };
+        db.upsert_user_identity(&row).await.expect("upsert");
+
+        let got = db
+            .get_user_identity("local-user")
+            .await
+            .expect("get")
+            .expect("row present");
+        assert_eq!(got, row);
+    }
+
+    #[tokio::test]
+    async fn upsert_user_identity_rejects_empty_key_ref() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let row = UserIdentityRow {
+            user_id: "local-user".into(),
+            orcid_id: None,
+            nanopub_pubkey_b64: None,
+            nanopub_key_ref: "   ".into(),
+            created_at_ms: 1,
+            updated_at_ms: 1,
+        };
+        let err = db
+            .upsert_user_identity(&row)
+            .await
+            .expect_err("empty nanopub_key_ref must error");
+        assert!(
+            err.to_string().contains("nanopub_key_ref"),
+            "error should mention nanopub_key_ref, got: {err}"
+        );
+        // And nothing was persisted.
+        let got = db.get_user_identity("local-user").await.expect("get");
+        assert!(got.is_none(), "rejected upsert must not persist a row");
     }
 }

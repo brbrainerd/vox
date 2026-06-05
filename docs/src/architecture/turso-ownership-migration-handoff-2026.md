@@ -3,7 +3,6 @@ title: "Turso Ownership Migration — Handoff (2026)"
 description: "Handoff for the Turso-ownership migration: moving direct turso:: database usage out of satellite crates into the sanctioned vox-db/vox-secrets data layer. Covers the policy SSOT (data-storage-policy.v1.yaml), the two CI guards, the YAML-vs-txt allowlist rule, the per-crate backlog with definitions of done, and the nomenclature (vox-populi→vox-ml) overlap."
 category: "Architecture SSOTs"
 status: "research"
-last_updated: "2026-06-05"
 training_eligible: true
 training_rationale: "Captures the current state and remaining backlog of the Turso-ownership migration so the crate-leaf-design track can complete it without re-deriving the policy/guard mechanics."
 ---
