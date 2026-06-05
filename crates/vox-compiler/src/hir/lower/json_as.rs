@@ -448,9 +448,10 @@ fn as_method_for_type(t: &TypeExpr) -> Option<String> {
 fn inner_option_as_method(t: &TypeExpr) -> String {
     if let TypeExpr::Generic { name, args, .. } = t
         && name == "Option"
-            && let Some(inner) = args.first() {
-                return as_method_for_type(inner).unwrap_or_else(|| "as_str".to_string());
-            }
+        && let Some(inner) = args.first()
+    {
+        return as_method_for_type(inner).unwrap_or_else(|| "as_str".to_string());
+    }
     "as_str".to_string()
 }
 

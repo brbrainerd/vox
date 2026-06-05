@@ -278,9 +278,10 @@ pub fn detect_import_cycles_in_batch(files: &[SourceFile]) -> Vec<Finding> {
     for (canon, &src_idx) in &path_to_idx {
         for (line_num, raw_path) in extract_vox_imports(&files[src_idx]) {
             if let Some(target_canon) = resolve_import(canon, &raw_path)
-                && let Some(&tgt_idx) = path_to_idx.get(&target_canon) {
-                    edges[src_idx].push((tgt_idx, line_num, raw_path));
-                }
+                && let Some(&tgt_idx) = path_to_idx.get(&target_canon)
+            {
+                edges[src_idx].push((tgt_idx, line_num, raw_path));
+            }
         }
     }
 

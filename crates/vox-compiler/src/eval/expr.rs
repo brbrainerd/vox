@@ -358,16 +358,18 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             // syntactically a free function, not a method on a value.
             // See: docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md §6 #9.
             if let HirExpr::Ident(ns_name, _) = obj.as_ref()
-                && (ns_name == "str" || ns_name == "list") && !args.is_empty() {
-                    return Err(EvalError::AssertionFailed(format!(
-                        "`{ns}.{m}(receiver, ...)` is not a valid call form in Vox; \
+                && (ns_name == "str" || ns_name == "list")
+                && !args.is_empty()
+            {
+                return Err(EvalError::AssertionFailed(format!(
+                    "`{ns}.{m}(receiver, ...)` is not a valid call form in Vox; \
                          use the method form `receiver.{m}(...)` instead. \
                          (Vox makes string and list operations method-only \
                          per K-complexity policy.)",
-                        ns = ns_name,
-                        m = method,
-                    )));
-                }
+                    ns = ns_name,
+                    m = method,
+                )));
+            }
             let o = eval_expr(interp, obj)?;
             let mut eval_args = Vec::new();
             for a in args {
@@ -390,24 +392,25 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             // is applied with the call arguments. Falls through to builtin
             // dispatch otherwise so things like `process.run(...)` still work.
             if let VoxValue::Object(fields) = &o
-                && let Some((_, val)) = fields.iter().find(|(k, _)| k == method) {
-                    match val.clone() {
-                        VoxValue::Fn { .. } => {
-                            return apply_closure(interp, &val.clone(), eval_args);
-                        }
-                        VoxValue::Constructor(name) => {
-                            return Ok(VoxValue::Tagged {
-                                name,
-                                fields: eval_args,
-                            });
-                        }
-                        _ => {
-                            // A non-callable field with the method's name — fall
-                            // through so builtin namespace dispatch (e.g.
-                            // `process.run`) still gets a chance.
-                        }
+                && let Some((_, val)) = fields.iter().find(|(k, _)| k == method)
+            {
+                match val.clone() {
+                    VoxValue::Fn { .. } => {
+                        return apply_closure(interp, &val.clone(), eval_args);
+                    }
+                    VoxValue::Constructor(name) => {
+                        return Ok(VoxValue::Tagged {
+                            name,
+                            fields: eval_args,
+                        });
+                    }
+                    _ => {
+                        // A non-callable field with the method's name — fall
+                        // through so builtin namespace dispatch (e.g.
+                        // `process.run`) still gets a chance.
                     }
                 }
+            }
 
             if let Some(r) =
                 super::builtins::call_builtin_method(&o, method, eval_args, interp.caps.as_ref())

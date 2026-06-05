@@ -29,9 +29,10 @@ async fn wait_for_session_rows(
         if let Ok(rows) = db
             .list_research_metrics_by_session(session_id_prefix, None, 10)
             .await
-            && !rows.is_empty() {
-                return rows;
-            }
+            && !rows.is_empty()
+        {
+            return rows;
+        }
         tokio::time::sleep(vox_config::timeouts::D_50MS).await;
     }
     Vec::new()
@@ -43,9 +44,10 @@ async fn wait_for_type_rows(
 ) -> Vec<(String, Option<f64>, Option<String>)> {
     for _ in 0..60 {
         if let Ok(rows) = db.list_research_metrics_by_type(metric_type, "%", 10).await
-            && !rows.is_empty() {
-                return rows;
-            }
+            && !rows.is_empty()
+        {
+            return rows;
+        }
         tokio::time::sleep(vox_config::timeouts::D_50MS).await;
     }
     Vec::new()

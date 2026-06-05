@@ -859,7 +859,8 @@ fn method_not_found_diag(
     let hint = if pretty == "<unknown>" {
         "Add an explicit type annotation upstream so the receiver type \
              can be resolved. For closure params use `fn(x: <Type>) { ... }` \
-             per the closures RFC §11.".to_string()
+             per the closures RFC §11."
+            .to_string()
     } else {
         format!(
             "If `{pretty}` is unexpected, check whether the value came from \

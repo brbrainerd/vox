@@ -69,9 +69,10 @@ where
     pub fn open(path: impl Into<PathBuf>) -> Result<Opened<E>, JournalError> {
         let path: PathBuf = path.into();
         if let Some(parent) = path.parent()
-            && !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(parent)?;
-            }
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent)?;
+        }
         // Touch the file so the replay open works on first run.
         let _touch = OpenOptions::new().create(true).append(true).open(&path)?;
 

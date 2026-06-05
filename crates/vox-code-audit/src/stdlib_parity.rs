@@ -459,9 +459,10 @@ pub fn check_parity_at_paths(
             .map(|p| p.join("builtin_registry.rs"));
         if let Some(reg) = registry_path
             && reg.exists()
-                && let Ok(reg_syms) = parse_registry_entries(&reg) {
-                    binary.extend(reg_syms);
-                }
+            && let Ok(reg_syms) = parse_registry_entries(&reg)
+        {
+            binary.extend(reg_syms);
+        }
     }
 
     let docs = parse_documented_symbols(doc_path)?;

@@ -822,7 +822,8 @@ impl<'a> Checker<'a> {
                     // toward the closure-annotation form RFC §4 specifies.
                     let suggestion = if matches!(target, Ty::TypeVar(_)) {
                         "Add an explicit type to the binding that produced this value. \
-                             For closures, that's `fn(x: <Type>) { ... }` per the closures RFC §11.".to_string()
+                             For closures, that's `fn(x: <Type>) { ... }` per the closures RFC §11."
+                            .to_string()
                     } else {
                         "Add an explicit type annotation upstream so the receiver's type can be resolved.".to_string()
                     };

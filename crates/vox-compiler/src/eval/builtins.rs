@@ -295,9 +295,11 @@ pub fn call_builtin_method(
             "remove_at" => {
                 let mut owned = v.clone();
                 if let Some(VoxValue::Int(i)) = args.into_iter().next()
-                    && i >= 0 && (i as usize) < owned.len() {
-                        owned.remove(i as usize);
-                    }
+                    && i >= 0
+                    && (i as usize) < owned.len()
+                {
+                    owned.remove(i as usize);
+                }
                 Some(VoxValue::List(owned))
             }
             // zip(other) → List[List[T]]: pairs of [a, b] elements.
@@ -1654,12 +1656,11 @@ pub fn call_builtin_method(
                         };
                         let mut cmd = std::process::Command::new(&cmd_name);
                         cmd.args(&cmd_args);
-                        if with_cwd
-                            && let Some(VoxValue::Str(cwd)) = it.next() {
-                                cmd.current_dir(&cwd);
-                            }
-                            // env list (arg 4) intentionally ignored here, matching
-                            // the run_ex interpreter behavior.
+                        if with_cwd && let Some(VoxValue::Str(cwd)) = it.next() {
+                            cmd.current_dir(&cwd);
+                        }
+                        // env list (arg 4) intentionally ignored here, matching
+                        // the run_ex interpreter behavior.
                         let res = match cmd.output() {
                             Ok(out) => Ok(Box::new(VoxValue::Object(vec![
                                 (
@@ -2339,9 +2340,7 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
                     Some(VoxValue::Float(a.max(b)))
                 }
                 // max(list) — single list argument
-                (Some(VoxValue::List(items)), None) => {
-                    items.into_iter().max_by(vox_value_cmp)
-                }
+                (Some(VoxValue::List(items)), None) => items.into_iter().max_by(vox_value_cmp),
                 _ => None,
             }
         }
@@ -2354,9 +2353,7 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
                     Some(VoxValue::Float(a.min(b)))
                 }
                 // min(list) — single list argument
-                (Some(VoxValue::List(items)), None) => {
-                    items.into_iter().min_by(vox_value_cmp)
-                }
+                (Some(VoxValue::List(items)), None) => items.into_iter().min_by(vox_value_cmp),
                 _ => None,
             }
         }

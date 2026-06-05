@@ -92,13 +92,15 @@ impl VoxConfig {
 /// panics in unusual hosts (CI, headless containers).
 fn home_dir() -> PathBuf {
     if let Ok(h) = std::env::var("HOME")
-        && !h.is_empty() {
-            return PathBuf::from(h);
-        }
+        && !h.is_empty()
+    {
+        return PathBuf::from(h);
+    }
     if let Ok(p) = std::env::var("USERPROFILE")
-        && !p.is_empty() {
-            return PathBuf::from(p);
-        }
+        && !p.is_empty()
+    {
+        return PathBuf::from(p);
+    }
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 

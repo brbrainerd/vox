@@ -14,11 +14,12 @@ use crate::hir::nodes::{HirExpr, HirPattern, HirStmt};
 fn apply_pop_side_effect(interp: &mut Interpreter, expr: &HirExpr) {
     if let HirExpr::MethodCall(obj_expr, method_name, _, _, _) = expr
         && method_name == "pop"
-            && let HirExpr::Ident(name, _) = obj_expr.as_ref()
-                && let Some(VoxValue::List(mut items)) = interp.scope.get(name).cloned() {
-                    items.pop();
-                    interp.scope.set_mut(name, VoxValue::List(items));
-                }
+        && let HirExpr::Ident(name, _) = obj_expr.as_ref()
+        && let Some(VoxValue::List(mut items)) = interp.scope.get(name).cloned()
+    {
+        items.pop();
+        interp.scope.set_mut(name, VoxValue::List(items));
+    }
 }
 
 pub fn eval_pattern(
@@ -146,32 +147,33 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
             // (getting the popped element), then write the shortened list back
             // to the variable.
             if let HirExpr::MethodCall(obj_expr, _, _, _, _) = expr
-                && let HirExpr::Ident(name, _) = obj_expr.as_ref() {
-                    let result = super::expr::eval_expr(interp, expr)?;
-                    // pop() special case: shrink the list variable (handled by
-                    // the same helper used in Let/Assign; must run before the
-                    // "reassign if same kind" check, which wouldn't fire for pop
-                    // since the return value is the popped element, not a List).
-                    apply_pop_side_effect(interp, expr);
-                    let should_reassign = match &result {
-                        VoxValue::List(_) => {
-                            matches!(interp.scope.get(name), Some(VoxValue::List(_)))
-                        }
-                        VoxValue::Str(_) => {
-                            matches!(interp.scope.get(name), Some(VoxValue::Str(_)))
-                        }
-                        // dict.insert / dict.remove / dict.update all return
-                        // a new Object — auto-write it back to the variable.
-                        VoxValue::Object(_) => {
-                            matches!(interp.scope.get(name), Some(VoxValue::Object(_)))
-                        }
-                        _ => false,
-                    };
-                    if should_reassign {
-                        interp.scope.set_mut(name, result.clone());
+                && let HirExpr::Ident(name, _) = obj_expr.as_ref()
+            {
+                let result = super::expr::eval_expr(interp, expr)?;
+                // pop() special case: shrink the list variable (handled by
+                // the same helper used in Let/Assign; must run before the
+                // "reassign if same kind" check, which wouldn't fire for pop
+                // since the return value is the popped element, not a List).
+                apply_pop_side_effect(interp, expr);
+                let should_reassign = match &result {
+                    VoxValue::List(_) => {
+                        matches!(interp.scope.get(name), Some(VoxValue::List(_)))
                     }
-                    return Ok(result);
+                    VoxValue::Str(_) => {
+                        matches!(interp.scope.get(name), Some(VoxValue::Str(_)))
+                    }
+                    // dict.insert / dict.remove / dict.update all return
+                    // a new Object — auto-write it back to the variable.
+                    VoxValue::Object(_) => {
+                        matches!(interp.scope.get(name), Some(VoxValue::Object(_)))
+                    }
+                    _ => false,
+                };
+                if should_reassign {
+                    interp.scope.set_mut(name, result.clone());
                 }
+                return Ok(result);
+            }
             super::expr::eval_expr(interp, expr)
         }
         HirStmt::Return { value, .. } => {
@@ -218,26 +220,27 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
                         match idx_val {
                             VoxValue::Int(i) => {
                                 if let Some(list_val) = interp.scope.get(name).cloned()
-                                    && let VoxValue::List(mut items) = list_val {
-                                        let ui = i as usize;
-                                        if i >= 0 && ui < items.len() {
-                                            items[ui] = v;
-                                            interp.scope.set_mut(name, VoxValue::List(items));
-                                        }
+                                    && let VoxValue::List(mut items) = list_val
+                                {
+                                    let ui = i as usize;
+                                    if i >= 0 && ui < items.len() {
+                                        items[ui] = v;
+                                        interp.scope.set_mut(name, VoxValue::List(items));
                                     }
+                                }
                             }
                             VoxValue::Str(key) => {
                                 if let Some(dict_val) = interp.scope.get(name).cloned()
-                                    && let VoxValue::Object(mut fields) = dict_val {
-                                        if let Some(entry) =
-                                            fields.iter_mut().find(|(k, _)| k == &key)
-                                        {
-                                            entry.1 = v;
-                                        } else {
-                                            fields.push((key, v));
-                                        }
-                                        interp.scope.set_mut(name, VoxValue::Object(fields));
+                                    && let VoxValue::Object(mut fields) = dict_val
+                                {
+                                    if let Some(entry) = fields.iter_mut().find(|(k, _)| k == &key)
+                                    {
+                                        entry.1 = v;
+                                    } else {
+                                        fields.push((key, v));
                                     }
+                                    interp.scope.set_mut(name, VoxValue::Object(fields));
+                                }
                             }
                             _ => {}
                         }
