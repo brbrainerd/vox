@@ -275,4 +275,25 @@ test.describe('GUI visual audit', () => {
     await page.screenshot({ path: 'e2e/screens/_command-palette.png', fullPage: false });
     await ctx.close();
   });
+
+  // Capture the sidebar in its non-default widths so the grouped/collapsed rendering is audited
+  // in every mode, not just 'default'.
+  for (const sbMode of ['rail', 'wide'] as const) {
+    test(`capture sidebar-${sbMode}`, async ({ browser }) => {
+      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      const page = await ctx.newPage();
+      const pageErrors: string[] = [];
+      page.on('pageerror', e => pageErrors.push(e.message));
+      await page.addInitScript(installMock, 'dashboard');
+      // useLocalStorage JSON-parses its value, so the mode must be stored as JSON.
+      await page.addInitScript((m: string) => localStorage.setItem('vox_sidebar_mode', JSON.stringify(m)), sbMode);
+      await page.goto('/');
+      await page.waitForSelector('nav', { timeout: 15_000 });
+      await page.waitForTimeout(1200);
+      await page.screenshot({ path: `e2e/screens/_sidebar-${sbMode}.png`, fullPage: false });
+      await expect(page.locator('[data-surface-error]')).toHaveCount(0);
+      expect(pageErrors, `[sidebar-${sbMode}] uncaught page errors:\n${pageErrors.join('\n')}`).toEqual([]);
+      await ctx.close();
+    });
+  }
 });
