@@ -106,9 +106,14 @@ not individually triaged — fix the above first, then re-measure.)
 ## Reproduce
 
 ```bash
-cargo build -p vox-cli --bin vox --features script-execution
-# interp (works):
+cargo build -p vox-cli --bin vox   # native --mode script is default-on (no flag)
+# interp:
 ./target/debug/vox run --mode interp examples/golden/mesh/noop.vox      # -> 0
-# script (fails to compile):
-./target/debug/vox run --mode script examples/golden/mesh/noop.vox      # -> E0308
+# script (codegen-rust): 3/10 main-goldens green as of 2026-06-05
+./target/debug/vox run --mode script examples/golden/mesh/noop.vox      # -> 0
 ```
+
+> **Build note (2026-06-06):** the native `--mode script` lane is now default-on
+> (`script-execution` feature, lightweight). The heavy Wasmtime WASI lane moved
+> to opt-in `--features script-wasi` — measured at +69 crates / ~5 min, all
+> wasmtime/cranelift, which the native lane never needed.
