@@ -86,6 +86,10 @@ pub async fn handle_tool_call(
         return Ok(crate::params::ToolResult::<()>::err(rejection).to_json_compact());
     }
 
+    if let Some(rejection) = crate::lock_guard::check_lock(state, name_canonical, &args) {
+        return Ok(crate::params::ToolResult::<()>::err(rejection).to_json_compact());
+    }
+
     if state.orchestrator_config.agentos_guardrail_kernel_enabled {
         if let Err(detail) =
             vox_orchestrator::agentos::guardrail_kernel::evaluate_mcp_tool_preflight(

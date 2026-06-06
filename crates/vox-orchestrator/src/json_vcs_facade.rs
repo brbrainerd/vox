@@ -116,20 +116,51 @@ pub fn workspace_status_json(orch: &Orchestrator, agent_id: u64) -> Value {
 }
 
 /// Merge workspace into mainline (MCP `vox_workspace_merge`).
+/// Records overlap conflicts (as data) before destroying the workspace.
 pub fn workspace_merge_json(orch: &Orchestrator, agent_id: u64) -> Value {
+    let merging = AgentId(agent_id);
     let ws_handle = orch.workspace_manager_handle();
     let mut mgr = crate::sync_lock::rw_write(&*ws_handle);
-    match mgr.destroy_workspace(AgentId(agent_id)) {
+
+    // Detect overlaps against every other active workspace, before mutating.
+    let merging_base = mgr.get_workspace(merging).map(|w| w.base_snapshot);
+    let others: Vec<(AgentId, SnapshotId, Vec<std::path::PathBuf>)> = mgr
+        .list_workspaces()
+        .iter()
+        .filter(|w| w.agent_id != merging)
+        .map(|w| {
+            (
+                w.agent_id,
+                w.base_snapshot,
+                mgr.overlapping_paths(merging, w.agent_id),
+            )
+        })
+        .filter(|(_, _, paths)| !paths.is_empty())
+        .collect();
+
+    let conflicts_recorded = if let Some(base) = merging_base {
+        // LOCK ORDER: workspace_manager → conflict_manager (always acquire in this
+        // order; the `mgr` write lock above is still held here). Any future code that
+        // touches both locks MUST follow this order to avoid an ABBA deadlock.
+        let mut cm = crate::sync_lock::rw_write(&*orch.conflict_manager);
+        crate::merge_conflicts::record_overlap_conflicts(&mut cm, (merging, base), &others).len()
+    } else {
+        0
+    };
+
+    match mgr.destroy_workspace(merging) {
         Some(ws) => {
             let count = ws.modified_count();
             json!({
                 "merged": true,
                 "files_merged": count,
+                "conflicts_recorded": conflicts_recorded,
             })
         }
         None => json!({
             "merged": false,
             "error": "no_active_workspace",
+            "conflicts_recorded": 0,
         }),
     }
 }
