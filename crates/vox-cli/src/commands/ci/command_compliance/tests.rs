@@ -242,7 +242,12 @@ fn latin_aliases_appear_in_help_text() {
     use crate::VoxCliRoot;
     use clap::CommandFactory;
 
-    let help = VoxCliRoot::command().render_long_help().to_string();
+    // Build + render the full clap tree on a large stack: on Windows this
+    // recursion overflows the default ~2 MiB libtest worker-thread stack
+    // (STATUS_STACK_OVERFLOW). See `command_catalog::run_on_big_stack`.
+    let help = crate::command_catalog::run_on_big_stack(|| {
+        VoxCliRoot::command().render_long_help().to_string()
+    });
 
     // The Latin names and their aliases should both appear in help
     assert!(

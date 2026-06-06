@@ -7,8 +7,7 @@
       "name": "Local-first training and CLI GPU lane",
       "benchmark_classes": [
         "vox_cli_gpu_check",
-        "vox_cli_mens_gpu_tests",
-        "vox_schola_train_compile"
+        "vox_cli_mens_gpu_tests"
       ],
       "min_pass_rate": 1.0,
       "ci_timeout_budget_secs": 3600

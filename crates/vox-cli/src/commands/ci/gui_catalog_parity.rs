@@ -364,7 +364,12 @@ mod tests {
     #[test]
     fn generated_manifest_validates_with_typed_args() {
         let repo_root = vox_repository::resolve_repo_root_for_ci();
-        let manifest = generated_manifest_payload(&repo_root).expect("build manifest payload");
+        // `generated_manifest_payload` calls `build_catalog`, whose clap-tree build
+        // overflows the default ~2 MiB libtest worker-thread stack on Windows.
+        // Run it on a large stack (see `command_catalog::run_on_big_stack`).
+        let manifest =
+            crate::command_catalog::run_on_big_stack(|| generated_manifest_payload(&repo_root))
+                .expect("build manifest payload");
 
         // Schema validation (same schema the guard enforces).
         let schema_path = repo_root.join("contracts/gui/action-manifest.v1.schema.json");
