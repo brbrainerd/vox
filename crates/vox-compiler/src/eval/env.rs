@@ -74,3 +74,32 @@ impl Scope {
         false
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Scope;
+    use crate::eval::value::VoxValue;
+
+    /// `get_mut` + `Rc::make_mut` must copy-on-write a frame shared with a clone:
+    /// mutating through one `Scope` must not affect the other.
+    #[test]
+    fn get_mut_splits_shared_frames_on_write() {
+        let mut original = Scope::new();
+        original.set("xs".into(), VoxValue::list(vec![VoxValue::Int(1)]));
+
+        let mut cloned = original.clone();
+        if let Some(VoxValue::List(items)) = cloned.get_mut("xs") {
+            std::rc::Rc::make_mut(items).push(VoxValue::Int(2));
+        }
+
+        assert_eq!(
+            original.get("xs"),
+            Some(&VoxValue::list(vec![VoxValue::Int(1)])),
+            "original must be unchanged (CoW)"
+        );
+        assert_eq!(
+            cloned.get("xs"),
+            Some(&VoxValue::list(vec![VoxValue::Int(1), VoxValue::Int(2)])),
+        );
+    }
+}

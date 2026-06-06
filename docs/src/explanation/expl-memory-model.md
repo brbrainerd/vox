@@ -3,7 +3,6 @@ title: "Explanation: The Vox Memory Model"
 description: "How Vox manages memory — pure value semantics with copy-on-write, no garbage collector, and no manual memory management — and what that means per target."
 category: "Concepts"
 status: "current"
-last_updated: "2026-06-05"
 training_eligible: true
 ---
 

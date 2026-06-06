@@ -134,3 +134,24 @@ impl PartialEq for VoxValue {
 pub(crate) fn err_str(s: String) -> Box<VoxValue> {
     Box::new(VoxValue::Str(s))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::VoxValue;
+
+    /// The CoW constructors wrap their owned input in the expected variant.
+    #[test]
+    fn constructors_wrap_the_expected_variants() {
+        assert!(matches!(VoxValue::list(vec![]), VoxValue::List(_)));
+        assert!(matches!(VoxValue::object(vec![]), VoxValue::Object(_)));
+        assert!(matches!(VoxValue::tuple(vec![]), VoxValue::Tuple(_)));
+    }
+
+    /// Cloning a constructed value shares the payload (O(1)) yet compares equal.
+    #[test]
+    fn list_clone_is_value_equal() {
+        let a = VoxValue::list(vec![VoxValue::Int(1), VoxValue::Int(2)]);
+        let b = a.clone();
+        assert_eq!(a, b);
+    }
+}

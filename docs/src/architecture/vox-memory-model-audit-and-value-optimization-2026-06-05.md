@@ -119,10 +119,17 @@ escape analysis (codegen, independent) and the Phase 5 `Rc`-soundness guard.
 
 ### 1.1 The runtime value model (interpreter)
 
-The core runtime type is [`VoxValue`](../../../crates/vox-compiler/src/eval/value.rs) — a plain
-`#[derive(Debug, Clone)]` enum:
+> **Note (historical / pre-CoW state):** the snippet below shows the `Vec`-backed
+> enum *as it was before* this initiative. Phases 1–2 (see the Status sections
+> above) replaced the `List/Object/Tuple` payloads with `Rc<Vec<…>>` and made
+> `Fn.body` / `Scope` frames `Rc`-shared. This section is the audit of the
+> *original* problem; the current representation is the Rc-backed CoW one.
+
+The core runtime type is [`VoxValue`](../../../crates/vox-compiler/src/eval/value.rs) — at the time of
+this audit, a plain `#[derive(Debug, Clone)]` enum with owned `Vec` payloads:
 
 ```rust
+// PRE-CoW (historical) — current code uses Rc<Vec<…>> for the collection variants.
 pub enum VoxValue {
     Int(i64), Float(f64), Decimal(rust_decimal::Decimal),
     Str(String),

@@ -65,6 +65,16 @@ impl Walker<'_> {
         }
     }
 
+    /// Conservatively disqualify every parameter. Used for expression shapes we
+    /// don't traverse precisely: if the body contains one, we cannot prove a
+    /// param isn't used in an owning position inside it, so none are borrowable.
+    /// Over-conservative but never unsound.
+    fn disqualify_all(&mut self) {
+        for n in self.params.iter() {
+            self.disqualified.insert(n.clone());
+        }
+    }
+
     fn stmt(&mut self, s: &HirStmt) {
         match s {
             // Every statement context is an "owning" context for a bare ident —
@@ -139,6 +149,11 @@ impl Walker<'_> {
                     self.expr_owning(e);
                 }
             }
+            HirExpr::ObjectLit(fields, _) => {
+                for (_, v) in fields {
+                    self.expr_owning(v);
+                }
+            }
             HirExpr::Block(body, _) => {
                 for s in body {
                     self.stmt(s);
@@ -148,7 +163,24 @@ impl Walker<'_> {
                 self.expr_owning(obj);
                 self.expr_owning(idx);
             }
-            _ => {}
+            HirExpr::Lambda(_, _, body, _, _) => self.expr_owning(body),
+            HirExpr::For(_, _, iter, body, key, _) => {
+                self.expr_owning(iter);
+                self.expr_owning(body);
+                if let Some(k) = key {
+                    self.expr_owning(k);
+                }
+            }
+            // Literals contain no identifiers — safe no-ops.
+            HirExpr::IntLit(..)
+            | HirExpr::FloatLit(..)
+            | HirExpr::StringLit(..)
+            | HirExpr::BoolLit(..)
+            | HirExpr::DecimalLit(..) => {}
+            // Any other shape (Try `?`, Spawn, With, Jsx*, AsyncView,
+            // WorkflowVersion, …) is not traversed precisely → conservatively
+            // disqualify so a hidden owning use can never be missed.
+            _ => self.disqualify_all(),
         }
     }
 
@@ -192,6 +224,12 @@ mod tests {
     #[test]
     fn returned_param_is_not_borrowable() {
         assert!(borrowable("fn f(s: str) to str { return s }").is_empty());
+    }
+
+    #[test]
+    fn param_inside_object_literal_is_not_borrowable() {
+        // `{ k: s }` is a compound call-arg → walked as owning → `s` disqualified.
+        assert!(borrowable("fn f(s: str) to Unit { std.print({ k: s }) }").is_empty());
     }
 
     #[test]
