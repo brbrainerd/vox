@@ -121,6 +121,87 @@ pub fn audit_check_entries(repo_root: &Path) -> Result<Vec<PolicyEntry>, String>
     Ok(out)
 }
 
+/// Enumerate the `ci.*` operations from `contracts/operations/catalog.v1.yaml`
+/// into `ci-gate` entries. Uses the existing `OperationsCatalog`/`OperationRow`
+/// serde structs (operations_catalog.rs) so this stays a single SSOT.
+pub fn ci_gate_entries(repo_root: &Path) -> Result<Vec<PolicyEntry>, String> {
+    use crate::commands::ci::operations_catalog::OperationsCatalog;
+    let path = repo_root.join("contracts/operations/catalog.v1.yaml");
+    let text =
+        std::fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    let catalog: OperationsCatalog =
+        serde_yaml::from_str(&text).map_err(|e| format!("parse {}: {e}", path.display()))?;
+    let mut out: Vec<PolicyEntry> = catalog
+        .operations
+        .iter()
+        .filter(|op| op.id.starts_with("ci."))
+        .map(|op| {
+            // `ci.check-summary-drift` → group "CI Gates / check" (first id segment after `ci.`).
+            let leaf = op.id.strip_prefix("ci.").unwrap_or(&op.id);
+            let head = leaf.split('-').next().unwrap_or(leaf);
+            let desc = op
+                .description_human
+                .clone()
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| op.description.clone());
+            PolicyEntry {
+                id: format!("ci-gate/{}", op.id),
+                domain: PolicyDomain::CiGate,
+                title: op.title.clone(),
+                group: format!("CI Gates / {head}"),
+                description: desc,
+                // Catalog rows carry no severity; CI gates are blocking by convention.
+                severity: Some(PolicySeverity::Error),
+                blocking: true,
+                runs_on: vec!["ci".into()],
+                source: PolicySource {
+                    kind: PolicySourceKind::Command,
+                    reference: format!("contracts/operations/catalog.v1.yaml#{}", op.id),
+                    // Nested ops are dotted in the catalog (`eval-matrix.run`); the
+                    // invocable form replaces the dot with a space (`vox ci eval-matrix run`).
+                    detail: Some(format!("vox ci {}", leaf.replace('.', " "))),
+                },
+                docs: None,
+                default_enabled: true,
+                protected: false,
+                origin: "builtin".to_string(),
+            }
+        })
+        .collect();
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(out)
+}
+
+/// Cross-check: return any `ci.<leaf>` op id whose `vox ci <leaf>` command is NOT
+/// present in the live clap catalog (enum↔catalog drift). Normalizes both sides to
+/// the dotted `ci.<leaf>` form before diffing. Clap is the live source of truth for
+/// "this subcommand actually exists".
+pub fn ci_gate_catalog_clap_drift(repo_root: &Path) -> Vec<String> {
+    use crate::command_catalog::build_catalog;
+    use std::collections::BTreeSet;
+
+    // Live `vox ci <...>` paths from clap, normalized to dotted `ci.<a>.<b>...`.
+    // Catalog op ids are dotted across the *full* nested path (e.g.
+    // `ci.eval-matrix.run` == `vox ci eval-matrix run`, clap path len 3), so we
+    // join every segment, not just the first leaf — otherwise legitimate nested
+    // subcommands read as drift.
+    let live: BTreeSet<String> = build_catalog()
+        .entries
+        .iter()
+        .filter(|e| e.path.first().map(|s| s == "ci").unwrap_or(false) && e.path.len() >= 2)
+        .map(|e| e.path.join("."))
+        .collect();
+
+    let Ok(entries) = ci_gate_entries(repo_root) else {
+        return vec!["<failed to load operations catalog>".to_string()];
+    };
+    entries
+        .iter()
+        .map(|e| e.id.trim_start_matches("ci-gate/").to_string())
+        .filter(|op_id| !live.contains(op_id))
+        .collect()
+}
+
 /// Build the full registry document for the domains this plan covers.
 #[cfg(feature = "completion-toestub")]
 pub fn build_registry() -> vox_config::PolicyRegistry {
@@ -354,5 +435,45 @@ mod default_domain_tests {
         assert_eq!(fmt.source.kind, vox_config::PolicySourceKind::Command);
         assert!(fmt.blocking, "fmt is blocking: true in the manifest");
         assert!(fmt.group.starts_with("Audit checks"));
+    }
+
+    #[test]
+    fn ci_gate_entries_cover_operations_catalog() {
+        let entries = ci_gate_entries(&repo_root()).expect("load operations catalog");
+        // catalog.v1.yaml has 78 `ci.*` operations (verified 2026-06-06).
+        assert!(
+            entries.len() >= 70,
+            "expected ~78 ci ops, got {}",
+            entries.len()
+        );
+        let parity = entries
+            .iter()
+            .find(|e| e.id == "ci-gate/ci.capability-sync")
+            .expect("ci.capability-sync op present");
+        assert_eq!(parity.domain, vox_config::PolicyDomain::CiGate);
+        assert_eq!(parity.source.kind, vox_config::PolicySourceKind::Command);
+        assert!(parity.group.starts_with("CI Gates"));
+    }
+
+    #[test]
+    fn ci_gate_clap_crosscheck_has_no_orphans() {
+        // Every `ci.*` op in the catalog should correspond to a live clap path
+        // `vox ci <leaf>`; a catalog op with no clap command is enum↔catalog drift.
+        //
+        // DEVIATION: `build_catalog()` (clap tree construction) overflows the 2 MB
+        // default Windows test stack — the same limitation affects the pre-existing
+        // `command_catalog::tests`. Run on an 8 MB worker thread so the cross-check
+        // is exercised under test. The real CLI invocation uses the main thread's
+        // larger stack and is verified end-to-end via `ci policy-registry-parity`.
+        let orphans = std::thread::Builder::new()
+            .stack_size(8 * 1024 * 1024)
+            .spawn(|| ci_gate_catalog_clap_drift(&repo_root()))
+            .expect("spawn worker")
+            .join()
+            .expect("worker panicked");
+        assert!(
+            orphans.is_empty(),
+            "ci ops with no live clap subcommand (enum↔catalog drift): {orphans:?}"
+        );
     }
 }
