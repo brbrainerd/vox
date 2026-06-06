@@ -149,7 +149,7 @@ fn build_record(
     if let Ok(sig) = decoded.author() {
         hasher.update(sig.email);
     }
-    let author_email_sha256 = format!("{:x}", hasher.finalize());
+    let author_email_sha256 = hex::encode(hasher.finalize());
 
     // Full message (subject + body).
     let message_bytes: &[u8] = decoded.message.as_ref();

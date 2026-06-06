@@ -78,7 +78,7 @@ pub fn write_staging_checksum_manifest(
         }
         let bytes = fs::read(&p)?;
         let digest = Sha3_256::digest(&bytes);
-        let hex = format!("{digest:x}");
+        let hex = hex::encode(digest);
         sha_map.insert(rel.clone(), serde_json::json!(hex));
     }
     let doc = serde_json::json!({

@@ -124,7 +124,7 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
 pub fn schema_baseline_digest_hex() -> String {
     let mut hasher = Keccak256::new();
     hasher.update(baseline_sql());
-    format!("0x{:x}", hasher.finalize())
+    format!("0x{}", hex::encode(hasher.finalize()))
 }
 
 /// Monolithic SQL string containing all active fragments joined by double-newlines.

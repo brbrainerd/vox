@@ -5,6 +5,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+hex = { workspace = true }
 vox-compiler = { workspace = true }
 vox-codegen = { workspace = true }
 vox-config.workspace = true
