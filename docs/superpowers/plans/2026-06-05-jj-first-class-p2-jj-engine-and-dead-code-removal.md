@@ -21,6 +21,16 @@ each gated by a green parity test (the P0/P1 audit already proved `ContentMerge`
 **Source spec:** [`2026-06-05-jj-first-class-vcs-design.md`](../specs/2026-06-05-jj-first-class-vcs-design.md) §3, §4 (deletion ledger), §8 (P2).
 **Depends on:** P0 (the `vox-vcs` crate + jj-lib 0.42 dep). Independent of P1.
 
+> **✅ SPIKE (Task 1) DONE & VERIFIED (2026-06-06, branch `cc_bdesktop2/jj-p2-spike`, commit `45d0e2e656`).**
+> The whole phase is validated: a real in-process `JjBackend` does colocated init + working-copy
+> snapshot + change-as-commit + op-log read, green in ~1.9 min cold build, no `jj` binary, clippy clean,
+> arch-check exit 0. **Two findings every later task must honor:**
+> 1. **jj-lib needs `features = ["git"]`** in `vox-vcs/Cargo.toml` (the root pins `default-features = false`, so `init_colocated_git` is absent without it).
+> 2. **`Workspace` is `Send` but `!Sync`** (owns `Box<dyn WorkingCopy>`); `VcsBackend: Send + Sync`, so `JjBackend` wraps the `Workspace`+`Arc<ReadonlyRepo>` in a `std::sync::Mutex` and owns a current-thread tokio runtime that `block_on`s every jj future.
+>
+> **Verified construction (reuse in Tasks 2-4):** `UserSettings::from_config(StackedConfig::with_defaults() + ConfigLayer::parse(ConfigSource::User, "user.name=…\nuser.email=…"))`; snapshot = `workspace.start_working_copy_mutation()` → `locked_wc().snapshot(SnapshotOptions{ base_ignores: GitIgnoreFile::empty(), matchers: &EverythingMatcher, max_new_file_size: u64::MAX, .. })` → `start_transaction()` → `tx.repo_mut().new_commit(vec![parent], tree).set_description(..).write().await` → `set_wc_commit` → `tx.commit(desc).await` → re-finish wc lock against the new op id; op-log = `op_walk::walk_ancestors(&[repo.operation().clone()])` collected via `futures::TryStreamExt::try_collect`. `WorkspaceName`/`WorkspaceNameBuf` live in `jj_lib::ref_name`; `id.hex()` needs `jj_lib::object_id::ObjectId` in scope.
+> **Open identity choice (Task 3):** the spike's `ChangeId` hashes the jj **operation id**. If P2 needs identity stable across commit rewrites, switch the hash source to the commit's jj **`ChangeId`** (reachable from the commit builder).
+
 **Confirmed jj-lib 0.42 anchors (from docs.rs):**
 - `Workspace::init_colocated_git(user_settings: &UserSettings, workspace_root: &Path) -> Result<(Workspace, Arc<ReadonlyRepo>), WorkspaceInitError>` (async)
 - `Workspace::load(user_settings: &UserSettings, workspace_path: &Path, store_factories: &StoreFactories, working_copy_factories: &WorkingCopyFactories) -> Result<Workspace, WorkspaceLoadError>`
