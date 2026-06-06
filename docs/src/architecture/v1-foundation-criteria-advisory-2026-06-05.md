@@ -2,7 +2,7 @@
 title: "v1.0 Foundation-Criteria Advisory (2026-06-05)"
 description: "Why the current v1.0 criteria cannot certify a shippable language, and a proposed FOUNDATION tier + LLM-actionable criteria format that drive the Vox compiler, crates, and GUI to production completeness."
 category: "Architecture SSOTs"
-status: "advisory"
+status: "research"
 training_eligible: false
 ---
 

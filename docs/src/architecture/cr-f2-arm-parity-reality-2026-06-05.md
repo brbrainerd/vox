@@ -2,7 +2,7 @@
 title: "CR-F2 Arm-Parity Reality (2026-06-05)"
 description: "Measured cross-arm parity: the interpreter runs every main()-golden, but the --mode script (codegen-rust) arm compiles none of them. A categorized codegen-rust repair backlog for v1.0."
 category: "Architecture SSOTs"
-status: "advisory"
+status: "research"
 training_eligible: false
 ---
 
