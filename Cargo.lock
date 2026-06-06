@@ -14022,7 +14022,6 @@ dependencies = [
  "hex",
  "sha2",
  "vox-crypto",
- "workspace-hack",
 ]
 
 [[package]]
@@ -14372,7 +14371,6 @@ dependencies = [
  "thiserror 2.0.18",
  "toml 0.8.23",
  "vox-plugin-types",
- "workspace-hack",
 ]
 
 [[package]]
@@ -14827,7 +14825,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
- "workspace-hack",
 ]
 
 [[package]]
@@ -14868,7 +14865,6 @@ dependencies = [
  "regress",
  "serde",
  "serde_json",
- "workspace-hack",
 ]
 
 [[package]]
@@ -16907,7 +16903,6 @@ dependencies = [
  "deadpool-runtime",
  "deranged",
  "digest",
- "dispatch2",
  "either",
  "errno",
  "fastrand",
