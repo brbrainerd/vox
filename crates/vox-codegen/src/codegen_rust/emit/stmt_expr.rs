@@ -301,7 +301,14 @@ fn emit_return_stmt(
 ///
 /// Extracted from `emit_expr_with` per CR-A1: the 13-arm op match + the Pipe
 /// early-return + the arithmetic `&` decoration contributed ~15 DPs inline.
-fn emit_binary_expr<F>(op: &HirBinOp, l: &HirExpr, r: &HirExpr, emit: &F) -> String
+fn emit_binary_expr<F>(
+    op: &HirBinOp,
+    l: &HirExpr,
+    r: &HirExpr,
+    bin_span: &Span,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    emit: &F,
+) -> String
 where
     F: Fn(&HirExpr, OwnershipMode) -> String,
 {
@@ -353,12 +360,35 @@ where
         op,
         HirBinOp::Add | HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div
     ) {
-        format!(
-            "({} {} &{})",
-            emit(l, OwnershipMode::Owned),
-            op_str,
-            emit(r, OwnershipMode::Owned)
-        )
+        // Only `String` concatenation needs a borrowed RHS (`String + &str`).
+        // Numeric `+ - * /` do not — emitting `1 + &2` compiles only via Rust's
+        // forward-ref `Add<&i64>` impls and triggers an unused-borrow warning.
+        // Keep the `&` unless the result type is positively numeric, so string
+        // concat stays correct while integer/float/decimal ops are clean.
+        // Positively numeric when either operand is a numeric literal (the type
+        // checker does not record a result type for pure-literal arithmetic like
+        // `1 + 2`), or when the result type is a numeric scalar.
+        let is_num_lit = |e: &HirExpr| {
+            matches!(
+                e,
+                HirExpr::IntLit(..) | HirExpr::FloatLit(..) | HirExpr::DecimalLit(..)
+            )
+        };
+        let positively_numeric = is_num_lit(l)
+            || is_num_lit(r)
+            || inferred_types
+                .and_then(|m| m.get(bin_span))
+                .is_some_and(|t| {
+                    matches!(t, HirType::Named(n) if matches!(n.as_str(), "int" | "float" | "dec"))
+                        || matches!(t, HirType::Decimal)
+                });
+        let rhs = emit(r, OwnershipMode::Owned);
+        let rhs = if positively_numeric {
+            rhs
+        } else {
+            format!("&{rhs}")
+        };
+        format!("({} {} {})", emit(l, OwnershipMode::Owned), op_str, rhs)
     } else {
         format!(
             "({} {} {})",
@@ -556,7 +586,9 @@ pub(super) fn emit_expr_with(
         ),
 
         HirExpr::Ident(n, span) => emit_ident_expr(n, span, inferred_types, usage, mode),
-        HirExpr::Binary(op, l, r, _) => emit_binary_expr(op, l, r, &emit),
+        HirExpr::Binary(op, l, r, bin_span) => {
+            emit_binary_expr(op, l, r, bin_span, inferred_types, &emit)
+        }
         HirExpr::Call(callee, args, is_await, _) => {
             if let HirExpr::Ident(n, _) = &**callee
                 && let Some(s) = emit_builtin_ident_call(n, args, &emit)
