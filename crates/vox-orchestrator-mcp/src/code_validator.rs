@@ -142,7 +142,7 @@ pub async fn validate_file(state: &ServerState, params: ValidateFileParams) -> S
     }
 
     #[cfg(feature = "oratio-rerank")]
-    let correlation_id = vox_oratio::trace::new_correlation_id();
+    let correlation_id = vox_speech::trace::new_correlation_id();
     #[cfg(not(feature = "oratio-rerank"))]
     let correlation_id = uuid::Uuid::new_v4().to_string();
     tracing::debug!(
@@ -191,7 +191,7 @@ pub async fn validate_source(_state: &ServerState, params: ValidateSourceParams)
     }
 
     #[cfg(feature = "oratio-rerank")]
-    let correlation_id = vox_oratio::trace::new_correlation_id();
+    let correlation_id = vox_speech::trace::new_correlation_id();
     #[cfg(not(feature = "oratio-rerank"))]
     let correlation_id = uuid::Uuid::new_v4().to_string();
     tracing::debug!(

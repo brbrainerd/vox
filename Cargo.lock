@@ -15163,13 +15163,13 @@ dependencies = [
  "vox-config",
  "vox-deploy-codegen",
  "vox-lsp",
- "vox-oratio",
  "vox-orchestrator",
  "vox-orchestrator-mcp",
  "vox-repository",
  "vox-scaling-policy",
  "vox-secrets",
  "vox-skills",
+ "vox-speech",
  "vox-test-harness",
  "vox-workflow-runtime",
  "walkdir",
@@ -15300,7 +15300,6 @@ dependencies = [
  "vox-http-client",
  "vox-jsonschema-util",
  "vox-mesh-types",
- "vox-oratio",
  "vox-orchestrator",
  "vox-plugin-host",
  "vox-populi",
@@ -15308,6 +15307,7 @@ dependencies = [
  "vox-repository",
  "vox-scaling-policy",
  "vox-secrets",
+ "vox-speech",
  "vox-tensor",
  "vox-workflow-runtime",
  "walkdir",
@@ -15359,39 +15359,6 @@ dependencies = [
  "vox-db",
  "vox-http-client",
  "vox-plugin-host",
- "vox-secrets",
- "workspace-hack",
-]
-
-[[package]]
-name = "vox-oratio"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "byteorder",
- "candle-core",
- "candle-nn",
- "candle-transformers",
- "hf-hub",
- "rand 0.9.4",
- "reqwest 0.12.28",
- "rubato",
- "serde",
- "serde_json",
- "sherpa-onnx",
- "symphonia",
- "tempfile",
- "tokenizers",
- "tokio",
- "toml 0.8.23",
- "tracing",
- "uuid",
- "vox-compiler",
- "vox-config",
- "vox-http-client",
- "vox-populi",
  "vox-secrets",
  "workspace-hack",
 ]
@@ -15455,7 +15422,6 @@ dependencies = [
  "vox-http-client",
  "vox-lsp",
  "vox-mesh-types",
- "vox-oratio",
  "vox-orchestrator-queue",
  "vox-orchestrator-types",
  "vox-package",
@@ -15467,6 +15433,7 @@ dependencies = [
  "vox-secrets",
  "vox-skill-runtime",
  "vox-skills",
+ "vox-speech",
  "vox-telemetry",
  "vox-test-harness",
  "walkdir",
@@ -15558,7 +15525,6 @@ dependencies = [
  "vox-mesh-types",
  "vox-openai",
  "vox-openclaw-runtime",
- "vox-oratio",
  "vox-orchestrator",
  "vox-orchestrator-types",
  "vox-package",
@@ -15575,6 +15541,7 @@ dependencies = [
  "vox-search",
  "vox-secrets",
  "vox-skills",
+ "vox-speech",
  "vox-telemetry",
  "walkdir",
  "workspace-hack",
@@ -15816,33 +15783,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-plugin-oratio"
-version = "0.6.0"
-dependencies = [
- "abi_stable",
- "anyhow",
- "byteorder",
- "candle-core",
- "candle-nn",
- "candle-transformers",
- "hf-hub",
- "rand 0.9.4",
- "rubato",
- "serde",
- "serde_json",
- "symphonia",
- "tempfile",
- "tokenizers",
- "toml 0.8.23",
- "tracing",
- "uuid",
- "vox-config",
- "vox-plugin-api",
- "vox-secrets",
- "workspace-hack",
-]
-
-[[package]]
 name = "vox-plugin-populi-mesh"
 version = "0.6.0"
 dependencies = [
@@ -15929,6 +15869,33 @@ dependencies = [
  "vox-wasm-engine",
  "wasmtime",
  "wasmtime-wasi",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-plugin-speech"
+version = "0.6.0"
+dependencies = [
+ "abi_stable",
+ "anyhow",
+ "byteorder",
+ "candle-core",
+ "candle-nn",
+ "candle-transformers",
+ "hf-hub",
+ "rand 0.9.4",
+ "rubato",
+ "serde",
+ "serde_json",
+ "symphonia",
+ "tempfile",
+ "tokenizers",
+ "toml 0.8.23",
+ "tracing",
+ "uuid",
+ "vox-config",
+ "vox-plugin-api",
+ "vox-secrets",
  "workspace-hack",
 ]
 
@@ -16385,6 +16352,39 @@ dependencies = [
  "vox-package",
  "vox-plugin-host",
  "vox-skill-runtime",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-speech"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "byteorder",
+ "candle-core",
+ "candle-nn",
+ "candle-transformers",
+ "hf-hub",
+ "rand 0.9.4",
+ "reqwest 0.12.28",
+ "rubato",
+ "serde",
+ "serde_json",
+ "sherpa-onnx",
+ "symphonia",
+ "tempfile",
+ "tokenizers",
+ "tokio",
+ "toml 0.8.23",
+ "tracing",
+ "uuid",
+ "vox-compiler",
+ "vox-config",
+ "vox-http-client",
+ "vox-populi",
+ "vox-secrets",
  "workspace-hack",
 ]
 

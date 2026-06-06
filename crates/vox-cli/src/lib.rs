@@ -598,8 +598,8 @@ pub enum Cli {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },
-    /// Speech-to-Code: transcribe, listen (Delegated to `vox-ml-cli`).
-    #[command(name = "oratio", visible_alias = "speech")]
+    /// Speech-to-Code: transcribe, listen (Delegated to `vox-ml-cli`). `oratio` alias retained.
+    #[command(name = "speech", visible_alias = "oratio")]
     Oratio {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,

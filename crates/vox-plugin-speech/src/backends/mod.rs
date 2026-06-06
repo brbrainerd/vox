@@ -1,5 +1,5 @@
 //! Candle Whisper STT backend for vox-plugin-oratio.
-//! All modules behind `#[cfg(feature = "stt-candle")]` matching the vox-oratio convention.
+//! All modules behind `#[cfg(feature = "stt-candle")]` matching the vox-speech convention.
 
 pub mod asr_backend;
 

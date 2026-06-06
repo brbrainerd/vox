@@ -2273,17 +2273,6 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
-  - oratio
-  status: active
-  latin_ns: fabrica
-  product_lane: ai
-  feature_gate: oratio
-  catalog_group: oratio
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: null
-- surface: vox-cli
-  path:
   - pm
   status: active
   latin_ns: pm
@@ -3176,6 +3165,17 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::extras::snippet_cli
+- surface: vox-cli
+  path:
+  - speech
+  status: active
+  latin_ns: fabrica
+  product_lane: ai
+  feature_gate: oratio
+  catalog_group: speech
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
 - surface: vox-cli
   path:
   - stub-check

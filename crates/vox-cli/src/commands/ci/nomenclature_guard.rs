@@ -43,7 +43,6 @@ const HISTORICAL_ALLOWLIST: &[&str] = &[
     "vox-orchestrator", // canonical English — permitted
     "vox-skills",  // canonical English — permitted
     "vox-gamify",  // grandfathered — being migrated to vox-gamification
-    "vox-oratio",  // grandfathered — being migrated to vox-speech
     "vox-populi",  // grandfathered — being migrated to vox-ml
     "vox-schola",  // grandfathered — being migrated to vox-tutorial
     "vox-codex-api", // grandfathered — database abstraction layer

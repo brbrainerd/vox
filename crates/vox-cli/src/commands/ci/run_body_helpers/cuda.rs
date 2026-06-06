@@ -19,10 +19,10 @@ pub(crate) fn run_cuda_features() -> Result<()> {
     let cargo = cargo_bin();
     let st1 = Command::new(&cargo)
         .current_dir(&root)
-        .args(["check", "-p", "vox-oratio", "--features", "cuda"])
+        .args(["check", "-p", "vox-speech", "--features", "cuda"])
         .status()?;
     if !st1.success() {
-        return Err(anyhow!("cargo check -p vox-oratio --features cuda failed"));
+        return Err(anyhow!("cargo check -p vox-speech --features cuda failed"));
     }
     let st2 = Command::new(&cargo)
         .current_dir(&root)

@@ -12,8 +12,8 @@ default = [
 ]
 # Populi HTTP mesh client (`vox-populi` transport).
 populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm"]
-# `vox-oratio` speech-to-text / refinement tools.
-oratio-rerank = ["dep:vox-oratio"]
+# `vox-speech` speech-to-text / refinement tools.
+oratio-rerank = ["dep:vox-speech"]
 # `vox-publisher` syndication / scientia surfaces.
 news-publish = [
     "dep:vox-publisher",
@@ -78,7 +78,7 @@ vox-publisher = { workspace = true, optional = true, default-features = false }
 async-trait = { workspace = true }
 anyhow.workspace = true
 serde_yaml.workspace = true
-vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
+vox-speech = { workspace = true, optional = true, features = ["compiler-rerank"] }
 regex = { workspace = true }
 vox-corpus = { workspace = true, features = ["database"] }
 # jj-lib: optional VCS backend. Pure Rust (gix-backed, no C). Pinned for stability.

@@ -1,7 +1,7 @@
 //! AudioCapture + SpeechToText implementations for the Oratio plugin.
 //!
 //! AudioCapture: SP7 scaffold — mic/device capture not yet implemented.
-//! SpeechToText: Candle Whisper backend, extracted from vox-oratio in Unit 4.
+//! SpeechToText: Candle Whisper backend, extracted from vox-speech in Unit 4.
 
 use abi_stable::{erased_types::TD_Opaque, std_types::*};
 use vox_plugin_api::abi::{VoxPlugin, VoxPlugin_TO, VoxPluginRef};

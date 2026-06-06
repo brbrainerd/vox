@@ -1,4 +1,4 @@
-//! DomainMode — copied verbatim from vox-oratio `src/refine/mod.rs` for use inside the
+//! DomainMode — copied verbatim from vox-speech `src/refine/mod.rs` for use inside the
 //! vox-plugin-oratio cdylib without pulling in the full refine module.
 
 use serde::{Deserialize, Serialize};

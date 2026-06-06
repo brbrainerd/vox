@@ -7754,8 +7754,8 @@ operations:
     tier: core
   cli: null
 - id: oratio
-  title: Oratio
-  description: CLI operation `vox oratio`
+  title: Speech
+  description: CLI operation `vox speech` (alias `oratio`)
   description_human: null
   product_lane: ai
   intent_tags: []
@@ -7766,17 +7766,18 @@ operations:
   preferred_for_models: null
   human_takeover_friendly: null
   mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
+  canonical_name: speech
+  latin_aliases:
+  - oratio
   mcp: null
   cli:
     path:
-    - oratio
+    - speech
     status: active
     latin_ns: fabrica
     handler_rust: null
     feature_gate: oratio
-    catalog_group: oratio
+    catalog_group: speech
     ref_cli_required: true
     reachability_required: null
 - id: oratio.listen
