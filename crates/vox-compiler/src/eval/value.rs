@@ -1,4 +1,5 @@
 use crate::hir::nodes::HirStmt;
+use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub enum VoxValue {
@@ -17,13 +18,24 @@ pub enum VoxValue {
     Match(Vec<core::option::Option<String>>),
     Str(String),
     Bool(bool),
-    List(Vec<VoxValue>),
-    Object(Vec<(String, VoxValue)>),
-    Tuple(Vec<VoxValue>),
+    /// Copy-on-write list payload. `Rc` makes `VoxValue::clone()` O(1) (a refcount
+    /// bump) so pass-by-value is cheap; in-place mutation uses [`Rc::make_mut`],
+    /// which clones once iff the payload is aliased — preserving Vox's value
+    /// semantics. Construct via [`VoxValue::list`].
+    List(Rc<Vec<VoxValue>>),
+    /// Copy-on-write object payload. See [`VoxValue::List`]. Construct via
+    /// [`VoxValue::object`].
+    Object(Rc<Vec<(String, VoxValue)>>),
+    /// Copy-on-write tuple payload. See [`VoxValue::List`]. Construct via
+    /// [`VoxValue::tuple`].
+    Tuple(Rc<Vec<VoxValue>>),
     Null,
     Fn {
         params: Vec<String>,
-        body: Vec<HirStmt>,
+        /// `Rc`-shared closure body so cloning a function value (every closure
+        /// capture and every recursive call) is an O(1) refcount bump rather
+        /// than a deep clone of the HIR statement list.
+        body: Rc<Vec<HirStmt>>,
         env: crate::eval::env::Scope,
     },
     Option(core::option::Option<Box<VoxValue>>),
@@ -59,6 +71,24 @@ pub enum VoxValue {
     /// See `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §10.4
     /// for the design discussion.
     _Panic(String),
+}
+
+impl VoxValue {
+    /// Build a CoW [`VoxValue::List`] from an owned `Vec`.
+    #[inline]
+    pub fn list(items: Vec<VoxValue>) -> Self {
+        VoxValue::List(Rc::new(items))
+    }
+    /// Build a CoW [`VoxValue::Object`] from owned fields.
+    #[inline]
+    pub fn object(fields: Vec<(String, VoxValue)>) -> Self {
+        VoxValue::Object(Rc::new(fields))
+    }
+    /// Build a CoW [`VoxValue::Tuple`] from an owned `Vec`.
+    #[inline]
+    pub fn tuple(items: Vec<VoxValue>) -> Self {
+        VoxValue::Tuple(Rc::new(items))
+    }
 }
 
 impl PartialEq for VoxValue {

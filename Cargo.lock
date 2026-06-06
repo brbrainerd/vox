@@ -13336,6 +13336,7 @@ dependencies = [
  "serde_yaml",
  "serial_test",
  "sha3",
+ "static_assertions",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
