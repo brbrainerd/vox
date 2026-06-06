@@ -176,13 +176,13 @@ fn main() {
     let sha256_file = target_dir.join("generated.manifest.sha256");
     let mut hasher = Sha256::new();
     hasher.update(code.as_bytes());
-    // The sha2 digest (`Array<u8>`, formerly `GenericArray`) does not implement
-    // `LowerHex`, so format the bytes explicitly.
-    let hash: String = hasher
+    // digest 0.11: `finalize()` returns `hybrid_array::Array`, which does not impl
+    // `LowerHex`. Format per-byte (identical lowercase-hex output to the old `{:x}`).
+    let hash = hasher
         .finalize()
         .iter()
         .map(|b| format!("{b:02x}"))
-        .collect();
+        .collect::<String>();
     fs::write(&sha256_file, format!("{}  agent_harness.rs\n", hash)).unwrap();
 
     println!("Wrote {}", target_file.display());

@@ -44,7 +44,7 @@ pub fn emit_cursor_codec_rs() -> String {
 //! Cursors are tamper-evident: payload || HMAC-SHA256(secret, payload), base64url-encoded.
 
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;

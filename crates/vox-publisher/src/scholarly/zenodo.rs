@@ -416,7 +416,7 @@ async fn zenodo_upload_staging_files(
             && let Some(hex) = map.get(rel)
         {
             let d = Sha3_256::digest(&bytes);
-            let got = format!("{d:x}");
+            let got = hex::encode(d);
             if got != *hex {
                 return Err(ScholarlyError::Config {
                     message: format!(

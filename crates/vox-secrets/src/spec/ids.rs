@@ -91,6 +91,9 @@ pub enum SecretId {
     VoxOsfApiToken,
     VoxArxivAccessToken,
     VoxNanopubSigningKeyHex,
+    /// Per-user RSA nanopublication signing key, base64-encoded PKCS#8 private
+    /// key (account/profile-scoped, persistable, non-shareable).
+    VoxUserRsaNanopubPrivateKeyB64,
     VoxSwhidApiToken,
     TavilyApiKey,
     VoxScholarlyAdapter,
@@ -634,6 +637,22 @@ impl SecretId {
                 allow_compat_sources_in_strict: true,
                 rotation_policy: RotationPolicy::Periodic,
                 taxonomy_class: TaxonomyClass::AuxTooling,
+                lifecycle: LifecycleMeta::MANUAL,
+            },
+            // Per-user RSA nanopub signing key: a persistable account secret that
+            // is NOT shareable (per-user private key) and is rotated manually.
+            SecretId::VoxUserRsaNanopubPrivateKeyB64 => SecretMetadata {
+                class: SecretClass::Integration,
+                material_kind: SecretMaterialKind::ApiKey,
+                persistable_account_secret: true,
+                shareable: false,
+                device_local_only: false,
+                // A private signing key must be vault-only in strict mode: never
+                // sourced from the environment or compat fallbacks.
+                allow_env_in_strict: false,
+                allow_compat_sources_in_strict: false,
+                rotation_policy: RotationPolicy::Manual,
+                taxonomy_class: TaxonomyClass::ScholarlyPublication,
                 lifecycle: LifecycleMeta::MANUAL,
             },
             SecretId::WebhookSigningSecret

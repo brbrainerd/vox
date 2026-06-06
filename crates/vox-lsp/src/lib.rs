@@ -406,7 +406,7 @@ pub fn builtin_hover_markdown(word: &str) -> Option<String> {
         "Speech" => Some(
             "**Speech** — Oratio (Candle Whisper, pure Rust). \
              `Speech.transcribe(path: str) → Result[str]` returns **refined** transcript text. \
-             Rust codegen uses `vox-oratio`; TS/browser cannot call it directly."
+             Rust codegen uses `vox-speech`; TS/browser cannot call it directly."
                 .to_string(),
         ),
         "transcribe" => Some(

@@ -84,6 +84,7 @@ fn effect_kind_to_cap(eff: &HirEffectKind) -> HirCapability {
         HirEffectKind::Spawn => HirCapability::Spawn,
         HirEffectKind::GpuCompute => HirCapability::GpuCompute,
         HirEffectKind::Mutate => HirCapability::Mutate,
+        HirEffectKind::Vcs => HirCapability::Vcs,
         HirEffectKind::Mcp(s) => HirCapability::Mcp(s.clone()),
     }
 }
@@ -514,6 +515,8 @@ fn stdlib_module_capability(module: &str) -> Option<HirCapability> {
         // Web automation/scraping are network-bearing (Browser also launches a
         // process; Net is the load-bearing capability). Previously ungoverned.
         "Scrape" | "scrape" | "Browser" | "OpenClaw" => Some(HirCapability::Net),
+        // VCS / repository builtins.
+        "repo" | "Repo" | "vcs" | "Vcs" => Some(HirCapability::Vcs),
         _ => None,
     }
 }
@@ -734,6 +737,29 @@ fn caller() to str { fetch() }",
             "expected db violation: {}",
             diags[0].message
         );
+    }
+
+    #[test]
+    fn test_repo_method_call_requires_vcs() {
+        // `repo.snapshot(...)` without `uses vcs` must produce a diagnostic mentioning "vcs".
+        let diags = check(r#"fn f() uses nothing to str { repo.snapshot("HEAD") }"#);
+        assert_eq!(diags.len(), 1, "expected vcs violation: {diags:?}");
+        assert!(
+            diags[0].message.contains("vcs"),
+            "expected 'vcs' in message: {}",
+            diags[0].message
+        );
+        assert!(
+            diags[0].message.contains("repo.snapshot"),
+            "expected call site in message: {}",
+            diags[0].message
+        );
+    }
+
+    #[test]
+    fn test_repo_method_call_ok_with_vcs() {
+        let diags = check(r#"fn f() uses vcs to str { repo.snapshot("HEAD") }"#);
+        assert!(diags.is_empty(), "unexpected violation: {diags:?}");
     }
 
     // ── endpoint fn checks ──────────────────────────────────────────────────

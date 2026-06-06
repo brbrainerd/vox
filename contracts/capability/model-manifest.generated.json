@@ -2088,16 +2088,6 @@
       "title": "Openclaw Sidecar Stop"
     },
     {
-      "capability_id": "cli.oratio",
-      "cli_path": [
-        "oratio"
-      ],
-      "curated": true,
-      "description_model": "CLI operation `vox oratio`",
-      "implicit": false,
-      "title": "Oratio"
-    },
-    {
       "capability_id": "cli.pm",
       "cli_path": [
         "pm"
@@ -2939,6 +2929,16 @@
       "description_model": "CLI operation `vox snippet`",
       "implicit": false,
       "title": "Snippet"
+    },
+    {
+      "capability_id": "cli.speech",
+      "cli_path": [
+        "speech"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox speech` (alias `oratio`)",
+      "implicit": false,
+      "title": "Speech"
     },
     {
       "capability_id": "cli.stub-check",

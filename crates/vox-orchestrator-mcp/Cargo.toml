@@ -18,7 +18,7 @@ news-publish = [
 toestub-gate = ["vox-orchestrator/toestub-gate"]
 json-schema = ["vox-orchestrator/json-schema"]
 populi-transport = ["vox-orchestrator/populi-transport", "vox-populi/transport"]
-oratio-rerank = ["dep:vox-oratio"]
+oratio-rerank = ["dep:vox-speech"]
 
 [dependencies]
 vox-orchestrator = { path = "../vox-orchestrator", default-features = false, features = ["runtime"] }
@@ -68,7 +68,7 @@ vox-populi = { workspace = true }
 tower-lsp-server = { workspace = true }
 vox-http-client.workspace = true
 vox-publisher = { workspace = true, optional = true, default-features = false }
-vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
+vox-speech = { workspace = true, optional = true, features = ["compiler-rerank"] }
 
 # Standard deps
 tokio = { workspace = true }

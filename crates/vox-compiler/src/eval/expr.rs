@@ -512,6 +512,15 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 return Ok(result);
             }
 
+            // `repo.*` namespace dispatch — stateful VCS store under `--mode interp`.
+            if let VoxValue::Object(fields) = &o
+                && fields.iter().any(|(k, v)| {
+                    k == "__namespace__" && matches!(v, VoxValue::Str(s) if s == "repo")
+                })
+            {
+                return super::repo::execute_repo_op(interp, method, eval_args);
+            }
+
             // Namespace-method dispatch: `alias.fn_name(...)` where `alias`
             // is the namespace object produced by an
             // `import "./util.vox" as alias` (RFC §3 scope-merge / alias form).

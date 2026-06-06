@@ -228,3 +228,46 @@ async fn vcs_workspace_overlap_detection() {
     let overlaps = wm_lock.read().unwrap().overlapping_paths(agent_a, agent_b);
     assert_eq!(overlaps.len(), 1); // Still only shared.rs
 }
+
+#[tokio::test]
+async fn workspace_merge_json_records_conflicts_on_overlap() {
+    use vox_orchestrator::json_vcs_facade::workspace_merge_json;
+
+    let orch = Orchestrator::new(test_config());
+    let agent_a = AgentId(10);
+    let agent_b = AgentId(11);
+    let base = SnapshotId(1);
+
+    // Create workspaces for both agents, both touching the same file.
+    let wm_lock = orch.workspace_manager_mut();
+    wm_lock.write().unwrap().create_workspace(agent_a, base);
+    wm_lock.write().unwrap().create_workspace(agent_b, base);
+    {
+        let mut mgr = wm_lock.write().unwrap();
+        mgr.get_workspace_mut(agent_a)
+            .unwrap()
+            .record_modification("overlap.rs", "hash_a".into());
+        mgr.get_workspace_mut(agent_b)
+            .unwrap()
+            .record_modification("overlap.rs", "hash_b".into());
+    }
+
+    // Merge agent_a — should detect overlap with agent_b and record a conflict.
+    let result = workspace_merge_json(&orch, agent_a.0);
+    assert_eq!(result["merged"], true, "merge should succeed");
+    let conflicts_recorded = result["conflicts_recorded"]
+        .as_u64()
+        .expect("conflicts_recorded must be a number");
+    assert!(
+        conflicts_recorded > 0,
+        "expected at least one conflict recorded, got {}",
+        conflicts_recorded
+    );
+
+    // Conflict manager should have the active conflict.
+    let cm_lock = orch.conflict_manager_mut();
+    assert!(
+        cm_lock.read().unwrap().active_count() > 0,
+        "conflict_manager should have active conflicts after merge"
+    );
+}

@@ -24,6 +24,8 @@ pub enum EffectAnnotation {
     GpuCompute,
     /// In-place mutable tensor / optimizer state updates (training).
     Mutate,
+    /// Version-control / repository operations (`repo.*` / `vcs.*` builtins).
+    Vcs,
     /// Calls a specific MCP tool: `mcp(tool_name)`.
     Mcp(String),
     /// Explicit `uses nothing` — equivalent to `@pure`.
@@ -42,6 +44,7 @@ impl EffectAnnotation {
             "spawn" => Some(Self::Spawn),
             "gpu_compute" => Some(Self::GpuCompute),
             "mutate" => Some(Self::Mutate),
+            "vcs" => Some(Self::Vcs),
             "nothing" => Some(Self::Nothing),
             _ => None,
         }
@@ -58,6 +61,7 @@ impl EffectAnnotation {
             Self::Spawn => "spawn",
             Self::GpuCompute => "gpu_compute",
             Self::Mutate => "mutate",
+            Self::Vcs => "vcs",
             Self::Mcp(_) => "mcp",
             Self::Nothing => "nothing",
         }

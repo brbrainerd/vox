@@ -1,0 +1,13 @@
+[package]
+name = "vox-vcs"
+description = "VCS backend abstraction for Vox — VcsBackend trait, in-memory CasFallback, and (later) the jj-lib engine. The single home for all jj_lib:: calls."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+workspace-hack = { workspace = true }
+
+[lints]
+workspace = true

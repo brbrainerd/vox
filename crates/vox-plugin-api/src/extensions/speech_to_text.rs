@@ -34,7 +34,7 @@ pub trait SpeechToText: Send + Sync {
     fn end_stream(&self, session_id: RStr<'_>) -> RResult<RString, RBoxError>;
 
     /// Transcribe an audio file at `path`. Plugin handles decoding internally.
-    /// Equivalent to vox-oratio's `transcribe_path_detailed`. Returns transcription JSON
+    /// Equivalent to vox-speech's `transcribe_path_detailed`. Returns transcription JSON
     /// matching `transcribe()`'s shape.
     fn transcribe_path(
         &self,

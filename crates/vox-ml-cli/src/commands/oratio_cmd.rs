@@ -7,12 +7,12 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 /// Transcribe an audio file via the `oratio` plugin + deterministic refinement.
-/// Falls back to `vox_oratio::transcribe_path_detailed` for .txt/.md files.
+/// Falls back to `vox_speech::transcribe_path_detailed` for .txt/.md files.
 fn transcribe_path_via_plugin(
     path: &Path,
-    ctx: &vox_oratio::refine::CorrectionContext,
+    ctx: &vox_speech::refine::CorrectionContext,
     language_hint: Option<&str>,
-) -> anyhow::Result<vox_oratio::TranscribeDetail> {
+) -> anyhow::Result<vox_speech::TranscribeDetail> {
     let ext = path
         .extension()
         .and_then(|e| e.to_str())
@@ -20,7 +20,7 @@ fn transcribe_path_via_plugin(
         .to_ascii_lowercase();
 
     if matches!(ext.as_str(), "txt" | "md") {
-        return vox_oratio::transcribe_path_detailed(path, ctx, language_hint)
+        return vox_speech::transcribe_path_detailed(path, ctx, language_hint)
             .map_err(|e| anyhow::anyhow!("{e}"));
     }
 
@@ -48,14 +48,14 @@ fn transcribe_path_via_plugin(
         .unwrap_or("")
         .to_string();
 
-    Ok(vox_oratio::refine_raw_text(&raw_text, ctx))
+    Ok(vox_speech::refine_raw_text(&raw_text, ctx))
 }
 
 /// Wrapper returning `Transcript` shape for simple transcribe commands.
-fn transcribe_path_simple_via_plugin(path: &Path) -> anyhow::Result<vox_oratio::Transcript> {
-    let ctx = vox_oratio::refine::CorrectionContext::default();
+fn transcribe_path_simple_via_plugin(path: &Path) -> anyhow::Result<vox_speech::Transcript> {
+    let ctx = vox_speech::refine::CorrectionContext::default();
     let d = transcribe_path_via_plugin(path, &ctx, None)?;
-    Ok(vox_oratio::Transcript {
+    Ok(vox_speech::Transcript {
         raw_text: d.raw_text,
         refined_text: Some(d.refined_text),
     })
@@ -68,7 +68,7 @@ pub enum CorrectionProfileCli {
     Aggressive,
 }
 
-impl From<CorrectionProfileCli> for vox_oratio::refine::OratioCorrectionProfile {
+impl From<CorrectionProfileCli> for vox_speech::refine::OratioCorrectionProfile {
     fn from(value: CorrectionProfileCli) -> Self {
         match value {
             CorrectionProfileCli::Conservative => Self::Conservative,
@@ -139,7 +139,7 @@ fn append_asr_refine_pair(
     Ok(())
 }
 
-impl From<RouteModeCli> for vox_oratio::RouteMode {
+impl From<RouteModeCli> for vox_speech::RouteMode {
     fn from(value: RouteModeCli) -> Self {
         match value {
             RouteModeCli::None => Self::None,
@@ -150,8 +150,8 @@ impl From<RouteModeCli> for vox_oratio::RouteMode {
     }
 }
 
-fn resolve_ide_context() -> vox_oratio::routing::IdeContext {
-    let mut ctx = vox_oratio::routing::IdeContext::default();
+fn resolve_ide_context() -> vox_speech::routing::IdeContext {
+    let mut ctx = vox_speech::routing::IdeContext::default();
 
     // 1. IDE State File (highest stable precedence)
     let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
@@ -167,7 +167,7 @@ fn resolve_ide_context() -> vox_oratio::routing::IdeContext {
         if is_fresh {
             if let Ok(content) = std::fs::read_to_string(&state_file) {
                 if let Ok(file_ctx) =
-                    serde_json::from_str::<vox_oratio::routing::IdeContext>(&content)
+                    serde_json::from_str::<vox_speech::routing::IdeContext>(&content)
                 {
                     ctx = file_ctx;
                 }
@@ -328,7 +328,7 @@ pub enum OratioAction {
 
 /// Run **`vox oratio …`**.
 pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
-    let runtime = vox_oratio::resolved_runtime_config();
+    let runtime = vox_speech::resolved_runtime_config();
     match action {
         OratioAction::Transcribe {
             path,
@@ -418,9 +418,9 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
             if !confirmed {
                 anyhow::bail!("oratio_capture_timeout: no Enter received within {timeout_ms} ms");
             }
-            let session = vox_oratio::transcribe_path_session_with_runtime(
+            let session = vox_speech::transcribe_path_session_with_runtime(
                 &path,
-                &vox_oratio::OratioSessionConfig {
+                &vox_speech::OratioSessionConfig {
                     timeout_ms,
                     max_duration_ms: max_ms,
                     inference_deadline_ms: (inference_deadline_ms > 0)
@@ -478,7 +478,7 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
                 }
             }
 
-            let mut route_payload = vox_oratio::route_transcript_with_options(
+            let mut route_payload = vox_speech::route_transcript_with_options(
                 route.into(),
                 &session.session_id,
                 &session.text,
@@ -487,7 +487,7 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
                 &ctx,
             );
 
-            if matches!(route_payload.mode, vox_oratio::routing::RouteMode::Clarify) {
+            if matches!(route_payload.mode, vox_speech::routing::RouteMode::Clarify) {
                 println!(
                     "{}",
                     route_payload.payload["message"]
@@ -508,7 +508,7 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
                         println!("Selected: {}", items[selection]);
                         // Recalculate route with the specific target identified by the user
                         // For now, we just upgrade to matched with the selected text
-                        route_payload.mode = vox_oratio::routing::RouteMode::Tool;
+                        route_payload.mode = vox_speech::routing::RouteMode::Tool;
                         route_payload.status = "clarified".to_string();
                         route_payload.payload = serde_json::json!({
                             "selected": items[selection],
@@ -536,9 +536,9 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
             checks.push(serde_json::json!({
                 "name": "status_summary",
                 "ok": true,
-                "value": vox_oratio::transcript_status(),
+                "value": vox_speech::transcript_status(),
             }));
-            let candle = vox_oratio::candle_backend_status_json();
+            let candle = vox_speech::candle_backend_status_json();
             checks.push(serde_json::json!({
                 "name": "candle_backend",
                 "ok": true,
@@ -547,7 +547,7 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
             checks.push(serde_json::json!({
                 "name": "runtime_config",
                 "ok": true,
-                "value": vox_oratio::runtime_config_diagnostic_json(runtime),
+                "value": vox_speech::runtime_config_diagnostic_json(runtime),
             }));
             checks.push(serde_json::json!({
                 "name": "ide_context",
@@ -562,10 +562,10 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
             Ok(())
         }
         OratioAction::Status => {
-            println!("{}", vox_oratio::transcript_status());
+            println!("{}", vox_speech::transcript_status());
             println!(
                 "{}",
-                serde_json::to_string_pretty(&vox_oratio::candle_backend_status_json())?
+                serde_json::to_string_pretty(&vox_speech::candle_backend_status_json())?
             );
             Ok(())
         }
@@ -623,9 +623,9 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
                 let lang = val.get("language").and_then(|v| v.as_str());
 
                 let p = std::path::Path::new(path);
-                let ctx = vox_oratio::refine::CorrectionContext::from_runtime(
+                let ctx = vox_speech::refine::CorrectionContext::from_runtime(
                     runtime,
-                    vox_oratio::refine::OratioCorrectionProfile::Balanced,
+                    vox_speech::refine::OratioCorrectionProfile::Balanced,
                     false,
                 );
                 let detail = transcribe_path_via_plugin(p, &ctx, lang)?;
@@ -633,8 +633,8 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
 
                 let expected_words: Vec<&str> = expected.split_whitespace().collect();
 
-                let wer_val = vox_oratio::eval::word_error_rate(expected, &actual);
-                let cer_val = vox_oratio::eval::char_error_rate(expected, &actual);
+                let wer_val = vox_speech::eval::word_error_rate(expected, &actual);
+                let cer_val = vox_speech::eval::char_error_rate(expected, &actual);
                 let errs = (wer_val * expected_words.len() as f64).round() as usize;
 
                 total_words += expected_words.len();
@@ -719,7 +719,7 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
             ground_truth_srt,
             persist,
         } => {
-            let metrics = vox_oratio::subtitle::generate_srt_file(
+            let metrics = vox_speech::subtitle::generate_srt_file(
                 path.clone(),
                 output,
                 language,
@@ -770,7 +770,7 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
             Ok(())
         }
         OratioAction::Serve { port } => {
-            vox_oratio::serve::run_serve_worker(port).await?;
+            vox_speech::serve::run_serve_worker(port).await?;
             Ok(())
         }
     }

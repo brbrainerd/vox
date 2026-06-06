@@ -228,10 +228,10 @@ fn latin_english_alias_declared_in_lib() {
         lib_rs.contains("visible_alias = \"clavis\""),
         "T077: `vox secrets` must declare `visible_alias = \"clavis\"` in lib.rs"
     );
-    // T078: vox oratio → speech alias
+    // T078: vox speech (English canonical) → oratio (Latin) alias
     assert!(
-        lib_rs.contains("visible_alias = \"speech\""),
-        "T078: `vox oratio` must declare `visible_alias = \"speech\"` in lib.rs"
+        lib_rs.contains("visible_alias = \"oratio\""),
+        "T078: `vox speech` must declare `visible_alias = \"oratio\"` in lib.rs"
     );
 }
 
