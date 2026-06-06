@@ -7,7 +7,7 @@
 use crate::server_state::ServerState;
 
 /// Write-capable tools that accept a path argument and must respect agent scope.
-const WRITE_TOOLS: &[&str] = &[
+pub(crate) const WRITE_TOOLS: &[&str] = &[
     "vox_write_file",
     "vox_patch_file",
     "vox_inline_edit_file",
@@ -16,7 +16,7 @@ const WRITE_TOOLS: &[&str] = &[
 ];
 
 /// Path argument key names for write tools (checked in order).
-const PATH_ARG_KEYS: &[&str] = &["path", "file_path", "target_file"];
+pub(crate) const PATH_ARG_KEYS: &[&str] = &["path", "file_path", "target_file"];
 
 /// Returns `Some(rejection message)` when the tool call is outside declared scope;
 /// `None` when the call is allowed.

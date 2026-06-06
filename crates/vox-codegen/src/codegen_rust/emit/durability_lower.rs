@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 use vox_compiler::ast::span::Span;
-use vox_compiler::hir::{DurabilityKind, HirFn, HirType};
+use vox_compiler::hir::{DurabilityKind, HirFn, HirStmt, HirType};
 
 use super::stmt_expr::emit_stmt;
 use super::types::emit_type;
@@ -219,17 +219,28 @@ pub(super) fn emit_plain_body(
     usage: Option<&super::usage::UsageTracker>,
 ) -> String {
     let mut out = String::new();
-    for stmt in &func.body {
-        out.push_str(&emit_stmt(
-            stmt,
-            1,
-            false,
-            false,
-            false,
-            inferred_types,
-            usage,
-            None,
-        ));
+    let n = func.body.len();
+    let returns_value = func
+        .return_type
+        .as_ref()
+        .is_some_and(|t| !matches!(t, HirType::Unit));
+    for (i, stmt) in func.body.iter().enumerate() {
+        let s = emit_stmt(stmt, 1, false, false, false, inferred_types, usage, None);
+        // Vox last-expr return: a fn with a non-Unit return type whose final
+        // statement is a bare expression (e.g. `fn area(..) to float { match .. }`)
+        // returns that expression's value. Drop the trailing `;` so the Rust fn
+        // returns the value instead of `()` (otherwise E0308 mismatched types).
+        if i + 1 == n && returns_value && matches!(stmt, HirStmt::Expr { .. }) {
+            match s.strip_suffix(";\n") {
+                Some(body) => {
+                    out.push_str(body);
+                    out.push('\n');
+                }
+                None => out.push_str(&s),
+            }
+        } else {
+            out.push_str(&s);
+        }
     }
     out
 }

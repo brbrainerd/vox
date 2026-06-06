@@ -9,7 +9,7 @@ pub fn lower_hir_to_vox_ir(hir: &HirModule, source: Option<&str>) -> VoxIrModule
     let source_hash = if let Some(src) = source {
         let mut hasher = Sha3_256::new();
         hasher.update(src.as_bytes());
-        format!("{:x}", hasher.finalize())
+        hex::encode(hasher.finalize())
     } else {
         "".to_string()
     };

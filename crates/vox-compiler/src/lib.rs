@@ -9,7 +9,8 @@
 
 pub mod annotations;
 pub mod app_contract;
-pub mod ast;
+/// AST re-exported from the standalone `vox-ast` leaf crate (`crate::ast::*` == `vox_ast::*`).
+pub use vox_ast as ast;
 pub mod ast_eval;
 pub mod builtin_registry;
 pub mod canonical_json;

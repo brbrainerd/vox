@@ -362,7 +362,7 @@ impl crate::VoxDb {
                         params![plan_session_id.as_str()],
                     )
                     .await?;
-                Ok::<u64, StoreError>(affected as u64)
+                Ok::<u64, StoreError>(affected)
             })
             .await
     }

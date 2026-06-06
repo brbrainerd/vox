@@ -62,6 +62,7 @@ fn test_scale_and_sort() to Unit {
     assert(sorted.first() is Some("fig"))
 }
 
+// EXPECT: ok
 fn main() to str {
     test_make_adder()
     test_sum_of_evens()

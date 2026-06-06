@@ -41,7 +41,7 @@
 /// AgentOS: ACI-aligned mutation classification, guardrails, checkpoint hints.
 pub mod agentos;
 pub mod attachment_manifest;
-// dei_shim extracted to the `vox-dei-shim` crate (A-12). Use `vox_dei_shim::*` instead.
+// dei_shim extracted to the `vox-research-shim` crate (A-12). Use `vox_research_shim::*` instead.
 pub use vox_orchestrator_queue::sync_lock;
 
 // mcp_tools/ moved to crate `vox-orchestrator-mcp` in 2026-05-08 reorg Phase 4.
@@ -49,6 +49,8 @@ pub use vox_orchestrator_queue::sync_lock;
 
 /// JSON-shaped VCS / workspace views for MCP and CLI parity.
 pub mod json_vcs_facade;
+/// Pure conflict-recording core for workspace merge-back.
+pub mod merge_conflicts;
 
 pub mod lineage;
 

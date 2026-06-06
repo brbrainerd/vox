@@ -12,7 +12,7 @@ path = "src/main.rs"
 [features]
 default = ["mens-base"]
 mens-base = ["dep:vox-populi", "vox-bounded-fs/async", "database"]
-oratio = ["mens-base", "dep:vox-oratio", "vox-oratio/serve", "dep:vox-plugin-host"]
+oratio = ["mens-base", "dep:vox-speech", "vox-speech/serve", "dep:vox-plugin-host"]
 oratio-mic = ["oratio", "dep:cpal", "dep:hound"]
 gpu = [
     "mens-base",
@@ -55,7 +55,7 @@ vox-foundation = { workspace = true }
 vox-eval = { workspace = true }
 vox-populi = { workspace = true, optional = true }
 vox-tensor = { workspace = true, optional = true }
-vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
+vox-speech = { workspace = true, optional = true, features = ["compiler-rerank"] }
 vox-plugin-host = { workspace = true, optional = true }
 vox-workflow-runtime = { workspace = true, optional = true }
 vox-secrets = { workspace = true }

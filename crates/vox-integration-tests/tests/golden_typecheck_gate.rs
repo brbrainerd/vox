@@ -97,10 +97,10 @@ fn all_golden_vox_examples_typecheck_clean() {
             .unwrap_or(path)
             .to_string_lossy()
             .into_owned();
-        if let Some(errs) = typecheck_errors(&src, &label) {
-            if !errs.is_empty() {
-                failures.push((label, errs));
-            }
+        if let Some(errs) = typecheck_errors(&src, &label)
+            && !errs.is_empty()
+        {
+            failures.push((label, errs));
         }
     }
 

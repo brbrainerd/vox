@@ -345,6 +345,17 @@ pub const SPECS_SCHOLARLY: &[SecretSpec] = &[
         scope_description: "Ed25519 private key (hex) for nanopublication signing via vox-crypto.",
     },
     SecretSpec {
+        id: SecretId::VoxUserRsaNanopubPrivateKeyB64,
+        canonical_env: "VOX_USER_RSA_NANOPUB_PRIVATE_KEY_B64",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_USER_RSA_NANOPUB_PRIVATE_KEY_B64 to a base64-encoded PKCS#8 RSA private key for per-user nanopublication signing.",
+        scope_description: "Per-user RSA private key (base64 PKCS#8) for nanopublication signing; account/profile-scoped.",
+    },
+    SecretSpec {
         id: SecretId::VoxSwhidApiToken,
         canonical_env: "VOX_SWHID_API_TOKEN",
         aliases: &[],

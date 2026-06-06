@@ -1,92 +1,138 @@
 {
   "canary_rollout": {
     "cli_flags": "toestub --canary-crates vox-cli,vox-mcp --feature-flags unwired-graph",
-    "strictness_promotion_gate": "`vox ci scaling-audit verify` + `cargo test -p vox-toestub --test gold_dataset`"
+    "strictness_promotion_gate": "`vox ci scaling-audit verify` + `cargo test -p vox-code-audit --test gold_dataset`"
   },
   "findings_by_family": [
     [
+      "style",
+      7827
+    ],
+    [
+      "doc",
+      6867
+    ],
+    [
       "scaling",
-      847
-    ],
-    [
-      "arch",
-      789
-    ],
-    [
-      "ai-laziness",
-      769
-    ],
-    [
-      "unresolved-ref",
-      477
+      1307
     ],
     [
       "rust",
-      192
+      1202
+    ],
+    [
+      "arch",
+      1142
     ],
     [
       "skeleton",
-      26
+      1058
     ],
     [
-      "victory-claim",
-      16
+      "ai-laziness",
+      964
     ],
     [
       "dry-violation",
-      12
+      930
     ],
     [
-      "stub",
-      7
+      "unresolved-ref",
+      544
+    ],
+    [
+      "control-flow",
+      115
+    ],
+    [
+      "vox",
+      98
+    ],
+    [
+      "retired",
+      36
     ],
     [
       "magic-value",
-      5
+      30
+    ],
+    [
+      "stub",
+      28
+    ],
+    [
+      "handler",
+      24
     ],
     [
       "empty-body",
-      2
+      21
+    ],
+    [
+      "victory-claim",
+      20
+    ],
+    [
+      "secret",
+      4
+    ],
+    [
+      "stringly-typed-enum",
+      4
     ],
     [
       "security",
+      2
+    ],
+    [
+      "types",
       1
     ]
   ],
   "findings_top_rules": {
-    "ai-laziness/assertion-only-body": 501,
-    "ai-laziness/conditional-stub": 35,
-    "ai-laziness/custom-type-default-return": 9,
-    "ai-laziness/early-return-only": 179,
+    "ai-laziness/assertion-only-body": 597,
+    "ai-laziness/conditional-stub": 54,
+    "ai-laziness/custom-type-default-return": 12,
+    "ai-laziness/early-return-only": 253,
     "ai-laziness/implement-later-comment": 35,
-    "ai-laziness/mock-named-fn": 6,
+    "ai-laziness/mock-named-fn": 9,
     "ai-laziness/placeholder-return": 4,
-    "arch/god_object": 787,
-    "arch/organization": 2,
-    "dry-violation/duplicate-block": 12,
-    "empty-body": 2,
-    "magic-value/ip": 2,
-    "magic-value/path": 1,
-    "magic-value/port": 2,
-    "rust/unwrap-call": 192,
-    "scaling/blocking-in-async": 201,
-    "scaling/cache-miss-hot-read": 59,
-    "scaling/http-client-no-timeout": 54,
-    "scaling/magic-limit": 85,
-    "scaling/nested-pairwise-loop": 2,
-    "scaling/regex-new-hot": 140,
-    "scaling/unbounded-read": 306,
-    "security/hardcoded-secret": 1,
-    "skeleton/hollow-fn": 26,
-    "stub/todo-comment": 7,
-    "unresolved-ref/fn-call": 477,
-    "victory-claim/fixme": 1,
-    "victory-claim/hack": 4,
-    "victory-claim/premature": 9,
-    "victory-claim/todo-leftover": 2
+    "arch/god_object": 1136,
+    "arch/organization": 6,
+    "control-flow/option-combinator-opportunity": 101,
+    "control-flow/question-mark-opportunity": 14,
+    "doc/missing-adr-citation": 6867,
+    "dry-violation/duplicate-block": 930,
+    "empty-body": 21,
+    "handler/panicking-builtin": 24,
+    "magic-value/ip": 4,
+    "magic-value/path": 20,
+    "magic-value/port": 5,
+    "retired/crate-import": 8,
+    "retired/env-var": 18,
+    "retired/memory-api": 10,
+    "rust/expect-call": 804,
+    "rust/panic-call": 66,
+    "rust/unwrap-call": 332,
+    "scaling/blocking-in-async": 229,
+    "scaling/cache-miss-hot-read": 122,
+    "scaling/http-client-no-timeout": 33,
+    "scaling/magic-limit": 114,
+    "scaling/regex-new-hot": 232,
+    "scaling/unbounded-read": 572,
+    "skeleton/hollow-fn": 42,
+    "skeleton/untested-pub-api": 1016,
+    "stub/placeholder": 20,
+    "stub/todo-comment": 8,
+    "style/duplicate-prefix-name": 342,
+    "style/long-range-coupling": 7485,
+    "unresolved-ref/fn-call": 544,
+    "victory-claim/premature": 15,
+    "vox/crypto/banned-crate-import": 9,
+    "vox/secret/env-get-shape": 88
   },
-  "findings_total_latest": 3143,
-  "generated_at": "2026-05-08T08:35:38.035526500+00:00",
+  "findings_total_latest": 22224,
+  "generated_at": "2026-06-06T12:19:31.281272900+00:00",
   "remediation_delta_snapshot": {
     "baseline_total": 6091,
     "current_by_rule_family": {

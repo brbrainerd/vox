@@ -85,7 +85,7 @@ publication.
 
 ### 3.1 Resolve phantom imports first (pre-existing tech debt)
 
-[pipeline.rs:13–22](../../../crates/vox-dei-shim/src/research/orchestrator/pipeline.rs)
+[pipeline.rs:13–22](../../../crates/vox-research-shim/src/research/orchestrator/pipeline.rs)
 imports six modules that do not exist: `claims`, `gate`, `planner`, `provider`,
 `types`, `verifier`. The binary compiles only because the call site is
 unreachable in the current rollout config. **This is Phase 0a, the first
@@ -248,7 +248,7 @@ prereg signature + analysis-code commit hash; any deviation surfaces as
 | [vox-actor-runtime/mens.rs](../../../crates/vox-actor-runtime/src/mens.rs) | Mens client | Host SciClaims-style single Llama-3 8B locally; tier-cascade to remote on ABSTAIN. |
 | [vox-search](../../../crates/vox-search/) | SPECTER2 retrieval | Add SPECTER2 as a model option; route novelty queries through retrieval adapter. |
 | [vox-publisher/scientia_*](../../../crates/vox-publisher/) | Atlas publication | Extend with per-claim nanopub emission + RO-Crate builder + TOP/ACM badges. |
-| [pipeline.rs](../../../crates/vox-dei-shim/src/research/orchestrator/pipeline.rs) | Phantom imports | **Phase 0a** — resolve `claims/gate/verifier/planner/provider/types` modules. |
+| [pipeline.rs](../../../crates/vox-research-shim/src/research/orchestrator/pipeline.rs) | Phantom imports | **Phase 0a** — resolve `claims/gate/verifier/planner/provider/types` modules. |
 | [research_metrics_contract.rs](../../../crates/vox-db/src/research_metrics_contract.rs) | Provider Atlas raw signal | Wire D1–D10 events → `ProviderObservation` family per Mesh §4.1. |
 | [calibration.rs](../../../crates/vox-orchestrator/src/calibration.rs) | Drift detection | Already gives drift z-scores; emit `DriftAlert` → atomic claim → nanopub. |
 | [vox-crypto](../../../crates/vox-crypto/) | Nanopub signing | Reuse ed25519 — no new crypto. |

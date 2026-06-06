@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use vox_dei_shim::research::types::ResearchStage;
+use vox_research_shim::research::types::ResearchStage;
 
 pub mod eval;
 pub mod infra;
@@ -17,7 +17,7 @@ pub enum ResearchCmd {
         /// Topic / question tokens (join with spaces).
         #[arg(trailing_var_arg = true, required = true)]
         query: Vec<String>,
-        /// Emit JSON [`vox_dei_shim::research::ResearchResult`] to stdout.
+        /// Emit JSON [`vox_research_shim::research::ResearchResult`] to stdout.
         #[arg(long, default_value_t = false)]
         json: bool,
         /// Retrieval scope — `both` (default), `web`, or `local`.
@@ -266,10 +266,10 @@ pub async fn run_research_query(
 ) -> anyhow::Result<()> {
     use std::sync::Arc;
     use vox_db::{DbConfig, VoxDb};
-    use vox_dei_shim::research::{
+    use vox_repository::discover_repository_or_fallback;
+    use vox_research_shim::research::{
         ResearchConfig, ResearchQuery, ResearchScope, run_research_with_context,
     };
-    use vox_repository::discover_repository_or_fallback;
     use vox_search::SearchRuntimeContext;
 
     if query.is_empty() {
@@ -335,8 +335,8 @@ pub async fn run_research_query(
 }
 
 /// Map a [`ResearchScope`] to its `web|local|both` wire label for `research.run`.
-fn research_scope_label(scope: &vox_dei_shim::research::ResearchScope) -> &'static str {
-    use vox_dei_shim::research::ResearchScope;
+fn research_scope_label(scope: &vox_research_shim::research::ResearchScope) -> &'static str {
+    use vox_research_shim::research::ResearchScope;
     match scope {
         ResearchScope::Web => "web",
         ResearchScope::Local => "local",
@@ -345,7 +345,9 @@ fn research_scope_label(scope: &vox_dei_shim::research::ResearchScope) -> &'stat
 }
 
 /// Build the `research.run` JSON params from a [`ResearchQuery`].
-fn research_run_daemon_params(rq: &vox_dei_shim::research::ResearchQuery) -> serde_json::Value {
+fn research_run_daemon_params(
+    rq: &vox_research_shim::research::ResearchQuery,
+) -> serde_json::Value {
     serde_json::json!({
         "query": rq.query,
         "scope": research_scope_label(&rq.scope),
@@ -366,7 +368,7 @@ fn research_run_daemon_params(rq: &vox_dei_shim::research::ResearchQuery) -> ser
 /// design notes. The daemon's `research.run` handler (MCP `ExtraDispatch`) owns
 /// the spawn and advances the session to `completed`/`failed`.
 async fn run_research_async_via_daemon(
-    rq: &vox_dei_shim::research::ResearchQuery,
+    rq: &vox_research_shim::research::ResearchQuery,
     json: bool,
 ) -> anyhow::Result<()> {
     use vox_foundation::protocol::dei_method;

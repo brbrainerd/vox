@@ -47,6 +47,7 @@ fn cap_to_effect_kind(cap: &HirCapability) -> Option<crate::hir::nodes::effect::
         HirCapability::Spawn => Some(HirEffectKind::Spawn),
         HirCapability::GpuCompute => Some(HirEffectKind::GpuCompute),
         HirCapability::Mutate => Some(HirEffectKind::Mutate),
+        HirCapability::Vcs => Some(HirEffectKind::Vcs),
         HirCapability::Mcp(t) => Some(HirEffectKind::Mcp(t.clone())),
         HirCapability::Nothing => None,
     }

@@ -144,7 +144,7 @@ impl crate::VoxDb {
                         (),
                     )
                     .await?;
-                Ok(rows_affected as u64)
+                Ok(rows_affected)
             })
             .await
     }
@@ -236,7 +236,7 @@ impl crate::VoxDb {
                         params![min_seen_ms],
                     )
                     .await?;
-                Ok(affected as u64)
+                Ok(affected)
             })
             .await
     }

@@ -37,9 +37,9 @@ impl crate::VoxDb {
     /// Automatically sync the database schema derived from AST declarations.
     pub async fn sync_schema_ast(
         &self,
-        tables: &[&vox_compiler::ast::decl::TableDecl],
-        collections: &[&vox_compiler::ast::decl::CollectionDecl],
-        indexes: &[&vox_compiler::ast::decl::IndexDecl],
+        tables: &[&vox_ast::decl::TableDecl],
+        collections: &[&vox_ast::decl::CollectionDecl],
+        indexes: &[&vox_ast::decl::IndexDecl],
     ) -> Result<auto_migrate::MigrationPlan, StoreError> {
         let plan = self
             .auto_migrator()

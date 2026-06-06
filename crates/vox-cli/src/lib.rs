@@ -36,6 +36,8 @@ pub mod dispatch {
 pub mod dispatch_protocol {
     pub use vox_cli_core::daemon_ipc::dispatch_protocol::*;
 }
+/// Binary-freshness self-check (stale installed `vox` detection for `vox ci *` / `vox doctor`).
+pub mod freshness;
 /// Vite/React scaffold helpers and shared **pnpm** executable resolution (`pnpm_executable`).
 pub mod frontend;
 pub mod fs_utils;
@@ -226,13 +228,13 @@ pub enum Cli {
         args: cli_args::RunArgs,
     },
     /// Raw WASI module execution (`vox wasm run <file>`) via the in-process wasmtime SSOT.
-    #[cfg(feature = "script-execution")]
+    #[cfg(feature = "script-wasi")]
     Wasm {
         #[command(subcommand)]
         cmd: commands::wasm::WasmCmd,
     },
-    #[cfg(not(feature = "script-execution"))]
-    /// Raw precompiled WASI module execution (needs `--features script-execution`)
+    #[cfg(not(feature = "script-wasi"))]
+    /// Raw precompiled WASI module execution (needs `--features script-wasi`)
     #[command(name = "wasm")]
     WasmStub {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
@@ -368,9 +370,9 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: crate::commands::extras::skill_cmd::SkillCmd,
     },
-    /// Ludus gamification: profile, companions, quests, and battle simulations.
+    /// Gamification: profile, companions, quests, and battle simulations. `ludus` alias retained.
     #[cfg(feature = "extras-ludus")]
-    #[command(name = "ludus")]
+    #[command(name = "gamify", visible_alias = "ludus")]
     Ludus {
         /// Subcommand.
         #[command(subcommand)]
@@ -596,8 +598,8 @@ pub enum Cli {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },
-    /// Speech-to-Code: transcribe, listen (Delegated to `vox-ml-cli`).
-    #[command(name = "oratio", visible_alias = "speech")]
+    /// Speech-to-Code: transcribe, listen (Delegated to `vox-ml-cli`). `oratio` alias retained.
+    #[command(name = "speech", visible_alias = "oratio")]
     Oratio {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,

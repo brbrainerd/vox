@@ -17,7 +17,7 @@ archived_date: 2026-04-18
 > **Status:** Research + Design Specification — April 2026  
 > **Depends on:** `automated-testing-research-2026.md` (general survey)  
 > **Canonical path:** `docs/src/architecture/vox-language-testing-pipeline.md`  
-> **Relevant AST:** `crates/vox-compiler/src/ast/decl/fundecl.rs`
+> **Relevant AST:** `crates/vox-ast/src/decl/fundecl.rs`
 
 ---
 
@@ -38,7 +38,7 @@ archived_date: 2026-04-18
 
 ## 2. What the AST Already Gives Us
 
-Reading `crates/vox-compiler/src/ast/decl/fundecl.rs` reveals:
+Reading `crates/vox-ast/src/decl/fundecl.rs` reveals:
 
 ```rust
 pub struct FnDecl {
@@ -471,7 +471,7 @@ archived_date: 2026-04-18
 
 ### 7.1 AST Changes (Small — Most Already Exists)
 
-**File: `crates/vox-compiler/src/ast/decl/fundecl.rs`**
+**File: `crates/vox-ast/src/decl/fundecl.rs`**
 
 Add to `FnDecl`:
 ```rust
@@ -707,7 +707,7 @@ vox build --mode=verify  → contracts as recoverable Result errors
 | Reference | Location |
 |---|---|
 | General testing research survey | `docs/src/architecture/automated-testing-research-2026.md` |
-| `FnDecl` AST (current state) | `crates/vox-compiler/src/ast/decl/fundecl.rs` |
+| `FnDecl` AST (current state) | `crates/vox-ast/src/decl/fundecl.rs` |
 | ARS runtime | `crates/vox-skills/src/runtime.rs` |
 | WASI sandbox backend | Greenfield arch → `docs/src/architecture/architecture-index.md` |
 | `vox-test-harness` (Rust harness) | `crates/vox-test-harness/src/lib.rs` |

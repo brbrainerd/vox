@@ -1,0 +1,13 @@
+[package]
+name = "vox-ast"
+description = "Pure-data Vox AST: declarations, expressions, statements, patterns, type-syntax, scalar mapping, and source spans. serde-only L0 leaf extracted from vox-compiler (re-exported there as `vox_compiler::ast`)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+workspace-hack = { workspace = true }
+
+[lints]
+workspace = true

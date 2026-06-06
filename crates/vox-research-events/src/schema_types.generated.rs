@@ -41,7 +41,7 @@ pub mod arxiv_handoff_schema {
     ///
     /// ```json
     ///{
-    ///  "$id": "https://vox-lang.org/contracts/scientia/arxiv-handoff.schema.json",
+    ///  "$id": "https://voxlang.org/contracts/scientia/arxiv-handoff.schema.json",
     ///  "title": "SCIENTIA arXiv assist handoff",
     ///  "description": "Contract for operator-facing arXiv assist handoff bundles exported by vox-publisher.",
     ///  "type": "object",
@@ -60,13 +60,25 @@ pub mod arxiv_handoff_schema {
     ///    "workflow"
     ///  ],
     ///  "properties": {
-    ///    "arxiv_bundle_relpath": {
-    ///      "type": "string",
-    ///      "const": "arxiv_bundle.tar.gz"
+    ///    "schema_version": {
+    ///      "type": "integer",
+    ///      "const": 1
     ///    },
-    ///    "body_markdown_relpath": {
+    ///    "workflow": {
     ///      "type": "string",
-    ///      "const": "body.md"
+    ///      "const": "arxiv_operator_assist"
+    ///    },
+    ///    "publication_id": {
+    ///      "type": "string",
+    ///      "minLength": 1
+    ///    },
+    ///    "title": {
+    ///      "type": "string",
+    ///      "minLength": 1
+    ///    },
+    ///    "primary_author": {
+    ///      "type": "string",
+    ///      "minLength": 1
     ///    },
     ///    "content_sha3_256": {
     ///      "type": "string",
@@ -76,21 +88,13 @@ pub mod arxiv_handoff_schema {
     ///      "type": "string",
     ///      "const": "main.tex"
     ///    },
-    ///    "note": {
+    ///    "body_markdown_relpath": {
     ///      "type": "string",
-    ///      "minLength": 1
+    ///      "const": "body.md"
     ///    },
-    ///    "primary_author": {
+    ///    "arxiv_bundle_relpath": {
     ///      "type": "string",
-    ///      "minLength": 1
-    ///    },
-    ///    "publication_id": {
-    ///      "type": "string",
-    ///      "minLength": 1
-    ///    },
-    ///    "schema_version": {
-    ///      "type": "integer",
-    ///      "const": 1
+    ///      "const": "arxiv_bundle.tar.gz"
     ///    },
     ///    "staging_checksums_relpath": {
     ///      "type": "string",
@@ -100,13 +104,9 @@ pub mod arxiv_handoff_schema {
     ///      "type": "string",
     ///      "minLength": 1
     ///    },
-    ///    "title": {
+    ///    "note": {
     ///      "type": "string",
     ///      "minLength": 1
-    ///    },
-    ///    "workflow": {
-    ///      "type": "string",
-    ///      "const": "arxiv_operator_assist"
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -616,7 +616,7 @@ pub mod canonical_publication_metadata_v1_schema {
     ///
     /// ```json
     ///{
-    ///  "$id": "https://vox-lang.org/contracts/scientia/canonical-publication-metadata.v1.schema.json",
+    ///  "$id": "https://voxlang.org/contracts/scientia/canonical-publication-metadata.v1.schema.json",
     ///  "title": "SCIENTIA canonical publication metadata v1",
     ///  "description": "Single-source manifest-centered metadata graph used for route-specific transformation (Crossref, DataCite, Zenodo, arXiv handoff, OpenReview, syndication).",
     ///  "type": "object",
@@ -630,101 +630,16 @@ pub mod canonical_publication_metadata_v1_schema {
     ///    "version"
     ///  ],
     ///  "properties": {
-    ///    "contributors": {
-    ///      "type": "object",
-    ///      "required": [
-    ///        "authors"
-    ///      ],
-    ///      "properties": {
-    ///        "authors": {
-    ///          "type": "array",
-    ///          "items": {
-    ///            "type": "object",
-    ///            "required": [
-    ///              "name"
-    ///            ],
-    ///            "properties": {
-    ///              "affiliation": {
-    ///                "type": "object",
-    ///                "required": [
-    ///                  "name"
-    ///                ],
-    ///                "properties": {
-    ///                  "name": {
-    ///                    "type": "string",
-    ///                    "minLength": 1
-    ///                  },
-    ///                  "ror": {
-    ///                    "type": "string"
-    ///                  }
-    ///                },
-    ///                "additionalProperties": false
-    ///              },
-    ///              "name": {
-    ///                "type": "string",
-    ///                "minLength": 1
-    ///              },
-    ///              "orcid": {
-    ///                "type": "string"
-    ///              },
-    ///              "roles": {
-    ///                "type": "array",
-    ///                "items": {
-    ///                  "type": "string"
-    ///                }
-    ///              }
-    ///            },
-    ///            "additionalProperties": false
-    ///          },
-    ///          "minItems": 1
-    ///        }
-    ///      },
-    ///      "additionalProperties": false
+    ///    "version": {
+    ///      "type": "string",
+    ///      "const": "v1"
     ///    },
-    ///    "distribution": {
-    ///      "type": "object",
-    ///      "required": [
-    ///        "routes"
-    ///      ],
-    ///      "properties": {
-    ///        "canonical_repo_url": {
-    ///          "type": "string"
-    ///        },
-    ///        "distribution_policy_ref": {
-    ///          "type": "string"
-    ///        },
-    ///        "embargo_lift_utc": {
-    ///          "type": "string",
-    ///          "format": "date-time"
-    ///        },
-    ///        "og_image_url": {
-    ///          "type": "string"
-    ///        },
-    ///        "preferred_citation": {
-    ///          "type": "string"
-    ///        },
-    ///        "primary_doi": {
-    ///          "type": "string"
-    ///        },
-    ///        "routes": {
-    ///          "type": "array",
-    ///          "items": {
-    ///            "type": "string",
-    ///            "enum": [
-    ///              "crossref",
-    ///              "datacite",
-    ///              "zenodo",
-    ///              "arxiv_handoff",
-    ///              "openreview",
-    ///              "social"
-    ///            ]
-    ///          }
-    ///        }
-    ///      },
-    ///      "additionalProperties": false
-    ///    },
-    ///    "evidence": {
-    ///      "type": "object"
+    ///    "schema_version": {
+    ///      "type": "string",
+    ///      "enum": [
+    ///        "1.0",
+    ///        "1.1"
+    ///      ]
     ///    },
     ///    "identity": {
     ///      "type": "object",
@@ -735,6 +650,10 @@ pub mod canonical_publication_metadata_v1_schema {
     ///        "title"
     ///      ],
     ///      "properties": {
+    ///        "title": {
+    ///          "type": "string",
+    ///          "minLength": 1
+    ///        },
     ///        "abstract": {
     ///          "type": "string",
     ///          "minLength": 1
@@ -753,10 +672,90 @@ pub mod canonical_publication_metadata_v1_schema {
     ///            "repository",
     ///            "social"
     ///          ]
-    ///        },
-    ///        "title": {
+    ///        }
+    ///      },
+    ///      "additionalProperties": false
+    ///    },
+    ///    "contributors": {
+    ///      "type": "object",
+    ///      "required": [
+    ///        "authors"
+    ///      ],
+    ///      "properties": {
+    ///        "authors": {
+    ///          "type": "array",
+    ///          "items": {
+    ///            "type": "object",
+    ///            "required": [
+    ///              "name"
+    ///            ],
+    ///            "properties": {
+    ///              "name": {
+    ///                "type": "string",
+    ///                "minLength": 1
+    ///              },
+    ///              "orcid": {
+    ///                "type": "string"
+    ///              },
+    ///              "affiliation": {
+    ///                "type": "object",
+    ///                "required": [
+    ///                  "name"
+    ///                ],
+    ///                "properties": {
+    ///                  "name": {
+    ///                    "type": "string",
+    ///                    "minLength": 1
+    ///                  },
+    ///                  "ror": {
+    ///                    "type": "string"
+    ///                  }
+    ///                },
+    ///                "additionalProperties": false
+    ///              },
+    ///              "roles": {
+    ///                "type": "array",
+    ///                "items": {
+    ///                  "type": "string"
+    ///                }
+    ///              }
+    ///            },
+    ///            "additionalProperties": false
+    ///          },
+    ///          "minItems": 1
+    ///        }
+    ///      },
+    ///      "additionalProperties": false
+    ///    },
+    ///    "provenance": {
+    ///      "type": "object",
+    ///      "required": [
+    ///        "manifest_digest",
+    ///        "publication_id"
+    ///      ],
+    ///      "properties": {
+    ///        "publication_id": {
     ///          "type": "string",
     ///          "minLength": 1
+    ///        },
+    ///        "manifest_digest": {
+    ///          "type": "string",
+    ///          "minLength": 16
+    ///        },
+    ///        "evidence_pack_digest": {
+    ///          "type": "string"
+    ///        },
+    ///        "repository_id": {
+    ///          "type": "string"
+    ///        },
+    ///        "commit_sha": {
+    ///          "type": "string"
+    ///        },
+    ///        "supersedes_publication_id": {
+    ///          "type": "string"
+    ///        },
+    ///        "corrects_publication_id": {
+    ///          "type": "string"
     ///        }
     ///      },
     ///      "additionalProperties": false
@@ -787,10 +786,10 @@ pub mod canonical_publication_metadata_v1_schema {
     ///                  "name": {
     ///                    "type": "string"
     ///                  },
-    ///                  "scope": {
+    ///                  "version": {
     ///                    "type": "string"
     ///                  },
-    ///                  "version": {
+    ///                  "scope": {
     ///                    "type": "string"
     ///                  }
     ///                },
@@ -800,47 +799,14 @@ pub mod canonical_publication_metadata_v1_schema {
     ///          },
     ///          "additionalProperties": false
     ///        },
+    ///        "ethics_statement": {
+    ///          "type": "string"
+    ///        },
     ///        "broader_impact_statement": {
     ///          "type": "string"
     ///        },
     ///        "double_blind_ready": {
     ///          "type": "boolean"
-    ///        },
-    ///        "ethics_statement": {
-    ///          "type": "string"
-    ///        }
-    ///      },
-    ///      "additionalProperties": false
-    ///    },
-    ///    "provenance": {
-    ///      "type": "object",
-    ///      "required": [
-    ///        "manifest_digest",
-    ///        "publication_id"
-    ///      ],
-    ///      "properties": {
-    ///        "commit_sha": {
-    ///          "type": "string"
-    ///        },
-    ///        "corrects_publication_id": {
-    ///          "type": "string"
-    ///        },
-    ///        "evidence_pack_digest": {
-    ///          "type": "string"
-    ///        },
-    ///        "manifest_digest": {
-    ///          "type": "string",
-    ///          "minLength": 16
-    ///        },
-    ///        "publication_id": {
-    ///          "type": "string",
-    ///          "minLength": 1
-    ///        },
-    ///        "repository_id": {
-    ///          "type": "string"
-    ///        },
-    ///        "supersedes_publication_id": {
-    ///          "type": "string"
     ///        }
     ///      },
     ///      "additionalProperties": false
@@ -848,7 +814,7 @@ pub mod canonical_publication_metadata_v1_schema {
     ///    "rights_and_funding": {
     ///      "type": "object",
     ///      "properties": {
-    ///        "conflict_of_interest": {
+    ///        "license": {
     ///          "type": "string"
     ///        },
     ///        "funding": {
@@ -859,35 +825,69 @@ pub mod canonical_publication_metadata_v1_schema {
     ///              "name"
     ///            ],
     ///            "properties": {
+    ///              "name": {
+    ///                "type": "string"
+    ///              },
     ///              "award_number": {
     ///                "type": "string"
     ///              },
     ///              "funder_id": {
-    ///                "type": "string"
-    ///              },
-    ///              "name": {
     ///                "type": "string"
     ///              }
     ///            },
     ///            "additionalProperties": false
     ///          }
     ///        },
-    ///        "license": {
+    ///        "conflict_of_interest": {
     ///          "type": "string"
     ///        }
     ///      },
     ///      "additionalProperties": false
     ///    },
-    ///    "schema_version": {
-    ///      "type": "string",
-    ///      "enum": [
-    ///        "1.0",
-    ///        "1.1"
-    ///      ]
+    ///    "distribution": {
+    ///      "type": "object",
+    ///      "required": [
+    ///        "routes"
+    ///      ],
+    ///      "properties": {
+    ///        "routes": {
+    ///          "type": "array",
+    ///          "items": {
+    ///            "type": "string",
+    ///            "enum": [
+    ///              "crossref",
+    ///              "datacite",
+    ///              "zenodo",
+    ///              "arxiv_handoff",
+    ///              "openreview",
+    ///              "social"
+    ///            ]
+    ///          }
+    ///        },
+    ///        "primary_doi": {
+    ///          "type": "string"
+    ///        },
+    ///        "canonical_repo_url": {
+    ///          "type": "string"
+    ///        },
+    ///        "og_image_url": {
+    ///          "type": "string"
+    ///        },
+    ///        "preferred_citation": {
+    ///          "type": "string"
+    ///        },
+    ///        "embargo_lift_utc": {
+    ///          "type": "string",
+    ///          "format": "date-time"
+    ///        },
+    ///        "distribution_policy_ref": {
+    ///          "type": "string"
+    ///        }
+    ///      },
+    ///      "additionalProperties": false
     ///    },
-    ///    "version": {
-    ///      "type": "string",
-    ///      "const": "v1"
+    ///    "evidence": {
+    ///      "type": "object"
     ///    }
     ///  },
     ///  "additionalProperties": false,
@@ -931,6 +931,13 @@ pub mod canonical_publication_metadata_v1_schema {
     ///          "name"
     ///        ],
     ///        "properties": {
+    ///          "name": {
+    ///            "type": "string",
+    ///            "minLength": 1
+    ///          },
+    ///          "orcid": {
+    ///            "type": "string"
+    ///          },
     ///          "affiliation": {
     ///            "type": "object",
     ///            "required": [
@@ -946,13 +953,6 @@ pub mod canonical_publication_metadata_v1_schema {
     ///              }
     ///            },
     ///            "additionalProperties": false
-    ///          },
-    ///          "name": {
-    ///            "type": "string",
-    ///            "minLength": 1
-    ///          },
-    ///          "orcid": {
-    ///            "type": "string"
     ///          },
     ///          "roles": {
     ///            "type": "array",
@@ -988,6 +988,13 @@ pub mod canonical_publication_metadata_v1_schema {
     ///    "name"
     ///  ],
     ///  "properties": {
+    ///    "name": {
+    ///      "type": "string",
+    ///      "minLength": 1
+    ///    },
+    ///    "orcid": {
+    ///      "type": "string"
+    ///    },
     ///    "affiliation": {
     ///      "type": "object",
     ///      "required": [
@@ -1003,13 +1010,6 @@ pub mod canonical_publication_metadata_v1_schema {
     ///        }
     ///      },
     ///      "additionalProperties": false
-    ///    },
-    ///    "name": {
-    ///      "type": "string",
-    ///      "minLength": 1
-    ///    },
-    ///    "orcid": {
-    ///      "type": "string"
     ///    },
     ///    "roles": {
     ///      "type": "array",
@@ -1244,25 +1244,6 @@ pub mod canonical_publication_metadata_v1_schema {
     ///    "routes"
     ///  ],
     ///  "properties": {
-    ///    "canonical_repo_url": {
-    ///      "type": "string"
-    ///    },
-    ///    "distribution_policy_ref": {
-    ///      "type": "string"
-    ///    },
-    ///    "embargo_lift_utc": {
-    ///      "type": "string",
-    ///      "format": "date-time"
-    ///    },
-    ///    "og_image_url": {
-    ///      "type": "string"
-    ///    },
-    ///    "preferred_citation": {
-    ///      "type": "string"
-    ///    },
-    ///    "primary_doi": {
-    ///      "type": "string"
-    ///    },
     ///    "routes": {
     ///      "type": "array",
     ///      "items": {
@@ -1276,6 +1257,25 @@ pub mod canonical_publication_metadata_v1_schema {
     ///          "social"
     ///        ]
     ///      }
+    ///    },
+    ///    "primary_doi": {
+    ///      "type": "string"
+    ///    },
+    ///    "canonical_repo_url": {
+    ///      "type": "string"
+    ///    },
+    ///    "og_image_url": {
+    ///      "type": "string"
+    ///    },
+    ///    "preferred_citation": {
+    ///      "type": "string"
+    ///    },
+    ///    "embargo_lift_utc": {
+    ///      "type": "string",
+    ///      "format": "date-time"
+    ///    },
+    ///    "distribution_policy_ref": {
+    ///      "type": "string"
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -1418,6 +1418,10 @@ pub mod canonical_publication_metadata_v1_schema {
     ///    "title"
     ///  ],
     ///  "properties": {
+    ///    "title": {
+    ///      "type": "string",
+    ///      "minLength": 1
+    ///    },
     ///    "abstract": {
     ///      "type": "string",
     ///      "minLength": 1
@@ -1436,10 +1440,6 @@ pub mod canonical_publication_metadata_v1_schema {
     ///        "repository",
     ///        "social"
     ///      ]
-    ///    },
-    ///    "title": {
-    ///      "type": "string",
-    ///      "minLength": 1
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -1731,10 +1731,10 @@ pub mod canonical_publication_metadata_v1_schema {
     ///              "name": {
     ///                "type": "string"
     ///              },
-    ///              "scope": {
+    ///              "version": {
     ///                "type": "string"
     ///              },
-    ///              "version": {
+    ///              "scope": {
     ///                "type": "string"
     ///              }
     ///            },
@@ -1744,14 +1744,14 @@ pub mod canonical_publication_metadata_v1_schema {
     ///      },
     ///      "additionalProperties": false
     ///    },
+    ///    "ethics_statement": {
+    ///      "type": "string"
+    ///    },
     ///    "broader_impact_statement": {
     ///      "type": "string"
     ///    },
     ///    "double_blind_ready": {
     ///      "type": "boolean"
-    ///    },
-    ///    "ethics_statement": {
-    ///      "type": "string"
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -1794,10 +1794,10 @@ pub mod canonical_publication_metadata_v1_schema {
     ///          "name": {
     ///            "type": "string"
     ///          },
-    ///          "scope": {
+    ///          "version": {
     ///            "type": "string"
     ///          },
-    ///          "version": {
+    ///          "scope": {
     ///            "type": "string"
     ///          }
     ///        },
@@ -1832,10 +1832,10 @@ pub mod canonical_publication_metadata_v1_schema {
     ///    "name": {
     ///      "type": "string"
     ///    },
-    ///    "scope": {
+    ///    "version": {
     ///      "type": "string"
     ///    },
-    ///    "version": {
+    ///    "scope": {
     ///      "type": "string"
     ///    }
     ///  },
@@ -1864,27 +1864,27 @@ pub mod canonical_publication_metadata_v1_schema {
     ///    "publication_id"
     ///  ],
     ///  "properties": {
-    ///    "commit_sha": {
-    ///      "type": "string"
-    ///    },
-    ///    "corrects_publication_id": {
-    ///      "type": "string"
-    ///    },
-    ///    "evidence_pack_digest": {
-    ///      "type": "string"
+    ///    "publication_id": {
+    ///      "type": "string",
+    ///      "minLength": 1
     ///    },
     ///    "manifest_digest": {
     ///      "type": "string",
     ///      "minLength": 16
     ///    },
-    ///    "publication_id": {
-    ///      "type": "string",
-    ///      "minLength": 1
+    ///    "evidence_pack_digest": {
+    ///      "type": "string"
     ///    },
     ///    "repository_id": {
     ///      "type": "string"
     ///    },
+    ///    "commit_sha": {
+    ///      "type": "string"
+    ///    },
     ///    "supersedes_publication_id": {
+    ///      "type": "string"
+    ///    },
+    ///    "corrects_publication_id": {
     ///      "type": "string"
     ///    }
     ///  },
@@ -2082,7 +2082,7 @@ pub mod canonical_publication_metadata_v1_schema {
     ///{
     ///  "type": "object",
     ///  "properties": {
-    ///    "conflict_of_interest": {
+    ///    "license": {
     ///      "type": "string"
     ///    },
     ///    "funding": {
@@ -2093,20 +2093,20 @@ pub mod canonical_publication_metadata_v1_schema {
     ///          "name"
     ///        ],
     ///        "properties": {
+    ///          "name": {
+    ///            "type": "string"
+    ///          },
     ///          "award_number": {
     ///            "type": "string"
     ///          },
     ///          "funder_id": {
-    ///            "type": "string"
-    ///          },
-    ///          "name": {
     ///            "type": "string"
     ///          }
     ///        },
     ///        "additionalProperties": false
     ///      }
     ///    },
-    ///    "license": {
+    ///    "conflict_of_interest": {
     ///      "type": "string"
     ///    }
     ///  },
@@ -2146,13 +2146,13 @@ pub mod canonical_publication_metadata_v1_schema {
     ///    "name"
     ///  ],
     ///  "properties": {
+    ///    "name": {
+    ///      "type": "string"
+    ///    },
     ///    "award_number": {
     ///      "type": "string"
     ///    },
     ///    "funder_id": {
-    ///      "type": "string"
-    ///    },
-    ///    "name": {
     ///      "type": "string"
     ///    }
     ///  },
@@ -2290,7 +2290,7 @@ pub mod discovery_signal_schema {
     ///
     /// ```json
     ///{
-    ///  "$id": "https://vox-lang.org/contracts/scientia/discovery-signal.schema.json",
+    ///  "$id": "https://voxlang.org/contracts/scientia/discovery-signal.schema.json",
     ///  "title": "SCIENTIA discovery signal",
     ///  "type": "object",
     ///  "required": [
@@ -2304,6 +2304,20 @@ pub mod discovery_signal_schema {
     ///    "code": {
     ///      "type": "string",
     ///      "minLength": 1
+    ///    },
+    ///    "summary": {
+    ///      "type": "string"
+    ///    },
+    ///    "strength": {
+    ///      "type": "string",
+    ///      "enum": [
+    ///        "supporting",
+    ///        "strong",
+    ///        "informational"
+    ///      ]
+    ///    },
+    ///    "source_ref": {
+    ///      "type": "string"
     ///    },
     ///    "family": {
     ///      "type": "string",
@@ -2324,40 +2338,26 @@ pub mod discovery_signal_schema {
     ///    "provenance": {
     ///      "type": "object",
     ///      "properties": {
-    ///        "digest": {
+    ///        "origin": {
+    ///          "type": "string"
+    ///        },
+    ///        "repo_path": {
     ///          "type": "string"
     ///        },
     ///        "metric_type": {
     ///          "type": "string"
     ///        },
-    ///        "origin": {
+    ///        "run_id": {
     ///          "type": "string"
     ///        },
     ///        "recorded_at_ms": {
     ///          "type": "integer"
     ///        },
-    ///        "repo_path": {
-    ///          "type": "string"
-    ///        },
-    ///        "run_id": {
+    ///        "digest": {
     ///          "type": "string"
     ///        }
     ///      },
     ///      "additionalProperties": false
-    ///    },
-    ///    "source_ref": {
-    ///      "type": "string"
-    ///    },
-    ///    "strength": {
-    ///      "type": "string",
-    ///      "enum": [
-    ///        "supporting",
-    ///        "strong",
-    ///        "informational"
-    ///      ]
-    ///    },
-    ///    "summary": {
-    ///      "type": "string"
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -2576,22 +2576,22 @@ pub mod discovery_signal_schema {
     ///{
     ///  "type": "object",
     ///  "properties": {
-    ///    "digest": {
+    ///    "origin": {
+    ///      "type": "string"
+    ///    },
+    ///    "repo_path": {
     ///      "type": "string"
     ///    },
     ///    "metric_type": {
     ///      "type": "string"
     ///    },
-    ///    "origin": {
+    ///    "run_id": {
     ///      "type": "string"
     ///    },
     ///    "recorded_at_ms": {
     ///      "type": "integer"
     ///    },
-    ///    "repo_path": {
-    ///      "type": "string"
-    ///    },
-    ///    "run_id": {
+    ///    "digest": {
     ///      "type": "string"
     ///    }
     ///  },
@@ -2751,27 +2751,43 @@ pub mod distribution_schema {
     ///
     /// ```json
     ///{
-    ///  "$id": "https://vox/contracts/scientia/distribution.schema.json",
+    ///  "$id": "https://voxlang.org/contracts/scientia/distribution.schema.json",
     ///  "title": "ScientiaDistribution",
     ///  "description": "Syndication intent for Scientia items. Runtime: embed this object under the `syndication` key in publication `metadata_json`, or under `syndication` in markdown/DB-derived metadata. Keys match `SyndicationConfig` in `vox-publisher` (not the legacy `scientia_distribution` root name).",
     ///  "type": "object",
     ///  "properties": {
+    ///    "schema_version": {
+    ///      "description": "Contract schema version — increment when the schema changes in a backward-incompatible way.",
+    ///      "type": "integer",
+    ///      "minimum": 1.0
+    ///    },
+    ///    "channels": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "type": "string",
+    ///        "enum": [
+    ///          "rss",
+    ///          "twitter",
+    ///          "github",
+    ///          "open_collective",
+    ///          "reddit",
+    ///          "hacker_news",
+    ///          "youtube",
+    ///          "crates_io"
+    ///        ]
+    ///      }
+    ///    },
     ///    "channel_payloads": {
     ///      "type": "object",
     ///      "properties": {
-    ///        "crates_io": {
-    ///          "description": "Contract placeholder only: `vox-publisher` does not perform crates.io releases yet. If enabled in routing, outcomes are explicit dry-run or not-implemented failures—never silent success.",
+    ///        "twitter": {
     ///          "type": "object",
-    ///          "required": [
-    ///            "crates_to_update"
-    ///          ],
     ///          "properties": {
-    ///            "crates_to_update": {
-    ///              "type": "array",
-    ///              "items": {
-    ///                "type": "string",
-    ///                "minLength": 1
-    ///              }
+    ///            "short_text": {
+    ///              "type": "string"
+    ///            },
+    ///            "thread": {
+    ///              "type": "boolean"
     ///            }
     ///          },
     ///          "additionalProperties": false
@@ -2779,11 +2795,9 @@ pub mod distribution_schema {
     ///        "github": {
     ///          "type": "object",
     ///          "properties": {
-    ///            "discussion_category": {
-    ///              "type": "string"
-    ///            },
-    ///            "draft": {
-    ///              "type": "boolean"
+    ///            "repo": {
+    ///              "type": "string",
+    ///              "minLength": 1
     ///            },
     ///            "post_type": {
     ///              "type": "string",
@@ -2795,9 +2809,65 @@ pub mod distribution_schema {
     ///            "release_tag": {
     ///              "type": "string"
     ///            },
-    ///            "repo": {
+    ///            "draft": {
+    ///              "type": "boolean"
+    ///            },
+    ///            "discussion_category": {
+    ///              "type": "string"
+    ///            }
+    ///          },
+    ///          "additionalProperties": false
+    ///        },
+    ///        "open_collective": {
+    ///          "type": "object",
+    ///          "required": [
+    ///            "collective_slug"
+    ///          ],
+    ///          "properties": {
+    ///            "is_private": {
+    ///              "type": "boolean"
+    ///            },
+    ///            "collective_slug": {
     ///              "type": "string",
     ///              "minLength": 1
+    ///            }
+    ///          },
+    ///          "additionalProperties": false
+    ///        },
+    ///        "reddit": {
+    ///          "type": "object",
+    ///          "required": [
+    ///            "subreddit"
+    ///          ],
+    ///          "properties": {
+    ///            "subreddit": {
+    ///              "type": "string",
+    ///              "minLength": 1
+    ///            },
+    ///            "kind": {
+    ///              "type": "string",
+    ///              "enum": [
+    ///                "link",
+    ///                "self_post"
+    ///              ]
+    ///            },
+    ///            "title_override": {
+    ///              "type": "string"
+    ///            },
+    ///            "text_override": {
+    ///              "type": "string"
+    ///            },
+    ///            "url_override": {
+    ///              "type": "string"
+    ///            },
+    ///            "nsfw": {
+    ///              "type": "boolean"
+    ///            },
+    ///            "spoiler": {
+    ///              "type": "boolean"
+    ///            },
+    ///            "send_replies": {
+    ///              "type": "boolean"
     ///            }
     ///          },
     ///          "additionalProperties": false
@@ -2820,86 +2890,30 @@ pub mod distribution_schema {
     ///          },
     ///          "additionalProperties": false
     ///        },
-    ///        "open_collective": {
-    ///          "type": "object",
-    ///          "required": [
-    ///            "collective_slug"
-    ///          ],
-    ///          "properties": {
-    ///            "collective_slug": {
-    ///              "type": "string",
-    ///              "minLength": 1
-    ///            },
-    ///            "is_private": {
-    ///              "type": "boolean"
-    ///            }
-    ///          },
-    ///          "additionalProperties": false
-    ///        },
-    ///        "reddit": {
-    ///          "type": "object",
-    ///          "required": [
-    ///            "subreddit"
-    ///          ],
-    ///          "properties": {
-    ///            "kind": {
-    ///              "type": "string",
-    ///              "enum": [
-    ///                "link",
-    ///                "self_post"
-    ///              ]
-    ///            },
-    ///            "nsfw": {
-    ///              "type": "boolean"
-    ///            },
-    ///            "send_replies": {
-    ///              "type": "boolean"
-    ///            },
-    ///            "spoiler": {
-    ///              "type": "boolean"
-    ///            },
-    ///            "subreddit": {
-    ///              "type": "string",
-    ///              "minLength": 1
-    ///            },
-    ///            "text_override": {
-    ///              "type": "string"
-    ///            },
-    ///            "title_override": {
-    ///              "type": "string"
-    ///            },
-    ///            "url_override": {
-    ///              "type": "string"
-    ///            }
-    ///          },
-    ///          "additionalProperties": false
-    ///        },
-    ///        "twitter": {
-    ///          "type": "object",
-    ///          "properties": {
-    ///            "short_text": {
-    ///              "type": "string"
-    ///            },
-    ///            "thread": {
-    ///              "type": "boolean"
-    ///            }
-    ///          },
-    ///          "additionalProperties": false
-    ///        },
     ///        "youtube": {
     ///          "type": "object",
     ///          "required": [
     ///            "video_asset_ref"
     ///          ],
     ///          "properties": {
-    ///            "category_id": {
+    ///            "video_asset_ref": {
+    ///              "type": "string",
+    ///              "minLength": 1
+    ///            },
+    ///            "title_override": {
     ///              "type": "string"
     ///            },
     ///            "description_override": {
     ///              "type": "string"
     ///            },
-    ///            "notify_subscribers": {
-    ///              "type": "boolean"
+    ///            "tags": {
+    ///              "type": "array",
+    ///              "items": {
+    ///                "type": "string"
+    ///              }
+    ///            },
+    ///            "category_id": {
+    ///              "type": "string"
     ///            },
     ///            "privacy_status": {
     ///              "type": "string",
@@ -2909,18 +2923,25 @@ pub mod distribution_schema {
     ///                "public"
     ///              ]
     ///            },
-    ///            "tags": {
+    ///            "notify_subscribers": {
+    ///              "type": "boolean"
+    ///            }
+    ///          },
+    ///          "additionalProperties": false
+    ///        },
+    ///        "crates_io": {
+    ///          "description": "Contract placeholder only: `vox-publisher` does not perform crates.io releases yet. If enabled in routing, outcomes are explicit dry-run or not-implemented failures—never silent success.",
+    ///          "type": "object",
+    ///          "required": [
+    ///            "crates_to_update"
+    ///          ],
+    ///          "properties": {
+    ///            "crates_to_update": {
     ///              "type": "array",
     ///              "items": {
-    ///                "type": "string"
+    ///                "type": "string",
+    ///                "minLength": 1
     ///              }
-    ///            },
-    ///            "title_override": {
-    ///              "type": "string"
-    ///            },
-    ///            "video_asset_ref": {
-    ///              "type": "string",
-    ///              "minLength": 1
     ///            }
     ///          },
     ///          "additionalProperties": false
@@ -2928,26 +2949,20 @@ pub mod distribution_schema {
     ///      },
     ///      "additionalProperties": false
     ///    },
-    ///    "channels": {
-    ///      "type": "array",
-    ///      "items": {
-    ///        "type": "string",
-    ///        "enum": [
-    ///          "rss",
-    ///          "twitter",
-    ///          "github",
-    ///          "open_collective",
-    ///          "reddit",
-    ///          "hacker_news",
-    ///          "youtube",
-    ///          "crates_io"
-    ///        ]
-    ///      }
-    ///    },
     ///    "distribution_policy": {
     ///      "type": "object",
     ///      "properties": {
+    ///        "retry_profile": {
+    ///          "type": "string"
+    ///        },
+    ///        "rate_limit_profile": {
+    ///          "type": "string"
+    ///        },
     ///        "approval_required": {
+    ///          "type": "boolean"
+    ///        },
+    ///        "dry_run": {
+    ///          "description": "When true, `vox-publisher` forces runtime `syndication.dry_run` during manifest row → UnifiedNewsItem hydration (non-live fan-out regardless of top-level `syndication.dry_run` unless you align both).",
     ///          "type": "boolean"
     ///        },
     ///        "channel_policy": {
@@ -2961,16 +2976,21 @@ pub mod distribution_schema {
     ///              "template_profile": {
     ///                "type": "string"
     ///              },
+    ///              "worthiness_floor": {
+    ///                "type": "number",
+    ///                "maximum": 1.0,
+    ///                "minimum": 0.0
+    ///              },
     ///              "topic_filters": {
     ///                "type": "object",
     ///                "properties": {
-    ///                  "exclude_tags": {
+    ///                  "include_tags": {
     ///                    "type": "array",
     ///                    "items": {
     ///                      "type": "string"
     ///                    }
     ///                  },
-    ///                  "include_tags": {
+    ///                  "exclude_tags": {
     ///                    "type": "array",
     ///                    "items": {
     ///                      "type": "string"
@@ -2983,25 +3003,10 @@ pub mod distribution_schema {
     ///                  }
     ///                },
     ///                "additionalProperties": false
-    ///              },
-    ///              "worthiness_floor": {
-    ///                "type": "number",
-    ///                "maximum": 1.0,
-    ///                "minimum": 0.0
     ///              }
     ///            },
     ///            "additionalProperties": false
     ///          }
-    ///        },
-    ///        "dry_run": {
-    ///          "description": "When true, `vox-publisher` forces runtime `syndication.dry_run` during manifest row → UnifiedNewsItem hydration (non-live fan-out regardless of top-level `syndication.dry_run` unless you align both).",
-    ///          "type": "boolean"
-    ///        },
-    ///        "rate_limit_profile": {
-    ///          "type": "string"
-    ///        },
-    ///        "retry_profile": {
-    ///          "type": "string"
     ///        }
     ///      },
     ///      "additionalProperties": false
@@ -3022,6 +3027,9 @@ pub mod distribution_schema {
         pub distribution_policy: ::std::option::Option<
             ScientiaDistributionDistributionPolicy,
         >,
+        ///Contract schema version — increment when the schema changes in a backward-incompatible way.
+        #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+        pub schema_version: ::std::option::Option<::std::num::NonZeroU64>,
     }
     impl ::std::default::Default for ScientiaDistribution {
         fn default() -> Self {
@@ -3029,6 +3037,7 @@ pub mod distribution_schema {
                 channel_payloads: Default::default(),
                 channels: Default::default(),
                 distribution_policy: Default::default(),
+                schema_version: Default::default(),
             }
         }
     }
@@ -3040,19 +3049,14 @@ pub mod distribution_schema {
     ///{
     ///  "type": "object",
     ///  "properties": {
-    ///    "crates_io": {
-    ///      "description": "Contract placeholder only: `vox-publisher` does not perform crates.io releases yet. If enabled in routing, outcomes are explicit dry-run or not-implemented failures—never silent success.",
+    ///    "twitter": {
     ///      "type": "object",
-    ///      "required": [
-    ///        "crates_to_update"
-    ///      ],
     ///      "properties": {
-    ///        "crates_to_update": {
-    ///          "type": "array",
-    ///          "items": {
-    ///            "type": "string",
-    ///            "minLength": 1
-    ///          }
+    ///        "short_text": {
+    ///          "type": "string"
+    ///        },
+    ///        "thread": {
+    ///          "type": "boolean"
     ///        }
     ///      },
     ///      "additionalProperties": false
@@ -3060,11 +3064,9 @@ pub mod distribution_schema {
     ///    "github": {
     ///      "type": "object",
     ///      "properties": {
-    ///        "discussion_category": {
-    ///          "type": "string"
-    ///        },
-    ///        "draft": {
-    ///          "type": "boolean"
+    ///        "repo": {
+    ///          "type": "string",
+    ///          "minLength": 1
     ///        },
     ///        "post_type": {
     ///          "type": "string",
@@ -3076,9 +3078,65 @@ pub mod distribution_schema {
     ///        "release_tag": {
     ///          "type": "string"
     ///        },
-    ///        "repo": {
+    ///        "draft": {
+    ///          "type": "boolean"
+    ///        },
+    ///        "discussion_category": {
+    ///          "type": "string"
+    ///        }
+    ///      },
+    ///      "additionalProperties": false
+    ///    },
+    ///    "open_collective": {
+    ///      "type": "object",
+    ///      "required": [
+    ///        "collective_slug"
+    ///      ],
+    ///      "properties": {
+    ///        "is_private": {
+    ///          "type": "boolean"
+    ///        },
+    ///        "collective_slug": {
     ///          "type": "string",
     ///          "minLength": 1
+    ///        }
+    ///      },
+    ///      "additionalProperties": false
+    ///    },
+    ///    "reddit": {
+    ///      "type": "object",
+    ///      "required": [
+    ///        "subreddit"
+    ///      ],
+    ///      "properties": {
+    ///        "subreddit": {
+    ///          "type": "string",
+    ///          "minLength": 1
+    ///        },
+    ///        "kind": {
+    ///          "type": "string",
+    ///          "enum": [
+    ///            "link",
+    ///            "self_post"
+    ///          ]
+    ///        },
+    ///        "title_override": {
+    ///          "type": "string"
+    ///        },
+    ///        "text_override": {
+    ///          "type": "string"
+    ///        },
+    ///        "url_override": {
+    ///          "type": "string"
+    ///        },
+    ///        "nsfw": {
+    ///          "type": "boolean"
+    ///        },
+    ///        "spoiler": {
+    ///          "type": "boolean"
+    ///        },
+    ///        "send_replies": {
+    ///          "type": "boolean"
     ///        }
     ///      },
     ///      "additionalProperties": false
@@ -3101,86 +3159,30 @@ pub mod distribution_schema {
     ///      },
     ///      "additionalProperties": false
     ///    },
-    ///    "open_collective": {
-    ///      "type": "object",
-    ///      "required": [
-    ///        "collective_slug"
-    ///      ],
-    ///      "properties": {
-    ///        "collective_slug": {
-    ///          "type": "string",
-    ///          "minLength": 1
-    ///        },
-    ///        "is_private": {
-    ///          "type": "boolean"
-    ///        }
-    ///      },
-    ///      "additionalProperties": false
-    ///    },
-    ///    "reddit": {
-    ///      "type": "object",
-    ///      "required": [
-    ///        "subreddit"
-    ///      ],
-    ///      "properties": {
-    ///        "kind": {
-    ///          "type": "string",
-    ///          "enum": [
-    ///            "link",
-    ///            "self_post"
-    ///          ]
-    ///        },
-    ///        "nsfw": {
-    ///          "type": "boolean"
-    ///        },
-    ///        "send_replies": {
-    ///          "type": "boolean"
-    ///        },
-    ///        "spoiler": {
-    ///          "type": "boolean"
-    ///        },
-    ///        "subreddit": {
-    ///          "type": "string",
-    ///          "minLength": 1
-    ///        },
-    ///        "text_override": {
-    ///          "type": "string"
-    ///        },
-    ///        "title_override": {
-    ///          "type": "string"
-    ///        },
-    ///        "url_override": {
-    ///          "type": "string"
-    ///        }
-    ///      },
-    ///      "additionalProperties": false
-    ///    },
-    ///    "twitter": {
-    ///      "type": "object",
-    ///      "properties": {
-    ///        "short_text": {
-    ///          "type": "string"
-    ///        },
-    ///        "thread": {
-    ///          "type": "boolean"
-    ///        }
-    ///      },
-    ///      "additionalProperties": false
-    ///    },
     ///    "youtube": {
     ///      "type": "object",
     ///      "required": [
     ///        "video_asset_ref"
     ///      ],
     ///      "properties": {
-    ///        "category_id": {
+    ///        "video_asset_ref": {
+    ///          "type": "string",
+    ///          "minLength": 1
+    ///        },
+    ///        "title_override": {
     ///          "type": "string"
     ///        },
     ///        "description_override": {
     ///          "type": "string"
     ///        },
-    ///        "notify_subscribers": {
-    ///          "type": "boolean"
+    ///        "tags": {
+    ///          "type": "array",
+    ///          "items": {
+    ///            "type": "string"
+    ///          }
+    ///        },
+    ///        "category_id": {
+    ///          "type": "string"
     ///        },
     ///        "privacy_status": {
     ///          "type": "string",
@@ -3190,18 +3192,25 @@ pub mod distribution_schema {
     ///            "public"
     ///          ]
     ///        },
-    ///        "tags": {
+    ///        "notify_subscribers": {
+    ///          "type": "boolean"
+    ///        }
+    ///      },
+    ///      "additionalProperties": false
+    ///    },
+    ///    "crates_io": {
+    ///      "description": "Contract placeholder only: `vox-publisher` does not perform crates.io releases yet. If enabled in routing, outcomes are explicit dry-run or not-implemented failures—never silent success.",
+    ///      "type": "object",
+    ///      "required": [
+    ///        "crates_to_update"
+    ///      ],
+    ///      "properties": {
+    ///        "crates_to_update": {
     ///          "type": "array",
     ///          "items": {
-    ///            "type": "string"
+    ///            "type": "string",
+    ///            "minLength": 1
     ///          }
-    ///        },
-    ///        "title_override": {
-    ///          "type": "string"
-    ///        },
-    ///        "video_asset_ref": {
-    ///          "type": "string",
-    ///          "minLength": 1
     ///        }
     ///      },
     ///      "additionalProperties": false
@@ -3368,11 +3377,9 @@ pub mod distribution_schema {
     ///{
     ///  "type": "object",
     ///  "properties": {
-    ///    "discussion_category": {
-    ///      "type": "string"
-    ///    },
-    ///    "draft": {
-    ///      "type": "boolean"
+    ///    "repo": {
+    ///      "type": "string",
+    ///      "minLength": 1
     ///    },
     ///    "post_type": {
     ///      "type": "string",
@@ -3384,9 +3391,11 @@ pub mod distribution_schema {
     ///    "release_tag": {
     ///      "type": "string"
     ///    },
-    ///    "repo": {
-    ///      "type": "string",
-    ///      "minLength": 1
+    ///    "draft": {
+    ///      "type": "boolean"
+    ///    },
+    ///    "discussion_category": {
+    ///      "type": "string"
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -3701,12 +3710,12 @@ pub mod distribution_schema {
     ///    "collective_slug"
     ///  ],
     ///  "properties": {
+    ///    "is_private": {
+    ///      "type": "boolean"
+    ///    },
     ///    "collective_slug": {
     ///      "type": "string",
     ///      "minLength": 1
-    ///    },
-    ///    "is_private": {
-    ///      "type": "boolean"
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -3815,6 +3824,10 @@ pub mod distribution_schema {
     ///    "subreddit"
     ///  ],
     ///  "properties": {
+    ///    "subreddit": {
+    ///      "type": "string",
+    ///      "minLength": 1
+    ///    },
     ///    "kind": {
     ///      "type": "string",
     ///      "enum": [
@@ -3822,27 +3835,23 @@ pub mod distribution_schema {
     ///        "self_post"
     ///      ]
     ///    },
-    ///    "nsfw": {
-    ///      "type": "boolean"
+    ///    "title_override": {
+    ///      "type": "string"
     ///    },
-    ///    "send_replies": {
+    ///    "text_override": {
+    ///      "type": "string"
+    ///    },
+    ///    "url_override": {
+    ///      "type": "string"
+    ///    },
+    ///    "nsfw": {
     ///      "type": "boolean"
     ///    },
     ///    "spoiler": {
     ///      "type": "boolean"
     ///    },
-    ///    "subreddit": {
-    ///      "type": "string",
-    ///      "minLength": 1
-    ///    },
-    ///    "text_override": {
-    ///      "type": "string"
-    ///    },
-    ///    "title_override": {
-    ///      "type": "string"
-    ///    },
-    ///    "url_override": {
-    ///      "type": "string"
+    ///    "send_replies": {
+    ///      "type": "boolean"
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -4069,14 +4078,24 @@ pub mod distribution_schema {
     ///    "video_asset_ref"
     ///  ],
     ///  "properties": {
-    ///    "category_id": {
+    ///    "video_asset_ref": {
+    ///      "type": "string",
+    ///      "minLength": 1
+    ///    },
+    ///    "title_override": {
     ///      "type": "string"
     ///    },
     ///    "description_override": {
     ///      "type": "string"
     ///    },
-    ///    "notify_subscribers": {
-    ///      "type": "boolean"
+    ///    "tags": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "type": "string"
+    ///      }
+    ///    },
+    ///    "category_id": {
+    ///      "type": "string"
     ///    },
     ///    "privacy_status": {
     ///      "type": "string",
@@ -4086,18 +4105,8 @@ pub mod distribution_schema {
     ///        "public"
     ///      ]
     ///    },
-    ///    "tags": {
-    ///      "type": "array",
-    ///      "items": {
-    ///        "type": "string"
-    ///      }
-    ///    },
-    ///    "title_override": {
-    ///      "type": "string"
-    ///    },
-    ///    "video_asset_ref": {
-    ///      "type": "string",
-    ///      "minLength": 1
+    ///    "notify_subscribers": {
+    ///      "type": "boolean"
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -4402,7 +4411,17 @@ pub mod distribution_schema {
     ///{
     ///  "type": "object",
     ///  "properties": {
+    ///    "retry_profile": {
+    ///      "type": "string"
+    ///    },
+    ///    "rate_limit_profile": {
+    ///      "type": "string"
+    ///    },
     ///    "approval_required": {
+    ///      "type": "boolean"
+    ///    },
+    ///    "dry_run": {
+    ///      "description": "When true, `vox-publisher` forces runtime `syndication.dry_run` during manifest row → UnifiedNewsItem hydration (non-live fan-out regardless of top-level `syndication.dry_run` unless you align both).",
     ///      "type": "boolean"
     ///    },
     ///    "channel_policy": {
@@ -4416,16 +4435,21 @@ pub mod distribution_schema {
     ///          "template_profile": {
     ///            "type": "string"
     ///          },
+    ///          "worthiness_floor": {
+    ///            "type": "number",
+    ///            "maximum": 1.0,
+    ///            "minimum": 0.0
+    ///          },
     ///          "topic_filters": {
     ///            "type": "object",
     ///            "properties": {
-    ///              "exclude_tags": {
+    ///              "include_tags": {
     ///                "type": "array",
     ///                "items": {
     ///                  "type": "string"
     ///                }
     ///              },
-    ///              "include_tags": {
+    ///              "exclude_tags": {
     ///                "type": "array",
     ///                "items": {
     ///                  "type": "string"
@@ -4438,25 +4462,10 @@ pub mod distribution_schema {
     ///              }
     ///            },
     ///            "additionalProperties": false
-    ///          },
-    ///          "worthiness_floor": {
-    ///            "type": "number",
-    ///            "maximum": 1.0,
-    ///            "minimum": 0.0
     ///          }
     ///        },
     ///        "additionalProperties": false
     ///      }
-    ///    },
-    ///    "dry_run": {
-    ///      "description": "When true, `vox-publisher` forces runtime `syndication.dry_run` during manifest row → UnifiedNewsItem hydration (non-live fan-out regardless of top-level `syndication.dry_run` unless you align both).",
-    ///      "type": "boolean"
-    ///    },
-    ///    "rate_limit_profile": {
-    ///      "type": "string"
-    ///    },
-    ///    "retry_profile": {
-    ///      "type": "string"
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -4506,16 +4515,21 @@ pub mod distribution_schema {
     ///    "template_profile": {
     ///      "type": "string"
     ///    },
+    ///    "worthiness_floor": {
+    ///      "type": "number",
+    ///      "maximum": 1.0,
+    ///      "minimum": 0.0
+    ///    },
     ///    "topic_filters": {
     ///      "type": "object",
     ///      "properties": {
-    ///        "exclude_tags": {
+    ///        "include_tags": {
     ///          "type": "array",
     ///          "items": {
     ///            "type": "string"
     ///          }
     ///        },
-    ///        "include_tags": {
+    ///        "exclude_tags": {
     ///          "type": "array",
     ///          "items": {
     ///            "type": "string"
@@ -4528,11 +4542,6 @@ pub mod distribution_schema {
     ///        }
     ///      },
     ///      "additionalProperties": false
-    ///    },
-    ///    "worthiness_floor": {
-    ///      "type": "number",
-    ///      "maximum": 1.0,
-    ///      "minimum": 0.0
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -4572,13 +4581,13 @@ pub mod distribution_schema {
     ///{
     ///  "type": "object",
     ///  "properties": {
-    ///    "exclude_tags": {
+    ///    "include_tags": {
     ///      "type": "array",
     ///      "items": {
     ///        "type": "string"
     ///      }
     ///    },
-    ///    "include_tags": {
+    ///    "exclude_tags": {
     ///      "type": "array",
     ///      "items": {
     ///        "type": "string"
@@ -4662,21 +4671,21 @@ pub mod evidence_pack_v1_schema {
     ///    "run_id"
     ///  ],
     ///  "properties": {
+    ///    "run_id": {
+    ///      "type": "string",
+    ///      "minLength": 1
+    ///    },
     ///    "config_digest": {
     ///      "type": "string",
     ///      "minLength": 16
+    ///    },
+    ///    "telemetry_digest": {
+    ///      "type": "string"
     ///    },
     ///    "eval_digest": {
     ///      "type": "string"
     ///    },
     ///    "gate_digest": {
-    ///      "type": "string"
-    ///    },
-    ///    "run_id": {
-    ///      "type": "string",
-    ///      "minLength": 1
-    ///    },
-    ///    "telemetry_digest": {
     ///      "type": "string"
     ///    }
     ///  },
@@ -4846,7 +4855,7 @@ pub mod evidence_pack_v1_schema {
     ///
     /// ```json
     ///{
-    ///  "$id": "https://vox-lang.org/contracts/scientia/evidence-pack.v1.schema.json",
+    ///  "$id": "https://voxlang.org/contracts/scientia/evidence-pack.v1.schema.json",
     ///  "title": "SCIENTIA EvidencePack v1",
     ///  "type": "object",
     ///  "required": [
@@ -4858,30 +4867,30 @@ pub mod evidence_pack_v1_schema {
     ///    "version"
     ///  ],
     ///  "properties": {
+    ///    "version": {
+    ///      "type": "string",
+    ///      "const": "v1"
+    ///    },
+    ///    "publication_id": {
+    ///      "type": "string",
+    ///      "minLength": 1
+    ///    },
+    ///    "manifest_digest": {
+    ///      "type": "string",
+    ///      "minLength": 16
+    ///    },
     ///    "baseline": {
     ///      "$ref": "#/$defs/runRef"
     ///    },
     ///    "candidate": {
     ///      "$ref": "#/$defs/runRef"
     ///    },
-    ///    "manifest_digest": {
-    ///      "type": "string",
-    ///      "minLength": 16
-    ///    },
     ///    "pair_integrity_passed": {
     ///      "type": "boolean"
-    ///    },
-    ///    "publication_id": {
-    ///      "type": "string",
-    ///      "minLength": 1
     ///    },
     ///    "replay_instructions": {
     ///      "type": "string",
     ///      "minLength": 1
-    ///    },
-    ///    "version": {
-    ///      "type": "string",
-    ///      "const": "v1"
     ///    }
     ///  },
     ///  "additionalProperties": false,
@@ -5181,6 +5190,20 @@ pub mod finding_candidate_v1_schema {
     ///      "type": "string",
     ///      "minLength": 1
     ///    },
+    ///    "summary": {
+    ///      "type": "string"
+    ///    },
+    ///    "strength": {
+    ///      "type": "string",
+    ///      "enum": [
+    ///        "supporting",
+    ///        "strong",
+    ///        "informational"
+    ///      ]
+    ///    },
+    ///    "source_ref": {
+    ///      "type": "string"
+    ///    },
     ///    "family": {
     ///      "type": "string",
     ///      "enum": [
@@ -5200,40 +5223,26 @@ pub mod finding_candidate_v1_schema {
     ///    "provenance": {
     ///      "type": "object",
     ///      "properties": {
-    ///        "digest": {
+    ///        "origin": {
+    ///          "type": "string"
+    ///        },
+    ///        "repo_path": {
     ///          "type": "string"
     ///        },
     ///        "metric_type": {
     ///          "type": "string"
     ///        },
-    ///        "origin": {
+    ///        "run_id": {
     ///          "type": "string"
     ///        },
     ///        "recorded_at_ms": {
     ///          "type": "integer"
     ///        },
-    ///        "repo_path": {
-    ///          "type": "string"
-    ///        },
-    ///        "run_id": {
+    ///        "digest": {
     ///          "type": "string"
     ///        }
     ///      },
     ///      "additionalProperties": false
-    ///    },
-    ///    "source_ref": {
-    ///      "type": "string"
-    ///    },
-    ///    "strength": {
-    ///      "type": "string",
-    ///      "enum": [
-    ///        "supporting",
-    ///        "strong",
-    ///        "informational"
-    ///      ]
-    ///    },
-    ///    "summary": {
-    ///      "type": "string"
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -5452,22 +5461,22 @@ pub mod finding_candidate_v1_schema {
     ///{
     ///  "type": "object",
     ///  "properties": {
-    ///    "digest": {
+    ///    "origin": {
+    ///      "type": "string"
+    ///    },
+    ///    "repo_path": {
     ///      "type": "string"
     ///    },
     ///    "metric_type": {
     ///      "type": "string"
     ///    },
-    ///    "origin": {
+    ///    "run_id": {
     ///      "type": "string"
     ///    },
     ///    "recorded_at_ms": {
     ///      "type": "integer"
     ///    },
-    ///    "repo_path": {
-    ///      "type": "string"
-    ///    },
-    ///    "run_id": {
+    ///    "digest": {
     ///      "type": "string"
     ///    }
     ///  },
@@ -5590,7 +5599,7 @@ pub mod finding_candidate_v1_schema {
     ///
     /// ```json
     ///{
-    ///  "$id": "https://vox-lang.org/contracts/scientia/finding-candidate.v1.schema.json",
+    ///  "$id": "https://voxlang.org/contracts/scientia/finding-candidate.v1.schema.json",
     ///  "title": "SCIENTIA finding candidate ledger record v1",
     ///  "description": "Canonical candidate from internal signals through novelty evidence to worthiness decision traces. internal_signals align with discovery-signal.schema.json (validated separately or embedded here).",
     ///  "type": "object",
@@ -5602,6 +5611,14 @@ pub mod finding_candidate_v1_schema {
     ///    "schema_version"
     ///  ],
     ///  "properties": {
+    ///    "schema_version": {
+    ///      "type": "integer",
+    ///      "const": 1
+    ///    },
+    ///    "candidate_id": {
+    ///      "type": "string",
+    ///      "minLength": 1
+    ///    },
     ///    "candidate_class": {
     ///      "type": "string",
     ///      "enum": [
@@ -5612,33 +5629,11 @@ pub mod finding_candidate_v1_schema {
     ///        "other"
     ///      ]
     ///    },
-    ///    "candidate_id": {
-    ///      "type": "string",
-    ///      "minLength": 1
+    ///    "publication_id": {
+    ///      "type": "string"
     ///    },
-    ///    "confidence": {
-    ///      "type": "object",
-    ///      "properties": {
-    ///        "contradiction_risk": {
-    ///          "type": "number",
-    ///          "maximum": 1.0,
-    ///          "minimum": 0.0
-    ///        },
-    ///        "reproducibility_support": {
-    ///          "type": "number",
-    ///          "maximum": 1.0,
-    ///          "minimum": 0.0
-    ///        },
-    ///        "signal_strength": {
-    ///          "type": "number",
-    ///          "maximum": 1.0,
-    ///          "minimum": 0.0
-    ///        }
-    ///      },
-    ///      "additionalProperties": false
-    ///    },
-    ///    "created_at_ms": {
-    ///      "type": "integer"
+    ///    "title_hint": {
+    ///      "type": "string"
     ///    },
     ///    "internal_signals": {
     ///      "type": "array",
@@ -5649,21 +5644,35 @@ pub mod finding_candidate_v1_schema {
     ///    "novelty_evidence_bundle_id": {
     ///      "type": "string"
     ///    },
-    ///    "publication_id": {
+    ///    "worthiness_decision_ref": {
     ///      "type": "string"
     ///    },
-    ///    "schema_version": {
-    ///      "type": "integer",
-    ///      "const": 1
+    ///    "confidence": {
+    ///      "type": "object",
+    ///      "properties": {
+    ///        "signal_strength": {
+    ///          "type": "number",
+    ///          "maximum": 1.0,
+    ///          "minimum": 0.0
+    ///        },
+    ///        "contradiction_risk": {
+    ///          "type": "number",
+    ///          "maximum": 1.0,
+    ///          "minimum": 0.0
+    ///        },
+    ///        "reproducibility_support": {
+    ///          "type": "number",
+    ///          "maximum": 1.0,
+    ///          "minimum": 0.0
+    ///        }
+    ///      },
+    ///      "additionalProperties": false
     ///    },
-    ///    "title_hint": {
-    ///      "type": "string"
+    ///    "created_at_ms": {
+    ///      "type": "integer"
     ///    },
     ///    "updated_at_ms": {
     ///      "type": "integer"
-    ///    },
-    ///    "worthiness_decision_ref": {
-    ///      "type": "string"
     ///    }
     ///  },
     ///  "additionalProperties": false,
@@ -5873,17 +5882,17 @@ pub mod finding_candidate_v1_schema {
     ///{
     ///  "type": "object",
     ///  "properties": {
+    ///    "signal_strength": {
+    ///      "type": "number",
+    ///      "maximum": 1.0,
+    ///      "minimum": 0.0
+    ///    },
     ///    "contradiction_risk": {
     ///      "type": "number",
     ///      "maximum": 1.0,
     ///      "minimum": 0.0
     ///    },
     ///    "reproducibility_support": {
-    ///      "type": "number",
-    ///      "maximum": 1.0,
-    ///      "minimum": 0.0
-    ///    },
-    ///    "signal_strength": {
     ///      "type": "number",
     ///      "maximum": 1.0,
     ///      "minimum": 0.0
@@ -5954,7 +5963,7 @@ pub mod machine_suggestion_block_schema {
     ///
     /// ```json
     ///{
-    ///  "$id": "https://vox-lang.org/contracts/scientia/machine-suggestion-block.schema.json",
+    ///  "$id": "https://voxlang.org/contracts/scientia/machine-suggestion-block.schema.json",
     ///  "title": "SCIENTIA machine suggestion envelope",
     ///  "description": "LLM or heuristic outputs must carry these labels; never treated as ground truth.",
     ///  "type": "object",
@@ -5971,11 +5980,11 @@ pub mod machine_suggestion_block_schema {
     ///      "type": "boolean",
     ///      "const": true
     ///    },
-    ///    "schema_version": {
-    ///      "type": "integer"
-    ///    },
     ///    "source_grounded": {
     ///      "type": "boolean"
+    ///    },
+    ///    "schema_version": {
+    ///      "type": "integer"
     ///    }
     ///  },
     ///  "additionalProperties": true
@@ -6033,7 +6042,7 @@ pub mod manifest_completion_schema {
     ///
     /// ```json
     ///{
-    ///  "$id": "https://vox-lang.org/contracts/scientia/manifest-completion.schema.json",
+    ///  "$id": "https://voxlang.org/contracts/scientia/manifest-completion.schema.json",
     ///  "title": "SCIENTIA manifest completion report",
     ///  "type": "object",
     ///  "required": [
@@ -6049,6 +6058,24 @@ pub mod manifest_completion_schema {
     ///      "maximum": 100.0,
     ///      "minimum": 0.0
     ///    },
+    ///    "required_missing": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "type": "string"
+    ///      }
+    ///    },
+    ///    "inferred_ok": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "type": "string"
+    ///      }
+    ///    },
+    ///    "human_only_pending": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "type": "string"
+    ///      }
+    ///    },
     ///    "field_provenance": {
     ///      "type": "array",
     ///      "items": {
@@ -6061,32 +6088,14 @@ pub mod manifest_completion_schema {
     ///          "field": {
     ///            "type": "string"
     ///          },
-    ///          "notes": {
+    ///          "origin": {
     ///            "type": "string"
     ///          },
-    ///          "origin": {
+    ///          "notes": {
     ///            "type": "string"
     ///          }
     ///        },
     ///        "additionalProperties": false
-    ///      }
-    ///    },
-    ///    "human_only_pending": {
-    ///      "type": "array",
-    ///      "items": {
-    ///        "type": "string"
-    ///      }
-    ///    },
-    ///    "inferred_ok": {
-    ///      "type": "array",
-    ///      "items": {
-    ///        "type": "string"
-    ///      }
-    ///    },
-    ///    "required_missing": {
-    ///      "type": "array",
-    ///      "items": {
-    ///        "type": "string"
     ///      }
     ///    }
     ///  },
@@ -6120,10 +6129,10 @@ pub mod manifest_completion_schema {
     ///    "field": {
     ///      "type": "string"
     ///    },
-    ///    "notes": {
+    ///    "origin": {
     ///      "type": "string"
     ///    },
-    ///    "origin": {
+    ///    "notes": {
     ///      "type": "string"
     ///    }
     ///  },
@@ -6188,24 +6197,6 @@ pub mod novelty_evidence_bundle_v1_schema {
     ///    "work_uri"
     ///  ],
     ///  "properties": {
-    ///    "cited_by_count": {
-    ///      "description": "Optional citation count from upstream API (e.g. OpenAlex, Semantic Scholar).",
-    ///      "type": "integer",
-    ///      "minimum": 0.0
-    ///    },
-    ///    "lexical_score": {
-    ///      "type": "number",
-    ///      "maximum": 1.0,
-    ///      "minimum": 0.0
-    ///    },
-    ///    "overlap_note": {
-    ///      "type": "string"
-    ///    },
-    ///    "semantic_score": {
-    ///      "type": "number",
-    ///      "maximum": 1.0,
-    ///      "minimum": 0.0
-    ///    },
     ///    "source": {
     ///      "type": "string",
     ///      "enum": [
@@ -6216,15 +6207,33 @@ pub mod novelty_evidence_bundle_v1_schema {
     ///        "other"
     ///      ]
     ///    },
-    ///    "title": {
-    ///      "type": "string"
-    ///    },
     ///    "work_uri": {
     ///      "type": "string",
     ///      "minLength": 1
     ///    },
+    ///    "title": {
+    ///      "type": "string"
+    ///    },
     ///    "year": {
     ///      "type": "integer"
+    ///    },
+    ///    "lexical_score": {
+    ///      "type": "number",
+    ///      "maximum": 1.0,
+    ///      "minimum": 0.0
+    ///    },
+    ///    "semantic_score": {
+    ///      "type": "number",
+    ///      "maximum": 1.0,
+    ///      "minimum": 0.0
+    ///    },
+    ///    "overlap_note": {
+    ///      "type": "string"
+    ///    },
+    ///    "cited_by_count": {
+    ///      "description": "Optional citation count from upstream API (e.g. OpenAlex, Semantic Scholar).",
+    ///      "type": "integer",
+    ///      "minimum": 0.0
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -6418,7 +6427,7 @@ pub mod novelty_evidence_bundle_v1_schema {
     ///
     /// ```json
     ///{
-    ///  "$id": "https://vox-lang.org/contracts/scientia/novelty-evidence-bundle.v1.schema.json",
+    ///  "$id": "https://voxlang.org/contracts/scientia/novelty-evidence-bundle.v1.schema.json",
     ///  "title": "SCIENTIA novelty evidence bundle v1",
     ///  "description": "Normalized prior-art / overlap snapshot from federated sources (OpenAlex, Crossref, Semantic Scholar, …) with deterministic digests for audit.",
     ///  "type": "object",
@@ -6432,6 +6441,10 @@ pub mod novelty_evidence_bundle_v1_schema {
     ///    "sources"
     ///  ],
     ///  "properties": {
+    ///    "schema_version": {
+    ///      "type": "integer",
+    ///      "const": 1
+    ///    },
     ///    "bundle_id": {
     ///      "type": "string",
     ///      "minLength": 1
@@ -6442,6 +6455,23 @@ pub mod novelty_evidence_bundle_v1_schema {
     ///    },
     ///    "computed_at_ms": {
     ///      "type": "integer"
+    ///    },
+    ///    "query_digest_sha256": {
+    ///      "type": "string",
+    ///      "pattern": "^[a-f0-9]{64}$"
+    ///    },
+    ///    "sources": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "type": "string",
+    ///        "enum": [
+    ///          "openalex",
+    ///          "crossref",
+    ///          "semantic_scholar",
+    ///          "manual",
+    ///          "other"
+    ///        ]
+    ///      }
     ///    },
     ///    "normalized_hits": {
     ///      "type": "array",
@@ -6474,10 +6504,6 @@ pub mod novelty_evidence_bundle_v1_schema {
     ///      },
     ///      "additionalProperties": false
     ///    },
-    ///    "query_digest_sha256": {
-    ///      "type": "string",
-    ///      "pattern": "^[a-f0-9]{64}$"
-    ///    },
     ///    "query_traces": {
     ///      "type": "array",
     ///      "items": {
@@ -6487,38 +6513,21 @@ pub mod novelty_evidence_bundle_v1_schema {
     ///          "source"
     ///        ],
     ///        "properties": {
-    ///          "cached": {
-    ///            "type": "boolean"
-    ///          },
-    ///          "http_status": {
-    ///            "type": "integer"
+    ///          "source": {
+    ///            "type": "string"
     ///          },
     ///          "request_fingerprint_sha256": {
     ///            "type": "string",
     ///            "pattern": "^[a-f0-9]{64}$"
     ///          },
-    ///          "source": {
-    ///            "type": "string"
+    ///          "http_status": {
+    ///            "type": "integer"
+    ///          },
+    ///          "cached": {
+    ///            "type": "boolean"
     ///          }
     ///        },
     ///        "additionalProperties": false
-    ///      }
-    ///    },
-    ///    "schema_version": {
-    ///      "type": "integer",
-    ///      "const": 1
-    ///    },
-    ///    "sources": {
-    ///      "type": "array",
-    ///      "items": {
-    ///        "type": "string",
-    ///        "enum": [
-    ///          "openalex",
-    ///          "crossref",
-    ///          "semantic_scholar",
-    ///          "manual",
-    ///          "other"
-    ///        ]
     ///      }
     ///    }
     ///  },
@@ -6926,18 +6935,18 @@ pub mod novelty_evidence_bundle_v1_schema {
     ///    "source"
     ///  ],
     ///  "properties": {
-    ///    "cached": {
-    ///      "type": "boolean"
-    ///    },
-    ///    "http_status": {
-    ///      "type": "integer"
+    ///    "source": {
+    ///      "type": "string"
     ///    },
     ///    "request_fingerprint_sha256": {
     ///      "type": "string",
     ///      "pattern": "^[a-f0-9]{64}$"
     ///    },
-    ///    "source": {
-    ///      "type": "string"
+    ///    "http_status": {
+    ///      "type": "integer"
+    ///    },
+    ///    "cached": {
+    ///      "type": "boolean"
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -7175,7 +7184,7 @@ pub mod operator_status_surface_v1_schema {
     ///
     /// ```json
     ///{
-    ///  "$id": "https://vox-lang.org/contracts/scientia/operator-status-surface.v1.schema.json",
+    ///  "$id": "https://voxlang.org/contracts/scientia/operator-status-surface.v1.schema.json",
     ///  "title": "SCIENTIA operator status surface v1",
     ///  "description": "Shared CLI/MCP read-model contract for publication status views.",
     ///  "type": "object",
@@ -7187,6 +7196,36 @@ pub mod operator_status_surface_v1_schema {
     ///    "snapshot_summary"
     ///  ],
     ///  "properties": {
+    ///    "publication_id": {
+    ///      "type": "string",
+    ///      "minLength": 1
+    ///    },
+    ///    "profile": {
+    ///      "type": "string",
+    ///      "minLength": 1
+    ///    },
+    ///    "snapshot_summary": {
+    ///      "type": "object",
+    ///      "required": [
+    ///        "hard_gate_failures",
+    ///        "soft_gate_failures"
+    ///      ],
+    ///      "properties": {
+    ///        "hard_gate_failures": {
+    ///          "type": "integer",
+    ///          "minimum": 0.0
+    ///        },
+    ///        "soft_gate_failures": {
+    ///          "type": "integer",
+    ///          "minimum": 0.0
+    ///        },
+    ///        "diagnostic_count": {
+    ///          "type": "integer",
+    ///          "minimum": 0.0
+    ///        }
+    ///      },
+    ///      "additionalProperties": false
+    ///    },
     ///    "next_actions": {
     ///      "type": "array",
     ///      "items": {
@@ -7196,25 +7235,17 @@ pub mod operator_status_surface_v1_schema {
     ///          "priority"
     ///        ],
     ///        "properties": {
-    ///          "action": {
-    ///            "type": "string"
-    ///          },
     ///          "priority": {
     ///            "type": "integer",
     ///            "maximum": 999.0,
     ///            "minimum": 1.0
+    ///          },
+    ///          "action": {
+    ///            "type": "string"
     ///          }
     ///        },
     ///        "additionalProperties": false
     ///      }
-    ///    },
-    ///    "profile": {
-    ///      "type": "string",
-    ///      "minLength": 1
-    ///    },
-    ///    "publication_id": {
-    ///      "type": "string",
-    ///      "minLength": 1
     ///    },
     ///    "route_readiness": {
     ///      "type": "array",
@@ -7225,43 +7256,21 @@ pub mod operator_status_surface_v1_schema {
     ///          "route"
     ///        ],
     ///        "properties": {
+    ///          "route": {
+    ///            "type": "string"
+    ///          },
+    ///          "ready": {
+    ///            "type": "boolean"
+    ///          },
     ///          "missing_required": {
     ///            "type": "array",
     ///            "items": {
     ///              "type": "string"
     ///            }
-    ///          },
-    ///          "ready": {
-    ///            "type": "boolean"
-    ///          },
-    ///          "route": {
-    ///            "type": "string"
     ///          }
     ///        },
     ///        "additionalProperties": false
     ///      }
-    ///    },
-    ///    "snapshot_summary": {
-    ///      "type": "object",
-    ///      "required": [
-    ///        "hard_gate_failures",
-    ///        "soft_gate_failures"
-    ///      ],
-    ///      "properties": {
-    ///        "diagnostic_count": {
-    ///          "type": "integer",
-    ///          "minimum": 0.0
-    ///        },
-    ///        "hard_gate_failures": {
-    ///          "type": "integer",
-    ///          "minimum": 0.0
-    ///        },
-    ///        "soft_gate_failures": {
-    ///          "type": "integer",
-    ///          "minimum": 0.0
-    ///        }
-    ///      },
-    ///      "additionalProperties": false
     ///    }
     ///  },
     ///  "additionalProperties": false,
@@ -7292,13 +7301,13 @@ pub mod operator_status_surface_v1_schema {
     ///    "priority"
     ///  ],
     ///  "properties": {
-    ///    "action": {
-    ///      "type": "string"
-    ///    },
     ///    "priority": {
     ///      "type": "integer",
     ///      "maximum": 999.0,
     ///      "minimum": 1.0
+    ///    },
+    ///    "action": {
+    ///      "type": "string"
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -7473,17 +7482,17 @@ pub mod operator_status_surface_v1_schema {
     ///    "route"
     ///  ],
     ///  "properties": {
+    ///    "route": {
+    ///      "type": "string"
+    ///    },
+    ///    "ready": {
+    ///      "type": "boolean"
+    ///    },
     ///    "missing_required": {
     ///      "type": "array",
     ///      "items": {
     ///        "type": "string"
     ///      }
-    ///    },
-    ///    "ready": {
-    ///      "type": "boolean"
-    ///    },
-    ///    "route": {
-    ///      "type": "string"
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -7510,15 +7519,15 @@ pub mod operator_status_surface_v1_schema {
     ///    "soft_gate_failures"
     ///  ],
     ///  "properties": {
-    ///    "diagnostic_count": {
-    ///      "type": "integer",
-    ///      "minimum": 0.0
-    ///    },
     ///    "hard_gate_failures": {
     ///      "type": "integer",
     ///      "minimum": 0.0
     ///    },
     ///    "soft_gate_failures": {
+    ///      "type": "integer",
+    ///      "minimum": 0.0
+    ///    },
+    ///    "diagnostic_count": {
     ///      "type": "integer",
     ///      "minimum": 0.0
     ///    }
@@ -7577,7 +7586,7 @@ pub mod publication_worthiness_schema {
     ///
     /// ```json
     ///{
-    ///  "$id": "https://vox-lang.org/contracts/scientia/publication-worthiness.schema.json",
+    ///  "$id": "https://voxlang.org/contracts/scientia/publication-worthiness.schema.json",
     ///  "title": "Scientia Publication Worthiness Contract",
     ///  "description": "Machine-readable policy for classifying publication candidates as Publish / AskForEvidence / AbstainDoNotPublish. `venue_profiles` is currently advisory documentation for operator review; the evaluator enforces thresholds, weights, and red lines.",
     ///  "type": "object",
@@ -7590,6 +7599,10 @@ pub mod publication_worthiness_schema {
     ///    "weights"
     ///  ],
     ///  "properties": {
+    ///    "version": {
+    ///      "type": "integer",
+    ///      "minimum": 1.0
+    ///    },
     ///    "decision_labels": {
     ///      "type": "object",
     ///      "required": [
@@ -7598,14 +7611,14 @@ pub mod publication_worthiness_schema {
     ///        "publish"
     ///      ],
     ///      "properties": {
-    ///        "abstain_do_not_publish": {
-    ///          "const": "Abstain/DoNotPublish"
+    ///        "publish": {
+    ///          "const": "Publish"
     ///        },
     ///        "ask_for_evidence": {
     ///          "const": "AskForEvidence"
     ///        },
-    ///        "publish": {
-    ///          "const": "Publish"
+    ///        "abstain_do_not_publish": {
+    ///          "const": "Abstain/DoNotPublish"
     ///        }
     ///      },
     ///      "additionalProperties": false
@@ -7620,16 +7633,16 @@ pub mod publication_worthiness_schema {
     ///          "id"
     ///        ],
     ///        "properties": {
+    ///          "id": {
+    ///            "type": "string",
+    ///            "pattern": "^[a-z0-9_\\-]+$"
+    ///          },
     ///          "description": {
     ///            "type": "string",
     ///            "minLength": 1
     ///          },
     ///          "enabled": {
     ///            "type": "boolean"
-    ///          },
-    ///          "id": {
-    ///            "type": "string",
-    ///            "pattern": "^[a-z0-9_\\-]+$"
     ///          }
     ///        },
     ///        "additionalProperties": false
@@ -7648,12 +7661,7 @@ pub mod publication_worthiness_schema {
     ///        "publish_score_min"
     ///      ],
     ///      "properties": {
-    ///        "abstain_score_max": {
-    ///          "type": "number",
-    ///          "maximum": 1.0,
-    ///          "minimum": 0.0
-    ///        },
-    ///        "ai_disclosure_compliance_exact": {
+    ///        "claim_evidence_coverage_min": {
     ///          "type": "number",
     ///          "maximum": 1.0,
     ///          "minimum": 0.0
@@ -7668,17 +7676,60 @@ pub mod publication_worthiness_schema {
     ///          "maximum": 1.0,
     ///          "minimum": 0.0
     ///        },
-    ///        "claim_evidence_coverage_min": {
-    ///          "type": "number",
-    ///          "maximum": 1.0,
-    ///          "minimum": 0.0
-    ///        },
     ///        "metadata_completeness_min": {
     ///          "type": "number",
     ///          "maximum": 1.0,
     ///          "minimum": 0.0
     ///        },
+    ///        "ai_disclosure_compliance_exact": {
+    ///          "type": "number",
+    ///          "maximum": 1.0,
+    ///          "minimum": 0.0
+    ///        },
     ///        "publish_score_min": {
+    ///          "type": "number",
+    ///          "maximum": 1.0,
+    ///          "minimum": 0.0
+    ///        },
+    ///        "abstain_score_max": {
+    ///          "type": "number",
+    ///          "maximum": 1.0,
+    ///          "minimum": 0.0
+    ///        }
+    ///      },
+    ///      "additionalProperties": false
+    ///    },
+    ///    "weights": {
+    ///      "type": "object",
+    ///      "required": [
+    ///        "epistemic",
+    ///        "metadata_policy",
+    ///        "novelty",
+    ///        "reliability",
+    ///        "reproducibility"
+    ///      ],
+    ///      "properties": {
+    ///        "epistemic": {
+    ///          "type": "number",
+    ///          "maximum": 1.0,
+    ///          "minimum": 0.0
+    ///        },
+    ///        "reproducibility": {
+    ///          "type": "number",
+    ///          "maximum": 1.0,
+    ///          "minimum": 0.0
+    ///        },
+    ///        "novelty": {
+    ///          "type": "number",
+    ///          "maximum": 1.0,
+    ///          "minimum": 0.0
+    ///        },
+    ///        "reliability": {
+    ///          "type": "number",
+    ///          "maximum": 1.0,
+    ///          "minimum": 0.0
+    ///        },
+    ///        "metadata_policy": {
     ///          "type": "number",
     ///          "maximum": 1.0,
     ///          "minimum": 0.0
@@ -7712,48 +7763,6 @@ pub mod publication_worthiness_schema {
     ///        },
     ///        "additionalProperties": false
     ///      }
-    ///    },
-    ///    "version": {
-    ///      "type": "integer",
-    ///      "minimum": 1.0
-    ///    },
-    ///    "weights": {
-    ///      "type": "object",
-    ///      "required": [
-    ///        "epistemic",
-    ///        "metadata_policy",
-    ///        "novelty",
-    ///        "reliability",
-    ///        "reproducibility"
-    ///      ],
-    ///      "properties": {
-    ///        "epistemic": {
-    ///          "type": "number",
-    ///          "maximum": 1.0,
-    ///          "minimum": 0.0
-    ///        },
-    ///        "metadata_policy": {
-    ///          "type": "number",
-    ///          "maximum": 1.0,
-    ///          "minimum": 0.0
-    ///        },
-    ///        "novelty": {
-    ///          "type": "number",
-    ///          "maximum": 1.0,
-    ///          "minimum": 0.0
-    ///        },
-    ///        "reliability": {
-    ///          "type": "number",
-    ///          "maximum": 1.0,
-    ///          "minimum": 0.0
-    ///        },
-    ///        "reproducibility": {
-    ///          "type": "number",
-    ///          "maximum": 1.0,
-    ///          "minimum": 0.0
-    ///        }
-    ///      },
-    ///      "additionalProperties": false
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -7789,14 +7798,14 @@ pub mod publication_worthiness_schema {
     ///    "publish"
     ///  ],
     ///  "properties": {
-    ///    "abstain_do_not_publish": {
-    ///      "const": "Abstain/DoNotPublish"
+    ///    "publish": {
+    ///      "const": "Publish"
     ///    },
     ///    "ask_for_evidence": {
     ///      "const": "AskForEvidence"
     ///    },
-    ///    "publish": {
-    ///      "const": "Publish"
+    ///    "abstain_do_not_publish": {
+    ///      "const": "Abstain/DoNotPublish"
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -7823,16 +7832,16 @@ pub mod publication_worthiness_schema {
     ///    "id"
     ///  ],
     ///  "properties": {
+    ///    "id": {
+    ///      "type": "string",
+    ///      "pattern": "^[a-z0-9_\\-]+$"
+    ///    },
     ///    "description": {
     ///      "type": "string",
     ///      "minLength": 1
     ///    },
     ///    "enabled": {
     ///      "type": "boolean"
-    ///    },
-    ///    "id": {
-    ///      "type": "string",
-    ///      "pattern": "^[a-z0-9_\\-]+$"
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -8028,12 +8037,7 @@ pub mod publication_worthiness_schema {
     ///    "publish_score_min"
     ///  ],
     ///  "properties": {
-    ///    "abstain_score_max": {
-    ///      "type": "number",
-    ///      "maximum": 1.0,
-    ///      "minimum": 0.0
-    ///    },
-    ///    "ai_disclosure_compliance_exact": {
+    ///    "claim_evidence_coverage_min": {
     ///      "type": "number",
     ///      "maximum": 1.0,
     ///      "minimum": 0.0
@@ -8048,17 +8052,22 @@ pub mod publication_worthiness_schema {
     ///      "maximum": 1.0,
     ///      "minimum": 0.0
     ///    },
-    ///    "claim_evidence_coverage_min": {
-    ///      "type": "number",
-    ///      "maximum": 1.0,
-    ///      "minimum": 0.0
-    ///    },
     ///    "metadata_completeness_min": {
     ///      "type": "number",
     ///      "maximum": 1.0,
     ///      "minimum": 0.0
     ///    },
+    ///    "ai_disclosure_compliance_exact": {
+    ///      "type": "number",
+    ///      "maximum": 1.0,
+    ///      "minimum": 0.0
+    ///    },
     ///    "publish_score_min": {
+    ///      "type": "number",
+    ///      "maximum": 1.0,
+    ///      "minimum": 0.0
+    ///    },
+    ///    "abstain_score_max": {
     ///      "type": "number",
     ///      "maximum": 1.0,
     ///      "minimum": 0.0
@@ -8304,7 +8313,7 @@ pub mod publication_worthiness_schema {
     ///      "maximum": 1.0,
     ///      "minimum": 0.0
     ///    },
-    ///    "metadata_policy": {
+    ///    "reproducibility": {
     ///      "type": "number",
     ///      "maximum": 1.0,
     ///      "minimum": 0.0
@@ -8319,7 +8328,7 @@ pub mod publication_worthiness_schema {
     ///      "maximum": 1.0,
     ///      "minimum": 0.0
     ///    },
-    ///    "reproducibility": {
+    ///    "metadata_policy": {
     ///      "type": "number",
     ///      "maximum": 1.0,
     ///      "minimum": 0.0
@@ -8337,6 +8346,167 @@ pub mod publication_worthiness_schema {
         pub novelty: f64,
         pub reliability: f64,
         pub reproducibility: f64,
+    }
+}
+
+// --- contracts/scientia\research-mesh-intake.v1.schema.json : SKIPPED — typify could not model this schema (validation-only) ---
+
+// --- contracts/scientia\research-mesh-promoted-line.v1.schema.json ---
+pub mod research_mesh_promoted_line_v1_schema {
+    /// Error types.
+    pub mod error {
+        /// Error from a `TryFrom` or `FromStr` implementation.
+        pub struct ConversionError(::std::borrow::Cow<'static, str>);
+        impl ::std::error::Error for ConversionError {}
+        impl ::std::fmt::Display for ConversionError {
+            fn fmt(
+                &self,
+                f: &mut ::std::fmt::Formatter<'_>,
+            ) -> Result<(), ::std::fmt::Error> {
+                ::std::fmt::Display::fmt(&self.0, f)
+            }
+        }
+        impl ::std::fmt::Debug for ConversionError {
+            fn fmt(
+                &self,
+                f: &mut ::std::fmt::Formatter<'_>,
+            ) -> Result<(), ::std::fmt::Error> {
+                ::std::fmt::Debug::fmt(&self.0, f)
+            }
+        }
+        impl From<&'static str> for ConversionError {
+            fn from(value: &'static str) -> Self {
+                Self(value.into())
+            }
+        }
+        impl From<String> for ConversionError {
+            fn from(value: String) -> Self {
+                Self(value.into())
+            }
+        }
+    }
+    ///Each JSON line in events.v1.jsonl; `record` MUST validate against research-mesh-intake.v1.schema.json.
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "$id": "https://vox-lang.org/contracts/scientia/research-mesh-promoted-line.v1.schema.json",
+    ///  "title": "SCIENTIA research mesh promoted ledger line",
+    ///  "description": "Each JSON line in events.v1.jsonl; `record` MUST validate against research-mesh-intake.v1.schema.json.",
+    ///  "type": "object",
+    ///  "required": [
+    ///    "promoted_at_ms",
+    ///    "record",
+    ///    "schema_version",
+    ///    "source_relative_path"
+    ///  ],
+    ///  "properties": {
+    ///    "schema_version": {
+    ///      "type": "integer",
+    ///      "const": 1
+    ///    },
+    ///    "promoted_at_ms": {
+    ///      "type": "integer"
+    ///    },
+    ///    "source_relative_path": {
+    ///      "type": "string",
+    ///      "minLength": 1
+    ///    },
+    ///    "record": {
+    ///      "type": "object"
+    ///    }
+    ///  },
+    ///  "additionalProperties": false
+    ///}
+    /// ```
+    /// </details>
+    #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+    #[serde(deny_unknown_fields)]
+    pub struct ScientiaResearchMeshPromotedLedgerLine {
+        pub promoted_at_ms: i64,
+        pub record: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+        pub schema_version: i64,
+        pub source_relative_path: ScientiaResearchMeshPromotedLedgerLineSourceRelativePath,
+    }
+    ///`ScientiaResearchMeshPromotedLedgerLineSourceRelativePath`
+    ///
+    /// <details><summary>JSON schema</summary>
+    ///
+    /// ```json
+    ///{
+    ///  "type": "string",
+    ///  "minLength": 1
+    ///}
+    /// ```
+    /// </details>
+    #[derive(::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    #[serde(transparent)]
+    pub struct ScientiaResearchMeshPromotedLedgerLineSourceRelativePath(
+        ::std::string::String,
+    );
+    impl ::std::ops::Deref for ScientiaResearchMeshPromotedLedgerLineSourceRelativePath {
+        type Target = ::std::string::String;
+        fn deref(&self) -> &::std::string::String {
+            &self.0
+        }
+    }
+    impl ::std::convert::From<ScientiaResearchMeshPromotedLedgerLineSourceRelativePath>
+    for ::std::string::String {
+        fn from(value: ScientiaResearchMeshPromotedLedgerLineSourceRelativePath) -> Self {
+            value.0
+        }
+    }
+    impl ::std::str::FromStr for ScientiaResearchMeshPromotedLedgerLineSourceRelativePath {
+        type Err = self::error::ConversionError;
+        fn from_str(
+            value: &str,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            if value.chars().count() < 1usize {
+                return Err("shorter than 1 characters".into());
+            }
+            Ok(Self(value.to_string()))
+        }
+    }
+    impl ::std::convert::TryFrom<&str>
+    for ScientiaResearchMeshPromotedLedgerLineSourceRelativePath {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: &str,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl ::std::convert::TryFrom<&::std::string::String>
+    for ScientiaResearchMeshPromotedLedgerLineSourceRelativePath {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: &::std::string::String,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl ::std::convert::TryFrom<::std::string::String>
+    for ScientiaResearchMeshPromotedLedgerLineSourceRelativePath {
+        type Error = self::error::ConversionError;
+        fn try_from(
+            value: ::std::string::String,
+        ) -> ::std::result::Result<Self, self::error::ConversionError> {
+            value.parse()
+        }
+    }
+    impl<'de> ::serde::Deserialize<'de>
+    for ScientiaResearchMeshPromotedLedgerLineSourceRelativePath {
+        fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+        where
+            D: ::serde::Deserializer<'de>,
+        {
+            ::std::string::String::deserialize(deserializer)?
+                .parse()
+                .map_err(|e: self::error::ConversionError| {
+                    <D::Error as ::serde::de::Error>::custom(e.to_string())
+                })
+        }
     }
 }
 
@@ -8380,7 +8550,7 @@ pub mod research_snapshot_v1_schema {
     ///
     /// ```json
     ///{
-    ///  "$id": "https://vox-lang.org/contracts/scientia/research-snapshot.v1.schema.json",
+    ///  "$id": "https://voxlang.org/contracts/scientia/research-snapshot.v1.schema.json",
     ///  "title": "SCIENTIA research snapshot v1",
     ///  "description": "Auditable recomputation snapshot for worthiness and metadata readiness diagnostics.",
     ///  "type": "object",
@@ -8393,28 +8563,46 @@ pub mod research_snapshot_v1_schema {
     ///    "version"
     ///  ],
     ///  "properties": {
-    ///    "citation_verification": {
+    ///    "version": {
+    ///      "type": "string",
+    ///      "const": "v1"
+    ///    },
+    ///    "publication_id": {
+    ///      "type": "string",
+    ///      "minLength": 1
+    ///    },
+    ///    "policy_profile": {
+    ///      "type": "string",
+    ///      "minLength": 1
+    ///    },
+    ///    "signals": {
     ///      "type": "object",
+    ///      "required": [
+    ///        "diagnostic",
+    ///        "hard_gate",
+    ///        "soft_gate"
+    ///      ],
     ///      "properties": {
-    ///        "confidence": {
-    ///          "type": "number",
-    ///          "maximum": 1.0,
-    ///          "minimum": 0.0
+    ///        "hard_gate": {
+    ///          "type": "array",
+    ///          "items": {
+    ///            "type": "string"
+    ///          }
     ///        },
-    ///        "unresolved_count": {
-    ///          "type": "integer",
-    ///          "minimum": 0.0
+    ///        "soft_gate": {
+    ///          "type": "array",
+    ///          "items": {
+    ///            "type": "string"
+    ///          }
     ///        },
-    ///        "verified_count": {
-    ///          "type": "integer",
-    ///          "minimum": 0.0
+    ///        "diagnostic": {
+    ///          "type": "array",
+    ///          "items": {
+    ///            "type": "string"
+    ///          }
     ///        }
     ///      },
     ///      "additionalProperties": false
-    ///    },
-    ///    "computed_at_ms": {
-    ///      "type": "integer",
-    ///      "minimum": 0.0
     ///    },
     ///    "coverage": {
     ///      "type": "object",
@@ -8423,12 +8611,31 @@ pub mod research_snapshot_v1_schema {
     ///        "metadata_required"
     ///      ],
     ///      "properties": {
-    ///        "metadata_recommended": {
+    ///        "metadata_required": {
     ///          "type": "number",
     ///          "maximum": 1.0,
     ///          "minimum": 0.0
     ///        },
-    ///        "metadata_required": {
+    ///        "metadata_recommended": {
+    ///          "type": "number",
+    ///          "maximum": 1.0,
+    ///          "minimum": 0.0
+    ///        }
+    ///      },
+    ///      "additionalProperties": false
+    ///    },
+    ///    "citation_verification": {
+    ///      "type": "object",
+    ///      "properties": {
+    ///        "verified_count": {
+    ///          "type": "integer",
+    ///          "minimum": 0.0
+    ///        },
+    ///        "unresolved_count": {
+    ///          "type": "integer",
+    ///          "minimum": 0.0
+    ///        },
+    ///        "confidence": {
     ///          "type": "number",
     ///          "maximum": 1.0,
     ///          "minimum": 0.0
@@ -8446,6 +8653,13 @@ pub mod research_snapshot_v1_schema {
     ///          "source"
     ///        ],
     ///        "properties": {
+    ///          "source": {
+    ///            "type": "string"
+    ///          },
+    ///          "retrieved_at_ms": {
+    ///            "type": "integer",
+    ///            "minimum": 0.0
+    ///          },
     ///          "confidence": {
     ///            "type": "number",
     ///            "maximum": 1.0,
@@ -8453,61 +8667,17 @@ pub mod research_snapshot_v1_schema {
     ///          },
     ///          "notes": {
     ///            "type": "string"
-    ///          },
-    ///          "retrieved_at_ms": {
-    ///            "type": "integer",
-    ///            "minimum": 0.0
-    ///          },
-    ///          "source": {
-    ///            "type": "string"
     ///          }
     ///        },
     ///        "additionalProperties": false
     ///      }
     ///    },
-    ///    "policy_profile": {
-    ///      "type": "string",
-    ///      "minLength": 1
-    ///    },
     ///    "previous_snapshot_hash": {
     ///      "type": "string"
     ///    },
-    ///    "publication_id": {
-    ///      "type": "string",
-    ///      "minLength": 1
-    ///    },
-    ///    "signals": {
-    ///      "type": "object",
-    ///      "required": [
-    ///        "diagnostic",
-    ///        "hard_gate",
-    ///        "soft_gate"
-    ///      ],
-    ///      "properties": {
-    ///        "diagnostic": {
-    ///          "type": "array",
-    ///          "items": {
-    ///            "type": "string"
-    ///          }
-    ///        },
-    ///        "hard_gate": {
-    ///          "type": "array",
-    ///          "items": {
-    ///            "type": "string"
-    ///          }
-    ///        },
-    ///        "soft_gate": {
-    ///          "type": "array",
-    ///          "items": {
-    ///            "type": "string"
-    ///          }
-    ///        }
-    ///      },
-    ///      "additionalProperties": false
-    ///    },
-    ///    "version": {
-    ///      "type": "string",
-    ///      "const": "v1"
+    ///    "computed_at_ms": {
+    ///      "type": "integer",
+    ///      "minimum": 0.0
     ///    }
     ///  },
     ///  "additionalProperties": false,
@@ -8543,17 +8713,17 @@ pub mod research_snapshot_v1_schema {
     ///{
     ///  "type": "object",
     ///  "properties": {
-    ///    "confidence": {
-    ///      "type": "number",
-    ///      "maximum": 1.0,
+    ///    "verified_count": {
+    ///      "type": "integer",
     ///      "minimum": 0.0
     ///    },
     ///    "unresolved_count": {
     ///      "type": "integer",
     ///      "minimum": 0.0
     ///    },
-    ///    "verified_count": {
-    ///      "type": "integer",
+    ///    "confidence": {
+    ///      "type": "number",
+    ///      "maximum": 1.0,
     ///      "minimum": 0.0
     ///    }
     ///  },
@@ -8592,12 +8762,12 @@ pub mod research_snapshot_v1_schema {
     ///    "metadata_required"
     ///  ],
     ///  "properties": {
-    ///    "metadata_recommended": {
+    ///    "metadata_required": {
     ///      "type": "number",
     ///      "maximum": 1.0,
     ///      "minimum": 0.0
     ///    },
-    ///    "metadata_required": {
+    ///    "metadata_recommended": {
     ///      "type": "number",
     ///      "maximum": 1.0,
     ///      "minimum": 0.0
@@ -8626,19 +8796,19 @@ pub mod research_snapshot_v1_schema {
     ///    "source"
     ///  ],
     ///  "properties": {
-    ///    "confidence": {
-    ///      "type": "number",
-    ///      "maximum": 1.0,
-    ///      "minimum": 0.0
-    ///    },
-    ///    "notes": {
+    ///    "source": {
     ///      "type": "string"
     ///    },
     ///    "retrieved_at_ms": {
     ///      "type": "integer",
     ///      "minimum": 0.0
     ///    },
-    ///    "source": {
+    ///    "confidence": {
+    ///      "type": "number",
+    ///      "maximum": 1.0,
+    ///      "minimum": 0.0
+    ///    },
+    ///    "notes": {
     ///      "type": "string"
     ///    }
     ///  },
@@ -8818,12 +8988,6 @@ pub mod research_snapshot_v1_schema {
     ///    "soft_gate"
     ///  ],
     ///  "properties": {
-    ///    "diagnostic": {
-    ///      "type": "array",
-    ///      "items": {
-    ///        "type": "string"
-    ///      }
-    ///    },
     ///    "hard_gate": {
     ///      "type": "array",
     ///      "items": {
@@ -8831,6 +8995,12 @@ pub mod research_snapshot_v1_schema {
     ///      }
     ///    },
     ///    "soft_gate": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "type": "string"
+    ///      }
+    ///    },
+    ///    "diagnostic": {
     ///      "type": "array",
     ///      "items": {
     ///        "type": "string"
@@ -8890,37 +9060,19 @@ pub mod scientia_evidence_graph_schema {
     ///
     /// ```json
     ///{
-    ///  "$id": "https://vox-lang.org/contracts/scientia/scientia-evidence-graph.schema.json",
+    ///  "$id": "https://voxlang.org/contracts/scientia/scientia-evidence-graph.schema.json",
     ///  "title": "metadata_json.scientia_evidence graph",
     ///  "description": "Shared evidence bundle for scholarly + social automation. Optional fields extend over time.",
     ///  "type": "object",
     ///  "properties": {
-    ///    "autofill_provenance": {
-    ///      "type": "array",
-    ///      "items": {
-    ///        "type": "object",
-    ///        "properties": {
-    ///          "facet": {
-    ///            "type": "string"
-    ///          },
-    ///          "notes": {
-    ///            "type": "string"
-    ///          },
-    ///          "origin": {
-    ///            "type": "string"
-    ///          }
-    ///        },
-    ///        "additionalProperties": false
-    ///      }
+    ///    "socrates_aggregate": {
+    ///      "type": "object"
+    ///    },
+    ///    "eval_gate": {
+    ///      "type": "object"
     ///    },
     ///    "benchmark": {
     ///      "type": "object"
-    ///    },
-    ///    "benchmark_pair_report_repo_relative": {
-    ///      "type": "string"
-    ///    },
-    ///    "candidate_note": {
-    ///      "type": "string"
     ///    },
     ///    "discovery_signals": {
     ///      "type": "array",
@@ -8929,46 +9081,25 @@ pub mod scientia_evidence_graph_schema {
     ///        "additionalProperties": true
     ///      }
     ///    },
-    ///    "doc_section_hints": {
-    ///      "type": "array",
-    ///      "items": {
-    ///        "type": "object",
-    ///        "properties": {
-    ///          "heading_level": {
-    ///            "type": "integer",
-    ///            "maximum": 6.0,
-    ///            "minimum": 1.0
-    ///          },
-    ///          "line": {
-    ///            "type": "integer",
-    ///            "minimum": 1.0
-    ///          },
-    ///          "slug": {
-    ///            "type": "string"
-    ///          },
-    ///          "title": {
-    ///            "type": "string"
-    ///          }
-    ///        },
-    ///        "additionalProperties": false
-    ///      }
-    ///    },
     ///    "draft_preparation": {
     ///      "type": "object"
     ///    },
-    ///    "eval_gate": {
-    ///      "type": "object"
-    ///    },
-    ///    "eval_gate_report_repo_relative": {
+    ///    "candidate_note": {
     ///      "type": "string"
     ///    },
     ///    "eval_gate_run_dir_repo_relative": {
     ///      "type": "string"
     ///    },
-    ///    "human_ai_disclosure_complete": {
-    ///      "type": "boolean"
+    ///    "eval_gate_report_repo_relative": {
+    ///      "type": "string"
+    ///    },
+    ///    "benchmark_pair_report_repo_relative": {
+    ///      "type": "string"
     ///    },
     ///    "human_meaningful_advance": {
+    ///      "type": "boolean"
+    ///    },
+    ///    "human_ai_disclosure_complete": {
     ///      "type": "boolean"
     ///    },
     ///    "linked_doc_repo_relatives": {
@@ -8981,6 +9112,9 @@ pub mod scientia_evidence_graph_schema {
     ///      "type": "string"
     ///    },
     ///    "reproducibility_manifest_repo_relative": {
+    ///      "type": "string"
+    ///    },
+    ///    "trust_rollup_repo_relative": {
     ///      "type": "string"
     ///    },
     ///    "signal_conflicts": {
@@ -9004,11 +9138,47 @@ pub mod scientia_evidence_graph_schema {
     ///        "additionalProperties": false
     ///      }
     ///    },
-    ///    "socrates_aggregate": {
-    ///      "type": "object"
+    ///    "doc_section_hints": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "type": "object",
+    ///        "properties": {
+    ///          "heading_level": {
+    ///            "type": "integer",
+    ///            "maximum": 6.0,
+    ///            "minimum": 1.0
+    ///          },
+    ///          "slug": {
+    ///            "type": "string"
+    ///          },
+    ///          "title": {
+    ///            "type": "string"
+    ///          },
+    ///          "line": {
+    ///            "type": "integer",
+    ///            "minimum": 1.0
+    ///          }
+    ///        },
+    ///        "additionalProperties": false
+    ///      }
     ///    },
-    ///    "trust_rollup_repo_relative": {
-    ///      "type": "string"
+    ///    "autofill_provenance": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "type": "object",
+    ///        "properties": {
+    ///          "facet": {
+    ///            "type": "string"
+    ///          },
+    ///          "origin": {
+    ///            "type": "string"
+    ///          },
+    ///          "notes": {
+    ///            "type": "string"
+    ///          }
+    ///        },
+    ///        "additionalProperties": false
+    ///      }
     ///    }
     ///  },
     ///  "additionalProperties": true
@@ -9104,10 +9274,10 @@ pub mod scientia_evidence_graph_schema {
     ///    "facet": {
     ///      "type": "string"
     ///    },
-    ///    "notes": {
+    ///    "origin": {
     ///      "type": "string"
     ///    },
-    ///    "origin": {
+    ///    "notes": {
     ///      "type": "string"
     ///    }
     ///  },
@@ -9148,15 +9318,15 @@ pub mod scientia_evidence_graph_schema {
     ///      "maximum": 6.0,
     ///      "minimum": 1.0
     ///    },
-    ///    "line": {
-    ///      "type": "integer",
-    ///      "minimum": 1.0
-    ///    },
     ///    "slug": {
     ///      "type": "string"
     ///    },
     ///    "title": {
     ///      "type": "string"
+    ///    },
+    ///    "line": {
+    ///      "type": "integer",
+    ///      "minimum": 1.0
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -9266,10 +9436,6 @@ pub mod worthiness_signals_v2_schema {
     ///    "priority"
     ///  ],
     ///  "properties": {
-    ///    "action": {
-    ///      "type": "string",
-    ///      "minLength": 1
-    ///    },
     ///    "id": {
     ///      "type": "string",
     ///      "pattern": "^[a-z0-9_\\-]+$"
@@ -9278,6 +9444,10 @@ pub mod worthiness_signals_v2_schema {
     ///      "type": "integer",
     ///      "maximum": 999.0,
     ///      "minimum": 1.0
+    ///    },
+    ///    "action": {
+    ///      "type": "string",
+    ///      "minLength": 1
     ///    }
     ///  },
     ///  "additionalProperties": false
@@ -9443,7 +9613,7 @@ pub mod worthiness_signals_v2_schema {
     ///
     /// ```json
     ///{
-    ///  "$id": "https://vox-lang.org/contracts/scientia/worthiness-signals.v2.schema.json",
+    ///  "$id": "https://voxlang.org/contracts/scientia/worthiness-signals.v2.schema.json",
     ///  "title": "SCIENTIA worthiness signals v2",
     ///  "description": "Profile-aware signal output contract for publication-worthiness v2.",
     ///  "type": "object",
@@ -9456,17 +9626,9 @@ pub mod worthiness_signals_v2_schema {
     ///    "version"
     ///  ],
     ///  "properties": {
-    ///    "diagnostic": {
-    ///      "$ref": "#/$defs/signalArray"
-    ///    },
-    ///    "hard_gate": {
-    ///      "$ref": "#/$defs/signalArray"
-    ///    },
-    ///    "next_actions": {
-    ///      "type": "array",
-    ///      "items": {
-    ///        "$ref": "#/$defs/actionItem"
-    ///      }
+    ///    "version": {
+    ///      "type": "string",
+    ///      "const": "v2"
     ///    },
     ///    "profile": {
     ///      "type": "string",
@@ -9477,12 +9639,20 @@ pub mod worthiness_signals_v2_schema {
     ///        "social"
     ///      ]
     ///    },
+    ///    "hard_gate": {
+    ///      "$ref": "#/$defs/signalArray"
+    ///    },
     ///    "soft_gate": {
     ///      "$ref": "#/$defs/signalArray"
     ///    },
-    ///    "version": {
-    ///      "type": "string",
-    ///      "const": "v2"
+    ///    "diagnostic": {
+    ///      "$ref": "#/$defs/signalArray"
+    ///    },
+    ///    "next_actions": {
+    ///      "type": "array",
+    ///      "items": {
+    ///        "$ref": "#/$defs/actionItem"
+    ///      }
     ///    }
     ///  },
     ///  "additionalProperties": false,
@@ -9604,9 +9774,6 @@ pub mod worthiness_signals_v2_schema {
     ///      "score"
     ///    ],
     ///    "properties": {
-    ///      "details": {
-    ///        "type": "string"
-    ///      },
     ///      "id": {
     ///        "type": "string",
     ///        "pattern": "^[a-z0-9_\\-]+$"
@@ -9614,14 +9781,17 @@ pub mod worthiness_signals_v2_schema {
     ///      "passed": {
     ///        "type": "boolean"
     ///      },
-    ///      "reason_code": {
-    ///        "type": "string",
-    ///        "minLength": 1
-    ///      },
     ///      "score": {
     ///        "type": "number",
     ///        "maximum": 1.0,
     ///        "minimum": 0.0
+    ///      },
+    ///      "reason_code": {
+    ///        "type": "string",
+    ///        "minLength": 1
+    ///      },
+    ///      "details": {
+    ///        "type": "string"
     ///      }
     ///    },
     ///    "additionalProperties": false
@@ -9662,9 +9832,6 @@ pub mod worthiness_signals_v2_schema {
     ///    "score"
     ///  ],
     ///  "properties": {
-    ///    "details": {
-    ///      "type": "string"
-    ///    },
     ///    "id": {
     ///      "type": "string",
     ///      "pattern": "^[a-z0-9_\\-]+$"
@@ -9672,14 +9839,17 @@ pub mod worthiness_signals_v2_schema {
     ///    "passed": {
     ///      "type": "boolean"
     ///    },
-    ///    "reason_code": {
-    ///      "type": "string",
-    ///      "minLength": 1
-    ///    },
     ///    "score": {
     ///      "type": "number",
     ///      "maximum": 1.0,
     ///      "minimum": 0.0
+    ///    },
+    ///    "reason_code": {
+    ///      "type": "string",
+    ///      "minLength": 1
+    ///    },
+    ///    "details": {
+    ///      "type": "string"
     ///    }
     ///  },
     ///  "additionalProperties": false

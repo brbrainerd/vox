@@ -324,7 +324,7 @@ fn classify_cell(
             result.notes = "Run on Linux x64 to measure this cell.".to_string();
         }
         "linux-streaming-ws-whisper-cpu-16k-command" => {
-            result.evidence = "vox-oratio exposes HTTP POST /transcribe; advertised Oratio WS stream route has no matching server route.".to_string();
+            result.evidence = "vox-speech exposes HTTP POST /transcribe; advertised Oratio WS stream route has no matching server route.".to_string();
             result.notes = "Streaming cell remains a transport gap.".to_string();
         }
         "win-cli-eval-whisper-cuda-16k-code" => {

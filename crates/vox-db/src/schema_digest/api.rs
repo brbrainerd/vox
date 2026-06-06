@@ -1,4 +1,4 @@
-use vox_compiler::ast::decl::{Decl, Module};
+use vox_ast::decl::{Decl, Module};
 
 use super::digest_types::*;
 use super::helpers::*;
@@ -72,13 +72,13 @@ pub fn generate_schema_digest(module: &Module, vcs_snapshot_id: Option<String>) 
                 });
             }
             Decl::Endpoint(e) => match e.kind {
-                vox_compiler::ast::decl::EndpointKind::Query => {
+                vox_ast::decl::EndpointKind::Query => {
                     queries.push(extract_function_info(&e.func, &table_names));
                 }
-                vox_compiler::ast::decl::EndpointKind::Mutation => {
+                vox_ast::decl::EndpointKind::Mutation => {
                     mutations.push(extract_function_info(&e.func, &table_names));
                 }
-                vox_compiler::ast::decl::EndpointKind::Server => {}
+                vox_ast::decl::EndpointKind::Server => {}
             },
 
             _ => {}

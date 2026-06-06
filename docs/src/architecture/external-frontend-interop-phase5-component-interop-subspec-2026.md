@@ -33,7 +33,7 @@ The spec is organised as **tiers of fidelity** so cost is assessed honestly — 
 
 | Capability | State | Evidence |
 |---|---|---|
-| `import react MyButton from "../ui/MyButton.tsx"` parses | ✅ default-only | [`parser/descent/decl/head.rs:95-150`](../../../crates/vox-compiler/src/parser/descent/decl/head.rs); AST `ImportPathKind::ReactComponent { local_name, module_specifier }` ([`ast/decl/types.rs:33-55`](../../../crates/vox-compiler/src/ast/decl/types.rs)) |
+| `import react MyButton from "../ui/MyButton.tsx"` parses | ✅ default-only | [`parser/descent/decl/head.rs:95-150`](../../../crates/vox-compiler/src/parser/descent/decl/head.rs); AST `ImportPathKind::ReactComponent { local_name, module_specifier }` ([`ast/decl/types.rs:33-55`](../../../crates/vox-ast/src/decl/types.rs)) |
 | Destructured + slash/dot symbol imports | ✅ | `import lib/chrome as { A, B }` and `import lib.chrome.X` both pass ([`parser_import_syntax_test.rs`](../../../crates/vox-compiler/tests/parser_import_syntax_test.rs)) |
 | Lowers to HIR | ✅ | `HirImport.es_module_specifier: Option<String>` ([`hir/nodes/decl.rs:227-249`](../../../crates/vox-compiler/src/hir/nodes/decl.rs)); [`hir/lower/mod.rs:139-151`](../../../crates/vox-compiler/src/hir/lower/mod.rs) |
 | Web target emits the ES import | ✅ default-only | [`reactive.rs:947-964`](../../../crates/vox-codegen/src/codegen_ts/reactive.rs) → `format!("import {item} from \"{spec}\";")` |
@@ -132,7 +132,7 @@ A **dev-time** step (`vox import-types <specifier>`) invokes the TypeScript comp
 
 ## 7. Import-form grammar (C1)
 
-Extend the existing `import` parser ([`head.rs:95-150`](../../../crates/vox-compiler/src/parser/descent/decl/head.rs)) and `ImportPathKind::ReactComponent` ([`ast/decl/types.rs:33-55`](../../../crates/vox-compiler/src/ast/decl/types.rs)) from default-only to:
+Extend the existing `import` parser ([`head.rs:95-150`](../../../crates/vox-compiler/src/parser/descent/decl/head.rs)) and `ImportPathKind::ReactComponent` ([`ast/decl/types.rs:33-55`](../../../crates/vox-ast/src/decl/types.rs)) from default-only to:
 
 ```vox
 // vox:skip — illustrative import-form surface; `Dialog` appears as both named and namespace to show the variants, so this is not a single compile unit.

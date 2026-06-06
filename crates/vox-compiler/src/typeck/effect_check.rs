@@ -84,6 +84,7 @@ fn effect_kind_to_cap(eff: &HirEffectKind) -> HirCapability {
         HirEffectKind::Spawn => HirCapability::Spawn,
         HirEffectKind::GpuCompute => HirCapability::GpuCompute,
         HirEffectKind::Mutate => HirCapability::Mutate,
+        HirEffectKind::Vcs => HirCapability::Vcs,
         HirEffectKind::Mcp(s) => HirCapability::Mcp(s.clone()),
     }
 }
@@ -333,6 +334,17 @@ fn check_expr(
                 check_expr(a, caller_name, caller_set, cap_map, source, diags);
             }
         }
+        // Descend into Try so `effectful_call()?` is not silently ungoverned.
+        HirExpr::Try(t) => {
+            check_expr(
+                t.target.as_ref(),
+                caller_name,
+                caller_set,
+                cap_map,
+                source,
+                diags,
+            );
+        }
         // Leaves.
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
@@ -342,7 +354,6 @@ fn check_expr(
         | HirExpr::Ident(..)
         | HirExpr::JsxSelfClosing(_)
         | HirExpr::Jsx(_)
-        | HirExpr::Try(_)
         | HirExpr::WorkflowVersion(_) => {}
     }
 }
@@ -488,6 +499,10 @@ fn infer_expr_effects(expr: &HirExpr, caps: &mut HashSet<HirCapability>) {
                 infer_expr_effects(a, caps);
             }
         }
+        // Descend into Try so `effectful_call()?` is not silently ungoverned.
+        HirExpr::Try(t) => {
+            infer_expr_effects(t.target.as_ref(), caps);
+        }
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
         | HirExpr::DecimalLit(..)
@@ -496,7 +511,6 @@ fn infer_expr_effects(expr: &HirExpr, caps: &mut HashSet<HirCapability>) {
         | HirExpr::Ident(..)
         | HirExpr::JsxSelfClosing(_)
         | HirExpr::Jsx(_)
-        | HirExpr::Try(_)
         | HirExpr::WorkflowVersion(_) => {}
     }
 }
@@ -514,6 +528,8 @@ fn stdlib_module_capability(module: &str) -> Option<HirCapability> {
         // Web automation/scraping are network-bearing (Browser also launches a
         // process; Net is the load-bearing capability). Previously ungoverned.
         "Scrape" | "scrape" | "Browser" | "OpenClaw" => Some(HirCapability::Net),
+        // VCS / repository builtins.
+        "repo" | "Repo" | "vcs" | "Vcs" => Some(HirCapability::Vcs),
         _ => None,
     }
 }
@@ -733,6 +749,40 @@ fn caller() to str { fetch() }",
             diags[0].message.contains("db"),
             "expected db violation: {}",
             diags[0].message
+        );
+    }
+
+    #[test]
+    fn test_repo_method_call_requires_vcs() {
+        // `repo.snapshot(...)` without `uses vcs` must produce a diagnostic mentioning "vcs".
+        let diags = check(r#"fn f() uses nothing to str { repo.snapshot("HEAD") }"#);
+        assert_eq!(diags.len(), 1, "expected vcs violation: {diags:?}");
+        assert!(
+            diags[0].message.contains("vcs"),
+            "expected 'vcs' in message: {}",
+            diags[0].message
+        );
+        assert!(
+            diags[0].message.contains("repo.snapshot"),
+            "expected call site in message: {}",
+            diags[0].message
+        );
+    }
+
+    #[test]
+    fn test_repo_method_call_ok_with_vcs() {
+        let diags = check(r#"fn f() uses vcs to str { repo.snapshot("HEAD") }"#);
+        assert!(diags.is_empty(), "unexpected violation: {diags:?}");
+    }
+
+    #[test]
+    fn test_repo_method_call_with_try_requires_vcs() {
+        // `repo.snapshot(...)?` must still require `uses vcs` — Try must not
+        // mask the inner effectful call from the effect checker.
+        let diags = check(r#"fn f() uses nothing to str { repo.snapshot("HEAD")? }"#);
+        assert!(
+            diags.iter().any(|d| d.message.contains("vcs")),
+            "expected vcs violation, got {diags:?}"
         );
     }
 

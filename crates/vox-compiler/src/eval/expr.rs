@@ -478,6 +478,37 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     m = method,
                 )));
             }
+            // Native-codegen-only namespaces are not implemented by the
+            // tree-walking interpreter (they require `--mode script` / compiled
+            // builds — e.g. `Scrape.*` reqwest+scraper, `Browser.*` chromiumoxide
+            // CDP). Evaluating the receiver would surface a confusing
+            // `UndefinedVariable("Scrape")`; emit an actionable diagnostic
+            // instead (CR-F4: an arm that cannot support a construct must say so
+            // clearly, never fail opaquely). See where-things-live.md.
+            if let HirExpr::Ident(ns_name, _) = obj.as_ref()
+                && matches!(ns_name.as_str(), "Scrape" | "Browser")
+            {
+                return Err(EvalError::AssertionFailed(format!(
+                    "`{ns}.{m}(...)` is only available in compiled builds \
+                     (`vox run --mode script` / `vox build`), not the `--mode interp` \
+                     interpreter: the `{ns}` namespace is native-codegen-only. \
+                     Run this program with `--mode script` to use it.",
+                    ns = ns_name,
+                    m = method,
+                )));
+            }
+            // `repo.*` namespace dispatch — gate on AST receiver identity, not
+            // a spoofable `__namespace__` object field.
+            if let HirExpr::Ident(ns_name, _) = obj.as_ref()
+                && ns_name == "repo"
+            {
+                let mut eval_args = Vec::new();
+                for a in args {
+                    eval_args.push(eval_expr(interp, &a.value)?);
+                }
+                return super::repo::execute_repo_op(interp, method, eval_args);
+            }
+
             let o = eval_expr(interp, obj)?;
             let mut eval_args = Vec::new();
             for a in args {

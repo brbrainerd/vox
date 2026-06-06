@@ -76,6 +76,7 @@ pub use stmt_expr::{emit_expr, emit_main_stmt};
 pub use tables::{
     emit_index_ddl, emit_table_ddl, emit_table_struct, validate_db_projection_suffixes_unique,
 };
+pub(crate) use types::emit_type;
 pub use workflow::{emit_fn, emit_lib};
 
 pub struct CodegenOutput {
@@ -523,7 +524,7 @@ turso = {{ version = "0.4", default-features = false }}
 vox-db = {{ path = "../../../crates/vox-db" }}
 vox-actor-runtime = {{ path = "../../../crates/vox-actor-runtime" }}
 vox-orchestrator = {{ path = "../../../crates/vox-orchestrator" }}
-vox-oratio = {{ path = "../../../crates/vox-oratio" }}
+vox-speech = {{ path = "../../../crates/vox-speech" }}
 {stt_dep}# P9 (2026-05-24): durable boot prelude — see vox-codegen emit/main_boot.rs.
 # Tauri main.rs now emits the prelude (inside .setup) when @scheduled fns are present.
 vox-compiler = {{ path = "../../../crates/vox-compiler" }}
@@ -632,7 +633,7 @@ turso = {{ version = "0.4", default-features = false }}
 vox-db = {{ path = "../../crates/vox-db" }}
 vox-actor-runtime = {{ path = "../../crates/vox-actor-runtime" }}
 vox-orchestrator = {{ path = "../../crates/vox-orchestrator" }}
-vox-oratio = {{ path = "../../crates/vox-oratio" }}
+vox-speech = {{ path = "../../crates/vox-speech" }}
 # P9 (2026-05-24): durable boot prelude in main.rs references both — see
 # crates/vox-codegen/src/codegen_rust/emit/main_boot.rs (HirModule embed
 # + scheduled runner + set_current_hir_module).

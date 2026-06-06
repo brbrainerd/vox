@@ -76,6 +76,7 @@ vox-orchestrator-types = { layer = 0 }
 
 vox-db-types           = { layer = 0 }
 vox-mesh-types         = { layer = 0 }
+vox-ast                = { layer = 0, max_dependents = 40 }   # pure-data Vox AST (serde-only); extracted from vox-compiler 2026-06-05, re-exported as vox_compiler::ast
 workspace-hack         = { layer = 0, max_dependents = 80, staleness_exempt = true }
 vox-arch-check         = { layer = 0, kind = "binary" }
 vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only helper; intentionally stable — must not be folded into vox-foundation
@@ -114,12 +115,13 @@ vox-capability-registry = { layer = 2 }
 
 vox-project-scaffold    = { layer = 2 }
 vox-quantize            = { layer = 2, max_loc = 4_000 }
+vox-nanopub             = { layer = 2, max_loc = 1_000 }  # SCIENTIA nanopublication leaf (vox-crypto + sha2 + hex); extracted from vox-scientia 2026-06-05
 vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
 vox-journal             = { layer = 2 }                          # append-only JSONL journal; deps vox-runtime (L1) (PR #97)
 # L3: both consume the vox-actor-runtime (L3) LLM facade — every actor-runtime
-# consumer (vox-search, vox-tensor, vox-dei-shim, vox-orchestrator) is L3, so
+# consumer (vox-search, vox-tensor, vox-research-shim, vox-orchestrator) is L3, so
 # these are too (a heavy-runtime consumer is L3, not an L2 pure-data library).
 vox-effort-audit        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-effort-route        = { layer = 3, kind = "library", max_loc = 4_000 }
@@ -143,11 +145,11 @@ vox-scientia-jsonschema-codegen = { layer = 3, kind = "binary" }               #
 vox-ml-cli              = { layer = 3, kind = "binary", max_loc = 20_000 }
 vox-publisher           = { layer = 3, max_loc = 22_000 }  # raised from 20_000 (was at 19,951 / 20,000 headroom)
 vox-orchestrator        = { layer = 3, max_dependents = 30, max_loc = 70_000 }
-vox-dei-shim            = { layer = 3, max_loc = 8_000, staleness_exempt = true }  # A-12 wedge: DEI research + model-selection extracted from vox-orchestrator
+vox-research-shim            = { layer = 3, max_loc = 8_000, staleness_exempt = true }  # A-12 wedge: DEI research + model-selection extracted from vox-orchestrator
 vox-orchestrator-test-helpers = { layer = 3, kind = "test-only", max_dependents = 25, staleness_exempt = true }
 vox-actor-runtime       = { layer = 3, max_loc = 15_000 }
 vox-populi              = { layer = 3, max_loc = 20_000 }
-vox-oratio              = { layer = 3, sibling_of = ["vox-plugin-oratio"] }                    # Unit-4 extraction migration: shared code with plugin variant tolerated by drift sweep
+vox-speech              = { layer = 3, sibling_of = ["vox-plugin-speech"] }                    # Unit-4 extraction migration: shared code with plugin variant tolerated by drift sweep
 vox-wasm-engine         = { layer = 3 }
 vox-container-types     = { layer = 0 }              # pure types: ContainerRuntime trait, BuildOpts/RunOpts, RuntimePreference, exec_grammar (D-9-rescope step 1)
 vox-container           = { layer = 3 }
@@ -193,7 +195,7 @@ vox-plugin-cloud             = { layer = 4, kind = "plugin" }
 vox-plugin-mens-candle-cuda  = { layer = 4, kind = "plugin", sibling_of = ["vox-plugin-mens-candle-metal", "vox-populi"] }  # vendor-split GPU backends; populi held the legacy MENS tensor copy mid-migration
 vox-plugin-mens-candle-metal = { layer = 4, kind = "plugin", sibling_of = ["vox-plugin-mens-candle-cuda", "vox-populi"] }  # vendor-split GPU backends; populi held the legacy MENS tensor copy mid-migration
 vox-plugin-nvml-probe        = { layer = 4, kind = "plugin" }
-vox-plugin-oratio            = { layer = 4, kind = "plugin" }
+vox-plugin-speech            = { layer = 4, kind = "plugin" }
 vox-plugin-populi-mesh       = { layer = 4, kind = "plugin" }
 vox-plugin-publication       = { layer = 4, kind = "plugin" }
 vox-plugin-runtime-container = { layer = 4, kind = "plugin" }
@@ -383,7 +385,6 @@ reason           = "Application package manifests use @tauri-apps/* per ADR 037.
 [planned]
 vox-claim-extractor      = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
 vox-inspect-bridge       = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 3 }
-vox-nanopub              = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
 vox-prereg               = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
 vox-ro-crate             = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
 vox-scientia-ingest      = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 3 }

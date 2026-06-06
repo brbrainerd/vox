@@ -1,0 +1,504 @@
+//! Per-user nanopublication identity resolver (design §4.1).
+//!
+//! Binds a `user_id` to its RSA signing material via a get-or-create flow:
+//! - the private key lives in the Clavis vault under
+//!   [`SecretId::VoxUserRsaNanopubPrivateKeyB64`] (per-user, NEVER shared);
+//! - the public key + ORCID + the secret's canonical-env reference live in the
+//!   `user_identities` table.
+//!
+//! This module owns the DB + secrets I/O so that `vox-scientia` stays a pure,
+//! side-effect-free library. It does NOT publish anything to the network.
+
+use vox_db::VoxDb;
+use vox_db::store::{NanopubRow, UserIdentityRow};
+use vox_scientia::nanopub::spec::{NanopubProfile, SignedNanopubDoc, gen_keys};
+use vox_secrets::SecretId;
+
+/// Resolve the effective ORCID via the canonical precedence: the explicit
+/// `param` wins; else the stored `row_orcid`; else an error.
+///
+/// This is the single source of truth for the ORCID-precedence rule used by
+/// [`resolve_or_create_identity`]. Pure: no DB, no vault, no I/O.
+///
+/// # Errors
+/// Returns an error (mentioning ORCID) when neither source supplies one.
+fn effective_orcid(param: Option<&str>, row_orcid: Option<&str>) -> anyhow::Result<String> {
+    param
+        .map(str::to_string)
+        .or_else(|| row_orcid.map(str::to_string))
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "an ORCID is required to sign a nanopublication; \
+                 pass one explicitly (e.g. https://orcid.org/0000-0002-1825-0097) or \
+                 store one on the user identity first"
+            )
+        })
+}
+
+/// Get-or-create the per-user nanopublication signing identity.
+///
+/// 1. Reads the stored `user_identities` row (if any).
+/// 2. Chooses an ORCID: the `orcid` arg wins; else the stored `orcid_id`; else
+///    errors (the `nanopub` crate requires an `https://orcid.org/` identity to
+///    sign).
+/// 3. Resolves the private key from the vault. If a row exists AND the key
+///    resolves, REUSES that material.
+/// 4. Otherwise GENERATES a fresh RSA keypair, stores the private key in the
+///    vault, and upserts the public key + ORCID + key-ref into the DB.
+///
+/// Returns a [`NanopubProfile`] whose `name` is the `user_id`.
+///
+/// # Errors
+/// Returns an error if no ORCID can be determined, if RSA keygen fails, if the
+/// vault write fails, or if any DB op fails.
+pub async fn resolve_or_create_identity(
+    db: &VoxDb,
+    user_id: &str,
+    orcid: Option<&str>,
+) -> anyhow::Result<NanopubProfile> {
+    let existing = db.get_user_identity(user_id).await?;
+
+    // Choose the ORCID: explicit arg first, then the stored one (single source
+    // of truth for the precedence rule lives in `effective_orcid`).
+    let row_orcid = existing.as_ref().and_then(|row| row.orcid_id.as_deref());
+    let chosen_orcid = effective_orcid(orcid, row_orcid)
+        .map_err(|e| anyhow::anyhow!("{e} (for user `{user_id}`)"))?;
+
+    let key_id = SecretId::VoxUserRsaNanopubPrivateKeyB64;
+
+    // REUSE path: a row exists and the private key resolves from the vault.
+    if existing.is_some() {
+        if let Some(priv_b64) = vox_secrets::resolve_secret(key_id).expose() {
+            return Ok(NanopubProfile {
+                orcid: chosen_orcid,
+                name: user_id.to_string(),
+                rsa_private_key_b64: priv_b64.to_string().into(),
+            });
+        }
+    }
+
+    // CREATE path: generate a fresh keypair, persist the private key in the
+    // vault and the public key + ORCID + key-ref in the DB.
+    let (priv_b64, pub_b64) =
+        gen_keys().map_err(|e| anyhow::anyhow!("RSA nanopub keygen failed: {e}"))?;
+
+    // KNOWN LIMITATION: the private key is stored under a single account-scoped
+    // canonical env (`VOX_USER_RSA_NANOPUB_PRIVATE_KEY_B64`), not namespaced by
+    // `user_id`. This is correct for one human per account (the P1 target): a
+    // second `user_id` on the same account would reuse the same key material.
+    // Per-user-per-account namespacing of the secret is deliberately future work.
+    vox_secrets::store_secret(key_id, &priv_b64, None)
+        .map_err(|e| anyhow::anyhow!("failed to store nanopub private key in vault: {e}"))?;
+
+    let canonical_env = key_id.spec().canonical_env;
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    let row = UserIdentityRow {
+        user_id: user_id.to_string(),
+        orcid_id: Some(chosen_orcid.clone()),
+        nanopub_pubkey_b64: Some(pub_b64),
+        nanopub_key_ref: canonical_env.to_string(),
+        created_at_ms: now_ms,
+        updated_at_ms: now_ms,
+    };
+    db.upsert_user_identity(&row).await?;
+
+    Ok(NanopubProfile {
+        orcid: chosen_orcid,
+        name: user_id.to_string(),
+        rsa_private_key_b64: priv_b64.into(),
+    })
+}
+
+/// P1 — Build a spec-compliant, RSA-signed, OFFLINE-validated nanopublication for
+/// a single extracted claim, then persist it locally. This function performs NO
+/// network publishing of any kind (no `publish`, no test server).
+///
+/// Steps:
+/// 1. Load the claim row + its latest verdict from the SCIENTIA claim ledger
+///    (errors helpfully if absent — run `publication-extract-claims` first).
+/// 2. Resolve (or create) the per-user RSA + ORCID signing identity.
+/// 3. Assemble the enriched assertion Turtle and RSA-sign it (build + sign).
+/// 4. VALIDATE the signed TriG OFFLINE (trusty hash + signature). Fails hard if
+///    invalid — nothing is persisted on a validation failure.
+/// 5. Persist a `scientia_nanopubs` row with `published_state="local"` and
+///    `validated_offline=true`.
+///
+/// Returns the [`SignedNanopubDoc`] (Trusty URI + signed TriG). The caller prints
+/// a short human line (the Trusty URI) — this function deliberately writes NOTHING
+/// to stdout, but note that [`vox_scientia::nanopub::spec::validate_offline`]
+/// internally calls the upstream `nanopub` crate's `check()`, which prints a
+/// `✅ ... is valid` line to stdout on success. A strict `--json` mode for this
+/// command therefore needs upstream stdout suppression and is deferred.
+///
+/// # Errors
+/// Returns an error if the claim/verdict is missing, if no ORCID is available, if
+/// signing fails, if offline validation fails, or if any DB op fails.
+pub async fn nanopub_build(
+    db: &VoxDb,
+    publication_id: &str,
+    claim_id: i64,
+    orcid: Option<&str>,
+) -> anyhow::Result<SignedNanopubDoc> {
+    // 1. Load the claim row joined to its latest verdict. We reuse the existing
+    // `list_publication_claims` op (keyed by the publication's derived session id)
+    // and select the matching `claim_id`, rather than adding a narrow getter.
+    let session_id = super::scientia_phase_handlers::publication_session_id(publication_id);
+    let claims = db
+        .list_publication_claims(session_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("list publication claims: {e}"))?;
+    let claim = claims
+        .into_iter()
+        .find(|c| c.claim_id == claim_id)
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "claim {claim_id} not found for publication `{publication_id}`; \
+                 run `vox scientia publication-extract-claims --publication-id {publication_id}` first"
+            )
+        })?;
+
+    // A confidence is required: it maps to `scientia:confidence` in the assertion.
+    // Absent → the claim has no verdict yet.
+    let confidence = claim.confidence.ok_or_else(|| {
+        anyhow::anyhow!(
+            "claim {claim_id} has no recorded verdict/confidence; \
+             run `vox scientia publication-extract-claims --publication-id {publication_id}` first"
+        )
+    })?;
+
+    // 2. Resolve (or create) the per-user RSA + ORCID signing identity.
+    let user = vox_config::paths::local_user_id();
+    let profile = resolve_or_create_identity(db, &user, orcid).await?;
+
+    // 3. Assemble the enriched assertion. Mapping (design §; P1 scope):
+    //   - tuple: None — the atomic claim tuple (variable_a/relation/variable_b)
+    //     is NOT persisted in `scientia_claims` (only `text`); future enhancement.
+    //   - verifiability: "numeric" when the claim is numeric, else "semantic".
+    //   - confidence: the latest verdict's confidence (required, checked above).
+    //   - novelty: "insufficient_evidence" for P1 — novelty-bundle wiring is a
+    //     later phase, so no novelty verdict is available here.
+    //   - prior_art_uris: empty for P1 (sourced from the novelty bundle later).
+    let verifiability = if claim.is_numeric {
+        "numeric"
+    } else {
+        "semantic"
+    };
+    let assertion = vox_scientia::nanopub::spec::assertion_ttl_for_claim(
+        &claim.text,
+        None, // tuple not persisted in scientia_claims; future enhancement.
+        verifiability,
+        confidence,
+        "insufficient_evidence",
+        &[],
+    );
+
+    // 4. Build + RSA-sign. Stamp the claim's creation time (its provenance moment).
+    let signed = vox_scientia::nanopub::spec::build_and_sign(
+        &assertion,
+        &profile.orcid,
+        claim.created_at_ms / 1000,
+        &profile,
+    )
+    .map_err(|e| anyhow::anyhow!("build/sign nanopub: {e}"))?;
+
+    // 5. OFFLINE validation gate. Fail hard if invalid — persist NOTHING.
+    // NOTE: the upstream `check()` inside `validate_offline` prints a `✅ ... is
+    // valid` line to stdout on success; a strict `--json` mode needs upstream
+    // stdout suppression (no clean suppression crate is a workspace dep today).
+    vox_scientia::nanopub::spec::validate_offline(&signed.trig)
+        .map_err(|e| anyhow::anyhow!("offline validation failed for signed nanopub: {e}"))?;
+
+    // 6. Persist the local, offline-validated artifact.
+    let row = NanopubRow {
+        trusty_uri: signed.trusty_uri.clone(),
+        claim_id,
+        publication_id: Some(publication_id.to_string()),
+        user_id: user,
+        orcid_id: Some(profile.orcid.clone()),
+        trig: signed.trig.clone(),
+        validated_offline: true,
+        published_state: "local".to_string(),
+        created_at_ms: chrono::Utc::now().timestamp_millis(),
+    };
+    db.insert_scientia_nanopub(&row)
+        .await
+        .map_err(|e| anyhow::anyhow!("persist scientia_nanopubs row: {e}"))?;
+
+    Ok(signed)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+    use vox_db::{DbConfig, VoxDb};
+
+    // Pure, vault-free, DB-free unit tests for the ORCID precedence (param wins,
+    // then row fallback, then error). These run in-sandbox with no I/O.
+    #[test]
+    fn effective_orcid_param_wins_over_row() {
+        let got = effective_orcid(Some("https://orcid.org/A"), Some("https://orcid.org/B"))
+            .expect("param orcid should win");
+        assert_eq!(got, "https://orcid.org/A");
+    }
+
+    #[test]
+    fn effective_orcid_falls_back_to_row() {
+        let got = effective_orcid(None, Some("https://orcid.org/B"))
+            .expect("row orcid should be used when param is absent");
+        assert_eq!(got, "https://orcid.org/B");
+    }
+
+    #[test]
+    fn effective_orcid_errors_when_none() {
+        let err = effective_orcid(None, None).expect_err("no orcid available must error");
+        let msg = err.to_string();
+        assert!(
+            msg.to_uppercase().contains("ORCID"),
+            "error message must mention ORCID, got: {msg}"
+        );
+    }
+
+    // Serialize env-var mutation across tests in this module.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    /// True only when an error indicates the sandbox vault/keyring is unavailable
+    /// (so the test may skip cleanly). Any other error is a real regression and
+    /// must fail CI rather than false-pass.
+    fn is_sandbox_vault_unavailable(err: &anyhow::Error) -> bool {
+        let msg = format!("{err:#}").to_lowercase();
+        [
+            "vault",
+            "keyring",
+            "invalid filename",
+            "i/o error",
+            "unavailable",
+            "backend misconfigured",
+            "active tokio runtime",
+        ]
+        .iter()
+        .any(|needle| msg.contains(needle))
+    }
+
+    // A multi-threaded runtime is REQUIRED: the vox-secrets vault backend bridges
+    // its async ops via `tokio::task::block_in_place`, which panics on the default
+    // current-thread runtime. Without this flavor the create path always errors and
+    // the test silently takes its skip branch (assertions never run).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[allow(unsafe_code)]
+    // ENV_LOCK guards process-global env-var mutation; it must span the awaits to
+    // serialize concurrent tests. The std Mutex<()> is never contended across a real
+    // async boundary (each test runs its critical section to completion), so holding
+    // it across .await is intentional and deadlock-free here.
+    #[allow(clippy::await_holding_lock)]
+    async fn reuses_key_and_persists_orcid_across_calls() {
+        // Hermetic: isolate the vault DB to a temp dir, pin a throwaway account,
+        // and force the vox_cloud backend (cutover=decommission) so that the
+        // store/resolve round-trip targets the same temp vault. Mirrors
+        // `vox-secrets::tests::store_secret_round_trips_user_rsa_nanopub_key_via_temp_vault`.
+        let _g = ENV_LOCK.lock().expect("env lock");
+
+        let tmp_dir = tempfile::tempdir().expect("tempdir");
+        let db_path = tmp_dir.path().join("nanopub_identity_vault.db");
+
+        let prev_path = std::env::var("VOX_SECRETS_VAULT_PATH").ok();
+        let prev_account = std::env::var("VOX_ACCOUNT_ID").ok();
+        let prev_cutover = std::env::var("VOX_SECRETS_CUTOVER_PHASE").ok();
+        unsafe {
+            std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+            std::env::set_var("VOX_ACCOUNT_ID", "nanopub-identity-test-account");
+            std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", "decommission");
+        }
+
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db connect");
+
+        const USER: &str = "test-user";
+        const ORCID: &str = "https://orcid.org/0000-0002-1825-0097";
+
+        let first = resolve_or_create_identity(&db, USER, Some(ORCID)).await;
+
+        // If the keyring/vault is unavailable in this sandbox, `store_secret`
+        // (inside the create path) errors. Skip cleanly rather than false-pass.
+        let outcome = match first {
+            Ok(id1) => {
+                let id2 = resolve_or_create_identity(&db, USER, None)
+                    .await
+                    .expect("second resolve (orcid=None) should reuse stored material");
+                Some((id1, id2))
+            }
+            Err(e) => {
+                if !is_sandbox_vault_unavailable(&e) {
+                    panic!("unexpected failure: {e:#}");
+                }
+                eprintln!(
+                    "SKIP reuses_key_and_persists_orcid_across_calls: vault unavailable in sandbox ({e})"
+                );
+                None
+            }
+        };
+
+        unsafe {
+            match prev_path {
+                Some(v) => std::env::set_var("VOX_SECRETS_VAULT_PATH", v),
+                None => std::env::remove_var("VOX_SECRETS_VAULT_PATH"),
+            }
+            match prev_account {
+                Some(v) => std::env::set_var("VOX_ACCOUNT_ID", v),
+                None => std::env::remove_var("VOX_ACCOUNT_ID"),
+            }
+            match prev_cutover {
+                Some(v) => std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", v),
+                None => std::env::remove_var("VOX_SECRETS_CUTOVER_PHASE"),
+            }
+        }
+
+        if let Some((id1, id2)) = outcome {
+            assert_eq!(
+                secrecy::ExposeSecret::expose_secret(&id1.rsa_private_key_b64),
+                secrecy::ExposeSecret::expose_secret(&id2.rsa_private_key_b64),
+                "the private key must be reused across calls, not regenerated"
+            );
+            assert!(
+                !secrecy::ExposeSecret::expose_secret(&id1.rsa_private_key_b64).is_empty(),
+                "the reused private key must be non-empty"
+            );
+            assert_eq!(
+                id2.orcid, ORCID,
+                "the ORCID supplied on the first call must persist and be reused when omitted"
+            );
+            assert_eq!(id2.name, USER, "the profile name must be the user_id");
+        }
+    }
+
+    /// Guard (TDD): the nanopub build path must carry NO production-network
+    /// publishing symbols. This file is the entire local build surface; it must
+    /// never grow a network-publish symbol, a test-server toggle, or a hardcoded
+    /// network host. (The forbidden needles are assembled below from fragments so
+    /// this comment cannot itself trip the guard.)
+    #[test]
+    fn no_production_network_publish_symbol_on_nanopub_path() {
+        let src = include_str!("scientia_nanopub.rs");
+        // Needles are assembled from fragments so they never appear as a
+        // contiguous literal in THIS file (otherwise the guard would match its
+        // own assertions). The semantics are identical to the literal forms.
+        let host = format!("{}{}", "knowledgepixels", ".com");
+        let publish = format!("{}{}", "publish_to_", "network");
+        let test_server = format!("{}{}", "use_test_", "server");
+        assert!(!src.contains(&host));
+        assert!(!src.to_lowercase().contains(&publish));
+        assert!(!src.contains(&test_server));
+    }
+
+    /// Behavior (TDD, hermetic): seed one claim + verdict via the real store ops,
+    /// build a local nanopub, and assert the Trusty URI + persisted local row.
+    ///
+    /// Same multi-thread + temp-vault contract as the resolver test above: the
+    /// vault backend bridges async via `block_in_place` (panics on a
+    /// current-thread runtime), so a `multi_thread` flavor is REQUIRED. If the
+    /// vault can't init in this sandbox, the create path errors and the test
+    /// takes a documented skip branch — the guard test above runs regardless.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[allow(unsafe_code)]
+    // See note on `reuses_key_and_persists_orcid_across_calls`: ENV_LOCK must span the
+    // awaits to serialize process-global env-var mutation; holding the std Mutex across
+    // .await is intentional and deadlock-free in this single-critical-section test.
+    #[allow(clippy::await_holding_lock)]
+    async fn nanopub_build_persists_local_offline_validated_artifact() {
+        let _g = ENV_LOCK.lock().expect("env lock");
+
+        let tmp_dir = tempfile::tempdir().expect("tempdir");
+        let db_path = tmp_dir.path().join("nanopub_build_vault.db");
+
+        let prev_path = std::env::var("VOX_SECRETS_VAULT_PATH").ok();
+        let prev_account = std::env::var("VOX_ACCOUNT_ID").ok();
+        let prev_cutover = std::env::var("VOX_SECRETS_CUTOVER_PHASE").ok();
+        unsafe {
+            std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+            std::env::set_var("VOX_ACCOUNT_ID", "nanopub-build-test-account");
+            std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", "decommission");
+        }
+
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db connect");
+
+        const PUB_ID: &str = "pub-nanopub-build-test";
+        const CLAIM_ID: u64 = 42;
+        const ORCID: &str = "https://orcid.org/0000-0002-1825-0097";
+
+        // Seed one claim + a latest verdict via the REAL store ops, keyed by the
+        // same session id the build path derives from the publication id.
+        let session_id = crate::commands::scientia_phase_handlers::publication_session_id(PUB_ID);
+        db.store_claim(
+            session_id,
+            CLAIM_ID,
+            "mosquitoes transmit malaria",
+            false,
+            false,
+            false,
+        )
+        .await
+        .expect("seed claim");
+        db.store_claim_verdict(CLAIM_ID, "Supported", 0.91, "mock")
+            .await
+            .expect("seed verdict");
+
+        let built = nanopub_build(&db, PUB_ID, CLAIM_ID as i64, Some(ORCID)).await;
+
+        let outcome = match built {
+            Ok(signed) => {
+                let row = db
+                    .get_nanopub_by_trusty_uri(&signed.trusty_uri)
+                    .await
+                    .expect("query persisted nanopub row");
+                Some((signed, row))
+            }
+            Err(e) => {
+                if !is_sandbox_vault_unavailable(&e) {
+                    panic!("unexpected failure: {e:#}");
+                }
+                eprintln!(
+                    "SKIP nanopub_build_persists_local_offline_validated_artifact: \
+                     vault unavailable in sandbox ({e})"
+                );
+                None
+            }
+        };
+
+        unsafe {
+            match prev_path {
+                Some(v) => std::env::set_var("VOX_SECRETS_VAULT_PATH", v),
+                None => std::env::remove_var("VOX_SECRETS_VAULT_PATH"),
+            }
+            match prev_account {
+                Some(v) => std::env::set_var("VOX_ACCOUNT_ID", v),
+                None => std::env::remove_var("VOX_ACCOUNT_ID"),
+            }
+            match prev_cutover {
+                Some(v) => std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", v),
+                None => std::env::remove_var("VOX_SECRETS_CUTOVER_PHASE"),
+            }
+        }
+
+        if let Some((signed, row)) = outcome {
+            assert!(
+                signed.trusty_uri.contains("RA"),
+                "trusty URI must carry the RA artifact code, got: {}",
+                signed.trusty_uri
+            );
+            let row = row.expect("a persisted scientia_nanopubs row must exist");
+            assert_eq!(
+                row.published_state, "local",
+                "the persisted artifact must be in the `local` state (no publish)"
+            );
+            assert!(
+                row.validated_offline,
+                "the persisted artifact must be marked offline-validated"
+            );
+            assert_eq!(row.claim_id, CLAIM_ID as i64);
+            assert_eq!(row.publication_id.as_deref(), Some(PUB_ID));
+        }
+    }
+}

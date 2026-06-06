@@ -30,6 +30,7 @@ impl LowerCtx {
                         crate::hir::HirCapability::GpuCompute
                     }
                     crate::ast::decl::EffectAnnotation::Mutate => crate::hir::HirCapability::Mutate,
+                    crate::ast::decl::EffectAnnotation::Vcs => crate::hir::HirCapability::Vcs,
                     crate::ast::decl::EffectAnnotation::Mcp(t) => {
                         crate::hir::HirCapability::Mcp(t.clone())
                     }

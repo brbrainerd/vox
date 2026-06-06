@@ -165,13 +165,13 @@ impl WorkflowTracker for FileJournalTracker {
             result: result.clone(),
         };
         let write = self.journal.append(&entry).map_err(anyhow::Error::from);
-        if write.is_ok() {
-            if let Ok(mut m) = self.results.lock() {
-                m.insert(
-                    (workflow_name.to_string(), activity_id.to_string()),
-                    result.clone(),
-                );
-            }
+        if write.is_ok()
+            && let Ok(mut m) = self.results.lock()
+        {
+            m.insert(
+                (workflow_name.to_string(), activity_id.to_string()),
+                result.clone(),
+            );
         }
         async move { write }
     }
@@ -199,10 +199,10 @@ impl WorkflowTracker for FileJournalTracker {
             version,
         };
         let write = self.journal.append(&entry).map_err(anyhow::Error::from);
-        if write.is_ok() {
-            if let Ok(mut m) = self.patches.lock() {
-                m.insert((workflow_name.to_string(), change_id.to_string()), version);
-            }
+        if write.is_ok()
+            && let Ok(mut m) = self.patches.lock()
+        {
+            m.insert((workflow_name.to_string(), change_id.to_string()), version);
         }
         async move { write }
     }

@@ -5,8 +5,7 @@
 //!
 //! - `app.json` — Expo config (identifier, splash, version).
 //! - `babel.config.js` — Babel preset for Expo.
-//! - `metro.config.js` — Metro bundler config (with @vox/runtime-rn excluded from
-//!                        per-platform tree-shaking).
+//! - `metro.config.js` — Metro bundler config (@vox/runtime-rn excluded from per-platform tree-shaking).
 //! - `eas.json` — EAS Build profiles (development / preview / production).
 //! - `tsconfig.json` — TypeScript config tuned for RN+Expo.
 //! - `package.json` — minimal dependency manifest, ready for `npm install`.

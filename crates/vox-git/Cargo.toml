@@ -22,6 +22,7 @@ gix = { workspace = true, default-features = false, features = [
     "blocking-http-transport-reqwest",
     "progress-tree",
     "revision",
+    "sha1",
 ] }
 workspace-hack = { workspace = true }
 
