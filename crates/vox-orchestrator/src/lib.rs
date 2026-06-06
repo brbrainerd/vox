@@ -49,6 +49,8 @@ pub use vox_orchestrator_queue::sync_lock;
 
 /// JSON-shaped VCS / workspace views for MCP and CLI parity.
 pub mod json_vcs_facade;
+/// Pure conflict-recording core for workspace merge-back.
+pub mod merge_conflicts;
 
 pub mod lineage;
 
