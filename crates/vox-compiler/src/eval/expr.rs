@@ -497,6 +497,18 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     m = method,
                 )));
             }
+            // `repo.*` namespace dispatch — gate on AST receiver identity, not
+            // a spoofable `__namespace__` object field.
+            if let HirExpr::Ident(ns_name, _) = obj.as_ref()
+                && ns_name == "repo"
+            {
+                let mut eval_args = Vec::new();
+                for a in args {
+                    eval_args.push(eval_expr(interp, &a.value)?);
+                }
+                return super::repo::execute_repo_op(interp, method, eval_args);
+            }
+
             let o = eval_expr(interp, obj)?;
             let mut eval_args = Vec::new();
             for a in args {
@@ -510,15 +522,6 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             // closures-rfc-2026-05-23.md §9.5.
             if let Some(result) = apply_closure_method(interp, &o, method, &eval_args)? {
                 return Ok(result);
-            }
-
-            // `repo.*` namespace dispatch — stateful VCS store under `--mode interp`.
-            if let VoxValue::Object(fields) = &o
-                && fields.iter().any(|(k, v)| {
-                    k == "__namespace__" && matches!(v, VoxValue::Str(s) if s == "repo")
-                })
-            {
-                return super::repo::execute_repo_op(interp, method, eval_args);
             }
 
             // Namespace-method dispatch: `alias.fn_name(...)` where `alias`

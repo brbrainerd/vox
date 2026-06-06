@@ -334,6 +334,17 @@ fn check_expr(
                 check_expr(a, caller_name, caller_set, cap_map, source, diags);
             }
         }
+        // Descend into Try so `effectful_call()?` is not silently ungoverned.
+        HirExpr::Try(t) => {
+            check_expr(
+                t.target.as_ref(),
+                caller_name,
+                caller_set,
+                cap_map,
+                source,
+                diags,
+            );
+        }
         // Leaves.
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
@@ -343,7 +354,6 @@ fn check_expr(
         | HirExpr::Ident(..)
         | HirExpr::JsxSelfClosing(_)
         | HirExpr::Jsx(_)
-        | HirExpr::Try(_)
         | HirExpr::WorkflowVersion(_) => {}
     }
 }
@@ -489,6 +499,10 @@ fn infer_expr_effects(expr: &HirExpr, caps: &mut HashSet<HirCapability>) {
                 infer_expr_effects(a, caps);
             }
         }
+        // Descend into Try so `effectful_call()?` is not silently ungoverned.
+        HirExpr::Try(t) => {
+            infer_expr_effects(t.target.as_ref(), caps);
+        }
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
         | HirExpr::DecimalLit(..)
@@ -497,7 +511,6 @@ fn infer_expr_effects(expr: &HirExpr, caps: &mut HashSet<HirCapability>) {
         | HirExpr::Ident(..)
         | HirExpr::JsxSelfClosing(_)
         | HirExpr::Jsx(_)
-        | HirExpr::Try(_)
         | HirExpr::WorkflowVersion(_) => {}
     }
 }
@@ -760,6 +773,17 @@ fn caller() to str { fetch() }",
     fn test_repo_method_call_ok_with_vcs() {
         let diags = check(r#"fn f() uses vcs to str { repo.snapshot("HEAD") }"#);
         assert!(diags.is_empty(), "unexpected violation: {diags:?}");
+    }
+
+    #[test]
+    fn test_repo_method_call_with_try_requires_vcs() {
+        // `repo.snapshot(...)?` must still require `uses vcs` — Try must not
+        // mask the inner effectful call from the effect checker.
+        let diags = check(r#"fn f() uses nothing to str { repo.snapshot("HEAD")? }"#);
+        assert!(
+            diags.iter().any(|d| d.message.contains("vcs")),
+            "expected vcs violation, got {diags:?}"
+        );
     }
 
     // ── endpoint fn checks ──────────────────────────────────────────────────

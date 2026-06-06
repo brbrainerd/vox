@@ -606,6 +606,17 @@ impl BuiltinTypes {
             },
         );
 
+        // VCS / repo namespace (`uses vcs` effect).
+        env.define(
+            "repo".into(),
+            Binding {
+                ty: Ty::Named("RepoModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
         // ── Method registrations ──────────────────────────────
 
         // List methods
@@ -1472,6 +1483,19 @@ impl BuiltinTypes {
             );
         }
         methods.insert("StdMobileNs".into(), mobile_methods);
+
+        // RepoModule methods (`repo.*` under `uses vcs`).
+        //   snapshot(label: str) -> int   — monotonic change id
+        //   changes() -> [int]            — list of recorded change ids
+        //   undo() -> int                 — pops latest snapshot, returns its id
+        let mut repo_methods = std::collections::HashMap::new();
+        repo_methods.insert("snapshot".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Int)));
+        repo_methods.insert(
+            "changes".into(),
+            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Int)))),
+        );
+        repo_methods.insert("undo".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
+        methods.insert("RepoModule".into(), repo_methods);
 
         // Request methods
         let mut req_methods = std::collections::HashMap::new();
