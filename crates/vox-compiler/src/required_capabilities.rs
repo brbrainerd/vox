@@ -30,6 +30,7 @@ fn effect_kind_to_cap(eff: &HirEffectKind) -> HirCapability {
         HirEffectKind::Spawn => HirCapability::Spawn,
         HirEffectKind::GpuCompute => HirCapability::GpuCompute,
         HirEffectKind::Mutate => HirCapability::Mutate,
+        HirEffectKind::Vcs => HirCapability::Vcs,
         HirEffectKind::Mcp(s) => HirCapability::Mcp(s.clone()),
     }
 }
@@ -280,6 +281,7 @@ fn hir_capability_to_packaging_id(cap: &HirCapability) -> Option<&'static str> {
         | HirCapability::Spawn
         | HirCapability::GpuCompute
         | HirCapability::Mutate
+        | HirCapability::Vcs
         | HirCapability::Mcp(_) => None,
     }
 }

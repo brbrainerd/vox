@@ -707,6 +707,8 @@ pub enum HirCapability {
     Spawn,
     GpuCompute,
     Mutate,
+    /// Version-control / repository operations (`repo.*` / `vcs.*` builtins).
+    Vcs,
     /// `mcp(tool_name)` — parameterized MCP tool call.
     Mcp(String),
     /// `uses nothing` — explicitly pure.
@@ -725,6 +727,7 @@ impl HirCapability {
             Self::Spawn => "spawn",
             Self::GpuCompute => "gpu_compute",
             Self::Mutate => "mutate",
+            Self::Vcs => "vcs",
             Self::Mcp(_) => "mcp",
             Self::Nothing => "nothing",
         }
