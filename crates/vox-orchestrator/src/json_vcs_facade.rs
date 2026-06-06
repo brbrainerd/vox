@@ -160,6 +160,7 @@ pub fn workspace_merge_json(orch: &Orchestrator, agent_id: u64) -> Value {
         None => json!({
             "merged": false,
             "error": "no_active_workspace",
+            "conflicts_recorded": 0,
         }),
     }
 }

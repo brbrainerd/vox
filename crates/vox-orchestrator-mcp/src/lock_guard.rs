@@ -33,6 +33,12 @@ pub(crate) fn check_lock(
     if !WRITE_TOOLS.contains(&tool_name) {
         return None;
     }
+    // Intentional: if `agent_id` or a path arg is absent we return `None` (allow) here rather
+    // than hard-failing. This preflight is best-effort admission control; the AUTHORITATIVE
+    // lock-conflict gate is queue admission (`vox_orchestrator::services::policy::check_before_queue`,
+    // which calls `try_acquire(.., Exclusive)` per write path and returns `LockConflict`). So a
+    // write tool that omits these args is not silently let past the lock system — it is still
+    // blocked downstream if it conflicts.
     let raw = args.get("agent_id").or_else(|| args.get("vcs_agent_id"));
     let agent_id = raw.and_then(|v| v.as_u64()).or_else(|| {
         raw.and_then(|v| v.as_str())

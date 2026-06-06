@@ -2,6 +2,9 @@
 title: "Jujutsu as a First-Class Vox VCS — Master Design Spec"
 description: "Make jj-lib the in-process VCS engine for Vox: a vox-vcs backend trait, real conflict/lock wiring, a repo.* language primitive, an orchestrator isolation policy, a GUI surface, and the verified deletion of the hand-rolled jj-shaped code it obviates."
 category: architecture
+status: approved
+last_updated: 2026-06-06
+training_eligible: false
 ---
 
 # Jujutsu as a First-Class Vox VCS — Master Design Spec
