@@ -9,4 +9,3 @@ license.workspace = true
 vox-crypto = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
-workspace-hack = { workspace = true }

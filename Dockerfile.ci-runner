@@ -11,12 +11,12 @@
 # (see .actrc); this image is for the real fleet and full local repro.
 #
 # Version SSOTs (keep aligned with the rest of the repo):
-#   - Rust 1.92.0          → root Dockerfile (`rust:1.92.0-slim-bookworm`)
+#   - Rust 1.95.0          → root Dockerfile (`rust:1.95.0-slim-bookworm`)
 #   - Node 24              → docs-quality.yml / docs-deploy.yml `node-version: 24`
 #   - pnpm 9               → ci.yml / docs-quality.yml `pnpm/action-setup@v6` `version: 9`
 #   - Ubuntu 24.04         → matches `ubuntu-latest` on GitHub-hosted (2026-Q2)
 
-ARG RUST_VERSION=1.92.0
+ARG RUST_VERSION=1.95.0
 
 FROM ubuntu:24.04
 
@@ -42,7 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
     && rm -rf /var/lib/apt/lists/*
 
-# Rust toolchain (pinned to RUST_VERSION arg; defaults to 1.92.0 — matches root Dockerfile)
+# Rust toolchain (pinned to RUST_VERSION arg; defaults to 1.95.0 — matches root Dockerfile)
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
     sh -s -- -y --default-toolchain "$RUST_VERSION" \
     --component rustfmt,clippy,llvm-tools-preview \

@@ -556,8 +556,8 @@ pub enum ScientiaCmd {
     },
 
     /// Phase H — Assemble a dashboard `QueueSnapshot` JSON directly from the
-    /// live Codex DB (publication candidates + extracted-claims pending counts
-    /// + retraction queue). Unlike `publication-dashboard-snapshot`, this needs
+    /// live Codex DB (publication candidates + extracted-claims pending counts +
+    /// retraction queue). Unlike `publication-dashboard-snapshot`, this needs
     /// no inputs file.
     #[command(name = "dashboard")]
     Dashboard,

@@ -19,7 +19,7 @@
 #   VOX_VAST_API_KEY        — injected by dispatcher; used by Vast.ai self-terminate curl
 
 # ── Stage 1: Builder ──────────────────────────────────────────────────────────
-FROM rust:1.92-slim-bookworm AS builder
+FROM rust:1.95-slim-bookworm AS builder
 WORKDIR /app
 
 # Build dependencies
