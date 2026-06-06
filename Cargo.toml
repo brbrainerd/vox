@@ -347,6 +347,8 @@ schemars08         = { package = "schemars", version = "0.8" }
 # Rand extras
 rand_distr         = "0.4"
 rand09             = { package = "rand", version = "0.9", features = ["small_rng"] }
+# Nanopublications: build, RSA-sign, and offline-validate signed RDF/TriG nanopubs (MIT licensed)
+nanopub            = "0.2"
 
 
 [patch.crates-io]

@@ -3893,6 +3893,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_USER_RSA_NANOPUB_PRIVATE_KEY_B64"
+    owner_crate: "vox-secrets"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Per-user RSA nanopub signing key (base64-encoded PKCS#8 private key); vault-only in strict mode."
   - name: "VOX_V0_API_KEY"
     owner_crate: "vox-secrets"
     kind: "string"

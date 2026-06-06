@@ -287,6 +287,7 @@ vox-build-meta = { workspace = true }
 [dev-dependencies]
 insta = { workspace = true }
 safetensors = { workspace = true }
+secrecy = { workspace = true }
 serial_test = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["io-std", "macros", "rt-multi-thread"] }
