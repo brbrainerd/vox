@@ -17,6 +17,7 @@ mod http;
 mod main_boot;
 mod method_emit;
 pub(super) mod ownership;
+mod param_borrow;
 mod state_machine;
 mod stmt_expr;
 mod stmt_expr_tail;
