@@ -21,12 +21,42 @@ each gated by a green parity test (the P0/P1 audit already proved `ContentMerge`
 **Source spec:** [`2026-06-05-jj-first-class-vcs-design.md`](../specs/2026-06-05-jj-first-class-vcs-design.md) §3, §4 (deletion ledger), §8 (P2).
 **Depends on:** P0 (the `vox-vcs` crate + jj-lib 0.42 dep). Independent of P1.
 
-**Confirmed jj-lib 0.42 anchors (from docs.rs):**
-- `Workspace::init_colocated_git(user_settings: &UserSettings, workspace_root: &Path) -> Result<(Workspace, Arc<ReadonlyRepo>), WorkspaceInitError>` (async)
-- `Workspace::load(user_settings: &UserSettings, workspace_path: &Path, store_factories: &StoreFactories, working_copy_factories: &WorkingCopyFactories) -> Result<Workspace, WorkspaceLoadError>`
-- `workspace.repo_loader() -> &RepoLoader`, `workspace.working_copy() -> &dyn WorkingCopy`
-- Transaction: `repo.start_transaction()` → `tx.repo_mut()` (`MutableRepo`) → `tx.commit(description)` → new `Arc<ReadonlyRepo>`
-- Op log / conflicts / git fetch-push: modules `op_store`/`op_walk`, `merge`/`conflicts`, `git`/`git_backend` (exact calls resolved in Task 1's spike).
+**VERIFIED jj-lib 0.42.0 anchors** (read against the installed crate source on 2026-06-06, not
+docs.rs guesses — file refs are within `jj-lib-0.42.0/src/`). The **async/sync split is the load-bearing
+fact for the bridge design below**:
+
+| Call | Exact signature | async? | src ref |
+|---|---|---|---|
+| init (colocated) | `Workspace::init_colocated_git(&UserSettings, &Path) -> Result<(Workspace, Arc<ReadonlyRepo>), WorkspaceInitError>` | **async** | `workspace.rs:223` |
+| init (no git) | `Workspace::init_simple(&UserSettings, &Path) -> Result<(Workspace, Arc<ReadonlyRepo>), _>` | **async** | `workspace.rs:194` |
+| load existing | `Workspace::load(&UserSettings, &Path, &StoreFactories, &WorkingCopyFactories) -> Result<Workspace, WorkspaceLoadError>` | **sync** | `workspace.rs:406` |
+| settings | `UserSettings::from_config(StackedConfig) -> Result<Self, ConfigGetError>` (needs `user.name`/`user.email`; `signing.key` optional) | sync | `settings.rs:135` |
+| config | `StackedConfig::with_defaults()` / `::empty()` | sync | `config.rs:654/660` |
+| txn start | `Arc<ReadonlyRepo>::start_transaction(&self) -> Transaction` | sync | `repo.rs:333` |
+| txn mut | `Transaction::repo_mut(&mut self) -> &mut MutableRepo` | sync | `transaction.rs:93` |
+| txn commit | `Transaction::commit(self, impl Into<String>) -> Result<Arc<ReadonlyRepo>, _>` | **async** | `transaction.rs:120` |
+| wc snapshot | `TreeState::snapshot(&mut self, &SnapshotOptions) -> Result<(bool, SnapshotStats), _>` | **async** | `local_working_copy.rs:1278` |
+| signer | `Signer::new(None, vec![]) -> Signer` (no-op; signing disabled) | sync | `signing.rs:205` |
+| op heads | `op_walk::get_current_head_ops(&RepoLoader) -> Result<Vec<Operation>, _>` | **async** | `op_walk.rs:212` |
+| revset eval | `RevsetExpression::evaluate(Arc<Self>, &dyn Repo) -> Result<Box<dyn Revset>, _>` | sync | `revset.rs:680` |
+| git backend | pure **gix 0.84** (NOT libgit2/git2) | — | `Cargo.toml:97` |
+
+**`SnapshotOptions` is non-trivial to construct** (`working_copy.rs:211`): it needs
+`base_ignores: Arc<GitIgnoreFile>` (use `GitIgnoreFile::empty()`), a `start_tracking_matcher` and
+`force_tracking_matcher` (`&dyn Matcher` — use `EverythingMatcher`), `progress: None`, and a
+`max_new_file_size`. Pin the exact ctors in the Task-1 spike.
+
+> **⚠ CRITICAL BRIDGE CORRECTION (supersedes the original "JjBackend owns a tokio runtime + `block_on`"
+> design).** init/commit/snapshot/op-walk are **async**, and `JjBackend` is wired into the **orchestrator,
+> which already runs inside a tokio runtime** (Task 5). Calling `Runtime::block_on` (or
+> `Handle::block_on`) from *within* a tokio worker thread **panics** ("Cannot start a runtime from within
+> a runtime" / "can call blocking only when running on the multi-threaded runtime"). The fix is the
+> **offload-thread bridge**: `JjBackend` owns a dedicated OS thread that hosts its *own* current-thread
+> runtime; sync `VcsBackend` methods send a boxed closure to that thread over an `mpsc` channel and wait
+> on a `oneshot` reply. This is correct from **both** sync CLI callers (Task 6) and async orchestrator
+> callers (Task 5) — the `block_on` only ever runs on the non-tokio worker thread. See the Task-1 struct
+> below. (jj-lib also refuses to read config from `$HOME`/env by design, so `UserSettings` is built from
+> an explicit in-memory `StackedConfig` carrying a fixed bot identity.)
 
 ---
 
@@ -117,44 +147,109 @@ use crate::types::{Change, ChangeId, Conflict, Diff, ResolveStrategy};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-pub struct JjBackend {
-    rt: tokio::runtime::Runtime,
+// OFFLOAD-THREAD BRIDGE (corrected design). All jj-lib state lives on one dedicated worker
+// thread that hosts its own current-thread runtime; the public type is a sync handle that ships
+// closures to it. This is safe to call from inside the orchestrator's tokio runtime (Task 5)
+// because the `block_on` runs on the worker thread, never on a tokio worker.
+type Job = Box<dyn FnOnce(&mut JjState) + Send>;
+
+/// jj-lib state — NEVER crosses the worker-thread boundary (Workspace is not Sync-friendly).
+struct JjState {
+    rt: tokio::runtime::Runtime, // current-thread; only this thread ever calls block_on
     workspace: jj_lib::workspace::Workspace,
     repo: Arc<jj_lib::repo::ReadonlyRepo>,
 }
 
+pub struct JjBackend {
+    tx: std::sync::mpsc::Sender<Job>,
+    _worker: std::thread::JoinHandle<()>,
+}
+
 impl JjBackend {
-    /// Open (init colocated if needed) a jj workspace at `root`.
+    /// Open (init colocated if absent) a jj workspace at `root`, on a dedicated worker thread.
     pub fn open(root: &Path) -> Result<Self, VcsError> {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
+        let root = root.to_path_buf();
+        let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<(), VcsError>>();
+        let (job_tx, job_rx) = std::sync::mpsc::channel::<Job>();
+        let worker = std::thread::Builder::new()
+            .name("jj-backend".into())
+            .spawn(move || {
+                // Build the per-thread runtime + workspace; report readiness, then serve jobs.
+                let init = (|| -> Result<JjState, VcsError> {
+                    let rt = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .map_err(|e| VcsError::Unavailable(e.to_string()))?;
+                    let settings = bot_settings()?; // sync: UserSettings::from_config(StackedConfig)
+                    // load() is sync; if the workspace doesn't exist yet, init_colocated_git is async.
+                    let (workspace, repo) = rt
+                        .block_on(jj_lib::workspace::Workspace::init_colocated_git(&settings, &root))
+                        .map_err(|e| VcsError::Unavailable(format!("jj init: {e}")))?;
+                    Ok(JjState { rt, workspace, repo })
+                })();
+                match init {
+                    Err(e) => {
+                        let _ = ready_tx.send(Err(e));
+                    }
+                    Ok(mut state) => {
+                        let _ = ready_tx.send(Ok(()));
+                        while let Ok(job) = job_rx.recv() {
+                            job(&mut state); // each method's closure runs here, may block_on safely
+                        }
+                    }
+                }
+            })
             .map_err(|e| VcsError::Unavailable(e.to_string()))?;
-        let settings = Self::bot_settings()?;             // resolve UserSettings construction in-spike
-        let (workspace, repo) = rt
-            .block_on(jj_lib::workspace::Workspace::init_colocated_git(&settings, root))
-            .map_err(|e| VcsError::Unavailable(format!("jj init: {e}")))?;
-        Ok(Self { rt, workspace, repo })
+        ready_rx
+            .recv()
+            .map_err(|e| VcsError::Unavailable(e.to_string()))??;
+        Ok(Self { tx: job_tx, _worker: worker })
     }
 
-    // Construct a deterministic bot UserSettings (no home/env reads). EXACT API resolved in-spike.
-    fn bot_settings() -> Result<jj_lib::settings::UserSettings, VcsError> {
-        // e.g. UserSettings::from_config(StackedConfig with user.name/user.email) — confirm the
-        // 0.42 constructor name + config type by compiling; map errors to VcsError::Unavailable.
-        todo!("resolve in spike — replace before this task is marked done; NO todo! may remain")
+    /// Run `f` on the worker thread and return its result (the sync↔async seam every method uses).
+    fn call<R: Send + 'static>(
+        &self,
+        f: impl FnOnce(&mut JjState) -> Result<R, VcsError> + Send + 'static,
+    ) -> Result<R, VcsError> {
+        let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+        self.tx
+            .send(Box::new(move |st| {
+                let _ = reply_tx.send(f(st));
+            }))
+            .map_err(|_| VcsError::Unavailable("jj worker thread gone".into()))?;
+        reply_rx
+            .recv()
+            .map_err(|_| VcsError::Unavailable("jj worker thread dropped reply".into()))?
     }
+}
+
+// Deterministic bot UserSettings (no home/env reads). Build a StackedConfig with user.name/email.
+// VERIFIED: UserSettings::from_config(StackedConfig) (settings.rs:135); StackedConfig::with_defaults()
+// (config.rs:660) then layer in the bot identity. Pin the exact config-insert call in the spike.
+fn bot_settings() -> Result<jj_lib::settings::UserSettings, VcsError> {
+    todo!("spike: StackedConfig::with_defaults() + insert user.name/user.email → UserSettings::from_config; NO todo! may remain at commit")
 }
 
 impl VcsBackend for JjBackend {
     fn snapshot(&mut self, label: Option<&str>, _paths: Vec<PathBuf>) -> Result<ChangeId, VcsError> {
-        // 1) snapshot the working copy into the store, 2) start a transaction, 3) describe/commit.
-        // Use workspace.working_copy() + repo.start_transaction()/tx.repo_mut()/tx.commit(label).
-        // Map the resulting jj change/commit id into our ChangeId (stable mapping resolved in-spike).
-        todo!("resolve in spike")
+        let label = label.map(str::to_owned);
+        // Closure runs ON THE WORKER THREAD, so block_on is legal here.
+        self.call(move |st| {
+            // 1) async snapshot the working copy (TreeState::snapshot, SnapshotOptions with
+            //    GitIgnoreFile::empty() + EverythingMatcher), 2) sync start_transaction +
+            //    repo_mut, 3) async tx.commit(label). Map the new commit/change id → ChangeId.
+            //    Use st.rt.block_on(...) for the async steps. Stable id mapping pinned in-spike.
+            let _ = (&st.workspace, &st.repo, &label);
+            todo!("resolve in spike")
+        })
     }
     fn changes(&self) -> Result<Vec<Change>, VcsError> {
-        // Walk the operation log (op_walk/op_store) newest→oldest, project each op into a Change.
-        todo!("resolve in spike")
+        self.call(|st| {
+            // st.rt.block_on(op_walk::get_current_head_ops(st.repo.loader())) → project ops →
+            // Vec<Change> newest→oldest. (changes() is &self in the trait, so `call` takes &self.)
+            let _ = &st.repo;
+            todo!("resolve in spike")
+        })
     }
     fn diff(&self, _a: Option<ChangeId>, _b: Option<ChangeId>) -> Result<Diff, VcsError> {
         Ok(Diff::default()) // implemented in Task 3
@@ -166,6 +261,10 @@ impl VcsBackend for JjBackend {
     }
 }
 ```
+
+> **Note on `&self` vs `&mut self`:** `changes()`/`conflicts()`/`diff()` take `&self` in the trait, so
+> `call` is defined on `&self` (it only needs the `Sender`, which is `Clone`/shareable). The worker owns
+> the single `&mut JjState`, so there is no aliasing problem even though jj-lib mutates internally.
 
 **Discipline:** the `todo!()`s above are *spike markers for this task only* — Task 1 is NOT done until
 `bot_settings`, `snapshot`, and `changes` are real and the test is green. No `todo!()` may remain in a
@@ -359,7 +458,13 @@ assert the call happens without the `jj-backend` feature). Run → FAIL.
 - [ ] **Step 3:** Replace the `#[cfg(feature = "jj-backend")]` block in `update_change_status`
 (currently calling `JjBridge::flush_snapshot_commit`/`revert_agent_snapshot` subprocesses) with calls
 through a `VcsBackend` handle (snapshot on `Merged`, undo on `Abandoned`). Remove the `#[cfg]` gate so
-it runs in default builds. Keep it fire-and-forget/best-effort as today.
+it runs in default builds. Keep it fire-and-forget/best-effort as today. **This call site is inside the
+orchestrator's tokio runtime — it is the exact reason the offload-thread bridge (Task 1) is mandatory;
+a `block_on`-in-place `JjBackend` would panic here.** The sync `VcsBackend` methods are safe to call
+directly from this async context (they only `send`+`recv` on channels); if the best-effort hook must not
+block the async task even briefly, wrap the call in `tokio::task::spawn_blocking`. Hold the `JjBackend`
+handle (or a `Box<dyn VcsBackend>` from `boxed_for`) on the orchestrator so the worker thread is reused,
+not respawned per hook.
 
 - [ ] **Step 4: Run → PASS.** `cargo test -p vox-orchestrator workspace`.
 
@@ -384,14 +489,29 @@ not, keep them out of scope and note it — do not delete features that lack a j
 
 ### Task 7: TDD-gated deletion of the obviated hand-rolled code
 
-Each deletion is preceded by confirming zero remaining consumers (grep) — the P0/P1 audit already
-classified `ContentMerge`/`OperationDag` as dead (tests + a `lib.rs` re-export only).
+Each deletion is preceded by confirming zero remaining consumers. **Do NOT trust the P0/P1 audit's
+"dead" classification on its own** — prior retirement audits in this repo were wrong ~50% of the time
+and one nearly deleted 9,670 lines of live integration tests (see `feedback_verify_audit_retirement_claims`).
+A LoC/Cargo-graph "dead" verdict is necessary but **not sufficient**; hand-verify across the whole tree,
+not just `crates/`.
 
 **Files:** `crates/vox-orchestrator/src/jj_backend.rs`, `crates/vox-orchestrator/src/lib.rs:303`,
 `crates/vox-orchestrator/Cargo.toml`, `crates/vox-git/Cargo.toml`, `crates/vox-git/src/sync.rs`.
 
-- [ ] **Step 1:** `grep -rn "ContentMerge\|OperationDag\|DagNodeId\|MergeSide\|JjBridge" crates/` — confirm
-the only references are the definitions, their own tests, and the `lib.rs:303` re-export. Paste output.
+- [ ] **Step 1 (BROADENED — gate the deletion):** grep the **entire repo**, not just `crates/`, for each
+symbol and confirm the only hits are the definition, its own `#[cfg(test)]` block, and the `lib.rs:303`
+re-export:
+```bash
+for sym in ContentMerge OperationDag DagNodeId MergeSide JjBridge; do
+  echo "== $sym =="; grep -rn "$sym" crates/ tests/ examples/ contracts/ .github/ docs/ scripts/ 2>/dev/null
+done
+```
+Check in particular: integration-test crates, `examples/**/*.vox` goldens, `contracts/**`, CI workflow
+YAML, and any ADR/spec that names them as a contract. **Paste the full output into the task log.** If a
+symbol has ANY consumer outside (definition + own tests + the one re-export), STOP and report — that
+symbol is NOT dead; remove it from this deletion set and note why. Only symbols with a clean sweep proceed
+to Step 2. (The orchestrator build+test in Step 4 is the backstop, but it will NOT catch a golden `.vox`
+program or a CI script that references a public symbol — hence the repo-wide grep.)
 - [ ] **Step 2:** Delete `ContentMerge`, `OperationDag`, `DagNodeId`, `MergeSide`, `JjBridge` and their
 tests from `crates/vox-orchestrator/src/jj_backend.rs`; remove the `pub use jj_backend::{...}` re-export
 at `lib.rs:303`. (If `jj_backend.rs` becomes empty, delete the file + its `mod` line.)
@@ -438,3 +558,43 @@ reason           = "jj is used in-process via jj-lib (vox-vcs::JjBackend); no su
   the P0 `orphan_exempt` (can be removed once T5/T6 land a real consumer; note it in T5).
 - **Type consistency:** `JjBackend`, `VcsBackend`, `VcsError`, `ChangeId`, `detect`, `boxed_for`,
   `is_supported` are used consistently; the new `fetch`/`push` trait methods get impls on both backends.
+
+---
+
+## Scope-correction changelog (2026-06-06)
+
+This plan was made implementation-ready after verifying the jj-lib 0.42 API against the installed crate
+source (the original draft used unverified docs.rs guesses). Material changes:
+
+1. **Async↔sync bridge redesigned** (the load-bearing fix). The original "JjBackend owns a tokio runtime
+   and `block_on`s in-place" design **panics** when invoked from the orchestrator's tokio runtime (Task 5)
+   — nested `block_on` is illegal. Replaced with the **offload-thread bridge** (a dedicated worker thread
+   hosting its own current-thread runtime; sync methods ship closures over a channel). Verified that
+   `init_colocated_git`, `Transaction::commit`, `TreeState::snapshot`, and `op_walk::get_current_head_ops`
+   are all **async**, while `Workspace::load`, `UserSettings::from_config`, `start_transaction`, and
+   `Signer::new` are sync — so the bridge only blocks on the worker thread.
+2. **`SnapshotOptions` construction** documented (needs `GitIgnoreFile::empty()` + `EverythingMatcher` +
+   `max_new_file_size`) — previously hand-waved.
+3. **Deletion ledger (Task 7) hardened** to a repo-wide grep gate (not just `crates/`), per the repo's
+   verify-audit-retirement-claims discipline — a LoC/graph "dead" verdict is necessary-but-insufficient.
+
+## Phases beyond P2 (remaining original-roadmap items — unscoped, listed for completeness)
+
+The research roadmap (`docs/src/architecture/vcs-as-vox-language-feature-jujutsu-2026.md` §6) has two
+phases past the merged P0/P1/P3 + this P2 that have **no implementation plan yet**. They are NOT blocked
+by anything once P2 lands; each warrants its own spec→plan cycle:
+
+- **Orchestrator isolation policy + GUI** (research §5.1, §5.4): the three orchestrator-chosen isolation
+  strategies (N agents on one branch / split branches / worktree-per-agent), a conflict surface, and full
+  user control via the Vox GUI + config. *Partly seeded already:* P1 landed overlap-detection + conflict
+  recording (`json_vcs_facade` / `merge_conflicts`); what's missing is the **strategy selector** (config +
+  `repo.*`/orchestrator API) and the **GUI panel** (wire through the existing `SURFACE_REGISTRY`). Depends
+  on P2 only for the real backend; the policy layer is otherwise orchestrator-side.
+- **Decorators + auto-snapshot-on-effect** (research §4.3): `@versioned`/`@tracked` decorators that
+  auto-checkpoint at effect boundaries (snapshot before a `uses fs`/`uses vcs` mutation). Builds on the
+  P3 `Vcs` effect + `repo.*` surface; needs decorator lowering + an interpreter hook that calls
+  `repo.snapshot` automatically. Self-contained in `vox-compiler`; no jj-lib dependency.
+
+When P2 is green, the natural completion order is **isolation-policy+GUI** (highest user-visible leverage,
+per the research doc's ranking) then **decorators** (ergonomics). Each should follow
+`superpowers:writing-plans` to produce its own task-by-task plan before execution.
