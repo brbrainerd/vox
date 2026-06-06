@@ -41,6 +41,22 @@ pub trait VcsBackend: Send {
     async fn undo(&mut self) -> Result<ChangeId, VcsError>;
     async fn conflicts(&self) -> Result<Vec<Conflict>, VcsError>;
     async fn resolve(&mut self, path: &Path, strategy: ResolveStrategy) -> Result<(), VcsError>;
+
+    /// Register a remote named `name` pointing at `url`. Backends without a
+    /// remote concept (CAS) return [`VcsError::Unavailable`].
+    async fn add_remote(&mut self, _name: &str, _url: &str) -> Result<(), VcsError> {
+        Err(VcsError::Unavailable("backend has no remotes".into()))
+    }
+
+    /// Push `change` to `remote` under bookmark/branch `bookmark`.
+    async fn push(
+        &mut self,
+        _remote: &str,
+        _bookmark: &str,
+        _change: ChangeId,
+    ) -> Result<(), VcsError> {
+        Err(VcsError::Unavailable("backend cannot push".into()))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
