@@ -4818,8 +4818,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b6d9528f32d94cef2edf39a1ac01fe5a0fc44ddbb18d9e44099936047c3302b"
 dependencies = [
  "bstr",
+ "gix-command 0.9.1",
+ "gix-filter 0.31.0",
+ "gix-fs 0.21.2",
  "gix-hash 0.25.1",
+ "gix-imara-diff",
  "gix-object 0.61.0",
+ "gix-path 0.12.1",
+ "gix-tempfile 23.0.1",
+ "gix-trace",
+ "gix-traverse 0.58.0",
+ "gix-worktree 0.53.0",
  "thiserror 2.0.18",
 ]
 
@@ -4891,11 +4900,13 @@ checksum = "1849ae154d38bc403185be14fa871e38e3c93ee606875d94e207fdb9fba52dbc"
 dependencies = [
  "bytes",
  "crc32fast",
+ "crossbeam-channel",
  "gix-path 0.12.1",
  "gix-trace",
  "gix-utils 0.3.3",
  "libc",
  "once_cell",
+ "parking_lot 0.12.5",
  "prodash 31.0.0",
  "thiserror 2.0.18",
  "walkdir",
@@ -5061,6 +5072,16 @@ dependencies = [
  "gix-path 0.12.1",
  "gix-trace",
  "unicode-bom",
+]
+
+[[package]]
+name = "gix-imara-diff"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19753d40da53d0ec41604750eeb969097a90fb2d7f7992730d904541c04e2c19"
+dependencies = [
+ "bstr",
+ "hashbrown 0.15.5",
 ]
 
 [[package]]
@@ -5292,6 +5313,7 @@ dependencies = [
  "parking_lot 0.12.5",
  "smallvec",
  "thiserror 2.0.18",
+ "uluru",
 ]
 
 [[package]]
@@ -5721,6 +5743,7 @@ version = "23.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27850097e1ff9515f46a0dad0f5f9c9d020e972727772dabab9450690c4adb22"
 dependencies = [
+ "dashmap",
  "gix-fs 0.21.2",
  "libc",
  "parking_lot 0.12.5",
@@ -7025,6 +7048,7 @@ dependencies = [
  "either",
  "etcetera",
  "futures",
+ "gix 0.84.0",
  "gix-ignore 0.21.1",
  "globset",
  "hashbrown 0.17.1",
@@ -13784,6 +13808,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "uluru"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c8a2469e56e6e5095c82ccd3afb98dad95f7af7929aab6d8ba8d6e0f73657da"
+dependencies = [
+ "arrayvec",
+]
+
+[[package]]
 name = "unarray"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15019,7 +15052,6 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "gix 0.84.0",
- "jj-lib",
  "serde",
  "serde_json",
  "tempfile",
@@ -15384,7 +15416,6 @@ dependencies = [
  "hex",
  "hmac 0.13.0",
  "ignore",
- "jj-lib",
  "jsonschema",
  "parking_lot 0.12.5",
  "proptest",
@@ -15436,6 +15467,7 @@ dependencies = [
  "vox-speech",
  "vox-telemetry",
  "vox-test-harness",
+ "vox-vcs",
  "walkdir",
  "wat",
  "workspace-hack",
@@ -16455,8 +16487,13 @@ dependencies = [
 name = "vox-vcs"
 version = "0.6.0"
 dependencies = [
+ "async-trait",
+ "futures",
+ "jj-lib",
  "serde",
+ "tempfile",
  "thiserror 2.0.18",
+ "tokio",
  "workspace-hack",
 ]
 

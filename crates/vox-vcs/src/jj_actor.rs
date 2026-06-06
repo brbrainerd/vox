@@ -77,7 +77,12 @@ pub(crate) enum Command {
         reply: Reply<()>,
     },
     AddRemote {
+        // Carried for API symmetry; the actor's AddRemote handler is a
+        // deliberate no-op stub (registers remotes out-of-band) so these
+        // are never read. See the handler note below.
+        #[allow(dead_code)]
         name: String,
+        #[allow(dead_code)]
         url: String,
         reply: Reply<()>,
     },
