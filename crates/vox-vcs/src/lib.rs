@@ -6,10 +6,12 @@
 
 pub mod backend;
 pub mod cas_fallback;
+pub mod jj_backend;
 pub mod types;
 
 pub use backend::{VcsBackend, VcsBackendKind, VcsError, detect};
 pub use cas_fallback::CasFallback;
+pub use jj_backend::JjBackend;
 pub use types::{Change, ChangeId, Conflict, Diff, ResolveStrategy};
 
 #[cfg(test)]
