@@ -409,7 +409,22 @@ fn emit_ident_expr(
     } else {
         match mode {
             OwnershipMode::Owned => format!("{}.clone()", n),
-            OwnershipMode::Borrowed => format!("{}.as_str()", n),
+            OwnershipMode::Borrowed => {
+                // Borrow without cloning. A `str`-typed value uses `.as_str()`
+                // (what the borrowing string builtins expect); anything else
+                // uses a plain reference — `&Vec<T>` coerces to `&[T]`, `&T` to
+                // `&T`. Emitting `.as_str()` unconditionally (the prior behavior)
+                // produced uncompilable Rust the moment a non-string argument was
+                // borrowed, a latent landmine for widening borrow inference.
+                let is_str = inferred_types
+                    .and_then(|m| m.get(span))
+                    .is_some_and(|t| matches!(t, HirType::Named(name) if name == "str"));
+                if is_str {
+                    format!("{}.as_str()", n)
+                } else {
+                    format!("&{}", n)
+                }
+            }
         }
     }
 }
@@ -957,5 +972,48 @@ mod scrape_emit_tests {
             out.contains("wasm32"),
             "Browser.* must keep the wasm guard: {out}"
         );
+    }
+}
+
+#[cfg(test)]
+mod borrow_emission_tests {
+    use super::emit_ident_expr;
+    use super::OwnershipMode;
+    use std::collections::HashMap;
+    use vox_compiler::ast::span::Span;
+    use vox_compiler::hir::HirType;
+
+    fn typed(name: &str) -> (Span, HashMap<Span, HirType>) {
+        let span = Span::new(0, 0);
+        let mut m = HashMap::new();
+        m.insert(span, HirType::Named(name.to_string()));
+        (span, m)
+    }
+
+    /// `str`-typed borrowed args keep `.as_str()` (what borrowing string builtins
+    /// expect) — preserves existing behavior, no golden churn.
+    #[test]
+    fn borrowed_str_emits_as_str() {
+        let (span, types) = typed("str");
+        let out = emit_ident_expr("x", &span, Some(&types), None, OwnershipMode::Borrowed);
+        assert_eq!(out, "x.as_str()");
+    }
+
+    /// Non-`str` borrowed args emit a plain reference, NOT `.as_str()` (which
+    /// would be uncompilable on a `Vec`/struct). This is the latent-bug fix:
+    /// before, this returned `x.as_str()` regardless of type.
+    #[test]
+    fn borrowed_non_str_emits_reference() {
+        let (span, types) = typed("MyRecord");
+        let out = emit_ident_expr("x", &span, Some(&types), None, OwnershipMode::Borrowed);
+        assert_eq!(out, "&x", "non-str borrow must be `&x`, not `.as_str()`");
+    }
+
+    /// Owned, non-last-use, non-Copy still clones (unchanged).
+    #[test]
+    fn owned_non_copy_still_clones() {
+        let (span, types) = typed("str");
+        let out = emit_ident_expr("x", &span, Some(&types), None, OwnershipMode::Owned);
+        assert_eq!(out, "x.clone()");
     }
 }
