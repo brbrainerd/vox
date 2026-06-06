@@ -66,8 +66,10 @@ reachable from `check_before_queue`, can reject with `LockConflict`). They are *
 ```
 crates/vox-vcs/                         layers.toml: vox-vcs = { layer = 3, max_loc = 20_000 }
 ├── trait VcsBackend                    # snapshot · commit · op-log · undo/redo · conflicts · merge · fetch/push · checkout
-├── struct JjBackend  (default)         # jj-lib 0.42 in-process — ALL jj_lib:: calls live here
-├── struct CasFallback                  # today's SnapshotStore/OpLog, no-repo/degraded mode only
+├── struct JjBackend  (default, built in P2)  # jj-lib 0.42 in-process — ALL jj_lib:: calls live here
+├── struct CasFallback                  # NEW self-contained in-memory impl, no-repo/degraded mode only
+│                                        #   (NOT a reuse of vox-orchestrator's SnapshotStore — that
+│                                        #    would cycle, since vox-orchestrator depends on vox-vcs)
 ├── enum VcsBackendKind { Jj, Cas }     # runtime selection (detect + config), NOT a cargo feature
 └── detect()                            # is a jj/git repo present & initable? → Jj else Cas
 ```
@@ -208,9 +210,9 @@ Each phase = its own `docs/superpowers/plans/2026-06-05-jj-first-class-pNN-<slug
 
 | Phase | Goal | Key exit criteria |
 |---|---|---|
-| **P0 Foundations** | `vox-vcs` crate + `VcsBackend` trait + `JjBackend`(jj-lib 0.42)/`CasFallback` + `detect()`. Bump `=0.27`→`0.42`, drop the `jj-backend` feature. Land the 2026-06-05 research doc. layers.toml + WTL rows; arch-check forbidden-pattern; fix stale exempt row. | Builds with jj-lib non-optional; arch-check green; **zero behavior change** (adapter only); backend-parity test scaffold exists. |
+| **P0 Foundations** | `vox-vcs` crate + `VcsBackend` trait + `CasFallback` (new in-memory impl) + `detect()`. Bump `=0.27`→`0.42` (jj-lib non-optional in `vox-vcs`). Land the 2026-06-05 research doc. layers.toml + WTL rows; arch-check `jj-lib-confined` pattern; fix stale exempt row. (`JjBackend` real impl + `jj-backend` feature removal move to P2.) | Builds with jj-lib linked; arch-check green; **zero behavior change** (additive only). Plan: [p0](../plans/2026-06-05-jj-first-class-p0-vox-vcs-foundation.md). |
 | **P1 Wire the safety substrate** | Snapshot-on-write via backend; make `FileLockManager` authoritative at the MCP write path (`dispatch.rs`); default `ScopeGuard`→`Strict` for multi-agent; call `record_conflict` from the merge-back path; jj-lib conflict auto-resolution. | Two agents on one file produce a **recorded conflict**, not a clobber; write outside a lock is **rejected**; tests prove it. |
-| **P2 Engine swap + dead-code removal** | Replace `JjBridge` + `vox vcs` subprocess + `vox-git/sync.rs` stubs with in-process jj-lib; delete `ContentMerge`/`OperationDag`; demote `SnapshotStore`/`OpLog`; give git fetch/push via jj-lib. | Every deletion preceded by a green parity test; **real fetch/push integration test** passes against a throwaway local remote; no `Command::new("jj")` remains. |
+| **P2 Engine swap + dead-code removal** | Build `JjBackend` (jj-lib 0.42 methods, each TDD'd against the API); replace `JjBridge` + `vox vcs` subprocess + `vox-git/sync.rs` stubs with in-process jj-lib; **remove the `jj-backend` cargo feature**; delete `ContentMerge`/`OperationDag`; demote `SnapshotStore`/`OpLog`; git fetch/push via jj-lib. | Every deletion preceded by a green parity test; **real fetch/push integration test** passes against a throwaway local remote; no `Command::new("jj")` remains. |
 | **P3 Language primitive** | `repo.*` builtins + `Vcs` effect + `RepoStore`; capability governance. | Golden `.vox` with `@test` blocks exercises `repo.snapshot/undo/conflicts`; `uses vcs` enforced by typeck. |
 | **P4 Isolation policy** | Three strategies chosen from affinity/overlap/policy; in-language config. | Orchestrator selects strategy per workload; overridable; covered by tests. |
 | **P5 GUI surface** | Registry → CI gate → Tauri → React decorator; reward wiring. | Surface registry gate green; vitest + Playwright pass; op-log/conflicts/undo visible. |
