@@ -1166,7 +1166,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             .filter(|p| {
                 p.targets
                     .iter()
-                    .any(|t| t.kind.iter().any(|k| k == "cdylib"))
+                    .any(|t| t.kind.contains(&cargo_metadata::TargetKind::CDyLib))
                     && layers
                         .crates
                         .get(p.name.as_str())
@@ -1181,7 +1181,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                 if pkg
                     .targets
                     .iter()
-                    .any(|t| t.kind.iter().any(|k| k == "cdylib"))
+                    .any(|t| t.kind.contains(&cargo_metadata::TargetKind::CDyLib))
                 {
                     continue; // cdylib can depend on another cdylib (rare but not our concern here)
                 }
@@ -1192,7 +1192,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                     if cdylib_pkg_names.contains(dep.name.as_str()) {
                         report
                             .cdylib_dep_warns
-                            .push((pkg.name.clone(), dep.name.clone()));
+                            .push((pkg.name.to_string(), dep.name.clone()));
                     }
                 }
             }

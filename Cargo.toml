@@ -297,7 +297,7 @@ syn                = "2"
 prettyplease       = "0.2"
 proc-macro2        = "1"
 semver             = "1"
-cargo_metadata     = "0.18"
+cargo_metadata     = "0.23"
 parking_lot        = "0.12"
 secrecy            = "0.10"
 zeroize            = { version = "1", features = ["derive"] }
