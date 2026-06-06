@@ -55,26 +55,21 @@ async fn main() -> anyhow::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 {
         let cmd = args[1].as_str();
-        let is_ml = matches!(
-            cmd,
-            "mens" | "schola" | "oratio" | "speech" | "populi" | "train"
-        );
+        let is_ml = matches!(cmd, "mens" | "oratio" | "speech" | "populi" | "train");
         let is_ext_ml = cmd == "ext"
             && args.len() > 2
             && matches!(
                 args[2].as_str(),
-                "mens" | "schola" | "oratio" | "speech" | "populi" | "train"
+                "mens" | "oratio" | "speech" | "populi" | "train"
             );
 
         if is_ml || is_ext_ml {
             let primary_cmd = if is_ext_ml { args[2].as_str() } else { cmd };
-            let binary = if primary_cmd == "schola" {
-                "vox-schola"
-            } else {
-                "vox-ml-cli"
-            };
-
-            let mut command = Command::new(binary);
+            // All ML/AI domains delegate to vox-ml-cli. (The retired `vox schola`
+            // top-level command + its phantom `vox-schola` binary were removed;
+            // training lives under `vox mens train`, which uses the internal
+            // `vox-ml-cli` `commands::schola` module.)
+            let mut command = Command::new("vox-ml-cli");
             if primary_cmd == "train" {
                 // `vox train` -> `vox-ml-cli mens train`
                 command.arg("mens");
@@ -89,12 +84,12 @@ async fn main() -> anyhow::Result<()> {
                     std::process::exit(status.code().unwrap_or(1));
                 }
                 Err(e) => {
-                    eprintln!("Error: {} is not installed or not in PATH.", binary);
+                    eprintln!("Error: vox-ml-cli is not installed or not in PATH.");
                     eprintln!(
                         "The '{}' subsystem has been extracted to a separate crate.",
                         primary_cmd
                     );
-                    eprintln!("Please run: cargo install --path crates/{}", binary);
+                    eprintln!("Please run: cargo install --path crates/vox-ml-cli");
                     eprintln!("Underlying error: {}", e);
                     std::process::exit(1);
                 }

@@ -8,7 +8,7 @@ schema_type: "TechArticle"
 ---
 # Reference: `vox` CLI (minimal compiler binary)
 
-The **`vox`** executable is built from `crates/vox-cli` (repository root). This binary serves as the primary compiler driver and orchestrator. Starting in v0.5, specialized domains like **ML/AI training (`vox mens`)**, **scholarship/publication (`vox schola`)**, **mesh coordination (`vox populi`)**, and **speech-to-code (`vox oratio`)** are decoupled into separate binaries (`vox-ml-cli`, `vox-schola`) but remain accessible through the main `vox` CLI via transparent delegation.
+The **`vox`** executable is built from `crates/vox-cli` (repository root). This binary serves as the primary compiler driver and orchestrator. Starting in v0.5, specialized domains like **ML/AI training (`vox mens`)**, **mesh coordination (`vox populi`)**, and **speech-to-code (`vox speech`)** are decoupled into a separate binary (`vox-ml-cli`) but remain accessible through the main `vox` CLI via transparent delegation. (Training internals live in `vox-ml-cli`'s `commands::schola` module, reached via `vox mens train`.)
 
 ## Toolchain Binary Split
 
@@ -17,8 +17,7 @@ To minimize binary bloat and dependency sprawl, the Vox toolchain is split into 
 | Binary | Subcommands | Role |
 |--------|-------------|------|
 | `vox` | `build`, `check`, `run`, `pm`, `ci`, `dei`, `db` | Compiler core, package manager, and local orchestration. |
-| `vox-ml-cli` | `mens`, `train`, `populi`, `oratio` | Native ML training (QLoRA), inference serving, and mesh coordination. |
-| `vox-schola` | `schola` | Scholarship / publication workflows invoked via `vox schola …`. |
+| `vox-ml-cli` | `mens`, `train`, `populi`, `speech` | Native ML training (QLoRA), inference serving, speech-to-code, and mesh coordination. |
 | `vox` (core) | `scientia` | Research DB / capability-map facade (`commands::scientia`); stays in the main binary. |
 
 If a delegated binary is missing from your `PATH`, the `vox` CLI prints actionable installation instructions.
@@ -33,8 +32,7 @@ artifacts per supported target triple, each as its own archive on the
 |---|---|---|
 | `vox` | `vox-<ver>-<target>.{tar.gz,zip}` | Lean install — compiler, package manager, orchestrator. No ML, no scientia. |
 | `bootstrap` | `vox-bootstrap-<ver>-<target>.{tar.gz,zip}` | Standalone installer used by `scripts/install.{sh,ps1}`. |
-| `mens` | `vox-ml-cli-<ver>-<target>.{tar.gz,zip}` | ML / oratio / speech / populi / train plugin (heavy: Candle + Whisper). |
-| `schola` | `vox-schola-<ver>-<target>.{tar.gz,zip}` | Scientia / schola plugin. |
+| `mens` | `vox-ml-cli-<ver>-<target>.{tar.gz,zip}` | ML / speech / populi / train plugin (heavy: Candle + Whisper). |
 | `both` | `vox` + `vox-bootstrap` | Legacy pre-plugin tier (kept for backwards compatibility). |
 | `all` | Everything above | Full install for CI / dogfood. |
 

@@ -113,6 +113,41 @@ mod tests {
     }
 
     #[test]
+    fn empty_store_has_no_changes_and_undo_is_none() {
+        let mut store = RepoStore::default();
+        assert!(store.changes().is_empty());
+        assert_eq!(store.undo(), None);
+    }
+
+    #[test]
+    fn ids_are_monotone_with_gaps_after_undo() {
+        // Mirrors the vox-vcs CasFallback invariant: undo does not rewind the id
+        // counter, so re-snapshotting after undo yields a fresh id.
+        let mut store = RepoStore::default();
+        assert_eq!(store.snapshot(None), 0);
+        assert_eq!(store.snapshot(None), 1);
+        assert_eq!(store.undo(), Some(1));
+        assert_eq!(store.snapshot(None), 2, "id advances, never reuses 1");
+        let ids: Vec<i64> = store.changes().iter().map(|c| c.id).collect();
+        assert_eq!(ids, vec![0, 2]);
+    }
+
+    #[test]
+    fn unknown_repo_method_is_an_error() {
+        let mut interp = Interpreter::new(10_000);
+        let err = execute_repo_op(&mut interp, "rebase", vec![]).unwrap_err();
+        match err {
+            EvalError::AssertionFailed(msg) => {
+                assert!(
+                    msg.contains("rebase") && msg.contains("unknown method"),
+                    "got: {msg}"
+                );
+            }
+            other => panic!("expected AssertionFailed, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn snapshot_non_string_arg_errors() {
         let mut interp = crate::eval::Interpreter::new(10_000);
         let result = execute_repo_op(&mut interp, "snapshot", vec![VoxValue::Int(42)]);

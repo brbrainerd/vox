@@ -21,7 +21,6 @@ const DATA_REL: &str = "contracts/eval/benchmark-matrix.json";
 // --- Crate / feature names (avoid scattered literals in cargo argv) ---
 const PKG_VOX_CLI: &str = "vox-cli";
 const PKG_VOX_POPULI_MENS: &str = "vox-populi";
-const PKG_VOX_SCHOLA: &str = "vox-schola";
 const PKG_VOX_MCP: &str = "vox-mcp";
 const PKG_VOX_RUNTIME: &str = "vox-actor-runtime";
 const PKG_VOX_ORCHESTRATOR: &str = "vox-orchestrator";
@@ -71,7 +70,6 @@ pub(crate) const BENCHMARK_CLASS_IDS: &[&str] = &[
     "vox_mens_hub_token_resolution",
     "vox_orchestrator_a2a_message_ids",
     "vox_runtime_model_resolution_tests",
-    "vox_schola_train_compile",
 ];
 
 #[derive(Debug, Deserialize)]
@@ -203,7 +201,6 @@ fn run_benchmark_class(repo_root: &Path, class: &str) -> Result<()> {
                 FILTER_MENS_GPU_TESTS,
             ],
         ),
-        "vox_schola_train_compile" => cargo_check_pkg_features(repo_root, PKG_VOX_SCHOLA, None),
         "vox_mens_hub_token_resolution" => cargo_test_nocapture(
             repo_root,
             &[
