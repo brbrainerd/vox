@@ -88,6 +88,7 @@ ci/eval-matrix/verify
 ci/exec-policy-contract
 ci/feature-matrix
 ci/flake-budget
+ci/fmt-check
 ci/generate-plugin-catalog-docs
 ci/grammar-drift
 ci/grammar-export-check
@@ -96,9 +97,11 @@ ci/grpo-reward-baseline
 ci/gui-catalog-parity
 ci/gui-smoke
 ci/gui-surface-coverage
+ci/gui-surface-registry
 ci/gui-version-sync
 ci/ignored-test-age
 ci/install-hooks
+ci/job-timings
 ci/json-parse-check
 ci/k-complexity-budget
 ci/kill-stuck-tests
@@ -124,6 +127,7 @@ ci/operator-env-guard
 ci/parse-status
 ci/plugin-abi-parity
 ci/plugin-catalog-parity
+ci/plugin-dep-boundary
 ci/plugin-skill-parity
 ci/pm-provenance
 ci/policy-allowlist-parity
@@ -135,6 +139,8 @@ ci/repo-guards
 ci/retired-symbol-check
 ci/retirement-audit
 ci/row-serde-lint
+ci/runner-preflight
+ci/runner-scale
 ci/runtime-regress
 ci/rust-ecosystem-policy
 ci/safety-inventory
@@ -178,6 +184,7 @@ codex/verify
 commands
 compile
 completions
+component
 config
 config/get
 config/list
@@ -291,6 +298,7 @@ fabrica/compile
 fabrica/dev
 fabrica/fmt
 fabrica/run
+fabrica/script
 fabrica/test
 fmt
 generate
@@ -392,6 +400,7 @@ schola
 scientia
 scientia/capability-list
 scientia/claims
+scientia/cost
 scientia/dashboard
 scientia/diagnose
 scientia/feed-source-add
@@ -476,7 +485,6 @@ train
 update
 upgrade
 wasm
-wasm/run
 workflow
 workflow/drain
 workflow/ls
