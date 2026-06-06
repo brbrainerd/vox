@@ -882,7 +882,12 @@ pub enum CiCmd {
     PluginDepBoundary,
     /// Walk crates/ for code/composite Plugin.toml files and assert ABI matches the host. Skips intentionally-broken `noop-bad-*` fixtures.
     #[command(name = "plugin-abi-parity")]
-    PluginAbiParity,
+    PluginAbiParity {
+        /// Build each discovered plugin cdylib (cargo build -p <crate>) before loading it.
+        /// Use in CI so the gate covers newly-added plugins without a manual build list.
+        #[arg(long)]
+        build: bool,
+    },
     /// Walk crates/ for skill/composite Plugin.toml files and assert skill-md exists, is non-empty, and tools.exposes is non-empty.
     #[command(name = "plugin-skill-parity")]
     PluginSkillParity,

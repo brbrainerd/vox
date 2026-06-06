@@ -77,8 +77,10 @@ pub struct CommandCatalog {
 pub fn build_catalog() -> CommandCatalog {
     let root = crate::VoxCliRoot::command();
     let mut entries = Vec::new();
-    // Iterative DFS: the `vox` CLI tree is deep enough that recursive walks can overflow the
-    // default Windows thread stack (~1 MiB) when many tests run in parallel.
+    // Iterative DFS (rather than a recursive walk) to keep our own stack usage flat over the
+    // deep `vox` command tree. Note: clap's internal recursive build of that tree inside
+    // `command()` above is the dominant stack consumer — see `run_on_big_stack` (test-only),
+    // which works around the default ~2 MiB libtest worker-thread stack on Windows.
     let mut stack: Vec<(&Command, Vec<String>)> = Vec::new();
     let top: Vec<_> = root.get_subcommands().collect();
     for sub in top.into_iter().rev() {
@@ -389,13 +391,46 @@ fn sanitize_about(about: &str) -> String {
     about.replace('\n', " ").trim().to_string()
 }
 
+/// Run `f` on a worker thread with a large (32 MiB) stack and return its result.
+///
+/// `build_catalog()` and `VoxCliRoot::command()` trigger clap's *recursive* build
+/// of vox's large, deeply-nested command tree. That recursion exceeds the default
+/// ~2 MiB libtest worker-thread stack on Windows, aborting the whole
+/// `cargo test -p vox-cli --lib` process with `STATUS_STACK_OVERFLOW` (0xc00000fd)
+/// and masking every other test result. (It is depth-driven, not parallelism: a
+/// single-threaded run overflows on the first catalog test too.)
+///
+/// Production is unaffected — `vox commands` / `vox ci …` call these on the main
+/// thread, which has an ample stack. Only libtest worker threads are too small,
+/// so the bump lives here in test-only code rather than changing the catalog
+/// builder. The recursion itself is inside `clap` (third-party), so a larger
+/// stack is the appropriate lever. Scoped so callers may borrow locals; a panic
+/// inside `f` (e.g. an assertion) is re-raised here so test output is preserved.
+#[cfg(test)]
+pub(crate) fn run_on_big_stack<T, F>(f: F) -> T
+where
+    F: FnOnce() -> T + Send,
+    T: Send,
+{
+    std::thread::scope(|scope| {
+        let handle = std::thread::Builder::new()
+            .stack_size(32 * 1024 * 1024)
+            .spawn_scoped(scope, f)
+            .expect("spawn big-stack test thread");
+        match handle.join() {
+            Ok(value) => value,
+            Err(payload) => std::panic::resume_unwind(payload),
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn build_catalog_has_expected_top_level_commands() {
-        let catalog = build_catalog();
+        let catalog = run_on_big_stack(build_catalog);
         let commands: Vec<&str> = catalog
             .entries
             .iter()
@@ -412,7 +447,7 @@ mod tests {
 
     #[test]
     fn select_entries_recommended_only_yields_known_starter_set() {
-        let catalog = build_catalog();
+        let catalog = run_on_big_stack(build_catalog);
         let selected = select_entries(catalog.entries, true, false);
         assert!(!selected.is_empty());
         for e in &selected {
@@ -444,7 +479,7 @@ mod tests {
 
     #[test]
     fn select_entries_top_level_excludes_nested_paths() {
-        let catalog = build_catalog();
+        let catalog = run_on_big_stack(build_catalog);
         let flat = select_entries(catalog.entries.clone(), false, false);
         assert!(flat.iter().all(|e| e.path.len() == 1));
 
@@ -457,7 +492,7 @@ mod tests {
 
     #[test]
     fn feature_gated_commands_marked_tier() {
-        let catalog = build_catalog();
+        let catalog = run_on_big_stack(build_catalog);
         let mens = catalog
             .entries
             .iter()
@@ -469,7 +504,7 @@ mod tests {
 
     #[test]
     fn render_text_contains_command_and_tier_labels() {
-        let catalog = build_catalog();
+        let catalog = run_on_big_stack(build_catalog);
         let subset: Vec<_> = catalog
             .entries
             .into_iter()
@@ -483,7 +518,7 @@ mod tests {
 
     #[test]
     fn search_entries_returns_matches() {
-        let catalog = build_catalog();
+        let catalog = run_on_big_stack(build_catalog);
         // "shell" should match `vox shell` and `vox shell check`/`vox shell repl`.
         let results = search_entries(catalog.entries, "shell");
         assert!(
@@ -499,7 +534,7 @@ mod tests {
 
     #[test]
     fn search_entries_empty_pattern_returns_all() {
-        let catalog = build_catalog();
+        let catalog = run_on_big_stack(build_catalog);
         let total = catalog.entries.len();
         let results = search_entries(catalog.entries, "");
         assert_eq!(results.len(), total);
@@ -507,7 +542,7 @@ mod tests {
 
     #[test]
     fn search_entries_no_match_returns_empty() {
-        let catalog = build_catalog();
+        let catalog = run_on_big_stack(build_catalog);
         let results = search_entries(catalog.entries, "zzz_no_such_command_xyzzy");
         assert!(
             results.is_empty(),
@@ -517,7 +552,7 @@ mod tests {
 
     #[test]
     fn catalog_arguments_carry_value_kind_and_possible_values() {
-        let catalog = build_catalog();
+        let catalog = run_on_big_stack(build_catalog);
         let commands = catalog
             .entries
             .iter()

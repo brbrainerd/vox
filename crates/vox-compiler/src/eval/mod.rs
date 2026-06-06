@@ -301,6 +301,8 @@ impl Interpreter {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: std::rc::Rc::new(f.body.clone()),
                 env: Scope::new(),
+                name: f.name.clone(),
+                is_versioned: f.is_versioned,
             };
             self.scope.set(f.name.clone(), val.clone());
             self.module_scope.set(f.name.clone(), val);
@@ -311,6 +313,8 @@ impl Interpreter {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: std::rc::Rc::new(f.body.clone()),
                 env: Scope::new(),
+                name: f.name.clone(),
+                is_versioned: f.is_versioned,
             };
             self.scope.set(f.name.clone(), val.clone());
             self.module_scope.set(f.name.clone(), val);
@@ -327,6 +331,10 @@ impl Interpreter {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: std::rc::Rc::new(f.body.clone()),
                 env: Scope::new(),
+                name: f.name.clone(),
+                // Endpoint fns (`@query`/`@mutation`/...) are a distinct decl and
+                // are never `@versioned`; no auto-snapshot for handler calls.
+                is_versioned: false,
             };
             self.scope.set(f.name.clone(), val.clone());
             self.module_scope.set(f.name.clone(), val);
@@ -427,6 +435,8 @@ impl Interpreter {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: std::rc::Rc::new(f.body.clone()),
                 env: Scope::new(),
+                name: f.name.clone(),
+                is_versioned: f.is_versioned,
             };
             match alias {
                 None => {
@@ -484,6 +494,8 @@ impl Interpreter {
             params,
             body,
             mut env,
+            name: fn_name,
+            is_versioned,
         } = val
         {
             if params.len() != args.len() {
@@ -511,6 +523,17 @@ impl Interpreter {
             }
 
             self.scope = old_scope;
+
+            // P5: auto-checkpoint on successful return of a @versioned function.
+            // Reaching here means the body loop completed without an early `?`
+            // error return, so the call succeeded. The auto-snapshot performs a
+            // `Vcs` effect; it inherits the same ungated behavior as explicit
+            // `repo.*` calls (`eval/repo.rs` does not consult `interp.caps`), so
+            // we do not add a new caps gate here — kept consistent with the
+            // landed `repo.*` semantics (design §4.3).
+            if is_versioned {
+                self.repo.snapshot(Some(&format!("@versioned {fn_name}")));
+            }
             Ok(res)
         } else {
             Err(EvalError::TypeError {

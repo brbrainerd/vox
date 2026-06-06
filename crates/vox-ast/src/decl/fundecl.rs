@@ -49,6 +49,10 @@ pub struct FnDecl {
     /// dependency tracking. Default: `false` (the dep walker stops at the call site).
     #[serde(default)]
     pub is_reactive: bool,
+    /// `@versioned` / `@tracked` — auto-checkpoint this function's successful
+    /// return into the interpreter RepoStore (design §4.3). Implies `uses vcs`.
+    #[serde(default)]
+    pub is_versioned: bool,
     /// Explicit effect annotations from the `uses` clause.
     /// Empty means unannotated (unconstrained); `[Nothing]` means `uses nothing` (pure).
     #[serde(default)]
