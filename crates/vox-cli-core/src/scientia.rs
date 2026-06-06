@@ -639,4 +639,24 @@ mod tests {
         assert_eq!(ClaimReviewDecisionCli::Reject.as_stored(), "rejected");
         assert_eq!(ClaimReviewDecisionCli::Defer.as_stored(), "deferred");
     }
+
+    /// Guard against drift: every CLI decision MUST map to a value the DB layer
+    /// accepts. A typo in `as_stored()` would otherwise only surface as a
+    /// runtime DB-validation error rather than a caught programming error.
+    #[test]
+    fn as_stored_values_are_all_valid_db_decisions() {
+        for d in [
+            ClaimReviewDecisionCli::Approve,
+            ClaimReviewDecisionCli::Reject,
+            ClaimReviewDecisionCli::Defer,
+        ] {
+            assert!(
+                vox_db::store::VALID_DECISIONS.contains(&d.as_stored()),
+                "{:?}.as_stored() = {:?} is not in vox_db::store::VALID_DECISIONS {:?}",
+                d,
+                d.as_stored(),
+                vox_db::store::VALID_DECISIONS,
+            );
+        }
+    }
 }
