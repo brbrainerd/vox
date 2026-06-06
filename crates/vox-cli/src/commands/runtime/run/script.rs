@@ -8,7 +8,9 @@
 
 use anyhow::Result;
 
-use crate::commands::runtime::run::backend::{NativeBackend, RunBackend, WasiBackend};
+#[cfg(feature = "script-wasi")]
+use crate::commands::runtime::run::backend::WasiBackend;
+use crate::commands::runtime::run::backend::{NativeBackend, RunBackend};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -81,7 +83,18 @@ impl ScriptOpts {
     /// P2: Select the appropriate backend for this execution.
     pub fn backend(&self) -> anyhow::Result<Box<dyn RunBackend>> {
         if self.use_wasi() {
-            return Ok(Box::new(WasiBackend));
+            #[cfg(feature = "script-wasi")]
+            {
+                return Ok(Box::new(WasiBackend));
+            }
+            #[cfg(not(feature = "script-wasi"))]
+            {
+                anyhow::bail!(
+                    "WASI isolation (`--isolation wasm`) requires a vox build with \
+                     `--features script-wasi` (the Wasmtime lane). Native `vox run \
+                     --mode script` works without it."
+                );
+            }
         }
 
         // Gate: container/gvisor/microvm tiers are not yet implemented as backends.
