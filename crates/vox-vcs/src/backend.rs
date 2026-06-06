@@ -50,6 +50,12 @@ pub trait VcsBackend: Send {
         Err(VcsError::Unavailable("backend has no remotes".into()))
     }
 
+    /// Create (or move) a named branch/bookmark at the current change. Backends
+    /// without a branch concept (CAS) return [`VcsError::Unavailable`].
+    async fn create_branch(&mut self, _name: &str) -> Result<(), VcsError> {
+        Err(VcsError::Unavailable("backend has no branches".into()))
+    }
+
     /// Push `change` to `remote` under bookmark/branch `bookmark`.
     async fn push(
         &mut self,
