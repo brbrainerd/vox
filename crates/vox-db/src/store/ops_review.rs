@@ -260,4 +260,55 @@ mod tests {
             "error must mention bound_digest, got: {err}"
         );
     }
+
+    #[tokio::test]
+    async fn record_review_decision_rejects_empty_actor() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let row = ReviewDecisionRow {
+            claim_id: 1,
+            publication_id: None,
+            bound_digest: "some-digest".into(),
+            decision: "approved".into(),
+            actor: "  ".into(), // empty after trim
+            reason: None,
+            model_fingerprints_json: None,
+            decided_at_ms: 1,
+        };
+        let err = db
+            .record_review_decision(&row)
+            .await
+            .expect_err("empty actor must error");
+        assert!(
+            err.to_string().contains("actor"),
+            "error must mention actor, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_claims_with_decisions_returns_distinct_ids() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let base = ReviewDecisionRow {
+            claim_id: 0,
+            publication_id: Some("pub-003".into()),
+            bound_digest: "d".into(),
+            decision: "approved".into(),
+            actor: "alice".into(),
+            reason: None,
+            model_fingerprints_json: None,
+            decided_at_ms: 1,
+        };
+        // Two distinct claims; one of them decided twice.
+        for (claim_id, decided_at_ms) in [(10_i64, 1_i64), (20, 1), (10, 2)] {
+            db.record_review_decision(&ReviewDecisionRow {
+                claim_id,
+                decided_at_ms,
+                ..base.clone()
+            })
+            .await
+            .expect("record");
+        }
+        let got = db.list_claims_with_decisions().await.expect("list");
+        // DISTINCT: claim 10 appears once despite two decisions; ordered by claim_id.
+        assert_eq!(got, vec![10, 20]);
+    }
 }
