@@ -578,9 +578,9 @@ Always available in the minimal binary. **`vox snippet`** — `save`, `search`, 
 
 **Not in default builds.** `cargo build -p vox-cli --features ars`. Subcommands mirror the ARS helpers: `list`, `install`, `uninstall`, `search`, `info`, `create`, `eval-task`, `promote`, `run`, `context-assemble`, `discover` (see `commands::extras::ars`).
 
-### `vox ludus` (feature `extras-ludus`)
+### `vox gamify` (alias `vox ludus`, feature `extras-ludus`)
 
-**Not in default builds.** `cargo build -p vox-cli --features extras-ludus`. Companions, quests, shop, arena, collegium, etc. (`commands::extras::ludus`). Terminal HUD: **`vox ludus hud`** requires **`--features ludus-hud`** (implies `extras-ludus` + `vox-orchestrator`).
+**Not in default builds.** `cargo build -p vox-cli --features extras-ludus`. Companions, quests, shop, arena, collegium, etc. (`commands::extras::ludus`). Canonical command is **`vox gamify`**; the Latin **`vox ludus`** alias keeps working. Terminal HUD: **`vox gamify hud`** (alias `vox ludus hud`) requires **`--features ludus-hud`** (implies `extras-ludus` + `vox-orchestrator`).
 
 ### `vox stub-check` (feature `stub-check`)
 
@@ -840,7 +840,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `telemetry` | default | `commands::telemetry` (optional upload queue; ADR 023) |
 | `openclaw` | `ars` | `commands::openclaw` |
 | `skill` | `ars` | `commands::extras::skill_cmd` |
-| `ludus` | `extras-ludus` | `commands::extras::ludus_cli` |
+| `gamify` | `extras-ludus` | `commands::extras::ludus_cli` |
 | `stub-check` | `stub-check` | `commands::stub_check` |
 | `ci` | default | `commands::ci` |
 | `commands` | default | `command_catalog` |

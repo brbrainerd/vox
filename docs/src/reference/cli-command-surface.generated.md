@@ -159,14 +159,14 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox doctor` | active | — | diag | platform | — |
 | `vox fabrica` | active | — | fabrica | app | — |
 | `vox fmt` | active | — | fabrica | app | — |
+| `vox gamify` | active | extras-ludus | ars | ai | — |
+| `vox gamify hud` | active | ludus-hud | ars | ai | — |
 | `vox init` | active | — | pm | platform | — |
 | `vox live` | active | live | — | ai | — |
 | `vox lock` | active | — | pm | platform | — |
 | `vox login` | active | — | ars | platform | — |
 | `vox logout` | active | — | ars | platform | — |
 | `vox lsp` | active | — | fabrica | app | — |
-| `vox ludus` | active | extras-ludus | ars | ai | — |
-| `vox ludus hud` | active | ludus-hud | ars | ai | — |
 | `vox memory search` | active | — | codex | ai | — |
 | `vox mens` | active | mens-base|gpu | mens | ai | — |
 | `vox mens bench-completion` | active | mens-base | mens | ai | — |

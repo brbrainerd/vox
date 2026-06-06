@@ -6075,8 +6075,8 @@ operations:
     ref_cli_required: true
     reachability_required: null
 - id: ludus
-  title: Ludus
-  description: CLI operation `vox ludus`
+  title: Gamify
+  description: CLI operation `vox gamify` (alias `ludus`)
   description_human: null
   product_lane: ai
   intent_tags: []
@@ -6087,12 +6087,13 @@ operations:
   preferred_for_models: null
   human_takeover_friendly: null
   mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
+  canonical_name: gamify
+  latin_aliases:
+  - ludus
   mcp: null
   cli:
     path:
-    - ludus
+    - gamify
     status: active
     latin_ns: ars
     handler_rust: commands::extras::ludus_cli
@@ -6161,8 +6162,8 @@ operations:
     tier: core
   cli: null
 - id: ludus.hud
-  title: Ludus Hud
-  description: CLI operation `vox ludus hud`
+  title: Gamify Hud
+  description: CLI operation `vox gamify hud` (alias `vox ludus hud`)
   description_human: null
   product_lane: ai
   intent_tags: []
@@ -6178,7 +6179,7 @@ operations:
   mcp: null
   cli:
     path:
-    - ludus
+    - gamify
     - hud
     status: active
     latin_ns: ars

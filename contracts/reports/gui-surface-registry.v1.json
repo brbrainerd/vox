@@ -73,8 +73,6 @@
     "wasm",
     "workflow"
   ],
-  "unclassified_backfilled": [
-    "speech"
-  ],
+  "unclassified_backfilled": [],
   "wiring_violations": []
 }

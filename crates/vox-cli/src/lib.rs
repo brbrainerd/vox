@@ -370,9 +370,9 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: crate::commands::extras::skill_cmd::SkillCmd,
     },
-    /// Ludus gamification: profile, companions, quests, and battle simulations.
+    /// Gamification: profile, companions, quests, and battle simulations. `ludus` alias retained.
     #[cfg(feature = "extras-ludus")]
-    #[command(name = "ludus")]
+    #[command(name = "gamify", visible_alias = "ludus")]
     Ludus {
         /// Subcommand.
         #[command(subcommand)]
