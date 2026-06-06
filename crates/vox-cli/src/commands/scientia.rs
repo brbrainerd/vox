@@ -359,11 +359,16 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     let db = vox_db::VoxDb::connect_default()
                         .await
                         .map_err(|e| anyhow::anyhow!("connect to default Codex / VoxDb: {e}"))?;
+                    // SECURITY GATE (P2 Task 3): obtain a content-bound approval
+                    // token from the review ledger BEFORE building. Without an
+                    // "approved" decision this refuses — no nanopub is emitted.
+                    let token = super::scientia_nanopub::approval_for(&db, claim_id).await?;
                     let signed = super::scientia_nanopub::nanopub_build(
                         &db,
                         &publication_id,
                         claim_id,
                         orcid.as_deref(),
+                        &token,
                     )
                     .await?;
                     // Human line only: a strict `--json` mode is deferred because
