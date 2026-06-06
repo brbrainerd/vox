@@ -133,7 +133,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-orchestrator-mcp`](../../../crates/vox-orchestrator-mcp/) | MCP (Model Context Protocol) tool layer for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 4. |
 | [`vox-orchestrator-queue`](../../../crates/vox-orchestrator-queue/) | Locks, oplog, and affinity tracking for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 5. |
 | [`vox-orchestrator-test-helpers`](../../../crates/vox-orchestrator-test-helpers/) | Test-only fixtures and mocks for vox-orchestrator: MockBulletinBoard, load_golden_fixture. |
-| [`vox-oratio`](../../../crates/vox-oratio/) | Speech-to-text (Oratio) — Candle Whisper (Rust) STT and transcript refinement. |
+| [`vox-speech`](../../../crates/vox-speech/) | Speech-to-text (Oratio) — Candle Whisper (Rust) STT and transcript refinement. |
 | [`vox-plugin-catalog`](../../../crates/vox-plugin-catalog/) | SSOT catalog of all first-party Vox plugins and distribution bundles. |
 | [`vox-plugin-host`](../../../crates/vox-plugin-host/) | Host-side plugin discovery, loading, and registry. |
 | [`vox-plugin-test-harness`](../../../crates/vox-plugin-test-harness/) | Shared test utilities for plugin authors: fluent `Plugin.toml` manifest builders (`CodeManifestBuilder`, `SkillManifestBuilder`) and `PluginDir` temp-directory helper. |
@@ -255,7 +255,7 @@ Don't depend on `vox-orchestrator` or `vox-cli` from a plugin.
 | [`vox-plugin-mens-candle-cuda`](../../../crates/vox-plugin-mens-candle-cuda/) | ML training backend plugin: Candle + CUDA. Implements MlBackend. |
 | [`vox-plugin-mens-candle-metal`](../../../crates/vox-plugin-mens-candle-metal/) | MENS Apple Silicon Metal execution plugin. |
 | [`vox-plugin-nvml-probe`](../../../crates/vox-plugin-nvml-probe/) | Hardware probe plugin: NVML for NVIDIA GPU introspection. |
-| [`vox-plugin-oratio`](../../../crates/vox-plugin-oratio/) | Speech-to-text + AudioCapture plugin: Candle Whisper backend + mic capture surface (both extensions in one plugin). |
+| [`vox-plugin-speech`](../../../crates/vox-plugin-speech/) | Speech-to-text + AudioCapture plugin: Candle Whisper backend + mic capture surface (both extensions in one plugin). |
 | [`vox-plugin-populi-mesh`](../../../crates/vox-plugin-populi-mesh/) | Populi mesh transport plugin (composite: code + skill). |
 | [`vox-plugin-publication`](../../../crates/vox-plugin-publication/) | Publication plugin: RSS/Atom ingest with dedup, Reddit/YouTube publish, scholarly job feeds. |
 | [`vox-plugin-runtime-container`](../../../crates/vox-plugin-runtime-container/) | Skill-runtime plugin: Docker + Podman backends for vox-skill-runtime. |

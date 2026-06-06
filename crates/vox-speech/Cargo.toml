@@ -1,5 +1,5 @@
 [package]
-name = "vox-oratio"
+name = "vox-speech"
 description = "Vox speech-to-text (Oratio) — Candle Whisper (Rust) STT and transcript refinement"
 version.workspace = true
 edition.workspace = true
@@ -14,7 +14,7 @@ categories = ["multimedia::audio"]
 # prevents accidental bleed-through of ~100MB+ of native ML code into crates that
 # only need lightweight surfaces like `refine`, `routing`, or `runtime_config`.
 default = []
-# DEPRECATED: The Candle Whisper code has been extracted into vox-plugin-oratio (Unit 4 of the
+# DEPRECATED: The Candle Whisper code has been extracted into vox-plugin-speech (Unit 4 of the
 # vox-populi extraction follow-up plan). Historical audio-ingress docs/env rows still point here while the
 # plugin-host rewire is pending. Once ingress is rewired through vox-plugin-host::load_code_plugin
 # + as_speech_to_text(), this feature and its heavy deps will be deleted from this crate.

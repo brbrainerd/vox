@@ -1,9 +1,9 @@
 [package]
-name = "vox-plugin-oratio"
+name = "vox-plugin-speech"
 version.workspace = true
 edition.workspace = true
 publish = false
-description = "Speech-to-text plugin: Candle Whisper backend extracted from vox-oratio."
+description = "Speech-to-text plugin: Candle Whisper backend extracted from vox-speech."
 
 [lib]
 crate-type = ["cdylib", "rlib"]

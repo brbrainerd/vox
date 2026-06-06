@@ -39,7 +39,7 @@ pub async fn speech_to_code(state: &ServerState, args: Value) -> anyhow::Result<
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty());
 
-    let correlation = vox_oratio::trace::new_correlation_id();
+    let correlation = vox_speech::trace::new_correlation_id();
     let session_trace = args
         .get("session_id")
         .and_then(|v| v.as_str())
@@ -60,12 +60,12 @@ pub async fn speech_to_code(state: &ServerState, args: Value) -> anyhow::Result<
         }
         (Some(p), None) => {
             let full = resolve_audio_path(state, p);
-            let rtc = vox_oratio::OratioRuntimeConfig::resolve();
+            let rtc = vox_speech::OratioRuntimeConfig::resolve();
             let debug_parser = args
                 .get("debug_parser_payload")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
-            let ctx = vox_oratio::refine::CorrectionContext::from_runtime(
+            let ctx = vox_speech::refine::CorrectionContext::from_runtime(
                 &rtc,
                 parse_profile(&args),
                 debug_parser,
@@ -92,20 +92,20 @@ pub async fn speech_to_code(state: &ServerState, args: Value) -> anyhow::Result<
         ),
     };
 
-    let rtc = vox_oratio::OratioRuntimeConfig::resolve();
+    let rtc = vox_speech::OratioRuntimeConfig::resolve();
     let route = if from_path
         && args
             .get("include_route")
             .and_then(|v| v.as_bool())
             .unwrap_or(true)
     {
-        Some(vox_oratio::route_transcript_with_options(
+        Some(vox_speech::route_transcript_with_options(
             parse_route_mode(&args),
             session_trace.as_str(),
             refined_text.as_str(),
             confidence,
             &rtc,
-            &vox_oratio::routing::IdeContext::default(),
+            &vox_speech::routing::IdeContext::default(),
         ))
     } else {
         None

@@ -2815,7 +2815,7 @@
   },
   {
     "column": 0,
-    "file": "crates\\vox-oratio\\src\\backends\\candle_engine.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_engine.rs",
     "line": 1,
     "message": "High method/entity density detected (~17 entities vs max 12).",
     "rule_id": "arch/god_object",
@@ -2826,7 +2826,7 @@
   {
     "column": 0,
     "context": "   1 | //! Whisper decoding engine derived from the Hugging Face Candle examples (Apache-2.0).\n   2 | //! Source reference: `candle-examples/examples/whisper/main.rs`.\n   3 | ",
-    "file": "crates\\vox-oratio\\src\\backends\\candle_engine.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_engine.rs",
     "line": 1,
     "message": "File is too large (630 non-blank lines). Hard maximum allowed is 500.",
     "rule_id": "arch/god_object",
@@ -2836,7 +2836,7 @@
   },
   {
     "column": 0,
-    "file": "crates\\vox-oratio\\src\\backends\\candle_whisper.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_whisper.rs",
     "line": 1,
     "message": "High method/entity density detected (~29 entities vs max 12).",
     "rule_id": "arch/god_object",
@@ -2847,7 +2847,7 @@
   {
     "column": 0,
     "context": "   1 | //! Candle (pure Rust) Whisper backend: HF Hub weights + symphonia decode + Candle inference.\n   2 | \n   3 | use std::path::Path;",
-    "file": "crates\\vox-oratio\\src\\backends\\candle_whisper.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_whisper.rs",
     "line": 1,
     "message": "File is too large (810 non-blank lines). Hard maximum allowed is 500.",
     "rule_id": "arch/god_object",
@@ -2857,7 +2857,7 @@
   },
   {
     "column": 0,
-    "file": "crates\\vox-oratio\\src\\backends\\logit_processors.rs",
+    "file": "crates\\vox-speech\\src\\backends\\logit_processors.rs",
     "line": 1,
     "message": "High method/entity density detected (~37 entities vs max 12).",
     "rule_id": "arch/god_object",
@@ -2867,7 +2867,7 @@
   },
   {
     "column": 0,
-    "file": "crates\\vox-oratio\\src\\routing.rs",
+    "file": "crates\\vox-speech\\src\\routing.rs",
     "line": 1,
     "message": "High method/entity density detected (~21 entities vs max 12).",
     "rule_id": "arch/god_object",
@@ -2878,7 +2878,7 @@
   {
     "column": 0,
     "context": "   1 | //! Two-way routing for transcript-driven loops (tool / chat / orchestrator).\n   2 | //!\n   3 | //! Uses deterministic intent classification with optional confidence gating aligned to",
-    "file": "crates\\vox-oratio\\src\\routing.rs",
+    "file": "crates\\vox-speech\\src\\routing.rs",
     "line": 1,
     "message": "File is too large (630 non-blank lines). Hard maximum allowed is 500.",
     "rule_id": "arch/god_object",
@@ -2889,7 +2889,7 @@
   {
     "column": 0,
     "context": "   1 | //! Central Oratio runtime tunables with precedence: **explicit overrides → env → config file → defaults**.\n   2 | //!\n   3 | //! Config file path: `VOX_ORATIO_CONFIG` (TOML). Env vars use the `VOX_ORATIO_*` prefix documented on each field.",
-    "file": "crates\\vox-oratio\\src\\runtime_config.rs",
+    "file": "crates\\vox-speech\\src\\runtime_config.rs",
     "line": 1,
     "message": "File is too large (513 non-blank lines). Hard maximum allowed is 500.",
     "rule_id": "arch/god_object",
@@ -2899,7 +2899,7 @@
   },
   {
     "column": 0,
-    "file": "crates\\vox-oratio\\src\\runtime_config.rs",
+    "file": "crates\\vox-speech\\src\\runtime_config.rs",
     "line": 1,
     "message": "High method/entity density detected (~25 entities vs max 12).",
     "rule_id": "arch/god_object",
@@ -2909,7 +2909,7 @@
   },
   {
     "column": 0,
-    "file": "crates\\vox-oratio\\src\\traits.rs",
+    "file": "crates\\vox-speech\\src\\traits.rs",
     "line": 1,
     "message": "High method/entity density detected (~13 entities vs max 12).",
     "rule_id": "arch/god_object",
@@ -12472,7 +12472,7 @@
     "column": 0,
     "confidence": "medium",
     "context": " 155 |             );\n 156 |         } else {\n 157 |             tracing::info!(\n 158 |                 target: \"vox_oratio_gpu\",\n 159 |                 event = \"oratio_inference_gpu\",",
-    "file": "crates\\vox-oratio\\src\\backends\\candle_whisper.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_whisper.rs",
     "line": 157,
     "message": "Function body contains only an assertion / log / dbg call — no real work happens.",
     "rule_id": "ai-laziness/assertion-only-body",
@@ -12484,7 +12484,7 @@
     "column": 0,
     "confidence": "medium",
     "context": " 541 |         let thr = sess.config.max_source_positions.saturating_mul(9) / 10;\n 542 |         if mel_frames > thr {\n 543 |             tracing::warn!(\n 544 |                 target: \"vox_oratio_whisper\",\n 545 |                 mel_frames,",
-    "file": "crates\\vox-oratio\\src\\backends\\candle_whisper.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_whisper.rs",
     "line": 543,
     "message": "Function body contains only an assertion / log / dbg call — no real work happens.",
     "rule_id": "ai-laziness/assertion-only-body",
@@ -12496,7 +12496,7 @@
     "column": 0,
     "confidence": "medium",
     "context": "  89 | pub fn refine_transcript(raw: &str, ctx: &CorrectionContext) -> RefineOutput {\n  90 |     if ctx.debug_payload {\n  91 |         tracing::debug!(target: \"vox_oratio_refine\", raw_payload = raw, \"Refine input payload\");\n  92 |     }\n  93 | ",
-    "file": "crates\\vox-oratio\\src\\refine\\rules.rs",
+    "file": "crates\\vox-speech\\src\\refine\\rules.rs",
     "line": 91,
     "message": "Function body contains only an assertion / log / dbg call — no real work happens.",
     "rule_id": "ai-laziness/assertion-only-body",
@@ -12508,7 +12508,7 @@
     "column": 0,
     "confidence": "medium",
     "context": " 444 |             && let Err(e) = c.merge_file(Path::new(&p))\n 445 |         {\n 446 |             tracing::warn!(\n 447 |                 target: \"vox_oratio_config\",\n 448 |                 path = %p,",
-    "file": "crates\\vox-oratio\\src\\runtime_config.rs",
+    "file": "crates\\vox-speech\\src\\runtime_config.rs",
     "line": 446,
     "message": "Function body contains only an assertion / log / dbg call — no real work happens.",
     "rule_id": "ai-laziness/assertion-only-body",
@@ -12520,7 +12520,7 @@
     "column": 0,
     "confidence": "medium",
     "context": "  14 |         let t = s.trim();\n  15 |         if t.is_empty() {\n  16 |             return;\n  17 |         }\n  18 |         if seen.insert(t.to_string()) {",
-    "file": "crates\\vox-oratio\\src\\transcript_rerank.rs",
+    "file": "crates\\vox-speech\\src\\transcript_rerank.rs",
     "line": 16,
     "message": "Function body is only `return;` (optionally with a log) — no behavior.",
     "rule_id": "ai-laziness/early-return-only",
@@ -29890,7 +29890,7 @@
   {
     "column": 0,
     "context": " 164 |     #[test]\n 165 |     fn peak_normalize_scales_quiet_signal() {\n 166 |         let _guard = TEST_LOCK.lock().unwrap();\n 167 |         // SAFETY: tests are single-threaded here; env is restored after the assertion.\n 168 |         unsafe {",
-    "file": "crates\\vox-oratio\\src\\acoustic_preprocess.rs",
+    "file": "crates\\vox-speech\\src\\acoustic_preprocess.rs",
     "line": 166,
     "message": "`.unwrap()` — consider explicit error handling",
     "rule_id": "rust/unwrap-call",
@@ -29901,7 +29901,7 @@
   {
     "column": 0,
     "context": " 180 |     #[test]\n 181 |     fn rms_normalize_brings_quiet_to_target() {\n 182 |         let _guard = TEST_LOCK.lock().unwrap();\n 183 |         unsafe { std::env::set_var(\"VOX_ORATIO_ACOUSTIC_PREPROCESS\", \"rms_normalize\") };\n 184 |         let quiet: Vec<f32> = vec![0.001; 16000];",
-    "file": "crates\\vox-oratio\\src\\acoustic_preprocess.rs",
+    "file": "crates\\vox-speech\\src\\acoustic_preprocess.rs",
     "line": 182,
     "message": "`.unwrap()` — consider explicit error handling",
     "rule_id": "rust/unwrap-call",
@@ -29920,7 +29920,7 @@
         "map_to_ast_target"
       ]
     },
-    "file": "crates\\vox-oratio\\src\\ast_mapper_tests.rs",
+    "file": "crates\\vox-speech\\src\\ast_mapper_tests.rs",
     "line": 8,
     "message": "Function `map_to_ast_target` called but not defined or imported in this file",
     "rule_id": "unresolved-ref/fn-call",
@@ -29939,7 +29939,7 @@
         "map_to_ast_target"
       ]
     },
-    "file": "crates\\vox-oratio\\src\\ast_mapper_tests.rs",
+    "file": "crates\\vox-speech\\src\\ast_mapper_tests.rs",
     "line": 18,
     "message": "Function `map_to_ast_target` called but not defined or imported in this file",
     "rule_id": "unresolved-ref/fn-call",
@@ -29958,7 +29958,7 @@
         "map_to_ast_target"
       ]
     },
-    "file": "crates\\vox-oratio\\src\\ast_mapper_tests.rs",
+    "file": "crates\\vox-speech\\src\\ast_mapper_tests.rs",
     "line": 26,
     "message": "Function `map_to_ast_target` called but not defined or imported in this file",
     "rule_id": "unresolved-ref/fn-call",
@@ -29969,7 +29969,7 @@
   {
     "column": 0,
     "context": " 279 |                     .max_by(|a, b| a.1.total_cmp(b.1))\n 280 |                     .map(|(i, _)| i as u32)\n 281 |                     .unwrap()\n 282 |             };\n 283 |             tokens.push(next_token);",
-    "file": "crates\\vox-oratio\\src\\backends\\candle_engine.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_engine.rs",
     "line": 281,
     "message": "`.unwrap()` — consider explicit error handling",
     "rule_id": "rust/unwrap-call",
@@ -29988,7 +29988,7 @@
         "emit"
       ]
     },
-    "file": "crates\\vox-oratio\\src\\backends\\candle_engine.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_engine.rs",
     "line": 286,
     "message": "Function `emit` called but not defined or imported in this file",
     "rule_id": "unresolved-ref/fn-call",
@@ -29999,7 +29999,7 @@
   {
     "column": 0,
     "context": " 431 |             if !timestamp_tokens.is_empty() {\n 432 |                 let timestamp_last = if last_was_timestamp && !penultimate_was_timestamp {\n 433 |                     *timestamp_tokens.last().unwrap()\n 434 |                 } else {\n 435 |                     timestamp_tokens.last().unwrap() + 1",
-    "file": "crates\\vox-oratio\\src\\backends\\candle_engine.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_engine.rs",
     "line": 433,
     "message": "`.unwrap()` — consider explicit error handling",
     "rule_id": "rust/unwrap-call",
@@ -30010,7 +30010,7 @@
   {
     "column": 0,
     "context": " 433 |                     *timestamp_tokens.last().unwrap()\n 434 |                 } else {\n 435 |                     timestamp_tokens.last().unwrap() + 1\n 436 |                 };\n 437 | ",
-    "file": "crates\\vox-oratio\\src\\backends\\candle_engine.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_engine.rs",
     "line": 435,
     "message": "`.unwrap()` — consider explicit error handling",
     "rule_id": "rust/unwrap-call",
@@ -30029,7 +30029,7 @@
         "on_event"
       ]
     },
-    "file": "crates\\vox-oratio\\src\\backends\\candle_engine.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_engine.rs",
     "line": 602,
     "message": "Function `on_event` called but not defined or imported in this file",
     "rule_id": "unresolved-ref/fn-call",
@@ -30048,7 +30048,7 @@
         "on_event"
       ]
     },
-    "file": "crates\\vox-oratio\\src\\backends\\candle_engine.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_engine.rs",
     "line": 611,
     "message": "Function `on_event` called but not defined or imported in this file",
     "rule_id": "unresolved-ref/fn-call",
@@ -30067,7 +30067,7 @@
         "on_event"
       ]
     },
-    "file": "crates\\vox-oratio\\src\\backends\\candle_engine.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_engine.rs",
     "line": 635,
     "message": "Function `on_event` called but not defined or imported in this file",
     "rule_id": "unresolved-ref/fn-call",
@@ -30086,7 +30086,7 @@
         "on_event"
       ]
     },
-    "file": "crates\\vox-oratio\\src\\backends\\candle_engine.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_engine.rs",
     "line": 654,
     "message": "Function `on_event` called but not defined or imported in this file",
     "rule_id": "unresolved-ref/fn-call",
@@ -30104,7 +30104,7 @@
       ],
       "why": "syn ExprCall to fs::read / read_to_string"
     },
-    "file": "crates\\vox-oratio\\src\\backends\\candle_whisper.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_whisper.rs",
     "line": 167,
     "message": "Unbounded `std::fs` read — consider size cap / streaming / `tokio::fs` in async contexts",
     "rule_id": "scaling/unbounded-read",
@@ -30123,7 +30123,7 @@
         "frame_to_ms"
       ]
     },
-    "file": "crates\\vox-oratio\\src\\backends\\candle_whisper.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_whisper.rs",
     "line": 722,
     "message": "Function `frame_to_ms` called but not defined or imported in this file",
     "rule_id": "unresolved-ref/fn-call",
@@ -30142,7 +30142,7 @@
         "frame_to_ms"
       ]
     },
-    "file": "crates\\vox-oratio\\src\\backends\\candle_whisper.rs",
+    "file": "crates\\vox-speech\\src\\backends\\candle_whisper.rs",
     "line": 723,
     "message": "Function `frame_to_ms` called but not defined or imported in this file",
     "rule_id": "unresolved-ref/fn-call",
@@ -30153,7 +30153,7 @@
   {
     "column": 0,
     "context": "   1 | //! Decoder-time logit processors for constrained decode in Candle Whisper.\n   2 | \n   3 | use std::collections::{HashMap, HashSet};",
-    "file": "crates\\vox-oratio\\src\\backends\\logit_processors.rs",
+    "file": "crates\\vox-speech\\src\\backends\\logit_processors.rs",
     "line": 1,
     "message": "File is growing large (399 non-blank lines / Soft Limit >300).",
     "rule_id": "arch/god_object",
@@ -30171,7 +30171,7 @@
       ],
       "why": "syn ExprCall to fs::read / read_to_string"
     },
-    "file": "crates\\vox-oratio\\src\\backends\\logit_processors.rs",
+    "file": "crates\\vox-speech\\src\\backends\\logit_processors.rs",
     "line": 275,
     "message": "Unbounded `std::fs` read — consider size cap / streaming / `tokio::fs` in async contexts",
     "rule_id": "scaling/unbounded-read",
@@ -30190,7 +30190,7 @@
         "is_ident"
       ]
     },
-    "file": "crates\\vox-oratio\\src\\eval.rs",
+    "file": "crates\\vox-speech\\src\\eval.rs",
     "line": 66,
     "message": "Function `is_ident` called but not defined or imported in this file",
     "rule_id": "unresolved-ref/fn-call",
@@ -30209,7 +30209,7 @@
         "is_ident"
       ]
     },
-    "file": "crates\\vox-oratio\\src\\eval.rs",
+    "file": "crates\\vox-speech\\src\\eval.rs",
     "line": 70,
     "message": "Function `is_ident` called but not defined or imported in this file",
     "rule_id": "unresolved-ref/fn-call",
@@ -30227,7 +30227,7 @@
       ],
       "why": "syn ExprCall to fs::read / read_to_string"
     },
-    "file": "crates\\vox-oratio\\src\\runtime_config.rs",
+    "file": "crates\\vox-speech\\src\\runtime_config.rs",
     "line": 231,
     "message": "Unbounded `std::fs` read — consider size cap / streaming / `tokio::fs` in async contexts",
     "rule_id": "scaling/unbounded-read",
@@ -30238,7 +30238,7 @@
   {
     "column": 0,
     "context": "  68 |     let mut pcm_data = Vec::with_capacity(file_data.len() / 4);\n  69 |     for chunk in file_data.chunks_exact(4) {\n  70 |         let val = f32::from_le_bytes(chunk.try_into().unwrap());\n  71 |         pcm_data.push(val);\n  72 |     }",
-    "file": "crates\\vox-oratio\\src\\serve.rs",
+    "file": "crates\\vox-speech\\src\\serve.rs",
     "line": 70,
     "message": "`.unwrap()` — consider explicit error handling",
     "rule_id": "rust/unwrap-call",
@@ -30249,7 +30249,7 @@
   {
     "column": 0,
     "context": " 123 |             Self::Camel => {\n 124 |                 let mut it = parts.iter();\n 125 |                 let first = it.next().unwrap().to_ascii_lowercase();\n 126 |                 let rest: String = it\n 127 |                     .map(|w| {",
-    "file": "crates\\vox-oratio\\src\\speech_normalize.rs",
+    "file": "crates\\vox-speech\\src\\speech_normalize.rs",
     "line": 125,
     "message": "`.unwrap()` — consider explicit error handling",
     "rule_id": "rust/unwrap-call",
@@ -30267,7 +30267,7 @@
       ],
       "why": "syn ExprCall to fs::read / read_to_string"
     },
-    "file": "crates\\vox-oratio\\src\\subtitle\\srt.rs",
+    "file": "crates\\vox-speech\\src\\subtitle\\srt.rs",
     "line": 226,
     "message": "Unbounded `std::fs` read — consider size cap / streaming / `tokio::fs` in async contexts",
     "rule_id": "scaling/unbounded-read",
@@ -30285,7 +30285,7 @@
       ],
       "why": "syn ExprCall to fs::read / read_to_string"
     },
-    "file": "crates\\vox-oratio\\src\\traits.rs",
+    "file": "crates\\vox-speech\\src\\traits.rs",
     "line": 11,
     "message": "Unbounded `std::fs` read — consider size cap / streaming / `tokio::fs` in async contexts",
     "rule_id": "scaling/unbounded-read",
@@ -30303,7 +30303,7 @@
       ],
       "why": "syn ExprCall to fs::read / read_to_string"
     },
-    "file": "crates\\vox-oratio\\src\\traits.rs",
+    "file": "crates\\vox-speech\\src\\traits.rs",
     "line": 183,
     "message": "Unbounded `std::fs` read — consider size cap / streaming / `tokio::fs` in async contexts",
     "rule_id": "scaling/unbounded-read",

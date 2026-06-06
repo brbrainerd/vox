@@ -3395,23 +3395,6 @@ curated:
   - sidecar
   - stop
   parameters: null
-- id: cli.oratio
-  title: Oratio
-  description_human: null
-  description_model: CLI operation `vox oratio`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - oratio
-  parameters: null
 - id: cli.pm
   title: Pm
   description_human: null
@@ -4761,6 +4744,23 @@ curated:
   mcp_tool: null
   cli_path:
   - snippet
+  parameters: null
+- id: cli.speech
+  title: Speech
+  description_human: null
+  description_model: CLI operation `vox speech` (alias `oratio`)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - speech
   parameters: null
 - id: cli.stub-check
   title: Stub-check

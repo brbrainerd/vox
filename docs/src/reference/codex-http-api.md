@@ -29,7 +29,7 @@ Rust implementation surfaces live in **`vox-db`** (Codex schema, readiness, stor
 
 ## Speech ingress (`/api/audio/*`)
 
-OpenAPI paths **`GET /api/audio/status`**, **`POST /api/audio/transcribe`**, **`POST /api/audio/transcribe/upload`** are implemented by the speech ingress stack ([`crates/vox-oratio`](../../../crates/vox-oratio) library surfaces + thin HTTP adapters): Oratio STT on **paths under `VOX_ORATIO_WORKSPACE`** (or process CWD) or **multipart upload**. Same bind vars as the table above. This is separate from Codex CRUD routes but lives in the shared [`contracts/codex-api.openapi.yaml`](../../../contracts/codex-api.openapi.yaml) catalog for client codegen.
+OpenAPI paths **`GET /api/audio/status`**, **`POST /api/audio/transcribe`**, **`POST /api/audio/transcribe/upload`** are implemented by the speech ingress stack ([`crates/vox-speech`](../../../crates/vox-speech) library surfaces + thin HTTP adapters): Oratio STT on **paths under `VOX_ORATIO_WORKSPACE`** (or process CWD) or **multipart upload**. Same bind vars as the table above. This is separate from Codex CRUD routes but lives in the shared [`contracts/codex-api.openapi.yaml`](../../../contracts/codex-api.openapi.yaml) catalog for client codegen.
 
 ## Related
 

@@ -482,7 +482,7 @@ where
         if obj_name == "Speech" && method == "transcribe" && args.len() == 1 {
             let p = emit_expr(&args[0].value);
             return format!(
-                "(match vox_oratio::transcribe_path(std::path::Path::new(({}).as_str())) {{ Ok(t) => Ok(t.display_text().to_string()), Err(e) => Error(format!(\"{{}}\", e)) }})",
+                "(match vox_speech::transcribe_path(std::path::Path::new(({}).as_str())) {{ Ok(t) => Ok(t.display_text().to_string()), Err(e) => Error(format!(\"{{}}\", e)) }})",
                 p
             );
         }
