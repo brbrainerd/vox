@@ -25,12 +25,9 @@ pub enum PolicyCmd {
 fn matches_filter(e: &PolicyEntry, domain: &Option<String>, group: &Option<String>) -> bool {
     let dom_ok = domain
         .as_deref()
-        .map(|d| {
-            format!("{:?}", e.domain)
-                .to_lowercase()
-                .replace('_', "-")
-                .contains(&d.to_lowercase())
-        })
+        // Match against the serialized kebab-case domain (e.g. `ci-gate`), not the
+        // PascalCase `Debug` form — `--domain ci-gate` must select `CiGate` rows.
+        .map(|d| serde_domain(e).to_lowercase().contains(&d.to_lowercase()))
         .unwrap_or(true);
     let grp_ok = group
         .as_deref()
@@ -153,6 +150,14 @@ mod tests {
         let e = entry("code-audit/stub/todo", "Language rules / Stubs (TOESTUB)");
         assert!(matches_filter(&e, &None, &Some("stubs".into())));
         assert!(!matches_filter(&e, &None, &Some("architecture".into())));
+    }
+
+    #[test]
+    fn domain_filter_matches_kebab_case_serialized_domain() {
+        let mut e = entry("ci-gate/ci.foo", "CI Gates / ci");
+        e.domain = PolicyDomain::CiGate;
+        assert!(matches_filter(&e, &Some("ci-gate".into()), &None));
+        assert!(!matches_filter(&e, &Some("arch-rule".into()), &None));
     }
 
     #[test]
