@@ -309,7 +309,7 @@ zeroize            = { version = "1", features = ["derive"] }
 # a concrete arm so inference succeeds. Tracked upstream — remove once
 # wiremock activates a runtime explicitly.
 deadpool           = { version = "0.12", features = ["rt_tokio_1"] }
-rmcp               = "0.16"
+rmcp               = "1.7"
 rmp-serde          = "1"
 libloading         = "0.8"
 lru                = "0.13"
