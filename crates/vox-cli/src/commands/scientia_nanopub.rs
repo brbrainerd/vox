@@ -72,7 +72,7 @@ pub async fn resolve_or_create_identity(
             return Ok(NanopubProfile {
                 orcid: chosen_orcid,
                 name: user_id.to_string(),
-                rsa_private_key_b64: priv_b64.to_string(),
+                rsa_private_key_b64: priv_b64.to_string().into(),
             });
         }
     }
@@ -105,7 +105,7 @@ pub async fn resolve_or_create_identity(
     Ok(NanopubProfile {
         orcid: chosen_orcid,
         name: user_id.to_string(),
-        rsa_private_key_b64: priv_b64,
+        rsa_private_key_b64: priv_b64.into(),
     })
 }
 
@@ -356,11 +356,12 @@ mod tests {
 
         if let Some((id1, id2)) = outcome {
             assert_eq!(
-                id1.rsa_private_key_b64, id2.rsa_private_key_b64,
+                secrecy::ExposeSecret::expose_secret(&id1.rsa_private_key_b64),
+                secrecy::ExposeSecret::expose_secret(&id2.rsa_private_key_b64),
                 "the private key must be reused across calls, not regenerated"
             );
             assert!(
-                !id1.rsa_private_key_b64.is_empty(),
+                !secrecy::ExposeSecret::expose_secret(&id1.rsa_private_key_b64).is_empty(),
                 "the reused private key must be non-empty"
             );
             assert_eq!(

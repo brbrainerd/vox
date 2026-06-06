@@ -16,6 +16,7 @@
 //! - `nanopub::profile::gen_keys() -> Result<(priv_pem_b64, pub_pem_b64), NpError>` — RSA keypair.
 
 use nanopub::{Nanopub, ProfileBuilder};
+use secrecy::{ExposeSecret, SecretString};
 
 /// A signed nanopublication document: the serialized TriG and its Trusty URI.
 pub struct SignedNanopubDoc {
@@ -33,8 +34,10 @@ pub struct NanopubProfile {
     /// Human-readable signer name.
     pub name: String,
     /// RSA private key as base64-encoded PKCS#8 (the normalized form `nanopub`
-    /// emits from [`gen_keys`] and accepts in `ProfileBuilder`).
-    pub rsa_private_key_b64: String,
+    /// emits from [`gen_keys`] and accepts in `ProfileBuilder`). Wrapped in
+    /// [`SecretString`] so the signing material can never be `Debug`/`Display`-
+    /// logged and is zeroized on drop; expose it only at the `ProfileBuilder` call.
+    pub rsa_private_key_b64: SecretString,
 }
 
 /// Generate a fresh RSA keypair for nanopub signing, returning
@@ -86,7 +89,7 @@ pub fn build_and_sign(
 
     let trig = assemble_unsigned_trig(assertion_ttl, attributed_to_orcid, generated_at_unix);
 
-    let np_profile = ProfileBuilder::new(profile.rsa_private_key_b64.clone())
+    let np_profile = ProfileBuilder::new(profile.rsa_private_key_b64.expose_secret().to_string())
         .with_orcid(profile.orcid.clone())
         .with_name(profile.name.clone())
         .build()?;
@@ -289,7 +292,7 @@ mod tests {
         let profile = NanopubProfile {
             orcid: "https://orcid.org/0000-0002-1267-0234".to_string(),
             name: "Vox Scientia Test".to_string(),
-            rsa_private_key_b64: throwaway_rsa_private_key(),
+            rsa_private_key_b64: throwaway_rsa_private_key().into(),
         };
 
         let assertion = "scientia:claim1 scientia:text \"mosquitoes transmit malaria\" .";
@@ -352,7 +355,7 @@ mod tests {
         let profile = NanopubProfile {
             orcid: "https://orcid.org/0000-0002-1267-0234".to_string(),
             name: "Vox Scientia Test".to_string(),
-            rsa_private_key_b64: throwaway_rsa_private_key(),
+            rsa_private_key_b64: throwaway_rsa_private_key().into(),
         };
 
         let assertion = assertion_ttl_for_claim(
@@ -381,7 +384,7 @@ mod tests {
         let profile = NanopubProfile {
             orcid: "https://orcid.org/0000-0002-1267-0234".to_string(),
             name: "Vox Scientia Test".to_string(),
-            rsa_private_key_b64: throwaway_rsa_private_key(),
+            rsa_private_key_b64: throwaway_rsa_private_key().into(),
         };
 
         let signed = build_and_sign(
