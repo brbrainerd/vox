@@ -145,6 +145,15 @@ pub async fn nanopub_build(
     // This runs BEFORE any signing or persistence, so a stale/mismatched approval
     // leaves nothing behind. The token itself is unforgeable: it can only be
     // minted from an "approved" `ReviewDecisionRow` (see `vox_scientia::review`).
+    // Cheap in-memory check first: is this token even for the requested claim?
+    if token.claim_id() != claim_id {
+        anyhow::bail!(
+            "approval token claim mismatch (token approves claim {}, build requested {claim_id})",
+            token.claim_id()
+        );
+    }
+
+    // Then the DB round-trip for the freshness (content-binding) check.
     let manifest = db
         .get_publication_manifest(publication_id)
         .await
@@ -155,13 +164,6 @@ pub async fn nanopub_build(
                  cannot verify the approval is bound to current content"
             )
         })?;
-
-    if token.claim_id() != claim_id {
-        anyhow::bail!(
-            "approval token claim mismatch (token approves claim {}, build requested {claim_id})",
-            token.claim_id()
-        );
-    }
 
     if token.bound_digest() != manifest.content_sha3_256 {
         anyhow::bail!(
