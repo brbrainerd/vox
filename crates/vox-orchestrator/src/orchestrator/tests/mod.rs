@@ -95,9 +95,6 @@ mod state_invariants {
     fn orch_named_pair() -> Orchestrator {
         let orch = Orchestrator::new(OrchestratorConfig {
             max_agents: 8,
-            // Explicitly opt down: this test exercises rebalance/affinity/lock
-            // coherence, not scope enforcement behaviour.
-            scope_enforcement: crate::scope::ScopeEnforcement::Warn,
             ..OrchestratorConfig::for_testing()
         });
         orch.spawn_agent("heavy").expect("spawn heavy");
@@ -479,13 +476,7 @@ mod orch_smoke {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn status_snapshot() {
-        // Opt down to Warn: this test checks task counts, not scope enforcement.
-        // With Strict the second task would be denied once the agent's scope is
-        // seeded by the first task.
-        let orch = Orchestrator::new(OrchestratorConfig {
-            scope_enforcement: crate::scope::ScopeEnforcement::Warn,
-            ..OrchestratorConfig::for_testing()
-        });
+        let orch = test_orchestrator();
         orch.submit_task("t1", vec![FileAffinity::write("a.rs")], None, None, None)
             .await
             .unwrap();
