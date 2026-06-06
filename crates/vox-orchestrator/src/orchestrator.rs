@@ -103,6 +103,8 @@ pub struct Orchestrator {
     /// Operation log for universal undo/redo.
     pub oplog: std::sync::Arc<std::sync::RwLock<crate::oplog::OpLog>>,
     /// First-class conflict tracking.
+    /// LOCK ORDER: when held together with `workspace_manager`, acquire
+    /// `workspace_manager` first, then `conflict_manager` (see `json_vcs_facade::workspace_merge_json`).
     pub conflict_manager: std::sync::Arc<std::sync::RwLock<crate::conflicts::ConflictManager>>,
     /// Per-agent virtual workspaces and change tracking.
     pub workspace_manager: std::sync::Arc<std::sync::RwLock<crate::workspace::WorkspaceManager>>,

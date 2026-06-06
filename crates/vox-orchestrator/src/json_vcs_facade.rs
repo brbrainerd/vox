@@ -139,6 +139,9 @@ pub fn workspace_merge_json(orch: &Orchestrator, agent_id: u64) -> Value {
         .collect();
 
     let conflicts_recorded = if let Some(base) = merging_base {
+        // LOCK ORDER: workspace_manager → conflict_manager (always acquire in this
+        // order; the `mgr` write lock above is still held here). Any future code that
+        // touches both locks MUST follow this order to avoid an ABBA deadlock.
         let mut cm = crate::sync_lock::rw_write(&*orch.conflict_manager);
         crate::merge_conflicts::record_overlap_conflicts(&mut cm, (merging, base), &others).len()
     } else {
