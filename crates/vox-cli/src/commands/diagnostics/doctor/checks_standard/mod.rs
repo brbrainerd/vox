@@ -1,6 +1,8 @@
 //! Default `vox doctor` checks: optional test-health tools, then full toolchain audit.
 
+mod binary_ssot;
 mod compile_target;
+mod freshness;
 mod gpu_hardware;
 mod llm_routing;
 mod model_catalog;
@@ -27,6 +29,8 @@ pub async fn run_checks(
         return;
     }
     toolchain::run(auto_heal, checks).await;
+    freshness::run(checks);
+    binary_ssot::run(checks);
     secrets::run(auto_heal, checks).await;
     llm_routing::run(checks);
     gpu_hardware::run(checks).await;
