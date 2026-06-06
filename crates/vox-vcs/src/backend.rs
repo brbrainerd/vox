@@ -29,7 +29,7 @@ pub enum VcsError {
 ///
 /// jj-lib 0.42's async futures are **`!Send`**. `VcsBackend` is `#[async_trait]`
 /// (Send futures) so handles can cross `tokio::spawn`. The `JjBackend` engine
-/// (which is `!Send`) lives on a dedicated OS thread behind [`JjActorHandle`],
+/// (which is `!Send`) lives on a dedicated OS thread behind `JjActorHandle`,
 /// which satisfies this `Send` contract.
 #[async_trait]
 pub trait VcsBackend: Send {

@@ -1,7 +1,7 @@
 //! Corpus-driven CR-L stubs.
 //!
 //! Each subcommand in this file emits a structurally complete
-//! [`AuditReport`] with `incomplete: true` and exit code
+//! `AuditReport` with `incomplete: true` and exit code
 //! [`ExitCode::InfrastructureError`] until its measurement *harness* is
 //! implemented (P2.x in the v1 LLM-target implementation plan).
 //!

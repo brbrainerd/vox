@@ -1,4 +1,4 @@
-//! On-disk intake for SCIENTIA [`ResearchEvent`] mesh handoff (orchestrator → publisher).
+//! On-disk intake for SCIENTIA `ResearchEvent` mesh handoff (orchestrator → publisher).
 //!
 //! JSON files validate against `contracts/scientia/research-mesh-intake.v1.schema.json`.
 //! Valid files can be promoted into `.vox/scientia/research-mesh-promoted/events.v1.jsonl`

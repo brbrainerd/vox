@@ -96,7 +96,7 @@ struct JjState {
 }
 
 /// In-process jj engine. Awaits jj-lib's async APIs directly from the async
-/// [`VcsBackend`] trait — **no internal tokio runtime**, so it never panics with
+/// `VcsBackend` trait — **no internal tokio runtime**, so it never panics with
 /// "Cannot start a runtime from within a runtime" when called from the
 /// orchestrator's async context.
 pub struct JjBackend {

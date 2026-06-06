@@ -2,7 +2,7 @@
 //!
 //! Binds a `user_id` to its RSA signing material via a get-or-create flow:
 //! - the private key lives in the Clavis vault under
-//!   [`SecretId::VoxUserRsaNanopubPrivateKeyB64`] (per-user, NEVER shared);
+//!   `SecretId::VoxUserRsaNanopubPrivateKeyB64` (per-user, NEVER shared);
 //! - the public key + ORCID + the secret's canonical-env reference live in the
 //!   `user_identities` table.
 //!

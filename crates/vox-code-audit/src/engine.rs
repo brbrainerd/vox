@@ -202,22 +202,22 @@ impl ToestubEngine {
 
     /// Run lint rules on a single pre-loaded source file without a filesystem scan.
     ///
-    /// This is a lightweight alternative to [`run`] for `vox check --for-llm` and
+    /// This is a lightweight alternative to [`Self::run`] for `vox check --for-llm` and
     /// similar single-file consumers that already have source in memory.  Unlike
-    /// [`run`], this method:
+    /// [`Self::run`], this method:
     /// - Skips the [`Scanner`] (no directory walk).
     /// - Does **not** emit telemetry (no CR-L8 corpus events).
     /// - Does **not** apply suppression rules.
-    /// - Sets up a default [`RunContext`] (safe for single-file Vox linting; some
+    /// - Sets up a default [`crate::run_context::RunContext`] (safe for single-file Vox linting; some
     ///   Rust-specific rules that depend on workspace cross-refs will produce no
     ///   findings on Vox files regardless).
     ///
     /// Severity filtering and deterministic sort are still applied so callers
-    /// receive findings in the same order as a full [`run`].
+    /// receive findings in the same order as a full [`Self::run`].
     ///
     /// # Thread safety
-    /// [`RunContext`] uses a process-global mutex.  Concurrent calls to this method
-    /// (or to [`run`]) will serialize; do not hold the returned `Vec<Finding>` across
+    /// [`crate::run_context::RunContext`] uses a process-global mutex.  Concurrent calls to this method
+    /// (or to [`Self::run`]) will serialize; do not hold the returned `Vec<Finding>` across
     /// a second call on a different thread without copying first.
     pub fn check_source_file(&self, file: &crate::rules::SourceFile) -> Vec<Finding> {
         let _guard =
@@ -254,7 +254,7 @@ impl ToestubEngine {
     /// Build a `rule_id → minimal_repro` lookup table for all registered rules.
     ///
     /// Used by `vox check --for-llm` to attach per-rule minimal reproduction snippets
-    /// to [`LintFindingPayload`] without modifying the [`Finding`] struct (which would
+    /// to `LintFindingPayload` without modifying the [`Finding`] struct (which would
     /// require updating every detector constructor).
     pub fn minimal_repro_table(&self) -> HashMap<&'static str, &'static str> {
         self.rules

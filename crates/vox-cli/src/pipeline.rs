@@ -151,7 +151,7 @@ pub fn format_diagnostics_json_pretty(result: &FrontendResult, file: &Path) -> S
 
 /// A lint finding from `vox-code-audit` surfaced in the `vox check --for-llm` envelope.
 ///
-/// This is a separate type from [`VoxCompilerDiagnosticPayload`] because lint findings
+/// This is a separate type from `VoxCompilerDiagnosticPayload` because lint findings
 /// originate from pattern-based static analysis (not the type-checker) and carry
 /// additional metadata — `rationale`, `confidence`, `alternatives` — that does not
 /// apply to compiler diagnostics.

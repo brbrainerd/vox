@@ -68,7 +68,7 @@ impl VoxDb {
     /// Return the persisted `next_due_at_ms` for one scheduled function, or
     /// `None` if no row exists yet.
     ///
-    /// Used by the [`vox_workflow_runtime::scheduled`] runner's restart-seed
+    /// Used by the `vox_workflow_runtime::scheduled` runner's restart-seed
     /// loop (ADR-041 §6(a)): the in-memory `Instant` deadline is derived from
     /// `clamp(persisted_next_due_at_ms - wall_now, 0, interval)` so a crash
     /// 23 hours into a `@scheduled("1d")` interval fires in ~1 hour, not in

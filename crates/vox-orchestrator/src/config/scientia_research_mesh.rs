@@ -9,7 +9,7 @@ fn default_intake_consumer_poll_interval_ms() -> u64 {
     30_000
 }
 
-/// Tunables for SCIENTIA [`vox_publisher::research_mesh`] intake and its optional consumer loop.
+/// Tunables for SCIENTIA `vox_publisher::research_mesh` intake and its optional consumer loop.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ScientiaResearchMeshConfig {

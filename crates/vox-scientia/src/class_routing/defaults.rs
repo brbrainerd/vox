@@ -52,7 +52,7 @@ impl FindingClass {
         }
     }
 
-    /// Atlas-class predicate; drives [`crate::routing::atlas_gate_applies_to`].
+    /// Atlas-class predicate; drives `atlas_gate_applies_to`.
     pub fn is_atlas(&self) -> bool {
         matches!(
             self,

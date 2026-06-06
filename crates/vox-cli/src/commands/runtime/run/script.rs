@@ -211,7 +211,7 @@ pub fn print_execution_plan(
 /// Compile and execute a `.vox` source file as a script.
 ///
 /// Uses content-hash caching to avoid redundant recompiles. Dispatches
-/// to [`NativeBackend`] or [`WasiBackend`] depending on `opts`.
+/// to [`NativeBackend`] or `WasiBackend` depending on `opts`.
 pub async fn run(file: &Path, args: &[String], opts: &ScriptOpts) -> Result<()> {
     let (artifact_path, backend) = compile(file, opts).await?;
     match execute_binary(&artifact_path, args, opts, &*backend).await {

@@ -27,7 +27,7 @@ pub struct ForbiddenPatternRule {
     pub reason: String,
 }
 
-/// A single match produced by [`scan`].
+/// A single match produced by `scan`.
 #[derive(Debug)]
 pub struct ForbiddenPatternHit {
     pub rule: String,

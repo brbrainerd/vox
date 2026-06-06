@@ -567,7 +567,7 @@ pub async fn scientia_dashboard() -> Result<()> {
 /// `extraction_usd`, `critic_usd`, `novelty_retrieval_usd`, and
 /// `scholarly_submission_usd` are sourced from `agent_telemetry_flat`
 /// `cost` rows grouped by the `pipeline_phase` column (baseline v70) — see
-/// [`apply_phase_costs`]. A phase shows non-zero only once its call sites emit
+/// `apply_phase_costs`. A phase shows non-zero only once its call sites emit
 /// phase-tagged cost rows via `VoxDb::insert_scientia_cost_telemetry`. As of
 /// this change the **extraction** (at `publication-extract-claims`) and
 /// **critic** (at `publication-critic-approve`) phases emit attributable rows;

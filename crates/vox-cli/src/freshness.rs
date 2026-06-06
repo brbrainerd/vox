@@ -2,7 +2,7 @@
 //!
 //! Detects when *this* `vox` binary is older than the working tree it is being
 //! run inside, by comparing the **embedded** build number (baked in at compile
-//! time by [`vox_build_meta::emit`]) against the **live** build number computed
+//! time by `vox_build_meta::emit`) against the **live** build number computed
 //! from the repo at run time (`git rev-list --count HEAD`).
 //!
 //! Motivation: a stale installed `vox.exe` runs outdated guard logic and
