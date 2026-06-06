@@ -7,25 +7,46 @@ import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 export type SidebarMode = 'rail' | 'default' | 'wide';
 
+type PolicyBadgeStatus = 'pass' | 'fail' | 'warn' | 'not_run';
+export interface PolicyBadge { count: number; status: PolicyBadgeStatus; }
+
+// Worst-status → badge color classes (red blocking-fail / yellow warn / green all-pass / grey not-run).
+const POLICY_BADGE_CLASS: Record<PolicyBadgeStatus, string> = {
+  fail: 'bg-red-500/20 text-red-300 ring-1 ring-red-500/40',
+  warn: 'bg-amber-400/20 text-amber-200 ring-1 ring-amber-400/40',
+  pass: 'bg-emerald-400/20 text-emerald-200 ring-1 ring-emerald-400/40',
+  not_run: 'bg-white/[0.05] text-zinc-400',
+};
+const POLICY_RAIL_BADGE_CLASS: Record<PolicyBadgeStatus, string> = {
+  fail: 'bg-red-500 text-zinc-950',
+  warn: 'bg-amber-400 text-zinc-950',
+  pass: 'bg-emerald-400 text-zinc-950',
+  not_run: 'bg-zinc-600 text-zinc-100',
+};
+
 interface NavItemProps {
   active: boolean;
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
   badge?: number | string | null;
+  /** Tailwind classes for a status-colored badge (bg + text). Defaults to neutral zinc. */
+  badgeClass?: string;
+  /** Tailwind classes for the rail-mode (collapsed) corner badge. */
+  railBadgeClass?: string;
   collapsed: boolean;
   innerRef?: React.Ref<HTMLButtonElement>;
 }
 
-function NavItem({ active, icon, label, onClick, badge, collapsed, innerRef }: NavItemProps) {
+function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeClass, collapsed, innerRef }: NavItemProps) {
   return (
     <button ref={innerRef} onClick={onClick} title={collapsed ? label : undefined}
       className={`group relative flex w-full items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 rounded-xl transition ${active ? "bg-white/[0.04] text-zinc-100" : "text-zinc-500 hover:bg-white/[0.025] hover:text-zinc-200"}`}>
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-r bg-brass shadow-[0_0_12px_2px_rgba(212,175,55,0.5)]" />}
       <span className={`flex size-7 items-center justify-center rounded-lg shrink-0 ${active ? "bg-brass/10 text-brass ring-1 ring-brass/30" : "bg-white/[0.02] ring-1 ring-white/5"}`}>{icon}</span>
       {!collapsed && <span className="flex-1 text-left font-display text-[12px] tracking-[0.12em] uppercase whitespace-nowrap overflow-hidden">{label}</span>}
-      {!collapsed && badge != null && <span className="rounded-full bg-white/[0.05] px-1.5 py-0.5 font-mono text-[9px] text-zinc-400">{badge}</span>}
-      {collapsed && badge != null && <span className="absolute right-1 top-1 rounded-full bg-brass/80 px-1 font-mono text-[8px] text-zinc-950">{badge}</span>}
+      {!collapsed && badge != null && <span className={`rounded-full px-1.5 py-0.5 font-mono text-[9px] ${badgeClass ?? 'bg-white/[0.05] text-zinc-400'}`}>{badge}</span>}
+      {collapsed && badge != null && <span className={`absolute right-1 top-1 rounded-full px-1 font-mono text-[8px] ${railBadgeClass ?? 'bg-brass/80 text-zinc-950'}`}>{badge}</span>}
     </button>
   );
 }
@@ -46,7 +67,7 @@ const SYSTEM_GROUP = 'system';
 // Curated order within each section. Surfaces not listed here append after, so a newly
 // registered surface still shows up (drift-safe) without editing this file.
 const SECTION_ORDER: Record<string, string[]> = {
-  operate: ['dashboard', 'flow', 'approvals', 'runs', 'matrix'],
+  operate: ['dashboard', 'flow', 'approvals', 'runs', 'policies', 'matrix'],
   develop: ['harness', 'catalog', 'repository', 'skills'],
   knowledge: ['search', 'memory', 'research', 'scientia', 'claims', 'publications'],
   compute: ['models', 'mens', 'populi', 'oratio', 'mesh'],
@@ -82,9 +103,11 @@ interface SidebarProps {
   setMode: (m: SidebarMode) => void;
   pushToast: (t: any) => void;
   appVersion?: string;
+  /** Master Policies badge: worst-status count for the current branch (null = hidden). */
+  policyBadge?: PolicyBadge | null;
 }
 
-export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushToast, appVersion }: SidebarProps) {
+export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushToast, appVersion, policyBadge }: SidebarProps) {
   const w = SIDEBAR_WIDTHS[mode];
   const collapsed = mode === "rail";
   const wide = mode === "wide";
@@ -111,6 +134,13 @@ export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushT
   const renderItem = (e: SurfaceRegistryEntry) => {
     const IconCmp = (Icon as Record<string, any>)[e.navIcon ?? 'file'] ?? Icon.file;
     const isActive = view === e.viewKey;
+    // Policies nav item carries a worst-status badge (red/yellow/green/grey) when present.
+    const isPolicies = e.viewKey === 'policies' && policyBadge != null;
+    const badge = e.viewKey === 'flow'
+      ? agentsCount
+      : isPolicies
+        ? policyBadge!.count
+        : undefined;
     return (
       <NavItem
         key={e.viewKey as string}
@@ -120,7 +150,9 @@ export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushT
         onClick={() => setView(e.viewKey)}
         icon={<IconCmp className="size-4" />}
         label={e.navLabel as string}
-        badge={e.viewKey === 'flow' ? agentsCount : undefined}
+        badge={badge}
+        badgeClass={isPolicies ? POLICY_BADGE_CLASS[policyBadge!.status] : undefined}
+        railBadgeClass={isPolicies ? POLICY_RAIL_BADGE_CLASS[policyBadge!.status] : undefined}
       />
     );
   };
