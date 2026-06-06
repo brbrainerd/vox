@@ -62,7 +62,7 @@ maintenance tax plus a few latent bugs. That is the part worth acting on.
 
 | # | Thing | Defined in | Why it must exist |
 |---|-------|------------|-------------------|
-| 1 | **AST** | [`vox-compiler/src/ast/`](../../../crates/vox-compiler/src/ast) | Raw parse tree. Unavoidable. |
+| 1 | **AST** | [`vox-compiler/src/ast/`](../../../crates/vox-ast/src) | Raw parse tree. Unavoidable. |
 | 2 | **HIR (`HirModule`)** | [`hir/nodes/decl.rs`](../../../crates/vox-compiler/src/hir/nodes/decl.rs) | **The single source of truth.** Every target reads it. |
 | 3 | **WebIR** | [`web_ir/mod.rs`](../../../crates/vox-codegen/src/web_ir/mod.rs) | UI/DOM lens: validates views, emits JSX. Shared by web, the Tauri webview, and mobile. |
 | 4 | **ContractIR** | [`contract_ir/mod.rs`](../../../crates/vox-compiler/src/contract_ir/mod.rs) | API/wire-format lens (types + endpoints) for the client SDK, Zod, OpenAPI. Shared by all. |

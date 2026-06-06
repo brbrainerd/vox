@@ -52,7 +52,7 @@ args; `vox workflow preview` projecting routing decisions) requires Phase 0 comp
 - `crates/vox-compiler/src/typeck/workflow_determinism.rs` — `DurabilityKind::Workflow` row restriction + diagnostic.
 - `crates/vox-compiler/src/typeck/activity_id_inputs.rs` — emits `(workflow_id, call_site_id, arg_hash_inputs, replay_counter)` quadruples into the HIR for the planner.
 - `crates/vox-compiler/src/typeck/effect_inference.rs` — bottom-up effect-row computation (T6 split out from `effect_check.rs`). (distinct from existing `typeck/infer.rs` which handles type inference)
-- `crates/vox-compiler/src/ast/decl/remote.rs` — `RemoteAttr` AST node + `with_id` attribute.
+- `crates/vox-ast/src/decl/remote.rs` — `RemoteAttr` AST node + `with_id` attribute.
 - `crates/vox-cli/src/commands/workflow.rs` — `vox workflow preview` subcommand.
 - `crates/vox-cli/src/commands/workflow/preview.rs` — preview projector implementation.
 - `tests/fixtures/workflow_preview/*.vox` — eight Vox source fixtures.
@@ -64,8 +64,8 @@ args; `vox workflow preview` projecting routing decisions) requires Phase 0 comp
 
 **Modify:**
 
-- `crates/vox-compiler/src/ast/decl/effect.rs` — no enum change; add a doc comment cross-referencing `is_remote`.
-- `crates/vox-compiler/src/ast/decl/fundecl.rs` — add `is_remote: bool`, `with_id: Option<HirExpr>`.
+- `crates/vox-ast/src/decl/effect.rs` — no enum change; add a doc comment cross-referencing `is_remote`.
+- `crates/vox-ast/src/decl/fundecl.rs` — add `is_remote: bool`, `with_id: Option<HirExpr>`.
 - `crates/vox-compiler/src/parser/descent/decl/head.rs` (grep the attribute loop matching `Token::At`) — add `Token::AtRemote` and `Token::AtWithId` handling in the attribute loop.
 - `crates/vox-compiler/src/lexer/mod.rs` — add `Token::AtRemote`, `Token::AtWithId`.
 - `crates/vox-compiler/src/hir/nodes/decl.rs` — add `is_remote`, `with_id_expr`, `inferred_effects: Vec<HirCapability>` to `HirFn`.
@@ -677,7 +677,7 @@ EOF
 **Files:**
 
 - Modify: `crates/vox-compiler/src/lexer/mod.rs` — add `Token::AtRemote`, `Token::AtWithId`.
-- Modify: `crates/vox-compiler/src/ast/decl/fundecl.rs` — add `is_remote: bool`, `with_id: Option<Box<Expr>>`.
+- Modify: `crates/vox-ast/src/decl/fundecl.rs` — add `is_remote: bool`, `with_id: Option<Box<Expr>>`.
 - Modify: `crates/vox-compiler/src/parser/descent/decl/head.rs` (grep the attribute loop matching `Token::At`) — handle the new tokens in the attribute loop.
 - Modify: `crates/vox-compiler/src/hir/nodes/decl.rs` — add `is_remote: bool`, `with_id_expr: Option<HirExpr>` to `HirFn`.
 - Modify: `crates/vox-compiler/src/hir/lower/mod.rs` — propagate, plus `mesh_*` auto-`@remote` deprecation.
@@ -706,7 +706,7 @@ Wire the lexer's match arm — search `"@pure" => Token::AtPure` and add adjacen
 
 - [ ] **Step 2: Extend the AST**
 
-In `crates/vox-compiler/src/ast/decl/fundecl.rs`, in the `FnDecl` struct, add fields (preserving Display impls):
+In `crates/vox-ast/src/decl/fundecl.rs`, in the `FnDecl` struct, add fields (preserving Display impls):
 
 ```rust
 /// Phase 1 P1-T3: `@remote` annotation.
@@ -1048,7 +1048,7 @@ In `docs/src/architecture/where-things-live.md`, add rows (insert alphabetically
 
 ```bash
 git add crates/vox-compiler/src/lexer/mod.rs \
-        crates/vox-compiler/src/ast/decl/fundecl.rs \
+        crates/vox-ast/src/decl/fundecl.rs \
         crates/vox-compiler/src/parser/descent/decl/head.rs \
         crates/vox-compiler/src/hir/nodes/decl.rs \
         crates/vox-compiler/src/hir/lower/mod.rs \
@@ -2355,7 +2355,7 @@ EOF
 
 - Modify: `crates/vox-compiler/src/lexer/mod.rs` — add `Token::SideEffect` keyword.
 - Modify: `crates/vox-compiler/src/parser/descent/expr/mod.rs` — parse `side_effect { … }` as an expression.
-- Modify: `crates/vox-compiler/src/ast/expr.rs` — add `Expr::SideEffect(Vec<Stmt>, Span)`.
+- Modify: `crates/vox-ast/src/expr.rs` — add `Expr::SideEffect(Vec<Stmt>, Span)`.
 - Modify: `crates/vox-compiler/src/hir/lower/mod.rs` — desugar to a synthesised inline activity reusing P1-T4 derivation.
 - Modify: `crates/vox-compiler/src/typeck/workflow_determinism.rs` — exempt the body of a `side_effect` expression.
 - Create: `crates/vox-compiler/tests/side_effect_block.rs`
@@ -2374,7 +2374,7 @@ Add `Token::SideEffect` variant.
 
 - [ ] **Step 2: Add the AST node**
 
-In `crates/vox-compiler/src/ast/expr.rs`:
+In `crates/vox-ast/src/expr.rs`:
 
 ```rust
 /// Phase 1 P1-T7: `side_effect { stmts }` — sanctioned non-determinism inside
@@ -2533,7 +2533,7 @@ Expected: all four PASS.
 
 ```bash
 git add crates/vox-compiler/src/lexer/mod.rs \
-        crates/vox-compiler/src/ast/expr.rs \
+        crates/vox-ast/src/expr.rs \
         crates/vox-compiler/src/parser/descent/expr/mod.rs \
         crates/vox-compiler/src/hir/lower/mod.rs \
         crates/vox-compiler/src/typeck/workflow_determinism.rs \

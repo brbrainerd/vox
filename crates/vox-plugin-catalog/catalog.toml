@@ -197,6 +197,24 @@ extension-points = ["Publication"]
 default-source = "local:crates/vox-plugin-publication"
 bundled-in = []
 
+# ── Optional components (companion binaries, NOT cdylib plugins) ─────────────────
+#
+# A component is a first-party Vox executable that ships alongside the host
+# binary but is installed on demand. Unlike [[plugin]] entries it is not loaded
+# by the plugin host and implements no extension-point trait. CLI-only users
+# never fetch these.
+
+[[component]]
+id = "gui"
+binary = "vox-gui"
+description = "Vox Native GUI — a Tauri desktop app for browsing surfaces, running commands, and the Scientia dashboard."
+status = "beta"
+default-source = "github:vox-foundation/vox"
+
+[component.requires]
+os = ["windows", "macos", "linux"]
+arch = ["x86_64", "aarch64"]
+
 # ── Distribution bundles ────────────────────────────────────────────────────────
 
 [[bundle]]

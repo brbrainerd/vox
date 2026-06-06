@@ -1,4 +1,4 @@
-use vox_compiler::ast::decl::{CollectionDecl, IndexDecl, TableDecl};
+use vox_ast::decl::{CollectionDecl, IndexDecl, TableDecl};
 
 use super::emit::{
     collection_to_ddl, index_to_ddl, table_to_ddl, to_snake_case, type_to_sqlite_type,
@@ -187,7 +187,7 @@ pub fn diff_to_sql(
             description: None,
             is_pub: true,
             has_spread: false,
-            span: vox_compiler::ast::span::Span { start: 0, end: 0 },
+            span: vox_ast::span::Span { start: 0, end: 0 },
         };
         stmts.push(collection_to_ddl(&synth));
     }
@@ -271,9 +271,9 @@ pub fn describe_diff(diff: &SchemaDiff) -> String {
 mod tests {
     use super::*;
     use crate::ddl::emit::{sqlite_affinity_for_named_vox_type, vox_type_to_sqlite_type};
-    use vox_compiler::ast::decl::*;
-    use vox_compiler::ast::span::Span;
-    use vox_compiler::ast::types::TypeExpr;
+    use vox_ast::decl::*;
+    use vox_ast::span::Span;
+    use vox_ast::types::TypeExpr;
 
     fn s() -> Span {
         Span { start: 0, end: 0 }

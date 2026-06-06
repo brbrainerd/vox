@@ -203,6 +203,7 @@
     "ci parse-status",
     "ci plugin-abi-parity",
     "ci plugin-catalog-parity",
+    "ci plugin-dep-boundary",
     "ci plugin-skill-parity",
     "ci pm-provenance",
     "ci policy-allowlist-parity",

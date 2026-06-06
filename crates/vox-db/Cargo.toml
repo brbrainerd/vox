@@ -5,8 +5,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-vox-compiler = { workspace = true }
-vox-codegen = { workspace = true }
+vox-ast = { workspace = true }
 vox-config.workspace = true
 vox-db-types = { workspace = true }
 vox-orchestrator-types = { workspace = true }

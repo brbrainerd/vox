@@ -240,13 +240,13 @@ impl ServerState {
     ///
     /// Does not require Codex; runs for MCP and daemon hosts as soon as [`ServerState`] exists.
     pub fn spawn_scientia_research_mesh_background_jobs(&self) {
-        let opts = Some(vox_dei_shim::research::ScientiaMeshSubscriberOptions {
+        let opts = Some(vox_research_shim::research::ScientiaMeshSubscriberOptions {
             repo_root: self.repository.root.clone(),
             publisher_mesh_intake_enabled: self
                 .orchestrator_config
                 .research_mesh_intake_writer_active(),
         });
-        vox_dei_shim::research::spawn_scientia_mesh_research_event_subscriber(
+        vox_research_shim::research::spawn_scientia_mesh_research_event_subscriber(
             self.research_events.subscribe(),
             opts,
         );
