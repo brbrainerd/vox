@@ -35,14 +35,12 @@ impl VcsBackend for CasFallback {
         Ok(self.changes.clone())
     }
     fn diff(&self, _a: Option<ChangeId>, _b: Option<ChangeId>) -> Result<Diff, VcsError> {
-        Ok(Diff {
-            changed_paths: self
-                .changes
-                .last()
-                .map(|c| c.changed_paths.clone())
-                .unwrap_or_default(),
-        })
+        // CasFallback has no content store, so it cannot compute a real two-change
+        // diff; callers receive an empty diff (the jj backend computes real diffs).
+        Ok(Diff::default())
     }
+    // NOTE: `next_id` is intentionally not decremented on undo — change ids are a
+    // monotone counter, so a snapshot after an undo gets a fresh id (gaps are by design).
     fn undo(&mut self) -> Result<ChangeId, VcsError> {
         self.changes
             .pop()

@@ -6,13 +6,8 @@ edition.workspace = true
 
 [dependencies]
 serde = { workspace = true }
-serde_json = { workspace = true }
 thiserror = { workspace = true }
-tracing = { workspace = true }
 workspace-hack = { workspace = true }
-
-[dev-dependencies]
-tempfile = { workspace = true }
 
 [lints]
 workspace = true

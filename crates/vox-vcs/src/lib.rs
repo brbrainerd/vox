@@ -8,14 +8,17 @@ pub mod backend;
 pub mod cas_fallback;
 pub mod types;
 
-pub use backend::{VcsBackend, VcsBackendKind, detect};
+pub use backend::{VcsBackend, VcsBackendKind, VcsError, detect};
 pub use cas_fallback::CasFallback;
 pub use types::{Change, ChangeId, Conflict, Diff, ResolveStrategy};
 
 #[cfg(test)]
 mod tests {
+    use super::{VcsBackendKind, detect};
+    use std::path::Path;
+
     #[test]
-    fn crate_links() {
-        assert_eq!(super::ChangeId(1).0, 1);
+    fn detect_defaults_to_cas() {
+        assert_eq!(detect(Path::new(".")), VcsBackendKind::Cas);
     }
 }
