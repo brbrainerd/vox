@@ -28,6 +28,32 @@ pub mod subcommands;
 
 use report::{AuditReport, ReportFormat};
 
+/// Release-criteria tier. Declaration order IS the GA evaluation order:
+/// foundation gates are evaluated and reported before any downstream gate
+/// (see CR-F0 in `docs/src/architecture/v1-release-criteria.md` and the
+/// `--gate all --strict-block-ga` roll-up).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Tier {
+    Foundation,
+    Distribution,
+    Gui,
+    Product,
+    Tooling,
+}
+
+impl Tier {
+    /// Stable lowercase tier name used in the GA snapshot rows.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Tier::Foundation => "foundation",
+            Tier::Distribution => "distribution",
+            Tier::Gui => "gui",
+            Tier::Product => "product",
+            Tier::Tooling => "tooling",
+        }
+    }
+}
+
 /// CR-L gate identifier — one variant per row in
 /// `contracts/ci/vox-audit-contract.v1.yaml` §subcommands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -91,6 +117,24 @@ impl CrlGate {
                 | CrlGate::L3RepairCorpus
                 | CrlGate::L4PlanFidelity
         )
+    }
+
+    /// Which release-criteria tier this gate belongs to. The CR-L gates are
+    /// §3.5 Product; the stdlib-coverage gate is Tooling. Foundation /
+    /// Distribution / GUI variants enter as their gates land (Phase 0+).
+    pub fn tier(self) -> Tier {
+        match self {
+            CrlGate::L0SpecToApp
+            | CrlGate::L1HumanEval
+            | CrlGate::L2MensOnDistribution
+            | CrlGate::L3RepairCorpus
+            | CrlGate::L4PlanFidelity
+            | CrlGate::L5AciDefault
+            | CrlGate::L6Retirement
+            | CrlGate::L7Deploy
+            | CrlGate::L8CorpusFeedback => Tier::Product,
+            CrlGate::ToolingStdlibCoverage => Tier::Tooling,
+        }
     }
 
     /// Iterator over every registered gate, in display order.
@@ -331,6 +375,29 @@ pub fn aggregate_exit_code(outcomes: &[RunOutcome]) -> report::ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn all_gates_are_ordered_foundation_first() {
+        // Tier order is the enum's declaration order (derive(Ord)).
+        let tiers: Vec<Tier> = CrlGate::all().map(|g| g.tier()).collect();
+        let mut sorted = tiers.clone();
+        sorted.sort();
+        assert_eq!(
+            tiers, sorted,
+            "CrlGate::all() must yield gates in non-decreasing tier order \
+             (foundation → distribution → gui → product → tooling); got {tiers:?}"
+        );
+    }
+
+    #[test]
+    fn registry_order_matches_all_order() {
+        let reg_gates: Vec<CrlGate> = registry().iter().map(|s| s.gate()).collect();
+        let all_gates: Vec<CrlGate> = CrlGate::all().collect();
+        assert_eq!(
+            reg_gates, all_gates,
+            "registry() and all() must agree on order"
+        );
+    }
 
     #[test]
     fn every_gate_has_a_subcommand_in_registry() {
