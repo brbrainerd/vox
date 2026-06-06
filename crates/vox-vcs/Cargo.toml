@@ -9,7 +9,7 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 jj-lib = { workspace = true, features = ["git"] }
 async-trait = { workspace = true }
-tokio = { workspace = true, features = ["sync"] }
+tokio = { workspace = true, features = ["sync", "rt", "time"] }
 futures = { workspace = true }
 workspace-hack = { workspace = true }
 

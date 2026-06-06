@@ -21,7 +21,7 @@ impl CasFallback {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl VcsBackend for CasFallback {
     async fn snapshot(
         &mut self,

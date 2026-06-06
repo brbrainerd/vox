@@ -1,5 +1,6 @@
 //! The `VcsBackend` trait and runtime backend selection.
 
+use crate::cas_fallback::CasFallback;
 use crate::types::{Change, ChangeId, Conflict, Diff, ResolveStrategy};
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
@@ -19,17 +20,13 @@ pub enum VcsError {
 /// `async_trait` boxes the returned futures, which keeps the trait dyn-object-safe
 /// (`Box<dyn VcsBackend>` / `Arc<RwLock<dyn VcsBackend>>`).
 ///
-/// ## Why `?Send`
+/// ## Send-safe design
 ///
-/// jj-lib 0.42's async futures are **`!Send`**: `Transaction`, `MutableRepo`
-/// (interior `RefCell`/`OnceCell` via `DirtyCell<View>`), `dyn LockedWorkingCopy`,
-/// `dyn OpHeadsStoreLock`, and `dyn MutableIndex` are not `Send`/`Sync`. A default
-/// (Send) `async_trait` therefore fails to compile for [`JjBackend`]. We use
-/// `?Send` futures. The backend stays object-safe and the type itself remains
-/// `Send` (the workspace lives behind a `tokio::sync::Mutex`), but the per-call
-/// futures must be polled on the thread that created them — see [`JjBackend`] and
-/// the module docs for the actor-vs-`?Send` tradeoff.
-#[async_trait(?Send)]
+/// jj-lib 0.42's async futures are **`!Send`**. `VcsBackend` is `#[async_trait]`
+/// (Send futures) so handles can cross `tokio::spawn`. The `JjBackend` engine
+/// (which is `!Send`) lives on a dedicated OS thread behind [`JjActorHandle`],
+/// which satisfies this `Send` contract.
+#[async_trait]
 pub trait VcsBackend: Send {
     async fn snapshot(
         &mut self,
@@ -65,8 +62,26 @@ pub enum VcsBackendKind {
     Cas,
 }
 
-/// Choose a backend for `repo_root`. The jj engine does not exist yet, so this
-/// always returns [`VcsBackendKind::Cas`]; a later phase makes it prefer `Jj`.
-pub fn detect(_repo_root: &Path) -> VcsBackendKind {
-    VcsBackendKind::Cas
+/// Detect which VCS kind is present at `repo_root`.
+/// Returns `Jj` when a `.jj` directory exists, otherwise `Cas`.
+pub fn detect(repo_root: &Path) -> VcsBackendKind {
+    if repo_root.join(".jj").exists() {
+        VcsBackendKind::Jj
+    } else {
+        VcsBackendKind::Cas
+    }
+}
+
+/// Construct a boxed [`VcsBackend`] for `root`.
+///
+/// If the directory contains a `.jj` workspace, a [`crate::jj_actor::JjActorHandle`]
+/// is spawned (the actor owns the `!Send` jj engine on a dedicated OS thread).
+/// If spawning fails, or there is no jj workspace, [`CasFallback`] is returned.
+pub async fn boxed_for(root: &Path) -> Box<dyn VcsBackend> {
+    if detect(root) == VcsBackendKind::Jj
+        && let Ok(handle) = crate::jj_actor::JjActor::spawn(root.to_path_buf())
+    {
+        return Box::new(handle);
+    }
+    Box::new(CasFallback::new())
 }

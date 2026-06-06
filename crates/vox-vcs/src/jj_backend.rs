@@ -53,9 +53,8 @@
 //! that `snapshot()` returns therefore reappears in `changes()`, satisfying the
 //! contract that a snapshot's `ChangeId` is present in the change log.
 
-use crate::backend::{VcsBackend, VcsError};
+use crate::backend::VcsError;
 use crate::types::{Change, ChangeId, Conflict, Diff, ResolveStrategy};
-use async_trait::async_trait;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
@@ -281,9 +280,8 @@ impl JjBackend {
     }
 }
 
-#[async_trait(?Send)]
-impl VcsBackend for JjBackend {
-    async fn snapshot(
+impl JjBackend {
+    pub async fn snapshot(
         &mut self,
         label: Option<&str>,
         _paths: Vec<PathBuf>,
@@ -371,7 +369,7 @@ impl VcsBackend for JjBackend {
         Ok(change_id)
     }
 
-    async fn changes(&self) -> Result<Vec<Change>, VcsError> {
+    pub async fn changes(&self) -> Result<Vec<Change>, VcsError> {
         let st = self.state.lock().await;
         let head = st.repo.operation().clone();
         let ops: Vec<jj_lib::operation::Operation> = op_walk::walk_ancestors(&[head])
@@ -398,7 +396,7 @@ impl VcsBackend for JjBackend {
     /// `from_tree.diff_stream(&to_tree, &EverythingMatcher)`
     /// (merged_tree.rs:283), collecting the changed `RepoPath`s. A `None` change
     /// means the empty tree.
-    async fn diff(&self, a: Option<ChangeId>, b: Option<ChangeId>) -> Result<Diff, VcsError> {
+    pub async fn diff(&self, a: Option<ChangeId>, b: Option<ChangeId>) -> Result<Diff, VcsError> {
         let st = self.state.lock().await;
         let store = st.repo.store();
 
@@ -443,7 +441,7 @@ impl VcsBackend for JjBackend {
     /// (`repo_loader().load_at`, repo.rs:776), and re-point the working copy by
     /// finishing the wc mutation against the restored op id. The restored head op
     /// becomes the new current op. Returns the restored op's `ChangeId`.
-    async fn undo(&mut self) -> Result<ChangeId, VcsError> {
+    pub async fn undo(&mut self) -> Result<ChangeId, VcsError> {
         let mut st = self.state.lock().await;
 
         // Find the parent of the current head operation.
@@ -491,7 +489,7 @@ impl VcsBackend for JjBackend {
     /// `contents: Merge<BString>` — the conflict sides — which we surface as the
     /// `sides` of our `Conflict` type. This is the "conflict as readable data,
     /// not a blocking error" property the spec wants.
-    async fn conflicts(&self) -> Result<Vec<Conflict>, VcsError> {
+    pub async fn conflicts(&self) -> Result<Vec<Conflict>, VcsError> {
         let st = self.state.lock().await;
         let name: WorkspaceNameBuf = WorkspaceName::DEFAULT.to_owned();
         let store = st.repo.store();
@@ -530,7 +528,11 @@ impl VcsBackend for JjBackend {
         Ok(out)
     }
 
-    async fn resolve(&mut self, _path: &Path, _strategy: ResolveStrategy) -> Result<(), VcsError> {
+    pub async fn resolve(
+        &mut self,
+        _path: &Path,
+        _strategy: ResolveStrategy,
+    ) -> Result<(), VcsError> {
         Err(VcsError::Unavailable("jj resolve: P2 Task 3".into()))
     }
 
@@ -549,7 +551,7 @@ impl VcsBackend for JjBackend {
     /// transport. A `git` binary on PATH (>= 2.41) is therefore required. We set
     /// the local bookmark to the change's commit, then push it as a new ref
     /// (`before: None`).
-    async fn push(
+    pub async fn push(
         &mut self,
         remote: &str,
         bookmark: &str,
@@ -638,7 +640,6 @@ impl jj_lib::git::GitSubprocessCallback for NoopGitCallback {
 #[cfg(test)]
 mod tests {
     use super::JjBackend;
-    use crate::backend::VcsBackend;
     use std::path::PathBuf;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
