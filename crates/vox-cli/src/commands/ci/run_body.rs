@@ -57,7 +57,13 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
     // A stale `vox` binary runs outdated guard logic/allowlists, so its `vox ci`
     // verdict would not reflect the current source. Refuse rather than mislead.
     crate::freshness::enforce_for_ci(&root)?;
-    match cmd {
+
+    // Per-gate status capture (Phase 1c). Only registry-backed gates are tracked;
+    // others record nothing (honest grey). Disabled via VOX_NO_POLICY_STATUS=1.
+    let gate_id = cmd.gate_policy_id();
+    let started = std::time::Instant::now();
+
+    let result: Result<()> = match cmd {
         CiCmd::Manifest => run_manifest(&root),
         CiCmd::PolicyRegistry { write } => {
             super::policy_registry::run_generate(&root, write).map_err(|e| anyhow!(e))
@@ -598,5 +604,36 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             })
             .await
         }
+    };
+
+    // Record the gate's pass/fail into the per-branch status store (best-effort:
+    // a status-write failure must never fail the gate). `ran_at` is stamped here
+    // (the single non-deterministic seam) so the writer/merge stay pure.
+    if let Some(id) = gate_id {
+        if std::env::var("VOX_NO_POLICY_STATUS").is_err() {
+            let status = if result.is_ok() {
+                vox_config::RunStatus::Pass
+            } else {
+                vox_config::RunStatus::Fail
+            };
+            let duration_ms = started.elapsed().as_millis() as u64;
+            let branch = crate::commands::policy::status_writer::current_branch(&root);
+            let commit = crate::commands::policy::status_writer::head_commit(&root);
+            let ran_at = chrono::Utc::now().to_rfc3339();
+            let _ = crate::commands::policy::status_writer::write_results(
+                &root,
+                &branch,
+                &commit,
+                &ran_at,
+                vec![vox_config::PolicyResult {
+                    id: id.to_string(),
+                    status,
+                    hits: vec![],
+                    duration_ms,
+                }],
+            );
+        }
     }
+
+    result
 }
