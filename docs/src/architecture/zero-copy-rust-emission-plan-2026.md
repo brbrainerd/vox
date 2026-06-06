@@ -78,10 +78,20 @@ Enable high-performance logic offloading to WASM for `@pure` functions.
 - [ ] **3. Call-site lookup.** Build a `HashMap<&str, &HirFn>` (or reuse module function table) so the generic-call emitter (`stmt_expr.rs:~565`) can look up the callee and set per-argument `OwnershipMode::Borrowed` for borrowable params — emitting `&x` instead of `x.clone()` for non-last-use args.
 - [ ] **4. Replace the hardcoded builtin table** with the same metadata mechanism where feasible (or leave the small table and layer user-fn inference on top).
 
-### Tests / verification
-- [ ] New `crates/vox-codegen/tests/escape_analysis_emit.rs`: assert `fn takes(s: str)`+`takes(x)` (x reused) emits a borrow, not `x.clone()`; mixed borrowed/owned params; list params; and **a negative case** (param that escapes → still owned).
-- [ ] `cargo test -p vox-codegen` green; emitted Rust still compiles (golden e2e).
-- [ ] Optional: a codegen micro-benchmark or generated-LoC `.clone()` count to quantify.
+### Tests / verification (hook identified 2026-06-06)
+- **Verification hook:** `vox_codegen::codegen_rust::emit::emit_fn(func, Some(&hir.inferred_types), &[])` is
+  public and returns the emitted Rust string for one function (see `tests/durability_compiles.rs` for the
+  pattern). So escape-analysis emission is directly assertable at the unit level — no temp crate needed.
+- [ ] New `crates/vox-codegen/tests/escape_analysis_emit.rs` using `emit_fn`: assert a borrowable `str` param
+  emits `s: &str` in the signature and the body uses bare `s` (not `s.clone()`/`s.as_str()`); assert a
+  **negative case** — a returned/operator-used param keeps `s: String` (proves the soundness gate). Mixed and
+  `list[T]`→`&[T]` cases.
+- **Compile-resolution safety net already exists:** the `*_compiles.rs` tests (e.g. `durability_compiles.rs`,
+  `ai_fixture_bundle_compiles.rs`) and `golden_ts_test.rs` fail to compile if emitted paths/types break — run
+  the full `cargo test -p vox-codegen` after the change. For the residual "does the generated *body* type-check
+  with `&str` params" risk, add one emit→`cargo build` golden for a borrowed-param script (heaviest, but the
+  only check that catches a `&str`-vs-`String` mismatch directly).
+- [ ] Optional: generated-LoC `.clone()` count before/after to quantify.
 
 ### Risk / sequencing
 Signature changes ripple (body deref, return cloning, nested calls), so land **type-aware borrow fix → metadata+inference (conservative) → signatures → call-site borrows**, test-gating each. Soundness rule: **borrow only when provably read-only; default to owned.** This is independent of the interpreter and can proceed on its own branch.
