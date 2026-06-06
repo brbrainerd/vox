@@ -23,6 +23,14 @@
 //! actor's `recv()` returns `Err`, and the loop exits — the thread and engine are
 //! cleaned up by Rust's normal `Drop` chain.  The `JoinHandle` is detached (not
 //! held) so nothing blocks in `Drop`.
+//!
+//! ## Panic containment
+//!
+//! Every `block_on` call is wrapped in `std::panic::catch_unwind`. A panicking
+//! jj-lib operation returns `Err(VcsError::Unavailable)` to the caller but does
+//! **not** terminate the actor loop. Note: the actor's `JjBackend` state may be
+//! degraded after a mid-operation panic; a higher layer can re-spawn the actor
+//! (via [`JjActor::spawn`]) if needed.
 
 use crate::backend::{VcsBackend, VcsError};
 use crate::jj_backend::JjBackend;
@@ -41,7 +49,9 @@ type Reply<T> = oneshot::Sender<Result<T, VcsError>>;
 /// Each variant carries the method's arguments and a reply channel.  The enum
 /// (and all argument types) are `Send`, enabling the channel to cross thread
 /// boundaries.
-pub enum Command {
+///
+/// `Command` is an internal wire protocol; it is `pub(crate)` only.
+pub(crate) enum Command {
     Snapshot {
         label: Option<String>,
         paths: Vec<PathBuf>,
@@ -78,6 +88,12 @@ pub enum Command {
         reply: Reply<()>,
     },
     Shutdown,
+    /// Test-only variant: forces a panic inside the catch_unwind wrapper to
+    /// verify the actor survives a panicking operation.
+    #[cfg(test)]
+    TestPanic {
+        reply: Reply<()>,
+    },
 }
 
 // SAFETY: All variant fields are Send (PathBuf, String, ChangeId, oneshot::Sender).
@@ -86,14 +102,16 @@ pub enum Command {
 // ─── JjActor ───────────────────────────────────────────────────────────────
 
 /// Internal actor — not exposed publicly; callers use [`JjActorHandle`].
-pub struct JjActor;
+pub(crate) struct JjActor;
 
 impl JjActor {
     /// Spawn the actor thread for the jj workspace at `root`.
     ///
-    /// Blocks until the initial `JjBackend::open` completes (on the actor
-    /// thread), then returns a [`JjActorHandle`] if the open succeeded, or
-    /// `VcsError` if it failed.
+    /// Blocks the calling thread until the jj workspace opens (or 30 s timeout).
+    /// From async contexts, call inside `tokio::task::spawn_blocking`.
+    ///
+    /// Returns a [`JjActorHandle`] if the open succeeded, or `VcsError` if it
+    /// failed or timed out.
     ///
     /// The actor thread is detached — its lifetime is tied to the channel: when
     /// all [`JjActorHandle`] clones drop, the sender closes, `recv()` errors,
@@ -124,6 +142,26 @@ impl JjActor {
                 }
             };
 
+            /// Run `$fut` inside `catch_unwind`; on panic send `Unavailable`
+            /// on `$reply` and `continue` the loop so the actor stays alive.
+            macro_rules! guarded {
+                ($rt:expr, $fut:expr, $reply:expr) => {{
+                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        $rt.block_on($fut)
+                    }));
+                    match result {
+                        Ok(method_result) => {
+                            let _ = $reply.send(method_result);
+                        }
+                        Err(_panic) => {
+                            eprintln!("jj actor: operation panicked");
+                            let _ = $reply
+                                .send(Err(VcsError::Unavailable("jj operation panicked".into())));
+                        }
+                    }
+                }};
+            }
+
             // Command loop.
             loop {
                 let cmd = match cmd_rx.recv() {
@@ -139,28 +177,23 @@ impl JjActor {
                         paths,
                         reply,
                     } => {
-                        let result = rt.block_on(engine.snapshot(label.as_deref(), paths));
-                        let _ = reply.send(result);
+                        guarded!(rt, engine.snapshot(label.as_deref(), paths), reply);
                     }
 
                     Command::Changes { reply } => {
-                        let result = rt.block_on(engine.changes());
-                        let _ = reply.send(result);
+                        guarded!(rt, engine.changes(), reply);
                     }
 
                     Command::Diff { a, b, reply } => {
-                        let result = rt.block_on(engine.diff(a, b));
-                        let _ = reply.send(result);
+                        guarded!(rt, engine.diff(a, b), reply);
                     }
 
                     Command::Undo { reply } => {
-                        let result = rt.block_on(engine.undo());
-                        let _ = reply.send(result);
+                        guarded!(rt, engine.undo(), reply);
                     }
 
                     Command::Conflicts { reply } => {
-                        let result = rt.block_on(engine.conflicts());
-                        let _ = reply.send(result);
+                        guarded!(rt, engine.conflicts(), reply);
                     }
 
                     Command::Resolve {
@@ -168,8 +201,7 @@ impl JjActor {
                         strategy,
                         reply,
                     } => {
-                        let result = rt.block_on(engine.resolve(&path, strategy));
-                        let _ = reply.send(result);
+                        guarded!(rt, engine.resolve(&path, strategy), reply);
                     }
 
                     Command::AddRemote {
@@ -191,18 +223,44 @@ impl JjActor {
                         change,
                         reply,
                     } => {
-                        let result = rt.block_on(engine.push(&remote, &bookmark, change));
-                        let _ = reply.send(result);
+                        guarded!(rt, engine.push(&remote, &bookmark, change), reply);
+                    }
+
+                    #[cfg(test)]
+                    Command::TestPanic { reply } => {
+                        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                            || -> Result<(), VcsError> {
+                                panic!("test panic");
+                            },
+                        ));
+                        match result {
+                            Ok(method_result) => {
+                                let _ = reply.send(method_result);
+                            }
+                            Err(_panic) => {
+                                eprintln!("jj actor: operation panicked");
+                                let _ = reply.send(Err(VcsError::Unavailable(
+                                    "jj operation panicked".into(),
+                                )));
+                            }
+                        }
                     }
                 }
             }
             // engine drops here on the actor thread — correct for !Send types.
         });
 
-        // Wait for the startup result (blocking; the open is fast).
-        startup_rx
-            .recv()
-            .map_err(|_| VcsError::Unavailable("jj actor thread died before startup".into()))??;
+        // Wait for the startup result (up to 30 s).
+        match startup_rx.recv_timeout(std::time::Duration::from_secs(30)) {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => return Err(e),
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                return Err(VcsError::Unavailable("jj actor open failed".into()));
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                return Err(VcsError::Unavailable("jj actor open timed out".into()));
+            }
+        }
 
         Ok(JjActorHandle { tx: cmd_tx })
     }
@@ -213,6 +271,10 @@ impl JjActor {
 /// `Send + Sync` handle to the jj actor thread.
 ///
 /// Clone freely; the actor lives as long as at least one handle exists.
+///
+/// All methods serialize through the single actor thread; even logically
+/// read-only calls (`changes`/`diff`) execute one-at-a-time, never
+/// concurrently (jj-lib is single-threaded).
 #[derive(Clone)]
 pub struct JjActorHandle {
     tx: mpsc::Sender<Command>,
@@ -232,6 +294,15 @@ impl JjActorHandle {
         reply_rx
             .await
             .map_err(|_| VcsError::Unavailable("jj actor thread died".into()))?
+    }
+
+    /// Request a clean shutdown of the actor thread.
+    ///
+    /// Returns `Err(Unavailable)` if the actor is already gone.
+    pub fn shutdown(&self) -> Result<(), VcsError> {
+        self.tx
+            .send(Command::Shutdown)
+            .map_err(|_| VcsError::Unavailable("jj actor already stopped".into()))
     }
 }
 
@@ -352,27 +423,61 @@ mod tests {
         jh.await.unwrap().expect("snapshot inside tokio::spawn");
     }
 
+    /// Panic containment: a panicking jj operation must return `Err(Unavailable)`
+    /// to the caller AND the actor must remain alive to serve subsequent calls.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn actor_survives_panicking_operation() {
+        tokio::time::timeout(Duration::from_secs(10), async {
+            let dir = tempfile::tempdir().unwrap();
+            let handle = JjActor::spawn(dir.path().to_path_buf()).expect("spawn actor");
+
+            // Send the test-panic command; actor must return Err, not crash.
+            let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
+            handle
+                .tx
+                .send(Command::TestPanic { reply: reply_tx })
+                .expect("send TestPanic");
+            let panic_result = reply_rx.await.expect("reply received");
+            assert!(
+                matches!(panic_result, Err(VcsError::Unavailable(_))),
+                "panicking op must return Unavailable, got: {:?}",
+                panic_result
+            );
+
+            // The actor must still be alive: a subsequent normal call succeeds.
+            let changes_result = handle.changes().await;
+            assert!(
+                changes_result.is_ok(),
+                "actor must survive the panic and serve subsequent calls; got: {:?}",
+                changes_result
+            );
+        })
+        .await
+        .expect("test must not hang");
+    }
+
     /// A dead actor must return `Err(Unavailable)`, never hang.
     #[tokio::test(flavor = "multi_thread")]
     async fn actor_dead_thread_returns_err() {
-        let dir = tempfile::tempdir().unwrap();
-        let handle = JjActor::spawn(dir.path().to_path_buf()).expect("spawn actor");
+        tokio::time::timeout(Duration::from_secs(10), async {
+            let dir = tempfile::tempdir().unwrap();
+            let handle = JjActor::spawn(dir.path().to_path_buf()).expect("spawn actor");
 
-        // Kill the actor by sending Shutdown directly via the raw sender.
-        handle.tx.send(Command::Shutdown).expect("send shutdown");
+            // Shut the actor down cleanly via the public API.
+            handle.shutdown().expect("shutdown");
 
-        // Give the actor thread a moment to process the shutdown.
-        tokio::time::sleep(Duration::from_millis(50)).await;
-
-        // Now the actor channel is closed; any call must return Err, not hang.
-        let result = tokio::time::timeout(Duration::from_secs(5), handle.changes())
-            .await
-            .expect("must not hang (timeout)");
-
-        assert!(
-            matches!(result, Err(VcsError::Unavailable(_))),
-            "dead actor must return Unavailable, got: {:?}",
-            result
-        );
+            // Poll deterministically until the actor is gone (no fixed sleep).
+            let mut got_err = false;
+            for _ in 0..200 {
+                if handle.changes().await.is_err() {
+                    got_err = true;
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            assert!(got_err, "calls must return Err once the actor has stopped");
+        })
+        .await
+        .expect("test must not hang");
     }
 }

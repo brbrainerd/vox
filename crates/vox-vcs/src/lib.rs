@@ -8,13 +8,13 @@
 
 pub mod backend;
 pub mod cas_fallback;
-pub mod jj_actor;
+pub(crate) mod jj_actor;
 pub mod jj_backend;
 pub mod types;
 
 pub use backend::{VcsBackend, VcsBackendKind, VcsError, boxed_for, detect};
 pub use cas_fallback::CasFallback;
-pub use jj_actor::{JjActor, JjActorHandle};
+pub use jj_actor::JjActorHandle;
 pub use jj_backend::JjBackend;
 pub use types::{Change, ChangeId, Conflict, Diff, ResolveStrategy};
 
