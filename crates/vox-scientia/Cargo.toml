@@ -23,7 +23,7 @@ thiserror = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 vox-http-client = { workspace = true }
 async-trait = { workspace = true }
-gix = { workspace = true }
+gix = { workspace = true, features = ["sha1"] }
 turso = { workspace = true }
 
 anyhow = { workspace = true }

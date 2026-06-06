@@ -83,7 +83,66 @@ fn try_locate_dylib(crate_name: &str, artifact_filename: &str) -> Option<std::pa
     None
 }
 
-pub fn run() -> Result<()> {
+/// Collect the crate-dir names of every code/composite plugin that declares an artifact
+/// for the current platform triple (skipping `tests/` fixtures and `noop-bad-*`).
+fn collect_current_platform_plugin_crates(crates_root: &Path) -> Result<Vec<String>> {
+    let triple = target_triple_key();
+    let mut names: Vec<String> = Vec::new();
+    for entry in walkdir::WalkDir::new(crates_root)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name() == "Plugin.toml")
+    {
+        let path = entry.path();
+        if path.components().any(|c| c.as_os_str() == "tests") {
+            continue;
+        }
+        let raw =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        let Ok(head) = toml::from_str::<ManifestHead>(&raw) else {
+            continue; // parse errors are surfaced by the load pass
+        };
+        if head.plugin.id.starts_with("noop-bad-") {
+            continue;
+        }
+        let artifacts = match &head.plugin.payload {
+            PayloadHead::Code { artifacts } => artifacts,
+            PayloadHead::Composite { code } => &code.artifacts,
+            PayloadHead::Skill {} => continue,
+        };
+        if !artifacts.contains_key(triple) {
+            continue;
+        }
+        if let Some(name) = path.parent().and_then(|p| p.file_name()) {
+            names.push(name.to_string_lossy().to_string());
+        }
+    }
+    names.sort();
+    names.dedup();
+    Ok(names)
+}
+
+/// `cargo build -p <crate> …` for all plugin crates in one invocation (default features).
+fn build_plugin_crates(crate_names: &[String]) -> Result<()> {
+    println!(
+        "building {} plugin cdylib(s) before ABI check…",
+        crate_names.len()
+    );
+    let mut cmd = std::process::Command::new("cargo");
+    cmd.arg("build");
+    for name in crate_names {
+        cmd.arg("-p").arg(name);
+    }
+    let status = cmd
+        .status()
+        .context("spawning `cargo build` for plugin cdylibs")?;
+    if !status.success() {
+        anyhow::bail!("`cargo build` for plugin cdylibs failed (status {status})");
+    }
+    Ok(())
+}
+
+pub fn run(build: bool) -> Result<()> {
     let mut errors: Vec<String> = Vec::new();
     let mut checked = 0usize;
     let mut skipped = 0usize;
@@ -92,6 +151,17 @@ pub fn run() -> Result<()> {
     if !crates_root.is_dir() {
         println!("✓ no crates/ dir; nothing to check");
         return Ok(());
+    }
+
+    // CI mode: build every plugin cdylib that targets the current platform first, so the
+    // gate covers newly-added plugins without a hand-maintained build list. Default
+    // features only (CPU) — GPU plugins build their CPU fallback; the load check below
+    // still skips any plugin with no current-platform artifact.
+    if build {
+        let crate_names = collect_current_platform_plugin_crates(crates_root)?;
+        if !crate_names.is_empty() {
+            build_plugin_crates(&crate_names)?;
+        }
     }
 
     for entry in walkdir::WalkDir::new(crates_root)

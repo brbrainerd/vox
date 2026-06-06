@@ -349,6 +349,26 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     )
                     .await;
                 }
+                ScientiaCmd::PublicationClaimReview {
+                    publication_id,
+                    claim_id,
+                    decision,
+                    reason,
+                } => {
+                    let db = vox_db::VoxDb::connect_default()
+                        .await
+                        .map_err(|e| anyhow::anyhow!("connect to default Codex / VoxDb: {e}"))?;
+                    let row = super::scientia_nanopub::record_claim_review(
+                        &db,
+                        &publication_id,
+                        claim_id,
+                        decision.as_stored(),
+                        reason,
+                    )
+                    .await?;
+                    println!("{}", serde_json::to_string_pretty(&row)?);
+                    return Ok(());
+                }
                 ScientiaCmd::PublicationNanopubBuild {
                     publication_id,
                     claim_id,
@@ -359,11 +379,18 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     let db = vox_db::VoxDb::connect_default()
                         .await
                         .map_err(|e| anyhow::anyhow!("connect to default Codex / VoxDb: {e}"))?;
+                    // SECURITY GATE (P2 Task 3): obtain a content-bound approval
+                    // token from the review ledger BEFORE building. Without an
+                    // "approved" decision this refuses — no nanopub is emitted.
+                    let token =
+                        super::scientia_nanopub::approval_for(&db, &publication_id, claim_id)
+                            .await?;
                     let signed = super::scientia_nanopub::nanopub_build(
                         &db,
                         &publication_id,
                         claim_id,
                         orcid.as_deref(),
+                        &token,
                     )
                     .await?;
                     // Human line only: a strict `--json` mode is deferred because
@@ -376,6 +403,12 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                 ScientiaCmd::Claims { publication_id } => {
                     return super::scientia_phase_handlers::publication_claims(&publication_id)
                         .await;
+                }
+                ScientiaCmd::PublicationReviewQueue { publication_id } => {
+                    return super::scientia_phase_handlers::publication_review_queue(
+                        &publication_id,
+                    )
+                    .await;
                 }
                 ScientiaCmd::Dashboard => {
                     return super::scientia_phase_handlers::scientia_dashboard().await;

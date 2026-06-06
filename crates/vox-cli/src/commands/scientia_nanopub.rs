@@ -138,7 +138,42 @@ pub async fn nanopub_build(
     publication_id: &str,
     claim_id: i64,
     orcid: Option<&str>,
+    token: &vox_scientia::review::ApprovalToken,
 ) -> anyhow::Result<SignedNanopubDoc> {
+    // 0. SECURITY GATE (P2 Task 3): refuse to build/sign/persist anything unless
+    // an approval token is content-bound to the publication's CURRENT manifest.
+    // This runs BEFORE any signing or persistence, so a stale/mismatched approval
+    // leaves nothing behind. The token itself is unforgeable: it can only be
+    // minted from an "approved" `ReviewDecisionRow` (see `vox_scientia::review`).
+    // Cheap in-memory check first: is this token even for the requested claim?
+    if token.claim_id() != claim_id {
+        anyhow::bail!(
+            "approval token claim mismatch (token approves claim {}, build requested {claim_id})",
+            token.claim_id()
+        );
+    }
+
+    // Then the DB round-trip for the freshness (content-binding) check.
+    let manifest = db
+        .get_publication_manifest(publication_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("fetch publication manifest: {e}"))?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "no publication manifest for `{publication_id}`; \
+                 cannot verify the approval is bound to current content"
+            )
+        })?;
+
+    if token.bound_digest() != manifest.content_sha3_256 {
+        anyhow::bail!(
+            "approval is stale: the publication content changed since it was approved \
+             (approved digest {}, current {}); re-review the claim before nanopublishing",
+            token.bound_digest(),
+            manifest.content_sha3_256
+        );
+    }
+
     // 1. Load the claim row joined to its latest verdict. We reuse the existing
     // `list_publication_claims` op (keyed by the publication's derived session id)
     // and select the matching `claim_id`, rather than adding a narrow getter.
@@ -225,6 +260,106 @@ pub async fn nanopub_build(
         .map_err(|e| anyhow::anyhow!("persist scientia_nanopubs row: {e}"))?;
 
     Ok(signed)
+}
+
+/// P2 Task 4 — Record a human review decision for ONE extracted claim.
+///
+/// Fetches the publication's CURRENT content manifest and binds the decision to
+/// its `content_sha3_256` digest. A later content edit therefore invalidates a
+/// prior approval (the digest will no longer match the manifest's current value),
+/// and `publication-nanopub-build` will refuse to emit until the claim is
+/// re-reviewed.
+///
+/// # Errors
+/// Returns an error if no manifest exists for `publication_id`, if
+/// `db.record_review_decision` rejects the decision string, or if any DB op
+/// fails.
+pub async fn record_claim_review(
+    db: &VoxDb,
+    publication_id: &str,
+    claim_id: i64,
+    decision: &str,
+    reason: Option<String>,
+) -> anyhow::Result<vox_db::store::ReviewDecisionRow> {
+    let manifest = db
+        .get_publication_manifest(publication_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("fetch publication manifest: {e}"))?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "no publication manifest for `{publication_id}`; \
+                 prepare the publication before reviewing its claims"
+            )
+        })?;
+
+    let bound_digest = manifest.content_sha3_256;
+    let actor = vox_config::paths::local_user_id();
+    let now_ms = chrono::Utc::now().timestamp_millis();
+
+    // TODO(P3): populate model_fingerprints_json from the artifact's AI-disclosure
+    // metadata once that surface is wired (P2 leaves it None per spec).
+    let row = vox_db::store::ReviewDecisionRow {
+        claim_id,
+        publication_id: Some(publication_id.into()),
+        bound_digest,
+        decision: decision.into(),
+        actor,
+        reason,
+        model_fingerprints_json: None,
+        decided_at_ms: now_ms,
+    };
+
+    db.record_review_decision(&row)
+        .await
+        .map_err(|e| anyhow::anyhow!("record review decision: {e}"))?;
+
+    Ok(row)
+}
+
+/// P2 — Bridge the DB review ledger to a minted [`ApprovalToken`].
+///
+/// This is the only sanctioned way for the CLI to obtain the token that
+/// [`nanopub_build`] now requires. It is a thin, testable boundary so the
+/// "not approved → refused" path can be exercised without the live-DB CLI arm.
+///
+/// 1. Look up the LATEST review decision for `claim_id`. Absent → error telling
+///    the operator to run `publication-claim-review` first.
+/// 2. Mint a token via [`vox_scientia::review::mint_from_decision`], which
+///    returns `Some` ONLY when the latest decision is `"approved"`. Any other
+///    status (rejected/deferred/edited) yields `None` → error.
+///
+/// [`ApprovalToken`]: vox_scientia::review::ApprovalToken
+///
+/// # Errors
+/// Returns an error when no decision exists, when the latest decision is not
+/// `"approved"`, or when the underlying DB op fails.
+pub async fn approval_for(
+    db: &VoxDb,
+    publication_id: &str,
+    claim_id: i64,
+) -> anyhow::Result<vox_scientia::review::ApprovalToken> {
+    let decision = db
+        .latest_decision_for_claim(claim_id, publication_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("fetch latest review decision: {e}"))?;
+    let row = decision.ok_or_else(|| {
+        anyhow::anyhow!(
+            "claim {claim_id} has no review decision; \
+             run `vox scientia publication-claim-review \
+             --publication-id {publication_id} --claim-id {claim_id} \
+             --decision approve` first"
+        )
+    })?;
+    vox_scientia::review::mint_from_decision(&row).ok_or_else(|| {
+        anyhow::anyhow!(
+            "claim {claim_id} is not approved for nanopublication \
+             (latest decision: {}); \
+             run `vox scientia publication-claim-review \
+             --publication-id {publication_id} --claim-id {claim_id} \
+             --decision approve` first",
+            row.decision
+        )
+    })
 }
 
 #[cfg(test)]
@@ -445,7 +580,43 @@ mod tests {
             .await
             .expect("seed verdict");
 
-        let built = nanopub_build(&db, PUB_ID, CLAIM_ID as i64, Some(ORCID)).await;
+        // P2 Task 3: the build path now requires a content-bound approval. Seed a
+        // manifest with a known digest, record an APPROVED decision bound to that
+        // exact digest, and mint the token via the DB→token bridge.
+        const APPROVED_DIGEST: &str = "digest-approved-v1";
+        db.upsert_publication_manifest(vox_db::store::types::PublicationManifestParams {
+            publication_id: PUB_ID,
+            content_type: "scientia",
+            source_ref: None,
+            title: "nanopub build test",
+            author: "tester",
+            abstract_text: None,
+            body_markdown: "body",
+            citations_json: None,
+            metadata_json: None,
+            revision_history_json: None,
+            content_sha3_256: APPROVED_DIGEST,
+            state: "approved",
+        })
+        .await
+        .expect("seed manifest");
+        db.record_review_decision(&vox_db::store::ReviewDecisionRow {
+            claim_id: CLAIM_ID as i64,
+            publication_id: Some(PUB_ID.into()),
+            bound_digest: APPROVED_DIGEST.into(),
+            decision: "approved".into(),
+            actor: "tester".into(),
+            reason: None,
+            model_fingerprints_json: None,
+            decided_at_ms: 1,
+        })
+        .await
+        .expect("seed approved decision");
+
+        let token = approval_for(&db, PUB_ID, CLAIM_ID as i64)
+            .await
+            .expect("approved → token");
+        let built = nanopub_build(&db, PUB_ID, CLAIM_ID as i64, Some(ORCID), &token).await;
 
         let outcome = match built {
             Ok(signed) => {
@@ -500,5 +671,280 @@ mod tests {
             assert_eq!(row.claim_id, CLAIM_ID as i64);
             assert_eq!(row.publication_id.as_deref(), Some(PUB_ID));
         }
+    }
+
+    /// Pure DB gate (no vault): with NO review decision on record, `approval_for`
+    /// must refuse and point the operator at the review command. A caller that
+    /// cannot get a token cannot even call `nanopub_build`.
+    #[tokio::test]
+    async fn approval_for_errors_when_no_decision() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db connect");
+        let err = approval_for(&db, "pub-x", 999)
+            .await
+            .expect_err("no decision must refuse");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("no review decision"),
+            "error must explain there is no decision, got: {msg}"
+        );
+        assert!(
+            msg.contains("publication-claim-review"),
+            "error must point at the review command, got: {msg}"
+        );
+    }
+
+    /// Pure DB gate (no vault): when the LATEST decision is `rejected` (recorded
+    /// after an earlier `approved`), the rejection wins by `decided_at_ms` and
+    /// `mint_from_decision` returns `None`, so `approval_for` must refuse.
+    #[tokio::test]
+    async fn approval_for_errors_when_latest_is_rejected() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db connect");
+
+        const CLAIM: i64 = 7;
+        db.record_review_decision(&vox_db::store::ReviewDecisionRow {
+            claim_id: CLAIM,
+            publication_id: Some("pub-x".into()),
+            bound_digest: "digest-v1".into(),
+            decision: "approved".into(),
+            actor: "alice".into(),
+            reason: None,
+            model_fingerprints_json: None,
+            decided_at_ms: 1,
+        })
+        .await
+        .expect("seed approved");
+        db.record_review_decision(&vox_db::store::ReviewDecisionRow {
+            claim_id: CLAIM,
+            publication_id: Some("pub-x".into()),
+            bound_digest: "digest-v1".into(),
+            decision: "rejected".into(),
+            actor: "bob".into(),
+            reason: Some("on reflection, not novel".into()),
+            model_fingerprints_json: None,
+            decided_at_ms: 2, // later → wins
+        })
+        .await
+        .expect("seed later rejection");
+
+        let err = approval_for(&db, "pub-x", CLAIM)
+            .await
+            .expect_err("latest rejected must refuse");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("not approved"),
+            "error must say the claim is not approved, got: {msg}"
+        );
+        assert!(
+            msg.contains("rejected"),
+            "error must surface the latest decision value, got: {msg}"
+        );
+    }
+
+    /// P2 Task 4 — Pure DB gate (no vault): `record_claim_review` fetches the
+    /// current publication manifest's `content_sha3_256` as the bound_digest,
+    /// writes the row, and returns it. The `latest_decision_for_claim` op must
+    /// then surface the same row (end-to-end round-trip in the DB layer).
+    #[tokio::test]
+    async fn record_claim_review_persists_digest_bound_decision() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db connect");
+
+        const PUB_ID: &str = "pub-rev";
+        const CLAIM: i64 = 7;
+        const DIGEST: &str = "digest-rev-1";
+
+        db.upsert_publication_manifest(vox_db::store::types::PublicationManifestParams {
+            publication_id: PUB_ID,
+            content_type: "scientia",
+            source_ref: None,
+            title: "review test pub",
+            author: "tester",
+            abstract_text: None,
+            body_markdown: "body text",
+            citations_json: None,
+            metadata_json: None,
+            revision_history_json: None,
+            content_sha3_256: DIGEST,
+            state: "draft",
+        })
+        .await
+        .expect("seed manifest");
+
+        let row =
+            super::record_claim_review(&db, PUB_ID, CLAIM, "approved", Some("looks solid".into()))
+                .await
+                .expect("record_claim_review must succeed");
+
+        assert_eq!(
+            row.bound_digest, DIGEST,
+            "bound_digest must equal the manifest's content_sha3_256"
+        );
+        assert_eq!(row.decision, "approved", "decision must be persisted");
+        assert!(
+            !row.actor.is_empty(),
+            "actor must be non-empty (local_user_id)"
+        );
+        assert_eq!(
+            row.reason.as_deref(),
+            Some("looks solid"),
+            "reason must be stored"
+        );
+        assert_eq!(row.claim_id, CLAIM, "claim_id must be preserved");
+
+        // Round-trip: the DB must surface the same row via `latest_decision_for_claim`.
+        let fetched = db
+            .latest_decision_for_claim(CLAIM, PUB_ID)
+            .await
+            .expect("query latest decision")
+            .expect("a decision must exist after record_claim_review");
+        assert_eq!(fetched.bound_digest, DIGEST);
+        assert_eq!(fetched.decision, "approved");
+    }
+
+    /// P2 Task 4 — `record_claim_review` must fail with a descriptive error
+    /// when no manifest exists for the given publication_id.
+    #[tokio::test]
+    async fn record_claim_review_errors_without_manifest() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db connect");
+
+        let err = super::record_claim_review(&db, "no-such-pub", 1, "approved", None)
+            .await
+            .expect_err("missing manifest must error");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("no publication manifest"),
+            "error must mention 'no publication manifest', got: {msg}"
+        );
+    }
+
+    /// P2 Task 4 — Integration compose: after `record_claim_review(..., "approved", None)`,
+    /// `approval_for` must succeed and the returned token's `bound_digest()` must
+    /// equal the manifest's digest. Proves Task 4 → Task 3 composition.
+    #[tokio::test]
+    async fn approval_for_succeeds_after_record_claim_review() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db connect");
+
+        const PUB_ID: &str = "pub-compose-test";
+        const CLAIM: i64 = 99;
+        const DIGEST: &str = "digest-compose-v1";
+
+        db.upsert_publication_manifest(vox_db::store::types::PublicationManifestParams {
+            publication_id: PUB_ID,
+            content_type: "scientia",
+            source_ref: None,
+            title: "compose test",
+            author: "tester",
+            abstract_text: None,
+            body_markdown: "body",
+            citations_json: None,
+            metadata_json: None,
+            revision_history_json: None,
+            content_sha3_256: DIGEST,
+            state: "draft",
+        })
+        .await
+        .expect("seed manifest");
+
+        super::record_claim_review(&db, PUB_ID, CLAIM, "approved", None)
+            .await
+            .expect("record_claim_review must succeed");
+
+        let token = approval_for(&db, PUB_ID, CLAIM)
+            .await
+            .expect("approval_for must succeed after an approved decision");
+
+        assert_eq!(
+            token.bound_digest(),
+            DIGEST,
+            "token bound_digest must equal the manifest's content_sha3_256"
+        );
+        assert_eq!(token.claim_id(), CLAIM, "token claim_id must match");
+    }
+
+    /// Freshness gate (no vault needed — the digest check fires BEFORE any
+    /// signing/persisting): the manifest's CURRENT digest differs from the
+    /// approved (now-stale) digest, simulating an edit after approval. The build
+    /// must refuse and persist NOTHING.
+    #[tokio::test]
+    async fn nanopub_build_refuses_stale_approval_persists_nothing() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db connect");
+
+        const PUB_ID: &str = "pub-stale-approval-test";
+        const CLAIM: i64 = 314;
+
+        // Current content digest (post-edit).
+        db.upsert_publication_manifest(vox_db::store::types::PublicationManifestParams {
+            publication_id: PUB_ID,
+            content_type: "scientia",
+            source_ref: None,
+            title: "stale approval test",
+            author: "tester",
+            abstract_text: None,
+            body_markdown: "edited body",
+            citations_json: None,
+            metadata_json: None,
+            revision_history_json: None,
+            content_sha3_256: "digest-CURRENT",
+            state: "approved",
+        })
+        .await
+        .expect("seed manifest");
+
+        // The human approved the OLD digest — the content has since changed.
+        db.record_review_decision(&vox_db::store::ReviewDecisionRow {
+            claim_id: CLAIM,
+            publication_id: Some(PUB_ID.into()),
+            bound_digest: "digest-OLD".into(),
+            decision: "approved".into(),
+            actor: "tester".into(),
+            reason: None,
+            model_fingerprints_json: None,
+            decided_at_ms: 1,
+        })
+        .await
+        .expect("seed stale approval");
+
+        let token = approval_for(&db, PUB_ID, CLAIM)
+            .await
+            .expect("approved (stale) → token still mints");
+
+        // `SignedNanopubDoc` is not `Debug`, so match rather than `expect_err`.
+        let err = match nanopub_build(
+            &db,
+            PUB_ID,
+            CLAIM,
+            Some("https://orcid.org/0000-0002-1825-0097"),
+            &token,
+        )
+        .await
+        {
+            Ok(_) => panic!("stale approval must be refused, but build succeeded"),
+            Err(e) => e,
+        };
+        let msg = err.to_string();
+        assert!(
+            msg.contains("stale") || msg.contains("changed"),
+            "error must explain the content changed since approval, got: {msg}"
+        );
+
+        // Prove NO `scientia_nanopubs` row was persisted for this claim — the
+        // gate fired before any persistence. Uses a typed count op (not raw
+        // query_all) so the test stays within the Codex query surface.
+        let count = db
+            .count_scientia_nanopubs_for_claim(CLAIM)
+            .await
+            .expect("count nanopub rows");
+        assert_eq!(count, 0, "a refused stale approval must persist nothing");
     }
 }

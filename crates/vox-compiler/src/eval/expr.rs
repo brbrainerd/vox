@@ -57,6 +57,8 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     params: vec!["args".into()],
                     body: std::rc::Rc::new(vec![]), // Not used for builtins
                     env: interp.scope.clone(),
+                    name: String::new(),
+                    is_versioned: false,
                 })
             } else {
                 Err(EvalError::UndefinedVariable(name.clone()))
@@ -368,6 +370,8 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 params: params.iter().map(|p| p.name.clone()).collect(),
                 body: std::rc::Rc::new(b),
                 env: interp.scope.clone(),
+                name: String::new(),
+                is_versioned: false,
             })
         }
         HirExpr::Call(callee, args, _, _) => {
@@ -393,6 +397,8 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     params,
                     body,
                     mut env,
+                    name: fn_name,
+                    is_versioned,
                 } => {
                     env.push_frame();
                     for (p, arg) in params.iter().zip(eval_args) {
@@ -422,7 +428,19 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     })();
 
                     interp.scope = old_scope;
-                    result
+                    let val = result?;
+
+                    // P5: auto-checkpoint on successful return of a @versioned
+                    // function. `result?` above already restored the scope (on
+                    // BOTH success and error) and short-circuits on error, so a
+                    // checkpoint is recorded only for a successful call — never
+                    // for a failed one. The snapshot is an ungated `Vcs` effect,
+                    // matching explicit `repo.*` semantics (`eval/repo.rs` does
+                    // not consult `interp.caps`).
+                    if is_versioned {
+                        interp.repo.snapshot(Some(&format!("@versioned {fn_name}")));
+                    }
+                    Ok(val)
                 }
                 VoxValue::Constructor(name) => match name.as_str() {
                     // Built-in Option/Result constructors lower directly to
@@ -746,7 +764,9 @@ fn apply_closure(
     args: Vec<VoxValue>,
 ) -> Result<VoxValue, EvalError> {
     let (params, body, env) = match closure {
-        VoxValue::Fn { params, body, env } => (params.clone(), body.clone(), env.clone()),
+        VoxValue::Fn {
+            params, body, env, ..
+        } => (params.clone(), body.clone(), env.clone()),
         other => {
             return Err(EvalError::TypeError {
                 expected: "function",
