@@ -22,11 +22,21 @@ and the 2026-06-05 "Version Control as a Vox Language Feature" research note (la
 
 | # | Decision | Rationale |
 |---|----------|-----------|
-| D1 | **jj-lib `0.42` is the engine, as a hard (non-optional) Rust dependency.** No external `jj` executable, no system libgit2. | jj-lib is purpose-built to be embedded ("usable from a GUI or TUI, or a server"); `0.42.0` (rel. 2026-06-04) does git fetch/push via pure-Rust `gix` (`git2`/libgit2 removed). Confirmed: [docs.rs/jj-lib/0.42.0](https://docs.rs/jj-lib/0.42.0/jj_lib/). |
+| D1 | **jj-lib `0.42` is the engine, as a hard (non-optional) Rust dependency.** No external `jj` executable ever. **All LOCAL ops are fully in-process (no binary).** ~~git fetch/push via pure gix~~ → **CORRECTED by spike (2026-06-06): jj-lib 0.42 push/fetch shell out to the `git` binary** (`git_subprocess`), so **remote sync requires `git` ≥ 2.41 on PATH** (accepted for remote only; degrades gracefully when absent). | jj-lib is purpose-built to be embedded; local init/snapshot/commit/undo/diff/**conflicts** proven in-process, no binary. The earlier "pure gix push" reading was wrong — empirically jj 0.42 uses `Command::new(git)` for remote transport. |
 | D2 | **Hybrid depth.** jj-lib in-process is the default backend; the in-memory CAS `SnapshotStore`/`OpLog` survive **only** as the no-repo/degraded fallback. | User steer. Keeps Vox versioning working when no jj/git repo is present; concentrates risk behind a trait. |
 | D3 | **Delete the hand-rolled re-implementations jj-lib obviates; demote (not delete) the load-bearing stores; re-home nothing risky.** Every deletion is TDD-gated by a parity test first. | "Get rid of code jj obviates in its library," constrained by the standing rule to verify retirement claims by hand (a past audit was wrong 5/10× and nearly deleted ~9,670 live test lines). |
 | D4 | **All jj-lib calls confined to one new crate, `vox-vcs` (L3).** The compiler never depends on jj-lib; `repo.*` executes against an injected `dyn VcsBackend`. | jj-lib's API is intentionally unstable/`#[doc(hidden)]`-heavy. One auditable blast-radius; keeps `vox-compiler` (L3, 45k LoC budget) decoupled. |
 | D5 | **Master plan + per-phase implementation plans.** | User steer; far-out phases would drift if fully detailed now. |
+
+---
+
+## 1.5 Spike validation (2026-06-06) — jj-lib 0.42 proven, two design revisions
+
+A two-round executable spike (branch `cc_bdesktop2/jj-p2-spike`, 12 tests green) validated the engine end-to-end and revised two design points:
+
+- **`VcsBackend` is ASYNC; the production engine is a JJ-ACTOR.** jj-lib 0.42's futures are irreducibly **`!Send`** (`RefCell`/`OnceCell`/`Cell` in `Transaction`/`MutableRepo`/working-copy). A sync `block_on` engine **panics** when called from the orchestrator's tokio runtime (proven); a `Send` async trait won't compile. Resolution: a dedicated **jj-actor** thread owns the `Workspace` and exposes a clean **`Send` async `VcsBackend`** (commands over `mpsc`, replies over `oneshot`), confining all `!Send` jj futures to that thread. The `db.*`-style sync interpreter `RepoStore` (P3) defaults to the in-memory backend and bridges to the actor only at its edge.
+- **D1 corrected** (above): local ops are binary-free; remote push/fetch need the `git` binary.
+- **Operations PROVEN against jj-lib 0.42:** colocated init, `Workspace::load` (existing repo, load-or-init), working-copy snapshot + commit, op-log read, undo, diff, **conflicts-as-data** (`MergedTree::merge` + `tree.conflicts()` + `materialize_tree_value` — the core "conflicts not clobbers" thesis is validated), and push to a local bare remote. Detailed construction recipe + caveats (remote-config-cached-at-open; `add_remote` pulls `gix` → use `GitExec`): see [P2 plan](../plans/2026-06-05-jj-first-class-p2-jj-engine-and-dead-code-removal.md).
 
 ---
 
