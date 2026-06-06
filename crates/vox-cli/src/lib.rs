@@ -604,12 +604,6 @@ pub enum Cli {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },
-    /// Scholarship/Scientia domain (Delegated to `vox-schola`).
-    #[command(name = "schola")]
-    Schola {
-        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
-        args: Vec<String>,
-    },
     /// Optional telemetry upload queue (local spool + explicit upload; ADR 023).
     Telemetry {
         /// Subcommand.

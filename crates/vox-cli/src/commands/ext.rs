@@ -39,12 +39,6 @@ pub enum ExtCmd {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },
-    /// Training tools (delegated to vox-ml-cli)
-    #[command(hide = true)]
-    Schola {
-        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
-        args: Vec<String>,
-    },
     /// Populi registry + HTTP control plane (delegated to vox-ml-cli)
     #[command(hide = true)]
     Populi {
@@ -74,7 +68,6 @@ pub async fn run(cmd: ExtCmd) -> Result<()> {
         ExtCmd::Ars { cmd } => crate::cli_dispatch::run_ars_cmd(cmd).await,
         ExtCmd::Mens { .. }
         | ExtCmd::Oratio { .. }
-        | ExtCmd::Schola { .. }
         | ExtCmd::Populi { .. }
         | ExtCmd::Train { .. } => {
             unreachable!("ML commands in ext should be intercepted by main.rs")
