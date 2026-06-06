@@ -128,7 +128,7 @@ archived_date: 2026-04-18
 ### ~~Gap B-1: `@ensure` postconditions missing from `FnDecl`~~ — **CORRECTION: IMPLEMENTED**
 
 > [!NOTE]
-> **Correction (2026-04-17):** Code audit of `crates/vox-compiler/src/ast/decl/fundecl.rs` confirmed `pub postconditions: Vec<Expr>` **exists**. `pub verify_mode: VerifyMode` also exists, as does `pub enum VerifyMode { Off, RequireOnly, Full }`. This gap was a false positive based on stale documentation. The real bug is in HIR lowering: `crates/vox-compiler/src/hir/lower/contracts.rs` injects postconditions as a flat append after the full function body, **not at each return site**. See [implementation plan](llm-target-language-implementation-plan-2026.md#bug-1-contracts-postcondition-injection) for the real fix.
+> **Correction (2026-04-17):** Code audit of `crates/vox-ast/src/decl/fundecl.rs` confirmed `pub postconditions: Vec<Expr>` **exists**. `pub verify_mode: VerifyMode` also exists, as does `pub enum VerifyMode { Off, RequireOnly, Full }`. This gap was a false positive based on stale documentation. The real bug is in HIR lowering: `crates/vox-compiler/src/hir/lower/contracts.rs` injects postconditions as a flat append after the full function body, **not at each return site**. See [implementation plan](llm-target-language-implementation-plan-2026.md#bug-1-contracts-postcondition-injection) for the real fix.
 
 **Finding (corrected):** `postconditions` and `VerifyMode` are implemented in the AST. However, `crates/vox-compiler/src/hir/lower/contracts.rs` `inject_contracts` has a bug in the `VerifyMode::Full` branch: postconditions are appended at the end of the function body with `new_body.append(&mut body); for post in &f.postconditions { ... new_body.push(HirStmt::Expr{...}) }`. Functions with early `return` statements never trigger postcondition checks.
 
@@ -141,7 +141,7 @@ archived_date: 2026-04-18
 ### ~~Gap B-2: `VerifyMode` enum and `verify_mode` field missing from `FnDecl`~~ — **CORRECTION: IMPLEMENTED**
 
 > [!NOTE]
-> **Correction (2026-04-17):** `pub enum VerifyMode { Off, RequireOnly, Full }` and `pub verify_mode: VerifyMode` both exist in `crates/vox-compiler/src/ast/decl/fundecl.rs`. False positive from stale documentation.
+> **Correction (2026-04-17):** `pub enum VerifyMode { Off, RequireOnly, Full }` and `pub verify_mode: VerifyMode` both exist in `crates/vox-ast/src/decl/fundecl.rs`. False positive from stale documentation.
 
 archived_date: 2026-04-18
 ---
@@ -161,7 +161,7 @@ archived_date: 2026-04-18
 ### ~~Gap B-4: `ForallDecl` AST node missing~~ — **CORRECTION: IMPLEMENTED**
 
 > [!NOTE]
-> **Correction (2026-04-17):** `pub struct ForallDecl { pub label: String, pub func: FnDecl, pub iterations: u32 }` exists in `crates/vox-compiler/src/ast/decl/fundecl.rs`. `Decl::Forall(ForallDecl)` variant is present. `vox-lsp/src/code_lens.rs` uses it correctly, emitting "▶ Run property (N iters)" code lenses. False positive from stale documentation.
+> **Correction (2026-04-17):** `pub struct ForallDecl { pub label: String, pub func: FnDecl, pub iterations: u32 }` exists in `crates/vox-ast/src/decl/fundecl.rs`. `Decl::Forall(ForallDecl)` variant is present. `vox-lsp/src/code_lens.rs` uses it correctly, emitting "▶ Run property (N iters)" code lenses. False positive from stale documentation.
 
 archived_date: 2026-04-18
 ---
@@ -184,7 +184,7 @@ archived_date: 2026-04-18
 ### ~~Gap B-6: Label string missing from `TestDecl`~~ — **CORRECTION: IMPLEMENTED**
 
 > [!NOTE]
-> **Correction (2026-04-17):** `pub struct TestDecl { pub label: String, pub func: FnDecl }` exists in `crates/vox-compiler/src/ast/decl/fundecl.rs`. `vox-lsp/src/code_lens.rs` uses `t.label` correctly. False positive from stale documentation.
+> **Correction (2026-04-17):** `pub struct TestDecl { pub label: String, pub func: FnDecl }` exists in `crates/vox-ast/src/decl/fundecl.rs`. `vox-lsp/src/code_lens.rs` uses `t.label` correctly. False positive from stale documentation.
 
 archived_date: 2026-04-18
 ---

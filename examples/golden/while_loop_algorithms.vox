@@ -92,6 +92,7 @@ fn assert(cond: bool) {
     }
 }
 
+// EXPECT: All while/loop assertions passed
 pub fn main() {
     assert(collatz_steps(1) is 0)
     assert(collatz_steps(6) is 8)

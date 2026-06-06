@@ -1,0 +1,59 @@
+// vox:caps subprocess env
+// scripts/ci-runners-up.vox
+//
+// Bring the self-hosted CI runner pool up to current demand — one reconcile
+// "tick" of the autoscaler. All logic lives in Rust (`vox ci runner-scale`);
+// this is the thin, schedulable entrypoint.
+//
+// Run it on a timer (e.g. Windows Task Scheduler every 1 min, or a loop) so the
+// pool tracks demand: spin up ephemeral runners when CI is queued, and let them
+// exit to ZERO when the queue is empty.
+//
+// Usage:
+//   vox run scripts/ci-runners-up.vox                       # reconcile (apply)
+//   VOX_RUNNER_DRY_RUN=1 vox run scripts/ci-runners-up.vox  # preview only
+//
+// See docs/src/ci/runner-autoscaling.md.
+
+fn env_flag(name: str) to bool {
+    let opt = std.env.get(name);
+    if opt.is_some() {
+        return opt.unwrap() == "1";
+    }
+    return false;
+}
+
+fn main() {
+    // Make sure the Docker daemon is reachable before asking the scaler to act.
+    let probe = process.run("docker", ["info"]);
+    if probe is null {
+        log.error("ci-runners-up: cannot exec docker — is Docker Desktop running?");
+        process.exit(1);
+    }
+    let pr = probe.unwrap();
+    if pr.code != 0 {
+        log.error("ci-runners-up: docker daemon not reachable — start Docker Desktop, then retry.");
+        process.exit(1);
+    }
+
+    let mut args = ["ci", "runner-scale"];
+    if env_flag("VOX_RUNNER_DRY_RUN") {
+        print("ci-runners-up: DRY-RUN (unset VOX_RUNNER_DRY_RUN to apply)");
+    } else {
+        args = args.push("--apply");
+    }
+
+    let proc = process.run("vox", args);
+    if proc is null {
+        log.error("ci-runners-up: could not spawn `vox` — is it on PATH?");
+        process.exit(1);
+    }
+    let res = proc.unwrap();
+    if res.stdout != "" {
+        print(res.stdout);
+    }
+    if res.code != 0 {
+        log.error("ci-runners-up: `vox ci runner-scale` exited " + str(res.code));
+        process.exit(res.code);
+    }
+}

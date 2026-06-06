@@ -158,7 +158,7 @@ impl OpLog {
             hasher.update(prev.id.0.to_le_bytes());
             hasher.update(prev.timestamp_ms.to_le_bytes());
             hasher.update(prev.predecessor_hash.as_deref().unwrap_or("").as_bytes());
-            format!("{:x}", hasher.finalize())
+            hex::encode(hasher.finalize())
         });
 
         let entry = OperationEntry {

@@ -584,7 +584,7 @@ Expected: FAIL — `WorkflowVersionCall` type does not exist.
 
 - [ ] **P2-T2b: Add `WorkflowVersionCall` to the AST**
 
-Find the file declaring `Expr` variants (search: `pub enum Expr` under `crates/vox-compiler/src/ast/`). Add a new variant:
+Find the file declaring `Expr` variants (search: `pub enum Expr` under `crates/vox-ast/src/`). Add a new variant:
 
 ```rust
 /// `workflow.version("change-id", min_supported, max_supported)`
@@ -746,7 +746,7 @@ Expected: PASS.
 
 ```bash
 git add crates/vox-compiler/src/parser/ \
-        crates/vox-compiler/src/ast/ \
+        crates/vox-ast/src/ \
         crates/vox-compiler/src/hir/ \
         crates/vox-compiler/tests/workflow_version.rs \
         crates/vox-workflow-runtime/src/workflow/run.rs \

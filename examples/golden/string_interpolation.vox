@@ -54,6 +54,7 @@ fn has_keyword(sentence: str, word: str) to bool {
     return sentence.to_upper().contains(word.to_upper())
 }
 
+// EXPECT: All string interpolation checks passed.
 fn main() to Unit {
     let msg = greet("Alice", 95, true)
     assert(msg is "Hello Alice! Score: 95. Passed: true.")

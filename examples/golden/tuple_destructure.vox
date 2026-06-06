@@ -99,6 +99,7 @@ fn test_indexed_for_loop() to Unit {
     }
 }
 
+// EXPECT: ok
 fn main() to str {
     test_tuple_construction_and_destructuring()
     test_indexed_for_loop()

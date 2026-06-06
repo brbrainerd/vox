@@ -1,6 +1,6 @@
 [package]
 name = "vox-inference"
-description = "MENS Inference (WIP/Mn-T2): dispatcher and device-specific backends for heterogeneous model execution. Pre-integration — no in-tree consumers yet; see mesh-mens-distributed-training-and-execution-plan-2026.md."
+description = "MENS inference (Mn-T2): multi-backend dispatcher — Candle CPU/CUDA/Metal, llama.cpp RPC, Ollama — for heterogeneous model execution. Backends implemented; no in-tree consumers yet."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

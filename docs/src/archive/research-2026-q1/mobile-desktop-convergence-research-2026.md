@@ -415,8 +415,8 @@ archived_date: 2026-04-18
 - [Vox Web Architecture and TypeScript SDK Interop](../../..) — `vox_web_architecture_and_ts_interop` KI
 - `docs/src/reference/mobile-edge-ai.md` — mobile/edge AI SSOT
 - `crates/vox-container/` — Dockerfile generation target for `EnvironmentDecl`
-- `crates/vox-compiler/src/ast/decl/logic.rs` — `AgentDecl` struct (awaiting parser)
-- `crates/vox-compiler/src/ast/decl/config.rs` — `EnvironmentDecl` struct (awaiting parser)
+- `crates/vox-ast/src/decl/logic.rs` — `AgentDecl` struct (awaiting parser)
+- `crates/vox-ast/src/decl/config.rs` — `EnvironmentDecl` struct (awaiting parser)
 - `contracts/terminal/exec-policy.v1.yaml` — shell policy (relevant to `environment` codegen)
 
 

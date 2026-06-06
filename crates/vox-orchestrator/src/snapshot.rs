@@ -125,7 +125,7 @@ impl SnapshotStore {
         let size = data.len() as u64;
         let mut hasher = Sha3_256::new();
         hasher.update(&data);
-        let hash = format!("{:x}", hasher.finalize());
+        let hash = hex::encode(hasher.finalize());
         Some((hash, size))
     }
 
@@ -134,7 +134,7 @@ impl SnapshotStore {
         use sha3::{Digest, Sha3_256};
         let mut hasher = Sha3_256::new();
         hasher.update(data);
-        format!("{:x}", hasher.finalize())
+        hex::encode(hasher.finalize())
     }
 
     /// Store a blob in the CAS store. Returns the content hash.

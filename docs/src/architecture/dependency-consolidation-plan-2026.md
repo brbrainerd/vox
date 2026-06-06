@@ -87,8 +87,8 @@ Sourced via `grep -rh 'Command::new(' crates/`. Categorized by
 
 | File | Bases / installers |
 |---|---|
-| `Dockerfile` | `rust:1.92.0-slim-bookworm`, `debian:bookworm-slim`, `apt-get install pkg-config libssl-dev build-essential ca-certificates curl` |
-| `Dockerfile.ci-runner` (this branch) | `ubuntu:24.04`, Rust 1.92.0, Node 24, pnpm 9, cargo-nextest/llvm-cov/hakari, plus `apt-get install build-essential pkg-config libssl-dev libsqlite3-dev curl git ca-certificates jq ripgrep python3 python3-pip bash` |
+| `Dockerfile` | `rust:1.95.0-slim-bookworm`, `debian:bookworm-slim`, `apt-get install pkg-config libssl-dev build-essential ca-certificates curl` |
+| `Dockerfile.ci-runner` (this branch) | `ubuntu:24.04`, Rust 1.95.0, Node 24, pnpm 9, cargo-nextest/llvm-cov/hakari, plus `apt-get install build-essential pkg-config libssl-dev libsqlite3-dev curl git ca-certificates jq ripgrep python3 python3-pip bash` |
 
 `python3` and `python3-pip` are present in `Dockerfile.ci-runner` only because
 `ci.yml` has those one-line `python3` blocks. **Remove the python3 callers

@@ -163,6 +163,12 @@ jobs:
       - name: Dependency Sprawl Check
         run: cargo run -p vox-cli --quiet -- ci dep-sprawl --cap 25
 
+      - name: Plugin Dependency Boundary (cdylib plugins must not link the spine)
+        run: cargo run -p vox-cli --quiet -- ci plugin-dep-boundary
+
+      - name: No cdylib plugin as a compile-time dependency (D-2)
+        run: cargo run -p vox-cli --quiet -- ci no-plugin-cdylib-as-compile-dep
+
       - name: Dynamic Workspace Health Audit
         run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-workspace-health.vox
 
@@ -767,7 +773,9 @@ jobs:
   # so branch-protection settings carry over without admin action.
   ci-summary:
     name: Check, Build, and Test (Rust)
-    needs: [guards-fast, lints, compiler-gates, tests, audits, gui-playwright-smoke]
+    # gui-playwright-smoke is now a tiered (post-merge/`full-ci`) job, so it is
+    # intentionally NOT a required-gate dependency.
+    needs: [guards-fast, lints, compiler-gates, tests, audits]
     if: always()
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 2
@@ -781,8 +789,7 @@ jobs:
             "${{ needs.lints.result }}" \
             "${{ needs.compiler-gates.result }}" \
             "${{ needs.tests.result }}" \
-            "${{ needs.audits.result }}" \
-            "${{ needs.gui-playwright-smoke.result }}"; do
+            "${{ needs.audits.result }}"; do
             if [ "$r" != "success" ]; then fail=1; fi
           done
           exit $fail
@@ -874,6 +881,9 @@ jobs:
 
   docker-vox-image-smoke:
     name: Docker build smoke (default + mesh)
+    # Tier: heavy (~30m). Run post-merge (push to main) + on PRs labelled
+    # `full-ci`; skip routine PR pushes (not a required check).
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64, docker]
     timeout-minutes: 30
     steps:
@@ -888,6 +898,8 @@ jobs:
   # Canonical crate is `vox-plugin-browser` (historical `vox-browser` crate removed).
   vox-browser-cdp-smoke:
     name: vox-plugin-browser CDP smoke (Chromium)
+    # Tier: heavy (~15m). Post-merge + `full-ci` label only.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64, browser]
     timeout-minutes: 15
     steps:
@@ -931,6 +943,8 @@ jobs:
 
   gui-playwright-smoke:
     name: GUI Playwright golden route (full_stack_minimal)
+    # Tier: heavy (~25m). Post-merge + `full-ci` label only.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64, browser]
     timeout-minutes: 25
     steps:
@@ -1009,6 +1023,9 @@ jobs:
 
   all-features-matrix:
     name: All-Features Check (${{ matrix.crate }})
+    # Tier: heavy (~30 crates × 10-15m). Post-merge + `full-ci` label only —
+    # the single biggest per-PR load. Not a required check.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64, docker]
     timeout-minutes: 15
     strategy:

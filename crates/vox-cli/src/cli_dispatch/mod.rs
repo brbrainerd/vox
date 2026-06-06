@@ -334,19 +334,19 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Model { cmd } => {
             crate::commands::model::run(cmd).await?;
         }
-        #[cfg(feature = "script-execution")]
+        #[cfg(feature = "script-wasi")]
         Cli::Wasm { cmd } => {
             crate::commands::wasm::run(cmd)?;
         }
-        #[cfg(not(feature = "script-execution"))]
+        #[cfg(not(feature = "script-wasi"))]
         Cli::WasmStub { .. } => {
             anyhow::bail!(
-                "{}\n\nThis binary was built without the `script-execution` cargo feature. \
+                "{}\n\nThis binary was built without the `script-wasi` cargo feature. \
                  Rebuild with the feature to run raw WASI modules:\n\n{}",
-                "vox wasm run requires the 'script-execution' capability, which is not available in this build.",
+                "vox wasm run requires the 'script-wasi' capability (Wasmtime), which is not available in this build.",
                 vox_plugin_host::format_install_hint(
-                    "script-execution",
-                    Some("cargo build -p vox-cli --release --features script-execution")
+                    "script-wasi",
+                    Some("cargo build -p vox-cli --release --features script-wasi")
                 )
             );
         }

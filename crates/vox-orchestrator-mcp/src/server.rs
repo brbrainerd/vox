@@ -2,7 +2,7 @@
 
 use rmcp::model::{
     CallToolRequestParams, CallToolResult, Content, Implementation, InitializeRequestParams,
-    InitializeResult, ListToolsResult, PaginatedRequestParams, ServerCapabilities, ToolsCapability,
+    InitializeResult, ListToolsResult, PaginatedRequestParams, ServerCapabilities,
 };
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData, RoleServer, ServerHandler};
@@ -32,33 +32,25 @@ impl ServerHandler for VoxMcpServer {
     ) -> Result<InitializeResult, ErrorData> {
         let tool_count = crate::TOOL_REGISTRY.len();
         let vox_version = env!("CARGO_PKG_VERSION");
-        Ok(InitializeResult {
-            protocol_version: params.protocol_version.clone(),
-            server_info: Implementation {
-                name: "vox-mcp".to_string(),
-                version: vox_version.to_string(),
-                ..Default::default()
-            },
-            capabilities: ServerCapabilities {
-                tools: Some(ToolsCapability {
-                    // Skills may append tools after startup; clients should refresh occasionally.
-                    list_changed: Some(true),
-                }),
-                experimental: {
-                    let mut map = std::collections::BTreeMap::new();
-                    let mut inner = serde_json::Map::new();
-                    inner.insert("messagepack".to_string(), serde_json::Value::Bool(true));
-                    inner.insert("inmem_transport".to_string(), serde_json::Value::Bool(true));
-                    map.insert("transport_capabilities".to_string(), inner);
-                    Some(map)
-                },
-                ..Default::default()
-            },
-            instructions: Some(format!(
+        let mut experimental = std::collections::BTreeMap::new();
+        let mut inner = serde_json::Map::new();
+        inner.insert("messagepack".to_string(), serde_json::Value::Bool(true));
+        inner.insert("inmem_transport".to_string(), serde_json::Value::Bool(true));
+        experimental.insert("transport_capabilities".to_string(), inner);
+        // Skills may append tools after startup; `enable_tool_list_changed` tells
+        // clients to refresh their tool list occasionally.
+        let capabilities = ServerCapabilities::builder()
+            .enable_tools()
+            .enable_tool_list_changed()
+            .enable_experimental_with(experimental)
+            .build();
+        Ok(InitializeResult::new(capabilities)
+            .with_protocol_version(params.protocol_version.clone())
+            .with_server_info(Implementation::new("vox-mcp", vox_version))
+            .with_instructions(format!(
                 "vox-mcp v{} | tools: {} | protocol: {}",
                 vox_version, tool_count, params.protocol_version,
-            )),
-        })
+            )))
     }
 
     async fn list_tools(
@@ -89,20 +81,14 @@ impl ServerHandler for VoxMcpServer {
         for skill in skills {
             for tool_name in &skill.tools {
                 if !tool_list.iter().any(|t| t.name == *tool_name) {
-                    tool_list.push(rmcp::model::Tool {
-                        name: std::borrow::Cow::Owned(tool_name.clone()),
-                        description: Some(std::borrow::Cow::Owned(format!(
+                    tool_list.push(rmcp::model::Tool::new_with_raw(
+                        std::borrow::Cow::Owned(tool_name.clone()),
+                        Some(std::borrow::Cow::Owned(format!(
                             "Instructional macro tool from skill: {}",
                             skill.name
                         ))),
-                        input_schema: std::sync::Arc::new(serde_json::Map::new()),
-                        output_schema: None,
-                        meta: None,
-                        annotations: None,
-                        execution: None,
-                        icons: None,
-                        title: None,
-                    });
+                        std::sync::Arc::new(serde_json::Map::new()),
+                    ));
                 }
             }
         }
@@ -143,11 +129,11 @@ impl ServerHandler for VoxMcpServer {
                 }
             };
 
-        Ok(CallToolResult {
-            content: vec![Content::text(result_json)],
-            is_error: Some(is_error),
-            meta: None,
-            structured_content: None,
+        let content = vec![Content::text(result_json)];
+        Ok(if is_error {
+            CallToolResult::error(content)
+        } else {
+            CallToolResult::success(content)
         })
     }
 }

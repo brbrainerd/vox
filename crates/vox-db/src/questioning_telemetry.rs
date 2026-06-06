@@ -63,7 +63,7 @@ impl VoxDb {
     ) -> Result<(String, i64), StoreError> {
         let mut hasher = Sha3_256::new();
         hasher.update(artifact.body_markdown.as_bytes());
-        let content_sha3_256 = format!("{:x}", hasher.finalize());
+        let content_sha3_256 = hex::encode(hasher.finalize());
 
         self.upsert_publication_manifest(PublicationManifestParams {
             publication_id: artifact.publication_id,

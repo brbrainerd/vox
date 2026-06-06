@@ -220,6 +220,32 @@ pub fn resolve_secret(id: SecretId) -> ResolvedSecret {
     resolve_secret_with_context(id, "process")
 }
 
+/// Persist a managed secret to the Clavis vault at runtime (account/profile-scoped).
+///
+/// Writes the plaintext into the cloudless vault keyed by the secret's canonical
+/// env name under the active `VOX_ACCOUNT_ID`. Pass `profile` to write a
+/// profile-scoped override; `None` writes the account-level canonical record.
+///
+/// # Errors
+/// Returns [`SecretError`] if the vault backend cannot be initialized (e.g. the
+/// keyring-backed master key is unavailable) or the write fails.
+pub fn store_secret(
+    id: SecretId,
+    plaintext: &str,
+    profile: Option<&str>,
+) -> Result<(), SecretError> {
+    let backend = backend::vox_vault::VoxCloudBackend::new()?;
+    backend.write_secret_v2(
+        id.spec().canonical_env,
+        plaintext,
+        profile,
+        "create",
+        Some("programmatic-store"),
+        "process",
+        10,
+    )
+}
+
 #[must_use]
 pub fn resolve_secret_for_cli(id: SecretId) -> ResolvedSecret {
     resolve_secret_with_context(id, "cli")

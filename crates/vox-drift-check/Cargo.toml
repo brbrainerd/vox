@@ -9,6 +9,7 @@ name = "vox-drift-check"
 path = "src/bin/vox_drift_check.rs"
 
 [dependencies]
+hex = { workspace = true }
 vox-code-audit   = { workspace = true }
 vox-compiler     = { workspace = true }
 vox-config       = { workspace = true }

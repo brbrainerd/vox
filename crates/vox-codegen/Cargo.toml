@@ -13,6 +13,7 @@ publish = false
 default = []
 
 [dependencies]
+hex = { workspace = true }
 vox-compiler = { workspace = true }
 vox-tauri-codegen = { workspace = true }
 workspace-hack = { workspace = true }

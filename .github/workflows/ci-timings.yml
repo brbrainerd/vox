@@ -1,0 +1,62 @@
+# CI Job Timings — measure job RUN TIME and surface anything over the budget.
+#
+# Runs automatically after the heavy CI workflows complete. Measures each job's
+# execution time (`completed_at - started_at`, i.e. EXCLUDING queue/startup) and
+# emits a `::warning::` annotation + a step-summary table for any job that ran
+# longer than the budget (10 min). Advisory only — it never fails the build.
+#
+# Cheap by design: GitHub-hosted `ubuntu-latest`, pure `gh api` + `jq`, no build,
+# so observing CI cost does not itself add CI cost. The canonical logic + the
+# threshold SSOT live in `vox ci job-timings`
+# (crates/vox-cli/src/commands/ci/job_timings.rs, SLOW_JOB_THRESHOLD_SECS=600);
+# run that locally for the same report on demand.
+name: CI Job Timings
+
+on:
+  workflow_run:
+    workflows:
+      - "CI"
+      - "Cross-Platform Check (Windows + macOS)"
+      - "CI Fallback (GitHub-hosted)"
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  timings:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Measure job run-times and warn on jobs over budget
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          THRESHOLD_SECS: "600" # SSOT: job_timings::SLOW_JOB_THRESHOLD_SECS (10 min)
+        run: |
+          set -euo pipefail
+          mins=$((THRESHOLD_SECS / 60))
+          # Only jobs that actually STARTED (have started_at) are measured; the
+          # delta is execution time, not queue/startup wait.
+          gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs" --paginate \
+            --jq '.jobs[] | select(.started_at != null and .completed_at != null)
+                  | {name, conclusion, secs: ((.completed_at|fromdateiso8601) - (.started_at|fromdateiso8601))}' \
+            | jq -s 'sort_by(-.secs)' > jobs.json
+
+          total=$(jq 'length' jobs.json)
+          slow=$(jq "[.[] | select(.secs > ${THRESHOLD_SECS})] | length" jobs.json)
+          echo "Measured ${total} started job(s); ${slow} over the ${mins}m run-time budget."
+
+          # GitHub check annotations for over-budget jobs (advisory warnings).
+          jq -r ".[] | select(.secs > ${THRESHOLD_SECS})
+                 | \"::warning title=Slow CI job::\(.name) ran \((.secs/60)|floor)m\((.secs%60)|floor)s (> ${mins}m budget) [\(.conclusion)] — consider moving to merge-only or splitting it.\"" \
+            jobs.json
+
+          # Step-summary table (sorted slowest-first).
+          {
+            echo "### CI job run-times (budget ${mins}m)"
+            echo ""
+            echo "| run-time | job | conclusion |"
+            echo "|---:|---|---|"
+            jq -r ".[] | \"| \((.secs/60)|floor)m\((.secs%60)|floor)s | \(.name) | \(.conclusion) |\"" jobs.json
+          } >> "$GITHUB_STEP_SUMMARY"

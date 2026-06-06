@@ -228,7 +228,7 @@ fn derivation_hex(payload: &DerivationPayload<'_>) -> String {
     let json = serde_json::to_string(payload).unwrap_or_else(|_| "{}".to_string());
     let mut h = Sha3_256::new();
     h.update(json.as_bytes());
-    format!("{:x}", h.finalize())
+    hex::encode(h.finalize())
 }
 
 fn push_channel(
