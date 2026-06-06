@@ -18,3 +18,15 @@ mens:
   min_keep: 2
   protected_names: []
   latest_pointer: mens/runs/latest
+
+# Per-worktree `target/` dirs (`vox ci artifact-prune --include-worktrees`).
+# Each git worktree keeps its own multi-GB target (see .cargo/config.toml). The
+# GC never deletes a target with an active build, a lock, or uncommitted source.
+worktree_targets:
+  max_age_days: 7
+  protect_dirty: true
+
+# Whole stale worktrees (`vox ci artifact-prune --remove-stale-worktrees`).
+# Only removed when clean, unlocked, not current, not building, and stale.
+stale_worktrees:
+  max_age_days: 7

@@ -614,6 +614,9 @@ pub enum CiCmd {
     ArtifactAudit {
         #[arg(long)]
         json: bool,
+        /// Also report per-worktree `target/` dirs and stale worktrees (read-only).
+        #[arg(long)]
+        include_worktrees: bool,
     },
     /// Prune workspace artifacts cleanly.
     #[command(name = "artifact-prune")]
@@ -624,6 +627,21 @@ pub enum CiCmd {
         apply: bool,
         #[arg(long)]
         policy: Option<PathBuf>,
+        /// Clean per-worktree `target/` dirs (gated: never touches an active build).
+        #[arg(long)]
+        include_worktrees: bool,
+        /// Additionally remove whole stale, clean, unlocked worktrees.
+        #[arg(long)]
+        remove_stale_worktrees: bool,
+        /// Clean target dirs even in worktrees with uncommitted source (never the source).
+        #[arg(long)]
+        include_dirty_targets: bool,
+        /// Clean only `target/{debug,release}/incremental/` (keep `deps/` for fast rebuilds).
+        #[arg(long)]
+        incremental_only: bool,
+        /// Override the policy staleness threshold (days); `0` cleans regardless of age.
+        #[arg(long)]
+        max_age_days: Option<u32>,
     },
     /// Nomenclature guard: fail when new Latin-only structural crate directories appear outside the allowlist (T189-T196).
     #[command(name = "nomenclature-guard")]

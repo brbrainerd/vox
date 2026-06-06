@@ -47,6 +47,53 @@ impl Default for ScratchPolicy {
     }
 }
 
+/// Policy for cleaning per-worktree `target/` dirs (see `worktree_gc`).
+#[derive(Debug, Clone, Deserialize)]
+pub struct WorktreeTargetsPolicy {
+    #[serde(default = "default_worktree_target_age")]
+    pub max_age_days: u32,
+    /// When true (default), worktrees with uncommitted source are protected
+    /// unless `--include-dirty-targets` is passed.
+    #[serde(default = "default_true")]
+    pub protect_dirty: bool,
+}
+
+fn default_worktree_target_age() -> u32 {
+    7
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for WorktreeTargetsPolicy {
+    fn default() -> Self {
+        Self {
+            max_age_days: default_worktree_target_age(),
+            protect_dirty: true,
+        }
+    }
+}
+
+/// Policy for removing whole stale worktrees (see `worktree_gc`).
+#[derive(Debug, Clone, Deserialize)]
+pub struct StaleWorktreesPolicy {
+    #[serde(default = "default_stale_worktree_age")]
+    pub max_age_days: u32,
+}
+
+fn default_stale_worktree_age() -> u32 {
+    7
+}
+
+impl Default for StaleWorktreesPolicy {
+    fn default() -> Self {
+        Self {
+            max_age_days: default_stale_worktree_age(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct MensPolicy {
     #[serde(default = "default_mens_age")]
@@ -99,6 +146,10 @@ pub struct WorkspaceArtifactRetentionFile {
     pub scratch: ScratchPolicy,
     #[serde(default)]
     pub mens: MensPolicy,
+    #[serde(default)]
+    pub worktree_targets: WorktreeTargetsPolicy,
+    #[serde(default)]
+    pub stale_worktrees: StaleWorktreesPolicy,
 }
 
 impl WorkspaceArtifactRetentionFile {
@@ -114,6 +165,8 @@ impl WorkspaceArtifactRetentionFile {
             transient: TransientPolicy::default(),
             scratch: ScratchPolicy::default(),
             mens: MensPolicy::default(),
+            worktree_targets: WorktreeTargetsPolicy::default(),
+            stale_worktrees: StaleWorktreesPolicy::default(),
         }
     }
 }

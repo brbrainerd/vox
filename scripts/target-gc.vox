@@ -1,0 +1,74 @@
+// vox:caps subprocess env
+// scripts/target-gc.vox
+//
+// Scheduled glue for the build-artifact garbage collector. All policy and
+// safety logic lives in Rust (`vox ci artifact-prune`); this script only
+// translates env vars into flags and invokes it, so it can be wired into a
+// cron/Task-Scheduler routine.
+//
+// Safe by default: DRY-RUN. It prints the plan (per-worktree target dirs and
+// stale worktrees it *would* reclaim) and deletes nothing unless VOX_GC_APPLY=1.
+// The Rust side never deletes a target with an active build, a lock, the current
+// worktree, or uncommitted source.
+//
+// Usage (from the repo root):
+//   vox run scripts/target-gc.vox                       # dry-run plan
+//   VOX_GC_APPLY=1 vox run scripts/target-gc.vox        # actually reclaim
+//   VOX_GC_REMOVE_WORKTREES=1 ...                       # also remove stale worktrees
+//   VOX_GC_INCREMENTAL_ONLY=1 ...                       # clean only incremental/ (keep deps/)
+//   VOX_GC_MAX_AGE_DAYS=0 ...                           # ignore staleness (clean all eligible)
+//
+// See docs/superpowers/specs/2026-06-05-target-artifact-gc-design.md.
+
+fn env_flag(name: str) to bool {
+    let opt = std.env.get(name);
+    if opt.is_some() {
+        return opt.unwrap() == "1";
+    }
+    return false;
+}
+
+fn main() {
+    let apply = env_flag("VOX_GC_APPLY");
+
+    let mut args = ["ci", "artifact-prune", "--include-worktrees"];
+    if apply {
+        args = args.push("--apply");
+    } else {
+        args = args.push("--dry-run");
+    }
+    if env_flag("VOX_GC_REMOVE_WORKTREES") {
+        args = args.push("--remove-stale-worktrees");
+    }
+    if env_flag("VOX_GC_INCREMENTAL_ONLY") {
+        args = args.push("--incremental-only");
+    }
+    if env_flag("VOX_GC_INCLUDE_DIRTY") {
+        args = args.push("--include-dirty-targets");
+    }
+    let max_age = std.env.get("VOX_GC_MAX_AGE_DAYS");
+    if max_age.is_some() {
+        args = args.push("--max-age-days");
+        args = args.push(max_age.unwrap());
+    }
+
+    if apply {
+        print("target-gc: reclaiming (apply) — building plan...");
+    } else {
+        print("target-gc: DRY-RUN — pass VOX_GC_APPLY=1 to reclaim. Building plan...");
+    }
+
+    let proc = process.run("vox", args);
+    if proc is null {
+        log.error("target-gc: could not spawn `vox` — is it on PATH?");
+        process.exit(1);
+    }
+    let res = proc.unwrap();
+    if res.stdout != "" {
+        print(res.stdout);
+    }
+    if res.code != 0 {
+        log.error("target-gc: `vox ci artifact-prune` exited " + str(res.code));
+        process.exit(res.code);
+    }
+}
