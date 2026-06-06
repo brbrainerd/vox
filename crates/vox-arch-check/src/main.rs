@@ -72,6 +72,7 @@ use serde::Deserialize;
 
 mod cache;
 mod forbidden_patterns;
+mod json_report;
 use forbidden_patterns::{ForbiddenPatternRule, scan_all as scan_forbidden_patterns_all};
 
 /// Rule 14: evidence-ledger integrity check.
@@ -214,10 +215,22 @@ struct GuardsConfig {
 
 fn main() -> ExitCode {
     let warn_only = std::env::args().any(|a| a == "--warn-only");
+    let json = std::env::args().any(|a| a == "--json");
 
     match run(warn_only) {
         Ok(report) => {
-            report.print_summary();
+            if json {
+                // Machine-readable per-rule results on stdout for the policy-status
+                // overlay; the human text summary still goes to stderr so plain
+                // (non-`--json`) behavior is byte-for-byte unchanged.
+                let results = report.to_rule_results();
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&results).unwrap_or_else(|_| "[]".into())
+                );
+            } else {
+                report.print_summary();
+            }
             if report.strict_failed() && !warn_only {
                 ExitCode::FAILURE
             } else {
@@ -306,6 +319,94 @@ impl Report {
                     .evidence_findings
                     .iter()
                     .any(|f| f.kind.severity() == "ERROR"))
+    }
+
+    /// Project the report into per-rule results for the policy-status overlay.
+    /// Ids match the `arch-rule` registry namespace (`arch-rule/<guard-key>`),
+    /// covering exactly the 11 guards catalogued from `layers.toml [guards]`.
+    ///
+    /// DEVIATION FROM PLAN: the plan used `arch/<guard>` ids and listed
+    /// `where_things_live`, `layers`, and `docstring`. The committed registry
+    /// (Plan 1b) uses `arch-rule/<guard>` and catalogs exactly these 11 guard
+    /// keys: description, docstring, fan_in, forbidden_deps,
+    /// generated_file_drift, loc_budget, loc_delta, orphan, staleness,
+    /// where_things_live, wtl_parity. There is no `arch-rule/layers` entry, so
+    /// the layer-ordering check is intentionally not projected (untracked grey).
+    fn to_rule_results(&self) -> Vec<crate::json_report::ArchRuleResult> {
+        use crate::json_report::{ArchRuleResult, status_str};
+        let mk = |id: &str, has: bool, strict: bool, count: usize| ArchRuleResult {
+            id: format!("arch-rule/{id}"),
+            status: status_str(has, strict).to_string(),
+            count,
+        };
+        vec![
+            mk(
+                "description",
+                !self.description_warns.is_empty(),
+                self.strict_description,
+                self.description_warns.len(),
+            ),
+            mk(
+                "docstring",
+                !self.docstring_warns.is_empty(),
+                self.docstring_warns.iter().any(|(_, strict)| *strict),
+                self.docstring_warns.len(),
+            ),
+            mk(
+                "fan_in",
+                !self.fan_in_warns.is_empty(),
+                self.strict_fan_in,
+                self.fan_in_warns.len(),
+            ),
+            mk(
+                "forbidden_deps",
+                !self.forbidden_dep_violations.is_empty(),
+                self.strict_forbidden_deps,
+                self.forbidden_dep_violations.len(),
+            ),
+            mk(
+                "generated_file_drift",
+                !self.generated_file_drift_warns.is_empty(),
+                self.strict_generated_file_drift,
+                self.generated_file_drift_warns.len(),
+            ),
+            mk(
+                "loc_budget",
+                !self.loc_warns.is_empty(),
+                self.strict_loc,
+                self.loc_warns.len(),
+            ),
+            mk(
+                "loc_delta",
+                !self.loc_delta_warns.is_empty(),
+                self.strict_loc_delta,
+                self.loc_delta_warns.len(),
+            ),
+            mk(
+                "orphan",
+                !self.orphan_warns.is_empty(),
+                self.strict_orphan,
+                self.orphan_warns.len(),
+            ),
+            mk(
+                "staleness",
+                !self.staleness_warns.is_empty(),
+                self.strict_staleness,
+                self.staleness_warns.len(),
+            ),
+            mk(
+                "where_things_live",
+                !self.where_things_live_warns.is_empty(),
+                self.strict_where_things_live,
+                self.where_things_live_warns.len(),
+            ),
+            mk(
+                "wtl_parity",
+                !self.wtl_parity_warns.is_empty(),
+                self.strict_wtl_parity,
+                self.wtl_parity_warns.len(),
+            ),
+        ]
     }
 
     fn print_summary(&self) {
