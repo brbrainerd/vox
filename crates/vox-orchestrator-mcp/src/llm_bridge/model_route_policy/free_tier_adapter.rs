@@ -1,5 +1,5 @@
 //! Adapter that routes latency-critical free-tier selection through the
-//! `vox-dei-shim` [`FreeTierRouter`] instead of the registry's context-size
+//! `vox-research-shim` [`FreeTierRouter`] instead of the registry's context-size
 //! sort.
 //!
 //! The router applies hard capability constraints (vision / JSON / FIM) and a
@@ -9,8 +9,8 @@
 //! no config/cache I/O). It is model-agnostic: it keys only on the
 //! `ProviderType` enum + `is_free` catalog flag, never a vendor hostname.
 
-use vox_dei_shim::selection::{FreeTierRouteRequest, FreeTierRouter};
 use vox_orchestrator::models::{Capability, ModelSpec, ModelTier};
+use vox_research_shim::selection::{FreeTierRouteRequest, FreeTierRouter};
 
 use super::types::McpChatModelResolution;
 

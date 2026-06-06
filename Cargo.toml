@@ -51,6 +51,8 @@ debug = 0
 
 [workspace.dependencies]
 vox-scientia = { path = "crates/vox-scientia" }
+vox-nanopub               = { path = "crates/vox-nanopub" }
+vox-ast                   = { path = "crates/vox-ast" }
 workspace-hack            = { path = "crates/workspace-hack" }
 # Internal crates
 vox-build-meta            = { path = "crates/vox-build-meta" }
@@ -110,7 +112,7 @@ vox-effort-audit          = { path = "crates/vox-effort-audit" }
 vox-effort-route          = { path = "crates/vox-effort-route" }
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
-vox-dei-shim              = { path = "crates/vox-dei-shim" }
+vox-research-shim              = { path = "crates/vox-research-shim" }
 
 vox-orchestrator-test-helpers = { path = "crates/vox-orchestrator-test-helpers" }
 vox-orchestrator-mcp      = { path = "crates/vox-orchestrator-mcp" }

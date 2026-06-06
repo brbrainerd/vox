@@ -1,4 +1,4 @@
-//! Catalog schema: plugin and bundle entry types parsed from `catalog.toml`.
+//! Catalog schema: plugin, bundle, and component entry types parsed from `catalog.toml`.
 
 use serde::{Deserialize, Serialize};
 
@@ -84,4 +84,52 @@ pub struct BundleEntry {
     /// Plugins added on top of any inherited set. May be empty.
     #[serde(default)]
     pub plugins: Vec<String>,
+}
+
+/// One installable *component*: a first-party Vox binary that is NOT a cdylib
+/// plugin (it implements no extension-point trait and is not loaded by the
+/// plugin host). Components are optional companion executables — currently just
+/// the Tauri GUI — that ship alongside the host binary and are installed on
+/// demand via `vox plugin install <id>` / `vox gui` install-if-absent. CLI-only
+/// users never fetch them.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Component {
+    /// Globally unique short id, e.g. "gui".
+    pub id: String,
+
+    /// Installed executable file name without extension (consumers append
+    /// ".exe" on Windows), e.g. "vox-gui".
+    pub binary: String,
+
+    /// One-line human description.
+    pub description: String,
+
+    /// Lifecycle stage. Defaults to `stable` when absent.
+    #[serde(default)]
+    pub status: CatalogStatus,
+
+    /// Platform constraints. Empty vectors mean "no constraint".
+    #[serde(default)]
+    pub requires: ComponentRequires,
+
+    /// Where to fetch the component for `vox plugin install <id>`. Mirrors the
+    /// plugin `default-source` convention: `local:<path>` or `github:owner/repo`.
+    pub default_source: String,
+}
+
+/// Platform gating for a [`Component`]. The host OS must appear in `os` (when
+/// non-empty) AND host arch in `arch` (when non-empty).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct ComponentRequires {
+    /// Allowed `std::env::consts::OS` values (e.g. "windows","macos","linux").
+    /// Empty = any OS.
+    #[serde(default)]
+    pub os: Vec<String>,
+
+    /// Allowed `std::env::consts::ARCH` values (e.g. "x86_64","aarch64").
+    /// Empty = any arch.
+    #[serde(default)]
+    pub arch: Vec<String>,
 }

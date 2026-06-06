@@ -13026,6 +13026,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-ast"
+version = "0.6.0"
+dependencies = [
+ "serde",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-audit"
 version = "0.6.0"
 dependencies = [
@@ -13150,7 +13158,6 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
- "vox-dei-shim",
  "vox-deploy-codegen",
  "vox-doc-inventory",
  "vox-doc-pipeline",
@@ -13179,6 +13186,7 @@ dependencies = [
  "vox-publisher",
  "vox-repository",
  "vox-research-events",
+ "vox-research-shim",
  "vox-rule-pack",
  "vox-scaling-policy",
  "vox-scientia",
@@ -13333,6 +13341,7 @@ dependencies = [
  "tokio",
  "toml 0.8.23",
  "tracing",
+ "vox-ast",
  "vox-codegen",
  "vox-config",
  "vox-eval",
@@ -13459,8 +13468,7 @@ dependencies = [
  "tracing",
  "turso",
  "uuid",
- "vox-codegen",
- "vox-compiler",
+ "vox-ast",
  "vox-config",
  "vox-db-types",
  "vox-mesh-types",
@@ -13480,28 +13488,6 @@ dependencies = [
  "chrono",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "vox-dei-shim"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "jsonschema",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tracing",
- "vox-actor-runtime",
- "vox-config",
- "vox-db",
- "vox-orchestrator",
- "vox-orchestrator-types",
- "vox-research-events",
- "vox-search",
- "vox-secrets",
- "workspace-hack",
 ]
 
 [[package]]
@@ -14024,6 +14010,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-nanopub"
+version = "0.6.0"
+dependencies = [
+ "hex",
+ "sha2",
+ "vox-crypto",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-openai"
 version = "0.6.0"
 dependencies = [
@@ -14247,7 +14243,6 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
- "vox-dei-shim",
  "vox-foundation",
  "vox-gamify",
  "vox-grammar-export",
@@ -14270,6 +14265,7 @@ dependencies = [
  "vox-publisher",
  "vox-repository",
  "vox-research-events",
+ "vox-research-shim",
  "vox-scientia",
  "vox-search",
  "vox-secrets",
@@ -14870,6 +14866,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-research-shim"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "jsonschema",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "vox-actor-runtime",
+ "vox-config",
+ "vox-db",
+ "vox-orchestrator",
+ "vox-orchestrator-types",
+ "vox-research-events",
+ "vox-search",
+ "vox-secrets",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-rule-pack"
 version = "0.6.0"
 dependencies = [
@@ -14952,6 +14970,7 @@ dependencies = [
  "vox-db",
  "vox-db-types",
  "vox-http-client",
+ "vox-nanopub",
  "vox-research-events",
  "vox-search",
 ]

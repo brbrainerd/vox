@@ -128,7 +128,7 @@ This is a hard dependency between Phase D (this ADR) and Phase E (cross-call dep
 
 Concrete file changes documented in the [Svelte-Mineable Features Implementation Plan §Phase D](../architecture/svelte-mineable-features-implementation-plan-2026.md). Summary:
 
-- New AST node `ReactiveModule` at [crates/vox-compiler/src/ast/decl/ui.rs](../../../crates/vox-compiler/src/ast/decl/ui.rs).
+- New AST node `ReactiveModule` at [crates/vox-ast/src/decl/ui.rs](../../../crates/vox-ast/src/decl/ui.rs).
 - Parser change at [crates/vox-compiler/src/parser/descent/mod.rs](../../../crates/vox-compiler/src/parser/descent/mod.rs) gated on `FileKind::ReactiveModule`.
 - New `vox_compiler::module::FileKind::from_path(path)` helper.
 - Codegen extension at [crates/vox-codegen/src/codegen_ts/reactive.rs](../../../crates/vox-codegen/src/codegen_ts/reactive.rs) emitting the provider+hook pair.
