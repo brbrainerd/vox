@@ -3,7 +3,24 @@
 pub mod status_writer;
 
 use clap::Subcommand;
-use vox_config::{PolicyEntry, PolicyRegistry};
+use vox_config::{PolicyEntry, PolicyRegistry, PolicyRunReport, RunStatus};
+
+/// Join catalog ids to a branch report; ids with no result are `Unknown`.
+pub fn join_status(
+    catalog_ids: &[String],
+    report: Option<&PolicyRunReport>,
+) -> Vec<(String, RunStatus)> {
+    catalog_ids
+        .iter()
+        .map(|id| {
+            let status = report
+                .and_then(|r| r.results.iter().find(|res| &res.id == id))
+                .map(|res| res.status)
+                .unwrap_or(RunStatus::Unknown); // honest default
+            (id.clone(), status)
+        })
+        .collect()
+}
 
 #[derive(Debug, Subcommand)]
 pub enum PolicyCmd {
@@ -22,6 +39,15 @@ pub enum PolicyCmd {
     Domains,
     /// List the distinct group labels present in the catalog.
     Groups,
+    /// Show per-branch run status joined to the catalog. Repeat --branch for
+    /// multiple active branches (worktrees). Defaults to the current branch.
+    Status {
+        /// Branch(es) to report. Defaults to the current branch.
+        #[arg(long)]
+        branch: Vec<String>,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 fn matches_filter(e: &PolicyEntry, domain: &Option<String>, group: &Option<String>) -> bool {
@@ -116,6 +142,44 @@ pub fn run(cmd: PolicyCmd, repo_root: &std::path::Path) -> anyhow::Result<()> {
             gs.dedup();
             gs.iter().for_each(|g| println!("{g}"));
         }
+        PolicyCmd::Status { branch, json } => {
+            let branches = if branch.is_empty() {
+                vec![status_writer::current_branch(repo_root)]
+            } else {
+                branch
+            };
+            let catalog_ids: Vec<String> = reg.policies.iter().map(|e| e.id.clone()).collect();
+            let reports = vox_config::load_status_for_branches(repo_root, &branches)
+                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            if json {
+                // { branch -> [ {id,status} ] }
+                let mut obj = serde_json::Map::new();
+                for (b, rep) in &reports {
+                    let rows: Vec<_> = join_status(&catalog_ids, rep.as_ref())
+                        .into_iter()
+                        .map(|(id, s)| {
+                            serde_json::json!({ "id": id, "status": format!("{s:?}").to_lowercase() })
+                        })
+                        .collect();
+                    obj.insert(b.clone(), serde_json::Value::Array(rows));
+                }
+                println!("{}", serde_json::to_string_pretty(&obj)?);
+            } else {
+                for (b, rep) in &reports {
+                    let when = rep.as_ref().map(|r| r.ran_at.as_str()).unwrap_or("never");
+                    println!("# branch {b}  (last run: {when})");
+                    for (id, s) in join_status(&catalog_ids, rep.as_ref()) {
+                        let mark = match s {
+                            RunStatus::Pass => "OK  pass",
+                            RunStatus::Fail => "XX  fail",
+                            RunStatus::Warn => "!!  warn",
+                            RunStatus::Unknown => "--  not run",
+                        };
+                        println!("  {mark:<12} {id}");
+                    }
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -167,5 +231,30 @@ mod tests {
         let out = render_show(&entry("code-audit/stub/todo", "G"));
         assert!(out.contains("rule contents"));
         assert!(out.contains("source: r"));
+    }
+
+    #[test]
+    fn join_marks_unrun_rules_unknown() {
+        use vox_config::{PolicyResult, PolicyRunReport, RunStatus};
+        // Catalog ids: two rules; report only has a result for one.
+        let catalog_ids = vec![
+            "code-audit/stub/todo".to_string(),
+            "arch-rule/fan_in".to_string(),
+        ];
+        let report = Some(PolicyRunReport {
+            branch: "main".into(),
+            commit: "a".into(),
+            ran_at: "t".into(),
+            results: vec![PolicyResult {
+                id: "code-audit/stub/todo".into(),
+                status: RunStatus::Pass,
+                hits: vec![],
+                duration_ms: 3,
+            }],
+        });
+        let joined = join_status(&catalog_ids, report.as_ref());
+        let by = |id: &str| joined.iter().find(|(i, _)| i == id).map(|(_, s)| *s);
+        assert_eq!(by("code-audit/stub/todo"), Some(RunStatus::Pass));
+        assert_eq!(by("arch-rule/fan_in"), Some(RunStatus::Unknown)); // never run → grey
     }
 }
