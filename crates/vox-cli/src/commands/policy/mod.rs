@@ -30,7 +30,6 @@ fn matches_filter(e: &PolicyEntry, domain: &Option<String>, group: &Option<Strin
                 .to_lowercase()
                 .replace('_', "-")
                 .contains(&d.to_lowercase())
-                || serde_domain(e) == d
         })
         .unwrap_or(true);
     let grp_ok = group

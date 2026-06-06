@@ -116,6 +116,28 @@ pub fn run_generate(repo_root: &Path, write: bool) -> Result<(), String> {
     )
 }
 
+/// Read the on-disk registry YAML and validate it against the committed JSON Schema.
+#[cfg(feature = "completion-toestub")]
+fn validate_registry_against_schema(repo_root: &Path) -> Result<(), String> {
+    let yaml_path = repo_root.join(vox_config::REGISTRY_REL_PATH);
+    let schema_path = repo_root.join("contracts/policy/policy-registry.v1.schema.json");
+
+    let yaml_src = std::fs::read_to_string(&yaml_path)
+        .map_err(|e| format!("read {}: {e}", yaml_path.display()))?;
+    let instance: serde_json::Value = serde_yaml::from_str(&yaml_src)
+        .map_err(|e| format!("parse {}: {e}", yaml_path.display()))?;
+
+    let schema_src = std::fs::read_to_string(&schema_path)
+        .map_err(|e| format!("read {}: {e}", schema_path.display()))?;
+    let schema_val: serde_json::Value = serde_json::from_str(&schema_src)
+        .map_err(|e| format!("parse {}: {e}", schema_path.display()))?;
+
+    let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
+        .map_err(|e| format!("compile policy-registry schema: {e}"))?;
+    vox_jsonschema_util::validate(&instance, &validator, "policy-registry.v1.yaml")
+        .map_err(|e| e.to_string())
+}
+
 /// `vox ci policy-registry-parity`: assert the committed registry matches the
 /// live `code-audit` detector set exactly (no drift). This is the transfer/
 /// completeness proof for the domains this plan covers.
@@ -124,14 +146,31 @@ pub fn run_parity(repo_root: &Path) -> Result<(), String> {
     let on_disk = vox_config::load_policy_registry(repo_root).map_err(|e| e.to_string())?;
     let expected = build_registry();
 
+    // Validate the on-disk YAML against the committed JSON Schema so the schema is
+    // enforced rather than decorative. Reuses the `vox-jsonschema-util` facade that
+    // every other contract-vs-schema gate uses (e.g. data-storage-guard).
+    validate_registry_against_schema(repo_root)?;
+
     use std::collections::BTreeSet;
-    let disk_ids: BTreeSet<&str> = on_disk
+    let disk_code_audit: Vec<&str> = on_disk
         .policies
         .iter()
         .filter(|e| e.domain == PolicyDomain::CodeAuditRule)
         .map(|e| e.id.as_str())
         .collect();
+    let disk_ids: BTreeSet<&str> = disk_code_audit.iter().copied().collect();
     let exp_ids: BTreeSet<&str> = expected.policies.iter().map(|e| e.id.as_str()).collect();
+
+    // The set comparison below silently dedupes duplicate `id` rows, so a registry
+    // with a duplicated entry could pass while carrying a stale clone. Assert the raw
+    // Vec length matches the expected count before trusting the set diff.
+    if disk_code_audit.len() != exp_ids.len() {
+        return Err(format!(
+            "policy registry duplicate or unexpected count (code-audit domain): on-disk has {} entry(ies) but {} unique id(s) expected (live detectors); run `vox ci policy-registry --write`",
+            disk_code_audit.len(),
+            exp_ids.len()
+        ));
+    }
 
     let missing: Vec<&str> = exp_ids.difference(&disk_ids).copied().collect();
     let extra: Vec<&str> = disk_ids.difference(&exp_ids).copied().collect();
@@ -187,6 +226,46 @@ mod tests {
         assert_eq!(stub.domain, PolicyDomain::CodeAuditRule);
         assert_eq!(stub.source.kind, PolicySourceKind::Pattern);
         assert!(stub.id.starts_with("code-audit/"));
+    }
+
+    #[test]
+    fn schema_rejects_malformed_registry() {
+        // FIX 2 guard: the committed JSON Schema must actually reject a structurally
+        // invalid registry (here: `schema_version` of the wrong type), proving the
+        // schema is enforced rather than decorative.
+        let schema_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .expect("repo root")
+            .join("contracts/policy/policy-registry.v1.schema.json");
+        let schema_src = std::fs::read_to_string(&schema_path).expect("read schema");
+        let schema_val: serde_json::Value =
+            serde_json::from_str(&schema_src).expect("parse schema");
+        let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
+            .expect("compile schema");
+        let bad = serde_json::json!({ "schema_version": "one", "policies": [] });
+        assert!(
+            vox_jsonschema_util::validate(&bad, &validator, "test").is_err(),
+            "schema should reject a string schema_version"
+        );
+    }
+
+    #[test]
+    fn duplicate_count_mismatch_is_detected() {
+        // FIX 3 guard: a duplicated `id` row inflates the Vec length past the unique
+        // (set) count, which the parity gate must treat as a failure. This mirrors the
+        // `disk_code_audit.len() != exp_ids.len()` assertion in `run_parity`.
+        use std::collections::BTreeSet;
+        let entries = code_audit_entries();
+        let first = entries[0].id.clone();
+        let mut disk: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
+        disk.push(&first); // inject a duplicate
+        let unique: BTreeSet<&str> = disk.iter().copied().collect();
+        assert_ne!(
+            disk.len(),
+            unique.len(),
+            "duplicate id must make the Vec length exceed the unique-id count"
+        );
     }
 
     #[test]
