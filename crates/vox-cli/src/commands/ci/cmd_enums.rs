@@ -653,6 +653,28 @@ pub enum CiCmd {
     /// Fail-fast: error immediately when no online self-hosted runner can serve the gate.
     #[command(name = "runner-preflight")]
     RunnerPreflight,
+    /// Measure CI job run-time (execution, not queue) and warn on anything over the budget (default 10m).
+    #[command(name = "job-timings")]
+    JobTimings {
+        /// Analyze a specific workflow run's jobs (default: scan recent completed runs).
+        #[arg(long)]
+        run_id: Option<u64>,
+        /// Budget in minutes (default 10).
+        #[arg(long)]
+        threshold_mins: Option<i64>,
+        /// How many recent completed runs to scan when `--run-id` is omitted.
+        #[arg(long, default_value_t = 5)]
+        limit: u32,
+        /// Emit JSON instead of a table.
+        #[arg(long)]
+        json: bool,
+        /// Emit GitHub `::warning::` annotations for over-budget jobs (for CI use).
+        #[arg(long)]
+        annotate: bool,
+        /// Exit non-zero if any job is over budget (default: warn only).
+        #[arg(long)]
+        strict: bool,
+    },
     /// Nomenclature guard: fail when new Latin-only structural crate directories appear outside the allowlist (T189-T196).
     #[command(name = "nomenclature-guard")]
     NomenclatureGuard {

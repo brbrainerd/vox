@@ -178,6 +178,7 @@
     "ci gui-version-sync",
     "ci ignored-test-age",
     "ci install-hooks",
+    "ci job-timings",
     "ci json-parse-check",
     "ci k-complexity-budget",
     "ci kill-stuck-tests",
