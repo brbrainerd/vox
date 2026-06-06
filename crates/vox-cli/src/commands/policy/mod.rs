@@ -1,5 +1,7 @@
 //! `vox policy` — read-only view over the unified policy catalog.
 
+pub mod status_writer;
+
 use clap::Subcommand;
 use vox_config::{PolicyEntry, PolicyRegistry};
 
