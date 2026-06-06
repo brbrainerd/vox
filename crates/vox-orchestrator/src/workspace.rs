@@ -297,13 +297,28 @@ impl WorkspaceManager {
                         ChangeStatus::Merged => {
                             spawn_supervised_infallible("jj_actor_snapshot", async move {
                                 use vox_vcs::VcsBackend as _;
-                                let _ = h.snapshot(Some(&desc), Vec::new()).await;
+                                // A failed snapshot means lost version history; do
+                                // NOT swallow it silently — surface it at error
+                                // level so the data loss is observable.
+                                if let Err(e) = h.snapshot(Some(&desc), Vec::new()).await {
+                                    tracing::error!(
+                                        error = %e,
+                                        change = %change_id,
+                                        "jj VCS snapshot failed; version history for this merged change was NOT persisted"
+                                    );
+                                }
                             });
                         }
                         ChangeStatus::Abandoned => {
                             spawn_supervised_infallible("jj_actor_undo", async move {
                                 use vox_vcs::VcsBackend as _;
-                                let _ = h.undo().await;
+                                if let Err(e) = h.undo().await {
+                                    tracing::error!(
+                                        error = %e,
+                                        change = %change_id,
+                                        "jj VCS undo failed; abandoned change was NOT reverted in the jj workspace"
+                                    );
+                                }
                             });
                         }
                         _ => {}
