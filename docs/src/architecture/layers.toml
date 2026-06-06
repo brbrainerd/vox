@@ -276,6 +276,19 @@ exempt_files     = [
 allow_annotation = "// vox-arch-check: allow jj-lib"
 reason           = "All jj-lib calls must live in vox-vcs so the unstable jj-lib API has one auditable blast radius."
 
+[[forbidden_pattern]]
+name             = "raw-jj-exec"
+pattern          = 'Command::new\("jj"\)'
+file_glob        = "crates/**/*.rs"
+exempt_files     = [
+    # Sanctioned dev-convenience CLI tool: `vox vcs` shells to jj for blame/heatmap/rebase
+    # (annotate/merge), which are not yet exposed in-process by vox-vcs. All other jj usage
+    # is in-process via vox-vcs::JjActor — the orchestrator must never spawn `jj` again.
+    "crates/vox-cli/src/commands/vcs.rs",
+]
+allow_annotation = "// vox-arch-check: allow jj-exec"
+reason           = "jj is used in-process via jj-lib (vox-vcs::JjBackend/JjActor); the only sanctioned subprocess jj is the `vox vcs` CLI tool (blame/rebase not yet in-process)."
+
 # Emit boundary (ADR 036 / projection bundle): do not re-lower or re-project HIR outside
 # `vox-codegen::projection_bundle` from TypeScript/Rust emitters — use `project_bundle_from_hir`.
 [[forbidden_pattern]]
