@@ -15811,6 +15811,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "vox-plugin-api",
+ "vox-plugin-sdk",
  "workspace-hack",
 ]
 
@@ -15905,6 +15906,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-plugin-sdk"
+version = "0.6.0"
+dependencies = [
+ "abi_stable",
+ "vox-plugin-api",
+]
+
+[[package]]
 name = "vox-plugin-speech"
 version = "0.6.0"
 dependencies = [
@@ -15927,6 +15936,7 @@ dependencies = [
  "uuid",
  "vox-config",
  "vox-plugin-api",
+ "vox-plugin-sdk",
  "vox-secrets",
  "workspace-hack",
 ]

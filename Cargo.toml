@@ -124,6 +124,7 @@ vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
 
 vox-openai             = { path = "crates/vox-openai" }
 vox-plugin-api            = { path = "crates/vox-plugin-api" }
+vox-plugin-sdk            = { path = "crates/vox-plugin-sdk" }
 vox-plugin-types          = { path = "crates/vox-plugin-types" }
 vox-plugin-catalog        = { path = "crates/vox-plugin-catalog" }
 vox-plugin-host           = { path = "crates/vox-plugin-host" }

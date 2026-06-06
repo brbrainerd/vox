@@ -26,6 +26,7 @@ stt-candle = [
 cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 
 [dependencies]
+vox-plugin-sdk = { workspace = true }
 vox-plugin-api = { workspace = true }
 abi_stable = { workspace = true }
 vox-config = { workspace = true }
