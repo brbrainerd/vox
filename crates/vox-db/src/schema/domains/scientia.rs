@@ -342,4 +342,19 @@ CREATE TABLE IF NOT EXISTS scientia_nanopubs (
     created_at_ms     INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_scientia_nanopubs_claim ON scientia_nanopubs(claim_id);
+
+-- Append-only per-claim human review decisions (design §5.1). Latest by decided_at_ms wins.
+CREATE TABLE IF NOT EXISTS scientia_review_decisions (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    claim_id          INTEGER NOT NULL,
+    publication_id    TEXT,
+    bound_digest      TEXT    NOT NULL,         -- publication content_sha3_256 at decision time
+    decision          TEXT    NOT NULL,         -- approved|rejected|deferred|edited (validated in Rust)
+    actor             TEXT    NOT NULL,         -- human user_id (local_user_id())
+    reason            TEXT,
+    model_fingerprints_json TEXT,               -- artifact-side model fps present (for AI disclosure)
+    decided_at_ms     INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scientia_review_decisions_claim
+    ON scientia_review_decisions(claim_id, decided_at_ms);
 "#;
