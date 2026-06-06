@@ -14580,7 +14580,6 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "gix 0.70.0",
- "jj-lib",
  "serde",
  "serde_json",
  "tempfile",
