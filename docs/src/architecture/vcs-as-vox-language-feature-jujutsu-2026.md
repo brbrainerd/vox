@@ -1,7 +1,7 @@
 ---
 title: "Version Control as a Vox Language Feature — a Jujutsu-Native Multi-Agent VCS"
 description: "Research: make snapshotting/version-control a first-class Vox language primitive, backed by Jujutsu's model, with an orchestrator that lets N agents work safely on one branch. Grounded in the existing CAS/oplog substrate."
-category: architecture
+category: "Architecture SSOTs"
 ---
 
 # Version Control as a Vox Language Feature — a Jujutsu-Native Multi-Agent VCS
