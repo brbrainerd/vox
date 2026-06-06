@@ -1009,8 +1009,8 @@ mod scrape_emit_tests {
 
 #[cfg(test)]
 mod borrow_emission_tests {
-    use super::emit_ident_expr;
     use super::OwnershipMode;
+    use super::emit_ident_expr;
     use std::collections::HashMap;
     use vox_compiler::ast::span::Span;
     use vox_compiler::hir::HirType;

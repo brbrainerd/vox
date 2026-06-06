@@ -263,8 +263,7 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
                             .map(emit::emit_type)
                             .unwrap_or_else(|| "()".to_string());
                         main_rs.push_str("fn main() {\n");
-                        main_rs
-                            .push_str(&format!("    let _vox_main_ret: {ret_ty} = (|| {{\n"));
+                        main_rs.push_str(&format!("    let _vox_main_ret: {ret_ty} = (|| {{\n"));
                         main_rs.push_str(&body);
                         main_rs.push_str("    })();\n");
                         main_rs.push_str("    let _ = _vox_main_ret;\n");

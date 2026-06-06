@@ -2338,9 +2338,7 @@ fn json_to_vox(v: serde_json::Value) -> VoxValue {
             }
         }
         serde_json::Value::String(s) => VoxValue::Str(s),
-        serde_json::Value::Array(arr) => {
-            VoxValue::list(arr.into_iter().map(json_to_vox).collect())
-        }
+        serde_json::Value::Array(arr) => VoxValue::list(arr.into_iter().map(json_to_vox).collect()),
         serde_json::Value::Object(obj) => {
             let mut fields = Vec::new();
             for (k, v) in obj {

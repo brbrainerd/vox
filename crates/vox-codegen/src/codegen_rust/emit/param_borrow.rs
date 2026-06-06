@@ -179,9 +179,7 @@ mod tests {
         let module = parse_script(lex(src)).expect("parse");
         let hir = lower_module(&module);
         let f = hir.functions.first().expect("one function");
-        let mut v: Vec<String> = borrowable_params(&f.params, &f.body)
-            .into_iter()
-            .collect();
+        let mut v: Vec<String> = borrowable_params(&f.params, &f.body).into_iter().collect();
         v.sort();
         v
     }
@@ -189,7 +187,10 @@ mod tests {
     #[test]
     fn param_only_passed_to_call_is_borrowable() {
         // `s` is only a direct call argument → borrowable.
-        assert_eq!(borrowable("fn f(s: str) to Unit { std.print(s) }"), vec!["s"]);
+        assert_eq!(
+            borrowable("fn f(s: str) to Unit { std.print(s) }"),
+            vec!["s"]
+        );
     }
 
     #[test]
