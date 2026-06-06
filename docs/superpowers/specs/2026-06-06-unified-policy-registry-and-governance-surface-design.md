@@ -316,3 +316,74 @@ Add a row: *"Unified policy catalog (CI gates, language rules, audits) →
 `contracts/policy/policy-registry.v1.yaml`; runtime model/loader/status reader →
 `vox-config`; generator/parity/`vox policy` CLI/status writer → `vox-cli`; GUI
 surface → `vox-gui` (`view_key: policies`)."*
+
+---
+
+## 10. Verification addendum (2026-06-06)
+
+Load-bearing assumptions were hand-verified against the code (parallel agents +
+file:line evidence). Corrections that supersede the body above:
+
+**Confirmed as written:** `CiCmd` is `#[derive(Subcommand)]` with 122 doc-commented
+variants ([cmd_enums.rs](../../../crates/vox-cli/src/commands/ci/cmd_enums.rs));
+`detectors::all_rules()` enumerates **51** detectors with trait metadata
+([detectors/mod.rs:136](../../../crates/vox-code-audit/src/detectors/mod.rs));
+`layers.toml [guards]` has 11 keys (`fan_in/loc_budget/orphan/docstring/
+description/where_things_live/wtl_parity/loc_delta/staleness/generated_file_drift/
+forbidden_deps`); CR-L = 9 + 1 Tooling; the **nav collision is real** —
+`view_key: matrix` currently owns `nav_label: Policies`
+([surface-registry.v1.yaml:46](../../../contracts/gui/surface-registry.v1.yaml)),
+so renaming Matrix's label to "Routing" and claiming "Policies" is a confirmed
+plan step (no longer an open item). Sidebar collapse already exists
+(`SidebarMode = rail|default|wide` + Ctrl+B + per-section,
+[Sidebar.tsx](../../../crates/vox-gui/ui/src/components/layout/Sidebar.tsx)).
+
+**Corrections (these override §4.2–§4.7):**
+
+1. **CI-gate enumeration source.** Prefer `contracts/operations/catalog.v1.yaml`
+   (78 CI ops with `description`/`description_human`; `command-registry.yaml` is
+   derived from it) over reflecting the enum. The existing clap introspection
+   `build_catalog()` over `VoxCliRoot::command()`
+   ([command_catalog.rs](../../../crates/vox-cli/src/command_catalog.rs)) is what
+   the parity gate uses to catch enum↔catalog drift.
+
+2. **Detector enumeration source.** Use `detectors::all_rules()` (51,
+   authoritative). `rules.v1.yaml` holds only the **45** static-pattern rules; the
+   6 `scaling/*` detectors are generated dynamically (`___vox_scaling_dynamic___`
+   sentinel) via `vox_scaling_policy`. Transfer-parity must reconcile 51 ⊇ 45 + 6.
+
+3. **Status overlay is mostly greenfield, and granularity changes (supersedes
+   §4.5).** Verified: `vox ci <gate>` returns `Result<()>` only — **no uniform
+   result type, no per-rule emission**; `vox-arch-check` is text-only;
+   `.vox/policy-status/` does not exist. Only `vox-code-audit` (`Finding` struct
+   is serde-ready with an `OutputFormat::Json` path but **no `--json` CLI flag
+   wired**, [rules.rs:134](../../../crates/vox-code-audit/src/rules.rs)) and
+   `vox-effort-audit` (`findings.jsonl`) emit structure today. Therefore:
+   - **`ci-gate` / `audit-check` / `crl-gate` → per-GATE status** (pass/fail/ms),
+     captured by **one dispatch wrapper** in
+     [run_body.rs](../../../crates/vox-cli/src/commands/ci/run_body.rs) — not
+     invasive per-gate edits. A gate's registry `id` is the result key.
+   - **`code-audit-rule` / `arch-rule` → per-FINDING (per-rule) status**, by
+     wiring a `--json` flag onto the existing `Finding`/arch `Report` structs.
+   - **`workflow-job` → not captured locally** (CI-only), shows grey.
+   - The `.vox/policy-status/<branch>.json` store and the `PolicyRunReport` type
+     are net-new. Grey "not run" is the truthful default; never a faked pass.
+
+4. **vox-config repo-root.** `vox-config` does **not** self-discover the workspace
+   root ([impl_ops.rs:31](../../../crates/vox-config/src/config/impl_ops.rs) takes
+   an explicit `repo_root`). The new `load_policy_registry(repo_root)` and the
+   status reader follow the same convention; callers (CLI, GUI daemon) pass the
+   root. (Workspace discovery exists in `vox-audit::workspace_root()`, which
+   `vox-config` must not depend on — layer order.)
+
+5. **GUI git access is net-new.** No branch/worktree listing exists in the
+   `vox-gui` backend. The multi-branch selector requires net-new handlers
+   (`list_branches`, `current_branch`, worktree detection), simplest via
+   `execute_command` wrapping `git worktree list` / `git branch`, registered in
+   `tauri::generate_handler!`
+   ([main.rs:75](../../../crates/vox-gui/src/main.rs)).
+
+**Net effect on Phase 1 scope:** the catalog/registry/parity work is as designed;
+the status overlay is larger than implied (dispatch wrapper + two `--json`
+wirings + new store), but tractable and centralized. Sidebar-collapse and
+enum-reflection work is pruned (reuse existing).
