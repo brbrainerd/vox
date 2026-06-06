@@ -37,6 +37,12 @@ pub enum VoxValue {
         /// than a deep clone of the HIR statement list.
         body: Rc<Vec<HirStmt>>,
         env: crate::eval::env::Scope,
+        /// Function name, used to build the auto-snapshot label for
+        /// `@versioned` functions; empty (`""`) for anonymous lambdas.
+        name: String,
+        /// `@versioned`/`@tracked` — when true, the interpreter records one
+        /// `repo.snapshot()` checkpoint on this function's successful return.
+        is_versioned: bool,
     },
     Option(core::option::Option<Box<VoxValue>>),
     /// `Result[T, E]`. The Err side carries a real `VoxValue` (was `String`) so
