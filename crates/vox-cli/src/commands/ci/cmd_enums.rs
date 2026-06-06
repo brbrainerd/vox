@@ -132,6 +132,16 @@ pub enum CiCmd {
         #[arg(long)]
         skip_runtime: bool,
     },
+    /// Regenerate the unified policy registry from live sources.
+    #[command(name = "policy-registry")]
+    PolicyRegistry {
+        /// Write the registry to disk instead of printing it.
+        #[arg(long)]
+        write: bool,
+    },
+    /// Fail if the policy registry has drifted from the live detector set.
+    #[command(name = "policy-registry-parity")]
+    PolicyRegistryParity,
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
     SsotDrift,

@@ -59,6 +59,12 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
     crate::freshness::enforce_for_ci(&root)?;
     match cmd {
         CiCmd::Manifest => run_manifest(&root),
+        CiCmd::PolicyRegistry { write } => {
+            super::policy_registry::run_generate(&root, write).map_err(|e| anyhow!(e))
+        }
+        CiCmd::PolicyRegistryParity => {
+            super::policy_registry::run_parity(&root).map_err(|e| anyhow!(e))
+        }
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
         CiCmd::CheckFrozen => super::frozen_crates::check_frozen_crates(&root),
         CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(&root),
