@@ -15,7 +15,7 @@ pub fn compute_ebnf_hash() -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(crate::ebnf::emit_ebnf().as_bytes());
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
 /// The SHA256 hash of the grammar at the time this crate was built.

@@ -32,7 +32,7 @@ impl PublicationManifest {
         });
         let mut hasher = Sha3_256::new();
         hasher.update(canonical.to_string().as_bytes());
-        format!("{:x}", hasher.finalize())
+        hex::encode(hasher.finalize())
     }
 }
 

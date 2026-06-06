@@ -10,6 +10,9 @@
 //! (durability_lowering.rs) asserts the emitter actually produces this shape.
 
 #![allow(non_snake_case)]
+// This test deliberately hand-mirrors `emit_actor_body` codegen output (see module docs),
+// so keep the emitted shape rather than clippy's stylistic rewrites.
+#![allow(clippy::single_match, clippy::let_unit_value)]
 
 use vox_actor_runtime::{Envelope, Message, MessagePayload, Pid, ProcessContext, spawn_process};
 
