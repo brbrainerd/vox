@@ -228,6 +228,7 @@ fn check_shape_unknown_tag() to str {
     }
 }
 
+// EXPECT: ok: widget | round_trip: widget | event:click | order:ORD-001 | tool:search:find widgets | circle:radius=5 | square:side=7 | missing_tag | unknown_tag
 fn main() to str {
     // 1. Successful parse
     let product_json = "{\"id\":1,\"name\":\"widget\",\"price\":9.99}"

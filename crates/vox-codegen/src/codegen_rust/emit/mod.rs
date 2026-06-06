@@ -76,6 +76,7 @@ pub use stmt_expr::{emit_expr, emit_main_stmt};
 pub use tables::{
     emit_index_ddl, emit_table_ddl, emit_table_struct, validate_db_projection_suffixes_unique,
 };
+pub(crate) use types::emit_type;
 pub use workflow::{emit_fn, emit_lib};
 
 pub struct CodegenOutput {

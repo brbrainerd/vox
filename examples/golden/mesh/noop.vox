@@ -12,6 +12,7 @@
 // ---
 // ANCHOR: display
 // Minimal script worker for mesh/compose examples (`vox run --mode script`).
+// EXPECT: 0
 fn main() to int {
     return 0
 }

@@ -14,6 +14,7 @@
 // Verification of High-Precision Fixed-Point Math (`dec`).
 // Fixed-point decimals prevent IEEE 754 float inaccuracies in financial or counting logic.
 
+// EXPECT: Decimal verification successful
 pub fn main() {
     // Standard decimal literals
     let a: dec = 0.1dec
