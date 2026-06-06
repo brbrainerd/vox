@@ -55,9 +55,10 @@
 
 use crate::backend::{VcsBackend, VcsError};
 use crate::types::{Change, ChangeId, Conflict, Diff, ResolveStrategy};
+use async_trait::async_trait;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use jj_lib::config::{ConfigLayer, ConfigSource, StackedConfig};
 use jj_lib::gitignore::GitIgnoreFile;
@@ -71,26 +72,27 @@ use jj_lib::working_copy::SnapshotOptions;
 use jj_lib::workspace::Workspace;
 
 use futures::TryStreamExt;
-use tokio::runtime::Runtime;
 
 /// A bot identity for op/commit metadata. jj-lib refuses to read config from
 /// `$HOME`/env in-process, so we pin an explicit author.
 const BOT_NAME: &str = "Vox VCS";
 const BOT_EMAIL: &str = "vcs@vox.invalid";
 
-/// Mutable jj engine state. `Workspace` owns a `Box<dyn WorkingCopy>` which is
-/// `Send` but not `Sync`, so we keep it behind a `Mutex` to make [`JjBackend`]
-/// satisfy the `VcsBackend: Send + Sync` bound.
+/// Mutable jj engine state. `Workspace` owns a `Box<dyn WorkingCopy>` that is
+/// `Send` but not `Sync`, so it lives behind a [`tokio::sync::Mutex`] — whose
+/// guard is `Send` and may be held across `.await` (unlike `std::sync::Mutex`) —
+/// to make [`JjBackend`] satisfy the `VcsBackend: Send + Sync` bound.
 struct JjState {
     workspace: Workspace,
     repo: Arc<ReadonlyRepo>,
 }
 
-/// In-process jj engine. Owns a current-thread-capable tokio runtime to drive
-/// jj-lib's async APIs from the synchronous [`VcsBackend`] trait.
+/// In-process jj engine. Awaits jj-lib's async APIs directly from the async
+/// [`VcsBackend`] trait — **no internal tokio runtime**, so it never panics with
+/// "Cannot start a runtime from within a runtime" when called from the
+/// orchestrator's async context.
 pub struct JjBackend {
-    rt: Runtime,
-    state: Mutex<JjState>,
+    state: tokio::sync::Mutex<JjState>,
     #[allow(dead_code)]
     settings: UserSettings,
 }
@@ -117,35 +119,31 @@ impl JjBackend {
     }
 
     /// Initialize a colocated jj/git repo at `root` and load its working copy.
-    pub fn open(root: &Path) -> Result<Self, VcsError> {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| VcsError::Unavailable(format!("tokio runtime: {e}")))?;
+    /// Awaits jj-lib's async init directly — call from within a tokio runtime.
+    pub async fn open(root: &Path) -> Result<Self, VcsError> {
         let settings = Self::bot_settings()?;
-        let (workspace, repo) = rt
-            .block_on(Workspace::init_colocated_git(&settings, root))
+        let (workspace, repo) = Workspace::init_colocated_git(&settings, root)
+            .await
             .map_err(|e| VcsError::Unavailable(format!("jj init_colocated_git: {e}")))?;
         Ok(Self {
-            rt,
-            state: Mutex::new(JjState { workspace, repo }),
+            state: tokio::sync::Mutex::new(JjState { workspace, repo }),
             settings,
         })
     }
 }
 
+#[async_trait(?Send)]
 impl VcsBackend for JjBackend {
-    fn snapshot(
+    async fn snapshot(
         &mut self,
         label: Option<&str>,
         _paths: Vec<PathBuf>,
     ) -> Result<ChangeId, VcsError> {
         let description = label.unwrap_or("").to_string();
         let name: WorkspaceNameBuf = WorkspaceName::DEFAULT.to_owned();
-        let rt = &self.rt;
-        let mut st = self.state.lock().expect("jj state poisoned");
+        let mut st = self.state.lock().await;
 
-        let new_op_hex = rt.block_on(async {
+        let new_op_hex = {
             let JjState { workspace, repo } = &mut *st;
 
             // 1. Lock + snapshot the working copy into a tree, then release the
@@ -211,18 +209,18 @@ impl VcsBackend for JjBackend {
                     .map_err(|e| VcsError::Unavailable(format!("jj wc refinish: {e}")))?;
             }
             *repo = new_repo;
-            Ok::<_, VcsError>(op_hex)
-        })?;
+            op_hex
+        };
 
         Ok(op_hex_to_change_id(&new_op_hex))
     }
 
-    fn changes(&self) -> Result<Vec<Change>, VcsError> {
-        let st = self.state.lock().expect("jj state poisoned");
+    async fn changes(&self) -> Result<Vec<Change>, VcsError> {
+        let st = self.state.lock().await;
         let head = st.repo.operation().clone();
-        let ops: Vec<jj_lib::operation::Operation> = self
-            .rt
-            .block_on(async { op_walk::walk_ancestors(&[head]).try_collect().await })
+        let ops: Vec<jj_lib::operation::Operation> = op_walk::walk_ancestors(&[head])
+            .try_collect()
+            .await
             .map_err(|e| VcsError::Unavailable(format!("jj op_walk: {e}")))?;
         Ok(ops
             .into_iter()
@@ -237,20 +235,20 @@ impl VcsBackend for JjBackend {
             .collect())
     }
 
-    fn diff(&self, _a: Option<ChangeId>, _b: Option<ChangeId>) -> Result<Diff, VcsError> {
+    async fn diff(&self, _a: Option<ChangeId>, _b: Option<ChangeId>) -> Result<Diff, VcsError> {
         // Real tree-diff plumbing is P2 Task 3. Honest empty diff for now.
         Ok(Diff::default())
     }
 
-    fn undo(&mut self) -> Result<ChangeId, VcsError> {
+    async fn undo(&mut self) -> Result<ChangeId, VcsError> {
         Err(VcsError::Unavailable("jj undo: P2 Task 3".into()))
     }
 
-    fn conflicts(&self) -> Result<Vec<Conflict>, VcsError> {
+    async fn conflicts(&self) -> Result<Vec<Conflict>, VcsError> {
         Err(VcsError::Unavailable("jj conflicts: P2 Task 3".into()))
     }
 
-    fn resolve(&mut self, _path: &Path, _strategy: ResolveStrategy) -> Result<(), VcsError> {
+    async fn resolve(&mut self, _path: &Path, _strategy: ResolveStrategy) -> Result<(), VcsError> {
         Err(VcsError::Unavailable("jj resolve: P2 Task 3".into()))
     }
 }
@@ -261,18 +259,44 @@ mod tests {
     use crate::backend::VcsBackend;
     use std::path::PathBuf;
 
-    #[test]
-    fn open_snapshot_and_list_changes() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn open_snapshot_and_list_changes() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("hello.txt"), b"hi").unwrap();
-        let mut be = JjBackend::open(dir.path()).expect("init colocated jj repo");
+        let mut be = JjBackend::open(dir.path())
+            .await
+            .expect("init colocated jj repo");
         let id = be
             .snapshot(Some("first"), vec![PathBuf::from("hello.txt")])
+            .await
             .unwrap();
-        let changes = be.changes().unwrap();
+        let changes = be.changes().await.unwrap();
         assert!(
             changes.iter().any(|c| c.id == id),
             "snapshot must appear in the change/op log"
+        );
+    }
+
+    /// Regression proof: the whole open + snapshot + changes flow runs inside a
+    /// real multi-thread tokio runtime. Before the async conversion, `JjBackend`
+    /// owned an internal `tokio::runtime::Runtime` and called `block_on`, which
+    /// panicked with "Cannot start a runtime from within a runtime" here. This
+    /// test passing is the evidence the nested-runtime panic is gone.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn no_nested_runtime_panic_in_async_context() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.txt"), b"alpha").unwrap();
+        let mut be = JjBackend::open(dir.path())
+            .await
+            .expect("init colocated jj repo inside tokio runtime");
+        let id = be
+            .snapshot(Some("regression"), vec![PathBuf::from("a.txt")])
+            .await
+            .expect("snapshot must not panic with nested-runtime error");
+        let changes = be.changes().await.expect("changes must not panic");
+        assert!(
+            changes.iter().any(|c| c.id == id),
+            "snapshot id must appear in the op log"
         );
     }
 }
