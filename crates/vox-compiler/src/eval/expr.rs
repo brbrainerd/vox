@@ -652,7 +652,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                         return Ok(VoxValue::Option(None));
                     }
                     Ok(VoxValue::Option(
-                        items.iter().nth(i as usize).cloned().map(Box::new),
+                        items.get(i as usize).cloned().map(Box::new),
                     ))
                 }
                 (VoxValue::Str(s), VoxValue::Int(i)) => {

@@ -74,11 +74,7 @@ impl Walker<'_> {
                 self.expr_owning(target);
                 self.expr_owning(value);
             }
-            HirStmt::Return { value, .. } => {
-                if let Some(v) = value {
-                    self.expr_owning(v);
-                }
-            }
+            HirStmt::Return { value: Some(v), .. } => self.expr_owning(v),
             HirStmt::Expr { expr, .. } => self.expr_owning(expr),
             HirStmt::While {
                 condition, body, ..
