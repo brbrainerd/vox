@@ -55,6 +55,12 @@ struct Cli {
     /// `contracts/reports/<thing>/<YYYY-MM-DD>.json`. Default is to write it.
     #[arg(long, global = true)]
     no_canonical_report: bool,
+
+    /// With `all`: evaluate the GA roll-up (foundation-first, with
+    /// `blocked_by_foundation`) and return a non-zero exit when GA is not met.
+    /// Writes `contracts/reports/_snapshot/<UTC>.json`. (CR-F0.)
+    #[arg(long, global = true)]
+    strict_block_ga: bool,
 }
 
 #[derive(Debug, ClapSubcommand)]
@@ -136,6 +142,15 @@ fn main() -> ProcessExitCode {
         CliCommand::List => {
             list_subcommands();
             ProcessExitCode::SUCCESS
+        }
+        CliCommand::All if cli.strict_block_ga => {
+            // GA roll-up: foundation-first, blocked_by_foundation, _snapshot.
+            let snap = vox_audit::run_ga_snapshot(&common, true);
+            match serde_json::to_string_pretty(&snap) {
+                Ok(text) => println!("{text}"),
+                Err(err) => eprintln!("vox-audit: failed to render GA snapshot: {err}"),
+            }
+            ProcessExitCode::from(snap.exit_code as u8)
         }
         CliCommand::All => {
             let outcomes = run_all(&common);

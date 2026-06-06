@@ -22,6 +22,7 @@
 //!   per-subcommand `gate` / `corpus` / `block_ga` / `cost_metered` fields.
 
 pub mod aggregator;
+pub mod ga;
 pub mod recorder;
 pub mod report;
 pub mod subcommands;
@@ -311,6 +312,36 @@ pub fn run_all(args: &CommonArgs) -> Vec<RunOutcome> {
             outcome
         })
         .collect()
+}
+
+/// Run every registered gate (foundation first per CR-F0) plus the standalone
+/// product binaries, fold them into a [`ga::GaSnapshot`] with
+/// `blocked_by_foundation` semantics, and (when `args.write_canonical_report`)
+/// write `contracts/reports/_snapshot/<UTC>.json`. This is the spine behind
+/// `vox audit --gate all --strict-block-ga`.
+pub fn run_ga_snapshot(args: &CommonArgs, strict_block_ga: bool) -> ga::GaSnapshot {
+    use report::ExitCode;
+    let mut rows: Vec<ga::GateRow> = registry()
+        .into_iter()
+        .map(|sub| {
+            let g = sub.gate();
+            let outcome = sub.run(args);
+            ga::GateRow {
+                thing: g.thing_name().to_string(),
+                tier: g.tier().as_str().to_string(),
+                met: outcome.exit_code == ExitCode::Ok && !outcome.report.incomplete,
+                blocked_by_foundation: false,
+                exit_code: outcome.exit_code.as_i32(),
+                external_infra: false,
+            }
+        })
+        .collect();
+    rows.extend(ga::product_binary_gates(args));
+    let snap = ga::GaSnapshot::from_rows(rows, strict_block_ga);
+    if args.write_canonical_report {
+        let _ = snap.write_canonical(&workspace_root());
+    }
+    snap
 }
 
 // ───────────────────────────────────────────────────────────────────────────

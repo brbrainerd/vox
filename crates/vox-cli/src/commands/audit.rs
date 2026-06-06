@@ -139,6 +139,13 @@ pub struct AuditArgs {
     /// Only meaningful with `--gate`.
     #[arg(long)]
     pub no_canonical_report: bool,
+
+    /// With `--gate all`: evaluate the GA roll-up (foundation-first, with
+    /// `blocked_by_foundation`), write `contracts/reports/_snapshot/<UTC>.json`,
+    /// and exit non-zero when GA is not met. This is the v1.0 acceptance
+    /// command (CR-F0). Only meaningful with `--gate all`.
+    #[arg(long)]
+    pub strict_block_ga: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -295,6 +302,17 @@ fn run_cr_l_gate(gate_name: &str, args: &AuditArgs) -> Result<()> {
     let common = build_common_args(args)?;
 
     if gate_name == "all" {
+        if args.strict_block_ga {
+            // v1.0 GA acceptance: foundation-first roll-up with
+            // blocked_by_foundation + _snapshot artifact (CR-F0).
+            let snap = vox_audit::run_ga_snapshot(&common, true);
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&snap)
+                    .map_err(|err| anyhow::anyhow!("render GA snapshot: {err}"))?
+            );
+            std::process::exit(snap.exit_code);
+        }
         let outcomes = vox_audit::run_all(&common);
         for outcome in &outcomes {
             render_outcome(&outcome.report, &common.format)?;
