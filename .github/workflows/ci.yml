@@ -1040,6 +1040,7 @@ jobs:
           - vox-db-types
           - vox-secrets
           - vox-orchestrator
+          - vox-vcs
           - vox-populi
           - vox-ml-cli
           - vox-gamify
