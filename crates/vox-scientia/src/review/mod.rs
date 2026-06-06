@@ -16,8 +16,8 @@
 //! ```text
 //! Surfaced ──StartReview──► UnderReview ──Approve──► Approved
 //!                                       ──Reject───► Rejected
-//!                                       ──Defer────► Deferred
-//!                                       ──Edit─────► Edited ──(re-surface)──► Surfaced
+//!                                       ──Defer────► Deferred ──(re-surface)─► Surfaced
+//!                                       ──Edit─────► Edited ───(re-surface)──► Surfaced
 //! ```
 //!
 //! Invalid transitions return the current state unchanged (see [`next_state`]).
@@ -27,8 +27,8 @@ use vox_db::store::ReviewDecisionRow;
 // ── Trait for input decoupling ─────────────────────────────────────────────
 
 /// Abstraction over any type that carries enough data to mint an
-/// [`ApprovalToken`].  Implemented here for [`vox_db::ReviewDecisionRow`]; unit
-/// tests use a tiny in-module fake.
+/// [`ApprovalToken`].  Implemented here for [`vox_db::store::ReviewDecisionRow`];
+/// unit tests use a tiny in-module fake.
 pub trait ReviewDecisionLike {
     fn claim_id(&self) -> i64;
     fn bound_digest(&self) -> &str;
@@ -65,6 +65,10 @@ impl ReviewDecisionLike for ReviewDecisionRow {
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ApprovalToken {
+    // `i64` (not the spec's `u64`) is deliberate: it matches
+    // `vox_db::store::ReviewDecisionRow::claim_id` and the libSQL `INTEGER`
+    // column it is minted from (libSQL integers are always signed). Keeping the
+    // token's type identical to the row's avoids a cast at every mint/compare site.
     claim_id: i64,
     bound_digest: String,
 }
@@ -83,8 +87,11 @@ impl ApprovalToken {
         self.claim_id
     }
 
-    /// The SHA3-256 digest of the publication content that was approved.
-    /// Binds the token to the exact artifact version reviewed by the human.
+    /// The digest bound at approval time (expected to be the publication's
+    /// SHA3-256 `content_sha3_256`, but **not validated by this module** — the
+    /// token trusts the caller). Binds the token to the exact artifact version
+    /// reviewed by the human; Task 3 rejects a token whose digest no longer
+    /// matches the current manifest, so an edit invalidates a stale approval.
     pub fn bound_digest(&self) -> &str {
         &self.bound_digest
     }
@@ -156,7 +163,11 @@ pub enum ReviewAction {
 /// UnderReview + Defer       → Deferred
 /// UnderReview + Edit        → Edited
 /// Edited      + ReSurface   → Surfaced
+/// Deferred    + ReSurface   → Surfaced
 /// ```
+///
+/// `Approved` and `Rejected` are terminal (no outgoing transition). `Deferred`
+/// and `Edited` are *recoverable* — both re-enter the queue via `ReSurface`.
 pub fn next_state(current: ReviewState, action: ReviewAction) -> ReviewState {
     match (current, action) {
         (ReviewState::Surfaced, ReviewAction::StartReview) => ReviewState::UnderReview,
@@ -164,7 +175,9 @@ pub fn next_state(current: ReviewState, action: ReviewAction) -> ReviewState {
         (ReviewState::UnderReview, ReviewAction::Reject) => ReviewState::Rejected,
         (ReviewState::UnderReview, ReviewAction::Defer) => ReviewState::Deferred,
         (ReviewState::UnderReview, ReviewAction::Edit) => ReviewState::Edited,
+        // Recoverable states re-enter the queue for a fresh pass.
         (ReviewState::Edited, ReviewAction::ReSurface) => ReviewState::Surfaced,
+        (ReviewState::Deferred, ReviewAction::ReSurface) => ReviewState::Surfaced,
         // All other (state, action) pairs are invalid; return current unchanged.
         (state, _) => state,
     }
@@ -335,6 +348,15 @@ mod tests {
     fn edited_plus_resurface_gives_surfaced() {
         assert_eq!(
             next_state(ReviewState::Edited, ReviewAction::ReSurface),
+            ReviewState::Surfaced
+        );
+    }
+
+    #[test]
+    fn deferred_plus_resurface_gives_surfaced() {
+        // Deferred is recoverable: an explicit ReSurface re-enters the queue.
+        assert_eq!(
+            next_state(ReviewState::Deferred, ReviewAction::ReSurface),
             ReviewState::Surfaced
         );
     }
