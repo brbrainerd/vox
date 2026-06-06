@@ -38,7 +38,7 @@ impl Default for OrchestratorConfig {
             auto_continue_enabled: default_true(),
             continuation_cooldown_ms: default_continuation_cooldown(),
             max_auto_continuations: default_max_auto_continuations(),
-            scope_enforcement: ScopeEnforcement::default(),
+            scope_enforcement: ScopeEnforcement::Strict,
             event_bus_capacity: default_event_capacity(),
             default_agent_capabilities: TaskCapabilityHints::default(),
             orchestration_migration: OrchestrationMigrationFlags::default(),
@@ -154,5 +154,15 @@ impl Default for OrchestratorConfig {
             tool_ledger_key: String::new(),
             budget_gate_config: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn default_scope_enforcement_is_strict() {
+        use crate::scope::ScopeEnforcement;
+        let cfg = super::OrchestratorConfig::default();
+        assert_eq!(cfg.scope_enforcement, ScopeEnforcement::Strict);
     }
 }

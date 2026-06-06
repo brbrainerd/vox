@@ -1,10 +1,17 @@
 use vox_orchestrator::config::OrchestratorConfig;
 use vox_orchestrator::orchestrator::Orchestrator;
+use vox_orchestrator::scope::ScopeEnforcement;
 use vox_orchestrator::types::{FileAffinity, TaskPriority};
 
 #[tokio::test]
 async fn submit_repo_shard_dag_scales_to_100_shards() {
-    let orch = Orchestrator::new(OrchestratorConfig::for_testing());
+    // Opt down to Warn: this test exercises the shard-DAG submission shape and
+    // task count, not scope enforcement.  A single agent receives 201 tasks
+    // across disjoint shard paths; Strict would deny every task after the first.
+    let orch = Orchestrator::new(OrchestratorConfig {
+        scope_enforcement: ScopeEnforcement::Warn,
+        ..OrchestratorConfig::for_testing()
+    });
     orch.spawn_agent("default")
         .expect("default agent should spawn");
 
