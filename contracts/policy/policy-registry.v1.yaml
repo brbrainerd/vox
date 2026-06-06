@@ -2,6 +2,1873 @@
 # SSOT for the unified policy catalog.
 schema_version: 1
 policies:
+- id: arch-rule/description
+  domain: arch-rule
+  title: Cargo.toml description presence
+  group: Architecture
+  description: Cargo.toml description presence (layers.toml [guards].description = "error")
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: guard
+    ref: docs/src/architecture/layers.toml#guards.description
+    detail: vox-arch-check guard `description`
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: arch-rule/docstring
+  domain: arch-rule
+  title: Crate-level docstring presence
+  group: Architecture
+  description: Crate-level docstring presence (layers.toml [guards].docstring = "warn")
+  severity: warn
+  blocking: false
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: guard
+    ref: docs/src/architecture/layers.toml#guards.docstring
+    detail: vox-arch-check guard `docstring`
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: arch-rule/fan_in
+  domain: arch-rule
+  title: Crate fan-in budget
+  group: Architecture
+  description: Crate fan-in budget (layers.toml [guards].fan_in = "warn")
+  severity: warn
+  blocking: false
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: guard
+    ref: docs/src/architecture/layers.toml#guards.fan_in
+    detail: vox-arch-check guard `fan_in`
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: arch-rule/forbidden_deps
+  domain: arch-rule
+  title: Forbidden direct dependencies
+  group: Architecture
+  description: Forbidden direct dependencies (layers.toml [guards].forbidden_deps = "error")
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: guard
+    ref: docs/src/architecture/layers.toml#guards.forbidden_deps
+    detail: vox-arch-check guard `forbidden_deps`
+  default_enabled: true
+  protected: true
+  origin: builtin
+- id: arch-rule/generated_file_drift
+  domain: arch-rule
+  title: '@generated hash header drift'
+  group: Architecture
+  description: '@generated hash header drift (layers.toml [guards].generated_file_drift = "warn")'
+  severity: warn
+  blocking: false
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: guard
+    ref: docs/src/architecture/layers.toml#guards.generated_file_drift
+    detail: vox-arch-check guard `generated_file_drift`
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: arch-rule/loc_budget
+  domain: arch-rule
+  title: Per-crate lines-of-code budget
+  group: Architecture
+  description: Per-crate lines-of-code budget (layers.toml [guards].loc_budget = "warn")
+  severity: warn
+  blocking: false
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: guard
+    ref: docs/src/architecture/layers.toml#guards.loc_budget
+    detail: vox-arch-check guard `loc_budget`
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: arch-rule/loc_delta
+  domain: arch-rule
+  title: LoC delta regression vs last release tag
+  group: Architecture
+  description: LoC delta regression vs last release tag (layers.toml [guards].loc_delta = "warn")
+  severity: warn
+  blocking: false
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: guard
+    ref: docs/src/architecture/layers.toml#guards.loc_delta
+    detail: vox-arch-check guard `loc_delta`
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: arch-rule/orphan
+  domain: arch-rule
+  title: Orphan-library detection
+  group: Architecture
+  description: Orphan-library detection (layers.toml [guards].orphan = "error")
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: guard
+    ref: docs/src/architecture/layers.toml#guards.orphan
+    detail: vox-arch-check guard `orphan`
+  default_enabled: true
+  protected: true
+  origin: builtin
+- id: arch-rule/staleness
+  domain: arch-rule
+  title: Crate staleness vs last CHANGELOG release
+  group: Architecture
+  description: Crate staleness vs last CHANGELOG release (layers.toml [guards].staleness = "warn")
+  severity: warn
+  blocking: false
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: guard
+    ref: docs/src/architecture/layers.toml#guards.staleness
+    detail: vox-arch-check guard `staleness`
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: arch-rule/where_things_live
+  domain: arch-rule
+  title: where-things-live coverage
+  group: Architecture
+  description: where-things-live coverage (layers.toml [guards].where_things_live = "error")
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: guard
+    ref: docs/src/architecture/layers.toml#guards.where_things_live
+    detail: vox-arch-check guard `where_things_live`
+  default_enabled: true
+  protected: true
+  origin: builtin
+- id: arch-rule/wtl_parity
+  domain: arch-rule
+  title: WTL / layers.toml / disk three-way parity
+  group: Architecture
+  description: WTL / layers.toml / disk three-way parity (layers.toml [guards].wtl_parity = "error")
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: guard
+    ref: docs/src/architecture/layers.toml#guards.wtl_parity
+    detail: vox-arch-check guard `wtl_parity`
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/ai-fixtures-coverage
+  domain: audit-check
+  title: ai-fixtures-coverage
+  group: Audit checks / audit
+  description: vox ci ai-fixtures-coverage (AI-first fixtures catalog parity)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#ai-fixtures-coverage
+    detail: cargo run -q -p vox-cli -- ci ai-fixtures-coverage
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/arch-check
+  domain: audit-check
+  title: arch-check
+  group: Audit checks / arch
+  description: cargo run -p vox-arch-check (architecture layer + LoC budget validation)
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#arch-check
+    detail: cargo run -p vox-arch-check
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/biome-ts-lint
+  domain: audit-check
+  title: biome-ts-lint
+  group: Audit checks / lint
+  description: biome lint (TypeScript/TSX/JSX across docs-astro, vox-mental-tracker, apps/experimental/visualizer)
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#biome-ts-lint
+    detail: npx @biomejs/biome@1.9.4 lint --reporter=github
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/canonical-map-verify
+  domain: audit-check
+  title: canonical-map-verify
+  group: Audit checks / doc
+  description: vox ci canonical-map-verify (documentation canonical-map structural guard)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#canonical-map-verify
+    detail: cargo run -q -p vox-cli -- ci canonical-map-verify
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/check-links
+  domain: audit-check
+  title: check-links
+  group: Audit checks / doc
+  description: vox ci check-links (internal Markdown relative-link resolver)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#check-links
+    detail: cargo run -q -p vox-cli -- ci check-links
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/clippy
+  domain: audit-check
+  title: clippy
+  group: Audit checks / lint
+  description: cargo clippy --workspace --all-targets -- -D warnings
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#clippy
+    detail: cargo clippy --workspace --all-targets -- -D warnings
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/command-sync
+  domain: audit-check
+  title: command-sync
+  group: Audit checks / doc
+  description: vox ci command-sync --check (CLI command surface doc drift check)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-commit
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#command-sync
+    detail: cargo run -q -p vox-cli -- ci command-sync --check
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/coverage-gates
+  domain: audit-check
+  title: coverage-gates
+  group: Audit checks / test
+  description: cargo llvm-cov --workspace coverage gates
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#coverage-gates
+    detail: cargo llvm-cov --workspace --lcov --output-path lcov.info
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/deny
+  domain: audit-check
+  title: deny
+  group: Audit checks / audit
+  description: cargo deny check (license allowlist + security advisories + banned crates)
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#deny
+    detail: cargo deny check
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/doc-frontmatter
+  domain: audit-check
+  title: doc-frontmatter
+  group: Audit checks / doc
+  description: vox-doc-pipeline --lint-only (frontmatter + code fences)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#doc-frontmatter
+    detail: cargo run -q -p vox-doc-pipeline -- --lint-only
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/doc-inventory
+  domain: audit-check
+  title: doc-inventory
+  group: Audit checks / doc
+  description: vox ci doc-inventory verify (doc inventory matches generator)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#doc-inventory
+    detail: cargo run -q -p vox-cli -- ci doc-inventory verify
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/docs-reality-audit
+  domain: audit-check
+  title: docs-reality-audit
+  group: Audit checks / audit
+  description: vox ci docs-reality-audit verify (also runs inside vox ci ssot-drift; standalone for targeted CI jobs)
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#docs-reality-audit
+    detail: cargo run -q -p vox-cli -- ci docs-reality-audit verify
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/doctest-build
+  domain: audit-check
+  title: doctest-build
+  group: Audit checks / doc
+  description: cargo test --doc --workspace (rustdoc doctest build)
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#doctest-build
+    detail: cargo test --doc --workspace
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/doctest-md
+  domain: audit-check
+  title: doctest-md
+  group: Audit checks / doc
+  description: vox ci doctest-md --strict (Markdown doctest extraction)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#doctest-md
+    detail: cargo run -q -p vox-cli -- ci doctest-md --strict
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/drift-check
+  domain: audit-check
+  title: drift-check
+  group: Audit checks / audit
+  description: vox-drift-check workspace (pattern-repetition linter)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#drift-check
+    detail: cargo run -q -p vox-drift-check -- . --severity warning --fail-on warning
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/fmt
+  domain: audit-check
+  title: fmt
+  group: Audit checks / lint
+  description: cargo fmt --all -- --check
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#fmt
+    detail: cargo fmt --all -- --check
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/line-endings
+  domain: audit-check
+  title: line-endings
+  group: Audit checks / lint
+  description: vox ci line-endings (forward-slash line-ending guard)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#line-endings
+    detail: cargo run -q -p vox-cli -- ci line-endings
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/link-checker
+  domain: audit-check
+  title: link-checker
+  group: Audit checks / doc
+  description: lychee (link checker — all docs and markdown files)
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#link-checker
+    detail: lychee --no-progress docs/**/*.md README.md
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/markdownlint
+  domain: audit-check
+  title: markdownlint
+  group: Audit checks / doc
+  description: markdownlint-cli2 docs/**/*.md (Markdown style lint)
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#markdownlint
+    detail: markdownlint-cli2 docs/**/*.md
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/mutation-codegen
+  domain: audit-check
+  title: mutation-codegen
+  group: Audit checks / test
+  description: cargo mutants -p vox-codegen (mutation testing — codegen crate)
+  severity: warn
+  blocking: false
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#mutation-codegen
+    detail: cargo mutants -p vox-codegen --no-shuffle -j 2
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/mutation-compiler
+  domain: audit-check
+  title: mutation-compiler
+  group: Audit checks / test
+  description: cargo mutants -p vox-compiler (mutation testing — compiler crate)
+  severity: warn
+  blocking: false
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#mutation-compiler
+    detail: cargo mutants -p vox-compiler --no-shuffle -j 2
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/plugin-catalog-docs
+  domain: audit-check
+  title: plugin-catalog-docs
+  group: Audit checks / doc
+  description: vox ci generate-plugin-catalog-docs --check (plugin catalog doc drift check)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-commit
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#plugin-catalog-docs
+    detail: cargo run -q -p vox-cli -- ci generate-plugin-catalog-docs --check
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/retired-symbol-check
+  domain: audit-check
+  title: retired-symbol-check
+  group: Audit checks / doc
+  description: vox ci retired-symbol-check (banned terminology in prose)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#retired-symbol-check
+    detail: cargo run -q -p vox-cli -- ci retired-symbol-check
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/ssot-drift
+  domain: audit-check
+  title: ssot-drift
+  group: Audit checks / audit
+  description: vox ci ssot-drift (SSOT documentation drift bundle)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#ssot-drift
+    detail: cargo run -q -p vox-cli -- ci ssot-drift
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/sync-ignore-files
+  domain: audit-check
+  title: sync-ignore-files
+  group: Audit checks / doc
+  description: vox ci sync-ignore-files --verify (generated ignore-file drift check)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-commit
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#sync-ignore-files
+    detail: cargo run -q -p vox-cli -- ci sync-ignore-files --verify
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/toestub-scoped
+  domain: audit-check
+  title: toestub-scoped
+  group: Audit checks / audit
+  description: vox ci toestub-scoped --mode enforce-warn (TOESTUB structural guard)
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#toestub-scoped
+    detail: cargo run -q -p vox-cli -- ci toestub-scoped --mode enforce-warn
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.ai-fixtures-coverage
+  domain: ci-gate
+  title: Ci Ai-fixtures-coverage
+  group: CI Gates / ai
+  description: CLI operation `vox ci ai-fixtures-coverage`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.ai-fixtures-coverage
+    detail: vox ci ai-fixtures-coverage
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.artifact-audit
+  domain: ci-gate
+  title: Ci Artifact-audit
+  group: CI Gates / artifact
+  description: CLI operation `vox ci artifact-audit`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.artifact-audit
+    detail: vox ci artifact-audit
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.artifact-prune
+  domain: ci-gate
+  title: Ci Artifact-prune
+  group: CI Gates / artifact
+  description: CLI operation `vox ci artifact-prune`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.artifact-prune
+    detail: vox ci artifact-prune
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.backend-tests
+  domain: ci-gate
+  title: Ci Backend-tests
+  group: CI Gates / backend
+  description: CLI operation `vox ci backend-tests`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.backend-tests
+    detail: vox ci backend-tests
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.build-docs
+  domain: ci-gate
+  title: Ci Build-docs
+  group: CI Gates / build
+  description: CLI operation `vox ci build-docs`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.build-docs
+    detail: vox ci build-docs
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.build-timings
+  domain: ci-gate
+  title: Ci Build-timings
+  group: CI Gates / build
+  description: CLI operation `vox ci build-timings`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.build-timings
+    detail: vox ci build-timings
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.capability-sync
+  domain: ci-gate
+  title: Ci Capability-sync
+  group: CI Gates / capability
+  description: CLI operation `vox ci capability-sync`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.capability-sync
+    detail: vox ci capability-sync
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.check-codex-ssot
+  domain: ci-gate
+  title: Ci Check-codex-ssot
+  group: CI Gates / check
+  description: CLI operation `vox ci check-codex-ssot`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.check-codex-ssot
+    detail: vox ci check-codex-ssot
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.check-docs-ssot
+  domain: ci-gate
+  title: Ci Check-docs-ssot
+  group: CI Gates / check
+  description: CLI operation `vox ci check-docs-ssot`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.check-docs-ssot
+    detail: vox ci check-docs-ssot
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.check-links
+  domain: ci-gate
+  title: Ci Check-links
+  group: CI Gates / check
+  description: CLI operation `vox ci check-links`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.check-links
+    detail: vox ci check-links
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.check-summary-drift
+  domain: ci-gate
+  title: Ci Check-summary-drift
+  group: CI Gates / check
+  description: CLI operation `vox ci check-summary-drift`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.check-summary-drift
+    detail: vox ci check-summary-drift
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.command-compliance
+  domain: ci-gate
+  title: Ci Command-compliance
+  group: CI Gates / command
+  description: CLI operation `vox ci command-compliance`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.command-compliance
+    detail: vox ci command-compliance
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.command-sync
+  domain: ci-gate
+  title: Ci Command-sync
+  group: CI Gates / command
+  description: CLI operation `vox ci command-sync`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.command-sync
+    detail: vox ci command-sync
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.compile-matrix
+  domain: ci-gate
+  title: Ci Compile-matrix
+  group: CI Gates / compile
+  description: CLI operation `vox ci compile-matrix` — smoke `vox compile --help` via cargo (matches compile-matrix workflow)
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.compile-matrix
+    detail: vox ci compile-matrix
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.completion-audit
+  domain: ci-gate
+  title: Ci Completion-audit
+  group: CI Gates / completion
+  description: CLI operation `vox ci completion-audit`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.completion-audit
+    detail: vox ci completion-audit
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.completion-gates
+  domain: ci-gate
+  title: Ci Completion-gates
+  group: CI Gates / completion
+  description: CLI operation `vox ci completion-gates`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.completion-gates
+    detail: vox ci completion-gates
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.completion-ingest
+  domain: ci-gate
+  title: Ci Completion-ingest
+  group: CI Gates / completion
+  description: CLI operation `vox ci completion-ingest`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.completion-ingest
+    detail: vox ci completion-ingest
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.contracts-index
+  domain: ci-gate
+  title: Ci Contracts-index
+  group: CI Gates / contracts
+  description: CLI operation `vox ci contracts-index`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.contracts-index
+    detail: vox ci contracts-index
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.coolify-eval
+  domain: ci-gate
+  title: Ci Coolify-eval
+  group: CI Gates / coolify
+  description: CLI operation `vox ci coolify-eval`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.coolify-eval
+    detail: vox ci coolify-eval
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.coverage-gates
+  domain: ci-gate
+  title: Ci Coverage-gates
+  group: CI Gates / coverage
+  description: CLI operation `vox ci coverage-gates`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.coverage-gates
+    detail: vox ci coverage-gates
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.cuda-features
+  domain: ci-gate
+  title: Ci Cuda-features
+  group: CI Gates / cuda
+  description: CLI operation `vox ci cuda-features`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.cuda-features
+    detail: vox ci cuda-features
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.cuda-release-build
+  domain: ci-gate
+  title: Ci Cuda-release-build
+  group: CI Gates / cuda
+  description: CLI operation `vox ci cuda-release-build`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.cuda-release-build
+    detail: vox ci cuda-release-build
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.data-ssot-guards
+  domain: ci-gate
+  title: Ci Data-ssot-guards
+  group: CI Gates / data
+  description: CLI operation `vox ci data-ssot-guards`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.data-ssot-guards
+    detail: vox ci data-ssot-guards
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.db-schema-coverage
+  domain: ci-gate
+  title: Ci Db-schema-coverage
+  group: CI Gates / db
+  description: Verify every CREATE TABLE in the workspace is owned by a crate in tiers.a_relational.owners.
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.db-schema-coverage
+    detail: vox ci db-schema-coverage
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.dev-loop-audit
+  domain: ci-gate
+  title: Ci Dev-loop-audit
+  group: CI Gates / dev
+  description: CLI operation `vox ci dev-loop-audit`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.dev-loop-audit
+    detail: vox ci dev-loop-audit
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.doc-inventory
+  domain: ci-gate
+  title: Ci Doc-inventory
+  group: CI Gates / doc
+  description: CLI operation `vox ci doc-inventory`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.doc-inventory
+    detail: vox ci doc-inventory
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.docs-reality-audit
+  domain: ci-gate
+  title: Ci Docs-reality-audit
+  group: CI Gates / docs
+  description: CLI operation `vox ci docs-reality-audit`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.docs-reality-audit
+    detail: vox ci docs-reality-audit
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.eval-matrix
+  domain: ci-gate
+  title: Ci Eval-matrix
+  group: CI Gates / eval
+  description: CLI operation `vox ci eval-matrix`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.eval-matrix
+    detail: vox ci eval-matrix
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.eval-matrix.run
+  domain: ci-gate
+  title: Ci Eval-matrix Run
+  group: CI Gates / eval
+  description: CLI operation `vox ci eval-matrix run`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.eval-matrix.run
+    detail: vox ci eval-matrix run
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.eval-matrix.verify
+  domain: ci-gate
+  title: Ci Eval-matrix Verify
+  group: CI Gates / eval
+  description: CLI operation `vox ci eval-matrix verify`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.eval-matrix.verify
+    detail: vox ci eval-matrix verify
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.exec-policy-contract
+  domain: ci-gate
+  title: Ci Exec-policy-contract
+  group: CI Gates / exec
+  description: CLI operation `vox ci exec-policy-contract`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.exec-policy-contract
+    detail: vox ci exec-policy-contract
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.feature-matrix
+  domain: ci-gate
+  title: Ci Feature-matrix
+  group: CI Gates / feature
+  description: CLI operation `vox ci feature-matrix`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.feature-matrix
+    detail: vox ci feature-matrix
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.flake-budget
+  domain: ci-gate
+  title: Ci Flake-budget
+  group: CI Gates / flake
+  description: CLI operation `vox ci flake-budget`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.flake-budget
+    detail: vox ci flake-budget
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.grammar-drift
+  domain: ci-gate
+  title: Ci Grammar-drift
+  group: CI Gates / grammar
+  description: CLI operation `vox ci grammar-drift`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.grammar-drift
+    detail: vox ci grammar-drift
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.gui-smoke
+  domain: ci-gate
+  title: Ci Gui-smoke
+  group: CI Gates / gui
+  description: CLI operation `vox ci gui-smoke`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.gui-smoke
+    detail: vox ci gui-smoke
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.ignored-test-age
+  domain: ci-gate
+  title: Ci Ignored-test-age
+  group: CI Gates / ignored
+  description: CLI operation `vox ci ignored-test-age`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.ignored-test-age
+    detail: vox ci ignored-test-age
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.line-endings
+  domain: ci-gate
+  title: Ci Line-endings
+  group: CI Gates / line
+  description: CLI operation `vox ci line-endings`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.line-endings
+    detail: vox ci line-endings
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.manifest
+  domain: ci-gate
+  title: Ci Manifest
+  group: CI Gates / manifest
+  description: CLI operation `vox ci manifest`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.manifest
+    detail: vox ci manifest
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.mens-scorecard
+  domain: ci-gate
+  title: Ci Mens-scorecard
+  group: CI Gates / mens
+  description: CLI operation `vox ci mens-scorecard`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.mens-scorecard
+    detail: vox ci mens-scorecard
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.mens-scorecard.burn-rnd
+  domain: ci-gate
+  title: Ci Mens-scorecard Burn-rnd
+  group: CI Gates / mens
+  description: CLI operation `vox ci mens-scorecard burn-rnd`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.mens-scorecard.burn-rnd
+    detail: vox ci mens-scorecard burn-rnd
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.mens-scorecard.decide
+  domain: ci-gate
+  title: Ci Mens-scorecard Decide
+  group: CI Gates / mens
+  description: CLI operation `vox ci mens-scorecard decide`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.mens-scorecard.decide
+    detail: vox ci mens-scorecard decide
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.mens-scorecard.ingest-trust
+  domain: ci-gate
+  title: Ci Mens-scorecard Ingest-trust
+  group: CI Gates / mens
+  description: CLI operation `vox ci mens-scorecard ingest-trust`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.mens-scorecard.ingest-trust
+    detail: vox ci mens-scorecard ingest-trust
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.mens-scorecard.run
+  domain: ci-gate
+  title: Ci Mens-scorecard Run
+  group: CI Gates / mens
+  description: CLI operation `vox ci mens-scorecard run`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.mens-scorecard.run
+    detail: vox ci mens-scorecard run
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.mens-scorecard.verify
+  domain: ci-gate
+  title: Ci Mens-scorecard Verify
+  group: CI Gates / mens
+  description: CLI operation `vox ci mens-scorecard verify`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.mens-scorecard.verify
+    detail: vox ci mens-scorecard verify
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.mesh-gate
+  domain: ci-gate
+  title: Ci Mesh-gate
+  group: CI Gates / mesh
+  description: CLI operation `vox ci mesh-gate`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.mesh-gate
+    detail: vox ci mesh-gate
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.no-dei-import
+  domain: ci-gate
+  title: Ci No-dei-import
+  group: CI Gates / no
+  description: CLI operation `vox ci no-dei-import`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.no-dei-import
+    detail: vox ci no-dei-import
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.nomenclature-guard
+  domain: ci-gate
+  title: Ci Nomenclature-guard
+  group: CI Gates / nomenclature
+  description: Enforces the English-first crate naming policy. Scans `crates/` and fails if any `vox-<latin>` directory exists outside the historical allowlist.
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.nomenclature-guard
+    detail: vox ci nomenclature-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.openclaw-contract
+  domain: ci-gate
+  title: Ci Openclaw-contract
+  group: CI Gates / openclaw
+  description: CLI operation `vox ci openclaw-contract`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.openclaw-contract
+    detail: vox ci openclaw-contract
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.operations-sync
+  domain: ci-gate
+  title: Ci Operations-sync
+  group: CI Gates / operations
+  description: CLI operation `vox ci operations-sync`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.operations-sync
+    detail: vox ci operations-sync
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.operations-verify
+  domain: ci-gate
+  title: Ci Operations-verify
+  group: CI Gates / operations
+  description: CLI operation `vox ci operations-verify`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.operations-verify
+    detail: vox ci operations-verify
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.parse-status
+  domain: ci-gate
+  title: Ci Parse-status
+  group: CI Gates / parse
+  description: CLI operation `vox ci parse-status`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.parse-status
+    detail: vox ci parse-status
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.pm-provenance
+  domain: ci-gate
+  title: Ci Pm-provenance
+  group: CI Gates / pm
+  description: CLI operation `vox ci pm-provenance`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.pm-provenance
+    detail: vox ci pm-provenance
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.policy-allowlist-parity
+  domain: ci-gate
+  title: Ci Policy-allowlist-parity
+  group: CI Gates / policy
+  description: CLI operation `vox ci policy-allowlist-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.policy-allowlist-parity
+    detail: vox ci policy-allowlist-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.policy-smoke
+  domain: ci-gate
+  title: Ci Policy-smoke
+  group: CI Gates / policy
+  description: CLI operation `vox ci policy-smoke`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.policy-smoke
+    detail: vox ci policy-smoke
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.pre-push
+  domain: ci-gate
+  title: Ci Pre-push
+  group: CI Gates / pre
+  description: CLI operation `vox ci pre-push`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.pre-push
+    detail: vox ci pre-push
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.query-all-guard
+  domain: ci-gate
+  title: Ci Query-all-guard
+  group: CI Gates / query
+  description: CLI operation `vox ci query-all-guard`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.query-all-guard
+    detail: vox ci query-all-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.release-build
+  domain: ci-gate
+  title: Ci Release-build
+  group: CI Gates / release
+  description: CLI operation `vox ci release-build`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.release-build
+    detail: vox ci release-build
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.repo-guards
+  domain: ci-gate
+  title: Ci Repo-guards
+  group: CI Gates / repo
+  description: CLI operation `vox ci repo-guards`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.repo-guards
+    detail: vox ci repo-guards
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.retirement-audit
+  domain: ci-gate
+  title: Ci Retirement-audit
+  group: CI Gates / retirement
+  description: CLI operation `vox ci retirement-audit` — scan `vox-deprecated-since` / `retire-by` markers vs workspace semver
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.retirement-audit
+    detail: vox ci retirement-audit
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.runtime-regress
+  domain: ci-gate
+  title: Ci Runtime-regress
+  group: CI Gates / runtime
+  description: CLI operation `vox ci runtime-regress`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.runtime-regress
+    detail: vox ci runtime-regress
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.rust-ecosystem-policy
+  domain: ci-gate
+  title: Ci Rust-ecosystem-policy
+  group: CI Gates / rust
+  description: CLI operation `vox ci rust-ecosystem-policy`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.rust-ecosystem-policy
+    detail: vox ci rust-ecosystem-policy
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.safety-inventory
+  domain: ci-gate
+  title: Ci Safety-inventory
+  group: CI Gates / safety
+  description: CLI operation `vox ci safety-inventory`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.safety-inventory
+    detail: vox ci safety-inventory
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.scaling-audit
+  domain: ci-gate
+  title: Ci Scaling-audit
+  group: CI Gates / scaling
+  description: CLI operation `vox ci scaling-audit`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.scaling-audit
+    detail: vox ci scaling-audit
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.scaling-audit.emit-reports
+  domain: ci-gate
+  title: Ci Scaling-audit Emit-reports
+  group: CI Gates / scaling
+  description: CLI operation `vox ci scaling-audit emit-reports`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.scaling-audit.emit-reports
+    detail: vox ci scaling-audit emit-reports
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.scaling-audit.verify
+  domain: ci-gate
+  title: Ci Scaling-audit Verify
+  group: CI Gates / scaling
+  description: CLI operation `vox ci scaling-audit verify`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.scaling-audit.verify
+    detail: vox ci scaling-audit verify
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.scientia-novelty-ledger-contracts
+  domain: ci-gate
+  title: Ci Scientia-novelty-ledger-contracts
+  group: CI Gates / scientia
+  description: CLI operation `vox ci scientia-novelty-ledger-contracts`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.scientia-novelty-ledger-contracts
+    detail: vox ci scientia-novelty-ledger-contracts
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.scientia-worthiness-contract
+  domain: ci-gate
+  title: Ci Scientia-worthiness-contract
+  group: CI Gates / scientia
+  description: CLI operation `vox ci scientia-worthiness-contract`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.scientia-worthiness-contract
+    detail: vox ci scientia-worthiness-contract
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.secret-env-guard
+  domain: ci-gate
+  title: Ci Secret-env-guard
+  group: CI Gates / secret
+  description: CLI operation `vox ci secret-env-guard`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.secret-env-guard
+    detail: vox ci secret-env-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.secrets-parity
+  domain: ci-gate
+  title: Ci Secrets-parity
+  group: CI Gates / secrets
+  description: CLI operation `vox ci secrets-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.secrets-parity
+    detail: vox ci secrets-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.speech-runtime-suite
+  domain: ci-gate
+  title: Ci Speech-runtime-suite
+  group: CI Gates / speech
+  description: CLI operation `vox ci speech-runtime-suite`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.speech-runtime-suite
+    detail: vox ci speech-runtime-suite
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.sql-surface-guard
+  domain: ci-gate
+  title: Ci Sql-surface-guard
+  group: CI Gates / sql
+  description: CLI operation `vox ci sql-surface-guard`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.sql-surface-guard
+    detail: vox ci sql-surface-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.ssot-drift
+  domain: ci-gate
+  title: Ci Ssot-drift
+  group: CI Gates / ssot
+  description: CLI operation `vox ci ssot-drift`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.ssot-drift
+    detail: vox ci ssot-drift
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.test-inventory
+  domain: ci-gate
+  title: Ci Test-inventory
+  group: CI Gates / test
+  description: CLI operation `vox ci test-inventory`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.test-inventory
+    detail: vox ci test-inventory
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.test-runtime-report
+  domain: ci-gate
+  title: Ci Test-runtime-report
+  group: CI Gates / test
+  description: CLI operation `vox ci test-runtime-report`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.test-runtime-report
+    detail: vox ci test-runtime-report
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.toestub-scoped
+  domain: ci-gate
+  title: Ci Toestub-scoped
+  group: CI Gates / toestub
+  description: CLI operation `vox ci toestub-scoped`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.toestub-scoped
+    detail: vox ci toestub-scoped
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.toestub-self-apply
+  domain: ci-gate
+  title: Ci Toestub-self-apply
+  group: CI Gates / toestub
+  description: CLI operation `vox ci toestub-self-apply`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.toestub-self-apply
+    detail: vox ci toestub-self-apply
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.turso-import-guard
+  domain: ci-gate
+  title: Ci Turso-import-guard
+  group: CI Gates / turso
+  description: CLI operation `vox ci turso-import-guard`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.turso-import-guard
+    detail: vox ci turso-import-guard
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.workflow-scripts
+  domain: ci-gate
+  title: Ci Workflow-scripts
+  group: CI Gates / workflow
+  description: CLI operation `vox ci workflow-scripts`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.workflow-scripts
+    detail: vox ci workflow-scripts
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: code-audit/ai-laziness
   domain: code-audit-rule
   title: AI Laziness Patterns
@@ -34,7 +1901,7 @@ policies:
 - id: code-audit/arch/empty_body
   domain: code-audit-rule
   title: Empty Body Detector
-  group: Language rules / General
+  group: Language rules / Architecture
   description: Detects functions with empty or trivially-defaulted bodies
   severity: warn
   blocking: false
@@ -60,7 +1927,7 @@ policies:
 - id: code-audit/arch/god_object
   domain: code-audit-rule
   title: God Object Detector
-  group: Language rules / General
+  group: Language rules / Architecture
   description: Detects files or structs that are too large and should be decomposed into traits or smaller modules.
   severity: error
   blocking: true
@@ -88,7 +1955,7 @@ policies:
 - id: code-audit/arch/organization
   domain: code-audit-rule
   title: File Organization Detector
-  group: Language rules / General
+  group: Language rules / Architecture
   description: Identifies structural anti-patterns like bloated lib.rs files or unorganized type dumps.
   severity: warn
   blocking: false
@@ -119,7 +1986,7 @@ policies:
 - id: code-audit/arch/schema_compliance
   domain: code-audit-rule
   title: Schema Compliance Detector
-  group: Language rules / General
+  group: Language rules / Architecture
   description: Verifies that files are located in paths authorized by vox-schema.json.
   severity: error
   blocking: true
@@ -144,7 +2011,7 @@ policies:
 - id: code-audit/arch/sprawl
   domain: code-audit-rule
   title: Architectural Sprawl Detector
-  group: Language rules / General
+  group: Language rules / Architecture
   description: Enforces clean directory structures and prevents 'junk drawer' modules like utils.rs.
   severity: error
   blocking: true
@@ -170,7 +2037,7 @@ policies:
 - id: code-audit/arch/stub
   domain: code-audit-rule
   title: Stub / Placeholder Detector
-  group: Language rules / General
+  group: Language rules / Architecture
   description: Detects todo!(), unimplemented!(), pass stubs, and throw-not-implemented patterns
   severity: error
   blocking: true
@@ -197,7 +2064,7 @@ policies:
 - id: code-audit/arch/unwired
   domain: code-audit-rule
   title: Unwired Module Detector
-  group: Language rules / General
+  group: Language rules / Architecture
   description: Detects modules declared but never imported or referenced
   severity: warn
   blocking: false
@@ -223,7 +2090,7 @@ policies:
 - id: code-audit/arch/workspace_drift
   domain: code-audit-rule
   title: Workspace Drift Detector
-  group: Language rules / General
+  group: Language rules / Architecture
   description: Enforces `workspace = true` inheritance for all sub-crate dependencies (path and version) and detects unregistered orphan crates in the workspace root.
   severity: error
   blocking: true
@@ -864,7 +2731,7 @@ policies:
 - id: code-audit/security/hardcoded-secret
   domain: code-audit-rule
   title: Hardcoded Secret Detector
-  group: Language rules / General
+  group: Language rules / Security
   description: Detects potential API keys, passwords, and other credentials in source code.
   severity: error
   blocking: true
@@ -892,7 +2759,7 @@ policies:
 - id: code-audit/skeleton/declared-not-called
   domain: code-audit-rule
   title: Integration Graph Reachability Detector
-  group: Language rules / General
+  group: Language rules / Skeletons
   description: 'Detects fake wiring: pub fns that return trivial defaults and are not called from tests or entry points.'
   severity: warn
   blocking: false
@@ -922,7 +2789,7 @@ policies:
 - id: code-audit/skeleton/hollow-fn
   domain: code-audit-rule
   title: Hollow Function Detector
-  group: Language rules / General
+  group: Language rules / Skeletons
   description: Detects functions with trivially-default return values (compile but do nothing)
   severity: warn
   blocking: false
@@ -950,7 +2817,7 @@ policies:
 - id: code-audit/skeleton/no-test-for-pub-fn
   domain: code-audit-rule
   title: No Test For Exported Fn
-  group: Language rules / General
+  group: Language rules / Skeletons
   description: Exported fn in examples/golden/ Vox file is not called from any @test block
   severity: warn
   blocking: false
@@ -983,7 +2850,7 @@ policies:
 - id: code-audit/skeleton/untested-pub-api
   domain: code-audit-rule
   title: Untested Public API
-  group: Language rules / General
+  group: Language rules / Skeletons
   description: 'Rust library file has pub fn declarations but no #[test] blocks'
   severity: warn
   blocking: false
@@ -1289,7 +3156,7 @@ policies:
 - id: code-audit/vox/crypto/banned-crate-import
   domain: code-audit-rule
   title: Crypto Banned Crate Import Detector
-  group: Language rules / General
+  group: Language rules / Vox idioms
   description: Detects imports or Cargo dependencies for banned cryptography crates (aegis, ring, aws-lc-rs, md5, sha1, openssl) that violate Vox cryptography policy.
   severity: error
   blocking: true
@@ -1315,7 +3182,7 @@ policies:
 - id: code-audit/vox/effect/missing-net-decl
   domain: code-audit-rule
   title: Effect Missing Net Declaration Detector
-  group: Language rules / General
+  group: Language rules / Vox idioms
   description: Detects public or endpoint functions in Vox files that perform HTTP or network calls without declaring `@uses(net)` on the function.
   severity: warn
   blocking: false
@@ -1343,7 +3210,7 @@ policies:
 - id: code-audit/vox/effect/pure-violated
   domain: code-audit-rule
   title: Pure Function Impure Call Detector
-  group: Language rules / General
+  group: Language rules / Vox idioms
   description: Detects `@pure fn` declarations in Vox files that contain impure builtin calls such as HTTP, file I/O, database, random, logging, or concurrency primitives.
   severity: warn
   blocking: false
@@ -1373,7 +3240,7 @@ policies:
 - id: code-audit/vox/llm/direct-provider-call
   domain: code-audit-rule
   title: LLM Direct Provider Call Detector
-  group: Language rules / General
+  group: Language rules / Vox idioms
   description: Detects direct HTTP calls to known LLM provider hostnames that bypass populi.* builtins.
   severity: error
   blocking: true
@@ -1397,7 +3264,7 @@ policies:
 - id: code-audit/vox/secret/env-get-shape
   domain: code-audit-rule
   title: Env Secret Shape Detector
-  group: Language rules / General
+  group: Language rules / Vox idioms
   description: Detects env.get / env::var calls whose argument looks like a secret-shaped variable name.
   severity: error
   blocking: true
@@ -1420,7 +3287,7 @@ policies:
 - id: code-audit/vox/workflow/non-deterministic-builtin
   domain: code-audit-rule
   title: Workflow Non-Deterministic Builtin Detector
-  group: Language rules / General
+  group: Language rules / Vox idioms
   description: Detects calls to non-deterministic builtins inside workflow blocks or workflow functions in Vox source files. Workflows must be deterministic for replay safety.
   severity: error
   blocking: true
@@ -1441,6 +3308,166 @@ policies:
       @workflow fn process_order(id: str, started_at: str) {
           // use started_at from caller
       }
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: crl-gate/aci-default
+  domain: crl-gate
+  title: 'CR-L gate: aci-default'
+  group: CR-L gates
+  description: 'CR-L5: `agentos_aci_envelope_enabled` defaults to `true` in v0.6+ (D20-ratified).'
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/vox-audit-contract.v1.yaml#aci-default
+    detail: vox audit aci-default
+  default_enabled: true
+  protected: true
+  origin: builtin
+- id: crl-gate/corpus-feedback
+  domain: crl-gate
+  title: 'CR-L gate: corpus-feedback'
+  group: CR-L gates
+  description: 'CR-L8: quarterly diagnostic→repair→corpus feedback artifact under 90 days old.'
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/vox-audit-contract.v1.yaml#corpus-feedback
+    detail: vox audit corpus-feedback
+  default_enabled: true
+  protected: true
+  origin: builtin
+- id: crl-gate/deploy
+  domain: crl-gate
+  title: 'CR-L gate: deploy'
+  group: CR-L gates
+  description: 'CR-L7: `vox new web → vox deploy → vox doctor` E2E on every Marquee fixture.'
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/vox-audit-contract.v1.yaml#deploy
+    detail: vox audit deploy
+  default_enabled: true
+  protected: true
+  origin: builtin
+- id: crl-gate/humaneval
+  domain: crl-gate
+  title: 'CR-L gate: humaneval'
+  group: CR-L gates
+  description: 'CR-L1: HumanEval-Vox (≥80%) on the 164-problem corpus.'
+  severity: warn
+  blocking: false
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/vox-audit-contract.v1.yaml#humaneval
+    detail: vox audit humaneval
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: crl-gate/mens-on-distribution
+  domain: crl-gate
+  title: 'CR-L gate: mens-on-distribution'
+  group: CR-L gates
+  description: 'CR-L2: ≥95% of MENS emissions clear vox check --strict + lint + retirement-guard.'
+  severity: warn
+  blocking: false
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/vox-audit-contract.v1.yaml#mens-on-distribution
+    detail: vox audit mens-on-distribution
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: crl-gate/plan-fidelity
+  domain: crl-gate
+  title: 'CR-L gate: plan-fidelity'
+  group: CR-L gates
+  description: 'CR-L4: ≥85% Wave-2 plan success on the 50-fixture corpus.'
+  severity: warn
+  blocking: false
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/vox-audit-contract.v1.yaml#plan-fidelity
+    detail: vox audit plan-fidelity
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: crl-gate/repair-corpus
+  domain: crl-gate
+  title: 'CR-L gate: repair-corpus'
+  group: CR-L gates
+  description: 'CR-L3: `vox repair .` reaches ≥70% project-scope success (≥90% single-file aim).'
+  severity: warn
+  blocking: false
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/vox-audit-contract.v1.yaml#repair-corpus
+    detail: vox audit repair-corpus
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: crl-gate/retirement
+  domain: crl-gate
+  title: 'CR-L gate: retirement'
+  group: CR-L gates
+  description: 'CR-L6: drift between AGENTS.md §Retired Surfaces and the wired detector registry.'
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/vox-audit-contract.v1.yaml#retirement
+    detail: vox audit retirement
+  default_enabled: true
+  protected: true
+  origin: builtin
+- id: crl-gate/spec-to-app
+  domain: crl-gate
+  title: 'CR-L gate: spec-to-app'
+  group: CR-L gates
+  description: 'CR-L0: end-to-end agent loop (≥60% pass / ≤$5/spec). Block-GA on sub-bar.'
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/vox-audit-contract.v1.yaml#spec-to-app
+    detail: vox audit spec-to-app
+  default_enabled: true
+  protected: true
+  origin: builtin
+- id: crl-gate/stdlib-coverage
+  domain: crl-gate
+  title: 'CR-L gate: stdlib-coverage'
+  group: CR-L gates
+  description: 'Tooling: three-way drift between eval/builtins.rs registrations, ref-builtins-stdlib.md doc claims, and scripts/ corpus call sites.'
+  severity: warn
+  blocking: false
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/vox-audit-contract.v1.yaml#stdlib-coverage
+    detail: vox audit stdlib-coverage
   default_enabled: true
   protected: false
   origin: builtin

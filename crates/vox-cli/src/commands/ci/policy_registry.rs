@@ -760,4 +760,22 @@ mod default_domain_tests {
         assert!(!tooling.blocking, "tooling gate block_ga() == false");
         assert_eq!(tooling.severity, Some(vox_config::PolicySeverity::Warn));
     }
+
+    #[test]
+    fn parity_passes_for_default_domains_against_committed_yaml() {
+        // After regenerate, the committed YAML must contain every live
+        // ci-gate / arch / crl / audit item and no extras. This runs WITHOUT the
+        // completion-toestub feature, proving the non-code-audit domains are gated
+        // feature-independently (spec §4.4 build-independence requirement).
+        //
+        // DEVIATION: the ci-gate cross-check calls `build_catalog()`, which
+        // overflows the default Windows test stack; run on an 8 MB worker thread.
+        let result = std::thread::Builder::new()
+            .stack_size(8 * 1024 * 1024)
+            .spawn(|| run_parity_default_domains(&repo_root()))
+            .expect("spawn worker")
+            .join()
+            .expect("worker panicked");
+        result.expect("default-domain parity must pass");
+    }
 }
