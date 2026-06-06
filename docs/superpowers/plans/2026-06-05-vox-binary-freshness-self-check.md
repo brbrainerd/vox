@@ -1,3 +1,10 @@
+---
+category: implementation-plans
+status: completed
+last_updated: 2026-06-05
+training_eligible: false
+---
+
 # Vox Binary Freshness Self-Check — Implementation Plan
 
 > **For agentic workers:** Use superpowers:executing-plans to implement this plan
