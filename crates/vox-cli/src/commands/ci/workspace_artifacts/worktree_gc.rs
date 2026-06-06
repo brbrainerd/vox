@@ -215,7 +215,7 @@ fn list_worktrees(root: &Path) -> Result<Vec<Worktree>> {
 fn build_process_haystacks() -> Vec<String> {
     let sys = System::new_all();
     let mut hay = Vec::new();
-    for (_pid, p) in sys.processes() {
+    for p in sys.processes().values() {
         let name = p.name().to_string_lossy().to_lowercase();
         let is_build = BUILD_PROC_NEEDLES
             .iter()
