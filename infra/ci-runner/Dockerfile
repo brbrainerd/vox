@@ -29,7 +29,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH \
     # Shared sccache dir lives on the mounted cache volume (see runner_scale.rs).
-    RUSTC_WRAPPER=sccache \
+    # NOTE: RUSTC_WRAPPER=sccache is set LATER (after sccache is installed) — setting
+    # it here would make the toolchain/tool builds below try to invoke a not-yet-
+    # existent sccache as the rustc wrapper.
     SCCACHE_DIR=/cache/sccache
 
 # System packages matching the self-hosted fleet baseline + runner deps.
@@ -52,6 +54,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
 
 # Pinned CI tools + sccache (shared compiler cache for warm ephemeral starts).
 RUN cargo install cargo-nextest cargo-llvm-cov cargo-hakari sccache --locked
+
+# Now that sccache exists, route CI job compiles through it (shared /cache volume).
+ENV RUSTC_WRAPPER=sccache
 
 # GitHub Actions runner agent.
 RUN mkdir -p /actions-runner && cd /actions-runner \
