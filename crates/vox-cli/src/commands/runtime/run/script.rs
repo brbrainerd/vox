@@ -246,8 +246,10 @@ pub(crate) async fn compile(
     file: &Path,
     opts: &ScriptOpts,
 ) -> Result<(PathBuf, Box<dyn RunBackend>)> {
-    let mut pipeline_opts = vox_compiler::pipeline::PipelineOptions::default();
-    pipeline_opts.script_mode = true;
+    let pipeline_opts = vox_compiler::pipeline::PipelineOptions {
+        script_mode: true,
+        ..Default::default()
+    };
     let result: crate::pipeline::FrontendResult =
         crate::pipeline::run_frontend_with_options(file, false, &pipeline_opts).await?;
 
