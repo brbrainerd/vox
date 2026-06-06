@@ -1,6 +1,6 @@
 //! Write-path lock enforcement. Mirrors `scope_guard.rs` but consults the
-//! orchestrator's `FileLockManager`. `try_acquire` is re-entrant for the
-//! lock holder and rejects any other agent, which is exactly the gate we want.
+//! orchestrator's `FileLockManager`. The check is purely READ-ONLY: it probes
+//! the existing lock state and never acquires or modifies anything.
 
 use crate::scope_guard::{PATH_ARG_KEYS, WRITE_TOOLS};
 use crate::server_state::ServerState;
@@ -8,35 +8,36 @@ use std::path::Path;
 use vox_orchestrator::locks::{FileLockManager, LockKind};
 use vox_orchestrator_types::AgentId;
 
-/// Pure core: try to take an exclusive lock for `agent_id` on `path`.
-/// `None` = allowed (acquired or re-entrant); `Some(msg)` = rejected.
+/// Pure read-only probe: is `path` exclusively locked by an agent OTHER than `agent_id`?
+/// `None` = allowed (unlocked, or held by this same agent); `Some(msg)` = rejected.
 pub(crate) fn evaluate_lock(
     lock_manager: &FileLockManager,
     agent_id: u64,
     path: &str,
 ) -> Option<String> {
-    match lock_manager.try_acquire(Path::new(path), AgentId(agent_id), LockKind::Exclusive) {
-        Ok(()) => None,
-        Err(conflict) => Some(format!(
-            "LOCK_CONFLICT: '{path}' is locked by another agent ({conflict:?}). \
+    match lock_manager.holder(Path::new(path)) {
+        Some((holder, LockKind::Exclusive)) if holder != AgentId(agent_id) => Some(format!(
+            "LOCK_CONFLICT: '{path}' is exclusively locked by agent {holder}. \
              Wait for release or route this write to a non-overlapping path."
         )),
+        _ => None,
     }
 }
 
 /// Returns `Some(rejection)` when a write tool targets a path locked by another agent.
-pub fn check_lock(
+pub(crate) fn check_lock(
     state: &ServerState,
     tool_name: &str,
     args: &serde_json::Value,
 ) -> Option<String> {
-    if !WRITE_TOOLS.iter().any(|t| *t == tool_name) {
+    if !WRITE_TOOLS.contains(&tool_name) {
         return None;
     }
-    let agent_id = args
-        .get("agent_id")
-        .or_else(|| args.get("vcs_agent_id"))
-        .and_then(|v| v.as_u64())?;
+    let raw = args.get("agent_id").or_else(|| args.get("vcs_agent_id"));
+    let agent_id = raw.and_then(|v| v.as_u64()).or_else(|| {
+        raw.and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<u64>().ok())
+    })?;
     let path = PATH_ARG_KEYS
         .iter()
         .find_map(|key| args.get(*key).and_then(|v| v.as_str()))?;
@@ -46,22 +47,26 @@ pub fn check_lock(
 #[cfg(test)]
 mod tests {
     use super::evaluate_lock;
-    use vox_orchestrator::locks::FileLockManager;
+    use std::path::Path;
+    use vox_orchestrator::locks::{FileLockManager, LockKind};
+    use vox_orchestrator_types::AgentId;
 
     #[test]
-    fn holder_is_reentrant_others_are_rejected() {
+    fn rejects_other_agent_allows_holder_and_unlocked() {
         let mgr = FileLockManager::new();
+        // unlocked path: anyone may write
+        assert!(evaluate_lock(&mgr, 1, "src/a.rs").is_none());
+        // agent 1 takes the lock through the real acquire path
+        mgr.try_acquire(Path::new("src/a.rs"), AgentId(1), LockKind::Exclusive)
+            .unwrap();
+        // holder may write (re-entrant), a different agent is rejected
         assert!(
             evaluate_lock(&mgr, 1, "src/a.rs").is_none(),
-            "agent 1 should acquire"
-        );
-        assert!(
-            evaluate_lock(&mgr, 1, "src/a.rs").is_none(),
-            "same agent re-entrant"
+            "holder allowed"
         );
         assert!(
             evaluate_lock(&mgr, 2, "src/a.rs").is_some(),
-            "agent 2 must be rejected"
+            "other agent rejected"
         );
     }
 }
