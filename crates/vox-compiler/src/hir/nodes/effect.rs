@@ -16,6 +16,8 @@ pub enum HirEffectKind {
     Spawn,
     GpuCompute,
     Mutate,
+    /// Version-control / repository operations (`repo.*` / `vcs.*` builtins).
+    Vcs,
     /// Parameterized MCP tool call.
     Mcp(String),
 }
@@ -32,6 +34,7 @@ impl HirEffectKind {
             HirEffectKind::Spawn => "spawn".into(),
             HirEffectKind::GpuCompute => "gpu_compute".into(),
             HirEffectKind::Mutate => "mutate".into(),
+            HirEffectKind::Vcs => "vcs".into(),
             HirEffectKind::Mcp(tool) => format!("mcp({tool})"),
         }
     }

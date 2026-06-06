@@ -46,6 +46,7 @@ pub mod input_schemas;
 /// Introspection tools for language visualization (AST, surface, pipeline).
 pub mod introspection_tools;
 pub mod llm_bridge;
+pub(crate) mod lock_guard;
 /// Unified News Publishing System tools
 #[cfg(feature = "news-publish")]
 pub mod news_tools;

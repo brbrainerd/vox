@@ -29,7 +29,7 @@ const LATIN_STRUCTURAL_DENYLIST: &[(&str, &str)] = &[
     ("clavis", "secrets"),
     ("oratio", "speech"),
     ("populi", "ml"),
-    ("ludus", "gamification"),
+    ("ludus", "gamify"),
     ("schola", "tutorial"),
     ("mens", "ml"), // mens overlaps with ml/populi domain
 ];
@@ -42,12 +42,13 @@ const HISTORICAL_ALLOWLIST: &[&str] = &[
     "vox-secrets", // canonical secret manager — name IS its Latin identity (policy exception)
     "vox-orchestrator", // canonical English — permitted
     "vox-skills",  // canonical English — permitted
-    "vox-gamify",  // grandfathered — being migrated to vox-gamification
-    "vox-oratio",  // grandfathered — being migrated to vox-speech
-    "vox-populi",  // grandfathered — being migrated to vox-ml
-    "vox-schola",  // grandfathered — being migrated to vox-tutorial
+    // `gamify` is canonical English (a verb, like `forge`); the crate keeps the
+    // name vox-gamify. `gamify` is not a denied Latin root, so no allowlist entry
+    // is needed. The CLI command is `vox gamify` (Latin `ludus` retained as alias).
+    "vox-populi",    // grandfathered — being migrated to vox-ml
+    "vox-schola",    // grandfathered — being migrated to vox-tutorial
     "vox-codex-api", // grandfathered — database abstraction layer
-    "vox-ml-cli",  // grandfathered — ML subsystem
+    "vox-ml-cli",    // grandfathered — ML subsystem
     "vox-mens-eval", // grandfathered — Mn-T11 eval harness crate; pending english-core naming convergence
     // (vox-dei-shim renamed to vox-research-shim 2026-06-05 — `dei` migration complete; no allowlist entry needed)
     "vox-populi-types", // grandfathered — shared types crate for the vox-populi ecosystem; naming cohesion during migration to vox-ml

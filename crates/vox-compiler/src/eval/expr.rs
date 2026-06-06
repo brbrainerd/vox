@@ -497,6 +497,18 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     m = method,
                 )));
             }
+            // `repo.*` namespace dispatch — gate on AST receiver identity, not
+            // a spoofable `__namespace__` object field.
+            if let HirExpr::Ident(ns_name, _) = obj.as_ref()
+                && ns_name == "repo"
+            {
+                let mut eval_args = Vec::new();
+                for a in args {
+                    eval_args.push(eval_expr(interp, &a.value)?);
+                }
+                return super::repo::execute_repo_op(interp, method, eval_args);
+            }
+
             let o = eval_expr(interp, obj)?;
             let mut eval_args = Vec::new();
             for a in args {

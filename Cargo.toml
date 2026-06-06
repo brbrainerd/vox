@@ -93,6 +93,7 @@ vox-mcp-registry          = { path = "crates/vox-mcp-registry" }
 vox-test-harness          = { path = "crates/vox-test-harness" }
 vox-plugin-test-harness   = { path = "crates/vox-plugin-test-harness" }
 vox-git                   = { path = "crates/vox-git" }
+vox-vcs                   = { path = "crates/vox-vcs" }
 vox-constrained-gen       = { path = "crates/vox-constrained-gen" }
 vox-grammar-export        = { path = "crates/vox-grammar-export" }
 
@@ -110,7 +111,7 @@ vox-mesh-policy        = { path = "crates/vox-mesh-policy" }
 
 vox-effort-audit          = { path = "crates/vox-effort-audit" }
 vox-effort-route          = { path = "crates/vox-effort-route" }
-vox-oratio                = { path = "crates/vox-oratio" }
+vox-speech                = { path = "crates/vox-speech" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
 vox-research-shim              = { path = "crates/vox-research-shim" }
 

@@ -2,7 +2,7 @@
 id = "oratio"
 name = "Oratio Speech-to-Code"
 version = "0.1.0"
-description = "Audio capture + speech-to-text (Candle Whisper). Extracted from vox-oratio in Unit 4."
+description = "Audio capture + speech-to-text (Candle Whisper). Extracted from vox-speech in Unit 4."
 license = "Apache-2.0"
 
 [plugin.host]
@@ -16,6 +16,6 @@ abi-version = 12
 extension-points = ["AudioCapture", "SpeechToText"]
 
 [plugin.payload.artifacts]
-"windows-x86_64" = "vox_plugin_oratio.dll"
-"linux-x86_64"   = "libvox_plugin_oratio.so"
-"macos-aarch64"  = "libvox_plugin_oratio.dylib"
+"windows-x86_64" = "vox_plugin_speech.dll"
+"linux-x86_64"   = "libvox_plugin_speech.so"
+"macos-aarch64"  = "libvox_plugin_speech.dylib"

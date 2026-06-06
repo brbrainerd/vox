@@ -2415,6 +2415,41 @@ curated:
   cli_path:
   - fmt
   parameters: null
+- id: cli.gamify
+  title: Gamify
+  description_human: null
+  description_model: CLI operation `vox gamify` (alias `ludus`)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - gamify
+  parameters: null
+- id: cli.gamify.hud
+  title: Gamify Hud
+  description_human: null
+  description_model: CLI operation `vox gamify hud` (alias `vox ludus hud`)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - gamify
+  - hud
+  parameters: null
 - id: cli.init
   title: Init
   description_human: vox init scaffolds a new project or skill file in the current directory (shared logic with vox_project_init).
@@ -2520,41 +2555,6 @@ curated:
   mcp_tool: null
   cli_path:
   - lsp
-  parameters: null
-- id: cli.ludus
-  title: Ludus
-  description_human: null
-  description_model: CLI operation `vox ludus`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - ludus
-  parameters: null
-- id: cli.ludus.hud
-  title: Ludus Hud
-  description_human: null
-  description_model: CLI operation `vox ludus hud`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - ludus
-  - hud
   parameters: null
 - id: cli.memory.search
   title: Memory Search
@@ -3394,23 +3394,6 @@ curated:
   - openclaw
   - sidecar
   - stop
-  parameters: null
-- id: cli.oratio
-  title: Oratio
-  description_human: null
-  description_model: CLI operation `vox oratio`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - oratio
   parameters: null
 - id: cli.pm
   title: Pm
@@ -4761,6 +4744,23 @@ curated:
   mcp_tool: null
   cli_path:
   - snippet
+  parameters: null
+- id: cli.speech
+  title: Speech
+  description_human: null
+  description_model: CLI operation `vox speech` (alias `oratio`)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - speech
   parameters: null
 - id: cli.stub-check
   title: Stub-check

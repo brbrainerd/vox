@@ -2,7 +2,7 @@
 //!
 //! Provides the AudioCapture and SpeechToText extension points for the Oratio
 //! speech-to-code pipeline. The SpeechToText impl uses the Candle Whisper backend
-//! extracted from vox-oratio (Unit 4 of the vox-populi extraction follow-up plan).
+//! extracted from vox-speech (Unit 4 of the vox-populi extraction follow-up plan).
 
 mod audio;
 mod backends;

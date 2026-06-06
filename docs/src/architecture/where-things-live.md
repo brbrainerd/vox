@@ -126,6 +126,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-forge`](../../../crates/vox-forge/) | Platform-agnostic Git forge API — GitHub, Gitea, Forgejo (GitLab deprecated/unsupported as of 2026-06-03). |
 | [`vox-gamify`](../../../crates/vox-gamify/) | Gamification layer — companions, quests, battles, and free AI integration. |
 | [`vox-git`](../../../crates/vox-git/) | Pure-Rust Git bridge using gix (no C, no libgit2). |
+| [`vox-vcs`](../../../crates/vox-vcs/) | VCS backend abstraction: `VcsBackend` trait + in-memory `CasFallback`; the single home for all `jj_lib::` calls (the jj-lib 0.42 `JjBackend` lands in a later phase). Injected as a trait object into `vox-compiler` to avoid L3 coupling. |
 | [`vox-lsp`](../../../crates/vox-lsp/) | Vox Language Server (stdio JSON-RPC). Capability matrix: [`vox-lsp-capabilities-ssot-2026.md`](./vox-lsp-capabilities-ssot-2026.md). |
 | [`vox-openclaw-runtime`](../../../crates/vox-openclaw-runtime/) | OpenClaw client + ARS runtime adapter, executor, context bundles, hooks. |
 | [`vox-research-shim`](../../../crates/vox-research-shim/) | DEI research pipeline and model-selection sub-systems (A-12 wedge). SCIENTIA orchestrator, claim/verify/persist, BroadcastEmitter, ScientiaMeshSubscriber, and `selection::` (FreeTierRouter, ModelScorer, task_routing). Uses `vox_orchestrator::types::RoutingProfile`. |
@@ -133,7 +134,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-orchestrator-mcp`](../../../crates/vox-orchestrator-mcp/) | MCP (Model Context Protocol) tool layer for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 4. |
 | [`vox-orchestrator-queue`](../../../crates/vox-orchestrator-queue/) | Locks, oplog, and affinity tracking for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 5. |
 | [`vox-orchestrator-test-helpers`](../../../crates/vox-orchestrator-test-helpers/) | Test-only fixtures and mocks for vox-orchestrator: MockBulletinBoard, load_golden_fixture. |
-| [`vox-oratio`](../../../crates/vox-oratio/) | Speech-to-text (Oratio) — Candle Whisper (Rust) STT and transcript refinement. |
+| [`vox-speech`](../../../crates/vox-speech/) | Speech-to-text (Oratio) — Candle Whisper (Rust) STT and transcript refinement. |
 | [`vox-plugin-catalog`](../../../crates/vox-plugin-catalog/) | SSOT catalog of all first-party Vox plugins and distribution bundles. |
 | [`vox-plugin-host`](../../../crates/vox-plugin-host/) | Host-side plugin discovery, loading, and registry. |
 | [`vox-plugin-test-harness`](../../../crates/vox-plugin-test-harness/) | Shared test utilities for plugin authors: fluent `Plugin.toml` manifest builders (`CodeManifestBuilder`, `SkillManifestBuilder`) and `PluginDir` temp-directory helper. |
@@ -256,7 +257,7 @@ Don't depend on `vox-orchestrator` or `vox-cli` from a plugin.
 | [`vox-plugin-mens-candle-cuda`](../../../crates/vox-plugin-mens-candle-cuda/) | ML training backend plugin: Candle + CUDA. Implements MlBackend. |
 | [`vox-plugin-mens-candle-metal`](../../../crates/vox-plugin-mens-candle-metal/) | MENS Apple Silicon Metal execution plugin. |
 | [`vox-plugin-nvml-probe`](../../../crates/vox-plugin-nvml-probe/) | Hardware probe plugin: NVML for NVIDIA GPU introspection. |
-| [`vox-plugin-oratio`](../../../crates/vox-plugin-oratio/) | Speech-to-text + AudioCapture plugin: Candle Whisper backend + mic capture surface (both extensions in one plugin). |
+| [`vox-plugin-speech`](../../../crates/vox-plugin-speech/) | Speech-to-text + AudioCapture plugin: Candle Whisper backend + mic capture surface (both extensions in one plugin). |
 | [`vox-plugin-populi-mesh`](../../../crates/vox-plugin-populi-mesh/) | Populi mesh transport plugin (composite: code + skill). |
 | [`vox-plugin-publication`](../../../crates/vox-plugin-publication/) | Publication plugin: RSS/Atom ingest with dedup, Reddit/YouTube publish, scholarly job feeds. |
 | [`vox-plugin-runtime-container`](../../../crates/vox-plugin-runtime-container/) | Skill-runtime plugin: Docker + Podman backends for vox-skill-runtime. |

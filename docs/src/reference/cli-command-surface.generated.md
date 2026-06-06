@@ -159,14 +159,14 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox doctor` | active | — | diag | platform | — |
 | `vox fabrica` | active | — | fabrica | app | — |
 | `vox fmt` | active | — | fabrica | app | — |
+| `vox gamify` | active | extras-ludus | ars | ai | — |
+| `vox gamify hud` | active | ludus-hud | ars | ai | — |
 | `vox init` | active | — | pm | platform | — |
 | `vox live` | active | live | — | ai | — |
 | `vox lock` | active | — | pm | platform | — |
 | `vox login` | active | — | ars | platform | — |
 | `vox logout` | active | — | ars | platform | — |
 | `vox lsp` | active | — | fabrica | app | — |
-| `vox ludus` | active | extras-ludus | ars | ai | — |
-| `vox ludus hud` | active | ludus-hud | ars | ai | — |
 | `vox memory search` | active | — | codex | ai | — |
 | `vox mens` | active | mens-base|gpu | mens | ai | — |
 | `vox mens bench-completion` | active | mens-base | mens | ai | — |
@@ -214,7 +214,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox openclaw sidecar start` | active | ars | ars | interop | — |
 | `vox openclaw sidecar status` | active | ars | ars | interop | — |
 | `vox openclaw sidecar stop` | active | ars | ars | interop | — |
-| `vox oratio` | active | oratio | fabrica | ai | oratio |
 | `vox pm` | active | — | pm | platform | — |
 | `vox pm cache` | active | — | pm | platform | — |
 | `vox pm cache clear` | active | — | pm | platform | — |
@@ -290,6 +289,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox shell repl` | active | — | — | platform | — |
 | `vox skill` | active | ars | ars | interop | — |
 | `vox snippet` | active | — | ars | interop | — |
+| `vox speech` | active | oratio | fabrica | ai | speech |
 | `vox stub-check` | active | stub-check | diag | platform | — |
 | `vox sync` | active | — | pm | platform | — |
 | `vox telemetry` | active | — | ci | platform | — |

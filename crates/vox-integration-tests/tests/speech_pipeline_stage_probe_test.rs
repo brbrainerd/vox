@@ -9,10 +9,10 @@
 use std::fs;
 use std::path::PathBuf;
 
-use vox_oratio::refine::{CorrectionContext, refine_transcript};
-use vox_oratio::routing::IdeContext;
-use vox_oratio::vad::create_vad;
-use vox_oratio::{
+use vox_speech::refine::{CorrectionContext, refine_transcript};
+use vox_speech::routing::IdeContext;
+use vox_speech::vad::create_vad;
+use vox_speech::{
     OratioRuntimeConfig, RouteMode, preprocess_audio_pcm_f32_reported,
     route_transcript_with_options,
 };

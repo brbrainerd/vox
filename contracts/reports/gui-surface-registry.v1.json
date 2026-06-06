@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "surface_count": 83,
+  "surface_count": 84,
   "top_level_groups": [
     "add",
     "ars",
@@ -43,7 +43,6 @@
     "migrate",
     "model",
     "new",
-    "oratio",
     "plan",
     "play",
     "plugin",
@@ -63,6 +62,7 @@
     "shell",
     "snapshot",
     "snippet",
+    "speech",
     "stop",
     "sync",
     "telemetry",
@@ -73,8 +73,6 @@
     "wasm",
     "workflow"
   ],
-  "unclassified_backfilled": [
-    "component"
-  ],
+  "unclassified_backfilled": [],
   "wiring_violations": []
 }

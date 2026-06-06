@@ -588,7 +588,11 @@ pub(super) fn emit_expr_with(
     }
     match expr {
         HirExpr::IntLit(v, _) => v.to_string(),
-        HirExpr::FloatLit(v, _) => v.to_string(),
+        // Append the `f64` suffix so whole-number floats stay floats: Rust's
+        // `f64::to_string()` renders `0.0` as `"0"`, which would otherwise emit
+        // as an `i32` and break type unification (e.g. a `match` arm `0.0`
+        // among `f64` arms -> E0308). Vox `float` is always `f64`.
+        HirExpr::FloatLit(v, _) => format!("{v}f64"),
         HirExpr::StringLit(v, _) => {
             let escaped = v.replace("\"", "\\\"").replace("\n", "\\n");
             match mode {
