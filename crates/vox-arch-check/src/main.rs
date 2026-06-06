@@ -213,7 +213,17 @@ struct GuardsConfig {
 }
 
 fn main() -> ExitCode {
-    let warn_only = std::env::args().any(|a| a == "--warn-only");
+    let argv: Vec<String> = std::env::args().collect();
+
+    // CR-META: `vox-arch-check --lint criteria-format` runs only the
+    // criteria-doc format lint and exits, bypassing the layered-arch run.
+    if let Some(i) = argv.iter().position(|a| a == "--lint") {
+        if argv.get(i + 1).map(String::as_str) == Some("criteria-format") {
+            return run_criteria_format_lint();
+        }
+    }
+
+    let warn_only = argv.iter().any(|a| a == "--warn-only");
 
     match run(warn_only) {
         Ok(report) => {
@@ -228,6 +238,61 @@ fn main() -> ExitCode {
             eprintln!("vox-arch-check: {e:#}");
             ExitCode::FAILURE
         }
+    }
+}
+
+/// CR-META: lint `docs/src/architecture/v1-release-criteria.md` so every
+/// `[CR-*]` definition block declares `verify_cmd`, `artifact_path`, and a
+/// non-empty `if_failing`. Writes
+/// `contracts/reports/arch/criteria-format/<UTC>.json` and exits 0 (clean) /
+/// 1 (violations) / 2 (cannot read the doc).
+fn run_criteria_format_lint() -> ExitCode {
+    use vox_arch_check::criteria_format::check_criteria_format;
+
+    // The crate lives at `crates/vox-arch-check`, so `../..` is the workspace root.
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..");
+    let doc_path = root.join("docs/src/architecture/v1-release-criteria.md");
+    let doc = match std::fs::read_to_string(&doc_path) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!(
+                "vox-arch-check --lint criteria-format: cannot read {}: {e}",
+                doc_path.display()
+            );
+            return ExitCode::from(2);
+        }
+    };
+
+    let (met, errors) = match check_criteria_format(&doc) {
+        Ok(()) => (true, Vec::new()),
+        Err(errs) => (false, errs),
+    };
+
+    let out_dir = root.join("contracts/reports/arch/criteria-format");
+    let _ = std::fs::create_dir_all(&out_dir);
+    let body = serde_json::json!({
+        "schema_version": 1,
+        "criterion": "CR-META",
+        "measured_at": chrono::Utc::now().to_rfc3339(),
+        "errors": errors,
+        "threshold": { "target": "all blocks well-formed", "met": met },
+    });
+    let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let _ = std::fs::write(
+        out_dir.join(format!("{date}.json")),
+        serde_json::to_string_pretty(&body).unwrap_or_default(),
+    );
+
+    if met {
+        println!("CR-META: criteria doc well-formed.");
+        ExitCode::SUCCESS
+    } else {
+        for e in &errors {
+            eprintln!("CR-META: {e}");
+        }
+        ExitCode::from(1)
     }
 }
 
