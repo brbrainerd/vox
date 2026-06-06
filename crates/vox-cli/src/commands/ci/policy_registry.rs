@@ -202,6 +202,79 @@ pub fn ci_gate_catalog_clap_drift(repo_root: &Path) -> Vec<String> {
         .collect()
 }
 
+/// Parse `docs/src/architecture/layers.toml` `[guards]` into `arch-rule` entries.
+/// Each guard key is one entry; severity comes from its `warn`/`error`/`strict`
+/// value (`strict` maps to Critical, `error` → Error, anything else → Warn).
+///
+/// NOTE (no public GuardsConfig): `vox-arch-check` is a binary crate with a
+/// private `ArchCheckConfig`; there is no library API to enumerate guards, so we
+/// parse the TOML directly. The 11 keys are pinned by the spec §10 addendum.
+pub fn arch_rule_entries(repo_root: &Path) -> Result<Vec<PolicyEntry>, String> {
+    let path = repo_root.join("docs/src/architecture/layers.toml");
+    let text =
+        std::fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    let doc: toml::Value =
+        toml::from_str(&text).map_err(|e| format!("parse {}: {e}", path.display()))?;
+    let guards = doc
+        .get("guards")
+        .and_then(|v| v.as_table())
+        .ok_or_else(|| format!("{} has no [guards] table", path.display()))?;
+
+    let human = |key: &str| -> &'static str {
+        match key {
+            "fan_in" => "Crate fan-in budget",
+            "loc_budget" => "Per-crate lines-of-code budget",
+            "orphan" => "Orphan-library detection",
+            "docstring" => "Crate-level docstring presence",
+            "description" => "Cargo.toml description presence",
+            "where_things_live" => "where-things-live coverage",
+            "wtl_parity" => "WTL / layers.toml / disk three-way parity",
+            "loc_delta" => "LoC delta regression vs last release tag",
+            "staleness" => "Crate staleness vs last CHANGELOG release",
+            "generated_file_drift" => "@generated hash header drift",
+            "forbidden_deps" => "Forbidden direct dependencies",
+            _ => "Architecture guard",
+        }
+    };
+
+    let mut out: Vec<PolicyEntry> = guards
+        .iter()
+        .map(|(key, val)| {
+            let level = val.as_str().unwrap_or("warn");
+            let (severity, blocking) = match level {
+                "strict" => (PolicySeverity::Critical, true),
+                "error" => (PolicySeverity::Error, true),
+                _ => (PolicySeverity::Warn, false),
+            };
+            PolicyEntry {
+                id: format!("arch-rule/{key}"),
+                domain: PolicyDomain::ArchRule,
+                title: human(key).to_string(),
+                group: "Architecture".to_string(),
+                description: format!("{} (layers.toml [guards].{key} = \"{level}\")", human(key)),
+                severity: Some(severity),
+                blocking,
+                runs_on: vec!["pre-push".into(), "ci".into()],
+                source: PolicySource {
+                    kind: PolicySourceKind::Guard,
+                    reference: format!("docs/src/architecture/layers.toml#guards.{key}"),
+                    detail: Some(format!("vox-arch-check guard `{key}`")),
+                },
+                docs: None,
+                default_enabled: true,
+                // Layer order + orphan + forbidden-deps are structural; protect them.
+                protected: matches!(
+                    key.as_str(),
+                    "orphan" | "forbidden_deps" | "where_things_live"
+                ),
+                origin: "builtin".to_string(),
+            }
+        })
+        .collect();
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(out)
+}
+
 /// Build the full registry document for the domains this plan covers.
 #[cfg(feature = "completion-toestub")]
 pub fn build_registry() -> vox_config::PolicyRegistry {
@@ -475,5 +548,28 @@ mod default_domain_tests {
             orphans.is_empty(),
             "ci ops with no live clap subcommand (enum↔catalog drift): {orphans:?}"
         );
+    }
+
+    #[test]
+    fn arch_rule_entries_cover_guards() {
+        let entries = arch_rule_entries(&repo_root()).expect("parse layers.toml [guards]");
+        // layers.toml [guards] has exactly 11 keys (verified 2026-06-06).
+        assert_eq!(
+            entries.len(),
+            11,
+            "expected 11 arch guards, got {}",
+            entries.len()
+        );
+        let orphan = entries
+            .iter()
+            .find(|e| e.id == "arch-rule/orphan")
+            .expect("orphan guard present");
+        assert_eq!(orphan.domain, vox_config::PolicyDomain::ArchRule);
+        assert_eq!(orphan.severity, Some(vox_config::PolicySeverity::Error)); // orphan = "error"
+        assert!(orphan.blocking);
+        let fan_in = entries.iter().find(|e| e.id == "arch-rule/fan_in").unwrap();
+        assert_eq!(fan_in.severity, Some(vox_config::PolicySeverity::Warn)); // fan_in = "warn"
+        assert!(!fan_in.blocking);
+        assert_eq!(orphan.source.kind, vox_config::PolicySourceKind::Guard);
     }
 }
