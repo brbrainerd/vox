@@ -9,8 +9,9 @@
 //!   - Phase G findings site: `findings_site`
 //!   - Phase H dashboard JSON: `dashboard`
 //!
-//! Planned phases (not yet in this crate, see [planned] in layers.toml):
-//! claim_extractor, inspect_bridge, nanopub, prereg, ro_crate, scientia_ingest.
+//! Now-present sub-modules (formerly tracked as planned crates in layers.toml):
+//! `claim_extractor`, `inspect_bridge`, `nanopub`, `ro_crate`, `ingest`.
+//! Still planned (not yet in this crate): `prereg`.
 
 // ── Pre-existing modules ──────────────────────────────────────────────────────
 pub mod claim_extractor;

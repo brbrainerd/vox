@@ -136,7 +136,7 @@ See `crates/vox-compiler/src/parser/descent/mod.rs` for the implementation entry
 
 **Purpose**: Strongly-typed wrappers around the untyped CST nodes.
 
-See `crates/vox-compiler/src/ast/` for the node hierarchy.
+See `crates/vox-ast/src/` for the node hierarchy.
 
 ---
 
@@ -207,7 +207,7 @@ The full checklist for adding a new language construct:
 
 1. **Lexer** — Add tokens to `crates/vox-compiler/src/lexer/token.rs`
 2. **Parser** — Add grammar rules in `crates/vox-compiler/src/parser/descent/`
-3. **AST** — Add node types in `crates/vox-compiler/src/ast/`
+3. **AST** — Add node types in `crates/vox-ast/src/`
 4. **HIR** — Map AST → HIR in `crates/vox-compiler/src/hir/lower/`
 5. **Type Check** — Add inference rules in `crates/vox-compiler/src/typeck/`
 6. **WebIR** — Add/update lowering + validation semantics in `crates/vox-codegen/src/web_ir/` when the feature affects web-facing behavior

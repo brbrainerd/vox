@@ -163,6 +163,12 @@ jobs:
       - name: Dependency Sprawl Check
         run: cargo run -p vox-cli --quiet -- ci dep-sprawl --cap 25
 
+      - name: Plugin Dependency Boundary (cdylib plugins must not link the spine)
+        run: cargo run -p vox-cli --quiet -- ci plugin-dep-boundary
+
+      - name: No cdylib plugin as a compile-time dependency (D-2)
+        run: cargo run -p vox-cli --quiet -- ci no-plugin-cdylib-as-compile-dep
+
       - name: Dynamic Workspace Health Audit
         run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-workspace-health.vox
 

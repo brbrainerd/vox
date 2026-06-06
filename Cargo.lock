@@ -3390,12 +3390,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "env_home"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7f84e12ccf0a7ddc17a6c41c93326024c42920d7ee630d04950e6926645c0fe"
-
-[[package]]
 name = "env_logger"
 version = "0.11.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3507,6 +3501,17 @@ name = "fancy-regex"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72cf461f865c862bb7dc573f643dd6a2b6842f7c30b07882b56bd148cc2761b8"
+dependencies = [
+ "bit-set 0.8.0",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
+name = "fancy-regex"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1e1dacd0d2082dfcf1351c4bdd566bbe89a2b263235a2b50058f1e130a47277"
 dependencies = [
  "bit-set 0.8.0",
  "regex-automata",
@@ -3651,17 +3656,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2d1f04709a8ac06e8e8042875a3c466cc4832d3c1a18dbcb9dba3c6e83046bc"
 dependencies = [
  "half",
-]
-
-[[package]]
-name = "fluent-uri"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1918b65d96df47d3591bed19c5cca17e3fa5d0707318e4b5ef2eae01764df7e5"
-dependencies = [
- "borrow-or-share",
- "ref-cast",
- "serde",
 ]
 
 [[package]]
@@ -6275,14 +6269,14 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hf-hub"
-version = "0.4.3"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "629d8f3bbeda9d148036d6b0de0a3ab947abd08ce90626327fc3547a49d59d97"
+checksum = "aef3982638978efa195ff11b305f51f1f22f4f0a6cabee7af79b383ebee6a213"
 dependencies = [
  "dirs",
  "futures",
  "http",
- "indicatif 0.17.11",
+ "indicatif",
  "libc",
  "log",
  "native-tls",
@@ -6293,8 +6287,8 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
- "ureq 2.12.1",
- "windows-sys 0.60.2",
+ "ureq 3.3.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6706,19 +6700,6 @@ dependencies = [
  "hashbrown 0.17.1",
  "serde",
  "serde_core",
-]
-
-[[package]]
-name = "indicatif"
-version = "0.17.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "183b3088984b400f4cfac3620d5e076c84da5364016b4f49473de574b2586235"
-dependencies = [
- "console 0.15.11",
- "number_prefix",
- "portable-atomic",
- "unicode-width 0.2.2",
- "web-time",
 ]
 
 [[package]]
@@ -7217,25 +7198,28 @@ dependencies = [
 
 [[package]]
 name = "jsonschema"
-version = "0.26.2"
+version = "0.46.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26a960f0c34d5423581d858ce94815cc11f0171b09939409097969ed269ede1b"
+checksum = "6a5fe5206f06e589caf25e79fc05ccdf91fca745685fe9fe1a13bbdfb479a631"
 dependencies = [
  "ahash 0.8.12",
- "base64 0.22.1",
  "bytecount",
+ "data-encoding",
  "email_address",
- "fancy-regex 0.14.0",
+ "fancy-regex 0.18.0",
  "fraction",
+ "getrandom 0.3.4",
  "idna",
  "itoa",
  "num-cmp",
- "once_cell",
+ "num-traits",
  "percent-encoding",
  "referencing",
+ "regex",
  "regex-syntax",
  "serde",
  "serde_json",
+ "unicode-general-category",
  "uuid-simd",
 ]
 
@@ -7612,7 +7596,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "896e16b8e17d8732b9efe4d5b66cb0cc162b3023a2d8122f2aea6f7f185e0a67"
 dependencies = [
  "bitflags 2.13.0",
- "fluent-uri 0.4.1",
+ "fluent-uri",
  "percent-encoding",
  "serde",
  "serde_json",
@@ -7820,6 +7804,12 @@ dependencies = [
  "objc",
  "paste",
 ]
+
+[[package]]
+name = "micromap"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2a86d3146ed3995b5913c414f6664344b9617457320782e64f0bb44afd49d74"
 
 [[package]]
 name = "miette"
@@ -8314,16 +8304,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "number_prefix"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
-
-[[package]]
 name = "nvml-wrapper"
-version = "0.11.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d5c6c0ef9702176a570f06ad94f3198bc29c524c8b498f1b9346e1b1bdcbb3a"
+checksum = "f049ae562349fefb8e837eb15443da1e7c6dcbd8a11f52a228f92220c2e5c85e"
 dependencies = [
  "bitflags 2.13.0",
  "libloading 0.8.9",
@@ -10048,13 +10032,17 @@ dependencies = [
 
 [[package]]
 name = "referencing"
-version = "0.26.2"
+version = "0.46.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb8e15af8558cb157432dd3d88c1d1e982d0a5755cf80ce593b6499260aebc49"
+checksum = "69e4e17ef386c5383591d07623d3de49cbc601156e7582973e6db98d66a57de2"
 dependencies = [
  "ahash 0.8.12",
- "fluent-uri 0.3.2",
- "once_cell",
+ "fluent-uri",
+ "getrandom 0.3.4",
+ "hashbrown 0.16.1",
+ "itoa",
+ "micromap",
+ "parking_lot 0.12.5",
  "percent-encoding",
  "serde_json",
 ]
@@ -10851,7 +10839,7 @@ dependencies = [
  "either",
  "flate2",
  "http",
- "indicatif 0.18.4",
+ "indicatif",
  "log",
  "quick-xml 0.38.4",
  "regex",
@@ -11628,7 +11616,16 @@ version = "0.26.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
 dependencies = [
- "strum_macros",
+ "strum_macros 0.26.4",
+]
+
+[[package]]
+name = "strum"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9628de9b8791db39ceda2b119bbe13134770b56c138ec1d3af810d045c04f9bd"
+dependencies = [
+ "strum_macros 0.28.0",
 ]
 
 [[package]]
@@ -11641,6 +11638,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab85eea0270ee17587ed4156089e10b9e6880ee688791d45a905f5b1ca36f664"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
  "syn 2.0.117",
 ]
 
@@ -13396,8 +13405,8 @@ dependencies = [
  "rustix 1.1.4",
  "ryu",
  "simsimd",
- "strum",
- "strum_macros",
+ "strum 0.26.3",
+ "strum_macros 0.26.4",
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
@@ -13441,8 +13450,8 @@ dependencies = [
  "bitflags 2.13.0",
  "memchr",
  "miette",
- "strum",
- "strum_macros",
+ "strum 0.26.3",
+ "strum_macros 0.26.4",
  "thiserror 2.0.18",
  "turso_macros",
 ]
@@ -13723,6 +13732,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7eec5d1121208364f6793f7d2e222bf75a915c19557537745b195b253dd64217"
 
 [[package]]
+name = "unicode-general-category"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b993bddc193ae5bd0d623b49ec06ac3e9312875fdae725a975c51db1cc1677f"
+
+[[package]]
 name = "unicode-id-start"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13966,13 +13981,9 @@ dependencies = [
  "base64 0.22.1",
  "flate2",
  "log",
- "native-tls",
  "once_cell",
  "rustls",
  "rustls-pki-types",
- "serde",
- "serde_json",
- "socks",
  "url",
  "webpki-roots 0.26.11",
 ]
@@ -14095,7 +14106,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b082222b4f6619906941c17eb2297fff4c2fb96cb60164170522942a200bd8"
 dependencies = [
  "outref",
- "uuid",
  "vsimd",
 ]
 
@@ -14149,7 +14159,7 @@ dependencies = [
  "serde_yaml",
  "serial_test",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
  "toml 0.8.23",
@@ -14194,6 +14204,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-ast"
+version = "0.6.0"
+dependencies = [
+ "serde",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-audit"
 version = "0.6.0"
 dependencies = [
@@ -14207,7 +14225,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "toml 0.8.23",
  "tracing",
  "vox-code-audit",
@@ -14295,7 +14313,7 @@ dependencies = [
  "sysinfo",
  "tar",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
  "toml 0.8.23",
@@ -14318,7 +14336,6 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
- "vox-dei-shim",
  "vox-deploy-codegen",
  "vox-doc-inventory",
  "vox-doc-pipeline",
@@ -14347,6 +14364,7 @@ dependencies = [
  "vox-publisher",
  "vox-repository",
  "vox-research-events",
+ "vox-research-shim",
  "vox-rule-pack",
  "vox-scaling-policy",
  "vox-scientia",
@@ -14360,7 +14378,7 @@ dependencies = [
  "walkdir",
  "wasmtime",
  "wasmtime-wasi",
- "which 7.0.3",
+ "which 8.0.2",
  "win32job",
  "windows-sys 0.59.0",
  "wiremock",
@@ -14390,7 +14408,7 @@ dependencies = [
  "vox-jsonschema-util",
  "vox-repository",
  "vox-secrets",
- "which 7.0.3",
+ "which 8.0.2",
 ]
 
 [[package]]
@@ -14426,7 +14444,7 @@ dependencies = [
  "similar",
  "syn 2.0.117",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tracing",
  "vox-bounded-fs",
  "vox-config",
@@ -14498,10 +14516,11 @@ dependencies = [
  "serial_test",
  "sha3",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "toml 0.8.23",
  "tracing",
+ "vox-ast",
  "vox-codegen",
  "vox-config",
  "vox-eval",
@@ -14512,7 +14531,7 @@ dependencies = [
  "vox-secrets",
  "vox-shell-stdlib-types",
  "vox-test-harness",
- "which 7.0.3",
+ "which 8.0.2",
  "workspace-hack",
  "zstd",
 ]
@@ -14538,7 +14557,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serial_test",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tracing",
  "vox-grammar-export",
  "workspace-hack",
@@ -14551,7 +14570,7 @@ dependencies = [
  "anyhow",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tracing",
  "vox-container-types",
  "workspace-hack",
@@ -14563,7 +14582,7 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "workspace-hack",
 ]
 
@@ -14624,13 +14643,12 @@ dependencies = [
  "serde_json",
  "sha3",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "turso",
  "uuid",
- "vox-codegen",
- "vox-compiler",
+ "vox-ast",
  "vox-config",
  "vox-db-types",
  "vox-mesh-types",
@@ -14653,35 +14671,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-dei-shim"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "jsonschema",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tracing",
- "vox-actor-runtime",
- "vox-config",
- "vox-db",
- "vox-orchestrator",
- "vox-orchestrator-types",
- "vox-research-events",
- "vox-search",
- "vox-secrets",
- "workspace-hack",
-]
-
-[[package]]
 name = "vox-deploy-codegen"
 version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tracing",
  "vox-config",
  "vox-container-types",
@@ -14698,7 +14694,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha3",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "uuid",
@@ -14785,7 +14781,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.0",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "toml 0.8.23",
  "tracing",
@@ -14810,7 +14806,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "toml 0.8.23",
  "tracing",
@@ -14844,7 +14840,7 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "vox-http-client",
@@ -14878,7 +14874,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
  "toml 0.8.23",
@@ -14904,7 +14900,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "vox-bounded-fs",
@@ -15010,7 +15006,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokenizers",
  "tokio",
  "tracing",
@@ -15065,7 +15061,7 @@ dependencies = [
  "anyhow",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "vox-runtime",
@@ -15122,7 +15118,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "vox-mesh-types",
 ]
@@ -15137,7 +15133,7 @@ dependencies = [
  "rand 0.8.6",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -15192,8 +15188,18 @@ dependencies = [
  "vox-tensor",
  "vox-workflow-runtime",
  "walkdir",
- "which 7.0.3",
+ "which 8.0.2",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "vox-nanopub"
+version = "0.6.0"
+dependencies = [
+ "hex",
+ "sha2 0.11.0",
+ "vox-crypto",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -15203,7 +15209,7 @@ dependencies = [
  "bytes",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "workspace-hack",
 ]
 
@@ -15221,7 +15227,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha3",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-tungstenite 0.24.0",
  "toml 0.8.23",
@@ -15305,7 +15311,7 @@ dependencies = [
  "sha3",
  "sysinfo",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tiktoken-rs",
  "tokio",
  "toml 0.8.23",
@@ -15402,7 +15408,7 @@ dependencies = [
  "sha2 0.11.0",
  "sha3",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tiktoken-rs",
  "tokio",
  "toml 0.8.23",
@@ -15420,7 +15426,6 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
- "vox-dei-shim",
  "vox-foundation",
  "vox-gamify",
  "vox-grammar-export",
@@ -15443,6 +15448,7 @@ dependencies = [
  "vox-publisher",
  "vox-repository",
  "vox-research-events",
+ "vox-research-shim",
  "vox-scientia",
  "vox-search",
  "vox-secrets",
@@ -15466,7 +15472,7 @@ dependencies = [
  "serde_json",
  "sha3",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "vox-config",
@@ -15494,7 +15500,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -15509,7 +15515,7 @@ dependencies = [
  "serde_json",
  "sha3",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "toml 0.8.23",
  "turso",
@@ -15528,7 +15534,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "toml 0.8.23",
  "workspace-hack",
 ]
@@ -15540,7 +15546,7 @@ dependencies = [
  "abi_stable",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "toml 0.8.23",
  "vox-plugin-types",
  "workspace-hack",
@@ -15556,7 +15562,7 @@ dependencies = [
  "futures",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "uuid",
@@ -15570,7 +15576,7 @@ name = "vox-plugin-catalog"
 version = "0.6.0"
 dependencies = [
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "toml 0.8.23",
  "workspace-hack",
 ]
@@ -15596,7 +15602,7 @@ dependencies = [
  "serde_json",
  "sha3",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "toml 0.8.23",
  "tracing",
@@ -15627,7 +15633,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokenizers",
  "tokio",
  "tracing",
@@ -15660,7 +15666,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokenizers",
  "tokio",
  "tracing",
@@ -15682,7 +15688,7 @@ dependencies = [
  "nvml-wrapper",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tracing",
  "vox-plugin-api",
  "workspace-hack",
@@ -15734,7 +15740,7 @@ dependencies = [
  "serde",
  "serde_json",
  "subtle",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tower-http",
  "tracing",
@@ -15820,7 +15826,7 @@ version = "0.6.0"
 dependencies = [
  "async-trait",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -15838,7 +15844,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.0",
  "sha3",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "vox-config",
@@ -15886,7 +15892,7 @@ dependencies = [
  "subtle",
  "sysinfo",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokenizers",
  "tokio",
  "tokio-rustls",
@@ -15927,7 +15933,7 @@ version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "vox-mesh-types",
  "vox-repository",
  "workspace-hack",
@@ -15996,7 +16002,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tracing",
  "workspace-hack",
 ]
@@ -16007,7 +16013,7 @@ version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -16022,7 +16028,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "toml 0.8.23",
  "tracing",
  "vox-bounded-fs",
@@ -16043,6 +16049,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-research-shim"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "jsonschema",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "vox-actor-runtime",
+ "vox-config",
+ "vox-db",
+ "vox-orchestrator",
+ "vox-orchestrator-types",
+ "vox-research-events",
+ "vox-search",
+ "vox-secrets",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-rule-pack"
 version = "0.6.0"
 dependencies = [
@@ -16052,7 +16080,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "workspace-hack",
 ]
 
@@ -16062,7 +16090,7 @@ version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tracing",
 ]
 
@@ -16072,7 +16100,7 @@ version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tracing",
  "uniffi",
  "vox-journal",
@@ -16113,7 +16141,7 @@ dependencies = [
  "sha3",
  "tar",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
  "tracing",
@@ -16125,6 +16153,7 @@ dependencies = [
  "vox-db",
  "vox-db-types",
  "vox-http-client",
+ "vox-nanopub",
  "vox-research-events",
  "vox-search",
 ]
@@ -16186,9 +16215,9 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
- "strum",
+ "strum 0.28.0",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "turso",
@@ -16210,7 +16239,7 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tracing",
  "workspace-hack",
 ]
@@ -16223,7 +16252,7 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "toml 0.8.23",
  "tracing",
@@ -16266,7 +16295,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serial_test",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "uuid",
@@ -16333,7 +16362,7 @@ dependencies = [
  "jsonschema",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "uuid",
@@ -17194,18 +17223,6 @@ dependencies = [
 
 [[package]]
 name = "which"
-version = "7.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24d643ce3fd3e5b54854602a080f34fb10ab75e0b813ee32d00ca2b44fa74762"
-dependencies = [
- "either",
- "env_home",
- "rustix 1.1.4",
- "winsafe",
-]
-
-[[package]]
-name = "which"
 version = "8.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81995fafaaaf6ae47a7d0cc83c67caf92aeb7e5331650ae6ff856f7c0c60c459"
@@ -17930,12 +17947,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "winsafe"
-version = "0.0.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d135d17ab770252ad95e9a872d365cf3090e3be864a34ab46f48555993efc904"
-
-[[package]]
 name = "winx"
 version = "0.36.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -18107,7 +18118,6 @@ dependencies = [
  "bitflags 2.13.0",
  "blake2",
  "block2",
- "borrow-or-share",
  "bstr",
  "bumpalo",
  "bytemuck",
@@ -18117,7 +18127,6 @@ dependencies = [
  "chrono",
  "clap",
  "clap_builder",
- "console 0.15.11",
  "console 0.16.3",
  "core-foundation-sys",
  "core_extensions",
@@ -18136,6 +18145,7 @@ dependencies = [
  "errno",
  "fastrand",
  "flate2",
+ "fluent-uri",
  "fnv",
  "foldhash 0.2.0",
  "form_urlencoded",
@@ -18247,7 +18257,6 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-subscriber",
- "ureq 2.12.1",
  "url",
  "uuid",
  "wasm-encoder 0.244.0",
@@ -18260,7 +18269,6 @@ dependencies = [
  "windows-sys 0.48.0",
  "windows-sys 0.52.0",
  "windows-sys 0.59.0",
- "windows-sys 0.60.2",
  "windows-sys 0.61.2",
  "winnow 0.7.15",
  "yoke 0.8.3",

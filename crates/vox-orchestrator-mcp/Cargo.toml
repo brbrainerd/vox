@@ -22,7 +22,7 @@ oratio-rerank = ["dep:vox-oratio"]
 
 [dependencies]
 vox-orchestrator = { path = "../vox-orchestrator", default-features = false, features = ["runtime"] }
-vox-dei-shim = { workspace = true }
+vox-research-shim = { workspace = true }
 
 # MCP-stack deps (always compiled when this crate is in the build)
 axum = { workspace = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
