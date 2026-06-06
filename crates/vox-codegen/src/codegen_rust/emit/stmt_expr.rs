@@ -377,14 +377,22 @@ where
         op,
         HirBinOp::Add | HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div
     ) {
-        // Only `String` concatenation needs a borrowed RHS (`String + &str`).
-        // Numeric `+ - * /` do not — emitting `1 + &2` compiles only via Rust's
-        // forward-ref `Add<&i64>` impls and triggers an unused-borrow warning.
-        // Keep the `&` unless the result type is positively numeric, so string
-        // concat stays correct while integer/float/decimal ops are clean.
+        // `String` concatenation needs a borrowed RHS (`String + &str`); numeric
+        // `+ - * /` do not — emitting `1 + &2` compiles only via Rust's forward-ref
+        // impls (`Add<&i64>` etc.) and triggers an unused-borrow warning. So keep
+        // the `&` unless the operation is positively numeric.
+        //
+        // Scope note: this only governs the borrow on the RHS. The same-typed
+        // string-concat case (`s + t`, both `str`) is handled correctly here (kept
+        // `&`). Mixed `str + <numeric>` (e.g. `s + 5`) is a *separate, pre-existing*
+        // typeck hole — typeck accepts it as `str` but neither this code nor codegen
+        // coerces the numeric operand, so it fails to compile regardless of the
+        // borrow (was `s + &5` on main, `s + 5` here — both broken). Tracked
+        // separately; not addressed by this borrow rule.
+        //
         // Positively numeric when either operand is a numeric literal (the type
-        // checker does not record a result type for pure-literal arithmetic like
-        // `1 + 2`), or when the result type is a numeric scalar.
+        // checker records no result type for pure-literal arithmetic like `1 + 2`),
+        // or when the result type is a numeric scalar.
         let is_num_lit = |e: &HirExpr| {
             matches!(
                 e,
