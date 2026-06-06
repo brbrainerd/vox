@@ -51,6 +51,10 @@ pub use policy::registry::{
     PolicyDomain, PolicyEntry, PolicyRegistry, PolicyRegistryError, PolicySeverity, PolicySource,
     PolicySourceKind, REGISTRY_REL_PATH, load_policy_registry,
 };
+pub use policy::status::{
+    Hit, PolicyResult, PolicyRunReport, PolicyStatusError, RunStatus, STATUS_DIR_REL, load_status,
+    load_status_for_branches, sanitize_branch, status_path,
+};
 pub use project_manifest::{
     BundleAssetsToml, BundleTomlFragment, ProjectManifest, WorkspaceTomlFragment,
 };
