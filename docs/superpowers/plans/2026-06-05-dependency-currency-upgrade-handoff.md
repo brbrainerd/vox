@@ -17,9 +17,37 @@ agents); builds were **not** run, so effort numbers are informed estimates, not 
 | **TypeScript 6 (vox-vscode)** | 5.5 → 6.0 | low | low | 1–3 h | **Do it.** CI-gated, code already TS6-idiomatic, `docs-astro` already runs TS6. |
 | **gix** | 0.70 → 0.83 | moderate (easy lean) | low–med | 2–4 h | **Do it.** Shallow read-only usage; free win = delete one dead dep. |
 | **RustCrypto stack** | sha2/sha3/hmac → `digest 0.11` | moderate (low) | medium | 2–4 h | **Do it, atomically.** Main risk is upstream availability + transitive `digest 0.10` holdouts, not our code. |
-| **rand 0.8 → 0.9 (finish straddle)** | 0.8 → 0.9 | low–moderate | low | 1–3 h | Cleanup: a `rand09` alias already exists mid-migration. |
+| **rand 0.8 → 0.9 (finish straddle)** | 0.8 → 0.9 | ~~low–moderate~~ **BLOCKED** | ~~low~~ n/a | ~~1–3 h~~ | **Deferred — upstream wall.** See Execution Update. |
 | **TS version unification** | 6 files, 5.0–6.0 | low (mechanical) | low | 1–2 h | Align all `typescript` pins behind a TS6 floor. |
-| **jj-lib unpin** | `=0.27.0` → latest | unknown (pinned for a reason) | likely high | TBD | Investigate why it's hard-pinned with `=`. |
+| **jj-lib unpin** | ~~`=0.27.0`~~ → **0.42 DONE** | moderate | low | done | **Unpinned to 0.42** to unblock gix 0.84; see Execution Update. |
+
+---
+
+## Execution Update (2026-06-06) — branch `cc_bdesktop2/deps-majors`
+
+The following items from this handoff were **executed and committed**. Workspace `cargo check`
+is clean (0 errors). Branch not yet pushed/PR'd — the toolchain bump needs CI to vet it.
+
+| Item | Status | Commit | Notes |
+|---|---|---|---|
+| Rust toolchain 1.92 → **1.96.0** | ✅ done | `a653fc3` | Required by wasmtime 45 (MSRV 1.93). Clippy clean after 6 mechanical lint fixes (`2cb81b1`). |
+| **gix 0.70 → 0.84** | ✅ done | `a653fc3` | Achieved by upgrading **jj-lib 0.27 → 0.42** (the `=0.27` pin existed *only* to hold gix back; jj-lib is otherwise effectively unused). Fixes: re-add `"sha1"` to vox-git gix features; `CommitRef::time()`/`author()` now return `Result` (vox-effort-audit `walk.rs`). |
+| **wasmtime 42 → 45** | ✅ done | `7ed4f16` | **Zero code changes** — the single-file `engine.rs` usage was already on the modern `p1`/`p2` API. Confirmed the handoff's "likely nothing in code" estimate. |
+| **RustCrypto digest 0.11** (sha2 0.11 / sha3 0.12 / hmac 0.13) | ✅ done | `d15361b` | **More invasive than the 2–4 h estimate.** `finalize()` now returns `Array` (no `LowerHex`) → **18** `format!("{:x}"/"{d:x}")` sites converted to `hex::encode` across 12 crates (+`hex` dep added to 7). hmac 0.13 dropped `new_from_slice` from the `Mac` supertrait → added `KeyInit` to **4** imports. |
+| **TypeScript 6** (vox-vscode) | ✅ done | `cf66dbb` | `tsc` exit 0; `@types/node` 22 → 24; regenerated `mcpToolRegistry.generated.ts`. Matched the handoff estimate. |
+| **rcgen 0.13 → 0.14** | ✅ done | `a653fc3` | 0.14 defaults to C-based `aws-lc-rs`; pinned `default-features=false, features=["ring","pem"]` to stay pure-Rust per crypto policy. |
+| **self_update → 0.44** | ✅ done | `a653fc3` | Drop-in. |
+
+### rand 0.8 → 0.9 — DEFERRED with a real (upstream) blocker, not work-volume
+
+The handoff originally scoped this as a 1–3 h "finish the straddle." **That estimate was wrong.**
+Investigation (reading every call site + the lockfile) found a hard architectural wall:
+
+- **rand 0.9 ⇒ rand_core 0.9.** The whole RustCrypto **dalek + AEAD stack at current latest-stable still pins rand_core 0.6.4**: `x25519-dalek 2.0.1`, `ed25519-dalek 2.2.0` (vox-crypto explicitly enables its `rand_core` feature), alongside `chacha20poly1305 0.10.1` / `aes-gcm 0.10.3`.
+- vox-crypto passes an `rng` *object* across that boundary — `x25519_dalek::StaticSecret::random_from_rng(rand::thread_rng())` (`facades.rs:229`) — which requires an `impl rand_core::0.6::RngCore`. A 0.9 `rand::rng()` does **not** satisfy it. There is no published rand_core-0.9-compatible dalek/AEAD release to bump *to*.
+- **A partial migration banks no win.** The ~30 non-crypto sites (vox-corpus shuffles/ranges, vox-gamify, vox-cli IDs, candle plugins) *could* move to 0.9, but rand 0.8 must stay for the crypto crates regardless — so 0.8 is **not removed from the tree**, and the workspace would carry *both* rand APIs spread across non-crypto code for zero dependency-tree benefit.
+
+**Verdict:** keep the status quo — `rand = "0.8"` default + `rand09` alias (used only by the candle/oratio path, which legitimately needs 0.9). This is precisely the maintainer's "real disadvantage beyond the work itself" exception. **Re-open only when the upstream dalek/AEAD stack ships rand_core 0.9** (track `x25519-dalek` / `ed25519-dalek` / RustCrypto `aead` releases); at that point it becomes a coordinated crypto-stack bump with its own crypto-test burden, **not** a mechanical rand rename.
 
 ---
 
@@ -64,7 +92,7 @@ unignore` or by bumping the manifest directly).
 
 ### High value
 1. **Unify the `typescript` pins** — currently 6 different versions: `docs-astro` `^6.0.3`, visualizer `~5.9.3`, marquee_app `~5.8.3`, vox-mental-tracker `^5.6.0`, vox-vscode `^5.5.0`, `crates/vox-gui/ui` `^5.0.2`. Align behind the TS6 floor `docs-astro` already proves works. Mechanical, **1–2 h**.
-2. **Finish the `rand` 0.8 → 0.9 straddle** — root `Cargo.toml` already wires both `rand = "0.8"` (`:230`) and `rand09 = { package = "rand", version = "0.9" }` (`:347`). Complete the move, drop the alias. `rand` 0.9 renamed several APIs → *needs code*, **1–3 h**.
+2. ~~**Finish the `rand` 0.8 → 0.9 straddle**~~ — **DEFERRED, upstream-blocked** (see Execution Update 2026-06-06). The dalek/AEAD stack pins rand_core 0.6; rand 0.9 is rand_core 0.9; a partial migration removes no version. Keep the `rand09` alias. Not a work-volume call — a real upstream wall.
 3. **Verify the visualizer's outlier pins** — `apps/experimental/visualizer` is on `vite@^8.0.1` + `@vitejs/plugin-react@^6.0.2` + `@types/node@^25` while every other app is on vite `^6`. (Install resolved fine during the 2026-06-05 dev-dep bump, so it's real — but it's a maintenance outlier; decide whether to lead with it or pull it back in line.)
 
 ### Medium / cleanup
@@ -78,7 +106,7 @@ unignore` or by bumping the manifest directly).
 - **`lucide-react` anomaly** — vox-vscode pins `^1.17.0` but lucide-react's real line is `0.x`; looks bogus (and it's unused there) — investigate/remove.
 
 ### Investigate before attempting
-- **`jj-lib = "=0.27.0"`** (`:273`) — hard `=` pin signals known breakage on bump; jj moves fast (0.30+). Find out *why* it's pinned before estimating.
+- ~~**`jj-lib = "=0.27.0"`**~~ — **RESOLVED 2026-06-06.** The `=` pin existed solely to hold gix at 0.70; jj-lib is otherwise effectively unused. Unpinned to **0.42** (which wants gix ^0.84), unblocking the gix bump in the same move. See Execution Update.
 - **`tree-sitter-cli 0.22` + `nan`** in `tree-sitter-vox` — `nan` is legacy (modern tree-sitter uses N-API); migrating off it is *needs code*, low priority (build tooling, not shipped runtime).
 
 ### Leave alone (deliberate)
