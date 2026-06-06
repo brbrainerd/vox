@@ -275,6 +275,47 @@ pub fn arch_rule_entries(repo_root: &Path) -> Result<Vec<PolicyEntry>, String> {
     Ok(out)
 }
 
+/// Enumerate the in-crate `vox_audit::registry()` (CrlGate + Subcommand metadata)
+/// into `crl-gate` entries. `vox-audit` is a non-optional dep of `vox-cli`, so this
+/// compiles in the default build. CR-L gates carry no severity; `block_ga()` maps
+/// to Error (blocks GA) vs Warn.
+pub fn crl_gate_entries() -> Vec<PolicyEntry> {
+    let mut out: Vec<PolicyEntry> = vox_audit::registry()
+        .iter()
+        .map(|sub| {
+            let gate = sub.gate();
+            let thing = gate.thing_name();
+            let blocks = gate.block_ga();
+            PolicyEntry {
+                id: format!("crl-gate/{thing}"),
+                domain: PolicyDomain::CrlGate,
+                title: format!("CR-L gate: {thing}"),
+                group: "CR-L gates".to_string(),
+                description: sub.description().to_string(),
+                severity: Some(if blocks {
+                    PolicySeverity::Error
+                } else {
+                    PolicySeverity::Warn
+                }),
+                blocking: blocks,
+                runs_on: vec!["ci".into()],
+                source: PolicySource {
+                    kind: PolicySourceKind::Command,
+                    reference: format!("contracts/ci/vox-audit-contract.v1.yaml#{thing}"),
+                    detail: Some(format!("vox audit {thing}")),
+                },
+                docs: None,
+                default_enabled: true,
+                // GA-blocking CR-L gates are policy-protected.
+                protected: blocks,
+                origin: "builtin".to_string(),
+            }
+        })
+        .collect();
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    out
+}
+
 /// Build the full registry document for the domains this plan covers.
 #[cfg(feature = "completion-toestub")]
 pub fn build_registry() -> vox_config::PolicyRegistry {
@@ -571,5 +612,30 @@ mod default_domain_tests {
         assert_eq!(fan_in.severity, Some(vox_config::PolicySeverity::Warn)); // fan_in = "warn"
         assert!(!fan_in.blocking);
         assert_eq!(orphan.source.kind, vox_config::PolicySourceKind::Guard);
+    }
+
+    #[test]
+    fn crl_gate_entries_cover_audit_registry() {
+        let entries = crl_gate_entries();
+        // vox_audit::registry() = 9 CR-L gates + 1 tooling gate (verified 2026-06-06).
+        assert_eq!(
+            entries.len(),
+            10,
+            "expected 10 CR-L/tooling gates, got {}",
+            entries.len()
+        );
+        let l0 = entries
+            .iter()
+            .find(|e| e.id == "crl-gate/spec-to-app")
+            .expect("spec-to-app (CR-L0) present");
+        assert_eq!(l0.domain, vox_config::PolicyDomain::CrlGate);
+        assert!(l0.blocking, "CR-L0 block_ga() == true");
+        assert_eq!(l0.severity, Some(vox_config::PolicySeverity::Error));
+        let tooling = entries
+            .iter()
+            .find(|e| e.id == "crl-gate/stdlib-coverage")
+            .expect("tooling gate present");
+        assert!(!tooling.blocking, "tooling gate block_ga() == false");
+        assert_eq!(tooling.severity, Some(vox_config::PolicySeverity::Warn));
     }
 }
