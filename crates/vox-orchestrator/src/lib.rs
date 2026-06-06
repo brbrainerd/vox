@@ -300,7 +300,6 @@ pub use heartbeat::{
     AgentHeartbeat, HeartbeatMonitor, HeartbeatPolicy, StalenessLevel, evict_dead_heartbeats,
     live_nodes_from_db, persist_heartbeat,
 };
-pub use jj_backend::{ContentMerge, DagNodeId, MergeSide, OperationDag};
 pub use judge_model::{JudgeModel, JudgePolicy, JudgeVerdict};
 pub use legacy::harness_hand::{
     HarnessIngestExpectations, apply_harness_subject_defaults, validate_agent_harness_ingest,
