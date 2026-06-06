@@ -262,6 +262,60 @@ pub async fn nanopub_build(
     Ok(signed)
 }
 
+/// P2 Task 4 — Record a human review decision for ONE extracted claim.
+///
+/// Fetches the publication's CURRENT content manifest and binds the decision to
+/// its `content_sha3_256` digest. A later content edit therefore invalidates a
+/// prior approval (the digest will no longer match the manifest's current value),
+/// and `publication-nanopub-build` will refuse to emit until the claim is
+/// re-reviewed.
+///
+/// # Errors
+/// Returns an error if no manifest exists for `publication_id`, if
+/// `db.record_review_decision` rejects the decision string, or if any DB op
+/// fails.
+pub async fn record_claim_review(
+    db: &VoxDb,
+    publication_id: &str,
+    claim_id: i64,
+    decision: &str,
+    reason: Option<String>,
+) -> anyhow::Result<vox_db::store::ReviewDecisionRow> {
+    let manifest = db
+        .get_publication_manifest(publication_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("fetch publication manifest: {e}"))?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "no publication manifest for `{publication_id}`; \
+                 prepare the publication before reviewing its claims"
+            )
+        })?;
+
+    let bound_digest = manifest.content_sha3_256;
+    let actor = vox_config::paths::local_user_id();
+    let now_ms = chrono::Utc::now().timestamp_millis();
+
+    // TODO(P3): populate model_fingerprints_json from the artifact's AI-disclosure
+    // metadata once that surface is wired (P2 leaves it None per spec).
+    let row = vox_db::store::ReviewDecisionRow {
+        claim_id,
+        publication_id: Some(publication_id.into()),
+        bound_digest,
+        decision: decision.into(),
+        actor,
+        reason,
+        model_fingerprints_json: None,
+        decided_at_ms: now_ms,
+    };
+
+    db.record_review_decision(&row)
+        .await
+        .map_err(|e| anyhow::anyhow!("record review decision: {e}"))?;
+
+    Ok(row)
+}
+
 /// P2 — Bridge the DB review ledger to a minted [`ApprovalToken`].
 ///
 /// This is the only sanctioned way for the CLI to obtain the token that
@@ -685,6 +739,132 @@ mod tests {
             msg.contains("rejected"),
             "error must surface the latest decision value, got: {msg}"
         );
+    }
+
+    /// P2 Task 4 — Pure DB gate (no vault): `record_claim_review` fetches the
+    /// current publication manifest's `content_sha3_256` as the bound_digest,
+    /// writes the row, and returns it. The `latest_decision_for_claim` op must
+    /// then surface the same row (end-to-end round-trip in the DB layer).
+    #[tokio::test]
+    async fn record_claim_review_persists_digest_bound_decision() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db connect");
+
+        const PUB_ID: &str = "pub-rev";
+        const CLAIM: i64 = 7;
+        const DIGEST: &str = "digest-rev-1";
+
+        db.upsert_publication_manifest(vox_db::store::types::PublicationManifestParams {
+            publication_id: PUB_ID,
+            content_type: "scientia",
+            source_ref: None,
+            title: "review test pub",
+            author: "tester",
+            abstract_text: None,
+            body_markdown: "body text",
+            citations_json: None,
+            metadata_json: None,
+            revision_history_json: None,
+            content_sha3_256: DIGEST,
+            state: "draft",
+        })
+        .await
+        .expect("seed manifest");
+
+        let row =
+            super::record_claim_review(&db, PUB_ID, CLAIM, "approved", Some("looks solid".into()))
+                .await
+                .expect("record_claim_review must succeed");
+
+        assert_eq!(
+            row.bound_digest, DIGEST,
+            "bound_digest must equal the manifest's content_sha3_256"
+        );
+        assert_eq!(row.decision, "approved", "decision must be persisted");
+        assert!(
+            !row.actor.is_empty(),
+            "actor must be non-empty (local_user_id)"
+        );
+        assert_eq!(
+            row.reason.as_deref(),
+            Some("looks solid"),
+            "reason must be stored"
+        );
+        assert_eq!(row.claim_id, CLAIM, "claim_id must be preserved");
+
+        // Round-trip: the DB must surface the same row via `latest_decision_for_claim`.
+        let fetched = db
+            .latest_decision_for_claim(CLAIM)
+            .await
+            .expect("query latest decision")
+            .expect("a decision must exist after record_claim_review");
+        assert_eq!(fetched.bound_digest, DIGEST);
+        assert_eq!(fetched.decision, "approved");
+    }
+
+    /// P2 Task 4 — `record_claim_review` must fail with a descriptive error
+    /// when no manifest exists for the given publication_id.
+    #[tokio::test]
+    async fn record_claim_review_errors_without_manifest() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db connect");
+
+        let err = super::record_claim_review(&db, "no-such-pub", 1, "approved", None)
+            .await
+            .expect_err("missing manifest must error");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("no publication manifest"),
+            "error must mention 'no publication manifest', got: {msg}"
+        );
+    }
+
+    /// P2 Task 4 — Integration compose: after `record_claim_review(..., "approved", None)`,
+    /// `approval_for` must succeed and the returned token's `bound_digest()` must
+    /// equal the manifest's digest. Proves Task 4 → Task 3 composition.
+    #[tokio::test]
+    async fn approval_for_succeeds_after_record_claim_review() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db connect");
+
+        const PUB_ID: &str = "pub-compose-test";
+        const CLAIM: i64 = 99;
+        const DIGEST: &str = "digest-compose-v1";
+
+        db.upsert_publication_manifest(vox_db::store::types::PublicationManifestParams {
+            publication_id: PUB_ID,
+            content_type: "scientia",
+            source_ref: None,
+            title: "compose test",
+            author: "tester",
+            abstract_text: None,
+            body_markdown: "body",
+            citations_json: None,
+            metadata_json: None,
+            revision_history_json: None,
+            content_sha3_256: DIGEST,
+            state: "draft",
+        })
+        .await
+        .expect("seed manifest");
+
+        super::record_claim_review(&db, PUB_ID, CLAIM, "approved", None)
+            .await
+            .expect("record_claim_review must succeed");
+
+        let token = approval_for(&db, CLAIM)
+            .await
+            .expect("approval_for must succeed after an approved decision");
+
+        assert_eq!(
+            token.bound_digest(),
+            DIGEST,
+            "token bound_digest must equal the manifest's content_sha3_256"
+        );
+        assert_eq!(token.claim_id(), CLAIM, "token claim_id must match");
     }
 
     /// Freshness gate (no vault needed — the digest check fires BEFORE any

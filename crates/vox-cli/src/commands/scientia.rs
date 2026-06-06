@@ -349,6 +349,26 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     )
                     .await;
                 }
+                ScientiaCmd::PublicationClaimReview {
+                    publication_id,
+                    claim_id,
+                    decision,
+                    reason,
+                } => {
+                    let db = vox_db::VoxDb::connect_default()
+                        .await
+                        .map_err(|e| anyhow::anyhow!("connect to default Codex / VoxDb: {e}"))?;
+                    let row = super::scientia_nanopub::record_claim_review(
+                        &db,
+                        &publication_id,
+                        claim_id,
+                        decision.as_stored(),
+                        reason,
+                    )
+                    .await?;
+                    println!("{}", serde_json::to_string_pretty(&row)?);
+                    return Ok(());
+                }
                 ScientiaCmd::PublicationNanopubBuild {
                     publication_id,
                     claim_id,
