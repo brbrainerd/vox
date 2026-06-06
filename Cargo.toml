@@ -177,7 +177,7 @@ serde              = { version = "1", features = ["derive"] }
 serde_json         = "1"
 serde_yaml         = "0.9"
 toml               = "0.8"
-typify             = "0.6.2"
+typify             = "0.7"
 miette             = { version = "7.6", features = ["fancy"] }
 aho-corasick       = "1"
 nucleo             = { version = "0.5" }
@@ -297,7 +297,7 @@ syn                = "2"
 prettyplease       = "0.2"
 proc-macro2        = "1"
 semver             = "1"
-cargo_metadata     = "0.18"
+cargo_metadata     = "0.23"
 parking_lot        = "0.12"
 secrecy            = "0.10"
 zeroize            = { version = "1", features = ["derive"] }
@@ -309,7 +309,7 @@ zeroize            = { version = "1", features = ["derive"] }
 # a concrete arm so inference succeeds. Tracked upstream — remove once
 # wiremock activates a runtime explicitly.
 deadpool           = { version = "0.12", features = ["rt_tokio_1"] }
-rmcp               = "0.16"
+rmcp               = "1.7"
 rmp-serde          = "1"
 libloading         = "0.8"
 lru                = "0.13"
@@ -317,10 +317,10 @@ futures-core       = "0.3"
 quote              = "1"
 similar            = "2"
 globset            = "0.4"
-swc_ecma_parser    = "39"
-swc_ecma_ast       = "23"
-swc_ecma_visit     = "23"
-swc_common         = "21"
+swc_ecma_parser    = "41"
+swc_ecma_ast       = "25"
+swc_ecma_visit     = "25"
+swc_common         = "23"
 which              = "8"
 ctrlc              = "3.4"
 proptest           = { version = "1", default-features = false, features = ["std"] }

@@ -50,7 +50,8 @@ fn main() -> Result<()> {
     paths.sort();
 
     // typify can *panic* (not just return Err) on schemas it cannot model — e.g. a
-    // root-level `oneOf` discriminated union (a typify 0.6 limitation). Such schemas
+    // root-level `oneOf` discriminated union (still un-modelable as of typify 0.7).
+    // Such schemas
     // are validation-only: they're consumed via the jsonschema validator at runtime,
     // not as generated Rust types. So we catch the panic, skip the schema with a
     // marker, and keep generating the rest — a single un-modelable schema must not

@@ -21,17 +21,12 @@ pub fn tool_registry() -> Vec<rmcp::model::Tool> {
                 Value::Bool(e.http_read_role_eligible),
             );
             meta_map.insert("vox_tier".to_string(), Value::String(e.tier.to_string()));
-            rmcp::model::Tool {
-                name: std::borrow::Cow::Owned(n.to_string()),
-                description: Some(std::borrow::Cow::Owned(e.description.to_string())),
-                input_schema: std::sync::Arc::new(input_schemas::tool_input_schema(n)),
-                output_schema: None,
-                meta: Some(Meta(meta_map)),
-                annotations: None,
-                execution: None,
-                icons: None,
-                title: None,
-            }
+            rmcp::model::Tool::new_with_raw(
+                std::borrow::Cow::Owned(n.to_string()),
+                Some(std::borrow::Cow::Owned(e.description.to_string())),
+                std::sync::Arc::new(input_schemas::tool_input_schema(n)),
+            )
+            .with_meta(Meta(meta_map))
         })
         .collect()
 }
