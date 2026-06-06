@@ -4,6 +4,7 @@ pub mod builtins;
 pub mod db;
 pub mod env;
 pub mod expr;
+pub mod repo;
 pub mod shell_stdlib;
 pub mod stmt;
 pub mod value;
@@ -47,6 +48,9 @@ pub struct Interpreter {
     /// real input→output in the default run mode. See
     /// [`crate::eval::db`].
     pub db: crate::eval::db::DbStore,
+    /// In-memory VCS store for `repo.*` operations under `--mode interp`.
+    /// See [`crate::eval::repo`].
+    pub repo: crate::eval::repo::RepoStore,
 }
 
 impl Interpreter {
@@ -122,6 +126,13 @@ impl Interpreter {
             VoxValue::Object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("io".to_string()),
+            )]),
+        );
+        scope.set(
+            "repo".to_string(),
+            VoxValue::Object(vec![(
+                "__namespace__".to_string(),
+                VoxValue::Str("repo".to_string()),
             )]),
         );
 
@@ -237,6 +248,7 @@ impl Interpreter {
             source_path: None,
             loaded_imports: std::collections::HashSet::new(),
             db: crate::eval::db::DbStore::default(),
+            repo: crate::eval::repo::RepoStore::default(),
         }
     }
 
