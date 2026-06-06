@@ -87,7 +87,10 @@ pub fn workspace_create_json(orch: &Orchestrator, agent_id: u64) -> Value {
     let ws = mgr.create_workspace(AgentId(agent_id), base_id).clone();
     json!({
         "workspace_created": true,
-        "agent_id": ws.agent_id.to_string(),
+        // Raw-u64 string ("7"), matching snapshot_list_json / oplog_list_json and
+        // the `agent_id: u64` input — NOT the "A-07" Display form, which is reserved
+        // for human-facing markdown handoffs. Keeps agent_id parity across the facade.
+        "agent_id": ws.agent_id.0.to_string(),
         "base_snapshot": base_id.to_string(),
     })
 }
@@ -200,7 +203,9 @@ pub async fn takeover_handoff_json(
             "root": repo_root_display,
             "repository_id": repository_id,
         },
-        "agent_id": agent_id,
+        // String form for parity with the embedded snapshots/oplog agent_id fields
+        // (which are raw-u64 strings); a bare number here would mismatch its own bundle.
+        "agent_id": agent_id.to_string(),
         "workspace": workspace_status_json(orch, agent_id),
         "snapshots": snapshot_list_json(orch, Some(agent_id), 5),
         "oplog": oplog_list_json(orch, Some(agent_id), 5).await,
@@ -230,11 +235,108 @@ mod tests {
     #[tokio::test]
     async fn takeover_handoff_json_has_core_keys() {
         let orch = Orchestrator::new(OrchestratorConfig::default());
+        // Give the agent a workspace so the bundle embeds a real snapshot with an agent_id.
+        workspace_create_json(&orch, 1);
         let v = takeover_handoff_json(&orch, "/repo", "rid", 1).await;
         assert_eq!(v["schema"], "vox_takeover_handoff_v1");
         assert!(v.get("repository").is_some());
         assert!(v.get("workspace").is_some());
         assert!(v.get("snapshots").is_some());
         assert!(v.get("oplog").is_some());
+
+        // agent_id parity within a single bundle: the top-level field and the
+        // agent_id embedded in the snapshot list must be the SAME representation
+        // ("1"), so a consumer can correlate them. (Regression guard for the
+        // earlier "A-07" vs "1" vs number-1 three-way mismatch.)
+        assert_eq!(v["agent_id"], "1");
+        let snap_agent = &v["snapshots"]["snapshots"][0]["agent_id"];
+        assert_eq!(
+            *snap_agent,
+            serde_json::json!("1"),
+            "embedded snapshot agent_id must match top-level"
+        );
+    }
+
+    // ── Data-in → data-out parity ─────────────────────────────────────────────
+    // These assert that state written through the orchestrator comes back out of
+    // the JSON facade faithfully: the same ids, agent, description and counts.
+    // This is the contract the MCP VCS tools and `vox dei` CLI both depend on.
+
+    #[test]
+    fn create_then_list_and_status_round_trip_the_base_snapshot() {
+        let orch = Orchestrator::new(OrchestratorConfig::default());
+
+        // Data IN: creating a workspace takes a base snapshot labelled "workspace base".
+        let created = workspace_create_json(&orch, 7);
+        assert_eq!(created["workspace_created"], true);
+        assert_eq!(created["agent_id"], "7");
+        let base_id = created["base_snapshot"]
+            .as_str()
+            .expect("base_snapshot is a string id")
+            .to_string();
+
+        // Data OUT (list): the base snapshot is visible for agent 7 with the exact
+        // id, agent and description that went in.
+        let listed = snapshot_list_json(&orch, Some(7), 10);
+        let snaps = listed["snapshots"].as_array().expect("snapshots array");
+        assert_eq!(snaps.len(), 1, "exactly the base snapshot should be listed");
+        assert_eq!(
+            snaps[0]["id"], base_id,
+            "snapshot id round-trips create -> list"
+        );
+        assert_eq!(snaps[0]["agent_id"], "7");
+        assert_eq!(snaps[0]["description"], "workspace base");
+        assert_eq!(snaps[0]["file_count"], 0);
+
+        // Data OUT (status): the workspace reports the same base snapshot id, with
+        // a clean (zero-modified) initial state.
+        let status = workspace_status_json(&orch, 7);
+        assert_eq!(status["has_workspace"], true);
+        assert_eq!(
+            status["base_snapshot"], base_id,
+            "base snapshot id round-trips create -> status"
+        );
+        assert_eq!(status["modified_count"], 0);
+        assert_eq!(
+            status["modified_files"].as_array().map(|a| a.len()),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn list_scopes_snapshots_by_agent() {
+        // Parity guard: a per-agent query must only surface that agent's data.
+        let orch = Orchestrator::new(OrchestratorConfig::default());
+        workspace_create_json(&orch, 1);
+        workspace_create_json(&orch, 2);
+
+        let a1 = snapshot_list_json(&orch, Some(1), 10);
+        let a1_snaps = a1["snapshots"].as_array().unwrap();
+        assert!(
+            a1_snaps.iter().all(|s| s["agent_id"] == "1"),
+            "agent-1 query must not leak agent-2 snapshots"
+        );
+
+        // The unscoped query sees both agents' base snapshots.
+        let all = snapshot_list_json(&orch, None, 10);
+        assert_eq!(all["snapshots"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn merge_without_workspace_reports_no_active_workspace() {
+        let orch = Orchestrator::new(OrchestratorConfig::default());
+        let v = workspace_merge_json(&orch, 99);
+        assert_eq!(v["merged"], false);
+        assert_eq!(v["error"], "no_active_workspace");
+        assert_eq!(v["conflicts_recorded"], 0);
+    }
+
+    #[test]
+    fn diff_with_missing_snapshots_is_a_structured_error() {
+        let orch = Orchestrator::new(OrchestratorConfig::default());
+        let v = snapshot_diff_json(&orch, 1234, 5678);
+        assert_eq!(v["error"], "one_or_both_snapshots_missing");
+        assert_eq!(v["before"], 1234);
+        assert_eq!(v["after"], 5678);
     }
 }
