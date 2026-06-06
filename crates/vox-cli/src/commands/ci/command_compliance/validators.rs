@@ -1118,6 +1118,7 @@ pub(crate) fn check_latin_alias_parity_with_catalog(repo_root: &Path, lib_rs: &s
     const REQUIRED_VISIBLE_ALIASES: &[(&str, &str)] = &[
         ("secrets", "clavis"),   // secrets command exposes `clavis` alias (deprecated)
         ("speech", "oratio"), // speech command (English canonical) exposes `oratio` (Latin) alias
+        ("gamify", "ludus"),  // gamify command (English canonical) exposes `ludus` (Latin) alias
         ("dei", "orchestrator"), // dei command exposes `orchestrator` alias
     ];
 
