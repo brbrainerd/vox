@@ -318,7 +318,14 @@ fn emit_return_stmt(
 ///
 /// Extracted from `emit_expr_with` per CR-A1: the 13-arm op match + the Pipe
 /// early-return + the arithmetic `&` decoration contributed ~15 DPs inline.
-fn emit_binary_expr<F>(op: &HirBinOp, l: &HirExpr, r: &HirExpr, emit: &F) -> String
+fn emit_binary_expr<F>(
+    op: &HirBinOp,
+    l: &HirExpr,
+    r: &HirExpr,
+    bin_span: &Span,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    emit: &F,
+) -> String
 where
     F: Fn(&HirExpr, OwnershipMode) -> String,
 {
@@ -370,12 +377,43 @@ where
         op,
         HirBinOp::Add | HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div
     ) {
-        format!(
-            "({} {} &{})",
-            emit(l, OwnershipMode::Owned),
-            op_str,
-            emit(r, OwnershipMode::Owned)
-        )
+        // `String` concatenation needs a borrowed RHS (`String + &str`); numeric
+        // `+ - * /` do not — emitting `1 + &2` compiles only via Rust's forward-ref
+        // impls (`Add<&i64>` etc.) and triggers an unused-borrow warning. So keep
+        // the `&` unless the operation is positively numeric.
+        //
+        // Scope note: this only governs the borrow on the RHS. The same-typed
+        // string-concat case (`s + t`, both `str`) is handled correctly here (kept
+        // `&`). Mixed `str + <numeric>` (e.g. `s + 5`) is a *separate, pre-existing*
+        // typeck hole — typeck accepts it as `str` but neither this code nor codegen
+        // coerces the numeric operand, so it fails to compile regardless of the
+        // borrow (was `s + &5` on main, `s + 5` here — both broken). Tracked
+        // separately; not addressed by this borrow rule.
+        //
+        // Positively numeric when either operand is a numeric literal (the type
+        // checker records no result type for pure-literal arithmetic like `1 + 2`),
+        // or when the result type is a numeric scalar.
+        let is_num_lit = |e: &HirExpr| {
+            matches!(
+                e,
+                HirExpr::IntLit(..) | HirExpr::FloatLit(..) | HirExpr::DecimalLit(..)
+            )
+        };
+        let positively_numeric = is_num_lit(l)
+            || is_num_lit(r)
+            || inferred_types
+                .and_then(|m| m.get(bin_span))
+                .is_some_and(|t| {
+                    matches!(t, HirType::Named(n) if matches!(n.as_str(), "int" | "float" | "dec"))
+                        || matches!(t, HirType::Decimal)
+                });
+        let rhs = emit(r, OwnershipMode::Owned);
+        let rhs = if positively_numeric {
+            rhs
+        } else {
+            format!("&{rhs}")
+        };
+        format!("({} {} {})", emit(l, OwnershipMode::Owned), op_str, rhs)
     } else {
         format!(
             "({} {} {})",
@@ -426,7 +464,22 @@ fn emit_ident_expr(
     } else {
         match mode {
             OwnershipMode::Owned => format!("{}.clone()", n),
-            OwnershipMode::Borrowed => format!("{}.as_str()", n),
+            OwnershipMode::Borrowed => {
+                // Borrow without cloning. A `str`-typed value uses `.as_str()`
+                // (what the borrowing string builtins expect); anything else
+                // uses a plain reference — `&Vec<T>` coerces to `&[T]`, `&T` to
+                // `&T`. Emitting `.as_str()` unconditionally (the prior behavior)
+                // produced uncompilable Rust the moment a non-string argument was
+                // borrowed, a latent landmine for widening borrow inference.
+                let is_str = inferred_types
+                    .and_then(|m| m.get(span))
+                    .is_some_and(|t| matches!(t, HirType::Named(name) if name == "str"));
+                if is_str {
+                    format!("{}.as_str()", n)
+                } else {
+                    format!("&{}", n)
+                }
+            }
         }
     }
 }
@@ -569,7 +622,9 @@ pub(super) fn emit_expr_with(
         ),
 
         HirExpr::Ident(n, span) => emit_ident_expr(n, span, inferred_types, usage, mode),
-        HirExpr::Binary(op, l, r, _) => emit_binary_expr(op, l, r, &emit),
+        HirExpr::Binary(op, l, r, bin_span) => {
+            emit_binary_expr(op, l, r, bin_span, inferred_types, &emit)
+        }
         HirExpr::Call(callee, args, is_await, _) => {
             if let HirExpr::Ident(n, _) = &**callee
                 && let Some(s) = emit_builtin_ident_call(n, args, &emit)
@@ -1007,5 +1062,48 @@ mod scrape_emit_tests {
             out.contains("wasm32"),
             "Browser.* must keep the wasm guard: {out}"
         );
+    }
+}
+
+#[cfg(test)]
+mod borrow_emission_tests {
+    use super::OwnershipMode;
+    use super::emit_ident_expr;
+    use std::collections::HashMap;
+    use vox_compiler::ast::span::Span;
+    use vox_compiler::hir::HirType;
+
+    fn typed(name: &str) -> (Span, HashMap<Span, HirType>) {
+        let span = Span::new(0, 0);
+        let mut m = HashMap::new();
+        m.insert(span, HirType::Named(name.to_string()));
+        (span, m)
+    }
+
+    /// `str`-typed borrowed args keep `.as_str()` (what borrowing string builtins
+    /// expect) — preserves existing behavior, no golden churn.
+    #[test]
+    fn borrowed_str_emits_as_str() {
+        let (span, types) = typed("str");
+        let out = emit_ident_expr("x", &span, Some(&types), None, OwnershipMode::Borrowed);
+        assert_eq!(out, "x.as_str()");
+    }
+
+    /// Non-`str` borrowed args emit a plain reference, NOT `.as_str()` (which
+    /// would be uncompilable on a `Vec`/struct). This is the latent-bug fix:
+    /// before, this returned `x.as_str()` regardless of type.
+    #[test]
+    fn borrowed_non_str_emits_reference() {
+        let (span, types) = typed("MyRecord");
+        let out = emit_ident_expr("x", &span, Some(&types), None, OwnershipMode::Borrowed);
+        assert_eq!(out, "&x", "non-str borrow must be `&x`, not `.as_str()`");
+    }
+
+    /// Owned, non-last-use, non-Copy still clones (unchanged).
+    #[test]
+    fn owned_non_copy_still_clones() {
+        let (span, types) = typed("str");
+        let out = emit_ident_expr("x", &span, Some(&types), None, OwnershipMode::Owned);
+        assert_eq!(out, "x.clone()");
     }
 }

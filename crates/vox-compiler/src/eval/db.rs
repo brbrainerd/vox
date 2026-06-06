@@ -50,7 +50,7 @@ fn ok(v: VoxValue) -> VoxValue {
 }
 
 fn row_to_object(row: &Row) -> VoxValue {
-    VoxValue::Object(row.clone())
+    VoxValue::object(row.clone())
 }
 
 /// Three-way compare for the orderable `VoxValue` scalars (Int/Float/Decimal/
@@ -202,7 +202,7 @@ pub fn execute_db_plan(
             let id = table.next_id;
             table.next_id += 1;
             let mut row: Row = vec![("_id".to_string(), VoxValue::Int(id))];
-            for (k, v) in record {
+            for (k, v) in record.iter().cloned() {
                 if k != "_id" {
                     row.push((k, v));
                 }
@@ -298,12 +298,12 @@ pub fn execute_db_plan(
                                 keep.push(pair.clone());
                             }
                         }
-                        VoxValue::Object(keep)
+                        VoxValue::object(keep)
                     })
                     .collect(),
                 None => out.iter().map(row_to_object).collect(),
             };
-            Ok(ok(VoxValue::List(projected)))
+            Ok(ok(VoxValue::list(projected)))
         }
     }
 }

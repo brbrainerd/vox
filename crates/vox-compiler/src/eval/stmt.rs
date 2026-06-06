@@ -15,10 +15,10 @@ fn apply_pop_side_effect(interp: &mut Interpreter, expr: &HirExpr) {
     if let HirExpr::MethodCall(obj_expr, method_name, _, _, _) = expr
         && method_name == "pop"
         && let HirExpr::Ident(name, _) = obj_expr.as_ref()
-        && let Some(VoxValue::List(mut items)) = interp.scope.get(name).cloned()
+        && let Some(VoxValue::List(items)) = interp.scope.get_mut(name)
     {
-        items.pop();
-        interp.scope.set_mut(name, VoxValue::List(items));
+        // CoW in place: O(1) when the binding solely owns the list.
+        std::rc::Rc::make_mut(items).pop();
     }
 }
 
@@ -36,7 +36,7 @@ pub fn eval_pattern(
         HirPattern::Tuple(pats, _) => {
             if let VoxValue::Tuple(vals) = value {
                 if pats.len() == vals.len() {
-                    for (p, v) in pats.iter().zip(vals) {
+                    for (p, v) in pats.iter().zip(vals.iter().cloned()) {
                         eval_pattern(interp, p, v)?;
                     }
                     Ok(())
@@ -232,27 +232,25 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
                         let idx_val = super::expr::eval_expr(interp, idx_expr)?;
                         match idx_val {
                             VoxValue::Int(i) => {
-                                if let Some(list_val) = interp.scope.get(name).cloned()
-                                    && let VoxValue::List(mut items) = list_val
+                                if i >= 0
+                                    && let Some(VoxValue::List(items)) = interp.scope.get_mut(name)
                                 {
                                     let ui = i as usize;
-                                    if i >= 0 && ui < items.len() {
-                                        items[ui] = v;
-                                        interp.scope.set_mut(name, VoxValue::List(items));
+                                    if ui < items.len() {
+                                        // CoW in place: clones only if `items` is aliased.
+                                        std::rc::Rc::make_mut(items)[ui] = v;
                                     }
                                 }
                             }
                             VoxValue::Str(key) => {
-                                if let Some(dict_val) = interp.scope.get(name).cloned()
-                                    && let VoxValue::Object(mut fields) = dict_val
-                                {
+                                if let Some(VoxValue::Object(fields)) = interp.scope.get_mut(name) {
+                                    let fields = std::rc::Rc::make_mut(fields);
                                     if let Some(entry) = fields.iter_mut().find(|(k, _)| k == &key)
                                     {
                                         entry.1 = v;
                                     } else {
                                         fields.push((key, v));
                                     }
-                                    interp.scope.set_mut(name, VoxValue::Object(fields));
                                 }
                             }
                             _ => {}

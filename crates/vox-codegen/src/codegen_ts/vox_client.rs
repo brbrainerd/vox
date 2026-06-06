@@ -723,11 +723,7 @@ fn collect_calls_stmt(stmt: &HirStmt, out: &mut HashSet<String>) {
             collect_calls_expr(target, out);
             collect_calls_expr(value, out);
         }
-        HirStmt::Return { value, .. } => {
-            if let Some(v) = value {
-                collect_calls_expr(v, out);
-            }
-        }
+        HirStmt::Return { value: Some(v), .. } => collect_calls_expr(v, out),
         HirStmt::While {
             condition, body, ..
         } => {
@@ -891,11 +887,7 @@ fn collect_plan_tables_stmt(stmt: &HirStmt, tables: &HashSet<&str>, out: &mut Ha
             collect_plan_tables_expr(target, tables, out);
             collect_plan_tables_expr(value, tables, out);
         }
-        HirStmt::Return { value, .. } => {
-            if let Some(v) = value {
-                collect_plan_tables_expr(v, tables, out);
-            }
-        }
+        HirStmt::Return { value: Some(v), .. } => collect_plan_tables_expr(v, tables, out),
         HirStmt::While {
             condition, body, ..
         } => {

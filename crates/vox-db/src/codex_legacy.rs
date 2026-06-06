@@ -251,6 +251,7 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "scientia_publication_queue",
     "scientia_research_artifacts",
     "scientia_research_sessions",
+    "scientia_review_decisions",
     "scientia_training_pairs",
     "search_document_chunks",
     "search_documents",

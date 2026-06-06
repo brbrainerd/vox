@@ -1142,15 +1142,13 @@ fn detect_react_hooks(members: &[HirReactiveMember], view: Option<&HirExpr>) -> 
 fn emit_prelude(members: &[HirReactiveMember]) -> String {
     let mut out = String::new();
     for m in members {
-        if let HirReactiveMember::Stmt(stmt) = m {
-            if let HirStmt::Let { pattern, value, .. } = stmt {
-                let pat = match pattern {
-                    vox_compiler::hir::HirPattern::Ident(name, _) => name.clone(),
-                    _ => "_unsupported".to_string(),
-                };
-                let val = emit_hir_expr_inline(value);
-                out.push_str(&format!("  const {pat} = {val};\n"));
-            }
+        if let HirReactiveMember::Stmt(HirStmt::Let { pattern, value, .. }) = m {
+            let pat = match pattern {
+                vox_compiler::hir::HirPattern::Ident(name, _) => name.clone(),
+                _ => "_unsupported".to_string(),
+            };
+            let val = emit_hir_expr_inline(value);
+            out.push_str(&format!("  const {pat} = {val};\n"));
         }
     }
     out

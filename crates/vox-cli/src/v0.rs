@@ -69,6 +69,10 @@ async fn fetch_v0_tsx(
     user_instruction: &str,
     image_path: Option<&Path>,
 ) -> Result<String> {
+    // Resolve the ambient (process-global) key + endpoint, then delegate to the
+    // injectable core. Tests call `fetch_v0_tsx_with` directly so they depend on
+    // NO shared env/vault state (avoids cross-test races on `VOX_V0_API_URL` /
+    // the secret vault path).
     let api_key = vox_secrets::resolve_secret(vox_secrets::SecretId::V0ApiKey)
         .expose()
         .map(std::string::ToString::to_string)
@@ -77,7 +81,21 @@ async fn fetch_v0_tsx(
                 "V0_API_KEY environment variable not found. Please set it to use @v0 components."
             )
         })?;
+    let url = v0_chats_url();
+    fetch_v0_tsx_with(component_name, user_instruction, image_path, &api_key, &url).await
+}
 
+/// HTTP core of [`fetch_v0_tsx`], parameterized over the already-resolved API
+/// key and endpoint URL. Keeping resolution out of this function makes it pure
+/// w.r.t. process-global state, so tests can inject a key + mock URL directly
+/// and run deterministically in parallel (no env mutation, no `#[serial]`).
+async fn fetch_v0_tsx_with(
+    component_name: &str,
+    user_instruction: &str,
+    image_path: Option<&Path>,
+    api_key: &str,
+    url: &str,
+) -> Result<String> {
     if let Some(path) = image_path {
         info!(
             "Generating v0 component '{}' with image: {:?}",
@@ -106,9 +124,8 @@ async fn fetch_v0_tsx(
         image: image_data,
     };
 
-    let url = v0_chats_url();
     let res = client
-        .post(&url)
+        .post(url)
         .header("Authorization", format!("Bearer {}", api_key))
         .json(&req_body)
         .send()
@@ -189,22 +206,10 @@ mod v0_response_tests {
 #[allow(unsafe_code)]
 mod v0_wiremock_tests {
     use super::*;
-    use serial_test::serial;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    fn restore_env(key: &str, prev: Option<String>) {
-        // SAFETY: `serial_test` runs this module's tests sequentially; we restore before returning.
-        unsafe {
-            match prev {
-                Some(v) => std::env::set_var(key, v),
-                None => std::env::remove_var(key),
-            }
-        }
-    }
-
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[serial]
     async fn fetch_hits_vox_v0_api_url() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
@@ -216,26 +221,14 @@ mod v0_wiremock_tests {
             .await;
 
         let url = format!("{}/v1/chats", server.uri());
-        let prev_url = std::env::var("VOX_V0_API_URL").ok();
-        let prev_key = std::env::var(vox_secrets::SecretId::V0ApiKey.spec().canonical_env).ok();
-        // SAFETY: paired with `restore_env` below; serialized by `#[serial]`.
-        unsafe {
-            std::env::set_var("VOX_V0_API_URL", url.as_str());
-            std::env::set_var(
-                vox_secrets::SecretId::V0ApiKey.spec().canonical_env,
-                "test-key",
-            );
-        }
-
-        let got = fetch_v0_tsx("Demo", "make a card", None)
+        // Inject the key + endpoint directly via the parameterized core, so this
+        // test touches NO process-global env or secret-vault state. That makes it
+        // hermetic and immune to cross-test races (previously this raced other
+        // env-mutating tests and intermittently saw "V0_API_KEY not found").
+        // No `#[serial]` needed.
+        let got = fetch_v0_tsx_with("Demo", "make a card", None, "test-key", &url)
             .await
             .expect("fetch");
         assert!(got.contains("export function Demo"));
-
-        restore_env("VOX_V0_API_URL", prev_url);
-        restore_env(
-            vox_secrets::SecretId::V0ApiKey.spec().canonical_env,
-            prev_key,
-        );
     }
 }

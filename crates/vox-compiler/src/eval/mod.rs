@@ -60,178 +60,178 @@ impl Interpreter {
         scope.set("null".to_string(), VoxValue::Null);
         scope.set(
             "fs".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("fs".to_string()),
             )]),
         );
         scope.set(
             "process".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("process".to_string()),
             )]),
         );
         scope.set(
             "env".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("env".to_string()),
             )]),
         );
         scope.set(
             "path".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("path".to_string()),
             )]),
         );
         scope.set(
             "secrets".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("secrets".to_string()),
             )]),
         );
         scope.set(
             "json".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("json".to_string()),
             )]),
         );
         scope.set(
             "regex".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("regex".to_string()),
             )]),
         );
         scope.set(
             "log".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("log".to_string()),
             )]),
         );
         scope.set(
             "time".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("time".to_string()),
             )]),
         );
         scope.set(
             "io".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("io".to_string()),
             )]),
         );
         scope.set(
             "repo".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("repo".to_string()),
             )]),
         );
 
         // Standard library root
-        let std_ns = VoxValue::Object(vec![
+        let std_ns = VoxValue::object(vec![
             (
                 "fs".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("fs".to_string()),
                 )]),
             ),
             (
                 "process".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("process".to_string()),
                 )]),
             ),
             (
                 "env".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("env".to_string()),
                 )]),
             ),
             (
                 "path".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("path".to_string()),
                 )]),
             ),
             (
                 "json".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("json".to_string()),
                 )]),
             ),
             (
                 "agentos".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("agentos".to_string()),
                 )]),
             ),
             (
                 "csv".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("csv".to_string()),
                 )]),
             ),
             (
                 "toml".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("toml".to_string()),
                 )]),
             ),
             (
                 "yaml".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("yaml".to_string()),
                 )]),
             ),
             (
                 "io".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("io".to_string()),
                 )]),
             ),
             (
                 "log".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("log".to_string()),
                 )]),
             ),
             (
                 "time".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("time".to_string()),
                 )]),
             ),
             (
                 "http".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("http".to_string()),
                 )]),
             ),
             (
                 "regex".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("regex".to_string()),
                 )]),
@@ -299,8 +299,10 @@ impl Interpreter {
         for f in &module.functions {
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
-                body: f.body.clone(),
+                body: std::rc::Rc::new(f.body.clone()),
                 env: Scope::new(),
+                name: f.name.clone(),
+                is_versioned: f.is_versioned,
             };
             self.scope.set(f.name.clone(), val.clone());
             self.module_scope.set(f.name.clone(), val);
@@ -309,8 +311,10 @@ impl Interpreter {
         for f in &module.tests {
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
-                body: f.body.clone(),
+                body: std::rc::Rc::new(f.body.clone()),
                 env: Scope::new(),
+                name: f.name.clone(),
+                is_versioned: f.is_versioned,
             };
             self.scope.set(f.name.clone(), val.clone());
             self.module_scope.set(f.name.clone(), val);
@@ -325,8 +329,12 @@ impl Interpreter {
         for f in &module.endpoint_fns {
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
-                body: f.body.clone(),
+                body: std::rc::Rc::new(f.body.clone()),
                 env: Scope::new(),
+                name: f.name.clone(),
+                // Endpoint fns (`@query`/`@mutation`/...) are a distinct decl and
+                // are never `@versioned`; no auto-snapshot for handler calls.
+                is_versioned: false,
             };
             self.scope.set(f.name.clone(), val.clone());
             self.module_scope.set(f.name.clone(), val);
@@ -425,8 +433,10 @@ impl Interpreter {
             // many-function imported modules.
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
-                body: f.body.clone(),
+                body: std::rc::Rc::new(f.body.clone()),
                 env: Scope::new(),
+                name: f.name.clone(),
+                is_versioned: f.is_versioned,
             };
             match alias {
                 None => {
@@ -460,7 +470,7 @@ impl Interpreter {
 
         if let Some(name) = alias {
             // Build a namespace object exposing `alias.fn_name` access.
-            let ns = VoxValue::Object(alias_bindings.into_iter().collect());
+            let ns = VoxValue::object(alias_bindings);
             self.scope.set(name.to_string(), ns.clone());
             self.module_scope.set(name.to_string(), ns);
         }
@@ -484,6 +494,8 @@ impl Interpreter {
             params,
             body,
             mut env,
+            name: fn_name,
+            is_versioned,
         } = val
         {
             if params.len() != args.len() {
@@ -502,8 +514,8 @@ impl Interpreter {
             self.scope = env;
 
             let mut res = VoxValue::Null;
-            for s in body {
-                res = stmt::eval_stmt(self, &s)?;
+            for s in body.iter() {
+                res = stmt::eval_stmt(self, s)?;
                 if let VoxValue::_Return(r) = res {
                     res = *r;
                     break;
@@ -511,6 +523,17 @@ impl Interpreter {
             }
 
             self.scope = old_scope;
+
+            // P5: auto-checkpoint on successful return of a @versioned function.
+            // Reaching here means the body loop completed without an early `?`
+            // error return, so the call succeeded. The auto-snapshot performs a
+            // `Vcs` effect; it inherits the same ungated behavior as explicit
+            // `repo.*` calls (`eval/repo.rs` does not consult `interp.caps`), so
+            // we do not add a new caps gate here — kept consistent with the
+            // landed `repo.*` semantics (design §4.3).
+            if is_versioned {
+                self.repo.snapshot(Some(&format!("@versioned {fn_name}")));
+            }
             Ok(res)
         } else {
             Err(EvalError::TypeError {

@@ -246,6 +246,7 @@ impl LowerCtx {
                     is_mobile_native: false,
                     is_pure: false,
                     is_reactive: false,
+                    is_versioned: false,
                     capabilities: vec![],
                     is_remote: false,
                     is_llm: false,

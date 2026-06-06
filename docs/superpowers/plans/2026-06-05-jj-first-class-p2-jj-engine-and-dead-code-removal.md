@@ -1,5 +1,18 @@
 # P2 — JjBackend (jj-lib 0.42 engine) + Dead-Code Removal Implementation Plan
 
+> **✅ STATUS: IMPLEMENTED & MERGED (2026-06-06).** This plan is now historical. The jj engine
+> shipped in `crates/vox-vcs/src/jj_backend.rs` + `jj_actor.rs` (commits `a85e40d1bd` spike →
+> `ddb13d732e` jj-actor → `5f6f29264c` orchestrator wiring → `0209c9c7fa` reconcile). **The shipped
+> design differs from the sketch below in one key way:** rather than the sync-trait + in-place
+> `block_on` shown here, `VcsBackend` is an **`#[async_trait]`** and the `!Send` jj engine lives behind
+> a dedicated-OS-thread **`jj_actor`** (a `Send + Sync` `JjActorHandle`). That actor *is* the
+> "offload-thread bridge" this plan's scope-correction recommended — it just wraps an async trait
+> instead of a sync one. Tasks 1–5, 7, 8 are DONE; **Task 6 (route the `vox vcs` CLI in-process) is
+> intentionally deferred** behind a documented `layers.toml` `raw-jj-exec` exemption, pending jj-lib
+> exposing blame/rebase in-process. Verified by 20 green `vox-vcs` tests (7 jj-lib surface
+> characterizations + 4 jj-actor tests). Next phases are P4 (isolation policy + GUI) and P5
+> (`@versioned` decorators) — see the sibling `2026-06-06-jj-first-class-p4-*` / `p5-*` plans.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make in-process **jj-lib 0.42** the real default VCS engine behind the `vox-vcs` `VcsBackend`
