@@ -146,10 +146,10 @@ async fn search_one_subquery(
             let mut accepted = 0usize;
             for h in hybrids {
                 let rh = research_hit_from_hybrid(h);
-                if let Some(scope) = site_scope {
-                    if !host_matches_site_scope(&rh.url, scope) {
-                        continue;
-                    }
+                if let Some(scope) = site_scope
+                    && !host_matches_site_scope(&rh.url, scope)
+                {
+                    continue;
                 }
                 if seen_urls.insert(rh.url.clone()) {
                     all_hits.push(rh);
