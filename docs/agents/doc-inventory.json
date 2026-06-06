@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-06-05T20:45:33.746Z",
+  "generated_at": "2026-06-05T23:59:56.689Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -93,6 +93,17 @@
       "lines_total": 35,
       "lines_triple_slash": 0,
       "lines_inner_doc": 23,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 2,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-ast/src/decl/mod.rs",
+      "kind": "rust",
+      "lines_total": 59,
+      "lines_triple_slash": 15,
+      "lines_inner_doc": 6,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 2,
@@ -6567,6 +6578,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-ast/src/expr.rs",
+      "kind": "rust",
+      "lines_total": 424,
+      "lines_triple_slash": 158,
+      "lines_inner_doc": 9,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 1,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/src/events.rs",
       "kind": "rust",
       "lines_total": 859,
@@ -6715,17 +6737,6 @@
       "lines_total": 543,
       "lines_triple_slash": 169,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ast/src/expr.rs",
-      "kind": "rust",
-      "lines_total": 424,
-      "lines_triple_slash": 158,
-      "lines_inner_doc": 9,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -9462,7 +9473,7 @@
     {
       "path": "crates/vox-cli/src/commands/research/mod.rs",
       "kind": "rust",
-      "lines_total": 447,
+      "lines_total": 449,
       "lines_triple_slash": 37,
       "lines_inner_doc": 0,
       "lines_plain_comment": 4,
@@ -13106,17 +13117,6 @@
       "lines_total": 60,
       "lines_triple_slash": 17,
       "lines_inner_doc": 4,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-ast/src/decl/mod.rs",
-      "kind": "rust",
-      "lines_total": 59,
-      "lines_triple_slash": 15,
-      "lines_inner_doc": 6,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
@@ -17199,6 +17199,17 @@
       "lines_triple_slash": 12,
       "lines_inner_doc": 1,
       "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
+      "path": "crates/vox-cli/src/commands/gui.rs",
+      "kind": "rust",
+      "lines_total": 132,
+      "lines_triple_slash": 13,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 3,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -21489,17 +21500,6 @@
       "lines_triple_slash": 7,
       "lines_inner_doc": 1,
       "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-cli/src/commands/gui.rs",
-      "kind": "rust",
-      "lines_total": 70,
-      "lines_triple_slash": 8,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 3,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -47367,6 +47367,1514 @@
     }
   ],
   "symbol_hints": [
+    {
+      "path": "crates/vox-ast/src/expr.rs",
+      "hints": [
+        {
+          "doc_line": 1,
+          "item_line": 11,
+          "item_preview": "use crate::pattern::Pattern;",
+          "containing_symbol": null,
+          "doc_preview": "Expression AST: literals, control flow, calls, JSX, blocks.",
+          "comment_type": "inner_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 2,
+          "item_line": 11,
+          "item_preview": "use crate::pattern::Pattern;",
+          "containing_symbol": null,
+          "doc_preview": "",
+          "comment_type": "inner_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 3,
+          "item_line": 11,
+          "item_preview": "use crate::pattern::Pattern;",
+          "containing_symbol": null,
+          "doc_preview": "Expressions may contain [`crate::stmt::Stmt`] sequences only inside `Expr::Block`, `Expr::If`",
+          "comment_type": "inner_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 4,
+          "item_line": 11,
+          "item_preview": "use crate::pattern::Pattern;",
+          "containing_symbol": null,
+          "doc_preview": "branches, and similar nodes. The parser does not distinguish “statement context” vs “expression",
+          "comment_type": "inner_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 5,
+          "item_line": 11,
+          "item_preview": "use crate::pattern::Pattern;",
+          "containing_symbol": null,
+          "doc_preview": "context” in the type system—that distinction is enforced during typechecking.",
+          "comment_type": "inner_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 6,
+          "item_line": 11,
+          "item_preview": "use crate::pattern::Pattern;",
+          "containing_symbol": null,
+          "doc_preview": "",
+          "comment_type": "inner_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 7,
+          "item_line": 11,
+          "item_preview": "use crate::pattern::Pattern;",
+          "containing_symbol": null,
+          "doc_preview": "**Tooling:** Prefer matching on [`Expr`](crate::expr::Expr) variants and using embedded",
+          "comment_type": "inner_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 8,
+          "item_line": 11,
+          "item_preview": "use crate::pattern::Pattern;",
+          "containing_symbol": null,
+          "doc_preview": "[`Span`](crate::span) fields for",
+          "comment_type": "inner_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 9,
+          "item_line": 11,
+          "item_preview": "use crate::pattern::Pattern;",
+          "containing_symbol": null,
+          "doc_preview": "diagnostics; do not assume expression shapes mirror HIR 1:1 until after lowering.",
+          "comment_type": "inner_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 15,
+          "item_line": 17,
+          "item_preview": "pub struct Arg {",
+          "containing_symbol": null,
+          "doc_preview": "Call argument: optional label (`name = value`) plus value expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 18,
+          "item_line": 19,
+          "item_preview": "pub name: Option<String>,",
+          "containing_symbol": null,
+          "doc_preview": "Named argument label (e.g., `json=` in `HTTP.post(\"/api\", json={x})`)",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 20,
+          "item_line": 21,
+          "item_preview": "pub value: Expr,",
+          "containing_symbol": null,
+          "doc_preview": "The argument value expression",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 24,
+          "item_line": 26,
+          "item_preview": "pub enum BinOp {",
+          "containing_symbol": null,
+          "doc_preview": "Infix operators in surface syntax (including `is` / `isnt` for reference equality).",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 27,
+          "item_line": 28,
+          "item_preview": "Add,",
+          "containing_symbol": null,
+          "doc_preview": "Addition (`+`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 29,
+          "item_line": 30,
+          "item_preview": "Sub,",
+          "containing_symbol": null,
+          "doc_preview": "Subtraction (`-`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 31,
+          "item_line": 32,
+          "item_preview": "Mul,",
+          "containing_symbol": null,
+          "doc_preview": "Multiplication (`*`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 33,
+          "item_line": 34,
+          "item_preview": "Div,",
+          "containing_symbol": null,
+          "doc_preview": "Division (`/`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 35,
+          "item_line": 36,
+          "item_preview": "Lt,",
+          "containing_symbol": null,
+          "doc_preview": "Less than (`<`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 37,
+          "item_line": 38,
+          "item_preview": "Gt,",
+          "containing_symbol": null,
+          "doc_preview": "Greater than (`>`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 39,
+          "item_line": 40,
+          "item_preview": "Lte,",
+          "containing_symbol": null,
+          "doc_preview": "Less than or equal (`<=`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 41,
+          "item_line": 42,
+          "item_preview": "Gte,",
+          "containing_symbol": null,
+          "doc_preview": "Greater than or equal (`>=`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 43,
+          "item_line": 44,
+          "item_preview": "And,",
+          "containing_symbol": null,
+          "doc_preview": "Logical AND (`and`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 45,
+          "item_line": 46,
+          "item_preview": "Or,",
+          "containing_symbol": null,
+          "doc_preview": "Logical OR (`or`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 47,
+          "item_line": 48,
+          "item_preview": "Is,",
+          "containing_symbol": null,
+          "doc_preview": "Reference equality (`is`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 49,
+          "item_line": 50,
+          "item_preview": "Isnt,",
+          "containing_symbol": null,
+          "doc_preview": "Reference inequality (`isnt`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 51,
+          "item_line": 52,
+          "item_preview": "Mod,",
+          "containing_symbol": null,
+          "doc_preview": "Modulo (`%`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 53,
+          "item_line": 54,
+          "item_preview": "Pipe,",
+          "containing_symbol": null,
+          "doc_preview": "Pipeline application (`|>`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 57,
+          "item_line": 59,
+          "item_preview": "pub enum UnOp {",
+          "containing_symbol": null,
+          "doc_preview": "Unary operators",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 60,
+          "item_line": 61,
+          "item_preview": "Not,",
+          "containing_symbol": null,
+          "doc_preview": "Logical negation (`not`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 62,
+          "item_line": 63,
+          "item_preview": "Neg,",
+          "containing_symbol": null,
+          "doc_preview": "Numeric negation (prefix `-`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 66,
+          "item_line": 68,
+          "item_preview": "pub struct MatchArm {",
+          "containing_symbol": null,
+          "doc_preview": "A match arm: pattern [if guard] -> body",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 69,
+          "item_line": 70,
+          "item_preview": "pub pattern: Pattern,",
+          "containing_symbol": null,
+          "doc_preview": "Pattern being matched.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 71,
+          "item_line": 72,
+          "item_preview": "pub guard: Option<Box<Expr>>,",
+          "containing_symbol": null,
+          "doc_preview": "Optional `if` guard expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 73,
+          "item_line": 74,
+          "item_preview": "pub body: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Arm body expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 75,
+          "item_line": 76,
+          "item_preview": "pub span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the entire arm.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 79,
+          "item_line": 81,
+          "item_preview": "pub struct JsxElement {",
+          "containing_symbol": null,
+          "doc_preview": "A JSX element: <tag attrs...>children</tag>",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 82,
+          "item_line": 83,
+          "item_preview": "pub tag: String,",
+          "containing_symbol": null,
+          "doc_preview": "Element tag name (lower-case component name).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 84,
+          "item_line": 85,
+          "item_preview": "pub attributes: Vec<JsxAttribute>,",
+          "containing_symbol": null,
+          "doc_preview": "JSX attributes (`name={expr}`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 86,
+          "item_line": 87,
+          "item_preview": "pub children: Vec<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Child expressions / nested elements.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 88,
+          "item_line": 89,
+          "item_preview": "pub span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the opening tag through closing tag.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 92,
+          "item_line": 94,
+          "item_preview": "pub struct JsxSelfClosingElement {",
+          "containing_symbol": null,
+          "doc_preview": "Self-closing JSX: tag and attributes, then `/>` with no separate closing tag.",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 95,
+          "item_line": 96,
+          "item_preview": "pub tag: String,",
+          "containing_symbol": null,
+          "doc_preview": "Element tag name.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 97,
+          "item_line": 98,
+          "item_preview": "pub attributes: Vec<JsxAttribute>,",
+          "containing_symbol": null,
+          "doc_preview": "JSX attributes.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 99,
+          "item_line": 100,
+          "item_preview": "pub span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the self-closing tag through `/>`.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 103,
+          "item_line": 105,
+          "item_preview": "pub struct JsxAttribute {",
+          "containing_symbol": null,
+          "doc_preview": "A JSX attribute: name={expr} or name=\"string\"",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 106,
+          "item_line": 107,
+          "item_preview": "pub name: String,",
+          "containing_symbol": null,
+          "doc_preview": "Attribute identifier (`className`, `onClick`, …).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 108,
+          "item_line": 109,
+          "item_preview": "pub value: Expr,",
+          "containing_symbol": null,
+          "doc_preview": "Attribute value expression or string literal.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 112,
+          "item_line": 114,
+          "item_preview": "pub struct Param {",
+          "containing_symbol": null,
+          "doc_preview": "Parameter for functions and lambdas.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 115,
+          "item_line": 116,
+          "item_preview": "pub name: String,",
+          "containing_symbol": null,
+          "doc_preview": "Parameter binding name.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 117,
+          "item_line": 118,
+          "item_preview": "pub type_ann: Option<TypeExpr>,",
+          "containing_symbol": null,
+          "doc_preview": "Optional type annotation.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 119,
+          "item_line": 120,
+          "item_preview": "pub default: Option<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Default value when omitted at call sites.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 121,
+          "item_line": 122,
+          "item_preview": "pub span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the parameter in the signature.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 125,
+          "item_line": 127,
+          "item_preview": "pub enum StringPart {",
+          "containing_symbol": null,
+          "doc_preview": "Parts of a string interpolation.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 128,
+          "item_line": 129,
+          "item_preview": "Literal(String),",
+          "containing_symbol": null,
+          "doc_preview": "Raw string fragment between interpolations.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 130,
+          "item_line": 131,
+          "item_preview": "Interpolation(Box<Expr>),",
+          "containing_symbol": null,
+          "doc_preview": "`{expression}` segment inside an interpolated string.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 134,
+          "item_line": 136,
+          "item_preview": "pub enum Expr {",
+          "containing_symbol": null,
+          "doc_preview": "All expression types in Vox.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 137,
+          "item_line": 138,
+          "item_preview": "IntLit {",
+          "containing_symbol": null,
+          "doc_preview": "Integer literal: `42`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 139,
+          "item_line": 140,
+          "item_preview": "value: i64,",
+          "containing_symbol": null,
+          "doc_preview": "Numeric value.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 141,
+          "item_line": 142,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the literal token.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 144,
+          "item_line": 145,
+          "item_preview": "FloatLit {",
+          "containing_symbol": null,
+          "doc_preview": "Float literal: `3.14`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 146,
+          "item_line": 147,
+          "item_preview": "value: f64,",
+          "containing_symbol": null,
+          "doc_preview": "Numeric value.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 148,
+          "item_line": 149,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the literal token.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 151,
+          "item_line": 152,
+          "item_preview": "StringLit {",
+          "containing_symbol": null,
+          "doc_preview": "String literal: `\"hello\"`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 153,
+          "item_line": 154,
+          "item_preview": "value: String,",
+          "containing_symbol": null,
+          "doc_preview": "Unescaped string contents.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 155,
+          "item_line": 156,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the quoted literal.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 158,
+          "item_line": 159,
+          "item_preview": "BoolLit {",
+          "containing_symbol": null,
+          "doc_preview": "Boolean literal: `true` / `false`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 160,
+          "item_line": 161,
+          "item_preview": "value: bool,",
+          "containing_symbol": null,
+          "doc_preview": "Boolean value.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 162,
+          "item_line": 163,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the keyword literal.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 165,
+          "item_line": 166,
+          "item_preview": "DecimalLit {",
+          "containing_symbol": null,
+          "doc_preview": "Fixed-point decimal literal: `1.23dec`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 167,
+          "item_line": 168,
+          "item_preview": "value: String,",
+          "containing_symbol": null,
+          "doc_preview": "Raw decimal string.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 169,
+          "item_line": 170,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the literal.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 172,
+          "item_line": 173,
+          "item_preview": "Ident {",
+          "containing_symbol": null,
+          "doc_preview": "Identifier reference: `x`, `foo`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 174,
+          "item_line": 175,
+          "item_preview": "name: String,",
+          "containing_symbol": null,
+          "doc_preview": "Resolved textual name as written in source.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 176,
+          "item_line": 177,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the identifier.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 179,
+          "item_line": 180,
+          "item_preview": "ObjectLit {",
+          "containing_symbol": null,
+          "doc_preview": "Object literal: `{key: value, ...}`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 181,
+          "item_line": 182,
+          "item_preview": "fields: Vec<(String, Expr)>,",
+          "containing_symbol": null,
+          "doc_preview": "Field name / value pairs in source order.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 183,
+          "item_line": 184,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering `{` … `}`.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 186,
+          "item_line": 187,
+          "item_preview": "ListLit {",
+          "containing_symbol": null,
+          "doc_preview": "List literal: `[a, b, c]`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 188,
+          "item_line": 189,
+          "item_preview": "elements: Vec<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Element expressions.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 190,
+          "item_line": 191,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering `[` … `]`.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 193,
+          "item_line": 194,
+          "item_preview": "TupleLit {",
+          "containing_symbol": null,
+          "doc_preview": "Tuple literal: `(a, b)`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 195,
+          "item_line": 196,
+          "item_preview": "elements: Vec<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Element expressions.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 197,
+          "item_line": 198,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering `(` … `)`.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 200,
+          "item_line": 201,
+          "item_preview": "Binary {",
+          "containing_symbol": null,
+          "doc_preview": "Binary expression: `a + b`, `a and b`, `a is b`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 202,
+          "item_line": 203,
+          "item_preview": "op: BinOp,",
+          "containing_symbol": null,
+          "doc_preview": "Operator token.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 204,
+          "item_line": 205,
+          "item_preview": "left: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Left-hand operand.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 206,
+          "item_line": 207,
+          "item_preview": "right: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Right-hand operand.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 208,
+          "item_line": 209,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the full binary expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 211,
+          "item_line": 212,
+          "item_preview": "Unary {",
+          "containing_symbol": null,
+          "doc_preview": "Unary expression: `not x`, `-x`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 213,
+          "item_line": 214,
+          "item_preview": "op: UnOp,",
+          "containing_symbol": null,
+          "doc_preview": "Unary operator.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 215,
+          "item_line": 216,
+          "item_preview": "operand: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Operand expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 217,
+          "item_line": 218,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering operator + operand.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 220,
+          "item_line": 221,
+          "item_preview": "Call {",
+          "containing_symbol": null,
+          "doc_preview": "Function call: `f(args)`, `f(a, name=value)`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 222,
+          "item_line": 223,
+          "item_preview": "callee: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Callee expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 224,
+          "item_line": 225,
+          "item_preview": "args: Vec<Arg>,",
+          "containing_symbol": null,
+          "doc_preview": "Positional and named arguments.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 226,
+          "item_line": 227,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the call postfix.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 229,
+          "item_line": 230,
+          "item_preview": "MethodCall {",
+          "containing_symbol": null,
+          "doc_preview": "Method call: `obj.method(args)`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 231,
+          "item_line": 232,
+          "item_preview": "object: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Receiver expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 233,
+          "item_line": 234,
+          "item_preview": "method: String,",
+          "containing_symbol": null,
+          "doc_preview": "Method name.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 235,
+          "item_line": 236,
+          "item_preview": "args: Vec<Arg>,",
+          "containing_symbol": null,
+          "doc_preview": "Call arguments.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 237,
+          "item_line": 238,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering `.method(` … `)`.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 240,
+          "item_line": 241,
+          "item_preview": "FieldAccess {",
+          "containing_symbol": null,
+          "doc_preview": "Field access: `obj.field`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 242,
+          "item_line": 243,
+          "item_preview": "object: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Base expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 244,
+          "item_line": 245,
+          "item_preview": "field: String,",
+          "containing_symbol": null,
+          "doc_preview": "Field identifier.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 246,
+          "item_line": 247,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering `.field`.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 249,
+          "item_line": 250,
+          "item_preview": "Match {",
+          "containing_symbol": null,
+          "doc_preview": "`match subject: arm -> body …` — value is the chosen arm’s body (all arms must be compatible).",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 251,
+          "item_line": 252,
+          "item_preview": "subject: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Scrutinee expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 253,
+          "item_line": 254,
+          "item_preview": "arms: Vec<MatchArm>,",
+          "containing_symbol": null,
+          "doc_preview": "Arms: pattern, optional `if` guard, `->` body expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 255,
+          "item_line": 256,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering `match` … end of block.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 258,
+          "item_line": 259,
+          "item_preview": "If {",
+          "containing_symbol": null,
+          "doc_preview": "Conditional: `if cond:` then-branch stmts, optional `else:` branch.",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 260,
+          "item_line": 261,
+          "item_preview": "condition: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Condition expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 262,
+          "item_line": 263,
+          "item_preview": "then_body: Vec<crate::stmt::Stmt>,",
+          "containing_symbol": null,
+          "doc_preview": "`then` branch statements.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 264,
+          "item_line": 265,
+          "item_preview": "else_body: Option<Vec<crate::stmt::Stmt>>,",
+          "containing_symbol": null,
+          "doc_preview": "Optional `else` branch statements.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 266,
+          "item_line": 267,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the whole `if`.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 269,
+          "item_line": 270,
+          "item_preview": "Try {",
+          "containing_symbol": null,
+          "doc_preview": "Try expression: `x?`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 271,
+          "item_line": 272,
+          "item_preview": "target: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "The expression being tried.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 273,
+          "item_line": 274,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering `?`.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 276,
+          "item_line": 277,
+          "item_preview": "For {",
+          "containing_symbol": null,
+          "doc_preview": "For expression (used in JSX): `for x in list: <elem>` or `for x, i in list: <elem>`",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 278,
+          "item_line": 279,
+          "item_preview": "binding: String,",
+          "containing_symbol": null,
+          "doc_preview": "Loop binding name.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 280,
+          "item_line": 281,
+          "item_preview": "index: Option<String>,",
+          "containing_symbol": null,
+          "doc_preview": "Optional index variable (the `, i` in `for x, i in list`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 282,
+          "item_line": 283,
+          "item_preview": "iterable: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Iterable expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 284,
+          "item_line": 285,
+          "item_preview": "body: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Body expression (often JSX).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 286,
+          "item_line": 287,
+          "item_preview": "key: Option<Box<Expr>>,",
+          "containing_symbol": null,
+          "doc_preview": "Optional React key expression (`key=expr`). Required for list renders.",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 288,
+          "item_line": 289,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering `for` … body.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 291,
+          "item_line": 292,
+          "item_preview": "Lambda {",
+          "containing_symbol": null,
+          "doc_preview": "Lambda: `fn(params) to body` or `@cancellable fn(params) to body`",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 293,
+          "item_line": 294,
+          "item_preview": "params: Vec<Param>,",
+          "containing_symbol": null,
+          "doc_preview": "Parameter list.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 295,
+          "item_line": 296,
+          "item_preview": "return_type: Option<TypeExpr>,",
+          "containing_symbol": null,
+          "doc_preview": "Optional return type annotation.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 297,
+          "item_line": 298,
+          "item_preview": "body: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Lambda body expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 299,
+          "item_line": 300,
+          "item_preview": "cancellable: bool,",
+          "containing_symbol": null,
+          "doc_preview": "True when the lambda was annotated `@cancellable fn(…)`.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 301,
+          "item_line": 302,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering `fn` … body.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 304,
+          "item_line": 305,
+          "item_preview": "Pipe {",
+          "containing_symbol": null,
+          "doc_preview": "Pipe expression: `a |> b`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 306,
+          "item_line": 307,
+          "item_preview": "left: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Left pipeline stage.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 308,
+          "item_line": 309,
+          "item_preview": "right: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Right pipeline stage (often a call).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 310,
+          "item_line": 311,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering `|>`.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 313,
+          "item_line": 314,
+          "item_preview": "Spawn {",
+          "containing_symbol": null,
+          "doc_preview": "Spawn an actor: `spawn(X)`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 315,
+          "item_line": 316,
+          "item_preview": "target: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Target actor type / handle expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 317,
+          "item_line": 318,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering `spawn`.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 320,
+          "item_line": 321,
+          "item_preview": "With {",
+          "containing_symbol": null,
+          "doc_preview": "With expression: `expr with options`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 322,
+          "item_line": 323,
+          "item_preview": "operand: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Base expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 324,
+          "item_line": 325,
+          "item_preview": "options: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Options record or builder expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 326,
+          "item_line": 327,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering `with`.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 329,
+          "item_line": 330,
+          "item_preview": "Jsx(JsxElement),",
+          "containing_symbol": null,
+          "doc_preview": "JSX element with children: `<div ...>children</div>`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 331,
+          "item_line": 332,
+          "item_preview": "JsxSelfClosing(JsxSelfClosingElement),",
+          "containing_symbol": null,
+          "doc_preview": "Self-closing JSX element: `<input .../>`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 333,
+          "item_line": 334,
+          "item_preview": "JsxFragment {",
+          "containing_symbol": null,
+          "doc_preview": "JSX fragment: `<>children</>`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 335,
+          "item_line": 336,
+          "item_preview": "children: Vec<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Child expressions / nested elements.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 337,
+          "item_line": 338,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering `<>` through `</>`.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 340,
+          "item_line": 341,
+          "item_preview": "Index {",
+          "containing_symbol": null,
+          "doc_preview": "Subscript / index expression: `obj[index]`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 342,
+          "item_line": 343,
+          "item_preview": "object: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Base expression being indexed.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 344,
+          "item_line": 345,
+          "item_preview": "index: Box<Expr>,",
+          "containing_symbol": null,
+          "doc_preview": "Index expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 346,
+          "item_line": 347,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering `object[index]`.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 349,
+          "item_line": 350,
+          "item_preview": "StringInterp {",
+          "containing_symbol": null,
+          "doc_preview": "String interpolation: `\"text {expr} more\"`",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 351,
+          "item_line": 352,
+          "item_preview": "parts: Vec<StringPart>,",
+          "containing_symbol": null,
+          "doc_preview": "Alternating literal and interpolation segments.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 353,
+          "item_line": 354,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the entire string literal.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 356,
+          "item_line": 360,
+          "item_preview": "Block {",
+          "containing_symbol": null,
+          "doc_preview": "Braced sequence of statements in an expression position (e.g. after `=>`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 357,
+          "item_line": 360,
+          "item_preview": "Block {",
+          "containing_symbol": null,
+          "doc_preview": "",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 358,
+          "item_line": 360,
+          "item_preview": "Block {",
+          "containing_symbol": null,
+          "doc_preview": "How the block’s value is determined is enforced during typechecking in `vox-compiler`",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 359,
+          "item_line": 360,
+          "item_preview": "Block {",
+          "containing_symbol": null,
+          "doc_preview": "(typically the tail must be an expression or `return`).",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 361,
+          "item_line": 362,
+          "item_preview": "stmts: Vec<crate::stmt::Stmt>,",
+          "containing_symbol": null,
+          "doc_preview": "Statements executed in order.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 363,
+          "item_line": 364,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the `{` … `}` block.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 366,
+          "item_line": 369,
+          "item_preview": "SideEffect {",
+          "containing_symbol": null,
+          "doc_preview": "Phase 1 P1-T7: `side_effect { stmts }` — sanctioned non-determinism inside",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 367,
+          "item_line": 369,
+          "item_preview": "SideEffect {",
+          "containing_symbol": null,
+          "doc_preview": "a workflow body. Desugars to a synthesised anonymous inline activity at HIR",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 368,
+          "item_line": 369,
+          "item_preview": "SideEffect {",
+          "containing_symbol": null,
+          "doc_preview": "lower time; the workflow determinism check is exempt inside the block.",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 370,
+          "item_line": 371,
+          "item_preview": "stmts: Vec<crate::stmt::Stmt>,",
+          "containing_symbol": null,
+          "doc_preview": "Body statements (allowed to call `time.now()`, `random.*`, etc.).",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 372,
+          "item_line": 373,
+          "item_preview": "span: Span,",
+          "containing_symbol": null,
+          "doc_preview": "Span covering the `side_effect { … }` expression.",
+          "comment_type": "outer_doc",
+          "quality_tag": "mechanical"
+        },
+        {
+          "doc_line": 375,
+          "item_line": 376,
+          "item_preview": "WorkflowVersion(WorkflowVersionCall),",
+          "containing_symbol": null,
+          "doc_preview": "`workflow.version(\"change-id\", min, max)` patch-marker primitive (P2-T2).",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 379,
+          "item_line": 381,
+          "item_preview": "pub struct WorkflowVersionCall {",
+          "containing_symbol": null,
+          "doc_preview": "Arguments for `workflow.version(\"change-id\", min_supported, max_supported)`.",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        },
+        {
+          "doc_line": 389,
+          "item_line": 390,
+          "item_preview": "pub fn span(&self) -> Span {",
+          "containing_symbol": null,
+          "doc_preview": "Outermost source span for diagnostics (includes JSX and block delimiters).",
+          "comment_type": "outer_doc",
+          "quality_tag": "narrative"
+        }
+      ]
+    },
     {
       "path": "crates/vox-cli/src/lib.rs",
       "hints": [
