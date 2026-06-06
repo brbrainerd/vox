@@ -402,20 +402,27 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     let old_scope = interp.scope.clone();
                     interp.scope = env;
 
-                    let mut val = VoxValue::Null;
-                    for stmt in body.iter() {
-                        val = super::stmt::eval_stmt(interp, stmt)?;
-                        if let VoxValue::_Return(v) = val {
-                            val = *v;
-                            break;
+                    // Run the body in a closure so the scope is restored on BOTH
+                    // success and the `?` error path (a leaked scope would corrupt
+                    // later evaluation when the interpreter is reused, e.g. the
+                    // `@test` runner).
+                    let result: Result<VoxValue, EvalError> = (|| {
+                        let mut val = VoxValue::Null;
+                        for stmt in body.iter() {
+                            val = super::stmt::eval_stmt(interp, stmt)?;
+                            if let VoxValue::_Return(v) = val {
+                                val = *v;
+                                break;
+                            }
+                            if matches!(val, VoxValue::_Break | VoxValue::_Continue) {
+                                break;
+                            }
                         }
-                        if matches!(val, VoxValue::_Break | VoxValue::_Continue) {
-                            break;
-                        }
-                    }
+                        Ok(val)
+                    })();
 
                     interp.scope = old_scope;
-                    Ok(val)
+                    result
                 }
                 VoxValue::Constructor(name) => match name.as_str() {
                     // Built-in Option/Result constructors lower directly to
@@ -755,18 +762,23 @@ fn apply_closure(
     }
 
     let old_scope = std::mem::replace(&mut interp.scope, new_env);
-    let mut val = VoxValue::Null;
-    for stmt in body.iter() {
-        val = super::stmt::eval_stmt(interp, stmt)?;
-        if let VoxValue::_Return(v) = val {
-            val = *v;
-            break;
+    // Restore the caller's scope on BOTH success and the `?` error path.
+    let result: Result<VoxValue, EvalError> = (|| {
+        let mut val = VoxValue::Null;
+        for stmt in body.iter() {
+            val = super::stmt::eval_stmt(interp, stmt)?;
+            if let VoxValue::_Return(v) = val {
+                val = *v;
+                break;
+            }
+            if matches!(val, VoxValue::_Break | VoxValue::_Continue) {
+                break;
+            }
         }
-        if matches!(val, VoxValue::_Break | VoxValue::_Continue) {
-            break;
-        }
-    }
+        Ok(val)
+    })();
     interp.scope = old_scope;
+    let val = result?;
 
     if let VoxValue::_Panic(msg) = val {
         return Err(EvalError::AssertionFailed(msg));

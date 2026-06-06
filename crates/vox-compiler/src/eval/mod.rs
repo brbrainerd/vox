@@ -501,17 +501,23 @@ impl Interpreter {
             let old_scope = self.scope.clone();
             self.scope = env;
 
-            let mut res = VoxValue::Null;
-            for s in body.iter() {
-                res = stmt::eval_stmt(self, s)?;
-                if let VoxValue::_Return(r) = res {
-                    res = *r;
-                    break;
+            // Restore the prior scope on BOTH success and the `?` error path so a
+            // failed call cannot leak scope state into a later reuse of the
+            // interpreter (e.g. the `@test` runner).
+            let result: Result<VoxValue, EvalError> = (|| {
+                let mut res = VoxValue::Null;
+                for s in body.iter() {
+                    res = stmt::eval_stmt(self, s)?;
+                    if let VoxValue::_Return(r) = res {
+                        res = *r;
+                        break;
+                    }
                 }
-            }
+                Ok(res)
+            })();
 
             self.scope = old_scope;
-            Ok(res)
+            result
         } else {
             Err(EvalError::TypeError {
                 expected: "function",
