@@ -181,7 +181,7 @@ fn compute_heatmap(annotate_output: &str) -> Vec<HotRegion> {
         })
         .collect();
 
-    regions.sort_by(|a, b| b.change_count.cmp(&a.change_count));
+    regions.sort_by_key(|r| std::cmp::Reverse(r.change_count));
     regions.truncate(5);
     regions
 }

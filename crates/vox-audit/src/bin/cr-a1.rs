@@ -70,7 +70,7 @@ fn main() {
         }
     }
 
-    all_functions.sort_by_key(|b| std::cmp::Reverse(b.complexity));
+    all_functions.sort_by_key(|f| std::cmp::Reverse(f.complexity));
     let max_complexity = all_functions
         .iter()
         .map(|f| f.complexity)

@@ -54,6 +54,9 @@ use super::retired_symbol_check;
 /// Run `vox ci` subcommand.
 pub async fn run(cmd: CiCmd) -> Result<()> {
     let root = repo_root();
+    // A stale `vox` binary runs outdated guard logic/allowlists, so its `vox ci`
+    // verdict would not reflect the current source. Refuse rather than mislead.
+    crate::freshness::enforce_for_ci(&root)?;
     match cmd {
         CiCmd::Manifest => run_manifest(&root),
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
@@ -436,12 +439,42 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             out_dir,
             package,
         } => release_build::run(&root, &target, version.as_deref(), &out_dir, package),
-        CiCmd::ArtifactAudit { json } => super::workspace_artifacts::run_audit(&root, json),
+        CiCmd::ArtifactAudit {
+            json,
+            include_worktrees,
+        } => super::workspace_artifacts::run_audit(&root, json, include_worktrees),
         CiCmd::ArtifactPrune {
             dry_run,
             apply,
             policy,
-        } => super::workspace_artifacts::run_prune(&root, dry_run, apply, policy.as_deref()),
+            include_worktrees,
+            remove_stale_worktrees,
+            include_dirty_targets,
+            incremental_only,
+            max_age_days,
+        } => super::workspace_artifacts::run_prune(
+            &root,
+            dry_run,
+            apply,
+            policy.as_deref(),
+            super::workspace_artifacts::WorktreeGcOpts {
+                include_worktrees,
+                remove_stale_worktrees,
+                include_dirty_targets,
+                incremental_only,
+                max_age_days,
+            },
+        ),
+        CiCmd::RunnerScale { apply } => super::runner_scale::run_scale(apply),
+        CiCmd::RunnerPreflight => super::runner_scale::run_preflight(),
+        CiCmd::JobTimings {
+            run_id,
+            threshold_mins,
+            limit,
+            json,
+            annotate,
+            strict,
+        } => super::job_timings::run(run_id, threshold_mins, limit, json, annotate, strict),
         CiCmd::NomenclatureGuard { json } => super::nomenclature_guard::run(&root, json),
         CiCmd::RetiredSymbolCheck => retired_symbol_check::run(&root),
         CiCmd::SyncIgnoreFiles { verify } => super::sync_ignore_files::run(&root, verify),

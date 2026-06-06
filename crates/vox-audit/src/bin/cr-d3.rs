@@ -161,7 +161,7 @@ fn scan_corpus_for_mentions(corpus_roots: &[PathBuf], subcommands: &[String]) ->
         .iter()
         .map(|p| (p.clone(), format!("vox {}", p.replace('.', " "))))
         .collect();
-    needles.sort_by_key(|b| std::cmp::Reverse(b.1.len())); // longest first
+    needles.sort_by_key(|n| std::cmp::Reverse(n.1.len())); // longest first
 
     let mut mentioned: BTreeSet<String> = BTreeSet::new();
     for root in corpus_roots {

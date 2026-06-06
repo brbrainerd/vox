@@ -40,6 +40,11 @@ replication = []
 regex = { workspace = true }
 tempfile = { workspace = true }
 vox-test-harness = { path = "../vox-test-harness" }
+# Test-only: arca_compiler_table_parity builds HIR via vox-compiler and emits DDL
+# via vox-codegen to assert vox-db's table emit matches. Dev-deps don't link into
+# the shipped lib, so vox-db's runtime decoupling from the compiler is preserved.
+vox-compiler = { workspace = true }
+vox-codegen = { workspace = true }
 
 [[test]]
 name = "sync_embedded_replica_integration"

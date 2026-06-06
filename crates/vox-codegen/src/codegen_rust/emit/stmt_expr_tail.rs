@@ -86,8 +86,19 @@ where
                 emit(left, OwnershipMode::Owned)
             )
         }
-        HirExpr::For(name, _, iter, body, _, _) => {
-            let mut s = format!("for {} in {} {{\n", name, emit(iter, OwnershipMode::Owned));
+        HirExpr::For(name, index, iter, body, _, _) => {
+            // Indexed form `for v, i in xs` binds the 0-based index too. Mirror
+            // the interpreter (eval::expr For arm): enumerate and shadow the
+            // index as `i64` (Vox `int`) so body arithmetic on it typechecks.
+            // Without this the index var is undefined in the emitted Rust
+            // (`E0425 cannot find value i`).
+            let mut s = match index {
+                Some(idx) => format!(
+                    "for ({idx}, {name}) in {}.into_iter().enumerate() {{\n    let {idx} = {idx} as i64;\n",
+                    emit(iter, OwnershipMode::Owned),
+                ),
+                None => format!("for {} in {} {{\n", name, emit(iter, OwnershipMode::Owned)),
+            };
             if let HirExpr::Block(stmts, _) = &**body {
                 for stmt in stmts {
                     s.push_str(&super::stmt_expr::emit_stmt(
