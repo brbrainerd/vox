@@ -23,7 +23,7 @@ edition = "2024"
 license = "Apache-2.0"
 authors = ["Bert Brainerd"]
 repository = "https://github.com/vox-foundation/vox.git"
-rust-version = "1.92"
+rust-version = "1.95"
 keywords = ["vox", "language", "compilers"]
 categories = ["development-tools", "compilers"]
 
@@ -226,7 +226,7 @@ mime_guess         = "2.0"
 uuid               = { version = "1", features = ["v4", "serde"] }
 async-stream       = "0.3"
 xxhash-rust        = { version = "0.8", features = ["xxh3"] }
-sysinfo            = "0.38"
+sysinfo            = "0.39"
 walkdir            = "2"
 rayon              = "1.10"
 rand               = { version = "0.8", features = ["small_rng", "std_rng"] }
@@ -273,8 +273,8 @@ chacha20poly1305   = "0.10"
 aead               = { version = "0.5", features = ["std"] }
 gix                = { version = "0.70", default-features = false }
 jj-lib             = { version = "=0.27.0", default-features = false }
-wasmtime           = "42.0.1"
-wasmtime-wasi      = "42.0.1"
+wasmtime           = "45"
+wasmtime-wasi      = "45"
 
 self_update        = "0.43.1"
 landlock           = "0.4.4"
