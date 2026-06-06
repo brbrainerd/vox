@@ -48,6 +48,7 @@ catches one flavor of stale binary. We should generalize that idea to version.
 ## 3. Design — automatic staleness prevention
 
 ### 3.1 Build-number freshness self-check (primary)
+
 When `vox` runs **inside a Vox workspace**, compare its embedded build number
 against the working tree's:
 
@@ -57,6 +58,7 @@ against the working tree's:
 - If `embedded < live` (binary built at an older commit) → the binary is stale.
 
 Behavior:
+
 - **Warn** on any direct invocation: `vox is stale (built at commit N; workspace
   is at M). Run \`cargo install --path crates/vox-cli --force\` (or your install
   command).`
@@ -72,6 +74,7 @@ misses. Insertion point: the CLI dispatcher (`run_vox_cli_from_parsed` in
 narrowly, at the top of `run_ssot_drift` / `vox ci` dispatch.
 
 ### 3.2 Canonical binary SSOT
+
 - Declare **`~/.cargo/bin/vox.exe` the canonical install target** (standard Rust
   toolchain path; what `cargo install -p vox-cli` produces).
 - Have voxup (or a `vox self-install`) install/refresh **that** path, or make
@@ -80,8 +83,10 @@ narrowly, at the top of `run_ssot_drift` / `vox ci` dispatch.
   build number, and that it matches the workspace when inside one.
 
 ### 3.3 Tie the refresh to the version bump
+
 The motivating ask: *prevent staleness automatically when we go up to the next
 version.* Make the bump self-correcting:
+
 - Extend the existing `vox ci gui-version-sync` pattern (which already reads the
   workspace `[workspace.package] version` and syncs GUI/runtime `package.json`)
   with a **binary-freshness assertion** in the same `ssot-drift` step.
@@ -91,12 +96,14 @@ version.* Make the bump self-correcting:
   silently misleading.
 
 ## 4. Recommended first slice
+
 The smallest high-value change: **§3.1 build-number self-check**, hard-failing
 `vox ci *` with a `VOX_SKIP_FRESHNESS_CHECK` override, reusing the workspace-version
 reader already in `gui_version_sync.rs`. That alone would have turned this
 incident's silent misdirection into a one-line, actionable error.
 
 ## 5. Cross-refs
+
 - Versioning: `crates/vox-cli/src/lib.rs` (`VOX_VERSION`), `crates/vox-build-meta/src/lib.rs`.
 - Hook generation: `crates/vox-cli/src/commands/ci/install_hooks.rs`; `.git/hooks/pre-push`.
 - Existing version parity: `crates/vox-cli/src/commands/ci/gui_version_sync.rs`.
