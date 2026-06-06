@@ -169,6 +169,12 @@ jobs:
       - name: No cdylib plugin as a compile-time dependency (D-2)
         run: cargo run -p vox-cli --quiet -- ci no-plugin-cdylib-as-compile-dep
 
+      # Builds every current-platform plugin cdylib (default/CPU features), then loads each
+      # through the host loader to assert its embedded ABI version matches the host. Catches a
+      # plugin drifting from VOX_PLUGIN_ABI_VERSION (e.g. an SDK/ABI bump that wasn't rebuilt).
+      - name: Plugin ABI parity (build + load every plugin)
+        run: cargo run -p vox-cli --quiet -- ci plugin-abi-parity --build
+
       - name: Dynamic Workspace Health Audit
         run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-workspace-health.vox
 
