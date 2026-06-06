@@ -34,6 +34,7 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         is_mobile_native: false,
         is_pure: false,
         is_reactive: false,
+        is_versioned: false,
         is_remote: false,
         is_deprecated: false,
         is_llm: false,

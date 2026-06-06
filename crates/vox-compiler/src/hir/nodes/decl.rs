@@ -318,6 +318,13 @@ pub struct HirFn {
     /// caller's `derived` / `effect`. Without it, the dep walker stops at the call site.
     #[serde(default)]
     pub is_reactive: bool,
+    /// `@versioned` / `@tracked` — see `FnDecl::is_versioned`. The `--mode interp`
+    /// interpreter auto-records one `repo.snapshot()` checkpoint on this function's
+    /// successful return (design §4.3). Inert (not read) in the compiled arms
+    /// (`--mode script` / TS emit), which have no interpreter `RepoStore` — P5 is
+    /// an interpreter-only feature, consistent with `db.*`'s in-memory `DbStore`.
+    #[serde(default)]
+    pub is_versioned: bool,
     /// Capabilities declared via `uses` clause. Empty = unannotated; `[Nothing]` = pure.
     #[serde(default)]
     pub capabilities: Vec<HirCapability>,
