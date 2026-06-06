@@ -58,6 +58,9 @@ impl Tier {
 /// `contracts/ci/vox-audit-contract.v1.yaml` §subcommands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CrlGate {
+    /// CR-F1 (Foundation): behavioral goldens — `// EXPECT:` stdout matches
+    /// `vox run --mode interp`. First registered Foundation-tier gate.
+    F1BehavioralGoldens,
     L0SpecToApp,
     L1HumanEval,
     L2MensOnDistribution,
@@ -79,6 +82,7 @@ impl CrlGate {
     /// Stable name as used by `vox audit <thing>` and the report `thing` field.
     pub fn thing_name(self) -> &'static str {
         match self {
+            CrlGate::F1BehavioralGoldens => "behavioral-goldens",
             CrlGate::L0SpecToApp => "spec-to-app",
             CrlGate::L1HumanEval => "humaneval",
             CrlGate::L2MensOnDistribution => "mens-on-distribution",
@@ -99,7 +103,8 @@ impl CrlGate {
     pub fn block_ga(self) -> bool {
         matches!(
             self,
-            CrlGate::L0SpecToApp
+            CrlGate::F1BehavioralGoldens
+                | CrlGate::L0SpecToApp
                 | CrlGate::L5AciDefault
                 | CrlGate::L6Retirement
                 | CrlGate::L7Deploy
@@ -124,6 +129,7 @@ impl CrlGate {
     /// Distribution / GUI variants enter as their gates land (Phase 0+).
     pub fn tier(self) -> Tier {
         match self {
+            CrlGate::F1BehavioralGoldens => Tier::Foundation,
             CrlGate::L0SpecToApp
             | CrlGate::L1HumanEval
             | CrlGate::L2MensOnDistribution
@@ -140,6 +146,7 @@ impl CrlGate {
     /// Iterator over every registered gate, in display order.
     pub fn all() -> impl Iterator<Item = CrlGate> {
         [
+            CrlGate::F1BehavioralGoldens,
             CrlGate::L0SpecToApp,
             CrlGate::L1HumanEval,
             CrlGate::L2MensOnDistribution,
@@ -242,6 +249,8 @@ pub trait Subcommand: Send + Sync {
 /// §subcommands. Tooling gates appear after the CR-L block.
 pub fn registry() -> Vec<Box<dyn Subcommand>> {
     vec![
+        // CR-F1 (Foundation) — first real foundation-tier gate.
+        Box::new(subcommands::behavioral_goldens::BehavioralGoldensSubcommand),
         Box::new(subcommands::stubs::SpecToAppStub),
         // P2.3: CR-L1 stub replaced by real vox-check-based impl.
         Box::new(subcommands::humaneval::HumanEvalSubcommand),
@@ -432,8 +441,8 @@ mod tests {
         assert_eq!(registry().len(), CrlGate::all().count());
         assert_eq!(
             registry().len(),
-            10,
-            "9 CR-L gates + 1 tooling gate (stdlib-coverage) expected"
+            11,
+            "1 CR-F foundation gate + 9 CR-L gates + 1 tooling gate (stdlib-coverage) expected"
         );
     }
 
@@ -459,6 +468,7 @@ mod tests {
         let blockers: std::collections::HashSet<CrlGate> =
             CrlGate::all().filter(|g| g.block_ga()).collect();
         let expected: std::collections::HashSet<CrlGate> = [
+            CrlGate::F1BehavioralGoldens,
             CrlGate::L0SpecToApp,
             CrlGate::L5AciDefault,
             CrlGate::L6Retirement,

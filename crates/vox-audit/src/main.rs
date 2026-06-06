@@ -59,6 +59,8 @@ struct Cli {
 
 #[derive(Debug, ClapSubcommand)]
 enum CliCommand {
+    /// CR-F1: behavioral goldens — `// EXPECT:` stdout matches `vox run --mode interp`.
+    BehavioralGoldens,
     /// CR-L0: end-to-end agent loop (spec → passing app).
     SpecToApp,
     /// CR-L1: HumanEval-Vox.
@@ -90,6 +92,7 @@ enum CliCommand {
 impl CliCommand {
     fn to_gate_name(&self) -> Option<&'static str> {
         match self {
+            CliCommand::BehavioralGoldens => Some("behavioral-goldens"),
             CliCommand::SpecToApp => Some("spec-to-app"),
             CliCommand::Humaneval => Some("humaneval"),
             CliCommand::MensOnDistribution => Some("mens-on-distribution"),
