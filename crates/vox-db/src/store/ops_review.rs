@@ -111,27 +111,6 @@ impl VoxDb {
         }
     }
 
-    /// Return all claim_ids that have at least one review decision.
-    ///
-    /// Named for what it actually returns. The inverse query — claims *awaiting*
-    /// first review (an extracted verdict but no terminal decision) — is
-    /// `list_claims_awaiting_review`, added in P2 Task 5 once the claims/queue
-    /// join source is wired. Do not conflate the two.
-    pub async fn list_claims_with_decisions(&self) -> Result<Vec<i64>, StoreError> {
-        let mut rows = self
-            .conn
-            .query(
-                "SELECT DISTINCT claim_id FROM scientia_review_decisions ORDER BY claim_id",
-                (),
-            )
-            .await
-            .map_err(StoreError::Turso)?;
-        let mut out = Vec::new();
-        while let Some(row) = rows.next().await.map_err(StoreError::Turso)? {
-            out.push(row.get::<i64>(0).map_err(StoreError::Turso)?);
-        }
-        Ok(out)
-    }
 }
 
 #[cfg(test)]
@@ -284,31 +263,4 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn list_claims_with_decisions_returns_distinct_ids() {
-        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
-        let base = ReviewDecisionRow {
-            claim_id: 0,
-            publication_id: Some("pub-003".into()),
-            bound_digest: "d".into(),
-            decision: "approved".into(),
-            actor: "alice".into(),
-            reason: None,
-            model_fingerprints_json: None,
-            decided_at_ms: 1,
-        };
-        // Two distinct claims; one of them decided twice.
-        for (claim_id, decided_at_ms) in [(10_i64, 1_i64), (20, 1), (10, 2)] {
-            db.record_review_decision(&ReviewDecisionRow {
-                claim_id,
-                decided_at_ms,
-                ..base.clone()
-            })
-            .await
-            .expect("record");
-        }
-        let got = db.list_claims_with_decisions().await.expect("list");
-        // DISTINCT: claim 10 appears once despite two decisions; ordered by claim_id.
-        assert_eq!(got, vec![10, 20]);
-    }
 }
