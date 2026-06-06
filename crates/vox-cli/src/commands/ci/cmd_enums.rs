@@ -643,6 +643,16 @@ pub enum CiCmd {
         #[arg(long)]
         max_age_days: Option<u32>,
     },
+    /// Autoscale the ephemeral self-hosted CI runner pool to current demand (dry-run unless `--apply`).
+    #[command(name = "runner-scale")]
+    RunnerScale {
+        /// Actually spawn/reap runners (default is dry-run).
+        #[arg(long)]
+        apply: bool,
+    },
+    /// Fail-fast: error immediately when no online self-hosted runner can serve the gate.
+    #[command(name = "runner-preflight")]
+    RunnerPreflight,
     /// Nomenclature guard: fail when new Latin-only structural crate directories appear outside the allowlist (T189-T196).
     #[command(name = "nomenclature-guard")]
     NomenclatureGuard {

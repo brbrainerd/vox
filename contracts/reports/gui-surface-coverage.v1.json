@@ -215,6 +215,8 @@
     "ci retired-symbol-check",
     "ci retirement-audit",
     "ci row-serde-lint",
+    "ci runner-preflight",
+    "ci runner-scale",
     "ci runtime-regress",
     "ci rust-ecosystem-policy",
     "ci safety-inventory",
