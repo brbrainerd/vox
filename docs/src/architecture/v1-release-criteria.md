@@ -1,5 +1,6 @@
 ---
 title: "v1-release-criteria"
+description: "Tiered, machine-verifiable v1.0 release criteria for Vox — Foundation (CR-F), Distribution (CR-K), GUI (CR-U), and Product (CR-P/A/E/D/L) gates, each with an exact verify command."
 category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
@@ -15,7 +16,7 @@ while any Foundation criterion is red.
 > **Why this revision (2026-06-05).** The prior criteria gated only outcomes
 > built *on top of* Vox (deploy loops, uptime, LLM authorship, bundle size)
 > and never the **compiler's own completeness or correctness**. A 6-dimension
-> forensic audit (see [`v1-foundation-criteria-advisory-2026-06-05.md`](./v1-foundation-criteria-advisory-2026-06-05.md))
+> forensic audit (see [`v1-foundation-criteria-research-2026.md`](./v1-foundation-criteria-research-2026.md))
 > showed core-fix activity *accelerating*, table-stakes semantics landing at
 > HEAD, the golden corpus verified by parse/typecheck only, four
 > hand-synchronized execution arms with no differential test, and a
@@ -83,7 +84,7 @@ constructs and **non-growing** otherwise. (Council steer 2026-06-05: all three
 arms are parity-gated for v1.0.)
 - `verify_cmd`: `cargo test -p vox-integration-tests --test golden_arm_parity_test`
 - `artifact_path`: `contracts/reports/arm-parity/<UTC>.json` (`{interp_out, script_out, ts_out, all_agree}` per program)
-- `if_failing`: reconcile the diverging arm builtin-by-builtin; for codegen-ts add a Node execution harness over emitted output. **Status: MEASURED 2026-06-05 — interp 10/10 vs `--mode script` (codegen-rust) 0/10: the codegen-rust arm compiles NONE of the `main()`-goldens (even `fn main() to int { return 0 }`). CR-F2 is blocked on a 7-class codegen-rust repair backlog before any gate can land — see [`cr-f2-arm-parity-reality-2026-06-05.md`](./cr-f2-arm-parity-reality-2026-06-05.md).**
+- `if_failing`: reconcile the diverging arm builtin-by-builtin; for codegen-ts add a Node execution harness over emitted output. **Status: MEASURED 2026-06-05 — interp 10/10 vs `--mode script` (codegen-rust) 0/10: the codegen-rust arm compiles NONE of the `main()`-goldens (even `fn main() to int { return 0 }`). CR-F2 is blocked on a 7-class codegen-rust repair backlog before any gate can land — see [`cr-f2-arm-parity-findings-2026.md`](./cr-f2-arm-parity-findings-2026.md).**
 
 **[CR-F3] Language-spec coverage.** A machine-readable checklist
 (`contracts/spec/language-surface-coverage.v1.yaml`) enumerates every grammar
@@ -292,7 +293,7 @@ report any downstream gate green while a Foundation gate is red.
 *Original criteria (CR-P/A/E/D/L) approved by Vox Foundation Council — April 2026;
 §3.5 (CR-L0..L8) + Marquee manifest ratified 2026-05-15. Foundation tier (CR-F),
 Distribution tier (CR-K), GUI tier (CR-U), CR-META format, and tier re-ordering
-added 2026-06-05 per [`v1-foundation-criteria-advisory-2026-06-05.md`](./v1-foundation-criteria-advisory-2026-06-05.md);
+added 2026-06-05 per [`v1-foundation-criteria-research-2026.md`](./v1-foundation-criteria-research-2026.md);
 arm-parity scope (all three arms) and the db.\*/import reject-with-diagnostic
 disposition reflect the 2026-06-05 maintainer steer. Council ratification of the
 new tiers is pending. Per ratification D2: realistic-v1.0 bars hold. Per D16:

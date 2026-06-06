@@ -406,10 +406,15 @@ impl Interpreter {
             if !f.is_pub {
                 continue;
             }
+            // Empty captured env (same rationale as the top-level registration
+            // loops): merged imports resolve siblings/ctors via `module_scope`,
+            // so capturing `self.scope.clone()` per imported fn was both
+            // unnecessary and a route back to the O(2^N) clone blow-up for
+            // many-function imported modules.
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: f.body.clone(),
-                env: self.scope.clone(),
+                env: Scope::new(),
             };
             match alias {
                 None => {

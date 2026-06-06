@@ -5,7 +5,7 @@
 //! **execute and print the expected bytes** under `vox run --mode interp` — the
 //! real user-facing path. It closes the "green means it parsed, not that it ran"
 //! gap identified in
-//! `docs/src/architecture/v1-foundation-criteria-advisory-2026-06-05.md`.
+//! `docs/src/architecture/v1-foundation-criteria-research-2026.md`.
 //!
 //! Convention: a golden declares its expected stdout with one or more
 //! `// EXPECT:` comment lines, in order. Example:
@@ -123,9 +123,10 @@ fn golden_expect_blocks_match_interp_stdout() {
     let mut failures: Vec<String> = Vec::new();
 
     for f in &files {
-        let Ok(src) = std::fs::read_to_string(f) else {
-            continue;
-        };
+        // A golden we cannot read is a broken golden, not a pass — fail loud
+        // (a behavioral gate must never silently skip its corpus).
+        let src = std::fs::read_to_string(f)
+            .unwrap_or_else(|e| panic!("failed to read golden {}: {e}", f.display()));
         let Some(expected) = parse_expect(&src) else {
             continue;
         };
@@ -179,9 +180,8 @@ fn golden_behavioral_coverage_census() {
     let mut uncovered: Vec<String> = Vec::new();
 
     for f in &files {
-        let Ok(src) = std::fs::read_to_string(f) else {
-            continue;
-        };
+        let src = std::fs::read_to_string(f)
+            .unwrap_or_else(|e| panic!("failed to read golden {}: {e}", f.display()));
         let expect = parse_expect(&src).is_some();
         let test = src.contains("@test");
         let main = src.contains("fn main");
