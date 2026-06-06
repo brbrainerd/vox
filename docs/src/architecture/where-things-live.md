@@ -65,6 +65,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-openai`](../../../crates/vox-openai/) | OpenAI integrations: wire-format types (`chat_completion.rs`) + SSE streaming (`sse.rs`) in one L1 crate. |
 | [`vox-package-types`](../../../crates/vox-package-types/) | Pure-data L1 leaf for vox-package: manifest, lockfile, package_kind, resolver types. |
 | [`vox-plugin-api`](../../../crates/vox-plugin-api/) | Shared API surface for Vox plugins: ABI version, traits, manifest types, error types. |
+| [`vox-plugin-sdk`](../../../crates/vox-plugin-sdk/) | Authoring SDK for code plugins: re-exports the stable ABI + the `declare_plugin!` glue macro (ABI-neutral, byte-identical exports). |
 | [`vox-plugin-types`](../../../crates/vox-plugin-types/) | Pure-types surface for the vox plugin system: manifests, skill types, state-backend trait. |
 | [`vox-telemetry`](../../../crates/vox-telemetry/) | L1 telemetry facade: `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, `record_event!` macro, `TelemetryConfig` (Phase D: org-policy hard-off + `VOX_TELEMETRY=on/off/debug`), per-task `TaskAggregate`, `record_task_started`. Zero domain dependencies. |
 | [`vox-runtime`](../../../crates/vox-runtime/) | Umbrella runtime foundation: `RuntimeProfile` (Desktop vs Mobile), lifecycle traits, `VoxConfig`. Consumed by downstream runtime crates and the uniffi mobile bridge. Zero internal deps. |
