@@ -936,19 +936,12 @@ mod tests {
         );
 
         // Prove NO `scientia_nanopubs` row was persisted for this claim — the
-        // gate fired before any persistence.
-        let rows = db
-            .query_all(
-                "SELECT COUNT(*) FROM scientia_nanopubs WHERE claim_id = ?1",
-                (CLAIM,),
-            )
+        // gate fired before any persistence. Uses a typed count op (not raw
+        // query_all) so the test stays within the Codex query surface.
+        let count = db
+            .count_scientia_nanopubs_for_claim(CLAIM)
             .await
             .expect("count nanopub rows");
-        let count: i64 = rows
-            .first()
-            .expect("count row")
-            .get(0)
-            .expect("count value");
         assert_eq!(count, 0, "a refused stale approval must persist nothing");
     }
 }

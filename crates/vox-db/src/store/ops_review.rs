@@ -110,7 +110,6 @@ impl VoxDb {
             Ok(None)
         }
     }
-
 }
 
 #[cfg(test)]
@@ -262,5 +261,4 @@ mod tests {
             "error must mention actor, got: {err}"
         );
     }
-
 }

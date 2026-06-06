@@ -165,6 +165,31 @@ impl VoxDb {
             Ok(None)
         }
     }
+
+    /// Count the locally-persisted nanopublication artifacts for a claim.
+    ///
+    /// Used to prove the human-gate refused emission (a refused stale/unapproved
+    /// build must persist nothing → count stays 0). A typed op rather than a raw
+    /// `query_all` so callers stay within the Codex query surface.
+    pub async fn count_scientia_nanopubs_for_claim(
+        &self,
+        claim_id: i64,
+    ) -> Result<i64, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT COUNT(*) FROM scientia_nanopubs WHERE claim_id = ?1",
+                params![claim_id],
+            )
+            .await
+            .map_err(StoreError::Turso)?;
+        let row = rows
+            .next()
+            .await
+            .map_err(StoreError::Turso)?
+            .ok_or_else(|| StoreError::Db("COUNT(*) returned no row".to_string()))?;
+        row.get(0).map_err(StoreError::Turso)
+    }
 }
 
 #[cfg(test)]
