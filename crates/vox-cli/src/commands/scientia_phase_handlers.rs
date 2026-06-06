@@ -485,6 +485,27 @@ pub async fn publication_claims(publication_id: &str) -> Result<()> {
     Ok(())
 }
 
+/// `vox scientia publication-review-queue --publication-id X` — print a
+/// publication's claims that are awaiting human review as JSON.
+///
+/// A claim is awaiting review when it has an extracted (non-`Unverified`)
+/// verdict AND its latest `scientia_review_decisions` row is absent or
+/// non-terminal (`deferred`/`edited`). Terminal decisions (`approved`,
+/// `rejected`) exclude the claim from the queue.
+pub async fn publication_review_queue(publication_id: &str) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default()
+        .await
+        .context("connect to default Codex / VoxDb")?;
+    let session_id = publication_session_id(publication_id);
+    let claims = db
+        .list_claims_awaiting_review(session_id)
+        .await
+        .context("list claims awaiting review")?;
+    let payload = build_claims_payload(publication_id, &claims);
+    println!("{}", serde_json::to_string_pretty(&payload)?);
+    Ok(())
+}
+
 /// Publication ids whose candidate state is `retracted` (the dashboard's
 /// retraction queue). Pure; unit-tested.
 fn retraction_queue_from(candidates: &[vox_scientia::dashboard::CandidateRow]) -> Vec<String> {

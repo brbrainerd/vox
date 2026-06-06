@@ -402,6 +402,12 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     return super::scientia_phase_handlers::publication_claims(&publication_id)
                         .await;
                 }
+                ScientiaCmd::PublicationReviewQueue { publication_id } => {
+                    return super::scientia_phase_handlers::publication_review_queue(
+                        &publication_id,
+                    )
+                    .await;
+                }
                 ScientiaCmd::Dashboard => {
                     return super::scientia_phase_handlers::scientia_dashboard().await;
                 }

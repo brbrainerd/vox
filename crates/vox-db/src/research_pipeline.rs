@@ -314,6 +314,63 @@ impl VoxDb {
         Ok(out)
     }
 
+    /// List claims that are **awaiting human review** for a publication session.
+    ///
+    /// A claim is awaiting review when BOTH conditions hold:
+    /// 1. It has an extracted (non-`Unverified`) verdict — extraction ran.
+    /// 2. Its latest `scientia_review_decisions` row is absent, or its `decision`
+    ///    is NOT a terminal value (`approved` or `rejected`). `deferred` and
+    ///    `edited` are recoverable/non-terminal and leave the claim in the queue.
+    ///
+    /// Returns newest claims first (`created_at_ms DESC, claim_id DESC`).
+    pub async fn list_claims_awaiting_review(
+        &self,
+        session_id: i64,
+    ) -> Result<Vec<ScientiaClaimWithVerdict>, StoreError> {
+        let rows = self
+            .query_all(
+                "SELECT c.claim_id, c.text, c.is_numeric, c.verifiability_score, \
+                   (SELECT v.verdict FROM scientia_claim_verdicts v \
+                    WHERE v.claim_id = c.claim_id AND v.verdict <> 'Unverified' \
+                    ORDER BY v.created_at_ms DESC, v.id DESC LIMIT 1) AS verdict, \
+                   (SELECT v.confidence FROM scientia_claim_verdicts v \
+                    WHERE v.claim_id = c.claim_id AND v.verdict <> 'Unverified' \
+                    ORDER BY v.created_at_ms DESC, v.id DESC LIMIT 1) AS confidence, \
+                   (SELECT v.verifier_model FROM scientia_claim_verdicts v \
+                    WHERE v.claim_id = c.claim_id AND v.verdict <> 'Unverified' \
+                    ORDER BY v.created_at_ms DESC, v.id DESC LIMIT 1) AS verifier_model, \
+                   c.created_at_ms \
+                 FROM scientia_claims c \
+                 WHERE c.session_id = ?1 \
+                   AND (SELECT v.verdict FROM scientia_claim_verdicts v \
+                        WHERE v.claim_id = c.claim_id AND v.verdict <> 'Unverified' \
+                        ORDER BY v.created_at_ms DESC, v.id DESC LIMIT 1) IS NOT NULL \
+                   AND COALESCE(\
+                         (SELECT d.decision FROM scientia_review_decisions d \
+                          WHERE d.claim_id = c.claim_id \
+                          ORDER BY d.decided_at_ms DESC, d.id DESC LIMIT 1), \
+                         '') NOT IN ('approved', 'rejected') \
+                 ORDER BY c.created_at_ms DESC, c.claim_id DESC",
+                (session_id,),
+            )
+            .await?;
+        let mut out = Vec::with_capacity(rows.len());
+        for r in rows {
+            let is_numeric: i64 = r.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+            out.push(ScientiaClaimWithVerdict {
+                claim_id: r.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                text: r.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                is_numeric: is_numeric != 0,
+                verifiability_score: r.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+                verdict: r.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
+                confidence: r.get(5).map_err(|e| StoreError::Db(e.to_string()))?,
+                verifier_model: r.get(6).map_err(|e| StoreError::Db(e.to_string()))?,
+                created_at_ms: r.get(7).map_err(|e| StoreError::Db(e.to_string()))?,
+            });
+        }
+        Ok(out)
+    }
+
     /// Global claims-pending counts for the SCIENTIA dashboard: each claim
     /// bucketed by its latest non-span verdict (`Supported` → verifiable,
     /// `Abstain` → abstained, none yet → extraction_running).
@@ -601,4 +658,110 @@ fn now_ms() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as i64
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::store::ReviewDecisionRow;
+    use crate::{DbConfig, VoxDb};
+
+    /// Seed helper: store a claim row under the given session.
+    async fn seed_claim(db: &VoxDb, session_id: i64, claim_id: u64) {
+        db.store_claim(
+            session_id,
+            claim_id,
+            &format!("claim text {claim_id}"),
+            false,
+            false,
+            false,
+        )
+        .await
+        .expect("store_claim");
+    }
+
+    /// Seed helper: store a non-Unverified verdict for a claim.
+    async fn seed_verdict(db: &VoxDb, claim_id: u64, verdict: &str) {
+        db.store_claim_verdict(claim_id, verdict, 0.8, "test-model")
+            .await
+            .expect("store_claim_verdict");
+    }
+
+    /// Seed helper: record a review decision for a claim.
+    async fn seed_decision(db: &VoxDb, claim_id: i64, decision: &str, decided_at_ms: i64) {
+        db.record_review_decision(&ReviewDecisionRow {
+            claim_id,
+            publication_id: Some("pub-test".into()),
+            bound_digest: "digest-abc".into(),
+            decision: decision.to_string(),
+            actor: "tester".into(),
+            reason: None,
+            model_fingerprints_json: None,
+            decided_at_ms,
+        })
+        .await
+        .expect("record_review_decision");
+    }
+
+    /// claim A: verdict present, no decision → MUST appear.
+    /// claim B: verdict present, latest decision `approved` → MUST NOT appear.
+    /// claim C: verdict present, latest decision `rejected` → MUST NOT appear.
+    /// claim D: verdict present, decisions [approved@t1, deferred@t2] → deferred is latest → MUST appear.
+    /// claim E: no verdict (only stored, no verdict row) → MUST NOT appear.
+    #[tokio::test]
+    async fn list_claims_awaiting_review_excludes_terminal_and_unverdicted() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let session_id: i64 = 9_001;
+
+        // Claim A: verdict only, no decision.
+        let claim_a: u64 = 101;
+        seed_claim(&db, session_id, claim_a).await;
+        seed_verdict(&db, claim_a, "Supported").await;
+
+        // Claim B: verdict + approved → terminal.
+        let claim_b: u64 = 102;
+        seed_claim(&db, session_id, claim_b).await;
+        seed_verdict(&db, claim_b, "Supported").await;
+        seed_decision(&db, claim_b as i64, "approved", 1_000_000).await;
+
+        // Claim C: verdict + rejected → terminal.
+        let claim_c: u64 = 103;
+        seed_claim(&db, session_id, claim_c).await;
+        seed_verdict(&db, claim_c, "Contested").await;
+        seed_decision(&db, claim_c as i64, "rejected", 1_000_000).await;
+
+        // Claim D: verdict + approved@t1 then deferred@t2 → deferred is latest, non-terminal.
+        let claim_d: u64 = 104;
+        seed_claim(&db, session_id, claim_d).await;
+        seed_verdict(&db, claim_d, "Abstain").await;
+        seed_decision(&db, claim_d as i64, "approved", 1_000_001).await;
+        seed_decision(&db, claim_d as i64, "deferred", 1_000_002).await;
+
+        // Claim E: no verdict row at all (only the claim row).
+        let claim_e: u64 = 105;
+        seed_claim(&db, session_id, claim_e).await;
+
+        let awaiting = db
+            .list_claims_awaiting_review(session_id)
+            .await
+            .expect("list_claims_awaiting_review");
+
+        let ids: std::collections::BTreeSet<i64> = awaiting.iter().map(|c| c.claim_id).collect();
+        let expected: std::collections::BTreeSet<i64> =
+            [claim_a as i64, claim_d as i64].into_iter().collect();
+
+        assert_eq!(
+            ids, expected,
+            "awaiting set must be {{A, D}}; got claim_ids: {:?}",
+            ids
+        );
+
+        // Spot-check: the returned rows must have verdicts filled in.
+        for row in &awaiting {
+            assert!(
+                row.verdict.is_some(),
+                "awaiting claim {} must have a non-null verdict",
+                row.claim_id
+            );
+        }
+    }
 }

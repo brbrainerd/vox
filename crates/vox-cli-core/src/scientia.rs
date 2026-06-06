@@ -576,6 +576,17 @@ pub enum ScientiaCmd {
         publication_id: String,
     },
 
+    /// List a publication's claims awaiting human review as JSON. A claim
+    /// appears when it has an extracted (non-`Unverified`) verdict AND its
+    /// latest decision is absent or non-terminal (`deferred`/`edited`).
+    /// Terminal decisions (`approved`, `rejected`) exclude the claim.
+    #[command(name = "publication-review-queue")]
+    PublicationReviewQueue {
+        /// Publication id whose claims awaiting review to list.
+        #[arg(long)]
+        publication_id: String,
+    },
+
     /// Phase H — Assemble a dashboard `QueueSnapshot` JSON directly from the
     /// live Codex DB (publication candidates + extracted-claims pending counts +
     /// retraction queue). Unlike `publication-dashboard-snapshot`, this needs
