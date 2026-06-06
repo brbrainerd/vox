@@ -323,9 +323,15 @@ impl VoxDb {
     ///    `edited` are recoverable/non-terminal and leave the claim in the queue.
     ///
     /// Returns newest claims first (`created_at_ms DESC, claim_id DESC`).
+    ///
+    /// `publication_id` scopes the review-decision lookup: `claim_id` is an
+    /// FNV-1a hash of the claim text, so the same text in another publication
+    /// shares an id — without this scope, a terminal decision elsewhere would
+    /// wrongly drop the claim from this publication's queue.
     pub async fn list_claims_awaiting_review(
         &self,
         session_id: i64,
+        publication_id: &str,
     ) -> Result<Vec<ScientiaClaimWithVerdict>, StoreError> {
         let rows = self
             .query_all(
@@ -347,11 +353,11 @@ impl VoxDb {
                         ORDER BY v.created_at_ms DESC, v.id DESC LIMIT 1) IS NOT NULL \
                    AND COALESCE(\
                          (SELECT d.decision FROM scientia_review_decisions d \
-                          WHERE d.claim_id = c.claim_id \
+                          WHERE d.claim_id = c.claim_id AND d.publication_id = ?2 \
                           ORDER BY d.decided_at_ms DESC, d.id DESC LIMIT 1), \
                          '') NOT IN ('approved', 'rejected') \
                  ORDER BY c.created_at_ms DESC, c.claim_id DESC",
-                (session_id,),
+                (session_id, publication_id),
             )
             .await?;
         let mut out = Vec::with_capacity(rows.len());
@@ -741,7 +747,7 @@ mod tests {
         seed_claim(&db, session_id, claim_e).await;
 
         let awaiting = db
-            .list_claims_awaiting_review(session_id)
+            .list_claims_awaiting_review(session_id, "pub-test")
             .await
             .expect("list_claims_awaiting_review");
 
@@ -763,5 +769,42 @@ mod tests {
                 row.claim_id
             );
         }
+    }
+
+    /// A terminal decision in publication A must NOT drop the same-text claim
+    /// (same FNV-1a `claim_id`) from publication B's review queue.
+    #[tokio::test]
+    async fn list_claims_awaiting_review_is_scoped_per_publication() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let session_b: i64 = 9_002;
+        let shared_claim: u64 = 4242; // same id would arise from identical claim text
+
+        // The claim + verdict live in publication B's session.
+        seed_claim(&db, session_b, shared_claim).await;
+        seed_verdict(&db, shared_claim, "Supported").await;
+
+        // An `approved` decision exists, but for publication A only.
+        db.record_review_decision(&ReviewDecisionRow {
+            claim_id: shared_claim as i64,
+            publication_id: Some("pub-A".into()),
+            bound_digest: "dig-A".into(),
+            decision: "approved".into(),
+            actor: "tester".into(),
+            reason: None,
+            model_fingerprints_json: None,
+            decided_at_ms: 1,
+        })
+        .await
+        .expect("record A decision");
+
+        // Publication B never reviewed it → it MUST still be awaiting in B.
+        let awaiting_b = db
+            .list_claims_awaiting_review(session_b, "pub-B")
+            .await
+            .expect("list awaiting B");
+        assert!(
+            awaiting_b.iter().any(|c| c.claim_id == shared_claim as i64),
+            "claim approved only in pub-A must remain awaiting in pub-B"
+        );
     }
 }

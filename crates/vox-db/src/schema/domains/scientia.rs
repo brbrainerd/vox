@@ -355,6 +355,10 @@ CREATE TABLE IF NOT EXISTS scientia_review_decisions (
     model_fingerprints_json TEXT,               -- artifact-side model fps present (for AI disclosure)
     decided_at_ms     INTEGER NOT NULL
 );
+-- Append-only is enforced at the Rust ops boundary (only INSERT + SELECT exist;
+-- there is no UPDATE/DELETE op). DB-level triggers are NOT used because Turso/
+-- libSQL rejects `CREATE TRIGGER` ("experimental feature; enable with
+-- --experimental-triggers"), the same constraint that rules out SQL CHECK here.
 CREATE INDEX IF NOT EXISTS idx_scientia_review_decisions_claim
     ON scientia_review_decisions(claim_id, decided_at_ms);
 "#;

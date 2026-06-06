@@ -335,16 +335,18 @@ pub async fn record_claim_review(
 /// `"approved"`, or when the underlying DB op fails.
 pub async fn approval_for(
     db: &VoxDb,
+    publication_id: &str,
     claim_id: i64,
 ) -> anyhow::Result<vox_scientia::review::ApprovalToken> {
     let decision = db
-        .latest_decision_for_claim(claim_id)
+        .latest_decision_for_claim(claim_id, publication_id)
         .await
         .map_err(|e| anyhow::anyhow!("fetch latest review decision: {e}"))?;
     let row = decision.ok_or_else(|| {
         anyhow::anyhow!(
             "claim {claim_id} has no review decision; \
-             run `vox scientia publication-claim-review --claim-id {claim_id} \
+             run `vox scientia publication-claim-review \
+             --publication-id {publication_id} --claim-id {claim_id} \
              --decision approve` first"
         )
     })?;
@@ -352,7 +354,8 @@ pub async fn approval_for(
         anyhow::anyhow!(
             "claim {claim_id} is not approved for nanopublication \
              (latest decision: {}); \
-             run `vox scientia publication-claim-review --claim-id {claim_id} \
+             run `vox scientia publication-claim-review \
+             --publication-id {publication_id} --claim-id {claim_id} \
              --decision approve` first",
             row.decision
         )
@@ -610,7 +613,7 @@ mod tests {
         .await
         .expect("seed approved decision");
 
-        let token = approval_for(&db, CLAIM_ID as i64)
+        let token = approval_for(&db, PUB_ID, CLAIM_ID as i64)
             .await
             .expect("approved → token");
         let built = nanopub_build(&db, PUB_ID, CLAIM_ID as i64, Some(ORCID), &token).await;
@@ -678,7 +681,7 @@ mod tests {
         let db = VoxDb::connect(DbConfig::Memory)
             .await
             .expect("in-memory db connect");
-        let err = approval_for(&db, 999)
+        let err = approval_for(&db, "pub-x", 999)
             .await
             .expect_err("no decision must refuse");
         let msg = err.to_string();
@@ -727,7 +730,7 @@ mod tests {
         .await
         .expect("seed later rejection");
 
-        let err = approval_for(&db, CLAIM)
+        let err = approval_for(&db, "pub-x", CLAIM)
             .await
             .expect_err("latest rejected must refuse");
         let msg = err.to_string();
@@ -795,7 +798,7 @@ mod tests {
 
         // Round-trip: the DB must surface the same row via `latest_decision_for_claim`.
         let fetched = db
-            .latest_decision_for_claim(CLAIM)
+            .latest_decision_for_claim(CLAIM, PUB_ID)
             .await
             .expect("query latest decision")
             .expect("a decision must exist after record_claim_review");
@@ -855,7 +858,7 @@ mod tests {
             .await
             .expect("record_claim_review must succeed");
 
-        let token = approval_for(&db, CLAIM)
+        let token = approval_for(&db, PUB_ID, CLAIM)
             .await
             .expect("approval_for must succeed after an approved decision");
 
@@ -912,7 +915,7 @@ mod tests {
         .await
         .expect("seed stale approval");
 
-        let token = approval_for(&db, CLAIM)
+        let token = approval_for(&db, PUB_ID, CLAIM)
             .await
             .expect("approved (stale) → token still mints");
 

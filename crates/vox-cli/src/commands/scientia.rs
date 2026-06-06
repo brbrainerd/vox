@@ -382,7 +382,9 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     // SECURITY GATE (P2 Task 3): obtain a content-bound approval
                     // token from the review ledger BEFORE building. Without an
                     // "approved" decision this refuses — no nanopub is emitted.
-                    let token = super::scientia_nanopub::approval_for(&db, claim_id).await?;
+                    let token =
+                        super::scientia_nanopub::approval_for(&db, &publication_id, claim_id)
+                            .await?;
                     let signed = super::scientia_nanopub::nanopub_build(
                         &db,
                         &publication_id,

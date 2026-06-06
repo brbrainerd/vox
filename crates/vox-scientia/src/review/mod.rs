@@ -26,10 +26,21 @@ use vox_db::store::ReviewDecisionRow;
 
 // ── Trait for input decoupling ─────────────────────────────────────────────
 
+/// Sealed so only types in this crate can implement [`ReviewDecisionLike`].
+/// Without this, an external crate could implement the trait on a fabricated
+/// type returning `"approved"` and mint an [`ApprovalToken`] out of thin air,
+/// bypassing the audited DB-decision intent. Only the real persisted decision
+/// row (and the in-crate test fake) may carry approval semantics.
+mod sealed {
+    pub trait Sealed {}
+    impl Sealed for super::ReviewDecisionRow {}
+}
+
 /// Abstraction over any type that carries enough data to mint an
 /// [`ApprovalToken`].  Implemented here for [`vox_db::store::ReviewDecisionRow`];
-/// unit tests use a tiny in-module fake.
-pub trait ReviewDecisionLike {
+/// unit tests use a tiny in-module fake. Sealed (see [`sealed`]) — cannot be
+/// implemented outside this crate.
+pub trait ReviewDecisionLike: sealed::Sealed {
     fn claim_id(&self) -> i64;
     fn bound_digest(&self) -> &str;
     /// One of: `approved | rejected | deferred | edited`.
@@ -197,6 +208,8 @@ mod tests {
         decision: &'static str,
     }
 
+    // The in-crate test fake is allowed to carry the sealed trait.
+    impl super::sealed::Sealed for FakeDecision {}
     impl ReviewDecisionLike for FakeDecision {
         fn claim_id(&self) -> i64 {
             self.claim_id

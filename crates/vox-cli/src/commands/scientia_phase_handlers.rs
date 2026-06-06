@@ -501,7 +501,7 @@ pub async fn publication_review_queue(publication_id: &str) -> Result<()> {
         .context("connect to default Codex / VoxDb")?;
     let session_id = publication_session_id(publication_id);
     let claims = db
-        .list_claims_awaiting_review(session_id)
+        .list_claims_awaiting_review(session_id, publication_id)
         .await
         .context("list claims awaiting review")?;
     let payload =

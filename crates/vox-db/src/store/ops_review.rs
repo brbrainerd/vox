@@ -54,6 +54,22 @@ impl VoxDb {
                 "scientia_review_decisions.actor must be non-empty".to_string(),
             ));
         }
+        // `model_fingerprints_json`, when present, is documented as a JSON array
+        // (AI-disclosure fingerprints). Validate shape in Rust (no CHECK in Turso)
+        // so malformed disclosure data cannot be persisted.
+        if let Some(raw) = &row.model_fingerprints_json {
+            let parsed: serde_json::Value = serde_json::from_str(raw).map_err(|e| {
+                StoreError::Db(format!(
+                    "scientia_review_decisions.model_fingerprints_json must be valid JSON: {e}"
+                ))
+            })?;
+            if !parsed.is_array() {
+                return Err(StoreError::Db(
+                    "scientia_review_decisions.model_fingerprints_json must be a JSON array"
+                        .to_string(),
+                ));
+            }
+        }
         self.conn
             .execute(
                 "INSERT INTO scientia_review_decisions(\
@@ -76,11 +92,16 @@ impl VoxDb {
         Ok(())
     }
 
-    /// Return the latest review decision for `claim_id` (highest `decided_at_ms`,
-    /// tie-break by highest `id`), or `None` if no decision has been recorded.
+    /// Return the latest review decision for `claim_id` **within `publication_id`**
+    /// (highest `decided_at_ms`, tie-break by highest `id`), or `None` if none has
+    /// been recorded. Scoping by publication is load-bearing: `claim_id` is an
+    /// FNV-1a hash of the claim text, so the same claim text in two publications
+    /// shares an id — an unscoped lookup would let a decision in one publication
+    /// leak into another. Approval is per-claim *within* a publication.
     pub async fn latest_decision_for_claim(
         &self,
         claim_id: i64,
+        publication_id: &str,
     ) -> Result<Option<ReviewDecisionRow>, StoreError> {
         let mut rows = self
             .conn
@@ -88,10 +109,10 @@ impl VoxDb {
                 "SELECT claim_id, publication_id, bound_digest, decision, actor, \
                         reason, model_fingerprints_json, decided_at_ms \
                  FROM scientia_review_decisions \
-                 WHERE claim_id = ?1 \
+                 WHERE claim_id = ?1 AND publication_id = ?2 \
                  ORDER BY decided_at_ms DESC, id DESC \
                  LIMIT 1",
-                params![claim_id],
+                params![claim_id, publication_id],
             )
             .await
             .map_err(StoreError::Turso)?;
@@ -133,7 +154,7 @@ mod tests {
         db.record_review_decision(&row).await.expect("record");
 
         let got = db
-            .latest_decision_for_claim(42)
+            .latest_decision_for_claim(42, "pub-001")
             .await
             .expect("latest")
             .expect("row present");
@@ -173,7 +194,7 @@ mod tests {
             .expect("record second");
 
         let got = db
-            .latest_decision_for_claim(99)
+            .latest_decision_for_claim(99, "pub-002")
             .await
             .expect("latest")
             .expect("row present");
@@ -189,8 +210,89 @@ mod tests {
     #[tokio::test]
     async fn latest_decision_returns_none_for_unknown_claim() {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
-        let got = db.latest_decision_for_claim(9999).await.expect("latest");
+        let got = db
+            .latest_decision_for_claim(9999, "pub-x")
+            .await
+            .expect("latest");
         assert!(got.is_none(), "unknown claim must return None");
+    }
+
+    #[tokio::test]
+    async fn latest_decision_scoped_per_publication() {
+        // Same claim_id (claim text hashes are publication-independent) decided
+        // differently in two publications: each lookup must see only its own.
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        db.record_review_decision(&ReviewDecisionRow {
+            claim_id: 7,
+            publication_id: Some("pub-A".into()),
+            bound_digest: "dig-A".into(),
+            decision: "approved".into(),
+            actor: "alice".into(),
+            reason: None,
+            model_fingerprints_json: None,
+            decided_at_ms: 1,
+        })
+        .await
+        .expect("record A");
+        db.record_review_decision(&ReviewDecisionRow {
+            claim_id: 7,
+            publication_id: Some("pub-B".into()),
+            bound_digest: "dig-B".into(),
+            decision: "rejected".into(),
+            actor: "bob".into(),
+            reason: None,
+            model_fingerprints_json: None,
+            decided_at_ms: 2,
+        })
+        .await
+        .expect("record B");
+
+        let a = db
+            .latest_decision_for_claim(7, "pub-A")
+            .await
+            .expect("latest A")
+            .expect("row A");
+        assert_eq!(a.decision, "approved");
+        assert_eq!(a.bound_digest, "dig-A");
+        let b = db
+            .latest_decision_for_claim(7, "pub-B")
+            .await
+            .expect("latest B")
+            .expect("row B");
+        assert_eq!(b.decision, "rejected");
+        assert_eq!(b.bound_digest, "dig-B");
+    }
+
+    #[tokio::test]
+    async fn latest_decision_tiebreak_by_id_desc() {
+        // Equal decided_at_ms: the later-inserted row (higher id) must win.
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let base = ReviewDecisionRow {
+            claim_id: 5,
+            publication_id: Some("pub-tb".into()),
+            bound_digest: "d1".into(),
+            decision: "approved".into(),
+            actor: "first".into(),
+            reason: None,
+            model_fingerprints_json: None,
+            decided_at_ms: 100,
+        };
+        db.record_review_decision(&base).await.expect("record 1");
+        db.record_review_decision(&ReviewDecisionRow {
+            bound_digest: "d2".into(),
+            decision: "rejected".into(),
+            actor: "second".into(),
+            ..base.clone()
+        })
+        .await
+        .expect("record 2");
+        let got = db
+            .latest_decision_for_claim(5, "pub-tb")
+            .await
+            .expect("latest")
+            .expect("row");
+        assert_eq!(got.actor, "second", "higher id must win on equal timestamp");
+        assert_eq!(got.decision, "rejected");
     }
 
     #[tokio::test]
@@ -214,6 +316,43 @@ mod tests {
             err.to_string().contains("decision"),
             "error must mention decision, got: {err}"
         );
+    }
+
+    #[tokio::test]
+    async fn record_review_decision_rejects_non_array_model_fingerprints() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let base = ReviewDecisionRow {
+            claim_id: 1,
+            publication_id: Some("pub-fp".into()),
+            bound_digest: "d".into(),
+            decision: "approved".into(),
+            actor: "alice".into(),
+            reason: None,
+            model_fingerprints_json: Some("not json".into()),
+            decided_at_ms: 1,
+        };
+        // Invalid JSON → error.
+        let err = db
+            .record_review_decision(&base)
+            .await
+            .expect_err("invalid JSON must error");
+        assert!(err.to_string().contains("model_fingerprints_json"));
+        // Valid JSON but not an array → error.
+        let err = db
+            .record_review_decision(&ReviewDecisionRow {
+                model_fingerprints_json: Some(r#"{"a":1}"#.into()),
+                ..base.clone()
+            })
+            .await
+            .expect_err("non-array JSON must error");
+        assert!(err.to_string().contains("array"));
+        // Valid JSON array → accepted.
+        db.record_review_decision(&ReviewDecisionRow {
+            model_fingerprints_json: Some(r#"["fp-a","fp-b"]"#.into()),
+            ..base.clone()
+        })
+        .await
+        .expect("valid JSON array must be accepted");
     }
 
     #[tokio::test]
