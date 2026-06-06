@@ -113,9 +113,11 @@ impl VoxDb {
 
     /// Return all claim_ids that have at least one review decision.
     ///
-    /// Note: this is the minimal correct implementation for Task 1. Task 5 will
-    /// refine the join to include claims awaiting first review (no decision yet).
-    pub async fn list_claims_awaiting_review(&self) -> Result<Vec<i64>, StoreError> {
+    /// Named for what it actually returns. The inverse query — claims *awaiting*
+    /// first review (an extracted verdict but no terminal decision) — is
+    /// `list_claims_awaiting_review`, added in P2 Task 5 once the claims/queue
+    /// join source is wired. Do not conflate the two.
+    pub async fn list_claims_with_decisions(&self) -> Result<Vec<i64>, StoreError> {
         let mut rows = self
             .conn
             .query(
