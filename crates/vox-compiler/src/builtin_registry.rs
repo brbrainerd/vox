@@ -1324,7 +1324,7 @@ mod namespace_builtin_parity_tests {
     use crate::eval::value::VoxValue;
 
     fn ns_receiver(ns: &str) -> VoxValue {
-        VoxValue::Object(vec![(
+        VoxValue::object(vec![(
             "__namespace__".to_string(),
             VoxValue::Str(ns.to_string()),
         )])
@@ -1472,13 +1472,13 @@ mod namespace_builtin_parity_tests {
         fn s(x: &str) -> VoxValue {
             VoxValue::Str(x.to_string())
         }
-        let obj_k1 = VoxValue::Object(vec![("k".to_string(), VoxValue::Int(1))]);
+        let obj_k1 = VoxValue::object(vec![("k".to_string(), VoxValue::Int(1))]);
         let probes: Vec<(&str, &str, Vec<VoxValue>)> = vec![
             ("path", "join", vec![s("a"), s("b")]),
             (
                 "path",
                 "join_many",
-                vec![VoxValue::List(vec![s("a"), s("b")])],
+                vec![VoxValue::list(vec![s("a"), s("b")])],
             ),
             ("path", "basename", vec![s("a/b.txt")]),
             ("path", "dirname", vec![s("a/b")]),
@@ -1503,7 +1503,7 @@ mod namespace_builtin_parity_tests {
             (
                 "csv",
                 "render",
-                vec![VoxValue::List(vec![VoxValue::List(vec![s("a"), s("b")])])],
+                vec![VoxValue::list(vec![VoxValue::list(vec![s("a"), s("b")])])],
             ),
             ("toml", "parse", vec![s("k = 1")]),
             ("toml", "render", vec![obj_k1.clone()]),
@@ -1515,7 +1515,7 @@ mod namespace_builtin_parity_tests {
             ("agentos", "mutation_kind_for_tool", vec![s("read_file")]),
         ];
         let receiver = |ns: &str| {
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str(ns.to_string()),
             )])
@@ -1560,7 +1560,7 @@ mod namespace_builtin_parity_tests {
             VoxValue::Str(x.to_string())
         }
         let receiver = |ns: &str| {
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str(ns.to_string()),
             )])
@@ -1574,7 +1574,7 @@ mod namespace_builtin_parity_tests {
         let dir_s = tmp.to_string_lossy().to_string();
         let file_s = file.to_string_lossy().to_string();
         let glob_s = format!("{dir_s}/*");
-        let args_list = || VoxValue::List(vec![s("--version")]);
+        let args_list = || VoxValue::list(vec![s("--version")]);
 
         let probes: Vec<(&str, &str, Vec<VoxValue>)> = vec![
             ("fs", "read", vec![s(&file_s)]),
@@ -1613,13 +1613,13 @@ mod namespace_builtin_parity_tests {
             (
                 "process",
                 "run_ex",
-                vec![s("rustc"), args_list(), s("."), VoxValue::List(vec![])],
+                vec![s("rustc"), args_list(), s("."), VoxValue::list(vec![])],
             ),
             ("process", "run_capture", vec![s("rustc"), args_list()]),
             (
                 "process",
                 "run_capture_ex",
-                vec![s("rustc"), args_list(), s("."), VoxValue::List(vec![])],
+                vec![s("rustc"), args_list(), s("."), VoxValue::list(vec![])],
             ),
             ("process", "run_capture_json", vec![s("rustc"), args_list()]),
             (

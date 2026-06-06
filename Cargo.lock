@@ -14669,6 +14669,7 @@ dependencies = [
  "serde_yaml",
  "serial_test",
  "sha3",
+ "static_assertions",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",

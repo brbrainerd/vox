@@ -69,7 +69,7 @@ pub fn execute_repo_op(
                     found: args.len(),
                 });
             }
-            Ok(VoxValue::List(
+            Ok(VoxValue::list(
                 interp
                     .repo
                     .changes()
