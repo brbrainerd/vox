@@ -36,6 +36,7 @@ mod gui_surface_coverage;
 pub mod gui_surface_registry;
 mod gui_version_sync;
 mod install_hooks;
+mod job_timings;
 mod kill_stuck_tests;
 mod line_endings;
 mod mens_scorecard;
