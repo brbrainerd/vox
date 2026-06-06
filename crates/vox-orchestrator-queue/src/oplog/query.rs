@@ -160,7 +160,7 @@ impl OpLog {
                 &mut hasher,
                 prev.predecessor_hash.as_deref().unwrap_or("").as_bytes(),
             );
-            let expected = format!("{:x}", sha3::Digest::finalize(hasher));
+            let expected = hex::encode(sha3::Digest::finalize(hasher));
             if entry.predecessor_hash.as_deref() != Some(&expected) {
                 return Err(i);
             }

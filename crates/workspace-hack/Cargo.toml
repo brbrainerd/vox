@@ -79,7 +79,6 @@ indexmap = { version = "2", features = ["serde"] }
 insta = { version = "1", features = ["json", "yaml"] }
 itertools-5ef9efb8ec2df382 = { package = "itertools", version = "0.12" }
 jsonschema = { version = "0.46", default-features = false, features = ["resolve-file"] }
-libc = { version = "0.2" }
 lock_api = { version = "0.4", features = ["arc_lock"] }
 log = { version = "0.4", default-features = false, features = ["std"] }
 memchr = { version = "2" }
@@ -221,7 +220,6 @@ indexmap = { version = "2", features = ["serde"] }
 insta = { version = "1", features = ["json", "yaml"] }
 itertools-5ef9efb8ec2df382 = { package = "itertools", version = "0.12" }
 jsonschema = { version = "0.46", default-features = false, features = ["resolve-file"] }
-libc = { version = "0.2" }
 lock_api = { version = "0.4", features = ["arc_lock"] }
 log = { version = "0.4", default-features = false, features = ["std"] }
 maybe-async = { version = "0.2", features = ["is_sync"] }
@@ -308,7 +306,7 @@ getrandom-9fbad63c4bcf4a8f = { package = "getrandom", version = "0.4", default-f
 hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
-libc = { version = "0.2", default-features = false, features = ["extra_traits"] }
+libc = { version = "0.2", features = ["extra_traits"] }
 linux-raw-sys = { version = "0.12", default-features = false, features = ["auxvec", "elf", "errno", "general", "if_ether", "io_uring", "ioctl", "net", "netlink", "no_std", "prctl", "xdp"] }
 object-d736d0ac4424f0f1 = { package = "object", version = "0.37", default-features = false, features = ["read", "std"] }
 ring = { version = "0.17", features = ["std"] }
@@ -328,7 +326,7 @@ getrandom-9fbad63c4bcf4a8f = { package = "getrandom", version = "0.4", default-f
 hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
-libc = { version = "0.2", default-features = false, features = ["extra_traits"] }
+libc = { version = "0.2", features = ["extra_traits"] }
 linux-raw-sys = { version = "0.12", default-features = false, features = ["auxvec", "elf", "errno", "general", "if_ether", "io_uring", "ioctl", "net", "netlink", "no_std", "prctl", "xdp"] }
 object-d736d0ac4424f0f1 = { package = "object", version = "0.37", default-features = false, features = ["read", "std"] }
 ring = { version = "0.17", features = ["std"] }
@@ -345,7 +343,6 @@ bitflags = { version = "2", default-features = false, features = ["serde"] }
 block2 = { version = "0.6" }
 core-foundation-sys = { version = "0.8" }
 crossbeam-epoch = { version = "0.9" }
-dispatch2 = { version = "0.3" }
 errno = { version = "0.3" }
 getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
 getrandom-9fbad63c4bcf4a8f = { package = "getrandom", version = "0.4", default-features = false, features = ["std", "sys_rng"] }
@@ -353,7 +350,7 @@ hyper-rustls = { version = "0.27", default-features = false, features = ["http1"
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
 itertools-594e8ee84c453af0 = { package = "itertools", version = "0.13" }
-libc = { version = "0.2", default-features = false, features = ["extra_traits"] }
+libc = { version = "0.2", features = ["extra_traits"] }
 objc2 = { version = "0.6", features = ["disable-encoding-assertions", "exception"] }
 objc2-core-foundation = { version = "0.3", default-features = false, features = ["CFArray", "CFAttributedString", "CFBase", "CFCGTypes", "CFCalendar", "CFCharacterSet", "CFData", "CFDate", "CFDictionary", "CFError", "CFFileSecurity", "CFLocale", "CFMachPort", "CFMessagePort", "CFNumber", "CFPlugInCOM", "CFRunLoop", "CFSet", "CFStream", "CFString", "CFURL", "CFUUID", "objc2", "std"] }
 objc2-foundation = { version = "0.3" }
@@ -371,7 +368,6 @@ bitflags = { version = "2", default-features = false, features = ["serde"] }
 block2 = { version = "0.6" }
 core-foundation-sys = { version = "0.8" }
 crossbeam-epoch = { version = "0.9" }
-dispatch2 = { version = "0.3" }
 errno = { version = "0.3" }
 getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
 getrandom-9fbad63c4bcf4a8f = { package = "getrandom", version = "0.4", default-features = false, features = ["std", "sys_rng"] }
@@ -379,7 +375,7 @@ hyper-rustls = { version = "0.27", default-features = false, features = ["http1"
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
 itertools-594e8ee84c453af0 = { package = "itertools", version = "0.13" }
-libc = { version = "0.2", default-features = false, features = ["extra_traits"] }
+libc = { version = "0.2", features = ["extra_traits"] }
 objc2 = { version = "0.6", features = ["disable-encoding-assertions", "exception"] }
 objc2-core-foundation = { version = "0.3", default-features = false, features = ["CFArray", "CFAttributedString", "CFBase", "CFCGTypes", "CFCalendar", "CFCharacterSet", "CFData", "CFDate", "CFDictionary", "CFError", "CFFileSecurity", "CFLocale", "CFMachPort", "CFMessagePort", "CFNumber", "CFPlugInCOM", "CFRunLoop", "CFSet", "CFStream", "CFString", "CFURL", "CFUUID", "objc2", "std"] }
 objc2-foundation = { version = "0.3" }

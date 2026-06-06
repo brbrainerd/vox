@@ -47,17 +47,6 @@ fn init(_host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError
     RResult::ROk(to)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn manifest_advertises_runtime_wasm_id() {
-        assert!(manifest_json().as_str().contains("\"runtime-wasm\""));
-        assert_eq!(RuntimeWasmPlugin.id().as_str(), "runtime-wasm");
-    }
-}
-
 struct RuntimeWasmPlugin;
 
 impl VoxPlugin for RuntimeWasmPlugin {
@@ -67,5 +56,16 @@ impl VoxPlugin for RuntimeWasmPlugin {
 
     fn shutdown(&self) -> RResult<(), RBoxError> {
         RResult::ROk(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn manifest_advertises_runtime_wasm_id() {
+        assert!(manifest_json().as_str().contains("\"runtime-wasm\""));
+        assert_eq!(RuntimeWasmPlugin.id().as_str(), "runtime-wasm");
     }
 }

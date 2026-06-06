@@ -504,6 +504,7 @@
     "scientia publication-extract-claims",
     "scientia publication-finding-page-render",
     "scientia publication-manuscript-draft",
+    "scientia publication-nanopub-build",
     "scientia publication-novelty-fetch",
     "scientia publication-novelty-happy-path",
     "scientia publication-openreview-profile",

@@ -40,6 +40,8 @@ tokio-stream = { workspace = true }
 scraper = { workspace = true }
 vox-search.workspace = true
 feed-rs = "2.3.1"
+nanopub = { workspace = true }
+secrecy = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -376,7 +376,7 @@ impl ContextEnvelope {
     /// Sign this envelope using HMAC-SHA256, assigning an `obo_token`.
     #[must_use]
     pub fn sign(mut self, key: &[u8]) -> Self {
-        use hmac::{Hmac, Mac};
+        use hmac::{Hmac, KeyInit, Mac};
         use sha2::Sha256;
         let mut mac = Hmac::<Sha256>::new_from_slice(key).expect("HMAC can take key of any size");
         let msg = format!(
@@ -397,7 +397,7 @@ impl ContextEnvelope {
     /// Verify the OBO token using HMAC-SHA256.
     #[must_use]
     pub fn verify(&self, key: &[u8]) -> bool {
-        use hmac::{Hmac, Mac};
+        use hmac::{Hmac, KeyInit, Mac};
         use sha2::Sha256;
         let Some(token) = &self.obo_token else {
             return false;

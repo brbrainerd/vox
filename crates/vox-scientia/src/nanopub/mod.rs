@@ -5,6 +5,7 @@
 //! This module re-exports that surface and adds the SCIENTIA-only network-publishing layer.
 
 pub mod network;
+pub mod spec;
 
 // Re-export the leaf crate's modules so existing `crate::nanopub::{trig,signing}::*` and
 // `vox_scientia::nanopub::*` consumers keep resolving unchanged.

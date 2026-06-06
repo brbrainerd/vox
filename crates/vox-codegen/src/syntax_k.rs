@@ -85,7 +85,7 @@ pub struct SyntaxKInput<'a> {
 pub fn sha3_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha3_256::new();
     hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
 /// Recursively sort JSON object keys for cross-toolchain-stable canonical bytes.
