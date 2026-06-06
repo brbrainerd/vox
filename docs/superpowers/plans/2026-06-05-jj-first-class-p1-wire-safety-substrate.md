@@ -176,9 +176,19 @@ git commit -m "feat(mcp): enforce file locks at the write-tool dispatch path"
 
 ---
 
-### Task 2: Make scope enforcement `Strict` by default
+### Task 2: Make scope enforcement `Strict` by default — ⛔ DROPPED (reverted 2026-06-05)
 
-**Files:**
+**Status: REVERTED.** Implemented (`e43f55fd4e`) then reverted after review. Flipping the
+orchestrator `ScopeGuard` default to `Strict` **freezes a single agent's file set after its first
+task**: the submit-time scope check (`check_before_queue`) runs *before* `assign_file`, so once an
+agent has any assigned path, its next disjoint-path task is denied. Cross-agent file safety is
+already delivered by **Task 1** (locks) and the **always-on MCP `scope_guard`** (which hard-rejects
+writes outside an agent's *declared* `.vox/agents/{id}.md` globs). Orchestrator-level Strict adds no
+protection we lack and introduces a footgun. A proper Strict (assign-before-check + feed declared
+scopes into the orchestrator `ScopeGuard`) is a larger redesign, out of P1's pure-wiring scope —
+tracked separately if pursued. The original task text is retained below for history.
+
+**Files (historical):**
 - Modify: `crates/vox-orchestrator/src/config/impl_default.rs:41`
 
 Background (verified): `ScopeEnforcement` defaults to `Warn` (`scope.rs:22`,
