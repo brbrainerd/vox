@@ -14,8 +14,32 @@ use serde::{Deserialize, Serialize};
 
 use crate::object::ObjectId;
 use crate::refs::RefName;
-use crate::sync::{SyncStatus, SyncStatusRef};
 use vox_bounded_fs::{read_utf8_path_capped, read_utf8_path_capped_or_empty};
+
+/// Current sync status between local and remote.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncStatus {
+    /// Repository root path.
+    pub repo_path: PathBuf,
+    /// Remote name (e.g., "origin").
+    pub remote: String,
+    /// Remote URL.
+    pub remote_url: String,
+    /// HEAD commit ID (if any).
+    pub head_commit: Option<ObjectId>,
+    /// Per-ref diffs between local and remote.
+    pub ref_diffs: Vec<SyncStatusRef>,
+}
+
+/// One ref's sync status.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncStatusRef {
+    pub ref_name: String,
+    pub local_id: Option<String>,
+    pub remote_id: Option<String>,
+    pub ahead: u32,
+    pub behind: u32,
+}
 
 /// Upper bound on commits visited when computing ahead/behind (guards pathological DAGs / shallow gaps).
 const SYNC_STATUS_GRAPH_CAP: usize = 250_000;
