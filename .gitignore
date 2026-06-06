@@ -229,3 +229,6 @@ _bundle_ai_fixture_*
 
 # Vox GUI dev run logs
 gui-*.log
+
+# Superpowers brainstorm visual-companion scratch (local-only)
+.superpowers/
