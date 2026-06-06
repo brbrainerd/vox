@@ -6,6 +6,7 @@ import { Sidebar, SidebarMode } from './components/layout/Sidebar';
 import { TopHud } from './components/layout/TopHud';
 import { CommandPalette } from './components/layout/CommandPalette';
 import { Toasts, ToastItem } from './components/ui/Toasts';
+import { SurfaceErrorBoundary } from './components/ui/ErrorBoundary';
 import { Dashboard } from './components/surfaces/Dashboard/Dashboard';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
 import { Transcript } from './components/surfaces/Loquela/Transcript';
@@ -613,7 +614,9 @@ export default function App() {
         </div>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-5 pb-[180px]">
-          {renderView()}
+          <SurfaceErrorBoundary key={activeView} surface={activeView}>
+            {renderView()}
+          </SurfaceErrorBoundary>
         </div>
 
         {/* Loquela — fixed to the bottom of main, tracks sidebar width */}

@@ -55,7 +55,7 @@ database = ["vox-corpus/database"]
 # Heavy on-disk retrieval: tantivy full-text index + web-scrape (scraper/html2text).
 # OFF by default to keep the CLI lean — resolver-2 feature unification means this
 # single switch turns tantivy on across every vox-search instance in the graph
-# (vox-orchestrator / vox-dei-shim / vox-orchestrator-mcp included). Shipped release
+# (vox-orchestrator / vox-research-shim / vox-orchestrator-mcp included). Shipped release
 # binaries enable this so end users keep full `vox search`. See WS2-T3.
 heavy-retrieval = ["vox-search/tantivy-lexical", "vox-search/web-scrape"]
 
@@ -184,7 +184,7 @@ vox-drift-check = { workspace = true }
 
 toml = { workspace = true }
 vox-doc-pipeline = { path = "../vox-doc-pipeline" }
-vox-dei-shim = { workspace = true }
+vox-research-shim = { workspace = true }
 vox-orchestrator = { workspace = true }
 vox-orchestrator-mcp = { workspace = true, optional = true }
 vox-plugin-catalog = { workspace = true }

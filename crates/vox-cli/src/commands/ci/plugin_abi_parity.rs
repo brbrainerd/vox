@@ -2,8 +2,12 @@
 //!
 //! Walks `crates/` for any `Plugin.toml` declaring a code or composite
 //! payload, attempts to load each via `vox-plugin-host::Loader`, and
-//! asserts ABI matches. Plugin ids starting with `noop-bad-` are
-//! intentionally broken test fixtures and are skipped.
+//! asserts ABI matches. Skipped (not failed):
+//!   - Plugin ids starting with `noop-bad-` (intentionally broken fixtures).
+//!   - Any manifest under a `tests/` directory (test fixtures live in isolated
+//!     workspaces, built at test time, never into the scanned `target/`).
+//!   - Plugins that declare no artifact for the current target triple (e.g. a
+//!     macOS-only Metal backend on Windows/Linux) — they aren't meant to load here.
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
@@ -96,6 +100,12 @@ pub fn run() -> Result<()> {
         .filter(|e| e.file_name() == "Plugin.toml")
     {
         let path = entry.path();
+        // Skip test fixtures: they live in isolated workspaces and are built at
+        // test time (see vox-plugin-host tests), never into the scanned target/.
+        if path.components().any(|c| c.as_os_str() == "tests") {
+            skipped += 1;
+            continue;
+        }
         let raw =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
         let head: ManifestHead = match toml::from_str(&raw) {
@@ -116,11 +126,9 @@ pub fn run() -> Result<()> {
         };
         let triple = target_triple_key();
         let Some(filename) = artifacts.get(triple) else {
-            errors.push(format!(
-                "{}: no artifact declared for current target triple '{}'",
-                path.display(),
-                triple,
-            ));
+            // Plugin does not target the current platform (e.g. a macOS-only
+            // Metal backend on Windows/Linux). Not an ABI concern here — skip.
+            skipped += 1;
             continue;
         };
         let crate_name = path
@@ -158,7 +166,7 @@ pub fn run() -> Result<()> {
     }
     if errors.is_empty() {
         println!(
-            "✓ plugin-abi-parity ok ({} checked, {} skipped fixtures)",
+            "✓ plugin-abi-parity ok ({} checked, {} skipped: fixtures + off-platform)",
             checked, skipped,
         );
         Ok(())

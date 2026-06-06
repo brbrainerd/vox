@@ -1,6 +1,6 @@
 [package]
 name = "vox-distributed-training"
-description = "MENS Distributed Training (WIP/Mn-T1): gradient sync, rank coordination, signed checkpoint exchanges. Pre-integration — no in-tree consumers yet; see mesh-mens-distributed-training-and-execution-plan-2026.md."
+description = "MENS distributed-training cross-host contracts (Mn-T1/Mn-T6): gradient envelopes, signed checkpoint bundles, op-log routing, DataParallelSession. Implemented; no in-tree consumers yet."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

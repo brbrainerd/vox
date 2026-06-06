@@ -39,7 +39,7 @@ jobs:
 
       - name: Check if crate was changed
         id: changed
-        uses: tj-actions/changed-files@v46
+        uses: tj-actions/changed-files@v47
         with:
           files: ${{ matrix.path_filter }}
 

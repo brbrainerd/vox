@@ -36,7 +36,7 @@ pub struct LiveTable {
     pub columns: Vec<LiveColumn>,
 }
 
-use vox_compiler::ast::decl::{CollectionDecl, IndexDecl, TableDecl};
+use vox_ast::decl::{CollectionDecl, IndexDecl, TableDecl};
 
 /// A single migration action to be applied.
 #[derive(Debug, Clone)]

@@ -39,7 +39,7 @@ pub fn validate(
     if let Err(e) = validator.validate(instance) {
         return Err(anyhow!(
             "JSON Schema validation ({context}): path {}: {e:#}",
-            e.instance_path
+            e.instance_path()
         ));
     }
     Ok(())

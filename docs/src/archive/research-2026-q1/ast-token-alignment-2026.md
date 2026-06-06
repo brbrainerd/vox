@@ -30,6 +30,6 @@ Enhance Vox MENS code generation capabilities by aligning raw token streams with
    - [ ] Update `candle-qlora-train` to accept token weights.
 
 ## References
-- `crates/vox-compiler/src/ast/`
+- `crates/vox-ast/src/`
 - `crates/vox-populi/src/mens/tensor/candle_qlora_train/training_loop/encoding.rs`
 
