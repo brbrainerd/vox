@@ -551,7 +551,7 @@ impl BuiltinTypes {
             },
         );
 
-        // Speech-to-text module (Oratio / Candle Whisper — codegen links `vox-oratio`)
+        // Speech-to-text module (Oratio / Candle Whisper — codegen links `vox-speech`)
         env.define(
             "Speech".into(),
             Binding {

@@ -1117,7 +1117,7 @@ pub(crate) fn check_latin_alias_parity_with_catalog(repo_root: &Path, lib_rs: &s
     // These are the aliases that MUST appear as `visible_alias` in lib.rs
     const REQUIRED_VISIBLE_ALIASES: &[(&str, &str)] = &[
         ("secrets", "clavis"),   // secrets command exposes `clavis` alias (deprecated)
-        ("oratio", "speech"),    // oratio command exposes `speech` alias
+        ("speech", "oratio"), // speech command (English canonical) exposes `oratio` (Latin) alias
         ("dei", "orchestrator"), // dei command exposes `orchestrator` alias
     ];
 

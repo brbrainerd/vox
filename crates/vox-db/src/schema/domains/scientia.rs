@@ -317,4 +317,29 @@ CREATE INDEX IF NOT EXISTS idx_scientia_finding_candidates_repo
     ON scientia_finding_candidates(repository_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_scientia_finding_candidates_fingerprint
     ON scientia_finding_candidates(producer_name, signal_fingerprint);
+
+-- Per-user identity binding for nanopublication signing (design §4.1).
+CREATE TABLE IF NOT EXISTS user_identities (
+    user_id            TEXT    PRIMARY KEY,
+    orcid_id           TEXT,
+    nanopub_pubkey_b64 TEXT,                       -- base64 PKCS#8 public key (nanopub crate format)
+    nanopub_key_ref    TEXT    NOT NULL DEFAULT '',-- SecretId canonical env that holds the private key
+    created_at_ms      INTEGER NOT NULL,
+    updated_at_ms      INTEGER NOT NULL
+);
+
+-- Emitted (local/staged) nanopublications, one row per signed claim artifact.
+CREATE TABLE IF NOT EXISTS scientia_nanopubs (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    trusty_uri        TEXT    NOT NULL UNIQUE,
+    claim_id          INTEGER NOT NULL,
+    publication_id    TEXT,
+    user_id           TEXT    NOT NULL,
+    orcid_id          TEXT,
+    trig              TEXT    NOT NULL,
+    validated_offline INTEGER NOT NULL DEFAULT 0,   -- 1 once the reference validator passes
+    published_state   TEXT    NOT NULL DEFAULT 'local',  -- local|test_server|published (only 'local' used in this phase)
+    created_at_ms     INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scientia_nanopubs_claim ON scientia_nanopubs(claim_id);
 "#;

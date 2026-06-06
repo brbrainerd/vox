@@ -14,7 +14,7 @@ pub(crate) static CRATE_POOL: &[&str] = &[
     "vox-lsp",
     "vox-mcp",
     "vox-fabrica",
-    "vox-oratio",
+    "vox-speech",
 ];
 
 static TOESTUB_RULE_POOL: &[&str] = &[

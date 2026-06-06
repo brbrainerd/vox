@@ -8,7 +8,7 @@ use super::spec;
 use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
-pub const BASELINE_VERSION: i64 = 70; // +1: agent_telemetry_flat.pipeline_phase column (Scientia cost-category split: extraction/critic/novelty/scholarly)
+pub const BASELINE_VERSION: i64 = 71; // +1: user_identities + scientia_nanopubs (per-user nanopub identity, design §4.1)
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]

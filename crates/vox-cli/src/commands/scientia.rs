@@ -349,6 +349,30 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     )
                     .await;
                 }
+                ScientiaCmd::PublicationNanopubBuild {
+                    publication_id,
+                    claim_id,
+                    orcid,
+                } => {
+                    // Connect to the live Codex DB, build + offline-validate the
+                    // signed nanopub (NO network publish), and print the Trusty URI.
+                    let db = vox_db::VoxDb::connect_default()
+                        .await
+                        .map_err(|e| anyhow::anyhow!("connect to default Codex / VoxDb: {e}"))?;
+                    let signed = super::scientia_nanopub::nanopub_build(
+                        &db,
+                        &publication_id,
+                        claim_id,
+                        orcid.as_deref(),
+                    )
+                    .await?;
+                    // Human line only: a strict `--json` mode is deferred because
+                    // the upstream nanopub `check()` prints a `✅ ... is valid`
+                    // line to stdout during offline validation, which would
+                    // corrupt machine output. See `scientia_nanopub::nanopub_build`.
+                    println!("{}", signed.trusty_uri);
+                    return Ok(());
+                }
                 ScientiaCmd::Claims { publication_id } => {
                     return super::scientia_phase_handlers::publication_claims(&publication_id)
                         .await;

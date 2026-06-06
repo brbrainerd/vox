@@ -412,7 +412,7 @@
       "has_integration_dir": false,
       "integration_rs_files": 0
     },
-    "vox-oratio": {
+    "vox-speech": {
       "unit_tests": 54,
       "integration_tests": 0,
       "bench_tests": 0,
@@ -885,7 +885,7 @@
     "vox-mesh-policy",
     "vox-nanopub",
     "vox-openclaw-runtime",
-    "vox-oratio",
+    "vox-speech",
     "vox-orchestrator-d",
     "vox-orchestrator-test-helpers",
     "vox-package-types",

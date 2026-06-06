@@ -83,6 +83,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: 'skills', cliGroup: 'skill', tier: 'live_backend', navLabel: 'Skills', navIcon: 'puzzle', navGroup: 'develop' },
   { viewKey: null, cliGroup: 'snapshot', tier: 'none', navLabel: null, navIcon: null, navGroup: null },
   { viewKey: null, cliGroup: 'snippet', tier: 'none', navLabel: null, navIcon: null, navGroup: null },
+  { viewKey: null, cliGroup: 'speech', tier: 'none', navLabel: null, navIcon: null, navGroup: null },
   { viewKey: null, cliGroup: 'stop', tier: 'none', navLabel: null, navIcon: null, navGroup: null },
   { viewKey: null, cliGroup: 'sync', tier: 'none', navLabel: null, navIcon: null, navGroup: null },
   { viewKey: null, cliGroup: 'telemetry', tier: 'none', navLabel: null, navIcon: null, navGroup: null },

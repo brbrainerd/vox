@@ -18,21 +18,21 @@ fn resolve_audio_path(state: &ServerState, path: &str) -> PathBuf {
 }
 
 /// Transcribe an audio file via the `oratio` plugin + deterministic refinement.
-/// Falls back to `vox_oratio::transcribe_path_detailed` for .txt/.md files.
+/// Falls back to `vox_speech::transcribe_path_detailed` for .txt/.md files.
 pub(crate) fn transcribe_path_via_plugin(
     path: &std::path::Path,
-    ctx: &vox_oratio::refine::CorrectionContext,
+    ctx: &vox_speech::refine::CorrectionContext,
     language_hint: Option<&str>,
-) -> anyhow::Result<vox_oratio::TranscribeDetail> {
+) -> anyhow::Result<vox_speech::TranscribeDetail> {
     let ext = path
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_ascii_lowercase();
 
-    // Text/markdown passthrough: vox-oratio handles these without candle.
+    // Text/markdown passthrough: vox-speech handles these without candle.
     if matches!(ext.as_str(), "txt" | "md") {
-        return vox_oratio::transcribe_path_detailed(path, ctx, language_hint)
+        return vox_speech::transcribe_path_detailed(path, ctx, language_hint)
             .map_err(|e| anyhow::anyhow!("{e}"));
     }
 
@@ -60,31 +60,31 @@ pub(crate) fn transcribe_path_via_plugin(
         .unwrap_or("")
         .to_string();
 
-    Ok(vox_oratio::refine_raw_text(&raw_text, ctx))
+    Ok(vox_speech::refine_raw_text(&raw_text, ctx))
 }
 
-pub(crate) fn parse_profile(args: &Value) -> vox_oratio::refine::OratioCorrectionProfile {
+pub(crate) fn parse_profile(args: &Value) -> vox_speech::refine::OratioCorrectionProfile {
     match args
         .get("profile")
         .and_then(|v| v.as_str())
         .unwrap_or("balanced")
     {
-        "conservative" => vox_oratio::refine::OratioCorrectionProfile::Conservative,
-        "aggressive" => vox_oratio::refine::OratioCorrectionProfile::Aggressive,
-        _ => vox_oratio::refine::OratioCorrectionProfile::Balanced,
+        "conservative" => vox_speech::refine::OratioCorrectionProfile::Conservative,
+        "aggressive" => vox_speech::refine::OratioCorrectionProfile::Aggressive,
+        _ => vox_speech::refine::OratioCorrectionProfile::Balanced,
     }
 }
 
-pub(crate) fn parse_route_mode(args: &Value) -> vox_oratio::RouteMode {
+pub(crate) fn parse_route_mode(args: &Value) -> vox_speech::RouteMode {
     match args
         .get("route_mode")
         .and_then(|v| v.as_str())
         .unwrap_or("none")
     {
-        "tool" => vox_oratio::RouteMode::Tool,
-        "chat" => vox_oratio::RouteMode::Chat,
-        "orchestrator" => vox_oratio::RouteMode::Orchestrator,
-        _ => vox_oratio::RouteMode::None,
+        "tool" => vox_speech::RouteMode::Tool,
+        "chat" => vox_speech::RouteMode::Chat,
+        "orchestrator" => vox_speech::RouteMode::Orchestrator,
+        _ => vox_speech::RouteMode::None,
     }
 }
 
@@ -104,11 +104,11 @@ pub fn transcribe(state: &ServerState, args: Value) -> anyhow::Result<String> {
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
     let profile = parse_profile(&args);
-    let rtc = vox_oratio::OratioRuntimeConfig::resolve();
+    let rtc = vox_speech::OratioRuntimeConfig::resolve();
     let ctx =
-        vox_oratio::refine::CorrectionContext::from_runtime(&rtc, profile, debug_parser_payload);
+        vox_speech::refine::CorrectionContext::from_runtime(&rtc, profile, debug_parser_payload);
     let detail = transcribe_path_via_plugin(&full, &ctx, language_hint.as_deref())?;
-    let correlation_id = vox_oratio::trace::new_correlation_id();
+    let correlation_id = vox_speech::trace::new_correlation_id();
     let mut out = json!({
         "path": full,
         "correlation_id": correlation_id,
@@ -116,14 +116,14 @@ pub fn transcribe(state: &ServerState, args: Value) -> anyhow::Result<String> {
         "refined_text": detail.refined_text,
         "text": detail.refined_text,
         "confidence": detail.confidence,
-        "clarification_recommended": vox_oratio::clarification_recommended(
+        "clarification_recommended": vox_speech::clarification_recommended(
             detail.confidence,
             rtc.routing.tool_route_min_confidence,
         ),
     });
     if debug_parser_payload {
         out["correction_trace"] = json!(detail.correction_trace);
-        out["runtime_config"] = vox_oratio::runtime_config_diagnostic_json(&rtc);
+        out["runtime_config"] = vox_speech::runtime_config_diagnostic_json(&rtc);
     }
     if let Some(ref nb) = detail.n_best {
         out["n_best"] = json!(nb);
@@ -133,12 +133,12 @@ pub fn transcribe(state: &ServerState, args: Value) -> anyhow::Result<String> {
 
 async fn maybe_llm_polish(
     state: &ServerState,
-    session: &vox_oratio::OratioSessionResult,
-    route_mode: vox_oratio::RouteMode,
+    session: &vox_speech::OratioSessionResult,
+    route_mode: vox_speech::RouteMode,
     llm_refinement: bool,
     llm_min_det_confidence: f32,
     llm_max_output_tokens: u64,
-    _runtime: &vox_oratio::OratioRuntimeConfig,
+    _runtime: &vox_speech::OratioRuntimeConfig,
 ) -> Value {
     if !llm_refinement {
         return json!({
@@ -149,7 +149,7 @@ async fn maybe_llm_polish(
     }
     let route_requires_clarity = matches!(
         route_mode,
-        vox_oratio::RouteMode::Tool | vox_oratio::RouteMode::Orchestrator
+        vox_speech::RouteMode::Tool | vox_speech::RouteMode::Orchestrator
     );
     let entropy_high = session.correction_trace.len() > 8;
     let should_llm =
@@ -162,12 +162,12 @@ async fn maybe_llm_polish(
         });
     }
 
-    let user_prompt = vox_oratio::refine::llm_correction_prompt::build_llm_correction_prompt(
+    let user_prompt = vox_speech::refine::llm_correction_prompt::build_llm_correction_prompt(
         &session.raw_text,
         &session.text,
         session.confidence,
     );
-    let system_prompt = vox_oratio::refine::llm_correction_prompt::llm_system_prompt();
+    let system_prompt = vox_speech::refine::llm_correction_prompt::llm_system_prompt();
 
     let resolution_template = crate::llm_bridge::McpChatModelResolution {
         complexity: 1,
@@ -319,7 +319,7 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
         .and_then(|v| v.as_str())
         .ok_or_else(|| anyhow::anyhow!("missing string field `path`"))?;
     let full = resolve_audio_path(state, path);
-    let rtc = vox_oratio::OratioRuntimeConfig::resolve();
+    let rtc = vox_speech::OratioRuntimeConfig::resolve();
 
     let timeout_ms = args
         .get("timeout_ms")
@@ -359,7 +359,7 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
         .and_then(|v| v.as_u64())
         .unwrap_or(rtc.llm.llm_max_output_tokens);
 
-    let cfg = vox_oratio::OratioSessionConfig {
+    let cfg = vox_speech::OratioSessionConfig {
         timeout_ms,
         max_duration_ms,
         inference_deadline_ms,
@@ -376,7 +376,7 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
     let full_for_block = full.clone();
     let rtc_block = rtc.clone();
     let mut session = tokio::task::spawn_blocking(move || {
-        vox_oratio::transcribe_path_session_with_runtime(&full_for_block, &cfg, &rtc_block)
+        vox_speech::transcribe_path_session_with_runtime(&full_for_block, &cfg, &rtc_block)
     })
     .await
     .map_err(|e| anyhow::anyhow!("join: {e}"))??;
@@ -408,13 +408,13 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
         }
     }
 
-    let route = vox_oratio::route_transcript_with_options(
+    let route = vox_speech::route_transcript_with_options(
         route_mode,
         &session.session_id,
         &session.text,
         session.confidence,
         &rtc,
-        &vox_oratio::routing::IdeContext::default(),
+        &vox_speech::routing::IdeContext::default(),
     );
     if let Some(asr_path) = args.get("emit_asr_refine_path").and_then(|v| v.as_str()) {
         let out = resolve_audio_path(state, asr_path);
@@ -435,24 +435,24 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
         )?;
     }
 
-    let correlation_id = vox_oratio::trace::new_correlation_id();
+    let correlation_id = vox_speech::trace::new_correlation_id();
     let intent_envelope =
-        if matches!(route.mode, vox_oratio::RouteMode::Tool) && route.action != "none" {
+        if matches!(route.mode, vox_speech::RouteMode::Tool) && route.action != "none" {
             let intent_confidence = route
                 .payload
                 .get("intent_confidence")
                 .and_then(|v| v.as_f64())
                 .map(|x| x as f32)
                 .unwrap_or(0.0);
-            let env = vox_oratio::build_intent_envelope(
+            let env = vox_speech::build_intent_envelope(
                 &route.action,
                 &session.text,
                 intent_confidence,
                 session.confidence,
                 None,
             );
-            let gaps = vox_oratio::missing_slot_ids(&env);
-            let slot_hint = vox_oratio::clarification_prompt_for_slots(&env).map(str::to_string);
+            let gaps = vox_speech::missing_slot_ids(&env);
+            let slot_hint = vox_speech::clarification_prompt_for_slots(&env).map(str::to_string);
             Some((env, slot_hint, gaps))
         } else {
             None
@@ -462,7 +462,7 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
         "correlation_id": correlation_id,
         "session": session,
         "route": route,
-        "clarification_recommended": vox_oratio::clarification_recommended(
+        "clarification_recommended": vox_speech::clarification_recommended(
             session.confidence,
             rtc.routing.tool_route_min_confidence,
         ),
@@ -473,7 +473,7 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
     if let Some((env, slot_hint, gaps)) = intent_envelope {
         response["intent_envelope"] = serde_json::to_value(&env)?;
         response["speech_escalation_recommended"] =
-            json!(vox_oratio::speech_escalation_recommended(
+            json!(vox_speech::speech_escalation_recommended(
                 env.intent_confidence,
                 env.transcript_confidence
             ));
@@ -486,7 +486,7 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
     }
     response["llm_refinement"] = llm_block;
     if debug_parser_payload {
-        response["runtime_config"] = vox_oratio::runtime_config_diagnostic_json(&rtc);
+        response["runtime_config"] = vox_speech::runtime_config_diagnostic_json(&rtc);
     }
     Ok(serde_json::to_string(&response)?)
 }
@@ -506,9 +506,9 @@ fn stream_ws_url() -> String {
 /// `vox_oratio_status`: static line + Candle backend JSON (model env defaults).
 pub fn status() -> String {
     serde_json::to_string(&json!({
-        "summary": vox_oratio::transcript_status(),
-        "candle": vox_oratio::candle_backend_status_json(),
-        "runtime": vox_oratio::runtime_config_diagnostic_json(&vox_oratio::OratioRuntimeConfig::resolve()),
+        "summary": vox_speech::transcript_status(),
+        "candle": vox_speech::candle_backend_status_json(),
+        "runtime": vox_speech::runtime_config_diagnostic_json(&vox_speech::OratioRuntimeConfig::resolve()),
         "streaming": {
             "transport": "websocket",
             "stream_ws_url": stream_ws_url(),
