@@ -4,14 +4,18 @@ description = "VCS backend abstraction for Vox — VcsBackend trait, in-memory C
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = ["jj"]
+jj = ["dep:jj-lib", "dep:tokio", "dep:futures"]
+
 [dependencies]
 serde = { workspace = true }
 thiserror = { workspace = true }
-jj-lib = { workspace = true, features = ["git"] }
 async-trait = { workspace = true }
-tokio = { workspace = true, features = ["sync", "rt", "time"] }
-futures = { workspace = true }
 workspace-hack = { workspace = true }
+jj-lib = { workspace = true, features = ["git"], optional = true }
+tokio = { workspace = true, features = ["sync", "rt", "rt-multi-thread", "time"], optional = true }
+futures = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

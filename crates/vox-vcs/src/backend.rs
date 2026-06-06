@@ -5,6 +5,11 @@ use crate::types::{Change, ChangeId, Conflict, Diff, ResolveStrategy};
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 
+// `jj_actor` is only compiled under the "jj" feature; this suppresses the
+// unused-import lint on the cfg-gated use below.
+#[cfg(feature = "jj")]
+use crate::jj_actor::JjActor;
+
 #[derive(Debug, thiserror::Error)]
 pub enum VcsError {
     #[error("nothing to undo")]
@@ -63,25 +68,35 @@ pub enum VcsBackendKind {
 }
 
 /// Detect which VCS kind is present at `repo_root`.
-/// Returns `Jj` when a `.jj` directory exists, otherwise `Cas`.
+///
+/// Returns `Jj` when a `.jj` directory exists **and** the `jj` feature is
+/// enabled; otherwise returns `Cas`.
 pub fn detect(repo_root: &Path) -> VcsBackendKind {
+    #[cfg(feature = "jj")]
     if repo_root.join(".jj").exists() {
-        VcsBackendKind::Jj
-    } else {
-        VcsBackendKind::Cas
+        return VcsBackendKind::Jj;
     }
+    #[cfg(not(feature = "jj"))]
+    let _ = repo_root; // suppress unused-variable lint
+    VcsBackendKind::Cas
 }
 
 /// Construct a boxed [`VcsBackend`] for `root`.
 ///
-/// If the directory contains a `.jj` workspace, a [`crate::jj_actor::JjActorHandle`]
-/// is spawned (the actor owns the `!Send` jj engine on a dedicated OS thread).
-/// If spawning fails, or there is no jj workspace, [`CasFallback`] is returned.
+/// With the `jj` feature (default): if the directory contains a `.jj`
+/// workspace, a [`crate::jj_actor::JjActorHandle`] is spawned (the actor owns
+/// the `!Send` jj engine on a dedicated OS thread). If spawning fails, or
+/// there is no jj workspace, [`CasFallback`] is returned.
+///
+/// Without the `jj` feature: always returns [`CasFallback`].
 pub async fn boxed_for(root: &Path) -> Box<dyn VcsBackend> {
+    #[cfg(feature = "jj")]
     if detect(root) == VcsBackendKind::Jj
-        && let Ok(handle) = crate::jj_actor::JjActor::spawn(root.to_path_buf())
+        && let Ok(handle) = JjActor::spawn(root.to_path_buf())
     {
         return Box::new(handle);
     }
+    #[cfg(not(feature = "jj"))]
+    let _ = root; // suppress unused-variable lint
     Box::new(CasFallback::new())
 }
