@@ -240,19 +240,36 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
             match target {
                 ScriptTarget::Native => {
                     let is_async = func.is_async;
+                    // The user's `main` may return a value (e.g. `fn main() to int`).
+                    // We cannot place its `return <value>` directly inside the
+                    // generated `fn main() -> ()`, so the body runs inside a closure
+                    // (sync) / async block (async) whose result is then discarded.
+                    let body: String = func
+                        .body
+                        .iter()
+                        .map(|stmt| emit::emit_main_stmt(stmt, 2, Some(&module.inferred_types)))
+                        .collect();
                     if is_async {
                         main_rs.push_str("#[tokio::main]\nasync fn main() {\n");
+                        main_rs.push_str("    let _vox_main_ret = async {\n");
+                        main_rs.push_str(&body);
+                        main_rs.push_str("    }\n    .await;\n");
+                        main_rs.push_str("    let _ = _vox_main_ret;\n");
+                        main_rs.push_str("}\n");
                     } else {
+                        let ret_ty = func
+                            .return_type
+                            .as_ref()
+                            .map(emit::emit_type)
+                            .unwrap_or_else(|| "()".to_string());
                         main_rs.push_str("fn main() {\n");
+                        main_rs
+                            .push_str(&format!("    let _vox_main_ret: {ret_ty} = (|| {{\n"));
+                        main_rs.push_str(&body);
+                        main_rs.push_str("    })();\n");
+                        main_rs.push_str("    let _ = _vox_main_ret;\n");
+                        main_rs.push_str("}\n");
                     }
-                    for stmt in &func.body {
-                        main_rs.push_str(&emit::emit_main_stmt(
-                            stmt,
-                            1,
-                            Some(&module.inferred_types),
-                        ));
-                    }
-                    main_rs.push_str("}\n");
                 }
                 ScriptTarget::Wasi => {
                     if func.is_async {
