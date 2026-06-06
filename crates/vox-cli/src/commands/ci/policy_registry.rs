@@ -8,7 +8,9 @@
 
 use std::path::Path;
 
-#[cfg(feature = "completion-toestub")]
+// Unconditional model imports for the default-build domains (ci-gate / arch /
+// crl / audit). The code-audit functions are themselves feature-gated, so this
+// import is only "used" when the feature is on — which does not warn.
 use vox_config::{PolicyDomain, PolicyEntry, PolicySeverity, PolicySource, PolicySourceKind};
 
 #[cfg(feature = "completion-toestub")]
@@ -75,6 +77,48 @@ pub fn code_audit_entries() -> Vec<PolicyEntry> {
         .collect();
     out.sort_by(|a, b| a.id.cmp(&b.id));
     out
+}
+
+/// Enumerate `contracts/ci/check-targets.v1.yaml` into `audit-check` entries.
+pub fn audit_check_entries(repo_root: &Path) -> Result<Vec<PolicyEntry>, String> {
+    use crate::commands::audit::CheckManifest;
+    let path = repo_root.join("contracts/ci/check-targets.v1.yaml");
+    let text =
+        std::fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    let manifest: CheckManifest =
+        serde_yaml::from_str(&text).map_err(|e| format!("parse {}: {e}", path.display()))?;
+    let mut out: Vec<PolicyEntry> = manifest
+        .checks
+        .iter()
+        .map(|c| {
+            let blocking = c.blocking;
+            PolicyEntry {
+                id: format!("audit-check/{}", c.id),
+                domain: PolicyDomain::AuditCheck,
+                title: c.id.clone(),
+                group: format!("Audit checks / {}", c.category),
+                description: c.description.clone(),
+                severity: Some(if blocking {
+                    PolicySeverity::Error
+                } else {
+                    PolicySeverity::Warn
+                }),
+                blocking,
+                runs_on: c.runs_on.clone(),
+                source: PolicySource {
+                    kind: PolicySourceKind::Command,
+                    reference: format!("contracts/ci/check-targets.v1.yaml#{}", c.id),
+                    detail: Some(c.command.join(" ")),
+                },
+                docs: None,
+                default_enabled: true,
+                protected: false,
+                origin: "builtin".to_string(),
+            }
+        })
+        .collect();
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(out)
 }
 
 /// Build the full registry document for the domains this plan covers.
@@ -275,5 +319,40 @@ mod tests {
             assert!(!e.group.is_empty(), "{} missing group", e.id);
             assert!(!e.description.is_empty(), "{} missing description", e.id);
         }
+    }
+}
+
+#[cfg(test)]
+mod default_domain_tests {
+    use super::*;
+    use std::path::Path;
+
+    fn repo_root() -> std::path::PathBuf {
+        // policy_registry.rs is at crates/vox-cli/src/commands/ci/; CARGO_MANIFEST_DIR
+        // is crates/vox-cli, so nth(1) = crates, nth(2) = repo root.
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .expect("repo root")
+            .to_path_buf()
+    }
+
+    #[test]
+    fn audit_check_entries_cover_check_targets() {
+        let entries = audit_check_entries(&repo_root()).expect("load check-targets");
+        // Live check-targets.v1.yaml has 26 entries (verified 2026-06-06).
+        assert!(
+            entries.len() >= 24,
+            "expected ~26 check-targets, got {}",
+            entries.len()
+        );
+        let fmt = entries
+            .iter()
+            .find(|e| e.id == "audit-check/fmt")
+            .expect("fmt check should be present");
+        assert_eq!(fmt.domain, vox_config::PolicyDomain::AuditCheck);
+        assert_eq!(fmt.source.kind, vox_config::PolicySourceKind::Command);
+        assert!(fmt.blocking, "fmt is blocking: true in the manifest");
+        assert!(fmt.group.starts_with("Audit checks"));
     }
 }
