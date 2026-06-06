@@ -100,10 +100,10 @@ Scoring rubric:
             total_score: i32,
         }
 
-        if let Ok(parsed) = serde_json::from_str::<JudgeResponse>(block.trim()) {
-            if parsed.total_score > 0 {
-                return parsed.total_score.clamp(1, 100);
-            }
+        if let Ok(parsed) = serde_json::from_str::<JudgeResponse>(block.trim())
+            && parsed.total_score > 0
+        {
+            return parsed.total_score.clamp(1, 100);
         }
     }
 

@@ -615,18 +615,17 @@ async fn set_session_stage(db: Option<&Codex>, session_id: i64, stage: ResearchS
     if session_id <= 0 {
         return;
     }
-    if let Some(db) = db {
-        if let Err(e) = db
+    if let Some(db) = db
+        && let Err(e) = db
             .update_research_session_status(session_id, stage.as_str())
             .await
-        {
-            tracing::warn!(
-                session_id,
-                stage = stage.as_str(),
-                error = %e,
-                "research_stage_update_failed"
-            );
-        }
+    {
+        tracing::warn!(
+            session_id,
+            stage = stage.as_str(),
+            error = %e,
+            "research_stage_update_failed"
+        );
     }
 }
 

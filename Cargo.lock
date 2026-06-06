@@ -13487,6 +13487,8 @@ dependencies = [
  "turso",
  "uuid",
  "vox-ast",
+ "vox-codegen",
+ "vox-compiler",
  "vox-config",
  "vox-db-types",
  "vox-mesh-types",
