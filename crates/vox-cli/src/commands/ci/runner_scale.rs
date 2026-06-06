@@ -229,6 +229,10 @@ fn spawn_one(index: u32, tag: &str, dry_run: bool) -> Result<()> {
     docker(&[
         "run",
         "-d",
+        // tini as PID 1 reaps zombie/orphaned job children (rustc, etc.) that the
+        // actions runner (run.sh) would otherwise leave defunct after a cancelled
+        // or crashed job.
+        "--init",
         "--restart",
         "unless-stopped",
         "--name",
