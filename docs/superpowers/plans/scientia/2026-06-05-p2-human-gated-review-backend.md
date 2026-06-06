@@ -26,7 +26,7 @@
 
 - **Modify** `crates/vox-db/src/schema/domains/scientia.rs` — add `scientia_review_decisions` table.
 - **Modify** `crates/vox-db/src/schema/manifest.rs` — `BASELINE_VERSION` 71 → 72 (+ companions).
-- **Create** `crates/vox-db/src/store/ops_review.rs` — `ReviewDecisionRow`, `record_review_decision`, `latest_decision_for_claim`, `list_claims_awaiting_review`.
+- **Create** `crates/vox-db/src/store/ops_review.rs` — `ReviewDecisionRow`, `record_review_decision`, `latest_decision_for_claim`. (As-built: `list_claims_awaiting_review` instead landed in `crates/vox-db/src/research_pipeline.rs`, directly after `list_publication_claims`, because it is a `scientia_claims ⋈ scientia_claim_verdicts ⋈ scientia_review_decisions` join that reuses the `ScientiaClaimWithVerdict` row type and the verdict correlated-subquery idiom from that module — cohesion with the primary table's module won over grouping by review-domain.)
 - **Create** `crates/vox-scientia/src/review/mod.rs` — the `ApprovalToken` type (opaque; only the review service constructs it) + the pure state-machine transitions.
 - **Modify** `crates/vox-cli/src/commands/scientia_nanopub.rs` — `nanopub_build` requires `ApprovalToken`; add `publication-claim-review` handler.
 - **Modify** `crates/vox-cli-core/src/scientia.rs` + dispatcher — wire `publication-claim-review`.

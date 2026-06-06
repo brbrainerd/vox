@@ -40,3 +40,6 @@ pub mod findings_site;
 
 // ── Phase H: dashboard JSON builders ─────────────────────────────────────────
 pub mod dashboard;
+
+// ── P2: human-gated discovery review (pure logic) ────────────────────────────
+pub mod review;
