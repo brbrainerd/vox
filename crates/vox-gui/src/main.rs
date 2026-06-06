@@ -126,6 +126,10 @@ async fn main() {
             commands::scientia::list_publication_manifests,
             commands::search::vox_search_query,
             commands::search::open_locator,
+            commands::policy::policy_list,
+            commands::policy::policy_show,
+            commands::policy::policy_status,
+            commands::policy::list_branches,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
