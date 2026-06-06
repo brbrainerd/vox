@@ -286,6 +286,11 @@ mod tests {
     // the test silently takes its skip branch (assertions never run).
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     #[allow(unsafe_code)]
+    // ENV_LOCK guards process-global env-var mutation; it must span the awaits to
+    // serialize concurrent tests. The std Mutex<()> is never contended across a real
+    // async boundary (each test runs its critical section to completion), so holding
+    // it across .await is intentional and deadlock-free here.
+    #[allow(clippy::await_holding_lock)]
     async fn reuses_key_and_persists_orcid_across_calls() {
         // Hermetic: isolate the vault DB to a temp dir, pin a throwaway account,
         // and force the vox_cloud backend (cutover=decommission) so that the
@@ -395,6 +400,10 @@ mod tests {
     /// takes a documented skip branch — the guard test above runs regardless.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     #[allow(unsafe_code)]
+    // See note on `reuses_key_and_persists_orcid_across_calls`: ENV_LOCK must span the
+    // awaits to serialize process-global env-var mutation; holding the std Mutex across
+    // .await is intentional and deadlock-free in this single-critical-section test.
+    #[allow(clippy::await_holding_lock)]
     async fn nanopub_build_persists_local_offline_validated_artifact() {
         let _g = ENV_LOCK.lock().expect("env lock");
 

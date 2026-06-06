@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{QLoraError, Result};
 use crate::quantization::{
-    dequantize_nf4, dequantize_nf4_with_dtype, quantize_nf4_with_config, ComputeDType,
+    dequantize_nf4_with_dtype, quantize_nf4_with_config, ComputeDType,
     QuantizationConfig, QuantizedTensor,
 };
 

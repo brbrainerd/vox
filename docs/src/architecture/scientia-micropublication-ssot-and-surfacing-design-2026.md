@@ -77,7 +77,7 @@ Legend: **Real** = works end-to-end · **Stub** = placeholder on the path ·
 **Seven drift seams nothing keeps in sync:** (1) two Trusty-URI impls that
 disagree — [`preregistration/trusty_uri.rs`](../../../crates/vox-orchestrator/src/preregistration/trusty_uri.rs)
 (`RA`+base64url(SHA-256(canonical JSON))) vs nanopub
-[`trig.rs:57`](../../../crates/vox-scientia/src/nanopub/trig.rs:57) (`RA`+**hex**),
+[`trig.rs:57`](../../../crates/vox-nanopub/src/trig.rs:57) (`RA`+**hex**),
 **neither hashing normalized RDF**; (2) two novelty scorers; (3) **two
 `NoveltyEvidenceBundle` types** — `vox-research-events` (read by the scorer) vs
 `NoveltyEvidenceBundleV1` in [`scientia_finding_ledger.rs`](../../../crates/vox-publisher/src/scientia_finding_ledger.rs)
@@ -185,7 +185,7 @@ asserts this." A single shared Vox key is therefore the wrong model on every axi
 - **Vox-the-project** MAY hold a *separate, distinct* identity for
   project-authored artifacts (e.g. the automated Provider Atlas) — that is one
   more identity, **not** a key shared across users.
-- **Retire the hand-rolled hex "trusty URI"** ([`trig.rs:57`](../../../crates/vox-scientia/src/nanopub/trig.rs:57))
+- **Retire the hand-rolled hex "trusty URI"** ([`trig.rs:57`](../../../crates/vox-nanopub/src/trig.rs:57))
   and the base64url prereg variant in favor of the one spec-compliant module;
   the preregistration `trusty_uri.rs` becomes a caller of the shared module.
 - **Enrich the assertion/provenance graphs** with the `SciClaimTuple`,
