@@ -15,9 +15,19 @@ rustdocflags = ["-D", "warnings"]
 rustflags = ["-C", "link-arg=/DEBUG:NONE", "-C", "link-arg=/STACK:8388608"]
 
 [env]
-# Force all cargo build/test invocations (including scripts) to use a unified target dir.
-# `relative = true` resolves the path from this config file's directory, so git
-# worktrees under .claude/worktrees/ also write to the shared root target/
-# instead of creating per-worktree target-agent/ target-doc-inv/ etc. dirs.
-# Table form also merges cleanly with the global ~/.cargo/config.toml.
+# Pin every cargo build/test invocation (including scripts) to a single `target/`
+# dir per checkout, instead of letting tools scatter `target-agent/`,
+# `target-doc-inv/`, etc. across the tree.
+#
+# `relative = true` resolves the path against the directory of *this* config
+# file. Because each git worktree is a full checkout that contains its own
+# `.cargo/config.toml`, this resolves to `<that-worktree>/target` — i.e. each
+# worktree gets its OWN target dir. This is per-worktree by design, NOT a single
+# root target shared across worktrees: concurrent agents building in different
+# worktrees must not contend on one shared target lock. To actually share one
+# target you would need an absolute path here (or in ~/.cargo/config.toml).
+#
+# Trade-off: N worktrees → N full targets (10–90 GB each; ~65% is incremental
+# cache). That disk cost is reclaimed by a periodic sweep, not by sharing — see
+# docs/superpowers/specs/2026-06-05-target-artifact-gc-design.md.
 CARGO_TARGET_DIR = { value = "target", relative = true }

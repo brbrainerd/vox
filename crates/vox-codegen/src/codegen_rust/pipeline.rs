@@ -175,6 +175,8 @@ tokio = {{ version = "1", features = ["full"] }}
 serde = {{ version = "1", features = ["derive"] }}
 serde_json = "1"
 tracing = "0.1"
+rust_decimal = "1.36"
+regex = "1"
 vox-actor-runtime = {{ path = "{runtime_path_str}" }}
 {rust_import_deps}
 "#,
@@ -225,6 +227,17 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
     for f in &mut script_module.functions {
         f.is_pub = true;
     }
+    // Script mode runs the bin (`cargo run`), not `cargo test`. `@test` fns are
+    // emitted with `#[test]`, which a normal build strips (`cfg(test)`-only) —
+    // but a user's `main` may call them directly (the interpreter registers
+    // tests as ordinary callables, so it works under `--mode interp`). Re-home
+    // them as plain `pub fn`s here so they exist in the lib and are reachable
+    // from main.rs. App-mode `emit_lib` still emits them as `#[test]`.
+    let mut tests_as_fns = std::mem::take(&mut script_module.tests);
+    for t in &mut tests_as_fns {
+        t.is_pub = true;
+    }
+    script_module.functions.append(&mut tests_as_fns);
     files.insert("src/lib.rs".to_string(), emit::emit_lib(&script_module));
 
     // Emit a script-mode main.rs: just `use crate::*;` and the user's main fn body
@@ -240,33 +253,52 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
             match target {
                 ScriptTarget::Native => {
                     let is_async = func.is_async;
-                    // The user's `main` may return a value (e.g. `fn main() to int`).
-                    // We cannot place its `return <value>` directly inside the
-                    // generated `fn main() -> ()`, so the body runs inside a closure
-                    // (sync) / async block (async) whose result is then discarded.
-                    let body: String = func
-                        .body
-                        .iter()
-                        .map(|stmt| emit::emit_main_stmt(stmt, 2, Some(&module.inferred_types)))
-                        .collect();
-                    if is_async {
-                        main_rs.push_str("#[tokio::main]\nasync fn main() {\n");
-                        main_rs.push_str("    let _vox_main_ret = async {\n");
-                        main_rs.push_str(&body);
-                        main_rs.push_str("    }\n    .await;\n");
-                        main_rs.push_str("    let _ = _vox_main_ret;\n");
-                        main_rs.push_str("}\n");
+                    // A non-Unit-returning `main` (`fn main() to int`/`to str`)
+                    // cannot map to a Rust `fn main()` (which returns `()`):
+                    // the emitted `return <value>` would be E0308. Mirror the
+                    // interpreter (`vox run --mode interp`, which prints main's
+                    // display value): run the body in a closure and print the
+                    // result. Unit / unannotated mains keep the direct form.
+                    let non_unit_ret = if is_async {
+                        None
                     } else {
-                        let ret_ty = func
-                            .return_type
+                        func.return_type
                             .as_ref()
                             .map(emit::emit_type)
-                            .unwrap_or_else(|| "()".to_string());
+                            .filter(|t| t != "()")
+                    };
+                    if is_async {
+                        main_rs.push_str("#[tokio::main]\nasync fn main() {\n");
+                        for stmt in &func.body {
+                            main_rs.push_str(&emit::emit_main_stmt(
+                                stmt,
+                                1,
+                                Some(&module.inferred_types),
+                            ));
+                        }
+                        main_rs.push_str("}\n");
+                    } else if let Some(ret_ty) = non_unit_ret {
                         main_rs.push_str("fn main() {\n");
-                        main_rs.push_str(&format!("    let _vox_main_ret: {ret_ty} = (|| {{\n"));
-                        main_rs.push_str(&body);
+                        main_rs.push_str(&format!("    let __vox_main_ret: {ret_ty} = (|| {{\n"));
+                        for stmt in &func.body {
+                            main_rs.push_str(&emit::emit_main_stmt(
+                                stmt,
+                                2,
+                                Some(&module.inferred_types),
+                            ));
+                        }
                         main_rs.push_str("    })();\n");
-                        main_rs.push_str("    let _ = _vox_main_ret;\n");
+                        main_rs.push_str("    println!(\"{}\", __vox_main_ret);\n");
+                        main_rs.push_str("}\n");
+                    } else {
+                        main_rs.push_str("fn main() {\n");
+                        for stmt in &func.body {
+                            main_rs.push_str(&emit::emit_main_stmt(
+                                stmt,
+                                1,
+                                Some(&module.inferred_types),
+                            ));
+                        }
                         main_rs.push_str("}\n");
                     }
                 }

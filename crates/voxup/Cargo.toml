@@ -19,3 +19,6 @@ tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
 url = { workspace = true }
 workspace-hack = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

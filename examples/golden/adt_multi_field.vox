@@ -75,6 +75,7 @@ fn test_describe_circle() to Unit {
 }
 
 // main exercises all three variants so `vox run --mode interp` exits cleanly.
+// EXPECT: adt_multi_field: all checks passed
 pub fn main() {
     let c = Circle(2.0)
     let r = Rectangle(4.0, 3.0)

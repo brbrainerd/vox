@@ -434,8 +434,13 @@ fn adt_tagged_enum_dispatches_on_tag_field() {
             let res = Shape_from_json(r.unwrap())
             if res.is_err() { return "from_json_error: " + res.unwrap_err() }
             let shape = res.unwrap()
-            let radius = shape.get("radius").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(-1)
-            return "radius:" + str(radius)
+            // `Shape_from_json` returns a typed `Shape` ADT, destructured by
+            // pattern match (NOT a raw Json object — `.get()` on a `Shape`
+            // does not typecheck). This is the idiomatic tagged-enum dispatch.
+            match shape {
+                Circle(radius) => return "radius:" + str(radius)
+                Square(side) => return "side:" + str(side)
+            }
         }
     "#,
     );
@@ -458,8 +463,11 @@ fn adt_tagged_enum_second_variant_dispatches_correctly() {
             let res = Shape_from_json(r.unwrap())
             if res.is_err() { return "from_json_error: " + res.unwrap_err() }
             let shape = res.unwrap()
-            let side = shape.get("side").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(-1)
-            return "side:" + str(side)
+            // Typed `Shape` ADT → pattern-match dispatch (see Circle test).
+            match shape {
+                Circle(radius) => return "radius:" + str(radius)
+                Square(side) => return "side:" + str(side)
+            }
         }
     "#,
     );

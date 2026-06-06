@@ -121,7 +121,7 @@ Expected: FAIL — `Decorator::VcsReadOnly` etc. don't exist.
 
 - [ ] **Step 3: Add the decorator variants to the AST**
 
-In `crates/vox-compiler/src/ast/decorator.rs` (or wherever the `Decorator` enum lives):
+In `crates/vox-ast/src/decorator.rs` (or wherever the `Decorator` enum lives):
 
 ```rust
 pub enum Decorator {
@@ -167,7 +167,7 @@ Expected: PASS — 6/6.
 - [ ] **Step 6: Commit**
 
 ```
-git add crates/vox-compiler/src/ast/decorator.rs crates/vox-compiler/src/parser/decorators.rs crates/vox-compiler/src/parser/decorators_tests.rs
+git add crates/vox-ast/src/decorator.rs crates/vox-compiler/src/parser/decorators.rs crates/vox-compiler/src/parser/decorators_tests.rs
 git commit -m "feat(vox-compiler): parse @vcs.read_only / @vcs.requires(T) / @vcs.linear_working_tree / @vcs.audit_trail"
 ```
 

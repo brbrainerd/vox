@@ -24,7 +24,7 @@ This document defines the normative requirements for maintaining Vox as a first-
 
 The workspace versions are locked in `contracts/toolchain/workspace-toolchain.v1.yaml`.
 
-- **Rust:** 1.92.0 (standardized in `rust-toolchain.toml`)
+- **Rust:** 1.95.0 (standardized in `rust-toolchain.toml`)
 - **Node.js:** 24.x (standardized in all CI workflows)
 - **pnpm:** 9.x
 - **CUDA:** 12.1 (runtime driver dependency, not build-time toolchain)

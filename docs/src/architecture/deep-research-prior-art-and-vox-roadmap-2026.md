@@ -13,7 +13,7 @@ related:
   - docs/src/architecture/search-retrieval-ssot-2026.md
   - docs/src/architecture/scientia-self-publication-finalization-plan-2026.md
   - docs/src/architecture/scientia-mesh-integration-research-2026.md
-  - crates/vox-dei-shim/src/research/orchestrator/pipeline.rs
+  - crates/vox-research-shim/src/research/orchestrator/pipeline.rs
   - crates/vox-search/src/web_dispatcher.rs
   - crates/vox-search/src/crag.rs
 ---
@@ -46,7 +46,7 @@ Voice transcription often yields “Claw” without specifying the product. Thre
 |-----|------------|------------|---------------|
 | **A. OpenClaw Deep Research Agent** | Skill/agent pattern in the OpenClaw ecosystem (multi-round web search, structured report, configurable iterations). | Async-ish batch runs (minutes), markdown/HTML output. | Closest analog: [`vox-search::crag::CragRouter`](../../../crates/vox-search/src/crag.rs) + [`WebSearchDispatcher`](../../../crates/vox-search/src/web_dispatcher.rs) — **shipped in `vox-search`**, must be driven from orchestrator research ([§6](#6-target-architecture-four-phases)). |
 | **B. SearchClaw / ScienceClaw / ClawHub “Academic Deep Research”** | Research harnesses with explicit quality gates (citation counts, source diversity), many literature APIs, checkpointed workflows. | Long runs, academic citation styles. | **Partial:** diagnostics exist in `run_research` (`RetrievalDiagnostics`); **not built:** minimum citation diversity enforcement, APA tooling, 77-database integrations. |
-| **C. Anthropic Claude Research mode** | Hosted Claude capability for web research with inline citations (consumer + API surfaces). | Sync/async report with citations. | **Not orchestrated by Vox:** we may call Anthropic as an LLM backend for synthesis/judge ([`stages.rs`](../../../crates/vox-dei-shim/src/research/orchestrator/stages.rs)) but do not invoke Claude’s hosted “Research” product as a black box. |
+| **C. Anthropic Claude Research mode** | Hosted Claude capability for web research with inline citations (consumer + API surfaces). | Sync/async report with citations. | **Not orchestrated by Vox:** we may call Anthropic as an LLM backend for synthesis/judge ([`stages.rs`](../../../crates/vox-research-shim/src/research/orchestrator/stages.rs)) but do not invoke Claude’s hosted “Research” product as a black box. |
 
 OpenClaw **docs refresh** for operators already exists on the CLI path ([`db_research/refresh.rs`](../../../crates/vox-cli/src/commands/db_research/refresh.rs) — `OPENCLAW_REFRESH_URLS`).
 
@@ -68,7 +68,7 @@ Columns: **triggering UX**, **planning**, **retrieval tools**, **memory/session*
 | Cost/latency | High token + many search steps on “Max”; vendor-metered. |
 | Access | Google AI / Gemini API; Google account / Cloud billing. |
 | Limits | Vendor lock-in; enterprise data residency policies; eval claims require primary citations. |
-| **Vox analog** | [`planner.rs::decompose_query_with_config`](../../../crates/vox-dei-shim/src/research/planner.rs) — **STUB** (passthrough). Retrieval: [`web_gather.rs`](../../../crates/vox-dei-shim/src/research/orchestrator/web_gather.rs) — **now delegates to `vox-search` web tier** (Phase 1 shipped in this workstream). |
+| **Vox analog** | [`planner.rs::decompose_query_with_config`](../../../crates/vox-research-shim/src/research/planner.rs) — **STUB** (passthrough). Retrieval: [`web_gather.rs`](../../../crates/vox-research-shim/src/research/orchestrator/web_gather.rs) — **now delegates to `vox-search` web tier** (Phase 1 shipped in this workstream). |
 
 **Primary sources (appendix §10).**
 
@@ -98,7 +98,7 @@ Columns: **triggering UX**, **planning**, **retrieval tools**, **memory/session*
 | Cost/latency | API-rate-limit sensitive. |
 | Access | GitHub / skill hubs. |
 | Limits | Ops burden to keep API keys and rate limits healthy. |
-| **Vox analog** | **Not built** as a dedicated harness; closest telemetry is [`RetrievalDiagnostics`](../../../crates/vox-dei-shim/src/research/types.rs) + future **citation-diversity gate** (Phase 2 backlog). |
+| **Vox analog** | **Not built** as a dedicated harness; closest telemetry is [`RetrievalDiagnostics`](../../../crates/vox-research-shim/src/research/types.rs) + future **citation-diversity gate** (Phase 2 backlog). |
 
 ### 3.4 Anthropic Claude Research mode
 
@@ -150,18 +150,18 @@ Canonical retrieval policy and corpus matrix: [`search-retrieval-ssot-2026.md`](
 
 ## 5. Gap analysis — stubs vs shipped surfaces
 
-### 5.1 `PHASE_0a_STUB` modules in `crates/vox-dei-shim/src/research/`
+### 5.1 `PHASE_0a_STUB` modules in `crates/vox-research-shim/src/research/`
 
 | Module | Role today | Replacement / delegation target |
 |--------|------------|----------------------------------|
-| [`planner.rs`](../../../crates/vox-dei-shim/src/research/planner.rs) | Passthrough single subquery | Future: LLM/Mens decomposition — **not** replaced in this workstream |
-| [`provider.rs`](../../../crates/vox-dei-shim/src/research/provider.rs) | Empty search/map_site | Future: unify with `vox-search` providers / mesh `ProviderObservation` — **not** replaced here |
-| [`web_gather.rs`](../../../crates/vox-dei-shim/src/research/orchestrator/web_gather.rs) | Was empty | **`WebSearchDispatcher::search` + CRAG refinements** ([`web_dispatcher.rs`](../../../crates/vox-search/src/web_dispatcher.rs), [`crag.rs`](../../../crates/vox-search/src/crag.rs)) — **implemented** |
-| [`claims.rs`](../../../crates/vox-dei-shim/src/research/claims.rs) | Empty claims | Future `vox-claim-extractor` per module header — **stub** |
-| [`verifier.rs`](../../../crates/vox-dei-shim/src/research/verifier.rs) | Empty verdicts | Future verifier wiring — **stub** |
-| [`model_select.rs`](../../../crates/vox-dei-shim/src/research/model_select.rs) | Static fallbacks | Future registry merge — **stub** |
-| [`pipeline_cache.rs`](../../../crates/vox-dei-shim/src/research/orchestrator/pipeline_cache.rs) | Always miss | Future `list_memories_by_type` — **stub** |
-| [`pipeline.rs`](../../../crates/vox-dei-shim/src/research/orchestrator/pipeline.rs) | Session id `0`, persistence comments | Future vox-db methods — **stub** |
+| [`planner.rs`](../../../crates/vox-research-shim/src/research/planner.rs) | Passthrough single subquery | Future: LLM/Mens decomposition — **not** replaced in this workstream |
+| [`provider.rs`](../../../crates/vox-research-shim/src/research/provider.rs) | Empty search/map_site | Future: unify with `vox-search` providers / mesh `ProviderObservation` — **not** replaced here |
+| [`web_gather.rs`](../../../crates/vox-research-shim/src/research/orchestrator/web_gather.rs) | Was empty | **`WebSearchDispatcher::search` + CRAG refinements** ([`web_dispatcher.rs`](../../../crates/vox-search/src/web_dispatcher.rs), [`crag.rs`](../../../crates/vox-search/src/crag.rs)) — **implemented** |
+| [`claims.rs`](../../../crates/vox-research-shim/src/research/claims.rs) | Empty claims | Future `vox-claim-extractor` per module header — **stub** |
+| [`verifier.rs`](../../../crates/vox-research-shim/src/research/verifier.rs) | Empty verdicts | Future verifier wiring — **stub** |
+| [`model_select.rs`](../../../crates/vox-research-shim/src/research/model_select.rs) | Static fallbacks | Future registry merge — **stub** |
+| [`pipeline_cache.rs`](../../../crates/vox-research-shim/src/research/orchestrator/pipeline_cache.rs) | Always miss | Future `list_memories_by_type` — **stub** |
+| [`pipeline.rs`](../../../crates/vox-research-shim/src/research/orchestrator/pipeline.rs) | Session id `0`, persistence comments | Future vox-db methods — **stub** |
 
 ### 5.2 Cross-surface tooling
 

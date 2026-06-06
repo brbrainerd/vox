@@ -31,10 +31,10 @@ pub struct ExplainArgs {
 /// Pure helper: rank free models via the FreeTierRouter and return each
 /// candidate's id paired with its rationale. No I/O — unit-testable.
 fn render_free_tier(
-    req: &vox_dei_shim::selection::FreeTierRouteRequest,
+    req: &vox_research_shim::selection::FreeTierRouteRequest,
     models: &[vox_orchestrator::models::ModelSpec],
 ) -> Vec<(String, &'static str)> {
-    vox_dei_shim::selection::FreeTierRouter::new()
+    vox_research_shim::selection::FreeTierRouter::new()
         .route(req, models)
         .into_iter()
         .map(|c| (c.model.id, c.rationale))
@@ -135,7 +135,7 @@ pub async fn run(args: ExplainArgs) -> anyhow::Result<()> {
     // 4b. Free-tier router rationale (opt-in) — surfaces WHY each free model is
     // chosen, using the same FreeTierRouter the MCP selection path uses.
     if args.free_tier {
-        let req = vox_dei_shim::selection::FreeTierRouteRequest {
+        let req = vox_research_shim::selection::FreeTierRouteRequest {
             task: category,
             context_tokens: 0,
             requires_vision: false,
@@ -172,11 +172,11 @@ pub async fn run(args: ExplainArgs) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::render_free_tier;
-    use vox_dei_shim::selection::FreeTierRouteRequest;
     use vox_orchestrator::models::{
         ModelCapabilities, ModelSpec, ModelTier, PricingSource, ProviderType, StrengthTag,
     };
     use vox_orchestrator::types::TaskCategory;
+    use vox_research_shim::selection::FreeTierRouteRequest;
 
     fn free_spec(id: &str, provider_type: ProviderType, tier: ModelTier) -> ModelSpec {
         ModelSpec {

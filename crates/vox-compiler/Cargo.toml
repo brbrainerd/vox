@@ -9,6 +9,7 @@ default = []
 
 [dependencies]
 logos = { workspace = true }
+vox-ast = { workspace = true }
 vox-eval = { workspace = true }
 vox-grammar-export = { workspace = true }
 vox-repository = { workspace = true }

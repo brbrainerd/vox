@@ -49,26 +49,74 @@ fn main() -> Result<()> {
         .collect();
     paths.sort();
 
+    // typify can *panic* (not just return Err) on schemas it cannot model — e.g. a
+    // root-level `oneOf` discriminated union (still un-modelable as of typify 0.7).
+    // Such schemas
+    // are validation-only: they're consumed via the jsonschema validator at runtime,
+    // not as generated Rust types. So we catch the panic, skip the schema with a
+    // marker, and keep generating the rest — a single un-modelable schema must not
+    // abort the whole regeneration. A genuine `Err` (bad schema) still propagates.
+    let mut skipped: Vec<String> = Vec::new();
+    let mut hard_error: Option<anyhow::Error> = None;
+    let prev_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {})); // silence default panic output; we report below
+
     for path in &paths {
-        let raw = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
-        let root_schema: RootSchema =
-            serde_json::from_str(&raw).with_context(|| format!("parse {}", path.display()))?;
+        eprintln!("[codegen] processing {}", path.display());
+        let rel = path
+            .strip_prefix(&repo)
+            .unwrap_or(path)
+            .display()
+            .to_string();
 
-        let mut type_space = TypeSpace::default();
-        type_space
-            .add_root_schema(root_schema)
-            .with_context(|| format!("typify ingest {}", path.display()))?;
+        // ALL fallible work — including the file read and JSON parse — runs inside
+        // catch_unwind. A bare `?` out here would return from `main` while the silent
+        // panic hook (installed above) is still in place, leaking it; routing genuine
+        // errors through the closure's `Result` keeps every exit path on the
+        // hook-restoring `hard_error`/`break` route.
+        let rendered =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<String> {
+                let raw = fs::read_to_string(path).with_context(|| format!("read {rel}"))?;
+                let root_schema: RootSchema =
+                    serde_json::from_str(&raw).with_context(|| format!("parse {rel}"))?;
+                let mut type_space = TypeSpace::default();
+                type_space
+                    .add_root_schema(root_schema)
+                    .with_context(|| format!("typify ingest {rel}"))?;
+                let stream = type_space.to_stream();
+                let syntax_tree =
+                    syn::parse2(stream).with_context(|| format!("typify parse {rel}"))?;
+                Ok(prettyplease::unparse(&syntax_tree))
+            }));
 
-        let stream = type_space.to_stream();
-        let syntax_tree =
-            syn::parse2(stream).with_context(|| format!("typify parse {}", path.display()))?;
-        let formatted = prettyplease::unparse(&syntax_tree);
+        let formatted = match rendered {
+            Ok(Ok(code)) => code,
+            Ok(Err(e)) => {
+                hard_error = Some(e);
+                break;
+            }
+            Err(panic) => {
+                // Surface the panic payload so a *genuine* (non-typify) panic isn't
+                // silently disguised as a benign "validation-only" skip.
+                let payload = panic
+                    .downcast_ref::<&str>()
+                    .map(|s| (*s).to_string())
+                    .or_else(|| panic.downcast_ref::<String>().cloned())
+                    .unwrap_or_else(|| "<non-string panic>".to_string());
+                eprintln!(
+                    "[codegen] WARNING: typify could not model {rel} — skipping \
+                     (validation-only schema; no Rust types emitted). panic: {payload}"
+                );
+                out.push_str(&format!(
+                    "// --- {rel} : SKIPPED — typify could not model this schema (validation-only) ---\n\n"
+                ));
+                skipped.push(rel);
+                continue;
+            }
+        };
 
         let mod_name = module_name(path);
-        out.push_str(&format!(
-            "// --- {} ---\npub mod {mod_name} {{\n",
-            path.strip_prefix(&repo).unwrap_or(path).display()
-        ));
+        out.push_str(&format!("// --- {rel} ---\npub mod {mod_name} {{\n"));
         for line in formatted.lines() {
             out.push_str("    ");
             out.push_str(line);
@@ -77,8 +125,22 @@ fn main() -> Result<()> {
         out.push_str("}\n\n");
     }
 
+    std::panic::set_hook(prev_hook);
+    if let Some(e) = hard_error {
+        return Err(e);
+    }
+
     fs::write(&out_path, out).with_context(|| format!("write {}", out_path.display()))?;
-    eprintln!("wrote {}", out_path.display());
+    eprintln!(
+        "wrote {} ({} schema(s) skipped: {})",
+        out_path.display(),
+        skipped.len(),
+        if skipped.is_empty() {
+            "none".to_string()
+        } else {
+            skipped.join(", ")
+        }
+    );
     Ok(())
 }
 

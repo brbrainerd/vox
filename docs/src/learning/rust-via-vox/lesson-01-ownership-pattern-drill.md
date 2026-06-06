@@ -232,7 +232,7 @@ fn sum_pairs(v: Vec<(String, i32)>) -> i32 {
 
 ### EX10 — REVIEW (Vox-shaped: recursive AST with `Box`)
 
-> The shape below mirrors a tiny slice of [`crates/vox-compiler/src/ast/expr.rs`](../../../../crates/vox-compiler/src/ast/expr.rs) — recursive AST nodes hidden behind `Box` so the enum has a known size. You don't need to know Vox to answer; this exercise is about *recursion over owned trees*, which shows up in every compiler, parser, JSON library, and game-engine scene graph.
+> The shape below mirrors a tiny slice of [`crates/vox-ast/src/expr.rs`](../../../../crates/vox-ast/src/expr.rs) — recursive AST nodes hidden behind `Box` so the enum has a known size. You don't need to know Vox to answer; this exercise is about *recursion over owned trees*, which shows up in every compiler, parser, JSON library, and game-engine scene graph.
 
 ```rust
 enum Expr {

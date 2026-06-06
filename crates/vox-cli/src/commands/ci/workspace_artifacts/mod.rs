@@ -1,6 +1,9 @@
 //! `vox ci artifact-audit` / `artifact-prune` — policy-driven workspace artifact inventory and cleanup.
 
 mod retention;
+mod worktree_gc;
+
+pub use worktree_gc::WorktreeGcOpts;
 
 use std::collections::{HashSet, VecDeque};
 use std::fs;
@@ -272,7 +275,7 @@ fn collect_inventory(
     Ok(rows)
 }
 
-pub fn run_audit(root: &Path, json: bool) -> Result<()> {
+pub fn run_audit(root: &Path, json: bool, include_worktrees: bool) -> Result<()> {
     let policy_path = default_policy_path(root);
     let policy = if policy_path.is_file() {
         WorkspaceArtifactRetentionFile::load(&policy_path)?
@@ -280,7 +283,32 @@ pub fn run_audit(root: &Path, json: bool) -> Result<()> {
         WorkspaceArtifactRetentionFile::embedded_defaults()
     };
 
-    let rows = collect_inventory(root, &policy)?;
+    let mut rows = collect_inventory(root, &policy)?;
+    if include_worktrees {
+        let opts = WorktreeGcOpts {
+            include_worktrees: true,
+            remove_stale_worktrees: true,
+            ..Default::default()
+        };
+        for item in worktree_gc::plan(
+            root,
+            &policy.worktree_targets,
+            &policy.stale_worktrees,
+            &opts,
+        )? {
+            rows.push(ArtifactAuditRow {
+                path: item.path.to_string_lossy().to_string(),
+                class: item.class.to_string(),
+                bytes: item.bytes,
+                age_days: item.age_days,
+                last_modified: None,
+                tracked: false,
+                untracked: true,
+                delete_candidate: item.action == "delete",
+                delete_reason: Some(item.reason),
+            });
+        }
+    }
     emit_large_tracked_mens_advisories(&rows);
 
     if json {
@@ -311,7 +339,12 @@ fn unix_ts() -> u64 {
         .unwrap_or(0)
 }
 
-fn delete_path_logged(path: &Path, dry_run: bool, class: &str, reason: &str) -> Result<u64> {
+pub(super) fn delete_path_logged(
+    path: &Path,
+    dry_run: bool,
+    class: &str,
+    reason: &str,
+) -> Result<u64> {
     let bytes = path_size_bytes(path);
     if dry_run {
         println!(
@@ -359,7 +392,13 @@ fn delete_path_logged(path: &Path, dry_run: bool, class: &str, reason: &str) -> 
     Ok(bytes)
 }
 
-pub fn run_prune(root: &Path, dry_run: bool, apply: bool, policy_arg: Option<&Path>) -> Result<()> {
+pub fn run_prune(
+    root: &Path,
+    dry_run: bool,
+    apply: bool,
+    policy_arg: Option<&Path>,
+    wt_opts: WorktreeGcOpts,
+) -> Result<()> {
     if dry_run && apply {
         return Err(anyhow!("Specify only one of --dry-run or --apply"));
     }
@@ -428,6 +467,20 @@ pub fn run_prune(root: &Path, dry_run: bool, apply: bool, policy_arg: Option<&Pa
         let b = delete_path_logged(&path, dry_run, &class, &reason)?;
         reclaimed = reclaimed.saturating_add(b);
         *counts.entry(class).or_insert(0) += 1;
+    }
+
+    if wt_opts.include_worktrees {
+        let (wt_reclaimed, wt_counts) = worktree_gc::execute(
+            root,
+            dry_run,
+            &policy.worktree_targets,
+            &policy.stale_worktrees,
+            &wt_opts,
+        )?;
+        reclaimed = reclaimed.saturating_add(wt_reclaimed);
+        for (k, v) in wt_counts {
+            *counts.entry(k).or_insert(0) += v;
+        }
     }
 
     println!("artifact-prune: dry_run={dry_run} reclaimed_bytes={reclaimed} per_class={counts:?}");

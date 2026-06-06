@@ -152,7 +152,7 @@ The deferral decision: do not implement fragments before the Phase 6 primitive s
 When Phase F code work starts, the touch surface is:
 
 - New lexer token `Token::Fragment` at [crates/vox-compiler/src/lexer/token.rs](../../../crates/vox-compiler/src/lexer/token.rs) (with `Display` arm).
-- New AST node `FragmentDecl` at [crates/vox-compiler/src/ast/decl/](../../../crates/vox-compiler/src/ast/decl/).
+- New AST node `FragmentDecl` at [crates/vox-ast/src/decl/](../../../crates/vox-ast/src/decl/).
 - Top-level decl dispatch in [crates/vox-compiler/src/parser/descent/mod.rs](../../../crates/vox-compiler/src/parser/descent/mod.rs) — same surface as `component` / `state_machine` (four sites: skip-recovery, async-fn, top-level fn, pub-fn).
 - New HIR node `HirFragmentDecl`.
 - New codegen at `crates/vox-codegen/src/codegen_ts/fragment_emit.rs`.

@@ -571,7 +571,7 @@ This topology is already described in `tanstack-web-roadmap.md` and the TanStack
 ## 6. AST Extensions Required
 
 ### 6.1 `RouteEntry` — Add loader, pending, under
-**File:** `crates/vox-compiler/src/ast/decl/ui.rs`
+**File:** `crates/vox-ast/src/decl/ui.rs`
 
 ```rust
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -593,7 +593,7 @@ pub struct RouteEntry {
 ```
 
 ### 6.2 `RoutesDecl` — Add not_found, error
-**File:** `crates/vox-compiler/src/ast/decl/ui.rs`
+**File:** `crates/vox-ast/src/decl/ui.rs`
 
 ```rust
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

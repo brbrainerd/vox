@@ -63,7 +63,7 @@ pub struct ResearchRunParams {
     /// Optional domain filter (`example.com`, no scheme).
     #[serde(default)]
     pub site_scope: Option<String>,
-    /// When true (default), return JSON-serialized [`vox_dei_shim::research::ResearchResult`].
+    /// When true (default), return JSON-serialized [`vox_research_shim::research::ResearchResult`].
     #[serde(default = "default_research_json")]
     pub json: bool,
 }

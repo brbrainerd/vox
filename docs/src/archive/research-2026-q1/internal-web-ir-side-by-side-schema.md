@@ -300,7 +300,7 @@ lower -> HIR:
 
 Anchors:
 
-- `crates/vox-compiler/src/ast/decl/ui.rs`
+- `crates/vox-ast/src/decl/ui.rs`
 - `crates/vox-compiler/src/hir/nodes/decl.rs`
 
 #### Target WebIR (implemented now: V0_1)

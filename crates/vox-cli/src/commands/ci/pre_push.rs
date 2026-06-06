@@ -1062,7 +1062,7 @@ fn compute_impacted_crates(root: &Path, since_ref: &str) -> Result<ImpactedCrate
                 f.starts_with(&prefix) || f == &pkg_rel
             };
             if touches {
-                directly_changed.insert(pkg.name.clone());
+                directly_changed.insert(pkg.name.to_string());
                 break;
             }
         }
@@ -1097,7 +1097,7 @@ fn compute_impacted_crates(root: &Path, since_ref: &str) -> Result<ImpactedCrate
                 reverse_deps
                     .entry(dep.name.clone())
                     .or_default()
-                    .push(pkg.name.clone());
+                    .push(pkg.name.to_string());
             }
         }
     }

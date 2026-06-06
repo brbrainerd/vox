@@ -28,7 +28,12 @@ path = "src/bin/vox-compilerd.rs"
 
 
 [features]
-default = ["keyring-store"]
+# `script-execution` (native `vox run --mode script` lane) is default-on: it is
+# lightweight (xxhash cache + OS sandbox helpers, no WASM runtime) and is the
+# common dev/CI path. The heavy Wasmtime WASI lane lives behind `script-wasi`
+# (see below) so a normal `cargo build -p vox-cli` does NOT pay ~5 min / ~69
+# crates of wasmtime+cranelift just to run native scripts.
+default = ["keyring-store", "script-execution"]
 # OS credential store for `vox login` / `vox auth connect` vault persistence.
 # Disable on headless CI builds where no keyring daemon is available.
 keyring-store = ["dep:keyring"]
@@ -50,21 +55,28 @@ database = ["vox-corpus/database"]
 # Heavy on-disk retrieval: tantivy full-text index + web-scrape (scraper/html2text).
 # OFF by default to keep the CLI lean — resolver-2 feature unification means this
 # single switch turns tantivy on across every vox-search instance in the graph
-# (vox-orchestrator / vox-dei-shim / vox-orchestrator-mcp included). Shipped release
+# (vox-orchestrator / vox-research-shim / vox-orchestrator-mcp included). Shipped release
 # binaries enable this so end users keep full `vox search`. See WS2-T3.
 heavy-retrieval = ["vox-search/tantivy-lexical", "vox-search/web-scrape"]
 
 
 
 
-# Inline `vox run` script compilation (native / WASI + Wasmtime) and OS sandbox helpers.
+# Native inline `vox run --mode script` compilation (codegen-rust -> cargo) plus
+# the content-addressed script cache and OS sandbox helpers (landlock/win32job).
+# Lightweight; default-on. Does NOT include the WASM runtime.
 script-execution = [
     "dep:xxhash-rust",
+    "dep:landlock",
+    "dep:win32job",
+]
+# WASI isolation lane (`vox run --isolation wasm`, `vox wasm ...`): Wasmtime JIT
+# + cranelift + WASI. HEAVY (~69 crates, ~5 min from a warm base). Opt-in.
+script-wasi = [
+    "script-execution",
     "dep:vox-wasm-engine",
     "dep:wasmtime",
     "dep:wasmtime-wasi",
-    "dep:landlock",
-    "dep:win32job",
 ]
 # Axum inference server (`vox mens serve`) + REST execution API; implies `script-execution`.
 execution-api = ["script-execution", "dep:tokio-stream"]
@@ -172,7 +184,7 @@ vox-drift-check = { workspace = true }
 
 toml = { workspace = true }
 vox-doc-pipeline = { path = "../vox-doc-pipeline" }
-vox-dei-shim = { workspace = true }
+vox-research-shim = { workspace = true }
 vox-orchestrator = { workspace = true }
 vox-orchestrator-mcp = { workspace = true, optional = true }
 vox-plugin-catalog = { workspace = true }

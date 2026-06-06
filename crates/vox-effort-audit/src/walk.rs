@@ -117,7 +117,7 @@ pub fn iter_commits(
     }
 
     // Newest-first.
-    records.sort_by(|a, b| b.commit_ts.cmp(&a.commit_ts));
+    records.sort_by_key(|r| std::cmp::Reverse(r.commit_ts));
     Ok(records)
 }
 

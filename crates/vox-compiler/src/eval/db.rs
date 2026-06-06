@@ -135,10 +135,10 @@ fn eval_predicate(pred: &HirDbPredicate, row: &Row, vals: &[VoxValue], pos: &mut
             let have = field(row, f).cloned();
             let mut matched = false;
             for _ in 0..*arity {
-                if let Some(w) = take(vals, pos) {
-                    if have.as_ref() == Some(&w) {
-                        matched = true;
-                    }
+                if let Some(w) = take(vals, pos)
+                    && have.as_ref() == Some(&w)
+                {
+                    matched = true;
                 }
             }
             matched
@@ -292,10 +292,10 @@ pub fn execute_db_plan(
                             keep.push(id.clone());
                         }
                         for c in cols {
-                            if c != "_id" {
-                                if let Some(pair) = r.iter().find(|(k, _)| k == c) {
-                                    keep.push(pair.clone());
-                                }
+                            if c != "_id"
+                                && let Some(pair) = r.iter().find(|(k, _)| k == c)
+                            {
+                                keep.push(pair.clone());
                             }
                         }
                         VoxValue::object(keep)
