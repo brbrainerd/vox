@@ -1641,7 +1641,7 @@ imports work end-to-end (eval + typecheck + CLI).
 
 - ✅ RFC: [`intra-project-imports-rfc-2026-05-23.md`](./intra-project-imports-rfc-2026-05-23.md)
 - ✅ AST: `ImportPathKind::LocalFile { path }` variant
-  (`crates/vox-compiler/src/ast/decl/types.rs`).
+  (`crates/vox-ast/src/decl/types.rs`).
 - ✅ Parser: `try_parse_local_file_import` accepts
   `import "./path.vox" [as alias]`, rejects non-`.vox` extensions
   (`crates/vox-compiler/src/parser/descent/decl/head.rs`).

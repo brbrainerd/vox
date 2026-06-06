@@ -8,7 +8,7 @@ category: "Architecture SSOTs"
 
 > Companion to [`vox-gui-capability-audit-2026.md`](./vox-gui-capability-audit-2026.md) and
 > [`cli-gui-surface-coverage-map-2026.md`](./cli-gui-surface-coverage-map-2026.md). This audit was produced
-> by a five-agent verified sweep of `crates/vox-gui`, `crates/vox-scientia`, `crates/vox-dei-shim`,
+> by a five-agent verified sweep of `crates/vox-gui`, `crates/vox-scientia`, `crates/vox-research-shim`,
 > `crates/vox-gamify`, and the `vox ci` GUI-coverage checks. Every claim below is anchored to a file path.
 
 ## Headline finding
@@ -44,7 +44,7 @@ The GUI represents *commands* well and *surfaces* poorly, and the asymmetry is s
 
 ## Scientia is two pipelines, both mostly CLI-only
 
-**Pipeline A — deep-research runtime** (`crates/vox-dei-shim/src/research/orchestrator/pipeline.rs`). The GUI
+**Pipeline A — deep-research runtime** (`crates/vox-research-shim/src/research/orchestrator/pipeline.rs`). The GUI
 surfaces only `status`/`history`/`config` (three arg-free cards in `decoratorRegistry.ts`). Missing: `run`,
 `preview` (the plan is marked `editable:true` but there is no editor), `show`/`result` (durable artifacts in
 `scientia_research_artifacts` are never rendered), `watch`, `eval`.

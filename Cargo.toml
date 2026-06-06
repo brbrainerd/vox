@@ -51,6 +51,8 @@ debug = 0
 
 [workspace.dependencies]
 vox-scientia = { path = "crates/vox-scientia" }
+vox-nanopub               = { path = "crates/vox-nanopub" }
+vox-ast                   = { path = "crates/vox-ast" }
 workspace-hack            = { path = "crates/workspace-hack" }
 # Internal crates
 vox-build-meta            = { path = "crates/vox-build-meta" }
@@ -110,7 +112,7 @@ vox-effort-audit          = { path = "crates/vox-effort-audit" }
 vox-effort-route          = { path = "crates/vox-effort-route" }
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
-vox-dei-shim              = { path = "crates/vox-dei-shim" }
+vox-research-shim              = { path = "crates/vox-research-shim" }
 
 vox-orchestrator-test-helpers = { path = "crates/vox-orchestrator-test-helpers" }
 vox-orchestrator-mcp      = { path = "crates/vox-orchestrator-mcp" }
@@ -235,7 +237,7 @@ safetensors        = "0.7"
 tokenizers         = { version = "0.21", default-features = false, features = ["fancy-regex"] }
 memmap2            = "0.9"
 # 0.4+ resolves Hugging Face relative `Location` redirects in tokio metadata (0.3 breaks with `relative URL without a base`).
-hf-hub             = { version = "0.4" }
+hf-hub             = { version = "0.5" }
 keyring            = "3"
 qlora-rs           = "1.0.5"
 peft-rs            = "1.0"
@@ -244,14 +246,14 @@ schemars           = { version = "1", features = ["derive"] }
 jsonschema         = { version = "0.46", default-features = false }
 openapiv3          = "2"
 governor           = "0.10"
-strum              = { version = "0.26", features = ["derive"] }
+strum              = { version = "0.28", features = ["derive"] }
 serial_test        = "3"
 wiremock           = "0.6"
 tantivy            = { version = "0.22", default-features = false }
 scraper            = "0.20"
 html2text          = "0.12"
 # Optional NVIDIA management library bindings (runtime `nvml.dll` / `libnvidia-ml.so`).
-nvml-wrapper       = { version = "0.11", default-features = false }
+nvml-wrapper       = { version = "0.12", default-features = false }
 # Wave 5: Async mesh results
 dashmap            = { version = "6", default-features = false }
 rust_decimal       = { version = "1.36", features = ["serde", "db-diesel-postgres"], default-features = false }
@@ -290,7 +292,7 @@ tauri              = { version = "2", features = [] }
 tokio-tungstenite  = { version = "0.24", default-features = false }
 rubato             = "0.15.0"
 symphonia          = { version = "0.5.4", default-features = false }
-sherpa-onnx        = "1.12"
+sherpa-onnx        = "1.13"
 syn                = "2"
 prettyplease       = "0.2"
 proc-macro2        = "1"
@@ -319,7 +321,7 @@ swc_ecma_parser    = "39"
 swc_ecma_ast       = "23"
 swc_ecma_visit     = "23"
 swc_common         = "21"
-which              = "7"
+which              = "8"
 ctrlc              = "3.4"
 proptest           = { version = "1", default-features = false, features = ["std"] }
 # File watching

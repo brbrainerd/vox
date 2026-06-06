@@ -406,7 +406,7 @@ Task volume note:
 - [x] OP-0024 | add-test | C2 | 1.2 | 1.1 | 210 | OP-0023 | `crates/vox-compiler/src/parser/descent/tests.rs` | assert reactive component with `view:` JSX remains stable. **Done:** `test_parse_at_component_reactive_path_c` + `test_parse_reactive_effect_mount_cleanup_view`.
 - [x] OP-0025 | update | C2 | 1.1 | 1.0 | 180 | OP-0024 | `crates/vox-compiler/src/parser/descent/decl/tail.rs` | Done: `parse_routes` / `parse_reactive_component` rustdoc (`{` immediately after head).
 - [x] OP-0026 | add-test | C2 | 1.2 | 1.2 | 220 | OP-0025 | `crates/vox-compiler/src/parser/descent/tests.rs` | Done: `test_parse_routes_root_and_nested_path_literals` (`/` + `/blog/post`).
-- [x] OP-0027 | update | C2 | 1.1 | 1.0 | 180 | OP-0026 | `crates/vox-compiler/src/ast/decl/ui.rs` | Done: `RoutesParseSummary` + `RoutesDecl::parse_summary`.
+- [x] OP-0027 | update | C2 | 1.1 | 1.0 | 180 | OP-0026 | `crates/vox-ast/src/decl/ui.rs` | Done: `RoutesParseSummary` + `RoutesDecl::parse_summary`.
 - [x] OP-0028 | add-test | C2 | 1.2 | 1.2 | 220 | OP-0027 | `crates/vox-compiler/src/parser/descent/tests.rs` | Done: `test_routes_parse_summary_matches_paths`.
 - [x] OP-0029 | update | C2 | 1.1 | 1.1 | 200 | OP-0028 | `crates/vox-compiler/src/parser/descent/decl/head.rs` | Done: reactive body message cites parse taxonomy + `ReactiveComponentMember` class (`test_reactive_body_unknown_token_diagnostic_class`).
 - [x] OP-0030 | add-test | C2 | 1.2 | 1.2 | 220 | OP-0029 | `crates/vox-compiler/src/parser/descent/tests.rs` | negative tests for misplaced `view:` token. **Done:** `test_parse_reactive_rejects_misplaced_view_without_colon`.

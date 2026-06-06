@@ -45,7 +45,7 @@ flowchart LR
 | --- | --- | --- |
 | Lexing | `crates/vox-compiler/src/lexer/` | Token stream consumed by parser. |
 | Parsing | `crates/vox-compiler/src/parser/` | AST construction; grammar evolution ties to [Phase 1 SSOT collapse](vox-language-rules-phase1-ssot-collapse-2026.md). |
-| AST | `crates/vox-compiler/src/ast/` | Span-carrying surface syntax. |
+| AST | `crates/vox-ast/src/` | Span-carrying surface syntax. |
 | HIR | `crates/vox-compiler/src/hir/` | Lowered representation; durability / workflow shapes tracked in [durability-runtime-audit-2026.md](durability-runtime-audit-2026.md). |
 | Typecheck | `crates/vox-compiler/src/typeck/` | Diagnostics, severity, suggestions/fixes consumed by LSP — see [language-diagnostic-drift-findings-2026.md](language-diagnostic-drift-findings-2026.md). |
 | Codegen | `crates/vox-compiler/src/codegen_rust/` (+ related) | Rust and other emit paths; Web IR / frontend convergence in [frontend-convergence-findings-2026.md](frontend-convergence-findings-2026.md). |

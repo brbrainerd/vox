@@ -61,7 +61,7 @@ Verified reachable via `git log --all --oneline`.
 | `scripts/setup.vox` | pre-migration | migrated (`// vox:caps process`) |
 | `crates/vox-integration-tests/tests/snapshots/codegen_rust_test__with_all_options_output.snap` | `return x.clone();` (line 15) | `return x;` — accepted snapshot reflecting the Phase K codegen fix |
 | `crates/vox-compiler/src/lexer/token.rs` | no `AtJsonAs` token | `AtJsonAs`, `AtFieldName`, `AtDefault`, `AtSkipIfNone` tokens added |
-| `crates/vox-compiler/src/ast/decl/typedef.rs` | no `JsonAsAnnotation` | `JsonAsAnnotation`, `JsonAsFieldAttr`, `json_as` field on `TypeDefDecl`, `json_as_attr` on `VariantField` |
+| `crates/vox-ast/src/decl/typedef.rs` | no `JsonAsAnnotation` | `JsonAsAnnotation`, `JsonAsFieldAttr`, `json_as` field on `TypeDefDecl`, `json_as_attr` on `VariantField` |
 | `crates/vox-compiler/src/parser/descent/decl/mid.rs` | no `parse_json_as` | `parse_json_as` (~147 lines) + `parse_bool_literal` helper + construction-site defaults |
 | `crates/vox-compiler/src/parser/descent/mod.rs` | no dispatch arm | `Token::AtJsonAs => self.parse_json_as()` |
 
@@ -78,7 +78,7 @@ git show cea30891cb:crates/vox-integration-tests/tests/snapshots/codegen_rust_te
                                               # → line 15: `return x;`
 git show cea30891cb:crates/vox-compiler/src/lexer/token.rs | grep AtJsonAs
                                               # → AtJsonAs, AtFieldName
-git show cea30891cb:crates/vox-compiler/src/ast/decl/typedef.rs | grep -c JsonAsAnnotation
+git show cea30891cb:crates/vox-ast/src/decl/typedef.rs | grep -c JsonAsAnnotation
                                               # → 4
 ```
 
@@ -127,7 +127,7 @@ cargo test -p vox-integration-tests --test codegen_rust_test -- with_all_options
 ```sh
 git checkout cea30891cb -- \
   crates/vox-compiler/src/lexer/token.rs \
-  crates/vox-compiler/src/ast/decl/typedef.rs \
+  crates/vox-ast/src/decl/typedef.rs \
   crates/vox-compiler/src/parser/descent/decl/mid.rs \
   crates/vox-compiler/src/parser/descent/mod.rs
 
@@ -191,7 +191,7 @@ Both recovery steps executed successfully — but with a twist on Step 2.
 
 **Verification evidence (run at HEAD = `2884287d08`):**
 - `git show HEAD:crates/vox-compiler/src/lexer/token.rs | grep -c AtJsonAs` → `2`
-- `git show HEAD:crates/vox-compiler/src/ast/decl/typedef.rs | grep -c JsonAsAnnotation` → `4`
+- `git show HEAD:crates/vox-ast/src/decl/typedef.rs | grep -c JsonAsAnnotation` → `4`
 - `git show HEAD:crates/vox-compiler/src/parser/descent/decl/mid.rs | grep -c "fn parse_json_as"` → `1`
 - `git show HEAD:crates/vox-compiler/src/parser/descent/mod.rs | grep -c AtJsonAs` → `1`
 - `cargo build -p vox-compiler` → `Finished` (exit 0)

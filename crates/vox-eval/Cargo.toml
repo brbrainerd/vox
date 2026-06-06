@@ -1,6 +1,6 @@
 [package]
 name = "vox-eval"
-description = "Vox expression evaluator (interpreter for vox run --interp)."
+description = "Evaluation metrics for model outputs and Vox code samples: deterministic scoring heuristics (format/safety/quality/parse) + MENS CompileVerdict. Not the interpreter — the `--interp` evaluator lives in vox-compiler/src/eval/."
 version.workspace = true
 edition.workspace = true
 

@@ -32,7 +32,7 @@ training_rationale: "Audit establishing that all Vox durability/scheduling featu
 
 ### `@scheduled("1h")` — Parses Only
 
-- **AST:** `ScheduledDecl { interval: String }` in `crates/vox-compiler/src/ast/decl/fundecl.rs:176-182`.
+- **AST:** `ScheduledDecl { interval: String }` in `crates/vox-ast/src/decl/fundecl.rs:176-182`.
 - **HIR lowering:** `hir/lower/mod.rs:322-326` sets `HirFn { schedule_interval: Some(interval) }`. The string is preserved.
 - **Codegen:** No reference to `schedule_interval` anywhere in `crates/vox-compiler/src/codegen_rust/`. Emits a plain `async fn`.
 - **Runtime:** No scheduler loop, no `tokio::time::interval`, no cron wiring anywhere in `crates/vox-actor-runtime/`.
@@ -91,7 +91,7 @@ The HIR `DurabilityKind` variants and `schedule_interval` field are worth keepin
 
 | File | Relevance |
 |------|-----------|
-| `crates/vox-compiler/src/ast/decl/fundecl.rs:176-182` | `ScheduledDecl` AST node |
+| `crates/vox-ast/src/decl/fundecl.rs:176-182` | `ScheduledDecl` AST node |
 | `crates/vox-compiler/src/hir/nodes/durability.rs:13-23` | `DurabilityKind` variants |
 | `crates/vox-compiler/src/hir/lower/mod.rs:297-326` | Lowering for all three kinds |
 | `crates/vox-compiler/src/codegen_rust/` | Absent: no durability codegen |

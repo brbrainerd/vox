@@ -272,7 +272,7 @@ Per the research synthesis ([mesh-dashboard-and-distributed-compute-research-202
 
 ### 2.2 Language layer (`vox-compiler`, `vox-codegen`)
 
-**Works.** `workflow` / `activity` / `actor` keywords parse and lower to `DurabilityKind` ([`hir/nodes/durability.rs:13`](../../../crates/vox-compiler/src/hir/nodes/durability.rs)). Effect annotations parse (9 variants in [`ast/decl/effect.rs`](../../../crates/vox-compiler/src/ast/decl/effect.rs)). [`typeck/effect_check.rs`](../../../crates/vox-compiler/src/typeck/effect_check.rs) does **top-down subset validation** and emits **errors** (not warnings, contrary to earlier audit).
+**Works.** `workflow` / `activity` / `actor` keywords parse and lower to `DurabilityKind` ([`hir/nodes/durability.rs:13`](../../../crates/vox-compiler/src/hir/nodes/durability.rs)). Effect annotations parse (9 variants in [`ast/decl/effect.rs`](../../../crates/vox-ast/src/decl/effect.rs)). [`typeck/effect_check.rs`](../../../crates/vox-compiler/src/typeck/effect_check.rs) does **top-down subset validation** and emits **errors** (not warnings, contrary to earlier audit).
 
 **Doesn't.**
 
