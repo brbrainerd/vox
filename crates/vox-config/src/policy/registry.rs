@@ -153,4 +153,21 @@ policies:
             "contracts/code-audit/rules.v1.yaml#stub/todo"
         );
     }
+
+    #[test]
+    fn load_roundtrip_from_tempdir() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let contracts = dir.path().join("contracts/policy");
+        std::fs::create_dir_all(&contracts).unwrap();
+        let mut f = std::fs::File::create(contracts.join("policy-registry.v1.yaml")).unwrap();
+        write!(
+            f,
+            "schema_version: 1\npolicies:\n  - id: code-audit/stub/todo\n    domain: code-audit-rule\n    title: T\n    group: G\n    description: D\n    source:\n      kind: pattern\n      ref: r\n"
+        )
+        .unwrap();
+        let reg = load_policy_registry(dir.path()).unwrap();
+        assert_eq!(reg.policies.len(), 1);
+        assert_eq!(reg.policies[0].origin, "builtin");
+    }
 }

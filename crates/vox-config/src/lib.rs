@@ -47,6 +47,10 @@ pub use paths::{
     repo_memory_cache_dir, repo_tooling_cache_dir, script_cache_dir, state_dir, user_home_dir,
 };
 pub use policy::hitl_policy::HitlPolicy;
+pub use policy::registry::{
+    PolicyDomain, PolicyEntry, PolicyRegistry, PolicyRegistryError, PolicySeverity, PolicySource,
+    PolicySourceKind, REGISTRY_REL_PATH, load_policy_registry,
+};
 pub use project_manifest::{
     BundleAssetsToml, BundleTomlFragment, ProjectManifest, WorkspaceTomlFragment,
 };
