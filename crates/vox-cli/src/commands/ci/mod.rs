@@ -58,6 +58,7 @@ mod release_build;
 pub(crate) mod retired_symbol_check;
 mod retirement_audit;
 mod row_serde_lint;
+mod runner_scale;
 mod safety_inventory;
 mod scaling_audit;
 mod scientia_heuristics_parity;

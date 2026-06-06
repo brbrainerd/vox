@@ -465,6 +465,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 max_age_days,
             },
         ),
+        CiCmd::RunnerScale { apply } => super::runner_scale::run_scale(apply),
+        CiCmd::RunnerPreflight => super::runner_scale::run_preflight(),
         CiCmd::NomenclatureGuard { json } => super::nomenclature_guard::run(&root, json),
         CiCmd::RetiredSymbolCheck => retired_symbol_check::run(&root),
         CiCmd::SyncIgnoreFiles { verify } => super::sync_ignore_files::run(&root, verify),
