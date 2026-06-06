@@ -100,9 +100,7 @@ mod platform {
                     if let Ok(fd) = PathFd::new(path) {
                         ruleset = ruleset
                             .add_rule(PathBeneath::new(fd, *access))
-                            .map_err(|e| {
-                                std::io::Error::other(e.to_string())
-                            })?;
+                            .map_err(|e| std::io::Error::other(e.to_string()))?;
                     }
                 }
 
