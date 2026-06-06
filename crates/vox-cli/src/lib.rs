@@ -191,6 +191,11 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::config::ConfigCmd,
     },
+    /// View the unified policy catalog (CI gates, language rules, audits).
+    Policy {
+        #[command(subcommand)]
+        cmd: commands::policy::PolicyCmd,
+    },
     /// Identity and master key integration (`vox auth`).
     Auth {
         /// Subcommand
