@@ -1,6 +1,6 @@
 //! `vox-vcs` — the VCS backend abstraction for Vox.
 //!
-//! All `jj_lib::` calls are confined to this crate. In this phase it ships the
+//! All `jj-lib` calls are confined to this crate. In this phase it ships the
 //! [`backend::VcsBackend`] trait and a self-contained in-memory
 //! [`cas_fallback::CasFallback`]. The real jj-lib `JjBackend` lands in a later phase.
 

@@ -271,7 +271,6 @@ name             = "jj-lib-confined"
 pattern          = 'jj_lib::'
 file_glob        = "crates/**/*.rs"
 exempt_files     = [
-    "crates/vox-vcs/src/lib.rs",
     "crates/vox-vcs/src/jj_backend.rs",
 ]
 allow_annotation = "// vox-arch-check: allow jj-lib"
