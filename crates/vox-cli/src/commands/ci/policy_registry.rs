@@ -762,6 +762,42 @@ mod default_domain_tests {
     }
 
     #[test]
+    fn gate_policy_ids_subset_of_ci_gate_catalog() {
+        // Every id `CiCmd::gate_policy_id()` returns MUST be a real `ci-gate`
+        // entry in the committed registry — otherwise the per-gate status capture
+        // would write keys that `vox policy status` can never join (silent drift).
+        // Sampled variants here; the full nullary/struct set is mapped in
+        // `cmd_enums::gate_policy_id`. This guards the honest-key contract.
+        use crate::commands::ci::cmd_enums::CiCmd;
+        let entries = ci_gate_entries(&repo_root()).expect("load operations catalog");
+        let catalog: std::collections::BTreeSet<&str> =
+            entries.iter().map(|e| e.id.as_str()).collect();
+        let sample = [
+            CiCmd::Manifest.gate_policy_id(),
+            CiCmd::SsotDrift.gate_policy_id(),
+            CiCmd::CommandCompliance.gate_policy_id(),
+            CiCmd::RepoGuards.gate_policy_id(),
+            CiCmd::LineEndings {
+                all: false,
+                base: None,
+                autofix: false,
+            }
+            .gate_policy_id(),
+            CiCmd::ContractsIndex.gate_policy_id(),
+            CiCmd::BackendTests.gate_policy_id(),
+            CiCmd::PolicySmoke.gate_policy_id(),
+        ];
+        for id in sample.into_iter().flatten() {
+            assert!(
+                catalog.contains(id),
+                "gate_policy_id `{id}` is not a ci-gate entry in the registry (drift)"
+            );
+        }
+        // Registry machinery is intentionally untracked.
+        assert_eq!(CiCmd::PolicyRegistryParity.gate_policy_id(), None);
+    }
+
+    #[test]
     fn parity_passes_for_default_domains_against_committed_yaml() {
         // After regenerate, the committed YAML must contain every live
         // ci-gate / arch / crl / audit item and no extras. This runs WITHOUT the
