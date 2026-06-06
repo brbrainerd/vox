@@ -24,17 +24,22 @@ fn map_severity(s: vox_code_audit::rules::Severity) -> PolicySeverity {
     }
 }
 
-/// Derive a human group label from a `code-audit/<a>/<b>` id.
+/// Derive a human group label from a `code-audit/<namespace>/...` id.
+/// Real detector ids are namespaced (verified against
+/// `vox_code_audit::detectors::all_rules`): arch/, vox/, security/, skeleton/,
+/// scaling/, ai-laziness/, victory-claim/.
 #[cfg(feature = "completion-toestub")]
 fn group_for(id: &str) -> String {
     let body = id.strip_prefix("code-audit/").unwrap_or(id);
     let head = body.split('/').next().unwrap_or(body);
     let label = match head {
-        "stub" => "Stubs (TOESTUB)",
-        "victory-claim" => "Victory claims",
-        "ai-laziness" => "AI-laziness",
-        "secrets" | "crypto_ban" | "env_secret_shape" | "llm_provider_call" => "Security",
+        "arch" => "Architecture",
+        "vox" => "Vox idioms",
+        "security" => "Security",
+        "skeleton" => "Skeletons",
         "scaling" => "Scaling",
+        "ai-laziness" => "AI-laziness",
+        "victory-claim" => "Victory claims",
         _ => "General",
     };
     format!("Language rules / {label}")
@@ -316,19 +321,135 @@ pub fn crl_gate_entries() -> Vec<PolicyEntry> {
     out
 }
 
-/// Build the full registry document for the domains this plan covers.
-#[cfg(feature = "completion-toestub")]
-pub fn build_registry() -> vox_config::PolicyRegistry {
-    vox_config::PolicyRegistry {
+/// Build the full registry document across all domains this plan covers.
+/// The four contract/registry-backed domains (ci-gate, arch, crl, audit) compile
+/// in the default build; `code-audit-rule` is added only under `completion-toestub`.
+pub fn build_registry(repo_root: &Path) -> Result<vox_config::PolicyRegistry, String> {
+    let mut policies: Vec<PolicyEntry> = Vec::new();
+    policies.extend(ci_gate_entries(repo_root)?);
+    policies.extend(arch_rule_entries(repo_root)?);
+    policies.extend(crl_gate_entries());
+    policies.extend(audit_check_entries(repo_root)?);
+
+    #[cfg(feature = "completion-toestub")]
+    policies.extend(code_audit_entries());
+
+    policies.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(vox_config::PolicyRegistry {
         schema_version: 1,
-        policies: code_audit_entries(),
-    }
+        policies,
+    })
 }
 
-/// `vox ci policy-registry [--write]`: regenerate the catalog.
-#[cfg(feature = "completion-toestub")]
+/// One domain's expected (live) entries plus its `PolicyDomain` tag.
+struct DomainExpectation {
+    domain: PolicyDomain,
+    label: &'static str,
+    expected: Vec<PolicyEntry>,
+}
+
+/// Assert, for each domain, that the on-disk registry rows of that domain exactly
+/// match the live source set: same count (no dup clones), every live id present,
+/// no stale id. Preserves the Phase 1a count + set semantics, applied per domain.
+fn check_domain_parity(
+    on_disk: &vox_config::PolicyRegistry,
+    exp: &DomainExpectation,
+) -> Result<usize, String> {
+    use std::collections::BTreeSet;
+    let disk_rows: Vec<&str> = on_disk
+        .policies
+        .iter()
+        .filter(|e| e.domain == exp.domain)
+        .map(|e| e.id.as_str())
+        .collect();
+    let disk_ids: BTreeSet<&str> = disk_rows.iter().copied().collect();
+    let exp_ids: BTreeSet<&str> = exp.expected.iter().map(|e| e.id.as_str()).collect();
+
+    if disk_rows.len() != exp_ids.len() {
+        return Err(format!(
+            "policy registry duplicate/count mismatch ({} domain): on-disk has {} row(s) but {} unique live id(s); run `vox ci policy-registry --write`",
+            exp.label,
+            disk_rows.len(),
+            exp_ids.len()
+        ));
+    }
+    let missing: Vec<&str> = exp_ids.difference(&disk_ids).copied().collect();
+    let extra: Vec<&str> = disk_ids.difference(&exp_ids).copied().collect();
+    if !missing.is_empty() || !extra.is_empty() {
+        return Err(format!(
+            "policy registry drift ({} domain):\n  missing {}: {:?}\n  stale {}: {:?}\n  run `vox ci policy-registry --write`",
+            exp.label,
+            missing.len(),
+            missing,
+            extra.len(),
+            extra
+        ));
+    }
+    Ok(exp_ids.len())
+}
+
+/// Build expectations for the four contract/registry-backed domains.
+fn default_domain_expectations(repo_root: &Path) -> Result<Vec<DomainExpectation>, String> {
+    Ok(vec![
+        DomainExpectation {
+            domain: PolicyDomain::CiGate,
+            label: "ci-gate",
+            expected: ci_gate_entries(repo_root)?,
+        },
+        DomainExpectation {
+            domain: PolicyDomain::ArchRule,
+            label: "arch-rule",
+            expected: arch_rule_entries(repo_root)?,
+        },
+        DomainExpectation {
+            domain: PolicyDomain::CrlGate,
+            label: "crl-gate",
+            expected: crl_gate_entries(),
+        },
+        DomainExpectation {
+            domain: PolicyDomain::AuditCheck,
+            label: "audit-check",
+            expected: audit_check_entries(repo_root)?,
+        },
+    ])
+}
+
+/// Feature-independent parity over the four default-build domains, including the
+/// clap↔catalog cross-check and JSON-Schema validation of the committed YAML.
+///
+/// Under `completion-toestub` the dispatch path uses the full `run_parity`
+/// instead, so this is only reachable from the default-build `run_parity` and the
+/// `default_domain_tests`; silence dead_code under the feature.
+#[cfg_attr(feature = "completion-toestub", allow(dead_code))]
+pub fn run_parity_default_domains(repo_root: &Path) -> Result<(), String> {
+    vox_config::load_policy_registry(repo_root).map_err(|e| e.to_string())?;
+    validate_registry_against_schema(repo_root)?;
+
+    // enum↔catalog cross-check for ci-gate (full nested-path normalization).
+    let orphans = ci_gate_catalog_clap_drift(repo_root);
+    if !orphans.is_empty() {
+        return Err(format!(
+            "ci-gate enum↔catalog drift: {} op(s) have no live `vox ci <leaf>` command: {orphans:?}",
+            orphans.len()
+        ));
+    }
+
+    let on_disk = vox_config::load_policy_registry(repo_root).map_err(|e| e.to_string())?;
+    let mut total = 0usize;
+    for exp in default_domain_expectations(repo_root)? {
+        total += check_domain_parity(&on_disk, &exp)?;
+    }
+    println!(
+        "policy-registry-parity OK (default domains): {total} ci-gate+arch+crl+audit entries match live sources"
+    );
+    Ok(())
+}
+
+/// `vox ci policy-registry [--write]`: regenerate the catalog. Works in the
+/// default build (four contract/registry domains); code-audit rows are included
+/// only when the `completion-toestub` feature is on.
 pub fn run_generate(repo_root: &Path, write: bool) -> Result<(), String> {
-    let reg = build_registry();
+    let reg = build_registry(repo_root)?;
     let header = "# GENERATED by `vox ci policy-registry --write`. Do not hand-edit builtin entries.\n# SSOT for the unified policy catalog.\n";
     let body = serde_yaml::to_string(&reg).map_err(|e| format!("serialize: {e}"))?;
     let yaml = format!("{header}{body}");
@@ -342,21 +463,7 @@ pub fn run_generate(repo_root: &Path, write: bool) -> Result<(), String> {
     Ok(())
 }
 
-/// Without `completion-toestub`, the `vox-code-audit` detector registry is not
-/// linked; generation returns an actionable error rather than a partial catalog.
-#[cfg(not(feature = "completion-toestub"))]
-pub fn run_generate(repo_root: &Path, write: bool) -> Result<(), String> {
-    let _ = (repo_root, write);
-    Err(
-        "policy-registry generation requires the `completion-toestub` feature \
-         (it links the vox-code-audit detector registry); re-run with \
-         `--features completion-toestub`"
-            .to_string(),
-    )
-}
-
 /// Read the on-disk registry YAML and validate it against the committed JSON Schema.
-#[cfg(feature = "completion-toestub")]
 fn validate_registry_against_schema(repo_root: &Path) -> Result<(), String> {
     let yaml_path = repo_root.join(vox_config::REGISTRY_REL_PATH);
     let schema_path = repo_root.join("contracts/policy/policy-registry.v1.schema.json");
@@ -377,69 +484,49 @@ fn validate_registry_against_schema(repo_root: &Path) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
-/// `vox ci policy-registry-parity`: assert the committed registry matches the
-/// live `code-audit` detector set exactly (no drift). This is the transfer/
-/// completeness proof for the domains this plan covers.
+/// `vox ci policy-registry-parity`: assert the committed registry matches all live
+/// sources exactly (no drift), per domain. Includes code-audit when the feature is on.
 #[cfg(feature = "completion-toestub")]
 pub fn run_parity(repo_root: &Path) -> Result<(), String> {
     let on_disk = vox_config::load_policy_registry(repo_root).map_err(|e| e.to_string())?;
-    let expected = build_registry();
-
-    // Validate the on-disk YAML against the committed JSON Schema so the schema is
-    // enforced rather than decorative. Reuses the `vox-jsonschema-util` facade that
-    // every other contract-vs-schema gate uses (e.g. data-storage-guard).
     validate_registry_against_schema(repo_root)?;
 
-    use std::collections::BTreeSet;
-    let disk_code_audit: Vec<&str> = on_disk
-        .policies
-        .iter()
-        .filter(|e| e.domain == PolicyDomain::CodeAuditRule)
-        .map(|e| e.id.as_str())
-        .collect();
-    let disk_ids: BTreeSet<&str> = disk_code_audit.iter().copied().collect();
-    let exp_ids: BTreeSet<&str> = expected.policies.iter().map(|e| e.id.as_str()).collect();
-
-    // The set comparison below silently dedupes duplicate `id` rows, so a registry
-    // with a duplicated entry could pass while carrying a stale clone. Assert the raw
-    // Vec length matches the expected count before trusting the set diff.
-    if disk_code_audit.len() != exp_ids.len() {
+    let orphans = ci_gate_catalog_clap_drift(repo_root);
+    if !orphans.is_empty() {
         return Err(format!(
-            "policy registry duplicate or unexpected count (code-audit domain): on-disk has {} entry(ies) but {} unique id(s) expected (live detectors); run `vox ci policy-registry --write`",
-            disk_code_audit.len(),
-            exp_ids.len()
+            "ci-gate enum↔catalog drift: {} op(s) have no live `vox ci <leaf>` command: {orphans:?}",
+            orphans.len()
         ));
     }
 
-    let missing: Vec<&str> = exp_ids.difference(&disk_ids).copied().collect();
-    let extra: Vec<&str> = disk_ids.difference(&exp_ids).copied().collect();
-    if !missing.is_empty() || !extra.is_empty() {
-        return Err(format!(
-            "policy registry drift (code-audit domain):\n  missing {} entry(ies): {:?}\n  stale {} entry(ies): {:?}\n  run `vox ci policy-registry --write`",
-            missing.len(),
-            missing,
-            extra.len(),
-            extra
-        ));
+    let mut expectations = default_domain_expectations(repo_root)?;
+    expectations.push(DomainExpectation {
+        domain: PolicyDomain::CodeAuditRule,
+        label: "code-audit",
+        expected: code_audit_entries(),
+    });
+
+    let mut total = 0usize;
+    for exp in &expectations {
+        total += check_domain_parity(&on_disk, exp)?;
     }
     println!(
-        "policy-registry-parity OK: {} code-audit entries match live detectors",
-        exp_ids.len()
+        "policy-registry-parity OK: {total} entries across {} domains match live sources",
+        expectations.len()
     );
     Ok(())
 }
 
-/// Without `completion-toestub`, the detector registry is not linked; parity
-/// returns an actionable error rather than passing on a partial catalog.
+/// Without `completion-toestub`, the `vox-code-audit` detector registry is not
+/// linked; parity runs the four default domains feature-independently and notes
+/// that code-audit parity is skipped (spec §4.4).
 #[cfg(not(feature = "completion-toestub"))]
 pub fn run_parity(repo_root: &Path) -> Result<(), String> {
-    let _ = repo_root;
-    Err(
-        "policy-registry-parity requires the `completion-toestub` feature \
-         (it links the vox-code-audit detector registry); re-run with \
-         `--features completion-toestub`"
-            .to_string(),
-    )
+    run_parity_default_domains(repo_root)?;
+    println!(
+        "(note: code-audit-rule parity skipped — rebuild with `--features completion-toestub` to enforce it)"
+    );
+    Ok(())
 }
 
 #[cfg(all(test, feature = "completion-toestub"))]
@@ -504,6 +591,41 @@ mod tests {
             disk.len(),
             unique.len(),
             "duplicate id must make the Vec length exceed the unique-id count"
+        );
+    }
+
+    #[test]
+    fn group_for_uses_real_namespaced_prefixes() {
+        // Real detector ids are namespaced (arch/, vox/, security/, …) — verified
+        // against vox_code_audit::detectors::all_rules ids in the landed `protected`
+        // mapping. The Phase 1a labels (stub/secrets/…) never matched live ids.
+        assert_eq!(
+            group_for("code-audit/arch/stub"),
+            "Language rules / Architecture"
+        );
+        assert_eq!(
+            group_for("code-audit/vox/llm/direct-provider-call"),
+            "Language rules / Vox idioms"
+        );
+        assert_eq!(
+            group_for("code-audit/security/hardcoded-secret"),
+            "Language rules / Security"
+        );
+        assert_eq!(
+            group_for("code-audit/scaling/n-plus-one"),
+            "Language rules / Scaling"
+        );
+        assert_eq!(
+            group_for("code-audit/victory-claim/premature-done"),
+            "Language rules / Victory claims"
+        );
+        assert_eq!(
+            group_for("code-audit/ai-laziness/silent-catch"),
+            "Language rules / AI-laziness"
+        );
+        assert_eq!(
+            group_for("code-audit/skeleton/empty-fn"),
+            "Language rules / Skeletons"
         );
     }
 
