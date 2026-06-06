@@ -30,7 +30,6 @@ const LATIN_STRUCTURAL_DENYLIST: &[(&str, &str)] = &[
     ("oratio", "speech"),
     ("populi", "ml"),
     ("ludus", "gamify"),
-    ("schola", "tutorial"),
     ("mens", "ml"), // mens overlaps with ml/populi domain
 ];
 
@@ -46,7 +45,6 @@ const HISTORICAL_ALLOWLIST: &[&str] = &[
     // name vox-gamify. `gamify` is not a denied Latin root, so no allowlist entry
     // is needed. The CLI command is `vox gamify` (Latin `ludus` retained as alias).
     "vox-populi",    // grandfathered — being migrated to vox-ml
-    "vox-schola",    // grandfathered — being migrated to vox-tutorial
     "vox-codex-api", // grandfathered — database abstraction layer
     "vox-ml-cli",    // grandfathered — ML subsystem
     "vox-mens-eval", // grandfathered — Mn-T11 eval harness crate; pending english-core naming convergence

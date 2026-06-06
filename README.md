@@ -94,7 +94,6 @@ Extensions ship as separate binaries; `vox` will notify you if one is required b
 | Extension | Adds | Purpose |
 |---|---|---|
 | `vox-ml-cli` | `vox mens`, `vox populi`, ... | Rust-native ML (Candle, Whisper) for training and serving. |
-| `vox-schola` | `vox schola`, `vox scientia` | Autonomous research and fact-checking. |
 | `vox-gui` | `vox gui` | Native Tauri desktop application environment. |
 
 #### Agent Skills
