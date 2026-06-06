@@ -264,7 +264,7 @@ pub async fn knowledge_query(state: &ServerState, params: KnowledgeQueryParams) 
 
 /// Run the orchestrator research pipeline (`run_research`): web gather via `vox-search`, synthesis, judge.
 pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> String {
-    use vox_dei_shim::research::{
+    use vox_research_shim::research::{
         ResearchConfig, ResearchQuery, ResearchScope, run_research_with_context,
     };
     use vox_search::SearchRuntimeContext;
@@ -294,7 +294,7 @@ pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> Str
 
     let config = ResearchConfig {
         event_emitter: Some(std::sync::Arc::new(
-            vox_dei_shim::research::BroadcastEmitter::new(state.research_events.clone()),
+            vox_research_shim::research::BroadcastEmitter::new(state.research_events.clone()),
         )),
         ..ResearchConfig::default()
     };
@@ -333,7 +333,7 @@ pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> Str
 }
 
 pub async fn research_start(state: &ServerState, params: ResearchStartParams) -> String {
-    use vox_dei_shim::research::{
+    use vox_research_shim::research::{
         ResearchConfig, ResearchQuery, run_research_with_context_and_session,
     };
     use vox_search::SearchRuntimeContext;
@@ -389,7 +389,7 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
         );
         let config = ResearchConfig {
             event_emitter: Some(std::sync::Arc::new(
-                vox_dei_shim::research::BroadcastEmitter::new(state.research_events.clone()),
+                vox_research_shim::research::BroadcastEmitter::new(state.research_events.clone()),
             )),
             ..ResearchConfig::default()
         };
@@ -501,8 +501,8 @@ pub async fn research_get(state: &ServerState, params: ResearchSessionParams) ->
 
 fn parse_research_scope(
     scope: Option<&str>,
-) -> Result<vox_dei_shim::research::ResearchScope, String> {
-    use vox_dei_shim::research::ResearchScope;
+) -> Result<vox_research_shim::research::ResearchScope, String> {
+    use vox_research_shim::research::ResearchScope;
     match scope
         .map(str::trim)
         .unwrap_or("both")

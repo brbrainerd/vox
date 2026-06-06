@@ -43,7 +43,7 @@ Not all AST nodes have been fully lowered to strict HIR representations. The `le
 ## TOESTUB Considerations
 
 The parser and HIR modules are historically dense. Watch out for `arch/god_object` limits (500 lines).
-Several files in `crates/vox-compiler/src/ast/` and `crates/vox-compiler/src/parser/` are on the near-threshold watchlist. If your PR pushes a file over 500 lines, you must refactor it into smaller submodules using `mod.rs` and `pub use`.
+Several files in `crates/vox-ast/src/` and `crates/vox-compiler/src/parser/` are on the near-threshold watchlist. If your PR pushes a file over 500 lines, you must refactor it into smaller submodules using `mod.rs` and `pub use`.
 
 ## Commands
 

@@ -27,7 +27,7 @@ This document supersedes the original gap analysis for the purposes of **impleme
 | `crates/vox-compiler/src/lexer/token.rs` | 2026-04-12 | Most recent; authoritative for lexer state |
 | `crates/vox-grammar-export/src/ebnf.rs` | 2026-04-12 | Authoritative grammar |
 | `crates/vox-grammar-export/src/gbnf.rs` | 2026-04-12 | ~30 lines; critically incomplete |
-| `crates/vox-compiler/src/ast/decl/fundecl.rs` | 2026-04-07 | All B-series gaps were false positives |
+| `crates/vox-ast/src/decl/fundecl.rs` | 2026-04-07 | All B-series gaps were false positives |
 | `crates/vox-compiler/src/hir/lower/contracts.rs` | 2026-04-05 | Real bug found (return-site injection) |
 | `crates/vox-compiler/src/typeck/ast_decl_lints.rs` | 2026-04-12 | Authoritative for retirement enforcement |
 | `crates/vox-compiler/src/language_surface.rs` | 2026-04-12 | LSP/MCP SSOT; has `ret` in LEXER_KEYWORDS |

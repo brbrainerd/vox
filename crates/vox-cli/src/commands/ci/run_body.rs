@@ -540,6 +540,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::PluginCatalogParity => super::plugin_catalog_parity::run(),
         CiCmd::NoTauriInCore => super::no_tauri_in_core::check(&root),
         CiCmd::NoPluginCdylibAsCompileDep => super::no_plugin_cdylib_as_compile_dep::check(&root),
+        CiCmd::PluginDepBoundary => super::plugin_dep_boundary::check(&root),
         CiCmd::PluginAbiParity => super::plugin_abi_parity::run(),
         CiCmd::PluginSkillParity => super::plugin_skill_parity::run(),
         CiCmd::AgentSkillsCompliance => super::agentskills_compliance::run(),

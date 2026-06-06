@@ -80,9 +80,10 @@ test.describe('Vox Dashboard', () => {
       expect(callsAfterHarness.some((c: any) => c.cmd === 'submit_orchestrator_task')).toBeTruthy();
       expect(callsAfterHarness.some((c: any) => c.cmd === 'execute_command')).toBeTruthy();
 
-      // Runs view should render persisted rows from list_gui_runs.
+      // Runs view should render persisted rows from list_gui_runs. The run id appears both in
+      // the activity list and the auto-selected detail panel, so scope to the first match.
       await page.getByRole('button', { name: 'Runs' }).click();
-      await expect(page.getByText('gui-run-1')).toBeVisible();
+      await expect(page.getByText('gui-run-1').first()).toBeVisible();
     }
   });
 });

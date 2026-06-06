@@ -70,11 +70,13 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
         invoke<Companion[]>('list_gamify_companions'),
         invoke<Quest[]>('list_gamify_quests'),
       ]);
+      // IPC can resolve to null (command unimplemented, backend error path); coalesce so a
+      // null list never reaches `.length` and crashes the whole surface.
       setProfile(p);
-      setNotes(n);
-      setLeaderboard(lb);
-      setCompanions(comp);
-      setQuests(q);
+      setNotes(n ?? []);
+      setLeaderboard(lb ?? []);
+      setCompanions(comp ?? []);
+      setQuests(q ?? []);
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Ludus load failed', body: String(err) });
     } finally {

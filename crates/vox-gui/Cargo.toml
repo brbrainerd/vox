@@ -33,6 +33,7 @@ rmp-serde = "1.1"
 serde_bytes = "0.11"
 tokio = { workspace = true }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 turso = { workspace = true }
 [build-dependencies]
 vox-build-meta = { workspace = true }

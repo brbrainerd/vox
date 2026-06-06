@@ -5,7 +5,7 @@
 pub mod docs;
 pub mod schema;
 
-use schema::{BundleEntry, PluginCatalogEntry};
+use schema::{BundleEntry, Component, PluginCatalogEntry};
 use serde::Deserialize;
 use std::sync::OnceLock;
 
@@ -18,6 +18,8 @@ struct CatalogFile {
     plugins: Vec<PluginCatalogEntry>,
     #[serde(default, rename = "bundle")]
     bundles: Vec<BundleEntry>,
+    #[serde(default, rename = "component")]
+    components: Vec<Component>,
 }
 
 fn parsed() -> &'static CatalogFile {
@@ -36,6 +38,13 @@ pub fn all_plugins() -> &'static [PluginCatalogEntry] {
 /// All distribution bundles declared in `catalog.toml`.
 pub fn all_bundles() -> &'static [BundleEntry] {
     &parsed().bundles
+}
+
+/// All optional first-party components (companion binaries such as the GUI)
+/// declared in `catalog.toml`. Components are not cdylib plugins; they are
+/// standalone executables installed on demand and never built for CLI-only users.
+pub fn all_components() -> &'static [Component] {
+    &parsed().components
 }
 
 use thiserror::Error;

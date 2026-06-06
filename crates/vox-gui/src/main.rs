@@ -8,6 +8,16 @@ use tauri::Manager;
 
 #[tokio::main]
 async fn main() {
+    // Backend log stream → stderr. `try_init` is a no-op if a subscriber is already installed by
+    // a dependency, so this never panics. Tune verbosity with RUST_LOG (default: info + GUI debug).
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "info,vox_gui=debug".into()),
+        )
+        .with_writer(std::io::stderr)
+        .try_init();
+
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|arg| arg == "--print-action-manifest-json") {
         match commands::action_manifest::build_action_manifest()
@@ -66,6 +76,7 @@ async fn main() {
             commands::catalog::get_command_catalog,
             commands::action_manifest::get_action_manifest,
             commands::execute::execute_command,
+            commands::devlog::log_frontend,
             commands::app_state::get_initial_view,
             commands::build_info::get_build_info,
             commands::control_plane::submit_orchestrator_task,
