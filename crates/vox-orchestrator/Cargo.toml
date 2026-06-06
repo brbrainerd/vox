@@ -9,6 +9,7 @@ default = [
     "toestub-gate",
     "runtime",
     "json-schema",
+    "jj",
 ]
 # Populi HTTP mesh client (`vox-populi` transport).
 populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm"]
@@ -28,9 +29,10 @@ toestub-gate = ["vox-code-audit", "vox-lsp", "lsp"]
 # LSP diagnostic integration (tower-lsp-server types). Enabled transitively by toestub-gate and runtime.
 lsp = ["dep:tower-lsp-server"]
 system-metrics = ["dep:sysinfo"]
-# Enable jj-lib as VCS backend. Pure Rust, no C. Pin to exact version for stability.
-# All jj-lib calls are confined to src/jj_backend.rs — swap here if APIs break.
-jj-backend = ["dep:jj-lib"]
+# In-process jj VCS actor via vox-vcs. Forwards to vox-vcs's `jj` feature
+# (pulls jj-lib). On by default; `--no-default-features` chains through to a
+# lean build with no jj-lib. All jj_lib:: calls are confined to vox-vcs.
+jj = ["vox-vcs/jj", "runtime"]
 
 [dependencies]
 tokio = { workspace = true }
@@ -81,9 +83,10 @@ serde_yaml.workspace = true
 vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
 regex = { workspace = true }
 vox-corpus = { workspace = true, features = ["database"] }
-# jj-lib: optional VCS backend. Pure Rust (gix-backed, no C). Pinned for stability.
-# See src/jj_backend.rs for the isolation wrapper. Use `--features jj-backend` to enable.
-jj-lib = { workspace = true, optional = true }
+# In-process VCS backend. The single home for jj_lib:: calls; the orchestrator's
+# `jj` feature forwards to vox-vcs/jj. Lean by default so --no-default-features
+# chains through.
+vox-vcs = { path = "../vox-vcs", default-features = false }
 uuid = { workspace = true, features = ["v4"] }
 chrono = { workspace = true }
 walkdir.workspace = true

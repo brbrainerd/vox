@@ -171,8 +171,40 @@ impl crate::orchestrator::Orchestrator {
         }
     }
 
+    /// Best-effort: spawn the in-process jj VCS actor for `root` and inject its
+    /// handle into the `WorkspaceManager`. Off by default unless the orchestrator
+    /// is built with the `jj` feature.
+    ///
+    /// `JjActor::spawn` blocks while opening the repo, so the open runs on a
+    /// blocking thread. If `root` is not a jj repo (or the open fails), this
+    /// logs and leaves `vcs = None` — the orchestrator still functions.
+    #[cfg(feature = "jj")]
+    pub fn enable_jj_vcs(self: &Arc<Self>, root: std::path::PathBuf) {
+        let this = self.clone();
+        tokio::task::spawn_blocking(move || match vox_vcs::spawn_jj_actor(root.clone()) {
+            Ok(handle) => {
+                if let Ok(mut wm) = this.workspace_manager.write() {
+                    wm.set_vcs(handle);
+                    tracing::info!(root = %root.display(), "jj VCS actor enabled");
+                }
+            }
+            Err(e) => {
+                tracing::debug!(root = %root.display(), error = %e, "jj VCS unavailable; continuing without it");
+            }
+        });
+    }
+
     /// Spawns background tasks (observer loop, telemetry, catalog refresh) into the current Tokio runtime.
     pub fn spawn_background_tasks(self: Arc<Self>) {
+        // Best-effort: bring up the in-process jj VCS actor for the repo root
+        // discovered from CWD. No-op without the `jj` feature or outside a repo.
+        #[cfg(feature = "jj")]
+        {
+            let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+            let root = vox_repository::find_project_manifest_root(&cwd).unwrap_or(cwd);
+            self.enable_jj_vcs(root);
+        }
+
         // Observer loop
         let orch = self.clone();
         tokio::spawn(async move {

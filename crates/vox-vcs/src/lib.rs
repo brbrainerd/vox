@@ -28,7 +28,7 @@ pub use cas_fallback::CasFallback;
 pub use types::{Change, ChangeId, Conflict, Diff, ResolveStrategy};
 
 #[cfg(feature = "jj")]
-pub use jj_actor::JjActorHandle;
+pub use jj_actor::{JjActorHandle, spawn_handle as spawn_jj_actor};
 #[cfg(feature = "jj")]
 pub use jj_backend::JjBackend;
 

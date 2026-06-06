@@ -101,6 +101,16 @@ pub(crate) enum Command {
 
 // ─── JjActor ───────────────────────────────────────────────────────────────
 
+/// Spawn the jj actor thread for the workspace at `root`, returning a
+/// `Send + Sync` [`JjActorHandle`].
+///
+/// Blocks the calling thread until the jj workspace opens (or 30 s timeout);
+/// from async contexts call inside `tokio::task::spawn_blocking`. Returns
+/// `VcsError` if the open failed or timed out.
+pub fn spawn_handle(root: PathBuf) -> Result<JjActorHandle, VcsError> {
+    JjActor::spawn(root)
+}
+
 /// Internal actor — not exposed publicly; callers use [`JjActorHandle`].
 pub(crate) struct JjActor;
 
@@ -275,7 +285,7 @@ impl JjActor {
 /// All methods serialize through the single actor thread; even logically
 /// read-only calls (`changes`/`diff`) execute one-at-a-time, never
 /// concurrently (jj-lib is single-threaded).
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct JjActorHandle {
     tx: mpsc::Sender<Command>,
 }

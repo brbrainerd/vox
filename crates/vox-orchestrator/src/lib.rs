@@ -141,8 +141,6 @@ pub mod tier_cascade;
 pub mod entropy_scorer;
 /// Agent liveness heartbeats and staleness policy.
 pub mod heartbeat;
-/// Jujutsu (jj) merge DAG and backend helpers.
-pub mod jj_backend;
 /// Cross-model consensus and judge logic.
 pub mod judge_model;
 /// Per-file lock manager for exclusive writer access.
