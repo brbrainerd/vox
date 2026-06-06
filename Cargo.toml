@@ -193,8 +193,8 @@ reqwest-retry      = { version = "0.7", default-features = false }
 http               = "1"
 bsky-sdk = { version = "0.1", default-features = false, features = ["atrium-xrpc-client", "rich-text", "default-client"] }
 atrium-api = { version = "0.25", default-features = false, features = ["bluesky"] }
-sha2               = "0.10"
-sha3               = "0.10"
+sha2               = "0.11"
+sha3               = "0.12"
 bincode            = "2"
 data-encoding      = "2"
 thiserror          = "2"
@@ -271,12 +271,12 @@ subtle             = "2.6"
 futures            = "0.3"
 chacha20poly1305   = "0.10"
 aead               = { version = "0.5", features = ["std"] }
-gix                = { version = "0.70", default-features = false }
-jj-lib             = { version = "=0.27.0", default-features = false }
+gix                = { version = "0.84", default-features = false }
+jj-lib             = { version = "0.42", default-features = false }
 wasmtime           = "45"
 wasmtime-wasi      = "45"
 
-self_update        = "0.43.1"
+self_update        = "0.44"
 landlock           = "0.4.4"
 win32job           = "2"
 windows-sys        = "0.59"
@@ -285,7 +285,7 @@ quick-xml          = "0.31"
 flate2             = { version = "1", default-features = false, features = ["rust_backend"] }
 bzip2              = "0.6.1"
 zstd               = "0.13.3"
-hmac               = "0.12.1"
+hmac               = "0.13"
 crossbeam-queue    = "0.3.12"
 ignore             = "0.4.25"
 tauri              = { version = "2", features = [] }

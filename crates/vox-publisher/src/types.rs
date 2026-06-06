@@ -562,7 +562,7 @@ impl UnifiedNewsItem {
         let mut hasher = Sha3_256::new();
         hasher.update(canonical.to_string().as_bytes());
         let digest = hasher.finalize();
-        format!("{digest:x}")
+        hex::encode(digest)
     }
 }
 

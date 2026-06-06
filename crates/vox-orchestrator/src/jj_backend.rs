@@ -242,7 +242,7 @@ pub mod jj {
 
     /// Version of jj-lib this module was written against.
     /// If the build fails here, bump to the new version and audit the wrapper.
-    pub const JJ_LIB_PINNED_VERSION: &str = "0.39.0";
+    pub const JJ_LIB_PINNED_VERSION: &str = "0.42.0";
 
     /// Verify at test time that jj-lib is reachable and at the expected version.
     /// This test fails if jj-lib silently changes APIs.

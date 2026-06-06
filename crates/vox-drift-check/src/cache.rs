@@ -20,7 +20,7 @@ impl FeatureCache {
     pub fn hash_file(content: &str) -> String {
         let mut h = Sha256::new();
         h.update(content.as_bytes());
-        format!("{:x}", h.finalize())
+        hex::encode(h.finalize())
     }
 
     pub fn store(&self, key: &str, features: &ExtractedFeatures) -> Result<()> {
