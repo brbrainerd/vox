@@ -79,8 +79,10 @@ async fn run_interp(file: &Path, _args: &[String]) -> Result<()> {
         .map_err(|e| anyhow::anyhow!("Eval failed calling main: {:?}", e))?;
     // Only print the return value when it's meaningful (non-Null). Suppresses
     // the spurious trailing `Null` that scripts using bare `return;` produced.
+    // Use the value's *display* form (e.g. `ok`), not Debug (`Str("ok")`), so
+    // `vox run --mode interp` prints user-facing output, not internal repr.
     if !matches!(res, vox_compiler::eval::value::VoxValue::Null) {
-        println!("{:?}", res);
+        println!("{}", vox_compiler::eval::builtins::vox_value_display(&res));
     }
 
     vox_compiler::eval::builtins::vox_flush_exit_commands();

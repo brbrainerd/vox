@@ -195,7 +195,7 @@ Phases A, B, C, D, E, F are independent and can land in parallel by separate ses
 
 2. **Parser change** at [parser/descent/mod.rs](../../../crates/vox-compiler/src/parser/descent/mod.rs): when the input file's path ends in `.vox.ui`, allow the existing `Token::State`/`Token::Derived`/`Token::Effect`/`Token::On + Mount/Cleanup` branches at the top-level decl matcher (currently only legal inside `finish_reactive_component_after_name`).
 
-3. **New AST/HIR node `ReactiveModule`** at [ast/decl/ui.rs](../../../crates/vox-compiler/src/ast/decl/ui.rs) — wraps the same `Vec<ReactiveMemberDecl>` already used by `ReactiveComponentDecl`.
+3. **New AST/HIR node `ReactiveModule`** at [ast/decl/ui.rs](../../../crates/vox-ast/src/decl/ui.rs) — wraps the same `Vec<ReactiveMemberDecl>` already used by `ReactiveComponentDecl`.
 
 4. **Codegen** at [codegen_ts/reactive.rs](../../../crates/vox-codegen/src/codegen_ts/reactive.rs): mirror the `ReactiveComponentDecl` lowering but emit a context+provider+hook scaffold instead of a function component.
 
@@ -279,7 +279,7 @@ If a future need surfaces (e.g., MENS-spoke wants per-call effect inference for 
 ### Concrete changes (post-ADR)
 
 1. New lexer token `Token::Fragment` at [lexer/token.rs](../../../crates/vox-compiler/src/lexer/token.rs).
-2. New AST node `FragmentDecl` at [ast/decl/](../../../crates/vox-compiler/src/ast/decl/).
+2. New AST node `FragmentDecl` at [ast/decl/](../../../crates/vox-ast/src/decl/).
 3. New parser production at [parser/descent/decl/](../../../crates/vox-compiler/src/parser/descent/decl/).
 4. New HIR node `HirFragmentDecl`.
 5. New codegen at `crates/vox-codegen/src/codegen_ts/fragment_emit.rs`.

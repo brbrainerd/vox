@@ -963,7 +963,7 @@ pub(crate) fn emit_block_stmts(expr: &HirExpr, ctx: &EmitCtx<'_>, indent: usize)
 /// This applies even when the endpoint is async: in an `async` event handler
 /// (per the handler-await lowering) an awaited-then-discarded call still leaks
 /// its rejection past the handler. Since the result is unused, fire-and-forget
-/// + `.catch` is both correct and safe. (Calls whose result is *used* are
+/// with `.catch` is both correct and safe. (Calls whose result is *used* are
 /// awaited normally — they never reach this helper.)
 fn floating_endpoint_call_name<'a>(expr: &'a HirExpr, ctx: &EmitCtx<'_>) -> Option<&'a str> {
     if let HirExpr::Call(callee, _, _, _) = expr {

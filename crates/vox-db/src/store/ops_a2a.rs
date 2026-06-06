@@ -248,7 +248,7 @@ impl crate::VoxDb {
         breaker
             .call(|| async move {
                 let affected = conn.execute(&sql, ()).await?;
-                Ok::<_, StoreError>(affected as u64)
+                Ok::<_, StoreError>(affected)
             })
             .await
     }
@@ -546,7 +546,7 @@ impl crate::VoxDb {
                         params![timeout_secs],
                     )
                     .await?;
-                Ok::<_, StoreError>(affected as u64)
+                Ok::<_, StoreError>(affected)
             })
             .await
     }

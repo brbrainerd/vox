@@ -301,9 +301,9 @@ For each cluster, audit:
 **Prereq:** F-F-1 (Fast/Free in YAML), F-F-2 (CostPreference Default), F-F-4 (capability fields), F-F-5 (supports_web_search method), F-F-6 (RoutingProfile enum).
 
 **Steps:**
-1. Re-copy the original 7 selection files from git history (`git show HEAD~3:crates/vox-orchestrator/src/dei_shim/selection/`) into `crates/vox-dei-shim/src/selection/`
+1. Re-copy the original 7 selection files from git history (`git show HEAD~3:crates/vox-orchestrator/src/dei_shim/selection/`) into `crates/vox-research-shim/src/selection/`
 2. Re-run the `crate::` → `vox_orchestrator::` sed transformation (see session 9 commit `94ce7d5b5f` for the recipe)
-3. Add `pub mod selection;` to `crates/vox-dei-shim/src/lib.rs`
+3. Add `pub mod selection;` to `crates/vox-research-shim/src/lib.rs`
 4. Resolve compilation errors — they should now all be type-available
 5. Verify the `selection/tests.rs` test module compiles (it has `#[cfg(test)]`)
 6. Run `cargo test -p vox-dei-shim` — selection tests should pass

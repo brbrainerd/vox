@@ -76,6 +76,7 @@ vox-orchestrator-types = { layer = 0 }
 
 vox-db-types           = { layer = 0 }
 vox-mesh-types         = { layer = 0 }
+vox-ast                = { layer = 0, max_dependents = 40 }   # pure-data Vox AST (serde-only); extracted from vox-compiler 2026-06-05, re-exported as vox_compiler::ast
 workspace-hack         = { layer = 0, max_dependents = 80, staleness_exempt = true }
 vox-arch-check         = { layer = 0, kind = "binary" }
 vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only helper; intentionally stable — must not be folded into vox-foundation
@@ -114,12 +115,13 @@ vox-capability-registry = { layer = 2 }
 
 vox-project-scaffold    = { layer = 2 }
 vox-quantize            = { layer = 2, max_loc = 4_000 }
+vox-nanopub             = { layer = 2, max_loc = 1_000 }  # SCIENTIA nanopublication leaf (vox-crypto + sha2 + hex); extracted from vox-scientia 2026-06-05
 vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
 vox-journal             = { layer = 2 }                          # append-only JSONL journal; deps vox-runtime (L1) (PR #97)
 # L3: both consume the vox-actor-runtime (L3) LLM facade — every actor-runtime
-# consumer (vox-search, vox-tensor, vox-dei-shim, vox-orchestrator) is L3, so
+# consumer (vox-search, vox-tensor, vox-research-shim, vox-orchestrator) is L3, so
 # these are too (a heavy-runtime consumer is L3, not an L2 pure-data library).
 vox-effort-audit        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-effort-route        = { layer = 3, kind = "library", max_loc = 4_000 }
@@ -143,7 +145,7 @@ vox-scientia-jsonschema-codegen = { layer = 3, kind = "binary" }               #
 vox-ml-cli              = { layer = 3, kind = "binary", max_loc = 20_000 }
 vox-publisher           = { layer = 3, max_loc = 22_000 }  # raised from 20_000 (was at 19,951 / 20,000 headroom)
 vox-orchestrator        = { layer = 3, max_dependents = 30, max_loc = 70_000 }
-vox-dei-shim            = { layer = 3, max_loc = 8_000, staleness_exempt = true }  # A-12 wedge: DEI research + model-selection extracted from vox-orchestrator
+vox-research-shim            = { layer = 3, max_loc = 8_000, staleness_exempt = true }  # A-12 wedge: DEI research + model-selection extracted from vox-orchestrator
 vox-orchestrator-test-helpers = { layer = 3, kind = "test-only", max_dependents = 25, staleness_exempt = true }
 vox-actor-runtime       = { layer = 3, max_loc = 15_000 }
 vox-populi              = { layer = 3, max_loc = 20_000 }
@@ -153,6 +155,7 @@ vox-container-types     = { layer = 0 }              # pure types: ContainerRunt
 vox-container           = { layer = 3 }
 vox-forge               = { layer = 3 }
 vox-git                 = { layer = 3 }
+vox-vcs                 = { layer = 3, max_loc = 20_000, orphan_exempt = true }
 vox-openclaw-runtime    = { layer = 3 }
 vox-workflow-runtime    = { layer = 3 }
 vox-runtime-rn          = { layer = 3, orphan_exempt = true }     # uniffi mobile bridge (RN/Expo); deps vox-runtime+vox-journal; consumed out-of-tree by clients/runtime-rn (PR #97)
@@ -231,7 +234,6 @@ name             = "raw-git-exec"
 pattern          = 'Command::new\("git"\)'
 file_glob        = "crates/**/*.rs"
 exempt_files     = [
-    "crates/vox-vcs-git/src/git_exec.rs",
     "crates/vox-arch-check/src/main.rs",
     "crates/vox-arch-check/src/forbidden_patterns.rs",
     "crates/vox-orchestrator-mcp/src/git_tools.rs",
@@ -265,6 +267,16 @@ exempt_files     = [
 ]
 allow_annotation = "// vox-arch-check: allow git-exec"
 reason           = "All git invocations must go through GitExec to honor the concurrency policy."
+
+[[forbidden_pattern]]
+name             = "jj-lib-confined"
+pattern          = 'jj_lib::'
+file_glob        = "crates/**/*.rs"
+exempt_files     = [
+    "crates/vox-vcs/src/jj_backend.rs",
+]
+allow_annotation = "// vox-arch-check: allow jj-lib"
+reason           = "All jj-lib calls must live in vox-vcs so the unstable jj-lib API has one auditable blast radius."
 
 # Emit boundary (ADR 036 / projection bundle): do not re-lower or re-project HIR outside
 # `vox-codegen::projection_bundle` from TypeScript/Rust emitters — use `project_bundle_from_hir`.
@@ -360,7 +372,6 @@ reason           = "Application package manifests use @tauri-apps/* per ADR 037.
 [planned]
 vox-claim-extractor      = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
 vox-inspect-bridge       = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 3 }
-vox-nanopub              = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
 vox-prereg               = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
 vox-ro-crate             = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
 vox-scientia-ingest      = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 3 }

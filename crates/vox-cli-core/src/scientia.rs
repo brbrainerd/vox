@@ -454,6 +454,26 @@ pub enum ScientiaCmd {
         publication_id: String,
     },
 
+    /// P1 — Build a spec-compliant nanopublication for ONE extracted claim:
+    /// resolve (or create) the per-user RSA + ORCID signing identity, assemble
+    /// the enriched assertion, RSA-sign it, VALIDATE it OFFLINE (trusty hash +
+    /// signature; NO network), and persist the signed artifact to
+    /// `scientia_nanopubs` with `published_state="local"`. This command performs
+    /// NO network publishing of any kind. Prints the resulting Trusty URI.
+    #[command(name = "publication-nanopub-build")]
+    PublicationNanopubBuild {
+        /// Publication id the claim belongs to (selects the claim bucket).
+        #[arg(long)]
+        publication_id: String,
+        /// `claim_id` of the extracted claim to sign (see `vox scientia claims`).
+        #[arg(long)]
+        claim_id: i64,
+        /// Optional ORCID URL (e.g. https://orcid.org/0000-0002-1825-0097).
+        /// Overrides the stored identity ORCID; required if none is stored.
+        #[arg(long)]
+        orcid: Option<String>,
+    },
+
     /// Phase 3 — Render a `ScaffoldInput` JSON to a standalone LaTeX
     /// document (`\documentclass{article}`) and write it to stdout or
     /// `--output`. Suitable for PDF generation via `tectonic` /
@@ -536,8 +556,8 @@ pub enum ScientiaCmd {
     },
 
     /// Phase H — Assemble a dashboard `QueueSnapshot` JSON directly from the
-    /// live Codex DB (publication candidates + extracted-claims pending counts
-    /// + retraction queue). Unlike `publication-dashboard-snapshot`, this needs
+    /// live Codex DB (publication candidates + extracted-claims pending counts +
+    /// retraction queue). Unlike `publication-dashboard-snapshot`, this needs
     /// no inputs file.
     #[command(name = "dashboard")]
     Dashboard,

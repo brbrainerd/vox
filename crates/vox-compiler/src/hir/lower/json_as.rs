@@ -193,16 +193,29 @@ fn build_from_json_adt(
             emit_field_stmts(ctx, &mut branch, field, &json_key, &t.name, ann, span);
         }
 
-        // Return Ok(TypeName::VariantName { f1: f1, ... }) or Ok(TypeName::VariantName) for unit
+        // Build the decoded variant as a constructor APPLICATION (positional
+        // fields in declaration order) so it evaluates to
+        // `VoxValue::Tagged { name, fields }` and matches positional constructor
+        // patterns like `Search(q)` / `Circle(r)`. An `ObjectLit` here would
+        // evaluate to a tag-less `VoxValue::Object`, which the match arm's
+        // `Constructor` pattern rejects ("No match arm found"). Constructors are
+        // registered under the BARE variant name in `Interpreter::run_module`,
+        // so reference `variant.name`, not `TypeName::VariantName`.
         let variant_value = if vfield_names.is_empty() {
-            // Unit variant: just the constructor identifier
-            expr_ident(&format!("{}::{}", t.name, variant.name), span)
+            // Unit variant: the bare constructor identifier →
+            // `VoxValue::Constructor(name)`, matched by a nullary pattern.
+            expr_ident(&variant.name, span)
         } else {
-            HirExpr::ObjectLit(
+            HirExpr::Call(
+                Box::new(expr_ident(&variant.name, span)),
                 vfield_names
                     .iter()
-                    .map(|n| (n.clone(), expr_ident(n, span)))
+                    .map(|n| HirArg {
+                        name: None,
+                        value: expr_ident(n, span),
+                    })
                     .collect(),
+                false,
                 span,
             )
         };

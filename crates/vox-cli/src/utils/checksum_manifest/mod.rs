@@ -52,7 +52,7 @@ pub fn checksum_for_asset(checksums_txt: &str, asset_name: &str) -> Option<Strin
 pub fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
 /// Verify `asset_bytes` against the manifest entry for `asset_name` (basename match).

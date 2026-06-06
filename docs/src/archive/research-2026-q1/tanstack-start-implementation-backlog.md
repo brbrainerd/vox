@@ -25,7 +25,7 @@ Use this table **before** implementing any checkbox below. Rows summarize what s
 
 | Wave | Status | Ground truth in repo |
 |------|--------|----------------------|
-| **A** | **Mostly done** | [`RouteEntry`](../../../crates/vox-compiler/src/ast/decl/ui.rs): `loader_name`, `pending_component_name`, nested `children`; `redirect` / `is_wildcard` exist on AST but parser leaves defaults. [`RoutesDecl`](../../../crates/vox-compiler/src/ast/decl/ui.rs): `not_found_component`, `error_component`. Parser: [`tail.rs`](../../../crates/vox-compiler/src/parser/descent/decl/tail.rs) — `with loader:` / `pending:`, nested `{ }`, `not_found:`, `error:`. **Deferred:** `under LayoutName` / separate `layout_name` on `RouteEntry` (use nested route children); spec `layout_name` field in older docs does not match current AST. |
+| **A** | **Mostly done** | [`RouteEntry`](../../../crates/vox-ast/src/decl/ui.rs): `loader_name`, `pending_component_name`, nested `children`; `redirect` / `is_wildcard` exist on AST but parser leaves defaults. [`RoutesDecl`](../../../crates/vox-ast/src/decl/ui.rs): `not_found_component`, `error_component`. Parser: [`tail.rs`](../../../crates/vox-compiler/src/parser/descent/decl/tail.rs) — `with loader:` / `pending:`, nested `{ }`, `not_found:`, `error:`. **Deferred:** `under LayoutName` / separate `layout_name` on `RouteEntry` (use nested route children); spec `layout_name` field in older docs does not match current AST. |
 | **B–C** | **Partly obviated** | HIR ownership / legacy retirement evolved with Path C + `vox migrate web`. Verify current [`hir/nodes/decl.rs`](../../../crates/vox-compiler/src/hir/nodes/decl.rs) before acting on B/C checklists. |
 | **D** | **Cancelled (shape)** | “New scaffold emitter” in compiler **exists** as opt-in [`codegen_ts/scaffold.rs`](../../../crates/vox-codegen/src/codegen_ts/scaffold.rs); **primary** one-time files come from **`vox-cli`** [`spa.rs`](../../../crates/vox-cli/src/templates/spa.rs) / [`tanstack.rs`](../../../crates/vox-cli/src/templates/tanstack.rs) / [`frontend.rs`](../../../crates/vox-cli/src/frontend.rs). Do not recreate D2–D4 Start-only `client.tsx` / `router.tsx` **from compiler alone** unless charter reopens that scope. |
 | **E** | **Cancelled (product)** | Programmatic `__root.tsx` / `*.route.tsx` / `app/routes.ts` **virtual tree** from compiler is **gone**. Parity is [`route_manifest.rs`](../../../crates/vox-codegen/src/codegen_ts/route_manifest.rs) + TanStack **file** routes + optional `vox-manifest-route-adapter`. E6 “retired” already applies. |
@@ -43,33 +43,33 @@ Use this table **before** implementing any checkbox below. Rows summarize what s
 These tasks extend the parser/AST data model. Complete all before touching HIR or codegen.
 
 ### A1 — `RouteEntry`: Add `loader` field
-- [ ] **File:** `crates/vox-compiler/src/ast/decl/ui.rs` line ~40
+- [ ] **File:** `crates/vox-ast/src/decl/ui.rs` line ~40
 - [ ] Add `pub loader: Option<String>` to `RouteEntry` struct
 - [ ] Doc comment: `/// Name of a @query or @server fn to use as TanStack Router route loader.`
 - [ ] Add to `serde` derive and `PartialEq` impl (auto-derived — no manual work needed)
 
 ### A2 — `RouteEntry`: Add `pending_component` field
-- [ ] **File:** `crates/vox-compiler/src/ast/decl/ui.rs`
+- [ ] **File:** `crates/vox-ast/src/decl/ui.rs`
 - [ ] Add `pub pending_component: Option<String>` to `RouteEntry`
 - [ ] Doc comment: `/// Per-route pending/suspense UI component (overrides module-level loading:).`
 
 ### A3 — `RouteEntry`: Add `layout_name` field
-- [ ] **File:** `crates/vox-compiler/src/ast/decl/ui.rs`
+- [ ] **File:** `crates/vox-ast/src/decl/ui.rs`
 - [ ] Add `pub layout_name: Option<String>` to `RouteEntry`
 - [ ] Doc comment: `/// Name of a layout: fn this route should be nested under (pathless layout route).`
 
 ### A4 — `RoutesDecl`: Add `not_found_component` field
-- [ ] **File:** `crates/vox-compiler/src/ast/decl/ui.rs` line ~16
+- [ ] **File:** `crates/vox-ast/src/decl/ui.rs` line ~16
 - [ ] Add `pub not_found_component: Option<String>` to `RoutesDecl`
 - [ ] Doc comment: `/// Component name for TanStack Router notFoundComponent (global 404 page).`
 
 ### A5 — `RoutesDecl`: Add `error_component` field
-- [ ] **File:** `crates/vox-compiler/src/ast/decl/ui.rs`
+- [ ] **File:** `crates/vox-ast/src/decl/ui.rs`
 - [ ] Add `pub error_component: Option<String>` to `RoutesDecl`
 - [ ] Doc comment: `/// Component name for TanStack Router errorComponent (global error boundary).`
 
 ### A6 — Update `RoutesDecl::parse_summary` for new fields
-- [ ] **File:** `crates/vox-compiler/src/ast/decl/ui.rs`
+- [ ] **File:** `crates/vox-ast/src/decl/ui.rs`
 - [ ] Update `RoutesParseSummary` struct: add `not_found_component: Option<String>`, `error_component: Option<String>`
 - [ ] Update `parse_summary()` impl to populate new fields
 
@@ -252,7 +252,7 @@ These changes retired code paths that truly have no TanStack mapping. Do after W
 - [ ] `Decl::Hook` arm: same — parser hard-errors, but if AST node exists from old serialized code, emit diagnostic
 
 ### C10 — Remove callable.rs legacy arms (or update comments)
-- [ ] **File:** `crates/vox-compiler/src/ast/decl/callable.rs`
+- [ ] **File:** `crates/vox-ast/src/decl/callable.rs`
 - [ ] Search for arms that handle `ComponentDecl`, `LayoutDecl`, `ProviderDecl`, `HookDecl`
 - [ ] These handle security decoration on declarations — if deprecated, add `// [RETIRED]` comment and emit a warning that the security model for these decls is unsupported
 
