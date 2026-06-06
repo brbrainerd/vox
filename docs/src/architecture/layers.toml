@@ -155,6 +155,7 @@ vox-container-types     = { layer = 0 }              # pure types: ContainerRunt
 vox-container           = { layer = 3 }
 vox-forge               = { layer = 3 }
 vox-git                 = { layer = 3 }
+vox-vcs                 = { layer = 3, max_loc = 20_000, orphan_exempt = true }
 vox-openclaw-runtime    = { layer = 3 }
 vox-workflow-runtime    = { layer = 3 }
 vox-runtime-rn          = { layer = 3, orphan_exempt = true }     # uniffi mobile bridge (RN/Expo); deps vox-runtime+vox-journal; consumed out-of-tree by clients/runtime-rn (PR #97)
@@ -233,7 +234,6 @@ name             = "raw-git-exec"
 pattern          = 'Command::new\("git"\)'
 file_glob        = "crates/**/*.rs"
 exempt_files     = [
-    "crates/vox-vcs-git/src/git_exec.rs",
     "crates/vox-arch-check/src/main.rs",
     "crates/vox-arch-check/src/forbidden_patterns.rs",
     "crates/vox-orchestrator-mcp/src/git_tools.rs",
@@ -267,6 +267,16 @@ exempt_files     = [
 ]
 allow_annotation = "// vox-arch-check: allow git-exec"
 reason           = "All git invocations must go through GitExec to honor the concurrency policy."
+
+[[forbidden_pattern]]
+name             = "jj-lib-confined"
+pattern          = 'jj_lib::'
+file_glob        = "crates/**/*.rs"
+exempt_files     = [
+    "crates/vox-vcs/src/jj_backend.rs",
+]
+allow_annotation = "// vox-arch-check: allow jj-lib"
+reason           = "All jj-lib calls must live in vox-vcs so the unstable jj-lib API has one auditable blast radius."
 
 # Emit boundary (ADR 036 / projection bundle): do not re-lower or re-project HIR outside
 # `vox-codegen::projection_bundle` from TypeScript/Rust emitters — use `project_bundle_from_hir`.

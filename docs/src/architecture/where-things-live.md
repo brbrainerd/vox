@@ -126,6 +126,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-forge`](../../../crates/vox-forge/) | Platform-agnostic Git forge API — GitHub, Gitea, Forgejo (GitLab deprecated/unsupported as of 2026-06-03). |
 | [`vox-gamify`](../../../crates/vox-gamify/) | Gamification layer — companions, quests, battles, and free AI integration. |
 | [`vox-git`](../../../crates/vox-git/) | Pure-Rust Git bridge using gix (no C, no libgit2). |
+| [`vox-vcs`](../../../crates/vox-vcs/) | VCS backend abstraction: `VcsBackend` trait + in-memory `CasFallback`; the single home for all `jj_lib::` calls (the jj-lib 0.42 `JjBackend` lands in a later phase). Injected as a trait object into `vox-compiler` to avoid L3 coupling. |
 | [`vox-lsp`](../../../crates/vox-lsp/) | Vox Language Server (stdio JSON-RPC). Capability matrix: [`vox-lsp-capabilities-ssot-2026.md`](./vox-lsp-capabilities-ssot-2026.md). |
 | [`vox-openclaw-runtime`](../../../crates/vox-openclaw-runtime/) | OpenClaw client + ARS runtime adapter, executor, context bundles, hooks. |
 | [`vox-research-shim`](../../../crates/vox-research-shim/) | DEI research pipeline and model-selection sub-systems (A-12 wedge). SCIENTIA orchestrator, claim/verify/persist, BroadcastEmitter, ScientiaMeshSubscriber, and `selection::` (FreeTierRouter, ModelScorer, task_routing). Uses `vox_orchestrator::types::RoutingProfile`. |
