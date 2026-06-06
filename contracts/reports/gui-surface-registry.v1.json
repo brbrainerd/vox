@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "surface_count": 83,
+  "surface_count": 85,
   "top_level_groups": [
     "add",
     "ars",
@@ -48,6 +48,7 @@
     "play",
     "plugin",
     "pm",
+    "policy",
     "populi",
     "remove",
     "repair",
@@ -74,7 +75,9 @@
     "workflow"
   ],
   "unclassified_backfilled": [
-    "component"
+    "policy"
   ],
-  "wiring_violations": []
+  "wiring_violations": [
+    "view_key 'policies' is not referenced in App.tsx"
+  ]
 }
