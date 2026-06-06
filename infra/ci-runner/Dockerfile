@@ -65,6 +65,10 @@ RUN mkdir -p /actions-runner && cd /actions-runner \
     && tar xzf runner.tar.gz && rm runner.tar.gz \
     && ./bin/installdependencies.sh
 
+# The container runs as root; the actions runner refuses to `run.sh` as root
+# unless this is set (the original fleet set it via env).
+ENV RUNNER_ALLOW_RUNASROOT=1
+
 COPY infra/ci-runner/entrypoint.sh /entrypoint.sh
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
