@@ -7,7 +7,7 @@ description = "Executes the 5-stage delivery gate pipeline to autonomously valid
 "vox-version" = "0.1.0"
 "vox-author" = "vox-team"
 "vox-category" = "testing"
-"vox-tools" = ["vox_test"]
+"vox-tools" = ["vox_validate_file", "vox_validate_source"]
 "vox-tags" = ["test", "validation", "self-healing", "ars"]
 "vox-permissions" = ["read_files", "write_files", "shell_exec", "ai_invoke"]
 ---
@@ -42,4 +42,9 @@ This skill implements the 5-stage AI-driven delivery gate for the Vox language. 
 
 ## Tools
 
-You have access to the standard `vox test` utility. Always execute it as part of your initial verification loop before confirming functionality.
+This skill exposes two validation tools to drive the gate:
+
+- **`vox_validate_file`** — validate a single `.vox` file (lex/parse/lower/contract checks); use it as the per-file verification step in stages 1–4.
+- **`vox_validate_source`** — validate an in-memory source string before it is written to disk; use it inside the Stage 5 healing loop to check a candidate patch without touching the filesystem.
+
+Always run `vox_validate_file` as part of your initial verification loop before confirming functionality.

@@ -13,11 +13,7 @@ kind = "code"
 abi-version = 12
 
 [plugin.payload.provides]
-# TODO: re-add "SkillRuntime" once `impl VoxPlugin for RuntimeContainerPlugin`
-# overrides `as_skill_runtime`. The crate implements `vox_skill_runtime::SkillRuntime`
-# for its Docker/Podman runtimes, but not yet the plugin-API extension accessor, so
-# the host cannot surface it (extraction Step 8).
-extension-points = []
+extension-points = ["SkillRuntime"]
 
 [plugin.payload.requires]
 os = ["linux", "macos", "windows"]

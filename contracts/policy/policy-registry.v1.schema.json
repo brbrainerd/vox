@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Vox Policy Registry v1",
+  "type": "object",
+  "required": ["schema_version", "policies"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "policies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "domain", "title", "group", "description", "source"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+/.+$" },
+          "domain": {
+            "enum": ["ci-gate", "audit-check", "crl-gate", "code-audit-rule", "arch-rule", "workflow-job"]
+          },
+          "title": { "type": "string", "minLength": 1 },
+          "group": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "severity": { "enum": ["info", "warn", "error", "critical"] },
+          "blocking": { "type": "boolean" },
+          "runs_on": { "type": "array", "items": { "type": "string" } },
+          "source": {
+            "type": "object",
+            "required": ["kind", "ref"],
+            "properties": {
+              "kind": { "enum": ["pattern", "command", "guard", "subcommand", "workflow"] },
+              "ref": { "type": "string", "minLength": 1 },
+              "detail": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          "docs": { "type": "string" },
+          "default_enabled": { "type": "boolean" },
+          "protected": { "type": "boolean" },
+          "origin": { "enum": ["builtin", "user"] }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

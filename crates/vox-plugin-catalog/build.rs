@@ -135,9 +135,13 @@ fn main() {
     for p in &cat.plugins {
         match p.payload_kind.as_str() {
             "code" => {
-                if p.extension_points.as_ref().is_none_or(|v| v.is_empty()) {
+                // The field must be present, but MAY be empty: a code plugin that doesn't
+                // yet surface any extension point (e.g. an in-progress extraction) is a
+                // legitimate state. The `plugin-surface-sync` gate enforces that whatever is
+                // listed matches the plugin's actual `impl VoxPlugin` accessors.
+                if p.extension_points.is_none() {
                     errors.push(format!(
-                        "code plugin '{}' must declare extension-points",
+                        "code plugin '{}' must declare an extension-points list (may be empty)",
                         p.id
                     ));
                 }
@@ -151,9 +155,9 @@ fn main() {
                 }
             }
             "composite" => {
-                if p.extension_points.as_ref().is_none_or(|v| v.is_empty()) {
+                if p.extension_points.is_none() {
                     errors.push(format!(
-                        "composite plugin '{}' must declare extension-points",
+                        "composite plugin '{}' must declare an extension-points list (may be empty)",
                         p.id
                     ));
                 }
