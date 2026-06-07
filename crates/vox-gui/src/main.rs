@@ -127,6 +127,7 @@ async fn main() {
             commands::scientia_review::list_publication_review_queue,
             commands::scientia_review::record_publication_claim_review,
             commands::scientia_review::nanopublish_approved_claim,
+            commands::scientia_review::suggest_evidence_improvements,
             commands::search::vox_search_query,
             commands::search::open_locator,
         ])

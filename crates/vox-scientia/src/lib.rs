@@ -46,3 +46,6 @@ pub mod review;
 
 // ── P3: shared review-flow SSOT (DB + vault I/O; CLI + GUI both call this) ────
 pub mod review_flow;
+
+// ── P3 Phase 4: LLM-assisted advisory evidence/conclusion suggestions ────────
+pub mod evidence_assist;

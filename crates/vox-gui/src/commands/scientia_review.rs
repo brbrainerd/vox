@@ -122,6 +122,28 @@ pub async fn nanopublish_approved_claim(
     })
 }
 
+/// LLM-assisted ADVISORY evidence/conclusion suggestions for ONE claim in the
+/// review queue. Delegates to [`vox_scientia::evidence_assist::suggest`] (routed
+/// through the model-agnostic actor-runtime LLM facade). Never mutates any
+/// decision or assertion; degrades to an empty list on any LLM error.
+#[tauri::command]
+pub async fn suggest_evidence_improvements(
+    publication_id: String,
+    claim_id: i64,
+) -> Result<Vec<vox_scientia::evidence_assist::EvidenceSuggestion>, String> {
+    let db = db().await?;
+    let sid = review_flow::publication_session_id(&publication_id);
+    let claims = db
+        .list_claims_awaiting_review(sid, &publication_id)
+        .await
+        .map_err(|e| format!("{e:#}"))?;
+    let c = claims
+        .into_iter()
+        .find(|c| c.claim_id == claim_id)
+        .ok_or_else(|| format!("claim {claim_id} not in review queue"))?;
+    Ok(vox_scientia::evidence_assist::suggest(&c.text, c.verdict.as_deref(), c.confidence).await)
+}
+
 #[cfg(test)]
 mod tests {
     /// Guard: this GUI review surface must carry NO production-network publishing

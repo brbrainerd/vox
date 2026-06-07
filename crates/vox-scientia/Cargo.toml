@@ -17,6 +17,7 @@ vox-nanopub = { workspace = true }
 vox-research-events = { workspace = true }
 vox-db = { workspace = true }
 vox-db-types = { workspace = true }
+vox-actor-runtime = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true, features = ["v4", "serde"] }
 thiserror = { workspace = true }

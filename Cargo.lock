@@ -15508,6 +15508,7 @@ dependencies = [
  "turso",
  "url",
  "uuid",
+ "vox-actor-runtime",
  "vox-config",
  "vox-crypto",
  "vox-db",
