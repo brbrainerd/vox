@@ -26,6 +26,56 @@ use std::path::Path;
 use crate::error::{QLoraError, Result};
 use crate::qlora::QuantizedLinear;
 
+use candle_core::Var;
+use candle_core::backprop::GradStore;
+
+/// Clip the global L2 norm of the gradients for `vars` in place, in `grads`.
+///
+/// Computes the global gradient norm `total_norm = sqrt(Σ ||g||²)` across every
+/// trainable `Var`'s gradient. If `total_norm > max_norm`, every gradient is
+/// scaled by the same factor `max_norm / (total_norm + eps)`, so the direction
+/// of the combined gradient is preserved while its magnitude is capped. This is
+/// the standard global-norm clip (cf. PyTorch `clip_grad_norm_`) and protects
+/// against loss-spike gradient blowups.
+///
+/// No-op when `total_norm <= max_norm`. Returns the pre-clip `total_norm`.
+pub(crate) fn clip_grad_norm(
+    grads: &mut GradStore,
+    vars: &[Var],
+    max_norm: f64,
+) -> Result<f64> {
+    // Accumulate the sum of squares across all gradients as an f64 scalar.
+    let mut sum_sq = 0.0f64;
+    for var in vars {
+        if let Some(grad) = grads.get(var.as_tensor()) {
+            let sq = grad.sqr().map_err(QLoraError::Candle)?;
+            let s = sq.sum_all().map_err(QLoraError::Candle)?;
+            let s = s
+                .to_dtype(DType::F64)
+                .map_err(QLoraError::Candle)?
+                .to_scalar::<f64>()
+                .map_err(QLoraError::Candle)?;
+            sum_sq += s;
+        }
+    }
+
+    let total_norm = sum_sq.sqrt();
+
+    // Only scale down when over budget; never scale up.
+    if total_norm > max_norm {
+        const EPS: f64 = 1e-6;
+        let scale = max_norm / (total_norm + EPS);
+        for var in vars {
+            if let Some(grad) = grads.get(var.as_tensor()) {
+                let scaled = (grad * scale).map_err(QLoraError::Candle)?;
+                grads.insert(var.as_tensor(), scaled);
+            }
+        }
+    }
+
+    Ok(total_norm)
+}
+
 /// Configuration for `QLoRA` training.
 #[derive(Debug, Clone)]
 pub struct QLoraTrainingConfig {
@@ -638,10 +688,15 @@ impl QLoraTrainer {
 
         if let Some(ref mut optimizer) = self.optimizer {
             if self.accumulation_step >= accum_steps {
+                // Compute gradients explicitly so we can clip them (by global L2
+                // norm) before the optimizer step. `backward_step` would fold
+                // backward + step together and give us no hook to clip.
+                let mut grads = scaled_loss.backward()?;
                 if let Some(max_norm) = self.config.adapter_config.max_grad_norm {
-                    let _ = max_norm; // Placeholder for gradient clipping
+                    let vars = self.varmap.all_vars();
+                    clip_grad_norm(&mut grads, &vars, max_norm)?;
                 }
-                optimizer.backward_step(&scaled_loss)?;
+                optimizer.step(&grads)?;
                 self.accumulation_step = 0;
             } else {
                 let _ = scaled_loss.backward();
@@ -729,14 +784,17 @@ impl QLoraTrainer {
         // Handle standard AdamW optimizer
         if let Some(ref mut optimizer) = self.optimizer {
             if self.accumulation_step >= accum_steps {
-                // Clip gradients if configured
+                // Compute gradients explicitly so they can be clipped (global L2
+                // norm) before the optimizer step. `backward_step` folds backward
+                // and step together, leaving no hook to clip in between.
+                let mut grads = scaled_loss.backward()?;
                 if let Some(max_norm) = self.config.adapter_config.max_grad_norm {
-                    // Gradient clipping would be applied here
-                    let _ = max_norm; // Placeholder for gradient clipping
+                    let vars = self.varmap.all_vars();
+                    clip_grad_norm(&mut grads, &vars, max_norm)?;
                 }
 
-                // Perform optimizer step
-                optimizer.backward_step(&scaled_loss)?;
+                // Perform optimizer step on the (possibly clipped) gradients
+                optimizer.step(&grads)?;
                 self.accumulation_step = 0;
             } else {
                 // Just accumulate gradients without stepping
@@ -1096,6 +1154,67 @@ mod tests {
         // Loss should be scalar
         let dims: &[usize] = loss.dims();
         assert!(dims.is_empty(), "Expected scalar loss, got dims: {dims:?}");
+    }
+
+    #[test]
+    fn test_clip_grad_norm_caps_global_norm() {
+        let device = Device::Cpu;
+
+        // Two trainable vars. Build a loss whose gradients have a known global
+        // L2 norm > 1: loss = sum(v1 * 3) + sum(v2 * 4) => grad(v1)=3, grad(v2)=4,
+        // global norm = sqrt(3^2 + 4^2) = 5.
+        let v1 = Var::from_tensor(&Tensor::new(&[1.0f32], &device).unwrap()).unwrap();
+        let v2 = Var::from_tensor(&Tensor::new(&[1.0f32], &device).unwrap()).unwrap();
+
+        let three = Tensor::new(&[3.0f32], &device).unwrap();
+        let four = Tensor::new(&[4.0f32], &device).unwrap();
+        let l1 = v1.as_tensor().mul(&three).unwrap().sum_all().unwrap();
+        let l2 = v2.as_tensor().mul(&four).unwrap().sum_all().unwrap();
+        let loss = l1.add(&l2).unwrap();
+
+        let mut grads = loss.backward().unwrap();
+
+        let vars = vec![v1.clone(), v2.clone()];
+        let max_norm = 1.0;
+        let pre = clip_grad_norm(&mut grads, &vars, max_norm).unwrap();
+        assert!((pre - 5.0).abs() < 1e-5, "pre-clip norm should be 5, got {pre}");
+
+        // Post-clip global norm must be <= max_norm (+ tiny epsilon).
+        let c1 = grads.get(v1.as_tensor()).unwrap();
+        let c2 = grads.get(v2.as_tensor()).unwrap();
+        let n1: f32 = c1.sqr().unwrap().sum_all().unwrap().to_scalar().unwrap();
+        let n2: f32 = c2.sqr().unwrap().sum_all().unwrap().to_scalar().unwrap();
+        let post = (f64::from(n1) + f64::from(n2)).sqrt();
+        assert!(
+            post <= max_norm + 1e-5,
+            "post-clip global norm should be <= {max_norm}, got {post}"
+        );
+
+        // Direction preserved: every grad scaled by the same factor.
+        let c1v: f32 = c1.to_vec1::<f32>().unwrap()[0];
+        let c2v: f32 = c2.to_vec1::<f32>().unwrap()[0];
+        let factor1 = c1v / 3.0;
+        let factor2 = c2v / 4.0;
+        assert!(
+            (factor1 - factor2).abs() < 1e-5,
+            "scale factor must be uniform: {factor1} vs {factor2}"
+        );
+        // Expected uniform factor ~= max_norm / (5 + eps) ~= 0.2.
+        assert!((factor1 - 0.2).abs() < 1e-4, "factor should be ~0.2, got {factor1}");
+    }
+
+    #[test]
+    fn test_clip_grad_norm_noop_when_under_budget() {
+        let device = Device::Cpu;
+        // grad(v) = [0.6, 0.8] => norm = 1.0 exactly; <= max_norm so unchanged.
+        let v = Var::from_tensor(&Tensor::new(&[1.0f32, 1.0], &device).unwrap()).unwrap();
+        let coeff = Tensor::new(&[0.6f32, 0.8], &device).unwrap();
+        let loss = v.as_tensor().mul(&coeff).unwrap().sum_all().unwrap();
+        let mut grads = loss.backward().unwrap();
+        let pre = clip_grad_norm(&mut grads, &[v.clone()], 1.0).unwrap();
+        assert!((pre - 1.0).abs() < 1e-5, "norm should be 1, got {pre}");
+        let after: Vec<f32> = grads.get(v.as_tensor()).unwrap().to_vec1().unwrap();
+        assert!((after[0] - 0.6).abs() < 1e-6 && (after[1] - 0.8).abs() < 1e-6);
     }
 
     #[test]
