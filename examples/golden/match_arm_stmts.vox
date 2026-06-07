@@ -36,6 +36,9 @@ fn early_exit(values: List[int]) to int {
 @test
 fn test_classify() {
     assert(classify(0) is "ok")
+    // `404 => return "not_found"` — a `return` inside a match arm used as the
+    // returned expression (early-return through the match).
+    assert(classify(404) is "not_found")
     assert(classify(500) is "server_error")
     assert(classify(999) is "other")
 }
