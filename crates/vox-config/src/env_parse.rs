@@ -268,8 +268,67 @@ mod tests {
         assert_eq!(resolve_config_i32(key, 7), 8192);
 
         unsafe {
+            std::env::set_var(key, "8192");
+        }
+        assert_eq!(resolve_config_i32(key, 7), 8192);
+
+        unsafe {
             std::env::remove_var(key);
         }
+        let _ = toml_config::unset_user_config_value(key);
+    }
+
+    #[test]
+    #[allow(unsafe_code)] // serialized with ENV_LOCK
+    fn opt_i32_coerces_float_and_string_arms() {
+        use crate::toml_config::test_support::set_user_config_typed;
+        let _g = ENV_LOCK.lock().expect("env lock");
+        let _home = HomeGuard::new();
+        let key = "VOX_TEST_COERCE_I32";
+        unsafe {
+            std::env::remove_var(key);
+        }
+        let _ = toml_config::unset_user_config_value(key);
+
+        // TOML float read as i32 → truncates toward zero.
+        set_user_config_typed(key, toml::Value::Float(2.9));
+        assert_eq!(resolve_config_opt_i32(key), Some(2));
+
+        // TOML string-coerced numeric.
+        set_user_config_typed(key, toml::Value::String("4096".to_string()));
+        assert_eq!(resolve_config_opt_i32(key), Some(4096));
+
+        // TOML integer (baseline).
+        set_user_config_typed(key, toml::Value::Integer(123));
+        assert_eq!(resolve_config_opt_i32(key), Some(123));
+
+        let _ = toml_config::unset_user_config_value(key);
+    }
+
+    #[test]
+    #[allow(unsafe_code)] // serialized with ENV_LOCK
+    fn opt_f32_coerces_integer_and_string_arms() {
+        use crate::toml_config::test_support::set_user_config_typed;
+        let _g = ENV_LOCK.lock().expect("env lock");
+        let _home = HomeGuard::new();
+        let key = "VOX_TEST_COERCE_F32";
+        unsafe {
+            std::env::remove_var(key);
+        }
+        let _ = toml_config::unset_user_config_value(key);
+
+        // TOML integer read as f32 → widens.
+        set_user_config_typed(key, toml::Value::Integer(5));
+        assert_eq!(resolve_config_opt_f32(key), Some(5.0));
+
+        // TOML float (baseline).
+        set_user_config_typed(key, toml::Value::Float(0.75));
+        assert_eq!(resolve_config_opt_f32(key), Some(0.75));
+
+        // TOML string-coerced numeric.
+        set_user_config_typed(key, toml::Value::String("1.5".to_string()));
+        assert_eq!(resolve_config_opt_f32(key), Some(1.5));
+
         let _ = toml_config::unset_user_config_value(key);
     }
 }

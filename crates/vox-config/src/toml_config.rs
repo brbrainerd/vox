@@ -95,6 +95,15 @@ pub(crate) mod test_support {
     /// Process-wide lock serializing all tests that touch process env or the global config cache.
     pub(crate) static CONFIG_TEST_LOCK: Mutex<()> = Mutex::new(());
 
+    /// Insert a **typed** TOML value (integer/float/bool) into the in-memory config cache,
+    /// bypassing the string-only [`super::set_user_config_value`]. Lets tests exercise the
+    /// numeric coercion arms in `env_parse` (e.g. a float stored as a TOML float read as i32).
+    pub(crate) fn set_user_config_typed(key: &str, value: toml::Value) {
+        let cache = super::CONFIG_CACHE.get_or_init(super::initialize_cache);
+        let mut guard = cache.lock().expect("config cache mutex poisoned");
+        guard.values.insert(key.to_string(), value);
+    }
+
     /// Redirects `HOME`/`USERPROFILE` to a temp dir; restores them on drop.
     #[allow(unsafe_code)]
     pub(crate) struct HomeGuard {

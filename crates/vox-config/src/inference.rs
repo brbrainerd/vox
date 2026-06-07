@@ -69,6 +69,8 @@ pub const LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT: &str = "http://localhost:11434";
 #[must_use]
 pub fn openrouter_base_url() -> String {
     crate::env_parse::resolve_config_str("OPENROUTER_BASE_URL", "https://openrouter.ai/api")
+        .trim_end_matches('/')
+        .to_string()
 }
 
 /// OpenAI-compatible API base URL.
@@ -80,6 +82,8 @@ pub fn openai_compatible_base_url() -> String {
     let legacy =
         crate::env_parse::resolve_config_str("OPENAI_BASE_URL", "https://api.openai.com/v1");
     crate::env_parse::resolve_config_str("VOX_OPENAI_BASE_URL", &legacy)
+        .trim_end_matches('/')
+        .to_string()
 }
 
 /// OpenRouter chat completions endpoint (config-aware). Default equals
@@ -391,6 +395,43 @@ mod tests {
             "https://proxy.example/api/v1/chat/completions"
         );
         let _ = crate::toml_config::unset_user_config_value("OPENROUTER_BASE_URL");
+    }
+
+    #[test]
+    fn trailing_slash_base_yields_single_slash_join() {
+        let _g = TEST_ENV_LOCK.lock().expect("env lock");
+        let _home = HomeGuard::new();
+        unsafe {
+            std::env::remove_var("OPENROUTER_BASE_URL");
+            std::env::remove_var("VOX_OPENAI_BASE_URL");
+            std::env::remove_var("OPENAI_BASE_URL");
+        }
+        // User-supplied bases with a trailing '/' must not produce a double slash on join.
+        crate::toml_config::set_user_config_value(
+            "OPENROUTER_BASE_URL",
+            "https://proxy.example/api/",
+        )
+        .expect("set");
+        crate::toml_config::set_user_config_value(
+            "VOX_OPENAI_BASE_URL",
+            "https://proxy.example/openai/v1/",
+        )
+        .expect("set");
+        assert_eq!(openrouter_base_url(), "https://proxy.example/api");
+        assert_eq!(
+            openrouter_chat_completions_url(),
+            "https://proxy.example/api/v1/chat/completions"
+        );
+        assert_eq!(
+            openai_compatible_base_url(),
+            "https://proxy.example/openai/v1"
+        );
+        assert_eq!(
+            openai_chat_completions_url(),
+            "https://proxy.example/openai/v1/chat/completions"
+        );
+        let _ = crate::toml_config::unset_user_config_value("OPENROUTER_BASE_URL");
+        let _ = crate::toml_config::unset_user_config_value("VOX_OPENAI_BASE_URL");
     }
 
     #[test]
