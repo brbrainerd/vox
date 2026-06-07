@@ -13,7 +13,7 @@
 [[plugin]]
 id = "nvml-probe"
 payload-kind = "code"
-description = "NVIDIA GPU hardware probe via NVML (device count, VRAM, utilization, temperature)."
+description = "Probes NVIDIA GPUs via NVML for device count, names, memory, utilization, temperature."
 status = "stable"
 extension-points = ["HardwareProbe"]
 requires-tag = "nvidia-gpu"
@@ -45,7 +45,7 @@ bundled-in = ["vox-ml-metal", "vox-dev"]
 [[plugin]]
 id = "oratio"
 payload-kind = "code"
-description = "Audio capture + speech-to-text (Candle Whisper)."
+description = "Audio capture + speech-to-text (Candle Whisper). Extracted from vox-speech in Unit 4."
 status = "beta"
 extension-points = ["AudioCapture", "SpeechToText"]
 default-source = "github:vox-foundation/vox-plugin-oratio"
@@ -56,7 +56,7 @@ bundled-in = ["vox-dev"]
 [[plugin]]
 id = "cloud"
 payload-kind = "code"
-description = "Cloud sync provider (Mens cloud + Populi cloud)."
+description = "CloudSync plugin for syncing model artifacts with HF Hub, S3, and other providers. SP7 scaffold — extraction from cloud integration code deferred."
 status = "alpha"
 extension-points = ["CloudSync"]
 default-source = "github:vox-foundation/vox-plugin-cloud"
@@ -65,7 +65,7 @@ bundled-in = ["vox-mesh", "vox-cloud-only", "vox-dev"]
 [[plugin]]
 id = "populi-mesh"
 payload-kind = "composite"
-description = "Populi mesh transport + the agent skill that documents it."
+description = "Populi mesh transport (HTTP control plane, A2A dispatch) + agent skill."
 status = "alpha"
 extension-points = ["MeshDriver"]
 exposes-tools = ["vox_populi_join", "vox_populi_dispatch"]
@@ -155,9 +155,9 @@ bundled-in = ["vox-fullstack", "vox-edge"]
 [[plugin]]
 id = "webhook"
 payload-kind = "code"
-description = "Inbound webhook HTTP listener with HMAC signature verification (GitHub, Discord, Slack; GitLab deprecated)."
+description = "Inbound webhook HTTP listener with HMAC signature verification (GitHub, generic; GitLab deprecated)."
 status = "stable"
-extension-points = ["HttpListener"]
+extension-points = []
 default-source = "local:crates/vox-plugin-webhook"
 bundled-in = ["vox-server", "vox-dev"]
 
@@ -173,7 +173,7 @@ bundled-in = ["vox-dev"]
 [[plugin]]
 id = "runtime-wasm"
 payload-kind = "code"
-description = "Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills; faster + smaller than containers)."
+description = "Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills). Faster cold start than containers, no external daemon."
 status = "beta"
 extension-points = ["SkillRuntime"]
 default-source = "local:crates/vox-plugin-runtime-wasm"
@@ -182,7 +182,7 @@ bundled-in = ["vox-fullstack", "vox-edge", "vox-dev"]
 [[plugin]]
 id = "runtime-container"
 payload-kind = "code"
-description = "Skill-runtime plugin: Docker and Podman OCI sandbox backends (fallback for subprocess/GPU skills)."
+description = "Skill-runtime plugin: Docker and Podman backends for sandboxed skill execution."
 status = "alpha"
 extension-points = ["SkillRuntime"]
 default-source = "local:crates/vox-plugin-runtime-container"
