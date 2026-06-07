@@ -75,16 +75,35 @@ top-level goldens by `// EXPECT` ∪ `@test` must be `1.0`.
 - `artifact_path`: `contracts/reports/behavioral-goldens/<UTC>.json`
 - `if_failing`: extend the `// EXPECT` harness coverage toward 1.0 and add the ratchet assertion. **Status: harness LANDED 2026-06-05** (`crates/vox-integration-tests/tests/golden_behavioral_gate.rs`, green) — 7 EXPECT goldens execute+match; the harness's first catch was a real bug (`vox run --mode interp` Debug-printed `main`'s return value as `Str("ok")` — fixed in `run.rs`). Remaining: author EXPECT/`@test` for the ~41 behaviorally-uncovered goldens (printed by the census test) and flip coverage to a hard 1.0 ratchet.
 
-**[CR-F2] Cross-arm parity (all three arms).** Every executable golden produces
-**byte-identical observable output** (stdout + asserted return values + final db
-state) under **`--mode interp`**, **`--mode script`** (codegen-rust → run), **and**
-the **codegen-ts** emitter executed under Node — for every construct each arm
-supports. The allowed-divergence allowlist must be **empty** for supported
-constructs and **non-growing** otherwise. (Council steer 2026-06-05: all three
-arms are parity-gated for v1.0.)
-- `verify_cmd`: `cargo test -p vox-integration-tests --test golden_arm_parity_test`
-- `artifact_path`: `contracts/reports/arm-parity/<UTC>.json` (`{interp_out, script_out, ts_out, all_agree}` per program)
-- `if_failing`: reconcile the diverging arm builtin-by-builtin; for codegen-ts add a Node execution harness over emitted output. **Status: MEASURED 2026-06-05 — interp 10/10 vs `--mode script` (codegen-rust) 0/10: the codegen-rust arm compiles NONE of the `main()`-goldens (even `fn main() to int { return 0 }`). CR-F2 is blocked on a 7-class codegen-rust repair backlog before any gate can land — see [`cr-f2-arm-parity-findings-2026.md`](./cr-f2-arm-parity-findings-2026.md).**
+**CR-F2 — Arm correctness (split by domain, not "three identical renderings").**
+Vox emits along a **domain boundary** (maintainer steer 2026-06-07): *logic →
+Rust; browser/GUI → TypeScript; never both*. So CR-F2 is **not** "every golden
+runs identically under interp/script/ts" — codegen-ts is a web/GUI emitter that
+does not (and should not) render a stdout logic program. CR-F2 splits into three
+independent criteria (CR-F2a/b/c). See
+[`codegen-ts-domain-boundary-and-cr-f2-correction-2026.md`](./codegen-ts-domain-boundary-and-cr-f2-correction-2026.md).
+
+**[CR-F2a] Logic parity (interp ≡ codegen-rust).** Every `examples/golden/**`
+program with `fn main` + `// EXPECT:` produces **byte-identical stdout** under
+`--mode interp` and `--mode script` (codegen-rust). The divergence allowlist is
+**non-growing** (ratchet to empty).
+- `verify_cmd`: `cargo test -p vox-integration-tests --test golden_arm_parity_test -- --ignored`
+- `artifact_path`: `contracts/eval/arm-parity-allowlist-script.txt` (committed ratchet; empty = met)
+- `if_failing`: fix the codegen-rust emit site for the diverging construct, then remove its line from the allowlist. **Status: MEASURED 2026-06-07 — codegen-rust 3/10 (pass: decimal_math, mesh/noop, while_loop_algorithms); 7 in the allowlist with verified rustc errors.**
+
+**[CR-F2b] Web emit correctness (codegen-ts).** Every `examples/golden-ts/**` web
+fixture emits TypeScript that type-checks **and** behaves correctly in a
+browser/DOM.
+- `verify_cmd`: `cargo test -p vox-integration-tests --test ts_emit_typecheck_test -- --ignored` (+ a planned jsdom/Playwright behavioral pass)
+- `artifact_path`: `contracts/reports/ts-web-emit/<UTC>.json`
+- `if_failing`: fix the codegen-ts emitter for the failing fixture; add the behavioral assertion. **Status: typecheck gate exists (`tsc --noEmit`); behavioral DOM gate NOT yet built.**
+
+**[CR-F2c] Split discipline (the boundary itself).** Each top-level construct
+lands in exactly one arm — logic in Rust only, browser/GUI in TS only — nothing
+silently dropped by both or emitted by both.
+- `verify_cmd`: `cargo run -p vox-cli -- audit --gate emit-routing`
+- `artifact_path`: `contracts/reports/emit-routing/<UTC>.json`
+- `if_failing`: add the construct to the routing classification table and route it to its single correct arm; fix any drop/duplication. **Status: gate NOT yet built; known wart — codegen-ts emits empty app boilerplate for logic-only programs.**
 
 **[CR-F3] Language-spec coverage.** A machine-readable checklist
 (`contracts/spec/language-surface-coverage.v1.yaml`) enumerates every grammar
