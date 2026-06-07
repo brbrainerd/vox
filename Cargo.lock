@@ -14538,6 +14538,7 @@ dependencies = [
  "owo-colors",
  "regex",
  "reqwest 0.12.28",
+ "safetensors 0.7.0",
  "serde",
  "serde_json",
  "serde_yaml",

@@ -97,6 +97,9 @@ axum = { workspace = true, optional = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 candle-core = { workspace = true }
+# Used by populi/gpu_tests_body.rs (gated `#[cfg(all(test, feature = "gpu"))]`)
+# to synthesize base/adapter shards for the merge-qlora tests.
+safetensors = { workspace = true }
 
 [lints]
 workspace = true
