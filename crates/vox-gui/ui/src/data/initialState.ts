@@ -15,11 +15,6 @@ export const INITIAL_DATA: DashboardData = {
   alerts: [],
   contextChips: [],
   skills: [],
-  intentions: [
-    { id: "B-01", parent: "R-COORD", branch: "Optimistic",   phase: "Active",      conf: 0.82, note: "Prefers local inference for low-latency tasks." },
-    { id: "B-02", parent: "R-COORD", branch: "Conservative", phase: "Validated",   conf: 0.95, note: "Requires multi-agent consensus for file mutations." },
-    { id: "B-03", parent: "R-COORD", branch: "Speculative",  phase: "Speculative", conf: 0.42, note: "Testing experimental branch: crypto-harden." },
-  ],
   graph: {
     nodes: [
       { id: "ROOT", label: "Orchestrator", phase: "Root", x: 0.50, y: 0.42 },

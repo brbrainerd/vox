@@ -224,11 +224,137 @@ fn check_manifests(repo_root: &Path, surface: &Surface) -> Result<()> {
                 }
             }
         }
+
+        // artifact parity: every key is a canonical target triple, and every filename
+        // follows the cdylib naming rule derived from the crate directory name.
+        let crate_name = path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|s| s.to_str());
+        if let (Some(crate_name), Some(artifacts)) =
+            (crate_name, code.get("artifacts").and_then(|a| a.as_table()))
+        {
+            for (triple, fname) in artifacts {
+                if !vox_plugin_types::PLUGIN_TARGET_TRIPLES.contains(&triple.as_str()) {
+                    violations.push(format!(
+                        "{}: artifact key {triple:?} is not a known target triple",
+                        path.display()
+                    ));
+                    continue;
+                }
+                let expected = vox_plugin_types::plugin_artifact_filename(crate_name, triple);
+                if expected.as_deref() != fname.as_str() {
+                    violations.push(format!(
+                        "{}: artifact[{triple}] = {:?} but expected {:?}",
+                        path.display(),
+                        fname.as_str().unwrap_or_default(),
+                        expected.unwrap_or_default()
+                    ));
+                }
+            }
+        }
     }
     if !violations.is_empty() {
         let valid_list: Vec<&str> = valid.iter().copied().collect();
         bail!(
             "plugin manifest validation failed:\n  {}\n  valid extension points: {valid_list:?}",
+            violations.join("\n  ")
+        );
+    }
+    Ok(())
+}
+
+/// manifest↔impl parity: a code/composite plugin's `provides.extension-points` must exactly
+/// equal the extension accessors it actually overrides in its `impl VoxPlugin` — so a
+/// manifest can't claim a capability the binary doesn't surface (declared-not-implemented),
+/// nor silently surface one it doesn't advertise (implemented-not-declared).
+fn check_impl_parity(repo_root: &Path, surface: &Surface) -> Result<()> {
+    // as_<module> accessor → extension-point name; and the set of known modules.
+    let acc_to_name: std::collections::BTreeMap<&str, &str> = surface
+        .extension_points
+        .iter()
+        .map(|p| (p.accessor.as_str(), p.name.as_str()))
+        .collect();
+    let modules: std::collections::BTreeSet<&str> = surface
+        .extension_points
+        .iter()
+        .map(|p| p.module.as_str())
+        .collect();
+    let as_re = Regex::new(r"(?m)fn\s+as_(\w+)\s*\(").expect("as_ regex");
+
+    let crates_root = repo_root.join("crates");
+    if !crates_root.is_dir() {
+        return Ok(());
+    }
+    let mut violations: Vec<String> = Vec::new();
+    for entry in walkdir::WalkDir::new(&crates_root)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name() == "Plugin.toml")
+    {
+        let path = entry.path();
+        if path.components().any(|c| c.as_os_str() == "tests") {
+            continue;
+        }
+        let raw =
+            std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+        let Ok(val) = raw.parse::<toml::Value>() else {
+            continue;
+        };
+        let Some(payload) = val.get("plugin").and_then(|p| p.get("payload")) else {
+            continue;
+        };
+        let code = payload.get("code").unwrap_or(payload);
+        let Some(provides) = code
+            .get("provides")
+            .and_then(|p| p.get("extension-points"))
+            .and_then(|e| e.as_array())
+        else {
+            continue; // skill payloads (no code provides) are out of scope
+        };
+        let declared: std::collections::BTreeSet<String> = provides
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_string))
+            .collect();
+
+        // Scan the crate's own src/ for overridden `as_<known-module>` accessors. (The
+        // trait defaults live in vox-plugin-api, not here, so any such fn is an override.)
+        let Some(crate_dir) = path.parent() else {
+            continue;
+        };
+        let mut implemented: std::collections::BTreeSet<String> = Default::default();
+        for f in walkdir::WalkDir::new(crate_dir.join("src"))
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("rs"))
+        {
+            let src = std::fs::read_to_string(f.path()).unwrap_or_default();
+            for cap in as_re.captures_iter(&src) {
+                let module = cap.get(1).map(|m| m.as_str()).unwrap_or_default();
+                if modules.contains(module)
+                    && let Some(name) = acc_to_name.get(format!("as_{module}").as_str())
+                {
+                    implemented.insert((*name).to_string());
+                }
+            }
+        }
+
+        if declared != implemented {
+            let missing: Vec<&String> = declared.difference(&implemented).collect();
+            let extra: Vec<&String> = implemented.difference(&declared).collect();
+            let mut m = format!("{}: provides vs impl mismatch", path.display());
+            if !missing.is_empty() {
+                m.push_str(&format!(" — declared but not implemented: {missing:?}"));
+            }
+            if !extra.is_empty() {
+                m.push_str(&format!(" — implemented but not declared: {extra:?}"));
+            }
+            violations.push(m);
+        }
+    }
+    if !violations.is_empty() {
+        bail!(
+            "plugin manifest↔impl parity failed:\n  {}",
             violations.join("\n  ")
         );
     }
@@ -244,6 +370,7 @@ fn render(surface: &Surface) -> Result<String> {
 pub fn run(repo_root: &Path, write: bool) -> Result<()> {
     let surface = extract_surface(repo_root)?;
     check_manifests(repo_root, &surface)?;
+    check_impl_parity(repo_root, &surface)?;
     let rendered = render(&surface)?;
     let out_path = repo_root.join(REL_OUTPUT);
 
@@ -269,7 +396,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
         );
     }
     println!(
-        "plugin-surface-sync OK ({} extension point(s); accessor + manifest provides/abi-version parity clean)",
+        "plugin-surface-sync OK ({} extension point(s); accessor + manifest provides/abi-version/artifact + impl parity clean)",
         surface.extension_points.len()
     );
     Ok(())

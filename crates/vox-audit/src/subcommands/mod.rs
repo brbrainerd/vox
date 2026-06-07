@@ -11,6 +11,9 @@
 //!   block CI.
 
 pub mod aci_default;
+/// CR-F1 (Foundation): behavioral goldens — `// EXPECT:` stdout matches
+/// `vox run --mode interp`. First registered Foundation-tier gate.
+pub mod behavioral_goldens;
 pub mod corpus_feedback;
 /// CR-L1: HumanEval-Vox static-check gate. Replaced its stub in P2.3 — see
 /// `crate::subcommands::humaneval::HumanEvalSubcommand`.

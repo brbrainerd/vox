@@ -52,17 +52,8 @@ struct CodeHead {
 }
 
 fn target_triple_key() -> &'static str {
-    if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
-        "windows-x86_64"
-    } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
-        "linux-x86_64"
-    } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
-        "macos-aarch64"
-    } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
-        "macos-x86_64"
-    } else {
-        "unknown"
-    }
+    // Canonical detection — the SSOT list lives in vox-plugin-types.
+    vox_plugin_types::current_target_triple().unwrap_or("unknown")
 }
 
 fn workspace_target_dir() -> std::path::PathBuf {

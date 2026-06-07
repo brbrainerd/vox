@@ -55,10 +55,18 @@ struct Cli {
     /// `contracts/reports/<thing>/<YYYY-MM-DD>.json`. Default is to write it.
     #[arg(long, global = true)]
     no_canonical_report: bool,
+
+    /// With `all`: evaluate the GA roll-up (foundation-first, with
+    /// `blocked_by_foundation`) and return a non-zero exit when GA is not met.
+    /// Writes `contracts/reports/_snapshot/<UTC>.json`. (CR-F0.)
+    #[arg(long, global = true)]
+    strict_block_ga: bool,
 }
 
 #[derive(Debug, ClapSubcommand)]
 enum CliCommand {
+    /// CR-F1: behavioral goldens — `// EXPECT:` stdout matches `vox run --mode interp`.
+    BehavioralGoldens,
     /// CR-L0: end-to-end agent loop (spec → passing app).
     SpecToApp,
     /// CR-L1: HumanEval-Vox.
@@ -90,6 +98,7 @@ enum CliCommand {
 impl CliCommand {
     fn to_gate_name(&self) -> Option<&'static str> {
         match self {
+            CliCommand::BehavioralGoldens => Some("behavioral-goldens"),
             CliCommand::SpecToApp => Some("spec-to-app"),
             CliCommand::Humaneval => Some("humaneval"),
             CliCommand::MensOnDistribution => Some("mens-on-distribution"),
@@ -133,6 +142,15 @@ fn main() -> ProcessExitCode {
         CliCommand::List => {
             list_subcommands();
             ProcessExitCode::SUCCESS
+        }
+        CliCommand::All if cli.strict_block_ga => {
+            // GA roll-up: foundation-first, blocked_by_foundation, _snapshot.
+            let snap = vox_audit::run_ga_snapshot(&common, true);
+            match serde_json::to_string_pretty(&snap) {
+                Ok(text) => println!("{text}"),
+                Err(err) => eprintln!("vox-audit: failed to render GA snapshot: {err}"),
+            }
+            ProcessExitCode::from(snap.exit_code as u8)
         }
         CliCommand::All => {
             let outcomes = run_all(&common);

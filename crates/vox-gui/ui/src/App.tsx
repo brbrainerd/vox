@@ -590,15 +590,7 @@ export default function App() {
           />
         );
       case 'matrix':
-        return (
-          <Matrix
-            intentions={data.intentions}
-            onDoubt={(i: any) => executeWithRun('vox_doubt_policy', { id: i.id }, 'gui.policy.doubt')
-              .catch((err: any) => pushToast({ tone: 'warn', title: 'Policy doubt failed', body: String(err) }))}
-            onOverrule={(i: any) => executeWithRun('vox_promote_policy', { id: i.id }, 'gui.policy.promote')
-              .catch((err: any) => pushToast({ tone: 'warn', title: 'Policy promote failed', body: String(err) }))}
-          />
-        );
+        return <Matrix pushToast={pushToast} />;
       case 'memory':
         return <MemoryView pushToast={pushToast} />;
       case 'models':
