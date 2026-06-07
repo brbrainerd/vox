@@ -236,3 +236,4 @@ gui-*.log
 
 # Superpowers brainstorm visual-companion scratch (local-only)
 .superpowers/
+graphify-out/
