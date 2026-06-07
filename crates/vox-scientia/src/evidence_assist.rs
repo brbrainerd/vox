@@ -131,4 +131,13 @@ mod tests {
 
         assert!(parse_suggestions("not json").is_empty());
     }
+
+    #[test]
+    fn parse_accepts_unknown_kind() {
+        let v = parse_suggestions(
+            "[{\"kind\":\"something_new\",\"summary\":\"s\",\"rationale\":\"r\"}]",
+        );
+        assert_eq!(v.len(), 1);
+        assert_eq!(v[0].kind, "something_new");
+    }
 }

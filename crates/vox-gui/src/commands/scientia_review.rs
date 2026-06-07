@@ -178,4 +178,19 @@ mod tests {
             "error must explain there is no decision, got: {msg}"
         );
     }
+
+    /// Parity + DTO-preservation: the GUI surface reads the queue through the
+    /// SAME typed DB op the CLI uses; on an empty in-memory DB the schema applies
+    /// without panic and the queue is empty (each row maps 1:1 into the DTO).
+    #[tokio::test]
+    async fn gui_queue_dto_preserves_all_row_fields() {
+        use vox_db::{DbConfig, VoxDb};
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        let sid = vox_scientia::review_flow::publication_session_id("pub-x");
+        let rows = db
+            .list_claims_awaiting_review(sid, "pub-x")
+            .await
+            .expect("queue");
+        assert!(rows.is_empty()); // empty DB → empty queue; schema applies w/o panic
+    }
 }

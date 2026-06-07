@@ -25,7 +25,6 @@ import { HarnessView } from './components/surfaces/Harness/HarnessView';
 import { surfaceDecorators } from './components/surfaces/decoratorRegistry';
 import { ApprovalsView } from './components/surfaces/Approvals/ApprovalsView';
 import { SkillsPluginsView } from './components/surfaces/SkillsPlugins/SkillsPluginsView';
-import { DiscoveryReview } from './components/surfaces/Scientia/DiscoveryReview';
 import { voxTransport, listenOrchStatus, listenAgentEvents, type AgentEventFrame } from './transport';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -586,8 +585,6 @@ export default function App() {
         return <GamifyView pushToast={pushToast} />;
       case 'harness':
         return <HarnessView pushToast={pushToast} />;
-      case 'discovery-review':
-        return <DiscoveryReview pushToast={pushToast} />;
       case 'approvals':
         return <ApprovalsView pushToast={pushToast} />;
       case 'skills':
