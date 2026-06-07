@@ -78,7 +78,7 @@ async fn fetch_v0_tsx(
         .map(std::string::ToString::to_string)
         .ok_or_else(|| {
             anyhow!(
-                "V0_API_KEY environment variable not found. Please set it to use @v0 components."
+                "v0 API key not found — configure SecretId::V0ApiKey via vox-secrets (or set the V0_API_KEY env var). Required to use @v0 components."
             )
         })?;
     let url = v0_chats_url();

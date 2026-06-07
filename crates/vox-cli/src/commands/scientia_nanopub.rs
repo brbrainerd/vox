@@ -145,7 +145,16 @@ pub async fn nanopub_build(
     // This runs BEFORE any signing or persistence, so a stale/mismatched approval
     // leaves nothing behind. The token itself is unforgeable: it can only be
     // minted from an "approved" `ReviewDecisionRow` (see `vox_scientia::review`).
-    // Cheap in-memory check first: is this token even for the requested claim?
+    // Cheapest/most-specific identity check first: is this token even for the
+    // requested publication? Guards against cross-publication replay when two
+    // publications share a claim hash AND content digest.
+    if token.publication_id() != publication_id {
+        anyhow::bail!(
+            "approval token publication mismatch (token approves publication `{}`, build requested `{publication_id}`)",
+            token.publication_id()
+        );
+    }
+    // Then: is this token even for the requested claim?
     if token.claim_id() != claim_id {
         anyhow::bail!(
             "approval token claim mismatch (token approves claim {}, build requested {claim_id})",
@@ -300,7 +309,7 @@ pub async fn record_claim_review(
     // metadata once that surface is wired (P2 leaves it None per spec).
     let row = vox_db::store::ReviewDecisionRow {
         claim_id,
-        publication_id: Some(publication_id.into()),
+        publication_id: publication_id.to_string(),
         bound_digest,
         decision: decision.into(),
         actor,
@@ -602,7 +611,7 @@ mod tests {
         .expect("seed manifest");
         db.record_review_decision(&vox_db::store::ReviewDecisionRow {
             claim_id: CLAIM_ID as i64,
-            publication_id: Some(PUB_ID.into()),
+            publication_id: PUB_ID.into(),
             bound_digest: APPROVED_DIGEST.into(),
             decision: "approved".into(),
             actor: "tester".into(),
@@ -707,7 +716,7 @@ mod tests {
         const CLAIM: i64 = 7;
         db.record_review_decision(&vox_db::store::ReviewDecisionRow {
             claim_id: CLAIM,
-            publication_id: Some("pub-x".into()),
+            publication_id: "pub-x".into(),
             bound_digest: "digest-v1".into(),
             decision: "approved".into(),
             actor: "alice".into(),
@@ -719,7 +728,7 @@ mod tests {
         .expect("seed approved");
         db.record_review_decision(&vox_db::store::ReviewDecisionRow {
             claim_id: CLAIM,
-            publication_id: Some("pub-x".into()),
+            publication_id: "pub-x".into(),
             bound_digest: "digest-v1".into(),
             decision: "rejected".into(),
             actor: "bob".into(),
@@ -904,7 +913,7 @@ mod tests {
         // The human approved the OLD digest — the content has since changed.
         db.record_review_decision(&vox_db::store::ReviewDecisionRow {
             claim_id: CLAIM,
-            publication_id: Some(PUB_ID.into()),
+            publication_id: PUB_ID.into(),
             bound_digest: "digest-OLD".into(),
             decision: "approved".into(),
             actor: "tester".into(),
@@ -946,5 +955,95 @@ mod tests {
             .await
             .expect("count nanopub rows");
         assert_eq!(count, 0, "a refused stale approval must persist nothing");
+    }
+
+    /// Cross-publication replay gate (no vault — the publication-identity check
+    /// fires BEFORE any signing/persisting): a token minted for "pub-A" must not
+    /// build "pub-B", EVEN when the two publications share the same content
+    /// digest (so the freshness/digest check alone would pass). The build must
+    /// refuse with a "publication mismatch" and persist NOTHING.
+    #[tokio::test]
+    async fn nanopub_build_refuses_cross_publication_token_persists_nothing() {
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("in-memory db connect");
+
+        const CLAIM: i64 = 271;
+        const SHARED_DIGEST: &str = "dig";
+        const ORCID: &str = "https://orcid.org/0000-0002-1825-0097";
+
+        // pub-A: manifest + an approved decision bound to the shared digest.
+        db.upsert_publication_manifest(vox_db::store::types::PublicationManifestParams {
+            publication_id: "pub-A",
+            content_type: "scientia",
+            source_ref: None,
+            title: "pub A",
+            author: "tester",
+            abstract_text: None,
+            body_markdown: "body",
+            citations_json: None,
+            metadata_json: None,
+            revision_history_json: None,
+            content_sha3_256: SHARED_DIGEST,
+            state: "approved",
+        })
+        .await
+        .expect("seed manifest A");
+        db.record_review_decision(&vox_db::store::ReviewDecisionRow {
+            claim_id: CLAIM,
+            publication_id: "pub-A".into(),
+            bound_digest: SHARED_DIGEST.into(),
+            decision: "approved".into(),
+            actor: "tester".into(),
+            reason: None,
+            model_fingerprints_json: None,
+            decided_at_ms: 1,
+        })
+        .await
+        .expect("seed approved decision for pub-A");
+
+        // Token is scoped to pub-A.
+        let token = approval_for(&db, "pub-A", CLAIM)
+            .await
+            .expect("approved (pub-A) → token");
+
+        // pub-B shares the SAME content digest, so the freshness check would pass.
+        db.upsert_publication_manifest(vox_db::store::types::PublicationManifestParams {
+            publication_id: "pub-B",
+            content_type: "scientia",
+            source_ref: None,
+            title: "pub B",
+            author: "tester",
+            abstract_text: None,
+            body_markdown: "body",
+            citations_json: None,
+            metadata_json: None,
+            revision_history_json: None,
+            content_sha3_256: SHARED_DIGEST,
+            state: "approved",
+        })
+        .await
+        .expect("seed manifest B");
+
+        // `SignedNanopubDoc` is not `Debug`, so match rather than `expect_err`.
+        let err = match nanopub_build(&db, "pub-B", CLAIM, Some(ORCID), &token).await {
+            Ok(_) => panic!("cross-publication token must be refused, but build succeeded"),
+            Err(e) => e,
+        };
+        let msg = err.to_string();
+        assert!(
+            msg.contains("publication mismatch"),
+            "error must explain the publication mismatch, got: {msg}"
+        );
+
+        // The gate fired before any persistence — nothing for this claim.
+        let count = db
+            .count_scientia_nanopubs_for_claim(CLAIM)
+            .await
+            .expect("count nanopub rows");
+        assert_eq!(
+            count, 0,
+            "a refused cross-publication token must persist nothing"
+        );
     }
 }
