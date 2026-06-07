@@ -27,6 +27,10 @@ vox-actor-runtime = { workspace = true }
 vox-identity = { workspace = true }
 vox-crypto = { workspace = true }
 vox-search = { workspace = true }
+vox-speech = { workspace = true, features = ["stt-candle"] }
+cpal = { workspace = true }
+hound = { workspace = true }
+uuid = { workspace = true }
 toml = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }

@@ -48,6 +48,7 @@ async fn main() {
         .manage(GuiState {
             initial_view: Mutex::new(initial_view),
         })
+        .manage(commands::mic::MicCaptureState::default())
         .manage(std::sync::Arc::new(
             commands::daemon::PersistentDaemon::default(),
         ))
@@ -143,6 +144,8 @@ async fn main() {
             commands::mesh::list_trusted_nodes,
             commands::mesh::trust_mesh_node,
             commands::mesh::untrust_mesh_node,
+            commands::mic::start_mic_capture,
+            commands::mic::stop_mic_capture_and_transcribe,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

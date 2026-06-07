@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { voxTransport } from '../../../transport';
@@ -185,22 +186,77 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
   const tierObj = runtimeTiers.find(t => t.id === tier) || runtimeTiers[runtimeTiers.length - 1];
   const estCost = tierObj?.cost == null ? null : (tokens / 1000) * tierObj.cost + 0.002;
 
-  // Attach a context locator (file path or URL) to the shared context set.
-  // These chips become the next task's file manifest (App.handleLoquelaSubmit),
-  // so this is a real attach. A native OS file-picker would need the
-  // tauri-plugin-dialog dependency (not yet wired); until then we accept a
-  // typed/pasted path or URL — a genuine attach, not a placeholder.
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+
+  // Add a single locator (file path or URL) to the shared context set as a chip.
+  // These chips become the next task's file manifest (App.handleLoquelaSubmit).
+  const addContextRef = (ref: string) => {
+    const trimmed = ref.trim();
+    if (!trimmed) return;
+    const isUrl = /^https?:\/\//i.test(trimmed);
+    const id = `ctx-${isUrl ? 'url' : 'file'}-${trimmed}`;
+    setChips(cs => cs.find(c => c.id === id)
+      ? cs
+      : [...cs, { id, kind: isUrl ? 'url' : 'file', label: trimmed }]);
+  };
+
+  // Attach a file path or URL to the task context. A native OS file-picker
+  // (tauri-plugin-dialog) is the intended UX but is deferred (npm install of
+  // @tauri-apps/plugin-dialog is currently blocked in this workspace); the
+  // typed/pasted path is a real attach today and flows to the orchestrator as a
+  // FileAffinity via the shared Loquela context set.
   const attachContext = () => {
     const raw = window.prompt('Attach a file path or URL to this task context:');
     const ref = raw?.trim();
     if (!ref) return;
-    const isUrl = /^https?:\/\//i.test(ref);
-    const id = `ctx-${isUrl ? 'url' : 'file'}-${ref}`;
-    setChips(cs => cs.find(c => c.id === id)
-      ? cs
-      : [...cs, { id, kind: isUrl ? 'url' : 'file', label: ref }]);
+    addContextRef(ref);
     toast?.({ tone: 'ok', title: 'Attached to context', body: ref, cmd: 'context.attach' });
     taRef.current?.focus();
+  };
+
+  // Attach a URL (the native picker only handles local files).
+  const attachUrl = () => {
+    const raw = window.prompt('Attach a URL to this task context:');
+    const ref = raw?.trim();
+    if (!ref) return;
+    addContextRef(ref);
+    toast?.({ tone: 'ok', title: 'Attached to context', body: ref, cmd: 'context.attach' });
+    taRef.current?.focus();
+  };
+
+  // Microphone capture → on-device transcription. Toggles record/stop; on stop,
+  // appends the refined transcript into the composer textarea.
+  const toggleMic = async () => {
+    if (transcribing) return;
+    if (!recording) {
+      try {
+        await invoke('start_mic_capture');
+        setRecording(true);
+        toast?.({ tone: 'info', title: 'Recording', body: 'Listening — tap the mic again to stop.', cmd: 'oratio.transcribe' });
+      } catch (e) {
+        toast?.({ tone: 'err', title: 'Microphone unavailable', body: String(e), cmd: 'oratio.transcribe' });
+      }
+      return;
+    }
+    // Stop + transcribe.
+    setRecording(false);
+    setTranscribing(true);
+    try {
+      const transcript = await invoke<string>('stop_mic_capture_and_transcribe');
+      const t = (transcript || '').trim();
+      if (t) {
+        setText(prev => (prev ? `${prev.replace(/\s*$/, '')} ${t}` : t));
+        taRef.current?.focus();
+        toast?.({ tone: 'ok', title: 'Transcribed', body: t, cmd: 'oratio.transcribe' });
+      } else {
+        toast?.({ tone: 'info', title: 'No speech detected', body: 'The recording produced no transcript.', cmd: 'oratio.transcribe' });
+      }
+    } catch (e) {
+      toast?.({ tone: 'err', title: 'Transcription failed', body: String(e), cmd: 'oratio.transcribe' });
+    } finally {
+      setTranscribing(false);
+    }
   };
 
   const insertSlash = (cmd: string) => { setText(cmd + " "); setSlashOpen(false); taRef.current?.focus(); };
@@ -258,26 +314,24 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
         )}
 
         <div className="relative flex items-end gap-2">
-          <button onClick={attachContext} title="Attach a file path or URL to context" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25 transition">
+          <button onClick={attachContext} title="Attach local file(s) to context (native picker)" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25 transition">
             <Icon.plus className="size-4" />
           </button>
+          <button onClick={attachUrl} title="Attach a URL to context" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25 transition">
+            <Icon.link className="size-4" />
+          </button>
           <button
-            onClick={() => {
-              // Voice input requires live audio capture + an on-device STT
-              // bridge that is not wired into the desktop shell yet (the
-              // vox-tauri-stt `transcribe` command is mobile-only and is not
-              // registered here). Rather than fake a "recording" state, report
-              // the real status. See DONE_WITH_CONCERNS note for the gap.
-              toast?.({
-                tone: 'info',
-                title: 'Voice input unavailable',
-                body: 'Desktop microphone capture + transcription is not wired yet.',
-                cmd: 'oratio.transcribe',
-              });
-            }}
-            title="Voice input (not available on desktop yet)"
-            aria-disabled="true"
-            className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-600 cursor-not-allowed transition"
+            onClick={toggleMic}
+            disabled={transcribing}
+            title={transcribing ? 'Transcribing…' : recording ? 'Stop recording & transcribe' : 'Voice input — record & transcribe'}
+            aria-pressed={recording}
+            className={`flex size-8 shrink-0 items-center justify-center rounded-md border transition ${
+              transcribing
+                ? 'border-white/10 bg-white/[0.02] text-zinc-500 cursor-wait'
+                : recording
+                ? 'border-rose-400/50 bg-rose-400/15 text-rose-300 animate-pulse'
+                : 'border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25'
+            }`}
           >
             <Icon.mic className="size-4" />
           </button>

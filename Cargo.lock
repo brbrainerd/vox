@@ -14309,6 +14309,8 @@ dependencies = [
 name = "vox-gui"
 version = "0.6.0"
 dependencies = [
+ "cpal",
+ "hound",
  "rmp-serde",
  "serde",
  "serde_bytes",
@@ -14323,6 +14325,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "turso",
+ "uuid",
  "vox-actor-runtime",
  "vox-build-meta",
  "vox-cli",
@@ -14340,6 +14343,7 @@ dependencies = [
  "vox-scientia",
  "vox-search",
  "vox-secrets",
+ "vox-speech",
 ]
 
 [[package]]
