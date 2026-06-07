@@ -37,6 +37,7 @@ serde = { workspace = true }
 serde_yaml = { workspace = true }
 tauri = { workspace = true }
 tauri-plugin-shell = { version = "2" }
+tauri-plugin-dialog = { version = "2" }
 rmp-serde = "1.1"
 serde_bytes = "0.11"
 tokio = { workspace = true }
