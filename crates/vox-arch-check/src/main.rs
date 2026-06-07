@@ -217,10 +217,10 @@ fn main() -> ExitCode {
 
     // CR-META: `vox-arch-check --lint criteria-format` runs only the
     // criteria-doc format lint and exits, bypassing the layered-arch run.
-    if let Some(i) = argv.iter().position(|a| a == "--lint") {
-        if argv.get(i + 1).map(String::as_str) == Some("criteria-format") {
-            return run_criteria_format_lint();
-        }
+    if let Some(i) = argv.iter().position(|a| a == "--lint")
+        && argv.get(i + 1).map(String::as_str) == Some("criteria-format")
+    {
+        return run_criteria_format_lint();
     }
 
     let warn_only = argv.iter().any(|a| a == "--warn-only");

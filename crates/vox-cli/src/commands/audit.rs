@@ -534,6 +534,7 @@ mod tests {
             corpus: None,
             threshold: None,
             no_canonical_report: false,
+            strict_block_ga: false,
         };
         let filtered = filter_checks(&checks, &args);
         assert_eq!(filtered.len(), 1);
@@ -557,6 +558,7 @@ mod tests {
             corpus: None,
             threshold: None,
             no_canonical_report: true,
+            strict_block_ga: false,
         }
     }
 
@@ -688,6 +690,7 @@ mod tests {
             corpus: None,
             threshold: None,
             no_canonical_report: false,
+            strict_block_ga: false,
         };
         let filtered = filter_checks(&checks, &args);
         assert_eq!(filtered.len(), 1);
