@@ -74,7 +74,7 @@ function Segment({ value, onChange, options, size = "sm" }: any) {
   );
 }
 
-function MiniSlider({ label, value, setValue, min, max, step, fmt, accent = "#d4af37" }: any) {
+function MiniSlider({ label, value, setValue, min, max, step, fmt, accent = 'rgb(var(--brass))' }: any) {
   const pct = ((value - min) / (max - min)) * 100;
   return (
     <label className="group flex items-center gap-2 cursor-pointer">
@@ -434,7 +434,7 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
             </Popover>
           </div>
 
-          <MiniSlider label="Budget" value={budget} setValue={setBudget} min={0.25} max={20} step={0.25} fmt={(v: any) => `$${v.toFixed(2)}`} accent="#d4af37" />
+          <MiniSlider label="Budget" value={budget} setValue={setBudget} min={0.25} max={20} step={0.25} fmt={(v: any) => `$${v.toFixed(2)}`} accent="rgb(var(--brass))" />
           
           <div className="ml-auto flex items-center gap-2 font-mono text-[9px] text-zinc-500">
             <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-widest ${riskTone === "high" ? "border-amber-400/40 bg-amber-400/10 text-amber-300" : riskTone === "med" ? "border-violet-400/40 bg-violet-400/10 text-violet-300" : "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"}`}>

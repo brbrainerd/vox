@@ -439,7 +439,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
               <div className="mt-2 h-8">
                 <Sparkline
                   data={s.spark}
-                  color={s.hot ? '#d4af37' : s.dirty ? '#fbbf24' : '#71717a'}
+                  color={s.hot ? 'rgb(var(--brass))' : s.dirty ? '#fbbf24' : '#71717a'}
                   width={160}
                   height={28}
                 />

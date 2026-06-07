@@ -139,7 +139,7 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
   const phaseStroke = (phase: string): string => {
     const map: Record<string, string> = {
       Verifying: '#a78bfa',
-      Executing: '#d4af37',
+      Executing: 'rgb(var(--brass))',
       Planning:  '#22d3ee',
       Paused:    '#71717a',
       Root:      '#ffffff',
@@ -180,13 +180,13 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
         >
           <defs>
             <linearGradient id="ag-edge-grad" x1="0" x2="1">
-              <stop offset="0" stopColor="#d4af37" stopOpacity="0.7" />
+              <stop offset="0" stopColor="rgb(var(--brass) / 0.7)" />
               <stop offset="1" stopColor="#22d3ee" stopOpacity="0.7" />
             </linearGradient>
             <radialGradient id="ag-root-glow" cx="0.5" cy="0.5" r="0.5">
               <stop offset="0%"   stopColor="#fff"    stopOpacity="0.9" />
-              <stop offset="60%"  stopColor="#d4af37" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#d4af37" stopOpacity="0" />
+              <stop offset="60%"  stopColor="rgb(var(--brass) / 0.3)" />
+              <stop offset="100%" stopColor="rgb(var(--brass) / 0)" />
             </radialGradient>
             <filter id="ag-soft-glow">
               <feGaussianBlur stdDeviation="6" />
