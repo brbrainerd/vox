@@ -1,0 +1,89 @@
+// vox:caps fs subprocess env
+// Resilient MENS training: relaunch from last checkpoint on crash, with a finite
+// attempt cap and an escalation ladder (shrink seq-len, then drop a model rung)
+// before giving up.  No infinite loop — the ladder is bounded by models.len().
+//
+// Relies on the existing `vox mens train --resume <dir>` machinery: the trainer
+// auto-detects checkpoint_state.json in <dir> and restores epoch/step/shuffle,
+// so each relaunch continues from the last good checkpoint rather than restarting.
+
+fn run_train(model: str, out: str, seq: int) -> int {
+    let mut args = ["mens", "train", "--resume", out]
+    if model != "" {
+        args.push("--model")
+        args.push(model)
+    }
+    if seq > 0 {
+        args.push("--seq-len")
+        args.push(str(seq))
+    }
+    print("[resilient] vox " + args.join(" "))
+
+    // Spawn `vox mens train`; fall back to `cargo run -p vox-cli --` if the
+    // `vox` binary isn't on PATH (mirrors the idiom in run_4080_cycles.vox).
+    let mut proc = process.run("vox", args)
+    if proc is null {
+        let mut cargo_args = ["run", "-p", "vox-cli", "--"]
+        for a in args {
+            cargo_args.push(a)
+        }
+        proc = process.run("cargo", cargo_args)
+    }
+
+    let mut code = 1
+    match proc {
+        Some(res) => { code = res.code }
+        None => { code = 1 }
+    }
+    return code
+}
+
+fn main() {
+    let out = "mens/runs/latest"
+
+    // Escalation ladder, expressed as two parallel typed lists (Vox list
+    // literals are homogeneous, so we can't write `["", 0]` rows directly).
+    //   rung 0: "" model + 0 seq  => let the auto-scaler choose both.
+    //   rung 1: same model, shrink sequence length to 256.
+    //   rung 2: drop to the 3B model @ seq 384.
+    //   rung 3: drop to the 1.5B model @ seq 384.
+    let models = [
+        "",
+        "",
+        "Qwen/Qwen2.5-Coder-3B-Instruct",
+        "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+    ]
+    let seqs = [0, 256, 384, 384]
+
+    let n = models.len()
+    let mut i = 0
+    let mut done = false
+    while i < n {
+        if done == false {
+            // Indexing a list returns an Option in the native execution lane,
+            // so unwrap via match before passing the raw values along.
+            let mut model = ""
+            match models[i] {
+                Some(m) => { model = m }
+                None => { model = "" }
+            }
+            let mut seq = 0
+            match seqs[i] {
+                Some(s) => { seq = s }
+                None => { seq = 0 }
+            }
+
+            let code = run_train(model, out, seq)
+            if code == 0 {
+                print("[resilient] training complete (rung " + str(i + 1) + ")")
+                done = true
+            } else {
+                print("[resilient] attempt " + str(i + 1) + " failed (code " + str(code) + "); escalating")
+            }
+        }
+        i = i + 1
+    }
+    if done == false {
+        print("[resilient] exhausted all attempts — giving up")
+    }
+}
