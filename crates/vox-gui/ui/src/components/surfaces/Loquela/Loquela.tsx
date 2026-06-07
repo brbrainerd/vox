@@ -117,7 +117,6 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
   const [stream, setStream] = useState(true);
   const [sign,   setSign]   = useState(false);
   const [dryRun, setDryRun] = useState(false);
-  const [mic,    setMic]    = useState(false);
 
   const [skillOpen, setSkillOpen] = useState(false);
   const [tierOpen,  setTierOpen]  = useState(false);
@@ -186,6 +185,24 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
   const tierObj = runtimeTiers.find(t => t.id === tier) || runtimeTiers[runtimeTiers.length - 1];
   const estCost = tierObj?.cost == null ? null : (tokens / 1000) * tierObj.cost + 0.002;
 
+  // Attach a context locator (file path or URL) to the shared context set.
+  // These chips become the next task's file manifest (App.handleLoquelaSubmit),
+  // so this is a real attach. A native OS file-picker would need the
+  // tauri-plugin-dialog dependency (not yet wired); until then we accept a
+  // typed/pasted path or URL — a genuine attach, not a placeholder.
+  const attachContext = () => {
+    const raw = window.prompt('Attach a file path or URL to this task context:');
+    const ref = raw?.trim();
+    if (!ref) return;
+    const isUrl = /^https?:\/\//i.test(ref);
+    const id = `ctx-${isUrl ? 'url' : 'file'}-${ref}`;
+    setChips(cs => cs.find(c => c.id === id)
+      ? cs
+      : [...cs, { id, kind: isUrl ? 'url' : 'file', label: ref }]);
+    toast?.({ tone: 'ok', title: 'Attached to context', body: ref, cmd: 'context.attach' });
+    taRef.current?.focus();
+  };
+
   const insertSlash = (cmd: string) => { setText(cmd + " "); setSlashOpen(false); taRef.current?.focus(); };
   const insertAt = (agent: any) => {
     setText(t => t.replace(/@\w*$/, `@${agent.id} `));
@@ -241,10 +258,27 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
         )}
 
         <div className="relative flex items-end gap-2">
-          <button title="Attach context" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25 transition">
+          <button onClick={attachContext} title="Attach a file path or URL to context" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25 transition">
             <Icon.plus className="size-4" />
           </button>
-          <button onClick={() => setMic(m => !m)} title="Voice input" className={`flex size-8 shrink-0 items-center justify-center rounded-md border transition ${mic ? "border-amber-400/40 bg-amber-400/15 text-amber-300 animate-pulse" : "border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25"}`}>
+          <button
+            onClick={() => {
+              // Voice input requires live audio capture + an on-device STT
+              // bridge that is not wired into the desktop shell yet (the
+              // vox-tauri-stt `transcribe` command is mobile-only and is not
+              // registered here). Rather than fake a "recording" state, report
+              // the real status. See DONE_WITH_CONCERNS note for the gap.
+              toast?.({
+                tone: 'info',
+                title: 'Voice input unavailable',
+                body: 'Desktop microphone capture + transcription is not wired yet.',
+                cmd: 'oratio.transcribe',
+              });
+            }}
+            title="Voice input (not available on desktop yet)"
+            aria-disabled="true"
+            className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-600 cursor-not-allowed transition"
+          >
             <Icon.mic className="size-4" />
           </button>
 
