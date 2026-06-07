@@ -224,6 +224,35 @@ fn check_manifests(repo_root: &Path, surface: &Surface) -> Result<()> {
                 }
             }
         }
+
+        // artifact parity: every key is a canonical target triple, and every filename
+        // follows the cdylib naming rule derived from the crate directory name.
+        let crate_name = path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|s| s.to_str());
+        if let (Some(crate_name), Some(artifacts)) =
+            (crate_name, code.get("artifacts").and_then(|a| a.as_table()))
+        {
+            for (triple, fname) in artifacts {
+                if !vox_plugin_types::PLUGIN_TARGET_TRIPLES.contains(&triple.as_str()) {
+                    violations.push(format!(
+                        "{}: artifact key {triple:?} is not a known target triple",
+                        path.display()
+                    ));
+                    continue;
+                }
+                let expected = vox_plugin_types::plugin_artifact_filename(crate_name, triple);
+                if expected.as_deref() != fname.as_str() {
+                    violations.push(format!(
+                        "{}: artifact[{triple}] = {:?} but expected {:?}",
+                        path.display(),
+                        fname.as_str().unwrap_or_default(),
+                        expected.unwrap_or_default()
+                    ));
+                }
+            }
+        }
     }
     if !violations.is_empty() {
         let valid_list: Vec<&str> = valid.iter().copied().collect();
@@ -269,7 +298,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
         );
     }
     println!(
-        "plugin-surface-sync OK ({} extension point(s); accessor + manifest provides/abi-version parity clean)",
+        "plugin-surface-sync OK ({} extension point(s); accessor + manifest provides/abi-version/artifact parity clean)",
         surface.extension_points.len()
     );
     Ok(())

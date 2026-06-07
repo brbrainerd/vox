@@ -10,6 +10,7 @@
 pub mod plugin_manifest;
 pub mod skill_manifest;
 pub mod state_backend;
+pub mod target;
 
 pub use plugin_manifest::{
     CodePayload, CompositePayload, HostRequirement, NativeLib, PayloadProvides, PayloadRequires,
@@ -17,6 +18,7 @@ pub use plugin_manifest::{
 };
 pub use skill_manifest::{SkillCategory, SkillManifest, SkillPermission};
 pub use state_backend::{PluginStateBackend, PluginStateError, PluginStateSkillEntry};
+pub use target::{PLUGIN_TARGET_TRIPLES, current_target_triple, plugin_artifact_filename};
 
 #[cfg(test)]
 mod tests {
