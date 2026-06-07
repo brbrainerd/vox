@@ -31,8 +31,12 @@ pub mod discovery_publish;
 ///
 /// Qwen2.5-Coder is the coding-focused dense family the candle QLoRA trainer
 /// supports end-to-end (full-attention, no MoE/MTP/vision). The VRAM-aware ladder
-/// retreats this 7B request to the largest variant that fits the card — 3B on a
-/// 16 GiB consumer GPU (bf16), 7B on 24-32 GiB. The previous default, Qwen3.5-4B,
+/// retreats this 7B request to the largest variant that fits the card — at the
+/// current memory-budget calibration that is **1.5B** on a 16 GiB consumer GPU
+/// (test `qwen25coder_retreats_3b_to_1_5b_on_16gb`), and 7B on 24-32 GiB. The BF16
+/// activation/embedding bundle plus a budget recalibration are expected to lift the
+/// 16 GiB ceiling toward 3B, pending on-hardware VRAM measurement. The previous
+/// default, Qwen3.5-4B,
 /// is a `*ForConditionalGeneration` vision-language checkpoint that the text
 /// trainer cannot train (it is rejected up front by the vox-hf-layout VL guard).
 pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen2.5-Coder-7B-Instruct";

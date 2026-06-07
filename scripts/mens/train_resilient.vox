@@ -9,6 +9,11 @@
 
 fn run_train(model: str, out: str, seq: int) -> int {
     let mut args = ["mens", "train", "--resume", out]
+    // Mid-epoch checkpoints every 200 steps so a crash loses at most ~200 steps
+    // (the CLI default is none = epoch-boundary only). Retention is capped by
+    // VOX_MENS_KEEP_CHECKPOINTS (default 3), so disk stays bounded.
+    args.push("--checkpoint-every")
+    args.push("200")
     if model != "" {
         args.push("--model")
         args.push(model)
