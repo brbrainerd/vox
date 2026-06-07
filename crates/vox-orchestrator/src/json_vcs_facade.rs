@@ -212,11 +212,78 @@ pub async fn takeover_handoff_json(
     })
 }
 
+/// Live multi-agent isolation status (spec §5.1/§5.4): the strategy default,
+/// per-agent overrides, and active conflicts — one bundle for the GUI VCS panel.
+///
+/// Reads the **live** `IsolationPlan` (the orchestrator's `isolation_policy`
+/// handle) and the **live** `ConflictManager` (`active_conflicts()`). Agent ids
+/// are raw-u64 strings for parity with the rest of this facade.
+pub fn isolation_status_json(orch: &Orchestrator) -> Value {
+    let policy_handle = orch.isolation_policy_handle();
+    let plan = crate::sync_lock::rw_read(&policy_handle);
+
+    // Strategy serializes via the snake_case serde rename; unwrap the JSON string.
+    let strategy_str = |s: crate::isolation::IsolationStrategy| -> Value {
+        serde_json::to_value(s).unwrap_or(Value::Null)
+    };
+
+    let per_agent: serde_json::Map<String, Value> = plan
+        .per_agent
+        .iter()
+        .map(|(agent, strategy)| (agent.0.to_string(), strategy_str(*strategy)))
+        .collect();
+
+    let conflict_handle = orch.conflict_manager_handle();
+    let cm = crate::sync_lock::rw_read(&conflict_handle);
+    let active_conflicts: Vec<Value> = cm
+        .active_conflicts()
+        .iter()
+        .map(|c| {
+            let sides: Vec<Value> = c
+                .sides
+                .iter()
+                .map(|s| Value::String(s.agent_id.0.to_string()))
+                .collect();
+            json!({
+                "id": c.id.to_string(),
+                "path": c.path.display().to_string(),
+                "sides": sides,
+                "created_ms": c.created_ms,
+            })
+        })
+        .collect();
+
+    json!({
+        "strategy_default": strategy_str(plan.default),
+        "per_agent": Value::Object(per_agent),
+        "active_conflicts": active_conflicts,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::Orchestrator;
     use crate::config::OrchestratorConfig;
+
+    #[test]
+    fn isolation_status_json_reports_default_and_conflicts() {
+        let orch = Orchestrator::new(OrchestratorConfig::default());
+        let v = isolation_status_json(&orch);
+        assert_eq!(v["strategy_default"], "shared_branch");
+        assert_eq!(v["per_agent"].as_object().map(|m| m.len()), Some(0));
+        assert_eq!(v["active_conflicts"].as_array().map(|a| a.len()), Some(0));
+    }
+
+    #[test]
+    fn isolation_status_json_reflects_per_agent_override() {
+        let mut cfg = OrchestratorConfig::default();
+        cfg.isolation_per_agent
+            .insert(9, crate::isolation::IsolationStrategy::SeparateBranches);
+        let orch = Orchestrator::new(cfg);
+        let v = isolation_status_json(&orch);
+        assert_eq!(v["per_agent"]["9"], "separate_branches");
+    }
 
     #[test]
     fn snapshot_list_json_empty_store() {
