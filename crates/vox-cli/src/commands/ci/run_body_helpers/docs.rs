@@ -520,6 +520,10 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     crate::commands::ci::capability_sync::run(root, false)?;
     crate::commands::ci::plugin_surface::run(root, false)?;
     crate::commands::ci::plugin_catalog_sync::run(root, false)?;
+    // Catalog-derived reference docs must stay fresh when catalog.toml changes; this check
+    // otherwise lives only in docs-quality.yml, so catalog edits could pass ssot-drift while
+    // leaving the generated docs stale (the exact drift PR #218 left on main).
+    crate::commands::ci::generate_plugin_catalog_docs::run(None, None, true)?;
     crate::commands::ci::plugin_skill_parity::run(false)?;
     contracts_index::run(root)?;
     crate::commands::ci::docs_reality_audit::run_verify(root)?;
