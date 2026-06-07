@@ -17,8 +17,10 @@ export interface IsolationPanelProps {
   /** True while a status fetch or write is in flight. */
   busy?: boolean;
   /**
-   * Optional note rendered when no live status is wired yet (the GUI's MCP/Tauri
-   * transport does not yet expose the isolation REST surface — see panel docs).
+   * Optional note rendered as graceful degradation when `status` is null — e.g.
+   * the orchestrator daemon is unreachable so `get_vcs_isolation` returned nothing.
+   * (The transport IS wired: RepositoryView fetches via the `get_vcs_isolation`
+   * Tauri command over the shared orchestrator daemon.)
    */
   unavailableNote?: string;
 }
