@@ -17,6 +17,7 @@ pub mod policy;
 pub mod preferences;
 pub mod runs;
 pub mod scientia;
+pub mod scientia_review;
 pub mod search;
 pub mod secrets;
 pub mod signing;

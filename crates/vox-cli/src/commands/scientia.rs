@@ -410,6 +410,16 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     )
                     .await;
                 }
+                ScientiaCmd::EvidenceAssist {
+                    publication_id,
+                    claim_id,
+                } => {
+                    return super::scientia_phase_handlers::evidence_assist(
+                        &publication_id,
+                        claim_id,
+                    )
+                    .await;
+                }
                 ScientiaCmd::Dashboard => {
                     return super::scientia_phase_handlers::scientia_dashboard().await;
                 }

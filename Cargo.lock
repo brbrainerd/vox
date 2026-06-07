@@ -14323,6 +14323,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "turso",
+ "vox-actor-runtime",
  "vox-build-meta",
  "vox-cli",
  "vox-cli-core",
@@ -14336,6 +14337,7 @@ dependencies = [
  "vox-orchestrator-mcp",
  "vox-package-types",
  "vox-repository",
+ "vox-scientia",
  "vox-search",
  "vox-secrets",
 ]
@@ -15512,6 +15514,7 @@ dependencies = [
  "turso",
  "url",
  "uuid",
+ "vox-actor-runtime",
  "vox-config",
  "vox-crypto",
  "vox-db",
@@ -15520,6 +15523,7 @@ dependencies = [
  "vox-nanopub",
  "vox-research-events",
  "vox-search",
+ "vox-secrets",
 ]
 
 [[package]]
