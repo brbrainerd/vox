@@ -41,6 +41,22 @@ category: architecture
 
 (R-classes are the codegen-rust backlog. codegen-ts classes T* are enumerated after Task 1.A makes them observable — they are unknown until the corpus actually runs under Node.)
 
+### 1.1 Re-audit addendum (2026-06-07, branch `cc_bdesktop2/phase1-cross-arm-parity`, verified empirically)
+
+A fresh `vox` build (`2053 @ fb51437ed3`, post-#195) was used to re-measure. Findings that **change how Task 1.0 must be built**:
+
+- **interp = 10/10 confirmed.** Reference arm is solid.
+- **The merge did NOT advance codegen-rust parity.** The new main files `crates/vox-codegen/tests/{emit_compile_harness,binary_op_emit}.rs` are regression guards (snapshot + one-off compile micro-tests, not the golden corpus) and `crates/vox-codegen/src/codegen_rust/emit/param_borrow.rs` is `#[allow(dead_code)]` inference **not yet wired into emit**. So the **3/10 baseline stands**.
+- **`vox run --mode script` is impractical to shell per-golden for measurement.** Three verified blockers:
+  1. **Cold build ≈ >5 min/golden.** The native template (`pipeline.rs`) pulls `tokio`+`serde`+`serde_json`+`tracing`+`vox-actor-runtime`; a *clean* `noop` build **timed out at 300s**. Builds reuse a **shared** target dir `~/.vox/script-target` (`crates/vox-cli/src/build_lock.rs::resolve_target_dir`, lane = `ScriptNative`), so only the **first** build is cold — but warming it is a one-time multi-minute cost.
+  2. **A failed/interrupted script build corrupts the shared target** → *every* subsequent golden then returns empty. (Reproduced: one killed `decimal_math` build → all 10 goldens empty, incl. `noop` which passes in isolation.) `resolve_target_dir`'s `_isolation` param is currently **ignored** (always `~/.vox/script-target`), so there is no per-run isolation.
+  3. **The lane prints a timestamped `INFO vox.script: dispatch native script execution lane` line to STDOUT** before program output — must be stripped (set `NO_COLOR=1` + drop `^<rfc3339>\s+(INFO|WARN|...)\s` lines) when capturing.
+
+**Consequent design changes to Task 1.0 / 1.A (supersede the original sketch):**
+- **Build the codegen-rust column on the `emit_compile_harness.rs` pattern, NOT by shelling `vox run --mode script`.** That harness already compiles a generated crate via `cargo build` in a controlled temp dir; extend it to (a) run the corpus, (b) execute the built binary and capture stdout, (c) use a **dedicated, isolated** `CARGO_TARGET_DIR` (not `~/.vox/script-target`) so one golden's failure can't poison the others, (d) warm deps once. This is a **CI-tier `#[ignore]` gate** (minutes), not a fast unit test.
+- **Add a prerequisite robustness task R0:** make the script lane not corrupt `~/.vox/script-target` on build failure (and honor the `_isolation` param) — otherwise interactive `vox run --mode script` is fragile for everyone, not just the gate.
+- **Task 1.A (codegen-ts Node harness) is the more tractable first harness** — Node execution is sub-second with no 5-min cold cargo builds — so **measure the ts arm first** to enumerate the T-classes while the heavier rust gate is built.
+
 ---
 
 ## Task 1.A: codegen-ts Node execution harness (build from scratch)
