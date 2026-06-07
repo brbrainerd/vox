@@ -5,11 +5,13 @@ export default {
       colors: {
         void: '#09090b',
         steel: '#71717a',
-        brass: '#d4af37',
-        "amber-glow": 'rgba(212,175,55,0.5)',
+        // Accent palette is theme-switched via the --brass CSS var (see index.css).
+        // <alpha-value> keeps existing opacity utilities (brass/40, …) working.
+        brass: 'rgb(var(--brass) / <alpha-value>)',
+        "amber-glow": 'rgb(var(--brass) / 0.5)',
         border: 'rgba(255,255,255,0.06)',
         background: '#09090b',
-        primary: '#d4af37',
+        primary: 'rgb(var(--brass) / <alpha-value>)',
       },
       fontFamily: {
         display: ['Outfit', 'Inter', 'sans-serif'],

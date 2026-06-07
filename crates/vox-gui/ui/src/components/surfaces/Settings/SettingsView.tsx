@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { Icon } from '../../ui/Icons';
 import { voxTransport } from '../../../transport';
 import { PriorityChainEditor } from './PriorityChainEditor';
+import { applyTheme } from '../../../lib/theme';
 
 const SECTIONS = [
   { id: 'orchestrator', icon: 'cpu',     label: 'Orchestrator' },
@@ -74,7 +75,7 @@ function RangeInline({
         type="range" min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
         className="vox-range flex-1 h-1 appearance-none rounded-full overflow-hidden"
-        style={{ background: `linear-gradient(to right, #d4af37 ${pct}%, rgba(255,255,255,0.08) ${pct}%)` } as any}
+        style={{ background: `linear-gradient(to right, rgb(var(--brass)) ${pct}%, rgba(255,255,255,0.08) ${pct}%)` } as any}
       />
       <span className="w-14 text-right font-mono text-[11px] text-zinc-200">{value}{suffix}</span>
     </div>
@@ -598,7 +599,11 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
   const update = async (patch: Partial<SettingsState>) => {
     const next = { ...vals, ...patch };
     setVals(next);
-    
+
+    // Apply the accent palette immediately on theme change (before/independent
+    // of persistence), so the swatch selection takes visible effect at once.
+    if (patch.theme !== undefined) applyTheme(next.theme);
+
     // Attempt to push to Rust (fails gracefully if command not registered)
     try {
       await invoke('set_orchestrator_config', { config: next });
