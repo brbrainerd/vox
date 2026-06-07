@@ -313,6 +313,42 @@ fn emit_return_stmt(
     }
 }
 
+/// When one side of an `is`/`isnt` comparison is a `Some(..)` constructor and the
+/// other is a borrowing `.get(i)` call, return the two emitted operands with
+/// `.cloned()` applied to the get side.
+///
+/// `<list/map>.get(i)` lowers to Rust `Vec::get`/`HashMap::get`, which return a
+/// *borrow* (`Option<&T>`), but the interpreter's `.get` is value-semantic
+/// (`v.get(i).cloned()` → `Option<T>`). Comparing the borrow against `Some(owned)`
+/// (`Option<T>`) fails to type-check (`expected Option<&T>, found Option<T>`), so
+/// the get side is `.cloned()` to an owned `Option<T>`. Shared by the binary `is`
+/// path and the `assert(x is y)` → `assert_eq!` path. Returns `None` when the
+/// pattern doesn't apply (operands are emitted unchanged by the caller).
+fn normalize_get_vs_some<F>(l: &HirExpr, r: &HirExpr, emit: &F) -> Option<(String, String)>
+where
+    F: Fn(&HirExpr, OwnershipMode) -> String,
+{
+    let is_some_ctor = |e: &HirExpr| {
+        matches!(e, HirExpr::Call(callee, _, _, _)
+            if matches!(callee.as_ref(), HirExpr::Ident(n, _) if n == "Some"))
+    };
+    let is_borrowing_get =
+        |e: &HirExpr| matches!(e, HirExpr::MethodCall(_, m, _, _, _) if m == "get");
+    if is_some_ctor(r) && is_borrowing_get(l) {
+        Some((
+            format!("({}).cloned()", emit(l, OwnershipMode::Owned)),
+            emit(r, OwnershipMode::Owned),
+        ))
+    } else if is_some_ctor(l) && is_borrowing_get(r) {
+        Some((
+            emit(l, OwnershipMode::Owned),
+            format!("({}).cloned()", emit(r, OwnershipMode::Owned)),
+        ))
+    } else {
+        None
+    }
+}
+
 /// Emit a binary expression, handling the Pipe short-circuit and the
 /// arithmetic-vs-comparison borrow distinction.
 ///
@@ -355,6 +391,18 @@ where
                 "is_some"
             };
             return format!("({}).{}()", emit(opt_expr, OwnershipMode::Owned), method);
+        }
+        // Normalize a `<list/map>.get(i) is/isnt Some(..)` comparison: the
+        // borrowing `.get` (`Option<&T>`) is `.cloned()` to an owned `Option<T>`
+        // so it type-checks against the owned `Some(..)`. See
+        // `normalize_get_vs_some`.
+        if let Some((ls, rs)) = normalize_get_vs_some(l, r, emit) {
+            let cmp = if matches!(op, HirBinOp::Is) {
+                "=="
+            } else {
+                "!="
+            };
+            return format!("({} {} {})", ls, cmp, rs);
         }
     }
     let op_str = match op {
@@ -874,11 +922,17 @@ where
         )),
         ("assert", 1) => {
             if let HirExpr::Binary(HirBinOp::Is, l, r, _) = &args[0].value {
-                Some(format!(
-                    "assert_eq!({}, {})",
-                    emit(l.as_ref(), OwnershipMode::Owned),
-                    emit(r.as_ref(), OwnershipMode::Owned)
-                ))
+                // Apply the same borrowing-`.get` vs `Some(..)` normalization as
+                // the binary `is` path, so `assert(xs.get(i) is Some(..))` emits a
+                // type-correct `assert_eq!` (Option<T> on both sides).
+                let (ls, rs) =
+                    normalize_get_vs_some(l.as_ref(), r.as_ref(), emit).unwrap_or_else(|| {
+                        (
+                            emit(l.as_ref(), OwnershipMode::Owned),
+                            emit(r.as_ref(), OwnershipMode::Owned),
+                        )
+                    });
+                Some(format!("assert_eq!({}, {})", ls, rs))
             } else {
                 Some(format!(
                     "assert!({})",
