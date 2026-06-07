@@ -23,7 +23,7 @@ use super::{
     request_identity, resolve_access_role,
 };
 use crate::services::routes::{err, ok};
-use crate::sync_poison::poison_rw_read;
+use crate::sync_poison::{poison_rw_read, poison_rw_write};
 
 type GuardResult = std::result::Result<(), Json<Value>>;
 
@@ -577,6 +577,91 @@ pub async fn get_scientia_cost(
     ok(serde_json::to_value(&rollup).unwrap_or_else(|e| json!({ "error": e.to_string() })))
 }
 
+/// GET /api/v2/vcs/isolation — live isolation strategy + per-agent + active conflicts.
+pub async fn get_vcs_isolation(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Json<Value> {
+    if let Err(e) = enforce_dashboard_read(&gs, &connect.0, &headers) {
+        return e;
+    }
+    let v = vox_orchestrator::json_vcs_facade::isolation_status_json(&gs.server_state.orchestrator);
+    ok(v)
+}
+
+/// Body for `POST /api/v2/vcs/isolation/strategy`. All fields optional; at least
+/// one of `strategy_default` / (`agent_id` + `strategy`) should be supplied. A
+/// present `agent_id` with `strategy: null` clears that agent's override.
+#[derive(Debug, Deserialize)]
+pub struct PostIsolationStrategyBody {
+    #[serde(default)]
+    pub strategy_default: Option<vox_orchestrator::isolation::IsolationStrategy>,
+    #[serde(default)]
+    pub agent_id: Option<u64>,
+    /// Per-agent override. `Some(Some(s))` sets it, `Some(None)` clears it (only
+    /// meaningful when `agent_id` is present); absent leaves overrides untouched.
+    #[serde(default, deserialize_with = "deserialize_optional_strategy")]
+    pub strategy: Option<Option<vox_orchestrator::isolation::IsolationStrategy>>,
+}
+
+/// Distinguish "field absent" (`None`) from "field present and null" (`Some(None)`)
+/// from "field present with a value" (`Some(Some(_))`) for the override clear path.
+fn deserialize_optional_strategy<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<Option<vox_orchestrator::isolation::IsolationStrategy>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(Some(Option::deserialize(deserializer)?))
+}
+
+/// POST /api/v2/vcs/isolation/strategy — set the default and/or a per-agent override.
+pub async fn post_vcs_isolation_strategy(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<PostIsolationStrategyBody>,
+) -> Json<Value> {
+    if let Err(e) = enforce_dashboard_write(&gs, &connect.0, &headers) {
+        return e;
+    }
+    if body.strategy_default.is_none() && body.agent_id.is_none() {
+        return err(
+            "bad_request",
+            "supply strategy_default and/or agent_id (+ strategy)",
+        );
+    }
+
+    {
+        let handle = gs.server_state.orchestrator.isolation_policy_handle();
+        let mut plan = match poison_rw_write(handle.write(), "isolation policy for write") {
+            Ok(guard) => guard,
+            Err(e) => return err("lock", &e.to_string()),
+        };
+        if let Some(default) = body.strategy_default {
+            plan.default = default;
+        }
+        if let Some(agent_id) = body.agent_id {
+            // `strategy` absent => no override change; present (value or null) => set/clear.
+            if let Some(override_opt) = body.strategy {
+                plan.set_override(vox_orchestrator::types::AgentId(agent_id), override_opt);
+            }
+        }
+    }
+
+    let v = vox_orchestrator::json_vcs_facade::isolation_status_json(&gs.server_state.orchestrator);
+
+    // Push-on-write: notify subscribed dashboards. A send error means no
+    // subscribers are listening, which is fine.
+    let _ = gs.topic_tx.send(super::scientia_feed::TopicMessage {
+        topic: super::vcs_feed::VCS_ISOLATION_CHANGED.to_string(),
+        data: v.clone(),
+    });
+
+    ok(v)
+}
+
 /// Build the dashboard sub-router nested at `/api/v2`.
 pub fn router() -> Router<GatewayState> {
     Router::new()
@@ -592,4 +677,6 @@ pub fn router() -> Router<GatewayState> {
         .route("/mesh/nodes/{id}/kill", post(post_mesh_node_kill))
         .route("/scientia/queue", get(get_scientia_queue))
         .route("/scientia/cost", get(get_scientia_cost))
+        .route("/vcs/isolation", get(get_vcs_isolation))
+        .route("/vcs/isolation/strategy", post(post_vcs_isolation_strategy))
 }
