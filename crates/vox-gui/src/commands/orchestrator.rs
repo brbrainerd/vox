@@ -245,6 +245,81 @@ pub async fn get_orchestrator_status_bin() -> Result<tauri::ipc::Response, Strin
     Ok(tauri::ipc::Response::new(bytes))
 }
 
+/// Map the raw `[orchestrator]` TOML table into the exact `SettingsState` JSON
+/// keys the GUI Settings → Orchestrator panel consumes. Absent keys fall back to
+/// the real `OrchestratorConfig` defaults (see
+/// `vox-orchestrator/src/config/defaults.rs` + `impl_default.rs`):
+///   max_agents=8, financial_cost_budget_micros=50_000 ($0.05),
+///   trust_auto_approve_min=0.85, scope_enforcement=Wasm (default),
+///   exec_time_budget_enabled=true, socrates_gate_enforce=false.
+///
+/// Kept as a pure fn (no daemon, no fs) so the table→JSON mapping is unit-tested.
+fn orchestrator_table_to_settings_json(table: &toml::value::Table) -> serde_json::Value {
+    // concurrency ← max_agents (default 8)
+    let concurrency = table
+        .get("max_agents")
+        .and_then(|v| v.as_integer())
+        .unwrap_or(8);
+
+    // capUsd ← financial_cost_budget_micros / 1_000_000.0 (default 0.05)
+    let cap_usd = table
+        .get("financial_cost_budget_micros")
+        .and_then(|v| v.as_integer())
+        .map(|micros| micros as f64 / 1_000_000.0)
+        .unwrap_or(0.05);
+
+    // doubtThresh ← trust_auto_approve_min (default 0.85)
+    let doubt_thresh = table
+        .get("trust_auto_approve_min")
+        .and_then(|v| v.as_float())
+        .unwrap_or(0.85);
+
+    // isolation ← scope_enforcement enum. The UI has no 'warn' tier, so Warn maps
+    // to the wasm default (matching ScopeEnforcement::default()).
+    let isolation = match table.get("scope_enforcement").and_then(|v| v.as_str()) {
+        Some("Container") => "ctr",
+        Some("Native") => "native",
+        Some("Wasm") => "wasm",
+        Some("Warn") => "wasm",
+        _ => "wasm",
+    };
+
+    // autobudget ← exec_time_budget_enabled (default true)
+    let autobudget = table
+        .get("exec_time_budget_enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+
+    // doubt ← socrates_gate_enforce (default false)
+    let doubt = table
+        .get("socrates_gate_enforce")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    serde_json::json!({
+        "concurrency": concurrency,
+        "capUsd": cap_usd,
+        "doubtThresh": doubt_thresh,
+        "isolation": isolation,
+        "autobudget": autobudget,
+        "doubt": doubt,
+    })
+}
+
+/// Read the live `Vox.toml [orchestrator]` table and return the GUI
+/// `SettingsState` fields it drives. If no manifest is discovered, return the
+/// real defaults so the GUI renders honest values rather than erroring.
+#[tauri::command]
+pub async fn get_orchestrator_config() -> Result<serde_json::Value, String> {
+    let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
+    // No manifest found → return all defaults (empty table maps to defaults).
+    let table = match VoxManifest::discover(&current_dir) {
+        Ok((manifest, _path)) => manifest.orchestrator.unwrap_or_default(),
+        Err(_) => toml::value::Table::new(),
+    };
+    Ok(orchestrator_table_to_settings_json(&table))
+}
+
 #[tauri::command]
 pub async fn set_orchestrator_config(config: serde_json::Value) -> Result<(), String> {
     // 1. Discover Vox.toml
@@ -318,4 +393,53 @@ pub async fn set_orchestrator_config(config: serde_json::Value) -> Result<(), St
     });
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::orchestrator_table_to_settings_json;
+
+    #[test]
+    fn empty_table_yields_real_defaults() {
+        let table = toml::value::Table::new();
+        let json = orchestrator_table_to_settings_json(&table);
+        assert_eq!(json["concurrency"], 8);
+        assert_eq!(json["capUsd"], 0.05);
+        assert_eq!(json["doubtThresh"], 0.85);
+        assert_eq!(json["isolation"], "wasm");
+        assert_eq!(json["autobudget"], true);
+        assert_eq!(json["doubt"], false);
+    }
+
+    #[test]
+    fn populated_table_maps_each_field() {
+        let toml_src = r#"
+max_agents = 4
+financial_cost_budget_micros = 2_500_000
+trust_auto_approve_min = 0.7
+scope_enforcement = "Container"
+exec_time_budget_enabled = false
+socrates_gate_enforce = true
+"#;
+        let table: toml::value::Table = toml::from_str(toml_src).unwrap();
+        let json = orchestrator_table_to_settings_json(&table);
+        assert_eq!(json["concurrency"], 4);
+        assert_eq!(json["capUsd"], 2.5);
+        assert_eq!(json["doubtThresh"], 0.7);
+        assert_eq!(json["isolation"], "ctr");
+        assert_eq!(json["autobudget"], false);
+        assert_eq!(json["doubt"], true);
+    }
+
+    #[test]
+    fn warn_scope_enforcement_maps_to_wasm_default() {
+        // The UI has no 'warn' isolation tier; Warn must degrade to the wasm default.
+        let mut table = toml::value::Table::new();
+        table.insert(
+            "scope_enforcement".to_string(),
+            toml::Value::String("Warn".to_string()),
+        );
+        let json = orchestrator_table_to_settings_json(&table);
+        assert_eq!(json["isolation"], "wasm");
+    }
 }

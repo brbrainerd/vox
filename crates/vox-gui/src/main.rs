@@ -89,6 +89,7 @@ async fn main() {
             commands::orchestrator::get_orchestrator_status,
             commands::orchestrator::get_orchestrator_status_bin,
             commands::orchestrator::set_orchestrator_config,
+            commands::orchestrator::get_orchestrator_config,
             commands::dynamic_mapping::get_command_metadata,
             commands::dynamic_mapping::get_full_registry,
             commands::models::list_model_cards,

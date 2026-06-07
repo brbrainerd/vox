@@ -629,10 +629,31 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
           theme: theme || prev.theme,
           telemetry: telemetry || prev.telemetry,
           sign: sign != null ? sign === 'true' : prev.sign,
+          // checkpointMins is a UI-only preference (no OrchestratorConfig field).
           checkpointMins: checkpoint != null ? Number(checkpoint) || prev.checkpointMins : prev.checkpointMins,
         }));
       } catch {
         // keep default local state when preference DB isn't available
+      }
+      // Hydrate the orchestrator sliders from the real Vox.toml [orchestrator]
+      // table (falls back to real defaults if no manifest/daemon). This replaces
+      // the previously hardcoded literals so the panel reflects actual state.
+      try {
+        const orch = await invoke<{
+          concurrency: number; capUsd: number; doubtThresh: number;
+          isolation: string; autobudget: boolean; doubt: boolean;
+        }>('get_orchestrator_config');
+        setVals((prev) => ({
+          ...prev,
+          concurrency: orch.concurrency ?? prev.concurrency,
+          capUsd: orch.capUsd ?? prev.capUsd,
+          doubtThresh: orch.doubtThresh ?? prev.doubtThresh,
+          isolation: orch.isolation ?? prev.isolation,
+          autobudget: orch.autobudget ?? prev.autobudget,
+          doubt: orch.doubt ?? prev.doubt,
+        }));
+      } catch {
+        // Missing daemon/manifest: keep current defaults.
       }
     };
     hydrate();
@@ -744,7 +765,7 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
               <Row label="Auto-doubt threshold" hint="Confidence floor below which Augur intervenes">
                 <RangeInline value={Math.round(vals.doubtThresh * 100)} min={0} max={100} step={5} suffix="%" onChange={v => update({ doubtThresh: v / 100 })} />
               </Row>
-              <Row label="Durable checkpoint cadence" hint="Snapshot interval for resumable runs">
+              <Row label="Durable checkpoint cadence" hint="Snapshot interval for resumable runs (UI preference)">
                 <RangeInline value={vals.checkpointMins} min={1} max={30} step={1} suffix=" min" onChange={v => update({ checkpointMins: v })} />
               </Row>
               <Row label="Default isolation tier" hint="Runtime sandbox for new agents">
