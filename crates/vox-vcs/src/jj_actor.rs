@@ -36,9 +36,36 @@ use crate::backend::{VcsBackend, VcsError};
 use crate::jj_backend::JjBackend;
 use crate::types::{Change, ChangeId, Conflict, Diff, ResolveStrategy};
 use async_trait::async_trait;
+use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
+use std::time::Duration;
 use tokio::sync::oneshot;
+
+/// Upper bound on a single jj operation inside the actor. Remote push/fetch shell
+/// out to `git` and can legitimately take a while, so this is deliberately
+/// generous: its purpose is to stop a *wedged* operation from blocking the actor
+/// thread — and every command queued behind it — forever, not to bound normal
+/// latency. On elapse the operation's future is dropped (releasing its jj locks /
+/// mutex guard) and the caller gets `VcsError::Unavailable`.
+const OP_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// Run a single jj operation future under a timeout, mapping an elapsed deadline
+/// to a `VcsError` instead of hanging the actor. Kept as a free async fn (rather
+/// than inlined into the `guarded!` macro) so the timeout logic is unit-testable
+/// without a real wedged jj operation.
+async fn with_op_timeout<T>(
+    timeout: Duration,
+    fut: impl Future<Output = Result<T, VcsError>>,
+) -> Result<T, VcsError> {
+    match tokio::time::timeout(timeout, fut).await {
+        Ok(result) => result,
+        Err(_elapsed) => Err(VcsError::Unavailable(format!(
+            "jj operation timed out after {}s",
+            timeout.as_secs()
+        ))),
+    }
+}
 
 // ─── Command enum ──────────────────────────────────────────────────────────
 
@@ -166,7 +193,7 @@ impl JjActor {
             macro_rules! guarded {
                 ($rt:expr, $fut:expr, $reply:expr) => {{
                     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        $rt.block_on($fut)
+                        $rt.block_on(with_op_timeout(OP_TIMEOUT, $fut))
                     }));
                     match result {
                         Ok(method_result) => {
@@ -413,6 +440,25 @@ impl VcsBackend for JjActorHandle {
 mod tests {
     use super::*;
     use std::time::Duration;
+
+    /// A wedged operation elapses to a `VcsError` (so the actor thread is freed
+    /// for the next queued command) while a fast operation passes through cleanly.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn op_timeout_bounds_a_wedged_operation() {
+        let slow = async {
+            tokio::time::sleep(Duration::from_millis(250)).await;
+            Ok::<(), VcsError>(())
+        };
+        let timed_out = with_op_timeout(Duration::from_millis(20), slow).await;
+        assert!(
+            matches!(timed_out, Err(VcsError::Unavailable(ref m)) if m.contains("timed out")),
+            "a wedged operation must elapse to VcsError::Unavailable, got {timed_out:?}"
+        );
+
+        let fast = async { Ok::<i32, VcsError>(7) };
+        let passed = with_op_timeout(Duration::from_secs(5), fast).await;
+        assert_eq!(passed.unwrap(), 7, "a fast operation must pass through");
+    }
 
     /// Basic actor functionality: snapshot + changes from within a real
     /// multi-thread tokio runtime.  Proves the actor works and the snapshot id
