@@ -37,6 +37,9 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 turso = { workspace = true }
+[dev-dependencies]
+tempfile = { workspace = true }
+
 [build-dependencies]
 vox-build-meta = { workspace = true }
 tauri-build = { version = "2", features = [] }

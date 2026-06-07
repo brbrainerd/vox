@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "surface_count": 84,
+  "surface_count": 86,
   "top_level_groups": [
     "add",
     "ars",
@@ -47,6 +47,7 @@
     "play",
     "plugin",
     "pm",
+    "policy",
     "populi",
     "remove",
     "repair",

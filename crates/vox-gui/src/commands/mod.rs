@@ -13,6 +13,7 @@ pub mod memory;
 pub mod mesh;
 pub mod models;
 pub mod orchestrator;
+pub mod policy;
 pub mod preferences;
 pub mod runs;
 pub mod scientia;

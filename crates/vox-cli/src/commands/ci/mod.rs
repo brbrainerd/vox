@@ -55,6 +55,7 @@ mod plugin_skill_parity;
 mod plugin_surface;
 mod pm_provenance;
 mod policy_allowlist_parity;
+mod policy_registry;
 mod pre_push;
 mod release_build;
 pub(crate) mod retired_symbol_check;

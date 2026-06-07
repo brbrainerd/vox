@@ -14317,6 +14317,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-shell",
+ "tempfile",
  "tokio",
  "toml 0.8.23",
  "tracing",

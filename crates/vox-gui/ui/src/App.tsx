@@ -25,6 +25,9 @@ import { HarnessView } from './components/surfaces/Harness/HarnessView';
 import { surfaceDecorators } from './components/surfaces/decoratorRegistry';
 import { ApprovalsView } from './components/surfaces/Approvals/ApprovalsView';
 import { SkillsPluginsView } from './components/surfaces/SkillsPlugins/SkillsPluginsView';
+import { PoliciesView } from './components/surfaces/Policies/PoliciesView';
+import { overallWorst, worstCount } from './components/surfaces/Policies/policyTree';
+import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
 import { voxTransport, listenOrchStatus, listenAgentEvents, type AgentEventFrame } from './transport';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -51,6 +54,7 @@ type View =
   | 'research'
   | 'oratio'
   | 'approvals'
+  | 'policies'
   | 'skills'
   | 'settings'
   | 'coverage'
@@ -160,6 +164,8 @@ export default function App() {
   const [deployedSet, setDeployedSet] = useState(new Set<string>());
   const [selectedAgentId, setSelectedAgentId] = useState('ROOT');
   const [appVersion, setAppVersion] = useState<string>('loading…');
+  // Master-sidebar Policies badge: worst-status count for the current branch.
+  const [policyBadge, setPolicyBadge] = useState<{ count: number; status: RunStatus } | null>(null);
 
   // ── B4-chat: pure-reducer transcript state for the Loquela composer ────────
   const [chat, dispatchChat] = useReducer(chatReducer, initialChatState);
@@ -231,11 +237,36 @@ export default function App() {
       .catch(() => setAppVersion('unknown'));
 
     invoke('get_initial_view').then((view: any) => {
-      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'scientia', 'claims', 'mens', 'populi', 'research', 'oratio', 'approvals', 'skills', 'settings', 'coverage', 'publications', 'search'] as string[]).includes(view)) {
+      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'scientia', 'claims', 'mens', 'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage', 'publications', 'search'] as string[]).includes(view)) {
         setActiveView(view as View);
       }
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Master-sidebar Policies badge: poll the catalog + current-branch status,
+  // compute the worst status + count of rules at that tier, color the nav badge.
+  // Lightweight (in-process IPC) and resilient: any failure clears the badge.
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const [rows, branchInfos] = await Promise.all([
+          invoke<PolicyRow[]>('policy_list', { domain: null, group: null }),
+          invoke<BranchInfo[]>('list_branches').catch(() => [] as BranchInfo[]),
+        ]);
+        const branches = branchInfos.filter(b => b.isCurrent).map(b => b.branch);
+        const sel = branches.length ? branches : ['HEAD'];
+        const status = await invoke<PolicyStatus[]>('policy_status', { branches: sel }).catch(() => [] as PolicyStatus[]);
+        if (cancelled) return;
+        setPolicyBadge({ status: overallWorst(rows, status, sel), count: worstCount(rows, status, sel) });
+      } catch {
+        if (!cancelled) setPolicyBadge(null);
+      }
+    };
+    refresh();
+    const id = setInterval(refresh, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
   // ── Pushed status stream (B1: "vox://orch-status" Tauri event) ─────────────
@@ -578,6 +609,8 @@ export default function App() {
         return <HarnessView pushToast={pushToast} />;
       case 'approvals':
         return <ApprovalsView pushToast={pushToast} />;
+      case 'policies':
+        return <PoliciesView pushToast={pushToast} />;
       case 'skills':
         return <SkillsPluginsView pushToast={pushToast} />;
       default:
@@ -598,6 +631,7 @@ export default function App() {
         setMode={setSidebarMode}
         pushToast={pushToast}
         appVersion={appVersion}
+        policyBadge={policyBadge}
       />
 
       <main className="flex-1 flex flex-col min-w-0 relative">

@@ -222,6 +222,34 @@ pub async fn run(
         }
     }
 
+    // Phase 1c: record per-rule code-audit status for the current branch.
+    //
+    // Honesty guard: only emit when this was a FULL evaluation — no rule filter,
+    // no path exclusions, and the lowest severity (`info`), so every detector
+    // actually ran over every file and a clean rule genuinely earned `pass`. A
+    // scoped/filtered/excluded scan must NOT record `pass` for rules it skipped,
+    // evaluated only at a higher severity, or never ran on the excluded files
+    // (any of which would fake green). Best-effort: a write failure never fails
+    // the command.
+    let full_evaluation = rules.is_none()
+        && excludes.is_empty()
+        && matches!(
+            severity.map(|s| s.to_ascii_lowercase()).as_deref(),
+            None | Some("info")
+        );
+    if full_evaluation && std::env::var("VOX_NO_POLICY_STATUS").is_err() {
+        let repo_root = vox_repository::resolve_repo_root_for_ci();
+        let ran: Vec<String> = all_rules(None).iter().map(|r| r.id().to_string()).collect();
+        let projected =
+            crate::commands::policy::status_writer::code_audit_results(&ran, &result.findings);
+        let branch = crate::commands::policy::status_writer::current_branch(&repo_root);
+        let commit = crate::commands::policy::status_writer::head_commit(&repo_root);
+        let ran_at = chrono::Utc::now().to_rfc3339();
+        let _ = crate::commands::policy::status_writer::write_results(
+            &repo_root, &branch, &commit, &ran_at, projected,
+        );
+    }
+
     // If fix suggestions were requested, also dump the task queue
     if suggest_fixes && !result.task_queue.fix_suggestions.is_empty() {
         println!("\n{}", result.task_queue.to_markdown_checklist());
