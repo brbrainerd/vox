@@ -88,7 +88,7 @@ fn rel_key(p: &Path) -> String {
 
 /// Generate → build → run the codegen-rust script crate for `src`. Returns the
 /// program's trimmed stdout, or a one-line error (parse / codegen / build / run).
-fn build_and_run_script(src: &str) -> Result<String, String> {
+fn build_and_run_script(src: &str, key: &str) -> Result<String, String> {
     let module = parse_script(lex(src)).map_err(|e| format!("parse: {e:?}"))?;
     let hir = lower_module(&module);
     let output = generate_script(&hir, "vox-script", Some(&runtime_path()))
@@ -112,6 +112,14 @@ fn build_and_run_script(src: &str) -> Result<String, String> {
         .map_err(|e| format!("spawn cargo: {e}"))?;
     if !build.status.success() {
         let stderr = String::from_utf8_lossy(&build.stderr);
+        // Write the FULL build stderr (with --> locations + expected/found) to a
+        // readable file per golden so the near-green type errors can be fixed.
+        let err_dir = std::env::temp_dir().join("vox-f2a-errors");
+        let _ = std::fs::create_dir_all(&err_dir);
+        let _ = std::fs::write(
+            err_dir.join(format!("{}.txt", key.replace(['/', '\\'], "_"))),
+            stderr.as_bytes(),
+        );
         // Collect ALL real rustc diagnostic lines (`error[E0308]: ...` /
         // `error: ...`), not cargo progress like "Compiling thiserror", so the
         // full chain is visible per golden for batch diagnosis.
@@ -175,7 +183,7 @@ fn codegen_rust_logic_parity_ratchet() {
         let key = rel_key(g);
         let src = std::fs::read_to_string(g).expect("read golden");
         let expect = parse_expect(&src);
-        match build_and_run_script(&src) {
+        match build_and_run_script(&src, &key) {
             Ok(got) if got == expect => {
                 passed += 1;
                 println!("  {key:<30} OK");

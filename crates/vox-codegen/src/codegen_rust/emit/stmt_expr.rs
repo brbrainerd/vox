@@ -381,8 +381,22 @@ where
     // `String + i64`, which has no `Add` impl and fails to compile (the program
     // type-checks but the generated Rust does not).
     if matches!(op, HirBinOp::Add) {
-        let is_str_concat = matches!(l, HirExpr::StringLit(..))
-            || matches!(r, HirExpr::StringLit(..))
+        // A `+` chain that contains a string literal anywhere is string
+        // concatenation (typeck types `str + X` as `str`). This recursive check
+        // catches NESTED concats like `(a + ":") + item` whose OUTER `+` has
+        // neither operand a direct StringLit — without it the outer `+` emits
+        // `String + String` (E0308). See range_and_indexing / string_interpolation.
+        fn contains_str_lit(e: &HirExpr) -> bool {
+            match e {
+                HirExpr::StringLit(..) => true,
+                HirExpr::Binary(HirBinOp::Add, l, r, _) => {
+                    contains_str_lit(l) || contains_str_lit(r)
+                }
+                _ => false,
+            }
+        }
+        let is_str_concat = contains_str_lit(l)
+            || contains_str_lit(r)
             || inferred_types
                 .and_then(|m| m.get(bin_span))
                 .is_some_and(|t| matches!(t, HirType::Named(n) if n == "str"));
