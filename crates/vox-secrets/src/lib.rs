@@ -504,3 +504,187 @@ pub fn list_secret_status() -> Vec<SecretStatusRow> {
     }
     out
 }
+
+/// The currently-active secret resolution profile, derived from
+/// `VOX_SECRETS_PROFILE` (mirrors the precedence in [`resolve_secret`]).
+///
+/// Non-sensitive — exposes only the profile selector, never any material.
+#[must_use]
+pub fn active_resolve_profile() -> ResolveProfile {
+    resolve_profile_from_env()
+}
+
+/// Probe whether the active secrets backend is reachable.
+///
+/// Resolves managed specs until one reports [`ResolutionStatus::BackendUnavailable`];
+/// returns the first such backend detail (if any). Mirrors the logic behind the
+/// CLI `vox secrets backend-status` command. Never exposes secret material.
+#[must_use]
+pub fn backend_unavailable_detail() -> Option<String> {
+    for spec in all_specs() {
+        let res = resolve_secret(spec.id);
+        if matches!(res.status, ResolutionStatus::BackendUnavailable) {
+            return Some(res.detail.unwrap_or_else(|| "no detail".to_string()));
+        }
+    }
+    None
+}
+
+/// One managed secret recognised inside a `.env` file during import.
+///
+/// SECURITY: carries only the source key NAME, the canonical env it maps to, and
+/// a `head4…tail2` redacted preview of the value — NEVER the raw value.
+#[derive(Debug, Clone)]
+pub struct ImportEnvEntry {
+    /// The key as written in the `.env` file (may be an alias).
+    pub source_key: String,
+    /// The canonical managed env name it resolves to.
+    pub canonical_env: &'static str,
+    /// `head4…tail2 (redacted)` preview of the value — never the raw value.
+    pub redacted: String,
+}
+
+/// Result of an `.env` import (dry-run or applied).
+///
+/// SECURITY: `applied == false` means a dry-run that only reports recognised key
+/// NAMES; `applied == true` means the values were written to the vault and only a
+/// count is returned. No raw value is ever surfaced.
+#[derive(Debug, Clone)]
+pub struct ImportEnvResult {
+    /// `true` if the values were written to the vault; `false` for a dry-run preview.
+    pub applied: bool,
+    /// Managed secrets recognised in the file (names + redacted preview only).
+    pub entries: Vec<ImportEnvEntry>,
+}
+
+impl ImportEnvResult {
+    /// Number of managed secrets recognised / imported.
+    #[must_use]
+    pub fn count(&self) -> usize {
+        self.entries.len()
+    }
+}
+
+/// Parse a `.env` file and either preview (dry-run) or import its managed secrets
+/// into the Clavis vault.
+///
+/// Single source of truth shared by the CLI `vox secrets import-env` command and
+/// the GUI `import_env` Tauri command. Lines are simple `KEY=VALUE` pairs;
+/// comments (`#`) and blanks are skipped, and surrounding quotes are stripped.
+/// Only keys matching a managed [`SecretSpec`] (canonical, alias, or deprecated
+/// alias) are considered.
+///
+/// When `apply` is `false` the values are read but NEVER stored or returned —
+/// only key names + a redacted preview. When `apply` is `true` the values are
+/// written to the vault and the same redaction-safe entries are returned.
+///
+/// # Errors
+/// Returns [`SecretError`] if the file cannot be read, or (when `apply` is true)
+/// if the vault backend cannot be initialized or a write fails.
+pub fn import_env_from_path(
+    path: &std::path::Path,
+    apply: bool,
+) -> Result<ImportEnvResult, SecretError> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| SecretError::Io(format!("could not read {}: {e}", path.display())))?;
+
+    let backend = if apply {
+        Some(backend::vox_vault::VoxCloudBackend::new()?)
+    } else {
+        None
+    };
+
+    let specs = all_specs();
+    let mut entries = Vec::new();
+    for line in content.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some((key, val)) = line.split_once('=') else {
+            continue;
+        };
+        let key = key.trim();
+        let val = val.trim().trim_matches(|c| c == '"' || c == '\'');
+
+        let Some(spec) = specs.iter().find(|s| {
+            s.canonical_env == key
+                || s.aliases.contains(&key)
+                || s.deprecated_aliases.contains(&key)
+        }) else {
+            continue;
+        };
+
+        if let Some(b) = &backend {
+            let backend_key = spec.backend_key.unwrap_or(spec.canonical_env);
+            b.write_secret(backend_key, val)?;
+        }
+
+        entries.push(ImportEnvEntry {
+            source_key: key.to_string(),
+            canonical_env: spec.canonical_env,
+            redacted: redact_preview(val),
+        });
+    }
+
+    Ok(ImportEnvResult {
+        applied: apply,
+        entries,
+    })
+}
+
+/// `head4…tail2 (redacted)` preview of a value — never the raw value.
+fn redact_preview(value: &str) -> String {
+    if value.chars().count() > 6 {
+        let head: String = value.chars().take(4).collect();
+        let tail: String = value
+            .chars()
+            .rev()
+            .take(2)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
+        format!("{head}…{tail} (redacted)")
+    } else {
+        "*** (redacted)".to_string()
+    }
+}
+
+#[cfg(test)]
+mod import_env_tests {
+    use super::*;
+
+    #[test]
+    fn dry_run_recognizes_managed_keys_without_values() {
+        // Pick a real managed canonical env to guarantee recognition.
+        let canonical = all_specs()
+            .first()
+            .expect("at least one managed secret spec")
+            .canonical_env;
+        let dir = std::env::temp_dir();
+        let path = dir.join(format!("vox_import_env_test_{}.env", std::process::id()));
+        std::fs::write(
+            &path,
+            format!("# comment\n\nUNMANAGED_FOO=bar\n{canonical}=supersecretvalue\n"),
+        )
+        .unwrap();
+
+        let res = import_env_from_path(&path, false).expect("dry-run import");
+        let _ = std::fs::remove_file(&path);
+
+        assert!(!res.applied);
+        assert_eq!(res.count(), 1, "only the managed key is recognised");
+        let entry = &res.entries[0];
+        assert_eq!(entry.canonical_env, canonical);
+        // Redaction must not leak the raw value.
+        assert!(!entry.redacted.contains("supersecretvalue"));
+        assert!(entry.redacted.contains("redacted"));
+    }
+
+    #[test]
+    fn missing_file_is_an_error() {
+        let path = std::path::Path::new("definitely-does-not-exist-xyz.env");
+        assert!(import_env_from_path(path, false).is_err());
+    }
+}

@@ -5,6 +5,7 @@ import { Icon } from '../../ui/Icons';
 import { voxTransport } from '../../../transport';
 import { PriorityChainEditor } from './PriorityChainEditor';
 import { applyTheme } from '../../../lib/theme';
+import { useLocalStorage } from '../../../hooks/useLocalStorage';
 
 const SECTIONS = [
   { id: 'orchestrator', icon: 'cpu',     label: 'Orchestrator' },
@@ -322,17 +323,55 @@ interface SecretStatusDto {
   remediation: string;
 }
 
+// Backend/profile status header DTO, mirrors Rust `SecretsBackendStatusDto`.
+interface SecretsBackendStatusDto {
+  backendMode: string;
+  profile: string;
+  strict: boolean;
+  available: boolean;
+  detail: string | null;
+}
+
+// One recognised key from an `.env` import preview. NAMES + redacted only — no values.
+interface ImportEnvEntryDto {
+  sourceKey: string;
+  canonicalEnv: string;
+  redacted: string;
+}
+
+interface ImportEnvResultDto {
+  applied: boolean;
+  count: number;
+  entries: ImportEnvEntryDto[];
+}
+
 function KeysSecretsSection({ pushToast }: { pushToast: (t: any) => void }) {
   const [rows, setRows] = useState<SecretStatusDto[]>([]);
   const [loading, setLoading] = useState(true);
   // Holds ONLY the in-flight input value per key. Cleared immediately on save.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [status, setStatus] = useState<SecretsBackendStatusDto | null>(null);
+
+  // Per-taxonomy collapse state, persisted (mirrors the Sidebar pattern).
+  const [collapsed, setCollapsed] = useLocalStorage<Record<string, boolean>>('vox_secrets_groups', {});
+  // Tracks which slugs we've already applied the auto-expand default to, so a
+  // user's later manual collapse of a required group is never re-overridden.
+  const seededSlugs = useRef<Set<string>>(new Set());
+
+  // Inline Import .env flow state.
+  const [envPath, setEnvPath] = useState('');
+  const [preview, setPreview] = useState<ImportEnvResultDto | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
 
   const reload = async () => {
     try {
-      const next = await invoke<SecretStatusDto[]>('list_secret_status');
+      const [next, st] = await Promise.all([
+        invoke<SecretStatusDto[]>('list_secret_status'),
+        invoke<SecretsBackendStatusDto>('secrets_backend_status').catch(() => null),
+      ]);
       setRows(next);
+      if (st) setStatus(st);
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Could not load secrets', body: String(err) });
     } finally {
@@ -341,6 +380,86 @@ function KeysSecretsSection({ pushToast }: { pushToast: (t: any) => void }) {
   };
 
   useEffect(() => { reload(); }, []);
+
+  // Group rows by taxonomy slug (stable insertion order from the backend list).
+  const groups = React.useMemo(() => {
+    const map = new Map<string, SecretStatusDto[]>();
+    for (const r of rows) {
+      const slug = r.taxonomySlug || 'other';
+      (map.get(slug) ?? map.set(slug, []).get(slug)!).push(r);
+    }
+    return Array.from(map.entries()).map(([slug, items]) => {
+      const set = items.filter(i => i.isPresent).length;
+      const missing = items.length - set;
+      const needsAttention = items.some(i => i.required && !i.isPresent);
+      return { slug, items, set, missing, needsAttention };
+    });
+  }, [rows]);
+
+  // Default: groups with an unmet required secret start expanded; others stay as
+  // stored (or collapsed on first sight). Only seed each slug once.
+  useEffect(() => {
+    if (groups.length === 0) return;
+    setCollapsed(prev => {
+      const next = { ...prev };
+      let changed = false;
+      for (const g of groups) {
+        if (seededSlugs.current.has(g.slug)) continue;
+        seededSlugs.current.add(g.slug);
+        if (!(g.slug in next)) {
+          next[g.slug] = !g.needsAttention;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [groups, setCollapsed]);
+
+  const toggleGroup = (slug: string) =>
+    setCollapsed(prev => ({ ...prev, [slug]: !prev[slug] }));
+
+  const migrate = async () => {
+    setImportBusy(true);
+    try {
+      const moved = await invoke<number>('migrate_auth_store');
+      pushToast({ tone: 'ok', title: 'Auth store migrated', body: `${moved} entr${moved === 1 ? 'y' : 'ies'} moved to vault` });
+      await reload();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Migrate failed', body: String(err) });
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
+  const runPreview = async () => {
+    setImportBusy(true);
+    try {
+      const res = await invoke<ImportEnvResultDto>('import_env', { path: envPath || null, apply: false });
+      setPreview(res);
+      if (res.count === 0) {
+        pushToast({ tone: 'warn', title: 'No managed secrets found', body: envPath || '.env' });
+      }
+    } catch (err) {
+      setPreview(null);
+      pushToast({ tone: 'warn', title: 'Preview failed', body: String(err) });
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
+  const runImport = async () => {
+    setImportBusy(true);
+    try {
+      const res = await invoke<ImportEnvResultDto>('import_env', { path: envPath || null, apply: true });
+      setPreview(null);
+      pushToast({ tone: 'ok', title: 'Secrets imported', body: `${res.count} value${res.count === 1 ? '' : 's'} stored in vault` });
+      await reload();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Import failed', body: String(err) });
+    } finally {
+      setImportBusy(false);
+    }
+  };
 
   const save = async (key: string) => {
     const value = drafts[key];
@@ -372,60 +491,156 @@ function KeysSecretsSection({ pushToast }: { pushToast: (t: any) => void }) {
     }
   };
 
+  const renderSecretRow = (r: SecretStatusDto) => (
+    <div key={r.id} className="rounded-md border border-white/5 bg-white/[0.02] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="leading-tight">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[12px] text-zinc-100">{r.canonicalEnv}</span>
+            {r.required && (
+              <span className="rounded-full bg-amber-400/15 px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">required</span>
+            )}
+          </div>
+          <div className="mt-0.5 text-[10px] text-zinc-500">{r.scopeDescription}</div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
+            r.isPresent ? 'bg-emerald-400/15 text-emerald-300' : 'bg-zinc-700/40 text-zinc-400'
+          }`}>{r.isPresent ? 'set' : 'missing'}</span>
+          {r.isPresent && (
+            <span className="font-mono text-[10px] text-zinc-500">{r.redacted}</span>
+          )}
+        </div>
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <input
+          type="password"
+          autoComplete="new-password"
+          placeholder="Paste new value…"
+          value={drafts[r.canonicalEnv] ?? ''}
+          onChange={e => setDrafts(d => ({ ...d, [r.canonicalEnv]: e.target.value }))}
+          className="flex-1 rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
+        />
+        <button
+          disabled={!drafts[r.canonicalEnv] || busy === r.canonicalEnv}
+          onClick={() => save(r.canonicalEnv)}
+          className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+        >save</button>
+        <button
+          disabled={!r.isPresent || busy === r.canonicalEnv}
+          onClick={() => remove(r.canonicalEnv)}
+          className="rounded border border-rose-500/20 bg-rose-500/[0.04] px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10 disabled:opacity-40"
+        >remove</button>
+      </div>
+    </div>
+  );
+
   return (
     <>
-      <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Keys &amp; Secrets</h2>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Keys &amp; Secrets</h2>
+        {status && (
+          <>
+            <span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-zinc-300" title="Active secrets backend mode">
+              backend: {status.backendMode}
+            </span>
+            <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
+              status.strict ? 'bg-amber-400/15 text-amber-300' : 'bg-white/[0.04] text-zinc-300'
+            }`} title="Active resolution profile">
+              profile: {status.profile}
+            </span>
+            <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
+              status.available ? 'bg-emerald-400/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'
+            }`} title={status.detail ?? undefined}>
+              {status.available ? 'available' : 'unavailable'}
+            </span>
+          </>
+        )}
+      </div>
       <p className="mt-0.5 text-[11px] text-zinc-500">
         Managed API keys and tokens (Vox Secrets / Clavis). Values are write-only — once saved they are never shown again, only a redacted preview.
       </p>
+
+      {/* Actions: migrate auth.json + import .env */}
+      <div className="mt-4 rounded-md border border-white/5 bg-white/[0.02] p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            disabled={importBusy}
+            onClick={migrate}
+            className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+          >Migrate auth.json → vault</button>
+          <input
+            type="text"
+            value={envPath}
+            placeholder="default .env (optional path)"
+            onChange={e => { setEnvPath(e.target.value); setPreview(null); }}
+            className="min-w-[180px] flex-1 rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
+          />
+          <button
+            disabled={importBusy}
+            onClick={runPreview}
+            className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+          >Preview</button>
+          {preview && preview.count > 0 && (
+            <button
+              disabled={importBusy}
+              onClick={runImport}
+              className="rounded border border-emerald-400/20 bg-emerald-400/[0.06] px-2 py-1 font-mono text-[10px] text-emerald-300 hover:bg-emerald-400/10 disabled:opacity-40"
+            >Import {preview.count}</button>
+          )}
+        </div>
+        {preview && (
+          <div className="mt-2 rounded border border-white/5 bg-black/20 p-2">
+            <div className="font-display text-[10px] uppercase tracking-widest text-zinc-400">
+              {preview.count} managed secret{preview.count === 1 ? '' : 's'} would import (names only — no values shown)
+            </div>
+            {preview.entries.length > 0 && (
+              <div className="mt-1 flex flex-col gap-0.5">
+                {preview.entries.map(e => (
+                  <div key={e.canonicalEnv} className="flex items-center gap-2 font-mono text-[10px] text-zinc-400">
+                    <span className="text-zinc-200">{e.sourceKey}</span>
+                    <span className="text-zinc-600">→</span>
+                    <span className="text-zinc-300">{e.canonicalEnv}</span>
+                    <span className="text-zinc-600">{e.redacted}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {loading ? (
         <div className="mt-4 text-[12px] text-zinc-500">Loading…</div>
       ) : (
         <div className="mt-4 space-y-2">
-          {rows.map(r => (
-            <div key={r.id} className="rounded-md border border-white/5 bg-white/[0.02] p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="leading-tight">
+          {groups.map(g => {
+            const isCollapsed = !!collapsed[g.slug];
+            return (
+              <div key={g.slug} className="rounded-md border border-white/5 bg-white/[0.01]">
+                <button
+                  onClick={() => toggleGroup(g.slug)}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-white/[0.02]"
+                >
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-[12px] text-zinc-100">{r.canonicalEnv}</span>
-                    <span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-zinc-300">{r.taxonomySlug}</span>
-                    {r.required && (
-                      <span className="rounded-full bg-amber-400/15 px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">required</span>
+                    <span className="font-mono text-[10px] text-zinc-500">{isCollapsed ? '▸' : '▾'}</span>
+                    <span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-zinc-300">{g.slug}</span>
+                    {g.needsAttention && (
+                      <span className="rounded-full bg-amber-400/15 px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">action needed</span>
                     )}
                   </div>
-                  <div className="mt-0.5 text-[10px] text-zinc-500">{r.scopeDescription}</div>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
-                    r.isPresent ? 'bg-emerald-400/15 text-emerald-300' : 'bg-zinc-700/40 text-zinc-400'
-                  }`}>{r.isPresent ? 'set' : 'missing'}</span>
-                  {r.isPresent && (
-                    <span className="font-mono text-[10px] text-zinc-500">{r.redacted}</span>
-                  )}
-                </div>
+                  <span className="font-mono text-[10px] text-zinc-500">
+                    {g.set} set / {g.missing} missing
+                  </span>
+                </button>
+                {!isCollapsed && (
+                  <div className="space-y-2 px-2 pb-2">
+                    {g.items.map(renderSecretRow)}
+                  </div>
+                )}
               </div>
-              <div className="mt-2 flex items-center gap-2">
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Paste new value…"
-                  value={drafts[r.canonicalEnv] ?? ''}
-                  onChange={e => setDrafts(d => ({ ...d, [r.canonicalEnv]: e.target.value }))}
-                  className="flex-1 rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
-                />
-                <button
-                  disabled={!drafts[r.canonicalEnv] || busy === r.canonicalEnv}
-                  onClick={() => save(r.canonicalEnv)}
-                  className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
-                >save</button>
-                <button
-                  disabled={!r.isPresent || busy === r.canonicalEnv}
-                  onClick={() => remove(r.canonicalEnv)}
-                  className="rounded border border-rose-500/20 bg-rose-500/[0.04] px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10 disabled:opacity-40"
-                >remove</button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </>
