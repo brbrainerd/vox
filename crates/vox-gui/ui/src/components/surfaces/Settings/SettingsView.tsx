@@ -8,6 +8,7 @@ import { PriorityChainEditor } from './PriorityChainEditor';
 const SECTIONS = [
   { id: 'orchestrator', icon: 'cpu',     label: 'Orchestrator' },
   { id: 'routing',      icon: 'matrix',  label: 'Model routing' },
+  { id: 'runtime',      icon: 'flow',    label: 'Runtime' },
   { id: 'mesh',         icon: 'flow',    label: 'Mesh & peers' },
   { id: 'signing',      icon: 'shield',  label: 'Signing keys' },
   { id: 'secrets',      icon: 'shield',  label: 'Keys & Secrets' },
@@ -430,6 +431,150 @@ function KeysSecretsSection({ pushToast }: { pushToast: (t: any) => void }) {
   );
 }
 
+/** Editable runtime config field, mirrors Rust `UserConfigFieldDto`. */
+interface UserConfigFieldDto {
+  key: string;
+  label: string;
+  hint: string;
+  group: string;
+  kind: 'string' | 'float' | 'int' | 'path' | 'enum';
+  options: string[];
+  default: string;
+  currentValue: string;
+}
+
+const RUNTIME_GROUP_ORDER = ['General', 'Models & endpoints', 'Tuning', 'Training'];
+
+function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
+  const [fields, setFields] = useState<UserConfigFieldDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  // In-flight edits keyed by config key; cleared on reload.
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const savedToast = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const reload = useCallback(async () => {
+    try {
+      const next = await invoke<UserConfigFieldDto[]>('get_user_config');
+      setFields(next);
+      setDrafts({});
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Could not load runtime config', body: String(err) });
+    } finally {
+      setLoading(false);
+    }
+  }, [pushToast]);
+
+  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => () => { if (savedToast.current) clearTimeout(savedToast.current); }, []);
+
+  const save = async (f: UserConfigFieldDto, value: string) => {
+    setBusy(f.key);
+    try {
+      await invoke('set_user_config', { key: f.key, value });
+      if (savedToast.current) clearTimeout(savedToast.current);
+      savedToast.current = setTimeout(() => {
+        pushToast({ tone: 'ok', title: 'Setting saved', body: f.label });
+      }, 600);
+      await reload();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Save failed', body: String(err) });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const reset = async (f: UserConfigFieldDto) => {
+    setBusy(f.key);
+    try {
+      await invoke('reset_user_config', { key: f.key });
+      pushToast({ tone: 'ok', title: 'Reset to default', body: f.label });
+      await reload();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Reset failed', body: String(err) });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const draftFor = (f: UserConfigFieldDto) => drafts[f.key] ?? f.currentValue;
+
+  const control = (f: UserConfigFieldDto) => {
+    if (f.kind === 'enum') {
+      return (
+        <div className="inline-flex flex-wrap items-center rounded-md border border-white/10 bg-black/30 p-0.5">
+          {f.options.map(opt => (
+            <button
+              key={opt}
+              disabled={busy === f.key}
+              onClick={() => save(f, opt)}
+              className={`rounded-[5px] px-2 py-1 font-display text-[10px] uppercase tracking-[0.12em] transition disabled:opacity-40 ${
+                f.currentValue === opt ? 'bg-white/10 text-zinc-50' : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >{opt}</button>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          inputMode={f.kind === 'float' || f.kind === 'int' ? 'numeric' : 'text'}
+          value={draftFor(f)}
+          placeholder={f.default || '—'}
+          onChange={e => setDrafts(d => ({ ...d, [f.key]: e.target.value }))}
+          className="w-56 rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
+        />
+        <button
+          disabled={busy === f.key || draftFor(f) === f.currentValue}
+          onClick={() => save(f, draftFor(f))}
+          className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+        >save</button>
+      </div>
+    );
+  };
+
+  const groups = RUNTIME_GROUP_ORDER
+    .map(g => ({ group: g, items: fields.filter(f => f.group === g) }))
+    .filter(g => g.items.length > 0);
+
+  return (
+    <>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Runtime</h2>
+      <p className="mt-0.5 text-[11px] text-zinc-500">
+        Core user config persisted to <code className="font-mono text-zinc-400">~/.vox/config.toml</code> (effective values: ENV &gt; Vox.toml &gt; global &gt; defaults)
+      </p>
+      {loading ? (
+        <div className="mt-4 text-[12px] text-zinc-500">Loading…</div>
+      ) : (
+        <div className="mt-4 space-y-5">
+          {groups.map(({ group, items }) => (
+            <div key={group}>
+              <div className="font-display text-[11px] uppercase tracking-[0.15em] text-zinc-400">{group}</div>
+              <div className="mt-2 space-y-2">
+                {items.map(f => (
+                  <Row key={f.key} label={f.label} hint={f.hint}>
+                    <div className="flex items-center gap-2">
+                      {control(f)}
+                      <button
+                        disabled={busy === f.key}
+                        onClick={() => reset(f)}
+                        title="Reset to default"
+                        className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-400 hover:bg-white/5 disabled:opacity-40"
+                      >reset</button>
+                    </div>
+                  </Row>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 interface SettingsViewProps {
   pushToast: (t: any) => void;
 }
@@ -696,6 +841,8 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
             <PriorityChainEditor pushToast={pushToast} />
           </>
         )}
+
+        {section === 'runtime' && <RuntimeConfigSection pushToast={pushToast} />}
 
         {section === 'mesh' && <MeshPeersSection pushToast={pushToast} />}
 

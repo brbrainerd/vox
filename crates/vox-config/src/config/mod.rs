@@ -15,3 +15,9 @@ mod vox_config;
 
 pub use gamify_web::{BuildTarget, GamifyMode, WebRunMode};
 pub use vox_config::VoxConfig;
+
+/// Test-only accessor for the file path `VoxConfig::save()` writes to.
+#[cfg(test)]
+pub(crate) fn persist_test_global_config_path() -> Option<std::path::PathBuf> {
+    persist::global_config_path()
+}
