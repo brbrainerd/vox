@@ -96,6 +96,7 @@ vox-crypto = { workspace = true }
 vox-identity = { workspace = true }
 vox-mesh-types = { workspace = true }
 vox-populi-types = { workspace = true }
+vox-distributed-training = { workspace = true }
 
 # TLS (optional, P0-T5)
 rustls = { workspace = true, optional = true }

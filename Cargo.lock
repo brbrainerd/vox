@@ -15271,6 +15271,7 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
+ "vox-distributed-training",
  "vox-eval",
  "vox-foundation",
  "vox-grammar-export",
