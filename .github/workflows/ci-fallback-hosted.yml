@@ -77,13 +77,16 @@ jobs:
 
       # `--profile ci` excludes slow #[ignore] tests by design; those run on the
       # self-hosted fleet.
+      # Exclude vox-gui (Tauri/GTK frontend) to match the Clippy step above: this
+      # hosted fallback lane does not build the GUI, and its glib/GTK system deps
+      # (libglib-2.0) are not installed on the GitHub-hosted runner.
       - name: Test (nextest)
-        run: cargo nextest run --workspace --profile ci
+        run: cargo nextest run --workspace --exclude vox-gui --profile ci
         env:
           INSTA_UPDATE: unseen
 
       - name: Doctests
-        run: cargo test --workspace --doc
+        run: cargo test --workspace --exclude vox-gui --doc
 
       - name: cargo-deny
         run: cargo deny check

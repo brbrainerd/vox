@@ -29,7 +29,7 @@ pub enum VcsError {
 ///
 /// jj-lib 0.42's async futures are **`!Send`**. `VcsBackend` is `#[async_trait]`
 /// (Send futures) so handles can cross `tokio::spawn`. The `JjBackend` engine
-/// (which is `!Send`) lives on a dedicated OS thread behind [`JjActorHandle`],
+/// (which is `!Send`) lives on a dedicated OS thread behind `JjActorHandle`,
 /// which satisfies this `Send` contract.
 #[async_trait]
 pub trait VcsBackend: Send {
@@ -48,6 +48,12 @@ pub trait VcsBackend: Send {
     /// remote concept (CAS) return [`VcsError::Unavailable`].
     async fn add_remote(&mut self, _name: &str, _url: &str) -> Result<(), VcsError> {
         Err(VcsError::Unavailable("backend has no remotes".into()))
+    }
+
+    /// Create (or move) a named branch/bookmark at the current change. Backends
+    /// without a branch concept (CAS) return [`VcsError::Unavailable`].
+    async fn create_branch(&mut self, _name: &str) -> Result<(), VcsError> {
+        Err(VcsError::Unavailable("backend has no branches".into()))
     }
 
     /// Push `change` to `remote` under bookmark/branch `bookmark`.

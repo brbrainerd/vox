@@ -42,7 +42,7 @@ pub struct ServerState {
     /// then re-run discover to refresh both registries.
     pub plugins_dir: Arc<std::path::PathBuf>,
 
-    /// Live plugin-host [`Registry`] from `discover(plugins_dir)`. Wrapped in an
+    /// Live plugin-host [`vox_plugin_host::registry::Registry`] from `discover(plugins_dir)`. Wrapped in an
     /// async `RwLock` so `vox_plugin_install` / `vox_plugin_remove` can swap in a
     /// freshly-discovered registry after mutating the install dir.
     pub plugin_registry: Arc<TokRwLock<vox_plugin_host::registry::Registry>>,

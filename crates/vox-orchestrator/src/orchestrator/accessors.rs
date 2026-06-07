@@ -413,6 +413,13 @@ impl Orchestrator {
         std::sync::Arc::clone(&self.conflict_manager)
     }
 
+    /// Live multi-agent isolation policy (strategy default + per-agent overrides).
+    pub fn isolation_policy_handle(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::isolation::IsolationPlan>> {
+        std::sync::Arc::clone(&self.isolation_policy)
+    }
+
     /// Alias for conflict_manager_handle.
     pub fn conflict_manager_mut(
         &self,

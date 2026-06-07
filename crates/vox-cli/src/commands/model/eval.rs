@@ -83,7 +83,7 @@ pub struct FixtureResult {
     /// Wall-clock latency of the call in milliseconds.
     pub latency_ms: i64,
     /// Cost of this call in USD as reported by the LLM facade
-    /// ([`LlmResponse::cost_usd`]): provider-reported `total_cost` when present,
+    /// (`LlmResponse::cost_usd`): provider-reported `total_cost` when present,
     /// else a `cost_per_1k` estimate, else `None` (unknown / free mock backend).
     pub cost_usd: Option<f64>,
 }

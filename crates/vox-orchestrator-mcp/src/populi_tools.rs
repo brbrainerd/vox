@@ -1,11 +1,11 @@
 ﻿//! Populi (Vox Populi distributed mesh) introspection MCP tools.
 //!
-//! - [`mesh_local_status`] — `vox_populi_local_status` (legacy; local registry + env dump).
-//! - [`mesh_nodes`] — `vox_mesh_nodes`: node list (control plane preferred, local-registry fallback).
-//! - [`mesh_queue_stats`] — `vox_mesh_queue_stats`: queue stats (control plane preferred, local fallback).
-//! - [`mesh_dispatch`] — `vox_mesh_dispatch`: dispatch a script (control-plane only; clear error otherwise).
+//! - `mesh_local_status` — `vox_populi_local_status` (legacy; local registry + env dump).
+//! - `mesh_nodes` — `vox_mesh_nodes`: node list (control plane preferred, local-registry fallback).
+//! - `mesh_queue_stats` — `vox_mesh_queue_stats`: queue stats (control plane preferred, local fallback).
+//! - `mesh_dispatch` — `vox_mesh_dispatch`: dispatch a script (control-plane only; clear error otherwise).
 //!
-//! The control plane is the [`vox-populi`] HTTP API (`GET /v1/populi/nodes`,
+//! The control plane is the `vox-populi` HTTP API (`GET /v1/populi/nodes`,
 //! `GET /v1/populi/queue/stats`, `POST /v1/populi/dispatch`). Its base URL is resolved from
 //! [`crate::server_state::ServerState`]'s `populi_control_url` config, falling back to the
 //! `VOX_ORCHESTRATOR_MESH_CONTROL_URL` / `VOX_MESH_CONTROL_ADDR` secrets (same precedent as
@@ -165,7 +165,7 @@ pub async fn mesh_nodes(state: &ServerState, _args: Value) -> anyhow::Result<Str
 
 /// `vox_mesh_queue_stats` — pending queue depth / breakdown.
 ///
-/// Prefers `GET /v1/populi/queue/stats` (rich [`vox_populi::transport::MeshQueueStats`]); falls
+/// Prefers `GET /v1/populi/queue/stats` (rich `vox_populi::transport::MeshQueueStats`); falls
 /// back to the local registry's `queue_depth` when no control plane is configured or it is
 /// unreachable.
 #[cfg_attr(not(feature = "populi-transport"), allow(unused_variables))]

@@ -92,6 +92,10 @@ pub(crate) enum Command {
         change: ChangeId,
         reply: Reply<()>,
     },
+    CreateBranch {
+        name: String,
+        reply: Reply<()>,
+    },
     Shutdown,
     /// Test-only variant: forces a panic inside the catch_unwind wrapper to
     /// verify the actor survives a panicking operation.
@@ -239,6 +243,10 @@ impl JjActor {
                         reply,
                     } => {
                         guarded!(rt, engine.push(&remote, &bookmark, change), reply);
+                    }
+
+                    Command::CreateBranch { name, reply } => {
+                        guarded!(rt, engine.create_branch(&name), reply);
                     }
 
                     #[cfg(test)]
@@ -391,6 +399,12 @@ impl VcsBackend for JjActorHandle {
         })
         .await
     }
+
+    async fn create_branch(&mut self, name: &str) -> Result<(), VcsError> {
+        let name = name.to_owned();
+        self.call(|reply| Command::CreateBranch { name, reply })
+            .await
+    }
 }
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
@@ -418,6 +432,22 @@ mod tests {
             changes.iter().any(|c| c.id == id),
             "snapshot id must appear in the change log"
         );
+    }
+
+    /// P4 Task 5: create_branch over the actor handle succeeds end-to-end.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn actor_create_branch_succeeds() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("br.txt"), b"branch").unwrap();
+        let mut handle = JjActor::spawn(dir.path().to_path_buf()).expect("spawn actor");
+        handle
+            .snapshot(Some("base"), vec![PathBuf::from("br.txt")])
+            .await
+            .expect("snapshot");
+        handle
+            .create_branch("agent/3")
+            .await
+            .expect("create_branch over actor must succeed");
     }
 
     /// THE key test: proves `JjActorHandle` futures are `Send` and can cross

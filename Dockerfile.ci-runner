@@ -28,12 +28,23 @@ ENV DEBIAN_FRONTEND=noninteractive \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH
 
-# System packages matching the self-hosted fleet baseline
+# System packages matching the self-hosted fleet baseline.
+#
+# GUI/Tauri build deps (libglib2.0-dev, libgtk-3-dev, libwebkit2gtk-4.1-dev,
+# libsoup-3.0-dev, librsvg2-dev) are required because the `gate` clippy job builds
+# the whole workspace (`--workspace --all-targets`), which pulls `glib-sys` /
+# `gtk-sys` via the desktop-shell crates. Without these, `gate` fails with
+# "Package glib-2.0 was not found in the pkg-config search path".
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     pkg-config \
     libssl-dev \
     libsqlite3-dev \
+    libglib2.0-dev \
+    libgtk-3-dev \
+    libwebkit2gtk-4.1-dev \
+    libsoup-3.0-dev \
+    librsvg2-dev \
     curl \
     git \
     ca-certificates \

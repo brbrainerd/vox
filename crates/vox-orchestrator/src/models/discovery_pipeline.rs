@@ -4,7 +4,7 @@
 //! exists. The missing piece is the loop that (a) indexes which discovered models
 //! still owe an evaluation and (b) flips routing eligibility from a static
 //! *pricing-source proxy* to **real `model_scoreboard` evidence** via the
-//! autonomic [`should_promote`](super::autonomic::should_promote) state machine.
+//! autonomic [`super::autonomic::should_promote`] state machine.
 //!
 //! Both functions here are pure (no network, no DB, no config-cache I/O — the
 //! caller supplies the registry snapshot, scoreboard rows, and retired set), so

@@ -85,7 +85,7 @@ impl std::str::FromStr for RoutingProfile {
 ///
 /// Resolution order:
 ///   1. The `VoxRoutingProfile` secret, if set and parseable, wins.
-///   2. Otherwise map [`CostPreference`]: `Economy` → [`Free`](RoutingProfile::Free)
+///   2. Otherwise map `CostPreference`: `Economy` → [`Free`](RoutingProfile::Free)
 ///      (free-by-default), `Performance` → [`Performance`](RoutingProfile::Performance).
 #[must_use]
 pub fn config_to_routing_profile(cfg: &crate::config::OrchestratorConfig) -> RoutingProfile {

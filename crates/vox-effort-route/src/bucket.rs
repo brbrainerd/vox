@@ -17,7 +17,7 @@ pub struct Bucket {
 }
 
 /// Derive the owning crate from a finding's evidence pointers (preferred) or
-/// shape histogram (fallback). Returns "<workspace-root>" when no crate path found.
+/// shape histogram (fallback). Returns `"<workspace-root>"` when no crate path found.
 ///
 /// Per spec §3 step 2, this is the crate owning the **plurality** of the
 /// finding's touched paths (evidence pointers), not merely the first one. Ties

@@ -1,7 +1,7 @@
 //! [`NodeRecord`], [`PopuliRegistryFile`], and their stateless helpers.
 //!
 //! Extracted from `vox-populi/src/node_registry.rs` per ADR-042. The file-backed
-//! persistence layer ([`vox-populi::LocalRegistry`]) remains in `vox-populi`.
+//! persistence layer (`vox-populi::LocalRegistry`) remains in `vox-populi`.
 
 use serde::{Deserialize, Serialize};
 use vox_repository::TaskCapabilityHints;

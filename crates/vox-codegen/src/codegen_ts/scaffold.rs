@@ -3,7 +3,7 @@
 //! These are project toolchain files (Vite, Tailwind, tsconfig, package.json)
 //! that a host project may want as a starting point. The app *bootstrap* itself
 //! — `entry.tsx` / `vox-app.tsx` / `app-hooks.tsx` / error boundary / SW — is
-//! **emitted on every build** by [`super::web_entry`], so `main.tsx` / `App.tsx`
+//! **emitted on every build** by `web_entry`, so `main.tsx` / `App.tsx`
 //! are no longer scaffolded (they would shadow the generated router).
 
 use std::path::Path;

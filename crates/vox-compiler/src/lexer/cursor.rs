@@ -74,6 +74,19 @@ mod tests {
     }
 
     #[test]
+    fn lexes_versioned_and_tracked_decorators() {
+        let toks = lex_tokens("@versioned @tracked");
+        assert!(
+            toks.contains(&Token::AtVersioned),
+            "expected AtVersioned, got {toks:?}"
+        );
+        assert!(
+            toks.contains(&Token::AtTracked),
+            "expected AtTracked, got {toks:?}"
+        );
+    }
+
+    #[test]
     fn test_simple_let_binding() {
         let tokens = lex_tokens("let x = 5");
         assert_eq!(

@@ -179,17 +179,17 @@ pub struct WasmRunArgs {
     /// Fuel limit (wasmtime instructions). Omitted / 0 = unlimited.
     #[arg(long)]
     pub fuel: Option<u64>,
-    /// Read-only preopen, repeatable: HOST[:GUEST] (guest defaults to host).
+    /// Read-only preopen, repeatable: `HOST[:GUEST]` (guest defaults to host).
     #[arg(long = "preopen-ro", value_name = "HOST[:GUEST]")]
     pub preopen_ro: Vec<String>,
-    /// Read-write preopen, repeatable: HOST[:GUEST].
+    /// Read-write preopen, repeatable: `HOST[:GUEST]`.
     #[arg(long = "preopen-rw", value_name = "HOST[:GUEST]")]
     pub preopen_rw: Vec<String>,
     /// Environment variable exposed to the guest (WASI), repeatable: KEY=VALUE.
     /// This is how the mesh worker forwards tier-gated secrets into the sandbox.
     #[arg(long = "env", value_name = "KEY=VALUE")]
     pub env: Vec<String>,
-    /// Guest argv (argv[0] is synthesized from the module stem).
+    /// Guest argv (`argv[0]` is synthesized from the module stem).
     #[arg(trailing_var_arg = true)]
     pub args: Vec<String>,
 }

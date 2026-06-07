@@ -7,9 +7,9 @@
 //! per-file: a file that directly imports itself (cycle of length 1).
 //!
 //! For multi-file cycles (A → B → A, or longer chains) the crate also exposes
-//! [`detect_import_cycles_in_batch`], a free function that accepts the full
+//! [`detect_import_cycles_in_batch`](crate::detect_import_cycles_in_batch), a free function that accepts the full
 //! `SourceFile` slice from a workspace scan, builds the directed import graph,
-//! runs iterative DFS cycle detection, and returns [`Finding`]s for each
+//! runs iterative DFS cycle detection, and returns [`crate::Finding`]s for each
 //! import edge that closes a cycle.  The engine / CLI should call it as a
 //! post-scan step when the complete file set is available.
 //!

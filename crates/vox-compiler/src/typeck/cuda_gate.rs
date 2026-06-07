@@ -76,6 +76,7 @@ mod tests {
             is_mobile_native: false,
             is_pure: false,
             is_reactive: false,
+            is_versioned: false,
             is_remote: false,
             is_llm: false,
             llm_model: None,

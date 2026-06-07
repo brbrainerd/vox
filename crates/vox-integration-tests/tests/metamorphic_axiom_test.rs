@@ -31,6 +31,7 @@ fn prop_sort_idempotent(list: list[int]) {
             is_mobile_native: false,
             is_pure: true,
             is_reactive: false,
+            is_versioned: false,
             is_llm: false,
             llm_model: None,
             ai_structured_output: None,

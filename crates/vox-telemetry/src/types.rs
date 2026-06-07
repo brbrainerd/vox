@@ -298,7 +298,7 @@ pub enum TelemetryEvent {
     AuditRun(AuditRunEvent),
     /// One `select()` call — L0 of the model-autonomic system.
     /// `metric_type = METRIC_TYPE_SELECTION_DECISION`.
-    /// See [`docs/src/architecture/model-autonomic-system-2026.md`] §4.
+    /// See `docs/src/architecture/model-autonomic-system-2026.md` §4.
     SelectionDecision(SelectionDecisionEvent),
     /// A model id appeared in an upstream catalog that wasn't in the prior
     /// snapshot. L1 of the model-autonomic system.

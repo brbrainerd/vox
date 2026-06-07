@@ -455,14 +455,17 @@ pub(crate) fn verdict_to_row(
     }
 }
 
-/// Build the JSON payload for `vox scientia claims` from a publication id and its
-/// claim rows. Pure (no IO) so the shape is unit-testable without a DB.
+/// Build a claims JSON payload from a publication id and its claim rows. Pure
+/// (no IO) so the shape is unit-testable without a DB. `schema_kind` tags the
+/// payload so consumers can distinguish the full claim list from the
+/// review-queue subset (they carry the same row shape but different meaning).
 fn build_claims_payload<T: serde::Serialize>(
+    schema_kind: &str,
     publication_id: &str,
     claims: &[T],
 ) -> serde_json::Value {
     serde_json::json!({
-        "schema_kind": "scientia_publication_claims",
+        "schema_kind": schema_kind,
         "publication_id": publication_id,
         "claim_count": claims.len(),
         "claims": claims,
@@ -480,7 +483,29 @@ pub async fn publication_claims(publication_id: &str) -> Result<()> {
         .list_publication_claims(session_id)
         .await
         .context("list publication claims")?;
-    let payload = build_claims_payload(publication_id, &claims);
+    let payload = build_claims_payload("scientia_publication_claims", publication_id, &claims);
+    println!("{}", serde_json::to_string_pretty(&payload)?);
+    Ok(())
+}
+
+/// `vox scientia publication-review-queue --publication-id X` — print a
+/// publication's claims that are awaiting human review as JSON.
+///
+/// A claim is awaiting review when it has an extracted (non-`Unverified`)
+/// verdict AND its latest `scientia_review_decisions` row is absent or
+/// non-terminal (`deferred`/`edited`). Terminal decisions (`approved`,
+/// `rejected`) exclude the claim from the queue.
+pub async fn publication_review_queue(publication_id: &str) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default()
+        .await
+        .context("connect to default Codex / VoxDb")?;
+    let session_id = publication_session_id(publication_id);
+    let claims = db
+        .list_claims_awaiting_review(session_id, publication_id)
+        .await
+        .context("list claims awaiting review")?;
+    let payload =
+        build_claims_payload("scientia_publication_review_queue", publication_id, &claims);
     println!("{}", serde_json::to_string_pretty(&payload)?);
     Ok(())
 }
@@ -567,7 +592,7 @@ pub async fn scientia_dashboard() -> Result<()> {
 /// `extraction_usd`, `critic_usd`, `novelty_retrieval_usd`, and
 /// `scholarly_submission_usd` are sourced from `agent_telemetry_flat`
 /// `cost` rows grouped by the `pipeline_phase` column (baseline v70) — see
-/// [`apply_phase_costs`]. A phase shows non-zero only once its call sites emit
+/// `apply_phase_costs`. A phase shows non-zero only once its call sites emit
 /// phase-tagged cost rows via `VoxDb::insert_scientia_cost_telemetry`. As of
 /// this change the **extraction** (at `publication-extract-claims`) and
 /// **critic** (at `publication-critic-approve`) phases emit attributable rows;
@@ -888,16 +913,26 @@ mod tests {
     fn build_claims_payload_shape() {
         // Exercises the payload-building core of `publication_claims` without a DB.
         let empty: Vec<serde_json::Value> = vec![];
-        let p = build_claims_payload("pub-x", &empty);
+        let p = build_claims_payload("scientia_publication_claims", "pub-x", &empty);
         assert_eq!(p["schema_kind"], "scientia_publication_claims");
         assert_eq!(p["publication_id"], "pub-x");
         assert_eq!(p["claim_count"], 0);
         assert!(p["claims"].is_array());
 
         let one = vec![serde_json::json!({ "claim_id": 1 })];
-        let p2 = build_claims_payload("pub-y", &one);
+        let p2 = build_claims_payload("scientia_publication_claims", "pub-y", &one);
         assert_eq!(p2["claim_count"], 1);
         assert_eq!(p2["claims"][0]["claim_id"], 1);
+    }
+
+    #[test]
+    fn review_queue_payload_has_distinct_schema_kind() {
+        // The review-queue subset must NOT collide with the full claim list's
+        // schema_kind, so downstream consumers can tell them apart.
+        let empty: Vec<serde_json::Value> = vec![];
+        let q = build_claims_payload("scientia_publication_review_queue", "pub-z", &empty);
+        assert_eq!(q["schema_kind"], "scientia_publication_review_queue");
+        assert_ne!(q["schema_kind"], "scientia_publication_claims");
     }
 
     #[test]

@@ -106,17 +106,28 @@ impl Orchestrator {
                 t
             };
 
+            // §5.1/§5.3(a): effective isolation strategy decides whether a file
+            // lock conflict is a hard error (SharedBranch) or tolerated.
+            let isolation_strategy = {
+                let handle = self.isolation_policy_handle();
+                let plan = crate::sync_lock::rw_read(&handle);
+                plan.strategy_for(agent_id)
+            };
+            let lock_authoritative =
+                isolation_strategy == crate::isolation::IsolationStrategy::SharedBranch;
+
             {
                 let scope_guard_lock = (scope_enforcement != ScopeEnforcement::Disabled)
                     .then_some(crate::sync_lock::rw_read(&*self.scope_guard));
                 let scope_guard_ref = scope_guard_lock.as_deref();
-                match PolicyEngine::check_before_queue(
+                match PolicyEngine::check_before_queue_with_locks(
                     &self.lock_manager,
                     scope_guard_ref,
                     &self.event_bus,
                     &desc.file_manifest,
                     agent_id,
                     policy_trust,
+                    lock_authoritative,
                 ) {
                     PolicyCheckResult::Allowed => {}
                     PolicyCheckResult::LockConflict(e) => {
@@ -128,12 +139,21 @@ impl Orchestrator {
                 }
             }
 
-            // Acquire locks and assign scope (after releasing scope read guard; see task_submit)
+            // Acquire locks and assign scope (after releasing scope read guard; see task_submit).
+            // Under SharedBranch the acquire is authoritative; otherwise best-effort
+            // (overlap recorded as a conflict at merge).
             for fa in &desc.file_manifest {
                 if fa.access == AccessKind::Write {
-                    let _ = self
+                    match self
                         .lock_manager
-                        .try_acquire(&fa.path, agent_id, LockKind::Exclusive);
+                        .try_acquire(&fa.path, agent_id, LockKind::Exclusive)
+                    {
+                        Ok(()) => {}
+                        Err(e) if lock_authoritative => {
+                            return Err(OrchestratorError::LockConflict(e));
+                        }
+                        Err(_) => { /* tolerated overlap */ }
+                    }
                     self.affinity_map.assign(&fa.path, agent_id);
                     crate::sync_lock::rw_write(&*self.scope_guard)
                         .assign_file(agent_id, fa.path.clone());

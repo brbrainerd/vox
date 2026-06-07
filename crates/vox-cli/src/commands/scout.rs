@@ -1,6 +1,6 @@
 //! `vox scientia scout` — Phase F handler.
 //!
-//! Wraps `vox-scientia-producers`'s [`ProducerRegistry`] in a single command
+//! Wraps `vox-scientia-producers`'s `ProducerRegistry` in a single command
 //! that surveys the current workspace, persists new candidates to
 //! `scientia_finding_candidates`, and renders a report.
 

@@ -96,7 +96,7 @@ struct JjState {
 }
 
 /// In-process jj engine. Awaits jj-lib's async APIs directly from the async
-/// [`VcsBackend`] trait — **no internal tokio runtime**, so it never panics with
+/// `VcsBackend` trait — **no internal tokio runtime**, so it never panics with
 /// "Cannot start a runtime from within a runtime" when called from the
 /// orchestrator's async context.
 pub struct JjBackend {
@@ -608,6 +608,34 @@ impl JjBackend {
         st.repo = new_repo;
         Ok(())
     }
+
+    /// P4 §5.1/§5.3 (SeparateBranches): create (or move) a local bookmark named
+    /// `name` pointing at the current working-copy commit.
+    ///
+    /// jj bookmarks are the in-process branch primitive. We set the local
+    /// bookmark target in a transaction (`set_local_bookmark_target`,
+    /// reused from the push path) and publish the op — no `git`/`gix` subprocess
+    /// is needed (unlike push), so this works purely in-process.
+    pub async fn create_branch(&mut self, name: &str) -> Result<(), VcsError> {
+        let mut st = self.state.lock().await;
+        let ws_name: WorkspaceNameBuf = WorkspaceName::DEFAULT.to_owned();
+        let wc_commit_id = st
+            .repo
+            .view()
+            .get_wc_commit_id(&ws_name)
+            .cloned()
+            .ok_or_else(|| VcsError::Unavailable("jj create_branch: no wc commit".into()))?;
+
+        let mut tx = st.repo.start_transaction();
+        tx.repo_mut()
+            .set_local_bookmark_target(RefName::new(name), RefTarget::normal(wc_commit_id));
+        let new_repo = tx
+            .commit(format!("create branch {name}"))
+            .await
+            .map_err(|e| VcsError::Unavailable(format!("jj create_branch commit: {e}")))?;
+        st.repo = new_repo;
+        Ok(())
+    }
 }
 
 /// No-op Git subprocess callback (we do not surface progress/sideband for the
@@ -800,6 +828,30 @@ mod tests {
             joined.contains("LEFT") && joined.contains("RIGHT"),
             "conflict sides must surface both divergent edits as readable data, got {:?}",
             conflict.sides
+        );
+    }
+
+    /// P4 Task 5: create_branch sets a local bookmark at the current change,
+    /// visible in the repo view's local bookmarks.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn create_branch_sets_local_bookmark() {
+        use jj_lib::ref_name::RefName;
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("b.txt"), b"branchme").unwrap();
+        let mut be = JjBackend::open(dir.path()).await.unwrap();
+        be.snapshot(Some("base"), vec![PathBuf::from("b.txt")])
+            .await
+            .unwrap();
+
+        be.create_branch("agent/7")
+            .await
+            .expect("create_branch must succeed");
+
+        let st = be.state.lock().await;
+        let target = st.repo.view().get_local_bookmark(RefName::new("agent/7"));
+        assert!(
+            target.is_present(),
+            "created bookmark 'agent/7' must be present in the view"
         );
     }
 

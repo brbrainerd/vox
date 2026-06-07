@@ -467,7 +467,7 @@ pub fn register_hir_table(env: &mut TypeEnv, t: &HirTable) {
 /// Actors live in `module.functions` as `HirFn`s with
 /// `durability = DurabilityKind::Actor`. Their `on <event>(...)` handlers
 /// are sibling functions named `ActorName::event`. We synthesize an
-/// [`ActorHandlerSig`] per handler and register them under the actor's
+/// [`crate::typeck::env::ActorHandlerSig`] per handler and register them under the actor's
 /// bare name, so call sites can `env.lookup_actor(name)` and walk
 /// handler signatures.
 pub fn register_hir_actors(env: &mut TypeEnv, module: &crate::hir::HirModule) {
