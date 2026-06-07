@@ -18,7 +18,17 @@ pub fn emit_lib(module: &HirModule) -> String {
     // Helper for casts
     out.push_str("pub fn as_string<T: serde::Serialize>(v: &T) -> String {\n");
     out.push_str("    let val = serde_json::to_value(v).expect(\"vox codegen: serde_json::to_value failed\");\n");
-    out.push_str("    if let Some(s) = val.as_str() { s.to_string() } else { val.to_string() }\n");
+    out.push_str("    if let Some(s) = val.as_str() { return s.to_string(); }\n");
+    // Vox stringifies whole-number floats without the trailing `.0`
+    // (`str(5.0) == \"5\"`); match the interpreter. Only f64 values are touched.
+    out.push_str("    if val.is_f64() {\n");
+    out.push_str("        if let Some(f) = val.as_f64() {\n");
+    out.push_str(
+        "            if f.is_finite() && f.fract() == 0.0 { return format!(\"{}\", f as i64); }\n",
+    );
+    out.push_str("        }\n");
+    out.push_str("    }\n");
+    out.push_str("    val.to_string()\n");
     out.push_str("}\n\n");
 
     // Re-export variants (only for sum types — struct typedefs are top-level structs).

@@ -4,7 +4,7 @@
 # `golden_arm_parity_test`. Fix the emit site, then REMOVE the line — never add.
 # Seeded 2026-06-07 (codegen-rust 3/10). Full rustc error chains (2026-06-07,
 # after first-layer fixes bc028e9160 + Result<T,E>):
-#   range_and_indexing   — 1× E0308 (CLOSEST; one type mismatch left)
+#   range_and_indexing   — RUNTIME: .clone().push() pushes to a discarded clone (mutation-on-clone) -> index OOB
 #   adt_multi_field      — 1× E0308 (CLOSE; multi-field ADT variant emit)
 #   regex_free_functions — 3× E0308 (regex free-fn return/Option typing)
 #   tuple_destructure    — 3× E0308
@@ -17,7 +17,6 @@
 # DEEP (missing builtin-method families, multi-PR): closures_hof, json_as_typed,
 # string_interpolation. NEAR-GREEN (1-3 type fixes): range_and_indexing,
 # adt_multi_field, regex_free_functions, tuple_destructure.
-adt_multi_field.vox
 closures_hof.vox
 json_as_typed.vox
 range_and_indexing.vox

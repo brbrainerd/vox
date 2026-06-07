@@ -147,10 +147,23 @@ fn build_and_run_script(src: &str, key: &str) -> Result<String, String> {
         .map_err(|e| format!("spawn {}: {e}", exe.display()))?;
     if !run.status.success() {
         let stderr = String::from_utf8_lossy(&run.stderr);
+        let err_dir = std::env::temp_dir().join("vox-f2a-errors");
+        let _ = std::fs::create_dir_all(&err_dir);
+        let _ = std::fs::write(
+            err_dir.join(format!("{}.run.txt", key.replace(['/', '\\'], "_"))),
+            stderr.as_bytes(),
+        );
+        // The panic line ("thread 'main' panicked at ...: <msg>") is usually the
+        // most informative — prefer it over the first line.
+        let panic_line = stderr
+            .lines()
+            .find(|l| l.contains("panicked at"))
+            .or_else(|| stderr.lines().next())
+            .unwrap_or("");
         return Err(format!(
             "run exit {}: {}",
             run.status.code().unwrap_or(-1),
-            stderr.lines().next().unwrap_or("")
+            panic_line
         ));
     }
     Ok(String::from_utf8_lossy(&run.stdout).trim_end().to_string())
