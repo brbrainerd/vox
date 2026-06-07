@@ -42,6 +42,7 @@ mod sealed {
 /// implemented outside this crate.
 pub trait ReviewDecisionLike: sealed::Sealed {
     fn claim_id(&self) -> i64;
+    fn publication_id(&self) -> &str;
     fn bound_digest(&self) -> &str;
     /// One of: `approved | rejected | deferred | edited`.
     fn decision(&self) -> &str;
@@ -50,6 +51,10 @@ pub trait ReviewDecisionLike: sealed::Sealed {
 impl ReviewDecisionLike for ReviewDecisionRow {
     fn claim_id(&self) -> i64 {
         self.claim_id
+    }
+
+    fn publication_id(&self) -> &str {
+        &self.publication_id
     }
 
     fn bound_digest(&self) -> &str {
@@ -81,14 +86,16 @@ pub struct ApprovalToken {
     // column it is minted from (libSQL integers are always signed). Keeping the
     // token's type identical to the row's avoids a cast at every mint/compare site.
     claim_id: i64,
+    publication_id: String,
     bound_digest: String,
 }
 
 impl ApprovalToken {
     /// Private constructor — only callable from within this module.
-    fn new(claim_id: i64, bound_digest: String) -> Self {
+    fn new(claim_id: i64, publication_id: String, bound_digest: String) -> Self {
         Self {
             claim_id,
+            publication_id,
             bound_digest,
         }
     }
@@ -96,6 +103,13 @@ impl ApprovalToken {
     /// The claim that was approved.
     pub fn claim_id(&self) -> i64 {
         self.claim_id
+    }
+
+    /// The publication the approval is scoped to; `nanopub_build` rejects a token
+    /// whose `publication_id` differs from the build's, preventing
+    /// cross-publication replay.
+    pub fn publication_id(&self) -> &str {
+        &self.publication_id
     }
 
     /// The digest bound at approval time (expected to be the publication's
@@ -118,6 +132,7 @@ pub fn mint_from_decision<D: ReviewDecisionLike>(d: &D) -> Option<ApprovalToken>
     if d.decision() == "approved" {
         Some(ApprovalToken::new(
             d.claim_id(),
+            d.publication_id().to_string(),
             d.bound_digest().to_string(),
         ))
     } else {
@@ -204,6 +219,7 @@ mod tests {
 
     struct FakeDecision {
         claim_id: i64,
+        publication_id: &'static str,
         bound_digest: &'static str,
         decision: &'static str,
     }
@@ -213,6 +229,9 @@ mod tests {
     impl ReviewDecisionLike for FakeDecision {
         fn claim_id(&self) -> i64 {
             self.claim_id
+        }
+        fn publication_id(&self) -> &str {
+            self.publication_id
         }
         fn bound_digest(&self) -> &str {
             self.bound_digest
@@ -228,18 +247,37 @@ mod tests {
     fn mint_returns_some_for_approved() {
         let d = FakeDecision {
             claim_id: 7,
+            publication_id: "pub-test",
             bound_digest: "sha3abc",
             decision: "approved",
         };
         let token = mint_from_decision(&d).expect("approved must yield Some");
         assert_eq!(token.claim_id(), 7);
+        assert_eq!(token.publication_id(), "pub-test");
         assert_eq!(token.bound_digest(), "sha3abc");
+    }
+
+    #[test]
+    fn mint_carries_publication_id_into_token() {
+        let d = FakeDecision {
+            claim_id: 5,
+            publication_id: "pub-carry",
+            bound_digest: "dig",
+            decision: "approved",
+        };
+        let token = mint_from_decision(&d).expect("approved must yield Some");
+        assert_eq!(
+            token.publication_id(),
+            "pub-carry",
+            "the decision's publication_id must flow into the token"
+        );
     }
 
     #[test]
     fn mint_returns_none_for_rejected() {
         let d = FakeDecision {
             claim_id: 1,
+            publication_id: "pub-test",
             bound_digest: "d",
             decision: "rejected",
         };
@@ -250,6 +288,7 @@ mod tests {
     fn mint_returns_none_for_deferred() {
         let d = FakeDecision {
             claim_id: 1,
+            publication_id: "pub-test",
             bound_digest: "d",
             decision: "deferred",
         };
@@ -260,6 +299,7 @@ mod tests {
     fn mint_returns_none_for_edited() {
         let d = FakeDecision {
             claim_id: 1,
+            publication_id: "pub-test",
             bound_digest: "d",
             decision: "edited",
         };
@@ -270,6 +310,7 @@ mod tests {
     fn mint_returns_none_for_unknown_decision() {
         let d = FakeDecision {
             claim_id: 1,
+            publication_id: "pub-test",
             bound_digest: "d",
             decision: "maybe",
         };
@@ -283,6 +324,7 @@ mod tests {
     fn token_accessors_carry_decision_values() {
         let d = FakeDecision {
             claim_id: 42,
+            publication_id: "pub-test",
             bound_digest: "deadbeef",
             decision: "approved",
         };
@@ -297,7 +339,7 @@ mod tests {
     fn review_decision_row_impl_reviewdecisionlike() {
         let row = vox_db::store::ReviewDecisionRow {
             claim_id: 99,
-            publication_id: None,
+            publication_id: "pub-smoke".into(),
             bound_digest: "row-digest".into(),
             decision: "approved".into(),
             actor: "alice".into(),

@@ -696,7 +696,7 @@ mod tests {
     async fn seed_decision(db: &VoxDb, claim_id: i64, decision: &str, decided_at_ms: i64) {
         db.record_review_decision(&ReviewDecisionRow {
             claim_id,
-            publication_id: Some("pub-test".into()),
+            publication_id: "pub-test".into(),
             bound_digest: "digest-abc".into(),
             decision: decision.to_string(),
             actor: "tester".into(),
@@ -786,7 +786,7 @@ mod tests {
         // An `approved` decision exists, but for publication A only.
         db.record_review_decision(&ReviewDecisionRow {
             claim_id: shared_claim as i64,
-            publication_id: Some("pub-A".into()),
+            publication_id: "pub-A".into(),
             bound_digest: "dig-A".into(),
             decision: "approved".into(),
             actor: "tester".into(),

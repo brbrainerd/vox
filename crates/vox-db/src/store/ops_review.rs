@@ -17,7 +17,9 @@ pub const VALID_DECISIONS: &[&str] = &["approved", "rejected", "deferred", "edit
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReviewDecisionRow {
     pub claim_id: i64,
-    pub publication_id: Option<String>,
+    /// The publication this decision is scoped to. Non-empty; enforced in Rust
+    /// (the DDL column stays nullable `TEXT` — Turso/libSQL has no CHECK).
+    pub publication_id: String,
     /// SHA3-256 of the publication content at decision time.
     pub bound_digest: String,
     /// One of: approved | rejected | deferred | edited. Validated in Rust.
@@ -43,6 +45,13 @@ impl VoxDb {
                 "scientia_review_decisions.decision must be one of {:?}, got {:?}",
                 VALID_DECISIONS, row.decision,
             )));
+        }
+        // Rust-side non-empty guard is the enforcement (the DDL column is
+        // nullable `TEXT`; Turso/libSQL has no CHECK constraint).
+        if row.publication_id.trim().is_empty() {
+            return Err(StoreError::Db(
+                "scientia_review_decisions.publication_id must be non-empty".to_string(),
+            ));
         }
         if row.bound_digest.trim().is_empty() {
             return Err(StoreError::Db(
@@ -143,7 +152,7 @@ mod tests {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
         let row = ReviewDecisionRow {
             claim_id: 42,
-            publication_id: Some("pub-001".into()),
+            publication_id: "pub-001".into(),
             bound_digest: "abc123sha3".into(),
             decision: "approved".into(),
             actor: "alice".into(),
@@ -167,7 +176,7 @@ mod tests {
 
         let first = ReviewDecisionRow {
             claim_id: 99,
-            publication_id: Some("pub-002".into()),
+            publication_id: "pub-002".into(),
             bound_digest: "digest-v1".into(),
             decision: "approved".into(),
             actor: "alice".into(),
@@ -181,7 +190,7 @@ mod tests {
 
         let second = ReviewDecisionRow {
             claim_id: 99,
-            publication_id: Some("pub-002".into()),
+            publication_id: "pub-002".into(),
             bound_digest: "digest-v2".into(),
             decision: "rejected".into(),
             actor: "bob".into(),
@@ -224,7 +233,7 @@ mod tests {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
         db.record_review_decision(&ReviewDecisionRow {
             claim_id: 7,
-            publication_id: Some("pub-A".into()),
+            publication_id: "pub-A".into(),
             bound_digest: "dig-A".into(),
             decision: "approved".into(),
             actor: "alice".into(),
@@ -236,7 +245,7 @@ mod tests {
         .expect("record A");
         db.record_review_decision(&ReviewDecisionRow {
             claim_id: 7,
-            publication_id: Some("pub-B".into()),
+            publication_id: "pub-B".into(),
             bound_digest: "dig-B".into(),
             decision: "rejected".into(),
             actor: "bob".into(),
@@ -269,7 +278,7 @@ mod tests {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
         let base = ReviewDecisionRow {
             claim_id: 5,
-            publication_id: Some("pub-tb".into()),
+            publication_id: "pub-tb".into(),
             bound_digest: "d1".into(),
             decision: "approved".into(),
             actor: "first".into(),
@@ -300,7 +309,7 @@ mod tests {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
         let row = ReviewDecisionRow {
             claim_id: 1,
-            publication_id: None,
+            publication_id: "pub-none".into(),
             bound_digest: "some-digest".into(),
             decision: "maybe".into(), // invalid
             actor: "alice".into(),
@@ -323,7 +332,7 @@ mod tests {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
         let base = ReviewDecisionRow {
             claim_id: 1,
-            publication_id: Some("pub-fp".into()),
+            publication_id: "pub-fp".into(),
             bound_digest: "d".into(),
             decision: "approved".into(),
             actor: "alice".into(),
@@ -360,7 +369,7 @@ mod tests {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
         let row = ReviewDecisionRow {
             claim_id: 1,
-            publication_id: None,
+            publication_id: "pub-none".into(),
             bound_digest: "  ".into(), // empty after trim
             decision: "approved".into(),
             actor: "alice".into(),
@@ -379,11 +388,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn record_review_decision_rejects_empty_publication_id() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let row = ReviewDecisionRow {
+            claim_id: 1,
+            publication_id: "  ".into(), // empty after trim
+            bound_digest: "some-digest".into(),
+            decision: "approved".into(),
+            actor: "alice".into(),
+            reason: None,
+            model_fingerprints_json: None,
+            decided_at_ms: 1,
+        };
+        let err = db
+            .record_review_decision(&row)
+            .await
+            .expect_err("empty publication_id must error");
+        assert!(
+            err.to_string().contains("publication_id"),
+            "error must mention publication_id, got: {err}"
+        );
+    }
+
+    #[tokio::test]
     async fn record_review_decision_rejects_empty_actor() {
         let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
         let row = ReviewDecisionRow {
             claim_id: 1,
-            publication_id: None,
+            publication_id: "pub-none".into(),
             bound_digest: "some-digest".into(),
             decision: "approved".into(),
             actor: "  ".into(), // empty after trim
