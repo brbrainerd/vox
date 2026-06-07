@@ -43,3 +43,6 @@ pub mod dashboard;
 
 // ── P2: human-gated discovery review (pure logic) ────────────────────────────
 pub mod review;
+
+// ── P3: shared review-flow SSOT (DB + vault I/O; CLI + GUI both call this) ────
+pub mod review_flow;

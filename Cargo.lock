@@ -15514,6 +15514,7 @@ dependencies = [
  "vox-nanopub",
  "vox-research-events",
  "vox-search",
+ "vox-secrets",
 ]
 
 [[package]]
