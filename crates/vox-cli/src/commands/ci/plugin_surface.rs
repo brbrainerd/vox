@@ -11,9 +11,10 @@
 //!   accessor on the `VoxPlugin` trait in `abi.rs`, and vice versa — so a new extension
 //!   point can't be added without wiring its accessor (or an accessor left dangling after
 //!   a trait is removed).
-//! - **manifest-provides parity**: every `provides.extension-points` entry in a
-//!   code/composite `Plugin.toml` must name a real extension point from the SSOT — so a
-//!   manifest can't advertise a misspelled or removed extension point.
+//! - **manifest parity**: for every code/composite `Plugin.toml`, each
+//!   `provides.extension-points` entry must name a real extension point from the SSOT (no
+//!   misspelled/removed points), and the `abi-version` literal must equal the host's
+//!   `VOX_PLUGIN_ABI_VERSION` (no stale per-manifest ABI literals).
 
 use anyhow::{Context, Result, anyhow, bail};
 use regex::Regex;
@@ -157,10 +158,14 @@ fn check_accessor_parity(repo_root: &Path, points: &[ExtPoint]) -> Result<()> {
     Ok(())
 }
 
-/// Every `provides.extension-points` entry in a code/composite `Plugin.toml` must name a
-/// real extension point from the SSOT — catches typos and references to renamed/removed
-/// extension points in plugin manifests.
-fn check_manifest_provides(repo_root: &Path, surface: &Surface) -> Result<()> {
+/// Per-manifest SSOT checks against the canonical surface, run over every code/composite
+/// `Plugin.toml`:
+/// - **provides parity**: each `provides.extension-points` entry must name a real extension
+///   point — catches typos and references to renamed/removed extension points.
+/// - **abi-version parity**: the manifest's `abi-version` literal must equal the host's
+///   `VOX_PLUGIN_ABI_VERSION` (carried on the surface). A stale literal would otherwise only
+///   surface at load time, per platform.
+fn check_manifests(repo_root: &Path, surface: &Surface) -> Result<()> {
     let valid: std::collections::BTreeSet<&str> = surface
         .extension_points
         .iter()
@@ -188,31 +193,42 @@ fn check_manifest_provides(repo_root: &Path, surface: &Surface) -> Result<()> {
         let Some(payload) = val.get("plugin").and_then(|p| p.get("payload")) else {
             continue;
         };
-        // code → payload.provides.* ; composite → payload.code.provides.*
-        let provides = payload
+        // code → payload.{abi-version,provides} ; composite → payload.code.{abi-version,provides}
+        let code = payload.get("code").unwrap_or(payload);
+
+        // abi-version parity (code/composite carry it; skill payloads omit it).
+        if let Some(abi) = code.get("abi-version").and_then(|v| v.as_integer())
+            && abi != i64::from(surface.abi_version)
+        {
+            violations.push(format!(
+                "{}: abi-version = {abi} but host VOX_PLUGIN_ABI_VERSION = {}",
+                path.display(),
+                surface.abi_version
+            ));
+        }
+
+        // provides parity.
+        if let Some(eps) = code
             .get("provides")
-            .or_else(|| payload.get("code").and_then(|c| c.get("provides")));
-        let Some(eps) = provides
             .and_then(|p| p.get("extension-points"))
             .and_then(|e| e.as_array())
-        else {
-            continue;
-        };
-        for ep in eps {
-            if let Some(name) = ep.as_str()
-                && !valid.contains(name)
-            {
-                violations.push(format!(
-                    "{}: unknown extension point {name:?}",
-                    path.display()
-                ));
+        {
+            for ep in eps {
+                if let Some(name) = ep.as_str()
+                    && !valid.contains(name)
+                {
+                    violations.push(format!(
+                        "{}: unknown extension point {name:?}",
+                        path.display()
+                    ));
+                }
             }
         }
     }
     if !violations.is_empty() {
         let valid_list: Vec<&str> = valid.iter().copied().collect();
         bail!(
-            "plugin manifest `provides` validation failed:\n  {}\n  valid extension points: {valid_list:?}",
+            "plugin manifest validation failed:\n  {}\n  valid extension points: {valid_list:?}",
             violations.join("\n  ")
         );
     }
@@ -227,7 +243,7 @@ fn render(surface: &Surface) -> Result<String> {
 /// Run the gate. `write` regenerates the committed file; otherwise verify it matches.
 pub fn run(repo_root: &Path, write: bool) -> Result<()> {
     let surface = extract_surface(repo_root)?;
-    check_manifest_provides(repo_root, &surface)?;
+    check_manifests(repo_root, &surface)?;
     let rendered = render(&surface)?;
     let out_path = repo_root.join(REL_OUTPUT);
 
@@ -253,7 +269,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
         );
     }
     println!(
-        "plugin-surface-sync OK ({} extension point(s); accessor + manifest-provides parity clean)",
+        "plugin-surface-sync OK ({} extension point(s); accessor + manifest provides/abi-version parity clean)",
         surface.extension_points.len()
     );
     Ok(())
