@@ -100,6 +100,13 @@ surfaces:
   nav_group: null
   notes: null
 - view_key: null
+  cli_group: attention
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  notes: dei-gated engine; CLI-only by design pending GUI panel — see A3
+- view_key: null
   cli_group: audit
   representation_tier: none
   nav_label: null
@@ -204,6 +211,13 @@ surfaces:
   nav_icon: null
   nav_group: null
   notes: null
+- view_key: null
+  cli_group: dei
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  notes: dei-gated engine; CLI-only by design pending GUI panel — see A3
 - view_key: null
   cli_group: deploy
   representation_tier: none
@@ -471,6 +485,13 @@ surfaces:
   nav_group: null
   notes: null
 - view_key: null
+  cli_group: safety
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  notes: dei-gated engine; CLI-only by design pending GUI panel — see A3
+- view_key: null
   cli_group: schola
   representation_tier: none
   nav_label: null
@@ -589,6 +610,13 @@ surfaces:
   nav_icon: null
   nav_group: null
   notes: null
+- view_key: null
+  cli_group: visus
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  notes: dei-gated engine; CLI-only by design pending GUI panel — see A3
 - view_key: null
   cli_group: wasm
   representation_tier: none

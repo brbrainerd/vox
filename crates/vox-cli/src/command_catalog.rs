@@ -74,6 +74,31 @@ pub struct CommandCatalog {
     pub entries: Vec<CommandCatalogEntry>,
 }
 
+/// Top-level command groups that exist only behind a compile-time feature gate and are therefore
+/// absent from a default (non-`dei`) binary's clap command tree.
+///
+/// `build_catalog()` reflects over `VoxCliRoot::command()`, which is built at compile time, so
+/// `#[cfg(feature = "dei")]` clap variants (`crates/vox-cli/src/lib.rs`) are invisible to any
+/// consumer derived from the catalog (e.g. the GUI surface-registry gate). Callers that must
+/// reason about the *full* command surface — not just what this build compiled in — should union
+/// these `(group, feature)` pairs with the compiled groups.
+///
+/// Returns `(group_name, feature_flag)` pairs. The names are the clap-derived (lowercased)
+/// top-level command names.
+pub fn feature_gated_group_names() -> Vec<(&'static str, &'static str)> {
+    // Hand-listed: these are `#[cfg(feature = "dei")]` top-level variants in `lib.rs`. They are
+    // not enumerated as top-level rows in the command registry (only `dei` itself is), so we can't
+    // derive the full set from `command_contract::merged_feature_gate`. The
+    // `feature_gated_group_names_are_real_commands` test pins them to actual clap variants when
+    // the `dei` feature is compiled in, guarding against drift.
+    vec![
+        ("dei", "dei"),
+        ("visus", "dei"),
+        ("safety", "dei"),
+        ("attention", "dei"),
+    ]
+}
+
 pub fn build_catalog() -> CommandCatalog {
     let root = crate::VoxCliRoot::command();
     let mut entries = Vec::new();
@@ -441,6 +466,41 @@ mod tests {
             assert!(
                 commands.contains(&required),
                 "missing top-level `{required}`; got {commands:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn feature_gated_group_names_returns_dei_groups() {
+        let names: Vec<&str> = feature_gated_group_names()
+            .into_iter()
+            .map(|(g, _)| g)
+            .collect();
+        for g in ["dei", "visus", "safety", "attention"] {
+            assert!(names.contains(&g), "missing feature-gated group {g:?}");
+        }
+        for (_, feat) in feature_gated_group_names() {
+            assert_eq!(feat, "dei", "all listed groups are `dei`-gated");
+        }
+    }
+
+    /// When the `dei` feature IS compiled in, every hand-listed feature-gated group name must
+    /// correspond to a real top-level clap command. This pins the hand-list to reality so the
+    /// list can't silently drift if a command is renamed or removed.
+    #[cfg(feature = "dei")]
+    #[test]
+    fn feature_gated_group_names_are_real_commands() {
+        let catalog = run_on_big_stack(build_catalog);
+        let compiled: Vec<&str> = catalog
+            .entries
+            .iter()
+            .filter(|e| e.path.len() == 1)
+            .map(|e| e.path[0].as_str())
+            .collect();
+        for (g, _) in feature_gated_group_names() {
+            assert!(
+                compiled.contains(&g),
+                "feature-gated group {g:?} is not a real top-level command in a dei build; got {compiled:?}"
             );
         }
     }
