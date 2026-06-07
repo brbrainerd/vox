@@ -6,10 +6,14 @@
 //! `contracts/plugin/extension-points.v1.yaml` and, in verify mode (the default), fails
 //! when the committed file drifts from the traits.
 //!
-//! It also runs the **sdk-abi-parity** invariant: every extension module must have a
-//! matching `as_<module>()` accessor on the `VoxPlugin` trait in `abi.rs`, and vice
-//! versa — so a new extension point can't be added without wiring its accessor (or an
-//! accessor left dangling after a trait is removed).
+//! It also runs two parity invariants:
+//! - **sdk-abi-parity**: every extension module must have a matching `as_<module>()`
+//!   accessor on the `VoxPlugin` trait in `abi.rs`, and vice versa — so a new extension
+//!   point can't be added without wiring its accessor (or an accessor left dangling after
+//!   a trait is removed).
+//! - **manifest-provides parity**: every `provides.extension-points` entry in a
+//!   code/composite `Plugin.toml` must name a real extension point from the SSOT — so a
+//!   manifest can't advertise a misspelled or removed extension point.
 
 use anyhow::{Context, Result, anyhow, bail};
 use regex::Regex;
@@ -153,6 +157,68 @@ fn check_accessor_parity(repo_root: &Path, points: &[ExtPoint]) -> Result<()> {
     Ok(())
 }
 
+/// Every `provides.extension-points` entry in a code/composite `Plugin.toml` must name a
+/// real extension point from the SSOT — catches typos and references to renamed/removed
+/// extension points in plugin manifests.
+fn check_manifest_provides(repo_root: &Path, surface: &Surface) -> Result<()> {
+    let valid: std::collections::BTreeSet<&str> = surface
+        .extension_points
+        .iter()
+        .map(|p| p.name.as_str())
+        .collect();
+    let crates_root = repo_root.join("crates");
+    if !crates_root.is_dir() {
+        return Ok(());
+    }
+    let mut violations: Vec<String> = Vec::new();
+    for entry in walkdir::WalkDir::new(&crates_root)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name() == "Plugin.toml")
+    {
+        let path = entry.path();
+        if path.components().any(|c| c.as_os_str() == "tests") {
+            continue;
+        }
+        let raw =
+            std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+        let Ok(val) = raw.parse::<toml::Value>() else {
+            continue; // malformed manifests are surfaced by other gates
+        };
+        let Some(payload) = val.get("plugin").and_then(|p| p.get("payload")) else {
+            continue;
+        };
+        // code → payload.provides.* ; composite → payload.code.provides.*
+        let provides = payload
+            .get("provides")
+            .or_else(|| payload.get("code").and_then(|c| c.get("provides")));
+        let Some(eps) = provides
+            .and_then(|p| p.get("extension-points"))
+            .and_then(|e| e.as_array())
+        else {
+            continue;
+        };
+        for ep in eps {
+            if let Some(name) = ep.as_str()
+                && !valid.contains(name)
+            {
+                violations.push(format!(
+                    "{}: unknown extension point {name:?}",
+                    path.display()
+                ));
+            }
+        }
+    }
+    if !violations.is_empty() {
+        let valid_list: Vec<&str> = valid.iter().copied().collect();
+        bail!(
+            "plugin manifest `provides` validation failed:\n  {}\n  valid extension points: {valid_list:?}",
+            violations.join("\n  ")
+        );
+    }
+    Ok(())
+}
+
 fn render(surface: &Surface) -> Result<String> {
     let body = serde_yaml::to_string(surface).context("serialize surface to yaml")?;
     Ok(format!("{GENERATED_HEADER}{body}"))
@@ -161,6 +227,7 @@ fn render(surface: &Surface) -> Result<String> {
 /// Run the gate. `write` regenerates the committed file; otherwise verify it matches.
 pub fn run(repo_root: &Path, write: bool) -> Result<()> {
     let surface = extract_surface(repo_root)?;
+    check_manifest_provides(repo_root, &surface)?;
     let rendered = render(&surface)?;
     let out_path = repo_root.join(REL_OUTPUT);
 
@@ -186,7 +253,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
         );
     }
     println!(
-        "plugin-surface-sync OK ({} extension point(s); accessor parity clean)",
+        "plugin-surface-sync OK ({} extension point(s); accessor + manifest-provides parity clean)",
         surface.extension_points.len()
     );
     Ok(())
