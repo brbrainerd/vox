@@ -98,6 +98,7 @@ fn summarize_node(n: &vox_populi::NodeRecord) -> Value {
         "gpu_allocatable_count": n.gpu_allocatable_count,
         "gpu_truth_layer": n.gpu_truth_layer,
         "trust_tier": n.trust_tier,
+        "ed25519_pub_key_b64": n.ed25519_pub_key_b64,
         "advertised_models": advertised_models,
         "last_seen_unix_ms": n.last_seen_unix_ms,
         "version": n.version,
