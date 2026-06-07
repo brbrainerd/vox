@@ -15,6 +15,7 @@ pub mod models;
 pub mod orchestrator;
 pub mod policy;
 pub mod preferences;
+pub mod research;
 pub mod runs;
 pub mod scientia;
 pub mod search;

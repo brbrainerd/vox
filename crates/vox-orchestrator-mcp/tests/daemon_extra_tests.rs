@@ -109,6 +109,13 @@ async fn daemon_research_run_enqueues_session_via_extra_dispatch() {
         .and_then(serde_json::Value::as_i64)
         .unwrap_or_else(|| panic!("research.run must return a session_id, got: {value}"));
     assert!(session_id > 0, "session_id must be positive: {value}");
+    // A2: the GUI relies on the immediate `running` status to switch into its
+    // background-running indicator without blocking on the pipeline.
+    assert_eq!(
+        value.get("status").and_then(serde_json::Value::as_str),
+        Some("running"),
+        "research.run must return status=\"running\", got: {value}"
+    );
     assert_ne!(
         value.get("success"),
         Some(&serde_json::Value::Bool(false)),

@@ -1,18 +1,18 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listenScientiaQueue } from '../../../transport';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { PipelineTimeline } from '../../PipelineTimeline';
 import { RESEARCH_STAGES, deriveStages } from '../../../lib/pipeline';
+import { startResearchAsync } from './researchActions';
 
-interface ExecuteOutput { exit_code: number; stdout: string; stderr: string; }
 interface ResearchSession { id: number; status: string; query_text: string; started_at_ms: number; finished_at_ms: number | null; }
 interface ResearchDetail { session: ResearchSession; report_markdown: string | null; artifact_json: string | null; }
-interface ResearchResult { answer: string; sources: unknown[]; citations: unknown[]; }
 
 export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
   const [query, setQuery] = useState('');
   const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<ResearchResult | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const [sessions, setSessions] = useState<ResearchSession[]>([]);
   const [detail, setDetail] = useState<ResearchDetail | null>(null);
 
@@ -24,36 +24,55 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
     }
   }, [pushToast]);
 
-  useEffect(() => { loadHistory(); }, [loadHistory]);
-
-  const run = async () => {
-    if (!query.trim()) return;
-    setRunning(true);
-    setResult(null);
-    try {
-      // Inline run (really executes; --async enqueues nothing). --json must precede the trailing query.
-      const out = await invoke<ExecuteOutput>('execute_command', {
-        path: ['research', 'run'],
-        args: { __argv: ['--json', query] },
-      });
-      if (out.exit_code !== 0) {
-        pushToast({ tone: 'warn', title: 'Research run failed', body: out.stderr || `exit ${out.exit_code}` });
-      } else {
-        setResult(JSON.parse(out.stdout) as ResearchResult);
-        await loadHistory();
-      }
-    } catch (err) {
-      pushToast({ tone: 'warn', title: 'Research run failed', body: String(err) });
-    } finally {
-      setRunning(false);
-    }
-  };
-
-  const openDetail = async (id: number) => {
+  const openDetail = useCallback(async (id: number) => {
     try {
       setDetail(await invoke<ResearchDetail>('get_research_session_detail', { sessionId: id }));
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Session load failed', body: String(err) });
+    }
+  }, [pushToast]);
+
+  useEffect(() => { loadHistory(); }, [loadHistory]);
+
+  // A2: refetch history whenever the persistent daemon's Scientia-queue watcher
+  // signals a research-session transition; a 10 s interval is the fallback
+  // (e.g. outside Tauri, where listen() rejects), mirroring ScientiaDashboard.
+  useEffect(() => {
+    const id = setInterval(loadHistory, 10_000);
+    let unlisten: (() => void) | undefined;
+    listenScientiaQueue(() => { void loadHistory(); })
+      .then((fn) => { unlisten = fn; })
+      .catch(() => { /* not in Tauri — interval fallback covers it */ });
+    return () => { clearInterval(id); unlisten?.(); };
+  }, [loadHistory]);
+
+  // Once the active run reaches a terminal status, stop the running indicator
+  // and open its detail so the answer (report_markdown ?? artifact_json) shows.
+  useEffect(() => {
+    if (activeSessionId == null) return;
+    const s = sessions.find((x) => x.id === activeSessionId);
+    if (s && (s.status === 'completed' || s.status === 'failed')) {
+      setRunning(false);
+      void openDetail(activeSessionId);
+      setActiveSessionId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, activeSessionId]);
+
+  const run = async () => {
+    if (!query.trim()) return;
+    setRunning(true);
+    setActiveSessionId(null);
+    try {
+      // A2: fire-and-forget via the persistent daemon's async executor. Returns
+      // {session_id, task_id, status: "running"} immediately — does NOT block on
+      // the pipeline. Status transitions arrive through the queue watcher below.
+      const handle = await startResearchAsync({ query });
+      setActiveSessionId(handle.session_id);
+      await loadHistory();
+    } catch (err) {
+      setRunning(false);
+      pushToast({ tone: 'warn', title: 'Research run failed', body: String(err) });
     }
   };
 
@@ -72,14 +91,9 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
       {running && (
         <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
           <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages('active')} />
-          <div className="mt-2 text-[11px] text-zinc-500">Running inline — this can take a while.</div>
-        </div>
-      )}
-      {result && (
-        <div className="rounded-lg border border-emerald-400/20 bg-emerald-500/[0.03] p-3">
-          <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages('completed')} />
-          <div className="mt-2 whitespace-pre-wrap text-[13px] text-zinc-200">{result.answer}</div>
-          <div className="mt-1 font-mono text-[10px] text-zinc-500">{result.sources.length} sources · {result.citations.length} citations</div>
+          <div className="mt-2 text-[11px] text-zinc-500">
+            Running in the background{activeSessionId != null ? ` (session ${activeSessionId})` : ''} — the answer opens automatically when it completes.
+          </div>
         </div>
       )}
 
