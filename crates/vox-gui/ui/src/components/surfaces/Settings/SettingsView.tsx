@@ -80,17 +80,229 @@ function RangeInline({
   );
 }
 
-const MOCK_PEERS = [
-  { name: 'forge.local',  backend: 'candle-cuda', vram: '24GB', online: true,  trust: 'verified' },
-  { name: 'oracle.local', backend: 'mlx-metal',   vram: '36GB', online: true,  trust: 'verified' },
-  { name: 'node-03',      backend: 'vllm-cuda',   vram: '40GB', online: true,  trust: 'pending' },
-  { name: 'node-04',      backend: 'candle-cpu',  vram: '—',    online: false, trust: 'revoked' },
-];
+/** One node row as summarized by the `vox_mesh_nodes` MCP tool (mirrors MeshView). */
+interface MeshNode {
+  id: string;
+  status: string;
+  host_triple?: string | null;
+  gpu_summary?: string | null;
+  trust_tier?: string | null;
+  ed25519_pub_key_b64?: string | null;
+  advertised_models?: string[];
+}
 
-const MOCK_KEYS = [
-  { id: 'clavis-primary',  fp: 'ed25519:7F:42:9B…2A:11', rotated: '4d ago',  scope: 'all' },
-  { id: 'clavis-readonly', fp: 'ed25519:11:CD:8E…77:0A', rotated: '22d ago', scope: 'recall-only' },
-];
+interface MeshNodesResult {
+  source?: string;
+  control_plane_error?: string;
+  nodes?: MeshNode[];
+}
+
+interface McpEnvelope<T> {
+  tool: string;
+  is_error: boolean;
+  result: T;
+}
+
+/** Locally-trusted peer, mirrors Rust `TrustedNodeDto`. */
+interface TrustedNodeDto {
+  nodeId: string;
+  pubkeyHex: string;
+  label: string | null;
+  addedAt: string;
+}
+
+/** Live signing identity, mirrors Rust `SigningKeyDto`. */
+interface SigningKeyDto {
+  nodeId: string;
+  algorithm: string;
+  fingerprint: string;
+  pubkeyHex: string;
+  present: boolean;
+}
+
+function MeshPeersSection({ pushToast }: { pushToast: (t: any) => void }) {
+  const [nodes, setNodes] = useState<MeshNode[]>([]);
+  const [meta, setMeta] = useState<MeshNodesResult>({});
+  const [trusted, setTrusted] = useState<Record<string, TrustedNodeDto>>({});
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    try {
+      const [nodesRes, trustedList] = await Promise.all([
+        invoke<McpEnvelope<MeshNodesResult>>('invoke_mcp_tool', { tool: 'vox_mesh_nodes', args: {} }),
+        invoke<TrustedNodeDto[]>('list_trusted_nodes'),
+      ]);
+      const m = nodesRes?.result ?? {};
+      setMeta(m);
+      setNodes(Array.isArray(m.nodes) ? m.nodes : []);
+      const map: Record<string, TrustedNodeDto> = {};
+      for (const t of trustedList) map[t.nodeId] = t;
+      setTrusted(map);
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Mesh load failed', body: String(err) });
+    } finally {
+      setLoading(false);
+    }
+  }, [pushToast]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const toggleTrust = async (n: MeshNode) => {
+    const isTrusted = !!trusted[n.id];
+    setBusy(n.id);
+    try {
+      if (isTrusted) {
+        await invoke<boolean>('untrust_mesh_node', { nodeId: n.id });
+        pushToast({ tone: 'ok', title: 'Peer untrusted', body: n.id });
+      } else {
+        await invoke<boolean>('trust_mesh_node', {
+          nodeId: n.id,
+          pubkeyHex: n.ed25519_pub_key_b64 ?? '',
+          label: n.host_triple ?? null,
+        });
+        pushToast({ tone: 'ok', title: 'Peer trusted', body: n.id });
+      }
+      await reload();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Trust update failed', body: String(err) });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Mesh &amp; peers</h2>
+      <p className="mt-0.5 text-[11px] text-zinc-500">Discover and authorise peer compute on the local mesh (source: {meta.source ?? '—'})</p>
+      {meta.control_plane_error && (
+        <div className="mt-3 rounded-md border border-amber-400/20 bg-amber-400/5 px-3 py-2 text-[11px] text-amber-300">
+          Control plane unreachable — showing local registry. <span className="font-mono">{meta.control_plane_error}</span>
+        </div>
+      )}
+      {loading ? (
+        <div className="mt-4 text-[12px] text-zinc-500">Loading peers…</div>
+      ) : nodes.length === 0 ? (
+        <div className="mt-4 rounded-md border border-white/5 bg-white/[0.02] p-4 text-[11px] leading-relaxed text-zinc-500">
+          No mesh peers. Join one with <code className="font-mono text-zinc-400">vox populi join</code>, or configure a control plane via{' '}
+          <code className="font-mono text-zinc-400">VOX_ORCHESTRATOR_MESH_CONTROL_URL</code>.
+        </div>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {nodes.map(p => {
+            const isTrusted = !!trusted[p.id];
+            const online = p.status === 'online';
+            return (
+              <div key={p.id} className="flex items-center justify-between rounded-md border border-white/5 bg-white/[0.02] p-3">
+                <div className="flex items-center gap-3">
+                  <span className={`size-2 rounded-full ${online ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
+                  <div className="leading-tight">
+                    <div className="font-mono text-[12px] text-zinc-100 break-all">{p.id}</div>
+                    <div className="font-mono text-[10px] text-zinc-500">{(p.host_triple ?? '—')} · {(p.gpu_summary ?? '—')}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
+                    isTrusted ? 'bg-emerald-400/15 text-emerald-300' : 'bg-zinc-700/40 text-zinc-400'
+                  }`}>{isTrusted ? 'trusted' : (p.trust_tier ?? 'untrusted')}</span>
+                  <button
+                    disabled={busy === p.id}
+                    onClick={() => toggleTrust(p)}
+                    className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+                  >{isTrusted ? 'untrust' : 'trust'}</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
+function SigningKeysSection({ vals, update, pushToast }: {
+  vals: SettingsState; update: (patch: Partial<SettingsState>) => void; pushToast: (t: any) => void;
+}) {
+  const [key, setKey] = useState<SigningKeyDto | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [rotating, setRotating] = useState(false);
+
+  const reload = useCallback(async () => {
+    try {
+      setKey(await invoke<SigningKeyDto>('signing_key_status'));
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Could not load signing key', body: String(err) });
+    } finally {
+      setLoading(false);
+    }
+  }, [pushToast]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const rotate = async () => {
+    const present = key?.present;
+    const verb = present ? 'rotate' : 'create';
+    const prompt = present
+      ? 'Rotate signing key? Enter master password to confirm. This generates a NEW ed25519 keypair; peers trusting the old key must re-trust.'
+      : 'Create node identity? Choose a master password to encrypt the new ed25519 key.';
+    // eslint-disable-next-line no-alert
+    const password = window.prompt(prompt) ?? '';
+    if (!password) return;
+    setRotating(true);
+    try {
+      const next = await invoke<SigningKeyDto>('rotate_signing_key', { password });
+      setKey(next);
+      pushToast({ tone: 'ok', title: `Key ${verb}d`, body: next.nodeId || next.fingerprint });
+      await reload();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: `Key ${verb} failed`, body: String(err) });
+    } finally {
+      setRotating(false);
+    }
+  };
+
+  return (
+    <>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Signing keys</h2>
+      <p className="mt-0.5 text-[11px] text-zinc-500">ed25519 capability gate for high-risk dispatch (local node identity)</p>
+      <div className="mt-4 space-y-2">
+        {loading ? (
+          <div className="text-[12px] text-zinc-500">Loading…</div>
+        ) : !key?.present ? (
+          <div className="rounded-md border border-white/5 bg-white/[0.02] p-4">
+            <div className="text-[11px] text-zinc-500">No local node identity yet. Create one to enable signed dispatch.</div>
+            <button
+              disabled={rotating}
+              onClick={rotate}
+              className="mt-3 rounded border border-white/10 bg-white/[0.02] px-3 py-1.5 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+            >{rotating ? 'working…' : 'create identity'}</button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between rounded-md border border-white/5 bg-white/[0.02] p-3">
+            <div className="flex items-center gap-3">
+              <Icon.shield className="size-4 text-amber-300" />
+              <div className="leading-tight">
+                <div className="font-mono text-[12px] text-zinc-100">{key.nodeId || '(locked)'}</div>
+                <div className="font-mono text-[10px] text-zinc-500">{key.fingerprint}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-zinc-300">{key.algorithm}</span>
+              <button
+                disabled={rotating}
+                onClick={rotate}
+                className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+              >{rotating ? 'rotating…' : 'rotate'}</button>
+            </div>
+          </div>
+        )}
+        <Row label="Require signature on Native isolation" hint="Hard gate; refuses dispatch without ed25519">
+          <Toggle on={vals.sign} onClick={() => update({ sign: !vals.sign })} />
+        </Row>
+      </div>
+    </>
+  );
+}
 
 // Redaction-safe DTO mirroring the Rust `SecretStatusDto`. NOTE: there is no
 // field carrying the raw secret value — the backend never returns it.
@@ -485,66 +697,9 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
           </>
         )}
 
-        {section === 'mesh' && (
-          <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Mesh & peers</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">Discover and authorise peer compute on the local mesh</p>
-            <div className="mt-4 space-y-2">
-              {MOCK_PEERS.map(p => (
-                <div key={p.name} className="flex items-center justify-between rounded-md border border-white/5 bg-white/[0.02] p-3">
-                  <div className="flex items-center gap-3">
-                    <span className={`size-2 rounded-full ${p.online ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
-                    <div className="leading-tight">
-                      <div className="font-mono text-[12px] text-zinc-100">{p.name}</div>
-                      <div className="font-mono text-[10px] text-zinc-500">{p.backend} · {p.vram}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
-                      p.trust === 'verified' ? 'bg-emerald-400/15 text-emerald-300' :
-                      p.trust === 'pending'  ? 'bg-amber-400/15 text-amber-300' :
-                                               'bg-zinc-700/40 text-zinc-400'
-                    }`}>{p.trust}</span>
-                    <button
-                      onClick={() => pushToast({ tone: 'ok', title: `${p.name} action`, cmd: 'mesh.toggle_trust' })}
-                      className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5"
-                    >manage</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+        {section === 'mesh' && <MeshPeersSection pushToast={pushToast} />}
 
-        {section === 'signing' && (
-          <>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Signing keys</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">ed25519 capability gates for high-risk dispatch</p>
-            <div className="mt-4 space-y-2">
-              {MOCK_KEYS.map(k => (
-                <div key={k.id} className="flex items-center justify-between rounded-md border border-white/5 bg-white/[0.02] p-3">
-                  <div className="flex items-center gap-3">
-                    <Icon.shield className="size-4 text-amber-300" />
-                    <div className="leading-tight">
-                      <div className="font-mono text-[12px] text-zinc-100">{k.id}</div>
-                      <div className="font-mono text-[10px] text-zinc-500">{k.fp} · rotated {k.rotated}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-zinc-300">{k.scope}</span>
-                    <button
-                      onClick={() => pushToast({ tone: 'warn', title: 'Rotation queued', body: k.id, cmd: 'clavis.rotate' })}
-                      className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5"
-                    >rotate</button>
-                  </div>
-                </div>
-              ))}
-              <Row label="Require signature on Native isolation" hint="Hard gate; refuses dispatch without ed25519">
-                <Toggle on={vals.sign} onClick={() => update({ sign: !vals.sign })} />
-              </Row>
-            </div>
-          </>
-        )}
+        {section === 'signing' && <SigningKeysSection vals={vals} update={update} pushToast={pushToast} />}
 
         {section === 'secrets' && <KeysSecretsSection pushToast={pushToast} />}
 

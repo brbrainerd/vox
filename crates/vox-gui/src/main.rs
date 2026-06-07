@@ -128,6 +128,11 @@ async fn main() {
             commands::search::open_locator,
             commands::vcs_isolation::get_vcs_isolation,
             commands::vcs_isolation::set_vcs_isolation_strategy,
+            commands::signing::signing_key_status,
+            commands::signing::rotate_signing_key,
+            commands::mesh::list_trusted_nodes,
+            commands::mesh::trust_mesh_node,
+            commands::mesh::untrust_mesh_node,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
