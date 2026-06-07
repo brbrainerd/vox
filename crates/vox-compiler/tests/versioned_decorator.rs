@@ -50,7 +50,7 @@ fn parses_tracked_alias_sets_same_flag() {
 
 #[test]
 fn versioned_fn_value_carries_flag() {
-    let mut interp = interp_for("@versioned fn save() uses vcs { repo.snapshot(\"x\") }");
+    let interp = interp_for("@versioned fn save() uses vcs { repo.snapshot(\"x\") }");
     match interp.scope.get("save") {
         Some(VoxValue::Fn {
             is_versioned, name, ..

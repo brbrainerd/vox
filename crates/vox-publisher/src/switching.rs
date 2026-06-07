@@ -502,7 +502,7 @@ pub fn plan_publication_retry_channels(
 
 /// Parse the latest attempt matching `digest` and return its failed channel list.
 ///
-/// `attempts` must be ordered **newest-first** (as returned by [`vox_db`] publication attempt queries).
+/// `attempts` must be ordered **newest-first** (as returned by `vox_db` publication attempt queries).
 /// Parsing failures are surfaced as errors (no silent skip).
 pub fn failed_channels_from_latest_digest_attempt(
     attempts: &[AttemptOutcome<'_>],

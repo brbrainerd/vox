@@ -38,7 +38,7 @@ mod sealed {
 
 /// Abstraction over any type that carries enough data to mint an
 /// [`ApprovalToken`].  Implemented here for [`vox_db::store::ReviewDecisionRow`];
-/// unit tests use a tiny in-module fake. Sealed (see [`sealed`]) — cannot be
+/// unit tests use a tiny in-module fake. Sealed (see `sealed`) — cannot be
 /// implemented outside this crate.
 pub trait ReviewDecisionLike: sealed::Sealed {
     fn claim_id(&self) -> i64;

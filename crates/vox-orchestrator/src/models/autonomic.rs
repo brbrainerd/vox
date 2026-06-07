@@ -12,7 +12,7 @@
 //!
 //! | Layer | Event                       | When emitted                              |
 //! |-------|-----------------------------|-------------------------------------------|
-//! | L0    | [`SelectionDecisionEvent`]  | every `select()` call (see [`super::select`]) |
+//! | L0    | [`SelectionDecisionEvent`]  | every `select()` call (see `super::select`) |
 //! | L1    | [`DiscoveryEvent`]          | new model id seen in upstream catalog     |
 //! | L2    | [`ClassificationEvent`]     | classifier LLM emits tier+strengths       |
 //! | L2/L3 | [`ConfidencePromotionEvent`]| confidence-state boundary crossed         |

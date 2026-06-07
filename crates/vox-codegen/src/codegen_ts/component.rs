@@ -5,8 +5,8 @@
 //! `view:` emit). What remains here are the two small TS-type helpers still
 //! consumed by the live emitter:
 //!
-//! - [`map_vox_type_to_ts`] — Vox type expression → TypeScript type string.
-//! - [`ts_default_value`] — placeholder JSX attribute value for a required prop
+//! - `map_vox_type_to_ts` — Vox type expression → TypeScript type string.
+//! - `ts_default_value` — placeholder JSX attribute value for a required prop
 //!   in the auto-generated flat-app scaffold (keeps generated previews `tsc`-valid).
 
 use vox_compiler::ast::scalar_mapping::VoxScalar;

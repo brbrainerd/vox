@@ -373,55 +373,37 @@ where
         HirBinOp::Mod => "%",
         HirBinOp::Pipe => unreachable!("handled above"),
     };
-    if matches!(
-        op,
-        HirBinOp::Add | HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div
-    ) {
-        // `String` concatenation needs a borrowed RHS (`String + &str`); numeric
-        // `+ - * /` do not — emitting `1 + &2` compiles only via Rust's forward-ref
-        // impls (`Add<&i64>` etc.) and triggers an unused-borrow warning. So keep
-        // the `&` unless the operation is positively numeric.
-        //
-        // Scope note: this only governs the borrow on the RHS. The same-typed
-        // string-concat case (`s + t`, both `str`) is handled correctly here (kept
-        // `&`). Mixed `str + <numeric>` (e.g. `s + 5`) is a *separate, pre-existing*
-        // typeck hole — typeck accepts it as `str` but neither this code nor codegen
-        // coerces the numeric operand, so it fails to compile regardless of the
-        // borrow (was `s + &5` on main, `s + 5` here — both broken). Tracked
-        // separately; not addressed by this borrow rule.
-        //
-        // Positively numeric when either operand is a numeric literal (the type
-        // checker records no result type for pure-literal arithmetic like `1 + 2`),
-        // or when the result type is a numeric scalar.
-        let is_num_lit = |e: &HirExpr| {
-            matches!(
-                e,
-                HirExpr::IntLit(..) | HirExpr::FloatLit(..) | HirExpr::DecimalLit(..)
-            )
-        };
-        let positively_numeric = is_num_lit(l)
-            || is_num_lit(r)
+    // String concatenation: the interpreter auto-stringifies the non-`str`
+    // operand (`eval/expr.rs`: `(Add, Str(a), other) => format!(...)`), and
+    // typeck types `str + X` as `str` regardless of `X`. Match that here with
+    // `format!`, which `Display`s BOTH operands — correct for `str + str` AND
+    // `str + <numeric>` (e.g. `s + 5`). Without this, `str + numeric` emits
+    // `String + i64`, which has no `Add` impl and fails to compile (the program
+    // type-checks but the generated Rust does not).
+    if matches!(op, HirBinOp::Add) {
+        let is_str_concat = matches!(l, HirExpr::StringLit(..))
+            || matches!(r, HirExpr::StringLit(..))
             || inferred_types
                 .and_then(|m| m.get(bin_span))
-                .is_some_and(|t| {
-                    matches!(t, HirType::Named(n) if matches!(n.as_str(), "int" | "float" | "dec"))
-                        || matches!(t, HirType::Decimal)
-                });
-        let rhs = emit(r, OwnershipMode::Owned);
-        let rhs = if positively_numeric {
-            rhs
-        } else {
-            format!("&{rhs}")
-        };
-        format!("({} {} {})", emit(l, OwnershipMode::Owned), op_str, rhs)
-    } else {
-        format!(
-            "({} {} {})",
-            emit(l, OwnershipMode::Owned),
-            op_str,
-            emit(r, OwnershipMode::Owned)
-        )
+                .is_some_and(|t| matches!(t, HirType::Named(n) if n == "str"));
+        if is_str_concat {
+            return format!(
+                "format!(\"{{}}{{}}\", {}, {})",
+                emit(l, OwnershipMode::Owned),
+                emit(r, OwnershipMode::Owned),
+            );
+        }
     }
+    // All remaining `+ - * /` (and `%` etc.) are numeric — string concatenation
+    // is handled above, and typeck restricts `- * / %` to numeric operands. Plain
+    // infix with no borrow: `i64 + i64`, `f64 * f64`, `Decimal - Decimal` all work
+    // by value (this also removes the old spurious `1 + &2` unused-borrow).
+    format!(
+        "({} {} {})",
+        emit(l, OwnershipMode::Owned),
+        op_str,
+        emit(r, OwnershipMode::Owned)
+    )
 }
 
 /// Emit an identifier reference, applying ownership mode and copy/move heuristics.

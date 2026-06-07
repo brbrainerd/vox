@@ -3,7 +3,7 @@
 //! Lets a test stand up a real-on-disk Cargo workspace with N member crates
 //! in a `TempRoot`, then point an external tool (`vox-arch-check`,
 //! `vox-code-audit`, `vox-cli`, etc.) at it instead of the live workspace.
-//! The pattern landed first in [`crates/vox-arch-check/tests/helpers/fixture.rs`]
+//! The pattern landed first in `crates/vox-arch-check/tests/helpers/fixture.rs`
 //! during the test-suite perf rework; promoting it here so other crates can
 //! reuse the same primitives without rebuilding the wheel.
 //!

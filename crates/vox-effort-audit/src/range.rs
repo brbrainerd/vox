@@ -17,10 +17,10 @@ pub enum RangeError {
     InvalidDuration(String),
 }
 
-/// Parses a duration string of the form `<digits>{d|h|w}` or "<digits> days ago"
-/// / "<digits> hours ago" / "<digits> weeks ago".
+/// Parses a duration string of the form `NNd`, `NNh`, or `NNw` (N = ASCII digits),
+/// or the long forms `"N days ago"` / `"N hours ago"` / `"N weeks ago"`.
 ///
-/// The compact `<digits><suffix>` form requires the prefix to be ALL ASCII
+/// The compact `digits+suffix` form requires the prefix to be ALL ASCII
 /// digits — refs like `feature-2d` or `abc123d` MUST NOT parse as durations.
 pub fn parse_duration(s: &str) -> Result<Duration, RangeError> {
     let s = s.trim();

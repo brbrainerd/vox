@@ -70,9 +70,12 @@ pub enum LoadError {
 }
 
 #[derive(Debug, Error)]
-#[error("plugin '{id}' has ABI version {plugin_abi}, host expects {host_abi}")]
+#[error("plugin '{id}' has ABI version {plugin_abi}, host supports {host_abi_min}..={host_abi}")]
 pub struct AbiMismatchError {
     pub id: String,
     pub plugin_abi: u32,
+    /// Newest ABI the host speaks ([`vox_plugin_api::VOX_PLUGIN_ABI_VERSION`]).
     pub host_abi: u32,
+    /// Oldest ABI the host still accepts ([`vox_plugin_api::VOX_PLUGIN_ABI_MIN_SUPPORTED`]).
+    pub host_abi_min: u32,
 }

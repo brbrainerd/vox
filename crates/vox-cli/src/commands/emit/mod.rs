@@ -15,7 +15,7 @@ pub enum EmitCmd {
     ///
     /// Produces a canonical `openapi.json` (or `--out` path) from the `@query`/`@mutation`/
     /// `@server` endpoints declared in the source. Wire-format follows the Vox
-    /// wire-format-v1 SSOT: Decimal→string, DateTime→date-time, Option<T>→absent,
+    /// wire-format-v1 SSOT: Decimal→string, DateTime→date-time, `Option<T>`→absent,
     /// sum types→oneOf+discriminator.
     Openapi(crate::cli_args::EmitOpenapiArgs),
 }

@@ -71,8 +71,8 @@ impl std::error::Error for DurationParseError {}
 /// Parse a duration literal. See module docs for the accepted grammar.
 ///
 /// On error returns a structured [`DurationParseError`] — callers decide
-/// whether to convert to a compile-time diagnostic ([`vox_codegen::emit_main_boot`])
-/// or a runtime `anyhow::Error` ([`workflow::plan::parse_duration_ms_str`]).
+/// whether to convert to a compile-time diagnostic (`vox_codegen::emit_main_boot`)
+/// or a runtime `anyhow::Error` (`workflow::plan::parse_duration_ms_str`).
 pub fn parse_duration_str(s: &str) -> Result<Duration, DurationParseError> {
     let s = s.trim();
     if s.is_empty() {

@@ -237,10 +237,10 @@ impl PopuliHttpClient {
     }
 
     /// Fetch the control-plane node list (`GET /v1/populi/nodes`), merge it into
-    /// the on-disk [`LocalRegistry`] at `reg` (deduped by id, fresher
+    /// the on-disk `LocalRegistry` at `reg` (deduped by id, fresher
     /// `last_seen_unix_ms` wins, control plane authoritative on ties), and persist
     /// atomically. Returns the merged view. The HTTP fetch is the only part that
-    /// needs a live control plane; the merge ([`merge_registry_by_last_seen`]) is
+    /// needs a live control plane; the merge (`merge_registry_by_last_seen`) is
     /// a pure, separately unit-tested function.
     pub async fn sync_node_registry(
         &self,

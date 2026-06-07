@@ -1,7 +1,7 @@
 //! `vox audit retirement` — CR-L6 retirement-guard parity gate.
 //!
 //! Wraps [`vox_code_audit::retirement_parity::check_parity_at_path`] and
-//! emits the canonical [`AuditReport`] shape. Block-GA per contract: yes —
+//! emits the canonical `AuditReport` shape. Block-GA per contract: yes —
 //! drift between AGENTS.md §Retired Surfaces and the wired detectors blocks
 //! release.
 

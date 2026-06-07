@@ -3,7 +3,7 @@
 //! ## Single source of truth
 //!
 //! This module is **one of two** lowerings for Vox components. The web lowering
-//! (under [`super::reactive`] + [`super::component`]) consumes the same `HirModule`
+//! (under `super::reactive` + `super::component`) consumes the same `HirModule`
 //! and produces React DOM + Tailwind output; this module consumes the same
 //! `HirModule` and produces React Native + StyleSheet output. The HIR is the
 //! shared source of truth — there is no separate "RN HIR".

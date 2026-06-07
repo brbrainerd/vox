@@ -128,3 +128,21 @@ fn main() {
 "#,
     );
 }
+
+/// `str + <numeric>` type-checks as `str` (the interpreter auto-stringifies).
+/// Codegen must emit `format!`, not `String + i64`. Regression guard for the
+/// previously-miscompiling mixed-type concatenation.
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn str_plus_numeric_compiles() {
+    assert_compiles(
+        r#"
+fn label(n: int) to str {
+    return "item #" + n
+}
+fn main() {
+    print(label(42))
+}
+"#,
+    );
+}

@@ -200,12 +200,10 @@ impl VoxDb {
 
     // ── Phase D — solo-critic gate ────────────────────────────────────────
 
-    /// Record an [`ApproverRole::AuditedLLMCritic`]-shaped approval bound to
+    /// Record an `ApproverRole::AuditedLLMCritic`-shaped approval bound to
     /// the same digest as the human approvers. The Rust caller is
     /// responsible for having already validated the critic via
     /// `vox_critic_gate::evaluate_gate`; this store op simply persists.
-    ///
-    /// [`ApproverRole::AuditedLLMCritic`]: vox_critic_gate::ApproverRole::AuditedLLMCritic
     pub async fn record_publication_critic_approval_for_digest(
         &self,
         publication_id: &str,

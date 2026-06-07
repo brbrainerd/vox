@@ -489,7 +489,7 @@ pub enum ScientiaCmd {
         /// `claim_id` of the extracted claim to sign (see `vox scientia claims`).
         #[arg(long)]
         claim_id: i64,
-        /// Optional ORCID URL (e.g. https://orcid.org/0000-0002-1825-0097).
+        /// Optional ORCID URL (e.g. <https://orcid.org/0000-0002-1825-0097>).
         /// Overrides the stored identity ORCID; required if none is stored.
         #[arg(long)]
         orcid: Option<String>,

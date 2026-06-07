@@ -48,7 +48,7 @@ pub enum VoxValue {
     /// `Result[T, E]`. The Err side carries a real `VoxValue` (was `String`) so
     /// typed errors — `Error(MyAdt)` as well as `Error("string")` — survive at
     /// runtime, matching the two-parameter `Ty::Result`. A string error boxes to
-    /// `VoxValue::Str` (see [`err_str`]), preserving the historical behavior.
+    /// `VoxValue::Str` (see `err_str`), preserving the historical behavior.
     Result(core::result::Result<Box<VoxValue>, Box<VoxValue>>),
     /// An ADT variant constructor callable (not yet applied). Created by `run_module`.
     Constructor(String),

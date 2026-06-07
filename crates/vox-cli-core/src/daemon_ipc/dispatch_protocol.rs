@@ -1,4 +1,4 @@
-//! Newline JSON protocol — re-export wire types from [`vox_protocol`].
+//! Newline JSON protocol — re-export wire types from `vox_protocol`.
 
 pub use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 

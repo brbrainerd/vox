@@ -1,8 +1,8 @@
 //! `vox audit stdlib-coverage` — non-CR-L tooling gate for stdlib drift.
 //!
 //! Wraps [`vox_code_audit::stdlib_parity::check_parity_at_paths`] and emits the
-//! canonical [`AuditReport`] shape. Does NOT block GA (per
-//! [`CrlGate::ToolingStdlibCoverage::block_ga()`]); it exists to prevent
+//! canonical `AuditReport` shape. Does NOT block GA (per
+//! `CrlGate::ToolingStdlibCoverage::block_ga()`); it exists to prevent
 //! three-way drift between binary registrations, doc claims, and corpus call
 //! sites during development.
 //!
