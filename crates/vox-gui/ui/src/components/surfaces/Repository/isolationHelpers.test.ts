@@ -65,6 +65,35 @@ describe('perAgentRows', () => {
   });
 });
 
+describe('live daemon payload (isolation_status_json shape)', () => {
+  // Mirrors what `get_vcs_isolation` returns over the Tauri bridge: the raw
+  // `isolation_status_json` value (not a REST envelope).
+  const live: IsolationStatus = {
+    strategy_default: 'split_changes',
+    per_agent: { '3': 'separate_branches', '1': 'shared_branch' },
+    active_conflicts: [
+      { id: 'X-9', path: 'crates/foo/bar.rs', sides: ['1', '3'], created_ms: 1717000000000 },
+    ],
+  };
+
+  it('exposes the default strategy', () => {
+    expect(defaultStrategy(live)).toBe('split_changes');
+  });
+
+  it('renders per-agent overrides sorted by numeric id', () => {
+    expect(perAgentRows(live)).toEqual([
+      { agentId: '1', strategy: 'shared_branch' },
+      { agentId: '3', strategy: 'separate_branches' },
+    ]);
+  });
+
+  it('surfaces active conflicts with their sides', () => {
+    expect(conflictRows(live)).toEqual([
+      { id: 'X-9', path: 'crates/foo/bar.rs', sides: ['1', '3'] },
+    ]);
+  });
+});
+
 describe('conflictRows', () => {
   it('returns an empty list when there are no active conflicts', () => {
     expect(conflictRows({ active_conflicts: [] })).toEqual([]);
