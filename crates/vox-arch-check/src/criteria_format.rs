@@ -24,23 +24,22 @@ pub fn check_criteria_format(doc: &str) -> Result<(), Vec<String>> {
     }
 }
 
-/// Field is present if the body contains a backticked `field` followed by a
-/// separator (`:`/`·`) and at least one non-whitespace char of value on that
-/// line.
+/// Field is present iff some line contains a backticked `field` followed
+/// (after optional markup/space) by an **explicit** `:` or `·` separator and a
+/// non-empty value. The explicit-separator requirement rejects prose mentions
+/// like "the `if_failing` pointer" that name the field without declaring it.
 fn field_present(body: &str, field: &str) -> bool {
     let needle = format!("`{field}`");
-    let Some(pos) = body.find(&needle) else {
-        return false;
-    };
-    let after = &body[pos + needle.len()..];
-    // Skip an optional `:` / `·` separator and surrounding spaces/markup, then
-    // require a non-empty payload (the value) on that line.
-    let trimmed = after.trim_start_matches([':', '·', ' ', '*', '`']);
-    trimmed
-        .lines()
-        .next()
-        .map(|l| !l.trim().is_empty())
-        .unwrap_or(false)
+    body.lines().any(|line| {
+        let Some(pos) = line.find(&needle) else {
+            return false;
+        };
+        let after = line[pos + needle.len()..].trim_start_matches([' ', '*', '`']);
+        let Some(value) = after.strip_prefix(':').or_else(|| after.strip_prefix('·')) else {
+            return false;
+        };
+        !value.trim_start_matches([' ', '*', '`']).trim().is_empty()
+    })
 }
 
 /// Split into `(id, body)` pairs keyed on `[CR-<id>]` **definition** markers
@@ -123,7 +122,30 @@ mod tests {
     #[test]
     fn field_present_requires_value() {
         assert!(field_present("`verify_cmd`: `cargo test`", "verify_cmd"));
+        assert!(field_present("- `if_failing` · do the thing", "if_failing"));
         assert!(!field_present("`verify_cmd`:\n", "verify_cmd"));
         assert!(!field_present("no field here", "verify_cmd"));
+    }
+
+    #[test]
+    fn field_present_rejects_prose_mention_without_separator() {
+        // A prose reference that names the field but has no `:`/`·` separator
+        // must NOT count as a declaration.
+        assert!(!field_present(
+            "see the `if_failing` pointer for the next fixture to build",
+            "if_failing"
+        ));
+        // And a full block missing `if_failing` (only prose-mentioning it)
+        // fails the whole check.
+        let doc = "\
+**[CR-Z] Missing.** The `if_failing` field is described here in prose.
+- `verify_cmd`: `cargo test`
+- `artifact_path`: `contracts/reports/z/<UTC>.json`
+";
+        let errs = check_criteria_format(doc).unwrap_err();
+        assert!(
+            errs.iter()
+                .any(|e| e.contains("CR-Z") && e.contains("if_failing"))
+        );
     }
 }

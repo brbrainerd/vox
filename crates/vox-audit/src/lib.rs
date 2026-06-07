@@ -325,7 +325,12 @@ pub fn run_ga_snapshot(args: &CommonArgs, strict_block_ga: bool) -> ga::GaSnapsh
         .into_iter()
         .map(|sub| {
             let g = sub.gate();
+            // A11: every gate invocation emits a `vox.audit.run` event, exactly
+            // like run_gate/run_all. The GA roll-up is the production acceptance
+            // path, so it must not skip telemetry.
+            let started = std::time::Instant::now();
             let outcome = sub.run(args);
+            emit_audit_run_event(&outcome, started, /* umbrella_run */ true);
             ga::GateRow {
                 thing: g.thing_name().to_string(),
                 tier: g.tier().as_str().to_string(),

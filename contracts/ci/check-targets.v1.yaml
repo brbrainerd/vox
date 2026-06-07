@@ -68,7 +68,9 @@ checks:
     runs_on:
       - pre-push
       - ci
-    rust_only: true
+    # Validates a Markdown contract (v1-release-criteria.md), so it must run on
+    # docs-only PRs too — not gated behind rust_changed.
+    rust_only: false
     command: ["cargo", "run", "-q", "-p", "vox-arch-check", "--", "--lint", "criteria-format"]
 
   - id: doctest-md

@@ -319,6 +319,14 @@ impl Subcommand for BehavioralGoldensSubcommand {
 }
 ```
 
+> **Note (landed code):** the simple `Command::output()` above is the design
+> sketch. The shipped gate hardens the per-golden run with a wall-clock timeout
+> (`VOX_GOLDEN_TIMEOUT_SECS`, default 30s), drains stdout on a helper thread to
+> avoid pipe-fill deadlock, and maps outcomes through a `GoldenRun { Done,
+> TimedOut, SpawnErr }` enum — so a hanging/broken `vox` can't hang the gate. A
+> timeout is a behavioral failure (not an infra error). See the committed
+> `crates/vox-audit/src/subcommands/behavioral_goldens.rs`.
+
 - [ ] **Step 4 — Register the variant.** In `crates/vox-audit/src/lib.rs`:
   - Add `F1BehavioralGoldens,` as the **first** variant of `CrlGate`.
   - `thing_name`: add `CrlGate::F1BehavioralGoldens => "behavioral-goldens",`.

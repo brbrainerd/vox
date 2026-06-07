@@ -28,9 +28,24 @@ fn golden_timeout() -> Duration {
     Duration::from_secs(secs)
 }
 
-/// Resolve the `vox` binary: `$VOX_BIN` override, else `vox` on PATH.
+/// Resolve the `vox` binary, matching the behavioral-goldens contract used by
+/// `crates/vox-integration-tests/tests/golden_behavioral_gate.rs`: `$VOX_BIN`
+/// if set, else the built crate binary at `target/{debug,release}/vox[.exe]`,
+/// else a bare `vox` PATH lookup. This keeps the gate working in CI and local
+/// builds where `vox` is not on PATH but a fresh binary exists in `target/`.
 fn vox_bin() -> String {
-    std::env::var("VOX_BIN").unwrap_or_else(|_| "vox".to_string())
+    if let Ok(p) = std::env::var("VOX_BIN") {
+        return p;
+    }
+    let exe = if cfg!(windows) { "vox.exe" } else { "vox" };
+    let target = workspace_root().join("target");
+    for profile in ["debug", "release"] {
+        let candidate = target.join(profile).join(exe);
+        if candidate.exists() {
+            return candidate.to_string_lossy().into_owned();
+        }
+    }
+    "vox".to_string()
 }
 
 /// Outcome of running one golden under a bounded timeout.

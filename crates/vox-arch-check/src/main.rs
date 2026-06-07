@@ -270,8 +270,16 @@ fn run_criteria_format_lint() -> ExitCode {
         Err(errs) => (false, errs),
     };
 
+    // The artifact is part of the lint contract — a write failure must surface
+    // (exit 2 = infra error), not let the command exit "clean" with no report.
     let out_dir = root.join("contracts/reports/arch/criteria-format");
-    let _ = std::fs::create_dir_all(&out_dir);
+    if let Err(e) = std::fs::create_dir_all(&out_dir) {
+        eprintln!(
+            "vox-arch-check --lint criteria-format: cannot create {}: {e}",
+            out_dir.display()
+        );
+        return ExitCode::from(2);
+    }
     let body = serde_json::json!({
         "schema_version": 1,
         "criterion": "CR-META",
@@ -280,10 +288,21 @@ fn run_criteria_format_lint() -> ExitCode {
         "threshold": { "target": "all blocks well-formed", "met": met },
     });
     let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let _ = std::fs::write(
-        out_dir.join(format!("{date}.json")),
-        serde_json::to_string_pretty(&body).unwrap_or_default(),
-    );
+    let out_path = out_dir.join(format!("{date}.json"));
+    let body_pretty = match serde_json::to_string_pretty(&body) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("vox-arch-check --lint criteria-format: cannot serialize report: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    if let Err(e) = std::fs::write(&out_path, body_pretty) {
+        eprintln!(
+            "vox-arch-check --lint criteria-format: cannot write {}: {e}",
+            out_path.display()
+        );
+        return ExitCode::from(2);
+    }
 
     if met {
         println!("CR-META: criteria doc well-formed.");
