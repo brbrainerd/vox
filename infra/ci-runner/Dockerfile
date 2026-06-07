@@ -38,6 +38,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential pkg-config libssl-dev libsqlite3-dev \
     curl git ca-certificates jq ripgrep bash sudo libicu74 \
+    libglib2.0-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Rust toolchain (pinned).
