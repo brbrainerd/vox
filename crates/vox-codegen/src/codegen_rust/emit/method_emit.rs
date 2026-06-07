@@ -518,7 +518,38 @@ where
     if let Some(s) = try_emit_str_method(method, &o, &arg_exprs) {
         return s;
     }
-    let call = format!("{}.{}({})", o, method, arg_exprs.join(", "));
+    // Mutating collection/string methods must operate on the ORIGINAL binding,
+    // not a value-semantics clone — `xs.clone().push(v)` pushes to a discarded
+    // copy (the original stays empty → later index OOB). When the receiver is a
+    // plain identifier, emit the bare name (it is `mut` in the generated code) so
+    // the mutation lands. Non-mutating methods keep the clone/ownership heuristic.
+    const MUTATING: &[&str] = &[
+        "push",
+        "pop",
+        "insert",
+        "remove",
+        "clear",
+        "extend",
+        "append",
+        "truncate",
+        "retain",
+        "sort",
+        "sort_by_key",
+        "sort_by",
+        "reverse",
+        "dedup",
+        "swap",
+    ];
+    let recv = if MUTATING.contains(&method) {
+        if let HirExpr::Ident(name, _) = obj {
+            name.clone()
+        } else {
+            o.clone()
+        }
+    } else {
+        o.clone()
+    };
+    let call = format!("{}.{}({})", recv, method, arg_exprs.join(", "));
     if method == "send" {
         format!("{}.await", call)
     } else {
