@@ -16,6 +16,7 @@ use std::time::Instant;
 use vox_container_types::ContainerRuntime;
 use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 use vox_plugin_api::abi::{VoxPlugin, VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef};
+use vox_plugin_api::extensions::skill_runtime::{SkillRuntime as ExtSkillRuntime, SkillRuntime_TO};
 use vox_plugin_api::host::VoxHost_TO;
 use vox_skill_runtime::{
     BuildOpts as SkillBuildOpts, RunOpts as SkillRunOpts, RunOutcome, SkillRuntime,
@@ -200,6 +201,7 @@ fn init(_host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError
     RResult::ROk(to)
 }
 
+#[derive(Clone)]
 struct RuntimeContainerPlugin;
 
 impl VoxPlugin for RuntimeContainerPlugin {
@@ -210,6 +212,50 @@ impl VoxPlugin for RuntimeContainerPlugin {
     fn shutdown(&self) -> RResult<(), RBoxError> {
         RResult::ROk(())
     }
+
+    fn as_skill_runtime(&self) -> ROption<SkillRuntime_TO<'static, RBox<()>>> {
+        ROption::RSome(SkillRuntime_TO::from_value(
+            self.clone(),
+            abi_stable::erased_types::TD_Opaque,
+        ))
+    }
+}
+
+/// Bridge the native [`vox_skill_runtime::SkillRuntime`] (Docker/Podman) onto the ABI-stable
+/// `SkillRuntime` extension. `invoke_skill`'s `input_json` is a [`SkillRunOpts`] JSON object;
+/// the returned string is a [`RunOutcome`] JSON object. `skill_id` labels the run when the
+/// request omits `name`.
+impl ExtSkillRuntime for RuntimeContainerPlugin {
+    fn invoke_skill(
+        &self,
+        skill_id: RStr<'_>,
+        input_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        match invoke_container_skill(skill_id.as_str(), input_json.as_str()) {
+            Ok(json) => RResult::ROk(RString::from(json)),
+            Err(e) => RResult::RErr(RBoxError::new(std::io::Error::other(e.to_string()))),
+        }
+    }
+}
+
+fn invoke_container_skill(skill_id: &str, input_json: &str) -> anyhow::Result<String> {
+    let mut opts: SkillRunOpts = serde_json::from_str(input_json)?;
+    if opts.name.is_none() {
+        opts.name = Some(skill_id.to_string());
+    }
+    // Prefer Docker, fall back to Podman. UFCS pins the native SkillRuntime methods
+    // (DockerRuntime/PodmanRuntime also impl ContainerRuntime, which has `available`/`run`).
+    let docker = docker::DockerRuntime::new();
+    let outcome = if SkillRuntime::available(&docker) {
+        SkillRuntime::run(&docker, &opts)?
+    } else {
+        let podman = podman::PodmanRuntime::new();
+        if !SkillRuntime::available(&podman) {
+            anyhow::bail!("no container runtime (docker/podman) available");
+        }
+        SkillRuntime::run(&podman, &opts)?
+    };
+    Ok(serde_json::to_string(&outcome)?)
 }
 
 // Re-export detect_runtime and RuntimePreference for consumers of the plugin as an rlib.
