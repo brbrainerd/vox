@@ -11,12 +11,86 @@ use crate::{
     report::{AuditReport, ExitCode, Results, Threshold},
     workspace_root,
 };
+use std::path::Path;
+use std::time::{Duration, Instant};
 
 pub struct BehavioralGoldensSubcommand;
+
+/// Per-golden wall-clock budget for `vox run --mode interp`. A golden that
+/// exceeds this is a behavioral failure (e.g. an interpreter regression that
+/// loses the step-limit guard), NOT an infra error — so the gate stays
+/// bounded even against a broken `vox`. Overridable via `$VOX_GOLDEN_TIMEOUT_SECS`.
+fn golden_timeout() -> Duration {
+    let secs = std::env::var("VOX_GOLDEN_TIMEOUT_SECS")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(30);
+    Duration::from_secs(secs)
+}
 
 /// Resolve the `vox` binary: `$VOX_BIN` override, else `vox` on PATH.
 fn vox_bin() -> String {
     std::env::var("VOX_BIN").unwrap_or_else(|_| "vox".to_string())
+}
+
+/// Outcome of running one golden under a bounded timeout.
+enum GoldenRun {
+    /// Process exited; trimmed stdout captured.
+    Done(String),
+    /// Exceeded the wall-clock budget; the child was killed.
+    TimedOut,
+    /// Could not spawn `vox` (binary absent / not executable).
+    SpawnErr(String),
+}
+
+/// Run `<bin> run --mode interp <path>` with a hard wall-clock cap. stdout is
+/// drained on a helper thread so a chatty golden can't fill the pipe and
+/// deadlock before exit.
+fn run_golden(bin: &str, path: &Path, timeout: Duration) -> GoldenRun {
+    use std::io::Read;
+    use std::process::{Command, Stdio};
+
+    let mut child = match Command::new(bin)
+        .args(["run", "--mode", "interp"])
+        .arg(path)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(e) => return GoldenRun::SpawnErr(e.to_string()),
+    };
+
+    let mut stdout = child.stdout.take().expect("stdout was piped");
+    let reader = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = stdout.read_to_end(&mut buf);
+        buf
+    });
+
+    let deadline = Instant::now() + timeout;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_status)) => {
+                let buf = reader.join().unwrap_or_default();
+                return GoldenRun::Done(String::from_utf8_lossy(&buf).trim_end().to_string());
+            }
+            Ok(None) => {
+                if Instant::now() >= deadline {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    let _ = reader.join();
+                    return GoldenRun::TimedOut;
+                }
+                std::thread::sleep(Duration::from_millis(25));
+            }
+            Err(e) => {
+                let _ = child.kill();
+                let _ = reader.join();
+                return GoldenRun::SpawnErr(e.to_string());
+            }
+        }
+    }
 }
 
 /// Collect the `// EXPECT:` lines (in source order) joined by newlines.
@@ -93,25 +167,28 @@ impl Subcommand for BehavioralGoldensSubcommand {
             };
             total += 1;
 
-            let out = std::process::Command::new(vox_bin())
-                .args(["run", "--mode", "interp"])
-                .arg(&path)
-                .output();
-            match out {
-                Ok(o) => {
-                    let got = String::from_utf8_lossy(&o.stdout).trim_end().to_string();
+            let name = path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            match run_golden(&vox_bin(), &path, golden_timeout()) {
+                GoldenRun::Done(got) => {
                     if got == expected.trim_end() {
                         passed += 1;
                     } else {
-                        failures.push(format!(
-                            "{}: expected {:?}, got {:?}",
-                            path.file_name().unwrap_or_default().to_string_lossy(),
-                            expected,
-                            got
-                        ));
+                        failures.push(format!("{name}: expected {expected:?}, got {got:?}"));
                     }
                 }
-                Err(io) => {
+                GoldenRun::TimedOut => {
+                    // A hang is a behavioral failure, not an infra error — keeps
+                    // the gate bounded even against a broken interpreter.
+                    failures.push(format!(
+                        "{name}: timed out after {}s",
+                        golden_timeout().as_secs()
+                    ));
+                }
+                GoldenRun::SpawnErr(io) => {
                     // vox binary absent / not executable → infra error, not a
                     // measurement failure.
                     return RunOutcome {
@@ -188,6 +265,17 @@ mod tests {
             outcome.exit_code,
             ExitCode::Ok | ExitCode::BarMissed | ExitCode::InfrastructureError
         ));
+    }
+
+    #[test]
+    fn run_golden_missing_binary_is_spawn_err() {
+        // A non-existent binary must surface SpawnErr (→ infra error), not hang.
+        let out = run_golden(
+            "vox-definitely-not-a-real-binary-xyz",
+            std::path::Path::new("examples/golden/does-not-matter.vox"),
+            std::time::Duration::from_secs(5),
+        );
+        assert!(matches!(out, GoldenRun::SpawnErr(_)));
     }
 
     #[test]
