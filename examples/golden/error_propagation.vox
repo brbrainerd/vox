@@ -69,3 +69,58 @@ fn onboard_user(email: str) to Result[str] {
     }
 }
 // ANCHOR_END: display
+
+@test
+fn test_parse_int() {
+    match parse_int("42") {
+        Ok(n) => assert(n is 42)
+        Error(_) => assert(false)
+    }
+    let empty_result = match parse_int("") {
+        Ok(_) => "ok"
+        Error(e) => e
+    }
+    assert(empty_result is "empty string")
+}
+
+@test
+fn test_divide() {
+    match divide(10, 2) {
+        Ok(n) => assert(n is 5)
+        Error(_) => assert(false)
+    }
+    let div_zero = match divide(10, 0) {
+        Ok(_) => "ok"
+        Error(e) => e
+    }
+    assert(div_zero is "division by zero")
+}
+
+@test
+fn test_validate_email() {
+    match validate_email("user@example.com") {
+        Ok(addr) => assert(addr is "user@example.com")
+        Error(_) => assert(false)
+    }
+    let too_short = match validate_email("a@b") {
+        Ok(_) => "ok"
+        Error(e) => e
+    }
+    assert(too_short is "email too short")
+}
+
+@test
+fn test_onboard_user() {
+    // Short email fails validation before reaching send_welcome.
+    let bad = match onboard_user("no") {
+        Ok(_) => "ok"
+        Error(e) => e
+    }
+    assert(bad is "email too short")
+    // Another short email variant.
+    let bad2 = match onboard_user("a@b") {
+        Ok(_) => "ok"
+        Error(e) => e
+    }
+    assert(bad2 is "email too short")
+}
