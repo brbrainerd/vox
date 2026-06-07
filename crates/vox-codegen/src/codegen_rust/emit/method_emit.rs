@@ -515,6 +515,9 @@ where
     {
         return s;
     }
+    if let Some(s) = try_emit_list_hof(emit_expr, method, &o, args) {
+        return s;
+    }
     if let Some(s) = try_emit_str_method(method, &o, &arg_exprs) {
         return s;
     }
@@ -634,6 +637,76 @@ where
         plan,
         fallible_db,
     ))
+}
+
+/// Try to emit Vox list higher-order-function lowerings to Rust iterator chains.
+///
+/// Vox list HOFs (`map`/`filter`/`fold`/`sorted_by_key`) have no direct method
+/// on Rust's `Vec`, so lower them to `into_iter()` adapter chains. `map`/`fold`
+/// pass the closure straight to the adapter (whose `Fn` bound pins the param
+/// type). `filter`/`sorted_by_key` invoke the Vox predicate INDIRECTLY
+/// (`pred(x.clone())`) — Vox closures take their param BY VALUE, but Rust's
+/// `filter`/`sort_by_key` pass `&T`, so we `.clone()` before calling. That
+/// indirect call defeats param inference, so those predicates are emitted with
+/// their declared param TYPE annotated (`annotate = true`) to avoid E0282.
+///
+/// Gated strictly on the exact Vox HOF name + arity. `map`/`filter`/`fold` are
+/// emitted only when the sole/first arg is a closure (lambda or closure-typed
+/// var ident) — this avoids shadowing unrelated `.map`/`.filter` method calls.
+fn try_emit_list_hof<F>(
+    emit_expr: &F,
+    method: &str,
+    o: &str,
+    args: &[vox_compiler::hir::HirArg],
+) -> Option<String>
+where
+    F: Fn(&HirExpr) -> String,
+{
+    let is_closure_arg = |e: &HirExpr| matches!(e, HirExpr::Lambda(..) | HirExpr::Ident(..));
+    match method {
+        "map" if args.len() == 1 && is_closure_arg(&args[0].value) => Some(format!(
+            "({}).into_iter().map({}).collect::<Vec<_>>()",
+            o,
+            emit_expr(&args[0].value)
+        )),
+        "filter" if args.len() == 1 && is_closure_arg(&args[0].value) => Some(format!(
+            "({}).into_iter().filter(|__x| ({})(__x.clone())).collect::<Vec<_>>()",
+            o,
+            emit_hof_predicate(emit_expr, &args[0].value)
+        )),
+        "fold" if args.len() == 2 && is_closure_arg(&args[1].value) => Some(format!(
+            "({}).into_iter().fold({}, {})",
+            o,
+            emit_expr(&args[0].value),
+            emit_expr(&args[1].value)
+        )),
+        "sorted_by_key" if args.len() == 1 && is_closure_arg(&args[0].value) => Some(format!(
+            "{{ let mut __v = ({}).clone(); __v.sort_by_key(|__e| ({})(__e.clone())); __v }}",
+            o,
+            emit_hof_predicate(emit_expr, &args[0].value)
+        )),
+        // Vox `list.first()`/`.last()` return an owned `Option<T>`; Rust's
+        // `Vec::first`/`last` return `Option<&T>`, so `.cloned()` aligns the type
+        // with `Some(<owned>)` comparisons (matches the interpreter arm).
+        "first" if args.is_empty() => Some(format!("({}).first().cloned()", o)),
+        "last" if args.is_empty() => Some(format!("({}).last().cloned()", o)),
+        _ => None,
+    }
+}
+
+/// Emit a `filter`/`sorted_by_key` predicate. When it is a lambda literal, emit
+/// it BARE but with its declared param TYPE annotated (the predicate is invoked
+/// indirectly via `pred(x.clone())`, which defeats closure-param inference →
+/// E0282). A closure-typed variable arg (already `Rc<dyn Fn>`) is emitted as-is.
+fn emit_hof_predicate<F>(emit_expr: &F, arg: &HirExpr) -> String
+where
+    F: Fn(&HirExpr) -> String,
+{
+    if let HirExpr::Lambda(params, _ret, body, _, _) = arg {
+        super::stmt_expr::emit_bare_lambda(params, body, true, emit_expr)
+    } else {
+        emit_expr(arg)
+    }
 }
 
 /// Try to emit Vox string method lowerings that have no direct Rust String equivalent.

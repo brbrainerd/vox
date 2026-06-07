@@ -104,13 +104,24 @@ where
             super::with_emit::emit_with(&e, operand.as_ref(), options.as_ref())
         }
         HirExpr::Lambda(params, _ret_ty, body, _, _) => {
-            let mut s = String::new();
-            s.push_str("| ");
-            let param_strs: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-            s.push_str(&param_strs.join(", "));
-            s.push_str("| ");
-            s.push_str(&emit(body, OwnershipMode::Owned));
-            s
+            // Emit a BARE `move |..| ..` closure (NOT wrapped in `Rc::new`):
+            // bare closures coerce to the `FnOnce`/`FnMut`/`Fn` bound of whatever
+            // adapter they are passed to (`Option::map`, `Iterator::map`/`filter`/
+            // `fold`, `Vec::sort_by_key`, …). `Rc::new`-wrapping at the use site
+            // would break those `FnOnce(&T)` adapters (E0277). When a lambda is
+            // produced as a closure *value* (return/assignment of a `Function`
+            // type), the RETURN site wraps it in `std::rc::Rc::new(..)` so it
+            // matches the `Rc<dyn Fn>` repr (see `emit_return_stmt` and
+            // `types.rs`). `move` so captured vars are owned.
+            //
+            // Emit explicit param type annotations when present (Vox lambdas in
+            // adapter args carry them, e.g. `fn(x: int) to bool`). This pins the
+            // closure param type so a predicate invoked indirectly (e.g. a
+            // `filter` predicate called via `pred(__x.clone())`) still infers
+            // (avoids E0282 — Rust cannot infer a standalone closure param type).
+            super::stmt_expr::emit_bare_lambda(params, body, false, &|e| {
+                emit(e, OwnershipMode::Owned)
+            })
         }
         HirExpr::Binary(vox_compiler::hir::HirBinOp::Pipe, left, right, _) => {
             format!(

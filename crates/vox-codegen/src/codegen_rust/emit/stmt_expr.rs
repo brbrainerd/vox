@@ -328,6 +328,37 @@ fn push_actor_loop_prelude(s: &mut String, pad: &str) {
 /// contributed ~7 decision points (is_actor + if-let + is_route + mutation_tx
 /// combinations).
 #[allow(clippy::too_many_arguments)]
+/// Emit a Vox lambda as a BARE Rust closure `move |p0, ..| body`.
+///
+/// Bare (un-`Rc`-wrapped) so it coerces into the `FnOnce`/`FnMut`/`Fn` bound of
+/// whatever adapter consumes it (`Option::and_then`, `Iterator::map`, …). Params
+/// are left UNANNOTATED so they infer from the adapter's bound — annotating with
+/// the Vox lambda's declared type (by-value, e.g. `serde_json::Value`) would
+/// clash with by-reference adapters like `Option::and_then(|&Value| ..)`
+/// (E0631). `annotate` is set true only by the list-HOF lowering for `filter`/
+/// `sorted_by_key` predicates, which are invoked INDIRECTLY (`pred(x.clone())`)
+/// so their param type cannot otherwise be inferred (E0282). Closure VALUES
+/// (return/assignment of a `Function` type) are `Rc::new`-wrapped by the caller
+/// (see `emit_return_stmt`) to match the `Rc<dyn Fn>` repr in `types.rs`.
+pub(super) fn emit_bare_lambda<F>(
+    params: &[vox_compiler::hir::HirParam],
+    body: &HirExpr,
+    annotate: bool,
+    emit_owned: &F,
+) -> String
+where
+    F: Fn(&HirExpr) -> String,
+{
+    let param_strs: Vec<String> = params
+        .iter()
+        .map(|p| match (annotate, &p.type_ann) {
+            (true, Some(ty)) => format!("{}: {}", p.name, super::types::emit_type(ty)),
+            _ => p.name.clone(),
+        })
+        .collect();
+    format!("move |{}| {}", param_strs.join(", "), emit_owned(body))
+}
+
 fn emit_return_stmt(
     value: Option<&HirExpr>,
     pad: &str,
@@ -384,6 +415,13 @@ fn emit_return_stmt(
                 rid = rid_tok,
             ));
             format!("{pad}return Ok(Json({inner}));\n")
+        } else if matches!(v, HirExpr::Lambda(..)) {
+            // A directly-returned closure literal is a `Function`-typed VALUE; the
+            // fn return type lowers to `std::rc::Rc<dyn Fn(..)->..>` (see
+            // `types.rs`), and lambdas otherwise emit BARE (to coerce into adapter
+            // `FnOnce`/`FnMut` bounds). Wrap here so the bare closure becomes the
+            // `Rc<dyn Fn>` repr the signature expects.
+            format!("{pad}return std::rc::Rc::new({});\n", expr_str)
         } else {
             format!("{pad}return {};\n", expr_str)
         }
