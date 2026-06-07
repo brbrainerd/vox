@@ -639,6 +639,18 @@ where
 /// Try to emit Vox string method lowerings that have no direct Rust String equivalent.
 fn try_emit_str_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<String> {
     match method {
+        // Vox JSON accessors lower to the `serde_json::Value` equivalents.
+        // `as_int`/`as_float`/`as_bool` have no `String` analogue, so they are
+        // unambiguously JSON-value accessors. `as_str` exists on both, but Vox
+        // models it as returning an owned `Option<str>`; on a `serde_json::Value`
+        // the native `.as_str()` yields `Option<&str>`, so map to an owned String
+        // to satisfy downstream `unwrap_or("…".to_string())` / `String` fields.
+        "as_int" if arg_exprs.is_empty() => Some(format!("({}).as_i64()", o)),
+        "as_float" if arg_exprs.is_empty() => Some(format!("({}).as_f64()", o)),
+        "as_bool" if arg_exprs.is_empty() => Some(format!("({}).as_bool()", o)),
+        "as_str" if arg_exprs.is_empty() => {
+            Some(format!("({}).as_str().map(|__s| __s.to_string())", o))
+        }
         // Vox `to_upper` / `to_lower` are spelled `to_uppercase` / `to_lowercase`
         // on Rust's `str`/`String`.
         "to_upper" if arg_exprs.is_empty() => Some(format!("({}).to_uppercase()", o)),

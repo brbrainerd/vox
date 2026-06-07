@@ -18,12 +18,39 @@ where
     F: Fn(&HirExpr, OwnershipMode) -> String,
 {
     Some(match expr {
-        HirExpr::ObjectLit(fields, _) => {
-            let props: Vec<String> = fields
-                .iter()
-                .map(|(k, v)| format!("\"{}\": {}", k, emit(v, OwnershipMode::Owned)))
-                .collect();
-            format!("serde_json::json!({{ {} }})", props.join(", "))
+        HirExpr::ObjectLit(fields, span) => {
+            // An object literal ascribed to a user-defined struct type (e.g. the
+            // `Type { field: value, ... }` returned by `@json_as` `from_json`)
+            // must emit a Rust STRUCT literal, not a `serde_json::json!` Value —
+            // the emitted function returns `Result<Struct, String>`, so a JSON
+            // Value would clash (E0308). Builtin types that also map to
+            // `serde_json::Value` (Json/Any/Result/Element) keep the JSON form.
+            let struct_name = inferred_types
+                .and_then(|m| m.get(span))
+                .and_then(|t| match t {
+                    HirType::Named(n)
+                        if !matches!(
+                            n.as_str(),
+                            "Json" | "JsonBody" | "Any" | "Result" | "Element"
+                        ) =>
+                    {
+                        Some(n.clone())
+                    }
+                    _ => None,
+                });
+            if let Some(name) = struct_name {
+                let props: Vec<String> = fields
+                    .iter()
+                    .map(|(k, v)| format!("{}: {}", k, emit(v, OwnershipMode::Owned)))
+                    .collect();
+                format!("{} {{ {} }}", name, props.join(", "))
+            } else {
+                let props: Vec<String> = fields
+                    .iter()
+                    .map(|(k, v)| format!("\"{}\": {}", k, emit(v, OwnershipMode::Owned)))
+                    .collect();
+                format!("serde_json::json!({{ {} }})", props.join(", "))
+            }
         }
         HirExpr::MethodCall(obj, method, args, plan, _) => {
             let e = |expr: &HirExpr| emit(expr, OwnershipMode::Owned);
