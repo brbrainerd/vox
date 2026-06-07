@@ -22,16 +22,46 @@
 //!   per-subcommand `gate` / `corpus` / `block_ga` / `cost_metered` fields.
 
 pub mod aggregator;
+pub mod ga;
 pub mod recorder;
 pub mod report;
 pub mod subcommands;
 
 use report::{AuditReport, ReportFormat};
 
+/// Release-criteria tier. Declaration order IS the GA evaluation order:
+/// foundation gates are evaluated and reported before any downstream gate
+/// (see CR-F0 in `docs/src/architecture/v1-release-criteria.md` and the
+/// `--gate all --strict-block-ga` roll-up).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Tier {
+    Foundation,
+    Distribution,
+    Gui,
+    Product,
+    Tooling,
+}
+
+impl Tier {
+    /// Stable lowercase tier name used in the GA snapshot rows.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Tier::Foundation => "foundation",
+            Tier::Distribution => "distribution",
+            Tier::Gui => "gui",
+            Tier::Product => "product",
+            Tier::Tooling => "tooling",
+        }
+    }
+}
+
 /// CR-L gate identifier — one variant per row in
 /// `contracts/ci/vox-audit-contract.v1.yaml` §subcommands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CrlGate {
+    /// CR-F1 (Foundation): behavioral goldens — `// EXPECT:` stdout matches
+    /// `vox run --mode interp`. First registered Foundation-tier gate.
+    F1BehavioralGoldens,
     L0SpecToApp,
     L1HumanEval,
     L2MensOnDistribution,
@@ -53,6 +83,7 @@ impl CrlGate {
     /// Stable name as used by `vox audit <thing>` and the report `thing` field.
     pub fn thing_name(self) -> &'static str {
         match self {
+            CrlGate::F1BehavioralGoldens => "behavioral-goldens",
             CrlGate::L0SpecToApp => "spec-to-app",
             CrlGate::L1HumanEval => "humaneval",
             CrlGate::L2MensOnDistribution => "mens-on-distribution",
@@ -73,7 +104,8 @@ impl CrlGate {
     pub fn block_ga(self) -> bool {
         matches!(
             self,
-            CrlGate::L0SpecToApp
+            CrlGate::F1BehavioralGoldens
+                | CrlGate::L0SpecToApp
                 | CrlGate::L5AciDefault
                 | CrlGate::L6Retirement
                 | CrlGate::L7Deploy
@@ -93,9 +125,29 @@ impl CrlGate {
         )
     }
 
+    /// Which release-criteria tier this gate belongs to. The CR-L gates are
+    /// §3.5 Product; the stdlib-coverage gate is Tooling. Foundation /
+    /// Distribution / GUI variants enter as their gates land (Phase 0+).
+    pub fn tier(self) -> Tier {
+        match self {
+            CrlGate::F1BehavioralGoldens => Tier::Foundation,
+            CrlGate::L0SpecToApp
+            | CrlGate::L1HumanEval
+            | CrlGate::L2MensOnDistribution
+            | CrlGate::L3RepairCorpus
+            | CrlGate::L4PlanFidelity
+            | CrlGate::L5AciDefault
+            | CrlGate::L6Retirement
+            | CrlGate::L7Deploy
+            | CrlGate::L8CorpusFeedback => Tier::Product,
+            CrlGate::ToolingStdlibCoverage => Tier::Tooling,
+        }
+    }
+
     /// Iterator over every registered gate, in display order.
     pub fn all() -> impl Iterator<Item = CrlGate> {
         [
+            CrlGate::F1BehavioralGoldens,
             CrlGate::L0SpecToApp,
             CrlGate::L1HumanEval,
             CrlGate::L2MensOnDistribution,
@@ -198,6 +250,8 @@ pub trait Subcommand: Send + Sync {
 /// §subcommands. Tooling gates appear after the CR-L block.
 pub fn registry() -> Vec<Box<dyn Subcommand>> {
     vec![
+        // CR-F1 (Foundation) — first real foundation-tier gate.
+        Box::new(subcommands::behavioral_goldens::BehavioralGoldensSubcommand),
         Box::new(subcommands::stubs::SpecToAppStub),
         // P2.3: CR-L1 stub replaced by real vox-check-based impl.
         Box::new(subcommands::humaneval::HumanEvalSubcommand),
@@ -258,6 +312,41 @@ pub fn run_all(args: &CommonArgs) -> Vec<RunOutcome> {
             outcome
         })
         .collect()
+}
+
+/// Run every registered gate (foundation first per CR-F0) plus the standalone
+/// product binaries, fold them into a [`ga::GaSnapshot`] with
+/// `blocked_by_foundation` semantics, and (when `args.write_canonical_report`)
+/// write `contracts/reports/_snapshot/<UTC>.json`. This is the spine behind
+/// `vox audit --gate all --strict-block-ga`.
+pub fn run_ga_snapshot(args: &CommonArgs, strict_block_ga: bool) -> ga::GaSnapshot {
+    use report::ExitCode;
+    let mut rows: Vec<ga::GateRow> = registry()
+        .into_iter()
+        .map(|sub| {
+            let g = sub.gate();
+            // A11: every gate invocation emits a `vox.audit.run` event, exactly
+            // like run_gate/run_all. The GA roll-up is the production acceptance
+            // path, so it must not skip telemetry.
+            let started = std::time::Instant::now();
+            let outcome = sub.run(args);
+            emit_audit_run_event(&outcome, started, /* umbrella_run */ true);
+            ga::GateRow {
+                thing: g.thing_name().to_string(),
+                tier: g.tier().as_str().to_string(),
+                met: outcome.exit_code == ExitCode::Ok && !outcome.report.incomplete,
+                blocked_by_foundation: false,
+                exit_code: outcome.exit_code.as_i32(),
+                external_infra: false,
+            }
+        })
+        .collect();
+    rows.extend(ga::product_binary_gates(args));
+    let snap = ga::GaSnapshot::from_rows(rows, strict_block_ga);
+    if args.write_canonical_report {
+        let _ = snap.write_canonical(&workspace_root());
+    }
+    snap
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -333,6 +422,29 @@ mod tests {
     use super::*;
 
     #[test]
+    fn all_gates_are_ordered_foundation_first() {
+        // Tier order is the enum's declaration order (derive(Ord)).
+        let tiers: Vec<Tier> = CrlGate::all().map(|g| g.tier()).collect();
+        let mut sorted = tiers.clone();
+        sorted.sort();
+        assert_eq!(
+            tiers, sorted,
+            "CrlGate::all() must yield gates in non-decreasing tier order \
+             (foundation → distribution → gui → product → tooling); got {tiers:?}"
+        );
+    }
+
+    #[test]
+    fn registry_order_matches_all_order() {
+        let reg_gates: Vec<CrlGate> = registry().iter().map(|s| s.gate()).collect();
+        let all_gates: Vec<CrlGate> = CrlGate::all().collect();
+        assert_eq!(
+            reg_gates, all_gates,
+            "registry() and all() must agree on order"
+        );
+    }
+
+    #[test]
     fn every_gate_has_a_subcommand_in_registry() {
         let reg = registry();
         let registered_gates: std::collections::HashSet<CrlGate> =
@@ -365,8 +477,8 @@ mod tests {
         assert_eq!(registry().len(), CrlGate::all().count());
         assert_eq!(
             registry().len(),
-            10,
-            "9 CR-L gates + 1 tooling gate (stdlib-coverage) expected"
+            11,
+            "1 CR-F foundation gate + 9 CR-L gates + 1 tooling gate (stdlib-coverage) expected"
         );
     }
 
@@ -392,6 +504,7 @@ mod tests {
         let blockers: std::collections::HashSet<CrlGate> =
             CrlGate::all().filter(|g| g.block_ga()).collect();
         let expected: std::collections::HashSet<CrlGate> = [
+            CrlGate::F1BehavioralGoldens,
             CrlGate::L0SpecToApp,
             CrlGate::L5AciDefault,
             CrlGate::L6Retirement,
