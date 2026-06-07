@@ -13741,6 +13741,7 @@ dependencies = [
  "vox-plugin-api",
  "vox-plugin-catalog",
  "vox-plugin-host",
+ "vox-plugin-types",
  "vox-populi",
  "vox-project-scaffold",
  "vox-publisher",
