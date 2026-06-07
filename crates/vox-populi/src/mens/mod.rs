@@ -12,6 +12,9 @@ pub mod hardware;
 pub mod kernels;
 pub mod tensor;
 
+#[cfg(any(feature = "mens-train", feature = "mens-cloud"))]
+pub mod cohort;
+
 #[cfg(feature = "mens")]
 pub mod healing;
 
