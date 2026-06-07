@@ -48,7 +48,10 @@ fn collect_expect_main_goldens() -> Vec<PathBuf> {
 }
 
 enum TsEmit {
-    Ok { defines_main: bool, file_count: usize },
+    Ok {
+        defines_main: bool,
+        file_count: usize,
+    },
     ParseErr(String),
     GenErr(String),
     Panic,
@@ -105,7 +108,10 @@ fn codegen_ts_golden_emit_census() {
 
     let mut ok = 0usize;
     let mut ok_with_main = 0usize;
-    println!("\n=== codegen-ts emit census over {} goldens ===", goldens.len());
+    println!(
+        "\n=== codegen-ts emit census over {} goldens ===",
+        goldens.len()
+    );
     for g in &goldens {
         let name = g
             .strip_prefix(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden"))
@@ -113,7 +119,10 @@ fn codegen_ts_golden_emit_census() {
             .to_string_lossy()
             .replace('\\', "/");
         let status = match probe_ts_emit(g) {
-            TsEmit::Ok { defines_main, file_count } => {
+            TsEmit::Ok {
+                defines_main,
+                file_count,
+            } => {
                 ok += 1;
                 if defines_main {
                     ok_with_main += 1;

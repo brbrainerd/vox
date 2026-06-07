@@ -1,7 +1,7 @@
 ---
 title: "Codegen-TS Domain Boundary & CR-F2 Correction (Handoff)"
 description: "What the Rust-vs-TypeScript emit boundary actually is (logic→Rust, browser/GUI→TypeScript), why CR-F2's 'three-arm byte-parity' framing was wrong, and the scoped plan to reach the intended state."
-category: "Architecture"
+category: "Architecture SSOTs"
 status: roadmap
 training_eligible: false
 ---
