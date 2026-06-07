@@ -112,13 +112,19 @@ fn build_and_run_script(src: &str) -> Result<String, String> {
         .map_err(|e| format!("spawn cargo: {e}"))?;
     if !build.status.success() {
         let stderr = String::from_utf8_lossy(&build.stderr);
-        // Match a real rustc diagnostic line (`error[E0308]: ...` / `error: ...`),
-        // not cargo progress like "Compiling thiserror".
-        let first = stderr
+        // Collect ALL real rustc diagnostic lines (`error[E0308]: ...` /
+        // `error: ...`), not cargo progress like "Compiling thiserror", so the
+        // full chain is visible per golden for batch diagnosis.
+        let errors: Vec<&str> = stderr
             .lines()
             .map(str::trim_start)
-            .find(|l| l.starts_with("error[") || l.starts_with("error:"))
-            .unwrap_or("build failed");
+            .filter(|l| l.starts_with("error[") || l.starts_with("error:"))
+            .collect();
+        let first = if errors.is_empty() {
+            "build failed".to_string()
+        } else {
+            errors.join(" | ")
+        };
         return Err(format!("build: {first}"));
     }
 

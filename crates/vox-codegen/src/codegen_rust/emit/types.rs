@@ -23,6 +23,14 @@ pub(crate) fn emit_type(ty: &HirType) -> String {
                     "Option<{}>",
                     args_str.first().unwrap_or(&"serde_json::Value".to_string())
                 ),
+                // Vox `Result[T]` is single-arg; Rust's Result needs two. The
+                // error arm is constructed via `Error(msg)` (→ `Err(msg)`), where
+                // msg is a String, so default the error type to String. Without
+                // this, `Result<T>` emits with one arg (E0107).
+                "Result" => format!(
+                    "Result<{}, String>",
+                    args_str.first().unwrap_or(&"serde_json::Value".to_string())
+                ),
                 // Deprecated aliases — emit DurablePromise during the v0.6→v0.7 migration window.
                 "Future" | "Promise" => format!(
                     "DurablePromise<{}>",
