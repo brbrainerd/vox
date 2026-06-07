@@ -85,6 +85,27 @@ fn value_returning_main_compiles() {
     assert_compiles("fn main() to int { return 1 + 2 }");
 }
 
+/// `<list>.get(i) is Some(..)` must compile: `Vec::get` returns `Option<&T>`, so
+/// the get side is `.cloned()` to an owned `Option<T>` to match the `Some(..)`
+/// side — in both a plain `is` and the `assert(x is y)` → `assert_eq!` path.
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn get_is_some_compiles() {
+    assert_compiles(
+        r#"
+fn check(xs: List[str]) to bool {
+    return xs.get(0) is Some("a")
+}
+fn main() {
+    let xs = ["a", "b"]
+    assert(xs.get(0) is Some("a"))
+    assert(xs.get(5) isnt Some("z"))
+    print(str(check(xs)))
+}
+"#,
+    );
+}
+
 #[test]
 #[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn list_ops_compile() {
