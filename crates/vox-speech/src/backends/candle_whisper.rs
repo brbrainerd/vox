@@ -610,58 +610,12 @@ pub fn transcribe_pcm_internal(
     let mut output_segments = Vec::new();
     let frame_to_ms = |frames: usize| -> u64 { (frames * 10 * 160) as u64 / 16 };
 
-    if windows.len() == 1 {
-        let decoder = match build_decoder(
-            whisper,
-            tokenizer_clone,
-            seed,
-            &sess.device,
-            language_token,
-            task,
-            verbose,
-        ) {
-            Ok(d) => d,
-            Err(e) => {
-                *g = None;
-                return Err(e.context("Whisper decoder init failed; session cleared — retry"));
-            }
-        };
-        tracing::debug!(
-            target: "vox_oratio_whisper",
-            processor = decoder.processor_name(),
-            "decoder processor selected"
-        );
-        // FORCE OOM for testing
-        let text_res: Result<String, anyhow::Error> =
-            Err(anyhow::anyhow!("out of memory simulated for testing"));
-        let text = match text_res {
-            Ok(t) => t,
-            Err(e) => {
-                #[cfg(feature = "cloud")]
-                {
-                    if e.to_string().to_lowercase().contains("out of memory") {
-                        tracing::warn!(target: "vox_oratio_whisper", "CUDA OOM detected during single-window inference, falling back to cloud");
-                        let cloud = CloudOffloadBackend::new();
-                        // Note: pcm and language_override need to be available in this scope.
-                        // pcm is passed to transcribe_pcm_internal.
-                        // language_override is also passed to transcribe_pcm_internal.
-                        match cloud.transcribe_pcm(pcm, 16000, language_override) {
-                            Ok(out) => return Ok((out.raw_text, out.segments)),
-                            Err(cloud_err) => {
-                                return Err(
-                                    cloud_err.context("Cloud fallback also failed after CUDA OOM")
-                                );
-                            }
-                        }
-                    }
-                }
-                sess.whisper = Some(decoder.into_whisper_model());
-                return Err(e.context("Whisper inference"));
-            }
-        };
-        sess.whisper = Some(decoder.into_whisper_model());
-        return Ok((text, output_segments));
-    }
+    // NOTE: no single-window special case. A single 30s window is handled by the
+    // general loop below (it runs once). A prior "public eval sandbox" commit
+    // (a9d9641de3) injected an `if windows.len() == 1` branch that hard-coded
+    // `Err("out of memory simulated for testing")` instead of running inference —
+    // which silently broke ALL short (<30s, single-window) transcription, i.e. the
+    // entire push-to-talk / mic path. Removed; the loop does the real inference.
 
     sess.whisper = Some(whisper);
 
