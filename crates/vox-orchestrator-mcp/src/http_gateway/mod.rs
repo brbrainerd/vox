@@ -10,6 +10,7 @@ mod dashboard_api;
 mod scientia_feed;
 use scientia_feed::{TopicMessage, spawn_scientia_queue_poller};
 mod rpc_tools;
+mod vcs_feed;
 use rpc_tools::*;
 mod token;
 mod ws;
@@ -742,5 +743,72 @@ mod tests {
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    /// The vcs isolation routes are registered on the production router (not 404).
+    #[tokio::test]
+    async fn build_app_registers_vcs_isolation_route() {
+        use axum::body::Body;
+        use axum::http::{Request, StatusCode};
+        use tower::ServiceExt;
+        let state = GatewayState::for_test().await;
+        let app = build_app(state);
+        let req = Request::builder()
+            .uri("/api/v2/vcs/isolation")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        // Route exists: a registered route without ConnectInfo yields 500, an
+        // unregistered one yields 404. We only assert it is not 404.
+        assert_ne!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    /// GET /api/v2/vcs/isolation returns the live isolation status envelope.
+    #[tokio::test]
+    async fn get_vcs_isolation_returns_envelope() {
+        use axum::body::to_bytes;
+        use axum::extract::ConnectInfo;
+        use dashboard_api::get_vcs_isolation;
+        let state = GatewayState::for_test().await;
+        let peer: SocketAddr = "127.0.0.1:1234".parse().unwrap();
+        let resp = get_vcs_isolation(State(state), ConnectInfo(peer), HeaderMap::new()).await;
+        let bytes = to_bytes(resp.into_response().into_body(), 64 * 1024)
+            .await
+            .unwrap();
+        let v: Value = serde_json::from_slice(&bytes).unwrap();
+        assert!(v.get("v").is_some(), "envelope has version field");
+        assert_eq!(v["data"]["strategy_default"], "shared_branch");
+        assert!(v["data"]["per_agent"].is_object());
+        assert!(v["data"]["active_conflicts"].is_array());
+    }
+
+    /// POST /api/v2/vcs/isolation/strategy sets the default + a per-agent override,
+    /// and the response envelope reflects both.
+    #[tokio::test]
+    async fn post_vcs_isolation_strategy_updates_live_plan() {
+        use axum::body::to_bytes;
+        use axum::extract::ConnectInfo;
+        use dashboard_api::{PostIsolationStrategyBody, post_vcs_isolation_strategy};
+        let state = GatewayState::for_test().await;
+        let peer: SocketAddr = "127.0.0.1:1234".parse().unwrap();
+        let body: PostIsolationStrategyBody = serde_json::from_value(serde_json::json!({
+            "strategy_default": "separate_branches",
+            "agent_id": 7,
+            "strategy": "split_changes"
+        }))
+        .unwrap();
+        let resp = post_vcs_isolation_strategy(
+            State(state),
+            ConnectInfo(peer),
+            HeaderMap::new(),
+            Json(body),
+        )
+        .await;
+        let bytes = to_bytes(resp.into_response().into_body(), 64 * 1024)
+            .await
+            .unwrap();
+        let v: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(v["data"]["strategy_default"], "separate_branches");
+        assert_eq!(v["data"]["per_agent"]["7"], "split_changes");
     }
 }

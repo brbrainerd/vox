@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { IsolationPanel } from './IsolationPanel';
 
 interface RepositoryViewProps {
   pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
@@ -78,6 +79,12 @@ export function RepositoryView({ pushToast }: RepositoryViewProps) {
       <pre className="max-h-[420px] overflow-auto rounded-lg border border-white/10 bg-black/40 p-3 text-xs text-zinc-300">
         {output}
       </pre>
+      <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+        <IsolationPanel
+          status={null}
+          unavailableNote="Live isolation status is served at GET /api/v2/vcs/isolation; this panel renders read-only until the GUI MCP/Tauri bridge for that surface lands."
+        />
+      </div>
     </section>
   );
 }
