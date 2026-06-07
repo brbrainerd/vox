@@ -80,14 +80,46 @@ pub struct ProductBin {
 /// land in Phase 6.
 pub fn product_binary_descriptors() -> Vec<ProductBin> {
     vec![
-        ProductBin { bin: "cr-a1", thing: "cr-a1", external_infra: false },
-        ProductBin { bin: "cr-a2", thing: "cr-a2", external_infra: false },
-        ProductBin { bin: "cr-a4", thing: "cr-a4", external_infra: false },
-        ProductBin { bin: "cr-d3", thing: "cr-d3", external_infra: false },
-        ProductBin { bin: "cr-e1", thing: "cr-e1", external_infra: false },
-        ProductBin { bin: "cr-e2", thing: "cr-e2", external_infra: false },
-        ProductBin { bin: "cr-p1", thing: "cr-p1", external_infra: true },
-        ProductBin { bin: "cr-p2", thing: "cr-p2", external_infra: true },
+        ProductBin {
+            bin: "cr-a1",
+            thing: "cr-a1",
+            external_infra: false,
+        },
+        ProductBin {
+            bin: "cr-a2",
+            thing: "cr-a2",
+            external_infra: false,
+        },
+        ProductBin {
+            bin: "cr-a4",
+            thing: "cr-a4",
+            external_infra: false,
+        },
+        ProductBin {
+            bin: "cr-d3",
+            thing: "cr-d3",
+            external_infra: false,
+        },
+        ProductBin {
+            bin: "cr-e1",
+            thing: "cr-e1",
+            external_infra: false,
+        },
+        ProductBin {
+            bin: "cr-e2",
+            thing: "cr-e2",
+            external_infra: false,
+        },
+        ProductBin {
+            bin: "cr-p1",
+            thing: "cr-p1",
+            external_infra: true,
+        },
+        ProductBin {
+            bin: "cr-p2",
+            thing: "cr-p2",
+            external_infra: true,
+        },
     ]
 }
 
@@ -195,12 +227,23 @@ mod tests {
     #[test]
     fn product_binary_descriptors_cover_existing_bins() {
         let names: Vec<&str> = product_binary_descriptors().iter().map(|d| d.bin).collect();
-        for expected in ["cr-a1", "cr-a2", "cr-a4", "cr-d3", "cr-e1", "cr-e2", "cr-p1", "cr-p2"] {
-            assert!(names.contains(&expected), "missing descriptor for {expected}");
+        for expected in [
+            "cr-a1", "cr-a2", "cr-a4", "cr-d3", "cr-e1", "cr-e2", "cr-p1", "cr-p2",
+        ] {
+            assert!(
+                names.contains(&expected),
+                "missing descriptor for {expected}"
+            );
         }
-        let p1 = product_binary_descriptors().into_iter().find(|d| d.bin == "cr-p1").unwrap();
+        let p1 = product_binary_descriptors()
+            .into_iter()
+            .find(|d| d.bin == "cr-p1")
+            .unwrap();
         assert!(p1.external_infra);
-        let a1 = product_binary_descriptors().into_iter().find(|d| d.bin == "cr-a1").unwrap();
+        let a1 = product_binary_descriptors()
+            .into_iter()
+            .find(|d| d.bin == "cr-a1")
+            .unwrap();
         assert!(!a1.external_infra);
     }
 }
