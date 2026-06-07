@@ -187,6 +187,19 @@ impl Orchestrator {
             }
             (t, cfg.scope_enforcement)
         };
+        // §5.3(b): multi-agent runs escalate a configured `Warn` to `Strict`.
+        // An explicit `Disabled` opt-out is never silently flipped.
+        let active_agents = crate::sync_lock::rw_read(&*self.agents).len();
+        let scope_enforcement =
+            crate::scope::multi_agent_enforcement(active_agents, scope_enforcement);
+        // §5.1/§5.3(a): the effective isolation strategy for this agent decides
+        // whether a file-lock conflict is a hard error (SharedBranch) or tolerated
+        // (SplitChanges/SeparateBranches → recorded as a conflict at merge).
+        let isolation_strategy = {
+            let handle = self.isolation_policy_handle();
+            let plan = crate::sync_lock::rw_read(&handle);
+            plan.strategy_for(agent_id)
+        };
 
         // Cheap budget gates — run before any expensive work (Socrates research,
         // gate evaluation, persistence). Per CodeRabbit review on PR #61: an agent
@@ -356,13 +369,14 @@ impl Orchestrator {
             let scope_guard_lock = (scope_enforcement != ScopeEnforcement::Disabled)
                 .then_some(crate::sync_lock::rw_read(&*self.scope_guard));
             let scope_guard_ref = scope_guard_lock.as_deref();
-            match PolicyEngine::check_before_queue(
+            match PolicyEngine::check_before_queue_with_locks(
                 &self.lock_manager,
                 scope_guard_ref,
                 &self.event_bus,
                 file_manifest,
                 agent_id,
                 policy_trust,
+                isolation_strategy == crate::isolation::IsolationStrategy::SharedBranch,
             ) {
                 PolicyCheckResult::Allowed => {}
                 PolicyCheckResult::LockConflict(e) => {
@@ -374,12 +388,25 @@ impl Orchestrator {
             }
         }
 
-        // Try to acquire locks for write files
+        // Try to acquire locks for write files.
+        //
+        // Under SharedBranch the file lock is AUTHORITATIVE (spec §5.3a): a failed
+        // exclusive acquire on a contested path is a hard conflict, not best-effort.
+        // SplitChanges / SeparateBranches tolerate overlap (conflicts recorded later),
+        // so they keep the best-effort acquire.
         for fa in file_manifest {
             if fa.access == AccessKind::Write {
                 let lock_kind = LockKind::Exclusive;
-                // If lock fails, we still enqueue (the agent will retry when it picks up the task)
-                let _ = self.lock_manager.try_acquire(&fa.path, agent_id, lock_kind);
+                match self.lock_manager.try_acquire(&fa.path, agent_id, lock_kind) {
+                    Ok(()) => {}
+                    Err(e)
+                        if isolation_strategy
+                            == crate::isolation::IsolationStrategy::SharedBranch =>
+                    {
+                        return Err(OrchestratorError::LockConflict(e));
+                    }
+                    Err(_) => { /* tolerated: overlap becomes a recorded conflict at merge */ }
+                }
             }
         }
 

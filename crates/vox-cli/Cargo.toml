@@ -187,6 +187,8 @@ vox-doc-pipeline = { path = "../vox-doc-pipeline" }
 vox-research-shim = { workspace = true }
 vox-orchestrator = { workspace = true }
 vox-orchestrator-mcp = { workspace = true, optional = true }
+vox-plugin-api = { workspace = true }
+vox-plugin-types = { workspace = true }
 vox-plugin-catalog = { workspace = true }
 vox-plugin-host = { workspace = true }
 # Needed to construct ROption / RString when dispatching into plugin extension

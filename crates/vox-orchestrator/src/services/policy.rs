@@ -179,8 +179,38 @@ impl PolicyEngine {
         agent_id: AgentId,
         trust: PolicyTrustRelax,
     ) -> PolicyCheckResult {
-        if let PolicyCheckResult::LockConflict(e) =
-            Self::check_locks(lock_manager, manifest, agent_id)
+        Self::check_before_queue_with_locks(
+            lock_manager,
+            scope_guard,
+            event_bus,
+            manifest,
+            agent_id,
+            trust,
+            /* lock_authoritative */ true,
+        )
+    }
+
+    /// Like [`Self::check_before_queue`] but lets the caller decide whether a
+    /// file-lock conflict is a hard error.
+    ///
+    /// Under the SharedBranch isolation strategy (spec §5.3a) the lock is
+    /// authoritative (`lock_authoritative = true`) — a contested write is a hard
+    /// `LockConflict`. Under SplitChanges/SeparateBranches the overlap is
+    /// tolerated (`false`): the lock check is skipped here and the overlap is
+    /// recorded as a conflict at merge-back instead.
+    #[allow(clippy::too_many_arguments)]
+    pub fn check_before_queue_with_locks(
+        lock_manager: &FileLockManager,
+        scope_guard: Option<&ScopeGuard>,
+        event_bus: &EventBus,
+        manifest: &[FileAffinity],
+        agent_id: AgentId,
+        trust: PolicyTrustRelax,
+        lock_authoritative: bool,
+    ) -> PolicyCheckResult {
+        if lock_authoritative
+            && let PolicyCheckResult::LockConflict(e) =
+                Self::check_locks(lock_manager, manifest, agent_id)
         {
             return PolicyCheckResult::LockConflict(e);
         }

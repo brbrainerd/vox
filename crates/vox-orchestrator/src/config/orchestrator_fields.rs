@@ -109,6 +109,14 @@ pub struct OrchestratorConfig {
     /// How strictly to enforce agent scope boundaries (default: Warn).
     #[serde(default)]
     pub scope_enforcement: ScopeEnforcement,
+    /// Default multi-agent isolation strategy (spec §5.1). Default: SharedBranch.
+    #[serde(default)]
+    pub isolation_strategy_default: crate::isolation::IsolationStrategy,
+    /// Per-agent isolation strategy overrides (numeric agent id → strategy).
+    /// Keyed by raw u64 string for TOML/JSON friendliness (matches the
+    /// agent_id-as-string convention in `json_vcs_facade.rs`).
+    #[serde(default)]
+    pub isolation_per_agent: std::collections::HashMap<u64, crate::isolation::IsolationStrategy>,
     /// Event bus capacity (default: 1024).
     #[serde(default = "default_event_capacity")]
     pub event_bus_capacity: usize,
@@ -471,4 +479,33 @@ pub struct OrchestratorConfig {
     /// Optional configuration for the orchestrator-policy budget gate (D7).
     #[serde(default)]
     pub budget_gate_config: Option<crate::budget_gate::BudgetGateConfig>,
+}
+
+#[cfg(test)]
+mod isolation_config_tests {
+    use super::*;
+
+    #[test]
+    fn isolation_strategy_default_is_shared_branch() {
+        let c = OrchestratorConfig::default();
+        assert_eq!(
+            c.isolation_strategy_default,
+            crate::isolation::IsolationStrategy::SharedBranch
+        );
+        assert!(c.isolation_per_agent.is_empty());
+    }
+
+    #[test]
+    fn isolation_strategy_roundtrips_through_serde() {
+        let c = OrchestratorConfig {
+            isolation_strategy_default: crate::isolation::IsolationStrategy::SeparateBranches,
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&c).unwrap();
+        let back: OrchestratorConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            back.isolation_strategy_default,
+            crate::isolation::IsolationStrategy::SeparateBranches
+        );
+    }
 }

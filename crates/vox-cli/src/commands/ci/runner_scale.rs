@@ -83,9 +83,25 @@ fn now_secs() -> i64 {
         .unwrap_or(0)
 }
 
-fn gh_json(args: &[&str]) -> Result<String> {
+/// Build a `Command` that never flashes a console window on Windows.
+///
+/// The autoscaler runs every tick on a schedule and shells out to `gh`/`docker`
+/// many times per launch/reap cycle; without `CREATE_NO_WINDOW` each child pops a
+/// blank console window on the desktop. No-op on non-Windows.
+fn quiet_command(program: &str) -> Command {
     // vox-arch-check: allow git-exec
-    let out = Command::new("gh")
+    let mut cmd = Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd
+}
+
+fn gh_json(args: &[&str]) -> Result<String> {
+    let out = quiet_command("gh")
         .args(args)
         .output()
         .context("run gh (is the GitHub CLI installed and authenticated?)")?;
@@ -100,8 +116,7 @@ fn gh_json(args: &[&str]) -> Result<String> {
 }
 
 fn docker(args: &[&str]) -> Result<String> {
-    // vox-arch-check: allow git-exec
-    let out = Command::new("docker")
+    let out = quiet_command("docker")
         .args(args)
         .output()
         .context("run docker (is the daemon up?)")?;

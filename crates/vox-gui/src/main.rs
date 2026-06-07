@@ -95,6 +95,8 @@ async fn main() {
             commands::models::get_routing_summary,
             commands::models::get_routing_summary_live,
             commands::models::set_routing_priority,
+            commands::models::get_routing_intentions,
+            commands::models::nudge_routing_intention,
             commands::models::get_selection_policy,
             commands::models::set_selection_policy,
             commands::models::get_model_scoreboard,
@@ -130,6 +132,17 @@ async fn main() {
             commands::scientia_review::suggest_evidence_improvements,
             commands::search::vox_search_query,
             commands::search::open_locator,
+            commands::policy::policy_list,
+            commands::policy::policy_show,
+            commands::policy::policy_status,
+            commands::policy::list_branches,
+            commands::vcs_isolation::get_vcs_isolation,
+            commands::vcs_isolation::set_vcs_isolation_strategy,
+            commands::signing::signing_key_status,
+            commands::signing::rotate_signing_key,
+            commands::mesh::list_trusted_nodes,
+            commands::mesh::trust_mesh_node,
+            commands::mesh::untrust_mesh_node,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

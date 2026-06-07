@@ -1,8 +1,20 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Pill } from '../../ui/Pill';
 
-function HexCell({ intention, onSelect, selected }: any) {
+/** One routing-priority axis projected onto the hex grid (mirrors the Rust
+ *  `RoutingIntentionDto`). */
+interface RoutingIntention {
+  id: string;
+  parent: string;
+  branch: string;
+  phase: string;
+  conf: number;
+  note: string;
+}
+
+function HexCell({ intention, onSelect, selected }: { intention: RoutingIntention; onSelect: (id: string) => void; selected: boolean }) {
   const conf = intention.conf;
   const phaseToneMap: Record<string, any> = {
     Validated:   { stroke: "#34d399", fill: "rgba(52,211,153," + (0.06 + conf*0.18) + ")", text: "text-emerald-300", glow: "#34d399" },
@@ -11,7 +23,6 @@ function HexCell({ intention, onSelect, selected }: any) {
     Speculative: { stroke: "#a78bfa", fill: "rgba(167,139,250," + (0.06 + conf*0.18) + ")", text: "text-violet-300", glow: "#a78bfa" },
   };
   const phaseTone = phaseToneMap[intention.phase] || phaseToneMap.Active;
-  const pulseDur = (3.5 - conf * 2).toFixed(2) + "s";
 
   return (
     <button
@@ -21,7 +32,7 @@ function HexCell({ intention, onSelect, selected }: any) {
     >
       <div className="absolute inset-0 [clip-path:polygon(50%_0,100%_25%,100%_75%,50%_100%,0_75%,0_25%)] opacity-60" style={{ background: `radial-gradient(circle at center, ${phaseTone.glow}33, transparent 70%)` }} />
       <div className="relative flex h-full flex-col items-center justify-center px-4 text-center">
-        <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-500">{intention.parent} · {intention.id}</div>
+        <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-500">{intention.parent}</div>
         <div className={`mt-1 font-display text-[13px] font-semibold tracking-tight ${phaseTone.text}`}>{intention.branch}</div>
         <div className="mt-1.5 font-display text-[22px] font-bold tabular-nums text-zinc-100">{Math.round(conf*100)}<span className="text-[12px] text-zinc-500">%</span></div>
       </div>
@@ -32,9 +43,61 @@ function HexCell({ intention, onSelect, selected }: any) {
   );
 }
 
-export function Matrix({ intentions = [], onDoubt, onOverrule }: any) {
-  const [sel, setSel] = useState(intentions[0]?.id);
-  const active = intentions.find((i: any) => i.id === sel) || intentions[0];
+interface MatrixProps {
+  pushToast: (t: any) => void;
+}
+
+export function Matrix({ pushToast }: MatrixProps) {
+  const [intentions, setIntentions] = useState<RoutingIntention[]>([]);
+  const [sel, setSel] = useState<string | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(async () => {
+    try {
+      const cells = await invoke<RoutingIntention[]>('get_routing_intentions');
+      setIntentions(cells);
+      setSel(prev => (prev && cells.some(c => c.id === prev) ? prev : cells[0]?.id));
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Routing policies load failed', body: String(err) });
+    } finally {
+      setLoading(false);
+    }
+  }, [pushToast]);
+
+  useEffect(() => {
+    refresh();
+    const id = setInterval(refresh, 8000);
+    return () => clearInterval(id);
+  }, [refresh]);
+
+  const nudge = useCallback(async (axis: RoutingIntention, direction: 'promote' | 'doubt') => {
+    setBusy(true);
+    try {
+      await invoke('nudge_routing_intention', { axis: axis.id, direction });
+      pushToast({
+        tone: direction === 'promote' ? 'ok' : 'warn',
+        title: direction === 'promote' ? 'Axis promoted' : 'Axis doubted',
+        body: `${axis.branch} routing weight ${direction === 'promote' ? 'increased' : 'reduced'}.`,
+        cmd: `vox config routing ${axis.id} ${direction}`,
+      });
+      await refresh();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: `Routing ${direction} failed`, body: String(err) });
+    } finally {
+      setBusy(false);
+    }
+  }, [pushToast, refresh]);
+
+  const active = intentions.find(i => i.id === sel) || intentions[0];
+
+  if (loading) return (
+    <div className="p-8 text-center">
+      <Glass className="p-12 inline-block">
+        <p className="font-display uppercase tracking-[0.2em] text-zinc-500">Loading routing policies…</p>
+      </Glass>
+    </div>
+  );
 
   if (!active) return (
     <div className="p-8 text-center">
@@ -44,8 +107,8 @@ export function Matrix({ intentions = [], onDoubt, onOverrule }: any) {
     </div>
   );
 
-  const groups: Record<string, any[]> = {};
-  intentions.forEach((i: any) => { (groups[i.parent] = groups[i.parent] || []).push(i); });
+  const groups: Record<string, RoutingIntention[]> = {};
+  intentions.forEach((i) => { (groups[i.parent] = groups[i.parent] || []).push(i); });
 
   return (
     <div className="grid grid-cols-12 gap-5 p-5">
@@ -53,7 +116,7 @@ export function Matrix({ intentions = [], onDoubt, onOverrule }: any) {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Routing Policies</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">Orchestrator decision modules · speculative branches</p>
+            <p className="mt-0.5 text-[11px] text-zinc-500">Live model-routing priority axes · weight = how strongly the orchestrator favors each axis</p>
           </div>
         </div>
         <div className="mt-5 space-y-6">
@@ -74,24 +137,24 @@ export function Matrix({ intentions = [], onDoubt, onOverrule }: any) {
 
       <Glass className="col-span-12 xl:col-span-4 p-5">
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-[14px] font-semibold tracking-wide text-zinc-100">Branch Inspector</h3>
+          <h3 className="font-display text-[14px] font-semibold tracking-wide text-zinc-100">Axis Inspector</h3>
           <Pill phase={active.phase} />
         </div>
         <div className="mt-3 rounded-xl border border-white/5 bg-white/[0.02] p-4">
-          <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-500">{active.parent} · {active.id}</div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-500">{active.parent}</div>
           <div className="mt-1 font-display text-[20px] font-semibold tracking-tight text-zinc-50">{active.branch}</div>
           <div className="mt-2 text-[12px] leading-relaxed text-zinc-400">{active.note}</div>
           <div className="mt-4">
             <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-              <span>Confidence</span><span className="font-mono text-zinc-300">{Math.round(active.conf*100)}%</span>
+              <span>Weight</span><span className="font-mono text-zinc-300">{Math.round(active.conf*100)}%</span>
             </div>
             <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/5">
               <div className="h-full rounded-full bg-gradient-to-r from-violet-400 via-cyan-400 to-emerald-400" style={{ width: `${active.conf*100}%` }} />
             </div>
           </div>
           <div className="mt-4 flex gap-2">
-            <button onClick={() => onOverrule(active)} className="flex-1 rounded-md border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 font-display text-[11px] uppercase tracking-[0.18em] text-emerald-300 hover:bg-emerald-400/20 transition">Promote</button>
-            <button onClick={() => onDoubt(active)}   className="flex-1 rounded-md border border-amber-400/30 bg-amber-400/10 px-3 py-2 font-display text-[11px] uppercase tracking-[0.18em] text-amber-300 hover:bg-amber-400/20 transition">Doubt</button>
+            <button disabled={busy} onClick={() => nudge(active, 'promote')} className="flex-1 rounded-md border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 font-display text-[11px] uppercase tracking-[0.18em] text-emerald-300 hover:bg-emerald-400/20 transition disabled:opacity-40">Promote</button>
+            <button disabled={busy} onClick={() => nudge(active, 'doubt')}   className="flex-1 rounded-md border border-amber-400/30 bg-amber-400/10 px-3 py-2 font-display text-[11px] uppercase tracking-[0.18em] text-amber-300 hover:bg-amber-400/20 transition disabled:opacity-40">Doubt</button>
           </div>
         </div>
       </Glass>

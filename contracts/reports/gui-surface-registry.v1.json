@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "surface_count": 85,
+  "surface_count": 87,
   "top_level_groups": [
     "add",
     "ars",
@@ -47,6 +47,7 @@
     "play",
     "plugin",
     "pm",
+    "policy",
     "populi",
     "remove",
     "repair",
@@ -73,7 +74,5 @@
     "workflow"
   ],
   "unclassified_backfilled": [],
-  "wiring_violations": [
-    "view_key 'discovery-review' is not referenced in App.tsx"
-  ]
+  "wiring_violations": []
 }

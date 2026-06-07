@@ -276,6 +276,65 @@ impl WorkspaceManager {
         id
     }
 
+    /// Apply the strategy-specific setup for `agent_id` (spec §5.1/§5.3).
+    ///
+    /// - **SharedBranch** → no-op: file locks already enforce single-writer on a
+    ///   shared change.
+    /// - **SplitChanges** → start a per-agent logical change (`create_change`) so
+    ///   each agent tracks its own change; merge-back conflict recording is
+    ///   already wired via `workspace_merge_json`.
+    /// - **SeparateBranches** → bind the workspace to its own `agent/<id>`
+    ///   branch. With the `jj` feature this also creates the jj bookmark via the
+    ///   injected `JjActorHandle`; without `jj` it records the bound branch as
+    ///   metadata only.
+    ///
+    /// Returns the bound `BranchName` for SeparateBranches (so callers can
+    /// surface it), or `None` for the other strategies.
+    pub fn setup_isolation(
+        &mut self,
+        agent_id: AgentId,
+        strategy: crate::isolation::IsolationStrategy,
+    ) -> Option<vox_orchestrator_types::BranchName> {
+        match strategy {
+            crate::isolation::IsolationStrategy::SharedBranch => None,
+            crate::isolation::IsolationStrategy::SplitChanges => {
+                self.create_change(agent_id, format!("agent {} change", agent_id.0));
+                None
+            }
+            crate::isolation::IsolationStrategy::SeparateBranches => {
+                let branch_str = format!("agent/{}", agent_id.0);
+                let branch = match vox_orchestrator_types::BranchName::parse(&branch_str) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        tracing::error!(error = %e, branch = %branch_str, "invalid agent branch name");
+                        return None;
+                    }
+                };
+
+                #[cfg(feature = "jj")]
+                if let Some(handle) = &self.vcs {
+                    let mut h = handle.clone();
+                    let name = branch_str.clone();
+                    spawn_supervised_infallible("jj_actor_create_branch", async move {
+                        use vox_vcs::VcsBackend as _;
+                        if let Err(e) = h.create_branch(&name).await {
+                            tracing::error!(
+                                error = %e,
+                                branch = %name,
+                                "jj VCS create_branch failed; SeparateBranches isolation is metadata-only for this agent"
+                            );
+                        }
+                    });
+                }
+
+                if let Some(ws) = self.workspaces.get_mut(&agent_id) {
+                    ws.set_bound_branch(branch.clone());
+                }
+                Some(branch)
+            }
+        }
+    }
+
     /// Add a snapshot to a change.
     pub fn add_snapshot_to_change(&mut self, change_id: ChangeId, snapshot_id: SnapshotId) {
         if let Some(change) = self.changes.get_mut(&change_id) {
@@ -363,6 +422,60 @@ mod tests {
     #[test]
     fn change_id_display() {
         assert_eq!(ChangeId(42).to_string(), "CH-000042");
+    }
+
+    #[test]
+    fn separate_branches_records_bound_branch() {
+        // No-jj fallback path: SeparateBranches must record the bound branch as
+        // metadata on the workspace (the jj bookmark is best-effort/feature-gated).
+        let mut mgr = WorkspaceManager::new();
+        mgr.create_workspace(AgentId(4), SnapshotId(1));
+
+        let branch = mgr.setup_isolation(
+            AgentId(4),
+            crate::isolation::IsolationStrategy::SeparateBranches,
+        );
+        assert_eq!(branch.as_ref().map(|b| b.as_str()), Some("agent/4"));
+        assert_eq!(
+            mgr.get_workspace(AgentId(4))
+                .and_then(|ws| ws.bound_branch())
+                .map(|b| b.as_str()),
+            Some("agent/4")
+        );
+    }
+
+    #[test]
+    fn split_changes_starts_per_agent_change() {
+        let mut mgr = WorkspaceManager::new();
+        mgr.create_workspace(AgentId(2), SnapshotId(1));
+        let before = mgr.list_changes(Some(AgentId(2)), 100).len();
+        mgr.setup_isolation(
+            AgentId(2),
+            crate::isolation::IsolationStrategy::SplitChanges,
+        );
+        let after = mgr.list_changes(Some(AgentId(2)), 100).len();
+        assert_eq!(
+            after,
+            before + 1,
+            "SplitChanges must start a per-agent change"
+        );
+    }
+
+    #[test]
+    fn shared_branch_is_noop() {
+        let mut mgr = WorkspaceManager::new();
+        mgr.create_workspace(AgentId(1), SnapshotId(1));
+        let branch = mgr.setup_isolation(
+            AgentId(1),
+            crate::isolation::IsolationStrategy::SharedBranch,
+        );
+        assert!(branch.is_none());
+        assert!(
+            mgr.get_workspace(AgentId(1))
+                .unwrap()
+                .bound_branch()
+                .is_none()
+        );
     }
 
     #[test]

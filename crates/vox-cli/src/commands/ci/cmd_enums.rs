@@ -132,6 +132,16 @@ pub enum CiCmd {
         #[arg(long)]
         skip_runtime: bool,
     },
+    /// Regenerate the unified policy registry from live sources.
+    #[command(name = "policy-registry")]
+    PolicyRegistry {
+        /// Write the registry to disk instead of printing it.
+        #[arg(long)]
+        write: bool,
+    },
+    /// Fail if the policy registry has drifted from the live detector set.
+    #[command(name = "policy-registry-parity")]
+    PolicyRegistryParity,
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
     SsotDrift,
@@ -888,6 +898,14 @@ pub enum CiCmd {
         #[arg(long)]
         build: bool,
     },
+    /// Extract the plugin extension-point surface from vox-plugin-api into
+    /// contracts/plugin/extension-points.v1.yaml (SSOT). Also enforces VoxPlugin accessor parity.
+    #[command(name = "plugin-surface-sync")]
+    PluginSurfaceSync {
+        /// Regenerate the committed file. Without this flag, verify it is in sync.
+        #[arg(long)]
+        write: bool,
+    },
     /// Walk crates/ for skill/composite Plugin.toml files and assert skill-md exists, is non-empty, and tools.exposes is non-empty.
     #[command(name = "plugin-skill-parity")]
     PluginSkillParity,
@@ -910,6 +928,66 @@ pub enum CiCmd {
         #[arg(long)]
         failures_only: bool,
     },
+}
+
+impl CiCmd {
+    /// The policy-registry id this gate is recorded under in the per-branch
+    /// status store, or `None` if it is not run-status-tracked.
+    ///
+    /// Ids MUST match the `ci-gate` entries the Plan 1b generator emits from
+    /// `contracts/operations/catalog.v1.yaml` (id scheme `ci-gate/ci.<command>`).
+    /// New gates that should appear in the status overlay add a row here. A
+    /// variant returning `None` is simply untracked (honest grey), never faked.
+    ///
+    /// DEVIATION FROM PLAN: the plan assumed ids of the form `ci/<command>`. The
+    /// committed registry (Plan 1b, landed) uses `ci-gate/ci.<command>` derived
+    /// from the operations catalog id `ci.<command>`. This map uses the real ids
+    /// (cross-checked against `contracts/policy/policy-registry.v1.yaml`).
+    pub fn gate_policy_id(&self) -> Option<&'static str> {
+        match self {
+            CiCmd::Manifest => Some("ci-gate/ci.manifest"),
+            CiCmd::SsotDrift => Some("ci-gate/ci.ssot-drift"),
+            CiCmd::CommandCompliance => Some("ci-gate/ci.command-compliance"),
+            CiCmd::RepoGuards => Some("ci-gate/ci.repo-guards"),
+            CiCmd::LineEndings { .. } => Some("ci-gate/ci.line-endings"),
+            CiCmd::DataSsotGuards => Some("ci-gate/ci.data-ssot-guards"),
+            CiCmd::FeatureMatrix => Some("ci-gate/ci.feature-matrix"),
+            CiCmd::CompileMatrix => Some("ci-gate/ci.compile-matrix"),
+            CiCmd::RetirementAudit => Some("ci-gate/ci.retirement-audit"),
+            CiCmd::NoDeiImport => Some("ci-gate/ci.no-dei-import"),
+            CiCmd::CheckSummaryDrift => Some("ci-gate/ci.check-summary-drift"),
+            CiCmd::BuildDocs => Some("ci-gate/ci.build-docs"),
+            CiCmd::CheckDocsSsot => Some("ci-gate/ci.check-docs-ssot"),
+            CiCmd::CheckCodexSsot => Some("ci-gate/ci.check-codex-ssot"),
+            CiCmd::CheckLinks { .. } => Some("ci-gate/ci.check-links"),
+            CiCmd::ContractsIndex => Some("ci-gate/ci.contracts-index"),
+            CiCmd::AiFixturesCoverage => Some("ci-gate/ci.ai-fixtures-coverage"),
+            CiCmd::ExecPolicyContract => Some("ci-gate/ci.exec-policy-contract"),
+            CiCmd::OpenClawContract => Some("ci-gate/ci.openclaw-contract"),
+            CiCmd::OperationsVerify => Some("ci-gate/ci.operations-verify"),
+            CiCmd::NomenclatureGuard { .. } => Some("ci-gate/ci.nomenclature-guard"),
+            CiCmd::RustEcosystemPolicy => Some("ci-gate/ci.rust-ecosystem-policy"),
+            CiCmd::PolicySmoke => Some("ci-gate/ci.policy-smoke"),
+            CiCmd::SecretEnvGuard { .. } => Some("ci-gate/ci.secret-env-guard"),
+            CiCmd::SecretsParity => Some("ci-gate/ci.secrets-parity"),
+            CiCmd::SqlSurfaceGuard { .. } => Some("ci-gate/ci.sql-surface-guard"),
+            CiCmd::QueryAllGuard { .. } => Some("ci-gate/ci.query-all-guard"),
+            CiCmd::TursoImportGuard { .. } => Some("ci-gate/ci.turso-import-guard"),
+            CiCmd::DbSchemaCoverage => Some("ci-gate/ci.db-schema-coverage"),
+            CiCmd::PolicyAllowlistParity => Some("ci-gate/ci.policy-allowlist-parity"),
+            CiCmd::BackendTests => Some("ci-gate/ci.backend-tests"),
+            CiCmd::DocsRealityAudit { .. } => Some("ci-gate/ci.docs-reality-audit"),
+            CiCmd::DocInventory { .. } => Some("ci-gate/ci.doc-inventory"),
+            CiCmd::WorkflowScripts { .. } => Some("ci-gate/ci.workflow-scripts"),
+            CiCmd::ScientiaWorthinessContract => Some("ci-gate/ci.scientia-worthiness-contract"),
+            CiCmd::ScientiaNoveltyLedgerContracts => {
+                Some("ci-gate/ci.scientia-novelty-ledger-contracts")
+            }
+            // The registry machinery itself is intentionally untracked, and any
+            // gate without a registry-backed `ci-gate` row stays grey.
+            _ => None,
+        }
+    }
 }
 
 #[derive(clap::Args, Debug, Clone)]
@@ -1097,4 +1175,54 @@ pub enum MensScorecardCmd {
         #[arg(long = "summary")]
         summary: PathBuf,
     },
+}
+
+#[cfg(test)]
+mod policy_id_tests {
+    use super::*;
+
+    #[test]
+    fn known_gates_map_to_registry_ids() {
+        assert_eq!(
+            CiCmd::Manifest.gate_policy_id(),
+            Some("ci-gate/ci.manifest")
+        );
+        assert_eq!(
+            CiCmd::SsotDrift.gate_policy_id(),
+            Some("ci-gate/ci.ssot-drift")
+        );
+        // Generator/parity gates are not run-status-tracked (they ARE the catalog).
+        assert_eq!(CiCmd::PolicyRegistryParity.gate_policy_id(), None);
+        assert_eq!(
+            CiCmd::PolicyRegistry { write: false }.gate_policy_id(),
+            None
+        );
+    }
+
+    #[test]
+    fn gate_policy_ids_are_well_formed() {
+        // Every mapped id is `ci-gate/ci.<kebab>` (matches the 1b ci-gate namespace).
+        for id in [
+            CiCmd::Manifest.gate_policy_id(),
+            CiCmd::SsotDrift.gate_policy_id(),
+            CiCmd::LineEndings {
+                all: false,
+                base: None,
+                autofix: false,
+            }
+            .gate_policy_id(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            assert!(
+                id.starts_with("ci-gate/ci."),
+                "{id} must be ci-gate/ci.-namespaced"
+            );
+            assert!(
+                id.chars()
+                    .all(|c| c.is_ascii_lowercase() || c == '/' || c == '-' || c == '.')
+            );
+        }
+    }
 }

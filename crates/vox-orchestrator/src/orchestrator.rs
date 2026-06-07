@@ -92,6 +92,9 @@ pub struct Orchestrator {
     pub load_history: std::sync::Arc<std::sync::RwLock<std::collections::VecDeque<f64>>>,
     /// Scope guard for write boundaries (synced with affinity on assign/retire).
     pub scope_guard: std::sync::Arc<std::sync::RwLock<ScopeGuard>>,
+    /// Live multi-agent isolation policy (strategy default + per-agent overrides),
+    /// seeded from config; read by the submit path and the GUI REST handler (spec §5.1/§5.4).
+    pub isolation_policy: std::sync::Arc<std::sync::RwLock<crate::isolation::IsolationPlan>>,
     /// Per-task timeline (ingress → route → outcome), capped at MAX_TASK_TRACES.
     pub task_traces: std::sync::Arc<std::sync::RwLock<HashMap<TaskId, Vec<TaskTraceStep>>>>,
     /// **Codex** database handle (Turso/libSQL).
