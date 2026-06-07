@@ -274,3 +274,18 @@ Phases are independently shippable; recommended order **0 → 1 → 2 → 3** (t
 Two execution options:
 1. **Subagent-Driven (recommended)** — fresh subagent per task, two-stage review between tasks.
 2. **Inline Execution** — batch with checkpoints via superpowers:executing-plans.
+
+---
+
+## Post-verification revision (2026-06-07)
+
+Four verification passes against the live code changed the plan. Summary:
+
+- **TARGET CHANGE (premise-breaker):** `Qwen/Qwen3.5-4B-Base` is multimodal (`Qwen3_5ForConditionalGeneration` + `vision_config`) and is **hard-rejected at config-parse** by the text trainer (`crates/vox-hf-layout/src/lib.rs:101-124`). No text-only 4B Qwen exists that this trainer can load. **Practical destination re-targeted to `Qwen/Qwen2.5-Coder-3B-Instruct`** (text-only, already in `~/.cache/huggingface/hub`, closest to the 4B intent). Multimodal-trainer support ≈350 LOC + a vision tower the trainer lacks — out of scope.
+  - **Phase 2 amended:** Task 2.1 no longer downloads Qwen3.5-4B. Validate on **Qwen2.5-Coder-3B** first; fallback ladder 3B → 1.5B → 0.5B (all local). Task 1.5 recalibrates for the **3B** fit, not 4B.
+- **PRUNE — Task 1.4 (gradient checkpointing):** confirmed L-effort (Candle 0.9 has no checkpoint primitive; needs a trainer fork) and **likely unnecessary** for the 3B target once 1.2 (BF16 activations) + 1.3 (BF16 embeddings) + 1.5 (recalibrate) land. Make it **conditional**: only implement if measured 3B peak still exceeds ~14 GiB. Default-off.
+- **CONFIRMED cheap (proceed):** Task 1.1 (grad-clip fix), 1.2 (BF16 activations — localized; Candle 0.9 ships `softmax_bf16`), 1.3 (BF16 embeddings — localized). All small.
+- **NEW prerequisite before Task 1.5:** resolve the dual-sizing conflict — `crates/vox-ml-cli/src/commands/schola/train/gpu.rs:87-132` re-derives seq/batch/grad_accum from a preset and can override the per-model VRAM budget in `train_arm.rs:256-376` (budget only fills `None`). Recalibration isn't trustworthy until precedence is fixed (preset-vs-VRAM-budget).
+- **ADAPT — resilient wrapper (Task 0.1, already shipped):** add `--checkpoint-every <N>` to the relaunched command so mid-epoch resume points exist (CLI default is `None` = epoch-boundary only). Minor follow-up.
+- **Phase 3 (mesh): all assumptions confirmed**, no changes — most build-ready phase. One note: make `load_adapter_into_trainer` `pub`; reuse only `CheckpointBundle::{sign,verify,to_operation_kind}` + `SessionId` from the distributed-training stub.
+- **Known limitation:** `.vox` automation scripts only run under `vox run --mode interp` (native codegen bugs) — tracked as a separate cleanup task.
