@@ -57,6 +57,25 @@ pub(super) fn emit_stmt(
             }
         }
         HirStmt::Assign { target, value, .. } => {
+            // Vox's value-semantics collection idiom `xs = xs.push(v)` reassigns the
+            // *result* of `push` back to the binding. Rust's `Vec::push` mutates in
+            // place and returns `()`, so the literal `xs = xs.push(v)` assigns `()`
+            // (E0308). When the RHS is an in-place mutator (`push`/`pop`/…) whose
+            // receiver is the assignment target itself, emit the bare mutation call
+            // — the binding is already `mut` in the generated code, so the effect is
+            // identical to the interpreter's "return the updated list".
+            if let Some(s) = try_emit_self_mutation_assign(
+                target,
+                value,
+                &pad,
+                is_route,
+                is_actor,
+                mutation_tx,
+                inferred_types,
+                usage,
+            ) {
+                return s;
+            }
             // The target must be an l-value; do not emit `.clone()` on ident targets.
             let lhs = emit_assign_target(target, inferred_types, usage);
             format!(
@@ -219,6 +238,68 @@ fn emit_assign_target(
             OwnershipMode::Owned,
         ),
     }
+}
+
+/// Detect and emit the `xs = xs.<mutator>(args)` value-semantics idiom as a bare
+/// in-place mutation statement. Returns `None` when the RHS is not a mutating
+/// method call whose receiver is the same identifier as the assignment target.
+#[allow(clippy::too_many_arguments)]
+fn try_emit_self_mutation_assign(
+    target: &HirExpr,
+    value: &HirExpr,
+    pad: &str,
+    is_route: bool,
+    is_actor: bool,
+    mutation_tx: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
+) -> Option<String> {
+    // In-place mutators whose Rust return type is `()` (so `xs = xs.push(v)` would
+    // assign unit). Mirrors the MUTATING table in `method_emit::emit_method_call`.
+    const SELF_MUTATORS: &[&str] = &[
+        "push",
+        "pop",
+        "insert",
+        "remove",
+        "clear",
+        "extend",
+        "append",
+        "truncate",
+        "retain",
+        "sort",
+        "sort_by_key",
+        "sort_by",
+        "reverse",
+        "dedup",
+        "swap",
+    ];
+    let HirExpr::Ident(target_name, _) = target else {
+        return None;
+    };
+    let HirExpr::MethodCall(obj, method, ..) = value else {
+        return None;
+    };
+    if !SELF_MUTATORS.contains(&method.as_str()) {
+        return None;
+    }
+    let HirExpr::Ident(recv_name, _) = obj.as_ref() else {
+        return None;
+    };
+    if recv_name != target_name {
+        return None;
+    }
+    // `emit_method_call` already lowers a mutating method on an identifier receiver
+    // to the bare (mut) binding (`xs.push(v)`), so reuse it directly as a statement.
+    let call = emit_expr_with(
+        value,
+        is_route,
+        is_actor,
+        mutation_tx,
+        inferred_types,
+        usage,
+        OwnershipMode::Owned,
+    );
+    Some(format!("{pad}{call};\n"))
 }
 
 /// Emit the actor-owned loop reduction/GC prelude (reduction counter bump,

@@ -639,6 +639,41 @@ where
 /// Try to emit Vox string method lowerings that have no direct Rust String equivalent.
 fn try_emit_str_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<String> {
     match method {
+        // Vox `to_upper` / `to_lower` are spelled `to_uppercase` / `to_lowercase`
+        // on Rust's `str`/`String`.
+        "to_upper" if arg_exprs.is_empty() => Some(format!("({}).to_uppercase()", o)),
+        "to_lower" if arg_exprs.is_empty() => Some(format!("({}).to_lowercase()", o)),
+        // `s.replace(from, to)` — Rust's `str::replace` takes a `Pattern` for the
+        // needle and `&str` for the replacement, so both args are borrowed.
+        "replace" if arg_exprs.len() == 2 => Some(format!(
+            "({}).replace(({}).as_str(), ({}).as_str())",
+            o, arg_exprs[0], arg_exprs[1]
+        )),
+        // `x.contains(needle)` — `&needle` satisfies BOTH `str::contains` (which
+        // accepts `&String` as a `Pattern`) AND `Vec::contains` (which takes
+        // `&T`), so a single `&(..)` form covers string and list receivers
+        // without needing the receiver's static type here.
+        "contains" if arg_exprs.len() == 1 => {
+            Some(format!("({}).contains(&({}))", o, arg_exprs[0]))
+        }
+        // `s.split(sep)` — the interpreter returns an owned `list[str]`. Rust's
+        // `str::split` needs a `Pattern` (so the separator is borrowed via
+        // `.as_str()`) and yields a lazy, non-`Clone` iterator — collect into an
+        // owned `Vec<String>` so the result can be iterated and cloned like the
+        // interpreter's list.
+        "split" if arg_exprs.len() == 1 => Some(format!(
+            "({{ let __s: &str = ({}).as_ref(); __s.split(({}).as_str()).map(|__p| __p.to_string()).collect::<Vec<String>>() }})",
+            o, arg_exprs[0]
+        )),
+        // `xs.get(i)` (list, integer index) returns an owned `Option<T>` in Vox
+        // (matching the `Index` emit). Rust's `Vec::get` returns `Option<&T>`, so
+        // `.cloned()` aligns the type with `Some(<owned>)` comparisons, and the
+        // index is cast to `usize`. String-keyed `get` (serde_json `Value::get`,
+        // map `.get`) is left to the generic path — detected by a string-literal
+        // arg, which must NOT be cast to `usize`.
+        "get" if arg_exprs.len() == 1 && !arg_exprs[0].trim_start().starts_with('"') => {
+            Some(format!("({}).get(({}) as usize).cloned()", o, arg_exprs[0]))
+        }
         "slice" if arg_exprs.len() == 2 => Some(format!(
             "({{ let __s: &str = ({}).as_ref(); let __start = ({}) as usize; let __end = ({}) as usize; let __cnt = __s.chars().count(); let __end = __end.min(__cnt); let __start = __start.min(__end); __s.chars().skip(__start).take(__end - __start).collect::<String>() }})",
             o, arg_exprs[0], arg_exprs[1]

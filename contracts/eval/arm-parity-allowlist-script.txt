@@ -19,4 +19,3 @@
 # adt_multi_field, regex_free_functions, tuple_destructure.
 closures_hof.vox
 json_as_typed.vox
-string_interpolation.vox
