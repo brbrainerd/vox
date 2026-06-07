@@ -34,6 +34,8 @@ pub mod compiler_tools;
 /// Codex schema digest + sample row tools for `.vox` modules.
 pub mod db_tools;
 pub mod dispatch;
+/// Automatic post-mutation `.vox` verification feedback (verification-driven agent loop).
+pub mod post_verification;
 /// Execution time tracking tools.
 pub mod exec_time_tools;
 /// Central `git` executor with banned-command denylist and `vox.vcs.exec` telemetry.
