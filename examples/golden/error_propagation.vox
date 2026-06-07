@@ -117,10 +117,11 @@ fn test_onboard_user() {
         Error(e) => e
     }
     assert(bad is "email too short")
-    // Another short email variant.
-    let bad2 = match onboard_user("a@b") {
-        Ok(_) => "ok"
-        Error(e) => e
+    // Valid email flows through validate_email -> proceed_onboarding ->
+    // send_welcome (Ok(Unit)) and returns Ok("onboarded").
+    let good = match onboard_user("user@example.com") {
+        Ok(msg) => msg
+        Error(_) => "err"
     }
-    assert(bad2 is "email too short")
+    assert(good is "onboarded")
 }
