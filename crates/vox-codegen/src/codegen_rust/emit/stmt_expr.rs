@@ -735,9 +735,24 @@ pub(super) fn emit_expr_with(
                 return s;
             }
             let c = emit(callee, OwnershipMode::Owned);
+            // `@json_as` generates `<Type>_from_json(j: Json) -> Result[Type]`,
+            // whose Rust param lowers to `serde_json::Value`. The usual caller
+            // binds `j` from `json.parse(..)`, which the runtime returns as the
+            // newtype `VoxJson(serde_json::Value)`. Unwrap the inner Value at the
+            // call site so the argument type matches the param (E0308: expected
+            // `serde_json::Value`, found `VoxJson`). `.0` is a public field.
+            let is_from_json_call =
+                matches!(&**callee, HirExpr::Ident(n, _) if n.ends_with("_from_json"));
             let a: Vec<_> = args
                 .iter()
-                .map(|arg| emit(&arg.value, OwnershipMode::Owned))
+                .map(|arg| {
+                    let e = emit(&arg.value, OwnershipMode::Owned);
+                    if is_from_json_call {
+                        format!("({}).0", e)
+                    } else {
+                        e
+                    }
+                })
                 .collect();
             if *is_await {
                 format!("{}({}).await", c, a.join(", "))

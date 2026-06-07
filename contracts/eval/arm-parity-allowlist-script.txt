@@ -18,4 +18,3 @@
 # string_interpolation. NEAR-GREEN (1-3 type fixes): range_and_indexing,
 # adt_multi_field, regex_free_functions, tuple_destructure.
 closures_hof.vox
-json_as_typed.vox

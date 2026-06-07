@@ -25,6 +25,11 @@ where
             // the emitted function returns `Result<Struct, String>`, so a JSON
             // Value would clash (E0308). Builtin types that also map to
             // `serde_json::Value` (Json/Any/Result/Element) keep the JSON form.
+            // Prefer the typeck-inferred type (populated in the typechecked lanes).
+            // In the script lane `inferred_types` is empty, so fall back to the
+            // `@json_as` `from_json` context hint set by `emit_fn`: inside a
+            // `<Type>_from_json` body the sole struct `ObjectLit` is the decoded
+            // value and must emit `Type { .. }`, not `serde_json::json!`.
             let struct_name = inferred_types
                 .and_then(|m| m.get(span))
                 .and_then(|t| match t {
@@ -37,7 +42,8 @@ where
                         Some(n.clone())
                     }
                     _ => None,
-                });
+                })
+                .or_else(super::json_as_ctx::current_from_json_struct);
             if let Some(name) = struct_name {
                 let props: Vec<String> = fields
                     .iter()
