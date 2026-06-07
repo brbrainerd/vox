@@ -76,7 +76,6 @@ export interface DashboardData {
   alerts: LudusAlert[];
   contextChips: string[];
   skills: CommandCatalogEntry[];
-  intentions: any[];
   /** Optional pre-computed agent topology graph. AgentFlow will generate one from
    *  live agent data if this is absent. */
   graph?: AgentGraph;
