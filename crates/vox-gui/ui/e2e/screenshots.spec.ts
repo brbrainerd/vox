@@ -135,7 +135,7 @@ function installMock(target: string) {
         case 'get_orchestrator_status': return { agent_count: 0, agents: [], recent_events: [], alerts: [], peers: [] };
         case 'list_model_cards': return models;
         case 'get_active_model': return 'opus-4-8';
-        case 'get_routing_summary': case 'get_routing_summary_live':
+        case 'get_routing_summary_live':
           return {
             active_model: 'opus-4-8', exploration_spent_usd: 2.4, exploration_budget_usd: 50,
             arm_count: 6, model_count: 6,

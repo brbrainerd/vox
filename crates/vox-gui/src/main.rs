@@ -92,7 +92,6 @@ async fn main() {
             commands::models::list_model_cards,
             commands::models::get_active_model,
             commands::models::set_active_model,
-            commands::models::get_routing_summary,
             commands::models::get_routing_summary_live,
             commands::models::set_routing_priority,
             commands::models::get_routing_intentions,
