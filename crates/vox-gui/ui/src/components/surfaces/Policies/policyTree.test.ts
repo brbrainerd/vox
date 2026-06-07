@@ -74,8 +74,17 @@ describe('master badge (overallWorst + worstCount)', () => {
     expect(overallWorst(rows, status, ['main'])).toBe('fail');
     expect(worstCount(rows, status, ['main'])).toBe(1); // one rule at the worst (fail)
   });
-  it('worstCount counts all rules at the worst tier (e.g. all not_run)', () => {
+  it('worstCount is 0 when the worst tier is not_run (empty store → grey dot, no noisy count)', () => {
     expect(overallWorst(rows, [], ['main'])).toBe('not_run');
-    expect(worstCount(rows, [], ['main'])).toBe(3);
+    expect(worstCount(rows, [], ['main'])).toBe(0);
+  });
+  it('worstCount still counts non-not_run worst tiers', () => {
+    const status: PolicyStatus[] = [
+      { branch: 'main', id: 'code-audit/stub/todo', status: 'warn', hits: 1 },
+      { branch: 'main', id: 'code-audit/stub/unimpl', status: 'warn', hits: 1 },
+      { branch: 'main', id: 'ci/parity', status: 'not_run', hits: 0 },
+    ];
+    expect(overallWorst(rows, status, ['main'])).toBe('warn');
+    expect(worstCount(rows, status, ['main'])).toBe(2); // two warns; not_run not counted
   });
 });

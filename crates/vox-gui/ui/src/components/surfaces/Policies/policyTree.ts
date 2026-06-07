@@ -66,8 +66,16 @@ export function overallWorst(rows: PolicyRow[], status: PolicyStatus[], branches
   return worstStatus(rows.map(r => statusForRow(r.id, status, branches)));
 }
 
-/** Count of rules at the worst status (for the master-sidebar badge number). */
+/**
+ * Count of rules at the worst status (for the master-sidebar badge number).
+ *
+ * When the worst status is `not_run` (e.g. an empty store, where every rule is
+ * grey), the badge would otherwise show the full catalog count (e.g. 176) — a
+ * noisy "everything's not run" number. Return 0 in that case so only a grey dot
+ * renders. All other (actionable) statuses keep their count.
+ */
 export function worstCount(rows: PolicyRow[], status: PolicyStatus[], branches: string[]): number {
   const worst = overallWorst(rows, status, branches);
+  if (worst === 'not_run') return 0;
   return rows.filter(r => statusForRow(r.id, status, branches) === worst).length;
 }

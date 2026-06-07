@@ -139,7 +139,8 @@ export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushT
     const badge = e.viewKey === 'flow'
       ? agentsCount
       : isPolicies
-        ? policyBadge!.count
+        // A 0 count (worst tier is "not run") shows no number — just the grey dot.
+        ? (policyBadge!.count > 0 ? policyBadge!.count : undefined)
         : undefined;
     return (
       <NavItem
