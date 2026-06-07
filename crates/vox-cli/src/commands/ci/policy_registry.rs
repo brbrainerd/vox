@@ -739,12 +739,13 @@ mod default_domain_tests {
     #[test]
     fn crl_gate_entries_cover_audit_registry() {
         let entries = crl_gate_entries();
-        // vox_audit::registry() = 9 CR-L gates + 1 tooling gate (verified 2026-06-06).
+        // `crl_gate_entries()` maps 1:1 over `vox_audit::registry()`, so assert
+        // coverage dynamically — adding CR-L/tooling gates upstream must not break
+        // this test (it was a brittle hardcoded `== 10` tripwire before).
         assert_eq!(
             entries.len(),
-            10,
-            "expected 10 CR-L/tooling gates, got {}",
-            entries.len()
+            vox_audit::registry().iter().count(),
+            "every vox_audit::registry() gate must map to a crl-gate entry"
         );
         let l0 = entries
             .iter()

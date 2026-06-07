@@ -322,6 +322,23 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: audit-check/criteria-format
+  domain: audit-check
+  title: criteria-format
+  group: Audit checks / doc
+  description: 'vox-arch-check --lint criteria-format (CR-META: v1-release-criteria.md blocks declare verify_cmd/artifact_path/if_failing)'
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#criteria-format
+    detail: cargo run -q -p vox-arch-check -- --lint criteria-format
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: audit-check/deny
   domain: audit-check
   title: deny
@@ -3324,6 +3341,22 @@ policies:
     kind: command
     ref: contracts/ci/vox-audit-contract.v1.yaml#aci-default
     detail: vox audit aci-default
+  default_enabled: true
+  protected: true
+  origin: builtin
+- id: crl-gate/behavioral-goldens
+  domain: crl-gate
+  title: 'CR-L gate: behavioral-goldens'
+  group: CR-L gates
+  description: 'CR-F1: behavioral goldens — `// EXPECT:` stdout matches `vox run --mode interp`.'
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/vox-audit-contract.v1.yaml#behavioral-goldens
+    detail: vox audit behavioral-goldens
   default_enabled: true
   protected: true
   origin: builtin
