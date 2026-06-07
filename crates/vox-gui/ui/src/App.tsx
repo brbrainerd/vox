@@ -11,6 +11,7 @@ import { Dashboard } from './components/surfaces/Dashboard/Dashboard';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
 import { Transcript } from './components/surfaces/Loquela/Transcript';
 import { chatReducer, initialChatState } from './lib/chatCorrelation';
+import { contextRefsFromPayload } from './lib/loquelaContext';
 import { Catalog } from './components/surfaces/Catalog/Catalog';
 import { Matrix } from './components/surfaces/Matrix/Matrix';
 import { AgentFlow } from './components/surfaces/Flow/AgentFlow';
@@ -356,39 +357,6 @@ export default function App() {
     };
   }, []);
 
-  const executeWithRun = useCallback(async (operationName: string, payload: any, workflowName: string) => {
-    const runId = `gui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    await invoke('start_gui_run', {
-      input: {
-        run_id: runId,
-        workflow_name: workflowName,
-        planned_steps: 1,
-      }
-    });
-    try {
-      const result = await voxTransport.callTool(operationName, payload);
-      const success = result.exit_code === 0;
-      await invoke('finish_gui_run', {
-        run_id: runId,
-        success,
-        completed_steps: success ? 1 : 0,
-        error: success ? null : (result.stderr || `exit_code=${result.exit_code}`)
-      });
-      if (!success) {
-        throw new Error(result.stderr || `Command failed with exit code ${result.exit_code}`);
-      }
-      return result;
-    } catch (err) {
-      await invoke('finish_gui_run', {
-        run_id: runId,
-        success: false,
-        completed_steps: 0,
-        error: String(err),
-      }).catch(() => {});
-      throw err;
-    }
-  }, []);
-
   const executeIpcWithRun = useCallback(async <T,>(command: string, payload: any, workflowName: string, onRun?: (runId: string) => void): Promise<T> => {
     const runId = `gui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     onRun?.(runId);
@@ -438,12 +406,16 @@ export default function App() {
   const handleLoquelaSubmit = useCallback(async (payload: any) => {
     pushToast({ tone: 'info', title: 'Task Dispatched', body: payload.description, cmd: 'vox submit-task' });
     let runId = '';
+    // Context attachments flow to the orchestrator as the task's file manifest.
+    // Loquela sends `context` as [{ kind, ref }]; file/image/url chips carry a
+    // concrete locator the backend pins as FileAffinity (see loquelaContext).
+    const contextFiles = contextRefsFromPayload(payload);
     await executeIpcWithRun<{ ok: boolean; message: string; task_id: string | null }>(
       'submit_orchestrator_task',
       {
         input: {
           description: payload.description,
-          files: payload.files ?? [],
+          files: contextFiles,
           priority: payload.priority ?? null,
           session_id: payload.session_id ?? 'gui-loquela',
         }
@@ -463,6 +435,30 @@ export default function App() {
       })
       .catch(err => pushToast({ tone: 'warn', title: 'Dispatch Failed', body: String(err) }));
   }, [executeIpcWithRun, pushToast]);
+
+  // Attach one or more locators to the shared Loquela context set. These chips
+  // become the next task's file manifest (see handleLoquelaSubmit), so this is
+  // a real "pin to context" — not a toast-only gesture. Deduped by chip id.
+  const attachContext = useCallback((items: Array<{ kind: 'file' | 'url' | 'image'; label: string }>) => {
+    if (items.length === 0) return;
+    setChips(prev => {
+      const seen = new Set(prev.map(c => c.id));
+      const next = [...prev];
+      for (const it of items) {
+        const id = `ctx-${it.kind}-${it.label}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        next.push({ id, kind: it.kind, label: it.label });
+      }
+      return next;
+    });
+    pushToast({
+      tone: 'ok',
+      title: items.length === 1 ? 'Pinned to context' : `${items.length} pinned to context`,
+      body: items.length === 1 ? items[0].label : `${items.length} citations → Loquela`,
+      cmd: 'context.attach',
+    });
+  }, [pushToast]);
 
   const handlePause = useCallback(async (a: Agent) => {
     setData(prev => ({ ...prev, agents: prev.agents.map(x => x.id === a.id ? { ...x, phase: 'Paused' } : x) }));
@@ -579,20 +575,16 @@ export default function App() {
           />
         );
       case 'catalog':
-        return (
-          <Catalog
-            skills={data.skills}
-            onDeploy={(s: any) => {
-              setDeployedSet(prev => new Set([...prev, s.id ?? s.command]));
-              handleLoquelaSubmit({ description: `Deploy skill: ${s.command}`, active_skill: s.id });
-            }}
-            deployedSet={deployedSet}
-          />
-        );
+        // Catalog renders the compiled CLI command catalog with real, typed
+        // execution forms (CommandCatalogForm runs the actual command via
+        // voxTransport). Skill "deploy" is a Skills-surface concept, not a
+        // command-catalog one, so no deploy props are threaded here — the run
+        // affordance already lives inside the form.
+        return <Catalog skills={data.skills} />;
       case 'matrix':
         return <Matrix pushToast={pushToast} />;
       case 'memory':
-        return <MemoryView pushToast={pushToast} />;
+        return <MemoryView pushToast={pushToast} onAttachContext={attachContext} />;
       case 'models':
         return <ModelsView pushToast={pushToast} />;
       case 'runs':
