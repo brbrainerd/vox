@@ -132,7 +132,15 @@ where
                     "    {} => {{\n",
                     super::stmt_expr::emit_pattern(&arm.pattern, is_route, is_actor, mutation_tx)
                 ));
-                s.push_str(&emit(&arm.body, OwnershipMode::Owned));
+                // An empty arm body (`None => {}`) parses as an empty object
+                // literal; emitting `serde_json::json!({})` would make the arm
+                // return `serde_json::Value` and clash with sibling `()` arms
+                // (E0308). Emit an empty block (`()`), preserving the side-effect
+                // semantics the interpreter has.
+                let is_empty_arm = matches!(arm.body.as_ref(), vox_compiler::hir::HirExpr::ObjectLit(fields, _) if fields.is_empty());
+                if !is_empty_arm {
+                    s.push_str(&emit(&arm.body, OwnershipMode::Owned));
+                }
                 s.push_str("\n    }\n");
             }
             s.push('}');

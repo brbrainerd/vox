@@ -33,6 +33,18 @@ pub(crate) fn emit_type(ty: &HirType) -> String {
         }
         HirType::Unit => "()".into(),
         HirType::Decimal => "rust_decimal::Decimal".into(),
+        // Function types (closures / HOF params + returns) → boxed trait objects,
+        // the idiomatic Rust shape for closures with captured state. Without this
+        // they fell through to `serde_json::Value`, breaking closure-typed vars
+        // (E0282/E0308).
+        HirType::Function(params, ret) => {
+            let param_types: Vec<String> = params.iter().map(emit_type).collect();
+            format!(
+                "Box<dyn Fn({}) -> {}>",
+                param_types.join(", "),
+                emit_type(ret)
+            )
+        }
         _ => "serde_json::Value".into(),
     }
 }

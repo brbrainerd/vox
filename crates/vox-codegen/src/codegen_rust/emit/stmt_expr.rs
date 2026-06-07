@@ -518,15 +518,19 @@ pub(super) fn emit_pattern(
             // Let's generate Tuple variants in Rust for simplicity: `Ok(String)`.
             // And ignore field names in TypeDef?
             // Or use the names?
+            // Vox's `Result` error arm is `Error(..)`; Rust's is `Err(..)`. Mirror
+            // the Error→Err rewrite applied to constructor *calls* so match
+            // patterns on Result compile (else E0531 `cannot find variant Error`).
+            let rust_name = if n == "Error" { "Err" } else { n.as_str() };
             if pats.is_empty() {
                 // Nullary variant (`None`, a unit ADT variant): emit the bare
                 // name. `None()` would be `E0532 expected tuple variant, found
                 // unit variant` against the unit enum variant emitted by emit_lib.
-                n.clone()
+                rust_name.to_string()
             } else {
                 format!(
                     "{}({})",
-                    n,
+                    rust_name,
                     pats.iter()
                         .map(|p| emit_pattern(p, is_route, is_actor, mutation_tx))
                         .collect::<Vec<_>>()
@@ -576,7 +580,15 @@ pub(super) fn emit_expr_with(
         // among `f64` arms -> E0308). Vox `float` is always `f64`.
         HirExpr::FloatLit(v, _) => format!("{v}f64"),
         HirExpr::StringLit(v, _) => {
-            let escaped = v.replace("\"", "\\\"").replace("\n", "\\n");
+            // Escape backslash FIRST (else newline/quote escapes get double-escaped),
+            // so Vox strings containing `\` (e.g. regex patterns like `\w`, `\d`)
+            // emit as valid Rust string literals instead of `unknown character escape`.
+            let escaped = v
+                .replace('\\', "\\\\")
+                .replace('"', "\\\"")
+                .replace('\n', "\\n")
+                .replace('\t', "\\t")
+                .replace('\r', "\\r");
             match mode {
                 OwnershipMode::Owned => format!("\"{}\".to_string()", escaped),
                 OwnershipMode::Borrowed => format!("\"{}\"", escaped),
