@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Run the gate on GitHub merge-queue batches so "Require merge queue" can
+  # serialize main and verify each batch once (eliminates the cancel-thrash
+  # from rapid direct pushes; the required check name below is unchanged).
+  merge_group:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -41,12 +45,14 @@ jobs:
       - id: k
         run: echo "key=${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}" >> "$GITHUB_OUTPUT"
 
-      # Compute path-filters.  On push:main always emit true so we never skip
-      # gates on the integration branch.
+      # Compute path-filters.  On push:main AND merge_group (the integration
+      # paths) always emit true so we never skip gates on the integration branch.
+      # (merge_group has no github.base_ref, so the PR-style diff below would be
+      # meaningless and could skip `tests` — fail-closed by running everything.)
       - id: filter
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "merge_group" ]; then
             echo "rust=true"  >> "$GITHUB_OUTPUT"
             echo "docs=true"  >> "$GITHUB_OUTPUT"
           else
