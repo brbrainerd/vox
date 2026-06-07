@@ -397,6 +397,20 @@ mod tests {
     use std::sync::Mutex;
     use vox_db::{DbConfig, VoxDb};
 
+    /// Guard: the real signing logic lives here, so this file must carry NO
+    /// production-network publishing symbols (no network-publish toggle, no
+    /// test-server toggle). Needles are assembled from fragments at runtime so
+    /// this file cannot trip its own assertion. Mirrors the CLI guard in
+    /// `crates/vox-cli/src/commands/scientia_nanopub.rs`.
+    #[test]
+    fn no_network_publish_symbol_in_review_flow() {
+        let src = include_str!("review_flow.rs");
+        let publish = format!("{}{}", "publish_to_", "network");
+        let test_server = format!("{}{}", "use_test_", "server");
+        assert!(!src.to_lowercase().contains(&publish));
+        assert!(!src.contains(&test_server));
+    }
+
     #[test]
     fn session_id_is_stable_and_distinct() {
         let a = publication_session_id("pub-aaa");
