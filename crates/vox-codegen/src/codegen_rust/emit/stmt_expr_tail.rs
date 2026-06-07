@@ -165,8 +165,9 @@ fn emit_block_tail(
     usage: Option<&super::usage::UsageTracker>,
 ) -> String {
     let mut s = String::from("{\n");
-    for stmt in stmts {
-        s.push_str(&super::stmt_expr::emit_stmt(
+    let n = stmts.len();
+    for (i, stmt) in stmts.iter().enumerate() {
+        let emitted = super::stmt_expr::emit_stmt(
             stmt,
             1,
             is_route,
@@ -175,7 +176,23 @@ fn emit_block_tail(
             inferred_types,
             usage,
             None,
-        ));
+        );
+        // A block in expression position (match arm / if branch / nested block)
+        // returns its final bare expression's value. Drop the trailing `;` on the
+        // last statement when it is an expression, so the block yields the value
+        // instead of `()` (else value-returning match arms hit E0308). Mirrors
+        // the function-body tail logic in durability_lower::emit_plain_body.
+        if i + 1 == n && matches!(stmt, vox_compiler::hir::HirStmt::Expr { .. }) {
+            match emitted.strip_suffix(";\n") {
+                Some(body) => {
+                    s.push_str(body);
+                    s.push('\n');
+                }
+                None => s.push_str(&emitted),
+            }
+        } else {
+            s.push_str(&emitted);
+        }
     }
     s.push('}');
     s
