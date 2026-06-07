@@ -243,8 +243,10 @@ mod cache_coherence_tests {
         );
 
         // 1) Write a VoxConfig-tier field via VoxConfig::save().
-        let mut cfg = crate::config::VoxConfig::default();
-        cfg.model = "test-org/test-model".to_string();
+        let cfg = crate::config::VoxConfig {
+            model: "test-org/test-model".to_string(),
+            ..Default::default()
+        };
         cfg.save().expect("VoxConfig::save");
 
         // The flat cache may now be stale relative to the sectioned tables on disk;
