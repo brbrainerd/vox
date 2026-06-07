@@ -14686,6 +14686,7 @@ dependencies = [
  "vox-gamify",
  "vox-http-client",
  "vox-lsp",
+ "vox-mesh-policy",
  "vox-mesh-types",
  "vox-orchestrator-queue",
  "vox-orchestrator-types",
