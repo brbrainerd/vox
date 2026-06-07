@@ -7,6 +7,9 @@ use std::collections::HashMap;
 pub enum ActionHandlerKind {
     Cli,
     Mcp,
+    // Part of the handler-kind taxonomy; not emitted by the current manifest
+    // parser but kept for forward-compat with IPC-backed actions.
+    #[allow(dead_code)]
     Ipc,
 }
 
@@ -93,7 +96,7 @@ fn read_operation_catalog() -> Result<Vec<OperationMeta>, String> {
         let cli_path = op
             .get("cli")
             .and_then(Value::as_mapping)
-            .and_then(|cli| cli.get(&Value::String("path".to_string())))
+            .and_then(|cli| cli.get(Value::String("path".to_string())))
             .and_then(Value::as_sequence)
             .map(|parts| {
                 parts
@@ -106,13 +109,13 @@ fn read_operation_catalog() -> Result<Vec<OperationMeta>, String> {
         let status = op
             .get("cli")
             .and_then(Value::as_mapping)
-            .and_then(|cli| cli.get(&Value::String("status".to_string())))
+            .and_then(|cli| cli.get(Value::String("status".to_string())))
             .and_then(Value::as_str)
             .map(ToString::to_string);
         let mcp_name = op
             .get("mcp")
             .and_then(Value::as_mapping)
-            .and_then(|mcp| mcp.get(&Value::String("name".to_string())))
+            .and_then(|mcp| mcp.get(Value::String("name".to_string())))
             .and_then(Value::as_str)
             .map(ToString::to_string);
         out.push(OperationMeta {
@@ -137,7 +140,7 @@ fn read_operation_catalog() -> Result<Vec<OperationMeta>, String> {
             feature_gate: op
                 .get("cli")
                 .and_then(Value::as_mapping)
-                .and_then(|cli| cli.get(&Value::String("feature_gate".to_string())))
+                .and_then(|cli| cli.get(Value::String("feature_gate".to_string())))
                 .and_then(Value::as_str)
                 .map(ToString::to_string),
             scope_kind: op

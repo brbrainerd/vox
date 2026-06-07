@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config';
 // separately via `pnpm test:e2e` and must NOT be collected by vitest.
 export default defineConfig({
   test: {
-    include: ['src/**/*.{test,spec}.ts'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
   },
 });
