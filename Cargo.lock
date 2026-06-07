@@ -13738,6 +13738,7 @@ dependencies = [
  "vox-orchestrator",
  "vox-orchestrator-mcp",
  "vox-package",
+ "vox-plugin-api",
  "vox-plugin-catalog",
  "vox-plugin-host",
  "vox-populi",

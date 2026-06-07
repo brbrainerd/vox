@@ -77,6 +77,11 @@ pub mod prelude {
 /// `init` is a non-capturing closure `|host| -> RResult<VoxPluginRef, RBoxError>`. Use
 /// [`wrap`] for the common "construct a value and erase it" case, or call an existing
 /// constructor (e.g. one that needs `host`).
+///
+/// **Dependency requirement:** the consuming crate must declare `abi_stable` as a direct
+/// dependency. This macro is hermetic with respect to the *Vox* surface, but abi_stable's
+/// own `#[export_root_module]` / `#[sabi_extern_fn]` attribute macros expand to bare
+/// `abi_stable::` paths, which only resolve when `abi_stable` is in the crate's deps.
 #[macro_export]
 macro_rules! declare_plugin {
     (id: $id:expr, version: $version:expr, init: $init:expr $(,)?) => {
