@@ -597,7 +597,7 @@ function KeysSecretsSection({ pushToast }: { pushToast: (t: any) => void }) {
             {preview.entries.length > 0 && (
               <div className="mt-1 flex flex-col gap-0.5">
                 {preview.entries.map(e => (
-                  <div key={e.canonicalEnv} className="flex items-center gap-2 font-mono text-[10px] text-zinc-400">
+                  <div key={e.sourceKey} className="flex items-center gap-2 font-mono text-[10px] text-zinc-400">
                     <span className="text-zinc-200">{e.sourceKey}</span>
                     <span className="text-zinc-600">→</span>
                     <span className="text-zinc-300">{e.canonicalEnv}</span>

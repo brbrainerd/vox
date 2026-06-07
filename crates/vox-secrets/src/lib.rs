@@ -620,10 +620,20 @@ pub fn import_env_from_path(
             b.write_secret(backend_key, val)?;
         }
 
+        // On dry-run (apply == false) we are previewing raw, not-yet-imported
+        // .env contents. A head4…tail2 preview can leak provider prefixes
+        // (sk-…, ghp_…, AKIA…) — so for dry-run we emit a length-only
+        // placeholder that reveals ZERO characters of the source value.
+        let redacted = if apply {
+            redact_preview(val)
+        } else {
+            redact_length_only(val)
+        };
+
         entries.push(ImportEnvEntry {
             source_key: key.to_string(),
             canonical_env: spec.canonical_env,
-            redacted: redact_preview(val),
+            redacted,
         });
     }
 
@@ -631,6 +641,13 @@ pub fn import_env_from_path(
         applied: apply,
         entries,
     })
+}
+
+/// Length-only placeholder for dry-run preview — reveals NO characters of the
+/// source value, only how many characters it has. Used when previewing raw,
+/// not-yet-imported .env contents (which may be shown during a screen-share).
+fn redact_length_only(value: &str) -> String {
+    format!("•• {} chars (redacted)", value.chars().count())
 }
 
 /// `head4…tail2 (redacted)` preview of a value — never the raw value.
@@ -677,9 +694,27 @@ mod import_env_tests {
         assert_eq!(res.count(), 1, "only the managed key is recognised");
         let entry = &res.entries[0];
         assert_eq!(entry.canonical_env, canonical);
-        // Redaction must not leak the raw value.
+        // Dry-run redaction must reveal ZERO characters of the source value:
+        // not the full value, not the head4 prefix, not the tail2 suffix.
+        // "supersecretvalue" → head4 = "supe", tail2 = "ue".
         assert!(!entry.redacted.contains("supersecretvalue"));
+        assert!(
+            !entry.redacted.contains("supe"),
+            "dry-run must not leak head4 prefix; got {:?}",
+            entry.redacted
+        );
+        assert!(
+            !entry.redacted.contains("ue"),
+            "dry-run must not leak tail2 suffix; got {:?}",
+            entry.redacted
+        );
+        // Length-only placeholder still conveys the value length + redacted marker.
         assert!(entry.redacted.contains("redacted"));
+        assert!(
+            entry.redacted.contains("16 chars"),
+            "dry-run should report length; got {:?}",
+            entry.redacted
+        );
     }
 
     #[test]
