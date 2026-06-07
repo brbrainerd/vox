@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { voxTransport } from '../../../transport';
@@ -201,12 +202,24 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
       : [...cs, { id, kind: isUrl ? 'url' : 'file', label: trimmed }]);
   };
 
-  // Attach a file path or URL to the task context. A native OS file-picker
-  // (tauri-plugin-dialog) is the intended UX but is deferred (npm install of
-  // @tauri-apps/plugin-dialog is currently blocked in this workspace); the
-  // typed/pasted path is a real attach today and flows to the orchestrator as a
-  // FileAffinity via the shared Loquela context set.
-  const attachContext = () => {
+  // Attach local files to the task context via the native OS file-picker
+  // (tauri-plugin-dialog). Each chosen path flows to the orchestrator as a
+  // FileAffinity through the shared Loquela context set. Falls back to a typed
+  // path/URL prompt when the dialog is unavailable (e.g. browser dev mode).
+  const attachContext = async () => {
+    try {
+      const selected = await openFileDialog({ multiple: true, title: 'Attach files to task context' });
+      const paths = Array.isArray(selected) ? selected : selected ? [selected] : [];
+      if (paths.length) {
+        paths.forEach(addContextRef);
+        toast?.({ tone: 'ok', title: paths.length === 1 ? 'Attached to context' : `${paths.length} attached`, body: paths.join(', '), cmd: 'context.attach' });
+        taRef.current?.focus();
+        return;
+      }
+      if (selected !== null) return; // dialog opened, user picked nothing
+    } catch {
+      // Dialog plugin unavailable → fall through to the prompt path.
+    }
     const raw = window.prompt('Attach a file path or URL to this task context:');
     const ref = raw?.trim();
     if (!ref) return;

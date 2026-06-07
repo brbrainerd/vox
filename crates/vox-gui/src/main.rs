@@ -45,6 +45,7 @@ async fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(GuiState {
             initial_view: Mutex::new(initial_view),
         })
