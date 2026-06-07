@@ -1,0 +1,20 @@
+# CR-F2a — goldens whose codegen-rust (`--mode script`) output currently
+# diverges from `// EXPECT:` (the interpreter's verified stdout). One rel-key
+# per line, relative to examples/golden/. This is a RATCHET: a NEW divergence
+# (a golden here that regresses, or a non-listed golden that breaks) fails
+# `golden_arm_parity_test`. As codegen-rust bugs are fixed, REMOVE entries —
+# never add. Seeded 2026-06-07 (codegen-rust 3/10). Per-golden rustc error:
+#   adt_multi_field        — (ADT multi-field constructor / match-arm emit)
+#   closures_hof           — E0282 type annotations needed (closure/HOF)
+#   json_as_typed          — E0531 cannot find tuple variant `Error` (@json_as decoder)
+#   range_and_indexing     — E0308 match arms have incompatible types
+#   regex_free_functions   — unknown character escape `\w` (regex literal not re-escaped)
+#   string_interpolation   — E0308 mismatched types (interpolant not coerced to String)
+#   tuple_destructure      — E0308 mismatched types
+adt_multi_field.vox
+closures_hof.vox
+json_as_typed.vox
+range_and_indexing.vox
+regex_free_functions.vox
+string_interpolation.vox
+tuple_destructure.vox
