@@ -10,7 +10,7 @@
 //! > model when out of tokens."
 //!
 //! Each step maps onto the **existing** selection machinery in
-//! [`super::select`] / [`super::registry`]; the policy layer adds ordering, it
+//! `super::select` / `super::registry`; the policy layer adds ordering, it
 //! does not invent new scoring.
 //!
 //! ## Backwards compatibility
@@ -140,15 +140,15 @@ impl SelectionPolicy {
     }
 }
 
-/// Build a [`SelectionPolicy`] that realizes a [`FreeRoutingProfile`].
+/// Build a [`SelectionPolicy`] that realizes a [`crate::types::FreeRoutingProfile`].
 ///
-/// - [`Free`](FreeRoutingProfile::Free): `[PreferFree]` — free selectors only.
-/// - [`Mixed`](FreeRoutingProfile::Mixed): `[PreferFree, FallbackWhen{NoCandidate,
-///   <scorer/paid>}]` — free-preferred, paid fallback. (The paid fallback is the
+/// - [`Free`](crate::types::FreeRoutingProfile::Free): `[PreferFree]` — free selectors only.
+/// - [`Mixed`](crate::types::FreeRoutingProfile::Mixed): `[PreferFree, FallbackWhen{NoCandidate,
+///   `<scorer/paid>`}]` — free-preferred, paid fallback. (The paid fallback is the
 ///   empty chain's pre-existing cascade: an empty `then` is represented by
 ///   omitting the step, so Mixed = `[PreferFree]` followed by chain fall-through.)
-/// - [`Performance`](FreeRoutingProfile::Performance): empty — pre-existing paid path.
-/// - [`Local`](FreeRoutingProfile::Local): `[PreferFree]` evaluated under a
+/// - [`Performance`](crate::types::FreeRoutingProfile::Performance): empty — pre-existing paid path.
+/// - [`Local`](crate::types::FreeRoutingProfile::Local): `[PreferFree]` evaluated under a
 ///   `prefer_local` intent restricts to local providers.
 #[must_use]
 pub fn policy_for_profile(profile: crate::types::FreeRoutingProfile) -> SelectionPolicy {
@@ -184,7 +184,7 @@ pub struct PolicyContext {
 impl PolicyContext {
     /// Build a context from deterministic env gates. Mirrors the
     /// `VOX_EXPLORATION_BUDGET_EXHAUSTED` gate already honored in
-    /// [`super::select`].
+    /// `super::select`.
     #[must_use]
     pub fn from_env() -> Self {
         let truthy = |k: &str| {

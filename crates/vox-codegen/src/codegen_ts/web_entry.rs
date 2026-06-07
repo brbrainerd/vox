@@ -5,7 +5,7 @@
 //! This module emits `vox-app.tsx` — a dependency-free router that generalizes the
 //! hand-written client router — so the `.vox` is the single source of truth.
 //!
-//! Stage 1 of [`docs/src/architecture/web-bootstrap-emission-migration-2026.md`].
+//! Stage 1 of `docs/src/architecture/web-bootstrap-emission-migration-2026.md`.
 //! Deliberately NO external router dependency (matches the app's hand-rolled
 //! minimal router: "the flat route shape doesn't justify a 30 KB router"). When
 //! a route manifest is present we emit the history-API router over `voxRoutes`;

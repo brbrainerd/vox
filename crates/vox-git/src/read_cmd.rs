@@ -40,7 +40,7 @@ pub enum GitReadError {
 /// Run `git -C <repo> <args...>` for a read-only subcommand, returning stdout
 /// (lossy UTF-8).
 ///
-/// Rejects any subcommand not in [`READ_ONLY`] (defense against accidental
+/// Rejects any subcommand not in `READ_ONLY` (defense against accidental
 /// writes). The output is byte-for-byte the stdout of the underlying `git`
 /// process, so callers feeding diffs to an LLM judge/router see identical
 /// context to a direct invocation.

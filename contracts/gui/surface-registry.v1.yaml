@@ -534,6 +534,13 @@ surfaces:
   nav_group: null
   notes: null
 - view_key: null
+  cli_group: speech
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  notes: null
+- view_key: null
   cli_group: stop
   representation_tier: none
   nav_label: null

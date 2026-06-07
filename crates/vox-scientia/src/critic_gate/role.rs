@@ -16,7 +16,7 @@ pub enum ApproverRole {
     ///   `Validation` only (never `Investigation` or
     ///   `Writing — original draft`),
     /// - use a model architecturally distinct from any used in the
-    ///   artifact pipeline (enforced by [`crate::ModelFingerprint`]).
+    ///   artifact pipeline (enforced by `ModelFingerprint`).
     ///
     /// Explicit `rename` keeps the serialized form aligned with
     /// [`ApproverRole::as_sql`] — serde's default snake_case derivation

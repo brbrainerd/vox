@@ -158,6 +158,23 @@ impl Default for ScopeGuard {
     }
 }
 
+/// §5.3(b): multi-agent runs should default to Strict scope. Returns the
+/// enforcement to use given how many agents are active and the configured base.
+///
+/// A configured `Warn` is escalated to `Strict` when more than one agent is
+/// active (multi-agent contention demands real boundaries). An explicit
+/// `Disabled` opt-out is never silently flipped, and `Strict` stays `Strict`.
+pub fn multi_agent_enforcement(
+    active_agents: usize,
+    configured: ScopeEnforcement,
+) -> ScopeEnforcement {
+    if active_agents > 1 && configured == ScopeEnforcement::Warn {
+        ScopeEnforcement::Strict
+    } else {
+        configured
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -165,6 +182,42 @@ impl Default for ScopeGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn multi_agent_warn_escalates_to_strict() {
+        assert_eq!(
+            multi_agent_enforcement(2, ScopeEnforcement::Warn),
+            ScopeEnforcement::Strict
+        );
+    }
+
+    #[test]
+    fn multi_agent_disabled_stays_disabled() {
+        assert_eq!(
+            multi_agent_enforcement(5, ScopeEnforcement::Disabled),
+            ScopeEnforcement::Disabled
+        );
+    }
+
+    #[test]
+    fn single_agent_enforcement_unchanged() {
+        assert_eq!(
+            multi_agent_enforcement(1, ScopeEnforcement::Warn),
+            ScopeEnforcement::Warn
+        );
+        assert_eq!(
+            multi_agent_enforcement(0, ScopeEnforcement::Warn),
+            ScopeEnforcement::Warn
+        );
+    }
+
+    #[test]
+    fn multi_agent_strict_stays_strict() {
+        assert_eq!(
+            multi_agent_enforcement(3, ScopeEnforcement::Strict),
+            ScopeEnforcement::Strict
+        );
+    }
 
     #[test]
     fn unscoped_agent_allowed_everywhere() {

@@ -1,5 +1,18 @@
 # P2 — JjBackend (jj-lib 0.42 engine) + Dead-Code Removal Implementation Plan
 
+> **✅ STATUS: IMPLEMENTED & MERGED (2026-06-06).** This plan is now historical. The jj engine
+> shipped in `crates/vox-vcs/src/jj_backend.rs` + `jj_actor.rs` (commits `a85e40d1bd` spike →
+> `ddb13d732e` jj-actor → `5f6f29264c` orchestrator wiring → `0209c9c7fa` reconcile). **The shipped
+> design differs from the sketch below in one key way:** rather than the sync-trait + in-place
+> `block_on` shown here, `VcsBackend` is an **`#[async_trait]`** and the `!Send` jj engine lives behind
+> a dedicated-OS-thread **`jj_actor`** (a `Send + Sync` `JjActorHandle`). That actor *is* the
+> "offload-thread bridge" this plan's scope-correction recommended — it just wraps an async trait
+> instead of a sync one. Tasks 1–5, 7, 8 are DONE; **Task 6 (route the `vox vcs` CLI in-process) is
+> intentionally deferred** behind a documented `layers.toml` `raw-jj-exec` exemption, pending jj-lib
+> exposing blame/rebase in-process. Verified by 20 green `vox-vcs` tests (7 jj-lib surface
+> characterizations + 4 jj-actor tests). Next phases are P4 (isolation policy + GUI) and P5
+> (`@versioned` decorators) — see the sibling `2026-06-06-jj-first-class-p4-*` / `p5-*` plans.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make in-process **jj-lib 0.42** the real default VCS engine behind the `vox-vcs` `VcsBackend`
@@ -20,6 +33,27 @@ each gated by a green parity test (the P0/P1 audit already proved `ContentMerge`
 
 **Source spec:** [`2026-06-05-jj-first-class-vcs-design.md`](../specs/2026-06-05-jj-first-class-vcs-design.md) §3, §4 (deletion ledger), §8 (P2).
 **Depends on:** P0 (the `vox-vcs` crate + jj-lib 0.42 dep). Independent of P1.
+
+> **✅ SPIKE (Task 1) DONE & VERIFIED (2026-06-06, branch `cc_bdesktop2/jj-p2-spike`, commit `45d0e2e656`).**
+> The whole phase is validated: a real in-process `JjBackend` does colocated init + working-copy
+> snapshot + change-as-commit + op-log read, green in ~1.9 min cold build, no `jj` binary, clippy clean,
+> arch-check exit 0. **Two findings every later task must honor:**
+> 1. **jj-lib needs `features = ["git"]`** in `vox-vcs/Cargo.toml` (the root pins `default-features = false`, so `init_colocated_git` is absent without it).
+> 2. **`Workspace` is `Send` but `!Sync`** (owns `Box<dyn WorkingCopy>`); `VcsBackend: Send + Sync`, so `JjBackend` wraps the `Workspace`+`Arc<ReadonlyRepo>` in a `std::sync::Mutex` and owns a current-thread tokio runtime that `block_on`s every jj future.
+>
+> **Verified construction (reuse in Tasks 2-4):** `UserSettings::from_config(StackedConfig::with_defaults() + ConfigLayer::parse(ConfigSource::User, "user.name=…\nuser.email=…"))`; snapshot = `workspace.start_working_copy_mutation()` → `locked_wc().snapshot(SnapshotOptions{ base_ignores: GitIgnoreFile::empty(), matchers: &EverythingMatcher, max_new_file_size: u64::MAX, .. })` → `start_transaction()` → `tx.repo_mut().new_commit(vec![parent], tree).set_description(..).write().await` → `set_wc_commit` → `tx.commit(desc).await` → re-finish wc lock against the new op id; op-log = `op_walk::walk_ancestors(&[repo.operation().clone()])` collected via `futures::TryStreamExt::try_collect`. `WorkspaceName`/`WorkspaceNameBuf` live in `jj_lib::ref_name`; `id.hex()` needs `jj_lib::object_id::ObjectId` in scope.
+> **Open identity choice (Task 3):** the spike's `ChangeId` hashes the jj **operation id**. If P2 needs identity stable across commit rewrites, switch the hash source to the commit's jj **`ChangeId`** (reachable from the commit builder).
+
+> **✅ SPIKE ROUND 2 — DONE & VERIFIED (2026-06-06, branch `cc_bdesktop2/jj-p2-spike`, commits `297ada9e6f` async + `a85e40d1bd` ops; 12 tests green, arch-check 0). Two findings REVISE this plan's design — read before executing:**
+>
+> **A. jj-lib 0.42 is irreducibly `!Send` → `VcsBackend` is ASYNC and the production engine is a JJ-ACTOR.**
+> A `Send` async trait does not compile (jj `Transaction`/`MutableRepo`/working-copy use `RefCell`/`OnceCell`/`Cell`). The spike landed `#[async_trait(?Send)]`, which **fixes the proven nested-runtime panic** (a sync `block_on` engine panics when called from the orchestrator's tokio runtime), but `?Send` futures **cannot cross `tokio::spawn`** — and the orchestrator's jj hook (`workspace.rs` `spawn_supervised_infallible`) spawns. **Production design: a jj-actor** — a dedicated OS thread owns the `Workspace`, receives commands over an `mpsc` channel, replies via `oneshot`, and exposes a clean **`Send` async `VcsBackend`** to the rest of Vox (all `!Send` jj futures confined to the actor thread). Tasks 5/6 (orchestrator/CLI wiring) MUST target the actor's `Send` API, not the `?Send` direct impl.
+>
+> **B. Remote push/fetch use the `git` BINARY, not gix (corrects spec D1).** jj-lib 0.42 routes `push`/`fetch` through `git_subprocess` (`Command::new(git)`). **All LOCAL ops are fully in-process (no binary).** Remote sync requires **`git` ≥ 2.41 on PATH** (decision: accept for remote only; degrade gracefully with a clear "git required" error when absent). The `jj` binary is still never needed. Two notes: jj caches remote config at workspace-open time (register a remote *before* the backend that pushes, or reopen); in-process `git::add_remote` pulls `gix` in (jj doesn't re-export it) → use the existing `GitExec` `git remote add` instead.
+>
+> **Operations PROVEN against jj-lib 0.42 (Tasks 2-4 de-risked):** open-existing-repo (`Workspace::load` load-or-init), undo (parent-op restore), diff (`MergedTree::diff_stream`), **conflicts-as-data (`MergedTree::merge` + `has_conflict()` + `tree.conflicts()` + `materialize_tree_value` → both sides readable — the killer feature works)**, push (`git::push_refs` to a local bare repo, end-to-end). A `ChangeId → CommitId` side-table in `JjState` resolves our opaque ids back to jj commits.
+>
+> **Task-level revisions:** Task 1's sync `block_on` `JjBackend` is SUPERSEDED by the async `?Send` impl on the spike branch; the *next* build step is the **jj-actor wrapper** (a new Task 1.5 — production `Send` API). Task 4 "fetch/push via pure gix" → **via jj-lib's git-subprocess** (git binary, graceful degrade), not gix; the "gix push maturity" risk is MOOT. Task 8's `raw-jj-exec` ban still holds (no subprocess *jj*), but note remote sync legitimately spawns *git* (already covered by the existing `raw-git-exec` exemption mechanism).
 
 **Confirmed jj-lib 0.42 anchors (from docs.rs):**
 - `Workspace::init_colocated_git(user_settings: &UserSettings, workspace_root: &Path) -> Result<(Workspace, Arc<ReadonlyRepo>), WorkspaceInitError>` (async)

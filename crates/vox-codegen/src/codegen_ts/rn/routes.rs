@@ -3,7 +3,7 @@
 //! Expo Router uses file-system routing: every file under `app/` corresponds to
 //! a route, with `[param]` directory/file names for path parameters and a
 //! mandatory `_layout.tsx` at the root (and at any nested level that wants
-//! shared layout). See https://docs.expo.dev/router/introduction.
+//! shared layout). See <https://docs.expo.dev/router/introduction>.
 //!
 //! Vox routes lower as follows:
 //!

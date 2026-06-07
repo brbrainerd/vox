@@ -39,7 +39,6 @@ pub const HOTSPOT_TIER2_RUST: &[&str] = &[
     "crates/vox-compiler/src/lexer/token.rs",
     "crates/vox-orchestrator-mcp/src/params.rs",
     "crates/vox-orchestrator/src/config.rs",
-    "crates/vox-orchestrator/src/jj_backend.rs",
     "crates/vox-orchestrator/src/snapshot.rs",
 ];
 

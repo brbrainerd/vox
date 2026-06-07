@@ -28,10 +28,13 @@ const LATIN_STRUCTURAL_DENYLIST: &[(&str, &str)] = &[
     ("codex", "database"),
     ("clavis", "secrets"),
     ("oratio", "speech"),
-    ("populi", "ml"),
-    ("ludus", "gamification"),
-    ("schola", "tutorial"),
-    ("mens", "ml"), // mens overlaps with ml/populi domain
+    ("ludus", "gamify"),
+    // NOTE: `mens` and `populi` are intentionally NOT denied. They are canonical
+    // Vox identities the maintainer keeps — `mens` = the training pipeline (MENS),
+    // `populi` = the mesh — not Latin roots to migrate into a generic `ml`. The
+    // earlier `populi→ml` / `mens→ml` rows were removed (2026-06-06). The pre-existing
+    // `vox-ml` / `vox-ml-cli` crates are a separate intermediary surface, not the
+    // destination for these names.
 ];
 
 /// These historical crates ARE allowed despite using Latin names (grandfathered).
@@ -42,15 +45,18 @@ const HISTORICAL_ALLOWLIST: &[&str] = &[
     "vox-secrets", // canonical secret manager — name IS its Latin identity (policy exception)
     "vox-orchestrator", // canonical English — permitted
     "vox-skills",  // canonical English — permitted
-    "vox-gamify",  // grandfathered — being migrated to vox-gamification
-    "vox-oratio",  // grandfathered — being migrated to vox-speech
-    "vox-populi",  // grandfathered — being migrated to vox-ml
-    "vox-schola",  // grandfathered — being migrated to vox-tutorial
-    "vox-codex-api", // grandfathered — database abstraction layer
-    "vox-ml-cli",  // grandfathered — ML subsystem
-    "vox-mens-eval", // grandfathered — Mn-T11 eval harness crate; pending english-core naming convergence
+    // `gamify` is canonical English (a verb, like `forge`); the crate keeps the
+    // name vox-gamify. `gamify` is not a denied Latin root, so no allowlist entry
+    // is needed. The CLI command is `vox gamify` (Latin `ludus` retained as alias).
+    // `populi`/`mens` are no longer denied roots (see denylist note), so these
+    // entries are belt-and-suspenders documentation that the names are KEPT, not
+    // migrated: Populi is the mesh identity, MENS the training pipeline.
+    "vox-populi",    // canonical — Populi is the mesh (kept, not → vox-ml)
+    "vox-codex-api", // grandfathered — database abstraction layer (`codex` is denied)
+    "vox-ml-cli",    // canonical — the ML CLI subsystem
+    "vox-mens-eval", // canonical — MENS eval harness (kept; MENS = training)
     // (vox-dei-shim renamed to vox-research-shim 2026-06-05 — `dei` migration complete; no allowlist entry needed)
-    "vox-populi-types", // grandfathered — shared types crate for the vox-populi ecosystem; naming cohesion during migration to vox-ml
+    "vox-populi-types", // canonical — shared types for the Populi mesh ecosystem (kept)
 ];
 
 #[derive(Serialize)]

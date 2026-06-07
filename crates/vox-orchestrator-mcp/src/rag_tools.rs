@@ -11,7 +11,7 @@ use crate::server_state::ServerState;
 /// Dispatches a multi-modal visual RAG query to the configured intelligence backend.
 pub async fn visual_rag_query(_state: &ServerState, params: VoxVisualRagQueryParams) -> String {
     // In a full implementation, this would deserialize the image paths/base64 strings,
-    // construct a multi-modal prompt, and dispatch to the `vox-oratio` LLM bridge.
+    // construct a multi-modal prompt, and dispatch to the `vox-speech` LLM bridge.
     // For this demonstration, we validate the input structure and mock the successful external dispatch.
 
     if params.image_paths.is_empty() && params.image_base64.is_none() {

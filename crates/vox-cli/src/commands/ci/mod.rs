@@ -52,6 +52,7 @@ mod plugin_abi_parity;
 mod plugin_catalog_parity;
 mod plugin_dep_boundary;
 mod plugin_skill_parity;
+mod plugin_surface;
 mod pm_provenance;
 mod policy_allowlist_parity;
 mod policy_registry;

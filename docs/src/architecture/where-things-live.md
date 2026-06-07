@@ -67,6 +67,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-openai`](../../../crates/vox-openai/) | OpenAI integrations: wire-format types (`chat_completion.rs`) + SSE streaming (`sse.rs`) in one L1 crate. |
 | [`vox-package-types`](../../../crates/vox-package-types/) | Pure-data L1 leaf for vox-package: manifest, lockfile, package_kind, resolver types. |
 | [`vox-plugin-api`](../../../crates/vox-plugin-api/) | Shared API surface for Vox plugins: ABI version, traits, manifest types, error types. |
+| [`vox-plugin-sdk`](../../../crates/vox-plugin-sdk/) | Authoring SDK for code plugins: re-exports the stable ABI + the `declare_plugin!` glue macro (ABI-neutral, byte-identical exports). |
 | [`vox-plugin-types`](../../../crates/vox-plugin-types/) | Pure-types surface for the vox plugin system: manifests, skill types, state-backend trait. |
 | [`vox-telemetry`](../../../crates/vox-telemetry/) | L1 telemetry facade: `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, `record_event!` macro, `TelemetryConfig` (Phase D: org-policy hard-off + `VOX_TELEMETRY=on/off/debug`), per-task `TaskAggregate`, `record_task_started`. Zero domain dependencies. |
 | [`vox-runtime`](../../../crates/vox-runtime/) | Umbrella runtime foundation: `RuntimeProfile` (Desktop vs Mobile), lifecycle traits, `VoxConfig`. Consumed by downstream runtime crates and the uniffi mobile bridge. Zero internal deps. |
@@ -136,7 +137,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-orchestrator-mcp`](../../../crates/vox-orchestrator-mcp/) | MCP (Model Context Protocol) tool layer for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 4. |
 | [`vox-orchestrator-queue`](../../../crates/vox-orchestrator-queue/) | Locks, oplog, and affinity tracking for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 5. |
 | [`vox-orchestrator-test-helpers`](../../../crates/vox-orchestrator-test-helpers/) | Test-only fixtures and mocks for vox-orchestrator: MockBulletinBoard, load_golden_fixture. |
-| [`vox-oratio`](../../../crates/vox-oratio/) | Speech-to-text (Oratio) — Candle Whisper (Rust) STT and transcript refinement. |
+| [`vox-speech`](../../../crates/vox-speech/) | Speech-to-text (Oratio) — Candle Whisper (Rust) STT and transcript refinement. |
 | [`vox-plugin-catalog`](../../../crates/vox-plugin-catalog/) | SSOT catalog of all first-party Vox plugins and distribution bundles. |
 | [`vox-plugin-host`](../../../crates/vox-plugin-host/) | Host-side plugin discovery, loading, and registry. |
 | [`vox-plugin-test-harness`](../../../crates/vox-plugin-test-harness/) | Shared test utilities for plugin authors: fluent `Plugin.toml` manifest builders (`CodeManifestBuilder`, `SkillManifestBuilder`) and `PluginDir` temp-directory helper. |
@@ -225,6 +226,8 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Add a plugin manifest field | `crates/vox-plugin-types/src/plugin_manifest.rs` |
 | Add a queue / lock / oplog method | `crates/vox-orchestrator-queue/src/{locks,oplog,affinity}/` |
 | Add an LLM provider adapter | `crates/vox-orchestrator-mcp/src/llm_bridge/providers/<name>.rs` |
+| Interpreter runtime value representation & memory model (copy-on-write) | `crates/vox-compiler/src/eval/value.rs` (`VoxValue`; `List/Object/Tuple` hold `Rc<Vec<…>>`, `Fn.body` is `Rc`) + `crates/vox-compiler/src/eval/env.rs` (`Scope` frames are `Rc<HashMap>`). No GC — pure value semantics via `Rc` + `Rc::make_mut` CoW; `VoxValue` is intentionally `!Send` (single-threaded interp). See [`vox-memory-model-audit-and-value-optimization-2026-06-05.md`](./vox-memory-model-audit-and-value-optimization-2026-06-05.md). |
+| `@versioned` / `@tracked` decorator + interpreter `repo.*` VCS store (auto-snapshot-on-success) | Decorator spine in `crates/vox-compiler/`: lexer token (`src/lexer/token.rs` `AtVersioned`/`AtTracked`) → parser (`src/parser/descent/decl/head.rs` `is_versioned`) → `FnDecl.is_versioned` (`crates/vox-ast/src/decl/fundecl.rs`) → `HirFn.is_versioned` + `uses vcs` injection (`src/hir/lower/decl.rs`) → `VoxValue::Fn { name, is_versioned }` (`src/eval/value.rs`); the auto-`repo.snapshot()` hook fires on successful return in both call paths (`src/eval/mod.rs` `Interpreter::call` + `src/eval/expr.rs` Call arm) against the in-memory `RepoStore` (`src/eval/repo.rs`). Interpreter-only (`--mode interp`); inert in the compiled arms. See [`vcs-as-vox-language-feature-jujutsu-2026.md`](./vcs-as-vox-language-feature-jujutsu-2026.md) §4.3. |
 | Add a code generator (Rust target) | `crates/vox-codegen/src/codegen_rust/` |
 | Add a code generator (TypeScript target) | `crates/vox-codegen/src/codegen_ts/` |
 | Add a layer rule / arch-check rule | `crates/vox-arch-check/src/main.rs` + extend `layers.toml` schema |
@@ -258,7 +261,7 @@ Don't depend on `vox-orchestrator` or `vox-cli` from a plugin.
 | [`vox-plugin-mens-candle-cuda`](../../../crates/vox-plugin-mens-candle-cuda/) | ML training backend plugin: Candle + CUDA. Implements MlBackend. |
 | [`vox-plugin-mens-candle-metal`](../../../crates/vox-plugin-mens-candle-metal/) | MENS Apple Silicon Metal execution plugin. |
 | [`vox-plugin-nvml-probe`](../../../crates/vox-plugin-nvml-probe/) | Hardware probe plugin: NVML for NVIDIA GPU introspection. |
-| [`vox-plugin-oratio`](../../../crates/vox-plugin-oratio/) | Speech-to-text + AudioCapture plugin: Candle Whisper backend + mic capture surface (both extensions in one plugin). |
+| [`vox-plugin-speech`](../../../crates/vox-plugin-speech/) | Speech-to-text + AudioCapture plugin: Candle Whisper backend + mic capture surface (both extensions in one plugin). |
 | [`vox-plugin-populi-mesh`](../../../crates/vox-plugin-populi-mesh/) | Populi mesh transport plugin (composite: code + skill). |
 | [`vox-plugin-publication`](../../../crates/vox-plugin-publication/) | Publication plugin: RSS/Atom ingest with dedup, Reddit/YouTube publish, scholarly job feeds. |
 | [`vox-plugin-runtime-container`](../../../crates/vox-plugin-runtime-container/) | Skill-runtime plugin: Docker + Podman backends for vox-skill-runtime. |

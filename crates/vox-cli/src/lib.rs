@@ -375,9 +375,9 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: crate::commands::extras::skill_cmd::SkillCmd,
     },
-    /// Ludus gamification: profile, companions, quests, and battle simulations.
+    /// Gamification: profile, companions, quests, and battle simulations. `ludus` alias retained.
     #[cfg(feature = "extras-ludus")]
-    #[command(name = "ludus")]
+    #[command(name = "gamify", visible_alias = "ludus")]
     Ludus {
         /// Subcommand.
         #[command(subcommand)]
@@ -603,15 +603,9 @@ pub enum Cli {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },
-    /// Speech-to-Code: transcribe, listen (Delegated to `vox-ml-cli`).
-    #[command(name = "oratio", visible_alias = "speech")]
+    /// Speech-to-Code: transcribe, listen (Delegated to `vox-ml-cli`). `oratio` alias retained.
+    #[command(name = "speech", visible_alias = "oratio")]
     Oratio {
-        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
-        args: Vec<String>,
-    },
-    /// Scholarship/Scientia domain (Delegated to `vox-schola`).
-    #[command(name = "schola")]
-    Schola {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },

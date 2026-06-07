@@ -101,6 +101,7 @@ vox-grammar-export    = { layer = 1 }
 vox-scaling-policy    = { layer = 1 }
 vox-package-types     = { layer = 1 }                            # pure-types L1 leaf
 vox-plugin-api        = { layer = 1 }                            # type/trait surface only
+vox-plugin-sdk        = { layer = 1 }                            # authoring SDK: re-exports api + declare_plugin! glue macro
 vox-plugin-types      = { layer = 1 }                            # pure-types L1 leaf
 vox-research-events    = { layer = 1 }                            # SCIENTIA typed event bus (Phase 0b)
 vox-telemetry         = { layer = 1 }                            # L1 telemetry facade; zero domain deps
@@ -149,7 +150,7 @@ vox-research-shim            = { layer = 3, max_loc = 8_000, staleness_exempt = 
 vox-orchestrator-test-helpers = { layer = 3, kind = "test-only", max_dependents = 25, staleness_exempt = true }
 vox-actor-runtime       = { layer = 3, max_loc = 15_000 }
 vox-populi              = { layer = 3, max_loc = 20_000 }
-vox-oratio              = { layer = 3, sibling_of = ["vox-plugin-oratio"] }                    # Unit-4 extraction migration: shared code with plugin variant tolerated by drift sweep
+vox-speech              = { layer = 3, sibling_of = ["vox-plugin-speech"] }                    # Unit-4 extraction migration: shared code with plugin variant tolerated by drift sweep
 vox-wasm-engine         = { layer = 3 }
 vox-container-types     = { layer = 0 }              # pure types: ContainerRuntime trait, BuildOpts/RunOpts, RuntimePreference, exec_grammar (D-9-rescope step 1)
 vox-container           = { layer = 3 }
@@ -195,7 +196,7 @@ vox-plugin-cloud             = { layer = 4, kind = "plugin" }
 vox-plugin-mens-candle-cuda  = { layer = 4, kind = "plugin", sibling_of = ["vox-plugin-mens-candle-metal", "vox-populi"] }  # vendor-split GPU backends; populi held the legacy MENS tensor copy mid-migration
 vox-plugin-mens-candle-metal = { layer = 4, kind = "plugin", sibling_of = ["vox-plugin-mens-candle-cuda", "vox-populi"] }  # vendor-split GPU backends; populi held the legacy MENS tensor copy mid-migration
 vox-plugin-nvml-probe        = { layer = 4, kind = "plugin" }
-vox-plugin-oratio            = { layer = 4, kind = "plugin" }
+vox-plugin-speech            = { layer = 4, kind = "plugin" }
 vox-plugin-populi-mesh       = { layer = 4, kind = "plugin" }
 vox-plugin-publication       = { layer = 4, kind = "plugin" }
 vox-plugin-runtime-container = { layer = 4, kind = "plugin" }
@@ -277,6 +278,19 @@ exempt_files     = [
 ]
 allow_annotation = "// vox-arch-check: allow jj-lib"
 reason           = "All jj-lib calls must live in vox-vcs so the unstable jj-lib API has one auditable blast radius."
+
+[[forbidden_pattern]]
+name             = "raw-jj-exec"
+pattern          = 'Command::new\("jj"\)'
+file_glob        = "crates/**/*.rs"
+exempt_files     = [
+    # Sanctioned dev-convenience CLI tool: `vox vcs` shells to jj for blame/heatmap/rebase
+    # (annotate/merge), which are not yet exposed in-process by vox-vcs. All other jj usage
+    # is in-process via vox-vcs::JjActor — the orchestrator must never spawn `jj` again.
+    "crates/vox-cli/src/commands/vcs.rs",
+]
+allow_annotation = "// vox-arch-check: allow jj-exec"
+reason           = "jj is used in-process via jj-lib (vox-vcs::JjBackend/JjActor); the only sanctioned subprocess jj is the `vox vcs` CLI tool (blame/rebase not yet in-process)."
 
 # Emit boundary (ADR 036 / projection bundle): do not re-lower or re-project HIR outside
 # `vox-codegen::projection_bundle` from TypeScript/Rust emitters — use `project_bundle_from_hir`.

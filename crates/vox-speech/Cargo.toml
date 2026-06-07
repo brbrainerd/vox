@@ -1,0 +1,82 @@
+[package]
+name = "vox-speech"
+description = "Vox speech-to-text (Oratio) — Candle Whisper (Rust) STT and transcript refinement"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords = ["vox", "speech", "stt", "whisper"]
+categories = ["multimedia::audio"]
+
+[features]
+# No default features: heavy ML deps (Candle, hf-hub, tokenizers, symphonia, rubato)
+# must be opted into explicitly by consumers via `features = ["stt-candle"]`. This
+# prevents accidental bleed-through of ~100MB+ of native ML code into crates that
+# only need lightweight surfaces like `refine`, `routing`, or `runtime_config`.
+default = []
+# DEPRECATED: The Candle Whisper code has been extracted into vox-plugin-speech (Unit 4 of the
+# vox-populi extraction follow-up plan). Historical audio-ingress docs/env rows still point here while the
+# plugin-host rewire is pending. Once ingress is rewired through vox-plugin-host::load_code_plugin
+# + as_speech_to_text(), this feature and its heavy deps will be deleted from this crate.
+# TODO(extraction-unit4-followup): drop stt-candle after audio-ingress rewire/retirement.
+stt-candle = [
+    "dep:candle-core",
+    "dep:candle-nn",
+    "dep:candle-transformers",
+    "dep:hf-hub",
+    "dep:tokenizers",
+    "dep:symphonia",
+    "dep:rubato",
+    "dep:rand09",
+    "dep:byteorder",
+]
+# Prefer transcript hypotheses that lex/parse/typecheck as Vox better (for speech-to-code).
+compiler-rerank = ["dep:vox-compiler"]
+cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
+stt-sherpa = ["dep:sherpa-onnx"]
+cloud = ["dep:vox-populi", "dep:tokio", "dep:vox-http-client", "dep:async-trait", "dep:reqwest"]
+serve = ["dep:axum", "axum/multipart", "dep:tokio", "stt-candle"]
+
+[dependencies]
+vox-config = { workspace = true }
+vox-populi = { workspace = true, optional = true, features = ["mens-cloud"] }
+reqwest = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+vox-http-client = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
+anyhow = { workspace = true }
+vox-compiler = { workspace = true, optional = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+axum = { workspace = true, optional = true }
+candle-core = { workspace = true, optional = true }
+candle-nn = { workspace = true, optional = true }
+candle-transformers = { workspace = true, optional = true }
+hf-hub = { workspace = true, optional = true }
+tokenizers = { workspace = true, optional = true }
+symphonia = { workspace = true, optional = true, default-features = false, features = [
+    "aac",
+    "alac",
+    "flac",
+    "mp3",
+    "ogg",
+    "pcm",
+    "vorbis",
+    "wav",
+] }
+rubato = { workspace = true, optional = true }
+rand09 = { workspace = true, optional = true }
+byteorder = { workspace = true, optional = true }
+uuid = { workspace = true }
+tempfile = { workspace = true }
+sherpa-onnx = { workspace = true, optional = true }
+workspace-hack = { workspace = true }
+vox-secrets.workspace = true
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

@@ -7,8 +7,8 @@
 //! its `components.json` aliases dictate. The vendored component is then used
 //! through an ordinary local `import react Button from "./components/ui/button"`.
 //!
-//! The pure planning logic ([`plan_files`]) is network-free and unit-tested
-//! against a fixture; only [`run`] touches the network and disk.
+//! The pure planning logic (`plan_files`) is network-free and unit-tested
+//! against a fixture; only `run` touches the network and disk.
 
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
@@ -57,7 +57,7 @@ pub struct RegistryFile {
 /// Subset of `components.json` that drives placement and content transforms.
 #[derive(Debug, Deserialize)]
 pub struct ComponentsConfig {
-    /// `false` ⇒ emit JavaScript (`.jsx`). Not yet supported (see [`plan_files`]).
+    /// `false` ⇒ emit JavaScript (`.jsx`). Not yet supported (see `plan_files`).
     #[serde(default = "vox_config::serde_defaults::default_true")]
     pub tsx: bool,
     /// `true` ⇒ inject the `"use client"` directive into client components.

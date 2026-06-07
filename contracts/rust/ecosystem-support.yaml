@@ -14,7 +14,7 @@ template_managed_dependencies:
     - turso
     - vox-db
     - vox-actor-runtime
-    - vox-oratio
+    - vox-speech
   script_native:
     - tokio
     - serde
@@ -32,7 +32,7 @@ wasi_unsupported_rust_imports:
   - tower
   - turso
   - vox-db
-  - vox-oratio
+  - vox-speech
   - jsonschema
   - sqlx
   - diesel
@@ -131,7 +131,7 @@ support_entries:
     decision: internal_runtime_only
     notes: "Host/runtime crate supplied by compiler templates; consumed through Vox surfaces rather than direct crate APIs."
 
-  - crate_family: vox-oratio
+  - crate_family: vox-speech
     product_lane: app
     support_tier: tier0
     boundary_owner: builtin_registry

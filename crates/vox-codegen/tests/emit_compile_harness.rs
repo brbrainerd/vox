@@ -1,0 +1,148 @@
+//! Emit→compile harness: generate a full Rust **script** crate from a Vox
+//! program, write it to a temp dir, and run `cargo build` on it — proving the
+//! generated *body* actually type-checks, not merely that emitted strings look
+//! right.
+//!
+//! This is the verification net for ownership / borrow codegen changes
+//! (Workstream B escape analysis): a `&str`-vs-`String` parameter mismatch is a
+//! `rustc` *type* error that snapshot/`*_compiles.rs` (symbol-link) tests do not
+//! catch — only compiling the generated crate does.
+//!
+//! These are `#[ignore]`d because compiling a generated crate (tokio +
+//! `vox-actor-runtime`) takes a while. Run explicitly:
+//!
+//! ```sh
+//! cargo test -p vox-codegen --test emit_compile_harness -- --ignored --nocapture
+//! ```
+//!
+//! A stable `CARGO_TARGET_DIR` under the OS temp dir is reused across runs, so
+//! after the first (cold) compile of dependencies subsequent runs are fast.
+
+use std::path::PathBuf;
+use std::process::Command;
+
+use vox_codegen::codegen_rust::generate_script;
+use vox_compiler::hir::lower_module;
+use vox_compiler::lexer::lex;
+use vox_compiler::parser::parse_script;
+
+/// Absolute path to the `vox-actor-runtime` crate the generated script depends on.
+fn runtime_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../vox-actor-runtime")
+}
+
+/// Generate a native script crate for `src`, write it to a fresh temp dir, and
+/// `cargo build` it. `Ok(())` iff it compiled; otherwise the captured cargo
+/// stderr.
+fn compile_vox_script(src: &str) -> Result<(), String> {
+    let module = parse_script(lex(src)).map_err(|e| format!("parse failed: {e:?}"))?;
+    let hir = lower_module(&module);
+    let output = generate_script(&hir, "vox-script", Some(&runtime_path()))
+        .map_err(|e| format!("codegen failed: {e}"))?;
+
+    let dir = tempfile::tempdir().map_err(|e| format!("tempdir: {e}"))?;
+    output
+        .write_to_dir(dir.path())
+        .map_err(|e| format!("write_to_dir: {e}"))?;
+
+    // Reuse one target dir across runs so dependency compiles are cached.
+    let target_dir = std::env::temp_dir().join("vox-emit-compile-harness-target");
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
+    let out = Command::new(cargo)
+        .current_dir(dir.path())
+        .arg("build")
+        .env("CARGO_TARGET_DIR", &target_dir)
+        .output()
+        .map_err(|e| format!("spawn cargo: {e}"))?;
+
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).into_owned())
+    }
+}
+
+/// Assert a Vox program's generated Rust compiles, surfacing cargo's error.
+fn assert_compiles(src: &str) {
+    if let Err(e) = compile_vox_script(src) {
+        panic!("generated Rust did not compile:\n{e}");
+    }
+}
+
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn minimal_script_compiles() {
+    assert_compiles("fn main() { print(\"hi\") }");
+}
+
+/// A value-returning `main` (`fn main() to int`) must compile: the generated
+/// wrapper runs the body in a closure and discards the result, rather than
+/// inlining `return <value>` into `fn main() -> ()`. (Regression test for the
+/// entry-wrapper bug this harness originally surfaced.)
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn value_returning_main_compiles() {
+    assert_compiles("fn main() to int { return 1 + 2 }");
+}
+
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn list_ops_compile() {
+    assert_compiles(
+        r#"
+fn build(n: int) to list[int] {
+    let mut acc: list[int] = []
+    let mut i = 0
+    while i < n {
+        acc.push(i)
+        i = i + 1
+    }
+    return acc
+}
+fn main() {
+    let xs = build(3)
+    print(str(len(xs)))
+}
+"#,
+    );
+}
+
+/// String parameters exercised in both owned (returned/concatenated) and
+/// argument positions — the shapes escape analysis (Workstream B) changes.
+/// This is the regression guard for borrowed-`&str` signature emission: it must
+/// keep compiling once params can be emitted as `&str`.
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn string_param_shapes_compile() {
+    assert_compiles(
+        r#"
+fn greet(name: str) to str {
+    return "hello, " + name
+}
+fn shout(msg: str) to str {
+    return greet(msg)
+}
+fn main() {
+    print(shout("world"))
+}
+"#,
+    );
+}
+
+/// `str + <numeric>` type-checks as `str` (the interpreter auto-stringifies).
+/// Codegen must emit `format!`, not `String + i64`. Regression guard for the
+/// previously-miscompiling mixed-type concatenation.
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn str_plus_numeric_compiles() {
+    assert_compiles(
+        r#"
+fn label(n: int) to str {
+    return "item #" + n
+}
+fn main() {
+    print(label(42))
+}
+"#,
+    );
+}

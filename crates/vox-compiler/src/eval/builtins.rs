@@ -6,6 +6,7 @@ use super::shell_stdlib::{
 };
 use super::value::VoxValue;
 use secrecy::ExposeSecret;
+use std::rc::Rc;
 use std::sync::Mutex;
 use std::sync::OnceLock;
 
@@ -71,12 +72,12 @@ fn voxvalue_as_table_str(v: &VoxValue) -> Option<Vec<Vec<String>>> {
         return None;
     };
     let mut out = Vec::new();
-    for row in rows {
+    for row in rows.iter() {
         let VoxValue::List(cells) = row else {
             return None;
         };
         let mut line = Vec::new();
-        for c in cells {
+        for c in cells.iter() {
             let VoxValue::Str(s) = c else {
                 return None;
             };
@@ -191,17 +192,17 @@ pub fn call_builtin_method(
             ("Regex", "find_all") => {
                 let pattern = match fields.first() {
                     Some(VoxValue::Str(p)) => p,
-                    _ => return Some(VoxValue::List(vec![])),
+                    _ => return Some(VoxValue::list(vec![])),
                 };
                 let haystack = match args.first() {
                     Some(VoxValue::Str(s)) => s,
-                    _ => return Some(VoxValue::List(vec![])),
+                    _ => return Some(VoxValue::list(vec![])),
                 };
                 let re = match regex::Regex::new(pattern) {
                     Ok(re) => re,
-                    Err(_) => return Some(VoxValue::List(vec![])),
+                    Err(_) => return Some(VoxValue::list(vec![])),
                 };
-                return Some(VoxValue::List(
+                return Some(VoxValue::list(
                     re.captures_iter(haystack)
                         .map(|c| build_match_value(&c))
                         .collect(),
@@ -255,9 +256,9 @@ pub fn call_builtin_method(
                             VoxValue::Match(groups)
                         })
                         .collect();
-                    Some(VoxValue::List(all))
+                    Some(VoxValue::list(all))
                 }
-                _ => Some(VoxValue::List(vec![])),
+                _ => Some(VoxValue::list(vec![])),
             },
             _ => None,
         },
@@ -275,7 +276,7 @@ pub fn call_builtin_method(
                         .map(|s| Box::new(VoxValue::Str(s))),
                 ))
             }
-            "groups" => Some(VoxValue::List(
+            "groups" => Some(VoxValue::list(
                 groups
                     .iter()
                     .map(|g| VoxValue::Str(g.clone().unwrap_or_default()))
@@ -288,14 +289,14 @@ pub fn call_builtin_method(
             "len" => Some(VoxValue::Int(v.len() as i64)),
             "is_empty" => Some(VoxValue::Bool(v.is_empty())),
             "push" => {
-                let mut owned = v.clone();
+                let mut owned = v.to_vec();
                 if let Some(val) = args.into_iter().next() {
                     owned.push(val);
                 }
-                Some(VoxValue::List(owned))
+                Some(VoxValue::list(owned))
             }
             "pop" => {
-                let mut owned = v.clone();
+                let mut owned = v.to_vec();
                 let popped = owned.pop().unwrap_or(VoxValue::Null);
                 Some(popped)
             }
@@ -332,45 +333,45 @@ pub fn call_builtin_method(
             }
             // extend(other) → List[T]: append all elements of other.
             "extend" => {
-                let mut owned = v.clone();
+                let mut owned = v.to_vec();
                 if let Some(VoxValue::List(other)) = args.into_iter().next() {
-                    owned.extend(other);
+                    owned.extend(other.iter().cloned());
                 }
-                Some(VoxValue::List(owned))
+                Some(VoxValue::list(owned))
             }
             // remove(val) → List[T]: new list with first occurrence of val removed.
             "remove" => {
                 let target = args.into_iter().next().unwrap_or(VoxValue::Null);
-                let mut owned = v.clone();
+                let mut owned = v.to_vec();
                 if let Some(pos) = owned.iter().position(|x| x == &target) {
                     owned.remove(pos);
                 }
-                Some(VoxValue::List(owned))
+                Some(VoxValue::list(owned))
             }
             // remove_at(i) → List[T]: new list without element at index i.
             "remove_at" => {
-                let mut owned = v.clone();
+                let mut owned = v.to_vec();
                 if let Some(VoxValue::Int(i)) = args.into_iter().next()
                     && i >= 0
                     && (i as usize) < owned.len()
                 {
                     owned.remove(i as usize);
                 }
-                Some(VoxValue::List(owned))
+                Some(VoxValue::list(owned))
             }
             // zip(other) → List[List[T]]: pairs of [a, b] elements.
             "zip" => {
                 let other = match args.into_iter().next() {
                     Some(VoxValue::List(o)) => o,
-                    _ => return Some(VoxValue::List(Vec::new())),
+                    _ => return Some(VoxValue::list(Vec::new())),
                 };
                 let pairs: Vec<VoxValue> = v
                     .iter()
                     .cloned()
-                    .zip(other)
-                    .map(|(a, b)| VoxValue::List(vec![a, b]))
+                    .zip(other.iter().cloned())
+                    .map(|(a, b)| VoxValue::list(vec![a, b]))
                     .collect();
-                Some(VoxValue::List(pairs))
+                Some(VoxValue::list(pairs))
             }
             // enumerate() → List[List[T]]: [[0, a], [1, b], ...].
             "enumerate" => {
@@ -378,9 +379,9 @@ pub fn call_builtin_method(
                     .iter()
                     .cloned()
                     .enumerate()
-                    .map(|(i, x)| VoxValue::List(vec![VoxValue::Int(i as i64), x]))
+                    .map(|(i, x)| VoxValue::list(vec![VoxValue::Int(i as i64), x]))
                     .collect();
-                Some(VoxValue::List(pairs))
+                Some(VoxValue::list(pairs))
             }
             // slice(start, end?) → List[T]: sub-list from start to end (exclusive).
             "slice_list" => {
@@ -394,7 +395,7 @@ pub fn call_builtin_method(
                     _ => v.len(),
                 };
                 let slice = v.get(start..end.min(v.len())).unwrap_or(&[]).to_vec();
-                Some(VoxValue::List(slice))
+                Some(VoxValue::list(slice))
             }
             "join" => {
                 let sep = match args.into_iter().next() {
@@ -405,19 +406,19 @@ pub fn call_builtin_method(
                 Some(VoxValue::Str(strings.join(&sep)))
             }
             "reverse" => {
-                let mut owned = v.clone();
+                let mut owned = v.to_vec();
                 owned.reverse();
-                Some(VoxValue::List(owned))
+                Some(VoxValue::list(owned))
             }
             "reversed" => {
-                let mut owned = v.clone();
+                let mut owned = v.to_vec();
                 owned.reverse();
-                Some(VoxValue::List(owned))
+                Some(VoxValue::list(owned))
             }
             "sorted" => {
-                let mut owned = v.clone();
+                let mut owned = v.to_vec();
                 owned.sort_by(vox_value_cmp);
-                Some(VoxValue::List(owned))
+                Some(VoxValue::list(owned))
             }
             "sum" => {
                 let mut int_sum: i64 = 0;
@@ -459,7 +460,7 @@ pub fn call_builtin_method(
                         flat.push(item.clone());
                     }
                 }
-                Some(VoxValue::List(flat))
+                Some(VoxValue::list(flat))
             }
             // Json-shaped arrays (`std.json.parse`, `std.csv.parse`, …) use these names in typecheck + native `VoxJson`.
             // Strict-Option API per json-ergonomics-rfc-2026-05-23.
@@ -562,7 +563,7 @@ pub fn call_builtin_method(
                     .split(&*delim)
                     .map(|p| VoxValue::Str(p.to_string()))
                     .collect();
-                Some(VoxValue::List(parts))
+                Some(VoxValue::list(parts))
             }
             "replace" => {
                 let mut it = args.into_iter();
@@ -634,7 +635,7 @@ pub fn call_builtin_method(
             }
             "chars" => {
                 let list: Vec<VoxValue> = s.chars().map(|c| VoxValue::Str(c.to_string())).collect();
-                Some(VoxValue::List(list))
+                Some(VoxValue::list(list))
             }
             "to_str" | "to_string" => Some(VoxValue::Str(s.clone())),
             "slice" => {
@@ -880,7 +881,7 @@ pub fn call_builtin_method(
                             .filter(|(k, _)| k != "__namespace__")
                             .map(|(k, _)| VoxValue::Str(k.clone()))
                             .collect();
-                        return Some(VoxValue::List(keys));
+                        return Some(VoxValue::list(keys));
                     }
                     "values" => {
                         let vals: Vec<VoxValue> = fields
@@ -888,7 +889,7 @@ pub fn call_builtin_method(
                             .filter(|(k, _)| k != "__namespace__")
                             .map(|(_, v)| v.clone())
                             .collect();
-                        return Some(VoxValue::List(vals));
+                        return Some(VoxValue::list(vals));
                     }
                     "items" | "entries" => {
                         // Returns list of [key, value] 2-element lists (tuples
@@ -897,9 +898,9 @@ pub fn call_builtin_method(
                         let items: Vec<VoxValue> = fields
                             .iter()
                             .filter(|(k, _)| k != "__namespace__")
-                            .map(|(k, v)| VoxValue::List(vec![VoxValue::Str(k.clone()), v.clone()]))
+                            .map(|(k, v)| VoxValue::list(vec![VoxValue::Str(k.clone()), v.clone()]))
                             .collect();
-                        return Some(VoxValue::List(items));
+                        return Some(VoxValue::list(items));
                     }
                     "insert" | "set" => {
                         // Returns new Object with key set (for statement-level
@@ -908,7 +909,7 @@ pub fn call_builtin_method(
                         let mut it = args.into_iter();
                         let key = match it.next() {
                             Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Object(fields.to_vec())),
+                            _ => return Some(VoxValue::object(fields.to_vec())),
                         };
                         let val = it.next().unwrap_or(VoxValue::Null);
                         let mut owned = fields.to_vec();
@@ -917,32 +918,32 @@ pub fn call_builtin_method(
                         } else {
                             owned.push((key, val));
                         }
-                        return Some(VoxValue::Object(owned));
+                        return Some(VoxValue::object(owned));
                     }
                     "remove" | "delete" => {
                         let key = match args.into_iter().next() {
                             Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Object(fields.to_vec())),
+                            _ => return Some(VoxValue::object(fields.to_vec())),
                         };
                         let owned: Vec<_> =
                             fields.iter().filter(|(k, _)| k != &key).cloned().collect();
-                        return Some(VoxValue::Object(owned));
+                        return Some(VoxValue::object(owned));
                     }
                     "update" => {
                         // Merge another Object (right wins on duplicate keys).
                         let other = match args.into_iter().next() {
                             Some(VoxValue::Object(o)) => o,
-                            _ => return Some(VoxValue::Object(fields.to_vec())),
+                            _ => return Some(VoxValue::object(fields.to_vec())),
                         };
                         let mut owned = fields.to_vec();
-                        for (k, v) in other {
+                        for (k, v) in other.iter().cloned() {
                             if let Some(entry) = owned.iter_mut().find(|(ek, _)| ek == &k) {
                                 entry.1 = v;
                             } else {
                                 owned.push((k, v));
                             }
                         }
-                        return Some(VoxValue::Object(owned));
+                        return Some(VoxValue::object(owned));
                     }
                     _ => {}
                 }
@@ -1087,7 +1088,7 @@ pub fn call_builtin_method(
                                         ));
                                     }
                                 }
-                                Some(VoxValue::Result(Ok(Box::new(VoxValue::List(entries)))))
+                                Some(VoxValue::Result(Ok(Box::new(VoxValue::list(entries)))))
                             }
                             Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(
                                 e.to_string(),
@@ -1136,7 +1137,7 @@ pub fn call_builtin_method(
                                 .filter_map(|e| e.ok())
                                 .map(|e| VoxValue::Str(e.file_name().to_string_lossy().to_string()))
                                 .collect();
-                            Ok(Box::new(VoxValue::List(list)))
+                            Ok(Box::new(VoxValue::list(list)))
                         } else {
                             Err("failed to list directory".to_string())
                         };
@@ -1160,7 +1161,7 @@ pub fn call_builtin_method(
                                         VoxValue::Str(p.to_string_lossy().to_string())
                                     })
                                     .collect();
-                                Ok(Box::new(VoxValue::List(list)))
+                                Ok(Box::new(VoxValue::list(list)))
                             }
                             Err(e) => Err(e.to_string()),
                         };
@@ -1176,7 +1177,7 @@ pub fn call_builtin_method(
                                 let list: Vec<VoxValue> = rows
                                     .into_iter()
                                     .map(|r| {
-                                        VoxValue::Object(vec![
+                                        VoxValue::object(vec![
                                             ("name".into(), VoxValue::Str(r.name)),
                                             ("path".into(), VoxValue::Str(r.path)),
                                             ("size".into(), VoxValue::Int(r.size)),
@@ -1187,7 +1188,7 @@ pub fn call_builtin_method(
                                         ])
                                     })
                                     .collect();
-                                Ok(Box::new(VoxValue::List(list)))
+                                Ok(Box::new(VoxValue::list(list)))
                             }
                             Err(e) => Err(e),
                         };
@@ -1199,7 +1200,7 @@ pub fn call_builtin_method(
                             _ => return Some(VoxValue::Null),
                         };
                         let res = match interp_fs_stat(&path) {
-                            Ok(r) => Ok(Box::new(VoxValue::Object(vec![
+                            Ok(r) => Ok(Box::new(VoxValue::object(vec![
                                 ("name".into(), VoxValue::Str(r.name)),
                                 ("path".into(), VoxValue::Str(r.path)),
                                 ("size".into(), VoxValue::Int(r.size)),
@@ -1251,7 +1252,7 @@ pub fn call_builtin_method(
                     }
                     "args" => {
                         let args: Vec<VoxValue> = std::env::args().map(VoxValue::Str).collect();
-                        Some(VoxValue::List(args))
+                        Some(VoxValue::list(args))
                     }
                     "set" => {
                         let mut it = args.into_iter();
@@ -1377,7 +1378,7 @@ pub fn call_builtin_method(
                             _ => return Some(VoxValue::Str(String::new())),
                         };
                         let mut acc = std::path::PathBuf::new();
-                        for seg in segments {
+                        for seg in segments.iter().cloned() {
                             if let VoxValue::Str(s) = seg {
                                 acc.push(s);
                             }
@@ -1435,7 +1436,8 @@ pub fn call_builtin_method(
                         };
                         let cmd_args = match it.next() {
                             Some(VoxValue::List(ls)) => ls
-                                .into_iter()
+                                .iter()
+                                .cloned()
                                 .filter_map(|v| {
                                     if let VoxValue::Str(s) = v {
                                         Some(s)
@@ -1476,7 +1478,7 @@ pub fn call_builtin_method(
                                 // typeck contract (`proc.unwrap()`) to fail
                                 // at eval with "Method unwrap not found"
                                 // even though their `vox check` passed.
-                                Some(VoxValue::Option(Some(Box::new(VoxValue::Object(res)))))
+                                Some(VoxValue::Option(Some(Box::new(VoxValue::object(res)))))
                             }
                             Err(_) => Some(VoxValue::Option(None)),
                         }
@@ -1489,7 +1491,8 @@ pub fn call_builtin_method(
                         };
                         let cmd_args = match it.next() {
                             Some(VoxValue::List(ls)) => ls
-                                .into_iter()
+                                .iter()
+                                .cloned()
                                 .filter_map(|v| {
                                     if let VoxValue::Str(s) = v {
                                         Some(s)
@@ -1530,7 +1533,8 @@ pub fn call_builtin_method(
                         };
                         let cmd_args = match it.next() {
                             Some(VoxValue::List(ls)) => ls
-                                .into_iter()
+                                .iter()
+                                .cloned()
                                 .filter_map(|v| {
                                     if let VoxValue::Str(s) = v {
                                         Some(s)
@@ -1576,7 +1580,8 @@ pub fn call_builtin_method(
                         };
                         let cmd_args = match it.next() {
                             Some(VoxValue::List(ls)) => ls
-                                .into_iter()
+                                .iter()
+                                .cloned()
                                 .filter_map(|v| {
                                     if let VoxValue::Str(s) = v {
                                         Some(s)
@@ -1617,7 +1622,8 @@ pub fn call_builtin_method(
                         };
                         let cmd_args = match it.next() {
                             Some(VoxValue::List(ls)) => ls
-                                .into_iter()
+                                .iter()
+                                .cloned()
                                 .filter_map(|v| {
                                     if let VoxValue::Str(s) = v {
                                         Some(s)
@@ -1651,7 +1657,8 @@ pub fn call_builtin_method(
                         };
                         let cmd_args = match it.next() {
                             Some(VoxValue::List(ls)) => ls
-                                .into_iter()
+                                .iter()
+                                .cloned()
                                 .filter_map(|v| {
                                     if let VoxValue::Str(s) = v {
                                         Some(s)
@@ -1676,7 +1683,8 @@ pub fn call_builtin_method(
                         };
                         let cmd_args = match it.next() {
                             Some(VoxValue::List(ls)) => ls
-                                .into_iter()
+                                .iter()
+                                .cloned()
                                 .filter_map(|v| {
                                     if let VoxValue::Str(s) = v {
                                         Some(s)
@@ -1689,7 +1697,7 @@ pub fn call_builtin_method(
                         };
                         let res = interp_process_run_capture_lines(&cmd_name, &cmd_args);
                         Some(VoxValue::Result(match res {
-                            Ok(lines) => Ok(Box::new(VoxValue::List(
+                            Ok(lines) => Ok(Box::new(VoxValue::list(
                                 lines.into_iter().map(VoxValue::Str).collect(),
                             ))),
                             Err(e) => Err(crate::eval::value::err_str(e)),
@@ -1707,7 +1715,8 @@ pub fn call_builtin_method(
                         };
                         let cmd_args = match it.next() {
                             Some(VoxValue::List(ls)) => ls
-                                .into_iter()
+                                .iter()
+                                .cloned()
                                 .filter_map(|v| {
                                     if let VoxValue::Str(s) = v {
                                         Some(s)
@@ -1726,7 +1735,7 @@ pub fn call_builtin_method(
                         // env list (arg 4) intentionally ignored here, matching
                         // the run_ex interpreter behavior.
                         let res = match cmd.output() {
-                            Ok(out) => Ok(Box::new(VoxValue::Object(vec![
+                            Ok(out) => Ok(Box::new(VoxValue::object(vec![
                                 (
                                     "exit".to_string(),
                                     VoxValue::Int(out.status.code().unwrap_or(0) as i64),
@@ -2139,7 +2148,7 @@ pub fn call_builtin_method(
                                             )
                                         })
                                         .collect();
-                                    Some(VoxValue::Option(Some(Box::new(VoxValue::List(groups)))))
+                                    Some(VoxValue::Option(Some(Box::new(VoxValue::list(groups)))))
                                 }
                                 None => Some(VoxValue::Option(None)),
                             }
@@ -2253,7 +2262,7 @@ fn interp_json_object_methods(
                 return opt_none();
             };
             // Delegate to serde_json::Value::pointer for RFC 6901 semantics.
-            let serde_val = vox_to_json(VoxValue::Object(fields.to_vec()));
+            let serde_val = vox_to_json(VoxValue::object(fields.to_vec()));
             match serde_val.pointer(path) {
                 Some(v) => opt_some(json_to_vox(v.clone())),
                 None => opt_none(),
@@ -2262,7 +2271,7 @@ fn interp_json_object_methods(
 
         // ── Leaf coercion on Object receiver: object IS object; nothing
         // else matches. ───────────────────────────────────────────────
-        "as_object" => opt_some(VoxValue::Object(fields.to_vec())),
+        "as_object" => opt_some(VoxValue::object(fields.to_vec())),
         "as_str" | "as_int" | "as_float" | "as_bool" | "as_array" => opt_none(),
 
         // ── Inspection ────────────────────────────────────────────────
@@ -2280,10 +2289,10 @@ fn interp_json_object_methods(
                 .filter(|(k, _)| k != "__namespace__")
                 .map(|(k, _)| VoxValue::Str(k.clone()))
                 .collect();
-            opt_some(VoxValue::List(ks))
+            opt_some(VoxValue::list(ks))
         }
         "to_string" => {
-            let j = vox_to_json(VoxValue::Object(fields.to_vec()));
+            let j = vox_to_json(VoxValue::object(fields.to_vec()));
             Some(VoxValue::Str(serde_json::to_string(&j).unwrap_or_default()))
         }
         _ => None,
@@ -2297,10 +2306,12 @@ fn vox_to_json(v: VoxValue) -> serde_json::Value {
         VoxValue::Str(s) => serde_json::Value::String(s),
         VoxValue::Bool(b) => serde_json::Value::Bool(b),
         VoxValue::Null => serde_json::Value::Null,
-        VoxValue::List(ls) => serde_json::Value::Array(ls.into_iter().map(vox_to_json).collect()),
+        VoxValue::List(ls) => {
+            serde_json::Value::Array(ls.iter().cloned().map(vox_to_json).collect())
+        }
         VoxValue::Object(fields) => {
             let mut map = serde_json::Map::new();
-            for (k, v) in fields {
+            for (k, v) in fields.iter().cloned() {
                 if k == "__namespace__" {
                     continue;
                 }
@@ -2308,7 +2319,9 @@ fn vox_to_json(v: VoxValue) -> serde_json::Value {
             }
             serde_json::Value::Object(map)
         }
-        VoxValue::Tuple(ls) => serde_json::Value::Array(ls.into_iter().map(vox_to_json).collect()),
+        VoxValue::Tuple(ls) => {
+            serde_json::Value::Array(ls.iter().cloned().map(vox_to_json).collect())
+        }
         _ => serde_json::Value::Null,
     }
 }
@@ -2325,13 +2338,13 @@ fn json_to_vox(v: serde_json::Value) -> VoxValue {
             }
         }
         serde_json::Value::String(s) => VoxValue::Str(s),
-        serde_json::Value::Array(arr) => VoxValue::List(arr.into_iter().map(json_to_vox).collect()),
+        serde_json::Value::Array(arr) => VoxValue::list(arr.into_iter().map(json_to_vox).collect()),
         serde_json::Value::Object(obj) => {
             let mut fields = Vec::new();
             for (k, v) in obj {
                 fields.push((k, json_to_vox(v)));
             }
-            VoxValue::Object(fields)
+            VoxValue::object(fields)
         }
     }
 }
@@ -2422,10 +2435,10 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
             let (start, end) = match (it.next(), it.next()) {
                 (Some(VoxValue::Int(e)), None) => (0, e),
                 (Some(VoxValue::Int(s)), Some(VoxValue::Int(e))) => (s, e),
-                _ => return Some(VoxValue::List(vec![])),
+                _ => return Some(VoxValue::list(vec![])),
             };
             let list: Vec<VoxValue> = (start..end).map(VoxValue::Int).collect();
-            Some(VoxValue::List(list))
+            Some(VoxValue::list(list))
         }
         "type_of" => {
             let v = args.into_iter().next().unwrap_or(VoxValue::Null);
@@ -2459,7 +2472,7 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
                     Some(VoxValue::Float(a.max(b)))
                 }
                 // max(list) — single list argument
-                (Some(VoxValue::List(items)), None) => items.into_iter().max_by(vox_value_cmp),
+                (Some(VoxValue::List(items)), None) => items.iter().cloned().max_by(vox_value_cmp),
                 _ => None,
             }
         }
@@ -2472,7 +2485,7 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
                     Some(VoxValue::Float(a.min(b)))
                 }
                 // min(list) — single list argument
-                (Some(VoxValue::List(items)), None) => items.into_iter().min_by(vox_value_cmp),
+                (Some(VoxValue::List(items)), None) => items.iter().cloned().min_by(vox_value_cmp),
                 _ => None,
             }
         }
@@ -2480,7 +2493,7 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
         "sorted" => {
             let v = args.into_iter().next()?;
             if let VoxValue::List(mut items) = v {
-                items.sort_by(vox_value_cmp);
+                Rc::make_mut(&mut items).sort_by(vox_value_cmp);
                 Some(VoxValue::List(items))
             } else {
                 None
@@ -2493,7 +2506,7 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
                 let mut int_sum: i64 = 0;
                 let mut float_sum: f64 = 0.0;
                 let mut is_float = false;
-                for item in &items {
+                for item in items.iter() {
                     match item {
                         VoxValue::Int(n) => {
                             int_sum += n;
@@ -2645,7 +2658,7 @@ mod time_namespace_interp_tests {
     /// Construct the `std.time` namespace object exactly as `eval/mod.rs` does
     /// (a plain Object carrying the `__namespace__` marker).
     fn time_namespace() -> VoxValue {
-        VoxValue::Object(vec![(
+        VoxValue::object(vec![(
             "__namespace__".to_string(),
             VoxValue::Str("time".to_string()),
         )])
@@ -2671,7 +2684,7 @@ mod time_namespace_interp_tests {
     }
 
     fn path_namespace() -> VoxValue {
-        VoxValue::Object(vec![(
+        VoxValue::object(vec![(
             "__namespace__".to_string(),
             VoxValue::Str("path".to_string()),
         )])
@@ -2710,7 +2723,7 @@ mod time_namespace_interp_tests {
         let joined = call_builtin_method(
             &p,
             "join_many",
-            vec![VoxValue::List(vec![
+            vec![VoxValue::list(vec![
                 VoxValue::Str("a".to_string()),
                 VoxValue::Str("b".to_string()),
                 VoxValue::Str("c".to_string()),

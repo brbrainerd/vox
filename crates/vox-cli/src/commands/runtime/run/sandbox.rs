@@ -84,13 +84,14 @@ mod platform {
         // SAFETY: pre_exec runs between fork() and exec() in the child only.
         // `restrict_self()` is a pure syscall — no malloc, no locks, signal-safe.
         // The parent `vox` process is never restricted.
+        #[allow(unsafe_code)] // landlock pre_exec requires unsafe; safety documented above
         unsafe {
             cmd.pre_exec(move || {
                 let mut ruleset = Ruleset::default()
                     .handle_access(write_access)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
+                    .map_err(|e| std::io::Error::other(e.to_string()))?
                     .create()
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+                    .map_err(|e| std::io::Error::other(e.to_string()))?;
 
                 // landlock 0.4's `add_rule` consumes the ruleset and returns the
                 // updated one, so reassign rather than discard. Fail closed if a
@@ -99,9 +100,7 @@ mod platform {
                     if let Ok(fd) = PathFd::new(path) {
                         ruleset = ruleset
                             .add_rule(PathBeneath::new(fd, *access))
-                            .map_err(|e| {
-                                std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
-                            })?;
+                            .map_err(|e| std::io::Error::other(e.to_string()))?;
                     }
                 }
 
@@ -109,7 +108,7 @@ mod platform {
                 // Fail closed: a failed restriction must not let the child run unsandboxed.
                 ruleset
                     .restrict_self()
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+                    .map_err(|e| std::io::Error::other(e.to_string()))?;
                 Ok(())
             });
         }

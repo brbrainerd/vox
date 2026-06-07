@@ -1,7 +1,7 @@
 //! SCIENTIA Phase B — replay runner.
 //!
 //! Given a publication manifest's RO-Crate metadata containing a
-//! [`MainEntity`](crate::ro_crate::MainEntity), this crate:
+//! [`MainEntity`], this crate:
 //!
 //! 1. Stages the declared entry-point in a fresh sandbox directory.
 //! 2. Executes it under `tokio::process::Command` with `kill_on_drop` and a

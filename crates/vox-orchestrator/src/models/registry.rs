@@ -127,7 +127,7 @@ impl ModelRegistry {
 
     /// Inject observed p50 latency from the `model_scoreboard` into each matching
     /// [`ModelSpec`]'s `capabilities.latency_p50_ms`, closing the gap where the scorer's
-    /// [`crate::models::scoring::latency_score`] read only the *static* catalog field and
+    /// `crate::models::scoring::latency_score` read only the *static* catalog field and
     /// never the measured telemetry p50.
     ///
     /// Mirrors [`Self::inject_pricing_catalog`]: only rows with a positive, present

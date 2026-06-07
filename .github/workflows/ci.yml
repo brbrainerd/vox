@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Run the gate on GitHub merge-queue batches so "Require merge queue" can
+  # serialize main and verify each batch once (eliminates the cancel-thrash
+  # from rapid direct pushes; the required check name below is unchanged).
+  merge_group:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -41,12 +45,14 @@ jobs:
       - id: k
         run: echo "key=${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}" >> "$GITHUB_OUTPUT"
 
-      # Compute path-filters.  On push:main always emit true so we never skip
-      # gates on the integration branch.
+      # Compute path-filters.  On push:main AND merge_group (the integration
+      # paths) always emit true so we never skip gates on the integration branch.
+      # (merge_group has no github.base_ref, so the PR-style diff below would be
+      # meaningless and could skip `tests` — fail-closed by running everything.)
       - id: filter
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "merge_group" ]; then
             echo "rust=true"  >> "$GITHUB_OUTPUT"
             echo "docs=true"  >> "$GITHUB_OUTPUT"
           else
@@ -168,6 +174,12 @@ jobs:
 
       - name: No cdylib plugin as a compile-time dependency (D-2)
         run: cargo run -p vox-cli --quiet -- ci no-plugin-cdylib-as-compile-dep
+
+      # Builds every current-platform plugin cdylib (default/CPU features), then loads each
+      # through the host loader to assert its embedded ABI version matches the host. Catches a
+      # plugin drifting from VOX_PLUGIN_ABI_VERSION (e.g. an SDK/ABI bump that wasn't rebuilt).
+      - name: Plugin ABI parity (build + load every plugin)
+        run: cargo run -p vox-cli --quiet -- ci plugin-abi-parity --build
 
       - name: Dynamic Workspace Health Audit
         run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-workspace-health.vox
@@ -1040,6 +1052,7 @@ jobs:
           - vox-db-types
           - vox-secrets
           - vox-orchestrator
+          - vox-vcs
           - vox-populi
           - vox-ml-cli
           - vox-gamify

@@ -25,11 +25,7 @@ impl UsageTracker {
                 self.walk_expr(target);
                 self.walk_expr(value);
             }
-            HirStmt::Return { value, .. } => {
-                if let Some(v) = value {
-                    self.walk_expr(v);
-                }
-            }
+            HirStmt::Return { value: Some(v), .. } => self.walk_expr(v),
             HirStmt::Expr { expr, .. } => self.walk_expr(expr),
             HirStmt::While {
                 condition, body, ..

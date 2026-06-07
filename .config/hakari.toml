@@ -43,6 +43,7 @@ workspace-members = [
     # Publish-ready leaves: kept hack-free so third parties can build them
     # single-feature off crates.io. See dependency-and-migration-handoff §5.2.
     "vox-plugin-api",
+    "vox-plugin-sdk",
     "vox-nanopub",
     "vox-research-events",
     "vox-quantize",
@@ -74,6 +75,7 @@ workspace-members = [
     # Publish-ready leaves: kept hack-free so third parties can build them
     # single-feature off crates.io. See dependency-and-migration-handoff §5.2.
     "vox-plugin-api",
+    "vox-plugin-sdk",
     "vox-nanopub",
     "vox-research-events",
     "vox-quantize",

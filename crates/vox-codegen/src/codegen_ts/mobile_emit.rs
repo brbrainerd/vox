@@ -41,7 +41,7 @@ pub fn emit_mobile_setup(shell: &ShellProjectionModule) -> Option<String> {
 
 /// Target-aware variant of [`emit_mobile_setup`]. The `target` string drives only the
 /// `import { voxRuntime } from "<package>"` line — every emitted method call is
-/// shaped against the [`@vox/runtime-types::VoxRuntime`] contract.
+/// shaped against the `@vox/runtime-types::VoxRuntime` contract.
 ///
 /// `endpoint_param0` maps an endpoint fn name → its single parameter name, so a
 /// push callback arg (`token` / `payload`) is wrapped into the named-object form

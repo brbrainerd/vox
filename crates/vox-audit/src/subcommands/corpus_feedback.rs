@@ -10,7 +10,7 @@
 //! 3. Atomically write that substantive report to
 //!    `<workspace>/contracts/reports/corpus-feedback/<YYYY-MM-DD>.json` per
 //!    CR-L8 spec.
-//! 4. Return an [`AuditReport`] to the caller per the `vox audit <thing>`
+//! 4. Return an `AuditReport` to the caller per the `vox audit <thing>`
 //!    contract (the substantive report is on disk; the audit report carries
 //!    a one-line summary in `note`).
 //!

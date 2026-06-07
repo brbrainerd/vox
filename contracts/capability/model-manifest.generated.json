@@ -1477,6 +1477,27 @@
       "title": "Fmt"
     },
     {
+      "capability_id": "cli.gamify",
+      "cli_path": [
+        "gamify"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox gamify` (alias `ludus`)",
+      "implicit": false,
+      "title": "Gamify"
+    },
+    {
+      "capability_id": "cli.gamify.hud",
+      "cli_path": [
+        "gamify",
+        "hud"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox gamify hud` (alias `vox ludus hud`)",
+      "implicit": false,
+      "title": "Gamify Hud"
+    },
+    {
       "capability_id": "cli.init",
       "cli_path": [
         "init"
@@ -1548,27 +1569,6 @@
       "description_model": "CLI operation `vox lsp`",
       "implicit": false,
       "title": "Lsp"
-    },
-    {
-      "capability_id": "cli.ludus",
-      "cli_path": [
-        "ludus"
-      ],
-      "curated": true,
-      "description_model": "CLI operation `vox ludus`",
-      "implicit": false,
-      "title": "Ludus"
-    },
-    {
-      "capability_id": "cli.ludus.hud",
-      "cli_path": [
-        "ludus",
-        "hud"
-      ],
-      "curated": true,
-      "description_model": "CLI operation `vox ludus hud`",
-      "implicit": false,
-      "title": "Ludus Hud"
     },
     {
       "capability_id": "cli.memory.search",
@@ -2086,16 +2086,6 @@
       "description_model": "CLI operation `vox openclaw sidecar stop`",
       "implicit": false,
       "title": "Openclaw Sidecar Stop"
-    },
-    {
-      "capability_id": "cli.oratio",
-      "cli_path": [
-        "oratio"
-      ],
-      "curated": true,
-      "description_model": "CLI operation `vox oratio`",
-      "implicit": false,
-      "title": "Oratio"
     },
     {
       "capability_id": "cli.pm",
@@ -2939,6 +2929,16 @@
       "description_model": "CLI operation `vox snippet`",
       "implicit": false,
       "title": "Snippet"
+    },
+    {
+      "capability_id": "cli.speech",
+      "cli_path": [
+        "speech"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox speech` (alias `oratio`)",
+      "implicit": false,
+      "title": "Speech"
     },
     {
       "capability_id": "cli.stub-check",

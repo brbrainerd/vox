@@ -2,7 +2,7 @@
 //! (Android [`SpeechRecognizer`](https://developer.android.com/reference/android/speech/SpeechRecognizer),
 //! Apple [`SFSpeechRecognizer`](https://developer.apple.com/documentation/speech/sfspeechrecognizer)).
 //!
-//! With the **`tauri-plugin`** feature, [`plugin::init`] registers a Tauri 2 plugin whose id matches
+//! With the **`tauri-plugin`** feature, `plugin::init` registers a Tauri 2 plugin whose id matches
 //! [`PLUGIN_ID`] and whose `transcribe` command matches [`TRANSCRIBE_COMMAND`] (guest `invoke` string).
 //! Without that feature, this crate is **serde-only** for contracts and tests.
 //!

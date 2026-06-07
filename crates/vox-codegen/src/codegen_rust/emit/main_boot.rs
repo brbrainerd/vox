@@ -163,7 +163,7 @@ impl BootPropagation {
 ///    comment and skips the `scheduled_handle` binding.
 ///
 /// `propagation` selects how fallible `.await` sites report errors — see
-/// [`BootPropagation`]. The durable-only `emit_main_boot` uses `Try`; the
+/// `BootPropagation`. The durable-only `emit_main_boot` uses `Try`; the
 /// production `emit_main` (http.rs) uses `Expect` until P10 migrates
 /// `main()` to `Result<()>`.
 ///

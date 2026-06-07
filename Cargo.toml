@@ -111,7 +111,7 @@ vox-mesh-policy        = { path = "crates/vox-mesh-policy" }
 
 vox-effort-audit          = { path = "crates/vox-effort-audit" }
 vox-effort-route          = { path = "crates/vox-effort-route" }
-vox-oratio                = { path = "crates/vox-oratio" }
+vox-speech                = { path = "crates/vox-speech" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
 vox-research-shim              = { path = "crates/vox-research-shim" }
 
@@ -124,6 +124,7 @@ vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
 
 vox-openai             = { path = "crates/vox-openai" }
 vox-plugin-api            = { path = "crates/vox-plugin-api" }
+vox-plugin-sdk            = { path = "crates/vox-plugin-sdk" }
 vox-plugin-types          = { path = "crates/vox-plugin-types" }
 vox-plugin-catalog        = { path = "crates/vox-plugin-catalog" }
 vox-plugin-host           = { path = "crates/vox-plugin-host" }

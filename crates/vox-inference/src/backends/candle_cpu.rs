@@ -14,7 +14,7 @@ use vox_package::ModelBundle;
 /// CPU inference backend backed by candle `QMatMul` quantized weights.
 ///
 /// State is held in a label-keyed map because [`LoadedModel`] is opaque and cannot hold
-/// the (non-`Clone`, mutating) [`QwenForward`].
+/// the (non-`Clone`, mutating) `QwenForward`.
 pub struct CandleCpuBackend {
     loaded: Mutex<HashMap<String, Arc<LoadedState>>>,
     counter: AtomicU64,

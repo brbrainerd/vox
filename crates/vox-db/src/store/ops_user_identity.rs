@@ -165,6 +165,31 @@ impl VoxDb {
             Ok(None)
         }
     }
+
+    /// Count the locally-persisted nanopublication artifacts for a claim.
+    ///
+    /// Used to prove the human-gate refused emission (a refused stale/unapproved
+    /// build must persist nothing → count stays 0). A typed op rather than a raw
+    /// `query_all` so callers stay within the Codex query surface.
+    pub async fn count_scientia_nanopubs_for_claim(
+        &self,
+        claim_id: i64,
+    ) -> Result<i64, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT COUNT(*) FROM scientia_nanopubs WHERE claim_id = ?1",
+                params![claim_id],
+            )
+            .await
+            .map_err(StoreError::Turso)?;
+        let row = rows
+            .next()
+            .await
+            .map_err(StoreError::Turso)?
+            .ok_or_else(|| StoreError::Db("COUNT(*) returned no row".to_string()))?;
+        row.get(0).map_err(StoreError::Turso)
+    }
 }
 
 #[cfg(test)]
@@ -215,5 +240,53 @@ mod tests {
         // And nothing was persisted.
         let got = db.get_user_identity("local-user").await.expect("get");
         assert!(got.is_none(), "rejected upsert must not persist a row");
+    }
+
+    #[tokio::test]
+    async fn count_scientia_nanopubs_for_claim_counts_persisted_rows() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        // Empty case.
+        assert_eq!(
+            db.count_scientia_nanopubs_for_claim(7)
+                .await
+                .expect("count"),
+            0,
+            "no rows → 0"
+        );
+        // Insert two rows for claim 7 and one for claim 8.
+        let mk = |trusty: &str, claim_id: i64| NanopubRow {
+            trusty_uri: trusty.into(),
+            claim_id,
+            publication_id: Some("pub-x".into()),
+            user_id: "u".into(),
+            orcid_id: None,
+            trig: "@prefix : <x> .".into(),
+            validated_offline: true,
+            published_state: "local".into(),
+            created_at_ms: 1,
+        };
+        db.insert_scientia_nanopub(&mk("RA_a", 7))
+            .await
+            .expect("insert a");
+        db.insert_scientia_nanopub(&mk("RA_b", 7))
+            .await
+            .expect("insert b");
+        db.insert_scientia_nanopub(&mk("RA_c", 8))
+            .await
+            .expect("insert c");
+        assert_eq!(
+            db.count_scientia_nanopubs_for_claim(7)
+                .await
+                .expect("count"),
+            2,
+            "two rows for claim 7"
+        );
+        assert_eq!(
+            db.count_scientia_nanopubs_for_claim(8)
+                .await
+                .expect("count"),
+            1,
+            "one row for claim 8"
+        );
     }
 }

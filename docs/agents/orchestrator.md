@@ -79,7 +79,7 @@ Modules live **flat** under `src/` (there is no nested `orchestrator/` package).
 | `a2a.rs` | Agent-to-agent messaging |
 | `budget.rs`, `usage.rs` | Cost & usage |
 | `handoff.rs`, `context.rs` | Handoffs & context |
-| `oplog.rs`, `snapshot.rs`, `jj_backend.rs`, `workspace.rs`, `conflicts.rs` | VCS-inspired flows |
+| `oplog.rs`, `snapshot.rs`, `workspace.rs`, `conflicts.rs` | VCS-inspired flows (jj via the `vox-vcs` in-process actor) |
 | `security.rs`, `gate.rs`, `socrates.rs` | Permissions & Socrates gate |
 | `config.rs`, `state.rs`, `runtime.rs`, `schema.rs` | Config & persistence |
 | `services/` | Embeddings, routing, policy, gateway, scaling |

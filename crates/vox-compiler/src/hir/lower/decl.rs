@@ -15,7 +15,7 @@ impl LowerCtx {
         body = self.inject_contracts(f, body);
         self.def_map.pop_scope();
 
-        let capabilities = Self::merge_mens_capabilities(
+        let mut capabilities = Self::merge_mens_capabilities(
             f.effects
                 .iter()
                 .map(|e| match e {
@@ -30,6 +30,7 @@ impl LowerCtx {
                         crate::hir::HirCapability::GpuCompute
                     }
                     crate::ast::decl::EffectAnnotation::Mutate => crate::hir::HirCapability::Mutate,
+                    crate::ast::decl::EffectAnnotation::Vcs => crate::hir::HirCapability::Vcs,
                     crate::ast::decl::EffectAnnotation::Mcp(t) => {
                         crate::hir::HirCapability::Mcp(t.clone())
                     }
@@ -41,6 +42,13 @@ impl LowerCtx {
             f.inference_model.is_some(),
             f.training_step,
         );
+
+        // @versioned/@tracked implies `uses vcs` so the interpreter's auto-snapshot
+        // hook's `Vcs` effect is governed consistently with an explicit `uses vcs`
+        // clause (design §4.2). The author still declares any other effects.
+        if f.is_versioned && !capabilities.contains(&crate::hir::HirCapability::Vcs) {
+            capabilities.push(crate::hir::HirCapability::Vcs);
+        }
 
         HirFn {
             id,
@@ -54,6 +62,7 @@ impl LowerCtx {
             is_mobile_native: f.is_mobile_native,
             is_pure: f.is_pure,
             is_reactive: f.is_reactive,
+            is_versioned: f.is_versioned,
             is_remote: f.is_remote,
             is_llm: f.is_llm,
             llm_model: f.llm_model.clone(),
@@ -541,6 +550,7 @@ impl LowerCtx {
             is_mobile_native: false,
             is_pure: false,
             is_reactive: false,
+            is_versioned: false,
             is_remote: false,
             is_llm: false,
             llm_model: None,
@@ -581,6 +591,7 @@ impl LowerCtx {
             is_mobile_native: false,
             is_pure: false,
             is_reactive: false,
+            is_versioned: false,
             is_remote: false,
             is_llm: false,
             llm_model: None,
@@ -629,6 +640,7 @@ impl LowerCtx {
             is_mobile_native: false,
             is_pure: false,
             is_reactive: false,
+            is_versioned: false,
             is_remote: false,
             is_llm: false,
             llm_model: None,
@@ -680,6 +692,7 @@ impl LowerCtx {
                     is_mobile_native: false,
                     is_pure: false,
                     is_reactive: false,
+                    is_versioned: false,
                     is_remote: false,
                     is_llm: false,
                     llm_model: None,

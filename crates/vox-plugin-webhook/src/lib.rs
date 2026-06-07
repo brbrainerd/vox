@@ -8,7 +8,7 @@
 //!
 //! ## Event routing
 //!
-//! The plugin uses a no-op [`WebhookEventSink`] by default. For production use,
+//! The plugin uses a no-op `WebhookEventSink` by default. For production use,
 //! the host should wire an `Arc<dyn WebhookEventSink>` backed by the Orchestrator
 //! (see `WebhookOrchestratorBridge` in `webhook::bridge`). The orchestrator-side
 //! wiring is deferred — tracked as Step 8 of the extraction plan.
@@ -115,7 +115,7 @@ impl VoxPlugin for WebhookPlugin {
 // No-op sink (placeholder until orchestrator wiring is complete)
 // ---------------------------------------------------------------------------
 
-/// A no-op [`WebhookEventSink`] that logs received events and discards them.
+/// A no-op `WebhookEventSink` that logs received events and discards them.
 ///
 /// Replace with an `OrchestratorWebhookSink` impl in vox-orchestrator once
 /// Step 8 of the extraction plan is implemented.
