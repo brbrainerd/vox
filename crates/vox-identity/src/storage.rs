@@ -60,13 +60,13 @@ pub fn save_identity_at(
         use std::os::unix::fs::OpenOptionsExt;
         let mut options = fs::OpenOptions::new();
         options.write(true).create(true).truncate(true).mode(0o600);
-        let mut file = options.open(&path)?;
+        let mut file = options.open(path)?;
         use std::io::Write;
         file.write_all(&payload)?;
     }
     #[cfg(not(unix))]
     {
-        fs::write(&path, payload)?;
+        fs::write(path, payload)?;
     }
 
     Ok(())
@@ -82,7 +82,7 @@ pub fn load_identity_at(password: &str, path: &std::path::Path) -> Result<NodeId
         return Err(anyhow::anyhow!("Identity file not found at {:?}", path));
     }
 
-    let payload = fs::read(&path)?;
+    let payload = fs::read(path)?;
     if payload.len() < 16 + 12 + 32 {
         return Err(anyhow::anyhow!("Identity file corrupted or too short"));
     }

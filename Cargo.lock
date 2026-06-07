@@ -15143,6 +15143,7 @@ name = "vox-plugin-sdk"
 version = "0.6.0"
 dependencies = [
  "abi_stable",
+ "toml 0.8.23",
  "vox-plugin-api",
 ]
 
