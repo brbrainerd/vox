@@ -31,8 +31,12 @@ const TARGET_SAMPLE_RATE: u32 = 16_000;
 /// missing `stt-candle` backend or an undecodable file) — never a panic.
 pub fn transcribe_audio_file(path: &Path) -> Result<String, String> {
     let ctx = CorrectionContext::default();
+    // `{e:#}` renders the full anyhow context chain (root candle/HF error +
+    // every `.context(...)`), not just the top-level "Whisper inference" label —
+    // so the UI surfaces the actionable cause (e.g. a missing model or a tensor
+    // shape error) instead of an opaque one-liner.
     let detail = vox_speech::transcribe_path_detailed(path, &ctx, None)
-        .map_err(|e| format!("transcription failed: {e}"))?;
+        .map_err(|e| format!("transcription failed: {e:#}"))?;
     Ok(detail.refined_text)
 }
 
@@ -359,5 +363,84 @@ mod tests {
             (15_000..=17_000).contains(&n),
             "expected ~16000 samples, got {n}"
         );
+    }
+
+    /// Hardware smoke test (ignored in CI — needs a real input device + the
+    /// Whisper model). Records 3 s from the default mic through the SAME cpal
+    /// path the Tauri command uses, writes the WAV, and runs the transcription
+    /// seam end-to-end. Run manually:
+    ///   cargo test -p vox-gui --bin vox-gui commands::mic::real_mic -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn real_mic_capture_and_transcribe_smoke() {
+        use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+
+        let host = cpal::default_host();
+        let device = host
+            .default_input_device()
+            .expect("a real default input device must be present");
+        let cfg = device.default_input_config().expect("default input config");
+        let src_rate = cfg.sample_rate().0;
+        let channels = cfg.channels();
+        let fmt = cfg.sample_format();
+        let stream_config: cpal::StreamConfig = cfg.into();
+
+        let shared = Arc::new(Mutex::new(Vec::<f32>::new()));
+        let cb = shared.clone();
+        let err_fn = |e| eprintln!("stream error: {e}");
+        let stream = match fmt {
+            cpal::SampleFormat::F32 => device.build_input_stream(
+                &stream_config,
+                move |d: &[f32], _: &_| cb.lock().unwrap().extend_from_slice(d),
+                err_fn,
+                None,
+            ),
+            cpal::SampleFormat::I16 => device.build_input_stream(
+                &stream_config,
+                move |d: &[i16], _: &_| {
+                    cb.lock()
+                        .unwrap()
+                        .extend(d.iter().map(|s| *s as f32 / i16::MAX as f32))
+                },
+                err_fn,
+                None,
+            ),
+            other => panic!("unsupported sample format: {other:?}"),
+        }
+        .expect("build input stream");
+
+        stream.play().expect("play stream");
+        eprintln!("● Recording 3s from the default microphone…");
+        std::thread::sleep(std::time::Duration::from_secs(3));
+        drop(stream);
+
+        let samples = shared.lock().unwrap().clone();
+        eprintln!(
+            "captured {} samples @ {src_rate} Hz × {channels} ch",
+            samples.len()
+        );
+        assert!(
+            !samples.is_empty(),
+            "the real microphone must capture non-empty audio"
+        );
+
+        let buf = CaptureBuffer {
+            samples,
+            source_sample_rate: src_rate,
+            channels,
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("real-mic.wav");
+        write_wav_16k_mono(&buf, &wav).expect("write 16k mono WAV");
+
+        // Confirm the WAV is well-formed at the Whisper input spec.
+        let spec = hound::WavReader::open(&wav).unwrap().spec();
+        assert_eq!(spec.sample_rate, TARGET_SAMPLE_RATE);
+        assert_eq!(spec.channels, 1);
+
+        match transcribe_audio_file(&wav) {
+            Ok(text) => eprintln!("✓ TRANSCRIPT: {text:?}"),
+            Err(e) => eprintln!("transcription error (model may be absent): {e}"),
+        }
     }
 }
