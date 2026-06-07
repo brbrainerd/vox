@@ -153,6 +153,7 @@ futures = { workspace = true }
 vox-package = { workspace = true }
 
 vox-eval = { workspace = true }
+vox-inference = { workspace = true }
 vox-container = { workspace = true }
 vox-wasm-engine = { workspace = true, optional = true }
 vox-deploy-codegen = { workspace = true }

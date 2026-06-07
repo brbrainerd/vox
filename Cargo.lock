@@ -13731,6 +13731,7 @@ dependencies = [
  "vox-grammar-export",
  "vox-http-client",
  "vox-identity",
+ "vox-inference",
  "vox-jsonschema-util",
  "vox-mcp-registry",
  "vox-mesh-types",

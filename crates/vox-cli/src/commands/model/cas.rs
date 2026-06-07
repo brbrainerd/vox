@@ -26,10 +26,11 @@ pub enum CasCmd {
 pub async fn run(cmd: CasCmd) -> anyhow::Result<()> {
     match cmd {
         CasCmd::Ls => {
-            // Keep `vox-inference` / `vox-mens-eval` in the CLI dependency graph for arch-check
-            // until CAS listing and eval harness callsites are fully wired.
+            // Keep `vox-inference` (the real inference crate) and `vox-eval` in the CLI
+            // dependency graph for arch-check until CAS listing and eval harness callsites
+            // are fully wired.
             let _ = vox_eval::mens::summarize_placeholder();
-            let _ = std::sync::Arc::new(vox_populi::inference::CandleCpuStub);
+            let _ = std::sync::Arc::new(vox_inference::CandleCpuBackend::new());
             println!(
                 "vox model cas ls: no bundle index yet — see Mn-T8 / vox-package model CAS helpers."
             );
