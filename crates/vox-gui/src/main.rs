@@ -130,6 +130,8 @@ async fn main() {
             commands::policy::policy_show,
             commands::policy::policy_status,
             commands::policy::list_branches,
+            commands::vcs_isolation::get_vcs_isolation,
+            commands::vcs_isolation::set_vcs_isolation_strategy,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

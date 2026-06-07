@@ -18,3 +18,4 @@ pub mod runs;
 pub mod scientia;
 pub mod search;
 pub mod secrets;
+pub mod vcs_isolation;

@@ -74,6 +74,17 @@ pub mod orch_daemon_method {
     /// → `{"resolved": bool, ...}`. Wakes a parked dangerous-tool call in the
     /// daemon. Served via `ExtraDispatch`.
     pub const RESOLVE_APPROVAL: &str = "orch.resolve_approval";
+    /// Params: `{}` → live VCS isolation status JSON
+    /// (`{"strategy_default", "per_agent", "active_conflicts"}`), read from the
+    /// daemon's single shared orchestrator so conflicts + per-agent overrides
+    /// reflect real state. Mirrors `GET /api/v2/vcs/isolation`.
+    pub const VCS_ISOLATION_STATUS: &str = "orch.vcs_isolation_status";
+    /// Params: `{"strategy_default": String?, "agent_id": u64?, "strategy": String|null?}`
+    /// — set the default and/or a per-agent override (`strategy: null` with an
+    /// `agent_id` clears that override). At least one of `strategy_default` /
+    /// `agent_id` must be present. Returns the fresh isolation status JSON.
+    /// Mirrors `POST /api/v2/vcs/isolation/strategy`.
+    pub const VCS_ISOLATION_SET_STRATEGY: &str = "orch.vcs_isolation_set_strategy";
 }
 
 pub mod dei_method {
