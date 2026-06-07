@@ -126,6 +126,8 @@ async fn main() {
             commands::scientia::list_publication_manifests,
             commands::search::vox_search_query,
             commands::search::open_locator,
+            commands::vcs_isolation::get_vcs_isolation,
+            commands::vcs_isolation::set_vcs_isolation_strategy,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
