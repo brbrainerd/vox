@@ -7,7 +7,7 @@ description = "Runs tests, displays coverage summaries, and validates test outpu
 "vox-version" = "0.1.0"
 "vox-author" = "vox-team"
 "vox-category" = "testing"
-"vox-tools" = ["vox_run_tests", "vox_test_all"]
+"vox-tools" = ["vox_test_run", "vox_test_select"]
 "vox-tags" = ["test", "coverage", "ci", "validation"]
 "vox-permissions" = ["read_files", "shell_exec"]
 ---

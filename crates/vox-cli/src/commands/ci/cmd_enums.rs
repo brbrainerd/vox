@@ -914,9 +914,13 @@ pub enum CiCmd {
         #[arg(long)]
         write: bool,
     },
-    /// Walk crates/ for skill/composite Plugin.toml files and assert skill-md exists, is non-empty, and tools.exposes is non-empty.
+    /// Walk crates/ for skill/composite Plugin.toml files and assert skill-md exists, is non-empty, tools.exposes is non-empty, and the SKILL.md `vox-tools` frontmatter matches the manifest.
     #[command(name = "plugin-skill-parity")]
-    PluginSkillParity,
+    PluginSkillParity {
+        /// Rewrite each SKILL.md `vox-tools` list from its manifest `tools.exposes`. Without this flag, verify they match.
+        #[arg(long)]
+        write: bool,
+    },
     /// Walk crates/vox-plugin-* for *.skill.md files and enforce AgentSkills frontmatter contract (name, description, format, directory match).
     #[command(name = "agentskills-compliance")]
     AgentSkillsCompliance,

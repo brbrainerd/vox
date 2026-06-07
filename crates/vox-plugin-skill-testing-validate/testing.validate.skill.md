@@ -7,7 +7,7 @@ description = "Executes the 5-stage delivery gate pipeline to autonomously valid
 "vox-version" = "0.1.0"
 "vox-author" = "vox-team"
 "vox-category" = "testing"
-"vox-tools" = ["vox_test"]
+"vox-tools" = ["vox_test_validate"]
 "vox-tags" = ["test", "validation", "self-healing", "ars"]
 "vox-permissions" = ["read_files", "write_files", "shell_exec", "ai_invoke"]
 ---

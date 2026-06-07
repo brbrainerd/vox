@@ -520,6 +520,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     crate::commands::ci::capability_sync::run(root, false)?;
     crate::commands::ci::plugin_surface::run(root, false)?;
     crate::commands::ci::plugin_catalog_sync::run(root, false)?;
+    crate::commands::ci::plugin_skill_parity::run(false)?;
     contracts_index::run(root)?;
     crate::commands::ci::docs_reality_audit::run_verify(root)?;
     exec_policy_contract::run(root)?;

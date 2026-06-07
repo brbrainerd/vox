@@ -7,7 +7,7 @@ description = "Align mens node labels with orchestrator task hints and inspect l
 "vox-version" = "0.1.0"
 "vox-author" = "vox-team"
 "vox-category" = "infrastructure"
-"vox-tools" = ["vox_populi_local_status", "vox_orchestrator_status", "vox_submit_task"]
+"vox-tools" = ["vox_populi_join", "vox_populi_dispatch"]
 "vox-tags" = ["mens", "labels", "gpu", "federation", "workers"]
 "vox-permissions" = ["db_read"]
 ---
