@@ -14320,6 +14320,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "turso",
+ "vox-actor-runtime",
  "vox-build-meta",
  "vox-cli",
  "vox-cli-core",
@@ -14331,6 +14332,7 @@ dependencies = [
  "vox-orchestrator-mcp",
  "vox-package-types",
  "vox-repository",
+ "vox-scientia",
  "vox-search",
  "vox-secrets",
 ]
