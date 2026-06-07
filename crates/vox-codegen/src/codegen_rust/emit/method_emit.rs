@@ -606,20 +606,149 @@ where
 }
 
 /// Try to emit Vox string method lowerings that have no direct Rust String equivalent.
+///
+/// # Lifetime discipline
+///
+/// Every block that takes `let __s: &str = …` MUST first bind the owned `String`
+/// (`let __owned = …`) so that the reference outlives the block expression.
+/// The pattern `let __s: &str = (complex_expr).as_ref()` drops the temporary
+/// `String` at the end of the `let` statement, leaving `__s` dangling (E0716).
 fn try_emit_str_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<String> {
     match method {
+        // ── Existing arms (updated for E0716 safety) ────────────────────────
         "slice" if arg_exprs.len() == 2 => Some(format!(
-            "({{ let __s: &str = ({}).as_ref(); let __start = ({}) as usize; let __end = ({}) as usize; let __cnt = __s.chars().count(); let __end = __end.min(__cnt); let __start = __start.min(__end); __s.chars().skip(__start).take(__end - __start).collect::<String>() }})",
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); let __start = ({}) as usize; let __end = ({}) as usize; let __cnt = __s.chars().count(); let __end = __end.min(__cnt); let __start = __start.min(__end); __s.chars().skip(__start).take(__end - __start).collect::<String>() }})",
             o, arg_exprs[0], arg_exprs[1]
         )),
         "char_at" if arg_exprs.len() == 1 => Some(format!(
-            "({{ let __s: &str = ({}).as_ref(); let __i = ({}) as usize; __s.chars().nth(__i).map(|c| c.to_string()) }})",
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); let __i = ({}) as usize; __s.chars().nth(__i).map(|c| c.to_string()) }})",
             o, arg_exprs[0]
         )),
         "index_of" if arg_exprs.len() == 1 => Some(format!(
-            "({{ let __s: &str = ({}).as_ref(); let __n: &str = ({}).as_ref(); __s.find(__n).map(|byte_pos| __s[..byte_pos].chars().count() as i64) }})",
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); let __nowned = {}; let __n: &str = __nowned.as_ref(); __s.find(__n).map(|byte_pos| __s[..byte_pos].chars().count() as i64) }})",
             o, arg_exprs[0]
         )),
+
+        // ── len / is_empty ──────────────────────────────────────────────────
+        // Rust `.len()` returns `usize`; Vox `int` is `i64`.
+        "len" => Some(format!("({}.len() as i64)", o)),
+        "is_empty" => Some(format!("({}.is_empty())", o)),
+
+        // ── Case conversion ─────────────────────────────────────────────────
+        "to_upper" | "to_uppercase" => Some(format!("({}.to_uppercase())", o)),
+        "to_lower" | "to_lowercase" => Some(format!("({}.to_lowercase())", o)),
+
+        // ── Trim ────────────────────────────────────────────────────────────
+        "trim" => Some(format!(
+            "({{ let __owned = {}; __owned.trim().to_string() }})",
+            o
+        )),
+        "trim_start" => Some(format!(
+            "({{ let __owned = {}; __owned.trim_start().to_string() }})",
+            o
+        )),
+        "trim_end" => Some(format!(
+            "({{ let __owned = {}; __owned.trim_end().to_string() }})",
+            o
+        )),
+
+        // ── Pattern predicates (arg must be &str, NOT String) ───────────────
+        "contains" if !arg_exprs.is_empty() => Some(format!(
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); let __powned = {}; let __p: &str = __powned.as_ref(); __s.contains(__p) }})",
+            o, arg_exprs[0]
+        )),
+        "starts_with" if !arg_exprs.is_empty() => Some(format!(
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); let __powned = {}; let __p: &str = __powned.as_ref(); __s.starts_with(__p) }})",
+            o, arg_exprs[0]
+        )),
+        "ends_with" if !arg_exprs.is_empty() => Some(format!(
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); let __powned = {}; let __p: &str = __powned.as_ref(); __s.ends_with(__p) }})",
+            o, arg_exprs[0]
+        )),
+
+        // ── split ───────────────────────────────────────────────────────────
+        // With explicit delimiter (common case).
+        "split" if !arg_exprs.is_empty() => Some(format!(
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); let __downed = {}; let __d: &str = __downed.as_ref(); __s.split(__d).map(|p| p.to_string()).collect::<Vec<String>>() }})",
+            o, arg_exprs[0]
+        )),
+        // No-arg split: default delimiter is " ".
+        "split" => Some(format!(
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); __s.split(' ').map(|p| p.to_string()).collect::<Vec<String>>() }})",
+            o
+        )),
+
+        // ── replace ─────────────────────────────────────────────────────────
+        "replace" if arg_exprs.len() >= 2 => Some(format!(
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); let __fowned = {}; let __from: &str = __fowned.as_ref(); let __towned = {}; let __to: &str = __towned.as_ref(); __s.replace(__from, __to) }})",
+            o, arg_exprs[0], arg_exprs[1]
+        )),
+
+        // ── repeat ──────────────────────────────────────────────────────────
+        // arg is Vox int (i64); Rust `.repeat()` takes usize.
+        "repeat" if !arg_exprs.is_empty() => {
+            Some(format!("({}.repeat(({}) as usize))", o, arg_exprs[0]))
+        }
+
+        // ── chars_count ─────────────────────────────────────────────────────
+        "chars_count" => Some(format!("({}.chars().count() as i64)", o)),
+
+        // ── count(sub) — non-overlapping occurrences ─────────────────────────
+        // Mirrors the interpreter's semantics (empty sub → char-count + 1).
+        "count" if !arg_exprs.is_empty() => Some(format!(
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); let __subowned = {}; let __sub: &str = __subowned.as_ref(); if __sub.is_empty() {{ __s.chars().count() as i64 + 1 }} else {{ let mut __c = 0i64; let mut __i = 0usize; while let Some(__pos) = __s[__i..].find(__sub) {{ __c += 1; __i += __pos + __sub.len(); }} __c }} }})",
+            o, arg_exprs[0]
+        )),
+
+        // ── Predicate methods ────────────────────────────────────────────────
+        "is_alpha" => Some(format!(
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); !__s.is_empty() && __s.chars().all(|c| c.is_alphabetic()) }})",
+            o
+        )),
+        "is_digit" => Some(format!(
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); !__s.is_empty() && __s.chars().all(|c| c.is_ascii_digit()) }})",
+            o
+        )),
+        "is_alnum" => Some(format!(
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); !__s.is_empty() && __s.chars().all(|c| c.is_alphanumeric()) }})",
+            o
+        )),
+        "is_upper" => Some(format!(
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); !__s.is_empty() && __s.chars().any(|c| c.is_alphabetic()) && __s.chars().all(|c| !c.is_alphabetic() || c.is_uppercase()) }})",
+            o
+        )),
+        "is_lower" => Some(format!(
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); !__s.is_empty() && __s.chars().any(|c| c.is_alphabetic()) && __s.chars().all(|c| !c.is_alphabetic() || c.is_lowercase()) }})",
+            o
+        )),
+
+        // ── ord ──────────────────────────────────────────────────────────────
+        // Unicode code point of the first character; returns 0 for empty string.
+        "ord" => Some(format!(
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); __s.chars().next().map(|c| c as i64).unwrap_or(0) }})",
+            o
+        )),
+
+        // ── chars ────────────────────────────────────────────────────────────
+        "chars" => Some(format!(
+            "({}.chars().map(|c| c.to_string()).collect::<Vec<String>>())",
+            o
+        )),
+
+        // ── to_str / to_string ───────────────────────────────────────────────
+        "to_str" | "to_string" => Some(format!("({}.to_string())", o)),
+
+        // ── to_int / to_float ────────────────────────────────────────────────
+        // Returns Option: None if parse fails (mirrors interpreter's VoxValue::Option).
+        "to_int" => Some(format!(
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); __s.trim().parse::<i64>().ok() }})",
+            o
+        )),
+        "to_float" => Some(format!(
+            "({{ let __owned = {}; let __s: &str = __owned.as_ref(); __s.trim().parse::<f64>().ok() }})",
+            o
+        )),
+
         _ => None,
     }
 }

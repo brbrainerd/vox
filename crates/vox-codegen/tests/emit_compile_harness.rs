@@ -146,3 +146,55 @@ fn main() {
 "#,
     );
 }
+
+/// Exercises the full Vox string-method surface: every method that the
+/// interpreter handles must also compile under `--mode script` (codegen path).
+/// This is the compile-net counterpart to the fast `str_method_emit` tests.
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn str_methods_compile() {
+    assert_compiles(
+        r#"
+fn main() {
+    let s = "Hello, World!"
+
+    let n = s.len()
+    let is_mt = s.is_empty()
+    let up = s.to_upper()
+    let lo = s.to_lower()
+    let tr = "  hi  ".trim()
+    let ts = "  hi  ".trim_start()
+    let te = "  hi  ".trim_end()
+
+    let has = s.contains("World")
+    let sw = s.starts_with("Hello")
+    let ew = s.ends_with("!")
+
+    let parts = s.split(", ")
+    let replaced = s.replace("World", "Vox")
+    let rep = "ab".repeat(3)
+
+    let cc = s.chars_count()
+    let cnt = s.count("l")
+
+    let ia = "abc".is_alpha()
+    let id = "123".is_digit()
+    let ian = "abc123".is_alnum()
+    let iu = "ABC".is_upper()
+    let il = "abc".is_lower()
+
+    let o = "A".ord()
+    let chars = "hi".chars()
+
+    let ts2 = s.to_str()
+    let sl = s.slice(0, 5)
+    let ca = s.char_at(0)
+    let io = s.index_of("World")
+    let ti = "42".to_int()
+    let tf = "3.14".to_float()
+
+    print(up)
+}
+"#,
+    );
+}
