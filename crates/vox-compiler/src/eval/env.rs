@@ -30,6 +30,12 @@ impl Scope {
         self.frames.push(Rc::new(HashMap::new()));
     }
 
+    /// Number of active frames. Used to assert scope is correctly restored
+    /// (e.g. after a function/closure body returns an error).
+    pub fn depth(&self) -> usize {
+        self.frames.len()
+    }
+
     pub fn pop_frame(&mut self) {
         if self.frames.len() > 1 {
             self.frames.pop();
@@ -101,5 +107,18 @@ mod tests {
             cloned.get("xs"),
             Some(&VoxValue::list(vec![VoxValue::Int(1), VoxValue::Int(2)])),
         );
+    }
+
+    #[test]
+    fn depth_tracks_pushed_frames() {
+        let mut s = Scope::new();
+        assert_eq!(s.depth(), 1);
+        s.push_frame();
+        assert_eq!(s.depth(), 2);
+        s.pop_frame();
+        assert_eq!(s.depth(), 1);
+        // pop never removes the base frame.
+        s.pop_frame();
+        assert_eq!(s.depth(), 1);
     }
 }

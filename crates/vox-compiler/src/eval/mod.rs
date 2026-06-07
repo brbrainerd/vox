@@ -513,24 +513,31 @@ impl Interpreter {
             let old_scope = self.scope.clone();
             self.scope = env;
 
-            let mut res = VoxValue::Null;
-            for s in body.iter() {
-                res = stmt::eval_stmt(self, s)?;
-                if let VoxValue::_Return(r) = res {
-                    res = *r;
-                    break;
+            // Restore the prior scope on BOTH success and the `?` error path so a
+            // failed call cannot leak scope state into a later reuse of the
+            // interpreter (e.g. the `@test` runner).
+            let result: Result<VoxValue, EvalError> = (|| {
+                let mut res = VoxValue::Null;
+                for s in body.iter() {
+                    res = stmt::eval_stmt(self, s)?;
+                    if let VoxValue::_Return(r) = res {
+                        res = *r;
+                        break;
+                    }
                 }
-            }
+                Ok(res)
+            })();
 
             self.scope = old_scope;
+            let res = result?;
 
             // P5: auto-checkpoint on successful return of a @versioned function.
-            // Reaching here means the body loop completed without an early `?`
-            // error return, so the call succeeded. The auto-snapshot performs a
-            // `Vcs` effect; it inherits the same ungated behavior as explicit
-            // `repo.*` calls (`eval/repo.rs` does not consult `interp.caps`), so
-            // we do not add a new caps gate here — kept consistent with the
-            // landed `repo.*` semantics (design §4.3).
+            // `result?` above already restored the scope (on BOTH success and
+            // error) and short-circuits on error, so the auto-snapshot is
+            // recorded only for a successful call. The snapshot performs a `Vcs`
+            // effect; it inherits the same ungated behavior as explicit `repo.*`
+            // calls (`eval/repo.rs` does not consult `interp.caps`), so we do not
+            // add a new caps gate here — consistent with `repo.*` (design §4.3).
             if is_versioned {
                 self.repo.snapshot(Some(&format!("@versioned {fn_name}")));
             }
