@@ -4755,7 +4755,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19753d40da53d0ec41604750eeb969097a90fb2d7f7992730d904541c04e2c19"
 dependencies = [
  "bstr",
- "hashbrown 0.15.5",
+ "hashbrown 0.17.1",
 ]
 
 [[package]]
@@ -14309,6 +14309,8 @@ dependencies = [
 name = "vox-gui"
 version = "0.6.0"
 dependencies = [
+ "cpal",
+ "hound",
  "rmp-serde",
  "serde",
  "serde_bytes",
@@ -14323,6 +14325,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "turso",
+ "uuid",
  "vox-build-meta",
  "vox-cli",
  "vox-cli-core",
@@ -14338,6 +14341,7 @@ dependencies = [
  "vox-repository",
  "vox-search",
  "vox-secrets",
+ "vox-speech",
 ]
 
 [[package]]

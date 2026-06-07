@@ -11,6 +11,7 @@ pub mod gamify;
 pub mod mcp;
 pub mod memory;
 pub mod mesh;
+pub mod mic;
 pub mod models;
 pub mod orchestrator;
 pub mod policy;

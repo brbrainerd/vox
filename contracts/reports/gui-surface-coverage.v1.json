@@ -642,6 +642,8 @@
     "spawn_orchestrator_status_stream",
     "spawn_scientia_queue_stream",
     "start_gui_run",
+    "start_mic_capture",
+    "stop_mic_capture_and_transcribe",
     "submit_orchestrator_task",
     "suggest_model_for_task",
     "trust_mesh_node",
