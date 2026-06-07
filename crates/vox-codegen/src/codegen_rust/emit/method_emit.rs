@@ -518,6 +518,9 @@ where
     if let Some(s) = try_emit_str_method(method, &o, &arg_exprs) {
         return s;
     }
+    if let Some(s) = try_emit_list_method(method, &o, &arg_exprs) {
+        return s;
+    }
     let call = format!("{}.{}({})", o, method, arg_exprs.join(", "));
     if method == "send" {
         format!("{}.await", call)
@@ -603,6 +606,26 @@ where
         plan,
         fallible_db,
     ))
+}
+
+/// Try to emit Vox **value-semantic** list method lowerings.
+///
+/// Vox lists are value types: the interpreter's `.push` (eval/builtins.rs) clones
+/// the vec, mutates the clone, and returns the NEW list. Rust's `Vec::push` instead
+/// mutates in place and returns `()`, so a naive `xs = xs.push(y)` assigns `()` to a
+/// `Vec` (E0308). Emit a block that performs the mutation and yields the updated vec.
+///
+/// Scope: `push` only for now (the value-semantic mutator goldens actually hit).
+/// Other list mutators (`pop` returns the popped value, not the list; `insert`/
+/// `remove`/etc.) have their own shapes and are added when a golden needs them.
+fn try_emit_list_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<String> {
+    match method {
+        "push" if arg_exprs.len() == 1 => Some(format!(
+            "({{ let mut __lst = {}; __lst.push({}); __lst }})",
+            o, arg_exprs[0]
+        )),
+        _ => None,
+    }
 }
 
 /// Try to emit Vox string method lowerings that have no direct Rust String equivalent.
