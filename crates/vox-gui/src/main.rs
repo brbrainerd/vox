@@ -95,6 +95,8 @@ async fn main() {
             commands::models::get_routing_summary,
             commands::models::get_routing_summary_live,
             commands::models::set_routing_priority,
+            commands::models::get_routing_intentions,
+            commands::models::nudge_routing_intention,
             commands::models::get_selection_policy,
             commands::models::set_selection_policy,
             commands::models::get_model_scoreboard,
