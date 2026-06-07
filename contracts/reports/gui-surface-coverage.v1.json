@@ -204,6 +204,7 @@
     "ci parse-status",
     "ci plugin-abi-parity",
     "ci plugin-catalog-parity",
+    "ci plugin-catalog-sync",
     "ci plugin-dep-boundary",
     "ci plugin-skill-parity",
     "ci plugin-surface-sync",

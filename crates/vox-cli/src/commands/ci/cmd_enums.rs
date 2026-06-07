@@ -906,6 +906,14 @@ pub enum CiCmd {
         #[arg(long)]
         write: bool,
     },
+    /// Derive the per-plugin rows of the plugin catalog from the per-plugin Plugin.toml
+    /// manifests (description/status/payload-kind/extension-points/exposes-tools).
+    #[command(name = "plugin-catalog-sync")]
+    PluginCatalogSync {
+        /// Regenerate the committed catalog. Without this flag, verify it is in sync.
+        #[arg(long)]
+        write: bool,
+    },
     /// Walk crates/ for skill/composite Plugin.toml files and assert skill-md exists, is non-empty, and tools.exposes is non-empty.
     #[command(name = "plugin-skill-parity")]
     PluginSkillParity,
