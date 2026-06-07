@@ -431,16 +431,10 @@ pub async fn publication_extract_claims(publication_id: &str) -> Result<()> {
     Ok(())
 }
 
-/// Derive a stable `session_id` from a publication id (FNV-1a). `scientia_claims`
-/// is keyed by `session_id`; a publication's extracted claims share this bucket.
-pub(crate) fn publication_session_id(publication_id: &str) -> i64 {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for b in publication_id.as_bytes() {
-        hash ^= *b as u64;
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    hash as i64
-}
+// `publication_session_id` is the SSOT-shared FNV-1a session-id derivation,
+// now owned by `vox_scientia::review_flow`. Re-exported here so in-crate callers
+// keep resolving `publication_session_id(...)` unchanged.
+pub(crate) use vox_scientia::review_flow::publication_session_id;
 
 /// Map a `ClaimVerdict` to its persisted `(verdict_label, confidence)` form.
 pub(crate) fn verdict_to_row(
@@ -900,13 +894,6 @@ mod tests {
         apply_phase_costs(&mut inputs, std::iter::empty());
         assert_eq!(inputs.extraction_usd, 0.0);
         assert_eq!(inputs.scholarly_submission_usd, 0.0);
-    }
-
-    #[test]
-    fn publication_session_id_is_stable_and_distinct() {
-        let a = publication_session_id("pub-aaa");
-        assert_eq!(a, publication_session_id("pub-aaa"));
-        assert_ne!(a, publication_session_id("pub-bbb"));
     }
 
     #[test]
