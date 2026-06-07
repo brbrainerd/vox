@@ -29,6 +29,13 @@ surfaces:
   nav_icon: dashboard
   nav_group: operate
   notes: orchestrator status
+- view_key: discovery-review
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Discovery Review
+  nav_icon: check
+  nav_group: knowledge
+  notes: human-gated claim review before nanopublication
 - view_key: flow
   cli_group: null
   representation_tier: live_backend

@@ -48,7 +48,7 @@ const SYSTEM_GROUP = 'system';
 const SECTION_ORDER: Record<string, string[]> = {
   operate: ['dashboard', 'flow', 'approvals', 'runs', 'matrix'],
   develop: ['harness', 'catalog', 'repository', 'skills'],
-  knowledge: ['search', 'memory', 'research', 'scientia', 'claims', 'publications'],
+  knowledge: ['search', 'memory', 'research', 'scientia', 'discovery-review', 'claims', 'publications'],
   compute: ['models', 'mens', 'populi', 'oratio', 'mesh'],
   system: ['coverage', 'gamify', 'settings'],
 };

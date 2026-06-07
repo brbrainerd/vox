@@ -13,6 +13,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: 'claims', cliGroup: null, tier: 'curated_decorator', navLabel: 'Claims', navIcon: 'doubt', navGroup: 'knowledge' },
   { viewKey: 'coverage', cliGroup: null, tier: 'live_backend', navLabel: 'Coverage', navIcon: 'check', navGroup: 'system' },
   { viewKey: 'dashboard', cliGroup: null, tier: 'live_backend', navLabel: 'Dashboard', navIcon: 'dashboard', navGroup: 'operate' },
+  { viewKey: 'discovery-review', cliGroup: null, tier: 'live_backend', navLabel: 'Discovery Review', navIcon: 'check', navGroup: 'knowledge' },
   { viewKey: 'flow', cliGroup: null, tier: 'live_backend', navLabel: 'Agents', navIcon: 'flow', navGroup: 'operate' },
   { viewKey: 'harness', cliGroup: null, tier: 'live_backend', navLabel: 'Harness', navIcon: 'command', navGroup: 'develop' },
   { viewKey: 'matrix', cliGroup: null, tier: 'live_backend', navLabel: 'Policies', navIcon: 'scale', navGroup: 'operate' },

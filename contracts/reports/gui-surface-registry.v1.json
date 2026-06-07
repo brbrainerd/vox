@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "surface_count": 84,
+  "surface_count": 85,
   "top_level_groups": [
     "add",
     "ars",
@@ -73,5 +73,7 @@
     "workflow"
   ],
   "unclassified_backfilled": [],
-  "wiring_violations": []
+  "wiring_violations": [
+    "view_key 'discovery-review' is not referenced in App.tsx"
+  ]
 }
