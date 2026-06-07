@@ -30,15 +30,15 @@ impl InferenceProfile {
 /// Read [`InferenceProfile`] from **`vox_populi::inference_PROFILE`** (case-insensitive).
 #[must_use]
 pub fn inference_profile_from_env() -> InferenceProfile {
-    let raw = std::env::var("vox_populi::inference_PROFILE")
-        .ok()
-        .map(|s| s.trim().to_ascii_lowercase());
-    match raw.as_deref() {
-        Some("cloud_openai_compatible") | Some("cloud") => InferenceProfile::CloudOpenAiCompatible,
-        Some("mobile_litert") | Some("litert") => InferenceProfile::MobileLitert,
-        Some("mobile_coreml") | Some("coreml") => InferenceProfile::MobileCoreml,
-        Some("lan_gateway") | Some("lan") => InferenceProfile::LanGateway,
-        Some("desktop_ollama") | Some("ollama") | None => InferenceProfile::DesktopOllama,
+    let raw =
+        crate::env_parse::resolve_config_str("vox_populi::inference_PROFILE", "desktop_ollama");
+    let raw = raw.trim().to_ascii_lowercase();
+    match raw.as_str() {
+        "cloud_openai_compatible" | "cloud" => InferenceProfile::CloudOpenAiCompatible,
+        "mobile_litert" | "litert" => InferenceProfile::MobileLitert,
+        "mobile_coreml" | "coreml" => InferenceProfile::MobileCoreml,
+        "lan_gateway" | "lan" => InferenceProfile::LanGateway,
+        // "desktop_ollama" / "ollama" and any unknown value default to DesktopOllama (unchanged).
         _ => InferenceProfile::DesktopOllama,
     }
 }
@@ -62,16 +62,83 @@ pub const OPENAI_EMBEDDINGS_URL: &str = "https://api.openai.com/v1/embeddings";
 /// Local Ollama/Populi base URL fallback.
 pub const LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT: &str = "http://localhost:11434";
 
+/// OpenRouter API base URL (config-aware: `OPENROUTER_BASE_URL` → config.toml → default).
+///
+/// Default `https://openrouter.ai/api`; the `/v1/...` suffixes are appended by the
+/// endpoint accessors so that defaults match the legacy `OPENROUTER_*_URL` consts byte-for-byte.
+#[must_use]
+pub fn openrouter_base_url() -> String {
+    crate::env_parse::resolve_config_str("OPENROUTER_BASE_URL", "https://openrouter.ai/api")
+}
+
+/// OpenAI-compatible API base URL.
+///
+/// Precedence: `VOX_OPENAI_BASE_URL` → legacy `OPENAI_BASE_URL` → config.toml → default
+/// `https://api.openai.com/v1`. Endpoint accessors append the path suffix.
+#[must_use]
+pub fn openai_compatible_base_url() -> String {
+    let legacy =
+        crate::env_parse::resolve_config_str("OPENAI_BASE_URL", "https://api.openai.com/v1");
+    crate::env_parse::resolve_config_str("VOX_OPENAI_BASE_URL", &legacy)
+}
+
+/// OpenRouter chat completions endpoint (config-aware). Default equals
+/// [`OPENROUTER_CHAT_COMPLETIONS_URL`].
+#[must_use]
+pub fn openrouter_chat_completions_url() -> String {
+    format!("{}/v1/chat/completions", openrouter_base_url())
+}
+
+/// OpenRouter models list endpoint (config-aware). Default equals
+/// [`OPENROUTER_MODELS_LIST_URL`].
+#[must_use]
+pub fn openrouter_models_list_url() -> String {
+    format!("{}/v1/models", openrouter_base_url())
+}
+
+/// OpenRouter embeddings endpoint (config-aware). Default equals
+/// [`OPENROUTER_EMBEDDINGS_URL`].
+#[must_use]
+pub fn openrouter_embeddings_url() -> String {
+    format!("{}/v1/embeddings", openrouter_base_url())
+}
+
+/// OpenAI chat completions endpoint (config-aware). Default equals
+/// [`OPENAI_CHAT_COMPLETIONS_URL`].
+#[must_use]
+pub fn openai_chat_completions_url() -> String {
+    format!("{}/chat/completions", openai_compatible_base_url())
+}
+
+/// OpenAI embeddings endpoint (config-aware). Default equals
+/// [`OPENAI_EMBEDDINGS_URL`].
+#[must_use]
+pub fn openai_embeddings_url() -> String {
+    format!("{}/embeddings", openai_compatible_base_url())
+}
+
 /// Local Ollama-compatible API base URL.
 ///
 /// Precedence: **`VOX_POPULI_LOCAL_OLLAMA_URL`** → **`POPULI_URL`** → **`OLLAMA_URL`** → `http://localhost:11434`.
 pub fn local_ollama_populi_base_url() -> String {
-    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxPopuliLocalOllamaUrl)
-        .expose()
-        .map(std::string::ToString::to_string)
-        .or_else(|| std::env::var("POPULI_URL").ok())
-        .or_else(|| std::env::var("OLLAMA_URL").ok())
-        .unwrap_or_else(|| LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT.to_string())
+    if let Some(secret) =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxPopuliLocalOllamaUrl)
+            .expose()
+            .map(std::string::ToString::to_string)
+    {
+        return secret;
+    }
+    // Sentinel default lets us distinguish "config.toml supplied a value" from "fell through".
+    const UNSET: &str = "\u{0}__vox_unset__";
+    let populi = crate::env_parse::resolve_config_str("POPULI_URL", UNSET);
+    if populi != UNSET {
+        return populi;
+    }
+    let ollama = crate::env_parse::resolve_config_str("OLLAMA_URL", UNSET);
+    if ollama != UNSET {
+        return ollama;
+    }
+    LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT.to_string()
 }
 
 /// Hugging Face Hub / Inference token for router and Hub APIs.
@@ -133,94 +200,127 @@ pub fn sanitize_chatml(input: &str) -> String {
         .replace("<|im_end|>", "[im_end]")
 }
 
-/// Temperature for Together AI inference.
-pub fn together_tuning_temperature() -> Option<f32> {
-    vox_secrets::resolve_secret(vox_secrets::SecretId::TogetherTuningTemperature)
+/// Resolve a tuning f32: secret first (request/env via `vox_secrets`), then `~/.vox/config.toml`
+/// under the canonical env name, else `None`. Preserves the Optional semantics.
+fn tuning_f32(secret: vox_secrets::SecretId, canonical_env: &str) -> Option<f32> {
+    if let Some(v) = vox_secrets::resolve_secret(secret)
         .expose()
         .and_then(|s| s.parse::<f32>().ok())
+    {
+        return Some(v);
+    }
+    crate::env_parse::resolve_config_opt_f32(canonical_env)
+}
+
+/// Resolve a tuning i32: secret first, then `~/.vox/config.toml`, else `None`.
+fn tuning_i32(secret: vox_secrets::SecretId, canonical_env: &str) -> Option<i32> {
+    if let Some(v) = vox_secrets::resolve_secret(secret)
+        .expose()
+        .and_then(|s| s.parse::<i32>().ok())
+    {
+        return Some(v);
+    }
+    crate::env_parse::resolve_config_opt_i32(canonical_env)
+}
+
+/// Temperature for Together AI inference.
+pub fn together_tuning_temperature() -> Option<f32> {
+    tuning_f32(
+        vox_secrets::SecretId::TogetherTuningTemperature,
+        "TOGETHER_TUNING_TEMPERATURE",
+    )
 }
 
 /// Top-P for Together AI inference.
 pub fn together_tuning_top_p() -> Option<f32> {
-    vox_secrets::resolve_secret(vox_secrets::SecretId::TogetherTuningTopP)
-        .expose()
-        .and_then(|s| s.parse::<f32>().ok())
+    tuning_f32(
+        vox_secrets::SecretId::TogetherTuningTopP,
+        "TOGETHER_TUNING_TOP_P",
+    )
 }
 
 /// Temperature for Gemini inference.
 pub fn gemini_tuning_temperature() -> Option<f32> {
-    vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiTuningTemperature)
-        .expose()
-        .and_then(|s| s.parse::<f32>().ok())
+    tuning_f32(
+        vox_secrets::SecretId::GeminiTuningTemperature,
+        "GEMINI_TUNING_TEMPERATURE",
+    )
 }
 
 /// Top-P for Gemini inference.
 pub fn gemini_tuning_top_p() -> Option<f32> {
-    vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiTuningTopP)
-        .expose()
-        .and_then(|s| s.parse::<f32>().ok())
+    tuning_f32(
+        vox_secrets::SecretId::GeminiTuningTopP,
+        "GEMINI_TUNING_TOP_P",
+    )
 }
 
 /// Temperature for Ollama inference.
 pub fn ollama_tuning_temperature() -> Option<f32> {
-    vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaTuningTemperature)
-        .expose()
-        .and_then(|s| s.parse::<f32>().ok())
+    tuning_f32(
+        vox_secrets::SecretId::OllamaTuningTemperature,
+        "OLLAMA_TUNING_TEMPERATURE",
+    )
 }
 
 /// Top-P for Ollama inference.
 pub fn ollama_tuning_top_p() -> Option<f32> {
-    vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaTuningTopP)
-        .expose()
-        .and_then(|s| s.parse::<f32>().ok())
+    tuning_f32(
+        vox_secrets::SecretId::OllamaTuningTopP,
+        "OLLAMA_TUNING_TOP_P",
+    )
 }
 
 /// Temperature for OpenAI inference.
 pub fn openai_tuning_temperature() -> Option<f32> {
-    vox_secrets::resolve_secret(vox_secrets::SecretId::OpenaiTuningTemperature)
-        .expose()
-        .and_then(|s| s.parse::<f32>().ok())
+    tuning_f32(
+        vox_secrets::SecretId::OpenaiTuningTemperature,
+        "OPENAI_TUNING_TEMPERATURE",
+    )
 }
 
 /// Top-P for OpenAI inference.
 pub fn openai_tuning_top_p() -> Option<f32> {
-    vox_secrets::resolve_secret(vox_secrets::SecretId::OpenaiTuningTopP)
-        .expose()
-        .and_then(|s| s.parse::<f32>().ok())
+    tuning_f32(
+        vox_secrets::SecretId::OpenaiTuningTopP,
+        "OPENAI_TUNING_TOP_P",
+    )
 }
 
 /// Temperature for Anthropic inference.
 pub fn anthropic_tuning_temperature() -> Option<f32> {
-    vox_secrets::resolve_secret(vox_secrets::SecretId::AnthropicTuningTemperature)
-        .expose()
-        .and_then(|s| s.parse::<f32>().ok())
+    tuning_f32(
+        vox_secrets::SecretId::AnthropicTuningTemperature,
+        "ANTHROPIC_TUNING_TEMPERATURE",
+    )
 }
 
 /// Top-P for Anthropic inference.
 pub fn anthropic_tuning_top_p() -> Option<f32> {
-    vox_secrets::resolve_secret(vox_secrets::SecretId::AnthropicTuningTopP)
-        .expose()
-        .and_then(|s| s.parse::<f32>().ok())
+    tuning_f32(
+        vox_secrets::SecretId::AnthropicTuningTopP,
+        "ANTHROPIC_TUNING_TOP_P",
+    )
 }
 
 /// Context size for Ollama inference.
 pub fn ollama_tuning_num_ctx() -> Option<i32> {
-    vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaTuningNumCtx)
-        .expose()
-        .and_then(|s| s.parse::<i32>().ok())
+    tuning_i32(
+        vox_secrets::SecretId::OllamaTuningNumCtx,
+        "OLLAMA_TUNING_NUM_CTX",
+    )
 }
 
 #[cfg(test)]
 #[allow(unsafe_code)] // serialized with TEST_ENV_LOCK
 mod tests {
     use super::*;
-    use std::sync::Mutex;
-
-    static TEST_ENV_LOCK: Mutex<()> = Mutex::new(());
+    use crate::toml_config::test_support::{CONFIG_TEST_LOCK as TEST_ENV_LOCK, HomeGuard};
 
     #[test]
     fn local_base_prefers_populi_then_ollama() {
         let _g = TEST_ENV_LOCK.lock().expect("env lock");
+        let _home = HomeGuard::new();
         unsafe {
             std::env::remove_var("POPULI_URL");
             std::env::remove_var("OLLAMA_URL");
@@ -247,5 +347,89 @@ mod tests {
             std::env::remove_var("POPULI_URL");
             std::env::remove_var("OLLAMA_URL");
         }
+    }
+
+    #[test]
+    fn endpoint_defaults_match_legacy_consts() {
+        // No env / no config.toml → byte-identical to the historical const values.
+        let _g = TEST_ENV_LOCK.lock().expect("env lock");
+        let _home = HomeGuard::new();
+        for key in [
+            "OPENROUTER_BASE_URL",
+            "VOX_OPENAI_BASE_URL",
+            "OPENAI_BASE_URL",
+        ] {
+            unsafe {
+                std::env::remove_var(key);
+            }
+            let _ = crate::toml_config::unset_user_config_value(key);
+        }
+        assert_eq!(
+            openrouter_chat_completions_url(),
+            OPENROUTER_CHAT_COMPLETIONS_URL
+        );
+        assert_eq!(openrouter_models_list_url(), OPENROUTER_MODELS_LIST_URL);
+        assert_eq!(openrouter_embeddings_url(), OPENROUTER_EMBEDDINGS_URL);
+        assert_eq!(openai_chat_completions_url(), OPENAI_CHAT_COMPLETIONS_URL);
+        assert_eq!(openai_embeddings_url(), OPENAI_EMBEDDINGS_URL);
+    }
+
+    #[test]
+    fn endpoint_honors_config_toml_base_url() {
+        let _g = TEST_ENV_LOCK.lock().expect("env lock");
+        let _home = HomeGuard::new();
+        unsafe {
+            std::env::remove_var("OPENROUTER_BASE_URL");
+        }
+        crate::toml_config::set_user_config_value(
+            "OPENROUTER_BASE_URL",
+            "https://proxy.example/api",
+        )
+        .expect("set");
+        assert_eq!(
+            openrouter_chat_completions_url(),
+            "https://proxy.example/api/v1/chat/completions"
+        );
+        let _ = crate::toml_config::unset_user_config_value("OPENROUTER_BASE_URL");
+    }
+
+    #[test]
+    fn local_base_honors_config_toml_when_env_absent() {
+        let _g = TEST_ENV_LOCK.lock().expect("env lock");
+        let _home = HomeGuard::new();
+        unsafe {
+            std::env::remove_var("POPULI_URL");
+            std::env::remove_var("OLLAMA_URL");
+            std::env::remove_var("VOX_POPULI_LOCAL_OLLAMA_URL");
+        }
+        let _ = crate::toml_config::unset_user_config_value("POPULI_URL");
+        crate::toml_config::set_user_config_value("OLLAMA_URL", "http://cfg-host:1234")
+            .expect("set");
+        // Secret/env absent, config.toml OLLAMA_URL honored.
+        assert_eq!(local_ollama_populi_base_url(), "http://cfg-host:1234");
+        let _ = crate::toml_config::unset_user_config_value("OLLAMA_URL");
+    }
+
+    #[test]
+    fn tuning_honors_config_toml_when_secret_absent() {
+        let _g = TEST_ENV_LOCK.lock().expect("env lock");
+        let _home = HomeGuard::new();
+        unsafe {
+            std::env::remove_var("OLLAMA_TUNING_NUM_CTX");
+            std::env::remove_var("OLLAMA_TUNING_TEMPERATURE");
+        }
+        let _ = crate::toml_config::unset_user_config_value("OLLAMA_TUNING_NUM_CTX");
+        let _ = crate::toml_config::unset_user_config_value("OLLAMA_TUNING_TEMPERATURE");
+
+        assert_eq!(ollama_tuning_num_ctx(), None);
+        assert_eq!(ollama_tuning_temperature(), None);
+
+        crate::toml_config::set_user_config_value("OLLAMA_TUNING_NUM_CTX", "8192").expect("set");
+        crate::toml_config::set_user_config_value("OLLAMA_TUNING_TEMPERATURE", "0.3").expect("set");
+        assert_eq!(ollama_tuning_num_ctx(), Some(8192));
+        assert_eq!(ollama_tuning_temperature(), Some(0.3));
+
+        let _ = crate::toml_config::unset_user_config_value("OLLAMA_TUNING_NUM_CTX");
+        let _ = crate::toml_config::unset_user_config_value("OLLAMA_TUNING_TEMPERATURE");
     }
 }

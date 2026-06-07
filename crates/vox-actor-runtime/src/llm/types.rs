@@ -62,7 +62,7 @@ impl LlmConfig {
             provider: "openrouter".into(),
             model: model.into(),
             cost_per_1k: None,
-            base_url: Some(vox_config::OPENROUTER_CHAT_COMPLETIONS_URL.to_string()),
+            base_url: Some(vox_config::openrouter_chat_completions_url()),
             api_key: vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
                 .expose()
                 .map(std::string::ToString::to_string),
@@ -86,7 +86,7 @@ impl LlmConfig {
             provider: "openai".into(),
             model: model.into(),
             cost_per_1k: None,
-            base_url: Some(vox_config::OPENAI_CHAT_COMPLETIONS_URL.into()),
+            base_url: Some(vox_config::openai_chat_completions_url()),
             api_key: vox_secrets::resolve_secret(vox_secrets::SecretId::OpenaiApiKey)
                 .expose()
                 .map(std::string::ToString::to_string),
@@ -164,8 +164,8 @@ impl LlmConfig {
             .base_url
             .clone()
             .or_else(|| match entry.provider.as_str() {
-                "openrouter" => Some(vox_config::OPENROUTER_CHAT_COMPLETIONS_URL.to_string()),
-                "openai" => Some(vox_config::OPENAI_CHAT_COMPLETIONS_URL.into()),
+                "openrouter" => Some(vox_config::openrouter_chat_completions_url()),
+                "openai" => Some(vox_config::openai_chat_completions_url()),
                 "hf_router" | "huggingface" => Some(HF_ROUTER_CHAT_COMPLETIONS_URL.to_string()),
                 "hf_endpoint" => None,
                 _ => None,

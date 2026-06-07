@@ -85,3 +85,52 @@ pub fn unset_user_config_value(key: &str) -> Result<bool, String> {
         Ok(false)
     }
 }
+
+/// Shared test-only lock + home-redirection guard so config-cache/env tests across modules
+/// serialize against one another and never write the user's real `~/.vox/config.toml`.
+#[cfg(test)]
+pub(crate) mod test_support {
+    use std::sync::Mutex;
+
+    /// Process-wide lock serializing all tests that touch process env or the global config cache.
+    pub(crate) static CONFIG_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    /// Redirects `HOME`/`USERPROFILE` to a temp dir; restores them on drop.
+    #[allow(unsafe_code)]
+    pub(crate) struct HomeGuard {
+        _tmp: tempfile::TempDir,
+        prev: Vec<(&'static str, Option<String>)>,
+    }
+
+    impl HomeGuard {
+        #[allow(unsafe_code)]
+        pub(crate) fn new() -> Self {
+            let tmp = tempfile::tempdir().expect("tempdir");
+            let keys = ["HOME", "USERPROFILE"];
+            let prev = keys
+                .iter()
+                .map(|k| (*k, std::env::var(k).ok()))
+                .collect::<Vec<_>>();
+            for k in keys {
+                unsafe {
+                    std::env::set_var(k, tmp.path());
+                }
+            }
+            Self { _tmp: tmp, prev }
+        }
+    }
+
+    impl Drop for HomeGuard {
+        #[allow(unsafe_code)]
+        fn drop(&mut self) {
+            for (k, v) in &self.prev {
+                unsafe {
+                    match v {
+                        Some(val) => std::env::set_var(k, val),
+                        None => std::env::remove_var(k),
+                    }
+                }
+            }
+        }
+    }
+}

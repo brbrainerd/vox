@@ -120,7 +120,7 @@ impl ModelCatalog for OpenRouterCatalog {
         // Unauthenticated request is fine for getting the OpenRouter model list.
         let resp = self
             .client
-            .get(vox_config::OPENROUTER_MODELS_LIST_URL)
+            .get(vox_config::openrouter_models_list_url())
             .send()
             .await?;
         if !resp.status().is_success() {

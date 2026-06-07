@@ -32,10 +32,12 @@ pub use inference::{
     gemini_tuning_temperature, gemini_tuning_top_p, hf_chat_model_preference,
     hf_dedicated_chat_completions_url, hf_dedicated_chat_model, hf_router_chat_completions_url,
     huggingface_hub_token, inference_profile_allows_local_ollama_http, inference_profile_from_env,
-    local_ollama_populi_base_url, ollama_tuning_temperature, ollama_tuning_top_p,
-    openai_tuning_temperature, openai_tuning_top_p, openrouter_api_key,
-    openrouter_chat_model_preference, sanitize_chatml, together_tuning_temperature,
-    together_tuning_top_p,
+    local_ollama_populi_base_url, ollama_tuning_num_ctx, ollama_tuning_temperature,
+    ollama_tuning_top_p, openai_chat_completions_url, openai_compatible_base_url,
+    openai_embeddings_url, openai_tuning_temperature, openai_tuning_top_p, openrouter_api_key,
+    openrouter_base_url, openrouter_chat_completions_url, openrouter_chat_model_preference,
+    openrouter_embeddings_url, openrouter_models_list_url, sanitize_chatml,
+    together_tuning_temperature, together_tuning_top_p,
 };
 pub use model_routing::{
     ClassifierPinConfig, ExplorationConfig, LatencyBands, ModelPinsConfig, ModelRoutingConfig,

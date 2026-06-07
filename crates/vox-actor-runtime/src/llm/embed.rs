@@ -57,12 +57,12 @@ pub async fn llm_embed(
                     .base_url
                     .clone()
                     .unwrap_or_else(|| match config.provider.as_str() {
-                        "openrouter" => vox_config::OPENROUTER_EMBEDDINGS_URL.to_string(),
-                        "openai" => vox_config::OPENAI_EMBEDDINGS_URL.to_string(),
+                        "openrouter" => vox_config::openrouter_embeddings_url(),
+                        "openai" => vox_config::openai_embeddings_url(),
                         "hf_router" | "huggingface" => {
                             "https://router.huggingface.co/v1/embeddings".to_string()
                         }
-                        _ => vox_config::OPENROUTER_EMBEDDINGS_URL.to_string(),
+                        _ => vox_config::openrouter_embeddings_url(),
                     });
             if matches!(config.provider.as_str(), "hf_endpoint")
                 && (base_url.trim().is_empty() || !base_url.contains("embeddings"))
