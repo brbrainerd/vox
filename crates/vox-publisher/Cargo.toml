@@ -25,6 +25,7 @@ live-api-canary = []
 
 [dependencies]
 vox-scientia = { workspace = true }
+vox-research-events = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }

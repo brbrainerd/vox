@@ -1,5 +1,6 @@
 //! Acceptance-style tests for SCIENTIA prior-art merge, worthiness adjustments, and venue enforcement.
 
+use chrono::Datelike;
 use vox_publisher::publication_preflight::{
     PreflightConfidence, PreflightFinding, PreflightReport, PreflightSeverity,
 };
@@ -8,8 +9,8 @@ use vox_publisher::publication_worthiness::{
     machine_venue_profile_violations, validate_contract_invariants,
 };
 use vox_publisher::scientia_finding_ledger::{
-    NormalizedPriorArtHit, NoveltyEvidenceBundleV1, NoveltyOverlapSummary, PriorArtSource,
-    impact_readership_projection_v1, novelty_decision_calibration_v1,
+    NormalizedPriorArtHit, NoveltyEvidenceBundleV1, NoveltyOverlapSummary, NoveltyQueryTrace,
+    PriorArtSource, impact_readership_projection_v1, novelty_decision_calibration_v1,
 };
 use vox_publisher::scientia_heuristics::ScientiaHeuristics;
 use vox_publisher::scientia_prior_art::{PriorArtQuery, empty_novelty_bundle, title_lexical_score};
@@ -150,5 +151,173 @@ fn scientia_novelty_double_blind_venue_machine_violation() {
     assert!(
         v.iter().any(|s| s.contains("double_blind_anonymization")),
         "{v:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// B5: gate publication novelty on the typed vox-scientia decision layer.
+// ---------------------------------------------------------------------------
+
+/// A high-novelty `WorthinessInputs` (novelty=0.95) so a *cap* is observable.
+fn high_novelty_inputs() -> WorthinessInputs {
+    WorthinessInputs {
+        red_line_violation_ids: vec![],
+        repeated_unresolved_contradiction: false,
+        claim_evidence_coverage: 0.95,
+        artifact_replayability: 0.9,
+        artifact_replayability_measured: None,
+        before_after_pair_integrity: 0.95,
+        metadata_completeness: 0.95,
+        ai_disclosure_compliance: 1.0,
+        epistemic: 0.9,
+        reproducibility: 0.9,
+        novelty: 0.95,
+        reliability: 0.9,
+        metadata_policy: 0.95,
+        meaningful_advance: true,
+    }
+}
+
+/// (a) FALSE-POSITIVE REGRESSION: a bundle whose prior-art retrieval FAILED
+/// (every queried source returned a non-success status) must NOT be treated as
+/// novel. Before B5 the scalar heuristic saw "no hits" and left novelty maxed
+/// (a false "novel"); the decision layer must map this to InsufficientEvidence
+/// and cap novelty low.
+#[test]
+fn scientia_failed_retrieval_does_not_max_novelty() {
+    let bundle = NoveltyEvidenceBundleV1 {
+        schema_version: 1,
+        bundle_id: "nb.fail".into(),
+        candidate_id: "fc.x".into(),
+        computed_at_ms: 0,
+        query_digest_sha256: "a".repeat(64),
+        sources: vec![PriorArtSource::Openalex, PriorArtSource::Crossref],
+        normalized_hits: vec![],
+        overlap_summary: None,
+        query_traces: vec![
+            NoveltyQueryTrace {
+                source: "openalex".into(),
+                request_fingerprint_sha256: "f".repeat(64),
+                http_status: Some(503),
+                cached: None,
+            },
+            NoveltyQueryTrace {
+                source: "crossref".into(),
+                request_fingerprint_sha256: "f".repeat(64),
+                http_status: Some(500),
+                cached: None,
+            },
+        ],
+    };
+    let mut inputs = high_novelty_inputs();
+    let notes = apply_prior_art_to_worthiness_inputs(&mut inputs, Some(&bundle), None);
+    assert!(
+        inputs.novelty < 0.5,
+        "failed retrieval must not stay novel: novelty={}",
+        inputs.novelty
+    );
+    assert!(
+        notes.iter().any(|n| n.contains("insufficient_evidence")),
+        "expected insufficient_evidence note, got {notes:?}"
+    );
+}
+
+/// (b) A future-dated "prior art" hit is dropped by ChronoFilter, so it cannot
+/// suppress novelty. With the only hit filtered out, there is no prior-art
+/// signal and novelty must remain high.
+#[test]
+fn scientia_future_dated_hit_dropped_by_chronofilter() {
+    let future_year = chrono::Utc::now().date_naive().year() + 5;
+    let bundle = NoveltyEvidenceBundleV1 {
+        schema_version: 1,
+        bundle_id: "nb.future".into(),
+        candidate_id: "fc.x".into(),
+        computed_at_ms: 0,
+        query_digest_sha256: "a".repeat(64),
+        sources: vec![PriorArtSource::Openalex],
+        normalized_hits: vec![NormalizedPriorArtHit {
+            source: PriorArtSource::Openalex,
+            work_uri: "https://openalex.org/Wfuture".into(),
+            title: "Work that cannot predate the claim".into(),
+            year: Some(future_year),
+            lexical_score: Some(0.95),
+            semantic_score: Some(0.95),
+            overlap_note: None,
+            cited_by_count: None,
+        }],
+        overlap_summary: Some(NoveltyOverlapSummary {
+            max_lexical_score: Some(0.95),
+            max_semantic_score: Some(0.95),
+            recency_bucket: vox_publisher::scientia_finding_ledger::NoveltyRecencyBucket::Recent,
+        }),
+        query_traces: vec![],
+    };
+    let mut inputs = high_novelty_inputs();
+    let notes = apply_prior_art_to_worthiness_inputs(&mut inputs, Some(&bundle), None);
+    assert!(
+        inputs.novelty >= 0.9,
+        "future-dated hit must be dropped and not suppress novelty: novelty={}",
+        inputs.novelty
+    );
+    assert!(
+        notes.iter().any(|n| n.contains("chrono_filtered")),
+        "expected chrono_filtered note, got {notes:?}"
+    );
+}
+
+/// (c) Opposing-polarity high-similarity hits (one supporting, one
+/// contradicting the same claim direction) drive a Contradicted-style cap:
+/// novelty is forced low and an explanatory contradiction note is emitted.
+#[test]
+fn scientia_opposing_polarity_drives_contradicted_cap() {
+    let yr = chrono::Utc::now().date_naive().year() - 2;
+    let bundle = NoveltyEvidenceBundleV1 {
+        schema_version: 1,
+        bundle_id: "nb.conflict".into(),
+        candidate_id: "fc.x".into(),
+        computed_at_ms: 0,
+        query_digest_sha256: "a".repeat(64),
+        sources: vec![PriorArtSource::Openalex],
+        normalized_hits: vec![
+            // Supporting hit: overlap_note marks polarity "support".
+            NormalizedPriorArtHit {
+                source: PriorArtSource::Openalex,
+                work_uri: "https://openalex.org/Wsupport".into(),
+                title: "Confirms the effect".into(),
+                year: Some(yr),
+                lexical_score: Some(0.9),
+                semantic_score: Some(0.9),
+                overlap_note: Some("polarity:support".into()),
+                cited_by_count: None,
+            },
+            // Contradicting hit: overlap_note marks polarity "refute".
+            NormalizedPriorArtHit {
+                source: PriorArtSource::Openalex,
+                work_uri: "https://openalex.org/Wrefute".into(),
+                title: "Refutes the effect".into(),
+                year: Some(yr),
+                lexical_score: Some(0.9),
+                semantic_score: Some(0.9),
+                overlap_note: Some("polarity:refute".into()),
+                cited_by_count: None,
+            },
+        ],
+        overlap_summary: Some(NoveltyOverlapSummary {
+            max_lexical_score: Some(0.9),
+            max_semantic_score: Some(0.9),
+            recency_bucket: vox_publisher::scientia_finding_ledger::NoveltyRecencyBucket::Recent,
+        }),
+        query_traces: vec![],
+    };
+    let mut inputs = high_novelty_inputs();
+    let notes = apply_prior_art_to_worthiness_inputs(&mut inputs, Some(&bundle), None);
+    assert!(
+        inputs.novelty < 0.5,
+        "contradiction must cap novelty: novelty={}",
+        inputs.novelty
+    );
+    assert!(
+        notes.iter().any(|n| n.contains("contradicted")),
+        "expected contradicted note, got {notes:?}"
     );
 }

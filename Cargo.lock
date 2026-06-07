@@ -15353,6 +15353,7 @@ dependencies = [
  "vox-foundation",
  "vox-http-client",
  "vox-jsonschema-util",
+ "vox-research-events",
  "vox-scientia",
  "vox-secrets",
  "wiremock",
