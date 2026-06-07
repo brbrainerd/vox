@@ -387,3 +387,24 @@ plan step (no longer an open item). Sidebar collapse already exists
 the status overlay is larger than implied (dispatch wrapper + two `--json`
 wirings + new store), but tractable and centralized. Sidebar-collapse and
 enum-reflection work is pruned (reuse existing).
+
+## Addendum (2026-06-06): store-capture coverage is `ci-gate` + `code-audit` only
+
+Honesty note on what actually populates `.vox/policy-status/<branch>.json` today,
+so the overlay is not read as "fully wired":
+
+- **`ci-gate/*`** — captured per-gate by the dispatch wrapper in
+  [run_body.rs](../../../crates/vox-cli/src/commands/ci/run_body.rs). A tracked
+  gate's `Ok`/`Err` outcome maps to `Pass`/`Fail` via `gate_status_result`; the
+  failure path of every tracked arm now *evaluates* to `Err` (no early `return`),
+  so a failing gate overwrites a stale `Pass` instead of staying green.
+- **`code-audit-rule/*`** — captured per-rule via `code_audit_results`.
+- **`arch-rule/*`, `crl-gate/*`, `audit-check/*`** — **NOT captured into the store
+  yet.** `vox-arch-check --json` emits per-rule results to *stdout only*
+  ([main.rs `to_rule_results()`](../../../crates/vox-arch-check/src/main.rs)); no
+  consumer reads them into `.vox/policy-status/`. These ids therefore render the
+  truthful grey "not run" until a follow-on wires a consumer (run the arch `--json`
+  projection from the relevant `vox ci` arch gate and `write_results` keyed by
+  `arch-rule/<guard>`). `workflow-job/*` remains CI-only grey by design.
+
+This is a documented follow-on, not a regression: grey "not run" stays honest.

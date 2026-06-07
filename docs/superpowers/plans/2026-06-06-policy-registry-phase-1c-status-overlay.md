@@ -872,6 +872,16 @@ git commit -m "feat(vox-cli): per-rule code-audit status emission into policy st
 `vox-arch-check`'s `Report` is text-only today. Add a `--json` flag projecting it
 to per-rule results so the same store can record `arch-rule` status.
 
+> **Follow-on (honesty note, 2026-06-06):** Task 6 wires the `--json` *projection*
+> (`to_rule_results()` → stdout) but does **NOT** add a consumer that reads those
+> per-rule results into `.vox/policy-status/<branch>.json`. As shipped, only
+> `ci-gate/*` (dispatch wrapper, Task 4) and `code-audit-rule/*` (Task 5) populate
+> the store. `arch-rule/*`, `crl-gate/*`, and `audit-check/*` therefore render the
+> truthful grey "not run" until a follow-on runs the arch `--json` projection from
+> the relevant `vox ci` arch gate and calls `write_results` keyed by
+> `arch-rule/<guard>`. Grey "not run" stays honest; this is a documented gap, not a
+> faked pass. See the spec Addendum (2026-06-06).
+
 **Files:**
 - Create: `crates/vox-arch-check/src/json_report.rs`
 - Modify: `crates/vox-arch-check/src/main.rs`

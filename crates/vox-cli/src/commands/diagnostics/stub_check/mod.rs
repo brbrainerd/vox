@@ -224,12 +224,15 @@ pub async fn run(
 
     // Phase 1c: record per-rule code-audit status for the current branch.
     //
-    // Honesty guard: only emit when this was a FULL evaluation — no rule filter
-    // and the lowest severity (`info`), so every detector actually ran and a
-    // clean rule genuinely earned `pass`. A scoped/filtered scan must NOT record
-    // `pass` for rules it skipped or evaluated only at a higher severity (that
-    // would fake green). Best-effort: a write failure never fails the command.
+    // Honesty guard: only emit when this was a FULL evaluation — no rule filter,
+    // no path exclusions, and the lowest severity (`info`), so every detector
+    // actually ran over every file and a clean rule genuinely earned `pass`. A
+    // scoped/filtered/excluded scan must NOT record `pass` for rules it skipped,
+    // evaluated only at a higher severity, or never ran on the excluded files
+    // (any of which would fake green). Best-effort: a write failure never fails
+    // the command.
     let full_evaluation = rules.is_none()
+        && excludes.is_empty()
         && matches!(
             severity.map(|s| s.to_ascii_lowercase()).as_deref(),
             None | Some("info")
