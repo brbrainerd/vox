@@ -744,7 +744,7 @@ mod default_domain_tests {
         // this test (it was a brittle hardcoded `== 10` tripwire before).
         assert_eq!(
             entries.len(),
-            vox_audit::registry().iter().count(),
+            vox_audit::registry().len(),
             "every vox_audit::registry() gate must map to a crl-gate entry"
         );
         let l0 = entries
