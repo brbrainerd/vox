@@ -888,6 +888,14 @@ pub enum CiCmd {
         #[arg(long)]
         build: bool,
     },
+    /// Extract the plugin extension-point surface from vox-plugin-api into
+    /// contracts/plugin/extension-points.v1.yaml (SSOT). Also enforces VoxPlugin accessor parity.
+    #[command(name = "plugin-surface-sync")]
+    PluginSurfaceSync {
+        /// Regenerate the committed file. Without this flag, verify it is in sync.
+        #[arg(long)]
+        write: bool,
+    },
     /// Walk crates/ for skill/composite Plugin.toml files and assert skill-md exists, is non-empty, and tools.exposes is non-empty.
     #[command(name = "plugin-skill-parity")]
     PluginSkillParity,

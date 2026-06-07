@@ -206,6 +206,7 @@
     "ci plugin-catalog-parity",
     "ci plugin-dep-boundary",
     "ci plugin-skill-parity",
+    "ci plugin-surface-sync",
     "ci pm-provenance",
     "ci policy-allowlist-parity",
     "ci policy-smoke",
