@@ -14,4 +14,4 @@ format-version = 1
 skill-md = "git.skill.md"
 
 [plugin.payload.tools]
-exposes = ["vox_git_status", "vox_git_diff", "vox_git_resolve_conflict"]
+exposes = ["vox_my_files", "vox_claim_file", "vox_transfer_file", "vox_check_file_owner"]

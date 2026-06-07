@@ -2,7 +2,7 @@
 id = "skill-v0"
 name = "Vox v0 Skill"
 version = "0.1.0"
-description = "Agent-facing skill providing legacy v0 compatibility surface."
+description = "Generate React/Vox UI components from text prompts (v0.dev-style synthesis)."
 license = "Apache-2.0"
 
 [plugin.host]
@@ -14,4 +14,4 @@ format-version = 1
 skill-md = "v0.skill.md"
 
 [plugin.payload.tools]
-exposes = ["vox_v0_compat"]
+exposes = ["vox_generate_code", "vox_write_file"]

@@ -7,7 +7,7 @@ description = "Multi-modal Visual Retrieval-Augmented Generation RAG handler orc
 "vox-version" = "0.1.0"
 "vox-author" = "vox-team"
 "vox-category" = "research"
-"vox-tools" = ["vox_rag_query", "vox_rag_index"]
+"vox-tools" = ["vox_visual_rag_query"]
 "vox-tags" = ["rag", "visual", "vision", "image", "multimodal", "search"]
 "vox-permissions" = []
 ---

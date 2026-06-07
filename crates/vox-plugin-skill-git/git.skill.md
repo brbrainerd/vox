@@ -7,7 +7,7 @@ description = "Git workflow assistance: status, diff, commit messaging, branch m
 "vox-version" = "0.1.0"
 "vox-author" = "vox-team"
 "vox-category" = "git"
-"vox-tools" = ["vox_git_status", "vox_git_diff", "vox_git_resolve_conflict"]
+"vox-tools" = ["vox_my_files", "vox_claim_file", "vox_transfer_file", "vox_check_file_owner"]
 "vox-tags" = ["git", "version-control", "branch", "diff", "commit"]
 "vox-permissions" = ["read_files", "write_files", "shell_exec"]
 ---

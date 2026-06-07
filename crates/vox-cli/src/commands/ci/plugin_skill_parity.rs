@@ -4,10 +4,14 @@
 //! the referenced `skill-md` file exists and is non-empty, and that `tools.exposes` is
 //! non-empty.
 //!
-//! Also enforces **exposes-tools parity**: the manifest `tools.exposes` is the single source
-//! of truth, so each `SKILL.md` frontmatter `vox-tools` list (which the skill loader
-//! registers for agents) must match it. `--write` rewrites the `vox-tools` line from the
-//! manifest; without it the gate fails on drift.
+//! Also enforces **exposes-tools parity**: the `SKILL.md` frontmatter `vox-tools` list (which
+//! the skill loader registers for agents, and which the skill body documents) is the single
+//! source of truth, so each manifest `tools.exposes` must match it. `--write` rewrites the
+//! manifest `exposes = [...]` line from the SKILL.md; without it the gate fails on drift.
+//!
+//! Note: SKILL.md is authoritative here (not the manifest) because the human-authored skill
+//! body and its `vox-tools` frontmatter are what actually describe the real, registered tools;
+//! manifests historically carried stale placeholder tool names.
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
@@ -76,28 +80,18 @@ fn frontmatter_vox_tools(body: &str) -> Option<Vec<String>> {
         })
 }
 
-fn vox_tools_line(exposes: &[String]) -> String {
-    let items: Vec<String> = exposes.iter().map(|s| format!("\"{s}\"")).collect();
-    format!("\"vox-tools\" = [{}]", items.join(", "))
-}
-
-/// Replace the `vox-tools` line inside the frontmatter with one derived from `exposes`.
-/// Returns `None` if no `vox-tools` line was found.
-fn rewrite_vox_tools(body: &str, exposes: &[String]) -> Option<String> {
-    let new_line = vox_tools_line(exposes);
+/// Replace the manifest `exposes = [...]` line (inside `[...tools]`) with one derived from the
+/// SKILL.md `vox-tools` list, preserving the original line's leading indentation. Returns `None`
+/// if no `exposes` line was found.
+fn rewrite_manifest_exposes(raw: &str, tools: &[String]) -> Option<String> {
+    let items: Vec<String> = tools.iter().map(|s| format!("\"{s}\"")).collect();
     let mut out: Vec<String> = Vec::new();
-    let mut fences = 0usize;
     let mut replaced = false;
-    for line in body.lines() {
-        if line.trim() == "---" {
-            fences += 1;
-            out.push(line.to_string());
-            continue;
-        }
-        let in_frontmatter = fences == 1;
-        let key = line.trim_start().trim_start_matches('"');
-        if in_frontmatter && !replaced && key.starts_with("vox-tools") {
-            out.push(new_line.clone());
+    for line in raw.lines() {
+        let trimmed = line.trim_start();
+        if !replaced && (trimmed.starts_with("exposes =") || trimmed.starts_with("exposes=")) {
+            let indent = &line[..line.len() - trimmed.len()];
+            out.push(format!("{indent}exposes = [{}]", items.join(", ")));
             replaced = true;
             continue;
         }
@@ -107,7 +101,7 @@ fn rewrite_vox_tools(body: &str, exposes: &[String]) -> Option<String> {
         return None;
     }
     let mut joined = out.join("\n");
-    if body.ends_with('\n') {
+    if raw.ends_with('\n') {
         joined.push('\n');
     }
     Some(joined)
@@ -175,7 +169,7 @@ pub fn run(write: bool) -> Result<()> {
             errors.push(format!("{}: tools.exposes is empty", path.display()));
         }
 
-        // exposes-tools parity: manifest is authoritative; SKILL.md vox-tools must match.
+        // exposes-tools parity: SKILL.md vox-tools is authoritative; manifest tools.exposes must match.
         let manifest_set: BTreeSet<&str> = skill.tools.exposes.iter().map(String::as_str).collect();
         match frontmatter_vox_tools(&body) {
             None => errors.push(format!(
@@ -187,24 +181,24 @@ pub fn run(write: bool) -> Result<()> {
                 let fm_set: BTreeSet<&str> = fm.iter().map(String::as_str).collect();
                 if fm_set != manifest_set {
                     if write {
-                        match rewrite_vox_tools(&body, &skill.tools.exposes) {
+                        match rewrite_manifest_exposes(&raw, &fm) {
                             Some(updated) => {
-                                std::fs::write(&skill_md_path, updated).with_context(|| {
-                                    format!("writing {}", skill_md_path.display())
-                                })?;
+                                std::fs::write(path, updated)
+                                    .with_context(|| format!("writing {}", path.display()))?;
                                 rewritten += 1;
                             }
                             None => errors.push(format!(
-                                "{}: could not locate vox-tools line to rewrite",
-                                skill_md_path.display()
+                                "{}: could not locate `exposes` line to rewrite",
+                                path.display()
                             )),
                         }
                     } else {
                         errors.push(format!(
-                            "{}: vox-tools {:?} != manifest tools.exposes {:?} (run `vox ci plugin-skill-parity --write`)",
-                            skill_md_path.display(),
-                            fm,
+                            "{}: manifest tools.exposes {:?} != SKILL.md '{}' vox-tools {:?} (run `vox ci plugin-skill-parity --write`)",
+                            path.display(),
                             skill.tools.exposes,
+                            skill.skill_md,
+                            fm,
                         ));
                     }
                 }
@@ -215,7 +209,7 @@ pub fn run(write: bool) -> Result<()> {
 
     if write {
         println!(
-            "plugin-skill-parity: {rewritten} SKILL.md vox-tools list(s) synced from manifests ({checked} checked)"
+            "plugin-skill-parity: {rewritten} manifest tools.exposes list(s) synced from SKILL.md vox-tools ({checked} checked)"
         );
         return Ok(());
     }

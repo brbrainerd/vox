@@ -7,7 +7,7 @@ description = "Multi-agent orchestration: submit tasks, check status, rebalance,
 "vox-version" = "0.1.0"
 "vox-author" = "vox-team"
 "vox-category" = "monitoring"
-"vox-tools" = ["vox_orchestrator_submit", "vox_orchestrator_status", "vox_orchestrator_budget"]
+"vox-tools" = ["vox_submit_task", "vox_task_status", "vox_orchestrator_status", "vox_complete_task", "vox_fail_task", "vox_cancel_task", "vox_rebalance", "vox_queue_status", "vox_lock_status", "vox_budget_status", "vox_agent_events"]
 "vox-tags" = ["orchestrator", "tasks", "agents", "budget", "queue"]
 "vox-permissions" = ["db_read", "db_write"]
 ---

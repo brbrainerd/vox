@@ -7,7 +7,7 @@ description = "Persistent agent memory — store and recall facts, search logs, 
 "vox-version" = "0.1.0"
 "vox-author" = "vox-team"
 "vox-category" = "database"
-"vox-tools" = ["vox_memory_get", "vox_memory_set", "vox_memory_search"]
+"vox-tools" = ["vox_memory_store", "vox_memory_recall", "vox_memory_search", "vox_memory_log", "vox_memory_list_keys", "vox_knowledge_query", "vox_session_create", "vox_session_list", "vox_session_info", "vox_session_compact", "vox_session_cleanup"]
 "vox-tags" = ["memory", "recall", "session", "knowledge", "facts"]
 "vox-permissions" = ["db_read", "db_write"]
 ---
