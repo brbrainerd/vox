@@ -68,9 +68,31 @@ pub const LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT: &str = "http://localhost:11434";
 /// endpoint accessors so that defaults match the legacy `OPENROUTER_*_URL` consts byte-for-byte.
 #[must_use]
 pub fn openrouter_base_url() -> String {
-    crate::env_parse::resolve_config_str("OPENROUTER_BASE_URL", "https://openrouter.ai/api")
-        .trim_end_matches('/')
-        .to_string()
+    let resolved =
+        crate::env_parse::resolve_config_str("OPENROUTER_BASE_URL", "https://openrouter.ai/api");
+    sanitize_base_url(
+        &resolved,
+        "https://openrouter.ai/api",
+        "OPENROUTER_BASE_URL",
+    )
+}
+
+/// Validate a user-supplied base URL: trim trailing slashes and, if the result is
+/// empty or has no `scheme://`, fall back to `default` (warning once).
+fn sanitize_base_url(resolved: &str, default: &str, key: &str) -> String {
+    let trimmed = resolved.trim_end_matches('/');
+    if trimmed.is_empty() || !trimmed.contains("://") {
+        static WARNED: std::sync::Once = std::sync::Once::new();
+        WARNED.call_once(|| {
+            tracing::warn!(
+                config_key = key,
+                value = resolved,
+                "ignoring malformed base URL (empty or missing scheme); using default"
+            );
+        });
+        return default.to_string();
+    }
+    trimmed.to_string()
 }
 
 /// OpenAI-compatible API base URL.
@@ -81,9 +103,12 @@ pub fn openrouter_base_url() -> String {
 pub fn openai_compatible_base_url() -> String {
     let legacy =
         crate::env_parse::resolve_config_str("OPENAI_BASE_URL", "https://api.openai.com/v1");
-    crate::env_parse::resolve_config_str("VOX_OPENAI_BASE_URL", &legacy)
-        .trim_end_matches('/')
-        .to_string()
+    let resolved = crate::env_parse::resolve_config_str("VOX_OPENAI_BASE_URL", &legacy);
+    sanitize_base_url(
+        &resolved,
+        "https://api.openai.com/v1",
+        "VOX_OPENAI_BASE_URL",
+    )
 }
 
 /// OpenRouter chat completions endpoint (config-aware). Default equals
@@ -449,6 +474,30 @@ mod tests {
         // Secret/env absent, config.toml OLLAMA_URL honored.
         assert_eq!(local_ollama_populi_base_url(), "http://cfg-host:1234");
         let _ = crate::toml_config::unset_user_config_value("OLLAMA_URL");
+    }
+
+    #[test]
+    fn degenerate_base_url_falls_back_to_default() {
+        let _g = TEST_ENV_LOCK.lock().expect("env lock");
+        let _home = HomeGuard::new();
+        unsafe {
+            std::env::remove_var("OPENROUTER_BASE_URL");
+        }
+        // Empty base → default.
+        crate::toml_config::set_user_config_value("OPENROUTER_BASE_URL", "").expect("set");
+        assert_eq!(openrouter_base_url(), "https://openrouter.ai/api");
+
+        // No-scheme base → default.
+        crate::toml_config::set_user_config_value("OPENROUTER_BASE_URL", "proxy/no-scheme")
+            .expect("set");
+        assert_eq!(openrouter_base_url(), "https://openrouter.ai/api");
+
+        // Valid base is honored.
+        crate::toml_config::set_user_config_value("OPENROUTER_BASE_URL", "https://proxy/api")
+            .expect("set");
+        assert_eq!(openrouter_base_url(), "https://proxy/api");
+
+        let _ = crate::toml_config::unset_user_config_value("OPENROUTER_BASE_URL");
     }
 
     #[test]

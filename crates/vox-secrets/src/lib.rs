@@ -585,7 +585,9 @@ pub fn import_env_from_path(
     path: &std::path::Path,
     apply: bool,
 ) -> Result<ImportEnvResult, SecretError> {
-    let content = std::fs::read_to_string(path)
+    // Bounded read (scaling-policy capped) instead of an unbounded `read_to_string`; still
+    // surfaces a missing/unreadable file as an error so the existing error path is preserved.
+    let content = vox_bounded_fs::read_utf8_path_capped(path)
         .map_err(|e| SecretError::Io(format!("could not read {}: {e}", path.display())))?;
 
     let backend = if apply {

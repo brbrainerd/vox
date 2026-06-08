@@ -27,6 +27,23 @@ impl VoxConfig {
         cfg
     }
 
+    /// Load only **defaults + the global config file** (`~/.vox/config.toml`), applying
+    /// neither environment overrides nor the workspace `Vox.toml`.
+    ///
+    /// This is the correct **save base** for round-tripping the global config: because
+    /// [`Self::save`] writes every field, using [`Self::load`] (which folds in transient
+    /// env overrides like `VOX_BUDGET_USD` / `VOX_DATA_DIR` and the repo `Vox.toml`) would
+    /// bake those ephemeral overrides permanently into the on-disk file. Loading the
+    /// persisted global only means a one-field edit + save leaves every other field exactly
+    /// as it was on disk.
+    pub fn load_persisted_global() -> Self {
+        let mut cfg = Self::default();
+        if let Some(global_path) = global_config_path() {
+            cfg.apply_toml_file(&global_path);
+        }
+        cfg
+    }
+
     /// Load like [`Self::load`], but apply `repo_root.join("Vox.toml")` before the process-CWD `Vox.toml`.
     pub fn load_from_repo_root(repo_root: &Path) -> Self {
         let mut cfg = Self::default();
@@ -573,6 +590,66 @@ db_extra = "de"
             None => unsafe {
                 std::env::remove_var("VOX_BUILD_TARGET");
             },
+        }
+    }
+
+    #[test]
+    fn persisted_global_save_base_does_not_bake_env_budget() {
+        use crate::toml_config::test_support::{CONFIG_TEST_LOCK, HomeGuard};
+        let _lock = CONFIG_TEST_LOCK.lock().expect("test lock");
+        let home = HomeGuard::new();
+
+        // Point the global config dir at <home>/.vox and seed config.toml with a known
+        // on-disk budget that differs from the env override we set below.
+        let vox_dir = home.home().join(".vox");
+        std::fs::create_dir_all(&vox_dir).expect("mkdir .vox");
+        let cfg_path = vox_dir.join("config.toml");
+        std::fs::write(
+            &cfg_path,
+            "[vox]\nmodel = \"on-disk-model\"\ndaily_budget_usd = 1.0\n",
+        )
+        .expect("seed config");
+
+        let prev_data_dir = std::env::var("VOX_DATA_DIR").ok();
+        let prev_budget = std::env::var("VOX_BUDGET_USD").ok();
+        unsafe {
+            std::env::set_var("VOX_DATA_DIR", &vox_dir);
+            // Transient env override that MUST NOT be persisted by a one-field save.
+            std::env::set_var("VOX_BUDGET_USD", "999.0");
+        }
+
+        // Simulate the GUI set-path for `model` using the persisted-global save base.
+        let mut cfg = VoxConfig::load_persisted_global();
+        // The env budget is NOT folded into the persisted-global base.
+        assert_eq!(
+            cfg.daily_budget_usd, 1.0,
+            "env must not leak into save base"
+        );
+        cfg.model = "new-model".into();
+        cfg.save().expect("save");
+
+        // Re-read the on-disk file: budget must still be the original 1.0, NOT 999.0.
+        let text = std::fs::read_to_string(&cfg_path).expect("read back");
+        let parsed: toml::Value = toml::from_str(&text).expect("parse");
+        let budget = parsed
+            .get("vox")
+            .and_then(|v| v.get("daily_budget_usd"))
+            .and_then(toml::Value::as_float);
+        assert_eq!(
+            budget,
+            Some(1.0),
+            "env-derived budget must not be baked into config.toml"
+        );
+
+        unsafe {
+            match prev_data_dir {
+                Some(v) => std::env::set_var("VOX_DATA_DIR", v),
+                None => std::env::remove_var("VOX_DATA_DIR"),
+            }
+            match prev_budget {
+                Some(v) => std::env::set_var("VOX_BUDGET_USD", v),
+                None => std::env::remove_var("VOX_BUDGET_USD"),
+            }
         }
     }
 
