@@ -694,10 +694,11 @@ fn try_emit_list_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<S
             ))
         }
 
-        // ── Aggregate ────────────────────────────────────────────────────────
-        // sum: uses Rust's std::iter::Sum trait, which is implemented for i64 and f64.
-        // Generated lists are monomorphic so the compiler resolves the concrete type.
-        "sum" if arg_exprs.is_empty() => Some(format!("({}.iter().copied().sum())", o)),
+        // `sum` is intentionally NOT handled: `(<recv>).iter().copied().sum()` has
+        // no inferable target type in a bare `let total = xs.sum()` (E0283 — `Sum`
+        // is impl'd for both i64 and f64). A correct emission needs an explicit
+        // `.sum::<i64>()`/`.sum::<f64>()` annotation derived from the list element
+        // type via `inferred_types`; deferred until a golden needs it.
 
         // index/find_index: first index of val, or -1.
         "index" | "find_index" if arg_exprs.len() == 1 => Some(format!(

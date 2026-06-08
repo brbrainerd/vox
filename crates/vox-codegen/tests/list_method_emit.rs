@@ -95,15 +95,6 @@ fn remove_at_emits_value_returning_block() {
 // ── Transformer / aggregate methods ─────────────────────────────────────────
 
 #[test]
-fn sum_emits_iter_sum() {
-    let out = emit_first_fn("fn f(nums: List[int]) to int { return nums.sum() }");
-    assert!(
-        out.contains(".sum()") || out.contains("iter()"),
-        "`nums.sum()` must emit an iter sum; got:\n{out}"
-    );
-}
-
-#[test]
 fn slice_list_emits_block() {
     let out = emit_first_fn("fn f(xs: List[str]) to List[str] { return xs.slice_list(1, 3) }");
     assert!(

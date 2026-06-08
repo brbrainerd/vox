@@ -193,9 +193,10 @@ fn main() {
 /// codegen now handles must also compile under `--mode script` (codegen path).
 /// This is the compile-net counterpart to the fast `list_method_emit` tests.
 ///
-/// Note: `sum` uses `iter().copied().sum()` which requires type inference; it is
-/// exercised on a `List[int]` (→ `Vec<i64>`) so Rust resolves it as `i64`.
-/// `sorted` / `zip` / `enumerate` / `flatten` are SKIPPED (see report).
+/// `sum` / `sorted` / `zip` / `enumerate` / `flatten` are SKIPPED (see the
+/// `try_emit_list_method` comments): `sum` needs an element-type-derived
+/// `.sum::<T>()` annotation (E0283 otherwise); the rest produce nested/heterogeneous
+/// types codegen can't yet resolve monomorphically.
 #[test]
 #[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn list_methods_compile() {
@@ -224,6 +225,10 @@ fn main() {
     let cnt = xs.count("a")
 
     let has = xs.contains("b")
+
+    // first/last → owned Option<T> (.cloned()).
+    let f = xs.first()
+    let l = xs.last()
 
     print(j)
 }
