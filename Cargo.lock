@@ -14544,6 +14544,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-langtool"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "miette",
+ "tempfile",
+ "vox-cli-core",
+ "vox-codegen",
+ "vox-compiler",
+ "vox-foundation",
+]
+
+[[package]]
 name = "vox-lsp"
 version = "0.6.0"
 dependencies = [

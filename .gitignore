@@ -236,3 +236,6 @@ gui-*.log
 
 # Superpowers brainstorm visual-companion scratch (local-only)
 .superpowers/
+
+# Local `act` artifact server output (see .actrc --artifact-server-path)
+.act-artifacts/
