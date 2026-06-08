@@ -126,6 +126,7 @@ async fn main() {
             commands::scientia::list_research_sessions,
             commands::scientia::get_research_session_detail,
             commands::scientia::list_publication_manifests,
+            commands::oratio::oratio_transcribe,
             commands::search::vox_search_query,
             commands::search::open_locator,
             commands::policy::policy_list,

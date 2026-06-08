@@ -12,6 +12,7 @@ pub mod mcp;
 pub mod memory;
 pub mod mesh;
 pub mod models;
+pub mod oratio;
 pub mod orchestrator;
 pub mod policy;
 pub mod preferences;

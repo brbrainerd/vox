@@ -9,6 +9,9 @@ build = "build.rs"
 [features]
 gui = []
 default = ["gui"]
+# Desktop speech-to-text: pulls cpal/hound mic capture (via vox-ml-cli's
+# `oratio-mic`) + the Oratio plugin host. Default-OFF to keep the stock GUI lean.
+oratio = ["dep:vox-ml-cli", "dep:vox-speech", "dep:vox-plugin-host", "dep:uuid"]
 
 [dependencies]
 vox-cli = { workspace = true }
@@ -25,6 +28,10 @@ vox-secrets = { workspace = true }
 vox-identity = { workspace = true }
 vox-crypto = { workspace = true }
 vox-search = { workspace = true }
+vox-ml-cli = { workspace = true, optional = true, features = ["oratio-mic"] }
+vox-speech = { workspace = true, optional = true }
+vox-plugin-host = { workspace = true, optional = true }
+uuid = { workspace = true, features = ["v4"], optional = true }
 toml = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }

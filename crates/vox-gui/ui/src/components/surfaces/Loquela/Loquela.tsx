@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { voxTransport } from '../../../transport';
+import { captureVoiceTranscript } from './oratioVoiceInput';
 
 const LQ_MODES = [
   { id: "plan",   label: "Plan",   hint: "Augur drafts a plan, no side effects",       tone: "text-cyan-300   border-cyan-400/30   bg-cyan-400/[0.08]" },
@@ -117,6 +118,7 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
   const [stream, setStream] = useState(true);
   const [sign,   setSign]   = useState(false);
   const [dryRun, setDryRun] = useState(false);
+  const [recording, setRecording] = useState(false);
 
   const [skillOpen, setSkillOpen] = useState(false);
   const [tierOpen,  setTierOpen]  = useState(false);
@@ -245,6 +247,29 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
     if (e.key === "Enter" && !e.shiftKey && !slashOpen && !atOpen) { e.preventDefault(); send(); }
   };
 
+  const startVoiceInput = async () => {
+    if (recording) return;
+    setRecording(true);
+    try {
+      const transcript = await captureVoiceTranscript(5);
+      if (transcript) {
+        setText(t => (t ? `${t} ${transcript}` : transcript));
+        taRef.current?.focus();
+      } else {
+        toast?.({ tone: 'info', title: 'No speech detected', body: 'Nothing was transcribed from the microphone.', cmd: 'oratio.transcribe' });
+      }
+    } catch (err) {
+      toast?.({
+        tone: 'error',
+        title: 'Voice input failed',
+        body: String((err as any)?.message ?? err ?? 'transcription failed'),
+        cmd: 'oratio.transcribe',
+      });
+    } finally {
+      setRecording(false);
+    }
+  };
+
   const riskTone = mode === "act" && !dryRun && budget > 3 ? "high" : doubt < 0.4 ? "med" : "low";
 
   return (
@@ -262,22 +287,15 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
             <Icon.plus className="size-4" />
           </button>
           <button
-            onClick={() => {
-              // Voice input requires live audio capture + an on-device STT
-              // bridge that is not wired into the desktop shell yet (the
-              // vox-tauri-stt `transcribe` command is mobile-only and is not
-              // registered here). Rather than fake a "recording" state, report
-              // the real status. See DONE_WITH_CONCERNS note for the gap.
-              toast?.({
-                tone: 'info',
-                title: 'Voice input unavailable',
-                body: 'Desktop microphone capture + transcription is not wired yet.',
-                cmd: 'oratio.transcribe',
-              });
-            }}
-            title="Voice input (not available on desktop yet)"
-            aria-disabled="true"
-            className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-600 cursor-not-allowed transition"
+            onClick={startVoiceInput}
+            disabled={recording}
+            title={recording ? "Listening… (5s)" : "Voice input — capture 5s and transcribe via Oratio"}
+            aria-busy={recording}
+            className={`flex size-8 shrink-0 items-center justify-center rounded-md border transition ${
+              recording
+                ? "border-brass/40 bg-brass/[0.12] text-brass animate-pulse"
+                : "border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25"
+            }`}
           >
             <Icon.mic className="size-4" />
           </button>
