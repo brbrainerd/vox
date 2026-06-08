@@ -85,6 +85,23 @@ fn value_returning_main_compiles() {
     assert_compiles("fn main() to int { return 1 + 2 }");
 }
 
+/// Value-semantic list `.push` must compile: Vox `xs = xs.push(y)` returns the new
+/// list, so it must emit a value-returning block (not Rust `Vec::push` → `()`).
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn list_push_compiles() {
+    assert_compiles(
+        r#"
+fn main() {
+    let mut xs = ["a"]
+    xs = xs.push("b")
+    xs = xs.push("c")
+    print(str(xs.len()))
+}
+"#,
+    );
+}
+
 /// `<list>.get(i) is Some(..)` must compile: `Vec::get` returns `Option<&T>`, so
 /// the get side is `.cloned()` to an owned `Option<T>` to match the `Some(..)`
 /// side — in both a plain `is` and the `assert(x is y)` → `assert_eq!` path.

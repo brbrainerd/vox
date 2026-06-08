@@ -521,38 +521,15 @@ where
     if let Some(s) = try_emit_str_method(method, &o, &arg_exprs) {
         return s;
     }
-    // Mutating collection/string methods must operate on the ORIGINAL binding,
-    // not a value-semantics clone — `xs.clone().push(v)` pushes to a discarded
-    // copy (the original stays empty → later index OOB). When the receiver is a
-    // plain identifier, emit the bare name (it is `mut` in the generated code) so
-    // the mutation lands. Non-mutating methods keep the clone/ownership heuristic.
-    const MUTATING: &[&str] = &[
-        "push",
-        "pop",
-        "insert",
-        "remove",
-        "clear",
-        "extend",
-        "append",
-        "truncate",
-        "retain",
-        "sort",
-        "sort_by_key",
-        "sort_by",
-        "reverse",
-        "dedup",
-        "swap",
-    ];
-    let recv = if MUTATING.contains(&method) {
-        if let HirExpr::Ident(name, _) = obj {
-            name.clone()
-        } else {
-            o.clone()
-        }
-    } else {
-        o.clone()
-    };
-    let call = format!("{}.{}({})", recv, method, arg_exprs.join(", "));
+    // Value-semantic list mutators (`push`) in VALUE/reassign position lower to a
+    // block that clones, mutates, and yields the new vec (matches the interpreter,
+    // which returns the new list). Bare STATEMENT-position mutation (`result.push(0)`
+    // for its side effect) is intercepted earlier in `emit_stmt` and emitted as an
+    // in-place `result.push(0);` so the original binding actually grows.
+    if let Some(s) = try_emit_list_method(method, &o, &arg_exprs) {
+        return s;
+    }
+    let call = format!("{}.{}({})", o, method, arg_exprs.join(", "));
     if method == "send" {
         format!("{}.await", call)
     } else {
@@ -690,6 +667,28 @@ where
         // with `Some(<owned>)` comparisons (matches the interpreter arm).
         "first" if args.is_empty() => Some(format!("({}).first().cloned()", o)),
         "last" if args.is_empty() => Some(format!("({}).last().cloned()", o)),
+        _ => None,
+    }
+}
+
+/// Try to emit Vox **value-semantic** list method lowerings.
+///
+/// Vox lists are value types: the interpreter's `.push` (eval/builtins.rs) clones
+/// the vec, mutates the clone, and returns the NEW list. Rust's `Vec::push` instead
+/// mutates in place and returns `()`, so a naive `xs = xs.push(y)` assigns `()` to a
+/// `Vec` (E0308). Emit a block that performs the mutation and yields the updated vec.
+/// (Bare statement-position `result.push(0)` is intercepted in `emit_stmt` and
+/// lowered to an in-place mutation instead — see `try_emit_stmt_mutation`.)
+///
+/// Scope: `push` only for now (the value-semantic mutator goldens actually hit).
+/// Other list mutators (`pop` returns the popped value, not the list; `insert`/
+/// `remove`/etc.) have their own shapes and are added when a golden needs them.
+fn try_emit_list_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<String> {
+    match method {
+        "push" if arg_exprs.len() == 1 => Some(format!(
+            "({{ let mut __lst = {}; __lst.push({}); __lst }})",
+            o, arg_exprs[0]
+        )),
         _ => None,
     }
 }

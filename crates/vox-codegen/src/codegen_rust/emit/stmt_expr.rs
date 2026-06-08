@@ -102,6 +102,20 @@ pub(super) fn emit_stmt(
             http_error_rid,
         ),
         HirStmt::Expr { expr, .. } => {
+            // A bare mutator call (`result.push(0)`) in statement position is evaluated
+            // for its side effect: emit the in-place mutation rather than the value-
+            // semantic value-block (which clones, mutates the copy, and discards it).
+            if let Some(s) = try_emit_stmt_mutation(
+                expr,
+                &pad,
+                is_route,
+                is_actor,
+                mutation_tx,
+                inferred_types,
+                usage,
+            ) {
+                return s;
+            }
             format!(
                 "{pad}{};\n",
                 emit_expr_with(
@@ -254,25 +268,6 @@ fn try_emit_self_mutation_assign(
     inferred_types: Option<&HashMap<Span, HirType>>,
     usage: Option<&super::usage::UsageTracker>,
 ) -> Option<String> {
-    // In-place mutators whose Rust return type is `()` (so `xs = xs.push(v)` would
-    // assign unit). Mirrors the MUTATING table in `method_emit::emit_method_call`.
-    const SELF_MUTATORS: &[&str] = &[
-        "push",
-        "pop",
-        "insert",
-        "remove",
-        "clear",
-        "extend",
-        "append",
-        "truncate",
-        "retain",
-        "sort",
-        "sort_by_key",
-        "sort_by",
-        "reverse",
-        "dedup",
-        "swap",
-    ];
     let HirExpr::Ident(target_name, _) = target else {
         return None;
     };
@@ -288,18 +283,110 @@ fn try_emit_self_mutation_assign(
     if recv_name != target_name {
         return None;
     }
-    // `emit_method_call` already lowers a mutating method on an identifier receiver
-    // to the bare (mut) binding (`xs.push(v)`), so reuse it directly as a statement.
-    let call = emit_expr_with(
-        value,
+    let HirExpr::MethodCall(_, _, args, ..) = value else {
+        return None;
+    };
+    // `emit_method_call` lowers `push` to a value-returning block (the value/reassign
+    // form `let ys = xs.push(v)`), so we cannot reuse it here. The self-reassign
+    // idiom `xs = xs.push(v)` is exactly an in-place mutation of the (already `mut`)
+    // binding, so emit the bare `xs.push(v);` directly.
+    Some(emit_inplace_mutation(
+        target_name,
+        method,
+        args,
+        &pad,
         is_route,
         is_actor,
         mutation_tx,
         inferred_types,
         usage,
-        OwnershipMode::Owned,
-    );
-    Some(format!("{pad}{call};\n"))
+    ))
+}
+
+/// In-place mutator method names whose Rust return is `()` (so the value-semantic
+/// value-block lowering must NOT be used in side-effect/statement position).
+const SELF_MUTATORS: &[&str] = &[
+    "push",
+    "pop",
+    "insert",
+    "remove",
+    "clear",
+    "extend",
+    "append",
+    "truncate",
+    "retain",
+    "sort",
+    "sort_by_key",
+    "sort_by",
+    "reverse",
+    "dedup",
+    "swap",
+];
+
+/// Emit a bare in-place mutator call `recv.method(args);` (the binding is `mut`).
+#[allow(clippy::too_many_arguments)]
+fn emit_inplace_mutation(
+    recv: &str,
+    method: &str,
+    args: &[vox_compiler::hir::HirArg],
+    pad: &str,
+    is_route: bool,
+    is_actor: bool,
+    mutation_tx: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
+) -> String {
+    let arg_exprs: Vec<String> = args
+        .iter()
+        .map(|a| {
+            emit_expr_with(
+                &a.value,
+                is_route,
+                is_actor,
+                mutation_tx,
+                inferred_types,
+                usage,
+                OwnershipMode::Owned,
+            )
+        })
+        .collect();
+    format!("{pad}{recv}.{method}({});\n", arg_exprs.join(", "))
+}
+
+/// Intercept a bare statement-position mutator call (`result.push(0)` evaluated for
+/// its side effect) and emit the in-place mutation, NOT the value-semantic
+/// value-block (which would clone, mutate the copy, and discard it). Returns `None`
+/// for any non-mutator / non-ident-receiver expression.
+#[allow(clippy::too_many_arguments)]
+fn try_emit_stmt_mutation(
+    expr: &HirExpr,
+    pad: &str,
+    is_route: bool,
+    is_actor: bool,
+    mutation_tx: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
+) -> Option<String> {
+    let HirExpr::MethodCall(obj, method, args, ..) = expr else {
+        return None;
+    };
+    if !SELF_MUTATORS.contains(&method.as_str()) {
+        return None;
+    }
+    let HirExpr::Ident(recv_name, _) = obj.as_ref() else {
+        return None;
+    };
+    Some(emit_inplace_mutation(
+        recv_name,
+        method,
+        args,
+        pad,
+        is_route,
+        is_actor,
+        mutation_tx,
+        inferred_types,
+        usage,
+    ))
 }
 
 /// Emit the actor-owned loop reduction/GC prelude (reduction counter bump,
