@@ -20,9 +20,7 @@ fn env_or_default(id: vox_secrets::SecretId, default_value: &str) -> String {
 
 pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> {
     match &model.provider_type {
-        ProviderType::OpenRouter => {
-            Ok(vox_config::inference::OPENROUTER_CHAT_COMPLETIONS_URL.to_string())
-        }
+        ProviderType::OpenRouter => Ok(vox_config::openrouter_chat_completions_url()),
         ProviderType::Groq => Ok(env_or_default(
             vox_secrets::SecretId::VoxGroqChatCompletionsUrl,
             GROQ_URL,

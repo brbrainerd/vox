@@ -153,7 +153,7 @@ impl FreeAiClient {
                 "stream": true,
             });
             let resp = http
-                .post(OPENROUTER_BASE)
+                .post(openrouter_base())
                 .header("Authorization", format!("Bearer {}", resolved_key))
                 .header("HTTP-Referer", "https://github.com/vox-foundation/vox")
                 .header("X-Title", "Vox Gamify")
@@ -269,7 +269,7 @@ impl FreeAiClient {
                 "max_tokens": 512,
             });
             match http
-                .post(OPENROUTER_BASE)
+                .post(openrouter_base())
                 .header("Authorization", format!("Bearer {}", resolved_key))
                 .header("HTTP-Referer", "https://github.com/vox-foundation/vox")
                 .header("X-Title", "Vox Gamify")

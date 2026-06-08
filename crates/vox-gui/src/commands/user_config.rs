@@ -115,8 +115,8 @@ const FIELDS: &[FieldSpec] = &[
     },
     FieldSpec {
         key: "data_dir",
-        label: "Data directory",
-        hint: "Where Vox stores working data",
+        label: "Training data dir",
+        hint: "Directory for MENS training data ([train].data_dir); does NOT relocate the app's runtime data",
         group: "General",
         kind: Kind::Path,
         options: &[],
@@ -350,16 +350,27 @@ fn validate(spec: &FieldSpec, value: &str) -> Result<String, String> {
             if v.is_empty() {
                 return Err(format!("{} must be a number", spec.label));
             }
-            v.parse::<f64>()
+            let f = v
+                .parse::<f64>()
                 .map_err(|_| format!("{} must be a number", spec.label))?;
+            if !f.is_finite() {
+                return Err(format!("{} must be a finite number", spec.label));
+            }
+            if f < 0.0 {
+                return Err(format!("{} must not be negative", spec.label));
+            }
             Ok(v.to_string())
         }
         Kind::Int => {
             if v.is_empty() {
                 return Err(format!("{} must be an integer", spec.label));
             }
-            v.parse::<i64>()
+            let i = v
+                .parse::<i64>()
                 .map_err(|_| format!("{} must be an integer", spec.label))?;
+            if i < 0 {
+                return Err(format!("{} must not be negative", spec.label));
+            }
             Ok(v.to_string())
         }
         Kind::Enum => {
@@ -391,7 +402,10 @@ pub fn set_user_config(key: String, value: String) -> Result<(), String> {
 
     match spec.tier {
         Tier::VoxConfig => {
-            let mut cfg = vox_config::VoxConfig::load();
+            // Use the persisted-global config as the save base, NOT `load()`: `save()`
+            // writes every field, so an env-folded base would bake transient overrides
+            // (VOX_BUDGET_USD / VOX_DATA_DIR / …) permanently into config.toml.
+            let mut cfg = vox_config::VoxConfig::load_persisted_global();
             apply_voxconfig_field(&mut cfg, &key, &stored)?;
             cfg.save().map_err(|e| e.to_string())?;
             // VoxConfig::save bypasses the flat cache — refresh it so any later flat
@@ -413,7 +427,8 @@ pub fn reset_user_config(key: String) -> Result<(), String> {
     let spec = spec_for(&key)?;
     match spec.tier {
         Tier::VoxConfig => {
-            let mut cfg = vox_config::VoxConfig::load();
+            // Persisted-global base (see `set_user_config`): avoid re-persisting env overrides.
+            let mut cfg = vox_config::VoxConfig::load_persisted_global();
             let default = vox_config::VoxConfig::default();
             let default_str = voxconfig_value(&default, &key);
             // For db_url the default is "no override"; clear it.
@@ -457,4 +472,41 @@ fn apply_voxconfig_field(
         _ => return Err(format!("not a VoxConfig field: {key}")),
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn float_spec() -> &'static FieldSpec {
+        spec_for("daily_budget_usd").expect("float field")
+    }
+
+    fn int_spec() -> &'static FieldSpec {
+        spec_for("train_epochs").expect("int field")
+    }
+
+    #[test]
+    fn float_rejects_nan_inf_and_negative() {
+        let spec = float_spec();
+        assert!(validate(spec, "nan").is_err());
+        assert!(validate(spec, "inf").is_err());
+        assert!(validate(spec, "-5").is_err());
+        // 1e999 overflows f64 to +inf and must be rejected as non-finite.
+        assert!(validate(spec, "1e999").is_err());
+    }
+
+    #[test]
+    fn float_accepts_valid_nonnegative() {
+        let spec = float_spec();
+        assert_eq!(validate(spec, " 2.5 ").as_deref(), Ok("2.5"));
+        assert_eq!(validate(spec, "0").as_deref(), Ok("0"));
+    }
+
+    #[test]
+    fn int_rejects_negative() {
+        let spec = int_spec();
+        assert!(validate(spec, "-3").is_err());
+        assert_eq!(validate(spec, "4").as_deref(), Ok("4"));
+    }
 }

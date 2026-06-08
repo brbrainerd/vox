@@ -258,20 +258,20 @@ fn orchestrator_table_to_settings_json(table: &toml::value::Table) -> serde_json
     // concurrency ← max_agents (default 8)
     let concurrency = table
         .get("max_agents")
-        .and_then(|v| v.as_integer())
+        .and_then(|v| v.as_integer().or_else(|| v.as_float().map(|f| f as i64)))
         .unwrap_or(8);
 
     // capUsd ← financial_cost_budget_micros / 1_000_000.0 (default 0.05)
     let cap_usd = table
         .get("financial_cost_budget_micros")
-        .and_then(|v| v.as_integer())
+        .and_then(|v| v.as_integer().or_else(|| v.as_float().map(|f| f as i64)))
         .map(|micros| micros as f64 / 1_000_000.0)
         .unwrap_or(0.05);
 
     // doubtThresh ← trust_auto_approve_min (default 0.85)
     let doubt_thresh = table
         .get("trust_auto_approve_min")
-        .and_then(|v| v.as_float())
+        .and_then(|v| v.as_float().or_else(|| v.as_integer().map(|i| i as f64)))
         .unwrap_or(0.85);
 
     // isolation ← scope_enforcement enum. The UI has no 'warn' tier, so Warn maps
@@ -429,6 +429,22 @@ socrates_gate_enforce = true
         assert_eq!(json["isolation"], "ctr");
         assert_eq!(json["autobudget"], false);
         assert_eq!(json["doubt"], true);
+    }
+
+    #[test]
+    fn numeric_type_mismatch_is_coerced_not_defaulted() {
+        // micros written as a TOML float, threshold written as a TOML integer:
+        // both must be read (coerced), not silently fall back to defaults.
+        let toml_src = r#"
+max_agents = 4.0
+financial_cost_budget_micros = 2500000.0
+trust_auto_approve_min = 1
+"#;
+        let table: toml::value::Table = toml::from_str(toml_src).unwrap();
+        let json = orchestrator_table_to_settings_json(&table);
+        assert_eq!(json["concurrency"], 4);
+        assert_eq!(json["capUsd"], 2.5);
+        assert_eq!(json["doubtThresh"], 1.0);
     }
 
     #[test]
