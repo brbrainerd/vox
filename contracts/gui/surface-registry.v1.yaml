@@ -71,6 +71,13 @@ surfaces:
   nav_icon: file
   nav_group: knowledge
   notes: scientia publication lifecycle board
+- view_key: review
+  cli_group: null
+  representation_tier: curated_decorator
+  nav_label: Review
+  nav_icon: doubt
+  nav_group: knowledge
+  notes: human-gated claim review + nanopub build (scientia publication-claim-review / publication-nanopub-build)
 - view_key: runs
   cli_group: null
   representation_tier: live_backend

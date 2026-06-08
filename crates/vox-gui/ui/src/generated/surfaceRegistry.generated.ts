@@ -19,6 +19,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: 'mesh', cliGroup: null, tier: 'live_backend', navLabel: 'Mesh', navIcon: 'link', navGroup: 'compute' },
   { viewKey: 'policies', cliGroup: null, tier: 'live_backend', navLabel: 'Policies', navIcon: 'scale', navGroup: 'operate' },
   { viewKey: 'publications', cliGroup: null, tier: 'curated_decorator', navLabel: 'Publications', navIcon: 'file', navGroup: 'knowledge' },
+  { viewKey: 'review', cliGroup: null, tier: 'curated_decorator', navLabel: 'Review', navIcon: 'doubt', navGroup: 'knowledge' },
   { viewKey: 'runs', cliGroup: null, tier: 'live_backend', navLabel: 'Runs', navIcon: 'clock', navGroup: 'operate' },
   { viewKey: 'search', cliGroup: null, tier: 'live_backend', navLabel: 'Search', navIcon: 'search', navGroup: 'knowledge' },
   { viewKey: null, cliGroup: 'add', tier: 'none', navLabel: null, navIcon: null, navGroup: null },
