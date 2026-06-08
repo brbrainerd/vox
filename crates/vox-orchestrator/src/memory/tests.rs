@@ -74,6 +74,23 @@ fn memory_manager_bootstrap_context() {
 }
 
 #[test]
+fn bootstrap_context_with_project_appends_vox_md() {
+    let dir = memory_workdir();
+    let mgr = MemoryManager::new(test_config(&dir)).expect("create");
+    // Separate workspace dir holding the project file.
+    let ws = memory_workdir();
+    std::fs::write(ws.path().join("VOX.md"), "Run tests with: cargo test\n").expect("write VOX.md");
+
+    let with = mgr.bootstrap_context_with_project(Some(ws.path()));
+    assert!(with.contains("Project Memory (VOX.md)"));
+    assert!(with.contains("Run tests with: cargo test"));
+
+    // Without a workspace root, no project block is added.
+    let without = mgr.bootstrap_context_with_project(None);
+    assert!(!without.contains("Project Memory (VOX.md)"));
+}
+
+#[test]
 fn memory_manager_search() {
     let dir = memory_workdir();
     let mut mgr = MemoryManager::new(test_config(&dir)).expect("create");

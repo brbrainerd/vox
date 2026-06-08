@@ -13,6 +13,7 @@ mod config;
 mod error;
 mod long_term;
 mod manager;
+mod project_file;
 mod search_hit;
 #[cfg(test)]
 mod tests;
@@ -23,4 +24,5 @@ pub use config::MemoryConfig;
 pub use error::MemoryError;
 pub use long_term::LongTermMemory;
 pub use manager::{MemoryFact, MemoryManager};
+pub use project_file::{MAX_IMPORT_DEPTH, load_project_context};
 pub use search_hit::SearchHit;
