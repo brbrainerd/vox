@@ -59,7 +59,11 @@ pub fn advisory_from_check_json(check_json: &str) -> Option<String> {
         return None;
     }
     let data = v.get("data")?;
-    if !data.get("has_errors").and_then(|b| b.as_bool()).unwrap_or(false) {
+    if !data
+        .get("has_errors")
+        .and_then(|b| b.as_bool())
+        .unwrap_or(false)
+    {
         return None;
     }
     let count = data.get("count").and_then(|c| c.as_u64()).unwrap_or(0);
@@ -218,5 +222,47 @@ mod tests {
         let out = attach_advisory("not json".to_string(), "ADV".to_string());
         assert!(out.contains("not json"));
         assert!(out.contains("ADV"));
+    }
+
+    /// End-to-end against the real compiler (`code_validator::vox_check` →
+    /// `vox_compiler::pipeline::check_file`): a syntactically-broken `.vox` write
+    /// gets an advisory attached; a clean `.vox` write is passed through untouched.
+    /// Writes uniquely-named probe files under the repo root (then removes them) since
+    /// path resolution rejects files outside the repository.
+    #[tokio::test]
+    async fn verify_and_attach_flags_broken_vox_and_passes_clean_vox() {
+        let state = crate::server_state::ServerState::new_test().await;
+        let root = state.repository.root.clone();
+        let ok_payload =
+            serde_json::json!({ "success": true, "data": { "written": true } }).to_string();
+
+        // --- broken file -> advisory attached ---
+        let bad_name = "__post_verify_probe_bad__.vox";
+        let bad_path = root.join(bad_name);
+        std::fs::write(&bad_path, "fn ( {").expect("write bad probe");
+        let bad_args = serde_json::json!({ "path": bad_name });
+        let bad_out =
+            verify_and_attach(&state, "vox_write_file", &bad_args, ok_payload.clone()).await;
+        let _ = std::fs::remove_file(&bad_path);
+        let bad_v: serde_json::Value =
+            serde_json::from_str(&bad_out).expect("broken-file output is still JSON");
+        assert_eq!(
+            bad_v["auto_verification_failed"],
+            serde_json::json!(true),
+            "broken .vox should attach a verification advisory; got: {bad_out}"
+        );
+
+        // --- clean file -> unchanged passthrough ---
+        let ok_name = "__post_verify_probe_ok__.vox";
+        let ok_path = root.join(ok_name);
+        std::fs::write(&ok_path, "let answer = 42\n").expect("write ok probe");
+        let ok_args = serde_json::json!({ "path": ok_name });
+        let ok_out =
+            verify_and_attach(&state, "vox_write_file", &ok_args, ok_payload.clone()).await;
+        let _ = std::fs::remove_file(&ok_path);
+        assert_eq!(
+            ok_out, ok_payload,
+            "clean .vox must pass the payload through untouched; got: {ok_out}"
+        );
     }
 }

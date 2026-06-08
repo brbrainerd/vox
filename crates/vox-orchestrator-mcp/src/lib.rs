@@ -34,8 +34,6 @@ pub mod compiler_tools;
 /// Codex schema digest + sample row tools for `.vox` modules.
 pub mod db_tools;
 pub mod dispatch;
-/// Automatic post-mutation `.vox` verification feedback (verification-driven agent loop).
-pub mod post_verification;
 /// Execution time tracking tools.
 pub mod exec_time_tools;
 /// Central `git` executor with banned-command denylist and `vox.vcs.exec` telemetry.
@@ -61,6 +59,8 @@ pub mod oratio_tools;
 pub mod persistence_tools;
 /// Local mens registry status (`vox_populi_local_status`).
 pub mod populi_tools;
+/// Automatic post-mutation `.vox` verification feedback (verification-driven agent loop).
+pub mod post_verification;
 /// `vox init` parity scaffold (`vox_project_init`).
 pub mod project_init_tools;
 /// Socrates questioning / clarification answer persistence (`VoxDb`).
