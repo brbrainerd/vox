@@ -453,15 +453,26 @@ where
     };
     let is_borrowing_get =
         |e: &HirExpr| matches!(e, HirExpr::MethodCall(_, m, _, _, _) if m == "get");
+    // Idempotent `.cloned()`: the get-side emit may ALREADY yield an owned
+    // `Option<T>` (the `Index` read form and the list-`get` method arm both append
+    // `.cloned()`), in which case a second `.cloned()` is an `Option<T>::cloned`
+    // type error (E0599). Only add it when the borrow hasn't already been cloned.
+    let cloned = |s: String| {
+        if s.trim_end().ends_with(".cloned()") {
+            s
+        } else {
+            format!("({s}).cloned()")
+        }
+    };
     if is_some_ctor(r) && is_borrowing_get(l) {
         Some((
-            format!("({}).cloned()", emit(l, OwnershipMode::Owned)),
+            cloned(emit(l, OwnershipMode::Owned)),
             emit(r, OwnershipMode::Owned),
         ))
     } else if is_some_ctor(l) && is_borrowing_get(r) {
         Some((
             emit(l, OwnershipMode::Owned),
-            format!("({}).cloned()", emit(r, OwnershipMode::Owned)),
+            cloned(emit(r, OwnershipMode::Owned)),
         ))
     } else {
         None
