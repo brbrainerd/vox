@@ -1,0 +1,55 @@
+# Semantic Test-Coverage Toolchain
+
+Deterministic + LLM tools that build a **searchable map of what the test suite actually
+proves** — overlaid on the graphify code graph. The point is the gap between three
+strengths of coverage:
+
+| Strength   | Meaning                                           | Source                    |
+|------------|---------------------------------------------------|---------------------------|
+| `reached`  | symbol's code executed during *some* test         | llvm-cov (`ingest_reaches`) |
+| `targeted` | a test references the symbol                       | `overlay_tests` (static)  |
+| `proven`   | a test **asserts** on the symbol's behavior        | `overlay_tests` + LLM behaviors |
+
+`reached − proven` is the keystone: code that runs in a test but proves nothing.
+
+## Pipeline
+
+1. **Build the base code graph (115 crates, deterministic)**
+   `python rebuild_full_graph.py . graphify-out/graph.full.json`
+
+2. **Phase 1 — static targeted/proven overlay (deterministic)**
+   `python overlay_tests.py --graph graphify-out/graph.full.json --repo-root . \
+       --out graphify-out/graph.coverage.json --report graphify-out/COVERAGE_MAP.md`
+
+3. **Phase 2 — LLM behavior extraction (per crate)**
+   Run the `phase2-extract-only` Workflow over a crate batch (args `[{crate,total}]`),
+   then synthesize **deterministically** from the run journal — never via an LLM synth
+   step (it fails on large crates and loses extraction):
+   `python recover_and_synth.py --journal <run>/journal.jsonl --out-dir graphify-out --skip-existing`
+   Produces `COVERAGE_BEHAVIORS_<crate>.md` + the `COVERAGE_BEHAVIORS_INDEX.md` overview.
+
+4. **Make it queryable**
+   `python merge_behaviors_to_graph.py --journals-list graphify-out/_our_journals.txt \
+       --graph graphify-out/graph.coverage.json --out graphify-out/graph.semantic.json`
+   Install as canonical (`cp graph.semantic.json <repo>/graphify-out/graph.json`) →
+   `graphify query "which behaviors are proven about X"`.
+
+5. **Phase 0 — reached layer from CI coverage**
+   CI (`.github/workflows/ci.yml`) already publishes the **`llvm-cov`** artifact, which
+   includes `target/llvm-cov-lcov.info` (per-function `FNDA` execution counts). Download
+   that artifact from a `main` CI run, then:
+   `python ingest_reaches.py --lcov target/llvm-cov-lcov.info --graph graphify-out/graph.json \
+       --out graphify-out/graph.json --report graphify-out/REACHED_VS_PROVEN.md`
+   `REACHED_VS_PROVEN.md` ranks crates by **reached-but-unproven** symbol count.
+
+   > Why not run Phase 0 in CI directly? The graph (~118 MB) is regenerated, not
+   > committed, so it isn't present in the CI checkout. Phase 0 is therefore a local/
+   > periodic step against the published lcov artifact. Local `cargo llvm-cov export` is
+   > blocked on Windows (the `-object` list overflows the command-line limit, `os error
+   > 206`); use the Linux CI artifact.
+
+## Outputs (regenerable; large graphs are gitignored)
+- `COVERAGE_MAP.md` — per-crate proven/targeted/unproven (Phase 1)
+- `COVERAGE_BEHAVIORS_*.md` + `_INDEX.md` — per-crate proven behaviors + ranked gaps (Phase 2)
+- `REACHED_VS_PROVEN.md` — reached-but-unproven keystone set (Phase 0)
+- `DUPLICATION_AND_WIRING.md`, `OS_COMPATIBILITY.md` — companion structural audits
