@@ -303,25 +303,31 @@ fn try_emit_self_mutation_assign(
     ))
 }
 
-/// In-place mutator method names whose Rust return is `()` (so the value-semantic
-/// value-block lowering must NOT be used in side-effect/statement position).
-const SELF_MUTATORS: &[&str] = &[
-    "push",
-    "pop",
-    "insert",
-    "remove",
-    "clear",
-    "extend",
-    "append",
-    "truncate",
-    "retain",
-    "sort",
-    "sort_by_key",
-    "sort_by",
-    "reverse",
-    "dedup",
-    "swap",
-];
+/// Vox list methods that may be lowered to a bare **in-place** Rust `Vec`
+/// mutation (`recv.method(args);`) in statement / self-reassign position.
+///
+/// Every Vox list method is *value-semantic* (the interpreter returns a NEW list;
+/// see `eval/builtins.rs` and the statement-position auto-reassign in
+/// `eval/stmt.rs`). A name may join this set ONLY when all three hold:
+///   1. it is a real Vox list method;
+///   2. Rust's `Vec` has a same-named method with an identical signature that
+///      returns `()` and mutates in place; and
+///   3. that in-place mutation is observationally identical to the interpreter's
+///      "compute the new list, write it back" for the reassign/discard form.
+///
+/// Only `push` and `reverse` satisfy all three. The earlier set was modeled on
+/// Rust's `Vec` API and was WRONG:
+///   - `sort_by_key`/`sort_by`/`retain` take a closure; Vox passes it BY VALUE
+///     while Rust's `Vec` adapters pass `&T`, so the bare in-place call emits
+///     uncompilable Rust (E0277/E0308). These are value-semantic in Vox and are
+///     lowered correctly by `method_emit::try_emit_list_hof` instead.
+///   - `remove(val)` takes a VALUE in Vox but an index in Rust (`Vec::remove`).
+///   - `pop` returns the popped element (not the list), so the reassign form
+///     `xs = xs.pop()` rebinds `xs` to the element — an in-place `xs.pop();` would
+///     diverge (the interpreter handles pop via `apply_pop_side_effect`).
+///   - `insert`/`clear`/`append`/`truncate`/`dedup`/`swap`/`sort` are not Vox list
+///     methods at all.
+const SELF_MUTATORS: &[&str] = &["push", "reverse"];
 
 /// Emit a bare in-place mutator call `recv.method(args);` (the binding is `mut`).
 #[allow(clippy::too_many_arguments)]

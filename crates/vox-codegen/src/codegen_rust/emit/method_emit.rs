@@ -657,11 +657,28 @@ where
             emit_expr(&args[0].value),
             emit_expr(&args[1].value)
         )),
-        "sorted_by_key" if args.len() == 1 && is_closure_arg(&args[0].value) => Some(format!(
-            "{{ let mut __v = ({}).clone(); __v.sort_by_key(|__e| ({})(__e.clone())); __v }}",
-            o,
-            emit_hof_predicate(emit_expr, &args[0].value)
-        )),
+        // `sorted_by_key`/`sort_by_key` are the SAME value-semantic Vox method
+        // (eval/expr.rs matches both spellings): sort by a key function, returning
+        // a NEW list. The imperative spelling is NOT an in-place mutation — it is
+        // deliberately routed here (and excluded from stmt_expr::SELF_MUTATORS) so
+        // `xs = xs.sort_by_key(f)` lowers to this clone-and-sort value block.
+        "sorted_by_key" | "sort_by_key" if args.len() == 1 && is_closure_arg(&args[0].value) => {
+            Some(format!(
+                "{{ let mut __v = ({}).clone(); __v.sort_by_key(|__e| ({})(__e.clone())); __v }}",
+                o,
+                emit_hof_predicate(emit_expr, &args[0].value)
+            ))
+        }
+        // `sorted_by`/`sort_by` sort by a comparator `fn(a, b) -> int` (<0 / 0 / >0).
+        // Map the Vox int result to `std::cmp::Ordering` via `.cmp(&0)`, mirroring
+        // the interpreter's `n > 0 => swap` ascending semantics (stable sort).
+        "sorted_by" | "sort_by" if args.len() == 1 && is_closure_arg(&args[0].value) => {
+            Some(format!(
+                "{{ let mut __v = ({}).clone(); __v.sort_by(|__a, __b| ({})(__a.clone(), __b.clone()).cmp(&0)); __v }}",
+                o,
+                emit_hof_predicate(emit_expr, &args[0].value)
+            ))
+        }
         // Vox `list.first()`/`.last()` return an owned `Option<T>`; Rust's
         // `Vec::first`/`last` return `Option<&T>`, so `.cloned()` aligns the type
         // with `Some(<owned>)` comparisons (matches the interpreter arm).
