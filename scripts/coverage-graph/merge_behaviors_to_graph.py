@@ -122,8 +122,18 @@ def main() -> int:
             })
             added_proves += 1
 
-    g["nodes"] = nodes + new_nodes
-    g["links"] = links + new_links
+    # Drop query-noise nodes: .json fixtures (tokenizer word-nodes) and .md README
+    # headings that graphify indexed as nodes. Keep all .rs/code/test/behavior nodes.
+    def is_noise(n):
+        sf = (n.get("source_file") or "").lower()
+        return n.get("_origin") != "behavior" and (sf.endswith(".json") or sf.endswith(".md"))
+
+    all_nodes = nodes + new_nodes
+    keep = {n["id"] for n in all_nodes if not is_noise(n)}
+    dropped = len(all_nodes) - len(keep)
+    g["nodes"] = [n for n in all_nodes if n["id"] in keep]
+    g["links"] = [l for l in (links + new_links) if l["source"] in keep and l["target"] in keep]
+    print(f"dropped {dropped} json/md noise nodes")
     Path(args.out).write_text(json.dumps(g), encoding="utf-8")
     print(f"claims={len(claims)} behavior_nodes+={added_nodes} about_edges+={added_about} proves(test->behavior)+={added_proves}")
     print(f"graph now {len(g['nodes'])} nodes, {len(g['links'])} links -> {args.out}")
