@@ -454,9 +454,21 @@ existing behavior altered):
   vox-db/orchestrator/search/populi/gamify/lsp/cli; `cargo test -p vox-langtool` → 10/10 pass. `run`
   honors `// vox:caps`; `lsp` excluded (pulls vox-db → deferred to Phase 4.1b). Cosmetic nit left:
   `build.rs` error-path uses `{:?}` for severity vs friendly format in `check.rs`.
-- ⏳ **Phase 4.1b (gate `vox-lsp`)** — required before `lsp` can join the minimal binary. Not started.
-- ⏳ **Release-workflow extensions** (linux-arm64, sign `checksums.txt`, SBOM) — additive; not started.
+- ✅ **Phase 4.1b (gate `vox-lsp`)** — `vox-db`/`vox-gamify` made optional behind a default-on `db`
+  feature; `main.rs`'s `cached_project_db`, the Ludus telemetry block, and the now-db-only
+  `Arc`/`OnceLock` imports + `err_n`/`warn_n` counts `#[cfg(feature = "db")]`-gated. **Verified both
+  lanes:** `cargo check -p vox-lsp` → exit 0 (db on); `--no-default-features` → exit 0 with
+  `cargo tree` showing **no vox-db/vox-gamify**. The lib (validation) path was always db-free, so
+  consumers are unaffected; `lsp` can now be embedded in a minimal toolchain.
+- 🟡 **Release-workflow extension (SBOM)** — added an SPDX SBOM step to `release-binaries.yml`'s
+  publish job, guarded with `continue-on-error: true` + `fail_on_unmatched_files: false` so it can
+  **never block a release**. ⚠️ **CI-unverified** (only runs on a real `v*` tag) — validate on the
+  next release. **linux-arm64** target intentionally NOT added (needs a cross-compile toolchain and,
+  since `publish` needs all `build` legs, a broken leg would block the whole release).
+  **GPG-signing `checksums.txt`** still blocked on a signing key (B3).
 - ⏸️ **Phases 1.2 / 2 / 3.3** — blocked on external decisions (signing key, updater keypair, voxup hosting).
+- ⏭️ **Optional follow-on:** add an `lsp` subcommand to `vox-langtool` (now unblocked by 4.1b) — needs
+  `vox-lsp` to expose its server loop as a lib fn (currently only in `main.rs`).
 
 > ⚠️ **Branch note:** these changes were authored intending branch
 > `cc_bdesktop2/install-release-hardening`, but concurrent activity in the repo switched the checkout

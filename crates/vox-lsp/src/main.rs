@@ -3,7 +3,10 @@
 //! Wraps lex/parse/typecheck using the same diagnostics path as the CLI.
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::Mutex;
+// Arc/OnceLock are only used by the db-gated Ludus project-DB cache below.
+#[cfg(feature = "db")]
+use std::sync::{Arc, OnceLock};
 use tower_lsp_server::jsonrpc::Result;
 use tower_lsp_server::ls_types::*;
 use tower_lsp_server::{Client, LanguageServer, LspService, Server};
@@ -12,8 +15,10 @@ use tracing::info;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
 
+#[cfg(feature = "db")]
 static LUDUS_PROJECT_DB: OnceLock<Mutex<Option<Arc<vox_db::VoxDb>>>> = OnceLock::new();
 
+#[cfg(feature = "db")]
 fn ludus_lsp_events_disabled() -> bool {
     matches!(
         std::env::var("VOX_LSP_LUDUS_EVENTS")
@@ -24,6 +29,7 @@ fn ludus_lsp_events_disabled() -> bool {
     )
 }
 
+#[cfg(feature = "db")]
 async fn cached_project_db() -> Option<Arc<vox_db::VoxDb>> {
     let cell = LUDUS_PROJECT_DB.get_or_init(|| Mutex::new(None));
     let need_open = cell.lock().ok()?.is_none();
@@ -255,10 +261,13 @@ impl Backend {
 
         let diagnostics = vox_lsp::validate_document_with_hir(&text);
 
+        // Diagnostic counts feed only the db-gated Ludus telemetry side channel.
+        #[cfg(feature = "db")]
         let err_n = diagnostics
             .iter()
             .filter(|d| d.severity == Some(DiagnosticSeverity::ERROR))
             .count();
+        #[cfg(feature = "db")]
         let warn_n = diagnostics
             .iter()
             .filter(|d| d.severity == Some(DiagnosticSeverity::WARNING))
@@ -268,6 +277,7 @@ impl Backend {
             .publish_diagnostics(uri.clone(), diagnostics, None)
             .await;
 
+        #[cfg(feature = "db")]
         if !ludus_lsp_events_disabled() {
             let uri_s = uri.as_str().to_owned();
             tokio::spawn(async move {
