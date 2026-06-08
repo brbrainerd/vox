@@ -1,0 +1,27 @@
+[package]
+name = "vox-langtool"
+description = "DB-free CLI for writing in the Vox language: check, fmt, run, build."
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "vox-langtool"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+vox-compiler = { workspace = true }
+vox-codegen = { workspace = true }
+# Direct path dep (not workspace-inherited) so we can opt OUT of the default-on
+# `db` feature: this keeps the binary free of vox-db/vox-gamify/vox-repository
+# without flipping the workspace-wide default or touching other consumers.
+vox-cli-core = { path = "../vox-cli-core", default-features = false }
+vox-foundation = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+miette = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

@@ -10,12 +10,12 @@
 #   docker build -t vox-ci-runner-local:latest -f infra/ci-runner/Dockerfile .
 #
 # Version SSOTs (keep aligned with the rest of the repo):
-#   - Rust 1.95.0   → root Dockerfile (`rust:1.95.0-slim-bookworm`)
+#   - Rust 1.96.0   → root Dockerfile (`rust:1.96.0-slim-bookworm`) / rust-toolchain.toml / contracts SSOT
 #   - Node 24       → docs-quality.yml `node-version: 24`
 #   - pnpm 9        → ci.yml `pnpm/action-setup@v6` version 9
 #   - Runner 2.334.0 → matches the deployed fleet (`Current runner version`)
 
-ARG RUST_VERSION=1.95.0
+ARG RUST_VERSION=1.96.0
 ARG RUNNER_VERSION=2.334.0
 
 FROM ubuntu:24.04
