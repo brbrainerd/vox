@@ -30,32 +30,38 @@ def crate_of(fp: str) -> str:
 
 
 def parse_lcov(path: str):
-    """Return {source_file -> {fn_name -> reached_bool}} from FN/FNDA records."""
-    reached = defaultdict(dict)
+    """Return ({file -> {fn_name -> reached}}, {file -> set(hit_lines)}).
+
+    FN/FNDA give per-function reach (needs demangled names); DA gives per-LINE hit
+    counts (no demangling needed). We use both: line-based matching by a symbol's
+    definition line is robust to Rust name mangling. `reached` ORs across records, so
+    concatenating chunked lcov exports yields the correct union.
+    """
+    by_fn = defaultdict(dict)
+    hit_lines = defaultdict(set)
     cur = None
     for line in Path(path).read_text(encoding="utf-8", errors="replace").splitlines():
         if line.startswith("SF:"):
             cur = line[3:].strip().replace("\\", "/")
-            # normalize to repo-relative crates/... path
             if "crates/" in cur:
                 cur = "crates/" + cur.split("crates/", 1)[1]
-        elif line.startswith("FNDA:") and cur:
+        elif not cur:
+            continue
+        elif line.startswith("DA:"):
+            try:
+                ln, cnt = line[3:].split(",")[:2]
+                if int(cnt) > 0:
+                    hit_lines[cur].add(int(ln))
+            except ValueError:
+                continue
+        elif line.startswith("FNDA:"):
             try:
                 count_s, name = line[5:].split(",", 1)
             except ValueError:
                 continue
-            # demangle-ish: keep last path segment of a rust fn name
             short = name.strip().split("::")[-1]
-            reached[cur][norm(short)] = reached[cur].get(norm(short), False) or (int(count_s) > 0)
-        elif line.startswith("FN:") and cur:
-            # FN:<line>,<name> — ensure key exists even if no FNDA (treated as not reached)
-            try:
-                _ln, name = line[3:].split(",", 1)
-            except ValueError:
-                continue
-            short = name.strip().split("::")[-1]
-            reached[cur].setdefault(norm(short), False)
-    return reached
+            by_fn[cur][norm(short)] = by_fn[cur].get(norm(short), False) or (int(count_s) > 0)
+    return by_fn, hit_lines
 
 
 def main() -> int:
@@ -66,7 +72,7 @@ def main() -> int:
     ap.add_argument("--report", default="graphify-out/REACHED_VS_PROVEN.md")
     args = ap.parse_args()
 
-    reached = parse_lcov(args.lcov)
+    by_fn, hit_lines = parse_lcov(args.lcov)
     g = json.loads(Path(args.graph).read_text(encoding="utf-8"))
 
     # symbols with an inbound `proves` edge = proven
@@ -80,7 +86,17 @@ def main() -> int:
             continue
         sf = (n.get("source_file") or "").replace("\\", "/")
         nm = norm(n.get("label", ""))
-        is_reached = reached.get(sf, {}).get(nm, None)
+        # line-based reach: symbol's definition line was executed
+        line_no = None
+        loc = (n.get("source_location") or "").lstrip("L")
+        if loc.isdigit():
+            line_no = int(loc)
+        is_reached = None
+        if sf in hit_lines or sf in by_fn:
+            fn_hit = by_fn.get(sf, {}).get(nm)
+            line_hit = (line_no in hit_lines.get(sf, set())) if line_no is not None else None
+            if fn_hit is not None or line_hit is not None:
+                is_reached = bool(fn_hit) or bool(line_hit)
         if is_reached is not None:
             n["reached"] = bool(is_reached)
             annotated += 1
