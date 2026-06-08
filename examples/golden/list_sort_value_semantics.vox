@@ -30,6 +30,16 @@ fn test_sort_by_key_reassign() to Unit {
     assert(xs is [8, 5, 2, 1])
 }
 
+// A bare statement `xs.sort_by_key(f)` (no assignment) auto-reassigns the result
+// back to xs, mirroring the interpreter's same-kind write-back for value-semantic
+// list methods called for their effect.
+@test
+fn test_sort_by_key_bare_statement_reassigns() to Unit {
+    let mut xs = [4, 2, 6, 1]
+    xs.sort_by_key(fn(x: int) to int { x })
+    assert(xs is [1, 2, 4, 6])
+}
+
 // `sort_by` sorts with a comparator fn(a, b) -> int (<0 / 0 / >0).
 @test
 fn test_sort_by_comparator() to Unit {
@@ -50,6 +60,7 @@ fn test_reverse_reassign() to Unit {
 fn main() to str {
     test_sort_by_key_is_value_semantic()
     test_sort_by_key_reassign()
+    test_sort_by_key_bare_statement_reassigns()
     test_sort_by_comparator()
     test_reverse_reassign()
     return "ok"

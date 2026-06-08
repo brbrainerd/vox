@@ -359,10 +359,28 @@ fn emit_inplace_mutation(
     format!("{pad}{recv}.{method}({});\n", arg_exprs.join(", "))
 }
 
-/// Intercept a bare statement-position mutator call (`result.push(0)` evaluated for
-/// its side effect) and emit the in-place mutation, NOT the value-semantic
-/// value-block (which would clone, mutate the copy, and discard it). Returns `None`
-/// for any non-mutator / non-ident-receiver expression.
+/// Value-semantic list methods that, called as a **bare statement on an identifier
+/// receiver**, the interpreter auto-reassigns back to that binding (eval/stmt.rs:
+/// "reassign if the result's runtime kind matches the receiver"). These are NOT
+/// in-place `Vec` mutators (the closure takes the element by value), so we cannot
+/// emit a bare `recv.method(args);`. Instead we lower the whole call to its
+/// value-block via `emit_method_call`/`try_emit_list_hof` and assign it back:
+/// `recv = { let mut __v = recv.clone(); __v.sort_by_key(..); __v };`.
+///
+/// Restricted to the sort family because (a) those are the value-semantic list
+/// methods a program writes as a bare statement expecting mutation, and (b) codegen
+/// has a verified value-block lowering for each. Other value-semantic list methods
+/// without a codegen lowering (e.g. `sorted`/`reversed` with no `Vec` analogue)
+/// would emit uncompilable Rust, so they are deliberately excluded.
+const VALUE_SEMANTIC_LIST_REASSIGN: &[&str] =
+    &["sorted_by_key", "sort_by_key", "sorted_by", "sort_by"];
+
+/// Intercept a bare statement-position method call on an identifier receiver and
+/// emit the interpreter-equivalent mutation, NOT the value-block-then-discard the
+/// generic path would produce (which leaves the binding unchanged):
+///   - in-place mutators (`push`/`reverse`) → bare `recv.method(args);`;
+///   - value-semantic sort methods → `recv = <value-block>;` (auto-reassign).
+/// Returns `None` for any other method / non-ident receiver.
 #[allow(clippy::too_many_arguments)]
 fn try_emit_stmt_mutation(
     expr: &HirExpr,
@@ -376,23 +394,37 @@ fn try_emit_stmt_mutation(
     let HirExpr::MethodCall(obj, method, args, ..) = expr else {
         return None;
     };
-    if !SELF_MUTATORS.contains(&method.as_str()) {
-        return None;
-    }
     let HirExpr::Ident(recv_name, _) = obj.as_ref() else {
         return None;
     };
-    Some(emit_inplace_mutation(
-        recv_name,
-        method,
-        args,
-        pad,
-        is_route,
-        is_actor,
-        mutation_tx,
-        inferred_types,
-        usage,
-    ))
+    if SELF_MUTATORS.contains(&method.as_str()) {
+        return Some(emit_inplace_mutation(
+            recv_name,
+            method,
+            args,
+            pad,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+        ));
+    }
+    if VALUE_SEMANTIC_LIST_REASSIGN.contains(&method.as_str()) {
+        // Lower the whole call to its value-block, then write it back to the
+        // binding — mirrors the interpreter's same-kind auto-reassign.
+        let rhs = emit_expr_with(
+            expr,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+            OwnershipMode::Owned,
+        );
+        return Some(format!("{pad}{recv_name} = {rhs};\n"));
+    }
+    None
 }
 
 /// Emit the actor-owned loop reduction/GC prelude (reduction counter bump,
