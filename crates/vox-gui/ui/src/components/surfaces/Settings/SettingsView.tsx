@@ -759,7 +759,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
     <>
       <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Runtime</h2>
       <p className="mt-0.5 text-[11px] text-zinc-500">
-        Core user config persisted to <code className="font-mono text-zinc-400">~/.vox/config.toml</code> (effective values: ENV &gt; Vox.toml &gt; global &gt; defaults)
+        Core user config persisted to your Vox user config (effective values: ENV &gt; Vox.toml &gt; global &gt; defaults)
       </p>
       {loading ? (
         <div className="mt-4 text-[12px] text-zinc-500">Loading…</div>
