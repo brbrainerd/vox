@@ -14324,6 +14324,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "turso",
+ "uuid",
  "vox-build-meta",
  "vox-cli",
  "vox-cli-core",
@@ -14333,12 +14334,15 @@ dependencies = [
  "vox-foundation",
  "vox-gamify",
  "vox-identity",
+ "vox-ml-cli",
  "vox-orchestrator",
  "vox-orchestrator-mcp",
  "vox-package-types",
+ "vox-plugin-host",
  "vox-repository",
  "vox-search",
  "vox-secrets",
+ "vox-speech",
 ]
 
 [[package]]
