@@ -43,3 +43,138 @@ fn non_push_method_is_unaffected() {
         "non-push methods must be untouched; got:\n{out}"
     );
 }
+
+// ── Value-semantic mutators ──────────────────────────────────────────────────
+
+#[test]
+fn reverse_emits_value_returning_block() {
+    let out = emit_first_fn("fn f(xs: List[str]) to List[str] { return xs.reverse() }");
+    assert!(
+        out.contains("__lst.reverse()") && out.contains("__lst }"),
+        "`xs.reverse()` must emit a value-returning block; got:\n{out}"
+    );
+}
+
+#[test]
+fn reversed_emits_same_as_reverse() {
+    let out = emit_first_fn("fn f(xs: List[str]) to List[str] { return xs.reversed() }");
+    assert!(
+        out.contains("__lst.reverse()") && out.contains("__lst }"),
+        "`xs.reversed()` must emit a value-returning block; got:\n{out}"
+    );
+}
+
+#[test]
+fn extend_emits_value_returning_block() {
+    let out =
+        emit_first_fn("fn f(xs: List[str], ys: List[str]) to List[str] { return xs.extend(ys) }");
+    assert!(
+        out.contains("__lst.extend(") && out.contains("__lst }"),
+        "`xs.extend(ys)` must emit a value-returning block; got:\n{out}"
+    );
+}
+
+#[test]
+fn remove_emits_value_returning_block() {
+    let out = emit_first_fn("fn f(xs: List[str], v: str) to List[str] { return xs.remove(v) }");
+    assert!(
+        out.contains("__lst.remove(") && out.contains("__lst }"),
+        "`xs.remove(v)` must emit a value-returning block; got:\n{out}"
+    );
+}
+
+#[test]
+fn remove_at_emits_value_returning_block() {
+    let out = emit_first_fn("fn f(xs: List[str], i: int) to List[str] { return xs.remove_at(i) }");
+    assert!(
+        out.contains("__lst.remove(") && out.contains("as usize") && out.contains("__lst }"),
+        "`xs.remove_at(i)` must emit a bounds-checked block with usize cast; got:\n{out}"
+    );
+}
+
+// ── Transformer / aggregate methods ─────────────────────────────────────────
+
+#[test]
+fn sum_emits_iter_sum() {
+    let out = emit_first_fn("fn f(nums: List[int]) to int { return nums.sum() }");
+    assert!(
+        out.contains(".sum()") || out.contains("iter()"),
+        "`nums.sum()` must emit an iter sum; got:\n{out}"
+    );
+}
+
+#[test]
+fn slice_list_emits_block() {
+    let out = emit_first_fn("fn f(xs: List[str]) to List[str] { return xs.slice_list(1, 3) }");
+    assert!(
+        out.contains("__lst")
+            && (out.contains("[..")
+                || out.contains("drain")
+                || out.contains("__start")
+                || out.contains("__end")),
+        "`xs.slice_list(s,e)` must emit a slicing block; got:\n{out}"
+    );
+}
+
+#[test]
+fn join_emits_join_call() {
+    let out = emit_first_fn("fn f(xs: List[str]) to str { return xs.join(\", \") }");
+    assert!(
+        out.contains(".join(") || out.contains("join"),
+        "`xs.join(sep)` must emit a join call; got:\n{out}"
+    );
+}
+
+#[test]
+fn index_emits_position_or_neg1() {
+    let out = emit_first_fn("fn f(xs: List[str], v: str) to int { return xs.index(v) }");
+    assert!(
+        out.contains("position") || out.contains("-1"),
+        "`xs.index(v)` must emit a position-search returning -1 on miss; got:\n{out}"
+    );
+}
+
+#[test]
+fn find_index_emits_same_as_index() {
+    let out = emit_first_fn("fn f(xs: List[str], v: str) to int { return xs.find_index(v) }");
+    assert!(
+        out.contains("position") || out.contains("-1"),
+        "`xs.find_index(v)` must emit a position-search returning -1 on miss; got:\n{out}"
+    );
+}
+
+#[test]
+fn count_list_emits_filter_count() {
+    let out = emit_first_fn("fn f(xs: List[str], v: str) to int { return xs.count(v) }");
+    assert!(
+        out.contains("filter") || out.contains("count"),
+        "`xs.count(v)` must emit a filter+count; got:\n{out}"
+    );
+}
+
+#[test]
+fn contains_list_emits_contains() {
+    let out = emit_first_fn("fn f(xs: List[str], v: str) to bool { return xs.contains(v) }");
+    assert!(
+        out.contains("contains"),
+        "`xs.contains(v)` must emit a contains call; got:\n{out}"
+    );
+}
+
+#[test]
+fn first_emits_cloned_option() {
+    let out = emit_first_fn("fn f(xs: List[str]) to Option[str] { return xs.first() }");
+    assert!(
+        out.contains("first()") && out.contains("cloned"),
+        "`xs.first()` must emit `.first().cloned()`; got:\n{out}"
+    );
+}
+
+#[test]
+fn last_emits_cloned_option() {
+    let out = emit_first_fn("fn f(xs: List[str]) to Option[str] { return xs.last() }");
+    assert!(
+        out.contains("last()") && out.contains("cloned"),
+        "`xs.last()` must emit `.last().cloned()`; got:\n{out}"
+    );
+}

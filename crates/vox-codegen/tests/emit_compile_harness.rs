@@ -25,6 +25,7 @@ use vox_codegen::codegen_rust::generate_script;
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse_script;
+use vox_compiler::typeck::typecheck_hir_module;
 
 /// Absolute path to the `vox-actor-runtime` crate the generated script depends on.
 fn runtime_path() -> PathBuf {
@@ -36,7 +37,10 @@ fn runtime_path() -> PathBuf {
 /// stderr.
 fn compile_vox_script(src: &str) -> Result<(), String> {
     let module = parse_script(lex(src)).map_err(|e| format!("parse failed: {e:?}"))?;
-    let hir = lower_module(&module);
+    let mut hir = lower_module(&module);
+    // Run typecheck so `inferred_types` is populated — required for list/str method
+    // disambiguation (e.g. `count`/`contains` shared between str and List receivers).
+    let _ = typecheck_hir_module(src, &mut hir);
     let output = generate_script(&hir, "vox-script", Some(&runtime_path()))
         .map_err(|e| format!("codegen failed: {e}"))?;
 
@@ -180,6 +184,48 @@ fn label(n: int) to str {
 }
 fn main() {
     print(label(42))
+}
+"#,
+    );
+}
+
+/// Exercises the new list-method surface added in this PR: every method that the
+/// codegen now handles must also compile under `--mode script` (codegen path).
+/// This is the compile-net counterpart to the fast `list_method_emit` tests.
+///
+/// Note: `sum` uses `iter().copied().sum()` which requires type inference; it is
+/// exercised on a `List[int]` (→ `Vec<i64>`) so Rust resolves it as `i64`.
+/// `sorted` / `zip` / `enumerate` / `flatten` are SKIPPED (see report).
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn list_methods_compile() {
+    assert_compiles(
+        r#"
+fn main() {
+    let xs: list[str] = ["c", "a", "b"]
+
+    let rev = xs.reverse()
+    let rev2 = xs.reversed()
+
+    let ys: list[str] = ["d", "e"]
+    let ext = xs.extend(ys)
+
+    let without_a = xs.remove("a")
+    let without_0 = xs.remove_at(0)
+
+    let sl = xs.slice_list(0, 2)
+    let sl2 = xs.slice_list(1)
+
+    let j = xs.join(", ")
+
+    let idx = xs.index("b")
+    let idx2 = xs.find_index("c")
+
+    let cnt = xs.count("a")
+
+    let has = xs.contains("b")
+
+    print(j)
 }
 "#,
     );
