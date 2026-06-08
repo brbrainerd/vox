@@ -1,6 +1,8 @@
 //! `emit_expr` helpers for `MethodCall` (db.*, tracing, oratio, etc.).
 
-use vox_compiler::hir::{HirDbPredicate, HirDbQueryPlan, HirDbTableOp, HirExpr};
+use std::collections::HashMap;
+use vox_compiler::ast::span::Span;
+use vox_compiler::hir::{HirDbPredicate, HirDbQueryPlan, HirDbTableOp, HirExpr, HirType};
 
 fn db_ref(fallible: bool) -> &'static str {
     if fallible { "&db" } else { "&*db" }
@@ -467,6 +469,27 @@ where
         .join(sep)
 }
 
+/// Returns `true` when the HIR expression's inferred type is a list (`Generic("list", _)`
+/// or `Generic("List", _)`).  Used to disambiguate method names shared between `str`
+/// and `List` (e.g. `count`, `contains`).
+fn obj_is_list(obj: &HirExpr, inferred_types: Option<&HashMap<Span, HirType>>) -> bool {
+    let Some(types) = inferred_types else {
+        return false;
+    };
+    let span = match obj {
+        HirExpr::Ident(_, s)
+        | HirExpr::FieldAccess(_, _, s)
+        | HirExpr::MethodCall(_, _, _, _, s)
+        | HirExpr::Call(_, _, _, s)
+        | HirExpr::Index(_, _, s) => *s,
+        _ => return false,
+    };
+    matches!(
+        types.get(&span),
+        Some(HirType::Generic(name, _)) if name.eq_ignore_ascii_case("list")
+    )
+}
+
 pub(super) fn emit_method_call<F>(
     emit_expr: &F,
     obj: &HirExpr,
@@ -474,6 +497,7 @@ pub(super) fn emit_method_call<F>(
     args: &[vox_compiler::hir::HirArg],
     plan: Option<&HirDbQueryPlan>,
     fallible_db: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
 ) -> String
 where
     F: Fn(&HirExpr) -> String,
@@ -515,11 +539,22 @@ where
     {
         return s;
     }
+    // For methods whose names are shared between str and List (e.g. `count`,
+    // `contains`, `join`), check the receiver's inferred type first so the
+    // correct lowering fires.
+    let recv_is_list = obj_is_list(obj, inferred_types);
+    if recv_is_list {
+        if let Some(s) = try_emit_list_method(method, &o, &arg_exprs) {
+            return s;
+        }
+    }
     if let Some(s) = try_emit_str_method(method, &o, &arg_exprs) {
         return s;
     }
-    if let Some(s) = try_emit_list_method(method, &o, &arg_exprs) {
-        return s;
+    if !recv_is_list {
+        if let Some(s) = try_emit_list_method(method, &o, &arg_exprs) {
+            return s;
+        }
     }
     let call = format!("{}.{}({})", o, method, arg_exprs.join(", "));
     if method == "send" {
@@ -620,10 +655,79 @@ where
 /// `remove`/etc.) have their own shapes and are added when a golden needs them.
 fn try_emit_list_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<String> {
     match method {
+        // ── Value-semantic mutators (bind owned, mutate, yield) ──────────────
         "push" if arg_exprs.len() == 1 => Some(format!(
             "({{ let mut __lst = {}; __lst.push({}); __lst }})",
             o, arg_exprs[0]
         )),
+        "reverse" | "reversed" => Some(format!(
+            "({{ let mut __lst = {}; __lst.reverse(); __lst }})",
+            o
+        )),
+        "extend" if arg_exprs.len() == 1 => Some(format!(
+            "({{ let mut __lst = {}; __lst.extend(({}).into_iter()); __lst }})",
+            o, arg_exprs[0]
+        )),
+        // remove(val): remove first occurrence; no-op if not found.
+        "remove" if arg_exprs.len() == 1 => Some(format!(
+            "({{ let mut __lst = {}; let __val = {}; if let Some(__pos) = __lst.iter().position(|x| x == &__val) {{ __lst.remove(__pos); }} __lst }})",
+            o, arg_exprs[0]
+        )),
+        // remove_at(i): bounds-checked remove at index i (Vox int → usize).
+        "remove_at" if arg_exprs.len() == 1 => Some(format!(
+            "({{ let mut __lst = {}; let __i = ({}) as usize; if __i < __lst.len() {{ __lst.remove(__i); }} __lst }})",
+            o, arg_exprs[0]
+        )),
+
+        // ── Slice ────────────────────────────────────────────────────────────
+        // slice_list(start, end?) → sub-list [start, end), bounds-clamped.
+        "slice_list" if arg_exprs.len() >= 1 => {
+            let start = &arg_exprs[0];
+            let end_expr = if arg_exprs.len() >= 2 {
+                format!("({} as usize).min(__lst.len())", arg_exprs[1])
+            } else {
+                "__lst.len()".to_string()
+            };
+            Some(format!(
+                "({{ let __lst = {}; let __start = ({} as usize).min(__lst.len()); let __end = ({}).min(__lst.len()); __lst[__start..__end].to_vec() }})",
+                o, start, end_expr
+            ))
+        }
+
+        // `sum` is intentionally NOT handled: `(<recv>).iter().copied().sum()` has
+        // no inferable target type in a bare `let total = xs.sum()` (E0283 — `Sum`
+        // is impl'd for both i64 and f64). A correct emission needs an explicit
+        // `.sum::<i64>()`/`.sum::<f64>()` annotation derived from the list element
+        // type via `inferred_types`; deferred until a golden needs it.
+
+        // index/find_index: first index of val, or -1.
+        "index" | "find_index" if arg_exprs.len() == 1 => Some(format!(
+            "({{ let __lst = {}; let __val = {}; __lst.iter().position(|x| x == &__val).map(|i| i as i64).unwrap_or(-1i64) }})",
+            o, arg_exprs[0]
+        )),
+
+        // count(val): number of occurrences of val.
+        "count" if arg_exprs.len() == 1 => Some(format!(
+            "({{ let __lst = {}; let __val = {}; __lst.iter().filter(|x| *x == &__val).count() as i64 }})",
+            o, arg_exprs[0]
+        )),
+
+        // join(sep): Display each element joined with sep.
+        "join" if arg_exprs.len() == 1 => Some(format!(
+            "({{ let __lst = {}; let __sepowned = {}; let __sep: &str = __sepowned.as_ref(); __lst.iter().map(|x| format!(\"{{}}\", x)).collect::<Vec<_>>().join(__sep) }})",
+            o, arg_exprs[0]
+        )),
+
+        // contains(val): bool.
+        "contains" if arg_exprs.len() == 1 => Some(format!(
+            "({{ let __lst = {}; let __val = {}; __lst.contains(&__val) }})",
+            o, arg_exprs[0]
+        )),
+
+        // first / last: owned Option<T> (Vec::first/last → Option<&T> → .cloned()).
+        "first" if arg_exprs.is_empty() => Some(format!("({}.first().cloned())", o)),
+        "last" if arg_exprs.is_empty() => Some(format!("({}.last().cloned())", o)),
+
         _ => None,
     }
 }
