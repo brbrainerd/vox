@@ -78,11 +78,26 @@ def main() -> int:
     # symbols with an inbound `proves` edge = proven
     proven_ids = {l["target"] for l in g["links"] if l.get("relation") == "proves"}
 
+    # Exclude TEST functions from the "code to be proven" universe: a code node is a
+    # test if it matches a Test overlay node or lives under a tests/ dir. (Counting test
+    # fns as reached-but-unproven is meaningless — we don't write tests for tests.)
+    test_keys = {((n.get("source_file") or ""), norm(n.get("label", "")))
+                 for n in g["nodes"] if n.get("_origin") == "test"}
+    STD_TYPES = {"Result", "Error", "Option", "Self", "Vec", "String", "Box", "Arc",
+                 "HashMap", "Ok", "Err", "Some", "None", "Default", "PathBuf", "Path"}
+
+    def is_testfn(n):
+        sf = n.get("source_file") or ""
+        return "/tests/" in sf or (sf, norm(n.get("label", ""))) in test_keys
+
     per_crate = defaultdict(lambda: {"code": 0, "reached": 0, "proven": 0, "reached_not_proven": 0})
     rnp_examples = defaultdict(list)
     annotated = 0
     for n in g["nodes"]:
         if n.get("file_type") != "code":
+            continue
+        # skip test functions and bare std-type reference nodes from the count
+        if is_testfn(n) or norm(n.get("label", "")) in STD_TYPES:
             continue
         sf = (n.get("source_file") or "").replace("\\", "/")
         nm = norm(n.get("label", ""))
