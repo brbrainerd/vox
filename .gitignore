@@ -242,3 +242,5 @@ graphify-out/graph.coverage.json
 graphify-out/graph.full.json
 graphify-out/graph.json
 graphify-out/*.log
+graphify-out/graph.semantic.json
+graphify-out/_our_journals.txt
