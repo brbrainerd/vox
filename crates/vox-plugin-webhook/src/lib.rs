@@ -35,7 +35,9 @@ use async_trait::async_trait;
 use tracing::{info, warn};
 use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 use vox_plugin_api::abi::{VoxPlugin, VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef};
-use vox_plugin_api::extensions::http_listener::{HttpListener, HttpListener_TO, HTTP_LISTENER_REVISION};
+use vox_plugin_api::extensions::http_listener::{
+    HTTP_LISTENER_REVISION, HttpListener, HttpListener_TO,
+};
 use vox_plugin_api::host::VoxHost_TO;
 use webhook::{
     WebhookEvent, WebhookEventSink, WebhookHandler,
