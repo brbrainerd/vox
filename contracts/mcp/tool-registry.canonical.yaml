@@ -144,7 +144,7 @@ tools:
   http_read_role_eligible: false
   tier: core
 - name: vox_browser_reload
-  description: Reload the current page for page_id.
+  description: Reload the current page_id.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
@@ -184,12 +184,12 @@ tools:
   http_read_role_eligible: false
   tier: core
 - name: vox_browser_list_pages
-  description: List open browser sessions with page_id, URL, and title.
+  description: List all currently open browser sessions with page_id, URL, and title.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
 - name: vox_browser_page_info
-  description: Return URL/title and can_go_back/can_go_forward for page_id.
+  description: Get URL/title and history navigation booleans for page_id.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
@@ -199,17 +199,17 @@ tools:
   http_read_role_eligible: false
   tier: core
 - name: vox_browser_screenshot_viewport
-  description: Capture viewport PNG and return base64.
+  description: Capture viewport-only PNG and return base64 for live UI streaming.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
 - name: vox_browser_scroll
-  description: Scroll viewport by dx/dy for page_id.
+  description: Scroll by dx/dy viewport deltas.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
 - name: vox_browser_press
-  description: Dispatch a key or key chord on page_id.
+  description: Press a key/chord on the active page.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
@@ -219,7 +219,17 @@ tools:
   http_read_role_eligible: false
   tier: core
 - name: vox_browser_set_viewport
-  description: Set viewport width and height for deterministic coordinate mapping.
+  description: Set viewport width/height for deterministic coordinate mapping.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_screencast_frame
+  description: Capture one CDP screencast frame and return image_base64 plus viewport dimensions.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_set_control_lock
+  description: Set or clear per-page control owner (human or agent) for shared CDP sessions.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
