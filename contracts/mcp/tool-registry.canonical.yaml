@@ -124,7 +124,7 @@ tools:
   http_read_role_eligible: false
   tier: core
 - name: vox_browser_click_xy
-  description: Click at viewport coordinates (x,y) for page_id.
+  description: Click at viewport coordinates (x,y) on an existing page_id session.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
