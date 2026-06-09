@@ -127,9 +127,6 @@ jobs:
           pnpm install --prefer-offline
           pnpm run build
 
-      - name: Tauri prerequisite tests
-        run: cargo test -p vox-gui --test gui_tauri_prereqs
-
       - name: Build vox CLI sidecar (release)
         run: cargo build -p vox-cli --release
 
@@ -137,6 +134,9 @@ jobs:
         shell: pwsh
         run: |
           Copy-Item target/release/vox.exe target/release/vox-x86_64-pc-windows-msvc.exe -Force
+
+      - name: Tauri prerequisite tests
+        run: cargo test -p vox-gui --test gui_tauri_prereqs
 
       - name: Build vox-gui (Tauri)
         run: cargo build -p vox-gui
