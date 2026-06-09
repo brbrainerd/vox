@@ -16,20 +16,33 @@ extension_points:
   - stop_capture
 - name: BrowserAutomation
   module: browser_automation
-  revision: 1
+  revision: 3
   accessor: as_browser_automation
   methods:
   - ax_tree
+  - back
   - click
+  - click_xy
   - close
   - fill
+  - forward
   - goto
   - html
+  - list_pages
   - open
+  - page_info
+  - press
+  - reload
   - revision
+  - screencast_frame
   - screenshot
   - screenshot_bytes
+  - screenshot_viewport_bytes
+  - scroll
+  - set_viewport
+  - stop
   - text
+  - type_text
   - visible_text_summary
   - wait_for
 - name: CloudSync
