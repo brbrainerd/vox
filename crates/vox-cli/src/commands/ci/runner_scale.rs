@@ -90,6 +90,7 @@ fn now_secs() -> i64 {
 /// blank console window on the desktop. No-op on non-Windows.
 fn quiet_command(program: &str) -> Command {
     // vox-arch-check: allow git-exec
+    #[allow(unused_mut)] // Windows-only mutation via creation_flags
     let mut cmd = Command::new(program);
     #[cfg(windows)]
     {
