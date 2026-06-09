@@ -1,7 +1,7 @@
 ---
 title: "Vox GUI Browser Support (2026)"
 description: "Architecture for embedded app preview, agent CDP live view, and Playwright validation in the vox-gui operator surface."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Documents how browser preview and automation integrate with vox-gui, orchestrator MCP, and existing chromiumoxide CDP stack."

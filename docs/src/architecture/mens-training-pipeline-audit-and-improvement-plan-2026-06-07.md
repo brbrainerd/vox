@@ -1,7 +1,8 @@
 ---
 title: "MENS training pipeline — audit + improvement scoping (2026-06-07)"
 description: "Read-only audit of the MENS QLoRA trainer: checkpoint/resume reality, the crash-at-checkpoint diagnosis, a ranked single-GPU VRAM/throughput backlog, and the verdict on mesh/Populi LAN-distributed training — with scoped plans for auto-recovery, a VRAM bundle, and federated-LoRA-over-LAN."
-category: architecture
+category: "Architecture SSOTs"
+status: "research"
 ---
 
 # MENS training pipeline — audit + improvement scoping (2026-06-07)

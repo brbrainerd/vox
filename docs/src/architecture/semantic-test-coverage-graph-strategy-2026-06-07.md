@@ -2,7 +2,7 @@
 title: "Semantic Test-Coverage Graph Strategy"
 description: "Strategy for a searchable, regenerable map of what concepts are proven vs unproven by the test suite — overlaid on the graphify code graph. Distinguishes reached/targeted/proven coverage from line coverage."
 category: "Architecture SSOTs"
-status: "proposed"
+status: "roadmap"
 training_eligible: false
 ---
 
