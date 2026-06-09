@@ -8,6 +8,13 @@ surfaces:
   nav_icon: shield
   nav_group: operate
   notes: null
+- view_key: browser
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Browser
+  nav_icon: globe
+  nav_group: develop
+  notes: embedded app preview + agent CDP live view
 - view_key: claims
   cli_group: null
   representation_tier: curated_decorator

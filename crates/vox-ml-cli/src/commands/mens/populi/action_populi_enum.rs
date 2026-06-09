@@ -166,6 +166,12 @@ pub enum PopuliAction {
         /// Ignore existing resume state and force a fresh run from step 0.
         #[arg(long)]
         force_restart: bool,
+        /// Activation/gradient checkpointing: recompute each layer-segment's forward during
+        /// backward so only ~1 segment's activations are retained, bounding the single-backward
+        /// VRAM peak. Trades ~1 extra forward for a much lower peak — required for 3B QLoRA on
+        /// a 16GB GPU. Default off (1.5B fits without it). Segment count via `VOX_MENS_GC_SEGMENTS`.
+        #[arg(long, default_value_t = false)]
+        gradient_checkpointing: bool,
         /// Disable automatic rebuild/reinstall of the `mens-candle-cuda` plugin when it is
         /// missing, stale, or ABI-mismatched. By default `--device cuda` self-heals the plugin
         /// before training (also disableable via `VOX_MENS_NO_AUTO_HEAL=1`).

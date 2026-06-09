@@ -14309,6 +14309,7 @@ dependencies = [
 name = "vox-gui"
 version = "0.6.0"
 dependencies = [
+ "base64 0.22.1",
  "rmp-serde",
  "serde",
  "serde_bytes",

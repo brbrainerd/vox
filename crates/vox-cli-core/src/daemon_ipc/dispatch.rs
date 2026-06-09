@@ -10,6 +10,32 @@ use tokio::process::Command;
 /// Leading text for daemon spawn failures from [`call_daemon`] and [`call_daemon_streaming`].
 pub const DAEMON_SPAWN_FAILED_PREFIX: &str = "Failed to spawn daemon";
 
+/// Socket mode for one-shot stdio dispatch spawns (see `vox-orchestrator-d` main).
+const ORCHESTRATOR_STDIO_SOCKET: &str = "stdio";
+
+/// `vox-orchestrator-d` requires `VOX_ORCHESTRATOR_DAEMON_SOCKET` even for stdio RPC.
+fn stdio_socket_env_for_daemon(daemon: &str) -> Option<&'static str> {
+    if daemon == "vox-orchestrator-d" {
+        Some(ORCHESTRATOR_STDIO_SOCKET)
+    } else {
+        None
+    }
+}
+
+fn configure_stdio_daemon_command(
+    daemon: &str,
+    daemon_path: &std::path::Path,
+) -> Command {
+    let mut cmd = Command::new(daemon_path);
+    cmd.stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit());
+    if let Some(socket) = stdio_socket_env_for_daemon(daemon) {
+        cmd.env("VOX_ORCHESTRATOR_DAEMON_SOCKET", socket);
+    }
+    cmd
+}
+
 pub async fn call_daemon(
     daemon: &str,
     method: &str,
@@ -18,10 +44,7 @@ pub async fn call_daemon(
 ) -> anyhow::Result<serde_json::Value> {
     let daemon_path = resolve_managed_binary_path(daemon);
 
-    let mut child = Command::new(&daemon_path)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
+    let mut child = configure_stdio_daemon_command(daemon, &daemon_path)
         .spawn()
         .map_err(|e| {
             anyhow::anyhow!(
@@ -124,10 +147,7 @@ pub async fn call_daemon_streaming(
 ) -> anyhow::Result<()> {
     let daemon_path = resolve_managed_binary_path(daemon);
 
-    let mut child = Command::new(&daemon_path)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
+    let mut child = configure_stdio_daemon_command(daemon, &daemon_path)
         .spawn()
         .map_err(|e| {
             anyhow::anyhow!(
@@ -229,10 +249,7 @@ pub async fn subscribe_daemon(
 ) -> anyhow::Result<()> {
     let daemon_path = resolve_managed_binary_path(daemon);
 
-    let mut child = Command::new(&daemon_path)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
+    let mut child = configure_stdio_daemon_command(daemon, &daemon_path)
         .spawn()
         .map_err(|e| {
             anyhow::anyhow!(
@@ -286,6 +303,20 @@ pub async fn subscribe_daemon(
     }
     let _ = child.wait().await;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn orchestrator_stdio_spawn_sets_socket_env() {
+        assert_eq!(
+            stdio_socket_env_for_daemon("vox-orchestrator-d"),
+            Some(ORCHESTRATOR_STDIO_SOCKET)
+        );
+        assert_eq!(stdio_socket_env_for_daemon("vox-compilerd"), None);
+    }
 }
 
 async fn emit_unstructured_daemon_line(line: &str, auto_open: bool, app_launched_banner: bool) {

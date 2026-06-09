@@ -47,7 +47,7 @@ const SYSTEM_GROUP = 'system';
 // registered surface still shows up (drift-safe) without editing this file.
 const SECTION_ORDER: Record<string, string[]> = {
   operate: ['dashboard', 'flow', 'approvals', 'runs', 'matrix'],
-  develop: ['harness', 'catalog', 'repository', 'skills'],
+  develop: ['browser', 'harness', 'catalog', 'repository', 'skills'],
   knowledge: ['search', 'memory', 'research', 'scientia', 'claims', 'publications'],
   compute: ['models', 'mens', 'populi', 'oratio', 'mesh'],
   system: ['coverage', 'gamify', 'settings'],

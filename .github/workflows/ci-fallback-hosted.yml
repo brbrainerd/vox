@@ -93,3 +93,57 @@ jobs:
 
       - name: cargo-audit
         run: cargo audit
+
+  # Portable Windows lane: proves the Tauri shell compiles and the binary starts
+  # (headless `--print-action-manifest-json`). Catches manifest/sidecar/icon drift
+  # that Linux CI excludes when `vox-gui` is omitted from nextest/clippy.
+  gui-windows-build-smoke:
+    name: GUI Windows build smoke
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: crates/vox-gui/ui/pnpm-lock.yaml
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: GUI frontend build (pnpm)
+        run: |
+          cd crates/vox-gui/ui
+          pnpm install --prefer-offline
+          pnpm run build
+
+      - name: Tauri prerequisite tests
+        run: cargo test -p vox-gui --test gui_tauri_prereqs
+
+      - name: Build vox CLI sidecar (release)
+        run: cargo build -p vox-cli --release
+
+      - name: Stage Tauri external sidecar
+        shell: pwsh
+        run: |
+          Copy-Item target/release/vox.exe target/release/vox-x86_64-pc-windows-msvc.exe -Force
+
+      - name: Build vox-gui (Tauri)
+        run: cargo build -p vox-gui
+
+      - name: Headless binary smoke (action manifest)
+        shell: pwsh
+        run: |
+          $out = & target/debug/vox-gui.exe --print-action-manifest-json
+          if (-not $out) { throw 'empty action manifest' }
+          if ($out -notmatch '"actions"') { throw 'action manifest JSON missing actions key' }

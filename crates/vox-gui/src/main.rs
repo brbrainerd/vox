@@ -51,6 +51,7 @@ async fn main() {
         .manage(std::sync::Arc::new(
             commands::daemon::PersistentDaemon::default(),
         ))
+        .manage(std::sync::Arc::new(commands::browser::BrowserState::default()))
         .setup(|app| {
             // Single persistent orchestrator daemon shared by tool calls,
             // approvals, and the status/event streams.
@@ -70,6 +71,24 @@ async fn main() {
             // F2: start the live Scientia-queue watcher, emitting a
             // "vox://scientia-queue" ping when the DB-backed queue changes.
             commands::scientia::spawn_scientia_queue_stream(app.handle().clone());
+            let daemon = app
+                .state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
+                .inner()
+                .clone();
+            let browser_state = app
+                .state::<std::sync::Arc<commands::browser::BrowserState>>()
+                .inner()
+                .clone();
+            commands::browser::spawn_browser_frame_stream(
+                app.handle().clone(),
+                daemon,
+                browser_state,
+            );
+            let browser_state = app
+                .state::<std::sync::Arc<commands::browser::BrowserState>>()
+                .inner()
+                .clone();
+            commands::browser::emit_preview_available_from_env(app.handle().clone(), browser_state);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -128,6 +147,25 @@ async fn main() {
             commands::search::open_locator,
             commands::vcs_isolation::get_vcs_isolation,
             commands::vcs_isolation::set_vcs_isolation_strategy,
+            commands::browser::preview_status,
+            commands::browser::preview_start,
+            commands::browser::preview_stop,
+            commands::browser::browser_open_session,
+            commands::browser::browser_close_session,
+            commands::browser::browser_close_page,
+            commands::browser::browser_list_pages,
+            commands::browser::browser_attach_session,
+            commands::browser::browser_page_info,
+            commands::browser::browser_navigate,
+            commands::browser::browser_goto_url,
+            commands::browser::browser_scroll,
+            commands::browser::browser_click_xy,
+            commands::browser::browser_type_text,
+            commands::browser::browser_input_key,
+            commands::browser::browser_set_control_mode,
+            commands::browser::browser_screenshot_frame,
+            commands::browser::browser_session_status,
+            commands::browser::browser_validate_playwright,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

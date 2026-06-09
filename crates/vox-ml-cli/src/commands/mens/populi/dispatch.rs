@@ -171,6 +171,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             qlora_ce_last_k,
             checkpoint_every,
             force_restart,
+            gradient_checkpointing,
             no_auto_heal,
             require_gpu,
             allow_cpu_fallback,
@@ -202,6 +203,15 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 // SAFETY: single-threaded CLI startup, before any training threads spawn.
                 unsafe {
                     std::env::set_var("VOX_MENS_NO_AUTO_HEAL", "1");
+                }
+            }
+            // Activation/gradient checkpointing flag → env var (read at config build
+            // in schola::train::gpu), same pattern as `--no-auto-heal` above to avoid
+            // threading another bool through the ~60-arg train dispatch chain.
+            if gradient_checkpointing {
+                // SAFETY: single-threaded CLI startup, before any training threads spawn.
+                unsafe {
+                    std::env::set_var("VOX_MENS_GRADIENT_CHECKPOINTING", "1");
                 }
             }
             super::train_arm::run_train(

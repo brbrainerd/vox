@@ -7,7 +7,7 @@
 
 use abi_stable::{sabi_trait, std_types::*};
 
-pub const BROWSER_AUTOMATION_REVISION: u32 = 1;
+pub const BROWSER_AUTOMATION_REVISION: u32 = 3;
 
 #[sabi_trait]
 pub trait BrowserAutomation: Send + Sync {
@@ -19,14 +19,81 @@ pub trait BrowserAutomation: Send + Sync {
     /// Returns an opaque `page_id` token.
     fn open(&self, url: RStr<'_>, headless: bool) -> RResult<RString, RBoxError>;
 
+    /// Return JSON array of known pages:
+    /// `[{ "page_id": "...", "url": "...", "title": "..." }]`.
+    fn list_pages(&self) -> RResult<RString, RBoxError> {
+        RResult::RErr(RBoxError::new(std::io::Error::other("unsupported")))
+    }
+
+    /// Return JSON page metadata:
+    /// `{ "page_id": "...", "url": "...", "title": "...", "can_go_back": bool, "can_go_forward": bool }`.
+    fn page_info(&self, page_id: RStr<'_>) -> RResult<RString, RBoxError> {
+        let _ = page_id;
+        RResult::RErr(RBoxError::new(std::io::Error::other("unsupported")))
+    }
+
     /// Navigate an existing tab to a new URL.
     fn goto(&self, page_id: RStr<'_>, url: RStr<'_>) -> RResult<(), RBoxError>;
+
+    /// Navigate backward in page history.
+    fn back(&self, page_id: RStr<'_>) -> RResult<(), RBoxError> {
+        let _ = page_id;
+        RResult::RErr(RBoxError::new(std::io::Error::other("unsupported")))
+    }
+
+    /// Navigate forward in page history.
+    fn forward(&self, page_id: RStr<'_>) -> RResult<(), RBoxError> {
+        let _ = page_id;
+        RResult::RErr(RBoxError::new(std::io::Error::other("unsupported")))
+    }
+
+    /// Reload the current page.
+    fn reload(&self, page_id: RStr<'_>) -> RResult<(), RBoxError> {
+        let _ = page_id;
+        RResult::RErr(RBoxError::new(std::io::Error::other("unsupported")))
+    }
+
+    /// Stop pending navigation/load.
+    fn stop(&self, page_id: RStr<'_>) -> RResult<(), RBoxError> {
+        let _ = page_id;
+        RResult::RErr(RBoxError::new(std::io::Error::other("unsupported")))
+    }
 
     /// Click the element identified by `target` (CSS selector or `xpath:...`).
     fn click(&self, page_id: RStr<'_>, target: RStr<'_>) -> RResult<(), RBoxError>;
 
+    /// Click at viewport coordinates.
+    fn click_xy(&self, page_id: RStr<'_>, x: f64, y: f64) -> RResult<(), RBoxError> {
+        let _ = (page_id, x, y);
+        RResult::RErr(RBoxError::new(std::io::Error::other("unsupported")))
+    }
+
     /// Fill a form field identified by `target` with `value`.
     fn fill(&self, page_id: RStr<'_>, target: RStr<'_>, value: RStr<'_>) -> RResult<(), RBoxError>;
+
+    /// Scroll the current page by viewport deltas.
+    fn scroll(&self, page_id: RStr<'_>, dx: i64, dy: i64) -> RResult<(), RBoxError> {
+        let _ = (page_id, dx, dy);
+        RResult::RErr(RBoxError::new(std::io::Error::other("unsupported")))
+    }
+
+    /// Type text into the focused element.
+    fn type_text(&self, page_id: RStr<'_>, text: RStr<'_>) -> RResult<(), RBoxError> {
+        let _ = (page_id, text);
+        RResult::RErr(RBoxError::new(std::io::Error::other("unsupported")))
+    }
+
+    /// Press a key or key chord (e.g. Enter, ArrowDown, Ctrl+L).
+    fn press(&self, page_id: RStr<'_>, key: RStr<'_>) -> RResult<(), RBoxError> {
+        let _ = (page_id, key);
+        RResult::RErr(RBoxError::new(std::io::Error::other("unsupported")))
+    }
+
+    /// Force browser viewport metrics for deterministic coordinate mapping.
+    fn set_viewport(&self, page_id: RStr<'_>, width: u32, height: u32) -> RResult<(), RBoxError> {
+        let _ = (page_id, width, height);
+        RResult::RErr(RBoxError::new(std::io::Error::other("unsupported")))
+    }
 
     /// Block until `target` appears in the DOM or `timeout_secs` elapses.
     fn wait_for(
@@ -44,6 +111,19 @@ pub trait BrowserAutomation: Send + Sync {
 
     /// Take a PNG screenshot of the full page. Returns raw PNG bytes.
     fn screenshot_bytes(&self, page_id: RStr<'_>) -> RResult<RVec<u8>, RBoxError>;
+
+    /// Take a PNG screenshot of the viewport only (not full page). Returns raw bytes.
+    fn screenshot_viewport_bytes(&self, page_id: RStr<'_>) -> RResult<RVec<u8>, RBoxError> {
+        let _ = page_id;
+        RResult::RErr(RBoxError::new(std::io::Error::other("unsupported")))
+    }
+
+    /// Capture one screencast frame as JSON:
+    /// `{ "image_base64": "...", "viewport_width": 1280, "viewport_height": 800 }`.
+    fn screencast_frame(&self, page_id: RStr<'_>) -> RResult<RString, RBoxError> {
+        let _ = page_id;
+        RResult::RErr(RBoxError::new(std::io::Error::other("unsupported")))
+    }
 
     /// Take a PNG screenshot and save it to `path`. Returns the resolved path.
     fn screenshot(&self, page_id: RStr<'_>, path: RStr<'_>) -> RResult<RString, RBoxError>;

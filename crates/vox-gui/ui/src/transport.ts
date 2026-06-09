@@ -68,6 +68,55 @@ export function listenScientiaQueue(
   return listen<ScientiaQueuePing>(SCIENTIA_QUEUE_EVENT, (event) => onChange(event.payload));
 }
 
+/** Tauri event name carrying browser live-view PNG frames (CDP mirror). */
+export const BROWSER_FRAME_EVENT = 'vox://browser-frame';
+export const PREVIEW_AVAILABLE_EVENT = 'vox://preview-available';
+
+export interface BrowserFramePayload {
+  timestamp_ms: number;
+  page_id: string | null;
+  image_base64: string | null;
+  viewport_width: number | null;
+  viewport_height: number | null;
+  action_log: string[];
+  error: string | null;
+}
+
+export interface BrowserPageSummary {
+  page_id: string;
+  url: string;
+  title: string;
+}
+
+export interface BrowserPageInfo {
+  page_id: string;
+  url: string;
+  title: string;
+  can_go_back: boolean;
+  can_go_forward: boolean;
+}
+
+export interface PreviewAvailablePayload {
+  url: string;
+  app_dir: string | null;
+  source: string;
+}
+
+/**
+ * Subscribe to pushed browser frame snapshots (~3s when a session is active).
+ */
+export function listenBrowserFrames(
+  onFrame: (frame: BrowserFramePayload) => void,
+): Promise<UnlistenFn> {
+  return listen<BrowserFramePayload>(BROWSER_FRAME_EVENT, (event) => onFrame(event.payload));
+}
+
+export function listenPreviewAvailable(
+  onPreview: (payload: PreviewAvailablePayload) => void,
+): Promise<UnlistenFn> {
+  return listen<PreviewAvailablePayload>(PREVIEW_AVAILABLE_EVENT, (event) => onPreview(event.payload));
+}
+
 export interface ExecuteOutput {
   exit_code: number;
   stdout: string;

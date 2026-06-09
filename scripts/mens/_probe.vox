@@ -1,0 +1,17 @@
+// vox:caps fs
+fn use_str(s: str) -> int {
+    print("got: " + s)
+    return 0
+}
+fn main() {
+    let xs = ["a", "b", "c"]
+    let ns = [10, 20, 30]
+    let mut i = 0
+    while i < xs.len() {
+        let v = xs.get(i).unwrap() + ""
+        let n = ns.get(i).unwrap() + 0
+        let r = use_str(v)
+        print("n=" + str(n))
+        i = i + 1
+    }
+}

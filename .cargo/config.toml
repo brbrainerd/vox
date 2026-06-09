@@ -31,3 +31,7 @@ rustflags = ["-C", "link-arg=/DEBUG:NONE", "-C", "link-arg=/STACK:8388608"]
 # cache). That disk cost is reclaimed by a periodic sweep, not by sharing — see
 # docs/superpowers/specs/2026-06-05-target-artifact-gc-design.md.
 CARGO_TARGET_DIR = { value = "target", relative = true }
+# Tauri workspace: embed the Windows common-controls v6 manifest on bin targets.
+# Without this, `vox-gui.exe` fails at startup with STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139).
+# See https://github.com/tauri-apps/tauri/issues/13948
+__TAURI_WORKSPACE__ = "true"

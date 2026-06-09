@@ -22,6 +22,7 @@ import { RepositoryView } from './components/surfaces/Repository/RepositoryView'
 import { MeshView } from './components/surfaces/Mesh/MeshView';
 import { GamifyView } from './components/surfaces/Gamify/GamifyView';
 import { HarnessView } from './components/surfaces/Harness/HarnessView';
+import { BrowserView } from './components/surfaces/Browser/BrowserView';
 import { surfaceDecorators } from './components/surfaces/decoratorRegistry';
 import { ApprovalsView } from './components/surfaces/Approvals/ApprovalsView';
 import { SkillsPluginsView } from './components/surfaces/SkillsPlugins/SkillsPluginsView';
@@ -44,6 +45,7 @@ type View =
   | 'mesh'
   | 'gamify'
   | 'harness'
+  | 'browser'
   | 'scientia'
   | 'claims'
   | 'mens'
@@ -231,7 +233,7 @@ export default function App() {
       .catch(() => setAppVersion('unknown'));
 
     invoke('get_initial_view').then((view: any) => {
-      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'scientia', 'claims', 'mens', 'populi', 'research', 'oratio', 'approvals', 'skills', 'settings', 'coverage', 'publications', 'search'] as string[]).includes(view)) {
+      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'browser', 'scientia', 'claims', 'mens', 'populi', 'research', 'oratio', 'approvals', 'skills', 'settings', 'coverage', 'publications', 'search'] as string[]).includes(view)) {
         setActiveView(view as View);
       }
     }).catch(() => {});
@@ -584,6 +586,8 @@ export default function App() {
         return <GamifyView pushToast={pushToast} />;
       case 'harness':
         return <HarnessView pushToast={pushToast} />;
+      case 'browser':
+        return <BrowserView pushToast={pushToast} />;
       case 'approvals':
         return <ApprovalsView pushToast={pushToast} />;
       case 'skills':

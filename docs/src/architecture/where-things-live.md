@@ -184,6 +184,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | `vox ci docs-reality-audit` (doc/code audit artifacts + metrics) | `crates/vox-cli/src/commands/ci/docs_reality_audit.rs` + `contracts/reports/docs-reality-audit/` |
 | `vox ci parse-status` (golden parse matrix → `examples/PARSE_STATUS.md`) | `crates/vox-cli/src/commands/ci/parse_status.rs` |
 | Find the canonical path for GUI surfaces (interop app, experimental visualizer, fixtures, VS Code host) | [`contracts/frontend/surface-ownership.v1.yaml`](../../../contracts/frontend/surface-ownership.v1.yaml) — `apps/interop/marquee_app`, `apps/experimental/visualizer`, `tests/fixtures/frontend/test_app_bundle`, `apps/editor/vox-vscode` |
+| GUI browser preview + agent CDP live view | `crates/vox-gui/ui/src/components/surfaces/Browser/` + `crates/vox-gui/src/commands/browser.rs` — narrative [`vox-gui-browser-support-2026.md`](./vox-gui-browser-support-2026.md) |
 | Add a `Db<Entity>Id` newtype | `crates/vox-db-types/src/ids.rs` (use the `string_id!` macro). |
 | Add a DB store operation | `crates/vox-db/src/<concept>.rs` (impl block on `VoxDb`) |
 | Add a pure-data DB row type | `crates/vox-db-types/src/store_types/` (NOT `vox-db`) |

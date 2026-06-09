@@ -31,9 +31,9 @@
       "role": "UTF-8 file reads capped by vox-scaling-policy max_file_bytes_hint",
       "path_pattern": "crates/vox-bounded-fs/**/*.rs"
     },
-    "vox-browser": {
-      "role": "Chromium CDP automation backend (chromiumoxide session API)",
-      "path_pattern": "crates/vox-browser/**/*.rs"
+    "vox-plugin-browser": {
+      "role": "Chromium CDP automation plugin (chromiumoxide session API; BrowserAutomation trait)",
+      "path_pattern": "crates/vox-plugin-browser/**/*.rs"
     },
     "vox-build-meta": {
       "role": "Build-time metadata for feature capability manifest",

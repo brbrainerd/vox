@@ -123,8 +123,33 @@ tools:
   product_lane: interop
   http_read_role_eligible: false
   tier: core
+- name: vox_browser_click_xy
+  description: Click at viewport coordinates (x,y) for page_id.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_browser_close
   description: Close a browser tab by page_id and shut down the host when no tabs remain.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_back
+  description: Navigate to the previous history entry for page_id.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_forward
+  description: Navigate to the next history entry for page_id.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_reload
+  description: Reload the current page for page_id.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_stop
+  description: Stop pending navigation/load for page_id.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
@@ -158,8 +183,43 @@ tools:
   product_lane: interop
   http_read_role_eligible: false
   tier: core
+- name: vox_browser_list_pages
+  description: List open browser sessions with page_id, URL, and title.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_page_info
+  description: Return URL/title and can_go_back/can_go_forward for page_id.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_browser_screenshot
   description: Save a full-page PNG to a path (creates parent dirs).
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_screenshot_viewport
+  description: Capture viewport PNG and return base64.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_scroll
+  description: Scroll viewport by dx/dy for page_id.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_press
+  description: Dispatch a key or key chord on page_id.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_type
+  description: Type text into the focused editable element on page_id.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_set_viewport
+  description: Set viewport width and height for deterministic coordinate mapping.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
