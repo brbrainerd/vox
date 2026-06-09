@@ -276,8 +276,10 @@ mod isolation_policy_tests {
 
     #[test]
     fn isolation_policy_seeds_from_config_default() {
-        let mut cfg = crate::config::OrchestratorConfig::default();
-        cfg.isolation_strategy_default = crate::isolation::IsolationStrategy::SplitChanges;
+        let cfg = crate::config::OrchestratorConfig {
+            isolation_strategy_default: crate::isolation::IsolationStrategy::SplitChanges,
+            ..Default::default()
+        };
         let orch = Orchestrator::new(cfg);
         let handle = orch.isolation_policy_handle();
         let plan = crate::sync_lock::rw_read(&handle);

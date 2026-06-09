@@ -13,7 +13,7 @@
 [[plugin]]
 id = "nvml-probe"
 payload-kind = "code"
-description = "NVIDIA GPU hardware probe via NVML (device count, VRAM, utilization, temperature)."
+description = "Probes NVIDIA GPUs via NVML for device count, names, memory, utilization, temperature."
 status = "stable"
 extension-points = ["HardwareProbe"]
 requires-tag = "nvidia-gpu"
@@ -45,7 +45,7 @@ bundled-in = ["vox-ml-metal", "vox-dev"]
 [[plugin]]
 id = "oratio"
 payload-kind = "code"
-description = "Audio capture + speech-to-text (Candle Whisper)."
+description = "Audio capture + speech-to-text (Candle Whisper). Extracted from vox-speech in Unit 4."
 status = "beta"
 extension-points = ["AudioCapture", "SpeechToText"]
 default-source = "github:vox-foundation/vox-plugin-oratio"
@@ -56,7 +56,7 @@ bundled-in = ["vox-dev"]
 [[plugin]]
 id = "cloud"
 payload-kind = "code"
-description = "Cloud sync provider (Mens cloud + Populi cloud)."
+description = "CloudSync plugin for syncing model artifacts with HF Hub, S3, and other providers. SP7 scaffold — extraction from cloud integration code deferred."
 status = "alpha"
 extension-points = ["CloudSync"]
 default-source = "github:vox-foundation/vox-plugin-cloud"
@@ -65,10 +65,10 @@ bundled-in = ["vox-mesh", "vox-cloud-only", "vox-dev"]
 [[plugin]]
 id = "populi-mesh"
 payload-kind = "composite"
-description = "Populi mesh transport + the agent skill that documents it."
+description = "Populi mesh transport (HTTP control plane, A2A dispatch) + agent skill."
 status = "alpha"
 extension-points = ["MeshDriver"]
-exposes-tools = ["vox_populi_join", "vox_populi_dispatch"]
+exposes-tools = ["vox_populi_local_status", "vox_orchestrator_status", "vox_submit_task"]
 default-source = "github:vox-foundation/vox-plugin-populi-mesh"
 bundled-in = ["vox-mesh", "vox-server", "vox-dev"]
 
@@ -92,7 +92,7 @@ id = "skill-git"
 payload-kind = "skill"
 description = "Agent-facing skill describing Vox git integration tools."
 status = "stable"
-exposes-tools = ["vox_git_status", "vox_git_diff", "vox_git_resolve_conflict"]
+exposes-tools = ["vox_my_files", "vox_claim_file", "vox_transfer_file", "vox_check_file_owner"]
 default-source = "github:vox-foundation/vox-plugin-skill-git"
 bundled-in = ["vox-fullstack", "vox-dev"]
 
@@ -101,7 +101,7 @@ id = "skill-memory"
 payload-kind = "skill"
 description = "Agent-facing skill for memory and context management."
 status = "stable"
-exposes-tools = ["vox_memory_get", "vox_memory_set", "vox_memory_search"]
+exposes-tools = ["vox_memory_store", "vox_memory_recall", "vox_memory_search", "vox_memory_log", "vox_memory_list_keys", "vox_knowledge_query", "vox_session_create", "vox_session_list", "vox_session_info", "vox_session_compact", "vox_session_cleanup"]
 default-source = "github:vox-foundation/vox-plugin-skill-memory"
 bundled-in = ["vox-fullstack", "vox-edge", "vox-cloud-only", "vox-server", "vox-dev"]
 
@@ -110,7 +110,7 @@ id = "skill-orchestrator"
 payload-kind = "skill"
 description = "Agent-facing skill for task submission, status, budget, multi-agent coordination."
 status = "stable"
-exposes-tools = ["vox_orchestrator_submit", "vox_orchestrator_status", "vox_orchestrator_budget"]
+exposes-tools = ["vox_submit_task", "vox_task_status", "vox_orchestrator_status", "vox_complete_task", "vox_fail_task", "vox_cancel_task", "vox_rebalance", "vox_queue_status", "vox_lock_status", "vox_budget_status", "vox_agent_events"]
 default-source = "github:vox-foundation/vox-plugin-skill-orchestrator"
 bundled-in = ["vox-fullstack", "vox-cloud-only", "vox-server", "vox-mesh", "vox-dev"]
 
@@ -119,7 +119,7 @@ id = "skill-rag"
 payload-kind = "skill"
 description = "Agent-facing skill for retrieval-augmented generation."
 status = "beta"
-exposes-tools = ["vox_rag_query", "vox_rag_index"]
+exposes-tools = ["vox_visual_rag_query"]
 default-source = "github:vox-foundation/vox-plugin-skill-rag"
 bundled-in = ["vox-fullstack", "vox-dev"]
 
@@ -128,7 +128,7 @@ id = "skill-testing"
 payload-kind = "skill"
 description = "Agent-facing skill for test-runner integration."
 status = "stable"
-exposes-tools = ["vox_test_run", "vox_test_select"]
+exposes-tools = ["vox_run_tests", "vox_test_all"]
 default-source = "github:vox-foundation/vox-plugin-skill-testing"
 bundled-in = ["vox-fullstack", "vox-dev"]
 
@@ -137,16 +137,16 @@ id = "skill-testing-validate"
 payload-kind = "skill"
 description = "Agent-facing skill for test validation diagnostics."
 status = "stable"
-exposes-tools = ["vox_test_validate"]
+exposes-tools = ["vox_validate_file", "vox_validate_source"]
 default-source = "github:vox-foundation/vox-plugin-skill-testing-validate"
 bundled-in = ["vox-fullstack", "vox-dev"]
 
 [[plugin]]
 id = "skill-v0"
 payload-kind = "skill"
-description = "Agent-facing skill providing legacy v0 compatibility surface."
+description = "Generate React/Vox UI components from text prompts (v0.dev-style synthesis)."
 status = "deprecated"
-exposes-tools = ["vox_v0_compat"]
+exposes-tools = ["vox_generate_code", "vox_write_file"]
 default-source = "github:vox-foundation/vox-plugin-skill-v0"
 bundled-in = ["vox-fullstack", "vox-edge"]
 
@@ -155,9 +155,9 @@ bundled-in = ["vox-fullstack", "vox-edge"]
 [[plugin]]
 id = "webhook"
 payload-kind = "code"
-description = "Inbound webhook HTTP listener with HMAC signature verification (GitHub, Discord, Slack; GitLab deprecated)."
+description = "Inbound webhook HTTP listener with HMAC signature verification (GitHub, generic; GitLab deprecated)."
 status = "stable"
-extension-points = ["HttpListener"]
+extension-points = []
 default-source = "local:crates/vox-plugin-webhook"
 bundled-in = ["vox-server", "vox-dev"]
 
@@ -173,7 +173,7 @@ bundled-in = ["vox-dev"]
 [[plugin]]
 id = "runtime-wasm"
 payload-kind = "code"
-description = "Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills; faster + smaller than containers)."
+description = "Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills). Faster cold start than containers, no external daemon."
 status = "beta"
 extension-points = ["SkillRuntime"]
 default-source = "local:crates/vox-plugin-runtime-wasm"
@@ -182,7 +182,7 @@ bundled-in = ["vox-fullstack", "vox-edge", "vox-dev"]
 [[plugin]]
 id = "runtime-container"
 payload-kind = "code"
-description = "Skill-runtime plugin: Docker and Podman OCI sandbox backends (fallback for subprocess/GPU skills)."
+description = "Skill-runtime plugin: Docker and Podman backends for sandboxed skill execution."
 status = "alpha"
 extension-points = ["SkillRuntime"]
 default-source = "local:crates/vox-plugin-runtime-container"

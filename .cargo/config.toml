@@ -35,3 +35,13 @@ CARGO_TARGET_DIR = { value = "target", relative = true }
 # Without this, `vox-gui.exe` fails at startup with STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139).
 # See https://github.com/tauri-apps/tauri/issues/13948
 __TAURI_WORKSPACE__ = "true"
+
+# Per-thread stack size for spawned threads (incl. every `cargo test` thread).
+# The `[target.x86_64-pc-windows-msvc]` `/STACK:8388608` linker arg above only
+# sizes the MAIN thread; the libtest harness runs each test on a SPAWNED thread
+# whose stack is governed by RUST_MIN_STACK (default 2 MiB). Building the full
+# clap command tree (`VoxCliRoot::command()`, e.g. in `command_catalog` /
+# `command_compliance` help-rendering tests) overflows 2 MiB on Windows
+# (STATUS_STACK_OVERFLOW), aborting `cargo test -p vox-cli --lib`. 8 MiB matches
+# the linker /STACK and Linux CI's default, so the suite runs everywhere.
+RUST_MIN_STACK = "8388608"

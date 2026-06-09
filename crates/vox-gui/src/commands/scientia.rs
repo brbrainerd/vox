@@ -200,8 +200,6 @@ pub fn spawn_scientia_queue_stream(app_handle: tauri::AppHandle) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     /// The signal hash is order-deterministic and sensitive to state changes:
     /// two folds over the same tuples match; a state change diverges. (Pure hash
     /// fold; no DB required.)

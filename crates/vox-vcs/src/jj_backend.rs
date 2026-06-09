@@ -443,6 +443,7 @@ impl JjBackend {
     /// becomes the new current op. Returns the restored op's `ChangeId`.
     pub async fn undo(&mut self) -> Result<ChangeId, VcsError> {
         let mut st = self.state.lock().await;
+        let name: WorkspaceNameBuf = WorkspaceName::DEFAULT.to_owned();
 
         // Find the parent of the current head operation.
         let head = st.repo.operation().clone();
@@ -460,21 +461,48 @@ impl JjBackend {
             .await
             .map_err(|e| VcsError::Unavailable(format!("jj load_at parent op: {e}")))?;
 
-        // Re-point the working-copy state to the restored op so a subsequent
-        // snapshot bases off the restored view.
+        // Resolve the working-copy commit recorded at the restored op (computed
+        // before `restored` is moved into the state) so we can materialize its
+        // tree onto the filesystem — a *real* undo that reverts files, not just a
+        // re-point of the working-copy operation id.
+        let restored_op_id = restored.op_id().clone();
+        let restored_commit = match restored.view().get_wc_commit_id(&name).cloned() {
+            Some(id) => Some(
+                restored
+                    .store()
+                    .get_commit(&id)
+                    .map_err(|e| VcsError::Unavailable(format!("jj undo get_commit: {e}")))?,
+            ),
+            None => None,
+        };
+
         {
             let JjState {
                 workspace, repo, ..
             } = &mut *st;
             *repo = restored;
-            let locked = workspace
-                .start_working_copy_mutation()
-                .await
-                .map_err(|e| VcsError::Unavailable(format!("jj undo wc lock: {e}")))?;
-            locked
-                .finish(repo.op_id().clone())
-                .await
-                .map_err(|e| VcsError::Unavailable(format!("jj undo wc finish: {e}")))?;
+            match &restored_commit {
+                // Check the restored commit's tree out to disk and record the
+                // working-copy state against the restored op.
+                Some(commit) => {
+                    workspace
+                        .check_out(restored_op_id, None, commit)
+                        .await
+                        .map_err(|e| VcsError::Unavailable(format!("jj undo checkout: {e}")))?;
+                }
+                // No wc commit at the restored op (e.g. a bare/empty view): fall
+                // back to re-pointing the working-copy operation id only.
+                None => {
+                    let locked = workspace
+                        .start_working_copy_mutation()
+                        .await
+                        .map_err(|e| VcsError::Unavailable(format!("jj undo wc lock: {e}")))?;
+                    locked
+                        .finish(restored_op_id)
+                        .await
+                        .map_err(|e| VcsError::Unavailable(format!("jj undo wc finish: {e}")))?;
+                }
+            }
         }
 
         Ok(op_hex_to_change_id(&parent.id().hex()))
@@ -771,6 +799,14 @@ mod tests {
         );
         // The restored op is the one that recorded c1 (the snapshot before c2).
         assert!(c1 != c2, "sanity: two distinct snapshots");
+
+        // A *real* undo reverts the file on disk, not just the op pointer: the
+        // working copy must hold "one" (the c1 content) again, not "two".
+        let on_disk = std::fs::read(dir.path().join("u.txt")).unwrap();
+        assert_eq!(
+            on_disk, b"one",
+            "undo must check the restored tree out to disk (file should revert to c1 content)"
+        );
     }
 
     /// Task 3: diff lists the file changed between two snapshots.

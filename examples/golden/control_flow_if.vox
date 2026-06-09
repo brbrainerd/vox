@@ -57,3 +57,34 @@ fn is_valid_username(name: str) to bool {
     return true
 }
 // ANCHOR_END: display
+
+@test
+fn test_classify_score() {
+    assert(classify_score(95) is "A")
+    assert(classify_score(85) is "B")
+    assert(classify_score(72) is "C")
+    assert(classify_score(60) is "F")
+}
+
+@test
+fn test_access_level() {
+    assert(access_level("admin", true) is "full")
+    assert(access_level("editor", true) is "write")
+    assert(access_level("viewer", true) is "read")
+    assert(access_level("admin", false) is "suspended")
+}
+
+@test
+fn test_shipping_cost() {
+    assert(shipping_cost(5, false) is 5)
+    assert(shipping_cost(5, true) is 20)
+    assert(shipping_cost(15, false) is 20)
+    assert(shipping_cost(15, true) is 35)
+}
+
+@test
+fn test_is_valid_username() {
+    assert(is_valid_username("ab") is false)
+    assert(is_valid_username("abc") is true)
+    assert(is_valid_username("validname") is true)
+}

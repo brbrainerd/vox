@@ -25,6 +25,7 @@ use vox_codegen::codegen_rust::generate_script;
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse_script;
+use vox_compiler::typeck::typecheck_hir_module;
 
 /// Absolute path to the `vox-actor-runtime` crate the generated script depends on.
 fn runtime_path() -> PathBuf {
@@ -36,7 +37,10 @@ fn runtime_path() -> PathBuf {
 /// stderr.
 fn compile_vox_script(src: &str) -> Result<(), String> {
     let module = parse_script(lex(src)).map_err(|e| format!("parse failed: {e:?}"))?;
-    let hir = lower_module(&module);
+    let mut hir = lower_module(&module);
+    // Run typecheck so `inferred_types` is populated — required for list/str method
+    // disambiguation (e.g. `count`/`contains` shared between str and List receivers).
+    let _ = typecheck_hir_module(src, &mut hir);
     let output = generate_script(&hir, "vox-script", Some(&runtime_path()))
         .map_err(|e| format!("codegen failed: {e}"))?;
 
@@ -83,6 +87,44 @@ fn minimal_script_compiles() {
 #[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn value_returning_main_compiles() {
     assert_compiles("fn main() to int { return 1 + 2 }");
+}
+
+/// Value-semantic list `.push` must compile: Vox `xs = xs.push(y)` returns the new
+/// list, so it must emit a value-returning block (not Rust `Vec::push` → `()`).
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn list_push_compiles() {
+    assert_compiles(
+        r#"
+fn main() {
+    let mut xs = ["a"]
+    xs = xs.push("b")
+    xs = xs.push("c")
+    print(str(xs.len()))
+}
+"#,
+    );
+}
+
+/// `<list>.get(i) is Some(..)` must compile: `Vec::get` returns `Option<&T>`, so
+/// the get side is `.cloned()` to an owned `Option<T>` to match the `Some(..)`
+/// side — in both a plain `is` and the `assert(x is y)` → `assert_eq!` path.
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn get_is_some_compiles() {
+    assert_compiles(
+        r#"
+fn check(xs: List[str]) to bool {
+    return xs.get(0) is Some("a")
+}
+fn main() {
+    let xs = ["a", "b"]
+    assert(xs.get(0) is Some("a"))
+    assert(xs.get(5) isnt Some("z"))
+    print(str(check(xs)))
+}
+"#,
+    );
 }
 
 #[test]
@@ -142,6 +184,105 @@ fn label(n: int) to str {
 }
 fn main() {
     print(label(42))
+}
+"#,
+    );
+}
+
+/// Exercises the new list-method surface added in this PR: every method that the
+/// codegen now handles must also compile under `--mode script` (codegen path).
+/// This is the compile-net counterpart to the fast `list_method_emit` tests.
+///
+/// `sum` / `sorted` / `zip` / `enumerate` / `flatten` are SKIPPED (see the
+/// `try_emit_list_method` comments): `sum` needs an element-type-derived
+/// `.sum::<T>()` annotation (E0283 otherwise); the rest produce nested/heterogeneous
+/// types codegen can't yet resolve monomorphically.
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn list_methods_compile() {
+    assert_compiles(
+        r#"
+fn main() {
+    let xs: list[str] = ["c", "a", "b"]
+
+    let rev = xs.reverse()
+    let rev2 = xs.reversed()
+
+    let ys: list[str] = ["d", "e"]
+    let ext = xs.extend(ys)
+
+    let without_a = xs.remove("a")
+    let without_0 = xs.remove_at(0)
+
+    let sl = xs.slice_list(0, 2)
+    let sl2 = xs.slice_list(1)
+
+    let j = xs.join(", ")
+
+    let idx = xs.index("b")
+    let idx2 = xs.find_index("c")
+
+    let cnt = xs.count("a")
+
+    let has = xs.contains("b")
+
+    // first/last → owned Option<T> (.cloned()).
+    let f = xs.first()
+    let l = xs.last()
+
+    print(j)
+}
+"#,
+    );
+}
+
+/// Exercises the full Vox string-method surface: every method that the
+/// interpreter handles must also compile under `--mode script` (codegen path).
+/// This is the compile-net counterpart to the fast `str_method_emit` tests.
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn str_methods_compile() {
+    assert_compiles(
+        r#"
+fn main() {
+    let s = "Hello, World!"
+
+    let n = s.len()
+    let is_mt = s.is_empty()
+    let up = s.to_upper()
+    let lo = s.to_lower()
+    let tr = "  hi  ".trim()
+    let ts = "  hi  ".trim_start()
+    let te = "  hi  ".trim_end()
+
+    let has = s.contains("World")
+    let sw = s.starts_with("Hello")
+    let ew = s.ends_with("!")
+
+    let parts = s.split(", ")
+    let replaced = s.replace("World", "Vox")
+    let rep = "ab".repeat(3)
+
+    let cc = s.chars_count()
+    let cnt = s.count("l")
+
+    let ia = "abc".is_alpha()
+    let id = "123".is_digit()
+    let ian = "abc123".is_alnum()
+    let iu = "ABC".is_upper()
+    let il = "abc".is_lower()
+
+    let o = "A".ord()
+    let chars = "hi".chars()
+
+    let ts2 = s.to_str()
+    let sl = s.slice(0, 5)
+    let ca = s.char_at(0)
+    let io = s.index_of("World")
+    let ti = "42".to_int()
+    let tf = "3.14".to_float()
+
+    print(up)
 }
 "#,
     );

@@ -34,6 +34,7 @@ where
                 args,
                 plan.as_ref().map(|v| &**v),
                 fallible_db,
+                inferred_types,
             )
         }
         HirExpr::Block(stmts, _) => emit_block_tail(

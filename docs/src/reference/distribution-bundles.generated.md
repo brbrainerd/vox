@@ -44,8 +44,8 @@ Default developer experience with all built-in skill plugins.
 - `skill-git` — Agent-facing skill describing Vox git integration tools.
 - `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
 - `skill-rag` — Agent-facing skill for retrieval-augmented generation.
-- `skill-v0` — Agent-facing skill providing legacy v0 compatibility surface.
-- `runtime-wasm` — Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills; faster + smaller than containers).
+- `skill-v0` — Generate React/Vox UI components from text prompts (v0.dev-style synthesis).
+- `runtime-wasm` — Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills). Faster cold start than containers, no external daemon.
 
 ### `vox-ml`
 
@@ -60,10 +60,10 @@ Extends: `vox-fullstack`
 - `skill-git` — Agent-facing skill describing Vox git integration tools.
 - `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
 - `skill-rag` — Agent-facing skill for retrieval-augmented generation.
-- `skill-v0` — Agent-facing skill providing legacy v0 compatibility surface.
-- `runtime-wasm` — Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills; faster + smaller than containers).
+- `skill-v0` — Generate React/Vox UI components from text prompts (v0.dev-style synthesis).
+- `runtime-wasm` — Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills). Faster cold start than containers, no external daemon.
 - `mens-candle-cuda` — ML training backend using Candle with CUDA acceleration.
-- `nvml-probe` — NVIDIA GPU hardware probe via NVML (device count, VRAM, utilization, temperature).
+- `nvml-probe` — Probes NVIDIA GPUs via NVML for device count, names, memory, utilization, temperature.
 
 ### `vox-ml-metal`
 
@@ -78,8 +78,8 @@ Extends: `vox-fullstack`
 - `skill-git` — Agent-facing skill describing Vox git integration tools.
 - `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
 - `skill-rag` — Agent-facing skill for retrieval-augmented generation.
-- `skill-v0` — Agent-facing skill providing legacy v0 compatibility surface.
-- `runtime-wasm` — Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills; faster + smaller than containers).
+- `skill-v0` — Generate React/Vox UI components from text prompts (v0.dev-style synthesis).
+- `runtime-wasm` — Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills). Faster cold start than containers, no external daemon.
 - `mens-candle-metal` — ML training backend using Candle with Metal acceleration.
 
 ### `vox-mesh`
@@ -88,8 +88,8 @@ Server-side mesh deployment with cloud sync.
 
 Extends: `vox-base`
 
-- `populi-mesh` — Populi mesh transport + the agent skill that documents it.
-- `cloud` — Cloud sync provider (Mens cloud + Populi cloud).
+- `populi-mesh` — Populi mesh transport (HTTP control plane, A2A dispatch) + agent skill.
+- `cloud` — CloudSync plugin for syncing model artifacts with HF Hub, S3, and other providers. SP7 scaffold — extraction from cloud integration code deferred.
 - `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
 
 ### `vox-server`
@@ -98,11 +98,11 @@ Headless backend deployment: orchestrator + mesh, no GUI/ML.
 
 Extends: `vox-base`
 
-- `populi-mesh` — Populi mesh transport + the agent skill that documents it.
-- `cloud` — Cloud sync provider (Mens cloud + Populi cloud).
+- `populi-mesh` — Populi mesh transport (HTTP control plane, A2A dispatch) + agent skill.
+- `cloud` — CloudSync plugin for syncing model artifacts with HF Hub, S3, and other providers. SP7 scaffold — extraction from cloud integration code deferred.
 - `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
 - `skill-memory` — Agent-facing skill for memory and context management.
-- `webhook` — Inbound webhook HTTP listener with HMAC signature verification (GitHub, Discord, Slack; GitLab deprecated).
+- `webhook` — Inbound webhook HTTP listener with HMAC signature verification (GitHub, generic; GitLab deprecated).
 
 ### `vox-edge`
 
@@ -112,8 +112,8 @@ Extends: `vox-base`
 
 - `skill-compiler` — Agent-facing skill describing the Vox compiler tools.
 - `skill-memory` — Agent-facing skill for memory and context management.
-- `skill-v0` — Agent-facing skill providing legacy v0 compatibility surface.
-- `runtime-wasm` — Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills; faster + smaller than containers).
+- `skill-v0` — Generate React/Vox UI components from text prompts (v0.dev-style synthesis).
+- `runtime-wasm` — Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills). Faster cold start than containers, no external daemon.
 
 ### `vox-cloud-only`
 
@@ -121,7 +121,7 @@ Cloud-managed deployment: cloud sync only, no local ML or mesh transport.
 
 Extends: `vox-base`
 
-- `cloud` — Cloud sync provider (Mens cloud + Populi cloud).
+- `cloud` — CloudSync plugin for syncing model artifacts with HF Hub, S3, and other providers. SP7 scaffold — extraction from cloud integration code deferred.
 - `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
 - `skill-memory` — Agent-facing skill for memory and context management.
 
@@ -138,16 +138,16 @@ Extends: `vox-fullstack`
 - `skill-git` — Agent-facing skill describing Vox git integration tools.
 - `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
 - `skill-rag` — Agent-facing skill for retrieval-augmented generation.
-- `skill-v0` — Agent-facing skill providing legacy v0 compatibility surface.
-- `runtime-wasm` — Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills; faster + smaller than containers).
+- `skill-v0` — Generate React/Vox UI components from text prompts (v0.dev-style synthesis).
+- `runtime-wasm` — Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills). Faster cold start than containers, no external daemon.
 - `mens-candle-cuda` — ML training backend using Candle with CUDA acceleration.
-- `nvml-probe` — NVIDIA GPU hardware probe via NVML (device count, VRAM, utilization, temperature).
+- `nvml-probe` — Probes NVIDIA GPUs via NVML for device count, names, memory, utilization, temperature.
 - `mens-candle-metal` — ML training backend using Candle with Metal acceleration.
-- `populi-mesh` — Populi mesh transport + the agent skill that documents it.
-- `cloud` — Cloud sync provider (Mens cloud + Populi cloud).
-- `oratio` — Audio capture + speech-to-text (Candle Whisper).
+- `populi-mesh` — Populi mesh transport (HTTP control plane, A2A dispatch) + agent skill.
+- `cloud` — CloudSync plugin for syncing model artifacts with HF Hub, S3, and other providers. SP7 scaffold — extraction from cloud integration code deferred.
+- `oratio` — Audio capture + speech-to-text (Candle Whisper). Extracted from vox-speech in Unit 4.
 - `browser` — Chrome DevTools Protocol browser automation via chromiumoxide.
-- `webhook` — Inbound webhook HTTP listener with HMAC signature verification (GitHub, Discord, Slack; GitLab deprecated).
+- `webhook` — Inbound webhook HTTP listener with HMAC signature verification (GitHub, generic; GitLab deprecated).
 
 ### `vox-mobile`
 

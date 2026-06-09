@@ -1,0 +1,395 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { SurfaceDecoratorProps } from '../decoratorRegistry';
+import { listenScientiaQueue } from '../../../transport';
+import {
+  listReviewQueue,
+  recordDecision,
+  nanopublish,
+  suggestEvidence,
+  type ClaimAwaitingReview,
+  type ReviewDecision,
+  type EvidenceSuggestion,
+} from './discoveryReviewApi';
+
+function verdictTone(verdict: string | null): string {
+  const v = (verdict ?? '').toLowerCase();
+  if (v.includes('support')) return 'text-emerald-300/90';
+  if (v.includes('refut') || v.includes('contradict')) return 'text-rose-300/90';
+  if (v.includes('novel')) return 'text-violet-300/90';
+  return 'text-zinc-400';
+}
+
+/**
+ * P3 Discovery Review — human-gated review of extracted claims before
+ * nanopublication. Master/detail: the left pane lists claims awaiting review for
+ * the entered publication id; the right pane reviews the selected claim and,
+ * once approved in-session, exposes an offline nanopublish action.
+ *
+ * Post-approval vs queue-drop: an approved claim is terminal and the refetch
+ * drops it from the queue. We keep `approvedIds` (a Set) plus a cache of the
+ * last-seen detail for each claim, so the just-approved claim's detail and its
+ * brass post-approval zone remain visible for the rest of the session.
+ */
+export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
+  const [pubId, setPubId] = useState('');
+  const [queue, setQueue] = useState<ClaimAwaitingReview[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [approvedIds, setApprovedIds] = useState<Set<number>>(new Set());
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<EvidenceSuggestion[]>([]);
+  // Cache of last-seen claim detail so approved (terminal) claims stay viewable
+  // after the refetch removes them from the live queue.
+  const detailCache = useRef<Map<number, ClaimAwaitingReview>>(new Map());
+  const fetchingRef = useRef(false);
+
+  const refresh = useCallback(async () => {
+    const id = pubId.trim();
+    if (!id) {
+      setQueue([]);
+      return;
+    }
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+    setLoading(true);
+    try {
+      const rows = await listReviewQueue(id);
+      for (const r of rows) detailCache.current.set(r.claim_id, r);
+      setQueue(rows);
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Review queue', body: String(err) });
+      setQueue([]);
+    } finally {
+      setLoading(false);
+      fetchingRef.current = false;
+    }
+  }, [pubId, pushToast]);
+
+  // Initial fetch + 10 s interval fallback; cleared on unmount / pub change.
+  useEffect(() => {
+    refresh();
+    const t = setInterval(refresh, 10_000);
+    return () => clearInterval(t);
+  }, [refresh]);
+
+  // Event-driven refresh — refetch on the F2 scientia-queue ping. Interval above
+  // covers the non-Tauri / no-bridge case. Cleans up on unmount.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listenScientiaQueue(() => {
+      void refresh();
+    })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch(() => {
+        /* not in Tauri — interval fallback covers it */
+      });
+    return () => unlisten?.();
+  }, [refresh]);
+
+  const selected: ClaimAwaitingReview | null = useMemo(() => {
+    if (selectedId == null) return null;
+    return queue.find((c) => c.claim_id === selectedId) ?? detailCache.current.get(selectedId) ?? null;
+  }, [selectedId, queue]);
+
+  const isApproved = selectedId != null && approvedIds.has(selectedId);
+
+  const decide = useCallback(
+    async (decision: ReviewDecision) => {
+      if (selectedId == null || !pubId.trim()) return;
+      setBusy(true);
+      try {
+        await recordDecision(pubId.trim(), selectedId, decision, reason.trim() || undefined);
+        pushToast({ tone: 'ok', title: `Claim #${selectedId} ${decision}`, body: `Publication ${pubId.trim()}` });
+        if (decision === 'approved') {
+          setApprovedIds((prev) => new Set(prev).add(selectedId));
+        }
+        setReason('');
+        await refresh();
+      } catch (err) {
+        pushToast({ tone: 'warn', title: 'Review decision failed', body: String(err) });
+      } finally {
+        setBusy(false);
+      }
+    },
+    [selectedId, pubId, reason, pushToast, refresh],
+  );
+
+  const doNanopublish = useCallback(async () => {
+    if (selectedId == null || !pubId.trim()) return;
+    setConfirmOpen(false);
+    setBusy(true);
+    try {
+      const res = await nanopublish(pubId.trim(), selectedId);
+      pushToast({
+        tone: 'ok',
+        title: `Nanopublished claim #${selectedId}`,
+        body: `${res.published_state} · ${res.validated_offline ? 'validated offline' : 'unvalidated'} · ${res.trusty_uri}`,
+      });
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Nanopublish failed', body: String(err) });
+    } finally {
+      setBusy(false);
+    }
+  }, [selectedId, pubId, pushToast]);
+
+  const doSuggest = useCallback(async () => {
+    if (selectedId == null || !pubId.trim()) return;
+    setBusy(true);
+    try {
+      const out = await suggestEvidence(pubId.trim(), selectedId);
+      setSuggestions(out);
+      if (out.length === 0) {
+        pushToast({ tone: 'info', title: 'No evidence suggestions', body: 'The model returned nothing to act on.' });
+      }
+    } catch (err) {
+      setSuggestions([]);
+      pushToast({ tone: 'warn', title: 'Evidence assist unavailable', body: String(err) });
+    } finally {
+      setBusy(false);
+    }
+  }, [selectedId, pubId, pushToast]);
+
+  return (
+    <section className="space-y-4">
+      {/* header + publication input */}
+      <div className="flex items-end justify-between">
+        <div>
+          <h2 className="font-display text-lg tracking-wider text-zinc-100 uppercase">Discovery Review</h2>
+          <p className="font-mono text-xs text-zinc-500">
+            Human-gated review of extracted claims before nanopublication. Nothing is published to any network.
+          </p>
+        </div>
+        <label className="flex items-center gap-2">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">Publication</span>
+          <input
+            value={pubId}
+            onChange={(e) => setPubId(e.target.value)}
+            placeholder="publication id"
+            className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 font-mono text-[12px] text-zinc-200 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
+          />
+          <button
+            onClick={refresh}
+            disabled={loading}
+            className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-white/[0.06] disabled:opacity-40"
+          >
+            {loading ? 'Loading…' : 'Refresh'}
+          </button>
+        </label>
+      </div>
+
+      <div className="grid gap-4" style={{ gridTemplateColumns: '360px 1fr' }}>
+        {/* LIST */}
+        <div className="flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
+          <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
+            <span className="font-display text-[10px] uppercase tracking-[0.2em] text-zinc-400">
+              Awaiting Review ({queue.length})
+            </span>
+          </div>
+          <div className="flex flex-col">
+            {!pubId.trim() && (
+              <div className="px-4 py-8 text-center font-mono text-[11px] text-zinc-600">
+                Enter a publication id to load its review queue.
+              </div>
+            )}
+            {pubId.trim() && queue.length === 0 && !loading && (
+              <div className="px-4 py-8 text-center font-mono text-[11px] text-zinc-600">
+                No claims awaiting review.
+              </div>
+            )}
+            {queue.map((c) => {
+              const active = c.claim_id === selectedId;
+              return (
+                <button
+                  key={c.claim_id}
+                  onClick={() => {
+                    setSelectedId(c.claim_id);
+                    setReason('');
+                    setSuggestions([]);
+                  }}
+                  className={`relative border-b border-white/5 px-4 py-3 text-left transition ${
+                    active ? 'bg-white/[0.04]' : 'hover:bg-white/[0.02]'
+                  }`}
+                >
+                  {active && (
+                    <span
+                      className="absolute left-0 top-1/2 h-6 w-[2px] -translate-y-1/2 rounded-r bg-brass"
+                      style={{ boxShadow: '0 0 12px 2px rgba(212,175,55,.5)' }}
+                    />
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[11px] text-zinc-500">#{c.claim_id}</span>
+                    <span className={`font-mono text-[10px] ${verdictTone(c.verdict)}`}>{c.verdict ?? 'unverified'}</span>
+                  </div>
+                  <div className="mt-1 text-[12.5px] leading-snug text-zinc-300">{c.text}</div>
+                  <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-zinc-500">
+                    {c.confidence != null && <span className="text-brass">★ {c.confidence.toFixed(2)}</span>}
+                    {c.is_numeric && <span>numeric</span>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* DETAIL */}
+        <div className="flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
+          <div className="flex items-center justify-between border-b border-white/5 px-5 py-3">
+            <span className="font-display text-[10px] uppercase tracking-[0.2em] text-zinc-400">Claim Detail</span>
+            {selected && <span className="font-mono text-[10px] text-zinc-600">claim #{selected.claim_id}</span>}
+          </div>
+
+          {!selected && (
+            <div className="px-5 py-10 text-center font-mono text-[11px] text-zinc-600">
+              Select a claim to review.
+            </div>
+          )}
+
+          {selected && (
+            <div className="flex flex-col gap-4 p-5">
+              <blockquote className="border-l-2 border-brass/40 pl-4 text-[15px] leading-relaxed text-zinc-100">
+                “{selected.text}”
+              </blockquote>
+
+              <div className="grid grid-cols-2 gap-x-8 gap-y-2 font-mono text-[11px]">
+                <div className="flex justify-between border-b border-white/5 pb-1">
+                  <span className="text-zinc-500">Verdict</span>
+                  <span className={verdictTone(selected.verdict)}>{selected.verdict ?? 'unverified'}</span>
+                </div>
+                <div className="flex justify-between border-b border-white/5 pb-1">
+                  <span className="text-zinc-500">Confidence</span>
+                  <span className="text-brass">{selected.confidence != null ? selected.confidence.toFixed(2) : '—'}</span>
+                </div>
+                <div className="flex justify-between border-b border-white/5 pb-1">
+                  <span className="text-zinc-500">Numeric</span>
+                  <span className="text-zinc-300">{selected.is_numeric ? 'yes' : 'no'}</span>
+                </div>
+                <div className="flex justify-between border-b border-white/5 pb-1">
+                  <span className="text-zinc-500">Verifier</span>
+                  <span className="text-zinc-300">{selected.verifier_model ?? '—'}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">Reason (optional)</label>
+                <textarea
+                  rows={2}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Why approve / reject / defer…"
+                  className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-[12px] text-zinc-200 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={busy}
+                  onClick={() => decide('approved')}
+                  className="flex items-center gap-1.5 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-[12px] text-emerald-200 hover:bg-emerald-400/15 disabled:opacity-40"
+                >
+                  ✓ Approve
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => decide('rejected')}
+                  className="flex items-center gap-1.5 rounded-lg border border-rose-400/30 bg-rose-400/[0.07] px-4 py-2 text-[12px] text-rose-200 hover:bg-rose-400/10 disabled:opacity-40"
+                >
+                  ✗ Reject
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => decide('deferred')}
+                  className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.02] px-4 py-2 text-[12px] text-zinc-300 hover:bg-white/[0.05] disabled:opacity-40"
+                >
+                  ⏸ Defer
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={doSuggest}
+                  className="ml-auto flex items-center gap-1.5 rounded-lg border border-violet-400/30 bg-violet-400/[0.07] px-4 py-2 text-[12px] text-violet-200 hover:bg-violet-400/10 disabled:opacity-40"
+                >
+                  ✦ Suggest evidence improvements (LLM)
+                </button>
+              </div>
+
+              {suggestions.length > 0 && (
+                <div className="rounded-xl border border-violet-400/20 bg-violet-400/[0.04] p-4">
+                  <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-violet-300/80">
+                    Evidence suggestions
+                  </div>
+                  <div className="space-y-2">
+                    {suggestions.map((s, i) => (
+                      <div key={i} className="font-mono text-[11px]">
+                        <span className="text-violet-300/90">[{s.kind}]</span>{' '}
+                        <span className="text-zinc-200">{s.summary}</span>
+                        <div className="text-zinc-500">{s.rationale}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {isApproved && (
+                <div className="rounded-xl border border-brass/20 bg-brass/[0.04] p-4">
+                  <div className="font-mono text-[11px] text-emerald-300/90">
+                    ✓ Approved by you · approval token bound to this claim
+                  </div>
+                  <div className="mt-3 flex items-center gap-3">
+                    <button
+                      disabled={busy}
+                      onClick={() => setConfirmOpen(true)}
+                      className="flex items-center gap-2 rounded-lg border border-brass/40 bg-brass/15 px-4 py-2 text-[12px] text-brass hover:bg-brass/25 disabled:opacity-40"
+                    >
+                      ⬆ Nanopublish (offline)
+                    </button>
+                    <span className="font-mono text-[10px] text-zinc-500">
+                      builds + signs + offline-validates, stores locally · no network
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* confirm dialog */}
+      {confirmOpen && selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,.6)' }}>
+          <div className="w-[460px] rounded-xl border border-white/10 bg-zinc-950/90 p-5 backdrop-blur-xl">
+            <div className="mb-1 font-display text-[11px] uppercase tracking-[0.2em] text-brass">
+              Nanopublish claim #{selected.claim_id} (offline)
+            </div>
+            <p className="text-[12.5px] leading-relaxed text-zinc-300">
+              Builds + signs + offline-validates, stores locally. Nothing is sent to any network.
+            </p>
+            <div className="mt-4 grid grid-cols-[auto,1fr] gap-x-4 gap-y-1.5 font-mono text-[11px]">
+              <span className="text-zinc-500">Publication</span>
+              <span className="text-zinc-300">{pubId.trim()}</span>
+              <span className="text-zinc-500">Claim</span>
+              <span className="text-zinc-300">#{selected.claim_id}</span>
+            </div>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setConfirmOpen(false)}
+                className="rounded-lg border border-white/10 bg-white/[0.02] px-4 py-2 text-[12px] text-zinc-300 hover:bg-white/5"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={busy}
+                onClick={doNanopublish}
+                className="rounded-lg border border-brass/40 bg-brass/20 px-4 py-2 text-[12px] text-brass hover:bg-brass/30 disabled:opacity-40"
+              >
+                Build &amp; sign locally
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
