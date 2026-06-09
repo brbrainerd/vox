@@ -212,7 +212,7 @@ impl VerificationRunner {
 }
 ```
 
-(Reuse the existing `quiet_command` helper from the codebase — see [feedback_no_console_windows_on_spawn](../../../C--Users-Owner-vox/memory/feedback_no_console_windows_on_spawn.md). If it is not yet shared, import it from where the autoscaler defines it; do not introduce a second copy.)
+(Reuse the existing `quiet_command` helper from the codebase — see `docs/src/ci/runner-contract.md` §Windows subprocess console suppression. If it is not yet shared, import it from where the autoscaler defines it; do not introduce a second copy.)
 
 - [ ] **Step 9: Wire `mod.rs` and register the module**
 
@@ -286,7 +286,7 @@ git add -A && git commit -m "feat(orchestrator): wire verification self-correct 
 - [ ] **Step 15: Format + workspace checks**
 
 Run: `cargo fmt -p vox-orchestrator -p vox-telemetry` then `cargo run -p vox-arch-check` then `VOX_FMT_CHECK=1 vox run scripts/fmt.vox`
-Expected: clean. (Never `cargo fmt --all` on Windows — see [feedback_windows_cargo_fmt](../../../C--Users-Owner-vox/memory/feedback_windows_cargo_fmt.md).)
+Expected: clean. (Never `cargo fmt --all` on Windows — see `AGENTS.md` §Formatting Rust (Windows-safe).)
 
 **Verification of the whole item:** an agent turn that writes a syntactically-broken `.vox` file is followed automatically by a `vox check`, the diagnostics appear in the next turn's context, and the agent gets up to 2 self-correct retries before escalation; `METRIC_TYPE_VERIFICATION_RESULT` is emitted each pass.
 

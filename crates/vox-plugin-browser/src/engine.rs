@@ -274,11 +274,10 @@ impl BrowserEngine {
             .map_err(Self::map_page_err)?;
         let index = history.current_index as usize;
         let next = index + 1;
-        let entry_id = history
-            .entries
-            .get(next)
-            .map(|entry| entry.id)
-            .ok_or_else(|| "no forward history entry".to_string())?;
+        if history.entries.is_empty() || next >= history.entries.len() {
+            return Ok(());
+        }
+        let entry_id = history.entries[next].id;
         page.execute(NavigateToHistoryEntryParams { entry_id })
             .await
             .map_err(Self::map_page_err)?;
