@@ -51,7 +51,9 @@ async fn main() {
         .manage(std::sync::Arc::new(
             commands::daemon::PersistentDaemon::default(),
         ))
-        .manage(std::sync::Arc::new(commands::browser::BrowserState::default()))
+        .manage(std::sync::Arc::new(
+            commands::browser::BrowserState::default(),
+        ))
         .setup(|app| {
             // Single persistent orchestrator daemon shared by tool calls,
             // approvals, and the status/event streams.

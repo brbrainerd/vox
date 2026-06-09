@@ -59,12 +59,9 @@ pub fn checkpointed_backward_step(
 
     // Upstream cotangent for the previous segment = dL/d(last segment input).
     let last = segments.last().expect("non-empty");
-    let mut upstream = grads
-        .get(&last.input)
-        .cloned()
-        .ok_or_else(|| anyhow::anyhow!(
-            "checkpointed backward: missing boundary grad for final segment input"
-        ))?;
+    let mut upstream = grads.get(&last.input).cloned().ok_or_else(|| {
+        anyhow::anyhow!("checkpointed backward: missing boundary grad for final segment input")
+    })?;
 
     // Step 2: recompute-and-backward each earlier segment in reverse.
     for seg in segments.iter().rev().skip(1) {
@@ -74,9 +71,12 @@ pub fn checkpointed_backward_step(
         // recompute only touches its own layers' Vars, so this is auto-scoped.
         qlora_rs::accumulate_grads_for_vars(&mut grads, &seg_grads, &all_vars)?;
         // Next upstream cotangent = dL/d(this segment's input boundary).
-        upstream = seg_grads.get(input_var.as_tensor()).cloned().ok_or_else(|| {
-            anyhow::anyhow!("checkpointed backward: missing boundary grad for segment input")
-        })?;
+        upstream = seg_grads
+            .get(input_var.as_tensor())
+            .cloned()
+            .ok_or_else(|| {
+                anyhow::anyhow!("checkpointed backward: missing boundary grad for segment input")
+            })?;
     }
     // `upstream` now holds dL/d(embedding); embeddings are frozen so it is unused.
 

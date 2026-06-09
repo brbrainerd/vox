@@ -11,7 +11,10 @@ fn external_bin_paths_stay_under_workspace_target() {
     let bins = conf["bundle"]["externalBin"]
         .as_array()
         .expect("bundle.externalBin array");
-    assert!(!bins.is_empty(), "at least one externalBin entry is required (vox sidecar)");
+    assert!(
+        !bins.is_empty(),
+        "at least one externalBin entry is required (vox sidecar)"
+    );
 
     for entry in bins {
         let rel = entry.as_str().expect("externalBin path string");
@@ -25,9 +28,7 @@ fn external_bin_paths_stay_under_workspace_target() {
             "externalBin must not traverse above the workspace root: `{rel}`"
         );
         let resolved = gui_dir.join(rel);
-        let under_target = resolved
-            .components()
-            .any(|c| c.as_os_str() == "target");
+        let under_target = resolved.components().any(|c| c.as_os_str() == "target");
         assert!(
             under_target,
             "externalBin `{rel}` must land under a `target/` directory (got {})",

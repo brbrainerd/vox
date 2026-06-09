@@ -1199,9 +1199,7 @@ async fn handle_tool_call_inner(
         "vox_browser_open" => {
             Ok(browser_tools::browser_open(state, serde_json::from_value(args)?).await)
         }
-        "vox_browser_list_pages" => {
-            Ok(browser_tools::browser_list_pages(state, args).await)
-        }
+        "vox_browser_list_pages" => Ok(browser_tools::browser_list_pages(state, args).await),
         "vox_browser_page_info" => {
             Ok(browser_tools::browser_page_info(state, serde_json::from_value(args)?).await)
         }
@@ -1259,9 +1257,11 @@ async fn handle_tool_call_inner(
         "vox_browser_screenshot" => {
             Ok(browser_tools::browser_screenshot(state, serde_json::from_value(args)?).await)
         }
-        "vox_browser_screenshot_viewport" => {
-            Ok(browser_tools::browser_screenshot_viewport(state, serde_json::from_value(args)?).await)
-        }
+        "vox_browser_screenshot_viewport" => Ok(browser_tools::browser_screenshot_viewport(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_browser_screencast_frame" => {
             Ok(browser_tools::browser_screencast_frame(state, serde_json::from_value(args)?).await)
         }

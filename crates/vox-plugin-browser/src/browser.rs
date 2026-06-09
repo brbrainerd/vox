@@ -159,7 +159,8 @@ impl BrowserAutomation for BrowserPlugin {
     fn set_viewport(&self, page_id: RStr<'_>, width: u32, height: u32) -> RResult<(), RBoxError> {
         let engine = self.engine.clone();
         let page_id = page_id.to_string();
-        let result = rt().block_on(async move { engine.set_viewport(&page_id, width, height).await });
+        let result =
+            rt().block_on(async move { engine.set_viewport(&page_id, width, height).await });
         to_rresult(result)
     }
 

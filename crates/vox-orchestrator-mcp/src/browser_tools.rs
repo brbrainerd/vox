@@ -6,9 +6,10 @@
 use crate::llm_bridge::call_llm;
 use crate::params::{
     BrowserActParams, BrowserClickPointParams, BrowserControlLockParams, BrowserExtractJsonParams,
-    BrowserExtractParams, BrowserFillParams, BrowserGotoParams, BrowserHtmlParams, BrowserKeyParams,
-    BrowserOpenParams, BrowserPageParams, BrowserScreenshotParams, BrowserScrollParams,
-    BrowserTargetParams, BrowserTypeParams, BrowserViewportParams, BrowserWaitParams, ToolResult,
+    BrowserExtractParams, BrowserFillParams, BrowserGotoParams, BrowserHtmlParams,
+    BrowserKeyParams, BrowserOpenParams, BrowserPageParams, BrowserScreenshotParams,
+    BrowserScrollParams, BrowserTargetParams, BrowserTypeParams, BrowserViewportParams,
+    BrowserWaitParams, ToolResult,
 };
 use crate::server_state::ServerState;
 use serde::Deserialize;
@@ -142,8 +143,7 @@ pub async fn browser_list_pages(_state: &ServerState, _p: serde_json::Value) -> 
                 .into_result()
                 .map(|s| s.into_string())
                 .map_err(|e| anyhow::anyhow!("browser list_pages: {e}"))?;
-            parse_backend_json(raw)
-                .map_err(|e| anyhow::anyhow!("browser list_pages: {e}"))
+            parse_backend_json(raw).map_err(|e| anyhow::anyhow!("browser list_pages: {e}"))
         })
     })
     .await
@@ -164,8 +164,7 @@ pub async fn browser_page_info(_state: &ServerState, p: BrowserPageParams) -> St
                 .into_result()
                 .map(|s| s.into_string())
                 .map_err(|e| anyhow::anyhow!("browser page_info: {e}"))?;
-            parse_backend_json(raw)
-                .map_err(|e| anyhow::anyhow!("browser page_info: {e}"))
+            parse_backend_json(raw).map_err(|e| anyhow::anyhow!("browser page_info: {e}"))
         })
     })
     .await
@@ -532,7 +531,9 @@ pub async fn browser_scroll(_state: &ServerState, p: BrowserScrollParams) -> Str
     })
     .await
     {
-        Ok(Ok(())) => ToolResult::ok(serde_json::json!({ "ok": true, "dx": dx, "dy": dy })).to_json(),
+        Ok(Ok(())) => {
+            ToolResult::ok(serde_json::json!({ "ok": true, "dx": dx, "dy": dy })).to_json()
+        }
         Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
         Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
     }
@@ -600,7 +601,10 @@ pub async fn browser_set_viewport(_state: &ServerState, p: BrowserViewportParams
     })
     .await
     {
-        Ok(Ok(())) => ToolResult::ok(serde_json::json!({ "ok": true, "width": width, "height": height })).to_json(),
+        Ok(Ok(())) => {
+            ToolResult::ok(serde_json::json!({ "ok": true, "width": width, "height": height }))
+                .to_json()
+        }
         Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
         Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
     }

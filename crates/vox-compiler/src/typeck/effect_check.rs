@@ -847,10 +847,7 @@ fn caller() to str { fetch() }",
             stdlib_module_capability("Browser"),
             Some(HirCapability::Net)
         );
-        assert_eq!(
-            stdlib_module_capability("Scrape"),
-            Some(HirCapability::Net)
-        );
+        assert_eq!(stdlib_module_capability("Scrape"), Some(HirCapability::Net));
         assert_eq!(stdlib_module_capability("scrape"), Some(HirCapability::Net));
     }
 }

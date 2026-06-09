@@ -144,7 +144,8 @@ impl BrowserEngine {
             .map_err(|e| format!("goto {url}: {e}"))?;
         let id = format!("page-{}", uuid::Uuid::new_v4());
         host.pages.insert(id.clone(), page);
-        host.viewports.insert(id.clone(), ViewportMetrics::default());
+        host.viewports
+            .insert(id.clone(), ViewportMetrics::default());
         Ok(id)
     }
 
@@ -162,7 +163,11 @@ impl BrowserEngine {
         let mut out = Vec::with_capacity(pages.len());
         for (page_id, page) in pages {
             let url = page_url(&page).await.unwrap_or_default();
-            let title = page.get_title().await.unwrap_or_default().unwrap_or_default();
+            let title = page
+                .get_title()
+                .await
+                .unwrap_or_default()
+                .unwrap_or_default();
             out.push(PageSummary {
                 page_id,
                 url,
@@ -181,7 +186,11 @@ impl BrowserEngine {
         let current_index = history.current_index as usize;
         let total = history.entries.len();
         let url = page_url(&page).await.unwrap_or_default();
-        let title = page.get_title().await.unwrap_or_default().unwrap_or_default();
+        let title = page
+            .get_title()
+            .await
+            .unwrap_or_default()
+            .unwrap_or_default();
         let (can_go_back, can_go_forward) = history_capabilities(current_index, total);
         let info = PageInfo {
             page_id: page_id.to_string(),
@@ -335,8 +344,8 @@ impl BrowserEngine {
                 .build()
                 .map_err(|e| e.to_string())?,
         )
-            .await
-            .map_err(Self::map_page_err)?;
+        .await
+        .map_err(Self::map_page_err)?;
         Ok(())
     }
 
@@ -373,8 +382,8 @@ impl BrowserEngine {
                 .build()
                 .map_err(|e| e.to_string())?,
         )
-            .await
-            .map_err(Self::map_page_err)?;
+        .await
+        .map_err(Self::map_page_err)?;
         Ok(())
     }
 
@@ -411,9 +420,7 @@ impl BrowserEngine {
             .native_virtual_key_code(chord.windows_vk)
             .build()
             .map_err(|e| e.to_string())?;
-        page.execute(up)
-            .await
-            .map_err(Self::map_page_err)?;
+        page.execute(up).await.map_err(Self::map_page_err)?;
         Ok(())
     }
 

@@ -22,10 +22,7 @@ fn stdio_socket_env_for_daemon(daemon: &str) -> Option<&'static str> {
     }
 }
 
-fn configure_stdio_daemon_command(
-    daemon: &str,
-    daemon_path: &std::path::Path,
-) -> Command {
+fn configure_stdio_daemon_command(daemon: &str, daemon_path: &std::path::Path) -> Command {
     let mut cmd = Command::new(daemon_path);
     cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())

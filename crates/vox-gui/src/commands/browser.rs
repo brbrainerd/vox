@@ -337,7 +337,12 @@ pub async fn preview_start(
     // Tear down any prior preview.
     preview.guard = None;
 
-    if let Some(url) = input.url.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+    if let Some(url) = input
+        .url
+        .as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
         preview.url = Some(url.to_string());
         preview.app_dir = input.app_dir.clone();
         preview.source = "url".to_string();
@@ -367,8 +372,7 @@ pub async fn preview_start(
     }
     // OrchestratedViteGuard supports either `dev:ssr-upstream` (preferred) or
     // plain `dev`. Fail fast with an actionable message when neither exists.
-    if !package_has_script(&pkg_path, "dev:ssr-upstream") && !package_has_script(&pkg_path, "dev")
-    {
+    if !package_has_script(&pkg_path, "dev:ssr-upstream") && !package_has_script(&pkg_path, "dev") {
         return Err(format!(
             "{} has no \"dev:ssr-upstream\" or \"dev\" script (required for preview orchestration). \
 Use a `vox build` web app output, or start the dev server yourself and pass its URL directly.",
@@ -377,12 +381,11 @@ Use a `vox build` web app output, or start the dev server yourself and pass its 
     }
 
     let app_dir_clone = app_dir.clone();
-    let (guard, inject) = tokio::task::spawn_blocking(move || {
-        OrchestratedViteGuard::maybe_spawn(&app_dir_clone)
-    })
-    .await
-    .map_err(|e| format!("spawn_blocking: {e}"))?
-    .map_err(|e| e.to_string())?;
+    let (guard, inject) =
+        tokio::task::spawn_blocking(move || OrchestratedViteGuard::maybe_spawn(&app_dir_clone))
+            .await
+            .map_err(|e| format!("spawn_blocking: {e}"))?
+            .map_err(|e| e.to_string())?;
 
     // Resolve the dev URL from the SSOT rather than hardcoding: an explicit
     // VOX_SSR_DEV_URL wins, else the pair the guard injects, else `vox dev`
@@ -471,7 +474,10 @@ pub async fn browser_open_session(
     session.headless = headless;
     push_action_log(
         &mut session,
-        format!("open {} (headless={headless}) page_id={:?}", input.url, page_id),
+        format!(
+            "open {} (headless={headless}) page_id={:?}",
+            input.url, page_id
+        ),
     );
     Ok(serde_json::json!({
         "page_id": page_id,
@@ -718,8 +724,8 @@ pub async fn browser_navigate(
         tool,
         serde_json::json!({ "page_id": page_id, "actor": "human" }),
     )
-        .await
-        .and_then(|v| mcp_data(&v).map(|_| ()))?;
+    .await
+    .and_then(|v| mcp_data(&v).map(|_| ()))?;
     let mut session = browser_state.session.lock().await;
     push_action_log(&mut session, format!("navigate {action}"));
     Ok(())
@@ -1034,7 +1040,10 @@ mod tests {
             "data": { "page_id": "page-123", "url": "https://example.com" }
         });
         let data = mcp_data(&ok).expect("success envelope");
-        assert_eq!(data.get("page_id").and_then(|v| v.as_str()), Some("page-123"));
+        assert_eq!(
+            data.get("page_id").and_then(|v| v.as_str()),
+            Some("page-123")
+        );
         assert_eq!(extract_page_id_from_mcp(&ok).as_deref(), Some("page-123"));
     }
 

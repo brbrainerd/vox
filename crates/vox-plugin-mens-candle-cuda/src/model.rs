@@ -726,10 +726,7 @@ impl Qwen35Model {
     /// `input` with the tape live, returning `(input_var, seg_output)`. After
     /// backprop, `input_var`'s gradient is `dL/d(input)` — the cotangent to
     /// thread to the previous segment.
-    pub fn recompute_segment(
-        &self,
-        seg: &CheckpointSegment,
-    ) -> Result<(candle_core::Var, Tensor)> {
+    pub fn recompute_segment(&self, seg: &CheckpointSegment) -> Result<(candle_core::Var, Tensor)> {
         let input_var = candle_core::Var::from_tensor(&seg.input)?;
         let out = self.run_layers(input_var.as_tensor(), seg.start_layer, seg.end_layer)?;
         Ok((input_var, out))
@@ -857,9 +854,13 @@ mod gradient_checkpoint_tests {
         let layers: Vec<Qwen35Layer> = (0..n_layers)
             .map(|i| build_layer(vb.pp(format!("layer{i}")), d, 2, dev))
             .collect();
-        let lm_head =
-            QuantizedLinear::from_weight_with_varbuilder(&embed.clone(), None, &qcfg(), vb.pp("lm_head"))
-                .unwrap();
+        let lm_head = QuantizedLinear::from_weight_with_varbuilder(
+            &embed.clone(),
+            None,
+            &qcfg(),
+            vb.pp("lm_head"),
+        )
+        .unwrap();
         Qwen35Model {
             embed_tokens: embed,
             layers,
@@ -914,7 +915,10 @@ mod gradient_checkpoint_tests {
         let le: Vec<f32> = logits_eager.flatten_all().unwrap().to_vec1().unwrap();
         let lc: Vec<f32> = ckpt.logits.flatten_all().unwrap().to_vec1().unwrap();
         for (a, b) in le.iter().zip(lc.iter()) {
-            assert!((a - b).abs() < 1e-4, "checkpointed logits diverged: {a} vs {b}");
+            assert!(
+                (a - b).abs() < 1e-4,
+                "checkpointed logits diverged: {a} vs {b}"
+            );
         }
 
         let loss_ck = ce_loss(&ckpt.logits, &targets);

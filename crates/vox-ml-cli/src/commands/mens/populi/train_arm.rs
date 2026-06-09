@@ -299,12 +299,8 @@ pub async fn run_train(
                     // Budget overrides a generic preset default but yields to an
                     // explicit CLI flag or a deliberate domain profile (both of
                     // which are already folded into `effective_*` above).
-                    effective_seq_len = resolve_training_sizing(
-                        effective_seq_len,
-                        None,
-                        Some(mp.seq_len),
-                        None,
-                    );
+                    effective_seq_len =
+                        resolve_training_sizing(effective_seq_len, None, Some(mp.seq_len), None);
                     effective_batch_size = resolve_training_sizing(
                         effective_batch_size,
                         None,
@@ -345,12 +341,8 @@ pub async fn run_train(
                             );
                         }
                     }
-                    effective_seq_len = resolve_training_sizing(
-                        effective_seq_len,
-                        None,
-                        Some(mp.seq_len),
-                        None,
-                    );
+                    effective_seq_len =
+                        resolve_training_sizing(effective_seq_len, None, Some(mp.seq_len), None);
                     effective_batch_size = resolve_training_sizing(
                         effective_batch_size,
                         None,
@@ -376,12 +368,8 @@ pub async fn run_train(
                             vram
                         );
                     }
-                    effective_seq_len = resolve_training_sizing(
-                        effective_seq_len,
-                        None,
-                        Some(plan.seq_len),
-                        None,
-                    );
+                    effective_seq_len =
+                        resolve_training_sizing(effective_seq_len, None, Some(plan.seq_len), None);
                     effective_batch_size = resolve_training_sizing(
                         effective_batch_size,
                         None,
@@ -710,10 +698,10 @@ mod sizing_precedence_tests {
     #[test]
     fn budget_overrides_generic_preset_seq_len() {
         let resolved = resolve_training_sizing(
-            None,       // no explicit --seq-len
-            None,       // no domain profile
-            Some(256),  // VRAM budget
-            Some(512),  // generic preset default
+            None,      // no explicit --seq-len
+            None,      // no domain profile
+            Some(256), // VRAM budget
+            Some(512), // generic preset default
         );
         assert_eq!(resolved, Some(256));
     }
@@ -741,7 +729,10 @@ mod sizing_precedence_tests {
     /// No preset at all: the budget value is used as-is.
     #[test]
     fn budget_only_is_used() {
-        assert_eq!(resolve_training_sizing(None, None, Some(256), None), Some(256));
+        assert_eq!(
+            resolve_training_sizing(None, None, Some(256), None),
+            Some(256)
+        );
     }
 
     /// batch_size / grad_accum follow the same precedence (one representative case each).
