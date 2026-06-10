@@ -32,7 +32,9 @@ jobs:
   setup:
     name: Cache warmup + path filter
     runs-on: [self-hosted, linux, x64]
-    timeout-minutes: 20
+    # Cold `cargo build -p vox-cli` on ephemeral runners (no actions/cache hit)
+    # routinely exceeds 20m; fail-closed at 40m so downstream gates are not skipped.
+    timeout-minutes: 40
     outputs:
       cache-key: ${{ steps.k.outputs.key }}
       rust_changed: ${{ steps.filter.outputs.rust }}
