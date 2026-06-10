@@ -2,11 +2,11 @@
 # See https://embarkstudios.github.io/cargo-deny/
 
 [advisories]
+version = 2
 ignore = []
-severity-threshold = "low"
 
 [licenses]
-unlicensed = "deny"
+version = 2
 allow = [
   "MIT",
   "Apache-2.0",
@@ -14,19 +14,8 @@ allow = [
   "BSD-3-Clause",
   "ISC",
   "Zlib",
+  "Unicode-3.0",
 ]
-deny = [
-  "GPL-1.0-only",
-  "GPL-1.0-or-later",
-  "GPL-2.0-only",
-  "GPL-2.0-or-later",
-  "GPL-3.0-only",
-  "GPL-3.0-or-later",
-  "AGPL-3.0-only",
-  "AGPL-3.0-or-later",
-]
-copyleft = "deny"
-allow-osi-fsf-free = "neither"
 
 [bans]
 multiple-versions = "warn"
