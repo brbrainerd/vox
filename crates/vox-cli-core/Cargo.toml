@@ -3,6 +3,7 @@ name = "vox-cli-core"
 description = "Shared internals for the vox CLI binary (argv parsing helpers, exit-code policy)."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 vox-config = { workspace = true }

@@ -3,6 +3,7 @@ name = "vox-scaling-policy"
 description = "Compile-time and runtime accessors for scaling SSOT (contracts/scaling/policy.yaml)"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 serde = { workspace = true }

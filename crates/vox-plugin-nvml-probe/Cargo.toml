@@ -2,6 +2,7 @@
 name = "vox-plugin-nvml-probe"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish = false
 description = "Hardware probe plugin: NVML for NVIDIA GPU introspection."
 

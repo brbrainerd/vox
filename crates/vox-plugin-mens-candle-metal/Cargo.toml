@@ -2,6 +2,7 @@
 name = "vox-plugin-mens-candle-metal"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish = false
 description = "ML training backend plugin: Candle + Metal. Implements MlBackend."
 
