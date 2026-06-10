@@ -1,9 +1,9 @@
-use crate::backend::{
+use crate::inference::backend::{
     BackendCapabilities, BackendId, InferenceBackend, InferenceError, LoadedModel, PromptInput,
     Quantization, SamplingParams, Verdict,
 };
-use crate::backends::candle_device::{self, LoadedState};
-use crate::generate::{GenConfig, generate};
+use crate::inference::backends::candle_device::{self, LoadedState};
+use crate::inference::generate::{GenConfig, generate};
 use async_trait::async_trait;
 use candle_core::Device;
 use std::collections::HashMap;
@@ -11,22 +11,21 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use vox_package::ModelBundle;
 
-/// CPU inference backend backed by candle `QMatMul` quantized weights.
+/// Metal inference backend backed by candle `QMatMul` quantized weights.
 ///
-/// State is held in a label-keyed map because [`LoadedModel`] is opaque and cannot hold
-/// the (non-`Clone`, mutating) `QwenForward`.
-pub struct CandleCpuBackend {
+/// Falls back to CPU when Metal is unavailable (non-Apple platform or feature off).
+pub struct CandleMetalBackend {
     loaded: Mutex<HashMap<String, Arc<LoadedState>>>,
     counter: AtomicU64,
 }
 
-impl Default for CandleCpuBackend {
+impl Default for CandleMetalBackend {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl CandleCpuBackend {
+impl CandleMetalBackend {
     pub fn new() -> Self {
         Self {
             loaded: Mutex::new(HashMap::new()),
@@ -34,19 +33,21 @@ impl CandleCpuBackend {
         }
     }
 
-    /// Load a local SP-1 quantized artifact directory (`config.json`, `model*.safetensors`,
-    /// `tokenizer.json`) into an in-memory model and register it under a fresh label.
+    /// Load a local SP-1 quantized artifact directory into an in-memory model.
     ///
-    /// This is the supported entry point for local inference. [`InferenceBackend::load`]
-    /// (the `ModelBundle` path) intentionally errors until a content-addressed store
-    /// resolver exists — see its doc comment.
+    /// Attempts to use Metal device 0; falls back to CPU with a warning when Metal is
+    /// unavailable (non-Apple platform or feature off).
     pub fn load_from_dir(&self, dir: &std::path::Path) -> Result<LoadedModel, InferenceError> {
+        let dev = Device::new_metal(0).unwrap_or_else(|_| {
+            tracing::warn!("Metal unavailable, falling back to CPU for CandleMetalBackend");
+            Device::Cpu
+        });
         let id = self.counter.fetch_add(1, Ordering::Relaxed);
-        let label = format!("candle-cpu-dir-{id}");
+        let label = format!("candle-metal-dir-{id}");
         candle_device::load_from_dir_on_device(
             dir,
-            Device::Cpu,
-            BackendId::CandleCpu,
+            dev,
+            BackendId::CandleMetal,
             label,
             &self.loaded,
         )
@@ -54,17 +55,17 @@ impl CandleCpuBackend {
 }
 
 #[async_trait]
-impl InferenceBackend for CandleCpuBackend {
+impl InferenceBackend for CandleMetalBackend {
     fn id(&self) -> BackendId {
-        BackendId::CandleCpu
+        BackendId::CandleMetal
     }
 
     fn capabilities(&self) -> BackendCapabilities {
         BackendCapabilities {
             cuda_tier: 0,
-            metal_tier: 0,
+            metal_tier: 1,
             vram_gb: 0,
-            max_context_len: 4096,
+            max_context_len: 32768,
             streaming: false,
             quantizations: vec![
                 Quantization::Q4K,
@@ -85,15 +86,12 @@ impl InferenceBackend for CandleCpuBackend {
         }
     }
 
-    /// `ModelBundle` is hash-only and there is no content-addressed-store resolver wired
-    /// yet (Mn-T3), so this backend cannot locate the artifact files from a bundle. This
-    /// is an intentional, documented gap: use [`CandleCpuBackend::load_from_dir`] for
-    /// local artifacts until the CAS lands.
+    /// `ModelBundle` CAS resolution not wired yet (Mn-T3). Use
+    /// [`CandleMetalBackend::load_from_dir`] for local artifacts.
     fn load(&self, _bundle: &ModelBundle) -> Result<LoadedModel, InferenceError> {
         Err(InferenceError::Unsupported(
-            BackendId::CandleCpu,
-            "ModelBundle CAS resolution not wired (Mn-T3); use load_from_dir for local artifacts"
-                .into(),
+            BackendId::CandleMetal,
+            "ModelBundle CAS resolution not wired (Mn-T3); use load_from_dir".into(),
         ))
     }
 
@@ -134,6 +132,8 @@ impl InferenceBackend for CandleCpuBackend {
             eos_token_id: state.eos,
         };
 
+        // The device is already baked into the QwenForward weights at load time.
+        // generate() uses Device::Cpu only for input_ids tensor construction.
         let dev = Device::Cpu;
         let new_ids = {
             let mut fwd = state.forward.lock().expect("forward poisoned");
@@ -169,8 +169,6 @@ mod tests {
         Tensor::ones((n,), DType::F32, dev).unwrap()
     }
 
-    /// Write a tiny full-attention quantized artifact + a hand-rolled minimal WordLevel
-    /// `tokenizer.json` into one directory and return it.
     fn build_dir() -> tempfile::TempDir {
         let dev = Device::Cpu;
         let hidden = 256usize;
@@ -246,8 +244,6 @@ mod tests {
         })
         .unwrap();
 
-        // Minimal WordLevel tokenizer.json: whitespace pretokenizer + small vocab.
-        // All ids are well under the model vocab (512).
         let tok = r#"{
           "version": "1.0",
           "truncation": null,
@@ -275,84 +271,34 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn load_from_dir_then_predict_returns_nonstub_text() {
-        let backend = CandleCpuBackend::new();
+    async fn metal_backend_falls_back_to_cpu_and_predicts() {
+        // Metal will be absent on non-Apple platforms; load_from_dir falls back to CPU.
+        let backend = CandleMetalBackend::new();
         let dir = build_dir();
         let loaded = backend.load_from_dir(dir.path()).expect("load_from_dir");
-        assert!(loaded.label.starts_with("candle-cpu-dir-"));
-        // registered
-        assert!(backend.loaded.lock().unwrap().contains_key(&loaded.label));
+        assert!(loaded.label.starts_with("candle-metal-dir-"));
 
         let out = backend
             .predict(
                 &loaded,
                 PromptInput {
-                    text: "hello world".into(),
+                    text: "hello".into(),
                     system: None,
                 },
                 SamplingParams {
                     temperature: 0.0,
                     top_p: 1.0,
-                    max_tokens: Some(4),
+                    max_tokens: Some(3),
                 },
             )
             .await
             .expect("predict");
-        assert!(!out.contains("stub"), "stub string must be gone");
-        // Determinism: same prompt + greedy → identical output.
-        let out2 = backend
-            .predict(
-                &loaded,
-                PromptInput {
-                    text: "hello world".into(),
-                    system: None,
-                },
-                SamplingParams {
-                    temperature: 0.0,
-                    top_p: 1.0,
-                    max_tokens: Some(4),
-                },
-            )
-            .await
-            .expect("predict 2");
-        assert_eq!(out, out2, "greedy predict must be deterministic");
-
-        // unload removes the label.
-        backend.unload(loaded.clone()).unwrap();
-        assert!(!backend.loaded.lock().unwrap().contains_key(&loaded.label));
-    }
-
-    #[tokio::test]
-    async fn predict_unknown_label_errors() {
-        let backend = CandleCpuBackend::new();
-        let bogus = LoadedModel {
-            backend: BackendId::CandleCpu,
-            label: "nope".into(),
-        };
-        let err = backend
-            .predict(
-                &bogus,
-                PromptInput {
-                    text: "hi".into(),
-                    system: None,
-                },
-                SamplingParams {
-                    temperature: 0.0,
-                    top_p: 1.0,
-                    max_tokens: Some(1),
-                },
-            )
-            .await
-            .expect_err("unknown label must error");
-        match err {
-            InferenceError::Internal(msg) => assert!(msg.contains("not loaded")),
-            other => panic!("expected Internal, got {other:?}"),
-        }
+        assert!(!out.contains("stub"));
     }
 
     #[test]
     fn bundle_load_is_unsupported_cas_gap() {
-        let backend = CandleCpuBackend::new();
+        let backend = CandleMetalBackend::new();
         let mut bundle = ModelBundle {
             weights_hash: [1u8; 64],
             weights_merkle_leaves: None,

@@ -1,9 +1,9 @@
-use crate::backend::{
+use crate::inference::backend::{
     BackendCapabilities, BackendId, InferenceBackend, InferenceError, LoadedModel, PromptInput,
     Quantization, SamplingParams, Verdict,
 };
-use crate::backends::candle_device::{self, LoadedState};
-use crate::generate::{GenConfig, generate};
+use crate::inference::backends::candle_device::{self, LoadedState};
+use crate::inference::generate::{GenConfig, generate};
 use async_trait::async_trait;
 use candle_core::Device;
 use std::collections::HashMap;

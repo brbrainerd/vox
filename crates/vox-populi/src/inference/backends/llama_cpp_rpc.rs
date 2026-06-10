@@ -1,4 +1,4 @@
-use crate::backend::{
+use crate::inference::backend::{
     BackendCapabilities, BackendId, InferenceBackend, InferenceError, LoadedModel, PromptInput,
     Quantization, SamplingParams, Verdict,
 };

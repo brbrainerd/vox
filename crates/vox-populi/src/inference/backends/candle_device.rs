@@ -4,9 +4,9 @@
 //! same way; the only difference is the [`Device`] they use. This module centralises
 //! that logic so each backend just constructs the right device and delegates here.
 
-use crate::backend::{BackendId, InferenceError, LoadedModel};
-use crate::qwen_forward::QwenForward;
-use crate::qwen_weights::QwenWeights;
+use crate::inference::backend::{BackendId, InferenceError, LoadedModel};
+use crate::inference::qwen_forward::QwenForward;
+use crate::inference::qwen_weights::QwenWeights;
 use candle_core::Device;
 use std::collections::HashMap;
 use std::path::Path;

@@ -19,7 +19,7 @@ use candle_core::{D, DType, Device, Module, Tensor};
 use candle_nn::RmsNorm;
 use vox_hf_layout::HfTransformerLayout;
 
-use crate::qwen_weights::{QwenWeights, WeightsError};
+use super::qwen_weights::{QwenWeights, WeightsError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ForwardError {

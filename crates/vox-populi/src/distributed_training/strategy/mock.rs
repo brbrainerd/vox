@@ -1,6 +1,8 @@
-use crate::checkpoint::{CheckpointBundle, synthetic_weights_hash};
-use crate::gradient::GradientShard;
-use crate::session::{Batch, SessionId, StepResult, TrainingError, TrainingSession};
+use crate::distributed_training::checkpoint::{CheckpointBundle, synthetic_weights_hash};
+use crate::distributed_training::gradient::GradientShard;
+use crate::distributed_training::session::{
+    Batch, SessionId, StepResult, TrainingError, TrainingSession,
+};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

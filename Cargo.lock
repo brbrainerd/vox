@@ -14138,27 +14138,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-distributed-training"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "hex",
- "serde",
- "serde_json",
- "sha3",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
- "vox-crypto",
- "vox-orchestrator-queue",
- "vox-package",
- "vox-secrets",
- "workspace-hack",
-]
-
-[[package]]
 name = "vox-doc-inventory"
 version = "0.6.0"
 dependencies = [
@@ -14454,29 +14433,6 @@ dependencies = [
  "serde_json",
  "vox-crypto",
  "zeroize",
-]
-
-[[package]]
-name = "vox-inference"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "candle-core",
- "candle-nn",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokenizers",
- "tokio",
- "tracing",
- "vox-hf-layout",
- "vox-mesh-types",
- "vox-package",
- "vox-quantize",
- "workspace-hack",
 ]
 
 [[package]]
@@ -15358,6 +15314,7 @@ dependencies = [
  "vox-plugin-host",
  "vox-populi-types",
  "vox-publisher",
+ "vox-quantize",
  "vox-repository",
  "vox-secrets",
  "vox-tensor",

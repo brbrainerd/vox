@@ -123,8 +123,8 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-doc-pipeline`](../../../crates/vox-doc-pipeline/) | Docs lint + doctest helpers for `docs/src/`; Starlight sidebar and RSS are built at **docs-astro** publish time (see root `AGENTS.md`). |
 | [`vox-package`](../../../crates/vox-package/) | Vox package manager runtime: content-addressed artifact cache, registry HTTP client, workspace discovery. |
 | [`vox-quantize`](../../../crates/vox-quantize/) | Data-free k-quant PTQ engine (SafeTensors → Candle GGML quantized SafeTensors; GPU-first, CPU fallback). |
-| [`vox-inference`](../../../crates/vox-inference/) | MENS Mn-T2: `InferenceBackend` trait + multi-backend dispatcher (Candle CPU/CUDA/Metal, llama.cpp RPC, Ollama). Backends implemented; no in-tree consumers yet. |
-| [`vox-distributed-training`](../../../crates/vox-distributed-training/) | MENS Mn-T1/Mn-T6: `TrainingSession`, signed `GradientShard` / `CheckpointBundle`, `OperationKind::TrainingCheckpoint` mapping. |
+| [`vox-populi` — `inference`](../../../crates/vox-populi/src/inference/) | MENS Mn-T2: `InferenceBackend` trait + multi-backend dispatcher (Candle CPU/CUDA/Metal, llama.cpp RPC, Ollama). Merged from retired `vox-inference`. Feature `inference` / `mens-candle-qlora`. |
+| [`vox-populi` — `distributed_training`](../../../crates/vox-populi/src/distributed_training/) | MENS Mn-T1/Mn-T6: `TrainingSession`, signed `GradientShard` / `CheckpointBundle`, `OperationKind::TrainingCheckpoint` mapping. Merged from retired `vox-distributed-training`. |
 | [`vox-ml-cli`](../../../crates/vox-ml-cli/) | ML / Oratio / Populi / telemetry CLI binary (`vox-ml-cli`); Mens training, GPU features, optional workflow glue. |
 | [`vox-forge`](../../../crates/vox-forge/) | Platform-agnostic Git forge API — GitHub, Gitea, Forgejo (GitLab deprecated/unsupported as of 2026-06-03). |
 | [`vox-gamify`](../../../crates/vox-gamify/) | Gamification layer — companions, quests, battles, and free AI integration. |

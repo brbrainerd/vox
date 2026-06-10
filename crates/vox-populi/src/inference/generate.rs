@@ -13,7 +13,7 @@
 
 use candle_core::{DType, Device, Tensor};
 
-use crate::qwen_forward::{ForwardError, QwenForward};
+use super::qwen_forward::{ForwardError, QwenForward};
 
 /// Decode configuration for [`generate`].
 #[derive(Debug, Clone)]
@@ -132,8 +132,8 @@ fn sample_nucleus(logits: &Tensor, temperature: f64, top_p: f64) -> Result<u32, 
 
 #[cfg(test)]
 mod tests {
+    use super::qwen_weights::QwenWeights;
     use super::*;
-    use crate::qwen_weights::QwenWeights;
     use candle_core::{DType, Tensor};
     use vox_hf_layout::HfTransformerLayout;
 

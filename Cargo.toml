@@ -104,8 +104,6 @@ vox-populi                = { path = "crates/vox-populi" }
 vox-populi-types          = { path = "crates/vox-populi-types" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
 vox-mesh-types            = { path = "crates/vox-mesh-types" }
-vox-distributed-training  = { path = "crates/vox-distributed-training" }
-vox-inference             = { path = "crates/vox-inference" }
 
 vox-mesh-policy        = { path = "crates/vox-mesh-policy" }
 
