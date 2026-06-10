@@ -90,14 +90,18 @@ fn now_secs() -> i64 {
 /// blank console window on the desktop. No-op on non-Windows.
 fn quiet_command(program: &str) -> Command {
     // vox-arch-check: allow git-exec
-    let mut cmd = Command::new(program);
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let mut cmd = Command::new(program);
         cmd.creation_flags(CREATE_NO_WINDOW);
+        cmd
     }
-    cmd
+    #[cfg(not(windows))]
+    {
+        Command::new(program)
+    }
 }
 
 fn gh_json(args: &[&str]) -> Result<String> {
