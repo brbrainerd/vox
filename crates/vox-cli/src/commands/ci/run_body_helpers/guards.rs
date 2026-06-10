@@ -45,7 +45,6 @@ pub(crate) fn run_repo_guards(root: &Path) -> Result<()> {
 /// Detects dot-`connection()` chains ending in `query` / `execute` call parentheses, including
 /// splits across lines (`.` + method on the next line). Test fixtures avoid spelling the banned
 /// substring literally so this module does not trip the repo-wide guard.
-#[must_use]
 pub(crate) fn sql_surface_contains_raw_connection_api(text: &str) -> Result<bool> {
     static RE: OnceLock<regex::Regex> = OnceLock::new();
     Ok(cached_guard_regex(
@@ -87,7 +86,6 @@ pub(crate) fn run_sql_surface_guard(root: &Path, all: bool) -> Result<()> {
 
 /// True when source uses the `sqlx` crate path prefix (word-bounded), which is
 /// restricted to the SQL interop backend crate.
-#[must_use]
 pub(crate) fn source_contains_sqlx_path_prefix(text: &str) -> Result<bool> {
     static RE: OnceLock<regex::Regex> = OnceLock::new();
     let pat = concat!(r"\b", "sq", "lx", "::");
@@ -127,7 +125,6 @@ pub(crate) fn run_sqlx_isolation_guard(root: &Path, all: bool) -> Result<()> {
 
 /// True when `text` contains a **call** to [`vox_db::VoxDb::query_all`] (dot + `query_all` + `(`),
 /// e.g. on `db` or `self`, not merely a `fn query_all` definition.
-#[must_use]
 pub(crate) fn source_contains_query_all_call_site(text: &str) -> Result<bool> {
     static RE: OnceLock<regex::Regex> = OnceLock::new();
     Ok(cached_guard_regex(&RE, "query-all-call-site", r"\.query_all\s*\(")?.is_match(text))
@@ -203,7 +200,6 @@ pub(crate) fn run_query_all_guard(root: &Path, all: bool) -> Result<()> {
 
 /// True when `text` contains a Turso crate path prefix (`turso` + `::`, word-bounded)
 /// (regex built from fragments so this file does not self-match the guard scan).
-#[must_use]
 pub(crate) fn source_contains_turso_path_prefix(text: &str) -> Result<bool> {
     static RE: OnceLock<regex::Regex> = OnceLock::new();
     let pat = concat!(r"\b", "tur", "so", "::");
@@ -667,7 +663,6 @@ fn collect_secrets_cutover_audit(
     })
 }
 
-#[must_use]
 pub(crate) fn secret_dataflow_leak_categories(text: &str) -> Result<Vec<&'static str>> {
     static SERIALIZE_RE: OnceLock<regex::Regex> = OnceLock::new();
     static LOG_RE: OnceLock<regex::Regex> = OnceLock::new();
