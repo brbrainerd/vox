@@ -82,7 +82,7 @@ jobs:
       # Note: Windows Azure Trusted Signing integration
       - name: Sign Windows Installer
         if: runner.os == 'Windows'
-        uses: azure/trusted-signing-action@v0.3.1
+        uses: azure/trusted-signing-action@v2.0.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
