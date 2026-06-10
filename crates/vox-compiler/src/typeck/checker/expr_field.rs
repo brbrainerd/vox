@@ -53,7 +53,7 @@ impl<'a> Checker<'a> {
                 ));
                 Ty::Error
             }
-            Ty::Record(fields) | Ty::Table(_, fields) | Ty::Collection(_, fields) => fields
+            Ty::Record(fields) | Ty::Table(_, fields, _) | Ty::Collection(_, fields) => fields
                 .iter()
                 .find(|(n, _)| n == field)
                 .map(|(_, t)| t.clone())
@@ -92,7 +92,7 @@ impl<'a> Checker<'a> {
                     .is_some_and(|b| b.kind == BindingKind::Table) =>
             {
                 let table_ty = self.env.lookup(n).unwrap().ty.clone();
-                if let Ty::Table(_, fields) | Ty::Collection(_, fields) = table_ty {
+                if let Ty::Table(_, fields, _) | Ty::Collection(_, fields) = table_ty {
                     if let Some((_, ft)) = fields.iter().find(|(fn_, _)| fn_ == field) {
                         ft.clone()
                     } else {

@@ -97,3 +97,55 @@ fn emit_main_includes_durable_boot_even_without_scheduled() {
         "scheduler must not be started when no @scheduled fns are present",
     );
 }
+
+#[test]
+fn emit_main_includes_healthz_for_db_backed_modules() {
+    let src = r#"
+        @table type Task {
+            title: str
+        }
+    "#;
+    let module = parse(lex(src)).expect("parse");
+    let hir = lower_module(&module);
+    let bundle = project_bundle_from_hir(&hir);
+    let main_rs = emit_main(&hir, "p9-healthz", &bundle.app);
+
+    assert!(
+        main_rs.contains(".route(\"/healthz\", get(handle_healthz))"),
+        "db-backed emit_main must expose /healthz"
+    );
+    assert!(
+        main_rs.contains(".route(\"/readyz\", get(handle_healthz))"),
+        "db-backed emit_main must expose /readyz"
+    );
+    assert!(
+        main_rs.contains("evaluate_codex_api_readiness"),
+        "health handler must run codex readiness evaluation"
+    );
+    assert!(
+        main_rs.contains("async fn vox_health_probe_for_backend"),
+        "health emit should route readiness through a backend probe abstraction"
+    );
+    assert!(
+        main_rs.contains("vox_health_probe_for_backend(backend, db.as_ref()).await"),
+        "health handler should dispatch via backend probe helper"
+    );
+    assert!(
+        main_rs.contains(
+            "generated Axum health/readiness probe does not yet include a backend-specific readiness evaluator"
+        ),
+        "health handler should emit a clear degraded message for backends without a probe yet"
+    );
+    assert!(
+        main_rs.contains("fn vox_health_backend_kind() -> &'static str"),
+        "health emit should include backend-kind helper for status payload"
+    );
+    assert!(
+        main_rs.contains("generated Axum table runtime still boots Codex while backend-specific table dispatch is completed incrementally"),
+        "db setup should warn (not hard fail) when VOX_APP_DB_URL points at non-libsql backends in this phase"
+    );
+    assert!(
+        !main_rs.contains("generated Axum table runtime currently requires libsql/Codex"),
+        "legacy hard-fail wording should be removed from Axum db setup emit"
+    );
+}

@@ -33,7 +33,7 @@ pub enum Ty {
     Error,
     // Database / domain
     Database,
-    Table(String, Vec<(String, Ty)>),
+    Table(String, Vec<(String, Ty)>, Option<(String, Box<Ty>)>),
     Collection(String, Vec<(String, Ty)>),
     /// Handle returned by `spawn(ActorName)`; supports `.handler(...)` per registered actor.
     ActorRef(String),
@@ -100,7 +100,7 @@ impl Ty {
             Ty::ImportPlaceholder(name) => format!("Import<{name}>"),
             Ty::Error => "Error".to_string(),
             Ty::Database => "Database".to_string(),
-            Ty::Table(name, _) => format!("Table<{name}>"),
+            Ty::Table(name, _, _) => format!("Table<{name}>"),
             Ty::Collection(name, _) => format!("Collection<{name}>"),
             Ty::ActorRef(name) => format!("ActorRef<{name}>"),
             Ty::Infer => "_".to_string(),

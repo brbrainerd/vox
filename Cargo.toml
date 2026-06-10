@@ -77,6 +77,7 @@ vox-skill-runtime         = { path = "crates/vox-skill-runtime" }
 vox-jsonschema-util       = { path = "crates/vox-jsonschema-util" }
 vox-corpus                = { path = "crates/vox-corpus" }
 vox-db                    = { path = "crates/vox-db" }
+vox-sql                   = { path = "crates/vox-sql" }
 vox-db-types              = { path = "crates/vox-db-types" }
 vox-eval                  = { path = "crates/vox-eval" }
 

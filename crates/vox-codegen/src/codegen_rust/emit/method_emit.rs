@@ -3,6 +3,10 @@
 use std::collections::HashMap;
 use vox_compiler::ast::span::Span;
 use vox_compiler::hir::{HirDbPredicate, HirDbQueryPlan, HirDbTableOp, HirExpr, HirType};
+use vox_secrets::SecretId;
+use vox_sql::BackendKind;
+use vox_sql::SqlDialect;
+use vox_sql::build::{SqlPredicate, equality_predicate_sql, predicate_sql};
 
 fn db_ref(fallible: bool) -> &'static str {
     if fallible { "&db" } else { "&*db" }
@@ -14,6 +18,38 @@ fn await_or_expect_suffix(fallible: bool, expect_msg: &str) -> String {
     } else {
         format!(".await.expect(\"{expect_msg}\")")
     }
+}
+
+fn dialect_for_backend_kind(kind: BackendKind) -> SqlDialect {
+    match kind {
+        BackendKind::Libsql => SqlDialect::sqlite(),
+        BackendKind::Postgres => SqlDialect::postgres(),
+        BackendKind::MySql => SqlDialect::mysql(),
+    }
+}
+
+fn dialect_from_urls(app_url: Option<&str>, codex_url: Option<&str>) -> SqlDialect {
+    if let Some(url) = app_url
+        && let Ok(kind) = BackendKind::from_url(url)
+    {
+        return dialect_for_backend_kind(kind);
+    }
+    if let Some(url) = codex_url
+        && let Ok(kind) = BackendKind::from_url(url)
+    {
+        return dialect_for_backend_kind(kind);
+    }
+    SqlDialect::sqlite()
+}
+
+fn db_query_sql_dialect() -> SqlDialect {
+    // Prefer app-plane DB URL when present to keep emitted SQL placeholders
+    // aligned with backend-neutral routing work; fall back to Codex URL.
+    let app_url = std::env::var("VOX_APP_DB_URL").ok();
+    let codex_url = vox_secrets::resolve_secret(SecretId::VoxDbUrl)
+        .expose()
+        .map(str::to_owned);
+    dialect_from_urls(app_url.as_deref(), codex_url.as_deref())
 }
 
 /// Emit lowered `db.<Table>.<op>(...)` (canonical Codex IR).
@@ -186,6 +222,7 @@ fn emit_count_op<F>(
 where
     F: Fn(&HirExpr) -> String,
 {
+    let dialect = db_query_sql_dialect();
     if args.is_empty() {
         return format!(
             "{}::count({}){}",
@@ -196,8 +233,8 @@ where
     }
     let where_sql = if let Some(pred) = plan.and_then(|p| p.predicate.as_ref()) {
         let mut next_param = 1usize;
-        let mut next_arg = 0usize;
-        emit_predicate_sql_module(emit_expr, pred, args, &mut next_param, &mut next_arg)
+        let pred = hir_predicate_to_sql_predicate(pred);
+        predicate_sql(&dialect, &pred, &mut next_param)
     } else {
         args.iter()
             .enumerate()
@@ -206,7 +243,7 @@ where
                     .name
                     .as_deref()
                     .expect("count filter args must be named columns");
-                format!("{col} = ?{}", i + 1)
+                equality_predicate_sql(&dialect, col, i + 1)
             })
             .collect::<Vec<_>>()
             .join(" AND ")
@@ -359,17 +396,18 @@ fn emit_filter_where(
 }
 
 fn build_filter_where_sql<F>(
-    emit_expr: &F,
+    _emit_expr: &F,
     args: &[vox_compiler::hir::HirArg],
     plan: Option<&HirDbQueryPlan>,
 ) -> String
 where
     F: Fn(&HirExpr) -> String,
 {
+    let dialect = db_query_sql_dialect();
     if let Some(pred) = plan.and_then(|p| p.predicate.as_ref()) {
         let mut next_param = 1usize;
-        let mut next_arg = 0usize;
-        return emit_predicate_sql_module(emit_expr, pred, args, &mut next_param, &mut next_arg);
+        let pred = hir_predicate_to_sql_predicate(pred);
+        return predicate_sql(&dialect, &pred, &mut next_param);
     }
     args.iter()
         .enumerate()
@@ -378,95 +416,58 @@ where
                 .name
                 .as_deref()
                 .expect("filter_record args must be named columns");
-            format!("{col} = ?{}", i + 1)
+            equality_predicate_sql(&dialect, col, i + 1)
         })
         .collect::<Vec<_>>()
         .join(" AND ")
 }
 
-/// Module-scope twin of the nested `emit_predicate_sql` inside
-/// `emit_db_table_op`. Same body, just lifted so the extracted
-/// `emit_filter_record` can call it.
-fn emit_predicate_sql_module<F>(
-    _emit_expr: &F,
-    pred: &HirDbPredicate,
-    _args: &[vox_compiler::hir::HirArg],
-    next_param: &mut usize,
-    next_arg: &mut usize,
-) -> String
-where
-    F: Fn(&HirExpr) -> String,
-{
+fn hir_predicate_to_sql_predicate(pred: &HirDbPredicate) -> SqlPredicate {
     match pred {
-        HirDbPredicate::Eq { field } => single_param_pred(field, "=", next_param, next_arg),
-        HirDbPredicate::Neq { field } => single_param_pred(field, "<>", next_param, next_arg),
-        HirDbPredicate::Lt { field } => single_param_pred(field, "<", next_param, next_arg),
-        HirDbPredicate::Lte { field } => single_param_pred(field, "<=", next_param, next_arg),
-        HirDbPredicate::Gt { field } => single_param_pred(field, ">", next_param, next_arg),
-        HirDbPredicate::Gte { field } => single_param_pred(field, ">=", next_param, next_arg),
-        HirDbPredicate::Contains { field } => {
-            let idx = *next_param;
-            *next_param += 1;
-            *next_arg += 1;
-            format!("{field} LIKE '%' || ?{idx} || '%'")
-        }
-        HirDbPredicate::IsNull { field } => format!("{field} IS NULL"),
-        HirDbPredicate::In { field, arity } => {
-            let mut slots = Vec::with_capacity(*arity);
-            for _ in 0..*arity {
-                let idx = *next_param;
-                *next_param += 1;
-                *next_arg += 1;
-                slots.push(format!("?{idx}"));
-            }
-            format!("{field} IN ({})", slots.join(", "))
-        }
-        HirDbPredicate::And(parts) => {
-            combine_preds(_emit_expr, parts, _args, next_param, next_arg, " AND ")
-        }
-        HirDbPredicate::Or(parts) => {
-            combine_preds(_emit_expr, parts, _args, next_param, next_arg, " OR ")
-        }
-        HirDbPredicate::Not(inner) => format!(
-            "NOT ({})",
-            emit_predicate_sql_module(_emit_expr, inner, _args, next_param, next_arg)
+        HirDbPredicate::Eq { field } => SqlPredicate::Eq {
+            field: field.clone(),
+        },
+        HirDbPredicate::Neq { field } => SqlPredicate::Neq {
+            field: field.clone(),
+        },
+        HirDbPredicate::Lt { field } => SqlPredicate::Lt {
+            field: field.clone(),
+        },
+        HirDbPredicate::Lte { field } => SqlPredicate::Lte {
+            field: field.clone(),
+        },
+        HirDbPredicate::Gt { field } => SqlPredicate::Gt {
+            field: field.clone(),
+        },
+        HirDbPredicate::Gte { field } => SqlPredicate::Gte {
+            field: field.clone(),
+        },
+        HirDbPredicate::Contains { field } => SqlPredicate::Contains {
+            field: field.clone(),
+        },
+        HirDbPredicate::IsNull { field } => SqlPredicate::IsNull {
+            field: field.clone(),
+        },
+        HirDbPredicate::In { field, arity } => SqlPredicate::In {
+            field: field.clone(),
+            arity: *arity,
+        },
+        HirDbPredicate::And(parts) => SqlPredicate::And(
+            parts
+                .iter()
+                .map(hir_predicate_to_sql_predicate)
+                .collect::<Vec<_>>(),
         ),
+        HirDbPredicate::Or(parts) => SqlPredicate::Or(
+            parts
+                .iter()
+                .map(hir_predicate_to_sql_predicate)
+                .collect::<Vec<_>>(),
+        ),
+        HirDbPredicate::Not(inner) => {
+            SqlPredicate::Not(Box::new(hir_predicate_to_sql_predicate(inner)))
+        }
     }
-}
-
-fn single_param_pred(
-    field: &str,
-    sql_op: &str,
-    next_param: &mut usize,
-    next_arg: &mut usize,
-) -> String {
-    let idx = *next_param;
-    *next_param += 1;
-    *next_arg += 1;
-    format!("{field} {sql_op} ?{idx}")
-}
-
-fn combine_preds<F>(
-    emit_expr: &F,
-    parts: &[HirDbPredicate],
-    args: &[vox_compiler::hir::HirArg],
-    next_param: &mut usize,
-    next_arg: &mut usize,
-    sep: &str,
-) -> String
-where
-    F: Fn(&HirExpr) -> String,
-{
-    parts
-        .iter()
-        .map(|p| {
-            format!(
-                "({})",
-                emit_predicate_sql_module(emit_expr, p, args, next_param, next_arg)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(sep)
 }
 
 /// Returns `true` when the HIR expression's inferred type is a list (`Generic("list", _)`
@@ -681,7 +682,7 @@ fn try_emit_list_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<S
 
         // ── Slice ────────────────────────────────────────────────────────────
         // slice_list(start, end?) → sub-list [start, end), bounds-clamped.
-        "slice_list" if arg_exprs.len() >= 1 => {
+        "slice_list" if !arg_exprs.is_empty() => {
             let start = &arg_exprs[0];
             let end_expr = if arg_exprs.len() >= 2 {
                 format!("({} as usize).min(__lst.len())", arg_exprs[1])
@@ -877,5 +878,53 @@ fn try_emit_str_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<St
         )),
 
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SqlDialect, dialect_for_backend_kind, dialect_from_urls};
+    use vox_sql::BackendKind;
+
+    #[test]
+    fn backend_kind_maps_to_expected_dialect_shape() {
+        let sqlite = dialect_for_backend_kind(BackendKind::Libsql);
+        assert_eq!(
+            sqlite.placeholder_style,
+            SqlDialect::sqlite().placeholder_style
+        );
+
+        let postgres = dialect_for_backend_kind(BackendKind::Postgres);
+        assert_eq!(
+            postgres.placeholder_style,
+            SqlDialect::postgres().placeholder_style
+        );
+
+        let mysql = dialect_for_backend_kind(BackendKind::MySql);
+        assert_eq!(
+            mysql.placeholder_style,
+            SqlDialect::mysql().placeholder_style
+        );
+    }
+
+    #[test]
+    fn app_plane_url_takes_precedence_for_dialect_selection() {
+        let dialect = dialect_from_urls(
+            Some("postgres://user:pass@localhost:5432/app"),
+            Some("libsql://example.turso.io"),
+        );
+        assert_eq!(
+            dialect.placeholder_style,
+            SqlDialect::postgres().placeholder_style
+        );
+    }
+
+    #[test]
+    fn codex_url_used_when_app_plane_url_absent_or_invalid() {
+        let dialect = dialect_from_urls(Some("not-a-db-url"), Some("mysql://localhost/app"));
+        assert_eq!(
+            dialect.placeholder_style,
+            SqlDialect::mysql().placeholder_style
+        );
     }
 }

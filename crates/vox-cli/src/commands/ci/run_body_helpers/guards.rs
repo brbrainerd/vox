@@ -1,10 +1,28 @@
 use anyhow::{Context, Result, anyhow};
 use std::fs;
 use std::path::Path;
+use std::sync::OnceLock;
 
 use vox_bounded_fs::read_utf8_path_capped;
 
 use super::matrix::visit_rs_files;
+
+fn compile_guard_regex(label: &'static str, pattern: &str) -> Result<regex::Regex> {
+    regex::Regex::new(pattern).with_context(|| format!("compile {label} guard regex"))
+}
+
+fn cached_guard_regex(
+    cell: &'static OnceLock<regex::Regex>,
+    label: &'static str,
+    pattern: &'static str,
+) -> Result<&'static regex::Regex> {
+    if cell.get().is_none() {
+        let re = compile_guard_regex(label, pattern)?;
+        let _ = cell.set(re);
+    }
+    cell.get()
+        .ok_or_else(|| anyhow!("guard regex {label} failed to initialize"))
+}
 
 /// Crates whose entire path is implicitly allowlisted for direct turso usage.
 /// Used by both [`load_turso_import_allowlist`] and the
@@ -28,13 +46,14 @@ pub(crate) fn run_repo_guards(root: &Path) -> Result<()> {
 /// splits across lines (`.` + method on the next line). Test fixtures avoid spelling the banned
 /// substring literally so this module does not trip the repo-wide guard.
 #[must_use]
-pub(crate) fn sql_surface_contains_raw_connection_api(text: &str) -> bool {
-    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    RE.get_or_init(|| {
-        regex::Regex::new(r"\.connection\(\)\s*\.\s*(?:query|execute)\s*\(")
-            .expect("sql surface regex")
-    })
-    .is_match(text)
+pub(crate) fn sql_surface_contains_raw_connection_api(text: &str) -> Result<bool> {
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    Ok(cached_guard_regex(
+        &RE,
+        "sql-surface",
+        r"\.connection\(\)\s*\.\s*(?:query|execute)\s*\(",
+    )?
+    .is_match(text))
 }
 
 pub(crate) fn run_sql_surface_guard(root: &Path, all: bool) -> Result<()> {
@@ -50,7 +69,7 @@ pub(crate) fn run_sql_surface_guard(root: &Path, all: bool) -> Result<()> {
             continue;
         }
         let text = read_utf8_path_capped(&path)?;
-        if sql_surface_contains_raw_connection_api(&text) {
+        if sql_surface_contains_raw_connection_api(&text)? {
             offenders.push(rel_norm);
         }
     }
@@ -61,17 +80,57 @@ pub(crate) fn run_sql_surface_guard(root: &Path, all: bool) -> Result<()> {
             offenders.join(", ")
         ));
     }
+    run_sqlx_isolation_guard(root, all)?;
     println!("sql-surface-guard OK");
+    Ok(())
+}
+
+/// True when source uses the `sqlx` crate path prefix (word-bounded), which is
+/// restricted to the SQL interop backend crate.
+#[must_use]
+pub(crate) fn source_contains_sqlx_path_prefix(text: &str) -> Result<bool> {
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    let pat = concat!(r"\b", "sq", "lx", "::");
+    Ok(cached_guard_regex(&RE, "sqlx-path-prefix", pat)?.is_match(text))
+}
+
+fn sqlx_isolation_path_allowed(rel: &str) -> bool {
+    // SQLx is intentionally isolated to the dedicated interop backend crate.
+    rel.starts_with("crates/vox-sql/")
+}
+
+pub(crate) fn run_sqlx_isolation_guard(root: &Path, all: bool) -> Result<()> {
+    let mut offenders = Vec::new();
+    for rel in scan_targets(root, all)? {
+        let rel_norm = rel.replace('\\', "/");
+        if sqlx_isolation_path_allowed(&rel_norm) {
+            continue;
+        }
+        let path = root.join(&rel);
+        if !path.exists() {
+            continue;
+        }
+        let text = read_utf8_path_capped(&path)?;
+        if source_contains_sqlx_path_prefix(&text)? {
+            offenders.push(rel_norm);
+        }
+    }
+    if !offenders.is_empty() {
+        return Err(anyhow!(
+            "sql-surface-guard: disallowed sqlx path usage outside crates/vox-sql in {} file(s): {} — keep sqlx usage isolated to vox-sql and expose typed adapters from that crate",
+            offenders.len(),
+            offenders.join(", ")
+        ));
+    }
     Ok(())
 }
 
 /// True when `text` contains a **call** to [`vox_db::VoxDb::query_all`] (dot + `query_all` + `(`),
 /// e.g. on `db` or `self`, not merely a `fn query_all` definition.
 #[must_use]
-pub(crate) fn source_contains_query_all_call_site(text: &str) -> bool {
-    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    RE.get_or_init(|| regex::Regex::new(r"\.query_all\s*\(").expect("query_all call-site regex"))
-        .is_match(text)
+pub(crate) fn source_contains_query_all_call_site(text: &str) -> Result<bool> {
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    Ok(cached_guard_regex(&RE, "query-all-call-site", r"\.query_all\s*\(")?.is_match(text))
 }
 
 fn load_query_all_allowlist(root: &Path) -> Result<Vec<String>> {
@@ -127,7 +186,7 @@ pub(crate) fn run_query_all_guard(root: &Path, all: bool) -> Result<()> {
             continue;
         }
         let text = read_utf8_path_capped(&path)?;
-        if source_contains_query_all_call_site(&text) {
+        if source_contains_query_all_call_site(&text)? {
             offenders.push(rel_norm);
         }
     }
@@ -145,11 +204,10 @@ pub(crate) fn run_query_all_guard(root: &Path, all: bool) -> Result<()> {
 /// True when `text` contains a Turso crate path prefix (`turso` + `::`, word-bounded)
 /// (regex built from fragments so this file does not self-match the guard scan).
 #[must_use]
-pub(crate) fn source_contains_turso_path_prefix(text: &str) -> bool {
-    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+pub(crate) fn source_contains_turso_path_prefix(text: &str) -> Result<bool> {
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
     let pat = concat!(r"\b", "tur", "so", "::");
-    RE.get_or_init(|| regex::Regex::new(pat).expect("turso path-prefix regex"))
-        .is_match(text)
+    Ok(cached_guard_regex(&RE, "turso-path-prefix", pat)?.is_match(text))
 }
 
 fn load_turso_import_allowlist(root: &Path) -> Result<Vec<String>> {
@@ -236,7 +294,7 @@ pub(crate) fn run_turso_import_guard(root: &Path, all: bool) -> Result<()> {
             continue;
         }
         let text = read_utf8_path_capped(&path)?;
-        if source_contains_turso_path_prefix(&text) {
+        if source_contains_turso_path_prefix(&text)? {
             offenders.push(rel_norm);
         }
     }
@@ -316,6 +374,7 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-ml-cli/",
         "crates/vox-mesh-types/",
         "crates/vox-spool/",
+        "crates/vox-sql/",
         // Codegen / shared types / plugins: serde and model context often match dataflow heuristics
         // without carrying runtime secrets; keep scanning focused on application surfaces.
         "crates/vox-codegen/",
@@ -357,6 +416,7 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-ml-cli/",
         "crates/vox-mesh-types/",
         "crates/vox-spool/",
+        "crates/vox-sql/",
     ];
     let entries = if hard_cut_strict {
         HARD_CUT_ALLOWLIST
@@ -481,10 +541,10 @@ pub(crate) fn run_operator_env_guard(root: &Path, all: bool) -> Result<()> {
 
     // Regex to find potential env var strings in Rust files: "NAME" inside std::env::var(...)
     // or similar looking uppercase strings.
-    let re = regex::Regex::new(
+    let re = compile_guard_regex(
+        "operator-env",
         r#"(?:std::env::var(?:_os)?\s*\(\s*["'](?P<name>[A-Z0-9_]{3,})["']\s*\))"#,
-    )
-    .expect("env var regex");
+    )?;
 
     for rel in scan_targets(root, all)? {
         let path = root.join(&rel);
@@ -578,7 +638,7 @@ fn collect_secrets_cutover_audit(
         if disallowed.is_match(&text) {
             direct_secret_env_reads.push(rel.clone());
         }
-        let categories = secret_dataflow_leak_categories(&text);
+        let categories = secret_dataflow_leak_categories(&text)?;
         if !categories.is_empty() {
             secret_dataflow_violations.push(format!("{rel} ({})", categories.join(",")));
         }
@@ -608,21 +668,35 @@ fn collect_secrets_cutover_audit(
 }
 
 #[must_use]
-pub(crate) fn secret_dataflow_leak_categories(text: &str) -> Vec<&'static str> {
+pub(crate) fn secret_dataflow_leak_categories(text: &str) -> Result<Vec<&'static str>> {
+    static SERIALIZE_RE: OnceLock<regex::Regex> = OnceLock::new();
+    static LOG_RE: OnceLock<regex::Regex> = OnceLock::new();
+    static CONTEXT_RE: OnceLock<regex::Regex> = OnceLock::new();
+    static SECRET_WORD_RE: OnceLock<regex::Regex> = OnceLock::new();
+
+    let serialize_re = cached_guard_regex(
+        &SERIALIZE_RE,
+        "secret-dataflow-serialize",
+        r#"serde_json::(?:to_string|to_value)|json!\s*\(|format!\s*\("#,
+    )?;
+    let log_re = cached_guard_regex(
+        &LOG_RE,
+        "secret-dataflow-log",
+        r#"tracing::(?:trace|debug|info|warn|error)!|log::(?:trace|debug|info|warn|error)!|e?println!\s*\("#,
+    )?;
+    let context_re = cached_guard_regex(
+        &CONTEXT_RE,
+        "secret-dataflow-context",
+        r#"(prompt|context|system|assistant|user)"#,
+    )?;
+    let secret_word_re = cached_guard_regex(
+        &SECRET_WORD_RE,
+        "secret-dataflow-secret-word",
+        r#"(api[_-]?key|access[_-]?token|bearer|secret|password|authorization)"#,
+    )?;
+
     let lower = text.to_ascii_lowercase();
     let mut out = Vec::new();
-    let serialize_re =
-        regex::Regex::new(r#"serde_json::(?:to_string|to_value)|json!\s*\(|format!\s*\("#)
-            .expect("serialize regex");
-    let log_re = regex::Regex::new(
-        r#"tracing::(?:trace|debug|info|warn|error)!|log::(?:trace|debug|info|warn|error)!|e?println!\s*\("#,
-    )
-    .expect("log regex");
-    let context_re =
-        regex::Regex::new(r#"(prompt|context|system|assistant|user)"#).expect("context regex");
-    let secret_word_re =
-        regex::Regex::new(r#"(api[_-]?key|access[_-]?token|bearer|secret|password|authorization)"#)
-            .expect("secret word regex");
 
     if serialize_re.is_match(&lower) && secret_word_re.is_match(&lower) {
         out.push("serialize-secret-material");
@@ -633,7 +707,7 @@ pub(crate) fn secret_dataflow_leak_categories(text: &str) -> Vec<&'static str> {
     if context_re.is_match(&lower) && secret_word_re.is_match(&lower) {
         out.push("model-context-secret-material");
     }
-    out
+    Ok(out)
 }
 
 fn scan_targets(root: &Path, all: bool) -> Result<Vec<String>> {
@@ -711,7 +785,7 @@ pub(crate) fn run_secret_env_guard(root: &Path, all: bool) -> Result<()> {
         if disallowed.is_match(&text) {
             env_offenders.push(rel.clone());
         }
-        let categories = secret_dataflow_leak_categories(&text);
+        let categories = secret_dataflow_leak_categories(&text)?;
         if !categories.is_empty() {
             dataflow_offenders.push(format!("{rel} ({})", categories.join(",")));
         }
@@ -1012,7 +1086,7 @@ mod sql_surface_tests {
     #[test]
     fn detects_single_line_connection_query() {
         let src = concat!("db", ".connection().", "query", "(\"SELECT 1\", ()).await");
-        assert!(sql_surface_contains_raw_connection_api(src));
+        assert!(sql_surface_contains_raw_connection_api(src).unwrap());
     }
 
     #[test]
@@ -1020,19 +1094,19 @@ mod sql_surface_tests {
         let head = "foo\n            store\n                .connection()";
         let tail = "\n                .query(&sql, params)\n                .await\n        ";
         let src = format!("{head}{tail}");
-        assert!(sql_surface_contains_raw_connection_api(&src));
+        assert!(sql_surface_contains_raw_connection_api(&src).unwrap());
     }
 
     #[test]
     fn detects_multiline_connection_execute() {
         let src = concat!("x", ".connection()", "\n.execute(\"VACUUM\", ())");
-        assert!(sql_surface_contains_raw_connection_api(src));
+        assert!(sql_surface_contains_raw_connection_api(src).unwrap());
     }
 
     #[test]
     fn ignores_execute_batch() {
         let src = concat!("db", ".connection().", "execute_batch", "(\"PRAGMA x\")");
-        assert!(!sql_surface_contains_raw_connection_api(src));
+        assert!(!sql_surface_contains_raw_connection_api(src).unwrap());
     }
 
     #[test]
@@ -1040,9 +1114,9 @@ mod sql_surface_tests {
         // Split literals so this file does not contain the guard's dot + query_all + open-paren pattern
         // (would false-positive when scanning `guards.rs`).
         let db_call = concat!("db", ".query", "_all(", "\"SELECT 1\", ()).await");
-        assert!(super::source_contains_query_all_call_site(db_call));
+        assert!(super::source_contains_query_all_call_site(db_call).unwrap());
         let self_call = concat!("self", ".query", "_all(", "sql, params).await");
-        assert!(super::source_contains_query_all_call_site(self_call));
+        assert!(super::source_contains_query_all_call_site(self_call).unwrap());
     }
 
     #[test]
@@ -1051,7 +1125,7 @@ mod sql_surface_tests {
             "pub async fn quer",
             "y_all(\n        &self,\n        sql: &str,\n    )"
         );
-        assert!(!super::source_contains_query_all_call_site(src));
+        assert!(!super::source_contains_query_all_call_site(src).unwrap());
     }
 
     #[test]
@@ -1101,7 +1175,29 @@ mod sql_surface_tests {
     #[test]
     fn turso_import_detects_path_prefix() {
         let s = concat!("db", ".conn", "ect(); tur", "so::", "params![]");
-        assert!(super::source_contains_turso_path_prefix(s));
+        assert!(super::source_contains_turso_path_prefix(s).unwrap());
+    }
+
+    #[test]
+    fn sqlx_isolation_detects_path_prefix() {
+        let s = concat!("use sq", "lx::", "query;");
+        assert!(super::source_contains_sqlx_path_prefix(s).unwrap());
+    }
+
+    #[test]
+    fn sqlx_isolation_ignores_non_path_mentions() {
+        let s = "import rust:sqlx(version: \"0.7\") as sx";
+        assert!(!super::source_contains_sqlx_path_prefix(s).unwrap());
+    }
+
+    #[test]
+    fn sqlx_isolation_allowlist_is_vox_sql_only() {
+        assert!(super::sqlx_isolation_path_allowed(
+            "crates/vox-sql/src/lib.rs"
+        ));
+        assert!(!super::sqlx_isolation_path_allowed(
+            "crates/vox-db/src/schema/mod.rs"
+        ));
     }
 
     #[test]
@@ -1232,7 +1328,7 @@ mod sql_surface_tests {
             tracing::info!("token {}", access_token);
             let prompt = format!("system context uses secret {}", bearer_token);
         "#;
-        let cats = super::secret_dataflow_leak_categories(src);
+        let cats = super::secret_dataflow_leak_categories(src).unwrap();
         assert!(cats.contains(&"serialize-secret-material"));
         assert!(cats.contains(&"log-secret-material"));
         assert!(cats.contains(&"model-context-secret-material"));
@@ -1250,9 +1346,9 @@ mod sql_surface_tests {
         let context = std::fs::read_to_string(root.join("model_context_secret_fixture.rs"))
             .expect("context fixture");
 
-        let serialize_cats = super::secret_dataflow_leak_categories(&serialize);
-        let log_cats = super::secret_dataflow_leak_categories(&log);
-        let context_cats = super::secret_dataflow_leak_categories(&context);
+        let serialize_cats = super::secret_dataflow_leak_categories(&serialize).unwrap();
+        let log_cats = super::secret_dataflow_leak_categories(&log).unwrap();
+        let context_cats = super::secret_dataflow_leak_categories(&context).unwrap();
 
         assert!(serialize_cats.contains(&"serialize-secret-material"));
         assert!(log_cats.contains(&"log-secret-material"));

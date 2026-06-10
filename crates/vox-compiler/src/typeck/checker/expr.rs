@@ -17,7 +17,9 @@ impl<'a> Checker<'a> {
     /// nested inside that query's `Result[List[Record]]`.
     fn db_query_record_fields(ty: &Ty) -> Vec<(String, Ty)> {
         match ty {
-            Ty::Table(_, fields) | Ty::Collection(_, fields) | Ty::Record(fields) => fields.clone(),
+            Ty::Table(_, fields, _) | Ty::Collection(_, fields) | Ty::Record(fields) => {
+                fields.clone()
+            }
             Ty::Result(ok, _) => Self::db_query_record_fields(ok),
             Ty::List(inner) | Ty::Option(inner) => Self::db_query_record_fields(inner),
             _ => Vec::new(),
@@ -216,7 +218,7 @@ impl<'a> Checker<'a> {
                 if let Some(exp) = expected {
                     let resolved = self.uf.resolve(exp);
                     match &resolved {
-                        Ty::Record(fds) | Ty::Table(_, fds) | Ty::Collection(_, fds) => {
+                        Ty::Record(fds) | Ty::Table(_, fds, _) | Ty::Collection(_, fds) => {
                             for (n, t) in fds {
                                 expected_fields.insert(n.clone(), t.clone());
                             }
@@ -398,9 +400,7 @@ impl<'a> Checker<'a> {
                 // lowering; they are not methods on the receiver's type. They
                 // typecheck to the query result `Result[List[Record]]`, with the
                 // row fields threaded through the chain (the base `db.Table`'s
-                // fields, then each prior query's Record). Predicate field-
-                // validation is a follow-on; codegen already emits the SQL. See
-                // specs/2026-06-03-db-query-plan-typecheck-design.md.
+                // fields, then each prior query's Record).
                 if let Some(plan) = opt_plan
                     && matches!(
                         method.as_str(),
@@ -424,13 +424,24 @@ impl<'a> Checker<'a> {
                     // chain (inner `.where`/`.filter` nodes have `projection:
                     // None`) — no double-reporting. Guarded on a known field set:
                     // if the row fields could not be resolved we skip rather than
-                    // flag every column as unknown. Predicate field-validation
-                    // remains the deferred follow-on (see
-                    // specs/2026-06-03-db-query-plan-typecheck-design.md).
+                    // flag every column as unknown.
                     if let Some(cols) = &plan.projection
                         && !row_fields.is_empty()
                     {
                         self.check_db_select_projection(&row_fields, cols, *span);
+                    }
+                    if let Some(pred) = &plan.predicate
+                        && !row_fields.is_empty()
+                    {
+                        let mut arg_ix = 0usize;
+                        self.validate_db_predicate(
+                            pred,
+                            &row_fields,
+                            &plan.predicate_args,
+                            &mut arg_ix,
+                            &plan.table,
+                            *span,
+                        );
                     }
                     return Ty::Result(
                         Box::new(Ty::List(Box::new(Ty::Record(row_fields)))),

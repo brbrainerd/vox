@@ -30,7 +30,46 @@ use vox_compiler::hir::HirModule;
 /// Returns canonical pretty-printed JSON.
 pub fn generate_openapi(hir: &HirModule, package_name: &str, package_version: &str) -> String {
     let ir = vox_compiler::contract_ir::project(hir);
-    emit_from_contract(&ir, package_name, package_version)
+    let mut spec = parse_spec(&emit_from_contract(&ir, package_name, package_version));
+    if !hir.tables.is_empty() {
+        merge_health_paths(spec.get_mut("paths").expect("paths object"));
+    }
+    serde_json::to_string_pretty(&spec).expect("OpenAPI emit must serialize")
+}
+
+fn parse_spec(json: &str) -> Value {
+    serde_json::from_str(json).expect("OpenAPI emit must parse")
+}
+
+fn merge_health_paths(paths: &mut Value) {
+    let obj = paths.as_object_mut().expect("paths must be an object");
+    obj.insert("/healthz".into(), health_path_item("Liveness probe"));
+    obj.insert("/readyz".into(), health_path_item("Readiness probe"));
+}
+
+fn health_path_item(summary: &str) -> Value {
+    json!({
+        "get": {
+            "operationId": summary.to_lowercase().replace(' ', "_"),
+            "summary": summary,
+            "responses": {
+                "200": {
+                    "description": "Service is healthy",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["status"],
+                                "properties": {
+                                    "status": { "type": "string", "enum": ["ok", "degraded"] }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    })
 }
 
 fn emit_from_contract(ir: &ContractIr, package_name: &str, version: &str) -> String {

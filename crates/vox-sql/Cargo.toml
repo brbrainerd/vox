@@ -1,0 +1,24 @@
+[package]
+name = "vox-sql"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+vox-db = { workspace = true }
+vox-secrets = { workspace = true }
+vox-ast = { workspace = true }
+turso = { workspace = true }
+sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "postgres", "mysql"] }
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["sync"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

@@ -428,6 +428,22 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                         &["test", "-p", "vox-db", "research_metrics_contract"],
                         "vox-db research_metrics_contract",
                     ),
+                    (
+                        &["test", "-p", "vox-sql", "--test", "p2_conformance"],
+                        "vox-sql p2_conformance",
+                    ),
+                    (
+                        &["test", "-p", "vox-sql", "--test", "p3_introspect_smoke"],
+                        "vox-sql p3_introspect_smoke",
+                    ),
+                    (
+                        &["test", "-p", "vox-sql", "--test", "p5_ddl_conformance"],
+                        "vox-sql p5_ddl_conformance",
+                    ),
+                    (
+                        &["test", "-p", "vox-sql", "--test", "p5_migrate_smoke"],
+                        "vox-sql p5_migrate_smoke",
+                    ),
                 ];
                 for (args, label) in suites {
                     let st = Command::new(&cargo)
