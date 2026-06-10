@@ -20,6 +20,7 @@ The repository defaults to **self-hosted** runners for main Rust CI (see [runner
 | `release-binaries.yml` | `windows-latest`, `macos-latest` (×2 targets: x86_64 and aarch64 macOS jobs) | Publish tagged Windows/macOS binaries; Linux **build** lane remains self-hosted; **publish** job runs on Linux self-hosted. |
 | `publish-ci-runner.yml` | `ubuntu-latest` | Chicken-and-egg: builds the self-hosted runner image itself; cannot run on the fleet it produces. Publishes to GHCR so contributors can `docker pull ghcr.io/<org>/vox-ci-runner:latest`. |
 | `deploy-hetzner.yml` (`smoke-ci`) | `ubuntu-latest` | Thin pre-deploy check: **`cargo build -p vox-cli --locked`** only. Full fmt/clippy/tests run on self-hosted **`ci.yml`** before merge to **`main`**. |
+| `ci-fallback-hosted.yml` | `ubuntu-latest`, `windows-latest` | **Manual only** (`workflow_dispatch`). Portable Rust/GUI smoke when the self-hosted fleet is down; **not** a required check and does not run on PR/push. |
 | `setup-e2e.yml` (`Clean Room Setup + Idempotency`) | `ubuntu-latest`, `windows-latest`, `macos-latest` | Clean-room E2E proves `scripts/setup.vox` provisions a workspace from scratch on **all three host OSes** (it strips the toolchain and re-bootstraps). The self-hosted pool is Linux-x64 only, so cross-platform host runners are required to exercise the Windows/macOS provisioning paths. |
 
 Any new workflow using GitHub-hosted runners (`ubuntu-latest`, `windows-latest`, `macos-latest`) must add a row here or switch to the self-hosted tuple.

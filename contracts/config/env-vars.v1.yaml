@@ -3150,6 +3150,24 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_RUNNER_IDLE_REAP_SECS"
+    owner_crate: "vox-cli"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "CI runner autoscaler: idle grace window in seconds before reaping a registered-but-never-assigned ephemeral runner (default 300)."
+  - name: "VOX_RUNNER_MAX"
+    owner_crate: "vox-cli"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "CI runner autoscaler: hard ceiling on concurrent managed ephemeral runners (default 4)."
+  - name: "VOX_RUNNER_WARM_POOL"
+    owner_crate: "vox-cli"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "CI runner autoscaler: idle runners to keep registered for instant dispatch (default 0 = pure scale-to-zero)."
   - name: "VOX_RUNPOD_API_KEY"
     owner_crate: "vox-populi"
     kind: "string"

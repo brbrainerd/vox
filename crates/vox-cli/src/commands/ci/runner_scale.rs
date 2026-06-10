@@ -1,22 +1,28 @@
 //! `vox ci runner-scale` / `vox ci runner-preflight` — autoscaler for the
 //! single-box self-hosted CI runner pool.
 //!
-//! **Model: persistent runners + idle-reap.** Each runner is *persistent* (it
-//! keeps its container alive and handles many jobs in a row), so the cargo
-//! `target/` dir stays warm across jobs — the big win for a heavy Rust workspace,
-//! where re-linking a cold target dominates per-job time. GitHub distributes
-//! queued jobs across whichever runners are free, so N runners = N-way
-//! parallelism for free.
+//! **Model: ephemeral dispatched runners, scale 0 ↔ N.** Each runner container
+//! registers with `--ephemeral`, takes exactly **one** job dispatched by
+//! GitHub's queue, self-deregisters, and exits. The autoscaler is a reconcile
+//! loop: each tick it counts **queued jobs** that match the pool's labels and
+//! spawns `min(queued_jobs, max) - alive` new runners; exited containers are
+//! removed the next tick. No restart policy is set, so a host/Docker restart
+//! never resurrects a stale fleet that grabs every queued job at boot.
 //!
-//! The pool scales **up** to demand (capped at [`MAX_RUNNERS`]) and **down** by
-//! reaping any runner that has been **idle longer than [`IDLE_REAP_SECS`]** —
-//! recouping the box when CI quiets, without paying a fresh startup for every
-//! single job. Idle duration is tracked in a small JSON state file across ticks.
+//! Startup cost is mitigated by the shared `vox-ci-runner-cache` volume
+//! (sccache) and an optional warm pool (`VOX_RUNNER_WARM_POOL`) that keeps N
+//! idle runners registered for instant dispatch. Runners that registered but
+//! never received a job (demand vanished, e.g. a cancelled run) are reaped
+//! after a short idle grace window ([`DEFAULT_IDLE_REAP_SECS`]). Stale
+//! **offline** GitHub registrations with no backing container are pruned.
+//!
+//! Knobs (env, optional): `VOX_RUNNER_MAX`, `VOX_RUNNER_IDLE_REAP_SECS`,
+//! `VOX_RUNNER_WARM_POOL` — see `contracts/config/env-vars.v1.yaml`.
 //!
 //! Invoked periodically (Task Scheduler / `scripts/ci-runners-up.vox`).
 //! `runner-scale` is **dry-run by default**; `--apply` mutates.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -33,20 +39,59 @@ const CACHE_VOLUME: &str = "vox-ci-runner-cache";
 
 const CPUS_PER_RUNNER: &str = "6";
 const MEM_PER_RUNNER: &str = "6500m";
-/// Hard ceiling on concurrent managed runners (4 × 6 cpu = 24 of 32 threads).
-pub const MAX_RUNNERS: u32 = 4;
-/// Reap a runner after this many seconds of continuous idle (no job). 30 min:
-/// long enough to amortize startup + reuse warm caches, short enough to free the
-/// box when CI is quiet.
-pub const IDLE_REAP_SECS: i64 = 1800;
+/// Default ceiling on concurrent managed runners (4 × 6 cpu = 24 of 32 threads).
+/// Override: `VOX_RUNNER_MAX`.
+pub const DEFAULT_MAX_RUNNERS: u32 = 4;
+/// Reap a runner after this many seconds of continuous idle (registered but
+/// never assigned a job — e.g. the queued run was cancelled). Ephemeral runners
+/// exit on their own after their single job, so this is only a startup-grace
+/// safety net, not the primary despawn path. Override: `VOX_RUNNER_IDLE_REAP_SECS`.
+pub const DEFAULT_IDLE_REAP_SECS: i64 = 300;
+/// Idle runners to keep registered for instant dispatch (0 = pure
+/// scale-to-zero). Override: `VOX_RUNNER_WARM_POOL`.
+pub const DEFAULT_WARM_POOL: u32 = 0;
+
+/// Cap on workflow runs inspected per status when counting queued jobs.
+const DEMAND_RUNS_PER_STATUS: u32 = 20;
+
+// ---------------------------------------------------------------------------
+// Config (env-overridable)
+// ---------------------------------------------------------------------------
+
+fn env_u32(key: &str, default: u32) -> u32 {
+    std::env::var(key)
+        .ok()
+        .and_then(|v| v.trim().parse().ok())
+        .unwrap_or(default)
+}
+
+fn env_i64(key: &str, default: i64) -> i64 {
+    std::env::var(key)
+        .ok()
+        .and_then(|v| v.trim().parse().ok())
+        .unwrap_or(default)
+}
+
+fn max_runners() -> u32 {
+    env_u32("VOX_RUNNER_MAX", DEFAULT_MAX_RUNNERS)
+}
+
+fn idle_reap_secs() -> i64 {
+    env_i64("VOX_RUNNER_IDLE_REAP_SECS", DEFAULT_IDLE_REAP_SECS)
+}
+
+fn warm_pool() -> u32 {
+    env_u32("VOX_RUNNER_WARM_POOL", DEFAULT_WARM_POOL)
+}
 
 // ---------------------------------------------------------------------------
 // Pure logic (unit-tested)
 // ---------------------------------------------------------------------------
 
-/// Desired runner count for a given demand, capped at `max`.
-pub fn desired_runner_count(demand: u32, max: u32) -> u32 {
-    demand.min(max)
+/// Desired runner count: meet queued-job demand (capped at `max`), but never
+/// drop below the warm pool (also capped at `max`).
+pub fn desired_runner_count(demand: u32, max: u32, warm: u32) -> u32 {
+    demand.min(max).max(warm.min(max))
 }
 
 /// How many new runners to spawn this cycle (never negative).
@@ -70,6 +115,39 @@ pub fn should_reap_idle(idle_since: Option<i64>, now: i64, timeout: i64) -> bool
         Some(since) => now - since >= timeout,
         None => false,
     }
+}
+
+/// Count queued jobs whose label set the pool can serve. `label_lines` is one
+/// job per line, each line a comma-separated label list (jq output); a job
+/// matches when **every** label it requires is present on our runners.
+pub fn count_matching_queued_jobs(label_lines: &str, runner_labels: &str) -> u32 {
+    let pool: HashSet<&str> = runner_labels.split(',').map(str::trim).collect();
+    label_lines
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .filter(|line| line.split(',').map(str::trim).all(|l| pool.contains(l)))
+        .count() as u32
+}
+
+/// One registered runner as GitHub reports it: `(name, status, busy)`.
+pub type RunnerRow = (String, String, bool);
+
+/// Managed GitHub runner registrations that are **offline**, not busy, and have
+/// no backing container — stale leftovers from crashed ephemeral runners.
+pub fn stale_offline_registrations<'a>(
+    rows: &'a [RunnerRow],
+    containers: &HashSet<String>,
+) -> Vec<&'a str> {
+    rows.iter()
+        .filter(|(name, status, busy)| {
+            name.starts_with(MANAGED_PREFIX)
+                && status == "offline"
+                && !busy
+                && !containers.contains(name)
+        })
+        .map(|(name, _, _)| name.as_str())
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -131,15 +209,35 @@ fn docker(args: &[&str]) -> Result<String> {
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
-/// CI demand = count of queued workflow runs.
-fn query_demand() -> Result<u32> {
-    let s = gh_json(&[
-        "api",
-        &format!("repos/{REPO_SLUG}/actions/runs?status=queued&per_page=1"),
-        "--jq",
-        ".total_count",
-    ])?;
-    Ok(s.parse::<u32>().unwrap_or(0))
+/// CI demand = count of **queued jobs** (not workflow runs) that the pool's
+/// label set can serve, across queued and in-progress runs. Early-exits once
+/// `max` matching jobs are found — demand beyond the cap changes nothing.
+fn query_queued_job_demand(max: u32) -> Result<u32> {
+    let mut total = 0u32;
+    for status in ["queued", "in_progress"] {
+        let ids = gh_json(&[
+            "api",
+            &format!(
+                "repos/{REPO_SLUG}/actions/runs?status={status}&per_page={DEMAND_RUNS_PER_STATUS}"
+            ),
+            "--jq",
+            ".workflow_runs[].id",
+        ])?;
+        for id in ids.lines().map(str::trim).filter(|l| !l.is_empty()) {
+            let label_lines = gh_json(&[
+                "api",
+                &format!("repos/{REPO_SLUG}/actions/runs/{id}/jobs?per_page=100"),
+                "--jq",
+                ".jobs[]|select(.status==\"queued\")|(.labels|join(\",\"))",
+            ])
+            .unwrap_or_default();
+            total = total.saturating_add(count_matching_queued_jobs(&label_lines, RUNNER_LABELS));
+            if total >= max {
+                return Ok(max);
+            }
+        }
+    }
+    Ok(total)
 }
 
 /// Online self-hosted runners (any name) — for the preflight.
@@ -153,24 +251,35 @@ fn online_runner_count() -> Result<u32> {
     Ok(s.parse::<u32>().unwrap_or(0))
 }
 
-/// `{name: busy}` for managed runners GitHub currently sees online.
-fn managed_busy_map() -> Result<HashMap<String, bool>> {
+/// All registered runners as `(name, status, busy)` rows.
+fn runner_rows() -> Result<Vec<RunnerRow>> {
     let raw = gh_json(&[
         "api",
         &format!("repos/{REPO_SLUG}/actions/runners"),
         "--paginate",
         "--jq",
-        ".runners[]|select(.status==\"online\")|\"\\(.name)\\t\\(.busy)\"",
+        ".runners[]|\"\\(.name)\\t\\(.status)\\t\\(.busy)\"",
     ])?;
-    let mut m = HashMap::new();
+    let mut rows = Vec::new();
     for line in raw.lines() {
-        if let Some((name, busy)) = line.split_once('\t') {
-            if name.starts_with(MANAGED_PREFIX) {
-                m.insert(name.to_string(), busy.trim() == "true");
-            }
+        let mut parts = line.split('\t');
+        if let (Some(name), Some(status), Some(busy)) = (parts.next(), parts.next(), parts.next()) {
+            rows.push((
+                name.to_string(),
+                status.trim().to_string(),
+                busy.trim() == "true",
+            ));
         }
     }
-    Ok(m)
+    Ok(rows)
+}
+
+/// `{name: busy}` for managed runners GitHub currently sees online.
+fn managed_busy_map(rows: &[RunnerRow]) -> HashMap<String, bool> {
+    rows.iter()
+        .filter(|(name, status, _)| name.starts_with(MANAGED_PREFIX) && status == "online")
+        .map(|(name, _, busy)| (name.clone(), *busy))
+        .collect()
 }
 
 /// Deregister a runner from GitHub by name (best-effort).
@@ -225,12 +334,14 @@ fn reap(name: &str, dry_run: bool, reason: &str) {
     let _ = docker(&["rm", "-f", name]);
 }
 
-/// Spawn one **persistent** runner (handles many jobs; keeps a warm target dir).
+/// Spawn one **ephemeral** runner: it registers with `--ephemeral`, runs exactly
+/// one dispatched job, self-deregisters, and exits. No restart policy — a
+/// Docker/host restart must never resurrect a fleet that storms the queue.
 fn spawn_one(index: u32, tag: &str, dry_run: bool) -> Result<()> {
     let name = format!("{MANAGED_PREFIX}{tag}-{index}");
     if dry_run {
         println!(
-            "[dry-run] would spawn persistent runner {name} ({CPUS_PER_RUNNER} cpu, {MEM_PER_RUNNER})"
+            "[dry-run] would spawn ephemeral runner {name} ({CPUS_PER_RUNNER} cpu, {MEM_PER_RUNNER})"
         );
         return Ok(());
     }
@@ -249,8 +360,6 @@ fn spawn_one(index: u32, tag: &str, dry_run: bool) -> Result<()> {
         // actions runner (run.sh) would otherwise leave defunct after a cancelled
         // or crashed job.
         "--init",
-        "--restart",
-        "unless-stopped",
         "--name",
         &name,
         &format!("--cpus={CPUS_PER_RUNNER}"),
@@ -263,13 +372,15 @@ fn spawn_one(index: u32, tag: &str, dry_run: bool) -> Result<()> {
         &format!("RUNNER_LABELS={RUNNER_LABELS}"),
         "-e",
         &format!("RUNNER_NAME={name}"),
+        "-e",
+        "RUNNER_EPHEMERAL=1",
         "-v",
         "/var/run/docker.sock:/var/run/docker.sock",
         "-v",
         &format!("{CACHE_VOLUME}:/cache"),
         RUNNER_IMAGE,
     ])?;
-    println!("spawned persistent runner {name}");
+    println!("spawned ephemeral runner {name}");
     Ok(())
 }
 
@@ -306,14 +417,21 @@ fn write_state(state: &HashMap<String, i64>) {
 // Reconcile
 // ---------------------------------------------------------------------------
 
-/// `vox ci runner-scale` — reconcile the persistent pool to demand + reap idle.
+/// `vox ci runner-scale` — reconcile the ephemeral pool to queued-job demand:
+/// remove exited one-shot containers, reap never-assigned idle runners, prune
+/// stale offline registrations, and spawn up to demand.
 pub fn run_scale(apply: bool) -> Result<()> {
     let dry_run = !apply;
     let now = now_secs();
+    let max = max_runners();
+    let reap_secs = idle_reap_secs();
+    let warm = warm_pool();
     let prev = read_state();
-    let busy_map = managed_busy_map().unwrap_or_default();
+    let rows = runner_rows().unwrap_or_default();
+    let busy_map = managed_busy_map(&rows);
 
-    // 1. Clean up any exited managed containers (crashed / stopped runners).
+    // 1. Remove exited managed containers — the primary despawn path now that
+    //    ephemeral runners exit after their single job.
     let mut dead = 0u32;
     for name in managed_containers("exited") {
         if !dry_run {
@@ -322,17 +440,19 @@ pub fn run_scale(apply: bool) -> Result<()> {
         dead += 1;
     }
 
-    // 2. Walk running containers: keep active, reap long-idle, track idle timers.
+    // 2. Walk running containers: keep active, reap never-assigned idle runners
+    //    after the grace window, track idle timers across ticks.
     let mut new_state: HashMap<String, i64> = HashMap::new();
     let mut keep = 0u32;
     let mut reaped = 0u32;
-    for name in managed_containers("running") {
-        match busy_map.get(&name) {
+    let running: Vec<String> = managed_containers("running");
+    for name in &running {
+        match busy_map.get(name) {
             Some(true) => keep += 1, // active job
             Some(false) => {
-                let idle_since = next_idle_since(false, prev.get(&name).copied(), now);
-                if should_reap_idle(idle_since, now, IDLE_REAP_SECS) {
-                    reap(&name, dry_run, "idle > reap timeout");
+                let idle_since = next_idle_since(false, prev.get(name).copied(), now);
+                if should_reap_idle(idle_since, now, reap_secs) {
+                    reap(name, dry_run, "idle > reap grace (never assigned)");
                     reaped += 1;
                 } else {
                     if let Some(s) = idle_since {
@@ -345,9 +465,24 @@ pub fn run_scale(apply: bool) -> Result<()> {
         }
     }
 
-    // 3. Scale up toward demand.
-    let demand = query_demand().unwrap_or(0);
-    let desired = desired_runner_count(demand, MAX_RUNNERS);
+    // 3. Prune stale offline GitHub registrations with no backing container —
+    //    leftovers from crashed ephemeral runners that never self-deregistered.
+    let mut containers: HashSet<String> = running.iter().cloned().collect();
+    containers.extend(managed_containers("exited"));
+    let mut pruned = 0u32;
+    for name in stale_offline_registrations(&rows, &containers) {
+        if dry_run {
+            println!("[dry-run] would prune stale offline registration {name}");
+        } else {
+            eprintln!("[prune] stale offline registration {name}");
+            deregister(name);
+        }
+        pruned += 1;
+    }
+
+    // 4. Scale up toward queued-job demand (plus warm pool).
+    let demand = query_queued_job_demand(max).unwrap_or(0);
+    let desired = desired_runner_count(demand, max, warm);
     let spawn = spawn_count(desired, keep);
     let t = tag();
     for i in 0..spawn {
@@ -358,7 +493,9 @@ pub fn run_scale(apply: bool) -> Result<()> {
         write_state(&new_state);
     }
     println!(
-        "runner-scale: dry_run={dry_run} demand={demand} keep={keep} desired={desired} spawned={spawn} reaped_idle={reaped} cleaned_exited={dead} (max={MAX_RUNNERS}, idle_reap={IDLE_REAP_SECS}s)"
+        "runner-scale: dry_run={dry_run} queued_jobs={demand} keep={keep} desired={desired} \
+         spawned={spawn} reaped_idle={reaped} pruned_stale={pruned} cleaned_exited={dead} \
+         (max={max}, warm={warm}, idle_reap={reap_secs}s, ephemeral)"
     );
     Ok(())
 }
@@ -383,9 +520,17 @@ mod tests {
 
     #[test]
     fn desired_capped_at_max() {
-        assert_eq!(desired_runner_count(0, 4), 0);
-        assert_eq!(desired_runner_count(2, 4), 2);
-        assert_eq!(desired_runner_count(99, 4), 4);
+        assert_eq!(desired_runner_count(0, 4, 0), 0);
+        assert_eq!(desired_runner_count(2, 4, 0), 2);
+        assert_eq!(desired_runner_count(99, 4, 0), 4);
+    }
+
+    #[test]
+    fn warm_pool_floors_desired_but_respects_max() {
+        assert_eq!(desired_runner_count(0, 4, 1), 1); // idle queue keeps 1 warm
+        assert_eq!(desired_runner_count(3, 4, 1), 3); // demand above warm pool wins
+        assert_eq!(desired_runner_count(0, 4, 9), 4); // warm pool capped at max
+        assert_eq!(desired_runner_count(0, 4, 0), 0); // pure scale-to-zero default
     }
 
     #[test]
@@ -404,18 +549,77 @@ mod tests {
 
     #[test]
     fn reap_only_after_timeout() {
-        assert!(!should_reap_idle(None, 9999, 1800)); // active (no idle stamp)
-        assert!(!should_reap_idle(Some(1000), 1000 + 1799, 1800)); // not yet
-        assert!(should_reap_idle(Some(1000), 1000 + 1800, 1800)); // at timeout
-        assert!(should_reap_idle(Some(1000), 1000 + 5000, 1800)); // well past
+        assert!(!should_reap_idle(None, 9999, 300)); // active (no idle stamp)
+        assert!(!should_reap_idle(Some(1000), 1000 + 299, 300)); // not yet
+        assert!(should_reap_idle(Some(1000), 1000 + 300, 300)); // at timeout
+        assert!(should_reap_idle(Some(1000), 1000 + 5000, 300)); // well past
+    }
+
+    #[test]
+    fn default_reap_is_short_grace_window() {
+        // Ephemeral runners despawn by exiting after their job; the idle reap is
+        // only a grace window for never-assigned runners. Minutes, not half-hours.
+        assert!(DEFAULT_IDLE_REAP_SECS <= 600);
+        let now = 100_000;
+        let idle_4m = next_idle_since(false, Some(now - 240), now);
+        assert!(!should_reap_idle(idle_4m, now, DEFAULT_IDLE_REAP_SECS));
+        let idle_6m = next_idle_since(false, Some(now - 360), now);
+        assert!(should_reap_idle(idle_6m, now, DEFAULT_IDLE_REAP_SECS));
+    }
+
+    #[test]
+    fn queued_job_demand_counts_only_jobs_the_pool_can_serve() {
+        let lines = "self-hosted,linux,x64\n\
+                     self-hosted,linux,x64,docker\n\
+                     self-hosted,linux,x64,browser\n\
+                     self-hosted,linux,x64,gpu\n\
+                     ubuntu-latest\n\
+                     \n\
+                     self-hosted,linux,x64";
+        // gpu + ubuntu-latest are not serveable by this pool; blank line ignored.
+        assert_eq!(count_matching_queued_jobs(lines, RUNNER_LABELS), 4);
+        assert_eq!(count_matching_queued_jobs("", RUNNER_LABELS), 0);
+    }
+
+    #[test]
+    fn queued_job_demand_requires_every_label() {
+        // A job needing a label the pool lacks must not count.
+        assert_eq!(
+            count_matching_queued_jobs("self-hosted,linux,x64,gpu", RUNNER_LABELS),
+            0
+        );
+        // Whitespace around labels is tolerated.
+        assert_eq!(
+            count_matching_queued_jobs(" self-hosted , linux , x64 ", RUNNER_LABELS),
+            1
+        );
+    }
+
+    #[test]
+    fn stale_offline_registrations_detected() {
+        let rows: Vec<RunnerRow> = vec![
+            // offline, no container → stale
+            ("vox-runner-auto-aaa-0".into(), "offline".into(), false),
+            // offline but container still exists (starting/restarting) → keep
+            ("vox-runner-auto-bbb-0".into(), "offline".into(), false),
+            // online → never stale
+            ("vox-runner-auto-ccc-0".into(), "online".into(), false),
+            // busy is never pruned, even if reported offline mid-transition
+            ("vox-runner-auto-ddd-0".into(), "offline".into(), true),
+            // unmanaged names are never touched
+            ("vox-runner-1".into(), "offline".into(), false),
+        ];
+        let containers: HashSet<String> = ["vox-runner-auto-bbb-0".to_string()].into();
+        let stale = stale_offline_registrations(&rows, &containers);
+        assert_eq!(stale, vec!["vox-runner-auto-aaa-0"]);
     }
 
     #[test]
     fn idle_lifecycle_keeps_then_reaps() {
         let now = 100_000;
+        let idle_2m = next_idle_since(false, Some(now - 120), now);
+        assert!(!should_reap_idle(idle_2m, now, DEFAULT_IDLE_REAP_SECS));
         let idle_10m = next_idle_since(false, Some(now - 600), now);
-        assert!(!should_reap_idle(idle_10m, now, IDLE_REAP_SECS));
-        let idle_30m = next_idle_since(false, Some(now - 1800), now);
-        assert!(should_reap_idle(idle_30m, now, IDLE_REAP_SECS));
+        assert!(should_reap_idle(idle_10m, now, DEFAULT_IDLE_REAP_SECS));
     }
 }

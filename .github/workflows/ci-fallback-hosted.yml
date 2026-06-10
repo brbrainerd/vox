@@ -1,11 +1,10 @@
 # CI Fallback (GitHub-hosted)
 #
-# This is a degraded-mode, GitHub-hosted mirror of the self-hosted `ci.yml` merge
-# gate. The primary gate runs on the self-hosted runner fleet ([self-hosted, linux,
-# x64]). When that fleet has zero registered runners (or is otherwise down), the
-# entire merge gate stalls and *all* merges are blocked. This workflow runs on
-# GitHub-hosted `ubuntu-latest` so a runner-fleet outage degrades coverage instead
-# of blocking every merge.
+# Manual-only degraded-mode mirror of the self-hosted `ci.yml` merge gate.
+# Branch protection requires **Check, Build, and Test (Rust)** on the self-hosted
+# fleet ([self-hosted, linux, x64]) — this workflow is NOT a required check and
+# does NOT run on pull_request/push. Trigger it with workflow_dispatch when the
+# fleet is down and you want a portable Rust smoke on GitHub-hosted runners.
 #
 # It intentionally omits the lanes that require the self-hosted fleet's hardware and
 # preinstalled services: GPU jobs, Docker-based integration, Playwright/browser E2E,
@@ -15,9 +14,6 @@
 name: "CI Fallback (GitHub-hosted)"
 
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
