@@ -749,7 +749,15 @@ fn git_diff_name_only_for_prepush(root: &Path) -> Result<String> {
             eprintln!(
                 "pre-push: primary diff base `{primary}` unavailable ({primary_err}); trying HEAD~1"
             );
-            attempt("HEAD~1").context("HEAD~1 fallback also failed")
+            match attempt("HEAD~1") {
+                Ok(s) => Ok(s),
+                Err(head_err) => {
+                    eprintln!(
+                        "pre-push: HEAD~1 fallback unavailable ({head_err}); treating diff as empty (shallow clone / no merge base)"
+                    );
+                    Ok(String::new())
+                }
+            }
         }
     }
 }
@@ -1358,5 +1366,12 @@ mod tests {
         assert_eq!(tier_budget_key("full+cov"), Some("full_cov"));
         assert_eq!(tier_budget_key("full+cov+since"), Some("full_cov"));
         assert_eq!(tier_budget_key("unknown"), None);
+    }
+
+    #[test]
+    fn changed_docs_md_empty_when_git_diff_unavailable() {
+        let dir = tempdir().unwrap();
+        let paths = changed_docs_md_rel_paths(dir.path()).expect("shallow/no-git fallback");
+        assert!(paths.is_empty());
     }
 }
