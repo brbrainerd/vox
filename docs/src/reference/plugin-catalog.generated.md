@@ -23,7 +23,7 @@ _Columns: `id`, `payload-kind`, `extension-points`/`exposes-tools`, `default-sou
 | `mens-candle-metal` | `MlBackend` | `local:crates/vox-plugin-mens-candle-metal` | `vox-ml-metal`, `vox-dev` |
 | `oratio` | `AudioCapture`, `SpeechToText` | `github:vox-foundation/vox-plugin-oratio` | `vox-dev` |
 | `cloud` | `CloudSync` | `github:vox-foundation/vox-plugin-cloud` | `vox-mesh`, `vox-cloud-only`, `vox-dev` |
-| `webhook` |  | `local:crates/vox-plugin-webhook` | `vox-server`, `vox-dev` |
+| `webhook` | `HttpListener` | `local:crates/vox-plugin-webhook` | `vox-server`, `vox-dev` |
 | `browser` | `BrowserAutomation` | `github:vox-foundation/vox-plugin-browser` | `vox-dev` |
 | `runtime-wasm` | `SkillRuntime` | `local:crates/vox-plugin-runtime-wasm` | `vox-fullstack`, `vox-edge`, `vox-dev` |
 | `runtime-container` | `SkillRuntime` | `local:crates/vox-plugin-runtime-container` | — |
