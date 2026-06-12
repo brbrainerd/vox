@@ -311,7 +311,7 @@ Vox is marching toward a production-hardened v1.0 release. Surfaces are graded b
 | Secrets & Safety | 🔵 Stable | [Clavis](crates/vox-secrets/) hardened vault and [Rule Pack](crates/vox-rule-pack/) CI guards. |
 | Telemetry Facade | 🟣 Mature | Unified [vox-telemetry](crates/vox-telemetry/) with trace propagation and cost rollups. |
 | **AI/ML Engine** | | |
-| Inference (Mens) | 🟡 Preview | Native CUDA/Metal/CPU inference with [Candle/Burn](crates/vox-inference/). |
+| Inference (Mens) | 🟡 Preview | Native CUDA/Metal/CPU inference with [Candle/Burn](crates/vox-populi/src/inference/). |
 | Training (Populi) | 🟠 Emergent | QLoRA native pipeline; loss-parity verification in progress. |
 | Visus (Vision) | 🟠 Emergent | [Voice of Vision](crates/vox-cli/src/commands/visus/) for automated GUI bug detection. |
 | **Platform & UI** | | |
