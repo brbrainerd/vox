@@ -50,6 +50,20 @@ pub enum TaskPriority {
     Urgent = 2,
 }
 
+impl TaskPriority {
+    /// Map a wire `u8` (e.g. the `priority` field of a `HopperSync` op) to a
+    /// `TaskPriority`. Matches the enum's `repr` (0/1/2); any out-of-range value
+    /// falls back to `Normal` rather than failing — replication should degrade
+    /// gracefully, not drop an admission.
+    pub fn from_u8(v: u8) -> Self {
+        match v {
+            0 => Self::Background,
+            2 => Self::Urgent,
+            _ => Self::Normal,
+        }
+    }
+}
+
 impl fmt::Display for TaskPriority {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
