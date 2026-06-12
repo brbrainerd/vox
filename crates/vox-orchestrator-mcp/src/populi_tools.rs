@@ -1,4 +1,4 @@
-﻿//! Populi (Vox Populi distributed mesh) introspection MCP tools.
+//! Populi (Vox Populi distributed mesh) introspection MCP tools.
 //!
 //! - `mesh_local_status` — `vox_populi_local_status` (legacy; local registry + env dump).
 //! - `mesh_nodes` — `vox_mesh_nodes`: node list (control plane preferred, local-registry fallback).
@@ -97,6 +97,8 @@ fn summarize_node(n: &vox_populi::NodeRecord) -> Value {
         "gpu_total_count": n.gpu_total_count,
         "gpu_allocatable_count": n.gpu_allocatable_count,
         "gpu_truth_layer": n.gpu_truth_layer,
+        "cpu_usage_pct": n.cpu_usage_pct,
+        "memory_free_bytes": n.memory_free_bytes,
         "trust_tier": n.trust_tier,
         "ed25519_pub_key_b64": n.ed25519_pub_key_b64,
         "advertised_models": advertised_models,
@@ -293,5 +295,29 @@ pub async fn mesh_dispatch(state: &ServerState, args: Value) -> anyhow::Result<S
             "Mesh dispatch to {base} failed: {e}"
         ))
         .to_json_compact()),
+    }
+}
+
+#[cfg(test)]
+mod summarize_node_tests {
+    use super::*;
+
+    #[test]
+    fn exposes_cpu_and_free_memory_for_resource_card() {
+        let mut n: vox_populi::NodeRecord = serde_json::from_value(serde_json::json!({
+            "id": "node-a",
+            "capabilities": {},
+            "version": "test",
+            "last_seen_unix_ms": 0,
+        }))
+        .expect("minimal NodeRecord");
+        n.cpu_usage_pct = Some(42.5);
+        n.memory_free_bytes = Some(8 * 1024 * 1024 * 1024);
+        let v = summarize_node(&n);
+        assert_eq!(v["cpu_usage_pct"].as_f64(), Some(42.5));
+        assert_eq!(
+            v["memory_free_bytes"].as_u64(),
+            Some(8 * 1024 * 1024 * 1024)
+        );
     }
 }

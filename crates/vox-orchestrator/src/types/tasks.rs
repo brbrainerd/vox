@@ -241,6 +241,9 @@ pub struct TaskEnqueueHints {
     /// If set, stored on [`AgentTask::model_override`] for labeling and downstream routing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_override: Option<String>,
+    /// Interaction mode hint (`plan` | `act` | `verify`); stored on [`AgentTask::mode`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
     /// Optional reconstruction campaign id for long-horizon grouped runs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub campaign_id: Option<String>,
@@ -374,6 +377,10 @@ pub struct AgentTask {
     pub model_preference: Option<String>,
     /// Explicit override for the model to use.
     pub model_override: Option<String>,
+    /// Interaction mode requested at submit time (`plan` | `act` | `verify`).
+    /// Advisory: routing/verification policies may consult it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
     /// Task category to help select the best model.
     pub task_category: TaskCategory,
     /// Explicit testing requirement decision if known.
@@ -515,6 +522,7 @@ impl AgentTask {
             estimated_complexity: 5,
             model_preference: None,
             model_override: None,
+            mode: None,
             test_decision: None,
             trace_id: None,
             budget: None,
@@ -643,6 +651,9 @@ impl AgentTask {
         }
         if let Some(ref p) = h.model_preference {
             self.model_preference = Some(p.clone());
+        }
+        if let Some(ref m) = h.mode {
+            self.mode = Some(m.clone());
         }
         if let Some(cat) = h.task_category {
             self.task_category = cat;
@@ -885,6 +896,7 @@ mod tests {
             complexity: Some(7),
             model_preference: Some("free".to_string()),
             model_override: Some("model-x".to_string()),
+            mode: None,
             campaign_id: Some("camp-123".to_string()),
             benchmark_tier: Some(crate::reconstruction::ReconstructionBenchmarkTier::CrateRegen),
             execution_role: Some(crate::reconstruction::AgentExecutionRole::Verifier),

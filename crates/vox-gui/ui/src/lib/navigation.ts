@@ -5,6 +5,7 @@ export const PARENT_CHILD_MAP: Record<string, { parent: string; child?: string }
   dashboard: { parent: 'agents', child: 'dashboard' },
   flow: { parent: 'agents', child: 'flow' },
   matrix: { parent: 'agents', child: 'matrix' },
+  tasks: { parent: 'agents', child: 'tasks' },
   approvals: { parent: 'runs', child: 'approvals' },
   policies: { parent: 'runs', child: 'policies' },
   repository: { parent: 'workspace', child: 'repository' },

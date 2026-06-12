@@ -57,6 +57,12 @@ impl VoxConfig {
             "web_tanstack_start" | "web.tanstack_start" => {
                 Some(self.web_tanstack_start.to_string())
             }
+            "llm.max_concurrent_requests" => Some(self.llm_max_concurrent_requests.to_string()),
+            "llm.openrouter_max_concurrent" => {
+                self.llm_openrouter_max_concurrent.map(|v| v.to_string())
+            }
+            "llm.openai_max_concurrent" => self.llm_openai_max_concurrent.map(|v| v.to_string()),
+            "llm.retry_max_attempts" => Some(self.llm_retry_max_attempts.to_string()),
             _ => None,
         }
     }
@@ -115,6 +121,22 @@ impl VoxConfig {
                 "false" | "0" | "no" => self.web_tanstack_start = false,
                 _ => return false,
             },
+            "llm.max_concurrent_requests" => match value.parse() {
+                Ok(v) => self.llm_max_concurrent_requests = v,
+                Err(_) => return false,
+            },
+            "llm.openrouter_max_concurrent" => match value.parse() {
+                Ok(v) => self.llm_openrouter_max_concurrent = Some(v),
+                Err(_) => return false,
+            },
+            "llm.openai_max_concurrent" => match value.parse() {
+                Ok(v) => self.llm_openai_max_concurrent = Some(v),
+                Err(_) => return false,
+            },
+            "llm.retry_max_attempts" => match value.parse() {
+                Ok(v) => self.llm_retry_max_attempts = v,
+                Err(_) => return false,
+            },
             _ => return false,
         }
         true
@@ -151,6 +173,10 @@ impl VoxConfig {
             "web_run_mode",
             "web.tanstack_start",
             "web_tanstack_start",
+            "llm.max_concurrent_requests",
+            "llm.openrouter_max_concurrent",
+            "llm.openai_max_concurrent",
+            "llm.retry_max_attempts",
         ]
     }
 
@@ -228,6 +254,21 @@ impl VoxConfig {
             && let Some(v) = build.target
         {
             self.build_target = v;
+        }
+
+        if let Some(llm) = parsed.llm {
+            if let Some(v) = llm.max_concurrent_requests {
+                self.llm_max_concurrent_requests = v;
+            }
+            if llm.openrouter_max_concurrent.is_some() {
+                self.llm_openrouter_max_concurrent = llm.openrouter_max_concurrent;
+            }
+            if llm.openai_max_concurrent.is_some() {
+                self.llm_openai_max_concurrent = llm.openai_max_concurrent;
+            }
+            if let Some(v) = llm.retry_max_attempts {
+                self.llm_retry_max_attempts = v;
+            }
         }
     }
 
@@ -472,6 +513,38 @@ db_extra = "de"
         let mut cfg = VoxConfig::default();
         assert!(cfg.set_key("model", "openai/gpt-4o"));
         assert_eq!(cfg.get_key("model").as_deref(), Some("openai/gpt-4o"));
+    }
+
+    #[test]
+    fn llm_keys_roundtrip_through_get_set() {
+        let mut cfg = VoxConfig::default();
+        assert_eq!(cfg.llm_max_concurrent_requests, 8);
+        assert!(cfg.set_key("llm.max_concurrent_requests", "16"));
+        assert_eq!(
+            cfg.get_key("llm.max_concurrent_requests").as_deref(),
+            Some("16")
+        );
+        assert!(cfg.set_key("llm.openrouter_max_concurrent", "4"));
+        assert_eq!(cfg.llm_openrouter_max_concurrent, Some(4));
+        assert!(cfg.set_key("llm.retry_max_attempts", "5"));
+        assert_eq!(cfg.llm_retry_max_attempts, 5);
+        assert!(VoxConfig::known_keys().contains(&"llm.max_concurrent_requests"));
+    }
+
+    #[test]
+    fn reads_llm_section_from_vox_toml() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let p = dir.path().join("Vox.toml");
+        std::fs::write(
+            &p,
+            "[llm]\nmax_concurrent_requests = 12\nopenrouter_max_concurrent = 6\nretry_max_attempts = 3\n",
+        )
+        .expect("write");
+        let mut cfg = VoxConfig::default();
+        merge_vox_toml_path_for_test(&mut cfg, &p);
+        assert_eq!(cfg.llm_max_concurrent_requests, 12);
+        assert_eq!(cfg.llm_openrouter_max_concurrent, Some(6));
+        assert_eq!(cfg.llm_retry_max_attempts, 3);
     }
 
     #[test]
