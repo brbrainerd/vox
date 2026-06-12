@@ -349,3 +349,8 @@ export function listenPtyOutput(
 export function listenPtyExit(onExit: (tabId: string) => void): Promise<UnlistenFn> {
   return listen<{ tab_id: string }>(PTY_EXIT_EVENT, (e) => onExit(e.payload.tab_id));
 }
+
+/** Send a free-form note to an agent's A2A inbox. Resolves to the message id. */
+export function sendToAgent(agentId: string, body: string): Promise<string> {
+  return invoke<string>('send_to_agent', { agentId, body });
+}

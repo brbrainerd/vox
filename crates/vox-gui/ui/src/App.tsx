@@ -567,6 +567,10 @@ export default function App() {
             onAckLudus={handleAckAlert}
             filterKind={filterKind}
             setFilterKind={setFilterKind}
+            onOpenInConsole={(a) => {
+              setSelectedAgentId(a.id);
+              setActiveView('console');
+            }}
           />
         );
       case 'flow':
@@ -603,7 +607,12 @@ export default function App() {
       case 'harness':
         return <HarnessView pushToast={pushToast} />;
       case 'console':
-        return <Console pushToast={pushToast} />;
+        return (
+          <Console
+            pushToast={pushToast}
+            initialAgentId={selectedAgentId !== 'ROOT' ? selectedAgentId : null}
+          />
+        );
       case 'approvals':
         return <ApprovalsView pushToast={pushToast} />;
       case 'policies':

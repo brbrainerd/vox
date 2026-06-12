@@ -4,10 +4,14 @@ import { DiscoveryRail } from './DiscoveryRail';
 import { TerminalTab, type PendingLine } from './TerminalTab';
 import { AgentStrip, type AgentChip } from './AgentStrip';
 import { AgentTab } from './AgentTab';
-import { listenOrchStatus } from '../../../transport';
+import { SendToAgent } from './SendToAgent';
+import { listenOrchStatus, sendToAgent } from '../../../transport';
 
 interface Props {
   pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
+  /** When set (e.g. via the Dashboard "Open in Console" deep link), open this
+   *  agent's live event tab on mount. */
+  initialAgentId?: string | null;
 }
 
 /**
@@ -15,11 +19,13 @@ interface Props {
  * persistent discovery rail on the right, owned input editor along the bottom.
  * A single PTY tab ("console-1") in v1; multi-tab is additive.
  */
-export function Console({ pushToast }: Props) {
+export function Console({ pushToast, initialAgentId = null }: Props) {
   const [pending, setPending] = useState<PendingLine | null>(null);
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [agents, setAgents] = useState<AgentChip[]>([]);
-  const [openAgentId, setOpenAgentId] = useState<string | null>(null);
+  const [openAgentId, setOpenAgentId] = useState<string | null>(initialAgentId);
+  const [composing, setComposing] = useState(false);
+  const [lastLine, setLastLine] = useState('');
   const seq = React.useRef(0);
   const tabId = 'console-1';
   const nowMs = Date.now();
@@ -43,6 +49,7 @@ export function Console({ pushToast }: Props) {
 
   const submit = (line: string) => {
     seq.current += 1;
+    setLastLine(line);
     setPending({ text: line, seq: seq.current });
   };
 
@@ -51,9 +58,33 @@ export function Console({ pushToast }: Props) {
     pushToast({ tone: 'info', title: 'Agent', body: `streaming events for ${agentId}` });
   };
 
+  const handleSend = (agentId: string, body: string) => {
+    setComposing(false);
+    sendToAgent(agentId, body)
+      .then(() => pushToast({ tone: 'ok', title: 'Sent', body: `to agent ${agentId}` }))
+      .catch((e) => pushToast({ tone: 'warn', title: 'Send failed', body: String(e) }));
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <AgentStrip agents={agents} onOpen={openAgentTab} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <AgentStrip agents={agents} onOpen={openAgentTab} />
+        <button
+          disabled={agents.length === 0}
+          onClick={() => setComposing(true)}
+          style={{ fontSize: 11, margin: '0 10px' }}
+        >
+          send to agent
+        </button>
+      </div>
+      {composing && (
+        <SendToAgent
+          initialBody={lastLine}
+          agents={agents}
+          onSend={handleSend}
+          onClose={() => setComposing(false)}
+        />
+      )}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
           {openAgentId && (

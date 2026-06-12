@@ -13,6 +13,7 @@ vi.mock('../../../transport', () => ({
   listenPtyOutput: vi.fn().mockResolvedValue(() => {}),
   listenPtyExit: vi.fn().mockResolvedValue(() => {}),
   listenOrchStatus: vi.fn().mockRejectedValue(new Error('not in tauri')),
+  sendToAgent: vi.fn().mockResolvedValue('msg-1'),
 }));
 vi.mock('@xterm/xterm', () => ({
   Terminal: class {
