@@ -10461,10 +10461,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_yaml"
-version = "0.9.34+deprecated"
+name = "serde_yaml_ng"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+checksum = "7b4db627b98b36d4203a7b458cf3573730f2bb591b28871d916dfa9efabfd41f"
 dependencies = [
  "indexmap 2.14.0",
  "itoa",
@@ -13602,7 +13602,7 @@ dependencies = [
  "scraper",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "serial_test",
  "tempfile",
  "thiserror 2.0.18",
@@ -13647,6 +13647,7 @@ dependencies = [
  "vox-build-meta",
  "vox-rename-registry",
  "vox-test-harness",
+ "walkdir",
 ]
 
 [[package]]
@@ -13669,7 +13670,7 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "tempfile",
  "thiserror 2.0.18",
  "toml 0.8.23",
@@ -13708,7 +13709,7 @@ dependencies = [
  "anyhow",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "workspace-hack",
 ]
 
@@ -13754,9 +13755,10 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "serial_test",
  "sha2 0.11.0",
+ "strsim",
  "sysinfo",
  "tar",
  "tempfile",
@@ -13890,7 +13892,7 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "similar",
  "syn 2.0.117",
  "tempfile",
@@ -13962,10 +13964,11 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "serial_test",
  "sha3",
  "static_assertions",
+ "strsim",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -13993,7 +13996,7 @@ version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "tempfile",
  "toml 0.8.23",
  "tracing",
@@ -14049,7 +14052,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "syn 2.0.117",
  "tempfile",
  "tracing",
@@ -14093,6 +14096,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha3",
+ "strsim",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -14382,7 +14386,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
@@ -14489,7 +14493,7 @@ dependencies = [
  "pulldown-cmark",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "serial_test",
  "tempfile",
  "tokio",
@@ -14538,7 +14542,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "sha2 0.11.0",
  "workspace-hack",
 ]
@@ -14568,7 +14572,7 @@ name = "vox-mcp-registry"
 version = "0.6.0"
 dependencies = [
  "serde",
- "serde_yaml",
+ "serde_yaml_ng",
  "workspace-hack",
 ]
 
@@ -14607,6 +14611,7 @@ dependencies = [
  "base64 0.22.1",
  "blake3",
  "candle-core",
+ "chrono",
  "clap",
  "cpal",
  "dialoguer",
@@ -14617,7 +14622,7 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "sysinfo",
  "tempfile",
  "tokio",
@@ -14732,7 +14737,7 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "serial_test",
  "sha2 0.11.0",
  "sha3",
@@ -14831,7 +14836,7 @@ dependencies = [
  "schemars 1.2.1",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "serial_test",
  "sha2 0.11.0",
  "sha3",
@@ -14927,7 +14932,7 @@ version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "thiserror 2.0.18",
 ]
 
@@ -15324,9 +15329,10 @@ dependencies = [
  "safetensors 0.7.0",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "serial_test",
  "sha3",
+ "strsim",
  "subtle",
  "sysinfo",
  "tempfile",
@@ -15410,7 +15416,7 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "sha2 0.11.0",
  "sha3",
  "tar",
@@ -15463,7 +15469,7 @@ dependencies = [
  "schemars 1.2.1",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "tempfile",
  "thiserror 2.0.18",
  "toml 0.8.23",
@@ -15514,7 +15520,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "tempfile",
  "thiserror 2.0.18",
  "workspace-hack",
@@ -15549,7 +15555,7 @@ version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "tracing",
  "workspace-hack",
 ]
@@ -15574,7 +15580,7 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "sha2 0.11.0",
  "sha3",
  "tar",
@@ -15625,7 +15631,8 @@ dependencies = [
  "scraper",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
+ "strsim",
  "tantivy",
  "tavily",
  "tempfile",
@@ -15747,7 +15754,7 @@ dependencies = [
  "anyhow",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "tempfile",
  "vox-compiler",
 ]
@@ -15871,7 +15878,7 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml_ng",
  "tempfile",
  "tokio",
  "tracing",
