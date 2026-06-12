@@ -147,7 +147,21 @@ impl MiniCheckVerifier {
                 // treat the pair as potentially contradictory.
                 let contains_negator = |text: &str| -> bool {
                     let lower = text.to_ascii_lowercase();
-                    NEGATORS.iter().any(|n| lower.contains(n))
+                    NEGATORS.iter().any(|n| {
+                        if n.contains(' ') {
+                            // Multi-word negators ("does not") match as phrases.
+                            lower.contains(n)
+                        } else {
+                            // Single-word negators match whole tokens only —
+                            // "no" must not fire inside "know" or "nominal".
+                            lower
+                                .split_whitespace()
+                                .map(|w| {
+                                    w.trim_matches(|c: char| !c.is_alphanumeric() && c != '\'')
+                                })
+                                .any(|w| w == *n)
+                        }
+                    })
                 };
                 let claim_negated = contains_negator(claim);
                 let context_negated = contains_negator(best_sentence);
