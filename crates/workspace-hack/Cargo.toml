@@ -128,7 +128,7 @@ serde_json = { version = "1", features = ["alloc", "raw_value", "unbounded_depth
 serde_spanned = { version = "1" }
 sha1 = { version = "0.10", features = ["compress"] }
 sha2 = { version = "0.10", features = ["oid"] }
-signature = { version = "2", default-features = false, features = ["alloc", "digest", "rand_core"] }
+signature = { version = "3", default-features = false, features = ["alloc", "digest", "rand_core"] }
 simd-adler32 = { version = "0.3" }
 similar = { version = "2", features = ["inline"] }
 slab = { version = "0.4" }
@@ -284,7 +284,7 @@ serde_json = { version = "1", features = ["alloc", "raw_value", "unbounded_depth
 serde_spanned = { version = "1" }
 sha1 = { version = "0.10", features = ["compress"] }
 sha2 = { version = "0.10", features = ["oid"] }
-signature = { version = "2", default-features = false, features = ["alloc", "digest", "rand_core"] }
+signature = { version = "3", default-features = false, features = ["alloc", "digest", "rand_core"] }
 simd-adler32 = { version = "0.3" }
 similar = { version = "2", features = ["inline"] }
 slab = { version = "0.4" }
