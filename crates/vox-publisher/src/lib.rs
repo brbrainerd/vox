@@ -29,6 +29,7 @@ pub mod distribution_compile;
 pub mod peer_review_gate;
 #[cfg(feature = "scholarly-external-jobs")]
 pub mod scholarly_remote_status;
+pub mod scientia_novelty_assess;
 pub mod scientia_scholarly;
 #[cfg(feature = "scholarly-external-jobs")]
 pub mod scientia_worthiness_enrich;

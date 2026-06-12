@@ -206,7 +206,22 @@ pub async fn publication_novelty_fetch(
         .await?;
     }
 
-    println!("{}", serde_json::to_string_pretty(&bundle)?);
+    let claim_year = chrono::Datelike::year(&chrono::Utc::now().date_naive());
+    let novelty_config = vox_scientia::inspect_bridge::NoveltyConfig::default();
+    let novelty_assessment = vox_publisher::scientia_novelty_assess::assess_novelty(
+        &bundle,
+        claim_year,
+        &novelty_config,
+    );
+
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema_kind": "scientia_novelty_fetch",
+            "bundle": bundle,
+            "novelty_assessment": novelty_assessment,
+        }))?
+    );
     Ok(())
 }
 

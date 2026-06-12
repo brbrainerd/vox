@@ -52,8 +52,7 @@ vox-config = { path = "../vox-config" }
 vox-jsonschema-util.workspace = true
 unicode-segmentation = { workspace = true }
 vox-db = { path = "../vox-db", optional = true }
-
-
+vox-research-events = { workspace = true }
 
 
 bsky-sdk = { workspace = true, optional = true }
