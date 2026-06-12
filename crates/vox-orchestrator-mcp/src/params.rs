@@ -721,6 +721,10 @@ pub struct BrowserActParams {
     /// Goal in natural language; model returns a small action JSON (requires MCP chat model).
     #[schemars(length(min = 1, max = 131072))]
     pub instruction: String,
+    /// Acting party for the human/agent control lock (defaults to "agent").
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
 }
 
 /// Publish a bulletin-board style message (orchestrator-internal).

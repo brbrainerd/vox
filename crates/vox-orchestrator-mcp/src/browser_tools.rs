@@ -778,6 +778,13 @@ Use xpath: prefix in target for XPath. Choose the best next step for the instruc
         }
     };
     let action = act.action.to_lowercase();
+    // SECURITY: enforce the human/agent control lock before any mutating action.
+    // `noop` and `wait` are read-only; goto/click/fill mutate page state.
+    if matches!(action.as_str(), "goto" | "click" | "fill")
+        && let Err(e) = ensure_control_lock(&p.page_id, p.actor.as_deref()).await
+    {
+        return ToolResult::<serde_json::Value>::err(e).to_json();
+    }
     let page_id = p.page_id.clone();
     let act_target = act.target.clone();
     let act_value = act.value.clone();
@@ -888,5 +895,151 @@ Use xpath: prefix in target for XPath. Choose the best next step for the instruc
         }))
         .to_json(),
         Err(e) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use vox_orchestrator::{
+        AffinityGroupRegistry, Orchestrator, OrchestratorConfig, SessionConfig, SessionManager,
+    };
+    use vox_repository::{RepoCapabilities, RepositoryContext};
+    use vox_skills::new_registry_arc;
+
+    fn test_state() -> ServerState {
+        let cfg = OrchestratorConfig::for_testing();
+        let orch_cfg = cfg.clone();
+        let groups = AffinityGroupRegistry::new(vec![]);
+        let session_cfg = SessionConfig {
+            persist: false,
+            sessions_dir: std::env::temp_dir().join("vox-mcp-browser-tools-test-sessions"),
+            ..SessionConfig::default()
+        };
+        let session_manager = SessionManager::new(session_cfg).expect("session manager");
+        let repository = RepositoryContext {
+            root: std::env::temp_dir(),
+            git_root: None,
+            repository_id: "browser-tools-test".into(),
+            origin_url: None,
+            capabilities: RepoCapabilities {
+                vox_project: false,
+                cargo_workspace: false,
+                cargo_package: false,
+                node_workspace: false,
+                python_project: false,
+                go_module: false,
+                git: false,
+            },
+            has_vox_agents_dir: false,
+            vox_toml: None,
+        };
+        ServerState::test_stub(
+            cfg,
+            repository,
+            Arc::new(Orchestrator::with_groups(orch_cfg, groups)),
+            Arc::new(Mutex::new(session_manager)),
+            new_registry_arc(),
+        )
+    }
+
+    async fn set_lock(state: &ServerState, page_id: &str, owner: &str, actor: Option<&str>) -> serde_json::Value {
+        let raw = browser_set_control_lock(
+            state,
+            crate::params::BrowserControlLockParams {
+                page_id: page_id.to_string(),
+                owner: owner.to_string(),
+                actor: actor.map(ToString::to_string),
+            },
+        )
+        .await;
+        serde_json::from_str(&raw).expect("tool result json")
+    }
+
+    #[test]
+    fn normalize_actor_defaults_and_lowercases() {
+        assert_eq!(normalize_actor(None), "agent");
+        assert_eq!(normalize_actor(Some("  ")), "agent");
+        assert_eq!(normalize_actor(Some("Human")), "human");
+    }
+
+    #[test]
+    fn png_dimensions_parses_ihdr() {
+        // 1x1 transparent PNG header (signature + IHDR width/height).
+        let mut bytes = vec![137, 80, 78, 71, 13, 10, 26, 10];
+        bytes.extend_from_slice(&[0, 0, 0, 13]); // IHDR length
+        bytes.extend_from_slice(b"IHDR");
+        bytes.extend_from_slice(&640u32.to_be_bytes());
+        bytes.extend_from_slice(&480u32.to_be_bytes());
+        assert_eq!(png_dimensions(&bytes), Some((640, 480)));
+        assert_eq!(png_dimensions(b"not a png, definitely not"), None);
+        assert_eq!(png_dimensions(&[]), None);
+    }
+
+    #[tokio::test]
+    async fn human_lock_blocks_agent_mutation() {
+        let state = test_state();
+        let page = "page-test-lock-blocks-agent";
+        let res = set_lock(&state, page, "human", Some("human")).await;
+        assert_eq!(res["success"], serde_json::json!(true));
+
+        // The exact gate browser_act / all mutating arms call.
+        let err = ensure_control_lock(page, None).await.unwrap_err();
+        assert!(err.contains("control lock active for human"), "{err}");
+        let err = ensure_control_lock(page, Some("agent")).await.unwrap_err();
+        assert!(err.contains("blocked"), "{err}");
+        // The lock owner is still allowed.
+        assert!(ensure_control_lock(page, Some("human")).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn unlocked_page_allows_any_actor() {
+        let page = "page-test-unlocked";
+        assert!(ensure_control_lock(page, None).await.is_ok());
+        assert!(ensure_control_lock(page, Some("human")).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn non_owner_cannot_steal_or_release_lock() {
+        let state = test_state();
+        let page = "page-test-lock-steal";
+        let res = set_lock(&state, page, "human", Some("human")).await;
+        assert_eq!(res["success"], serde_json::json!(true));
+
+        // Agent may not transfer the lock to itself...
+        let res = set_lock(&state, page, "agent", Some("agent")).await;
+        assert_eq!(res["success"], serde_json::json!(false));
+        // ...nor release it.
+        let res = set_lock(&state, page, "none", Some("agent")).await;
+        assert_eq!(res["success"], serde_json::json!(false));
+        // Owner can release.
+        let res = set_lock(&state, page, "none", Some("human")).await;
+        assert_eq!(res["success"], serde_json::json!(true));
+        assert!(ensure_control_lock(page, Some("agent")).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn invalid_owner_rejected() {
+        let state = test_state();
+        let res = set_lock(&state, "page-test-bad-owner", "pirate", None).await;
+        assert_eq!(res["success"], serde_json::json!(false));
+    }
+
+    #[tokio::test]
+    async fn browser_act_rejects_agent_on_human_locked_page() {
+        let state = test_state();
+        let page = "page-test-act-locked";
+        let res = set_lock(&state, page, "human", Some("human")).await;
+        assert_eq!(res["success"], serde_json::json!(true));
+
+        // Regression for the control-lock bypass: a mutating browser_act from the
+        // default (agent) actor on a human-locked page must fail with the lock
+        // error — it must never reach the CDP backend or the LLM action step.
+        let err = ensure_control_lock(page, None).await.unwrap_err();
+        assert!(
+            err.contains("control lock active for human"),
+            "browser_act mutating arms must be gated by ensure_control_lock: {err}"
+        );
     }
 }
