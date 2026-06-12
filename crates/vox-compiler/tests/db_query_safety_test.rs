@@ -21,7 +21,7 @@ fn db_table_query_clause_is_lint_error() {
     assert!(diags.iter().any(|d| {
         d.severity == TypeckSeverity::Error
             && d.category == DiagnosticCategory::Lint
-            && d.message.contains(".query(clause)")
+            && d.message.contains("raw `.query(")
     }));
 }
 

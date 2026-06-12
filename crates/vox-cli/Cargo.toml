@@ -306,6 +306,7 @@ wiremock = { workspace = true }
 # `deadpool::unmanaged::Pool::timeout_get`.
 deadpool = { workspace = true }
 vox-db = { workspace = true }
+vox-sql = { workspace = true }
 vox-orchestrator = { workspace = true }
 
 [[test]]

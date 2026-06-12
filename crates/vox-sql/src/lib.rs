@@ -1,3 +1,8 @@
+//! Engine-agnostic SQL surface for Vox app-plane data backends.
+//!
+//! Connects via `VOX_APP_DB_URL`, normalizes rows/values, and exposes DDL,
+//! introspection, and migration helpers for brownfield database interop.
+
 use async_trait::async_trait;
 use sqlx::{
     Arguments, Column, MySql, MySqlPool, PgPool, Postgres, Row,
