@@ -2,10 +2,10 @@
 
 //! Reactive codegen smoke tests for Path C components, Web IR bridges, and attr-matrix SSOT.
 //!
-//! ## Ignored tests (VUV-9, sunset 2026-12-31)
+//! ## Parity pins (VUV-9, resolved)
 //!
-//! **9** parity-pin tests remain `#[ignore]` pending completed JSX→Web-IR migration cleanup
-//! (VUV-9). They assert retired JSX-era shapes; do not re-enable until snapshots migrate.
+//! All parity-pin tests are enabled; snapshots track the canonical Web-IR
+//! layout wrapper (`<div className="px-4">`).
 
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -665,7 +665,6 @@ fn reactive_smoke_gate_label_smoke_tests_module() {
 
 /// OP-S074: behavior map — reactive state surfaces in generated TSX hooks.
 #[serial_test::serial]
-#[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration; assertions reference retired JSX form; owner: vox-compiler; sunset: 2026-12-31"]
 #[test]
 fn reactive_smoke_op_s074_s075_behavior_view_fixture() {
     let _serial = REACTIVE_SMOKE_SERIAL
@@ -692,7 +691,6 @@ component V() {
 
 /// OP-S078 / S077: wrapper inventory — event attr maps in Path C emit.
 #[serial_test::serial]
-#[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration; assertions reference retired JSX form; owner: vox-compiler; sunset: 2026-12-31"]
 #[test]
 fn reactive_smoke_op_s078_wrapper_inventory_fixture() {
     let _serial = REACTIVE_SMOKE_SERIAL
@@ -719,7 +717,6 @@ component Clicky() {
 
 /// OP-S114: behavior contract A — derived depends on state.
 #[serial_test::serial]
-#[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration; assertions reference retired JSX form; owner: vox-compiler; sunset: 2026-12-31"]
 #[test]
 fn reactive_smoke_op_s114_behavior_contract_fixture_a() {
     reactive_smoke_assert_derived_harness_in_d_tsx();
@@ -727,7 +724,6 @@ fn reactive_smoke_op_s114_behavior_contract_fixture_a() {
 
 /// OP-S125 fixture pack D1.
 #[serial_test::serial]
-#[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration; assertions reference retired JSX form; owner: vox-compiler; sunset: 2026-12-31"]
 #[test]
 fn reactive_smoke_op_s125_fixture_pack_d1() {
     reactive_smoke_op_s074_s075_behavior_view_fixture();
@@ -735,7 +731,6 @@ fn reactive_smoke_op_s125_fixture_pack_d1() {
 
 /// OP-S162 component adapter B.
 #[serial_test::serial]
-#[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration; assertions reference retired JSX form; owner: vox-compiler; sunset: 2026-12-31"]
 #[test]
 fn reactive_smoke_op_s162_component_adapter_fixture_b() {
     let _serial = REACTIVE_SMOKE_SERIAL
@@ -758,7 +753,6 @@ raw_css {
 
 /// OP-S170 hir wrapper B.
 #[serial_test::serial]
-#[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration; assertions reference retired JSX form; owner: vox-compiler; sunset: 2026-12-31"]
 #[test]
 fn reactive_smoke_op_s170_hir_wrapper_fixture_b() {
     let _serial = REACTIVE_SMOKE_SERIAL
@@ -772,7 +766,6 @@ fn reactive_smoke_op_s170_hir_wrapper_fixture_b() {
 
 /// OP-S177 fixture pack F1.
 #[serial_test::serial]
-#[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration; assertions reference retired JSX form; owner: vox-compiler; sunset: 2026-12-31"]
 #[test]
 fn reactive_smoke_op_s177_fixture_pack_f1() {
     reactive_smoke_assert_derived_harness_in_d_tsx();
@@ -780,7 +773,6 @@ fn reactive_smoke_op_s177_fixture_pack_f1() {
 
 /// OP-S205 fixture pack G1.
 #[serial_test::serial]
-#[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration; assertions reference retired JSX form; owner: vox-compiler; sunset: 2026-12-31"]
 #[test]
 fn reactive_smoke_op_s205_fixture_pack_g1() {
     let _serial = REACTIVE_SMOKE_SERIAL
@@ -815,7 +807,6 @@ component Counter(initial: int) {
 
 /// OP-S218 final reactive parity.
 #[serial_test::serial]
-#[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration; assertions reference retired JSX form; owner: vox-compiler; sunset: 2026-12-31"]
 #[test]
 fn reactive_smoke_op_s218_final_reactive_parity_fixture() {
     assert!(!env!("CARGO_MANIFEST_DIR").is_empty());
