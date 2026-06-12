@@ -6,10 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::publication::PublicationManifest;
 use crate::scientia_discovery::FieldProvenanceEntry;
-use crate::scientific_metadata::{
-    METADATA_KEY_SCIENTIFIC, ReproducibilityAttestation, ScientificAuthor,
-    ScientificPublicationMetadata,
-};
+use crate::scientific_metadata::{METADATA_KEY_SCIENTIFIC, ScientificPublicationMetadata};
 
 /// Minimal view of the caller-supplied user identity (no DB coupling).
 #[derive(Debug, Clone)]
