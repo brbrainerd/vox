@@ -20,7 +20,7 @@ import std.mobile
 
 @query fn list_entries() to int { return 0 }
 
-@mutation fn record_entry(text: str, mood: int) to int { return 0 }
+@mutation fn record_entry(text: str, mood: int, pinned: bool) to int { return 0 }
 
 @mutation fn on_back() to bool { return false }
 
@@ -37,6 +37,7 @@ import std.mobile
 @form NewEntry {
     field text: str required label("Entry text") max_len(280)
     field mood: int required label("Mood (1-10)")
+    field pinned: bool label("Pin this entry")
     on_submit: record_entry
 }
 
