@@ -21,6 +21,9 @@ pub mod bundle;
 pub mod escape;
 pub mod render;
 
-pub use bundle::{BundleError, list_bundle_entries, render_arxiv_bundle};
+pub use bundle::{
+    ArxivHandoffMeta, BundleError, list_bundle_entries, render_arxiv_bundle,
+    render_arxiv_bundle_with_handoff,
+};
 pub use escape::escape_latex;
 pub use render::render_latex;

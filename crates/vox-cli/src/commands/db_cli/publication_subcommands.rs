@@ -159,6 +159,54 @@ pub enum DbCliPublication {
         #[arg(long)]
         publication_id: String,
     },
+    /// Deterministic archive-metadata autofill: fills MISSING fields (never overwrites),
+    /// records per-field provenance, and reports before/after completeness. No LLM.
+    #[command(name = "publication-autofill")]
+    PublicationAutofill {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Apply the proposed fills to the stored manifest (persists via upsert + digest recompute).
+        #[arg(long, default_value_t = false)]
+        apply: bool,
+    },
+    /// Archive the publication's code repository via Software Heritage Save Code Now.
+    ///
+    /// On success (or accepted-without-wait) merges `scientia.swh_save` and
+    /// (when available) `scientia.swhid` into the stored manifest so Zenodo
+    /// `related_identifiers` picks up the SWHID.
+    #[command(name = "publication-archive-code")]
+    PublicationArchiveCode {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Code repository URL to archive.
+        /// Defaults to `metadata_json.scientia.reproducibility.code_repository_url`.
+        /// If neither is present, run publication-autofill first.
+        #[arg(long)]
+        origin_url: Option<String>,
+        /// Poll up to 5 minutes (10 s interval) until task_status is succeeded/failed.
+        #[arg(long, default_value_t = false)]
+        wait: bool,
+    },
+    /// Run the archive pipeline end-to-end (Zenodo deposit + Software Heritage).
+    ///
+    /// Requires a complete manifest (required fields present) and at least one
+    /// digest-bound approval (run `publication-approve`). Sandbox Zenodo is the
+    /// default; `--production` targets production Zenodo, `--publish` publishes
+    /// the deposition instead of leaving a draft.
+    #[command(name = "publication-archive-run")]
+    PublicationArchiveRun {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Target production Zenodo instead of the sandbox (default: sandbox).
+        #[arg(long, default_value_t = false)]
+        production: bool,
+        /// Publish the Zenodo deposition rather than leaving it as a draft.
+        #[arg(long, default_value_t = false)]
+        publish: bool,
+    },
     /// Emit destination transform preview JSON (scholarly/social stubs; `machine_suggested`).
     #[command(name = "publication-transform-preview")]
     PublicationTransformPreview {
@@ -409,6 +457,21 @@ pub enum DbCliPublication {
         #[arg(long)]
         feed_id: Option<String>,
         #[arg(long, default_value_t = 10)]
+        limit: usize,
+    },
+    /// Scan new commits for research-worthy signals and create DRAFT finding
+    /// candidates (human-reviewed, never auto-published). Cursor advances only
+    /// after the batch's draft inserts succeed.
+    #[command(name = "discovery-watch")]
+    DiscoveryWatch {
+        /// Run a single pass and exit (currently the only mode).
+        #[arg(long, default_value_t = false)]
+        once: bool,
+        /// Repository path to scan (default: resolved repo root).
+        #[arg(long)]
+        repo: Option<PathBuf>,
+        /// When no cursor exists, scan at most this many commits back from HEAD.
+        #[arg(long, default_value_t = 20)]
         limit: usize,
     },
     /// Register or update a feed source for inbound intelligence.

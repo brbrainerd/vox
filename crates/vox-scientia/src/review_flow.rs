@@ -15,7 +15,13 @@
 //!   - [`publication_session_id`] — derive the stable `session_id` bucket for a
 //!     publication's extracted claims.
 //!
-//! It does NOT publish anything to the network (no `publish`, no test server).
+//!   - [`nanopub_publish_test_server`] — publish an already-built local nanopub
+//!     to the nanopub TEST server, gated by ApprovalToken + env var.
+//!
+//! Network publishing is gated behind BOTH an [`crate::review::ApprovalToken`]
+//! (unmintable without a persisted human "approved" decision) AND the env var
+//! `VOX_NANOPUB_TEST_SERVER=1`. Production publishing is deliberately
+//! unimplemented (standing decision).
 
 use vox_db::VoxDb;
 use vox_db::store::{NanopubRow, UserIdentityRow};
@@ -289,6 +295,102 @@ pub async fn nanopub_build(
         .map_err(|e| anyhow::anyhow!("persist scientia_nanopubs row: {e}"))?;
 
     Ok(signed)
+}
+
+/// Publish an already-built local nanopub to the nanopub TEST server.
+///
+/// Requires BOTH:
+/// - `token`: an [`crate::review::ApprovalToken`] — only mintable from a
+///   persisted human "approved" decision (non-constructible outside
+///   `crate::review`).
+/// - `VOX_NANOPUB_TEST_SERVER=1` in the environment — checked inside
+///   [`crate::nanopub::network::publish_to_test_server`] via
+///   [`crate::nanopub::network::ensure_test_server_allowed`].
+///
+/// Production publishing is **deliberately unimplemented** (standing decision).
+///
+/// Steps:
+/// 1. Verify the token is bound to the correct `publication_id` and `claim_id`
+///    (same cross-publication / claim-identity guard as [`nanopub_build`]).
+/// 2. Load the persisted `scientia_nanopubs` row by looking up all rows for the
+///    claim's session and finding the one with the matching Trusty URI (the
+///    local artifact built by a prior `nanopub_build` call).
+/// 3. Resolve the signing identity (ORCID + private key).
+/// 4. Call [`crate::nanopub::network::publish_to_test_server`] with the
+///    stored signed TriG + profile.
+/// 5. Update the row's `published_state` to `"test_server"` via the DB op.
+///
+/// Returns the published URI (the Trusty URI the test server accepted).
+///
+/// # Errors
+/// Returns an error if the token mismatches, if no local nanopub exists for the
+/// claim, if the env gate is not set, if the network call fails, or if any DB
+/// op fails.
+pub async fn nanopub_publish_test_server(
+    db: &VoxDb,
+    publication_id: &str,
+    claim_id: i64,
+    token: &crate::review::ApprovalToken,
+    user_id: &str,
+    orcid: Option<&str>,
+) -> anyhow::Result<String> {
+    // 0. Token identity guard (mirrors nanopub_build — same security pattern).
+    if token.publication_id() != publication_id {
+        anyhow::bail!(
+            "approval token publication mismatch (token approves publication `{}`, \
+             publish requested `{publication_id}`)",
+            token.publication_id()
+        );
+    }
+    if token.claim_id() != claim_id {
+        anyhow::bail!(
+            "approval token claim mismatch (token approves claim {}, \
+             publish requested {claim_id})",
+            token.claim_id()
+        );
+    }
+
+    // 1. Load the locally-persisted nanopub row for this claim. We use the
+    //    `get_local_nanopub_for_claim` DB op (added to vox-db alongside this
+    //    function) which selects the most-recently-built "local" row for the
+    //    claim. Check existence first via the count op for a precise error message.
+    let count = db
+        .count_scientia_nanopubs_for_claim(claim_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("count local nanopub rows for claim {claim_id}: {e}"))?;
+    if count == 0 {
+        anyhow::bail!(
+            "no local nanopub found for claim {claim_id} in publication `{publication_id}`; \
+             run `vox scientia publication-nanopub-build \
+             --publication-id {publication_id} --claim-id {claim_id}` first"
+        );
+    }
+
+    // Fetch the local row. We need the signed TriG and Trusty URI.
+    let row = db
+        .get_local_nanopub_for_claim(claim_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("load local nanopub row for claim {claim_id}: {e}"))?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "local nanopub row for claim {claim_id} not found after count confirmed existence"
+            )
+        })?;
+
+    // 2. Resolve the signing identity (ORCID + private key).
+    let profile = resolve_or_create_identity(db, user_id, orcid).await?;
+
+    // 3. Publish to the test server.
+    let published_uri = crate::nanopub::network::publish_to_test_server(&row.trig, &profile, token)
+        .await
+        .map_err(|e| anyhow::anyhow!("publish to test server: {e}"))?;
+
+    // 4. Update the row state to "test_server".
+    db.update_nanopub_published_state(&row.trusty_uri, "test_server", &published_uri)
+        .await
+        .map_err(|e| anyhow::anyhow!("update nanopub published_state: {e}"))?;
+
+    Ok(published_uri)
 }
 
 /// P2 Task 4 — Record a human review decision for ONE extracted claim.

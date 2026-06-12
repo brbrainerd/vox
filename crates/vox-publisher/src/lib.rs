@@ -5,6 +5,7 @@ pub mod publisher;
 pub use publisher::*;
 
 pub mod adapters;
+pub mod archive_run;
 pub mod citation_cff;
 pub mod contract;
 pub mod crossref_metadata;
@@ -14,12 +15,15 @@ pub mod publication;
 pub mod publication_preflight;
 pub mod publication_worthiness;
 pub mod research_mesh;
+pub mod scientia_autofill;
 pub mod scientia_contracts;
 pub mod scientia_discovery;
 pub mod scientia_evidence;
 pub mod scientia_finding_ledger;
 pub mod scientia_heuristics;
 pub mod scientia_prior_art;
+pub mod scientia_producers;
+pub mod scientia_semantic;
 
 pub mod scholarly;
 #[cfg(feature = "scholarly-external-jobs")]
@@ -28,6 +32,7 @@ pub mod distribution_compile;
 pub mod peer_review_gate;
 #[cfg(feature = "scholarly-external-jobs")]
 pub mod scholarly_remote_status;
+pub mod scientia_novelty_assess;
 pub mod scientia_scholarly;
 #[cfg(feature = "scholarly-external-jobs")]
 pub mod scientia_worthiness_enrich;

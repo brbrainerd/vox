@@ -8,7 +8,7 @@ use super::spec;
 use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
-pub const BASELINE_VERSION: i64 = 73; // +1: discovery_state (Vox Console exposure ledger)
+pub const BASELINE_VERSION: i64 = 76; // merge: scientia_discovery_inbox (was 75) + main discovery_state (was 73)
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]

@@ -10,6 +10,8 @@ import {
   type ReviewDecision,
   type EvidenceSuggestion,
 } from './discoveryReviewApi';
+import { getNoveltyAssessment, type NoveltyAssessment } from './noveltyApi';
+import { NoveltyEvidencePanel } from './NoveltyEvidencePanel';
 
 function verdictTone(verdict: string | null): string {
   const v = (verdict ?? '').toLowerCase();
@@ -31,7 +33,19 @@ function verdictTone(verdict: string | null): string {
  * brass post-approval zone remain visible for the rest of the session.
  */
 export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
-  const [pubId, setPubId] = useState('');
+  // Seed the publication id from a cross-surface deep-link (Discovery Inbox's
+  // "Open review" stashes it in localStorage before switching here). Consumed
+  // once so a manual edit later isn't clobbered.
+  const [pubId, setPubId] = useState(() => {
+    try {
+      const seed = window.localStorage.getItem('vox_discovery_review_seed');
+      if (seed) {
+        window.localStorage.removeItem('vox_discovery_review_seed');
+        return seed;
+      }
+    } catch { /* localStorage unavailable */ }
+    return '';
+  });
   const [queue, setQueue] = useState<ClaimAwaitingReview[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [reason, setReason] = useState('');
@@ -40,6 +54,9 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
   const [approvedIds, setApprovedIds] = useState<Set<number>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<EvidenceSuggestion[]>([]);
+  const [novelty, setNovelty] = useState<NoveltyAssessment | null>(null);
+  const [noveltyLoading, setNoveltyLoading] = useState(false);
+  const [noveltyError, setNoveltyError] = useState<string | null>(null);
   // Cache of last-seen claim detail so approved (terminal) claims stay viewable
   // after the refetch removes them from the live queue.
   const detailCache = useRef<Map<number, ClaimAwaitingReview>>(new Map());
@@ -96,6 +113,38 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
   }, [selectedId, queue]);
 
   const isApproved = selectedId != null && approvedIds.has(selectedId);
+
+  // Lazily load the novelty assessment for the selected claim's publication.
+  // Keyed on the publication id (the bundle is per-publication, not per-claim);
+  // only fetches once a claim is selected so the detail pane is on screen.
+  useEffect(() => {
+    const id = pubId.trim();
+    if (!id || selectedId == null) {
+      setNovelty(null);
+      setNoveltyError(null);
+      setNoveltyLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setNoveltyLoading(true);
+    setNoveltyError(null);
+    getNoveltyAssessment(id)
+      .then((a) => {
+        if (!cancelled) setNovelty(a);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setNovelty(null);
+          setNoveltyError(String(err));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setNoveltyLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pubId, selectedId]);
 
   const decide = useCallback(
     async (decision: ReviewDecision) => {
@@ -272,6 +321,18 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                   <span className="text-zinc-300">{selected.verifier_model ?? '—'}</span>
                 </div>
               </div>
+
+              {noveltyLoading && (
+                <div className="font-mono text-[11px] text-zinc-500">Loading novelty…</div>
+              )}
+              {!noveltyLoading && noveltyError && (
+                <div className="font-mono text-[11px] text-zinc-600">
+                  Novelty evidence unavailable.
+                </div>
+              )}
+              {!noveltyLoading && !noveltyError && novelty && (
+                <NoveltyEvidencePanel assessment={novelty} />
+              )}
 
               <div>
                 <label className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">Reason (optional)</label>

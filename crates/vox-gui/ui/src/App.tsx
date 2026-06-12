@@ -74,6 +74,8 @@ type View =
   | 'console'
   | 'scientia'
   | 'discovery-review'
+  | 'discovery-inbox'
+  | 'archive-panel'
   | 'claims'
   | 'mens'
   | 'populi'
@@ -95,11 +97,46 @@ type View =
 
 const LEGACY_VIEWS: string[] = [
   'dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository',
-  'mesh', 'gamify', 'harness', 'browser', 'console', 'scientia', 'discovery-review', 'claims', 'mens',
+  'mesh', 'gamify', 'harness', 'browser', 'console', 'scientia', 'discovery-review', 'discovery-inbox', 'archive-panel', 'claims', 'mens',
   'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage',
   'publications', 'search', 'chat', 'agents', 'workspace', 'commands', 'knowledge', 'compute',
   'review',
 ];
+
+// Single source of truth for valid view ids (deep-link validation + initial-view).
+const KNOWN_VIEWS: string[] = [
+  'dashboard',
+  'flow',
+  'catalog',
+  'matrix',
+  'memory',
+  'models',
+  'runs',
+  'repository',
+  'mesh',
+  'gamify',
+  'harness',
+  'scientia',
+  'discovery-review',
+  'discovery-inbox',
+  'archive-panel',
+  'claims',
+  'mens',
+  'populi',
+  'research',
+  'oratio',
+  'approvals',
+  'policies',
+  'skills',
+  'settings',
+  'coverage',
+  'publications',
+  'search',
+];
+
+function isKnownView(v: unknown): v is View {
+  return typeof v === 'string' && KNOWN_VIEWS.includes(v);
+}
 
 // ─── Agent mapper — shared between EventBus and polling fallback ─────────────
 function mapAgent(a: RawAgentSummary): Agent {
@@ -521,6 +558,26 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Cross-surface deep-link: a surface may request navigation to another
+  // surface (optionally seeding a value) by dispatching a `vox://navigate-surface`
+  // CustomEvent. Used by the Discovery Inbox "Open review" action to jump to the
+  // Discovery Review surface with the publication id pre-filled.
+  useEffect(() => {
+    const onNavigate = (e: Event) => {
+      const detail = (e as CustomEvent<{ view?: string; publicationId?: string }>).detail;
+      if (!detail?.view || !isKnownView(detail.view)) return;
+      if (detail.publicationId != null) {
+        try {
+          window.localStorage.setItem('vox_discovery_review_seed', detail.publicationId);
+        } catch { /* localStorage unavailable — surface still switches */ }
+      }
+      setActiveView(detail.view);
+    };
+    window.addEventListener('vox://navigate-surface', onNavigate as EventListener);
+    return () => window.removeEventListener('vox://navigate-surface', onNavigate as EventListener);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

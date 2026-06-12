@@ -1,0 +1,388 @@
+[
+  {
+    "name": "empty_hits__all_traces_failed_500__insufficient_evidence",
+    "claim_year": 2026,
+    "expected": "insufficient_evidence",
+    "bundle": {
+      "schema_version": 1,
+      "bundle_id": "nb.golden001",
+      "candidate_id": "fc.golden001",
+      "computed_at_ms": 1700000000000,
+      "query_digest_sha256": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "sources": ["openalex"],
+      "normalized_hits": [],
+      "query_traces": [
+        {
+          "source": "openalex",
+          "request_fingerprint_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "http_status": 500
+        },
+        {
+          "source": "crossref",
+          "request_fingerprint_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "http_status": 503
+        }
+      ]
+    }
+  },
+  {
+    "name": "empty_hits__no_traces_at_all__novel",
+    "claim_year": 2026,
+    "expected": "novel",
+    "bundle": {
+      "schema_version": 1,
+      "bundle_id": "nb.golden002",
+      "candidate_id": "fc.golden002",
+      "computed_at_ms": 1700000000000,
+      "query_digest_sha256": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "sources": ["openalex"],
+      "normalized_hits": [],
+      "query_traces": []
+    }
+  },
+  {
+    "name": "empty_hits__one_200_trace__novel",
+    "claim_year": 2026,
+    "expected": "novel",
+    "bundle": {
+      "schema_version": 1,
+      "bundle_id": "nb.golden003",
+      "candidate_id": "fc.golden003",
+      "computed_at_ms": 1700000000000,
+      "query_digest_sha256": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "sources": ["openalex"],
+      "normalized_hits": [],
+      "query_traces": [
+        {
+          "source": "openalex",
+          "request_fingerprint_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "http_status": 200
+        }
+      ]
+    }
+  },
+  {
+    "name": "low_sim_0p3_hit__200_trace__novel",
+    "claim_year": 2026,
+    "expected": "novel",
+    "bundle": {
+      "schema_version": 1,
+      "bundle_id": "nb.golden004",
+      "candidate_id": "fc.golden004",
+      "computed_at_ms": 1700000000000,
+      "query_digest_sha256": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "sources": ["openalex"],
+      "normalized_hits": [
+        {
+          "source": "openalex",
+          "work_uri": "https://openalex.org/W1000000001",
+          "title": "Low similarity prior art",
+          "year": 2022,
+          "semantic_score": 0.3,
+          "cited_by_count": 10
+        }
+      ],
+      "query_traces": [
+        {
+          "source": "openalex",
+          "request_fingerprint_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "http_status": 200
+        }
+      ]
+    }
+  },
+  {
+    "name": "mid_sim_0p65_hit__possibly_novel",
+    "claim_year": 2026,
+    "expected": "possibly_novel",
+    "bundle": {
+      "schema_version": 1,
+      "bundle_id": "nb.golden005",
+      "candidate_id": "fc.golden005",
+      "computed_at_ms": 1700000000000,
+      "query_digest_sha256": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "sources": ["openalex"],
+      "normalized_hits": [
+        {
+          "source": "openalex",
+          "work_uri": "https://openalex.org/W1000000002",
+          "title": "Mid similarity prior art",
+          "year": 2023,
+          "semantic_score": 0.65,
+          "cited_by_count": 25
+        }
+      ],
+      "query_traces": [
+        {
+          "source": "openalex",
+          "request_fingerprint_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "http_status": 200
+        }
+      ]
+    }
+  },
+  {
+    "name": "high_sim_0p85_hit__not_novel",
+    "claim_year": 2026,
+    "expected": "not_novel",
+    "bundle": {
+      "schema_version": 1,
+      "bundle_id": "nb.golden006",
+      "candidate_id": "fc.golden006",
+      "computed_at_ms": 1700000000000,
+      "query_digest_sha256": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "sources": ["openalex"],
+      "normalized_hits": [
+        {
+          "source": "openalex",
+          "work_uri": "https://openalex.org/W1000000003",
+          "title": "High similarity prior art",
+          "year": 2021,
+          "semantic_score": 0.85,
+          "cited_by_count": 150
+        }
+      ],
+      "query_traces": [
+        {
+          "source": "openalex",
+          "request_fingerprint_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "http_status": 200
+        }
+      ]
+    }
+  },
+  {
+    "name": "only_future_dated_hit_year2030_sim0p95__chrono_excludes__novel",
+    "claim_year": 2026,
+    "expected": "novel",
+    "bundle": {
+      "schema_version": 1,
+      "bundle_id": "nb.golden007",
+      "candidate_id": "fc.golden007",
+      "computed_at_ms": 1700000000000,
+      "query_digest_sha256": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "sources": ["openalex"],
+      "normalized_hits": [
+        {
+          "source": "openalex",
+          "work_uri": "https://openalex.org/W1000000004",
+          "title": "Future dated work (year 2030) — filtered by ChronoFilter before scoring",
+          "year": 2030,
+          "semantic_score": 0.95,
+          "cited_by_count": 0
+        }
+      ],
+      "query_traces": [
+        {
+          "source": "openalex",
+          "request_fingerprint_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "http_status": 200
+        }
+      ]
+    }
+  },
+  {
+    "name": "only_yearless_hit_sim0p9__chrono_excludes_year_none__novel__encodes_current_behavior",
+    "claim_year": 2026,
+    "expected": "novel",
+    "bundle": {
+      "schema_version": 1,
+      "bundle_id": "nb.golden008",
+      "candidate_id": "fc.golden008",
+      "computed_at_ms": 1700000000000,
+      "query_digest_sha256": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "sources": ["openalex"],
+      "normalized_hits": [
+        {
+          "source": "openalex",
+          "work_uri": "https://openalex.org/W1000000005",
+          "title": "Year-less hit (year=null) — ChronoFilter excludes it because year.is_none(); current behavior treats these as unverifiable and drops them",
+          "semantic_score": 0.9,
+          "cited_by_count": 50
+        }
+      ],
+      "query_traces": [
+        {
+          "source": "openalex",
+          "request_fingerprint_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "http_status": 200
+        }
+      ]
+    }
+  },
+  {
+    "name": "conflict_pair__supporting_sim0p9_and_contradicting_sim0p9__not_novel__conflicts_nonempty",
+    "claim_year": 2026,
+    "expected": "not_novel",
+    "bundle": {
+      "schema_version": 1,
+      "bundle_id": "nb.golden009",
+      "candidate_id": "fc.golden009",
+      "computed_at_ms": 1700000000000,
+      "query_digest_sha256": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "sources": ["openalex"],
+      "normalized_hits": [
+        {
+          "source": "openalex",
+          "work_uri": "https://openalex.org/W1000000006",
+          "title": "Supporting prior art — high similarity, no contradiction note",
+          "year": 2022,
+          "semantic_score": 0.9,
+          "cited_by_count": 200
+        },
+        {
+          "source": "openalex",
+          "work_uri": "https://openalex.org/W1000000007",
+          "title": "Contradicting prior art — same claim domain but contradicts the proposed approach",
+          "year": 2021,
+          "semantic_score": 0.9,
+          "overlap_note": "this work contradicts the proposed approach and disputes key assumptions",
+          "cited_by_count": 80
+        }
+      ],
+      "query_traces": [
+        {
+          "source": "openalex",
+          "request_fingerprint_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "http_status": 200
+        }
+      ]
+    }
+  },
+  {
+    "name": "citation_heavy_near_hit_sim0p6_cited5000__possibly_novel",
+    "claim_year": 2026,
+    "expected": "possibly_novel",
+    "bundle": {
+      "schema_version": 1,
+      "bundle_id": "nb.golden010",
+      "candidate_id": "fc.golden010",
+      "computed_at_ms": 1700000000000,
+      "query_digest_sha256": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "sources": ["semantic_scholar"],
+      "normalized_hits": [
+        {
+          "source": "semantic_scholar",
+          "work_uri": "https://api.semanticscholar.org/graph/v1/paper/ABC001",
+          "title": "Citation-heavy near hit — well-cited but below not_novel threshold",
+          "year": 2020,
+          "semantic_score": 0.6,
+          "cited_by_count": 5000
+        }
+      ],
+      "query_traces": [
+        {
+          "source": "semantic_scholar",
+          "request_fingerprint_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+          "http_status": 200
+        }
+      ]
+    }
+  },
+  {
+    "name": "multiple_near_hits_3x_sim_0p55_0p6_0p63__possibly_novel",
+    "claim_year": 2026,
+    "expected": "possibly_novel",
+    "bundle": {
+      "schema_version": 1,
+      "bundle_id": "nb.golden011",
+      "candidate_id": "fc.golden011",
+      "computed_at_ms": 1700000000000,
+      "query_digest_sha256": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "sources": ["openalex"],
+      "normalized_hits": [
+        {
+          "source": "openalex",
+          "work_uri": "https://openalex.org/W1000000008",
+          "title": "Near hit A",
+          "year": 2020,
+          "semantic_score": 0.55,
+          "cited_by_count": 30
+        },
+        {
+          "source": "openalex",
+          "work_uri": "https://openalex.org/W1000000009",
+          "title": "Near hit B",
+          "year": 2021,
+          "semantic_score": 0.6,
+          "cited_by_count": 45
+        },
+        {
+          "source": "openalex",
+          "work_uri": "https://openalex.org/W1000000010",
+          "title": "Near hit C",
+          "year": 2024,
+          "semantic_score": 0.63,
+          "cited_by_count": 12
+        }
+      ],
+      "query_traces": [
+        {
+          "source": "openalex",
+          "request_fingerprint_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+          "http_status": 200
+        }
+      ]
+    }
+  },
+  {
+    "name": "boundary_sim_exactly_0p5__not_lt_novel_threshold__possibly_novel",
+    "claim_year": 2026,
+    "expected": "possibly_novel",
+    "bundle": {
+      "schema_version": 1,
+      "bundle_id": "nb.golden012",
+      "candidate_id": "fc.golden012",
+      "computed_at_ms": 1700000000000,
+      "query_digest_sha256": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "sources": ["openalex"],
+      "normalized_hits": [
+        {
+          "source": "openalex",
+          "work_uri": "https://openalex.org/W1000000011",
+          "title": "Boundary: sim=0.5 exactly — scorer checks score < 0.5 (false), score >= 0.8 (false), so PossiblyNovel",
+          "year": 2023,
+          "semantic_score": 0.5,
+          "cited_by_count": 8
+        }
+      ],
+      "query_traces": [
+        {
+          "source": "openalex",
+          "request_fingerprint_sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+          "http_status": 200
+        }
+      ]
+    }
+  },
+  {
+    "name": "boundary_sim_exactly_0p8__gte_not_novel_threshold__not_novel",
+    "claim_year": 2026,
+    "expected": "not_novel",
+    "bundle": {
+      "schema_version": 1,
+      "bundle_id": "nb.golden013",
+      "candidate_id": "fc.golden013",
+      "computed_at_ms": 1700000000000,
+      "query_digest_sha256": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "sources": ["openalex"],
+      "normalized_hits": [
+        {
+          "source": "openalex",
+          "work_uri": "https://openalex.org/W1000000012",
+          "title": "Boundary: sim=0.8 exactly — scorer checks score >= 0.8 (true), so NotNovel",
+          "year": 2022,
+          "semantic_score": 0.8,
+          "cited_by_count": 60
+        }
+      ],
+      "query_traces": [
+        {
+          "source": "openalex",
+          "request_fingerprint_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+          "http_status": 200
+        }
+      ]
+    }
+  }
+]
