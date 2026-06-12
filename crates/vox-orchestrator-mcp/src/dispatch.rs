@@ -1152,6 +1152,11 @@ async fn handle_tool_call_inner(
             serde_json::from_value(args)?,
         )),
         "vox_skill_parse" => Ok(crate::skills::skill_parse(serde_json::from_value(args)?)),
+        "vox_skill_use" => Ok(crate::skills::skill_use(
+            state,
+            serde_json::from_value(args)?,
+        )),
+        "vox_skill_discover" => Ok(crate::skills::skill_discover(state)),
 
         "vox_plugin_list" => Ok(crate::plugins::plugin_list(state).await),
         "vox_plugin_catalog" => Ok(crate::plugins::plugin_catalog()),

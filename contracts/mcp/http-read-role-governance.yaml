@@ -19,6 +19,8 @@ read_role_tools:
   - vox_repo_query_text
   - vox_repo_status
   - vox_semantic_fs_discover
+  - vox_skill_discover
+  - vox_skill_use
   - vox_task_status
   - vox_test_decision
   - vox_tool_search

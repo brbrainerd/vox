@@ -1,4 +1,4 @@
----
+﻿---
 title: "Where Things Live"
 description: "Flat lookup table — concept to crate. Consult before adding code. Referenced by AGENTS.md and CLAUDE.md."
 category: "Architecture SSOTs"
@@ -186,6 +186,9 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | `vox ci docs-reality-audit` (doc/code audit artifacts + metrics) | `crates/vox-cli/src/commands/ci/docs_reality_audit.rs` + `contracts/reports/docs-reality-audit/` |
 | `vox ci parse-status` (golden parse matrix → `examples/PARSE_STATUS.md`) | `crates/vox-cli/src/commands/ci/parse_status.rs` |
 | Find the canonical path for GUI surfaces (interop app, experimental visualizer, fixtures, VS Code host) | [`contracts/frontend/surface-ownership.v1.yaml`](../../../contracts/frontend/surface-ownership.v1.yaml) — `apps/interop/marquee_app`, `apps/experimental/visualizer`, `tests/fixtures/frontend/test_app_bundle`, `apps/editor/vox-vscode` |
+| Vox Console discovery engine — exposure ledger / spaced repetition (FSRS) / suggestion ranking | [`crates/vox-gamify/src/discovery/`](../../../crates/vox-gamify/src/discovery/) (`fsrs.rs`, `rank.rs`, `ledger.rs`); backed by the `discovery_state` table (registered in [`vox-db` manifest](../../../crates/vox-db/src/schema/manifest.rs)). |
+| Vox Console terminal / discovery Tauri commands | PTY sessions in [`crates/vox-gui/src/commands/pty.rs`](../../../crates/vox-gui/src/commands/pty.rs) (portable-pty); suggest/help/record in [`crates/vox-gui/src/commands/discovery.rs`](../../../crates/vox-gui/src/commands/discovery.rs). Register in `main.rs` `generate_handler!`. |
+| Vox Console UI surface (terminal, input editor, discovery rail, agent strip) | [`crates/vox-gui/ui/src/components/surfaces/Console/`](../../../crates/vox-gui/ui/src/components/surfaces/Console/) — child of the `workspace` surface; registered as `console` (`live_backend`) in [`contracts/gui/surface-registry.v1.yaml`](../../../contracts/gui/surface-registry.v1.yaml), mounted via `surfaceComponents.tsx` + `lib/navigation.ts`. |
 | GUI browser preview + agent CDP live view | `crates/vox-gui/ui/src/components/surfaces/Browser/` + `crates/vox-gui/src/commands/browser.rs` — narrative [`vox-gui-browser-support-2026.md`](./vox-gui-browser-support-2026.md) |
 | Add a `Db<Entity>Id` newtype | `crates/vox-db-types/src/ids.rs` (use the `string_id!` macro). |
 | Add a DB store operation | `crates/vox-db/src/<concept>.rs` (impl block on `VoxDb`) |
@@ -224,6 +227,11 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | AgentOS ACI contracts | `contracts/aci/agent-computer-interface.v1.yaml` + `agent-computer-interface.v1.schema.json` |
 | Add a code-audit detection rule | `crates/vox-code-audit/src/detectors/<rule>.rs` |
 | Add a skill manifest field | `crates/vox-plugin-types/src/skill_manifest.rs` |
+| Parse a SKILL.md (YAML spec frontmatter + legacy TOML) | `crates/vox-plugin-host/src/skill_parser.rs` (`parse_skill_md`) |
+| Discover bare `SKILL.md` skill dirs (agentskills.io interop layout) | `crates/vox-plugin-host/src/external_skills.rs` (`discover_external_skills`) |
+| Standard skill discovery roots (`.vox`/`.agents`/`.claude` × ws+home) | `crates/vox-config/src/paths.rs` (`skill_search_roots`) |
+| Skill disclosure into the chat system prompt (tier-1 catalog + pinned body) | `crates/vox-orchestrator-mcp/src/chat_tools/skill_catalog.rs`; wired in `chat_tools/mod.rs` `build_system_prompt_with_skill` |
+| Ingest external skills into the CLI registry | `crates/vox-cli/src/commands/extras/ars/registry.rs` (`install_external_skills`) |
 | Add a plugin manifest field | `crates/vox-plugin-types/src/plugin_manifest.rs` |
 | Add a queue / lock / oplog method | `crates/vox-orchestrator-queue/src/{locks,oplog,affinity}/` |
 | Add an LLM provider adapter | `crates/vox-orchestrator-mcp/src/llm_bridge/providers/<name>.rs` |
@@ -231,6 +239,9 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | `@versioned` / `@tracked` decorator + interpreter `repo.*` VCS store (auto-snapshot-on-success) | Decorator spine in `crates/vox-compiler/`: lexer token (`src/lexer/token.rs` `AtVersioned`/`AtTracked`) → parser (`src/parser/descent/decl/head.rs` `is_versioned`) → `FnDecl.is_versioned` (`crates/vox-ast/src/decl/fundecl.rs`) → `HirFn.is_versioned` + `uses vcs` injection (`src/hir/lower/decl.rs`) → `VoxValue::Fn { name, is_versioned }` (`src/eval/value.rs`); the auto-`repo.snapshot()` hook fires on successful return in both call paths (`src/eval/mod.rs` `Interpreter::call` + `src/eval/expr.rs` Call arm) against the in-memory `RepoStore` (`src/eval/repo.rs`). Interpreter-only (`--mode interp`); inert in the compiled arms. See [`vcs-as-vox-language-feature-jujutsu-2026.md`](./vcs-as-vox-language-feature-jujutsu-2026.md) §4.3. |
 | Add a code generator (Rust target) | `crates/vox-codegen/src/codegen_rust/` |
 | Add a code generator (TypeScript target) | `crates/vox-codegen-ts/src/` |
+| VUV contrast / color-vocabulary guarantee (gray-on-white refuses compile) | `crates/vox-codegen/src/web_ir/validate_palette.rs` + palette SSOT `contracts/tokens/tailwind-palette.v1.json`; canonical WCAG fn `vox_compiler::tokens::wcag21_contrast_ratio` |
+| VUV occlusion / tier-inversion guarantee (Z-tiers, escape-hatch checks) | `crates/vox-codegen/src/web_ir/validate_layer.rs`; tiers in `vox_compiler::hir::nodes::layer` (`LayerTier`, `may_parent_surfaces`); z-ladder `ZTier::z_value()` in `web_ir/mod.rs` |
+| Add a "this VUV bug must be impossible" regression case | Add `examples/forbidden/<case>.vox` with a `// expect-error: <code>` header; `crates/vox-compiler/tests/forbidden_corpus_test.rs` runs it through the full pipeline |
 | Add a layer rule / arch-check rule | `crates/vox-arch-check/src/main.rs` + extend `layers.toml` schema |
 | Add an architectural exception (allowed inversion) | Append `[[known_inversions]]` block in [`layers.toml`](./layers.toml) with a `reason` |
 | Add a new workspace crate | Update [`Cargo.toml`](../../../Cargo.toml) `[workspace.dependencies]` AND add a row to [`layers.toml`](./layers.toml) — `vox-arch-check` will fail otherwise |

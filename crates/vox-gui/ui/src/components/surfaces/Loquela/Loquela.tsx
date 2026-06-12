@@ -4,6 +4,7 @@ import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { voxTransport } from '../../../transport';
+import { buildSlashEntries, type SlashEntry } from '../../../lib/slashCommands';
 import {
   COMPOSER_HISTORY_CAP,
   LOQUELA_FILE_PICKER_DEBOUNCE_MS,
@@ -30,17 +31,6 @@ const LQ_TIERS = [
   { id: "mesh", label: "Mesh · Peers", detail: "peers", cost: null, lat: null },
   { id: "cloud", label: "Cloud · Cascade", detail: "cloud tier", cost: null, lat: null },
   { id: "auto", label: "Auto · Router", detail: "tier-router decides", cost: null, lat: null },
-];
-
-const LQ_SLASH = [
-  { cmd: "/plan",    desc: "Draft a multi-step plan without executing",    icon: "flow" },
-  { cmd: "/spawn",   desc: "Spin up a sub-agent on this branch",           icon: "agent" },
-  { cmd: "/audit",   desc: "Socrates citation + invariant audit on file",  icon: "shield" },
-  { cmd: "/verify",  desc: "Run rule-pack + property tests",               icon: "check" },
-  { cmd: "/doubt",   desc: "Inject doubt at threshold N",                   icon: "alert" },
-  { cmd: "/memory",  desc: "Query Mnemosyne (RAG over project memory)",    icon: "memory" },
-  { cmd: "/rollback",desc: "Revert to last durable checkpoint",            icon: "back" },
-  { cmd: "/diff",    desc: "Show pending diff staged by agent",             icon: "file" },
 ];
 
 interface ChipData {
@@ -240,10 +230,11 @@ export function Loquela({
     }).catch(() => {});
   }, []);
 
+  const allSlash = useMemo(() => buildSlashEntries(skills), [skills]);
   const filteredSlash = useMemo(() => {
     const q = text.trimStart().toLowerCase();
-    return LQ_SLASH.filter(s => s.cmd.startsWith(q));
-  }, [text]);
+    return allSlash.filter(s => s.cmd.startsWith(q));
+  }, [text, allSlash]);
 
   const filteredAt = useMemo(() => {
     const q = atQuery.toLowerCase();
@@ -343,7 +334,27 @@ export function Loquela({
     }
   };
 
-  const runSlash = async (cmd: string) => {
+  const runSlash = async (entry: SlashEntry) => {
+    // Skill entries pin the skill (rides in the payload's active_skill) rather
+    // than inserting literal text.
+    if (entry.kind === 'skill') {
+      const found = skills.find(
+        (s) => (s.capability_id ?? s.command) === entry.skillId || s.command === entry.skillId,
+      );
+      const name = entry.cmd.slice(1);
+      setActiveSkill(
+        found
+          ? { id: found.capability_id ?? found.command, name: found.command, command: found.command }
+          : { id: entry.skillId ?? name, name, command: name },
+      );
+      setText('');
+      setSlashOpen(false);
+      toast?.({ tone: 'info', title: 'Skill selected', body: name, cmd: 'skill.pin' });
+      taRef.current?.focus();
+      return;
+    }
+    const cmd = entry.cmd;
+    // Internal mode slashes (/plan, /verify, …) flip the composer mode.
     const internalMode = resolveInternalModeSlash(cmd);
     if (internalMode) {
       setMode(internalMode);
@@ -400,7 +411,7 @@ export function Loquela({
       setSlashIdx(i => (i + (e.key === "ArrowDown" ? 1 : -1) + filteredSlash.length) % Math.max(1, filteredSlash.length));
       return;
     }
-    if (slashOpen && e.key === "Enter") { e.preventDefault(); const s = filteredSlash[slashIdx]; if (s) void runSlash(s.cmd); return; }
+    if (slashOpen && e.key === "Enter") { e.preventDefault(); const s = filteredSlash[slashIdx]; if (s) void runSlash(s); return; }
     if (slashOpen && e.key === "Escape") { setSlashOpen(false); return; }
     if (e.key === "ArrowUp" && !text && history.length) {
       e.preventDefault(); const ni = Math.min(history.length - 1, histIdx + 1); setHistIdx(ni); setText(history[ni]); return;
@@ -468,7 +479,7 @@ export function Loquela({
                 {filteredSlash.map((s, i) => {
                   const IcoCmp = (Icon as any)[s.icon] || Icon.bolt;
                   return (
-                    <button key={s.cmd} onMouseEnter={() => setSlashIdx(i)} onClick={() => void runSlash(s.cmd)}
+                    <button key={s.cmd} onMouseEnter={() => setSlashIdx(i)} onClick={() => void runSlash(s)}
                             className={`flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left ${i === slashIdx ? "bg-white/5" : ""}`}>
                       <IcoCmp className="size-3.5 text-brass" />
                       <span className="font-mono text-[11px] text-zinc-100">{s.cmd}</span>

@@ -153,6 +153,7 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "db_snapshots",
     "developer_journey_definitions",
     "developer_journey_steps",
+    "discovery_state",
     "distributed_locks",
     "embeddings",
     "endpoint_reliability",

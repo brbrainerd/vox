@@ -1258,6 +1258,11 @@ tools:
   product_lane: ai
   http_read_role_eligible: false
   tier: core
+- name: vox_skill_discover
+  description: List bare SKILL.md skills found under the standard interop roots, with install status.
+  product_lane: interop
+  http_read_role_eligible: true
+  tier: core
 - name: vox_skill_info
   description: Get detailed info on a specific skill by ID.
   product_lane: interop
@@ -1287,6 +1292,11 @@ tools:
   description: Uninstall an installed skill by ID.
   product_lane: interop
   http_read_role_eligible: false
+  tier: core
+- name: vox_skill_use
+  description: Load the full SKILL.md body for an installed skill by id or name (tier-2 disclosure).
+  product_lane: interop
+  http_read_role_eligible: true
   tier: core
 - name: vox_snapshot_diff
   description: Show the file-level diff between two snapshots.

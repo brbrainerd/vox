@@ -73,6 +73,15 @@ enum RnNode {
     /// `<ScrollView horizontal>...</ScrollView>` — `row(scroll: "horizontal")`.
     /// A single non-wrapping line that scrolls instead of overflowing.
     ScrollRow { children: Vec<RnNode> },
+    /// `<Modal transparent visible={…} animationType="…">…</Modal>` — the RN
+    /// representation of the `modal` / `drawer` tier primitives (B4). `drawer` uses
+    /// `slide` animation; `modal` uses `fade`. `visible_ts` comes from the `open`
+    /// kwarg (defaults to `true`).
+    RnModal {
+        animation: &'static str,
+        visible_ts: String,
+        children: Vec<RnNode>,
+    },
     /// `<Link href={<href>} style={styles.<key>}>...</Link>` — expo-router
     /// navigation. VUV `link(href="/x") { "label" }`. String children are
     /// auto-wrapped in `<Text>` (same as Pressable) so the label is tappable.
@@ -123,6 +132,221 @@ fn class_string_to_style_key(class_tokens: &[&str]) -> Option<&'static str> {
     } else {
         None
     }
+}
+
+/// Map Tailwind utility-class tokens to React Native `StyleSheet` property pairs.
+///
+/// This is the B3 fix for the "style kwargs silently dropped on mobile" gap: kwargs
+/// like `bg=blue.600` / `pad=8` / `color=zinc.50` lower to Tailwind classes
+/// (`bg-blue-600 p-8 text-zinc-50`) on the web path, but the RN emitter previously
+/// only recognized ~7 whole-class combos and dropped the rest. Here we translate the
+/// granular utilities — colors (resolved to hex via the shared palette), the 4px
+/// spacing scale, radius, font weight/size, opacity, width/height — into real RN
+/// style props so mobile honors the same authoring vocabulary as web.
+///
+/// Returns `(prop, value)` pairs where `value` is already RN-literal-ready
+/// (quoted strings keep their quotes, numbers are bare).
+fn tailwind_tokens_to_rn_props(tokens: &[&str]) -> Vec<(String, String)> {
+    let mut props: Vec<(String, String)> = Vec::new();
+    for &tok in tokens {
+        if let Some(pair) = tailwind_token_to_rn_prop(tok) {
+            props.push(pair);
+        }
+    }
+    props
+}
+
+/// Tailwind spacing step (1 = 0.25rem = 4px).
+fn spacing_px(n: &str) -> Option<i32> {
+    n.parse::<f32>().ok().map(|v| (v * 4.0).round() as i32)
+}
+
+/// Resolve a Tailwind color suffix (`zinc-400`, `white`) to a hex string via the
+/// shared palette. Tailwind uses `hue-shade`; the palette keys are `hue.shade`.
+fn resolve_tw_color(suffix: &str) -> Option<String> {
+    let palette_name = suffix.replacen('-', ".", 1);
+    vox_codegen::web_ir::validate_palette::resolve_color(&palette_name, None)
+        .or_else(|| vox_codegen::web_ir::validate_palette::resolve_color(suffix, None))
+}
+
+fn tailwind_token_to_rn_prop(tok: &str) -> Option<(String, String)> {
+    let q = |s: String| format!("\"{s}\"");
+    // Colors.
+    if let Some(c) = tok.strip_prefix("text-") {
+        if let Some(hex) = resolve_tw_color(c) {
+            return Some(("color".into(), q(hex)));
+        }
+        // Font sizes (text-xs … text-3xl).
+        let fs = match c {
+            "xs" => Some(12),
+            "sm" => Some(14),
+            "base" => Some(16),
+            "lg" => Some(18),
+            "xl" => Some(20),
+            "2xl" => Some(24),
+            "3xl" => Some(30),
+            _ => None,
+        };
+        if let Some(px) = fs {
+            return Some(("fontSize".into(), px.to_string()));
+        }
+        return None;
+    }
+    if let Some(c) = tok.strip_prefix("bg-") {
+        return resolve_tw_color(c).map(|hex| ("backgroundColor".into(), q(hex)));
+    }
+    if let Some(c) = tok.strip_prefix("border-") {
+        if let Some(hex) = resolve_tw_color(c) {
+            return Some(("borderColor".into(), q(hex)));
+        }
+        return None;
+    }
+    // Font weight.
+    match tok {
+        "font-bold" => return Some(("fontWeight".into(), q("700".into()))),
+        "font-semibold" => return Some(("fontWeight".into(), q("600".into()))),
+        "font-medium" => return Some(("fontWeight".into(), q("500".into()))),
+        "italic" => return Some(("fontStyle".into(), q("italic".into()))),
+        _ => {}
+    }
+    // Spacing scale: p/px/py/pt/pb/pl/pr, m*, gap.
+    let spacing: &[(&str, &str)] = &[
+        ("px-", "paddingHorizontal"),
+        ("py-", "paddingVertical"),
+        ("pt-", "paddingTop"),
+        ("pb-", "paddingBottom"),
+        ("pl-", "paddingLeft"),
+        ("pr-", "paddingRight"),
+        ("p-", "padding"),
+        ("mx-", "marginHorizontal"),
+        ("my-", "marginVertical"),
+        ("mt-", "marginTop"),
+        ("mb-", "marginBottom"),
+        ("ml-", "marginLeft"),
+        ("mr-", "marginRight"),
+        ("m-", "margin"),
+        ("gap-", "gap"),
+    ];
+    for (prefix, prop) in spacing {
+        if let Some(n) = tok.strip_prefix(prefix) {
+            if let Some(px) = spacing_px(n) {
+                return Some(((*prop).into(), px.to_string()));
+            }
+        }
+    }
+    // Border radius.
+    if tok == "rounded" {
+        return Some(("borderRadius".into(), "4".into()));
+    }
+    if let Some(sz) = tok.strip_prefix("rounded-") {
+        let r = match sz {
+            "sm" => Some(2),
+            "md" => Some(6),
+            "lg" => Some(8),
+            "xl" => Some(12),
+            "2xl" => Some(16),
+            "full" => Some(9999),
+            other => other.parse::<i32>().ok().map(|n| n * 4),
+        };
+        return r.map(|px| ("borderRadius".into(), px.to_string()));
+    }
+    // Opacity.
+    if let Some(o) = tok.strip_prefix("opacity-") {
+        if let Ok(n) = o.parse::<f32>() {
+            return Some(("opacity".into(), format!("{:.2}", n / 100.0)));
+        }
+    }
+    // Width / height (full → "100%", numeric → 4px scale).
+    for (prefix, prop) in [("w-", "width"), ("h-", "height")] {
+        if let Some(n) = tok.strip_prefix(prefix) {
+            if n == "full" {
+                return Some((prop.into(), q("100%".into())));
+            }
+            if let Some(px) = spacing_px(n) {
+                return Some((prop.into(), px.to_string()));
+            }
+        }
+    }
+    None
+}
+
+/// Map VUV universal style *kwargs* (`bg`, `color`, `pad`, `gap`, `radius`, …) on a
+/// view-call element directly to RN `StyleSheet` props. The RN emit path sees raw
+/// kwargs (the web path folds them into `className`, but RN bypasses Web IR), so this
+/// is the primary B3 source; the className mapper above is a fallback for pre-folded
+/// shapes.
+fn kwargs_to_rn_props(attrs: &[HirJsxAttr]) -> Vec<(String, String)> {
+    let q = |s: String| format!("\"{s}\"");
+    let val = |name: &str| -> Option<String> {
+        attr_value(attrs, name).and_then(|e| {
+            literal_string_value(e).or_else(|| extract_int_literal(e).map(|i| i.to_string()))
+        })
+    };
+    let color = |v: &str| vox_codegen::web_ir::validate_palette::resolve_color(v, None);
+    let mut out: Vec<(String, String)> = Vec::new();
+    let mut push = |k: &str, v: String| out.push((k.to_string(), v));
+
+    if let Some(v) = val("bg").and_then(|v| color(&v)) {
+        push("backgroundColor", q(v));
+    }
+    if let Some(v) = val("color").and_then(|v| color(&v)) {
+        push("color", q(v));
+    }
+    if let Some(v) = val("border_color").and_then(|v| color(&v)) {
+        push("borderColor", q(v));
+    }
+    // Spacing kwargs → 4px scale.
+    let spacing: &[(&str, &str)] = &[
+        ("pad", "padding"),
+        ("pad_x", "paddingHorizontal"),
+        ("pad_y", "paddingVertical"),
+        ("pad_t", "paddingTop"),
+        ("pad_b", "paddingBottom"),
+        ("pad_l", "paddingLeft"),
+        ("pad_r", "paddingRight"),
+        ("mb", "marginBottom"),
+        ("mt", "marginTop"),
+        ("ml", "marginLeft"),
+        ("mr", "marginRight"),
+        ("mx", "marginHorizontal"),
+        ("my", "marginVertical"),
+        ("gap", "gap"),
+        ("gap_x", "columnGap"),
+        ("gap_y", "rowGap"),
+    ];
+    for (kw, prop) in spacing {
+        if let Some(px) = val(kw).as_deref().and_then(spacing_px) {
+            push(prop, px.to_string());
+        }
+    }
+    // Radius (named scale or numeric step).
+    if let Some(r) = val("radius") {
+        let px = match r.as_str() {
+            "sm" => Some(2),
+            "md" => Some(6),
+            "lg" => Some(8),
+            "xl" => Some(12),
+            "2xl" => Some(16),
+            "full" => Some(9999),
+            other => other.parse::<i32>().ok().map(|n| n * 4),
+        };
+        if let Some(px) = px {
+            push("borderRadius", px.to_string());
+        }
+    }
+    if let Some(o) = val("opacity").and_then(|v| v.parse::<f32>().ok()) {
+        push("opacity", format!("{:.2}", o / 100.0));
+    }
+    out
+}
+
+/// Render RN style prop pairs as an object-literal body (no surrounding braces).
+fn rn_props_to_object_body(props: &[(String, String)]) -> String {
+    props
+        .iter()
+        .map(|(k, v)| format!("{k}: {v}"))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// Extract the class tokens from a `className={[...].filter(Boolean).join(" ")}` attribute.
@@ -327,6 +551,7 @@ fn jsx_to_rn(
     state_names: &HashSet<String>,
     endpoint_params: &HashMap<String, Vec<String>>,
     diagnostics: &mut Vec<WebIrDiagnostic>,
+    dyn_styles: &mut BTreeMap<String, String>,
 ) -> RnNode {
     let class_tokens_owned = attr_value(&el.attributes, "className")
         .map(extract_class_tokens)
@@ -344,10 +569,10 @@ fn jsx_to_rn(
     let children: Vec<RnNode> = el
         .children
         .iter()
-        .map(|c| hir_view_child_to_rn(c, state_names, endpoint_params, diagnostics))
+        .map(|c| hir_view_child_to_rn(c, state_names, endpoint_params, diagnostics, dyn_styles))
         .collect();
 
-    match el.tag.as_str() {
+    let styled = match el.tag.as_str() {
         // ── VUV abstract container primitives ────────────────────────────────
         "column" | "stack" | "div" => RnNode::View {
             style_key: style_key.or(Some("col".to_string())),
@@ -371,6 +596,31 @@ fn jsx_to_rn(
         }
         "panel" => RnNode::View {
             style_key: style_key.or(Some("panel".to_string())),
+            children,
+        },
+
+        // ── Overlay-family tier primitives (B4) ──────────────────────────────
+        // `overlay` is the transparent portal host on web; on RN it's just an
+        // in-place container (children render where declared).
+        "overlay" => RnNode::View {
+            style_key,
+            children,
+        },
+        // `modal` / `drawer` → react-native <Modal>. `open` drives `visible`.
+        "modal" | "drawer" => {
+            let visible_ts = attr_value(&el.attributes, "open")
+                .map(|e| emit_hir_expr_inline_with_state(e, state_names, endpoint_params))
+                .unwrap_or_else(|| "true".to_string());
+            let animation = if el.tag == "drawer" { "slide" } else { "fade" };
+            RnNode::RnModal {
+                animation,
+                visible_ts,
+                children,
+            }
+        }
+        // `toast` → a transient absolutely-positioned banner near the bottom.
+        "toast" => RnNode::View {
+            style_key: Some("toast".to_string()),
             children,
         },
 
@@ -493,6 +743,49 @@ fn jsx_to_rn(
                 children,
             }
         }
+    };
+    // B3: fold any granular style props (colors/spacing/radius/…) that the semantic
+    // table didn't capture into the node's style, so mobile honors the same kwarg
+    // vocabulary as web instead of dropping it. Sources: raw kwargs (primary) +
+    // className tokens (fallback for pre-folded shapes).
+    let mut extra = kwargs_to_rn_props(&el.attributes);
+    extra.extend(tailwind_tokens_to_rn_props(&class_refs));
+    apply_dyn_style_to_node(styled, &extra, dyn_styles)
+}
+
+/// Rewrite a styled leaf node's `style_key` to a synthetic merged entry when it
+/// carries extra inline props. Containers/text/pressables only; structural nodes
+/// (ScrollRow, CustomComponent, …) pass through unchanged.
+fn apply_dyn_style_to_node(
+    node: RnNode,
+    extra: &[(String, String)],
+    dyn_styles: &mut BTreeMap<String, String>,
+) -> RnNode {
+    match node {
+        RnNode::View {
+            style_key,
+            children,
+        } => RnNode::View {
+            style_key: apply_dyn_style(style_key, extra, dyn_styles),
+            children,
+        },
+        RnNode::Text {
+            style_key,
+            children,
+        } => RnNode::Text {
+            style_key: apply_dyn_style(style_key, extra, dyn_styles),
+            children,
+        },
+        RnNode::Pressable {
+            style_key,
+            handler_ts,
+            children,
+        } => RnNode::Pressable {
+            style_key: apply_dyn_style(style_key, extra, dyn_styles),
+            handler_ts,
+            children,
+        },
+        other => other,
     }
 }
 
@@ -501,9 +794,10 @@ fn hir_view_child_to_rn(
     state_names: &HashSet<String>,
     endpoint_params: &HashMap<String, Vec<String>>,
     diagnostics: &mut Vec<WebIrDiagnostic>,
+    dyn_styles: &mut BTreeMap<String, String>,
 ) -> RnNode {
     match child {
-        HirExpr::Jsx(el) => jsx_to_rn(el, state_names, endpoint_params, diagnostics),
+        HirExpr::Jsx(el) => jsx_to_rn(el, state_names, endpoint_params, diagnostics, dyn_styles),
         HirExpr::JsxSelfClosing(sc) => jsx_to_rn(
             &HirJsxElement {
                 tag: sc.tag.clone(),
@@ -514,12 +808,15 @@ fn hir_view_child_to_rn(
             state_names,
             endpoint_params,
             diagnostics,
+            dyn_styles,
         ),
         HirExpr::JsxFragment(children, _) => RnNode::View {
             style_key: None,
             children: children
                 .iter()
-                .map(|c| hir_view_child_to_rn(c, state_names, endpoint_params, diagnostics))
+                .map(|c| {
+                    hir_view_child_to_rn(c, state_names, endpoint_params, diagnostics, dyn_styles)
+                })
                 .collect(),
         },
         // VUV `for item, i in items key=item.id { <body> }` — recurse so the body
@@ -542,6 +839,7 @@ fn hir_view_child_to_rn(
                             state_names,
                             endpoint_params,
                             diagnostics,
+                            dyn_styles,
                         )),
                         _ => None,
                     })
@@ -551,6 +849,7 @@ fn hir_view_child_to_rn(
                     state_names,
                     endpoint_params,
                     diagnostics,
+                    dyn_styles,
                 )],
             };
             RnNode::Loop {
@@ -651,6 +950,12 @@ fn collect_used_styles(node: &RnNode, out: &mut std::collections::BTreeSet<Strin
         }
         RnNode::ScrollRow { children } => {
             out.insert("row_scroll_content".to_string());
+            for c in children {
+                collect_used_styles(c, out);
+            }
+        }
+        RnNode::RnModal { children, .. } => {
+            out.insert("modal_backdrop".to_string());
             for c in children {
                 collect_used_styles(c, out);
             }
@@ -881,6 +1186,20 @@ fn emit_rn_node(node: &RnNode, indent: usize) -> String {
                 "{pad}<ScrollView horizontal showsHorizontalScrollIndicator={{false}} contentContainerStyle={{styles.row_scroll_content}}>\n{inner}{pad}</ScrollView>\n"
             )
         }
+        RnNode::RnModal {
+            animation,
+            visible_ts,
+            children,
+        } => {
+            let mut inner = String::new();
+            for c in children {
+                inner.push_str(&emit_rn_node(c, indent + 2));
+            }
+            // transparent + a centered backdrop View is the standard RN dialog shell.
+            format!(
+                "{pad}<Modal transparent animationType=\"{animation}\" visible={{{visible_ts}}}>\n{pad}  <View style={{styles.modal_backdrop}}>\n{inner}{pad}  </View>\n{pad}</Modal>\n"
+            )
+        }
         RnNode::StringLit(s) => {
             // String at View context — wrap defensively (RN forbids bare strings outside <Text>).
             let lit = serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string());
@@ -984,6 +1303,15 @@ fn clone_rn_node(n: &RnNode) -> RnNode {
         RnNode::ScrollRow { children } => RnNode::ScrollRow {
             children: children.iter().map(clone_rn_node).collect(),
         },
+        RnNode::RnModal {
+            animation,
+            visible_ts,
+            children,
+        } => RnNode::RnModal {
+            animation,
+            visible_ts: visible_ts.clone(),
+            children: children.iter().map(clone_rn_node).collect(),
+        },
         RnNode::StringLit(s) => RnNode::StringLit(s.clone()),
         RnNode::Expr(e) => RnNode::Expr(e.clone()),
     }
@@ -1026,8 +1354,11 @@ fn inject_key_into_first_element(inner: String, key_ts: &str) -> String {
 }
 
 /// StyleSheet entries indexed by the keys [`class_string_to_style_key`] returns.
-fn emit_styles_block(used: &std::collections::BTreeSet<String>) -> String {
-    let table: BTreeMap<&str, &str> = BTreeMap::from([
+/// The fixed semantic StyleSheet table (keys returned by [`class_string_to_style_key`]
+/// and the per-primitive defaults). Lifted so [`apply_dyn_style`] can merge a node's
+/// extra inline props onto its semantic base.
+fn semantic_style_table() -> BTreeMap<&'static str, &'static str> {
+    BTreeMap::from([
         ("col", "{ flexDirection: \"column\", gap: 12 }"),
         // Screen-root wrapper: default horizontal edge padding (opt out with `bleed`).
         ("screen", "{ flex: 1, paddingHorizontal: 16 }"),
@@ -1060,7 +1391,78 @@ fn emit_styles_block(used: &std::collections::BTreeSet<String>) -> String {
             "panel",
             "{ padding: 16, backgroundColor: \"#f5f5f5\", borderRadius: 8, borderWidth: 1, borderColor: \"#e5e7eb\" }",
         ),
-    ]);
+        // Centered dim backdrop for the RN <Modal> dialog shell (B4).
+        (
+            "modal_backdrop",
+            "{ flex: 1, justifyContent: \"center\", alignItems: \"center\", padding: 24, backgroundColor: \"rgba(0,0,0,0.5)\" }",
+        ),
+        // Transient bottom banner for the `toast` tier primitive (B4).
+        (
+            "toast",
+            "{ position: \"absolute\", left: 16, right: 16, bottom: 32, padding: 12, borderRadius: 8, backgroundColor: \"#18181b\" }",
+        ),
+    ])
+}
+
+/// Strip the outer `{ … }` of a StyleSheet object literal, returning the inner body.
+fn style_object_body(def: &str) -> &str {
+    def.trim()
+        .trim_start_matches('{')
+        .trim_end_matches('}')
+        .trim()
+        .trim_end_matches(',')
+        .trim()
+}
+
+/// Build a deterministic, JS-ident-safe synthetic style key from style props.
+fn synthetic_style_key(props: &[(String, String)]) -> String {
+    let body: String = props
+        .iter()
+        .map(|(k, v)| format!("{k}_{v}"))
+        .collect::<Vec<_>>()
+        .join("_")
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    format!("d_{body}")
+}
+
+/// B3: if a node carries granular style props the semantic table doesn't cover
+/// (`backgroundColor`, `padding`, `color`, …), merge them onto the node's semantic
+/// base into a synthetic StyleSheet entry and return its key. Registers the merged
+/// def in `dyn_styles` for [`emit_styles_block`]. Returns the original `style_key`
+/// unchanged when there are no extra props.
+fn apply_dyn_style(
+    style_key: Option<String>,
+    extra: &[(String, String)],
+    dyn_styles: &mut BTreeMap<String, String>,
+) -> Option<String> {
+    if extra.is_empty() {
+        return style_key;
+    }
+    let extra_body = rn_props_to_object_body(extra);
+    let base_body = style_key
+        .as_deref()
+        .and_then(|k| {
+            semantic_style_table()
+                .get(k)
+                .map(|d| style_object_body(d).to_string())
+        })
+        .filter(|b| !b.is_empty());
+    let merged = match base_body {
+        Some(b) => format!("{{ {b}, {extra_body} }}"),
+        None => format!("{{ {extra_body} }}"),
+    };
+    let key = synthetic_style_key(extra);
+    dyn_styles.insert(key.clone(), merged);
+    Some(key)
+}
+
+fn emit_styles_block(
+    used: &std::collections::BTreeSet<String>,
+    dyn_styles: &BTreeMap<String, String>,
+) -> String {
+    let table = semantic_style_table();
     let mut entries: Vec<String> = Vec::new();
     // Always include `btn_text` if any Pressable was emitted (used by wrap_pressable_text_children).
     let mut keys: std::collections::BTreeSet<String> = used.clone();
@@ -1069,6 +1471,8 @@ fn emit_styles_block(used: &std::collections::BTreeSet<String>) -> String {
     }
     for k in keys {
         if let Some(def) = table.get(k.as_str()) {
+            entries.push(format!("  {k}: {def}"));
+        } else if let Some(def) = dyn_styles.get(&k) {
             entries.push(format!("  {k}: {def}"));
         }
     }
@@ -1226,7 +1630,7 @@ pub fn emit_rn_component(
             hooks.join(", ")
         ));
     }
-    out.push_str("import { View, Text, Pressable, Image, TextInput, ScrollView, StyleSheet } from \"react-native\";\n");
+    out.push_str("import { View, Text, Pressable, Image, TextInput, ScrollView, Modal, StyleSheet } from \"react-native\";\n");
     // `mobile` namespace import — only when this component's view or members
     // reference the `mobile` identifier (or `Speech.transcribe_microphone`,
     // which lowers to it). Mirrors the web target's auto-import in
@@ -1347,7 +1751,14 @@ pub fn emit_rn_component(
         }
     };
 
-    let rn_root = hir_view_child_to_rn(view_root, &state_names, endpoint_params, diagnostics);
+    let mut dyn_styles: BTreeMap<String, String> = BTreeMap::new();
+    let rn_root = hir_view_child_to_rn(
+        view_root,
+        &state_names,
+        endpoint_params,
+        diagnostics,
+        &mut dyn_styles,
+    );
     let mut used_styles = std::collections::BTreeSet::new();
     collect_used_styles(&rn_root, &mut used_styles);
 
@@ -1368,7 +1779,7 @@ pub fn emit_rn_component(
     out.push_str("  );\n}\n\n");
 
     // StyleSheet block
-    let styles_block = emit_styles_block(&used_styles);
+    let styles_block = emit_styles_block(&used_styles, &dyn_styles);
     if !styles_block.is_empty() {
         out.push_str(&styles_block);
     }
@@ -1409,5 +1820,126 @@ fn hir_type_to_ts(ty: &vox_compiler::hir::HirType) -> String {
         }
         HirType::Unit => "void".to_string(),
         HirType::Decimal => "string".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod b3_style_tests {
+    use super::*;
+
+    #[test]
+    fn colors_resolve_to_hex() {
+        assert_eq!(
+            tailwind_token_to_rn_prop("text-zinc-400"),
+            Some(("color".into(), "\"#a1a1aa\"".into()))
+        );
+        assert_eq!(
+            tailwind_token_to_rn_prop("bg-blue-600"),
+            Some(("backgroundColor".into(), "\"#2563eb\"".into()))
+        );
+        assert_eq!(
+            tailwind_token_to_rn_prop("bg-white"),
+            Some(("backgroundColor".into(), "\"#fff\"".into()))
+        );
+    }
+
+    #[test]
+    fn spacing_uses_4px_scale() {
+        assert_eq!(
+            tailwind_token_to_rn_prop("p-4"),
+            Some(("padding".into(), "16".into()))
+        );
+        assert_eq!(
+            tailwind_token_to_rn_prop("px-8"),
+            Some(("paddingHorizontal".into(), "32".into()))
+        );
+        assert_eq!(
+            tailwind_token_to_rn_prop("gap-2"),
+            Some(("gap".into(), "8".into()))
+        );
+    }
+
+    #[test]
+    fn radius_weight_size_opacity() {
+        assert_eq!(
+            tailwind_token_to_rn_prop("rounded-lg"),
+            Some(("borderRadius".into(), "8".into()))
+        );
+        assert_eq!(
+            tailwind_token_to_rn_prop("font-bold"),
+            Some(("fontWeight".into(), "\"700\"".into()))
+        );
+        assert_eq!(
+            tailwind_token_to_rn_prop("text-sm"),
+            Some(("fontSize".into(), "14".into()))
+        );
+        assert_eq!(
+            tailwind_token_to_rn_prop("opacity-50"),
+            Some(("opacity".into(), "0.50".into()))
+        );
+    }
+
+    #[test]
+    fn unknown_tokens_are_ignored() {
+        assert_eq!(tailwind_token_to_rn_prop("flex"), None);
+        assert_eq!(tailwind_token_to_rn_prop("not-a-class"), None);
+    }
+
+    #[test]
+    fn multi_token_collects_all() {
+        let props = tailwind_tokens_to_rn_props(&["bg-white", "p-4", "text-zinc-900"]);
+        assert!(props.contains(&("backgroundColor".into(), "\"#fff\"".into())));
+        assert!(props.contains(&("padding".into(), "16".into())));
+        assert!(props.contains(&("color".into(), "\"#18181b\"".into())));
+    }
+}
+
+#[cfg(test)]
+mod b3_wiring_tests {
+    use super::*;
+    use vox_compiler::hir::lower_module;
+    use vox_compiler::lexer::lex;
+    use vox_compiler::parser::parse;
+
+    /// End-to-end: a mobile component with custom color/spacing kwargs must emit a
+    /// StyleSheet entry carrying those props (not silently drop them).
+    #[test]
+    fn custom_kwargs_reach_rn_stylesheet() {
+        let src = r#"
+component Card() {
+    state n: int = 0
+    view: panel(bg="blue.600", pad="8") {
+        text(color="zinc.50") { "hi" }
+    }
+}
+"#;
+        let module = parse(lex(src)).expect("parse");
+        let hir = lower_module(&module);
+        let rc = hir
+            .components
+            .iter()
+            .find(|c| c.name == "Card")
+            .expect("Card");
+        let (_name, tsx) = emit_rn_component(
+            rc,
+            &HashSet::new(),
+            &HashSet::new(),
+            &HashMap::new(),
+            &HashSet::new(),
+            &[],
+            &mut vec![],
+        );
+        assert!(
+            tsx.contains("backgroundColor: \"#2563eb\""),
+            "bg=blue.600 must reach the StyleSheet; got:\n{tsx}"
+        );
+        assert!(
+            tsx.contains("padding: 32"),
+            "pad=8 must reach the StyleSheet (8*4); got:\n{tsx}"
+        );
+        assert!(
+            tsx.contains("color: \"#fafafa\""),
+            "color=zinc.50 must reach the StyleSheet; got:\n{tsx}"
+        );
     }
 }
