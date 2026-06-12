@@ -11,6 +11,90 @@ use std::path::{Path, PathBuf};
 use lint::{collect_lint_errors, collect_lint_errors_target};
 use types::{LintError, LintKind};
 
+/// Render a `" Did you mean \"X\"?"` fragment (note the leading space) when a close
+/// valid value exists, or an empty string otherwise. Lets a rejected frontmatter
+/// value be fixed in one pass instead of guessing case/punctuation.
+fn suggestion_hint(value: &str, candidates: &[&str]) -> String {
+    match lint::suggest(value, candidates) {
+        Some(best) => format!(" Did you mean {best:?}?"),
+        None => String::new(),
+    }
+}
+
+/// One-line remediation hint per error kind. Printed in the grouped summary so a
+/// human — or a fan-out of fix agents — knows the canonical workflow for each class
+/// of failure without spelunking the linter source.
+fn workflow_for_kind(kind: &LintKind) -> &'static str {
+    match kind {
+        LintKind::UnknownCategory { .. } => {
+            "set `category:` to a canonical label (SSOT: contracts/documentation/docs-sidebar-section-order.v1.json)"
+        }
+        LintKind::UnknownStatus { .. } => "set `status:` to a canonical lifecycle value",
+        LintKind::UnknownSchemaType { .. } => "set `schema_type:` to a supported schema.org type",
+        LintKind::MissingFrontmatter | LintKind::MissingCategory => {
+            "add the YAML frontmatter block (title/description/category) — see AGENTS.md §Authored Markdown Frontmatter"
+        }
+        LintKind::MissingTrainingRationale => {
+            "add `training_rationale:` next to `training_eligible: true`"
+        }
+        LintKind::GenericDescription => "replace the template `description:` with a hand-written one",
+        LintKind::UnclosedCodeFence | LintKind::ShortCodeFence { .. } => {
+            "balance the ``` code fences (mdBook requires exactly 3 backticks)"
+        }
+        LintKind::UnlabeledCodeFence { .. } => "add a language tag to the ``` fence (e.g. ```bash)",
+        LintKind::DuplicateFrontmatter { .. } => {
+            "delete the second `---` frontmatter block (usually a merge accident)"
+        }
+        LintKind::BrokenIncludeFile { .. } | LintKind::BrokenIncludeAnchor { .. } => {
+            "fix the `{{#include}}` target path/anchor"
+        }
+        LintKind::WholeFileIncludeHasTrainingHeader { .. } => {
+            "use `{{#include file:display}}` to strip the `// ---` training header"
+        }
+        LintKind::DocTestFailed { .. } => {
+            "make the ```vox block compile, or annotate it `// vox:skip` with a reason"
+        }
+        LintKind::LastUpdatedStale { .. } => "refresh the `last_updated:` frontmatter date",
+    }
+}
+
+/// Stable short label for grouping errors by class in the summary.
+fn kind_label(kind: &LintKind) -> &'static str {
+    match kind {
+        LintKind::UnclosedCodeFence => "unclosed-code-fence",
+        LintKind::ShortCodeFence { .. } => "short-code-fence",
+        LintKind::GenericDescription => "generic-description",
+        LintKind::MissingFrontmatter => "missing-frontmatter",
+        LintKind::MissingCategory => "missing-category",
+        LintKind::MissingTrainingRationale => "missing-training-rationale",
+        LintKind::UnknownCategory { .. } => "unknown-category",
+        LintKind::UnknownStatus { .. } => "unknown-status",
+        LintKind::UnknownSchemaType { .. } => "unknown-schema-type",
+        LintKind::BrokenIncludeAnchor { .. } => "broken-include-anchor",
+        LintKind::BrokenIncludeFile { .. } => "broken-include-file",
+        LintKind::WholeFileIncludeHasTrainingHeader { .. } => "whole-file-include-training-header",
+        LintKind::DocTestFailed { .. } => "doctest-failed",
+        LintKind::UnlabeledCodeFence { .. } => "unlabeled-code-fence",
+        LintKind::DuplicateFrontmatter { .. } => "duplicate-frontmatter",
+        LintKind::LastUpdatedStale { .. } => "last-updated-stale",
+    }
+}
+
+/// Print a grouped, deduplicated summary of every error class with a remediation
+/// hint, so all failures can be fanned out and fixed in parallel.
+fn print_grouped_summary(errors: &[LintError]) {
+    use std::collections::BTreeMap;
+    let mut groups: BTreeMap<&'static str, (usize, &LintKind)> = BTreeMap::new();
+    for e in errors {
+        let entry = groups.entry(kind_label(&e.kind)).or_insert((0, &e.kind));
+        entry.0 += 1;
+    }
+    eprintln!("\n── summary: {} error(s) across {} class(es) ──", errors.len(), groups.len());
+    for (label, (count, sample)) in &groups {
+        eprintln!("  {count:>3}× {label:<34} → {}", workflow_for_kind(sample));
+    }
+}
+
 fn parse_paths_arg(args: &[String], docs_src: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let mut i = 0_usize;
@@ -215,23 +299,29 @@ pub fn run() {
                 }
                 LintKind::UnknownCategory { value } => {
                     eprintln!(
-                        "  ERROR  {} — unknown category {:?}; use the canonical docs vocabulary",
+                        "  ERROR  {} — unknown category {:?}.{} Valid: {}",
                         rel.display(),
-                        value
+                        value,
+                        suggestion_hint(value, lint::VALID_CATEGORIES),
+                        lint::VALID_CATEGORIES.join(" | "),
                     );
                 }
                 LintKind::UnknownStatus { value } => {
                     eprintln!(
-                        "  ERROR  {} — unknown status {:?}; use current|experimental|legacy|research|roadmap|deprecated",
+                        "  ERROR  {} — unknown status {:?}.{} Valid: {}",
                         rel.display(),
-                        value
+                        value,
+                        suggestion_hint(value, lint::VALID_STATUS),
+                        lint::VALID_STATUS.join(" | "),
                     );
                 }
                 LintKind::UnknownSchemaType { value } => {
                     eprintln!(
-                        "  ERROR  {} — unknown schema_type {:?}; use HowTo|FAQPage|TechArticle|SoftwareSourceCode",
+                        "  ERROR  {} — unknown schema_type {:?}.{} Valid: {}",
                         rel.display(),
-                        value
+                        value,
+                        suggestion_hint(value, lint::VALID_SCHEMA_TYPES),
+                        lint::VALID_SCHEMA_TYPES.join(" | "),
                     );
                 }
                 LintKind::BrokenIncludeFile { file } => {
@@ -312,6 +402,8 @@ pub fn run() {
                 )
             })
             .count();
+        print_grouped_summary(&lint_errors);
+
         if hard_errors > 0 {
             eprintln!(
                 "\n{} hard error(s) — fix before building docs.",
