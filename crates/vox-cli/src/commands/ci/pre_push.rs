@@ -1570,7 +1570,7 @@ mod tests {
 
     #[test]
     fn filter_nextest_packages_removes_skipped_names() {
-        let pkgs = vec!["vox-a".into(), "vox-cli".into(), "vox-b".into()];
+        let pkgs: Vec<String> = vec!["vox-a".into(), "vox-cli".into(), "vox-b".into()];
         let skip: HashSet<String> = ["vox-cli".into()].into_iter().collect();
         let filtered: Vec<String> = pkgs
             .iter()

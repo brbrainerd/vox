@@ -39,6 +39,14 @@ const CACHE_VOLUME: &str = "vox-ci-runner-cache";
 
 const CPUS_PER_RUNNER: &str = "6";
 const MEM_PER_RUNNER: &str = "6500m";
+/// Shared S3-compatible compile cache (MinIO container `vox-sccache-minio` on
+/// this host; see docs/src/ci/shared-compile-cache.md). Runner containers reach
+/// the host via Docker Desktop's `host.docker.internal`. The host-side probe
+/// uses localhost. The bucket allows anonymous read/write on the LAN, so no
+/// credentials are injected.
+const SCCACHE_S3_BUCKET: &str = "vox-sccache";
+const SCCACHE_S3_CONTAINER_ENDPOINT: &str = "http://host.docker.internal:9000";
+const SCCACHE_S3_HOST_PROBE: &str = "127.0.0.1:9000";
 /// Default ceiling on concurrent managed runners (4 × 6 cpu = 24 of 32 threads).
 /// Override: `VOX_RUNNER_MAX`.
 pub const DEFAULT_MAX_RUNNERS: u32 = 6;
@@ -353,6 +361,43 @@ fn reap(name: &str, dry_run: bool, reason: &str) {
 /// Spawn one **ephemeral** runner: it registers with `--ephemeral`, runs exactly
 /// one dispatched job, self-deregisters, and exits. No restart policy — a
 /// Docker/host restart must never resurrect a fleet that storms the queue.
+/// Probe the shared MinIO compile cache from the host. Spawn-time check: if
+/// the cache server is down, runners fall back to the per-host disk volume
+/// (`SCCACHE_DIR=/cache/sccache` baked into the image) instead of failing
+/// every compile against an unreachable S3 endpoint.
+fn s3_cache_reachable() -> bool {
+    use std::net::{SocketAddr, TcpStream};
+    SCCACHE_S3_HOST_PROBE
+        .parse::<SocketAddr>()
+        .ok()
+        .and_then(|addr| {
+            TcpStream::connect_timeout(&addr, std::time::Duration::from_millis(800)).ok()
+        })
+        .is_some()
+}
+
+/// Env injected into runner containers to point sccache at the shared
+/// S3-compatible cache. Empty when the cache is unreachable — the image's
+/// disk-volume defaults then apply. `CARGO_INCREMENTAL=0` because sccache
+/// cannot cache incremental compiles and ephemeral runners gain nothing from
+/// incremental state anyway.
+pub fn shared_cache_env(reachable: bool) -> Vec<(&'static str, String)> {
+    if !reachable {
+        return Vec::new();
+    }
+    vec![
+        ("SCCACHE_BUCKET", SCCACHE_S3_BUCKET.to_string()),
+        (
+            "SCCACHE_ENDPOINT",
+            SCCACHE_S3_CONTAINER_ENDPOINT.to_string(),
+        ),
+        ("SCCACHE_REGION", "us-east-1".to_string()),
+        ("SCCACHE_S3_USE_SSL", "off".to_string()),
+        ("SCCACHE_S3_NO_CREDENTIALS", "true".to_string()),
+        ("CARGO_INCREMENTAL", "0".to_string()),
+    ]
+}
+
 fn spawn_one(index: u32, tag: &str, dry_run: bool) -> Result<()> {
     let name = format!("{MANAGED_PREFIX}{tag}-{index}");
     if dry_run {
@@ -369,33 +414,39 @@ fn spawn_one(index: u32, tag: &str, dry_run: bool) -> Result<()> {
         "--jq",
         ".token",
     ])?;
-    docker(&[
-        "run",
-        "-d",
+    let mut args: Vec<String> = vec![
+        "run".into(),
+        "-d".into(),
         // tini as PID 1 reaps zombie/orphaned job children (rustc, etc.) that the
         // actions runner (run.sh) would otherwise leave defunct after a cancelled
         // or crashed job.
-        "--init",
-        "--name",
-        &name,
-        &format!("--cpus={CPUS_PER_RUNNER}"),
-        &format!("--memory={MEM_PER_RUNNER}"),
-        "-e",
-        &format!("REPO_URL={REPO_URL}"),
-        "-e",
-        &format!("RUNNER_TOKEN={token}"),
-        "-e",
-        &format!("RUNNER_LABELS={RUNNER_LABELS}"),
-        "-e",
-        &format!("RUNNER_NAME={name}"),
-        "-e",
-        "RUNNER_EPHEMERAL=1",
-        "-v",
-        "/var/run/docker.sock:/var/run/docker.sock",
-        "-v",
-        &format!("{CACHE_VOLUME}:/cache"),
-        RUNNER_IMAGE,
-    ])?;
+        "--init".into(),
+        "--name".into(),
+        name.clone(),
+        format!("--cpus={CPUS_PER_RUNNER}"),
+        format!("--memory={MEM_PER_RUNNER}"),
+        "-e".into(),
+        format!("REPO_URL={REPO_URL}"),
+        "-e".into(),
+        format!("RUNNER_TOKEN={token}"),
+        "-e".into(),
+        format!("RUNNER_LABELS={RUNNER_LABELS}"),
+        "-e".into(),
+        format!("RUNNER_NAME={name}"),
+        "-e".into(),
+        "RUNNER_EPHEMERAL=1".into(),
+        "-v".into(),
+        "/var/run/docker.sock:/var/run/docker.sock".into(),
+        "-v".into(),
+        format!("{CACHE_VOLUME}:/cache"),
+    ];
+    for (k, v) in shared_cache_env(s3_cache_reachable()) {
+        args.push("-e".into());
+        args.push(format!("{k}={v}"));
+    }
+    args.push(RUNNER_IMAGE.into());
+    let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    docker(&arg_refs)?;
     println!("spawned ephemeral runner {name}");
     Ok(())
 }
@@ -689,5 +740,29 @@ mod tests {
     fn scale_down_reap_zero_when_no_excess() {
         let idle = vec![("vox-runner-auto-a-0".into(), 100)];
         assert!(scale_down_reap_targets(&idle, 0).is_empty());
+    }
+
+    #[test]
+    fn shared_cache_env_empty_when_unreachable() {
+        assert!(shared_cache_env(false).is_empty());
+    }
+
+    #[test]
+    fn shared_cache_env_points_runners_at_host_minio_without_credentials() {
+        let env = shared_cache_env(true);
+        let get = |k: &str| {
+            env.iter()
+                .find(|(key, _)| *key == k)
+                .map(|(_, v)| v.clone())
+                .unwrap_or_default()
+        };
+        assert_eq!(get("SCCACHE_BUCKET"), "vox-sccache");
+        // Containers must reach the host's MinIO, not their own loopback.
+        assert!(get("SCCACHE_ENDPOINT").contains("host.docker.internal"));
+        assert_eq!(get("SCCACHE_S3_NO_CREDENTIALS"), "true");
+        // sccache cannot cache incremental compiles.
+        assert_eq!(get("CARGO_INCREMENTAL"), "0");
+        // Anonymous LAN bucket: no AWS credentials may be injected.
+        assert!(!env.iter().any(|(k, _)| k.starts_with("AWS_")));
     }
 }
