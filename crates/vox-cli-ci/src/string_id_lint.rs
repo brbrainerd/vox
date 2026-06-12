@@ -63,12 +63,10 @@ fn walk(dir: &Path, f: &mut dyn FnMut(&Path) -> Result<()>) -> Result<()> {
     if !dir.is_dir() {
         return Ok(());
     }
-    for e in fs::read_dir(dir)? {
-        let p = e?.path();
-        if p.is_dir() {
-            walk(&p, f)?;
-        } else {
-            f(&p)?;
+    for entry in walkdir::WalkDir::new(dir) {
+        let entry = entry?;
+        if entry.file_type().is_file() {
+            f(entry.path())?;
         }
     }
     Ok(())

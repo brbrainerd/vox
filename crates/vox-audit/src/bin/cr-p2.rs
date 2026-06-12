@@ -217,64 +217,26 @@ fn resolve_probe_url(app: &AppEntry) -> String {
     format!("http://127.0.0.1:{port}/health")
 }
 
+/// HTTP-GET the URL with a 5s timeout. Redirects are not followed: a
+/// 3xx answer counts as not-live, matching the "2xx within 5s" bar.
 fn probe_health(url: &str) -> (bool, Option<u16>, Option<String>) {
-    use std::io::Read;
-    use std::net::TcpStream;
-
-    let (host, port, path) = match parse_http_url(url) {
-        Some(t) => t,
-        None => return (false, None, Some(format!("malformed url: {url}"))),
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(vox_config::timeouts::D_5S)
+        .connect_timeout(vox_config::timeouts::D_5S)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => return (false, None, Some(format!("client: {e}"))),
     };
-    let addr = format!("{host}:{port}");
-    let socket_addr = match addr.parse() {
-        Ok(a) => a,
-        Err(_) => {
-            let mut addrs = match std::net::ToSocketAddrs::to_socket_addrs(&addr) {
-                Ok(a) => a,
-                Err(e) => return (false, None, Some(format!("resolve {addr}: {e}"))),
-            };
-            match addrs.next() {
-                Some(a) => a,
-                None => return (false, None, Some(format!("resolve {addr}: no addrs"))),
-            }
-        }
-    };
-    let mut stream = match TcpStream::connect_timeout(&socket_addr, vox_config::timeouts::D_5S) {
-        Ok(s) => s,
-        Err(e) => return (false, None, Some(format!("connect: {e}"))),
-    };
-    let _ = stream.set_read_timeout(Some(vox_config::timeouts::D_5S));
-    let _ = stream.set_write_timeout(Some(vox_config::timeouts::D_5S));
-    let request = format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
-    if let Err(e) = stream.write_all(request.as_bytes()) {
-        return (false, None, Some(format!("write: {e}")));
+    match client.get(url).send() {
+        Ok(resp) => (
+            resp.status().is_success(),
+            Some(resp.status().as_u16()),
+            None,
+        ),
+        Err(e) => (false, None, Some(format!("request: {e}"))),
     }
-    let mut buf = String::new();
-    if let Err(e) = stream.take(8192).read_to_string(&mut buf) {
-        return (false, None, Some(format!("read: {e}")));
-    }
-    let first_line = buf.lines().next().unwrap_or("");
-    let parts: Vec<&str> = first_line.splitn(3, ' ').collect();
-    let status: Option<u16> = parts.get(1).and_then(|s| s.parse().ok());
-    let live = matches!(status, Some(s) if (200..300).contains(&s));
-    (live, status, None)
-}
-
-fn parse_http_url(url: &str) -> Option<(String, u16, String)> {
-    let rest = url.strip_prefix("http://")?;
-    let (authority, path) = match rest.find('/') {
-        Some(i) => (&rest[..i], &rest[i..]),
-        None => (rest, "/"),
-    };
-    let (host, port) = match authority.rfind(':') {
-        Some(i) => {
-            let host = authority[..i].to_string();
-            let port: u16 = authority[i + 1..].parse().ok()?;
-            (host, port)
-        }
-        None => (authority.to_string(), 80),
-    };
-    Some((host, port, path.to_string()))
 }
 
 fn append_rows(log_path: &std::path::Path, rows: &[ProbeRow]) {
@@ -341,13 +303,5 @@ mod tests {
         let log = tmp.path().join("missing.jsonl");
         let rows = load_rows(&log);
         assert!(rows.is_empty());
-    }
-
-    #[test]
-    fn parse_http_url_handles_localhost_with_port() {
-        let (h, p, path) = parse_http_url("http://127.0.0.1:8080/health").unwrap();
-        assert_eq!(h, "127.0.0.1");
-        assert_eq!(p, 8080);
-        assert_eq!(path, "/health");
     }
 }
