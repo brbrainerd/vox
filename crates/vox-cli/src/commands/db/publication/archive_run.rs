@@ -78,6 +78,8 @@ pub async fn publication_archive_run(
         }
         if publish {
             std::env::set_var("VOX_ZENODO_PUBLISH_DEPOSITION", "1");
+        } else {
+            std::env::remove_var("VOX_ZENODO_PUBLISH_DEPOSITION");
         }
     }
 

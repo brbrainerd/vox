@@ -339,8 +339,9 @@ pub struct DiscoveryInboxDto {
 #[tauri::command]
 pub async fn list_discovery_inbox(limit: Option<i64>) -> Result<Vec<DiscoveryInboxDto>, String> {
     let db = db().await?;
+    let limit = limit.unwrap_or(50).clamp(1, 500);
     let rows = db
-        .list_unacknowledged_discoveries(limit.unwrap_or(50))
+        .list_unacknowledged_discoveries(limit)
         .await
         .map_err(|e| format!("{e:#}"))?;
     Ok(rows
@@ -501,8 +502,11 @@ fn detect_repo_license(repo_root: &std::path::Path) -> Option<String> {
     for name in &["LICENSE", "LICENSE.md", "LICENSE.txt"] {
         let path = repo_root.join(name);
         if let Ok(text) = std::fs::read_to_string(&path) {
-            let text = &text[..text.len().min(4096)];
-            let lower = text.to_lowercase();
+            let mut end = text.len().min(4096);
+            while end > 0 && !text.is_char_boundary(end) {
+                end -= 1;
+            }
+            let lower = text[..end].to_lowercase();
             if lower.contains("apache") {
                 return Some("Apache-2.0".into());
             }
@@ -660,7 +664,11 @@ pub async fn get_archive_status(publication_id: String) -> Result<ArchiveStatusD
     // Zenodo: most-recent persisted scholarly submission for the zenodo adapter.
     let mut zenodo_doi: Option<String> = None;
     let mut zenodo_state: Option<String> = None;
-    if let Ok(subs) = db.list_scholarly_submissions(&publication_id).await {
+    let subs = db
+        .list_scholarly_submissions(&publication_id)
+        .await
+        .map_err(|e| format!("{e:#}"))?;
+    {
         if let Some(z) = subs.iter().rev().find(|s| s.adapter == "zenodo") {
             zenodo_state = Some(z.status.clone()).filter(|s| !s.is_empty());
             zenodo_doi = z

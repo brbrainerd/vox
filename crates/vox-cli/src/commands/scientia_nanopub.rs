@@ -26,9 +26,11 @@ mod tests {
         // Needles assembled from fragments — same semantics as the literal forms.
         let host = format!("{}{}", "knowledgepixels", ".com");
         let publish_net = format!("{}{}", "publish_to_", "network");
+        let publish_prod = format!("{}{}", "publish_to_", "production");
         let use_test = format!("{}{}", "use_test_", "server");
         assert!(!src.contains(&host));
         assert!(!src.to_lowercase().contains(&publish_net));
+        assert!(!src.to_lowercase().contains(&publish_prod));
         assert!(!src.contains(&use_test));
         // `nanopub_publish_test_server` IS allowed (it is the sanctioned symbol).
         // Only `publish_to_network` / `publish_to_production` are forbidden.

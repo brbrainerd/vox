@@ -242,7 +242,9 @@ fn detect_repo_license(repo_root: &std::path::Path) -> Option<String> {
             if lower.contains("apache") {
                 return Some("Apache-2.0".into());
             }
-            if lower.contains("mit") {
+            if lower.contains("mit license")
+                || lower.contains("permission is hereby granted, free of charge")
+            {
                 return Some("MIT".into());
             }
         }

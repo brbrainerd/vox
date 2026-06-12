@@ -13,6 +13,11 @@ use turso::params;
 impl VoxDb {
     /// Return the `last_seen` cursor for `producer`, or `None` if never set.
     pub async fn get_producer_cursor(&self, producer: &str) -> Result<Option<String>, StoreError> {
+        if producer.trim().is_empty() {
+            return Err(StoreError::Db(
+                "scientia_producer_cursor: producer must be non-empty".into(),
+            ));
+        }
         let p = producer.to_string();
         let mut rows = self
             .conn
@@ -37,6 +42,16 @@ impl VoxDb {
         producer: &str,
         last_seen: &str,
     ) -> Result<(), StoreError> {
+        if producer.trim().is_empty() {
+            return Err(StoreError::Db(
+                "scientia_producer_cursor: producer must be non-empty".into(),
+            ));
+        }
+        if last_seen.trim().is_empty() {
+            return Err(StoreError::Db(
+                "scientia_producer_cursor: last_seen must be non-empty".into(),
+            ));
+        }
         let p = producer.to_string();
         let ls = last_seen.to_string();
         let now = crate::now_unix_ms() as i64;

@@ -175,17 +175,18 @@ pub fn assess_novelty(
     // via the round-tripped re_bundle) but re-index through the original bundle
     // to access `overlap_note` on the publisher type.
     //
-    // Since both slices are in the same order (filter_hits preserves order),
-    // we can pair them by position.
+    // The chrono filter drops hits, so positional indexing into the original
+    // `bundle.normalized_hits` is wrong. Match each kept hit back to its
+    // original by `work_uri` to recover the polarity-bearing `overlap_note`.
     let polarized: Vec<PolarizedHit> = kept_refs
         .iter()
-        .enumerate()
-        .map(|(i, h)| {
-            let polarity = if i < bundle.normalized_hits.len() {
-                derive_polarity(&bundle.normalized_hits[i])
-            } else {
-                ClaimPolarity::Positive
-            };
+        .map(|h| {
+            let polarity = bundle
+                .normalized_hits
+                .iter()
+                .find(|v1| v1.work_uri == h.work_uri)
+                .map(|v1| derive_polarity(v1))
+                .unwrap_or(ClaimPolarity::Positive);
             PolarizedHit {
                 work_uri: h.work_uri.clone(),
                 similarity: h.semantic_score.unwrap_or(0.0),

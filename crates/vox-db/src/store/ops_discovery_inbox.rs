@@ -62,6 +62,13 @@ impl VoxDb {
         intake_tier: &str,
         signal_codes_json: &str,
     ) -> Result<i64, StoreError> {
+        // Reject malformed inputs before touching the DB: `signal_codes_json`
+        // must be a JSON array of strings (read back via `from_row`).
+        let _: Vec<String> = serde_json::from_str(signal_codes_json).map_err(|e| {
+            StoreError::Db(format!(
+                "scientia_discovery_inbox: signal_codes_json must be a JSON array: {e}"
+            ))
+        })?;
         let pid = publication_id.to_string();
         let tier = intake_tier.to_string();
         let codes = signal_codes_json.to_string();
