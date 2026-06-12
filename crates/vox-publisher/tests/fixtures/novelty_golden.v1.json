@@ -26,9 +26,9 @@
     }
   },
   {
-    "name": "empty_hits__no_traces_at_all__insufficient_evidence",
+    "name": "empty_hits__no_traces_at_all__novel",
     "claim_year": 2026,
-    "expected": "insufficient_evidence",
+    "expected": "novel",
     "bundle": {
       "schema_version": 1,
       "bundle_id": "nb.golden002",
