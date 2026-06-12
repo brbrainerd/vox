@@ -318,6 +318,56 @@ pub async fn get_novelty_assessment(
     })
 }
 
+// ---------------------------------------------------------------------------
+// Discovery inbox (Task 18): unacknowledged surfaced research candidates.
+// ---------------------------------------------------------------------------
+
+/// One unacknowledged discovery-inbox row, trimmed to the fields the inbox
+/// surface renders. `acknowledged_at_ms` is omitted because the list command
+/// only returns rows that are, by definition, unacknowledged.
+#[derive(Debug, serde::Serialize)]
+pub struct DiscoveryInboxDto {
+    pub id: i64,
+    pub publication_id: String,
+    pub surfaced_at_ms: i64,
+    pub intake_tier: String,
+    pub signal_codes: Vec<String>,
+}
+
+/// List unacknowledged discoveries, newest first, capped at `limit` (default 50).
+/// Read-only: nothing is mutated. Each DB row maps 1:1 into a [`DiscoveryInboxDto`].
+#[tauri::command]
+pub async fn list_discovery_inbox(
+    limit: Option<i64>,
+) -> Result<Vec<DiscoveryInboxDto>, String> {
+    let db = db().await?;
+    let rows = db
+        .list_unacknowledged_discoveries(limit.unwrap_or(50))
+        .await
+        .map_err(|e| format!("{e:#}"))?;
+    Ok(rows
+        .into_iter()
+        .map(|r| DiscoveryInboxDto {
+            id: r.id,
+            publication_id: r.publication_id,
+            surfaced_at_ms: r.surfaced_at_ms,
+            intake_tier: r.intake_tier,
+            signal_codes: r.signal_codes,
+        })
+        .collect())
+}
+
+/// Mark a discovery-inbox row acknowledged (now). No-op if the id is unknown.
+/// After this the row no longer appears in [`list_discovery_inbox`].
+#[tauri::command]
+pub async fn acknowledge_discovery(id: i64) -> Result<(), String> {
+    let db = db().await?;
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    db.acknowledge_discovery(id, now_ms)
+        .await
+        .map_err(|e| format!("{e:#}"))
+}
+
 #[cfg(test)]
 mod tests {
     /// Guard: this GUI review surface must carry NO production-network publishing
@@ -366,5 +416,28 @@ mod tests {
             .await
             .expect("queue");
         assert!(rows.is_empty()); // empty DB → empty queue; schema applies w/o panic
+    }
+
+    /// Discovery-inbox parity: an inserted unacknowledged row reads back through
+    /// the SAME typed DB op the inbox command uses, and acknowledging it removes
+    /// it from the unacknowledged list (the surface's "Acknowledge" semantics).
+    #[tokio::test]
+    async fn discovery_inbox_list_then_acknowledge() {
+        use vox_db::{DbConfig, VoxDb};
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        let id = db
+            .insert_discovery_inbox("commit-abc", 1_000, "strong_candidate", r#"["perf_claim"]"#)
+            .await
+            .expect("insert");
+
+        let rows = db.list_unacknowledged_discoveries(50).await.expect("list");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].publication_id, "commit-abc");
+        assert_eq!(rows[0].intake_tier, "strong_candidate");
+        assert_eq!(rows[0].signal_codes, vec!["perf_claim".to_string()]);
+
+        db.acknowledge_discovery(id, 2_000).await.expect("ack");
+        let after = db.list_unacknowledged_discoveries(50).await.expect("list");
+        assert!(after.is_empty(), "acknowledged rows must not reappear");
     }
 }

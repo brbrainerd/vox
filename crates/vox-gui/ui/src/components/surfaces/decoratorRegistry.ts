@@ -3,6 +3,7 @@ import { CommandCardsView, SurfaceCard } from './CommandCardsView';
 import { ScientiaDashboard } from './Scientia/ScientiaDashboard';
 import { ClaimsView } from './Scientia/ClaimsView';
 import { DiscoveryReview } from './Scientia/DiscoveryReview';
+import { DiscoveryInbox } from './Scientia/DiscoveryInbox';
 import { CoverageView } from './Coverage/CoverageView';
 import { ResearchView } from './Research/ResearchView';
 import { PublicationsView } from './Publications/PublicationsView';
@@ -38,6 +39,7 @@ function commandSurface(
 export const surfaceDecorators: Record<string, React.ComponentType<SurfaceDecoratorProps>> = {
   scientia: ScientiaDashboard,
   'discovery-review': DiscoveryReview,
+  'discovery-inbox': DiscoveryInbox,
   claims: ClaimsView,
   coverage: CoverageView,
   search: SearchView,

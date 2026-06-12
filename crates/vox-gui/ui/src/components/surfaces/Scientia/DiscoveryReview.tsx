@@ -33,7 +33,19 @@ function verdictTone(verdict: string | null): string {
  * brass post-approval zone remain visible for the rest of the session.
  */
 export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
-  const [pubId, setPubId] = useState('');
+  // Seed the publication id from a cross-surface deep-link (Discovery Inbox's
+  // "Open review" stashes it in localStorage before switching here). Consumed
+  // once so a manual edit later isn't clobbered.
+  const [pubId, setPubId] = useState(() => {
+    try {
+      const seed = window.localStorage.getItem('vox_discovery_review_seed');
+      if (seed) {
+        window.localStorage.removeItem('vox_discovery_review_seed');
+        return seed;
+      }
+    } catch { /* localStorage unavailable */ }
+    return '';
+  });
   const [queue, setQueue] = useState<ClaimAwaitingReview[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [reason, setReason] = useState('');

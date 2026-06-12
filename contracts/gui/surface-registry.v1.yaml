@@ -29,6 +29,13 @@ surfaces:
   nav_icon: dashboard
   nav_group: operate
   notes: orchestrator status
+- view_key: discovery-inbox
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Discovery Inbox
+  nav_icon: eye
+  nav_group: knowledge
+  notes: unacknowledged surfaced research candidates
 - view_key: discovery-review
   cli_group: null
   representation_tier: live_backend
