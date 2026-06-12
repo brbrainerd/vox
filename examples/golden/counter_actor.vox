@@ -16,3 +16,10 @@ fn CounterActor_Increment(current: int) to int {
     return current + 1
 }
 // ANCHOR_END: display
+
+@test
+fn test_counter_increment() {
+    assert(CounterActor_Increment(0) is 1)
+    assert(CounterActor_Increment(5) is 6)
+    assert(CounterActor_Increment(99) is 100)
+}

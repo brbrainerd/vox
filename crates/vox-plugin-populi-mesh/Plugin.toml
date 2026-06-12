@@ -26,4 +26,4 @@ format-version = 1
 skill-md = "populi.skill.md"
 
 [plugin.payload.skill.tools]
-exposes = ["vox_populi_join", "vox_populi_dispatch"]
+exposes = ["vox_populi_local_status", "vox_orchestrator_status", "vox_submit_task"]

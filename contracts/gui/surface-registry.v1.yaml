@@ -29,6 +29,13 @@ surfaces:
   nav_icon: dashboard
   nav_group: operate
   notes: orchestrator status
+- view_key: discovery-review
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Discovery Review
+  nav_icon: check
+  nav_group: knowledge
+  notes: human-gated claim review before nanopublication
 - view_key: flow
   cli_group: null
   representation_tier: live_backend
@@ -46,7 +53,7 @@ surfaces:
 - view_key: matrix
   cli_group: null
   representation_tier: live_backend
-  nav_label: Policies
+  nav_label: Routing
   nav_icon: scale
   nav_group: operate
   notes: policy/intention matrix
@@ -57,6 +64,13 @@ surfaces:
   nav_icon: link
   nav_group: compute
   notes: null
+- view_key: policies
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Policies
+  nav_icon: scale
+  nav_group: operate
+  notes: unified policy registry catalog + per-branch status (read-only Phase 1)
 - view_key: publications
   cli_group: null
   representation_tier: curated_decorator
@@ -402,6 +416,13 @@ surfaces:
   notes: null
 - view_key: null
   cli_group: pm
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  notes: null
+- view_key: null
+  cli_group: policy
   representation_tier: none
   nav_label: null
   nav_icon: null

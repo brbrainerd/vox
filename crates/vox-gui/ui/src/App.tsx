@@ -11,6 +11,7 @@ import { Dashboard } from './components/surfaces/Dashboard/Dashboard';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
 import { Transcript } from './components/surfaces/Loquela/Transcript';
 import { chatReducer, initialChatState } from './lib/chatCorrelation';
+import { contextRefsFromPayload } from './lib/loquelaContext';
 import { Catalog } from './components/surfaces/Catalog/Catalog';
 import { Matrix } from './components/surfaces/Matrix/Matrix';
 import { AgentFlow } from './components/surfaces/Flow/AgentFlow';
@@ -25,6 +26,9 @@ import { HarnessView } from './components/surfaces/Harness/HarnessView';
 import { surfaceDecorators } from './components/surfaces/decoratorRegistry';
 import { ApprovalsView } from './components/surfaces/Approvals/ApprovalsView';
 import { SkillsPluginsView } from './components/surfaces/SkillsPlugins/SkillsPluginsView';
+import { PoliciesView } from './components/surfaces/Policies/PoliciesView';
+import { overallWorst, worstCount } from './components/surfaces/Policies/policyTree';
+import type { PolicyRow, PolicyStatus, BranchInfo, RunStatus } from './components/surfaces/Policies/types';
 import { voxTransport, listenOrchStatus, listenAgentEvents, type AgentEventFrame } from './transport';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -45,12 +49,14 @@ type View =
   | 'gamify'
   | 'harness'
   | 'scientia'
+  | 'discovery-review'
   | 'claims'
   | 'mens'
   | 'populi'
   | 'research'
   | 'oratio'
   | 'approvals'
+  | 'policies'
   | 'skills'
   | 'settings'
   | 'coverage'
@@ -160,6 +166,8 @@ export default function App() {
   const [deployedSet, setDeployedSet] = useState(new Set<string>());
   const [selectedAgentId, setSelectedAgentId] = useState('ROOT');
   const [appVersion, setAppVersion] = useState<string>('loading…');
+  // Master-sidebar Policies badge: worst-status count for the current branch.
+  const [policyBadge, setPolicyBadge] = useState<{ count: number; status: RunStatus } | null>(null);
 
   // ── B4-chat: pure-reducer transcript state for the Loquela composer ────────
   const [chat, dispatchChat] = useReducer(chatReducer, initialChatState);
@@ -231,11 +239,36 @@ export default function App() {
       .catch(() => setAppVersion('unknown'));
 
     invoke('get_initial_view').then((view: any) => {
-      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'scientia', 'claims', 'mens', 'populi', 'research', 'oratio', 'approvals', 'skills', 'settings', 'coverage', 'publications', 'search'] as string[]).includes(view)) {
+      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'scientia', 'discovery-review', 'claims', 'mens', 'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage', 'publications', 'search'] as string[]).includes(view)) {
         setActiveView(view as View);
       }
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Master-sidebar Policies badge: poll the catalog + current-branch status,
+  // compute the worst status + count of rules at that tier, color the nav badge.
+  // Lightweight (in-process IPC) and resilient: any failure clears the badge.
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const [rows, branchInfos] = await Promise.all([
+          invoke<PolicyRow[]>('policy_list', { domain: null, group: null }),
+          invoke<BranchInfo[]>('list_branches').catch(() => [] as BranchInfo[]),
+        ]);
+        const branches = branchInfos.filter(b => b.isCurrent).map(b => b.branch);
+        const sel = branches.length ? branches : ['HEAD'];
+        const status = await invoke<PolicyStatus[]>('policy_status', { branches: sel }).catch(() => [] as PolicyStatus[]);
+        if (cancelled) return;
+        setPolicyBadge({ status: overallWorst(rows, status, sel), count: worstCount(rows, status, sel) });
+      } catch {
+        if (!cancelled) setPolicyBadge(null);
+      }
+    };
+    refresh();
+    const id = setInterval(refresh, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
   // ── Pushed status stream (B1: "vox://orch-status" Tauri event) ─────────────
@@ -325,39 +358,6 @@ export default function App() {
     };
   }, []);
 
-  const executeWithRun = useCallback(async (operationName: string, payload: any, workflowName: string) => {
-    const runId = `gui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    await invoke('start_gui_run', {
-      input: {
-        run_id: runId,
-        workflow_name: workflowName,
-        planned_steps: 1,
-      }
-    });
-    try {
-      const result = await voxTransport.callTool(operationName, payload);
-      const success = result.exit_code === 0;
-      await invoke('finish_gui_run', {
-        run_id: runId,
-        success,
-        completed_steps: success ? 1 : 0,
-        error: success ? null : (result.stderr || `exit_code=${result.exit_code}`)
-      });
-      if (!success) {
-        throw new Error(result.stderr || `Command failed with exit code ${result.exit_code}`);
-      }
-      return result;
-    } catch (err) {
-      await invoke('finish_gui_run', {
-        run_id: runId,
-        success: false,
-        completed_steps: 0,
-        error: String(err),
-      }).catch(() => {});
-      throw err;
-    }
-  }, []);
-
   const executeIpcWithRun = useCallback(async <T,>(command: string, payload: any, workflowName: string, onRun?: (runId: string) => void): Promise<T> => {
     const runId = `gui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     onRun?.(runId);
@@ -407,12 +407,16 @@ export default function App() {
   const handleLoquelaSubmit = useCallback(async (payload: any) => {
     pushToast({ tone: 'info', title: 'Task Dispatched', body: payload.description, cmd: 'vox submit-task' });
     let runId = '';
+    // Context attachments flow to the orchestrator as the task's file manifest.
+    // Loquela sends `context` as [{ kind, ref }]; file/image/url chips carry a
+    // concrete locator the backend pins as FileAffinity (see loquelaContext).
+    const contextFiles = contextRefsFromPayload(payload);
     await executeIpcWithRun<{ ok: boolean; message: string; task_id: string | null }>(
       'submit_orchestrator_task',
       {
         input: {
           description: payload.description,
-          files: payload.files ?? [],
+          files: contextFiles,
           priority: payload.priority ?? null,
           session_id: payload.session_id ?? 'gui-loquela',
         }
@@ -432,6 +436,30 @@ export default function App() {
       })
       .catch(err => pushToast({ tone: 'warn', title: 'Dispatch Failed', body: String(err) }));
   }, [executeIpcWithRun, pushToast]);
+
+  // Attach one or more locators to the shared Loquela context set. These chips
+  // become the next task's file manifest (see handleLoquelaSubmit), so this is
+  // a real "pin to context" — not a toast-only gesture. Deduped by chip id.
+  const attachContext = useCallback((items: Array<{ kind: 'file' | 'url' | 'image'; label: string }>) => {
+    if (items.length === 0) return;
+    setChips(prev => {
+      const seen = new Set(prev.map(c => c.id));
+      const next = [...prev];
+      for (const it of items) {
+        const id = `ctx-${it.kind}-${it.label}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        next.push({ id, kind: it.kind, label: it.label });
+      }
+      return next;
+    });
+    pushToast({
+      tone: 'ok',
+      title: items.length === 1 ? 'Pinned to context' : `${items.length} pinned to context`,
+      body: items.length === 1 ? items[0].label : `${items.length} citations → Loquela`,
+      cmd: 'context.attach',
+    });
+  }, [pushToast]);
 
   const handlePause = useCallback(async (a: Agent) => {
     setData(prev => ({ ...prev, agents: prev.agents.map(x => x.id === a.id ? { ...x, phase: 'Paused' } : x) }));
@@ -548,28 +576,16 @@ export default function App() {
           />
         );
       case 'catalog':
-        return (
-          <Catalog
-            skills={data.skills}
-            onDeploy={(s: any) => {
-              setDeployedSet(prev => new Set([...prev, s.id ?? s.command]));
-              handleLoquelaSubmit({ description: `Deploy skill: ${s.command}`, active_skill: s.id });
-            }}
-            deployedSet={deployedSet}
-          />
-        );
+        // Catalog renders the compiled CLI command catalog with real, typed
+        // execution forms (CommandCatalogForm runs the actual command via
+        // voxTransport). Skill "deploy" is a Skills-surface concept, not a
+        // command-catalog one, so no deploy props are threaded here — the run
+        // affordance already lives inside the form.
+        return <Catalog skills={data.skills} />;
       case 'matrix':
-        return (
-          <Matrix
-            intentions={data.intentions}
-            onDoubt={(i: any) => executeWithRun('vox_doubt_policy', { id: i.id }, 'gui.policy.doubt')
-              .catch((err: any) => pushToast({ tone: 'warn', title: 'Policy doubt failed', body: String(err) }))}
-            onOverrule={(i: any) => executeWithRun('vox_promote_policy', { id: i.id }, 'gui.policy.promote')
-              .catch((err: any) => pushToast({ tone: 'warn', title: 'Policy promote failed', body: String(err) }))}
-          />
-        );
+        return <Matrix pushToast={pushToast} />;
       case 'memory':
-        return <MemoryView pushToast={pushToast} />;
+        return <MemoryView pushToast={pushToast} onAttachContext={attachContext} />;
       case 'models':
         return <ModelsView pushToast={pushToast} />;
       case 'runs':
@@ -586,6 +602,8 @@ export default function App() {
         return <HarnessView pushToast={pushToast} />;
       case 'approvals':
         return <ApprovalsView pushToast={pushToast} />;
+      case 'policies':
+        return <PoliciesView pushToast={pushToast} />;
       case 'skills':
         return <SkillsPluginsView pushToast={pushToast} />;
       default:
@@ -606,6 +624,7 @@ export default function App() {
         setMode={setSidebarMode}
         pushToast={pushToast}
         appVersion={appVersion}
+        policyBadge={policyBadge}
       />
 
       <main className="flex-1 flex flex-col min-w-0 relative">

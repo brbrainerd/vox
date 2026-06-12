@@ -143,8 +143,7 @@ use vox_plugin_sdk::prelude::*;
 // init), stamped with the host's current ABI version. Implement only the `VoxPlugin` trait
 // plus whichever extension-point accessors your plugin provides.
 vox_plugin_sdk::declare_plugin! {{
-    id: "{id}",
-    version: "0.1.0",
+    // id + version are read from this crate's Plugin.toml — the single authoring site.
     init: |_host| ROk(wrap({struct_name})),
 }}
 

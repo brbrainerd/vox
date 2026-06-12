@@ -4,6 +4,7 @@ import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { Sparkline } from '../../ui/Sparkline';
 import { renderHighlights, UnifiedHit, SearchResponse } from '../Search/searchHelpers';
+import { attachItemsFromHits, AttachItem } from '../../../lib/loquelaContext';
 
 // Corpus vocabulary aligned with vox_db SearchCorpus variants.
 // Scope ids must match the corpus names accepted by vox_search_query.
@@ -126,15 +127,24 @@ interface MemoryStatusPayload {
 
 interface MemoryViewProps {
   pushToast: (t: any) => void;
+  /**
+   * Pin recall hits into the shared Loquela context set. When absent (e.g. a
+   * standalone render), pinning is unavailable and the controls report that
+   * honestly rather than silently no-op'ing.
+   */
+  onAttachContext?: (items: AttachItem[]) => void;
 }
 
-export function MemoryView({ pushToast }: MemoryViewProps) {
+export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   const [memStatus, setMemStatus] = useState<MemoryStatusPayload | null>(null);
   const [query, setQuery] = useState('');
   // Scope uses the corpus vocabulary aligned with vox_search_query.
   // Default: all three memory/knowledge/chunk corpora active.
   const [scope, setScope] = useState<MemCorpusId[]>(['memory', 'knowledge', 'chunk']);
   const [topK, setTopK] = useState(8);
+  // Auto-recall is a persisted GUI preference (gui.memory.autoRecall), hydrated
+  // from the workspace db via get_gui_preference and written back on toggle —
+  // the same pattern Settings uses for theme/telemetry/sign.
   const [recallOn, setRecallOn] = useState(false);
   const [hits, setHits] = useState<UnifiedHit[]>([]);
   const [recalling, setRecalling] = useState(false);
@@ -144,6 +154,22 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
       .then(setMemStatus)
       .catch((err) => pushToast({ tone: 'warn', title: 'Memory status unavailable', body: String(err) }));
   }, [pushToast]);
+
+  // Hydrate the persisted auto-recall preference on mount.
+  useEffect(() => {
+    invoke<string | null>('get_gui_preference', { key: 'gui.memory.autoRecall' })
+      .then((v) => { if (v != null) setRecallOn(v === 'true'); })
+      .catch(() => { /* no workspace db (e.g. plain browser dev) — keep default off */ });
+  }, []);
+
+  const toggleAutoRecall = () => {
+    setRecallOn((prev) => {
+      const next = !prev;
+      invoke('set_gui_preference', { key: 'gui.memory.autoRecall', value: String(next) })
+        .catch((err) => pushToast({ tone: 'warn', title: 'Could not persist auto-recall', body: String(err) }));
+      return next;
+    });
+  };
 
   const corpora = MEM_CORPORA.map((c) => ({
     ...c,
@@ -188,6 +214,41 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
     }
   };
 
+  // Auto-recall behavior is gated on the persisted preference: when enabled,
+  // edits to the query (or active scope) debounce-trigger a recall instead of
+  // requiring an explicit Enter / Recall click.
+  useEffect(() => {
+    if (!recallOn) return;
+    const q = query.trim();
+    if (!q) return;
+    const t = setTimeout(() => { recall(q); }, 450);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, recallOn, scope.join(','), topK]);
+
+  // Pin recall hits into the shared Loquela context. Only file/web hits carry
+  // an attachable locator; if none do, tell the user instead of pretending.
+  const pinHits = (hitsToPin: UnifiedHit[]) => {
+    const items = attachItemsFromHits(hitsToPin);
+    if (items.length === 0) {
+      pushToast({
+        tone: 'warn',
+        title: 'Nothing to pin',
+        body: 'These hits have no file/web locator the agent can read.',
+      });
+      return;
+    }
+    if (!onAttachContext) {
+      pushToast({
+        tone: 'warn',
+        title: 'Context unavailable',
+        body: 'Pin-to-context is only available inside the main shell.',
+      });
+      return;
+    }
+    onAttachContext(items);
+  };
+
   const openHit = async (hit: UnifiedHit) => {
     if (hit.locator.kind === 'file' || hit.locator.kind === 'web') {
       try {
@@ -213,7 +274,8 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setRecallOn(r => !r)}
+              onClick={toggleAutoRecall}
+              title={recallOn ? 'Auto-recall on — queries recall as you type' : 'Auto-recall off — press Enter or Recall'}
               className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 font-mono text-[10px] transition ${
                 recallOn
                   ? 'border-violet-400/40 bg-violet-400/10 text-violet-300'
@@ -309,9 +371,7 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
           </h3>
           {hits.length > 0 && (
             <button
-              onClick={() =>
-                pushToast({ tone: 'ok', title: 'Pinned to context', body: `${hits.length} citations → Loquela`, cmd: 'context.attach' })
-              }
+              onClick={() => pinHits(hits)}
               className="inline-flex items-center gap-1 rounded-md border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 font-mono text-[10px] text-cyan-300 hover:bg-cyan-400/15"
             >
               <Icon.pin className="size-3" /> Pin all to context
@@ -339,7 +399,7 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
                 hit={h}
                 query={query}
                 onOpen={() => openHit(h)}
-                onPin={() => pushToast({ tone: 'ok', title: 'Cited', body: h.path ?? h.source, cmd: 'context.pin' })}
+                onPin={() => pinHits([h])}
               />
             ))}
         </div>

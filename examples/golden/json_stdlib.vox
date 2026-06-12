@@ -37,3 +37,44 @@ fn has_payload(payload_json: str) to bool {
         Error(_) => false
     }
 }
+
+@test
+fn test_read_kind() {
+    let json_with_kind = "{\"kind\":\"event\",\"payload\":{\"mood_score\":7}}"
+    match read_kind(json_with_kind) {
+        Some(k) => assert(k is "event")
+        None => assert(false)
+    }
+    let missing = match read_kind("{\"other\":\"field\"}") {
+        Some(_) => "found"
+        None => "none"
+    }
+    assert(missing is "none")
+    let bad = match read_kind("not json") {
+        Some(_) => "found"
+        None => "none"
+    }
+    assert(bad is "none")
+}
+
+@test
+fn test_read_mood_score() {
+    let json_with_score = "{\"kind\":\"event\",\"payload\":{\"mood_score\":7}}"
+    match read_mood_score(json_with_score) {
+        Some(n) => assert(n is 7)
+        None => assert(false)
+    }
+    let no_score = match read_mood_score("{\"kind\":\"event\"}") {
+        Some(_) => "found"
+        None => "none"
+    }
+    assert(no_score is "none")
+}
+
+@test
+fn test_has_payload() {
+    let with_payload = "{\"kind\":\"event\",\"payload\":{\"mood_score\":7}}"
+    assert(has_payload(with_payload) is true)
+    assert(has_payload("{\"kind\":\"event\"}") is false)
+    assert(has_payload("bad json") is false)
+}

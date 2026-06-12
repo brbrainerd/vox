@@ -10,8 +10,11 @@
 #   - do NOT re-review on every incremental push (auto_incremental_review: false)
 #   - trigger incremental reviews on demand by commenting `@coderabbitai review`
 # This collapses N per-push reviews into 1 deliberate review per ready PR.
-
-version: 2
+#
+# NOTE: there is intentionally NO top-level `version:` key — CodeRabbit's config
+# schema (https://docs.coderabbit.ai/reference/configuration) does not define one,
+# and including it makes the validator flag an unexpected-property warning on every
+# review.
 
 reviews:
   auto_review:

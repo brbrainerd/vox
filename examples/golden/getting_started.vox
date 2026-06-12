@@ -46,5 +46,13 @@ component App() {
 fn order(id: str) to Result[str] {
     return Ok("ordered:" + id)
 }
+
+@test
+fn test_order() {
+    match order("abc") {
+        Ok(msg) => assert(msg is "ordered:abc")
+        Error(_) => assert(false)
+    }
+}
 // ANCHOR_END: logic
 // ANCHOR_END: concepts
