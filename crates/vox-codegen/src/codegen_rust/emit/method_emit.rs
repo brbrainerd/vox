@@ -681,7 +681,7 @@ fn try_emit_list_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<S
 
         // ── Slice ────────────────────────────────────────────────────────────
         // slice_list(start, end?) → sub-list [start, end), bounds-clamped.
-        "slice_list" if arg_exprs.len() >= 1 => {
+        "slice_list" if !arg_exprs.is_empty() => {
             let start = &arg_exprs[0];
             let end_expr = if arg_exprs.len() >= 2 {
                 format!("({} as usize).min(__lst.len())", arg_exprs[1])
