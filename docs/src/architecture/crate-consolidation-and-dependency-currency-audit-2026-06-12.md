@@ -12,12 +12,24 @@ category: "Architecture SSOTs"
 
 ## 1. Executed (this branch, committed)
 
+**Wave 1 — quick wins:**
+
 | Change | LoC | Commit notes |
 |---|---|---|
 | Delete orphan `vox-actor-runtime/src/rate_limit.rs` (never compiled; codegen emits `governor` directly) | −65 | verified zero refs |
 | Delete dead `vox-cli/src/render.rs` (`#![allow(dead_code)]`, zero call sites, contained a real multibyte-slice panic at line ~295) | −396 | critic find, hand-verified |
 | cr-p1/cr-p2: hand-rolled TcpStream HTTP/1.1 clients → `reqwest::blocking` (already a dep of vox-audit) | −130 | fixes https-URL + IPv6 latent bugs; `Policy::none()` preserves 3xx=not-live |
 | `vox_http_client::parse_retry_after` SSOT + `Utf8LineBuffer` reuse in vox-gamify transport (7 call sites) | −80 | verifier rejected tokio-util; in-tree SSOT was better |
+
+**Wave 2 — verified backlog items 1–10 (subset), each adversarially re-verified by a code-reading agent before applying:**
+
+| Change | LoC | Commit notes |
+|---|---|---|
+| chrono over hand-rolled date math: `vox-orchestrator/memory/time.rs` (−141, dropped the no-dep calendar engine + vestigial `unix_secs_to_ymd`) + `vox-ml-cli/populi_attest.rs` ISO-8601 formatter | −133 | checkpoint `now_utc()` sites left alone (would change on-disk format) |
+| strsim over 6 hand-rolled Levenshtein DP loops (vox-cli ×2, vox-compiler, vox-db, vox-search, vox-populi) | −132 | vox-speech generic word-level WER `levenshtein<T>` correctly skipped; strsim has zero transitive deps |
+| `which::which` for PATH probe (debug.rs) + `tempfile::persist` atomic write (fmt.rs) | −24 | load-bearing custom-semantics sites (cli-tests `.cmd`-first, binary_ssot collect-all, vox-config env-first dirs) intentionally skipped |
+
+Total executed: **~1,000 LoC deleted** across 8 commits; all touched crates compile, 488 vox-cli lib tests pass (1 pre-existing environmental failure: `policy_registry::...parity_passes_for_default_domains` fails on clean tree too — sandbox stdin-redirect limitation), clippy green.
 
 Also verified: **CVE-2026-44471** (gix-fs symlink worktree escape, critical) — fixed in gix-fs 0.21.1; our Cargo.lock resolves **0.21.2 → already patched** ([GHSA-f89h-2fjh-2r9q](https://github.com/GitoxideLabs/gitoxide/security/advisories/GHSA-f89h-2fjh-2r9q)).
 
@@ -26,6 +38,8 @@ Side-finding (tooling): the arch-check orphan gate misses undeclared-module `.rs
 ## 2. Verified adopt backlog (prioritized; all "already in tree" unless noted)
 
 Each row was confirmed by a verifier that read the code. Net LoC are glue-corrected.
+
+> **Status:** items 2 (chrono), 8 (which), 9 (tempfile fmt.rs subset), and the strsim cluster (item 11) are **DONE** (§1 Wave 2). Remaining below are still open.
 
 1. **walkdir consolidation, ~12 hand-rolled `fs::read_dir` recursions** (~150 net LoC) — vox-cli `commands/ci/{attention_ledger_parity, canonical_docs, command_compliance/validators (×2), db_schema_coverage, retired_symbol_check (×3 + 1 iterative), row_serde_lint, string_id_lint}`, `diagnostics/stub_check`, `migrate`, `extras/ars/discover` (use `max_depth`), vox-audit `regression_budget`, vox-arch-check `walk_repo_files`. vox-cli/vox-audit *already depend on walkdir and use it elsewhere in the same directory tree*. Preserve each site's swallow-vs-propagate error semantics; keep arch-check's `walk_prune_skips_target_directory` test green. Two cited sites (safety_inventory, code-audit scanner) already use WalkDir — excluded. Critic notes ~48 files use raw `read_dir` across vox-cli+vox-orchestrator, so the full population is larger than this verified set.
 2. **chrono for hand-rolled date/time math** (~150 net LoC) — `vox-orchestrator/src/memory/time.rs` (whole file; vox-orchestrator already depends on chrono), `vox-ml-cli/src/commands/populi_attest.rs:147-206` (~58), plus the three identical `checkpoint_state.rs` copies in vox-populi / plugin-mens-candle-cuda / -metal.
