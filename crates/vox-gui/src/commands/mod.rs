@@ -8,6 +8,7 @@ pub mod devlog;
 pub mod dynamic_mapping;
 pub mod execute;
 pub mod gamify;
+pub mod llm_settings;
 pub mod mcp;
 pub mod memory;
 pub mod mesh;
