@@ -73,6 +73,15 @@ enum RnNode {
     /// `<ScrollView horizontal>...</ScrollView>` — `row(scroll: "horizontal")`.
     /// A single non-wrapping line that scrolls instead of overflowing.
     ScrollRow { children: Vec<RnNode> },
+    /// `<Modal transparent visible={…} animationType="…">…</Modal>` — the RN
+    /// representation of the `modal` / `drawer` tier primitives (B4). `drawer` uses
+    /// `slide` animation; `modal` uses `fade`. `visible_ts` comes from the `open`
+    /// kwarg (defaults to `true`).
+    RnModal {
+        animation: &'static str,
+        visible_ts: String,
+        children: Vec<RnNode>,
+    },
     /// `<Link href={<href>} style={styles.<key>}>...</Link>` — expo-router
     /// navigation. VUV `link(href="/x") { "label" }`. String children are
     /// auto-wrapped in `<Text>` (same as Pressable) so the label is tappable.
@@ -604,6 +613,31 @@ fn jsx_to_rn(
             children,
         },
 
+        // ── Overlay-family tier primitives (B4) ──────────────────────────────
+        // `overlay` is the transparent portal host on web; on RN it's just an
+        // in-place container (children render where declared).
+        "overlay" => RnNode::View {
+            style_key,
+            children,
+        },
+        // `modal` / `drawer` → react-native <Modal>. `open` drives `visible`.
+        "modal" | "drawer" => {
+            let visible_ts = attr_value(&el.attributes, "open")
+                .map(|e| emit_hir_expr_inline_with_state(e, state_names, endpoint_params))
+                .unwrap_or_else(|| "true".to_string());
+            let animation = if el.tag == "drawer" { "slide" } else { "fade" };
+            RnNode::RnModal {
+                animation,
+                visible_ts,
+                children,
+            }
+        }
+        // `toast` → a transient absolutely-positioned banner near the bottom.
+        "toast" => RnNode::View {
+            style_key: Some("toast".to_string()),
+            children,
+        },
+
         // ── VUV abstract text primitives ─────────────────────────────────────
         "heading" => {
             // `heading(level=N)` — map the integer level to a header style key.
@@ -703,26 +737,6 @@ fn jsx_to_rn(
                 return RnNode::CustomComponent {
                     tag_name: other.to_string(),
                     attributes: attrs,
-                    children,
-                };
-            }
-            // Overlay-family tier primitives have NO React Native representation yet.
-            // Flattening them to a bare <View> ships a broken overlay, so emit a
-            // hard-error code (gated by the mobile build) instead of a warning.
-            // Tracked: Phase B4 (VoxLayerHost) gives these a real RN story.
-            if matches!(other, "modal" | "toast" | "drawer" | "overlay") {
-                diagnostics.push(WebIrDiagnostic {
-                    code: "vox/codegen/rn-unsupported-tier-primitive".to_string(),
-                    message: format!(
-                        "`<{other}>` has no React Native representation yet — it must not be \
-                         silently flattened to `<View>`. Restructure the mobile view, or wait for \
-                         the RN overlay host (Phase B4)."
-                    ),
-                    span: None,
-                    category: Some("codegen".to_string()),
-                });
-                return RnNode::View {
-                    style_key,
                     children,
                 };
             }
@@ -938,6 +952,12 @@ fn collect_used_styles(node: &RnNode, out: &mut std::collections::BTreeSet<Strin
         }
         RnNode::ScrollRow { children } => {
             out.insert("row_scroll_content".to_string());
+            for c in children {
+                collect_used_styles(c, out);
+            }
+        }
+        RnNode::RnModal { children, .. } => {
+            out.insert("modal_backdrop".to_string());
             for c in children {
                 collect_used_styles(c, out);
             }
@@ -1168,6 +1188,20 @@ fn emit_rn_node(node: &RnNode, indent: usize) -> String {
                 "{pad}<ScrollView horizontal showsHorizontalScrollIndicator={{false}} contentContainerStyle={{styles.row_scroll_content}}>\n{inner}{pad}</ScrollView>\n"
             )
         }
+        RnNode::RnModal {
+            animation,
+            visible_ts,
+            children,
+        } => {
+            let mut inner = String::new();
+            for c in children {
+                inner.push_str(&emit_rn_node(c, indent + 2));
+            }
+            // transparent + a centered backdrop View is the standard RN dialog shell.
+            format!(
+                "{pad}<Modal transparent animationType=\"{animation}\" visible={{{visible_ts}}}>\n{pad}  <View style={{styles.modal_backdrop}}>\n{inner}{pad}  </View>\n{pad}</Modal>\n"
+            )
+        }
         RnNode::StringLit(s) => {
             // String at View context — wrap defensively (RN forbids bare strings outside <Text>).
             let lit = serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string());
@@ -1271,6 +1305,15 @@ fn clone_rn_node(n: &RnNode) -> RnNode {
         RnNode::ScrollRow { children } => RnNode::ScrollRow {
             children: children.iter().map(clone_rn_node).collect(),
         },
+        RnNode::RnModal {
+            animation,
+            visible_ts,
+            children,
+        } => RnNode::RnModal {
+            animation,
+            visible_ts: visible_ts.clone(),
+            children: children.iter().map(clone_rn_node).collect(),
+        },
         RnNode::StringLit(s) => RnNode::StringLit(s.clone()),
         RnNode::Expr(e) => RnNode::Expr(e.clone()),
     }
@@ -1349,6 +1392,16 @@ fn semantic_style_table() -> BTreeMap<&'static str, &'static str> {
         (
             "panel",
             "{ padding: 16, backgroundColor: \"#f5f5f5\", borderRadius: 8, borderWidth: 1, borderColor: \"#e5e7eb\" }",
+        ),
+        // Centered dim backdrop for the RN <Modal> dialog shell (B4).
+        (
+            "modal_backdrop",
+            "{ flex: 1, justifyContent: \"center\", alignItems: \"center\", padding: 24, backgroundColor: \"rgba(0,0,0,0.5)\" }",
+        ),
+        // Transient bottom banner for the `toast` tier primitive (B4).
+        (
+            "toast",
+            "{ position: \"absolute\", left: 16, right: 16, bottom: 32, padding: 12, borderRadius: 8, backgroundColor: \"#18181b\" }",
         ),
     ])
 }
@@ -1570,7 +1623,7 @@ pub fn emit_rn_component(
             hooks.join(", ")
         ));
     }
-    out.push_str("import { View, Text, Pressable, Image, TextInput, ScrollView, StyleSheet } from \"react-native\";\n");
+    out.push_str("import { View, Text, Pressable, Image, TextInput, ScrollView, Modal, StyleSheet } from \"react-native\";\n");
     // `mobile` namespace import — only when this component's view or members
     // reference the `mobile` identifier (or `Speech.transcribe_microphone`,
     // which lowers to it). Mirrors the web target's auto-import in

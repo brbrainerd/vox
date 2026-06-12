@@ -130,7 +130,7 @@ fn rn_row_wraps_by_default_and_scroll_opts_into_scrollview() {
         "scroll=horizontal row must emit a horizontal ScrollView; got:\n{tsx}"
     );
     assert!(
-        tsx.contains("import { View, Text, Pressable, Image, TextInput, ScrollView, StyleSheet }"),
+        tsx.contains("import { View, Text, Pressable, Image, TextInput, ScrollView, Modal, StyleSheet }"),
         "ScrollView must be imported; got:\n{tsx}"
     );
 }

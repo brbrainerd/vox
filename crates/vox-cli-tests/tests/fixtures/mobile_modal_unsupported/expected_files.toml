@@ -1,4 +1,3 @@
 extra_args = ["--target", "mobile"]
 emits_rust_backend = false
-expect_failure = true
-required = []
+required = ["Home.tsx"]

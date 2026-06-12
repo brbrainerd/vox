@@ -645,21 +645,22 @@ fn build_mobile_fails_on_contrast_violation() {
     );
 }
 
-/// Tier/overlay primitives (modal/toast/drawer/overlay) have no RN representation
-/// yet. The mobile build must HARD-ERROR rather than silently flatten them to a
-/// bare <View> and ship a broken overlay. Regression gate for audit gap XP-2.
+/// B4: the `modal` tier primitive now lowers to a react-native `<Modal>` instead of
+/// hard-erroring. The build succeeds and the emitted component uses `<Modal>`.
+/// Regression gate for audit gap XP-2 (overlay-family RN representation).
 #[test]
-fn build_mobile_hard_errors_on_unsupported_tier_primitive() {
+fn build_mobile_modal_emits_react_native_modal() {
     init_vox_binary_once();
     let run = BuildRun::run("mobile_modal_unsupported");
+    run.assert_success();
+    run.assert_no_panic();
+    let home = std::fs::read_to_string(run.out_dir.path().join("Home.tsx")).expect("Home.tsx");
     assert!(
-        !run.success,
-        "mobile build must fail on an unsupported tier primitive.\n--- stdout ---\n{}\n--- stderr ---\n{}",
-        run.stdout, run.stderr
+        home.contains("<Modal"),
+        "modal must lower to react-native <Modal>; got:\n{home}"
     );
     assert!(
-        run.stderr.contains("rn-unsupported-tier-primitive"),
-        "expected rn-unsupported-tier-primitive in stderr, got:\n{}",
-        run.stderr
+        home.contains("Modal,") && home.contains("from \"react-native\""),
+        "Modal must be imported from react-native; got:\n{home}"
     );
 }
