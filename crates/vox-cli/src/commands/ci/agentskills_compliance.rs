@@ -264,7 +264,10 @@ pub fn run() -> Result<()> {
                 let description = match extract_scalar(frontmatter, "description") {
                     Some(d) => d,
                     None => {
-                        errors.push(format!("{}:missing `description` field", skill_md.display()));
+                        errors.push(format!(
+                            "{}:missing `description` field",
+                            skill_md.display()
+                        ));
                         checked += 1;
                         continue;
                     }

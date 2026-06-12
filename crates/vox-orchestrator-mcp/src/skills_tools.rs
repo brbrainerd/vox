@@ -244,18 +244,19 @@ pub fn skill_discover(state: &ServerState) -> String {
         .into_iter()
         .map(|m| m.id)
         .collect();
-    let items: Vec<DiscoveredSkill> = vox_plugin_host::external_skills::discover_external_skills(&roots)
-        .into_iter()
-        .map(|ext| {
-            let id = ext.bundle.manifest.id;
-            DiscoveredSkill {
-                installed: installed.contains(&id),
-                name: ext.bundle.manifest.name,
-                description: ext.bundle.manifest.description,
-                path: ext.path.display().to_string(),
-                id,
-            }
-        })
-        .collect();
+    let items: Vec<DiscoveredSkill> =
+        vox_plugin_host::external_skills::discover_external_skills(&roots)
+            .into_iter()
+            .map(|ext| {
+                let id = ext.bundle.manifest.id;
+                DiscoveredSkill {
+                    installed: installed.contains(&id),
+                    name: ext.bundle.manifest.name,
+                    description: ext.bundle.manifest.description,
+                    path: ext.path.display().to_string(),
+                    id,
+                }
+            })
+            .collect();
     ToolResult::ok(items).to_json()
 }
