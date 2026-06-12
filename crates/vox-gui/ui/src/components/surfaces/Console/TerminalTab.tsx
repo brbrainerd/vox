@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Terminal } from '@xterm/xterm';
+import { Terminal, type IDisposable } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import {
   ptySpawn,
@@ -50,13 +50,13 @@ export function TerminalTab({ tabId, pendingLine, onBlock }: Props) {
     // OSC 633 shell-integration: build command/output blocks and paint a
     // per-block exit-status dot. Defensive — any failure leaves raw scrollback.
     const reducer = createBlockReducer();
-    const decorations: { dispose(): void }[] = [];
+    const decorations: IDisposable[] = [];
     term.parser.registerOscHandler(633, (data: string) => {
       const sep = data.indexOf(';');
       const kind = (sep === -1 ? data : data.slice(0, sep)) as Osc633Kind;
       const payload = sep === -1 ? undefined : data.slice(sep + 1);
-      const active = (term as any).buffer?.active;
-      const cursorLine = active ? (active.baseY ?? 0) + (active.cursorY ?? 0) : 0;
+      const active = term.buffer?.active;
+      const cursorLine = active ? active.baseY + active.cursorY : 0;
       reducer.onMarker(kind, payload, cursorLine);
       if (kind === 'D') {
         const b = reducer.latestCompleted();
@@ -117,7 +117,7 @@ export function TerminalTab({ tabId, pendingLine, onBlock }: Props) {
  */
 function captureOutput(term: Terminal, startLine: number, endLine: number): string | undefined {
   try {
-    const buf = (term as any).buffer?.active;
+    const buf = term.buffer?.active;
     if (!buf || typeof buf.getLine !== 'function') return undefined;
     const out: string[] = [];
     // +1 skips the command line itself; output lives between exec and the next prompt.
@@ -136,22 +136,21 @@ function captureOutput(term: Terminal, startLine: number, endLine: number): stri
  * green (exit 0), red (non-zero), neutral (unknown). Best-effort — xterm's
  * marker/decoration APIs are unavailable in some environments (e.g. jsdom).
  */
-function paintStatusDot(term: Terminal, block: Block, sink: { dispose(): void }[]): void {
+function paintStatusDot(term: Terminal, block: Block, sink: IDisposable[]): void {
   try {
-    const active = (term as any).buffer?.active;
-    const cursorAbs = active ? (active.baseY ?? 0) + (active.cursorY ?? 0) : 0;
+    const active = term.buffer?.active;
+    const cursorAbs = active ? active.baseY + active.cursorY : 0;
     // registerMarker takes an offset relative to the cursor's current line.
-    const offset = block.startLine - cursorAbs;
-    const marker = (term as any).registerMarker?.(offset);
+    const marker = term.registerMarker(block.startLine - cursorAbs);
     if (!marker) return;
     const color =
       block.exitCode === null ? '#9ca3af' : block.exitCode === 0 ? '#22c55e' : '#ef4444';
-    const dec = (term as any).registerDecoration?.({ marker, width: 1 });
+    const dec = term.registerDecoration({ marker, width: 1 });
     if (!dec) {
       sink.push(marker);
       return;
     }
-    dec.onRender?.((el: HTMLElement) => {
+    dec.onRender((el: HTMLElement) => {
       el.style.backgroundColor = color;
       el.style.borderRadius = '50%';
       el.style.width = '6px';
