@@ -637,7 +637,7 @@ Deterministically synthesized from 385 distinct proven-behavior claims (of 385 e
 - [happy] emitting TypeScript for a list render with a field key produces output containing 'key={w}' or 'key='  (crates/vox-codegen/tests/list_keys_test.rs)
 
 ### `link href attribute conversion`  (happy; EXTRACTED)
-- [happy] link(href=...) source converts to <Link href={{...}}> JSX in output  (crates/vox-codegen/tests/rn_lifecycle_test.rs)
+- [happy] link(href=...) source converts to `<Link href={{...}}>` JSX in output  (crates/vox-codegen/tests/rn_lifecycle_test.rs)
 
 ### `link label wrapping in Text element`  (happy; EXTRACTED)
 - [happy] link label content is wrapped in <Text> element for RN compatibility  (crates/vox-codegen/tests/rn_lifecycle_test.rs)
@@ -946,7 +946,7 @@ These symbols have proven behavior but **no error, edge, or invariant proof** �
 - **`is null lowering`** — only: _Vox 'is null' operator on an Option type lowers to Rust .is_none() method call_
 - **`isnt null lowering`** — only: _Vox 'isnt null' operator on an Option type lowers to Rust .is_some() method call_
 - **`key() emission`** — only: _emitting TypeScript for a list render with a field key produces output containing 'key={w}' or 'key='_
-- **`link href attribute conversion`** — only: _link(href=...) source converts to <Link href={{...}}> JSX in output_
+- **`link href attribute conversion`** — only: _link(href=...) source converts to `<Link href={{...}}>` JSX in output_
 - **`link label wrapping in Text element`** — only: _link label content is wrapped in <Text> element for RN compatibility_
 - **`lookup resolves @mantine/core styling`** — only: _lookup(@mantine/core) returns library with Styling::CssFile_
 - **`lookup resolves @mui/material subpath to bare package`** — only: _lookup(@mui/material/Button) returns library with package @mui/material_

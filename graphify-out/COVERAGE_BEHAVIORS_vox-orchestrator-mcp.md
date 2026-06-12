@@ -67,7 +67,7 @@ Deterministically synthesized from 232 distinct proven-behavior claims (of 232 e
 - [error] Accept filter gate blocks Ollama provider when predicate returns false for Ollama type  (crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/free_tier_adapter.rs)
 
 ### `is_origin_allowed()`  (edge, error, happy; EXTRACTED)
-- [happy] is_origin_allowed returns true for loopback origins (http://localhost:3000 and https://127.0.0.1:8080)  (crates/vox-orchestrator-mcp/src/http_gateway/origin_guard.rs)
+- [happy] is_origin_allowed returns true for loopback origins (`http://localhost:3000` and `https://127.0.0.1:8080`)  (crates/vox-orchestrator-mcp/src/http_gateway/origin_guard.rs)
 - [error] is_origin_allowed returns false when Origin header is non-loopback (https://attacker.com) even if Host is spoofed  (crates/vox-orchestrator-mcp/src/http_gateway/origin_guard.rs)
 - [error] is_origin_allowed returns false for external origins (https://malicious.com)  (crates/vox-orchestrator-mcp/src/http_gateway/origin_guard.rs)
 - [edge] is_origin_allowed returns true for /v1/eval and /health paths when public_eval_enabled is true, regardless of origin  (crates/vox-orchestrator-mcp/src/http_gateway/origin_guard.rs)

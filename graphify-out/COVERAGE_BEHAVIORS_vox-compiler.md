@@ -1706,7 +1706,7 @@ Deterministically synthesized from 989 distinct proven-behavior claims (of 989 e
 - [invariant] Types without @json_as annotation do not synthesize from_json or to_json functions  (crates/vox-compiler/tests/json_as_test.rs)
 
 ### `key prop in for loop`  (happy; EXTRACTED)
-- [happy] for-loop body with key={{expr}} prop emits as key={expr} in JSX  (crates/vox-compiler/tests/golden_for_loop_test.rs)
+- [happy] for-loop body with `key={{expr}}` prop emits as key={expr} in JSX  (crates/vox-compiler/tests/golden_for_loop_test.rs)
 
 ### `language_surface::LEXER_KEYWORDS`  (error; EXTRACTED)
 - [error] ret keyword is not in LEXER_KEYWORDS  (crates/vox-compiler/tests/language_surface_ssot_test.rs)
@@ -2357,7 +2357,7 @@ These symbols have proven behavior but **no error, edge, or invariant proof** �
 - **`json.parse`** — only: _json.parse returns Ok(Json) for valid JSON and get() retrieves nested values_
 - **`json_as annotation synthesis`** — only: _When a type is annotated with @json_as, both Widget_from_json and Widget_to_json functions are synthesized and appear in hir.functions_
 - **`json_as field synthesis`** — only: _synthesise_json_as_fns generates 4 statements in the from function body for a required field (let _f, guard, unwrap, return)_
-- **`key prop in for loop`** — only: _for-loop body with key={{expr}} prop emits as key={expr} in JSX_
+- **`key prop in for loop`** — only: _for-loop body with `key={{expr}}` prop emits as key={expr} in JSX_
 - **`lint_ast_declarations()`** — only: _lint_ast_declarations() emits a diagnostic with code 'lint.pure_shallow_violation' and severity Warning when @pure function calls print()_
 - **`literal subscript index`** — only: _subscript expression with literal index (items[0]) is emitted verbatim in tsx_
 - **`lower_hir_to_web_ir`** — only: _Event handler attributes lower on_click to onClick in DomNode elements_
