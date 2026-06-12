@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createBlockReducer, decodeCommand } from './osc633';
+import { createBlockReducer, decodeCommand, renderBlockForAgent, type Block } from './osc633';
 
 describe('osc633 block reducer', () => {
   it('builds a completed block from A → E → C → D', () => {
@@ -57,6 +57,37 @@ describe('osc633 block reducer', () => {
     r.onMarker('C', undefined, 0);
     r.onMarker('D', '0', 0);
     expect(r.latestCompleted()!.command).toBe('ls');
+  });
+
+  it('renders a block for the agent composer (command + output + exit)', () => {
+    const b: Block = {
+      id: 1,
+      command: 'git status',
+      exitCode: 0,
+      startLine: 0,
+      endLine: 2,
+      running: false,
+      output: 'On branch main\nnothing to commit',
+    };
+    const text = renderBlockForAgent(b, 'typed line');
+    expect(text).toBe('$ git status\nOn branch main\nnothing to commit\n(exit 0)');
+  });
+
+  it('falls back to the typed line when no block is present', () => {
+    expect(renderBlockForAgent(null, 'vox scientia review')).toBe('vox scientia review');
+  });
+
+  it('renders unknown exit and omits empty output', () => {
+    const b: Block = {
+      id: 2,
+      command: 'sleep 1',
+      exitCode: null,
+      startLine: 0,
+      endLine: 0,
+      running: false,
+      output: '   ',
+    };
+    expect(renderBlockForAgent(b, 'x')).toBe('$ sleep 1\n(exit unknown)');
   });
 
   it('decodes OSC 633 percent/backslash-encoded command text', () => {

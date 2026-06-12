@@ -20,6 +20,22 @@ export interface Block {
   startLine: number;
   endLine: number;
   running: boolean;
+  /** Captured terminal output for this block. Filled by the terminal layer
+   *  (which has buffer access), not the pure reducer. */
+  output?: string;
+}
+
+/**
+ * Render a completed block for the send-to-agent composer / clipboard. Falls
+ * back to `fallbackLine` (the last typed line) when no block is available —
+ * e.g. the shell has no OSC 633 integration.
+ */
+export function renderBlockForAgent(block: Block | null, fallbackLine: string): string {
+  if (!block) return fallbackLine;
+  const lines = [`$ ${block.command}`.trimEnd()];
+  if (block.output && block.output.trim() !== '') lines.push(block.output.replace(/\s+$/, ''));
+  lines.push(block.exitCode === null ? '(exit unknown)' : `(exit ${block.exitCode})`);
+  return lines.join('\n');
 }
 
 /**
