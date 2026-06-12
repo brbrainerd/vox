@@ -74,9 +74,12 @@ Console surface (React, new)
   (`quiet_command` pattern).
 - **Blocks**: each tab renders the PTY stream in xterm.js. OSC 133 shell
   integration markers (injected via shell profile snippet, the VS Code/Warp
-  technique) delimit command/output blocks. Block affordances: copy, re-run,
-  send-to-agent. If markers are unavailable (user-chosen exotic shell), the
-  tab degrades to plain scrollback — input editor and rail still work.
+  technique) are the *intended* basis for command/output block segmentation and
+  per-block affordances (copy, re-run, send-to-agent). **v1 ships raw xterm
+  scrollback**; block segmentation and those affordances are deferred to a
+  follow-up (see the companion plan's out-of-scope note), and send-to-agent in
+  v1 operates on the last command line / typed body rather than a parsed block.
+  The input editor and rail work regardless of marker availability.
 - **Input editor** (React): sits below the xterm viewport and owns every
   keystroke until Enter. Submitted lines go to the PTY verbatim, so
   anything (git, cargo, vox) runs for real. Running `vox` commands also
