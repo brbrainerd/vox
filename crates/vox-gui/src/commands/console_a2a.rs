@@ -15,9 +15,14 @@ pub const CONSOLE_OPERATOR_AGENT_ID: u64 = 0;
 /// Parse a receiver agent id string into an `AgentId`. Accepts both the display
 /// form ("A-05") and a bare number ("5"), matching `AgentId`'s `FromStr`.
 pub fn parse_receiver(raw: &str) -> Result<AgentId, String> {
-    raw.trim()
+    let id = raw
+        .trim()
         .parse::<AgentId>()
-        .map_err(|_| format!("invalid agent id: {raw:?}"))
+        .map_err(|_| format!("invalid agent id: {raw:?}"))?;
+    if id == AgentId(CONSOLE_OPERATOR_AGENT_ID) {
+        return Err("agent id 0 is reserved for the console operator".into());
+    }
+    Ok(id)
 }
 
 /// Send a free-form note to an agent's A2A inbox. Returns the new message id.
@@ -61,5 +66,11 @@ mod tests {
     #[test]
     fn rejects_garbage() {
         assert!(parse_receiver("not-an-id").is_err());
+    }
+
+    #[test]
+    fn rejects_reserved_zero() {
+        assert!(parse_receiver("0").is_err());
+        assert!(parse_receiver("A-00").is_err());
     }
 }

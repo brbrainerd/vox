@@ -56,6 +56,9 @@ pub async fn record(
     now_ms: i64,
     dwell_ms: i64,
 ) -> Result<()> {
+    // Defensive: dwell is additive into `dwell_ms_total`; a negative value would
+    // corrupt historical totals and skew ranking. Coerce to 0.
+    let dwell_ms = dwell_ms.max(0);
     let prev = get(db, user_id, action_id).await?.map(|r| MemoryState {
         stability: r.fsrs_stability,
         difficulty: r.fsrs_difficulty,
@@ -131,4 +134,49 @@ pub async fn due_action_ids(
         }
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn mem_db() -> Codex {
+        vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn get_returns_none_then_row() {
+        let db = mem_db().await;
+        assert!(get(&db, "u", "vox.x").await.unwrap().is_none());
+        record(&db, "u", "vox.x", Recall::Seen, 1_000, 500)
+            .await
+            .unwrap();
+        let row = get(&db, "u", "vox.x").await.unwrap().expect("row");
+        assert_eq!(row.seen_count, 1);
+        assert_eq!(row.dwell_ms_total, 500);
+        assert!(row.fsrs_due_ms > 1_000);
+    }
+
+    #[tokio::test]
+    async fn record_clamps_negative_dwell() {
+        let db = mem_db().await;
+        record(&db, "u", "vox.x", Recall::Seen, 1_000, -999)
+            .await
+            .unwrap();
+        let row = get(&db, "u", "vox.x").await.unwrap().expect("row");
+        assert_eq!(row.dwell_ms_total, 0);
+    }
+
+    #[tokio::test]
+    async fn due_action_ids_respects_due_and_limit() {
+        let db = mem_db().await;
+        record(&db, "u", "vox.a", Recall::Seen, 1, 0).await.unwrap();
+        record(&db, "u", "vox.b", Recall::Seen, 1, 0).await.unwrap();
+        let due = due_action_ids(&db, "u", i64::MAX, 1).await.unwrap();
+        assert_eq!(due.len(), 1, "limit honored");
+        let none = due_action_ids(&db, "u", 0, 10).await.unwrap();
+        assert!(none.is_empty(), "nothing due at now=0");
+    }
 }

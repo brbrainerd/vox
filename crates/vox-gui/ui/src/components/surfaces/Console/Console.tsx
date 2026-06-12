@@ -31,6 +31,7 @@ export function Console({ pushToast, initialAgentId = null }: Props) {
   const nowMs = Date.now();
 
   useEffect(() => {
+    let disposed = false;
     let un: (() => void) | undefined;
     listenOrchStatus((status: any) => {
       const list: AgentChip[] = (status?.agents ?? []).map((a: any) => ({
@@ -40,11 +41,14 @@ export function Console({ pushToast, initialAgentId = null }: Props) {
       }));
       setAgents(list);
     })
-      .then((u) => (un = u))
+      .then((u) => (disposed ? u() : (un = u)))
       .catch(() => {
         /* not in tauri / daemon down — strip shows "no agents" */
       });
-    return () => un?.();
+    return () => {
+      disposed = true;
+      un?.();
+    };
   }, []);
 
   const submit = (line: string) => {

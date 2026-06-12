@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { AgentChip } from './AgentStrip';
 
 interface Props {
@@ -13,6 +13,14 @@ interface Props {
 export function SendToAgent({ initialBody = '', agents, onSend, onClose }: Props) {
   const [target, setTarget] = useState(agents[0]?.id ?? '');
   const [body, setBody] = useState(initialBody);
+  // Keep the selected target valid as the agent list arrives/changes.
+  useEffect(() => {
+    if (agents.length === 0) {
+      setTarget('');
+    } else if (!agents.some((a) => a.id === target)) {
+      setTarget(agents[0].id);
+    }
+  }, [agents, target]);
   const canSend = target !== '' && body.trim() !== '';
   return (
     <div role="dialog" aria-label="send to agent" style={{ padding: 12, fontSize: 12 }}>

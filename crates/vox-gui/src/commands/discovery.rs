@@ -30,6 +30,9 @@ pub fn match_catalog(
     typed: &str,
     limit: usize,
 ) -> Vec<Suggestion> {
+    if limit == 0 {
+        return Vec::new();
+    }
     let needle: Vec<&str> = typed.split_whitespace().collect();
     let mut out = Vec::new();
     for e in entries {
@@ -140,6 +143,12 @@ mod tests {
         let s = match_catalog(&catalog.entries, "", 5);
         assert!(!s.is_empty());
         assert!(s.len() <= 5);
+    }
+
+    #[test]
+    fn zero_limit_returns_empty() {
+        let catalog = build_catalog();
+        assert!(match_catalog(&catalog.entries, "", 0).is_empty());
     }
 
     #[test]

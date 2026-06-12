@@ -82,6 +82,11 @@ pub fn pty_spawn(
     let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
     let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
 
+    // Replacing a live tab id: kill the previous child first so its shell +
+    // reader thread tear down instead of leaking.
+    if let Some(mut old) = manager.sessions.lock().unwrap().remove(&tab_id) {
+        let _ = old.child.kill();
+    }
     manager
         .sessions
         .lock()

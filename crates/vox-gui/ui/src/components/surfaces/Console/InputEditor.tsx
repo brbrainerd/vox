@@ -16,6 +16,7 @@ export function InputEditor({ onSubmit, onActiveSuggestion }: Props) {
   const [value, setValue] = useState('');
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reqSeq = useRef(0);
 
   useEffect(() => {
     if (debounce.current) clearTimeout(debounce.current);
@@ -25,12 +26,20 @@ export function InputEditor({ onSubmit, onActiveSuggestion }: Props) {
       return;
     }
     debounce.current = setTimeout(() => {
+      // Guard against out-of-order resolutions: only the latest request may
+      // commit state, so a slow older query can't clobber fresher suggestions.
+      const req = ++reqSeq.current;
       discoverySuggest(value, 8)
         .then((s) => {
+          if (req !== reqSeq.current) return;
           setSuggestions(s);
           onActiveSuggestion(s[0]?.action_id ?? null);
         })
-        .catch(() => setSuggestions([]));
+        .catch(() => {
+          if (req !== reqSeq.current) return;
+          setSuggestions([]);
+          onActiveSuggestion(null);
+        });
     }, 120);
     return () => {
       if (debounce.current) clearTimeout(debounce.current);

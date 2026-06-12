@@ -15,15 +15,25 @@ export function AgentTab({ agentId }: Props) {
 
   useEffect(() => {
     setLines([]);
+    let disposed = false;
     let un: (() => void) | undefined;
     listenAgentEvents((e: AgentEventFrame) => {
       const id = (e.kind as { agent_id?: string | number }).agent_id;
-      if (id != null && String(id) !== agentId) return;
+      // Only append frames that carry a matching agent id; frames without one
+      // belong to no specific tab and must not bleed in here.
+      if (id == null || String(id) !== agentId) return;
       setLines((prev) => [...prev.slice(-499), `${e.timestamp_ms} ${e.kind.type}`]);
     })
-      .then((u) => (un = u))
+      .then((u) => {
+        // Unmount may win the race against the async subscription resolving.
+        if (disposed) u();
+        else un = u;
+      })
       .catch(() => {});
-    return () => un?.();
+    return () => {
+      disposed = true;
+      un?.();
+    };
   }, [agentId]);
 
   return (

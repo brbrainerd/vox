@@ -46,18 +46,20 @@ export function TerminalTab({ tabId, pendingLine }: Props) {
       ptyWrite(tabId, d).catch(() => {});
     });
 
+    let disposed = false;
     let unOut: (() => void) | undefined;
     let unExit: (() => void) | undefined;
     listenPtyOutput((id, data) => {
       if (id === tabId) term.write(data);
-    }).then((u) => (unOut = u));
+    }).then((u) => (disposed ? u() : (unOut = u)));
     listenPtyExit((id) => {
       if (id === tabId) term.write('\r\n[process exited]\r\n');
-    }).then((u) => (unExit = u));
+    }).then((u) => (disposed ? u() : (unExit = u)));
 
     ptySpawn(tabId, term.cols || 80, term.rows || 24).catch(() => {});
 
     return () => {
+      disposed = true;
       unOut?.();
       unExit?.();
       ptyClose(tabId).catch(() => {});

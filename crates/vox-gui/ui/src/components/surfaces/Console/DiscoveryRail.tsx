@@ -30,7 +30,10 @@ export function DiscoveryRail({ actionId, nowMs }: Props) {
     return () => {
       live = false;
     };
-  }, [actionId, nowMs]);
+    // Keyed on actionId only: nowMs changes on unrelated parent re-renders and
+    // must not re-fetch help.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actionId]);
 
   // Record a "seen" exposure when the active action settles (debounced by 2s of
   // dwell — matches spec §discovery rail). Fire-and-forget.
@@ -38,10 +41,13 @@ export function DiscoveryRail({ actionId, nowMs }: Props) {
     if (!actionId) return;
     const DWELL_MS = 2000;
     const t = setTimeout(() => {
-      discoveryRecord(actionId, false, nowMs + DWELL_MS, DWELL_MS).catch(() => {});
+      discoveryRecord(actionId, false, shownAt.current + DWELL_MS, DWELL_MS).catch(() => {});
     }, DWELL_MS);
     return () => clearTimeout(t);
-  }, [actionId, nowMs]);
+    // Keyed on actionId only — see note above; restarting on nowMs would starve
+    // the dwell timer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actionId]);
 
   if (!help) {
     return (
