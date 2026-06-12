@@ -90,6 +90,9 @@ fn now_secs() -> i64 {
 /// blank console window on the desktop. No-op on non-Windows.
 fn quiet_command(program: &str) -> Command {
     // vox-arch-check: allow git-exec
+    // `mut` is only used under #[cfg(windows)] below; on other targets the binding
+    // is never mutated, so silence the otherwise-correct unused_mut lint there.
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut cmd = Command::new(program);
     #[cfg(windows)]
     {
