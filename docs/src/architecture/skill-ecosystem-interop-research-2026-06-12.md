@@ -1,7 +1,7 @@
 ---
 title: "Skill Ecosystem Interop & Model-Awareness Research (2026-06-12)"
 description: "Verified audit of Vox's skill system vs. the agentskills.io ecosystem: internal architecture, GUI/chat surfacing, LLM-layer gaps, external format landscape, and a license-verified catalog of bundleable third-party skills."
-category: architecture
+category: Architecture SSOTs
 ---
 
 # Skill Ecosystem Interop & Model-Awareness Research (2026-06-12)
