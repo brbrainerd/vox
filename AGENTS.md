@@ -146,6 +146,22 @@ Model selection lives in `vox-orchestrator::models::{registry, select, autonomic
 **Override (rare).** Only via a documented inline deprecation marker during a tracked migration:
 `// vox-deprecated-since="X.Y.Z" retire-by="X.Y.Z" reason="..." canonical="vox_actor_runtime::llm"`. No silent exceptions.
 
+## Agent Skills (Required, SSOT)
+
+Vox skills are [agentskills.io](https://agentskills.io/specification)-format `SKILL.md` directories — the open standard read by 40+ agent harnesses (Claude Code, Cursor, Codex, Copilot, Gemini CLI, …). One skill set serves every tool; never maintain per-tool copies.
+
+**Use skills where they apply.** Before starting a task, check whether an installed skill matches it: `vox skill list` / `vox skill search <query>` (MCP: `vox_skill_list` / `vox_skill_search`; GUI: Skills surface and `/skill-name` in the chat composer). If a skill's description matches, load its body and follow it — that is the ecosystem-standard triggering model (description-based selection by the agent itself). For chat-routed models this happens via the tier-1 catalog injected into the system prompt and the `vox_skill_use` tier-2 tool (planned per Track B of the plan below).
+
+**One format, one SSOT.** New skills MUST use spec-compliant YAML frontmatter (`name` matching the directory name, `description` 1–1024 chars); Vox extensions ride in `metadata` `vox-*` keys (`vox-id`, `vox-category`, `vox-tools`, `vox-permissions`, …). The parser SSOT is `vox-plugin-host::skill_parser` (YAML + legacy TOML), types in `vox-plugin-types`, runtime registry in `vox-skills`, first-party catalog in `crates/vox-plugin-catalog/catalog.toml`. Do not invent a parallel skill format, loader, or registry.
+
+**Discovery is automatic — never hand-register.** Skill roots, highest precedence first: workspace `.vox/skills/`, `.agents/skills/`, `.claude/skills/`, then the same three under `~`, then the vendored bundle `assets/skills/` (roots + bare-dir discovery are planned per Track A; today plugin skills load from `Plugin.toml` roots and `vox skill discover` walks the workspace). Adding a new skill to either ecosystem — Vox-native or any external harness writing to `.agents/`/`.claude/` — means dropping a spec-compliant directory in a root; it is picked up on the next discovery pass with no registration code. Verify with `vox skill discover`; format is gated by `vox ci agentskills-compliance` and tool parity by `vox ci plugin-skill-parity`.
+
+**Search goes through `vox-search`.** Keyword search over the registry is `vox skill search` / `vox_skill_search`. Richer skill retrieval (name/description/body, semantic matching for "which skill fits this task") MUST be built on the existing `vox-search` hybrid stack (tantivy lexical + semantic indexer + RRF fusion — the engine behind the GUI palette's `vox_search_query`), not a bespoke skill index.
+
+**Licensing for vendored skills.** The spec's frontmatter `license` field is optional and untrustworthy — only repo-level LICENSE files count as evidence. Record provenance (repo, SHA pin, license) in `assets/skills/SOURCES.toml`. Known non-redistributable: Anthropic's docx/pdf/pptx/xlsx document skills (source-available, explicit no-redistribution terms) — never vendor them.
+
+See: research [`docs/src/architecture/skill-ecosystem-interop-research-2026-06-12.md`](docs/src/architecture/skill-ecosystem-interop-research-2026-06-12.md); plan [`docs/superpowers/plans/2026-06-12-skill-ecosystem-interop-and-awareness.md`](docs/superpowers/plans/2026-06-12-skill-ecosystem-interop-and-awareness.md).
+
 ## VoxScript-First Glue Code (Required)
 
 All project automation — CI prep, corpus transforms, training pipelines, install helpers, data migrations — MUST be written as `.vox` files and executed via `vox run`. Do **not** introduce new `.ps1`, `.sh`, or `.py` glue scripts.
