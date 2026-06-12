@@ -12,6 +12,7 @@ mod inline_edit;
 mod plan;
 mod plan_gap;
 mod plan_loop;
+mod skill_catalog;
 
 pub use ambient::ambient_state;
 pub use chat::{chat_history, chat_message};
@@ -91,6 +92,21 @@ pub(crate) async fn build_system_prompt(state: &ServerState, session_id: Option<
         "## Environment\nWorkspace Root: {}\n\nYou are Vox, an elite AI coding assistant. You have access to the Vox MCP toolbelt. You can read and modify files, run tests, inspect VCS history, manage agents, and query the knowledge graph.\n\nRules:\n- Be concise and precise. Prefer code over prose.\n- Always cite which files you modified or plan to modify.\n- When generating code, produce valid, complete implementations — no stubs or placeholders.\n- Use Markdown code blocks with language tags.\n- For multi-file changes, use a structured diff or list each file separately.\n- When asked to plan, produce a numbered task list in Markdown.\n",
         ws_root.display()
     ));
+
+    // Tier-1 skill disclosure (agentskills.io progressive disclosure): name +
+    // description for every installed skill, so even prompt-only models (MENS)
+    // know which skills exist. Alphabetical + capped → cache-prefix stable.
+    let skill_entries: Vec<skill_catalog::CatalogEntry> = state
+        .orchestrator
+        .skill_registry
+        .list(None)
+        .into_iter()
+        .map(|m| skill_catalog::CatalogEntry {
+            name: m.name,
+            description: m.description,
+        })
+        .collect();
+    prompt.push_str(&skill_catalog::render_skill_catalog(&skill_entries, 64));
 
     prompt.push_str(params::ANTI_LAZINESS_RIDER);
 
