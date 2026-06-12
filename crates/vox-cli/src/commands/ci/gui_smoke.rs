@@ -38,7 +38,9 @@ pub fn run(root: &Path) -> Result<()> {
     }
     println!("gui-smoke: web_ir_lower_emit_test (ignored TanStack/router guard) OK");
 
-    if std::env::var("VOX_GUI_PNPM_BUILD").ok().as_deref() == Some("1") {
+    let run_pnpm_build = std::env::var("VOX_GUI_PNPM_BUILD").ok().as_deref() == Some("1")
+        || std::env::var("CI").ok().is_some();
+    if run_pnpm_build {
         let st = Command::new(if cfg!(windows) { "pnpm.cmd" } else { "pnpm" })
             .current_dir(root.join("crates/vox-gui/ui"))
             .args(["run", "build"])
@@ -50,7 +52,7 @@ pub fn run(root: &Path) -> Result<()> {
         }
         println!("gui-smoke: pnpm run build OK");
     } else {
-        println!("gui-smoke: skip pnpm build lane (set VOX_GUI_PNPM_BUILD=1)");
+        println!("gui-smoke: skip pnpm build lane (set VOX_GUI_PNPM_BUILD=1 or CI=1)");
     }
 
     if std::env::var("VOX_WEB_VITE_SMOKE").ok().as_deref() == Some("1") {

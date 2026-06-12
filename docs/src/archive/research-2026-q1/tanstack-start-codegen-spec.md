@@ -12,11 +12,11 @@ archived_date: 2026-04-18
 # TanStack Start Codegen Specification
 
 > [!CAUTION]
-> **Historical / TanStack-upstream reference.** Vox **no longer** emits `VoxTanStackRouter.tsx`, generated `App.tsx`, or `serverFns.ts` / `createServerFn` boilerplate. Current product SSOT for outputs is **`routes.manifest.ts`** + **`vox-client.ts`** + user-owned adapters (see [`vox-web-stack.md`](../reference/vox-web-stack.md), [`react-interop-migration-charter-2026.md`](./react-interop-migration-charter-2026.md)). Keep this document for upstream TanStack Start mechanics and migration archaeology; treat **§8 programmatic route emitter** as superseded by [`route_manifest.rs`](../../../crates/vox-codegen/src/codegen_ts/route_manifest.rs) + scaffold.
+> **Historical / TanStack-upstream reference.** Vox **no longer** emits `VoxTanStackRouter.tsx`, generated `App.tsx`, or `serverFns.ts` / `createServerFn` boilerplate. Current product SSOT for outputs is **`routes.manifest.ts`** + **`vox-client.ts`** + user-owned adapters (see [`vox-web-stack.md`](../reference/vox-web-stack.md), [`react-interop-migration-charter-2026.md`](./react-interop-migration-charter-2026.md)). Keep this document for upstream TanStack Start mechanics and migration archaeology; treat **§8 programmatic route emitter** as superseded by [`route_manifest.rs`](../../../crates/vox-codegen-ts/src/route_manifest.rs) + scaffold.
 
 > **Status:** Historical reference; production path is **manifest-first** (see truth table in [`tanstack-start-implementation-backlog.md`](./tanstack-start-implementation-backlog.md)).
 
-This document described how Vox compiler syntax was planned to map to TanStack Start output. For current codegen touchpoints read this before touching files in `crates/vox-codegen/src/codegen_ts/`, but prefer **`route_manifest` / `vox_client` / `scaffold`** paths over removed `tanstack_programmatic_routes` / `tanstack_start` modules.
+This document described how Vox compiler syntax was planned to map to TanStack Start output. For current codegen touchpoints read this before touching files in `crates/vox-codegen-ts/src/`, but prefer **`route_manifest` / `vox_client` / `scaffold`** paths over removed `tanstack_programmatic_routes` / `tanstack_start` modules.
 
 **Grammar note (deferred vs spec examples):** Sections below may show `layout(...)` in **virtual** `app/routes.ts`, `RouteEntry.layout_name`, redirects, or wildcards. The **shipped Vox parser** today supports **string paths**, **`to`**, optional **`with loader:` / `pending:`**, **nested `{ }` children**, and block-level **`not_found:`** / **`error:`** (see [`tail.rs`](../../../crates/vox-compiler/src/parser/descent/decl/tail.rs)). Teaching **`"/app" as layout Shell { }`**, **`under Layout`**, or parser-populated **`redirect` / `is_wildcard`** requires a follow-on language change — until then treat those spec fragments as **target design**, not copy-paste syntax.
 
@@ -657,11 +657,11 @@ The `HirRoutes(pub crate::ast::decl::RoutesDecl)` wrapper means HIR changes flow
 
 ### 8.2 `emitter.rs` — server fn / client SDK
 
-**Current:** Typed **`vox-client.ts`** replaces `createServerFn` boilerplate; align GET/POST with [`vox_client.rs`](../../../crates/vox-codegen/src/codegen_ts/vox_client.rs) and Axum.
+**Current:** Typed **`vox-client.ts`** replaces `createServerFn` boilerplate; align GET/POST with [`vox_client.rs`](../../../crates/vox-codegen-ts/src/vox_client.rs) and Axum.
 
 ### 8.3 `scaffold.rs` — Scaffold file emitter
 
-Implemented: `crates/vox-codegen/src/codegen_ts/scaffold.rs`
+Implemented: `crates/vox-codegen-ts/src/scaffold.rs`
 
 Emits: `app/client.tsx`, `app/router.tsx`, `app/ssr.tsx`, `app/routes.ts`, `vite.config.ts`, `package.json`, `tsconfig.json`
 

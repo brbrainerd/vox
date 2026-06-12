@@ -52,15 +52,8 @@ default-source = "github:vox-foundation/vox-plugin-oratio"
 bundled-in = ["vox-dev"]
 
 # ── Cloud / mesh ───────────────────────────────────────────────────────────────
-
-[[plugin]]
-id = "cloud"
-payload-kind = "code"
-description = "CloudSync plugin for syncing model artifacts with HF Hub, S3, and other providers. SP7 scaffold — extraction from cloud integration code deferred."
-status = "alpha"
-extension-points = ["CloudSync"]
-default-source = "github:vox-foundation/vox-plugin-cloud"
-bundled-in = ["vox-mesh", "vox-cloud-only", "vox-dev"]
+# Cloud sync (vox-plugin-cloud / CloudSync) is deferred — not in the default catalog.
+# The crate remains at crates/vox-plugin-cloud for future extraction work.
 
 [[plugin]]
 id = "populi-mesh"
@@ -103,7 +96,7 @@ description = "Agent-facing skill for memory and context management."
 status = "stable"
 exposes-tools = ["vox_memory_store", "vox_memory_recall", "vox_memory_search", "vox_memory_log", "vox_memory_list_keys", "vox_knowledge_query", "vox_session_create", "vox_session_list", "vox_session_info", "vox_session_compact", "vox_session_cleanup"]
 default-source = "github:vox-foundation/vox-plugin-skill-memory"
-bundled-in = ["vox-fullstack", "vox-edge", "vox-cloud-only", "vox-server", "vox-dev"]
+bundled-in = ["vox-fullstack", "vox-edge", "vox-server", "vox-dev"]
 
 [[plugin]]
 id = "skill-orchestrator"
@@ -112,7 +105,7 @@ description = "Agent-facing skill for task submission, status, budget, multi-age
 status = "stable"
 exposes-tools = ["vox_submit_task", "vox_task_status", "vox_orchestrator_status", "vox_complete_task", "vox_fail_task", "vox_cancel_task", "vox_rebalance", "vox_queue_status", "vox_lock_status", "vox_budget_status", "vox_agent_events"]
 default-source = "github:vox-foundation/vox-plugin-skill-orchestrator"
-bundled-in = ["vox-fullstack", "vox-cloud-only", "vox-server", "vox-mesh", "vox-dev"]
+bundled-in = ["vox-fullstack", "vox-server", "vox-mesh", "vox-dev"]
 
 [[plugin]]
 id = "skill-rag"
@@ -157,7 +150,7 @@ id = "webhook"
 payload-kind = "code"
 description = "Inbound webhook HTTP listener with HMAC signature verification (GitHub, generic; GitLab deprecated)."
 status = "stable"
-extension-points = []
+extension-points = ["HttpListener"]
 default-source = "local:crates/vox-plugin-webhook"
 bundled-in = ["vox-server", "vox-dev"]
 
@@ -249,17 +242,17 @@ plugins = ["mens-candle-metal"]
 
 [[bundle]]
 id = "vox-mesh"
-description = "Server-side mesh deployment with cloud sync."
+description = "Server-side mesh deployment."
 status = "alpha"
 extends = "vox-base"
-plugins = ["populi-mesh", "cloud", "skill-orchestrator"]
+plugins = ["populi-mesh", "skill-orchestrator"]
 
 [[bundle]]
 id = "vox-server"
 description = "Headless backend deployment: orchestrator + mesh, no GUI/ML."
 status = "beta"
 extends = "vox-base"
-plugins = ["populi-mesh", "cloud", "skill-orchestrator", "skill-memory", "webhook"]
+plugins = ["populi-mesh", "skill-orchestrator", "skill-memory", "webhook"]
 
 [[bundle]]
 id = "vox-edge"
@@ -269,20 +262,13 @@ extends = "vox-base"
 plugins = ["skill-compiler", "skill-memory", "skill-v0", "runtime-wasm"]
 
 [[bundle]]
-id = "vox-cloud-only"
-description = "Cloud-managed deployment: cloud sync only, no local ML or mesh transport."
-status = "alpha"
-extends = "vox-base"
-plugins = ["cloud", "skill-orchestrator", "skill-memory"]
-
-[[bundle]]
 id = "vox-dev"
 description = "Contributor / power-user development environment: fullstack + ML + mesh + audio."
 status = "stable"
 extends = "vox-fullstack"
 plugins = [
     "mens-candle-cuda", "nvml-probe", "mens-candle-metal",
-    "populi-mesh", "cloud", "oratio",
+    "populi-mesh", "oratio",
     "browser", "webhook",
 ]
 

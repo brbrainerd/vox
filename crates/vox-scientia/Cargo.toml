@@ -3,6 +3,7 @@ name = "vox-scientia"
 description = "SCIENTIA research-pipeline cluster umbrella: producers, replay, manuscript (IMRaD/LaTeX), critic gate, class routing, findings site, dashboard, plus claim-extractor / inspect-bridge / nanopub / ro-crate / ingest sub-modules."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 vox-config = { workspace = true }
@@ -13,7 +14,6 @@ sha2 = { workspace = true }
 sha3 = { workspace = true }
 hex = { workspace = true }
 vox-crypto = { workspace = true }
-vox-nanopub = { workspace = true }
 vox-research-events = { workspace = true }
 vox-db = { workspace = true }
 vox-db-types = { workspace = true }

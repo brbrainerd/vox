@@ -19,7 +19,7 @@ schema_type: "TechArticle"
 - `type`, `pub type`
 - `import`
 - `component` (UI component declaration; emits React/TSX)
-- `@endpoint(kind: server|query|mutation)`
+- `@server`, `@query`, `@mutation`
 - `@loading`
 - `@table`, `@index`
 - `@mcp.tool`
@@ -33,7 +33,7 @@ schema_type: "TechArticle"
 
 ## Retired (hard parser error)
 - `@island` — retired 2026-05-03; use `component` instead
-- `@server`, `@query`, `@mutation` — retired; use `@endpoint(kind: server|query|mutation)` instead
+- `@endpoint(kind: server|query|mutation)` — retired; use `@server` / `@query` / `@mutation`
 
 ## Explicitly out of parser scope (current)
 - `@page`

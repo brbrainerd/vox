@@ -1,0 +1,39 @@
+[package]
+name = "vox-codegen-ts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "TypeScript / React codegen extracted from vox-codegen."
+publish = false
+
+[features]
+default = ["standalone"]
+# When enabled, this crate compiles `src/mod.rs` as a standalone library (depends on vox-codegen for Web IR).
+# When disabled, `vox-codegen` embeds the same sources via `#[path]` without a crate dependency.
+standalone = ["dep:vox-codegen"]
+
+[dependencies]
+vox-compiler = { workspace = true }
+vox-codegen = { workspace = true, optional = true }
+workspace-hack = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+miette = { workspace = true }
+vox-config = { workspace = true }
+vox-sql = { workspace = true }
+vox-deploy-codegen = { workspace = true }
+vox-secrets = { workspace = true }
+anyhow.workspace = true
+
+[dev-dependencies]
+insta = "1"
+tempfile = { workspace = true }
+vox-compiler = { workspace = true }
+vox-codegen = { workspace = true }
+
+[lints]
+workspace = true

@@ -41,6 +41,30 @@ pub enum DbCliCore {
         #[arg(long, default_value_t = false)]
         jsonl: bool,
     },
+    /// Introspect live app-plane SQL schema via VOX_APP_DB_URL/VOX_DB_URL.
+    Introspect {
+        /// Optional explicit DB URL override.
+        #[arg(long)]
+        url: Option<String>,
+        /// Emit compact JSON.
+        #[arg(long, default_value_t = false)]
+        compact: bool,
+    },
+    /// Verify declared `@table` surfaces against live app-plane SQL schema.
+    Verify {
+        /// Source file defining table declarations.
+        #[arg(long)]
+        file: Option<PathBuf>,
+        /// Optional explicit DB URL override.
+        #[arg(long)]
+        url: Option<String>,
+        /// Fail on unsupported-type mappings in addition to hard drift.
+        #[arg(long, default_value_t = false)]
+        strict: bool,
+        /// Emit compact JSON.
+        #[arg(long, default_value_t = false)]
+        compact: bool,
+    },
     /// Print sample rows from a table
     Sample {
         /// Target table name.
@@ -55,6 +79,12 @@ pub enum DbCliCore {
         /// Source file containing schema states.
         #[arg(long)]
         file: Option<PathBuf>,
+        /// Optional app-plane SQL URL override (`postgres://`, `mysql://`, `libsql://`, `sqlite:`).
+        #[arg(long)]
+        url: Option<String>,
+        /// Plan only; do not execute DDL.
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
     },
     /// Export preferences and memory for a user to JSON
     Export {

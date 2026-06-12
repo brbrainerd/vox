@@ -115,14 +115,25 @@ pub struct GatewayState {
     /// Broadcast channel for topic-multiplexed WS messages (e.g.
     /// `scientia.queue.changed`). Each WS connection subscribes and filters by topic.
     topic_tx: tokio::sync::broadcast::Sender<TopicMessage>,
+    /// Unified task hopper (Hp-T1). The dashboard `/api/v2/hopper/*` handlers
+    /// program against the `HopperIntake` trait so the in-memory (Option A) impl
+    /// can later be swapped for the persistent (Option B) one without touching
+    /// the HTTP surface. The hopper shares the orchestrator's `EventBus`, so
+    /// admitted/overridden items reach the same dashboard WS subscribers.
+    hopper: Arc<dyn vox_orchestrator::hopper::HopperIntake>,
 }
 
 impl GatewayState {
     /// Minimal stub for tests — unauthenticated, no tools, no rate-limiting.
     #[cfg(test)]
     pub(crate) async fn for_test() -> Self {
+        let server_state = ServerState::new_test().await;
+        let hopper: Arc<dyn vox_orchestrator::hopper::HopperIntake> =
+            Arc::new(vox_orchestrator::hopper::InMemoryHopper::new(Arc::new(
+                server_state.orchestrator.event_bus.clone(),
+            )));
         Self {
-            server_state: ServerState::new_test().await,
+            server_state,
             bearer_token: None,
             read_bearer_token: None,
             dashboard_token: None,
@@ -138,6 +149,7 @@ impl GatewayState {
             public_eval_enabled: false,
             public_eval_rate_limiter: new_identity_rate_limiter(10),
             topic_tx: tokio::sync::broadcast::channel(scientia_feed::TOPIC_CHANNEL_CAPACITY).0,
+            hopper,
         }
     }
 }
@@ -318,6 +330,14 @@ pub fn spawn_http_gateway_if_enabled(
     let (topic_tx, _) =
         tokio::sync::broadcast::channel::<TopicMessage>(scientia_feed::TOPIC_CHANNEL_CAPACITY);
 
+    // Construct the production task hopper (Hp-T1), sharing the orchestrator's
+    // EventBus so admitted/overridden items reach the same dashboard WS
+    // subscribers. This is the first non-test caller of `InMemoryHopper` (B3).
+    let hopper: Arc<dyn vox_orchestrator::hopper::HopperIntake> =
+        Arc::new(vox_orchestrator::hopper::InMemoryHopper::new(Arc::new(
+            state.orchestrator.event_bus.clone(),
+        )));
+
     let gateway_state = GatewayState {
         server_state: state,
         bearer_token: bearer_token.clone(),
@@ -335,6 +355,7 @@ pub fn spawn_http_gateway_if_enabled(
         public_eval_enabled,
         public_eval_rate_limiter,
         topic_tx: topic_tx.clone(),
+        hopper,
     };
 
     // Real change-source: poll the scientia queue and broadcast on change.
@@ -810,5 +831,60 @@ mod tests {
         let v: Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(v["data"]["strategy_default"], "separate_branches");
         assert_eq!(v["data"]["per_agent"]["7"], "split_changes");
+    }
+
+    /// B3 (Hp-T1): a `POST /api/v2/hopper/submit` admits an item into the shared
+    /// in-memory hopper, and a subsequent `GET /api/v2/hopper/inbox` against the
+    /// SAME gateway state returns that item by id. Proves the daemon-wired hopper
+    /// has a real production HTTP caller (not just `#[cfg(test)]` instantiation).
+    #[tokio::test]
+    async fn hopper_submit_then_inbox_roundtrips_item() {
+        use axum::body::to_bytes;
+        use axum::extract::ConnectInfo;
+        use dashboard_api::{HopperSubmitBody, get_hopper_inbox, post_hopper_submit};
+        let state = GatewayState::for_test().await;
+        let peer: SocketAddr = "127.0.0.1:1234".parse().unwrap();
+
+        let body: HopperSubmitBody = serde_json::from_value(serde_json::json!({
+            "intent": "fix the flaky http_gateway test",
+            "affinity_hints": ["crates/vox-orchestrator-mcp"],
+            "priority_hint": "urgent",
+            "source": "developer"
+        }))
+        .unwrap();
+        let submit_resp = post_hopper_submit(
+            State(state.clone()),
+            ConnectInfo(peer),
+            HeaderMap::new(),
+            Json(body),
+        )
+        .await;
+        let bytes = to_bytes(submit_resp.into_response().into_body(), 64 * 1024)
+            .await
+            .unwrap();
+        let submitted: Value = serde_json::from_slice(&bytes).unwrap();
+        let item_id = submitted["data"]["item_id"]
+            .as_str()
+            .expect("submit returns item_id")
+            .to_string();
+        assert_eq!(submitted["data"]["state"], "inbox");
+        assert_eq!(submitted["data"]["classified_priority"], "Urgent");
+
+        let inbox_resp =
+            get_hopper_inbox(State(state.clone()), ConnectInfo(peer), HeaderMap::new()).await;
+        let bytes = to_bytes(inbox_resp.into_response().into_body(), 64 * 1024)
+            .await
+            .unwrap();
+        let inbox: Value = serde_json::from_slice(&bytes).unwrap();
+        let ids: Vec<&str> = inbox["data"]
+            .as_array()
+            .expect("inbox data is an array")
+            .iter()
+            .filter_map(|i| i["item_id"].as_str())
+            .collect();
+        assert!(
+            ids.contains(&item_id.as_str()),
+            "submitted item {item_id} must appear in inbox, got {ids:?}"
+        );
     }
 }

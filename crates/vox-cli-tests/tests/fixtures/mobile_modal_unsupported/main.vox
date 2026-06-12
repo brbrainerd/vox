@@ -1,0 +1,8 @@
+// A modal has no React Native representation yet. Rather than silently flatten it
+// to a bare <View> (a shipped-broken overlay), the mobile build must hard-error.
+component Home() {
+    state n: int = 0
+    view: modal(bg="white") {
+        text(color="zinc.900") { "Dialog body" }
+    }
+}

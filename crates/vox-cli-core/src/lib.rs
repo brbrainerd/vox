@@ -1,17 +1,28 @@
 //! Shared library for CLI primitives.
 
 pub mod artifact_policy;
+// `benchmark_telemetry`, `gamify_shim`, and `workflow_journal_codex` depend on
+// vox-db / vox-gamify / vox-repository, which are pulled only by the default-on
+// `db` feature. A `--no-default-features` build (the DB-free slice reused by the
+// minimal `vox-langtool` binary) drops them. See Cargo.toml [features].
+#[cfg(feature = "db")]
 pub mod benchmark_telemetry;
 pub mod build_service;
 pub mod cli_actions;
 pub mod cli_args;
+pub mod command_contract;
+pub mod command_registry_model;
+
 pub mod constants;
 pub mod daemon_ipc;
 pub mod db_types;
 pub mod diagnostics;
 pub mod fs_utils;
+#[cfg(feature = "db")]
 pub mod gamify_shim;
+pub mod orchestrator_driver;
 pub mod scientia;
+#[cfg(feature = "db")]
 pub mod workflow_journal_codex;
 
 /// Global flags available before every subcommand.

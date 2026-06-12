@@ -182,6 +182,7 @@ mod tests {
             max_handoff_count: 0,
             total_cost_usd: 0.0,
             budget_cap_usd: 0.05,
+            global_exploration_cost_usd: 0.0,
             agents: vec![AgentSummary {
                 id: AgentId(1),
                 name: "a1".to_string(),

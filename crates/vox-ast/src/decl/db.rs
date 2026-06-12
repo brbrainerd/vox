@@ -19,6 +19,13 @@ pub struct TableDecl {
     /// field exists on the table — there is no "table without a primary
     /// key" surface (2026-05-19 explicit-pk decision).
     pub primary_key: Option<String>,
+    /// `@table(extern)` marks a table as an existing external SQL table
+    /// that Vox maps to instead of owning as greenfield schema.
+    #[serde(default)]
+    pub is_extern: bool,
+    /// Optional external source table/view name from `@table(source: "...")`.
+    #[serde(default)]
+    pub source: Option<String>,
     pub span: Span,
 }
 

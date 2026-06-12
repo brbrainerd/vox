@@ -30,7 +30,8 @@ pub fn spawn_orchestrator_status_stream(
                 return;
             }
         };
-        let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(64);
+        let (tx, mut rx) =
+            tokio::sync::mpsc::channel::<serde_json::Value>(crate::config::ORCH_STATUS_CHANNEL_CAP);
 
         // Drive the subscription in its own task so we can drain `rx` concurrently.
         let producer = tokio::spawn(async move {
@@ -72,7 +73,9 @@ pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle, daemon: Arc<Persis
                 return;
             }
         };
-        let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(256);
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(
+            crate::config::AGENT_EVENTS_CHANNEL_CAP,
+        );
 
         // Drive the subscription in its own task so we can drain `rx` concurrently.
         let producer = tokio::spawn(async move {
@@ -213,18 +216,48 @@ fn to_gui_status(status: serde_json::Value) -> GuiOrchestratorStatus {
                     .unwrap_or(0.0),
                 // Per-agent financial cost from the daemon (USD). Absent → unknown.
                 cost: get_opt_f64(&agent, "cost_usd"),
-                // No per-agent budget cap is reported today; leave unknown rather
-                // than fabricate. Follow-up: surface a per-agent cap if added.
-                budget: None,
+                budget: get_opt_f64(&agent, "budget_usd"),
             })
             .collect(),
-        recent_events: Vec::new(),
+        recent_events: status
+            .get("recent_events")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default(),
         alerts: Vec::new(),
-        peers: Vec::new(),
+        peers: status
+            .get("peers")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default(),
         total_cost: get_f64(&status, "total_cost_usd"),
         budget_cap: get_f64(&status, "budget_cap_usd"),
-        mesh_throughput: 0.0,
-        total_vram_gb: 0.0,
+        mesh_throughput: get_f64(&status, "mesh_throughput_mb_s"),
+        total_vram_gb: get_f64(&status, "total_vram_gb"),
+    }
+}
+
+async fn enrich_mesh_from_tool(gui: &mut GuiOrchestratorStatus) {
+    let mesh = call_daemon(
+        "vox-orchestrator-d",
+        orch_daemon_method::TOOL_CALL,
+        serde_json::json!({ "name": "vox_mesh_nodes", "args": {} }),
+        false,
+    )
+    .await;
+    if let Ok(value) = mesh {
+        let nodes = value
+            .get("result")
+            .or(Some(&value))
+            .and_then(|r| r.get("nodes"))
+            .and_then(|n| n.as_array());
+        if let Some(nodes) = nodes {
+            gui.peers = nodes.clone();
+            gui.total_vram_gb = nodes
+                .iter()
+                .filter_map(|n| n.get("vram_gb").and_then(|v| v.as_f64()))
+                .sum();
+        }
     }
 }
 
@@ -232,6 +265,9 @@ fn to_gui_status(status: serde_json::Value) -> GuiOrchestratorStatus {
 pub async fn get_orchestrator_status() -> Result<serde_json::Value, String> {
     let status = daemon_status().await?;
     let mut gui = to_gui_status(status);
+    if gui.peers.is_empty() {
+        enrich_mesh_from_tool(&mut gui).await;
+    }
     gui.alerts = crate::commands::gamify::fetch_gamify_alerts().await;
     serde_json::to_value(gui).map_err(|e| e.to_string())
 }
@@ -240,6 +276,9 @@ pub async fn get_orchestrator_status() -> Result<serde_json::Value, String> {
 pub async fn get_orchestrator_status_bin() -> Result<tauri::ipc::Response, String> {
     let status = daemon_status().await?;
     let mut gui = to_gui_status(status);
+    if gui.peers.is_empty() {
+        enrich_mesh_from_tool(&mut gui).await;
+    }
     gui.alerts = crate::commands::gamify::fetch_gamify_alerts().await;
     let bytes = rmp_serde::to_vec_named(&gui).map_err(|e| e.to_string())?;
     Ok(tauri::ipc::Response::new(bytes))

@@ -60,6 +60,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
 
         // ── Tasks & bulletin ─────────────────────────────────────────────────
         "vox_submit_task" => derived_tool_schema!(crate::params::SubmitTaskParams),
+        "vox_tool_search" => derived_tool_schema!(crate::params::ToolSearchParams),
         "vox_task_status" | "vox_cancel_task" | "vox_test_decision" => {
             derived_tool_schema!(crate::params::TaskStatusParams)
         }
@@ -91,6 +92,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         | "vox_session_cleanup"
         | "vox_memory_list_keys"
         | "vox_skill_list"
+        | "vox_skill_discover"
         | "vox_test_all"
         | "vox_check_workspace"
         | "vox_get_active_model"
@@ -155,6 +157,28 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             derived_tool_schema!(crate::params::BrowserExtractJsonParams)
         }
         "vox_browser_act" => derived_tool_schema!(crate::params::BrowserActParams),
+        "vox_browser_back"
+        | "vox_browser_forward"
+        | "vox_browser_reload"
+        | "vox_browser_stop"
+        | "vox_browser_page_info"
+        | "vox_browser_screenshot_viewport"
+        | "vox_browser_screencast_frame" => {
+            derived_tool_schema!(crate::params::BrowserPageParams)
+        }
+        "vox_browser_click_xy" => {
+            derived_tool_schema!(crate::params::BrowserClickPointParams)
+        }
+        "vox_browser_scroll" => derived_tool_schema!(crate::params::BrowserScrollParams),
+        "vox_browser_press" => derived_tool_schema!(crate::params::BrowserKeyParams),
+        "vox_browser_type" => derived_tool_schema!(crate::params::BrowserTypeParams),
+        "vox_browser_set_viewport" => {
+            derived_tool_schema!(crate::params::BrowserViewportParams)
+        }
+        "vox_browser_set_control_lock" => {
+            derived_tool_schema!(crate::params::BrowserControlLockParams)
+        }
+        "vox_browser_list_pages" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
 
         // ── Compiler / workspace ─────────────────────────────────────────────
         "vox_check" | "vox_validate_file" | "vox_compiler::ast_inspect" => {
@@ -446,7 +470,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
 
         // ── Skills ───────────────────────────────────────────────────────────
-        "vox_skill_uninstall" | "vox_skill_info" | "vox_skill_parse" => {
+        "vox_skill_uninstall" | "vox_skill_info" | "vox_skill_use" | "vox_skill_parse" => {
             parse_obj(r#"{"type":"object","additionalProperties":true}"#)
         }
         "vox_skill_search" => parse_obj(

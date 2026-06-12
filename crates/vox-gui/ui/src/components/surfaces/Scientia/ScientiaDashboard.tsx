@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { listenScientiaQueue } from '../../../transport';
+import { fetchCostRollup, providerRows, quarterlyRows } from './costRollup';
+import type { CostRollup } from './costRollup';
 
 interface ExecuteOutput {
   exit_code: number;
@@ -45,6 +47,7 @@ function Kpi({ label, value, tone }: { label: string; value: number; tone?: stri
  */
 export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
   const [snap, setSnap] = useState<QueueSnapshot | null>(null);
+  const [cost, setCost] = useState<CostRollup | null>(null);
   const [loading, setLoading] = useState(false);
   // Guard against interval-triggered overlapping fetches while one is in flight.
   const fetchingRef = React.useRef(false);
@@ -63,6 +66,14 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
         setSnap(null);
       } else {
         setSnap(JSON.parse(out.stdout) as QueueSnapshot);
+      }
+      // Cost rollup is an independent producer (`vox scientia cost`); a failure
+      // here must not blank the queue snapshot above.
+      try {
+        setCost(await fetchCostRollup());
+      } catch (costErr) {
+        pushToast({ tone: 'warn', title: 'Scientia cost', body: String(costErr) });
+        setCost(null);
       }
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Scientia dashboard', body: String(err) });
@@ -171,6 +182,61 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
             </div>
           )}
         </>
+      )}
+
+      {cost && (
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+              Cost this quarter
+            </div>
+            <div className="font-mono text-[10px] text-zinc-500">
+              avg/finding{' '}
+              <span className="text-zinc-300">${cost.per_finding_average_usd.toFixed(2)}</span>
+            </div>
+          </div>
+
+          {cost.this_quarter.total_usd === 0 && cost.by_provider.length === 0 ? (
+            <div className="font-mono text-[11px] text-zinc-500">
+              No cost recorded this quarter.
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                {quarterlyRows(cost).map((r) => (
+                  <div
+                    key={r.label}
+                    className={`flex items-center justify-between font-mono text-[11px] ${
+                      r.label === 'Total' ? 'border-t border-white/10 pt-1 text-zinc-200' : 'text-zinc-400'
+                    }`}
+                  >
+                    <span>{r.label}</span>
+                    <span>{r.usd}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-1">
+                <div className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+                  By provider
+                </div>
+                {providerRows(cost).length > 0 ? (
+                  providerRows(cost).map((p) => (
+                    <div
+                      key={p.provider}
+                      className="flex items-center justify-between font-mono text-[11px] text-zinc-400"
+                    >
+                      <span>{p.provider}</span>
+                      <span className="text-zinc-300">{p.usd}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="font-mono text-[11px] text-zinc-500">No provider spend.</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </section>
   );

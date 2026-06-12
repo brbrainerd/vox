@@ -49,8 +49,8 @@ This is the *summary* of findings. The phase-by-phase steps below have the opera
 | `docs/src/adr/012-internal-web-ir-strategy.md` | Body marks superseded; `training_eligible` flag may need to be `false`. Verify. | **D** |
 | `crates/vox-compiler/tests/snapshots/reactive_smoke_test__island_mount_ast_z.snap`, `…__parity_page_tsx_data_prop_label_op_s166.snap` | Snapshots assert `data-vox-island=...` as canonical emit. Verify whether the producing tests are intentional regression-pins (keep with rename) or stale. | **E** |
 | `crates/vox-compiler/tests/web_ir_lower_emit_test.rs:954` | "post-@island retirement" comment — keep, but verify the test still has a clear positive purpose. | **E** |
-| `crates/vox-orchestrator/src/queue/priority.rs:233`, `…/snapshot.rs:21`, `…/workspace.rs:44`, `crates/vox-orchestrator-queue/src/lib.rs:4`, `crates/vox-orchestrator-types/src/agent_types/file_affinity.rs:1`, `crates/vox-integration-tests/tests/pipeline/includes/include_01.rs:502`, `crates/vox-cli/src/commands/ci/nomenclature_guard.rs:16,40,49–50` | Comments label sections "Phase 5", "Phase 5F", "Phase 5.1" as if active phase numbers. The work is done; phase numbers should be replaced with feature names. | **F** |
-| `crates/vox-cli/src/cli_args.rs:9`, `crates/vox-config/src/config/gamify_web.rs:55–69`, `crates/vox-codegen/src/codegen_ts/emitter.rs:149` | "(existing default)" / "Express server only when explicitly requested" framing — implies a single-mode legacy build model. Rewrite to neutral two-mode language. | **G** |
+| `crates/vox-orchestrator/src/queue/priority.rs:233`, `…/snapshot.rs:21`, `…/workspace.rs:44`, `crates/vox-orchestrator-queue/src/lib.rs:4`, `crates/vox-orchestrator-types/src/agent_types/file_affinity.rs:1`, `crates/vox-integration-tests/tests/pipeline/includes/include_01.rs:502`, `crates/vox-cli-ci/src/nomenclature_guard.rs:16,40,49–50` | Comments label sections "Phase 5", "Phase 5F", "Phase 5.1" as if active phase numbers. The work is done; phase numbers should be replaced with feature names. | **F** |
+| `crates/vox-cli/src/cli_args.rs:9`, `crates/vox-config/src/config/gamify_web.rs:55–69`, `crates/vox-codegen-ts/src/emitter.rs:149` | "(existing default)" / "Express server only when explicitly requested" framing — implies a single-mode legacy build model. Rewrite to neutral two-mode language. | **G** |
 | `crates/vox-actor-runtime/src/builtins/mod.rs` (vox_hash_fast docstring), `crates/vox-config/src/env_parse.rs` (multiple "do NOT use this for secrets" comments) | Negative-only docstrings. Rewrite as positive examples that name the right tool first. | **H** |
 | `docs/src/archive/phase5-react-interop-spec-2026.md`, `docs/src/archive/research-2026-q1/react-interop-implementation-plan-2026.md` | Superseded plans missing prominent banner pointing to current `external-frontend-interop-plan-2026.md`. | **I** |
 | `docs/src/archive/how-to-islands-and-pages.md:20–27` | Internal prose says `@island` is "scheduled for retirement" — the file's own frontmatter says it was retired 2026-05-03. Reconcile. | **I** |
@@ -353,7 +353,7 @@ For each file, read the surrounding ~30 lines. The inventory cited specific line
 4. [`crates/vox-orchestrator-queue/src/lib.rs`](../../../crates/vox-orchestrator-queue/src/lib.rs) — line ~4 (Phase 5 extraction).
 5. [`crates/vox-orchestrator-types/src/agent_types/file_affinity.rs`](../../../crates/vox-orchestrator-types/src/agent_types/file_affinity.rs) — line ~1 (Phase 5 extraction).
 6. [`crates/vox-integration-tests/tests/pipeline/includes/include_01.rs`](../../../crates/vox-integration-tests/tests/pipeline/includes/include_01.rs) — line ~502 ("Phase 5F").
-7. [`crates/vox-cli/src/commands/ci/nomenclature_guard.rs`](../../../crates/vox-cli/src/commands/ci/nomenclature_guard.rs) — lines ~16, 40, 49–50 (Phase 2/3/5 markers in allowlist comments).
+7. [`crates/vox-cli-ci/src/nomenclature_guard.rs`](../../../crates/vox-cli-ci/src/nomenclature_guard.rs) — lines ~16, 40, 49–50 (Phase 2/3/5 markers in allowlist comments).
 
 ### F.2 Edit pattern
 
@@ -416,7 +416,7 @@ none exists.
 
 - [`crates/vox-cli/src/cli_args.rs`](../../../crates/vox-cli/src/cli_args.rs) — line ~9.
 - [`crates/vox-config/src/config/gamify_web.rs`](../../../crates/vox-config/src/config/gamify_web.rs) — lines 55–69 (the `BuildTarget` enum doc).
-- [`crates/vox-codegen/src/codegen_ts/emitter.rs`](../../../crates/vox-codegen/src/codegen_ts/emitter.rs) — line ~149 (Express server gate).
+- [`crates/vox-codegen-ts/src/emitter.rs`](../../../crates/vox-codegen-ts/src/emitter.rs) — line ~149 (Express server gate).
 
 ### G.2 Edits
 

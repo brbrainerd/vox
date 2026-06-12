@@ -45,6 +45,8 @@ pub const SKILL_TOOLS: &[&str] = &[
     "vox_skill_search",
     "vox_skill_info",
     "vox_skill_parse",
+    "vox_skill_use",
+    "vox_skill_discover",
 ];
 
 /// Orchestrator lifecycle tools.

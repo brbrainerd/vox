@@ -21,10 +21,12 @@ export interface Agent {
   id: string;
   codename: string;
   phase: string;
-  progress: number;
+  /** 0–1 when known; null → indeterminate progress UI. */
+  progress: number | null;
   task: string;
   cost: number;
-  budget: number;
+  /** Per-agent cap when daemon reports it; null → show em-dash, no fake bar. */
+  budget: number | null;
   eta: string;
   skill?: string;
 }

@@ -30,6 +30,14 @@ use crate::commands::audit_route::EffortRouteArgs;
 /// SSOT) for the contract.
 #[derive(Subcommand, Debug, Clone)]
 pub enum AuditSubcommand {
+    /// Architecture layer + LoC budget validation (`vox-arch-check`).
+    Arch,
+    /// Source-policy / TOESTUB detectors (`vox-code-audit`).
+    Code,
+    /// Retirement-guard parity vs AGENTS.md §Retired Surfaces (CR-L6).
+    Retirement,
+    /// Run arch → code → retirement and print summary JSON (`schema_version: 1`).
+    Core,
     /// AI-judged audit of recent git commit history (token-spend estimates +
     /// remediation suggestions). See
     /// `docs/superpowers/specs/2026-05-28-effort-audit-core-design.md`.
@@ -152,7 +160,7 @@ pub struct AuditArgs {
 // Public entry point
 // ---------------------------------------------------------------------------
 
-/// Entry point called from the CLI dispatch.
+/// Entry point called from the CLI dispatch (flag-based path; no nested subcommand).
 pub fn run(args: &AuditArgs) -> Result<()> {
     // CR-L gate routing takes precedence over check-targets dispatch.
     if args.list_gates {
@@ -165,6 +173,9 @@ pub fn run(args: &AuditArgs) -> Result<()> {
         return run_list_cr_l_gates_with_format(&format);
     }
     if let Some(gate_name) = args.gate.as_deref() {
+        if gate_name == "core" {
+            return run_core_gates_summary();
+        }
         return run_cr_l_gate(gate_name, args);
     }
 
@@ -190,6 +201,52 @@ pub fn run(args: &AuditArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Core umbrella gates (arch / code / retirement — AGENTS.md §`vox audit`).
+// ---------------------------------------------------------------------------
+
+/// Run a single core gate or the full trio (`vox audit core` / `--gate core`).
+pub fn run_audit_subcommand(cmd: &AuditSubcommand) -> Result<()> {
+    let root = vox_repository::resolve_repo_root_for_ci();
+    let result = match cmd {
+        AuditSubcommand::Arch => vox_audit::core_gates::run_arch_gate(&root),
+        AuditSubcommand::Code => vox_audit::core_gates::run_code_gate(&root),
+        AuditSubcommand::Retirement => vox_audit::core_gates::run_retirement_gate(),
+        AuditSubcommand::Core => {
+            let summary = vox_audit::core_gates::run_core_all(&root);
+            let json = serde_json::to_string_pretty(&summary)
+                .map_err(|e| anyhow::anyhow!("serialize core gates summary: {e}"))?;
+            println!("{json}");
+            if summary.ok {
+                return Ok(());
+            }
+            anyhow::bail!("core audit gates failed");
+        }
+        AuditSubcommand::Effort(_) | AuditSubcommand::EffortRoute(_) => {
+            anyhow::bail!("async audit subcommand must be dispatched from cli_dispatch");
+        }
+    };
+    if result.ok {
+        Ok(())
+    } else {
+        let detail = result.detail.unwrap_or_default();
+        anyhow::bail!(
+            "audit {} failed (exit {}){}",
+            result.gate,
+            result.exit_code,
+            if detail.is_empty() {
+                String::new()
+            } else {
+                format!(": {detail}")
+            }
+        )
+    }
+}
+
+fn run_core_gates_summary() -> Result<()> {
+    run_audit_subcommand(&AuditSubcommand::Core)
 }
 
 // ---------------------------------------------------------------------------

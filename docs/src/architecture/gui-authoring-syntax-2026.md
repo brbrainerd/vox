@@ -10,7 +10,7 @@ training_rationale: "Records the canonical GUI authoring shape MENS should learn
 
 # GUI Authoring Syntax (2026): Vox UI as Values (VUV)
 
-**Status:** **VUV-1 through VUV-6 implemented** (2026-05-08). VUV-7 in progress; VUV-8 in this commit. See [§Implementation Status](#implementation-status-2026-05-08) for per-phase landing details.
+**Status:** **VUV-1 through VUV-9 implemented.** As of 2026-06-12 the two headline guarantees are *enforced end-to-end*, not just designed: bad contrast (gray-on-white) and occlusion/tier-inversion now refuse compile on both the web and mobile targets, locked by a forbidden-corpus regression suite. See [§Guarantee enforcement status (2026-06-12)](#guarantee-enforcement-status-2026-06-12) and the per-phase table in [§Implementation Status](#implementation-status-2026-05-08).
 **Scope:** authoring surface only. Web IR ([`crates/vox-codegen/src/web_ir/mod.rs`](../../../crates/vox-codegen/src/web_ir/mod.rs)) and the TSX backend ([`crates/vox-codegen/src/web_ir/emit_tsx.rs`](../../../crates/vox-codegen/src/web_ir/emit_tsx.rs)) keep their contracts. This note changes how source lowers *into* `DomNode` and how style is expressed.
 
 ## Motivation
@@ -149,7 +149,7 @@ This is the phasing the codebase change must follow. Each phase is independently
 | **VUV-1** Token vocabulary expansion | Add font sizes, weights, leading, tracking, justification, alignment, max-width scale, padding scale, radius scale, border presets, state-variant scaffolding to `contracts/tokens/tokens.v1.json` and `tokens/mod.rs`. Validator stays passing on existing inputs. | `contracts/tokens/`, `crates/vox-compiler/src/tokens/`, tests | medium | Existing dashboard still builds |
 | **VUV-2** Trailing-block parser + AST | Add optional `children: Vec<Expr>` to `Expr::Call`. Parse trailing `{…}` after a call. Behind `VOX_VUV=1` until VUV-3 lands. | `crates/vox-compiler/src/parser/`, AST, parser tests | medium | New tests green; old grammar untouched when flag off |
 | **VUV-3** Lowering: trailing-block-call → `DomNode::Element` | When call resolves to a UI primitive or `component`, lower to `DomNode::Element { tag, attrs, children }`. JSX path retained in parallel. | `crates/vox-codegen/src/web_ir/lower.rs`, integration tests | medium | One hand-written `.vox` view round-trips JSX→VUV with byte-identical TSX output |
-| **VUV-4** Typed style kwargs | Recognize style axes (`font`, `color`, `pad`, …) on UI primitive calls; resolve to tokens; emit Tailwind classes via `tokens_emit`. Reject unknown style kwargs. `raw_class()` escape hatch. | `crates/vox-codegen/src/web_ir/lower.rs`, `crates/vox-codegen/src/codegen_ts/tokens_emit.rs`, validators | large | Hand-written sample component compiles to identical TSX as today |
+| **VUV-4** Typed style kwargs | Recognize style axes (`font`, `color`, `pad`, …) on UI primitive calls; resolve to tokens; emit Tailwind classes via `tokens_emit`. Reject unknown style kwargs. `raw_class()` escape hatch. | `crates/vox-codegen/src/web_ir/lower.rs`, `crates/vox-codegen-ts/src/tokens_emit.rs`, validators | large | Hand-written sample component compiles to identical TSX as today |
 | **VUV-5** Typed event handler kwargs | Normalize `on_click`, `on_change`, `on_submit`, … to React event names in lowering. Retire `on:click` JSX form. | lower.rs, emit_tsx, react_bridge | small | Dashboard event handlers all on the new shape |
 | **VUV-6** Dashboard migration (cutover) | Rewrite `app.vox`, `tabs/forge.vox`, `tabs/speak.vox`, `tabs/command.vox`, `tabs/network.vox` to VUV. Delete the JSX path from the parser. Remove `VOX_VUV` flag. | dashboard `.vox`, parser cleanup | large | Dashboard renders identically; visual diff = 0 |
 | **VUV-7** Golden corpus + MENS retraining | Rewrite `examples/golden/*.vox` and `crates/vox-compiler/tests/llm_fixtures/*.vox` UI fixtures. Retrain MENS on VUV-only corpus. | corpus, MENS pipeline | large | Eval scores ≥ pre-cutover baseline |
@@ -165,13 +165,29 @@ This is the phasing the codebase change must follow. Each phase is independently
 | **VUV-2** Trailing-block parser | ✅ Done | [parser/descent/expr/pratt_match.rs](../../../crates/vox-compiler/src/parser/descent/expr/pratt_match.rs) lines ~262–308: `Ident(args) { children }` lowers to `Expr::Jsx`. Trigger: capitalized callee, recognized primitive, or HTML allowlist. |
 | **VUV-3** Lowering trailing-block → DomNode | ✅ Done | View-call form lowers through `Expr::Jsx` → `web_ir::DomNode`. Same Web IR contract; emit_tsx unchanged. |
 | **VUV-4** Typed style kwargs | ✅ Done | [web_ir/primitives/mod.rs](../../../crates/vox-codegen/src/web_ir/primitives/mod.rs) `UNIVERSAL_STYLE_KWARGS`. Style axes (`color`, `pad`, `gap`, …) lower to Tailwind via `tokens_emit`. `raw_class()` escape hatch preserved. |
-| **VUV-5** Typed event handler kwargs | ✅ Done | [codegen_ts/hir_emit/compat.rs](../../../crates/vox-codegen/src/codegen_ts/hir_emit/compat.rs) `map_jsx_attr_name` normalizes `on_click`/`on:click` → `onClick`, etc. **No `.vox` source uses the colon form** — `on_click` is canonical; the `on:` aliases remain as compatibility for future Svelte-mineable directive families (`bind:`, `class:`, `style:`). |
+| **VUV-5** Typed event handler kwargs | ✅ Done | [codegen_ts/hir_emit/compat.rs](../../../crates/vox-codegen-ts/src/hir_emit/compat.rs) `map_jsx_attr_name` normalizes `on_click`/`on:click` → `onClick`, etc. **No `.vox` source uses the colon form** — `on_click` is canonical; the `on:` aliases remain as compatibility for future Svelte-mineable directive families (`bind:`, `class:`, `style:`). |
 | **VUV-6** Dashboard cutover | ✅ Done | Angle-bracket JSX parser entry retired (parser/descent/expr/mod.rs comment: "pratt_jsx retired"). Dashboard `.vox` files (`app.vox`, all 4 tabs) authored on the view-call form (TASK-7.1/7.2). `Expr::Jsx` AST node retained as internal sugar from view-calls — no longer parsed from `<>`. |
 | **VUV-7** Golden corpus + MENS | 🟡 Partial | Corpus already migrated (TASK-8.1, commit `135b7591`). MENS retraining run pending operator action (TASK-8.2). |
 | **VUV-8** Docs sweep | ✅ Done | This block. |
 | **VUV-9** Naming policy + codemod | ✅ Done | Policy at [vuv-naming-policy-2026.md](vuv-naming-policy-2026.md); registry at `contracts/naming/renames.v1.json` (empty until first rename); `vox migrate names` codemod (token-based; preserves whitespace/comments/string-literal contents); `vox-arch-check` enforces that registry `from` entries are not still canonical primitives. |
 
 **Companion cleanup (commit on the same branch):** removed 11 dead `Decl` variants (`Context`, `Hook`, `Provider`, `Layout`, `ErrorBoundary`, `NotFound`, `Trait`, `Impl`, `Mock`, `Fixture`, `Keyframes`) that the parser never produced. The retired-React-shapes group (`Context`/`Hook`/`Provider`/`Layout`/`ErrorBoundary`/`NotFound`) was the React-context surface VUV-6 supersedes. The non-UI group (`Trait`/`Impl`/`Mock`/`Fixture`/`Keyframes`) was vestigial AST sprawl from earlier prototypes; their structs and ~50 match arms across the workspace are gone.
+
+## Guarantee enforcement status (2026-06-12)
+
+The "contrast / occlusion impossible" promises were audited (2026-06-12) and found *designed but unwired* — the checks existed with passing unit tests but had no production callers, contrast was advisory-only, and a quote-encoding bug left the surface pipeline dead. They are now wired end-to-end (plan: [`2026-06-12-vuv-guarantee-wiring-and-cross-platform-parity.md`](../../superpowers/plans/2026-06-12-vuv-guarantee-wiring-and-cross-platform-parity.md)):
+
+| Guarantee | Where enforced | Diagnostic codes |
+|---|---|---|
+| **Contrast** — `color="gray.300"` on white refuses compile | [`web_ir/validate_palette.rs`](../../../crates/vox-codegen/src/web_ir/validate_palette.rs) — palette vocabulary + pairwise WCAG over the lowered arena | `web_ir_validate.style.unknown_color`, `web_ir_validate.a11y.insufficient_contrast` (blocking), `low_contrast` (warn) |
+| **Unknown kwargs** — `colr=` no longer leaks as a raw attr | same file, edit-distance-1 typo check | `web_ir_validate.style.unknown_kwarg` |
+| **Occlusion / tier inversion** | [`web_ir/validate_layer.rs`](../../../crates/vox-codegen/src/web_ir/validate_layer.rs) — surface tree over the DOM arena | `vox/layer/tier-inversion`, `vox/layer/leaf-surface`, `vox/layer/absolute-in-partition`, `vox/layer/raw-z-index`, `vox/layer/raw-class-occlusion` |
+| **`@layer(tier:)`** on components (not just fns) | parser lookahead → HIR → `data-vox-layer` on root; reserved-tier guard over components | `vox/layer/reserved-tier` |
+| **Cross-platform** — guarantees follow the view tree, not the target | mobile (`--target mobile`) runs the web_ir validators as a blocking analysis pass | (same codes) |
+
+The single canonical z-ladder is `ZTier::z_value()` (tier × 100). Every forbidden case has a fixture under [`examples/forbidden/`](../../../examples/forbidden/) asserting the exact code fires ([`forbidden_corpus_test.rs`](../../../crates/vox-compiler/tests/forbidden_corpus_test.rs)).
+
+Still backlog: portal emission (modal/toast still emit inline `position:fixed`), `@tokens` `on:`-pair contrast (the block-form check still compares light-vs-dark; the registry + palette paths are correct), and RN primitive/style parity.
 
 ## Open questions
 

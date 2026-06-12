@@ -24,6 +24,7 @@ pub struct ShortFormVariant {
 #[serde(rename_all = "snake_case")]
 pub enum PublicationPlatform {
     Bluesky, // 300 char limit
+    Twitter, // 280 char limit
     ArxivAbstract,
     ZenodoDescription,
     AtlasEntry,
@@ -34,6 +35,7 @@ impl PublicationPlatform {
     pub fn max_chars(&self) -> usize {
         match self {
             Self::Bluesky => 300,
+            Self::Twitter => 280,
             Self::ArxivAbstract => 1500,
             Self::ZenodoDescription => 2000,
             Self::AtlasEntry => 500,
@@ -65,8 +67,14 @@ pub fn adapt_claim_to_platform(
 ) -> ShortFormVariant {
     let max = platform.max_chars();
     // Naive truncation — Phase 8 replaces with constrained-grammar generation.
-    let adapted = if claim_text.len() > max - 10 {
-        format!("{}…", &claim_text[..max.saturating_sub(11)])
+    // Char-safe: count by Unicode scalar values, never slice on a byte index,
+    // which would panic on a multibyte boundary (e.g. "café résumé 日本語").
+    let char_count = claim_text.chars().count();
+    let adapted = if char_count > max.saturating_sub(10) {
+        // Reserve room for the single-char "…" ellipsis so the result fits.
+        let take = max.saturating_sub(11);
+        let head: String = claim_text.chars().take(take).collect();
+        format!("{head}…")
     } else {
         claim_text.to_string()
     };
@@ -137,15 +145,41 @@ mod tests {
     }
 
     #[test]
-    fn bluesky_prioritized_over_x_in_platform_enum() {
-        // Bluesky exists as a variant; X/Twitter does not.
+    fn bluesky_and_twitter_both_supported() {
+        // Bluesky remains the prioritized short-form platform (300 chars);
+        // Twitter is now also supported as a 280-char variant.
         let platforms = [
             PublicationPlatform::Bluesky,
+            PublicationPlatform::Twitter,
             PublicationPlatform::ArxivAbstract,
             PublicationPlatform::ZenodoDescription,
             PublicationPlatform::AtlasEntry,
         ];
-        let has_bluesky = platforms.iter().any(|p| p == &PublicationPlatform::Bluesky);
-        assert!(has_bluesky, "Bluesky must be a supported platform");
+        assert!(
+            platforms.iter().any(|p| p == &PublicationPlatform::Bluesky),
+            "Bluesky must be a supported platform"
+        );
+        assert!(
+            platforms.iter().any(|p| p == &PublicationPlatform::Twitter),
+            "Twitter must be a supported platform"
+        );
+        assert_eq!(PublicationPlatform::Twitter.max_chars(), 280);
+    }
+
+    #[test]
+    fn adapt_multibyte_claim_does_not_panic_at_boundary() {
+        // A multibyte claim padded past the Twitter limit; truncating with a
+        // byte slice on a char budget would panic on the multibyte boundary.
+        let base = "café résumé 日本語… ";
+        let claim = base.repeat(40); // far exceeds 280 chars
+        let v = adapt_claim_to_platform(
+            &claim,
+            "https://vox.scientia/np/RAabc123",
+            PublicationPlatform::Twitter,
+        );
+        // Char-correct: must fit the platform limit and be valid UTF-8.
+        assert!(v.char_count <= PublicationPlatform::Twitter.max_chars());
+        assert_eq!(v.char_count, v.adapted_text.chars().count());
+        assert!(v.adapted_text.ends_with('…'));
     }
 }

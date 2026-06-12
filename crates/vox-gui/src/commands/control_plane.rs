@@ -17,6 +17,9 @@ pub struct SubmitTaskInput {
     /// When false, the daemon refuses a near-duplicate (returns duplicate_of with
     /// a null task_id) so the GUI can offer merge/skip. Defaults true.
     pub allow_duplicate: Option<bool>,
+    pub model_hint: Option<String>,
+    pub dry_run: Option<bool>,
+    pub active_skill: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -55,6 +58,9 @@ pub async fn submit_orchestrator_task(
         "priority": priority,
         "session_id": input.session_id.filter(|s| !s.trim().is_empty()),
         "allow_duplicate": input.allow_duplicate.unwrap_or(true),
+        "model_hint": input.model_hint.filter(|s| !s.trim().is_empty()),
+        "dry_run": input.dry_run,
+        "active_skill": input.active_skill.filter(|s| !s.trim().is_empty()),
     });
     // Carry composer mode/tier through as enqueue hints (tier → model_preference).
     // Only attach the key when non-empty — the daemon rejects a null enqueue_hints

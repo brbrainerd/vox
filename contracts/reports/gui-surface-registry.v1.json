@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "surface_count": 89,
+  "surface_count": 103,
   "top_level_groups": [
     "add",
     "ars",
@@ -74,9 +74,7 @@
     "wasm",
     "workflow"
   ],
-  "unclassified_backfilled": [
-    "repl"
-  ],
+  "unclassified_backfilled": [],
   "wiring_violations": [
     "view_key 'tasks' is not referenced in App.tsx"
   ]

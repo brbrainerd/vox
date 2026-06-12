@@ -209,6 +209,12 @@ fn merge_optional_node_fields(target: &mut NodeRecord, src: &NodeRecord) {
     if src.ed25519_pub_key_b64.is_some() {
         target.ed25519_pub_key_b64 = src.ed25519_pub_key_b64.clone();
     }
+    if src.gpu_vram_total_mb.is_some() {
+        target.gpu_vram_total_mb = src.gpu_vram_total_mb;
+    }
+    if src.gpu_model_name.is_some() {
+        target.gpu_model_name = src.gpu_model_name.clone();
+    }
 }
 
 pub(crate) async fn heartbeat(
@@ -538,5 +544,35 @@ mod resources_summary_tests {
         assert_eq!(s.memory_free_bytes_total, 10 * 1024 * 1024 * 1024);
         assert!((s.cpu_usage_pct_avg - 50.0).abs() < 0.01);
         assert_eq!(s.nodes.len(), 3);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn minimal_record(id: &str) -> NodeRecord {
+        serde_json::from_str(&format!(
+            r#"{{"id":"{id}","capabilities":{{}},"version":"0.0.0","last_seen_unix_ms":0,"memory_free_bytes":null}}"#
+        ))
+        .expect("minimal NodeRecord JSON parses")
+    }
+
+    #[test]
+    fn merge_carries_gpu_vram_and_model_from_heartbeat() {
+        // Server-side existing record with no GPU VRAM/model advertised yet.
+        let mut target = minimal_record("node-1");
+        assert_eq!(target.gpu_vram_total_mb, None);
+        assert_eq!(target.gpu_model_name, None);
+
+        // Incoming heartbeat from the worker advertising probed VRAM + model.
+        let mut src = minimal_record("node-1");
+        src.gpu_vram_total_mb = Some(16376);
+        src.gpu_model_name = Some("RTX 4080 SUPER".to_string());
+
+        merge_optional_node_fields(&mut target, &src);
+
+        assert_eq!(target.gpu_vram_total_mb, Some(16376));
+        assert_eq!(target.gpu_model_name.as_deref(), Some("RTX 4080 SUPER"));
     }
 }

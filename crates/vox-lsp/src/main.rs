@@ -3,7 +3,10 @@
 //! Wraps lex/parse/typecheck using the same diagnostics path as the CLI.
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::Mutex;
+// Arc/OnceLock are only used by the db-gated Ludus project-DB cache below.
+#[cfg(feature = "db")]
+use std::sync::{Arc, OnceLock};
 use tower_lsp_server::jsonrpc::Result;
 use tower_lsp_server::ls_types::*;
 use tower_lsp_server::{Client, LanguageServer, LspService, Server};
@@ -12,8 +15,10 @@ use tracing::info;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
 
+#[cfg(feature = "db")]
 static LUDUS_PROJECT_DB: OnceLock<Mutex<Option<Arc<vox_db::VoxDb>>>> = OnceLock::new();
 
+#[cfg(feature = "db")]
 fn ludus_lsp_events_disabled() -> bool {
     matches!(
         std::env::var("VOX_LSP_LUDUS_EVENTS")
@@ -24,6 +29,7 @@ fn ludus_lsp_events_disabled() -> bool {
     )
 }
 
+#[cfg(feature = "db")]
 async fn cached_project_db() -> Option<Arc<vox_db::VoxDb>> {
     let cell = LUDUS_PROJECT_DB.get_or_init(|| Mutex::new(None));
     let need_open = cell.lock().ok()?.is_none();
@@ -209,6 +215,29 @@ impl LanguageServer for Backend {
         }
     }
 
+    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        let uri = &params.text_document.uri;
+        let text = match self.documents.lock() {
+            Ok(g) => g.get(uri).cloned(),
+            Err(e) => {
+                tracing::error!("formatting: documents mutex poisoned: {e}");
+                return Ok(None);
+            }
+        };
+        let Some(text) = text else {
+            return Ok(None);
+        };
+        let formatted = vox_compiler::fmt::format(&text);
+        if formatted == text {
+            return Ok(Some(vec![]));
+        }
+        let range = full_document_range(&text);
+        Ok(Some(vec![TextEdit {
+            range,
+            new_text: formatted,
+        }]))
+    }
+
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         let uri = params.text_document.uri.clone();
         if let Some(text) = params.text {
@@ -240,6 +269,24 @@ impl LanguageServer for Backend {
     }
 }
 
+/// Range covering the entire document (for full-buffer format edits).
+fn full_document_range(text: &str) -> Range {
+    let line_count = text.lines().count();
+    let last_line = line_count.saturating_sub(1) as u32;
+    let last_line_str = text.lines().last().unwrap_or("");
+    let last_col = last_line_str.chars().count() as u32;
+    Range {
+        start: Position {
+            line: 0,
+            character: 0,
+        },
+        end: Position {
+            line: last_line,
+            character: last_col,
+        },
+    }
+}
+
 impl Backend {
     async fn validate_document(&self, uri: Uri, text: String) {
         {
@@ -255,10 +302,13 @@ impl Backend {
 
         let diagnostics = vox_lsp::validate_document_with_hir(&text);
 
+        // Diagnostic counts feed only the db-gated Ludus telemetry side channel.
+        #[cfg(feature = "db")]
         let err_n = diagnostics
             .iter()
             .filter(|d| d.severity == Some(DiagnosticSeverity::ERROR))
             .count();
+        #[cfg(feature = "db")]
         let warn_n = diagnostics
             .iter()
             .filter(|d| d.severity == Some(DiagnosticSeverity::WARNING))
@@ -268,6 +318,7 @@ impl Backend {
             .publish_diagnostics(uri.clone(), diagnostics, None)
             .await;
 
+        #[cfg(feature = "db")]
         if !ludus_lsp_events_disabled() {
             let uri_s = uri.as_str().to_owned();
             tokio::spawn(async move {

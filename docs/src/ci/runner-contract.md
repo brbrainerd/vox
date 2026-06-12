@@ -33,6 +33,16 @@ Upstream JavaScript actions in this repo (for example **`actions/checkout@v6`**,
 
 If a runner is too old, jobs fail early when invoking Node 24–based actions, or GitHub emits deprecation notices for obsolete Node runtimes—see GitHub’s [Actions runner changelog](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/) for the Node 20 deprecation timeline.
 
+## Local-first CI (required policy, advisory enforcement)
+
+**Default:** all CI/CD jobs run on the **local self-hosted fleet** (Docker ephemeral runners on the operator host, autoscaled via `vox ci runner-scale`). GitHub-hosted runners (`ubuntu-latest`, `windows-latest`, `macos-*`) are **slow, minute-limited, and not the primary feedback loop**.
+
+**Contributor workflow:** reproduce gates locally with **`vox ci pre-push`** (fast / `--complete` / `--full`) before pushing. Use **`vox ci pre-push --act`** only for the small set of workflows that still mirror GitHub-hosted behavior in containers.
+
+**Enforcement (not forced by default):** `vox ci runner-policy-check` scans `.github/workflows/*.yml` and **warns** when a workflow uses a GitHub-hosted `runs-on` without a row in [GitHub-hosted exceptions](github-hosted-exceptions.md). Pass **`--strict`** to fail (opt-in hard gate). Wired into **`vox ci ssot-drift`** and the **fast** pre-push tier as advisory output.
+
+**Registering exceptions:** any workflow that genuinely requires GitHub-hosted runners (Pages deploy, Windows/macOS release matrix, macOS mobile E2E, chicken-and-egg runner image publish) **must** add a row to [github-hosted-exceptions.md](github-hosted-exceptions.md). Prefer migrating to `[self-hosted, linux, x64]` (or `docker` / `browser` profiles) instead.
+
 ## GitHub-hosted exceptions
 
 Use `ubuntu-latest`, `windows-latest`, or `macos-latest` only where documented — see [GitHub-hosted exceptions](github-hosted-exceptions.md).

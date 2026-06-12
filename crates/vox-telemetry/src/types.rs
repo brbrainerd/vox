@@ -437,6 +437,75 @@ pub struct ModelCallEvent {
     pub caller_agent_id: Option<String>,
 }
 
+/// Map a [`ModelCallEvent`] into OpenTelemetry GenAI semantic convention attributes.
+pub fn model_call_event_to_gen_ai_attributes(
+    event: &ModelCallEvent,
+) -> std::collections::HashMap<String, String> {
+    use std::collections::HashMap;
+
+    let mut attrs = HashMap::new();
+    attrs.insert("gen_ai.system".into(), event.provider.clone());
+    attrs.insert("gen_ai.request.model".into(), event.model.clone());
+    attrs.insert(
+        "gen_ai.usage.input_tokens".into(),
+        event.prompt_tokens.to_string(),
+    );
+    attrs.insert(
+        "gen_ai.usage.output_tokens".into(),
+        event.completion_tokens.to_string(),
+    );
+    if let Some(tokens) = event.cache_read_input_tokens {
+        attrs.insert(
+            "gen_ai.usage.cache_read_input_tokens".into(),
+            tokens.to_string(),
+        );
+    }
+    if let Some(tokens) = event.cache_creation_input_tokens {
+        attrs.insert(
+            "gen_ai.usage.cache_creation_input_tokens".into(),
+            tokens.to_string(),
+        );
+    }
+    attrs.insert(
+        "gen_ai.response.latency_ms".into(),
+        event.latency_ms.to_string(),
+    );
+    attrs.insert(
+        "gen_ai.response.cost_usd".into(),
+        event.cost_usd.to_string(),
+    );
+    attrs.insert(
+        "gen_ai.response.cost_source".into(),
+        event.cost_source.clone(),
+    );
+    attrs.insert(
+        "gen_ai.request.retry_attempt".into(),
+        event.retry_attempt.to_string(),
+    );
+    if let Some(route) = &event.route_profile {
+        attrs.insert("gen_ai.request.routing.profile".into(), route.clone());
+    }
+    if let Some(rationale) = &event.selection_rationale {
+        attrs.insert(
+            "gen_ai.request.selection_rationale".into(),
+            rationale.clone(),
+        );
+    }
+    if let Some(error_class) = &event.error_class {
+        attrs.insert("gen_ai.response.error".into(), error_class.clone());
+    }
+    if let Some(trace_id) = &event.trace_id {
+        attrs.insert("gen_ai.response.trace_id".into(), trace_id.clone());
+    }
+    if let Some(task_id) = event.task_id {
+        attrs.insert("gen_ai.request.task_id".into(), task_id.to_string());
+    }
+    if let Some(agent_id) = &event.caller_agent_id {
+        attrs.insert("gen_ai.request.agent_id".into(), agent_id.clone());
+    }
+    attrs
+}
+
 /// Top-level task completion rollup. Persisted as `research_metrics` row with
 /// `metric_type = METRIC_TYPE_TASK_ROOT_SUMMARY`.
 ///
@@ -1423,5 +1492,39 @@ mod tests {
         assert_eq!(back.model, e.model);
         assert_eq!(back.cache_read_input_tokens, e.cache_read_input_tokens);
         assert_eq!(back.trace_id, e.trace_id);
+    }
+
+    #[test]
+    fn model_call_event_gen_ai_attribute_mapping() {
+        let event = ModelCallEvent {
+            model: "claude-opus-4-7".into(),
+            provider: "anthropic".into(),
+            route_profile: Some("strong".into()),
+            selection_rationale: None,
+            prompt_tokens: 100,
+            completion_tokens: 25,
+            cache_read_input_tokens: Some(10),
+            cache_creation_input_tokens: None,
+            latency_ms: 900,
+            cost_usd: 0.01,
+            cost_source: "estimated".into(),
+            error_class: Some("rate-limited".into()),
+            retry_attempt: 2,
+            task_id: Some(7),
+            parent_task_id: None,
+            trace_id: Some("trace-1".into()),
+            caller_agent_id: Some("agent-a".into()),
+        };
+        let attrs = model_call_event_to_gen_ai_attributes(&event);
+        assert_eq!(attrs.get("gen_ai.request.model"), Some(&event.model));
+        assert_eq!(attrs.get("gen_ai.system"), Some(&event.provider));
+        assert_eq!(
+            attrs.get("gen_ai.usage.input_tokens"),
+            Some(&"100".to_string())
+        );
+        assert_eq!(
+            attrs.get("gen_ai.response.error"),
+            Some(&"rate-limited".to_string())
+        );
     }
 }
