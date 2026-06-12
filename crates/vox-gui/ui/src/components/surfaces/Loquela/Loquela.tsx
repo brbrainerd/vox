@@ -560,7 +560,6 @@ export function Loquela({
             </Popover>
           </div>
 
-          <MiniSlider label="Budget" value={budget} setValue={setBudget} min={0.25} max={20} step={0.25} fmt={(v: any) => `$${v.toFixed(2)}`} accent="rgb(var(--brass))" />
           
           {(estCost != null || sessionBudget) && (
             <span className="font-mono text-[9px] text-zinc-500 tabular-nums">
