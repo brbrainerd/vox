@@ -179,6 +179,12 @@ export default function App() {
   // ── Multi-tab chat sessions (Track I) — one session_id per tab. ────────────
   const [sessions, setSessions] = useLocalStorage<ChatSession[]>('vox_chat_sessions', []);
   const [activeSessionId, setActiveSessionId] = useLocalStorage<string>('vox_active_session', '');
+  const [scopeDraft, setScopeDraft] = useState('');
+  // The active tab's persistent working set — pinned paths that auto-attach to
+  // every submission's file manifest (so a tab maps to a part of the codebase).
+  const updateActiveScope = useCallback((fn: (paths: string[]) => string[]) => {
+    setSessions(prev => prev.map(s => (s.id === activeSessionId ? { ...s, scopePaths: fn(s.scopePaths) } : s)));
+  }, [activeSessionId, setSessions]);
   useEffect(() => {
     if (sessions.length === 0) {
       // Adopt the legacy id so transcripts/tasks submitted as 'gui-loquela' stay attached.
@@ -695,6 +701,36 @@ export default function App() {
 
         {/* Loquela — fixed to the bottom of main, tracks sidebar width */}
         <div className="p-4 pt-0 mt-auto">
+          {(() => {
+            const activeScope = sessions.find(s => s.id === activeSessionId)?.scopePaths ?? [];
+            const addScope = () => {
+              const p = scopeDraft.trim();
+              setScopeDraft('');
+              if (p) updateActiveScope(paths => Array.from(new Set([...paths, p])));
+            };
+            return (
+              <div className="flex items-center gap-1.5 flex-wrap pb-1">
+                <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">scope</span>
+                {activeScope.map(p => (
+                  <span key={p} className="group inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 font-mono text-[10px] text-zinc-300">
+                    {p.split(/[/\\]/).filter(Boolean).slice(-2).join('/')}
+                    <button
+                      title={`Unpin ${p}`}
+                      onClick={() => updateActiveScope(paths => paths.filter(x => x !== p))}
+                      className="text-zinc-600 hover:text-zinc-200"
+                    >×</button>
+                  </span>
+                ))}
+                <input
+                  value={scopeDraft}
+                  onChange={e => setScopeDraft(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addScope()}
+                  placeholder="pin a path to this tab…"
+                  className="w-40 bg-transparent text-[11px] text-zinc-300 placeholder:text-zinc-700 outline-none border-b border-white/5 focus:border-brass/30"
+                />
+              </div>
+            );
+          })()}
           <SessionTabs
             sessions={sessions}
             activeId={activeSessionId}
