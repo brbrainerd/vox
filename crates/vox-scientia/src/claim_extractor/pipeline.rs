@@ -11,6 +11,10 @@ pub struct ExtractionConfig {
     pub atomic: AtomicConfig,
     pub abstain_threshold: f64,
     pub promotion_threshold: f64,
+    /// Minimum `contradiction_score` from the verifier that promotes a verdict to
+    /// `Contradicted` instead of `Abstain` or `Contested`.  Checked before the
+    /// abstain/support/contest ladder so a high-confidence contradiction always wins.
+    pub contradiction_threshold: f64,
 }
 
 impl Default for ExtractionConfig {
@@ -20,6 +24,7 @@ impl Default for ExtractionConfig {
             atomic: AtomicConfig::default(),
             abstain_threshold: 0.3,
             promotion_threshold: 0.7,
+            contradiction_threshold: 0.6,
         }
     }
 }
@@ -88,7 +93,13 @@ impl ExtractionPipeline {
 
         for claim in &valid_claims {
             let output = self.verifier.verify_claim(&claim.text, &context).await?;
-            let verdict = if output.abstained {
+            // Contradiction is checked first: a high contradiction_score overrides
+            // the abstain/support/contest ladder regardless of support_score.
+            let verdict = if output.contradiction_score >= self.config.contradiction_threshold {
+                ClaimVerdict::Contradicted {
+                    confidence: output.contradiction_score,
+                }
+            } else if output.abstained {
                 ClaimVerdict::Abstain {
                     reason: format!(
                         "support_score={:.2} < τ={:.2}",
@@ -209,5 +220,34 @@ mod tests {
             .unwrap();
         assert!(result.promotable_claim_ids.is_empty());
         assert!(result.abstained_sentence_count > 0);
+    }
+
+    /// When the context sentence explicitly negates the claim, the pipeline must
+    /// emit at least one `Contradicted` verdict.
+    ///
+    /// Mock scoring for this pair:
+    ///   claim = "The cache reduces latency."  (4 words)
+    ///   context sentence = "The cache does not reduce latency."
+    ///   overlap = 3/4 = 0.75  →  contradiction_score = 0.75
+    ///   default contradiction_threshold = 0.6  →  0.75 ≥ 0.6  →  Contradicted ✓
+    #[tokio::test]
+    async fn negated_claim_against_contradicting_context_is_contradicted() {
+        let pipeline = ExtractionPipeline::new(ExtractionConfig::default());
+        let result = pipeline
+            .extract(
+                "The cache reduces latency.",
+                &["The cache does not reduce latency."],
+            )
+            .await
+            .unwrap();
+        let has_contradicted = result
+            .verdicts
+            .iter()
+            .any(|v| matches!(v, ClaimVerdict::Contradicted { .. }));
+        assert!(
+            has_contradicted,
+            "expected at least one Contradicted verdict, got: {:?}",
+            result.verdicts
+        );
     }
 }
