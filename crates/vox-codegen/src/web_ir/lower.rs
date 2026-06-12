@@ -345,6 +345,27 @@ fn inject_primitive_dom_markers(
         }
     }
 
+    // Mirror occlusion-bearing kwargs so the layer validator (A10) can flag
+    // position:absolute / raw z / occlusion-smuggling raw_class used outside a
+    // surface parent. These do NOT replace the existing class output — they are
+    // analysis-only shadow attrs.
+    for (k, v) in &static_pairs {
+        let val = v.trim_matches('"');
+        match k.as_str() {
+            "position" | "top" | "bottom" | "left" | "right" | "inset" => {
+                let pos = if k == "position" { val } else { "inset" };
+                attrs.push(("data-vox-pos-raw".to_string(), format!("\"{pos}\"")));
+            }
+            "z" if crate::web_ir::ZTier::from_str(val).is_none() => {
+                attrs.push(("data-vox-z-raw".to_string(), format!("\"{val}\"")));
+            }
+            "raw_class" => {
+                attrs.push(("data-vox-raw-class".to_string(), format!("\"{val}\"")));
+            }
+            _ => {}
+        }
+    }
+
     attrs
 }
 

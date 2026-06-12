@@ -31,6 +31,7 @@ pub mod semantic_ui_emit;
 pub mod validate;
 pub mod validate_a11y;
 pub mod validate_keys;
+pub mod validate_layer;
 pub mod validate_overlay;
 pub mod validate_palette;
 

@@ -905,6 +905,7 @@ fn validate_web_ir_full(
     }
     super::validate_overlay::validate_overlay(module, &mut out);
     super::validate_palette::validate_palette(module, registry, &mut out);
+    super::validate_layer::validate_layer(module, &mut out);
 
     (out, metrics)
 }
