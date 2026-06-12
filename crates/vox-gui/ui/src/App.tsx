@@ -100,7 +100,7 @@ const LEGACY_VIEWS: string[] = [
   'mesh', 'gamify', 'harness', 'browser', 'console', 'scientia', 'discovery-review', 'discovery-inbox', 'archive-panel', 'claims', 'mens',
   'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage',
   'publications', 'search', 'chat', 'agents', 'workspace', 'commands', 'knowledge', 'compute',
-  'review',
+  'review', 'tasks',
 ];
 
 // Single source of truth for valid view ids (deep-link validation + initial-view).
