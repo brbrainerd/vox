@@ -152,7 +152,11 @@ fn split_sentences(text: &str) -> Vec<String> {
                 let next_starts_sentence = match chars[i + 1..].iter().find(|c| !c.is_whitespace())
                 {
                     None => true,
-                    Some(c) => c.is_uppercase(),
+                    Some(c) => {
+                        c.is_uppercase()
+                            || c.is_ascii_digit()
+                            || matches!(c, '"' | '\'' | '(' | '[')
+                    }
                 };
                 !mid_number && !abbrev && next_starts_sentence
             }

@@ -173,24 +173,23 @@ pub async fn assess_code_uniqueness(
         return None;
     }
 
-    // Dedup by text so a repeated snippet costs only one embed call.
-    let mut embedded: HashMap<&str, Option<Vec<f32>>> = HashMap::new();
-    let mut sims: Vec<f64> = Vec::new();
+    // Dedup by text so a repeated snippet costs only one embed+score and is
+    // counted once (otherwise duplicate text would inflate `snippets_assessed`).
+    let mut sims_by_text: HashMap<&str, Option<f64>> = HashMap::new();
     for snip in snippets {
         let text = snip.text.as_str();
-        let vec = match embedded.get(text) {
-            Some(v) => v.clone(),
-            None => {
-                let v = embedder.embed(text).await;
-                embedded.insert(text, v.clone());
-                v
-            }
-        };
-        let Some(vec) = vec else { continue };
-        if let Some(sim) = index.max_similarity(&vec).await {
-            sims.push(sim);
+        if sims_by_text.contains_key(text) {
+            continue;
         }
+        let sim = match embedder.embed(text).await {
+            Some(vec) => index.max_similarity(&vec).await,
+            None => None,
+        };
+        sims_by_text.insert(text, sim);
     }
+
+    let sims: Vec<f64> = sims_by_text.values().filter_map(|s| *s).collect();
+    let snippets_assessed = sims_by_text.values().filter(|s| s.is_some()).count();
 
     if sims.is_empty() {
         // Index configured but nothing scored (all embeds failed / empty corpus
@@ -199,7 +198,6 @@ pub async fn assess_code_uniqueness(
     }
 
     let score = uniqueness_score(&sims);
-    let snippets_assessed = sims.len();
     let signal = if score >= NOVELTY_THRESHOLD && snippets_assessed >= MIN_ASSESSED_SNIPPETS {
         Some(DiscoverySignal {
             code: "code_novelty_embedding".to_string(),
@@ -352,10 +350,15 @@ fn private_helper() {
             2,
             "must embed each unique text once"
         );
-        // Three snippets all scored (sim 0.1 each) => uniqueness 0.9.
-        assert_eq!(out.snippets_assessed, 3);
+        // Two UNIQUE texts scored (sim 0.1 each) => uniqueness 0.9. The duplicate
+        // "fn foo() {}" is counted once, so snippets_assessed reflects distinct
+        // texts (not raw snippet count) and cannot be inflated by repetition.
+        assert_eq!(out.snippets_assessed, 2);
         assert!((out.score - 0.9).abs() < 1e-9);
-        assert!(out.signal.is_some(), "0.9 >= 0.6 over 3 snippets => signal");
+        assert!(
+            out.signal.is_some(),
+            "0.9 >= 0.6 over 2 unique snippets => signal"
+        );
         assert_eq!(
             out.signal.as_ref().unwrap().strength,
             DiscoverySignalStrength::Supporting

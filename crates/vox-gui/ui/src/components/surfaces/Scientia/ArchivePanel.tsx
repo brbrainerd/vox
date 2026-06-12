@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import {
   getCompletionReport,
@@ -44,6 +44,8 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
   const [status, setStatus] = useState<ArchiveStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [autofilling, setAutofilling] = useState(false);
+  // Monotonic token so a slow in-flight load can't clobber a newer one.
+  const loadTokenRef = useRef(0);
 
   const load = useCallback(async () => {
     const id = pubId.trim();
@@ -52,17 +54,21 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
       setStatus(null);
       return;
     }
+    const token = ++loadTokenRef.current;
     setLoading(true);
     try {
       const [rep, st] = await Promise.all([getCompletionReport(id), getArchiveStatus(id)]);
+      if (token !== loadTokenRef.current) return;
       setReport(rep);
+      if (token !== loadTokenRef.current) return;
       setStatus(st);
     } catch (err) {
+      if (token !== loadTokenRef.current) return;
       pushToast({ tone: 'warn', title: 'Archive panel', body: String(err) });
       setReport(null);
       setStatus(null);
     } finally {
-      setLoading(false);
+      if (token === loadTokenRef.current) setLoading(false);
     }
   }, [pubId, pushToast]);
 

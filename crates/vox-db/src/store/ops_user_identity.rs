@@ -40,6 +40,17 @@ pub struct NanopubRow {
     pub created_at_ms: i64,
 }
 
+/// Validate a `scientia_nanopubs.published_state` value against the allowed
+/// lifecycle states (`local` → `test_server` → `published`).
+fn validate_nanopub_state(state: &str) -> Result<(), StoreError> {
+    match state {
+        "local" | "test_server" | "published" => Ok(()),
+        _ => Err(StoreError::Db(format!(
+            "invalid scientia_nanopubs.published_state: {state}"
+        ))),
+    }
+}
+
 impl VoxDb {
     /// Insert or replace the identity binding for `row.user_id` (PK upsert).
     ///
@@ -182,11 +193,13 @@ impl VoxDb {
         state: &str,
         published_uri: &str,
     ) -> Result<(), StoreError> {
+        validate_nanopub_state(state)?;
         // Store the published_uri back into `trusty_uri` only when it differs
         // (the test server always echoes the same Trusty URI, but we handle the
         // general case). In practice this is a state-column update; the PK
         // (`trusty_uri`) is unchanged unless the server assigned a new one.
-        self.conn
+        let affected = self
+            .conn
             .execute(
                 "UPDATE scientia_nanopubs \
                  SET published_state = ?1 \
@@ -195,6 +208,11 @@ impl VoxDb {
             )
             .await
             .map_err(StoreError::Turso)?;
+        if affected == 0 {
+            return Err(StoreError::Db(format!(
+                "nanopub not found for trusty_uri: {trusty_uri}"
+            )));
+        }
         // When the server returned a distinct URI (edge case), insert a
         // lightweight cross-reference row so the caller can look up by the
         // server-assigned URI. If identical we skip to avoid a duplicate-PK
@@ -386,5 +404,88 @@ mod tests {
             1,
             "one row for claim 8"
         );
+    }
+
+    #[tokio::test]
+    async fn update_nanopub_published_state_validates_and_requires_source_row() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let mk = |trusty: &str, claim_id: i64, created: i64| NanopubRow {
+            trusty_uri: trusty.into(),
+            claim_id,
+            publication_id: Some("pub-x".into()),
+            user_id: "u".into(),
+            orcid_id: None,
+            trig: "@prefix : <x> .".into(),
+            validated_offline: true,
+            published_state: "local".into(),
+            created_at_ms: created,
+        };
+        db.insert_scientia_nanopub(&mk("RA_state", 11, 1))
+            .await
+            .expect("insert");
+
+        // State-only update (same trusty_uri) succeeds.
+        db.update_nanopub_published_state("RA_state", "test_server", "RA_state")
+            .await
+            .expect("state-only update should succeed");
+        let got = db
+            .get_nanopub_by_trusty_uri("RA_state")
+            .await
+            .expect("get")
+            .expect("row present");
+        assert_eq!(got.published_state, "test_server");
+
+        // Missing source row → error, nothing inserted.
+        let err = db
+            .update_nanopub_published_state("RA_missing", "test_server", "RA_missing")
+            .await
+            .expect_err("missing source row must error");
+        assert!(
+            err.to_string().contains("not found"),
+            "error should mention not found, got: {err}"
+        );
+
+        // Invalid state → error.
+        let err = db
+            .update_nanopub_published_state("RA_state", "bogus_state", "RA_state")
+            .await
+            .expect_err("invalid state must error");
+        assert!(
+            err.to_string().contains("published_state"),
+            "error should mention published_state, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_local_nanopub_for_claim_returns_newest_local() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let mk = |trusty: &str, claim_id: i64, state: &str, created: i64| NanopubRow {
+            trusty_uri: trusty.into(),
+            claim_id,
+            publication_id: Some("pub-x".into()),
+            user_id: "u".into(),
+            orcid_id: None,
+            trig: "@prefix : <x> .".into(),
+            validated_offline: true,
+            published_state: state.into(),
+            created_at_ms: created,
+        };
+        db.insert_scientia_nanopub(&mk("RA_old", 21, "local", 10))
+            .await
+            .expect("insert old");
+        db.insert_scientia_nanopub(&mk("RA_new", 21, "local", 20))
+            .await
+            .expect("insert new");
+        // A non-local row must be ignored.
+        db.insert_scientia_nanopub(&mk("RA_pub", 21, "published", 30))
+            .await
+            .expect("insert published");
+
+        let got = db
+            .get_local_nanopub_for_claim(21)
+            .await
+            .expect("get")
+            .expect("local row present");
+        assert_eq!(got.trusty_uri, "RA_new", "newest local row must win");
     }
 }

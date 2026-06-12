@@ -122,6 +122,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
     if (!id || selectedId == null) {
       setNovelty(null);
       setNoveltyError(null);
+      setNoveltyLoading(false);
       return;
     }
     let cancelled = false;

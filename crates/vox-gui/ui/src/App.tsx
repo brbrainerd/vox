@@ -103,6 +103,41 @@ const LEGACY_VIEWS: string[] = [
   'review',
 ];
 
+// Single source of truth for valid view ids (deep-link validation + initial-view).
+const KNOWN_VIEWS: string[] = [
+  'dashboard',
+  'flow',
+  'catalog',
+  'matrix',
+  'memory',
+  'models',
+  'runs',
+  'repository',
+  'mesh',
+  'gamify',
+  'harness',
+  'scientia',
+  'discovery-review',
+  'discovery-inbox',
+  'archive-panel',
+  'claims',
+  'mens',
+  'populi',
+  'research',
+  'oratio',
+  'approvals',
+  'policies',
+  'skills',
+  'settings',
+  'coverage',
+  'publications',
+  'search',
+];
+
+function isKnownView(v: unknown): v is View {
+  return typeof v === 'string' && KNOWN_VIEWS.includes(v);
+}
+
 // ─── Agent mapper — shared between EventBus and polling fallback ─────────────
 function mapAgent(a: RawAgentSummary): Agent {
   const inProgress = a.in_progress ?? false;
@@ -533,13 +568,13 @@ export default function App() {
   useEffect(() => {
     const onNavigate = (e: Event) => {
       const detail = (e as CustomEvent<{ view?: string; publicationId?: string }>).detail;
-      if (!detail?.view) return;
+      if (!detail?.view || !isKnownView(detail.view)) return;
       if (detail.publicationId != null) {
         try {
           window.localStorage.setItem('vox_discovery_review_seed', detail.publicationId);
         } catch { /* localStorage unavailable — surface still switches */ }
       }
-      setActiveView(detail.view as View);
+      setActiveView(detail.view);
     };
     window.addEventListener('vox://navigate-surface', onNavigate as EventListener);
     return () => window.removeEventListener('vox://navigate-surface', onNavigate as EventListener);

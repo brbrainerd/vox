@@ -123,22 +123,24 @@ pub fn compute_autofill(
     }
 
     // ── authors / authors[0].orcid ───────────────────────────────────────────
-    if scientific.authors.is_empty() {
-        // No authors at all — bootstrap from manifest.author + identity
-        if let Some(ident) = identity {
-            fills.push(PlannedFill {
-                field: "authors".into(),
-                value: serde_json::json!([{
-                    "name": manifest.author,
-                    "orcid": ident.orcid_id,
-                }]),
-                origin: "autofill:user_identity".into(),
-                notes: None,
-            });
-        }
-    } else {
+    if scientific.authors.is_empty() && !manifest.author.trim().is_empty() {
+        // No authors at all — bootstrap from manifest.author (+ identity ORCID
+        // when present; null otherwise so the row is still seeded).
+        let orcid = identity
+            .and_then(|ident| ident.orcid_id.as_deref())
+            .filter(|s| !s.trim().is_empty());
+        fills.push(PlannedFill {
+            field: "authors".into(),
+            value: serde_json::json!([{
+                "name": manifest.author,
+                "orcid": orcid,
+            }]),
+            origin: "autofill:user_identity".into(),
+            notes: None,
+        });
+    } else if let Some(first) = scientific.authors.first() {
         // Authors exist but first author has no ORCID
-        let first_has_orcid = scientific.authors[0]
+        let first_has_orcid = first
             .orcid
             .as_deref()
             .map(|s| !s.trim().is_empty())

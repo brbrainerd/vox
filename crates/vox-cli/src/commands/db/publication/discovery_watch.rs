@@ -206,15 +206,18 @@ async fn uniqueness_signal_for_commit(
     assessment.signal
 }
 
-/// Gather Rust snippets from a commit's changed `.rs` files (read from worktree).
+/// Gather Rust snippets from a commit's changed `.rs` files (read at that
+/// commit's blob via `git show <sha>:<rel>`, not the current worktree).
 fn snippets_for_commit(repo: &Path, c: &CommitView) -> Vec<CodeSnippet> {
     let mut snippets = Vec::new();
     for rel in &c.files_changed {
         if !rel.ends_with(".rs") {
             continue;
         }
-        let abs = repo.join(rel);
-        let Ok(src) = vox_bounded_fs::read_utf8_path_capped(&abs) else {
+        // Read the file as it existed at this commit. Skip on error
+        // (deleted/renamed path, non-UTF8 blob, etc.).
+        let spec = format!("{}:{}", c.sha, rel);
+        let Ok(src) = run_git(repo, &["show", &spec]) else {
             continue;
         };
         snippets.extend(extract_snippets(rel, &src));
@@ -245,6 +248,10 @@ pub async fn discovery_watch(once: bool, repo: Option<&Path>, limit: usize) -> R
     let embedder = crate::commands::db::publication::embedder::CachedLlmEmbedder::from_env(&db);
     let code_index = resolve_code_index();
     let uniqueness_available = embedder.is_some() && code_index.is_some();
+
+    // Load discovery heuristics once (repo-root scoped, constant across commits).
+    let scientia_h =
+        vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
 
     let mut candidates = Vec::new();
     for c in &commits {
@@ -291,8 +298,6 @@ pub async fn discovery_watch(once: bool, repo: Option<&Path>, limit: usize) -> R
         );
 
         // Intake gate (AllowReviewSuggested): only DRAFT if it clears.
-        let scientia_h =
-            vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
         let rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
             &publication_id,
             Some(source_ref.as_str()),
