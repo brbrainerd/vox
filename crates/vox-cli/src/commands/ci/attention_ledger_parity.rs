@@ -3,15 +3,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 fn visit_dirs(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
-    if dir.is_dir() {
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                visit_dirs(&path, files)?;
-            } else if path.extension().and_then(|s| s.to_str()) == Some("rs") {
-                files.push(path);
-            }
+    for entry in walkdir::WalkDir::new(dir) {
+        let entry = entry?;
+        let path = entry.path();
+        if entry.file_type().is_file()
+            && path.extension().and_then(|s| s.to_str()) == Some("rs")
+        {
+            files.push(path.to_path_buf());
         }
     }
     Ok(())
