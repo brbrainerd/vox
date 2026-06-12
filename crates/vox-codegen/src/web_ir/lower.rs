@@ -330,6 +330,21 @@ fn inject_primitive_dom_markers(
         _ => {}
     }
 
+    // Mirror color-bearing kwargs into data-vox-* attrs (JSON-quoted, same convention
+    // as data-vox-surface) so the palette + pairwise-contrast validators can see the
+    // author's color choices — which otherwise vanish into Tailwind className strings.
+    for (k, v) in &static_pairs {
+        let mirror = match k.as_str() {
+            "color" => Some("data-vox-color"),
+            "bg" => Some("data-vox-bg"),
+            "border_color" => Some("data-vox-border-color"),
+            _ => None,
+        };
+        if let Some(mk) = mirror {
+            attrs.push((mk.to_string(), format!("\"{}\"", v.trim_matches('"'))));
+        }
+    }
+
     attrs
 }
 
