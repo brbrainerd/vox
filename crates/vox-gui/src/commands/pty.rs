@@ -31,13 +31,14 @@ pub fn default_shell() -> String {
 /// The snippets wrap the user's existing prompt rather than replacing it.
 pub fn shell_integration_snippet(shell: &str) -> Option<String> {
     // Match on the shell's basename so "/usr/bin/bash" and "bash" both resolve.
-    let name = shell
+    // Lowercase first so an uppercase ".EXE" suffix is stripped too.
+    let base = shell
         .rsplit(['/', '\\'])
         .next()
         .unwrap_or(shell)
-        .trim_end_matches(".exe")
         .to_ascii_lowercase();
-    match name.as_str() {
+    let name = base.strip_suffix(".exe").unwrap_or(&base);
+    match name {
         "pwsh" | "powershell" => Some(PWSH_OSC633.to_string()),
         "bash" => Some(BASH_OSC633.to_string()),
         _ => None,
@@ -53,10 +54,10 @@ if (-not $global:__VoxOsc633) {
   $global:__VoxOsc633 = $true
   $global:__VoxOscEsc = [char]27
   $global:__VoxOscBel = [char]7
-  $global:__VoxLastExit = 0
   $global:__VoxOrigPrompt = $function:prompt
   function global:prompt {
-    $code = if ($global:__VoxLastExit -ne $null) { $global:__VoxLastExit } else { 0 }
+    # Capture the real last exit *before* anything else mutates it.
+    $code = if ($LASTEXITCODE -ne $null) { $LASTEXITCODE } elseif ($?) { 0 } else { 1 }
     $out = "$($global:__VoxOscEsc)]633;D;$code$($global:__VoxOscBel)"
     $out += "$($global:__VoxOscEsc)]633;A$($global:__VoxOscBel)"
     $out += (& $global:__VoxOrigPrompt)
@@ -79,17 +80,22 @@ if (-not $global:__VoxOsc633) {
 const BASH_OSC633: &str = r#"
 if [ -z "${__VOX_OSC633:-}" ]; then
   __VOX_OSC633=1
+  # Preserve the user's existing hooks so we chain rather than clobber.
+  __VOX_PREV_PROMPT_COMMAND="${PROMPT_COMMAND:-}"
+  __VOX_PREV_DEBUG_TRAP="$(trap -p DEBUG | sed -e "s/^trap -- '//" -e "s/' DEBUG\$//")"
   __vox_preexec() {
     if [ -n "${__VOX_AT_PROMPT:-}" ]; then
       __VOX_AT_PROMPT=
       local cmd="${BASH_COMMAND//\\/\\x5c}"; cmd="${cmd//;/\\x3b}"; cmd="${cmd//$'\n'/\\x0a}"
       printf '\e]633;E;%s\a\e]633;C\a' "$cmd"
     fi
+    [ -n "${__VOX_PREV_DEBUG_TRAP:-}" ] && eval "${__VOX_PREV_DEBUG_TRAP}"
   }
   __vox_prompt() {
     local ec=$?
     printf '\e]633;D;%s\a\e]633;A\a' "$ec"
     __VOX_AT_PROMPT=1
+    [ -n "${__VOX_PREV_PROMPT_COMMAND:-}" ] && eval "${__VOX_PREV_PROMPT_COMMAND}"
   }
   trap '__vox_preexec' DEBUG
   PROMPT_COMMAND='__vox_prompt'
@@ -263,5 +269,27 @@ mod tests {
     fn snippets_emit_633_markers() {
         assert!(shell_integration_snippet("pwsh").unwrap().contains("]633;"));
         assert!(shell_integration_snippet("bash").unwrap().contains("]633;"));
+    }
+
+    #[test]
+    fn pwsh_snippet_uses_real_last_exit_code() {
+        let s = shell_integration_snippet("pwsh").unwrap();
+        assert!(s.contains("$LASTEXITCODE"), "must read the real exit code");
+        assert!(!s.contains("__VoxLastExit"), "stale exit var removed");
+    }
+
+    #[test]
+    fn bash_snippet_preserves_user_hooks() {
+        let s = shell_integration_snippet("bash").unwrap();
+        assert!(
+            s.contains("__VOX_PREV_PROMPT_COMMAND"),
+            "chains PROMPT_COMMAND"
+        );
+        assert!(s.contains("trap -p DEBUG"), "preserves the DEBUG trap");
+    }
+
+    #[test]
+    fn uppercase_exe_suffix_is_stripped() {
+        assert!(shell_integration_snippet("PowerShell.EXE").is_some());
     }
 }

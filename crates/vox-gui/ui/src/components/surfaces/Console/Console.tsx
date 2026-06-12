@@ -69,11 +69,18 @@ export function Console({ pushToast, initialAgentId = null }: Props) {
   // typed line.
   const blockBody = renderBlockForAgent(latestBlock, lastLine);
 
-  const copyLastBlock = () => {
-    navigator.clipboard?.writeText(blockBody).then(
-      () => pushToast({ tone: 'ok', title: 'Copied', body: 'last block to clipboard' }),
-      () => pushToast({ tone: 'warn', title: 'Copy failed' }),
-    );
+  const copyLastBlock = async () => {
+    const writeText = navigator.clipboard?.writeText?.bind(navigator.clipboard);
+    if (!writeText) {
+      pushToast({ tone: 'warn', title: 'Copy failed', body: 'clipboard unavailable' });
+      return;
+    }
+    try {
+      await writeText(blockBody);
+      pushToast({ tone: 'ok', title: 'Copied', body: 'last block to clipboard' });
+    } catch {
+      pushToast({ tone: 'warn', title: 'Copy failed' });
+    }
   };
 
   const handleSend = (agentId: string, body: string) => {
