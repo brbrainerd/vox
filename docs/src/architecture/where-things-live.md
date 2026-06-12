@@ -91,7 +91,6 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-effort-audit`](../../../crates/vox-effort-audit/) | AI-judged audit of git commit history; walks commits, calls model-agnostic judge facade, emits ranked findings JSONL + report. CLI: `vox audit effort`. |
 | [`vox-effort-route`](../../../crates/vox-effort-route/) | Routes effort-audit findings to verified, drafted enforcement artifacts (AGENTS.md rule / lint detector spec / arch rule / CI gate / corpus example / Vox script). CLI: `vox audit effort-route`. |
 | [`vox-eval`](../../../crates/vox-eval/) | Evaluation **metrics** — deterministic scoring of model outputs / Vox samples (format/safety/quality/parse) + MENS `CompileVerdict`. **Not** the interpreter; `--interp` lives in [`vox-compiler/src/eval/`](../../../crates/vox-compiler/src/eval/). |
-| [`vox-nanopub`](../../../crates/vox-nanopub/) | SCIENTIA nanopublication leaf: TriG emission, Ed25519 signing, Trusty-URI derivation. Depends only on `vox-crypto` + `sha2` + `hex` — consumable independently of `vox-scientia` (which re-exports it via `nanopub::{trig,signing}` and adds the network layer). |
 | [`vox-mcp-registry`](../../../crates/vox-mcp-registry/) | Compile-time MCP tool name/description registry from contracts YAML (SSOT). |
 | [`vox-project-scaffold`](../../../crates/vox-project-scaffold/) | Shared Vox.toml + src/main.vox + skill scaffolding for vox init and MCP. |
 | [`vox-repository`](../../../crates/vox-repository/) | Repository discovery, stable identity, layout probes, and agent scope helpers for external and internal Vox workspaces. |
@@ -251,7 +250,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | SCIENTIA claim extraction pipeline (VeriScore, MiniCheck, T1→T2) | `crates/vox-claim-extractor/` |
 | SCIENTIA drift linter — workspace pattern-repetition checks | `crates/vox-drift-check/` |
 | SCIENTIA UK AISI Inspect adapter, atomic-NEI novelty, ChronoFact, EvidenceConflict | `crates/vox-inspect-bridge/` |
-| SCIENTIA nanopublication builder — TriG, Ed25519 signing, Trusty URI | `crates/vox-nanopub/` |
+| SCIENTIA nanopublication signing — spec-compliant RSA/ORCID, Trusty URI (upstream `nanopub` crate) | `crates/vox-scientia/src/nanopub/spec.rs` |
 | SCIENTIA pre-registration — signing, deviation detection, Bayesian stopping | `crates/vox-prereg/` |
 | SCIENTIA research event types and ResearchEventEmitter trait (L1) | `crates/vox-research-events/` |
 | SCIENTIA RO-Crate 1.2 JSON-LD builder — CFF, CodeMeta, TOP-Level-2, ACM badges | `crates/vox-ro-crate/` |

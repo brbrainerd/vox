@@ -2,6 +2,7 @@ import React from 'react';
 import { CommandCardsView, SurfaceCard } from './CommandCardsView';
 import { ScientiaDashboard } from './Scientia/ScientiaDashboard';
 import { ClaimsView } from './Scientia/ClaimsView';
+import { DiscoveryReviewView } from './Scientia/DiscoveryReviewView';
 import { DiscoveryReview } from './Scientia/DiscoveryReview';
 import { CoverageView } from './Coverage/CoverageView';
 import { ResearchView } from './Research/ResearchView';
@@ -39,6 +40,7 @@ export const surfaceDecorators: Record<string, React.ComponentType<SurfaceDecora
   scientia: ScientiaDashboard,
   'discovery-review': DiscoveryReview,
   claims: ClaimsView,
+  review: DiscoveryReviewView,
   coverage: CoverageView,
   search: SearchView,
   mens: commandSurface('Vox Mens', 'ML training & local models', [

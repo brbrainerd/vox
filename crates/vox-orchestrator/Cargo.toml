@@ -102,6 +102,7 @@ vox-skill-runtime = { workspace = true }
 vox-research-events.workspace = true
 vox-telemetry.workspace = true
 vox-mesh-types.workspace = true
+vox-mesh-policy = { workspace = true }
 blake3.workspace = true
 crossbeam-queue = { workspace = true }
 workspace-hack = { workspace = true }

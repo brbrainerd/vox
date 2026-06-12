@@ -662,6 +662,97 @@ pub async fn post_vcs_isolation_strategy(
     ok(v)
 }
 
+// ── Task hopper (Hp-T1, B3) ─────────────────────────────────────────────────────
+
+/// Body for `POST /api/v2/hopper/submit`. Mirrors the `HopperIntake::submit`
+/// signature; `priority_hint` / `source` deserialize from the same snake_case
+/// representation used by the domain enums.
+#[derive(Debug, Deserialize)]
+pub struct HopperSubmitBody {
+    pub intent: String,
+    #[serde(default)]
+    pub affinity_hints: Vec<String>,
+    #[serde(default = "default_priority_hint")]
+    pub priority_hint: vox_orchestrator::hopper::PriorityHint,
+    #[serde(default = "default_intake_source")]
+    pub source: vox_orchestrator::hopper::IntakeSource,
+    #[serde(default)]
+    pub session_id: Option<String>,
+}
+
+fn default_priority_hint() -> vox_orchestrator::hopper::PriorityHint {
+    vox_orchestrator::hopper::PriorityHint::Unspecified
+}
+
+fn default_intake_source() -> vox_orchestrator::hopper::IntakeSource {
+    vox_orchestrator::hopper::IntakeSource::Developer
+}
+
+/// POST /api/v2/hopper/submit — admit a new intake item; returns the `IntakeItem`.
+pub async fn post_hopper_submit(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<HopperSubmitBody>,
+) -> Json<Value> {
+    if let Err(e) = enforce_dashboard_write(&gs, &connect.0, &headers) {
+        return e;
+    }
+    if body.intent.trim().is_empty() {
+        return err("bad_request", "intent must not be empty");
+    }
+    let item = gs
+        .hopper
+        .submit(
+            body.intent,
+            body.affinity_hints,
+            body.priority_hint,
+            body.source,
+            body.session_id,
+        )
+        .await;
+    ok(serde_json::to_value(&item).unwrap_or_else(|e| json!({ "error": e.to_string() })))
+}
+
+/// GET /api/v2/hopper/inbox — items awaiting pickup (Inbox state).
+pub async fn get_hopper_inbox(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Json<Value> {
+    if let Err(e) = enforce_dashboard_read(&gs, &connect.0, &headers) {
+        return e;
+    }
+    let items = gs.hopper.inbox().await;
+    ok(serde_json::to_value(&items).unwrap_or_else(|e| json!({ "error": e.to_string() })))
+}
+
+/// GET /api/v2/hopper/assigned — items bound to an agent (Assigned state).
+pub async fn get_hopper_assigned(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Json<Value> {
+    if let Err(e) = enforce_dashboard_read(&gs, &connect.0, &headers) {
+        return e;
+    }
+    let items = gs.hopper.assigned().await;
+    ok(serde_json::to_value(&items).unwrap_or_else(|e| json!({ "error": e.to_string() })))
+}
+
+/// GET /api/v2/hopper/history — items in terminal states (Done | Overridden).
+pub async fn get_hopper_history(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Json<Value> {
+    if let Err(e) = enforce_dashboard_read(&gs, &connect.0, &headers) {
+        return e;
+    }
+    let items = gs.hopper.history().await;
+    ok(serde_json::to_value(&items).unwrap_or_else(|e| json!({ "error": e.to_string() })))
+}
+
 /// Build the dashboard sub-router nested at `/api/v2`.
 pub fn router() -> Router<GatewayState> {
     Router::new()
@@ -679,4 +770,8 @@ pub fn router() -> Router<GatewayState> {
         .route("/scientia/cost", get(get_scientia_cost))
         .route("/vcs/isolation", get(get_vcs_isolation))
         .route("/vcs/isolation/strategy", post(post_vcs_isolation_strategy))
+        .route("/hopper/submit", post(post_hopper_submit))
+        .route("/hopper/inbox", get(get_hopper_inbox))
+        .route("/hopper/assigned", get(get_hopper_assigned))
+        .route("/hopper/history", get(get_hopper_history))
 }

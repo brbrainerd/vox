@@ -98,6 +98,7 @@ const LEGACY_VIEWS: string[] = [
   'mesh', 'gamify', 'harness', 'browser', 'console', 'scientia', 'discovery-review', 'claims', 'mens',
   'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage',
   'publications', 'search', 'chat', 'agents', 'workspace', 'commands', 'knowledge', 'compute',
+  'review',
 ];
 
 // ─── Agent mapper — shared between EventBus and polling fallback ─────────────

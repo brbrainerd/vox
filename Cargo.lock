@@ -14935,9 +14935,11 @@ dependencies = [
  "vox-foundation",
  "vox-gamify",
  "vox-identity",
+ "vox-ml-cli",
  "vox-orchestrator",
  "vox-orchestrator-mcp",
  "vox-package-types",
+ "vox-plugin-host",
  "vox-repository",
  "vox-scientia",
  "vox-search",
@@ -15095,6 +15097,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-mesh-policy"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "vox-mesh-types",
+]
+
+[[package]]
 name = "vox-mesh-types"
 version = "0.6.0"
 dependencies = [
@@ -15164,15 +15179,6 @@ dependencies = [
  "walkdir",
  "which 8.0.2",
  "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "vox-nanopub"
-version = "0.6.0"
-dependencies = [
- "hex",
- "sha2 0.11.0",
- "vox-crypto",
 ]
 
 [[package]]
@@ -15271,6 +15277,7 @@ dependencies = [
  "vox-gamify",
  "vox-http-client",
  "vox-lsp",
+ "vox-mesh-policy",
  "vox-mesh-types",
  "vox-orchestrator-queue",
  "vox-orchestrator-types",
@@ -15946,6 +15953,7 @@ dependencies = [
  "vox-foundation",
  "vox-http-client",
  "vox-jsonschema-util",
+ "vox-research-events",
  "vox-scientia",
  "vox-secrets",
  "wiremock",
@@ -16126,7 +16134,6 @@ dependencies = [
  "vox-db",
  "vox-db-types",
  "vox-http-client",
- "vox-nanopub",
  "vox-research-events",
  "vox-search",
  "vox-secrets",

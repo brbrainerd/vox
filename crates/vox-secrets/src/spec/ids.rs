@@ -161,6 +161,7 @@ pub enum SecretId {
     VoxMeshHttpRateLimit,
     VoxMeshVisibility,
     VoxMeshDonationPolicyJson,
+    VoxMeshDonationPolicyPath,
     VoxOrchestratorEnabled,
     VoxOrchestratorMaxAgents,
     VoxOrchestratorLockTimeoutMs,

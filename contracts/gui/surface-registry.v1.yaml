@@ -145,6 +145,14 @@ surfaces:
   nav_group: knowledge
   parent_surface: knowledge
   notes: scientia publication lifecycle board
+- view_key: review
+  cli_group: null
+  representation_tier: curated_decorator
+  nav_label: Review
+  nav_icon: doubt
+  nav_group: knowledge
+  parent_surface: null
+  notes: human-gated claim review + nanopub build (scientia publication-claim-review / publication-nanopub-build)
 - view_key: runs
   cli_group: null
   representation_tier: live_backend
@@ -185,6 +193,14 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
+- view_key: null
+  cli_group: attention
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: dei-gated engine; CLI-only by design pending GUI panel — see A3
 - view_key: null
   cli_group: audit
   representation_tier: none
@@ -305,6 +321,14 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
+- view_key: null
+  cli_group: dei
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: dei-gated engine; CLI-only by design pending GUI panel — see A3
 - view_key: null
   cli_group: deploy
   representation_tier: none
@@ -626,6 +650,14 @@ surfaces:
   parent_surface: null
   notes: null
 - view_key: null
+  cli_group: safety
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: dei-gated engine; CLI-only by design pending GUI panel — see A3
+- view_key: null
   cli_group: schola
   representation_tier: none
   nav_label: null
@@ -761,6 +793,14 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
+- view_key: null
+  cli_group: visus
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: dei-gated engine; CLI-only by design pending GUI panel — see A3
 - view_key: null
   cli_group: wasm
   representation_tier: none

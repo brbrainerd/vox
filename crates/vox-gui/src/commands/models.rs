@@ -185,7 +185,6 @@ pub async fn get_active_model() -> Result<Option<String>, String> {
         .map(str::to_string))
 }
 
-#[tauri::command]
 pub async fn get_routing_summary() -> Result<RoutingSummaryDto, String> {
     let reg = registry_from_cache();
     let cfg = vox_config::load_model_routing_config();
