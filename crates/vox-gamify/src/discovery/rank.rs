@@ -70,7 +70,10 @@ mod tests {
 
     #[test]
     fn never_seen_beats_seen_among_equal_usage() {
-        let out = rank(vec![cand("seen", 0, 10, true), cand("fresh", 0, 0, true)], 1);
+        let out = rank(
+            vec![cand("seen", 0, 10, true), cand("fresh", 0, 0, true)],
+            1,
+        );
         assert_eq!(out[0].action_id, "fresh");
     }
 
