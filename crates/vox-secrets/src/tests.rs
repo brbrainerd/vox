@@ -604,3 +604,27 @@ fn test_redact_skips_short_patterns() {
     let scrubbed = crate::redact::redact_secrets_from_value(&val, &["short"]);
     assert_eq!(scrubbed, val);
 }
+
+/// Expo / EAS access token must be a first-class Clavis secret so the mobile
+/// toolchain resolves it through the vault (not a bare GitHub Actions secret).
+/// TDD red→green for registering EXPO_TOKEN in the secret registry.
+#[test]
+fn expo_token_is_a_registered_resolvable_secret() {
+    use std::str::FromStr;
+    let id = crate::SecretId::from_str("EXPO_TOKEN")
+        .expect("EXPO_TOKEN must be a registered Clavis secret");
+    assert_eq!(
+        id.spec().canonical_env,
+        "EXPO_TOKEN",
+        "EXPO_TOKEN resolves to its own spec"
+    );
+    assert_eq!(
+        id.spec().auth_registry,
+        Some("expo"),
+        "EXPO_TOKEN is keyed to the `expo` auth registry (vox secrets set expo …)"
+    );
+    assert!(
+        matches!(id.metadata().class, crate::SecretClass::Integration),
+        "EXPO_TOKEN is an Integration-class (persistable, shareable) secret"
+    );
+}

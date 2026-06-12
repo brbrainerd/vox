@@ -1,10 +1,9 @@
 {
   "schema_version": 1,
-  "surface_count": 100,
+  "surface_count": 96,
   "top_level_groups": [
     "add",
     "ars",
-    "attention",
     "audit",
     "auth",
     "build",
@@ -20,7 +19,6 @@
     "component",
     "config",
     "db",
-    "dei",
     "deploy",
     "dev",
     "diag",
@@ -58,7 +56,6 @@
     "research",
     "rollback",
     "run",
-    "safety",
     "scientia",
     "script",
     "secrets",
@@ -74,7 +71,6 @@
     "train",
     "update",
     "upgrade",
-    "visus",
     "wasm",
     "workflow"
   ],

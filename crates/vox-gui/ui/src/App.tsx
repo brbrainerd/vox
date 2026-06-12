@@ -71,6 +71,7 @@ type View =
   | 'gamify'
   | 'harness'
   | 'browser'
+  | 'console'
   | 'scientia'
   | 'discovery-review'
   | 'claims'
@@ -94,7 +95,7 @@ type View =
 
 const LEGACY_VIEWS: string[] = [
   'dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository',
-  'mesh', 'gamify', 'harness', 'browser', 'scientia', 'discovery-review', 'claims', 'mens',
+  'mesh', 'gamify', 'harness', 'browser', 'console', 'scientia', 'discovery-review', 'claims', 'mens',
   'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage',
   'publications', 'search', 'chat', 'agents', 'workspace', 'commands', 'knowledge', 'compute',
   'review',
@@ -480,6 +481,7 @@ export default function App() {
         planned_steps: 1,
       }
     });
+    let finished = false;
     try {
       const result = await invoke<T>(command, payload);
       await invoke('finish_gui_run', {
@@ -488,14 +490,17 @@ export default function App() {
         completed_steps: 1,
         error: null
       });
+      finished = true;
       return result;
     } catch (err) {
-      await invoke('finish_gui_run', {
-        run_id: runId,
-        success: false,
-        completed_steps: 0,
-        error: String(err),
-      }).catch(() => {});
+      if (!finished) {
+        await invoke('finish_gui_run', {
+          run_id: runId,
+          success: false,
+          completed_steps: 0,
+          error: String(err),
+        }).catch(() => {});
+      }
       throw err;
     }
   }, []);
@@ -874,6 +879,10 @@ export default function App() {
     skills: data.skills,
     onAttachContext: attachContext,
     onNavigate: navigateTo,
+    onOpenInConsole: (a: Agent) => {
+      setSelectedAgentId(a.id);
+      navigateTo('console');
+    },
     activeChild: nav.child,
     onChildChange: (vk: string) => setActiveView(vk as View),
     activeSessionId,

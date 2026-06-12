@@ -10,6 +10,7 @@ export const PARENT_CHILD_MAP: Record<string, { parent: string; child?: string }
   repository: { parent: 'workspace', child: 'repository' },
   browser: { parent: 'workspace', child: 'browser' },
   harness: { parent: 'workspace', child: 'harness' },
+  console: { parent: 'workspace', child: 'console' },
   catalog: { parent: 'commands', child: 'catalog' },
   skills: { parent: 'commands', child: 'skills' },
   memory: { parent: 'search', child: 'memory' },

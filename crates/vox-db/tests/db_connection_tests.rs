@@ -55,6 +55,32 @@ async fn test_db_local_file_persistence() {
 }
 
 #[tokio::test]
+async fn test_discovery_state_table_exists() {
+    let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
+    // Inserting a row proves the table + columns exist after baseline init.
+    db.connection()
+        .execute(
+            "INSERT INTO discovery_state \
+             (user_id, action_id, seen_count, used_count, last_seen_ms, last_used_ms, \
+              dwell_ms_total, fsrs_stability, fsrs_difficulty, fsrs_due_ms) \
+             VALUES ('u1','vox.scientia.review',1,0,10,0,0,0.0,0.0,0)",
+            (),
+        )
+        .await
+        .unwrap();
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT seen_count FROM discovery_state WHERE user_id='u1' AND action_id='vox.scientia.review'",
+            (),
+        )
+        .await
+        .unwrap();
+    let n = rows.next().await.unwrap().unwrap().get::<i64>(0).unwrap();
+    assert_eq!(n, 1);
+}
+
+#[tokio::test]
 async fn test_db_circuit_breaker() {
     let db = VoxDb::connect(DbConfig::Memory).await.unwrap();
     let breaker = db.breaker();

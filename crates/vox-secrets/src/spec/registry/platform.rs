@@ -691,4 +691,15 @@ pub const SPECS_PLATFORM: &[SecretSpec] = &[
         remediation: "Read-only bearer token for MCP HTTP server.",
         scope_description: "",
     },
+    SecretSpec {
+        id: SecretId::ExpoToken,
+        canonical_env: "EXPO_TOKEN",
+        aliases: &["VOX_EXPO_TOKEN"],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: Some("expo"),
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Run `vox secrets set expo <token>` or set EXPO_TOKEN. Required for EAS build/submit.",
+        scope_description: "Expo / EAS access token for mobile build and submit.",
+    },
 ];

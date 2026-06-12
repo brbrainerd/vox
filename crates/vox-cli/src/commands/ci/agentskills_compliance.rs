@@ -16,6 +16,15 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 
+/// Whether a `*.skill.md` path is a test fixture and must be skipped by the
+/// gate. Fixtures live under `tests/` (e.g. `tests/fixtures/noop-skill/`) and
+/// are intentionally minimal — they cannot satisfy the crate-name==skill-name
+/// rule (their crate dir is the host crate, not a `vox-plugin-<skill>` crate).
+fn is_fixture_path(path: &Path) -> bool {
+    path.components()
+        .any(|c| matches!(c, std::path::Component::Normal(p) if p == "tests" || p == "fixtures"))
+}
+
 /// Regex-free name validation: `^[a-z0-9][a-z0-9-]{0,63}$`
 fn is_valid_name(name: &str) -> bool {
     if name.is_empty() || name.len() > 64 {
@@ -29,8 +38,10 @@ fn is_valid_name(name: &str) -> bool {
     chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
 }
 
-/// Extract `key = "value"` from a frontmatter block (TOML-lite, single-quoted
-/// or double-quoted, ignores `[section]` keys).
+/// Extract a top-level scalar from a frontmatter block, accepting both the
+/// TOML form (`key = "value"`) and the spec-mandated YAML form (`key: value`,
+/// quoted or bare). Ignores `[section]` headers. Returns the value with any
+/// surrounding single/double quotes stripped.
 fn extract_scalar<'a>(frontmatter: &'a str, key: &str) -> Option<&'a str> {
     for line in frontmatter.lines() {
         let trimmed = line.trim();
@@ -40,15 +51,19 @@ fn extract_scalar<'a>(frontmatter: &'a str, key: &str) -> Option<&'a str> {
         }
         if let Some(rest) = trimmed.strip_prefix(key) {
             let rest = rest.trim_start();
-            if let Some(rest) = rest.strip_prefix('=') {
-                let val = rest.trim();
-                // Strip surrounding quotes (single or double)
-                if (val.starts_with('"') && val.ends_with('"'))
-                    || (val.starts_with('\'') && val.ends_with('\''))
-                {
-                    return Some(&val[1..val.len() - 1]);
-                }
+            // TOML `key = value` or YAML `key: value`.
+            let val = match rest.strip_prefix('=').or_else(|| rest.strip_prefix(':')) {
+                Some(v) => v.trim(),
+                None => continue,
+            };
+            // Strip surrounding quotes (single or double); YAML allows bare.
+            if val.len() >= 2
+                && ((val.starts_with('"') && val.ends_with('"'))
+                    || (val.starts_with('\'') && val.ends_with('\'')))
+            {
+                return Some(&val[1..val.len() - 1]);
             }
+            return Some(val);
         }
     }
     None
@@ -90,6 +105,11 @@ pub fn run() -> Result<()> {
         })
     {
         let path = entry.path();
+
+        // Skip test fixtures — deliberately minimal, not real plugin skills.
+        if is_fixture_path(path) {
+            continue;
+        }
 
         // Only check skill.md files that live inside a `vox-plugin-*` crate.
         // Walk up to find the crate dir (the one whose parent is `crates/`).
@@ -173,16 +193,96 @@ pub fn run() -> Result<()> {
             }
         };
 
-        // 6. `description` length ≤ 1024 chars.
-        if description.len() > 1024 {
+        // 6. `description` length ≤ 1024 chars (the spec limit is characters,
+        //    not bytes — count code points so multibyte text isn't over-counted).
+        let desc_chars = description.chars().count();
+        if desc_chars > 1024 {
             errors.push(format!(
                 "{}:`description` is {} chars (max 1024)",
                 path.display(),
-                description.len()
+                desc_chars
             ));
         }
 
         checked += 1;
+    }
+
+    // Also check bare SKILL.md skills in assets/skills/ (agentskills.io layout:
+    // `<root>/<skill-dir>/SKILL.md`, name must match the directory name).
+    let assets_skills = Path::new("assets/skills");
+    if assets_skills.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(assets_skills) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let dir = entry.path();
+                if !dir.is_dir() {
+                    continue;
+                }
+                let skill_md = dir.join("SKILL.md");
+                if !skill_md.is_file() {
+                    continue;
+                }
+                let dir_name = dir
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
+                let content = std::fs::read_to_string(&skill_md)
+                    .with_context(|| format!("reading {}", skill_md.display()))?;
+                let frontmatter = match parse_frontmatter(&content) {
+                    Some(fm) => fm,
+                    None => {
+                        errors.push(format!(
+                            "{}:no frontmatter block (--- ... ---) found",
+                            skill_md.display()
+                        ));
+                        continue;
+                    }
+                };
+                let name = match extract_scalar(frontmatter, "name") {
+                    Some(n) => n,
+                    None => {
+                        errors.push(format!("{}:missing `name` field", skill_md.display()));
+                        checked += 1;
+                        continue;
+                    }
+                };
+                if !is_valid_name(name) {
+                    errors.push(format!(
+                        "{}:`name` = {:?} does not match ^[a-z0-9][a-z0-9-]{{0,63}}$",
+                        skill_md.display(),
+                        name
+                    ));
+                }
+                if name != dir_name {
+                    errors.push(format!(
+                        "{}:`name` = {:?} does not match directory name {:?}",
+                        skill_md.display(),
+                        name,
+                        dir_name
+                    ));
+                }
+                let description = match extract_scalar(frontmatter, "description") {
+                    Some(d) => d,
+                    None => {
+                        errors.push(format!(
+                            "{}:missing `description` field",
+                            skill_md.display()
+                        ));
+                        checked += 1;
+                        continue;
+                    }
+                };
+                let desc_chars = description.chars().count();
+                if desc_chars > 1024 {
+                    errors.push(format!(
+                        "{}:`description` is {} chars (max 1024)",
+                        skill_md.display(),
+                        desc_chars
+                    ));
+                }
+                checked += 1;
+            }
+        }
     }
 
     if errors.is_empty() {
@@ -241,5 +341,43 @@ mod tests {
         let fm = "name = \"x\"\n[metadata]\nname = \"y\"";
         // First `name` before any section
         assert_eq!(extract_scalar(fm, "name"), Some("x"));
+    }
+
+    #[test]
+    fn extract_scalar_handles_yaml_form() {
+        // agentskills.io mandates YAML frontmatter; the gate must read it.
+        let fm = "name: brainstorming\ndescription: Socratic design refinement";
+        assert_eq!(extract_scalar(fm, "name"), Some("brainstorming"));
+        assert_eq!(
+            extract_scalar(fm, "description"),
+            Some("Socratic design refinement")
+        );
+    }
+
+    #[test]
+    fn extract_scalar_handles_quoted_yaml() {
+        let fm = "name: \"skill-x\"\ndescription: 'has: a colon'";
+        assert_eq!(extract_scalar(fm, "name"), Some("skill-x"));
+        assert_eq!(extract_scalar(fm, "description"), Some("has: a colon"));
+    }
+
+    #[test]
+    fn fixture_paths_are_skipped() {
+        assert!(is_fixture_path(Path::new(
+            "crates/vox-plugin-host/tests/fixtures/noop-skill/noop.skill.md"
+        )));
+        assert!(is_fixture_path(Path::new("crates/foo/tests/bar.skill.md")));
+        assert!(!is_fixture_path(Path::new(
+            "crates/vox-plugin-skill-compiler/compiler.skill.md"
+        )));
+    }
+
+    #[test]
+    fn yaml_skill_passes_name_and_description_checks() {
+        let content = "---\nname: brainstorming\ndescription: Explore intent before building\n---\n\n# Body\n";
+        let fm = parse_frontmatter(content).expect("frontmatter");
+        let name = extract_scalar(fm, "name").expect("name");
+        assert!(is_valid_name(name));
+        assert!(extract_scalar(fm, "description").is_some());
     }
 }

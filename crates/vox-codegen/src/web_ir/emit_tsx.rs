@@ -54,6 +54,23 @@ pub fn emit_component_view_tsx_with_stats(
     Some((s, stats))
 }
 
+/// Shadow attrs mirrored onto the DOM arena solely for the validators (A3 palette /
+/// A4 contrast / A10 occlusion-escape). They carry no runtime meaning and must be
+/// stripped before emit. The runtime-meaningful `data-vox-*` attrs (`surface`,
+/// `layer`, `overlay`, `z`, `pos`) are deliberately NOT listed here.
+fn is_analysis_only_attr(name: &str) -> bool {
+    matches!(
+        name,
+        "data-vox-color"
+            | "data-vox-bg"
+            | "data-vox-border-color"
+            | "data-vox-pos-raw"
+            | "data-vox-z-raw"
+            | "data-vox-raw-class"
+            | "data-vox-unknown-kwarg"
+    )
+}
+
 fn emit_node(
     module: &WebIrModule,
     id: DomNodeId,
@@ -75,8 +92,13 @@ fn emit_node(
             // Deterministic ordering for snapshot parity (OP-0102, OP-S023): `attrs` is semantic map, not ordered list.
             let mut sorted = attrs.to_vec();
             sorted.sort_by(|a, b| a.0.cmp(&b.0));
+            // Analysis-only shadow attrs are mirrored onto the DOM arena purely so the
+            // validators (palette/contrast, layer/occlusion) can see the author's
+            // intent. They must NOT ship to the rendered DOM. Runtime-meaningful
+            // `data-vox-*` attrs (surface vars, layer/overlay portal hooks) are kept.
             let attr_str = sorted
                 .iter()
+                .filter(|(k, _)| !is_analysis_only_attr(k))
                 .map(|(k, v)| format!("{k}={{{v}}}"))
                 .collect::<Vec<_>>()
                 .join(" ");
@@ -85,14 +107,32 @@ fn emit_node(
             } else {
                 format!("<{tag} {attr_str}")
             };
-            if children.is_empty() {
-                return format!("{pad}{open} />\n");
+            // A11 part 2: an element declaring a Z-tier (`data-vox-layer`) renders
+            // through its portal root so it escapes any transformed/filtered ancestor
+            // stacking context (the bug the CSS ladder alone cannot fix). The guard
+            // makes it SSR-safe: `voxResolveLayerRoot` returns null on the server, so
+            // the `&&` short-circuits to nothing and the overlay hydrates client-side.
+            let portal_tier = sorted
+                .iter()
+                .find(|(k, _)| k == "data-vox-layer")
+                .map(|(_, v)| v.clone());
+
+            let element = if children.is_empty() {
+                format!("{pad}{open} />\n")
+            } else {
+                let mut inner = String::new();
+                for c in children {
+                    inner.push_str(&emit_node(module, *c, indent + 1, stats));
+                }
+                format!("{pad}{open}>\n{inner}{pad}</{tag}>\n")
+            };
+
+            match portal_tier {
+                Some(tier) => format!(
+                    "{pad}{{voxResolveLayerRoot({tier}) && createPortal(\n{element}{pad}, voxResolveLayerRoot({tier})!)}}\n"
+                ),
+                None => element,
             }
-            let mut inner = String::new();
-            for c in children {
-                inner.push_str(&emit_node(module, *c, indent + 1, stats));
-            }
-            format!("{pad}{open}>\n{inner}{pad}</{tag}>\n")
         }
         DomNode::Text { content, .. } => {
             let lit = serde_json::to_string(content).unwrap_or_else(|_| "\"\"".into());
@@ -159,4 +199,50 @@ fn inject_key_into_jsx(jsx: String, key_attr: &str) -> String {
         }
     }
     jsx
+}
+
+#[cfg(test)]
+mod a11p2_portal_tests {
+    use crate::web_ir::{DomNode, DomNodeId, WebIrModule};
+
+    fn module_with_layer_element() -> WebIrModule {
+        let mut m = WebIrModule::default();
+        // child text
+        m.dom_nodes.push(DomNode::Element {
+            id: DomNodeId(0),
+            tag: "div".to_string(),
+            attrs: vec![
+                ("data-vox-layer".to_string(), "\"modal\"".to_string()),
+                ("data-vox-bg".to_string(), "\"white\"".to_string()),
+                ("className".to_string(), "\"fixed inset-0\"".to_string()),
+            ],
+            children: vec![],
+            span: None,
+        });
+        m.view_roots.push(("Dialog".to_string(), DomNodeId(0)));
+        m
+    }
+
+    #[test]
+    fn layer_element_renders_through_create_portal() {
+        let m = module_with_layer_element();
+        let tsx = super::emit_component_view_tsx(&m, "Dialog").expect("emits");
+        assert!(
+            tsx.contains("createPortal("),
+            "expected createPortal; got:\n{tsx}"
+        );
+        assert!(
+            tsx.contains("voxResolveLayerRoot(\"modal\")"),
+            "expected resolver; got:\n{tsx}"
+        );
+        // data-vox-layer is kept (CSS hook); the analysis-only data-vox-bg is stripped.
+        assert!(
+            tsx.contains("data-vox-layer"),
+            "data-vox-layer kept; got:\n{tsx}"
+        );
+        assert!(
+            !tsx.contains("data-vox-bg"),
+            "analysis attr stripped; got:\n{tsx}"
+        );
+    }
 }
