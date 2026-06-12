@@ -22,6 +22,19 @@ use vox_publisher::scientia_producers::{
 
 const PRODUCER: &str = "commit_watcher";
 
+/// Snake-case string for a discovery intake tier (matches the `serde` wire form
+/// of `DiscoveryIntakeTier`), stored verbatim in the discovery inbox.
+fn intake_tier_snake_case(
+    tier: vox_publisher::scientia_discovery::DiscoveryIntakeTier,
+) -> &'static str {
+    use vox_publisher::scientia_discovery::DiscoveryIntakeTier as T;
+    match tier {
+        T::StrongCandidate => "strong_candidate",
+        T::ReviewSuggested => "review_suggested",
+        T::LowSignal => "low_signal",
+    }
+}
+
 /// Wraps `vox_search::vector_qdrant::QdrantSemanticClient` as a [`CodeKnnIndex`].
 struct QdrantCodeIndex {
     client: vox_search::vector_qdrant::QdrantSemanticClient,
@@ -346,10 +359,33 @@ pub async fn discovery_watch(once: bool, repo: Option<&Path>, limit: usize) -> R
         )
         .await?;
 
+        // Surface the candidate into the discovery inbox (Task 16) so the GUI
+        // can raise a "new research candidate" alert and a WS poller can
+        // broadcast it. BEST-EFFORT: the draft manifest above is the source of
+        // truth; a missing inbox row only means no toast, so an insert failure
+        // must NOT abort the watch run — record a note and continue.
+        let now_ms = chrono::Utc::now().timestamp_millis();
+        let signal_codes_json = serde_json::to_string(&signal_codes)
+            .context("serialize discovery signal_codes for inbox")?;
+        let intake_tier = intake_tier_snake_case(rank.intake_tier);
+        let (inbox_id, inbox_error) = match db
+            .insert_discovery_inbox(&publication_id, now_ms, intake_tier, &signal_codes_json)
+            .await
+        {
+            Ok(id) => (Some(id), None),
+            Err(e) => {
+                tracing::warn!("discovery inbox insert failed for {publication_id}: {e}");
+                (None, Some(e.to_string()))
+            }
+        };
+
         candidates.push(serde_json::json!({
             "publication_id": publication_id,
             "sha": c.sha,
             "signal_codes": signal_codes,
+            "intake_tier": intake_tier,
+            "inbox_id": inbox_id,
+            "inbox_error": inbox_error,
         }));
     }
 

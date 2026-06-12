@@ -51,6 +51,7 @@ mod ops_codex;
 mod ops_completion;
 pub mod ops_convergence;
 mod ops_developer_journeys;
+mod ops_discovery_inbox;
 mod ops_embedding_cache;
 pub mod ops_exec_time;
 mod ops_external_intelligence;
@@ -74,6 +75,7 @@ mod ops_review;
 mod ops_scientia;
 mod ops_user_identity;
 
+pub use ops_discovery_inbox::DiscoveryInboxRow;
 pub use ops_finding_candidates::{FindingCandidateClass, FindingCandidateRow, InsertOutcome};
 pub use ops_review::{ReviewDecisionRow, VALID_DECISIONS};
 pub use ops_user_identity::{NanopubRow, UserIdentityRow};

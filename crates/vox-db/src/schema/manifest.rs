@@ -8,7 +8,7 @@ use super::spec;
 use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
-pub const BASELINE_VERSION: i64 = 74; // +1: scientia_producer_cursor (automated discovery producer scan cursors)
+pub const BASELINE_VERSION: i64 = 75; // +1: scientia_discovery_inbox (surfacing index for automated discovery candidates)
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
