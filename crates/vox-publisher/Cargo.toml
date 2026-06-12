@@ -70,3 +70,4 @@ wiremock = { workspace = true }
 # `cargo test` builds (which pull wiremock + deadpool transitively) hit a
 # rustc-1.92 inference failure inside `deadpool::unmanaged::Pool::timeout_get`.
 deadpool = { workspace = true }
+vox-research-events = { workspace = true }
