@@ -594,10 +594,22 @@ impl BrowserEngine {
         let html = page.content().await.map_err(Self::map_page_err)?;
         let stripped = strip_html_tags(&html);
         let max_chars = max_chars.max(256);
-        if stripped.len() <= max_chars {
+        if stripped.chars().count() <= max_chars {
             Ok(stripped)
         } else {
-            Ok(format!("{}…", &stripped[..max_chars]))
+            // Truncate by char count, not byte index: `stripped` is readability
+            // text from arbitrary web pages and routinely contains multibyte
+            // UTF-8 (curly quotes, accents, CJK). A byte slice at `max_chars`
+            // would panic on a non-char-boundary.
+            // Budget the 1-char ellipsis into the cap so the result never
+            // exceeds max_chars.
+            Ok(format!(
+                "{}…",
+                stripped
+                    .chars()
+                    .take(max_chars.saturating_sub(1))
+                    .collect::<String>()
+            ))
         }
     }
 
