@@ -509,8 +509,14 @@ pub enum ScientiaCmd {
     /// resolve (or create) the per-user RSA + ORCID signing identity, assemble
     /// the enriched assertion, RSA-sign it, VALIDATE it OFFLINE (trusty hash +
     /// signature; NO network), and persist the signed artifact to
-    /// `scientia_nanopubs` with `published_state="local"`. This command performs
-    /// NO network publishing of any kind. Prints the resulting Trusty URI.
+    /// `scientia_nanopubs` with `published_state="local"`. Prints the resulting
+    /// Trusty URI.
+    ///
+    /// With `--publish-test-server`: after the build succeeds, also publish the
+    /// signed nanopub to the nanopub TEST server (requires both a human-approved
+    /// claim token AND `VOX_NANOPUB_TEST_SERVER=1` in the environment). The test
+    /// server is a public registry that is periodically wiped — NOT production.
+    /// Prints the published URI. Production publishing is deliberately unimplemented.
     #[command(name = "publication-nanopub-build")]
     PublicationNanopubBuild {
         /// Publication id the claim belongs to (selects the claim bucket).
@@ -523,6 +529,12 @@ pub enum ScientiaCmd {
         /// Overrides the stored identity ORCID; required if none is stored.
         #[arg(long)]
         orcid: Option<String>,
+        /// After building locally, also publish to the nanopub TEST server.
+        /// Requires `VOX_NANOPUB_TEST_SERVER=1` to be set in the environment
+        /// and a persisted human-approved review decision for this claim.
+        /// The test server is public and periodically wiped — NOT production.
+        #[arg(long, default_value_t = false)]
+        publish_test_server: bool,
     },
 
     /// Phase 3 — Render a `ScaffoldInput` JSON to a standalone LaTeX

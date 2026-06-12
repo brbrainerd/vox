@@ -166,6 +166,104 @@ impl VoxDb {
         }
     }
 
+    /// Update the `published_state` (and optionally `published_uri`) for a
+    /// persisted nanopublication artifact, keyed by its Trusty URI.
+    ///
+    /// The `published_state` column encodes the lifecycle: `local` →
+    /// `test_server` → (future: `published`). The Trusty URI doubles as the
+    /// canonical published identifier for test-server nanopubs, so
+    /// `published_uri` is stored in the existing `trusty_uri` column (no schema
+    /// change needed). Pass the returned URI from the test-server publish call
+    /// as `published_uri`; if the server returns a different URI, this op
+    /// stores it for traceability.
+    pub async fn update_nanopub_published_state(
+        &self,
+        trusty_uri: &str,
+        state: &str,
+        published_uri: &str,
+    ) -> Result<(), StoreError> {
+        // Store the published_uri back into `trusty_uri` only when it differs
+        // (the test server always echoes the same Trusty URI, but we handle the
+        // general case). In practice this is a state-column update; the PK
+        // (`trusty_uri`) is unchanged unless the server assigned a new one.
+        self.conn
+            .execute(
+                "UPDATE scientia_nanopubs \
+                 SET published_state = ?1 \
+                 WHERE trusty_uri = ?2",
+                params![state.to_string(), trusty_uri.to_string()],
+            )
+            .await
+            .map_err(StoreError::Turso)?;
+        // When the server returned a distinct URI (edge case), insert a
+        // lightweight cross-reference row so the caller can look up by the
+        // server-assigned URI. If identical we skip to avoid a duplicate-PK
+        // error on the UNIQUE constraint.
+        if published_uri != trusty_uri {
+            // Best-effort: if a row for `published_uri` already exists (e.g.
+            // idempotent retry), ignore the conflict.
+            self.conn
+                .execute(
+                    "INSERT OR IGNORE INTO scientia_nanopubs(\
+                        trusty_uri, claim_id, publication_id, user_id, orcid_id, \
+                        trig, validated_offline, published_state, created_at_ms\
+                     ) \
+                     SELECT ?1, claim_id, publication_id, user_id, orcid_id, \
+                            trig, validated_offline, ?2, created_at_ms \
+                     FROM scientia_nanopubs WHERE trusty_uri = ?3",
+                    params![
+                        published_uri.to_string(),
+                        state.to_string(),
+                        trusty_uri.to_string()
+                    ],
+                )
+                .await
+                .map_err(StoreError::Turso)?;
+        }
+        Ok(())
+    }
+
+    /// Fetch the most-recently-created `scientia_nanopubs` row for a claim
+    /// that has `published_state = 'local'`.
+    ///
+    /// Returns `None` when no local row exists. When multiple local builds exist
+    /// for the same claim (e.g. re-builds), returns the one with the highest
+    /// `created_at_ms`.
+    pub async fn get_local_nanopub_for_claim(
+        &self,
+        claim_id: i64,
+    ) -> Result<Option<NanopubRow>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT trusty_uri, claim_id, publication_id, user_id, orcid_id, \
+                        trig, validated_offline, published_state, created_at_ms \
+                 FROM scientia_nanopubs \
+                 WHERE claim_id = ?1 AND published_state = 'local' \
+                 ORDER BY created_at_ms DESC \
+                 LIMIT 1",
+                params![claim_id],
+            )
+            .await
+            .map_err(StoreError::Turso)?;
+        if let Some(row) = rows.next().await.map_err(StoreError::Turso)? {
+            let validated_offline: i64 = row.get(6).map_err(StoreError::Turso)?;
+            Ok(Some(NanopubRow {
+                trusty_uri: row.get(0).map_err(StoreError::Turso)?,
+                claim_id: row.get(1).map_err(StoreError::Turso)?,
+                publication_id: row.get(2).map_err(StoreError::Turso)?,
+                user_id: row.get(3).map_err(StoreError::Turso)?,
+                orcid_id: row.get(4).map_err(StoreError::Turso)?,
+                trig: row.get(5).map_err(StoreError::Turso)?,
+                validated_offline: validated_offline != 0,
+                published_state: row.get(7).map_err(StoreError::Turso)?,
+                created_at_ms: row.get(8).map_err(StoreError::Turso)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Count the locally-persisted nanopublication artifacts for a claim.
     ///
     /// Used to prove the human-gate refused emission (a refused stale/unapproved

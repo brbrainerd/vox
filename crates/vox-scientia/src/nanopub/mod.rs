@@ -14,4 +14,4 @@ pub use vox_nanopub::{
 };
 pub use vox_nanopub::{signing, trig};
 
-pub use network::{NanopubNetworkConfig, PublishResult, publish_stub};
+pub use network::{ensure_test_server_allowed, publish_to_test_server};
