@@ -10,7 +10,7 @@ pub(super) fn split_csv(value: Option<&str>) -> Vec<String> {
 
 pub(super) fn summarize_text(text: &str, max_chars: usize) -> String {
     let trimmed = text.trim();
-    if trimmed.len() <= max_chars {
+    if trimmed.chars().count() <= max_chars {
         trimmed.to_string()
     } else {
         let mut summary = trimmed.chars().take(max_chars).collect::<String>();
