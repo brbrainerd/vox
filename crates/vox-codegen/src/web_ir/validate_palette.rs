@@ -127,8 +127,54 @@ pub fn validate_palette(
         }
     }
 
+    // A5: flag style-kwarg typos that would otherwise leak as raw HTML attrs.
+    check_unknown_kwargs(module, out);
+
     // Pairwise WCAG contrast (A4): walk the arena tracking the nearest effective bg.
     check_contrast(module, registry, out);
+}
+
+/// Catch single-character typos of style kwargs (`colr` → `color`). An unrecognized
+/// view-call kwarg survives lowering as a raw attribute of the same name; if that
+/// name is edit-distance 1 from a known `UNIVERSAL_STYLE_KWARG`, it is almost
+/// certainly a typo, not a deliberate HTML attribute. Distance is capped at 1 so
+/// genuine attrs (e.g. `type` is distance 2 from `top`) never false-positive.
+fn check_unknown_kwargs(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
+    use crate::web_ir::primitives::UNIVERSAL_STYLE_KWARGS;
+    for node in &module.dom_nodes {
+        let DomNode::Element { attrs, .. } = node else {
+            continue;
+        };
+        for (k, _) in attrs {
+            // Skip framework/HTML attrs that are never style kwargs.
+            if k.contains('-')
+                || k.starts_with("on")
+                || k.starts_with("aria")
+                || k.len() < 3
+                || matches!(k.as_str(), "className" | "style" | "key" | "id" | "role" | "ref")
+            {
+                continue;
+            }
+            // Already a valid kwarg → fine.
+            if UNIVERSAL_STYLE_KWARGS.contains(&k.as_str()) {
+                continue;
+            }
+            if let Some(suggestion) = UNIVERSAL_STYLE_KWARGS
+                .iter()
+                .find(|cand| levenshtein(k, cand) == 1)
+            {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.style.unknown_kwarg".to_string(),
+                    message: format!(
+                        "Unknown style kwarg `{k}` — did you mean `{suggestion}`? \
+                         (escape hatch: prefix with `attr_` to emit a literal HTML attribute.)"
+                    ),
+                    span: None,
+                    category: Some("style".to_string()),
+                });
+            }
+        }
+    }
 }
 
 /// Build a child→parent map and walk each view root, threading the nearest resolved
@@ -291,6 +337,53 @@ mod tests {
         let mut out = vec![];
         validate_palette(&m, None, &mut out);
         assert!(out.iter().any(|d| d.code == "web_ir_validate.style.unknown_color"));
+    }
+
+    // ── A5: unknown style kwargs ────────────────────────────────────────────
+
+    #[test]
+    fn typo_of_style_kwarg_is_flagged_with_suggestion() {
+        // A raw attr `colr` survives lowering; it is distance 1 from `color`.
+        let mut m = WebIrModule::default();
+        m.dom_nodes.push(DomNode::Element {
+            id: DomNodeId(0),
+            tag: "span".to_string(),
+            attrs: vec![("colr".to_string(), "\"zinc.400\"".to_string())],
+            children: vec![],
+            span: None,
+        });
+        m.view_roots.push(("V".to_string(), DomNodeId(0)));
+        let mut out = vec![];
+        validate_palette(&m, None, &mut out);
+        let d = out
+            .iter()
+            .find(|d| d.code == "web_ir_validate.style.unknown_kwarg")
+            .expect("typo'd kwarg must be flagged");
+        assert!(d.message.contains("color"), "did-you-mean: {}", d.message);
+    }
+
+    #[test]
+    fn legitimate_html_attrs_are_not_flagged() {
+        let mut m = WebIrModule::default();
+        for (i, attr) in [("href", "\"/x\""), ("type", "\"text\""), ("src", "\"a.png\"")]
+            .into_iter()
+            .enumerate()
+        {
+            m.dom_nodes.push(DomNode::Element {
+                id: DomNodeId(i as u32),
+                tag: "a".to_string(),
+                attrs: vec![(attr.0.to_string(), attr.1.to_string())],
+                children: vec![],
+                span: None,
+            });
+            m.view_roots.push((format!("V{i}"), DomNodeId(i as u32)));
+        }
+        let mut out = vec![];
+        validate_palette(&m, None, &mut out);
+        assert!(
+            !out.iter().any(|d| d.code == "web_ir_validate.style.unknown_kwarg"),
+            "real HTML attrs must not be flagged: {out:?}"
+        );
     }
 
     // ── A4: pairwise contrast ───────────────────────────────────────────────
