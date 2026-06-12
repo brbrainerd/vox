@@ -18,35 +18,9 @@ struct SurfacePair {
     canonical: String,
 }
 
-fn levenshtein_chars(a: &[char], b: &[char]) -> usize {
-    let n = a.len();
-    let m = b.len();
-    if n == 0 {
-        return m;
-    }
-    if m == 0 {
-        return n;
-    }
-    let mut prev: Vec<usize> = (0..=m).collect();
-    let mut cur = vec![0usize; m + 1];
-    for i in 1..=n {
-        cur[0] = i;
-        for j in 1..=m {
-            let cost = usize::from(a[i - 1] != b[j - 1]);
-            cur[j] = (prev[j - 1] + cost).min(prev[j] + 1).min(cur[j - 1] + 1);
-        }
-        std::mem::swap(&mut prev, &mut cur);
-    }
-    prev[m]
-}
-
 /// Normalized similarity in `[0, 1]` from Levenshtein distance (1 = identical).
 fn normalized_char_similarity(a: &str, b: &str) -> f64 {
-    let ac: Vec<char> = a.chars().collect();
-    let bc: Vec<char> = b.chars().collect();
-    let d = levenshtein_chars(&ac, &bc);
-    let max_len = ac.len().max(bc.len()).max(1);
-    1.0_f64 - (d as f64 / max_len as f64)
+    strsim::normalized_levenshtein(a, b)
 }
 
 fn load_surfaces(repo_root: &Path) -> Option<Arc<Vec<SurfacePair>>> {

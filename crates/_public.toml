@@ -1,0 +1,16 @@
+# Canonical external-publication set (CR-K2).
+# Every crate listed here must pass `cargo publish --dry-run` and carry
+# non-empty description, license, repository, and readme metadata.
+#
+# Verify: `vox audit --gate public-set-metadata` (when wired)
+# See: docs/src/architecture/v1-release-criteria.md §CR-K
+
+schema_version = 1
+
+# Example entries — expand as crates graduate to publish=true.
+crates = [
+    "vox-crypto",
+    "voxup",
+    # "vox-config",
+    # "vox-secrets",
+]

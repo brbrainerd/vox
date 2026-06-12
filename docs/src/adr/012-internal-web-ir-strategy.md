@@ -58,7 +58,7 @@ Source anchors:
 - `crates/vox-compiler/src/parser/descent/decl/head.rs` (`parse_island`)
 - `crates/vox-ast/src/decl/ui.rs` (`IslandDecl`, `IslandProp`)
 - `crates/vox-compiler/src/hir/lower/mod.rs` (`Decl::Island -> HirIsland`)
-- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` + `codegen_ts/jsx.rs` (dual island mount rewrite)
+- `crates/vox-codegen-ts/src/hir_emit/mod.rs` + `codegen_ts/jsx.rs` (dual island mount rewrite)
 - `crates/vox-cli/src/templates/islands.rs` (runtime hydration parse)
 
 Current shape:

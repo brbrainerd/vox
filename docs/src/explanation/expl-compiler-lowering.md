@@ -34,7 +34,7 @@ Current production behavior (important for migration planning):
 
 - `codegen_ts` still assembles production TS/TSX output on the primary path.
 - `VOX_WEBIR_VALIDATE` runs WebIR lower/validate as a fail-fast gate (default on).
-- Reactive `view:` emission is **WebIR-only** (no legacy env toggle): validated WebIR TSX is canonical; blocking validate failures or missing Web IR view roots fail fast with diagnostics recorded in [`ReactiveViewBridgeStats::reactive_view_emit_failures`](../../../crates/vox-codegen/src/codegen_ts/reactive.rs); `emit_hir_expr` is used **only** for parity classification (`WebIrViewEmitted` vs `WebIrViewEmittedParityMismatch`).
+- Reactive `view:` emission is **WebIR-only** (no legacy env toggle): validated WebIR TSX is canonical; blocking validate failures or missing Web IR view roots fail fast with diagnostics recorded in [`ReactiveViewBridgeStats::reactive_view_emit_failures`](../../../crates/vox-codegen-ts/src/reactive/mod.rs); `emit_hir_expr` is used **only** for parity classification (`WebIrViewEmitted` vs `WebIrViewEmittedParityMismatch`).
 
 Migration milestones for deprecating legacy emit reliance:
 

@@ -5,7 +5,7 @@ export function scoreToPct(score: number): string {
 }
 
 export interface OpenLocator {
-  kind: 'file' | 'web' | 'memory' | 'none';
+  kind: 'file' | 'web' | 'memory' | 'chat' | 'command' | 'none';
   value: string;
 }
 

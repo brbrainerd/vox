@@ -102,7 +102,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
    - `@auth(scheme: bearer)` — declarative; resolves to a Tower middleware in the generated Axum crate. Composable with custom auth functions.
    - `@rate_limit(per: "1m", max: 60, key: by_ip)` — emits a `tower_governor` (or equivalent) layer.
    - `@public` / `@authenticated` / `@role("admin")` — guard groups.
-3. Compile-time route conflict detection (already partially present in [`routes.rs`](../../../crates/vox-codegen/src/codegen_ts/routes.rs) near line 70; extend to handle path-param overlaps).
+3. Compile-time route conflict detection (already partially present in [`routes.rs`](../../../crates/vox-rn-codegen/src/routes.rs) near line 70; extend to handle path-param overlaps).
 4. OpenAPI emit (Phase 2) reflects all of the above as `securitySchemes`, `x-rate-limit`, CORS notes, and proper path-param `parameters`.
 5. Update auth-pattern golden examples to use the declarative form; keep one manual example as an escape hatch.
 

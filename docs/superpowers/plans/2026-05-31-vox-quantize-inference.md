@@ -266,8 +266,8 @@ git commit -m "refactor(model-qwen): extract inference-pure Qwen forward from pl
 ### Task 4: Wire `vox-inference` CandleCpu backend
 
 **Files:**
-- Modify: `crates/vox-inference/Cargo.toml`, `crates/vox-inference/src/backends/candle_cpu.rs`, `crates/vox-inference/src/backend.rs`
-- Test: `crates/vox-inference/tests/cpu_predict.rs`
+- Modify: `crates/vox-populi/src/inference/Cargo.toml`, `crates/vox-populi/src/inference/src/backends/candle_cpu.rs`, `crates/vox-populi/src/inference/src/backend.rs`
+- Test: `crates/vox-populi/src/inference/tests/cpu_predict.rs`
 
 - [ ] **Step 1: Add deps + extend the Quantization enum**
 
@@ -322,7 +322,7 @@ git commit -m "feat(inference): real CandleCpu quantized load + greedy predict"
 ### Task 5: CandleCuda / CandleMetal backends + capability advertisement
 
 **Files:**
-- Modify: `crates/vox-inference/src/backends/candle_cuda.rs`, `candle_metal.rs`, `src/backend.rs`
+- Modify: `crates/vox-populi/src/inference/src/backends/candle_cuda.rs`, `candle_metal.rs`, `src/backend.rs`
 
 - [ ] **Step 1: Generalize the load/predict over device**
 

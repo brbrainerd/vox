@@ -19,7 +19,7 @@ schema_type: "TechArticle"
 
 - The compiler pipeline is staged **HIR → WebIR → TS/Rust emitters**; see [Explanation: Compiler lowering phases](../explanation/expl-compiler-lowering.md).
 - `HirModule` already mixes semantic core, app-contract surfaces, migration-only vectors, and mobile primitives; see [HIR `HirFieldOwnership`](../../../crates/vox-compiler/src/hir/nodes/decl.rs).
-- WebIR exists to centralize **web UI structure + validation** that string emitters duplicated (ADR 012 rationale); reactive views now prefer WebIR TSX when validation passes ([`reactive.rs`](../../../crates/vox-codegen/src/codegen_ts/reactive.rs)).
+- WebIR exists to centralize **web UI structure + validation** that string emitters duplicated (ADR 012 rationale); reactive views now prefer WebIR TSX when validation passes ([`reactive.rs`](../../../crates/vox-codegen-ts/src/reactive/mod.rs)).
 - Tauri is a **packaging + webview shell** around the same Axum+Vite/React core; native command lowering is still a stub ([`tauri_stub.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/tauri_stub.rs)).
 - Baseline split-brain map: [WebIR/HIR split-brain inventory (2026)](../architecture/webir-hir-split-brain-inventory-2026.md).
 

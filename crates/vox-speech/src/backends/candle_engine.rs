@@ -541,6 +541,7 @@ impl Decoder {
         Ok(logits)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn processor_name(&self) -> &'static str {
         self.logit_processor.name()
     }

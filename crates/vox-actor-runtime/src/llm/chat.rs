@@ -59,6 +59,8 @@ pub async fn llm_chat(
                 temperature: config.temperature,
                 max_tokens: config.max_tokens,
                 response_format: config.response_format.as_ref(),
+                tools: super::wire::openrouter_tools(config.tools.as_deref()),
+                tool_choice: config.tool_choice.as_ref(),
                 stream: false,
             };
 

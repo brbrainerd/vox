@@ -29,7 +29,7 @@ pub(crate) use guards::{
 };
 pub(crate) use matrix::{
     MensGateOpts, check_no_vox_dei, check_workflow_scripts, run_feature_matrix, run_mens_gate,
-    run_script_hygiene, run_toestub_scoped, run_toestub_self_apply,
+    run_script_hygiene, run_toestub_scoped_roots, run_toestub_self_apply,
 };
 pub(crate) use mens::{
     run_collateral_damage_gate, run_constrained_gen_smoke, run_grpo_reward_baseline,

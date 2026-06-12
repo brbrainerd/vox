@@ -115,6 +115,8 @@ impl Judge for LlmJudge {
             top_p: None,
             max_tokens: Some(512),
             response_format: Some(schema::judge_finding_json_schema()),
+            tools: None,
+            tool_choice: None,
             timeout_ms: Some(self.timeout.as_millis() as u64),
             telemetry_session_id: None,
             telemetry_user_id: None,

@@ -147,9 +147,13 @@ mod tests {
     use super::*;
     use crate::{DbConfig, VoxDb};
 
+    async fn memory_db() -> Result<VoxDb, StoreError> {
+        VoxDb::connect(DbConfig::Memory).await
+    }
+
     #[tokio::test]
-    async fn record_and_latest_decision_round_trips() {
-        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+    async fn record_and_latest_decision_round_trips() -> Result<(), StoreError> {
+        let db = memory_db().await?;
         let row = ReviewDecisionRow {
             claim_id: 42,
             publication_id: "pub-001".into(),
@@ -160,19 +164,19 @@ mod tests {
             model_fingerprints_json: None,
             decided_at_ms: 1_748_000_000_000,
         };
-        db.record_review_decision(&row).await.expect("record");
+        db.record_review_decision(&row).await?;
 
         let got = db
             .latest_decision_for_claim(42, "pub-001")
-            .await
-            .expect("latest")
-            .expect("row present");
+            .await?
+            .ok_or_else(|| StoreError::Db("expected review row".into()))?;
         assert_eq!(got, row);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn latest_decision_supersedes_earlier_by_decided_at_ms() {
-        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+    async fn latest_decision_supersedes_earlier_by_decided_at_ms() -> Result<(), StoreError> {
+        let db = memory_db().await?;
 
         let first = ReviewDecisionRow {
             claim_id: 99,
@@ -184,9 +188,7 @@ mod tests {
             model_fingerprints_json: None,
             decided_at_ms: 1_748_000_000_000,
         };
-        db.record_review_decision(&first)
-            .await
-            .expect("record first");
+        db.record_review_decision(&first).await?;
 
         let second = ReviewDecisionRow {
             claim_id: 99,
@@ -198,15 +200,12 @@ mod tests {
             model_fingerprints_json: Some(r#"["fp-model-a"]"#.into()),
             decided_at_ms: 1_748_000_001_000, // 1 second later
         };
-        db.record_review_decision(&second)
-            .await
-            .expect("record second");
+        db.record_review_decision(&second).await?;
 
         let got = db
             .latest_decision_for_claim(99, "pub-002")
-            .await
-            .expect("latest")
-            .expect("row present");
+            .await?
+            .ok_or_else(|| StoreError::Db("expected review row".into()))?;
         // The later (rejected) decision must win.
         assert_eq!(
             got.decision, "rejected",
@@ -214,16 +213,15 @@ mod tests {
         );
         assert_eq!(got.actor, "bob");
         assert_eq!(got.bound_digest, "digest-v2");
+        Ok(())
     }
 
     #[tokio::test]
-    async fn latest_decision_returns_none_for_unknown_claim() {
-        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
-        let got = db
-            .latest_decision_for_claim(9999, "pub-x")
-            .await
-            .expect("latest");
+    async fn latest_decision_returns_none_for_unknown_claim() -> Result<(), StoreError> {
+        let db = memory_db().await?;
+        let got = db.latest_decision_for_claim(9999, "pub-x").await?;
         assert!(got.is_none(), "unknown claim must return None");
+        Ok(())
     }
 
     #[tokio::test]

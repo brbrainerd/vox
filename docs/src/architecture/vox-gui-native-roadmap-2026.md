@@ -1127,7 +1127,7 @@ signal.
 - `crates/vox-compiler/src/hir/nodes/decl.rs` — `HirModule` definition.
 - `crates/vox-compiler/src/hir/lowering/mod.rs` — where the fields are
   populated.
-- `crates/vox-codegen/src/codegen_ts/` — where they're consumed.
+- `crates/vox-codegen-ts/src/` — where they're consumed.
 - `crates/vox-codegen/src/web_ir/lower.rs` — the Path C lowering.
 - `examples/golden/` — verify no `.vox` file uses Path B syntax.
 - `AGENTS.md` §Retired Surfaces — confirmation the symbols are retired.
@@ -1135,7 +1135,7 @@ signal.
 **Files to modify**:
 - `crates/vox-compiler/src/hir/nodes/decl.rs`
 - `crates/vox-compiler/src/hir/lowering/mod.rs`
-- `crates/vox-codegen/src/codegen_ts/` (every file that reads the deleted
+- `crates/vox-codegen-ts/src/` (every file that reads the deleted
   fields)
 - Any other crate that reads `HirModule.components`, `.hooks`, etc.
 
@@ -1298,7 +1298,7 @@ operation set extensible without AST surgery.
   definition (around line 117).
 - `crates/vox-compiler/src/hir/lowering/` — where DbTableOp variants are
   constructed.
-- `crates/vox-codegen/src/codegen_ts/` and codegen_rust — consumers.
+- `crates/vox-codegen-ts/src/` and codegen_rust — consumers.
 - `crates/vox-compiler/src/typeck/` — type-checking paths.
 
 **Files to modify**:
@@ -1559,7 +1559,7 @@ state_machine AgentLifecycle {
   + reachability + coverage analysis.
 - `crates/vox-codegen/src/web_ir/lower_state_machine.rs` — lower to
   `BehaviorNode::StateMachine` (new variant).
-- `crates/vox-codegen/src/codegen_ts/state_machine_emit.rs` — emit a
+- `crates/vox-codegen-ts/src/state_machine_emit.rs` — emit a
   typed reducer + hook when embedded in a component.
 
 **Files to modify**:

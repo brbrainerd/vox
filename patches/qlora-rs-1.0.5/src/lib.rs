@@ -50,6 +50,6 @@ pub use quantization::{
     QuantizationConfig, QuantizationStrategy, QuantizedTensor,
 };
 pub use training::{
-    cross_entropy_loss, PagedAdamW, PagedAdamWState, QLoraTrainer, QLoraTrainingConfig,
-    TrainingMetrics,
+    accumulate_grads_for_vars, backward_from_cotangent, cross_entropy_loss, PagedAdamW,
+    PagedAdamWState, QLoraTrainer, QLoraTrainingConfig, TrainingMetrics,
 };

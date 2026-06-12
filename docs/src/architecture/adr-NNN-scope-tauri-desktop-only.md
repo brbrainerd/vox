@@ -1,6 +1,6 @@
 ---
 title: "ADR-NNN: Scope Tauri to desktop only; pick React Native + Expo + uniffi for mobile"
-status: experimental
+status: current
 category: "Architecture SSOTs"
 date: 2026-05-28
 supersedes: adr-037
@@ -15,7 +15,15 @@ related:
 
 ## Status
 
-**Proposed.** Conditional on resolving two pre-existing blockers (see §Preconditions).
+**Accepted** (2026-06-12). The §Preconditions were verified resolved before flipping:
+the `main_boot.rs` HirModule-serialization panic and the struct-literal-in-fn typeck
+regression were both fixed and landed with the Phase 0 work (PR #94); the CLI
+integration test harness exists at `crates/vox-cli-tests` and runs `vox build` on real
+component sources (including six mobile fixtures) asserting buildable output; and the
+Phase 0 spec drafts ([mobile-rn-expo-implementation-spec-2026.md](mobile-rn-expo-implementation-spec-2026.md),
+[mobile-rn-expo-architecture-and-migration-2026.md](mobile-rn-expo-architecture-and-migration-2026.md))
+are filed. The RN target itself has since shipped (`vox build --target=mobile`,
+`@vox/runtime-rn`, Expo config plugin), confirming the bet in practice.
 
 ## Context
 
@@ -92,7 +100,7 @@ A quarterly tracking note should be maintained at `docs/src/architecture/rn-taur
 |---|---|
 | `crates/vox-gui` | Unchanged. Continues as Tauri 2 desktop shell. |
 | `crates/vox-tauri-codegen` | Scope narrowed to desktop config emission. Any mobile config-emit code (if present) retires in Phase 3. |
-| `crates/vox-codegen/src/codegen_ts/mobile_emit.rs` | Refactored in Phase 1 to emit to a `@vox/runtime` adapter contract rather than `@tauri-apps/api/event` directly. Two implementations (Tauri-flavored for desktop, Expo-flavored for mobile) fulfill the contract. |
+| `crates/vox-codegen-ts/src/mobile_emit.rs` | Refactored in Phase 1 to emit to a `@vox/runtime` adapter contract rather than `@tauri-apps/api/event` directly. Two implementations (Tauri-flavored for desktop, Expo-flavored for mobile) fulfill the contract. |
 | `crates/vox-tauri-stt/src/plugin.rs` | Retired in Phase 2. The native Kotlin/Swift code is removed in the same PR. |
 | `apps/vox-mental-tracker` | Migrates from Capacitor to Expo in Phase 1 of [mobile-rn-expo-architecture-and-migration-2026.md](mobile-rn-expo-architecture-and-migration-2026.md). Capacitor refs deleted. |
 | `crates/vox-codegen/src/codegen_rust/emit/main_boot.rs:288` | Bug fix is a precondition of this ADR's Acceptance, not part of it. Tracked separately. |

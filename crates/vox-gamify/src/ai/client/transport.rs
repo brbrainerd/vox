@@ -34,30 +34,27 @@ impl FreeAiClient {
             let resp = http.post(&url).json(&body).send().await.map_err(AiError::Http)?;
 
             if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
-                let retry_after = resp.headers()
-                    .get(reqwest::header::RETRY_AFTER)
-                    .and_then(|h| h.to_str().ok())
-                    .and_then(|s| s.parse().ok());
                 Err(AiError::RateLimited {
                     provider: "ollama".to_string(),
-                    retry_after_secs: retry_after
+                    retry_after_secs: vox_http_client::parse_retry_after(resp.headers()),
                 })?;
             }
 
+            use vox_openai::sse::Utf8LineBuffer;
             let mut stream = resp.bytes_stream();
-            let mut buf: Vec<u8> = Vec::new();
+            let mut line_buf = Utf8LineBuffer::new();
 
             while let Some(item) = stream.next().await {
                 let chunk: Bytes = item.map_err(AiError::Http)?;
-                buf.extend_from_slice(&chunk);
-                while let Some(pos) = buf.iter().position(|&b| b == b'\n') {
-                    let raw: Vec<u8> = buf.drain(..=pos).collect();
-                    let line: &[u8] = raw.strip_suffix(b"\n").unwrap_or(raw.as_slice());
-                    if line.is_empty() {
-                        continue;
+                let mut lines: Vec<String> = Vec::new();
+                line_buf.push_lossy_bytes(&chunk, |line| {
+                    if !line.is_empty() {
+                        lines.push(line.to_string());
                     }
+                });
+                for line in lines {
                     let json: serde_json::Value =
-                        serde_json::from_slice(line).map_err(AiError::Json)?;
+                        serde_json::from_str(&line).map_err(AiError::Json)?;
                     if let Some(token) = json["response"].as_str() {
                         yield token.to_string();
                     }
@@ -66,9 +63,11 @@ impl FreeAiClient {
                     }
                 }
             }
-            if !buf.is_empty() {
+            let mut tail: Vec<String> = Vec::new();
+            line_buf.flush_trailing(|line| tail.push(line.to_string()));
+            for line in tail {
                 let json: serde_json::Value =
-                    serde_json::from_slice(&buf).map_err(AiError::Json)?;
+                    serde_json::from_str(&line).map_err(AiError::Json)?;
                 if let Some(token) = json["response"].as_str() {
                     yield token.to_string();
                 }
@@ -100,13 +99,9 @@ impl FreeAiClient {
             let resp = http.post(&url).json(&body).send().await.map_err(AiError::Http)?;
 
             if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
-                let retry_after = resp.headers()
-                    .get(reqwest::header::RETRY_AFTER)
-                    .and_then(|h| h.to_str().ok())
-                    .and_then(|s| s.parse().ok());
                 Err(AiError::RateLimited {
                     provider: "google".to_string(),
-                    retry_after_secs: retry_after
+                    retry_after_secs: vox_http_client::parse_retry_after(resp.headers()),
                 })?;
             }
 
@@ -164,14 +159,9 @@ impl FreeAiClient {
                 .map_err(AiError::Http)?;
             let status = resp.status();
             if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
-                let retry_after = resp
-                    .headers()
-                    .get(reqwest::header::RETRY_AFTER)
-                    .and_then(|h| h.to_str().ok())
-                    .and_then(|s| s.parse().ok());
                 Err(AiError::RateLimited {
                     provider: format!("openrouter:{}", model),
-                    retry_after_secs: retry_after,
+                    retry_after_secs: vox_http_client::parse_retry_after(resp.headers()),
                 })?;
             }
             if let Some(ref reporter) = cost_reporter {
@@ -281,11 +271,7 @@ impl FreeAiClient {
                     let status = resp.status();
                     if status.as_u16() == 429 || status.as_u16() == 402 {
                         // Rate limited or quota exceeded — try next model
-                        let retry_after = resp
-                            .headers()
-                            .get(reqwest::header::RETRY_AFTER)
-                            .and_then(|h| h.to_str().ok())
-                            .and_then(|s| s.parse().ok());
+                        let retry_after = vox_http_client::parse_retry_after(resp.headers());
 
                         if first_rate_limit.is_none() {
                             first_rate_limit = Some((model.to_string(), retry_after));
@@ -353,14 +339,9 @@ impl FreeAiClient {
             .await?;
 
         if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
-            let retry_after = resp
-                .headers()
-                .get(reqwest::header::RETRY_AFTER)
-                .and_then(|h| h.to_str().ok())
-                .and_then(|s| s.parse().ok());
             return Err(AiError::RateLimited {
                 provider: "ollama".to_string(),
-                retry_after_secs: retry_after,
+                retry_after_secs: vox_http_client::parse_retry_after(resp.headers()),
             });
         }
         let json: serde_json::Value = resp.json().await?;
@@ -379,14 +360,9 @@ impl FreeAiClient {
         let resp = http.get(&url).send().await?;
 
         if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
-            let retry_after = resp
-                .headers()
-                .get(reqwest::header::RETRY_AFTER)
-                .and_then(|h| h.to_str().ok())
-                .and_then(|s| s.parse().ok());
             return Err(AiError::RateLimited {
                 provider: "pollinations".to_string(),
-                retry_after_secs: retry_after,
+                retry_after_secs: vox_http_client::parse_retry_after(resp.headers()),
             });
         }
 
@@ -411,14 +387,9 @@ impl FreeAiClient {
         let resp = http.post(&url).json(&body).send().await?;
 
         if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
-            let retry_after = resp
-                .headers()
-                .get(reqwest::header::RETRY_AFTER)
-                .and_then(|h| h.to_str().ok())
-                .and_then(|s| s.parse().ok());
             return Err(AiError::RateLimited {
                 provider: "google".to_string(),
-                retry_after_secs: retry_after,
+                retry_after_secs: vox_http_client::parse_retry_after(resp.headers()),
             });
         }
 
@@ -446,30 +417,26 @@ impl FreeAiClient {
 
 #[cfg(test)]
 mod ollama_ndjson_line_tests {
-    /// Mirrors the newline buffering in [`FreeAiClient::stream_ollama`].
+    use vox_openai::sse::Utf8LineBuffer;
+
+    /// Mirrors the line handling in [`FreeAiClient::stream_ollama`]
+    /// (framing itself is covered in vox-openai's sse tests).
     fn collect_responses_from_chunks(chunks: &[&[u8]]) -> Vec<String> {
-        let mut buf: Vec<u8> = Vec::new();
+        let mut line_buf = Utf8LineBuffer::new();
         let mut out: Vec<String> = Vec::new();
-        for chunk in chunks {
-            buf.extend_from_slice(chunk);
-            while let Some(pos) = buf.iter().position(|&b| b == b'\n') {
-                let raw: Vec<u8> = buf.drain(..=pos).collect();
-                let line: &[u8] = raw.strip_suffix(b"\n").unwrap_or(raw.as_slice());
-                if line.is_empty() {
-                    continue;
-                }
-                let json: serde_json::Value = serde_json::from_slice(line).unwrap();
-                if let Some(s) = json["response"].as_str() {
-                    out.push(s.to_string());
-                }
+        let mut on_line = |line: &str| {
+            if line.is_empty() {
+                return;
             }
-        }
-        if !buf.is_empty() {
-            let json: serde_json::Value = serde_json::from_slice(&buf).unwrap();
+            let json: serde_json::Value = serde_json::from_str(line).unwrap();
             if let Some(s) = json["response"].as_str() {
                 out.push(s.to_string());
             }
+        };
+        for chunk in chunks {
+            line_buf.push_lossy_bytes(chunk, &mut on_line);
         }
+        line_buf.flush_trailing(&mut on_line);
         out
     }
 

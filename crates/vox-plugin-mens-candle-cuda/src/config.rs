@@ -179,6 +179,13 @@ pub struct LoraTrainingConfig {
     /// Mirrors `vox_populi::mens::LoraTrainingConfig::launch_argv` for wire compat.
     #[serde(default)]
     pub launch_argv: Vec<String>,
+    /// Activation/gradient checkpointing: segment the transformer stack and
+    /// recompute each segment's forward during backward so only ~1 segment's
+    /// activations are retained at once. Trades ~1 extra forward for a much lower
+    /// single-backward VRAM peak — required to train 3B QLoRA on a 16GB GPU.
+    /// Default off (1.5B fits without it); segment count via `VOX_MENS_GC_SEGMENTS`.
+    #[serde(default)]
+    pub gradient_checkpointing: bool,
 }
 
 impl Default for LoraTrainingConfig {
@@ -234,6 +241,7 @@ impl Default for LoraTrainingConfig {
             chatml: ChatmlConfig::default(),
             reward_hook: None,
             launch_argv: Vec::new(),
+            gradient_checkpointing: false,
         }
     }
 }

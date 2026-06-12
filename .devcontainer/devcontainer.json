@@ -1,0 +1,29 @@
+{
+  "name": "Vox",
+  "image": "mcr.microsoft.com/devcontainers/rust:1-1-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    },
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "upgradePackages": true
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "editorconfig.editorconfig",
+        "dbaeumer.vscode-eslint"
+      ],
+      "settings": {
+        "rust-analyzer.check.command": "check",
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  "postCreateCommand": "corepack enable && corepack prepare pnpm@latest --activate && cargo fetch",
+  "remoteUser": "vscode"
+}

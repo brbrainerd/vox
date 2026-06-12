@@ -69,7 +69,7 @@ These are stable suppressions tied to language mechanics or test-only convention
 | `vox-db/src/lib.rs` | `clippy::collapsible_if`, `clippy::needless_range_loop`, `clippy::single_char_add_str`, `clippy::redundant_closure`, `clippy::useless_vec` | SQL/migration codepaths; rewriting hurts step-by-step audit clarity. |
 | `vox-db-types/src/lib.rs` | `clippy::collapsible_if`, `missing_docs` | DTO crate; docs live in `vox-db`; collapsible-if same as `vox-db`. |
 | `vox-codegen/src/codegen_rust/mod.rs` | `clippy::collapsible_if` | Mirror of the parser-side patterns it's lowering. |
-| `vox-codegen/src/codegen_ts/mod.rs` | `clippy::collapsible_if` | Same. |
+| `vox-codegen-ts/src/mod.rs` | `clippy::collapsible_if` | Same. |
 | `vox-deploy-codegen/src/lib.rs` | `clippy::collapsible_if` | Same. |
 | `vox-container/src/lib.rs` | `clippy::collapsible_if` | Same. |
 | `vox-skills/src/lib.rs` | `clippy::collapsible_if` | Same. |

@@ -82,7 +82,7 @@ pub async fn run(args: &CheckArgs) -> Result<()> {
         ..PipelineOptions::default()
     };
     let result = crate::pipeline::run_frontend_with_options(file, json, &options).await?;
-    crate::pipeline::print_diagnostics(&result, file, json);
+    crate::pipeline::print_diagnostics_with_mode(&result, file, json, args.human_diagnostics);
     let error_count = result.error_count();
     let warning_count = result.warning_count();
 
