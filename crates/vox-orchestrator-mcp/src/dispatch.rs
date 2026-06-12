@@ -338,6 +338,9 @@ async fn handle_tool_call_inner(
         "vox_test_decision" => {
             Ok(task_tools::test_decision(state, serde_json::from_value(args)?).await)
         }
+        "vox_tool_search" => Ok(crate::tool_search::vox_tool_search(serde_json::from_value(
+            args,
+        )?)),
         // B3 HITL: list / resolve approvals awaiting a human decision (the
         // dangerous-tool gate below parks on these).
         "vox_pending_approvals" => Ok(crate::params::ToolResult::ok(serde_json::json!({

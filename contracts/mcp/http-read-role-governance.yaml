@@ -23,4 +23,5 @@ read_role_tools:
   - vox_skill_use
   - vox_task_status
   - vox_test_decision
+  - vox_tool_search
   - vox_workspace_modules

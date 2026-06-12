@@ -12126,6 +12126,26 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: tool.search
+  title: Tool Search
+  description: Search the MCP tool registry by keyword and return matching tools (name, description, input schema) for progressive tool disclosure.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_tool_search
+    http_read_role_eligible: true
+    tier: core
+  cli: null
 - id: train
   title: Train
   description: CLI operation `vox train`

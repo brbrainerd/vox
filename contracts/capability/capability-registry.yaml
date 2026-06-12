@@ -9307,6 +9307,22 @@ curated:
   mcp_tool: vox_test_decision
   cli_path: null
   parameters: null
+- id: mcp.vox_tool_search
+  title: Tool Search
+  description_human: null
+  description_model: Search the MCP tool registry by keyword and return matching tools (name, description, input schema) for progressive tool disclosure.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_tool_search
+  cli_path: null
+  parameters: null
 - id: mcp.vox_transfer_file
   title: Transfer File
   description_human: null

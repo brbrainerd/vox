@@ -60,6 +60,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
 
         // ── Tasks & bulletin ─────────────────────────────────────────────────
         "vox_submit_task" => derived_tool_schema!(crate::params::SubmitTaskParams),
+        "vox_tool_search" => derived_tool_schema!(crate::params::ToolSearchParams),
         "vox_task_status" | "vox_cancel_task" | "vox_test_decision" => {
             derived_tool_schema!(crate::params::TaskStatusParams)
         }
