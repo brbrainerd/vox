@@ -220,7 +220,7 @@ fn strip_line_comment(line: &str) -> &str {
                     slashes += 1;
                     j -= 1;
                 }
-                if slashes % 2 == 0 {
+                if slashes.is_multiple_of(2) {
                     in_string = false;
                 }
             }
@@ -255,7 +255,7 @@ fn strip_string_literals(line: &str) -> String {
                     slashes += 1;
                     j -= 1;
                 }
-                if slashes % 2 == 0 {
+                if slashes.is_multiple_of(2) {
                     in_string = false;
                 }
                 result.push(ch);

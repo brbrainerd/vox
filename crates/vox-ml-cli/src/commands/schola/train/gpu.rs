@@ -245,6 +245,30 @@ pub(super) async fn run_gpu_training(
     } else {
         gpu_info.model_name.clone()
     };
+    // Activation/gradient checkpointing default policy:
+    //   * explicit `--gradient-checkpointing` (→ env var) always wins;
+    //   * otherwise auto-enable for ~3B models, which OOM the single-backward peak
+    //     on a 16GB GPU without it (1.5B fits fine without checkpointing).
+    let gc_explicit = std::env::var("VOX_MENS_GRADIENT_CHECKPOINTING")
+        .ok()
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    let gc_auto_for_3b = model
+        .as_deref()
+        .map(|m| {
+            let m = m.to_ascii_lowercase();
+            m.contains("-3b") || m.contains("_3b") || m.contains("3b-")
+        })
+        .unwrap_or(false);
+    let gradient_checkpointing = gc_explicit || gc_auto_for_3b;
+    if gradient_checkpointing {
+        tracing::info!(
+            explicit = gc_explicit,
+            auto_3b = gc_auto_for_3b,
+            "activation/gradient checkpointing ENABLED for this run"
+        );
+    }
+
     let config = vox_populi::mens::LoraTrainingConfig {
         base_model: model,
         base_model_family,
@@ -296,6 +320,7 @@ pub(super) async fn run_gpu_training(
         chatml,
         reward_hook: None,
         launch_argv: std::env::args().collect(),
+        gradient_checkpointing,
     };
     let model_name_for_stats = config
         .base_model

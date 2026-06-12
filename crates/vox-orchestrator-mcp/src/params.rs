@@ -529,6 +529,72 @@ pub struct BrowserPageParams {
     /// Session id returned by `vox_browser_open`.
     #[schemars(length(min = 1, max = 256))]
     pub page_id: String,
+    /// Optional actor label for control-lock arbitration ("human" | "agent").
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserClickPointParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    pub x: f64,
+    pub y: f64,
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserScrollParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    pub dx: i64,
+    pub dy: i64,
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserTypeParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    #[schemars(length(min = 1, max = 131072))]
+    pub text: String,
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserKeyParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    #[schemars(length(min = 1, max = 128))]
+    pub key: String,
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserViewportParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    #[schemars(range(min = 1, max = 20000))]
+    pub width: u32,
+    #[schemars(range(min = 1, max = 20000))]
+    pub height: u32,
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -538,6 +604,9 @@ pub struct BrowserGotoParams {
     pub page_id: String,
     #[schemars(length(min = 1, max = 8192))]
     pub url: String,
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -548,6 +617,9 @@ pub struct BrowserTargetParams {
     /// CSS selector, or `xpath:/absolute/xpath` for XPath.
     #[schemars(length(min = 1, max = 4096))]
     pub target: String,
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -559,6 +631,19 @@ pub struct BrowserFillParams {
     pub target: String,
     #[schemars(length(min = 1, max = 131072))]
     pub value: String,
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserControlLockParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// "human", "agent", or "none" to clear.
+    #[schemars(length(min = 1, max = 16))]
+    pub owner: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

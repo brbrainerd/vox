@@ -3,6 +3,7 @@ name = "vox-search"
 description = "Shared local-first retrieval execution: memory hybrid, repo inventory, document chunks (RAG), policy, and optional lexical/vector backends"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [features]
 # Heavy lexical / scraping stacks are opt-in per consumer (`vox-cli`, `vox-orchestrator`, …).

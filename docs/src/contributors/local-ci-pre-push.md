@@ -20,7 +20,7 @@ It runs **before** the remote receives objects.
 
 | Profile | Flags | What runs | Target wall-clock (post Phase 2+3) |
 | -------- | ----- | ----------- | ------------------- |
-| **Fast** (default) | _(none)_, or **`--quick`** | `cargo fmt --check`, **`vox ci line-endings`**, **`vox ci ssot-drift`** (includes **`contracts-index`**, **`docs-reality-audit verify`**, registry parity, …), **scoped** **`vox-doc-pipeline --lint-only`** + **`vox ci doctest-md --strict`** on changed `docs/src/**/*.md` (excludes **`docs/src/archive/`**), **`vox-drift-check`**. No workspace clippy / doc-inventory / scoped TOESTUB. | **≤60s** (arch-check cached). |
+| **Fast** (default) | _(none)_, or **`--quick`** | `cargo fmt --check`, **`vox ci line-endings`**, **`vox ci ssot-drift`** (includes **`contracts-index`**, **`docs-reality-audit verify`**, registry parity, **`runner-policy-check`** advisory, …), **`vox ci runner-policy-check`**, **`vox ci check-links`**, **`vox ci retired-symbol-check`**, **`vox ci canonical-map-verify`**, **scoped** **`vox-doc-pipeline --lint-only`** + **`vox ci doctest-md --strict`** on changed `docs/src/**/*.md` (excludes **`docs/src/archive/`**), **`vox-drift-check`**. No workspace clippy / doc-inventory / scoped TOESTUB. | **≤60s** (arch-check cached). |
 | **Complete** | **`--complete`** | Everything in **fast**, plus **full-tree** doc lint + doctest under **`docs/src/`**, **`vox ci doc-inventory verify`**, workspace **`cargo clippy … -D warnings`**, scoped TOESTUB on changed `crates/<pkg>`. Matches the historical pre-merge static gate (without integration tests). | **≤180s** typical. |
 | **Full** | **`--full`** | **`--complete`** plus **`cargo nextest run --workspace --profile ci --no-fail-fast`** (slow `#[ignore]` tests excluded). | **≤120s** (slow excluded). |
 | **Full+cov** | **`--full --with-coverage`** | **`--full`** but uses **`cargo llvm-cov nextest`** + emits lcov/HTML report under `target/llvm-cov/`. | **≤260s**. |
@@ -31,15 +31,16 @@ It runs **before** the remote receives objects.
 
 **Progress:** During slow subprocess steps, stderr prints a **heartbeat every ~3s** (`still running <step> (Xs elapsed)`) so a push never looks hung.
 
-**Telemetry:** **`--report-json <path>`** emits per-step durations — **`contracts/reports/pre-push-report.v1.schema.json`** (`schema_version` **3** adds `with_coverage` and extended profile values; v2 added `profile`). Env **`VOX_PREPUSH_AUDIT_LOG`** appends one JSON line per successful run (not **`--dry-run`**).
+**Telemetry:** **`--report-json <path>`** emits per-step durations and optional scope metadata — **`contracts/reports/pre-push-report.v1.schema.json`** (`schema_version` **4** adds per-step `scope`; v3 adds `with_coverage` and extended profile values). Env **`VOX_PREPUSH_AUDIT_LOG`** appends one JSON line per successful run (not **`--dry-run`**).
 
 ### Extended `--full` flags
 
 | Flag | Effect |
 | ---- | ------ |
-| **`--include-slow`** | Also runs the slow `#[ignore]` partition (arch-check smoke, scientia timeout, codegen bundle check). Adds ~3–5 min. CI always sets this. |
+| **`--include-slow`** | Also runs the three slow `#[ignore = "slow; …"]` tests: `arch_check_live_workspace_smoke_and_description_rule` (vox-arch-check), `timeout_kills_long_running_child` (vox-scientia), `generated_ai_fixture_bundle_passes_cargo_check` (vox-codegen). Adds ~3–5 min. CI always sets this. |
 | **`--with-coverage`** | Substitutes `cargo llvm-cov nextest` for plain nextest and appends `cargo llvm-cov report`. Requires `cargo-llvm-cov` on PATH. |
-| **`--since <ref>`** | Narrows nextest to packages touched since `<ref>` (default: `origin/main`). Falls back to `--workspace` if > `VOX_PREPUSH_SINCE_FALLBACK_THRESHOLD` (default 20) packages impacted. |
+| **`--since <ref>`** | Narrows nextest to packages touched since `<ref>` (default: `origin/main`). Large impacted sets run in chunks (`VOX_PREPUSH_SINCE_CHUNK_SIZE`, default 10). Falls back to `--workspace` only on git/metadata hard failures. |
+| **`--skip-complete`** | With **`--full`**, skip replaying complete-tier static checks (clippy, doc-inventory, scoped TOESTUB) after a green **`--complete`** in the same loop. |
 | **`--enforce-budgets`** | After a successful real run (not `--dry-run`), compares total elapsed against `contracts/budgets/test-tier-budgets.v1.yaml`. Warns at `warn_ms` (1.2× baseline); fails at `fail_ms` (1.5× baseline). No-op if budgets file is absent. |
 
 **Diagnostics:** **`vox ci dev-loop-audit`** surfaces **`CARGO_TARGET_DIR`** fragmentation that causes redundant compiles across terminals ([runner-contract §Cargo incremental cache](../ci/runner-contract.md#cargo-incremental-cache-troubleshooting-ai-multi-terminal)).

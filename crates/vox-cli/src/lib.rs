@@ -17,10 +17,10 @@ pub mod cli_args;
 pub use vox_codegen::codegen_rust::RustAppShell;
 mod cli_dispatch;
 mod codex_cmd;
-mod command_contract;
-pub mod command_registry_model;
 use crate::codex_cmd::CodexCmd;
 pub use vox_cli_core::artifact_policy;
+pub use vox_cli_core::command_contract;
+pub use vox_cli_core::command_registry_model;
 pub mod command_catalog;
 pub mod commands;
 pub mod compilerd;
@@ -474,6 +474,8 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: Option<commands::runtime::shell::ShellCmd>,
     },
+    /// Interactive Vox expression REPL (read-eval-print loop).
+    Repl,
     /// Codex / Arca database tools (verify, legacy JSONL export/import)
     Codex {
         /// Subcommand.

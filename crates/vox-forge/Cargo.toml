@@ -3,6 +3,7 @@ name = "vox-forge"
 description = "Platform-agnostic Git forge API for Vox — GitHub, Gitea, Forgejo (GitLab deprecated)"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [features]
 default = []

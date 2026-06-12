@@ -139,7 +139,7 @@ fn register_table(env: &mut TypeEnv, t: &TableDecl) {
     env.define(
         t.name.clone(),
         Binding {
-            ty: Ty::Table(t.name.clone(), field_types),
+            ty: Ty::Table(t.name.clone(), field_types, None),
             mutable: false,
             kind: BindingKind::Table,
             is_deprecated: t.is_deprecated,
@@ -170,7 +170,7 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
         return;
     };
 
-    let Ty::Table(_table_name, fields) = &binding.ty else {
+    let Ty::Table(_table_name, fields, _primary_key) = &binding.ty else {
         diags.push(Diagnostic {
             message: format!(
                 "search_index '{}' target '{}' is not a table",
@@ -381,6 +381,63 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
 
     for decl in &module.declarations {
         if let Decl::Table(t) = decl {
+            if t.is_extern && t.source.is_none() {
+                diags.push(Diagnostic {
+                    message: format!(
+                        "@table(extern) on '{}' requires `source: <table_name>`",
+                        t.name
+                    ),
+                    span: t.span,
+                    severity: TypeckSeverity::Error,
+                    expected_type: None,
+                    found_type: None,
+                    context: None,
+                    suggestions: vec!["Use `@table(extern, source: \"users\", pk: id)`.".into()],
+                    category: DiagnosticCategory::Lint,
+                    code: Some("lint.table_extern_missing_source".into()),
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    ast_node_kind: None,
+                });
+            }
+            if !t.is_extern && t.source.is_some() {
+                diags.push(Diagnostic {
+                    message: format!("@table(source: ...) on '{}' requires `extern`", t.name),
+                    span: t.span,
+                    severity: TypeckSeverity::Error,
+                    expected_type: None,
+                    found_type: None,
+                    context: None,
+                    suggestions: vec!["Add `extern` to `@table(...)`.".into()],
+                    category: DiagnosticCategory::Lint,
+                    code: Some("lint.table_source_without_extern".into()),
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    ast_node_kind: None,
+                });
+            }
+            if t.is_extern && t.primary_key.is_none() {
+                diags.push(Diagnostic {
+                    message: format!(
+                        "@table(extern, ...) on '{}' requires `pk: <field_name>`",
+                        t.name
+                    ),
+                    span: t.span,
+                    severity: TypeckSeverity::Error,
+                    expected_type: None,
+                    found_type: None,
+                    context: None,
+                    suggestions: vec!["Add `pk: id` (or your actual key field).".into()],
+                    category: DiagnosticCategory::Lint,
+                    code: Some("lint.table_extern_missing_pk".into()),
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    ast_node_kind: None,
+                });
+            }
             for field in &t.fields {
                 if field.name == "id" {
                     diags.push(Diagnostic {

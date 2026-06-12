@@ -47,6 +47,7 @@ pub mod renames;
 /// Registry-aware parse wrapper: rewrites deprecated primitives and emits warnings (VUV-9 Task 4).
 pub mod with_registry;
 
+pub use descent::fuzz_parse_decl_bytes;
 pub use descent::parse;
 pub use descent::parse_script;
 pub use error::{ParseError, ParseErrorClass};

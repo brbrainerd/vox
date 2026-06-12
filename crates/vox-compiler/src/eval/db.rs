@@ -212,33 +212,38 @@ pub fn execute_db_plan(
         }
         HirDbTableOp::Get => {
             let id = args.first().map(|(_, v)| v.clone());
+            let key_field = plan.primary_key.as_deref().unwrap_or("_id");
             let found = interp
                 .db
                 .table_mut(&plan.table)
                 .rows
                 .iter()
-                .find(|r| field(r, "_id") == id.as_ref())
+                .find(|r| field(r, key_field) == id.as_ref())
                 .map(row_to_object);
             Ok(ok(VoxValue::Option(found.map(Box::new))))
         }
         HirDbTableOp::Delete => {
             let id = args.first().map(|(_, v)| v.clone());
+            let key_field = plan.primary_key.as_deref().unwrap_or("_id");
             let table = interp.db.table_mut(&plan.table);
-            table.rows.retain(|r| field(r, "_id") != id.as_ref());
+            table.rows.retain(|r| field(r, key_field) != id.as_ref());
             Ok(ok(VoxValue::Null))
         }
         HirDbTableOp::Count => {
             let n = interp.db.table_mut(&plan.table).rows.len() as i64;
             Ok(ok(VoxValue::Int(n)))
         }
-        HirDbTableOp::All | HirDbTableOp::FilterRecord | HirDbTableOp::UnsafeQueryRawClause => {
+        HirDbTableOp::UnsafeQueryRawClause => Err(EvalError::AssertionFailed(
+            "db.<Table>.query(raw_clause) is not supported in --interp; use .where/.filter or run the compiled backend"
+                .to_string(),
+        )),
+        HirDbTableOp::All | HirDbTableOp::FilterRecord => {
             // Evaluate the plan-carried predicate values and limit first (both
             // borrow `interp` mutably via `eval_expr`), then snapshot rows and
             // filter / order / limit / project. The predicate values come from
             // the plan — not the surface args — so a *fused* chain
             // (`.where({..}).select(..)`) filters correctly even though its
             // `where` object is not on the executed node.
-            // `UnsafeQueryRawClause` has no interpreter SQL analogue.
             let mut pred_vals: Vec<VoxValue> = Vec::with_capacity(plan.predicate_args.len());
             for a in &plan.predicate_args {
                 pred_vals.push(eval_expr(interp, &a.value)?);

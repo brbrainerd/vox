@@ -1,6 +1,7 @@
 fn main() {
     vox_build_meta::emit();
-    let attrs = tauri_build::Attributes::new()
-        .windows_attributes(tauri_build::WindowsAttributes::new().window_icon_path(""));
-    tauri_build::try_build(attrs).ok();
+    // Must not swallow errors: a missing Windows manifest yields STATUS_ENTRYPOINT_NOT_FOUND at runtime.
+    if let Err(err) = tauri_build::try_build(tauri_build::Attributes::new()) {
+        panic!("tauri build script failed: {err}");
+    }
 }

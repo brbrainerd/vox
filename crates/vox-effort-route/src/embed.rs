@@ -32,6 +32,8 @@ impl LlmEmbedder {
             top_p: None,
             max_tokens: None,
             response_format: None,
+            tools: None,
+            tool_choice: None,
             timeout_ms: Some(self.timeout.as_millis() as u64),
             telemetry_session_id: None,
             telemetry_user_id: None,

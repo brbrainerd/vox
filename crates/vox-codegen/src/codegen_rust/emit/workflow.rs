@@ -2,15 +2,31 @@ use std::collections::HashMap;
 use vox_compiler::ast::span::Span;
 use vox_compiler::hir::{HirFn, HirForall, HirModule, HirType};
 
+use super::script_db;
 use super::tables::{collect_table_select_projections, emit_table_struct};
 use super::types::emit_type;
+
+/// Script-mode lib.rs: optional Codex prelude + mit_lib under script DB emit mode.
+pub fn emit_script_lib(module: &HirModule) -> String {
+    script_db::refresh_script_async_metadata(module);
+    let mut out = String::new();
+    if script_db::module_uses_db(module) {
+        out.push_str(&script_db::emit_script_db_prelude(module));
+    }
+    out.push_str(&script_db::with_script_db_emit_mode(|| emit_lib(module)));
+    out
+}
 
 pub fn emit_lib(module: &HirModule) -> String {
     let mut out = String::new();
     out.push_str("use serde::{Serialize, Deserialize};\n");
 
-    if !module.tables.is_empty() {
+    if !module.tables.is_empty() && !script_db::script_db_emit_mode() {
         out.push_str("use vox_db::Codex;\n");
+    }
+
+    if super::types::module_uses_vox_json_type(module) {
+        out.push_str(&super::types::vox_json_type_alias_prelude());
     }
 
     out.push('\n');

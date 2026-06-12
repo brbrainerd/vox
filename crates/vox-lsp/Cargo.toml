@@ -4,6 +4,7 @@ description = "Vox Language Server Protocol implementation (stdio JSON-RPC)."
 publish = false
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 tower-lsp-server = { workspace = true }

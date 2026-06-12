@@ -1,16 +1,18 @@
 ---
 title: "Crate Classification Audit (2026-05-08)"
-description: "Classification of every workspace crate as CORE, PLUGIN, SHARED, DEAD, or MISPLACED. Identifies extraction candidates and deletion candidates."
+description: "DEPRECATED tombstone — historical pre-reorg snapshot only. Do not use for contraction or architecture decisions; see where-things-live.md and layers.toml."
 category: "Architecture SSOTs"
 status: "deprecated"
 superseded_by:
   - "2026-05-08-workspace-reorg-outcome.md"
   - "2026-05-08-crate-org-followup-design.md"
-training_eligible: true
-training_rationale: "Snapshot of workspace health used to guide plugin-first conversion and crate hygiene work."
+training_eligible: false
+training_rationale: "Tombstoned 2026-06-10 — many DEAD labels are stale; excluded from agent training corpora."
 ---
 
 # Crate Classification Audit (2026-05-08)
+
+> **TOMBSTONE — do not use for contraction or architecture decisions (2026-06-10).** This page is a historical pre-reorg snapshot. Many crates listed as **DEAD** below are live today (`vox-mcp-registry`, `vox-test-harness`, `vox-grammar-export`, etc.). For current crate health use [`where-things-live.md`](where-things-live.md), [`layers.toml`](layers.toml), and `cargo run -p vox-arch-check`.
 
 > **Snapshot note:** This is a point-in-time audit snapshot from 2026-05-08, used to inform the workspace reorg + crate-org-followup work. Crate classifications below reflect the *pre-fix* state — see `2026-05-08-workspace-reorg-outcome.md` and `2026-05-08-crate-org-followup-design.md` for what actually shipped.
 

@@ -543,6 +543,194 @@ impl VoxDb {
             .await
     }
 
+    /// Locate a GUI chat session by its external session id (`origin_surface = gui`).
+    pub async fn chat_find_gui_conversation_id(
+        &self,
+        external_session_id: &str,
+    ) -> Result<Option<i64>, StoreError> {
+        let sid = external_session_id.to_string();
+        let mut rows = self
+            .connection()
+            .query(
+                "SELECT id FROM conversations
+                 WHERE origin_surface = 'gui' AND external_session_id = ?1
+                 LIMIT 1",
+                params![sid.as_str()],
+            )
+            .await?;
+        let row = rows.next().await?;
+        Ok(match row {
+            Some(r) => Some(r.get(0).map_err(|e| StoreError::Db(e.to_string()))?),
+            None => None,
+        })
+    }
+
+    /// Ensure a GUI-scoped conversation row exists; returns SQLite id.
+    pub async fn chat_ensure_gui_session(
+        &self,
+        external_session_id: &str,
+        title: &str,
+    ) -> Result<i64, StoreError> {
+        if let Some(id) = self
+            .chat_find_gui_conversation_id(external_session_id)
+            .await?
+        {
+            return Ok(id);
+        }
+        let sid = external_session_id.to_string();
+        let title = title.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO conversations (title, external_session_id, origin_surface)
+                     VALUES (?1, ?2, 'gui')",
+                    params![title.as_str(), sid.as_str()],
+                )
+                .await?;
+                Ok::<i64, StoreError>(conn.last_insert_rowid())
+            })
+            .await
+    }
+
+    /// List recent GUI chat sessions for the tab strip.
+    pub async fn chat_list_gui_sessions(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<(i64, String, String, String, i64)>, StoreError> {
+        let lim = limit.max(1) as i64;
+        let mut rows = self
+            .connection()
+            .query(
+                "SELECT c.id, c.title, c.external_session_id, c.updated_at,
+                        (SELECT COUNT(*) FROM conversation_messages m WHERE m.conversation_id = c.id)
+                 FROM conversations c
+                 WHERE c.origin_surface = 'gui'
+                 ORDER BY c.updated_at DESC
+                 LIMIT ?1",
+                params![lim],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let id: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let title: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            let ext: String = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+            let updated: String = row.get(3).map_err(|e| StoreError::Db(e.to_string()))?;
+            let count: i64 = row.get(4).map_err(|e| StoreError::Db(e.to_string()))?;
+            out.push((id, title, ext, updated, count));
+        }
+        Ok(out)
+    }
+
+    /// Rename a conversation title.
+    pub async fn chat_rename_conversation(
+        &self,
+        conversation_id: i64,
+        title: &str,
+    ) -> Result<(), StoreError> {
+        let title = title.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE conversations SET title = ?2, updated_at = datetime('now') WHERE id = ?1",
+                    params![conversation_id, title.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Archive (delete) a conversation and its messages.
+    pub async fn chat_archive_conversation(&self, conversation_id: i64) -> Result<(), StoreError> {
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "DELETE FROM conversations WHERE id = ?1",
+                    params![conversation_id],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Load messages for a GUI session (by external session id).
+    pub async fn chat_get_gui_messages(
+        &self,
+        external_session_id: &str,
+        limit: usize,
+    ) -> Result<Vec<(i64, String, String, String, Option<String>)>, StoreError> {
+        let conv_id = self
+            .chat_find_gui_conversation_id(external_session_id)
+            .await?
+            .unwrap_or(-1);
+        if conv_id < 0 {
+            return Ok(Vec::new());
+        }
+        let lim = limit.max(1) as i64;
+        let mut rows = self
+            .connection()
+            .query(
+                "SELECT m.id, m.role, m.content_text, m.created_at, m.payload_json
+                 FROM conversation_messages m
+                 WHERE m.conversation_id = ?1
+                 ORDER BY m.id ASC
+                 LIMIT ?2",
+                params![conv_id, lim],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let id: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let role: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            let text: String = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+            let created: String = row.get(3).map_err(|e| StoreError::Db(e.to_string()))?;
+            let payload: Option<String> = row.get(4).map_err(|e| StoreError::Db(e.to_string()))?;
+            out.push((id, role, text, created, payload));
+        }
+        Ok(out)
+    }
+
+    /// Simple LIKE search over GUI chat messages for the chats corpus.
+    pub async fn chat_search_gui_messages(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<(i64, i64, String, String, String)>, StoreError> {
+        let pattern = format!("%{}%", query.replace('%', ""));
+        let lim = limit.max(1) as i64;
+        let mut rows = self
+            .connection()
+            .query(
+                "SELECT m.id, m.conversation_id, c.external_session_id, m.role,
+                        substr(m.content_text, 1, 240)
+                 FROM conversation_messages m
+                 INNER JOIN conversations c ON c.id = m.conversation_id
+                 WHERE c.origin_surface = 'gui' AND m.content_text LIKE ?1
+                 ORDER BY m.id DESC
+                 LIMIT ?2",
+                params![pattern.as_str(), lim],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let msg_id: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let conv_id: i64 = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            let session_id: String = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+            let role: String = row.get(3).map_err(|e| StoreError::Db(e.to_string()))?;
+            let snippet: String = row.get(4).map_err(|e| StoreError::Db(e.to_string()))?;
+            out.push((msg_id, conv_id, session_id, role, snippet));
+        }
+        Ok(out)
+    }
+
     /// Link a single message to a topic (V14+).
     pub async fn chat_link_message_topic(
         &self,

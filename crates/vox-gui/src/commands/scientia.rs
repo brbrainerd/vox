@@ -112,7 +112,7 @@ pub const SCIENTIA_QUEUE_EVENT: &str = "vox://scientia-queue";
 
 /// How often the push bridge samples the DB for a change. The UI keeps its own
 /// (longer) interval as a fallback, so this only governs push latency.
-const SCIENTIA_POLL_INTERVAL_MS: u64 = 3_000;
+const SCIENTIA_POLL_INTERVAL_MS: u64 = crate::config::SCIENTIA_QUEUE_POLL_SECS * 1000;
 
 /// Compute a compact change signal over the Scientia queue: a hash folded from
 /// each publication manifest's `(publication_id, state, updated_at_ms)` plus each

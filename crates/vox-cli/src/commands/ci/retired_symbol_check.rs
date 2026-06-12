@@ -283,7 +283,7 @@ fn collect_cursor_rule_files(rules_dir: &Path, out: &mut Vec<PathBuf>) {
 /// Rust sources under `crates/` are intentionally out of scope: many crates legitimately mention
 /// retired names (guards, migrations, compatibility layers). Keep this check documentation-forward.
 pub fn run(root: &Path) -> Result<()> {
-    super::docs_deprecated_command_guard::verify(root)?;
+    vox_cli_ci::docs_deprecated_command_guard::run(root)?;
 
     let policy_path = root.join("contracts/documentation/retired-symbols.v1.yaml");
     if !policy_path.exists() {
