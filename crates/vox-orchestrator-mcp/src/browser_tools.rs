@@ -944,7 +944,12 @@ mod tests {
         )
     }
 
-    async fn set_lock(state: &ServerState, page_id: &str, owner: &str, actor: Option<&str>) -> serde_json::Value {
+    async fn set_lock(
+        state: &ServerState,
+        page_id: &str,
+        owner: &str,
+        actor: Option<&str>,
+    ) -> serde_json::Value {
         let raw = browser_set_control_lock(
             state,
             crate::params::BrowserControlLockParams {
