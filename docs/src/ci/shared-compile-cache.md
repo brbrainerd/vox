@@ -1,7 +1,7 @@
 ---
 title: Shared Compile Cache (sccache + MinIO)
 description: One S3-compatible compile cache shared by local agents, worktrees, self-hosted runner containers, and other LAN machines.
-category: CI
+category: ci
 ---
 
 # Shared Compile Cache (sccache + MinIO)
