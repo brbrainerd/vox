@@ -14376,6 +14376,7 @@ dependencies = [
 name = "vox-gui"
 version = "0.6.0"
 dependencies = [
+ "chrono",
  "cpal",
  "hound",
  "rmp-serde",
@@ -14407,6 +14408,7 @@ dependencies = [
  "vox-orchestrator",
  "vox-orchestrator-mcp",
  "vox-package-types",
+ "vox-publisher",
  "vox-repository",
  "vox-scientia",
  "vox-search",

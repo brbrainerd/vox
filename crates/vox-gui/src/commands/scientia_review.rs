@@ -144,6 +144,180 @@ pub async fn suggest_evidence_improvements(
     Ok(vox_scientia::evidence_assist::suggest(&c.text, c.verdict.as_deref(), c.confidence).await)
 }
 
+// ---------------------------------------------------------------------------
+// Novelty evidence (Task 17): assess a publication's stored novelty bundle.
+// ---------------------------------------------------------------------------
+
+/// One prior-art hit, trimmed to the fields the evidence panel renders.
+#[derive(Debug, serde::Serialize)]
+pub struct PriorArtHitDto {
+    pub work_uri: String,
+    pub title: String,
+    pub year: Option<i32>,
+    pub cited_by_count: Option<u64>,
+    pub semantic_score: Option<f64>,
+}
+
+/// One supporting-vs-contradicting conflict among high-similarity hits.
+#[derive(Debug, serde::Serialize)]
+pub struct ConflictDto {
+    pub claim_text: String,
+    pub conflict_score: f64,
+    /// `work_uri`s (with optional excerpt) of the supporting side.
+    pub supporting: Vec<ConflictHitDto>,
+    /// `work_uri`s (with optional excerpt) of the contradicting side.
+    pub contradicting: Vec<ConflictHitDto>,
+}
+
+/// One side of a conflict: the hit's uri + the excerpt that justified its polarity.
+#[derive(Debug, serde::Serialize)]
+pub struct ConflictHitDto {
+    pub work_uri: String,
+    pub excerpt: Option<String>,
+}
+
+/// Explainable signal breakdown mirrored from `NoveltySignalBreakdown`.
+#[derive(Debug, serde::Serialize)]
+pub struct SignalsDto {
+    pub max_semantic: Option<f64>,
+    pub max_lexical: Option<f64>,
+    pub near_hit_count: usize,
+    pub top_hit_citations: Option<u64>,
+    pub sources_succeeded: usize,
+}
+
+/// The full novelty assessment for one publication, ready for the GUI panel.
+#[derive(Debug, serde::Serialize)]
+pub struct NoveltyAssessmentDto {
+    /// `"insufficient_evidence"` | `"novel"` | `"possibly_novel"` | `"not_novel"`.
+    pub verdict_kind: String,
+    pub closest_hit_uri: Option<String>,
+    pub closest_score: Option<f64>,
+    pub excluded_future_hits: usize,
+    pub conflicts: Vec<ConflictDto>,
+    pub signals: SignalsDto,
+    /// Top-5 prior-art hits by semantic score (desc).
+    pub prior_art: Vec<PriorArtHitDto>,
+}
+
+/// A DTO representing "no bundle has been fetched yet": the panel renders the
+/// insufficient-evidence banner. This is NOT an error — absence of a stored
+/// bundle simply means retrieval never ran for this publication.
+fn insufficient_evidence_dto() -> NoveltyAssessmentDto {
+    NoveltyAssessmentDto {
+        verdict_kind: "insufficient_evidence".into(),
+        closest_hit_uri: None,
+        closest_score: None,
+        excluded_future_hits: 0,
+        conflicts: vec![],
+        signals: SignalsDto {
+            max_semantic: None,
+            max_lexical: None,
+            near_hit_count: 0,
+            top_hit_citations: None,
+            sources_succeeded: 0,
+        },
+        prior_art: vec![],
+    }
+}
+
+/// Assess novelty for ONE publication from its stored evidence bundle.
+///
+/// Loads the manifest row, parses the embedded novelty bundle (key
+/// `scientia_novelty_bundle`), and runs [`vox_publisher::scientia_novelty_assess::assess_novelty`]
+/// against the current calendar year. If no bundle is present the command returns
+/// an `insufficient_evidence` DTO (NOT an error). Read-only: nothing is mutated
+/// or published.
+#[tauri::command]
+pub async fn get_novelty_assessment(
+    publication_id: String,
+) -> Result<NoveltyAssessmentDto, String> {
+    use chrono::Datelike;
+
+    let db = db().await?;
+    let row = db
+        .get_publication_manifest(&publication_id)
+        .await
+        .map_err(|e| format!("{e:#}"))?
+        .ok_or_else(|| "publication not found".to_string())?;
+
+    let Some(bundle) = vox_publisher::scientia_prior_art::parse_novelty_bundle_from_metadata_json(
+        row.metadata_json.as_deref(),
+    ) else {
+        // No fetched bundle → nothing assessed yet → insufficient evidence.
+        return Ok(insufficient_evidence_dto());
+    };
+
+    let claim_year = chrono::Utc::now().date_naive().year();
+    let assessment = vox_publisher::scientia_novelty_assess::assess_novelty(
+        &bundle,
+        claim_year,
+        &vox_scientia::inspect_bridge::NoveltyConfig::default(),
+    );
+
+    // Top-5 prior-art hits by semantic score (desc). Hits with no semantic score
+    // sort last (treated as -inf).
+    let mut hits = bundle.normalized_hits.clone();
+    hits.sort_by(|a, b| {
+        b.semantic_score
+            .unwrap_or(f64::NEG_INFINITY)
+            .partial_cmp(&a.semantic_score.unwrap_or(f64::NEG_INFINITY))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let prior_art = hits
+        .into_iter()
+        .take(5)
+        .map(|h| PriorArtHitDto {
+            work_uri: h.work_uri,
+            title: h.title,
+            year: h.year,
+            cited_by_count: h.cited_by_count,
+            semantic_score: h.semantic_score,
+        })
+        .collect();
+
+    let conflicts = assessment
+        .conflicts
+        .into_iter()
+        .map(|c| ConflictDto {
+            claim_text: c.claim_text,
+            conflict_score: c.conflict_score,
+            supporting: c
+                .supporting_hits
+                .into_iter()
+                .map(|h| ConflictHitDto {
+                    work_uri: h.work_uri,
+                    excerpt: h.excerpt,
+                })
+                .collect(),
+            contradicting: c
+                .contradicting_hits
+                .into_iter()
+                .map(|h| ConflictHitDto {
+                    work_uri: h.work_uri,
+                    excerpt: h.excerpt,
+                })
+                .collect(),
+        })
+        .collect();
+
+    Ok(NoveltyAssessmentDto {
+        verdict_kind: assessment.verdict_kind,
+        closest_hit_uri: assessment.closest_hit_uri,
+        closest_score: assessment.closest_score,
+        excluded_future_hits: assessment.excluded_future_hits,
+        conflicts,
+        signals: SignalsDto {
+            max_semantic: assessment.signals.max_semantic,
+            max_lexical: assessment.signals.max_lexical,
+            near_hit_count: assessment.signals.near_hit_count,
+            top_hit_citations: assessment.signals.top_hit_citations,
+            sources_succeeded: assessment.signals.sources_succeeded,
+        },
+        prior_art,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     /// Guard: this GUI review surface must carry NO production-network publishing
