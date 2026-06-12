@@ -45,9 +45,11 @@ async fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(GuiState {
             initial_view: Mutex::new(initial_view),
         })
+        .manage(commands::mic::MicCaptureState::default())
         .manage(std::sync::Arc::new(
             commands::daemon::PersistentDaemon::default(),
         ))
@@ -95,6 +97,8 @@ async fn main() {
             commands::models::get_routing_summary,
             commands::models::get_routing_summary_live,
             commands::models::set_routing_priority,
+            commands::models::get_routing_intentions,
+            commands::models::nudge_routing_intention,
             commands::models::get_selection_policy,
             commands::models::set_selection_policy,
             commands::models::get_model_scoreboard,
@@ -124,10 +128,25 @@ async fn main() {
             commands::scientia::list_research_sessions,
             commands::scientia::get_research_session_detail,
             commands::scientia::list_publication_manifests,
+            commands::scientia_review::list_publication_review_queue,
+            commands::scientia_review::record_publication_claim_review,
+            commands::scientia_review::nanopublish_approved_claim,
+            commands::scientia_review::suggest_evidence_improvements,
             commands::search::vox_search_query,
             commands::search::open_locator,
+            commands::policy::policy_list,
+            commands::policy::policy_show,
+            commands::policy::policy_status,
+            commands::policy::list_branches,
             commands::vcs_isolation::get_vcs_isolation,
             commands::vcs_isolation::set_vcs_isolation_strategy,
+            commands::signing::signing_key_status,
+            commands::signing::rotate_signing_key,
+            commands::mesh::list_trusted_nodes,
+            commands::mesh::trust_mesh_node,
+            commands::mesh::untrust_mesh_node,
+            commands::mic::start_mic_capture,
+            commands::mic::stop_mic_capture_and_transcribe,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

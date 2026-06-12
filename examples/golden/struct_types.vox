@@ -38,3 +38,22 @@ fn consume() to int {
     let p = translate(origin(), 5)
     return p.x
 }
+
+@test
+fn test_origin() {
+    let o = origin()
+    assert(o.x is 0)
+    assert(o.y is 0)
+}
+
+@test
+fn test_translate() {
+    let p = translate(origin(), 3)
+    assert(p.x is 3)
+    assert(p.y is 0)
+}
+
+@test
+fn test_consume() {
+    assert(consume() is 5)
+}

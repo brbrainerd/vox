@@ -168,6 +168,9 @@ pub mod plan;
 /// `vox plugin` — install, remove, list, and inspect Vox plugins.
 pub mod plugin;
 
+/// `vox policy` — read-only view over the unified policy catalog.
+pub mod policy;
+
 /// `vox bundle` — list, build, and apply plugin distribution bundles.
 pub mod plugin_bundle;
 

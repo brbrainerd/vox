@@ -61,6 +61,18 @@ checks:
     rust_only: false
     command: ["cargo", "run", "-q", "-p", "vox-doc-pipeline", "--", "--lint-only"]
 
+  - id: criteria-format
+    description: "vox-arch-check --lint criteria-format (CR-META: v1-release-criteria.md blocks declare verify_cmd/artifact_path/if_failing)"
+    category: doc
+    blocking: true
+    runs_on:
+      - pre-push
+      - ci
+    # Validates a Markdown contract (v1-release-criteria.md), so it must run on
+    # docs-only PRs too — not gated behind rust_changed.
+    rust_only: false
+    command: ["cargo", "run", "-q", "-p", "vox-arch-check", "--", "--lint", "criteria-format"]
+
   - id: doctest-md
     description: "vox ci doctest-md --strict (Markdown doctest extraction)"
     category: doc

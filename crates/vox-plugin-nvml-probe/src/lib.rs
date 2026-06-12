@@ -14,8 +14,6 @@ use vox_plugin_sdk::prelude::*;
 // Dylib export glue (root_module / manifest_json / init), stamped with the current ABI
 // version. Byte-identical to the previous hand-written block.
 vox_plugin_sdk::declare_plugin! {
-    id: "nvml-probe",
-    version: "0.1.0",
     init: |_host| ROk(wrap(NvmlProbePlugin)),
 }
 

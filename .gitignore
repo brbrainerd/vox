@@ -95,6 +95,10 @@ populi/data/*.jsonl
 .vox/telemetry-upload-queue/
 # Runtime memory stubs (regenerated locally; never commit)
 /.vox/memory/
+# Per-branch policy run-status overlay (Phase 1c): machine-specific, written by
+# `vox ci`/code-audit/arch gates per branch. Regenerated on every run; never commit.
+.vox/policy-status/
+**/.vox/policy-status/
 # Crate-local `.vox/` state (orchestrator memory, etc.)
 crates/*/.vox/
 *.db-wal
@@ -232,3 +236,6 @@ gui-*.log
 
 # Local `act` artifact server output (see .actrc --artifact-server-path)
 .act-artifacts/
+
+# Superpowers brainstorm visual-companion scratch (local-only)
+.superpowers/

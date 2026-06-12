@@ -14,4 +14,4 @@ format-version = 1
 skill-md = "testing.validate.skill.md"
 
 [plugin.payload.tools]
-exposes = ["vox_test_validate"]
+exposes = ["vox_validate_file", "vox_validate_source"]

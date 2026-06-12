@@ -5,7 +5,8 @@
 use std::path::PathBuf;
 
 use vox_runtime_rn::{
-    RuntimeProfile, VoxConfig, VoxRuntimeHandle, default_desktop_config, default_mobile_config,
+    JournalLine, RuntimeProfile, VoxConfig, VoxRuntimeHandle, default_desktop_config,
+    default_mobile_config, open_file_journal,
 };
 
 #[test]
@@ -51,4 +52,49 @@ fn caller_provided_config_overrides_defaults() {
     let h = VoxRuntimeHandle::new(cfg);
     let data: PathBuf = h.data_dir().into();
     assert_eq!(data, PathBuf::from("/custom/data"));
+}
+
+/// The on-device journal opened through the uniffi bridge must use the
+/// lifecycle-deferred durability mode (no per-append fsync) and survive a
+/// reopen once `flush()` — the OS-suspend hook — has run. This exercises the
+/// full mobile durability contract end-to-end through the bridge exactly as
+/// the JS lifecycle handler will: append while foregrounded, `flush()` on
+/// background, reopen on next launch and replay.
+#[test]
+fn mobile_journal_round_trips_through_deferred_flush() {
+    let path = std::env::temp_dir().join(format!(
+        "vox-rt-rn-journal-it-{}.ndjson",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_file(&path);
+    let path_str = path.to_string_lossy().into_owned();
+
+    // Foreground: append two mutations. Deferred mode means these are NOT
+    // fsynced per-call; the bytes are handed to the OS and made durable at
+    // flush() time.
+    let journal = open_file_journal(path_str.clone()).expect("open journal");
+    journal
+        .append(JournalLine {
+            json: r#"{"table":"entries","id":1}"#.to_string(),
+        })
+        .expect("append 1");
+    journal
+        .append(JournalLine {
+            json: r#"{"table":"entries","id":2}"#.to_string(),
+        })
+        .expect("append 2");
+
+    // Background lifecycle hook: flush() is the durability point under
+    // Deferred mode (not a no-op).
+    journal.flush().expect("flush on suspend");
+    drop(journal);
+
+    // Next launch: reopen and replay — both mutations must survive.
+    let reopened = open_file_journal(path_str).expect("reopen journal");
+    let lines = reopened.replay_all().expect("replay");
+    assert_eq!(lines.len(), 2, "both deferred appends must survive flush");
+    assert!(lines[0].json.contains("\"id\":1"));
+    assert!(lines[1].json.contains("\"id\":2"));
+
+    let _ = std::fs::remove_file(&path);
 }

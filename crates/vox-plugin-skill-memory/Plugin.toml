@@ -14,4 +14,4 @@ format-version = 1
 skill-md = "memory.skill.md"
 
 [plugin.payload.tools]
-exposes = ["vox_memory_get", "vox_memory_set", "vox_memory_search"]
+exposes = ["vox_memory_store", "vox_memory_recall", "vox_memory_search", "vox_memory_log", "vox_memory_list_keys", "vox_knowledge_query", "vox_session_create", "vox_session_list", "vox_session_info", "vox_session_compact", "vox_session_cleanup"]

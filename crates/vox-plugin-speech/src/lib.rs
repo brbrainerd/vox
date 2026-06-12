@@ -12,7 +12,5 @@ mod oratio_internals;
 // host-aware constructor `audio::make_plugin`. Byte-identical to the previous hand-written
 // block; the `oratio` id is retained (the crate is vox-plugin-speech).
 vox_plugin_sdk::declare_plugin! {
-    id: "oratio",
-    version: "0.1.0",
     init: |host| audio::make_plugin(host),
 }

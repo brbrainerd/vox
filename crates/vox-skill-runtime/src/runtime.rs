@@ -8,6 +8,7 @@
 //! Implementations are shipped as plugins (`vox-plugin-runtime-container`,
 //! `vox-plugin-runtime-wasm`).
 
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Options for the "build" phase of a skill runtime.
@@ -28,7 +29,10 @@ pub struct BuildOpts {
 }
 
 /// Options for running a skill in its sandbox.
-#[derive(Debug, Clone)]
+///
+/// This is also the JSON request shape the `SkillRuntime` plugin extension's `invoke_skill`
+/// accepts (serde field names match the struct fields).
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunOpts {
     /// Image tag (container), path to `.wasm` artifact (WASM), or command (bare-metal).
     pub artifact_path: PathBuf,
@@ -64,8 +68,9 @@ impl Default for RunOpts {
     }
 }
 
-/// The captured outcome of a skill execution.
-#[derive(Debug, Clone)]
+/// The captured outcome of a skill execution. Also the JSON response shape returned by the
+/// `SkillRuntime` plugin extension's `invoke_skill`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunOutcome {
     /// Process exit code (0 = success).
     pub exit_code: i32,

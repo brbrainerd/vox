@@ -594,6 +594,20 @@ pub enum ScientiaCmd {
     #[command(name = "dashboard")]
     Dashboard,
 
+    /// P3 — LLM-assisted evidence/conclusion suggestions for ONE claim in the
+    /// review queue (ADVISORY only — never mutates any decision or assertion).
+    /// Routed through the model-agnostic actor-runtime LLM facade; prints a JSON
+    /// array of suggestions. Degrades to `[]` on any LLM error.
+    #[command(name = "evidence-assist")]
+    EvidenceAssist {
+        /// Publication id the claim belongs to.
+        #[arg(long)]
+        publication_id: String,
+        /// `claim_id` of the claim to get suggestions for (see `vox scientia publication-review-queue`).
+        #[arg(long)]
+        claim_id: i64,
+    },
+
     /// Phase H — Assemble a `CostRollup` JSON for the current calendar quarter
     /// from the live Codex DB.  Per-provider totals come from
     /// `agent_telemetry_flat` (event_kind='cost'); the four pipeline-phase
