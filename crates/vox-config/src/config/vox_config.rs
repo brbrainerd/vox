@@ -30,6 +30,14 @@ pub struct VoxConfig {
     pub web_tanstack_start: bool,
     pub build_target: BuildTarget,
     pub hitl: HitlPolicy,
+    /// Global ceiling on concurrent LLM HTTP requests across all providers.
+    pub llm_max_concurrent_requests: usize,
+    /// Per-provider override for OpenRouter (None = use the global ceiling).
+    pub llm_openrouter_max_concurrent: Option<usize>,
+    /// Per-provider override for OpenAI (None = use the global ceiling).
+    pub llm_openai_max_concurrent: Option<usize>,
+    /// Max retry attempts on a 429 before surfacing the error.
+    pub llm_retry_max_attempts: u32,
 }
 
 impl Default for VoxConfig {
@@ -56,6 +64,10 @@ impl Default for VoxConfig {
             web_tanstack_start: false,
             build_target: BuildTarget::default(),
             hitl: HitlPolicy::default(),
+            llm_max_concurrent_requests: 8,
+            llm_openrouter_max_concurrent: None,
+            llm_openai_max_concurrent: None,
+            llm_retry_max_attempts: 4,
         }
     }
 }
