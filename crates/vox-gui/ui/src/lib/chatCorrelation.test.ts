@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { chatReducer, initialChatState, type ChatState } from './chatCorrelation';
+import {
+  chatReducer,
+  initialChatState,
+  messagesForSession,
+  type ChatState,
+} from './chatCorrelation';
 
 // Build an agent-event frame as delivered over `vox://agent-events`.
 const evt = (kind: Record<string, unknown>) => ({
@@ -9,6 +14,17 @@ const evt = (kind: Record<string, unknown>) => ({
 
 const assistant = (s: ChatState, runId: string) =>
   s.messages.find((m) => m.role === 'assistant' && m.runId === runId);
+
+describe('messagesForSession', () => {
+  it('stamps sessionId on both bubbles and filters by session (legacy nulls visible)', () => {
+    let s = chatReducer(initialChatState, { type: 'submit', runId: 'r1', prompt: 'p', sessionId: 'gui-a' });
+    s = chatReducer(s, { type: 'submit', runId: 'r2', prompt: 'q', sessionId: 'gui-b' });
+    const a = messagesForSession(s, 'gui-a');
+    expect(a).toHaveLength(2); // user + pending assistant
+    expect(a.every((m) => m.sessionId === 'gui-a')).toBe(true);
+    expect(messagesForSession(s, 'gui-b')).toHaveLength(2);
+  });
+});
 
 describe('chatReducer', () => {
   it('submit adds a user message and a pending assistant bubble for the run', () => {

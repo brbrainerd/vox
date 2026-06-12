@@ -10,7 +10,7 @@ import { SurfaceErrorBoundary } from './components/ui/ErrorBoundary';
 import { Dashboard } from './components/surfaces/Dashboard/Dashboard';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
 import { Transcript } from './components/surfaces/Loquela/Transcript';
-import { chatReducer, initialChatState } from './lib/chatCorrelation';
+import { chatReducer, initialChatState, messagesForSession } from './lib/chatCorrelation';
 import { contextRefsFromPayload } from './lib/loquelaContext';
 import { Catalog } from './components/surfaces/Catalog/Catalog';
 import { Matrix } from './components/surfaces/Matrix/Matrix';
@@ -20,6 +20,8 @@ import { SettingsView } from './components/surfaces/Settings/SettingsView';
 import { ModelsView } from './components/surfaces/Models/ModelsView';
 import { RunsView } from './components/surfaces/Runs/RunsView';
 import { TasksView } from './components/surfaces/Tasks/TasksView';
+import { SessionTabs } from './components/layout/SessionTabs';
+import { ChatSession, createSession, closeSession, renameSession } from './lib/sessions';
 import { RepositoryView } from './components/surfaces/Repository/RepositoryView';
 import { MeshView } from './components/surfaces/Mesh/MeshView';
 import { GamifyView } from './components/surfaces/Gamify/GamifyView';
@@ -173,6 +175,20 @@ export default function App() {
 
   // ── B4-chat: pure-reducer transcript state for the Loquela composer ────────
   const [chat, dispatchChat] = useReducer(chatReducer, initialChatState);
+
+  // ── Multi-tab chat sessions (Track I) — one session_id per tab. ────────────
+  const [sessions, setSessions] = useLocalStorage<ChatSession[]>('vox_chat_sessions', []);
+  const [activeSessionId, setActiveSessionId] = useLocalStorage<string>('vox_active_session', '');
+  useEffect(() => {
+    if (sessions.length === 0) {
+      // Adopt the legacy id so transcripts/tasks submitted as 'gui-loquela' stay attached.
+      const legacy: ChatSession = { id: 'gui-loquela', title: 'Chat 1', createdAt: 0, scopePaths: [] };
+      setSessions([legacy]);
+      setActiveSessionId(legacy.id);
+    } else if (!sessions.some(s => s.id === activeSessionId)) {
+      setActiveSessionId(sessions[0].id);
+    }
+  }, [sessions, activeSessionId, setSessions, setActiveSessionId]);
 
   // ── 5-minute rolling sparkline windows ──────────────────────────────────
   // Each hook persists its window to localStorage under a namespaced key.
@@ -418,14 +434,20 @@ export default function App() {
     // Loquela sends `context` as [{ kind, ref }]; file/image/url chips carry a
     // concrete locator the backend pins as FileAffinity (see loquelaContext).
     const contextFiles = contextRefsFromPayload(payload);
+    // The active chat tab provides the session_id and a persistent working set
+    // (scopePaths) that flows into the task's file manifest, so two tabs on
+    // different parts of the codebase land on different agents.
+    const activeSession = sessions.find(s => s.id === activeSessionId);
+    const sessionId = payload.session_id ?? (activeSessionId || 'gui-loquela');
+    const files = Array.from(new Set([...contextFiles, ...(activeSession?.scopePaths ?? [])]));
     await executeIpcWithRun<{ ok: boolean; message: string; task_id: string | null }>(
       'submit_orchestrator_task',
       {
         input: {
           description: payload.description,
-          files: contextFiles,
+          files,
           priority: payload.priority ?? null,
-          session_id: payload.session_id ?? 'gui-loquela',
+          session_id: sessionId,
           mode: payload.mode ?? null,
           tier: payload.tier ?? null,
         }
@@ -435,7 +457,7 @@ export default function App() {
       // resolves so streamed tokens correlate to a live transcript entry.
       (id) => {
         runId = id;
-        dispatchChat({ type: 'submit', runId: id, prompt: String(payload.description ?? '') });
+        dispatchChat({ type: 'submit', runId: id, prompt: String(payload.description ?? ''), sessionId });
       },
     )
       .then((result) => {
@@ -444,7 +466,7 @@ export default function App() {
         }
       })
       .catch(err => pushToast({ tone: 'warn', title: 'Dispatch Failed', body: String(err) }));
-  }, [executeIpcWithRun, pushToast]);
+  }, [executeIpcWithRun, pushToast, sessions, activeSessionId]);
 
   // Attach one or more locators to the shared Loquela context set. These chips
   // become the next task's file manifest (see handleLoquelaSubmit), so this is
@@ -653,7 +675,23 @@ export default function App() {
 
         {/* Loquela — fixed to the bottom of main, tracks sidebar width */}
         <div className="p-4 pt-0 mt-auto">
-          <Transcript messages={chat.messages} />
+          <SessionTabs
+            sessions={sessions}
+            activeId={activeSessionId}
+            onSelect={setActiveSessionId}
+            onNew={() => {
+              const s = createSession(sessions);
+              setSessions([...sessions, s]);
+              setActiveSessionId(s.id);
+            }}
+            onClose={(id) => {
+              const { sessions: next, nextActiveId } = closeSession(sessions, id);
+              setSessions(next);
+              setActiveSessionId(nextActiveId);
+            }}
+            onRename={(id, title) => setSessions(renameSession(sessions, id, title))}
+          />
+          <Transcript messages={messagesForSession(chat, activeSessionId)} />
           <Loquela
             chips={chips}
             setChips={setChips}
