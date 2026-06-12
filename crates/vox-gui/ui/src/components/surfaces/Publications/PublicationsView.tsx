@@ -256,7 +256,3 @@ function PublicationDetail({
   );
 }
 
-/** Whether a manifest currently falls in `stage` per the board's grouping. */
-function groupContains(stage: string, m: PublicationManifest): boolean {
-  return groupByStage([m])[stage]?.length > 0;
-}

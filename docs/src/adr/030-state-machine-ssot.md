@@ -35,7 +35,7 @@ ADR 027 adopted Track A (Vox-native reactivity) as the canonical surface for gre
 
 - `crates/vox-compiler/src/hir/nodes/state_machine.rs` — HIR node
 - `crates/vox-compiler/src/typeck/state_machine_check.rs` — type-checking
-- `crates/vox-codegen/src/codegen_ts/state_machine_emit.ts` — lowering
+- `crates/vox-codegen-ts/src/state_machine_emit.ts` — lowering
 - `crates/vox-dashboard/app/src/app.vox` — dashboard entry point (Tab switcher uses `state`)
 - `scripts/check_dashboard_ssot.vox` — CI gate (to be created in Phase 3)
 

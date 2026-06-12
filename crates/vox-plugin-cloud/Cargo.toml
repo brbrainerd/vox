@@ -2,6 +2,7 @@
 name = "vox-plugin-cloud"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish = false
 description = "CloudSync plugin stub: HF Hub / S3 model artifact sync (SP7 scaffold; actual extraction deferred)."
 

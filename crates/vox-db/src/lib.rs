@@ -164,7 +164,7 @@ pub use codex_schema::{
     CodexApiReadiness, evaluate_codex_api_readiness, missing_codex_reactivity_tables,
 };
 pub use collection::Collection;
-pub use config::DbConfig;
+pub use config::{DbConfig, resolve_app_db_url, resolve_codex_db_url};
 pub use connect_policy::{
     DbConnectSurface, REMEDIATION_CANONICAL_DB, connect_canonical_optional,
     connect_canonical_strict, format_degraded_optional_connect,

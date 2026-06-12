@@ -3,19 +3,23 @@ name = "vox-cli-core"
 description = "Shared internals for the vox CLI binary (argv parsing helpers, exit-code policy)."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 vox-config = { workspace = true }
 vox-db = { workspace = true }
+vox-orchestrator = { workspace = true }
+vox-orchestrator-driver = { workspace = true }
+vox-repository = { workspace = true }
 vox-gamify = { workspace = true }
 vox-foundation = { workspace = true }
-vox-repository = { workspace = true }
 vox-secrets = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 owo-colors = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
 sysinfo = { workspace = true }
 tokio = { workspace = true, features = ["io-std", "macros", "process", "rt", "rt-multi-thread", "signal", "sync"] }
 tracing = { workspace = true }
@@ -23,5 +27,6 @@ uuid = { workspace = true, features = ["v4"] }
 which = { workspace = true }
 
 [dev-dependencies]
+tempfile = { workspace = true }
 vox-bounded-fs = { workspace = true }
 vox-jsonschema-util = { workspace = true }

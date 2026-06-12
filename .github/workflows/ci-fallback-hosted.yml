@@ -1,11 +1,10 @@
 # CI Fallback (GitHub-hosted)
 #
-# This is a degraded-mode, GitHub-hosted mirror of the self-hosted `ci.yml` merge
-# gate. The primary gate runs on the self-hosted runner fleet ([self-hosted, linux,
-# x64]). When that fleet has zero registered runners (or is otherwise down), the
-# entire merge gate stalls and *all* merges are blocked. This workflow runs on
-# GitHub-hosted `ubuntu-latest` so a runner-fleet outage degrades coverage instead
-# of blocking every merge.
+# Manual-only degraded-mode mirror of the self-hosted `ci.yml` merge gate.
+# Branch protection requires **Check, Build, and Test (Rust)** on the self-hosted
+# fleet ([self-hosted, linux, x64]) — this workflow is NOT a required check and
+# does NOT run on pull_request/push. Trigger it with workflow_dispatch when the
+# fleet is down and you want a portable Rust smoke on GitHub-hosted runners.
 #
 # It intentionally omits the lanes that require the self-hosted fleet's hardware and
 # preinstalled services: GPU jobs, Docker-based integration, Playwright/browser E2E,
@@ -15,9 +14,6 @@
 name: "CI Fallback (GitHub-hosted)"
 
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -31,14 +27,26 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # Shared compile cache via the GitHub Actions cache service. Incremental
+      # compilation is disabled because sccache cannot cache incremental
+      # artifacts (it would silently fall back to cache misses).
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+      CARGO_INCREMENTAL: "0"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
@@ -93,3 +101,61 @@ jobs:
 
       - name: cargo-audit
         run: cargo audit
+
+      - name: sccache stats
+        if: always()
+        run: sccache --show-stats
+
+  # Portable Windows lane: proves the Tauri shell compiles and the binary starts
+  # (headless `--print-action-manifest-json`). Catches manifest/sidecar/icon drift
+  # that Linux CI excludes when `vox-gui` is omitted from nextest/clippy.
+  gui-windows-build-smoke:
+    name: GUI Windows build smoke
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: crates/vox-gui/ui/pnpm-lock.yaml
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: GUI frontend build (pnpm)
+        run: |
+          cd crates/vox-gui/ui
+          pnpm install --prefer-offline
+          pnpm run build
+
+      - name: Build vox CLI sidecar (release)
+        run: cargo build -p vox-cli --release
+
+      - name: Stage Tauri external sidecar
+        shell: pwsh
+        run: |
+          Copy-Item target/release/vox.exe target/release/vox-x86_64-pc-windows-msvc.exe -Force
+
+      - name: Tauri prerequisite tests
+        run: cargo test -p vox-gui --test gui_tauri_prereqs
+
+      - name: Build vox-gui (Tauri)
+        run: cargo build -p vox-gui
+
+      - name: Headless binary smoke (action manifest)
+        shell: pwsh
+        run: |
+          $out = & target/debug/vox-gui.exe --print-action-manifest-json
+          if (-not $out) { throw 'empty action manifest' }
+          if ($out -notmatch '"actions"') { throw 'action manifest JSON missing actions key' }

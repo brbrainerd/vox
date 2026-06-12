@@ -27,8 +27,8 @@
 
 ### New files
 
-- `crates/vox-codegen/src/codegen_ts/hir_emit/async_walker.rs` — recursive async-call detection (replaces the shallow `stmt_calls_async_fn`)
-- `crates/vox-codegen/src/codegen_ts/builtin_registry.rs` — single registry mapping Vox method/function calls to TS lowerings
+- `crates/vox-codegen-ts/src/hir_emit/async_walker.rs` — recursive async-call detection (replaces the shallow `stmt_calls_async_fn`)
+- `crates/vox-codegen-ts/src/builtin_registry.rs` — single registry mapping Vox method/function calls to TS lowerings
 - `crates/vox-codegen/src/web_ir/validate_keys.rs` — Web IR validator: every `Loop` child must have a stable `key` attribute
 - `crates/vox-codegen/src/web_ir/validate_route_completeness.rs` — Web IR validator: every route with `loader_name` must have `pending_component_name` AND an error component
 - `crates/vox-compiler/src/typeck/effect_deps_lint.rs` — HIR pass: every `effect`/`derived` block has fully-resolved deps or fails
@@ -36,9 +36,9 @@
 - `crates/vox-compiler/src/typeck/async_handler_lint.rs` — HIR pass: async event handlers must be `@cancellable` or use AbortSignal
 - `crates/vox-compiler/src/ast/decl/form.rs` — `FormDecl` AST node
 - `crates/vox-compiler/src/hir/nodes/form.rs` — `HirForm` HIR node
-- `crates/vox-codegen/src/codegen_ts/form_emit.rs` — emit React form state machine + bindings + validation
+- `crates/vox-codegen-ts/src/form_emit.rs` — emit React form state machine + bindings + validation
 - `crates/vox-compiler/src/ast/decl/mobile.rs` — `SafeAreaDecl`, `BackButtonDecl`, `DeepLinkDecl`, `PushDecl` AST nodes
-- `crates/vox-codegen/src/codegen_ts/mobile_emit.rs` — emit Capacitor wiring for mobile primitives
+- `crates/vox-codegen-ts/src/mobile_emit.rs` — emit Capacitor wiring for mobile primitives
 - `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/ios/AppleSpeechBackend.swift` — iOS STT via Apple Speech Framework
 - `apps/vox-mental-tracker/public/sw-offline.js` — offline-first SW with mutation queue
 - `apps/vox-mental-tracker/scripts/sign-android.vox` — Android keystore + APK signing
@@ -52,8 +52,8 @@
 
 ### Modified files
 
-- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` — extend `EmitCtx` with `async_call_detector`; replace `stmt_calls_async_fn` with recursive walker; route Method/Field/Index calls through it
-- `crates/vox-codegen/src/codegen_ts/jsx.rs` — emit `key` attribute on `.map()` children; pull from registry
+- `crates/vox-codegen-ts/src/hir_emit/mod.rs` — extend `EmitCtx` with `async_call_detector`; replace `stmt_calls_async_fn` with recursive walker; route Method/Field/Index calls through it
+- `crates/vox-codegen-ts/src/jsx.rs` — emit `key` attribute on `.map()` children; pull from registry
 - `crates/vox-codegen/src/web_ir/emit_tsx.rs` — same: emit `key` on `Loop`
 - `crates/vox-codegen/src/web_ir/validate.rs` — register new validators (`validate_keys`, `validate_route_completeness`)
 - `crates/vox-compiler/src/typeck/mod.rs` — register new HIR passes (effect-deps, stale-capture, async-handler)
@@ -80,8 +80,8 @@ Goal: close the open async/await bug, add a `tsc --noEmit` CI gate, centralize b
 ## Task A1: Recursive async-call detection
 
 **Files:**
-- Create: `crates/vox-codegen/src/codegen_ts/hir_emit/async_walker.rs`
-- Modify: `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs:332-380` (Method/Field call branches), `:555-590` (handler async detection)
+- Create: `crates/vox-codegen-ts/src/hir_emit/async_walker.rs`
+- Modify: `crates/vox-codegen-ts/src/hir_emit/mod.rs:332-380` (Method/Field call branches), `:555-590` (handler async detection)
 - Test: `crates/vox-codegen/tests/async_emit_test.rs`
 
 **Background:** Today, `stmt_calls_async_fn` only matches `HirStmt::Expr(Call(Ident(name), …))`. A method call (`obj.foo()`), a chained call (`a().b()`), a call inside a let binding (`let x = parse_voice(...)`), or an assignment with an async call all bypass detection — the handler is *not* marked `async`, the call is *not* awaited, and the user sees `undefined`. This is the open bug from `apps/vox-mental-tracker/tests/e2e/voice_flow.spec.ts:49-55`.
@@ -171,7 +171,7 @@ Expected: 3 failures (the 4th passes; it's a guardrail against false-positives).
 
 - [ ] **Step 3: Implement async-walker module**
 
-Create `crates/vox-codegen/src/codegen_ts/hir_emit/async_walker.rs`:
+Create `crates/vox-codegen-ts/src/hir_emit/async_walker.rs`:
 
 ```rust
 //! Recursive detection of async-fn calls anywhere inside a HIR expression
@@ -254,7 +254,7 @@ pub fn expr_has_async_call(expr: &HirExpr, async_names: &HashSet<String>) -> boo
 
 - [ ] **Step 4: Wire into hir_emit/mod.rs**
 
-In `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`:
+In `crates/vox-codegen-ts/src/hir_emit/mod.rs`:
 
 1. Add `mod async_walker;` near other `mod` declarations and `use async_walker::{stmt_has_async_call, expr_has_async_call};`
 2. Replace the existing `stmt_calls_async_fn` body with a call to `stmt_has_async_call`. Keep the symbol so the rest of the file does not need to change.
@@ -303,8 +303,8 @@ Expected: pass.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add crates/vox-codegen/src/codegen_ts/hir_emit/async_walker.rs \
-        crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs \
+git add crates/vox-codegen-ts/src/hir_emit/async_walker.rs \
+        crates/vox-codegen-ts/src/hir_emit/mod.rs \
         crates/vox-codegen/tests/async_emit_test.rs \
         apps/vox-mental-tracker/tests/e2e/voice_flow.spec.ts
 git commit -m "fix(codegen-ts): recursive async-call detection covers method/let/index"
@@ -451,8 +451,8 @@ git commit -m "ci(codegen-ts): tsc --noEmit gate over all golden fixtures"
 ## Task A3: Centralized builtin lowering registry
 
 **Files:**
-- Create: `crates/vox-codegen/src/codegen_ts/builtin_registry.rs`
-- Modify: `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` (use registry instead of scattered special cases)
+- Create: `crates/vox-codegen-ts/src/builtin_registry.rs`
+- Modify: `crates/vox-codegen-ts/src/hir_emit/mod.rs` (use registry instead of scattered special cases)
 - Test: `crates/vox-codegen/tests/builtin_registry_test.rs`
 
 **Background:** `.length()` → `.length`, `std.time.now_ms()` → `Date.now()`, namespace aliases — these were each hand-coded in different parts of the emitter and caused bugs (Bug B, Bug §1.A.3). Move them to a single source-of-truth.
@@ -499,7 +499,7 @@ Expected: fail — module doesn't exist.
 
 - [ ] **Step 3: Implement registry**
 
-Create `crates/vox-codegen/src/codegen_ts/builtin_registry.rs`:
+Create `crates/vox-codegen-ts/src/builtin_registry.rs`:
 
 ```rust
 //! Single source of truth for how Vox method/function/namespace identifiers
@@ -577,7 +577,7 @@ impl BuiltinRegistry {
 
 - [ ] **Step 4: Wire registry into emitter**
 
-In `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`, replace scattered special cases:
+In `crates/vox-codegen-ts/src/hir_emit/mod.rs`, replace scattered special cases:
 
 1. Find the `MethodCall` arm (around line 332). Before falling through to `format!("{recv}.{method}({args})")`, look up the receiver type in the registry and apply the lowering.
 2. Find the `Call` arm with `std.time.now_ms`-style hardcoding. Replace with registry lookup.
@@ -586,7 +586,7 @@ In `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`, replace scattered specia
 
 - [ ] **Step 5: Add module declaration**
 
-In `crates/vox-codegen/src/codegen_ts/mod.rs`:
+In `crates/vox-codegen-ts/src/mod.rs`:
 
 ```rust
 pub mod builtin_registry;
@@ -600,9 +600,9 @@ Expected: all pass.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add crates/vox-codegen/src/codegen_ts/builtin_registry.rs \
-        crates/vox-codegen/src/codegen_ts/mod.rs \
-        crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs \
+git add crates/vox-codegen-ts/src/builtin_registry.rs \
+        crates/vox-codegen-ts/src/mod.rs \
+        crates/vox-codegen-ts/src/hir_emit/mod.rs \
         crates/vox-codegen/tests/builtin_registry_test.rs
 git commit -m "refactor(codegen-ts): centralize method/fn/namespace lowering in builtin registry"
 ```
@@ -618,7 +618,7 @@ Five compile-error lints. Each makes one class of LLM GUI bug structurally unrep
 **Files:**
 - Create: `crates/vox-codegen/src/web_ir/validate_keys.rs`
 - Modify: `crates/vox-codegen/src/web_ir/validate.rs:847+` (register validator)
-- Modify: `crates/vox-codegen/src/codegen_ts/jsx.rs:360` (emit `key` prop)
+- Modify: `crates/vox-codegen-ts/src/jsx.rs:360` (emit `key` prop)
 - Modify: `crates/vox-codegen/src/web_ir/emit_tsx.rs:125-130` (emit `key` prop)
 - Test: `crates/vox-codegen/tests/list_keys_test.rs`
 
@@ -798,7 +798,7 @@ DomNode::Loop { iterator, key, body, .. } => {
 }
 ```
 
-In `crates/vox-codegen/src/codegen_ts/jsx.rs:360`, mirror the change in the AST path.
+In `crates/vox-codegen-ts/src/jsx.rs:360`, mirror the change in the AST path.
 
 - [ ] **Step 7: Run tests**
 
@@ -813,7 +813,7 @@ git add crates/vox-codegen/src/web_ir/validate_keys.rs \
         crates/vox-codegen/src/web_ir/emit_tsx.rs \
         crates/vox-codegen/src/web_ir/ir.rs \
         crates/vox-codegen/src/web_ir/lower.rs \
-        crates/vox-codegen/src/codegen_ts/jsx.rs \
+        crates/vox-codegen-ts/src/jsx.rs \
         crates/vox-compiler/src/parser/descent/expr/for_expr.rs \
         crates/vox-compiler/src/ast/expr/mod.rs \
         crates/vox-compiler/src/hir/nodes/expr.rs \
@@ -969,10 +969,10 @@ fn check_component(c: &HirReactiveComponent, diags: &mut Vec<Diagnostic>) {
 
 - [ ] **Step 5: Move state_deps to compiler crate**
 
-Move `crates/vox-codegen/src/codegen_ts/hir_emit/state_deps.rs` to `crates/vox-compiler/src/typeck/state_deps.rs`. Update import sites in vox-codegen to `use vox_compiler::typeck::state_deps::*`. Re-export from old location with deprecation:
+Move `crates/vox-codegen-ts/src/hir_emit/state_deps.rs` to `crates/vox-compiler/src/typeck/state_deps.rs`. Update import sites in vox-codegen to `use vox_compiler::typeck::state_deps::*`. Re-export from old location with deprecation:
 
 ```rust
-// vox-codegen/src/codegen_ts/hir_emit/mod.rs
+// vox-codegen-ts/src/hir_emit/mod.rs
 pub use vox_compiler::typeck::state_deps;
 ```
 
@@ -1001,11 +1001,11 @@ Expected: all 3 pass.
 git add crates/vox-compiler/src/typeck/effect_deps_lint.rs \
         crates/vox-compiler/src/typeck/mod.rs \
         crates/vox-compiler/src/typeck/state_deps.rs \
-        crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs \
+        crates/vox-codegen-ts/src/hir_emit/mod.rs \
         crates/vox-compiler/src/parser/descent/decl/tail.rs \
         crates/vox-compiler/src/ast/decl/ui.rs \
         crates/vox-compiler/tests/effect_deps_test.rs
-git rm crates/vox-codegen/src/codegen_ts/hir_emit/state_deps.rs
+git rm crates/vox-codegen-ts/src/hir_emit/state_deps.rs
 git commit -m "feat(compiler): require resolvable effect deps (lint.effect.unresolvable_deps)"
 ```
 
@@ -1395,7 +1395,7 @@ git add crates/vox-compiler/src/typeck/async_handler_lint.rs \
         crates/vox-compiler/src/parser/descent/expr/lambda.rs \
         crates/vox-compiler/src/ast/expr/mod.rs \
         crates/vox-compiler/src/hir/nodes/expr.rs \
-        crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs \
+        crates/vox-codegen-ts/src/hir_emit/mod.rs \
         crates/vox-compiler/tests/async_handler_test.rs
 git commit -m "feat(compiler): warn on uncancellable async handlers (lint.handler.uncancellable_async); add @cancellable desugaring"
 ```
@@ -1576,7 +1576,7 @@ git add crates/vox-codegen/src/web_ir/validate_route_completeness.rs \
         crates/vox-codegen/src/web_ir/validate.rs \
         crates/vox-codegen/src/web_ir/ir.rs \
         crates/vox-codegen/src/web_ir/lower.rs \
-        crates/vox-codegen/src/codegen_ts/routes.rs \
+        crates/vox-rn-codegen/src/routes.rs \
         crates/vox-compiler/src/parser/descent/decl/tail.rs \
         crates/vox-compiler/src/ast/decl/ui.rs \
         crates/vox-compiler/src/hir/nodes/decl.rs \
@@ -2049,8 +2049,8 @@ git commit -m "feat(compiler): @form HIR + endpoint signature checking"
 ## Task C3: Form codegen — emit React form component
 
 **Files:**
-- Create: `crates/vox-codegen/src/codegen_ts/form_emit.rs`
-- Modify: `crates/vox-codegen/src/codegen_ts/emitter.rs` (call form_emit)
+- Create: `crates/vox-codegen-ts/src/form_emit.rs`
+- Modify: `crates/vox-codegen-ts/src/emitter.rs` (call form_emit)
 - Test: `crates/vox-codegen/tests/form_emit_test.rs`
 
 **Spec:** A `@form X { … }` emits a React component named `<X />` that:
@@ -2114,7 +2114,7 @@ fn form_validates_required_field_before_submit() {
 
 - [ ] **Step 2: Implement emitter**
 
-Create `crates/vox-codegen/src/codegen_ts/form_emit.rs`:
+Create `crates/vox-codegen-ts/src/form_emit.rs`:
 
 ```rust
 //! Emit a React component for each @form. The component is a state machine:
@@ -2256,7 +2256,7 @@ fn field_initial_value(f: &HirFormField) -> String {
 
 - [ ] **Step 3: Wire into top-level emitter**
 
-In `crates/vox-codegen/src/codegen_ts/emitter.rs::generate`, after components are emitted, iterate `hir.forms` and call `emit_form` for each, appending to a new file `forms.tsx`:
+In `crates/vox-codegen-ts/src/emitter.rs::generate`, after components are emitted, iterate `hir.forms` and call `emit_form` for each, appending to a new file `forms.tsx`:
 
 ```rust
 let forms_content: String = hir.forms.iter().map(|f| form_emit::emit_form(f)).collect();
@@ -2276,9 +2276,9 @@ Expected: pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/vox-codegen/src/codegen_ts/form_emit.rs \
-        crates/vox-codegen/src/codegen_ts/emitter.rs \
-        crates/vox-codegen/src/codegen_ts/mod.rs \
+git add crates/vox-codegen-ts/src/form_emit.rs \
+        crates/vox-codegen-ts/src/emitter.rs \
+        crates/vox-codegen-ts/src/mod.rs \
         crates/vox-codegen/tests/form_emit_test.rs
 git commit -m "feat(codegen-ts): emit React form components from @form decls"
 ```
@@ -2452,7 +2452,7 @@ git commit -m "feat(codegen-ts): safe_area kwarg → CSS env(safe-area-inset-*)"
 
 **Files:**
 - Create: `crates/vox-compiler/src/ast/decl/mobile.rs` (BackButtonDecl)
-- Create: `crates/vox-codegen/src/codegen_ts/mobile_emit.rs`
+- Create: `crates/vox-codegen-ts/src/mobile_emit.rs`
 - Modify: `crates/vox-compiler/src/parser/descent/decl/head.rs`
 - Test: `crates/vox-codegen/tests/back_button_test.rs`
 
@@ -2515,7 +2515,7 @@ Add `Decl::BackButton(BackButtonDecl)` variant. Parser: see Task C1 pattern.
 
 - [ ] **Step 3: Implement emit**
 
-Create `crates/vox-codegen/src/codegen_ts/mobile_emit.rs`:
+Create `crates/vox-codegen-ts/src/mobile_emit.rs`:
 
 ```rust
 use vox_compiler::hir::nodes::module::HirModule;
@@ -2555,7 +2555,7 @@ export function installBackButtonHandler() {{
 }
 ```
 
-In `crates/vox-codegen/src/codegen_ts/emitter.rs::generate`, after the standard emit, append a `mobile.ts` file if `emit_mobile_setup` returns `Some`. In the `main.tsx` scaffold, call `installBackButtonHandler()` on app boot.
+In `crates/vox-codegen-ts/src/emitter.rs::generate`, after the standard emit, append a `mobile.ts` file if `emit_mobile_setup` returns `Some`. In the `main.tsx` scaffold, call `installBackButtonHandler()` on app boot.
 
 - [ ] **Step 4: Add `@capacitor/app` to mental-tracker**
 
@@ -2574,8 +2574,8 @@ Expected: pass.
 ```bash
 git add crates/vox-compiler/src/ast/decl/mobile.rs \
         crates/vox-compiler/src/parser/descent/decl/head.rs \
-        crates/vox-codegen/src/codegen_ts/mobile_emit.rs \
-        crates/vox-codegen/src/codegen_ts/emitter.rs \
+        crates/vox-codegen-ts/src/mobile_emit.rs \
+        crates/vox-codegen-ts/src/emitter.rs \
         crates/vox-codegen/tests/back_button_test.rs \
         apps/vox-mental-tracker/package.json
 git commit -m "feat(compiler): @back_button → Capacitor App backButton listener"
@@ -2585,7 +2585,7 @@ git commit -m "feat(compiler): @back_button → Capacitor App backButton listene
 
 **Files:**
 - Modify: `crates/vox-compiler/src/ast/decl/mobile.rs` (DeepLinkDecl)
-- Modify: `crates/vox-codegen/src/codegen_ts/mobile_emit.rs`
+- Modify: `crates/vox-codegen-ts/src/mobile_emit.rs`
 - Modify: `apps/vox-mental-tracker/capacitor.config.ts`
 - Test: `crates/vox-codegen/tests/deep_link_test.rs`
 
@@ -2685,7 +2685,7 @@ fn main() to int {
 ```bash
 cargo test -p vox-codegen --test deep_link_test
 git add crates/vox-compiler/src/ast/decl/mobile.rs \
-        crates/vox-codegen/src/codegen_ts/mobile_emit.rs \
+        crates/vox-codegen-ts/src/mobile_emit.rs \
         crates/vox-codegen/tests/deep_link_test.rs \
         apps/vox-mental-tracker/capacitor.config.ts \
         apps/vox-mental-tracker/scripts/configure-deep-link.vox
@@ -2696,7 +2696,7 @@ git commit -m "feat(compiler): @deep_link → Capacitor App appUrlOpen + iOS URL
 
 **Files:**
 - Modify: `crates/vox-compiler/src/ast/decl/mobile.rs` (PushDecl)
-- Modify: `crates/vox-codegen/src/codegen_ts/mobile_emit.rs`
+- Modify: `crates/vox-codegen-ts/src/mobile_emit.rs`
 - Modify: `apps/vox-mental-tracker/package.json` (add `@capacitor/push-notifications` listener wiring)
 - Test: `crates/vox-codegen/tests/push_test.rs`
 

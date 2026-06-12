@@ -14,4 +14,6 @@ When writing or editing GitHub Actions workflow YAML, use these runner labels:
 
 Use `ubuntu-latest`, `windows-latest`, or `macos-latest` only for documented exceptions (Pages deploy, Release publishing, multi-OS smoke, ML publish). See `docs/src/ci/runner-contract.md`, `docs/src/ci/github-hosted-exceptions.md`, and `docs/src/ci/workflow-enumeration.md`.
 
+**Drift check:** `vox ci runner-policy-check` (advisory warn by default; `--strict` to fail). Wired into `vox ci ssot-drift` and the fast pre-push tier.
+
 **Env registry:** canonical `VOX_*` / Turso / orchestrator names — `docs/src/reference/env-vars.md` (redirect stubs: `docs/src/ref/env-vars.md`, `docs/src/ref/env-vars-ssot.md`).

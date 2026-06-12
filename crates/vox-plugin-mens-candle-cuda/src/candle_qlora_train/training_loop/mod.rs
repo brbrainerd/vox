@@ -297,10 +297,22 @@ pub fn run_training_loop(
                     supervised_tokens,
                     theoretical_tokens,
                     syntax_weight_sum,
+                    segments,
                 } => {
-                    trainer
-                        .backward_step(&loss)
-                        .map_err(|e| anyhow::anyhow!("{e}"))?;
+                    match segments {
+                        Some(segs) => {
+                            // Gradient-checkpointed backward: thread the boundary
+                            // cotangent through each segment in reverse, summing the
+                            // per-segment grads, then one optimizer step.
+                            logic::checkpointed_backward_step(trainer, &model, &loss, segs)
+                                .map_err(|e| anyhow::anyhow!("{e}"))?;
+                        }
+                        None => {
+                            trainer
+                                .backward_step(&loss)
+                                .map_err(|e| anyhow::anyhow!("{e}"))?;
+                        }
+                    }
                     total_valid_tokens = total_valid_tokens.saturating_add(supervised_tokens);
                     total_theoretical_tokens =
                         total_theoretical_tokens.saturating_add(theoretical_tokens);

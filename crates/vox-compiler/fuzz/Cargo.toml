@@ -1,0 +1,31 @@
+[package]
+name = "vox-compiler-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[[bin]]
+name = "parse_vox"
+path = "fuzz_targets/parse_vox.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parse_decl"
+path = "fuzz_targets/parse_decl.rs"
+test = false
+doc = false
+bench = false
+
+[dependencies]
+libfuzzer-sys = "0.4"
+vox-compiler = { path = ".." }
+
+[patch.crates-io]
+aegis = { path = "../../../patches/aegis-0.9.8" }

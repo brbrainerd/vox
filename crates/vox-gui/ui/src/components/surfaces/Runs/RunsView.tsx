@@ -1,6 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
+import { EmptyState } from '../../ui/EmptyState';
+import { Icon } from '../../ui/Icons';
+import { RUNS_POLL_MS, RUNS_LIST_LIMIT, SCOREBOARD_WINDOW_DAYS } from '../../../config/constants';
+import { useFreshness } from '../../../hooks/useFreshness';
 
 interface ScoreboardRow {
   model_id: string;
@@ -37,16 +41,22 @@ export function RunsView({ pushToast }: RunsViewProps) {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [fetchedRun, setFetchedRun] = useState<RunRow | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lastRefreshAt, setLastRefreshAt] = useState<number | null>(null);
+  const runsFreshness = useFreshness(lastRefreshAt, {
+    usesPolling: true,
+    freshMs: RUNS_POLL_MS * 2,
+  });
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const sb = await invoke<ScoreboardRow[]>('get_model_scoreboard', { windowDays: 7 });
+      const sb = await invoke<ScoreboardRow[]>('get_model_scoreboard', { windowDays: SCOREBOARD_WINDOW_DAYS });
       setScoreboard(sb);
-      const recent = await invoke<RunRow[]>('list_gui_runs', { limit: 40 });
+      const recent = await invoke<RunRow[]>('list_gui_runs', { limit: RUNS_LIST_LIMIT });
       setRuns(recent);
       const summary = await invoke<any>('get_routing_summary_live');
       setDecision(summary?.decision_preview ?? null);
+      setLastRefreshAt(Date.now());
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Runs load failed', body: String(err) });
     } finally {
@@ -56,7 +66,7 @@ export function RunsView({ pushToast }: RunsViewProps) {
 
   useEffect(() => {
     refresh();
-    const id = setInterval(refresh, 10000);
+    const id = setInterval(refresh, RUNS_POLL_MS);
     return () => clearInterval(id);
   }, [refresh]);
 
@@ -136,9 +146,22 @@ export function RunsView({ pushToast }: RunsViewProps) {
       </Glass>
 
       <Glass className="col-span-12 xl:col-span-5 p-4 overflow-auto">
-        <div className="mb-3 font-display text-sm tracking-widest uppercase text-zinc-200">Recent Activity</div>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="font-display text-sm tracking-widest uppercase text-zinc-200">Recent Activity</div>
+          <span
+            className={`text-[9px] uppercase tracking-widest ${
+              runsFreshness === 'stale' ? 'text-amber-400' : 'text-zinc-500'
+            }`}
+          >
+            {runsFreshness === 'stale' ? 'stale' : 'polling'}
+          </span>
+        </div>
         {runs.length === 0 ? (
-          <div className="text-sm text-zinc-500">No persisted workflow runs yet.</div>
+          <EmptyState
+            icon={<Icon.flow className="size-8" />}
+            title="No persisted runs yet"
+            description="Submit a task from the composer or run a workflow — runs appear here with replay details."
+          />
         ) : (
           <div className="flex flex-col gap-2">
             {runs.map(r => (

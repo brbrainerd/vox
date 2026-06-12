@@ -80,8 +80,8 @@ For repo-facing planning sections, always separate:
 
 For WebIR planning in this repository, anchor current-state claims to:
 
-- `crates/vox-codegen/src/codegen_ts/emitter.rs` (`VOX_WEBIR_VALIDATE` gate behavior),
-- `crates/vox-codegen/src/codegen_ts/reactive.rs` (WebIR canonical reactive `view:` + fail-fast validate; see ADR 036).
+- `crates/vox-codegen-ts/src/emitter.rs` (`VOX_WEBIR_VALIDATE` gate behavior),
+- `crates/vox-codegen-ts/src/reactive/mod.rs` (WebIR canonical reactive `view:` + fail-fast validate; see ADR 036).
 
 Do not treat these flags as equivalent in planning text.
 

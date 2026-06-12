@@ -82,7 +82,7 @@ fn pre_push_dry_run_complete_includes_clippy_not_nextest() {
 }
 
 #[test]
-fn pre_push_dry_run_quick_writes_report_json_v3() {
+fn pre_push_dry_run_quick_writes_report_json_v4() {
     let dir = tempdir().expect("tempdir");
     let report = dir.path().join("pre-push-report.json");
     let out = Command::new(env!("CARGO_BIN_EXE_vox"))
@@ -103,8 +103,8 @@ fn pre_push_dry_run_quick_writes_report_json_v3() {
     );
     let raw = std::fs::read_to_string(&report).expect("read report");
     assert!(
-        raw.contains("\"schema_version\": 3"),
-        "report missing schema_version 3:\n{raw}"
+        raw.contains("\"schema_version\": 4"),
+        "report missing schema_version 4:\n{raw}"
     );
     assert!(
         raw.contains("\"profile\": \"fast\""),
@@ -139,6 +139,32 @@ fn pre_push_dry_run_full_includes_nextest_ci_profile() {
     assert!(
         stdout.contains("cargo clippy"),
         "`--full` implies complete static checks; missing clippy in:\n{stdout}"
+    );
+}
+
+#[test]
+fn pre_push_dry_run_full_skip_complete_omits_clippy() {
+    let out = Command::new(env!("CARGO_BIN_EXE_vox"))
+        .args(["ci", "pre-push", "--dry-run", "--full", "--skip-complete"])
+        .output()
+        .expect("spawn vox");
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("DRY-RUN: cargo nextest run"),
+        "expected nextest in:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("cargo clippy"),
+        "`--skip-complete` must not replay clippy; got:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("doc-inventory"),
+        "`--skip-complete` must not replay doc-inventory; got:\n{stdout}"
     );
 }
 

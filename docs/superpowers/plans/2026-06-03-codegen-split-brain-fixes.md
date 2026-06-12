@@ -22,9 +22,9 @@
 | [`crates/vox-codegen/src/codegen_rust/mod.rs`](../../../crates/vox-codegen/src/codegen_rust/mod.rs) | Inline `#[cfg(test)]` harness for Rust emit | Phase 1, Phase 2 |
 | [`crates/vox-compiler/src/required_capabilities.rs`](../../../crates/vox-compiler/src/required_capabilities.rs) | Capability-id derivation from HIR (gains a `microphone` id) | Phase 2 |
 | [`crates/vox-gui/src/commands/action_manifest.rs`](../../../crates/vox-gui/src/commands/action_manifest.rs) | GUI ActionManifest platform flags | Phase 3 |
-| [`crates/vox-codegen/src/codegen_ts/scaffold.rs`](../../../crates/vox-codegen/src/codegen_ts/scaffold.rs) | One-shot web config scaffold (`package.json`) | Phase 4 |
-| [`crates/vox-codegen/src/codegen_ts/component.rs`](../../../crates/vox-codegen/src/codegen_ts/component.rs) | Dead `generate_component*` removal (keep `ts_default_value`, `map_vox_type_to_ts`) | Phase 4 |
-| [`crates/vox-codegen/src/codegen_ts/activity.rs`](../../../crates/vox-codegen/src/codegen_ts/activity.rs) | Orphan file (never declared in `mod.rs`) — delete | Phase 4 |
+| [`crates/vox-codegen-ts/src/scaffold.rs`](../../../crates/vox-codegen-ts/src/scaffold.rs) | One-shot web config scaffold (`package.json`) | Phase 4 |
+| [`crates/vox-codegen-ts/src/component.rs`](../../../crates/vox-codegen-ts/src/component.rs) | Dead `generate_component*` removal (keep `ts_default_value`, `map_vox_type_to_ts`) | Phase 4 |
+| [`crates/vox-codegen-ts/src/activity.rs`](../../../crates/vox-codegen-ts/src/activity.rs) | Orphan file (never declared in `mod.rs`) — delete | Phase 4 |
 | [`crates/vox-compiler/src/app_contract.rs`](../../../crates/vox-compiler/src/app_contract.rs) | `AppContract` projection (derive endpoints from `ContractIr`) | Phase 5 |
 | [`crates/vox-codegen/src/codegen_shared/route_ir.rs`](../../../crates/vox-codegen/src/codegen_shared/route_ir.rs) | Dead `RouteIR` (delete or wire) | Phase 5 |
 
@@ -424,10 +424,10 @@ git commit -m "fix(gui): CLI actions are not available on mobile (sidecar-only)"
 ### Task 4.1: Drop `react-router` from the web scaffold
 
 **Files:**
-- Modify: [`crates/vox-codegen/src/codegen_ts/scaffold.rs:104`](../../../crates/vox-codegen/src/codegen_ts/scaffold.rs:104)
+- Modify: [`crates/vox-codegen-ts/src/scaffold.rs:104`](../../../crates/vox-codegen-ts/src/scaffold.rs:104)
 - Test: same file (inline `#[cfg(test)]`)
 
-**Background (verified):** The emitted `vox-app.tsx` ships a dependency-free history-API router and a test asserts it never imports `react-router` ([`web_entry.rs:397`](../../../crates/vox-codegen/src/codegen_ts/web_entry.rs:397)), yet `scaffold.rs:104` lists `"react-router": "^7.0.0"` as a runtime dependency.
+**Background (verified):** The emitted `vox-app.tsx` ships a dependency-free history-API router and a test asserts it never imports `react-router` ([`web_entry.rs:397`](../../../crates/vox-codegen-ts/src/web_entry.rs:397)), yet `scaffold.rs:104` lists `"react-router": "^7.0.0"` as a runtime dependency.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -463,16 +463,16 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/vox-codegen/src/codegen_ts/scaffold.rs
+git add crates/vox-codegen-ts/src/scaffold.rs
 git commit -m "fix(codegen): drop unused react-router dep from web scaffold"
 ```
 
 ### Task 4.2: Delete the orphan `activity.rs`
 
 **Files:**
-- Delete: [`crates/vox-codegen/src/codegen_ts/activity.rs`](../../../crates/vox-codegen/src/codegen_ts/activity.rs)
+- Delete: [`crates/vox-codegen-ts/src/activity.rs`](../../../crates/vox-codegen-ts/src/activity.rs)
 
-**Background (verified):** `activity.rs` is not declared in [`codegen_ts/mod.rs`](../../../crates/vox-codegen/src/codegen_ts/mod.rs), so Cargo never compiles it. Nothing references `codegen_ts::activity`.
+**Background (verified):** `activity.rs` is not declared in [`codegen_ts/mod.rs`](../../../crates/vox-codegen-ts/src/mod.rs), so Cargo never compiles it. Nothing references `codegen_ts::activity`.
 
 - [ ] **Step 1: Confirm it is undeclared and unreferenced**
 
@@ -483,7 +483,7 @@ Expected: no `mod activity;` line and no external references.
 - [ ] **Step 2: Delete the file**
 
 ```bash
-git rm crates/vox-codegen/src/codegen_ts/activity.rs
+git rm crates/vox-codegen-ts/src/activity.rs
 ```
 
 - [ ] **Step 3: Verify the crate still builds**
@@ -500,7 +500,7 @@ git commit -m "chore(codegen): delete orphan activity.rs (never compiled)"
 ### Task 4.3: Delete the dead classic-component emitter
 
 **Files:**
-- Modify: [`crates/vox-codegen/src/codegen_ts/component.rs`](../../../crates/vox-codegen/src/codegen_ts/component.rs)
+- Modify: [`crates/vox-codegen-ts/src/component.rs`](../../../crates/vox-codegen-ts/src/component.rs)
 
 **Background (verified):** `generate_component` and `generate_component_from_web_ir` have zero live callsites (the emit loop calls only `generate_reactive_component`). Their private helpers (`emit_component_stmt`/`expr`/`pattern`, `uses_mobile_ident_in_*`) are only used by them. **Keep** `ts_default_value` (used at emitter.rs:454) and `map_vox_type_to_ts`.
 
@@ -526,7 +526,7 @@ Expected: PASS (no new orphan/inversion).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/vox-codegen/src/codegen_ts/component.rs
+git add crates/vox-codegen-ts/src/component.rs
 git commit -m "chore(codegen): remove dead classic @component emit path"
 ```
 
