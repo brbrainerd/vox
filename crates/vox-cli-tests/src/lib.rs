@@ -480,21 +480,28 @@ fn ensure_node_modules_installed(tests_dir: &Path) {
                 .join("package.json")
                 .is_file()
         };
-        if installed(tests_dir) {
+        // Cross-process lock: `create_dir` is atomic. Whoever creates the
+        // lock dir runs the install; everyone else waits for the LOCK to be
+        // released. Waiting on a package heuristic instead is racy — `react/`
+        // lands while npm is still extracting `react-native`, and tsc then
+        // runs against a half-populated node_modules.
+        let lock_dir = tests_dir.join(".npm-install-lock");
+        if installed(tests_dir) && !lock_dir.exists() {
             return;
         }
-
-        // Cross-process lock: `create_dir` is atomic. Whoever creates the
-        // lock dir runs the install; everyone else waits for it to finish.
-        let lock_dir = tests_dir.join(".npm-install-lock");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(600);
         let we_hold_lock = loop {
             match std::fs::create_dir(&lock_dir) {
-                Ok(()) => break true,
-                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                Ok(()) => {
+                    // A completed install (by us in a prior run, or by the
+                    // process whose lock release let us get here) is final.
                     if installed(tests_dir) {
+                        let _ = std::fs::remove_dir(&lock_dir);
                         break false;
                     }
+                    break true;
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
                     if std::time::Instant::now() > deadline {
                         // Stale lock (a previous process died mid-install);
                         // steal it and install ourselves.
