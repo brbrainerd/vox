@@ -90,6 +90,14 @@ impl ZTier {
             Self::SystemOverlay => "system_overlay",
         }
     }
+
+    /// Canonical z-index for this tier. Single source of truth for the z-ladder
+    /// (tier N → N × 100); `layer_emit::tier_z_index` mirrors this for `LayerTier`,
+    /// and the parity test `ztier_and_layertier_agree_on_names_and_order` keeps
+    /// the two enums lock-step. Do NOT hand-roll per-tier z numbers elsewhere.
+    pub fn z_value(self) -> i32 {
+        (self as i32) * 100
+    }
 }
 
 /// Web-facing projection IR — same serde layout as [`WebIrModule`]; use this name at core/projection boundaries.
@@ -537,5 +545,29 @@ mod smoke_tests {
     fn web_ir_module_default_validates() {
         let module = WebIrModule::default();
         assert!(validate_web_ir(&module).is_empty());
+    }
+
+    #[test]
+    fn ztier_and_layertier_agree_on_names_and_order() {
+        use crate::web_ir::ZTier;
+        use vox_compiler::hir::nodes::layer::LayerTier;
+        for z in [
+            ZTier::Background,
+            ZTier::Content,
+            ZTier::Chrome,
+            ZTier::Popover,
+            ZTier::Modal,
+            ZTier::Toast,
+            ZTier::SystemOverlay,
+        ] {
+            let lt = LayerTier::from_str(z.to_str())
+                .expect("every ZTier name must parse as a LayerTier");
+            assert_eq!(
+                z.z_value(),
+                (lt as i32) * 100,
+                "single z-ladder: {} must agree across enums",
+                z.to_str()
+            );
+        }
     }
 }
