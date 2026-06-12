@@ -583,44 +583,72 @@ export default function App() {
       input: { session_id: sessionId, role: 'user', content: String(payload.description ?? ''), task_id: null },
     }).catch((err) => pushToast({ tone: 'warn', title: 'Message not saved', body: String(err) }));
     const contextFiles = contextRefsFromPayload(payload);
-    await executeIpcWithRun<SubmitTaskResult>(
-      'submit_orchestrator_task',
-      {
-        input: {
-          description: payload.description,
-          files: contextFiles,
-          priority: payload.priority ?? null,
-          session_id: sessionId || null,
-          mode: payload.mode ?? null,
-          model_hint: payload.model_hint ?? payload.tier ?? null,
-          dry_run: payload.dry_run ?? null,
-          active_skill: payload.active_skill ?? activeSkill?.id ?? null,
-        }
-      },
-      'gui.loquela.submit',
-      // Mint the runId and create the user/assistant bubbles BEFORE the invoke
-      // resolves so streamed tokens correlate to a live transcript entry.
-      (id) => {
-        runId = id;
-        dispatchSessionChat({
-          type: 'submit',
-          sessionId,
-          runId: id,
-          prompt: String(payload.description ?? ''),
-        });
-      },
-    )
-      .then((result) => {
-        if (runId && result?.task_id != null && sessionId) {
+
+    // One submit attempt. `allowDuplicate=false` lets the daemon refuse a
+    // near-duplicate (returning `duplicate_of` with a null task_id) so we can
+    // ask the user instead of silently enqueuing the same work twice.
+    const dispatchAttempt = (allowDuplicate: boolean) =>
+      executeIpcWithRun<SubmitTaskResult>(
+        'submit_orchestrator_task',
+        {
+          input: {
+            description: payload.description,
+            files: contextFiles,
+            priority: payload.priority ?? null,
+            session_id: sessionId || null,
+            mode: payload.mode ?? null,
+            model_hint: payload.model_hint ?? payload.tier ?? null,
+            dry_run: payload.dry_run ?? null,
+            active_skill: payload.active_skill ?? activeSkill?.id ?? null,
+            allow_duplicate: allowDuplicate,
+          }
+        },
+        'gui.loquela.submit',
+        // Mint the runId and create the user/assistant bubbles BEFORE the invoke
+        // resolves so streamed tokens correlate to a live transcript entry.
+        (id) => {
+          runId = id;
           dispatchSessionChat({
-            type: 'submitResolved',
+            type: 'submit',
+            sessionId,
+            runId: id,
+            prompt: String(payload.description ?? ''),
+          });
+        },
+      );
+
+    try {
+      let result = await dispatchAttempt(false);
+      // Refused as a near-duplicate: retract the optimistic bubble and ask.
+      if (result?.task_id == null && result?.duplicate_of) {
+        if (runId) {
+          dispatchSessionChat({
+            type: 'failRun',
             sessionId,
             runId,
-            taskId: String(result.task_id),
+            error: `Skipped — near-duplicate of task #${result.duplicate_of}`,
           });
         }
-      })
-      .catch(err => pushToast({ tone: 'warn', title: 'Dispatch Failed', body: String(err) }));
+        const proceed = window.confirm(
+          `This looks like a near-duplicate of task #${result.duplicate_of}.\n\nSubmit it anyway?`,
+        );
+        if (!proceed) {
+          pushToast({ tone: 'info', title: 'Duplicate skipped', body: `Kept existing task #${result.duplicate_of}.` });
+          return;
+        }
+        result = await dispatchAttempt(true);
+      }
+      if (runId && result?.task_id != null && sessionId) {
+        dispatchSessionChat({
+          type: 'submitResolved',
+          sessionId,
+          runId,
+          taskId: String(result.task_id),
+        });
+      }
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Dispatch Failed', body: String(err) });
+    }
   }, [executeIpcWithRun, pushToast, activeSessionId, activeSkill]);
 
   const handleLoquelaSlash = useCallback(async (
