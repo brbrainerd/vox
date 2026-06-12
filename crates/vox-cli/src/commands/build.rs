@@ -125,7 +125,7 @@ pub async fn run(
             mode: vox_codegen::codegen_ts::emitter::BuildMode::App,
             ..Default::default()
         };
-        let rn_output = vox_codegen::codegen_ts::rn::generate_rn(&hir, &ts_opts)
+        let rn_output = vox_rn_codegen::generate_rn(&hir, &ts_opts)
             .map_err(|e| anyhow::anyhow!("RN codegen error: {}", e))?;
         for d in &rn_output.diagnostics {
             eprintln!("warning[{}]: {}", d.code, d.message);

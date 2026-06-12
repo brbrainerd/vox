@@ -26,7 +26,8 @@ pub struct ModelArgs {
 
 #[derive(Subcommand)]
 pub enum ModelCmd {
-    /// Mesh CAS model bundles (SafeTensors; Mn-T8).
+    /// Mesh CAS model bundles (SafeTensors; Mn-T8). Not implemented — hidden until Mn-T8.
+    #[command(hide = true)]
     Cas {
         #[command(subcommand)]
         cmd: cas::CasCmd,

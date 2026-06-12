@@ -3,7 +3,8 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use vox_compiler::hir::HirModule;
+use vox_compiler::ast::span::Span;
+use vox_compiler::hir::{HirModule, HirStmt};
 use vox_compiler::rust_interop_support::{
     classify_rust_crate, is_template_managed_script_native_dependency,
     is_template_managed_script_wasi_dependency, is_wasi_unsupported_rust_import,
@@ -11,6 +12,7 @@ use vox_compiler::rust_interop_support::{
 
 use super::GENERATED_CARGO_EDITION;
 use super::emit;
+use super::emit::script_db;
 use super::manifest::{CodegenOutput, manifest_dependency_path};
 
 /// Generate a full Rust project from a HIR module.
@@ -109,6 +111,22 @@ pub fn generate_script_with_target(
         .or_else(|| std::env::var("VOX_RUNTIME_PATH").ok())
         .unwrap_or_else(|| "../vox-actor-runtime".to_string());
 
+    let has_tables = !module.tables.is_empty();
+    let vox_db_dep = if has_tables {
+        let vox_db_path = runtime_path
+            .and_then(|p| p.parent())
+            .map(|p| manifest_dependency_path(&p.join("vox-db")))
+            .unwrap_or_else(|| "../vox-db".to_string());
+        format!("vox-db = {{ path = \"{vox_db_path}\" }}\n")
+    } else {
+        String::new()
+    };
+    let turso_dep = if has_tables {
+        "turso = { version = \"0.4\", default-features = false }\n".to_string()
+    } else {
+        String::new()
+    };
+
     // ── WASI feature guardrail ──────────────────────────────────────────────
     // Jai-inspired: fail loudly and immediately with a clear diagnostic
     // rather than emitting broken code that produces confusing linker errors
@@ -161,6 +179,13 @@ pub fn generate_script_with_target(
         }
     }
 
+    let aegis_patch_path = runtime_path
+        .and_then(|p| p.parent())
+        .map(|crates| manifest_dependency_path(&crates.join("../patches/aegis-0.9.8")));
+    let aegis_patch_section = aegis_patch_path
+        .map(|p| format!("\n[patch.crates-io]\naegis = {{ path = \"{p}\" }}\n"))
+        .unwrap_or_default();
+
     let cargo_toml = match target {
         ScriptTarget::Native => format!(
             r#"[package]
@@ -178,11 +203,13 @@ tracing = "0.1"
 rust_decimal = "1.36"
 regex = "1"
 vox-actor-runtime = {{ path = "{runtime_path_str}" }}
-{rust_import_deps}
-"#,
+{vox_db_dep}{turso_dep}{rust_import_deps}{aegis_patch_section}"#,
             package_name = package_name,
             runtime_path_str = runtime_path_str,
+            vox_db_dep = vox_db_dep,
+            turso_dep = turso_dep,
             rust_import_deps = rust_import_deps,
+            aegis_patch_section = aegis_patch_section,
             edition = GENERATED_CARGO_EDITION,
         ),
         ScriptTarget::Wasi => {
@@ -227,6 +254,7 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
     for f in &mut script_module.functions {
         f.is_pub = true;
     }
+    script_db::prepare_script_module(&mut script_module);
     // Script mode runs the bin (`cargo run`), not `cargo test`. `@test` fns are
     // emitted with `#[test]`, which a normal build strips (`cfg(test)`-only) —
     // but a user's `main` may call them directly (the interpreter registers
@@ -238,7 +266,11 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
         t.is_pub = true;
     }
     script_module.functions.append(&mut tests_as_fns);
-    files.insert("src/lib.rs".to_string(), emit::emit_lib(&script_module));
+    script_db::mark_transitive_async(&mut script_module.functions);
+    files.insert(
+        "src/lib.rs".to_string(),
+        emit::emit_script_lib(&script_module),
+    );
 
     // Emit a script-mode main.rs: just `use crate::*;` and the user's main fn body
     let mut main_rs = String::new();
@@ -269,36 +301,75 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
                     };
                     if is_async {
                         main_rs.push_str("#[tokio::main]\nasync fn main() {\n");
-                        for stmt in &func.body {
-                            main_rs.push_str(&emit::emit_main_stmt(
-                                stmt,
-                                1,
-                                Some(&module.inferred_types),
-                            ));
+                        if has_tables {
+                            main_rs.push_str("    vox_script_boot_db().await;\n");
                         }
+                        append_script_main_body(
+                            &mut main_rs,
+                            &func.body,
+                            1,
+                            &module.inferred_types,
+                            &script_module,
+                        );
                         main_rs.push_str("}\n");
                     } else if let Some(ret_ty) = non_unit_ret {
-                        main_rs.push_str("fn main() {\n");
-                        main_rs.push_str(&format!("    let __vox_main_ret: {ret_ty} = (|| {{\n"));
-                        for stmt in &func.body {
-                            main_rs.push_str(&emit::emit_main_stmt(
-                                stmt,
+                        if has_tables {
+                            main_rs.push_str("fn main() {\n");
+                            main_rs
+                                .push_str("    tokio::runtime::Runtime::new().expect(\"tokio runtime\").block_on(async {\n");
+                            main_rs.push_str("        vox_script_boot_db().await;\n");
+                            main_rs
+                                .push_str(&format!("        let __vox_main_ret: {ret_ty} = {{\n"));
+                            append_script_main_body(
+                                &mut main_rs,
+                                &func.body,
+                                3,
+                                &module.inferred_types,
+                                &script_module,
+                            );
+                            main_rs.push_str("        };\n");
+                            main_rs.push_str("        println!(\"{}\", __vox_main_ret);\n");
+                            main_rs.push_str("    });\n");
+                            main_rs.push_str("}\n");
+                        } else {
+                            main_rs.push_str("fn main() {\n");
+                            main_rs
+                                .push_str(&format!("    let __vox_main_ret: {ret_ty} = (|| {{\n"));
+                            append_script_main_body(
+                                &mut main_rs,
+                                &func.body,
                                 2,
-                                Some(&module.inferred_types),
-                            ));
+                                &module.inferred_types,
+                                &script_module,
+                            );
+                            main_rs.push_str("    })();\n");
+                            main_rs.push_str("    println!(\"{}\", __vox_main_ret);\n");
+                            main_rs.push_str("}\n");
                         }
-                        main_rs.push_str("    })();\n");
-                        main_rs.push_str("    println!(\"{}\", __vox_main_ret);\n");
+                    } else if has_tables {
+                        main_rs.push_str("fn main() {\n");
+                        main_rs.push_str(
+                            "    tokio::runtime::Runtime::new().expect(\"tokio runtime\").block_on(async {\n",
+                        );
+                        main_rs.push_str("        vox_script_boot_db().await;\n");
+                        append_script_main_body(
+                            &mut main_rs,
+                            &func.body,
+                            2,
+                            &module.inferred_types,
+                            &script_module,
+                        );
+                        main_rs.push_str("    });\n");
                         main_rs.push_str("}\n");
                     } else {
                         main_rs.push_str("fn main() {\n");
-                        for stmt in &func.body {
-                            main_rs.push_str(&emit::emit_main_stmt(
-                                stmt,
-                                1,
-                                Some(&module.inferred_types),
-                            ));
-                        }
+                        append_script_main_body(
+                            &mut main_rs,
+                            &func.body,
+                            1,
+                            &module.inferred_types,
+                            &script_module,
+                        );
                         main_rs.push_str("}\n");
                     }
                 }
@@ -312,15 +383,13 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
                         main_rs.push_str("}\n");
                     } else {
                         main_rs.push_str("fn main() {\n");
-                        for stmt in &func.body {
-                            // WASI: same Rust statement emission for now; builtin routing can be
-                            // reintroduced when `vox-script-wasi` shims are wired to HIR again.
-                            main_rs.push_str(&emit::emit_main_stmt(
-                                stmt,
-                                1,
-                                Some(&module.inferred_types),
-                            ));
-                        }
+                        append_script_main_body(
+                            &mut main_rs,
+                            &func.body,
+                            1,
+                            &module.inferred_types,
+                            &script_module,
+                        );
                         main_rs.push_str("}\n");
                     }
                 }
@@ -339,4 +408,19 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
         files,
         api_client_ts: String::new(),
     })
+}
+
+fn append_script_main_body(
+    out: &mut String,
+    body: &[HirStmt],
+    indent: usize,
+    inferred_types: &HashMap<Span, vox_compiler::hir::HirType>,
+    script_module: &HirModule,
+) {
+    script_db::refresh_script_async_metadata(script_module);
+    script_db::with_script_db_emit_mode(|| {
+        for stmt in body {
+            out.push_str(&emit::emit_main_stmt(stmt, indent, Some(inferred_types)));
+        }
+    });
 }

@@ -1,6 +1,6 @@
 //! Distributed training primitives for the MENS mesh (Mn-T1, Mn-T6).
 //!
-//! CUDA-only training execution remains in `vox-plugin-mens-candle-cuda`; this crate owns the
+//! CUDA-only training execution remains in `vox-plugin-mens-candle-cuda`; this module owns the
 //! **cross-host contracts**: gradient envelopes, signed checkpoint bundles, and op-log routing.
 
 mod checkpoint;

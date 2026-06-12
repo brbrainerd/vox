@@ -73,12 +73,15 @@ impl InferenceContext {
                     .map(|(n, t)| (n.clone(), self.resolve(t)))
                     .collect(),
             ),
-            Ty::Table(name, fields) => Ty::Table(
+            Ty::Table(name, fields, primary_key) => Ty::Table(
                 name.clone(),
                 fields
                     .iter()
                     .map(|(n, t)| (n.clone(), self.resolve(t)))
                     .collect(),
+                primary_key
+                    .as_ref()
+                    .map(|(n, t)| (n.clone(), Box::new(self.resolve(t)))),
             ),
             Ty::Collection(name, fields) => Ty::Collection(
                 name.clone(),
@@ -142,12 +145,13 @@ impl InferenceContext {
                     .map(|(n, t)| (n, self.instantiate_inner(t, map)))
                     .collect(),
             ),
-            Ty::Table(name, fields) => Ty::Table(
+            Ty::Table(name, fields, primary_key) => Ty::Table(
                 name,
                 fields
                     .into_iter()
                     .map(|(n, t)| (n, self.instantiate_inner(t, map)))
                     .collect(),
+                primary_key.map(|(n, t)| (n, Box::new(self.instantiate_inner(*t, map)))),
             ),
             Ty::Collection(name, fields) => Ty::Collection(
                 name,
@@ -172,7 +176,7 @@ impl InferenceContext {
             Ty::Fn(params, ret) => {
                 params.iter().any(|p| self.occurs(id, p)) || self.occurs(id, &ret)
             }
-            Ty::Record(fields) | Ty::Table(_, fields) | Ty::Collection(_, fields) => {
+            Ty::Record(fields) | Ty::Table(_, fields, _) | Ty::Collection(_, fields) => {
                 fields.iter().any(|(_, t)| self.occurs(id, t))
             }
             _ => false,
@@ -306,7 +310,7 @@ impl InferenceContext {
             )),
             (Ty::Named(a), Ty::Named(b)) if a == b => Ok(()),
             (Ty::ActorRef(a), Ty::ActorRef(b)) if a == b => Ok(()),
-            (Ty::Table(an, af), Ty::Table(bn, bf)) if an == bn => {
+            (Ty::Table(an, af, apk), Ty::Table(bn, bf, bpk)) if an == bn => {
                 if af.len() != bf.len() {
                     return Err("Table field count mismatch".into());
                 }
@@ -315,6 +319,18 @@ impl InferenceContext {
                         return Err(format!("Table field name mismatch: {na} vs {nb}"));
                     }
                     self.unify(ta, tb)?;
+                }
+                match (apk, bpk) {
+                    (Some((an, at)), Some((bn, bt))) => {
+                        if an != bn {
+                            return Err(format!("Table primary-key mismatch: {an} vs {bn}"));
+                        }
+                        self.unify(at, bt)?;
+                    }
+                    (None, None) => {}
+                    _ => {
+                        return Err("Table primary-key presence mismatch".into());
+                    }
                 }
                 Ok(())
             }
@@ -338,8 +354,8 @@ impl InferenceContext {
             // name IS the row type. Matching is by field name (order-
             // independent) with an exact-count requirement so a record can't
             // satisfy a table it only partially overlaps.
-            (Ty::Table(_, tf), Ty::Record(rf))
-            | (Ty::Record(rf), Ty::Table(_, tf))
+            (Ty::Table(_, tf, _), Ty::Record(rf))
+            | (Ty::Record(rf), Ty::Table(_, tf, _))
             | (Ty::Collection(_, tf), Ty::Record(rf))
             | (Ty::Record(rf), Ty::Collection(_, tf)) => {
                 if tf.len() != rf.len() {
@@ -420,7 +436,7 @@ mod tests {
     fn test_unify_table_with_matching_record_is_ok() {
         let mut ctx = InferenceContext::new();
         let fields = vec![("id".to_string(), Ty::Int), ("name".to_string(), Ty::Str)];
-        let table = Ty::Table("User".to_string(), fields.clone());
+        let table = Ty::Table("User".to_string(), fields.clone(), None);
         let record = Ty::Record(fields);
         assert!(ctx.unify(&table, &record).is_ok());
         assert!(ctx.unify(&record, &table).is_ok(), "symmetric");
@@ -433,6 +449,7 @@ mod tests {
         let table = Ty::Table(
             "User".to_string(),
             vec![("id".to_string(), Ty::Int), ("name".to_string(), Ty::Str)],
+            None,
         );
         let record = Ty::Record(vec![
             ("name".to_string(), Ty::Str),
@@ -449,6 +466,7 @@ mod tests {
         let table = Ty::Table(
             "User".to_string(),
             vec![("id".to_string(), Ty::Int), ("name".to_string(), Ty::Str)],
+            None,
         );
         // Missing 'name'.
         let mut ctx = InferenceContext::new();

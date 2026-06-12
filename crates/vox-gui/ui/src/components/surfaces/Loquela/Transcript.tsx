@@ -24,20 +24,25 @@ export function Transcript({ messages }: { messages: ChatMessage[] }) {
 
 function Bubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
+  const isSystem = message.role === 'system';
   const streaming = message.status === 'streaming' || message.status === 'pending';
   const failed = message.status === 'failed';
 
-  const tone = isUser
-    ? 'self-end border-brass/30 bg-brass/[0.08] text-zinc-100'
-    : 'self-start border-white/10 bg-white/[0.03] text-zinc-300';
+  const tone = isSystem
+    ? 'self-center border-amber-400/20 bg-amber-400/[0.06] text-amber-100/90 text-center max-w-full'
+    : isUser
+      ? 'self-end border-brass/30 bg-brass/[0.08] text-zinc-100'
+      : 'self-start border-white/10 bg-white/[0.03] text-zinc-300';
 
   return (
     <div
       className={`max-w-[80%] rounded-xl border px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap break-words ${tone}`}
     >
-      <div className="mb-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-500">
-        {isUser ? 'You' : 'Assistant'}
-      </div>
+      {!isSystem && (
+        <div className="mb-0.5 font-mono text-[9px] uppercase tracking-wide text-zinc-500">
+          {isUser ? 'You' : 'Assistant'}
+        </div>
+      )}
       {message.text}
       {streaming && (
         <span className="ml-1 inline-flex items-center gap-1 text-[10px] text-cyan-300">

@@ -500,7 +500,7 @@ other arms and is at worst inert.
 
 - [ ] **Step 1:** Build/lower the golden through codegen: `cargo test -p vox-codegen` and confirm
   `@versioned` is ignored (inert) rather than producing wrong code — grep codegen for `is_reactive`
-  handling (`vox-codegen/src/codegen_ts/reactive.rs:1036`) to see how a decorator flag is consumed or
+  handling (`vox-codegen-ts/src/reactive/mod.rs:1036`) to see how a decorator flag is consumed or
   skipped, and confirm `is_versioned` is simply not read (acceptable: inert in compiled arms for P5).
 
 - [ ] **Step 2:** If codegen would silently miscompile a `@versioned fn`, do NOT fake support — instead

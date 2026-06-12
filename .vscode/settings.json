@@ -8,5 +8,6 @@
     "Vox pwsh proxy (check only)": {
       "path": "${workspaceFolder}/.vox/bin/vox-pwsh-proxy.cmd"
     }
-  }
+  },
+  "git.ignoreLimitWarning": true
 }

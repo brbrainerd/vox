@@ -143,3 +143,50 @@ fn process_exit_lowers_to_std_process_exit() {
         "`process.exit` must not emit a method call on an undefined `process`; got:\n{rust}"
     );
 }
+
+#[test]
+fn std_prefixed_namespace_call_lowers_to_runtime_builtin() {
+    // `std.env.get(..)` is the documented long form of `env.get(..)` (the
+    // interpreter registers `env` as a member of the `std` namespace object).
+    // The receiver is FieldAccess(std, env) rather than a bare `env` ident,
+    // which previously bypassed the namespace lowering and emitted a literal
+    // `std.env.get(..)` — rustc E0423.
+    let rust = emit_first_fn(r#"fn f() to bool { let o = std.env.get("X") return o.is_some() }"#);
+    assert!(
+        rust.contains("vox_env_get"),
+        "`std.env.get` MUST lower to the runtime builtin like bare `env.get`; got:\n{rust}"
+    );
+    assert!(
+        !rust.contains("std.env"),
+        "a literal `std.env` receiver must never reach the generated Rust; got:\n{rust}"
+    );
+}
+
+#[test]
+fn inferred_never_return_type_emits_compiling_signature() {
+    // A trailing `if cond { process.exit(..) }` makes typeck back-fill the
+    // inferred return type as `never`. `emit_type` passed unknown type names
+    // through verbatim, producing `fn main() -> never` — rustc E0425. The
+    // function does not diverge on all paths, so the only always-valid Rust
+    // signature is the unit one.
+    let src = r#"
+fn main() {
+    if true {
+        process.exit(1)
+    }
+}
+"#;
+    let module = parse(lex(src)).expect("parse");
+    let mut hir = lower_module(&module);
+    let _diags = vox_compiler::typeck::typecheck_hir_module(src, &mut hir);
+    let func = hir
+        .functions
+        .iter()
+        .find(|f| f.name == "main")
+        .expect("function `main` present");
+    let rust = emit_fn(func, Some(&hir.inferred_types), &[]);
+    assert!(
+        !rust.contains("never"),
+        "the Vox `never` type must not be emitted verbatim into Rust; got:\n{rust}"
+    );
+}

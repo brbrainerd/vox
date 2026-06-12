@@ -36,6 +36,7 @@ pub enum SecretId {
     VoxApiKey,
     VoxBearerToken,
     VoxDbUrl,
+    VoxAppDbUrl,
     VoxDbToken,
     VoxMeshToken,
     VoxMeshWorkerToken,

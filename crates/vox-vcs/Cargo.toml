@@ -3,6 +3,7 @@ name = "vox-vcs"
 description = "VCS backend abstraction for Vox — VcsBackend trait, in-memory CasFallback, and (later) the jj-lib engine. The single home for all jj_lib:: calls."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [features]
 default = ["jj"]

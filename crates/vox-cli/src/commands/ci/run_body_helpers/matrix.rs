@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 use std::env;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
@@ -519,18 +519,48 @@ pub(crate) fn run_toestub_self_apply(repo: &Path) -> Result<()> {
 }
 
 /// Spawns `toestub` on `scan_root` with the given exit policy (`legacy` = fail on arch/god_object Error, etc.).
+#[allow(dead_code)]
 pub(crate) fn run_toestub_scoped(repo: &Path, scan_root: &Path, mode: ToestubCiMode) -> Result<()> {
-    let root: PathBuf = if scan_root.is_absolute() {
-        scan_root.to_path_buf()
+    let root = scan_root.to_path_buf();
+    run_toestub_scoped_roots(repo, std::slice::from_ref(&root), mode)
+}
+
+/// Spawns one `toestub` process across multiple scan roots (batched pre-push path).
+pub(crate) fn run_toestub_scoped_roots(
+    repo: &Path,
+    scan_roots: &[PathBuf],
+    mode: ToestubCiMode,
+) -> Result<()> {
+    let roots: Vec<PathBuf> = if scan_roots.is_empty() {
+        vec![repo.join("crates/vox-repository")]
     } else {
-        repo.join(scan_root)
+        scan_roots
+            .iter()
+            .map(|r| {
+                if r.is_absolute() {
+                    r.to_path_buf()
+                } else {
+                    repo.join(r)
+                }
+            })
+            .collect()
     };
     let cargo = cargo_bin();
     let nested_target = nested_cargo_target_dir(repo);
     let mut c = Command::new(&cargo);
     c.current_dir(repo)
         .env("CARGO_TARGET_DIR", &nested_target)
-        .args(["run", "-p", "vox-code-audit", "--bin", "toestub", "--"]);
+        .args([
+            "run",
+            "-q",
+            "-p",
+            "vox-code-audit",
+            "--bin",
+            "toestub",
+            "--",
+            "--format",
+            "json",
+        ]);
     if mode != ToestubCiMode::Legacy {
         c.arg("--mode").arg(mode.as_cli_str());
     }
@@ -540,12 +570,61 @@ pub(crate) fn run_toestub_scoped(repo: &Path, scan_root: &Path, mode: ToestubCiM
     {
         c.args(["--suppressions", "contracts/toestub/suppressions.v1.json"]);
     }
-    c.arg(root.to_string_lossy().as_ref());
-    let st = c.status()?;
-    if !st.success() {
-        return Err(anyhow!("toestub scoped run failed"));
+    for root in &roots {
+        c.arg(root.to_string_lossy().as_ref());
     }
+    let output = c.output().context("spawn toestub scoped (batched)")?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("toestub scoped run failed: {stderr}");
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    print_toestub_json_summary(&stdout, roots.len());
     Ok(())
+}
+
+/// Parse TOESTUB JSON envelope and print a one-line summary (no snippet dumps).
+fn print_toestub_json_summary(stdout: &str, root_count: usize) {
+    let Ok(doc) = serde_json::from_str::<serde_json::Value>(stdout.trim()) else {
+        println!("    TOESTUB: completed ({root_count} root(s); non-JSON output)");
+        return;
+    };
+    let findings = doc
+        .get("findings")
+        .and_then(|v| v.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
+    let files = doc
+        .get("files_scanned")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    let mut critical = 0u64;
+    let mut error = 0u64;
+    let mut warning = 0u64;
+    if let Some(arr) = doc.get("findings").and_then(|v| v.as_array()) {
+        for f in arr {
+            match f.get("severity").and_then(|v| v.as_str()) {
+                Some("critical") => critical += 1,
+                Some("error") => error += 1,
+                Some("warning") => warning += 1,
+                _ => {}
+            }
+        }
+    }
+    println!(
+        "    TOESTUB: {findings} finding(s) across {root_count} root(s), {files} file(s) — {critical} critical, {error} error, {warning} warning"
+    );
+}
+
+#[cfg(test)]
+mod toestub_summary_tests {
+    use super::print_toestub_json_summary;
+
+    #[test]
+    fn toestub_json_summary_parses_envelope() {
+        let json = r#"{"schema_version":1,"files_scanned":3,"findings":[{"severity":"error"},{"severity":"warning"}]}"#;
+        print_toestub_json_summary(json, 2);
+    }
 }
 
 pub(crate) fn run_feature_matrix(root: &Path) -> Result<()> {

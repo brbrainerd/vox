@@ -140,7 +140,7 @@ Legend — **Imp**: training importance (Crit/High/Med/Low). **‖**: paralleliz
 | B3 | B | Interpreter `std.http` dispatch arm (`get_text`/`post_json`) | `eval/builtins.rs` (`call_builtin_method`) | High | – | – |
 | B4 | B | Interpreter `std.time` dispatch arm (`now_ms`) + verify `uuid`/`hash_*` | `eval/builtins.rs` | Med | – | – |
 | B5 | B | Remove typeck `.limit`/`.order_by` block; reconcile Table method table; un-skip `db_native_ir.vox` | `typeck/checker/expr.rs:381`, `typeck/builtins.rs:1546-1593`, `examples/golden/db_native_ir.vox` | Crit | – | – |
-| B6 | B | TS codegen real `dec` emission (string-literal → decimal lib) | `crates/vox-codegen/src/codegen_ts/...:827` | High | – | B1 |
+| B6 | B | TS codegen real `dec` emission (string-literal → decimal lib) | `crates/vox-codegen-ts/src/...:827` | High | – | B1 |
 | B7 | B | `for`-loop iterate `str`/`map`/`tuple` (not just `List`) | `eval/expr.rs:457-487` | High | – | – |
 | B8 | B | Call-expr arity check + apply param defaults (or document) | `eval/expr.rs:295-322,265-275` | Med | – | – |
 | B9 | B | Fix silent no-op for non-`Ident` index-assign targets | `eval/stmt.rs:219-251` | Med | – | – |

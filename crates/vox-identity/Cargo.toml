@@ -3,6 +3,7 @@ name = "vox-identity"
 description = "Identity primitives: signing keys, trust ledger entries."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 authors.workspace = true
 
 [dependencies]
