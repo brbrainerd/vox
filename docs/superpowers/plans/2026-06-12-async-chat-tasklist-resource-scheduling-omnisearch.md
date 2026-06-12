@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make queued orchestrator work fully visible and user-controllable in the GUI (list/add/edit/remove/reprioritize with icon controls), keep chat always-responsive, make the orchestrator scale agents up/down using local CPU/RAM and mesh resource broadcasts, add a user-configurable OpenRouter/LLM concurrency throttle, fix the audited settings/chat/search bugs, and turn the Cmd+K palette into a true omni-search (commands + agents + skills + settings + surfaces/windows + docs + backend corpora) with a sidebar filter — all settings flowing through the existing SSOT (`Vox.toml` `[orchestrator]`, `~/.vox/config.toml`, GUI DB prefs).
+**Goal:** Make queued orchestrator work fully visible and user-controllable in the GUI (list/add/edit/remove/reprioritize with icon controls), keep chat always-responsive with **multi-tab sessions** riding the existing `session_id` spine, detect near-duplicate incoming tasks with user-mediated merge/skip (never silent dedup), make the orchestrator scale agents up/down using local CPU/RAM and mesh resource broadcasts (and surface the already-built A2A remote delegation), add a user-configurable OpenRouter/LLM concurrency throttle, fix the audited settings/chat/search bugs, and turn the Cmd+K palette into a true omni-search (commands + agents + skills + settings + surfaces/windows + docs + backend corpora) with a sidebar filter — all settings flowing through the existing SSOT (`Vox.toml` `[orchestrator]`, `~/.vox/config.toml`, GUI DB prefs).
+
+**Revision 2 (2026-06-12):** hand-verified against the codebase by four read-only audit passes — 9 plan errors corrected inline (serde casings, `NodeRecord.id`, `DispatchRequest.model_id`, sysinfo feature gate, `VoxConfig::load()` signature, `resolve_secret(SecretId)`, missing icons, YAML field names, lock patterns); Tracks I (multi-tab sessions), J (intake dedup), K (A2A visibility + composite relief) added. See the Verification addendum.
 
 **Architecture:** The GUI task list is backed by the **live per-agent priority queues** (`Orchestrator::all_tasks()` + existing `orch.cancel_task`/`orch.reorder_task` daemon RPCs), NOT the unwired `hopper/` module — we add only two missing RPCs (`orch.list_tasks`, `orch.edit_task`) and Tauri wrappers. Scaling extends the existing `ScalingService` with a local-resource probe (sysinfo) and the existing `remote_populi_routing_hints` mesh signal; a new populi `GET /v1/populi/resources/summary` endpoint aggregates node broadcasts. LLM concurrency is a new AIMD throttle in `vox-actor-runtime::llm` (the mandated egress facade), configured via a new `[llm]` section in the config SSOT. Omni-search federates client-side sources (settings index, surface registry, docs frontmatter index) with the existing `vox_search_query` backend.
 
@@ -32,8 +34,28 @@ These drive the bug-fix tasks; each is fixed by the referenced task.
 | 12 | SearchView: arrow keys don't wrap; facet chips lack focus rings | `SearchView.tsx:348-357,42-77` | G4 |
 | 13 | Sidebar: no filter/search, click-only | `Sidebar.tsx` | G3 |
 | 14 | Settings not searchable; no settings/surfaces/docs in palette | `CommandPalette.tsx`, `SettingsView.tsx` | F4, G1, G2 |
+| 15 | No duplicate-task detection anywhere — `AgentQueue::enqueue_dedup` exists (`queue/priority.rs:250`) but is **never called** in the live submit path; identical chat submissions enqueue twice | `task_submit.rs:52-138` | Track J |
+| 16 | Sessions are half-built: `session_id` flows through `AgentTask` (`tasks.rs:408`), all task events (`events.rs:147-175`), and the A2A envelope — but the GUI hardcodes `session_id: 'gui-loquela'` (`App.tsx:421`) and has no tab/session UI | `App.tsx`, `chatCorrelation.ts` | Track I |
+| 17 | A2A remote task distribution **already exists** (`a2a/envelope.rs` RemoteTaskEnvelope with idempotency/lease/session, `a2a/dispatch/{mesh,remote_poller,remote_worker}.rs`, hints fed by `mesh_federation_poll.rs`) but is invisible in the GUI and the scaling relief uses only a GPU count | `a2a/`, `runtime.rs:734-741` | Track K |
 
-**Track independence:** A→B is the only hard chain. C, D, E, F, G are independently shippable; each track ends in a green-gate commit. If splitting work across sessions, treat each track as its own mini-plan.
+**Track independence:** A→B is the only hard chain (and I3/J/K touch Track A's `orch.list_tasks` output — execute A first). C, D, E, F, G are independently shippable; each track ends in a green-gate commit. If splitting work across sessions, treat each track as its own mini-plan.
+
+## Verification addendum (hand-verified against code, 2026-06-12)
+
+Every task below was audited by four read-only verification passes. Corrections are already folded into the task bodies, but these **global facts** apply across tasks — do not "fix" code that follows them:
+
+1. **`TaskPriority` serializes Capitalized** (`"Urgent"|"Normal"|"Background"` — no `rename_all`, `tasks.rs:43-51`); its `Display` impl is lowercase. `task_lifecycle_status_label` returns `Option<String>` with labels `"Completed"|"InProgress"|"Blocked"|"Queued"`. The Tauri DTO layer (A3) normalizes both to lowercase/snake_case; the daemon JSON stays raw.
+2. **`NodeRecord`'s id field is `id`, not `node_id`** (`node_record.rs:11`); `loaded_llm_models` is `Option<Vec<String>>`; no `Default` impl.
+3. **vox-populi's `DispatchRequest`** (`transport/mod.rs:290-323`) already has a `model_id: Option<String>` field — use it for model-locality scoring; do NOT add a `preferred_model` field.
+4. **sysinfo in vox-orchestrator is an optional dep** behind the `system-metrics` feature (`Cargo.toml`), and `orchestrator/scaling.rs:184-185` already uses it (`refresh_cpu_all()` + `refresh_memory()`); mirror that usage and feature gate.
+5. **`VoxConfig::load()` returns `Self`, not `Result`** (`impl_ops.rs:17`). Section structs are named `<Name>TomlSection`. `save_merged_global_config(path: &Path, cfg: &VoxConfig) -> std::io::Result<()>` (`persist.rs:18`) merges `[vox] [train] [db] [web] [build]`.
+6. **`vox_secrets::resolve_secret` takes a `SecretId` enum** (not `&str`) and returns `ResolvedSecret` (`vox-secrets/src/lib.rs:219`).
+7. **Icons.tsx has no `edit`/`trash`/`list` keys** — available: `plus`, `refresh`, `search`, `command`, `link`, `x`, `clock`, `file`, `chevronUp`, `chevronDown`. Task B3 Step 0 adds the three missing icons.
+8. **Surface-registry YAML field names** are `view_key`, `cli_group`, `representation_tier`, `nav_label`, `nav_icon`, `nav_group` (snake_case; generated TS camelCases them).
+9. **`Orchestrator.agents`** is `Arc<RwLock<HashMap<AgentId, Arc<RwLock<AgentQueue>>>>>`; `AgentQueue::all_tasks_mut()` **includes the in-progress task** (chains `in_progress` + queued, `priority.rs:137+`), so mutation guards check `task.status`, not container membership.
+10. **`TaskEnqueueHints` merge happens in `AgentTask::apply_hints`** (`tasks.rs:623-696`; `model_preference` merged at 630-631). `AgentTask` has no `Default`; adding a field breaks ~4 struct-literal sites (`complete/harness.rs:118`, `planning/test_decision.rs:100`, `queue/mod.rs:62`) plus `AgentTask::new` (`tasks.rs:475`).
+11. **`handleLoquelaSubmit` wraps args as `{ input: { … } }`** (`App.tsx:407-438`) and Loquela's `send()` payload already carries `mode` and `tier` (`Loquela.tsx:282-292`); App currently drops them and hardcodes `session_id: 'gui-loquela'` (line 421).
+12. **No theme CSS hooks exist** — `tailwind.config.js` has static colors only (`brass: '#d4af37'` at line 8); F2 introduces the CSS-variable hook.
 
 ---
 
@@ -74,7 +96,14 @@ These drive the bug-fix tasks; each is fixed by the referenced task.
 | `crates/vox-gui/ui/src/components/layout/CommandPalette.tsx` | Modify | Omni-search: unified selection, new sections |
 | `crates/vox-gui/ui/src/components/layout/Sidebar.tsx` | Modify | Filter input |
 | `crates/vox-gui/ui/src/components/surfaces/Search/SearchView.tsx` | Modify | Arrow wrap, facet focus rings |
-| `docs/src/architecture/where-things-live.md` | Modify | New rows (LLM throttle, tasks surface, resources summary) |
+| `crates/vox-gui/ui/src/components/ui/Icons.tsx` | Modify | Add `edit`, `trash`, `list` icons |
+| `crates/vox-gui/ui/src/lib/sessions.ts` (+ `.test.ts`) | Create | Chat-session model: create/close/rename pure helpers |
+| `crates/vox-gui/ui/src/components/layout/SessionTabs.tsx` | Create | Tab strip — one chat session per tab |
+| `crates/vox-gui/ui/src/lib/chatCorrelation.ts` | Modify | `sessionId` on ChatMessage; per-session transcript filtering |
+| `crates/vox-orchestrator/src/services/similarity.rs` | Create | Token-Jaccard near-duplicate detection (pure) |
+| `crates/vox-orchestrator/src/orch_daemon/mod.rs` (J2) | Modify | `allow_duplicate` + `duplicate_of` on SUBMIT_TASK |
+| `crates/vox-gui/src/commands/mesh_resources.rs` | Create | `get_mesh_resource_summary` Tauri command (calls D1 endpoint) |
+| `docs/src/architecture/where-things-live.md` | Modify | New rows (LLM throttle, tasks surface, resources summary, sessions, similarity) |
 
 ---
 
@@ -192,15 +221,23 @@ In `crates/vox-orchestrator/src/orch_daemon/mod.rs`, after the `REORDER_TASK` ar
                     let lifecycle = orch
                         .task_lifecycle_status_label(t.id)
                         .unwrap_or_else(|| "unknown".to_string());
+                    let write_files: Vec<String> = t
+                        .file_manifest
+                        .iter()
+                        .filter(|f| matches!(f.access, crate::types::AccessKind::Write))
+                        .map(|f| f.path.to_string_lossy().to_string())
+                        .collect();
                     serde_json::json!({
                         "id": t.id.0,
                         "description": t.description,
-                        "priority": t.priority,
+                        "priority": t.priority,            // raw: "Urgent"|"Normal"|"Background"
                         "status": t.status,
-                        "lifecycle": lifecycle,
+                        "lifecycle": lifecycle,            // raw: "Completed"|"InProgress"|"Blocked"|"Queued"
                         "agent_id": agent_id,
+                        "session_id": t.session_id,
                         "estimated_complexity": t.estimated_complexity,
                         "depends_on": t.depends_on.iter().map(|d| d.0).collect::<Vec<u64>>(),
+                        "write_files": write_files,
                     })
                 })
                 .collect();
@@ -208,7 +245,7 @@ In `crates/vox-orchestrator/src/orch_daemon/mod.rs`, after the `REORDER_TASK` ar
         }
 ```
 
-Note: `task_lifecycle_status_label` returns `Option<String>` (see `accessors.rs:209`); if its real signature differs (e.g. returns `&'static str`), adapt the `unwrap_or_else` accordingly — the JSON shape is the contract.
+Verified: `task_lifecycle_status_label(&self, task_id: TaskId) -> Option<String>` at `accessors.rs:211`; labels are **Capitalized** (`"InProgress"`, not `"in_progress"`) and `TaskPriority` serializes Capitalized (`"Normal"`). The daemon emits raw values; the Tauri DTO in A3 normalizes to lowercase/snake_case. `FileAffinity { path: PathBuf, access: AccessKind }` is at `tasks.rs:169-174` — confirm the `AccessKind::Write` variant name (grep `enum AccessKind`) and the import path; adjust the `matches!` accordingly.
 
 - [ ] **Step 5: Run tests to verify pass**
 
@@ -308,7 +345,7 @@ In `accessors.rs`, after `all_tasks()`:
 
 ```rust
     /// Rewrite the description of a queued task. Returns an error if the task
-    /// is unknown or currently in progress (the running prompt must not change
+    /// is unknown or not in `Queued` status (the running prompt must not change
     /// underneath an agent).
     pub fn edit_task_description(
         &self,
@@ -321,18 +358,17 @@ In `accessors.rs`, after `all_tasks()`:
         }
         let agents = crate::sync_lock::rw_read(&self.agents);
         for queue_lock in agents.values() {
-            // Refuse to edit the in-progress task.
-            {
-                let queue = crate::sync_lock::rw_read(queue_lock);
-                if let Some(current) = queue.current_task() {
-                    if current.id == task_id {
-                        return Err(format!("task {} is in progress and cannot be edited", task_id.0));
-                    }
-                }
-            }
             let mut queue = crate::sync_lock::rw_write(queue_lock);
+            // all_tasks_mut() chains the in-progress task with the queued ones
+            // (queue/priority.rs), so guard by status, not container membership.
             for task in queue.all_tasks_mut() {
                 if task.id == task_id {
+                    if !matches!(task.status, crate::types::TaskStatus::Queued) {
+                        return Err(format!(
+                            "task {} is {:?} and cannot be edited",
+                            task_id.0, task.status
+                        ));
+                    }
                     task.description = trimmed.to_string();
                     return Ok(());
                 }
@@ -342,7 +378,7 @@ In `accessors.rs`, after `all_tasks()`:
     }
 ```
 
-(If `current_task()` returns by value/`Option<&AgentTask>` differently than shown in `accessors.rs:187`, mirror the access pattern used there. `all_tasks_mut()` exists at `queue/priority.rs:288`.)
+Verified shapes: `self.agents` is `Arc<RwLock<HashMap<AgentId, Arc<RwLock<AgentQueue>>>>>` (`orchestrator.rs:62-64`); `all_tasks_mut(&mut self) -> impl Iterator<Item = &mut AgentTask>` at `queue/priority.rs:137+` **includes** the in-progress task; `TaskStatus::Queued` is the dequeue-eligible status used by `queue/drain.rs:6-25`. Confirm the `TaskStatus` import path used inside `accessors.rs` (likely `crate::types::TaskStatus` or already in scope) before compiling.
 
 Dispatch arm in `orch_daemon/mod.rs` (after the `LIST_TASKS` arm):
 
@@ -386,11 +422,27 @@ git commit -m "feat(orchestrator): orch.edit_task RPC — rewrite queued task de
 pub struct TaskRowDto {
     pub id: u64,
     pub description: String,
-    pub priority: String,
-    pub lifecycle: String,
+    pub priority: String,  // normalized lowercase: urgent|normal|background
+    pub lifecycle: String, // normalized snake: queued|in_progress|blocked|completed|unknown
     pub agent_id: Option<u64>,
+    pub session_id: Option<String>,
     pub estimated_complexity: u8,
     pub depends_on: Vec<u64>,
+    pub write_files: Vec<String>,
+}
+
+/// Daemon emits TaskPriority Capitalized ("Normal") and lifecycle labels
+/// CamelCase ("InProgress") — normalize once here so the frontend speaks one
+/// dialect (and `reorder_orchestrator_task` can echo priorities back verbatim,
+/// since REORDER_TASK parses lowercase).
+fn normalize_lifecycle(raw: &str) -> String {
+    match raw {
+        "InProgress" => "in_progress".to_string(),
+        "Queued" => "queued".to_string(),
+        "Blocked" => "blocked".to_string(),
+        "Completed" => "completed".to_string(),
+        other => other.to_lowercase(),
+    }
 }
 
 #[tauri::command]
@@ -411,18 +463,19 @@ pub async fn list_orchestrator_tasks() -> Result<Vec<TaskRowDto>, String> {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string(),
-            // TaskPriority serializes as a lowercase string via serde rename_all;
-            // fall back to raw JSON text if it is ever an object.
             priority: t
                 .get("priority")
-                .map(|v| v.as_str().map(ToString::to_string).unwrap_or_else(|| v.to_string()))
-                .unwrap_or_else(|| "normal".to_string()),
-            lifecycle: t
-                .get("lifecycle")
                 .and_then(|v| v.as_str())
-                .unwrap_or("unknown")
-                .to_string(),
+                .unwrap_or("Normal")
+                .to_lowercase(),
+            lifecycle: normalize_lifecycle(
+                t.get("lifecycle").and_then(|v| v.as_str()).unwrap_or("unknown"),
+            ),
             agent_id: t.get("agent_id").and_then(|v| v.as_u64()),
+            session_id: t
+                .get("session_id")
+                .and_then(|v| v.as_str())
+                .map(ToString::to_string),
             estimated_complexity: t
                 .get("estimated_complexity")
                 .and_then(|v| v.as_u64())
@@ -431,6 +484,15 @@ pub async fn list_orchestrator_tasks() -> Result<Vec<TaskRowDto>, String> {
                 .get("depends_on")
                 .and_then(|v| v.as_array())
                 .map(|a| a.iter().filter_map(|x| x.as_u64()).collect())
+                .unwrap_or_default(),
+            write_files: t
+                .get("write_files")
+                .and_then(|v| v.as_array())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(ToString::to_string))
+                        .collect()
+                })
                 .unwrap_or_default(),
         })
         .collect())
@@ -520,19 +582,27 @@ git commit -m "feat(gui): Tauri task control-plane — list/edit/cancel/reorder 
 
 - [ ] **Step 1: Add the registry entry**
 
-Open `contracts/gui/surface-registry.v1.yaml`, find an existing `live_backend` entry with a `view_key` (e.g. the `runs` surface) and add a sibling entry following the exact same YAML field names used there (the file's schema is authoritative — copy the shape of the `runs` entry):
+Open `contracts/gui/surface-registry.v1.yaml` and add a sibling of the `runs` entry. The verified field names (snake_case; the generator camelCases them) and the verbatim `runs` entry for reference:
 
 ```yaml
-  - surface: tasks
-    view_key: tasks
-    cli_group: null
-    tier: live_backend
-    nav_label: Tasks
-    nav_icon: list
-    nav_group: operate
+# existing, for shape reference:
+- view_key: runs
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Runs
+  nav_icon: clock
+  nav_group: operate
+
+# add:
+- view_key: tasks
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Tasks
+  nav_icon: list
+  nav_group: operate
 ```
 
-If `nav_icon: list` is not an existing key of `Icon.*` (check `crates/vox-gui/ui/src/components/ui/Icons.tsx`), use an icon key that exists (e.g. `queue`, `layers`, or whatever `runs` uses).
+`nav_icon: list` does not exist yet in `Icons.tsx` — Task B3 Step 0 adds it (execute B3 Step 0 before regenerating if the registry check validates icon keys; if the generator doesn't validate icons, order doesn't matter).
 
 - [ ] **Step 2: Regenerate + verify gate**
 
@@ -566,8 +636,10 @@ const row = (over: Partial<TaskRow>): TaskRow => ({
   priority: 'normal',
   lifecycle: 'queued',
   agent_id: null,
+  session_id: null,
   estimated_complexity: 1,
   depends_on: [],
+  write_files: [],
   ...over,
 });
 
@@ -613,11 +685,13 @@ Expected: FAIL — module not found.
 export interface TaskRow {
   id: number;
   description: string;
-  priority: string; // 'urgent' | 'normal' | 'background'
-  lifecycle: string; // 'queued' | 'in_progress' | 'completed' | ...
+  priority: string; // 'urgent' | 'normal' | 'background' (normalized by the Tauri DTO)
+  lifecycle: string; // 'queued' | 'in_progress' | 'blocked' | 'completed' | 'unknown'
   agent_id: number | null;
+  session_id: string | null;
   estimated_complexity: number;
   depends_on: number[];
+  write_files: string[];
 }
 
 export interface GroupedTasks {
@@ -661,9 +735,20 @@ git commit -m "feat(gui): task grouping + priority-cycle helpers with vitest"
 ### Task B3: TasksView component
 
 **Files:**
+- Modify: `crates/vox-gui/ui/src/components/ui/Icons.tsx`
 - Create: `crates/vox-gui/ui/src/components/surfaces/Tasks/TasksView.tsx`
 
-Before writing, read `crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx` and copy its container/header CSS classes so Tasks matches the design system, and read `crates/vox-gui/ui/src/components/ui/Icons.tsx` to pick real icon keys (the names below — `plus`, `pencil`, `trash`, `chevronUp`, `refresh` — must be replaced by keys that actually exist; if an icon is missing, use a text glyph like `✎` inside the same button shell rather than adding new icon art).
+Before writing, read `crates/vox-gui/ui/src/components/surfaces/Runs/RunsView.tsx` and copy its container/header CSS classes so Tasks matches the design system.
+
+- [ ] **Step 0: Add the three missing icons**
+
+Verified available keys: `plus` (line 172), `refresh` (156), `search` (47), `command` (106), `link` (177), `x` (101), `clock` (161), `file` (111), `chevronUp` (188), `chevronDown` (183). **`edit`, `trash`, and `list` do not exist.** Open `Icons.tsx`, copy the exact component shape of the `x` icon (same svg attrs, stroke props, className passthrough), and add three keys with these path data:
+
+- `edit`: `<path d="M17 3l4 4L8 21H4v-4L17 3z" />`
+- `trash`: `<path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M6 6l1 14h10l1-14" />`
+- `list`: `<path d="M8 6h13M8 12h13M8 18h13" /><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01" />`
+
+Register them on the `Icon` export object exactly like the existing keys. Run `pnpm typecheck` to confirm.
 
 - [ ] **Step 1: Implement the component**
 
@@ -891,7 +976,7 @@ export function TasksView() {
 }
 ```
 
-Replace `Icon.edit` / `Icon.trash` / `Icon.plus` / `Icon.refresh` with keys that exist in `Icons.tsx` (verified in the pre-read).
+`Icon.edit` / `Icon.trash` exist after Step 0; `Icon.plus` / `Icon.refresh` are pre-existing (verified).
 
 - [ ] **Step 2: Route it**
 
@@ -917,11 +1002,11 @@ git commit -m "feat(gui): Tasks surface — live queue with add/edit/remove/repr
 
 - [ ] **Step 1: Pass queue depth + navigation into Loquela**
 
-`App.tsx` already maintains orchestrator status KPIs (it computes `queueDepth` for the Dashboard). Pass two new props where `<Loquela …>` is rendered: `queueDepth={<existing total_queued value>}` and `onOpenTasks={() => setActiveView('tasks')}` (use the actual view-state setter present in App.tsx — the same one the sidebar uses).
+Verified anchors: the KPI is `status.total_queued`, surfaced at `App.tsx:209-212` as `kpis.queueDepth.value`; the view setter is `setActiveView` (declared at `App.tsx:159` via `useLocalStorage<View>('vox_active_view', 'dashboard')`). Find where `<Loquela` is rendered (it is imported at `App.tsx:11`; the render site is in the main layout below line 600) and pass: `queueDepth={kpis.queueDepth.value}` and `onOpenTasks={() => setActiveView('tasks')}` (cast `'tasks'` to the `View` type if the union doesn't yet include it — extend the `View` type where it is declared).
 
 - [ ] **Step 2: Render the chip**
 
-In `Loquela.tsx`, extend the props interface with `queueDepth?: number; onOpenTasks?: () => void;` and render next to the existing mode/tier selectors row:
+In `Loquela.tsx`, extend the `LoquelaProps` interface (lines 101-110: `chips`, `setChips`, `onSubmit`, `activeSkill`, `setActiveSkill`, `skills`, `toast?`, `agents?`) with `queueDepth?: number; onOpenTasks?: () => void;` and render next to the existing mode/tier selectors row:
 
 ```tsx
 {typeof queueDepth === 'number' && queueDepth > 0 && (
@@ -1003,15 +1088,23 @@ In `types/tasks.rs`, add to `AgentTask` (next to `model_preference`):
     pub mode: Option<String>,
 ```
 
-Add the identical field to `TaskEnqueueHints`. Then find where `TaskEnqueueHints` is merged onto the task (grep `model_preference` within `vox-orchestrator/src` — the merge site assigns `hints.model_preference` onto the task) and add the symmetric line:
+Add the identical field to `TaskEnqueueHints`. The merge site is **`AgentTask::apply_hints` at `tasks.rs:623-696`** — `model_preference` is merged at lines 630-631:
 
 ```rust
-        if let Some(mode) = hints.mode.clone() {
-            task.mode = Some(mode);
-        }
+    if let Some(ref p) = h.model_preference {
+        self.model_preference = Some(p.clone());
+    }
 ```
 
-Also add `mode: None` to every struct-literal construction site of `AgentTask`/`TaskEnqueueHints` the compiler flags (or `..Default::default()` where used).
+Add the symmetric block directly after it:
+
+```rust
+    if let Some(ref m) = h.mode {
+        self.mode = Some(m.clone());
+    }
+```
+
+Construction sites that will need `mode: None` (verified — `AgentTask` has **no** `Default` impl): `AgentTask::new` at `tasks.rs:475`, `orchestrator/task_dispatch/complete/harness.rs:118`, `planning/test_decision.rs:100`, `queue/mod.rs:62`. Let the compiler find any others; `TaskEnqueueHints` construction sites use `..Default::default()` style or field lists — same treatment.
 
 - [ ] **Step 3: Run to verify pass**
 
@@ -1059,14 +1152,22 @@ and in the `json!` params object:
 
 (Daemon side: `SUBMIT_TASK` already parses `enqueue_hints` when non-null — `orch_daemon/mod.rs:269`. Confirm the daemon treats `null` as absent; if `serde_json::from_value::<TaskEnqueueHints>(Value::Null)` errors, omit the key entirely instead by building the params map imperatively.)
 
-`App.tsx` `handleLoquelaSubmit`: the Loquela payload already carries mode/tier — add them to the IPC args where `description`, `files`, `priority`, `session_id` are passed:
+`App.tsx` `handleLoquelaSubmit` (lines 407-438): verified, the IPC args are wrapped as `{ input: { … } }` and currently send `description`, `files`, `priority`, `session_id` (with `session_id: payload.session_id ?? 'gui-loquela'`). Loquela's `send()` payload (Loquela.tsx:282-292) carries `mode` and `tier` at the top level. Extend the `input` object:
 
 ```ts
-        mode: payload.mode ?? null,
-        tier: payload.tier ?? null,
+      {
+        input: {
+          description: payload.description,
+          files: contextFiles,
+          priority: payload.priority ?? null,
+          session_id: payload.session_id ?? 'gui-loquela',
+          mode: payload.mode ?? null,
+          tier: payload.tier ?? null,
+        }
+      },
 ```
 
-(Match the actual payload field names in `Loquela.tsx`'s submit payload type — read the `send()` function to confirm; they exist since the composer renders both selectors.)
+(Track I later replaces the hardcoded `'gui-loquela'` with the active session tab — don't change session handling here.)
 
 - [ ] **Step 5: Verify + commit**
 
@@ -1084,22 +1185,20 @@ git commit -m "fix(gui+orchestrator): carry chat mode/tier through submit as enq
 
 - [ ] **Step 1: Re-fetch on focus + interval**
 
-Replace the one-shot `useEffect(() => { listModels()... }, [])` with:
+Verified: the one-shot effect is at `Loquela.tsx:152-174`; it calls `voxTransport.listModels(24)` (→ Tauri `list_model_cards`), maps the first 4 models into tier entries, and sets `setRuntimeTiers([...])`; tier state is `tier`/`setTier` (lines 114-115). Refactor by extracting the existing effect body into a `loadTiers` function **unchanged** (keep the mapping, the `'auto'` sentinel entry, and the stale-tier reset logic exactly as-is), then re-trigger it:
 
 ```tsx
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
-      try {
-        const models = await listModels();
-        if (!cancelled) setModels(models);
-      } catch {
-        /* keep previous list */
-      }
+    const loadTiers = () => {
+      voxTransport.listModels(24).then((models: any) => {
+        if (cancelled) return;
+        /* …existing body from lines 153-172 verbatim… */
+      }).catch(() => {});
     };
-    load();
-    const interval = setInterval(load, 60_000);
-    const onFocus = () => load();
+    loadTiers();
+    const interval = setInterval(loadTiers, 60_000);
+    const onFocus = () => loadTiers();
     window.addEventListener('focus', onFocus);
     return () => {
       cancelled = true;
@@ -1109,7 +1208,7 @@ Replace the one-shot `useEffect(() => { listModels()... }, [])` with:
   }, []);
 ```
 
-(Adapt `setModels`/`listModels` to the actual local names at line ~168.)
+One behavioral guard to add inside the existing body: only call `setTier(dynamic[0]?.id ?? 'auto')` when the current `tier` is missing from the refreshed list **and** is not `'auto'` (this condition already exists at line 170 — keep it; it prevents a background refresh from yanking the user's selection).
 
 - [ ] **Step 2: Verify + commit**
 
@@ -1143,13 +1242,20 @@ mod resources_summary_tests {
     use super::*;
     use vox_populi_types::NodeRecord;
 
+    // NodeRecord has NO Default impl (verified); every non-id field is
+    // Option/serde-default, so deserialize a minimal JSON object instead.
     fn node(cpu: Option<f32>, mem_free: Option<u64>, gpus_alloc: Option<u32>) -> NodeRecord {
-        let mut n = NodeRecord::default();
+        let mut n: NodeRecord =
+            serde_json::from_value(serde_json::json!({ "id": "test-node" }))
+                .expect("minimal NodeRecord");
         n.cpu_usage_pct = cpu;
         n.memory_free_bytes = mem_free;
         n.gpu_allocatable_count = gpus_alloc;
         n
     }
+    // If deserialization fails because some field lacks a serde default,
+    // copy the construction pattern from an existing NodeRecord test in
+    // vox-populi or vox-populi-types instead of fighting the literal.
 
     #[test]
     fn aggregates_counts_and_capacity() {
@@ -1223,8 +1329,8 @@ pub(crate) fn aggregate_resources(nodes: &[vox_populi_types::NodeRecord]) -> Mes
     let mut cpu_sum = 0.0f64;
     let mut cpu_n = 0usize;
     for n in nodes {
-        let eligible = n.quarantined != Some(true)
-            && !super::dispatch_support::node_maintenance_blocks_new_work_or(now, n);
+        let eligible =
+            n.quarantined != Some(true) && !node_maintenance_blocks_new_work(now, n);
         if eligible {
             summary.eligible_node_count += 1;
             summary.gpu_total += n.gpu_total_count.unwrap_or(0);
@@ -1236,13 +1342,13 @@ pub(crate) fn aggregate_resources(nodes: &[vox_populi_types::NodeRecord]) -> Mes
             }
         }
         summary.nodes.push(MeshResourceNode {
-            node_id: n.node_id.clone(),
+            node_id: n.id.clone(),
             eligible,
             cpu_usage_pct: n.cpu_usage_pct,
             memory_free_bytes: n.memory_free_bytes,
             gpu_allocatable_count: n.gpu_allocatable_count,
             gpu_total_count: n.gpu_total_count,
-            loaded_llm_models: n.loaded_llm_models.clone(),
+            loaded_llm_models: n.loaded_llm_models.clone().unwrap_or_default(),
             labels: n.capabilities.labels.clone(),
         });
     }
@@ -1253,30 +1359,38 @@ pub(crate) fn aggregate_resources(nodes: &[vox_populi_types::NodeRecord]) -> Mes
 }
 ```
 
-Important adaptations (the executor must verify against the actual code, all in this crate):
-- `node_maintenance_blocks_new_work` lives in/near `dispatch.rs` — import it from its real path instead of the placeholder `dispatch_support` shown above; same scope-resolution as `dispatch.rs:163` uses.
-- Field types (`u32` vs `u64`, `node_id` accessor) must match `vox_populi_types::NodeRecord` exactly (`crates/vox-populi-types/src/node_record.rs:55-106`); fix types, keep the shape.
+Verified anchors used above:
+- Import exactly as `dispatch.rs:8` does: `use crate::{NodeRecord, node_maintenance_blocks_new_work};` — signature `node_maintenance_blocks_new_work(now_ms: u64, n: &NodeRecord) -> bool` (defined at `vox-populi-types/src/node_record.rs:181`, re-exported at `vox-populi/src/lib.rs:235`).
+- NodeRecord field is **`id`** (not `node_id`); `loaded_llm_models: Option<Vec<String>>` (hence `unwrap_or_default()`); GPU counts `Option<u32>`, `memory_free_bytes: Option<u64>`, `cpu_usage_pct: Option<f32>`.
+- `capabilities.labels` — confirm the collection type on `vox_repository::TaskCapabilityHints` (`capabilities.rs:13-68`); if not `Vec<String>`, convert with `.iter().cloned().collect()`.
 
-Then the HTTP handler (model it on the existing `GET /v1/populi/nodes` handler in the same file — same `State`/auth extension pattern, lines 86–164):
+Then the HTTP handler — model it on the verified `list_nodes` handler (`handlers/nodes.rs:95-121`), which guards with `auth_allows_worker_plane(&ctx)` and reads `st.inner.read().await` (a `PopuliRegistryFile` whose `.nodes` is `Vec<NodeRecord>`):
 
 ```rust
 pub(crate) async fn resources_summary(
     State(st): State<PopuliTransportState>,
     Extension(ctx): Extension<PopuliAuthContext>,
 ) -> Result<Json<MeshResourceSummary>, ResponseErr> {
-    // Same authorization as the nodes listing — copy the exact guard used there.
-    let registry = st.registry.read().await;
+    if !auth_allows_worker_plane(&ctx) {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: worker/mesh/admin token required for resource summary".into(),
+        ));
+    }
+    let registry = st.inner.read().await;
     Ok(Json(aggregate_resources(&registry.nodes)))
 }
 ```
 
-(Copy the auth guard and registry access exactly from the nodes handler — `st.registry` naming above is illustrative; mirror the real state field.)
+(Use the exact same imports `list_nodes` uses — `State`, `Extension`, `Json`, `StatusCode`, `ResponseErr`, `auth_allows_worker_plane` are all already in scope in `nodes.rs`.)
 
-Route in `transport/mod.rs`, next to the nodes route:
+Route in **`crates/vox-populi/src/transport/router.rs`** (verified — the router lives here, not `mod.rs`), next to line 72's `.route("/v1/populi/nodes", get(list_nodes))`:
 
 ```rust
-        .route("/v1/populi/resources/summary", axum::routing::get(handlers::nodes::resources_summary))
+        .route("/v1/populi/resources/summary", get(resources_summary))
 ```
+
+adding `resources_summary` to the `handlers` import at `router.rs:20`.
 
 - [ ] **Step 4: Run to verify pass**
 
@@ -1305,55 +1419,51 @@ Score (higher wins): `score = (100 − cpu%) + 20·log2(1 + free_GiB) + 15·gpu_
 mod select_best_node_tests {
     use super::*;
 
+    // NodeRecord has no Default (verified) — deserialize a minimal object.
     fn node(id: &str, cpu: Option<f32>, mem_free_gib: u64, gpus: u32) -> NodeRecord {
-        let mut n = NodeRecord::default();
-        n.node_id = id.to_string();
+        let mut n: NodeRecord =
+            serde_json::from_value(serde_json::json!({ "id": id })).expect("minimal NodeRecord");
         n.cpu_usage_pct = cpu;
         n.memory_free_bytes = Some(mem_free_gib * 1024 * 1024 * 1024);
         n.gpu_allocatable_count = Some(gpus);
         n
     }
 
+    // DispatchRequest (transport/mod.rs:290-323) has no Default but every
+    // filter field is serde-optional — deserialize the minimal request.
     fn plain_req() -> DispatchRequest {
-        // Construct the same way dispatch tests in this crate already do;
-        // all filter fields None/empty.
-        DispatchRequest::default()
+        serde_json::from_value(serde_json::json!({ "source": "test" }))
+            .expect("minimal DispatchRequest")
     }
 
     #[test]
     fn prefers_lower_cpu_all_else_equal() {
         let nodes = vec![node("busy", Some(80.0), 4, 0), node("idle", Some(10.0), 4, 0)];
         let best = select_best_node(&nodes, &plain_req()).unwrap();
-        assert_eq!(best.node_id, "idle");
+        assert_eq!(best.id, "idle");
     }
 
     #[test]
     fn gpu_and_memory_break_cpu_ties() {
         let nodes = vec![node("small", Some(50.0), 1, 0), node("beefy", Some(50.0), 32, 2)];
         let best = select_best_node(&nodes, &plain_req()).unwrap();
-        assert_eq!(best.node_id, "beefy");
+        assert_eq!(best.id, "beefy");
     }
 
     #[test]
     fn model_locality_outweighs_small_cpu_difference() {
         let mut warm = node("warm", Some(55.0), 8, 1);
-        warm.loaded_llm_models = vec!["qwen3.5-2b".to_string()];
+        warm.loaded_llm_models = Some(vec!["qwen3.5-2b".to_string()]);
         let cold = node("cold", Some(45.0), 8, 1);
         let mut req = plain_req();
-        req.preferred_model = Some("qwen3.5-2b".to_string());
+        req.model_id = Some("qwen3.5-2b".to_string());
         let best = select_best_node(&[warm, cold], &req).unwrap();
-        assert_eq!(best.node_id, "warm");
+        assert_eq!(best.id, "warm");
     }
 }
 ```
 
-If `DispatchRequest` has no `Default`, build it field-by-field the way `dispatch_script` tests in the crate do. If it has no `preferred_model` field, add one:
-
-```rust
-    /// Model the caller would like already loaded on the target node (locality hint).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub preferred_model: Option<String>,
-```
+**Do NOT add a `preferred_model` field** — verified: `DispatchRequest` (defined at `transport/mod.rs:290-323`, fields: `source`, `node_id`, `timeout_secs`, `is_bundle`, `source_blake3_hex`, `required_labels`, `is_detached`, `priority`, `task_kind`, `model_id`, `min_vram_mb`) **already has `model_id: Option<String>`** — that is the locality hint. If `plain_req()`'s minimal deserialization fails (a non-optional field beyond `source`), add the missing required fields to the `json!` literal rather than touching the struct.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -1372,8 +1482,8 @@ Replace lines 195–204 (`// Load balancing: Sort by CPU usage ascending` … `c
         let cpu = f64::from(n.cpu_usage_pct.unwrap_or(100.0));
         let free_gib = n.memory_free_bytes.unwrap_or(0) as f64 / (1024.0 * 1024.0 * 1024.0);
         let gpus = f64::from(n.gpu_allocatable_count.unwrap_or(0));
-        let locality = match (&req.preferred_model, &n.loaded_llm_models) {
-            (Some(m), loaded) if loaded.iter().any(|l| l == m) => 1.0,
+        let locality = match (&req.model_id, &n.loaded_llm_models) {
+            (Some(m), Some(loaded)) if loaded.iter().any(|l| l == m) => 1.0,
             _ => 0.0,
         };
         (100.0 - cpu) + 20.0 * (1.0 + free_gib).log2() + 15.0 * gpus + 25.0 * locality
@@ -1408,7 +1518,8 @@ git commit -m "feat(populi): resource-aware dispatch scoring — CPU + memory + 
 - Modify: `crates/vox-orchestrator/src/config/orchestrator_fields.rs` (+ `impl_default.rs`, `impl_env.rs`, `impl_load.rs` following the exact pattern of `scaling_threshold`)
 - Modify: `crates/vox-orchestrator/src/services/scaling.rs`
 - Modify: `crates/vox-orchestrator/src/runtime.rs` (~lines 716–765)
-- Modify: `crates/vox-orchestrator/Cargo.toml` (add `sysinfo = { workspace = true }` if absent; sysinfo 0.39 is already a workspace dep)
+
+**Verified dependency facts:** sysinfo 0.39 is already a workspace dep AND already wired into vox-orchestrator as `sysinfo = { workspace = true, optional = true }` behind the **`system-metrics`** feature — and `orchestrator/scaling.rs:184-185` already calls `sys.refresh_cpu_all(); sys.refresh_memory();`. Before writing the new module, read `orchestrator/scaling.rs:170-200` — if a reusable local probe already exists there, extract/reuse it instead of duplicating. The new module must be feature-gated the same way, with a no-op fallback so default builds compile.
 
 - [ ] **Step 1: Write the failing scaling tests**
 
@@ -1527,11 +1638,12 @@ Run: `cargo test -p vox-orchestrator scaling` — Expected: FAIL (compile: unkno
 //! sysinfo refreshes are not free; the scaling tick runs frequently, so the
 //! snapshot is cached for `CACHE_TTL` and refreshed lazily.
 
+#[cfg(feature = "system-metrics")]
 use std::sync::Mutex;
+#[cfg(feature = "system-metrics")]
 use std::time::{Duration, Instant};
 
-use sysinfo::System;
-
+#[cfg(feature = "system-metrics")]
 const CACHE_TTL: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -1542,49 +1654,67 @@ pub struct LocalResourceSnapshot {
     pub memory_free_mb: u64,
 }
 
-struct ProbeState {
-    system: System,
-    last: Option<(Instant, LocalResourceSnapshot)>,
-}
+#[cfg(feature = "system-metrics")]
+mod probe {
+    use super::*;
+    use sysinfo::System;
 
-static PROBE: Mutex<Option<ProbeState>> = Mutex::new(None);
-
-/// Best-effort snapshot; `None` only if the probe lock is poisoned.
-pub fn snapshot() -> Option<LocalResourceSnapshot> {
-    let mut guard = PROBE.lock().ok()?;
-    let state = guard.get_or_insert_with(|| ProbeState {
-        system: System::new(),
-        last: None,
-    });
-    if let Some((at, snap)) = state.last {
-        if at.elapsed() < CACHE_TTL {
-            return Some(snap);
-        }
+    struct ProbeState {
+        system: System,
+        last: Option<(Instant, LocalResourceSnapshot)>,
     }
-    state.system.refresh_cpu_usage();
-    state.system.refresh_memory();
-    let snap = LocalResourceSnapshot {
-        cpu_usage_pct: state.system.global_cpu_usage(),
-        memory_free_mb: state.system.available_memory() / (1024 * 1024),
-    };
-    state.last = Some((Instant::now(), snap));
-    Some(snap)
+
+    static PROBE: Mutex<Option<ProbeState>> = Mutex::new(None);
+
+    /// Best-effort snapshot; `None` only if the probe lock is poisoned.
+    pub fn snapshot() -> Option<LocalResourceSnapshot> {
+        let mut guard = PROBE.lock().ok()?;
+        let state = guard.get_or_insert_with(|| ProbeState {
+            system: System::new_all(),
+            last: None,
+        });
+        if let Some((at, snap)) = state.last {
+            if at.elapsed() < CACHE_TTL {
+                return Some(snap);
+            }
+        }
+        // Verified repo idiom (orchestrator/scaling.rs:184-185 and
+        // vox-ml-cli populi_cli.rs:1210-1214):
+        state.system.refresh_cpu_all();
+        state.system.refresh_memory();
+        let snap = LocalResourceSnapshot {
+            cpu_usage_pct: state.system.global_cpu_usage(),
+            memory_free_mb: state.system.available_memory() / (1024 * 1024),
+        };
+        state.last = Some((Instant::now(), snap));
+        Some(snap)
+    }
 }
 
-#[cfg(test)]
+#[cfg(feature = "system-metrics")]
+pub use probe::snapshot;
+
+/// Without the `system-metrics` feature there is no probe; scaling falls back
+/// to its pre-existing behavior (no local guard).
+#[cfg(not(feature = "system-metrics"))]
+pub fn snapshot() -> Option<LocalResourceSnapshot> {
+    None
+}
+
+#[cfg(all(test, feature = "system-metrics"))]
 mod tests {
     use super::*;
 
     #[test]
     fn snapshot_returns_plausible_values() {
         let s = snapshot().expect("probe");
-        assert!(s.cpu_usage_pct >= 0.0 && s.cpu_usage_pct <= 100.0 * 256.0);
+        assert!(s.cpu_usage_pct >= 0.0);
         assert!(s.memory_free_mb > 0);
     }
 }
 ```
 
-(sysinfo 0.39 API: `System::new()`, `refresh_cpu_usage()`, `refresh_memory()`, `global_cpu_usage()`, `available_memory()` — if names differ in the pinned version, fix to the version's API; intent is global CPU % + available MiB.) Export from `services/mod.rs`: `pub mod local_resources;`.
+Export from `services/mod.rs`: `pub mod local_resources;`. Note: sysinfo's first CPU refresh after process start can report 0% (it needs two samples) — that is fine here; a 0% reading never *blocks* scale-up, and the 5s cache means subsequent ticks get real numbers. Run the feature-gated test with `cargo test -p vox-orchestrator --features system-metrics local_resources`.
 
 - [ ] **Step 4: Extend `decide_scaling`**
 
@@ -1608,10 +1738,36 @@ Note the guard must only suppress **scale-up**: place it inside the scale-up bra
 
 - [ ] **Step 5: Feed the snapshot in the runtime tick**
 
-In `runtime.rs` at the `ScalingService::decide_scaling(` call (~line 757), add the final argument:
+The verified call site (`runtime.rs:753-764`) is:
 
 ```rust
-            crate::services::local_resources::snapshot().as_ref(),
+        let load_history: Vec<f64> = crate::sync_lock::rw_read(&*self.orchestrator.load_history)
+            .iter()
+            .copied()
+            .collect();
+        let action = ScalingService::decide_scaling(
+            &status,
+            &config,
+            &load_history,
+            remote_gpu_capacity,
+            &idle_dynamic,
+            &crate::sync_lock::rw_read(&budget_manager),
+        );
+```
+
+Add one line so it becomes:
+
+```rust
+        let local_snapshot = crate::services::local_resources::snapshot();
+        let action = ScalingService::decide_scaling(
+            &status,
+            &config,
+            &load_history,
+            remote_gpu_capacity,
+            &idle_dynamic,
+            &crate::sync_lock::rw_read(&budget_manager),
+            local_snapshot.as_ref(),
+        );
 ```
 
 - [ ] **Step 6: Run tests**
@@ -1650,11 +1806,12 @@ In the vox-config test module:
     fn llm_keys_roundtrip_through_get_set() {
         let mut cfg = VoxConfig::default();
         assert_eq!(cfg.llm_max_concurrent_requests, 8);
-        assert!(cfg.set_key("llm.max_concurrent_requests", "16"));
+        // set_key's return type varies — assert via the readback, not the return.
+        let _ = cfg.set_key("llm.max_concurrent_requests", "16");
         assert_eq!(cfg.get_key("llm.max_concurrent_requests").as_deref(), Some("16"));
-        assert!(cfg.set_key("llm.openrouter_max_concurrent", "4"));
+        let _ = cfg.set_key("llm.openrouter_max_concurrent", "4");
         assert_eq!(cfg.llm_openrouter_max_concurrent, Some(4));
-        assert!(cfg.set_key("llm.retry_max_attempts", "5"));
+        let _ = cfg.set_key("llm.retry_max_attempts", "5");
         assert_eq!(cfg.llm_retry_max_attempts, 5);
         assert!(VoxConfig::known_keys().contains(&"llm.max_concurrent_requests"));
     }
@@ -1677,11 +1834,11 @@ Run: `cargo test -p vox-config llm_keys_roundtrip` — Expected: FAIL (no such f
     pub llm_retry_max_attempts: u32,               // default 4
 ```
 
-`toml_schema.rs` — add a section struct and field on `VoxToml`:
+`toml_schema.rs` — verified shape: `VoxToml { vox: Option<VoxTomlSection>, train: Option<TrainTomlSection>, db: Option<DbTomlSection>, web: Option<WebTomlSection>, build: Option<BuildTomlSection> }` (lines 9-17); section structs follow the `<Name>TomlSection` convention. Add:
 
 ```rust
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
-pub struct LlmToml {
+pub struct LlmTomlSection {
     pub max_concurrent_requests: Option<usize>,
     pub openrouter_max_concurrent: Option<usize>,
     pub openai_max_concurrent: Option<usize>,
@@ -1689,7 +1846,7 @@ pub struct LlmToml {
 }
 ```
 
-and on `VoxToml`: `pub llm: Option<LlmToml>,` (with `#[serde(default)]` matching the sibling sections).
+and on `VoxToml`: `pub llm: Option<LlmTomlSection>,` (copy the exact serde attrs of the sibling `web` field).
 
 `impl_ops.rs` — in `load()` where other sections merge (`[vox]`, `[train]`…):
 
@@ -1704,7 +1861,7 @@ and on `VoxToml`: `pub llm: Option<LlmToml>,` (with `#[serde(default)]` matching
 
 `get_key`/`set_key`/`known_keys`: add the four dotted keys (`llm.max_concurrent_requests`, `llm.openrouter_max_concurrent`, `llm.openai_max_concurrent`, `llm.retry_max_attempts`) following the exact match-arm pattern of `web.run_mode`. Env override in the same place other env overrides happen (`VOX_LLM_MAX_CONCURRENCY` → `llm_max_concurrent_requests`).
 
-`persist.rs`: extend `save_merged_global_config` to also write the `[llm]` table (it currently merges `[vox]`, `[train]`, `[db]` — add `[llm]` with the same merge-don't-clobber behavior).
+`persist.rs`: extend `save_merged_global_config(path: &Path, cfg: &VoxConfig) -> std::io::Result<()>` (verified signature, line 18) to also write the `[llm]` table — it currently merges `[vox]`, `[train]`, `[db]`, `[web]`, `[build]`; add `[llm]` with the same merge-don't-clobber behavior.
 
 - [ ] **Step 3: Run to verify pass**
 
@@ -1890,7 +2047,8 @@ pub fn for_provider(provider: &str) -> &'static ProviderThrottle {
     if let Some(t) = map.get(provider) {
         return t;
     }
-    let cfg = vox_config::VoxConfig::load().unwrap_or_default();
+    // Verified: VoxConfig::load() returns Self (impl_ops.rs:17), not Result.
+    let cfg = vox_config::VoxConfig::load();
     let limit = match provider {
         "openrouter" => cfg
             .llm_openrouter_max_concurrent
@@ -1931,7 +2089,7 @@ pub fn retry_after_from_headers(headers: &reqwest::header::HeaderMap) -> Option<
 }
 ```
 
-(Confirm `VoxConfig::load()`'s real signature in `impl_ops.rs` — if it returns `VoxConfig` directly, drop the `unwrap_or_default()`. Confirm `vox_config` is already a dependency of `vox-actor-runtime` — `chat.rs:40` uses `vox_config::OPENROUTER_CHAT_COMPLETIONS_URL`, so it is.)
+(Verified: `vox_config` is a direct dep of vox-actor-runtime (`Cargo.toml:20`), `reqwest` is a direct dep with the `stream` feature (`Cargo.toml:29`), and `vox_http_client::client()` returns `reqwest::Client` (`vox-http-client/src/lib.rs:34`) — the `reqwest::header` types used in `retry_after_from_headers` resolve without new deps.)
 
 - [ ] **Step 3: Integrate into `llm_chat`**
 
@@ -1997,7 +2155,7 @@ pub struct LlmConfigDto {
 
 #[tauri::command]
 pub async fn get_llm_config() -> Result<LlmConfigDto, String> {
-    let cfg = vox_config::VoxConfig::load().map_err(|e| e.to_string())?;
+    let cfg = vox_config::VoxConfig::load(); // returns Self (verified)
     Ok(LlmConfigDto {
         max_concurrent_requests: cfg.llm_max_concurrent_requests,
         openrouter_max_concurrent: cfg.llm_openrouter_max_concurrent,
@@ -2008,7 +2166,7 @@ pub async fn get_llm_config() -> Result<LlmConfigDto, String> {
 
 #[tauri::command]
 pub async fn set_llm_config(config: serde_json::Value) -> Result<(), String> {
-    let mut cfg = vox_config::VoxConfig::load().map_err(|e| e.to_string())?;
+    let mut cfg = vox_config::VoxConfig::load();
     if let Some(v) = config.get("maxConcurrentRequests").and_then(|v| v.as_u64()) {
         cfg.llm_max_concurrent_requests = (v as usize).clamp(1, 256);
     }
@@ -2022,8 +2180,14 @@ pub async fn set_llm_config(config: serde_json::Value) -> Result<(), String> {
     if let Some(v) = config.get("retryMaxAttempts").and_then(|v| v.as_u64()) {
         cfg.llm_retry_max_attempts = (v as u32).clamp(0, 10);
     }
-    // Persist to ~/.vox/config.toml ([llm] table merged, user additions preserved).
-    cfg.save_merged_global_config().map_err(|e| e.to_string())
+    // Persist to ~/.vox/config.toml ([llm] table merged, user additions
+    // preserved). Verified free-fn signature (persist.rs:18):
+    //   save_merged_global_config(path: &Path, cfg: &VoxConfig) -> io::Result<()>
+    // Resolve the global config path the same way the CLI `vox config set`
+    // path does (vox-config/src/paths.rs data_dir()).
+    let path = vox_config::paths::data_dir().join("config.toml");
+    vox_config::config::persist::save_merged_global_config(&path, &cfg)
+        .map_err(|e| e.to_string())
 }
 
 #[derive(Debug, Serialize)]
@@ -2037,7 +2201,18 @@ pub struct OpenRouterKeyStatusDto {
 
 #[tauri::command]
 pub async fn openrouter_key_status() -> Result<OpenRouterKeyStatusDto, String> {
-    let key = vox_secrets::resolve_secret("OPENROUTER_API_KEY").unwrap_or_default();
+    // VERIFIED GOTCHA: vox_secrets::resolve_secret takes a `SecretId` ENUM
+    // (vox-secrets/src/lib.rs:219) and returns a `ResolvedSecret` struct, NOT
+    // resolve_secret("OPENROUTER_API_KEY"). Before writing this, open
+    // crates/vox-gui/src/commands/ and find the existing secrets bridge
+    // (list_secret_status / set_secret are already registered commands) and
+    // copy its exact resolution call for the OpenRouter key. The spec id lives
+    // in vox-secrets/src/spec/registry/llm.rs (OpenRouterApiKey, canonical env
+    // OPENROUTER_API_KEY). The shape is approximately:
+    //   let resolved = vox_secrets::resolve_secret(SecretId::OpenRouterApiKey);
+    //   let key: String = resolved.value().unwrap_or_default();
+    // — mirror whatever accessor the existing GUI secrets code uses.
+    let key = resolve_openrouter_key(); // helper you write per the above
     if key.trim().is_empty() {
         return Ok(OpenRouterKeyStatusDto {
             configured: false,
@@ -2083,7 +2258,7 @@ pub async fn openrouter_key_status() -> Result<OpenRouterKeyStatusDto, String> {
 }
 ```
 
-Adapt: `vox_secrets::resolve_secret` signature (used by vox-config per the audit — copy its call pattern); `save_merged_global_config` may be a free function in `persist.rs` taking `&VoxConfig` (`vox_config::config::persist::save_merged_global_config(&cfg)`) — call it the way the CLI `vox config set` path does. Register `pub mod llm_settings;` in `commands/mod.rs` and the three commands in `main.rs`'s `generate_handler!`.
+Adapt: the module paths `vox_config::paths::data_dir` / `vox_config::config::persist::save_merged_global_config` must match the crate's actual re-exports (check `vox-config/src/lib.rs` for what's `pub`; if `persist` isn't public, add the `pub` or call through whatever public save API the CLI `vox config set` uses). Register `pub mod llm_settings;` in `commands/mod.rs` and the three commands in `main.rs`'s `generate_handler!` (verified block at `main.rs:99-119`).
 
 - [ ] **Step 2: Verify + commit**
 
@@ -2165,7 +2340,7 @@ At the `useState<SettingsState>` block (~line 447), add a mount effect that over
   }, []);
 ```
 
-(Match the actual `SettingsState` field names from the interface at line 31 — `concurrency`/`capUsd`/`doubtThresh`/`isolation`/`autobudget`/`doubt` are the names `set_orchestrator_config` consumes, but verify against the interface and adjust.)
+Verified — `SettingsState` (lines 31-42) is exactly `{ doubt, autobudget, theme, concurrency, capUsd, doubtThresh, sign, telemetry, isolation, checkpointMins }`, so the spread keys above are correct as written. (`set_orchestrator_config` consumes the same camelCase names — `orchestrator.rs:257-301`.)
 
 - [ ] **Step 3: Verify + commit**
 
@@ -2182,16 +2357,23 @@ git commit -m "fix(gui): hydrate orchestrator settings from Vox.toml instead of 
 - Modify: `crates/vox-gui/ui/src/App.tsx`
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx` (theme section)
 
-- [ ] **Step 1: Check how themes are defined**
+- [ ] **Step 1: Create the CSS hook (verified: none exists)**
 
-Read `crates/vox-gui/ui/src/index.css` (or `tailwind.config.js`) for theme variables. The three themes (Arcane, Void, Glacier) exist as radio values. If CSS variables are keyed off a root attribute already (e.g. `[data-theme="void"]`), use it; if **no** CSS hooks exist at all, implement the attribute *and* add minimal CSS variable overrides for the two non-default themes in `index.css` (background hue + accent), keyed as:
+Verified: `tailwind.config.js` has only static colors (`brass: '#d4af37'` at line 8) and **no** `[data-theme]` hooks anywhere; the theme radios persist to DB but nothing reads the value. First read the theme section's render code in `SettingsView.tsx` to get the exact persisted value strings (expected `'arcane' | 'void' | 'glacier'` — use whatever the radios actually store).
+
+Then make the accent color variable-driven so themes have a visible effect:
+
+1. In `tailwind.config.js`, change `brass: '#d4af37'` → `brass: 'var(--brass, #d4af37)'` (Tailwind passes `var()` strings through to CSS; opacity modifiers like `brass/40` stop working with plain `var()` — if the build or visuals break on opacity variants, use the channel form instead: define `--brass-rgb: 212 175 55` and `brass: 'rgb(var(--brass-rgb) / <alpha-value>)'`, with per-theme overrides of `--brass-rgb`).
+2. In `index.css` (top, after any `@tailwind` directives):
 
 ```css
-:root[data-theme='void'] { --bg-base: #050507; --accent: #8b5cf6; }
-:root[data-theme='glacier'] { --bg-base: #0a0f14; --accent: #38bdf8; }
+:root[data-theme='void'] { --brass-rgb: 139 92 246; }    /* violet accent */
+:root[data-theme='glacier'] { --brass-rgb: 56 189 248; } /* sky accent */
+:root[data-theme='void'] body { background-color: #050507; }
+:root[data-theme='glacier'] body { background-color: #0a0f14; }
 ```
 
-(Anchor the variable names to ones the stylesheet actually uses — read first, then override the 2–4 variables that visibly differ.)
+(Adjust the body selector to whatever element actually paints the app background — find the top-level container's bg class in App.tsx and target that if `body` is transparent.)
 
 - [ ] **Step 2: Apply on change + on boot**
 
@@ -2253,7 +2435,14 @@ After the existing key blocks (line ~301), add:
 
 - [ ] **Step 2: Add the two sections to SettingsView**
 
-Add `'scaling'` and `'llm'` to the section nav list (wherever the 9 existing section ids are declared), then render after the orchestrator section block (~line 588), reusing the existing `Row`/`RangeInline` components:
+The section nav is the `SECTIONS` array at `SettingsView.tsx:8-18` (verified shape `{ id, icon, label }`, e.g. `{ id: 'orchestrator', icon: 'cpu', label: 'Orchestrator' }`). Insert after the orchestrator entry:
+
+```ts
+  { id: 'scaling', icon: 'cpu',  label: 'Scaling' },
+  { id: 'llm',     icon: 'bolt', label: 'LLM & providers' },
+```
+
+(`cpu` and `bolt` are icon keys already used by this array.) Then render the two sections after the orchestrator block (`section === 'orchestrator'` starts at line 588), reusing the existing `Row`/`RangeInline` components (verified: `Row({ label, hint, children })` at line 44; `RangeInline({ value, min, max, step = 1, suffix = '', onChange })` at line 64 — `step` is supported):
 
 ```tsx
         {section === 'scaling' && (
@@ -2286,7 +2475,7 @@ Add `'scaling'` and `'llm'` to the section nav list (wherever the 9 existing sec
         {section === 'llm' && <LlmSettingsSection />}
 ```
 
-Extend `SettingsState` + defaults with `scalingEnabled: false, minAgents: 1, scalingThreshold: 5, scaleCpuCeilingPct: 85, scaleMemFloorMb: 1024`, hydrate them in the F1 effect (the keys are already returned by `get_orchestrator_config`), and route their changes through the same debounced `update()` → `set_orchestrator_config` path the orchestrator section uses. If `RangeInline` lacks a `step` prop, omit it.
+Extend `SettingsState` + defaults with `scalingEnabled: false, minAgents: 1, scalingThreshold: 5, scaleCpuCeilingPct: 85, scaleMemFloorMb: 1024`, hydrate them in the F1 effect (the keys are already returned by `get_orchestrator_config`), and route their changes through the same `update()` → `set_orchestrator_config` path the orchestrator section uses (read the existing `update` implementation in the un-excerpted part of SettingsView — it batches the full camelCase state into one `invoke('set_orchestrator_config', { config })` call; the new keys ride along automatically once they're in state and the F3 Step 1 backend keys exist).
 
 `LlmSettingsSection` (new component in the same file, modeled on the secrets section's load/save pattern):
 
@@ -2863,16 +3052,15 @@ with `selectedIdx` replacing `selectedBackendIdx` (reset to `-1` on query change
 
 - [ ] **Step 2: Route navigation in App**
 
-In `App.tsx` `handleCommandAction` (~line 532), add before the generic fallback:
+Verified — `handleCommandAction` (App.tsx:532-549) is an if/else-if chain ending in `else if (cmd.id === 'search') { setActiveView('search'); } else { pushToast(...) }`. Insert a branch before the final `else`:
 
 ```ts
-    if (cmd.id === 'navigate' && typeof cmd.viewKey === 'string') {
-      setActiveView(cmd.viewKey);
-      return;
-    }
+    } else if (cmd.id === 'navigate' && typeof cmd.viewKey === 'string') {
+      setActiveView(cmd.viewKey as View);
+    } else {
 ```
 
-(Use the actual view setter name from line 544's `search` handling.)
+(`View` is the union type used by `useLocalStorage<View>('vox_active_view', …)` at line 159 — extend it if the registry-driven keys aren't all members; if `View` is derived from the surface registry already, the cast is enough.)
 
 - [ ] **Step 3: Verify + commit**
 
@@ -2904,7 +3092,7 @@ At the top of the Sidebar component add state `const [filter, setFilter] = useSt
       </div>
 ```
 
-Then in `itemsForGroup(group)`'s usage (or wrapping it), filter when active:
+Verified internals: collapse state is `collapsedSections` (`useLocalStorage<Record<string, boolean>>('vox_nav_sections', …)` at lines 118-120); items come from `itemsForGroup(group)` (lines 87-90); rendering goes through `renderSection(id, label, items)` (lines 161-186) whose open condition is `const open = !collapsedSections[id] || containsActive;`. Apply the filter at the call sites (lines 188-195) and in the open condition:
 
 ```tsx
   const visibleItems = (group: string) => {
@@ -2915,7 +3103,9 @@ Then in `itemsForGroup(group)`'s usage (or wrapping it), filter when active:
   };
 ```
 
-While `filter` is non-empty: force every section open (bypass the collapsed state in the render condition: `open = isOpen(section) || filter.trim().length > 0`) and hide sections whose `visibleItems` is empty.
+- At each `renderSection(id, label, itemsForGroup(group))` call site, pass `visibleItems(group)` instead — `renderSection` already returns `null` for empty item lists (line 162), so filtered-out sections disappear for free.
+- In `renderSection`, change the open condition to `const open = !collapsedSections[id] || containsActive || filter.trim().length > 0;` (filter state must be in scope — declare it in the component body above `renderSection`).
+- Skip the filter input entirely in rail mode (the `collapsed` boolean prop branch at line 163) — there's no room for it.
 
 - [ ] **Step 2: Verify + commit**
 
@@ -2966,6 +3156,779 @@ git commit -m "fix(gui): search keyboard wrap-around + facet focus rings"
 
 ---
 
+# Track I — Multi-tab chat sessions
+
+**Why tabs, and what they are.** The orchestrator already threads `session_id` through everything that matters: `AgentTask.session_id` (`tasks.rs:408`), every task event (`TaskSubmitted/Started/Completed/Failed` all carry `session_id: Option<String>`, `events.rs:147-175`), the A2A `RemoteTaskEnvelope` (`a2a/envelope.rs`), and Socrates context envelopes (`socrates.rs:8-12`, key `context_envelope:{session_id}`). The only thing missing is the front half: the GUI hardcodes `session_id: 'gui-loquela'` (App.tsx:421) and renders one transcript. So "multiple tabs" = **in-app session tabs over the existing session spine** — NOT multiple OS windows (tauri.conf.json defines a single `main` window; multi-window state sharing is a much bigger lift for no user-visible gain).
+
+**Resource model (write this into the Tasks UI copy):** tabs do NOT partition the fleet. All sessions submit into the same agent queues; the orchestrator divides work by file affinity, priority, and load exactly as it does today (`resolve_route` consults `FileAffinityMap` + `FileLockManager`; `rebalance()` work-steals between agents respecting write locks — `orchestrator/scaling.rs:45-120`). Two tabs working on different parts of the codebase get naturally parallel agents because their file manifests don't overlap; two tabs touching the same files get serialized by the lock manager and `SplitChanges` isolation (`isolation.rs:62-74` auto-selects it on predicted overlap). A tab is a *view + attribution scope*, not a resource reservation.
+
+### Task I1: Session model helpers (pure, tested)
+
+**Files:**
+- Create: `crates/vox-gui/ui/src/lib/sessions.ts`
+- Create: `crates/vox-gui/ui/src/lib/sessions.test.ts`
+
+- [ ] **Step 1: Failing tests**
+
+```ts
+import { describe, it, expect } from 'vitest';
+import { createSession, closeSession, renameSession, ChatSession } from './sessions';
+
+describe('createSession', () => {
+  it('mints unique gui- ids and numbered default titles', () => {
+    const a = createSession([]);
+    const b = createSession([a]);
+    expect(a.id).toMatch(/^gui-/);
+    expect(b.id).not.toBe(a.id);
+    expect(a.title).toBe('Chat 1');
+    expect(b.title).toBe('Chat 2');
+  });
+
+  it('attaches optional scope paths', () => {
+    const s = createSession([], { scopePaths: ['crates/vox-gui'] });
+    expect(s.scopePaths).toEqual(['crates/vox-gui']);
+  });
+});
+
+describe('closeSession', () => {
+  it('removes the session and nominates a neighbor as next active', () => {
+    const a = createSession([]);
+    const b = createSession([a]);
+    const { sessions, nextActiveId } = closeSession([a, b], a.id);
+    expect(sessions).toHaveLength(1);
+    expect(nextActiveId).toBe(b.id);
+  });
+
+  it('never closes the last session — returns it unchanged', () => {
+    const a = createSession([]);
+    const { sessions, nextActiveId } = closeSession([a], a.id);
+    expect(sessions).toHaveLength(1);
+    expect(nextActiveId).toBe(a.id);
+  });
+});
+
+describe('renameSession', () => {
+  it('renames by id and ignores unknown ids', () => {
+    const a = createSession([]);
+    expect(renameSession([a], a.id, 'Mesh work')[0].title).toBe('Mesh work');
+    expect(renameSession([a], 'nope', 'x')[0].title).toBe('Chat 1');
+  });
+});
+```
+
+Run (from `crates/vox-gui/ui/`): `pnpm vitest run src/lib/sessions.test.ts` — FAIL (module missing).
+
+- [ ] **Step 2: Implement**
+
+```ts
+export interface ChatSession {
+  id: string;          // session_id sent to the orchestrator, prefix 'gui-'
+  title: string;
+  createdAt: number;
+  /** Paths auto-attached to every submission's file affinity (working set). */
+  scopePaths: string[];
+}
+
+let counter = 0;
+
+export function createSession(
+  existing: ChatSession[],
+  opts?: { scopePaths?: string[] },
+): ChatSession {
+  counter += 1;
+  // Unique without Date.now collisions across fast double-clicks.
+  const id = `gui-${Date.now().toString(36)}-${counter.toString(36)}`;
+  const n =
+    existing.reduce((max, s) => {
+      const m = /^Chat (\d+)$/.exec(s.title);
+      return m ? Math.max(max, Number(m[1])) : max;
+    }, 0) + 1;
+  return { id, title: `Chat ${n}`, createdAt: Date.now(), scopePaths: opts?.scopePaths ?? [] };
+}
+
+export function closeSession(
+  sessions: ChatSession[],
+  id: string,
+): { sessions: ChatSession[]; nextActiveId: string } {
+  if (sessions.length <= 1) {
+    return { sessions, nextActiveId: sessions[0]?.id ?? '' };
+  }
+  const idx = sessions.findIndex(s => s.id === id);
+  if (idx === -1) return { sessions, nextActiveId: sessions[0].id };
+  const remaining = sessions.filter(s => s.id !== id);
+  const neighbor = remaining[Math.max(0, idx - 1)] ?? remaining[0];
+  return { sessions: remaining, nextActiveId: neighbor.id };
+}
+
+export function renameSession(
+  sessions: ChatSession[],
+  id: string,
+  title: string,
+): ChatSession[] {
+  const t = title.trim();
+  if (!t) return sessions;
+  return sessions.map(s => (s.id === id ? { ...s, title: t } : s));
+}
+```
+
+- [ ] **Step 3: Run to verify pass**
+
+Run: `pnpm vitest run src/lib/sessions.test.ts` — PASS (6 tests).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add crates/vox-gui/ui/src/lib/sessions.*
+git commit -m "feat(gui): chat-session model helpers (create/close/rename) with vitest"
+```
+
+### Task I2: Session tabs + per-session transcript
+
+**Files:**
+- Create: `crates/vox-gui/ui/src/components/layout/SessionTabs.tsx`
+- Modify: `crates/vox-gui/ui/src/lib/chatCorrelation.ts` (+ its existing `chatCorrelation.test.ts`)
+- Modify: `crates/vox-gui/ui/src/App.tsx`
+
+- [ ] **Step 1: Extend the chat reducer with sessionId (failing test first)**
+
+Read `chatCorrelation.ts` fully before editing — it owns `ChatMessage { id, role, text, status, runId, taskId?, error? }`, the reducer, and the `agentToTask`/`taskToRun` maps; `chatCorrelation.test.ts` shows the action shapes. Add to its existing test file:
+
+```ts
+  it('submit carries sessionId onto both bubbles and filtering selects them', () => {
+    let state = initialChatState; // use the exported initial-state name from this module
+    state = chatReducer(state, { type: 'submit', runId: 'r1', prompt: 'p', sessionId: 'gui-a' });
+    state = chatReducer(state, { type: 'submit', runId: 'r2', prompt: 'q', sessionId: 'gui-b' });
+    const a = messagesForSession(state, 'gui-a');
+    expect(a).toHaveLength(2); // user + pending assistant
+    expect(a.every(m => m.sessionId === 'gui-a')).toBe(true);
+  });
+```
+
+(Adapt `initialChatState`/`chatReducer` to the module's real export names — they exist; the test file imports them today.) Run: `pnpm vitest run src/lib/chatCorrelation.test.ts` — FAIL.
+
+Implement: add `sessionId?: string` to `ChatMessage`; the `'submit'` action gains `sessionId` and stamps it on both created bubbles; `'agentEvent'`/`'submitResolved'` need no change (they find messages by runId/taskId). Export:
+
+```ts
+export function messagesForSession(state: ChatState, sessionId: string): ChatMessage[] {
+  return state.messages.filter(m => m.sessionId === sessionId || m.sessionId == null);
+}
+```
+
+(`== null` keeps pre-existing messages visible in whatever tab is active rather than orphaning them.) Run the test — PASS.
+
+- [ ] **Step 2: SessionTabs component**
+
+```tsx
+import React, { useState } from 'react';
+import { Icon } from '../ui/Icons';
+import { ChatSession } from '../../lib/sessions';
+
+interface SessionTabsProps {
+  sessions: ChatSession[];
+  activeId: string;
+  onSelect: (id: string) => void;
+  onNew: () => void;
+  onClose: (id: string) => void;
+  onRename: (id: string, title: string) => void;
+  /** queued-task count per session id (from TasksView data), for badges */
+  queuedBySession?: Record<string, number>;
+}
+
+export function SessionTabs({
+  sessions, activeId, onSelect, onNew, onClose, onRename, queuedBySession,
+}: SessionTabsProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+
+  return (
+    <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar px-1 pb-1">
+      {sessions.map(s => {
+        const active = s.id === activeId;
+        const queued = queuedBySession?.[s.id] ?? 0;
+        return (
+          <div
+            key={s.id}
+            className={`group flex shrink-0 items-center gap-1.5 rounded-t-lg border-x border-t px-2.5 py-1 text-[12px] transition ${
+              active
+                ? 'border-white/10 bg-white/[0.04] text-zinc-100'
+                : 'border-transparent text-zinc-500 hover:bg-white/[0.02] hover:text-zinc-300'
+            }`}
+          >
+            {editingId === s.id ? (
+              <input
+                autoFocus
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') { onRename(s.id, draft); setEditingId(null); }
+                  if (e.key === 'Escape') setEditingId(null);
+                }}
+                onBlur={() => { onRename(s.id, draft); setEditingId(null); }}
+                className="w-24 bg-transparent outline-none border-b border-brass/40"
+              />
+            ) : (
+              <button
+                onClick={() => onSelect(s.id)}
+                onDoubleClick={() => { setEditingId(s.id); setDraft(s.title); }}
+                title={`${s.title} — double-click to rename`}
+                className="focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40 rounded"
+              >
+                {s.title}
+              </button>
+            )}
+            {queued > 0 && (
+              <span className="rounded-full bg-brass/15 px-1.5 font-mono text-[9px] text-brass">{queued}</span>
+            )}
+            {sessions.length > 1 && (
+              <button
+                onClick={() => onClose(s.id)}
+                title="Close tab (queued tasks keep running)"
+                className="rounded p-0.5 text-zinc-600 opacity-0 transition group-hover:opacity-100 hover:text-zinc-200 focus:outline-none focus-visible:opacity-100"
+              >
+                <Icon.x className="size-3" />
+              </button>
+            )}
+          </div>
+        );
+      })}
+      <button
+        onClick={onNew}
+        title="New chat session"
+        className="shrink-0 rounded p-1 text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40"
+      >
+        <Icon.plus className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 3: Wire into App**
+
+In `App.tsx`:
+
+```tsx
+  const [sessions, setSessions] = useLocalStorage<ChatSession[]>('vox_chat_sessions', []);
+  const [activeSessionId, setActiveSessionId] = useLocalStorage<string>('vox_active_session', '');
+  // Migration: ensure at least one session exists (adopt the legacy id so old
+  // transcripts/tasks submitted as 'gui-loquela' stay attached to a tab).
+  useEffect(() => {
+    if (sessions.length === 0) {
+      const legacy: ChatSession = { id: 'gui-loquela', title: 'Chat 1', createdAt: Date.now(), scopePaths: [] };
+      setSessions([legacy]);
+      setActiveSessionId(legacy.id);
+    } else if (!sessions.some(s => s.id === activeSessionId)) {
+      setActiveSessionId(sessions[0].id);
+    }
+  }, [sessions, activeSessionId, setSessions, setActiveSessionId]);
+```
+
+Render `<SessionTabs … />` directly above wherever the Transcript/Loquela pair renders, with handlers delegating to `createSession`/`closeSession`/`renameSession`. Pass the transcript `messagesForSession(chatState, activeSessionId)` instead of the raw message list, and pass `sessionId: activeSessionId` into the chat reducer's `'submit'` dispatch inside `handleLoquelaSubmit`. **Closing a tab does not cancel its tasks** — they keep running and remain visible in TasksView under that session id (state the same in the close button's title text, already done above).
+
+- [ ] **Step 4: Verify + commit**
+
+Run: `pnpm vitest run && pnpm build` (ui).
+
+```bash
+git add crates/vox-gui/ui/src/components/layout/SessionTabs.tsx crates/vox-gui/ui/src/lib/chatCorrelation.* crates/vox-gui/ui/src/App.tsx
+git commit -m "feat(gui): multi-tab chat sessions over the existing session_id spine"
+```
+
+### Task I3: Sessions in submit + task-list session filter
+
+**Files:**
+- Modify: `crates/vox-gui/ui/src/App.tsx` (`handleLoquelaSubmit`)
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Tasks/tasksHelpers.ts` (+ test)
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Tasks/TasksView.tsx`
+
+- [ ] **Step 1: Replace the hardcoded session id**
+
+In `handleLoquelaSubmit`, change `session_id: payload.session_id ?? 'gui-loquela'` → `session_id: payload.session_id ?? activeSessionId`. Also attach the active session's working set: `files: [...contextFiles, ...activeSession.scopePaths]` (where `activeSession = sessions.find(s => s.id === activeSessionId)`; dedupe with a `Set`).
+
+- [ ] **Step 2: Session filter helper (failing test first)**
+
+Add to `tasksHelpers.test.ts`:
+
+```ts
+describe('filterBySession', () => {
+  it('returns all rows for null filter and only matching session otherwise', () => {
+    const rows = [row({ id: 1, session_id: 'gui-a' }), row({ id: 2, session_id: 'gui-b' }), row({ id: 3, session_id: null })];
+    expect(filterBySession(rows, null)).toHaveLength(3);
+    expect(filterBySession(rows, 'gui-a').map(t => t.id)).toEqual([1]);
+  });
+});
+```
+
+Implement in `tasksHelpers.ts`:
+
+```ts
+export function filterBySession(rows: TaskRow[], sessionId: string | null): TaskRow[] {
+  if (!sessionId) return rows;
+  return rows.filter(t => t.session_id === sessionId);
+}
+```
+
+Run: `pnpm vitest run src/components/surfaces/Tasks/tasksHelpers.test.ts` — PASS.
+
+- [ ] **Step 3: Filter chips in TasksView**
+
+Add a session filter row under the header: an "All" chip plus one chip per distinct `session_id` present in `rows` (label it with the session title when the id matches a `ChatSession` from `vox_chat_sessions` localStorage; otherwise the raw id). State `const [sessionFilter, setSessionFilter] = useState<string | null>(null);`, apply `filterBySession(rows, sessionFilter)` before `groupTasks`. Style the chips exactly like SearchView's `ScopeChip` (active: `border-brass/40 bg-brass/10 text-brass`).
+
+- [ ] **Step 4: Verify + commit**
+
+Run: `pnpm vitest run && pnpm build` (ui).
+
+```bash
+git add crates/vox-gui/ui/src/App.tsx crates/vox-gui/ui/src/components/surfaces/Tasks/
+git commit -m "feat(gui): per-session task attribution — active tab feeds session_id, tasks filterable by session"
+```
+
+### Task I4: Per-tab working-set scope (different parts of the codebase)
+
+**Files:**
+- Modify: `crates/vox-gui/ui/src/components/layout/SessionTabs.tsx` or Loquela chips area
+- Modify: `crates/vox-gui/ui/src/App.tsx`
+
+- [ ] **Step 1: Scope editor**
+
+Loquela already has a context-chips mechanism (`chips`/`setChips` props, file/url chips). Reuse it: when the user pins a chip (add a small pin toggle on file-kind chips), write its path into the active session's `scopePaths` (`setSessions(renameless update)`), and show pinned chips with a filled style. On session switch, hydrate the pinned chips from `scopePaths`. This gives each tab a persistent working set — e.g. tab 1 pinned to `crates/vox-gui`, tab 2 to `crates/vox-populi` — which flows into `file_manifest` on every submit (I3 Step 1), which is exactly what `resolve_route` uses to keep the two streams on different agents and what `choose_strategy` uses to pick VCS isolation on overlap.
+
+Implementation detail: read the chip component in `Loquela.tsx` first; the pin toggle is a small button inside the chip with `Icon.link` (exists) or a `●` glyph; pinned state = membership in `activeSession.scopePaths`.
+
+- [ ] **Step 2: Verify + commit**
+
+Run: `pnpm build` (ui). Manual check: pin a path in tab 1, switch tabs, switch back — chip persists.
+
+```bash
+git add crates/vox-gui/ui/src/App.tsx crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx crates/vox-gui/ui/src/components/layout/SessionTabs.tsx
+git commit -m "feat(gui): pinned working-set chips per chat session feed file affinity"
+```
+
+---
+
+# Track J — Intake intelligence: near-duplicate detection + overlap visibility
+
+**Verified baseline:** there is NO duplicate detection in the live submit path — `AgentQueue::enqueue_dedup` (`queue/priority.rs:250`) exists but is never called; `submit_task_with_agent` (`task_submit.rs:52-138`) enqueues unconditionally. Dependencies ARE enforced at dequeue (`drain.rs:6-25` checks `t.is_ready(&self.completed)` against `depends_on`). File contention is already handled at runtime by `FileLockManager` + isolation-strategy selection — so Track J does **detection and user-mediated dedup**, not automatic chaining (the runtime already serializes overlapping writes; silently rewriting user intent is exactly what the user asked to avoid).
+
+### Task J1: Similarity module (pure, tested)
+
+**Files:**
+- Create: `crates/vox-orchestrator/src/services/similarity.rs`
+- Modify: `crates/vox-orchestrator/src/services/mod.rs` (`pub mod similarity;`)
+
+- [ ] **Step 1: Failing tests** (inline)
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn identical_descriptions_score_one() {
+        assert!((jaccard("fix the flaky auth test", "fix the flaky auth test") - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn disjoint_descriptions_score_zero() {
+        assert_eq!(jaccard("refactor mesh dispatch", "write release notes"), 0.0);
+    }
+
+    #[test]
+    fn near_duplicates_score_high() {
+        let a = "Fix the flaky auth test in vox-gui";
+        let b = "fix flaky auth test in vox-gui please";
+        assert!(jaccard(a, b) > 0.6, "got {}", jaccard(a, b));
+    }
+
+    #[test]
+    fn case_and_punctuation_are_normalized() {
+        assert!((jaccard("Add CI gate!", "add ci gate") - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn empty_inputs_score_zero() {
+        assert_eq!(jaccard("", "anything"), 0.0);
+        assert_eq!(jaccard("", ""), 0.0);
+    }
+}
+```
+
+Run: `cargo test -p vox-orchestrator similarity` — FAIL (module missing).
+
+- [ ] **Step 2: Implement**
+
+```rust
+//! Token-set similarity for near-duplicate task detection.
+//!
+//! Deliberately cheap (no embeddings, no model calls): lowercased alphanumeric
+//! token sets + Jaccard. Good enough to catch "the user typed the same ask
+//! twice" and "two tabs filed the same bug"; the GUI mediates anything fuzzier.
+
+use std::collections::HashSet;
+
+fn token_set(s: &str) -> HashSet<String> {
+    s.split(|c: char| !c.is_alphanumeric())
+        .filter(|t| !t.is_empty())
+        .map(|t| t.to_lowercase())
+        .collect()
+}
+
+/// Jaccard similarity of the two descriptions' token sets, in [0, 1].
+pub fn jaccard(a: &str, b: &str) -> f64 {
+    let sa = token_set(a);
+    let sb = token_set(b);
+    if sa.is_empty() || sb.is_empty() {
+        return 0.0;
+    }
+    let inter = sa.intersection(&sb).count() as f64;
+    let union = sa.union(&sb).count() as f64;
+    inter / union
+}
+
+/// Threshold above which two task descriptions are treated as near-duplicates.
+pub const NEAR_DUPLICATE_THRESHOLD: f64 = 0.85;
+```
+
+- [ ] **Step 3: Run to verify pass**
+
+Run: `cargo test -p vox-orchestrator similarity` — PASS (5 tests).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add crates/vox-orchestrator/src/services/
+git commit -m "feat(orchestrator): token-Jaccard near-duplicate similarity for task intake"
+```
+
+### Task J2: Duplicate-aware SUBMIT_TASK + GUI confirm flow
+
+**Files:**
+- Modify: `crates/vox-orchestrator/src/orch_daemon/mod.rs` (`SUBMIT_TASK` arm)
+- Modify: `crates/vox-gui/src/commands/control_plane.rs`
+- Modify: `crates/vox-gui/ui/src/App.tsx` + `TasksView.tsx`
+- Test: `task_dispatch_tests`
+
+- [ ] **Step 1: Failing dispatch tests**
+
+```rust
+    #[tokio::test]
+    async fn near_duplicate_blocked_when_not_allowed() {
+        let (orch, first_id) = orch_with_one_task().await; // "first task"
+        let resp = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({
+                    "description": "first task",
+                    "allow_duplicate": false,
+                }),
+            ),
+        )
+        .await;
+        let v = result_value(&resp);
+        assert_eq!(v["duplicate_of"].as_u64(), Some(first_id));
+        assert!(v["task_id"].is_null());
+        // Nothing new enqueued:
+        assert_eq!(orch.all_tasks().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn near_duplicate_enqueued_but_flagged_when_allowed() {
+        let (orch, first_id) = orch_with_one_task().await;
+        let resp = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({ "description": "first task" }), // allow_duplicate defaults true
+            ),
+        )
+        .await;
+        let v = result_value(&resp);
+        assert!(v["task_id"].as_u64().is_some());
+        assert_eq!(v["duplicate_of"].as_u64(), Some(first_id));
+        assert_eq!(orch.all_tasks().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn distinct_task_has_no_duplicate_flag() {
+        let (orch, _) = orch_with_one_task().await;
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({ "description": "completely unrelated migration work" }),
+            ),
+        )
+        .await;
+        assert!(result_value(&resp)["duplicate_of"].is_null());
+    }
+```
+
+Run: `cargo test -p vox-orchestrator task_dispatch_tests` — FAIL (no `duplicate_of` in response).
+
+- [ ] **Step 2: Implement in the SUBMIT_TASK arm**
+
+In `orch_daemon/mod.rs`, inside the `SUBMIT_TASK` arm after `description` is parsed and **before** the `orch.submit_task_with_agent(...)` call, insert:
+
+```rust
+            let allow_duplicate = req
+                .params
+                .get("allow_duplicate")
+                .and_then(|x| x.as_bool())
+                .unwrap_or(true);
+            // Near-duplicate scan over live (queued + in-progress) tasks.
+            let duplicate_of = orch
+                .all_tasks()
+                .iter()
+                .filter(|t| {
+                    crate::services::similarity::jaccard(&t.description, description)
+                        >= crate::services::similarity::NEAR_DUPLICATE_THRESHOLD
+                })
+                .map(|t| t.id.0)
+                .next();
+            if let Some(dup) = duplicate_of {
+                if !allow_duplicate {
+                    return response_result(
+                        &req.id,
+                        serde_json::json!({ "task_id": null, "duplicate_of": dup }),
+                    );
+                }
+            }
+```
+
+and extend the success response from `json!({ "task_id": task_id.0 })` to:
+
+```rust
+                    response_result(
+                        &req.id,
+                        serde_json::json!({ "task_id": task_id.0, "duplicate_of": duplicate_of }),
+                    )
+```
+
+- [ ] **Step 3: Run to verify pass**
+
+Run: `cargo test -p vox-orchestrator task_dispatch_tests` — PASS.
+
+- [ ] **Step 4: Thread through Tauri + GUI confirm**
+
+`control_plane.rs`: add `pub allow_duplicate: Option<bool>` to `SubmitTaskInput`, forward `"allow_duplicate": input.allow_duplicate.unwrap_or(true)` in the params, and surface the response field — extend `ControlPlaneResult` with `pub duplicate_of: Option<String>` (set from `response.get("duplicate_of").and_then(|v| v.as_u64()).map(|v| v.to_string())`; existing constructors gain `duplicate_of: None`).
+
+GUI (`App.tsx` `handleLoquelaSubmit` and TasksView `addTask`): submit with `allow_duplicate: false` first; when the result has `duplicate_of` and no `task_id`:
+
+```ts
+const dup = res.duplicate_of;
+if (dup && !res.task_id) {
+  const goAhead = window.confirm(
+    `A nearly identical task (#${dup}) is already queued.\n\nOK = add anyway as a separate task\nCancel = skip (open Tasks to edit #${dup} instead)`
+  );
+  if (!goAhead) {
+    pushToast({ tone: 'info', title: 'Skipped duplicate', body: `Existing task #${dup} kept` });
+    return;
+  }
+  // resubmit, explicitly allowing the duplicate
+  await executeIpcWithRun('submit_orchestrator_task', { input: { ...inputArgs, allow_duplicate: true } }, 'gui.loquela.submit');
+}
+```
+
+(In `handleLoquelaSubmit` the chat bubbles are created before the IPC resolves — on the skip path dispatch the existing failure/removal action the reducer has for failed submissions, or set the assistant bubble status to `'failed'` with error text `'skipped: duplicate of #N'`; read the reducer's action set and use what exists.) This is the "incoming work feeding into existing — don't duplicate" control: detection is automatic, the decision is the user's.
+
+- [ ] **Step 5: Verify + commit**
+
+Run: `cargo check -p vox-gui && pnpm build` (ui).
+
+```bash
+git add crates/vox-orchestrator/src/orch_daemon/mod.rs crates/vox-gui/src/commands/control_plane.rs crates/vox-gui/ui/src/App.tsx crates/vox-gui/ui/src/components/surfaces/Tasks/TasksView.tsx
+git commit -m "feat: near-duplicate task detection with user-mediated confirm on submit"
+```
+
+### Task J3: Overlap + dependency visibility in TasksView
+
+**Files:**
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Tasks/tasksHelpers.ts` (+ test)
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Tasks/TasksView.tsx`
+
+- [ ] **Step 1: Failing test**
+
+```ts
+describe('findWriteOverlaps', () => {
+  it('maps each task to the queued task ids sharing a write file', () => {
+    const rows = [
+      row({ id: 1, write_files: ['a.rs', 'b.rs'] }),
+      row({ id: 2, write_files: ['b.rs'] }),
+      row({ id: 3, write_files: ['c.rs'] }),
+    ];
+    const m = findWriteOverlaps(rows);
+    expect(m.get(1)).toEqual([2]);
+    expect(m.get(2)).toEqual([1]);
+    expect(m.get(3)).toBeUndefined();
+  });
+});
+```
+
+- [ ] **Step 2: Implement**
+
+```ts
+export function findWriteOverlaps(rows: TaskRow[]): Map<number, number[]> {
+  const byFile = new Map<string, number[]>();
+  for (const t of rows) {
+    for (const f of t.write_files) {
+      const list = byFile.get(f) ?? [];
+      list.push(t.id);
+      byFile.set(f, list);
+    }
+  }
+  const out = new Map<number, number[]>();
+  for (const ids of byFile.values()) {
+    if (ids.length < 2) continue;
+    for (const id of ids) {
+      const others = ids.filter(o => o !== id);
+      const cur = out.get(id) ?? [];
+      out.set(id, [...new Set([...cur, ...others])].sort((a, b) => a - b));
+    }
+  }
+  return out;
+}
+```
+
+Run: `pnpm vitest run src/components/surfaces/Tasks/tasksHelpers.test.ts` — PASS.
+
+- [ ] **Step 3: Render badges**
+
+In each task row, when `findWriteOverlaps` has an entry, render a small amber chip `⚠ overlaps #2` (title: "These tasks write the same files — the orchestrator serializes them via file locks and may split VCS changes"); when `depends_on` is non-empty render `→ after #N`. Both as chips in the row's metadata line, same chip shell as the priority chip.
+
+- [ ] **Step 4: Verify + commit**
+
+Run: `pnpm vitest run && pnpm build` (ui).
+
+```bash
+git add crates/vox-gui/ui/src/components/surfaces/Tasks/
+git commit -m "feat(gui): overlap and dependency badges in the task list"
+```
+
+---
+
+# Track K — Mesh/A2A visibility + composite remote relief
+
+**Verified baseline:** remote distribution already exists — `RemoteTaskEnvelope` (`a2a/envelope.rs:5-102`, with `idempotency_key`, `exec_lease_id`, `session_id`, `capability_requirements_json`), dispatch machinery in `a2a/dispatch/{mesh,remote_poller,remote_worker}.rs`, `PopuliRemoteDelegate { idempotency_key, lease_id, claimer_node_id }` (`types/tasks.rs:196-207`), and routing hints written by `mesh_federation_poll.rs` via `set_remote_populi_routing_hints` and consumed at `runtime.rs:734-741`. Track K makes the existing machinery *visible* and the scaling relief smarter — it does not build new distribution.
+
+### Task K1: Remote-delegation badge in the task list
+
+**Files:**
+- Modify: `crates/vox-orchestrator/src/orch_daemon/mod.rs` (LIST_TASKS arm)
+- Modify: `crates/vox-gui/src/commands/control_plane.rs` (TaskRowDto)
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Tasks/` (TaskRow + render)
+
+- [ ] **Step 1: Find the delegate field**
+
+Grep `PopuliRemoteDelegate` in `types/tasks.rs` to find the field name on `AgentTask` that holds it (the struct is defined at lines 196-207; the field is nearby in the AgentTask definition — likely `populi_remote: Option<PopuliRemoteDelegate>`). Use the real name below.
+
+- [ ] **Step 2: Extend LIST_TASKS + DTO + UI**
+
+In the LIST_TASKS json: `"remote_node": t.<field>.as_ref().and_then(|d| d.claimer_node_id.clone()),`. In `TaskRowDto` + the TS `TaskRow`: `remote_node: Option<String>` / `remote_node: string | null` (extend the test factory default with `remote_node: null`). In the row render, when set: a chip `mesh: {remote_node}` (title: "Executing remotely via A2A lease"). Extend the A1 dispatch test: assert the field is present (null for a local task).
+
+- [ ] **Step 3: Verify + commit**
+
+Run: `cargo test -p vox-orchestrator task_dispatch_tests && pnpm vitest run && pnpm build`.
+
+```bash
+git add crates/vox-orchestrator/src/orch_daemon/mod.rs crates/vox-gui/src/commands/control_plane.rs crates/vox-gui/ui/src/components/surfaces/Tasks/
+git commit -m "feat: surface A2A remote delegation (claimer node) in the task list"
+```
+
+### Task K2: Composite remote-capacity relief in scaling
+
+**Files:**
+- Modify: `crates/vox-orchestrator/src/runtime.rs` (~line 734-741, the hint→capacity mapping)
+- Test: `services/scaling.rs` (existing `remote_gpu_capacity_reduces_scale_up_pressure` test stays green)
+
+- [ ] **Step 1: Read the hint struct**
+
+Open `runtime.rs:734-741` and the writer (`mesh_federation_poll.rs` → `set_remote_populi_routing_hints` in `orchestrator/agent/registration.rs`) to learn the hint element type and which capacity fields it carries (GPU count is currently extracted; check for memory/CPU fields).
+
+- [ ] **Step 2: Composite capacity**
+
+Today the mapping reduces hints to a GPU count. Replace the reduction with a composite "relief units" integer: `gpu_count + (free_mem_gb / 8).floor()` per remote node, summed (when the hint exposes memory; if it only carries GPU data, extend the hint struct where it's defined and populate it in `mesh_federation_poll.rs` from the same node records that feed GPU counts — they're `NodeRecord`s, which carry `memory_free_bytes`). Keep the variable name `remote_gpu_capacity` → rename to `remote_capacity_units` at the call site and in `decide_scaling`'s parameter docs (the parameter is already generically "capacity relief"; `ScalingService` math is unchanged). Add a unit test in `scaling.rs` mirroring `remote_gpu_capacity_reduces_scale_up_pressure` but with capacity coming from the memory term.
+
+- [ ] **Step 3: Verify + commit**
+
+Run: `cargo test -p vox-orchestrator scaling`.
+
+```bash
+git add crates/vox-orchestrator/src/runtime.rs crates/vox-orchestrator/src/services/scaling.rs crates/vox-orchestrator/src/mesh_federation_poll.rs
+git commit -m "feat(orchestrator): composite remote capacity relief (GPU + memory) in scaling"
+```
+
+### Task K3: Mesh resources card in the GUI
+
+**Files:**
+- Create: `crates/vox-gui/src/commands/mesh_resources.rs`
+- Modify: `crates/vox-gui/src/commands/mod.rs`, `crates/vox-gui/src/main.rs`
+- Modify: `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx` (mesh section) — or the Populi surface if it has a resources area; check both, put it where node trust already lives
+
+- [ ] **Step 1: Tauri command**
+
+```rust
+//! Mesh resource summary bridge — calls the populi control plane's
+//! /v1/populi/resources/summary endpoint (Track D1).
+
+#[tauri::command]
+pub async fn get_mesh_resource_summary() -> Result<serde_json::Value, String> {
+    // Resolve the control-plane base URL the same way the mesh join path does:
+    // VOX_ORCHESTRATOR_MESH_CONTROL_URL > VOX_MESH_CONTROL_ADDR > Vox.toml [mesh].control_url.
+    // Find the existing resolution helper in vox-populi (http_lifecycle.rs uses it)
+    // or in whatever vox-gui code backs the existing mesh settings section
+    // (it already lists nodes via invoke_mcp_tool('vox_mesh_nodes') — if that
+    // MCP path is the only working transport, mirror it instead of raw HTTP).
+    let base = std::env::var("VOX_ORCHESTRATOR_MESH_CONTROL_URL")
+        .or_else(|_| std::env::var("VOX_MESH_CONTROL_ADDR"))
+        .map_err(|_| "mesh control URL not configured".to_string())?;
+    let url = format!("{}/v1/populi/resources/summary", base.trim_end_matches('/'));
+    let client = vox_http_client::client();
+    let mut req = client.get(&url);
+    if let Ok(token) = std::env::var("VOX_MESH_TOKEN") {
+        req = req.bearer_auth(token);
+    }
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(format!("mesh control plane returned {}", res.status()));
+    }
+    res.json().await.map_err(|e| e.to_string())
+}
+```
+
+(Vox.toml `[mesh].control_url` fallback: parse via `vox_repository`'s populi_toml reader — `crates/vox-repository/src/populi_toml.rs:29-49` — if the env vars are unset; add it if straightforward, else env-only is acceptable for this slice and the error string tells the user what to set.)
+
+- [ ] **Step 2: Card in the mesh settings section**
+
+In the mesh section of SettingsView (the one listing nodes with trust toggles), add above the node list:
+
+```tsx
+{summary && (
+  <div className="grid grid-cols-4 gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-3 text-center">
+    <div><div className="text-[18px] text-zinc-100">{summary.eligible_node_count}/{summary.node_count}</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">nodes ready</div></div>
+    <div><div className="text-[18px] text-zinc-100">{summary.gpu_allocatable_total}</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">GPUs free</div></div>
+    <div><div className="text-[18px] text-zinc-100">{(summary.memory_free_bytes_total / 2 ** 30).toFixed(0)} GiB</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">RAM free</div></div>
+    <div><div className="text-[18px] text-zinc-100">{summary.cpu_usage_pct_avg.toFixed(0)}%</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">avg CPU</div></div>
+  </div>
+)}
+```
+
+loaded via `invoke('get_mesh_resource_summary')` in the section's existing load effect, with failures non-fatal (no mesh configured → card hidden).
+
+- [ ] **Step 3: Verify + commit**
+
+Run: `cargo check -p vox-gui && pnpm build` (ui).
+
+```bash
+git add crates/vox-gui/src/commands/ crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx
+git commit -m "feat(gui): mesh resource summary card — nodes/GPUs/RAM/CPU at a glance"
+```
+
+---
+
 # Track H — Documentation + final gates
 
 ### Task H1: Where-things-live + docs
@@ -2982,6 +3945,8 @@ git commit -m "fix(gui): search keyboard wrap-around + facet focus rings"
 | Mesh resource summary endpoint | `vox-populi /v1/populi/resources/summary` |
 | Local CPU/RAM probe for scaling | `vox-orchestrator::services::local_resources` |
 | Settings search index | `vox-gui/ui/.../Settings/settingsIndex.ts` |
+| Chat session tabs (multi-tab) | `vox-gui/ui/src/lib/sessions.ts` + `components/layout/SessionTabs.tsx` |
+| Near-duplicate task detection | `vox-orchestrator::services::similarity` (consumed in `orch_daemon` SUBMIT_TASK) |
 
 - [ ] **Step 2: Commit**
 
@@ -2996,6 +3961,7 @@ git commit -m "docs: where-things-live rows for tasks surface, llm throttle, mes
 
 ```bash
 cargo test -p vox-orchestrator
+cargo test -p vox-orchestrator --features system-metrics local_resources
 cargo test -p vox-populi
 cargo test -p vox-config
 cargo test -p vox-actor-runtime
@@ -3044,12 +4010,20 @@ git commit -m "chore: fmt sweep for async-chat/tasklist/scaling/omnisearch track
 
 - **Hopper wiring / persistence (Hp-T5)** — the GUI task list rides the live agent queues; the hopper remains the future intake-classifier seam. Wiring it now would create two sources of truth.
 - **Mesh gossip of resources** — heartbeat + control-plane pull stays; D1's summary endpoint is the aggregation layer. Gossip belongs to the mesh SSOT phases (P3+).
-- **Auto-spawning remote nodes** — scaling adjusts the local fleet and *relieves* pressure using remote GPU capacity (existing hint); actually dispatching orchestrator tasks to remote nodes end-to-end is mesh SSOT P2/P3 territory.
+- **Auto-spawning remote nodes** — scaling adjusts the local fleet and *relieves* pressure using remote capacity (existing hints, K2 makes them composite); the A2A remote-execution path already exists (`a2a/dispatch/`) and Track K only *surfaces* it.
+- **Automatic task chaining / silent dedup** — file contention is already serialized at runtime by `FileLockManager` + isolation-strategy selection; near-duplicates are *detected* (J2) but the decision is always the user's. Rewriting `depends_on` behind the user's back contradicts the manual-control requirement.
+- **Embedding/LLM-based similarity** — token Jaccard (J1) is the intake bar; anything fuzzier goes through the GUI confirm. An embedding upgrade can swap into `services::similarity` later without touching the daemon protocol.
+- **Multiple OS windows** — tabs are in-app over the session_id spine (Track I); Tauri multi-window adds per-window state plumbing with no additional capability.
+- **Per-session/tenant resource reservations** — tabs share the fleet; `tenant_id` budget gating exists for billing-style quotas and is not extended here.
 - **Backend docs corpus in vox-search/tantivy** — the frontmatter index (G1) covers GUI search; a tantivy docs corpus can supersede it later without UI changes.
 - **`vox config` CLI surface for `[llm]`** — `known_keys` registration in E1 makes `vox config set llm.max_concurrent_requests 16` work for free; no new CLI commands.
 
+## Execution order
+
+A → B → (C, D, E in any order) → F → G → I → J → K → H. The A-track RPCs are the substrate for B/I3/J2/K1; F4's `SETTINGS_INDEX` precedes G2/G3; everything else parallelizes. Each task is one commit; each track ends with its crate-local gates green.
+
 ## Self-review notes
 
-- Spec coverage: async chat (already true; gap was visibility → B), task list with full manual icon-driven control (A+B: add/edit/remove/reprioritize), resource awareness incl. mesh nodes + CPU/GPU broadcast (D1/D2), dynamic scale up/down (D3 + existing ScalingService), user-configurable in settings extending the SSOT (E1/F1/F3), OpenRouter limits researched + parallelism configurable (E1–E3), omni-search across commands/settings/docs/windows (G1–G3), sidebar search (G4), visual/keyboard bugs (C2, G3 selected-states, G5), settings hydration + theme bugs (F1/F2).
-- Type consistency: `TaskRow`/`TaskRowDto` field names match (`agent_id`, `lifecycle`); `cyclePriority` values match daemon `REORDER_TASK` strings; `vox_settings_seed` key shared between F4 and G3; `SettingEntry` shared between F4 and G2.
-- Known adaptation points are explicitly marked (icon keys, `NodeRecord` field types, `parse_or_warn` signature, `save_merged_global_config` call shape, sysinfo 0.39 API names) — these are read-and-mirror instructions against named files, not TBDs.
+- Spec coverage: async chat (already true; gap was visibility → B), task list with full manual icon-driven control (A+B: add/edit/remove/reprioritize, per-session filtering I3), resource awareness incl. mesh nodes + CPU/GPU broadcast (D1/D2/K2/K3), dynamic scale up/down (D3 + existing ScalingService), user-configurable in settings extending the SSOT (E1/F1/F3), OpenRouter limits researched + parallelism configurable (E1–E3), omni-search across commands/settings/docs/windows (G1–G3), sidebar search (G4), visual/keyboard bugs (C2, G3 selected-states, G5), settings hydration + theme bugs (F1/F2), multiple tabs over the session spine (I1–I4), intelligent division of incoming work with dedup under manual control (J1–J3 + existing affinity routing/rebalance documented in Track I preamble), A2A distribution surfaced (K1) with composite capacity relief (K2).
+- Type consistency: `TaskRow`/`TaskRowDto` field names match (`agent_id`, `session_id`, `write_files`, `remote_node` added in K1, `lifecycle` normalized in the Tauri layer); `cyclePriority` values match daemon `REORDER_TASK` lowercase strings; `vox_settings_seed` shared between F4 and G3; `SettingEntry` shared between F4 and G2; `ChatSession` shared between I1/I2/I4; `duplicate_of` shape shared between J2's daemon arm, `ControlPlaneResult`, and both GUI submit paths.
+- Verification pass (2026-06-12): four read-only audit agents checked every signature/field anchor; all corrections are folded inline and the cross-cutting ones are listed in the Verification addendum. Remaining read-and-mirror points are deliberate (un-excerpted code regions: SettingsView `update()` internals, theme value strings, `OpenLocatorDto` exact fields, `AgentTask`'s populi-delegate field name, hint struct in K2, secrets accessor in E3) — each names the exact file/lines to read first.
