@@ -51,6 +51,7 @@ async fn main() {
             initial_view: Mutex::new(initial_view),
         })
         .manage(commands::mic::MicCaptureState::default())
+        .manage(commands::pty::PtyManager::default())
         .manage(std::sync::Arc::new(
             commands::daemon::PersistentDaemon::default(),
         ))
@@ -98,6 +99,13 @@ async fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::catalog::get_command_catalog,
+            commands::discovery::discovery_suggest,
+            commands::discovery::discovery_help,
+            commands::discovery::discovery_record,
+            commands::pty::pty_spawn,
+            commands::pty::pty_write,
+            commands::pty::pty_close,
+            commands::console_a2a::send_to_agent,
             commands::action_manifest::get_action_manifest,
             commands::execute::execute_command,
             commands::devlog::log_frontend,

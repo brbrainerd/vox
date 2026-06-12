@@ -3,3 +3,14 @@ Copyright 2024-2026 Bert Brainerd
 
 This product includes software developed as part of the Vox project
 and is licensed under the Apache License, Version 2.0. See LICENSE.
+
+---
+
+This product includes skills vendored from the anthropics/skills repository
+(https://github.com/anthropics/skills), Copyright Anthropic, PBC.
+Licensed under the Apache License, Version 2.0.
+Vendored subset: algorithmic-art, brand-guidelines, canvas-design, claude-api,
+frontend-design, internal-comms, mcp-builder, skill-creator, slack-gif-creator,
+theme-factory, web-artifacts-builder, webapp-testing.
+Pinned at commit 57546260929473d4e0d1c1bb75297be2fdfa1949.
+See assets/skills/SOURCES.toml for full provenance.

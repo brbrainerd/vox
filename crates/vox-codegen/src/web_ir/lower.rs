@@ -311,6 +311,16 @@ fn inject_primitive_dom_markers(
             attrs.push(("data-vox-overlay".to_string(), "\"true\"".to_string()));
         }
         "toast" | "drawer" | "modal" => {
+            // These primitives lower to a plain <div>, losing their tier identity.
+            // Stamp the default tier as data-vox-layer so validate_layer (GA-26) and
+            // portal emit can recover it. (An explicit @layer override, if any, is
+            // already pushed by the component-root path in lower_hir_to_web_ir.)
+            let tier =
+                vox_compiler::hir::nodes::layer::LayerTier::default_for_primitive(original_tag);
+            attrs.push((
+                "data-vox-layer".to_string(),
+                format!("\"{}\"", tier.as_str()),
+            ));
             if let Some(z_val) = static_pairs
                 .iter()
                 .find(|(k, _)| k == "z")
@@ -328,6 +338,42 @@ fn inject_primitive_dom_markers(
             }
         }
         _ => {}
+    }
+
+    // Mirror color-bearing kwargs into data-vox-* attrs (JSON-quoted, same convention
+    // as data-vox-surface) so the palette + pairwise-contrast validators can see the
+    // author's color choices — which otherwise vanish into Tailwind className strings.
+    for (k, v) in &static_pairs {
+        let mirror = match k.as_str() {
+            "color" => Some("data-vox-color"),
+            "bg" => Some("data-vox-bg"),
+            "border_color" => Some("data-vox-border-color"),
+            _ => None,
+        };
+        if let Some(mk) = mirror {
+            attrs.push((mk.to_string(), format!("\"{}\"", v.trim_matches('"'))));
+        }
+    }
+
+    // Mirror occlusion-bearing kwargs so the layer validator (A10) can flag
+    // position:absolute / raw z / occlusion-smuggling raw_class used outside a
+    // surface parent. These do NOT replace the existing class output — they are
+    // analysis-only shadow attrs.
+    for (k, v) in &static_pairs {
+        let val = v.trim_matches('"');
+        match k.as_str() {
+            "position" | "top" | "bottom" | "left" | "right" | "inset" => {
+                let pos = if k == "position" { val } else { "inset" };
+                attrs.push(("data-vox-pos-raw".to_string(), format!("\"{pos}\"")));
+            }
+            "z" if crate::web_ir::ZTier::from_str(val).is_none() => {
+                attrs.push(("data-vox-z-raw".to_string(), format!("\"{val}\"")));
+            }
+            "raw_class" => {
+                attrs.push(("data-vox-raw-class".to_string(), format!("\"{val}\"")));
+            }
+            _ => {}
+        }
     }
 
     attrs
@@ -734,6 +780,19 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
             let endpoint_names: HashSet<String> =
                 hir.endpoint_fns.iter().map(|e| e.name.clone()).collect();
             let root = arena.lower_expr(view, &state_names, &endpoint_names);
+            // GA-26: a component's @layer(tier:) declares the Z-tier of its root
+            // surface. Stamp it onto the root element so validate_layer honors the
+            // explicit override (and emit can portal it later).
+            if let Some(layer) = &rc.layer {
+                if let Some(super::DomNode::Element { attrs, .. }) =
+                    arena.nodes.get_mut(root.0 as usize)
+                {
+                    attrs.push((
+                        "data-vox-layer".to_string(),
+                        format!("\"{}\"", layer.tier.as_str()),
+                    ));
+                }
+            }
             m.view_roots.push((rc.name.clone(), root));
         }
     }

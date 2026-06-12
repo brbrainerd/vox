@@ -1,3 +1,9 @@
-# cargo-audit config — keep RUSTSEC ignores aligned with root deny.toml [advisories].ignore
+# cargo-audit configuration (Guards CI gate: `cargo audit`).
+# Keep ignores in lockstep with [advisories].ignore in /deny.toml.
+
 [advisories]
-ignore = ["RUSTSEC-2023-0071"]
+ignore = [
+  # rsa Marvin-attack timing sidechannel — no fixed release exists; transitive
+  # dependency. Mirrors the deny.toml ignore.
+  "RUSTSEC-2023-0071",
+]

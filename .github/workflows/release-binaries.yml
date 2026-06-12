@@ -138,10 +138,26 @@ jobs:
             echo "$sum  $(basename "$f")" >> checksums.txt
           done
 
+      # Supply-chain SBOM (SPDX) over the published artifacts. continue-on-error so
+      # a tooling hiccup can NEVER block a release; the SBOM is attached only if
+      # generated. NOTE: unverified in local dev — validate on the first tag run.
+      - name: Generate SBOM (SPDX)
+        id: sbom
+        continue-on-error: true
+        uses: anchore/sbom-action@v0
+        with:
+          path: release-artifacts
+          format: spdx-json
+          output-file: release-artifacts/sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
       - name: Create release with assets
         uses: softprops/action-gh-release@v3
         with:
           files: |
             release-artifacts/release-*/*
             release-artifacts/checksums.txt
+            release-artifacts/sbom.spdx.json
           generate_release_notes: true
+          fail_on_unmatched_files: false

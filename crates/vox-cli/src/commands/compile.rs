@@ -91,6 +91,15 @@ async fn run_single_workspace_member(args: &CompileArgs) -> Result<()> {
                 args.kind,
                 CompileKind::MobileAndroid | CompileKind::MobileIos
             ) {
+                // ADR "scope-tauri-desktop-only" (Accepted 2026-06-12) scopes Tauri to
+                // desktop; native mobile is the React Native + Expo target. The Tauri
+                // mobile compile path is kept (reversible) but deprecated — emit a loud
+                // warning steering authors to the supported path.
+                eprintln!(
+                    "warning[vox/compile/tauri-mobile-deprecated]: `vox compile --target mobile-{{android,ios}}` (Tauri mobile) is deprecated. \
+                     Per ADR scope-tauri-desktop-only, native mobile is the React Native + Expo target: build with `vox build --target mobile`. \
+                     Tauri remains supported for desktop packaging only."
+                );
                 println!(
                     "Mobile compile: Tauri mobile installers require Android SDK / Xcode — see docs/src/architecture/vox-application-packaging-ssot-2026.md"
                 );

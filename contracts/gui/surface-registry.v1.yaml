@@ -57,6 +57,14 @@ surfaces:
   nav_group: compute
   parent_surface: null
   notes: Models and mesh
+- view_key: console
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Console
+  nav_icon: command
+  nav_group: develop
+  parent_surface: workspace
+  notes: warp-model discovery terminal
 - view_key: coverage
   cli_group: null
   representation_tier: live_backend
@@ -587,6 +595,14 @@ surfaces:
   notes: null
 - view_key: null
   cli_group: repair
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
+  cli_group: repl
   representation_tier: none
   nav_label: null
   nav_icon: null
