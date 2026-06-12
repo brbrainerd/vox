@@ -811,21 +811,41 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
     isolation: 'wasm', checkpointMins: 5,
   });
 
+  // Mirror `vals` into a ref so `update` reads the freshest state, not a stale
+  // closure capture. Without this, a rapid second edit builds `next` from the
+  // pre-first-edit `vals` and persists the first field's old value to Vox.toml.
+  // The ref is written synchronously in `update` (not just via this effect) so
+  // two `update` calls in the same tick — before React re-renders — still
+  // compose instead of the second dropping the first's patch.
+  const valsRef = useRef(vals);
+  useEffect(() => { valsRef.current = vals; }, [vals]);
+
+  // Becomes true once mount hydration finishes. Until then `update` must not push
+  // hardcoded default OrchestratorConfig values to disk (an early click before
+  // get_orchestrator_config resolves would otherwise clobber real config).
+  const [hydrated, setHydrated] = useState(false);
+
   const update = async (patch: Partial<SettingsState>) => {
-    const next = { ...vals, ...patch };
+    const next = { ...valsRef.current, ...patch };
+    valsRef.current = next;
     setVals(next);
 
     // Apply the accent palette immediately on theme change (before/independent
     // of persistence), so the swatch selection takes visible effect at once.
     if (patch.theme !== undefined) applyTheme(next.theme);
 
-    // Attempt to push to Rust (fails gracefully if command not registered)
+    // GUI-only preferences (theme/telemetry/sign/checkpointMins) always persist —
+    // they don't depend on orchestrator hydration.
     try {
-      await invoke('set_orchestrator_config', { config: next });
       for (const [k, v] of Object.entries(patch)) {
         if (['theme', 'telemetry', 'sign', 'checkpointMins'].includes(k)) {
           await invoke('set_gui_preference', { key: `gui.${k}`, value: String(v) });
         }
+      }
+      // Defer orchestrator persistence until real values are loaded, so we never
+      // write defaults over a user's on-disk config before hydration completes.
+      if (hydrated) {
+        await invoke('set_orchestrator_config', { config: next });
       }
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Save failed', body: String(err) });
@@ -850,7 +870,9 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
           telemetry: telemetry || prev.telemetry,
           sign: sign != null ? sign === 'true' : prev.sign,
           // checkpointMins is a UI-only preference (no OrchestratorConfig field).
-          checkpointMins: checkpoint != null ? Number(checkpoint) || prev.checkpointMins : prev.checkpointMins,
+          checkpointMins: checkpoint != null
+            ? (Number.isFinite(Number(checkpoint)) ? Number(checkpoint) : prev.checkpointMins)
+            : prev.checkpointMins,
         }));
       } catch {
         // keep default local state when preference DB isn't available
@@ -874,6 +896,10 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
         }));
       } catch {
         // Missing daemon/manifest: keep current defaults.
+      } finally {
+        // Real values (or graceful fallbacks) are now in state; allow `update`
+        // to persist orchestrator config from here on.
+        setHydrated(true);
       }
     };
     hydrate();
