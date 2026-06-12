@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { Icon } from '../../ui/Icons';
 import { voxTransport } from '../../../transport';
 import { PriorityChainEditor } from './PriorityChainEditor';
+import { searchSettings } from './settingsIndex';
 
 const SECTIONS = [
   { id: 'orchestrator', icon: 'cpu',     label: 'Orchestrator' },
@@ -506,6 +507,19 @@ interface SettingsViewProps {
 
 export function SettingsView({ pushToast }: SettingsViewProps) {
   const [section, setSection] = useState('orchestrator');
+  const [filter, setFilter] = useState('');
+
+  // Deep link from omni-search: { section } seed in localStorage.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('vox_settings_seed');
+      if (raw) {
+        localStorage.removeItem('vox_settings_seed');
+        const seed = JSON.parse(raw) as { section?: string };
+        if (seed.section) setSection(seed.section);
+      }
+    } catch { /* ignore malformed seed */ }
+  }, []);
   const [routing, setRouting] = useState({
     efficiency: 25,
     precision: 30,
@@ -664,6 +678,30 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
     <div className="grid grid-cols-12 gap-5">
       {/* Nav */}
       <Glass className="col-span-12 md:col-span-3 p-3">
+        <input
+          value={filter}
+          onChange={e => setFilter(e.target.value)}
+          placeholder="Search settings…"
+          aria-label="Search settings"
+          className="mb-2 w-full rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[12px] text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-brass/30"
+        />
+        {filter.trim() ? (
+          <nav className="flex flex-col gap-1">
+            {searchSettings(filter).map(entry => (
+              <button
+                key={entry.id}
+                onClick={() => { setSection(entry.section); setFilter(''); }}
+                className="flex flex-col rounded-lg px-3 py-2 text-left text-zinc-300 hover:bg-white/[0.04] hover:text-zinc-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40"
+              >
+                <span className="text-[12px]">{entry.label}</span>
+                <span className="text-[10px] text-zinc-500">{entry.hint}</span>
+              </button>
+            ))}
+            {searchSettings(filter).length === 0 && (
+              <p className="px-3 py-2 text-[11px] text-zinc-600">No settings match.</p>
+            )}
+          </nav>
+        ) : (
         <nav className="flex flex-col gap-1">
           {SECTIONS.map(s => {
             const IcoCmp = (Icon as any)[s.icon] ?? Icon.bolt;
@@ -682,6 +720,7 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
             );
           })}
         </nav>
+        )}
       </Glass>
 
       {/* Content */}
