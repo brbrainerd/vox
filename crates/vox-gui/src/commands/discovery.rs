@@ -3,7 +3,7 @@
 //! `vox_gamify::discovery`; these commands adapt the command catalog to it.
 
 use serde::Serialize;
-use vox_cli::command_catalog::{build_catalog, CommandCatalogEntry};
+use vox_cli::command_catalog::{CommandCatalogEntry, build_catalog};
 
 /// A single suggestion returned to the UI.
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -57,7 +57,11 @@ pub fn match_catalog(
 #[tauri::command]
 pub fn discovery_suggest(typed: String, limit: Option<usize>) -> Result<Vec<Suggestion>, String> {
     let catalog = build_catalog();
-    let typed = typed.strip_prefix("vox ").unwrap_or(&typed).trim().to_string();
+    let typed = typed
+        .strip_prefix("vox ")
+        .unwrap_or(&typed)
+        .trim()
+        .to_string();
     Ok(match_catalog(&catalog.entries, &typed, limit.unwrap_or(8)))
 }
 
@@ -112,7 +116,9 @@ pub async fn discovery_record(
     dwell_ms: i64,
 ) -> Result<(), String> {
     let config = vox_db::DbConfig::resolve_for_mesh().map_err(|e| e.to_string())?;
-    let db = vox_db::Codex::connect(config).await.map_err(|e| e.to_string())?;
+    let db = vox_db::Codex::connect(config)
+        .await
+        .map_err(|e| e.to_string())?;
     let user_id = vox_gamify::db::canonical_user_id();
     let recall = if used {
         vox_gamify::discovery::Recall::Used

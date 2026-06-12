@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::sync::Mutex;
 
-use portable_pty::{native_pty_system, Child, CommandBuilder, PtySize};
+use portable_pty::{Child, CommandBuilder, PtySize, native_pty_system};
 use tauri::Emitter;
 
 /// Tauri event carrying a chunk of PTY output. Payload: { tab_id, data }.
