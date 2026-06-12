@@ -207,6 +207,7 @@ db/feed-source-add
 db/feed-source-list
 db/import
 db/ingest-tick
+db/introspect
 db/mens-metrics
 db/mens-runs
 db/migrate
@@ -267,6 +268,7 @@ db/schema
 db/status
 db/sync-invocables
 db/vacuum
+db/verify
 deploy
 dev
 diag

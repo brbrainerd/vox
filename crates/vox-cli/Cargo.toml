@@ -147,6 +147,7 @@ vox-http-client = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
+strsim = { workspace = true }
 sha2.workspace = true
 tokio = { workspace = true, features = ["io-std"] }
 vox-cli-core = { workspace = true }
@@ -306,6 +307,7 @@ wiremock = { workspace = true }
 # `deadpool::unmanaged::Pool::timeout_get`.
 deadpool = { workspace = true }
 vox-db = { workspace = true }
+vox-sql = { workspace = true }
 vox-orchestrator = { workspace = true }
 
 [[test]]
