@@ -18,10 +18,11 @@ First-party Vox distribution bundles. Each bundle is the same host binary plus a
 | `vox-fullstack` | — | 9 | 9 |
 | `vox-ml` | `vox-fullstack` | 2 | 11 |
 | `vox-ml-metal` | `vox-fullstack` | 1 | 10 |
-| `vox-mesh` | `vox-base` | 2 | 2 |
-| `vox-server` | `vox-base` | 4 | 4 |
+| `vox-mesh` | `vox-base` | 3 | 3 |
+| `vox-server` | `vox-base` | 5 | 5 |
 | `vox-edge` | `vox-base` | 4 | 4 |
-| `vox-dev` | `vox-fullstack` | 7 | 16 |
+| `vox-cloud-only` | `vox-base` | 3 | 3 |
+| `vox-dev` | `vox-fullstack` | 8 | 17 |
 | `vox-mobile` | `vox-base` | 0 | 0 |
 
 ## Per-bundle plugin lists
@@ -83,11 +84,12 @@ Extends: `vox-fullstack`
 
 ### `vox-mesh`
 
-Server-side mesh deployment.
+Server-side mesh deployment with cloud sync.
 
 Extends: `vox-base`
 
 - `populi-mesh` — Populi mesh transport (HTTP control plane, A2A dispatch) + agent skill.
+- `cloud` — CloudSync plugin for syncing model artifacts with HF Hub, S3, and other providers. SP7 scaffold — extraction from cloud integration code deferred.
 - `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
 
 ### `vox-server`
@@ -97,6 +99,7 @@ Headless backend deployment: orchestrator + mesh, no GUI/ML.
 Extends: `vox-base`
 
 - `populi-mesh` — Populi mesh transport (HTTP control plane, A2A dispatch) + agent skill.
+- `cloud` — CloudSync plugin for syncing model artifacts with HF Hub, S3, and other providers. SP7 scaffold — extraction from cloud integration code deferred.
 - `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
 - `skill-memory` — Agent-facing skill for memory and context management.
 - `webhook` — Inbound webhook HTTP listener with HMAC signature verification (GitHub, generic; GitLab deprecated).
@@ -111,6 +114,16 @@ Extends: `vox-base`
 - `skill-memory` — Agent-facing skill for memory and context management.
 - `skill-v0` — Generate React/Vox UI components from text prompts (v0.dev-style synthesis).
 - `runtime-wasm` — Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills). Faster cold start than containers, no external daemon.
+
+### `vox-cloud-only`
+
+Cloud-managed deployment: cloud sync only, no local ML or mesh transport.
+
+Extends: `vox-base`
+
+- `cloud` — CloudSync plugin for syncing model artifacts with HF Hub, S3, and other providers. SP7 scaffold — extraction from cloud integration code deferred.
+- `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
+- `skill-memory` — Agent-facing skill for memory and context management.
 
 ### `vox-dev`
 
@@ -131,6 +144,7 @@ Extends: `vox-fullstack`
 - `nvml-probe` — Probes NVIDIA GPUs via NVML for device count, names, memory, utilization, temperature.
 - `mens-candle-metal` — ML training backend using Candle with Metal acceleration.
 - `populi-mesh` — Populi mesh transport (HTTP control plane, A2A dispatch) + agent skill.
+- `cloud` — CloudSync plugin for syncing model artifacts with HF Hub, S3, and other providers. SP7 scaffold — extraction from cloud integration code deferred.
 - `oratio` — Audio capture + speech-to-text (Candle Whisper). Extracted from vox-speech in Unit 4.
 - `browser` — Chrome DevTools Protocol browser automation via chromiumoxide.
 - `webhook` — Inbound webhook HTTP listener with HMAC signature verification (GitHub, generic; GitLab deprecated).
