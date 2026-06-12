@@ -11245,6 +11245,46 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: skill.discover
+  title: Skill Discover
+  description: List bare SKILL.md skills found under the standard interop roots, with install status.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_skill_discover
+    http_read_role_eligible: true
+    tier: core
+  cli: null
+- id: skill.use
+  title: Skill Use
+  description: Load the full SKILL.md body for an installed skill by id or name (tier-2 disclosure).
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_skill_use
+    http_read_role_eligible: true
+    tier: core
+  cli: null
 - id: skill.install
   title: Skill Install
   description: Install a skill from a VoxSkillBundle JSON payload.

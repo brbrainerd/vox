@@ -8792,6 +8792,22 @@ curated:
   mcp_tool: vox_set_model
   cli_path: null
   parameters: null
+- id: mcp.vox_skill_discover
+  title: Skill Discover
+  description_human: null
+  description_model: List bare SKILL.md skills found under the standard interop roots, with install status.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_skill_discover
+  cli_path: null
+  parameters: null
 - id: mcp.vox_skill_info
   title: Skill Info
   description_human: null
@@ -8886,6 +8902,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_skill_uninstall
+  cli_path: null
+  parameters: null
+- id: mcp.vox_skill_use
+  title: Skill Use
+  description_human: null
+  description_model: Load the full SKILL.md body for an installed skill by id or name (tier-2 disclosure).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_skill_use
   cli_path: null
   parameters: null
 - id: mcp.vox_snapshot_diff

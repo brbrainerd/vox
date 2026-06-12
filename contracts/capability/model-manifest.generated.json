@@ -5069,6 +5069,14 @@
       "title": "Set Model"
     },
     {
+      "capability_id": "mcp.vox_skill_discover",
+      "curated": true,
+      "description_model": "List bare SKILL.md skills found under the standard interop roots, with install status.",
+      "implicit": false,
+      "mcp_tool": "vox_skill_discover",
+      "title": "Skill Discover"
+    },
+    {
       "capability_id": "mcp.vox_skill_info",
       "curated": true,
       "description_model": "Get detailed info on a specific skill by ID.",
@@ -5115,6 +5123,14 @@
       "implicit": false,
       "mcp_tool": "vox_skill_uninstall",
       "title": "Skill Uninstall"
+    },
+    {
+      "capability_id": "mcp.vox_skill_use",
+      "curated": true,
+      "description_model": "Load the full SKILL.md body for an installed skill by id or name (tier-2 disclosure).",
+      "implicit": false,
+      "mcp_tool": "vox_skill_use",
+      "title": "Skill Use"
     },
     {
       "capability_id": "mcp.vox_snapshot_diff",

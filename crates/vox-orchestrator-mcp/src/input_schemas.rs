@@ -91,6 +91,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         | "vox_session_cleanup"
         | "vox_memory_list_keys"
         | "vox_skill_list"
+        | "vox_skill_discover"
         | "vox_test_all"
         | "vox_check_workspace"
         | "vox_get_active_model"
@@ -446,7 +447,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
 
         // ── Skills ───────────────────────────────────────────────────────────
-        "vox_skill_uninstall" | "vox_skill_info" | "vox_skill_parse" => {
+        "vox_skill_uninstall" | "vox_skill_info" | "vox_skill_use" | "vox_skill_parse" => {
             parse_obj(r#"{"type":"object","additionalProperties":true}"#)
         }
         "vox_skill_search" => parse_obj(
