@@ -37,7 +37,9 @@ fn workflow_for_kind(kind: &LintKind) -> &'static str {
         LintKind::MissingTrainingRationale => {
             "add `training_rationale:` next to `training_eligible: true`"
         }
-        LintKind::GenericDescription => "replace the template `description:` with a hand-written one",
+        LintKind::GenericDescription => {
+            "replace the template `description:` with a hand-written one"
+        }
         LintKind::UnclosedCodeFence | LintKind::ShortCodeFence { .. } => {
             "balance the ``` code fences (mdBook requires exactly 3 backticks)"
         }
@@ -89,7 +91,11 @@ fn print_grouped_summary(errors: &[LintError]) {
         let entry = groups.entry(kind_label(&e.kind)).or_insert((0, &e.kind));
         entry.0 += 1;
     }
-    eprintln!("\n── summary: {} error(s) across {} class(es) ──", errors.len(), groups.len());
+    eprintln!(
+        "\n── summary: {} error(s) across {} class(es) ──",
+        errors.len(),
+        groups.len()
+    );
     for (label, (count, sample)) in &groups {
         eprintln!("  {count:>3}× {label:<34} → {}", workflow_for_kind(sample));
     }

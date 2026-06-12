@@ -639,7 +639,10 @@ mod tests {
         // The exact two wrong values that cost two push round-trips before this hint existed.
         assert_eq!(suggest("CI", VALID_CATEGORIES), Some("CI & Quality"));
         assert_eq!(suggest("ci", VALID_CATEGORIES), Some("CI & Quality"));
-        assert_eq!(suggest("getting started", VALID_CATEGORIES), Some("Getting Started"));
+        assert_eq!(
+            suggest("getting started", VALID_CATEGORIES),
+            Some("Getting Started")
+        );
     }
 
     #[test]
@@ -661,7 +664,10 @@ mod tests {
         let _ = fs::create_dir_all(&dir);
         for (name, body) in [
             ("a.md", "---\ntitle: A\ncategory: nonsense\n---\n# A\n"),
-            ("b.md", "---\ntitle: B\nstatus: bogus\ncategory: Concepts\n---\n# B\n"),
+            (
+                "b.md",
+                "---\ntitle: B\nstatus: bogus\ncategory: Concepts\n---\n# B\n",
+            ),
         ] {
             let mut f = fs::File::create(dir.join(name)).unwrap();
             f.write_all(body.as_bytes()).unwrap();
@@ -669,11 +675,15 @@ mod tests {
         let mut errors = Vec::new();
         collect_lint_errors_target_with_root(&dir, &mut errors, Path::new("."));
         assert!(
-            errors.iter().any(|e| matches!(e.kind, LintKind::UnknownCategory { .. })),
+            errors
+                .iter()
+                .any(|e| matches!(e.kind, LintKind::UnknownCategory { .. })),
             "expected category error from a.md, got {errors:?}"
         );
         assert!(
-            errors.iter().any(|e| matches!(e.kind, LintKind::UnknownStatus { .. })),
+            errors
+                .iter()
+                .any(|e| matches!(e.kind, LintKind::UnknownStatus { .. })),
             "expected status error from b.md, got {errors:?}"
         );
         let _ = fs::remove_dir_all(&dir);
