@@ -3,6 +3,7 @@ import { InputEditor } from './InputEditor';
 import { DiscoveryRail } from './DiscoveryRail';
 import { TerminalTab, type PendingLine } from './TerminalTab';
 import { AgentStrip, type AgentChip } from './AgentStrip';
+import { AgentTab } from './AgentTab';
 import { listenOrchStatus } from '../../../transport';
 
 interface Props {
@@ -18,6 +19,7 @@ export function Console({ pushToast }: Props) {
   const [pending, setPending] = useState<PendingLine | null>(null);
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [agents, setAgents] = useState<AgentChip[]>([]);
+  const [openAgentId, setOpenAgentId] = useState<string | null>(null);
   const seq = React.useRef(0);
   const tabId = 'console-1';
   const nowMs = Date.now();
@@ -45,8 +47,8 @@ export function Console({ pushToast }: Props) {
   };
 
   const openAgentTab = (agentId: string) => {
-    // v1: surface the agent id via toast; full agent-tab streaming is a follow-up.
-    pushToast({ tone: 'info', title: 'Agent', body: `${agentId} — open tab (coming soon)` });
+    setOpenAgentId(agentId);
+    pushToast({ tone: 'info', title: 'Agent', body: `streaming events for ${agentId}` });
   };
 
   return (
@@ -54,7 +56,25 @@ export function Console({ pushToast }: Props) {
       <AgentStrip agents={agents} onOpen={openAgentTab} />
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-          <div style={{ flex: 1, minHeight: 0 }}>
+          {openAgentId && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '4px 10px',
+                fontSize: 11,
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <span>agent {openAgentId}</span>
+              <button onClick={() => setOpenAgentId(null)}>back to terminal</button>
+            </div>
+          )}
+          <div style={{ flex: 1, minHeight: 0, display: openAgentId ? 'block' : 'none' }}>
+            {openAgentId && <AgentTab agentId={openAgentId} />}
+          </div>
+          <div style={{ flex: 1, minHeight: 0, display: openAgentId ? 'none' : 'block' }}>
             <TerminalTab tabId={tabId} pendingLine={pending} />
           </div>
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '6px 10px' }}>
