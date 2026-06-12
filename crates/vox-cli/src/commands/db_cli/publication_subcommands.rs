@@ -189,6 +189,24 @@ pub enum DbCliPublication {
         #[arg(long, default_value_t = false)]
         wait: bool,
     },
+    /// Run the archive pipeline end-to-end (Zenodo deposit + Software Heritage).
+    ///
+    /// Requires a complete manifest (required fields present) and at least one
+    /// digest-bound approval (run `publication-approve`). Sandbox Zenodo is the
+    /// default; `--production` targets production Zenodo, `--publish` publishes
+    /// the deposition instead of leaving a draft.
+    #[command(name = "publication-archive-run")]
+    PublicationArchiveRun {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Target production Zenodo instead of the sandbox (default: sandbox).
+        #[arg(long, default_value_t = false)]
+        production: bool,
+        /// Publish the Zenodo deposition rather than leaving it as a draft.
+        #[arg(long, default_value_t = false)]
+        publish: bool,
+    },
     /// Emit destination transform preview JSON (scholarly/social stubs; `machine_suggested`).
     #[command(name = "publication-transform-preview")]
     PublicationTransformPreview {

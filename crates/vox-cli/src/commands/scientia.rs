@@ -184,6 +184,15 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     origin_url,
                     wait,
                 }),
+                ScientiaCmd::PublicationArchiveRun {
+                    publication_id,
+                    production,
+                    publish,
+                } => DbCli::Publication(DbCliPublication::PublicationArchiveRun {
+                    publication_id,
+                    production,
+                    publish,
+                }),
                 ScientiaCmd::PublicationTransformPreview { publication_id } => {
                     DbCli::Publication(DbCliPublication::PublicationTransformPreview {
                         publication_id,

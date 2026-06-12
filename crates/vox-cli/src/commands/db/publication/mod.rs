@@ -2,6 +2,8 @@
 
 mod archive_code;
 pub use archive_code::*;
+mod archive_run;
+pub use archive_run::*;
 pub(crate) mod embedder;
 mod helpers;
 mod ingest;

@@ -5,6 +5,7 @@ pub mod publisher;
 pub use publisher::*;
 
 pub mod adapters;
+pub mod archive_run;
 pub mod citation_cff;
 pub mod contract;
 pub mod crossref_metadata;

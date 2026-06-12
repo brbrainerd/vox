@@ -296,6 +296,11 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 origin_url,
                 wait,
             } => db::publication_archive_code(&publication_id, origin_url.as_deref(), wait).await,
+            DbCliPublication::PublicationArchiveRun {
+                publication_id,
+                production,
+                publish,
+            } => db::publication_archive_run(&publication_id, production, publish).await,
             DbCliPublication::PublicationTransformPreview { publication_id } => {
                 db::publication_transform_preview(&publication_id).await
             }
