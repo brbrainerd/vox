@@ -3,6 +3,7 @@ name = "vox-package-types"
 description = "Pure-data L1 leaf for vox-package: Vox.toml manifest types, vox.lock types, package_kind enum, resolver request/response types."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }

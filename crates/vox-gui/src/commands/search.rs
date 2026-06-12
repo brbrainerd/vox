@@ -143,6 +143,7 @@ fn scope_to_corpus(s: &str) -> Option<SearchCorpus> {
         "chunk" => Some(SearchCorpus::DocumentChunks),
         "repo" => Some(SearchCorpus::RepoInventory),
         "web" => Some(SearchCorpus::WebResearch),
+        "symbol" => Some(SearchCorpus::SymbolProximity),
         _ => None,
     }
 }
@@ -228,6 +229,7 @@ pub async fn vox_search_query(
     let policy = SearchPolicy::from_env();
 
     // ── Scope -> corpora ──────────────────────────────────────────────────────
+    let scope_tags: Vec<String> = scope.clone().unwrap_or_default();
     let scope_corpora: Option<Vec<SearchCorpus>> = scope.and_then(|v| {
         if v.is_empty() {
             None
@@ -285,6 +287,37 @@ pub async fn vox_search_query(
         .unified_hits
         .into_iter()
         .map(unified_hit_to_dto)
+        .collect();
+
+    // Chats corpus: LIKE search over GUI conversation messages when scoped.
+    let wants_chats = scope_tags.is_empty() || scope_tags.iter().any(|x| x == "chats");
+    if wants_chats
+        && let Some(db_ref) = ctx.db.as_ref()
+        && let Ok(chat_rows) = db_ref.chat_search_gui_messages(&query, lim).await
+    {
+        for (msg_id, _conv_id, session_id, role, snippet) in chat_rows {
+            all_hits.push(UnifiedHitDto {
+                source: "chats".to_string(),
+                kind: "chat".to_string(),
+                path: Some(session_id.clone()),
+                title: Some(format!("{role} message")),
+                snippet,
+                score: 0.75,
+                provenance: vec!["chats:like".to_string()],
+                locator: OpenLocatorDto {
+                    kind: "chat".to_string(),
+                    value: serde_json::json!({
+                        "sessionId": session_id,
+                        "messageId": msg_id,
+                    })
+                    .to_string(),
+                },
+            });
+        }
+    }
+
+    all_hits = all_hits
+        .into_iter()
         .filter(|h| {
             // kind filter
             kinds_set
@@ -357,6 +390,12 @@ pub async fn open_locator(locator: OpenLocatorDto) -> Result<OpenOutcomeDto, Str
                 action: "opened".to_string(),
             })
         }
+        "chat" => Ok(OpenOutcomeDto {
+            action: "focus_chat".to_string(),
+        }),
+        "command" => Ok(OpenOutcomeDto {
+            action: "focus_command".to_string(),
+        }),
         _ => Err("not openable".to_string()),
     }
 }

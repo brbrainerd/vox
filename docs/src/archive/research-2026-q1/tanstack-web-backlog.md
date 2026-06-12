@@ -28,7 +28,7 @@ Decompose epics into actionable tasks. Check off as you complete; prefer **issue
 
 ## Phase 2 — TanStack Router
 
-- [x] Emit `createRootRoute` / `createRoute` / `createRouter` / `RouterProvider` from `routes {` ([`vox-codegen-ts/src/emitter.rs`](../../../crates/vox-codegen/src/codegen_ts/emitter.rs))
+- [x] Emit `createRootRoute` / `createRoute` / `createRouter` / `RouterProvider` from `routes {` ([`vox-codegen-ts/src/emitter.rs`](../../../crates/vox-codegen-ts/src/emitter.rs))
 - [x] Add `@tanstack/react-router` to [`templates.rs`](../../../crates/vox-cli/src/templates/tanstack.rs) `package_json`; drop unused router dep from **`islands`** `package.json` template
 - [x] Prefer **`App`** entry in [`fs_utils::find_component_name`](../../../crates/vox-cli/src/fs_utils.rs) when `App.tsx` exists
 - [x] Integration tests: `routes {` codegen assertions ([`pipeline.rs`](../../../crates/vox-integration-tests/tests/pipeline.rs))
@@ -42,7 +42,7 @@ Decompose epics into actionable tasks. Check off as you complete; prefer **issue
 ## Phase 4 — TanStack Start + SSR
 
 - [x] Scaffold Start-compatible **`vite.config`** / entry ([`templates.rs`](../../../crates/vox-cli/src/templates/tanstack.rs) `vite_config(..., tanstack_start: true)` + [`frontend.rs`](../../../crates/vox-cli/src/frontend.rs))
-- [x] **`routes {` + Start**: manifest-first — codegen **`routes.manifest.ts`** + components + **`vox-client.ts`**; user-owned TanStack adapter + file routes + **`routeTree.gen.ts`** ([`emitter.rs`](../../../crates/vox-codegen/src/codegen_ts/emitter.rs), [`route_manifest.rs`](../../../crates/vox-codegen/src/codegen_ts/route_manifest.rs), CLI [`tanstack.rs`](../../../crates/vox-cli/src/templates/tanstack.rs) scaffold)
+- [x] **`routes {` + Start**: manifest-first — codegen **`routes.manifest.ts`** + components + **`vox-client.ts`**; user-owned TanStack adapter + file routes + **`routeTree.gen.ts`** ([`emitter.rs`](../../../crates/vox-codegen-ts/src/emitter.rs), [`route_manifest.rs`](../../../crates/vox-codegen-ts/src/route_manifest.rs), CLI [`tanstack.rs`](../../../crates/vox-cli/src/templates/tanstack.rs) scaffold)
 - [x] Regenerate **file-route** `routeTree.gen.ts` via **TanStack Router CLI** (`pnpm run routes:gen` / `tsr generate`) for the no-`routes {` path — **`pnpm install` / build** scripts run it when not using programmatic `voxRouteTree`
 - [x] **`vox run`**: optional Vite upstream via **`VOX_ORCHESTRATE_VITE=1`** + **`VOX_SSR_DEV_URL`** (see how-to)
 - [x] Generated Axum **`serve_dispatch`**: GET non-`/api` proxy to **`VOX_SSR_DEV_URL`** when set
@@ -51,8 +51,8 @@ Decompose epics into actionable tasks. Check off as you complete; prefer **issue
 
 ## Phase 5 — Query / Table (optional)
 
-- [x] **`@loading`**: lexer/parser → `Decl::Loading` → `Spinner.tsx` + TanStack Router **`pendingComponent`** via manifest / component wiring ([`route_manifest.rs`](../../../crates/vox-codegen/src/codegen_ts/route_manifest.rs), [`emitter.rs`](../../../crates/vox-codegen/src/codegen_ts/emitter.rs))
-- [x] **TanStack Query helper emitted:** [`vox-tanstack-query.tsx`](../../../crates/vox-codegen/src/codegen_ts/tanstack_query_emit.rs) (via `emitter.rs`) defines **`useVoxServerQuery`** — import from generated output next to `vox-client.ts`.
+- [x] **`@loading`**: lexer/parser → `Decl::Loading` → `Spinner.tsx` + TanStack Router **`pendingComponent`** via manifest / component wiring ([`route_manifest.rs`](../../../crates/vox-codegen-ts/src/route_manifest.rs), [`emitter.rs`](../../../crates/vox-codegen-ts/src/emitter.rs))
+- [x] **TanStack Query helper emitted:** [`vox-tanstack-query.tsx`](../../../crates/vox-codegen-ts/src/tanstack_query_emit.rs) (via `emitter.rs`) defines **`useVoxServerQuery`** — import from generated output next to `vox-client.ts`.
 - [ ] **Optional enhancement:** Auto-wrap **`useVoxServerQuery`** inside **Path C reactive components** that consume `@query` data (not inside `routes.manifest.ts` **loaders**, which must remain plain `async` functions — React hooks are invalid there). Until then, authors call `useVoxServerQuery(['key'], () => myQuery({...}))` in components. Legacy **`serverFns.ts` / Wave F** tasks in [`tanstack-start-implementation-backlog.md`](./tanstack-start-implementation-backlog.md) are superseded by **`vox-client.ts`**.
 - [x] Table-heavy UIs: **TanStack Table** — prefer for sort/filter/column-heavy grids when staying in React; hand-rolled `<table>` or lightweight lists remain fine for simple cases (see [vox-web-stack.md](../reference/vox-web-stack.md#data-grids-tanstack-table))
 
@@ -69,7 +69,7 @@ Spec / historical fate table: [tanstack-start-codegen-spec.md](./tanstack-start-
 - [x] **Wave A — obviated / done in tree:** Loader + pending + `not_found` / `error` + nested `routes` (field names: `loader_name`, `pending_component_name`). **Deferred:** `under` / `layout_name` on `RouteEntry`; `redirect` / wildcard parsing.
 - **Partial — Wave B:** Open [`hir/nodes/decl.rs`](../../../crates/vox-compiler/src/hir/nodes/decl.rs) before executing backlog B-items; some deprecation noise intentionally remains for migration paths.
 - **Partial — Wave C:** Classic `@component fn` and retired surfaces are **`Error`** (see typeck / parser); emitter loops may still exist for migration — verify tree, do not assume checklist is greenfield.
-- [x] **Wave D — obviated (shape):** Scaffold files: **`vox-cli`** templates + optional [`codegen_ts/scaffold.rs`](../../../crates/vox-codegen/src/codegen_ts/scaffold.rs); not the spec’s exclusive Start-only `client.tsx` / `router.tsx` trio from compiler alone.
+- [x] **Wave D — obviated (shape):** Scaffold files: **`vox-cli`** templates + optional [`codegen_ts/scaffold.rs`](../../../crates/vox-codegen-ts/src/scaffold.rs); not the spec’s exclusive Start-only `client.tsx` / `router.tsx` trio from compiler alone.
 - [x] **Wave E — cancelled:** Compiler `__root.tsx` / `app/routes.ts` virtual program — replaced by **`routes.manifest.ts`** + file routes + optional manifest adapter.
 - [x] **Wave F:** **`vox-client.ts`** + Axum (GET `@query`, POST mutation/server). Residual ergonomics: docs / env constants — non-blocking.
 - [ ] **Wave G:** Docs drift vs **manifest-first** spec (roadmap, decorator pages, how-tos) — ongoing editorial.

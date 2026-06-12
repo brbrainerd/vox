@@ -33,6 +33,8 @@ pub struct SurfaceEntry {
     #[serde(default)]
     pub nav_group: Option<String>,
     #[serde(default)]
+    pub parent_surface: Option<String>,
+    #[serde(default)]
     pub notes: Option<String>,
 }
 
@@ -68,6 +70,7 @@ pub fn backfill(mut reg: SurfaceRegistry, missing: &[String]) -> SurfaceRegistry
             nav_label: None,
             nav_icon: None,
             nav_group: None,
+            parent_surface: None,
             notes: None,
         });
     }
@@ -128,18 +131,19 @@ pub fn generate_ts(reg: &SurfaceRegistry) -> String {
         "  viewKey: string | null;\n  cliGroup: string | null;\n  tier: RepresentationTier;\n",
     );
     out.push_str(
-        "  navLabel: string | null;\n  navIcon: string | null;\n  navGroup: string | null;\n}\n",
+        "  navLabel: string | null;\n  navIcon: string | null;\n  navGroup: string | null;\n  parentSurface: string | null;\n}\n",
     );
     out.push_str("export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [\n");
     for e in &reg.surfaces {
         out.push_str(&format!(
-            "  {{ viewKey: {}, cliGroup: {}, tier: '{}', navLabel: {}, navIcon: {}, navGroup: {} }},\n",
+            "  {{ viewKey: {}, cliGroup: {}, tier: '{}', navLabel: {}, navIcon: {}, navGroup: {}, parentSurface: {} }},\n",
             opt(&e.view_key),
             opt(&e.cli_group),
             tier(&e.representation_tier),
             opt(&e.nav_label),
             opt(&e.nav_icon),
             opt(&e.nav_group),
+            opt(&e.parent_surface),
         ));
     }
     out.push_str("];\n");
@@ -256,6 +260,7 @@ mod tests {
             nav_label: None,
             nav_icon: None,
             nav_group: None,
+            parent_surface: None,
             notes: None,
         }]);
         let top: BTreeSet<String> = ["scientia", "build", "audit"]
@@ -288,6 +293,7 @@ mod tests {
             nav_label: None,
             nav_icon: None,
             nav_group: None,
+            parent_surface: None,
             notes: None,
         }]);
         let violations = wiring_violations(&r, "switch (activeView) { case 'dashboard': }");
@@ -317,6 +323,7 @@ mod tests {
             nav_label: Some("Scientia".into()),
             nav_icon: Some("file".into()),
             nav_group: Some("research".into()),
+            parent_surface: None,
             notes: None,
         }]);
         let ts = generate_ts(&r);

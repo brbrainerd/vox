@@ -3,6 +3,7 @@ name = "vox-integration-tests"
 description = "Cross-crate integration test harness (test-only L5)."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dev-dependencies]
 serial_test = { workspace = true }

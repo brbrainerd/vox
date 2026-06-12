@@ -1,6 +1,6 @@
 //! CAS-addressed SafeTensors bundles (`vox model cas`; Mn-T8).
 //!
-//! Listing/push/pull against `vox-package` artifact cache will land with full CAS indexing.
+//! Hidden until listing/push/pull against `vox-package` artifact cache lands.
 
 use std::path::PathBuf;
 
@@ -8,41 +8,24 @@ use clap::Subcommand;
 
 #[derive(Subcommand)]
 pub enum CasCmd {
-    /// List locally cached model bundles (stub — prints guidance until CAS indexer lands).
+    /// List locally cached model bundles.
     Ls,
-    /// Upload or register a bundle with the mesh CAS (not wired yet).
+    /// Upload or register a bundle with the mesh CAS.
     Push {
         /// Directory or archive containing weights/tokenizer/config.
         #[arg(value_name = "PATH")]
         path: PathBuf,
     },
-    /// Fetch a bundle by lowercase SHA3-512 hex digest (not wired yet).
+    /// Fetch a bundle by lowercase SHA3-512 hex digest.
     Pull {
         #[arg(value_name = "SHA3_512_HEX")]
         digest_hex: String,
     },
 }
 
+const NOT_WIRED: &str = "vox model cas is not implemented yet (Mn-T8). Use vox-package cache paths and vox mens train/merge-qlora for model artifacts today.";
+
 pub async fn run(cmd: CasCmd) -> anyhow::Result<()> {
-    match cmd {
-        CasCmd::Ls => {
-            // Keep `vox-inference` (the real inference crate) and `vox-eval` in the CLI
-            // dependency graph for arch-check until CAS listing and eval harness callsites
-            // are fully wired.
-            let _ = vox_eval::mens::summarize_placeholder();
-            let _ = std::sync::Arc::new(vox_inference::CandleCpuBackend::new());
-            println!(
-                "vox model cas ls: no bundle index yet — see Mn-T8 / vox-package model CAS helpers."
-            );
-            Ok(())
-        }
-        CasCmd::Push { path } => anyhow::bail!(
-            "vox model cas push {:?}: not implemented — bundle indexer pending",
-            path
-        ),
-        CasCmd::Pull { digest_hex } => anyhow::bail!(
-            "vox model cas pull {}: not implemented — fetch-by-hash pending",
-            digest_hex
-        ),
-    }
+    let _ = cmd;
+    anyhow::bail!("{NOT_WIRED}")
 }

@@ -1571,7 +1571,7 @@ git commit -m "chore(plugin-catalog): expose vox-plugin-catalog as a workspace d
 - Modify: `crates/vox-cli/src/commands/ci/cmd_enums.rs`
 - Modify: `crates/vox-cli/src/commands/ci/run_body.rs`
 
-Before editing, **read each of the three modify-target files** to understand the existing dispatch pattern. The command catalog model in [`command_catalog.rs`](../../../crates/vox-cli/src/command_catalog.rs) and the registry in [`command_registry_model.rs`](../../../crates/vox-cli/src/command_registry_model.rs) describe how subcommands are registered; follow the pattern used by other `ci/<verb>.rs` files such as [`capability_snapshot.rs`](../../../crates/vox-cli/src/commands/ci/capability_snapshot.rs).
+Before editing, **read each of the three modify-target files** to understand the existing dispatch pattern. The command catalog model in [`command_catalog.rs`](../../../crates/vox-cli/src/command_catalog.rs) and the registry in [`command_registry_model.rs`](../../../crates/vox-cli-core/src/command_registry_model.rs) describe how subcommands are registered; follow the pattern used by other `ci/<verb>.rs` files such as [`capability_snapshot.rs`](../../../crates/vox-cli/src/commands/ci/capability_snapshot.rs).
 
 - [ ] **Step 1: Read the existing pattern**
 

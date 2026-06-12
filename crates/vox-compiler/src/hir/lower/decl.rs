@@ -336,6 +336,9 @@ impl LowerCtx {
                     span: f.span,
                 })
                 .collect(),
+            primary_key: t.primary_key.clone(),
+            is_extern: t.is_extern,
+            source: t.source.clone(),
             is_pub: t.is_pub,
             is_deprecated: t.is_deprecated,
             span: t.span,

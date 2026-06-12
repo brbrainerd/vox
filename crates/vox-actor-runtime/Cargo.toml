@@ -3,6 +3,7 @@ name = "vox-actor-runtime"
 description = "Process-oriented runtime: actors, mailboxes, supervision, scheduling, LLM/Mens activity primitives."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [features]
 default = []

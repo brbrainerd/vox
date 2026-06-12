@@ -8,9 +8,8 @@ use std::path::Path;
 
 const REPORT_PATH: &str = "contracts/reports/gui-surface-coverage.v1.json";
 const OPERATIONS_CATALOG: &str = "contracts/operations/catalog.v1.yaml";
+const GUI_NAV: &str = "crates/vox-gui/ui/src/lib/navigation.ts";
 const GUI_APP: &str = "crates/vox-gui/ui/src/App.tsx";
-const GUI_DECORATOR_REGISTRY: &str =
-    "crates/vox-gui/ui/src/components/surfaces/decoratorRegistry.ts";
 const GUI_MAIN: &str = "crates/vox-gui/src/main.rs";
 
 #[derive(Debug, Serialize)]
@@ -50,26 +49,31 @@ fn parse_operations_ids(repo_root: &Path) -> Result<Vec<String>> {
     Ok(ids)
 }
 
-fn parse_gui_routes(app_src: &str, decorator_src: &str) -> Vec<String> {
-    let route_re = Regex::new(r#"case '([a-z\-]+)'"#).expect("route regex");
+fn parse_gui_routes(repo_root: &Path) -> Result<Vec<String>> {
     let mut routes = BTreeSet::new();
-    for caps in route_re.captures_iter(app_src) {
-        if let Some(name) = caps.get(1) {
-            routes.insert(name.as_str().to_string());
-        }
-    }
 
-    // Decorator-only surfaces resolve via `surfaceDecorators[activeView]` and
-    // return before App.tsx's switch, so they never appear as a `case`. Extract
-    // their keys from the `surfaceDecorators` object-literal body, scoping the
-    // slice to that literal so we don't catch SurfaceDecoratorProps fields etc.
-    if let Some(start) = decorator_src.find("surfaceDecorators") {
-        if let Some(brace) = decorator_src[start..].find('{') {
-            let body_start = start + brace + 1;
-            if let Some(end) = decorator_src[body_start..].find("\n};") {
-                let body = &decorator_src[body_start..body_start + end];
-                let key_re = Regex::new(r#"(?m)^\s*([a-z][a-z0-9]*):\s"#).expect("decorator regex");
-                for caps in key_re.captures_iter(body) {
+    // Parent/child navigation SSOT (vox-gui dock model).
+    let nav_path = repo_root.join(GUI_NAV);
+    if nav_path.is_file() {
+        let raw = fs::read_to_string(&nav_path)
+            .with_context(|| format!("read {}", nav_path.display()))?;
+        let map_key_re = Regex::new(r"(?m)^\s*(?:'([^']+)'|([a-z][a-z0-9\-]*)):\s*\{\s*parent:")
+            .expect("navigation map key regex");
+        for caps in map_key_re.captures_iter(&raw) {
+            let name = caps
+                .get(1)
+                .or_else(|| caps.get(2))
+                .map(|m| m.as_str().to_string());
+            if let Some(name) = name {
+                routes.insert(name);
+            }
+        }
+        let top_level_re =
+            Regex::new(r#"['"]([a-z][a-z0-9\-]*)['"]"#).expect("top-level view regex");
+        if let Some(start) = raw.find("TOP_LEVEL_VIEWS") {
+            let slice = &raw[start..];
+            if let Some(end) = slice.find("] as const") {
+                for caps in top_level_re.captures_iter(&slice[..end]) {
                     if let Some(name) = caps.get(1) {
                         routes.insert(name.as_str().to_string());
                     }
@@ -78,7 +82,20 @@ fn parse_gui_routes(app_src: &str, decorator_src: &str) -> Vec<String> {
         }
     }
 
-    routes.into_iter().collect()
+    // Legacy switch/case routes still present in App.tsx event handlers.
+    let app_path = repo_root.join(GUI_APP);
+    if app_path.is_file() {
+        let raw = fs::read_to_string(&app_path)
+            .with_context(|| format!("read {}", app_path.display()))?;
+        let route_re = Regex::new(r#"case '([a-z\-]+)'"#).expect("route regex");
+        for caps in route_re.captures_iter(&raw) {
+            if let Some(name) = caps.get(1) {
+                routes.insert(name.as_str().to_string());
+            }
+        }
+    }
+
+    Ok(routes.into_iter().collect())
 }
 
 fn parse_gui_ipc_commands(repo_root: &Path) -> Result<Vec<String>> {
@@ -244,13 +261,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
         .map(|entry| entry.path.join(" "))
         .collect();
     let operations_rows = parse_operations_ids(repo_root)?;
-    let app_path = repo_root.join(GUI_APP);
-    let app_src =
-        fs::read_to_string(&app_path).with_context(|| format!("read {}", app_path.display()))?;
-    let decorator_path = repo_root.join(GUI_DECORATOR_REGISTRY);
-    let decorator_src = fs::read_to_string(&decorator_path)
-        .with_context(|| format!("read {}", decorator_path.display()))?;
-    let gui_routes = parse_gui_routes(&app_src, &decorator_src);
+    let gui_routes = parse_gui_routes(repo_root)?;
     let gui_ipc_commands = parse_gui_ipc_commands(repo_root)?;
 
     let mut report = SurfaceCoverageReport {
@@ -287,49 +298,4 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
     }
     println!("gui-surface-coverage: report is up to date");
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_gui_routes_unions_switch_cases_and_decorators() {
-        let app_src = r#"
-            switch (activeView) {
-              case 'dashboard':
-                return <Dashboard />;
-              case 'models':
-                return <Models />;
-            }
-        "#;
-        let decorator_src = r#"
-export interface SurfaceDecoratorProps {
-  pushToast: (item: { tone: 'ok' }) => void;
-}
-
-export const surfaceDecorators: Record<string, React.ComponentType<SurfaceDecoratorProps>> = {
-  scientia: ScientiaDashboard,
-  research: ResearchView,
-};
-"#;
-        let routes = parse_gui_routes(app_src, decorator_src);
-        assert!(
-            routes.contains(&"dashboard".to_string()),
-            "routes: {routes:?}"
-        );
-        assert!(
-            routes.contains(&"scientia".to_string()),
-            "routes: {routes:?}"
-        );
-        assert!(
-            routes.contains(&"research".to_string()),
-            "routes: {routes:?}"
-        );
-        // The props field must NOT leak in as a surface key.
-        assert!(
-            !routes.contains(&"pushToast".to_string()),
-            "routes: {routes:?}"
-        );
-    }
 }

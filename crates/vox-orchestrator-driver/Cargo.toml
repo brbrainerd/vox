@@ -1,0 +1,18 @@
+[package]
+name = "vox-orchestrator-driver"
+description = "Thin L3 driver for embedding vox-orchestrator in CLI and MCP hosts."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+vox-orchestrator = { workspace = true }
+vox-repository = { workspace = true }
+tracing = { workspace = true }
+workspace-hack = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

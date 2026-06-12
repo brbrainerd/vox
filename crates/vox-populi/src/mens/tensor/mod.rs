@@ -14,7 +14,7 @@ pub mod telemetry_schema;
 // SP3 Unit 1: candle_model_qwen deleted; canonical copy in vox-plugin-mens-candle-cuda/src/model.rs
 // SP3 Unit 3: candle_inference_serve deleted; canonical copy in vox-plugin-mens-candle-cuda/src/inference.rs
 // vox-ml-cli eval-local is rewired to use Option<()> stub until plugin-host dispatch is plumbed.
-pub use vox_distributed_training::mesh_env::{MeshTrainConfig, get_mesh_rank, is_mesh_mode};
+pub use crate::distributed_training::mesh_env::{MeshTrainConfig, get_mesh_rank, is_mesh_mode};
 pub mod train_log;
 #[cfg(feature = "mens-train")]
 pub mod training_text;

@@ -174,6 +174,14 @@ pub struct LoraTrainingConfig {
     /// Defaulted to empty for backward serde compatibility with older configs.
     #[serde(default)]
     pub launch_argv: Vec<String>,
+    /// Activation/gradient checkpointing: segment the transformer stack and
+    /// recompute each segment's forward during backward so only ~1 segment's
+    /// activations are retained at once — bounds the single-backward VRAM peak so
+    /// 3B QLoRA fits on a 16GB GPU. Default off (1.5B fits without it). Serialized
+    /// to the candle plugin's matching config field; segment count via
+    /// `VOX_MENS_GC_SEGMENTS`.
+    #[serde(default)]
+    pub gradient_checkpointing: bool,
 }
 
 impl Default for LoraTrainingConfig {
@@ -229,6 +237,7 @@ impl Default for LoraTrainingConfig {
             chatml: ChatmlConfig::default(),
             reward_hook: None,
             launch_argv: Vec::new(),
+            gradient_checkpointing: false,
         }
     }
 }

@@ -319,6 +319,8 @@ mod tests {
             cors: None,
             is_pub: false,
             is_deprecated: false,
+            is_extern: false,
+            source: None,
             span: s(),
         }
     }
@@ -336,8 +338,7 @@ mod tests {
 
         let ddl = table_to_ddl(&t);
         assert!(ddl.contains("CREATE TABLE IF NOT EXISTS task"));
-        assert!(ddl.contains("_id TEXT PRIMARY KEY NOT NULL"));
-        assert!(ddl.contains("_creationTime TEXT NOT NULL"));
+        assert!(ddl.contains("_id INTEGER PRIMARY KEY AUTOINCREMENT"));
         assert!(ddl.contains("title TEXT NOT NULL"));
         assert!(ddl.contains("done INTEGER NOT NULL"));
         assert!(ddl.contains("priority INTEGER NOT NULL"));

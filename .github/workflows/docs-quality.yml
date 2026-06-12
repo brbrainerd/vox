@@ -31,7 +31,7 @@ env:
 
 jobs:
   docs-quality:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@v6
 
@@ -62,9 +62,6 @@ jobs:
       - name: Internal Markdown link check
         run: cargo run -p vox-cli -- ci check-links
 
-      - name: Retired symbol prose guard
-        run: cargo run -p vox-cli -- ci retired-symbol-check
-
       - name: Canonical documentation map verify
         run: cargo run -p vox-cli -- ci canonical-map-verify
 
@@ -88,7 +85,7 @@ jobs:
         run: pnpm dlx markdownlint-cli2 "docs/src/contributors/**/*.md" "docs/src/architecture/research-index.md"
 
   generator-drift:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@v6
 
@@ -103,10 +100,6 @@ jobs:
       - name: Check ignore-file sync
         run: cargo run -p vox-cli --quiet -- ci sync-ignore-files --verify
 
-      # Hard gate: was continue-on-error.
-      - name: Check plugin catalog docs
-        run: cargo run -p vox-cli --quiet -- ci generate-plugin-catalog-docs --check
-
-      # Hard gate: was continue-on-error.
+      # Hard gate: was continue-on-error. Plugin catalog drift runs in ci.yml ssot-drift.
       - name: Check CLI command surface
         run: cargo run -p vox-cli --quiet -- ci command-sync

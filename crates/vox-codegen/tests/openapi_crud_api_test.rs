@@ -61,6 +61,16 @@ fn crud_api_openapi_lists_error_envelope_and_default_response() {
         paths_reference_error_envelope(paths),
         "expected paths to reference #/components/schemas/ErrorEnvelope under responses"
     );
+    if !hir.tables.is_empty() {
+        assert!(
+            paths.get("/healthz").is_some(),
+            "db-backed module should expose /healthz in OpenAPI"
+        );
+        assert!(
+            paths.get("/readyz").is_some(),
+            "db-backed module should expose /readyz in OpenAPI"
+        );
+    }
 
     let pkg = out
         .files

@@ -3,6 +3,7 @@ name = "vox-orchestrator"
 description = "Multi-agent file-affinity task router. Queue/lock/oplog in vox-orchestrator-queue; MCP protocol tools in vox-orchestrator-mcp."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [features]
 default = [

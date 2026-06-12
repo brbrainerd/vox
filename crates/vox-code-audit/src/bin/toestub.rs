@@ -34,9 +34,9 @@ impl From<CliMode> for ToestubRunMode {
 #[derive(Parser, Debug)]
 #[command(name = "toestub", about = "TOESTUB structural and policy checks")]
 struct Opt {
-    /// Root directory to scan (default `.`).
-    #[arg(default_value = ".")]
-    root: PathBuf,
+    /// Root directory/directories to scan (default `crates/vox-repository` when omitted).
+    #[arg(value_name = "ROOT")]
+    roots: Vec<PathBuf>,
     /// Exit-code policy: `legacy` (errors fail), `audit` (never fail), `enforce-warn` (critical only), `enforce-strict` (warnings+).
     #[arg(long, value_enum, default_value_t = CliMode::Legacy)]
     mode: CliMode,
@@ -150,8 +150,13 @@ fn main() -> anyhow::Result<()> {
             .collect::<Vec<_>>()
     });
     let feature_flags = feature_flags.unwrap_or_default();
+    let scan_roots = if opt.roots.is_empty() {
+        vec![PathBuf::from("crates/vox-repository")]
+    } else {
+        opt.roots
+    };
     let config = ToestubConfig {
-        roots: vec![opt.root],
+        roots: scan_roots,
         min_severity,
         format: OutputFormat::from(opt.format),
         suggest_fixes: opt.suggest_fixes,

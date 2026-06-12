@@ -77,7 +77,7 @@ This means:
 - **Path A is genuinely free.** Tauri-mobile is "React DOM in a mobile WebView." The existing emitter output drops in unchanged.
 - **Path B is *not* free.** Every emitted element needs structural rewriting: `<div>` → `<View>`, `<h1>` → `<Text>`, `<button onClick>` → `<Pressable onPress>` containing a `<Text>` child, `<p>` → `<Text>`, Tailwind classes → `StyleSheet.create` (or NativeWind). The hand-port of even the trivial Counter required ~50 lines of new code per ~25 lines of input.
 
-Picking RN+Expo therefore means **building a new emit lowering target in `crates/vox-codegen/src/codegen_ts/`** — not a small task, and it lands inside the in-flight Codegen SSOT Unification 2026 plan as a new IR lowering target. Hand-porting on every build is not a real option.
+Picking RN+Expo therefore means **building a new emit lowering target in `crates/vox-codegen-ts/src/`** — not a small task, and it lands inside the in-flight Codegen SSOT Unification 2026 plan as a new IR lowering target. Hand-porting on every build is not a real option.
 
 ### 4. Hands-on results
 

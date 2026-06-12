@@ -292,7 +292,7 @@ approximately 200–350 MB depending on frontend dependencies.
 |---|---|
 | `vox-config` | Add `BuildTarget` enum + `build_target` field to `VoxConfig`; read from `[build] target` in `Vox.toml` |
 | `vox-cli` | Thread `BuildTarget` through `build::run` and `run::run`; add `--target` flag to `BuildArgs` in `cli_args.rs`; add `emit client` subcommand; add `init --kind` flag |
-| `vox-compiler` | Add `ClientSdkEmitter` (new file: `crates/vox-codegen/src/codegen_ts/client_sdk.rs`) that walks HIR endpoint_fns and produces `client.ts` / `types.ts` / `index.ts`; gate `generate_routes` / scaffold calls behind target flag in `CodegenOptions` |
+| `vox-compiler` | Add `ClientSdkEmitter` (new file: `crates/vox-codegen-ts/src/client_sdk.rs`) that walks HIR endpoint_fns and produces `client.ts` / `types.ts` / `index.ts`; gate `generate_routes` / scaffold calls behind target flag in `CodegenOptions` |
 
 ### Minimal diff shape
 
