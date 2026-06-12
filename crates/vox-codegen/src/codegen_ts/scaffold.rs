@@ -18,7 +18,22 @@ pub fn web_config_files(_project_name: &str) -> Vec<ScaffoldFile> {
     vec![
         (
             "app/globals.css".to_string(),
-            "@import \"tailwindcss\";\n".to_string(),
+            format!(
+                "@import \"tailwindcss\";\n\n{}",
+                crate::web_ir::layer_emit::emit_layer_stylesheet()
+            ),
+        ),
+        (
+            "app/vox-layer-roots.tsx".to_string(),
+            crate::web_ir::layer_emit::emit_layer_portal_roots(),
+        ),
+        (
+            "app/vox-layer-resolver.ts".to_string(),
+            crate::web_ir::layer_emit::emit_layer_portal_resolver(),
+        ),
+        (
+            "app/vox-layer-types.ts".to_string(),
+            crate::web_ir::layer_emit::emit_layer_type_alias(),
         ),
         (
             "app/components.json".to_string(),
@@ -141,6 +156,48 @@ pub fn write_scaffold_if_missing(project_root: &Path, project_name: &str) -> std
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// GA-26 criterion 6: the generated `globals.css` embeds exactly the seven
+    /// layered `[data-vox-layer="…"]` selectors with the fixed z-index ladder.
+    #[test]
+    fn globals_css_embeds_seven_tier_ladder() {
+        let files = web_config_files("vox-app");
+        let (_, css) = files
+            .iter()
+            .find(|(rel, _)| rel == "app/globals.css")
+            .expect("globals.css scaffold file present");
+        for tier in [
+            "background",
+            "content",
+            "chrome",
+            "popover",
+            "modal",
+            "toast",
+            "system-overlay",
+        ] {
+            assert!(
+                css.contains(&format!("[data-vox-layer=\"{tier}\"]")),
+                "globals.css missing tier selector {tier}"
+            );
+        }
+        // Tailwind import must still be present.
+        assert!(css.contains("@import \"tailwindcss\""));
+    }
+
+    /// The portal-root + resolver + type-alias TS files ship so overlays have a
+    /// mount target (and the semantic_ui Dialog import resolves).
+    #[test]
+    fn scaffold_ships_layer_portal_runtime() {
+        let files = web_config_files("vox-app");
+        let names: Vec<&str> = files.iter().map(|(r, _)| r.as_str()).collect();
+        for expected in [
+            "app/vox-layer-roots.tsx",
+            "app/vox-layer-resolver.ts",
+            "app/vox-layer-types.ts",
+        ] {
+            assert!(names.contains(&expected), "scaffold missing {expected}");
+        }
+    }
 
     /// The emitted `vox-app.tsx` ships a dependency-free router, and
     /// `web_entry.rs` asserts no react-router import. The scaffold's
