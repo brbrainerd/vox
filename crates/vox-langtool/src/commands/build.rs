@@ -19,20 +19,15 @@ pub fn run(file: &Path, out_dir: &Path) -> Result<()> {
         for diag in &result.diagnostics {
             eprintln!("{:?}: {}", diag.severity, diag.message);
         }
-        anyhow::bail!(
-            "Build failed with {} error(s)",
-            result.error_count()
-        );
+        anyhow::bail!("Build failed with {} error(s)", result.error_count());
     }
 
-    let package_name = file
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .ok_or_else(|| anyhow::anyhow!("Cannot derive package name from path: {}", file.display()))?;
+    let package_name = file.file_stem().and_then(|s| s.to_str()).ok_or_else(|| {
+        anyhow::anyhow!("Cannot derive package name from path: {}", file.display())
+    })?;
 
-    let codegen_out =
-        vox_codegen::codegen_rust::generate_script(&result.hir, package_name, None)
-            .map_err(|e| anyhow::anyhow!("Codegen failed: {e}"))?;
+    let codegen_out = vox_codegen::codegen_rust::generate_script(&result.hir, package_name, None)
+        .map_err(|e| anyhow::anyhow!("Codegen failed: {e}"))?;
 
     std::fs::create_dir_all(out_dir)
         .with_context(|| format!("Failed to create out-dir {}", out_dir.display()))?;

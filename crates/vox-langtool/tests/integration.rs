@@ -43,7 +43,11 @@ fn fmt_check_on_already_formatted_exits_ok() {
     if let Ok(formatted) = vox_compiler::fmt::try_format(&source) {
         if source == formatted {
             let result = vox_langtool::commands::fmt::run(&path, true);
-            assert!(result.is_ok(), "fmt --check should pass on formatted file: {:?}", result);
+            assert!(
+                result.is_ok(),
+                "fmt --check should pass on formatted file: {:?}",
+                result
+            );
         }
         // If they differ, fmt --check would fail — that's correct but means the
         // fixture needs updating; skip rather than fail.

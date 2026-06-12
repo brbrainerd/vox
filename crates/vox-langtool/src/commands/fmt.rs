@@ -14,10 +14,9 @@ fn atomic_write_file(path: &Path, contents: &str) -> Result<()> {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    let base = path
-        .file_name()
-        .and_then(|s| s.to_str())
-        .ok_or_else(|| anyhow::anyhow!("Cannot derive temp basename from path: {}", path.display()))?;
+    let base = path.file_name().and_then(|s| s.to_str()).ok_or_else(|| {
+        anyhow::anyhow!("Cannot derive temp basename from path: {}", path.display())
+    })?;
     let tmp: PathBuf = parent.join(format!("{base}.voxfmt.{stamp}.tmp"));
     std::fs::File::create(&tmp)
         .with_context(|| format!("create temp {}", tmp.display()))?
