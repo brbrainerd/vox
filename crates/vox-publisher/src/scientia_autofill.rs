@@ -370,6 +370,7 @@ pub fn apply_autofill(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scientific_metadata::{ReproducibilityAttestation, ScientificAuthor};
 
     fn bare_manifest() -> PublicationManifest {
         PublicationManifest {

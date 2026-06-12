@@ -202,6 +202,25 @@ pub enum ScientiaCmd {
         #[arg(long, default_value_t = false)]
         apply: bool,
     },
+    /// Archive the publication's code repository via Software Heritage Save Code Now.
+    ///
+    /// On success (or accepted-without-wait) merges `scientia.swh_save` and
+    /// (when available) `scientia.swhid` into the stored manifest so Zenodo
+    /// `related_identifiers` picks up the SWHID.
+    #[command(name = "publication-archive-code")]
+    PublicationArchiveCode {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Code repository URL to archive.
+        /// Defaults to `metadata_json.scientia.reproducibility.code_repository_url`.
+        /// If neither is present, run publication-autofill first.
+        #[arg(long)]
+        origin_url: Option<String>,
+        /// Poll up to 5 minutes (10 s interval) until task_status is succeeded/failed.
+        #[arg(long, default_value_t = false)]
+        wait: bool,
+    },
     /// Emit destination transform preview JSON
     #[command(name = "publication-transform-preview")]
     PublicationTransformPreview {

@@ -1,5 +1,7 @@
 //! Publication manifest and syndication helpers for `vox db publication-*`.
 
+mod archive_code;
+pub use archive_code::*;
 pub(crate) mod embedder;
 mod helpers;
 mod ingest;
