@@ -552,6 +552,8 @@ export default function App() {
       }
     } else if (cmd.id === 'search') {
       setActiveView('search');
+    } else if (cmd.id === 'navigate' && typeof cmd.viewKey === 'string') {
+      setActiveView(cmd.viewKey as View);
     } else {
       pushToast({ tone: 'info', title: 'Command', body: cmd.label });
     }
