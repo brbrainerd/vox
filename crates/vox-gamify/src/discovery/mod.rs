@@ -2,6 +2,7 @@
 //! and suggestion ranking. Local and deterministic — no LLM.
 
 pub mod fsrs;
+pub mod ledger;
 pub mod rank;
 
 pub use fsrs::{update as fsrs_update, MemoryState, Recall};
