@@ -235,5 +235,22 @@ pub fn generate_reactive_component(
     }
 
     out.push_str("}\n");
+
+    // A11 part 2: Z-tier surfaces rendered through createPortal need the portal
+    // import + the generated layer-root resolver. Inject after the first import
+    // line so imports stay grouped at the top.
+    if out.contains("createPortal(") {
+        let portal_imports = "import { createPortal } from \"react-dom\";\nimport { voxResolveLayerRoot } from \"./vox-layer-resolver\";\n";
+        if let Some(pos) = out.find('\n') {
+            let insert_at = out[pos + 1..]
+                .find('\n')
+                .map(|p| pos + 1 + p + 1)
+                .unwrap_or(pos + 1);
+            out.insert_str(insert_at, portal_imports);
+        } else {
+            out.insert_str(0, portal_imports);
+        }
+    }
+
     (filename, out)
 }

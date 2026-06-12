@@ -1,4 +1,4 @@
----
+﻿---
 title: "Where Things Live"
 description: "Flat lookup table — concept to crate. Consult before adding code. Referenced by AGENTS.md and CLAUDE.md."
 category: "Architecture SSOTs"
@@ -239,6 +239,9 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | `@versioned` / `@tracked` decorator + interpreter `repo.*` VCS store (auto-snapshot-on-success) | Decorator spine in `crates/vox-compiler/`: lexer token (`src/lexer/token.rs` `AtVersioned`/`AtTracked`) → parser (`src/parser/descent/decl/head.rs` `is_versioned`) → `FnDecl.is_versioned` (`crates/vox-ast/src/decl/fundecl.rs`) → `HirFn.is_versioned` + `uses vcs` injection (`src/hir/lower/decl.rs`) → `VoxValue::Fn { name, is_versioned }` (`src/eval/value.rs`); the auto-`repo.snapshot()` hook fires on successful return in both call paths (`src/eval/mod.rs` `Interpreter::call` + `src/eval/expr.rs` Call arm) against the in-memory `RepoStore` (`src/eval/repo.rs`). Interpreter-only (`--mode interp`); inert in the compiled arms. See [`vcs-as-vox-language-feature-jujutsu-2026.md`](./vcs-as-vox-language-feature-jujutsu-2026.md) §4.3. |
 | Add a code generator (Rust target) | `crates/vox-codegen/src/codegen_rust/` |
 | Add a code generator (TypeScript target) | `crates/vox-codegen-ts/src/` |
+| VUV contrast / color-vocabulary guarantee (gray-on-white refuses compile) | `crates/vox-codegen/src/web_ir/validate_palette.rs` + palette SSOT `contracts/tokens/tailwind-palette.v1.json`; canonical WCAG fn `vox_compiler::tokens::wcag21_contrast_ratio` |
+| VUV occlusion / tier-inversion guarantee (Z-tiers, escape-hatch checks) | `crates/vox-codegen/src/web_ir/validate_layer.rs`; tiers in `vox_compiler::hir::nodes::layer` (`LayerTier`, `may_parent_surfaces`); z-ladder `ZTier::z_value()` in `web_ir/mod.rs` |
+| Add a "this VUV bug must be impossible" regression case | Add `examples/forbidden/<case>.vox` with a `// expect-error: <code>` header; `crates/vox-compiler/tests/forbidden_corpus_test.rs` runs it through the full pipeline |
 | Add a layer rule / arch-check rule | `crates/vox-arch-check/src/main.rs` + extend `layers.toml` schema |
 | Add an architectural exception (allowed inversion) | Append `[[known_inversions]]` block in [`layers.toml`](./layers.toml) with a `reason` |
 | Add a new workspace crate | Update [`Cargo.toml`](../../../Cargo.toml) `[workspace.dependencies]` AND add a row to [`layers.toml`](./layers.toml) — `vox-arch-check` will fail otherwise |

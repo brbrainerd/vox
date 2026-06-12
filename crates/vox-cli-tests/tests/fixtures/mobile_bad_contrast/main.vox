@@ -1,0 +1,8 @@
+// A contrast violation must fail the build on --target=mobile too: the guarantee
+// follows the view tree, not the target.
+component Home() {
+    state n: int = 0
+    view: panel(bg="white") {
+        text(color="gray.300") { "barely there" }
+    }
+}
