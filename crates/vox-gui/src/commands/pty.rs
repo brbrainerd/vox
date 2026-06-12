@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::sync::Mutex;
 
-use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+use portable_pty::{native_pty_system, Child, CommandBuilder, PtySize};
 use tauri::Emitter;
 
 /// Tauri event carrying a chunk of PTY output. Payload: { tab_id, data }.
@@ -31,6 +31,9 @@ pub struct PtyManager {
 
 struct PtySession {
     writer: Box<dyn std::io::Write + Send>,
+    /// The shell child. Kept so `pty_close` can terminate it — dropping the
+    /// writer alone leaves the process (and its reader thread) running.
+    child: Box<dyn Child + Send + Sync>,
 }
 
 impl PtyManager {
@@ -73,7 +76,7 @@ pub fn pty_spawn(
         .map_err(|e| e.to_string())?;
 
     let cmd = CommandBuilder::new(default_shell());
-    let _child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
+    let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     drop(pair.slave);
 
     let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
@@ -83,7 +86,7 @@ pub fn pty_spawn(
         .sessions
         .lock()
         .unwrap()
-        .insert(tab_id.clone(), PtySession { writer });
+        .insert(tab_id.clone(), PtySession { writer, child });
 
     // Stream output on a blocking thread (portable-pty reader is sync). Hold the
     // master alive in the thread so the PTY stays open for its lifetime.
@@ -128,7 +131,11 @@ pub fn pty_write(
 
 #[tauri::command]
 pub fn pty_close(manager: tauri::State<'_, PtyManager>, tab_id: String) -> Result<(), String> {
-    manager.sessions.lock().unwrap().remove(&tab_id);
+    if let Some(mut session) = manager.sessions.lock().unwrap().remove(&tab_id) {
+        // Kill the shell so the reader thread unblocks (EOF) and the master FD is
+        // dropped; otherwise closing a tab would leak the process + thread.
+        let _ = session.child.kill();
+    }
     Ok(())
 }
 
