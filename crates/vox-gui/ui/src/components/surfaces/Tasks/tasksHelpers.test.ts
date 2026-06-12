@@ -11,6 +11,7 @@ const row = (over: Partial<TaskRow>): TaskRow => ({
   estimated_complexity: 1,
   depends_on: [],
   write_files: [],
+  remote_node: null,
   ...over,
 });
 

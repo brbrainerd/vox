@@ -8,6 +8,7 @@ export interface TaskRow {
   estimated_complexity: number;
   depends_on: number[];
   write_files: string[];
+  remote_node: string | null;
 }
 
 export interface GroupedTasks {

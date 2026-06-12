@@ -180,6 +180,8 @@ pub struct TaskRowDto {
     pub estimated_complexity: u8,
     pub depends_on: Vec<u64>,
     pub write_files: Vec<String>,
+    /// Mesh node that claimed this task via A2A (None when local).
+    pub remote_node: Option<String>,
 }
 
 /// The daemon emits `TaskPriority` Capitalized ("Normal") and lifecycle labels
@@ -247,6 +249,10 @@ pub async fn list_orchestrator_tasks() -> Result<Vec<TaskRowDto>, String> {
                         .collect()
                 })
                 .unwrap_or_default(),
+            remote_node: t
+                .get("remote_node")
+                .and_then(|v| v.as_str())
+                .map(ToString::to_string),
         })
         .collect())
 }

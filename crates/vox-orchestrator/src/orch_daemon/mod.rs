@@ -419,6 +419,12 @@ pub async fn dispatch_request(
                         "estimated_complexity": t.estimated_complexity,
                         "depends_on": t.depends_on.iter().map(|d| d.0).collect::<Vec<u64>>(),
                         "write_files": write_files,
+                        // A2A remote delegation: the mesh node that claimed this
+                        // task (null when executing locally).
+                        "remote_node": t
+                            .populi_remote_delegate
+                            .as_ref()
+                            .and_then(|d| d.claimer_node_id.clone()),
                     })
                 })
                 .collect();
@@ -803,6 +809,9 @@ mod task_dispatch_tests {
         assert!(t["lifecycle"].is_string());
         assert!(t.get("agent_id").is_some());
         assert!(t["write_files"].is_array());
+        // remote_node key is always present (null for a locally-executing task).
+        assert!(t.get("remote_node").is_some());
+        assert!(t["remote_node"].is_null());
     }
 
     #[tokio::test]

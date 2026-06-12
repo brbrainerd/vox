@@ -165,6 +165,14 @@ export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
               ⚠ overlaps #{overlaps.get(t.id)!.join(', #')}
             </span>
           )}
+          {t.remote_node && (
+            <span
+              title="Executing remotely on a mesh node via A2A lease"
+              className="rounded border border-cyan-400/30 bg-cyan-400/10 px-1 font-mono text-[9px] text-cyan-300"
+            >
+              mesh: {t.remote_node}
+            </span>
+          )}
         </div>
       </div>
       {editable && (
