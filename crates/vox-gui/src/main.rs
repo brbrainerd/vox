@@ -83,6 +83,7 @@ async fn main() {
             commands::pty::pty_spawn,
             commands::pty::pty_write,
             commands::pty::pty_close,
+            commands::console_a2a::send_to_agent,
             commands::action_manifest::get_action_manifest,
             commands::execute::execute_command,
             commands::devlog::log_frontend,

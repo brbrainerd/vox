@@ -2,6 +2,7 @@ pub mod action_manifest;
 pub mod app_state;
 pub mod build_info;
 pub mod catalog;
+pub mod console_a2a;
 pub mod control_plane;
 pub mod daemon;
 pub mod devlog;
