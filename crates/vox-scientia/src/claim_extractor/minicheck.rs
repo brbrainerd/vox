@@ -75,7 +75,7 @@ impl MiniCheckVerifier {
                 // Split context into sentences for best-overlap detection.
                 // Naive split on '.', '!', '?' — sufficient for the heuristic.
                 let context_sentences: Vec<&str> = context
-                    .split(|c| c == '.' || c == '!' || c == '?')
+                    .split(['.', '!', '?'])
                     .map(str::trim)
                     .filter(|s| !s.is_empty())
                     .collect();

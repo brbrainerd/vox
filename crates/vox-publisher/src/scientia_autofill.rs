@@ -70,7 +70,7 @@ fn today_ymd() -> String {
 /// - `publication_date` (scientia block) ← today YYYY-MM-DD, "autofill:today"
 /// - `license_spdx` (scientific block)  ← `repo_license_spdx`, "autofill:repo_license"
 /// - `authors` (scientific block)       ← `[{name: manifest.author, orcid: identity.orcid_id}]`
-///                                         when authors vec is empty, "autofill:user_identity"
+///   when authors vec is empty, "autofill:user_identity"
 /// - `authors[0].orcid` (scientific)    ← identity.orcid_id when author exists but orcid absent
 /// - `reproducibility.code_repository_url` ← `git_remote_url`, "autofill:git_remote"
 /// - `keywords` (scientia block)        ← derived from title, "autofill:title_keywords"
@@ -285,7 +285,7 @@ pub fn apply_autofill(
 
     let mut root: serde_json::Value = metadata_json
         .filter(|s| !s.trim().is_empty())
-        .map(|s| serde_json::from_str(s))
+        .map(serde_json::from_str)
         .transpose()
         .map_err(|e| anyhow::anyhow!("metadata_json parse error: {e}"))?
         .unwrap_or_else(|| serde_json::json!({}));
@@ -370,7 +370,7 @@ pub fn apply_autofill(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scientific_metadata::{ReproducibilityAttestation, ScientificAuthor};
+    use crate::scientific_metadata::ScientificAuthor;
 
     fn bare_manifest() -> PublicationManifest {
         PublicationManifest {

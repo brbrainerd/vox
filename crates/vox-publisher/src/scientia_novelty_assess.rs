@@ -207,7 +207,7 @@ pub fn assess_novelty(
         .as_deref()
         .unwrap_or(&[])
         .iter()
-        .filter(|t| t.http_status.map_or(false, |s| (200..300).contains(&s)))
+        .filter(|t| t.http_status.is_some_and(|s| (200..300).contains(&s)))
         .count();
 
     let near_hit_count = filtered_bundle
@@ -215,7 +215,7 @@ pub fn assess_novelty(
         .iter()
         .filter(|h| {
             h.semantic_score
-                .map_or(false, |s| s >= config.novel_threshold)
+                .is_some_and(|s| s >= config.novel_threshold)
         })
         .count();
 

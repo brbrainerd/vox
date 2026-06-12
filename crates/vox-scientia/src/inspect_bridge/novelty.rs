@@ -66,7 +66,7 @@ impl AtomicNoveltyScorer {
             .as_deref()
             .unwrap_or(&[])
             .iter()
-            .any(|t| t.http_status.map_or(false, |s| (200..300).contains(&s)));
+            .any(|t| t.http_status.is_some_and(|s| (200..300).contains(&s)));
 
         // Derive max score from overlap_summary if present, otherwise scan hits directly.
         let max_score = bundle
