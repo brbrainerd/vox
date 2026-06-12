@@ -224,12 +224,12 @@ pub fn list_branches() -> Result<Vec<BranchDto>, String> {
         .args(["worktree", "list", "--porcelain"])
         .current_dir(&root)
         .output();
-    if let Ok(o) = wt {
-        if o.status.success() {
-            let parsed = parse_worktree_porcelain(&String::from_utf8_lossy(&o.stdout));
-            if !parsed.is_empty() {
-                return Ok(parsed);
-            }
+    if let Ok(o) = wt
+        && o.status.success()
+    {
+        let parsed = parse_worktree_porcelain(&String::from_utf8_lossy(&o.stdout));
+        if !parsed.is_empty() {
+            return Ok(parsed);
         }
     }
 

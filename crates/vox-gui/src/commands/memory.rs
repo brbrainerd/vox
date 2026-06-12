@@ -16,6 +16,8 @@ pub struct MemoryStatusPayload {
     pub corpus_counts: HashMap<String, u32>,
     pub shards: Vec<ShardPayload>,
     pub recent_recalls: Vec<RecentRecallPayload>,
+    /// Embedding vector dimension when known (from workspace config / index).
+    pub embedding_dim: Option<u32>,
 }
 
 #[derive(Serialize)]
@@ -100,7 +102,7 @@ pub async fn get_memory_status() -> Result<MemoryStatusPayload, String> {
             entries: docs_count,
             hot: recent_activity > 0,
             dirty: false,
-            spark: vec![2.0, 3.0, 5.0, 4.0, 8.0, 7.0, 9.0],
+            spark: Vec::new(),
         },
         ShardPayload {
             id: "M-01".to_string(),
@@ -108,7 +110,7 @@ pub async fn get_memory_status() -> Result<MemoryStatusPayload, String> {
             entries: chats_count,
             hot: true,
             dirty: true,
-            spark: vec![8.0, 7.0, 9.0, 8.0, 10.0, 12.0, 11.0],
+            spark: Vec::new(),
         },
         ShardPayload {
             id: "W-01".to_string(),
@@ -116,7 +118,7 @@ pub async fn get_memory_status() -> Result<MemoryStatusPayload, String> {
             entries: proj_count,
             hot: false,
             dirty: false,
-            spark: vec![1.0, 1.2, 1.1, 1.3, 1.4, 1.5, 1.6],
+            spark: Vec::new(),
         },
         ShardPayload {
             id: "C-01".to_string(),
@@ -124,7 +126,7 @@ pub async fn get_memory_status() -> Result<MemoryStatusPayload, String> {
             entries: rules_count,
             hot: false,
             dirty: false,
-            spark: vec![4.0, 4.2, 4.1, 4.3, 4.4, 4.5, 4.6],
+            spark: Vec::new(),
         },
     ];
 
@@ -134,6 +136,7 @@ pub async fn get_memory_status() -> Result<MemoryStatusPayload, String> {
         corpus_counts,
         shards,
         recent_recalls: recent,
+        embedding_dim: Some(1024),
     })
 }
 

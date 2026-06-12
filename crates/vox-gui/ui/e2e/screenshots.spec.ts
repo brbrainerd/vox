@@ -45,15 +45,19 @@ function captureErrors(page: Page) {
 const meaningfulConsole = (errs: string[]) => errs.filter(t => !BENIGN_CONSOLE.some(b => t.includes(b)));
 
 function installMock(target: string) {
-  localStorage.setItem('vox_active_view', JSON.stringify(target));
-  localStorage.setItem('vox_sidebar_mode', 'default');
+  try {
+    localStorage.setItem('vox_active_view', JSON.stringify(target));
+    localStorage.setItem('vox_sidebar_mode', 'default');
+  } catch {
+    // Playwright data URLs / sandboxed contexts may deny localStorage.
+  }
   (window as any).__TAURI_CALLS__ = [];
 
   const modelIds = ['mens-8b', 'opus-4-8', 'sonnet-4-6', 'haiku-4-5', 'qwen-coder-7b', 'local-llama'];
   const modelNames = ['Mens 8B', 'Opus 4.8', 'Sonnet 4.6', 'Haiku 4.5', 'Qwen Coder 7B', 'Local Llama'];
   const models = Array.from({ length: 6 }, (_, i) => ({
     id: modelIds[i],
-    // HarnessView keys/reads `model_id` + `display_name`; ModelsView reads `id`. Provide all.
+    // ModelsView reads `id`; harness route is HarnessRedirect (composer parity). Provide all model keys.
     model_id: modelIds[i],
     display_name: modelNames[i],
     provider: ['mens', 'anthropic', 'anthropic', 'anthropic', 'local', 'ollama'][i],
@@ -120,7 +124,20 @@ function installMock(target: string) {
 
   const mcpResult = (tool: string) => {
     if (tool.includes('mesh_nodes')) return { nodes: [{ id: 'node-a', status: 'online', vram_gb: 24 }, { id: 'node-b', status: 'online', vram_gb: 12 }], edges: [] };
-    if (tool.includes('pending_approval')) return { pending: [{ id: 'appr-1', tool: 'vox_run_shell', args: { cmd: 'rm -rf build' }, requested_at_ms: 1717400000000 }] };
+    if (tool.includes('pending_approval')) {
+      return {
+        success: true,
+        data: {
+          approvals: [{
+            approval_id: 'AP-000001',
+            tool: 'vox_run_shell',
+            summary: 'rm -rf build',
+            requested_at_ms: 1717400000000,
+          }],
+        },
+      };
+    }
+    if (tool.includes('git_diff')) return { success: true, data: 'diff --git a/README.md b/README.md\n' };
     if (tool.includes('skill') || tool.includes('plugin')) return { skills: [{ id: 'superpowers', name: 'Superpowers', enabled: true }], plugins: [{ id: 'design', name: 'Design' }] };
     return { ok: true };
   };
@@ -144,6 +161,36 @@ function installMock(target: string) {
               intelligence_score: 0.92, efficiency_score: 0.7, latency_score: 0.6 },
           };
         case 'get_selection_policy': return { chain: ['opus-4-8', 'sonnet-4-6', 'haiku-4-5'], free_tier: true };
+        case 'get_routing_intentions': return [
+          { id: 'axis-quality', parent: 'Quality', branch: 'Opus', phase: 'Validated', conf: 0.92, note: 'Highest reasoning tier' },
+          { id: 'axis-speed', parent: 'Latency', branch: 'Haiku', phase: 'Active', conf: 0.74, note: 'Fast path for chat' },
+          { id: 'axis-cost', parent: 'Budget', branch: 'Local', phase: 'Speculative', conf: 0.58, note: 'Free local tier' },
+        ];
+        case 'policy_list': return [
+          { id: 'pol-1', domain: 'security', group: 'crypto', title: 'No weak AEAD', severity: 'error', blocking: true, protected: false },
+          { id: 'pol-2', domain: 'ci', group: 'runner', title: 'Self-hosted default', severity: 'warn', blocking: false, protected: false },
+        ];
+        case 'list_branches': return [{ branch: 'main', path: '.', isCurrent: true }];
+        case 'policy_status': return [
+          { id: 'pol-1', branch: 'main', status: 'pass', hits: 0 },
+          { id: 'pol-2', branch: 'main', status: 'warn', hits: 2 },
+        ];
+        case 'policy_show': return {
+          id: args?.id ?? 'pol-1',
+          domain: 'security',
+          group: 'crypto',
+          title: 'No weak AEAD',
+          description: 'Use vox-crypto AEAD only.',
+          severity: 'error',
+          blocking: true,
+          protected: false,
+          runsOn: ['main'],
+          origin: 'vox-rule-pack',
+          docs: 'docs/src/reference/secrets-ssot.md',
+          sourceKind: 'rule-pack',
+          sourceRef: 'crypto/no-weak-aead',
+          sourceDetail: null,
+        };
         case 'get_model_scoreboard': return models.map((m, i) => ({
           model_id: m.id,
           task_category: ['code', 'research', 'chat', 'plan', 'code', 'chat'][i],
@@ -196,7 +243,11 @@ function installMock(target: string) {
             { id: 'rules', depth: 2, entries: 210, hot: true, dirty: false, spark: [1, 1, 2, 2, 3, 2, 3] },
           ],
         };
-        case 'mnemosyne_recall': return sessions.map((s, i) => ({ src: 'memory', line: 0, score: 0.9 - i * 0.1, kind: 'memory', text: s.query_text }));
+        case 'chat_list_sessions': return [{ session_id: 'mock-session-1', title: 'Mock chat', updated_at: 'now', message_count: 2, conversation_id: 1 }];
+        case 'chat_create_session': return { session_id: 'mock-session-new', title: 'New chat', updated_at: 'now', message_count: 0, conversation_id: 2 };
+        case 'chat_get_messages': return [{ id: 1, role: 'user', content: 'hello', created_at: 'now', task_id: null }];
+        case 'chat_append_message': return 1;
+        case 'get_identity_summary': return { display_name: 'tester@vox', os_user: 'tester' };
         case 'get_command_catalog': return {
           generated_from: 'mock',
           entries: ['check', 'build', 'test', 'run', 'fmt', 'audit', 'research', 'scientia'].map(n => ({
@@ -234,6 +285,21 @@ function installMock(target: string) {
           return { exit_code: 0, stdout: 'ok', stderr: '' };
         }
         case 'submit_orchestrator_task': return { ok: true, task_id: '101', message: 'submitted' };
+        case 'get_task_diff': return 'diff --git a/README.md b/README.md\n';
+        case 'list_repo_files': {
+          const mockFiles = [
+            'README.md',
+            'crates/vox-gui/src/main.rs',
+            'crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx',
+            'docs/src/reference/cli.md',
+          ];
+          const q = String(args?.query ?? '').toLowerCase();
+          const lim = typeof args?.limit === 'number' ? args.limit : 20;
+          const filtered = q
+            ? mockFiles.filter(p => p.toLowerCase().includes(q))
+            : mockFiles;
+          return filtered.slice(0, lim);
+        }
         default: return null;
       }
     },

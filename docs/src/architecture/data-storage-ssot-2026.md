@@ -59,7 +59,7 @@ Canonical persistence for anything that has identity, relations, or constraints.
   - Project-local: `<repo>/.vox_modules/local_store.db` — package manager index, materialized from `vox.lock`. Regenerable; opened today via bare string literal in `crates/vox-cli/src/commands/{update,sync,search,pm_lifecycle}.rs` (F6).
   - Retired: `research-audit-codex.db` (fold into `store.db` with namespaced prefix, M-24); `vox_hardened.db` at repo root (orphan — no crate opens it — delete in M-25).
 - **Schema**: 19 domain fragments (`foundation`, `clavis_cloudless`, `cas_codex`, `conversations`, `agents`, `ci_completion`, `developer_journeys`, `exec_time`, `execution`, `external_review`, `gamification_coordination`, `knowledge`, `mens_intelligence`, `packages`, `publish_cloud`, `scientia`, `toestub_build`, `visus`, `vox_mesh`) under `crates/vox-db/src/schema/domains/`. `BASELINE_VERSION = 59` in `manifest.rs` (bumped from 55 → 58 → 59 in commits `411adcac` and `ff0fdccc` on 2026-04-21; this integer is a moving target — the guard must read the live value, not hard-code it). Contract `contracts/db/baseline-version-policy.yaml` currently pins `repository_baseline_integer: 54` — **live drift**, now 5 versions behind, see F1. The scientia domain gained two telemetry tables on 2026-04-21 (`model_scoreboard`, `model_pricing_catalog`); see §F75.
-- **Access policy**: `turso::Connection` / `libsql::Connection` may be opened only inside `vox-db`, `vox-secrets`, `vox-test-harness`. Everywhere else goes through the `vox-db` facade.
+- **Access policy**: `turso::Connection` / `libsql::Connection` may be opened only inside `vox-db`, `vox-secrets`, `vox-test-harness`, and `vox-sql` (app-plane backend facade per `contracts/db/data-storage-policy.v1.yaml`). Everywhere else goes through approved facades.
 
 ### 4.2 Tier B — Append-only JSONL spools
 
@@ -330,4 +330,4 @@ This work is considered "done" when all of:
 - **Digest parity** — `schema_baseline_digest_hex()` matches `repository_baseline_digest_hex` in `contracts/db/baseline-version-policy.yaml`. Enforced by existing `vox ci check-codex-ssot`.
 - **Tier A/B/C/D** — the four persistence tiers in §4. Every persistent surface MUST declare its tier; "tierless" is not allowed.
 - **Tierless surface** — a persistent file/table with no declared tier. Treated as a bug by the guard.
-- **Guard** 
+- **Guard**

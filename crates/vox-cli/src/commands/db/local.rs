@@ -4,6 +4,7 @@ use crate::commands::db_retention;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use vox_bounded_fs::read_utf8_path_capped_async;
+use vox_secrets::SecretId;
 
 /// Print current VoxDB schema version and connection path.
 pub async fn status() -> Result<()> {
@@ -51,7 +52,7 @@ pub async fn reset(file: Option<&PathBuf>) -> Result<()> {
     println!("  Cleared {} and re-applied baseline.", path.display());
 
     println!("Re-migrating from .vox declarations...");
-    migrate(file).await?;
+    migrate(file, None, false).await?;
     println!("Reset complete.");
     Ok(())
 }
@@ -105,8 +106,7 @@ pub async fn sample(table: &str, limit: i64) -> Result<()> {
 }
 
 /// Apply any pending schema migrations.
-pub async fn migrate(file: Option<&PathBuf>) -> Result<()> {
-    let db = vox_db::VoxDb::connect_default().await?;
+pub async fn migrate(file: Option<&PathBuf>, url: Option<&str>, dry_run: bool) -> Result<()> {
     let path = file
         .cloned()
         .unwrap_or_else(|| PathBuf::from("src/main.vox"));
@@ -137,14 +137,68 @@ pub async fn migrate(file: Option<&PathBuf>) -> Result<()> {
         }
     }
 
-    let migrator = vox_db::AutoMigrator::new(db.connection());
-    let plan = migrator
-        .sync_schema(&tables, &collections, &indexes)
-        .await?;
+    if let Some(app_url) = resolve_app_plane_url(url) {
+        let backend = vox_sql::AnySqlBackend::connect_from_url(&app_url)
+            .await
+            .map_err(|e| anyhow::anyhow!("failed to connect app-plane backend: {e}"))?;
+        let migrator = vox_sql::migrate::AppAutoMigrator::new(&backend);
+        let plan = migrator
+            .plan(
+                &tables,
+                &collections,
+                &indexes,
+                vox_sql::type_map::UnsupportedTypePolicy::JsonText,
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("failed to plan app-plane migration: {e}"))?;
+        println!("{}", plan.describe());
+        if dry_run {
+            println!("Dry run enabled: no app-plane migration actions were applied.");
+        } else {
+            let applied = migrator
+                .apply(&plan)
+                .await
+                .map_err(|e| anyhow::anyhow!("failed to apply app-plane migration: {e}"))?;
+            println!("Applied {applied} app-plane migration actions.");
+        }
+        return Ok(());
+    }
 
+    let db = vox_db::VoxDb::connect_default().await?;
+    let migrator = vox_db::AutoMigrator::new(db.connection());
+    let plan = migrator.plan(&tables, &collections, &indexes).await?;
     println!("{}", plan.describe());
+    if dry_run {
+        println!("Dry run enabled: no local Codex migration actions were applied.");
+    } else {
+        let applied = migrator.apply(&plan).await?;
+        println!("Applied {applied} local Codex migration actions.");
+    }
 
     Ok(())
+}
+
+fn resolve_app_plane_url(explicit_url: Option<&str>) -> Option<String> {
+    let secret = vox_secrets::resolve_secret(SecretId::VoxAppDbUrl);
+    let app_env_url = secret.expose();
+    resolve_app_plane_url_with_env(explicit_url, app_env_url)
+}
+
+fn resolve_app_plane_url_with_env(
+    explicit_url: Option<&str>,
+    app_env_url: Option<&str>,
+) -> Option<String> {
+    let explicit = explicit_url.and_then(|u| {
+        let trimmed = u.trim();
+        (!trimmed.is_empty()).then(|| trimmed.to_string())
+    });
+    if explicit.is_some() {
+        return explicit;
+    }
+    app_env_url.and_then(|u| {
+        let trimmed = u.trim();
+        (!trimmed.is_empty()).then(|| trimmed.to_string())
+    })
 }
 
 /// Export memory, patterns, and preferences for a user to JSON.
@@ -642,4 +696,30 @@ pub async fn build_regressions(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_app_plane_url_with_env;
+
+    #[test]
+    fn resolve_app_plane_url_prefers_explicit_flag() {
+        let selected = resolve_app_plane_url_with_env(
+            Some("postgres://explicit.example/db"),
+            Some("postgres://env.example/db"),
+        );
+        assert_eq!(selected.as_deref(), Some("postgres://explicit.example/db"));
+    }
+
+    #[test]
+    fn resolve_app_plane_url_uses_app_env_when_flag_absent() {
+        let selected = resolve_app_plane_url_with_env(None, Some("postgres://env.example/db"));
+        assert_eq!(selected.as_deref(), Some("postgres://env.example/db"));
+    }
+
+    #[test]
+    fn resolve_app_plane_url_none_when_no_explicit_or_app_env() {
+        let selected = resolve_app_plane_url_with_env(None, None);
+        assert!(selected.is_none());
+    }
 }

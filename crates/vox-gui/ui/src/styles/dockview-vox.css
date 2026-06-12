@@ -1,0 +1,21 @@
+.dockview-theme-vox {
+  --dv-background-color: rgba(9, 9, 11, 0.92);
+  --dv-group-view-background-color: transparent;
+  --dv-tabs-and-actions-container-background-color: rgba(255, 255, 255, 0.02);
+  --dv-activegroup-visiblepanel-tab-background-color: rgba(212, 175, 55, 0.08);
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-activegroup-visiblepanel-tab-color: rgb(244, 244, 245);
+  --dv-activegroup-hiddenpanel-tab-color: rgb(113, 113, 122);
+  --dv-separator-border: rgba(255, 255, 255, 0.06);
+  --dv-drag-over-background-color: rgba(212, 175, 55, 0.12);
+  --dv-tab-divider-color: rgba(255, 255, 255, 0.06);
+  --dv-icon-hover-background-color: rgba(255, 255, 255, 0.06);
+  --dv-floating-box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.dockview-theme-vox .dv-tab {
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}

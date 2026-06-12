@@ -18,7 +18,7 @@ This document names **every major output** of `vox build` / `vox run` / `vox bun
 | ----- | -------- | ---- |
 | HTTP API | `target/generated/src/main.rs` (+ `lib.rs`, …) | **Axum** listens on `VOX_PORT` (default 3000). |
 | Typed HTTP client (`vox-client.ts`) | `out_dir/vox-client.ts` when `@endpoint` declarations exist | Covers **query**, **mutation**, and **server** endpoints: **`GET`** + JSON query args; **`POST`** + JSON body. Paths match [`web_prefixes.rs`](../../../crates/vox-compiler/src/web_prefixes.rs). Runtime base: **`configureVoxApiBase(...)`** then **`import.meta.env.VITE_API_URL`**. On non-OK responses, parses [Wire Format §6](../architecture/wire-format-v1-ssot.md#6-error-envelope) JSON into **`VoxWireError`** when the body matches (`VoxApiError.wireError`). |
-| TS SDK-only emit | Same files as client target | **`vox emit client <file> [-o DIR]`** — same outputs as **`vox build --target=client`** (Library mode): `vox-client.ts`, `openapi.json`, types/schemas, optional **`package.json`** ([`library_package_emit.rs`](../../../crates/vox-codegen/src/codegen_ts/library_package_emit.rs)) — without emitting Rust. |
+| TS SDK-only emit | Same files as client target | **`vox emit client <file> [-o DIR]`** — same outputs as **`vox build --target=client`** (Library mode): `vox-client.ts`, `openapi.json`, types/schemas, optional **`package.json`** ([`library_package_emit.rs`](../../../crates/vox-codegen-ts/src/library_package_emit.rs)) — without emitting Rust. |
 | Route manifest | `out_dir/routes.manifest.ts` | `voxRoutes` tree for SPA/Start adapters (`routes {` present). |
 | UI | `out_dir/*.tsx`, `out_dir/*.ts` | React components + router shell; SPA scaffold uses manifest when present. |
 | Static HTML shells | `target/generated/public/ssg-shells/**` | From [`vox-ssg`](../../../crates/vox-ssg/src/lib.rs): minimal shells for `routes {` / `@page` (hydration anchor, not a second UI runtime). |
@@ -28,7 +28,7 @@ This document names **every major output** of `vox build` / `vox run` / `vox bun
 
 ## Legacy / opt-in: Express `server.ts`
 
-[`vox-codegen-ts`](../../../crates/vox-codegen/src/codegen_ts/routes.rs) can emit **`server.ts`**, an **Express** app that duplicates `@endpoint(kind: server)` and `http` route registration.
+[`vox-codegen-ts`](../../../crates/vox-rn-codegen/src/routes.rs) can emit **`server.ts`**, an **Express** app that duplicates `@endpoint(kind: server)` and `http` route registration.
 
 - **Default:** emission is **off** unless **`VOX_EMIT_EXPRESS_SERVER=1`** is set in the environment when running codegen (e.g. `vox build`). The supported browser/TS client against **Axum** is **`vox-client.ts`** from TypeScript codegen (Contract IR); Rust codegen **does not** emit **`api.ts`** ([`vox-codegen` `emit/mod.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/mod.rs) sets `api_client_ts` to empty).
 - **Use case for `VOX_EMIT_EXPRESS_SERVER=1`:** Node-only demos, tests, or containers that intentionally run `npx tsx server.ts` instead of the Rust binary.

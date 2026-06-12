@@ -24,6 +24,15 @@ fi
 
 # Ephemeral runners reconfigure on every start (no persistent identity);
 # persistent runners configure once.
+# Persist cargo registry/git and advisory DB on the shared /cache volume (see runner_scale.rs).
+mkdir -p /cache/sccache /cache/cargo-registry /cache/cargo-git /cache/advisory-db
+if [ -n "${HOME:-}" ]; then
+  mkdir -p "${HOME}/.cargo"
+  ln -sfn /cache/cargo-registry "${HOME}/.cargo/registry"
+  ln -sfn /cache/cargo-git "${HOME}/.cargo/git"
+  ln -sfn /cache/advisory-db "${HOME}/.cargo/advisory-db"
+fi
+
 if [ "${RUNNER_EPHEMERAL}" = "1" ] || [ ! -f .runner ]; then
   ./config.sh \
     --url "${REPO_URL}" \

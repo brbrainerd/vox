@@ -4,6 +4,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::inference_env::HF_ROUTER_CHAT_COMPLETIONS_URL;
 
+/// OpenAI-compatible tool definition for chat completions.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LlmToolDef {
+    /// Function/tool name exposed to the provider.
+    pub name: String,
+    /// Optional human-readable description.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// JSON Schema object describing tool arguments.
+    pub parameters: serde_json::Value,
+}
+
 /// Message format for the LLM chat API wire protocol (OpenAI-compatible).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmChatMessage {
@@ -38,6 +50,12 @@ pub struct LlmConfig {
     pub max_tokens: Option<u64>,
     /// Optional JSON Schema / response-format object for structured output.
     pub response_format: Option<serde_json::Value>,
+    /// Optional function tools forwarded to OpenAI-compatible chat APIs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<LlmToolDef>>,
+    /// Optional tool choice directive (`auto`, `none`, `required`, or function object).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<serde_json::Value>,
     /// Optional HTTP timeout in milliseconds.
     pub timeout_ms: Option<u64>,
     /// Optional telemetry session identifier for database attribution.
@@ -70,6 +88,8 @@ impl LlmConfig {
             top_p: None,
             max_tokens: None,
             response_format: None,
+            tools: None,
+            tool_choice: None,
             timeout_ms: None,
             telemetry_session_id: None,
             telemetry_user_id: None,
@@ -94,6 +114,8 @@ impl LlmConfig {
             top_p: None,
             max_tokens: None,
             response_format: None,
+            tools: None,
+            tool_choice: None,
             timeout_ms: None,
             telemetry_session_id: None,
             telemetry_user_id: None,
@@ -116,6 +138,8 @@ impl LlmConfig {
             top_p: None,
             max_tokens: None,
             response_format: None,
+            tools: None,
+            tool_choice: None,
             timeout_ms: None,
             telemetry_session_id: None,
             telemetry_user_id: None,
@@ -180,6 +204,8 @@ impl LlmConfig {
             top_p: entry.top_p,
             max_tokens: entry.max_tokens,
             response_format: None,
+            tools: None,
+            tool_choice: None,
             timeout_ms: entry.timeout_ms,
             telemetry_session_id: None,
             telemetry_user_id: None,
@@ -271,7 +297,7 @@ pub struct LlmResponse {
 
 #[cfg(test)]
 mod tests {
-    use super::{LlmConfig, LlmResponse, ModelRegistryEntry};
+    use super::{LlmConfig, LlmResponse, LlmToolDef, ModelRegistryEntry};
     use std::collections::HashMap;
     use std::sync::Mutex;
 
@@ -295,6 +321,59 @@ mod tests {
         let legacy = r#"{"content":"x","prompt_tokens":1,"completion_tokens":1,"model":"m"}"#;
         let legacy_resp: LlmResponse = serde_json::from_str(legacy).expect("legacy deserialize");
         assert_eq!(legacy_resp.cost_usd, None);
+    }
+
+    #[test]
+    fn llm_config_tools_and_tool_choice_serialize_openai_shape() {
+        let cfg = LlmConfig {
+            provider: "openrouter".into(),
+            model: "openrouter/auto".into(),
+            cost_per_1k: None,
+            base_url: None,
+            api_key: None,
+            temperature: None,
+            top_p: None,
+            max_tokens: None,
+            response_format: None,
+            tools: Some(vec![LlmToolDef {
+                name: "search".into(),
+                description: Some("Search the repo".into()),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": { "query": { "type": "string" } },
+                    "required": ["query"]
+                }),
+            }]),
+            tool_choice: Some(serde_json::json!("auto")),
+            timeout_ms: None,
+            telemetry_session_id: None,
+            telemetry_user_id: None,
+            telemetry_task_category: None,
+            telemetry_strength_tag: None,
+            telemetry_trace_id: None,
+            telemetry_attempt_number: None,
+            telemetry_skip_interaction: false,
+        };
+
+        let body = super::super::wire::OpenRouterRequest {
+            model: &cfg.model,
+            messages: &[],
+            temperature: cfg.temperature,
+            max_tokens: cfg.max_tokens,
+            response_format: cfg.response_format.as_ref(),
+            tools: super::super::wire::openrouter_tools(cfg.tools.as_deref()),
+            tool_choice: cfg.tool_choice.as_ref(),
+            stream: false,
+        };
+        let json = serde_json::to_value(&body).expect("serialize request");
+        let tools = json
+            .get("tools")
+            .and_then(|v| v.as_array())
+            .expect("tools array");
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0]["type"], "function");
+        assert_eq!(tools[0]["function"]["name"], "search");
+        assert_eq!(json.get("tool_choice"), Some(&serde_json::json!("auto")));
     }
 
     #[test]

@@ -2,6 +2,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
+import { EmptyState } from '../../ui/EmptyState';
+import { APPROVALS_POLL_MS } from '../../../config/constants';
+import {
+  type McpInvokeResult,
+  parsePendingApprovals,
+  unwrapMcpEnvelope,
+} from '../../../lib/mcpToolResult';
 
 interface PendingApproval {
   approval_id: string;
@@ -34,12 +41,11 @@ export function ApprovalsView({ pushToast }: ApprovalsViewProps) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await invoke<{ tool: string; is_error: boolean; result: any }>(
-        'invoke_mcp_tool',
-        { tool: 'vox_pending_approvals', args: {} },
-      );
-      const list: PendingApproval[] = res?.result?.approvals ?? [];
-      setApprovals(Array.isArray(list) ? list : []);
+      const res = await invoke<McpInvokeResult>('invoke_mcp_tool', {
+        tool: 'vox_pending_approvals',
+        args: {},
+      });
+      setApprovals(parsePendingApprovals(res));
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Approvals load failed', body: String(err) });
     } finally {
@@ -49,7 +55,7 @@ export function ApprovalsView({ pushToast }: ApprovalsViewProps) {
 
   useEffect(() => {
     refresh();
-    const id = setInterval(refresh, 2000);
+    const id = setInterval(refresh, APPROVALS_POLL_MS);
     return () => clearInterval(id);
   }, [refresh]);
 
@@ -57,11 +63,12 @@ export function ApprovalsView({ pushToast }: ApprovalsViewProps) {
     async (approvalId: string, outcome: 'approved' | 'rejected') => {
       setResolving(approvalId);
       try {
-        const res = await invoke<{ tool: string; is_error: boolean; result: any }>(
-          'invoke_mcp_tool',
-          { tool: 'vox_resolve_approval', args: { approval_id: approvalId, outcome } },
-        );
-        if (res?.is_error || res?.result?.resolved === false) {
+        const res = await invoke<McpInvokeResult>('invoke_mcp_tool', {
+          tool: 'vox_resolve_approval',
+          args: { approval_id: approvalId, outcome },
+        });
+        const data = unwrapMcpEnvelope(res.result) as { resolved?: boolean } | null;
+        if (res.is_error || data?.resolved === false) {
           pushToast({ tone: 'warn', title: 'Resolve failed', body: `Could not ${outcome.replace('ed', '')} ${approvalId}` });
         } else {
           pushToast({
@@ -100,15 +107,11 @@ export function ApprovalsView({ pushToast }: ApprovalsViewProps) {
         {loading && approvals.length === 0 ? (
           <div className="text-sm text-zinc-500">Loading approvals…</div>
         ) : approvals.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-            <span className="flex size-12 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300 ring-1 ring-emerald-400/20">
-              <Icon.check className="size-6" />
-            </span>
-            <div className="font-display text-sm tracking-wider text-zinc-300">No pending approvals</div>
-            <div className="text-[11px] text-zinc-500">
-              Dangerous tool invocations will park here for a human to review.
-            </div>
-          </div>
+          <EmptyState
+            icon={<Icon.check className="size-8 text-emerald-300" />}
+            title="No pending approvals"
+            description="Dangerous tool invocations will park here for a human to review."
+          />
         ) : (
           <div className="flex flex-col gap-2">
             {approvals.map((a) => {

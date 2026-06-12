@@ -7,7 +7,7 @@ status: deprecated
 
 # vox-codegen-ts API (deprecated)
 
-The historical `vox-codegen-ts` crate name is retired. **HIR-to-TypeScript/TSX emission** lives in the monolith crate [`vox-compiler`](../../../crates/vox-compiler) under `codegen_ts` (see `crates/vox-codegen/src/codegen_ts/`).
+The historical `vox-codegen-ts` crate name is retired. **HIR-to-TypeScript/TSX emission** lives in the monolith crate [`vox-compiler`](../../../crates/vox-compiler) under `codegen_ts` (see `crates/vox-codegen-ts/src/`).
 
 ## Overview
 

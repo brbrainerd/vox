@@ -82,6 +82,7 @@ fn arch_check_description_rule_fixture() {
 /// same command with different assertions, paying the workspace-walk cost twice
 /// for no extra signal.
 #[test]
+#[ignore = "slow; runs full live-workspace arch-check (~125s); owner: arch-check sunset: never; use --include-slow or CI"]
 fn arch_check_live_workspace_smoke_and_description_rule() {
     let out = Command::new(arch_check_binary())
         .arg("--warn-only")

@@ -21,6 +21,7 @@ fn fallback_plan_from_db_op(
     vox_compiler::hir::HirDbQueryPlan {
         table: table.to_string(),
         op,
+        primary_key: None,
         predicate: None,
         projection: select_cols.clone(),
         order_by: order_by.clone(),
