@@ -45,7 +45,7 @@ Frontend lifecycle ownership (canonical vs experimental vs fixture-only) is trac
 
 ## `state_machine` as SSoT for reactive UI state
 
-Within the dashboard (and any Vox-generated application), reactive state **must** be expressed using the Vox `state_machine` compiler primitive. This primitive is defined in `crates/vox-compiler/src/hir/nodes/state_machine.rs`, type-checked at `crates/vox-compiler/src/typeck/state_machine_check.rs`, and lowered to TypeScript+React by `crates/vox-codegen/src/codegen_ts/state_machine_emit.rs`.
+Within the dashboard (and any Vox-generated application), reactive state **must** be expressed using the Vox `state_machine` compiler primitive. This primitive is defined in `crates/vox-compiler/src/hir/nodes/state_machine.rs`, type-checked at `crates/vox-compiler/src/typeck/state_machine_check.rs`, and lowered to TypeScript+React by `crates/vox-codegen-ts/src/state_machine_emit.rs`.
 
 Do **not** hand-write reactive `.tsx` files in `app/src/generated/` — they must be compiler outputs from `.vox` sources. The CI gate at `scripts/check_dashboard_ssot.vox` enforces this rule.
 
@@ -57,9 +57,9 @@ Vox does **not** ship HTML-fragment UIs or classless CSS microframeworks as firs
 
 ## Typed web API client and HTTP verbs
 
-- **`vox-client.ts`** is emitted when the module has any `@endpoint` declarations.
-- **`@endpoint(kind: query)`** uses **`GET`** against `/api/query/<name>` with **deterministic JSON-in-query** encoding (sorted keys; each argument value is JSON-serialized then URL-encoded). This matches the generated Axum handlers.
-- **`@endpoint(kind: mutation)`** and **`@endpoint(kind: server)`** use **`POST`** with a JSON body — same shapes as Axum.
+- **`vox-client.ts`** is emitted when the module has any `@query`, `@mutation`, or `@server` declarations.
+- **`@query`** uses **`GET`** against `/api/query/<name>` with **deterministic JSON-in-query** encoding (sorted keys; each argument value is JSON-serialized then URL-encoded). This matches the generated Axum handlers.
+- **`@mutation`** and **`@server`** use **`POST`** with a JSON body — same shapes as Axum.
 
 Normative detail: [vox-codegen-ts.md](../reference/cli.md) (transport section) and [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md).
 
@@ -87,7 +87,7 @@ For mobile support, this web stack is the primary delivery surface for Vox appli
 - Templates: `crates/vox-cli/src/templates/` (`spa.rs`, `tanstack.rs`; `package.json`, Vite config).
 - Frontend build: `crates/vox-cli/src/frontend.rs`.
 - v0: `crates/vox-cli/src/v0.rs`, `crates/vox-cli/src/v0_tsx_normalize.rs`.
-- React hook mapping / `component` emission: `crates/vox-codegen/src/codegen_ts/component.rs` (imports [`react_bridge`](../../../crates/vox-compiler/src/react_bridge.rs): Vox `use_*` → React hooks, shared AST walks). Path C reactive: `crates/vox-codegen/src/codegen_ts/reactive.rs`, `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`. Server-fn API path prefix: [`web_prefixes::SERVER_FN_API_PREFIX`](../../../crates/vox-compiler/src/web_prefixes.rs) (HIR + TS fetch URLs stay aligned). Route manifest + typed client: [`codegen_ts/route_manifest.rs`](../../../crates/vox-codegen/src/codegen_ts/route_manifest.rs), [`codegen_ts/vox_client.rs`](../../../crates/vox-codegen/src/codegen_ts/vox_client.rs); Start file layout glue lives in [`codegen_ts/scaffold.rs`](../../../crates/vox-codegen/src/codegen_ts/scaffold.rs) and CLI templates (`tanstack.rs`). Opt-out for legacy-hook warnings: env **`VOX_SUPPRESS_LEGACY_HOOK_LINTS`** ([`env-vars.md`](env-vars.md)).
+- React hook mapping / `component` emission: `crates/vox-codegen-ts/src/component.rs` (imports [`react_bridge`](../../../crates/vox-compiler/src/react_bridge.rs): Vox `use_*` → React hooks, shared AST walks). Path C reactive: `crates/vox-codegen-ts/src/reactive/mod.rs`, `crates/vox-codegen-ts/src/hir_emit/mod.rs`. Server-fn API path prefix: [`web_prefixes::SERVER_FN_API_PREFIX`](../../../crates/vox-compiler/src/web_prefixes.rs) (HIR + TS fetch URLs stay aligned). Route manifest + typed client: [`codegen_ts/route_manifest.rs`](../../../crates/vox-codegen-ts/src/route_manifest.rs), [`codegen_ts/vox_client.rs`](../../../crates/vox-codegen-ts/src/vox_client.rs); Start file layout glue lives in [`codegen_ts/scaffold.rs`](../../../crates/vox-codegen-ts/src/scaffold.rs) and CLI templates (`tanstack.rs`). Opt-out for legacy-hook warnings: env **`VOX_SUPPRESS_LEGACY_HOOK_LINTS`** ([`env-vars.md`](env-vars.md)).
 - **`vox run` auto mode**: `crates/vox-cli/src/commands/run.rs` + `commands/runtime/run/run.rs` — default is an `@page` scan in the first 8 KiB; override with **`[web] run_mode`** in `Vox.toml` (`auto` \| `app` \| `script`) or env **`VOX_WEB_RUN_MODE`** (same values; parsed in `vox-config`).
 - **TanStack Start scaffold (opt-in)**: `Vox.toml` **`[web] tanstack_start = true`** or **`VOX_WEB_TANSTACK_START=1`** — `crates/vox-cli/src/templates.rs` + `frontend.rs` emit Start file layout + `@tanstack/react-start` (see [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md)).
 - **External frontend interop (2026)**: `component` declarations lower to plain TSX under the generated `app/` directory; an external React/TanStack/mobile app imports them or calls the endpoints declared in `.vox` via the generated `vox-client.ts`. SSG HTML shells still come from **`vox-ssg`** + `routes {`. Full plan: [architecture/external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md).
@@ -117,7 +117,7 @@ For **dense, interactive tables** (sorting, filtering, column visibility, virtua
 
 ## Related docs
 
-- [vox-codegen-ts.md](../reference/cli.md) — `routes.manifest.ts`, `vox-client.ts` transport (**GET** `@endpoint(kind: query)` / **POST** mutations).
+- [vox-codegen-ts.md](../reference/cli.md) — `routes.manifest.ts`, `vox-client.ts` transport (**GET** `@query` / **POST** `@mutation` and `@server`).
 - [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md) — build outputs, Express `server.ts` opt-in, containers.
 - [`cli.md`](cli.md) — CLI including `vox populi` (feature `populi`).
 - [TanStack SSR with Axum](../how-to/tanstack-ssr-with-axum.md) — dev topology during SSR adoption.

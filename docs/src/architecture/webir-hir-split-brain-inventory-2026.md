@@ -32,7 +32,7 @@ This document is the **baseline split-brain map** for the [WebIR/HIR unification
 
 ### 1. Reactive `view:` — WebIR canonical (legacy fallback removed)
 
-- **Files:** [`crates/vox-codegen/src/codegen_ts/reactive.rs`](../../../crates/vox-codegen/src/codegen_ts/reactive.rs), [`crates/vox-codegen/src/web_ir/emit_tsx.rs`](../../../crates/vox-codegen/src/web_ir/emit_tsx.rs), [`crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`](../../../crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs).
+- **Files:** [`crates/vox-codegen-ts/src/reactive/mod.rs`](../../../crates/vox-codegen-ts/src/reactive/mod.rs), [`crates/vox-codegen/src/web_ir/emit_tsx.rs`](../../../crates/vox-codegen/src/web_ir/emit_tsx.rs), [`crates/vox-codegen-ts/src/hir_emit/mod.rs`](../../../crates/vox-codegen-ts/src/hir_emit/mod.rs).
 - **Mechanism:** Validated WebIR view TSX is **always** selected for the emitted return; `emit_hir_expr` runs **only** to classify parity (`WebIrViewEmitted` vs `WebIrViewEmittedParityMismatch`). Blocking `validate_web_ir` diagnostics or missing Web IR view roots **fail fast** (placeholder return + `reactive_view_emit_failures`).
 - **Risk:** Divergence in JSX attribute names, primitive kwargs (`web_ir::primitives` vs `transform_hir_view_kwargs`), or handler `await` threading.
 - **Mitigation in tree:** Shared `map_jsx_attr_name`, `expand_bind_hir_attribute` / `lower_jsx_attr_pair`, `transform_hir_view_kwargs` used from `web_ir::lower`.
@@ -40,12 +40,12 @@ This document is the **baseline split-brain map** for the [WebIR/HIR unification
 
 ### 2. Route manifest — WebIR-first
 
-- **Files:** [`crates/vox-codegen/src/codegen_ts/route_manifest.rs`](../../../crates/vox-codegen/src/codegen_ts/route_manifest.rs) (`WebIrModule` route trees; comment `// Source: WebIR RouteTree → TS`).
+- **Files:** [`crates/vox-codegen-ts/src/route_manifest.rs`](../../../crates/vox-codegen-ts/src/route_manifest.rs) (`WebIrModule` route trees; comment `// Source: WebIR RouteTree → TS`).
 - **Risk:** Low if `lower_hir_to_web_ir` is the single route-tree source; HIR-only route emitters must not bypass WebIR for manifest rows.
 
 ### 3. Mobile / shell primitives — `ShellProjection` + required capabilities
 
-- **Files:** [`crates/vox-codegen/src/codegen_ts/mobile_emit.rs`](../../../crates/vox-codegen/src/codegen_ts/mobile_emit.rs), [`crates/vox-compiler/src/shell_projection.rs`](../../../crates/vox-compiler/src/shell_projection.rs), [`crates/vox-compiler/src/required_capabilities.rs`](../../../crates/vox-compiler/src/required_capabilities.rs), [`crates/vox-compiler/src/hir/nodes/decl.rs`](../../../crates/vox-compiler/src/hir/nodes/decl.rs) (`HirFieldOwnership::Shell` for `back_button` / `deep_link` / `push`).
+- **Files:** [`crates/vox-codegen-ts/src/mobile_emit.rs`](../../../crates/vox-codegen-ts/src/mobile_emit.rs), [`crates/vox-compiler/src/shell_projection.rs`](../../../crates/vox-compiler/src/shell_projection.rs), [`crates/vox-compiler/src/required_capabilities.rs`](../../../crates/vox-compiler/src/required_capabilities.rs), [`crates/vox-compiler/src/hir/nodes/decl.rs`](../../../crates/vox-compiler/src/hir/nodes/decl.rs) (`HirFieldOwnership::Shell` for `back_button` / `deep_link` / `push`).
 - **Risk:** Packaging permissions drifting from actual module needs.
 - **Mitigation:** `RequiredRuntimeCapabilities` drives a **filtered** `runtime-capabilities.projection.json` on `vox compile` (full YAML mirror when no HIR is available, e.g. `vox init` templates).
 

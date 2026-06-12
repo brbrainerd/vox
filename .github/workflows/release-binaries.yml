@@ -41,6 +41,18 @@ jobs:
         # Each ships as its own archive so users opt into the heavy ML/scientia plugins.
         run: cargo run --locked -p vox-cli -- ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist --package all
 
+      # SBOM (CycloneDX) — stub for release provenance. Enable when cargo-cyclonedx is
+      # wired into the release pipeline (install: cargo install cargo-cyclonedx).
+      # - name: Generate CycloneDX SBOM
+      #   run: |
+      #     cargo cyclonedx --all-features --format json \
+      #       --output dist/sbom-${{ matrix.target }}.cdx.json
+      # - name: Upload SBOM artifact
+      #   uses: actions/upload-artifact@v7
+      #   with:
+      #     name: sbom-${{ matrix.target }}
+      #     path: dist/sbom-${{ matrix.target }}.cdx.json
+
       - name: Smoke test packaged binary (Unix)
         if: runner.os != 'Windows'
         shell: bash

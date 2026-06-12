@@ -1,6 +1,6 @@
 use crate::hir::{HirExpr, HirStmt};
 
-pub(crate) fn has_async_stmts(stmts: &[HirStmt]) -> bool {
+pub fn has_async_stmts(stmts: &[HirStmt]) -> bool {
     stmts.iter().any(has_async_stmt)
 }
 

@@ -1,7 +1,9 @@
 pub mod action_manifest;
 pub mod app_state;
+pub mod browser;
 pub mod build_info;
 pub mod catalog;
+pub mod chat;
 pub mod console_a2a;
 pub mod control_plane;
 pub mod daemon;
@@ -10,6 +12,8 @@ pub mod discovery;
 pub mod dynamic_mapping;
 pub mod execute;
 pub mod gamify;
+pub mod harness;
+pub mod identity;
 pub mod mcp;
 pub mod memory;
 pub mod mesh;

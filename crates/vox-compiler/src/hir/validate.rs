@@ -37,15 +37,15 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
         if s.route_path.is_empty() {
             let (hint, kind_str) = match s.kind {
                 crate::hir::HirEndpointKind::Server => (
-                    "@server fn must declare a route, e.g. @server fn foo(\"/path\")",
+                    "route_path is synthesized during lowering; this indicates an internal lowering bug",
                     "@server fn",
                 ),
                 crate::hir::HirEndpointKind::Query => (
-                    "@query fn must declare a route, e.g. @query fn foo(\"/path\")",
+                    "route_path is synthesized during lowering; this indicates an internal lowering bug",
                     "@query fn",
                 ),
                 crate::hir::HirEndpointKind::Mutation => (
-                    "@mutation fn must declare a route, e.g. @mutation fn foo(\"/path\")",
+                    "route_path is synthesized during lowering; this indicates an internal lowering bug",
                     "@mutation fn",
                 ),
             };

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { LudusProfile } from '../../../lib/ludus';
 import { LudusHud } from './LudusHud';
+import { GAMIFY_POLL_MS } from '../../../config/constants';
 
 interface GamifyViewProps {
   pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
@@ -86,7 +87,7 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
 
   useEffect(() => {
     refresh();
-    const id = setInterval(refresh, 15000);
+    const id = setInterval(refresh, GAMIFY_POLL_MS);
     return () => clearInterval(id);
   }, [refresh]);
 

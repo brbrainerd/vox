@@ -100,6 +100,7 @@ pub(super) fn extract_count_chain_args(
 
 pub(crate) struct DbQueryChain {
     pub(crate) table: String,
+    pub(crate) primary_key: Option<String>,
     pub(crate) op: HirDbTableOp,
     /// Flattened per-field predicate values in predicate DFS order. The
     /// MethodCall still receives the SURFACE args (so typecheck matches the
@@ -119,6 +120,7 @@ pub(super) fn make_db_plan_from_chain(chain: &DbQueryChain) -> HirDbQueryPlan {
     HirDbQueryPlan {
         table: chain.table.clone(),
         op: chain.op,
+        primary_key: chain.primary_key.clone(),
         predicate: chain.predicate.clone(),
         projection: chain.select_cols.clone(),
         order_by: chain.order_by.clone(),
@@ -338,9 +340,11 @@ pub(super) fn extract_db_query_chain(ctx: &mut LowerCtx, expr: &Expr) -> Option<
 
     let obj_hir = ctx.lower_expr(object);
     let table = db_table_handle_name(&obj_hir)?;
+    let primary_key = ctx.table_primary_key(&table);
     match method.as_str() {
         "all" if args.is_empty() => Some(DbQueryChain {
             table,
+            primary_key,
             op: HirDbTableOp::All,
             args: Vec::new(),
             predicate: None,
@@ -363,6 +367,7 @@ pub(super) fn extract_db_query_chain(ctx: &mut LowerCtx, expr: &Expr) -> Option<
             }
             Some(DbQueryChain {
                 table,
+                primary_key,
                 op: HirDbTableOp::FilterRecord,
                 args: filter_args.clone(),
                 predicate: Some(HirDbPredicate::And(
@@ -392,6 +397,7 @@ pub(super) fn extract_db_query_chain(ctx: &mut LowerCtx, expr: &Expr) -> Option<
             }
             Some(DbQueryChain {
                 table,
+                primary_key,
                 op: HirDbTableOp::FilterRecord,
                 args: filter_args,
                 predicate: Some(predicate),

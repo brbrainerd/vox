@@ -135,9 +135,12 @@ vox-eval                = { layer = 2 }
 
 # ── L3 — heavy runtimes ───────────────────────────────────────────────────────
 vox-db                  = { layer = 3, max_dependents = 25, max_loc = 40_000 }
+vox-sql                 = { layer = 3, max_dependents = 20, max_loc = 8_000 }
 vox-corpus              = { layer = 3, max_loc = 15_000 }
 vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 45_000 }
 vox-codegen         = { layer = 3, max_loc = 25_000 }
+vox-codegen-ts      = { layer = 3, max_loc = 18_000 }
+vox-rn-codegen      = { layer = 3, max_loc = 6_000 }
 vox-tauri-codegen       = { layer = 3, max_loc = 6_000 }
 vox-tauri-stt           = { layer = 3, kind = "library", staleness_exempt = true, orphan_exempt = true }
 
@@ -160,9 +163,6 @@ vox-vcs                 = { layer = 3, max_loc = 20_000, orphan_exempt = true }
 vox-openclaw-runtime    = { layer = 3 }
 vox-workflow-runtime    = { layer = 3 }
 vox-runtime-rn          = { layer = 3, orphan_exempt = true }     # uniffi mobile bridge (RN/Expo); deps vox-runtime+vox-journal; consumed out-of-tree by clients/runtime-rn (PR #97)
-vox-distributed-training = { layer = 3, orphan_exempt = true }     # WIP/Mn-T1; promoted from [planned] 2026-05-23; no in-tree consumers until mesh Phase 3
-vox-inference           = { layer = 3, orphan_exempt = true }      # WIP/Mn-T2; promoted from [planned] 2026-05-23; no in-tree consumers until mesh Phase 3
-vox-mesh-policy  = { layer = 3, kind = "library", staleness_exempt = true, orphan_exempt = true }
 vox-code-audit          = { layer = 3, max_loc = 25_000 }
 vox-drift-check              = { layer = 3, kind = "binary", max_loc = 8_000 }
 vox-wire-format-validator    = { layer = 3, kind = "binary", max_loc = 4_000 }
@@ -173,6 +173,7 @@ vox-cli-core            = { layer = 3 }
 
 vox-orchestrator-mcp    = { layer = 3, max_loc = 40_000 }        # Phase 4 extraction
 vox-orchestrator-queue  = { layer = 3 }                          # Phase 5 extraction
+vox-orchestrator-driver = { layer = 3 }                          # CLI/MCP embedded orchestrator driver (2026 debt burndown)
 vox-search              = { layer = 3 }
 
 
@@ -192,7 +193,6 @@ vox-plugin-catalog      = { layer = 3 }
 # Note: Skill-only plugins (e.g., vox-plugin-skill-git) have no Cargo.toml and are
 # exempt from this file. They are validated separately.
 vox-plugin-browser           = { layer = 4, kind = "plugin" }
-vox-plugin-cloud             = { layer = 4, kind = "plugin" }
 vox-plugin-mens-candle-cuda  = { layer = 4, kind = "plugin", sibling_of = ["vox-plugin-mens-candle-metal", "vox-populi"] }  # vendor-split GPU backends; populi held the legacy MENS tensor copy mid-migration
 vox-plugin-mens-candle-metal = { layer = 4, kind = "plugin", sibling_of = ["vox-plugin-mens-candle-cuda", "vox-populi"] }  # vendor-split GPU backends; populi held the legacy MENS tensor copy mid-migration
 vox-plugin-nvml-probe        = { layer = 4, kind = "plugin" }
@@ -207,6 +207,7 @@ vox-plugin-webhook           = { layer = 4, kind = "plugin" }
 vox-cli               = { layer = 5, kind = "binary", max_loc = 90_000, max_workspace_deps = 60 }
 vox-gui               = { layer = 5, kind = "binary", max_loc = 25_000 } # Tauri desktop shell; depends on vox-cli / vox-orchestrator
 vox-cli-tests         = { layer = 5, kind = "test-only" }
+vox-cli-ci             = { layer = 5, kind = "library", max_loc = 15_000 }
 vox-integration-tests = { layer = 5, kind = "test-only" }
 vox-orchestrator-d    = { layer = 5, kind = "binary" }
 vox-audit             = { layer = 5, kind = "binary" }                   # umbrella CR-L gate runner; contracts/ci/vox-audit-contract.v1.yaml
@@ -220,7 +221,12 @@ voxup                 = { layer = 5, kind = "binary" }
 [[known_inversions]]
 from   = "vox-cli"
 to     = "vox-orchestrator"
-reason = "CLI ↔ orchestrator coupling is load-bearing for runtime/observability surfaces (vox status, vox attention, vox model *, vox dei, vox live). See build-time-log.md Phase 7 audit."
+reason = "CLI ↔ orchestrator coupling is load-bearing for runtime/observability surfaces (vox status, vox attention, vox model *, vox dei, vox live). Shared Vox.toml bootstrap lives in vox-orchestrator-driver (re-exported from vox-cli-core). See build-time-log.md Phase 7 audit."
+
+[[known_inversions]]
+from   = "vox-orchestrator-mcp"
+to     = "vox-orchestrator-driver"
+reason = "MCP stdio host loads embedded orchestrator config via vox-orchestrator-driver::build_embedded_orchestrator_config (shared with vox-cli dei surfaces). Shim remains at vox-cli-core::orchestrator_driver for legacy CLI imports."
 
 [[known_inversions]]
 from   = "vox-ml-cli"
@@ -297,7 +303,7 @@ reason           = "jj is used in-process via jj-lib (vox-vcs::JjBackend/JjActor
 [[forbidden_pattern]]
 name             = "projection-bundle-ts-emit-boundary"
 pattern          = '(?-u)\b(lower_hir_to_web_ir|project_web_from_core|project_app_contract|project_runtime_from_hir|project_shell_from_hir|project_required_capabilities)\s*\('
-file_glob        = "crates/vox-codegen/src/codegen_ts/**/*.rs"
+file_glob        = "crates/vox-codegen-ts/src/**/*.rs"
 allow_annotation = "// vox-arch-check: allow-direct-projection"
 reason           = "HIR projections for emit must go through projection_bundle (WebIR/AppContract/Runtime/Shell/RequiredCapabilities SSOT)."
 
@@ -401,10 +407,11 @@ vox-http-envelope        = { plan = "docs/src/architecture/crate-structure-audit
 vox-share                = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-ssg                  = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-install-policy       = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
-# vox-mesh-policy — promoted to [crates] 2026-05-24; renamed from vox-mesh
-# vox-distributed-training, vox-inference — promoted to [crates] (now on disk)
-vox-cli-ci               = { plan = "docs/src/architecture/2026-05-15-cli-ci-extraction-plan.md", layer = 3 }
+# vox-mesh-policy — folded into vox-scaling-policy/src/donations_vox (2026-06-10)
+# vox-distributed-training, vox-inference — merged into vox-populi/src/{distributed_training,inference}
 vox-dashboard            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-mens-eval            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
 vox-agentos-mutation     = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 0 }
+
+
 

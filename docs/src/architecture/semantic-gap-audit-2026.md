@@ -28,7 +28,7 @@ status: "current"
 
 ### F1 — `validate_manifest_symbols` is a public no-op with a working implementation sitting unwired next to it
 
-- **File:** `crates/vox-codegen/src/codegen_ts/route_manifest.rs:25-27`
+- **File:** `crates/vox-codegen-ts/src/route_manifest.rs:25-27`
 - **Method:** M2 (name/contract drift)
 - **Severity:** HIGH — breaks the route-manifest validation contract; broken routes pass codegen silently.
 
@@ -274,7 +274,7 @@ For audit honesty — these were investigated and found to honor their contracts
 
 | ID | File:line | Severity | Method | One-line |
 |---|---|---|---|---|
-| F1 | `vox-codegen/src/codegen_ts/route_manifest.rs:25-27` | HIGH | M2 | Public validator returns `Ok(())`; real impl sits `#[allow(dead_code)]` adjacent |
+| F1 | `vox-codegen-ts/src/route_manifest.rs:25-27` | HIGH | M2 | Public validator returns `Ok(())`; real impl sits `#[allow(dead_code)]` adjacent |
 | F2 | `vox-orchestrator/src/services/reliability.rs:33-41`, `:75-83` | HIGH | M3-P1 | `record_endpoint_observation` Result discarded (2 sites) |
 | F3 | `vox-orchestrator/src/services/reliability.rs:43-58` | HIGH | M3-P1 | `record_task_reliability_observation` Result discarded × 4 match arms |
 | F4 | `vox-orchestrator/src/orchestrator/task_dispatch/submit/task_submit.rs:1002-1014` | HIGH | M3-P1 | `append_orchestration_lineage_event` Result discarded |

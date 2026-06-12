@@ -12,6 +12,7 @@
 pub mod bundler;
 pub mod codegen_rust;
 pub mod codegen_shared;
+#[path = "../../vox-codegen-ts/src/mod.rs"]
 pub mod codegen_ts;
 pub mod projection_bundle;
 pub mod syntax_k;

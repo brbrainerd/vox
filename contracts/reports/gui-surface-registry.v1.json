@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "surface_count": 88,
+  "surface_count": 96,
   "top_level_groups": [
     "add",
     "ars",
@@ -51,6 +51,7 @@
     "populi",
     "remove",
     "repair",
+    "repl",
     "repo",
     "research",
     "rollback",
@@ -74,7 +75,5 @@
     "workflow"
   ],
   "unclassified_backfilled": [],
-  "wiring_violations": [
-    "view_key 'console' is not referenced in App.tsx"
-  ]
+  "wiring_violations": []
 }

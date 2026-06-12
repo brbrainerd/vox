@@ -371,7 +371,7 @@ mod tests {
     /// seam end-to-end. Run manually:
     ///   cargo test -p vox-gui --bin vox-gui commands::mic::real_mic -- --ignored --nocapture
     #[test]
-    #[ignore]
+    #[ignore = "slow; needs real mic + Whisper model; owner: gui sunset: never; run with --ignored"]
     fn real_mic_capture_and_transcribe_smoke() {
         use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
