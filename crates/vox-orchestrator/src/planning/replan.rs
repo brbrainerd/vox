@@ -70,6 +70,7 @@ pub async fn enqueue_recovery_first_node(
                 complexity: None,
                 model_preference: None,
                 model_override: None,
+                mode: None,
                 campaign_id: meta.campaign_id.clone(),
                 benchmark_tier: meta.benchmark_tier,
                 execution_role: meta.execution_role,

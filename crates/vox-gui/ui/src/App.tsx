@@ -421,6 +421,8 @@ export default function App() {
           files: contextFiles,
           priority: payload.priority ?? null,
           session_id: payload.session_id ?? 'gui-loquela',
+          mode: payload.mode ?? null,
+          tier: payload.tier ?? null,
         }
       },
       'gui.loquela.submit',

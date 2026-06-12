@@ -10,6 +10,10 @@ pub struct SubmitTaskInput {
     pub files: Vec<String>,
     pub priority: Option<String>,
     pub session_id: Option<String>,
+    /// Interaction mode from the composer (plan|act|verify); forwarded as an enqueue hint.
+    pub mode: Option<String>,
+    /// Tier/model preference from the composer; forwarded as model_preference enqueue hint.
+    pub tier: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -39,16 +43,31 @@ pub async fn submit_orchestrator_task(
         Some("background") => Some(TaskPriority::Background),
         _ => None,
     };
-    let response = call_orchestrator_daemon(
-        orch_daemon_method::SUBMIT_TASK,
-        serde_json::json!({
-            "description": input.description,
-            "file_manifest": file_manifest,
-            "priority": priority,
-            "session_id": input.session_id.filter(|s| !s.trim().is_empty()),
-        }),
-    )
-    .await?;
+    let mut params = serde_json::json!({
+        "description": input.description,
+        "file_manifest": file_manifest,
+        "priority": priority,
+        "session_id": input.session_id.filter(|s| !s.trim().is_empty()),
+    });
+    // Carry composer mode/tier through as enqueue hints (tier → model_preference).
+    // Only attach the key when non-empty — the daemon rejects a null enqueue_hints
+    // (it deserializes the value into a TaskEnqueueHints struct).
+    let mut enqueue_hints = serde_json::Map::new();
+    if let Some(tier) = input.tier.as_deref().filter(|t| !t.trim().is_empty()) {
+        enqueue_hints.insert("model_preference".into(), serde_json::json!(tier));
+    }
+    if let Some(mode) = input.mode.as_deref().filter(|m| !m.trim().is_empty()) {
+        enqueue_hints.insert("mode".into(), serde_json::json!(mode));
+    }
+    if !enqueue_hints.is_empty() {
+        if let Some(obj) = params.as_object_mut() {
+            obj.insert(
+                "enqueue_hints".into(),
+                serde_json::Value::Object(enqueue_hints),
+            );
+        }
+    }
+    let response = call_orchestrator_daemon(orch_daemon_method::SUBMIT_TASK, params).await?;
     let task_id = response
         .get("task_id")
         .and_then(|v| v.as_u64())

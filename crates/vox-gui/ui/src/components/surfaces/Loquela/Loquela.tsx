@@ -151,28 +151,47 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
   }, [text]);
 
   useEffect(() => {
-    voxTransport.listModels(24).then((models: any) => {
-      if (!Array.isArray(models) || models.length === 0) return;
-      const dynamic = models.slice(0, 4).map((m: any, idx: number) => {
-        // Real per-1k-token price from the model registry when present;
-        // otherwise leave unknown (null) — never fabricate a number.
-        const perK = typeof m.cost_per_1k === 'number' ? m.cost_per_1k : null;
-        return {
-          id: m.model_id ?? `model-${idx}`,
-          label: m.display_name ?? m.model_id ?? `Model ${idx + 1}`,
-          detail: m.provider ?? 'runtime',
-          cost: perK,
-          lat: 'var',
-        };
-      });
-      setRuntimeTiers([
-        ...dynamic,
-        { id: 'auto', label: 'Auto · Router', detail: 'live routing summary', cost: null, lat: 'var' },
-      ]);
-      if (!dynamic.some((d: any) => d.id === tier) && tier !== 'auto') {
-        setTier(dynamic[0]?.id ?? 'auto');
-      }
-    }).catch(() => {});
+    let cancelled = false;
+    let firstLoad = true;
+    const loadTiers = () => {
+      voxTransport.listModels(24).then((models: any) => {
+        if (cancelled || !Array.isArray(models) || models.length === 0) return;
+        const dynamic = models.slice(0, 4).map((m: any, idx: number) => {
+          // Real per-1k-token price from the model registry when present;
+          // otherwise leave unknown (null) — never fabricate a number.
+          const perK = typeof m.cost_per_1k === 'number' ? m.cost_per_1k : null;
+          return {
+            id: m.model_id ?? `model-${idx}`,
+            label: m.display_name ?? m.model_id ?? `Model ${idx + 1}`,
+            detail: m.provider ?? 'runtime',
+            cost: perK,
+            lat: 'var',
+          };
+        });
+        setRuntimeTiers([
+          ...dynamic,
+          { id: 'auto', label: 'Auto · Router', detail: 'live routing summary', cost: null, lat: 'var' },
+        ]);
+        // Only correct an invalid selection on the very first load; background
+        // refreshes must not yank a tier the user has since chosen.
+        if (firstLoad) {
+          firstLoad = false;
+          if (!dynamic.some((d: any) => d.id === tier) && tier !== 'auto') {
+            setTier(dynamic[0]?.id ?? 'auto');
+          }
+        }
+      }).catch(() => {});
+    };
+    loadTiers();
+    const interval = setInterval(loadTiers, 60_000);
+    const onFocus = () => loadTiers();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filteredSlash = useMemo(() => {

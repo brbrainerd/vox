@@ -912,6 +912,32 @@ mod task_dispatch_tests {
         .await;
         assert!(result_value(&resp)["duplicate_of"].is_null());
     }
+
+    #[tokio::test]
+    async fn submit_with_enqueue_hints_carries_tier_and_mode() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+        orch.spawn_agent("a1").unwrap();
+        let resp = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({
+                    "description": "tiered task",
+                    "enqueue_hints": { "model_preference": "mesh", "mode": "plan" }
+                }),
+            ),
+        )
+        .await;
+        let task_id = result_value(&resp)["task_id"].as_u64().unwrap();
+        let task = orch
+            .all_tasks()
+            .into_iter()
+            .find(|t| t.id.0 == task_id)
+            .unwrap();
+        assert_eq!(task.model_preference.as_deref(), Some("mesh"));
+        assert_eq!(task.mode.as_deref(), Some("plan"));
+    }
 }
 
 /// Optional out-of-band dispatcher for methods that need state the core daemon
