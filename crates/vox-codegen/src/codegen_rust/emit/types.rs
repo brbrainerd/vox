@@ -73,6 +73,11 @@ pub(crate) fn emit_type(ty: &HirType) -> String {
             "bool" => "bool".into(),
             "str" => "String".into(),
             "Json" => "Json".into(),
+            // Typeck back-fills `never` for fns whose trailing statement
+            // diverges (e.g. `if cond { process.exit(..) }`), but such fns do
+            // not diverge on every path, so `-> !` would not compile; unit is
+            // the only always-valid Rust signature (diverging exprs coerce).
+            "never" => "()".into(),
             "Element" | "Result" | "Any" => "serde_json::Value".into(),
             other => other.to_string(),
         },

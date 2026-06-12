@@ -5,12 +5,14 @@ vox-schola-dev       = "run -p vox-schola --"
 # ---------------------------------------------------------------------------
 # Optional: sccache (shared compiler cache across worktrees / CI)
 # ---------------------------------------------------------------------------
+# Opt in locally — do NOT commit a hard `rustc-wrapper = "sccache"` here:
+# hosted CI runners and fresh agent shells lack the binary, and cargo dies
+# with `could not execute process \`sccache ... rustc -vV\`` before any build.
 # Install: cargo install sccache  (or your OS package manager)
-# Start daemon locally: sccache --start-server
-# Verify: sccache --show-stats
+# Enable per-shell: $env:RUSTC_WRAPPER = "sccache"   (or export RUSTC_WRAPPER)
+# Or per-user: add `[build] rustc-wrapper = "sccache"` to ~/.cargo/config.toml
 #
 [build]
-rustc-wrapper = "sccache"
 jobs = 24
 rustdocflags = ["-D", "warnings"]
 

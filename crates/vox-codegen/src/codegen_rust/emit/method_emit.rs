@@ -543,7 +543,17 @@ where
     // expression-position FieldAccess lowering. Route them through the same
     // runtime-call registry so the receiver lowers to the builtin instead of a
     // method on an undefined `process`/`fs`/… value.
-    if let HirExpr::Ident(ns, _) = obj
+    // `std.env.get(..)` is the documented long form: the receiver is
+    // FieldAccess(std, env), not a bare `env` ident, so unwrap the `std.`
+    // prefix before the namespace check.
+    let namespace_recv = match obj {
+        HirExpr::Ident(ns, _) => Some(ns.as_str()),
+        HirExpr::FieldAccess(inner, ns, _) if matches!(inner.as_ref(), HirExpr::Ident(s, _) if s == "std") => {
+            Some(ns.as_str())
+        }
+        _ => None,
+    };
+    if let Some(ns) = namespace_recv
         && super::stmt_expr_tail::is_vox_namespace_ident(ns)
         && let Some(s) =
             vox_compiler::builtin_registry::std_namespace_runtime_call(ns, method, &arg_exprs)
