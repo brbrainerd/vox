@@ -147,6 +147,14 @@ pub struct OrchestratorConfig {
     /// Whether dynamic scaling is enabled (default: false).
     #[serde(default = "default_false")]
     pub scaling_enabled: bool,
+    /// Do not spawn new agents while local CPU usage is at/above this percent
+    /// (0 disables the guard; default: 85).
+    #[serde(default = "default_scale_cpu_ceiling_pct")]
+    pub scale_cpu_ceiling_pct: f32,
+    /// Do not spawn new agents while local free memory is below this many MiB
+    /// (0 disables the guard; default: 1024).
+    #[serde(default = "default_scale_mem_floor_mb")]
+    pub scale_mem_floor_mb: u64,
     /// Preference for cost vs performance (default: Economy — free-by-default product directive).
     #[serde(default = "default_cost_preference")]
     pub cost_preference: CostPreference,

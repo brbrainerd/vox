@@ -47,6 +47,7 @@ impl ScalingService {
         _remote_gpu_capacity: usize,
         idle_dynamic: &[IdleDynamicAgent],
         budgets: &crate::budget::BudgetManager,
+        local: Option<&crate::services::local_resources::LocalResourceSnapshot>,
     ) -> ScalingAction {
         if !config.scaling_enabled {
             return ScalingAction::NoOp;
@@ -83,6 +84,18 @@ impl ScalingService {
         // Scale up: current or predicted load per agent exceeds effective threshold
         // Guard: don't scale up if we are already in cost alert
         if agent_count < max_agents && !cost_critical {
+            // Local resource guard: a saturated host must not take on more agents,
+            // regardless of queue pressure. Mesh dispatch still drains the queue,
+            // and scale-DOWN below still proceeds (a saturated host wants it).
+            if let Some(local) = local {
+                let cpu_blocked = config.scale_cpu_ceiling_pct > 0.0
+                    && local.cpu_usage_pct >= config.scale_cpu_ceiling_pct;
+                let mem_blocked = config.scale_mem_floor_mb > 0
+                    && local.memory_free_mb < config.scale_mem_floor_mb;
+                if cpu_blocked || mem_blocked {
+                    return ScalingAction::NoOp;
+                }
+            }
             let per_agent = if agent_count > 0 {
                 max_relevant_load / agent_count as f64
             } else {
@@ -202,6 +215,7 @@ mod tests {
             0,
             &[],
             &BudgetManager::new(None),
+            None,
         );
         assert!(matches!(action, ScalingAction::ScaleUp { .. }));
     }
@@ -219,7 +233,76 @@ mod tests {
             3,
             &[],
             &BudgetManager::new(None),
+            None,
         );
         assert!(matches!(action, ScalingAction::NoOp));
+    }
+
+    #[test]
+    fn does_not_scale_up_when_local_cpu_above_ceiling() {
+        let mut cfg = OrchestratorConfig::for_testing();
+        cfg.scaling_enabled = true;
+        cfg.max_agents = 4;
+        cfg.scaling_threshold = 1;
+        cfg.scale_cpu_ceiling_pct = 85.0;
+        let local = crate::services::local_resources::LocalResourceSnapshot {
+            cpu_usage_pct: 95.0,
+            memory_free_mb: 16_000,
+        };
+        let action = ScalingService::decide_scaling(
+            &status(5, 3.0),
+            &cfg,
+            &[],
+            0,
+            &[],
+            &BudgetManager::new(None),
+            Some(&local),
+        );
+        assert!(matches!(action, ScalingAction::NoOp));
+    }
+
+    #[test]
+    fn does_not_scale_up_when_memory_below_floor() {
+        let mut cfg = OrchestratorConfig::for_testing();
+        cfg.scaling_enabled = true;
+        cfg.max_agents = 4;
+        cfg.scaling_threshold = 1;
+        cfg.scale_mem_floor_mb = 2_048;
+        let local = crate::services::local_resources::LocalResourceSnapshot {
+            cpu_usage_pct: 10.0,
+            memory_free_mb: 512,
+        };
+        let action = ScalingService::decide_scaling(
+            &status(5, 3.0),
+            &cfg,
+            &[],
+            0,
+            &[],
+            &BudgetManager::new(None),
+            Some(&local),
+        );
+        assert!(matches!(action, ScalingAction::NoOp));
+    }
+
+    #[test]
+    fn local_snapshot_within_limits_still_scales_up() {
+        let mut cfg = OrchestratorConfig::for_testing();
+        cfg.scaling_enabled = true;
+        cfg.max_agents = 4;
+        cfg.scaling_threshold = 1;
+        let local = crate::services::local_resources::LocalResourceSnapshot {
+            cpu_usage_pct: 20.0,
+            memory_free_mb: 16_000,
+        };
+        let action = ScalingService::decide_scaling(
+            &status(5, 3.0),
+            &cfg,
+            &[],
+            0,
+            &[],
+            &BudgetManager::new(None),
+            Some(&local),
+        );
+        assert!(matches!(action, ScalingAction::ScaleUp { .. }));
     }
 }

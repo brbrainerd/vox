@@ -40,6 +40,7 @@ pub mod scaling;
 pub mod campaign_scheduler;
 pub mod embeddings;
 pub mod flywheel;
+pub mod local_resources;
 pub mod similarity;
 pub mod topology_ingest;
 
