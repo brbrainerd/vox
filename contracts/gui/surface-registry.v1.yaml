@@ -583,6 +583,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: repository
   cli_group: repo

@@ -82,6 +82,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: null, cliGroup: 'remove', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'repair', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'repl', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
+  { viewKey: null, cliGroup: 'repl', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: 'repository', cliGroup: 'repo', tier: 'live_backend', navLabel: 'Repository', navIcon: 'branch', navGroup: 'develop', parentSurface: 'workspace' },
   { viewKey: 'research', cliGroup: 'research', tier: 'curated_decorator', navLabel: 'Research', navIcon: 'eye', navGroup: 'knowledge', parentSurface: 'knowledge' },
   { viewKey: null, cliGroup: 'rollback', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
