@@ -26,6 +26,27 @@ pub enum JournalError {
     Poisoned,
 }
 
+/// When [`FileJournal::append`] makes bytes durable on the device.
+///
+/// Picked at open time by the caller's runtime profile: desktop journals sync
+/// on every append (the historical crash-safety contract), mobile journals
+/// defer the `sync_data` to an explicit [`FileJournal::sync`] — typically
+/// driven by an OS lifecycle hook via [`Suspendable::suspend`] — to honor
+/// battery + I/O budgets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AppendDurability {
+    /// `sync_data` after every append. When `append` returns `Ok`, the bytes
+    /// are on the device. Default; matches the historical behavior of
+    /// [`FileJournal::open`].
+    #[default]
+    SyncEachAppend,
+    /// Write (and flush to the OS) on every append, but defer the device
+    /// `sync_data` until an explicit [`FileJournal::sync`] /
+    /// [`Suspendable::suspend`]. Bytes survive a process kill (the OS has
+    /// them) but need a `sync` to survive power loss.
+    Deferred,
+}
+
 /// Append-only JSON Lines journal generic over the entry type `E`.
 ///
 /// Open with [`FileJournal::open`] and a list of previously-recorded entries
@@ -45,6 +66,7 @@ pub struct FileJournal<E> {
     /// `PIPE_BUF`, but the mutex makes the guarantee explicit at the API
     /// level and gives us a hook for future buffering.
     writer: Mutex<File>,
+    durability: AppendDurability,
     _entry: std::marker::PhantomData<E>,
 }
 
@@ -66,7 +88,19 @@ where
 {
     /// Open (or create) the journal at `path` and return both the handle and
     /// every previously-recorded entry.
+    ///
+    /// Uses [`AppendDurability::SyncEachAppend`]; see
+    /// [`FileJournal::open_with_durability`] for the deferred (mobile) mode.
     pub fn open(path: impl Into<PathBuf>) -> Result<Opened<E>, JournalError> {
+        Self::open_with_durability(path, AppendDurability::SyncEachAppend)
+    }
+
+    /// Open (or create) the journal at `path` with an explicit
+    /// [`AppendDurability`] policy.
+    pub fn open_with_durability(
+        path: impl Into<PathBuf>,
+        durability: AppendDurability,
+    ) -> Result<Opened<E>, JournalError> {
         let path: PathBuf = path.into();
         if let Some(parent) = path.parent()
             && !parent.as_os_str().is_empty()
@@ -83,6 +117,7 @@ where
         let journal = Self {
             path,
             writer: Mutex::new(writer),
+            durability,
             _entry: std::marker::PhantomData,
         };
         Ok(Opened { journal, replayed })
@@ -93,20 +128,27 @@ where
         &self.path
     }
 
-    /// Append `entry` to the journal and `fsync` before returning.
+    /// Append `entry` to the journal; durability per [`AppendDurability`].
     ///
-    /// Crash-safety contract: when this call returns `Ok`, the bytes are on
-    /// the device. If the process dies between two `append` calls, the file
+    /// Crash-safety contract under [`AppendDurability::SyncEachAppend`]
+    /// (the default): when this call returns `Ok`, the bytes are on the
+    /// device. If the process dies between two `append` calls, the file
     /// contains every entry that returned `Ok` and zero partial lines.
+    ///
+    /// Under [`AppendDurability::Deferred`] the bytes are handed to the OS
+    /// (process-kill safe) but only reach the device on the next
+    /// [`FileJournal::sync`] / [`Suspendable::suspend`].
     pub fn append(&self, entry: &E) -> Result<(), JournalError> {
         let line = serde_json::to_string(entry)?;
         let mut f = self.writer.lock().map_err(|_| JournalError::Poisoned)?;
         f.write_all(line.as_bytes())?;
         f.write_all(b"\n")?;
         f.flush()?;
-        // `sync_data` is cheaper than `sync_all` (skips metadata flush) and
-        // is the correct durability primitive for append-only logs.
-        f.sync_data()?;
+        if self.durability == AppendDurability::SyncEachAppend {
+            // `sync_data` is cheaper than `sync_all` (skips metadata flush)
+            // and is the correct durability primitive for append-only logs.
+            f.sync_data()?;
+        }
         Ok(())
     }
 
@@ -146,20 +188,38 @@ where
     }
 }
 
+/// Durability operations that don't depend on the entry type `E`. Kept in an
+/// unbounded impl so [`Suspendable`] (also unbounded) can flush the journal.
+impl<E> FileJournal<E> {
+    /// Force everything appended so far onto the device (`sync_data`).
+    ///
+    /// This is the durability point for [`AppendDurability::Deferred`]
+    /// journals; it is a cheap no-op-safe call for sync-each-append ones.
+    pub fn sync(&self) -> Result<(), JournalError> {
+        let f = self.writer.lock().map_err(|_| JournalError::Poisoned)?;
+        f.sync_data()?;
+        Ok(())
+    }
+}
+
 /// Mobile-aware suspend: re-sync the file handle so any in-flight bytes are
-/// durable before the OS suspends the app. Today the per-record `sync_data`
-/// already guarantees durability so this is a defensive flush — future
-/// buffering optimizations would hook in here.
+/// durable before the OS suspends the app. For
+/// [`AppendDurability::SyncEachAppend`] journals this is a defensive flush;
+/// for [`AppendDurability::Deferred`] (the mobile profile) it is *the*
+/// durability point — `suspend` must succeed before backgrounding or
+/// un-synced appends can be lost on power-off. Idempotent: calling it
+/// repeatedly is safe.
 impl<E> Suspendable for FileJournal<E> {
     fn suspend(&self, _deadline: SuspendDeadline) -> Result<(), SuspendError> {
-        let f = self
-            .writer
-            .lock()
-            .map_err(|e| SuspendError::Other(format!("journal writer poisoned: {e}")))?;
-        f.sync_data().map_err(|e| SuspendError::FlushFailed {
-            message: e.to_string(),
-        })?;
-        Ok(())
+        match self.sync() {
+            Ok(()) => Ok(()),
+            Err(JournalError::Poisoned) => {
+                Err(SuspendError::Other("journal writer poisoned".to_string()))
+            }
+            Err(e) => Err(SuspendError::FlushFailed {
+                message: e.to_string(),
+            }),
+        }
     }
 }
 
@@ -270,6 +330,41 @@ mod tests {
         journal
             .suspend(SuspendDeadline::mobile_default())
             .expect("suspend");
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn deferred_durability_appends_replay_after_sync_and_suspend() {
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        let Opened {
+            journal,
+            replayed: _,
+        } = FileJournal::<Entry>::open_with_durability(&path, AppendDurability::Deferred)
+            .expect("open deferred");
+        journal
+            .append(&Entry {
+                id: "m".into(),
+                value: 7,
+            })
+            .expect("append");
+        // Explicit durability point.
+        journal.sync().expect("sync");
+        // Lifecycle durability point; idempotent.
+        journal
+            .suspend(SuspendDeadline::mobile_default())
+            .expect("suspend");
+        journal
+            .suspend(SuspendDeadline::mobile_default())
+            .expect("suspend twice");
+
+        drop(journal);
+        let Opened {
+            journal: _,
+            replayed,
+        } = FileJournal::<Entry>::open(&path).expect("re-open");
+        assert_eq!(replayed.len(), 1);
+        assert_eq!(replayed[0].id, "m");
         std::fs::remove_file(&path).ok();
     }
 
