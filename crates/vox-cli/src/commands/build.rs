@@ -160,8 +160,25 @@ pub async fn run(
         };
         let rn_output = vox_codegen::codegen_ts::rn::generate_rn(&hir, &ts_opts)
             .map_err(|e| anyhow::anyhow!("RN codegen error: {}", e))?;
+        // Hard-error RN diagnostics (e.g. an unsupported tier primitive that would
+        // otherwise ship as a silently-flattened <View>) must fail the build.
+        let rn_hard_errors: Vec<_> = rn_output
+            .diagnostics
+            .iter()
+            .filter(|d| d.code == "vox/codegen/rn-unsupported-tier-primitive")
+            .collect();
         for d in &rn_output.diagnostics {
-            eprintln!("warning[{}]: {}", d.code, d.message);
+            if rn_hard_errors.iter().any(|e| e.code == d.code) {
+                eprintln!("error[{}]: {}", d.code, d.message);
+            } else {
+                eprintln!("warning[{}]: {}", d.code, d.message);
+            }
+        }
+        if !rn_hard_errors.is_empty() {
+            anyhow::bail!(
+                "mobile build failed: {} unsupported primitive(s) with no RN representation",
+                rn_hard_errors.len()
+            );
         }
 
         for (filename, content) in &rn_output.files {

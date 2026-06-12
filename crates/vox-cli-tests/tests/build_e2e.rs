@@ -644,3 +644,22 @@ fn build_mobile_fails_on_contrast_violation() {
         run.stderr
     );
 }
+
+/// Tier/overlay primitives (modal/toast/drawer/overlay) have no RN representation
+/// yet. The mobile build must HARD-ERROR rather than silently flatten them to a
+/// bare <View> and ship a broken overlay. Regression gate for audit gap XP-2.
+#[test]
+fn build_mobile_hard_errors_on_unsupported_tier_primitive() {
+    init_vox_binary_once();
+    let run = BuildRun::run("mobile_modal_unsupported");
+    assert!(
+        !run.success,
+        "mobile build must fail on an unsupported tier primitive.\n--- stdout ---\n{}\n--- stderr ---\n{}",
+        run.stdout, run.stderr
+    );
+    assert!(
+        run.stderr.contains("rn-unsupported-tier-primitive"),
+        "expected rn-unsupported-tier-primitive in stderr, got:\n{}",
+        run.stderr
+    );
+}

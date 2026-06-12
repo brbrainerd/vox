@@ -490,6 +490,26 @@ fn jsx_to_rn(
                     children,
                 };
             }
+            // Overlay-family tier primitives have NO React Native representation yet.
+            // Flattening them to a bare <View> ships a broken overlay, so emit a
+            // hard-error code (gated by the mobile build) instead of a warning.
+            // Tracked: Phase B4 (VoxLayerHost) gives these a real RN story.
+            if matches!(other, "modal" | "toast" | "drawer" | "overlay") {
+                diagnostics.push(WebIrDiagnostic {
+                    code: "vox/codegen/rn-unsupported-tier-primitive".to_string(),
+                    message: format!(
+                        "`<{other}>` has no React Native representation yet — it must not be \
+                         silently flattened to `<View>`. Restructure the mobile view, or wait for \
+                         the RN overlay host (Phase B4)."
+                    ),
+                    span: None,
+                    category: Some("codegen".to_string()),
+                });
+                return RnNode::View {
+                    style_key,
+                    children,
+                };
+            }
             // Lowercase unknown tag → genuinely unsupported. Surface the diagnostic
             // (not a silent stub) and fall back to a bare `<View>` so the build
             // still produces something inspectable.
