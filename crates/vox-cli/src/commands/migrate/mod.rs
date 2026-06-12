@@ -143,8 +143,7 @@ fn collect_vox_files(root: &std::path::Path) -> std::io::Result<Vec<PathBuf>> {
     let mut out = Vec::new();
     let walker = walkdir::WalkDir::new(root).into_iter().filter_entry(|e| {
         let name = e.file_name();
-        !(e.file_type().is_dir()
-            && (name == "target" || name == "node_modules" || name == ".git"))
+        !(e.file_type().is_dir() && (name == "target" || name == "node_modules" || name == ".git"))
     });
     for entry in walker {
         let entry = entry.map_err(std::io::Error::other)?;

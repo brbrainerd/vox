@@ -275,7 +275,10 @@ fn strip_string_literals(line: &str) -> String {
 /// Walk `dir` recursively and collect all files matching `predicate`.
 fn walk_files(dir: &Path, predicate: impl Fn(&Path) -> bool) -> Vec<PathBuf> {
     let mut results = Vec::new();
-    for entry in walkdir::WalkDir::new(dir).into_iter().filter_map(Result::ok) {
+    for entry in walkdir::WalkDir::new(dir)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
         let path = entry.path();
         if entry.file_type().is_file() && predicate(path) {
             results.push(path.to_path_buf());

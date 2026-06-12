@@ -245,14 +245,16 @@ fn scan_source_lines(
 }
 
 fn collect_crate_rs_files(crates_dir: &Path, out: &mut Vec<PathBuf>) {
-    let walker = walkdir::WalkDir::new(crates_dir).into_iter().filter_entry(|e| {
-        let name = e.file_name().to_str().unwrap_or("");
-        !(e.file_type().is_dir()
-            && matches!(
-                name,
-                "target" | "tests" | "benches" | "snapshots" | "fixtures" | ".git"
-            ))
-    });
+    let walker = walkdir::WalkDir::new(crates_dir)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_str().unwrap_or("");
+            !(e.file_type().is_dir()
+                && matches!(
+                    name,
+                    "target" | "tests" | "benches" | "snapshots" | "fixtures" | ".git"
+                ))
+        });
     for entry in walker.filter_map(Result::ok) {
         let p = entry.path();
         if entry.file_type().is_file() && p.extension().and_then(|ext| ext.to_str()) == Some("rs") {
@@ -262,7 +264,10 @@ fn collect_crate_rs_files(crates_dir: &Path, out: &mut Vec<PathBuf>) {
 }
 
 fn collect_cursor_rule_files(rules_dir: &Path, out: &mut Vec<PathBuf>) {
-    for entry in walkdir::WalkDir::new(rules_dir).into_iter().filter_map(Result::ok) {
+    for entry in walkdir::WalkDir::new(rules_dir)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
         let p = entry.path();
         if entry.file_type().is_file()
             && p.extension().and_then(|ext| ext.to_str()) == Some("mdc")

@@ -6,9 +6,7 @@ fn visit_dirs(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
     for entry in walkdir::WalkDir::new(dir) {
         let entry = entry?;
         let path = entry.path();
-        if entry.file_type().is_file()
-            && path.extension().and_then(|s| s.to_str()) == Some("rs")
-        {
+        if entry.file_type().is_file() && path.extension().and_then(|s| s.to_str()) == Some("rs") {
             files.push(path.to_path_buf());
         }
     }
