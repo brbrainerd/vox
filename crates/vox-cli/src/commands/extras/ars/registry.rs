@@ -65,15 +65,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn install_external_skills_empty_when_no_roots() {
+    async fn install_external_skills_is_idempotent() {
         let ws = tempfile::tempdir().unwrap();
+        let dir = ws.path().join(".agents/skills/tdd");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("SKILL.md"),
+            "---\nname: tdd\ndescription: RED-GREEN-REFACTOR\n---\n\n# Body\n",
+        )
+        .unwrap();
+
         let registry = vox_skills::new_registry_arc();
-        // No .vox/.agents/.claude dirs under this tempdir; home roots may or may
-        // not exist on the host, so only assert the workspace contributed none.
-        let before = registry.list(None).len();
-        let _ = install_external_skills(registry.as_ref(), ws.path()).await;
-        let after = registry.list(None).len();
-        // Workspace had no skill roots → no workspace-sourced installs.
-        assert!(after >= before);
+        // First pass installs the workspace skill (and any host home skills).
+        let n1 = install_external_skills(registry.as_ref(), ws.path()).await;
+        assert!(n1 >= 1);
+        assert!(registry.list(None).iter().any(|m| m.id == "tdd"));
+        // Second pass: everything is already installed at the same version, so
+        // install_bundle reports already_installed and nothing is counted.
+        let n2 = install_external_skills(registry.as_ref(), ws.path()).await;
+        assert_eq!(n2, 0, "re-discovery installs nothing new (idempotent)");
     }
 }

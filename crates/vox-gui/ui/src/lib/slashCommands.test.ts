@@ -28,6 +28,18 @@ describe('buildSlashEntries', () => {
     expect(entries.find((e) => e.cmd === '/brainstorming')!.skillId).toBe('brainstorming');
   });
 
+  it('skips names that are not valid slash-command shapes', () => {
+    const entries = buildSlashEntries([
+      { id: 'a', name: 'Test Runner', description: 'has a space' },
+      { id: 'b', name: 'UPPER', description: 'uppercase' },
+      { id: 'c', name: 'valid-skill', description: 'ok' },
+    ]);
+    expect(entries.find((e) => e.cmd === '/valid-skill')).toBeTruthy();
+    expect(entries.some((e) => e.cmd.includes(' '))).toBe(false);
+    expect(entries.find((e) => e.skillId === 'a')).toBeUndefined();
+    expect(entries.find((e) => e.skillId === 'b')).toBeUndefined();
+  });
+
   it('tolerates malformed skill records', () => {
     expect(buildSlashEntries([{} as any, null as any, undefined as any])).toEqual(BUILTIN_SLASH);
   });

@@ -42,7 +42,10 @@ export function buildSlashEntries(skills: (SkillRecord | null | undefined)[]): S
   const taken = new Set(out.map((e) => e.cmd));
   for (const s of skills ?? []) {
     const name = s?.name?.trim();
-    if (!name) continue;
+    // Only spec-shaped names (agentskills.io: ^[a-z0-9][a-z0-9-]*$) make typeable
+    // slash commands. Legacy display names like "Test Runner" are skipped — they
+    // can't be matched in the composer anyway.
+    if (!name || !/^[a-z0-9][a-z0-9-]*$/.test(name)) continue;
     const cmd = `/${name}`;
     if (taken.has(cmd)) continue;
     taken.add(cmd);

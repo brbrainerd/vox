@@ -193,12 +193,14 @@ pub fn run() -> Result<()> {
             }
         };
 
-        // 6. `description` length ≤ 1024 chars.
-        if description.len() > 1024 {
+        // 6. `description` length ≤ 1024 chars (the spec limit is characters,
+        //    not bytes — count code points so multibyte text isn't over-counted).
+        let desc_chars = description.chars().count();
+        if desc_chars > 1024 {
             errors.push(format!(
                 "{}:`description` is {} chars (max 1024)",
                 path.display(),
-                description.len()
+                desc_chars
             ));
         }
 

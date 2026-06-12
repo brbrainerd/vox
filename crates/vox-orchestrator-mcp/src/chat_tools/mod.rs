@@ -106,14 +106,14 @@ pub(crate) async fn build_system_prompt_with_skill(
     // Tier-1 skill disclosure (agentskills.io progressive disclosure): name +
     // description for every installed skill, so even prompt-only models (MENS)
     // know which skills exist. Alphabetical + capped → cache-prefix stable.
-    let skill_entries: Vec<skill_catalog::CatalogEntry> = state
-        .orchestrator
-        .skill_registry
-        .list(None)
-        .into_iter()
+    // One registry read, reused below for the pinned-skill lookup.
+    let reg = &state.orchestrator.skill_registry;
+    let manifests = reg.list(None);
+    let skill_entries: Vec<skill_catalog::CatalogEntry> = manifests
+        .iter()
         .map(|m| skill_catalog::CatalogEntry {
-            name: m.name,
-            description: m.description,
+            name: m.name.clone(),
+            description: m.description.clone(),
         })
         .collect();
     prompt.push_str(&skill_catalog::render_skill_catalog(&skill_entries, 64));
@@ -122,10 +122,8 @@ pub(crate) async fn build_system_prompt_with_skill(
     // for an explicitly selected skill. Matched by id or name; works on the
     // prompt-only MENS path because it needs no tool round-trip.
     if let Some(pinned) = pinned_skill.map(str::trim).filter(|p| !p.is_empty()) {
-        let reg = &state.orchestrator.skill_registry;
-        if let Some(m) = reg
-            .list(None)
-            .into_iter()
+        if let Some(m) = manifests
+            .iter()
             .find(|m| m.id == pinned || m.name == pinned)
         {
             let body = reg.lookup(&m.id).ok().map(|s| s.body).unwrap_or_default();
