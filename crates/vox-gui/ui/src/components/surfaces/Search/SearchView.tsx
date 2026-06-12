@@ -41,7 +41,7 @@ function ScopeChip({
   return (
     <button
       onClick={onToggle}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest transition-colors ${
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40 ${
         active
           ? 'border-brass/40 bg-brass/10 text-brass'
           : 'border-white/5 bg-white/[0.01] text-zinc-500 hover:border-white/10 hover:text-zinc-400'
@@ -65,7 +65,7 @@ function FacetChip({
   return (
     <button
       onClick={onToggle}
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] transition-colors ${
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40 ${
         active
           ? 'border-brass/40 bg-brass/10 text-brass'
           : 'border-white/5 bg-white/[0.01] text-zinc-500 hover:border-white/10 hover:text-zinc-400'
@@ -347,10 +347,10 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
       if (allHits.length === 0) return;
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIdx(i => Math.min(i + 1, allHits.length - 1));
+        setSelectedIdx(i => (i + 1) % allHits.length);
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSelectedIdx(i => Math.max(i - 1, 0));
+        setSelectedIdx(i => (i <= 0 ? allHits.length - 1 : i - 1));
       } else if (e.key === 'Enter' && selectedIdx >= 0) {
         e.preventDefault();
         openHit(allHits[selectedIdx]);

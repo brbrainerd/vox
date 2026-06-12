@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Glass } from '../ui/Glass';
 import { Icon } from '../ui/Icons';
 import { DashboardData } from '../../types/dashboard';
@@ -119,6 +119,17 @@ export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushT
   const toggleSection = (id: string) =>
     setCollapsedSections(prev => ({ ...prev, [id]: !prev[id] }));
 
+  // Sidebar filter: when non-empty, every section is force-expanded and items
+  // are narrowed by navLabel; empty sections drop out (renderSection returns null).
+  const [navFilter, setNavFilter] = useState('');
+  const filtering = navFilter.trim().length > 0;
+  const visibleItems = (group: string): SurfaceRegistryEntry[] => {
+    const items = itemsForGroup(group);
+    if (!filtering) return items;
+    const f = navFilter.trim().toLowerCase();
+    return items.filter(e => (e.navLabel ?? '').toLowerCase().includes(f));
+  };
+
   const cycle = (dir: number) => {
     const i = SIDEBAR_ORDER.indexOf(mode);
     const ni = Math.max(0, Math.min(SIDEBAR_ORDER.length - 1, i + dir)) as number;
@@ -172,7 +183,7 @@ export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushT
     // A collapsed section still opens when it holds the active surface, so the current view is
     // never hidden behind a collapsed header.
     const containsActive = items.some(e => e.viewKey === view);
-    const open = !collapsedSections[id] || containsActive;
+    const open = !collapsedSections[id] || containsActive || filtering;
     return (
       <div key={id} className="flex flex-col">
         <button onClick={() => toggleSection(id)}
@@ -216,10 +227,25 @@ export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushT
           </div>
         </div>
 
+        {/* Filter (hidden in rail mode — no room). Auto-expands all sections. */}
+        {!collapsed && (
+          <div className="px-1 pb-2 shrink-0">
+            <input
+              value={navFilter}
+              onChange={e => setNavFilter(e.target.value)}
+              placeholder="Filter…"
+              aria-label="Filter sidebar"
+              className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[12px] text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-brass/30"
+            />
+          </div>
+        )}
+
         {/* Grouped, scrollable navigation. Footer below stays pinned. */}
         <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col gap-0.5 -mr-1 pr-1">
-          {NAV_SECTIONS.map(s => renderSection(s.id, s.label, itemsForGroup(s.id)))}
-          {renderSection('__more__', 'More', orphans)}
+          {NAV_SECTIONS.map(s => renderSection(s.id, s.label, visibleItems(s.id)))}
+          {renderSection('__more__', 'More', filtering
+            ? orphans.filter(e => (e.navLabel ?? '').toLowerCase().includes(navFilter.trim().toLowerCase()))
+            : orphans)}
         </nav>
 
         <div className="flex flex-col gap-2 pt-3 shrink-0">
