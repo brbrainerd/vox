@@ -43,6 +43,9 @@ fn migrate_dry_run_defaults_to_local_codex_without_app_plane_env() {
     let out = Command::new(env!("CARGO_BIN_EXE_vox"))
         .current_dir(temp.path())
         .env_remove("VOX_APP_DB_URL")
+        // Isolate the canonical Codex store per test process; the shared
+        // user-global db file races with parallel nextest processes.
+        .env("VOX_DATA_DIR", temp.path())
         .args([
             "db",
             "migrate",
