@@ -275,7 +275,7 @@ def detect_tests(file_path: Path, repo_root: Path) -> list[dict]:
     """
     try:
         text = file_path.read_text(encoding="utf-8", errors="replace")
-    except Exception:
+    except OSError:
         return []
 
     rel = file_path.relative_to(repo_root).as_posix()
@@ -337,7 +337,9 @@ def detect_tests(file_path: Path, repo_root: Path) -> list[dict]:
         if fn_m:
             test_fn_positions.add(attr_end + fn_m.start())
 
-    # Pass 2: inside cfg(test) mods — find the mod body, then find all fn inside
+    # Pass 2: inside cfg(test) mods — find the mod body, then harvest only
+    # #[test]/#[tokio::test]/#[rstest]-annotated fns inside it.  Plain helper
+    # fns inside a test mod are NOT test functions and must not be counted.
     for cfg_m in CFG_TEST_MOD_RE.finditer(text):
         # find 'mod NAME {' after the cfg attr
         mod_start = cfg_m.end()
@@ -345,15 +347,16 @@ def detect_tests(file_path: Path, repo_root: Path) -> list[dict]:
         mod_m = re.search(r"\bmod\s+\w+\s*\{", mod_window)
         if not mod_m:
             continue
-        brace_open = mod_start + mod_m.end() - 1  # position of '{'
         mod_body_start, mod_body_end = extract_body(text, mod_start + mod_m.start())
         if mod_body_start < 0:
             continue
         mod_body = text[mod_body_start:mod_body_end + 1]
-        # find all fn inside (including those with or without #[test])
-        for fn_m in FN_DEF_RE.finditer(mod_body):
-            abs_pos = mod_body_start + fn_m.start()
-            test_fn_positions.add(abs_pos)
+        # only fns preceded by a test attribute count as tests
+        for attr_m in TEST_ATTR_RE.finditer(mod_body):
+            window = mod_body[attr_m.end():attr_m.end() + 300]
+            fn_m = FN_DEF_RE.search(window)
+            if fn_m:
+                test_fn_positions.add(mod_body_start + attr_m.end() + fn_m.start())
 
     # Now extract body for each test fn position
     for pos in sorted(test_fn_positions):
@@ -429,7 +432,7 @@ def run_overlay(
         try:
             tests = detect_tests(f, repo)
             all_tests.extend(tests)
-        except Exception as e:
+        except (OSError, ValueError):
             skipped += 1
 
     print(f"  Extracted {len(all_tests)} test functions ({skipped} files skipped).", flush=True)
@@ -553,8 +556,8 @@ def run_overlay(
                         proven_ids.add(sym_id)
 
     print(f"  New test nodes: {len(new_nodes)}", flush=True)
-    targets_count = sum(1 for l in new_links if l["relation"] == "targets")
-    proves_count = sum(1 for l in new_links if l["relation"] == "proves")
+    targets_count = sum(1 for link in new_links if link["relation"] == "targets")
+    proves_count = sum(1 for link in new_links if link["relation"] == "proves")
     print(f"  New edges: {targets_count} targets, {proves_count} proves", flush=True)
 
     # Write augmented graph
@@ -588,8 +591,8 @@ def _write_report(
     proven_ids: set[str],
     targeted_ids: set[str],
 ):
-    targets_count = sum(1 for l in new_links if l["relation"] == "targets")
-    proves_count = sum(1 for l in new_links if l["relation"] == "proves")
+    targets_count = sum(1 for link in new_links if link["relation"] == "targets")
+    proves_count = sum(1 for link in new_links if link["relation"] == "proves")
 
     # Group code symbols by crate
     crate_symbols: dict[str, list[dict]] = defaultdict(list)
