@@ -967,7 +967,7 @@ fn run_playwright_validate(
 ) -> Result<PlaywrightValidateResult, String> {
     let pnpm = vox_cli::frontend::pnpm_executable();
 
-    let install = std::process::Command::new(&pnpm)
+    let install = std::process::Command::new(pnpm)
         .args(["exec", "playwright", "install", "chromium"])
         .current_dir(ui_dir)
         .env("VOX_PREVIEW_URL", preview_url)
@@ -988,7 +988,7 @@ fn run_playwright_validate(
         });
     }
 
-    let test = std::process::Command::new(&pnpm)
+    let test = std::process::Command::new(pnpm)
         .args([
             "exec",
             "playwright",

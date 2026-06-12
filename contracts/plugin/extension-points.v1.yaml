@@ -16,7 +16,7 @@ extension_points:
   - stop_capture
 - name: BrowserAutomation
   module: browser_automation
-  revision: 3
+  revision: 4
   accessor: as_browser_automation
   methods:
   - ax_tree

@@ -589,6 +589,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_APP_DB_URL"
+    owner_crate: "vox-secrets"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "App data-plane SQL backend URL (postgres/mysql/libsql/sqlite)."
   - name: "VOX_DEEPSEEK_API_KEY"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -3161,13 +3167,13 @@ variables:
     kind: "string"
     required: false
     introduced_in: "0.6.0"
-    description: "CI runner autoscaler: hard ceiling on concurrent managed ephemeral runners (default 4)."
+    description: "CI runner autoscaler: hard ceiling on concurrent managed ephemeral runners (default 6)."
   - name: "VOX_RUNNER_WARM_POOL"
     owner_crate: "vox-cli"
     kind: "string"
     required: false
     introduced_in: "0.6.0"
-    description: "CI runner autoscaler: idle runners to keep registered for instant dispatch (default 0 = pure scale-to-zero)."
+    description: "CI runner autoscaler: idle runners to keep registered for instant dispatch (default 1)."
   - name: "VOX_RUNPOD_API_KEY"
     owner_crate: "vox-populi"
     kind: "string"

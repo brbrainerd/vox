@@ -22,6 +22,7 @@
 //!   per-subcommand `gate` / `corpus` / `block_ga` / `cost_metered` fields.
 
 pub mod aggregator;
+pub mod core_gates;
 pub mod ga;
 pub mod recorder;
 pub mod report;

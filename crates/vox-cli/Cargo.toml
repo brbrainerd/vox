@@ -134,6 +134,7 @@ broken_inference_stub = []
 [dependencies]
 vox-compiler = { workspace = true }
 vox-codegen = { workspace = true }
+vox-rn-codegen = { workspace = true }
 clap = { workspace = true }
 clap_complete = { workspace = true }
 miette = { workspace = true }
@@ -149,6 +150,7 @@ serde_yaml = { workspace = true }
 sha2.workspace = true
 tokio = { workspace = true, features = ["io-std"] }
 vox-cli-core = { workspace = true }
+vox-cli-ci = { workspace = true }
 base64 = { workspace = true }
 futures = { workspace = true }
 vox-package = { workspace = true }
@@ -163,6 +165,7 @@ vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-secrets = { workspace = true }
 vox-db = { workspace = true }
+vox-sql = { workspace = true }
 vox-research-events = { workspace = true }
 # `vox-scientia::ro_crate::MainEntity` is the input shape for the replay
 # handler; not pulled in via the producers crate.
@@ -187,6 +190,7 @@ toml = { workspace = true }
 vox-doc-pipeline = { path = "../vox-doc-pipeline" }
 vox-research-shim = { workspace = true }
 vox-orchestrator = { workspace = true }
+vox-orchestrator-driver = { workspace = true }
 vox-orchestrator-mcp = { workspace = true, optional = true }
 vox-plugin-api = { workspace = true }
 vox-plugin-types = { workspace = true }

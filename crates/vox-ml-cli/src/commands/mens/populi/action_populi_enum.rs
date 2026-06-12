@@ -417,6 +417,19 @@ pub enum PopuliAction {
         quantize: Option<String>,
     },
 
+    /// Export merged safetensors weights to GGUF (not yet implemented).
+    ///
+    /// Prerequisite: run `vox mens merge-qlora` to produce merged `.safetensors` first.
+    #[command(name = "export-gguf")]
+    ExportGguf {
+        /// Merged safetensors path (output of `merge-qlora`).
+        #[arg(long, required = true)]
+        input: PathBuf,
+        /// Destination `.gguf` path.
+        #[arg(long, required = true)]
+        output: PathBuf,
+    },
+
     /// AI-powered code generation from a natural language prompt
     #[cfg(feature = "mens-dei")]
     Generate {

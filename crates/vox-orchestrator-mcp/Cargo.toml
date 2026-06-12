@@ -22,13 +22,20 @@ populi-transport = ["vox-orchestrator/populi-transport", "vox-populi/transport"]
 oratio-rerank = ["dep:vox-speech"]
 
 [dependencies]
+vox-orchestrator-driver = { workspace = true }
 vox-orchestrator = { path = "../vox-orchestrator", default-features = false, features = ["runtime"] }
 vox-research-shim = { workspace = true }
 
 # MCP-stack deps (always compiled when this crate is in the build)
 axum = { workspace = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
 axum-extra = { workspace = true, features = ["typed-header"] }
-rmcp = { workspace = true, features = ["server", "client", "transport-io"] }
+rmcp = { workspace = true, features = [
+    "server",
+    "client",
+    "transport-io",
+    "transport-child-process",
+    "transport-streamable-http-client-reqwest",
+] }
 schemars = { workspace = true, features = ["derive"] }
 tower-http = { workspace = true, features = ["cors"] }
 

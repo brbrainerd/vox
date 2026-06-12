@@ -5,73 +5,43 @@ use crate::store::types::StoreError;
 use turso::Connection;
 
 pub async fn apply_schema_extensions(conn: &Connection) -> Result<(), StoreError> {
-    let _ = conn
-        .execute(
-            "ALTER TABLE llm_interactions ADD COLUMN task_category TEXT NOT NULL DEFAULT 'general'",
-            (),
-        )
-        .await;
-    let _ = conn.execute("ALTER TABLE llm_interactions ADD COLUMN strength_tag TEXT NOT NULL DEFAULT 'generalist'", ()).await;
-    let _ = conn
-        .execute("ALTER TABLE llm_interactions ADD COLUMN trace_id TEXT", ())
-        .await;
-    let _ = conn
-        .execute(
-            "ALTER TABLE llm_interactions ADD COLUMN success INTEGER NOT NULL DEFAULT 1",
-            (),
-        )
-        .await;
-    let _ = conn
-        .execute(
-            "ALTER TABLE llm_interactions ADD COLUMN latency_ms INTEGER",
-            (),
-        )
-        .await;
-    let _ = conn
-        .execute(
-            "ALTER TABLE llm_interactions ADD COLUMN input_tokens INTEGER",
-            (),
-        )
-        .await;
-    let _ = conn
-        .execute(
-            "ALTER TABLE llm_interactions ADD COLUMN output_tokens INTEGER",
-            (),
-        )
-        .await;
-    let _ = conn
-        .execute("ALTER TABLE llm_interactions ADD COLUMN cost_usd REAL", ())
-        .await;
-    let _ = conn
-        .execute(
-            "ALTER TABLE llm_interactions ADD COLUMN context_utilization_pct REAL",
-            (),
-        )
-        .await;
-    let _ = conn
-        .execute(
-            "ALTER TABLE llm_interactions ADD COLUMN cache_read_tokens INTEGER",
-            (),
-        )
-        .await;
-
-    let _ = conn
-        .execute(
-            "ALTER TABLE model_scoreboard ADD COLUMN success_count INTEGER NOT NULL DEFAULT 0",
-            (),
-        )
-        .await;
-    let _ = conn
-        .execute(
-            "ALTER TABLE model_scoreboard ADD COLUMN cumulative_cost_usd REAL NOT NULL DEFAULT 0.0",
-            (),
-        )
-        .await;
+    for sql in [
+        "ALTER TABLE llm_interactions ADD COLUMN task_category TEXT NOT NULL DEFAULT 'general'",
+        "ALTER TABLE llm_interactions ADD COLUMN strength_tag TEXT NOT NULL DEFAULT 'generalist'",
+        "ALTER TABLE llm_interactions ADD COLUMN trace_id TEXT",
+        "ALTER TABLE llm_interactions ADD COLUMN success INTEGER NOT NULL DEFAULT 1",
+        "ALTER TABLE llm_interactions ADD COLUMN latency_ms INTEGER",
+        "ALTER TABLE llm_interactions ADD COLUMN input_tokens INTEGER",
+        "ALTER TABLE llm_interactions ADD COLUMN output_tokens INTEGER",
+        "ALTER TABLE llm_interactions ADD COLUMN cost_usd REAL",
+        "ALTER TABLE llm_interactions ADD COLUMN context_utilization_pct REAL",
+        "ALTER TABLE llm_interactions ADD COLUMN cache_read_tokens INTEGER",
+        "ALTER TABLE model_scoreboard ADD COLUMN success_count INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE model_scoreboard ADD COLUMN cumulative_cost_usd REAL NOT NULL DEFAULT 0.0",
+    ] {
+        exec_optional(conn, sql).await;
+    }
 
     apply_knowledge_fts_cutover(conn).await?;
     apply_search_document_chunks_fts_cutover(conn).await?;
-    let _ = conn.execute_batch("UPDATE agent_trust_scores SET _data = json_set(_data, '$.variance', 1.0) WHERE json_type(json_extract(_data, '$.variance')) IS NULL;").await;
+    exec_optional_batch(
+        conn,
+        "UPDATE agent_trust_scores SET _data = json_set(_data, '$.variance', 1.0) WHERE json_type(json_extract(_data, '$.variance')) IS NULL;",
+    )
+    .await;
     Ok(())
+}
+
+async fn exec_optional(conn: &Connection, sql: &str) {
+    if let Err(e) = conn.execute(sql, ()).await {
+        tracing::warn!(statement = %sql, error = %e, "schema extension statement skipped");
+    }
+}
+
+async fn exec_optional_batch(conn: &Connection, sql: &str) {
+    if let Err(e) = conn.execute_batch(sql).await {
+        tracing::warn!(statement = %sql, error = %e, "schema extension batch skipped");
+    }
 }
 
 async fn apply_knowledge_fts_cutover(conn: &Connection) -> Result<(), StoreError> {
@@ -120,7 +90,7 @@ SELECT rowid, id, label, COALESCE(content, '')
 FROM knowledge_nodes
 WHERE rowid NOT IN (SELECT rowid FROM knowledge_nodes_fts);
 "#;
-    let _ = conn.execute_batch(batch).await;
+    exec_optional_batch(conn, batch).await;
     Ok(())
 }
 
@@ -168,6 +138,6 @@ INSERT INTO search_document_chunks_fts(rowid, body_text)
 SELECT rowid, body_text FROM search_document_chunks
 WHERE rowid NOT IN (SELECT rowid FROM search_document_chunks_fts);
 "#;
-    let _ = conn.execute_batch(batch).await;
+    exec_optional_batch(conn, batch).await;
     Ok(())
 }

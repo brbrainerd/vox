@@ -12,15 +12,18 @@
 //!
 //! ## Extended flags for `--full`
 //!
-//! - **`--include-slow`:** also run the slow `#[ignore]` partition (arch-check smoke,
+//! - **`--include-slow`:** also run the slow `#[ignore]` partition (arch-check live
 //!   scientia timeout, codegen bundle; ~3–5 min extra).
 //! - **`--with-coverage`:** substitute `cargo llvm-cov nextest` for the plain nextest
 //!   step and append `cargo llvm-cov report` (lcov + HTML under `target/llvm-cov/`).
 //!   Requires `cargo-llvm-cov` on PATH; adds ~60s.
 //! - **`--since <ref>`:** run nextest only for packages changed since `<ref>` plus
-//!   their transitive reverse-deps (via `git diff` + `cargo metadata` graph). Falls
-//!   back to `--workspace` when impacted count > `VOX_PREPUSH_SINCE_FALLBACK_THRESHOLD`
-//!   (default 20) or git fails. Typical wall-clock on 1–3 crate edits: 3–20s.
+//!   their transitive reverse-deps (via `git diff` + `cargo metadata` graph). Large
+//!   impacted sets run in chunks (`VOX_PREPUSH_SINCE_CHUNK_SIZE`, default 10); falls
+//!   back to `--workspace` only on git/metadata hard failures. Typical wall-clock on
+//!   1–3 crate edits: 3–20s.
+//! - **`--skip-complete`:** with `--full`, skip replaying complete-tier static checks
+//!   (clippy, doc-inventory, scoped TOESTUB) after a green `--complete` in the same loop.
 //!
 //! **`--quick`** is a legacy no-op alias for the default fast profile (conflicts with
 //! `--complete` / `--full`).
@@ -61,10 +64,12 @@ pub struct PrePushOpts {
     /// `cargo-llvm-cov` on PATH.  Errors at runtime if used without `--full`.
     pub with_coverage: bool,
     /// When set, run nextest only for the packages affected by changes since the given git
-    /// ref plus their transitive reverse-deps. Falls back to `--workspace` if the impacted
-    /// set exceeds `VOX_PREPUSH_SINCE_FALLBACK_THRESHOLD` (default 20). Only meaningful
-    /// with `full`. `None` means full workspace (the historical default).
+    /// ref plus their transitive reverse-deps. Large impacted sets are chunked instead of
+    /// falling back to workspace. Only meaningful with `full`. `None` means full workspace.
     pub since: Option<String>,
+    /// When true with `--full`, omit complete-tier static checks (clippy, doc-inventory,
+    /// scoped TOESTUB, whole-tree docs) — use after `--complete` already passed locally.
+    pub skip_complete: bool,
     /// After a successful (non-dry-run) run, compare total elapsed time against the tier
     /// budgets in `contracts/budgets/test-tier-budgets.v1.yaml`.  Warns to stderr when
     /// elapsed > `warn_ms`; returns an error when elapsed > `fail_ms`.  No-op if the
@@ -89,7 +94,7 @@ fn profile_name(opts: &PrePushOpts) -> &'static str {
 }
 
 fn run_complete_static(opts: &PrePushOpts) -> bool {
-    opts.complete || opts.full
+    (opts.complete || opts.full) && !opts.skip_complete
 }
 
 /// Workflows that run on `ubuntu-latest` (GH-hosted exceptions).
@@ -98,6 +103,18 @@ const ACT_WORKFLOWS: &[&str] = &[
     ".github/workflows/link_checker.yml",
     ".github/workflows/ts-emit-noemit.yml",
 ];
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PrePushStepScope {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub impacted_packages: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chunk_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fallback_reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub toestub_roots: Option<usize>,
+}
 
 #[derive(Debug, Serialize)]
 pub struct PrePushReportV1 {
@@ -117,19 +134,32 @@ pub struct PrePushReportV1 {
 pub struct PrePushStepTiming {
     pub label: String,
     pub elapsed_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scope: Option<PrePushStepScope>,
 }
 
 struct OwnedStep {
     label: String,
+    scope: Option<PrePushStepScope>,
     run: Box<dyn Fn(&Path) -> Result<()> + Send>,
 }
 
+#[allow(unsafe_code)] // `set_var` is unsafe on Rust 2024; pre-push is single-threaded.
 pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
+    // nextest and other tools spawn nested `cargo` without our `--config` flags;
+    // clear the workspace rustc-wrapper so gates work when sccache is absent.
+    unsafe {
+        std::env::set_var("CARGO_BUILD_RUSTC_WRAPPER", "");
+    }
+
     if opts.with_coverage && !opts.full {
         bail!("`--with-coverage` requires `--full`");
     }
     if opts.since.is_some() && !opts.full {
         bail!("`--since` requires `--full`");
+    }
+    if opts.skip_complete && !opts.full {
+        bail!("`--skip-complete` requires `--full`");
     }
     let steps = build_steps(root, &opts)?;
     let mut step_records: Vec<PrePushStepTiming> = Vec::with_capacity(steps.len());
@@ -139,6 +169,7 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
             step_records.push(PrePushStepTiming {
                 label: s.label.clone(),
                 elapsed_ms: None,
+                scope: s.scope.clone(),
             });
         }
         if opts.act {
@@ -158,6 +189,7 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
     for s in steps {
         let started = Instant::now();
         let label = s.label.clone();
+        let scope = s.scope.clone();
         println!("==> {}", label);
         let run = s.run;
         match run_step_with_heartbeat(&label, || run(root))
@@ -169,6 +201,7 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
                 step_records.push(PrePushStepTiming {
                     label,
                     elapsed_ms: Some(elapsed_ms),
+                    scope,
                 });
             }
             Err(e) => {
@@ -176,6 +209,7 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
                 step_records.push(PrePushStepTiming {
                     label,
                     elapsed_ms: Some(elapsed_ms),
+                    scope,
                 });
                 let total_ms = total.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
                 let _ = write_pre_push_report(
@@ -291,7 +325,7 @@ fn write_pre_push_report(
         return Ok(());
     };
     let report = PrePushReportV1 {
-        schema_version: 3,
+        schema_version: 4,
         profile: profile_name(opts).to_string(),
         ok,
         quick: opts.quick,
@@ -433,26 +467,37 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
     let mut v: Vec<OwnedStep> = vec![
         OwnedStep {
             label: "cargo fmt --all -- --check".into(),
+            scope: None,
             run: Box::new(step_fmt),
         },
         OwnedStep {
             label: "vox ci line-endings".into(),
+            scope: None,
             run: Box::new(step_line_endings),
         },
         OwnedStep {
             label: "vox ci ssot-drift".into(),
+            scope: None,
             run: Box::new(step_ssot_drift),
         },
         OwnedStep {
+            label: "vox ci runner-policy-check".into(),
+            scope: None,
+            run: Box::new(step_runner_policy_check),
+        },
+        OwnedStep {
             label: "vox ci check-links".into(),
+            scope: None,
             run: Box::new(step_check_links),
         },
         OwnedStep {
             label: "vox ci retired-symbol-check".into(),
+            scope: None,
             run: Box::new(step_retired_symbol_check),
         },
         OwnedStep {
             label: "vox ci canonical-map-verify".into(),
+            scope: None,
             run: Box::new(step_canonical_map_verify),
         },
     ];
@@ -460,10 +505,12 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
     if run_complete_static(opts) {
         v.push(OwnedStep {
             label: "vox-doc-pipeline --lint-only (full docs/src)".into(),
+            scope: None,
             run: Box::new(step_doc_frontmatter_full),
         });
         v.push(OwnedStep {
             label: "vox ci doctest-md --strict (full docs/src)".into(),
+            scope: None,
             run: Box::new(step_doctest_md_full),
         });
     } else {
@@ -480,6 +527,7 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
         let rel_lint = Arc::clone(&rel);
         v.push(OwnedStep {
             label,
+            scope: None,
             run: Box::new(move |r| step_doc_frontmatter_scoped(r, rel_lint.as_slice())),
         });
 
@@ -491,26 +539,39 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
         let rel_test = Arc::clone(&rel);
         v.push(OwnedStep {
             label: label_d,
+            scope: None,
             run: Box::new(move |r| step_doctest_scoped(r, rel_test.as_slice())),
         });
     }
 
     v.push(OwnedStep {
         label: "vox-drift-check workspace".into(),
+        scope: None,
         run: Box::new(step_drift_check),
     });
 
     if run_complete_static(opts) {
+        let toestub_roots = changed_dirs_under_crates(root)
+            .map(|d| d.len())
+            .unwrap_or(0);
         v.push(OwnedStep {
             label: "vox ci doc-inventory verify".into(),
+            scope: None,
             run: Box::new(step_doc_inventory),
         });
         v.push(OwnedStep {
             label: "cargo clippy --workspace --all-targets -- -D warnings".into(),
+            scope: None,
             run: Box::new(step_clippy),
         });
         v.push(OwnedStep {
-            label: "vox ci toestub-scoped --mode enforce-warn (changed paths)".into(),
+            label: "vox ci toestub-scoped --mode enforce-warn (changed paths, batched)".into(),
+            scope: Some(PrePushStepScope {
+                impacted_packages: None,
+                chunk_count: None,
+                fallback_reason: None,
+                toestub_roots: Some(toestub_roots),
+            }),
             run: Box::new(step_toestub_changed),
         });
     }
@@ -526,19 +587,33 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             .map(|r| compute_impacted_crates(root, r));
 
         let nextest_label = match &impacted {
-            Some(Ok(ImpactedCrates { fallback: true, .. })) => {
+            Some(Ok(ImpactedCrates {
+                fallback: true,
+                fallback_reason: reason,
+                ..
+            })) => {
+                let why = reason.as_deref().unwrap_or("unknown");
                 if with_cov {
-                    "cargo llvm-cov nextest --workspace (--since fallback, slow excluded)".into()
+                    format!(
+                        "cargo llvm-cov nextest --workspace (--since fallback: {why}, slow excluded)"
+                    )
                 } else {
-                    "cargo nextest run --workspace (--since fallback, slow excluded)".into()
+                    format!(
+                        "cargo nextest run --workspace (--since fallback: {why}, slow excluded)"
+                    )
                 }
             }
-            Some(Ok(ImpactedCrates { packages, .. })) => {
+            Some(Ok(ImpactedCrates {
+                packages, chunks, ..
+            })) => {
                 let n = packages.len();
+                let c = chunks.len();
                 if with_cov {
-                    format!("cargo llvm-cov nextest ({n} impacted pkg(s), slow excluded)")
+                    format!(
+                        "cargo llvm-cov nextest ({n} impacted pkg(s), {c} chunk(s), slow excluded)"
+                    )
                 } else {
-                    format!("cargo nextest run ({n} impacted pkg(s), slow excluded)")
+                    format!("cargo nextest run ({n} impacted pkg(s), {c} chunk(s), slow excluded)")
                 }
             }
             Some(Err(_)) | None => {
@@ -550,23 +625,38 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             }
         };
 
+        let nextest_scope =
+            impacted
+                .as_ref()
+                .and_then(|r| r.as_ref().ok())
+                .map(|ic| PrePushStepScope {
+                    impacted_packages: if ic.fallback {
+                        None
+                    } else {
+                        Some(ic.packages.len())
+                    },
+                    chunk_count: if ic.fallback {
+                        None
+                    } else {
+                        Some(ic.chunks.len())
+                    },
+                    fallback_reason: ic.fallback_reason.clone(),
+                    toestub_roots: None,
+                });
+
+        let impacted_for_run = impacted;
         v.push(OwnedStep {
             label: nextest_label,
-            run: Box::new(move |root| match (&impacted, with_cov) {
+            scope: nextest_scope,
+            run: Box::new(move |root| match (&impacted_for_run, with_cov) {
                 (
                     Some(Ok(ImpactedCrates {
                         fallback: false,
-                        packages,
+                        chunks,
+                        ..
                     })),
-                    false,
-                ) => step_nextest_packages(root, packages),
-                (
-                    Some(Ok(ImpactedCrates {
-                        fallback: false,
-                        packages,
-                    })),
-                    true,
-                ) => step_nextest_packages_with_coverage(root, packages),
+                    cov,
+                ) => step_nextest_packages_chunked(root, chunks, cov),
                 (_, false) => step_nextest(root),
                 (_, true) => step_nextest_with_coverage(root),
             }),
@@ -574,12 +664,14 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
         if opts.with_coverage {
             v.push(OwnedStep {
                 label: "cargo llvm-cov report (lcov + html under target/llvm-cov/)".into(),
+                scope: None,
                 run: Box::new(step_llvm_cov_report),
             });
         }
         if opts.include_slow {
             v.push(OwnedStep {
                 label: "cargo nextest run (slow partition: arch-check, scientia timeout, codegen bundle)".into(),
+                scope: None,
                 run: Box::new(step_nextest_slow),
             });
         }
@@ -674,10 +766,63 @@ impl ActCommand {
 }
 
 fn cargo() -> Command {
-    Command::new(super::cargo_bin())
+    // Nested `cargo run` steps (doc-pipeline, drift-check, …) inherit
+    // `rustc-wrapper = "sccache"` from config.toml. On Windows the wrapper must
+    // be a real executable; clear it for gate subprocesses so pre-push works
+    // when sccache is not installed.
+    let mut cmd = Command::new(super::cargo_bin());
+    cmd.args(["--config", "build.rustc-wrapper=\"\""]);
+    cmd.env("CARGO_BUILD_RUSTC_WRAPPER", "");
+    cmd
 }
 
 fn cargo_status(root: &Path, args: &[&str]) -> Result<()> {
+    let status = cargo()
+        .args(args)
+        .current_dir(root)
+        .status()
+        .with_context(|| format!("spawn cargo {}", args.join(" ")))?;
+    if !status.success() {
+        bail!("cargo {} exited with {:?}", args.join(" "), status.code());
+    }
+    Ok(())
+}
+
+/// On Windows, nextest for `vox-cli` rebuilds `vox.exe` while pre-push runs from it (os
+/// error 5). Skip that package and advise a separate nextest invocation.
+fn nextest_skip_packages() -> Vec<String> {
+    if !cfg!(windows) || !running_as_vox_exe() {
+        return vec![];
+    }
+    eprintln!(
+        "pre-push: skipping nextest for vox-cli on Windows (running vox.exe holds the binary lock); run `cargo nextest -p vox-cli --profile ci` separately"
+    );
+    vec!["vox-cli".into()]
+}
+
+fn running_as_vox_exe() -> bool {
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| {
+            p.file_name()
+                .map(|n| n.to_string_lossy().eq_ignore_ascii_case("vox.exe"))
+        })
+        .unwrap_or(false)
+}
+
+fn filter_nextest_packages(packages: &[String]) -> Vec<String> {
+    let skip: HashSet<String> = nextest_skip_packages().into_iter().collect();
+    if skip.is_empty() {
+        return packages.to_vec();
+    }
+    packages
+        .iter()
+        .filter(|p| !skip.contains(p.as_str()))
+        .cloned()
+        .collect()
+}
+
+fn nextest_cargo_status(root: &Path, args: &[&str]) -> Result<()> {
     let status = cargo()
         .args(args)
         .current_dir(root)
@@ -697,35 +842,6 @@ fn cargo_status(root: &Path, args: &[&str]) -> Result<()> {
 /// `current_exe()` and invoking it directly — the binary is already fresh
 /// (we just ran it). On non-Windows platforms we keep using `cargo run` so
 /// that sub-commands always run against the latest source.
-fn vox_self_cmd(root: &Path) -> Command {
-    #[cfg(target_os = "windows")]
-    {
-        let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("vox.exe"));
-        let mut cmd = Command::new(exe);
-        cmd.current_dir(root);
-        cmd
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let mut cmd = cargo();
-        cmd.args(["run", "-q", "-p", "vox-cli", "--"]);
-        cmd.current_dir(root);
-        cmd
-    }
-}
-
-/// Run a `vox` sub-command from the currently running binary (Windows-safe).
-fn vox_self_status(root: &Path, args: &[&str]) -> Result<()> {
-    let status = vox_self_cmd(root)
-        .args(args)
-        .status()
-        .with_context(|| format!("spawn vox {}", args.join(" ")))?;
-    if !status.success() {
-        bail!("vox {} exited with {:?}", args.join(" "), status.code());
-    }
-    Ok(())
-}
-
 fn git_diff_name_only_for_prepush(root: &Path) -> Result<String> {
     let primary = std::env::var("VOX_PREPUSH_BASE").unwrap_or_else(|_| "origin/main".into());
     let attempt = |base: &str| -> Result<String> {
@@ -836,27 +952,52 @@ pub(crate) fn check_fmt(root: &Path) -> Result<()> {
 }
 
 fn step_line_endings(root: &Path) -> Result<()> {
-    vox_self_status(root, &["ci", "line-endings"])
+    vox_cli_ci::line_endings::run(root, false, None, false)
 }
 
 fn step_ssot_drift(root: &Path) -> Result<()> {
-    vox_self_status(root, &["ci", "ssot-drift"])
+    super::run_body::run_body_helpers::run_ssot_drift(root)
+}
+
+fn step_runner_policy_check(root: &Path) -> Result<()> {
+    // In-process (same as ssot-drift wedge) — avoids Windows nested `current_exe()` spawning a
+    // stale `vox.exe` when embed build metadata lags the working tree.
+    vox_cli_ci::runner_policy_check::run(root, false)
 }
 
 fn step_check_links(root: &Path) -> Result<()> {
-    vox_self_status(root, &["ci", "check-links"])
+    // In-process — avoids Windows nested `current_exe()` spawning a stale sibling `vox.exe`.
+    super::check_links::run(root, None)
 }
 
 fn step_retired_symbol_check(root: &Path) -> Result<()> {
-    vox_self_status(root, &["ci", "retired-symbol-check"])
+    super::retired_symbol_check::run(root)
 }
 
 fn step_canonical_map_verify(root: &Path) -> Result<()> {
-    vox_self_status(root, &["ci", "canonical-map-verify"])
+    super::canonical_docs::run(root)
 }
 
 fn step_doc_inventory(root: &Path) -> Result<()> {
-    vox_self_status(root, &["ci", "doc-inventory", "verify"])
+    let committed = root.join(vox_doc_inventory::DEFAULT_INVENTORY_PATH);
+    if vox_doc_inventory::verify_fresh(root, &committed).is_err() {
+        vox_doc_inventory::generate(root, &committed)?;
+        if vox_doc_inventory::verify_fresh(root, &committed).is_ok() {
+            return Err(anyhow!(
+                "doc-inventory.json was stale (often after ssot-drift refreshes \
+                 contracts/reports/*); regenerated {} — stage and commit, then re-run pre-push",
+                committed.display()
+            ));
+        }
+    }
+    vox_doc_inventory::verify_fresh(root, &committed).map_err(|e| {
+        e.context(
+            "doc-inventory.json is out of date; run: vox ci ssot-drift && vox ci doc-inventory \
+             generate --output docs/agents/doc-inventory.json",
+        )
+    })?;
+    println!("doc-inventory.json matches generator output (excluding generated_at)");
+    Ok(())
 }
 
 fn step_clippy(root: &Path) -> Result<()> {
@@ -874,22 +1015,21 @@ fn step_clippy(root: &Path) -> Result<()> {
 }
 
 fn step_toestub_changed(root: &Path) -> Result<()> {
+    use super::cmd_enums::ToestubCiMode;
+    use super::run_body::run_body_helpers::run_toestub_scoped_roots;
+
     let dirs = changed_dirs_under_crates(root)
         .context("compute changed crate paths for scoped TOESTUB")?;
     if dirs.is_empty() {
         println!("    (no crate changes vs. base — skipping scoped TOESTUB)");
         return Ok(());
     }
-    let mut cmd = vox_self_cmd(root);
-    cmd.args(["ci", "toestub-scoped", "--mode", "enforce-warn"]);
-    for d in &dirs {
-        cmd.arg(d);
-    }
-    let status = cmd.status().context("spawn vox ci toestub-scoped")?;
-    if !status.success() {
-        bail!("toestub-scoped exited with {:?}", status.code());
-    }
-    Ok(())
+    println!(
+        "    TOESTUB batched scan: {} changed crate root(s)",
+        dirs.len()
+    );
+    run_toestub_scoped_roots(root, &dirs, ToestubCiMode::EnforceWarn)
+        .context("toestub-scoped batched run failed")
 }
 
 fn step_doc_frontmatter_full(root: &Path) -> Result<()> {
@@ -918,7 +1058,7 @@ fn step_doc_frontmatter_scoped(root: &Path, rel_paths: &[String]) -> Result<()> 
 }
 
 fn step_doctest_md_full(root: &Path) -> Result<()> {
-    vox_self_status(root, &["ci", "doctest-md", "--strict"])
+    super::doctest_md::run(vec![root.join("docs/src")], true)
 }
 
 fn step_doctest_scoped(root: &Path, rel_paths: &[String]) -> Result<()> {
@@ -926,16 +1066,11 @@ fn step_doctest_scoped(root: &Path, rel_paths: &[String]) -> Result<()> {
         println!("    (no changed markdown for doctest-md — skipping)");
         return Ok(());
     }
-    let mut cmd = vox_self_cmd(root);
-    cmd.args(["ci", "doctest-md", "--strict"]);
-    for rel in rel_paths.iter() {
-        cmd.arg(format!("docs/src/{rel}"));
-    }
-    let status = cmd.status().context("spawn vox ci doctest-md (scoped)")?;
-    if !status.success() {
-        bail!("doctest-md exited with {:?}", status.code());
-    }
-    Ok(())
+    let paths: Vec<PathBuf> = rel_paths
+        .iter()
+        .map(|rel| root.join("docs/src").join(rel))
+        .collect();
+    super::doctest_md::run(paths, true)
 }
 
 fn step_drift_check(root: &Path) -> Result<()> {
@@ -944,7 +1079,7 @@ fn step_drift_check(root: &Path) -> Result<()> {
     // that are tracked separately; blocking every push on them was always a
     // false-positive-saturated gate.  Error-level findings are hard failures
     // (e.g. security-sensitive patterns) and must stay blocked.
-    let status = Command::new(super::cargo_bin())
+    let status = cargo()
         .args([
             "run",
             "-q",
@@ -973,13 +1108,16 @@ struct ImpactedCrates {
     /// Package names that are impacted (directly changed + transitive reverse-deps).
     /// Empty when `fallback = true`.
     packages: Vec<String>,
-    /// True when the analysis produced >threshold packages or git/metadata failed;
-    /// caller should fall back to `--workspace`.
+    /// Chunked package lists for nextest invocations (empty when `fallback = true`).
+    chunks: Vec<Vec<String>>,
+    /// True when git/metadata failed or no workspace mapping; caller falls back to `--workspace`.
     fallback: bool,
+    /// Human-readable reason when `fallback` is set.
+    fallback_reason: Option<String>,
 }
 
-/// Default max number of impacted packages before falling back to `--workspace`.
-const SINCE_FALLBACK_THRESHOLD_DEFAULT: usize = 20;
+/// Default number of packages per nextest chunk when `--since` impacts many crates.
+const SINCE_CHUNK_SIZE_DEFAULT: usize = 10;
 
 /// Compute the set of workspace packages impacted by changes since `since_ref`.
 ///
@@ -990,10 +1128,11 @@ const SINCE_FALLBACK_THRESHOLD_DEFAULT: usize = 20;
 /// 4. BFS over reverse-dep graph → transitive dependents
 /// 5. If total > threshold, signal fallback
 fn compute_impacted_crates(root: &Path, since_ref: &str) -> Result<ImpactedCrates> {
-    let threshold = std::env::var("VOX_PREPUSH_SINCE_FALLBACK_THRESHOLD")
+    let chunk_size = std::env::var("VOX_PREPUSH_SINCE_CHUNK_SIZE")
         .ok()
         .and_then(|v| v.parse::<usize>().ok())
-        .unwrap_or(SINCE_FALLBACK_THRESHOLD_DEFAULT);
+        .filter(|&n| n > 0)
+        .unwrap_or(SINCE_CHUNK_SIZE_DEFAULT);
 
     // Step 1: changed files
     let diff_out = Command::new("git")
@@ -1008,7 +1147,9 @@ fn compute_impacted_crates(root: &Path, since_ref: &str) -> Result<ImpactedCrate
         );
         return Ok(ImpactedCrates {
             packages: vec![],
+            chunks: vec![],
             fallback: true,
+            fallback_reason: Some(format!("git diff against `{since_ref}` failed")),
         });
     }
     let changed_files: Vec<String> = String::from_utf8_lossy(&diff_out.stdout)
@@ -1023,7 +1164,9 @@ fn compute_impacted_crates(root: &Path, since_ref: &str) -> Result<ImpactedCrate
         println!("pre-push --since `{since_ref}`: no changed files; running full workspace");
         return Ok(ImpactedCrates {
             packages: vec![],
+            chunks: vec![],
             fallback: true,
+            fallback_reason: Some("no changed files".to_string()),
         });
     }
 
@@ -1076,7 +1219,9 @@ fn compute_impacted_crates(root: &Path, since_ref: &str) -> Result<ImpactedCrate
         );
         return Ok(ImpactedCrates {
             packages: vec![],
+            chunks: vec![],
             fallback: true,
+            fallback_reason: Some("no workspace crates match changed files".to_string()),
         });
     }
 
@@ -1114,45 +1259,77 @@ fn compute_impacted_crates(root: &Path, since_ref: &str) -> Result<ImpactedCrate
         }
     }
 
-    // Step 5: threshold check
-    if impacted.len() > threshold {
-        eprintln!(
-            "pre-push --since `{since_ref}`: {} impacted packages > threshold {threshold}; falling back to --workspace",
-            impacted.len()
-        );
-        return Ok(ImpactedCrates {
-            packages: vec![],
-            fallback: true,
-        });
-    }
-
     let mut packages: Vec<String> = impacted.into_iter().collect();
     packages.sort();
+    packages = filter_nextest_packages(&packages);
+    let chunks = chunk_packages(&packages, chunk_size);
     eprintln!(
-        "pre-push --since `{since_ref}`: {} impacted package(s): {}",
+        "pre-push --since `{since_ref}`: {} impacted package(s) in {} nextest chunk(s): {}",
         packages.len(),
+        chunks.len(),
         packages.join(", ")
     );
     Ok(ImpactedCrates {
         packages,
+        chunks,
         fallback: false,
+        fallback_reason: None,
     })
+}
+
+fn chunk_packages(packages: &[String], chunk_size: usize) -> Vec<Vec<String>> {
+    if packages.is_empty() {
+        return vec![];
+    }
+    packages
+        .chunks(chunk_size.max(1))
+        .map(|chunk| chunk.to_vec())
+        .collect()
 }
 
 // ── Step functions ────────────────────────────────────────────────────────────
 
 fn step_nextest(root: &Path) -> Result<()> {
-    cargo_status(
-        root,
-        &[
-            "nextest",
-            "run",
-            "--workspace",
-            "--profile",
-            "ci",
-            "--no-fail-fast",
-        ],
-    )
+    let mut args = vec![
+        "nextest",
+        "run",
+        "--workspace",
+        "--profile",
+        "ci",
+        "--no-fail-fast",
+    ];
+    if !nextest_skip_packages().is_empty() {
+        args.push("-E");
+        args.push("not package(vox-cli)");
+    }
+    nextest_cargo_status(root, &args)
+}
+
+/// Run nextest for impacted packages in chunks (from `--since` analysis).
+fn step_nextest_packages_chunked(
+    root: &Path,
+    chunks: &[Vec<String>],
+    with_coverage: bool,
+) -> Result<()> {
+    if chunks.is_empty() {
+        bail!("nextest chunk list is empty");
+    }
+    for (i, chunk) in chunks.iter().enumerate() {
+        if chunks.len() > 1 {
+            println!(
+                "    nextest chunk {}/{} ({} pkg(s))",
+                i + 1,
+                chunks.len(),
+                chunk.len()
+            );
+        }
+        if with_coverage {
+            step_nextest_packages_with_coverage(root, chunk)?;
+        } else {
+            step_nextest_packages(root, chunk)?;
+        }
+    }
+    Ok(())
 }
 
 /// Run nextest for a specific set of packages (from `--since` impacted-crate analysis).
@@ -1162,7 +1339,7 @@ fn step_nextest_packages(root: &Path, packages: &[String]) -> Result<()> {
         args.push("--package");
         args.push(p.as_str());
     }
-    cargo_status(root, &args)
+    nextest_cargo_status(root, &args)
 }
 
 /// Run `cargo llvm-cov nextest` for a specific set of packages.
@@ -1179,13 +1356,13 @@ fn step_nextest_packages_with_coverage(root: &Path, packages: &[String]) -> Resu
         args.push("--package");
         args.push(p.as_str());
     }
-    cargo_status(root, &args)
+    nextest_cargo_status(root, &args)
 }
 
 /// Run nextest under `cargo llvm-cov nextest` (no-report phase; coverage data stays on disk).
 /// A separate `step_llvm_cov_report` step renders the final report.
 fn step_nextest_with_coverage(root: &Path) -> Result<()> {
-    cargo_status(
+    nextest_cargo_status(
         root,
         &[
             "llvm-cov",
@@ -1223,19 +1400,18 @@ fn step_llvm_cov_report(root: &Path) -> Result<()> {
     )
 }
 
-/// Run only the four slow `#[ignore]` tests that are annotated with `"slow; …"`.
+/// Run only the three slow `#[ignore]` tests that are annotated with `"slow; …"`.
 /// Uses an explicit `-E` filter + `--run-ignored ignored-only` so none of the other
 /// 250+ ignored tests (intentionally excluded) are swept in.
 fn step_nextest_slow(root: &Path) -> Result<()> {
-    cargo_status(
+    nextest_cargo_status(
         root,
         &[
             "nextest",
             "run",
             "-E",
             concat!(
-                "test(arch_check_smoke_test)",
-                " or test(description_rule_produces_output_on_clean_workspace)",
+                "test(arch_check_live_workspace_smoke_and_description_rule)",
                 " or test(timeout_kills_long_running_child)",
                 " or test(generated_ai_fixture_bundle_passes_cargo_check)",
             ),
@@ -1358,5 +1534,64 @@ mod tests {
         assert_eq!(tier_budget_key("full+cov"), Some("full_cov"));
         assert_eq!(tier_budget_key("full+cov+since"), Some("full_cov"));
         assert_eq!(tier_budget_key("unknown"), None);
+    }
+
+    #[test]
+    fn run_complete_static_skips_when_flag_set() {
+        let full_only = PrePushOpts {
+            quick: false,
+            complete: false,
+            full: true,
+            dry_run: false,
+            act: false,
+            report_json: None,
+            include_slow: false,
+            with_coverage: false,
+            since: None,
+            enforce_budgets: false,
+            skip_complete: false,
+        };
+        assert!(run_complete_static(&full_only));
+
+        let skip = PrePushOpts {
+            skip_complete: true,
+            ..full_only.clone()
+        };
+        assert!(!run_complete_static(&skip));
+
+        let complete = PrePushOpts {
+            complete: true,
+            full: false,
+            skip_complete: false,
+            ..full_only
+        };
+        assert!(run_complete_static(&complete));
+    }
+
+    #[test]
+    fn filter_nextest_packages_removes_skipped_names() {
+        let pkgs = vec!["vox-a".into(), "vox-cli".into(), "vox-b".into()];
+        let skip: HashSet<String> = ["vox-cli".into()].into_iter().collect();
+        let filtered: Vec<String> = pkgs
+            .iter()
+            .filter(|p| !skip.contains(p.as_str()))
+            .cloned()
+            .collect();
+        assert_eq!(filtered, vec!["vox-a", "vox-b"]);
+    }
+
+    #[test]
+    fn chunk_packages_splits_evenly() {
+        let pkgs: Vec<String> = (0..25).map(|i| format!("pkg-{i}")).collect();
+        let chunks = chunk_packages(&pkgs, 10);
+        assert_eq!(chunks.len(), 3);
+        assert_eq!(chunks[0].len(), 10);
+        assert_eq!(chunks[1].len(), 10);
+        assert_eq!(chunks[2].len(), 5);
+    }
+
+    #[test]
+    fn chunk_packages_empty_is_empty() {
+        assert!(chunk_packages(&[], 10).is_empty());
     }
 }

@@ -123,9 +123,9 @@
       "role": "Gamification layer: companions, quests, battles, and AI integration",
       "path_pattern": "crates/vox-ludus/**/*.rs"
     },
-    "vox-mcp": {
-      "role": "MCP server exposing the Vox orchestrator to coding agents",
-      "path_pattern": "crates/vox-mcp/**/*.rs"
+    "vox-orchestrator-mcp": {
+      "role": "MCP server exposing the Vox orchestrator to coding agents (via vox-cli `vox mcp`)",
+      "path_pattern": "crates/vox-orchestrator-mcp/**/*.rs"
     },
     "vox-mcp-registry": {
       "role": "Compile-time MCP tool registry from contracts YAML (SSOT)",
@@ -147,9 +147,9 @@
       "role": "Multi-agent task queue, routing, and orchestration core",
       "path_pattern": "crates/vox-orchestrator/**/*.rs"
     },
-    "vox-pm": {
-      "role": "Package manager and dependency resolver",
-      "path_pattern": "crates/vox-pm/**/*.rs"
+    "vox-package": {
+      "role": "Package manager, dependency resolver, and registry client",
+      "path_pattern": "crates/vox-package/**/*.rs"
     },
     "vox-populi": {
       "role": "Populi mesh, HTTP control plane, Mens Burn/Candle native ML",

@@ -19,6 +19,15 @@ fn run_main(source: &str) -> VoxValue {
     interp.call("main", vec![]).expect("call main")
 }
 
+fn run_main_result(source: &str) -> Result<VoxValue, vox_compiler::eval::EvalError> {
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+    let mut interp = vox_compiler::eval::Interpreter::new(1_000_000);
+    interp.run_module(&lowered).expect("run_module");
+    interp.call("main", vec![])
+}
+
 #[test]
 fn insert_then_all_and_count() {
     let res = run_main(
@@ -170,4 +179,24 @@ fn fused_where_order_by_limit_compose() {
         VoxValue::Str("mid".to_string()),
         "fused where+order_by(asc)+limit(1) must yield the youngest adult"
     );
+}
+
+#[test]
+fn unsafe_raw_query_clause_reports_interp_diagnostic() {
+    let err = run_main_result(
+        "
+        @table type User { name: str }
+        fn main() to Unit {
+            db.User.insert({ name: \"a\" })
+            db.User.query(\"WHERE name = 'a'\")
+        }
+        ",
+    )
+    .expect_err("raw query should fail in interp");
+    match err {
+        vox_compiler::eval::EvalError::AssertionFailed(msg) => {
+            assert!(msg.contains("not supported in --interp"));
+        }
+        other => panic!("expected AssertionFailed diagnostic, got {other:?}"),
+    }
 }

@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod config;
 
 use commands::app_state::GuiState;
 use std::sync::Mutex;
@@ -102,6 +103,15 @@ async fn main() {
             commands::devlog::log_frontend,
             commands::app_state::get_initial_view,
             commands::build_info::get_build_info,
+            commands::chat::chat_create_session,
+            commands::chat::chat_list_sessions,
+            commands::chat::chat_get_messages,
+            commands::chat::chat_append_message,
+            commands::chat::chat_rename_session,
+            commands::chat::chat_archive_session,
+            commands::identity::get_identity_summary,
+            commands::harness::get_task_diff,
+            commands::harness::list_repo_files,
             commands::control_plane::submit_orchestrator_task,
             commands::control_plane::pause_orchestrator_agent,
             commands::control_plane::resume_orchestrator_agent,

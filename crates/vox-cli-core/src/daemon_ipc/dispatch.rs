@@ -302,20 +302,6 @@ pub async fn subscribe_daemon(
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn orchestrator_stdio_spawn_sets_socket_env() {
-        assert_eq!(
-            stdio_socket_env_for_daemon("vox-orchestrator-d"),
-            Some(ORCHESTRATOR_STDIO_SOCKET)
-        );
-        assert_eq!(stdio_socket_env_for_daemon("vox-compilerd"), None);
-    }
-}
-
 async fn emit_unstructured_daemon_line(line: &str, auto_open: bool, app_launched_banner: bool) {
     if let Some(pos) = line.find("[VOX_DASHBOARD_READY: ") {
         if auto_open {
@@ -338,5 +324,19 @@ async fn emit_unstructured_daemon_line(line: &str, auto_open: bool, app_launched
         }
     } else {
         println!("{}", line);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn orchestrator_stdio_spawn_sets_socket_env() {
+        assert_eq!(
+            stdio_socket_env_for_daemon("vox-orchestrator-d"),
+            Some(ORCHESTRATOR_STDIO_SOCKET)
+        );
+        assert_eq!(stdio_socket_env_for_daemon("vox-compilerd"), None);
     }
 }

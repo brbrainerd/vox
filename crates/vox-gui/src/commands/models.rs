@@ -72,15 +72,12 @@ async fn effective_routing_priority() -> RoutingPriorityDto {
     let base: RoutingPriorityDto = AutoRoutingPriority::from_env().into();
     if let Some(db) =
         vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
-    {
-        if let Ok(Some(csv)) = db
+        && let Ok(Some(csv)) = db
             .get_user_preference("local_user", "routing_priority")
             .await
-        {
-            if !csv.trim().is_empty() {
-                return apply_routing_csv(base, &csv);
-            }
-        }
+        && !csv.trim().is_empty()
+    {
+        return apply_routing_csv(base, &csv);
     }
     base
 }
@@ -176,12 +173,10 @@ pub async fn set_active_model(model_id: String) -> Result<(), String> {
 pub async fn get_active_model() -> Result<Option<String>, String> {
     if let Some(db) =
         vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
+        && let Ok(Some(v)) = db.get_user_preference("local_user", "active_model").await
+        && !v.trim().is_empty()
     {
-        if let Ok(Some(v)) = db.get_user_preference("local_user", "active_model").await {
-            if !v.trim().is_empty() {
-                return Ok(Some(v));
-            }
-        }
+        return Ok(Some(v));
     }
     Ok(vox_secrets::resolve_secret(vox_secrets::SecretId::VoxModel)
         .expose()
@@ -208,9 +203,24 @@ pub async fn get_routing_summary() -> Result<RoutingSummaryDto, String> {
             latency_score: d.score_breakdown.latency_score,
         })
     };
+    let exploration_spent_usd = vox_cli_core::daemon_ipc::dispatch::call_daemon(
+        "vox-orchestrator-d",
+        vox_foundation::protocol::orch_daemon_method::STATUS,
+        serde_json::json!({}),
+        false,
+    )
+    .await
+    .ok()
+    .and_then(|status| {
+        status
+            .get("global_exploration_cost_usd")
+            .and_then(|v| v.as_f64())
+    })
+    .unwrap_or(0.0);
+
     Ok(RoutingSummaryDto {
         active_model: active,
-        exploration_spent_usd: 0.0,
+        exploration_spent_usd,
         exploration_budget_usd: cfg.exploration.budget_usd_per_day,
         routing_priority: effective_routing_priority().await,
         arm_count: reg.arm_stats_snapshot().len(),
@@ -341,15 +351,12 @@ const EMPTY_SELECTION_POLICY: &str = "{\"steps\":[]}";
 pub async fn get_selection_policy() -> String {
     if let Some(db) =
         vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
-    {
-        if let Ok(Some(json)) = db
+        && let Ok(Some(json)) = db
             .get_user_preference("local_user", "selection_policy")
             .await
-        {
-            if !json.trim().is_empty() {
-                return json;
-            }
-        }
+        && !json.trim().is_empty()
+    {
+        return json;
     }
     EMPTY_SELECTION_POLICY.to_string()
 }

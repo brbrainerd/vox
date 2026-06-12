@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Pill } from '../../ui/Pill';
+import { MATRIX_POLL_MS } from '../../../config/constants';
 
 /** One routing-priority axis projected onto the hex grid (mirrors the Rust
  *  `RoutingIntentionDto`). */
@@ -56,7 +57,7 @@ export function Matrix({ pushToast }: MatrixProps) {
   const refresh = useCallback(async () => {
     try {
       const cells = await invoke<RoutingIntention[]>('get_routing_intentions');
-      setIntentions(cells);
+      setIntentions(Array.isArray(cells) ? cells : []);
       setSel(prev => (prev && cells.some(c => c.id === prev) ? prev : cells[0]?.id));
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Routing policies load failed', body: String(err) });
@@ -67,7 +68,7 @@ export function Matrix({ pushToast }: MatrixProps) {
 
   useEffect(() => {
     refresh();
-    const id = setInterval(refresh, 8000);
+    const id = setInterval(refresh, MATRIX_POLL_MS);
     return () => clearInterval(id);
   }, [refresh]);
 

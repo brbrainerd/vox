@@ -51,6 +51,7 @@ test.describe('Vox Dashboard', () => {
               last_error: null,
             }];
           }
+          if (cmd === 'get_routing_summary_live') return { decision_preview: null };
           if (cmd === 'submit_orchestrator_task') return { ok: true, task_id: '101', message: 'submitted' };
           if (cmd === 'pause_orchestrator_agent' || cmd === 'resume_orchestrator_agent') return { ok: true };
           return null;
@@ -69,20 +70,18 @@ test.describe('Vox Dashboard', () => {
 
     // Non-fixture execution path when the full shell is active.
     if (hasDashboard) {
+      await page.getByRole('button', { name: 'Workspace' }).click();
       await page.getByRole('button', { name: 'Repository' }).click();
       await page.getByRole('button', { name: 'Workspace status' }).click();
       await expect(page.getByText('repo ok')).toBeVisible();
 
-      // Harness flow should dispatch submit and verification.
+      // Harness tab redirects to Loquela composer (legacy surface retained for deep links).
       await page.getByRole('button', { name: 'Harness' }).click();
-      await page.getByRole('button', { name: 'Run harness path' }).click();
-      const callsAfterHarness = await page.evaluate(() => (window as any).__TAURI_CALLS__);
-      expect(callsAfterHarness.some((c: any) => c.cmd === 'submit_orchestrator_task')).toBeTruthy();
-      expect(callsAfterHarness.some((c: any) => c.cmd === 'execute_command')).toBeTruthy();
+      await expect(page.getByText('Quick Harness lives in the composer')).toBeVisible();
+      await page.getByRole('button', { name: 'Focus composer' }).click();
 
-      // Runs view should render persisted rows from list_gui_runs. The run id appears both in
-      // the activity list and the auto-selected detail panel, so scope to the first match.
-      await page.getByRole('button', { name: 'Runs' }).click();
+      // Runs view under Runs & Approvals parent nav.
+      await page.getByRole('button', { name: 'Runs & Approvals' }).click();
       await expect(page.getByText('gui-run-1').first()).toBeVisible();
     }
   });

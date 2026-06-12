@@ -70,7 +70,17 @@ fn emit_activity_body(
         "    ::vox_workflow_runtime::journal::execute(\"{activity_id}\", async move {{\n"
     ));
     for stmt in &func.body {
-        let inner = emit_stmt(stmt, 2, false, false, false, inferred_types, usage, None);
+        let inner = emit_stmt(
+            stmt,
+            2,
+            false,
+            false,
+            false,
+            inferred_types,
+            usage,
+            None,
+            None,
+        );
         out.push_str(&inner);
     }
     out.push_str("    }).await\n");
@@ -225,7 +235,17 @@ pub(super) fn emit_plain_body(
         .as_ref()
         .is_some_and(|t| !matches!(t, HirType::Unit));
     for (i, stmt) in func.body.iter().enumerate() {
-        let s = emit_stmt(stmt, 1, false, false, false, inferred_types, usage, None);
+        let s = emit_stmt(
+            stmt,
+            1,
+            false,
+            false,
+            false,
+            inferred_types,
+            usage,
+            None,
+            func.return_type.as_ref(),
+        );
         // Vox last-expr return: a fn with a non-Unit return type whose final
         // statement is a bare expression (e.g. `fn area(..) to float { match .. }`)
         // returns that expression's value. Drop the trailing `;` so the Rust fn

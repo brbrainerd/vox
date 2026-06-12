@@ -1,5 +1,12 @@
 #![allow(unsafe_code)] // `std::env::{set_var,remove_var}` for opt-in Web IR view bridge tests
 
+//! Reactive codegen smoke tests for Path C components, Web IR bridges, and attr-matrix SSOT.
+//!
+//! ## Ignored tests (VUV-9, sunset 2026-12-31)
+//!
+//! **9** parity-pin tests remain `#[ignore]` pending completed JSX→Web-IR migration cleanup
+//! (VUV-9). They assert retired JSX-era shapes; do not re-enable until snapshots migrate.
+
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::ffi::OsString;
@@ -76,7 +83,6 @@ component Shell() {
 /// OP-S002 + OP-S004: K-metric registry fixture parses end-to-end; `routes` [`RoutesDecl::parse_summary`] is stable.
 #[serial_test::serial]
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn k_metric_branch_registry_parser_micro_gate() {
     use vox_compiler::ast::decl::Decl;
 
@@ -107,7 +113,6 @@ fn k_metric_branch_registry_parser_micro_gate() {
 /// `hir_emit::compat` is the single matrix for AST JSX re-exports (OP-0131).
 #[serial_test::serial]
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn jsx_and_hir_emit_share_compat_attr_matrix() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -136,7 +141,6 @@ fn jsx_and_hir_emit_share_compat_attr_matrix() {
 /// OP-S030: compatibility-tag DOM edges (`compat` fall-through vs mapped spellings); pairs OP-S029 / OP-S031.
 #[serial_test::serial]
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn op_s030_compat_tag_fixture_dom_and_a11y_edges() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -160,7 +164,6 @@ fn op_s030_compat_tag_fixture_dom_and_a11y_edges() {
 /// and codegen must stay byte-for-byte aligned with it.
 #[serial_test::serial]
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn gui_compatibility_contract_matches_attr_mapping_matrix() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -201,7 +204,6 @@ fn gui_compatibility_contract_matches_attr_mapping_matrix() {
 /// OP-S038 (historical): `VOX_WEBIR_EMIT_REACTIVE_VIEWS` is removed; reactive views always use Web IR when valid.
 #[serial_test::serial]
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn op_s038_legacy_reactive_views_env_var_is_removed_noop() {
     use std::ffi::OsString;
     let _serial = REACTIVE_SMOKE_SERIAL
@@ -249,7 +251,6 @@ component T() {
 
 #[serial_test::serial]
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn test_reactive_codegen_smoke() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -291,7 +292,6 @@ component Counter(initial: int) {
 
 #[serial_test::serial]
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn reactive_hook_codegen_is_deterministic_across_lowering_runs() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -332,7 +332,6 @@ component Tick() {
 
 #[serial_test::serial]
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn web_ir_preview_emit_maps_class_attr_to_class_name() {
     use vox_codegen::web_ir::emit_tsx::emit_component_view_tsx;
     use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
@@ -404,7 +403,6 @@ component Counter(initial: int) {
 
 #[serial_test::serial]
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn reactive_view_bridge_stats_legacy_when_web_ir_env_off() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -446,7 +444,6 @@ component C() {
 
 #[serial_test::serial]
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn reactive_view_bridge_stats_env_on_uses_non_legacy_pathways() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -516,7 +513,6 @@ fn assert_contains_all(haystack: &str, needles: &[&str], ctx: &str) {
 /// OP-0267: single fixture exercising multiple grammar-branch families (side-by-side schema §A3: G01–G08).
 #[serial_test::serial]
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn reactive_smoke_branch_registry_fixture_parses_and_lowers() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -549,7 +545,6 @@ fn reactive_smoke_branch_registry_fixture_parses_and_lowers() {
 /// OP-0268: K-metric appendix §A1 token-class markers appear verbatim in the branch-registry source (recomputable trace input).
 #[serial_test::serial]
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn worked_app_k_metric_appendix_token_classes_are_traceable_in_source() {
     struct Row {
         label: &'static str,
@@ -586,7 +581,6 @@ fn worked_app_k_metric_appendix_token_classes_are_traceable_in_source() {
 /// OP-0259 / OP-0266: class → `className` and `on:click` → `onClick` in reactive emit.
 #[serial_test::serial]
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn reactive_smoke_class_and_event_mapping_path_c() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -621,7 +615,6 @@ component Clicky() {
 /// OP-0263: reactive Path C `component` + top-level `style { }` emits `*.css` and TSX imports it.
 #[serial_test::serial]
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn reactive_smoke_style_block_emits_css_module_import() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -658,7 +651,6 @@ raw_css {
 /// OP-0271 / OP-0272: explicit no-regression label for the reactive smoke module gate.
 #[serial_test::serial]
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn reactive_smoke_gate_label_smoke_tests_module() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -831,7 +823,6 @@ fn reactive_smoke_op_s218_final_reactive_parity_fixture() {
 
 /// OP-0261: legacy `emit_hir_expr` view string matches Web IR preview after shared whitespace normalization.
 #[serial_test::serial]
-#[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration; assertions reference retired JSX form; owner: vox-compiler; sunset: 2026-12-31"]
 #[test]
 fn reactive_smoke_legacy_vs_web_ir_view_whitespace_parity() {
     use std::collections::HashSet;

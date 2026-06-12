@@ -5,6 +5,7 @@ import { Icon } from '../../ui/Icons';
 import { Sparkline } from '../../ui/Sparkline';
 import { renderHighlights, UnifiedHit, SearchResponse } from '../Search/searchHelpers';
 import { attachItemsFromHits, AttachItem } from '../../../lib/loquelaContext';
+import { MEMORY_RECALL_DEBOUNCE_MS } from '../../../config/constants';
 
 // Corpus vocabulary aligned with vox_db SearchCorpus variants.
 // Scope ids must match the corpus names accepted by vox_search_query.
@@ -123,6 +124,7 @@ interface MemoryStatusPayload {
   corpus_counts: Record<string, number>;
   shards: Array<{ id: string; depth: number; entries: number; hot: boolean; dirty: boolean; spark: number[] }>;
   recent_recalls: Array<{ q: string; n: number; when: string }>;
+  embedding_dim?: number | null;
 }
 
 interface MemoryViewProps {
@@ -221,7 +223,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
     if (!recallOn) return;
     const q = query.trim();
     if (!q) return;
-    const t = setTimeout(() => { recall(q); }, 450);
+    const t = setTimeout(() => { recall(q); }, MEMORY_RECALL_DEBOUNCE_MS);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, recallOn, scope.join(','), topK]);
@@ -409,7 +411,10 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
       <Glass className="col-span-12 p-5">
         <div className="flex items-center justify-between">
           <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-zinc-200">Memory shards</h3>
-          <span className="font-mono text-[10px] text-zinc-500">{(memStatus?.shards ?? []).length} live · HNSW · dim 1024</span>
+          <span className="font-mono text-[10px] text-zinc-500">
+            {(memStatus?.shards ?? []).length} live · HNSW
+            {memStatus?.embedding_dim != null ? ` · dim ${memStatus.embedding_dim}` : ''}
+          </span>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           {(memStatus?.shards ?? []).map(s => (

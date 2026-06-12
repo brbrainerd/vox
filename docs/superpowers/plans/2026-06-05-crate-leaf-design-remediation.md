@@ -22,7 +22,7 @@
 
 A 4-agent read-only pass verified every track's assumptions against live code. Deltas that change execution:
 
-- **Track 0.2 (rename `vox-dei-shim`) — blast radius is larger than "update imports".** Beyond ~9 code sites (`vox-orchestrator-mcp`, `vox-cli`, `vox-db/src/research_pipeline.rs`, the crate's own 8 tests) it also appears in **`crates/vox-cli/src/commands/ci/nomenclature_guard.rs` and `retired_symbol_check.rs`** (CI guards may need updating / may trip) and in **`docs/agents/doc-inventory.json`** (auto-generated — regenerate, never hand-edit). Treat this as its own focused task with a full `cargo build --workspace` verify, not a quick rename.
+- **Track 0.2 (rename `vox-dei-shim`) — blast radius is larger than "update imports".** Beyond ~9 code sites (`vox-orchestrator-mcp`, `vox-cli`, `vox-db/src/research_pipeline.rs`, the crate's own 8 tests) it also appears in **`crates/vox-cli-ci/src/nomenclature_guard.rs` and `crates/vox-cli/src/commands/ci/retired_symbol_check.rs`** (CI guards may need updating / may trip) and in **`docs/agents/doc-inventory.json`** (auto-generated — regenerate, never hand-edit). Treat this as its own focused task with a full `cargo build --workspace` verify, not a quick rename.
 - **Track 2.1 — corrected.** Only `vox-plugin-api` carries `workspace-hack`; `vox-plugin-types` has none and is **already excluded**. The hakari exclude key is **`[traversal-excludes].workspace-members` + `[final-excludes].workspace-members` in `.config/hakari.toml`**, NOT `[hakari].exclude`. ABI version is **12** (confirmed). To stop hakari re-adding the dep, add `"vox-plugin-api"` to those two `workspace-members` arrays.
 - **Track 2.2/2.3 — confirmed greenfield, but 2.2 (SDK/derive macro) is additive scope** not in `plugin-system-redesign-2026.md` (which lists third-party out-of-tree as Goal 5, marketplace as a non-goal, and is silent on an SDK). Existing guards `no-plugin-cdylib-as-compile-dep` (inverse direction) and `plugin-abi-parity` exist; the new `plugin-dep-boundary` is genuinely missing. `vox-plugin-publication` violation confirmed (`src/ingest.rs:6-7`).
 - **Track 3 — all three confirmed spine-free.** `vox-crypto` has **no `workspace-hack`** (that sub-step is a no-op for it; applies only to `vox-research-events` + `vox-quantize`). `cargo tree` always prints the crate's own root line — "no spine edges" means none *other than itself*.
@@ -42,7 +42,7 @@ A 4-agent read-only pass verified every track's assumptions against live code. D
 - `crates/vox-eval/Cargo.toml` — was "Vox expression evaluator (interpreter…)"; now describes eval **metrics** and points at `vox-compiler/src/eval/` for the real interpreter.
 - `crates/vox-scientia/Cargo.toml` — was "semantic search/RAG"; now the research-pipeline umbrella.
 - `crates/vox-scientia/src/lib.rs` — header no longer calls `nanopub`/`claim_extractor`/`inspect_bridge`/`ro_crate`/`ingest` "planned"; they are present modules.
-- `crates/vox-inference/Cargo.toml` + `crates/vox-distributed-training/Cargo.toml` — dropped "WIP/stub" framing; describe the shipped backends; keep honest "no in-tree consumers yet".
+- `crates/vox-populi/src/inference/Cargo.toml` + `crates/vox-distributed-training/Cargo.toml` — dropped "WIP/stub" framing; describe the shipped backends; keep honest "no in-tree consumers yet".
 - `crates/vox-runtime/Cargo.toml` — removed `vox-inference` from the consumer list (it does not depend on `vox-runtime`).
 - `docs/src/architecture/where-things-live.md` — fixed the `vox-eval` row (was actively misdirecting to the wrong crate) and de-stubbed the `vox-inference` row.
 
@@ -50,7 +50,7 @@ A 4-agent read-only pass verified every track's assumptions against live code. D
 - [ ] **Step 2: Verify metadata still valid.** Run: `cargo run -q -p vox-arch-check`. Expected: no new errors (description-presence + layer rules unaffected by text changes).
 - [ ] **Step 3: Commit.**
 ```bash
-git add crates/vox-eval/Cargo.toml crates/vox-scientia/Cargo.toml crates/vox-scientia/src/lib.rs crates/vox-inference/Cargo.toml crates/vox-distributed-training/Cargo.toml crates/vox-runtime/Cargo.toml docs/src/architecture/where-things-live.md
+git add crates/vox-eval/Cargo.toml crates/vox-scientia/Cargo.toml crates/vox-scientia/src/lib.rs crates/vox-populi/src/inference/Cargo.toml crates/vox-distributed-training/Cargo.toml crates/vox-runtime/Cargo.toml docs/src/architecture/where-things-live.md
 git commit -m "docs(crates): correct misleading/stale crate descriptions (vox-eval, vox-scientia, vox-inference, vox-distributed-training, vox-runtime)"
 ```
 

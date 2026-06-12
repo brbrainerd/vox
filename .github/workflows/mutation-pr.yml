@@ -14,6 +14,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_LOCKED: true
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -78,7 +79,7 @@ jobs:
       - name: Run mutants (package ${{ matrix.crate }})
         if: steps.changed.outputs.any_changed == 'true'
         run: |
-          cargo mutants --locked -p ${{ matrix.crate }} --no-times --jobs 2 \
+          cargo mutants -p ${{ matrix.crate }} --no-times --jobs 2 \
             --output mutants-out/${{ matrix.crate }}
 
       - name: Upload mutants report

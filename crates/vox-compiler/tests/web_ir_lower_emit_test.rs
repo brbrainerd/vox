@@ -1,4 +1,12 @@
 //! ADR 012 — HIR → WebIR → validate → TSX preview emit.
+//!
+//! ## Path B (CR-F2) — tests remain ignored pending codegen arm parity
+//!
+//! Most tests in this module stay `#[ignore]` until CR-F2 cross-arm parity is achievable.
+//! Path B defers full Web-IR emit coverage to the codegen-rust repair backlog documented in
+//! [`cr-f2-arm-parity-findings-2026.md`](../../docs/src/architecture/cr-f2-arm-parity-findings-2026.md).
+//! Pure validator/serde unit tests are re-enabled incrementally as they pass without the
+//! codegen-rust arm.
 #![allow(unsafe_code)] // `VOX_WEBIR_VALIDATE` toggles for emitter bridge tests (OP-S026 / OP-S028)
 
 use std::collections::HashSet;
@@ -92,7 +100,6 @@ fn web_ir_lowering_scheduled_jobs_from_hir() {
 
 /// OP-S010 / OP-S012: `WebIrModule` JSON shell keeps stable top-level field names for schema consumers.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_module_serde_shell_field_names_stable() {
     let m = WebIrModule::default();
     let v = serde_json::to_value(&m).expect("serde");
@@ -1244,7 +1251,6 @@ fn op_s154_s156_s158_route_data_schema_gate_empty_loader_id() {
 
 /// OP-S174 / S178 stub: parity with pack E (serializable empty module).
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s174_s178_fixture_pack_f2_empty_module_validates() {
     assert!(validate_web_ir(&WebIrModule::default()).is_empty());
 }

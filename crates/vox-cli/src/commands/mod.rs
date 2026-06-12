@@ -46,6 +46,8 @@ mod db_research;
 /// Canonical login for vault / Secrets (`vox login`, `vox auth connect`, `vox secrets login`).
 pub mod login_shared;
 pub mod remove;
+/// Interactive REPL (`vox repl`).
+pub mod repl;
 /// Centralized secret lifecycle commands (`vox secrets`).
 pub mod secrets;
 // `db.rs` re-exports this tree; keep a same-file reference for tooling / unwired-module checks.

@@ -9,6 +9,10 @@ use super::envelope::{
     REMOTE_TASK_ENVELOPE_TYPE, REMOTE_TASK_RESULT_TYPE, RemoteTaskEnvelope, RemoteTaskResult,
 };
 
+const DEFAULT_POPULI_RECEIVER_AGENT: u64 = 2;
+const DEFAULT_POPULI_SENDER_AGENT: u64 = 1;
+const DEFAULT_MESH_WORKER_NODE_ID: &str = "vox-orch-worker";
+
 #[derive(Debug, Default)]
 struct RemotePayloadContext {
     session_id: Option<String>,
@@ -163,18 +167,30 @@ fn harden_dispatch_env(cmd: &mut std::process::Command, secret_env: &[(String, S
 /// Extract the task's declared `required_secrets` (SecretId names) from the
 /// envelope's `capability_requirements_json`. Empty when absent/unparseable.
 fn parse_required_secrets(capability_requirements_json: &str) -> Vec<String> {
-    serde_json::from_str::<serde_json::Value>(capability_requirements_json)
-        .ok()
-        .and_then(|v| {
-            v.get("required_secrets")
-                .and_then(|s| s.as_array())
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|x| x.as_str().map(String::from))
-                        .collect()
-                })
-        })
-        .unwrap_or_default()
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(capability_requirements_json) else {
+        return Vec::new();
+    };
+    let Some(secrets) = value.get("required_secrets").and_then(|s| s.as_array()) else {
+        return Vec::new();
+    };
+    secrets
+        .iter()
+        .filter_map(|x| x.as_str().map(String::from))
+        .collect()
+}
+
+fn parse_populi_agent_id(raw: Option<&str>, default: u64) -> u64 {
+    raw.map(str::trim)
+        .filter(|s| !s.is_empty())
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(default)
+}
+
+fn mesh_worker_node_id() -> String {
+    match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshNodeId).expose() {
+        Some(id) if !id.trim().is_empty() => id.to_string(),
+        _ => DEFAULT_MESH_WORKER_NODE_ID.to_string(),
+    }
 }
 
 fn run_dispatched_source(
@@ -646,10 +662,12 @@ async fn process_one_envelope(
     // isolation tier. Precedence: source, then bundle, then the legacy echo
     // (no exec content, or `VoxMeshExecPolicy == "no-exec"`).
     let result_payload = {
-        let policy = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshExecPolicy)
+        let policy = match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshExecPolicy)
             .expose()
-            .unwrap_or("permissive")
-            .to_string();
+        {
+            Some(p) if !p.trim().is_empty() => p.to_string(),
+            _ => "permissive".to_string(),
+        };
 
         // Trust-tier gate for forwarded secrets. Source + native bundle exec are
         // BareMetal (no isolation), so the gate forwards NOTHING today; the env is
@@ -800,10 +818,7 @@ async fn run_remote_worker_tick(
         return;
     };
 
-    let node_id = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshNodeId)
-        .expose()
-        .map(str::to_string)
-        .unwrap_or_else(|| "vox-orch-worker".to_string());
+    let node_id = mesh_worker_node_id();
     for msg in inbox.messages {
         if msg.message_type != REMOTE_TASK_ENVELOPE_TYPE {
             continue;
@@ -837,7 +852,10 @@ pub fn spawn_populi_remote_worker_poller(
     orchestrator: Arc<crate::orchestrator::Orchestrator>,
     join_slot: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
 ) {
-    let mut guard = join_slot.lock().unwrap_or_else(|e| e.into_inner());
+    let Ok(mut guard) = join_slot.lock() else {
+        tracing::error!("populi remote worker: join_slot mutex poisoned; poller not restarted");
+        return;
+    };
     if let Some(h) = guard.take() {
         h.abort();
     }
@@ -858,20 +876,14 @@ pub fn spawn_populi_remote_worker_poller(
                         .filter(|s| !s.is_empty())
                         .map(str::to_string);
                     if let Some(url) = maybe_url {
-                        let receiver_agent = cfg
-                            .populi_remote_execute_receiver_agent
-                            .as_deref()
-                            .map(str::trim)
-                            .filter(|s| !s.is_empty())
-                            .and_then(|s| s.parse::<u64>().ok())
-                            .unwrap_or(2_u64);
-                        let sender_agent = cfg
-                            .populi_remote_execute_sender_agent
-                            .as_deref()
-                            .map(str::trim)
-                            .filter(|s| !s.is_empty())
-                            .and_then(|s| s.parse::<u64>().ok())
-                            .unwrap_or(1_u64);
+                        let receiver_agent = parse_populi_agent_id(
+                            cfg.populi_remote_execute_receiver_agent.as_deref(),
+                            DEFAULT_POPULI_RECEIVER_AGENT,
+                        );
+                        let sender_agent = parse_populi_agent_id(
+                            cfg.populi_remote_execute_sender_agent.as_deref(),
+                            DEFAULT_POPULI_SENDER_AGENT,
+                        );
                         (
                             cfg.populi_remote_worker_poll_interval_secs.max(1),
                             true,
@@ -913,20 +925,14 @@ pub async fn populi_remote_worker_tick_once(orchestrator: &crate::orchestrator::
     else {
         return;
     };
-    let receiver_agent = cfg
-        .populi_remote_execute_receiver_agent
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .and_then(|s| s.parse::<u64>().ok())
-        .unwrap_or(2_u64);
-    let sender_agent = cfg
-        .populi_remote_execute_sender_agent
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .and_then(|s| s.parse::<u64>().ok())
-        .unwrap_or(1_u64);
+    let receiver_agent = parse_populi_agent_id(
+        cfg.populi_remote_execute_receiver_agent.as_deref(),
+        DEFAULT_POPULI_RECEIVER_AGENT,
+    );
+    let sender_agent = parse_populi_agent_id(
+        cfg.populi_remote_execute_sender_agent.as_deref(),
+        DEFAULT_POPULI_SENDER_AGENT,
+    );
     let timeout_ms = cfg.populi_http_timeout_ms.max(500);
     let client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
         url,

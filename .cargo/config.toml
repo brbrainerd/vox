@@ -2,11 +2,24 @@
 # Dedicated vox-schola binary (Candle QLoRA + CUDA by default) — fastest incremental (~15 s).
 vox-schola-dev       = "run -p vox-schola --"
 
+# ---------------------------------------------------------------------------
+# Optional: sccache (shared compiler cache across worktrees / CI)
+# ---------------------------------------------------------------------------
+# Install: cargo install sccache  (or your OS package manager)
+# Start daemon locally: sccache --start-server
+# Verify: sccache --show-stats
+#
 [build]
-# i9-14900KS has 32 logical threads; 24 leaves headroom for llvm-cov instrumentation.
-# Baseline warm build-only: 57s at jobs=8; expect ~25-35s at jobs=24.
+rustc-wrapper = "sccache"
 jobs = 24
 rustdocflags = ["-D", "warnings"]
+
+# ---------------------------------------------------------------------------
+# Linux: optional faster linker (lld)
+# ---------------------------------------------------------------------------
+# Install: sudo apt install lld   (Debian/Ubuntu) or equivalent on your distro
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
 [target.x86_64-pc-windows-msvc]
 # lld-link is available (C:\Program Files\LLVM\bin\lld-link.exe) but causes
@@ -15,6 +28,7 @@ rustdocflags = ["-D", "warnings"]
 rustflags = ["-C", "link-arg=/DEBUG:NONE", "-C", "link-arg=/STACK:8388608"]
 
 [env]
+SCCACHE_DIR = { value = ".sccache", relative = true }
 # Pin every cargo build/test invocation (including scripts) to a single `target/`
 # dir per checkout, instead of letting tools scatter `target-agent/`,
 # `target-doc-inv/`, etc. across the tree.

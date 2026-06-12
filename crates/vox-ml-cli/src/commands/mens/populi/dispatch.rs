@@ -463,6 +463,19 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             quantize,
         } => merge_qlora::run_merge_qlora(base_shard, adapter, meta, output, quantize),
 
+        PopuliAction::ExportGguf { input, output } => {
+            anyhow::bail!(
+                "NOT_IMPLEMENTED: `vox mens export-gguf` is not wired yet.\n\
+                 Merge adapter weights first:\n\
+                   vox mens merge-qlora --base-shard <base> --adapter <adapter> \\\n\
+                     --meta <meta.json> --output <merged.safetensors>\n\
+                 Then track GGUF export in docs/superpowers/specs/2026-05-31-vox-quantize-engine-design.md.\n\
+                 Requested: input={} output={}",
+                input.display(),
+                output.display()
+            );
+        }
+
         #[cfg(feature = "mens-dei")]
         PopuliAction::Generate {
             prompt,

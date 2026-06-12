@@ -41,7 +41,7 @@ const CPUS_PER_RUNNER: &str = "6";
 const MEM_PER_RUNNER: &str = "6500m";
 /// Default ceiling on concurrent managed runners (4 × 6 cpu = 24 of 32 threads).
 /// Override: `VOX_RUNNER_MAX`.
-pub const DEFAULT_MAX_RUNNERS: u32 = 4;
+pub const DEFAULT_MAX_RUNNERS: u32 = 6;
 /// Reap a runner after this many seconds of continuous idle (registered but
 /// never assigned a job — e.g. the queued run was cancelled). Ephemeral runners
 /// exit on their own after their single job, so this is only a startup-grace
@@ -49,7 +49,7 @@ pub const DEFAULT_MAX_RUNNERS: u32 = 4;
 pub const DEFAULT_IDLE_REAP_SECS: i64 = 300;
 /// Idle runners to keep registered for instant dispatch (0 = pure
 /// scale-to-zero). Override: `VOX_RUNNER_WARM_POOL`.
-pub const DEFAULT_WARM_POOL: u32 = 0;
+pub const DEFAULT_WARM_POOL: u32 = 1;
 
 /// Cap on workflow runs inspected per status when counting queued jobs.
 const DEMAND_RUNS_PER_STATUS: u32 = 20;
@@ -115,6 +115,22 @@ pub fn should_reap_idle(idle_since: Option<i64>, now: i64, timeout: i64) -> bool
         Some(since) => now - since >= timeout,
         None => false,
     }
+}
+
+/// Pick up to `count` idle runner names to reap when `total_keep > desired`.
+/// Newest-idle runners go first (LIFO burst cleanup) so the longest-warm runner
+/// is kept for `VOX_RUNNER_WARM_POOL`.
+pub fn scale_down_reap_targets(idle: &[(String, i64)], count: u32) -> Vec<String> {
+    if count == 0 || idle.is_empty() {
+        return Vec::new();
+    }
+    let mut sorted: Vec<_> = idle.to_vec();
+    sorted.sort_by_key(|(_, since)| std::cmp::Reverse(*since));
+    sorted
+        .into_iter()
+        .take(count as usize)
+        .map(|(name, _)| name)
+        .collect()
 }
 
 /// Count queued jobs whose label set the pool can serve. `label_lines` is one
@@ -440,28 +456,56 @@ pub fn run_scale(apply: bool) -> Result<()> {
         dead += 1;
     }
 
-    // 2. Walk running containers: keep active, reap never-assigned idle runners
-    //    after the grace window, track idle timers across ticks.
-    let mut new_state: HashMap<String, i64> = HashMap::new();
-    let mut keep = 0u32;
-    let mut reaped = 0u32;
+    // 2. Classify running containers, then scale down / grace-reap idle runners.
     let running: Vec<String> = managed_containers("running");
+    let mut busy_count = 0u32;
+    let mut starting_count = 0u32;
+    let mut idle_runners: Vec<(String, Option<i64>)> = Vec::new();
+
     for name in &running {
         match busy_map.get(name) {
-            Some(true) => keep += 1, // active job
+            Some(true) => busy_count += 1,
             Some(false) => {
                 let idle_since = next_idle_since(false, prev.get(name).copied(), now);
-                if should_reap_idle(idle_since, now, reap_secs) {
-                    reap(name, dry_run, "idle > reap grace (never assigned)");
-                    reaped += 1;
-                } else {
-                    if let Some(s) = idle_since {
-                        new_state.insert(name.clone(), s);
-                    }
-                    keep += 1;
-                }
+                idle_runners.push((name.clone(), idle_since));
             }
-            None => keep += 1, // running but not yet registered (still starting)
+            None => starting_count += 1,
+        }
+    }
+
+    let demand = query_queued_job_demand(max).unwrap_or(0);
+    let desired = desired_runner_count(demand, max, warm);
+    let total_keep = busy_count + idle_runners.len() as u32 + starting_count;
+
+    let mut reaped_scale_down = 0u32;
+    if total_keep > desired {
+        let excess = total_keep - desired;
+        let reap_budget = excess.min(idle_runners.len() as u32);
+        let idle_with_since: Vec<(String, i64)> = idle_runners
+            .iter()
+            .map(|(name, since)| (name.clone(), since.unwrap_or(now)))
+            .collect();
+        let to_reap = scale_down_reap_targets(&idle_with_since, reap_budget);
+        let reap_set: HashSet<String> = to_reap.into_iter().collect();
+        idle_runners.retain(|(name, _)| !reap_set.contains(name));
+        for name in reap_set {
+            reap(&name, dry_run, "scale-down above desired");
+            reaped_scale_down += 1;
+        }
+    }
+
+    let mut new_state: HashMap<String, i64> = HashMap::new();
+    let mut keep = busy_count + starting_count;
+    let mut reaped = 0u32;
+    for (name, idle_since) in &idle_runners {
+        if should_reap_idle(*idle_since, now, reap_secs) {
+            reap(name, dry_run, "idle > reap grace (never assigned)");
+            reaped += 1;
+        } else {
+            if let Some(s) = idle_since {
+                new_state.insert(name.clone(), *s);
+            }
+            keep += 1;
         }
     }
 
@@ -481,8 +525,6 @@ pub fn run_scale(apply: bool) -> Result<()> {
     }
 
     // 4. Scale up toward queued-job demand (plus warm pool).
-    let demand = query_queued_job_demand(max).unwrap_or(0);
-    let desired = desired_runner_count(demand, max, warm);
     let spawn = spawn_count(desired, keep);
     let t = tag();
     for i in 0..spawn {
@@ -494,7 +536,8 @@ pub fn run_scale(apply: bool) -> Result<()> {
     }
     println!(
         "runner-scale: dry_run={dry_run} queued_jobs={demand} keep={keep} desired={desired} \
-         spawned={spawn} reaped_idle={reaped} pruned_stale={pruned} cleaned_exited={dead} \
+         spawned={spawn} reaped_scale_down={reaped_scale_down} reaped_idle={reaped} \
+         pruned_stale={pruned} cleaned_exited={dead} \
          (max={max}, warm={warm}, idle_reap={reap_secs}s, ephemeral)"
     );
     Ok(())
@@ -559,7 +602,7 @@ mod tests {
     fn default_reap_is_short_grace_window() {
         // Ephemeral runners despawn by exiting after their job; the idle reap is
         // only a grace window for never-assigned runners. Minutes, not half-hours.
-        assert!(DEFAULT_IDLE_REAP_SECS <= 600);
+        assert_eq!(DEFAULT_IDLE_REAP_SECS, 300);
         let now = 100_000;
         let idle_4m = next_idle_since(false, Some(now - 240), now);
         assert!(!should_reap_idle(idle_4m, now, DEFAULT_IDLE_REAP_SECS));
@@ -621,5 +664,30 @@ mod tests {
         assert!(!should_reap_idle(idle_2m, now, DEFAULT_IDLE_REAP_SECS));
         let idle_10m = next_idle_since(false, Some(now - 600), now);
         assert!(should_reap_idle(idle_10m, now, DEFAULT_IDLE_REAP_SECS));
+    }
+
+    #[test]
+    fn scale_down_reaps_newest_idle_first() {
+        let idle = vec![
+            ("vox-runner-auto-a-0".into(), 100),
+            ("vox-runner-auto-a-1".into(), 200),
+            ("vox-runner-auto-a-2".into(), 300),
+            ("vox-runner-auto-a-3".into(), 400),
+        ];
+        let reaped = scale_down_reap_targets(&idle, 3);
+        assert_eq!(
+            reaped,
+            vec![
+                "vox-runner-auto-a-3",
+                "vox-runner-auto-a-2",
+                "vox-runner-auto-a-1",
+            ]
+        );
+    }
+
+    #[test]
+    fn scale_down_reap_zero_when_no_excess() {
+        let idle = vec![("vox-runner-auto-a-0".into(), 100)];
+        assert!(scale_down_reap_targets(&idle, 0).is_empty());
     }
 }

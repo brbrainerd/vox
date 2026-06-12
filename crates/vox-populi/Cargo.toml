@@ -20,7 +20,6 @@ tls = ["dep:rustls", "dep:rustls-pemfile", "dep:tokio-rustls"]
 # Keep this feature until all callers are rewired through MeshDriver.
 transport = [
     "dep:axum",
-    "dep:tokio",
     "dep:reqwest",
     "dep:reqwest-middleware",
     "dep:vox-http-client",
@@ -42,7 +41,6 @@ mens = [
     "dep:anyhow",
     "dep:serde_yaml",
     "dep:ctrlc",
-    "dep:tokio",
     "dep:chrono",
     "dep:dirs",
     "dep:sysinfo",
@@ -60,7 +58,9 @@ mens-candle-qlora = [
     "dep:safetensors",
     "dep:tokenizers",
     "dep:qlora-rs",
+    "dep:reqwest",
 ]
+inference = ["mens-candle-qlora"]
 mens-candle-qlora-cuda = [
     "mens-candle-qlora",
     "candle-core/cuda",
@@ -104,7 +104,7 @@ tokio-rustls = { workspace = true, optional = true }
 
 # Populi transport
 axum = { workspace = true, optional = true }
-tokio = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["rt", "macros", "sync"] }
 reqwest = { workspace = true, optional = true, default-features = false, features = ["json", "rustls-tls"] }
 reqwest-middleware = { workspace = true, optional = true }
 vox-http-client = { workspace = true, optional = true }
@@ -146,6 +146,7 @@ hex = { workspace = true }
 sha3.workspace = true
 uuid.workspace = true
 vox-package.workspace = true
+vox-quantize = { workspace = true }
 vox-orchestrator-queue.workspace = true
 
 [dev-dependencies]

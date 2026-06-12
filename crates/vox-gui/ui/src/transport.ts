@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { ActionManifest } from './types/actionManifest';
+import type { CommandCatalog, OrchestratorStatus, RoutingSummary } from './types/tauri';
 
 /** Tauri event name carrying the orchestrator status snapshot (see B1 daemon stream). */
 export const ORCH_STATUS_EVENT = 'vox://orch-status';
@@ -12,9 +13,9 @@ export const ORCH_STATUS_EVENT = 'vox://orch-status';
  * on cleanup. Rejects if not running inside Tauri (caller should fall back to polling).
  */
 export function listenOrchStatus(
-  onStatus: (status: any) => void,
+  onStatus: (status: OrchestratorStatus) => void,
 ): Promise<UnlistenFn> {
-  return listen<any>(ORCH_STATUS_EVENT, (event) => onStatus(event.payload));
+  return listen<OrchestratorStatus>(ORCH_STATUS_EVENT, (event) => onStatus(event.payload));
 }
 
 /** Tauri event name carrying a single live AgentEvent (see B4 daemon stream). */
@@ -229,8 +230,8 @@ class VoxTransport {
     return [cleanId.replace(/_/g, '-')];
   }
 
-  async getCatalog() {
-    return invoke('get_command_catalog');
+  async getCatalog(): Promise<CommandCatalog> {
+    return invoke<CommandCatalog>('get_command_catalog');
   }
 
   async listModels(limit = 120) {
@@ -245,8 +246,8 @@ class VoxTransport {
     return invoke('set_active_model', { modelId });
   }
 
-  async getRoutingSummaryLive() {
-    return invoke('get_routing_summary_live');
+  async getRoutingSummaryLive(): Promise<RoutingSummary> {
+    return invoke<RoutingSummary>('get_routing_summary_live');
   }
 
   async setRoutingPriority(priority: {

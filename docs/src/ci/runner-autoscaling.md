@@ -41,9 +41,9 @@ Docker containers (`vox-runner-1/2`) on a single Windows i9-14900KS (32 threads,
   in-progress runs and counts jobs with `status: queued` whose label set the
   pool can serve (`self-hosted,linux,x64,docker,browser`). One PR fanning out a
   dozen jobs registers a dozen demand, capped at the pool max.
-- **Bounded:** up to `VOX_RUNNER_MAX` (default 4), each `--cpus=6
-  --memory=6500m` → at most 24 of 32 threads and 26 GB, leaving 8 threads + the
-  rest of RAM for Windows.
+- **Bounded:** up to `VOX_RUNNER_MAX` (default 6), each `--cpus=6
+  --memory=6500m` → at most 36 of 32 threads when fully saturated (autoscaler
+  caps at host capacity); tune `VOX_RUNNER_MAX` to leave headroom for Windows.
 - **Warm:** every runner mounts a shared `vox-ci-runner-cache` volume with
   `sccache` (`SCCACHE_DIR=/cache/sccache`), so ephemeral cold starts reuse
   compiler output instead of rebuilding the world.
@@ -53,9 +53,12 @@ Docker containers (`vox-runner-1/2`) on a single Windows i9-14900KS (32 threads,
   runners that registered but never got a job (e.g. the queued run was
   cancelled). Stale **offline** GitHub registrations with no backing container
   (crashed ephemeral runners) are pruned each tick.
-- **Optional warm pool:** `VOX_RUNNER_WARM_POOL` (default 0 = pure
-  scale-to-zero) keeps N idle runners registered for instant dispatch when
-  startup latency matters more than idle CPU.
+- **Optional warm pool:** `VOX_RUNNER_WARM_POOL` (default 1) keeps N idle
+  runners registered for instant dispatch; set to `0` for pure scale-to-zero.
+- **Registry cache:** ephemeral runners symlink `~/.cargo/registry`, `~/.cargo/git`,
+  and `~/.cargo/advisory-db` into the shared `vox-ci-runner-cache` volume
+  (`/cache/cargo-registry`, etc.) so cold starts skip re-downloading crates and
+  the cargo-deny advisory DB.
 
 ### Components (this repo)
 | Piece | Path |
@@ -81,9 +84,9 @@ runaway pool. Demand = count of `queued` **jobs** matching the pool's labels
 
 | Env var | Default | Meaning |
 |---|---|---|
-| `VOX_RUNNER_MAX` | `4` | Hard ceiling on concurrent managed runners |
+| `VOX_RUNNER_MAX` | `6` | Hard ceiling on concurrent managed runners |
 | `VOX_RUNNER_IDLE_REAP_SECS` | `300` | Grace window before reaping a never-assigned runner |
-| `VOX_RUNNER_WARM_POOL` | `0` | Idle runners to keep registered for instant dispatch |
+| `VOX_RUNNER_WARM_POOL` | `1` | Idle runners to keep registered for instant dispatch |
 
 ## Fail-fast (surfacing "runners are down")
 
