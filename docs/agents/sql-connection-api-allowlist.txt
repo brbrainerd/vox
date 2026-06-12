@@ -13,10 +13,11 @@ crates/vox-gamify/
 # vox-codegen emits .connection().query/execute strings as code-generation output,
 # not as live SQL calls. The guard regex false-positives on these string literals.
 crates/vox-codegen/src/codegen_rust/emit/
-# vox-sql is the sanctioned app-plane SQL backend surface. It must call
-# backend connection/query/execute APIs by design while dialect-agnostic query
-# builders and codegen integration are landing.
-crates/vox-sql/
+# vox-sql is the sanctioned app-plane SQL backend surface. Its backend facade
+# (src/lib.rs) must call connection/query/execute APIs by design while
+# dialect-agnostic query builders and codegen integration are landing.
+# Scoped to the single file hosting backend dispatch — widen deliberately.
+crates/vox-sql/src/lib.rs
 # vox-scientia producers aggregate raw benchmark/telemetry data by reading
 # across table joins that have no single-model ops_* equivalent yet. Migrate
 # to typed ops once the scientia store layer (vox-db ops_scientia.rs) is added.

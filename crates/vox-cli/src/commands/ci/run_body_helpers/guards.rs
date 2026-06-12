@@ -319,7 +319,9 @@ fn load_sql_connection_allowlist(root: &Path) -> Result<Vec<String>> {
                 continue;
             }
             let norm = line.replace('\\', "/");
-            let norm = if norm.ends_with('/') {
+            // File entries (e.g. `crates/vox-sql/src/lib.rs`) stay exact;
+            // directory entries get a trailing `/` for prefix matching.
+            let norm = if norm.ends_with('/') || norm.ends_with(".rs") {
                 norm
             } else {
                 format!("{norm}/")
@@ -333,7 +335,13 @@ fn load_sql_connection_allowlist(root: &Path) -> Result<Vec<String>> {
 }
 
 fn sql_connection_path_allowed(rel: &str, allow: &[String]) -> bool {
-    allow.iter().any(|prefix| rel.starts_with(prefix.as_str()))
+    allow.iter().any(|entry| {
+        if entry.ends_with('/') {
+            rel.starts_with(entry.as_str())
+        } else {
+            rel == entry
+        }
+    })
 }
 
 fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bool {
