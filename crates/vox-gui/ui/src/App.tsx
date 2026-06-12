@@ -23,6 +23,7 @@ import { RepositoryView } from './components/surfaces/Repository/RepositoryView'
 import { MeshView } from './components/surfaces/Mesh/MeshView';
 import { GamifyView } from './components/surfaces/Gamify/GamifyView';
 import { HarnessView } from './components/surfaces/Harness/HarnessView';
+import { Console } from './components/surfaces/Console/Console';
 import { surfaceDecorators } from './components/surfaces/decoratorRegistry';
 import { ApprovalsView } from './components/surfaces/Approvals/ApprovalsView';
 import { SkillsPluginsView } from './components/surfaces/SkillsPlugins/SkillsPluginsView';
@@ -48,6 +49,7 @@ type View =
   | 'mesh'
   | 'gamify'
   | 'harness'
+  | 'console'
   | 'scientia'
   | 'discovery-review'
   | 'claims'
@@ -600,6 +602,8 @@ export default function App() {
         return <GamifyView pushToast={pushToast} />;
       case 'harness':
         return <HarnessView pushToast={pushToast} />;
+      case 'console':
+        return <Console pushToast={pushToast} />;
       case 'approvals':
         return <ApprovalsView pushToast={pushToast} />;
       case 'policies':
