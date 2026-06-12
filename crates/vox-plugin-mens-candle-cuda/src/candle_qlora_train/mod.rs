@@ -16,6 +16,7 @@ use candle_nn::VarBuilder;
 use peft_rs::training::{AdapterTrainingConfig, LrSchedule};
 use qlora_rs::QLoraConfig;
 use qlora_rs::qlora::QuantizedLinear;
+use qlora_rs::quantization::ComputeDType;
 use qlora_rs::training::{QLoraTrainer, QLoraTrainingConfig};
 use rand::SeedableRng;
 use rand::seq::SliceRandom;
@@ -31,6 +32,24 @@ use crate::train_log;
 /// EMA alpha for ETA calculation.
 pub(super) const QLORA_ETA_EMA_ALPHA: f64 = 0.2;
 
+/// The dtype activations (and the dequantized base weights) run at.
+///
+/// On a real CUDA device this is BF16 — embeddings, the layer stack and the LM head run in
+/// BF16, roughly halving activation + embedding VRAM. On CPU it is forced to F32 because
+/// BF16 matmul is unsupported on CPU in this Candle build (so `qlora-rs` unit tests and any
+/// CPU forward keep working). `VOX_MENS_ACT_F32=1` forces F32 everywhere as an escape hatch
+/// (e.g. to A/B numerics or work around a driver issue).
+fn activation_compute_dtype(device: &Device) -> DType {
+    if std::env::var_os("VOX_MENS_ACT_F32").is_some() {
+        return DType::F32;
+    }
+    if device.is_cuda() {
+        DType::BF16
+    } else {
+        DType::F32
+    }
+}
+
 /// Global flag for graceful interruption (Ctrl+C).
 pub(super) static PAUSE_FLAG: AtomicBool = AtomicBool::new(false);
 
@@ -42,6 +61,29 @@ impl TrainGraphModel {
     pub fn forward(&self, input_ids: &Tensor) -> anyhow::Result<Tensor> {
         match self {
             Self::Qwen35(m) => Ok(m.forward(input_ids)?),
+        }
+    }
+
+    /// Checkpointed forward (activation/gradient checkpointing). See
+    /// [`crate::model::Qwen35Model::forward_checkpointed`].
+    pub fn forward_checkpointed(
+        &self,
+        input_ids: &Tensor,
+        n_segments: usize,
+    ) -> anyhow::Result<crate::model::CheckpointedForward> {
+        match self {
+            Self::Qwen35(m) => Ok(m.forward_checkpointed(input_ids, n_segments)?),
+        }
+    }
+
+    /// Recompute one checkpoint segment. See
+    /// [`crate::model::Qwen35Model::recompute_segment`].
+    pub fn recompute_segment(
+        &self,
+        seg: &crate::model::CheckpointSegment,
+    ) -> anyhow::Result<(candle_core::Var, Tensor)> {
+        match self {
+            Self::Qwen35(m) => Ok(m.recompute_segment(seg)?),
         }
     }
 }
@@ -457,8 +499,22 @@ pub fn run_candle_qlora_train(
         bundle.d_model,
         (bundle.vocab as f64 * bundle.d_model as f64 * 4.0) / 1.073_741_824e9,
     ));
-    let wte = vb_mmap.get((bundle.vocab, bundle.d_model), &bundle.embed_key)?;
-    train_log::info("Embeddings loaded.");
+    // Activation dtype = the configured compute dtype (the dtype the NF4 base weights are
+    // dequantized to in qlora-rs). Loading the embeddings at this dtype makes the whole
+    // forward stack run at the compute dtype (BF16 on CUDA), roughly halving activation +
+    // embedding VRAM vs the old hardcoded-F32 path. The qlora-rs base matmul then no longer
+    // casts its output back to F32 (qlora.rs:442-446 becomes a no-op since activation dtype
+    // == weight dtype). On CPU (unit tests) the compute dtype is F32 — BF16 matmul is
+    // unsupported on CPU in this Candle build — so this stays F32 there. Numerically
+    // sensitive reductions (RMSNorm variance, softmax, the linear-attention recurrence) are
+    // kept in F32 inside `crate::model`, and final logits are cast to F32 before the loss.
+    let compute_dtype = activation_compute_dtype(&device);
+    let wte = vb_mmap
+        .get((bundle.vocab, bundle.d_model), &bundle.embed_key)?
+        .to_dtype(compute_dtype)?;
+    train_log::info(&format!(
+        "Embeddings loaded (activation dtype {compute_dtype:?})."
+    ));
     log_stage("mmap+embedding", t_mmap);
 
     // ── qlora-rs config ───────────────────────────────────────────────────────
@@ -479,6 +535,15 @@ pub fn run_candle_qlora_train(
     // Opt OUT with VOX_MENS_NO_WEIGHT_CACHE=1.
     let mut qlora_cfg = qlora_cfg;
     qlora_cfg.cache_dequantized = std::env::var_os("VOX_MENS_NO_WEIGHT_CACHE").is_none();
+    // Keep the base-weight (NF4 dequant) dtype identical to the activation dtype so the
+    // qlora-rs base matmul runs without any activation<->weight dtype casts. On a real CUDA
+    // device this is BF16 (the preset default); on CPU it falls back to F32 because BF16
+    // matmul is unsupported on CPU in this Candle build.
+    qlora_cfg.quantization.compute_dtype = match compute_dtype {
+        DType::BF16 => ComputeDType::BF16,
+        DType::F16 => ComputeDType::F16,
+        _ => ComputeDType::F32,
+    };
 
     let total_steps_planned = (pairs.len() * config.epochs) as u32;
     let grad_accum = config.grad_accum.max(1) as u32;
@@ -911,7 +976,10 @@ pub fn run_candle_qlora_train(
                 .to_dtype(DType::F32)?
         };
         let final_norm = candle_nn::RmsNorm::new(fnorm_w, 1e-6);
-        let w_lm = wte.to_dtype(DType::F32)?;
+        // LM head is tied to the embeddings; build it at the activation/compute dtype so
+        // its base matmul matches the BF16 activation stream. `Qwen35Model::forward` casts
+        // the resulting logits back to F32 before the cross-entropy loss.
+        let w_lm = wte.to_dtype(compute_dtype)?;
         let lm_label = "lm_head".to_string();
         let lm_base = bundle.embed_key.clone();
         let lm_head = QuantizedLinear::from_weight_with_varbuilder(

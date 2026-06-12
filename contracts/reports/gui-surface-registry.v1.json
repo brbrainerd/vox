@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "surface_count": 87,
+  "surface_count": 95,
   "top_level_groups": [
     "add",
     "ars",
@@ -51,6 +51,7 @@
     "populi",
     "remove",
     "repair",
+    "repl",
     "repo",
     "research",
     "rollback",

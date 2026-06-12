@@ -7,9 +7,10 @@ import React, { useState } from "react";
 export function V(): React.ReactElement {
   const [k, set_k] = useState(2);
   return (
-<p className={"text-base"}
->
-  {k}
-</p>
+    <div className="px-4">
+    <p className={"text-base"}>
+      {k}
+    </p>
+    </div>
   );
 }

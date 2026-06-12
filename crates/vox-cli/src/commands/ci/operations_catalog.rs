@@ -433,6 +433,13 @@ fn write_inventory_report(repo_root: &Path, catalog: &OperationsCatalog) -> Resu
         fs::create_dir_all(parent)?;
     }
     let json = serde_json::to_string_pretty(&report)? + "\n";
+    if path.is_file() {
+        let existing =
+            fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
+        if existing == json {
+            return Ok(());
+        }
+    }
     fs::write(&path, json).with_context(|| format!("write {}", path.display()))?;
     Ok(())
 }

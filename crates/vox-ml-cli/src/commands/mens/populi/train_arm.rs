@@ -296,15 +296,23 @@ pub async fn run_train(
                             );
                         }
                     }
-                    if effective_seq_len.is_none() {
-                        effective_seq_len = Some(mp.seq_len);
-                    }
-                    if effective_batch_size.is_none() {
-                        effective_batch_size = Some(mp.batch_size);
-                    }
-                    if effective_grad_accum.is_none() {
-                        effective_grad_accum = Some(mp.grad_accum);
-                    }
+                    // Budget overrides a generic preset default but yields to an
+                    // explicit CLI flag or a deliberate domain profile (both of
+                    // which are already folded into `effective_*` above).
+                    effective_seq_len =
+                        resolve_training_sizing(effective_seq_len, None, Some(mp.seq_len), None);
+                    effective_batch_size = resolve_training_sizing(
+                        effective_batch_size,
+                        None,
+                        Some(mp.batch_size),
+                        None,
+                    );
+                    effective_grad_accum = resolve_training_sizing(
+                        effective_grad_accum,
+                        None,
+                        Some(mp.grad_accum),
+                        None,
+                    );
                 } else if memory_budget::is_qwen35(model_hint) {
                     // For Qwen3.5 models (including the default), let the ladder pick the
                     // largest variant that fits this card — retreating 4B → 2B → 0.8B as
@@ -333,15 +341,20 @@ pub async fn run_train(
                             );
                         }
                     }
-                    if effective_seq_len.is_none() {
-                        effective_seq_len = Some(mp.seq_len);
-                    }
-                    if effective_batch_size.is_none() {
-                        effective_batch_size = Some(mp.batch_size);
-                    }
-                    if effective_grad_accum.is_none() {
-                        effective_grad_accum = Some(mp.grad_accum);
-                    }
+                    effective_seq_len =
+                        resolve_training_sizing(effective_seq_len, None, Some(mp.seq_len), None);
+                    effective_batch_size = resolve_training_sizing(
+                        effective_batch_size,
+                        None,
+                        Some(mp.batch_size),
+                        None,
+                    );
+                    effective_grad_accum = resolve_training_sizing(
+                        effective_grad_accum,
+                        None,
+                        Some(mp.grad_accum),
+                        None,
+                    );
                 } else {
                     // Non-Qwen3.5: size the given model in place (no model swap).
                     let plan = memory_budget::plan(vram, requested_b);
@@ -355,15 +368,20 @@ pub async fn run_train(
                             vram
                         );
                     }
-                    if effective_seq_len.is_none() {
-                        effective_seq_len = Some(plan.seq_len);
-                    }
-                    if effective_batch_size.is_none() {
-                        effective_batch_size = Some(plan.batch_size);
-                    }
-                    if effective_grad_accum.is_none() {
-                        effective_grad_accum = Some(plan.grad_accum);
-                    }
+                    effective_seq_len =
+                        resolve_training_sizing(effective_seq_len, None, Some(plan.seq_len), None);
+                    effective_batch_size = resolve_training_sizing(
+                        effective_batch_size,
+                        None,
+                        Some(plan.batch_size),
+                        None,
+                    );
+                    effective_grad_accum = resolve_training_sizing(
+                        effective_grad_accum,
+                        None,
+                        Some(plan.grad_accum),
+                        None,
+                    );
                 }
             } else {
                 eprintln!(
@@ -486,6 +504,35 @@ pub async fn run_train(
     }
 
     train_res
+}
+
+/// Resolve a single training-sizing knob (`seq_len` / `batch_size` / `grad_accum`)
+/// from its candidate sources, applying the canonical precedence:
+///
+/// ```text
+/// explicit CLI flag  >  deliberate domain profile  >  per-model VRAM budget  >  generic preset default
+/// ```
+///
+/// Each argument is `Some` only when that tier actually supplied a value:
+/// - `cli`: the user passed `--seq-len` / `--batch-size` / `--grad-accum`.
+/// - `domain`: a deliberately-chosen domain profile pinned the knob.
+/// - `budget`: the per-model VRAM budget (`memory_budget::plan*`) sized the knob to fit the card.
+/// - `preset_default`: a generic preset's fallback value.
+///
+/// The key correctness property (the "dual-sizing" bug fix): a **generic preset
+/// default must NOT override the VRAM budget** — `budget` is consulted strictly
+/// before `preset_default`, so the budget can shrink an over-large preset and
+/// avoid OOM. Explicit CLI flags and deliberate domain profiles still win over
+/// the budget.
+///
+/// Pure and side-effect-free so it can be unit-tested in isolation.
+fn resolve_training_sizing(
+    cli: Option<usize>,
+    domain: Option<usize>,
+    budget: Option<usize>,
+    preset_default: Option<usize>,
+) -> Option<usize> {
+    cli.or(domain).or(budget).or(preset_default)
 }
 
 /// The version this build stamps into freshly generated corpora.
@@ -640,4 +687,72 @@ async fn refresh_stale_training_corpus(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod sizing_precedence_tests {
+    use super::resolve_training_sizing;
+
+    /// The headline "dual-sizing" bug: a generic preset must NOT beat the VRAM
+    /// budget. Preset seq=512 + budget seq=256, no explicit CLI / domain → 256.
+    #[test]
+    fn budget_overrides_generic_preset_seq_len() {
+        let resolved = resolve_training_sizing(
+            None,      // no explicit --seq-len
+            None,      // no domain profile
+            Some(256), // VRAM budget
+            Some(512), // generic preset default
+        );
+        assert_eq!(resolved, Some(256));
+    }
+
+    /// Explicit CLI always wins, even over the budget: CLI seq=512 + budget seq=256 → 512.
+    #[test]
+    fn explicit_cli_beats_budget() {
+        let resolved = resolve_training_sizing(Some(512), None, Some(256), Some(512));
+        assert_eq!(resolved, Some(512));
+    }
+
+    /// A deliberate domain profile beats the budget but loses to explicit CLI.
+    #[test]
+    fn domain_beats_budget_but_loses_to_cli() {
+        assert_eq!(
+            resolve_training_sizing(None, Some(1024), Some(256), Some(512)),
+            Some(1024)
+        );
+        assert_eq!(
+            resolve_training_sizing(Some(2048), Some(1024), Some(256), Some(512)),
+            Some(2048)
+        );
+    }
+
+    /// No preset at all: the budget value is used as-is.
+    #[test]
+    fn budget_only_is_used() {
+        assert_eq!(
+            resolve_training_sizing(None, None, Some(256), None),
+            Some(256)
+        );
+    }
+
+    /// batch_size / grad_accum follow the same precedence (one representative case each).
+    #[test]
+    fn budget_overrides_preset_for_batch_and_grad() {
+        // batch_size: preset would set 8, budget shrinks to 1.
+        assert_eq!(
+            resolve_training_sizing(None, None, Some(1), Some(8)),
+            Some(1)
+        );
+        // grad_accum: explicit CLI of 4 wins over budget's 16.
+        assert_eq!(
+            resolve_training_sizing(Some(4), None, Some(16), Some(2)),
+            Some(4)
+        );
+    }
+
+    /// Nothing supplied anywhere → None (caller keeps its own fallback).
+    #[test]
+    fn all_none_yields_none() {
+        assert_eq!(resolve_training_sizing(None, None, None, None), None);
+    }
 }

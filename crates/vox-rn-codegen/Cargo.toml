@@ -1,0 +1,23 @@
+[package]
+name = "vox-rn-codegen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "React Native + Expo TypeScript codegen extracted from vox-codegen."
+publish = false
+
+[dependencies]
+serde_json = { workspace = true }
+vox-compiler = { workspace = true }
+vox-codegen = { workspace = true }
+
+[dev-dependencies]
+insta = "1"
+vox-compiler = { workspace = true }
+vox-codegen = { workspace = true }
+
+[lints]
+workspace = true

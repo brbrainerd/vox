@@ -27,9 +27,15 @@ export const BUILTIN_SLASH: SlashEntry[] = [
 ];
 
 interface SkillRecord {
+  // Accepts both the skill-registry shape ({id,name,description}) and the
+  // command-catalog shape ({command,capability_id,about}) that the GUI
+  // currently feeds Loquela — whichever fields are present win.
   id?: string;
   name?: string;
   description?: string;
+  command?: string;
+  capability_id?: string;
+  about?: string;
 }
 
 /**
@@ -41,20 +47,20 @@ export function buildSlashEntries(skills: (SkillRecord | null | undefined)[]): S
   const out = [...BUILTIN_SLASH];
   const taken = new Set(out.map((e) => e.cmd));
   for (const s of skills ?? []) {
-    const name = s?.name?.trim();
+    const name = (s?.name ?? s?.command)?.trim();
     // Only spec-shaped names (agentskills.io: ^[a-z0-9][a-z0-9-]*$) make typeable
-    // slash commands. Legacy display names like "Test Runner" are skipped — they
-    // can't be matched in the composer anyway.
+    // slash commands. Display names with spaces/dots are skipped — they can't be
+    // matched in the composer anyway.
     if (!name || !/^[a-z0-9][a-z0-9-]*$/.test(name)) continue;
     const cmd = `/${name}`;
     if (taken.has(cmd)) continue;
     taken.add(cmd);
     out.push({
       cmd,
-      desc: s?.description ?? '',
+      desc: s?.description ?? s?.about ?? '',
       icon: 'bolt',
       kind: 'skill',
-      skillId: s?.id ?? name,
+      skillId: s?.id ?? s?.capability_id ?? name,
     });
   }
   return out;

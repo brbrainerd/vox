@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { ActionManifest } from './types/actionManifest';
+import type { CommandCatalog, OrchestratorStatus, RoutingSummary } from './types/tauri';
 
 /** Tauri event name carrying the orchestrator status snapshot (see B1 daemon stream). */
 export const ORCH_STATUS_EVENT = 'vox://orch-status';
@@ -12,9 +13,9 @@ export const ORCH_STATUS_EVENT = 'vox://orch-status';
  * on cleanup. Rejects if not running inside Tauri (caller should fall back to polling).
  */
 export function listenOrchStatus(
-  onStatus: (status: any) => void,
+  onStatus: (status: OrchestratorStatus) => void,
 ): Promise<UnlistenFn> {
-  return listen<any>(ORCH_STATUS_EVENT, (event) => onStatus(event.payload));
+  return listen<OrchestratorStatus>(ORCH_STATUS_EVENT, (event) => onStatus(event.payload));
 }
 
 /** Tauri event name carrying a single live AgentEvent (see B4 daemon stream). */
@@ -66,6 +67,55 @@ export function listenScientiaQueue(
   onChange: (ping: ScientiaQueuePing) => void,
 ): Promise<UnlistenFn> {
   return listen<ScientiaQueuePing>(SCIENTIA_QUEUE_EVENT, (event) => onChange(event.payload));
+}
+
+/** Tauri event name carrying browser live-view PNG frames (CDP mirror). */
+export const BROWSER_FRAME_EVENT = 'vox://browser-frame';
+export const PREVIEW_AVAILABLE_EVENT = 'vox://preview-available';
+
+export interface BrowserFramePayload {
+  timestamp_ms: number;
+  page_id: string | null;
+  image_base64: string | null;
+  viewport_width: number | null;
+  viewport_height: number | null;
+  action_log: string[];
+  error: string | null;
+}
+
+export interface BrowserPageSummary {
+  page_id: string;
+  url: string;
+  title: string;
+}
+
+export interface BrowserPageInfo {
+  page_id: string;
+  url: string;
+  title: string;
+  can_go_back: boolean;
+  can_go_forward: boolean;
+}
+
+export interface PreviewAvailablePayload {
+  url: string;
+  app_dir: string | null;
+  source: string;
+}
+
+/**
+ * Subscribe to pushed browser frame snapshots (~3s when a session is active).
+ */
+export function listenBrowserFrames(
+  onFrame: (frame: BrowserFramePayload) => void,
+): Promise<UnlistenFn> {
+  return listen<BrowserFramePayload>(BROWSER_FRAME_EVENT, (event) => onFrame(event.payload));
+}
+
+export function listenPreviewAvailable(
+  onPreview: (payload: PreviewAvailablePayload) => void,
+): Promise<UnlistenFn> {
+  return listen<PreviewAvailablePayload>(PREVIEW_AVAILABLE_EVENT, (event) => onPreview(event.payload));
 }
 
 export interface ExecuteOutput {
@@ -180,8 +230,8 @@ class VoxTransport {
     return [cleanId.replace(/_/g, '-')];
   }
 
-  async getCatalog() {
-    return invoke('get_command_catalog');
+  async getCatalog(): Promise<CommandCatalog> {
+    return invoke<CommandCatalog>('get_command_catalog');
   }
 
   async listModels(limit = 120) {
@@ -196,8 +246,8 @@ class VoxTransport {
     return invoke('set_active_model', { modelId });
   }
 
-  async getRoutingSummaryLive() {
-    return invoke('get_routing_summary_live');
+  async getRoutingSummaryLive(): Promise<RoutingSummary> {
+    return invoke<RoutingSummary>('get_routing_summary_live');
   }
 
   async setRoutingPriority(priority: {

@@ -2,6 +2,7 @@
 name = "vox-config"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 description = "Centralized configuration and env/default resolution for Vox tooling"
 
 [dependencies]

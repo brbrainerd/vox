@@ -1,6 +1,6 @@
 ---
 title: "Vox database language surface (canonical)"
-description: "Canonical @table, @endpoint(kind: query), @endpoint(kind: mutation), and db.* operations for Turso/Codex — low-K syntax for LLM-authored code."
+description: "Canonical @table, @query, @mutation, @server, and db.* operations for Turso/Codex — low-K syntax for LLM-authored code."
 category: "Language Reference"
 last_updated: "2026-03-25"
 training_eligible: true
@@ -16,9 +16,9 @@ This page is the **single** SSOT for how persistence appears in `.vox` source. O
 
 - **`@table type Name { field: Type ... }`** — Turso table + generated Rust row type. A surrogate **`_id`** column (integer primary key) is always added; do **not** add a separate column named `id` (the compiler warns; use another name for application ids).
 - **`@index Table.idx on (col1, col2)`** — B-tree index DDL.
-- **`@endpoint(kind: query) fn name(...) to T { ... }`** — Read-oriented function; HTTP route **`GET /api/query/<name>`** with JSON-encoded query parameters (sorted keys). Compiler rejects `insert`/`delete`/raw `.query(...)` inside `@endpoint(kind: query)`.
-- **`@endpoint(kind: mutation) fn name(...) to T { ... }`** — Write-oriented function; **`POST /api/mutation/<name>`**.
-- **`@endpoint(kind: server) fn name(...) to T { ... }`** — General RPC; **`POST /api/<name>`**.
+- **`@query fn name(...) to T { ... }`** — Read-oriented function; HTTP route **`GET /api/query/<name>`** with JSON-encoded query parameters (sorted keys). Compiler rejects `insert`/`delete`/raw `.query(...)` inside `@query`.
+- **`@mutation fn name(...) to T { ... }`** — Write-oriented function; **`POST /api/mutation/<name>`**.
+- **`@server fn name(...) to T { ... }`** — General RPC; **`POST /api/<name>`**.
 - **HTTP routes** — Use `http get|post|put|delete "/path" to T { ... }` (optional named handler forms are not in the canonical grammar; see parser tests).
 
 ## `db` operations (HIR: `DbTableOp` + `FilterRecord` / `Count`)
@@ -34,8 +34,8 @@ Inside functions, `db` is an implicit binding. Table handles are **`db.TableName
 | **`db.Table.all()`** | Full scan **`SELECT *`**. | Safe; no user SQL fragment. |
 | **`db.Table.filter({ col: value, ... })`** | Equality predicates combined with **`AND`**; keys must be real columns. | Parameterized `WHERE`; HIR **`FilterRecord`**. |
 | **`db.Table.where({ ...predicate... })`** | Predicate-object form (`eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `in`, `contains`, `is_null`, `and`, `or`, `not`). | Parameterized SQL from typed predicate IR; no raw clause strings. |
-| **`db.Table.all().order_by("col", "asc|desc").limit(n)`** | Ordered / capped list for table scans. | Compiler validates column names; emits typed `ORDER BY` / `LIMIT` helpers. |
-| **`db.Table.filter({...}).order_by("col", "asc|desc").limit(n)`** | Ordered / capped filtered reads. | Parameterized filter + validated order/limit modifiers. |
+| **`db.Table.all().order_by("col", "asc\|desc").limit(n)`** | Ordered / capped list for table scans. | Compiler validates column names; emits typed `ORDER BY` / `LIMIT` helpers. |
+| **`db.Table.filter({...}).order_by("col", "asc\|desc").limit(n)`** | Ordered / capped filtered reads. | Parameterized filter + validated order/limit modifiers. |
 | **`db.Table.count()`** | **`SELECT COUNT(*)`** for the table. | Safe aggregate; HIR **`Count`**. |
 | **`db.Table.filter({...}).count()`** | Count with equality predicates. | Parameterized `COUNT(*) WHERE ...`; HIR lowers chain to `Count` + filter args. |
 | **`... .sync()`** | Plan capability hint: pull replica/sync-backed stores before query execution. | Lowers to plan capability `requires_sync`; Rust backends may sync before execution. |
@@ -67,5 +67,3 @@ The first-class data lane is `turso+vox-db` behind Vox language/database surface
 
 - [Environment variables](./env-vars.md) — `VOX_DB_*`, `VOX_EMBEDDING_SEARCH_CANDIDATE_MULT`.
 - [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md)
-
-
