@@ -867,7 +867,11 @@ jobs:
 
   mesh-compose-config:
     name: Validate examples/mesh-compose.yml
-    runs-on: [self-hosted, linux, x64, docker]
+    # `docker compose config` only parses/validates the YAML (no daemon, no DinD),
+    # so a GitHub-hosted runner — which ships Docker Compose v2 — is the right host.
+    # The self-hosted `docker`-labelled runner container lacks the compose plugin
+    # (`docker compose` → exit 127), which previously hard-failed this required check.
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
