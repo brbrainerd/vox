@@ -7,6 +7,8 @@ import { PriorityChainEditor } from './PriorityChainEditor';
 
 const SECTIONS = [
   { id: 'orchestrator', icon: 'cpu',     label: 'Orchestrator' },
+  { id: 'scaling',      icon: 'cpu',     label: 'Scaling' },
+  { id: 'llm',          icon: 'bolt',    label: 'LLM & providers' },
   { id: 'routing',      icon: 'matrix',  label: 'Model routing' },
   { id: 'mesh',         icon: 'flow',    label: 'Mesh & peers' },
   { id: 'signing',      icon: 'shield',  label: 'Signing keys' },
@@ -39,6 +41,11 @@ interface SettingsState {
   telemetry: string;
   isolation: string;
   checkpointMins: number;
+  scalingEnabled: boolean;
+  minAgents: number;
+  scalingThreshold: number;
+  scaleCpuCeilingPct: number;
+  scaleMemFloorMb: number;
 }
 
 function Row({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
@@ -430,6 +437,69 @@ function KeysSecretsSection({ pushToast }: { pushToast: (t: any) => void }) {
   );
 }
 
+function LlmSettingsSection({ pushToast }: { pushToast: (t: any) => void }) {
+  const [cfg, setCfg] = useState({
+    maxConcurrentRequests: 8,
+    openrouterMaxConcurrent: null as number | null,
+    retryMaxAttempts: 4,
+  });
+  const [keyConfigured, setKeyConfigured] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const c = await invoke<Record<string, unknown>>('get_llm_config');
+        setCfg({
+          maxConcurrentRequests: Number(c.max_concurrent_requests ?? 8),
+          openrouterMaxConcurrent:
+            c.openrouter_max_concurrent == null ? null : Number(c.openrouter_max_concurrent),
+          retryMaxAttempts: Number(c.retry_max_attempts ?? 4),
+        });
+      } catch { /* defaults */ }
+      try {
+        const s = await invoke<{ configured: boolean }>('openrouter_key_status');
+        setKeyConfigured(s.configured);
+      } catch { /* probe best-effort */ }
+    })();
+  }, []);
+
+  const save = (next: typeof cfg) => {
+    setCfg(next);
+    invoke('set_llm_config', {
+      config: {
+        maxConcurrentRequests: next.maxConcurrentRequests,
+        openrouterMaxConcurrent: next.openrouterMaxConcurrent,
+        retryMaxAttempts: next.retryMaxAttempts,
+      },
+    }).catch((err) => pushToast({ tone: 'warn', title: 'LLM save failed', body: String(err) }));
+  };
+
+  return (
+    <>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">LLM &amp; providers</h2>
+      <p className="mt-0.5 text-[11px] text-zinc-500">Concurrency throttle for LLM egress. OpenRouter paid tier has no platform request cap, so parallelism is the real dial.</p>
+      <div className="mt-4 space-y-3">
+        <Row label="Max parallel LLM requests" hint="Global ceiling across all providers (AIMD throttle)">
+          <RangeInline value={cfg.maxConcurrentRequests} min={1} max={64} onChange={v => save({ ...cfg, maxConcurrentRequests: v })} />
+        </Row>
+        <Row label="OpenRouter override" hint="Provider-specific cap (0 = use global)">
+          <RangeInline value={cfg.openrouterMaxConcurrent ?? 0} min={0} max={64} onChange={v => save({ ...cfg, openrouterMaxConcurrent: v === 0 ? null : v })} />
+        </Row>
+        <Row label="429 retry attempts" hint="Backoff retries before surfacing a rate-limit error">
+          <RangeInline value={cfg.retryMaxAttempts} min={0} max={10} onChange={v => save({ ...cfg, retryMaxAttempts: v })} />
+        </Row>
+      </div>
+      {keyConfigured !== null && (
+        <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-[11px] text-zinc-400">
+          {keyConfigured
+            ? 'OpenRouter API key is configured.'
+            : 'No OpenRouter key configured — add one under Keys & Secrets.'}
+        </div>
+      )}
+    </>
+  );
+}
+
 interface SettingsViewProps {
   pushToast: (t: any) => void;
 }
@@ -448,12 +518,20 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
     doubt: true, autobudget: true, theme: 'arcane', concurrency: 7,
     capUsd: 5, doubtThresh: 0.6, sign: false, telemetry: 'local',
     isolation: 'wasm', checkpointMins: 5,
+    scalingEnabled: false, minAgents: 1, scalingThreshold: 5,
+    scaleCpuCeilingPct: 85, scaleMemFloorMb: 1024,
   });
 
   const update = async (patch: Partial<SettingsState>) => {
     const next = { ...vals, ...patch };
     setVals(next);
-    
+
+    // Theme actually applies now: drive the [data-theme] attribute the CSS hooks
+    // key off (the picker was previously inert).
+    if (patch.theme) {
+      document.documentElement.setAttribute('data-theme', patch.theme);
+    }
+
     // Attempt to push to Rust (fails gracefully if command not registered)
     try {
       await invoke('set_orchestrator_config', { config: next });
@@ -488,6 +566,29 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
         }));
       } catch {
         // keep default local state when preference DB isn't available
+      }
+      // Hydrate orchestrator + scaling controls from the persisted Vox.toml
+      // [orchestrator] table (fixes the inert-sliders bug).
+      try {
+        const cfg = await invoke<Record<string, unknown>>('get_orchestrator_config');
+        const num = (k: string) => (cfg[k] == null ? undefined : Number(cfg[k]));
+        const bool = (k: string) => (cfg[k] == null ? undefined : Boolean(cfg[k]));
+        setVals((prev) => ({
+          ...prev,
+          ...(num('concurrency') != null ? { concurrency: num('concurrency')! } : {}),
+          ...(num('capUsd') != null ? { capUsd: num('capUsd')! } : {}),
+          ...(num('doubtThresh') != null ? { doubtThresh: num('doubtThresh')! } : {}),
+          ...(typeof cfg.isolation === 'string' ? { isolation: cfg.isolation } : {}),
+          ...(bool('autobudget') != null ? { autobudget: bool('autobudget')! } : {}),
+          ...(bool('doubt') != null ? { doubt: bool('doubt')! } : {}),
+          ...(bool('scalingEnabled') != null ? { scalingEnabled: bool('scalingEnabled')! } : {}),
+          ...(num('minAgents') != null ? { minAgents: num('minAgents')! } : {}),
+          ...(num('scalingThreshold') != null ? { scalingThreshold: num('scalingThreshold')! } : {}),
+          ...(num('scaleCpuCeilingPct') != null ? { scaleCpuCeilingPct: num('scaleCpuCeilingPct')! } : {}),
+          ...(num('scaleMemFloorMb') != null ? { scaleMemFloorMb: num('scaleMemFloorMb')! } : {}),
+        }));
+      } catch {
+        // daemon-less dev: keep defaults
       }
     };
     hydrate();
@@ -626,6 +727,35 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
             </div>
           </>
         )}
+
+        {section === 'scaling' && (
+          <>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Scaling</h2>
+            <p className="mt-0.5 text-[11px] text-zinc-500">Spawn and retire agents automatically based on queue load and local host resources</p>
+            <div className="mt-4 space-y-3">
+              <Row label="Auto-scaling" hint="Let the orchestrator add/remove agents dynamically">
+                <Toggle on={vals.scalingEnabled} onClick={() => update({ scalingEnabled: !vals.scalingEnabled })} />
+              </Row>
+              <Row label="Min agents" hint="Never retire below this fleet size">
+                <RangeInline value={vals.minAgents} min={0} max={8} onChange={v => update({ minAgents: v })} />
+              </Row>
+              <Row label="Max agents" hint="Hard ceiling on concurrent agents">
+                <RangeInline value={vals.concurrency} min={1} max={16} onChange={v => update({ concurrency: v })} />
+              </Row>
+              <Row label="Queue threshold" hint="Per-agent queued tasks that trigger a scale-up">
+                <RangeInline value={vals.scalingThreshold} min={1} max={20} onChange={v => update({ scalingThreshold: v })} />
+              </Row>
+              <Row label="CPU ceiling" hint="Don't spawn agents while local CPU is above this (0 = off)">
+                <RangeInline value={vals.scaleCpuCeilingPct} min={0} max={100} step={5} suffix="%" onChange={v => update({ scaleCpuCeilingPct: v })} />
+              </Row>
+              <Row label="Memory floor" hint="Don't spawn agents below this free RAM (0 = off)">
+                <RangeInline value={vals.scaleMemFloorMb} min={0} max={16384} step={256} suffix=" MiB" onChange={v => update({ scaleMemFloorMb: v })} />
+              </Row>
+            </div>
+          </>
+        )}
+
+        {section === 'llm' && <LlmSettingsSection pushToast={pushToast} />}
 
         {section === 'routing' && (
           <>
