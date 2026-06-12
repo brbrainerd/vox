@@ -97,6 +97,21 @@ interface MeshNode {
   trust_tier?: string | null;
   ed25519_pub_key_b64?: string | null;
   advertised_models?: string[];
+  cpu_usage_pct?: number | null;
+  memory_free_bytes?: number | null;
+  gpu_total_count?: number | null;
+  gpu_allocatable_count?: number | null;
+}
+
+/** Aggregate the node list into the at-a-glance resource summary (client-side
+ * mirror of the populi /v1/populi/resources/summary endpoint). */
+function aggregateMeshResources(nodes: MeshNode[]) {
+  const ready = nodes.filter(n => n.status === 'online');
+  const gpusFree = ready.reduce((s, n) => s + (n.gpu_allocatable_count ?? 0), 0);
+  const ramFreeGib = ready.reduce((s, n) => s + (n.memory_free_bytes ?? 0), 0) / 2 ** 30;
+  const cpuVals = ready.map(n => n.cpu_usage_pct).filter((c): c is number => typeof c === 'number');
+  const cpuAvg = cpuVals.length ? cpuVals.reduce((a, b) => a + b, 0) / cpuVals.length : 0;
+  return { readyCount: ready.length, total: nodes.length, gpusFree, ramFreeGib, cpuAvg, hasMetrics: cpuVals.length > 0 || gpusFree > 0 || ramFreeGib > 0 };
 }
 
 interface MeshNodesResult {
@@ -197,6 +212,18 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: any) => void }) {
         </div>
       ) : (
         <div className="mt-4 space-y-2">
+          {(() => {
+            const r = aggregateMeshResources(nodes);
+            if (!r.hasMetrics) return null;
+            return (
+              <div className="grid grid-cols-4 gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-3 text-center">
+                <div><div className="text-[18px] text-zinc-100">{r.readyCount}/{r.total}</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">nodes ready</div></div>
+                <div><div className="text-[18px] text-zinc-100">{r.gpusFree}</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">GPUs free</div></div>
+                <div><div className="text-[18px] text-zinc-100">{r.ramFreeGib.toFixed(0)} GiB</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">RAM free</div></div>
+                <div><div className="text-[18px] text-zinc-100">{r.cpuAvg.toFixed(0)}%</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">avg CPU</div></div>
+              </div>
+            );
+          })()}
           {nodes.map(p => {
             const isTrusted = !!trusted[p.id];
             const online = p.status === 'online';
