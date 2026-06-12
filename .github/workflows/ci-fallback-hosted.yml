@@ -27,6 +27,13 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # Shared compile cache via the GitHub Actions cache service. Incremental
+      # compilation is disabled because sccache cannot cache incremental
+      # artifacts (it would silently fall back to cache misses).
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+      CARGO_INCREMENTAL: "0"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -35,6 +42,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
@@ -89,6 +99,10 @@ jobs:
 
       - name: cargo-audit
         run: cargo audit
+
+      - name: sccache stats
+        if: always()
+        run: sccache --show-stats
 
   # Portable Windows lane: proves the Tauri shell compiles and the binary starts
   # (headless `--print-action-manifest-json`). Catches manifest/sidecar/icon drift
