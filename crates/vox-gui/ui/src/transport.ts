@@ -288,3 +288,64 @@ class VoxTransport {
 }
 
 export const voxTransport = new VoxTransport();
+
+// ---------------------------------------------------------------------------
+// Vox Console: discovery engine + PTY terminal transport wrappers.
+// ---------------------------------------------------------------------------
+
+export interface Suggestion {
+  action_id: string;
+  completion: string;
+  about: string;
+}
+
+export interface ActionHelp {
+  action_id: string;
+  about: string;
+  args: { name: string; help: string; required: boolean }[];
+  example: string;
+}
+
+export function discoverySuggest(typed: string, limit = 8): Promise<Suggestion[]> {
+  return invoke<Suggestion[]>('discovery_suggest', { typed, limit });
+}
+
+export function discoveryHelp(actionId: string): Promise<ActionHelp | null> {
+  return invoke<ActionHelp | null>('discovery_help', { actionId });
+}
+
+export function discoveryRecord(
+  actionId: string,
+  used: boolean,
+  nowMs: number,
+  dwellMs: number,
+): Promise<void> {
+  return invoke('discovery_record', { actionId, used, nowMs, dwellMs });
+}
+
+export function ptySpawn(tabId: string, cols: number, rows: number): Promise<void> {
+  return invoke('pty_spawn', { tabId, cols, rows });
+}
+
+export function ptyWrite(tabId: string, data: string): Promise<void> {
+  return invoke('pty_write', { tabId, data });
+}
+
+export function ptyClose(tabId: string): Promise<void> {
+  return invoke('pty_close', { tabId });
+}
+
+export const PTY_OUTPUT_EVENT = 'vox://pty-output';
+export const PTY_EXIT_EVENT = 'vox://pty-exit';
+
+export function listenPtyOutput(
+  onChunk: (tabId: string, data: string) => void,
+): Promise<UnlistenFn> {
+  return listen<{ tab_id: string; data: string }>(PTY_OUTPUT_EVENT, (e) =>
+    onChunk(e.payload.tab_id, e.payload.data),
+  );
+}
+
+export function listenPtyExit(onExit: (tabId: string) => void): Promise<UnlistenFn> {
+  return listen<{ tab_id: string }>(PTY_EXIT_EVENT, (e) => onExit(e.payload.tab_id));
+}

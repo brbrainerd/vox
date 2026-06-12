@@ -11,6 +11,7 @@ export interface SurfaceRegistryEntry {
 export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: 'approvals', cliGroup: null, tier: 'live_backend', navLabel: 'Approvals', navIcon: 'shield', navGroup: 'operate' },
   { viewKey: 'claims', cliGroup: null, tier: 'curated_decorator', navLabel: 'Claims', navIcon: 'doubt', navGroup: 'knowledge' },
+  { viewKey: 'console', cliGroup: null, tier: 'live_backend', navLabel: 'Console', navIcon: 'command', navGroup: 'develop' },
   { viewKey: 'coverage', cliGroup: null, tier: 'live_backend', navLabel: 'Coverage', navIcon: 'check', navGroup: 'system' },
   { viewKey: 'dashboard', cliGroup: null, tier: 'live_backend', navLabel: 'Dashboard', navIcon: 'dashboard', navGroup: 'operate' },
   { viewKey: 'discovery-review', cliGroup: null, tier: 'live_backend', navLabel: 'Discovery Review', navIcon: 'check', navGroup: 'knowledge' },

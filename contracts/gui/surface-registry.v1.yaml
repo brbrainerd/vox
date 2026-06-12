@@ -15,6 +15,13 @@ surfaces:
   nav_icon: doubt
   nav_group: knowledge
   notes: claim ledger (scientia claims)
+- view_key: console
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Console
+  nav_icon: command
+  nav_group: develop
+  notes: warp-model discovery terminal
 - view_key: coverage
   cli_group: null
   representation_tier: live_backend
