@@ -1,6 +1,5 @@
 ---
 source: crates/vox-integration-tests/tests/greaterfool_parity_gates_test.rs
-assertion_line: 46
 expression: main_rs
 ---
 // vox-generated rust_app_shell=AxumLocalServer
@@ -80,9 +79,8 @@ async fn serve_dispatch(req: axum::http::Request<Body>) -> Response {
 }
 
 fn vox_health_backend_kind() -> &'static str {
-    let url = std::env::var("VOX_APP_DB_URL")
-        .ok()
-        .or_else(|| std::env::var("VOX_DB_URL").ok());
+    let url = vox_db::resolve_app_db_url()
+        .or_else(vox_db::resolve_codex_db_url);
     if let Some(url) = url {
         let u = url.to_ascii_lowercase();
         if u.starts_with("postgres://") || u.starts_with("postgresql://") {
@@ -142,7 +140,7 @@ async fn main() {
     // ── Database setup (Codex / vox_db) ──
     // Guard rail: app-plane DB URL may target non-libsql in this phase.
     // Keep Codex setup for table runtime and emit a warning instead of hard-failing.
-    if let Ok(app_url) = std::env::var("VOX_APP_DB_URL") {
+    if let Some(app_url) = vox_db::resolve_app_db_url() {
         let u = app_url.to_ascii_lowercase();
         if u.starts_with("postgres://") || u.starts_with("postgresql://") || u.starts_with("mysql://") {
             eprintln!("VOX_APP_DB_URL uses non-libsql backend ({}) — generated Axum table runtime still boots Codex while backend-specific table dispatch is completed incrementally", app_url);

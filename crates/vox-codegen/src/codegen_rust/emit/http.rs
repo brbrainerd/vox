@@ -283,9 +283,8 @@ pub fn emit_main(
 
     if has_tables {
         out.push_str("fn vox_health_backend_kind() -> &'static str {\n");
-        out.push_str("    let url = std::env::var(\"VOX_APP_DB_URL\")\n");
-        out.push_str("        .ok()\n");
-        out.push_str("        .or_else(|| std::env::var(\"VOX_DB_URL\").ok());\n");
+        out.push_str("    let url = vox_db::resolve_app_db_url()\n");
+        out.push_str("        .or_else(vox_db::resolve_codex_db_url);\n");
         out.push_str("    if let Some(url) = url {\n");
         out.push_str("        let u = url.to_ascii_lowercase();\n");
         out.push_str(

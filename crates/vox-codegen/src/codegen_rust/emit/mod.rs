@@ -409,7 +409,7 @@ use {}::*;
             // run it to completion on Tauri's runtime.
             // Guard: Tauri table runtime is Codex/libsql in this phase; fail fast
             // if app-plane URL points at non-libsql backend.
-            if let Ok(app_url) = std::env::var("VOX_APP_DB_URL") {
+            if let Some(app_url) = vox_db::resolve_app_db_url() {
                 let u = app_url.to_ascii_lowercase();
                 if u.starts_with("postgres://") || u.starts_with("postgresql://") || u.starts_with("mysql://") {
                     eprintln!("VOX_APP_DB_URL uses non-libsql backend ({}) but generated Tauri table runtime currently requires libsql/Codex", app_url);

@@ -45,7 +45,9 @@ fn dialect_from_urls(app_url: Option<&str>, codex_url: Option<&str>) -> SqlDiale
 fn db_query_sql_dialect() -> SqlDialect {
     // Prefer app-plane DB URL when present to keep emitted SQL placeholders
     // aligned with backend-neutral routing work; fall back to Codex URL.
-    let app_url = std::env::var("VOX_APP_DB_URL").ok();
+    let app_url = vox_secrets::resolve_secret(SecretId::VoxAppDbUrl)
+        .expose()
+        .map(str::to_owned);
     let codex_url = vox_secrets::resolve_secret(SecretId::VoxDbUrl)
         .expose()
         .map(str::to_owned);
