@@ -3,6 +3,9 @@
 use anyhow::Result;
 use std::path::PathBuf;
 
+use comfy_table::Table;
+use comfy_table::presets::UTF8_FULL;
+
 use vox_bounded_fs::read_utf8_path_capped;
 
 pub async fn run_status(
@@ -222,26 +225,27 @@ pub async fn run_status(
         other => other.to_string(),
     };
 
-    eprintln!(
-        "{}",
-        "┌─ Mens Training Status ─────────────────────────┐".cyan()
-    );
-    eprintln!(
-        "│ Telemetry: {:<40}│",
-        format!("{}", telemetry_path.display())
-            .chars()
-            .take(40)
-            .collect::<String>()
-    );
-    eprintln!("│ Records:   {:<40}│", lines.len());
-    eprintln!("│ Status:    {:<40}│", status_label);
+    eprintln!("{}", "Mens Training Status".cyan().bold());
+
+    let mut table = Table::new();
+    table.load_preset(UTF8_FULL);
+    table.set_header(vec!["Field", "Value"]);
+
+    table.add_row(vec![
+        "Telemetry".to_string(),
+        telemetry_path.display().to_string(),
+    ]);
+    table.add_row(vec!["Records".to_string(), lines.len().to_string()]);
+    table.add_row(vec!["Status".to_string(), status_label]);
 
     if is_stalled {
-        eprintln!(
-            "│ {} Stall detected: last {} steps have zero supervision/loss      │",
-            "⚠".yellow(),
-            recent_window.len()
-        );
+        table.add_row(vec![
+            format!("{} Stall", "⚠".yellow()),
+            format!(
+                "detected: last {} steps have zero supervision/loss",
+                recent_window.len()
+            ),
+        ]);
     }
 
     if let Some(step) = last {
@@ -268,25 +272,25 @@ pub async fn run_status(
                 }
             })
             .unwrap_or(0.0);
-        eprintln!(
-            "│ Last step: {:<40}│",
+        table.add_row(vec![
+            "Last step".to_string(),
             format!(
                 "step={} loss={:.4} lr={:.2e} sup={:.1}%",
                 step_n, loss, lr, sup_pct
-            )
-        );
+            ),
+        ]);
     }
 
     if let Some((nonzero_step, nonzero_loss)) = last_nonzero_loss {
-        eprintln!(
-            "│ Last>0 loss:{:<40}│",
-            format!("step={} loss={:.4}", nonzero_step, nonzero_loss)
-        );
+        table.add_row(vec![
+            "Last>0 loss".to_string(),
+            format!("step={} loss={:.4}", nonzero_step, nonzero_loss),
+        ]);
     } else if !step_records.is_empty() {
-        eprintln!(
-            "│ {} No nonzero loss observed — supervision may be zero throughout     │",
-            "⚠".yellow()
-        );
+        table.add_row(vec![
+            format!("{} Loss", "⚠".yellow()),
+            "No nonzero loss observed — supervision may be zero throughout".to_string(),
+        ]);
     }
 
     if let Some(epoch) = last_epoch {
@@ -295,76 +299,58 @@ pub async fn run_status(
             .get("avg_loss")
             .and_then(|v| v.as_f64())
             .unwrap_or(0.0);
-        eprintln!(
-            "│ Last epoch:{:<40}│",
-            format!("epoch={} avg_loss={:.4}", e, avg)
-        );
+        table.add_row(vec![
+            "Last epoch".to_string(),
+            format!("epoch={} avg_loss={:.4}", e, avg),
+        ]);
         if let Some(ckpt) = epoch.get("checkpoint_path").and_then(|v| v.as_str()) {
-            eprintln!(
-                "│ Checkpoint:{:<40}│",
-                ckpt.chars().take(40).collect::<String>()
-            );
+            table.add_row(vec!["Checkpoint".to_string(), ckpt.to_string()]);
         }
     }
 
-    eprintln!(
-        "│ Supervised:{:<40}│",
+    table.add_row(vec![
+        "Supervised".to_string(),
         format!(
             "{:.1}% ({} / {})",
             supervised_ratio_pct, total_valid_tokens, total_theoretical_tokens
-        )
-    );
-    eprintln!(
-        "│ Truncation:{:<40}│",
+        ),
+    ]);
+    table.add_row(vec![
+        "Truncation".to_string(),
         format!(
             "samples={} zero_sup={}",
             total_truncated, total_zero_supervision
-        )
-    );
+        ),
+    ]);
 
     // Model card
     let model_card = base.join("MODEL_CARD.md");
     if model_card.exists() {
-        eprintln!(
-            "│ Model card:{:<40}│",
-            model_card
-                .display()
-                .to_string()
-                .chars()
-                .take(40)
-                .collect::<String>()
-        );
+        table.add_row(vec![
+            "Model card".to_string(),
+            model_card.display().to_string(),
+        ]);
     }
 
     if let Some(w) = last_warning {
-        eprintln!(
-            "│ {} Warning: {:<38}│",
-            "⚠".yellow(),
-            w.chars().take(38).collect::<String>()
-        );
-    }
-    if used_valid_tokens_alias || used_theoretical_tokens_alias {
-        eprintln!(
-            "  {} status consumed deprecated telemetry aliases; emit canonical valid_tokens/theoretical_tokens",
-            "⚠".yellow()
-        );
+        table.add_row(vec![format!("{} Warning", "⚠".yellow()), w.to_string()]);
     }
     if let Some(err) = run_state
         .as_ref()
         .and_then(|v| v.get("error"))
         .and_then(|v| v.as_str())
     {
-        eprintln!(
-            "│ {} Error:   {:<38}│",
-            "✗".red(),
-            err.chars().take(38).collect::<String>()
-        );
+        table.add_row(vec![format!("{} Error", "✗".red()), err.to_string()]);
     }
 
-    eprintln!(
-        "{}",
-        "└──────────────────────────────────────────────────┘".cyan()
-    );
+    eprintln!("{table}");
+
+    if used_valid_tokens_alias || used_theoretical_tokens_alias {
+        eprintln!(
+            "  {} status consumed deprecated telemetry aliases; emit canonical valid_tokens/theoretical_tokens",
+            "⚠".yellow()
+        );
+    }
 
     // Action guidance based on status
     match effective_status.as_str() {
@@ -562,41 +548,51 @@ async fn display_db_intelligence(as_json: bool) -> anyhow::Result<()> {
             "\n  {}",
             "MENS Intelligence Summary (Arca DB)".bold().cyan()
         );
-        println!("  ┌─ Corpus Quality ───────────────────────────┐");
-        println!("  │ Total Pairs:     {:<26}│", quality.total_pairs);
-        println!(
-            "  │ Parse Rate:      {:<26.2}%│",
-            quality.parse_rate * 100.0
-        );
-        println!("  │ Avg AST Depth:   {:<26.2}│", quality.avg_ast_depth);
-        println!(
-            "  │ Avg Constructs:  {:<26.2}│",
-            quality.avg_construct_count
-        );
-        println!("  │ Avg Reward:      {:<26.2}│", quality.avg_reward_score);
-        println!("  └────────────────────────────────────────────┘");
+        let mut quality_table = Table::new();
+        quality_table.load_preset(UTF8_FULL);
+        quality_table.set_header(vec!["Corpus Quality", "Value"]);
+        quality_table.add_row(vec![
+            "Total Pairs".to_string(),
+            quality.total_pairs.to_string(),
+        ]);
+        quality_table.add_row(vec![
+            "Parse Rate".to_string(),
+            format!("{:.2}%", quality.parse_rate * 100.0),
+        ]);
+        quality_table.add_row(vec![
+            "Avg AST Depth".to_string(),
+            format!("{:.2}", quality.avg_ast_depth),
+        ]);
+        quality_table.add_row(vec![
+            "Avg Constructs".to_string(),
+            format!("{:.2}", quality.avg_construct_count),
+        ]);
+        quality_table.add_row(vec![
+            "Avg Reward".to_string(),
+            format!("{:.2}", quality.avg_reward_score),
+        ]);
+        println!("{quality_table}");
 
         if !steps.is_empty() {
             println!("\n  {}", "Recent GRPO Steps".bold().cyan());
-            println!(
-                "  {:<12} {:>6} {:>8} {:>10} {:>8}",
-                "Run ID", "Step", "Reward", "Loss", "Parse %"
-            );
+            let mut grpo_table = Table::new();
+            grpo_table.load_preset(UTF8_FULL);
+            grpo_table.set_header(vec!["Run ID", "Step", "Reward", "Loss", "Parse %"]);
             for s in steps {
                 let short_id = if s.run_id.len() > 10 {
                     &s.run_id[..10]
                 } else {
                     &s.run_id
                 };
-                println!(
-                    "  {:<12} {:>6} {:>8.4} {:>10.4} {:>8.1}%",
-                    short_id,
-                    s.step,
-                    s.mean_reward,
-                    s.policy_loss,
-                    s.parse_rate * 100.0
-                );
+                grpo_table.add_row(vec![
+                    short_id.to_string(),
+                    s.step.to_string(),
+                    format!("{:.4}", s.mean_reward),
+                    format!("{:.4}", s.policy_loss),
+                    format!("{:.1}%", s.parse_rate * 100.0),
+                ]);
             }
+            println!("{grpo_table}");
         } else {
             println!("\n  {}", "No GRPO steps found in database.".yellow());
         }
@@ -606,10 +602,9 @@ async fn display_db_intelligence(as_json: bool) -> anyhow::Result<()> {
                 "\n  {}",
                 "Recent Mesh Health (Hardware Telemetry)".bold().cyan()
             );
-            println!(
-                "  {:<12} {:>6} {:>8} {:>10} {:>12}",
-                "Node ID", "Util", "Temp", "Power", "VRAM (Used)"
-            );
+            let mut mesh_table = Table::new();
+            mesh_table.load_preset(UTF8_FULL);
+            mesh_table.set_header(vec!["Node ID", "Util", "Temp", "Power", "VRAM (Used)"]);
             for (sid, _mtype, _mval, meta) in telemetry {
                 let short_id = if sid.len() > 10 { &sid[..10] } else { &sid };
                 if let Some(m) =
@@ -621,17 +616,16 @@ async fn display_db_intelligence(as_json: bool) -> anyhow::Result<()> {
                     let vram_used = m.get("vram_used_mb").and_then(|v| v.as_u64()).unwrap_or(0);
                     let vram_total = m.get("vram_total_mb").and_then(|v| v.as_u64()).unwrap_or(1);
 
-                    println!(
-                        "  {:<12} {:>5.1}% {:>7.1}°C {:>9.1}W {:>8}MB/{:>2}MB",
-                        short_id,
-                        util,
-                        temp,
-                        power,
-                        vram_used,
-                        vram_total / 1024
-                    );
+                    mesh_table.add_row(vec![
+                        short_id.to_string(),
+                        format!("{:.1}%", util),
+                        format!("{:.1}°C", temp),
+                        format!("{:.1}W", power),
+                        format!("{}MB/{}MB", vram_used, vram_total / 1024),
+                    ]);
                 }
             }
+            println!("{mesh_table}");
         } else {
             println!("\n  {}", "No mesh telemetry found in database.".yellow());
         }
