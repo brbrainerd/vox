@@ -40,6 +40,7 @@ pub mod scaling;
 pub mod campaign_scheduler;
 pub mod embeddings;
 pub mod flywheel;
+pub mod similarity;
 pub mod topology_ingest;
 
 pub use campaign_scheduler::{CampaignSchedulePlan, CampaignScheduler, CampaignSchedulingMode};

@@ -283,6 +283,31 @@ pub async fn dispatch_request(
                 .get("tenant_id")
                 .and_then(|x| x.as_str())
                 .map(ToString::to_string);
+            // Near-duplicate scan over live (queued + in-progress) tasks. When a
+            // near-duplicate exists and the caller did not opt in, refuse and
+            // report which task it matched so the GUI can offer merge/skip.
+            let allow_duplicate = req
+                .params
+                .get("allow_duplicate")
+                .and_then(|x| x.as_bool())
+                .unwrap_or(true);
+            let duplicate_of = orch
+                .all_tasks()
+                .iter()
+                .filter(|t| {
+                    crate::services::similarity::jaccard(&t.description, description)
+                        >= crate::services::similarity::NEAR_DUPLICATE_THRESHOLD
+                })
+                .map(|t| t.id.0)
+                .next();
+            if let Some(dup) = duplicate_of {
+                if !allow_duplicate {
+                    return response_result(
+                        &req.id,
+                        serde_json::json!({ "task_id": null, "duplicate_of": dup }),
+                    );
+                }
+            }
             match orch
                 .submit_task_with_agent(
                     description.to_string(),
@@ -296,9 +321,10 @@ pub async fn dispatch_request(
                 )
                 .await
             {
-                Ok(task_id) => {
-                    response_result(&req.id, serde_json::json!({ "task_id": task_id.0 }))
-                }
+                Ok(task_id) => response_result(
+                    &req.id,
+                    serde_json::json!({ "task_id": task_id.0, "duplicate_of": duplicate_of }),
+                ),
                 Err(e) => response_err(&req.id, format!("{e}")),
             }
         }
@@ -831,6 +857,60 @@ mod task_dispatch_tests {
         )
         .await;
         assert!(matches!(resp.payload, DispatchPayload::Error { .. }));
+    }
+
+    #[tokio::test]
+    async fn near_duplicate_blocked_when_not_allowed() {
+        let (orch, first_id) = orch_with_one_task().await; // "first task"
+        let resp = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({
+                    "description": "first task",
+                    "allow_duplicate": false,
+                }),
+            ),
+        )
+        .await;
+        let v = result_value(&resp);
+        assert_eq!(v["duplicate_of"].as_u64(), Some(first_id));
+        assert!(v["task_id"].is_null());
+        assert_eq!(orch.all_tasks().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn near_duplicate_enqueued_but_flagged_when_allowed() {
+        let (orch, first_id) = orch_with_one_task().await;
+        let resp = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({ "description": "first task" }), // allow_duplicate defaults true
+            ),
+        )
+        .await;
+        let v = result_value(&resp);
+        assert!(v["task_id"].as_u64().is_some());
+        assert_eq!(v["duplicate_of"].as_u64(), Some(first_id));
+        assert_eq!(orch.all_tasks().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn distinct_task_has_no_duplicate_flag() {
+        let (orch, _) = orch_with_one_task().await;
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({ "description": "completely unrelated migration work" }),
+            ),
+        )
+        .await;
+        assert!(result_value(&resp)["duplicate_of"].is_null());
     }
 }
 
