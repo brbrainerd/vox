@@ -721,9 +721,11 @@ fn key_identity(key: &str) -> (String, String, i64) {
         _ if key.chars().count() == 1 => {
             let ch = key.chars().next().unwrap_or_default();
             if ch.is_ascii_alphabetic() {
+                // DOM `key` preserves the case as given (Shift is a separate
+                // modifier); `code` and the Windows VK use the uppercase identity.
                 let upper = ch.to_ascii_uppercase();
                 let vk = upper as i64;
-                (upper.to_string(), format!("Key{upper}"), vk)
+                (ch.to_string(), format!("Key{upper}"), vk)
             } else if ch.is_ascii_digit() {
                 let vk = ch as i64;
                 (ch.to_string(), format!("Digit{ch}"), vk)
@@ -765,6 +767,27 @@ mod tests {
         assert_eq!(shift_tab.modifiers, 8);
         assert_eq!(shift_tab.key, "Tab");
         assert_eq!(shift_tab.code, "Tab");
+    }
+
+    #[test]
+    fn key_chord_preserves_letter_case_for_dom_key() {
+        // A bare lowercase letter must stay lowercase in the DOM `key` field
+        // (Shift is not held), while `code` and the Windows VK use the
+        // canonical uppercase identity.
+        let lower = KeyChord::parse("a");
+        assert_eq!(lower.key, "a");
+        assert_eq!(lower.code, "KeyA");
+        assert_eq!(lower.windows_vk, 'A' as i64);
+
+        let upper = KeyChord::parse("A");
+        assert_eq!(upper.key, "A");
+        assert_eq!(upper.code, "KeyA");
+        assert_eq!(upper.windows_vk, 'A' as i64);
+
+        let shifted = KeyChord::parse("Shift+a");
+        assert_eq!(shifted.modifiers, 8);
+        assert_eq!(shifted.key, "a");
+        assert_eq!(shifted.code, "KeyA");
     }
 
     #[tokio::test]
