@@ -5209,6 +5209,14 @@
       "title": "Test Decision"
     },
     {
+      "capability_id": "mcp.vox_tool_search",
+      "curated": true,
+      "description_model": "Search the MCP tool registry by keyword and return matching tools (name, description, input schema) for progressive tool disclosure.",
+      "implicit": false,
+      "mcp_tool": "vox_tool_search",
+      "title": "Tool Search"
+    },
+    {
       "capability_id": "mcp.vox_transfer_file",
       "curated": true,
       "description_model": "Transfer ownership of a file to another agent.",
