@@ -443,11 +443,13 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     scaffold,
                     figures_dir,
                     output,
+                    primary_category,
                 } => {
                     return super::scientia_phase_handlers::arxiv_bundle_handler(
                         &scaffold,
                         &figures_dir,
                         &output,
+                        primary_category.as_deref(),
                     );
                 }
                 ScientiaCmd::PublicationVenueRecommend {

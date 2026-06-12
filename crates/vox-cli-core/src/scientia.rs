@@ -538,6 +538,13 @@ pub enum ScientiaCmd {
         /// Output path for the `.tar.gz` bundle.
         #[arg(long)]
         output: std::path::PathBuf,
+        /// arXiv primary category to embed in the handoff sidecar
+        /// (e.g. `cs.SE`, `stat.ML`).  When omitted the default `cs.SE` is
+        /// used and `category_origin` is set to `"default"` in the sidecar,
+        /// reminding the operator to verify.  When supplied explicitly
+        /// `category_origin` is `"flag"`.
+        #[arg(long)]
+        primary_category: Option<String>,
     },
 
     /// Phase E — Print per-class venue routing + policy defaults for the
