@@ -4,6 +4,7 @@ import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { voxTransport } from '../../../transport';
+import { buildSlashEntries, type SlashEntry } from '../../../lib/slashCommands';
 
 const LQ_MODES = [
   { id: "plan",   label: "Plan",   hint: "Augur drafts a plan, no side effects",       tone: "text-cyan-300   border-cyan-400/30   bg-cyan-400/[0.08]" },
@@ -19,17 +20,6 @@ const LQ_TIERS = [
   { id: "mesh",   label: "Mesh · Peers",    detail: "peers",               cost: null, lat: "0.6s" },
   { id: "cloud",  label: "Cloud · Cascade", detail: "Sonnet → Opus",       cost: null, lat: "1.4s" },
   { id: "auto",   label: "Auto · Cascade",  detail: "tier-router decides", cost: null, lat: "var" },
-];
-
-const LQ_SLASH = [
-  { cmd: "/plan",    desc: "Draft a multi-step plan without executing",    icon: "flow" },
-  { cmd: "/spawn",   desc: "Spin up a sub-agent on this branch",           icon: "agent" },
-  { cmd: "/audit",   desc: "Socrates citation + invariant audit on file",  icon: "shield" },
-  { cmd: "/verify",  desc: "Run rule-pack + property tests",               icon: "check" },
-  { cmd: "/doubt",   desc: "Inject doubt at threshold N",                   icon: "alert" },
-  { cmd: "/memory",  desc: "Query Mnemosyne (RAG over project memory)",    icon: "memory" },
-  { cmd: "/rollback",desc: "Revert to last durable checkpoint",            icon: "back" },
-  { cmd: "/diff",    desc: "Show pending diff staged by agent",             icon: "file" },
 ];
 
 interface ChipData {
@@ -173,10 +163,11 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
     }).catch(() => {});
   }, []);
 
+  const allSlash = useMemo(() => buildSlashEntries(skills), [skills]);
   const filteredSlash = useMemo(() => {
     const q = text.trimStart().toLowerCase();
-    return LQ_SLASH.filter(s => s.cmd.startsWith(q));
-  }, [text]);
+    return allSlash.filter(s => s.cmd.startsWith(q));
+  }, [text, allSlash]);
 
   const filteredAt = useMemo(() => {
     const m = text.match(/@(\w*)$/); const q = (m?.[1] || "").toLowerCase();
@@ -272,7 +263,20 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
     }
   };
 
-  const insertSlash = (cmd: string) => { setText(cmd + " "); setSlashOpen(false); taRef.current?.focus(); };
+  const insertSlash = (entry: SlashEntry) => {
+    if (entry.kind === 'skill') {
+      // Pin the skill (rides in the payload's active_skill) and clear the
+      // slash text — the skill itself isn't a literal composer prefix.
+      const found = skills.find((s: any) => s.id === entry.skillId || s.name === entry.skillId);
+      setActiveSkill(found ?? { id: entry.skillId, name: entry.cmd.slice(1) });
+      setText("");
+      toast?.({ tone: 'info', title: 'Skill selected', body: entry.cmd.slice(1), cmd: 'skill.pin' });
+    } else {
+      setText(entry.cmd + " ");
+    }
+    setSlashOpen(false);
+    taRef.current?.focus();
+  };
   const insertAt = (agent: any) => {
     setText(t => t.replace(/@\w*$/, `@${agent.id} `));
     setChips(cs => cs.find(c => c.id === "agent-" + agent.id) ? cs : [...cs, { id: "agent-" + agent.id, kind: "agent", label: `${agent.id} · ${agent.codename}`, meta: agent.phase }]);
@@ -302,7 +306,7 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
       setSlashIdx(i => (i + (e.key === "ArrowDown" ? 1 : -1) + filteredSlash.length) % Math.max(1, filteredSlash.length));
       return;
     }
-    if (slashOpen && e.key === "Enter") { e.preventDefault(); const s = filteredSlash[slashIdx]; if (s) insertSlash(s.cmd); return; }
+    if (slashOpen && e.key === "Enter") { e.preventDefault(); const s = filteredSlash[slashIdx]; if (s) insertSlash(s); return; }
     if (slashOpen && e.key === "Escape") { setSlashOpen(false); return; }
     if (e.key === "ArrowUp" && !text && history.length) {
       e.preventDefault(); const ni = Math.min(history.length - 1, histIdx + 1); setHistIdx(ni); setText(history[ni]); return;
@@ -368,7 +372,7 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
                 {filteredSlash.map((s, i) => {
                   const IcoCmp = (Icon as any)[s.icon] || Icon.bolt;
                   return (
-                    <button key={s.cmd} onMouseEnter={() => setSlashIdx(i)} onClick={() => insertSlash(s.cmd)}
+                    <button key={s.cmd} onMouseEnter={() => setSlashIdx(i)} onClick={() => insertSlash(s)}
                             className={`flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left ${i === slashIdx ? "bg-white/5" : ""}`}>
                       <IcoCmp className="size-3.5 text-brass" />
                       <span className="font-mono text-[11px] text-zinc-100">{s.cmd}</span>
