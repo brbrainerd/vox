@@ -49,7 +49,7 @@ Hybrid chunk retrieval merges lexical hits (`chunk_id` = `search_document_chunks
 
 ### 3.2 Generated `voxdb/server` (TypeScript schema)
 
-The compiler emits **`defineSchema` / `searchIndex(...)`** from `@search_index` on `@table` declarations (see `crates/vox-codegen/src/codegen_ts/schema/from_hir.rs`). That targets the **app author's** Convex-compatible runtime and is **not** invoked by `vox-search`.
+The compiler emits **`defineSchema` / `searchIndex(...)`** from `@search_index` on `@table` declarations (see `crates/vox-codegen-ts/src/schema/from_hir.rs`). That targets the **app author's** Convex-compatible runtime and is **not** invoked by `vox-search`.
 
 ## Language surface (decision)
 

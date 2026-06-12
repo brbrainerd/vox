@@ -10,5 +10,7 @@
 //! - `synchronous=NORMAL`
 //! - `foreign_keys=ON`
 //! - `cache_size=-65536`
-//! - `temp_store=MEMORY`
-//! - `mmap_size=268435456`
+//!
+//! Notes:
+//! - `temp_store` and `mmap_size` are intentionally NOT applied because libSQL/Turso
+//!   does not consistently support them across local/remote transports.

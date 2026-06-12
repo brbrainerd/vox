@@ -25,6 +25,39 @@ pub fn try_init_from_default_env_stderr() {
         .try_init();
 }
 
+/// Optional OpenTelemetry OTLP layer for subscribers when the `otel` feature is enabled.
+///
+/// Reads `OTEL_EXPORTER_OTLP_ENDPOINT` (and standard OTEL env vars honored by the OTLP
+/// exporter). Returns `None` when the endpoint is unset so callers can keep fmt-only init.
+#[cfg(feature = "otel")]
+pub fn init_otel_layer() -> Option<
+    tracing_opentelemetry::OpenTelemetryLayer<
+        tracing_subscriber::Registry,
+        opentelemetry_sdk::trace::Tracer,
+    >,
+> {
+    use opentelemetry::trace::TracerProvider as _;
+    use opentelemetry_sdk::trace::SdkTracerProvider;
+
+    if std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
+        .ok()
+        .is_none_or(|v| v.trim().is_empty())
+    {
+        return None;
+    }
+
+    let exporter = opentelemetry_otlp::SpanExporter::builder()
+        .with_http()
+        .build()
+        .ok()?;
+    let provider = SdkTracerProvider::builder()
+        .with_batch_exporter(exporter)
+        .build();
+    let tracer = provider.tracer("vox");
+    opentelemetry::global::set_tracer_provider(provider);
+    Some(tracing_opentelemetry::layer().with_tracer(tracer))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

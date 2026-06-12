@@ -14,7 +14,7 @@ schema_type: "TechArticle"
 Accepted (2026-05-03). Phase F shipped end-to-end across two commits in the same session:
 
 - Lexer `Token::Fragment` + `Display` arm, AST `FragmentDecl` and `Decl::Fragment` variant, parser dispatch in [parser/descent/mod.rs](../../../crates/vox-compiler/src/parser/descent/mod.rs) and `parse_fragment_decl` in [parser/descent/decl/head.rs](../../../crates/vox-compiler/src/parser/descent/decl/head.rs) (commit `6f01b8ae1`).
-- HIR `HirFragmentDecl` node + AST→HIR lowering in [hir/lower/mod.rs](../../../crates/vox-compiler/src/hir/lower/mod.rs) and `emit_fragment_decls` in [codegen_ts/fragment_emit.rs](../../../crates/vox-codegen/src/codegen_ts/fragment_emit.rs) producing typed React function components in `fragments.tsx` with `<Name>Args` prop interfaces, wired into `emitter::generate` (commit `2227e3026`).
+- HIR `HirFragmentDecl` node + AST→HIR lowering in [hir/lower/mod.rs](../../../crates/vox-compiler/src/hir/lower/mod.rs) and `emit_fragment_decls` in [codegen_ts/fragment_emit.rs](../../../crates/vox-codegen-ts/src/fragment_emit.rs) producing typed React function components in `fragments.tsx` with `<Name>Args` prop interfaces, wired into `emitter::generate` (commit `2227e3026`).
 
 The Phase 6 (TASK-6.1) typed semantic primitive surface landed on `main` during the same session merge cycle, so the codegen gate originally noted here cleared without a second migration. Open questions in §"Open questions" remain follow-up sub-slices, not blockers.
 
@@ -155,7 +155,7 @@ When Phase F code work starts, the touch surface is:
 - New AST node `FragmentDecl` at [crates/vox-ast/src/decl/](../../../crates/vox-ast/src/decl/).
 - Top-level decl dispatch in [crates/vox-compiler/src/parser/descent/mod.rs](../../../crates/vox-compiler/src/parser/descent/mod.rs) — same surface as `component` / `state_machine` (four sites: skip-recovery, async-fn, top-level fn, pub-fn).
 - New HIR node `HirFragmentDecl`.
-- New codegen at `crates/vox-codegen/src/codegen_ts/fragment_emit.rs`.
+- New codegen at `crates/vox-codegen-ts/src/fragment_emit.rs`.
 - Web IR validation: ensure fragments referenced in `<RenderFragment>` exist; arity / type match.
 - Goldens: at minimum `examples/golden/fragment_table_row.vox` (a `<Table>` parameterized by a row fragment).
 - Doctest fences in `docs/src/tutorials/` covering `<RenderFragment>` use.

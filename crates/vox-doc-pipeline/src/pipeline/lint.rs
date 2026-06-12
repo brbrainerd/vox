@@ -17,7 +17,7 @@ use super::types::{LintError, LintKind};
 // These must match the `sections` array in contracts/documentation/docs-sidebar-section-order.v1.json.
 // Display-label format (e.g. "Language Reference") is canonical; slug aliases are kept for grep-safety
 // but all new files must use the display-label form.
-const VALID_CATEGORIES: &[&str] = &[
+pub(crate) const VALID_CATEGORIES: &[&str] = &[
     // ── Canonical display labels (SSOT — match sidebar JSON exactly) ──────────
     "Getting Started",
     "Tutorials",
@@ -35,7 +35,7 @@ const VALID_CATEGORIES: &[&str] = &[
     "archive",
 ];
 
-const VALID_STATUS: &[&str] = &[
+pub(crate) const VALID_STATUS: &[&str] = &[
     "approved",
     "current",
     "experimental",
@@ -44,6 +44,52 @@ const VALID_STATUS: &[&str] = &[
     "roadmap",
     "deprecated",
 ];
+
+pub(crate) const VALID_SCHEMA_TYPES: &[&str] =
+    &["HowTo", "FAQPage", "TechArticle", "SoftwareSourceCode"];
+
+/// Suggest the closest valid value for a rejected frontmatter field so the fix can
+/// be made in one pass instead of guessing. Bias: a case-insensitive prefix match
+/// (e.g. `"CI"` / `"ci"` → `"CI & Quality"`) wins over raw edit distance; otherwise
+/// fall back to the minimum Levenshtein candidate within a sane distance budget.
+#[must_use]
+pub(crate) fn suggest<'a>(value: &str, candidates: &[&'a str]) -> Option<&'a str> {
+    let needle = value.trim().to_ascii_lowercase();
+    if needle.is_empty() {
+        return None;
+    }
+    // 1. Case-insensitive prefix in either direction (handles `CI`/`ci` → `CI & Quality`).
+    if let Some(hit) = candidates.iter().find(|c| {
+        let lc = c.to_ascii_lowercase();
+        lc.starts_with(&needle) || needle.starts_with(&lc)
+    }) {
+        return Some(hit);
+    }
+    // 2. Minimum edit distance, capped so we don't suggest something wildly different.
+    let budget = needle.len().max(4) / 2 + 2;
+    candidates
+        .iter()
+        .map(|c| (levenshtein(&needle, &c.to_ascii_lowercase()), *c))
+        .filter(|(d, _)| *d <= budget)
+        .min_by_key(|(d, _)| *d)
+        .map(|(_, c)| c)
+}
+
+fn levenshtein(a: &str, b: &str) -> usize {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    let mut prev: Vec<usize> = (0..=b.len()).collect();
+    let mut cur = vec![0_usize; b.len() + 1];
+    for (i, &ca) in a.iter().enumerate() {
+        cur[0] = i + 1;
+        for (j, &cb) in b.iter().enumerate() {
+            let cost = usize::from(ca != cb);
+            cur[j + 1] = (prev[j + 1] + 1).min(cur[j] + 1).min(prev[j] + cost);
+        }
+        std::mem::swap(&mut prev, &mut cur);
+    }
+    prev[b.len()]
+}
 
 fn repo_root_for_lint() -> PathBuf {
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
@@ -100,41 +146,56 @@ pub(crate) fn collect_lint_errors_target_with_root(
     errors: &mut Vec<LintError>,
     repo_root: &Path,
 ) {
+    use rayon::prelude::*;
+
+    // Gather every lintable `.md` file first, then lint them in parallel. Each file is
+    // independent (pure parse + its own `git log` subprocess), so a failure in one never
+    // halts the others — every error across the whole tree is surfaced in a single run.
+    let mut md_files: Vec<PathBuf> = Vec::new();
+    gather_md_files(target, &mut md_files);
+
+    let collected: Vec<LintError> = md_files
+        .par_iter()
+        .flat_map_iter(|path| lint_one_file(path, repo_root))
+        .collect();
+    errors.extend(collected);
+}
+
+/// Recursively collect lintable `.md` paths (skips `SUMMARY.md`, which is tool-generated).
+fn gather_md_files(target: &Path, out: &mut Vec<PathBuf>) {
     if target.is_file() {
-        if target.extension().map(|e| e == "md").unwrap_or(false) {
-            let rel = target.to_str().unwrap_or_default();
-            if rel.contains("SUMMARY.md") {
-                return;
-            }
-            let content =
-                vox_bounded_fs::read_utf8_path_capped(target).unwrap_or_else(|_| String::new());
-            lint_file(target, &content, repo_root, errors);
-            crate::pipeline::doctest::check_doctests(target, &content, errors);
+        if target.extension().map(|e| e == "md").unwrap_or(false)
+            && !target.to_str().unwrap_or_default().contains("SUMMARY.md")
+        {
+            out.push(target.to_path_buf());
         }
         return;
     }
-
     if !target.is_dir() {
         return;
     }
-
     if let Ok(entries) = fs::read_dir(target) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
-                collect_lint_errors_target_with_root(&path, errors, repo_root);
-            } else if path.extension().map(|e| e == "md").unwrap_or(false) {
-                let rel = path.to_str().unwrap_or_default();
-                if rel.contains("SUMMARY.md") {
-                    continue;
-                }
-                let content =
-                    vox_bounded_fs::read_utf8_path_capped(&path).unwrap_or_else(|_| String::new());
-                lint_file(&path, &content, repo_root, errors);
-                crate::pipeline::doctest::check_doctests(&path, &content, errors);
+                gather_md_files(&path, out);
+            } else if path.extension().map(|e| e == "md").unwrap_or(false)
+                && !path.to_str().unwrap_or_default().contains("SUMMARY.md")
+            {
+                out.push(path);
             }
         }
     }
+}
+
+/// Lint a single file (frontmatter + fences + doctests) into a fresh error vector.
+/// Returning an owned `Vec` keeps each unit of work independent for `rayon`.
+fn lint_one_file(path: &Path, repo_root: &Path) -> Vec<LintError> {
+    let mut errors = Vec::new();
+    let content = vox_bounded_fs::read_utf8_path_capped(path).unwrap_or_default();
+    lint_file(path, &content, repo_root, &mut errors);
+    crate::pipeline::doctest::check_doctests(path, &content, &mut errors);
+    errors
 }
 
 /// Run all lint checks on a single file's content.
@@ -409,8 +470,6 @@ fn lint_frontmatter(path: &Path, content: &str, errors: &mut Vec<LintError>) {
             }
         } else if let Some(value) = line.strip_prefix("schema_type:") {
             let val = value.trim().trim_matches(|c| c == '"' || c == '\'');
-            const VALID_SCHEMA_TYPES: &[&str] =
-                &["HowTo", "FAQPage", "TechArticle", "SoftwareSourceCode"];
             if !VALID_SCHEMA_TYPES.contains(&val) {
                 errors.push(LintError {
                     file: path.to_owned(),
@@ -573,6 +632,61 @@ mod tests {
                 .iter()
                 .any(|e| matches!(e.kind, LintKind::DuplicateFrontmatter { .. }))
         );
+    }
+
+    #[test]
+    fn suggest_maps_case_and_prefix_variants_to_canonical_category() {
+        // The exact two wrong values that cost two push round-trips before this hint existed.
+        assert_eq!(suggest("CI", VALID_CATEGORIES), Some("CI & Quality"));
+        assert_eq!(suggest("ci", VALID_CATEGORIES), Some("CI & Quality"));
+        assert_eq!(
+            suggest("getting started", VALID_CATEGORIES),
+            Some("Getting Started")
+        );
+    }
+
+    #[test]
+    fn suggest_maps_typo_to_nearest_status_by_edit_distance() {
+        assert_eq!(suggest("experimentl", VALID_STATUS), Some("experimental"));
+        assert_eq!(suggest("rodmap", VALID_STATUS), Some("roadmap"));
+    }
+
+    #[test]
+    fn suggest_returns_none_for_unrelated_garbage() {
+        assert_eq!(suggest("zzzzzzzzzzzz", VALID_STATUS), None);
+        assert_eq!(suggest("", VALID_CATEGORIES), None);
+    }
+
+    #[test]
+    fn parallel_collect_surfaces_every_file_error_in_one_pass() {
+        use std::io::Write;
+        let dir = std::env::temp_dir().join(format!("voxdoclint-{}", std::process::id()));
+        let _ = fs::create_dir_all(&dir);
+        for (name, body) in [
+            ("a.md", "---\ntitle: A\ncategory: nonsense\n---\n# A\n"),
+            (
+                "b.md",
+                "---\ntitle: B\nstatus: bogus\ncategory: Concepts\n---\n# B\n",
+            ),
+        ] {
+            let mut f = fs::File::create(dir.join(name)).unwrap();
+            f.write_all(body.as_bytes()).unwrap();
+        }
+        let mut errors = Vec::new();
+        collect_lint_errors_target_with_root(&dir, &mut errors, Path::new("."));
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e.kind, LintKind::UnknownCategory { .. })),
+            "expected category error from a.md, got {errors:?}"
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e.kind, LintKind::UnknownStatus { .. })),
+            "expected status error from b.md, got {errors:?}"
+        );
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

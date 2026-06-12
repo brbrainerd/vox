@@ -63,6 +63,29 @@ impl TrainGraphModel {
             Self::Qwen35(m) => Ok(m.forward(input_ids)?),
         }
     }
+
+    /// Checkpointed forward (activation/gradient checkpointing). See
+    /// [`crate::model::Qwen35Model::forward_checkpointed`].
+    pub fn forward_checkpointed(
+        &self,
+        input_ids: &Tensor,
+        n_segments: usize,
+    ) -> anyhow::Result<crate::model::CheckpointedForward> {
+        match self {
+            Self::Qwen35(m) => Ok(m.forward_checkpointed(input_ids, n_segments)?),
+        }
+    }
+
+    /// Recompute one checkpoint segment. See
+    /// [`crate::model::Qwen35Model::recompute_segment`].
+    pub fn recompute_segment(
+        &self,
+        seg: &crate::model::CheckpointSegment,
+    ) -> anyhow::Result<(candle_core::Var, Tensor)> {
+        match self {
+            Self::Qwen35(m) => Ok(m.recompute_segment(seg)?),
+        }
+    }
 }
 
 // ── DB message bus ────────────────────────────────────────────────────────────

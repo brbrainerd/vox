@@ -221,37 +221,13 @@ pub fn suggest_tokens<'a>(query: &str, registry: &'a TokenRegistry) -> Vec<&'a s
     let mut candidates: Vec<(&str, usize)> = registry
         .all_keys()
         .filter_map(|k| {
-            let d = levenshtein(query, k);
+            let d = strsim::levenshtein(query, k);
             if d <= 2 { Some((k, d)) } else { None }
         })
         .collect();
     candidates.sort_by_key(|(_, d)| *d);
     candidates.truncate(3);
     candidates.into_iter().map(|(k, _)| k).collect()
-}
-
-fn levenshtein(a: &str, b: &str) -> usize {
-    let a: Vec<char> = a.chars().collect();
-    let b: Vec<char> = b.chars().collect();
-    let m = a.len();
-    let n = b.len();
-    if m == 0 {
-        return n;
-    }
-    if n == 0 {
-        return m;
-    }
-    let mut prev: Vec<usize> = (0..=n).collect();
-    let mut curr = vec![0usize; n + 1];
-    for i in 1..=m {
-        curr[0] = i;
-        for j in 1..=n {
-            let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };
-            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
-        }
-        std::mem::swap(&mut prev, &mut curr);
-    }
-    prev[n]
 }
 
 #[cfg(test)]

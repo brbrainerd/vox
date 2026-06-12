@@ -10,6 +10,9 @@ pub mod benchmark_telemetry;
 pub mod build_service;
 pub mod cli_actions;
 pub mod cli_args;
+pub mod command_contract;
+pub mod command_registry_model;
+
 pub mod constants;
 pub mod daemon_ipc;
 pub mod db_types;
@@ -17,6 +20,7 @@ pub mod diagnostics;
 pub mod fs_utils;
 #[cfg(feature = "db")]
 pub mod gamify_shim;
+pub mod orchestrator_driver;
 pub mod scientia;
 #[cfg(feature = "db")]
 pub mod workflow_journal_codex;

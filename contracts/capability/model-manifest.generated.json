@@ -3273,12 +3273,28 @@
       "title": "Browser Act"
     },
     {
+      "capability_id": "mcp.vox_browser_back",
+      "curated": true,
+      "description_model": "Navigate to the previous history entry for page_id.",
+      "implicit": false,
+      "mcp_tool": "vox_browser_back",
+      "title": "Browser Back"
+    },
+    {
       "capability_id": "mcp.vox_browser_click",
       "curated": true,
       "description_model": "Click an element by CSS selector or xpath:/… target.",
       "implicit": false,
       "mcp_tool": "vox_browser_click",
       "title": "Browser Click"
+    },
+    {
+      "capability_id": "mcp.vox_browser_click_xy",
+      "curated": true,
+      "description_model": "Click at viewport coordinates (x,y) on an existing page_id session.",
+      "implicit": false,
+      "mcp_tool": "vox_browser_click_xy",
+      "title": "Browser Click Xy"
     },
     {
       "capability_id": "mcp.vox_browser_close",
@@ -3313,6 +3329,14 @@
       "title": "Browser Fill"
     },
     {
+      "capability_id": "mcp.vox_browser_forward",
+      "curated": true,
+      "description_model": "Navigate to the next history entry for page_id.",
+      "implicit": false,
+      "mcp_tool": "vox_browser_forward",
+      "title": "Browser Forward"
+    },
+    {
       "capability_id": "mcp.vox_browser_goto",
       "curated": true,
       "description_model": "Navigate an existing tab to a URL.",
@@ -3329,12 +3353,52 @@
       "title": "Browser Html"
     },
     {
+      "capability_id": "mcp.vox_browser_list_pages",
+      "curated": true,
+      "description_model": "List all currently open browser sessions with page_id, URL, and title.",
+      "implicit": false,
+      "mcp_tool": "vox_browser_list_pages",
+      "title": "Browser List Pages"
+    },
+    {
       "capability_id": "mcp.vox_browser_open",
       "curated": true,
       "description_model": "Open a Chromium tab at URL via CD (chromiumoxide). Returns page_id for follow-up tools.",
       "implicit": false,
       "mcp_tool": "vox_browser_open",
       "title": "Browser Open"
+    },
+    {
+      "capability_id": "mcp.vox_browser_page_info",
+      "curated": true,
+      "description_model": "Get URL/title and history navigation booleans for page_id.",
+      "implicit": false,
+      "mcp_tool": "vox_browser_page_info",
+      "title": "Browser Page Info"
+    },
+    {
+      "capability_id": "mcp.vox_browser_press",
+      "curated": true,
+      "description_model": "Press a key/chord on the active page.",
+      "implicit": false,
+      "mcp_tool": "vox_browser_press",
+      "title": "Browser Press"
+    },
+    {
+      "capability_id": "mcp.vox_browser_reload",
+      "curated": true,
+      "description_model": "Reload the current page_id.",
+      "implicit": false,
+      "mcp_tool": "vox_browser_reload",
+      "title": "Browser Reload"
+    },
+    {
+      "capability_id": "mcp.vox_browser_screencast_frame",
+      "curated": true,
+      "description_model": "Capture one CDP screencast frame and return image_base64 plus viewport dimensions.",
+      "implicit": false,
+      "mcp_tool": "vox_browser_screencast_frame",
+      "title": "Browser Screencast Frame"
     },
     {
       "capability_id": "mcp.vox_browser_screenshot",
@@ -3345,12 +3409,60 @@
       "title": "Browser Screenshot"
     },
     {
+      "capability_id": "mcp.vox_browser_screenshot_viewport",
+      "curated": true,
+      "description_model": "Capture viewport-only PNG and return base64 for live UI streaming.",
+      "implicit": false,
+      "mcp_tool": "vox_browser_screenshot_viewport",
+      "title": "Browser Screenshot Viewport"
+    },
+    {
+      "capability_id": "mcp.vox_browser_scroll",
+      "curated": true,
+      "description_model": "Scroll by dx/dy viewport deltas.",
+      "implicit": false,
+      "mcp_tool": "vox_browser_scroll",
+      "title": "Browser Scroll"
+    },
+    {
+      "capability_id": "mcp.vox_browser_set_control_lock",
+      "curated": true,
+      "description_model": "Set or clear per-page control owner (human or agent) for shared CDP sessions.",
+      "implicit": false,
+      "mcp_tool": "vox_browser_set_control_lock",
+      "title": "Browser Set Control Lock"
+    },
+    {
+      "capability_id": "mcp.vox_browser_set_viewport",
+      "curated": true,
+      "description_model": "Set viewport width/height for deterministic coordinate mapping.",
+      "implicit": false,
+      "mcp_tool": "vox_browser_set_viewport",
+      "title": "Browser Set Viewport"
+    },
+    {
+      "capability_id": "mcp.vox_browser_stop",
+      "curated": true,
+      "description_model": "Stop pending navigation/load for page_id.",
+      "implicit": false,
+      "mcp_tool": "vox_browser_stop",
+      "title": "Browser Stop"
+    },
+    {
       "capability_id": "mcp.vox_browser_text",
       "curated": true,
       "description_model": "Read inner text for a CSS or xpath target.",
       "implicit": false,
       "mcp_tool": "vox_browser_text",
       "title": "Browser Text"
+    },
+    {
+      "capability_id": "mcp.vox_browser_type",
+      "curated": true,
+      "description_model": "Type text into the focused editable element on page_id.",
+      "implicit": false,
+      "mcp_tool": "vox_browser_type",
+      "title": "Browser Type"
     },
     {
       "capability_id": "mcp.vox_browser_wait_for",

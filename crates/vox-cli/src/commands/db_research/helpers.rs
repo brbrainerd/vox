@@ -10,10 +10,14 @@ pub(super) fn split_csv(value: Option<&str>) -> Vec<String> {
 
 pub(super) fn summarize_text(text: &str, max_chars: usize) -> String {
     let trimmed = text.trim();
-    if trimmed.len() <= max_chars {
+    if trimmed.chars().count() <= max_chars {
         trimmed.to_string()
     } else {
-        let mut summary = trimmed.chars().take(max_chars).collect::<String>();
+        // Budget the ellipsis into the cap so the result never exceeds max_chars.
+        let mut summary = trimmed
+            .chars()
+            .take(max_chars.saturating_sub(3))
+            .collect::<String>();
         summary.push_str("...");
         summary
     }

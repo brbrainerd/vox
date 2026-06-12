@@ -19,8 +19,10 @@ vox-config = { workspace = true }
 vox-db = { workspace = true, optional = true }
 vox-gamify = { workspace = true, optional = true }
 vox-foundation = { workspace = true }
+vox-orchestrator-driver = { workspace = true }
 vox-repository = { workspace = true, optional = true }
 vox-secrets = { workspace = true }
+serde_yaml = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 owo-colors = { workspace = true }

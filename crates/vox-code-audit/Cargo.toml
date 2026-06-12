@@ -3,6 +3,7 @@ name = "vox-code-audit"
 description = "AI code quality stub detector — finds stubs, magic values, empty bodies, missing references, and DRY violations"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 syn = { workspace = true, features = ["full", "visit", "parsing", "extra-traits"] }

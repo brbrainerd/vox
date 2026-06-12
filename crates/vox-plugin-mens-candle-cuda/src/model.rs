@@ -562,6 +562,61 @@ pub struct Qwen35Model {
     pub lm_head: QuantizedLinear,
 }
 
+/// One checkpoint segment: a contiguous range of transformer layers
+/// `[start_layer, end_layer)` whose **input** activation was severed from the
+/// autograd tape at the segment boundary so only one segment's activations live
+/// on the tape at a time during the eventual backward.
+///
+/// The boundary is materialized as a fresh, storage-independent leaf
+/// ([`Tensor::copy`]'s deep copy, then detached) — **not** a bare
+/// [`Tensor::detach`], which shares storage with the still-live grad-tracked
+/// producer and (candle 0.9 quirk, see `forward_checkpointed`) yields a *wrong*
+/// input gradient at the boundary. Storage independence is load-bearing for
+/// gradient correctness.
+pub struct CheckpointSegment {
+    /// Input activation `[b, seq, d_model]` at this segment's boundary, as an
+    /// independent detached leaf. During the live forward this is the tensor the
+    /// next segment consumed; during recompute it is re-wrapped in a `Var` so its
+    /// gradient (the cotangent to thread back) can be read.
+    pub input: Tensor,
+    /// First layer index (inclusive) in this segment.
+    pub start_layer: usize,
+    /// One-past-last layer index (exclusive) in this segment.
+    pub end_layer: usize,
+}
+
+/// Materialize `x`'s values into a fresh, storage-independent detached leaf.
+///
+/// `Tensor::detach` shares storage with its source; when the source is a live
+/// grad-tracked tensor, feeding that shared-storage detach as a segment boundary
+/// makes candle 0.9 compute the **wrong** input gradient at the boundary (the
+/// gradient is silently attenuated — verified against the eager full-graph
+/// backward). Deep-copying first (`make_var` allocates new storage) and then
+/// detaching gives a clean, independent leaf whose boundary gradient matches the
+/// eager reference exactly.
+fn independent_boundary(x: &Tensor) -> Result<Tensor> {
+    // Var::from_tensor deep-copies a non-variable tensor into fresh storage (a new
+    // leaf whose gradient candle records correctly). We first detach to get a
+    // plain (non-variable) source, then wrap as a Var — this both severs the tape
+    // AND breaks storage aliasing with the live grad-tracked producer. A bare
+    // detach (shared storage) silently produces a WRONG boundary gradient in
+    // candle 0.9. The boundary being a Var is harmless: it is not in the trainer's
+    // VarMap, so the optimizer never touches it; backward still records its grad.
+    let detached = x.detach();
+    let var = candle_core::Var::from_tensor(&detached)?;
+    Ok(var.as_tensor().clone())
+}
+
+/// Result of a checkpointed forward pass. `logits`'s autograd tape spans **only
+/// the final segment + head**; `segments` carries the detached boundary
+/// activations needed to recompute-and-backward earlier segments in reverse.
+pub struct CheckpointedForward {
+    /// Logits `[b, seq, vocab]`, F32. Tape spans only the last segment + head.
+    pub logits: Tensor,
+    /// Segments in forward order. The last entry's range ends at `num_layers`.
+    pub segments: Vec<CheckpointSegment>,
+}
+
 impl Qwen35Model {
     pub fn forward(&self, input_ids: &Tensor) -> Result<Tensor> {
         let (b, seq_len) = input_ids.dims2()?;
@@ -575,7 +630,13 @@ impl Qwen35Model {
         for layer in &self.layers {
             x = layer.forward(&x, 0, None)?;
         }
-        let x = rms_norm_f32(&self.norm, &x)?;
+        self.head_forward(&x)
+    }
+
+    /// Final norm + clamp + lm_head + F32 cast, shared by the eager and
+    /// checkpointed forward so logits are byte-identical for the same input.
+    fn head_forward(&self, x: &Tensor) -> Result<Tensor> {
+        let x = rms_norm_f32(&self.norm, x)?;
         let x = x.clamp(-64f64, 64f64)?;
         let logits = self
             .lm_head
@@ -585,6 +646,90 @@ impl Qwen35Model {
         // cross-entropy (log_softmax + masked gather in `forward_masked_ce`) runs
         // entirely in F32 regardless of the activation dtype. No-op on the F32 path.
         logits.to_dtype(DType::F32)
+    }
+
+    /// Run the transformer layers in `[start, end)` over `x`. Identical op
+    /// sequence to [`Self::forward`]'s layer loop, so recompute reproduces the
+    /// original numerics exactly (training has no KV cache / `pos` is always 0).
+    fn run_layers(&self, x: &Tensor, start: usize, end: usize) -> Result<Tensor> {
+        let mut h = x.clone();
+        for layer in &self.layers[start..end] {
+            h = layer.forward(&h, 0, None)?;
+        }
+        Ok(h)
+    }
+
+    /// Checkpointed forward: split the `num_layers` transformer layers into
+    /// `n_segments` roughly-equal contiguous segments, detaching the activation
+    /// at each boundary so the autograd tape never spans more than one segment +
+    /// the head. This bounds the single-backward VRAM peak that OOMs 3B on 16GB.
+    ///
+    /// `n_segments` is clamped to `[1, num_layers]`.
+    pub fn forward_checkpointed(
+        &self,
+        input_ids: &Tensor,
+        n_segments: usize,
+    ) -> Result<CheckpointedForward> {
+        let num_layers = self.layers.len();
+        let n_segments = n_segments.clamp(1, num_layers.max(1));
+
+        let (b, seq_len) = input_ids.dims2()?;
+        let d_model = self.embed_tokens.dim(1)?;
+        let ids = input_ids.flatten_all()?;
+        let embed = self
+            .embed_tokens
+            .index_select(&ids, 0)?
+            .reshape((b, seq_len, d_model))?;
+
+        // Even split of layers across segments (remainder to the front segments).
+        let base = num_layers / n_segments;
+        let rem = num_layers % n_segments;
+        let mut bounds = Vec::with_capacity(n_segments + 1);
+        bounds.push(0usize);
+        let mut acc = 0usize;
+        for s in 0..n_segments {
+            acc += base + usize::from(s < rem);
+            bounds.push(acc);
+        }
+
+        let mut segments = Vec::with_capacity(n_segments);
+        // First segment input is the embedding as an independent detached leaf
+        // (embeddings are frozen — no grad needed through them).
+        let mut seg_input = independent_boundary(&embed)?;
+        let mut logits = None;
+        for s in 0..n_segments {
+            let start = bounds[s];
+            let end = bounds[s + 1];
+            let seg_out = self.run_layers(&seg_input, start, end)?;
+            segments.push(CheckpointSegment {
+                input: seg_input.clone(),
+                start_layer: start,
+                end_layer: end,
+            });
+            if s + 1 == n_segments {
+                // Last segment flows into the head WITHOUT severing.
+                logits = Some(self.head_forward(&seg_out)?);
+            } else {
+                // Sever the boundary into a fresh, storage-independent leaf so the
+                // next segment's backward computes a correct boundary gradient.
+                seg_input = independent_boundary(&seg_out)?;
+            }
+        }
+
+        Ok(CheckpointedForward {
+            logits: logits.expect("at least one segment"),
+            segments,
+        })
+    }
+
+    /// Recompute one checkpoint segment's forward from its detached boundary
+    /// `input` with the tape live, returning `(input_var, seg_output)`. After
+    /// backprop, `input_var`'s gradient is `dL/d(input)` — the cotangent to
+    /// thread to the previous segment.
+    pub fn recompute_segment(&self, seg: &CheckpointSegment) -> Result<(candle_core::Var, Tensor)> {
+        let input_var = candle_core::Var::from_tensor(&seg.input)?;
+        let out = self.run_layers(input_var.as_tensor(), seg.start_layer, seg.end_layer)?;
+        Ok((input_var, out))
     }
 }
 
@@ -642,6 +787,180 @@ impl CandleModel {
             _inner: None,
             model_path: model_path.to_string(),
         })
+    }
+}
+
+#[cfg(test)]
+mod gradient_checkpoint_tests {
+    //! End-to-end correctness for activation/gradient checkpointing on the real
+    //! `Qwen35Model`: a checkpointed segmented backward must produce the **same**
+    //! LoRA gradients as an eager full-graph backward. CPU/F32 so it runs in
+    //! normal `cargo test` (no CUDA). A silently-wrong backward is the worst
+    //! possible outcome, so this is the load-bearing safety gate.
+
+    use super::*;
+    use candle_core::Var;
+    use candle_nn::{VarBuilder, VarMap};
+    use qlora_rs::QLoraConfig;
+
+    fn qcfg() -> QLoraConfig {
+        let mut c = QLoraConfig::preset_all_bf16(4, 8);
+        c.quantization.compute_dtype = qlora_rs::quantization::ComputeDType::F32;
+        c.cache_dequantized = true;
+        c
+    }
+
+    fn qlin(vb: VarBuilder, d_out: usize, d_in: usize, dev: &Device) -> QuantizedLinear {
+        let w = Tensor::randn(0f32, 0.02f32, (d_out, d_in), dev).unwrap();
+        QuantizedLinear::from_weight_with_varbuilder(&w, None, &qcfg(), vb).unwrap()
+    }
+
+    fn build_layer(vb: VarBuilder, d: usize, n_heads: usize, dev: &Device) -> Qwen35Layer {
+        let head_dim = d / n_heads;
+        let attn = Qwen2Attention {
+            q_proj: qlin(vb.pp("q"), d, d, dev),
+            k_proj: qlin(vb.pp("k"), d, d, dev),
+            v_proj: qlin(vb.pp("v"), d, d, dev),
+            o_proj: qlin(vb.pp("o"), d, d, dev),
+            q_bias: None,
+            k_bias: None,
+            v_bias: None,
+            n_heads,
+            n_kv_heads: n_heads,
+            head_dim,
+        };
+        let mlp = Qwen2MLP {
+            gate_proj: qlin(vb.pp("g"), d * 2, d, dev),
+            up_proj: qlin(vb.pp("u"), d * 2, d, dev),
+            down_proj: qlin(vb.pp("dn"), d, d * 2, dev),
+        };
+        Qwen35Layer {
+            input_layernorm: RmsNorm::new(Tensor::ones(d, DType::F32, dev).unwrap(), 1e-6),
+            attention: Qwen35AttentionBlock::Full(attn),
+            post_attention_layernorm: RmsNorm::new(Tensor::ones(d, DType::F32, dev).unwrap(), 1e-6),
+            mlp,
+            inv_freq: None,
+        }
+    }
+
+    fn build_model(
+        vb: VarBuilder,
+        d: usize,
+        n_layers: usize,
+        vocab: usize,
+        dev: &Device,
+    ) -> Qwen35Model {
+        let embed = Tensor::randn(0f32, 0.02f32, (vocab, d), dev).unwrap();
+        let layers: Vec<Qwen35Layer> = (0..n_layers)
+            .map(|i| build_layer(vb.pp(format!("layer{i}")), d, 2, dev))
+            .collect();
+        let lm_head = QuantizedLinear::from_weight_with_varbuilder(
+            &embed.clone(),
+            None,
+            &qcfg(),
+            vb.pp("lm_head"),
+        )
+        .unwrap();
+        Qwen35Model {
+            embed_tokens: embed,
+            layers,
+            norm: RmsNorm::new(Tensor::ones(d, DType::F32, dev).unwrap(), 1e-6),
+            lm_head,
+        }
+    }
+
+    fn ce_loss(logits: &Tensor, targets: &Tensor) -> Tensor {
+        let logits = logits.flatten_to(1).unwrap();
+        let log_sm = candle_nn::ops::log_softmax(&logits, 1).unwrap();
+        let lp = log_sm
+            .gather(&targets.flatten_all().unwrap().unsqueeze(1).unwrap(), 1)
+            .unwrap();
+        lp.neg().unwrap().mean_all().unwrap()
+    }
+
+    fn varmap_name(varmap: &VarMap, v: &Var) -> String {
+        let data = varmap.data().lock().unwrap();
+        for (k, vv) in data.iter() {
+            if vv.as_tensor().id() == v.as_tensor().id() {
+                return k.clone();
+            }
+        }
+        "<unknown>".to_string()
+    }
+
+    #[test]
+    fn checkpointed_model_backward_matches_eager_grads() {
+        let dev = Device::Cpu;
+        let (d, n_layers, vocab, seq) = (8usize, 4usize, 16usize, 5usize);
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
+        let model = build_model(vb, d, n_layers, vocab, &dev);
+
+        let input_ids = Tensor::from_vec(vec![1u32, 2, 3, 4, 5], (1, seq), &dev).unwrap();
+        let targets = Tensor::from_vec(vec![2u32, 3, 4, 5, 6], (1, seq), &dev).unwrap();
+
+        let lora_vars: Vec<Var> = varmap.all_vars();
+        assert!(!lora_vars.is_empty(), "no LoRA vars registered");
+
+        // ── Eager: full-graph backward ──────────────────────────────────────
+        let logits_eager = model.forward(&input_ids).unwrap();
+        let loss_eager = ce_loss(&logits_eager, &targets);
+        let g_eager = loss_eager.backward().unwrap();
+
+        // ── Checkpointed: 2 segments, segmented recompute backward ──────────
+        let ckpt = model.forward_checkpointed(&input_ids, 2).unwrap();
+        assert_eq!(ckpt.segments.len(), 2);
+
+        // logits must match eager forward exactly (same ops, just severed tape).
+        let le: Vec<f32> = logits_eager.flatten_all().unwrap().to_vec1().unwrap();
+        let lc: Vec<f32> = ckpt.logits.flatten_all().unwrap().to_vec1().unwrap();
+        for (a, b) in le.iter().zip(lc.iter()) {
+            assert!(
+                (a - b).abs() < 1e-4,
+                "checkpointed logits diverged: {a} vs {b}"
+            );
+        }
+
+        let loss_ck = ce_loss(&ckpt.logits, &targets);
+        let mut grads = loss_ck.backward().unwrap();
+        let last = ckpt.segments.last().unwrap();
+        let mut upstream = grads.get(&last.input).cloned().unwrap();
+        for seg in ckpt.segments.iter().rev().skip(1) {
+            let (input_var, seg_out) = model.recompute_segment(seg).unwrap();
+            let seg_grads = qlora_rs::backward_from_cotangent(&seg_out, &upstream).unwrap();
+            qlora_rs::accumulate_grads_for_vars(&mut grads, &seg_grads, &lora_vars).unwrap();
+            upstream = seg_grads.get(input_var.as_tensor()).cloned().unwrap();
+        }
+
+        // ── Compare per-Var grads ───────────────────────────────────────────
+        let mut compared = 0usize;
+        for v in &lora_vars {
+            match (g_eager.get(v.as_tensor()), grads.get(v.as_tensor())) {
+                (Some(a), Some(b)) => {
+                    let name = varmap_name(&varmap, v);
+                    let av: Vec<f32> = a.flatten_all().unwrap().to_vec1().unwrap();
+                    let bv: Vec<f32> = b.flatten_all().unwrap().to_vec1().unwrap();
+                    for (x, y) in av.iter().zip(bv.iter()) {
+                        let denom = x.abs().max(1e-3);
+                        assert!(
+                            (x - y).abs() / denom < 1e-2,
+                            "grad mismatch for {name}: eager={x} ckpt={y}"
+                        );
+                    }
+                    compared += 1;
+                }
+                (None, None) => {}
+                (a, b) => panic!(
+                    "grad presence mismatch: eager={} ckpt={}",
+                    a.is_some(),
+                    b.is_some()
+                ),
+            }
+        }
+        assert!(
+            compared >= n_layers,
+            "expected grads for >= {n_layers} vars, got {compared}"
+        );
     }
 }
 

@@ -37,5 +37,11 @@ pub enum MaskedCeForward {
         supervised_tokens: u64,
         theoretical_tokens: u64,
         syntax_weight_sum: f32,
+        /// Checkpoint segments when the forward was run with activation
+        /// checkpointing. `None` for the eager path. When `Some`, the loss's
+        /// autograd tape spans only the final segment + head; the training loop
+        /// must run the segmented recompute-backward (threading the boundary
+        /// cotangent in reverse) rather than a single `backward_step`.
+        segments: Option<Vec<crate::model::CheckpointSegment>>,
     },
 }

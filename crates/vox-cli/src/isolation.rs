@@ -96,19 +96,15 @@ impl IsolationCapabilities {
             .get_or_init(|| {
                 let mut supported = vec![IsolationPolicy::Permissive];
 
-                // Container backend: Docker or Podman
-                if std::process::Command::new("docker")
+                // Container tier is for `vox deploy` (vox-container), not `vox run` script mode.
+                let _docker = std::process::Command::new("docker")
                     .arg("--version")
                     .output()
                     .is_ok()
                     || std::process::Command::new("podman")
                         .arg("--version")
                         .output()
-                        .is_ok()
-                {
-                    // NOTE: Container tier is detected for vox deploy; not available in vox run script path.
-                    supported.push(IsolationPolicy::Container);
-                }
+                        .is_ok();
 
                 // gVisor backend
                 if std::process::Command::new("runsc")

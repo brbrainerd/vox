@@ -145,64 +145,7 @@ fn simple_hex_id() -> String {
 }
 
 fn chrono_now_iso8601() -> String {
-    // Use SystemTime to avoid pulling in chrono as an explicit dep.
-    let secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    // Minimal ISO-8601 UTC formatting.
-    format_unix_secs_as_iso8601(secs)
-}
-
-fn format_unix_secs_as_iso8601(secs: u64) -> String {
-    // Very small ISO-8601 formatter for UTC timestamps without pulling in chrono.
-    // Accurate for dates after 1970-01-01.
-    let s = secs % 60;
-    let m = (secs / 60) % 60;
-    let h = (secs / 3600) % 24;
-    let days = secs / 86400;
-    let (y, mo, d) = days_to_ymd(days);
-    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", y, mo, d, h, m, s)
-}
-
-fn days_to_ymd(mut days: u64) -> (u64, u64, u64) {
-    let mut year = 1970u64;
-    loop {
-        let leap = is_leap(year);
-        let yd = if leap { 366 } else { 365 };
-        if days < yd {
-            break;
-        }
-        days -= yd;
-        year += 1;
-    }
-    let months = [
-        31u64,
-        if is_leap(year) { 29 } else { 28 },
-        31,
-        30,
-        31,
-        30,
-        31,
-        31,
-        30,
-        31,
-        30,
-        31,
-    ];
-    let mut month = 1u64;
-    for md in &months {
-        if days < *md {
-            break;
-        }
-        days -= md;
-        month += 1;
-    }
-    (year, month, days + 1)
-}
-
-fn is_leap(y: u64) -> bool {
-    (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0)
+    chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 
 fn load_node_pubkey_hex() -> anyhow::Result<String> {

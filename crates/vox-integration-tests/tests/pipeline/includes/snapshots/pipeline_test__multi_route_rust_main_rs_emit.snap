@@ -1,6 +1,5 @@
 ---
 source: crates/vox-integration-tests/tests/pipeline/includes/include_03.rs
-assertion_line: 169
 expression: main_rs
 ---
 // vox-generated rust_app_shell=AxumLocalServer
@@ -121,10 +120,14 @@ async fn main() {
         .unwrap_or(3000);
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     println!("Listening on {}", addr);
-    let listener = tokio::net::TcpListener::bind(addr).await.expect("Failed to bind TCP listener");
-    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
-        .await
-        .expect("Server exited with error");
+    let listener = match tokio::net::TcpListener::bind(addr).await {
+        Ok(listener) => listener,
+        Err(e) => { eprintln!("Failed to bind TCP listener: {}", e); std::process::exit(2); }
+    };
+    if let Err(e) = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await {
+        eprintln!("Server exited with error: {}", e);
+        std::process::exit(2);
+    }
     vox_actor_runtime::builtins::vox_flush_exit_commands();
 }
 

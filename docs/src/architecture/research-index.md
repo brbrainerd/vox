@@ -24,6 +24,7 @@ This file tracks the single source of truth for Vox architecture, research findi
 
 ## Strategic & Value Proposition
 
+- [Vox GUI Browser Support (2026)](vox-gui-browser-support-2026.md) — Embedded app preview (iframe + Vite guard), agent CDP live view (`vox://browser-frame`), Playwright validation harness; reuses `vox-plugin-browser` + orchestrator `vox_browser_*` MCP tools.
 - [Vox application packaging SSOT (2026)](vox-application-packaging-ssot-2026.md) — End-user desktop/mobile installer lane (`vox compile`, `[bundle]` manifest, Tauri backbone); complements OCI-focused [portability SSOT](../reference/vox-portability-ssot.md).
 - [Deep Research Prior Art and Vox Integration Roadmap (2026)](deep-research-prior-art-and-vox-roadmap-2026.md) — Gemini / OpenClaw–SearchClaw / Claude Research / Tavily vs `run_research` + `vox-search`; free-tier strategy; stub inventory; CLI `vox research run` + MCP `vox_research_run`.
 - [AgentOS & Agent-Computer Interface SSOT (2026)](agentos-ssot-2026.md) — Contract-first ACI envelopes, mutation classification, guardrails/checkpointing/intent layers, and semantic-fs bridge map.
