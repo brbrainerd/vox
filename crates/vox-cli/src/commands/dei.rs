@@ -5,13 +5,14 @@ use vox_orchestrator::{
     AgentId, FileAffinity, Orchestrator, OrchestratorConfig, TaskId, TaskPriority,
     build_repo_scoped_orchestrator, discover_repository_from_cwd, json_vcs_facade,
 };
+use vox_orchestrator_driver::OrchestratorDriver as _;
 
 /// `vox orchestrator status` — show all agents, queues, and file assignments.
 pub async fn status() -> Result<()> {
-    let config = load_config();
-    let orch = build_repo_scoped_orchestrator_cli(config);
-    orch.clone().spawn_background_tasks();
-    let status = orch.status();
+    let driver = vox_orchestrator_driver::EmbeddedOrchestratorDriver::load_and_build();
+    driver.spawn_background_tasks();
+    let status = driver.status();
+    let config = driver.config().clone();
 
     println!("{}", "╔══════════════════════════════════════╗".cyan());
     println!("{}", "║   Vox DEI Status                     ║".cyan());
@@ -44,7 +45,6 @@ pub async fn status() -> Result<()> {
         "Predicted load:".bold(),
         status.predicted_load
     );
-    let config = load_config();
     let effective_threshold =
         config.scaling_threshold as f64 * config.scaling_profile.threshold_multiplier();
     println!(
@@ -879,18 +879,8 @@ async fn run_dei_analyze(path: &str, apply: bool) -> Result<()> {
 }
 */
 
-/// Load orchestrator config from Vox.toml or defaults.
 fn load_config() -> OrchestratorConfig {
-    // Try to load from Vox.toml, fall back to defaults
-    let mut config: OrchestratorConfig = std::env::current_dir()
-        .ok()
-        .and_then(|cwd| {
-            let toml_path = cwd.join("Vox.toml");
-            OrchestratorConfig::load_from_toml(&toml_path).ok()
-        })
-        .unwrap_or_default();
-    config.merge_env_overrides();
-    config
+    vox_orchestrator_driver::build_embedded_orchestrator_config()
 }
 
 fn build_repo_scoped_orchestrator_cli(config: OrchestratorConfig) -> std::sync::Arc<Orchestrator> {

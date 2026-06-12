@@ -73,6 +73,8 @@ For table-level detail and conflict rules, see [Mens coordination](populi-coordi
 
 ## A2A delivery planes
 
+**Naming:** **Vox internal A2A bus** refers to same-process and DB-backed orchestrator messaging (`local_ephemeral` / `local_durable` below). **LF A2A v1.0 Agent Card** (external Linux Foundation discovery) is planned separately — see stub [`contracts/orchestration/a2a-agent-card.v1.json`](../../../contracts/orchestration/a2a-agent-card.v1.json) and [communication-protocols.md](communication-protocols.md). Do not assume wire compatibility between the two.
+
 The orchestrator intentionally uses more than one delivery plane; these are **not** interchangeable transports with hidden semantics.
 
 | Canonical plane | Current wire token(s) | Guarantees | Use for |

@@ -495,7 +495,7 @@ Tasks:
 **Goal:** Replace the broken virtual file route emitter with the stable manifest emitter.
 
 Tasks:
-- Create `crates/vox-codegen/src/codegen_ts/route_manifest.rs` [NEW FILE]
+- Create `crates/vox-codegen-ts/src/route_manifest.rs` [NEW FILE]
 - Add `pub fn emit_route_manifest(hir: &HirModule) -> String` 
 - Emit `VoxRoute` TypeScript type definition at top of manifest
 - Emit `notFoundComponent` export if `RoutesDecl.not_found_component` is set
@@ -535,7 +535,7 @@ Tasks:
 **Goal:** Generate one-time scaffold files that the user owns permanently.
 
 Tasks:
-- Create `crates/vox-codegen/src/codegen_ts/scaffold.rs` [NEW FILE]
+- Create `crates/vox-codegen-ts/src/scaffold.rs` [NEW FILE]
 - `fn emit_main_tsx() -> &'static str` — returns `app/main.tsx` content
 - `fn emit_app_tsx(not_found: Option<&str>, error: Option<&str>, pending: Option<&str>) -> String` — returns `app/App.tsx` adapting `voxRoutes`
 - `fn emit_globals_css() -> &'static str` — returns `app/globals.css` with Tailwind v4 `@import`

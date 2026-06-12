@@ -89,7 +89,7 @@ pub async fn run(name: Option<&str>) -> Result<()> {
     }
 
     // 2. Derive other ignores
-    crate::commands::ci::sync_ignore_files::run(&repo_dir, false)?;
+    vox_cli_ci::sync_ignore_files::run(&repo_dir, false)?;
 
     // 3. Create AGENTS.md
     let agents_path = repo_dir.join("AGENTS.md");

@@ -17,8 +17,11 @@
 //!
 //! A stable `CARGO_TARGET_DIR` under the OS temp dir is reused across runs, so
 //! after the first (cold) compile of dependencies subsequent runs are fast.
+//!
+//! Nested `cargo build` passes `--config build.rustc-wrapper=""` so agent shells
+//! without `sccache` on PATH (see root `.cargo/config.toml`) can run these tests.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use vox_codegen::codegen_rust::generate_script;
@@ -27,9 +30,34 @@ use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse_script;
 use vox_compiler::typeck::typecheck_hir_module;
 
+/// Workspace root (contains `examples/golden/`).
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
 /// Absolute path to the `vox-actor-runtime` crate the generated script depends on.
 fn runtime_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../vox-actor-runtime")
+}
+
+/// Standalone script crates built outside the workspace need the same
+/// `[patch.crates-io]` entries as the repo root (pure-rust `aegis` on Windows).
+fn inject_workspace_patches(project_dir: &Path) {
+    let cargo_path = project_dir.join("Cargo.toml");
+    let Ok(mut toml) = std::fs::read_to_string(&cargo_path) else {
+        return;
+    };
+    if toml.contains("[patch.crates-io]") {
+        return;
+    }
+    let aegis_path = repo_root()
+        .join("patches/aegis-0.9.8")
+        .to_string_lossy()
+        .replace('\\', "/");
+    toml.push_str(&format!(
+        "\n[patch.crates-io]\naegis = {{ path = \"{aegis_path}\" }}\n"
+    ));
+    let _ = std::fs::write(cargo_path, toml);
 }
 
 /// Generate a native script crate for `src`, write it to a fresh temp dir, and
@@ -48,14 +76,16 @@ fn compile_vox_script(src: &str) -> Result<(), String> {
     output
         .write_to_dir(dir.path())
         .map_err(|e| format!("write_to_dir: {e}"))?;
+    inject_workspace_patches(dir.path());
 
-    // Reuse one target dir across runs so dependency compiles are cached.
-    let target_dir = std::env::temp_dir().join("vox-emit-compile-harness-target");
+    // Per-project target dir: a shared global dir races when `golden_*` tests run in parallel.
+    let target_dir = dir.path().join("target");
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
     let out = Command::new(cargo)
         .current_dir(dir.path())
-        .arg("build")
+        .args(["build", "--config", "build.rustc-wrapper=\"\""])
         .env("CARGO_TARGET_DIR", &target_dir)
+        .env_remove("RUSTC_WRAPPER")
         .output()
         .map_err(|e| format!("spawn cargo: {e}"))?;
 
@@ -66,10 +96,25 @@ fn compile_vox_script(src: &str) -> Result<(), String> {
     }
 }
 
+/// Read `examples/golden/{rel}`, then parse → typecheck → generate → `cargo build`.
+fn compile_golden_file(rel: &str) -> Result<(), String> {
+    let path = repo_root().join("examples/golden").join(rel);
+    let src =
+        std::fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    compile_vox_script(&src)
+}
+
 /// Assert a Vox program's generated Rust compiles, surfacing cargo's error.
 fn assert_compiles(src: &str) {
     if let Err(e) = compile_vox_script(src) {
         panic!("generated Rust did not compile:\n{e}");
+    }
+}
+
+/// Assert a golden `.vox` file's generated Rust compiles, surfacing cargo's error.
+fn assert_golden_compiles(rel: &str) {
+    if let Err(e) = compile_golden_file(rel) {
+        panic!("golden {rel} did not compile:\n{e}");
     }
 }
 
@@ -239,6 +284,35 @@ fn main() {
 /// Exercises the full Vox string-method surface: every method that the
 /// interpreter handles must also compile under `--mode script` (codegen path).
 /// This is the compile-net counterpart to the fast `str_method_emit` tests.
+/// Minimal `@json_as` must compile: signatures use `serde_json::Value` (or a
+/// `type Json = …` alias), never a bare undefined `Json` type (CR-F2 #6).
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn json_as_minimal_compiles() {
+    assert_compiles(
+        r#"
+        @json_as(Widget)
+        type Widget {
+            name: str,
+        }
+
+        fn main() to str {
+            let r = json.parse("{\"name\":\"x\"}")
+            match r {
+                Error(_) => return "err"
+                Ok(j) => {
+                    let res = Widget_from_json(j)
+                    match res {
+                        Error(_) => return "decode_err"
+                        Ok(w) => return w.name
+                    }
+                }
+            }
+        }
+        "#,
+    );
+}
+
 #[test]
 #[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn str_methods_compile() {
@@ -286,4 +360,67 @@ fn main() {
 }
 "#,
     );
+}
+
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn golden_noop_compiles() {
+    assert_golden_compiles("mesh/noop.vox");
+}
+
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn golden_regex_free_functions_compiles() {
+    assert_golden_compiles("regex_free_functions.vox");
+}
+
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn golden_decimal_math_compiles() {
+    assert_golden_compiles("decimal_math.vox");
+}
+
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn golden_while_loop_algorithms_compiles() {
+    assert_golden_compiles("while_loop_algorithms.vox");
+}
+
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn golden_json_as_typed_compiles() {
+    assert_golden_compiles("json_as_typed.vox");
+}
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn golden_tuple_destructure_compiles() {
+    assert_golden_compiles("tuple_destructure.vox");
+}
+
+#[test]
+fn golden_match_arm_stmts_compiles() {
+    assert_golden_compiles("match_arm_stmts.vox");
+}
+
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn golden_control_flow_if_compiles() {
+    assert_golden_compiles("control_flow_if.vox");
+}
+
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn golden_error_propagation_compiles() {
+    assert_golden_compiles("error_propagation.vox");
+}
+
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn golden_closures_hof_compiles() {
+    assert_golden_compiles("closures_hof.vox");
+}
+#[test]
+#[ignore = "compiles a generated crate (slow); run with --ignored"]
+fn golden_option_type_compiles() {
+    assert_golden_compiles("option_type.vox");
 }

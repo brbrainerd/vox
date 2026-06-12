@@ -3,6 +3,7 @@ name = "vox-eval"
 description = "Evaluation metrics for model outputs and Vox code samples: deterministic scoring heuristics (format/safety/quality/parse) + MENS CompileVerdict. Not the interpreter — the `--interp` evaluator lives in vox-compiler/src/eval/."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }

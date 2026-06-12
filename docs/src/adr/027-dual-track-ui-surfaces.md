@@ -108,4 +108,4 @@ Track B exists for three concrete cases:
 - `docs/src/architecture/comprehensive-audit-v2-2026.md` (item #2: "React idiom contamination"; item #15: "Vox-native reactivity DSL — shelved")
 - `docs/src/architecture/path-b-decommission-2026.md`
 - `crates/vox-compiler/src/hir/nodes/decl.rs` (`HirReactiveComponent`, `HirIsland`, `HirStateMachineDecl`)
-- `crates/vox-codegen/src/codegen_ts/reactive.rs` and `codegen_ts/island_emit.rs`
+- `crates/vox-codegen-ts/src/reactive/mod.rs` and `codegen_ts/island_emit.rs`

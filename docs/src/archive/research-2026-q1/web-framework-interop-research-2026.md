@@ -34,13 +34,13 @@ archived_date: 2026-04-18
 
 | File | Role | Framework Coupling |
 |---|---|---|
-| [`codegen_ts/emitter.rs`](../../../crates/vox-codegen/src/codegen_ts/emitter.rs) | Top-level TS file bundle orchestrator | Medium (React imports via components) |
-| [`codegen_ts/reactive.rs`](../../../crates/vox-codegen/src/codegen_ts/reactive.rs) | Path C reactive → React hooks (765 lines) | **High** — `useState`, `useMemo`, `useEffect` |
-| [`codegen_ts/component.rs`](../../../crates/vox-codegen/src/codegen_ts/component.rs) | Classic `@component fn` → React TSX | **High** — React JSX output |
-| [`codegen_ts/adt.rs`](../../../crates/vox-codegen/src/codegen_ts/adt.rs) | ADT → TS discriminated unions | **None** — pure TypeScript |
-| [`codegen_ts/vox_client.rs`](../../../crates/vox-codegen/src/codegen_ts/vox_client.rs) | Typed fetch client for `@query`/`@mutation`/`@server` | **None** — pure `fetch()` |
-| [`codegen_ts/route_manifest.rs`](../../../crates/vox-codegen/src/codegen_ts/route_manifest.rs) | `routes { }` → `routes.manifest.ts` | **Low** — imports `ComponentType` from `"react"` |
-| [`codegen_ts/schema/`](../../../crates/vox-codegen/src/codegen_ts/schema/) | `@table` → TypeScript VoxDB schema | **None** — pure TypeScript |
+| [`codegen_ts/emitter.rs`](../../../crates/vox-codegen-ts/src/emitter.rs) | Top-level TS file bundle orchestrator | Medium (React imports via components) |
+| [`codegen_ts/reactive.rs`](../../../crates/vox-codegen-ts/src/reactive/mod.rs) | Path C reactive → React hooks (765 lines) | **High** — `useState`, `useMemo`, `useEffect` |
+| [`codegen_ts/component.rs`](../../../crates/vox-codegen-ts/src/component.rs) | Classic `@component fn` → React TSX | **High** — React JSX output |
+| [`codegen_ts/adt.rs`](../../../crates/vox-codegen-ts/src/adt.rs) | ADT → TS discriminated unions | **None** — pure TypeScript |
+| [`codegen_ts/vox_client.rs`](../../../crates/vox-codegen-ts/src/vox_client.rs) | Typed fetch client for `@query`/`@mutation`/`@server` | **None** — pure `fetch()` |
+| [`codegen_ts/route_manifest.rs`](../../../crates/vox-codegen-ts/src/route_manifest.rs) | `routes { }` → `routes.manifest.ts` | **Low** — imports `ComponentType` from `"react"` |
+| [`codegen_ts/schema/`](../../../crates/vox-codegen-ts/src/schema/) | `@table` → TypeScript VoxDB schema | **None** — pure TypeScript |
 | [`web_ir/mod.rs`](../../../crates/vox-codegen/src/web_ir/mod.rs) | WebIR schema (DOM, Behavior, Style, Route, Interop) | **Low** — `InteropNode::ReactComponentRef` |
 | [`web_ir/emit_tsx.rs`](../../../crates/vox-codegen/src/web_ir/emit_tsx.rs) | WebIR → JSX string (parity/preview) | **High** — React JSX |
 | [`react_bridge.rs`](../../../crates/vox-compiler/src/react_bridge.rs) | Vox `use_*` → React hooks mapping | **High** — React-specific |
@@ -62,8 +62,8 @@ After auditing the actual codebase, the situation is better than expected in som
 
 | Area | Status | Detail |
 |---|---|---|
-| `vox-client.ts` | ✅ **Already framework-agnostic** | Pure `fetch()` + JSON. No React or TanStack imports. See [`vox_client.rs`](../../../crates/vox-codegen/src/codegen_ts/vox_client.rs). |
-| `types.ts` (ADTs) | ✅ **Already framework-agnostic** | TS discriminated unions with constructor fns. See [`adt.rs`](../../../crates/vox-codegen/src/codegen_ts/adt.rs). |
+| `vox-client.ts` | ✅ **Already framework-agnostic** | Pure `fetch()` + JSON. No React or TanStack imports. See [`vox_client.rs`](../../../crates/vox-codegen-ts/src/vox_client.rs). |
+| `types.ts` (ADTs) | ✅ **Already framework-agnostic** | TS discriminated unions with constructor fns. See [`adt.rs`](../../../crates/vox-codegen-ts/src/adt.rs). |
 | `vox-app-contract.json` | ✅ **Already framework-agnostic** | Machine-readable JSON contract of all routes, server fns, queries, mutations, islands, MCP tools. See [`app_contract.rs`](../../../crates/vox-compiler/src/app_contract.rs). |
 | CSS emission | ✅ **Already framework-agnostic** | Plain `.css` files from `style { }` blocks. No CSS-in-JS. |
 | `schema.ts` (tables) | ✅ **Already framework-agnostic** | Pure TS interfaces from `@table`. |
@@ -164,7 +164,7 @@ Solid 2.0's reactivity model maps more naturally to Vox's semantics than React h
 | `HirReactiveMember::OnCleanup` | `useEffect(() => () => { body }, [])` | `onCleanup(() => { body })` |
 
 > [!TIP]
-> Solid doesn't require manual dependency arrays — the compiler auto-tracks signal dependencies. This means Vox's [`extract_state_deps`](../../../crates/vox-codegen/src/codegen_ts/hir_emit/state_deps.rs) logic would be unnecessary for a Solid backend, simplifying the codegen.
+> Solid doesn't require manual dependency arrays — the compiler auto-tracks signal dependencies. This means Vox's [`extract_state_deps`](../../../crates/vox-codegen-ts/src/hir_emit/state_deps.rs) logic would be unnecessary for a Solid backend, simplifying the codegen.
 
 ### 2.6 The Reactivity Model Divergence
 
@@ -182,11 +182,11 @@ The industry has split into three camps:
 
 ### 3.1 Complete Artifact Inventory
 
-From [`codegen_ts/emitter.rs`](../../../crates/vox-codegen/src/codegen_ts/emitter.rs) — the `generate_with_options` function produces:
+From [`codegen_ts/emitter.rs`](../../../crates/vox-codegen-ts/src/emitter.rs) — the `generate_with_options` function produces:
 
 | Artifact | Source Node | Framework Deps | Notes |
 |---|---|---|---|
-| **`types.ts`** | `hir.types` (ADTs) | **None** | Pure TS discriminated unions + constructors. [`adt.rs`](../../../crates/vox-codegen/src/codegen_ts/adt.rs) |
+| **`types.ts`** | `hir.types` (ADTs) | **None** | Pure TS discriminated unions + constructors. [`adt.rs`](../../../crates/vox-codegen-ts/src/adt.rs) |
 | **`vox-app-contract.json`** | Full `HirModule` | **None** | JSON contract: HTTP routes, server fns, queries, mutations, islands, MCP tools. [`app_contract.rs`](../../../crates/vox-compiler/src/app_contract.rs) |
 | **`vox-tanstack-query.tsx`** | Static helper | **React + TanStack Query** | `QueryClientProvider` + `useVoxServerQuery` wrapper |
 | **`<Name>.tsx`** | `hir.components` | **React** | Classic `@component fn` → React function component |
@@ -207,8 +207,8 @@ From [`codegen_ts/emitter.rs`](../../../crates/vox-codegen/src/codegen_ts/emitte
 
 These files can be consumed by **any** TypeScript project today:
 
-1. **`types.ts`** — discriminated unions from Vox ADTs (97 lines of codegen in [`adt.rs`](../../../crates/vox-codegen/src/codegen_ts/adt.rs))
-2. **`vox-client.ts`** — typed `fetch()` client. Comment at top of [`vox_client.rs`](../../../crates/vox-codegen/src/codegen_ts/vox_client.rs): *"Framework-agnostic typed fetch client"*. Uses `import.meta.env?.VITE_API_URL` for base URL (Vite convention, works in any Vite project regardless of framework)
+1. **`types.ts`** — discriminated unions from Vox ADTs (97 lines of codegen in [`adt.rs`](../../../crates/vox-codegen-ts/src/adt.rs))
+2. **`vox-client.ts`** — typed `fetch()` client. Comment at top of [`vox_client.rs`](../../../crates/vox-codegen-ts/src/vox_client.rs): *"Framework-agnostic typed fetch client"*. Uses `import.meta.env?.VITE_API_URL` for base URL (Vite convention, works in any Vite project regardless of framework)
 3. **`schema.ts`** — table interfaces from `@table` declarations
 4. **`vox-app-contract.json`** — machine-readable contract with `schema_version: 2`, HTTP routes, server fns, queries, mutations, islands, MCP tools, server config
 5. **`activities.ts`** — Temporal-style activities, pure TS
@@ -277,7 +277,7 @@ Every framework can import and use:
 |---|---|---|---|---|
 | **G1** | No library-mode build target | 🔴 Critical | All output assumes "full app" context | Add `vox build --mode library` — emits only framework-agnostic artifacts |
 | **G2** | No Zod schema generation | 🔴 Critical | ADTs emit TS types only, no runtime validation | Add Zod schema codegen from `HirTypeDef` alongside `types.ts` |
-| **G3** | `routes.manifest.ts` imports React | 🟡 Medium | `import type { ComponentType } from "react"` at line 190 of [`route_manifest.rs`](../../../crates/vox-codegen/src/codegen_ts/route_manifest.rs) | In library mode, emit route manifest as JSON or use generic function type |
+| **G3** | `routes.manifest.ts` imports React | 🟡 Medium | `import type { ComponentType } from "react"` at line 190 of [`route_manifest.rs`](../../../crates/vox-codegen-ts/src/route_manifest.rs) | In library mode, emit route manifest as JSON or use generic function type |
 | **G4** | Business logic coupled to components | 🟡 Medium | Pure functions only exist inside component bodies or as server fns | Separate non-server pure functions into `lib.ts` |
 | **G5** | `InteropNode::ReactComponentRef` | 🟢 Low | WebIR IR is React-specific for component refs | Generalize to `FrameworkComponentRef` with target framework field |
 | **G6** | No npm package scaffolding | 🟡 Medium | No `package.json` for publishable library output | Add `package.json` generation for library mode |
@@ -291,8 +291,8 @@ The original research document incorrectly identified these as gaps:
 
 | Original Claim | Reality |
 |---|---|
-| "`vox-client.ts` has TanStack assumptions" | **Wrong.** `vox-client.ts` is already 100% framework-agnostic (`fetch` only). The docstring in [`vox_client.rs`](../../../crates/vox-codegen/src/codegen_ts/vox_client.rs) line 1 says: *"Framework-agnostic typed fetch client"*. |
-| "Need framework-agnostic type generation" | **Wrong.** [`adt.rs`](../../../crates/vox-codegen/src/codegen_ts/adt.rs) already emits pure TypeScript discriminated unions with zero framework imports. |
+| "`vox-client.ts` has TanStack assumptions" | **Wrong.** `vox-client.ts` is already 100% framework-agnostic (`fetch` only). The docstring in [`vox_client.rs`](../../../crates/vox-codegen-ts/src/vox_client.rs) line 1 says: *"Framework-agnostic typed fetch client"*. |
+| "Need framework-agnostic type generation" | **Wrong.** [`adt.rs`](../../../crates/vox-codegen-ts/src/adt.rs) already emits pure TypeScript discriminated unions with zero framework imports. |
 | "CSS is framework-coupled" | **Wrong.** CSS emission in `emitter.rs` (lines 187–236) outputs plain `.css` files with no framework deps. |
 | "Route definitions need to be data" | **Partially wrong.** `routes.manifest.ts` already defines `VoxRoute[]` as a data structure with `path`, `component`, `loader`, `children`, etc. The only coupling is one React type import. |
 

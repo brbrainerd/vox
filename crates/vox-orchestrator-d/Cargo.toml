@@ -3,6 +3,7 @@ name = "vox-orchestrator-d"
 description = "Vox orchestrator daemon binary. Extracted from vox-orchestrator in 2026-05-08 reorg Phase 4."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 vox-orchestrator = { workspace = true }

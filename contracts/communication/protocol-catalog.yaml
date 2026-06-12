@@ -75,11 +75,10 @@ protocol_families:
     wire_formats: [json-rpc-2.0, mcp]
     machine_contract_paths: [contracts/mcp/tool-registry.canonical.yaml]
     prose_reference_paths:
-      - docs/src/api/vox-mcp.md
       - docs/src/reference/communication-protocols.md
     primary_implementation_paths:
-      - crates/vox-mcp/src/main.rs
-      - crates/vox-mcp/src/server/handlers.rs
+      - crates/vox-cli/src/commands/mcp_server/mod.rs
+      - crates/vox-orchestrator-mcp/src/server.rs
     telemetry_evidence_paths:
       - crates/vox-orchestrator/src/events.rs
     auth_model: Host-owned stdio session with MCP initialize handshake.
@@ -96,12 +95,11 @@ protocol_families:
     machine_contract_paths: [contracts/mcp/http-gateway.openapi.yaml]
     prose_reference_paths:
       - docs/src/reference/mcp-http-gateway-contract.md
-      - docs/src/api/vox-mcp.md
       - docs/src/reference/communication-protocols.md
     primary_implementation_paths:
-      - crates/vox-mcp/src/http_gateway.rs
+      - crates/vox-orchestrator-mcp/src/http_gateway/mod.rs
     telemetry_evidence_paths:
-      - crates/vox-mcp/src/http_gateway.rs
+      - crates/vox-orchestrator-mcp/src/http_gateway/mod.rs
     auth_model: Bearer-scoped remote control with allowlists and rate limiting.
     retirement_decision: keep
     coexistence_notes: Keep bounded and opt-in; it complements MCP stdio for remote/mobile access instead of replacing it.
@@ -151,12 +149,11 @@ protocol_families:
     machine_contract_paths: [contracts/populi/control-plane.openapi.yaml]
     prose_reference_paths:
       - docs/src/reference/populi.md
-      - docs/src/api/vox-mcp.md
       - docs/src/reference/communication-protocols.md
     primary_implementation_paths:
       - crates/vox-populi/src/transport/mod.rs
       - crates/vox-orchestrator/src/a2a/dispatch.rs
-      - crates/vox-mcp/src/a2a.rs
+      - crates/vox-orchestrator-mcp/src/a2a_tools.rs
     telemetry_evidence_paths:
       - crates/vox-db/src/populi_control_telemetry.rs
     auth_model: Mesh submitter/worker/admin bearer roles with explicit inbox ack.
@@ -177,11 +174,11 @@ protocol_families:
       - docs/src/reference/communication-protocols.md
     primary_implementation_paths:
       - crates/vox-orchestrator/src/a2a/bus/message_bus.rs
-      - crates/vox-mcp/src/a2a.rs
+      - crates/vox-orchestrator-mcp/src/a2a_tools.rs
     telemetry_evidence_paths:
       - crates/vox-orchestrator/src/events.rs
-      - crates/vox-mcp/src/a2a.rs
-      - crates/vox-mcp/src/tools/chat_socrates_meta.rs
+      - crates/vox-orchestrator-mcp/src/a2a_tools.rs
+      - crates/vox-orchestrator-mcp/src/chat_socrates_meta.rs
     auth_model: In-process orchestrator ownership; MCP overlays session binding when exposed remotely.
     retirement_decision: keep
     coexistence_notes: This is the low-latency same-process plane and should not be collapsed into remote durable relay semantics.
@@ -308,7 +305,7 @@ protocol_families:
       - crates/vox-orchestrator/src/orch_daemon/client.rs
       - crates/vox-orchestrator/src/bin/vox_orchestrator_d.rs
     telemetry_evidence_paths:
-      - crates/vox-mcp/src/server/lifecycle.rs
+      - crates/vox-orchestrator-mcp/src/lifecycle.rs
     auth_model: Host-local daemon TCP or stdio; MCP reads require repo-id alignment checks.
     retirement_decision: evaluate
     coexistence_notes: Keep separate from DeI `ai.*` method contracts while MCP read/write pilots transition toward IPC-first task and agent routing.

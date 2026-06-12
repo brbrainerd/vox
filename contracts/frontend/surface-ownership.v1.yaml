@@ -16,6 +16,7 @@ surfaces:
     notes:
       - Tauri IPC handlers in crates/vox-gui/src/commands define backend capability.
       - UI panels in crates/vox-gui/ui/src/components/surfaces must map to real handlers.
+      - Browser surface (preview iframe + agent CDP live view) lives in ui/src/components/surfaces/Browser/; backend in src/commands/browser.rs.
 
   - id: vox-dashboard
     path: crates/vox-gui

@@ -614,6 +614,31 @@ fn test_parse_table() {
 }
 
 #[test]
+fn test_parse_table_extern_source_pk() {
+    let m = parse_str(
+        "@table(extern, source: \"legacy_users\", pk: user_id) type User { user_id: int\n name: str }",
+    );
+    if let Decl::Table(t) = &m.declarations[0] {
+        assert_eq!(t.name, "User");
+        assert!(t.is_extern);
+        assert_eq!(t.source.as_deref(), Some("legacy_users"));
+        assert_eq!(t.primary_key.as_deref(), Some("user_id"));
+    } else {
+        panic!("Expected table declaration, got {:?}", m.declarations[0]);
+    }
+}
+
+#[test]
+fn test_parse_table_duplicate_params_error() {
+    assert_parse_fails(
+        "@table(pk: a, pk: b) type T { a: int
+ b: int }",
+    );
+    assert_parse_fails("@table(extern, extern) type T { id: int }");
+    assert_parse_fails("@table(extern, source: \"x\", source: \"y\", pk: id) type T { id: int }");
+}
+
+#[test]
 fn test_parse_index() {
     let m = parse_str("@index Task.by_done on (done, priority)");
     if let Decl::Index(idx) = &m.declarations[0] {

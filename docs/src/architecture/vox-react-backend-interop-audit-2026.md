@@ -72,11 +72,11 @@ Files behind each node:
 | HIR | [`crates/vox-compiler/src/hir/lower/mod.rs`](../../../crates/vox-compiler/src/hir/lower/mod.rs) | Lowers AST and stamps `route_path` per [`web_prefixes.rs`](../../../crates/vox-compiler/src/web_prefixes.rs). |
 | ContractIR | [`crates/vox-compiler/src/contract_ir/project.rs`](../../../crates/vox-compiler/src/contract_ir/project.rs) | Wire-shape projection (`Decimal`/`BigInt` → string, `Option` → optional). |
 | AppContract | [`crates/vox-compiler/src/app_contract.rs`](../../../crates/vox-compiler/src/app_contract.rs) | Stable JSON contract; `VOX_PORT`, `VOX_SSR_DEV_URL` baked in. |
-| OpenAPI emit | [`crates/vox-codegen/src/codegen_ts/openapi_emit.rs`](../../../crates/vox-codegen/src/codegen_ts/openapi_emit.rs) | OpenAPI 3.1; **`servers[0].url` empty string** so composed URLs match absolute `/api/...` paths; **`components.schemas.ErrorEnvelope`** + error responses on operations. |
-| `vox-client.ts` | [`crates/vox-codegen/src/codegen_ts/vox_client.rs`](../../../crates/vox-codegen/src/codegen_ts/vox_client.rs) | Typed client (Zod, `VITE_API_URL`, optional **`configureVoxApiBase`**, **`VoxApiError`** with optional **`wireError`** / **`VoxWireError`** for SSOT §6 bodies). |
+| OpenAPI emit | [`crates/vox-codegen-ts/src/openapi_emit.rs`](../../../crates/vox-codegen-ts/src/openapi_emit.rs) | OpenAPI 3.1; **`servers[0].url` empty string** so composed URLs match absolute `/api/...` paths; **`components.schemas.ErrorEnvelope`** + error responses on operations. |
+| `vox-client.ts` | [`crates/vox-codegen-ts/src/vox_client.rs`](../../../crates/vox-codegen-ts/src/vox_client.rs) | Typed client (Zod, `VITE_API_URL`, optional **`configureVoxApiBase`**, **`VoxApiError`** with optional **`wireError`** / **`VoxWireError`** for SSOT §6 bodies). |
 | `api.ts` (retired) | [`crates/vox-codegen/src/codegen_rust/emit/client.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/client.rs) | Legacy Rust-path emitter; **`api_client_ts` is forced empty** in [`emit/mod.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/mod.rs) — **no `api.ts` is written**. |
-| Zod / `schemas.ts` | [`crates/vox-codegen/src/codegen_ts/zod_emit.rs`](../../../crates/vox-codegen/src/codegen_ts/zod_emit.rs) | Runtime validators consumed by `vox-client.ts`. |
-| TanStack Query | [`crates/vox-codegen/src/codegen_ts/tanstack_query_emit.rs`](../../../crates/vox-codegen/src/codegen_ts/tanstack_query_emit.rs) | Generic `useVoxServerQuery` provider; **not per-endpoint**. |
+| Zod / `schemas.ts` | [`crates/vox-codegen-ts/src/zod_emit.rs`](../../../crates/vox-codegen-ts/src/zod_emit.rs) | Runtime validators consumed by `vox-client.ts`. |
+| TanStack Query | [`crates/vox-codegen-ts/src/tanstack_query_emit.rs`](../../../crates/vox-codegen-ts/src/tanstack_query_emit.rs) | Generic `useVoxServerQuery` provider; **not per-endpoint**. |
 | Rust Axum emit | [`crates/vox-codegen/src/codegen_rust/emit/http.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/http.rs) | `main.rs` + per-endpoint Axum handlers. |
 | HIR HTTP ergonomics | [`crates/vox-compiler/src/hir/nodes/http_ergonomics.rs`](../../../crates/vox-compiler/src/hir/nodes/http_ergonomics.rs) | `HirCorsPolicy`, `HirRateLimitPolicy` defined and tested at language layer. |
 
@@ -113,7 +113,7 @@ Follow-through landed in-tree for several rows above (re-run `cargo test -p vox-
 - **C5:** Query parameters include an explicit **JSON-after-decode** description; SSOT §2.1 references OpenAPI.
 - **C6:** Fixture **`crates/vox-codegen/tests/golden/wire-format/error-envelope.example.json`** and test **`wire_format_golden.rs`** (grow this tree per SSOT §8).
 
-CLI: **`vox emit client`**, **`vox dev --target={fullstack,server,client}`** (compilerd **`target`** field), **`configureVoxApiBase`** in emitted **`vox-client.ts`**. Library mode also emits **`package.json`** ([`library_package_emit.rs`](../../../crates/vox-codegen/src/codegen_ts/library_package_emit.rs)).
+CLI: **`vox emit client`**, **`vox dev --target={fullstack,server,client}`** (compilerd **`target`** field), **`configureVoxApiBase`** in emitted **`vox-client.ts`**. Library mode also emits **`package.json`** ([`library_package_emit.rs`](../../../crates/vox-codegen-ts/src/library_package_emit.rs)).
 
 ### 3.3 Recommended wire-format reconciliation
 
@@ -222,7 +222,7 @@ Each milestone lists **discrete tasks** with a **single file as the unit of work
 
 **Tasks (Option A):**
 
-1. **Edit OpenAPI server URL.** In [`crates/vox-codegen/src/codegen_ts/openapi_emit.rs`](../../../crates/vox-codegen/src/codegen_ts/openapi_emit.rs) line 46, change `servers` to `[{ "url": "" }]` or remove the key entirely. Update existing test at line 256.
+1. **Edit OpenAPI server URL.** In [`crates/vox-codegen-ts/src/openapi_emit.rs`](../../../crates/vox-codegen-ts/src/openapi_emit.rs) line 46, change `servers` to `[{ "url": "" }]` or remove the key entirely. Update existing test at line 256.
 2. **Add a new test `openapi_paths_compose_with_one_api_segment`** in the same file that builds a representative `ContractIr`, emits, and asserts the composed `server + path` for each endpoint contains exactly one `"/api/"` substring.
 3. **Update [`wire-format-v1-ssot.md`](wire-format-v1-ssot.md)** §2 and §2.1 examples to use the canonical paths emitted by [`web_prefixes.rs`](../../../crates/vox-compiler/src/web_prefixes.rs): `/api/query/<name>`, `/api/mutation/<name>`, `/api/<server>`.
 4. **Acceptance:**
@@ -247,7 +247,7 @@ Each milestone lists **discrete tasks** with a **single file as the unit of work
 2. **Modify `emit_server_fn_handler`** ([`http.rs`](../../../crates/vox-codegen/src/codegen_rust/emit/http.rs) line 362). Replace today's two endings (`Json(serde_json::Value::Null)` and `Err(e) => Json(serde_json::json!({"error": e.to_string()}))`) with calls into the helper.
 3. **Modify `emit_query_fn_handler`** (line 419) similarly: when query parse fails or handler body returns `Err`, map to envelope. Currently the function silently coerces missing params to `Value::Null`; add a structured 400 instead with `code = "BAD_REQUEST"` and `details = { param: "<name>" }`.
 4. **Modify `emit_route_handler`** (line 337) for raw `http` routes — same envelope.
-5. **Add an OpenAPI default response** in [`openapi_emit.rs`](../../../crates/vox-codegen/src/codegen_ts/openapi_emit.rs) `emit_operation` so each operation declares `default: ErrorEnvelope` (and define the schema once in `components.schemas.ErrorEnvelope`).
+5. **Add an OpenAPI default response** in [`openapi_emit.rs`](../../../crates/vox-codegen-ts/src/openapi_emit.rs) `emit_operation` so each operation declares `default: ErrorEnvelope` (and define the schema once in `components.schemas.ErrorEnvelope`).
 6. **Acceptance:**
    - New integration test under `crates/vox-integration-tests/tests/error_envelope.rs` that boots the emitted Axum app for a fixture `.vox` file, sends a malformed POST, asserts `{ok:false, code:"BAD_REQUEST"}`.
    - `rg "ok\":\\s*false" crates/vox-codegen → ≥1 hit in `http.rs`.

@@ -482,6 +482,16 @@ pub struct HirTable {
     pub name: String,
     /// Columns.
     pub fields: Vec<HirTableField>,
+    /// Optional logical primary-key field declared by `@table(pk: field_name)`.
+    /// `None` keeps the legacy surrogate `_id`-only behavior.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary_key: Option<String>,
+    /// `true` when mapped from `@table(extern, ...)`.
+    #[serde(default)]
+    pub is_extern: bool,
+    /// External table/view source name from `@table(source: "...")`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
     /// Public API surface.
     pub is_pub: bool,
     /// `@deprecated` table.

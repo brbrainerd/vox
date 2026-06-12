@@ -58,8 +58,18 @@ fn main() {
         print("Formatting Rust across " + str(manifests.len()) + " crates (Windows-safe, per-crate)...");
     }
 
+    // Workspace-excluded tombstones still match crates/*/Cargo.toml but cannot
+    // use `cargo fmt --manifest-path` (no workspace root for *.workspace keys).
+    let skip_manifests = [
+        "crates/vox-plugin-cloud/Cargo.toml",
+    ];
+
     let mut failed = 0;
     for m in manifests {
+        let m_norm = norm(m);
+        if skip_manifests.contains(m_norm) {
+            continue;
+        }
         let mut args = ["fmt", "--manifest-path", m];
         if check {
             args = args.push("--");

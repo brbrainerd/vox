@@ -14,7 +14,8 @@ pub const ALL_REGISTRIES: &[&[SecretSpec]] = &[
     registry::SPECS_SCHOLARLY,
     registry::SPECS_CONFIG,
     registry::SPECS_IDENTITY,
-    registry::missing::SPECS_MISSING,
+    registry::missing::SPECS_MISSING_CORE,
+    registry::missing::SPECS_MISSING_TAIL,
 ];
 
 #[must_use]

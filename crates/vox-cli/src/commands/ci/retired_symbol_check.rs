@@ -245,51 +245,35 @@ fn scan_source_lines(
 }
 
 fn collect_crate_rs_files(crates_dir: &Path, out: &mut Vec<PathBuf>) {
-    let Ok(entries) = fs::read_dir(crates_dir) else {
-        return;
-    };
-    for crate_entry in entries.flatten() {
-        let p = crate_entry.path();
-        if p.is_dir() {
-            walk_rs_files_inner(&p, out);
-        }
-    }
-}
-
-fn walk_rs_files_inner(dir: &Path, out: &mut Vec<PathBuf>) {
-    let Ok(entries) = fs::read_dir(dir) else {
-        return;
-    };
-    for e in entries.flatten() {
-        let p = e.path();
-        let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if p.is_dir() {
-            if matches!(
-                name,
-                "target" | "tests" | "benches" | "snapshots" | "fixtures" | ".git"
-            ) {
-                continue;
-            }
-            walk_rs_files_inner(&p, out);
-        } else if p.extension().and_then(|ext| ext.to_str()) == Some("rs") {
-            out.push(p);
+    let walker = walkdir::WalkDir::new(crates_dir)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_str().unwrap_or("");
+            !(e.file_type().is_dir()
+                && matches!(
+                    name,
+                    "target" | "tests" | "benches" | "snapshots" | "fixtures" | ".git"
+                ))
+        });
+    for entry in walker.filter_map(Result::ok) {
+        let p = entry.path();
+        if entry.file_type().is_file() && p.extension().and_then(|ext| ext.to_str()) == Some("rs") {
+            out.push(p.to_path_buf());
         }
     }
 }
 
 fn collect_cursor_rule_files(rules_dir: &Path, out: &mut Vec<PathBuf>) {
-    let Ok(entries) = fs::read_dir(rules_dir) else {
-        return;
-    };
-    for e in entries.flatten() {
-        let p = e.path();
-        if p.is_dir() {
-            collect_cursor_rule_files(&p, out);
-        } else if p.extension().and_then(|ext| ext.to_str()) == Some("mdc") {
-            if p.file_name().and_then(|n| n.to_str()) == Some("retired-surfaces.mdc") {
-                continue;
-            }
-            out.push(p);
+    for entry in walkdir::WalkDir::new(rules_dir)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
+        let p = entry.path();
+        if entry.file_type().is_file()
+            && p.extension().and_then(|ext| ext.to_str()) == Some("mdc")
+            && p.file_name().and_then(|n| n.to_str()) != Some("retired-surfaces.mdc")
+        {
+            out.push(p.to_path_buf());
         }
     }
 }
@@ -299,7 +283,7 @@ fn collect_cursor_rule_files(rules_dir: &Path, out: &mut Vec<PathBuf>) {
 /// Rust sources under `crates/` are intentionally out of scope: many crates legitimately mention
 /// retired names (guards, migrations, compatibility layers). Keep this check documentation-forward.
 pub fn run(root: &Path) -> Result<()> {
-    super::docs_deprecated_command_guard::verify(root)?;
+    vox_cli_ci::docs_deprecated_command_guard::run(root)?;
 
     let policy_path = root.join("contracts/documentation/retired-symbols.v1.yaml");
     if !policy_path.exists() {

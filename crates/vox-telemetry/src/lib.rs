@@ -149,6 +149,7 @@ pub use types::{
     TelemetryEvent,
     // write helpers
     TelemetryWriteOptions,
+    model_call_event_to_gen_ai_attributes,
     validate_research_metric_row,
 };
 

@@ -25,6 +25,28 @@ use crate::hir::*;
 
 use super::LowerCtx;
 
+/// Distinct synthetic spans for `@json_as` generated bodies (avoids `inferred_types` collisions).
+struct SynthSpans {
+    cursor: usize,
+    base: usize,
+}
+
+impl SynthSpans {
+    fn new(origin: Span) -> Self {
+        Self {
+            cursor: 0,
+            // Place after the type decl span in byte space — synthetic nodes only.
+            base: origin.end.saturating_add(1024),
+        }
+    }
+
+    fn fresh(&mut self) -> Span {
+        let start = self.base + self.cursor;
+        self.cursor += 2;
+        Span::new(start, start + 1)
+    }
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Public entry point
 // ──────────────────────────────────────────────────────────────────────────────
@@ -124,22 +146,25 @@ fn build_from_json_struct(
 ) -> Vec<HirStmt> {
     let mut stmts: Vec<HirStmt> = Vec::new();
     let mut field_names: Vec<String> = Vec::new();
+    let mut sp = SynthSpans::new(span);
 
     for field in &t.fields {
         let json_key = resolve_key(field, &ann.naming);
         field_names.push(field.name.clone());
-        emit_field_stmts(ctx, &mut stmts, field, &json_key, &t.name, ann, span);
+        emit_field_stmts(ctx, &mut stmts, field, &json_key, &t.name, ann, sp.fresh());
     }
 
     // Return Ok(TypeName { field1: field1, ... })
+    let obj_span = sp.fresh();
     let obj = HirExpr::ObjectLit(
         field_names
             .iter()
-            .map(|n| (n.clone(), expr_ident(n, span)))
+            .map(|n| (n.clone(), expr_ident(n, sp.fresh())))
             .collect(),
-        span,
+        obj_span,
     );
-    stmts.push(ret(expr_ok(obj, span), span));
+    let ok_span = sp.fresh();
+    stmts.push(ret(expr_ok(obj, ok_span), sp.fresh()));
     stmts
 }
 
@@ -371,18 +396,20 @@ fn build_to_json(ctx: &mut LowerCtx, t: &TypeDefDecl, ann: &JsonAsAnnotation, sp
     };
 
     let body = if !t.fields.is_empty() {
+        let mut sp = SynthSpans::new(span);
         // Struct: emit { "key": v.field, ... }
         let pairs: Vec<(String, HirExpr)> = t
             .fields
             .iter()
             .map(|f| {
                 let key = resolve_key(f, &ann.naming);
-                let val =
-                    HirExpr::FieldAccess(Box::new(expr_ident("v", span)), f.name.clone(), span);
+                let fs = sp.fresh();
+                let val = HirExpr::FieldAccess(Box::new(expr_ident("v", fs)), f.name.clone(), fs);
                 (key, val)
             })
             .collect();
-        vec![ret(HirExpr::ObjectLit(pairs, span), span)]
+        let obj_span = sp.fresh();
+        vec![ret(HirExpr::ObjectLit(pairs, obj_span), sp.fresh())]
     } else {
         // ADT full serialisation is deferred to v2 (RFC §8).
         // For now emit a minimal { "_type": "<TypeName>" } sentinel so callers
@@ -825,6 +852,43 @@ mod tests {
                 vec![HirType::Named("Widget".to_string())]
             ))
         );
+    }
+
+    #[test]
+    fn from_json_ok_object_lit_uses_distinct_spans() {
+        let mut ctx = make_ctx();
+        let origin = Span::new(10, 20);
+        let t = TypeDefDecl {
+            name: "Widget".to_string(),
+            generics: vec![],
+            variants: vec![],
+            fields: vec![str_field("name")],
+            type_alias: None,
+            json_layout: None,
+            is_pub: false,
+            is_deprecated: false,
+            json_as: Some(make_ann("snake_case")),
+            span: origin,
+        };
+        let fns = synthesise_json_as_fns(&mut ctx, &t);
+        let ret = fns[0].body.last().expect("return");
+        let HirStmt::Return {
+            value: Some(val), ..
+        } = ret
+        else {
+            panic!("expected return");
+        };
+        let HirExpr::Call(_, args, _, call_span) = val else {
+            panic!("expected Ok call");
+        };
+        let HirExpr::ObjectLit(_, obj_span) = &args[0].value else {
+            panic!("expected ObjectLit arg");
+        };
+        assert_ne!(
+            call_span, obj_span,
+            "Ok call and ObjectLit must not share a span (inferred_types collision)"
+        );
+        assert!(obj_span.start >= origin.end + 1024);
     }
 
     #[test]

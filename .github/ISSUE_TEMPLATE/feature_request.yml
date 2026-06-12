@@ -1,0 +1,49 @@
+name: Feature request
+description: Suggest an idea or improvement
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem you want solved and how a feature would help.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What pain point or workflow gap does this address?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like this to work?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you thought about.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Compiler / language
+        - CLI / tooling
+        - Orchestrator / runtime
+        - GUI
+        - Docs
+        - CI / infra
+        - Other
+    validations:
+      required: false
