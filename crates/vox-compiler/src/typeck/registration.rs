@@ -486,12 +486,10 @@ pub fn register_hir_table(env: &mut TypeEnv, t: &HirTable) -> Vec<Diagnostic> {
         .iter()
         .map(|f| (f.name.clone(), resolve_hir_type(&f.type_ann, env)))
         .collect();
-    let primary_key = t.primary_key.as_ref().and_then(|name| {
-        fields
-            .iter()
-            .find(|(field, _)| field == name)
-            .map(|(field, ty)| (field.clone(), Box::new(ty.clone())))
-    });
+    // Validate the declared pk first; only a pk that passes validation is
+    // materialized into the table type (an invalid pk must not flow into
+    // downstream codegen as if it were usable).
+    let mut primary_key: Option<(String, Box<Ty>)> = None;
     if let Some(pk_name) = &t.primary_key {
         match fields.iter().find(|(field, _)| field == pk_name) {
             None => {
@@ -520,7 +518,9 @@ pub fn register_hir_table(env: &mut TypeEnv, t: &HirTable) -> Vec<Diagnostic> {
                     .with_code("E1042"),
                 );
             }
-            Some(_) => {}
+            Some((field, ty)) => {
+                primary_key = Some((field.clone(), Box::new(ty.clone())));
+            }
         }
     }
     let table_ty = Ty::Table(t.name.clone(), fields, primary_key);
