@@ -18,6 +18,7 @@ import { PoliciesView } from '../surfaces/Policies/PoliciesView';
 import { ParentSurface } from './ParentSurface';
 import { surfaceDecorators } from '../surfaces/decoratorRegistry';
 import { ChatSurface } from '../surfaces/Chat/ChatSurface';
+import { Console } from '../surfaces/Console/Console';
 import type { DashboardData, Agent, LudusAlert, StreamItem } from '../../types/dashboard';
 import type { CatalogEntry, Toast } from '../../types/tauri';
 import type { ChatMessage } from '../../lib/chatCorrelation';
@@ -37,6 +38,7 @@ export interface SurfaceProps {
   skills?: CatalogEntry[];
   onAttachContext?: (items: Array<{ kind: 'file' | 'url' | 'image'; label: string }>) => void;
   onNavigate?: (viewKey: string) => void;
+  onOpenInConsole?: (a: Agent) => void;
   activeChild?: string;
   onChildChange?: (viewKey: string) => void;
   activeSessionId?: string;
@@ -61,6 +63,7 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
           onAckLudus={props.onAckLudus!}
           filterKind={props.filterKind!}
           setFilterKind={props.setFilterKind!}
+          onOpenInConsole={props.onOpenInConsole}
         />
       );
     case 'flow':
@@ -93,6 +96,17 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
       return <HarnessRedirect onFocusComposer={props.onFocusComposer} />;
     case 'browser':
       return <BrowserView pushToast={props.pushToast} />;
+    case 'console':
+      return (
+        <Console
+          pushToast={props.pushToast}
+          initialAgentId={
+            props.selectedAgentId && props.selectedAgentId !== 'ROOT'
+              ? props.selectedAgentId
+              : null
+          }
+        />
+      );
     case 'approvals':
       return <ApprovalsView pushToast={props.pushToast} />;
     case 'policies':

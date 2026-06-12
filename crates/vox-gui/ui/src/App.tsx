@@ -71,6 +71,7 @@ type View =
   | 'gamify'
   | 'harness'
   | 'browser'
+  | 'console'
   | 'scientia'
   | 'discovery-review'
   | 'claims'
@@ -94,7 +95,7 @@ type View =
 
 const LEGACY_VIEWS: string[] = [
   'dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository',
-  'mesh', 'gamify', 'harness', 'browser', 'scientia', 'discovery-review', 'claims', 'mens',
+  'mesh', 'gamify', 'harness', 'browser', 'console', 'scientia', 'discovery-review', 'claims', 'mens',
   'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage',
   'publications', 'search', 'chat', 'agents', 'workspace', 'commands', 'knowledge', 'compute',
 ];
@@ -877,6 +878,10 @@ export default function App() {
     skills: data.skills,
     onAttachContext: attachContext,
     onNavigate: navigateTo,
+    onOpenInConsole: (a: Agent) => {
+      setSelectedAgentId(a.id);
+      navigateTo('console');
+    },
     activeChild: nav.child,
     onChildChange: (vk: string) => setActiveView(vk as View),
     activeSessionId,
