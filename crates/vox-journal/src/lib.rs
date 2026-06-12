@@ -1,8 +1,11 @@
 //! Generic append-only JSON Lines file journal.
 //!
 //! Stores a sequence of `serde`-serializable entries one per line in a file.
-//! Crash-safe: every successful `append` call flushes + `sync_data`s the
-//! handle so the bytes are on the device before the call returns. On
+//! Crash-safe by default ([`AppendDurability::SyncEachAppend`]): every
+//! successful `append` call flushes + `sync_data`s the handle so the bytes
+//! are on the device before the call returns. Mobile profiles open with
+//! [`AppendDurability::Deferred`] instead and make the bytes durable on the
+//! OS lifecycle hook (`Suspendable::suspend` → [`FileJournal::sync`]). On
 //! `open`, the existing file is fully read and parsed entries are returned
 //! to the caller for replay.
 //!
@@ -20,4 +23,4 @@
 
 mod file;
 
-pub use file::{FileJournal, JournalError};
+pub use file::{AppendDurability, FileJournal, JournalError};

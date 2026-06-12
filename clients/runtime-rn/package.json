@@ -9,16 +9,24 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./plugin": "./plugin/index.js",
+    "./plugin.js": "./plugin.js",
+    "./app.plugin.js": "./app.plugin.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "plugin",
+    "plugin.js",
+    "app.plugin.js"
   ],
   "scripts": {
     "generate-bindings": "node scripts/generate-bindings.mjs",
+    "test": "node --test tests/plugin.test.mjs",
     "tsc": "tsc -p tsconfig.test.json"
   },
   "peerDependencies": {
+    "@expo/config-plugins": ">=9.0.0",
     "react": ">=18.0.0",
     "react-native": ">=0.74.0",
     "expo-haptics": ">=14.0.0",
@@ -26,6 +34,11 @@
     "expo-linking": ">=7.0.0",
     "expo-notifications": ">=0.29.0",
     "expo-file-system": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@expo/config-plugins": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@vox/runtime-types": "0.6.0"
