@@ -220,7 +220,7 @@ fn strip_line_comment(line: &str) -> &str {
                     slashes += 1;
                     j -= 1;
                 }
-                if slashes % 2 == 0 {
+                if slashes.is_multiple_of(2) {
                     in_string = false;
                 }
             }
@@ -255,7 +255,7 @@ fn strip_string_literals(line: &str) -> String {
                     slashes += 1;
                     j -= 1;
                 }
-                if slashes % 2 == 0 {
+                if slashes.is_multiple_of(2) {
                     in_string = false;
                 }
                 result.push(ch);
@@ -275,23 +275,16 @@ fn strip_string_literals(line: &str) -> String {
 /// Walk `dir` recursively and collect all files matching `predicate`.
 fn walk_files(dir: &Path, predicate: impl Fn(&Path) -> bool) -> Vec<PathBuf> {
     let mut results = Vec::new();
-    walk_files_inner(dir, &predicate, &mut results);
-    results
-}
-
-fn walk_files_inner(dir: &Path, predicate: &impl Fn(&Path) -> bool, out: &mut Vec<PathBuf>) {
-    let rd = match std::fs::read_dir(dir) {
-        Ok(r) => r,
-        Err(_) => return,
-    };
-    for entry in rd.flatten() {
+    for entry in walkdir::WalkDir::new(dir)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
         let path = entry.path();
-        if path.is_dir() {
-            walk_files_inner(&path, predicate, out);
-        } else if predicate(&path) {
-            out.push(path);
+        if entry.file_type().is_file() && predicate(path) {
+            results.push(path.to_path_buf());
         }
     }
+    results
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

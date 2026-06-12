@@ -4,6 +4,7 @@ description = "Vox Language Server Protocol implementation (stdio JSON-RPC)."
 publish = false
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [features]
 # `db` (default-on) enables the Ludus project-DB + gamification telemetry side

@@ -196,25 +196,7 @@ impl TimeEstimator {
 
 /// O(n×m) Levenshtein edit distance. Used for fuzzy GPU name matching.
 fn edit_distance(a: &str, b: &str) -> usize {
-    let a: Vec<char> = a.chars().collect();
-    let b: Vec<char> = b.chars().collect();
-    let mut dp = vec![vec![0usize; b.len() + 1]; a.len() + 1];
-    for i in 0..=a.len() {
-        dp[i][0] = i;
-    }
-    for j in 0..=b.len() {
-        dp[0][j] = j;
-    }
-    for i in 1..=a.len() {
-        for j in 1..=b.len() {
-            dp[i][j] = if a[i - 1] == b[j - 1] {
-                dp[i - 1][j - 1]
-            } else {
-                1 + dp[i - 1][j - 1].min(dp[i - 1][j]).min(dp[i][j - 1])
-            };
-        }
-    }
-    dp[a.len()][b.len()]
+    strsim::levenshtein(a, b)
 }
 
 #[cfg(test)]

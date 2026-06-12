@@ -23,6 +23,7 @@ tiers:
     allow_direct_access:
       - vox-db
       - vox-secrets
+      - vox-sql
     # vox-package listed until M-26 completes; remove thereafter.
     # vox-gamify owns gamify_* and vox_identities tables in
     # crates/vox-gamify/src/schema.rs — transitional until those tables
@@ -67,6 +68,7 @@ tiers:
 
 env_vars:
   canonical:
+    - VOX_APP_DB_URL
     - VOX_DB_URL
     - VOX_DB_TOKEN
     - VOX_DATA_DIR

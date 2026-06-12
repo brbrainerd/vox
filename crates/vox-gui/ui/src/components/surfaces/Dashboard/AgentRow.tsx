@@ -11,8 +11,8 @@ interface AgentRowProps {
 
 export function AgentRow({ a, onPause, onResume }: AgentRowProps) {
   const t = PHASE_TONE[a.phase as PhaseKind] || PHASE_TONE.Paused;
-  const pct = Math.round(a.progress * 100);
-  const bp = (a.cost / a.budget) * 100;
+  const pct = a.progress != null ? Math.round(a.progress * 100) : null;
+  const bp = a.budget != null && a.budget > 0 ? (a.cost / a.budget) * 100 : null;
 
   return (
     <div className="group relative rounded-xl border border-white/5 bg-white/[0.015] p-3 transition hover:border-white/10 hover:bg-white/[0.03]">
@@ -31,7 +31,9 @@ export function AgentRow({ a, onPause, onResume }: AgentRowProps) {
           <div className="text-right">
             <div className="font-mono text-[11px] tabular-nums text-zinc-200">
               ${a.cost.toFixed(2)}
-              <span className="text-zinc-600"> / ${a.budget.toFixed(2)}</span>
+              <span className="text-zinc-600">
+                {a.budget != null ? ` / $${a.budget.toFixed(2)}` : ' / —'}
+              </span>
             </div>
             <div className="font-mono text-[10px] text-zinc-500">eta {a.eta}</div>
           </div>
@@ -45,23 +47,33 @@ export function AgentRow({ a, onPause, onResume }: AgentRowProps) {
       </div>
       <div className="mt-2.5 flex items-center gap-2">
         <div className="relative h-1 flex-1 overflow-hidden rounded-full bg-white/5">
-          <div 
-            className={`absolute inset-y-0 left-0 rounded-full ${
-              a.phase === "Verifying" ? "bg-violet-400" : 
-              a.phase === "Executing" ? "bg-brass" : 
-              a.phase === "Planning" ? "bg-cyan-400" : "bg-zinc-500"
-            }`} 
-            style={{ width: `${pct}%` }} 
-          />
-          <div className="absolute inset-y-0 left-0 w-full bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent)] animate-vox-shimmer" style={{ width: `${pct}%` }} />
+          {pct != null ? (
+            <>
+              <div
+                className={`absolute inset-y-0 left-0 rounded-full ${
+                  a.phase === "Verifying" ? "bg-violet-400" :
+                  a.phase === "Executing" ? "bg-brass" :
+                  a.phase === "Planning" ? "bg-cyan-400" : "bg-zinc-500"
+                }`}
+                style={{ width: `${pct}%` }}
+              />
+              <div className="absolute inset-y-0 left-0 w-full bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent)] animate-vox-shimmer" style={{ width: `${pct}%` }} />
+            </>
+          ) : (
+            <div className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-zinc-500 animate-pulse" />
+          )}
         </div>
-        <span className="w-9 text-right font-mono text-[10px] text-zinc-500 tabular-nums">{pct}%</span>
-        <div className="ml-1 h-1 w-12 overflow-hidden rounded-full bg-white/5">
-          <div 
-            className={`h-full ${bp > 80 ? "bg-rose-400" : bp > 50 ? "bg-amber-400" : "bg-emerald-400"}`} 
-            style={{ width: `${Math.min(100, bp)}%` }} 
-          />
-        </div>
+        <span className="w-9 text-right font-mono text-[10px] text-zinc-500 tabular-nums">
+          {pct != null ? `${pct}%` : '…'}
+        </span>
+        {bp != null && (
+          <div className="ml-1 h-1 w-12 overflow-hidden rounded-full bg-white/5">
+            <div
+              className={`h-full ${bp > 80 ? "bg-rose-400" : bp > 50 ? "bg-amber-400" : "bg-emerald-400"}`}
+              style={{ width: `${Math.min(100, bp)}%` }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

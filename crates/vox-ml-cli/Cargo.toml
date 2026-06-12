@@ -2,6 +2,7 @@
 name = "vox-ml-cli"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 description = "Vox ML, AI, and Telemetry command-line interface."
 default-run = "vox-ml-cli"
 
@@ -93,10 +94,14 @@ hex = { workspace = true }
 windows-sys = { workspace = true, features = ["Win32_System_Threading", "Win32_Foundation"] }
 vox-constrained-gen = { workspace = true }
 axum = { workspace = true, optional = true }
+chrono = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
 candle-core = { workspace = true }
+# Used by populi/gpu_tests_body.rs (gated `#[cfg(all(test, feature = "gpu"))]`)
+# to synthesize base/adapter shards for the merge-qlora tests.
+safetensors = { workspace = true }
 
 [lints]
 workspace = true

@@ -13,10 +13,7 @@ kind = "code"
 abi-version = 12
 
 [plugin.payload.provides]
-# TODO: re-add "HttpListener" once `impl VoxPlugin for WebhookPlugin` overrides
-# `as_http_listener` (today it implements WebhookEventSink, not the HttpListener
-# extension trait, so the host cannot surface it).
-extension-points = []
+extension-points = ["HttpListener"]
 
 [plugin.payload.artifacts]
 "windows-x86_64" = "vox_plugin_webhook.dll"

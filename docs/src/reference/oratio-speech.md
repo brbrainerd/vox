@@ -44,7 +44,7 @@ schema_type: "TechArticle"
 - `crates/vox-db/src/` — Codex store + readiness helpers consumed by HTTP surfaces.
 - `crates/vox-compiler/src/typeck/` — `Speech` / builtins.
 - `crates/vox-compiler/src/codegen_rust/` — `Cargo.toml` template + `MethodCall` for `Speech`
-- `crates/vox-codegen/src/codegen_ts/` — `Speech.transcribe` stub
+- `crates/vox-codegen-ts/src/` — `Speech.transcribe` stub
 - `crates/vox-lsp/src/lib.rs` — `word_at_position`, `line_has_speech_transcribe`, `builtin_hover_markdown_in_line`; `main.rs` — hover
 - `examples/oratio/codexAudioTranscribe.ts`, `examples/oratio/README.md`
 - `crates/vox-corpus/src/corpus/mix.rs` — `record_format`, `normalize_training_jsonl_line`

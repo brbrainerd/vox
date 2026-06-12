@@ -286,8 +286,12 @@ In Vox, tests are not just regression catchers — they are training data for th
 **Run CI locally first — do NOT use GitHub Actions as your primary feedback loop (Required).**
 GitHub-hosted CI is slow (minutes-to-tens-of-minutes per push) and burns runner
 minutes on iteration noise. Before every push, reproduce the relevant gates locally
-and only push once they are green. We have Docker available, so the full GitHub
-workflow suite can be run locally with `act`:
+and only push once they are green. **Local-first runner policy:** CI jobs default to
+the self-hosted Docker fleet; GitHub-hosted `runs-on` requires a registered exception
+([`docs/src/ci/github-hosted-exceptions.md`](docs/src/ci/github-hosted-exceptions.md)).
+Advisory drift check: `vox ci runner-policy-check` (warn by default; `--strict` to fail).
+See [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md) §Local-first CI.
+We have Docker available, so the full GitHub workflow suite can be run locally with `act`:
 
 - **Reproduce the actual GitHub jobs in Docker:** `vox ci pre-push --act` runs the
   workflow jobs via [nektos/act](https://github.com/nektos/act) in containers that
@@ -316,7 +320,7 @@ Use `vox ci pre-push` to run any tier locally. Install the hook once with `cargo
 | **full+cov+since** | `vox ci pre-push --full --with-coverage --since <ref>` | combination of full+cov + since | ≤30s typical |
 | **ci-equivalent** | `vox ci pre-push --full --with-coverage --include-slow` | full+cov + slow `#[ignore]` partition | ≤480s |
 
-**Slow-test partition** (`--include-slow`): runs four `#[ignore = "slow; ..."]` tests that are excluded by default. CI always sets this flag. The 4 tests are: `arch_check_smoke_test`, `description_rule_produces_output_on_clean_workspace`, `timeout_kills_long_running_child`, `generated_ai_fixture_bundle_passes_cargo_check`.
+**Slow-test partition** (`--include-slow`): runs three `#[ignore = "slow; ..."]` tests that are excluded by default. CI always sets this flag. The 3 tests are: `arch_check_live_workspace_smoke_and_description_rule`, `timeout_kills_long_running_child`, `generated_ai_fixture_bundle_passes_cargo_check`.
 
 **Budget enforcement:** `--enforce-budgets` compares total elapsed against `contracts/budgets/test-tier-budgets.v1.yaml` (warn at 1.2×, fail at 1.5× measured baseline). No-op if the budgets file is absent. CI also runs `vox ci tier-budget-check --junit target/nextest/ci/junit.xml --profile full` after each nextest run.
 

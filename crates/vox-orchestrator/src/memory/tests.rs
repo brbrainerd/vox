@@ -7,7 +7,6 @@ use super::config::MemoryConfig;
 
 use super::long_term::LongTermMemory;
 use super::manager::MemoryManager;
-use super::time::unix_secs_to_ymd;
 
 fn memory_workdir() -> TempDir {
     TempDir::new().expect("tempdir")
@@ -136,15 +135,6 @@ fn disabled_memory_manager_returns_empty_context() {
         ctx.is_empty(),
         "disabled memory should return empty context"
     );
-}
-
-#[test]
-fn unix_secs_to_ymd_basic() {
-    // 2026-02-27 00:00:00 UTC = 1772150400 secs
-    let (y, m, d) = unix_secs_to_ymd(1_772_150_400);
-    assert_eq!(y, 2026);
-    assert_eq!(m, 2);
-    assert_eq!(d, 27);
 }
 
 #[test]

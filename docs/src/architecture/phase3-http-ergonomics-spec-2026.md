@@ -14,7 +14,7 @@ training_rationale: "Implementation spec for HTTP ergonomics; required reading b
 Read before this document:
 - [`wire-format-v1-ssot.md`](wire-format-v1-ssot.md) — path param and query string serialization rules
 - `crates/vox-compiler/src/hir/nodes/decl.rs` `HirEndpointFn` (lines 340–363) — current HIR shape
-- `crates/vox-codegen/src/codegen_ts/routes.rs` — current Express route emitter
+- `crates/vox-rn-codegen/src/routes.rs` — current Express route emitter
 
 **Grammar unification rule (AGENTS.md):** new behavior goes on decorators, not bare keywords. Every feature in this phase is a decorator or an extension of an existing decorator.
 

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
-use crate::distributed_training::checkpoint::CheckpointBundle;
-use crate::distributed_training::gradient::GradientShard;
+use super::checkpoint::CheckpointBundle;
+use super::gradient::GradientShard;
 
 /// Stable identifier for a logical training run (maps to op-log / CAS correlation).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]

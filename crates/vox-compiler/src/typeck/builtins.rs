@@ -1666,29 +1666,26 @@ impl BuiltinTypes {
 
     /// Look up a method on a given type.
     pub fn lookup_method(&self, obj_ty: &Ty, method: &str) -> Option<Ty> {
-        if let Ty::Table(_, fields) = obj_ty {
+        if let Ty::Table(_, fields, primary_key) = obj_ty {
             return match method {
                 "insert" => {
-                    // insert(item: Record) -> Result[i64]. The auto-generated primary
-                    // key `id` is assigned by the store (get/delete key on `int id`),
-                    // so it is NOT required on insert — matching the canonical CRUD
-                    // pattern `db.T.insert({ ...non-id fields })`.
-                    let item_fields: Vec<(String, Ty)> = fields
-                        .iter()
-                        .filter(|(name, _)| name != "id")
-                        .cloned()
-                        .collect();
-                    let item_ty = Ty::Record(item_fields);
+                    // insert(item: Record) -> Result[i64]. Keep insert structural over all
+                    // declared fields; logical PK handling is enforced on get/delete/find.
+                    let item_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
                         vec![item_ty],
                         Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))),
                     ))
                 }
                 "get" => {
-                    // get(id: int) -> Result[Option[Record]]
+                    // get(pk: <resolved primary-key type>) -> Result[Option[Record]]
                     let record_ty = Ty::Record(fields.clone());
+                    let key_ty = primary_key
+                        .as_ref()
+                        .map(|(_, ty)| ty.as_ref().clone())
+                        .unwrap_or(Ty::Int);
                     Some(Ty::Fn(
-                        vec![Ty::Int],
+                        vec![key_ty],
                         Box::new(Ty::Result(
                             Box::new(Ty::Option(Box::new(record_ty))),
                             Box::new(Ty::Str),
@@ -1696,9 +1693,13 @@ impl BuiltinTypes {
                     ))
                 }
                 "delete" => {
-                    // delete(id: int) -> Result[Unit]
+                    // delete(pk: <resolved primary-key type>) -> Result[Unit]
+                    let key_ty = primary_key
+                        .as_ref()
+                        .map(|(_, ty)| ty.as_ref().clone())
+                        .unwrap_or(Ty::Int);
                     Some(Ty::Fn(
-                        vec![Ty::Int],
+                        vec![key_ty],
                         Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
                     ))
                 }
@@ -1729,8 +1730,12 @@ impl BuiltinTypes {
                 )),
                 "find" => {
                     let record_ty = Ty::Record(fields.clone());
+                    let key_ty = primary_key
+                        .as_ref()
+                        .map(|(_, ty)| ty.as_ref().clone())
+                        .unwrap_or(Ty::Int);
                     Some(Ty::Fn(
-                        vec![Ty::Int],
+                        vec![key_ty],
                         Box::new(Ty::Result(
                             Box::new(Ty::Option(Box::new(record_ty))),
                             Box::new(Ty::Str),

@@ -141,28 +141,18 @@ fn run_names(args: NamesArgs) -> Result<()> {
 
 fn collect_vox_files(root: &std::path::Path) -> std::io::Result<Vec<PathBuf>> {
     let mut out = Vec::new();
-    walk_for_names(root, &mut out)?;
-    Ok(out)
-}
-
-fn walk_for_names(dir: &std::path::Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
-    if !dir.is_dir() {
-        return Ok(());
-    }
-    for entry in std::fs::read_dir(dir)? {
-        let entry = entry?;
+    let walker = walkdir::WalkDir::new(root).into_iter().filter_entry(|e| {
+        let name = e.file_name();
+        !(e.file_type().is_dir() && (name == "target" || name == "node_modules" || name == ".git"))
+    });
+    for entry in walker {
+        let entry = entry.map_err(std::io::Error::other)?;
         let path = entry.path();
-        if path.is_dir() {
-            let name = path.file_name().unwrap_or_default();
-            if name == "target" || name == "node_modules" || name == ".git" {
-                continue;
-            }
-            walk_for_names(&path, out)?;
-        } else if path.extension().is_some_and(|e| e == "vox") {
-            out.push(path);
+        if entry.file_type().is_file() && path.extension().is_some_and(|e| e == "vox") {
+            out.push(path.to_path_buf());
         }
     }
-    Ok(())
+    Ok(out)
 }
 
 /// Codemod: rewrite identifier tokens that match a registry `from` name to their

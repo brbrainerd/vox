@@ -1,15 +1,21 @@
 # vox-tauri-stt
 
-On-device speech-to-text for **Tauri 2** apps:
+Speech-to-text plugin surface for **desktop Tauri 2** apps:
 
 - **`guest-js/index.ts`** — `transcribe()` via `@tauri-apps/api/core` `invoke`.
-- **`android/.../SpeechRecognizerBridge.kt`** — `SpeechRecognizer` + `EXTRA_PREFER_OFFLINE` (ported from the mental-tracker Capacitor plugin; **no Capacitor**).
-- **`ios/AppleSpeechBackend.swift`** — `SFSpeechRecognizer` + `AVAudioEngine`, `requiresOnDeviceRecognition = true`.
+- **`src/plugin.rs`** — Tauri 2 plugin registration (feature `tauri-plugin`).
+
+> **Scope note (ADR: scope-tauri-desktop-only).** Tauri is desktop-only in Vox.
+> The Android (`SpeechRecognizerBridge.kt`) and iOS (`AppleSpeechBackend.swift`)
+> sources that used to live in this crate were removed with that decision —
+> mobile transcription belongs to the React Native target
+> (`vox build --target=mobile`) via `@vox/runtime-rn`. A desktop STT backend is
+> not wired yet; the `transcribe` command returns an explicit error until one is.
 
 ## Rust crate
 
 - **Default:** [`TranscribeResult`](crate::TranscribeResult), [`PLUGIN_ID`](crate::PLUGIN_ID), [`TRANSCRIBE_COMMAND`](crate::TRANSCRIBE_COMMAND) — serde-only; no `tauri` dependency.
-- **Feature `tauri-plugin`:** [`plugin::init`](crate::plugin::init) returns a registered Tauri 2 plugin (`invoke` id matches guest JS). On-device STT still requires wiring Kotlin/Swift into this command on mobile targets.
+- **Feature `tauri-plugin`:** [`plugin::init`](crate::plugin::init) returns a registered Tauri 2 plugin (`invoke` id matches guest JS).
 
 Embed in generated `src-tauri` / app crate:
 
@@ -26,7 +32,7 @@ tauri::Builder::default()
 vox-tauri-stt = { path = "../crates/vox-tauri-stt", features = ["tauri-plugin"] }
 ```
 
-`build.rs` should register an **inlined** ACL plugin named `vox-stt` with command `transcribe` (Vox codegen emits this). Wire JNI (Android) and Swift glue per [Tauri mobile plugins](https://v2.tauri.app/develop/plugins/develop-mobile/).
+`build.rs` should register an **inlined** ACL plugin named `vox-stt` with command `transcribe` (Vox codegen emits this).
 
 ## JS
 

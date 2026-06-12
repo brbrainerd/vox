@@ -1,5 +1,5 @@
 use super::super::common::Check;
-use crate::commands::ci::sync_ignore_files;
+use vox_cli_ci::sync_ignore_files;
 
 pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     let cwd = std::env::current_dir().unwrap_or_default();

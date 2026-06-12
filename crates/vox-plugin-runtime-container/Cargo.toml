@@ -2,6 +2,7 @@
 name = "vox-plugin-runtime-container"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish = false
 description = "Skill-runtime plugin: Docker + Podman backends for vox-skill-runtime"
 

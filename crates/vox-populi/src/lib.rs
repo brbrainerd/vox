@@ -287,6 +287,8 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
         gpu_allocatable_count: None,
         gpu_inventory_source: None,
         gpu_truth_layer: None,
+        gpu_vram_total_mb: None,
+        gpu_model_name: None,
         nvidia_driver_version: None,
         cuda_driver_version: None,
         gpu_readiness_ok: None,
@@ -311,6 +313,8 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
             if rec.capabilities.min_vram_mb.is_none() {
                 rec.capabilities.min_vram_mb = Some(summary.vram_mb as u32);
             }
+            rec.gpu_vram_total_mb = Some(summary.vram_mb);
+            rec.gpu_model_name = Some(summary.model_name.clone());
             rec.nvidia_driver_version = summary.driver_version.clone();
             // TODO: cuda_driver_version from precision layer if needed.
         }
@@ -421,5 +425,7 @@ mod normalize_http_control_base_tests {
 
 #[allow(missing_docs)]
 pub mod distributed_training;
+/// MENS Mn-T2 inference backends (Candle CPU/CUDA/Metal, llama.cpp RPC, Ollama).
+#[cfg(feature = "mens-candle-qlora")]
 #[allow(missing_docs)]
 pub mod inference;

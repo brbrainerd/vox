@@ -1,6 +1,5 @@
 //! [`ServerState`] construction, Populi polling, orchestrator event sinks, and optional DB wiring.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::server_state::ServerState;
@@ -22,37 +21,7 @@ fn spawn_embedded_agent_fleet_if_enabled(orchestrator: Arc<Orchestrator>) {
 }
 
 pub fn load_config() -> OrchestratorConfig {
-    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let mut candidates = Vec::new();
-    if let Some(root) = vox_repository::find_project_manifest_root(&cwd) {
-        candidates.push(root.join("Vox.toml"));
-    }
-    candidates.push(PathBuf::from("Vox.toml"));
-
-    let mut config = OrchestratorConfig::default();
-    let mut loaded = false;
-    for toml_path in candidates {
-        if toml_path.is_file() {
-            match OrchestratorConfig::load_from_toml(&toml_path) {
-                Ok(cfg) => {
-                    tracing::info!(path = %toml_path.display(), "loaded orchestrator config from Vox.toml");
-                    config = cfg;
-                    loaded = true;
-                    break;
-                }
-                Err(e) => tracing::warn!(
-                    path = %toml_path.display(),
-                    "failed to load Vox.toml: {e}, trying next candidate"
-                ),
-            }
-        }
-    }
-    if !loaded {
-        tracing::info!("no readable Vox.toml found, using defaults");
-    }
-
-    config.merge_env_overrides();
-    config
+    vox_orchestrator_driver::build_embedded_orchestrator_config()
 }
 
 pub async fn run_stdio_server_blocking() -> anyhow::Result<()> {

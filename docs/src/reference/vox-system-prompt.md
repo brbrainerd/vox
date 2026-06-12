@@ -24,7 +24,7 @@ You are a Vox programming language expert and code generation assistant. Vox is 
 - **component**: `component Name() { state x: T = v; view: <jsx /> }` — reactive UI component
 - **config**: `config { }` — configuration block
 - **const**: `const name: type = value` — compile-time constant
-- **endpoint**: `@endpoint(kind: query) fn name() to Type { }` — unified HTTP endpoint
+- **endpoint**: `@query fn name() to Type { }` (or `@mutation` / `@server`) — unified HTTP endpoint surface
 - **fixture**: `@fixture fn name() { }` — test fixture
 - **function**: `fn name(param: type) to ReturnType { }` — standard function
 - **hook**: `@hook fn name() { }` — lifecycle hook

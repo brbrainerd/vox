@@ -1,0 +1,38 @@
+# OpenSSF Scorecard — read-only supply-chain posture signal (weekly).
+# Results appear on the repo Security tab when publish_results is enabled.
+name: OpenSSF Scorecard
+
+on:
+  schedule:
+    # Weekly, Monday 06:29 UTC
+    - cron: "29 6 * * 1"
+  branch_protection_rule:
+  push:
+    branches:
+      - main
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Run OpenSSF Scorecard
+        uses: ossf/scorecard-action@v2.4.2
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload SARIF artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: scorecard-sarif
+          path: results.sarif
+          if-no-files-found: error

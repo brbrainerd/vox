@@ -3,6 +3,7 @@ name = "vox-tensor"
 description = "Pure-CPU JSONL data loaders / training-pair types (Burn extracted 2026-05-08)."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 vox-actor-runtime = { workspace = true }

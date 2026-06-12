@@ -177,23 +177,21 @@ fn walk(dir: &Path, f: &mut dyn FnMut(&Path) -> Result<()>) -> Result<()> {
     if !dir.is_dir() {
         return Ok(());
     }
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_dir() {
-            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            // Skip irrelevant subdirs. Crucially, skip `tests/` and `fixtures/`
-            // — test fixtures contain CREATE TABLE statements but are not
-            // production schema.
-            if matches!(
+    let walker = walkdir::WalkDir::new(dir).into_iter().filter_entry(|e| {
+        let name = e.file_name().to_str().unwrap_or("");
+        // Skip irrelevant subdirs. Crucially, skip `tests/` and `fixtures/`
+        // — test fixtures contain CREATE TABLE statements but are not
+        // production schema.
+        !(e.file_type().is_dir()
+            && matches!(
                 name,
                 "target" | ".git" | "node_modules" | "dist" | "tests" | "fixtures"
-            ) {
-                continue;
-            }
-            walk(&path, f)?;
-        } else {
-            f(&path)?;
+            ))
+    });
+    for entry in walker {
+        let entry = entry?;
+        if entry.file_type().is_file() {
+            f(entry.path())?;
         }
     }
     Ok(())

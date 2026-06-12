@@ -41,7 +41,11 @@ export function PoliciesView({ pushToast }: { pushToast: (t: any) => void }) {
   // Load catalog + branches once.
   useEffect(() => {
     invoke<PolicyRow[]>('policy_list', { domain: null, group: null })
-      .then(r => { setRows(r); if (r.length) setSelectedId(prev => prev ?? r[0].id); })
+      .then(r => {
+        const list = Array.isArray(r) ? r : [];
+        setRows(list);
+        if (list.length) setSelectedId(prev => prev ?? list[0].id);
+      })
       .catch(err => pushToast({ tone: 'warn', title: 'Policy catalog failed', body: String(err) }));
     invoke<BranchInfo[]>('list_branches')
       .then(b => { setBranches(b); setSelectedBranches(b.filter(x => x.isCurrent).map(x => x.branch)); })

@@ -272,7 +272,7 @@ The `path-b-decommission-2026.md` (cited by audit) claims these were scrubbed; t
 Per `docs/src/architecture/external-frontend-interop-plan-2026.md`, the `@island` directive is retired *in plan* but the implementation phase (Phase 5 of the interop plan) has not landed. The audit identified the following surfaces tied to `@island`:
 
 - `crates/vox-cli/src/commands/island/` (entire directory: `generate`, `upgrade`, `list`, `cache`, `build`)
-- `crates/vox-codegen/src/codegen_ts/island_emit.rs`
+- `crates/vox-codegen-ts/src/island_emit.rs`
 - `crates/vox-cli/src/templates/islands.rs`
 - `examples/golden/v0_shadcn_island.vox`
 - `docs/src/how-to/how-to-islands-and-pages.md`

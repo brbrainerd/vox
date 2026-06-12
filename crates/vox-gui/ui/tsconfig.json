@@ -26,5 +26,11 @@
     "types": ["vite/client"]
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist", "src/claude-dashboard"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/claude-dashboard",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ]
 }

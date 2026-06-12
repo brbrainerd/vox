@@ -48,6 +48,20 @@ pub fn parse_script(tokens: Vec<Spanned>) -> Result<Module, Vec<ParseError>> {
     p.parse_module_script()
 }
 
+/// Fuzz entry: lex arbitrary UTF-8 (lossy) and run declaration parsing; must not panic.
+pub fn fuzz_parse_decl_bytes(data: &[u8]) {
+    let source = String::from_utf8_lossy(data);
+    let tokens = crate::lexer::lex(&source);
+    let mut parser = Parser::new(tokens);
+    while !matches!(parser.peek(), Token::Eof) {
+        parser.skip_newlines();
+        if matches!(parser.peek(), Token::Eof) {
+            break;
+        }
+        let _ = parser.parse_decl();
+    }
+}
+
 struct Parser {
     tokens: Vec<Spanned>,
     pos: usize,

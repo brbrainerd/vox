@@ -1,5 +1,9 @@
 # Rust
 target/
+.sccache/
+**/fuzz/target/
+**/fuzz/artifacts/
+**/fuzz/corpus/
 target_*/
 # Side `CARGO_TARGET_DIR=*` trees (mostly repo root); global `target-*/` also covers nested mistakes.
 target-*/
@@ -239,3 +243,5 @@ gui-*.log
 
 # Local `act` artifact server output (see .actrc --artifact-server-path)
 .act-artifacts/
+# graphify knowledge-graph artifacts (local tooling)
+graphify-out/

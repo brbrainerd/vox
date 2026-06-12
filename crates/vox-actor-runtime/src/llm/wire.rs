@@ -5,7 +5,40 @@ pub use vox_openai::{
     ChatCompletionResponse as OpenRouterResponse, ChatCompletionUsage as OpenRouterUsage,
 };
 
-use super::types::{ChatMessage, LlmConfig};
+use super::types::{ChatMessage, LlmConfig, LlmToolDef};
+
+#[derive(Serialize)]
+pub(crate) struct OpenRouterToolFunction<'a> {
+    name: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<&'a str>,
+    parameters: &'a serde_json::Value,
+}
+
+#[derive(Serialize)]
+pub(crate) struct OpenRouterTool<'a> {
+    #[serde(rename = "type")]
+    tool_type: &'static str,
+    function: OpenRouterToolFunction<'a>,
+}
+
+fn serialize_tools(tools: &[LlmToolDef]) -> Vec<OpenRouterTool<'_>> {
+    tools
+        .iter()
+        .map(|tool| OpenRouterTool {
+            tool_type: "function",
+            function: OpenRouterToolFunction {
+                name: &tool.name,
+                description: tool.description.as_deref(),
+                parameters: &tool.parameters,
+            },
+        })
+        .collect()
+}
+
+pub(crate) fn openrouter_tools(tools: Option<&[LlmToolDef]>) -> Option<Vec<OpenRouterTool<'_>>> {
+    tools.map(serialize_tools)
+}
 
 #[derive(Serialize)]
 pub(super) struct OpenRouterRequest<'a> {
@@ -17,6 +50,10 @@ pub(super) struct OpenRouterRequest<'a> {
     pub(super) max_tokens: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) response_format: Option<&'a serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) tools: Option<Vec<OpenRouterTool<'a>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) tool_choice: Option<&'a serde_json::Value>,
     pub(super) stream: bool,
 }
 
