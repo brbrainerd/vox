@@ -254,7 +254,7 @@ Next steps:
 2. From your app repo root, use **Tauri CLI v2** (`cargo install tauri-cli --version '^2'`) and either:
    - merge these keys into your existing `src-tauri/tauri.conf.json`, or
    - scaffold with `cargo tauri init` once and replace the generated window/product/identifier fields from this file.
-3. Run **`cargo tauri build`** for platform installers (`.msi`, `.dmg`, `.AppImage`, mobile targets when configured).
+3. Run **`cargo tauri build`** for desktop installers (`.msi`, `.dmg`, `.AppImage`). Mobile apps use `vox build --target=mobile` (React Native + Expo), not Tauri.
 
 Identifier: **`{}`**
 Display name: **`{}`**

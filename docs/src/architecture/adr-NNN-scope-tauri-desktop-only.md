@@ -1,6 +1,6 @@
 ---
 title: "ADR-NNN: Scope Tauri to desktop only; pick React Native + Expo + uniffi for mobile"
-status: experimental
+status: current
 category: "Architecture SSOTs"
 date: 2026-05-28
 supersedes: adr-037
@@ -15,7 +15,15 @@ related:
 
 ## Status
 
-**Proposed.** Conditional on resolving two pre-existing blockers (see §Preconditions).
+**Accepted** (2026-06-12). The §Preconditions were verified resolved before flipping:
+the `main_boot.rs` HirModule-serialization panic and the struct-literal-in-fn typeck
+regression were both fixed and landed with the Phase 0 work (PR #94); the CLI
+integration test harness exists at `crates/vox-cli-tests` and runs `vox build` on real
+component sources (including six mobile fixtures) asserting buildable output; and the
+Phase 0 spec drafts ([mobile-rn-expo-implementation-spec-2026.md](mobile-rn-expo-implementation-spec-2026.md),
+[mobile-rn-expo-architecture-and-migration-2026.md](mobile-rn-expo-architecture-and-migration-2026.md))
+are filed. The RN target itself has since shipped (`vox build --target=mobile`,
+`@vox/runtime-rn`, Expo config plugin), confirming the bet in practice.
 
 ## Context
 
