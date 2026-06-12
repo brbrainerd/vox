@@ -135,6 +135,10 @@ fn semantic_proxy(lexical: f64) -> f64 {
 }
 
 /// Build an empty bundle (offline / no hits).
+///
+/// Both score fields are `None`: no search ran, so we must not fabricate
+/// "we searched and found nothing". Callers that consume this bundle through
+/// `AtomicNoveltyScorer::score` will receive `InsufficientEvidence`.
 #[must_use]
 pub fn empty_novelty_bundle(candidate_id: &str, query: &PriorArtQuery) -> NoveltyEvidenceBundleV1 {
     let qd = query_digest_sha256(query);
@@ -147,8 +151,8 @@ pub fn empty_novelty_bundle(candidate_id: &str, query: &PriorArtQuery) -> Novelt
         sources: vec![],
         normalized_hits: vec![],
         overlap_summary: Some(NoveltyOverlapSummary {
-            max_lexical_score: Some(0.0),
-            max_semantic_score: Some(0.0),
+            max_lexical_score: None,
+            max_semantic_score: None,
             recency_bucket: NoveltyRecencyBucket::Unknown,
         }),
         query_traces: vec![],
@@ -540,4 +544,48 @@ pub fn parse_novelty_bundle_from_metadata_json(
     let root: JsonValue = serde_json::from_str(raw.trim()).ok()?;
     let b = root.get(METADATA_KEY_SCIENTIA_NOVELTY_BUNDLE)?;
     serde_json::from_value(b.clone()).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_query() -> PriorArtQuery {
+        PriorArtQuery {
+            title: "Test finding".to_string(),
+            abstract_text: None,
+        }
+    }
+
+    #[test]
+    fn empty_novelty_bundle_scores_are_none() {
+        let bundle = empty_novelty_bundle("cand-1", &test_query());
+        let summary = bundle
+            .overlap_summary
+            .expect("overlap_summary must be Some");
+        // Must not fabricate "we searched and found nothing" — both must be None.
+        assert!(
+            summary.max_lexical_score.is_none(),
+            "max_lexical_score must be None in an empty bundle"
+        );
+        assert!(
+            summary.max_semantic_score.is_none(),
+            "max_semantic_score must be None in an empty bundle"
+        );
+    }
+
+    #[test]
+    fn empty_novelty_bundle_has_no_hits_and_no_traces() {
+        let bundle = empty_novelty_bundle("cand-2", &test_query());
+        assert!(bundle.normalized_hits.is_empty());
+        assert!(bundle.query_traces.is_empty());
+        assert!(bundle.sources.is_empty());
+    }
+
+    #[test]
+    fn empty_novelty_bundle_recency_is_unknown() {
+        let bundle = empty_novelty_bundle("cand-3", &test_query());
+        let summary = bundle.overlap_summary.unwrap();
+        assert_eq!(summary.recency_bucket, NoveltyRecencyBucket::Unknown);
+    }
 }
