@@ -1,5 +1,6 @@
 ---
 source: crates/vox-integration-tests/tests/pipeline/includes/include_03.rs
+assertion_line: 169
 expression: main_rs
 ---
 // vox-generated rust_app_shell=AxumLocalServer
