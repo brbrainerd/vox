@@ -601,9 +601,14 @@ impl BrowserEngine {
             // text from arbitrary web pages and routinely contains multibyte
             // UTF-8 (curly quotes, accents, CJK). A byte slice at `max_chars`
             // would panic on a non-char-boundary.
+            // Budget the 1-char ellipsis into the cap so the result never
+            // exceeds max_chars.
             Ok(format!(
                 "{}…",
-                stripped.chars().take(max_chars).collect::<String>()
+                stripped
+                    .chars()
+                    .take(max_chars.saturating_sub(1))
+                    .collect::<String>()
             ))
         }
     }

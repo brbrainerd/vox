@@ -579,13 +579,9 @@ async fn display_db_intelligence(as_json: bool) -> anyhow::Result<()> {
             grpo_table.load_preset(UTF8_FULL);
             grpo_table.set_header(vec!["Run ID", "Step", "Reward", "Loss", "Parse %"]);
             for s in steps {
-                let short_id = if s.run_id.len() > 10 {
-                    &s.run_id[..10]
-                } else {
-                    &s.run_id
-                };
+                let short_id: String = s.run_id.chars().take(10).collect();
                 grpo_table.add_row(vec![
-                    short_id.to_string(),
+                    short_id,
                     s.step.to_string(),
                     format!("{:.4}", s.mean_reward),
                     format!("{:.4}", s.policy_loss),
@@ -606,7 +602,7 @@ async fn display_db_intelligence(as_json: bool) -> anyhow::Result<()> {
             mesh_table.load_preset(UTF8_FULL);
             mesh_table.set_header(vec!["Node ID", "Util", "Temp", "Power", "VRAM (Used)"]);
             for (sid, _mtype, _mval, meta) in telemetry {
-                let short_id = if sid.len() > 10 { &sid[..10] } else { &sid };
+                let short_id: String = sid.chars().take(10).collect();
                 if let Some(m) =
                     meta.and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
                 {
@@ -617,11 +613,11 @@ async fn display_db_intelligence(as_json: bool) -> anyhow::Result<()> {
                     let vram_total = m.get("vram_total_mb").and_then(|v| v.as_u64()).unwrap_or(1);
 
                     mesh_table.add_row(vec![
-                        short_id.to_string(),
+                        short_id,
                         format!("{:.1}%", util),
                         format!("{:.1}°C", temp),
                         format!("{:.1}W", power),
-                        format!("{}MB/{}MB", vram_used, vram_total / 1024),
+                        format!("{}MB/{}MB", vram_used, vram_total),
                     ]);
                 }
             }
