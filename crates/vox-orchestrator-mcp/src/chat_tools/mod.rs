@@ -53,6 +53,16 @@ pub(crate) fn ts_to_date_str(secs: u64) -> String {
 
 /// Build the full system prompt for the Vox chat assistant.
 pub(crate) async fn build_system_prompt(state: &ServerState, session_id: Option<&str>) -> String {
+    build_system_prompt_with_skill(state, session_id, None).await
+}
+
+/// Like [`build_system_prompt`], but injects the full body of a user-pinned
+/// skill (by id or name) so prompt-only models honor it without a tool call.
+pub(crate) async fn build_system_prompt_with_skill(
+    state: &ServerState,
+    session_id: Option<&str>,
+    pinned_skill: Option<&str>,
+) -> String {
     let ws_root = state
         .workspace_root
         .as_deref()
@@ -107,6 +117,26 @@ pub(crate) async fn build_system_prompt(state: &ServerState, session_id: Option<
         })
         .collect();
     prompt.push_str(&skill_catalog::render_skill_catalog(&skill_entries, 64));
+
+    // Pinned-skill ("tier-pinned") disclosure: inject the full SKILL.md body
+    // for an explicitly selected skill. Matched by id or name; works on the
+    // prompt-only MENS path because it needs no tool round-trip.
+    if let Some(pinned) = pinned_skill.map(str::trim).filter(|p| !p.is_empty()) {
+        let reg = &state.orchestrator.skill_registry;
+        if let Some(m) = reg
+            .list(None)
+            .into_iter()
+            .find(|m| m.id == pinned || m.name == pinned)
+        {
+            let body = reg.lookup(&m.id).ok().map(|s| s.body).unwrap_or_default();
+            if !body.is_empty() {
+                tracing::info!(skill = %m.id, source = "pinned", "skill_activated");
+                prompt.push_str(&skill_catalog::render_pinned_skill(&m.name, &body));
+            }
+        } else {
+            tracing::warn!(pinned = %pinned, "pinned skill not found in registry");
+        }
+    }
 
     prompt.push_str(params::ANTI_LAZINESS_RIDER);
 
@@ -276,6 +306,7 @@ mod routing_tests {
             attachment_manifest: None,
             temperature: None,
             top_p: None,
+            skill: None,
         };
         let rich = ChatMessageParams {
             prompt: "Hi".into(),
@@ -295,6 +326,7 @@ mod routing_tests {
             attachment_manifest: None,
             temperature: None,
             top_p: None,
+            skill: None,
         };
         let a = chat_grounding_score(&empty, 0);
         let b = chat_grounding_score(&rich, 3);

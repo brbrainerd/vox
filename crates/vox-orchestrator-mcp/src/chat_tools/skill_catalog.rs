@@ -54,9 +54,6 @@ pub(crate) fn render_skill_catalog(entries: &[CatalogEntry], max: usize) -> Stri
 
 /// Render the `## Active skill` section for a user-pinned skill, injecting the
 /// full SKILL.md body so prompt-only models honor it without a tool call.
-// Wired into build_system_prompt by Track B3 (pinned-skill injection); tested
-// and ready ahead of that wiring.
-#[allow(dead_code)]
 pub(crate) fn render_pinned_skill(name: &str, body: &str) -> String {
     let mut b = body;
     if b.len() > PINNED_BODY_CAP {
