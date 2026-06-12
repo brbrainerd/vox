@@ -582,6 +582,9 @@ pub struct HirReactiveComponent {
     pub view: Option<HirExpr>,
     /// Scoped CSS blocks attached after the reactive body (Path C).
     pub styles: Vec<StyleBlock>,
+    /// Optional `@layer(tier:)` Z-tier declaration (GA-26).
+    #[serde(default)]
+    pub layer: Option<crate::hir::nodes::layer::HirLayerDecl>,
     pub span: Span,
 }
 

@@ -770,6 +770,19 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
             let endpoint_names: HashSet<String> =
                 hir.endpoint_fns.iter().map(|e| e.name.clone()).collect();
             let root = arena.lower_expr(view, &state_names, &endpoint_names);
+            // GA-26: a component's @layer(tier:) declares the Z-tier of its root
+            // surface. Stamp it onto the root element so validate_layer honors the
+            // explicit override (and emit can portal it later).
+            if let Some(layer) = &rc.layer {
+                if let Some(super::DomNode::Element { attrs, .. }) =
+                    arena.nodes.get_mut(root.0 as usize)
+                {
+                    attrs.push((
+                        "data-vox-layer".to_string(),
+                        format!("\"{}\"", layer.tier.as_str()),
+                    ));
+                }
+            }
             m.view_roots.push((rc.name.clone(), root));
         }
     }

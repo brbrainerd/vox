@@ -329,6 +329,51 @@ fn send_email_fn() to int { return 1 }
 // ── GA-26 — @layer tier validation ────────────────────────────────────────
 
 #[test]
+fn layer_decorator_attaches_to_component_decl() {
+    use vox_ast::decl::Decl;
+    let src = r#"
+@layer(tier: chrome)
+component NavRail() {
+    view: column() { text("nav") }
+}
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let comp = m
+        .declarations
+        .iter()
+        .find_map(|d| match d {
+            Decl::ReactiveComponent(r) if r.name == "NavRail" => Some(r),
+            _ => None,
+        })
+        .expect("NavRail component should parse");
+    assert_eq!(
+        comp.layer.as_ref().map(|l| l.tier.as_str()),
+        Some("chrome"),
+        "@layer(tier: chrome) must attach to the component decl"
+    );
+}
+
+#[test]
+fn component_without_layer_has_none() {
+    use vox_ast::decl::Decl;
+    let src = r#"
+component Plain() {
+    view: column() { text("hi") }
+}
+"#;
+    let m = parse(lex(src)).expect("parse should succeed");
+    let comp = m
+        .declarations
+        .iter()
+        .find_map(|d| match d {
+            Decl::ReactiveComponent(r) if r.name == "Plain" => Some(r),
+            _ => None,
+        })
+        .expect("Plain component should parse");
+    assert!(comp.layer.is_none(), "no decorator → no layer");
+}
+
+#[test]
 fn layer_system_overlay_is_reserved() {
     let src = r#"
 @server

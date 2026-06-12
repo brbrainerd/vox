@@ -191,6 +191,9 @@ pub struct ReactiveComponentDecl {
     /// Scoped CSS blocks following the component body (same as classic `@component fn`).
     #[serde(default)]
     pub styles: Vec<StyleBlock>,
+    /// Optional `@layer(tier:)` decorator declaring this component's Z-tier (GA-26).
+    #[serde(default)]
+    pub layer: Option<crate::decl::layer_decorator::AstLayerSpec>,
     /// Source span.
     pub span: Span,
 }

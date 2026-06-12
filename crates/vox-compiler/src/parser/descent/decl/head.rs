@@ -700,6 +700,7 @@ impl Parser {
             members,
             view,
             styles: vec![],
+            layer: None,
             span: start.merge(self.span()),
         })
     }
