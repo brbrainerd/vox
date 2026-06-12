@@ -581,6 +581,9 @@
   "gui_ipc_commands": [
     "ack_ludus_notification",
     "build_action_manifest",
+    "discovery_help",
+    "discovery_record",
+    "discovery_suggest",
     "doubt_orchestrator_task",
     "execute_command",
     "explain_model_selection",
@@ -630,6 +633,9 @@
     "policy_list",
     "policy_show",
     "policy_status",
+    "pty_close",
+    "pty_spawn",
+    "pty_write",
     "record_publication_claim_review",
     "remove_secret",
     "resume_orchestrator_agent",
@@ -659,6 +665,7 @@
   "gui_routes": [
     "approvals",
     "catalog",
+    "console",
     "dashboard",
     "flow",
     "gamify",
