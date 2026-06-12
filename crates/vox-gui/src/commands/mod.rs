@@ -5,6 +5,7 @@ pub mod catalog;
 pub mod control_plane;
 pub mod daemon;
 pub mod devlog;
+pub mod discovery;
 pub mod dynamic_mapping;
 pub mod execute;
 pub mod gamify;
