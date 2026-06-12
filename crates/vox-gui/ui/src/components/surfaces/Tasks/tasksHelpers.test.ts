@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { groupTasks, cyclePriority, TaskRow } from './tasksHelpers';
+import { groupTasks, cyclePriority, filterBySession, TaskRow } from './tasksHelpers';
 
 const row = (over: Partial<TaskRow>): TaskRow => ({
   id: 1,
@@ -30,6 +30,18 @@ describe('groupTasks', () => {
   it('treats unknown lifecycle labels as queued', () => {
     const g = groupTasks([row({ id: 9, lifecycle: 'weird' })]);
     expect(g.queued).toHaveLength(1);
+  });
+});
+
+describe('filterBySession', () => {
+  it('returns all rows for null filter and only matching session otherwise', () => {
+    const rows = [
+      row({ id: 1, session_id: 'gui-a' }),
+      row({ id: 2, session_id: 'gui-b' }),
+      row({ id: 3, session_id: null }),
+    ];
+    expect(filterBySession(rows, null)).toHaveLength(3);
+    expect(filterBySession(rows, 'gui-a').map(t => t.id)).toEqual([1]);
   });
 });
 

@@ -1,7 +1,20 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from '../../ui/Icons';
-import { TaskRow, groupTasks, cyclePriority } from './tasksHelpers';
+import { TaskRow, groupTasks, cyclePriority, filterBySession } from './tasksHelpers';
+
+interface StoredSession { id: string; title: string }
+
+function loadSessionTitles(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem('vox_chat_sessions');
+    if (!raw) return {};
+    const list = JSON.parse(raw) as StoredSession[];
+    return Object.fromEntries(list.map(s => [s.id, s.title]));
+  } catch {
+    return {};
+  }
+}
 
 const POLL_MS = 4000;
 
@@ -31,6 +44,7 @@ export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
   const [draft, setDraft] = useState('');
   const [newTask, setNewTask] = useState('');
   const [busy, setBusy] = useState(false);
+  const [sessionFilter, setSessionFilter] = useState<string | null>(null);
   const mounted = useRef(true);
 
   const refresh = useCallback(async () => {
@@ -97,7 +111,11 @@ export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
       invoke('reorder_orchestrator_task', { taskId: t.id, priority: cyclePriority(t.priority) }),
     );
 
-  const { inProgress, queued } = groupTasks(rows);
+  const sessionTitles = loadSessionTitles();
+  const presentSessions = Array.from(
+    new Set(rows.map(r => r.session_id).filter((s): s is string => !!s)),
+  );
+  const { inProgress, queued } = groupTasks(filterBySession(rows, sessionFilter));
 
   const renderRow = (t: TaskRow, editable: boolean) => (
     <div
@@ -189,6 +207,28 @@ export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
           Add
         </button>
       </div>
+
+      {presentSessions.length > 1 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {[null, ...presentSessions].map(sid => {
+            const active = sessionFilter === sid;
+            const label = sid == null ? 'All sessions' : (sessionTitles[sid] ?? sid);
+            return (
+              <button
+                key={sid ?? '__all__'}
+                onClick={() => setSessionFilter(sid)}
+                className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40 ${
+                  active
+                    ? 'border-brass/40 bg-brass/10 text-brass'
+                    : 'border-white/5 bg-white/[0.01] text-zinc-500 hover:border-white/10 hover:text-zinc-400'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {error && (
         <div className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-red-300">

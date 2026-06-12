@@ -28,6 +28,11 @@ export function groupTasks(rows: TaskRow[]): GroupedTasks {
   return { inProgress, queued };
 }
 
+export function filterBySession(rows: TaskRow[], sessionId: string | null): TaskRow[] {
+  if (!sessionId) return rows;
+  return rows.filter(t => t.session_id === sessionId);
+}
+
 export function cyclePriority(p: string): string {
   if (p === 'background') return 'normal';
   if (p === 'normal') return 'urgent';
