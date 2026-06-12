@@ -119,20 +119,45 @@ impl ExtractionPipeline {
 }
 
 fn split_sentences(text: &str) -> Vec<String> {
+    /// Trailing tokens after which a `.` does not end a sentence ("e.g.", "vs.", …).
+    const NON_TERMINAL_SUFFIXES: [&str; 4] = ["e.g", "i.e", "etc", "vs"];
+    let chars: Vec<char> = text.chars().collect();
     let mut sentences = Vec::new();
     let mut current = String::new();
-    for ch in text.chars() {
+    for i in 0..chars.len() {
+        let ch = chars[i];
         current.push(ch);
-        if ch == '.' || ch == '!' || ch == '?' {
-            let trimmed = current.trim().to_string();
-            if !trimmed.is_empty() {
-                sentences.push(trimmed);
+        let terminal = match ch {
+            '!' | '?' => true,
+            '.' => {
+                // "12.5ms", "v0.6.2": a dot between digits is decimal/version punctuation.
+                let prev_digit = i > 0 && chars[i - 1].is_ascii_digit();
+                let next_digit = chars.get(i + 1).is_some_and(|c| c.is_ascii_digit());
+                let mid_number = prev_digit && next_digit;
+                let trimmed = current.trim_end_matches('.');
+                let abbrev = NON_TERMINAL_SUFFIXES
+                    .iter()
+                    .any(|s| trimmed.to_lowercase().ends_with(s));
+                let next_starts_sentence = match chars[i + 1..].iter().find(|c| !c.is_whitespace())
+                {
+                    None => true,
+                    Some(c) => c.is_uppercase(),
+                };
+                !mid_number && !abbrev && next_starts_sentence
+            }
+            _ => false,
+        };
+        if terminal {
+            let t = current.trim().to_string();
+            if !t.is_empty() {
+                sentences.push(t);
             }
             current.clear();
         }
     }
-    if !current.trim().is_empty() {
-        sentences.push(current.trim().to_string());
+    let t = current.trim().to_string();
+    if !t.is_empty() {
+        sentences.push(t);
     }
     sentences
 }
@@ -140,6 +165,27 @@ fn split_sentences(text: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn split_does_not_break_decimal_numbers() {
+        let s = split_sentences("Latency fell to 12.5ms. Throughput rose 3.4x! Done?");
+        assert_eq!(
+            s,
+            vec!["Latency fell to 12.5ms.", "Throughput rose 3.4x!", "Done?"]
+        );
+    }
+
+    #[test]
+    fn split_does_not_break_common_abbreviations_or_versions() {
+        let s = split_sentences("Vox v0.6.2 ships today. See e.g. the docs.");
+        assert_eq!(s.len(), 2, "got: {s:?}");
+    }
+
+    #[test]
+    fn split_handles_trailing_unterminated_text() {
+        let s = split_sentences("First sentence. Trailing fragment without period");
+        assert_eq!(s.len(), 2);
+    }
 
     #[tokio::test]
     async fn pipeline_extracts_from_verifiable_sentence() {
