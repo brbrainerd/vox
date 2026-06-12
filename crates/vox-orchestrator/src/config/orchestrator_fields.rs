@@ -497,8 +497,10 @@ mod isolation_config_tests {
 
     #[test]
     fn isolation_strategy_roundtrips_through_serde() {
-        let mut c = OrchestratorConfig::default();
-        c.isolation_strategy_default = crate::isolation::IsolationStrategy::SeparateBranches;
+        let c = OrchestratorConfig {
+            isolation_strategy_default: crate::isolation::IsolationStrategy::SeparateBranches,
+            ..Default::default()
+        };
         let json = serde_json::to_string(&c).unwrap();
         let back: OrchestratorConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(

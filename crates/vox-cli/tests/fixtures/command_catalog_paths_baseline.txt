@@ -129,8 +129,11 @@ ci/plugin-abi-parity
 ci/plugin-catalog-parity
 ci/plugin-dep-boundary
 ci/plugin-skill-parity
+ci/plugin-surface-sync
 ci/pm-provenance
 ci/policy-allowlist-parity
+ci/policy-registry
+ci/policy-registry-parity
 ci/policy-smoke
 ci/pre-push
 ci/query-all-guard
@@ -288,7 +291,6 @@ ext/ars/snippet/search
 ext/mens
 ext/oratio
 ext/populi
-ext/schola
 ext/train
 fabrica
 fabrica/build
@@ -345,7 +347,6 @@ new
 new/fn
 new/skill
 new/web
-oratio
 plan
 plan/create
 plan/replan
@@ -370,6 +371,12 @@ pm/search
 pm/vendor
 pm/verify
 pm/yank
+policy
+policy/domains
+policy/groups
+policy/list
+policy/show
+policy/status
 populi
 remove
 repair
@@ -396,7 +403,6 @@ research/up
 research/watch
 rollback
 run
-schola
 scientia
 scientia/capability-list
 scientia/claims
@@ -474,6 +480,7 @@ snippet
 snippet/export
 snippet/save
 snippet/search
+speech
 stop
 sync
 telemetry

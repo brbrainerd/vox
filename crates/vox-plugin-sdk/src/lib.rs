@@ -30,8 +30,7 @@
 //! }
 //!
 //! vox_plugin_sdk::declare_plugin! {
-//!     id: "my-plugin",
-//!     version: "0.1.0",
+//!     // id + version are read from the crate's Plugin.toml — no duplication.
 //!     init: |_host| ROk(wrap(MyPlugin)),
 //! }
 //! ```
@@ -54,6 +53,31 @@ where
     VoxPlugin_TO::from_value(plugin, abi_stable::erased_types::TD_Opaque)
 }
 
+/// Build the `manifest_json` ABI probe (`{"id":..,"version":..}`) from an embedded
+/// `Plugin.toml` string. Used by [`declare_plugin!`] so id/version have a single authoring
+/// site (the manifest) rather than being re-typed as macro arguments.
+///
+/// On a parse failure or a missing `[plugin]` id/version, falls back to empty/`0.0.0` — the
+/// host reads the real `Plugin.toml` from disk anyway; this probe is advisory.
+pub fn manifest_id_version_json(manifest_toml: &str) -> std_types::RString {
+    let table = manifest_toml.parse::<toml::Value>().ok();
+    let plugin = table.as_ref().and_then(|t| t.get("plugin"));
+    let field = |k: &str, default: &str| -> String {
+        plugin
+            .and_then(|p| p.get(k))
+            .and_then(|v| v.as_str())
+            .unwrap_or(default)
+            // Minimal JSON-string escaping (ids are kebab-case, versions semver — but be safe).
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"")
+    };
+    std_types::RString::from(format!(
+        r#"{{"id":"{}","version":"{}"}}"#,
+        field("id", ""),
+        field("version", "0.0.0"),
+    ))
+}
+
 /// Glob-import surface for plugin authors: `use vox_plugin_sdk::prelude::*;`.
 pub mod prelude {
     pub use super::{declare_plugin, wrap};
@@ -70,9 +94,9 @@ pub mod prelude {
 ///
 /// Generates the three functions the host loads — `root_module` (the
 /// `#[export_root_module]` entry stamped with [`VOX_PLUGIN_ABI_VERSION`]),
-/// `manifest_json` (a minimal `{"id":..,"version":..}` probe), and `init` (which runs the
-/// supplied closure to produce a [`VoxPluginRef`]). The expansion is identical to the
-/// boilerplate plugins write by hand, so exports are byte-for-byte compatible.
+/// `manifest_json` (a minimal `{"id":..,"version":..}` probe whose id/version are read from
+/// the crate's `Plugin.toml` via [`manifest_id_version_json`] — one authoring site), and
+/// `init` (which runs the supplied closure to produce a [`VoxPluginRef`]).
 ///
 /// `init` is a non-capturing closure `|host| -> RResult<VoxPluginRef, RBoxError>`. Use
 /// [`wrap`] for the common "construct a value and erase it" case, or call an existing
@@ -84,7 +108,7 @@ pub mod prelude {
 /// `abi_stable::` paths, which only resolve when `abi_stable` is in the crate's deps.
 #[macro_export]
 macro_rules! declare_plugin {
-    (id: $id:expr, version: $version:expr, init: $init:expr $(,)?) => {
+    (init: $init:expr $(,)?) => {
         #[$crate::abi_stable::export_root_module]
         fn __vox_plugin_root_module() -> $crate::abi::VoxPluginRootRef {
             use $crate::abi_stable::prefix_type::PrefixTypeTrait;
@@ -98,13 +122,12 @@ macro_rules! declare_plugin {
 
         #[$crate::abi_stable::sabi_extern_fn]
         fn __vox_plugin_manifest_json() -> $crate::std_types::RString {
-            $crate::std_types::RString::from(::core::concat!(
-                r#"{"id":""#,
-                $id,
-                r#"","version":""#,
-                $version,
-                r#""}"#
-            ))
+            // id/version come from the crate's Plugin.toml — the single authoring site —
+            // embedded at compile time. `CARGO_MANIFEST_DIR` is the *plugin* crate's dir.
+            $crate::manifest_id_version_json(::core::include_str!(::core::concat!(
+                ::core::env!("CARGO_MANIFEST_DIR"),
+                "/Plugin.toml"
+            )))
         }
 
         #[$crate::abi_stable::sabi_extern_fn]
@@ -149,5 +172,23 @@ mod tests {
         let erased = wrap(TestPlugin);
         assert_eq!(erased.id().as_str(), "test-plugin");
         assert!(erased.shutdown().is_ok());
+    }
+
+    #[test]
+    fn manifest_json_reads_id_and_version_from_plugin_toml() {
+        let manifest = "[plugin]\nid = \"demo\"\nversion = \"1.2.3\"\n\
+                        \n[plugin.payload]\nkind = \"code\"\nabi-version = 12\n";
+        assert_eq!(
+            super::manifest_id_version_json(manifest).as_str(),
+            r#"{"id":"demo","version":"1.2.3"}"#
+        );
+    }
+
+    #[test]
+    fn manifest_json_falls_back_when_fields_missing() {
+        assert_eq!(
+            super::manifest_id_version_json("not = valid = toml").as_str(),
+            r#"{"id":"","version":"0.0.0"}"#
+        );
     }
 }

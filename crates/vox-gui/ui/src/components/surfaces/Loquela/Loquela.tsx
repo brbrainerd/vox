@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { voxTransport } from '../../../transport';
@@ -117,7 +119,6 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
   const [stream, setStream] = useState(true);
   const [sign,   setSign]   = useState(false);
   const [dryRun, setDryRun] = useState(false);
-  const [mic,    setMic]    = useState(false);
 
   const [skillOpen, setSkillOpen] = useState(false);
   const [tierOpen,  setTierOpen]  = useState(false);
@@ -186,6 +187,91 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
   const tierObj = runtimeTiers.find(t => t.id === tier) || runtimeTiers[runtimeTiers.length - 1];
   const estCost = tierObj?.cost == null ? null : (tokens / 1000) * tierObj.cost + 0.002;
 
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+
+  // Add a single locator (file path or URL) to the shared context set as a chip.
+  // These chips become the next task's file manifest (App.handleLoquelaSubmit).
+  const addContextRef = (ref: string) => {
+    const trimmed = ref.trim();
+    if (!trimmed) return;
+    const isUrl = /^https?:\/\//i.test(trimmed);
+    const id = `ctx-${isUrl ? 'url' : 'file'}-${trimmed}`;
+    setChips(cs => cs.find(c => c.id === id)
+      ? cs
+      : [...cs, { id, kind: isUrl ? 'url' : 'file', label: trimmed }]);
+  };
+
+  // Attach local files to the task context via the native OS file-picker
+  // (tauri-plugin-dialog). Each chosen path flows to the orchestrator as a
+  // FileAffinity through the shared Loquela context set. Falls back to a typed
+  // path/URL prompt when the dialog is unavailable (e.g. browser dev mode).
+  const attachContext = async () => {
+    try {
+      const selected = await openFileDialog({ multiple: true, title: 'Attach files to task context' });
+      const paths = Array.isArray(selected) ? selected : selected ? [selected] : [];
+      if (paths.length) {
+        paths.forEach(addContextRef);
+        toast?.({ tone: 'ok', title: paths.length === 1 ? 'Attached to context' : `${paths.length} attached`, body: paths.join(', '), cmd: 'context.attach' });
+        taRef.current?.focus();
+        return;
+      }
+      if (selected !== null) return; // dialog opened, user picked nothing
+    } catch {
+      // Dialog plugin unavailable → fall through to the prompt path.
+    }
+    const raw = window.prompt('Attach a file path or URL to this task context:');
+    const ref = raw?.trim();
+    if (!ref) return;
+    addContextRef(ref);
+    toast?.({ tone: 'ok', title: 'Attached to context', body: ref, cmd: 'context.attach' });
+    taRef.current?.focus();
+  };
+
+  // Attach a URL (the native picker only handles local files).
+  const attachUrl = () => {
+    const raw = window.prompt('Attach a URL to this task context:');
+    const ref = raw?.trim();
+    if (!ref) return;
+    addContextRef(ref);
+    toast?.({ tone: 'ok', title: 'Attached to context', body: ref, cmd: 'context.attach' });
+    taRef.current?.focus();
+  };
+
+  // Microphone capture → on-device transcription. Toggles record/stop; on stop,
+  // appends the refined transcript into the composer textarea.
+  const toggleMic = async () => {
+    if (transcribing) return;
+    if (!recording) {
+      try {
+        await invoke('start_mic_capture');
+        setRecording(true);
+        toast?.({ tone: 'info', title: 'Recording', body: 'Listening — tap the mic again to stop.', cmd: 'oratio.transcribe' });
+      } catch (e) {
+        toast?.({ tone: 'err', title: 'Microphone unavailable', body: String(e), cmd: 'oratio.transcribe' });
+      }
+      return;
+    }
+    // Stop + transcribe.
+    setRecording(false);
+    setTranscribing(true);
+    try {
+      const transcript = await invoke<string>('stop_mic_capture_and_transcribe');
+      const t = (transcript || '').trim();
+      if (t) {
+        setText(prev => (prev ? `${prev.replace(/\s*$/, '')} ${t}` : t));
+        taRef.current?.focus();
+        toast?.({ tone: 'ok', title: 'Transcribed', body: t, cmd: 'oratio.transcribe' });
+      } else {
+        toast?.({ tone: 'info', title: 'No speech detected', body: 'The recording produced no transcript.', cmd: 'oratio.transcribe' });
+      }
+    } catch (e) {
+      toast?.({ tone: 'err', title: 'Transcription failed', body: String(e), cmd: 'oratio.transcribe' });
+    } finally {
+      setTranscribing(false);
+    }
+  };
+
   const insertSlash = (cmd: string) => { setText(cmd + " "); setSlashOpen(false); taRef.current?.focus(); };
   const insertAt = (agent: any) => {
     setText(t => t.replace(/@\w*$/, `@${agent.id} `));
@@ -241,10 +327,25 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
         )}
 
         <div className="relative flex items-end gap-2">
-          <button title="Attach context" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25 transition">
+          <button onClick={attachContext} title="Attach local file(s) to context (native picker)" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25 transition">
             <Icon.plus className="size-4" />
           </button>
-          <button onClick={() => setMic(m => !m)} title="Voice input" className={`flex size-8 shrink-0 items-center justify-center rounded-md border transition ${mic ? "border-amber-400/40 bg-amber-400/15 text-amber-300 animate-pulse" : "border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25"}`}>
+          <button onClick={attachUrl} title="Attach a URL to context" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25 transition">
+            <Icon.link className="size-4" />
+          </button>
+          <button
+            onClick={toggleMic}
+            disabled={transcribing}
+            title={transcribing ? 'Transcribing…' : recording ? 'Stop recording & transcribe' : 'Voice input — record & transcribe'}
+            aria-pressed={recording}
+            className={`flex size-8 shrink-0 items-center justify-center rounded-md border transition ${
+              transcribing
+                ? 'border-white/10 bg-white/[0.02] text-zinc-500 cursor-wait'
+                : recording
+                ? 'border-rose-400/50 bg-rose-400/15 text-rose-300 animate-pulse'
+                : 'border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25'
+            }`}
+          >
             <Icon.mic className="size-4" />
           </button>
 

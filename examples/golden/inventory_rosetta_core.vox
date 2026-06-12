@@ -101,7 +101,10 @@ fn test_merge_stacks() {
         Applied(_, _) => assert(false)
         Rejected(err) => {
             match err {
-                WrongKind(_, _) => assert(true)
+                WrongKind(l, r) => {
+                    assert(l is "Potion")
+                    assert(r is "Sword")
+                }
                 _ => assert(false)
             }
         }
