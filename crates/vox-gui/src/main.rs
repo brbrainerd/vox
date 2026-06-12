@@ -94,6 +94,7 @@ async fn main() {
             commands::llm_settings::get_llm_config,
             commands::llm_settings::set_llm_config,
             commands::llm_settings::openrouter_key_status,
+            commands::docs_index::vox_docs_index,
             commands::orchestrator::get_orchestrator_status,
             commands::orchestrator::get_orchestrator_status_bin,
             commands::orchestrator::set_orchestrator_config,
