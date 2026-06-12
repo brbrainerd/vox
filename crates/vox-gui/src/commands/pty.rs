@@ -23,6 +23,80 @@ pub fn default_shell() -> String {
     }
 }
 
+/// OSC 633 shell-integration init for a given shell, written to the PTY on spawn
+/// so the shell emits block-delimiting markers (A prompt-start, B prompt-end,
+/// E;<command>, C pre-exec, D;<exit>). Returns `None` for shells we don't
+/// integrate — those degrade to plain scrollback (unchanged behavior).
+///
+/// The snippets wrap the user's existing prompt rather than replacing it.
+pub fn shell_integration_snippet(shell: &str) -> Option<String> {
+    // Match on the shell's basename so "/usr/bin/bash" and "bash" both resolve.
+    let name = shell
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(shell)
+        .trim_end_matches(".exe")
+        .to_ascii_lowercase();
+    match name.as_str() {
+        "pwsh" | "powershell" => Some(PWSH_OSC633.to_string()),
+        "bash" => Some(BASH_OSC633.to_string()),
+        _ => None,
+    }
+}
+
+/// PowerShell OSC 633 integration. Wraps `prompt` to emit A (prompt start) and
+/// B (prompt end); a PSReadLine command-validation handler emits E;<command>
+/// and C just before execution; the next prompt emits D;<exit> for the previous
+/// command. ESC is `$([char]27)`, BEL terminator `$([char]7)`.
+const PWSH_OSC633: &str = r#"
+if (-not $global:__VoxOsc633) {
+  $global:__VoxOsc633 = $true
+  $global:__VoxOscEsc = [char]27
+  $global:__VoxOscBel = [char]7
+  $global:__VoxLastExit = 0
+  $global:__VoxOrigPrompt = $function:prompt
+  function global:prompt {
+    $code = if ($global:__VoxLastExit -ne $null) { $global:__VoxLastExit } else { 0 }
+    $out = "$($global:__VoxOscEsc)]633;D;$code$($global:__VoxOscBel)"
+    $out += "$($global:__VoxOscEsc)]633;A$($global:__VoxOscBel)"
+    $out += (& $global:__VoxOrigPrompt)
+    $out += "$($global:__VoxOscEsc)]633;B$($global:__VoxOscBel)"
+    return $out
+  }
+  Set-PSReadLineKeyHandler -Key Enter -ScriptBlock {
+    $line = $null; $cursor = $null
+    [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
+    $enc = $line -replace '\\','\x5c' -replace ';','\x3b' -replace "`n",'\x0a'
+    [Console]::Write("$($global:__VoxOscEsc)]633;E;$enc$($global:__VoxOscBel)")
+    [Console]::Write("$($global:__VoxOscEsc)]633;C$($global:__VoxOscBel)")
+    [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
+  }
+}
+"#;
+
+/// Bash OSC 633 integration. PROMPT_COMMAND emits D;<exit> then A; PS1 wraps B;
+/// a DEBUG trap (guarded once per command) emits E;<command> then C.
+const BASH_OSC633: &str = r#"
+if [ -z "${__VOX_OSC633:-}" ]; then
+  __VOX_OSC633=1
+  __vox_preexec() {
+    if [ -n "${__VOX_AT_PROMPT:-}" ]; then
+      __VOX_AT_PROMPT=
+      local cmd="${BASH_COMMAND//\\/\\x5c}"; cmd="${cmd//;/\\x3b}"; cmd="${cmd//$'\n'/\\x0a}"
+      printf '\e]633;E;%s\a\e]633;C\a' "$cmd"
+    fi
+  }
+  __vox_prompt() {
+    local ec=$?
+    printf '\e]633;D;%s\a\e]633;A\a' "$ec"
+    __VOX_AT_PROMPT=1
+  }
+  trap '__vox_preexec' DEBUG
+  PROMPT_COMMAND='__vox_prompt'
+  PS1="${PS1}\[\e]633;B\a\]"
+fi
+"#;
+
 /// Registry of live PTY sessions keyed by tab id. Managed by Tauri state.
 #[derive(Default)]
 pub struct PtyManager {
@@ -80,7 +154,18 @@ pub fn pty_spawn(
     drop(pair.slave);
 
     let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
-    let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
+    let mut writer = pair.master.take_writer().map_err(|e| e.to_string())?;
+
+    // Inject OSC 633 shell integration so the shell emits block markers. Best
+    // effort: a write failure or an unintegrated shell just means raw scrollback.
+    if let Some(snippet) = shell_integration_snippet(&default_shell()) {
+        use std::io::Write;
+        if let Err(e) = writer.write_all(format!("{snippet}\n").as_bytes()) {
+            tracing::debug!("pty: shell-integration inject failed: {e}");
+        } else {
+            let _ = writer.flush();
+        }
+    }
 
     // Replacing a live tab id: kill the previous child first so its shell +
     // reader thread tear down instead of leaking.
@@ -158,5 +243,25 @@ mod tests {
         let m = PtyManager::default();
         assert_eq!(m.count(), 0);
         assert!(!m.has("tab-1"));
+    }
+
+    #[test]
+    fn integration_snippet_supports_pwsh_and_bash() {
+        assert!(shell_integration_snippet("pwsh").is_some());
+        assert!(shell_integration_snippet("powershell.exe").is_some());
+        assert!(shell_integration_snippet("/usr/bin/bash").is_some());
+    }
+
+    #[test]
+    fn integration_snippet_skips_unknown_shells() {
+        assert!(shell_integration_snippet("fish").is_none());
+        assert!(shell_integration_snippet("cmd.exe").is_none());
+        assert!(shell_integration_snippet("zsh").is_none());
+    }
+
+    #[test]
+    fn snippets_emit_633_markers() {
+        assert!(shell_integration_snippet("pwsh").unwrap().contains("]633;"));
+        assert!(shell_integration_snippet("bash").unwrap().contains("]633;"));
     }
 }
