@@ -291,6 +291,9 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 publication_id,
                 apply,
             } => db::publication_autofill(&publication_id, apply).await,
+            DbCliPublication::DiscoveryWatch { once, repo, limit } => {
+                db::discovery_watch(once, repo.as_deref(), limit).await
+            }
             DbCliPublication::PublicationArchiveCode {
                 publication_id,
                 origin_url,

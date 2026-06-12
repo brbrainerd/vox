@@ -352,6 +352,15 @@ CREATE TABLE IF NOT EXISTS scientia_embedding_cache (
     created_at_ms INTEGER NOT NULL
 );
 
+-- Per-producer scan cursor for automated discovery producers (commit-watcher, ...).
+-- `last_seen` is producer-defined (e.g. the last scanned commit sha). Single row
+-- per producer; advanced ONLY after a batch's draft inserts succeed.
+CREATE TABLE IF NOT EXISTS scientia_producer_cursor (
+    producer      TEXT    PRIMARY KEY,
+    last_seen     TEXT    NOT NULL,
+    updated_at_ms INTEGER NOT NULL
+);
+
 -- Append-only per-claim human review decisions (design §5.1). Latest by decided_at_ms wins.
 CREATE TABLE IF NOT EXISTS scientia_review_decisions (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,

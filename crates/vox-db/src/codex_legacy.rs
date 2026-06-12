@@ -95,6 +95,7 @@ pub const LEGACY_EXPORT_SKIP_TABLES: &[&str] = &[
     "mesh_exec_leases",   // transient mesh execution state
     "schema_version",
     "scientia_embedding_cache", // pure derived cache; regenerated on demand from LLM calls
+    "scientia_producer_cursor", // ephemeral per-producer scan cursor; drafts are idempotent on re-scan
 ];
 
 /// User tables included in [`export_legacy_jsonl`] / accepted by [`import_legacy_jsonl`].

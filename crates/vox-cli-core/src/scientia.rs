@@ -431,6 +431,24 @@ pub enum ScientiaCmd {
         candidate_class: Option<String>,
     },
 
+    /// Track C — Scan new commits for research-worthy signals and create DRAFT
+    /// finding candidates (surfaced for human review, NEVER auto-published).
+    /// Advances a per-producer cursor only after the batch's draft inserts
+    /// succeed. When an embedding provider + code vector index are configured,
+    /// folds a (Supporting-only) code-uniqueness signal into each candidate.
+    #[command(name = "discovery-watch")]
+    DiscoveryWatch {
+        /// Run a single pass and exit (currently the only mode).
+        #[arg(long, default_value_t = false)]
+        once: bool,
+        /// Repository path to scan (default: resolved repo root).
+        #[arg(long)]
+        repo: Option<std::path::PathBuf>,
+        /// When no cursor exists, scan at most this many commits back from HEAD.
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+    },
+
     /// Phase B — Re-execute a manifest's RO-Crate `mainEntity` in a sandbox
     /// and emit the measured `ReplayReport` JSON to stdout.
     #[command(name = "publication-replay-execute")]

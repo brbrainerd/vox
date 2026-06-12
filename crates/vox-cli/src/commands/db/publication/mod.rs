@@ -15,6 +15,8 @@ mod scholarly;
 pub use scholarly::*;
 mod discovery;
 pub use discovery::*;
+mod discovery_watch;
+pub use discovery_watch::*;
 mod internal;
 pub(crate) use internal::*;
 mod route;

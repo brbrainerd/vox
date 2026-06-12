@@ -327,6 +327,9 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     kind,
                     interval_ms,
                 }),
+                ScientiaCmd::DiscoveryWatch { once, repo, limit } => {
+                    DbCli::Publication(DbCliPublication::DiscoveryWatch { once, repo, limit })
+                }
                 ScientiaCmd::FeedSourceList => DbCli::Publication(DbCliPublication::FeedSourceList),
                 ScientiaCmd::Diagnose { live } => {
                     return diagnose_adapters(live).await;

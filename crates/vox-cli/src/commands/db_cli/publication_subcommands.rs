@@ -459,6 +459,21 @@ pub enum DbCliPublication {
         #[arg(long, default_value_t = 10)]
         limit: usize,
     },
+    /// Scan new commits for research-worthy signals and create DRAFT finding
+    /// candidates (human-reviewed, never auto-published). Cursor advances only
+    /// after the batch's draft inserts succeed.
+    #[command(name = "discovery-watch")]
+    DiscoveryWatch {
+        /// Run a single pass and exit (currently the only mode).
+        #[arg(long, default_value_t = false)]
+        once: bool,
+        /// Repository path to scan (default: resolved repo root).
+        #[arg(long)]
+        repo: Option<PathBuf>,
+        /// When no cursor exists, scan at most this many commits back from HEAD.
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+    },
     /// Register or update a feed source for inbound intelligence.
     #[command(name = "feed-source-add")]
     FeedSourceAdd {

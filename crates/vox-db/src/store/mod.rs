@@ -66,6 +66,7 @@ mod ops_mens_intelligence;
 mod ops_news;
 pub mod ops_orchestrator;
 mod ops_planning;
+mod ops_producer_cursor;
 mod ops_publication;
 mod ops_questioning;
 mod ops_retention;
