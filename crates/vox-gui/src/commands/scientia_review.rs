@@ -337,9 +337,7 @@ pub struct DiscoveryInboxDto {
 /// List unacknowledged discoveries, newest first, capped at `limit` (default 50).
 /// Read-only: nothing is mutated. Each DB row maps 1:1 into a [`DiscoveryInboxDto`].
 #[tauri::command]
-pub async fn list_discovery_inbox(
-    limit: Option<i64>,
-) -> Result<Vec<DiscoveryInboxDto>, String> {
+pub async fn list_discovery_inbox(limit: Option<i64>) -> Result<Vec<DiscoveryInboxDto>, String> {
     let db = db().await?;
     let rows = db
         .list_unacknowledged_discoveries(limit.unwrap_or(50))
@@ -449,9 +447,7 @@ async fn load_manifest_row(
 
 /// Metadata-completeness report for ONE publication. Read-only.
 #[tauri::command]
-pub async fn get_completion_report(
-    publication_id: String,
-) -> Result<CompletionReportDto, String> {
+pub async fn get_completion_report(publication_id: String) -> Result<CompletionReportDto, String> {
     let db = db().await?;
     let row = load_manifest_row(&db, &publication_id).await?;
     let manifest = manifest_from_row(&row);
