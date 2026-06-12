@@ -88,6 +88,8 @@ pub(crate) mod text_normalization;
 #[cfg(feature = "toestub-gate")]
 pub mod toestub_tools;
 pub mod tool_aliases;
+/// `vox_tool_search` — keyword search over the tool registry (progressive disclosure).
+pub mod tool_search;
 /// Training-intent submission via orchestrator (Mens CLI remains canonical executor).
 pub mod training_tools;
 /// Trust rollup inspection tools (`trust_rollups` over VoxDb).

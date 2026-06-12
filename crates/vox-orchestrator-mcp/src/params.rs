@@ -321,6 +321,18 @@ pub struct TaskStatusParams {
     pub task_id: u64,
 }
 
+/// Arguments for `vox_tool_search` (progressive tool disclosure).
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct ToolSearchParams {
+    /// Whitespace-separated keywords matched against tool names and descriptions.
+    #[schemars(length(min = 1, max = 1024))]
+    pub query: String,
+    /// Maximum number of tools to return (default 10, clamped to 1..=100).
+    #[schemars(range(min = 1, max = 100))]
+    pub limit: Option<u32>,
+}
+
 /// Mark a task completed.
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(deny_unknown_fields)]
