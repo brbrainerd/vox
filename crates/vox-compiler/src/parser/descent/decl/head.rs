@@ -2902,10 +2902,20 @@ impl Parser {
                             return Err(());
                         }
                     };
+                    // Optional `on: <bg-token>` pairing for the fg/bg contrast check.
+                    // `on` lexes as the keyword `Token::On` (shared with `on mount`).
+                    let pair_bg = if matches!(self.peek(), Token::On) {
+                        self.advance(); // eat `on`
+                        self.expect(&Token::Colon)?;
+                        Some(self.parse_ident_name()?)
+                    } else {
+                        None
+                    };
                     colors.push(AstColorToken {
                         name,
                         light,
                         dark,
+                        pair_bg,
                         span: entry_start.merge(self.span()),
                     });
                 }

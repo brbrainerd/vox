@@ -38,6 +38,10 @@ pub struct HirColorToken {
     pub light: String,
     /// Hex string for dark mode.
     pub dark: String,
+    /// Optional `on: <bg-token>` pairing — the background token this color is
+    /// rendered on. When set, `check_tokens` validates the fg/bg WCAG ratio per variant.
+    #[serde(default)]
+    pub pair_bg: Option<String>,
     pub span: Span,
 }
 

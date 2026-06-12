@@ -141,6 +141,10 @@ pub struct AstColorToken {
     pub name: String,
     pub light: String,
     pub dark: String,
+    /// Optional `on: <bg-token>` pairing — declares this color is foreground text
+    /// rendered on the named background token. Drives the compile-time WCAG check.
+    #[serde(default)]
+    pub pair_bg: Option<String>,
     pub span: Span,
 }
 

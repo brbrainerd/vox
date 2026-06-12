@@ -21,10 +21,11 @@ fn dummy() to int { return 1 }
 
 #[test]
 fn tokens_contrast_violation_produces_diagnostic() {
-    // Both hex values here have very similar luminance → WCAG AA failure.
+    // A declared fg-on-bg pair below WCAG AA: gray-300 text on a white surface.
     let src = r##"
 @tokens {
-    color bad_pair light: "#777777" dark: "#888888"
+    color surface_page light: "#ffffff" dark: "#1a1a1a"
+    color text_muted   light: "#d1d5db" dark: "#6b7280" on: surface_page
 }
 fn dummy() to int { return 1 }
 "##;
@@ -35,7 +36,27 @@ fn dummy() to int { return 1 }
         .find(|d| d.code.as_deref() == Some("vox/tokens/contrast-violation"));
     assert!(
         hit.is_some(),
-        "expected vox/tokens/contrast-violation diagnostic for low-contrast pair; got {:?}",
+        "expected vox/tokens/contrast-violation for gray-on-white pair; got {:?}",
+        ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn tokens_unpaired_close_variants_are_not_flagged() {
+    // Regression: a token with near-identical light/dark but NO `on:` must not
+    // fire a contrast violation — light vs dark is not a fg/bg relationship.
+    let src = r##"
+@tokens {
+    color brand light: "#ffffff" dark: "#f8f8f8"
+}
+fn dummy() to int { return 1 }
+"##;
+    let m = parse(lex(src)).expect("parse");
+    let ds = typecheck_ast_module(src, &m);
+    assert!(
+        ds.iter()
+            .all(|d| d.code.as_deref() != Some("vox/tokens/contrast-violation")),
+        "unpaired token must not be contrast-checked; got {:?}",
         ds.iter().map(|d| d.code.as_deref()).collect::<Vec<_>>()
     );
 }
