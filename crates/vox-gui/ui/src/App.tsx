@@ -440,18 +440,19 @@ export default function App() {
     const activeSession = sessions.find(s => s.id === activeSessionId);
     const sessionId = payload.session_id ?? (activeSessionId || 'gui-loquela');
     const files = Array.from(new Set([...contextFiles, ...(activeSession?.scopePaths ?? [])]));
-    await executeIpcWithRun<{ ok: boolean; message: string; task_id: string | null }>(
+    const baseInput = {
+      description: payload.description,
+      files,
+      priority: payload.priority ?? null,
+      session_id: sessionId,
+      mode: payload.mode ?? null,
+      tier: payload.tier ?? null,
+    };
+    await executeIpcWithRun<{ ok: boolean; message: string; task_id: string | null; duplicate_of?: string | null }>(
       'submit_orchestrator_task',
-      {
-        input: {
-          description: payload.description,
-          files,
-          priority: payload.priority ?? null,
-          session_id: sessionId,
-          mode: payload.mode ?? null,
-          tier: payload.tier ?? null,
-        }
-      },
+      // First pass refuses a near-duplicate so we can ask the user (don't
+      // silently duplicate plans / CI work that feeds into an existing task).
+      { input: { ...baseInput, allow_duplicate: false } },
       'gui.loquela.submit',
       // Mint the runId and create the user/assistant bubbles BEFORE the invoke
       // resolves so streamed tokens correlate to a live transcript entry.
@@ -460,9 +461,28 @@ export default function App() {
         dispatchChat({ type: 'submit', runId: id, prompt: String(payload.description ?? ''), sessionId });
       },
     )
-      .then((result) => {
+      .then(async (result) => {
         if (runId && result?.task_id != null) {
           dispatchChat({ type: 'submitResolved', runId, taskId: String(result.task_id) });
+          return;
+        }
+        // No task_id + duplicate_of ⇒ a near-duplicate was found; ask the user.
+        if (result?.duplicate_of) {
+          const goAhead = window.confirm(
+            `A nearly identical task (#${result.duplicate_of}) is already queued.\n\n` +
+            `OK = add anyway as a separate task\nCancel = skip (open Tasks to edit #${result.duplicate_of} instead)`,
+          );
+          if (!goAhead) {
+            if (runId) dispatchChat({ type: 'failRun', runId, error: `skipped: duplicate of #${result.duplicate_of}` });
+            pushToast({ tone: 'info', title: 'Skipped duplicate', body: `Existing task #${result.duplicate_of} kept` });
+            return;
+          }
+          const retry = await invoke<{ task_id: string | null }>('submit_orchestrator_task', {
+            input: { ...baseInput, allow_duplicate: true },
+          });
+          if (runId && retry?.task_id != null) {
+            dispatchChat({ type: 'submitResolved', runId, taskId: String(retry.task_id) });
+          }
         }
       })
       .catch(err => pushToast({ tone: 'warn', title: 'Dispatch Failed', body: String(err) }));

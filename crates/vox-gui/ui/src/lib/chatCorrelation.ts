@@ -44,6 +44,7 @@ export const initialChatState: ChatState = {
 export type ChatAction =
   | { type: 'submit'; runId: string; prompt: string; sessionId?: string }
   | { type: 'submitResolved'; runId: string; taskId: string }
+  | { type: 'failRun'; runId: string; error: string }
   | { type: 'agentEvent'; event: AgentEventFrame };
 
 /**
@@ -106,6 +107,13 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       const next = { ...state, taskToRun: { ...state.taskToRun, [taskId]: action.runId } };
       return mapAssistant(next, action.runId, (m) => ({ ...m, taskId }));
     }
+
+    case 'failRun':
+      return mapAssistant(state, action.runId, (m) => ({
+        ...m,
+        status: 'failed',
+        error: action.error,
+      }));
 
     case 'agentEvent': {
       const { kind } = action.event;

@@ -26,6 +26,14 @@ describe('messagesForSession', () => {
   });
 });
 
+describe('failRun', () => {
+  it('marks the assistant bubble failed with the given error', () => {
+    let s = chatReducer(initialChatState, { type: 'submit', runId: 'R9', prompt: 'p' });
+    s = chatReducer(s, { type: 'failRun', runId: 'R9', error: 'skipped: duplicate of #4' });
+    expect(assistant(s, 'R9')).toMatchObject({ status: 'failed', error: 'skipped: duplicate of #4' });
+  });
+});
+
 describe('chatReducer', () => {
   it('submit adds a user message and a pending assistant bubble for the run', () => {
     const s = chatReducer(initialChatState, { type: 'submit', runId: 'R1', prompt: 'hi there' });

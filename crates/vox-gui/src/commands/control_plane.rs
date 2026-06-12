@@ -14,6 +14,9 @@ pub struct SubmitTaskInput {
     pub mode: Option<String>,
     /// Tier/model preference from the composer; forwarded as model_preference enqueue hint.
     pub tier: Option<String>,
+    /// When false, the daemon refuses a near-duplicate (returns duplicate_of with
+    /// a null task_id) so the GUI can offer merge/skip. Defaults true.
+    pub allow_duplicate: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -21,6 +24,9 @@ pub struct ControlPlaneResult {
     pub ok: bool,
     pub message: String,
     pub task_id: Option<String>,
+    /// Set when an existing near-duplicate task was detected (its id).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duplicate_of: Option<String>,
 }
 
 async fn call_orchestrator_daemon(
@@ -48,6 +54,7 @@ pub async fn submit_orchestrator_task(
         "file_manifest": file_manifest,
         "priority": priority,
         "session_id": input.session_id.filter(|s| !s.trim().is_empty()),
+        "allow_duplicate": input.allow_duplicate.unwrap_or(true),
     });
     // Carry composer mode/tier through as enqueue hints (tier → model_preference).
     // Only attach the key when non-empty — the daemon rejects a null enqueue_hints
@@ -72,10 +79,19 @@ pub async fn submit_orchestrator_task(
         .get("task_id")
         .and_then(|v| v.as_u64())
         .map(|v| v.to_string());
+    let duplicate_of = response
+        .get("duplicate_of")
+        .and_then(|v| v.as_u64())
+        .map(|v| v.to_string());
     Ok(ControlPlaneResult {
         ok: true,
-        message: "task submitted".to_string(),
+        message: if task_id.is_some() {
+            "task submitted".to_string()
+        } else {
+            "duplicate skipped".to_string()
+        },
         task_id,
+        duplicate_of,
     })
 }
 
@@ -90,6 +106,7 @@ pub async fn pause_orchestrator_agent(agent_id: u64) -> Result<ControlPlaneResul
         ok: true,
         message: format!("agent {agent_id} paused"),
         task_id: None,
+        duplicate_of: None,
     })
 }
 
@@ -104,6 +121,7 @@ pub async fn resume_orchestrator_agent(agent_id: u64) -> Result<ControlPlaneResu
         ok: true,
         message: format!("agent {agent_id} resumed"),
         task_id: None,
+        duplicate_of: None,
     })
 }
 
@@ -124,6 +142,7 @@ pub async fn doubt_orchestrator_task(
         ok: true,
         message: format!("task {task_id} marked as suspect"),
         task_id: Some(task_id.to_string()),
+        duplicate_of: None,
     })
 }
 
@@ -144,6 +163,7 @@ pub async fn overrule_orchestrator_task(
         ok: true,
         message: format!("task {task_id} overruled"),
         task_id: Some(task_id.to_string()),
+        duplicate_of: None,
     })
 }
 
@@ -245,6 +265,7 @@ pub async fn edit_orchestrator_task(
         ok: true,
         message: format!("task {task_id} updated"),
         task_id: Some(task_id.to_string()),
+        duplicate_of: None,
     })
 }
 
@@ -259,6 +280,7 @@ pub async fn cancel_orchestrator_task(task_id: u64) -> Result<ControlPlaneResult
         ok: true,
         message: format!("task {task_id} cancelled"),
         task_id: Some(task_id.to_string()),
+        duplicate_of: None,
     })
 }
 
@@ -276,5 +298,6 @@ pub async fn reorder_orchestrator_task(
         ok: true,
         message: format!("task {task_id} → {priority}"),
         task_id: Some(task_id.to_string()),
+        duplicate_of: None,
     })
 }
