@@ -18,6 +18,7 @@ mod main_boot;
 mod method_emit;
 pub(super) mod ownership;
 mod param_borrow;
+pub(super) mod script_db;
 mod state_machine;
 mod stmt_expr;
 mod stmt_expr_tail;
@@ -75,10 +76,11 @@ pub use http::emit_main;
 pub use main_boot::{emit_durable_boot_helpers, emit_durable_boot_prelude, emit_main_boot};
 pub use stmt_expr::{emit_expr, emit_main_stmt};
 pub use tables::{
-    emit_index_ddl, emit_table_ddl, emit_table_struct, validate_db_projection_suffixes_unique,
+    emit_index_ddl, emit_schema_drift_verify, emit_table_ddl, emit_table_struct,
+    validate_db_projection_suffixes_unique,
 };
 pub(crate) use types::emit_type;
-pub use workflow::{emit_fn, emit_lib};
+pub use workflow::{emit_fn, emit_lib, emit_script_lib};
 
 pub struct CodegenOutput {
     /// Relative path → file contents (e.g. `Cargo.toml`, `src/main.rs`).
@@ -373,6 +375,7 @@ use {}::*;
                 Some(&module.inferred_types),
                 None,
                 None,
+                None,
             );
             out.push_str(&emitted);
         }
@@ -406,14 +409,77 @@ use {}::*;
             // `emit_db_setup` (tables/codegen.rs) + `emit_durable_boot_prelude`.
             // `Codex::connect` is async; the Tauri `.setup` closure is sync, so
             // run it to completion on Tauri's runtime.
-            let db = tauri::async_runtime::block_on(async {
-                let cfg = vox_db::DbConfig::resolve_canonical()
-                    .expect("resolve Codex DB config (VOX_DB_URL+TOKEN, or VOX_DB_PATH)");
-                vox_db::Codex::connect(cfg).await.expect("Failed to open Codex database")
+            // Guard: Tauri table runtime is Codex/libsql in this phase; fail fast
+            // if app-plane URL points at non-libsql backend.
+            if let Ok(app_url) = std::env::var("VOX_APP_DB_URL") {
+                let u = app_url.to_ascii_lowercase();
+                if u.starts_with("postgres://") || u.starts_with("postgresql://") || u.starts_with("mysql://") {
+                    eprintln!("VOX_APP_DB_URL uses non-libsql backend ({}) but generated Tauri table runtime currently requires libsql/Codex", app_url);
+                    std::process::exit(2);
+                }
+            }
+            let codex = tauri::async_runtime::block_on(async {
+                let cfg = match vox_db::DbConfig::resolve_canonical() {
+                    Ok(cfg) => cfg,
+                    Err(e) => {
+                        eprintln!("Failed to resolve Codex DB config (VOX_DB_URL+TOKEN, or VOX_DB_PATH): {}", e);
+                        std::process::exit(2);
+                    }
+                };
+                match vox_db::Codex::connect(cfg).await {
+                    Ok(db) => db,
+                    Err(e) => {
+                        eprintln!("Failed to open Codex database: {}", e);
+                        std::process::exit(2);
+                    }
+                }
             });
-            app.manage(std::sync::Arc::new(db));
 "#,
             );
+            out.push_str(
+                "            tauri::async_runtime::block_on(async {\n\
+                \x20               {\n\
+                \x20                   let mut __vox_jm = match codex.connection().query(\"PRAGMA journal_mode=WAL;\", ()).await {\n\
+                \x20                       Ok(rows) => rows,\n\
+                \x20                       Err(e) => {\n\
+                \x20                           eprintln!(\"PRAGMA journal_mode failed: {}\", e);\n\
+                \x20                           std::process::exit(2);\n\
+                \x20                       }\n\
+                \x20                   };\n\
+                \x20                   loop {\n\
+                \x20                       match __vox_jm.next().await {\n\
+                \x20                           Ok(Some(_)) => {}\n\
+                \x20                           Ok(None) => break,\n\
+                \x20                           Err(e) => {\n\
+                \x20                               eprintln!(\"PRAGMA journal_mode row iteration failed: {}\", e);\n\
+                \x20                               std::process::exit(2);\n\
+                \x20                           }\n\
+                \x20                       }\n\
+                \x20                   }\n\
+                \x20               }\n\
+                \x20               if let Err(e) = codex.connection().execute_batch(\"PRAGMA foreign_keys=ON;\").await {\n\
+                \x20                   eprintln!(\"PRAGMA foreign_keys failed: {}\", e);\n\
+                \x20                   std::process::exit(2);\n\
+                \x20               }\n\
+                \x20               if let Err(e) = codex.connection().execute_batch(r#\"\n",
+            );
+            for table in &module.tables {
+                out.push_str(&emit_table_ddl(table));
+                out.push('\n');
+            }
+            for index in &module.indexes {
+                out.push_str(&emit_index_ddl(index));
+                out.push('\n');
+            }
+            out.push_str(
+                "\"#).await {\n\
+                \x20                   eprintln!(\"schema migration failed: {}\", e);\n\
+                \x20                   std::process::exit(2);\n\
+                \x20               }\n",
+            );
+            out.push_str(&emit_schema_drift_verify(module));
+            out.push_str("            });\n");
+            out.push_str("            app.manage(std::sync::Arc::new(codex));\n");
         }
         if has_scheduled {
             // Tauri's `fn main()` is synchronous but the durable-boot prelude

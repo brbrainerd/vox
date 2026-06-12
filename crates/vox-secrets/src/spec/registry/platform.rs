@@ -149,6 +149,17 @@ pub const SPECS_PLATFORM: &[SecretSpec] = &[
         scope_description: "",
     },
     SecretSpec {
+        id: SecretId::VoxAppDbUrl,
+        canonical_env: "VOX_APP_DB_URL",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set VOX_APP_DB_URL for app data-plane SQL backend routing.",
+        scope_description: "",
+    },
+    SecretSpec {
         id: SecretId::VoxDbToken,
         canonical_env: "VOX_DB_TOKEN",
         aliases: &[],

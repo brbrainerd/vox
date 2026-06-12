@@ -3,6 +3,7 @@ name = "vox-rule-pack"
 description = "Declarative rule pack loader for code-audit detectors and Scientia heuristics. Zero heavy dependencies."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 serde = { workspace = true }

@@ -22,7 +22,7 @@
 *.mjs text eol=lf
 *.mts text eol=lf
 *.py text eol=lf
-*.vox text eol=lf
+*.vox text eol=lf linguist-language=Vox linguist-detectable=true
 *.gd text eol=lf
 *.css text eol=lf
 *.html text eol=lf

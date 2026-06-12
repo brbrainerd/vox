@@ -3,6 +3,7 @@ name = "vox-project-scaffold"
 description = "Shared Vox.toml + src/main.vox + skill scaffolding for vox init and MCP"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 anyhow.workspace = true

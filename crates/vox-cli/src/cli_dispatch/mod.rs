@@ -211,6 +211,9 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
                 Some(crate::commands::audit::AuditSubcommand::EffortRoute(route)) => {
                     crate::commands::audit_route::run(route).await?;
                 }
+                Some(other) => {
+                    crate::commands::audit::run_audit_subcommand(&other)?;
+                }
                 None => {
                     crate::commands::audit::run(&args)?;
                 }
@@ -326,6 +329,9 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         }
         Cli::Shell { cmd } => {
             crate::commands::runtime::shell::run(cmd).await?;
+        }
+        Cli::Repl => {
+            crate::commands::repl::run().await?;
         }
         Cli::Db { cmd } => {
             crate::commands::db_cli::run(cmd).await?;

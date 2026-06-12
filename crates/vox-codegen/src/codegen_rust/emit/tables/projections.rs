@@ -82,6 +82,7 @@ mod tests {
             Some(Box::new(HirDbQueryPlan {
                 table: "Task".to_string(),
                 op: HirDbTableOp::FilterRecord,
+                primary_key: None,
                 predicate: None,
                 projection: Some(vec!["done".to_string(), "title".to_string()]),
                 order_by: None,

@@ -15,18 +15,17 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .build()
 }
 
-/// On-device transcription entry point. Mobile JNI/Swift bridges are wired separately.
+/// On-device transcription entry point.
+///
+/// Tauri is desktop-only (ADR: scope-tauri-desktop-only); mobile apps use the
+/// React Native target (`vox build --target=mobile`), where transcription goes
+/// through `@vox/runtime-rn`. A desktop STT backend has not been wired yet, so
+/// this command reports that honestly instead of pretending to listen.
 #[tauri::command]
 async fn transcribe() -> Result<TranscribeResult, String> {
-    #[cfg(any(target_os = "android", target_os = "ios"))]
-    {
-        Err(
-            "native STT bridge not yet connected from Rust to SpeechRecognizerBridge / AppleSpeechBackend"
-                .to_string(),
-        )
-    }
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    {
-        Err("on-device transcription is only available in Android and iOS Tauri builds".to_string())
-    }
+    Err(
+        "on-device transcription is not wired for desktop Tauri builds; mobile apps use the \
+         React Native target (`vox build --target=mobile`)"
+            .to_string(),
+    )
 }

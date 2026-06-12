@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "contracts/reports/pre-push-report.v1.schema.json",
   "title": "pre-push-report-v1",
-  "description": "Structured timing output from `vox ci pre-push --report-json`. schema_version 2 adds `profile` and `complete`; schema_version 3 adds `with_coverage` and new profile values (`full+cov`, `full+since`, `full+cov+since`).",
+  "description": "Structured timing output from `vox ci pre-push --report-json`. schema_version 2 adds `profile` and `complete`; schema_version 3 adds `with_coverage` and new profile values (`full+cov`, `full+since`, `full+cov+since`); schema_version 4 adds optional per-step `scope` metadata.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -20,7 +20,7 @@
   "properties": {
     "schema_version": {
       "type": "integer",
-      "enum": [1, 2, 3]
+      "enum": [1, 2, 3, 4]
     },
     "profile": {
       "type": "string",
@@ -63,6 +63,16 @@
               { "type": "integer", "minimum": 0 },
               { "type": "null" }
             ]
+          },
+          "scope": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "impacted_packages": { "type": "integer", "minimum": 0 },
+              "chunk_count": { "type": "integer", "minimum": 0 },
+              "fallback_reason": { "type": "string" },
+              "toestub_roots": { "type": "integer", "minimum": 0 }
+            }
           }
         }
       }

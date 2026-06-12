@@ -14,6 +14,11 @@
 # Rust workspace.
 /crates/                   @vox-foundation/maintainers
 
+# High-churn core crates (override /crates/ above — last match wins).
+/crates/vox-compiler/      @vox-foundation/maintainers
+/crates/vox-cli/           @vox-foundation/maintainers
+/crates/vox-orchestrator/  @vox-foundation/maintainers
+
 # Public contracts / API surface.
 /contracts/                @vox-foundation/maintainers
 

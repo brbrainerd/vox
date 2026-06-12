@@ -21,6 +21,7 @@ vox-bounded-fs = { workspace = true }
 workspace-hack = { workspace = true }
 vox-compiler = { workspace = true }
 serde_json.workspace = true
+rayon = { workspace = true }
 
 [lints]
 workspace = true

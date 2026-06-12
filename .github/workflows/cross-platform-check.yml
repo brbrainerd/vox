@@ -27,14 +27,24 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
+    env:
+      # Shared compile cache via the GitHub Actions cache service (see
+      # ci-fallback-hosted.yml `gate` for rationale).
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+      CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@v6
-      
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+
       - uses: actions/cache@v5
         with:
           path: |
@@ -63,3 +73,7 @@ jobs:
           cargo nextest run -p vox-config
           cargo nextest run -p vox-cli-core
           cargo nextest run -p vox-populi --lib
+
+      - name: sccache stats
+        if: always()
+        run: sccache --show-stats

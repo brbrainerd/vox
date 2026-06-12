@@ -2,6 +2,7 @@
 name = "vox-arch-check"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 description = "CI guard: enforces the workspace layered-architecture model. See docs/src/architecture/2026-05-08-workspace-reorg-design.md."
 
 [dependencies]

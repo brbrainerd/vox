@@ -209,6 +209,29 @@ impl LanguageServer for Backend {
         }
     }
 
+    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        let uri = &params.text_document.uri;
+        let text = match self.documents.lock() {
+            Ok(g) => g.get(uri).cloned(),
+            Err(e) => {
+                tracing::error!("formatting: documents mutex poisoned: {e}");
+                return Ok(None);
+            }
+        };
+        let Some(text) = text else {
+            return Ok(None);
+        };
+        let formatted = vox_compiler::fmt::format(&text);
+        if formatted == text {
+            return Ok(Some(vec![]));
+        }
+        let range = full_document_range(&text);
+        Ok(Some(vec![TextEdit {
+            range,
+            new_text: formatted,
+        }]))
+    }
+
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         let uri = params.text_document.uri.clone();
         if let Some(text) = params.text {
@@ -237,6 +260,24 @@ impl LanguageServer for Backend {
                     .await;
             }
         }
+    }
+}
+
+/// Range covering the entire document (for full-buffer format edits).
+fn full_document_range(text: &str) -> Range {
+    let line_count = text.lines().count();
+    let last_line = line_count.saturating_sub(1) as u32;
+    let last_line_str = text.lines().last().unwrap_or("");
+    let last_col = last_line_str.chars().count() as u32;
+    Range {
+        start: Position {
+            line: 0,
+            character: 0,
+        },
+        end: Position {
+            line: last_line,
+            character: last_col,
+        },
     }
 }
 

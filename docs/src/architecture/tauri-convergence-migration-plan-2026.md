@@ -401,7 +401,7 @@ cargo test -p vox-codegen
 **Why**: `mobile_emit` can generate `@tauri-apps/api` imports but the template dependency surface does not consistently provision them.
 
 **Files to read first**:
-- `crates/vox-codegen/src/codegen_ts/mobile_emit.rs:26-31`
+- `crates/vox-codegen-ts/src/mobile_emit.rs:26-31`
 - `crates/vox-cli/src/templates/spa.rs`
 - `crates/vox-cli/src/templates/tanstack.rs`
 
@@ -719,11 +719,11 @@ cargo test -p vox-cli compile_mobile_tauri -- --nocapture
 **Why**: TS HIR emit still generates Capacitor imports for mobile-native features.
 
 **Files to read first**:
-- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs:789-822`
-- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs:789-794`
+- `crates/vox-codegen-ts/src/hir_emit/mod.rs:789-822`
+- `crates/vox-codegen-ts/src/hir_emit/mod.rs:789-794`
 
 **Files to modify**:
-- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`
+- `crates/vox-codegen-ts/src/hir_emit/mod.rs`
 - `crates/vox-codegen/tests/snapshots/`
 
 **Step-by-step work**:
@@ -735,11 +735,11 @@ cargo test -p vox-cli compile_mobile_tauri -- --nocapture
 
 ```bash
 cargo test -p vox-codegen hir_emit_mobile_plugins -- --nocapture
-rg "@capacitor/" crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs
+rg "@capacitor/" crates/vox-codegen-ts/src/hir_emit/mod.rs
 ```
 
 **Acceptance criteria**:
-- `rg "@capacitor/" crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` returns no generated import strings.
+- `rg "@capacitor/" crates/vox-codegen-ts/src/hir_emit/mod.rs` returns no generated import strings.
 
 **Do NOT**:
 - Use `(window as any).Capacitor` as a compatibility shim.
@@ -756,11 +756,11 @@ rg "@capacitor/" crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs
 **Why**: Native bridge emit uses `Capacitor.Plugins.VoxNative.invoke(...)`.
 
 **Files to read first**:
-- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs:737-774`
-- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs:771`
+- `crates/vox-codegen-ts/src/hir_emit/mod.rs:737-774`
+- `crates/vox-codegen-ts/src/hir_emit/mod.rs:771`
 
 **Files to modify**:
-- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`
+- `crates/vox-codegen-ts/src/hir_emit/mod.rs`
 - `crates/vox-codegen/tests/`
 
 **Step-by-step work**:
@@ -773,7 +773,7 @@ rg "@capacitor/" crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs
 
 ```bash
 cargo test -p vox-codegen native_invoke_tauri -- --nocapture
-rg "Capacitor.Plugins|window as any\\)\\.Capacitor" crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs
+rg "Capacitor.Plugins|window as any\\)\\.Capacitor" crates/vox-codegen-ts/src/hir_emit/mod.rs
 ```
 
 **Acceptance criteria**:
@@ -1770,8 +1770,8 @@ Current known migration surfaces:
 - `crates/vox-codegen/src/codegen_rust/emit/http.rs:207-231` — embedded asset serving.
 - `crates/vox-codegen/src/codegen_rust/emit/http.rs:400-410` — Axum bind/serve.
 - `crates/vox-codegen/src/codegen_rust/emit/mod.rs:198-226` — generated Axum/rust-embed deps.
-- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs:737-774` — Capacitor native invoke docs/emit.
-- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs:789-822` — Capacitor mobile imports.
+- `crates/vox-codegen-ts/src/hir_emit/mod.rs:737-774` — Capacitor native invoke docs/emit.
+- `crates/vox-codegen-ts/src/hir_emit/mod.rs:789-822` — Capacitor mobile imports.
 - `crates/vox-codegen/src/codegen_rust/emit/tauri_stub.rs:10-12` — unused Tauri stub.
 
 ---

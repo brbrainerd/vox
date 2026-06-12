@@ -171,11 +171,11 @@ Use `workflow` to group state machine processes that survive process restarts. U
 
 ```vox
 // vox:skip
-@endpoint(kind: query) fn get_notes() to List[Note] {
+@query fn get_notes() to List[Note] {
     return db.Note.all()
 }
 
-@endpoint(kind: mutation) fn create_note(title: str, content: str) to Result[Id[Note]] {
+@mutation fn create_note(title: str, content: str) to Result[Id[Note]] {
     let id = db.Note.insert({ title: title, content: content })?
     return Ok(id)
 }

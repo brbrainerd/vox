@@ -9,7 +9,6 @@ fn diagnostics_for(source: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn db_table_query_clause_is_lint_error() {
     let src = r#"
 @table type User { name: str active: bool }
@@ -44,7 +43,6 @@ fn query_decl_rejects_insert_write_ops() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn db_chained_limit_no_longer_reports_unsupported_chain_error() {
     let src = r#"
 @table type User { name: str active: bool }
@@ -61,7 +59,6 @@ fn q() to int {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn db_select_typechecks_when_non_optional_columns_included() {
     let src = r#"
 @table type User { name: str active: bool }
@@ -77,7 +74,6 @@ fn q() to int {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn db_select_allows_partial_projection_records() {
     let src = r#"
 @table type User { name: str active: bool }
@@ -89,5 +85,66 @@ fn q() to int {
     assert!(
         !diags.iter().any(|d| d.severity == TypeckSeverity::Error),
         "unexpected errors: {diags:?}"
+    );
+}
+
+#[test]
+fn table_pk_unknown_field_reports_e1041() {
+    let src = r#"
+@table(pk: email) type User { name: str active: bool }
+"#;
+    let diags = diagnostics_for(src);
+    assert!(diags.iter().any(|d| {
+        d.severity == TypeckSeverity::Error
+            && d.code.as_deref() == Some("E1041")
+            && d.message.contains("unknown field")
+    }));
+}
+
+#[test]
+fn table_pk_optional_field_reports_e1042() {
+    let src = r#"
+@table(pk: email) type User { email: Option[str] name: str }
+"#;
+    let diags = diagnostics_for(src);
+    assert!(diags.iter().any(|d| {
+        d.severity == TypeckSeverity::Error
+            && d.code.as_deref() == Some("E1042")
+            && d.message.contains("optional field")
+    }));
+}
+
+#[test]
+fn table_pk_controls_get_delete_argument_type() {
+    let src = r#"
+@table(pk: email) type User { email: str name: str }
+fn bad() to Unit {
+    db.User.get(42)
+    db.User.delete(9)
+}
+"#;
+    let diags = diagnostics_for(src);
+    assert!(
+        diags
+            .iter()
+            .any(|d| { d.severity == TypeckSeverity::Error }),
+        "expected at least one type error, got: {diags:?}"
+    );
+}
+
+#[test]
+fn db_where_unknown_field_reports_error() {
+    let src = r#"
+@table type User { name: str active: bool }
+fn bad() to Unit {
+    db.User.where({ nope: { eq: "x" } })
+}
+"#;
+    let diags = diagnostics_for(src);
+    assert!(
+        diags.iter().any(|d| {
+            d.severity == TypeckSeverity::Error && d.message.contains("Unknown field 'nope'")
+        }),
+        "expected unknown-field error, got: {diags:?}"
     );
 }

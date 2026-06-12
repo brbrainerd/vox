@@ -22,6 +22,6 @@ pub mod nodes;
 /// Structural validation after lowering (invariants for codegen/type consumers).
 pub mod validate;
 pub use core_ir::{CoreIrVersion, TypedCoreIR_v2, WebEntrypointId, typed_core_version};
-pub use lower::lower_module;
+pub use lower::{has_async_stmts, lower_module};
 pub use nodes::*;
 pub use validate::{HirValidationError, validate_module};
