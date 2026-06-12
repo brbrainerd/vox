@@ -2006,7 +2006,6 @@ raw_css {
 
 /// Known surface name in registry → no error.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn surface_known_name_no_error() {
     use vox_codegen::web_ir::validate::validate_web_ir_with_registry;
     use vox_compiler::tokens::TokenRegistry;
@@ -2038,7 +2037,6 @@ fn surface_known_name_no_error() {
 
 /// Unknown surface name in registry → error.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn surface_unknown_name_fires_error() {
     use vox_codegen::web_ir::validate::validate_web_ir_with_registry;
     use vox_compiler::tokens::TokenRegistry;
@@ -2069,7 +2067,6 @@ fn surface_unknown_name_fires_error() {
 
 /// surface attr on panel primitive → lowers to data-vox-surface attr + style CSS vars.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn surface_primitive_lowers_to_css_vars() {
     let src = r##"
 component Page() {
@@ -2101,7 +2098,6 @@ component Page() {
 
 /// surface attr without registry → no surface validation errors (registry is optional).
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn surface_without_registry_no_error() {
     let mut m = WebIrModule::default();
     m.dom_nodes.push(DomNode::Element {

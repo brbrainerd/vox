@@ -801,7 +801,11 @@ fn validate_surface_refs(
             if k != "data-vox-surface" {
                 continue;
             }
-            if registry.lookup_surface(v).is_none() {
+            // Attr values are TS-expression strings (see lower.rs convention comment) —
+            // a plain string literal arrives JSON-encoded with embedded quotes. Strip one
+            // layer before registry lookup.
+            let surface_name = v.trim_matches('"');
+            if registry.lookup_surface(surface_name).is_none() {
                 let known: Vec<&str> = registry.surface_pairs.keys().map(|s| s.as_str()).collect();
                 let hint = if known.is_empty() {
                     String::new()
@@ -811,7 +815,7 @@ fn validate_surface_refs(
                 out.push(WebIrDiagnostic {
                     code: "web_ir_validate.surface.unknown_surface".to_string(),
                     message: format!(
-                        "Unknown surface pair '{v}' — not declared in vox.tokens.json.{hint}"
+                        "Unknown surface pair '{surface_name}' — not declared in vox.tokens.json.{hint}"
                     ),
                     span: None,
                     category: Some("surface".to_string()),
@@ -917,6 +921,39 @@ mod tests {
             meta,
             children: vec![],
         }
+    }
+
+    #[test]
+    fn surface_lookup_tolerates_quoted_attr_values() {
+        use crate::web_ir::{DomNode, DomNodeId, WebIrModule};
+        // Real lowering (lower.rs:280) stores data-vox-surface as a JSON-encoded
+        // string literal — value carries embedded quotes (`"\"primary\""`). The
+        // lookup sites must strip them or every registry lookup misses.
+        let tokens_json = r##"{
+            "color": { "background": "#ffffff", "primary": "#3a86ff" },
+            "surface": {
+                "primary": { "$surface_pair": true, "fg": "color.background", "bg": "color.primary" }
+            }
+        }"##;
+        let registry = vox_compiler::tokens::TokenRegistry::load_from_str(tokens_json)
+            .expect("parse tokens");
+        let mut m = WebIrModule::default();
+        m.dom_nodes.push(DomNode::Element {
+            id: DomNodeId(0),
+            tag: "section".to_string(),
+            attrs: vec![("data-vox-surface".to_string(), "\"primary\"".to_string())],
+            children: vec![],
+            span: None,
+        });
+        m.view_roots.push(("Page".to_string(), DomNodeId(0)));
+
+        let diags = validate_web_ir_with_registry(&m, Some(&registry));
+        assert!(
+            !diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.surface.unknown_surface"),
+            "quoted surface value must resolve against the registry, got: {diags:?}"
+        );
     }
 
     #[test]
