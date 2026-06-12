@@ -52,6 +52,18 @@ pub fn bearer_auth_header_string(token: &str) -> String {
     format!("{BEARER_PREFIX}{token}")
 }
 
+/// Parse a `Retry-After` response header as delay-seconds.
+///
+/// SSOT for rate-limit backoff extraction. Only the delta-seconds form is
+/// supported; the HTTP-date form yields `None` (callers fall back to their
+/// own default backoff).
+pub fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<u64> {
+    headers
+        .get(reqwest::header::RETRY_AFTER)
+        .and_then(|h| h.to_str().ok())
+        .and_then(|s| s.parse().ok())
+}
+
 #[cfg(feature = "middleware")]
 mod populi_middleware {
     use async_trait::async_trait;
