@@ -10,7 +10,7 @@ training_rationale: "Records the canonical GUI authoring shape MENS should learn
 
 # GUI Authoring Syntax (2026): Vox UI as Values (VUV)
 
-**Status:** **VUV-1 through VUV-6 implemented** (2026-05-08). VUV-7 in progress; VUV-8 in this commit. See [§Implementation Status](#implementation-status-2026-05-08) for per-phase landing details.
+**Status:** **VUV-1 through VUV-9 implemented.** As of 2026-06-12 the two headline guarantees are *enforced end-to-end*, not just designed: bad contrast (gray-on-white) and occlusion/tier-inversion now refuse compile on both the web and mobile targets, locked by a forbidden-corpus regression suite. See [§Guarantee enforcement status (2026-06-12)](#guarantee-enforcement-status-2026-06-12) and the per-phase table in [§Implementation Status](#implementation-status-2026-05-08).
 **Scope:** authoring surface only. Web IR ([`crates/vox-codegen/src/web_ir/mod.rs`](../../../crates/vox-codegen/src/web_ir/mod.rs)) and the TSX backend ([`crates/vox-codegen/src/web_ir/emit_tsx.rs`](../../../crates/vox-codegen/src/web_ir/emit_tsx.rs)) keep their contracts. This note changes how source lowers *into* `DomNode` and how style is expressed.
 
 ## Motivation
@@ -172,6 +172,22 @@ This is the phasing the codebase change must follow. Each phase is independently
 | **VUV-9** Naming policy + codemod | ✅ Done | Policy at [vuv-naming-policy-2026.md](vuv-naming-policy-2026.md); registry at `contracts/naming/renames.v1.json` (empty until first rename); `vox migrate names` codemod (token-based; preserves whitespace/comments/string-literal contents); `vox-arch-check` enforces that registry `from` entries are not still canonical primitives. |
 
 **Companion cleanup (commit on the same branch):** removed 11 dead `Decl` variants (`Context`, `Hook`, `Provider`, `Layout`, `ErrorBoundary`, `NotFound`, `Trait`, `Impl`, `Mock`, `Fixture`, `Keyframes`) that the parser never produced. The retired-React-shapes group (`Context`/`Hook`/`Provider`/`Layout`/`ErrorBoundary`/`NotFound`) was the React-context surface VUV-6 supersedes. The non-UI group (`Trait`/`Impl`/`Mock`/`Fixture`/`Keyframes`) was vestigial AST sprawl from earlier prototypes; their structs and ~50 match arms across the workspace are gone.
+
+## Guarantee enforcement status (2026-06-12)
+
+The "contrast / occlusion impossible" promises were audited (2026-06-12) and found *designed but unwired* — the checks existed with passing unit tests but had no production callers, contrast was advisory-only, and a quote-encoding bug left the surface pipeline dead. They are now wired end-to-end (plan: [`2026-06-12-vuv-guarantee-wiring-and-cross-platform-parity.md`](../../superpowers/plans/2026-06-12-vuv-guarantee-wiring-and-cross-platform-parity.md)):
+
+| Guarantee | Where enforced | Diagnostic codes |
+|---|---|---|
+| **Contrast** — `color="gray.300"` on white refuses compile | [`web_ir/validate_palette.rs`](../../../crates/vox-codegen/src/web_ir/validate_palette.rs) — palette vocabulary + pairwise WCAG over the lowered arena | `web_ir_validate.style.unknown_color`, `web_ir_validate.a11y.insufficient_contrast` (blocking), `low_contrast` (warn) |
+| **Unknown kwargs** — `colr=` no longer leaks as a raw attr | same file, edit-distance-1 typo check | `web_ir_validate.style.unknown_kwarg` |
+| **Occlusion / tier inversion** | [`web_ir/validate_layer.rs`](../../../crates/vox-codegen/src/web_ir/validate_layer.rs) — surface tree over the DOM arena | `vox/layer/tier-inversion`, `vox/layer/leaf-surface`, `vox/layer/absolute-in-partition`, `vox/layer/raw-z-index`, `vox/layer/raw-class-occlusion` |
+| **`@layer(tier:)`** on components (not just fns) | parser lookahead → HIR → `data-vox-layer` on root; reserved-tier guard over components | `vox/layer/reserved-tier` |
+| **Cross-platform** — guarantees follow the view tree, not the target | mobile (`--target mobile`) runs the web_ir validators as a blocking analysis pass | (same codes) |
+
+The single canonical z-ladder is `ZTier::z_value()` (tier × 100). Every forbidden case has a fixture under [`examples/forbidden/`](../../../examples/forbidden/) asserting the exact code fires ([`forbidden_corpus_test.rs`](../../../crates/vox-compiler/tests/forbidden_corpus_test.rs)).
+
+Still backlog: portal emission (modal/toast still emit inline `position:fixed`), `@tokens` `on:`-pair contrast (the block-form check still compares light-vs-dark; the registry + palette paths are correct), and RN primitive/style parity.
 
 ## Open questions
 
