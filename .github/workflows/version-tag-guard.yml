@@ -1,0 +1,71 @@
+# Asserts that the workspace version in Cargo.toml matches the pushed git tag.
+#
+# Why: releases are driven by pushing a `v*` tag (release-binaries.yml,
+# release-gui.yml, release-installers.yml all trigger on `tags: "v*"` and stamp
+# the binary version from `github.ref_name`). The Cargo.toml
+# `[workspace.package] version` is bumped by hand, so it can drift from the tag —
+# e.g. tagging `v0.7.0` while Cargo.toml still says `0.6.0`. That ships a binary
+# whose embedded `CARGO_PKG_VERSION` lies about its own release, which in turn
+# breaks `vox upgrade`'s semver comparison and the GitHub update-notification
+# check. This guard fails fast (before any artifact is built) on mismatch.
+#
+# This is a lightweight, hosted-only check so it never depends on the
+# self-hosted fleet. Make it a required check on tag events to enforce.
+name: version-tag-guard
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: version-tag-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  assert-version-matches-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare Cargo.toml workspace version to git tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="${GITHUB_REF_NAME}"          # e.g. v0.7.0
+          tag_version="${tag#v}"            # strip leading v -> 0.7.0
+
+          # Extract the FIRST `version = "..."` under the [workspace.package]
+          # table only, so we don't accidentally read a dependency's version.
+          cargo_version="$(
+            awk '
+              /^\[workspace\.package\]/ { in_wp = 1; next }
+              /^\[/                     { in_wp = 0 }
+              in_wp && /^[[:space:]]*version[[:space:]]*=/ {
+                # version = "0.6.0"  ->  0.6.0
+                gsub(/.*=[[:space:]]*"/, "")
+                gsub(/".*/, "")
+                print
+                exit
+              }
+            ' Cargo.toml
+          )"
+
+          echo "git tag        : ${tag} (version ${tag_version})"
+          echo "Cargo.toml ver : ${cargo_version}"
+
+          if [ -z "${cargo_version}" ]; then
+            echo "::error::Could not read [workspace.package] version from Cargo.toml"
+            exit 1
+          fi
+
+          if [ "${tag_version}" != "${cargo_version}" ]; then
+            echo "::error::Version mismatch — git tag is '${tag_version}' but Cargo.toml [workspace.package] version is '${cargo_version}'. Bump Cargo.toml (and Cargo.lock) before tagging, or retag to match."
+            exit 1
+          fi
+
+          echo "OK: Cargo.toml version matches the release tag."
