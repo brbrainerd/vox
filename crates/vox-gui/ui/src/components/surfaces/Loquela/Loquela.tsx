@@ -107,9 +107,11 @@ interface LoquelaProps {
   skills: any[];
   toast?: (t: any) => void;
   agents?: any[];
+  queueDepth?: number;
+  onOpenTasks?: () => void;
 }
 
-export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill, skills, toast, agents = [] }: LoquelaProps) {
+export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill, skills, toast, agents = [], queueDepth, onOpenTasks }: LoquelaProps) {
   const [text, setText] = useState("");
   const [mode, setMode] = useState("act");
   const [tier, setTier] = useState("auto");
@@ -401,6 +403,16 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
 
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-white/5 pt-2 text-[10px]">
           <Segment value={mode} onChange={setMode} options={LQ_MODES} />
+
+          {typeof queueDepth === 'number' && queueDepth > 0 && (
+            <button
+              onClick={onOpenTasks}
+              title="Open task list"
+              className="flex items-center gap-1 rounded-full border border-brass/25 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass hover:bg-brass/20 focus:outline-none focus:ring-1 focus:ring-brass/40"
+            >
+              {queueDepth} queued
+            </button>
+          )}
 
           <div className="relative">
             <button onClick={() => { setTierOpen(o => !o); setMoreOpen(false); setSkillOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-zinc-300 hover:border-white/20">

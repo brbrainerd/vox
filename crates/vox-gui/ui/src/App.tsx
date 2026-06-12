@@ -19,6 +19,7 @@ import { MemoryView } from './components/surfaces/Memory/MemoryView';
 import { SettingsView } from './components/surfaces/Settings/SettingsView';
 import { ModelsView } from './components/surfaces/Models/ModelsView';
 import { RunsView } from './components/surfaces/Runs/RunsView';
+import { TasksView } from './components/surfaces/Tasks/TasksView';
 import { RepositoryView } from './components/surfaces/Repository/RepositoryView';
 import { MeshView } from './components/surfaces/Mesh/MeshView';
 import { GamifyView } from './components/surfaces/Gamify/GamifyView';
@@ -44,6 +45,7 @@ type View =
   | 'memory'
   | 'models'
   | 'runs'
+  | 'tasks'
   | 'repository'
   | 'mesh'
   | 'gamify'
@@ -590,6 +592,8 @@ export default function App() {
         return <ModelsView pushToast={pushToast} />;
       case 'runs':
         return <RunsView pushToast={pushToast} />;
+      case 'tasks':
+        return <TasksView pushToast={pushToast} />;
       case 'settings':
         return <SettingsView pushToast={pushToast} />;
       case 'repository':
@@ -650,6 +654,8 @@ export default function App() {
             skills={data.skills}
             toast={pushToast}
             agents={data.agents}
+            queueDepth={kpis.queueDepth.value}
+            onOpenTasks={() => setActiveView('tasks')}
           />
         </div>
       </main>

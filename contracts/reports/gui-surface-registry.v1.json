@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "surface_count": 87,
+  "surface_count": 89,
   "top_level_groups": [
     "add",
     "ars",
@@ -51,6 +51,7 @@
     "populi",
     "remove",
     "repair",
+    "repl",
     "repo",
     "research",
     "rollback",
@@ -73,6 +74,10 @@
     "wasm",
     "workflow"
   ],
-  "unclassified_backfilled": [],
-  "wiring_violations": []
+  "unclassified_backfilled": [
+    "repl"
+  ],
+  "wiring_violations": [
+    "view_key 'tasks' is not referenced in App.tsx"
+  ]
 }
