@@ -58,8 +58,6 @@ pub mod pipeline;
 pub mod process_supervision {
     pub use vox_cli_core::daemon_ipc::process_supervision::*;
 }
-/// Terminal Markdown renderer + human-in-the-loop prompt helpers (CLI SSOT).
-pub(crate) mod render;
 pub mod telemetry_corpus_feedback_sink;
 pub mod telemetry_sink;
 pub mod telemetry_spool;
