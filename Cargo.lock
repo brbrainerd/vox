@@ -14535,6 +14535,7 @@ dependencies = [
 name = "vox-config"
 version = "0.6.0"
 dependencies = [
+ "dirs",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -15543,6 +15544,7 @@ dependencies = [
  "libloading 0.8.9",
  "serde",
  "serde_json",
+ "serde_yaml_ng",
  "sha3",
  "tempfile",
  "thiserror 2.0.18",

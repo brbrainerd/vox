@@ -1,7 +1,7 @@
 use serde_json::Value;
 
 use super::super::params::{ANTI_LAZINESS_RIDER, ChatMessageParams, ChatTranscriptEntry};
-use super::super::{build_system_prompt, now_ts, ts_to_date_str};
+use super::super::{build_system_prompt_with_skill, now_ts, ts_to_date_str};
 use super::hydrate::context_history_or_hydrate;
 use super::mentions::{chat_grounding_score, resolve_mentions};
 use crate::chat_model_resolve::resolve_chat_llm_model;
@@ -265,7 +265,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         };
     let system_prompt = format!(
         "{}{}\n\n{}",
-        build_system_prompt(state, None).await,
+        build_system_prompt_with_skill(state, None, params.skill.as_deref()).await,
         session_ts,
         ANTI_LAZINESS_RIDER
     );

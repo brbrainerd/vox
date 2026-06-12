@@ -48,6 +48,27 @@ pub fn config_dir() -> Option<PathBuf> {
     })
 }
 
+/// Skill discovery roots, highest precedence first.
+///
+/// `.vox/skills` is Vox-native; `.agents/skills` is the vendor-neutral
+/// [agentskills.io](https://agentskills.io) convention (Codex, Cursor, Copilot,
+/// Amp); `.claude/skills` is the most widely honored compatibility path.
+/// Workspace beats user-home. On id collision, callers install first-root-wins.
+///
+/// `assets/skills` (last) holds Apache-2.0 vendored skills shipped with the
+/// Vox source tree. It is shadowed by every interop root so workspace or user
+/// skills always win.
+pub fn skill_search_roots(workspace_root: &Path) -> Vec<PathBuf> {
+    const SUBDIRS: [&str; 3] = [".vox/skills", ".agents/skills", ".claude/skills"];
+    let mut roots: Vec<PathBuf> = SUBDIRS.iter().map(|d| workspace_root.join(d)).collect();
+    if let Some(home) = dirs::home_dir() {
+        roots.extend(SUBDIRS.iter().map(|d| home.join(d)));
+    }
+    // Lowest precedence: vendored Apache-2.0 skills bundled with the repo.
+    roots.push(workspace_root.join("assets/skills"));
+    roots
+}
+
 /// Current user id for local usage. Env `VOX_USER_ID` or platform username or `"local-user"`.
 pub fn local_user_id() -> String {
     if let Ok(id) = std::env::var("VOX_USER_ID")
@@ -238,5 +259,37 @@ mod repo_path_tests {
             s.contains(".vox") && s.contains("scientia") && s.contains("research-mesh-promoted"),
             "{s}"
         );
+    }
+
+    #[test]
+    fn skill_search_roots_orders_vox_then_agents_then_claude() {
+        let ws = Path::new("/repo");
+        let roots = skill_search_roots(ws);
+        // Workspace roots come first (highest precedence), in canonical order.
+        let rel: Vec<String> = roots
+            .iter()
+            .take(3)
+            .map(|p| {
+                p.strip_prefix(ws)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect();
+        assert_eq!(rel, vec![".vox/skills", ".agents/skills", ".claude/skills"]);
+        // assets/skills is always the last (lowest-precedence) entry.
+        assert_eq!(
+            roots.last().unwrap().to_string_lossy().replace('\\', "/"),
+            "/repo/assets/skills"
+        );
+        // User-home roots mirror the same order under the home dir, when present.
+        if let Some(home) = dirs::home_dir() {
+            assert_eq!(roots.len(), 7);
+            assert_eq!(roots[3], home.join(".vox/skills"));
+            assert_eq!(roots[4], home.join(".agents/skills"));
+            assert_eq!(roots[5], home.join(".claude/skills"));
+        } else {
+            assert_eq!(roots.len(), 4);
+        }
     }
 }

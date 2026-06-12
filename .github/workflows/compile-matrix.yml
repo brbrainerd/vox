@@ -42,7 +42,7 @@ jobs:
         run: ../../target/debug/vox compile --workspace --target native-binary
       - name: Compile suite desktop Tauri generation smoke
         working-directory: examples/compile-suite/packages/desktop
-        run: ../../../target/debug/vox compile --target desktop -o dist src/main.vox
+        run: ../../../../target/debug/vox compile --target desktop -o dist src/main.vox
 
   compile-help-windows:
     name: vox compile --help (windows-latest)
