@@ -876,7 +876,10 @@ pub fn is_advisory_diagnostic(d: &WebIrDiagnostic) -> bool {
             | "web_ir_validate.a11y.img_missing_alt"
             | "web_ir_validate.a11y.role_button_missing_keyboard"
     ) || d.code.ends_with("_warning")
-        || d.code.starts_with("web_ir_validate.a11y.")
+        // The a11y family is advisory so emit still produces JSX on a name gap —
+        // EXCEPT the hard WCAG contrast failure, which can block while still emitting.
+        || (d.code.starts_with("web_ir_validate.a11y.")
+            && d.code != "web_ir_validate.a11y.insufficient_contrast")
 }
 
 /// Internal combined validator used by `validate_web_ir_with_metrics` and `validate_web_ir_with_registry`.
@@ -921,6 +924,41 @@ mod tests {
             meta,
             children: vec![],
         }
+    }
+
+    #[test]
+    fn insufficient_contrast_is_not_advisory() {
+        // The <3:1 hard WCAG failure must block the build even though the rest of
+        // the a11y family stays advisory (so emit still produces JSX).
+        let hard = WebIrDiagnostic {
+            code: "web_ir_validate.a11y.insufficient_contrast".to_string(),
+            message: String::new(),
+            span: None,
+            category: Some("a11y".to_string()),
+        };
+        assert!(
+            !is_advisory_diagnostic(&hard),
+            "hard WCAG failure must block the build"
+        );
+
+        let soft = WebIrDiagnostic {
+            code: "web_ir_validate.a11y.low_contrast".to_string(),
+            message: String::new(),
+            span: None,
+            category: Some("a11y".to_string()),
+        };
+        assert!(is_advisory_diagnostic(&soft), "low_contrast stays advisory");
+
+        let name_gap = WebIrDiagnostic {
+            code: "web_ir_validate.a11y.img_missing_alt".to_string(),
+            message: String::new(),
+            span: None,
+            category: Some("a11y".to_string()),
+        };
+        assert!(
+            is_advisory_diagnostic(&name_gap),
+            "accessible-name gaps stay advisory"
+        );
     }
 
     #[test]
