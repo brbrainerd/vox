@@ -20,6 +20,7 @@ pub mod scientia_evidence;
 pub mod scientia_finding_ledger;
 pub mod scientia_heuristics;
 pub mod scientia_prior_art;
+pub mod scientia_semantic;
 
 pub mod scholarly;
 #[cfg(feature = "scholarly-external-jobs")]

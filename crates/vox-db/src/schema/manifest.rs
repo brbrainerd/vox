@@ -8,7 +8,7 @@ use super::spec;
 use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
-pub const BASELINE_VERSION: i64 = 72; // +1: scientia_review_decisions (human-gated discovery review, design §5.1)
+pub const BASELINE_VERSION: i64 = 73; // +1: scientia_embedding_cache (LLM embedding vector cache for novelty scoring)
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]

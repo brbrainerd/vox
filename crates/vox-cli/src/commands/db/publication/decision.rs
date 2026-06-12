@@ -27,6 +27,7 @@ pub async fn publication_decision_explain(
             abstract_text: manifest.abstract_text.clone(),
         };
         let client = vox_http_client::client();
+        let embedder = super::embedder::CachedLlmEmbedder::from_env(&db);
         let bundle = vox_publisher::scientia_prior_art::fetch_prior_art_federated(
             &client,
             &candidate_id,
@@ -35,6 +36,9 @@ pub async fn publication_decision_explain(
             vox_publisher::scientia_prior_art::PriorArtFetchOptions::default(),
             offline,
             &scientia_h,
+            embedder
+                .as_ref()
+                .map(|e| e as &dyn vox_publisher::scientia_semantic::Embedder),
         )
         .await?;
         manifest.metadata_json = Some(merge_novelty_bundle_into_metadata_json_str(
@@ -125,6 +129,7 @@ pub async fn publication_novelty_happy_path(publication_id: &str, offline: bool)
         abstract_text: row.abstract_text.clone(),
     };
     let client = vox_http_client::client();
+    let embedder = super::embedder::CachedLlmEmbedder::from_env(&db);
     let bundle = vox_publisher::scientia_prior_art::fetch_prior_art_federated(
         &client,
         &candidate_id,
@@ -133,6 +138,9 @@ pub async fn publication_novelty_happy_path(publication_id: &str, offline: bool)
         vox_publisher::scientia_prior_art::PriorArtFetchOptions::default(),
         offline,
         &scientia_h,
+        embedder
+            .as_ref()
+            .map(|e| e as &dyn vox_publisher::scientia_semantic::Embedder),
     )
     .await?;
 

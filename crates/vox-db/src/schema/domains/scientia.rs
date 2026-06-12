@@ -343,6 +343,15 @@ CREATE TABLE IF NOT EXISTS scientia_nanopubs (
 );
 CREATE INDEX IF NOT EXISTS idx_scientia_nanopubs_claim ON scientia_nanopubs(claim_id);
 
+-- LLM embedding vector cache keyed by sha256(model+text) for novelty scoring.
+-- Upsert semantics: INSERT OR REPLACE so the latest call always wins.
+CREATE TABLE IF NOT EXISTS scientia_embedding_cache (
+    text_sha256   TEXT    PRIMARY KEY,
+    model         TEXT    NOT NULL,
+    vector_json   TEXT    NOT NULL,
+    created_at_ms INTEGER NOT NULL
+);
+
 -- Append-only per-claim human review decisions (design §5.1). Latest by decided_at_ms wins.
 CREATE TABLE IF NOT EXISTS scientia_review_decisions (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,

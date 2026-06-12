@@ -51,6 +51,7 @@ mod ops_codex;
 mod ops_completion;
 pub mod ops_convergence;
 mod ops_developer_journeys;
+mod ops_embedding_cache;
 pub mod ops_exec_time;
 mod ops_external_intelligence;
 mod ops_external_review;

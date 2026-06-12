@@ -158,6 +158,7 @@ pub async fn publication_novelty_fetch(
     let repo_root = vox_repository::resolve_repo_root_for_ci();
     let scientia_h =
         vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
+    let embedder = super::embedder::CachedLlmEmbedder::from_env(&db);
     let bundle = vox_publisher::scientia_prior_art::fetch_prior_art_federated(
         &client,
         &candidate_id,
@@ -166,6 +167,9 @@ pub async fn publication_novelty_fetch(
         vox_publisher::scientia_prior_art::PriorArtFetchOptions::default(),
         offline,
         &scientia_h,
+        embedder
+            .as_ref()
+            .map(|e| e as &dyn vox_publisher::scientia_semantic::Embedder),
     )
     .await
     .context("prior-art federated fetch")?;
