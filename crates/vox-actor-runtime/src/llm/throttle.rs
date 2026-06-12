@@ -62,6 +62,13 @@ impl ProviderThrottle {
                 tokio::time::sleep(d).await;
                 continue;
             }
+            // Register the wakeup future BEFORE the admission check. `Notify::
+            // notify_waiters()` only wakes already-registered waiters (it stores no
+            // permit for a future `notified()`), so a permit dropped between our
+            // load and our `.await` would otherwise be a lost wakeup that hangs us.
+            let notified = self.notify.notified();
+            tokio::pin!(notified);
+
             let limit = self.current_limit.load(Ordering::SeqCst);
             let cur = self.in_flight.load(Ordering::SeqCst);
             if cur < limit
@@ -72,7 +79,7 @@ impl ProviderThrottle {
             {
                 return Permit { throttle: self };
             }
-            self.notify.notified().await;
+            notified.await;
         }
     }
 

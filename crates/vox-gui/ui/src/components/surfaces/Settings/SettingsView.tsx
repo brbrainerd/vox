@@ -536,16 +536,23 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
   const [section, setSection] = useState('orchestrator');
   const [filter, setFilter] = useState('');
 
-  // Deep link from omni-search: { section } seed in localStorage.
+  // Deep link from omni-search: { section } seed in localStorage. Read on mount
+  // AND on the 'vox-settings-seed' event, so deep-linking works even when the
+  // Settings surface is already active (no remount fires in that case).
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('vox_settings_seed');
-      if (raw) {
-        localStorage.removeItem('vox_settings_seed');
-        const seed = JSON.parse(raw) as { section?: string };
-        if (seed.section) setSection(seed.section);
-      }
-    } catch { /* ignore malformed seed */ }
+    const consume = () => {
+      try {
+        const raw = localStorage.getItem('vox_settings_seed');
+        if (raw) {
+          localStorage.removeItem('vox_settings_seed');
+          const seed = JSON.parse(raw) as { section?: string };
+          if (seed.section) setSection(seed.section);
+        }
+      } catch { /* ignore malformed seed */ }
+    };
+    consume();
+    window.addEventListener('vox-settings-seed', consume);
+    return () => window.removeEventListener('vox-settings-seed', consume);
   }, []);
   const [routing, setRouting] = useState({
     efficiency: 25,

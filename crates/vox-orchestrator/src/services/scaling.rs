@@ -83,19 +83,22 @@ impl ScalingService {
 
         // Scale up: current or predicted load per agent exceeds effective threshold
         // Guard: don't scale up if we are already in cost alert
-        if agent_count < max_agents && !cost_critical {
-            // Local resource guard: a saturated host must not take on more agents,
-            // regardless of queue pressure. Mesh dispatch still drains the queue,
-            // and scale-DOWN below still proceeds (a saturated host wants it).
-            if let Some(local) = local {
+        // Local resource guard: a saturated host must not take on MORE agents,
+        // regardless of queue pressure. This blocks scale-UP only — scale-down of
+        // idle agents below must still proceed (a saturated host wants it), so we
+        // set a flag rather than returning early.
+        let scale_up_blocked = match local {
+            Some(local) => {
                 let cpu_blocked = config.scale_cpu_ceiling_pct > 0.0
                     && local.cpu_usage_pct >= config.scale_cpu_ceiling_pct;
                 let mem_blocked = config.scale_mem_floor_mb > 0
                     && local.memory_free_mb < config.scale_mem_floor_mb;
-                if cpu_blocked || mem_blocked {
-                    return ScalingAction::NoOp;
-                }
+                cpu_blocked || mem_blocked
             }
+            None => false,
+        };
+
+        if agent_count < max_agents && !cost_critical && !scale_up_blocked {
             let per_agent = if agent_count > 0 {
                 max_relevant_load / agent_count as f64
             } else {
@@ -109,7 +112,7 @@ impl ScalingService {
                 let count = desired_new.clamp(1, max_agents.saturating_sub(agent_count));
                 return ScalingAction::ScaleUp { name_prefix, count };
             }
-        } else if agent_count == 0 && max_relevant_load > 0.0 {
+        } else if agent_count == 0 && max_relevant_load > 0.0 && !scale_up_blocked {
             return ScalingAction::ScaleUp {
                 name_prefix: "default".to_string(),
                 count: 1,
@@ -282,6 +285,38 @@ mod tests {
             Some(&local),
         );
         assert!(matches!(action, ScalingAction::NoOp));
+    }
+
+    #[test]
+    fn saturated_host_still_scales_down_idle_agents() {
+        // A CPU-saturated host must STILL retire idle dynamic agents — the
+        // local-resource guard suppresses scale-UP only, never scale-down.
+        let mut cfg = OrchestratorConfig::for_testing();
+        cfg.scaling_enabled = true;
+        cfg.max_agents = 4;
+        cfg.min_agents = 0;
+        cfg.scaling_threshold = 1;
+        cfg.scale_cpu_ceiling_pct = 85.0;
+        cfg.idle_retirement_ms = 1_000;
+        let local = crate::services::local_resources::LocalResourceSnapshot {
+            cpu_usage_pct: 95.0,
+            memory_free_mb: 16_000,
+        };
+        let old = std::time::Instant::now() - std::time::Duration::from_secs(60);
+        let idle = vec![(AgentId(1), old)];
+        let action = ScalingService::decide_scaling(
+            &status(0, 0.0),
+            &cfg,
+            &[],
+            0,
+            &idle,
+            &BudgetManager::new(None),
+            Some(&local),
+        );
+        assert!(
+            matches!(action, ScalingAction::ScaleDown { .. }),
+            "saturated host must still retire idle agents, got {action:?}"
+        );
     }
 
     #[test]

@@ -139,6 +139,9 @@ export function CommandPalette({ open, onClose, onAction, agents, skills }: Comm
         localStorage.setItem(SETTINGS_SEED_KEY, JSON.stringify({ section: item.targetSection }));
       } catch { /* ignore */ }
       onAction({ id: 'navigate', viewKey: 'settings' });
+      // Fire after navigation so an already-mounted SettingsView (no remount when
+      // already on Settings) still consumes the seed.
+      try { window.dispatchEvent(new Event('vox-settings-seed')); } catch { /* ignore */ }
     } else {
       invoke('open_locator', { locator: { kind: 'file', path: item.path } }).catch(() => {});
     }
