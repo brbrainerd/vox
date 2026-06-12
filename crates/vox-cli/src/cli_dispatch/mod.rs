@@ -46,6 +46,7 @@ fn universal_reward_command_path(cli: &Cli) -> Option<&'static str> {
         // feature-gated commands fall through to a generic path.
         Cli::Scientia { .. } => Some("scientia"),
         Cli::Audit { .. } => Some("audit"),
+        Cli::Policy { .. } => Some("policy"),
         Cli::Ci { .. } => Some("ci"),
         Cli::Db { .. } => Some("db"),
         Cli::Mens { .. } => Some("mens"),
@@ -192,6 +193,10 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Config { cmd } => {
             crate::commands::config::run(cmd).await?;
         }
+        Cli::Policy { cmd } => {
+            let root = crate::commands::ci::repo_root();
+            crate::commands::policy::run(cmd, &root)?;
+        }
         #[cfg(feature = "coderabbit")]
         Cli::Recensio { cmd } => {
             run_review_subcommand(cmd).await?;
@@ -205,6 +210,9 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
                 }
                 Some(crate::commands::audit::AuditSubcommand::EffortRoute(route)) => {
                     crate::commands::audit_route::run(route).await?;
+                }
+                Some(other) => {
+                    crate::commands::audit::run_audit_subcommand(&other)?;
                 }
                 None => {
                     crate::commands::audit::run(&args)?;
@@ -322,6 +330,9 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Shell { cmd } => {
             crate::commands::runtime::shell::run(cmd).await?;
         }
+        Cli::Repl => {
+            crate::commands::repl::run().await?;
+        }
         Cli::Db { cmd } => {
             crate::commands::db_cli::run(cmd).await?;
         }
@@ -334,19 +345,19 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Model { cmd } => {
             crate::commands::model::run(cmd).await?;
         }
-        #[cfg(feature = "script-execution")]
+        #[cfg(feature = "script-wasi")]
         Cli::Wasm { cmd } => {
             crate::commands::wasm::run(cmd)?;
         }
-        #[cfg(not(feature = "script-execution"))]
+        #[cfg(not(feature = "script-wasi"))]
         Cli::WasmStub { .. } => {
             anyhow::bail!(
-                "{}\n\nThis binary was built without the `script-execution` cargo feature. \
+                "{}\n\nThis binary was built without the `script-wasi` cargo feature. \
                  Rebuild with the feature to run raw WASI modules:\n\n{}",
-                "vox wasm run requires the 'script-execution' capability, which is not available in this build.",
+                "vox wasm run requires the 'script-wasi' capability (Wasmtime), which is not available in this build.",
                 vox_plugin_host::format_install_hint(
-                    "script-execution",
-                    Some("cargo build -p vox-cli --release --features script-execution")
+                    "script-wasi",
+                    Some("cargo build -p vox-cli --release --features script-wasi")
                 )
             );
         }
@@ -496,7 +507,7 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Grammar { args } => {
             crate::commands::grammar::handle(args);
         }
-        Cli::Mens { .. } | Cli::Populi { .. } | Cli::Oratio { .. } | Cli::Schola { .. } => {
+        Cli::Mens { .. } | Cli::Populi { .. } | Cli::Oratio { .. } => {
             std::unreachable!(
                 "ML/AI commands are intercepted in main.rs and delegated to external binaries"
             )

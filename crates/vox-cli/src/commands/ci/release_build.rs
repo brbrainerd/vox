@@ -21,8 +21,6 @@ pub enum ReleasePackage {
     Both,
     /// `vox-ml-cli` plugin: ML/oratio/speech/populi/train subcommands (heavy: Candle).
     Mens,
-    /// `vox-schola` plugin: scientia/schola subcommands.
-    Schola,
     /// Every artifact: vox + bootstrap + every plugin binary. The "full" tier.
     All,
 }
@@ -61,7 +59,6 @@ pub fn run(
         ReleasePackage::Bootstrap | ReleasePackage::Both | ReleasePackage::All
     );
     let want_mens = matches!(package, ReleasePackage::Mens | ReleasePackage::All);
-    let want_schola = matches!(package, ReleasePackage::Schola | ReleasePackage::All);
 
     if want_vox {
         let artifact_name = build_and_package_binary(
@@ -103,20 +100,6 @@ pub fn run(
         let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
         checksum_lines.push(checksum_line(&digest, &artifact_name));
     }
-    if want_schola {
-        let schola_bin = plugin_executable_name(target, "vox-schola");
-        let artifact_name = build_and_package_binary(
-            repo_root,
-            out_dir_abs.as_path(),
-            target,
-            artifact_version,
-            "vox-schola",
-            &schola_bin,
-            "vox-schola",
-        )?;
-        let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
-        checksum_lines.push(checksum_line(&digest, &artifact_name));
-    }
     let checksums = out_dir_abs.join("checksums.txt");
     fs::write(&checksums, checksum_lines.join(""))
         .with_context(|| format!("write checksum manifest {}", checksums.display()))?;
@@ -152,7 +135,7 @@ fn bootstrap_executable_name(target: &str) -> &'static str {
     }
 }
 
-/// Plugin binary name resolution for `vox-ml-cli` / `vox-schola` archives.
+/// Plugin binary name resolution for `vox-ml-cli` archives.
 ///
 /// Returns an owned `String` rather than `&'static str` because plugin names
 /// are dynamic (any `vox-<name>` pattern), unlike the fixed core/bootstrap names.
@@ -263,8 +246,8 @@ mod tests {
             "vox-ml-cli"
         );
         assert_eq!(
-            plugin_executable_name("aarch64-apple-darwin", "vox-schola"),
-            "vox-schola"
+            plugin_executable_name("aarch64-apple-darwin", "vox-ml-cli"),
+            "vox-ml-cli"
         );
     }
 

@@ -115,20 +115,8 @@ pub fn workspace_local_plugin_source(plugin_id: &str) -> Option<std::path::PathB
 /// `arch` is `"x86_64"` or `"aarch64"`.  This matches the keys emitted by the Plugin.toml
 /// generator and by `vox plugin install`.
 pub fn current_target_triple_key() -> &'static str {
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
-    return "windows-x86_64";
-    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
-    return "windows-aarch64";
-    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-    return "linux-x86_64";
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    return "linux-aarch64";
-    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
-    return "macos-x86_64";
-    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    return "macos-aarch64";
-    #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
-    return "unknown";
+    // Canonical detection lives in vox-plugin-types (the SSOT shared with the CI gates).
+    vox_plugin_types::current_target_triple().unwrap_or("unknown")
 }
 
 /// Convenience wrapper: discover the plugin install root, build the registry, and load a

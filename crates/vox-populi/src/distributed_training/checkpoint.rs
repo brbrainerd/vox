@@ -3,7 +3,7 @@ use vox_crypto::{SigningKey, VerifyingKey, sign, verify};
 use vox_orchestrator_queue::oplog::OperationKind;
 use vox_package::Sha3_512;
 
-use crate::distributed_training::session::SessionId;
+use super::session::SessionId;
 
 /// Signed checkpoint marker referencing CAS bundles (Mn-T6).
 #[derive(Debug, Clone, PartialEq, Eq)]

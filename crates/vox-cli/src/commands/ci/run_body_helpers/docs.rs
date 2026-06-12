@@ -510,7 +510,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     super::guards::run_turso_import_guard(root, true)?;
     crate::commands::ci::policy_allowlist_parity::run(root)?;
     crate::commands::ci::db_schema_coverage::run(root)?;
-    crate::commands::ci::nomenclature_guard::run(root, false)?;
+    vox_cli_ci::nomenclature_guard::run(root, false)?;
     crate::commands::ci::operations_catalog::verify(root)?;
     command_compliance::run(root)?;
     crate::commands::ci::gui_version_sync::run(root, false)?;
@@ -518,6 +518,13 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     crate::commands::ci::gui_surface_coverage::run(root, false)?;
     crate::commands::ci::gui_surface_registry::run(root, false)?;
     crate::commands::ci::capability_sync::run(root, false)?;
+    crate::commands::ci::plugin_surface::run(root, false)?;
+    crate::commands::ci::plugin_catalog_sync::run(root, false)?;
+    // Catalog-derived reference docs must stay fresh when catalog.toml changes; this check
+    // otherwise lives only in docs-quality.yml, so catalog edits could pass ssot-drift while
+    // leaving the generated docs stale (the exact drift PR #218 left on main).
+    crate::commands::ci::generate_plugin_catalog_docs::run(None, None, true)?;
+    crate::commands::ci::plugin_skill_parity::run(false)?;
     contracts_index::run(root)?;
     crate::commands::ci::docs_reality_audit::run_verify(root)?;
     exec_policy_contract::run(root)?;
@@ -525,6 +532,8 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     scientia_worthiness_contract::run(root)?;
     scientia_novelty_ledger_contract::run(root)?;
     super::run_data_ssot_guards(root)?;
+    // Advisory: GitHub-hosted runner drift (default warn-only).
+    let _ = vox_cli_ci::runner_policy_check::run(root, false);
     println!("ssot-drift: nested SSOT guards OK");
     Ok(())
 }

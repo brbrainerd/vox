@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// High-level routing intent used by the model-selection engine.
 ///
 /// Derived from a combination of task category, modality flags, and capability hints.
-/// Used as a first-class telemetry key and as a scoring input in [`selection`].
+/// Used as a first-class telemetry key and as a scoring input in `selection`.
 ///
 /// # Mapping summary
 ///

@@ -58,7 +58,7 @@ This is not an aspiration list. Every row below names code or contracts on the v
 
 | Feature | Why it matters for LLMs | Evidence |
 |---|---|---|
-| **Effect rows enforced** (`@uses(net)`, `@pure`) | An LLM that marks a function `@pure` cannot sneak in `http.*` / `time.*` / `random.*` — compiler rejects at typeck. | [vox-compiler/src/typeck/effect_check.rs](crates/vox-compiler/src/typeck/effect_check.rs) — `check_effect_compliance()` with bottom-up inference for unannotated functions; effect propagation enforces caller ⊇ callee on annotated boundaries. Stdlib methods classified by name (`http.*` → `Net`, `db.*` → `Db`, etc.). Effect enum at [vox-compiler/src/ast/decl/effect.rs:8](crates/vox-compiler/src/ast/decl/effect.rs:8) — `Net`, `Db`, `Fs`, `Env`, `Clock`, `Random`, `Spawn`, `GpuCompute`, `Mutate`, `Mcp(String)`, `Nothing`. |
+| **Effect rows enforced** (`@uses(net)`, `@pure`) | An LLM that marks a function `@pure` cannot sneak in `http.*` / `time.*` / `random.*` — compiler rejects at typeck. | [vox-compiler/src/typeck/effect_check.rs](crates/vox-compiler/src/typeck/effect_check.rs) — `check_effect_compliance()` with bottom-up inference for unannotated functions; effect propagation enforces caller ⊇ callee on annotated boundaries. Stdlib methods classified by name (`http.*` → `Net`, `db.*` → `Db`, etc.). Effect enum at [vox-ast/src/decl/effect.rs](../../../crates/vox-ast/src/decl/effect.rs) — `Net`, `Db`, `Fs`, `Env`, `Clock`, `Random`, `Spawn`, `GpuCompute`, `Mutate`, `Mcp(String)`, `Nothing`. |
 | **ID newtypes at boundary** | The most common LLM error in API code is stringly-typed IDs leaking between services. Vox refuses bare `str` at `@endpoint`/`@activity`/`@actor` parameter positions. | [vox-code-audit/src/detectors/id_at_boundary.rs](crates/vox-code-audit/src/detectors/id_at_boundary.rs) — diagnostic ID `catalog::TYPES_ID_REQUIRED_AT_BOUNDARY`. ID newtypes defined in [vox-db-types/src/ids.rs](crates/vox-db-types/src/ids.rs) via a newtype macro. |
 | **Anonymous error rejection** | `Result[T, str]` on public boundaries is flagged. Forces named ADTs that LLMs can exhaustively pattern-match against. | [vox-code-audit/src/detectors/anonymous_error.rs:24](crates/vox-code-audit/src/detectors/anonymous_error.rs:24) — regex catches `fn ... -> Result[T, str]` returns at info severity; rule `catalog::TYPES_ANONYMOUS_ERROR_TYPE`. |
 | **Workflow determinism check** (P1-T5) | `time.now()` / `random.*()` / `uuid()` inside a `workflow { }` body is a compile error, not a runtime trap. Killed before an LLM can ship non-replayable workflow code. | [vox-compiler/src/typeck/ast_decl_lints.rs](crates/vox-compiler/src/typeck/ast_decl_lints.rs) — comment marker `P1-T5: Workflow determinism check — forbid time.now and random.* in workflow bodies`. |
@@ -293,15 +293,11 @@ $ grep -r "repair.*pass.*rate" docs/src/  # nothing
 
 **Why it matters for V3.** LLMs trained on pre-2026 corpora *will* emit `@component fn` and `@server fn`. Without parse-time rejection, they only get caught at review — the opposite of the design goal.
 
-A second dimension: **stale enforcement documentation can mislead agents** even when enforcement is live. [`AGENTS.md` §Grammar Unification](AGENTS.md) currently says:
+A second dimension: **stale enforcement documentation can mislead agents** even when enforcement is live. As of **2026-06-10**, ADR-041 closed the earlier drift: the `check_adr028_reserved_keywords` gate and error code **`E028` are retired**; `workflow`, `activity`, `@durable`, and `@scheduled` are stable public grammar backed by the durable runtime (see [`AGENTS.md` §Grammar Unification](../../../AGENTS.md) and [`durability-runtime-audit-2026.md`](durability-runtime-audit-2026.md)). The paragraph below described **pre-ADR-041** state and is kept for audit history only.
 
-> **Implementation status (Phase 2):** `actor`, `workflow`, and `activity` are fully supported bare keywords as of TASK-2.6 Path A (commit `080b3f86`). They lower to `HirFn { durability: Some(DurabilityKind::_) }` — no separate HIR node types. The tombstone that previously rejected these keywords has been removed; source files may freely use `actor`, `workflow`, and `activity` forms.
+~~But [vox-compiler/src/pipeline.rs:21](crates/vox-compiler/src/pipeline.rs:21) — the `check_adr028_reserved_keywords` function — still rejects `workflow`, `activity`, `@scheduled`, `@durable` with error code `E028`…~~
 
-But [vox-compiler/src/pipeline.rs:21](crates/vox-compiler/src/pipeline.rs:21) — the `check_adr028_reserved_keywords` function — still rejects `workflow`, `activity`, `@scheduled`, `@durable` with error code `E028`, and is invoked at [vox-compiler/src/pipeline.rs:269](crates/vox-compiler/src/pipeline.rs:269) and [vox-compiler/src/pipeline.rs:415](crates/vox-compiler/src/pipeline.rs:415). [`durability-runtime-audit-2026.md`](durability-runtime-audit-2026.md) corroborates: "Confirms `@scheduled`, `@durable`, `workflow`, `activity` are parse-only with zero runtime implementation. Recommends grammar removal; `actor` retained."
-
-So an LLM reading `AGENTS.md` thinks `workflow` is fully supported, writes one, and gets `E028`. This is exactly the kind of doc/code drift the LLM-target story is supposed to prevent.
-
-**Fix scope.** Adopt CR-L6. Two-part: (a) one detector per row of `AGENTS.md §Retired Surfaces` with a docs link to the canonical replacement; (b) a CI rule that fails if `AGENTS.md §Grammar Unification` claims a keyword is "fully supported" while the pipeline still emits the corresponding `E028`. The arch-check has a precedent in [`vox-arch-check`](crates/vox-arch-check/).
+**Fix scope (updated).** Adopt CR-L6: one detector per row of `AGENTS.md §Retired Surfaces` with a docs link to the canonical replacement, plus `vox ci retirement-audit` to catch doc/code drift without relying on a resurrected E028 gate.
 
 ---
 
@@ -334,7 +330,7 @@ So an LLM reading `AGENTS.md` thinks `workflow` is fully supported, writes one, 
 
 **Symptom.** Multiple SSOTs reference "Codegen SSOT unification 2026" reducing 4 IRs → 2 and 3 emit stacks → 1 ([memory entry "Codegen SSOT unification 2026"]). Reality:
 
-- TS codegen lives at [vox-codegen/src/codegen_ts/](crates/vox-codegen/src/codegen_ts/) (40+ files).
+- TS codegen lives at [vox-codegen-ts/src/](../../../crates/vox-codegen-ts/src/lib.rs) (40+ files).
 - Rust codegen lives at [vox-codegen/src/codegen_rust/emit/](crates/vox-codegen/src/codegen_rust/emit/) (21 files).
 - Web IR exists; [`webir-hir-split-brain-inventory-2026.md`](webir-hir-split-brain-inventory-2026.md) and [ADR-036](../adr/036-webir-hir-unification-compare-both.md) acknowledge ongoing split-brain.
 - `CoreIrVersion::v2` is a single naming hook ([vox-compiler/src/hir/core_ir.rs:23](crates/vox-compiler/src/hir/core_ir.rs:23)) but does not actually unify the emit paths.
@@ -347,7 +343,7 @@ So an LLM reading `AGENTS.md` thinks `workflow` is fully supported, writes one, 
 
 ### §3.9 🟡 Minor — Inference hosting absent
 
-**Symptom.** [vox-inference](crates/vox-inference/) ships traits and backends (Candle CPU/CUDA/Metal, Ollama, llama.cpp) but no integrated HTTP server endpoint. MENS Mn-T2 (see [mesh-mens-distributed-training-and-execution-plan-2026.md](mesh-mens-distributed-training-and-execution-plan-2026.md)) is "deferred pending backend stabilization."
+**Symptom.** [vox-inference](../../../crates/vox-populi/src/inference/mod.rs) ships traits and backends (Candle CPU/CUDA/Metal, Ollama, llama.cpp) but no integrated HTTP server endpoint. MENS Mn-T2 (see [mesh-mens-distributed-training-and-execution-plan-2026.md](mesh-mens-distributed-training-and-execution-plan-2026.md)) is "deferred pending backend stabilization."
 
 **Why it matters for v1.x, not v1.0.** Inference hosting belongs to the mesh story (Phase 5–6) and the personal/grand network arc, not to v1.0 of "AI authors Vox." Agents authoring Vox can call external APIs today. Including this in v1.0 would inflate scope without changing the LLM-target claim.
 
@@ -556,7 +552,7 @@ CR-L items are pegged to existing plans rather than creating new tracks. Sequenc
 
 3. **Does v1.0 include the mesh, or not?** [`mesh-and-language-distribution-ssot-2026.md`](mesh-and-language-distribution-ssot-2026.md) targets v1.0 = "internet-facing personal mesh"; [`comprehensive-audit-v2-2026.md`](comprehensive-audit-v2-2026.md) recommends demoting mesh post-v1.0. This contradiction predates this doc; CR-L deliberately does not depend on mesh, but the contradiction itself should be resolved by the council.
 
-4. **Should `AGENTS.md` §Grammar Unification claim be updated immediately?** As documented in §3.5, the claim that `workflow`/`activity` are "fully supported as of TASK-2.6 Path A" contradicts [`pipeline.rs:21`](crates/vox-compiler/src/pipeline.rs:21) which still rejects them with `E028`. This is itself an LLM-target footgun — an agent reading `AGENTS.md` will write code that does not compile. Recommend (a) corrective edit to `AGENTS.md` immediately, and (b) CR-L6's CI gate to prevent recurrence.
+4. **~~Should `AGENTS.md` §Grammar Unification claim be updated immediately?~~** **Resolved 2026-06-10:** ADR-041 retired E028; `AGENTS.md` and the pipeline agree. Remaining work is CR-L6 retirement-audit automation, not grammar rollback.
 
 5. **Is "humans become orchestrators, not authors" a v1.0 marketing promise or a v1.x stretch?** This doc treats it as v1.x. If the council wants it as v1.0 marketing, the criteria need to grow teeth — a measured "human-edit ratio" gate on Marquee apps would be the honest shape.
 

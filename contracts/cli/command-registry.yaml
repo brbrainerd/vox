@@ -1609,6 +1609,29 @@ operations:
   handler_rust: commands::fmt
 - surface: vox-cli
   path:
+  - gamify
+  status: active
+  latin_ns: ars
+  product_lane: ai
+  feature_gate: extras-ludus
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::extras::ludus_cli
+- surface: vox-cli
+  path:
+  - gamify
+  - hud
+  status: active
+  latin_ns: ars
+  product_lane: ai
+  feature_gate: ludus-hud
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::extras::ludus_cli
+- surface: vox-cli
+  path:
   - init
   status: active
   latin_ns: pm
@@ -1673,29 +1696,6 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::lsp
-- surface: vox-cli
-  path:
-  - ludus
-  status: active
-  latin_ns: ars
-  product_lane: ai
-  feature_gate: extras-ludus
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: commands::extras::ludus_cli
-- surface: vox-cli
-  path:
-  - ludus
-  - hud
-  status: active
-  latin_ns: ars
-  product_lane: ai
-  feature_gate: ludus-hud
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: commands::extras::ludus_cli
 - surface: vox-cli
   path:
   - memory
@@ -2268,17 +2268,6 @@ operations:
   product_lane: interop
   feature_gate: ars
   catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - oratio
-  status: active
-  latin_ns: fabrica
-  product_lane: ai
-  feature_gate: oratio
-  catalog_group: oratio
   ref_cli_required: true
   reachability_required: null
   handler_rust: null
@@ -3176,6 +3165,17 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::extras::snippet_cli
+- surface: vox-cli
+  path:
+  - speech
+  status: active
+  latin_ns: fabrica
+  product_lane: ai
+  feature_gate: oratio
+  catalog_group: speech
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
 - surface: vox-cli
   path:
   - stub-check

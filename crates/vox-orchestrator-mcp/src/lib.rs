@@ -46,6 +46,7 @@ pub mod input_schemas;
 /// Introspection tools for language visualization (AST, surface, pipeline).
 pub mod introspection_tools;
 pub mod llm_bridge;
+pub(crate) mod lock_guard;
 /// Unified News Publishing System tools
 #[cfg(feature = "news-publish")]
 pub mod news_tools;
@@ -122,6 +123,8 @@ pub mod mcp_context;
 pub use mcp_context as context;
 pub mod mcp_client;
 pub use mcp_client as client;
+mod external_mcp;
+pub use external_mcp::{ExternalMcpServer, connect_and_list_tools};
 pub mod dei_ipc;
 pub mod http_gateway;
 pub mod journey_envelope;

@@ -31,7 +31,7 @@ pub fn compute_key(workspace_root: &Path) -> Result<String> {
             .with_context(|| format!("read {} for cache key", path.display()))?;
         hasher.update(&contents);
     }
-    Ok(format!("{:x}", hasher.finalize()))
+    Ok(hex::encode(hasher.finalize()))
 }
 
 fn cache_path(workspace_root: &Path, key: &str) -> std::path::PathBuf {

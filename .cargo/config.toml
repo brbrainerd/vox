@@ -2,11 +2,26 @@
 # Dedicated vox-schola binary (Candle QLoRA + CUDA by default) — fastest incremental (~15 s).
 vox-schola-dev       = "run -p vox-schola --"
 
+# ---------------------------------------------------------------------------
+# Optional: sccache (shared compiler cache across worktrees / CI)
+# ---------------------------------------------------------------------------
+# Opt in locally — do NOT commit a hard `rustc-wrapper = "sccache"` here:
+# hosted CI runners and fresh agent shells lack the binary, and cargo dies
+# with `could not execute process \`sccache ... rustc -vV\`` before any build.
+# Install: cargo install sccache  (or your OS package manager)
+# Enable per-shell: $env:RUSTC_WRAPPER = "sccache"   (or export RUSTC_WRAPPER)
+# Or per-user: add `[build] rustc-wrapper = "sccache"` to ~/.cargo/config.toml
+#
 [build]
-# i9-14900KS has 32 logical threads; 24 leaves headroom for llvm-cov instrumentation.
-# Baseline warm build-only: 57s at jobs=8; expect ~25-35s at jobs=24.
 jobs = 24
 rustdocflags = ["-D", "warnings"]
+
+# ---------------------------------------------------------------------------
+# Linux: optional faster linker (lld)
+# ---------------------------------------------------------------------------
+# Install: sudo apt install lld   (Debian/Ubuntu) or equivalent on your distro
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
 [target.x86_64-pc-windows-msvc]
 # lld-link is available (C:\Program Files\LLVM\bin\lld-link.exe) but causes
@@ -15,9 +30,34 @@ rustdocflags = ["-D", "warnings"]
 rustflags = ["-C", "link-arg=/DEBUG:NONE", "-C", "link-arg=/STACK:8388608"]
 
 [env]
-# Force all cargo build/test invocations (including scripts) to use a unified target dir.
-# `relative = true` resolves the path from this config file's directory, so git
-# worktrees under .claude/worktrees/ also write to the shared root target/
-# instead of creating per-worktree target-agent/ target-doc-inv/ etc. dirs.
-# Table form also merges cleanly with the global ~/.cargo/config.toml.
+SCCACHE_DIR = { value = ".sccache", relative = true }
+# Pin every cargo build/test invocation (including scripts) to a single `target/`
+# dir per checkout, instead of letting tools scatter `target-agent/`,
+# `target-doc-inv/`, etc. across the tree.
+#
+# `relative = true` resolves the path against the directory of *this* config
+# file. Because each git worktree is a full checkout that contains its own
+# `.cargo/config.toml`, this resolves to `<that-worktree>/target` — i.e. each
+# worktree gets its OWN target dir. This is per-worktree by design, NOT a single
+# root target shared across worktrees: concurrent agents building in different
+# worktrees must not contend on one shared target lock. To actually share one
+# target you would need an absolute path here (or in ~/.cargo/config.toml).
+#
+# Trade-off: N worktrees → N full targets (10–90 GB each; ~65% is incremental
+# cache). That disk cost is reclaimed by a periodic sweep, not by sharing — see
+# docs/superpowers/specs/2026-06-05-target-artifact-gc-design.md.
 CARGO_TARGET_DIR = { value = "target", relative = true }
+# Tauri workspace: embed the Windows common-controls v6 manifest on bin targets.
+# Without this, `vox-gui.exe` fails at startup with STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139).
+# See https://github.com/tauri-apps/tauri/issues/13948
+__TAURI_WORKSPACE__ = "true"
+
+# Per-thread stack size for spawned threads (incl. every `cargo test` thread).
+# The `[target.x86_64-pc-windows-msvc]` `/STACK:8388608` linker arg above only
+# sizes the MAIN thread; the libtest harness runs each test on a SPAWNED thread
+# whose stack is governed by RUST_MIN_STACK (default 2 MiB). Building the full
+# clap command tree (`VoxCliRoot::command()`, e.g. in `command_catalog` /
+# `command_compliance` help-rendering tests) overflows 2 MiB on Windows
+# (STATUS_STACK_OVERFLOW), aborting `cargo test -p vox-cli --lib`. 8 MiB matches
+# the linker /STACK and Linux CI's default, so the suite runs everywhere.
+RUST_MIN_STACK = "8388608"

@@ -114,7 +114,7 @@ There is no off-the-shelf project that hits the target. Every viable substrate e
 
 **Three paths remain:**
 
-1. **Path 1 — Stay on jj, build op-log gossip on Iroh / Populi.** Smallest delta from current investment in [`jj_backend.rs`](../../../crates/vox-orchestrator/src/jj_backend.rs) and [`a2a/`](../../../crates/vox-orchestrator/src/a2a/). The protocol is the work; jj's local semantics handle the rest. Effort: ~1–2 quarters.
+1. **Path 1 — Stay on jj, build op-log gossip on Iroh / Populi.** Smallest delta from current investment in [`jj_backend.rs`](../../../crates/vox-vcs/src/jj_backend.rs) and [`a2a/`](../../../crates/vox-orchestrator/src/a2a/). The protocol is the work; jj's local semantics handle the rest. Effort: ~1–2 quarters.
 2. **Path 2 — Pivot to Pijul.** Native patch theory removes the convergence-math work. But we'd take a project dependency on a single-maintainer project at risk of dormancy. Larger refactor + ecosystem risk.
 3. **Path 3 — Hybrid: Automerge live + jj durable.** Ink & Switch's research direction adapted for code. Highest effort (two systems, semantic-merge layer on top), bets on unsolved research.
 
@@ -130,5 +130,5 @@ There is no off-the-shelf project that hits the target. Every viable substrate e
 - **Companion spec:** [`multi-agent-vcs-replication-spec-2026.md`](multi-agent-vcs-replication-spec-2026.md) — turns this recommendation into a concrete architecture.
 - **Mesh foundation:** [`populi-mesh-north-star-2026.md`](populi-mesh-north-star-2026.md), [`populi-mesh-a2a-durability-spec-2026.md`](populi-mesh-a2a-durability-spec-2026.md).
 - **Orchestrator context:** [`nextgen-orchestrator-research-2026.md`](nextgen-orchestrator-research-2026.md) §multi-agent coherence.
-- **Existing code surfaces:** [`crates/vox-orchestrator/src/jj_backend.rs`](../../../crates/vox-orchestrator/src/jj_backend.rs), [`crates/vox-orchestrator/src/a2a/`](../../../crates/vox-orchestrator/src/a2a/), [`crates/vox-orchestrator/src/mcp_tools/vcs_tools/`](../../../crates/vox-orchestrator-mcp/src/vcs_tools/mod.rs), [`crates/vox-git/`](../../../crates/vox-git/).
+- **Existing code surfaces:** [`crates/vox-vcs/src/jj_backend.rs`](../../../crates/vox-vcs/src/jj_backend.rs), [`crates/vox-orchestrator/src/a2a/`](../../../crates/vox-orchestrator/src/a2a/), [`crates/vox-orchestrator/src/mcp_tools/vcs_tools/`](../../../crates/vox-orchestrator-mcp/src/vcs_tools/mod.rs), [`crates/vox-git/`](../../../crates/vox-git/).
 - **External:** Iroh docs <https://docs.iroh.computer>, jj op-log <https://jj-vcs.github.io/jj/latest/operation-log/>, Pijul <https://pijul.org>, Automerge <https://automerge.org>.

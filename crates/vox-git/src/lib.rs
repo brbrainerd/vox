@@ -28,9 +28,5 @@ pub mod object;
 pub mod read_cmd;
 /// Reference (branch/tag) utilities.
 pub mod refs;
-/// Fetch/push and remote sync orchestration.
-pub mod sync;
-
 pub use bridge::GitBridge;
 pub use read_cmd::{GitReadError, read_only};
-pub use sync::{FetchResult, PushResult, SyncDirection};

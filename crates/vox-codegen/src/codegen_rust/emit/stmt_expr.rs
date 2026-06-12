@@ -4,6 +4,11 @@ use vox_compiler::ast::span::Span;
 use vox_compiler::builtin_registry::{BuiltinArgKind, lookup_builtin, std_namespace_runtime_call};
 use vox_compiler::hir::{HirArg, HirBinOp, HirExpr, HirPattern, HirStmt, HirType};
 
+/// Escape `s` for inclusion inside a Rust `"..."` string literal (content only).
+pub(super) fn escape_rust_double_quoted_content(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
 pub(super) fn emit_stmt(
     stmt: &HirStmt,
     indent: usize,
@@ -14,6 +19,7 @@ pub(super) fn emit_stmt(
     usage: Option<&super::usage::UsageTracker>,
     // Rust expression for `Option<String>` request id (e.g. `vox_rid.clone()`), or omit with `None`.
     http_error_rid: Option<&str>,
+    enclosing_return_type: Option<&HirType>,
 ) -> String {
     let pad = " ".repeat(indent * 4);
     match stmt {
@@ -36,7 +42,8 @@ pub(super) fn emit_stmt(
                         mutation_tx,
                         inferred_types,
                         usage,
-                        OwnershipMode::Owned
+                        OwnershipMode::Owned,
+                        None,
                     )
                 )
             } else {
@@ -51,7 +58,8 @@ pub(super) fn emit_stmt(
                         mutation_tx,
                         inferred_types,
                         usage,
-                        OwnershipMode::Owned
+                        OwnershipMode::Owned,
+                        None,
                     )
                 )
             }
@@ -68,7 +76,8 @@ pub(super) fn emit_stmt(
                     mutation_tx,
                     inferred_types,
                     usage,
-                    OwnershipMode::Owned
+                    OwnershipMode::Owned,
+                    None,
                 )
             )
         }
@@ -81,6 +90,7 @@ pub(super) fn emit_stmt(
             inferred_types,
             usage,
             http_error_rid,
+            enclosing_return_type,
         ),
         HirStmt::Expr { expr, .. } => {
             format!(
@@ -92,7 +102,8 @@ pub(super) fn emit_stmt(
                     mutation_tx,
                     inferred_types,
                     usage,
-                    OwnershipMode::Owned
+                    OwnershipMode::Owned,
+                    None,
                 )
             )
         }
@@ -108,7 +119,8 @@ pub(super) fn emit_stmt(
                     mutation_tx,
                     inferred_types,
                     usage,
-                    OwnershipMode::Owned
+                    OwnershipMode::Owned,
+                    None,
                 )
             );
             if is_actor {
@@ -124,6 +136,7 @@ pub(super) fn emit_stmt(
                     inferred_types,
                     usage,
                     http_error_rid,
+                    enclosing_return_type,
                 ));
             }
             s.push_str(&format!("{pad}}}\n"));
@@ -144,6 +157,7 @@ pub(super) fn emit_stmt(
                     inferred_types,
                     usage,
                     http_error_rid,
+                    enclosing_return_type,
                 ));
             }
             s.push_str(&format!("{pad}}}\n"));
@@ -169,6 +183,7 @@ pub fn emit_main_stmt(
         inferred_types,
         None,
         None,
+        None,
     )
 }
 
@@ -191,7 +206,25 @@ fn emit_assign_target(
                 field
             )
         }
-        // Fallback: use the generic emitter for complex lvalues (index ops etc.)
+        // Index on the LHS of an assignment (`xs[i] = v`) needs a raw,
+        // assignable lvalue `xs[i as usize]` — NOT the Option-returning
+        // `.get(i).cloned()` READ form (which is not an lvalue -> E0070). The
+        // index is itself a read expression.
+        HirExpr::Index(obj, idx, _) => format!(
+            "{}[{} as usize]",
+            emit_assign_target(obj, inferred_types, usage),
+            emit_expr_with(
+                idx,
+                false,
+                false,
+                false,
+                inferred_types,
+                usage,
+                OwnershipMode::Owned,
+                None,
+            ),
+        ),
+        // Fallback: use the generic emitter for complex lvalues.
         other => emit_expr_with(
             other,
             false,
@@ -200,6 +233,7 @@ fn emit_assign_target(
             inferred_types,
             usage,
             OwnershipMode::Owned,
+            None,
         ),
     }
 }
@@ -239,6 +273,7 @@ fn emit_return_stmt(
     inferred_types: Option<&HashMap<Span, HirType>>,
     usage: Option<&super::usage::UsageTracker>,
     http_error_rid: Option<&str>,
+    enclosing_return_type: Option<&HirType>,
 ) -> String {
     if is_actor {
         if let Some(v) = value {
@@ -251,22 +286,53 @@ fn emit_return_stmt(
                     mutation_tx,
                     inferred_types,
                     usage,
-                    OwnershipMode::Owned
+                    OwnershipMode::Owned,
+                    None,
                 )
             )
         } else {
             format!("{pad}// return ignored in actor; scaffolding only\n")
         }
     } else if let Some(v) = value {
-        let expr_str = emit_expr_with(
-            v,
-            is_route,
-            is_actor,
-            mutation_tx,
-            inferred_types,
-            usage,
-            OwnershipMode::Owned,
-        );
+        let expr_str = if let HirExpr::Call(callee, args, _, _) = v
+            && let HirExpr::Ident(name, _) = callee.as_ref()
+            && name == "Ok"
+            && args.len() == 1
+            && let HirExpr::ObjectLit(fields, _) = &args[0].value
+            && let Some(struct_name) =
+                enclosing_return_type.and_then(super::types::result_ok_struct_name)
+        {
+            let props: Vec<String> = fields
+                .iter()
+                .map(|(k, field_expr)| {
+                    format!(
+                        "{k}: {}",
+                        emit_expr_with(
+                            field_expr,
+                            is_route,
+                            is_actor,
+                            mutation_tx,
+                            inferred_types,
+                            usage,
+                            OwnershipMode::Owned,
+                            enclosing_return_type,
+                        )
+                    )
+                })
+                .collect();
+            format!("Ok({struct_name} {{ {} }})", props.join(", "))
+        } else {
+            emit_expr_with(
+                v,
+                is_route,
+                is_actor,
+                mutation_tx,
+                inferred_types,
+                usage,
+                OwnershipMode::Owned,
+                enclosing_return_type,
+            )
+        };
         let rid_tok = http_error_rid.unwrap_or("None");
         let route_inference_safe_expr = if is_route {
             route_json_shortcut(v, is_route, is_actor, mutation_tx, inferred_types, usage)
@@ -287,7 +353,9 @@ fn emit_return_stmt(
             ));
             format!("{pad}return Ok(Json({inner}));\n")
         } else {
-            format!("{pad}return {};\n", expr_str)
+            let wrapped =
+                super::types::wrap_vox_json_return_value(&expr_str, enclosing_return_type);
+            format!("{pad}return {wrapped};\n")
         }
     } else if is_route {
         format!("{pad}return Ok(Json(serde_json::Value::Null));\n")
@@ -296,12 +364,55 @@ fn emit_return_stmt(
     }
 }
 
+/// When one side of an `is`/`isnt` comparison is a `Some(..)` constructor and the
+/// other is a borrowing `.get(i)` call, return the two emitted operands with
+/// `.cloned()` applied to the get side.
+///
+/// `<list/map>.get(i)` lowers to Rust `Vec::get`/`HashMap::get`, which return a
+/// *borrow* (`Option<&T>`), but the interpreter's `.get` is value-semantic
+/// (`v.get(i).cloned()` → `Option<T>`). Comparing the borrow against `Some(owned)`
+/// (`Option<T>`) fails to type-check (`expected Option<&T>, found Option<T>`), so
+/// the get side is `.cloned()` to an owned `Option<T>`. Shared by the binary `is`
+/// path and the `assert(x is y)` → `assert_eq!` path. Returns `None` when the
+/// pattern doesn't apply (operands are emitted unchanged by the caller).
+fn normalize_get_vs_some<F>(l: &HirExpr, r: &HirExpr, emit: &F) -> Option<(String, String)>
+where
+    F: Fn(&HirExpr, OwnershipMode) -> String,
+{
+    let is_some_ctor = |e: &HirExpr| {
+        matches!(e, HirExpr::Call(callee, _, _, _)
+            if matches!(callee.as_ref(), HirExpr::Ident(n, _) if n == "Some"))
+    };
+    let is_borrowing_get =
+        |e: &HirExpr| matches!(e, HirExpr::MethodCall(_, m, _, _, _) if m == "get");
+    if is_some_ctor(r) && is_borrowing_get(l) {
+        Some((
+            format!("({}).cloned()", emit(l, OwnershipMode::Owned)),
+            emit(r, OwnershipMode::Owned),
+        ))
+    } else if is_some_ctor(l) && is_borrowing_get(r) {
+        Some((
+            emit(l, OwnershipMode::Owned),
+            format!("({}).cloned()", emit(r, OwnershipMode::Owned)),
+        ))
+    } else {
+        None
+    }
+}
+
 /// Emit a binary expression, handling the Pipe short-circuit and the
 /// arithmetic-vs-comparison borrow distinction.
 ///
 /// Extracted from `emit_expr_with` per CR-A1: the 13-arm op match + the Pipe
 /// early-return + the arithmetic `&` decoration contributed ~15 DPs inline.
-fn emit_binary_expr<F>(op: &HirBinOp, l: &HirExpr, r: &HirExpr, emit: &F) -> String
+fn emit_binary_expr<F>(
+    op: &HirBinOp,
+    l: &HirExpr,
+    r: &HirExpr,
+    bin_span: &Span,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    emit: &F,
+) -> String
 where
     F: Fn(&HirExpr, OwnershipMode) -> String,
 {
@@ -332,6 +443,18 @@ where
             };
             return format!("({}).{}()", emit(opt_expr, OwnershipMode::Owned), method);
         }
+        // Normalize a `<list/map>.get(i) is/isnt Some(..)` comparison: the
+        // borrowing `.get` (`Option<&T>`) is `.cloned()` to an owned `Option<T>`
+        // so it type-checks against the owned `Some(..)`. See
+        // `normalize_get_vs_some`.
+        if let Some((ls, rs)) = normalize_get_vs_some(l, r, emit) {
+            let cmp = if matches!(op, HirBinOp::Is) {
+                "=="
+            } else {
+                "!="
+            };
+            return format!("({} {} {})", ls, cmp, rs);
+        }
     }
     let op_str = match op {
         HirBinOp::Add => "+",
@@ -349,24 +472,37 @@ where
         HirBinOp::Mod => "%",
         HirBinOp::Pipe => unreachable!("handled above"),
     };
-    if matches!(
-        op,
-        HirBinOp::Add | HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div
-    ) {
-        format!(
-            "({} {} &{})",
-            emit(l, OwnershipMode::Owned),
-            op_str,
-            emit(r, OwnershipMode::Owned)
-        )
-    } else {
-        format!(
-            "({} {} {})",
-            emit(l, OwnershipMode::Owned),
-            op_str,
-            emit(r, OwnershipMode::Owned)
-        )
+    // String concatenation: the interpreter auto-stringifies the non-`str`
+    // operand (`eval/expr.rs`: `(Add, Str(a), other) => format!(...)`), and
+    // typeck types `str + X` as `str` regardless of `X`. Match that here with
+    // `format!`, which `Display`s BOTH operands — correct for `str + str` AND
+    // `str + <numeric>` (e.g. `s + 5`). Without this, `str + numeric` emits
+    // `String + i64`, which has no `Add` impl and fails to compile (the program
+    // type-checks but the generated Rust does not).
+    if matches!(op, HirBinOp::Add) {
+        let is_str_concat = matches!(l, HirExpr::StringLit(..))
+            || matches!(r, HirExpr::StringLit(..))
+            || inferred_types
+                .and_then(|m| m.get(bin_span))
+                .is_some_and(|t| matches!(t, HirType::Named(n) if n == "str"));
+        if is_str_concat {
+            return format!(
+                "format!(\"{{}}{{}}\", {}, {})",
+                emit(l, OwnershipMode::Owned),
+                emit(r, OwnershipMode::Owned),
+            );
+        }
     }
+    // All remaining `+ - * /` (and `%` etc.) are numeric — string concatenation
+    // is handled above, and typeck restricts `- * / %` to numeric operands. Plain
+    // infix with no borrow: `i64 + i64`, `f64 * f64`, `Decimal - Decimal` all work
+    // by value (this also removes the old spurious `1 + &2` unused-borrow).
+    format!(
+        "({} {} {})",
+        emit(l, OwnershipMode::Owned),
+        op_str,
+        emit(r, OwnershipMode::Owned)
+    )
 }
 
 /// Emit an identifier reference, applying ownership mode and copy/move heuristics.
@@ -409,7 +545,22 @@ fn emit_ident_expr(
     } else {
         match mode {
             OwnershipMode::Owned => format!("{}.clone()", n),
-            OwnershipMode::Borrowed => format!("{}.as_str()", n),
+            OwnershipMode::Borrowed => {
+                // Borrow without cloning. A `str`-typed value uses `.as_str()`
+                // (what the borrowing string builtins expect); anything else
+                // uses a plain reference — `&Vec<T>` coerces to `&[T]`, `&T` to
+                // `&T`. Emitting `.as_str()` unconditionally (the prior behavior)
+                // produced uncompilable Rust the moment a non-string argument was
+                // borrowed, a latent landmine for widening borrow inference.
+                let is_str = inferred_types
+                    .and_then(|m| m.get(span))
+                    .is_some_and(|t| matches!(t, HirType::Named(name) if name == "str"));
+                if is_str {
+                    format!("{}.as_str()", n)
+                } else {
+                    format!("&{}", n)
+                }
+            }
         }
     }
 }
@@ -431,6 +582,7 @@ pub(super) fn emit_pattern(
             None,
             None,
             OwnershipMode::Owned,
+            None,
         ),
         HirPattern::Tuple(pats, _) => format!(
             "({})",
@@ -440,47 +592,36 @@ pub(super) fn emit_pattern(
                 .join(", ")
         ),
         HirPattern::Constructor(n, pats, _) => {
-            // Rust struct variant syntax: Name { field: val }
-            // HirPattern::Constructor has positional args?
-            // "Ok(text: str)" -> Constructor("Ok", [Ident("text")])
-            // Rust enum: Ok { text: ... } or Ok(...) depending on def.
-            // Vox ADTs use named fields. So we matched on Struct names.
-            // Wait, parse_typedef uses named fields.
-            // But pattern matching? "Ok(r) -> r". This is positional.
-            // My ADT generator emitted named fields: `Variant { field: Type }`.
-            // Rust requires named matching if defined with names.
-            // Or use tuple variants if positional.
-            // Vox defines `| Ok(text: str)`. This is named.
-            // So `Ok(t)` in match needs to be `Ok { text: t }`.
-            // BUT the parser/HIR doesn't resolve positional match to named fields yet.
-            // This is a semantic gap.
-            // Workaround: Use tuple variants in Rust if possible, or assume names match?
-            // "Ok(r)" -> pattern is Constructor("Ok", [Ident("r")]).
-            // We don't know the field name "text" here without looking up the definition.
-            // For now, emit as tuple style `Ok(p1, p2)` and hope the ADT generation uses tuple variants?
-            // In emit_lib: `variant.fields` are named.
-            // If I change emit_lib to use tuple variants if fields are present?
-            // Or structs?
-            // Vox syntax `Ok(text: str)` looks like named.
-            // But usage `Ok("hi")` looks positional.
-            // Let's generate Tuple variants in Rust for simplicity: `Ok(String)`.
-            // And ignore field names in TypeDef?
-            // Or use the names?
-            format!(
-                "{}({})",
-                n,
-                pats.iter()
-                    .map(|p| emit_pattern(p, is_route, is_actor, mutation_tx))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
+            // Vox `Error(msg)` is the Result error constructor; Rust spells it `Err`.
+            let rust_name = if n == "Error" { "Err" } else { n.as_str() };
+            if pats.is_empty() {
+                rust_name.to_string()
+            } else {
+                format!(
+                    "{}({})",
+                    rust_name,
+                    pats.iter()
+                        .map(|p| emit_pattern(p, is_route, is_actor, mutation_tx))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
         }
     }
 }
 
 /// Emit one HIR expression as a Rust expression string (for nested codegen / tools).
 pub fn emit_expr(expr: &HirExpr) -> String {
-    emit_expr_with(expr, false, false, false, None, None, OwnershipMode::Owned)
+    emit_expr_with(
+        expr,
+        false,
+        false,
+        false,
+        None,
+        None,
+        OwnershipMode::Owned,
+        None,
+    )
 }
 
 pub(super) fn emit_expr_with(
@@ -491,10 +632,20 @@ pub(super) fn emit_expr_with(
     inferred_types: Option<&HashMap<Span, HirType>>,
     usage: Option<&super::usage::UsageTracker>,
     mode: OwnershipMode,
+    fn_return_type: Option<&HirType>,
 ) -> String {
     let fallible_db = mutation_tx;
     let emit = |e: &HirExpr, m: OwnershipMode| {
-        emit_expr_with(e, is_route, is_actor, mutation_tx, inferred_types, usage, m)
+        emit_expr_with(
+            e,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+            m,
+            fn_return_type,
+        )
     };
     if let Some(s) = super::stmt_expr_tail::try_emit_expr_tail(
         expr,
@@ -505,18 +656,23 @@ pub(super) fn emit_expr_with(
         inferred_types,
         usage,
         mode,
+        fn_return_type,
         &emit,
     ) {
         return s;
     }
     match expr {
         HirExpr::IntLit(v, _) => v.to_string(),
-        HirExpr::FloatLit(v, _) => v.to_string(),
+        // Append the `f64` suffix so whole-number floats stay floats: Rust's
+        // `f64::to_string()` renders `0.0` as `"0"`, which would otherwise emit
+        // as an `i32` and break type unification (e.g. a `match` arm `0.0`
+        // among `f64` arms -> E0308). Vox `float` is always `f64`.
+        HirExpr::FloatLit(v, _) => format!("{v}f64"),
         HirExpr::StringLit(v, _) => {
-            let escaped = v.replace("\"", "\\\"").replace("\n", "\\n");
+            let escaped = escape_rust_double_quoted_content(v).replace('\n', "\\n");
             match mode {
-                OwnershipMode::Owned => format!("\"{}\".to_string()", escaped),
-                OwnershipMode::Borrowed => format!("\"{}\"", escaped),
+                OwnershipMode::Owned => format!("\"{escaped}\".to_string()"),
+                OwnershipMode::Borrowed => format!("\"{escaped}\""),
             }
         }
         HirExpr::BoolLit(v, _) => v.to_string(),
@@ -541,7 +697,9 @@ pub(super) fn emit_expr_with(
         ),
 
         HirExpr::Ident(n, span) => emit_ident_expr(n, span, inferred_types, usage, mode),
-        HirExpr::Binary(op, l, r, _) => emit_binary_expr(op, l, r, &emit),
+        HirExpr::Binary(op, l, r, bin_span) => {
+            emit_binary_expr(op, l, r, bin_span, inferred_types, &emit)
+        }
         HirExpr::Call(callee, args, is_await, _) => {
             if let HirExpr::Ident(n, _) = &**callee
                 && let Some(s) = emit_builtin_ident_call(n, args, &emit)
@@ -567,15 +725,23 @@ pub(super) fn emit_expr_with(
                 .iter()
                 .map(|arg| emit(&arg.value, OwnershipMode::Owned))
                 .collect();
-            if *is_await {
+            let script_auto_await = super::script_db::script_db_emit_mode()
+                && matches!(callee.as_ref(), HirExpr::Ident(name, _) if super::script_db::script_async_call(name));
+            if *is_await || script_auto_await {
                 format!("{}({}).await", c, a.join(", "))
             } else {
                 format!("{}({})", c, a.join(", "))
             }
         }
         HirExpr::Index(obj, idx, _) => {
+            // Vox indexing returns `Option[T]` (interpreter eval::expr Index arm
+            // wraps in `VoxValue::Option`; typeck `list[i] : Option[T]`), so
+            // `match xs[i] { Some(v) => .. None => .. }` is the idiomatic form.
+            // Emit `.get(i).cloned()` -> `Option<T>` rather than raw `xs[i]`
+            // (which returns `T` and panics out of bounds) so the Option match
+            // typechecks and bounds are safe.
             format!(
-                "{}[{} as usize]",
+                "{}.get({} as usize).cloned()",
                 emit(obj, OwnershipMode::Owned),
                 emit(idx, OwnershipMode::Owned)
             )
@@ -617,6 +783,7 @@ fn try_emit_namespace_call(
             inferred_types,
             usage,
             OwnershipMode::Owned,
+            None,
         )
     };
     let with_await = |s: String| -> String { if is_await { format!("{}.await", s) } else { s } };
@@ -709,6 +876,7 @@ fn emit_call_args_with_borrow_inference(
                 inferred_types,
                 usage,
                 mode,
+                None,
             )
         })
         .collect()
@@ -743,6 +911,7 @@ fn route_json_shortcut(
             inferred_types,
             usage,
             OwnershipMode::Owned,
+            None,
         )
     };
     match v {
@@ -803,11 +972,17 @@ where
         )),
         ("assert", 1) => {
             if let HirExpr::Binary(HirBinOp::Is, l, r, _) = &args[0].value {
-                Some(format!(
-                    "assert_eq!({}, {})",
-                    emit(l.as_ref(), OwnershipMode::Owned),
-                    emit(r.as_ref(), OwnershipMode::Owned)
-                ))
+                // Apply the same borrowing-`.get` vs `Some(..)` normalization as
+                // the binary `is` path, so `assert(xs.get(i) is Some(..))` emits a
+                // type-correct `assert_eq!` (Option<T> on both sides).
+                let (ls, rs) =
+                    normalize_get_vs_some(l.as_ref(), r.as_ref(), emit).unwrap_or_else(|| {
+                        (
+                            emit(l.as_ref(), OwnershipMode::Owned),
+                            emit(r.as_ref(), OwnershipMode::Owned),
+                        )
+                    });
+                Some(format!("assert_eq!({}, {})", ls, rs))
             } else {
                 Some(format!(
                     "assert!({})",
@@ -849,6 +1024,22 @@ where
         ("Error", 1) => Some(format!(
             "Err({})",
             emit(&args[0].value, OwnershipMode::Owned)
+        )),
+        // `panic` is a Rust macro, not a function — emit `panic!(..)`.
+        ("panic", 1) => Some(format!(
+            "panic!(\"{{}}\", {})",
+            emit(&args[0].value, OwnershipMode::Owned)
+        )),
+        // `range(n)` / `range(start, end)` materialize an integer list, matching
+        // the interpreter (which returns a `VoxValue::List` of ints).
+        ("range", 1) => Some(format!(
+            "(0..({}) as i64).map(|__i| __i as i64).collect::<Vec<i64>>()",
+            emit(&args[0].value, OwnershipMode::Owned)
+        )),
+        ("range", 2) => Some(format!(
+            "(({}) as i64..({}) as i64).map(|__i| __i as i64).collect::<Vec<i64>>()",
+            emit(&args[0].value, OwnershipMode::Owned),
+            emit(&args[1].value, OwnershipMode::Owned)
         )),
         _ => None,
     }
@@ -957,5 +1148,48 @@ mod scrape_emit_tests {
             out.contains("wasm32"),
             "Browser.* must keep the wasm guard: {out}"
         );
+    }
+}
+
+#[cfg(test)]
+mod borrow_emission_tests {
+    use super::OwnershipMode;
+    use super::emit_ident_expr;
+    use std::collections::HashMap;
+    use vox_compiler::ast::span::Span;
+    use vox_compiler::hir::HirType;
+
+    fn typed(name: &str) -> (Span, HashMap<Span, HirType>) {
+        let span = Span::new(0, 0);
+        let mut m = HashMap::new();
+        m.insert(span, HirType::Named(name.to_string()));
+        (span, m)
+    }
+
+    /// `str`-typed borrowed args keep `.as_str()` (what borrowing string builtins
+    /// expect) — preserves existing behavior, no golden churn.
+    #[test]
+    fn borrowed_str_emits_as_str() {
+        let (span, types) = typed("str");
+        let out = emit_ident_expr("x", &span, Some(&types), None, OwnershipMode::Borrowed);
+        assert_eq!(out, "x.as_str()");
+    }
+
+    /// Non-`str` borrowed args emit a plain reference, NOT `.as_str()` (which
+    /// would be uncompilable on a `Vec`/struct). This is the latent-bug fix:
+    /// before, this returned `x.as_str()` regardless of type.
+    #[test]
+    fn borrowed_non_str_emits_reference() {
+        let (span, types) = typed("MyRecord");
+        let out = emit_ident_expr("x", &span, Some(&types), None, OwnershipMode::Borrowed);
+        assert_eq!(out, "&x", "non-str borrow must be `&x`, not `.as_str()`");
+    }
+
+    /// Owned, non-last-use, non-Copy still clones (unchanged).
+    #[test]
+    fn owned_non_copy_still_clones() {
+        let (span, types) = typed("str");
+        let out = emit_ident_expr("x", &span, Some(&types), None, OwnershipMode::Owned);
+        assert_eq!(out, "x.clone()");
     }
 }

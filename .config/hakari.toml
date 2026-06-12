@@ -40,6 +40,13 @@ workspace-members = [
     "vox-mesh-types",
     "vox-plugin-types",
     "vox-arch-check",
+    # Publish-ready leaves: kept hack-free so third parties can build them
+    # single-feature off crates.io. See dependency-and-migration-handoff §5.2.
+    "vox-plugin-api",
+    "vox-plugin-sdk",
+    "vox-nanopub",
+    "vox-research-events",
+    "vox-quantize",
 ]
 
 [final-excludes]
@@ -65,4 +72,11 @@ workspace-members = [
     "vox-mesh-types",
     "vox-plugin-types",
     "vox-arch-check",
+    # Publish-ready leaves: kept hack-free so third parties can build them
+    # single-feature off crates.io. See dependency-and-migration-handoff §5.2.
+    "vox-plugin-api",
+    "vox-plugin-sdk",
+    "vox-nanopub",
+    "vox-research-events",
+    "vox-quantize",
 ]

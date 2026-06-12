@@ -11,8 +11,11 @@ publish = false
 
 [features]
 default = []
+# Declared for `check-cfg` when `vox-codegen-ts` sources are embedded via `#[path]` (never enable on `vox-codegen`).
+standalone = []
 
 [dependencies]
+hex = { workspace = true }
 vox-compiler = { workspace = true }
 vox-tauri-codegen = { workspace = true }
 workspace-hack = { workspace = true }
@@ -25,6 +28,7 @@ bzip2 = { workspace = true }
 zstd = { workspace = true }
 miette = { workspace = true }
 vox-secrets = { workspace = true }
+vox-sql = { workspace = true }
 vox-config = { workspace = true }
 vox-deploy-codegen = { workspace = true }
 prettyplease = { workspace = true }

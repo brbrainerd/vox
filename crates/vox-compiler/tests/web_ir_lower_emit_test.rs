@@ -1,4 +1,12 @@
 //! ADR 012 — HIR → WebIR → validate → TSX preview emit.
+//!
+//! ## Burndown complete (2026-06-11)
+//!
+//! The 2026-08-01 ignore cohort is fully re-enabled: assertions now track the
+//! canonical Web-IR behavior (px-4 layout wrapper, parsed style selectors,
+//! route-level loader/pending/error contracts, interval-suffixed scheduled
+//! jobs). Historical CR-F2 context lives in
+//! [`cr-f2-arm-parity-findings-2026.md`](../../docs/src/architecture/cr-f2-arm-parity-findings-2026.md).
 #![allow(unsafe_code)] // `VOX_WEBIR_VALIDATE` toggles for emitter bridge tests (OP-S026 / OP-S028)
 
 use std::collections::HashSet;
@@ -30,7 +38,6 @@ use vox_compiler::runtime_projection::{
 };
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_lowering_validates_and_emits_counter_view() {
     let source = r#"
 component Counter(initial: int) {
@@ -52,7 +59,6 @@ component Counter(initial: int) {
 
 /// OP-S006 / OP-S008: `lower_module` places imports, `routes { }`, and Path C components in the expected HIR vectors.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn hir_lowering_bucket_labels_import_routes_reactive() {
     let source = r#"
 import react.use_state
@@ -73,7 +79,6 @@ routes {
 
 /// `@scheduled` HIR metadata lowers into [`WebIrModule::scheduled_jobs`].
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_lowering_scheduled_jobs_from_hir() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -84,7 +89,7 @@ fn web_ir_lowering_scheduled_jobs_from_hir() {
     let (web, summary) = lower_hir_to_web_ir_with_summary(&hir);
     assert_eq!(summary.scheduled_jobs_lowered, 1, "{summary:?}");
     assert_eq!(web.scheduled_jobs.len(), 1);
-    assert_eq!(web.scheduled_jobs[0].name, "scheduled_tick");
+    assert_eq!(web.scheduled_jobs[0].name, "scheduled_tick_1h");
     assert_eq!(web.scheduled_jobs[0].interval, "1h");
     let diags = validate_web_ir(&web);
     assert!(diags.is_empty(), "{diags:?}");
@@ -92,7 +97,6 @@ fn web_ir_lowering_scheduled_jobs_from_hir() {
 
 /// OP-S010 / OP-S012: `WebIrModule` JSON shell keeps stable top-level field names for schema consumers.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_module_serde_shell_field_names_stable() {
     let m = WebIrModule::default();
     let v = serde_json::to_value(&m).expect("serde");
@@ -115,7 +119,6 @@ fn web_ir_module_serde_shell_field_names_stable() {
 
 /// OP-S015: event-like JSX attrs map to React-style names on elements (same edge as `hir_emit`).
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_lowering_event_attr_maps_to_on_click_on_element() {
     let source = r#"
 component B() {
@@ -138,7 +141,6 @@ component B() {
 
 /// OP-S018: required reactive state without lowered initial is a validate error.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_rejects_required_state_without_initial() {
     let mut m = WebIrModule::default();
     m.behavior_nodes.push(BehaviorNode::StateDecl {
@@ -157,7 +159,6 @@ fn web_ir_validate_rejects_required_state_without_initial() {
 
 /// OP-S020: duplicate client [`RouteContract`] ids fail validation.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_duplicate_route_contract_id() {
     let mut m = WebIrModule::default();
     m.route_nodes.push(RouteNode::RouteTree {
@@ -187,7 +188,6 @@ fn web_ir_validate_duplicate_route_contract_id() {
 
 /// Nested `routes { }`, loaders, pending, and block-level `not_found` / `error` surface in `routes.manifest.ts`.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn codegen_nested_route_manifest_includes_children_loader_pending_and_boundary_exports() {
     let source = r#"
 @query fn load_child() to int { return 1 }
@@ -219,7 +219,7 @@ component ErrorPage() {
 
 routes {
     "/" to Home with pending: PendingSpin {
-        "/child" to Child with loader: load_child
+        "/child" to Child with (loader: load_child, pending: PendingSpin, error: ErrorPage)
     }
     not_found: NotFoundPage
     error: ErrorPage
@@ -243,16 +243,15 @@ routes {
 /// Emitter contract: `maybe_web_ir_validate` is invoked before the `route_manifest` match block so a failing
 /// `VOX_WEBIR_VALIDATE` gate never appends `routes.manifest.ts`.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn emitter_source_orders_validate_gate_before_route_manifest() {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/codegen_ts/emitter.rs");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../vox-codegen-ts/src/emitter.rs");
     let src = std::fs::read_to_string(&path).expect("read emitter.rs");
     let validate = src
-        .find("maybe_web_ir_validate(hir, Some(&web_projection))?")
+        .find("maybe_web_ir_validate(web_projection, token_registry.as_ref())?")
         .expect("maybe_web_ir_validate call");
     let route_manifest = src
-        .find("let route_manifest = match web_projection_ref {")
-        .expect("route manifest match block");
+        .find("let (manifest_filename, route_manifest) =")
+        .expect("route manifest emit block");
     assert!(
         validate < route_manifest,
         "validate gate must precede route manifest emit (validate={validate}, route_manifest={route_manifest})"
@@ -261,7 +260,6 @@ fn emitter_source_orders_validate_gate_before_route_manifest() {
 
 /// WS08 / T074–T075: legacy TanStack router + `createServerFn` bundles must never ship from codegen.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn codegen_output_never_includes_vox_tanstack_router_or_server_fns() {
     let source = r#"
 component Home() {
@@ -311,7 +309,6 @@ routes {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_view_matches_hir_emit_for_self_closing_jsx() {
     let source = r#"
 component T() {
@@ -343,7 +340,6 @@ component T() {
 
 /// One constructed example per top-level WebIR family; serde round-trip + validator (OP-0052).
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_schema_node_families_roundtrip_through_json() {
     use serde_json::json;
 
@@ -462,7 +458,6 @@ fn web_ir_schema_node_families_roundtrip_through_json() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_interop_nodes_serialize_deterministically() {
     let nodes = vec![
         InteropNode::ExternalModuleRef {
@@ -482,7 +477,6 @@ fn web_ir_interop_nodes_serialize_deterministically() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_span_table_ids_match_get() {
     use vox_codegen::web_ir::SourceSpan;
 
@@ -504,7 +498,6 @@ fn web_ir_span_table_ids_match_get() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_route_tree_contract_roundtrips_json() {
     use serde_json::json;
 
@@ -537,7 +530,6 @@ fn web_ir_route_tree_contract_roundtrips_json() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_style_node_shape_roundtrip() {
     let n = StyleNode::Declaration {
         property: "margin".into(),
@@ -554,7 +546,6 @@ fn web_ir_style_node_shape_roundtrip() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_event_attr_lowering_matches_react_names() {
     let source = r#"
 component Btn() {
@@ -576,7 +567,6 @@ component Btn() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_reactive_component_style_blocks_lower_to_style_nodes() {
     let src = r#"
 component Box() {
@@ -595,21 +585,27 @@ style {
     );
     match &web.style_nodes[0] {
         StyleNode::Rule {
-            selector: StyleSelector::Unparsed(sel),
+            selector: StyleSelector::Class(sel),
             declarations,
             ..
         } => {
-            assert_eq!(sel, ".x");
+            assert_eq!(sel, "x");
             assert!(declarations.iter().any(|(p, _)| p == "color"));
         }
-        other => panic!("expected Rule with Unparsed selector, got {other:?}"),
+        other => panic!("expected Rule with Class selector, got {other:?}"),
     }
+    // Literal color values are now a design-token policy violation; the
+    // lowering itself is what this test pins, so expect exactly that lint.
     let diags = validate_web_ir(&web);
-    assert!(diags.is_empty(), "{diags:?}");
+    assert!(
+        diags
+            .iter()
+            .all(|d| d.code == "web_ir_validate.style.literal_color_value"),
+        "{diags:?}"
+    );
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_lowering_summary_counts_http_and_rpc() {
     let src = r#"
 @server fn api_ping() to int { return 1 }
@@ -623,8 +619,12 @@ fn web_ir_lowering_summary_counts_http_and_rpc() {
     let module = parse(lex(src)).expect("parse rpc fixture");
     let hir = lower_module(&module);
     let (web, summary) = lower_hir_to_web_ir_with_summary(&hir);
-    assert_eq!(summary.http_loader_contracts, 1);
-    assert_eq!(summary.server_fn_contracts, 1);
+    // `http_loader_contracts` no longer has a producer (loaders are route-level
+    // now, not derived from `@server fn api_*`); the field is retirement-pending.
+    assert_eq!(summary.http_loader_contracts, 0);
+    // Both `@server` fns count as server contracts now that the `api_*`
+    // prefix no longer diverts one into the retired http-loader bucket.
+    assert_eq!(summary.server_fn_contracts, 2);
     assert_eq!(summary.query_fn_contracts, 1);
     assert_eq!(summary.mutation_contracts, 1);
     let diags = validate_web_ir(&web);
@@ -632,7 +632,6 @@ fn web_ir_lowering_summary_counts_http_and_rpc() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_rejects_duplicate_route_contract_ids() {
     use serde_json::json;
     use vox_codegen::web_ir::{RouteContract, RouteNode, WebIrModule, WebIrVersion};
@@ -665,7 +664,6 @@ fn web_ir_validate_rejects_duplicate_route_contract_ids() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_required_state_without_initial() {
     use vox_codegen::web_ir::{BehaviorNode, FieldOptionality, WebIrModule, WebIrVersion};
 
@@ -690,7 +688,6 @@ fn web_ir_validate_required_state_without_initial() {
 
 /// OP-0262 / OP-0275: `Optional` / `Defaulted` state rows pass validate without `initial` (stage handoff contract).
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_optional_and_defaulted_state_allow_missing_initial() {
     use vox_codegen::web_ir::{BehaviorNode, FieldOptionality, WebIrModule, WebIrVersion};
 
@@ -717,7 +714,6 @@ fn web_ir_validate_optional_and_defaulted_state_allow_missing_initial() {
 
 /// OP-0274: `routes { ... }` lowers to `RouteNode::RouteTree` and validates clean.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_routes_block_lowers_to_route_tree_contract() {
     let src = r#"
 import react.use_state
@@ -750,7 +746,6 @@ routes {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_metrics_track_walks() {
     let source = r#"
 component Counter() {
@@ -768,7 +763,6 @@ component Counter() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_diagnostic_codes_use_dotted_validate_prefixes() {
     let mut m = WebIrModule::default();
     m.route_nodes.push(RouteNode::RouteTree {
@@ -798,7 +792,6 @@ fn web_ir_diagnostic_codes_use_dotted_validate_prefixes() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_style_rejects_empty_declarations() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
@@ -817,7 +810,6 @@ fn web_ir_validate_style_rejects_empty_declarations() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_style_rejects_empty_property_name() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
@@ -836,7 +828,6 @@ fn web_ir_validate_style_rejects_empty_property_name() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_lower_records_unlowered_ast_decls_diagnostic() {
     let mut hir = HirModule::default();
     hir.legacy_ast_nodes.push(Decl::Theme(ThemeDecl {
@@ -861,7 +852,6 @@ fn web_ir_lower_records_unlowered_ast_decls_diagnostic() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_lowering_json_roundtrip_preserves_canonical_bytes() {
     let source = r#"
 component A() {
@@ -887,7 +877,6 @@ component A() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_failure_format_matches_vox_webir_validate_gate() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
@@ -911,7 +900,6 @@ fn web_ir_validate_failure_format_matches_vox_webir_validate_gate() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_lowering_completeness_gate_counter_and_routes_validate() {
     let source = r#"
 import react.use_state
@@ -933,7 +921,6 @@ component Counter(initial: int) {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_preview_emit_visits_expected_node_count() {
     let source = r#"
 component T() {
@@ -949,7 +936,6 @@ component T() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_preview_emit_sorts_element_attrs_lexicographically() {
     let source = r#"
 component T() {
@@ -971,7 +957,6 @@ component T() {
 
 /// Migration OP-0138/0139: `hir_emit::compat` stays reachable alongside `emit_hir_expr` for parity tests.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn hir_emit_public_exports_include_compat_module() {
     use vox_codegen::codegen_ts::hir_emit::{compat, emit_hir_expr, map_jsx_attr_name};
 
@@ -989,7 +974,7 @@ fn hir_emit_public_exports_include_compat_module() {
 const OP_S_PARITY_CHAIN_FIXTURE: &str = r#"
 import react.use_state
 
-@component ParityPage() {
+component ParityPage() {
     state s: str = "x"
     view: column(raw_class="parity-wrap") {
             text() { s }
@@ -1005,7 +990,6 @@ routes {
 
 /// OP-S054: interop policy fixture — valid escape hatch validates clean.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s054_interop_policy_fixture_valid_escape_hatch() {
     let mut m = WebIrModule::default();
     m.interop_nodes.push(InteropNode::EscapeHatchExpr {
@@ -1018,7 +1002,6 @@ fn op_s054_interop_policy_fixture_valid_escape_hatch() {
 
 /// OP-S056: interop policy gate — empty `reason` fails validate.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s056_interop_policy_gate_empty_escape_reason() {
     let mut m = WebIrModule::default();
     m.interop_nodes.push(InteropNode::EscapeHatchExpr {
@@ -1036,7 +1019,6 @@ fn op_s056_interop_policy_gate_empty_escape_reason() {
 
 /// OP-S058: style validator rejects empty declaration lists (TODO isolation aligns with lower.ts).
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s058_style_todo_fixture_empty_rule_body_diagnosed() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
@@ -1056,7 +1038,6 @@ fn op_s058_style_todo_fixture_empty_rule_body_diagnosed() {
 
 /// OP-S064: serializability — lowered module JSON round-trip preserves validator cleanliness.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s064_serializability_gate_lowered_module_json_roundtrip() {
     let source = r#"
 component T() {
@@ -1078,7 +1059,6 @@ component T() {
 
 /// OP-S086 / S088: route detail — duplicate client contract ids fail validation.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s086_s088_route_detail_gate_duplicate_ids() {
     use serde_json::json;
     let mut m = WebIrModule::default();
@@ -1109,7 +1089,6 @@ fn op_s086_s088_route_detail_gate_duplicate_ids() {
 
 /// OP-S106: style node contract fixture — non-empty declarations validate.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s106_style_node_contract_fixture_non_empty_rule() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
@@ -1124,7 +1103,6 @@ fn op_s106_style_node_contract_fixture_non_empty_rule() {
 
 /// OP-S108: style contract gate — same as S106 plus serde round-trip.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s108_style_node_contract_gate_roundtrip() {
     op_s106_style_node_contract_fixture_non_empty_rule();
     let mut m = WebIrModule::default();
@@ -1142,7 +1120,6 @@ fn op_s108_style_node_contract_gate_roundtrip() {
 
 /// OP-S110: style validation fixture — empty property name fails.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s110_style_node_validation_fixture_empty_prop_name() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
@@ -1162,7 +1139,6 @@ fn op_s110_style_node_validation_fixture_empty_prop_name() {
 
 /// OP-S126 WebIR fixture pack D2.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s126_fixture_pack_d2_web_ir_preview_emits() {
     let source = r#"
 component T() {
@@ -1180,7 +1156,6 @@ component T() {
 
 /// OP-S134 / S136: interop hatches — empty React import source fails.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s134_s136_interop_hatches_gate_empty_import_source() {
     let mut m = WebIrModule::default();
     m.interop_nodes.push(InteropNode::ReactComponentRef {
@@ -1199,7 +1174,6 @@ fn op_s134_s136_interop_hatches_gate_empty_import_source() {
 
 /// OP-S146 fixture pack E2 — `RouteContract` JSON stable under validator expectations.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s146_fixture_pack_e2_route_contract_json_stable() {
     use serde_json::json;
     let mut m = WebIrModule::default();
@@ -1226,7 +1200,6 @@ fn op_s146_fixture_pack_e2_route_contract_json_stable() {
 
 /// OP-S154 / S156 / S158: route/data schema — loader id empty fails.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s154_s156_s158_route_data_schema_gate_empty_loader_id() {
     let mut m = WebIrModule::default();
     m.route_nodes.push(RouteNode::LoaderContract {
@@ -1244,14 +1217,12 @@ fn op_s154_s156_s158_route_data_schema_gate_empty_loader_id() {
 
 /// OP-S174 / S178 stub: parity with pack E (serializable empty module).
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s174_s178_fixture_pack_f2_empty_module_validates() {
     assert!(validate_web_ir(&WebIrModule::default()).is_empty());
 }
 
 /// OP-S186 / S188: interop schema — empty external specifier fails.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s186_s188_interop_schema_gate_empty_specifier() {
     let mut m = WebIrModule::default();
     m.interop_nodes.push(InteropNode::ExternalModuleRef {
@@ -1269,7 +1240,6 @@ fn op_s186_s188_interop_schema_gate_empty_specifier() {
 
 /// OP-S190: style route integration — valid style still passes with routes present.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s190_style_route_integration_fixture() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
@@ -1296,7 +1266,6 @@ fn op_s190_style_route_integration_fixture() {
 
 /// OP-S206 fixture pack G2.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s206_fixture_pack_g2_behavior_required_with_initial_ok() {
     let mut m = WebIrModule::default();
     m.behavior_nodes.push(BehaviorNode::StateDecl {
@@ -1310,7 +1279,6 @@ fn op_s206_fixture_pack_g2_behavior_required_with_initial_ok() {
 
 /// OP-S219: final WebIR parity — preview DOM contains text node from literal.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn op_s219_final_web_ir_parity_fixture_preview_literal() {
     let source = r#"
 component Hi() {
@@ -1337,7 +1305,6 @@ fn syntax_k_output_root() -> PathBuf {
 
 /// Observe-only syntax-K artifact generation for a representative parity fixture.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn syntax_k_artifact_for_parity_chain() {
     let fixture_id = "op_s_parity_chain";
     let module = parse(lex(OP_S_PARITY_CHAIN_FIXTURE)).expect("parse parity chain");
@@ -1453,7 +1420,6 @@ fn syntax_k_artifact_for_parity_chain() {
 
 /// Observe-only gate by default; optional hard threshold under `VOX_SYNTAX_K_GATE=enforce`.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn syntax_k_regression_gate_observe_only() {
     let mode = std::env::var("VOX_SYNTAX_K_GATE").unwrap_or_else(|_| "observe".to_string());
     let source = r#"
@@ -1505,7 +1471,6 @@ component Gate() {
 // ── TASK-5.1: literal CSS value enforcement (fires without registry) ──────────
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_style_rejects_hex_color_raw() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
@@ -1525,7 +1490,6 @@ fn web_ir_validate_style_rejects_hex_color_raw() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_style_rejects_color_variant() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
@@ -1547,7 +1511,6 @@ fn web_ir_validate_style_rejects_color_variant() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_style_rejects_literal_dimension() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
@@ -1570,7 +1533,6 @@ fn web_ir_validate_style_rejects_literal_dimension() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_style_token_ref_is_ok() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
@@ -1633,7 +1595,6 @@ fn link_element(id: u32, href: &str) -> DomNode {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_route_missing_component_is_error() {
     let mut m = WebIrModule::default();
     m.route_nodes.push(route_tree(vec![route_contract(
@@ -1652,7 +1613,6 @@ fn web_ir_validate_route_missing_component_is_error() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_route_component_exists_is_ok() {
     let mut m = WebIrModule::default();
     m.route_nodes.push(route_tree(vec![route_contract(
@@ -1671,7 +1631,6 @@ fn web_ir_validate_route_component_exists_is_ok() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_route_broken_link_is_error() {
     let mut m = WebIrModule::default();
     m.route_nodes
@@ -1690,7 +1649,6 @@ fn web_ir_validate_route_broken_link_is_error() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_route_matching_link_is_ok() {
     let mut m = WebIrModule::default();
     m.route_nodes
@@ -1707,7 +1665,6 @@ fn web_ir_validate_route_matching_link_is_ok() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_route_unreachable_warns() {
     let mut m = WebIrModule::default();
     m.route_nodes
@@ -1738,7 +1695,6 @@ fn elem_node(id: u32, tag: &str, attrs: Vec<(&str, &str)>, children: Vec<u32>) -
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_a11y_img_missing_alt_fires_via_validate_web_ir() {
     let mut m = WebIrModule::default();
     m.dom_nodes
@@ -1753,7 +1709,6 @@ fn web_ir_validate_a11y_img_missing_alt_fires_via_validate_web_ir() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_validate_a11y_button_missing_label_fires_via_validate_web_ir() {
     let mut m = WebIrModule::default();
     m.dom_nodes.push(elem_node(0, "button", vec![], vec![]));
@@ -1769,7 +1724,6 @@ fn web_ir_validate_a11y_button_missing_label_fires_via_validate_web_ir() {
 // ── TASK-6.1: primitives lowering ─────────────────────────────────────────────
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn primitives_stack_lowered_to_div_flex_col() {
     let source = r#"
 component Layout() {
@@ -1806,7 +1760,6 @@ component Layout() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn primitives_button_lowered_to_button_with_primary_classes() {
     let source = r#"
 component Cta() {
@@ -1838,7 +1791,6 @@ component Cta() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn primitives_row_lowered_to_div_flex_row() {
     let source = r#"
 component R() {
@@ -1868,44 +1820,16 @@ component R() {
     );
 }
 
-#[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
-fn primitives_unknown_html_tags_pass_through_unchanged() {
-    let source = r#"
-component Passthrough() {
-    view: (
-        column(raw_class="custom") { "content" }
-    )
-}
-"#;
-    let tokens = vox_compiler::lexer::lex(source);
-    let module = vox_compiler::parser::parse(tokens).expect("parse");
-    let hir = vox_compiler::hir::lower_module(&module);
-    let web = lower_hir_to_web_ir(&hir);
-
-    // JSX lowering maps class→className and wraps string values in quotes.
-    assert!(
-        web.dom_nodes.iter().any(|n| {
-            if let DomNode::Element { tag, attrs, .. } = n {
-                tag == "div"
-                    && !attrs.iter().any(|(k, v)| {
-                        // Must NOT have any primitive-injected Tailwind like flex, flex-col, etc.
-                        k == "className" && (v.contains("flex") || v.contains("bg-"))
-                    })
-            } else {
-                false
-            }
-        }),
-        "ordinary div should not have primitive Tailwind classes injected; nodes: {:?}",
-        web.dom_nodes
-    );
-}
+// `primitives_unknown_html_tags_pass_through_unchanged` was retired: the view
+// parser only accepts known primitive call-blocks, so the unknown-tag
+// passthrough scenario is inexpressible end-to-end. The `resolve() -> None`
+// passthrough contract is unit-tested in
+// `vox-codegen/src/web_ir/primitives/mod.rs` (`unknown_tag_returns_none`).
 
 // ── TASK-6.2: token-ref-only style values / raw_css escape ────────────────────
 
 /// raw_css {} escape emits a warning diagnostic, not an error.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn raw_css_escape_emits_warning_not_error() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
@@ -1932,7 +1856,6 @@ fn raw_css_escape_emits_warning_not_error() {
 
 /// Normal style {} block with a raw hex color still fires the error.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn normal_style_block_literal_color_still_errors() {
     let mut m = WebIrModule::default();
     m.style_nodes.push(StyleNode::Rule {
@@ -1956,7 +1879,6 @@ fn normal_style_block_literal_color_still_errors() {
 
 /// Parser round-trip: raw_css {} block lowers with is_raw_css=true.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn raw_css_style_block_lowers_with_flag() {
     let src = r##"
 component Card() {
@@ -2006,7 +1928,6 @@ raw_css {
 
 /// Known surface name in registry → no error.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn surface_known_name_no_error() {
     use vox_codegen::web_ir::validate::validate_web_ir_with_registry;
     use vox_compiler::tokens::TokenRegistry;
@@ -2038,7 +1959,6 @@ fn surface_known_name_no_error() {
 
 /// Unknown surface name in registry → error.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn surface_unknown_name_fires_error() {
     use vox_codegen::web_ir::validate::validate_web_ir_with_registry;
     use vox_compiler::tokens::TokenRegistry;
@@ -2069,7 +1989,6 @@ fn surface_unknown_name_fires_error() {
 
 /// surface attr on panel primitive → lowers to data-vox-surface attr + style CSS vars.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn surface_primitive_lowers_to_css_vars() {
     let src = r##"
 component Page() {
@@ -2101,7 +2020,6 @@ component Page() {
 
 /// surface attr without registry → no surface validation errors (registry is optional).
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn surface_without_registry_no_error() {
     let mut m = WebIrModule::default();
     m.dom_nodes.push(DomNode::Element {
@@ -2125,7 +2043,6 @@ fn surface_without_registry_no_error() {
 
 /// overlay primitive lowered to div with data-vox-overlay attr.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn overlay_primitive_lowers_to_overlay_marker() {
     let src = r##"
 component Layout() {
@@ -2178,7 +2095,6 @@ component Layout() {
 
 /// Duplicate z-index on overlay children fires a diagnostic.
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn overlay_duplicate_z_integration() {
     use vox_codegen::web_ir::validate_overlay::validate_overlay;
 

@@ -132,6 +132,16 @@ pub enum CiCmd {
         #[arg(long)]
         skip_runtime: bool,
     },
+    /// Regenerate the unified policy registry from live sources.
+    #[command(name = "policy-registry")]
+    PolicyRegistry {
+        /// Write the registry to disk instead of printing it.
+        #[arg(long)]
+        write: bool,
+    },
+    /// Fail if the policy registry has drifted from the live detector set.
+    #[command(name = "policy-registry-parity")]
+    PolicyRegistryParity,
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
     SsotDrift,
@@ -176,8 +186,8 @@ pub enum CiCmd {
         #[arg(long)]
         with_coverage: bool,
         /// Run nextest only for the packages affected by changes since `<REF>` (plus their
-        /// transitive reverse-deps). Falls back to `--workspace` if more than
-        /// `VOX_PREPUSH_SINCE_FALLBACK_THRESHOLD` (default 20) packages are impacted.
+        /// transitive reverse-deps). Large impacted sets run in chunks (`VOX_PREPUSH_SINCE_CHUNK_SIZE`,
+        /// default 10). Falls back to `--workspace` only on git/metadata hard failures.
         /// Only meaningful with `--full`. Typical wall-clock for a 1–3 crate edit: 3–20s.
         #[arg(long, value_name = "REF")]
         since: Option<String>,
@@ -188,6 +198,11 @@ pub enum CiCmd {
         /// Skipped in `--dry-run` mode (no elapsed times to compare).
         #[arg(long)]
         enforce_budgets: bool,
+        /// With `--full`, skip the complete-tier static checks (whole-tree docs, clippy,
+        /// doc-inventory, scoped TOESTUB). Use after a green `vox ci pre-push --complete`
+        /// in the same iteration to avoid duplicate heavy work before push.
+        #[arg(long, requires = "full")]
+        skip_complete: bool,
     },
     /// Compare elapsed time from a nextest JUnit artifact against the tier budgets in
     /// `contracts/budgets/test-tier-budgets.v1.yaml`.  Reads `<testsuites time="...">` from
@@ -281,6 +296,13 @@ pub enum CiCmd {
     /// `cargo fmt --all` and stays robust as crates are added/removed.
     #[command(name = "fmt-check")]
     FmtCheck,
+    /// Warn when workflow YAML uses GitHub-hosted runners without a registered exception.
+    #[command(name = "runner-policy-check")]
+    RunnerPolicyCheck {
+        /// Fail (exit 1) instead of advisory warn.
+        #[arg(long)]
+        strict: bool,
+    },
     /// Fail if changed LF-policy text files contain CRLF / CR (`*.ps1` exempt). Forward-only unless `--all`.
     #[command(name = "line-endings")]
     LineEndings {
@@ -363,12 +385,12 @@ pub enum CiCmd {
     /// Full-repo TOESTUB: `cargo build -p vox-code-audit --release` then `cargo run -p vox-code-audit --bin toestub` (replaces `scripts/toestub_self_apply.*`).
     #[command(name = "toestub-self-apply")]
     ToestubSelfApply,
-    /// Scoped TOESTUB: `cargo run -p vox-code-audit --bin toestub -- <ROOT>`.
+    /// Scoped TOESTUB: `cargo run -p vox-code-audit --bin toestub -- [ROOT...]`.
     #[command(name = "toestub-scoped")]
     ToestubScoped {
-        /// Root path for structural scope testing.
-        #[arg(default_value = "crates/vox-repository")]
-        root: PathBuf,
+        /// Root path(s) for structural scope testing (default `crates/vox-repository` when omitted).
+        #[arg(value_name = "ROOT")]
+        roots: Vec<PathBuf>,
         /// Exit policy forwarded to `toestub --mode` (`legacy` keeps historical Error+ fail).
         #[arg(long, value_enum, default_value_t = ToestubCiMode::Legacy)]
         mode: ToestubCiMode,
@@ -541,7 +563,7 @@ pub enum CiCmd {
     /// Fast local smoke: orchestrator compile + command-compliance + rust ecosystem policy.
     #[command(name = "policy-smoke")]
     PolicySmoke,
-    /// Targeted backend tests (`vox-actor-runtime` + orchestrator routing policy modules).
+    /// Targeted backend tests (`vox-actor-runtime`, orchestrator routing policy modules, VoxDb contract checks, and vox-sql P2/P3/P5 interop smoke).
     #[command(name = "backend-tests")]
     BackendTests,
     /// GUI smoke: `web_ir_lower_emit` always; optional Vite (`VOX_WEB_VITE_SMOKE=1`) and Playwright (`VOX_GUI_PLAYWRIGHT=1`) lanes.
@@ -614,6 +636,9 @@ pub enum CiCmd {
     ArtifactAudit {
         #[arg(long)]
         json: bool,
+        /// Also report per-worktree `target/` dirs and stale worktrees (read-only).
+        #[arg(long)]
+        include_worktrees: bool,
     },
     /// Prune workspace artifacts cleanly.
     #[command(name = "artifact-prune")]
@@ -624,6 +649,53 @@ pub enum CiCmd {
         apply: bool,
         #[arg(long)]
         policy: Option<PathBuf>,
+        /// Clean per-worktree `target/` dirs (gated: never touches an active build).
+        #[arg(long)]
+        include_worktrees: bool,
+        /// Additionally remove whole stale, clean, unlocked worktrees.
+        #[arg(long)]
+        remove_stale_worktrees: bool,
+        /// Clean target dirs even in worktrees with uncommitted source (never the source).
+        #[arg(long)]
+        include_dirty_targets: bool,
+        /// Clean only `target/{debug,release}/incremental/` (keep `deps/` for fast rebuilds).
+        #[arg(long)]
+        incremental_only: bool,
+        /// Override the policy staleness threshold (days); `0` cleans regardless of age.
+        #[arg(long)]
+        max_age_days: Option<u32>,
+    },
+    /// Autoscale the ephemeral self-hosted CI runner pool to current demand (dry-run unless `--apply`).
+    #[command(name = "runner-scale")]
+    RunnerScale {
+        /// Actually spawn/reap runners (default is dry-run).
+        #[arg(long)]
+        apply: bool,
+    },
+    /// Fail-fast: error immediately when no online self-hosted runner can serve the gate.
+    #[command(name = "runner-preflight")]
+    RunnerPreflight,
+    /// Measure CI job run-time (execution, not queue) and warn on anything over the budget (default 10m).
+    #[command(name = "job-timings")]
+    JobTimings {
+        /// Analyze a specific workflow run's jobs (default: scan recent completed runs).
+        #[arg(long)]
+        run_id: Option<u64>,
+        /// Budget in minutes (default 10).
+        #[arg(long)]
+        threshold_mins: Option<i64>,
+        /// How many recent completed runs to scan when `--run-id` is omitted.
+        #[arg(long, default_value_t = 5)]
+        limit: u32,
+        /// Emit JSON instead of a table.
+        #[arg(long)]
+        json: bool,
+        /// Emit GitHub `::warning::` annotations for over-budget jobs (for CI use).
+        #[arg(long)]
+        annotate: bool,
+        /// Exit non-zero if any job is over budget (default: warn only).
+        #[arg(long)]
+        strict: bool,
     },
     /// Nomenclature guard: fail when new Latin-only structural crate directories appear outside the allowlist (T189-T196).
     #[command(name = "nomenclature-guard")]
@@ -827,12 +899,40 @@ pub enum CiCmd {
     /// Guard that no non-plugin crate takes a compile-time dep on a cdylib plugin (D-2).
     #[command(name = "no-plugin-cdylib-as-compile-dep")]
     NoPluginCdylibAsCompileDep,
+    /// Guard that cdylib plugins do not statically link the heavy spine (compiler/db/orchestrator/cli). Warns on known debt; fails on new linkage.
+    #[command(name = "plugin-dep-boundary")]
+    PluginDepBoundary,
     /// Walk crates/ for code/composite Plugin.toml files and assert ABI matches the host. Skips intentionally-broken `noop-bad-*` fixtures.
     #[command(name = "plugin-abi-parity")]
-    PluginAbiParity,
-    /// Walk crates/ for skill/composite Plugin.toml files and assert skill-md exists, is non-empty, and tools.exposes is non-empty.
+    PluginAbiParity {
+        /// Build each discovered plugin cdylib (cargo build -p <crate>) before loading it.
+        /// Use in CI so the gate covers newly-added plugins without a manual build list.
+        #[arg(long)]
+        build: bool,
+    },
+    /// Extract the plugin extension-point surface from vox-plugin-api into
+    /// contracts/plugin/extension-points.v1.yaml (SSOT). Also enforces VoxPlugin accessor parity.
+    #[command(name = "plugin-surface-sync")]
+    PluginSurfaceSync {
+        /// Regenerate the committed file. Without this flag, verify it is in sync.
+        #[arg(long)]
+        write: bool,
+    },
+    /// Derive the per-plugin rows of the plugin catalog from the per-plugin Plugin.toml
+    /// manifests (description/status/payload-kind/extension-points/exposes-tools).
+    #[command(name = "plugin-catalog-sync")]
+    PluginCatalogSync {
+        /// Regenerate the committed catalog. Without this flag, verify it is in sync.
+        #[arg(long)]
+        write: bool,
+    },
+    /// Walk crates/ for skill/composite Plugin.toml files and assert skill-md exists, is non-empty, tools.exposes is non-empty, and the SKILL.md `vox-tools` frontmatter matches the manifest.
     #[command(name = "plugin-skill-parity")]
-    PluginSkillParity,
+    PluginSkillParity {
+        /// Rewrite each SKILL.md `vox-tools` list from its manifest `tools.exposes`. Without this flag, verify they match.
+        #[arg(long)]
+        write: bool,
+    },
     /// Walk crates/vox-plugin-* for *.skill.md files and enforce AgentSkills frontmatter contract (name, description, format, directory match).
     #[command(name = "agentskills-compliance")]
     AgentSkillsCompliance,
@@ -852,6 +952,66 @@ pub enum CiCmd {
         #[arg(long)]
         failures_only: bool,
     },
+}
+
+impl CiCmd {
+    /// The policy-registry id this gate is recorded under in the per-branch
+    /// status store, or `None` if it is not run-status-tracked.
+    ///
+    /// Ids MUST match the `ci-gate` entries the Plan 1b generator emits from
+    /// `contracts/operations/catalog.v1.yaml` (id scheme `ci-gate/ci.<command>`).
+    /// New gates that should appear in the status overlay add a row here. A
+    /// variant returning `None` is simply untracked (honest grey), never faked.
+    ///
+    /// DEVIATION FROM PLAN: the plan assumed ids of the form `ci/<command>`. The
+    /// committed registry (Plan 1b, landed) uses `ci-gate/ci.<command>` derived
+    /// from the operations catalog id `ci.<command>`. This map uses the real ids
+    /// (cross-checked against `contracts/policy/policy-registry.v1.yaml`).
+    pub fn gate_policy_id(&self) -> Option<&'static str> {
+        match self {
+            CiCmd::Manifest => Some("ci-gate/ci.manifest"),
+            CiCmd::SsotDrift => Some("ci-gate/ci.ssot-drift"),
+            CiCmd::CommandCompliance => Some("ci-gate/ci.command-compliance"),
+            CiCmd::RepoGuards => Some("ci-gate/ci.repo-guards"),
+            CiCmd::LineEndings { .. } => Some("ci-gate/ci.line-endings"),
+            CiCmd::DataSsotGuards => Some("ci-gate/ci.data-ssot-guards"),
+            CiCmd::FeatureMatrix => Some("ci-gate/ci.feature-matrix"),
+            CiCmd::CompileMatrix => Some("ci-gate/ci.compile-matrix"),
+            CiCmd::RetirementAudit => Some("ci-gate/ci.retirement-audit"),
+            CiCmd::NoDeiImport => Some("ci-gate/ci.no-dei-import"),
+            CiCmd::CheckSummaryDrift => Some("ci-gate/ci.check-summary-drift"),
+            CiCmd::BuildDocs => Some("ci-gate/ci.build-docs"),
+            CiCmd::CheckDocsSsot => Some("ci-gate/ci.check-docs-ssot"),
+            CiCmd::CheckCodexSsot => Some("ci-gate/ci.check-codex-ssot"),
+            CiCmd::CheckLinks { .. } => Some("ci-gate/ci.check-links"),
+            CiCmd::ContractsIndex => Some("ci-gate/ci.contracts-index"),
+            CiCmd::AiFixturesCoverage => Some("ci-gate/ci.ai-fixtures-coverage"),
+            CiCmd::ExecPolicyContract => Some("ci-gate/ci.exec-policy-contract"),
+            CiCmd::OpenClawContract => Some("ci-gate/ci.openclaw-contract"),
+            CiCmd::OperationsVerify => Some("ci-gate/ci.operations-verify"),
+            CiCmd::NomenclatureGuard { .. } => Some("ci-gate/ci.nomenclature-guard"),
+            CiCmd::RustEcosystemPolicy => Some("ci-gate/ci.rust-ecosystem-policy"),
+            CiCmd::PolicySmoke => Some("ci-gate/ci.policy-smoke"),
+            CiCmd::SecretEnvGuard { .. } => Some("ci-gate/ci.secret-env-guard"),
+            CiCmd::SecretsParity => Some("ci-gate/ci.secrets-parity"),
+            CiCmd::SqlSurfaceGuard { .. } => Some("ci-gate/ci.sql-surface-guard"),
+            CiCmd::QueryAllGuard { .. } => Some("ci-gate/ci.query-all-guard"),
+            CiCmd::TursoImportGuard { .. } => Some("ci-gate/ci.turso-import-guard"),
+            CiCmd::DbSchemaCoverage => Some("ci-gate/ci.db-schema-coverage"),
+            CiCmd::PolicyAllowlistParity => Some("ci-gate/ci.policy-allowlist-parity"),
+            CiCmd::BackendTests => Some("ci-gate/ci.backend-tests"),
+            CiCmd::DocsRealityAudit { .. } => Some("ci-gate/ci.docs-reality-audit"),
+            CiCmd::DocInventory { .. } => Some("ci-gate/ci.doc-inventory"),
+            CiCmd::WorkflowScripts { .. } => Some("ci-gate/ci.workflow-scripts"),
+            CiCmd::ScientiaWorthinessContract => Some("ci-gate/ci.scientia-worthiness-contract"),
+            CiCmd::ScientiaNoveltyLedgerContracts => {
+                Some("ci-gate/ci.scientia-novelty-ledger-contracts")
+            }
+            // The registry machinery itself is intentionally untracked, and any
+            // gate without a registry-backed `ci-gate` row stays grey.
+            _ => None,
+        }
+    }
 }
 
 #[derive(clap::Args, Debug, Clone)]
@@ -1039,4 +1199,54 @@ pub enum MensScorecardCmd {
         #[arg(long = "summary")]
         summary: PathBuf,
     },
+}
+
+#[cfg(test)]
+mod policy_id_tests {
+    use super::*;
+
+    #[test]
+    fn known_gates_map_to_registry_ids() {
+        assert_eq!(
+            CiCmd::Manifest.gate_policy_id(),
+            Some("ci-gate/ci.manifest")
+        );
+        assert_eq!(
+            CiCmd::SsotDrift.gate_policy_id(),
+            Some("ci-gate/ci.ssot-drift")
+        );
+        // Generator/parity gates are not run-status-tracked (they ARE the catalog).
+        assert_eq!(CiCmd::PolicyRegistryParity.gate_policy_id(), None);
+        assert_eq!(
+            CiCmd::PolicyRegistry { write: false }.gate_policy_id(),
+            None
+        );
+    }
+
+    #[test]
+    fn gate_policy_ids_are_well_formed() {
+        // Every mapped id is `ci-gate/ci.<kebab>` (matches the 1b ci-gate namespace).
+        for id in [
+            CiCmd::Manifest.gate_policy_id(),
+            CiCmd::SsotDrift.gate_policy_id(),
+            CiCmd::LineEndings {
+                all: false,
+                base: None,
+                autofix: false,
+            }
+            .gate_policy_id(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            assert!(
+                id.starts_with("ci-gate/ci."),
+                "{id} must be ci-gate/ci.-namespaced"
+            );
+            assert!(
+                id.chars()
+                    .all(|c| c.is_ascii_lowercase() || c == '/' || c == '-' || c == '.')
+            );
+        }
+    }
 }

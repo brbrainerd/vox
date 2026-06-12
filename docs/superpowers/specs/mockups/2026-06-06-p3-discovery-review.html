@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>P3 — Discovery Review (mockup)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: { void: '#09090b', steel: '#71717a', brass: '#d4af37' },
+        fontFamily: {
+          display: ['"Space Grotesk"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        },
+      },
+    },
+  };
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  html, body { background:#09090b; color:#a1a1aa; }
+  .glass { position:relative; border-radius:1rem; border:1px solid rgba(255,255,255,0.06);
+    background:rgba(255,255,255,0.025); backdrop-filter:blur(40px);
+    box-shadow:0 1px 0 rgba(255,255,255,0.04) inset, 0 24px 60px -30px rgba(0,0,0,0.9); }
+  .scroll::-webkit-scrollbar{width:8px} .scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.06);border-radius:4px}
+  /* faint radial backdrop like the app */
+  .backdrop{position:fixed;inset:0;z-index:-1;
+    background:
+      radial-gradient(60rem 40rem at 75% -10%, rgba(212,175,55,0.06), transparent 60%),
+      radial-gradient(50rem 40rem at -10% 110%, rgba(139,92,246,0.06), transparent 60%),
+      #09090b;}
+  .tag{font-family:'Space Grotesk';text-transform:uppercase;letter-spacing:.12em}
+</style>
+</head>
+<body class="font-display text-[13px]">
+<div class="backdrop"></div>
+
+<div class="flex h-screen w-screen overflow-hidden">
+
+  <!-- ░░░ SIDEBAR (faithful to layout/Sidebar.tsx) ░░░ -->
+  <aside class="shrink-0 h-screen" style="width:212px">
+    <div class="glass flex h-full flex-col p-3 rounded-none border-y-0 border-l-0">
+      <!-- brand -->
+      <div class="flex items-center justify-between pb-3">
+        <div class="flex items-center gap-2 px-1">
+          <div class="relative size-6 rounded-md ring-1 ring-brass/40" style="background:linear-gradient(135deg,#d4af37,#b45309,#18181b)">
+            <span class="absolute inset-0 grid place-items-center text-[11px] font-bold text-zinc-950">V</span>
+          </div>
+          <div class="leading-tight">
+            <div class="tag text-[11px] tracking-[0.22em] text-zinc-200">VOX</div>
+            <div class="font-mono text-[8px] tracking-widest text-zinc-500">OPERATOR CONSOLE</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-0.5">
+          <button class="flex size-6 items-center justify-center rounded-md border border-white/5 text-zinc-500">‹</button>
+          <button class="flex size-6 items-center justify-center rounded-md border border-white/5 text-zinc-400 hover:bg-white/5">›</button>
+        </div>
+      </div>
+
+      <!-- nav -->
+      <nav class="flex-1 min-h-0 overflow-y-auto scroll flex flex-col gap-0.5 pr-1 -mr-1">
+        <!-- OPERATE -->
+        <div class="flex flex-col">
+          <button class="flex items-center justify-between px-2 pb-1 pt-2.5 text-zinc-500">
+            <span class="tag text-[9px] tracking-[0.32em]">Operate</span><span class="text-[10px]">▾</span></button>
+          <div class="flex flex-col gap-0.5" id="operate">
+            <!-- items injected -->
+          </div>
+        </div>
+        <!-- DEVELOP -->
+        <div class="flex flex-col">
+          <button class="flex items-center justify-between px-2 pb-1 pt-2.5 text-zinc-500">
+            <span class="tag text-[9px] tracking-[0.32em]">Develop</span><span class="text-[10px]">▾</span></button>
+          <div class="flex flex-col gap-0.5" id="develop"></div>
+        </div>
+        <!-- KNOWLEDGE (expanded; holds active surface) -->
+        <div class="flex flex-col">
+          <button class="flex items-center justify-between px-2 pb-1 pt-2.5 text-zinc-300">
+            <span class="tag text-[9px] tracking-[0.32em]">Knowledge</span><span class="text-[10px]">▾</span></button>
+          <div class="flex flex-col gap-0.5" id="knowledge"></div>
+        </div>
+        <!-- COMPUTE (collapsed by default) -->
+        <div class="flex flex-col">
+          <button class="flex items-center justify-between px-2 pb-1 pt-2.5 text-zinc-500">
+            <span class="tag text-[9px] tracking-[0.32em]">Compute</span><span class="text-[10px] -rotate-90 inline-block">▾</span></button>
+        </div>
+      </nav>
+
+      <!-- footer cluster -->
+      <div class="flex flex-col gap-2 pt-3">
+        <button class="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5">
+          <span class="tag text-[10px] tracking-[0.18em] text-violet-300/90">⛓ Mesh</span>
+          <span class="font-mono text-[10px] text-zinc-400">3/4 peers</span>
+        </button>
+        <div class="flex flex-col gap-0.5 border-t border-white/5 pt-2" id="system">
+          <div class="px-2 pb-0.5 tag text-[9px] tracking-[0.32em] text-zinc-600">System</div>
+        </div>
+        <div class="flex items-center gap-2 px-2 pb-1 pt-1">
+          <div class="relative size-7 rounded-full" style="background:linear-gradient(135deg,#8b5cf6,#06b6d4)">
+            <span class="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-400 ring-2 ring-zinc-950"></span>
+          </div>
+          <div class="flex-1 leading-tight overflow-hidden">
+            <div class="text-[11px] text-zinc-200 truncate">archon@vox</div>
+            <div class="font-mono text-[9px] text-zinc-500">build 5c759c3 · tauri 2</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ░░░ MAIN ░░░ -->
+  <main class="flex-1 min-w-0 flex flex-col h-screen overflow-hidden">
+
+    <!-- top hud -->
+    <div class="flex items-center justify-between px-6 py-3 border-b border-white/5">
+      <div class="flex items-center gap-2 font-mono text-[11px] text-zinc-500">
+        <span class="text-zinc-600">Scientia</span><span>/</span>
+        <span class="text-brass tag tracking-[0.12em]">Discovery Review</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="flex items-center gap-1.5 font-mono text-[10px] text-emerald-400/90">
+          <span class="size-1.5 rounded-full bg-emerald-400 animate-pulse"></span> queue live</span>
+        <span class="font-mono text-[10px] text-zinc-600">⌘K</span>
+      </div>
+    </div>
+
+    <!-- surface body -->
+    <div class="flex-1 min-h-0 overflow-y-auto scroll p-6">
+
+      <!-- header row -->
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h1 class="font-display text-[18px] text-zinc-100 tracking-wide">Discovery Review</h1>
+          <p class="mt-0.5 font-mono text-[11px] text-zinc-500">Human-gated review of extracted claims before nanopublication. Nothing is published to any network.</p>
+        </div>
+        <label class="flex items-center gap-2">
+          <span class="font-mono text-[10px] uppercase tracking-wider text-zinc-500">Publication</span>
+          <span class="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 font-mono text-[12px] text-zinc-200">
+            pub-2026-0042 <span class="text-zinc-600">▾</span></span>
+        </label>
+      </div>
+
+      <!-- kpi strip -->
+      <div class="grid grid-cols-4 gap-3 mb-5">
+        <div class="glass p-3"><div class="font-display text-2xl text-brass">3</div><div class="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-zinc-500">awaiting review</div></div>
+        <div class="glass p-3"><div class="font-display text-2xl text-emerald-300">5</div><div class="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-zinc-500">approved</div></div>
+        <div class="glass p-3"><div class="font-display text-2xl text-zinc-400">2</div><div class="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-zinc-500">rejected</div></div>
+        <div class="glass p-3"><div class="font-display text-2xl text-violet-300">4</div><div class="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-zinc-500">nanopub · local</div></div>
+      </div>
+
+      <!-- master / detail -->
+      <div class="grid gap-4" style="grid-template-columns: 360px 1fr">
+
+        <!-- LIST -->
+        <div class="glass flex flex-col overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-white/5">
+            <span class="tag text-[10px] tracking-[0.2em] text-zinc-400">Awaiting Review</span>
+            <span class="font-mono text-[10px] text-zinc-600">3 of 10</span>
+          </div>
+          <div class="flex flex-col">
+            <!-- active item -->
+            <button class="relative text-left px-4 py-3 border-b border-white/5 bg-white/[0.04]">
+              <span class="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[2px] rounded-r bg-brass" style="box-shadow:0 0 12px 2px rgba(212,175,55,.5)"></span>
+              <div class="flex items-center justify-between">
+                <span class="font-mono text-[11px] text-zinc-500">#2</span>
+                <span class="font-mono text-[10px] text-emerald-300/90">Supported</span>
+              </div>
+              <div class="mt-1 text-[12.5px] text-zinc-200 leading-snug">Retrieval practice outperforms re-reading for long-term recall.</div>
+              <div class="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-zinc-500">
+                <span class="text-brass">★ 0.74</span><span>·</span><span>4 traces</span><span>·</span><span class="text-emerald-400/70">digest current</span>
+              </div>
+            </button>
+            <!-- item -->
+            <button class="text-left px-4 py-3 border-b border-white/5 hover:bg-white/[0.02]">
+              <div class="flex items-center justify-between">
+                <span class="font-mono text-[11px] text-zinc-500">#1</span>
+                <span class="font-mono text-[10px] text-emerald-300/90">Supported</span></div>
+              <div class="mt-1 text-[12.5px] text-zinc-300 leading-snug">Spaced repetition lifts retention vs. massed practice.</div>
+              <div class="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-zinc-500">
+                <span class="text-brass">★ 0.81</span><span>·</span><span>6 traces</span></div>
+            </button>
+            <!-- item: novel -->
+            <button class="text-left px-4 py-3 border-b border-white/5 hover:bg-white/[0.02]">
+              <div class="flex items-center justify-between">
+                <span class="font-mono text-[11px] text-zinc-500">#3</span>
+                <span class="font-mono text-[10px] text-violet-300/90">Novel</span></div>
+              <div class="mt-1 text-[12.5px] text-zinc-300 leading-snug">Interleaving improves discrimination between confusable concepts.</div>
+              <div class="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-zinc-500">
+                <span class="text-brass">★ 0.66</span><span>·</span><span>3 traces</span></div>
+            </button>
+            <!-- collapsed reviewed -->
+            <div class="px-4 py-2.5 font-mono text-[10px] text-zinc-600 flex items-center gap-2">
+              <span class="h-px flex-1 bg-white/5"></span> 7 reviewed (hidden) <span class="h-px flex-1 bg-white/5"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- DETAIL -->
+        <div class="glass flex flex-col overflow-hidden">
+          <div class="flex items-center justify-between px-5 py-3 border-b border-white/5">
+            <span class="tag text-[10px] tracking-[0.2em] text-zinc-400">Claim Detail</span>
+            <span class="font-mono text-[10px] text-zinc-600">claim #2 · fnv1a 0x8c…3a</span>
+          </div>
+
+          <div class="p-5 flex flex-col gap-4">
+            <!-- claim text -->
+            <blockquote class="border-l-2 border-brass/40 pl-4 text-[15px] leading-relaxed text-zinc-100">
+              “Retrieval practice outperforms re-reading for long-term recall.”
+            </blockquote>
+
+            <!-- meta grid -->
+            <div class="grid grid-cols-2 gap-x-8 gap-y-2 font-mono text-[11px]">
+              <div class="flex justify-between border-b border-white/5 pb-1"><span class="text-zinc-500">Verdict</span><span class="text-emerald-300">Supported</span></div>
+              <div class="flex justify-between border-b border-white/5 pb-1"><span class="text-zinc-500">Novelty</span><span class="text-brass">0.74 ▲ above thresh</span></div>
+              <div class="flex justify-between border-b border-white/5 pb-1"><span class="text-zinc-500">Evidence</span><span class="text-zinc-300">4 query traces</span></div>
+              <div class="flex justify-between border-b border-white/5 pb-1"><span class="text-zinc-500">Digest</span><span class="text-emerald-400/90">sha3:9f3a…b1 · current</span></div>
+            </div>
+
+            <!-- reason -->
+            <div>
+              <label class="font-mono text-[10px] uppercase tracking-wider text-zinc-500">Reason (optional)</label>
+              <textarea rows="2" placeholder="Why approve / reject / defer…"
+                class="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-[12px] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-brass/40"></textarea>
+            </div>
+
+            <!-- decision buttons -->
+            <div class="flex items-center gap-2">
+              <button class="flex items-center gap-1.5 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-[12px] text-emerald-200 hover:bg-emerald-400/15">✓ Approve</button>
+              <button class="flex items-center gap-1.5 rounded-lg border border-rose-400/30 bg-rose-400/[0.07] px-4 py-2 text-[12px] text-rose-200 hover:bg-rose-400/10">✗ Reject</button>
+              <button class="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.02] px-4 py-2 text-[12px] text-zinc-300 hover:bg-white/[0.05]">⏸ Defer</button>
+            </div>
+
+            <!-- post-approval zone -->
+            <div class="rounded-xl border border-brass/20 bg-brass/[0.04] p-4">
+              <div class="flex items-center justify-between">
+                <span class="font-mono text-[11px] text-emerald-300/90">✓ Approved by you · just now · token bound to sha3:9f3a…b1</span>
+              </div>
+              <div class="mt-3 flex items-center gap-3">
+                <button id="np-btn" class="flex items-center gap-2 rounded-lg border border-brass/40 bg-brass/15 px-4 py-2 text-[12px] text-brass hover:bg-brass/25">⬆ Nanopublish (offline)</button>
+                <span class="font-mono text-[10px] text-zinc-500">builds + signs + offline-validates, stores locally · no network</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-auto px-5 py-2.5 border-t border-white/5 font-mono text-[10px] text-zinc-600">
+            Last action: approved claim #1 · token bound to sha3:9f3a…b1
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ░░░ CONFIRM DIALOG ░░░ -->
+<div id="dlg" class="fixed inset-0 z-50 hidden items-center justify-center" style="background:rgba(0,0,0,.6)">
+  <div class="glass w-[460px] p-5">
+    <div class="tag text-[11px] tracking-[0.2em] text-brass mb-1">Nanopublish claim #2 (offline)</div>
+    <p class="text-[12.5px] text-zinc-300 leading-relaxed">
+      This builds + signs a nanopublication and validates it <span class="text-zinc-100">offline</span>, then stores it locally
+      (<span class="font-mono text-[11px] text-zinc-400">published_state=local</span>). Nothing is sent to any network or test server.</p>
+    <div class="mt-4 grid grid-cols-[auto,1fr] gap-x-4 gap-y-1.5 font-mono text-[11px]">
+      <span class="text-zinc-500">Publication</span><span class="text-zinc-300">pub-2026-0042</span>
+      <span class="text-zinc-500">Claim</span><span class="text-zinc-300">#2 · “Retrieval practice outperforms…”</span>
+      <span class="text-zinc-500">Approval</span><span class="text-emerald-300">✓ bound to sha3:9f3a…b1 (matches current)</span>
+      <span class="text-zinc-500">ORCID</span><span class="text-zinc-300">0000-0002-1825-0097</span>
+    </div>
+    <div class="mt-5 flex items-center justify-end gap-2">
+      <button onclick="document.getElementById('dlg').classList.add('hidden');document.getElementById('dlg').classList.remove('flex')"
+        class="rounded-lg border border-white/10 bg-white/[0.02] px-4 py-2 text-[12px] text-zinc-300 hover:bg-white/5">Cancel</button>
+      <button class="rounded-lg border border-brass/40 bg-brass/20 px-4 py-2 text-[12px] text-brass hover:bg-brass/30">Build &amp; sign locally</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // populate nav items to mirror the registry-driven sidebar
+  const ICON = s => `<span class="flex size-7 items-center justify-center rounded-lg shrink-0 bg-white/[0.02] ring-1 ring-white/5 text-[12px]">${s}</span>`;
+  const ACT  = s => `<span class="flex size-7 items-center justify-center rounded-lg shrink-0 bg-brass/10 ring-1 ring-brass/30 text-brass text-[12px]">${s}</span>`;
+  function item(label, icon, active, badge){
+    return `<button class="group relative flex w-full items-center gap-3 px-3 py-2.5 rounded-xl transition ${active?'bg-white/[0.04] text-zinc-100':'text-zinc-500 hover:bg-white/[0.025] hover:text-zinc-200'}">
+      ${active?'<span class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-r bg-brass" style="box-shadow:0 0 12px 2px rgba(212,175,55,.5)"></span>':''}
+      ${active?ACT(icon):ICON(icon)}
+      <span class="flex-1 text-left tag text-[12px] tracking-[0.12em]">${label}</span>
+      ${badge!=null?`<span class="rounded-full bg-white/[0.05] px-1.5 py-0.5 font-mono text-[9px] text-zinc-400">${badge}</span>`:''}
+    </button>`;
+  }
+  document.getElementById('operate').innerHTML =
+    item('Dashboard','◫')+item('Agents','⌥',false,3)+item('Approvals','⛨')+item('Runs','◷')+item('Policies','⚖');
+  document.getElementById('develop').innerHTML =
+    item('Harness','⌘')+item('Catalog','▤')+item('Repository','⎇')+item('Skills','✦');
+  document.getElementById('knowledge').innerHTML =
+    item('Search','⌕')+item('Memory','◈')+item('Research','✲')+item('Scientia','⚛')
+    +item('Discovery Review','✓',true,3)+item('Claims','?')+item('Publications','▦');
+  document.getElementById('system').insertAdjacentHTML('beforeend',
+    item('Coverage','✓')+item('Gamify','◆')+item('Settings','⚙'));
+
+  document.getElementById('np-btn').onclick = () => {
+    const d=document.getElementById('dlg'); d.classList.remove('hidden'); d.classList.add('flex');
+  };
+</script>
+</body>
+</html>

@@ -10,6 +10,9 @@
 //! (durability_lowering.rs) asserts the emitter actually produces this shape.
 
 #![allow(non_snake_case)]
+// This test deliberately hand-mirrors `emit_actor_body` codegen output (see module docs),
+// so keep the emitted shape rather than clippy's stylistic rewrites.
+#![allow(clippy::single_match, clippy::let_unit_value)]
 
 use vox_actor_runtime::{Envelope, Message, MessagePayload, Pid, ProcessContext, spawn_process};
 
@@ -51,15 +54,12 @@ async fn emitted_actor_dispatch_delivers_mutates_and_replies() {
                         .get("args")
                         .cloned()
                         .unwrap_or(::serde_json::Value::Null);
-                    match __ev {
-                        "add" => {
-                            let n: i64 = match __vox_arg(&__args, 0usize) {
-                                Some(__a) => __a,
-                                None => continue,
-                            };
-                            let _ = Counter_add(&mut _state, n);
-                        }
-                        _ => {}
+                    if __ev == "add" {
+                        let n: i64 = match __vox_arg(&__args, 0usize) {
+                            Some(__a) => __a,
+                            None => continue,
+                        };
+                        Counter_add(&mut _state, n);
                     }
                 }
                 Envelope::Request(__req) => {
@@ -76,15 +76,12 @@ async fn emitted_actor_dispatch_delivers_mutates_and_replies() {
                         .get("args")
                         .cloned()
                         .unwrap_or(::serde_json::Value::Null);
-                    match __ev.as_str() {
-                        "get" => {
-                            let __ret = Counter_get(&mut _state);
-                            ProcessContext::reply(
-                                __req,
-                                ::serde_json::to_vec(&__ret).unwrap_or_default(),
-                            );
-                        }
-                        _ => {}
+                    if __ev.as_str() == "get" {
+                        let __ret = Counter_get(&mut _state);
+                        ProcessContext::reply(
+                            __req,
+                            ::serde_json::to_vec(&__ret).unwrap_or_default(),
+                        );
                     }
                 }
                 Envelope::Signal(_) => {}

@@ -1,0 +1,152 @@
+//! Core umbrella gates: `arch`, `code`, `retirement` (AGENTS.md §`vox audit` umbrella).
+//!
+//! Distinct from CR-L `--gate all` (release-criteria registry). Use
+//! `vox audit core` or `vox audit --gate core` for this trio.
+
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+use serde::Serialize;
+use vox_code_audit::{OutputFormat, Severity, ToestubConfig, ToestubEngine, ToestubRunMode};
+
+use crate::subcommands::retirement::RetirementSubcommand;
+use crate::{
+    CommonArgs, Subcommand,
+    report::{ExitCode, ReportFormat},
+};
+
+/// Outcome for one core umbrella gate.
+#[derive(Debug, Clone, Serialize)]
+pub struct CoreGateResult {
+    pub gate: &'static str,
+    pub ok: bool,
+    pub exit_code: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+}
+
+/// Summary JSON envelope for `vox audit core` / `--gate core`.
+#[derive(Debug, Clone, Serialize)]
+pub struct CoreGatesSummary {
+    pub schema_version: u32,
+    pub gates: Vec<CoreGateResult>,
+    pub ok: bool,
+}
+
+/// Run `vox-arch-check` via cargo (same command as CI `arch-check` target).
+pub fn run_arch_gate(root: &Path) -> CoreGateResult {
+    let status = Command::new("cargo")
+        .args(["run", "-q", "-p", "vox-arch-check"])
+        .current_dir(root)
+        .status();
+    match status {
+        Ok(s) => {
+            let code = s.code().unwrap_or(1);
+            CoreGateResult {
+                gate: "arch",
+                ok: s.success(),
+                exit_code: code,
+                detail: None,
+            }
+        }
+        Err(e) => CoreGateResult {
+            gate: "arch",
+            ok: false,
+            exit_code: 1,
+            detail: Some(format!("spawn vox-arch-check: {e}")),
+        },
+    }
+}
+
+/// Run `vox-code-audit` / TOESTUB over the workspace (legacy exit policy).
+pub fn run_code_gate(root: &Path) -> CoreGateResult {
+    let config = ToestubConfig {
+        roots: vec![root.to_path_buf()],
+        min_severity: Severity::Warning,
+        run_mode: ToestubRunMode::Legacy,
+        format: OutputFormat::Json,
+        ..ToestubConfig::default()
+    };
+    let engine = ToestubEngine::new(config);
+    let (result, _) = engine.run_and_report();
+    let ok = !result.should_fail_build(ToestubRunMode::Legacy);
+    let blocking = result
+        .findings
+        .iter()
+        .filter(|f| f.severity >= Severity::Error)
+        .count();
+    CoreGateResult {
+        gate: "code",
+        ok,
+        exit_code: if ok { 0 } else { 1 },
+        detail: Some(format!("{blocking} error/critical finding(s)")),
+    }
+}
+
+/// Run CR-L6 retirement parity via the existing registry subcommand.
+pub fn run_retirement_gate() -> CoreGateResult {
+    let args = CommonArgs {
+        format: ReportFormat::Json,
+        baseline: None,
+        threshold: None,
+        corpus: None,
+        llm_panel: None,
+        dry_run: false,
+        write_canonical_report: false,
+    };
+    let outcome = RetirementSubcommand.run(&args);
+    let ok = outcome.exit_code == ExitCode::Ok;
+    CoreGateResult {
+        gate: "retirement",
+        ok,
+        exit_code: outcome.exit_code.as_i32(),
+        detail: None,
+    }
+}
+
+/// Run arch → code → retirement and return an aggregate summary.
+pub fn run_core_all(root: &Path) -> CoreGatesSummary {
+    let root = workspace_root_or(root);
+    let gates = vec![
+        run_arch_gate(&root),
+        run_code_gate(&root),
+        run_retirement_gate(),
+    ];
+    let ok = gates.iter().all(|g| g.ok);
+    CoreGatesSummary {
+        schema_version: 1,
+        gates,
+        ok,
+    }
+}
+
+fn workspace_root_or(fallback: &Path) -> PathBuf {
+    let root = crate::workspace_root();
+    if root.join("Cargo.toml").exists() {
+        root
+    } else {
+        fallback.to_path_buf()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn core_summary_serializes_schema_version() {
+        let summary = CoreGatesSummary {
+            schema_version: 1,
+            gates: vec![CoreGateResult {
+                gate: "arch",
+                ok: true,
+                exit_code: 0,
+                detail: None,
+            }],
+            ok: true,
+        };
+        let json = serde_json::to_string(&summary).expect("json");
+        assert!(json.contains("\"schema_version\":1"));
+        assert!(json.contains("\"gate\":\"arch\""));
+    }
+}

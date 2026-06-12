@@ -228,10 +228,10 @@ fn latin_english_alias_declared_in_lib() {
         lib_rs.contains("visible_alias = \"clavis\""),
         "T077: `vox secrets` must declare `visible_alias = \"clavis\"` in lib.rs"
     );
-    // T078: vox oratio → speech alias
+    // T078: vox speech (English canonical) → oratio (Latin) alias
     assert!(
-        lib_rs.contains("visible_alias = \"speech\""),
-        "T078: `vox oratio` must declare `visible_alias = \"speech\"` in lib.rs"
+        lib_rs.contains("visible_alias = \"oratio\""),
+        "T078: `vox speech` must declare `visible_alias = \"oratio\"` in lib.rs"
     );
 }
 
@@ -242,7 +242,12 @@ fn latin_aliases_appear_in_help_text() {
     use crate::VoxCliRoot;
     use clap::CommandFactory;
 
-    let help = VoxCliRoot::command().render_long_help().to_string();
+    // Build + render the full clap tree on a large stack: on Windows this
+    // recursion overflows the default ~2 MiB libtest worker-thread stack
+    // (STATUS_STACK_OVERFLOW). See `command_catalog::run_on_big_stack`.
+    let help = crate::command_catalog::run_on_big_stack(|| {
+        VoxCliRoot::command().render_long_help().to_string()
+    });
 
     // The Latin names and their aliases should both appear in help
     assert!(

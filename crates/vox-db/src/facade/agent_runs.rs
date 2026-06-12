@@ -4,7 +4,7 @@
 //! desktop GUI's Runs surface — distinct from the workflow runtime's
 //! `workflow_run_log`. Crash-safe: rows persist across restarts, are queryable
 //! by id (replay), and as a recent list. See
-//! [`docs/src/architecture/vox-gui-harness-buildout-plan-2026.md`] task B2.
+//! `docs/src/architecture/vox-gui-harness-buildout-plan-2026.md` task B2.
 
 use crate::StoreError;
 use crate::VoxDb;

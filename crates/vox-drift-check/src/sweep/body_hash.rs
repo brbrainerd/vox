@@ -87,7 +87,7 @@ impl SweepRule for BodyHashRule {
 
 /// Returns true when every crate in the duplicate set belongs to a declared
 /// sibling cluster (per `layers.toml` `sibling_of`). The previous hardcoded
-/// list (`vox-plugin-mens-candle-cuda` / `…-metal`, `vox-oratio` / `vox-plugin-
+/// list (`vox-plugin-mens-candle-cuda` / `…-metal`, `vox-speech` / `vox-plugin-
 /// oratio`, …) now lives in the manifest, so renames and new vendor splits
 /// only require a layers.toml edit.
 fn is_tolerated_duplication(

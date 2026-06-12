@@ -2,6 +2,7 @@
 name = "vox-cli"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 authors.workspace = true
 description = "Vox command-line interface: compile, run, bundle, and workspace diagnostics."
 # `cargo run -p vox-cli` without `--bin` (binaries: `vox`, `vox-compilerd`, `vox-ml-cli` when `mens-base`).
@@ -28,7 +29,12 @@ path = "src/bin/vox-compilerd.rs"
 
 
 [features]
-default = ["keyring-store"]
+# `script-execution` (native `vox run --mode script` lane) is default-on: it is
+# lightweight (xxhash cache + OS sandbox helpers, no WASM runtime) and is the
+# common dev/CI path. The heavy Wasmtime WASI lane lives behind `script-wasi`
+# (see below) so a normal `cargo build -p vox-cli` does NOT pay ~5 min / ~69
+# crates of wasmtime+cranelift just to run native scripts.
+default = ["keyring-store", "script-execution"]
 # OS credential store for `vox login` / `vox auth connect` vault persistence.
 # Disable on headless CI builds where no keyring daemon is available.
 keyring-store = ["dep:keyring"]
@@ -50,21 +56,28 @@ database = ["vox-corpus/database"]
 # Heavy on-disk retrieval: tantivy full-text index + web-scrape (scraper/html2text).
 # OFF by default to keep the CLI lean — resolver-2 feature unification means this
 # single switch turns tantivy on across every vox-search instance in the graph
-# (vox-orchestrator / vox-dei-shim / vox-orchestrator-mcp included). Shipped release
+# (vox-orchestrator / vox-research-shim / vox-orchestrator-mcp included). Shipped release
 # binaries enable this so end users keep full `vox search`. See WS2-T3.
 heavy-retrieval = ["vox-search/tantivy-lexical", "vox-search/web-scrape"]
 
 
 
 
-# Inline `vox run` script compilation (native / WASI + Wasmtime) and OS sandbox helpers.
+# Native inline `vox run --mode script` compilation (codegen-rust -> cargo) plus
+# the content-addressed script cache and OS sandbox helpers (landlock/win32job).
+# Lightweight; default-on. Does NOT include the WASM runtime.
 script-execution = [
     "dep:xxhash-rust",
+    "dep:landlock",
+    "dep:win32job",
+]
+# WASI isolation lane (`vox run --isolation wasm`, `vox wasm ...`): Wasmtime JIT
+# + cranelift + WASI. HEAVY (~69 crates, ~5 min from a warm base). Opt-in.
+script-wasi = [
+    "script-execution",
     "dep:vox-wasm-engine",
     "dep:wasmtime",
     "dep:wasmtime-wasi",
-    "dep:landlock",
-    "dep:win32job",
 ]
 # Axum inference server (`vox mens serve`) + REST execution API; implies `script-execution`.
 execution-api = ["script-execution", "dep:tokio-stream"]
@@ -121,6 +134,7 @@ broken_inference_stub = []
 [dependencies]
 vox-compiler = { workspace = true }
 vox-codegen = { workspace = true }
+vox-rn-codegen = { workspace = true }
 clap = { workspace = true }
 clap_complete = { workspace = true }
 miette = { workspace = true }
@@ -133,9 +147,11 @@ vox-http-client = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
+strsim = { workspace = true }
 sha2.workspace = true
 tokio = { workspace = true, features = ["io-std"] }
 vox-cli-core = { workspace = true }
+vox-cli-ci = { workspace = true }
 base64 = { workspace = true }
 futures = { workspace = true }
 vox-package = { workspace = true }
@@ -150,6 +166,7 @@ vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-secrets = { workspace = true }
 vox-db = { workspace = true }
+vox-sql = { workspace = true }
 vox-research-events = { workspace = true }
 # `vox-scientia::ro_crate::MainEntity` is the input shape for the replay
 # handler; not pulled in via the producers crate.
@@ -172,10 +189,14 @@ vox-drift-check = { workspace = true }
 
 toml = { workspace = true }
 vox-doc-pipeline = { path = "../vox-doc-pipeline" }
-vox-dei-shim = { workspace = true }
+vox-research-shim = { workspace = true }
 vox-orchestrator = { workspace = true }
+vox-orchestrator-driver = { workspace = true }
 vox-orchestrator-mcp = { workspace = true, optional = true }
+vox-plugin-api = { workspace = true }
+vox-plugin-types = { workspace = true }
 vox-plugin-catalog = { workspace = true }
+toml_edit = { workspace = true }
 vox-plugin-host = { workspace = true }
 # Needed to construct ROption / RString when dispatching into plugin extension
 # trait methods (e.g. the Publication.ingest_tick signature).
@@ -275,6 +296,7 @@ vox-build-meta = { workspace = true }
 [dev-dependencies]
 insta = { workspace = true }
 safetensors = { workspace = true }
+secrecy = { workspace = true }
 serial_test = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["io-std", "macros", "rt-multi-thread"] }
@@ -285,6 +307,7 @@ wiremock = { workspace = true }
 # `deadpool::unmanaged::Pool::timeout_get`.
 deadpool = { workspace = true }
 vox-db = { workspace = true }
+vox-sql = { workspace = true }
 vox-orchestrator = { workspace = true }
 
 [[test]]

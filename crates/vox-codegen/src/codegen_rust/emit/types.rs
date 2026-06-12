@@ -1,4 +1,69 @@
-use vox_compiler::hir::HirType;
+use vox_compiler::hir::{HirModule, HirType};
+
+/// Rust path for the Vox opaque `Json` value (matches `std.json.parse` / `@json_as`).
+pub(crate) const VOX_JSON_RUST_TYPE: &str = "vox_actor_runtime::builtins::VoxJson";
+
+/// Prelude alias emitted in `emit_lib` when the module references Vox `Json`.
+pub(crate) fn vox_json_type_alias_prelude() -> String {
+    format!("pub use {VOX_JSON_RUST_TYPE};\npub type Json = {VOX_JSON_RUST_TYPE};\n\n")
+}
+
+/// Wrap a `serde_json::json!` / `Value` expression as Vox `Json` when the
+/// enclosing function returns the opaque JSON type.
+pub(crate) fn wrap_vox_json_return_value(expr: &str, return_type: Option<&HirType>) -> String {
+    if matches!(return_type, Some(HirType::Function(_, _)))
+        && (expr.starts_with("move |") || expr.starts_with('|'))
+    {
+        return format!("std::rc::Rc::new({expr})");
+    }
+    let returns_json = match return_type {
+        Some(HirType::Named(n)) => n == "Json",
+        _ => false,
+    };
+    if returns_json
+        && (expr.contains("serde_json::json!") || expr.contains("serde_json::Value"))
+        && !expr.starts_with("VoxJson(")
+    {
+        format!("VoxJson({expr})")
+    } else {
+        expr.to_string()
+    }
+}
+
+/// True when any function surface in the module uses the Vox `Json` type.
+pub(crate) fn module_uses_vox_json_type(module: &HirModule) -> bool {
+    fn ty_uses_json(ty: &HirType) -> bool {
+        match ty {
+            HirType::Named(n) => n == "Json",
+            HirType::Generic(_, args) => args.iter().any(ty_uses_json),
+            _ => false,
+        }
+    }
+    let fn_uses = |f: &vox_compiler::hir::HirFn| {
+        f.params
+            .iter()
+            .any(|p| p.type_ann.as_ref().is_some_and(ty_uses_json))
+            || f.return_type.as_ref().is_some_and(ty_uses_json)
+    };
+    module.functions.iter().any(fn_uses)
+        || module.tests.iter().any(fn_uses)
+        || module.mcp_tools.iter().any(|t| fn_uses(&t.func))
+        || module.mcp_resources.iter().any(|r| fn_uses(&r.func))
+        || module.foralls.iter().any(|forall| fn_uses(&forall.func))
+}
+
+/// Extract a PascalCase struct payload from `Result[T, E]` (Vox → std `Result`).
+pub(crate) fn result_ok_struct_name(ty: &HirType) -> Option<String> {
+    match ty {
+        HirType::Generic(name, args) if name == "Result" => match args.first()? {
+            HirType::Named(n) if n.chars().next().is_some_and(|c| c.is_ascii_uppercase()) => {
+                Some(n.clone())
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
 
 pub(crate) fn emit_type(ty: &HirType) -> String {
     match ty {
@@ -7,6 +72,12 @@ pub(crate) fn emit_type(ty: &HirType) -> String {
             "float" => "f64".into(),
             "bool" => "bool".into(),
             "str" => "String".into(),
+            "Json" => "Json".into(),
+            // Typeck back-fills `never` for fns whose trailing statement
+            // diverges (e.g. `if cond { process.exit(..) }`), but such fns do
+            // not diverge on every path, so `-> !` would not compile; unit is
+            // the only always-valid Rust signature (diverging exprs coerce).
+            "never" => "()".into(),
             "Element" | "Result" | "Any" => "serde_json::Value".into(),
             other => other.to_string(),
         },
@@ -23,6 +94,18 @@ pub(crate) fn emit_type(ty: &HirType) -> String {
                     "Option<{}>",
                     args_str.first().unwrap_or(&"serde_json::Value".to_string())
                 ),
+                // Vox `Result[T]` / `Result[T, E]` → std `Result` (Ok/Err), default err `String`.
+                "Result" => {
+                    let ok = args_str
+                        .first()
+                        .cloned()
+                        .unwrap_or_else(|| "serde_json::Value".to_string());
+                    let err = args_str
+                        .get(1)
+                        .cloned()
+                        .unwrap_or_else(|| "String".to_string());
+                    format!("Result<{ok}, {err}>")
+                }
                 // Deprecated aliases — emit DurablePromise during the v0.6→v0.7 migration window.
                 "Future" | "Promise" => format!(
                     "DurablePromise<{}>",
@@ -33,6 +116,91 @@ pub(crate) fn emit_type(ty: &HirType) -> String {
         }
         HirType::Unit => "()".into(),
         HirType::Decimal => "rust_decimal::Decimal".into(),
+        HirType::Function(params, ret) => {
+            let params_str: Vec<String> = params.iter().map(emit_type).collect();
+            format!(
+                "std::rc::Rc<dyn Fn({}) -> {} + 'static>",
+                params_str.join(", "),
+                emit_type(ret)
+            )
+        }
         _ => "serde_json::Value".into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vox_compiler::ast::span::Span;
+    use vox_compiler::hir::{DefId, HirFn, HirModule, HirParam};
+
+    #[test]
+    fn emit_type_maps_json_to_alias_name() {
+        assert_eq!(emit_type(&HirType::Named("Json".into())), "Json");
+    }
+
+    #[test]
+    fn emit_type_function_is_boxed_fn_trait() {
+        assert_eq!(
+            emit_type(&HirType::Function(
+                vec![HirType::Named("int".into())],
+                Box::new(HirType::Named("int".into()))
+            )),
+            "std::rc::Rc<dyn Fn(i64) -> i64 + 'static>"
+        );
+    }
+
+    #[test]
+    fn result_ok_struct_name_extracts_payload() {
+        let ty = HirType::Generic("Result".into(), vec![HirType::Named("Widget".into())]);
+        assert_eq!(result_ok_struct_name(&ty), Some("Widget".into()));
+        assert_eq!(result_ok_struct_name(&HirType::Named("str".into())), None);
+    }
+
+    #[test]
+    fn module_uses_vox_json_type_detects_json_as_fns() {
+        let mut module = HirModule::default();
+        module.functions.push(HirFn {
+            id: DefId(1),
+            name: "Widget_from_json".into(),
+            generics: vec![],
+            params: vec![HirParam {
+                id: DefId(2),
+                name: "j".into(),
+                type_ann: Some(HirType::Named("Json".into())),
+                default: None,
+                span: Span::new(0, 0),
+            }],
+            return_type: Some(HirType::Generic(
+                "Result".into(),
+                vec![HirType::Named("Widget".into())],
+            )),
+            body: vec![],
+            is_pub: true,
+            is_async: false,
+            is_mobile_native: false,
+            is_pure: false,
+            is_reactive: false,
+            is_versioned: false,
+            capabilities: vec![],
+            is_remote: false,
+            is_llm: false,
+            llm_model: None,
+            ai_structured_output: None,
+            ai_fixture: None,
+            embed: None,
+            is_deprecated: false,
+            schedule_interval: None,
+            durability: None,
+            actor_state_fields: vec![],
+            postconditions: vec![],
+            ts_extern_module: None,
+            generated_hash: None,
+            span: Span::new(0, 0),
+            inference_model: None,
+            training_step: false,
+            distributed_train: None,
+        });
+        assert!(module_uses_vox_json_type(&module));
     }
 }

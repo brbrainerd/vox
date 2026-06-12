@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"Default capabilities","local":true,"windows":["main"],"permissions":["core:default","shell:allow-spawn","shell:allow-execute"]}}
+{"default":{"identifier":"default","description":"Default capabilities","local":true,"windows":["main"],"permissions":["core:default","shell:allow-spawn","shell:allow-execute","dialog:default","dialog:allow-open"]}}

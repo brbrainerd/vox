@@ -1,0 +1,26 @@
+[package]
+name = "vox-vcs"
+description = "VCS backend abstraction for Vox — VcsBackend trait, in-memory CasFallback, and (later) the jj-lib engine. The single home for all jj_lib:: calls."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = ["jj"]
+jj = ["dep:jj-lib", "dep:tokio", "dep:futures"]
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+workspace-hack = { workspace = true }
+jj-lib = { workspace = true, features = ["git"], optional = true }
+tokio = { workspace = true, features = ["sync", "rt", "rt-multi-thread", "time"], optional = true }
+futures = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

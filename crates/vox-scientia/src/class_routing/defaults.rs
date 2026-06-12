@@ -36,6 +36,9 @@ impl FindingClass {
         }
     }
 
+    // Inherent parser returning Option (not the FromStr trait's Result); callers use
+    // `FindingClass::from_str(...)` directly.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "algorithmic_improvement" => Some(Self::AlgorithmicImprovement),
@@ -49,7 +52,7 @@ impl FindingClass {
         }
     }
 
-    /// Atlas-class predicate; drives [`crate::routing::atlas_gate_applies_to`].
+    /// Atlas-class predicate; drives `atlas_gate_applies_to`.
     pub fn is_atlas(&self) -> bool {
         matches!(
             self,

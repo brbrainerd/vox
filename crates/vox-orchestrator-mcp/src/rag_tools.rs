@@ -10,38 +10,25 @@ use crate::server_state::ServerState;
 
 /// Dispatches a multi-modal visual RAG query to the configured intelligence backend.
 pub async fn visual_rag_query(_state: &ServerState, params: VoxVisualRagQueryParams) -> String {
-    // In a full implementation, this would deserialize the image paths/base64 strings,
-    // construct a multi-modal prompt, and dispatch to the `vox-oratio` LLM bridge.
-    // For this demonstration, we validate the input structure and mock the successful external dispatch.
-
     if params.image_paths.is_empty() && params.image_base64.is_none() {
         return ToolResult::<VoxVisualRagQueryResponse>::err(
-            "MISSING_MODALITY: A visual RAG query requires at least one image path or base64 payload."
-        ).to_json_compact();
+            "MISSING_MODALITY: A visual RAG query requires at least one image path or base64 payload.",
+        )
+        .to_json_compact();
     }
 
     let image_count =
         params.image_paths.len() + params.image_base64.as_ref().map(|v| v.len()).unwrap_or(0);
 
-    tracing::info!(
+    tracing::warn!(
         target: "vox_mcp::rag",
         query = %params.query,
         images = image_count,
-        "Dispatching external multi-modal RAG query"
+        "vox_visual_rag_query is not implemented — multimodal retrieval is planned; use vox_search or memory retrieval tools instead"
     );
 
-    let simulated_answer = format!(
-        "Visual RAG analysis complete for {} images. The objects in the visual context strongly align with the query: '{}'. External system integration confirmed.",
-        image_count, params.query
-    );
-
-    ToolResult::ok(VoxVisualRagQueryResponse {
-        answer: simulated_answer,
-        sources_consulted: vec![
-            "mock-visual-embedding-db-1".to_string(),
-            "oratio-vlm-bridge".to_string(),
-        ],
-        confidence_score: 0.95,
-    })
+    ToolResult::<VoxVisualRagQueryResponse>::err(
+        "NOT_IMPLEMENTED: Visual RAG is not wired yet. Use vox_search, vox_memory_retrieval, or vox_repo_search for text retrieval until multimodal RAG lands.",
+    )
     .to_json()
 }

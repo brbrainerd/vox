@@ -4,6 +4,7 @@ pub mod builtins;
 pub mod db;
 pub mod env;
 pub mod expr;
+pub mod repo;
 pub mod shell_stdlib;
 pub mod stmt;
 pub mod value;
@@ -47,6 +48,9 @@ pub struct Interpreter {
     /// real input→output in the default run mode. See
     /// [`crate::eval::db`].
     pub db: crate::eval::db::DbStore,
+    /// In-memory VCS store for `repo.*` operations under `--mode interp`.
+    /// See [`crate::eval::repo`].
+    pub repo: crate::eval::repo::RepoStore,
 }
 
 impl Interpreter {
@@ -56,171 +60,178 @@ impl Interpreter {
         scope.set("null".to_string(), VoxValue::Null);
         scope.set(
             "fs".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("fs".to_string()),
             )]),
         );
         scope.set(
             "process".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("process".to_string()),
             )]),
         );
         scope.set(
             "env".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("env".to_string()),
             )]),
         );
         scope.set(
             "path".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("path".to_string()),
             )]),
         );
         scope.set(
             "secrets".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("secrets".to_string()),
             )]),
         );
         scope.set(
             "json".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("json".to_string()),
             )]),
         );
         scope.set(
             "regex".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("regex".to_string()),
             )]),
         );
         scope.set(
             "log".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("log".to_string()),
             )]),
         );
         scope.set(
             "time".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("time".to_string()),
             )]),
         );
         scope.set(
             "io".to_string(),
-            VoxValue::Object(vec![(
+            VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("io".to_string()),
             )]),
         );
+        scope.set(
+            "repo".to_string(),
+            VoxValue::object(vec![(
+                "__namespace__".to_string(),
+                VoxValue::Str("repo".to_string()),
+            )]),
+        );
 
         // Standard library root
-        let std_ns = VoxValue::Object(vec![
+        let std_ns = VoxValue::object(vec![
             (
                 "fs".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("fs".to_string()),
                 )]),
             ),
             (
                 "process".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("process".to_string()),
                 )]),
             ),
             (
                 "env".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("env".to_string()),
                 )]),
             ),
             (
                 "path".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("path".to_string()),
                 )]),
             ),
             (
                 "json".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("json".to_string()),
                 )]),
             ),
             (
                 "agentos".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("agentos".to_string()),
                 )]),
             ),
             (
                 "csv".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("csv".to_string()),
                 )]),
             ),
             (
                 "toml".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("toml".to_string()),
                 )]),
             ),
             (
                 "yaml".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("yaml".to_string()),
                 )]),
             ),
             (
                 "io".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("io".to_string()),
                 )]),
             ),
             (
                 "log".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("log".to_string()),
                 )]),
             ),
             (
                 "time".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("time".to_string()),
                 )]),
             ),
             (
                 "http".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("http".to_string()),
                 )]),
             ),
             (
                 "regex".to_string(),
-                VoxValue::Object(vec![(
+                VoxValue::object(vec![(
                     "__namespace__".to_string(),
                     VoxValue::Str("regex".to_string()),
                 )]),
@@ -237,6 +248,7 @@ impl Interpreter {
             source_path: None,
             loaded_imports: std::collections::HashSet::new(),
             db: crate::eval::db::DbStore::default(),
+            repo: crate::eval::repo::RepoStore::default(),
         }
     }
 
@@ -249,6 +261,14 @@ impl Interpreter {
             self.scope.set(ctor.to_string(), val.clone());
             self.module_scope.set(ctor.to_string(), val);
         }
+
+        // `Unit` is a nullary *value* (like Rust's `()`), not a callable
+        // constructor, so bind it directly to the unit/null runtime value rather
+        // than a `Constructor("Unit")`. Without this, `return Unit` / `Ok(Unit)`
+        // (e.g. a `fn ... to Result[Unit]` success path) fails as
+        // `UndefinedVariable("Unit")` and the success path can't be executed.
+        self.scope.set("Unit".to_string(), VoxValue::Null);
+        self.module_scope.set("Unit".to_string(), VoxValue::Null);
 
         // Resolve intra-project Vox-file imports before binding this module's
         // own decls, so a `pub fn` in the importer can shadow an imported one
@@ -269,12 +289,28 @@ impl Interpreter {
             }
         }
 
-        // Register all functions in both scopes
+        // Register all functions in both scopes.
+        //
+        // Top-level functions capture an EMPTY environment, not
+        // `self.scope.clone()`. Every top-level binding (constructors, ADT
+        // variants, sibling functions) is mirrored into `self.module_scope`,
+        // and identifier resolution at call time falls back to `module_scope`
+        // (see `eval::expr` Identifier arm), so an empty captured env resolves
+        // identically — while a per-function snapshot of the growing scope made
+        // each function deep-clone every previously-registered function (with
+        // its own captured env), i.e. O(2^N) in the number of top-level
+        // functions. That exponential blew up module setup for files with many
+        // generated functions (e.g. `@json_as` types + helpers), hanging the
+        // interpreter. Genuine closures (lambdas) still capture their real
+        // environment in the `eval::expr` Lambda arm — only top-level
+        // registration is changed here.
         for f in &module.functions {
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
-                body: f.body.clone(),
-                env: self.scope.clone(),
+                body: std::rc::Rc::new(f.body.clone()),
+                env: Scope::new(),
+                name: f.name.clone(),
+                is_versioned: f.is_versioned,
             };
             self.scope.set(f.name.clone(), val.clone());
             self.module_scope.set(f.name.clone(), val);
@@ -283,8 +319,10 @@ impl Interpreter {
         for f in &module.tests {
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
-                body: f.body.clone(),
-                env: self.scope.clone(),
+                body: std::rc::Rc::new(f.body.clone()),
+                env: Scope::new(),
+                name: f.name.clone(),
+                is_versioned: f.is_versioned,
             };
             self.scope.set(f.name.clone(), val.clone());
             self.module_scope.set(f.name.clone(), val);
@@ -299,8 +337,12 @@ impl Interpreter {
         for f in &module.endpoint_fns {
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
-                body: f.body.clone(),
-                env: self.scope.clone(),
+                body: std::rc::Rc::new(f.body.clone()),
+                env: Scope::new(),
+                name: f.name.clone(),
+                // Endpoint fns (`@query`/`@mutation`/...) are a distinct decl and
+                // are never `@versioned`; no auto-snapshot for handler calls.
+                is_versioned: false,
             };
             self.scope.set(f.name.clone(), val.clone());
             self.module_scope.set(f.name.clone(), val);
@@ -392,10 +434,17 @@ impl Interpreter {
             if !f.is_pub {
                 continue;
             }
+            // Empty captured env (same rationale as the top-level registration
+            // loops): merged imports resolve siblings/ctors via `module_scope`,
+            // so capturing `self.scope.clone()` per imported fn was both
+            // unnecessary and a route back to the O(2^N) clone blow-up for
+            // many-function imported modules.
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
-                body: f.body.clone(),
-                env: self.scope.clone(),
+                body: std::rc::Rc::new(f.body.clone()),
+                env: Scope::new(),
+                name: f.name.clone(),
+                is_versioned: f.is_versioned,
             };
             match alias {
                 None => {
@@ -429,7 +478,7 @@ impl Interpreter {
 
         if let Some(name) = alias {
             // Build a namespace object exposing `alias.fn_name` access.
-            let ns = VoxValue::Object(alias_bindings.into_iter().collect());
+            let ns = VoxValue::object(alias_bindings);
             self.scope.set(name.to_string(), ns.clone());
             self.module_scope.set(name.to_string(), ns);
         }
@@ -453,6 +502,8 @@ impl Interpreter {
             params,
             body,
             mut env,
+            name: fn_name,
+            is_versioned,
         } = val
         {
             if params.len() != args.len() {
@@ -470,16 +521,34 @@ impl Interpreter {
             let old_scope = self.scope.clone();
             self.scope = env;
 
-            let mut res = VoxValue::Null;
-            for s in body {
-                res = stmt::eval_stmt(self, &s)?;
-                if let VoxValue::_Return(r) = res {
-                    res = *r;
-                    break;
+            // Restore the prior scope on BOTH success and the `?` error path so a
+            // failed call cannot leak scope state into a later reuse of the
+            // interpreter (e.g. the `@test` runner).
+            let result: Result<VoxValue, EvalError> = (|| {
+                let mut res = VoxValue::Null;
+                for s in body.iter() {
+                    res = stmt::eval_stmt(self, s)?;
+                    if let VoxValue::_Return(r) = res {
+                        res = *r;
+                        break;
+                    }
                 }
-            }
+                Ok(res)
+            })();
 
             self.scope = old_scope;
+            let res = result?;
+
+            // P5: auto-checkpoint on successful return of a @versioned function.
+            // `result?` above already restored the scope (on BOTH success and
+            // error) and short-circuits on error, so the auto-snapshot is
+            // recorded only for a successful call. The snapshot performs a `Vcs`
+            // effect; it inherits the same ungated behavior as explicit `repo.*`
+            // calls (`eval/repo.rs` does not consult `interp.caps`), so we do not
+            // add a new caps gate here — consistent with `repo.*` (design §4.3).
+            if is_versioned {
+                self.repo.snapshot(Some(&format!("@versioned {fn_name}")));
+            }
             Ok(res)
         } else {
             Err(EvalError::TypeError {

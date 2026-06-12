@@ -36,10 +36,15 @@ fn workspace_root() -> PathBuf {
 }
 
 #[test]
+#[ignore = "heavyweight: the script lane compiles the .vox to native via the script-cache (~764 crates) and needs `--features script-execution` in the vox binary; far too slow/heavy for the default `cargo nextest run -p vox-cli` gate. Run: cargo test -p vox-cli --features script-execution --test run_mode_dispatch -- --ignored — owner: vox-cli sunset: 2026-12-31"]
 fn run_mode_script_executes_minimal_main() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let vox_file = tmp.path().join("smoke_run_mode.vox");
-    fs::write(&vox_file, "fn main() {\n    print(str(\"run_mode_ok\"))\n").expect("write vox");
+    fs::write(
+        &vox_file,
+        "fn main() {\n    print(str(\"run_mode_ok\"))\n}\n",
+    )
+    .expect("write vox");
 
     let repo = workspace_root();
     let st = Command::new(vox_bin())
@@ -59,10 +64,11 @@ fn run_mode_script_executes_minimal_main() {
 }
 
 #[test]
+#[ignore = "heavyweight: the script lane compiles the .vox to native via the script-cache (~764 crates) and needs `--features script-execution` in the vox binary; far too slow/heavy for the default `cargo nextest run -p vox-cli` gate. Run: cargo test -p vox-cli --features script-execution --test run_mode_dispatch -- --ignored — owner: vox-cli sunset: 2026-12-31"]
 fn run_mode_auto_matches_script_for_script_shaped_file() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let vox_file = tmp.path().join("smoke_auto.vox");
-    fs::write(&vox_file, "fn main() {\n    print(str(\"auto_lane\"))\n").expect("write vox");
+    fs::write(&vox_file, "fn main() {\n    print(str(\"auto_lane\"))\n}\n").expect("write vox");
 
     let repo = workspace_root();
     let st = Command::new(vox_bin())
@@ -82,12 +88,13 @@ fn run_mode_auto_matches_script_for_script_shaped_file() {
 }
 
 #[test]
+#[ignore = "heavyweight: the script lane compiles the .vox to native via the script-cache (~764 crates) and needs `--features script-execution` in the vox binary; far too slow/heavy for the default `cargo nextest run -p vox-cli` gate. Run: cargo test -p vox-cli --features script-execution --test run_mode_dispatch -- --ignored — owner: vox-cli sunset: 2026-12-31"]
 fn run_mode_script_passes_trailing_args_to_std_args() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let vox_file = tmp.path().join("smoke_argv.vox");
     fs::write(
         &vox_file,
-        "fn main() {\n    for a in std.args:\n        print(a)\n",
+        "fn main() {\n    for a in std.args {\n        print(a)\n    }\n}\n",
     )
     .expect("write vox");
 

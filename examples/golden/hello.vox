@@ -16,3 +16,9 @@ fn hello(name: str) to str {
     return "Hello " + name + "!"
 }
 // ANCHOR_END: display
+
+@test
+fn test_hello() {
+    assert(hello("World") is "Hello World!")
+    assert(hello("Vox") is "Hello Vox!")
+}

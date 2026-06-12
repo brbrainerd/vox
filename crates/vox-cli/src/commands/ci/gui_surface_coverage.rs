@@ -8,6 +8,7 @@ use std::path::Path;
 
 const REPORT_PATH: &str = "contracts/reports/gui-surface-coverage.v1.json";
 const OPERATIONS_CATALOG: &str = "contracts/operations/catalog.v1.yaml";
+const GUI_NAV: &str = "crates/vox-gui/ui/src/lib/navigation.ts";
 const GUI_APP: &str = "crates/vox-gui/ui/src/App.tsx";
 const GUI_MAIN: &str = "crates/vox-gui/src/main.rs";
 
@@ -49,15 +50,51 @@ fn parse_operations_ids(repo_root: &Path) -> Result<Vec<String>> {
 }
 
 fn parse_gui_routes(repo_root: &Path) -> Result<Vec<String>> {
-    let path = repo_root.join(GUI_APP);
-    let raw = fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
-    let route_re = Regex::new(r#"case '([a-z\-]+)'"#).expect("route regex");
     let mut routes = BTreeSet::new();
-    for caps in route_re.captures_iter(&raw) {
-        if let Some(name) = caps.get(1) {
-            routes.insert(name.as_str().to_string());
+
+    // Parent/child navigation SSOT (vox-gui dock model).
+    let nav_path = repo_root.join(GUI_NAV);
+    if nav_path.is_file() {
+        let raw = fs::read_to_string(&nav_path)
+            .with_context(|| format!("read {}", nav_path.display()))?;
+        let map_key_re = Regex::new(r"(?m)^\s*(?:'([^']+)'|([a-z][a-z0-9\-]*)):\s*\{\s*parent:")
+            .expect("navigation map key regex");
+        for caps in map_key_re.captures_iter(&raw) {
+            let name = caps
+                .get(1)
+                .or_else(|| caps.get(2))
+                .map(|m| m.as_str().to_string());
+            if let Some(name) = name {
+                routes.insert(name);
+            }
+        }
+        let top_level_re =
+            Regex::new(r#"['"]([a-z][a-z0-9\-]*)['"]"#).expect("top-level view regex");
+        if let Some(start) = raw.find("TOP_LEVEL_VIEWS") {
+            let slice = &raw[start..];
+            if let Some(end) = slice.find("] as const") {
+                for caps in top_level_re.captures_iter(&slice[..end]) {
+                    if let Some(name) = caps.get(1) {
+                        routes.insert(name.as_str().to_string());
+                    }
+                }
+            }
         }
     }
+
+    // Legacy switch/case routes still present in App.tsx event handlers.
+    let app_path = repo_root.join(GUI_APP);
+    if app_path.is_file() {
+        let raw = fs::read_to_string(&app_path)
+            .with_context(|| format!("read {}", app_path.display()))?;
+        let route_re = Regex::new(r#"case '([a-z\-]+)'"#).expect("route regex");
+        for caps in route_re.captures_iter(&raw) {
+            if let Some(name) = caps.get(1) {
+                routes.insert(name.as_str().to_string());
+            }
+        }
+    }
+
     Ok(routes.into_iter().collect())
 }
 

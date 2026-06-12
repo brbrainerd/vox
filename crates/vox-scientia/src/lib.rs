@@ -9,8 +9,9 @@
 //!   - Phase G findings site: `findings_site`
 //!   - Phase H dashboard JSON: `dashboard`
 //!
-//! Planned phases (not yet in this crate, see [planned] in layers.toml):
-//! claim_extractor, inspect_bridge, nanopub, prereg, ro_crate, scientia_ingest.
+//! Now-present sub-modules (formerly tracked as planned crates in layers.toml):
+//! `claim_extractor`, `inspect_bridge`, `nanopub`, `ro_crate`, `ingest`.
+//! Still planned (not yet in this crate): `prereg`.
 
 // ── Pre-existing modules ──────────────────────────────────────────────────────
 pub mod claim_extractor;
@@ -39,3 +40,12 @@ pub mod findings_site;
 
 // ── Phase H: dashboard JSON builders ─────────────────────────────────────────
 pub mod dashboard;
+
+// ── P2: human-gated discovery review (pure logic) ────────────────────────────
+pub mod review;
+
+// ── P3: shared review-flow SSOT (DB + vault I/O; CLI + GUI both call this) ────
+pub mod review_flow;
+
+// ── P3 Phase 4: LLM-assisted advisory evidence/conclusion suggestions ────────
+pub mod evidence_assist;

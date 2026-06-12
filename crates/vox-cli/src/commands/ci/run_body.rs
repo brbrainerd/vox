@@ -3,7 +3,6 @@
 use anyhow::{Result, anyhow};
 use std::process::Command;
 
-use super::ai_fixtures_coverage;
 use super::build_timings;
 use super::canonical_docs;
 use super::check_links;
@@ -16,15 +15,12 @@ use super::command_sync;
 use super::completion_quality;
 use super::contracts_index;
 use super::coverage_gates;
-use super::dep_sprawl;
 use super::determinism_audit;
 use super::doctest_md;
 use super::eval_matrix;
 use super::exec_policy_contract;
 use super::grammar_ssot_parity;
-use super::line_endings;
 use super::mens_scorecard;
-use super::openclaw_contract;
 use super::parse_status;
 use super::release_build;
 use super::scaling_audit;
@@ -46,7 +42,7 @@ use run_body_helpers::{
     run_operator_env_guard, run_query_all_guard, run_repo_guards, run_script_hygiene,
     run_secret_env_guard, run_secrets_contracts, run_secrets_cutover_audit,
     run_secrets_cutover_gates, run_secrets_parity, run_sql_surface_guard, run_ssot_audit,
-    run_ssot_drift, run_toestub_scoped, run_toestub_self_apply, run_turso_import_guard,
+    run_ssot_drift, run_toestub_scoped_roots, run_toestub_self_apply, run_turso_import_guard,
 };
 
 use super::retired_symbol_check;
@@ -54,10 +50,25 @@ use super::retired_symbol_check;
 /// Run `vox ci` subcommand.
 pub async fn run(cmd: CiCmd) -> Result<()> {
     let root = repo_root();
-    match cmd {
+    // A stale `vox` binary runs outdated guard logic/allowlists, so its `vox ci`
+    // verdict would not reflect the current source. Refuse rather than mislead.
+    crate::freshness::enforce_for_ci(&root)?;
+
+    // Per-gate status capture (Phase 1c). Only registry-backed gates are tracked;
+    // others record nothing (honest grey). Disabled via VOX_NO_POLICY_STATUS=1.
+    let gate_id = cmd.gate_policy_id();
+    let started = std::time::Instant::now();
+
+    let result: Result<()> = match cmd {
         CiCmd::Manifest => run_manifest(&root),
+        CiCmd::PolicyRegistry { write } => {
+            super::policy_registry::run_generate(&root, write).map_err(|e| anyhow!(e))
+        }
+        CiCmd::PolicyRegistryParity => {
+            super::policy_registry::run_parity(&root).map_err(|e| anyhow!(e))
+        }
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
-        CiCmd::CheckFrozen => super::frozen_crates::check_frozen_crates(&root),
+        CiCmd::CheckFrozen => vox_cli_ci::frozen_crates::check_frozen_crates(&root),
         CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(&root),
         CiCmd::GuiVersionSync { write } => super::gui_version_sync::run(&root, write),
         CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
@@ -65,9 +76,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::ModelRoutingCheck => super::model_routing_check::run(&root),
         CiCmd::CheckCodexSsot => check_codex_ssot(&root),
         CiCmd::ContractsIndex => contracts_index::run(&root),
-        CiCmd::AiFixturesCoverage => ai_fixtures_coverage::run(&root),
+        CiCmd::AiFixturesCoverage => vox_cli_ci::ai_fixtures_coverage::run(&root),
         CiCmd::ExecPolicyContract => exec_policy_contract::run(&root),
-        CiCmd::OpenClawContract => openclaw_contract::run(&root),
+        CiCmd::OpenClawContract => vox_cli_ci::openclaw_contract::run(&root),
         CiCmd::OperationsVerify => super::operations_catalog::verify(&root),
         CiCmd::OperationsSync { target, write } => {
             let target = match target {
@@ -110,6 +121,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             with_coverage,
             since,
             enforce_budgets,
+            skip_complete,
         } => super::pre_push::run(
             &root,
             super::pre_push::PrePushOpts {
@@ -123,6 +135,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 with_coverage,
                 since,
                 enforce_budgets,
+                skip_complete,
             },
         ),
         CiCmd::TierBudgetCheck { junit, profile } => {
@@ -146,7 +159,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         }
         CiCmd::FeatureMatrix => run_feature_matrix(&root),
         CiCmd::CompileMatrix => super::compile_matrix::run(&root),
-        CiCmd::RetirementAudit => super::retirement_audit::run(&root),
+        CiCmd::RetirementAudit => vox_cli_ci::retirement_audit::run(&root),
         CiCmd::NoDeiImport => check_no_vox_dei(&root),
         CiCmd::AttentionEventLedgerParity => super::attention_ledger_parity::run(&root),
         CiCmd::CheckSummaryDrift => {
@@ -156,12 +169,15 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 .args(["run", "-p", "vox-doc-pipeline", "--", "--check"])
                 .status()?;
             if !st.success() {
-                return Err(anyhow!(
+                // Must EVALUATE to Err (not early-return) so the per-gate status
+                // wrapper below records Fail; a bare `return` would leave a stale Pass.
+                Err(anyhow!(
                     "SUMMARY.md is out of sync with docs/src. Run 'cargo run -p vox-doc-pipeline' to fix."
-                ));
+                ))
+            } else {
+                println!("SUMMARY.md is up to date.");
+                Ok(())
             }
-            println!("SUMMARY.md is up to date.");
-            Ok(())
         }
         CiCmd::BuildDocs => {
             let cargo = cargo_bin();
@@ -241,7 +257,10 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         },
         CiCmd::WorkflowScripts { allowlist } => check_workflow_scripts(&root, &allowlist),
         CiCmd::FmtCheck => super::pre_push::check_fmt(&root),
-        CiCmd::LineEndings { all, base, autofix } => line_endings::run(&root, all, base, autofix),
+        CiCmd::RunnerPolicyCheck { strict } => vox_cli_ci::runner_policy_check::run(&root, strict),
+        CiCmd::LineEndings { all, base, autofix } => {
+            vox_cli_ci::line_endings::run(&root, all, base, autofix)
+        }
         CiCmd::ParseStatus { write } => parse_status::run(&root, write),
         CiCmd::MeshGate {
             profile,
@@ -265,14 +284,11 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             min_f1,
             json,
         } => super::detect_rules_bench::run(&rules, &fixtures_root, min_f1, json),
-        CiCmd::ToestubBudget => super::toestub_budget::run(),
-        CiCmd::JsonParseCheck { globs } => super::parse_check::run_json(&globs),
-        CiCmd::YamlParseCheck { globs } => super::parse_check::run_yaml(&globs),
+        CiCmd::ToestubBudget => vox_cli_ci::toestub_budget::run(),
+        CiCmd::JsonParseCheck { globs } => vox_cli_ci::parse_check::run_json(&globs),
+        CiCmd::YamlParseCheck { globs } => vox_cli_ci::parse_check::run_yaml(&globs),
         CiCmd::ToestubSelfApply => run_toestub_self_apply(&root),
-        CiCmd::ToestubScoped {
-            root: scan_root,
-            mode,
-        } => run_toestub_scoped(&root, &scan_root, mode),
+        CiCmd::ToestubScoped { roots, mode } => run_toestub_scoped_roots(&root, &roots, mode),
         CiCmd::ScalingAudit { cmd } => scaling_audit::run(&root, cmd),
         CiCmd::CudaFeatures => run_cuda_features(),
         CiCmd::BuildTimings {
@@ -318,8 +334,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::TursoImportGuard { all } => run_turso_import_guard(&root, all),
         CiCmd::DbSchemaCoverage => super::db_schema_coverage::run(&root),
         CiCmd::PolicyAllowlistParity => super::policy_allowlist_parity::run(&root),
-        CiCmd::RowSerdeLint => super::row_serde_lint::run(&root),
-        CiCmd::StringIdLint => super::string_id_lint::run(&root, false),
+        CiCmd::RowSerdeLint => vox_cli_ci::row_serde_lint::run(&root),
+        CiCmd::StringIdLint => vox_cli_ci::string_id_lint::run(&root, false),
         CiCmd::SecretsContracts => run_secrets_contracts(&root),
         CiCmd::SecretsParity => run_secrets_parity(&root),
         CiCmd::SecretsCutoverGates => run_secrets_cutover_gates(&root),
@@ -348,74 +364,100 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 ])
                 .status()?;
             if !st.success() {
-                return Err(anyhow!(
+                // EVALUATE to Err so the wrapper records Fail (no stale Pass).
+                Err(anyhow!(
                     "rust ecosystem policy parity failed; run `cargo test -p vox-compiler --test rust_ecosystem_support_parity`"
-                ));
+                ))
+            } else {
+                println!("rust-ecosystem-policy OK");
+                Ok(())
             }
-            println!("rust-ecosystem-policy OK");
-            Ok(())
         }
         CiCmd::PolicySmoke => {
-            let cargo = cargo_bin();
+            // Closure so every failure path EVALUATES to Err (flows through `result`),
+            // letting the per-gate wrapper record Fail instead of a stale Pass.
+            (|| -> Result<()> {
+                let cargo = cargo_bin();
 
-            let st = Command::new(&cargo)
-                .current_dir(&root)
-                .args(["check", "-p", "vox-orchestrator"])
-                .status()?;
-            if !st.success() {
-                return Err(anyhow!(
-                    "policy-smoke failed: `cargo check -p vox-orchestrator` returned non-zero"
-                ));
-            }
-
-            command_compliance::run(&root)?;
-
-            let st = Command::new(&cargo)
-                .current_dir(&root)
-                .args([
-                    "test",
-                    "-p",
-                    "vox-compiler",
-                    "--test",
-                    "rust_ecosystem_support_parity",
-                ])
-                .status()?;
-            if !st.success() {
-                return Err(anyhow!(
-                    "policy-smoke failed: `cargo test -p vox-compiler --test rust_ecosystem_support_parity` returned non-zero"
-                ));
-            }
-
-            println!("policy-smoke OK");
-            Ok(())
-        }
-        CiCmd::BackendTests => {
-            let cargo = cargo_bin();
-            let suites: &[(&[&str], &str)] = &[
-                (&["test", "-p", "vox-actor-runtime"], "vox-actor-runtime"),
-                (
-                    &["test", "-p", "vox-orchestrator", "model_route_policy"],
-                    "vox-orchestrator model_route_policy",
-                ),
-                (
-                    &["test", "-p", "vox-db", "research_metrics_contract"],
-                    "vox-db research_metrics_contract",
-                ),
-            ];
-            for (args, label) in suites {
                 let st = Command::new(&cargo)
                     .current_dir(&root)
-                    .args(*args)
+                    .args(["check", "-p", "vox-orchestrator"])
                     .status()?;
                 if !st.success() {
                     return Err(anyhow!(
-                        "backend-tests failed ({label}); rerun: cargo {}",
-                        args.join(" ")
+                        "policy-smoke failed: `cargo check -p vox-orchestrator` returned non-zero"
                     ));
                 }
-            }
-            println!("backend-tests OK");
-            Ok(())
+
+                command_compliance::run(&root)?;
+
+                let st = Command::new(&cargo)
+                    .current_dir(&root)
+                    .args([
+                        "test",
+                        "-p",
+                        "vox-compiler",
+                        "--test",
+                        "rust_ecosystem_support_parity",
+                    ])
+                    .status()?;
+                if !st.success() {
+                    return Err(anyhow!(
+                        "policy-smoke failed: `cargo test -p vox-compiler --test rust_ecosystem_support_parity` returned non-zero"
+                    ));
+                }
+
+                println!("policy-smoke OK");
+                Ok(())
+            })()
+        }
+        CiCmd::BackendTests => {
+            // Closure so the loop's failure path EVALUATES to Err (flows through
+            // `result`), letting the wrapper record Fail instead of a stale Pass.
+            (|| -> Result<()> {
+                let cargo = cargo_bin();
+                let suites: &[(&[&str], &str)] = &[
+                    (&["test", "-p", "vox-actor-runtime"], "vox-actor-runtime"),
+                    (
+                        &["test", "-p", "vox-orchestrator", "model_route_policy"],
+                        "vox-orchestrator model_route_policy",
+                    ),
+                    (
+                        &["test", "-p", "vox-db", "research_metrics_contract"],
+                        "vox-db research_metrics_contract",
+                    ),
+                    (
+                        &["test", "-p", "vox-sql", "--test", "p2_conformance"],
+                        "vox-sql p2_conformance",
+                    ),
+                    (
+                        &["test", "-p", "vox-sql", "--test", "p3_introspect_smoke"],
+                        "vox-sql p3_introspect_smoke",
+                    ),
+                    (
+                        &["test", "-p", "vox-sql", "--test", "p5_ddl_conformance"],
+                        "vox-sql p5_ddl_conformance",
+                    ),
+                    (
+                        &["test", "-p", "vox-sql", "--test", "p5_migrate_smoke"],
+                        "vox-sql p5_migrate_smoke",
+                    ),
+                ];
+                for (args, label) in suites {
+                    let st = Command::new(&cargo)
+                        .current_dir(&root)
+                        .args(*args)
+                        .status()?;
+                    if !st.success() {
+                        return Err(anyhow!(
+                            "backend-tests failed ({label}); rerun: cargo {}",
+                            args.join(" ")
+                        ));
+                    }
+                }
+                println!("backend-tests OK");
+                Ok(())
+            })()
         }
         CiCmd::GuiSmoke => super::gui_smoke::run(&root),
         CiCmd::CoverageGates {
@@ -436,21 +478,51 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             out_dir,
             package,
         } => release_build::run(&root, &target, version.as_deref(), &out_dir, package),
-        CiCmd::ArtifactAudit { json } => super::workspace_artifacts::run_audit(&root, json),
+        CiCmd::ArtifactAudit {
+            json,
+            include_worktrees,
+        } => super::workspace_artifacts::run_audit(&root, json, include_worktrees),
         CiCmd::ArtifactPrune {
             dry_run,
             apply,
             policy,
-        } => super::workspace_artifacts::run_prune(&root, dry_run, apply, policy.as_deref()),
-        CiCmd::NomenclatureGuard { json } => super::nomenclature_guard::run(&root, json),
+            include_worktrees,
+            remove_stale_worktrees,
+            include_dirty_targets,
+            incremental_only,
+            max_age_days,
+        } => super::workspace_artifacts::run_prune(
+            &root,
+            dry_run,
+            apply,
+            policy.as_deref(),
+            super::workspace_artifacts::WorktreeGcOpts {
+                include_worktrees,
+                remove_stale_worktrees,
+                include_dirty_targets,
+                incremental_only,
+                max_age_days,
+            },
+        ),
+        CiCmd::RunnerScale { apply } => super::runner_scale::run_scale(apply),
+        CiCmd::RunnerPreflight => super::runner_scale::run_preflight(),
+        CiCmd::JobTimings {
+            run_id,
+            threshold_mins,
+            limit,
+            json,
+            annotate,
+            strict,
+        } => super::job_timings::run(run_id, threshold_mins, limit, json, annotate, strict),
+        CiCmd::NomenclatureGuard { json } => vox_cli_ci::nomenclature_guard::run(&root, json),
         CiCmd::RetiredSymbolCheck => retired_symbol_check::run(&root),
-        CiCmd::SyncIgnoreFiles { verify } => super::sync_ignore_files::run(&root, verify),
+        CiCmd::SyncIgnoreFiles { verify } => vox_cli_ci::sync_ignore_files::run(&root, verify),
         CiCmd::KillStuckTests { what_if } => super::kill_stuck_tests::run(&root, what_if),
         CiCmd::InstallHooks => super::install_hooks::run(&root),
         CiCmd::ScriptHygiene { retired_check } => run_script_hygiene(&root, retired_check),
         CiCmd::DeterminismAudit => determinism_audit::run(&root),
-        CiCmd::DepSprawl { cap } => dep_sprawl::run(&root, cap),
-        CiCmd::DoctestMd { paths, strict } => doctest_md::run(paths, strict).await,
+        CiCmd::DepSprawl { cap } => vox_cli_ci::dep_sprawl::run(&root, cap),
+        CiCmd::DoctestMd { paths, strict } => doctest_md::run(paths, strict),
         CiCmd::TestInventory {
             json,
             output,
@@ -538,10 +610,15 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             check,
         } => super::generate_plugin_catalog_docs::run(catalog_out, bundles_out, check),
         CiCmd::PluginCatalogParity => super::plugin_catalog_parity::run(),
-        CiCmd::NoTauriInCore => super::no_tauri_in_core::check(&root),
-        CiCmd::NoPluginCdylibAsCompileDep => super::no_plugin_cdylib_as_compile_dep::check(&root),
-        CiCmd::PluginAbiParity => super::plugin_abi_parity::run(),
-        CiCmd::PluginSkillParity => super::plugin_skill_parity::run(),
+        CiCmd::NoTauriInCore => vox_cli_ci::no_tauri_in_core::run(&root),
+        CiCmd::NoPluginCdylibAsCompileDep => {
+            vox_cli_ci::no_plugin_cdylib_as_compile_dep::run(&root)
+        }
+        CiCmd::PluginDepBoundary => vox_cli_ci::plugin_dep_boundary::run(&root),
+        CiCmd::PluginAbiParity { build } => super::plugin_abi_parity::run(build),
+        CiCmd::PluginSurfaceSync { write } => super::plugin_surface::run(&root, write),
+        CiCmd::PluginCatalogSync { write } => super::plugin_catalog_sync::run(&root, write),
+        CiCmd::PluginSkillParity { write } => super::plugin_skill_parity::run(write),
         CiCmd::AgentSkillsCompliance => super::agentskills_compliance::run(),
         CiCmd::CoolifyEval { cmd } => super::coolify_eval::run(cmd).await,
         CiCmd::WatchRun {
@@ -558,5 +635,107 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             })
             .await
         }
+    };
+
+    // Record the gate's pass/fail into the per-branch status store (best-effort:
+    // a status-write failure must never fail the gate). `ran_at` is stamped here
+    // (the single non-deterministic seam) so the writer/merge stay pure.
+    if let Some(id) = gate_id {
+        if std::env::var("VOX_NO_POLICY_STATUS").is_err() {
+            let duration_ms = started.elapsed().as_millis() as u64;
+            let policy_result = gate_status_result(id, result.is_ok(), duration_ms);
+            let branch = crate::commands::policy::status_writer::current_branch(&root);
+            let commit = crate::commands::policy::status_writer::head_commit(&root);
+            let ran_at = chrono::Utc::now().to_rfc3339();
+            let _ = crate::commands::policy::status_writer::write_results(
+                &root,
+                &branch,
+                &commit,
+                &ran_at,
+                vec![policy_result],
+            );
+        }
+    }
+
+    result
+}
+
+/// Pure mapping from a tracked gate's `Ok`/`Err` outcome to the `PolicyResult`
+/// recorded in the per-branch status store. Extracted so the honesty-critical
+/// "failure ⇒ Fail" contract is unit-testable without invoking a real gate:
+/// `ok == false` MUST yield `RunStatus::Fail` so a failing gate overwrites a
+/// stale `Pass` rather than silently staying green.
+fn gate_status_result(id: &str, ok: bool, duration_ms: u64) -> vox_config::PolicyResult {
+    let status = if ok {
+        vox_config::RunStatus::Pass
+    } else {
+        vox_config::RunStatus::Fail
+    };
+    vox_config::PolicyResult {
+        id: id.to_string(),
+        status,
+        hits: vec![],
+        duration_ms,
+    }
+}
+
+#[cfg(test)]
+mod gate_status_tests {
+    use super::gate_status_result;
+    use vox_config::RunStatus;
+
+    #[test]
+    fn err_outcome_records_fail_not_stale_pass() {
+        let r = gate_status_result("ci-gate/ci.check-summary-drift", false, 5);
+        assert_eq!(r.status, RunStatus::Fail);
+        assert_eq!(r.id, "ci-gate/ci.check-summary-drift");
+    }
+
+    #[test]
+    fn ok_outcome_records_pass() {
+        let r = gate_status_result("ci-gate/ci.backend-tests", true, 5);
+        assert_eq!(r.status, RunStatus::Pass);
+    }
+
+    /// End-to-end via the real writer: a tracked gate that was previously `Pass`
+    /// must show `Fail` after a failing run (merge-by-id must not keep it green).
+    #[test]
+    fn failing_gate_overwrites_prior_pass_in_store() {
+        use crate::commands::policy::status_writer::write_results;
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let branch = "sad-euler-31d645";
+        let id = "ci-gate/ci.check-summary-drift";
+
+        // Seed a stale Pass.
+        write_results(
+            root,
+            branch,
+            "deadbeef",
+            "2026-06-06T00:00:00Z",
+            vec![gate_status_result(id, true, 1)],
+        )
+        .unwrap();
+        let prior = vox_config::load_status(root, branch).unwrap().unwrap();
+        assert_eq!(
+            prior.results.iter().find(|r| r.id == id).unwrap().status,
+            RunStatus::Pass
+        );
+
+        // Now the gate fails.
+        write_results(
+            root,
+            branch,
+            "deadbeef",
+            "2026-06-06T01:00:00Z",
+            vec![gate_status_result(id, false, 1)],
+        )
+        .unwrap();
+        let after = vox_config::load_status(root, branch).unwrap().unwrap();
+        assert_eq!(
+            after.results.iter().find(|r| r.id == id).unwrap().status,
+            RunStatus::Fail,
+            "failing tracked gate must overwrite stale Pass with Fail"
+        );
     }
 }

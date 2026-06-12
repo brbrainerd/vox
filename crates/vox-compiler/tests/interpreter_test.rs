@@ -24,7 +24,7 @@ fn for_loop_with_index_binds_index_in_body() {
         .expect("Failed to call main");
     assert_eq!(
         res,
-        vox_compiler::eval::value::VoxValue::List(vec![
+        vox_compiler::eval::value::VoxValue::list(vec![
             vox_compiler::eval::value::VoxValue::Int(10),
             vox_compiler::eval::value::VoxValue::Int(21),
             vox_compiler::eval::value::VoxValue::Int(32),

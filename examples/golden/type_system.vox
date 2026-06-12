@@ -23,3 +23,11 @@ fn serialize_app_result(r: AppResult) to str {
     }
 }
 // ANCHOR_END: display
+
+@test
+fn test_serialize_app_result() {
+    assert(serialize_app_result(Success(42)) is "num:42")
+    assert(serialize_app_result(Success(0)) is "num:0")
+    assert(serialize_app_result(Failure("oops")) is "err:oops")
+    assert(serialize_app_result(Failure("not found")) is "err:not found")
+}

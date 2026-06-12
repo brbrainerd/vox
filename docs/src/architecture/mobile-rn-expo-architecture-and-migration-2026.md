@@ -50,7 +50,7 @@ Vox's value to the user is "AI writes a real app and a real app means it works o
 | `vox build` default | TS/React (DOM + Tailwind) + Rust/Axum | TS/React (web) OR TS/RN (mobile) + Rust/Axum |
 | `vox build --target` | `fullstack` / `server` / `client` | adds `mobile` (TS/RN + uniffi-wrapped vox-runtime) |
 | Desktop GUI | [crates/vox-gui](../../../crates/vox-gui) on Tauri 2 | unchanged |
-| Mobile GUI | `crates/vox-codegen/src/codegen_ts/mobile_emit.rs` emits `@tauri-apps/api/event` | emits `@vox/runtime` calls (adapter-shaped) |
+| Mobile GUI | `crates/vox-codegen-ts/src/mobile_emit.rs` emits `@tauri-apps/api/event` | emits `@vox/runtime` calls (adapter-shaped) |
 | Mobile app of record | `apps/vox-mental-tracker` (planned) on Capacitor | on Expo (managed workflow) |
 | Speech-to-text | `vox-sherpa-transcribe` Capacitor plugin | Expo Module wrapping Candle Whisper via uniffi |
 | iOS-from-Windows builds | Impossible (Tauri-mobile requires Mac) | EAS Build managed cloud |

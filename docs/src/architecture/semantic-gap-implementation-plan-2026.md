@@ -21,16 +21,16 @@ status: "current"
 **Why first:** the gap is user-visible at build time. Anyone authoring `routes { }` with a typo in a component name today gets clean codegen and a runtime error; after this batch, they get a fail-fast build error pointing at the bad symbol.
 
 **Files:**
-- Modify: `crates/vox-codegen/src/codegen_ts/route_manifest.rs:25-68`
+- Modify: `crates/vox-codegen-ts/src/route_manifest.rs:25-68`
 - Create: `crates/vox-codegen/tests/route_manifest_validation.rs` (or extend an existing test file)
 
 ### Task B1: Write the failing test
 
-- [ ] **Step 1:** Identify or create a test file location. Search for existing tests of `try_emit_route_manifest_from_web_ir` in `crates/vox-codegen/tests/` and `crates/vox-codegen/src/codegen_ts/`. If a test file exists for route_manifest, extend it. Otherwise create `crates/vox-codegen/tests/route_manifest_validation.rs`.
+- [ ] **Step 1:** Identify or create a test file location. Search for existing tests of `try_emit_route_manifest_from_web_ir` in `crates/vox-codegen/tests/` and `crates/vox-codegen-ts/src/`. If a test file exists for route_manifest, extend it. Otherwise create `crates/vox-codegen/tests/route_manifest_validation.rs`.
 
 - [ ] **Step 2:** Write a failing test that constructs a `WebIrModule` with a `RouteContract` referencing a component name `"NonExistentComponent"`, a `HirModule` that does NOT define `NonExistentComponent`, then calls `validate_manifest_symbols(&web, &hir)` and asserts `Err(...)` with a message containing the component name.
 
-Reference for the WebIrModule + HirModule construction: look at existing tests in `crates/vox-codegen/src/codegen_ts/` for the canonical fixtures pattern (search `WebIrModule::new`, `HirModule::default`, or wherever route fixtures are built).
+Reference for the WebIrModule + HirModule construction: look at existing tests in `crates/vox-codegen-ts/src/` for the canonical fixtures pattern (search `WebIrModule::new`, `HirModule::default`, or wherever route fixtures are built).
 
 The test body in skeleton form:
 
@@ -59,7 +59,7 @@ Expected: test FAILS with "expected validation error for missing component" beca
 
 ### Task B2: Wire the existing dead-code validator into the public entry
 
-- [ ] **Step 1:** In `crates/vox-codegen/src/codegen_ts/route_manifest.rs`, replace the body of `validate_manifest_symbols` (lines 25–27) so it:
+- [ ] **Step 1:** In `crates/vox-codegen-ts/src/route_manifest.rs`, replace the body of `validate_manifest_symbols` (lines 25–27) so it:
   1. Extracts `component_names: BTreeSet<String>` from `hir` — i.e., the names of every component/JSX function defined in the HIR. (Locate the relevant accessor by looking at how `emit_route_manifest_from_web_ir` consumes `hir` — there will be a similar walk available, or one can be added in a small helper.)
   2. Extracts `query_names: BTreeSet<String>` from `hir` — names of every `@query`-annotated function.
   3. Calls `route_tree_top_contracts(web)` to get the top-level route contracts.

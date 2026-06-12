@@ -55,8 +55,10 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 // Return a placeholder function for builtins
                 Ok(VoxValue::Fn {
                     params: vec!["args".into()],
-                    body: vec![], // Not used for builtins
+                    body: std::rc::Rc::new(vec![]), // Not used for builtins
                     env: interp.scope.clone(),
+                    name: String::new(),
+                    is_versioned: false,
                 })
             } else {
                 Err(EvalError::UndefinedVariable(name.clone()))
@@ -67,14 +69,14 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             for e in elems {
                 list.push(eval_expr(interp, e)?);
             }
-            Ok(VoxValue::List(list))
+            Ok(VoxValue::list(list))
         }
         HirExpr::TupleLit(elems, _) => {
             let mut items = Vec::with_capacity(elems.len());
             for e in elems {
                 items.push(eval_expr(interp, e)?);
             }
-            Ok(VoxValue::Tuple(items))
+            Ok(VoxValue::tuple(items))
         }
         // DecimalLit: fixed-point decimal literal — interp approximates as Float.
         // Exact decimal arithmetic is a future enhancement; for now the corpus
@@ -94,7 +96,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             for (k, v) in fields {
                 obj.push((k.clone(), eval_expr(interp, v)?));
             }
-            Ok(VoxValue::Object(obj))
+            Ok(VoxValue::object(obj))
         }
         HirExpr::Block(stmts, _) => {
             interp.scope.push_frame();
@@ -366,8 +368,10 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             }];
             Ok(VoxValue::Fn {
                 params: params.iter().map(|p| p.name.clone()).collect(),
-                body: b,
+                body: std::rc::Rc::new(b),
                 env: interp.scope.clone(),
+                name: String::new(),
+                is_versioned: false,
             })
         }
         HirExpr::Call(callee, args, _, _) => {
@@ -393,6 +397,8 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     params,
                     body,
                     mut env,
+                    name: fn_name,
+                    is_versioned,
                 } => {
                     env.push_frame();
                     for (p, arg) in params.iter().zip(eval_args) {
@@ -402,19 +408,38 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     let old_scope = interp.scope.clone();
                     interp.scope = env;
 
-                    let mut val = VoxValue::Null;
-                    for stmt in body {
-                        val = super::stmt::eval_stmt(interp, &stmt)?;
-                        if let VoxValue::_Return(v) = val {
-                            val = *v;
-                            break;
+                    // Run the body in a closure so the scope is restored on BOTH
+                    // success and the `?` error path (a leaked scope would corrupt
+                    // later evaluation when the interpreter is reused, e.g. the
+                    // `@test` runner).
+                    let result: Result<VoxValue, EvalError> = (|| {
+                        let mut val = VoxValue::Null;
+                        for stmt in body.iter() {
+                            val = super::stmt::eval_stmt(interp, stmt)?;
+                            if let VoxValue::_Return(v) = val {
+                                val = *v;
+                                break;
+                            }
+                            if matches!(val, VoxValue::_Break | VoxValue::_Continue) {
+                                break;
+                            }
                         }
-                        if matches!(val, VoxValue::_Break | VoxValue::_Continue) {
-                            break;
-                        }
-                    }
+                        Ok(val)
+                    })();
 
                     interp.scope = old_scope;
+                    let val = result?;
+
+                    // P5: auto-checkpoint on successful return of a @versioned
+                    // function. `result?` above already restored the scope (on
+                    // BOTH success and error) and short-circuits on error, so a
+                    // checkpoint is recorded only for a successful call — never
+                    // for a failed one. The snapshot is an ungated `Vcs` effect,
+                    // matching explicit `repo.*` semantics (`eval/repo.rs` does
+                    // not consult `interp.caps`).
+                    if is_versioned {
+                        interp.repo.snapshot(Some(&format!("@versioned {fn_name}")));
+                    }
                     Ok(val)
                 }
                 VoxValue::Constructor(name) => match name.as_str() {
@@ -478,6 +503,37 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     m = method,
                 )));
             }
+            // Native-codegen-only namespaces are not implemented by the
+            // tree-walking interpreter (they require `--mode script` / compiled
+            // builds — e.g. `Scrape.*` reqwest+scraper, `Browser.*` chromiumoxide
+            // CDP). Evaluating the receiver would surface a confusing
+            // `UndefinedVariable("Scrape")`; emit an actionable diagnostic
+            // instead (CR-F4: an arm that cannot support a construct must say so
+            // clearly, never fail opaquely). See where-things-live.md.
+            if let HirExpr::Ident(ns_name, _) = obj.as_ref()
+                && matches!(ns_name.as_str(), "Scrape" | "Browser")
+            {
+                return Err(EvalError::AssertionFailed(format!(
+                    "`{ns}.{m}(...)` is only available in compiled builds \
+                     (`vox run --mode script` / `vox build`), not the `--mode interp` \
+                     interpreter: the `{ns}` namespace is native-codegen-only. \
+                     Run this program with `--mode script` to use it.",
+                    ns = ns_name,
+                    m = method,
+                )));
+            }
+            // `repo.*` namespace dispatch — gate on AST receiver identity, not
+            // a spoofable `__namespace__` object field.
+            if let HirExpr::Ident(ns_name, _) = obj.as_ref()
+                && ns_name == "repo"
+            {
+                let mut eval_args = Vec::new();
+                for a in args {
+                    eval_args.push(eval_expr(interp, &a.value)?);
+                }
+                return super::repo::execute_repo_op(interp, method, eval_args);
+            }
+
             let o = eval_expr(interp, obj)?;
             let mut eval_args = Vec::new();
             for a in args {
@@ -568,10 +624,11 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             // Iterate List, Map (as (key, value) tuples — matching the
             // typechecker's Map element type), and Str (as one-char strings).
             let items: Vec<VoxValue> = match c {
-                VoxValue::List(ls) => ls,
+                VoxValue::List(ls) => std::rc::Rc::unwrap_or_clone(ls),
                 VoxValue::Object(pairs) => pairs
-                    .into_iter()
-                    .map(|(k, v)| VoxValue::Tuple(vec![VoxValue::Str(k), v]))
+                    .iter()
+                    .cloned()
+                    .map(|(k, v)| VoxValue::tuple(vec![VoxValue::Str(k), v]))
                     .collect(),
                 VoxValue::Str(s) => s.chars().map(|ch| VoxValue::Str(ch.to_string())).collect(),
                 other => {
@@ -600,7 +657,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 }
             }
             interp.scope.pop_frame();
-            Ok(VoxValue::List(results))
+            Ok(VoxValue::list(results))
         }
         HirExpr::FieldAccess(obj, field, _) => {
             let o = eval_expr(interp, obj)?;
@@ -632,7 +689,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                         return Ok(VoxValue::Option(None));
                     }
                     Ok(VoxValue::Option(
-                        items.into_iter().nth(i as usize).map(Box::new),
+                        items.get(i as usize).cloned().map(Box::new),
                     ))
                 }
                 (VoxValue::Str(s), VoxValue::Int(i)) => {
@@ -648,9 +705,9 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 // dict / Object subscript: dict["key"] → Option[V]
                 (VoxValue::Object(fields), VoxValue::Str(key)) => Ok(VoxValue::Option(
                     fields
-                        .into_iter()
+                        .iter()
                         .find(|(k, _)| k == &key)
-                        .map(|(_, v)| Box::new(v)),
+                        .map(|(_, v)| Box::new(v.clone())),
                 )),
                 _ => Ok(VoxValue::Option(None)),
             }
@@ -707,7 +764,9 @@ fn apply_closure(
     args: Vec<VoxValue>,
 ) -> Result<VoxValue, EvalError> {
     let (params, body, env) = match closure {
-        VoxValue::Fn { params, body, env } => (params.clone(), body.clone(), env.clone()),
+        VoxValue::Fn {
+            params, body, env, ..
+        } => (params.clone(), body.clone(), env.clone()),
         other => {
             return Err(EvalError::TypeError {
                 expected: "function",
@@ -723,18 +782,23 @@ fn apply_closure(
     }
 
     let old_scope = std::mem::replace(&mut interp.scope, new_env);
-    let mut val = VoxValue::Null;
-    for stmt in &body {
-        val = super::stmt::eval_stmt(interp, stmt)?;
-        if let VoxValue::_Return(v) = val {
-            val = *v;
-            break;
+    // Restore the caller's scope on BOTH success and the `?` error path.
+    let result: Result<VoxValue, EvalError> = (|| {
+        let mut val = VoxValue::Null;
+        for stmt in body.iter() {
+            val = super::stmt::eval_stmt(interp, stmt)?;
+            if let VoxValue::_Return(v) = val {
+                val = *v;
+                break;
+            }
+            if matches!(val, VoxValue::_Break | VoxValue::_Continue) {
+                break;
+            }
         }
-        if matches!(val, VoxValue::_Break | VoxValue::_Continue) {
-            break;
-        }
-    }
+        Ok(val)
+    })();
     interp.scope = old_scope;
+    let val = result?;
 
     if let VoxValue::_Panic(msg) = val {
         return Err(EvalError::AssertionFailed(msg));
@@ -766,7 +830,7 @@ fn apply_closure_method(
             for item in items.iter().cloned() {
                 out.push(apply_closure(interp, &closure, vec![item])?);
             }
-            Ok(Some(VoxValue::List(out)))
+            Ok(Some(VoxValue::list(out)))
         }
         (VoxValue::List(items), "filter") => {
             let mut out = Vec::new();
@@ -776,7 +840,7 @@ fn apply_closure_method(
                     out.push(item);
                 }
             }
-            Ok(Some(VoxValue::List(out)))
+            Ok(Some(VoxValue::list(out)))
         }
         (VoxValue::List(items), "for_each") => {
             for item in items.iter().cloned() {
@@ -786,7 +850,7 @@ fn apply_closure_method(
         }
         // sorted_by_key(fn) / sort_by_key(fn) — sort using a key function.
         (VoxValue::List(items), "sorted_by_key" | "sort_by_key") => {
-            let mut owned: Vec<VoxValue> = items.clone();
+            let mut owned: Vec<VoxValue> = items.to_vec();
             // Compute keys eagerly to avoid repeated closure calls during sort.
             let mut keyed: Vec<(VoxValue, VoxValue)> = owned
                 .iter()
@@ -798,13 +862,13 @@ fn apply_closure_method(
                 .collect::<Result<Vec<_>, EvalError>>()?;
             keyed.sort_by(|(ka, _), (kb, _)| super::builtins::vox_value_cmp(ka, kb));
             owned = keyed.into_iter().map(|(_, v)| v).collect();
-            Ok(Some(VoxValue::List(owned)))
+            Ok(Some(VoxValue::list(owned)))
         }
         // sorted_by(fn) / sort_by(fn) — sort using a comparator fn(a, b) -> int.
         (VoxValue::List(items), "sorted_by" | "sort_by") => {
             let pairs: Vec<(usize, &VoxValue)> = items.iter().enumerate().collect();
             // Collect comparator results into a matrix for stable sort.
-            let mut owned = items.clone();
+            let mut owned = items.to_vec();
             // Use insertion sort so we can call the async-free closure.
             for i in 1..owned.len() {
                 let mut j = i;
@@ -824,7 +888,7 @@ fn apply_closure_method(
                 }
             }
             let _ = pairs; // suppress unused warning
-            Ok(Some(VoxValue::List(owned)))
+            Ok(Some(VoxValue::list(owned)))
         }
         (VoxValue::List(items), "any") => {
             for item in items.iter().cloned() {

@@ -36,6 +36,11 @@ pub fn run() -> Result<()> {
             .filter(|e| e.file_name() == "Plugin.toml")
         {
             let path = entry.path();
+            // Skip test fixtures (e.g. vox-plugin-host/tests/fixtures/noop-*) — they are
+            // not catalog plugins, matching the other plugin gates' `tests/` exclusion.
+            if path.components().any(|c| c.as_os_str() == "tests") {
+                continue;
+            }
             let raw = std::fs::read_to_string(path)
                 .with_context(|| format!("reading {}", path.display()))?;
             let head: ManifestHead = match toml::from_str(&raw) {

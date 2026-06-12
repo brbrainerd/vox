@@ -1,13 +1,13 @@
-//! Wire format and identifiers for **`vox-tauri-stt`** — on-device speech-to-text transcription
-//! (Android [`SpeechRecognizer`](https://developer.android.com/reference/android/speech/SpeechRecognizer),
-//! Apple [`SFSpeechRecognizer`](https://developer.apple.com/documentation/speech/sfspeechrecognizer)).
+//! Wire format and identifiers for **`vox-tauri-stt`** — the speech-to-text plugin surface for
+//! **desktop** Tauri 2 apps.
 //!
-//! With the **`tauri-plugin`** feature, [`plugin::init`] registers a Tauri 2 plugin whose id matches
+//! With the **`tauri-plugin`** feature, `plugin::init` registers a Tauri 2 plugin whose id matches
 //! [`PLUGIN_ID`] and whose `transcribe` command matches [`TRANSCRIBE_COMMAND`] (guest `invoke` string).
 //! Without that feature, this crate is **serde-only** for contracts and tests.
 //!
-//! Kotlin / Swift sources live under `android/` and `ios/`; JNI/Swift→Rust wiring is done in the app
-//! or follow-up PRs. See `README.md`.
+//! Tauri is desktop-only (ADR: scope-tauri-desktop-only); the former Android Kotlin / iOS Swift
+//! sources were removed with that decision. Mobile transcription belongs to the React Native
+//! target (`vox build --target=mobile`) via `@vox/runtime-rn`. See `README.md`.
 
 use serde::{Deserialize, Serialize};
 

@@ -318,6 +318,13 @@ pub struct HirFn {
     /// caller's `derived` / `effect`. Without it, the dep walker stops at the call site.
     #[serde(default)]
     pub is_reactive: bool,
+    /// `@versioned` / `@tracked` — see `FnDecl::is_versioned`. The `--mode interp`
+    /// interpreter auto-records one `repo.snapshot()` checkpoint on this function's
+    /// successful return (design §4.3). Inert (not read) in the compiled arms
+    /// (`--mode script` / TS emit), which have no interpreter `RepoStore` — P5 is
+    /// an interpreter-only feature, consistent with `db.*`'s in-memory `DbStore`.
+    #[serde(default)]
+    pub is_versioned: bool,
     /// Capabilities declared via `uses` clause. Empty = unannotated; `[Nothing]` = pure.
     #[serde(default)]
     pub capabilities: Vec<HirCapability>,
@@ -475,6 +482,16 @@ pub struct HirTable {
     pub name: String,
     /// Columns.
     pub fields: Vec<HirTableField>,
+    /// Optional logical primary-key field declared by `@table(pk: field_name)`.
+    /// `None` keeps the legacy surrogate `_id`-only behavior.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary_key: Option<String>,
+    /// `true` when mapped from `@table(extern, ...)`.
+    #[serde(default)]
+    pub is_extern: bool,
+    /// External table/view source name from `@table(source: "...")`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
     /// Public API surface.
     pub is_pub: bool,
     /// `@deprecated` table.
@@ -707,6 +724,8 @@ pub enum HirCapability {
     Spawn,
     GpuCompute,
     Mutate,
+    /// Version-control / repository operations (`repo.*` / `vcs.*` builtins).
+    Vcs,
     /// `mcp(tool_name)` — parameterized MCP tool call.
     Mcp(String),
     /// `uses nothing` — explicitly pure.
@@ -725,6 +744,7 @@ impl HirCapability {
             Self::Spawn => "spawn",
             Self::GpuCompute => "gpu_compute",
             Self::Mutate => "mutate",
+            Self::Vcs => "vcs",
             Self::Mcp(_) => "mcp",
             Self::Nothing => "nothing",
         }

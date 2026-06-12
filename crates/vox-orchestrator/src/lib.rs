@@ -41,7 +41,7 @@
 /// AgentOS: ACI-aligned mutation classification, guardrails, checkpoint hints.
 pub mod agentos;
 pub mod attachment_manifest;
-// dei_shim extracted to the `vox-dei-shim` crate (A-12). Use `vox_dei_shim::*` instead.
+// dei_shim extracted to the `vox-research-shim` crate (A-12). Use `vox_research_shim::*` instead.
 pub use vox_orchestrator_queue::sync_lock;
 
 // mcp_tools/ moved to crate `vox-orchestrator-mcp` in 2026-05-08 reorg Phase 4.
@@ -49,6 +49,8 @@ pub use vox_orchestrator_queue::sync_lock;
 
 /// JSON-shaped VCS / workspace views for MCP and CLI parity.
 pub mod json_vcs_facade;
+/// Pure conflict-recording core for workspace merge-back.
+pub mod merge_conflicts;
 
 pub mod lineage;
 
@@ -141,14 +143,14 @@ pub mod tier_cascade;
 pub mod entropy_scorer;
 /// Agent liveness heartbeats and staleness policy.
 pub mod heartbeat;
-/// Jujutsu (jj) merge DAG and backend helpers.
-pub mod jj_backend;
 /// Cross-model consensus and judge logic.
 pub mod judge_model;
 /// Per-file lock manager for exclusive writer access.
 pub use vox_orchestrator_queue::locks;
 /// Unified task hopper — intake funnel for developer-sourced work (Hp-T1).
 pub mod hopper;
+/// Multi-agent isolation strategy model + decision (spec §5.1).
+pub mod isolation;
 /// MCP tool surface and plugin-skills bridge stubs (implementation pending SP6).
 pub mod mcp_tools;
 /// Long-term and daily agent memory backed by Codex when enabled.
@@ -300,7 +302,7 @@ pub use heartbeat::{
     AgentHeartbeat, HeartbeatMonitor, HeartbeatPolicy, StalenessLevel, evict_dead_heartbeats,
     live_nodes_from_db, persist_heartbeat,
 };
-pub use jj_backend::{ContentMerge, DagNodeId, MergeSide, OperationDag};
+pub use isolation::{IsolationPlan, IsolationStrategy};
 pub use judge_model::{JudgeModel, JudgePolicy, JudgeVerdict};
 pub use legacy::harness_hand::{
     HarnessIngestExpectations, apply_harness_subject_defaults, validate_agent_harness_ingest,

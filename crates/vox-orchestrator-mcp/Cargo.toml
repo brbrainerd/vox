@@ -3,6 +3,7 @@ name = "vox-orchestrator-mcp"
 description = "MCP (Model Context Protocol) tool layer for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 4."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [features]
 default = ["news-publish", "toestub-gate", "json-schema"]
@@ -18,16 +19,23 @@ news-publish = [
 toestub-gate = ["vox-orchestrator/toestub-gate"]
 json-schema = ["vox-orchestrator/json-schema"]
 populi-transport = ["vox-orchestrator/populi-transport", "vox-populi/transport"]
-oratio-rerank = ["dep:vox-oratio"]
+oratio-rerank = ["dep:vox-speech"]
 
 [dependencies]
+vox-orchestrator-driver = { workspace = true }
 vox-orchestrator = { path = "../vox-orchestrator", default-features = false, features = ["runtime"] }
-vox-dei-shim = { workspace = true }
+vox-research-shim = { workspace = true }
 
 # MCP-stack deps (always compiled when this crate is in the build)
 axum = { workspace = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
 axum-extra = { workspace = true, features = ["typed-header"] }
-rmcp = { workspace = true, features = ["server", "client", "transport-io"] }
+rmcp = { workspace = true, features = [
+    "server",
+    "client",
+    "transport-io",
+    "transport-child-process",
+    "transport-streamable-http-client-reqwest",
+] }
 schemars = { workspace = true, features = ["derive"] }
 tower-http = { workspace = true, features = ["cors"] }
 
@@ -68,7 +76,7 @@ vox-populi = { workspace = true }
 tower-lsp-server = { workspace = true }
 vox-http-client.workspace = true
 vox-publisher = { workspace = true, optional = true, default-features = false }
-vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
+vox-speech = { workspace = true, optional = true, features = ["compiler-rerank"] }
 
 # Standard deps
 tokio = { workspace = true }

@@ -476,8 +476,73 @@ pub async fn dispatch_request(
                 Err(e) => response_err(&req.id, format!("{e}")),
             }
         }
+        orch_daemon_method::VCS_ISOLATION_STATUS => {
+            let v = crate::json_vcs_facade::isolation_status_json(&orch);
+            response_result(&req.id, v)
+        }
+        orch_daemon_method::VCS_ISOLATION_SET_STRATEGY => {
+            handle_vcs_isolation_set_strategy(&req.id, &orch, &req.params)
+        }
         other => response_err(&req.id, format!("unknown method: {other}")),
     }
+}
+
+/// Apply the default and/or a per-agent isolation override against the live
+/// `IsolationPlan`, then return the fresh status. Parity with
+/// `POST /api/v2/vcs/isolation/strategy`: `strategy_default` sets the baseline;
+/// an `agent_id` with `strategy` present sets/clears that agent's override
+/// (`null` clears); at least one of the two must be supplied.
+fn handle_vcs_isolation_set_strategy(
+    id: &str,
+    orch: &Arc<Orchestrator>,
+    params: &serde_json::Value,
+) -> DispatchResponse {
+    use crate::isolation::IsolationStrategy;
+
+    let parse_strategy = |v: &serde_json::Value| -> Result<IsolationStrategy, String> {
+        serde_json::from_value::<IsolationStrategy>(v.clone())
+            .map_err(|e| format!("invalid strategy: {e}"))
+    };
+
+    let default = match params.get("strategy_default") {
+        None | Some(serde_json::Value::Null) => None,
+        Some(v) => match parse_strategy(v) {
+            Ok(s) => Some(s),
+            Err(e) => return response_err(id, e),
+        },
+    };
+    let agent_id = params.get("agent_id").and_then(|x| x.as_u64());
+
+    if default.is_none() && agent_id.is_none() {
+        return response_err(id, "supply strategy_default and/or agent_id (+ strategy)");
+    }
+
+    // `strategy` field: absent => leave overrides untouched; present (value or
+    // null) => set/clear the override for `agent_id`.
+    let override_change: Option<Option<IsolationStrategy>> = match params.get("strategy") {
+        None => None,
+        Some(serde_json::Value::Null) => Some(None),
+        Some(v) => match parse_strategy(v) {
+            Ok(s) => Some(Some(s)),
+            Err(e) => return response_err(id, e),
+        },
+    };
+
+    {
+        let handle = orch.isolation_policy_handle();
+        let mut plan = crate::sync_lock::rw_write(&handle);
+        if let Some(d) = default {
+            plan.default = d;
+        }
+        if let Some(agent_id) = agent_id {
+            if let Some(change) = override_change {
+                plan.set_override(crate::AgentId(agent_id), change);
+            }
+        }
+    }
+
+    let v = crate::json_vcs_facade::isolation_status_json(orch);
+    response_result(id, v)
 }
 
 /// Optional out-of-band dispatcher for methods that need state the core daemon
@@ -648,4 +713,134 @@ pub async fn run_stdio_server_with_extra(
         write_frame(&mut stdout, &resp).await?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod isolation_dispatch_tests {
+    use super::*;
+    use crate::config::OrchestratorConfig;
+
+    fn req(method: &str, params: serde_json::Value) -> DispatchRequest {
+        DispatchRequest {
+            id: "1".to_string(),
+            method: method.to_string(),
+            params,
+        }
+    }
+
+    fn result_value(resp: &DispatchResponse) -> &serde_json::Value {
+        match &resp.payload {
+            DispatchPayload::Result { value } => value,
+            other => panic!("expected Result payload, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn status_returns_default_and_empty_collections() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::default()));
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::VCS_ISOLATION_STATUS,
+                serde_json::json!({}),
+            ),
+        )
+        .await;
+        let v = result_value(&resp);
+        assert_eq!(v["strategy_default"], "shared_branch");
+        assert_eq!(v["per_agent"].as_object().map(|m| m.len()), Some(0));
+        assert_eq!(v["active_conflicts"].as_array().map(|a| a.len()), Some(0));
+    }
+
+    #[tokio::test]
+    async fn set_strategy_default_persists_in_shared_orchestrator() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::default()));
+        let set = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::VCS_ISOLATION_SET_STRATEGY,
+                serde_json::json!({ "strategy_default": "separate_branches" }),
+            ),
+        )
+        .await;
+        assert_eq!(result_value(&set)["strategy_default"], "separate_branches");
+
+        // A subsequent status call against the SAME orchestrator must observe it.
+        let status = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::VCS_ISOLATION_STATUS,
+                serde_json::json!({}),
+            ),
+        )
+        .await;
+        assert_eq!(
+            result_value(&status)["strategy_default"],
+            "separate_branches"
+        );
+    }
+
+    #[tokio::test]
+    async fn set_then_clear_per_agent_override() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::default()));
+        let set = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::VCS_ISOLATION_SET_STRATEGY,
+                serde_json::json!({ "agent_id": 7, "strategy": "split_changes" }),
+            ),
+        )
+        .await;
+        assert_eq!(result_value(&set)["per_agent"]["7"], "split_changes");
+
+        let clear = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::VCS_ISOLATION_SET_STRATEGY,
+                serde_json::json!({ "agent_id": 7, "strategy": serde_json::Value::Null }),
+            ),
+        )
+        .await;
+        assert_eq!(
+            result_value(&clear)["per_agent"]
+                .as_object()
+                .map(|m| m.len()),
+            Some(0)
+        );
+    }
+
+    #[tokio::test]
+    async fn set_with_no_fields_is_error() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::default()));
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::VCS_ISOLATION_SET_STRATEGY,
+                serde_json::json!({}),
+            ),
+        )
+        .await;
+        assert!(matches!(resp.payload, DispatchPayload::Error { .. }));
+    }
+
+    #[tokio::test]
+    async fn invalid_strategy_is_error() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::default()));
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::VCS_ISOLATION_SET_STRATEGY,
+                serde_json::json!({ "strategy_default": "bogus" }),
+            ),
+        )
+        .await;
+        assert!(matches!(resp.payload, DispatchPayload::Error { .. }));
+    }
 }

@@ -1,14 +1,14 @@
 //! Pure-data types for the Vox Populi mesh layer.
 //!
 //! This crate holds the topology and node-record types that sit at L2 (same layer as
-//! [`vox-repository`]). They cannot live at L0 (`vox-mesh-types`) because
+//! `vox-repository`). They cannot live at L0 (`vox-mesh-types`) because
 //! [`NodeRecord`] embeds [`vox_repository::TaskCapabilityHints`] (also L2).
 //!
 //! ## Design
 //!
 //! - No async runtime, no database, no HTTP client.
 //! - All types implement `Debug + Clone + Serialize + Deserialize`.
-//! - [`vox-populi`] (L3) depends on this crate and re-exports its public surface for
+//! - `vox-populi` (L3) depends on this crate and re-exports its public surface for
 //!   backwards compatibility.  Callers can depend directly on `vox-populi-types` when
 //!   they only need the data types.
 //!

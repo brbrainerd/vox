@@ -55,9 +55,9 @@ Canonical parser and output truth sources:
 
 | Output layer | Verified current behavior | Evidence |
 | --- | --- | --- |
-| TSX islands mount | island tags emit `data-vox-island="Name"` and `data-prop-*` attrs | `crates/vox-compiler/tests/reactive_smoke_test.rs`, `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` |
-| TS islands metadata | `vox-islands-meta.ts` contains island names | `crates/vox-compiler/tests/reactive_smoke_test.rs`, `crates/vox-codegen/src/codegen_ts/emitter.rs` |
-| CSS output | style block emits `Component.css` and TSX imports it | `crates/vox-integration-tests/tests/pipeline.rs`, `crates/vox-codegen/src/codegen_ts/emitter.rs` |
+| TSX islands mount | island tags emit `data-vox-island="Name"` and `data-prop-*` attrs | `crates/vox-compiler/tests/reactive_smoke_test.rs`, `crates/vox-codegen-ts/src/hir_emit/mod.rs` |
+| TS islands metadata | `vox-islands-meta.ts` contains island names | `crates/vox-compiler/tests/reactive_smoke_test.rs`, `crates/vox-codegen-ts/src/emitter.rs` |
+| CSS output | style block emits `Component.css` and TSX imports it | `crates/vox-integration-tests/tests/pipeline.rs`, `crates/vox-codegen-ts/src/emitter.rs` |
 | HTML shell islands script | frontend injects `/islands/island-mount.js` script | `crates/vox-cli/src/frontend.rs` |
 | Islands hydration contract | hydrator reads `data-prop-*` as element attribute string values | `crates/vox-cli/src/templates/islands.rs` |
 | Rust/API output | build emits `api.ts`; rust codegen emits `src/main.rs` + `src/lib.rs` | `crates/vox-cli/tests/full_stack_minimal_build.rs`, `crates/vox-compiler/src/codegen_rust/emit/mod.rs` |
@@ -181,7 +181,7 @@ Interpretation:
 
 | Quantified shift | Expected engineering gain | Confidence | Primary evidence anchors |
 | --- | --- | --- | --- |
-| `grammarBranchScore` down 36.4% | fewer parallel semantic ownership sites and lower drift risk | High | `crates/vox-codegen/src/codegen_ts/jsx.rs`, `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`, `crates/vox-codegen/src/web_ir/lower.rs` |
+| `grammarBranchScore` down 36.4% | fewer parallel semantic ownership sites and lower drift risk | High | `crates/vox-codegen-ts/src/jsx.rs`, `crates/vox-codegen-ts/src/hir_emit/mod.rs`, `crates/vox-codegen/src/web_ir/lower.rs` |
 | `escapeHatchPenalty` down 75.0% | less framework leakage at author boundary and clearer diagnostics | Medium | `crates/vox-compiler/src/parser/descent/decl/head.rs`, `crates/vox-cli/src/templates/islands.rs` |
 | `tokenSurfaceScore` down 26.1% | reduced token/operator burden for equivalent feature expression | Medium | worked snippets in this doc + parser syntax matrix |
 
@@ -300,7 +300,7 @@ lower -> HIR:
 
 Anchors:
 
-- `crates/vox-compiler/src/ast/decl/ui.rs`
+- `crates/vox-ast/src/decl/ui.rs`
 - `crates/vox-compiler/src/hir/nodes/decl.rs`
 
 #### Target WebIR (implemented now: V0_1)
@@ -369,7 +369,7 @@ Evidence:
 Evidence:
 
 - `crates/vox-integration-tests/tests/pipeline.rs`
-- `crates/vox-codegen/src/codegen_ts/emitter.rs`
+- `crates/vox-codegen-ts/src/emitter.rs`
 
 #### Target CSS output after WebIR style lowering (planned)
 
@@ -422,10 +422,10 @@ Evidence:
 
 | Current issue (verified) | Why it hurts | Target improvement | Primary files |
 | --- | --- | --- | --- |
-| JSX/island semantics split across `jsx.rs` and `hir_emit/mod.rs` | duplicated logic drift risk | single semantic lower in `web_ir/lower.rs` | `crates/vox-codegen/src/codegen_ts/jsx.rs`, `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`, `crates/vox-codegen/src/web_ir/lower.rs` |
+| JSX/island semantics split across `jsx.rs` and `hir_emit/mod.rs` | duplicated logic drift risk | single semantic lower in `web_ir/lower.rs` | `crates/vox-codegen-ts/src/jsx.rs`, `crates/vox-codegen-ts/src/hir_emit/mod.rs`, `crates/vox-codegen/src/web_ir/lower.rs` |
 | Hydration props decoded as strings | runtime type erosion | versioned typed hydration contract, preserving V1 compatibility | `crates/vox-cli/src/templates/islands.rs`, `crates/vox-codegen/src/web_ir/mod.rs` |
 | `validate_web_ir` is structural-only today | misses optionality/contract failures | enforce optionality, route/server/mutation constraints before emit | `crates/vox-codegen/src/web_ir/validate.rs`, `crates/vox-codegen/src/web_ir/mod.rs` |
-| Style semantics not lowered into WebIR yet | split ownership between IR and emitter | lower style blocks to `StyleNode` and print from WebIR | `crates/vox-codegen/src/web_ir/lower.rs`, `crates/vox-codegen/src/codegen_ts/emitter.rs` |
+| Style semantics not lowered into WebIR yet | split ownership between IR and emitter | lower style blocks to `StyleNode` and print from WebIR | `crates/vox-codegen/src/web_ir/lower.rs`, `crates/vox-codegen-ts/src/emitter.rs` |
 
 ## Research Anchors Applied
 
@@ -444,7 +444,7 @@ Use this appendix as the **human-facing index** for Web IR offline verification 
 | --- | --- | --- |
 | `WebIrModule` JSON | Schema consumers / dashboards | `crates/vox-compiler/tests/web_ir_lower_emit.rs` |
 | HIR → Web IR lower + validate | Structural SSOT before emit | same + `crates/vox-codegen/src/web_ir/{lower,validate}.rs` |
-| TS codegen bundle | Production client output | `crates/vox-codegen/src/codegen_ts/emitter.rs` |
+| TS codegen bundle | Production client output | `crates/vox-codegen-ts/src/emitter.rs` |
 | Islands hydration | `data-vox-island` / `data-prop-*` | `crates/vox-cli/src/templates/islands.rs`, `full_stack_minimal_build.rs` |
 | Pipeline integration | Lex → typecheck → codegen | `crates/vox-integration-tests/tests/pipeline.rs` + `pipeline/includes/blueprint_op_s_batch.rs` |
 

@@ -10,7 +10,7 @@ use vox_research_events::ResearchEvent;
 /// deterministic tests, and a session id to tag emitted events.
 #[derive(Debug, Clone)]
 pub struct ProducerContext {
-    /// Repository root used by [`CommitGraphProducer`](crate::commit_graph).
+    /// Repository root used by `CommitGraphProducer`.
     pub repo_root: std::path::PathBuf,
     /// How many recent commits to scan (commit-graph window).
     pub commit_window: usize,

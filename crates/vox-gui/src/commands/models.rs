@@ -72,15 +72,12 @@ async fn effective_routing_priority() -> RoutingPriorityDto {
     let base: RoutingPriorityDto = AutoRoutingPriority::from_env().into();
     if let Some(db) =
         vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
-    {
-        if let Ok(Some(csv)) = db
+        && let Ok(Some(csv)) = db
             .get_user_preference("local_user", "routing_priority")
             .await
-        {
-            if !csv.trim().is_empty() {
-                return apply_routing_csv(base, &csv);
-            }
-        }
+        && !csv.trim().is_empty()
+    {
+        return apply_routing_csv(base, &csv);
     }
     base
 }
@@ -176,12 +173,10 @@ pub async fn set_active_model(model_id: String) -> Result<(), String> {
 pub async fn get_active_model() -> Result<Option<String>, String> {
     if let Some(db) =
         vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
+        && let Ok(Some(v)) = db.get_user_preference("local_user", "active_model").await
+        && !v.trim().is_empty()
     {
-        if let Ok(Some(v)) = db.get_user_preference("local_user", "active_model").await {
-            if !v.trim().is_empty() {
-                return Ok(Some(v));
-            }
-        }
+        return Ok(Some(v));
     }
     Ok(vox_secrets::resolve_secret(vox_secrets::SecretId::VoxModel)
         .expose()
@@ -208,9 +203,24 @@ pub async fn get_routing_summary() -> Result<RoutingSummaryDto, String> {
             latency_score: d.score_breakdown.latency_score,
         })
     };
+    let exploration_spent_usd = vox_cli_core::daemon_ipc::dispatch::call_daemon(
+        "vox-orchestrator-d",
+        vox_foundation::protocol::orch_daemon_method::STATUS,
+        serde_json::json!({}),
+        false,
+    )
+    .await
+    .ok()
+    .and_then(|status| {
+        status
+            .get("global_exploration_cost_usd")
+            .and_then(|v| v.as_f64())
+    })
+    .unwrap_or(0.0);
+
     Ok(RoutingSummaryDto {
         active_model: active,
-        exploration_spent_usd: 0.0,
+        exploration_spent_usd,
         exploration_budget_usd: cfg.exploration.budget_usd_per_day,
         routing_priority: effective_routing_priority().await,
         arm_count: reg.arm_stats_snapshot().len(),
@@ -341,15 +351,12 @@ const EMPTY_SELECTION_POLICY: &str = "{\"steps\":[]}";
 pub async fn get_selection_policy() -> String {
     if let Some(db) =
         vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
-    {
-        if let Ok(Some(json)) = db
+        && let Ok(Some(json)) = db
             .get_user_preference("local_user", "selection_policy")
             .await
-        {
-            if !json.trim().is_empty() {
-                return json;
-            }
-        }
+        && !json.trim().is_empty()
+    {
+        return json;
     }
     EMPTY_SELECTION_POLICY.to_string()
 }
@@ -378,11 +385,264 @@ pub async fn set_selection_policy(json: String) -> Result<(), String> {
     Ok(())
 }
 
+/// The six live routing-priority axes, in display order. Each maps 1:1 to a
+/// field of [`RoutingPriorityDto`] / `vox_config::AutoRoutingPriority` and to a
+/// CSV key understood by [`apply_routing_csv`] / [`set_routing_priority`].
+const ROUTING_AXES: [(&str, &str); 6] = [
+    ("efficiency", "Efficiency"),
+    ("precision", "Precision"),
+    ("latency", "Latency"),
+    ("availability", "Availability"),
+    ("balance", "Balance"),
+    ("mobile", "Mobile"),
+];
+
+/// One cell of the Matrix "intentions" hex grid, derived from real routing
+/// state (no fabricated rows). The shape matches the GUI `Intention` type.
+#[derive(Debug, Clone, Serialize)]
+pub struct RoutingIntentionDto {
+    pub id: String,
+    pub parent: String,
+    pub branch: String,
+    pub phase: String,
+    pub conf: f64,
+    pub note: String,
+}
+
+/// Direction of a Matrix Promote/Doubt action on a routing axis.
+#[derive(Debug, Clone, Copy)]
+pub enum NudgeDirection {
+    /// Promote: increase this axis's weight (the orchestrator favors it more).
+    Promote,
+    /// Doubt: decrease this axis's weight (the orchestrator favors it less).
+    Doubt,
+}
+
+/// Step size (priority points) applied per Promote/Doubt action.
+const NUDGE_STEP: u8 = 5;
+
+fn axis_value(p: &RoutingPriorityDto, axis: &str) -> Option<u8> {
+    match axis {
+        "efficiency" => Some(p.efficiency),
+        "precision" => Some(p.precision),
+        "latency" => Some(p.latency),
+        "availability" => Some(p.availability),
+        "balance" => Some(p.balance),
+        "mobile" => Some(p.mobile),
+        _ => None,
+    }
+}
+
+fn axis_note(axis: &str) -> &'static str {
+    match axis {
+        "efficiency" => "Bias toward cheaper / lower-cost models.",
+        "precision" => "Bias toward higher-quality, more capable models.",
+        "latency" => "Bias toward faster (lower p50 latency) models.",
+        "availability" => "Bias toward models with higher observed success rate.",
+        "balance" => "Even weighting across cost, quality, and speed.",
+        "mobile" => "Bias toward on-device / mobile-friendly models.",
+        _ => "Routing priority axis.",
+    }
+}
+
+/// Project the live routing priority onto Matrix hex cells. Confidence is the
+/// axis weight normalized to 0..1; the top-weighted axis is `Validated`, the
+/// bottom-weighted is `Doubted`, the rest are `Active`.
+fn priority_to_intentions(p: &RoutingPriorityDto) -> Vec<RoutingIntentionDto> {
+    let values: Vec<u8> = ROUTING_AXES
+        .iter()
+        .map(|(id, _)| axis_value(p, id).unwrap_or(0))
+        .collect();
+    let max = values.iter().copied().max().unwrap_or(0);
+    let min = values.iter().copied().min().unwrap_or(0);
+    ROUTING_AXES
+        .iter()
+        .map(|(id, label)| {
+            let v = axis_value(p, id).unwrap_or(0);
+            // Distinct max/min so a uniform profile stays Active rather than
+            // flipping every cell to Validated+Doubted at once.
+            let phase = if max != min && v == max {
+                "Validated"
+            } else if max != min && v == min {
+                "Doubted"
+            } else {
+                "Active"
+            };
+            RoutingIntentionDto {
+                id: (*id).to_string(),
+                parent: "ROUTING-PRIORITY".to_string(),
+                branch: (*label).to_string(),
+                phase: phase.to_string(),
+                conf: f64::from(v) / 100.0,
+                note: axis_note(id).to_string(),
+            }
+        })
+        .collect()
+}
+
+/// Apply a single Promote/Doubt nudge to one axis, clamped to `0..=100`. An
+/// unknown axis is a no-op. Pure — does no I/O.
+fn nudge_axis(p: &RoutingPriorityDto, axis: &str, dir: NudgeDirection) -> RoutingPriorityDto {
+    let mut out = RoutingPriorityDto { ..*p };
+    let Some(cur) = axis_value(p, axis) else {
+        return out;
+    };
+    let next = match dir {
+        NudgeDirection::Promote => cur.saturating_add(NUDGE_STEP).min(100),
+        NudgeDirection::Doubt => cur.saturating_sub(NUDGE_STEP),
+    };
+    match axis {
+        "efficiency" => out.efficiency = next,
+        "precision" => out.precision = next,
+        "latency" => out.latency = next,
+        "availability" => out.availability = next,
+        "balance" => out.balance = next,
+        "mobile" => out.mobile = next,
+        _ => {}
+    }
+    out
+}
+
+fn priority_to_csv(p: &RoutingPriorityDto) -> String {
+    format!(
+        "efficiency={},precision={},latency={},availability={},balance={},mobile={}",
+        p.efficiency, p.precision, p.latency, p.availability, p.balance, p.mobile
+    )
+}
+
+/// Live "intentions" for the Matrix surface: the real routing-priority axes,
+/// derived from the effective (DB pref → env → default) priority. Replaces the
+/// former hardcoded seed.
+#[tauri::command]
+pub async fn get_routing_intentions() -> Result<Vec<RoutingIntentionDto>, String> {
+    Ok(priority_to_intentions(&effective_routing_priority().await))
+}
+
+/// Promote or Doubt a single routing axis from the Matrix surface. This is a
+/// real mutation: it nudges the axis weight and persists it via the same path
+/// as [`set_routing_priority`] (env var + `routing_priority` user-preference),
+/// so the next orchestrator decision reflects it.
+#[tauri::command]
+pub async fn nudge_routing_intention(axis: String, direction: String) -> Result<(), String> {
+    let dir = match direction.to_ascii_lowercase().as_str() {
+        "promote" => NudgeDirection::Promote,
+        "doubt" => NudgeDirection::Doubt,
+        other => {
+            return Err(format!(
+                "unknown direction {other:?} (expected promote|doubt)"
+            ));
+        }
+    };
+    let base = effective_routing_priority().await;
+    if axis_value(&base, &axis).is_none() {
+        return Err(format!(
+            "unknown routing axis {axis:?} (expected one of efficiency|precision|latency|availability|balance|mobile)"
+        ));
+    }
+    let next = nudge_axis(&base, &axis, dir);
+    let csv = priority_to_csv(&next);
+    unsafe {
+        std::env::set_var("VOX_AUTO_ROUTING_PRIORITY", &csv);
+    }
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
+    {
+        let _ = db
+            .set_user_preference("local_user", "routing_priority", &csv)
+            .await;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn routing_priority_csv_shape() {
         let csv = "efficiency=40,precision=30,latency=10,availability=10,balance=5,mobile=5";
         assert!(csv.contains("efficiency=40"));
+    }
+
+    fn sample_priority() -> RoutingPriorityDto {
+        RoutingPriorityDto {
+            efficiency: 40,
+            precision: 30,
+            latency: 10,
+            availability: 10,
+            balance: 5,
+            mobile: 5,
+        }
+    }
+
+    #[test]
+    fn axes_to_intentions_yields_one_cell_per_axis_with_normalized_confidence() {
+        let cells = priority_to_intentions(&sample_priority());
+        assert_eq!(cells.len(), ROUTING_AXES.len());
+        let eff = cells.iter().find(|c| c.id == "efficiency").unwrap();
+        assert_eq!(eff.parent, "ROUTING-PRIORITY");
+        // conf is the axis weight normalized to 0..1.
+        assert!((eff.conf - 0.40).abs() < 1e-6, "got {}", eff.conf);
+        assert_eq!(eff.branch, "Efficiency");
+    }
+
+    #[test]
+    fn top_axis_is_validated_bottom_is_doubted() {
+        let cells = priority_to_intentions(&sample_priority());
+        let eff = cells.iter().find(|c| c.id == "efficiency").unwrap();
+        assert_eq!(eff.phase, "Validated"); // highest weight
+        let lowest = cells
+            .iter()
+            .find(|c| c.id == "balance" || c.id == "mobile")
+            .unwrap();
+        assert_eq!(lowest.phase, "Doubted"); // tied-lowest weight
+    }
+
+    #[test]
+    fn nudge_promote_raises_axis_doubt_lowers_axis_and_clamps() {
+        let base = sample_priority();
+        let up = nudge_axis(&base, "latency", NudgeDirection::Promote);
+        assert!(up.latency > base.latency);
+        let down = nudge_axis(&base, "latency", NudgeDirection::Doubt);
+        assert!(down.latency < base.latency);
+        // Other axes are untouched by a nudge.
+        assert_eq!(up.precision, base.precision);
+        // Clamps at the ceiling.
+        let mut maxed = sample_priority();
+        maxed.precision = 100;
+        let still = nudge_axis(&maxed, "precision", NudgeDirection::Promote);
+        assert_eq!(still.precision, 100);
+        // Clamps at the floor.
+        let mut zeroed = sample_priority();
+        zeroed.mobile = 0;
+        let still0 = nudge_axis(&zeroed, "mobile", NudgeDirection::Doubt);
+        assert_eq!(still0.mobile, 0);
+    }
+
+    #[test]
+    fn nudge_unknown_axis_is_a_noop() {
+        let base = sample_priority();
+        let out = nudge_axis(&base, "nonsense", NudgeDirection::Promote);
+        assert_eq!(out.efficiency, base.efficiency);
+        assert_eq!(out.precision, base.precision);
+    }
+
+    #[test]
+    fn priority_to_csv_round_trips_through_apply() {
+        let p = sample_priority();
+        let csv = priority_to_csv(&p);
+        let back = apply_routing_csv(
+            RoutingPriorityDto {
+                efficiency: 0,
+                precision: 0,
+                latency: 0,
+                availability: 0,
+                balance: 0,
+                mobile: 0,
+            },
+            &csv,
+        );
+        assert_eq!(back.efficiency, p.efficiency);
+        assert_eq!(back.mobile, p.mobile);
     }
 }

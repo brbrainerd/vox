@@ -18,9 +18,29 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{QLoraError, Result};
 use crate::quantization::{
-    dequantize_nf4, dequantize_nf4_with_dtype, quantize_nf4_with_config, ComputeDType,
+    dequantize_nf4_with_dtype, quantize_nf4_with_config, ComputeDType,
     QuantizationConfig, QuantizedTensor,
 };
+
+/// Apply a `candle_nn::Linear`-style (no-bias) projection `x @ w^T` where `w` has
+/// shape `[out, in]`, mirroring how peft_rs's LoRA A/B (built via `linear_no_bias`)
+/// project. candle's `Linear::forward` handles rank-3 inputs by collapsing the
+/// leading dims, matmul-ing, and reshaping back; we replicate that so the BF16 path
+/// behaves identically to peft_rs's F32 path apart from dtype.
+fn linear_no_bias_t(input: &Tensor, w: &Tensor) -> Result<Tensor> {
+    let w_t = w.t()?; // [in, out]
+    let out = if input.dims().len() == 3 {
+        let (b, s, in_f) = input.dims3()?;
+        let out_f = w_t.dim(1)?;
+        input
+            .reshape(&[b * s, in_f])?
+            .matmul(&w_t)?
+            .reshape(&[b, s, out_f])?
+    } else {
+        input.matmul(&w_t)?
+    };
+    Ok(out)
+}
 
 fn warn_cpu_fallback(device: &Device) {
     static WARN_ONCE: std::sync::Once = std::sync::Once::new();
@@ -445,8 +465,32 @@ impl QuantizedLinear {
             base_output
         };
 
-        // LoRA forward: adds x @ A^T @ B^T * scaling
-        let output = self.lora.forward(input, Some(&base_output))?;
+        // LoRA forward: adds x @ A^T @ B^T * scaling.
+        //
+        // peft_rs's `LoraLayer::forward` runs its matmuls in the LoRA params' dtype
+        // (F32). Under BF16 compute the activations (`input`) are BF16, so calling it
+        // directly panics with `dtype mismatch in matmul, lhs: BF16, rhs: F32`. We
+        // replicate its exact math here but cast the (tiny, rank-r) A/B matrices to the
+        // ACTIVATION dtype instead of casting the activation to F32. This keeps:
+        //   - the trainable params + optimizer moments in F32 (stable),
+        //   - the activations in BF16 (the memory win — no full-size F32 copy retained
+        //     for backward; the cast tensors here are only [r,in] / [out,r]),
+        //   - gradient flow to A/B intact (`to_dtype` is differentiable in candle),
+        //   - the all-F32 CPU path a bitwise no-op (the casts are identities).
+        // peft_rs applies no dropout in forward (the `dropout` config field is unused),
+        // so there is nothing further to replicate. Scaling = alpha/r (or alpha/sqrt(r)
+        // for rsLoRA) is taken verbatim from the layer.
+        let (lora_a, lora_b) = self.lora.weights();
+        let act_dtype = base_output.dtype();
+        let a = lora_a.to_dtype(act_dtype)?; // [r, in_features]
+        let b = lora_b.to_dtype(act_dtype)?; // [out_features, r]
+        // x @ A^T -> [..., r]; (x @ A^T) @ B^T -> [..., out_features]
+        let lora_out = linear_no_bias_t(input, &a)?;
+        let lora_out = linear_no_bias_t(&lora_out, &b)?;
+        let scaling = Tensor::new(self.lora.scaling() as f32, lora_out.device())?
+            .to_dtype(act_dtype)?;
+        let lora_out = lora_out.broadcast_mul(&scaling)?;
+        let output = base_output.broadcast_add(&lora_out)?;
 
         // Add bias if present
         match &self.bias {

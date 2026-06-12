@@ -8,7 +8,7 @@
 //!
 //! ## Event routing
 //!
-//! The plugin uses a no-op [`WebhookEventSink`] by default. For production use,
+//! The plugin uses a no-op `WebhookEventSink` by default. For production use,
 //! the host should wire an `Arc<dyn WebhookEventSink>` backed by the Orchestrator
 //! (see `WebhookOrchestratorBridge` in `webhook::bridge`). The orchestrator-side
 //! wiring is deferred — tracked as Step 8 of the extraction plan.
@@ -35,6 +35,9 @@ use async_trait::async_trait;
 use tracing::{info, warn};
 use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 use vox_plugin_api::abi::{VoxPlugin, VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef};
+use vox_plugin_api::extensions::http_listener::{
+    HTTP_LISTENER_REVISION, HttpListener, HttpListener_TO,
+};
 use vox_plugin_api::host::VoxHost_TO;
 use webhook::{
     WebhookEvent, WebhookEventSink, WebhookHandler,
@@ -109,13 +112,49 @@ impl VoxPlugin for WebhookPlugin {
         // No explicit handle is stored (acceptable for the current ABI surface).
         RResult::ROk(())
     }
+
+    fn as_http_listener(&self) -> ROption<HttpListener_TO<'static, RBox<()>>> {
+        ROption::RSome(HttpListener_TO::from_value(WebhookHttpListener, TD_Opaque))
+    }
+}
+
+struct WebhookHttpListener;
+
+impl HttpListener for WebhookHttpListener {
+    fn revision(&self) -> u32 {
+        HTTP_LISTENER_REVISION
+    }
+
+    fn start_listening(&self, config_json: RStr<'_>) -> RResult<(), RBoxError> {
+        let addr = serde_json::from_str::<serde_json::Value>(config_json.as_str())
+            .ok()
+            .and_then(|v| v.get("addr").and_then(|a| a.as_str()).map(str::to_string))
+            .or_else(|| std::env::var("VOX_WEBHOOK_ADDR").ok())
+            .unwrap_or_else(|| "0.0.0.0:9080".to_string());
+        let ingress_token = std::env::var("VOX_WEBHOOK_INGRESS_TOKEN").ok();
+        let mut state = WebhookState::new(WebhookHandler::new());
+        if let Some(token) = ingress_token {
+            state = state.with_ingress_token(token);
+        }
+        tokio::spawn(async move {
+            info!(addr = %addr, "vox-plugin-webhook: HttpListener start_listening");
+            if let Err(e) = serve(state, &addr).await {
+                tracing::error!("vox-plugin-webhook: server error: {e}");
+            }
+        });
+        RResult::ROk(())
+    }
+
+    fn stop_listening(&self) -> RResult<(), RBoxError> {
+        RResult::ROk(())
+    }
 }
 
 // ---------------------------------------------------------------------------
 // No-op sink (placeholder until orchestrator wiring is complete)
 // ---------------------------------------------------------------------------
 
-/// A no-op [`WebhookEventSink`] that logs received events and discards them.
+/// A no-op `WebhookEventSink` that logs received events and discards them.
 ///
 /// Replace with an `OrchestratorWebhookSink` impl in vox-orchestrator once
 /// Step 8 of the extraction plan is implemented.

@@ -21,7 +21,9 @@
 use abi_stable::{export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn, std_types::*};
 use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 use vox_plugin_api::abi::{VoxPlugin, VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef};
+use vox_plugin_api::extensions::skill_runtime::{SkillRuntime as ExtSkillRuntime, SkillRuntime_TO};
 use vox_plugin_api::host::VoxHost_TO;
+use vox_skill_runtime::{RunOpts as SkillRunOpts, SkillRuntime};
 
 pub mod runtime;
 
@@ -47,17 +49,7 @@ fn init(_host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError
     RResult::ROk(to)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn manifest_advertises_runtime_wasm_id() {
-        assert!(manifest_json().as_str().contains("\"runtime-wasm\""));
-        assert_eq!(RuntimeWasmPlugin.id().as_str(), "runtime-wasm");
-    }
-}
-
+#[derive(Clone)]
 struct RuntimeWasmPlugin;
 
 impl VoxPlugin for RuntimeWasmPlugin {
@@ -67,5 +59,49 @@ impl VoxPlugin for RuntimeWasmPlugin {
 
     fn shutdown(&self) -> RResult<(), RBoxError> {
         RResult::ROk(())
+    }
+
+    fn as_skill_runtime(&self) -> ROption<SkillRuntime_TO<'static, RBox<()>>> {
+        ROption::RSome(SkillRuntime_TO::from_value(
+            self.clone(),
+            abi_stable::erased_types::TD_Opaque,
+        ))
+    }
+}
+
+/// Bridge the native wasmtime [`runtime::WasmRuntime`] onto the ABI-stable `SkillRuntime`
+/// extension. `invoke_skill`'s `input_json` is a [`SkillRunOpts`] JSON object; the returned
+/// string is a `RunOutcome` JSON object. `skill_id` labels the run when `name` is omitted.
+impl ExtSkillRuntime for RuntimeWasmPlugin {
+    fn invoke_skill(
+        &self,
+        skill_id: RStr<'_>,
+        input_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        match invoke_wasm_skill(skill_id.as_str(), input_json.as_str()) {
+            Ok(json) => RResult::ROk(RString::from(json)),
+            Err(e) => RResult::RErr(RBoxError::new(std::io::Error::other(e.to_string()))),
+        }
+    }
+}
+
+fn invoke_wasm_skill(skill_id: &str, input_json: &str) -> anyhow::Result<String> {
+    let mut opts: SkillRunOpts = serde_json::from_str(input_json)?;
+    if opts.name.is_none() {
+        opts.name = Some(skill_id.to_string());
+    }
+    let rt = runtime::WasmRuntime::new()?;
+    let outcome = SkillRuntime::run(&rt, &opts)?;
+    Ok(serde_json::to_string(&outcome)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn manifest_advertises_runtime_wasm_id() {
+        assert!(manifest_json().as_str().contains("\"runtime-wasm\""));
+        assert_eq!(RuntimeWasmPlugin.id().as_str(), "runtime-wasm");
     }
 }

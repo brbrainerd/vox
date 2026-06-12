@@ -72,6 +72,7 @@ use serde::Deserialize;
 
 mod cache;
 mod forbidden_patterns;
+mod json_report;
 use forbidden_patterns::{ForbiddenPatternRule, scan_all as scan_forbidden_patterns_all};
 
 /// Rule 14: evidence-ledger integrity check.
@@ -213,11 +214,33 @@ struct GuardsConfig {
 }
 
 fn main() -> ExitCode {
-    let warn_only = std::env::args().any(|a| a == "--warn-only");
+    let argv: Vec<String> = std::env::args().collect();
+
+    // CR-META: `vox-arch-check --lint criteria-format` runs only the
+    // criteria-doc format lint and exits, bypassing the layered-arch run.
+    if let Some(i) = argv.iter().position(|a| a == "--lint")
+        && argv.get(i + 1).map(String::as_str) == Some("criteria-format")
+    {
+        return run_criteria_format_lint();
+    }
+
+    let warn_only = argv.iter().any(|a| a == "--warn-only");
+    let json = argv.iter().any(|a| a == "--json");
 
     match run(warn_only) {
         Ok(report) => {
-            report.print_summary();
+            if json {
+                // Machine-readable per-rule results on stdout for the policy-status
+                // overlay; the human text summary still goes to stderr so plain
+                // (non-`--json`) behavior is byte-for-byte unchanged.
+                let results = report.to_rule_results();
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&results).unwrap_or_else(|_| "[]".into())
+                );
+            } else {
+                report.print_summary();
+            }
             if report.strict_failed() && !warn_only {
                 ExitCode::FAILURE
             } else {
@@ -228,6 +251,80 @@ fn main() -> ExitCode {
             eprintln!("vox-arch-check: {e:#}");
             ExitCode::FAILURE
         }
+    }
+}
+
+/// CR-META: lint `docs/src/architecture/v1-release-criteria.md` so every
+/// `[CR-*]` definition block declares `verify_cmd`, `artifact_path`, and a
+/// non-empty `if_failing`. Writes
+/// `contracts/reports/arch/criteria-format/<UTC>.json` and exits 0 (clean) /
+/// 1 (violations) / 2 (cannot read the doc).
+fn run_criteria_format_lint() -> ExitCode {
+    use vox_arch_check::criteria_format::check_criteria_format;
+
+    // The crate lives at `crates/vox-arch-check`, so `../..` is the workspace root.
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..");
+    let doc_path = root.join("docs/src/architecture/v1-release-criteria.md");
+    let doc = match std::fs::read_to_string(&doc_path) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!(
+                "vox-arch-check --lint criteria-format: cannot read {}: {e}",
+                doc_path.display()
+            );
+            return ExitCode::from(2);
+        }
+    };
+
+    let (met, errors) = match check_criteria_format(&doc) {
+        Ok(()) => (true, Vec::new()),
+        Err(errs) => (false, errs),
+    };
+
+    // The artifact is part of the lint contract — a write failure must surface
+    // (exit 2 = infra error), not let the command exit "clean" with no report.
+    let out_dir = root.join("contracts/reports/arch/criteria-format");
+    if let Err(e) = std::fs::create_dir_all(&out_dir) {
+        eprintln!(
+            "vox-arch-check --lint criteria-format: cannot create {}: {e}",
+            out_dir.display()
+        );
+        return ExitCode::from(2);
+    }
+    let body = serde_json::json!({
+        "schema_version": 1,
+        "criterion": "CR-META",
+        "measured_at": chrono::Utc::now().to_rfc3339(),
+        "errors": errors,
+        "threshold": { "target": "all blocks well-formed", "met": met },
+    });
+    let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let out_path = out_dir.join(format!("{date}.json"));
+    let body_pretty = match serde_json::to_string_pretty(&body) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("vox-arch-check --lint criteria-format: cannot serialize report: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    if let Err(e) = std::fs::write(&out_path, body_pretty) {
+        eprintln!(
+            "vox-arch-check --lint criteria-format: cannot write {}: {e}",
+            out_path.display()
+        );
+        return ExitCode::from(2);
+    }
+
+    if met {
+        println!("CR-META: criteria doc well-formed.");
+        ExitCode::SUCCESS
+    } else {
+        for e in &errors {
+            eprintln!("CR-META: {e}");
+        }
+        ExitCode::from(1)
     }
 }
 
@@ -306,6 +403,94 @@ impl Report {
                     .evidence_findings
                     .iter()
                     .any(|f| f.kind.severity() == "ERROR"))
+    }
+
+    /// Project the report into per-rule results for the policy-status overlay.
+    /// Ids match the `arch-rule` registry namespace (`arch-rule/<guard-key>`),
+    /// covering exactly the 11 guards catalogued from `layers.toml [guards]`.
+    ///
+    /// DEVIATION FROM PLAN: the plan used `arch/<guard>` ids and listed
+    /// `where_things_live`, `layers`, and `docstring`. The committed registry
+    /// (Plan 1b) uses `arch-rule/<guard>` and catalogs exactly these 11 guard
+    /// keys: description, docstring, fan_in, forbidden_deps,
+    /// generated_file_drift, loc_budget, loc_delta, orphan, staleness,
+    /// where_things_live, wtl_parity. There is no `arch-rule/layers` entry, so
+    /// the layer-ordering check is intentionally not projected (untracked grey).
+    fn to_rule_results(&self) -> Vec<crate::json_report::ArchRuleResult> {
+        use crate::json_report::{ArchRuleResult, status_str};
+        let mk = |id: &str, has: bool, strict: bool, count: usize| ArchRuleResult {
+            id: format!("arch-rule/{id}"),
+            status: status_str(has, strict).to_string(),
+            count,
+        };
+        vec![
+            mk(
+                "description",
+                !self.description_warns.is_empty(),
+                self.strict_description,
+                self.description_warns.len(),
+            ),
+            mk(
+                "docstring",
+                !self.docstring_warns.is_empty(),
+                self.docstring_warns.iter().any(|(_, strict)| *strict),
+                self.docstring_warns.len(),
+            ),
+            mk(
+                "fan_in",
+                !self.fan_in_warns.is_empty(),
+                self.strict_fan_in,
+                self.fan_in_warns.len(),
+            ),
+            mk(
+                "forbidden_deps",
+                !self.forbidden_dep_violations.is_empty(),
+                self.strict_forbidden_deps,
+                self.forbidden_dep_violations.len(),
+            ),
+            mk(
+                "generated_file_drift",
+                !self.generated_file_drift_warns.is_empty(),
+                self.strict_generated_file_drift,
+                self.generated_file_drift_warns.len(),
+            ),
+            mk(
+                "loc_budget",
+                !self.loc_warns.is_empty(),
+                self.strict_loc,
+                self.loc_warns.len(),
+            ),
+            mk(
+                "loc_delta",
+                !self.loc_delta_warns.is_empty(),
+                self.strict_loc_delta,
+                self.loc_delta_warns.len(),
+            ),
+            mk(
+                "orphan",
+                !self.orphan_warns.is_empty(),
+                self.strict_orphan,
+                self.orphan_warns.len(),
+            ),
+            mk(
+                "staleness",
+                !self.staleness_warns.is_empty(),
+                self.strict_staleness,
+                self.staleness_warns.len(),
+            ),
+            mk(
+                "where_things_live",
+                !self.where_things_live_warns.is_empty(),
+                self.strict_where_things_live,
+                self.where_things_live_warns.len(),
+            ),
+            mk(
+                "wtl_parity",
+                !self.wtl_parity_warns.is_empty(),
+                self.strict_wtl_parity,
+                self.wtl_parity_warns.len(),
+            ),
+        ]
     }
 
     fn print_summary(&self) {
@@ -654,21 +839,12 @@ fn dir_entry_should_be_pruned(path: &Path, prune_dir_names: &HashSet<String>) ->
 /// Recursive file listing for repo scans; skips heavy artifact trees (see `walk_prune_dir_names`).
 fn walk_repo_files(root: &Path, prune_dir_names: &HashSet<String>) -> Vec<PathBuf> {
     let mut out = Vec::new();
-    let mut stack = vec![root.to_path_buf()];
-    while let Some(p) = stack.pop() {
-        let entries = match std::fs::read_dir(&p) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-        for e in entries.flatten() {
-            let path = e.path();
-            if path.is_dir() {
-                if !dir_entry_should_be_pruned(&path, prune_dir_names) {
-                    stack.push(path);
-                }
-            } else {
-                out.push(path);
-            }
+    let walker = walkdir::WalkDir::new(root).into_iter().filter_entry(|e| {
+        !(e.file_type().is_dir() && dir_entry_should_be_pruned(e.path(), prune_dir_names))
+    });
+    for entry in walker.filter_map(Result::ok) {
+        if entry.file_type().is_file() {
+            out.push(entry.path().to_path_buf());
         }
     }
     out
@@ -1166,7 +1342,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             .filter(|p| {
                 p.targets
                     .iter()
-                    .any(|t| t.kind.iter().any(|k| k == "cdylib"))
+                    .any(|t| t.kind.contains(&cargo_metadata::TargetKind::CDyLib))
                     && layers
                         .crates
                         .get(p.name.as_str())
@@ -1181,7 +1357,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                 if pkg
                     .targets
                     .iter()
-                    .any(|t| t.kind.iter().any(|k| k == "cdylib"))
+                    .any(|t| t.kind.contains(&cargo_metadata::TargetKind::CDyLib))
                 {
                     continue; // cdylib can depend on another cdylib (rare but not our concern here)
                 }
@@ -1192,7 +1368,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                     if cdylib_pkg_names.contains(dep.name.as_str()) {
                         report
                             .cdylib_dep_warns
-                            .push((pkg.name.clone(), dep.name.clone()));
+                            .push((pkg.name.to_string(), dep.name.clone()));
                     }
                 }
             }
@@ -1213,7 +1389,9 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             }
         }
     }
-    report.workspace_dep_warns.sort_by(|a, b| b.1.cmp(&a.1));
+    report
+        .workspace_dep_warns
+        .sort_by_key(|w| std::cmp::Reverse(w.1));
     prof("rule 15 (workspace-dep budget)", &mut prof_last);
     if profile_on {
         eprintln!("[profile] TOTAL: {}ms", profile_start.elapsed().as_millis());

@@ -8,7 +8,9 @@
 
 use anyhow::Result;
 
-use crate::commands::runtime::run::backend::{NativeBackend, RunBackend, WasiBackend};
+#[cfg(feature = "script-wasi")]
+use crate::commands::runtime::run::backend::WasiBackend;
+use crate::commands::runtime::run::backend::{NativeBackend, RunBackend};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -81,7 +83,18 @@ impl ScriptOpts {
     /// P2: Select the appropriate backend for this execution.
     pub fn backend(&self) -> anyhow::Result<Box<dyn RunBackend>> {
         if self.use_wasi() {
-            return Ok(Box::new(WasiBackend));
+            #[cfg(feature = "script-wasi")]
+            {
+                return Ok(Box::new(WasiBackend));
+            }
+            #[cfg(not(feature = "script-wasi"))]
+            {
+                anyhow::bail!(
+                    "WASI isolation (`--isolation wasm`) requires a vox build with \
+                     `--features script-wasi` (the Wasmtime lane). Native `vox run \
+                     --mode script` works without it."
+                );
+            }
         }
 
         // Gate: container/gvisor/microvm tiers are not yet implemented as backends.
@@ -91,9 +104,9 @@ impl ScriptOpts {
             let policy: IsolationPolicy = iso.parse().unwrap_or(IsolationPolicy::Permissive);
             match policy {
                 IsolationPolicy::Container => anyhow::bail!(
-                    "--isolation container is not yet implemented.\n\
-                     Use --isolation wasm for portable sandboxing, or --isolation permissive\n\
-                     for trusted code. See docs/src/reference/isolation.md"
+                    "--isolation container is not available for `vox run` script mode.\n\
+                     Use --isolation wasm for portable sandboxing, `vox deploy` for OCI containers,\n\
+                     or --isolation permissive for trusted code. See docs/src/reference/isolation.md"
                 ),
                 IsolationPolicy::Gvisor => anyhow::bail!(
                     "--isolation gvisor requires runsc on PATH and is not yet wired into vox run.\n\
@@ -198,7 +211,7 @@ pub fn print_execution_plan(
 /// Compile and execute a `.vox` source file as a script.
 ///
 /// Uses content-hash caching to avoid redundant recompiles. Dispatches
-/// to [`NativeBackend`] or [`WasiBackend`] depending on `opts`.
+/// to [`NativeBackend`] or `WasiBackend` depending on `opts`.
 pub async fn run(file: &Path, args: &[String], opts: &ScriptOpts) -> Result<()> {
     let (artifact_path, backend) = compile(file, opts).await?;
     match execute_binary(&artifact_path, args, opts, &*backend).await {
@@ -233,8 +246,10 @@ pub(crate) async fn compile(
     file: &Path,
     opts: &ScriptOpts,
 ) -> Result<(PathBuf, Box<dyn RunBackend>)> {
-    let mut pipeline_opts = vox_compiler::pipeline::PipelineOptions::default();
-    pipeline_opts.script_mode = true;
+    let pipeline_opts = vox_compiler::pipeline::PipelineOptions {
+        script_mode: true,
+        ..Default::default()
+    };
     let result: crate::pipeline::FrontendResult =
         crate::pipeline::run_frontend_with_options(file, false, &pipeline_opts).await?;
 

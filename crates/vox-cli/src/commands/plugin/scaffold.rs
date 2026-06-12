@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
+use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 
 /// Plugin payload kind for scaffolding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
@@ -76,23 +77,27 @@ pub fn run(id: &str, kind: ScaffoldKind, output_dir: &Path) -> Result<()> {
 }
 
 fn write_plugin_toml(dir: &Path, id: &str, kind: ScaffoldKind) -> Result<()> {
+    // Stamp the host's *current* ABI version so a freshly scaffolded plugin loads as-is
+    // (a hard-coded value would silently drift from VOX_PLUGIN_ABI_VERSION and be rejected).
+    let abi = VOX_PLUGIN_ABI_VERSION;
     let payload_section = match kind {
-        ScaffoldKind::Code => {
-            "[plugin.payload]\nkind = \"code\"\nabi-version = 1\n\
+        ScaffoldKind::Code => format!(
+            "[plugin.payload]\nkind = \"code\"\nabi-version = {abi}\n\
              \n[plugin.payload.provides]\nextension-points = []\n\
              \n[plugin.payload.artifacts]\n# \"linux-x86_64\" = \"libvox_plugin_PLACEHOLDER.so\"\n"
-        }
+        ),
         ScaffoldKind::Skill => {
             "[plugin.payload]\nkind = \"skill\"\nformat-version = 1\nskill-md = \"SKILL.md\"\n\
              \n[plugin.payload.tools]\nexposes = []\n"
+                .to_string()
         }
-        ScaffoldKind::Composite => {
+        ScaffoldKind::Composite => format!(
             "[plugin.payload]\nkind = \"composite\"\n\
-             \n[plugin.payload.code]\nabi-version = 1\n\
+             \n[plugin.payload.code]\nabi-version = {abi}\n\
              \n[plugin.payload.code.provides]\nextension-points = []\n\
              \n[plugin.payload.skill]\nformat-version = 1\nskill-md = \"SKILL.md\"\n\
              \n[plugin.payload.skill.tools]\nexposes = []\n"
-        }
+        ),
     };
     let content = format!(
         "[plugin]\n\
@@ -132,36 +137,17 @@ fn write_code_scaffold(dir: &Path, id: &str) -> Result<()> {
 //!
 //! TODO: describe what this plugin does.
 
-use abi_stable::{{
-    erased_types::TD_Opaque, export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn,
-    std_types::*,
-}};
-use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
-use vox_plugin_api::abi::{{VoxPlugin, VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef}};
-use vox_plugin_api::host::VoxHost_TO;
+use vox_plugin_sdk::prelude::*;
 
-#[export_root_module]
-fn root_module() -> VoxPluginRootRef {{
-    VoxPluginRoot {{
-        abi_version: VOX_PLUGIN_ABI_VERSION,
-        manifest_json,
-        init,
-    }}
-    .leak_into_prefix()
+// The SDK's `declare_plugin!` emits the dylib export glue (root_module / manifest_json /
+// init), stamped with the host's current ABI version. Implement only the `VoxPlugin` trait
+// plus whichever extension-point accessors your plugin provides.
+vox_plugin_sdk::declare_plugin! {{
+    // id + version are read from this crate's Plugin.toml — the single authoring site.
+    init: |_host| ROk(wrap({struct_name})),
 }}
 
-#[sabi_extern_fn]
-fn manifest_json() -> RString {{
-    RString::from(r#"{{"id":"{id}","version":"0.1.0"}}"#)
-}}
-
-#[sabi_extern_fn]
-fn init(_host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError> {{
-    let plugin = {struct_name};
-    let to = VoxPlugin_TO::from_value(plugin, TD_Opaque);
-    RResult::ROk(to)
-}}
-
+#[derive(Clone)]
 struct {struct_name};
 
 impl VoxPlugin for {struct_name} {{
@@ -170,8 +156,18 @@ impl VoxPlugin for {struct_name} {{
     }}
 
     fn shutdown(&self) -> RResult<(), RBoxError> {{
-        RResult::ROk(())
+        ROk(())
     }}
+
+    // TODO: provide an extension point by overriding its accessor, e.g.:
+    //
+    //   fn as_hardware_probe(&self) -> ROption<HardwareProbe_TO<'static, RBox<()>>> {{
+    //       RSome(HardwareProbe_TO::from_value(self.clone(), TD_Opaque))
+    //   }}
+    //
+    // (import the trait + `_TO` type from `vox_plugin_sdk::extensions::*` and
+    //  `TD_Opaque` from `vox_plugin_sdk::abi_stable::erased_types`), and list it under
+    // `[plugin.payload.provides] extension-points` in Plugin.toml.
 }}
 "##,
         crate_name = crate_name,
@@ -190,10 +186,11 @@ description = "TODO: describe your plugin."
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-vox-plugin-api = {{ workspace = true }}
+# The SDK re-exports the stable plugin ABI + the abi_stable types you need.
+vox-plugin-sdk = {{ workspace = true }}
+# `declare_plugin!` uses abi_stable's `#[export_root_module]` / `#[sabi_extern_fn]`
+# attribute macros, which emit `abi_stable::` paths — so it must be a direct dependency.
 abi_stable = {{ workspace = true }}
-anyhow = {{ workspace = true }}
-tracing = {{ workspace = true }}
 "#,
         crate_name = if id.starts_with("vox-plugin-") {
             id.replace('-', "_")
@@ -249,6 +246,16 @@ mod tests {
         assert!(dir.join("src").join("lib.rs").exists());
         assert!(dir.join("Cargo.toml").exists());
         assert!(!dir.join("SKILL.md").exists());
+
+        // Scaffolded code uses the SDK macro (not hand-written export glue)…
+        let lib = std::fs::read_to_string(dir.join("src").join("lib.rs")).unwrap();
+        assert!(lib.contains("vox_plugin_sdk::declare_plugin!"));
+        assert!(!lib.contains("export_root_module"));
+        let cargo = std::fs::read_to_string(dir.join("Cargo.toml")).unwrap();
+        assert!(cargo.contains("vox-plugin-sdk"));
+        // …and the manifest stamps the host's *current* ABI version (so it loads as-is).
+        let manifest = std::fs::read_to_string(dir.join("Plugin.toml")).unwrap();
+        assert!(manifest.contains(&format!("abi-version = {VOX_PLUGIN_ABI_VERSION}")));
     }
 
     #[test]

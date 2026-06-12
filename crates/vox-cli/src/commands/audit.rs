@@ -30,6 +30,14 @@ use crate::commands::audit_route::EffortRouteArgs;
 /// SSOT) for the contract.
 #[derive(Subcommand, Debug, Clone)]
 pub enum AuditSubcommand {
+    /// Architecture layer + LoC budget validation (`vox-arch-check`).
+    Arch,
+    /// Source-policy / TOESTUB detectors (`vox-code-audit`).
+    Code,
+    /// Retirement-guard parity vs AGENTS.md §Retired Surfaces (CR-L6).
+    Retirement,
+    /// Run arch → code → retirement and print summary JSON (`schema_version: 1`).
+    Core,
     /// AI-judged audit of recent git commit history (token-spend estimates +
     /// remediation suggestions). See
     /// `docs/superpowers/specs/2026-05-28-effort-audit-core-design.md`.
@@ -139,13 +147,20 @@ pub struct AuditArgs {
     /// Only meaningful with `--gate`.
     #[arg(long)]
     pub no_canonical_report: bool,
+
+    /// With `--gate all`: evaluate the GA roll-up (foundation-first, with
+    /// `blocked_by_foundation`), write `contracts/reports/_snapshot/<UTC>.json`,
+    /// and exit non-zero when GA is not met. This is the v1.0 acceptance
+    /// command (CR-F0). Only meaningful with `--gate all`.
+    #[arg(long)]
+    pub strict_block_ga: bool,
 }
 
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
-/// Entry point called from the CLI dispatch.
+/// Entry point called from the CLI dispatch (flag-based path; no nested subcommand).
 pub fn run(args: &AuditArgs) -> Result<()> {
     // CR-L gate routing takes precedence over check-targets dispatch.
     if args.list_gates {
@@ -158,6 +173,9 @@ pub fn run(args: &AuditArgs) -> Result<()> {
         return run_list_cr_l_gates_with_format(&format);
     }
     if let Some(gate_name) = args.gate.as_deref() {
+        if gate_name == "core" {
+            return run_core_gates_summary();
+        }
         return run_cr_l_gate(gate_name, args);
     }
 
@@ -183,6 +201,52 @@ pub fn run(args: &AuditArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Core umbrella gates (arch / code / retirement — AGENTS.md §`vox audit`).
+// ---------------------------------------------------------------------------
+
+/// Run a single core gate or the full trio (`vox audit core` / `--gate core`).
+pub fn run_audit_subcommand(cmd: &AuditSubcommand) -> Result<()> {
+    let root = vox_repository::resolve_repo_root_for_ci();
+    let result = match cmd {
+        AuditSubcommand::Arch => vox_audit::core_gates::run_arch_gate(&root),
+        AuditSubcommand::Code => vox_audit::core_gates::run_code_gate(&root),
+        AuditSubcommand::Retirement => vox_audit::core_gates::run_retirement_gate(),
+        AuditSubcommand::Core => {
+            let summary = vox_audit::core_gates::run_core_all(&root);
+            let json = serde_json::to_string_pretty(&summary)
+                .map_err(|e| anyhow::anyhow!("serialize core gates summary: {e}"))?;
+            println!("{json}");
+            if summary.ok {
+                return Ok(());
+            }
+            anyhow::bail!("core audit gates failed");
+        }
+        AuditSubcommand::Effort(_) | AuditSubcommand::EffortRoute(_) => {
+            anyhow::bail!("async audit subcommand must be dispatched from cli_dispatch");
+        }
+    };
+    if result.ok {
+        Ok(())
+    } else {
+        let detail = result.detail.unwrap_or_default();
+        anyhow::bail!(
+            "audit {} failed (exit {}){}",
+            result.gate,
+            result.exit_code,
+            if detail.is_empty() {
+                String::new()
+            } else {
+                format!(": {detail}")
+            }
+        )
+    }
+}
+
+fn run_core_gates_summary() -> Result<()> {
+    run_audit_subcommand(&AuditSubcommand::Core)
 }
 
 // ---------------------------------------------------------------------------
@@ -295,6 +359,17 @@ fn run_cr_l_gate(gate_name: &str, args: &AuditArgs) -> Result<()> {
     let common = build_common_args(args)?;
 
     if gate_name == "all" {
+        if args.strict_block_ga {
+            // v1.0 GA acceptance: foundation-first roll-up with
+            // blocked_by_foundation + _snapshot artifact (CR-F0).
+            let snap = vox_audit::run_ga_snapshot(&common, true);
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&snap)
+                    .map_err(|err| anyhow::anyhow!("render GA snapshot: {err}"))?
+            );
+            std::process::exit(snap.exit_code);
+        }
         let outcomes = vox_audit::run_all(&common);
         for outcome in &outcomes {
             render_outcome(&outcome.report, &common.format)?;
@@ -516,6 +591,7 @@ mod tests {
             corpus: None,
             threshold: None,
             no_canonical_report: false,
+            strict_block_ga: false,
         };
         let filtered = filter_checks(&checks, &args);
         assert_eq!(filtered.len(), 1);
@@ -539,6 +615,7 @@ mod tests {
             corpus: None,
             threshold: None,
             no_canonical_report: true,
+            strict_block_ga: false,
         }
     }
 
@@ -670,6 +747,7 @@ mod tests {
             corpus: None,
             threshold: None,
             no_canonical_report: false,
+            strict_block_ga: false,
         };
         let filtered = filter_checks(&checks, &args);
         assert_eq!(filtered.len(), 1);

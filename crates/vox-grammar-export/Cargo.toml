@@ -3,8 +3,10 @@ name = "vox-grammar-export"
 description = "Exports the Vox grammar artifact for downstream tooling."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
+hex = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

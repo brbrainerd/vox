@@ -2102,65 +2102,65 @@
   pattern: repo/ci
   file: by-crate/vox-openai-wire.md
 - id: SCALE-VOX_ORATIO-ASYNC-IO
-  crate: vox-oratio
+  crate: vox-speech
   template: async-io
   pattern: scaling/blocking-in-async
-  file: by-crate/vox-oratio.md
+  file: by-crate/vox-speech.md
 - id: SCALE-VOX_ORATIO-MEMORY-SLURP
-  crate: vox-oratio
+  crate: vox-speech
   template: memory-slurp
   pattern: scaling/unbounded-read
-  file: by-crate/vox-oratio.md
+  file: by-crate/vox-speech.md
 - id: SCALE-VOX_ORATIO-IO-CACHE-LOOP
-  crate: vox-oratio
+  crate: vox-speech
   template: io-cache-loop
   pattern: scaling/cache-miss-hot-read
-  file: by-crate/vox-oratio.md
+  file: by-crate/vox-speech.md
 - id: SCALE-VOX_ORATIO-ENV-SSOT
-  crate: vox-oratio
+  crate: vox-speech
   template: env-ssot
   pattern: scaling/env-default-duplication
-  file: by-crate/vox-oratio.md
+  file: by-crate/vox-speech.md
 - id: SCALE-VOX_ORATIO-REGEX-COMPILE
-  crate: vox-oratio
+  crate: vox-speech
   template: regex-compile
   pattern: scaling/regex-new-hot
-  file: by-crate/vox-oratio.md
+  file: by-crate/vox-speech.md
 - id: SCALE-VOX_ORATIO-SQL-BOUNDS
-  crate: vox-oratio
+  crate: vox-speech
   template: sql-bounds
   pattern: scaling/sql-no-limit
-  file: by-crate/vox-oratio.md
+  file: by-crate/vox-speech.md
 - id: SCALE-VOX_ORATIO-HTTP-TIMEOUTS
-  crate: vox-oratio
+  crate: vox-speech
   template: http-timeouts
   pattern: scaling/http-client-no-timeout
-  file: by-crate/vox-oratio.md
+  file: by-crate/vox-speech.md
 - id: SCALE-VOX_ORATIO-PATH-SSOT
-  crate: vox-oratio
+  crate: vox-speech
   template: path-ssot
   pattern: scaling/path-literal
-  file: by-crate/vox-oratio.md
+  file: by-crate/vox-speech.md
 - id: SCALE-VOX_ORATIO-NUMERIC-SSOT
-  crate: vox-oratio
+  crate: vox-speech
   template: numeric-ssot
   pattern: scaling/magic-limit
-  file: by-crate/vox-oratio.md
+  file: by-crate/vox-speech.md
 - id: SCALE-VOX_ORATIO-INDEX-MEMORY
-  crate: vox-oratio
+  crate: vox-speech
   template: index-memory
   pattern: scaling/large-in-memory-accumulator
-  file: by-crate/vox-oratio.md
+  file: by-crate/vox-speech.md
 - id: SCALE-VOX_ORATIO-CONCURRENCY-STRUCTURE
-  crate: vox-oratio
+  crate: vox-speech
   template: concurrency-structure
   pattern: scaling/nested-pairwise-loop
-  file: by-crate/vox-oratio.md
+  file: by-crate/vox-speech.md
 - id: SCALE-VOX_ORATIO-CI-THROUGHPUT
-  crate: vox-oratio
+  crate: vox-speech
   template: ci-throughput
   pattern: repo/ci
-  file: by-crate/vox-oratio.md
+  file: by-crate/vox-speech.md
 - id: SCALE-VOX_ORCHESTRATOR-ASYNC-IO
   crate: vox-orchestrator
   template: async-io

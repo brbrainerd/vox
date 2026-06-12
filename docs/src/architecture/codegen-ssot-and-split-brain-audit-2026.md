@@ -62,7 +62,7 @@ maintenance tax plus a few latent bugs. That is the part worth acting on.
 
 | # | Thing | Defined in | Why it must exist |
 |---|-------|------------|-------------------|
-| 1 | **AST** | [`vox-compiler/src/ast/`](../../../crates/vox-compiler/src/ast) | Raw parse tree. Unavoidable. |
+| 1 | **AST** | [`vox-compiler/src/ast/`](../../../crates/vox-ast/src) | Raw parse tree. Unavoidable. |
 | 2 | **HIR (`HirModule`)** | [`hir/nodes/decl.rs`](../../../crates/vox-compiler/src/hir/nodes/decl.rs) | **The single source of truth.** Every target reads it. |
 | 3 | **WebIR** | [`web_ir/mod.rs`](../../../crates/vox-codegen/src/web_ir/mod.rs) | UI/DOM lens: validates views, emits JSX. Shared by web, the Tauri webview, and mobile. |
 | 4 | **ContractIR** | [`contract_ir/mod.rs`](../../../crates/vox-compiler/src/contract_ir/mod.rs) | API/wire-format lens (types + endpoints) for the client SDK, Zod, OpenAPI. Shared by all. |
@@ -120,15 +120,15 @@ it). Severity is the agent's; the tier grouping is editorial.
   touch four lowering paths. `RouteIR` was *built* to be the SSOT here, but the TypeScript
   side ignores it. **This is the single most expensive split-brain.** Fix: make `ContractIR`
   the one endpoint lens; have the others reference it.
-- **T1-2 · A dead component emitter.** [`component.rs`](../../../crates/vox-codegen/src/codegen_ts/component.rs)
+- **T1-2 · A dead component emitter.** [`component.rs`](../../../crates/vox-codegen-ts/src/component.rs)
   `generate_component` + the AST JSX walker in
-  [`jsx.rs`](../../../crates/vox-codegen/src/codegen_ts/jsx.rs) (~900 lines) have zero
+  [`jsx.rs`](../../../crates/vox-codegen-ts/src/jsx.rs) (~900 lines) have zero
   call-sites — the live loop only calls `generate_reactive_component`. There is also an
   orphaned `activity.rs` (then under `codegen_ts/`) that
   Cargo never compiles. *Caveat:* `jsx.rs` re-exports two helpers used by tests, so the fix
   is "delete the dead functions, keep the re-export," not delete the file.
 - **T1-3 · The view is rendered twice and one copy is discarded.** In
-  [`reactive.rs`](../../../crates/vox-codegen/src/codegen_ts/reactive.rs) every component
+  [`reactive.rs`](../../../crates/vox-codegen-ts/src/reactive/mod.rs) every component
   view is emitted by the canonical WebIR path *and* by the legacy `emit_hir_expr`, only to
   compare them for a "parity" counter. CI never asserts that counter is zero, so a silent
   disagreement is accepted and every build pays to render twice. Migration scaffolding past
@@ -151,14 +151,14 @@ it). Severity is the agent's; the tier grouping is editorial.
 - **T2-6 · `Cargo.toml` emitted twice** — the Axum and Tauri templates copy-paste 12
   identical crate deps, kept in sync by a fragile find-replace on path depth.
 - **T2-7 · Form validation copied web↔RN** — `validate()` (~35 lines) is duplicated between
-  [`form_emit.rs`](../../../crates/vox-codegen/src/codegen_ts/form_emit.rs) and
-  [`rn/form.rs`](../../../crates/vox-codegen/src/codegen_ts/rn/form.rs). The rendering
+  [`form_emit.rs`](../../../crates/vox-codegen-ts/src/form_emit.rs) and
+  [`rn/form.rs`](../../../crates/vox-rn-codegen/src/form.rs). The rendering
   difference (`<input>` vs `<TextInput>`) is necessary; the validation logic is not.
 - **T2-8 · Helper DRY drift** — `hir_type_to_ts` exists in ~5–6 places and
   `inject_key_into_jsx` in 3–4. Each is a chance to diverge when a new type is added.
 - **T2-9 · No `@vox/runtime-web`.** Mobile imports its runtime from a package; the browser
   runtime (~112 lines) is instead inlined into every app as `runtime-install.ts`
-  ([`web_entry.rs`](../../../crates/vox-codegen/src/codegen_ts/web_entry.rs)). Web is the one
+  ([`web_entry.rs`](../../../crates/vox-codegen-ts/src/web_entry.rs)). Web is the one
   platform not yet using the shared-package pattern it already established for mobile.
 - **T2-10 · Two mobile storage backends** — an expo-file-system NDJSON journal (JS) and a
   uniffi-bridged Rust `vox-journal` ([`vox-runtime-rn`](../../../crates/vox-runtime-rn)).

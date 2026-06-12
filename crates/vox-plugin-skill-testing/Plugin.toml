@@ -14,4 +14,4 @@ format-version = 1
 skill-md = "testing.skill.md"
 
 [plugin.payload.tools]
-exposes = ["vox_test_run", "vox_test_select"]
+exposes = ["vox_run_tests", "vox_test_all"]

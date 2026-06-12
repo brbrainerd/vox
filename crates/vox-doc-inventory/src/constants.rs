@@ -4,7 +4,7 @@ pub const HOTSPOT_TIER1: &[&str] = &[
     "AGENTS.md",
     "docs/src/api/DOC_GAPS.md",
     "docs/src/api/vox-ast.md",
-    "crates/vox-compiler/src/ast/expr.rs",
+    "crates/vox-ast/src/expr.rs",
     "crates/vox-cli/src/lib.rs",
     "crates/vox-compiler/src/hir/mod.rs",
     "crates/vox-orchestrator-mcp/src/memory_tools/mod.rs",
@@ -27,24 +27,23 @@ pub const HOTSPOT_TIER2_RUST: &[&str] = &[
     "crates/vox-forge/src/types.rs",
     "crates/vox-package/src/store/ops.rs",
     "crates/vox-codegen-rust/src/emit.rs",
-    "crates/vox-dei-shim/src/research/orchestrator/mod.rs",
+    "crates/vox-research-shim/src/research/orchestrator/mod.rs",
     "crates/vox-gamify/src/db.rs",
     "crates/vox-orchestrator-mcp/src/chat_tools/mod.rs",
     // selection/mod.rs removed: selection/ was WIP and not part of the active module tree
-    // (see vox-dei-shim/src/lib.rs for context)
+    // (see vox-research-shim/src/lib.rs for context)
     "crates/vox-db/src/schema_digest.rs",
     "crates/vox-cli/src/cli_actions.rs",
-    "crates/vox-compiler/src/ast/decl/mod.rs",
+    "crates/vox-ast/src/decl/mod.rs",
     "crates/vox-orchestrator/src/compaction.rs",
     "crates/vox-compiler/src/lexer/token.rs",
     "crates/vox-orchestrator-mcp/src/params.rs",
     "crates/vox-orchestrator/src/config.rs",
-    "crates/vox-orchestrator/src/jj_backend.rs",
     "crates/vox-orchestrator/src/snapshot.rs",
 ];
 
 pub const SYMBOL_HINT_PATHS: &[&str] = &[
-    "crates/vox-compiler/src/ast/expr.rs",
+    "crates/vox-ast/src/expr.rs",
     "crates/vox-cli/src/lib.rs",
     "crates/vox-compiler/src/hir/mod.rs",
     "crates/vox-orchestrator-mcp/src/memory_tools/mod.rs",

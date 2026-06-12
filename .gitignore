@@ -1,5 +1,9 @@
 # Rust
 target/
+.sccache/
+**/fuzz/target/
+**/fuzz/artifacts/
+**/fuzz/corpus/
 target_*/
 # Side `CARGO_TARGET_DIR=*` trees (mostly repo root); global `target-*/` also covers nested mistakes.
 target-*/
@@ -95,6 +99,10 @@ populi/data/*.jsonl
 .vox/telemetry-upload-queue/
 # Runtime memory stubs (regenerated locally; never commit)
 /.vox/memory/
+# Per-branch policy run-status overlay (Phase 1c): machine-specific, written by
+# `vox ci`/code-audit/arch gates per branch. Regenerated on every run; never commit.
+.vox/policy-status/
+**/.vox/policy-status/
 # Crate-local `.vox/` state (orchestrator memory, etc.)
 crates/*/.vox/
 *.db-wal
@@ -226,3 +234,12 @@ docs/src/architecture/architecture-index.md
 # insta pending-review snapshots — local-only, regenerated each test run
 **/*.snap.new
 _bundle_ai_fixture_*
+
+# Vox GUI dev run logs
+gui-*.log
+
+# Superpowers brainstorm visual-companion scratch (local-only)
+.superpowers/
+
+# graphify knowledge-graph artifacts (local tooling)
+graphify-out/

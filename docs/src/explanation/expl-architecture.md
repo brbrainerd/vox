@@ -74,7 +74,7 @@ Current path note:
 - `VOX_WEBIR_VALIDATE` defaults **on** (WebIR lower/validate gate); set `=0` / `false` / `no` / `off` to skip.
 - `app_contract::project_app_contract` is the SSOT for route/RPC/server-config codegen inputs (via [`projection_bundle`](../../../crates/vox-codegen/src/projection_bundle.rs) in emit paths).
 - `runtime_projection::project_runtime_from_hir` is the SSOT for orchestration-facing DB capability projection (also bundled).
-- Reactive `view:` uses the Web IR TSX bridge when validation is clean; **`VOX_WEBIR_EMIT_REACTIVE_VIEWS` was removed** — there is no legacy-only emit path (see [`reactive.rs`](../../../crates/vox-codegen/src/codegen_ts/reactive.rs)).
+- Reactive `view:` uses the Web IR TSX bridge when validation is clean; **`VOX_WEBIR_EMIT_REACTIVE_VIEWS` was removed** — there is no legacy-only emit path (see [`reactive.rs`](../../../crates/vox-codegen-ts/src/reactive/mod.rs)).
 
 ---
 
@@ -136,7 +136,7 @@ See `crates/vox-compiler/src/parser/descent/mod.rs` for the implementation entry
 
 **Purpose**: Strongly-typed wrappers around the untyped CST nodes.
 
-See `crates/vox-compiler/src/ast/` for the node hierarchy.
+See `crates/vox-ast/src/` for the node hierarchy.
 
 ---
 
@@ -207,11 +207,11 @@ The full checklist for adding a new language construct:
 
 1. **Lexer** — Add tokens to `crates/vox-compiler/src/lexer/token.rs`
 2. **Parser** — Add grammar rules in `crates/vox-compiler/src/parser/descent/`
-3. **AST** — Add node types in `crates/vox-compiler/src/ast/`
+3. **AST** — Add node types in `crates/vox-ast/src/`
 4. **HIR** — Map AST → HIR in `crates/vox-compiler/src/hir/lower/`
 5. **Type Check** — Add inference rules in `crates/vox-compiler/src/typeck/`
 6. **WebIR** — Add/update lowering + validation semantics in `crates/vox-codegen/src/web_ir/` when the feature affects web-facing behavior
-7. **Codegen** — Emit code in both `crates/vox-compiler/src/codegen_rust/` and `crates/vox-codegen/src/codegen_ts/`
+7. **Codegen** — Emit code in both `crates/vox-compiler/src/codegen_rust/` and `crates/vox-codegen-ts/src/`
 8. **Test** — Add integration coverage in `vox-integration-tests/tests/` and WebIR/parity coverage where applicable
 9. **Docs** — Add frontmatter + code example in `docs/src/`
 10. **Training** — Run `vox mens corpus extract` to include the new construct in ML data

@@ -164,7 +164,7 @@ Imported files are loaded + parsed + lowered. Their top-level
 ### §4.1 — AST shape
 
 ```rust
-// crates/vox-compiler/src/ast/decl/types.rs
+// crates/vox-ast/src/decl/types.rs
 pub enum ImportPathKind {
     SymbolPath { segments: Vec<String> },
     ReactComponent { local_name: String, module_specifier: String },

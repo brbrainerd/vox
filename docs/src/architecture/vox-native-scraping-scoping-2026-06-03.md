@@ -94,7 +94,7 @@ the Node/driver deploy dependency — don't rebuild it.
   driver process.
 - **Track D — Emit-to-Playwright (a Node codegen target).** Genuinely new: today's TS emit profiles are
   browser-SPA and RN/Expo only — there is **no standalone Node-script emitter** and no playwright/puppeteer
-  in any emitted `package.json` (audited in `vox-codegen/src/codegen_ts/scaffold.rs`). Defer unless we want
+  in any emitted `package.json` (audited in `vox-codegen-ts/src/scaffold.rs`). Defer unless we want
   Vox to *generate* Playwright scripts rather than drive a browser natively.
 - **Track E — Bind `padamson/playwright-rust`.** Only if auto-wait/selector-engine/tracing become hard
   requirements. Heavy deploy deps; pre-1.0 churn.

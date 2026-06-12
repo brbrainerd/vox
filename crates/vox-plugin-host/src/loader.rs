@@ -18,9 +18,9 @@ use abi_stable::library::RootModule;
 use abi_stable::std_types::*;
 use std::path::Path;
 use std::time::Instant;
-use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 use vox_plugin_api::abi::{VoxPluginRef, VoxPluginRootRef};
 use vox_plugin_api::host::VoxHost_TO;
+use vox_plugin_api::{VOX_PLUGIN_ABI_MIN_SUPPORTED, VOX_PLUGIN_ABI_VERSION, abi_compatible};
 
 pub struct Loader;
 
@@ -43,12 +43,16 @@ impl Loader {
             })?;
 
         let plugin_abi = root_ref.abi_version();
-        if plugin_abi != VOX_PLUGIN_ABI_VERSION {
+        // Accept any plugin within the supported [MIN, VERSION] range, not just an exact
+        // match: an additive ABI bump that doesn't touch the extension traits leaves older
+        // plugin binaries loadable without a rebuild. See vox_plugin_api::abi_compatible.
+        if !abi_compatible(plugin_abi) {
             telemetry::abi_mismatch(plugin_id, plugin_abi, VOX_PLUGIN_ABI_VERSION);
             return Err(LoadError::AbiMismatch(AbiMismatchError {
                 id: plugin_id.to_string(),
                 plugin_abi,
                 host_abi: VOX_PLUGIN_ABI_VERSION,
+                host_abi_min: VOX_PLUGIN_ABI_MIN_SUPPORTED,
             }));
         }
 

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { LudusProfile } from '../../../lib/ludus';
 import { LudusHud } from './LudusHud';
+import { GAMIFY_POLL_MS } from '../../../config/constants';
 
 interface GamifyViewProps {
   pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
@@ -70,11 +71,13 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
         invoke<Companion[]>('list_gamify_companions'),
         invoke<Quest[]>('list_gamify_quests'),
       ]);
+      // IPC can resolve to null (command unimplemented, backend error path); coalesce so a
+      // null list never reaches `.length` and crashes the whole surface.
       setProfile(p);
-      setNotes(n);
-      setLeaderboard(lb);
-      setCompanions(comp);
-      setQuests(q);
+      setNotes(n ?? []);
+      setLeaderboard(lb ?? []);
+      setCompanions(comp ?? []);
+      setQuests(q ?? []);
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Ludus load failed', body: String(err) });
     } finally {
@@ -84,7 +87,7 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
 
   useEffect(() => {
     refresh();
-    const id = setInterval(refresh, 15000);
+    const id = setInterval(refresh, GAMIFY_POLL_MS);
     return () => clearInterval(id);
   }, [refresh]);
 

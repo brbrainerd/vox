@@ -2,7 +2,7 @@
 //! docs/src/architecture/telemetry-trust-ssot.md, emitted via tracing.
 //!
 //! Plugin **load failures** additionally emit a
-//! [`METRIC_TYPE_PLUGIN_LOAD_FAILURE`](vox_telemetry::METRIC_TYPE_PLUGIN_LOAD_FAILURE)
+//! [`METRIC_TYPE_PLUGIN_LOAD_FAILURE`]
 //! `research_metrics` row through the global telemetry recorder so the failure
 //! is visible in offline analysis (the tracing line alone is not durable).
 

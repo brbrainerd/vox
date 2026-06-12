@@ -39,6 +39,8 @@ impl Default for OrchestratorConfig {
             continuation_cooldown_ms: default_continuation_cooldown(),
             max_auto_continuations: default_max_auto_continuations(),
             scope_enforcement: ScopeEnforcement::default(),
+            isolation_strategy_default: crate::isolation::IsolationStrategy::default(),
+            isolation_per_agent: std::collections::HashMap::new(),
             event_bus_capacity: default_event_capacity(),
             default_agent_capabilities: TaskCapabilityHints::default(),
             orchestration_migration: OrchestrationMigrationFlags::default(),

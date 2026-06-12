@@ -113,17 +113,16 @@ async fn run_single_workspace_member(args: &CompileArgs) -> Result<()> {
                     wasi_dirs: Vec::new(),
                     target_triple: args.triple.clone(),
                 };
-                let (artifact_path, backend) = script::compile(file, &opts).await?;
+                let (artifact_path, _backend) = script::compile(file, &opts).await?;
                 fs::create_dir_all(&args.out_dir).await?;
                 let app_name = file
                     .file_stem()
                     .map(|s| s.to_string_lossy().to_string())
                     .unwrap_or_else(|| "script".into());
-                let bin_name = if backend.cache_label().contains("wasi") {
-                    format!("{app_name}.wasm")
-                } else {
-                    format!("{app_name}.wasm")
-                };
+                // NOTE: both lanes currently emit `<name>.wasm`; native-artifact
+                // naming is a pre-existing latent bug tracked separately. Kept as
+                // a single arm to preserve behavior while satisfying clippy.
+                let bin_name = format!("{app_name}.wasm");
                 let dest = args.out_dir.join(bin_name);
                 fs::copy(&artifact_path, &dest)
                     .await

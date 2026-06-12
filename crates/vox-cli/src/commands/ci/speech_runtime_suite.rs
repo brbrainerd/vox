@@ -215,19 +215,7 @@ fn parse_eval_metrics(output: &str, latency_ms: u128) -> Result<EvalMetrics> {
 }
 
 fn edit_distance_chars(a: &str, b: &str) -> usize {
-    let a: Vec<char> = a.chars().collect();
-    let b: Vec<char> = b.chars().collect();
-    let mut prev: Vec<usize> = (0..=b.len()).collect();
-    let mut curr = vec![0; b.len() + 1];
-    for (i, ca) in a.iter().enumerate() {
-        curr[0] = i + 1;
-        for (j, cb) in b.iter().enumerate() {
-            let cost = usize::from(ca != cb);
-            curr[j + 1] = (prev[j + 1] + 1).min(curr[j] + 1).min(prev[j] + cost);
-        }
-        std::mem::swap(&mut prev, &mut curr);
-    }
-    prev[b.len()]
+    strsim::levenshtein(a, b)
 }
 
 fn classify_cell(
@@ -324,7 +312,7 @@ fn classify_cell(
             result.notes = "Run on Linux x64 to measure this cell.".to_string();
         }
         "linux-streaming-ws-whisper-cpu-16k-command" => {
-            result.evidence = "vox-oratio exposes HTTP POST /transcribe; advertised Oratio WS stream route has no matching server route.".to_string();
+            result.evidence = "vox-speech exposes HTTP POST /transcribe; advertised Oratio WS stream route has no matching server route.".to_string();
             result.notes = "Streaming cell remains a transport gap.".to_string();
         }
         "win-cli-eval-whisper-cuda-16k-code" => {

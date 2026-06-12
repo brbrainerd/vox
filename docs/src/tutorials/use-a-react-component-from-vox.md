@@ -71,7 +71,7 @@ to `View`/`Text`, but external components pass through unchanged).
 ## Required CSS and providers are handled for known libraries
 
 Vox keeps a table of common component libraries
-([`external_libs.rs`](../../../crates/vox-codegen/src/codegen_ts/external_libs.rs)).
+([`external_libs.rs`](../../../crates/vox-codegen-ts/src/external_libs.rs)).
 When you import one, the emitter:
 
 - **auto-injects required CSS files.** Importing `@mantine/core` emits

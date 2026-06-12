@@ -8,7 +8,7 @@ use super::spec;
 use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
-pub const BASELINE_VERSION: i64 = 70; // +1: agent_telemetry_flat.pipeline_phase column (Scientia cost-category split: extraction/critic/novelty/scholarly)
+pub const BASELINE_VERSION: i64 = 72; // +1: scientia_review_decisions (human-gated discovery review, design §5.1)
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -124,7 +124,7 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
 pub fn schema_baseline_digest_hex() -> String {
     let mut hasher = Keccak256::new();
     hasher.update(baseline_sql());
-    format!("0x{:x}", hasher.finalize())
+    format!("0x{}", hex::encode(hasher.finalize()))
 }
 
 /// Monolithic SQL string containing all active fragments joined by double-newlines.

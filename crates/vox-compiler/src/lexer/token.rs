@@ -197,6 +197,13 @@ pub enum Token {
     /// inference pass (Phase E of the Svelte-mineable features plan).
     #[token("@reactive")]
     AtReactive,
+    /// `@versioned` — marks a function whose successful return auto-records a
+    /// `repo.snapshot()` checkpoint in the interpreter's RepoStore (design §4.3).
+    /// Implies `uses vcs`. `@tracked` is an accepted spelling alias.
+    #[token("@versioned")]
+    AtVersioned,
+    #[token("@tracked")]
+    AtTracked,
     /// `fragment` — typed parametric markup primitive (ADR-033). Body shape
     /// mirrors `view:` (single markup expression). Parsed in Phase F slice 1;
     /// codegen gated on Phase 6 (TASK-6.1) typed primitive surface.
@@ -595,6 +602,8 @@ impl std::fmt::Display for Token {
             Token::AtFuzz => write!(f, "@fuzz"),
             Token::AtPure => write!(f, "@pure"),
             Token::AtReactive => write!(f, "@reactive"),
+            Token::AtVersioned => write!(f, "@versioned"),
+            Token::AtTracked => write!(f, "@tracked"),
             Token::Fragment => write!(f, "fragment"),
             Token::AtScheduled => write!(f, "@scheduled"),
             Token::AtDeprecated => write!(f, "@deprecated"),

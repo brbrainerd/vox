@@ -8,7 +8,7 @@ schema_type: "TechArticle"
 ---
 # Reference: `vox` CLI (minimal compiler binary)
 
-The **`vox`** executable is built from `crates/vox-cli` (repository root). This binary serves as the primary compiler driver and orchestrator. Starting in v0.5, specialized domains like **ML/AI training (`vox mens`)**, **scholarship/publication (`vox schola`)**, **mesh coordination (`vox populi`)**, and **speech-to-code (`vox oratio`)** are decoupled into separate binaries (`vox-ml-cli`, `vox-schola`) but remain accessible through the main `vox` CLI via transparent delegation.
+The **`vox`** executable is built from `crates/vox-cli` (repository root). This binary serves as the primary compiler driver and orchestrator. Starting in v0.5, specialized domains like **ML/AI training (`vox mens`)**, **mesh coordination (`vox populi`)**, and **speech-to-code (`vox speech`)** are decoupled into a separate binary (`vox-ml-cli`) but remain accessible through the main `vox` CLI via transparent delegation. (Training internals live in `vox-ml-cli`'s `commands::schola` module, reached via `vox mens train`.)
 
 ## Toolchain Binary Split
 
@@ -17,8 +17,7 @@ To minimize binary bloat and dependency sprawl, the Vox toolchain is split into 
 | Binary | Subcommands | Role |
 |--------|-------------|------|
 | `vox` | `build`, `check`, `run`, `pm`, `ci`, `dei`, `db` | Compiler core, package manager, and local orchestration. |
-| `vox-ml-cli` | `mens`, `train`, `populi`, `oratio` | Native ML training (QLoRA), inference serving, and mesh coordination. |
-| `vox-schola` | `schola` | Scholarship / publication workflows invoked via `vox schola …`. |
+| `vox-ml-cli` | `mens`, `train`, `populi`, `speech` | Native ML training (QLoRA), inference serving, speech-to-code, and mesh coordination. |
 | `vox` (core) | `scientia` | Research DB / capability-map facade (`commands::scientia`); stays in the main binary. |
 
 If a delegated binary is missing from your `PATH`, the `vox` CLI prints actionable installation instructions.
@@ -33,8 +32,7 @@ artifacts per supported target triple, each as its own archive on the
 |---|---|---|
 | `vox` | `vox-<ver>-<target>.{tar.gz,zip}` | Lean install — compiler, package manager, orchestrator. No ML, no scientia. |
 | `bootstrap` | `vox-bootstrap-<ver>-<target>.{tar.gz,zip}` | Standalone installer used by `scripts/install.{sh,ps1}`. |
-| `mens` | `vox-ml-cli-<ver>-<target>.{tar.gz,zip}` | ML / oratio / speech / populi / train plugin (heavy: Candle + Whisper). |
-| `schola` | `vox-schola-<ver>-<target>.{tar.gz,zip}` | Scientia / schola plugin. |
+| `mens` | `vox-ml-cli-<ver>-<target>.{tar.gz,zip}` | ML / speech / populi / train plugin (heavy: Candle + Whisper). |
 | `both` | `vox` + `vox-bootstrap` | Legacy pre-plugin tier (kept for backwards compatibility). |
 | `all` | Everything above | Full install for CI / dogfood. |
 
@@ -193,7 +191,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `artifact-audit [--json]` | Inventory of workspace artifact classes (stale renames, repo-root `target-*` sprawl, OS-temp Cargo targets, `mens/runs/*`, root scratch files, canonical `target/`). JSON optional. Policy defaults: [`contracts/operations/workspace-artifact-retention.v1.yaml`](../../../contracts/operations/workspace-artifact-retention.v1.yaml) |
 | `artifact-prune --dry-run \| --apply [--policy <path>]` | Prune untracked artifact paths per retention policy (requires exactly one of `--dry-run` or `--apply`). Skips git-tracked paths; Windows delete failures may rename to `*.stale-<epoch>`. |
 | `ai-fixtures-coverage` | Static parity between [`contracts/agentos/ai-first-fixtures.v1.yaml`](../../../contracts/agentos/ai-first-fixtures.v1.yaml) and lexer tokens, `HirAiFixture` grafts, Rust AI fixture diagnostics, and TS emitter markers. |
-| `backend-tests` | Runs `cargo test -p vox-actor-runtime`, `cargo test -p vox-orchestrator model_route_policy`, and `cargo test -p vox-db research_metrics_contract` (routing, orchestrator policy tests, research metrics contract). |
+| `backend-tests` | Runs `cargo test -p vox-actor-runtime`, `cargo test -p vox-orchestrator model_route_policy`, `cargo test -p vox-db research_metrics_contract`, `cargo test -p vox-sql --test p2_conformance`, `cargo test -p vox-sql --test p3_introspect_smoke`, `cargo test -p vox-sql --test p5_ddl_conformance`, and `cargo test -p vox-sql --test p5_migrate_smoke` (routing, orchestrator policy tests, VoxDb contract checks, and SQL interop P2/P3/P5 smoke lanes). |
 | `doc-inventory generate \| verify` | Regenerate or verify `docs/agents/doc-inventory.json` (Rust; replaces retired Python scripts) |
 | `docs-reality-audit verify \| metrics [--write]` | Documentation Reality Audit: validates [`contracts/reports/docs-reality-audit/`](../../../contracts/reports/docs-reality-audit/) JSON against schemas + inventory path hints; **`metrics`** refreshes `metrics.v1.json`. See [Documentation Reality Audit Program](../contributors/docs-reality-audit-program.md). Also runs inside **`ssot-drift`**. |
 | `test-inventory [--json] [--output <path>] [--markdown <path>] [--check <path>]` | Regenerable workspace test inventory (Rust test attrs, ignores, golden Vox `@test`, app E2E paths, doctest candidates, harness-pattern totals). **`--check`** parses committed JSON and the fresh report and fails on structured inequality (not a raw text compare). |
@@ -224,7 +222,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `repo-guards` | TypeVar / `opencode` / stray-root file guards |
 | `nomenclature-guard` | Enforces the English-first crate naming policy (Phase 5). |
 | `secret-env-guard [--all]` | Fails if Rust files add direct managed-secret env reads outside allowed modules (default: `git diff` changed files; set **`VOX_SECRET_GUARD_GIT_REF`** to a merge-base range on clean CI checkouts; `--all` scans all crates). |
-| `sql-surface-guard [--all]` | Fails if sources use `connection().query(` / `connection().execute(` outside [`docs/agents/sql-connection-api-allowlist.txt`](../../../docs/agents/sql-connection-api-allowlist.txt) plus built-in `vox-db` / `vox-compiler` prefixes (see [`docs/agents/database-nomenclature.md`](../../../docs/agents/database-nomenclature.md)). |
+| `sql-surface-guard [--all]` | Fails if sources use `connection().query(` / `connection().execute(` outside [`docs/agents/sql-connection-api-allowlist.txt`](../../../docs/agents/sql-connection-api-allowlist.txt) plus built-in `vox-db` / `vox-compiler` prefixes, and fails if Rust sources use `sqlx` path imports outside `crates/vox-sql/` (see [`docs/agents/database-nomenclature.md`](../../../docs/agents/database-nomenclature.md)). |
 | `query-all-guard [--all]` | Fails if sources call the Codex `query_all` facade escape hatch outside [`docs/agents/query-all-allowlist.txt`](../../../docs/agents/query-all-allowlist.txt) plus `crates/vox-db/` (same nomenclature doc). |
 | `turso-import-guard [--all]` | Fails if sources use the Turso crate path prefix outside [`docs/agents/turso-import-allowlist.txt`](../../../docs/agents/turso-import-allowlist.txt) plus built-in `vox-db` / `vox-package` / `vox-compiler` prefixes ([codex-turso-allowlist](../archive/research-2026-q1/codex-turso-allowlist.md)). |
 | `policy-allowlist-parity` | Verifies `allow_direct_access` in `contracts/db/data-storage-policy.v1.yaml` matches [`docs/agents/turso-import-allowlist.txt`](../../../docs/agents/turso-import-allowlist.txt). |
@@ -254,7 +252,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `scientia-worthiness-contract` | Validates `contracts/scientia/publication-worthiness.default.yaml` against `publication-worthiness.schema.json` and publisher invariants (weights sum, threshold ordering) |
 | `scientia-novelty-ledger-contracts` | Validates example `contracts/reports/scientia-finding-candidate.example.v1.json` and `scientia-novelty-evidence-bundle.example.v1.json` against `finding-candidate.v1.schema.json` and `novelty-evidence-bundle.v1.schema.json` |
 | `speech-runtime-suite [--run-id <id>] [--plugins-dir <dir>] [--limit <n>] [--skip-runtime]` | Runs the speech-to-code MUST+SHOULD audit matrix from `contracts/speech-to-code/audit-matrix.v1.yaml`, executes the CPU Candle Oratio eval when runtime is enabled, and writes per-cell `cell_result.json`, `cell_result.kpi.json`, and aggregate `scorecard.json` under `.vox/audit/<run-id>/`. |
-| `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `sql-surface-guard --all`, `query-all-guard --all`, `turso-import-guard --all`, `operations-verify`, `command-compliance`, `capability-sync` (verify-only), `contracts-index`, **`docs-reality-audit verify`**, `exec-policy-contract`, in-process completion-policy Tier A scan (no audit JSON write), `scientia-worthiness-contract`, `scientia-novelty-ledger-contracts`, and `data-ssot-guards` in one pass |
+| `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `sql-surface-guard --all` (includes `sqlx` isolation enforcement), `query-all-guard --all`, `turso-import-guard --all`, `operations-verify`, `command-compliance`, `capability-sync` (verify-only), `contracts-index`, **`docs-reality-audit verify`**, `exec-policy-contract`, in-process completion-policy Tier A scan (no audit JSON write), `scientia-worthiness-contract`, `scientia-novelty-ledger-contracts`, and `data-ssot-guards` in one pass |
 
 ### Bootstrap / dev launcher (missing `vox` on `PATH`)
 
@@ -467,7 +465,7 @@ Local **VoxDB** inspection and research helpers (`crates/vox-cli/src/commands/db
 
 `vox db prune-plan` prints JSON counts for rows that match automated rules in [`contracts/db/retention-policy.yaml`](../../../contracts/db/retention-policy.yaml) (`days`, `ms_days`, `expires_lt_now`). `vox db prune-apply --i-understand` runs the matching `DELETE`s. Rationale, sensitivity classes, and table notes (including `ci_completion_*`) live in [telemetry-retention-sensitivity-ssot](../archive/research-2026-q1/telemetry-retention-sensitivity-ssot.md).
 
-Common subcommands { `status`, `audit`, `schema`, `sample`, `migrate`, `export` / `import`, `vacuum`, `pref-get` / `pref-set` / `pref-list`, plus research flows (`research-ingest-url`, `research-list`, `capability-list`, …). Publication operator controls: `publication-discovery-scan`, `publication-discovery-explain`, `publication-transform-preview`, `publication-route-simulate`, `publication-publish`, and `publication-retry-failed` accept **`--json`** for structured stdout. **`publication-publish`** enforces the same live gate as other surfaces when `--dry-run` is off: VoxDb with two digest approvers and `VOX_NEWS_PUBLISH_ARMED=1` (or orchestrator publish_armed is not read by this path); successful live runs update manifest state to `published` / `publish_failed` like MCP/orchestrator. Run `vox db --help` for the full tree.
+Common subcommands include `status`, `audit`, `schema`, `sample`, `migrate`, `introspect`, `verify`, `export` / `import`, `vacuum`, `build-health`, `build-regressions`, and `pref-get` / `pref-set` / `pref-list`. `vox db migrate --url <sql-url>` uses `vox-sql`'s app-plane `AppAutoMigrator` (`--dry-run` plans only), while `vox db introspect` and `vox db verify` resolve app-plane connectivity from `--url`, `VOX_APP_DB_URL`, then `VOX_DB_URL`. Publication operator controls: `publication-discovery-scan`, `publication-discovery-explain`, `publication-transform-preview`, `publication-route-simulate`, `publication-publish`, and `publication-retry-failed` accept **`--json`** for structured stdout. **`publication-publish`** enforces the same live gate as other surfaces when `--dry-run` is off: VoxDb with two digest approvers and `VOX_NEWS_PUBLISH_ARMED=1` (or orchestrator publish_armed is not read by this path); successful live runs update manifest state to `published` / `publish_failed` like MCP/orchestrator. Run `vox db --help` for the full tree.
 
 Discovery/data-prep operator commands: `vox db publication-discovery-scan`, `vox db publication-discovery-explain`, `vox db publication-transform-preview`, and `vox db publication-discovery-refresh-evidence`. **`publication-discovery-explain` JSON** adds assist-only `impact_readership_projection` (not a publish gate) when `scientia_novelty_bundle` is present on the manifest. **Prior-art / worthiness operator JSON:** `vox db publication-novelty-fetch` (federated OpenAlex/Crossref/Semantic Scholar bundle; optional `--persist-metadata`; query limits/tunables from `contracts/scientia/impact-readership-projection.seed.v1.yaml`), `vox db publication-decision-explain` (Socrates/sidecar enrich + heuristic preflight + worthiness + discovery rank; optional `--live-prior-art`; includes the same assist-only projection when a novelty bundle is available), and `vox db publication-novelty-happy-path` (prior art + enrich + stdout: finding-candidate + bundle + merged rank + worthiness + `calibration_telemetry` + assist-only `impact_readership_projection`).
 
@@ -578,9 +576,9 @@ Always available in the minimal binary. **`vox snippet`** — `save`, `search`, 
 
 **Not in default builds.** `cargo build -p vox-cli --features ars`. Subcommands mirror the ARS helpers: `list`, `install`, `uninstall`, `search`, `info`, `create`, `eval-task`, `promote`, `run`, `context-assemble`, `discover` (see `commands::extras::ars`).
 
-### `vox ludus` (feature `extras-ludus`)
+### `vox gamify` (alias `vox ludus`, feature `extras-ludus`)
 
-**Not in default builds.** `cargo build -p vox-cli --features extras-ludus`. Companions, quests, shop, arena, collegium, etc. (`commands::extras::ludus`). Terminal HUD: **`vox ludus hud`** requires **`--features ludus-hud`** (implies `extras-ludus` + `vox-orchestrator`).
+**Not in default builds.** `cargo build -p vox-cli --features extras-ludus`. Companions, quests, shop, arena, collegium, etc. (`commands::extras::ludus`). Canonical command is **`vox gamify`**; the Latin **`vox ludus`** alias keeps working. Terminal HUD: **`vox gamify hud`** (alias `vox ludus hud`) requires **`--features ludus-hud`** (implies `extras-ludus` + `vox-orchestrator`).
 
 ### `vox stub-check` (feature `stub-check`)
 
@@ -840,7 +838,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `telemetry` | default | `commands::telemetry` (optional upload queue; ADR 023) |
 | `openclaw` | `ars` | `commands::openclaw` |
 | `skill` | `ars` | `commands::extras::skill_cmd` |
-| `ludus` | `extras-ludus` | `commands::extras::ludus_cli` |
+| `gamify` | `extras-ludus` | `commands::extras::ludus_cli` |
 | `stub-check` | `stub-check` | `commands::stub_check` |
 | `ci` | default | `commands::ci` |
 | `commands` | default | `command_catalog` |

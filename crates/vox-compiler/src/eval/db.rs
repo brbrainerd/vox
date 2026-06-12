@@ -50,7 +50,7 @@ fn ok(v: VoxValue) -> VoxValue {
 }
 
 fn row_to_object(row: &Row) -> VoxValue {
-    VoxValue::Object(row.clone())
+    VoxValue::object(row.clone())
 }
 
 /// Three-way compare for the orderable `VoxValue` scalars (Int/Float/Decimal/
@@ -135,10 +135,10 @@ fn eval_predicate(pred: &HirDbPredicate, row: &Row, vals: &[VoxValue], pos: &mut
             let have = field(row, f).cloned();
             let mut matched = false;
             for _ in 0..*arity {
-                if let Some(w) = take(vals, pos) {
-                    if have.as_ref() == Some(&w) {
-                        matched = true;
-                    }
+                if let Some(w) = take(vals, pos)
+                    && have.as_ref() == Some(&w)
+                {
+                    matched = true;
                 }
             }
             matched
@@ -202,7 +202,7 @@ pub fn execute_db_plan(
             let id = table.next_id;
             table.next_id += 1;
             let mut row: Row = vec![("_id".to_string(), VoxValue::Int(id))];
-            for (k, v) in record {
+            for (k, v) in record.iter().cloned() {
                 if k != "_id" {
                     row.push((k, v));
                 }
@@ -212,33 +212,38 @@ pub fn execute_db_plan(
         }
         HirDbTableOp::Get => {
             let id = args.first().map(|(_, v)| v.clone());
+            let key_field = plan.primary_key.as_deref().unwrap_or("_id");
             let found = interp
                 .db
                 .table_mut(&plan.table)
                 .rows
                 .iter()
-                .find(|r| field(r, "_id") == id.as_ref())
+                .find(|r| field(r, key_field) == id.as_ref())
                 .map(row_to_object);
             Ok(ok(VoxValue::Option(found.map(Box::new))))
         }
         HirDbTableOp::Delete => {
             let id = args.first().map(|(_, v)| v.clone());
+            let key_field = plan.primary_key.as_deref().unwrap_or("_id");
             let table = interp.db.table_mut(&plan.table);
-            table.rows.retain(|r| field(r, "_id") != id.as_ref());
+            table.rows.retain(|r| field(r, key_field) != id.as_ref());
             Ok(ok(VoxValue::Null))
         }
         HirDbTableOp::Count => {
             let n = interp.db.table_mut(&plan.table).rows.len() as i64;
             Ok(ok(VoxValue::Int(n)))
         }
-        HirDbTableOp::All | HirDbTableOp::FilterRecord | HirDbTableOp::UnsafeQueryRawClause => {
+        HirDbTableOp::UnsafeQueryRawClause => Err(EvalError::AssertionFailed(
+            "db.<Table>.query(raw_clause) is not supported in --interp; use .where/.filter or run the compiled backend"
+                .to_string(),
+        )),
+        HirDbTableOp::All | HirDbTableOp::FilterRecord => {
             // Evaluate the plan-carried predicate values and limit first (both
             // borrow `interp` mutably via `eval_expr`), then snapshot rows and
             // filter / order / limit / project. The predicate values come from
             // the plan — not the surface args — so a *fused* chain
             // (`.where({..}).select(..)`) filters correctly even though its
             // `where` object is not on the executed node.
-            // `UnsafeQueryRawClause` has no interpreter SQL analogue.
             let mut pred_vals: Vec<VoxValue> = Vec::with_capacity(plan.predicate_args.len());
             for a in &plan.predicate_args {
                 pred_vals.push(eval_expr(interp, &a.value)?);
@@ -292,18 +297,18 @@ pub fn execute_db_plan(
                             keep.push(id.clone());
                         }
                         for c in cols {
-                            if c != "_id" {
-                                if let Some(pair) = r.iter().find(|(k, _)| k == c) {
-                                    keep.push(pair.clone());
-                                }
+                            if c != "_id"
+                                && let Some(pair) = r.iter().find(|(k, _)| k == c)
+                            {
+                                keep.push(pair.clone());
                             }
                         }
-                        VoxValue::Object(keep)
+                        VoxValue::object(keep)
                     })
                     .collect(),
                 None => out.iter().map(row_to_object).collect(),
             };
-            Ok(ok(VoxValue::List(projected)))
+            Ok(ok(VoxValue::list(projected)))
         }
     }
 }

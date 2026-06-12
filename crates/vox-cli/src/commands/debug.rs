@@ -117,13 +117,5 @@ async fn run_direct_script(abs: &Path, _mode: &str, _stop_on_entry: bool) -> Res
 
 /// Try to find `vox-dap` on PATH.
 fn which_vox_dap() -> Option<std::path::PathBuf> {
-    let path_var = std::env::var_os("PATH")?;
-    for dir in std::env::split_paths(&path_var) {
-        let candidate = dir.join("vox-dap");
-        if candidate.exists() { return Some(candidate); }
-        // Windows: also try with .exe
-        let candidate_exe = dir.join("vox-dap.exe");
-        if candidate_exe.exists() { return Some(candidate_exe); }
-    }
-    None
+    which::which("vox-dap").ok()
 }

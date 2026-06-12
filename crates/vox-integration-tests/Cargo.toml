@@ -3,6 +3,7 @@ name = "vox-integration-tests"
 description = "Cross-crate integration test harness (test-only L5)."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dev-dependencies]
 serial_test = { workspace = true }
@@ -33,7 +34,7 @@ vox-skills = { workspace = true }
 vox-cli = { workspace = true }
 vox-scaling-policy = { workspace = true }
 vox-secrets = { workspace = true }
-vox-oratio = { workspace = true }
+vox-speech = { workspace = true }
 
 
 # Windows UAC installer-detection elevates any .exe whose name contains "install".

@@ -246,6 +246,7 @@ impl LowerCtx {
                     is_mobile_native: false,
                     is_pure: false,
                     is_reactive: false,
+                    is_versioned: false,
                     capabilities: vec![],
                     is_remote: false,
                     is_llm: false,
@@ -329,9 +330,11 @@ impl LowerCtx {
             && let Some((table, count_args)) =
                 super::expr_db::extract_count_chain_args(self, object)
         {
+            let primary_key = self.table_primary_key(&table);
             let plan = HirDbQueryPlan {
                 table: table.clone(),
                 op: HirDbTableOp::Count,
+                primary_key,
                 predicate: None,
                 projection: None,
                 order_by: None,
@@ -353,9 +356,11 @@ impl LowerCtx {
             && let Some(filter_args) = super::expr_db::extract_filter_record_args(&hir_args)
             && !filter_args.is_empty()
         {
+            let primary_key = self.table_primary_key(&table);
             let plan = HirDbQueryPlan {
                 table: table.clone(),
                 op: HirDbTableOp::FilterRecord,
+                primary_key,
                 predicate: Some(HirDbPredicate::And(
                     filter_args
                         .iter()
@@ -390,6 +395,7 @@ impl LowerCtx {
             if matches!(op, HirDbTableOp::UnsafeQueryRawClause) {
                 cap.emits_change_log = true;
             }
+            let primary_key = self.table_primary_key(&table);
             HirExpr::MethodCall(
                 Box::new(obj_hir),
                 method.to_string(),
@@ -397,6 +403,7 @@ impl LowerCtx {
                 Some(Box::new(HirDbQueryPlan {
                     table,
                     op,
+                    primary_key,
                     predicate: None,
                     projection: None,
                     order_by: None,

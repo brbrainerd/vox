@@ -49,9 +49,9 @@ This blueprint is designed for future LLM-assisted implementation and includes:
 
 - `crates/vox-compiler/src/hir/nodes/decl.rs`
 - `crates/vox-compiler/src/hir/nodes/stmt_expr.rs`
-- `crates/vox-codegen/src/codegen_ts/jsx.rs`
-- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`
-- `crates/vox-codegen/src/codegen_ts/emitter.rs`
+- `crates/vox-codegen-ts/src/jsx.rs`
+- `crates/vox-codegen-ts/src/hir_emit/mod.rs`
+- `crates/vox-codegen-ts/src/emitter.rs`
 - `crates/vox-cli/src/templates/islands.rs`
 - `crates/vox-cli/src/frontend.rs`
 
@@ -64,10 +64,10 @@ Canonical side-by-side representation mapping:
 
 | Area | Current verified state | Gap to close | Primary files |
 | --- | --- | --- | --- |
-| JSX and island lowering ownership | split between `codegen_ts/jsx.rs` and `codegen_ts/hir_emit/mod.rs`; island rewrite exists in both paths | consolidate semantic ownership in `web_ir/lower.rs` and keep emitters thin | `crates/vox-codegen/src/codegen_ts/jsx.rs`, `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`, `crates/vox-codegen/src/web_ir/lower.rs` |
+| JSX and island lowering ownership | split between `codegen_ts/jsx.rs` and `codegen_ts/hir_emit/mod.rs`; island rewrite exists in both paths | consolidate semantic ownership in `web_ir/lower.rs` and keep emitters thin | `crates/vox-codegen-ts/src/jsx.rs`, `crates/vox-codegen-ts/src/hir_emit/mod.rs`, `crates/vox-codegen/src/web_ir/lower.rs` |
 | WebIR validation depth | `validate_web_ir` currently checks structural DOM references and arena bounds | add optionality, route/server/mutation, and style contract validation prior to emit | `crates/vox-codegen/src/web_ir/validate.rs`, `crates/vox-codegen/src/web_ir/mod.rs` |
-| Style representation | style emission lives in TS emitter (`Component.css` generation) | lower style blocks into `StyleNode` then emit from WebIR printer path | `crates/vox-codegen/src/codegen_ts/emitter.rs`, `crates/vox-codegen/src/web_ir/lower.rs` |
-| Route/data contract convergence | routes and server outputs are generated from HIR-oriented emit modules | represent route/data/server contracts in `RouteNode` and bridge to emitters | `crates/vox-codegen/src/codegen_ts/routes.rs`, `crates/vox-codegen/src/web_ir/lower.rs`, `crates/vox-codegen/src/codegen_ts/emitter.rs` |
+| Style representation | style emission lives in TS emitter (`Component.css` generation) | lower style blocks into `StyleNode` then emit from WebIR printer path | `crates/vox-codegen-ts/src/emitter.rs`, `crates/vox-codegen/src/web_ir/lower.rs` |
+| Route/data contract convergence | routes and server outputs are generated from HIR-oriented emit modules | represent route/data/server contracts in `RouteNode` and bridge to emitters | `crates/vox-rn-codegen/src/routes.rs`, `crates/vox-codegen/src/web_ir/lower.rs`, `crates/vox-codegen-ts/src/emitter.rs` |
 | Islands runtime typing | hydration reads `data-prop-*` values from DOM attributes (string channel) | preserve V1 contract first; introduce explicit versioned V2 typing when ready | `crates/vox-cli/src/templates/islands.rs`, `crates/vox-cli/src/frontend.rs`, `crates/vox-codegen/src/web_ir/mod.rs` |
 
 ## Test gate matrix (file-level)
@@ -88,8 +88,8 @@ Canonical side-by-side representation mapping:
 | --- | --- | --- |
 | `DomNode` | all current JSX/island rewrite semantics lower through `web_ir/lower.rs` without fallback ownership in `jsx.rs`/`hir_emit/mod.rs` | `crates/vox-codegen/src/web_ir/lower.rs`, `crates/vox-compiler/tests/web_ir_lower_emit.rs` |
 | `BehaviorNode` | reactive state/derived/effect/event/action forms lower and validate with stable diagnostics | `crates/vox-codegen/src/web_ir/lower.rs`, `crates/vox-codegen/src/web_ir/validate.rs` |
-| `StyleNode` | component style blocks lower to `StyleNode::Rule` and printer emits CSS parity fixtures | `crates/vox-codegen/src/web_ir/lower.rs`, `crates/vox-codegen/src/codegen_ts/emitter.rs` |
-| `RouteNode` | routes + server/query/mutation contracts lower as typed contracts used by TS emit | `crates/vox-codegen/src/web_ir/lower.rs`, `crates/vox-codegen/src/codegen_ts/routes.rs` |
+| `StyleNode` | component style blocks lower to `StyleNode::Rule` and printer emits CSS parity fixtures | `crates/vox-codegen/src/web_ir/lower.rs`, `crates/vox-codegen-ts/src/emitter.rs` |
+| `RouteNode` | routes + server/query/mutation contracts lower as typed contracts used by TS emit | `crates/vox-codegen/src/web_ir/lower.rs`, `crates/vox-rn-codegen/src/routes.rs` |
 | `InteropNode` | compatibility escapes are explicit, policy-checked, and measurable | `crates/vox-codegen/src/web_ir/mod.rs`, `crates/vox-codegen/src/web_ir/validate.rs` |
 
 ## Phase exit criteria (file/test-gated)
@@ -105,19 +105,19 @@ Canonical side-by-side representation mapping:
 
 | File | Current role | Migration disposition | Target owner |
 | --- | --- | --- | --- |
-| `crates/vox-codegen/src/codegen_ts/emitter.rs` | output orchestrator and file assembly | `legacy-wrap` | WebIR lower/validate/emit adapters |
-| `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` | HIR expr/stmt to TS/JSX strings | `legacy-replace` | `crates/vox-codegen/src/web_ir/emit_tsx.rs` + future target emitters |
-| `crates/vox-codegen/src/codegen_ts/jsx.rs` | AST JSX render path | `legacy-replace` | `crates/vox-codegen/src/web_ir/lower.rs` + emitters |
-| `crates/vox-codegen/src/codegen_ts/component.rs` | `@island` generation from AST-retained path | `legacy-shrink` | WebIR lowering adapters + thin wrapper |
-| `crates/vox-codegen/src/codegen_ts/reactive.rs` | reactive component generation | `legacy-shrink` | WebIR view roots + emitter |
-| `crates/vox-codegen/src/codegen_ts/routes.rs` | route-specific TS generation | `legacy-replace` | `RouteNode` contracts + target printer |
-| `crates/vox-codegen/src/codegen_ts/route_manifest.rs` | `routes.manifest.ts` (`VoxRoute[]`) for adapters | `active` | **Authority:** lowered [`RouteContract`](../../../crates/vox-codegen/src/web_ir/mod.rs) trees from [`WebIrModule`](../../../crates/vox-codegen/src/web_ir/mod.rs) (emitter uses cached `project_web_from_core`) |
-| `crates/vox-codegen/src/codegen_ts/tanstack_query_emit.rs` | query helper emit | `legacy-wrap` | contract-driven helper generation |
-| `crates/vox-codegen/src/codegen_ts/scaffold.rs` | TanStack Start scaffold / adapter stubs | `active` | shares manifest + `vox-client` contract with CLI templates |
-| `crates/vox-codegen/src/codegen_ts/activity.rs` | activity wrappers | `legacy-shrink` | consume WebIR/contract nodes |
-| `crates/vox-codegen/src/codegen_ts/schema/` (`mod.rs`, `from_ast.rs`, `from_hir.rs`, `type_maps.rs`) | schema TS emit path | `legacy-wrap` | route/data/DB contracts over WebIR |
-| `crates/vox-codegen/src/codegen_ts/adt.rs` | ADT/type generation | `retain-support` | remains mostly independent |
-| `crates/vox-codegen/src/codegen_ts/island_emit.rs` | island-name and data-attr helpers | `legacy-shrink` | compatibility adapter until V2 mount contract |
+| `crates/vox-codegen-ts/src/emitter.rs` | output orchestrator and file assembly | `legacy-wrap` | WebIR lower/validate/emit adapters |
+| `crates/vox-codegen-ts/src/hir_emit/mod.rs` | HIR expr/stmt to TS/JSX strings | `legacy-replace` | `crates/vox-codegen/src/web_ir/emit_tsx.rs` + future target emitters |
+| `crates/vox-codegen-ts/src/jsx.rs` | AST JSX render path | `legacy-replace` | `crates/vox-codegen/src/web_ir/lower.rs` + emitters |
+| `crates/vox-codegen-ts/src/component.rs` | `@island` generation from AST-retained path | `legacy-shrink` | WebIR lowering adapters + thin wrapper |
+| `crates/vox-codegen-ts/src/reactive/mod.rs` | reactive component generation | `legacy-shrink` | WebIR view roots + emitter |
+| `crates/vox-rn-codegen/src/routes.rs` | route-specific TS generation | `legacy-replace` | `RouteNode` contracts + target printer |
+| `crates/vox-codegen-ts/src/route_manifest.rs` | `routes.manifest.ts` (`VoxRoute[]`) for adapters | `active` | **Authority:** lowered [`RouteContract`](../../../crates/vox-codegen/src/web_ir/mod.rs) trees from [`WebIrModule`](../../../crates/vox-codegen/src/web_ir/mod.rs) (emitter uses cached `project_web_from_core`) |
+| `crates/vox-codegen-ts/src/tanstack_query_emit.rs` | query helper emit | `legacy-wrap` | contract-driven helper generation |
+| `crates/vox-codegen-ts/src/scaffold.rs` | TanStack Start scaffold / adapter stubs | `active` | shares manifest + `vox-client` contract with CLI templates |
+| `crates/vox-codegen-ts/src/activity.rs` | activity wrappers | `legacy-shrink` | consume WebIR/contract nodes |
+| `crates/vox-codegen-ts/src/schema/` (`mod.rs`, `from_ast.rs`, `from_hir.rs`, `type_maps.rs`) | schema TS emit path | `legacy-wrap` | route/data/DB contracts over WebIR |
+| `crates/vox-codegen-ts/src/adt.rs` | ADT/type generation | `retain-support` | remains mostly independent |
+| `crates/vox-codegen-ts/src/island_emit.rs` | island-name and data-attr helpers | `legacy-shrink` | compatibility adapter until V2 mount contract |
 
 ## File-level edit guide (where, what, how, why)
 
@@ -145,23 +145,23 @@ Canonical side-by-side representation mapping:
 
 ### Stage C - bridge emitters with wrappers
 
-1. `crates/vox-codegen/src/codegen_ts/emitter.rs`
+1. `crates/vox-codegen-ts/src/emitter.rs`
    - What: keep `generate` API stable, but call WebIR lower/validate/emit internally.
    - Why: avoids rippling API changes across CLI/tests.
-2. `crates/vox-codegen/src/codegen_ts/component.rs`
+2. `crates/vox-codegen-ts/src/component.rs`
    - What: transition to wrapper that resolves component metadata then delegates view output to WebIR emitter.
    - Why: gradual migration of AST-retained component path.
-3. `crates/vox-codegen/src/codegen_ts/reactive.rs`
+3. `crates/vox-codegen-ts/src/reactive/mod.rs`
    - What: delegate view rendering to WebIR emit path.
    - Why: unify with component path and island semantics.
 
 ### Stage D - de-duplicate legacy internals
 
-1. `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`
+1. `crates/vox-codegen-ts/src/hir_emit/mod.rs`
    - What: retire island/JSX rendering ownership; retain only compatibility helpers during transition.
-2. `crates/vox-codegen/src/codegen_ts/jsx.rs`
+2. `crates/vox-codegen-ts/src/jsx.rs`
    - What: retire direct island mount rendering path.
-3. `crates/vox-codegen/src/codegen_ts/routes.rs`
+3. `crates/vox-rn-codegen/src/routes.rs`
    - What: route tree and contract output should consume WebIR `RouteNode`.
 
 ### Stage E - islands runtime compatibility and V2 gate
@@ -406,7 +406,7 @@ Task volume note:
 - [x] OP-0024 | add-test | C2 | 1.2 | 1.1 | 210 | OP-0023 | `crates/vox-compiler/src/parser/descent/tests.rs` | assert reactive component with `view:` JSX remains stable. **Done:** `test_parse_at_component_reactive_path_c` + `test_parse_reactive_effect_mount_cleanup_view`.
 - [x] OP-0025 | update | C2 | 1.1 | 1.0 | 180 | OP-0024 | `crates/vox-compiler/src/parser/descent/decl/tail.rs` | Done: `parse_routes` / `parse_reactive_component` rustdoc (`{` immediately after head).
 - [x] OP-0026 | add-test | C2 | 1.2 | 1.2 | 220 | OP-0025 | `crates/vox-compiler/src/parser/descent/tests.rs` | Done: `test_parse_routes_root_and_nested_path_literals` (`/` + `/blog/post`).
-- [x] OP-0027 | update | C2 | 1.1 | 1.0 | 180 | OP-0026 | `crates/vox-compiler/src/ast/decl/ui.rs` | Done: `RoutesParseSummary` + `RoutesDecl::parse_summary`.
+- [x] OP-0027 | update | C2 | 1.1 | 1.0 | 180 | OP-0026 | `crates/vox-ast/src/decl/ui.rs` | Done: `RoutesParseSummary` + `RoutesDecl::parse_summary`.
 - [x] OP-0028 | add-test | C2 | 1.2 | 1.2 | 220 | OP-0027 | `crates/vox-compiler/src/parser/descent/tests.rs` | Done: `test_routes_parse_summary_matches_paths`.
 - [x] OP-0029 | update | C2 | 1.1 | 1.1 | 200 | OP-0028 | `crates/vox-compiler/src/parser/descent/decl/head.rs` | Done: reactive body message cites parse taxonomy + `ReactiveComponentMember` class (`test_reactive_body_unknown_token_diagnostic_class`).
 - [x] OP-0030 | add-test | C2 | 1.2 | 1.2 | 220 | OP-0029 | `crates/vox-compiler/src/parser/descent/tests.rs` | negative tests for misplaced `view:` token. **Done:** `test_parse_reactive_rejects_misplaced_view_without_colon`.
@@ -508,107 +508,107 @@ Task volume note:
 - [x] OP-0111 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0110 | `crates/vox-integration-tests/tests/pipeline/includes/include_02.rs` + `hir_emit` / `island_emit` | Done: `pipeline_web_ir_preview_emit_hooks_reactive_fixture` (`HooksDemo` + `MIXED_SURFACE` Web IR view emit: sorted `data-prop-*`, JSX `{…}` wraps for non-`<` children).
 - [x] OP-0112 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-0111 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | Done: preview tests pass in `web_ir_lower_emit` integration suite.
 
-### File block 08 - `crates/vox-codegen/src/codegen_ts/emitter.rs` (OP-0113..OP-0128)
+### File block 08 - `crates/vox-codegen-ts/src/emitter.rs` (OP-0113..OP-0128)
 
-- [x] OP-0113 | update | C5 | 1.7 | 1.3 | 760 | OP-0112 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | Done: `maybe_web_ir_validate` (`VOX_WEBIR_VALIDATE`).
-- [x] OP-0114 | update | C5 | 1.7 | 1.3 | 760 | OP-0113 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | Done: gate is env-opt-in; `generate` signature unchanged.
+- [x] OP-0113 | update | C5 | 1.7 | 1.3 | 760 | OP-0112 | `crates/vox-codegen-ts/src/emitter.rs` | Done: `maybe_web_ir_validate` (`VOX_WEBIR_VALIDATE`).
+- [x] OP-0114 | update | C5 | 1.7 | 1.3 | 760 | OP-0113 | `crates/vox-codegen-ts/src/emitter.rs` | Done: gate is env-opt-in; `generate` signature unchanged.
 - [x] OP-0115 | add-test | C5 | 1.7 | 1.5 | 820 | OP-0114 | `crates/vox-integration-tests/tests/pipeline/includes/include_01.rs` | **Partial:** `pipeline_codegen_with_vox_web_ir_validate_env` + `pipeline_codegen_without_vox_web_ir_validate_env_succeeds` (`tests/pipeline.rs` env guards).
-- [x] OP-0116 | update | C5 | 1.7 | 1.3 | 760 | OP-0115 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | **Deferred:** emitter still consumes HIR directly; WebIR route/style mirrors are for tooling until adapter lands.
+- [x] OP-0116 | update | C5 | 1.7 | 1.3 | 760 | OP-0115 | `crates/vox-codegen-ts/src/emitter.rs` | **Deferred:** emitter still consumes HIR directly; WebIR route/style mirrors are for tooling until adapter lands.
 - [x] OP-0117 | add-test | C5 | 1.7 | 1.5 | 820 | OP-0116 | `crates/vox-integration-tests/tests/pipeline.rs` | **Deferred:** see OP-0116.
-- [x] OP-0118 | update | C5 | 1.7 | 1.3 | 760 | OP-0117 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | Done: `VOX_WEBIR_VALIDATE` explicit flag (default off).
+- [x] OP-0118 | update | C5 | 1.7 | 1.3 | 760 | OP-0117 | `crates/vox-codegen-ts/src/emitter.rs` | Done: `VOX_WEBIR_VALIDATE` explicit flag (default off).
 - [x] OP-0119 | add-test | C5 | 1.7 | 1.5 | 820 | OP-0118 | `crates/vox-integration-tests/tests/pipeline.rs` | **Deferred:** dual-run file diff not implemented.
-- [x] OP-0120 | update | C4 | 1.6 | 1.3 | 680 | OP-0119 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | **Deferred:** diff counters (future with OP-0119).
+- [x] OP-0120 | update | C4 | 1.6 | 1.3 | 680 | OP-0119 | `crates/vox-codegen-ts/src/emitter.rs` | **Deferred:** diff counters (future with OP-0119).
 - [x] OP-0121 | add-test | C5 | 1.7 | 1.5 | 820 | OP-0120 | `crates/vox-integration-tests/tests/pipeline.rs` | **Deferred.**
-- [x] OP-0122 | update | C4 | 1.6 | 1.3 | 680 | OP-0121 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | **Deferred:** island metadata still from `hir_emit` paths.
+- [x] OP-0122 | update | C4 | 1.6 | 1.3 | 680 | OP-0121 | `crates/vox-codegen-ts/src/emitter.rs` | **Deferred:** island metadata still from `hir_emit` paths.
 - [x] OP-0123 | add-test | C5 | 1.7 | 1.5 | 820 | OP-0122 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | **Deferred.**
-- [x] OP-0124 | update | C4 | 1.6 | 1.3 | 680 | OP-0123 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | Done: validate failures return `Err` when flag on.
+- [x] OP-0124 | update | C4 | 1.6 | 1.3 | 680 | OP-0123 | `crates/vox-codegen-ts/src/emitter.rs` | Done: validate failures return `Err` when flag on.
 - [x] OP-0125 | add-test | C5 | 1.7 | 1.5 | 820 | OP-0124 | `crates/vox-integration-tests/tests/pipeline/includes/include_01.rs` + `full_stack_minimal_build.rs` | **Partial:** `pipeline_codegen_with_vox_web_ir_validate_env` + full-stack golden with `VOX_WEBIR_VALIDATE`.
-- [x] OP-0126 | update | C4 | 1.6 | 1.3 | 680 | OP-0125 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | Done: `maybe_web_ir_validate` rustdoc.
+- [x] OP-0126 | update | C4 | 1.6 | 1.3 | 680 | OP-0125 | `crates/vox-codegen-ts/src/emitter.rs` | Done: `maybe_web_ir_validate` rustdoc.
 - [x] OP-0127 | add-test | C5 | 1.7 | 1.5 | 820 | OP-0126 | `crates/vox-cli/tests/full_stack_minimal_build.rs` | Done: `VOX_WEBIR_VALIDATE=1` for golden build.
 - [x] OP-0128 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-0127 | `include_01.rs` + `full_stack_minimal_build.rs` + `web_ir_lower_emit.rs` | Done: `pipeline_codegen_with_vox_web_ir_validate_env` + CLI `VOX_WEBIR_VALIDATE` + `cargo test -p vox-compiler --test web_ir_lower_emit`.
 
-### File block 09 - `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` (OP-0129..OP-0144)
+### File block 09 - `crates/vox-codegen-ts/src/hir_emit/mod.rs` (OP-0129..OP-0144)
 
-- [x] OP-0129 | update | C4 | 1.6 | 1.2 | 620 | OP-0128 | `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` | mark island/JSX semantic ownership as legacy-delegate.
-- [x] OP-0130 | update | C4 | 1.6 | 1.2 | 620 | OP-0129 | `crates/vox-codegen/src/codegen_ts/hir_emit/compat.rs` | extract compatibility helpers from semantic transforms (`map_jsx_attr_name`, `map_hir_type_to_ts`).
+- [x] OP-0129 | update | C4 | 1.6 | 1.2 | 620 | OP-0128 | `crates/vox-codegen-ts/src/hir_emit/mod.rs` | mark island/JSX semantic ownership as legacy-delegate.
+- [x] OP-0130 | update | C4 | 1.6 | 1.2 | 620 | OP-0129 | `crates/vox-codegen-ts/src/hir_emit/compat.rs` | extract compatibility helpers from semantic transforms (`map_jsx_attr_name`, `map_hir_type_to_ts`).
 - [x] OP-0131 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0130 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | compatibility helper parity fixture.
-- [x] OP-0132 | update | C4 | 1.6 | 1.2 | 620 | OP-0131 | `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` | deprecate island mount string path (rustdoc migration; no `#[deprecated]` on internal hot path).
+- [x] OP-0132 | update | C4 | 1.6 | 1.2 | 620 | OP-0131 | `crates/vox-codegen-ts/src/hir_emit/mod.rs` | deprecate island mount string path (rustdoc migration; no `#[deprecated]` on internal hot path).
 - [x] OP-0133 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0132 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | `web_ir_preview_emit_includes_island_mount_attrs`.
-- [x] OP-0134 | update | C4 | 1.6 | 1.2 | 620 | OP-0133 | `crates/vox-codegen/src/codegen_ts/hir_emit/state_deps.rs` | module docs; `extract_state_deps` remains `pub(crate)`.
-- [x] OP-0135 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0134 | `crates/vox-codegen/src/codegen_ts/hir_emit/state_deps.rs` | unit tests (`#[cfg(test)]` — integration crate cannot see `pub(crate)`).
+- [x] OP-0134 | update | C4 | 1.6 | 1.2 | 620 | OP-0133 | `crates/vox-codegen-ts/src/hir_emit/state_deps.rs` | module docs; `extract_state_deps` remains `pub(crate)`.
+- [x] OP-0135 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0134 | `crates/vox-codegen-ts/src/hir_emit/state_deps.rs` | unit tests (`#[cfg(test)]` — integration crate cannot see `pub(crate)`).
 - [x] OP-0136 | update | C3 | 1.5 | 1.2 | 520 | OP-0135 | `reactive.rs`, `routes.rs`, `activity.rs` | compat call-site comments (OP-0136).
 - [x] OP-0137 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0136 | `crates/vox-integration-tests/tests/pipeline/includes/include_01.rs` | Done: `pipeline_codegen_without_vox_web_ir_validate_env_succeeds` (`with_web_ir_validate_cleared` in `tests/pipeline.rs`).
-- [x] OP-0138 | update | C3 | 1.5 | 1.2 | 520 | OP-0137 | `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` | `**Phase:** compat-legacy` on HIR emit fns + island helper.
+- [x] OP-0138 | update | C3 | 1.5 | 1.2 | 520 | OP-0137 | `crates/vox-codegen-ts/src/hir_emit/mod.rs` | `**Phase:** compat-legacy` on HIR emit fns + island helper.
 - [x] OP-0139 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0138 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | `hir_emit_public_exports_include_compat_module`.
-- [x] OP-0140 | update | C3 | 1.5 | 1.2 | 520 | OP-0139 | `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` | `pub(crate)` for stmt/pattern/attr emit helpers; public `emit_hir_expr` + `compat` + maps.
+- [x] OP-0140 | update | C3 | 1.5 | 1.2 | 520 | OP-0139 | `crates/vox-codegen-ts/src/hir_emit/mod.rs` | `pub(crate)` for stmt/pattern/attr emit helpers; public `emit_hir_expr` + `compat` + maps.
 - [x] OP-0141 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0140 | `crates/vox-integration-tests/tests/pipeline/includes/include_01.rs` | Done: `pipeline_hir_emit_legacy_shrink_public_api_codegen` (`MIXED_SURFACE_SRC` core TSX + meta files).
-- [x] OP-0142 | update | C3 | 1.5 | 1.2 | 520 | OP-0141 | `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` | crate-level deprecation disposition + blueprint/ADR pointers.
+- [x] OP-0142 | update | C3 | 1.5 | 1.2 | 520 | OP-0141 | `crates/vox-codegen-ts/src/hir_emit/mod.rs` | crate-level deprecation disposition + blueprint/ADR pointers.
 - [x] OP-0143 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0142 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | OP-0143 note on `test_island_jsx_emits_data_vox_island_mount`.
 - [x] OP-0144 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-0143 | `include_01.rs` + `web_ir_lower_emit.rs` | Done: same manifest gate as OP-0141 + `cargo test -p vox-compiler --test web_ir_lower_emit`.
 
-### File block 10 - `crates/vox-codegen/src/codegen_ts/jsx.rs` (OP-0145..OP-0160)
+### File block 10 - `crates/vox-codegen-ts/src/jsx.rs` (OP-0145..OP-0160)
 
-- [x] OP-0145 | update | C4 | 1.6 | 1.2 | 620 | OP-0144 | `crates/vox-codegen/src/codegen_ts/jsx.rs` | module-level legacy / Web IR ownership docs.
-- [x] OP-0146 | update | C4 | 1.6 | 1.2 | 620 | OP-0145 | `crates/vox-codegen/src/codegen_ts/jsx.rs` | `map_jsx_attr_name` re-export from `hir_emit::compat`.
+- [x] OP-0145 | update | C4 | 1.6 | 1.2 | 620 | OP-0144 | `crates/vox-codegen-ts/src/jsx.rs` | module-level legacy / Web IR ownership docs.
+- [x] OP-0146 | update | C4 | 1.6 | 1.2 | 620 | OP-0145 | `crates/vox-codegen-ts/src/jsx.rs` | `map_jsx_attr_name` re-export from `hir_emit::compat`.
 - [x] OP-0147 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0146 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | `jsx_and_hir_emit_share_compat_attr_matrix`.
-- [x] OP-0148 | update | C4 | 1.6 | 1.2 | 620 | OP-0147 | `crates/vox-codegen/src/codegen_ts/jsx.rs` + `island_emit.rs` | AST mount delegates to [`format_island_mount_ast`]; HIR uses [`island_mount_hir_fragment`] (single SSOT).
+- [x] OP-0148 | update | C4 | 1.6 | 1.2 | 620 | OP-0147 | `crates/vox-codegen-ts/src/jsx.rs` + `island_emit.rs` | AST mount delegates to [`format_island_mount_ast`]; HIR uses [`island_mount_hir_fragment`] (single SSOT).
 - [x] OP-0149 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0148 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | `web_ir_preview_emit_includes_island_mount_attrs` (shared with OP-0133).
-- [x] OP-0150 | update | C3 | 1.5 | 1.2 | 520 | OP-0149 | `crates/vox-codegen/src/codegen_ts/jsx.rs` | phase annotations on JSX / expr / stmt emitters.
+- [x] OP-0150 | update | C3 | 1.5 | 1.2 | 520 | OP-0149 | `crates/vox-codegen-ts/src/jsx.rs` | phase annotations on JSX / expr / stmt emitters.
 - [x] OP-0151 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0150 | `crates/vox-integration-tests/tests/pipeline.rs` | covered by `pipeline_hir_emit_legacy_shrink_public_api_codegen` (classic + reactive path smoke).
-- [x] OP-0152 | update | C3 | 1.5 | 1.2 | 520 | OP-0151 | `crates/vox-codegen/src/codegen_ts/hir_emit/compat.rs` | single SSOT matrix (incl. `for` / `tab_index`); jsx delegates.
+- [x] OP-0152 | update | C3 | 1.5 | 1.2 | 520 | OP-0151 | `crates/vox-codegen-ts/src/hir_emit/compat.rs` | single SSOT matrix (incl. `for` / `tab_index`); jsx delegates.
 - [x] OP-0153 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0152 | `reactive_smoke.rs` + `web_ir_lower_emit.rs` | `jsx_and_hir_emit_share_compat_attr_matrix` + `web_ir_event_attr_lowering_matches_react_names`.
-- [x] OP-0154 | update | C3 | 1.5 | 1.2 | 520 | OP-0153 | `crates/vox-codegen/src/codegen_ts/jsx.rs` | Removed unused `emit_pattern_public`; other `emit_*` stay `pub` for `component` / `voxdb`.
+- [x] OP-0154 | update | C3 | 1.5 | 1.2 | 520 | OP-0153 | `crates/vox-codegen-ts/src/jsx.rs` | Removed unused `emit_pattern_public`; other `emit_*` stay `pub` for `component` / `voxdb`.
 - [x] OP-0155 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0154 | `crates/vox-compiler/tests/route_express_emit.rs` + pipeline | coverage via existing generate smoke + new route tests (no separate reduced-API compile-only test).
-- [x] OP-0156 | update | C3 | 1.5 | 1.2 | 520 | OP-0155 | `crates/vox-codegen/src/codegen_ts/jsx.rs` | module docs cite OP-0145+ / ADR 012.
+- [x] OP-0156 | update | C3 | 1.5 | 1.2 | 520 | OP-0155 | `crates/vox-codegen-ts/src/jsx.rs` | module docs cite OP-0145+ / ADR 012.
 - [x] OP-0157 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0156 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | `hir_emit_public_exports_include_compat_module` + existing event-attr lowering test.
-- [x] OP-0158 | update | C3 | 1.5 | 1.2 | 520 | OP-0157 | `crates/vox-codegen/src/codegen_ts/jsx.rs` | disposition footer (OP-0158).
+- [x] OP-0158 | update | C3 | 1.5 | 1.2 | 520 | OP-0157 | `crates/vox-codegen-ts/src/jsx.rs` | disposition footer (OP-0158).
 - [x] OP-0159 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0158 | `include_01.rs` | Done: `pipeline_mixed_surface_codegen_core_file_manifest` / OP-0141 surface.
 - [x] OP-0160 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-0159 | `include_01.rs` + `jsx.rs` notes | Done: `cargo test -p vox-integration-tests --test pipeline pipeline_hir_emit` + mixed-surface manifest tests.
 
-### File block 11 - `crates/vox-codegen/src/codegen_ts/routes.rs` (OP-0161..OP-0176)
+### File block 11 - `crates/vox-rn-codegen/src/routes.rs` (OP-0161..OP-0176)
 
-- [x] OP-0161 | update | C5 | 1.7 | 1.3 | 760 | OP-0160 | `crates/vox-codegen/src/codegen_ts/routes.rs` | [`ExpressRouteEmitCtx`] + `generate_routes_from_ctx` seam (HIR adapter).
-- [x] OP-0162 | update | C5 | 1.7 | 1.3 | 760 | OP-0161 | `crates/vox-codegen/src/codegen_ts/routes.rs` | Module docs: Web IR SSOT vs HIR Express bodies.
+- [x] OP-0161 | update | C5 | 1.7 | 1.3 | 760 | OP-0160 | `crates/vox-rn-codegen/src/routes.rs` | [`ExpressRouteEmitCtx`] + `generate_routes_from_ctx` seam (HIR adapter).
+- [x] OP-0162 | update | C5 | 1.7 | 1.3 | 760 | OP-0161 | `crates/vox-rn-codegen/src/routes.rs` | Module docs: Web IR SSOT vs HIR Express bodies.
 - [x] OP-0163 | add-test | C5 | 1.7 | 1.5 | 820 | OP-0162 | `crates/vox-compiler/tests/route_express_emit.rs` | `hir_http_route_lowering_populates_web_ir_route_nodes`.
-- [x] OP-0164 | update | C5 | 1.7 | 1.3 | 760 | OP-0163 | `crates/vox-codegen/src/codegen_ts/routes.rs` | **Partial:** still HIR-body `emit_hir_route_stmt` (not Web IR contract-only wrappers).
+- [x] OP-0164 | update | C5 | 1.7 | 1.3 | 760 | OP-0163 | `crates/vox-rn-codegen/src/routes.rs` | **Partial:** still HIR-body `emit_hir_route_stmt` (not Web IR contract-only wrappers).
 - [x] OP-0165 | add-test | C5 | 1.7 | 1.5 | 820 | OP-0164 | `crates/vox-compiler/tests/route_express_emit.rs` + `crates/vox-integration-tests/tests/pipeline/includes/include_01.rs` + `include_03.rs` | **Partial:** Express ordering/validate/Web IR in `route_express_emit`; multi-route + Rust codegen in `pipeline_multi_route_*`; `codegen_server_has_express_route_with_await` (not the old monolithic name).
-- [x] OP-0166 | update | C5 | 1.7 | 1.3 | 760 | OP-0165 | `crates/vox-codegen/src/codegen_ts/routes.rs` | Stable sort: HTTP by path + method; server fns by `route_path` + name.
+- [x] OP-0166 | update | C5 | 1.7 | 1.3 | 760 | OP-0165 | `crates/vox-rn-codegen/src/routes.rs` | Stable sort: HTTP by path + method; server fns by `route_path` + name.
 - [x] OP-0167 | add-test | C5 | 1.7 | 1.5 | 820 | OP-0166 | `crates/vox-compiler/tests/route_express_emit.rs` | `generate_routes_orders_http_paths_lexically`.
-- [x] OP-0168 | update | C4 | 1.6 | 1.3 | 680 | OP-0167 | `crates/vox-codegen/src/codegen_ts/routes.rs` | Documented orthogonality to `CodegenOptions::tanstack_start`.
+- [x] OP-0168 | update | C4 | 1.6 | 1.3 | 680 | OP-0167 | `crates/vox-rn-codegen/src/routes.rs` | Documented orthogonality to `CodegenOptions::tanstack_start`.
 - [x] OP-0169 | add-test | C5 | 1.7 | 1.5 | 820 | OP-0168 | `crates/vox-cli/tests/scaffold_tanstack_start_layout.rs` | Module note: Start scaffold vs Express env flag.
-- [x] OP-0170 | update | C4 | 1.6 | 1.3 | 680 | OP-0169 | `crates/vox-codegen/src/codegen_ts/routes.rs` | [`validate_express_route_emit_input`] (empty path, duplicate HTTP, duplicate server-fn path).
+- [x] OP-0170 | update | C4 | 1.6 | 1.3 | 680 | OP-0169 | `crates/vox-rn-codegen/src/routes.rs` | [`validate_express_route_emit_input`] (empty path, duplicate HTTP, duplicate server-fn path).
 - [x] OP-0171 | add-test | C5 | 1.7 | 1.5 | 820 | OP-0170 | `crates/vox-compiler/tests/route_express_emit.rs` | `validate_rejects_duplicate_http_routes_same_method_path`.
-- [x] OP-0172 | update | C4 | 1.6 | 1.3 | 680 | OP-0171 | `crates/vox-codegen/src/codegen_ts/routes.rs` | `EXPRESS_TYPESCRIPT_CLAUDE_ACTOR_CLASS` SSOT string.
+- [x] OP-0172 | update | C4 | 1.6 | 1.3 | 680 | OP-0171 | `crates/vox-rn-codegen/src/routes.rs` | `EXPRESS_TYPESCRIPT_CLAUDE_ACTOR_CLASS` SSOT string.
 - [x] OP-0173 | add-test | C5 | 1.7 | 1.5 | 820 | OP-0172 | `route_express_emit.rs` | Covered by OP-0167/0165 tests; no separate helper-shrink fixture.
-- [x] OP-0174 | update | C4 | 1.6 | 1.3 | 680 | OP-0173 | `crates/vox-codegen/src/codegen_ts/routes.rs` | Ownership rustdoc block (file header).
+- [x] OP-0174 | update | C4 | 1.6 | 1.3 | 680 | OP-0173 | `crates/vox-rn-codegen/src/routes.rs` | Ownership rustdoc block (file header).
 - [x] OP-0175 | add-test | C5 | 1.7 | 1.5 | 820 | OP-0174 | `route_express_emit.rs` + `pipeline.rs` | Validation + ordering + Web IR count smoke.
 - [x] OP-0176 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-0175 | `pipeline.rs` | `pipeline_express_route_validation_and_multi_route_codegen`.
 
-### File block 12 - `crates/vox-codegen/src/codegen_ts/component.rs` (OP-0177..OP-0192)
+### File block 12 - `crates/vox-codegen-ts/src/component.rs` (OP-0177..OP-0192)
 
 Classic Web IR **integration** evidence lives in `crates/vox-integration-tests/tests/pipeline/includes/include_03.rs` (`pipeline_web_ir_lower_summary_counts_http_and_classic`, `pipeline_chat_classic_web_ir_validate_clean`), included from `tests/pipeline.rs`.
 
-- [x] OP-0177 | update | C4 | 1.6 | 1.2 | 620 | OP-0176 | `crates/vox-codegen/src/codegen_ts/component.rs` | Module rustdoc + Web IR pointer (full AST adapter still future).
-- [x] OP-0178 | update | C4 | 1.6 | 1.2 | 620 | OP-0177 | `crates/vox-codegen/src/codegen_ts/component.rs` | Doc: hook registry compatibility mode.
+- [x] OP-0177 | update | C4 | 1.6 | 1.2 | 620 | OP-0176 | `crates/vox-codegen-ts/src/component.rs` | Module rustdoc + Web IR pointer (full AST adapter still future).
+- [x] OP-0178 | update | C4 | 1.6 | 1.2 | 620 | OP-0177 | `crates/vox-codegen-ts/src/component.rs` | Doc: hook registry compatibility mode.
 - [x] OP-0179 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0178 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | Classic JSX tail lowers to `view_roots` + `emit_component_view_tsx` (`mixed_path_c_and_classic_component_hir_surface`).
-- [x] OP-0180 | update | C4 | 1.6 | 1.2 | 620 | OP-0179 | `crates/vox-codegen/src/codegen_ts/component.rs` | **Partial:** rustdoc — props stay TS `*Props`; behavior contracts remain Path C–first (OP-0180).
+- [x] OP-0180 | update | C4 | 1.6 | 1.2 | 620 | OP-0179 | `crates/vox-codegen-ts/src/component.rs` | **Partial:** rustdoc — props stay TS `*Props`; behavior contracts remain Path C–first (OP-0180).
 - [x] OP-0181 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0180 | `crates/vox-integration-tests/tests/pipeline/includes/include_03.rs` | `pipeline_web_ir_lower_summary_counts_http_and_classic` + `pipeline_chat_classic_web_ir_validate_clean` (via `include!` from `pipeline.rs`).
-- [x] OP-0182 | update | C4 | 1.6 | 1.2 | 620 | OP-0181 | `crates/vox-codegen/src/codegen_ts/component.rs` | Disposition/props notes aligned with OP-0180 / OP-0190.
+- [x] OP-0182 | update | C4 | 1.6 | 1.2 | 620 | OP-0181 | `crates/vox-codegen-ts/src/component.rs` | Disposition/props notes aligned with OP-0180 / OP-0190.
 - [x] OP-0183 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0182 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | Same coverage as OP-0179.
-- [x] OP-0184 | update | C3 | 1.5 | 1.2 | 520 | OP-0183 | `crates/vox-codegen/src/codegen_ts/component.rs` | Pathway bullets (jsx vs reactive) in module doc.
+- [x] OP-0184 | update | C3 | 1.5 | 1.2 | 520 | OP-0183 | `crates/vox-codegen-ts/src/component.rs` | Pathway bullets (jsx vs reactive) in module doc.
 - [x] OP-0185 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0184 | `crates/vox-integration-tests/tests/pipeline.rs` | `pipeline_chat_classic_web_ir_validate_clean` (Chat view root + empty validate).
-- [x] OP-0186 | update | C3 | 1.5 | 1.2 | 520 | OP-0185 | `crates/vox-codegen/src/codegen_ts/component.rs` | Disposition + props notes (OP-0190 / OP-0180).
+- [x] OP-0186 | update | C3 | 1.5 | 1.2 | 520 | OP-0185 | `crates/vox-codegen-ts/src/component.rs` | Disposition + props notes (OP-0190 / OP-0180).
 - [x] OP-0187 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0186 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | OP-0179 preview path.
-- [x] OP-0188 | update | C3 | 1.5 | 1.2 | 520 | OP-0187 | `crates/vox-codegen/src/codegen_ts/component.rs` | **Partial:** no separate classic wrapper metrics type; use `validate_web_ir` / `WebIrValidateMetrics` on merged module.
+- [x] OP-0188 | update | C3 | 1.5 | 1.2 | 520 | OP-0187 | `crates/vox-codegen-ts/src/component.rs` | **Partial:** no separate classic wrapper metrics type; use `validate_web_ir` / `WebIrValidateMetrics` on merged module.
 - [x] OP-0189 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0188 | `crates/vox-integration-tests/tests/pipeline/includes/include_03.rs` | Same gate as OP-0185 / OP-0192.
-- [x] OP-0190 | update | C3 | 1.5 | 1.2 | 520 | OP-0189 | `crates/vox-codegen/src/codegen_ts/component.rs` | legacy-shrink disposition in module doc.
+- [x] OP-0190 | update | C3 | 1.5 | 1.2 | 520 | OP-0189 | `crates/vox-codegen-ts/src/component.rs` | legacy-shrink disposition in module doc.
 - [x] OP-0191 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0190 | `crates/vox-integration-tests/tests/pipeline/includes/include_03.rs` | `pipeline_chat_classic_web_ir_validate_clean`.
 - [x] OP-0192 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-0191 | `crates/vox-integration-tests/tests/pipeline/includes/include_03.rs` | `pipeline_chat_classic_web_ir_validate_clean`.
 
-### File block 13 - `crates/vox-codegen/src/codegen_ts/reactive.rs` (OP-0193..OP-0208)
+### File block 13 - `crates/vox-codegen-ts/src/reactive/mod.rs` (OP-0193..OP-0208)
 
-- [x] OP-0193 | update | C4 | 1.6 | 1.2 | 620 | OP-0192 | `crates/vox-codegen/src/codegen_ts/reactive.rs` | `generate_reactive_component(hir, …)` + `VOX_WEBIR_EMIT_REACTIVE_VIEWS` gated Web IR view (whitespace parity).
-- [x] OP-0194 | update | C4 | 1.6 | 1.2 | 620 | OP-0193 | `crates/vox-codegen/src/codegen_ts/reactive.rs` | **Partial:** hooks still `hir_emit`; behaviors not yet Web IR adapters.
+- [x] OP-0193 | update | C4 | 1.6 | 1.2 | 620 | OP-0192 | `crates/vox-codegen-ts/src/reactive/mod.rs` | `generate_reactive_component(hir, …)` + `VOX_WEBIR_EMIT_REACTIVE_VIEWS` gated Web IR view (whitespace parity).
+- [x] OP-0194 | update | C4 | 1.6 | 1.2 | 620 | OP-0193 | `crates/vox-codegen-ts/src/reactive/mod.rs` | **Partial:** hooks still `hir_emit`; behaviors not yet Web IR adapters.
 - [x] OP-0195 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0194 | `reactive_smoke.rs` | `reactive_codegen_with_web_ir_view_env_still_succeeds`.
 - [x] OP-0196 | update | C4 | 1.6 | 1.2 | 620 | OP-0195 | `reactive.rs` | Parity guard falls back to legacy `emit_hir_expr` on mismatch.
 - [x] OP-0197 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0196 | `reactive_smoke.rs` | `test_reactive_codegen_smoke` + env test cover `onClick` / `set_count`.
@@ -624,14 +624,14 @@ Classic Web IR **integration** evidence lives in `crates/vox-integration-tests/t
 - [x] OP-0207 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0206 | `reactive_smoke.rs` | Done: covered by `reactive_codegen_with_web_ir_view_env_still_succeeds` / bridge stats (no separate snapshot-only test).
 - [x] OP-0208 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-0207 | `reactive_smoke.rs` | `reactive_codegen_with_web_ir_view_env_still_succeeds`.
 
-### File block 14 - `crates/vox-codegen/src/codegen_ts/island_emit.rs` (OP-0209..OP-0224)
+### File block 14 - `crates/vox-codegen-ts/src/island_emit.rs` (OP-0209..OP-0224)
 
-- [x] OP-0209 | update | C4 | 1.6 | 1.2 | 620 | OP-0208 | `crates/vox-codegen/src/codegen_ts/island_emit.rs` | Shared `format_island_mount_ast` / `island_mount_hir_fragment` (jsx + hir_emit delegate).
-- [x] OP-0210 | update | C4 | 1.6 | 1.2 | 620 | OP-0209 | `crates/vox-codegen/src/codegen_ts/island_emit.rs` | `island_data_prop_attr` remains canonical; [`island_mount_opening_part`].
+- [x] OP-0209 | update | C4 | 1.6 | 1.2 | 620 | OP-0208 | `crates/vox-codegen-ts/src/island_emit.rs` | Shared `format_island_mount_ast` / `island_mount_hir_fragment` (jsx + hir_emit delegate).
+- [x] OP-0210 | update | C4 | 1.6 | 1.2 | 620 | OP-0209 | `crates/vox-codegen-ts/src/island_emit.rs` | `island_data_prop_attr` remains canonical; [`island_mount_opening_part`].
 - [x] OP-0211 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0210 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | `island_mount_format_island_emit_ssot`.
-- [x] OP-0212 | update | C4 | 1.6 | 1.2 | 620 | OP-0211 | `crates/vox-codegen/src/codegen_ts/island_emit.rs` | V1 contract + V2 hook rustdoc.
+- [x] OP-0212 | update | C4 | 1.6 | 1.2 | 620 | OP-0211 | `crates/vox-codegen-ts/src/island_emit.rs` | V1 contract + V2 hook rustdoc.
 - [x] OP-0213 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0212 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | `island_v1_contract_format_version_is_one`.
-- [x] OP-0214 | update | C4 | 1.6 | 1.2 | 620 | OP-0213 | `crates/vox-codegen/src/codegen_ts/island_emit.rs` | `ISLAND_MOUNT_FORMAT_VERSION` + `island_mount_format_version()`.
+- [x] OP-0214 | update | C4 | 1.6 | 1.2 | 620 | OP-0213 | `crates/vox-codegen-ts/src/island_emit.rs` | `ISLAND_MOUNT_FORMAT_VERSION` + `island_mount_format_version()`.
 - [x] OP-0215 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0214 | `reactive_smoke.rs` | version test doubles as hook non-regression.
 - [x] OP-0216 | update | C3 | 1.5 | 1.2 | 520 | OP-0215 | `island_emit.rs` | `validate_island_prop_attr_name` / `try_island_data_prop_attr`.
 - [x] OP-0217 | add-test | C4 | 1.6 | 1.4 | 700 | OP-0216 | `reactive_smoke.rs` | `island_try_prop_attr_rejects_empty_name`.
@@ -787,21 +787,21 @@ One checklist line per operation (fixed from packed rows).
 - [x] OP-S022 | add-test | C4 | 1.6 | 1.4 | 700 | OP-S021 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | Done: `web_ir_preview_emit_sorts_element_attrs_lexicographically` + `web_ir_lowering_json_roundtrip_preserves_canonical_bytes`.
 - [x] OP-S023 | update | C4 | 1.6 | 1.2 | 620 | OP-S022 | `crates/vox-codegen/src/web_ir/emit_tsx.rs` | Done: **Legacy attribute rules** + `emit_node` sort comment (unordered map → sorted emit).
 - [x] OP-S024 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-S023 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | Done: preview sort + JSON round-trip tests in same module.
-- [x] OP-S025 | update | C5 | 1.7 | 1.3 | 760 | OP-S024 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | Done: module rustdoc WebIR bridge + fallback (OP-S025 / OP-S027).
+- [x] OP-S025 | update | C5 | 1.7 | 1.3 | 760 | OP-S024 | `crates/vox-codegen-ts/src/emitter.rs` | Done: module rustdoc WebIR bridge + fallback (OP-S025 / OP-S027).
 - [x] OP-S026 | add-test | C5 | 1.7 | 1.5 | 820 | OP-S025 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | Done: `codegen_emitter_honors_vox_webir_validate_success_path`.
-- [x] OP-S027 | update | C5 | 1.7 | 1.3 | 760 | OP-S026 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | Done: same module rustdoc as OP-S025 (**Fallback mode**).
+- [x] OP-S027 | update | C5 | 1.7 | 1.3 | 760 | OP-S026 | `crates/vox-codegen-ts/src/emitter.rs` | Done: same module rustdoc as OP-S025 (**Fallback mode**).
 - [x] OP-S028 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S027 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | Done: `codegen_emitter_vox_webir_validate_fails_on_duplicate_route_trees`.
-- [x] OP-S029 | update | C4 | 1.6 | 1.2 | 620 | OP-S028 | `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` | Done: module rustdoc **Compatibility tags (OP-S029)** + `compat` matrix cross-links.
+- [x] OP-S029 | update | C4 | 1.6 | 1.2 | 620 | OP-S028 | `crates/vox-codegen-ts/src/hir_emit/mod.rs` | Done: module rustdoc **Compatibility tags (OP-S029)** + `compat` matrix cross-links.
 - [x] OP-S030 | add-test | C4 | 1.6 | 1.4 | 700 | OP-S029 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | Done: `op_s030_compat_tag_fixture_dom_and_a11y_edges`.
-- [x] OP-S031 | update | C4 | 1.6 | 1.2 | 620 | OP-S030 | `crates/vox-codegen/src/codegen_ts/jsx.rs` | Done: **Compatibility tags (OP-S031)** rustdoc.
+- [x] OP-S031 | update | C4 | 1.6 | 1.2 | 620 | OP-S030 | `crates/vox-codegen-ts/src/jsx.rs` | Done: **Compatibility tags (OP-S031)** rustdoc.
 - [x] OP-S032 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-S031 | `crates/vox-integration-tests/tests/pipeline.rs` | Done: `pipeline_compat_tag_gate_jsx_hir_emit_matrix` (`include_03.rs`).
-- [x] OP-S033 | update | C5 | 1.7 | 1.3 | 760 | OP-S032 | `crates/vox-codegen/src/codegen_ts/routes.rs` | Done: **Route contract mapper (OP-S033)** (`route_contract` vs Web IR).
+- [x] OP-S033 | update | C5 | 1.7 | 1.3 | 760 | OP-S032 | `crates/vox-rn-codegen/src/routes.rs` | Done: **Route contract mapper (OP-S033)** (`route_contract` vs Web IR).
 - [x] OP-S034 | add-test | C5 | 1.7 | 1.5 | 820 | OP-S033 | `crates/vox-integration-tests/tests/pipeline.rs` | Done: `pipeline_express_contract_mapper_fixture_validates_multi_route_hir`.
-- [x] OP-S035 | update | C4 | 1.6 | 1.2 | 620 | OP-S034 | `crates/vox-codegen/src/codegen_ts/component.rs` | Done: **Adapter notes (OP-S035)**.
+- [x] OP-S035 | update | C4 | 1.6 | 1.2 | 620 | OP-S034 | `crates/vox-codegen-ts/src/component.rs` | Done: **Adapter notes (OP-S035)**.
 - [x] OP-S036 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S035 | `crates/vox-integration-tests/tests/pipeline.rs` | Done: `pipeline_route_component_express_and_web_ir_gate`.
-- [x] OP-S037 | update | C4 | 1.6 | 1.2 | 620 | OP-S036 | `crates/vox-codegen/src/codegen_ts/reactive.rs` | Done: **Behavior adapter (OP-S037)** rustdoc.
+- [x] OP-S037 | update | C4 | 1.6 | 1.2 | 620 | OP-S036 | `crates/vox-codegen-ts/src/reactive/mod.rs` | Done: **Behavior adapter (OP-S037)** rustdoc.
 - [x] OP-S038 | add-test | C4 | 1.6 | 1.4 | 700 | OP-S037 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | Done: `op_s038_behavior_adapter_fixture_increments_legacy_pathway_without_webir_env`.
-- [x] OP-S039 | update | C4 | 1.6 | 1.2 | 620 | OP-S038 | `crates/vox-codegen/src/codegen_ts/island_emit.rs` | Done: **V1 lock notes (OP-S039)**.
+- [x] OP-S039 | update | C4 | 1.6 | 1.2 | 620 | OP-S038 | `crates/vox-codegen-ts/src/island_emit.rs` | Done: **V1 lock notes (OP-S039)**.
 - [x] OP-S040 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-S039 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | Done: `op_s040_island_v1_lock_gate_format_version_accessor_matches_const`.
 - [x] OP-S041 | update | C4 | 1.6 | 1.3 | 680 | OP-S040 | `crates/vox-cli/src/templates/islands.rs` | Done: **Decode helper (OP-S041)** module rustdoc.
 - [x] OP-S042 | add-test | C4 | 1.6 | 1.5 | 760 | OP-S041 | `crates/vox-cli/tests/full_stack_minimal_build.rs` | Done: `op_s042_decode_helper_fixture_props_from_element_embedded_in_mount_tsx`.
@@ -821,9 +821,9 @@ One checklist line per operation (fixed from packed rows).
 - [x] OP-S056 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-S055 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | interop policy gate. | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S057 | update | C5 | 1.7 | 1.3 | 760 | OP-S056 | `crates/vox-codegen/src/web_ir/lower.rs` | style lowering TODO isolation | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S058 | add-test | C5 | 1.7 | 1.5 | 820 | OP-S057 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | style TODO fixture | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S059 | update | C4 | 1.6 | 1.3 | 680 | OP-S058 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | style bridge notes | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S059 | update | C4 | 1.6 | 1.3 | 680 | OP-S058 | `crates/vox-codegen-ts/src/emitter.rs` | style bridge notes | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S060 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S059 | `crates/vox-integration-tests/tests/pipeline.rs` | style bridge gate. | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S061 | update | C5 | 1.7 | 1.3 | 760 | OP-S060 | `crates/vox-codegen/src/codegen_ts/routes.rs` | server contract comment pass | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S061 | update | C5 | 1.7 | 1.3 | 760 | OP-S060 | `crates/vox-rn-codegen/src/routes.rs` | server contract comment pass | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S062 | add-test | C5 | 1.7 | 1.5 | 820 | OP-S061 | `crates/vox-integration-tests/tests/pipeline.rs` | server contract fixture | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S063 | update | C4 | 1.6 | 1.3 | 680 | OP-S062 | `crates/vox-codegen/src/web_ir/validate.rs` | serializability diagnostics notes | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S064 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S063 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | serializability gate. | Done: batch close OP-S049-S220 (see supplemental map).
@@ -835,13 +835,13 @@ One checklist line per operation (fixed from packed rows).
 - [x] OP-S070 | add-test | C4 | 1.6 | 1.5 | 760 | OP-S069 | `crates/vox-cli/tests/full_stack_minimal_build.rs` | telemetry fixture | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S071 | update | C4 | 1.6 | 1.3 | 680 | OP-S070 | `crates/vox-cli/src/frontend.rs` | telemetry bridge comments | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S072 | gate-test | C4 | 1.7 | 1.6 | 820 | OP-S071 | `crates/vox-cli/tests/full_stack_minimal_build.rs` | telemetry gate. | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S073 | update | C4 | 1.6 | 1.2 | 620 | OP-S072 | `crates/vox-codegen/src/codegen_ts/reactive.rs` | route to WebIR behavior map comments | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S073 | update | C4 | 1.6 | 1.2 | 620 | OP-S072 | `crates/vox-codegen-ts/src/reactive/mod.rs` | route to WebIR behavior map comments | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S074 | add-test | C4 | 1.6 | 1.4 | 700 | OP-S073 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | behavior map fixture | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S075 | update | C4 | 1.6 | 1.2 | 620 | OP-S074 | `crates/vox-codegen/src/codegen_ts/component.rs` | route to WebIR view map comments | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S075 | update | C4 | 1.6 | 1.2 | 620 | OP-S074 | `crates/vox-codegen-ts/src/component.rs` | route to WebIR view map comments | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S076 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-S075 | `crates/vox-integration-tests/tests/pipeline.rs` | behavior/view map gate. | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S077 | update | C4 | 1.6 | 1.2 | 620 | OP-S076 | `crates/vox-codegen/src/codegen_ts/jsx.rs` | remaining wrapper inventory comments | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S077 | update | C4 | 1.6 | 1.2 | 620 | OP-S076 | `crates/vox-codegen-ts/src/jsx.rs` | remaining wrapper inventory comments | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S078 | add-test | C4 | 1.6 | 1.4 | 700 | OP-S077 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | wrapper inventory fixture | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S079 | update | C4 | 1.6 | 1.2 | 620 | OP-S078 | `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` | wrapper inventory comments | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S079 | update | C4 | 1.6 | 1.2 | 620 | OP-S078 | `crates/vox-codegen-ts/src/hir_emit/mod.rs` | wrapper inventory comments | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S080 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-S079 | `crates/vox-integration-tests/tests/pipeline.rs` | wrapper inventory gate. | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S081 | add-test | C4 | 1.5 | 1.5 | 720 | OP-S080 | `crates/vox-integration-tests/tests/pipeline.rs` | dual-run diff fixture extension A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S082 | add-test | C4 | 1.5 | 1.5 | 720 | OP-S081 | `crates/vox-integration-tests/tests/pipeline.rs` | dual-run diff fixture extension B | Done: batch close OP-S049-S220 (see supplemental map).
@@ -851,9 +851,9 @@ One checklist line per operation (fixed from packed rows).
 - [x] OP-S086 | add-test | C5 | 1.7 | 1.5 | 820 | OP-S085 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | route detail fixture | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S087 | update | C5 | 1.7 | 1.3 | 760 | OP-S086 | `crates/vox-codegen/src/web_ir/validate.rs` | route contract validation detail notes | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S088 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S087 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | route detail gate. | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S089 | update | C5 | 1.7 | 1.3 | 760 | OP-S088 | `crates/vox-codegen/src/codegen_ts/routes.rs` | route printer detail notes | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S089 | update | C5 | 1.7 | 1.3 | 760 | OP-S088 | `crates/vox-rn-codegen/src/routes.rs` | route printer detail notes | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S090 | add-test | C5 | 1.7 | 1.5 | 820 | OP-S089 | `crates/vox-integration-tests/tests/pipeline.rs` | route printer detail fixture | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S091 | update | C4 | 1.6 | 1.3 | 680 | OP-S090 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | route printer integration notes | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S091 | update | C4 | 1.6 | 1.3 | 680 | OP-S090 | `crates/vox-codegen-ts/src/emitter.rs` | route printer integration notes | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S092 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S091 | `crates/vox-integration-tests/tests/pipeline.rs` | route printer integration gate. | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S093 | update | C4 | 1.6 | 1.3 | 680 | OP-S092 | `crates/vox-cli/src/frontend.rs` | full-stack artifact checks note pass | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S094 | add-test | C4 | 1.6 | 1.5 | 760 | OP-S093 | `crates/vox-cli/tests/full_stack_minimal_build.rs` | artifact checks fixture | Done: batch close OP-S049-S220 (see supplemental map).
@@ -873,15 +873,15 @@ One checklist line per operation (fixed from packed rows).
 - [x] OP-S108 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S107 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | style node contract gate A. | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S109 | update | C5 | 1.7 | 1.3 | 760 | OP-S108 | `crates/vox-codegen/src/web_ir/validate.rs` | style node validation comments A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S110 | add-test | C5 | 1.7 | 1.5 | 820 | OP-S109 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | style node validation fixture A | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S111 | update | C4 | 1.6 | 1.3 | 680 | OP-S110 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | style node bridge comments A | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S111 | update | C4 | 1.6 | 1.3 | 680 | OP-S110 | `crates/vox-codegen-ts/src/emitter.rs` | style node bridge comments A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S112 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S111 | `crates/vox-integration-tests/tests/pipeline.rs` | style node bridge gate A. | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S113 | update | C4 | 1.6 | 1.2 | 620 | OP-S112 | `crates/vox-codegen/src/codegen_ts/reactive.rs` | behavior contract notes A | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S113 | update | C4 | 1.6 | 1.2 | 620 | OP-S112 | `crates/vox-codegen-ts/src/reactive/mod.rs` | behavior contract notes A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S114 | add-test | C4 | 1.6 | 1.4 | 700 | OP-S113 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | behavior contract fixture A | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S115 | update | C4 | 1.6 | 1.2 | 620 | OP-S114 | `crates/vox-codegen/src/codegen_ts/component.rs` | component contract notes A | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S115 | update | C4 | 1.6 | 1.2 | 620 | OP-S114 | `crates/vox-codegen-ts/src/component.rs` | component contract notes A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S116 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-S115 | `crates/vox-integration-tests/tests/pipeline.rs` | behavior/component gate A. | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S117 | update | C4 | 1.6 | 1.2 | 620 | OP-S116 | `crates/vox-codegen/src/codegen_ts/routes.rs` | route contract notes A | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S117 | update | C4 | 1.6 | 1.2 | 620 | OP-S116 | `crates/vox-rn-codegen/src/routes.rs` | route contract notes A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S118 | add-test | C5 | 1.7 | 1.5 | 820 | OP-S117 | `crates/vox-integration-tests/tests/pipeline.rs` | route contract fixture A | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S119 | update | C4 | 1.6 | 1.2 | 620 | OP-S118 | `crates/vox-codegen/src/codegen_ts/island_emit.rs` | island contract notes A | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S119 | update | C4 | 1.6 | 1.2 | 620 | OP-S118 | `crates/vox-codegen-ts/src/island_emit.rs` | island contract notes A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S120 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S119 | `crates/vox-integration-tests/tests/pipeline.rs` | route/island gate A. | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S121 | update | C4 | 1.6 | 1.3 | 680 | OP-S120 | `crates/vox-cli/src/templates/islands.rs` | V1 parity docs A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S122 | add-test | C4 | 1.6 | 1.5 | 760 | OP-S121 | `crates/vox-cli/tests/full_stack_minimal_build.rs` | V1 parity fixture A | Done: batch close OP-S049-S220 (see supplemental map).
@@ -899,9 +899,9 @@ One checklist line per operation (fixed from packed rows).
 - [x] OP-S134 | add-test | C5 | 1.7 | 1.5 | 820 | OP-S133 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | interop hatches fixture A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S135 | update | C5 | 1.7 | 1.3 | 760 | OP-S134 | `crates/vox-codegen/src/web_ir/validate.rs` | interop policy checks A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S136 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S135 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | interop hatches gate A. | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S137 | update | C5 | 1.7 | 1.3 | 760 | OP-S136 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | dual-run contract notes A | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S137 | update | C5 | 1.7 | 1.3 | 760 | OP-S136 | `crates/vox-codegen-ts/src/emitter.rs` | dual-run contract notes A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S138 | add-test | C5 | 1.7 | 1.5 | 820 | OP-S137 | `crates/vox-integration-tests/tests/pipeline.rs` | dual-run contract fixture A | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S139 | update | C4 | 1.6 | 1.3 | 680 | OP-S138 | `crates/vox-codegen/src/codegen_ts/routes.rs` | route diff policy notes A | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S139 | update | C4 | 1.6 | 1.3 | 680 | OP-S138 | `crates/vox-rn-codegen/src/routes.rs` | route diff policy notes A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S140 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S139 | `crates/vox-integration-tests/tests/pipeline.rs` | route diff gate A. | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S141 | update | C4 | 1.6 | 1.3 | 680 | OP-S140 | `crates/vox-cli/src/frontend.rs` | build telemetry notes A | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S142 | add-test | C4 | 1.6 | 1.5 | 760 | OP-S141 | `crates/vox-cli/tests/full_stack_minimal_build.rs` | build telemetry fixture A | Done: batch close OP-S049-S220 (see supplemental map).
@@ -921,19 +921,19 @@ One checklist line per operation (fixed from packed rows).
 - [x] OP-S156 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S155 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | route/data schema gate B. | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S157 | update | C5 | 1.7 | 1.3 | 760 | OP-S156 | `crates/vox-codegen/src/web_ir/validate.rs` | route/data validation notes B | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S158 | add-test | C5 | 1.7 | 1.5 | 820 | OP-S157 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | route/data validation fixture B | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S159 | update | C4 | 1.6 | 1.3 | 680 | OP-S158 | `crates/vox-codegen/src/codegen_ts/routes.rs` | route/data bridge notes B | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S159 | update | C4 | 1.6 | 1.3 | 680 | OP-S158 | `crates/vox-rn-codegen/src/routes.rs` | route/data bridge notes B | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S160 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S159 | `crates/vox-integration-tests/tests/pipeline.rs` | route/data bridge gate B. | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S161 | update | C4 | 1.6 | 1.2 | 620 | OP-S160 | `crates/vox-codegen/src/codegen_ts/component.rs` | component adapter notes B | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S161 | update | C4 | 1.6 | 1.2 | 620 | OP-S160 | `crates/vox-codegen-ts/src/component.rs` | component adapter notes B | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S162 | add-test | C4 | 1.6 | 1.4 | 700 | OP-S161 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | component adapter fixture B | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S163 | update | C4 | 1.6 | 1.2 | 620 | OP-S162 | `crates/vox-codegen/src/codegen_ts/reactive.rs` | reactive adapter notes B | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S163 | update | C4 | 1.6 | 1.2 | 620 | OP-S162 | `crates/vox-codegen-ts/src/reactive/mod.rs` | reactive adapter notes B | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S164 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-S163 | `crates/vox-integration-tests/tests/pipeline.rs` | component/reactive gate B. | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S165 | update | C4 | 1.6 | 1.2 | 620 | OP-S164 | `crates/vox-codegen/src/codegen_ts/island_emit.rs` | island adapter notes B | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S165 | update | C4 | 1.6 | 1.2 | 620 | OP-S164 | `crates/vox-codegen-ts/src/island_emit.rs` | island adapter notes B | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S166 | add-test | C4 | 1.6 | 1.4 | 700 | OP-S165 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | island adapter fixture B | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S167 | update | C4 | 1.6 | 1.2 | 620 | OP-S166 | `crates/vox-codegen/src/codegen_ts/jsx.rs` | jsx wrapper notes B | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S167 | update | C4 | 1.6 | 1.2 | 620 | OP-S166 | `crates/vox-codegen-ts/src/jsx.rs` | jsx wrapper notes B | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S168 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-S167 | `crates/vox-integration-tests/tests/pipeline.rs` | island/jsx gate B. | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S169 | update | C4 | 1.6 | 1.2 | 620 | OP-S168 | `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` | hir wrapper notes B | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S169 | update | C4 | 1.6 | 1.2 | 620 | OP-S168 | `crates/vox-codegen-ts/src/hir_emit/mod.rs` | hir wrapper notes B | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S170 | add-test | C4 | 1.6 | 1.4 | 700 | OP-S169 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | hir wrapper fixture B | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S171 | update | C4 | 1.6 | 1.2 | 620 | OP-S170 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | bridge notes B | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S171 | update | C4 | 1.6 | 1.2 | 620 | OP-S170 | `crates/vox-codegen-ts/src/emitter.rs` | bridge notes B | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S172 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-S171 | `crates/vox-integration-tests/tests/pipeline.rs` | emitter bridge gate B. | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S173 | update | C4 | 1.6 | 1.3 | 680 | OP-S172 | `crates/vox-cli/src/templates/islands.rs` | hydration policy notes B | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S174 | add-test | C4 | 1.6 | 1.5 | 760 | OP-S173 | `crates/vox-cli/tests/full_stack_minimal_build.rs` | hydration policy fixture B | Done: batch close OP-S049-S220 (see supplemental map).
@@ -953,15 +953,15 @@ One checklist line per operation (fixed from packed rows).
 - [x] OP-S188 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S187 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | interop schema gate C. | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S189 | update | C5 | 1.7 | 1.3 | 760 | OP-S188 | `crates/vox-codegen/src/web_ir/lower.rs` | style route integration notes C | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S190 | add-test | C5 | 1.7 | 1.5 | 820 | OP-S189 | `crates/vox-compiler/tests/web_ir_lower_emit.rs` | style route integration fixture C | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S191 | update | C5 | 1.7 | 1.3 | 760 | OP-S190 | `crates/vox-codegen/src/codegen_ts/routes.rs` | style route bridge notes C | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S191 | update | C5 | 1.7 | 1.3 | 760 | OP-S190 | `crates/vox-rn-codegen/src/routes.rs` | style route bridge notes C | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S192 | gate-test | C5 | 1.8 | 1.6 | 900 | OP-S191 | `crates/vox-integration-tests/tests/pipeline.rs` | style route bridge gate C. | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S193 | update | C4 | 1.6 | 1.2 | 620 | OP-S192 | `crates/vox-codegen/src/codegen_ts/component.rs` | component notes C | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S193 | update | C4 | 1.6 | 1.2 | 620 | OP-S192 | `crates/vox-codegen-ts/src/component.rs` | component notes C | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S194 | add-test | C4 | 1.6 | 1.4 | 700 | OP-S193 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | component fixture C | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S195 | update | C4 | 1.6 | 1.2 | 620 | OP-S194 | `crates/vox-codegen/src/codegen_ts/reactive.rs` | reactive notes C | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S195 | update | C4 | 1.6 | 1.2 | 620 | OP-S194 | `crates/vox-codegen-ts/src/reactive/mod.rs` | reactive notes C | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S196 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-S195 | `crates/vox-integration-tests/tests/pipeline.rs` | component/reactive gate C. | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S197 | update | C4 | 1.6 | 1.2 | 620 | OP-S196 | `crates/vox-codegen/src/codegen_ts/island_emit.rs` | island notes C | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S197 | update | C4 | 1.6 | 1.2 | 620 | OP-S196 | `crates/vox-codegen-ts/src/island_emit.rs` | island notes C | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S198 | add-test | C4 | 1.6 | 1.4 | 700 | OP-S197 | `crates/vox-compiler/tests/reactive_smoke_test.rs` | island fixture C | Done: batch close OP-S049-S220 (see supplemental map).
-- [x] OP-S199 | update | C4 | 1.6 | 1.2 | 620 | OP-S198 | `crates/vox-codegen/src/codegen_ts/emitter.rs` | emitter notes C | Done: batch close OP-S049-S220 (see supplemental map).
+- [x] OP-S199 | update | C4 | 1.6 | 1.2 | 620 | OP-S198 | `crates/vox-codegen-ts/src/emitter.rs` | emitter notes C | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S200 | gate-test | C4 | 1.7 | 1.5 | 760 | OP-S199 | `crates/vox-integration-tests/tests/pipeline.rs` | emitter gate C. | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S201 | update | C4 | 1.6 | 1.3 | 680 | OP-S200 | `crates/vox-cli/src/templates/islands.rs` | runtime notes C | Done: batch close OP-S049-S220 (see supplemental map).
 - [x] OP-S202 | add-test | C4 | 1.6 | 1.5 | 760 | OP-S201 | `crates/vox-cli/tests/full_stack_minimal_build.rs` | runtime fixture C | Done: batch close OP-S049-S220 (see supplemental map).
@@ -1083,7 +1083,7 @@ Lane execution policy:
 | --- | --- | --- | --- |
 | G1 Syntax Truth Gate | 100% parser-backed syntax claims traceable | `crates/vox-compiler/src/parser/descent/decl/head.rs`, `crates/vox-compiler/src/parser/descent/decl/tail.rs`, parser descent tests | OP-0001..OP-0032 |
 | G2 K-Metric Reproducibility Gate | appendix recomputation exact match | `docs/src/architecture/internal-web-ir-implementation-blueprint.md` appendix + worked sheet rows | OP-doc-appendix, OP-0268 |
-| G3 Semantic Ownership Gate | `jsx.rs` + `hir_emit/mod.rs` marked compatibility-only | `crates/vox-codegen/src/codegen_ts/jsx.rs`, `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`, `crates/vox-codegen/src/web_ir/lower.rs` | OP-0066, OP-0132, OP-0148 |
+| G3 Semantic Ownership Gate | `jsx.rs` + `hir_emit/mod.rs` marked compatibility-only | `crates/vox-codegen-ts/src/jsx.rs`, `crates/vox-codegen-ts/src/hir_emit/mod.rs`, `crates/vox-codegen/src/web_ir/lower.rs` | OP-0066, OP-0132, OP-0148 |
 | G4 Parity Gate | TS/TSX parity >= 95%; islands contract parity = 100% | `tests/pipeline/` (`MIXED_SURFACE_SRC`, `include_04.rs`, sharded tests), `reactive_smoke.rs`, `full_stack_minimal_build.rs`, `web_ir_lower_emit.rs` | OP-0289..OP-0320 (block 19 + block 20 **tracked**; OP-0310/0315–0319 are `#[ignore]` anchors) |
 | G5 Safety Gate | unresolved required-field optionality ambiguities = 0 | `crates/vox-codegen/src/web_ir/validate.rs`, `crates/vox-compiler/tests/web_ir_lower_emit.rs` | OP-0082, OP-0083, OP-0295 |
 | G6 Rollout Gate | dual-run diff clean + CI pass + perf budget pass | pipeline suite + build suite + perf smoke fixture | OP-0293/OP-0302/OP-0304 **done** (`include_04.rs` + interim gate); plus `web_ir_lower_emit`, `full_stack_minimal_build`, OP-0320 |

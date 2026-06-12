@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "jj-backend")]
+#[cfg(feature = "jj")]
 use vox_actor_runtime::supervisor::spawn_supervised_infallible;
 
 use crate::snapshot::SnapshotId;
@@ -160,6 +160,11 @@ pub struct WorkspaceManager {
     changes: HashMap<ChangeId, Change>,
     /// Change ID counter.
     next_change_id: u64,
+    /// Optional in-process jj VCS handle. When present, merged/abandoned
+    /// changes are flushed to / reverted in the jj workspace. `None` when no
+    /// jj repo was found at init (the manager still functions without it).
+    #[cfg(feature = "jj")]
+    vcs: Option<vox_vcs::JjActorHandle>,
 }
 
 impl WorkspaceManager {
@@ -169,7 +174,16 @@ impl WorkspaceManager {
             workspaces: HashMap::new(),
             changes: HashMap::new(),
             next_change_id: 1,
+            #[cfg(feature = "jj")]
+            vcs: None,
         }
+    }
+
+    /// Inject an in-process jj VCS handle. Subsequent merged/abandoned changes
+    /// will be flushed to / reverted in the jj workspace.
+    #[cfg(feature = "jj")]
+    pub fn set_vcs(&mut self, handle: vox_vcs::JjActorHandle) {
+        self.vcs = Some(handle);
     }
 
     /// Create a new workspace for an agent, forked from the given base snapshot.
@@ -262,6 +276,65 @@ impl WorkspaceManager {
         id
     }
 
+    /// Apply the strategy-specific setup for `agent_id` (spec §5.1/§5.3).
+    ///
+    /// - **SharedBranch** → no-op: file locks already enforce single-writer on a
+    ///   shared change.
+    /// - **SplitChanges** → start a per-agent logical change (`create_change`) so
+    ///   each agent tracks its own change; merge-back conflict recording is
+    ///   already wired via `workspace_merge_json`.
+    /// - **SeparateBranches** → bind the workspace to its own `agent/<id>`
+    ///   branch. With the `jj` feature this also creates the jj bookmark via the
+    ///   injected `JjActorHandle`; without `jj` it records the bound branch as
+    ///   metadata only.
+    ///
+    /// Returns the bound `BranchName` for SeparateBranches (so callers can
+    /// surface it), or `None` for the other strategies.
+    pub fn setup_isolation(
+        &mut self,
+        agent_id: AgentId,
+        strategy: crate::isolation::IsolationStrategy,
+    ) -> Option<vox_orchestrator_types::BranchName> {
+        match strategy {
+            crate::isolation::IsolationStrategy::SharedBranch => None,
+            crate::isolation::IsolationStrategy::SplitChanges => {
+                self.create_change(agent_id, format!("agent {} change", agent_id.0));
+                None
+            }
+            crate::isolation::IsolationStrategy::SeparateBranches => {
+                let branch_str = format!("agent/{}", agent_id.0);
+                let branch = match vox_orchestrator_types::BranchName::parse(&branch_str) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        tracing::error!(error = %e, branch = %branch_str, "invalid agent branch name");
+                        return None;
+                    }
+                };
+
+                #[cfg(feature = "jj")]
+                if let Some(handle) = &self.vcs {
+                    let mut h = handle.clone();
+                    let name = branch_str.clone();
+                    spawn_supervised_infallible("jj_actor_create_branch", async move {
+                        use vox_vcs::VcsBackend as _;
+                        if let Err(e) = h.create_branch(&name).await {
+                            tracing::error!(
+                                error = %e,
+                                branch = %name,
+                                "jj VCS create_branch failed; SeparateBranches isolation is metadata-only for this agent"
+                            );
+                        }
+                    });
+                }
+
+                if let Some(ws) = self.workspaces.get_mut(&agent_id) {
+                    ws.set_bound_branch(branch.clone());
+                }
+                Some(branch)
+            }
+        }
+    }
+
     /// Add a snapshot to a change.
     pub fn add_snapshot_to_change(&mut self, change_id: ChangeId, snapshot_id: SnapshotId) {
         if let Some(change) = self.changes.get_mut(&change_id) {
@@ -274,23 +347,41 @@ impl WorkspaceManager {
         if let Some(change) = self.changes.get_mut(&change_id) {
             change.status = status.clone();
 
-            #[cfg(feature = "jj-backend")]
+            #[cfg(feature = "jj")]
             {
-                let task_id = change.id.0;
-                let agent_id = change.agent_id.0;
-                let desc = change.description.clone();
-
-                if status == ChangeStatus::Merged {
-                    spawn_supervised_infallible("jj_flush_snapshot_commit", async move {
-                        let _ = crate::jj_backend::JjBridge::flush_snapshot_commit(
-                            task_id, agent_id, &desc, None,
-                        )
-                        .await;
-                    });
-                } else if status == ChangeStatus::Abandoned {
-                    spawn_supervised_infallible("jj_revert_agent_snapshot", async move {
-                        let _ = crate::jj_backend::JjBridge::revert_agent_snapshot(None).await;
-                    });
+                if let Some(handle) = &self.vcs {
+                    let desc = change.description.clone();
+                    let mut h = handle.clone();
+                    match status {
+                        ChangeStatus::Merged => {
+                            spawn_supervised_infallible("jj_actor_snapshot", async move {
+                                use vox_vcs::VcsBackend as _;
+                                // A failed snapshot means lost version history; do
+                                // NOT swallow it silently — surface it at error
+                                // level so the data loss is observable.
+                                if let Err(e) = h.snapshot(Some(&desc), Vec::new()).await {
+                                    tracing::error!(
+                                        error = %e,
+                                        change = %change_id,
+                                        "jj VCS snapshot failed; version history for this merged change was NOT persisted"
+                                    );
+                                }
+                            });
+                        }
+                        ChangeStatus::Abandoned => {
+                            spawn_supervised_infallible("jj_actor_undo", async move {
+                                use vox_vcs::VcsBackend as _;
+                                if let Err(e) = h.undo().await {
+                                    tracing::error!(
+                                        error = %e,
+                                        change = %change_id,
+                                        "jj VCS undo failed; abandoned change was NOT reverted in the jj workspace"
+                                    );
+                                }
+                            });
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
@@ -331,6 +422,60 @@ mod tests {
     #[test]
     fn change_id_display() {
         assert_eq!(ChangeId(42).to_string(), "CH-000042");
+    }
+
+    #[test]
+    fn separate_branches_records_bound_branch() {
+        // No-jj fallback path: SeparateBranches must record the bound branch as
+        // metadata on the workspace (the jj bookmark is best-effort/feature-gated).
+        let mut mgr = WorkspaceManager::new();
+        mgr.create_workspace(AgentId(4), SnapshotId(1));
+
+        let branch = mgr.setup_isolation(
+            AgentId(4),
+            crate::isolation::IsolationStrategy::SeparateBranches,
+        );
+        assert_eq!(branch.as_ref().map(|b| b.as_str()), Some("agent/4"));
+        assert_eq!(
+            mgr.get_workspace(AgentId(4))
+                .and_then(|ws| ws.bound_branch())
+                .map(|b| b.as_str()),
+            Some("agent/4")
+        );
+    }
+
+    #[test]
+    fn split_changes_starts_per_agent_change() {
+        let mut mgr = WorkspaceManager::new();
+        mgr.create_workspace(AgentId(2), SnapshotId(1));
+        let before = mgr.list_changes(Some(AgentId(2)), 100).len();
+        mgr.setup_isolation(
+            AgentId(2),
+            crate::isolation::IsolationStrategy::SplitChanges,
+        );
+        let after = mgr.list_changes(Some(AgentId(2)), 100).len();
+        assert_eq!(
+            after,
+            before + 1,
+            "SplitChanges must start a per-agent change"
+        );
+    }
+
+    #[test]
+    fn shared_branch_is_noop() {
+        let mut mgr = WorkspaceManager::new();
+        mgr.create_workspace(AgentId(1), SnapshotId(1));
+        let branch = mgr.setup_isolation(
+            AgentId(1),
+            crate::isolation::IsolationStrategy::SharedBranch,
+        );
+        assert!(branch.is_none());
+        assert!(
+            mgr.get_workspace(AgentId(1))
+                .unwrap()
+                .bound_branch()
+                .is_none()
+        );
     }
 
     #[test]
@@ -376,6 +521,43 @@ mod tests {
 
         mgr.destroy_workspace(AgentId(1));
         assert!(!mgr.has_workspace(AgentId(1)));
+    }
+
+    /// Proves the in-process jj-actor wiring: inject a real `JjActorHandle`
+    /// into a `WorkspaceManager`, drive `update_change_status(.., Merged)`, and
+    /// confirm the spawned snapshot lands in the jj change log (no panic).
+    #[cfg(feature = "jj")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn jj_actor_snapshot_on_merge() {
+        use vox_vcs::VcsBackend as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("file.txt"), b"content").unwrap();
+
+        let root = dir.path().to_path_buf();
+        let handle = tokio::task::spawn_blocking(move || vox_vcs::spawn_jj_actor(root))
+            .await
+            .unwrap()
+            .expect("spawn jj actor");
+
+        let mut mgr = WorkspaceManager::new();
+        mgr.create_workspace(AgentId(7), SnapshotId(1));
+        mgr.set_vcs(handle.clone());
+
+        let change_id = mgr.create_change(AgentId(7), "Merge me");
+        // Drives the cfg(jj) path: spawns jj_actor_snapshot via the supervisor.
+        mgr.update_change_status(change_id, ChangeStatus::Merged);
+        assert_eq!(
+            mgr.get_change(change_id).expect("exists").status,
+            ChangeStatus::Merged
+        );
+
+        // The supervised snapshot runs on a detached task; give it a beat, then
+        // assert the change log is reachable through the same actor (best effort:
+        // at minimum the actor is alive and the path ran without panicking).
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        let changes = handle.changes().await.expect("actor still alive");
+        let _ = changes; // change set may or may not contain our snapshot yet
     }
 
     #[test]

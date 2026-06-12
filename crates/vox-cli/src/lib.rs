@@ -17,10 +17,10 @@ pub mod cli_args;
 pub use vox_codegen::codegen_rust::RustAppShell;
 mod cli_dispatch;
 mod codex_cmd;
-mod command_contract;
-pub mod command_registry_model;
 use crate::codex_cmd::CodexCmd;
 pub use vox_cli_core::artifact_policy;
+pub use vox_cli_core::command_contract;
+pub use vox_cli_core::command_registry_model;
 pub mod command_catalog;
 pub mod commands;
 pub mod compilerd;
@@ -36,6 +36,8 @@ pub mod dispatch {
 pub mod dispatch_protocol {
     pub use vox_cli_core::daemon_ipc::dispatch_protocol::*;
 }
+/// Binary-freshness self-check (stale installed `vox` detection for `vox ci *` / `vox doctor`).
+pub mod freshness;
 /// Vite/React scaffold helpers and shared **pnpm** executable resolution (`pnpm_executable`).
 pub mod frontend;
 pub mod fs_utils;
@@ -56,8 +58,6 @@ pub mod pipeline;
 pub mod process_supervision {
     pub use vox_cli_core::daemon_ipc::process_supervision::*;
 }
-/// Terminal Markdown renderer + human-in-the-loop prompt helpers (CLI SSOT).
-pub(crate) mod render;
 pub mod telemetry_corpus_feedback_sink;
 pub mod telemetry_sink;
 pub mod telemetry_spool;
@@ -189,6 +189,11 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::config::ConfigCmd,
     },
+    /// View the unified policy catalog (CI gates, language rules, audits).
+    Policy {
+        #[command(subcommand)]
+        cmd: commands::policy::PolicyCmd,
+    },
     /// Identity and master key integration (`vox auth`).
     Auth {
         /// Subcommand
@@ -226,13 +231,13 @@ pub enum Cli {
         args: cli_args::RunArgs,
     },
     /// Raw WASI module execution (`vox wasm run <file>`) via the in-process wasmtime SSOT.
-    #[cfg(feature = "script-execution")]
+    #[cfg(feature = "script-wasi")]
     Wasm {
         #[command(subcommand)]
         cmd: commands::wasm::WasmCmd,
     },
-    #[cfg(not(feature = "script-execution"))]
-    /// Raw precompiled WASI module execution (needs `--features script-execution`)
+    #[cfg(not(feature = "script-wasi"))]
+    /// Raw precompiled WASI module execution (needs `--features script-wasi`)
     #[command(name = "wasm")]
     WasmStub {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
@@ -368,9 +373,9 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: crate::commands::extras::skill_cmd::SkillCmd,
     },
-    /// Ludus gamification: profile, companions, quests, and battle simulations.
+    /// Gamification: profile, companions, quests, and battle simulations. `ludus` alias retained.
     #[cfg(feature = "extras-ludus")]
-    #[command(name = "ludus")]
+    #[command(name = "gamify", visible_alias = "ludus")]
     Ludus {
         /// Subcommand.
         #[command(subcommand)]
@@ -469,6 +474,8 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: Option<commands::runtime::shell::ShellCmd>,
     },
+    /// Interactive Vox expression REPL (read-eval-print loop).
+    Repl,
     /// Codex / Arca database tools (verify, legacy JSONL export/import)
     Codex {
         /// Subcommand.
@@ -596,15 +603,9 @@ pub enum Cli {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },
-    /// Speech-to-Code: transcribe, listen (Delegated to `vox-ml-cli`).
-    #[command(name = "oratio", visible_alias = "speech")]
+    /// Speech-to-Code: transcribe, listen (Delegated to `vox-ml-cli`). `oratio` alias retained.
+    #[command(name = "speech", visible_alias = "oratio")]
     Oratio {
-        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
-        args: Vec<String>,
-    },
-    /// Scholarship/Scientia domain (Delegated to `vox-schola`).
-    #[command(name = "schola")]
-    Schola {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },

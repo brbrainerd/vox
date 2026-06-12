@@ -3,12 +3,10 @@ name = "vox-git"
 description = "Pure-Rust Git bridge for Vox — bidirectional sync using gix (no C, no libgit2)"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [features]
 default = []
-# Enable jj-lib for advanced conflict resolution during git sync.
-# See src/jj_conflict.rs for usage.
-jj-backend = ["dep:jj-lib"]
 
 [dependencies]
 serde = { workspace = true }
@@ -25,9 +23,8 @@ gix = { workspace = true, default-features = false, features = [
     "blocking-http-transport-reqwest",
     "progress-tree",
     "revision",
+    "sha1",
 ] }
-# Optional jj-lib for advanced conflict handling in git sync.
-jj-lib = { workspace = true, optional = true, default-features = false }
 workspace-hack = { workspace = true }
 
 [dev-dependencies]

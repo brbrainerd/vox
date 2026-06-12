@@ -188,7 +188,7 @@ pub fn register_hir_module(
     // depends only on imports (already registered above), so this reordering is
     // side-effect-free.
     for t in &module.tables {
-        register_hir_table(env, t);
+        diags.extend(register_hir_table(env, t));
     }
     for f in &module.functions {
         register_hir_function(env, f, uf.as_deref_mut());
@@ -440,13 +440,90 @@ fn register_fn_like(
     );
 }
 
-pub fn register_hir_table(env: &mut TypeEnv, t: &HirTable) {
+pub fn register_hir_table(env: &mut TypeEnv, t: &HirTable) -> Vec<Diagnostic> {
+    let mut diags = Vec::new();
+    if t.is_extern && t.source.is_none() {
+        diags.push(
+            Diagnostic::error(
+                format!(
+                    "@table(extern) on '{}' requires `source: <table_name>` so Vox can bind to an existing SQL table",
+                    t.name
+                ),
+                t.span,
+                "",
+            )
+            .with_code("E1043"),
+        );
+    }
+    if !t.is_extern && t.source.is_some() {
+        diags.push(
+            Diagnostic::error(
+                format!(
+                    "@table(source: ...) on '{}' requires `extern` in the decorator arguments",
+                    t.name
+                ),
+                t.span,
+                "",
+            )
+            .with_code("E1044"),
+        );
+    }
+    if t.is_extern && t.primary_key.is_none() {
+        diags.push(
+            Diagnostic::error(
+                format!(
+                    "@table(extern, ...) on '{}' requires an explicit `pk: <field_name>` for brownfield schema mapping",
+                    t.name
+                ),
+                t.span,
+                "",
+            )
+            .with_code("E1045"),
+        );
+    }
     let fields: Vec<(String, Ty)> = t
         .fields
         .iter()
         .map(|f| (f.name.clone(), resolve_hir_type(&f.type_ann, env)))
         .collect();
-    let table_ty = Ty::Table(t.name.clone(), fields);
+    // Validate the declared pk first; only a pk that passes validation is
+    // materialized into the table type (an invalid pk must not flow into
+    // downstream codegen as if it were usable).
+    let mut primary_key: Option<(String, Box<Ty>)> = None;
+    if let Some(pk_name) = &t.primary_key {
+        match fields.iter().find(|(field, _)| field == pk_name) {
+            None => {
+                diags.push(
+                    Diagnostic::error(
+                        format!(
+                            "@table(pk: {pk_name}) on '{}' references an unknown field",
+                            t.name
+                        ),
+                        t.span,
+                        "",
+                    )
+                    .with_code("E1041"),
+                );
+            }
+            Some((_field, Ty::Option(_))) => {
+                diags.push(
+                    Diagnostic::error(
+                        format!(
+                            "@table(pk: {pk_name}) on '{}' cannot use an optional field as the primary key",
+                            t.name
+                        ),
+                        t.span,
+                        "",
+                    )
+                    .with_code("E1042"),
+                );
+            }
+            Some((field, ty)) => {
+                primary_key = Some((field.clone(), Box::new(ty.clone())));
+            }
+        }
+    }
+    let table_ty = Ty::Table(t.name.clone(), fields, primary_key);
     env.define(
         t.name.clone(),
         Binding {
@@ -460,6 +537,7 @@ pub fn register_hir_table(env: &mut TypeEnv, t: &HirTable) {
     // (field-bearing) instead of bare Ty::Named — same fix as
     // ast_decl_lints::register_table.
     env.define_type(t.name.clone(), table_ty);
+    diags
 }
 
 /// Register actor handler signatures from `module.functions`.
@@ -467,7 +545,7 @@ pub fn register_hir_table(env: &mut TypeEnv, t: &HirTable) {
 /// Actors live in `module.functions` as `HirFn`s with
 /// `durability = DurabilityKind::Actor`. Their `on <event>(...)` handlers
 /// are sibling functions named `ActorName::event`. We synthesize an
-/// [`ActorHandlerSig`] per handler and register them under the actor's
+/// [`crate::typeck::env::ActorHandlerSig`] per handler and register them under the actor's
 /// bare name, so call sites can `env.lookup_actor(name)` and walk
 /// handler signatures.
 pub fn register_hir_actors(env: &mut TypeEnv, module: &crate::hir::HirModule) {

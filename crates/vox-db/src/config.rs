@@ -272,6 +272,26 @@ impl DbConfig {
     }
 }
 
+/// Resolve the app-plane SQL backend URL (`VOX_APP_DB_URL`) via the secret-policy
+/// SSOT (env, Clavis vault, profile overrides) instead of a raw env read.
+///
+/// Generated app runtimes call this to decide backend routing/guards; never read
+/// `VOX_APP_DB_URL` directly.
+#[must_use]
+pub fn resolve_app_db_url() -> Option<String> {
+    vox_secrets::resolve_secret(SecretId::VoxAppDbUrl)
+        .expose()
+        .map(String::from)
+}
+
+/// Resolve the canonical Codex DB URL (`VOX_DB_URL`) via the secret-policy SSOT.
+#[must_use]
+pub fn resolve_codex_db_url() -> Option<String> {
+    vox_secrets::resolve_secret(SecretId::VoxDbUrl)
+        .expose()
+        .map(String::from)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{DbConfig, try_remote_from_compat_env};

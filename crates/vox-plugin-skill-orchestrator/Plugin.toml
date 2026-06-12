@@ -14,4 +14,4 @@ format-version = 1
 skill-md = "orchestrator.skill.md"
 
 [plugin.payload.tools]
-exposes = ["vox_orchestrator_submit", "vox_orchestrator_status", "vox_orchestrator_budget"]
+exposes = ["vox_submit_task", "vox_task_status", "vox_orchestrator_status", "vox_complete_task", "vox_fail_task", "vox_cancel_task", "vox_rebalance", "vox_queue_status", "vox_lock_status", "vox_budget_status", "vox_agent_events"]

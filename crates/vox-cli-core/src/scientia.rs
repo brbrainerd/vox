@@ -454,6 +454,47 @@ pub enum ScientiaCmd {
         publication_id: String,
     },
 
+    /// P2 — Record a human review decision (approve | reject | defer) for ONE
+    /// extracted claim. The decision is bound to the publication's CURRENT
+    /// content digest, so a later content edit invalidates a prior approval.
+    /// `publication-nanopub-build` refuses to emit unless the latest decision is
+    /// an approval bound to the current digest.
+    #[command(name = "publication-claim-review")]
+    PublicationClaimReview {
+        /// Publication id the claim belongs to.
+        #[arg(long)]
+        publication_id: String,
+        /// `claim_id` of the extracted claim to decide on (see `vox scientia claims`).
+        #[arg(long)]
+        claim_id: i64,
+        /// The review decision.
+        #[arg(long, value_enum)]
+        decision: ClaimReviewDecisionCli,
+        /// Optional free-text rationale recorded with the decision.
+        #[arg(long)]
+        reason: Option<String>,
+    },
+
+    /// P1 — Build a spec-compliant nanopublication for ONE extracted claim:
+    /// resolve (or create) the per-user RSA + ORCID signing identity, assemble
+    /// the enriched assertion, RSA-sign it, VALIDATE it OFFLINE (trusty hash +
+    /// signature; NO network), and persist the signed artifact to
+    /// `scientia_nanopubs` with `published_state="local"`. This command performs
+    /// NO network publishing of any kind. Prints the resulting Trusty URI.
+    #[command(name = "publication-nanopub-build")]
+    PublicationNanopubBuild {
+        /// Publication id the claim belongs to (selects the claim bucket).
+        #[arg(long)]
+        publication_id: String,
+        /// `claim_id` of the extracted claim to sign (see `vox scientia claims`).
+        #[arg(long)]
+        claim_id: i64,
+        /// Optional ORCID URL (e.g. <https://orcid.org/0000-0002-1825-0097>).
+        /// Overrides the stored identity ORCID; required if none is stored.
+        #[arg(long)]
+        orcid: Option<String>,
+    },
+
     /// Phase 3 — Render a `ScaffoldInput` JSON to a standalone LaTeX
     /// document (`\documentclass{article}`) and write it to stdout or
     /// `--output`. Suitable for PDF generation via `tectonic` /
@@ -535,12 +576,37 @@ pub enum ScientiaCmd {
         publication_id: String,
     },
 
+    /// List a publication's claims awaiting human review as JSON. A claim
+    /// appears when it has an extracted (non-`Unverified`) verdict AND its
+    /// latest decision is absent or non-terminal (`deferred`/`edited`).
+    /// Terminal decisions (`approved`, `rejected`) exclude the claim.
+    #[command(name = "publication-review-queue")]
+    PublicationReviewQueue {
+        /// Publication id whose claims awaiting review to list.
+        #[arg(long)]
+        publication_id: String,
+    },
+
     /// Phase H — Assemble a dashboard `QueueSnapshot` JSON directly from the
-    /// live Codex DB (publication candidates + extracted-claims pending counts
-    /// + retraction queue). Unlike `publication-dashboard-snapshot`, this needs
+    /// live Codex DB (publication candidates + extracted-claims pending counts +
+    /// retraction queue). Unlike `publication-dashboard-snapshot`, this needs
     /// no inputs file.
     #[command(name = "dashboard")]
     Dashboard,
+
+    /// P3 — LLM-assisted evidence/conclusion suggestions for ONE claim in the
+    /// review queue (ADVISORY only — never mutates any decision or assertion).
+    /// Routed through the model-agnostic actor-runtime LLM facade; prints a JSON
+    /// array of suggestions. Degrades to `[]` on any LLM error.
+    #[command(name = "evidence-assist")]
+    EvidenceAssist {
+        /// Publication id the claim belongs to.
+        #[arg(long)]
+        publication_id: String,
+        /// `claim_id` of the claim to get suggestions for (see `vox scientia publication-review-queue`).
+        #[arg(long)]
+        claim_id: i64,
+    },
 
     /// Phase H — Assemble a `CostRollup` JSON for the current calendar quarter
     /// from the live Codex DB.  Per-provider totals come from
@@ -551,6 +617,31 @@ pub enum ScientiaCmd {
     Cost,
 }
 
+/// Human review decision for `publication-claim-review`.
+///
+/// The stored DB vocabulary (`as_stored`) MUST match `vox_db::store::VALID_DECISIONS`.
+/// `"edited"` is driven by content edits, not a manual review action, so it is
+/// intentionally NOT exposed here.
+#[derive(Copy, Clone, Debug, clap::ValueEnum, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ClaimReviewDecisionCli {
+    Approve,
+    Reject,
+    Defer,
+}
+
+impl ClaimReviewDecisionCli {
+    /// Map to the DB vocabulary stored in `scientia_review_decisions.decision`.
+    /// These strings MUST match `vox_db::store::VALID_DECISIONS`.
+    pub fn as_stored(&self) -> &'static str {
+        match self {
+            Self::Approve => "approved",
+            Self::Reject => "rejected",
+            Self::Defer => "deferred",
+        }
+    }
+}
+
 /// Output format for `vox scientia scout`.
 #[derive(Copy, Clone, Debug, clap::ValueEnum, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -559,4 +650,38 @@ pub enum ScoutOutput {
     Table,
     /// Machine-readable JSON array on stdout.
     Json,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Confirm `ClaimReviewDecisionCli::as_stored` maps each variant to the
+    /// exact DB vocabulary required by `vox_db::store::VALID_DECISIONS`.
+    #[test]
+    fn claim_review_decision_as_stored_maps_correctly() {
+        assert_eq!(ClaimReviewDecisionCli::Approve.as_stored(), "approved");
+        assert_eq!(ClaimReviewDecisionCli::Reject.as_stored(), "rejected");
+        assert_eq!(ClaimReviewDecisionCli::Defer.as_stored(), "deferred");
+    }
+
+    /// Guard against drift: every CLI decision MUST map to a value the DB layer
+    /// accepts. A typo in `as_stored()` would otherwise only surface as a
+    /// runtime DB-validation error rather than a caught programming error.
+    #[test]
+    fn as_stored_values_are_all_valid_db_decisions() {
+        for d in [
+            ClaimReviewDecisionCli::Approve,
+            ClaimReviewDecisionCli::Reject,
+            ClaimReviewDecisionCli::Defer,
+        ] {
+            assert!(
+                vox_db::store::VALID_DECISIONS.contains(&d.as_stored()),
+                "{:?}.as_stored() = {:?} is not in vox_db::store::VALID_DECISIONS {:?}",
+                d,
+                d.as_stored(),
+                vox_db::store::VALID_DECISIONS,
+            );
+        }
+    }
 }

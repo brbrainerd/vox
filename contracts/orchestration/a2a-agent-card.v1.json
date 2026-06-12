@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voxlang.org/contracts/orchestration/a2a-agent-card.v1.json",
+  "title": "A2A Agent Card (planned — LF A2A v1.0 alignment)",
+  "description": "Stub schema for external Linux Foundation A2A v1.0 Agent Card discovery. Vox internal same-process messaging uses the Vox internal A2A bus (see orchestration-unified.md); this artifact is for future LF A2A interoperability only.",
+  "x-vox-version": "1.0.0-draft",
+  "x-vox-status": "planned",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "name", "description", "url", "version"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "a2a-agent-card.v1"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable agent name"
+    },
+    "description": {
+      "type": "string"
+    },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Agent endpoint base URL (LF A2A discovery)"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of the agent implementation"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Advertised capability tokens (task classes, tools)"
+    },
+    "authentication": {
+      "type": "object",
+      "description": "Planned auth schemes (bearer, mTLS, etc.)",
+      "additionalProperties": true
+    }
+  }
+}

@@ -1,0 +1,11 @@
+[package]
+name = "vox-nanopub"
+description = "SCIENTIA nanopublication builder: TriG emission, Ed25519 signing, and Trusty-URI derivation. Leaf crate (vox-crypto + sha2 + hex) — consumable independently of vox-scientia."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+vox-crypto = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }

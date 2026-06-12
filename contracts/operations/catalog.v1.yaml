@@ -888,6 +888,26 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: browser.click.xy
+  title: Browser Click Xy
+  description: Click at viewport coordinates (x,y) on an existing page_id session.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_click_xy
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: browser.close
   title: Browser Close
   description: Close a browser tab by page_id and shut down the host when no tabs remain.
@@ -905,6 +925,86 @@ operations:
   latin_aliases: null
   mcp:
     name: vox_browser_close
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: browser.back
+  title: Browser Back
+  description: Navigate to the previous history entry for page_id.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_back
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: browser.forward
+  title: Browser Forward
+  description: Navigate to the next history entry for page_id.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_forward
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: browser.reload
+  title: Browser Reload
+  description: Reload the current page_id.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_reload
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: browser.stop
+  title: Browser Stop
+  description: Stop pending navigation/load for page_id.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_stop
     http_read_role_eligible: false
     tier: core
   cli: null
@@ -1028,6 +1128,46 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: browser.list.pages
+  title: Browser List Pages
+  description: List all currently open browser sessions with page_id, URL, and title.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_list_pages
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: browser.page.info
+  title: Browser Page Info
+  description: Get URL/title and history navigation booleans for page_id.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_page_info
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: browser.screenshot
   title: Browser Screenshot
   description: Save a full-page PNG to a path (creates parent dirs).
@@ -1045,6 +1185,146 @@ operations:
   latin_aliases: null
   mcp:
     name: vox_browser_screenshot
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: browser.screenshot.viewport
+  title: Browser Screenshot Viewport
+  description: Capture viewport-only PNG and return base64 for live UI streaming.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_screenshot_viewport
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: browser.scroll
+  title: Browser Scroll
+  description: Scroll by dx/dy viewport deltas.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_scroll
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: browser.press
+  title: Browser Press
+  description: Press a key/chord on the active page.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_press
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: browser.type
+  title: Browser Type
+  description: Type text into the focused editable element on page_id.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_type
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: browser.set.viewport
+  title: Browser Set Viewport
+  description: Set viewport width/height for deterministic coordinate mapping.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_set_viewport
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: browser.screencast.frame
+  title: Browser Screencast Frame
+  description: Capture one CDP screencast frame and return image_base64 plus viewport dimensions.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_screencast_frame
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: browser.set.control.lock
+  title: Browser Set Control Lock
+  description: Set or clear per-page control owner (human or agent) for shared CDP sessions.
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_set_control_lock
     http_read_role_eligible: false
     tier: core
   cli: null
@@ -6075,8 +6355,8 @@ operations:
     ref_cli_required: true
     reachability_required: null
 - id: ludus
-  title: Ludus
-  description: CLI operation `vox ludus`
+  title: Gamify
+  description: CLI operation `vox gamify` (alias `ludus`)
   description_human: null
   product_lane: ai
   intent_tags: []
@@ -6087,12 +6367,13 @@ operations:
   preferred_for_models: null
   human_takeover_friendly: null
   mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
+  canonical_name: gamify
+  latin_aliases:
+  - ludus
   mcp: null
   cli:
     path:
-    - ludus
+    - gamify
     status: active
     latin_ns: ars
     handler_rust: commands::extras::ludus_cli
@@ -6161,8 +6442,8 @@ operations:
     tier: core
   cli: null
 - id: ludus.hud
-  title: Ludus Hud
-  description: CLI operation `vox ludus hud`
+  title: Gamify Hud
+  description: CLI operation `vox gamify hud` (alias `vox ludus hud`)
   description_human: null
   product_lane: ai
   intent_tags: []
@@ -6178,7 +6459,7 @@ operations:
   mcp: null
   cli:
     path:
-    - ludus
+    - gamify
     - hud
     status: active
     latin_ns: ars
@@ -7754,8 +8035,8 @@ operations:
     tier: core
   cli: null
 - id: oratio
-  title: Oratio
-  description: CLI operation `vox oratio`
+  title: Speech
+  description: CLI operation `vox speech` (alias `oratio`)
   description_human: null
   product_lane: ai
   intent_tags: []
@@ -7766,17 +8047,18 @@ operations:
   preferred_for_models: null
   human_takeover_friendly: null
   mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
+  canonical_name: speech
+  latin_aliases:
+  - oratio
   mcp: null
   cli:
     path:
-    - oratio
+    - speech
     status: active
     latin_ns: fabrica
     handler_rust: null
     feature_gate: oratio
-    catalog_group: oratio
+    catalog_group: speech
     ref_cli_required: true
     reachability_required: null
 - id: oratio.listen

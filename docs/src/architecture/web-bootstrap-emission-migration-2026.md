@@ -101,7 +101,7 @@ without a hand-written bootstrap.
 - No-routes path must branch to flat mount or route-less apps break.
 - `__VOX_TEST_TRANSCRIPT__` must survive the move into emitted code.
 
-**Key files:** new `crates/vox-codegen/src/codegen_ts/web_entry.rs`;
+**Key files:** new `crates/vox-codegen-ts/src/web_entry.rs`;
 `emitter.rs:171-225` (wire-in + `CodegenOptions` flag); `build.rs:294-300`
 (retire scaffold trigger); `scaffold.rs` (retire); app: `index.html` (repoint),
 new `src/app-hooks.ts`, delete `main.tsx`/`runtime.ts`/`pages/SettingsPage.tsx`.

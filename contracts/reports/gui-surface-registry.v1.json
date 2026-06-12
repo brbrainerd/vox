@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "surface_count": 83,
+  "surface_count": 95,
   "top_level_groups": [
     "add",
     "ars",
@@ -43,19 +43,19 @@
     "migrate",
     "model",
     "new",
-    "oratio",
     "plan",
     "play",
     "plugin",
     "pm",
+    "policy",
     "populi",
     "remove",
     "repair",
+    "repl",
     "repo",
     "research",
     "rollback",
     "run",
-    "schola",
     "scientia",
     "script",
     "secrets",
@@ -63,6 +63,7 @@
     "shell",
     "snapshot",
     "snippet",
+    "speech",
     "stop",
     "sync",
     "telemetry",
@@ -73,8 +74,6 @@
     "wasm",
     "workflow"
   ],
-  "unclassified_backfilled": [
-    "component"
-  ],
+  "unclassified_backfilled": [],
   "wiring_violations": []
 }

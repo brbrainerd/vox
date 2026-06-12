@@ -375,6 +375,20 @@ impl Parser {
         Ok(attr)
     }
 
+    /// Push a parse error for a duplicated `@table(...)` parameter (e.g.
+    /// `@table(pk: a, pk: b)`); duplicates must error rather than silently
+    /// last-wins.
+    fn push_duplicate_table_param_error(&mut self, param: &str) {
+        use crate::parser::error::{ParseError, ParseErrorClass};
+        self.errors.push(ParseError::classified(
+            self.span(),
+            format!("Duplicate `{param}` parameter in `@table(...)` — each parameter may appear at most once."),
+            vec![format!("remove the extra `{param}`")],
+            Some(self.peek().to_string()),
+            ParseErrorClass::Declaration,
+        ));
+    }
+
     pub(crate) fn parse_table(&mut self) -> Result<Decl, ()> {
         let start = self.span();
         self.advance(); // eat @table
@@ -385,26 +399,99 @@ impl Parser {
         // when the decorator is bare, the typeck enforces an `id` field
         // exists (E1042).
         let mut primary_key: Option<String> = None;
+        let mut is_extern = false;
+        let mut source: Option<String> = None;
         if matches!(self.peek(), Token::LParen) {
             self.advance(); // eat `(`
-            if let Token::Ident(k) = self.peek().clone()
-                && k == "pk"
-            {
-                self.advance(); // eat `pk`
-                self.expect(&Token::Colon)?;
-                primary_key = Some(self.parse_ident_name()?);
-            } else {
+            loop {
+                self.skip_newlines();
+                if self.eat(&Token::RParen) {
+                    break;
+                }
+                match self.peek().clone() {
+                    Token::Extern => {
+                        if is_extern {
+                            self.push_duplicate_table_param_error("extern");
+                            return Err(());
+                        }
+                        self.advance();
+                        is_extern = true;
+                    }
+                    Token::Ident(k) if k == "extern" => {
+                        if is_extern {
+                            self.push_duplicate_table_param_error("extern");
+                            return Err(());
+                        }
+                        self.advance();
+                        is_extern = true;
+                    }
+                    Token::Ident(k) if k == "pk" => {
+                        if primary_key.is_some() {
+                            self.push_duplicate_table_param_error("pk");
+                            return Err(());
+                        }
+                        self.advance(); // eat `pk`
+                        self.expect(&Token::Colon)?;
+                        primary_key = Some(self.parse_ident_name()?);
+                    }
+                    Token::Ident(k) if k == "source" => {
+                        if source.is_some() {
+                            self.push_duplicate_table_param_error("source");
+                            return Err(());
+                        }
+                        self.advance(); // eat `source`
+                        self.expect(&Token::Colon)?;
+                        source = match self.peek().clone() {
+                            Token::StringLit(s) | Token::SingleStringLit(s) => {
+                                self.advance();
+                                Some(s)
+                            }
+                            Token::Ident(name) | Token::TypeIdent(name) => {
+                                self.advance();
+                                Some(name)
+                            }
+                            other => {
+                                use crate::parser::error::{ParseError, ParseErrorClass};
+                                self.errors.push(ParseError::classified(
+                                    self.span(),
+                                    "Expected `source: <table_name>` or `source: \"table_name\"` inside `@table(...)`.",
+                                    vec!["source: users".into(), "source: \"users\"".into()],
+                                    Some(other.to_string()),
+                                    ParseErrorClass::Declaration,
+                                ));
+                                return Err(());
+                            }
+                        };
+                    }
+                    _ => {
+                        use crate::parser::error::{ParseError, ParseErrorClass};
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "Expected `extern`, `pk: <field_name>`, or `source: <name>` inside `@table(...)`.",
+                            vec!["extern".into(), "pk: id".into(), "source: users".into()],
+                            Some(self.peek().to_string()),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return Err(());
+                    }
+                }
+                if self.eat(&Token::Comma) {
+                    continue;
+                }
+                self.skip_newlines();
+                if self.eat(&Token::RParen) {
+                    break;
+                }
                 use crate::parser::error::{ParseError, ParseErrorClass};
                 self.errors.push(ParseError::classified(
                     self.span(),
-                    "Expected `pk: <field_name>` inside `@table(...)`.",
-                    vec!["pk: id".into()],
+                    "Expected `,` or `)` in `@table(...)` argument list.",
+                    vec![",".into(), ")".into()],
                     Some(self.peek().to_string()),
                     ParseErrorClass::Declaration,
                 ));
                 return Err(());
             }
-            self.expect(&Token::RParen)?;
         }
 
         self.expect(&Token::TypeKw)?;
@@ -442,6 +529,8 @@ impl Parser {
             is_pub: false,
             is_deprecated: false,
             primary_key,
+            is_extern,
+            source,
             span: start.merge(self.span()),
         }))
     }

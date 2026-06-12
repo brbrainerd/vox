@@ -1,9 +1,9 @@
-use vox_compiler::ast::types::TypeExpr;
+use vox_ast::types::TypeExpr;
 
 use super::digest_types::*;
 
 pub(crate) fn extract_table_info(
-    table: &vox_compiler::ast::decl::TableDecl,
+    table: &vox_ast::decl::TableDecl,
     all_table_names: &[String],
 ) -> TableInfo {
     let fields: Vec<FieldInfo> = table
@@ -28,7 +28,7 @@ pub(crate) fn extract_table_info(
 }
 
 pub(crate) fn extract_collection_info(
-    collection: &vox_compiler::ast::decl::CollectionDecl,
+    collection: &vox_ast::decl::CollectionDecl,
     all_table_names: &[String],
 ) -> CollectionInfo {
     let fields: Vec<FieldInfo> = collection
@@ -46,10 +46,7 @@ pub(crate) fn extract_collection_info(
     }
 }
 
-fn extract_field_info(
-    field: &vox_compiler::ast::decl::TableField,
-    all_table_names: &[String],
-) -> FieldInfo {
+fn extract_field_info(field: &vox_ast::decl::TableField, all_table_names: &[String]) -> FieldInfo {
     let type_str = type_expr_to_string(&field.type_ann);
     let is_optional = matches!(&field.type_ann, TypeExpr::Generic { name, .. } if name == "Option");
     let references_table = detect_table_reference(&field.type_ann, all_table_names);
@@ -63,7 +60,7 @@ fn extract_field_info(
 }
 
 pub(crate) fn extract_function_info(
-    func: &vox_compiler::ast::decl::FnDecl,
+    func: &vox_ast::decl::FnDecl,
     all_table_names: &[String],
 ) -> FunctionInfo {
     let params: Vec<ParamInfo> = func
@@ -274,8 +271,8 @@ pub(crate) fn generate_summary(
 mod tests {
     use super::*;
     use crate::{digest_to_json, format_llm_context, generate_schema_digest};
-    use vox_compiler::ast::decl::*;
-    use vox_compiler::ast::types::TypeExpr;
+    use vox_ast::decl::*;
+    use vox_ast::types::TypeExpr;
     use vox_test_harness::spans::dummy_span;
 
     fn make_field(name: &str, type_name: &str) -> TableField {
@@ -318,6 +315,8 @@ mod tests {
             cors: None,
             is_pub: false,
             is_deprecated: false,
+            is_extern: false,
+            source: None,
             span: dummy_span(),
         })
     }

@@ -12,6 +12,20 @@ use crate::locks::FileLockManager;
 use crate::scope::ScopeGuard;
 use crate::types::{AgentIdGenerator, TaskIdGenerator};
 
+/// Build the live [`IsolationPlan`](crate::isolation::IsolationPlan) from config:
+/// `default` from `isolation_strategy_default` and per-agent overrides mapped from
+/// raw `u64` keys to [`AgentId`](crate::types::AgentId).
+fn isolation_plan_from_config(config: &OrchestratorConfig) -> crate::isolation::IsolationPlan {
+    let mut plan = crate::isolation::IsolationPlan {
+        default: config.isolation_strategy_default,
+        ..Default::default()
+    };
+    for (&id, &strategy) in &config.isolation_per_agent {
+        plan.per_agent.insert(crate::types::AgentId(id), strategy);
+    }
+    plan
+}
+
 impl crate::orchestrator::Orchestrator {
     pub fn new(config: OrchestratorConfig) -> Self {
         let bulletin = BulletinBoard::new(config.bulletin_capacity);
@@ -61,6 +75,7 @@ impl crate::orchestrator::Orchestrator {
                 config.scaling_lookback_ticks,
             ))),
             scope_guard: Arc::new(RwLock::new(ScopeGuard::new(config.scope_enforcement))),
+            isolation_policy: Arc::new(RwLock::new(isolation_plan_from_config(&config))),
             task_traces: Arc::new(RwLock::new(HashMap::new())),
             snapshot_store: Arc::new(RwLock::new(crate::snapshot::SnapshotStore::default())),
             oplog: Arc::new(RwLock::new(crate::oplog::OpLog::default())),
@@ -140,6 +155,7 @@ impl crate::orchestrator::Orchestrator {
                 config.scaling_lookback_ticks,
             ))),
             scope_guard: Arc::new(RwLock::new(ScopeGuard::new(config.scope_enforcement))),
+            isolation_policy: Arc::new(RwLock::new(isolation_plan_from_config(&config))),
             task_traces: Arc::new(RwLock::new(HashMap::new())),
             snapshot_store: Arc::new(RwLock::new(crate::snapshot::SnapshotStore::default())),
             oplog: Arc::new(RwLock::new(crate::oplog::OpLog::default())),
@@ -171,8 +187,40 @@ impl crate::orchestrator::Orchestrator {
         }
     }
 
+    /// Best-effort: spawn the in-process jj VCS actor for `root` and inject its
+    /// handle into the `WorkspaceManager`. Off by default unless the orchestrator
+    /// is built with the `jj` feature.
+    ///
+    /// `JjActor::spawn` blocks while opening the repo, so the open runs on a
+    /// blocking thread. If `root` is not a jj repo (or the open fails), this
+    /// logs and leaves `vcs = None` — the orchestrator still functions.
+    #[cfg(feature = "jj")]
+    pub fn enable_jj_vcs(self: &Arc<Self>, root: std::path::PathBuf) {
+        let this = self.clone();
+        tokio::task::spawn_blocking(move || match vox_vcs::spawn_jj_actor(root.clone()) {
+            Ok(handle) => {
+                if let Ok(mut wm) = this.workspace_manager.write() {
+                    wm.set_vcs(handle);
+                    tracing::info!(root = %root.display(), "jj VCS actor enabled");
+                }
+            }
+            Err(e) => {
+                tracing::debug!(root = %root.display(), error = %e, "jj VCS unavailable; continuing without it");
+            }
+        });
+    }
+
     /// Spawns background tasks (observer loop, telemetry, catalog refresh) into the current Tokio runtime.
     pub fn spawn_background_tasks(self: Arc<Self>) {
+        // Best-effort: bring up the in-process jj VCS actor for the repo root
+        // discovered from CWD. No-op without the `jj` feature or outside a repo.
+        #[cfg(feature = "jj")]
+        {
+            let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+            let root = vox_repository::find_project_manifest_root(&cwd).unwrap_or(cwd);
+            self.enable_jj_vcs(root);
+        }
+
         // Observer loop
         let orch = self.clone();
         tokio::spawn(async move {
@@ -221,3 +269,37 @@ mod lineage;
 mod telemetry;
 mod temporal;
 mod usage;
+
+#[cfg(test)]
+mod isolation_policy_tests {
+    use crate::orchestrator::Orchestrator;
+
+    #[test]
+    fn isolation_policy_seeds_from_config_default() {
+        let cfg = crate::config::OrchestratorConfig {
+            isolation_strategy_default: crate::isolation::IsolationStrategy::SplitChanges,
+            ..Default::default()
+        };
+        let orch = Orchestrator::new(cfg);
+        let handle = orch.isolation_policy_handle();
+        let plan = crate::sync_lock::rw_read(&handle);
+        assert_eq!(
+            plan.default,
+            crate::isolation::IsolationStrategy::SplitChanges
+        );
+    }
+
+    #[test]
+    fn isolation_policy_seeds_per_agent_overrides_from_config() {
+        let mut cfg = crate::config::OrchestratorConfig::default();
+        cfg.isolation_per_agent
+            .insert(5, crate::isolation::IsolationStrategy::SeparateBranches);
+        let orch = Orchestrator::new(cfg);
+        let handle = orch.isolation_policy_handle();
+        let plan = crate::sync_lock::rw_read(&handle);
+        assert_eq!(
+            plan.strategy_for(crate::types::AgentId(5)),
+            crate::isolation::IsolationStrategy::SeparateBranches
+        );
+    }
+}

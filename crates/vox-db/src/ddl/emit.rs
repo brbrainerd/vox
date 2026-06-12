@@ -4,13 +4,13 @@
 //! It generates `CREATE TABLE`, `CREATE INDEX`, and type-safe DDL from the AST.
 
 use crate::schema_digest::{CollectionInfo, IndexInfo, TableInfo};
-use vox_compiler::ast::decl::{CollectionDecl, IndexDecl, TableDecl, VectorIndexDecl};
-use vox_compiler::ast::scalar_mapping::VoxScalar;
-use vox_compiler::ast::types::TypeExpr;
+use vox_ast::decl::{CollectionDecl, IndexDecl, TableDecl, VectorIndexDecl};
+use vox_ast::scalar_mapping::VoxScalar;
+use vox_ast::types::TypeExpr;
 
 /// SQLite affinity for a Vox **named** scalar or common alias (`String`, `i64`, …).
 ///
-/// Aligns with [`VoxScalar`](vox_compiler::ast::scalar_mapping::VoxScalar) and Rust table emit in `vox-codegen-rust`.
+/// Aligns with [`VoxScalar`](vox_ast::scalar_mapping::VoxScalar) and Rust table emit in `vox-codegen-rust`.
 #[must_use]
 pub fn sqlite_affinity_for_named_vox_type(name: &str) -> Option<&'static str> {
     if let Some(s) = VoxScalar::parse(name) {
@@ -34,12 +34,8 @@ pub fn tables_to_ddl(tables: &[&TableDecl]) -> Vec<String> {
 pub fn table_to_ddl(table: &TableDecl) -> String {
     let mut cols = Vec::new();
 
-    // Every table gets an auto-generated _id and _creationTime
-    cols.push("    _id TEXT PRIMARY KEY NOT NULL".to_string());
-    cols.push(
-        "    _creationTime TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-            .to_string(),
-    );
+    // Keep parity with vox-codegen's runtime DDL for app `@table` surfaces.
+    cols.push("    _id INTEGER PRIMARY KEY AUTOINCREMENT".to_string());
 
     for field in &table.fields {
         let sqlite_type = type_to_sqlite_type(&field.type_ann);
@@ -49,6 +45,9 @@ pub fn table_to_ddl(table: &TableDecl) -> String {
             " NOT NULL"
         };
         cols.push(format!("    {} {}{}", field.name, sqlite_type, nullable));
+    }
+    if let Some(pk) = &table.primary_key {
+        cols.push(format!("    UNIQUE ({pk})"));
     }
 
     format!(

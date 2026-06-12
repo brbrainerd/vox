@@ -40,6 +40,9 @@ fn extract_version(s: str) to Option[str] {
     }
 }
 
+// EXPECT: email valid: true
+// EXPECT: redacted: card ***-***-***-*** expires ***/***
+// EXPECT: version: 1.23.4
 fn main() {
     // Demonstrate all three free-function entry points.
     let matched = regex.is_match("user@example.com", "^[\\w.+-]+@[\\w-]+\\.[a-z]{2,}$")
@@ -75,8 +78,11 @@ fn test_replace_and_captures() to Unit {
         None => assert(false)
     }
 
-    match extract_version("no version here") {
-        Some(_) => assert(false)
-        None => assert(true)
+    // A string with no version yields None; verify the None path by mapping it
+    // through a fallback (a real observable, not a tautological `assert(true)`).
+    let fallback = match extract_version("no version here") {
+        Some(v) => v
+        None => "none"
     }
+    assert(fallback is "none")
 }

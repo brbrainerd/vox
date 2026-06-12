@@ -230,11 +230,8 @@ fn json_value_has_version(v: &serde_json::Value) -> bool {
 ///   - `x-vox-version`   — in-house extended-attribute convention
 ///   - `openapi`         — OpenAPI v3 self-versioning
 ///   - `$schema`         — JSON Schema self-versioning
-///   - `version`         — top-level integer version (used by MCP,
-///                         scientia distribution packs, etc.)
-///   - `schema`          — typed schema-ID reference (used by
-///                         workspace-toolchain.v1.yaml's `schema:
-///                         vox.workspace.toolchain.v1`)
+///   - `version`         — top-level integer version (used by MCP, scientia distribution packs, etc.)
+///   - `schema`          — typed schema-ID reference (used by workspace-toolchain.v1.yaml's `schema: vox.workspace.toolchain.v1`)
 ///
 /// Additionally, the conventional `# yaml-language-server: $schema=…`
 /// editor pragma on line 1 counts — that schema reference IS machine-

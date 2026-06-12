@@ -43,7 +43,7 @@ The brief's original gap analysis used a 4-tier scheme that conflated "spec'd in
 |---|---|---|---|---|---|
 | 1 | Async/data-fetching state (loading/error/empty/optimistic/stale) | 🟡 Partially Built | Reactive `state`/`derived`/`effect` shipped (see row 7). `@loading` token exists and parses on `fn` declarations; HIR carries it (`HirLoading`); **no codegen**. `@cancellable` exists for lambda/fn expressions (sets a flag, not used downstream). The full `Async[T]` tagged-union value with exhaustive view-arm matching is not yet a type. A1-04 (loading/empty slot in `component`) is roadmap-only. | `@loading` parser+HIR (no codegen); `@cancellable`; existing reactive members; A1-01/A1-04 specs. | **GA-01** (§4) |
 | 2 | Cross-stack type & contract duplication | 🟡 Partially Built | `@table` and `@endpoint(kind: query\|mutation)` parse and round-trip (`crates/vox-compiler/src/lexer/token.rs:AtTable, AtEndpoint`; goldens `crud_api.vox`, `blog_fullstack.vox`). [Wire Format v1 SSOT](wire-format-v1-ssot.md) is honored by codegen via hand-written rules in `crates/vox-codegen/src/codegen_rust/emit/types.rs`, but **no `vox-wire-format-validator` crate enforces the spec at build time.** [Frontend Convergence Findings §Contract IR](frontend-convergence-findings-2026.md) is a *proposal*, not an implementation. | Wire Format v1 SSOT + Phase 1 build-target split (shipped — `crates/vox-cli/src/cli_args.rs:BuildTargetArg`) + Phase 2 OpenAPI emit. | **GA-02** (§4) |
-| 3 | Form state, validation, and submission | 🟡 Partially Built | `@form` has end-to-end implementation: lexer (`Token::AtForm`), parser (`crates/vox-compiler/src/parser/descent/decl/head.rs`), HIR lowering (`hir/lower/decl.rs:lower_form`), and React codegen (`crates/vox-codegen/src/codegen_ts/form_emit.rs`). What's missing per the brief's #3: P0 label-required structural check; client/server validator mirroring via Contract IR (GA-02); debounced async validator with cancellation; multi-step state-machine compilation; symmetric `vox/form/missing-label` diagnostic. | `@form` parser+codegen; A1-02; phase-3 ergonomics. | **GA-03** (§4) |
+| 3 | Form state, validation, and submission | 🟡 Partially Built | `@form` has end-to-end implementation: lexer (`Token::AtForm`), parser (`crates/vox-compiler/src/parser/descent/decl/head.rs`), HIR lowering (`hir/lower/decl.rs:lower_form`), and React codegen (`crates/vox-codegen-ts/src/form_emit.rs`). What's missing per the brief's #3: P0 label-required structural check; client/server validator mirroring via Contract IR (GA-02); debounced async validator with cancellation; multi-step state-machine compilation; symmetric `vox/form/missing-label` diagnostic. | `@form` parser+codegen; A1-02; phase-3 ergonomics. | **GA-03** (§4) |
 | 4 | Auth / authz | 🟡 Partially Built | **Three layers, partially aligned.** (a) `@require` token exists and parses on `fn` declarations; HIR carries the precondition expression list; **no codegen wires it**. (b) Runtime side: `crates/vox-actor-runtime/src/auth.rs` (120 lines) and `route_capability_policy.rs` (65 lines) ship a working capability-policy layer. (c) Proven precedent at the VCS layer: `crates/vox-orchestrator-types/src/vcs_capability.rs` (`WorkspaceId` / `BranchName` / `BranchCreate` / `WorkingTreeWrite`), enforced by `crates/vox-orchestrator-mcp/src/git_exec.rs`. **Missing:** OAuth/OIDC `@auth(provider:)` decorator; capability-leak typecheck rule; codegen that lowers `@require` to Tower middleware reading the actor-runtime policy; menu-gating derivation; symmetric `vox/auth/capability-leak` diagnostic. | `@require` parser+HIR; actor-runtime auth + route policy; VCS capability tokens. | **GA-04** (§4) |
 | 5 | Effect/IO for external services | 📋 Spec'd, Not Shipped | [Vox Language Rules Phase 5](vox-language-rules-phase5-effects-determinism-2026.md) is the design; `@uses(net | fs | time | random | secret)` is **not parsed** today. Phases 1–4 of the language-rules plan are also pre-shipping. | Phase 5 effect-system spec. | **GA-05** (§4) |
 | 6 | Request validation at trust boundaries | 📋 Spec'd, Not Shipped | [Phase 3 HTTP Ergonomics Spec](phase3-http-ergonomics-spec-2026.md) is design only; **no `@cors`, `@auth(scheme:)`, `@role`, `@rate_limit` tokens** parse. CC-13/CC-15 are also roadmap items. | Phase 3 spec; A1-02 / A1-04 view side. | **GA-06** (§4) |
@@ -111,7 +111,7 @@ Pass A under-credited Vox by relying on a partial mental model of which `At*` to
 | Row | Pass-A verdict | Pass-B corrected verdict | Trigger |
 |---|---|---|---|
 | #1 Async | 🟡 (still 🟡) | 🟡 (refined) | `@loading` and `@cancellable` tokens exist; both parse and lower; neither has codegen. Decision implication: GA-01 must decide whether to deprecate `@loading` in favour of typed `Async[T]`, or fold them. |
-| #3 Forms | 📋 Spec'd, Not Shipped | 🟡 Partially Built | `@form` ships **end to end**: lexer + parser + HIR `lower_form` + React codegen at `crates/vox-codegen/src/codegen_ts/form_emit.rs`. GA-03 is now "add P0 label rigor and Contract-IR mirroring," not "build form decorator." |
+| #3 Forms | 📋 Spec'd, Not Shipped | 🟡 Partially Built | `@form` ships **end to end**: lexer + parser + HIR `lower_form` + React codegen at `crates/vox-codegen-ts/src/form_emit.rs`. GA-03 is now "add P0 label rigor and Contract-IR mirroring," not "build form decorator." |
 | #4 Auth | 📋 Spec'd, Not Shipped | 🟡 Partially Built | `@require` parses + lowers (no codegen); `crates/vox-actor-runtime/src/auth.rs` (120 LoC) and `route_capability_policy.rs` (65 LoC) ship a working capability-policy runtime layer. GA-04 is now "wire `@require` to the runtime layer + add `@auth(provider:)`," not "design from scratch." |
 | #14 Push | 📋 Spec'd, Not Shipped | 🟡 Partially Built | `@push` parses on root App with `on_register` / `on_notification` / `on_action` callbacks; lowers to `HirPush`; no codegen. `@deep_link` and `@back_button` similarly lower but no codegen. |
 | #21 LLM | 🟡 (still 🟡) | 🟡 (refined) | `@ai` and `@tool` tokens both exist and parse + lower; `crates/vox-actor-runtime/src/prompt_canonical.rs` (316 LoC) and the entire `llm/` submodule (`chat.rs`, `embed.rs`, `stream.rs`, `wire.rs`, `types.rs`) ship a working LLM runtime. GA-21 is now "wire `@ai`/`@tool` codegen + structured-output validation," not "introduce LLM primitives from scratch." |
@@ -347,22 +347,22 @@ cargo run -p vox-arch-check
 
 ### GA-03 — `@form` rigor: P0 a11y check + Contract-IR cross-stack mirror
 
-**Goal.** Tighten the *existing* end-to-end `@form` implementation (lexer + parser + HIR `lower_form` + React codegen at `crates/vox-codegen/src/codegen_ts/form_emit.rs`) with the structural correctness levers the brief's #3 calls out: P0 label-required check, Contract-IR-driven server/client validator mirroring, debounced async validator with cancellation, multi-step state-machine compilation.
+**Goal.** Tighten the *existing* end-to-end `@form` implementation (lexer + parser + HIR `lower_form` + React codegen at `crates/vox-codegen-ts/src/form_emit.rs`) with the structural correctness levers the brief's #3 calls out: P0 label-required check, Contract-IR-driven server/client validator mirroring, debounced async validator with cancellation, multi-step state-machine compilation.
 
-**Existing surface to align with.** **`@form` is shipped end-to-end.** Lexer: `Token::AtForm`. Parser: `crates/vox-compiler/src/parser/descent/decl/head.rs`. HIR lowering: `crates/vox-compiler/src/hir/lower/decl.rs:lower_form`. React codegen: `crates/vox-codegen/src/codegen_ts/form_emit.rs`. **Do not** reintroduce a parallel `@form` parser; *extend* the existing one. Per C4, exactly one form-binding shape.
+**Existing surface to align with.** **`@form` is shipped end-to-end.** Lexer: `Token::AtForm`. Parser: `crates/vox-compiler/src/parser/descent/decl/head.rs`. HIR lowering: `crates/vox-compiler/src/hir/lower/decl.rs:lower_form`. React codegen: `crates/vox-codegen-ts/src/form_emit.rs`. **Do not** reintroduce a parallel `@form` parser; *extend* the existing one. Per C4, exactly one form-binding shape.
 
 **Status precondition.** Lands cleanest after GA-01 (uses `Async[T]` for the submit state) and GA-02 (uses Contract IR for cross-stack validators). The label-required check (#1 below) is independent and can land first as a small standalone PR.
 
 **Files to read first.**
 - `crates/vox-compiler/src/parser/descent/decl/head.rs` — `parse_form` (or wherever `@form` parsing lives — confirm via grep).
 - `crates/vox-compiler/src/hir/lower/decl.rs` — function `lower_form`.
-- `crates/vox-codegen/src/codegen_ts/form_emit.rs` — current React emit, the model for the additions.
+- `crates/vox-codegen-ts/src/form_emit.rs` — current React emit, the model for the additions.
 - [docs/src/architecture/web-app-archetype-coverage-2026.md](web-app-archetype-coverage-2026.md) §A1-02 `@form`.
 - [docs/src/architecture/phase3-http-ergonomics-spec-2026.md](phase3-http-ergonomics-spec-2026.md) — host phase for the server-side mirror.
 
 **Files to modify or create.**
 - `crates/vox-compiler/src/typecheck/form.rs` (new) — refuse compile when a `@form` field lacks a label (P0). Diagnostic id: `vox/form/missing-label`.
-- `crates/vox-codegen/src/codegen_ts/form_emit.rs` (extend) — emit debounced async validator (composes with `@cancellable`) and focus-on-error.
+- `crates/vox-codegen-ts/src/form_emit.rs` (extend) — emit debounced async validator (composes with `@cancellable`) and focus-on-error.
 - `crates/vox-codegen/src/codegen_rust/emit/form_endpoint.rs` (new) — emit server-side validator from the same Contract IR (GA-02 dependency). The validator's structured-error shape must round-trip identically to the client's.
 - `crates/vox-compiler/src/typecheck/form_state_machine.rs` (new) — compile multi-step `@form` declarations into a state-machine type rather than nested context providers.
 - `examples/golden/form_basic.vox` (new) + expected emit.
@@ -763,9 +763,9 @@ cargo test -p vox-codegen channel asyncapi
 **Files to modify or create.**
 - `crates/vox-compiler/src/parser/descent/type_/notify.rs` (new) — `Notify { channel: ..., recipient: ..., template: ... }` value type.
 - `crates/vox-notify/` (new crate, with workspace member entry) — `Notify` value type runtime + delivery adapters. Modules: `src/{lib,trait_,email_ses,email_resend,email_postmark,sms_twilio,push_web}.rs`. New crate to keep adapter dependencies (Twilio, Resend, etc.) out of the actor-runtime dependency graph.
-- `crates/vox-codegen/src/codegen_ts/push_app.rs` (new) — wire the existing `HirPush` to a Web-Push service-worker subscription on the client side.
+- `crates/vox-codegen-ts/src/push_app.rs` (new) — wire the existing `HirPush` to a Web-Push service-worker subscription on the client side.
 - `crates/vox-codegen/src/codegen_rust/emit/push_endpoint.rs` (new) — server-side push-target endpoint reading from `vox-notify`.
-- `crates/vox-codegen/src/codegen_ts/deep_link.rs` (new) — wire the existing `HirDeepLink` to client-side URL parser + state navigation.
+- `crates/vox-codegen-ts/src/deep_link.rs` (new) — wire the existing `HirDeepLink` to client-side URL parser + state navigation.
 - `crates/vox-codegen/src/codegen_rust/emit/notify.rs` (new).
 
 **Acceptance criteria.**
@@ -1193,7 +1193,7 @@ cargo test -p vox-actor-runtime
 cargo run -p vox-arch-check
 
 # 5. Confirm form codegen still has end-to-end coverage (precondition for GA-03)
-ls crates/vox-codegen/src/codegen_ts/form_emit.rs
+ls crates/vox-codegen-ts/src/form_emit.rs
 cargo test -p vox-codegen form
 
 # 6. Confirm the durability audit's "zero runtime" verdict still holds (precondition for GA-11)

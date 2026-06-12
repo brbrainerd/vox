@@ -695,25 +695,18 @@ fn resolve_commands_handler_module_file(vox_cli_src: &Path, handler: &str) -> Op
 }
 
 fn vox_cli_src_contains_needle(root: &Path, needle: &str) -> Result<bool> {
-    fn walk(dir: &Path, needle: &str, found: &mut bool) -> Result<()> {
-        use anyhow::Context;
-        for e in fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))? {
-            let e = e?;
-            let p = e.path();
-            if p.is_dir() {
-                walk(&p, needle, found)?;
-            } else if p.extension().and_then(|s| s.to_str()) == Some("rs") {
-                let s =
-                    read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
-                if s.contains(needle) {
-                    *found = true;
-                }
+    use anyhow::Context;
+    let mut found = false;
+    for entry in walkdir::WalkDir::new(root) {
+        let entry = entry.with_context(|| format!("read_dir under {}", root.display()))?;
+        let p = entry.path();
+        if entry.file_type().is_file() && p.extension().and_then(|s| s.to_str()) == Some("rs") {
+            let s = read_utf8_path_capped(p).with_context(|| format!("read {}", p.display()))?;
+            if s.contains(needle) {
+                found = true;
             }
         }
-        Ok(())
     }
-    let mut found = false;
-    walk(root, needle, &mut found)?;
     Ok(found)
 }
 
@@ -937,7 +930,6 @@ pub(crate) fn check_dockerfiles_cargo_locked_policy(repo_root: &Path) -> Result<
 
 /// Forbid legacy “run/use `vox install` for packages” nudges outside explicit migration/arch pages (WP4).
 pub(crate) fn check_operator_docs_no_legacy_vox_install_pm_nudge(repo_root: &Path) -> Result<()> {
-    use std::fs;
     const BAD: &[&str] = &[
         "run `vox install`",
         "run vox install",
@@ -955,22 +947,20 @@ pub(crate) fn check_operator_docs_no_legacy_vox_install_pm_nudge(repo_root: &Pat
             || rel_posix == "reference/cli.md"
     }
     fn walk(dir: &Path, docs_src: &Path, bad: &[&str]) -> Result<()> {
-        for e in fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))? {
-            let e = e?;
-            let p = e.path();
-            if p.is_dir() {
-                walk(&p, docs_src, bad)?;
-            } else if p.extension().and_then(|x| x.to_str()) == Some("md") {
+        for entry in walkdir::WalkDir::new(dir) {
+            let entry = entry.with_context(|| format!("read_dir under {}", dir.display()))?;
+            let p = entry.path();
+            if entry.file_type().is_file() && p.extension().and_then(|x| x.to_str()) == Some("md") {
                 let rel_posix = p
                     .strip_prefix(docs_src)
-                    .unwrap_or(&p)
+                    .unwrap_or(p)
                     .to_string_lossy()
                     .replace('\\', "/");
                 if allowed(&rel_posix) {
                     continue;
                 }
                 let s =
-                    read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+                    read_utf8_path_capped(p).with_context(|| format!("read {}", p.display()))?;
                 let lower = s.to_lowercase();
                 for b in bad {
                     if lower.contains(&b.to_lowercase()) {
@@ -1117,7 +1107,8 @@ pub(crate) fn check_latin_alias_parity_with_catalog(repo_root: &Path, lib_rs: &s
     // These are the aliases that MUST appear as `visible_alias` in lib.rs
     const REQUIRED_VISIBLE_ALIASES: &[(&str, &str)] = &[
         ("secrets", "clavis"),   // secrets command exposes `clavis` alias (deprecated)
-        ("oratio", "speech"),    // oratio command exposes `speech` alias
+        ("speech", "oratio"), // speech command (English canonical) exposes `oratio` (Latin) alias
+        ("gamify", "ludus"),  // gamify command (English canonical) exposes `ludus` (Latin) alias
         ("dei", "orchestrator"), // dei command exposes `orchestrator` alias
     ];
 

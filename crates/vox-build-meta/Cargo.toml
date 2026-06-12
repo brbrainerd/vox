@@ -2,6 +2,7 @@
 name = "vox-build-meta"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 description = "Build-time helper that emits VOX_BUILD_NUMBER and VOX_GIT_HASH. Add to [build-dependencies] and call vox_build_meta::emit() from build.rs."
 
 [lints]

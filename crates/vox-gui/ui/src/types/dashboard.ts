@@ -21,10 +21,12 @@ export interface Agent {
   id: string;
   codename: string;
   phase: string;
-  progress: number;
+  /** 0–1 when known; null → indeterminate progress UI. */
+  progress: number | null;
   task: string;
   cost: number;
-  budget: number;
+  /** Per-agent cap when daemon reports it; null → show em-dash, no fake bar. */
+  budget: number | null;
   eta: string;
   skill?: string;
 }
@@ -76,7 +78,6 @@ export interface DashboardData {
   alerts: LudusAlert[];
   contextChips: string[];
   skills: CommandCatalogEntry[];
-  intentions: any[];
   /** Optional pre-computed agent topology graph. AgentFlow will generate one from
    *  live agent data if this is absent. */
   graph?: AgentGraph;

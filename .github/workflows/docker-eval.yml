@@ -72,7 +72,7 @@ jobs:
       # the build. Once the image is clean, tighten this to exit-code: '1' to
       # make CRITICAL/HIGH vulnerabilities merge-blocking.
       - name: Scan image for vulnerabilities (Trivy, report-only)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           format: 'table'

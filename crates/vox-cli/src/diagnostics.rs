@@ -130,7 +130,7 @@ pub fn did_you_mean(input: &str, candidates: &[&str]) -> Option<String> {
     let best = candidates
         .iter()
         .filter_map(|c| {
-            let dist = levenshtein(input, c);
+            let dist = strsim::levenshtein(input, c);
             // Only suggest if fewer than 3 edits AND the match is meaningful
             // (not all characters differ, i.e. dist < length of shorter string)
             let max_len = input.len().min(c.len());
@@ -157,38 +157,6 @@ pub fn suggest_did_you_mean(input: &str, candidates: &[&str]) {
             eprintln!("  💡 hint: Did you mean `{}`?", suggestion);
         }
     }
-}
-
-/// Compute Levenshtein edit distance between two strings.
-fn levenshtein(a: &str, b: &str) -> usize {
-    let a: Vec<char> = a.chars().collect();
-    let b: Vec<char> = b.chars().collect();
-    let m = a.len();
-    let n = b.len();
-    if m == 0 {
-        return n;
-    }
-    if n == 0 {
-        return m;
-    }
-
-    let mut dp = vec![vec![0usize; n + 1]; m + 1];
-    for (i, row) in dp.iter_mut().enumerate().take(m + 1) {
-        row[0] = i;
-    }
-    for (j, cell) in dp[0].iter_mut().enumerate().take(n + 1) {
-        *cell = j;
-    }
-
-    for i in 1..=m {
-        for j in 1..=n {
-            let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };
-            dp[i][j] = (dp[i - 1][j] + 1)
-                .min(dp[i][j - 1] + 1)
-                .min(dp[i - 1][j - 1] + cost);
-        }
-    }
-    dp[m][n]
 }
 
 // ── Terminal success / info ───────────────────────────────────────────────────
@@ -236,20 +204,20 @@ mod tests {
 
     #[test]
     fn levenshtein_exact() {
-        assert_eq!(levenshtein("build", "build"), 0);
+        assert_eq!(strsim::levenshtein("build", "build"), 0);
     }
 
     #[test]
     fn levenshtein_one_edit() {
-        assert_eq!(levenshtein("buid", "build"), 1);
+        assert_eq!(strsim::levenshtein("buid", "build"), 1);
     }
 
     #[test]
     fn levenshtein_completely_different() {
         // "abc" → "xyz": 3 substitutions = distance 3
-        assert_eq!(levenshtein("abc", "xyz"), 3);
+        assert_eq!(strsim::levenshtein("abc", "xyz"), 3);
         // Longer strings with nothing in common score higher
-        assert!(levenshtein("hello", "zzzzz") >= 4);
+        assert!(strsim::levenshtein("hello", "zzzzz") >= 4);
     }
 
     #[test]

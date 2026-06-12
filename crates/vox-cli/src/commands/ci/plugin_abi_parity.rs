@@ -2,8 +2,12 @@
 //!
 //! Walks `crates/` for any `Plugin.toml` declaring a code or composite
 //! payload, attempts to load each via `vox-plugin-host::Loader`, and
-//! asserts ABI matches. Plugin ids starting with `noop-bad-` are
-//! intentionally broken test fixtures and are skipped.
+//! asserts ABI matches. Skipped (not failed):
+//!   - Plugin ids starting with `noop-bad-` (intentionally broken fixtures).
+//!   - Any manifest under a `tests/` directory (test fixtures live in isolated
+//!     workspaces, built at test time, never into the scanned `target/`).
+//!   - Plugins that declare no artifact for the current target triple (e.g. a
+//!     macOS-only Metal backend on Windows/Linux) — they aren't meant to load here.
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
@@ -48,17 +52,8 @@ struct CodeHead {
 }
 
 fn target_triple_key() -> &'static str {
-    if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
-        "windows-x86_64"
-    } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
-        "linux-x86_64"
-    } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
-        "macos-aarch64"
-    } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
-        "macos-x86_64"
-    } else {
-        "unknown"
-    }
+    // Canonical detection — the SSOT list lives in vox-plugin-types.
+    vox_plugin_types::current_target_triple().unwrap_or("unknown")
 }
 
 fn workspace_target_dir() -> std::path::PathBuf {
@@ -79,7 +74,66 @@ fn try_locate_dylib(crate_name: &str, artifact_filename: &str) -> Option<std::pa
     None
 }
 
-pub fn run() -> Result<()> {
+/// Collect the crate-dir names of every code/composite plugin that declares an artifact
+/// for the current platform triple (skipping `tests/` fixtures and `noop-bad-*`).
+fn collect_current_platform_plugin_crates(crates_root: &Path) -> Result<Vec<String>> {
+    let triple = target_triple_key();
+    let mut names: Vec<String> = Vec::new();
+    for entry in walkdir::WalkDir::new(crates_root)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_name() == "Plugin.toml")
+    {
+        let path = entry.path();
+        if path.components().any(|c| c.as_os_str() == "tests") {
+            continue;
+        }
+        let raw =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        let Ok(head) = toml::from_str::<ManifestHead>(&raw) else {
+            continue; // parse errors are surfaced by the load pass
+        };
+        if head.plugin.id.starts_with("noop-bad-") {
+            continue;
+        }
+        let artifacts = match &head.plugin.payload {
+            PayloadHead::Code { artifacts } => artifacts,
+            PayloadHead::Composite { code } => &code.artifacts,
+            PayloadHead::Skill {} => continue,
+        };
+        if !artifacts.contains_key(triple) {
+            continue;
+        }
+        if let Some(name) = path.parent().and_then(|p| p.file_name()) {
+            names.push(name.to_string_lossy().to_string());
+        }
+    }
+    names.sort();
+    names.dedup();
+    Ok(names)
+}
+
+/// `cargo build -p <crate> …` for all plugin crates in one invocation (default features).
+fn build_plugin_crates(crate_names: &[String]) -> Result<()> {
+    println!(
+        "building {} plugin cdylib(s) before ABI check…",
+        crate_names.len()
+    );
+    let mut cmd = std::process::Command::new("cargo");
+    cmd.arg("build");
+    for name in crate_names {
+        cmd.arg("-p").arg(name);
+    }
+    let status = cmd
+        .status()
+        .context("spawning `cargo build` for plugin cdylibs")?;
+    if !status.success() {
+        anyhow::bail!("`cargo build` for plugin cdylibs failed (status {status})");
+    }
+    Ok(())
+}
+
+pub fn run(build: bool) -> Result<()> {
     let mut errors: Vec<String> = Vec::new();
     let mut checked = 0usize;
     let mut skipped = 0usize;
@@ -90,12 +144,29 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
 
+    // CI mode: build every plugin cdylib that targets the current platform first, so the
+    // gate covers newly-added plugins without a hand-maintained build list. Default
+    // features only (CPU) — GPU plugins build their CPU fallback; the load check below
+    // still skips any plugin with no current-platform artifact.
+    if build {
+        let crate_names = collect_current_platform_plugin_crates(crates_root)?;
+        if !crate_names.is_empty() {
+            build_plugin_crates(&crate_names)?;
+        }
+    }
+
     for entry in walkdir::WalkDir::new(crates_root)
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_name() == "Plugin.toml")
     {
         let path = entry.path();
+        // Skip test fixtures: they live in isolated workspaces and are built at
+        // test time (see vox-plugin-host tests), never into the scanned target/.
+        if path.components().any(|c| c.as_os_str() == "tests") {
+            skipped += 1;
+            continue;
+        }
         let raw =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
         let head: ManifestHead = match toml::from_str(&raw) {
@@ -116,11 +187,9 @@ pub fn run() -> Result<()> {
         };
         let triple = target_triple_key();
         let Some(filename) = artifacts.get(triple) else {
-            errors.push(format!(
-                "{}: no artifact declared for current target triple '{}'",
-                path.display(),
-                triple,
-            ));
+            // Plugin does not target the current platform (e.g. a macOS-only
+            // Metal backend on Windows/Linux). Not an ABI concern here — skip.
+            skipped += 1;
             continue;
         };
         let crate_name = path
@@ -158,7 +227,7 @@ pub fn run() -> Result<()> {
     }
     if errors.is_empty() {
         println!(
-            "✓ plugin-abi-parity ok ({} checked, {} skipped fixtures)",
+            "✓ plugin-abi-parity ok ({} checked, {} skipped: fixtures + off-platform)",
             checked, skipped,
         );
         Ok(())

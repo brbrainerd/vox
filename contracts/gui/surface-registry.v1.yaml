@@ -1,26 +1,69 @@
 x_vox_version: 2
 schema_version: 1
 surfaces:
+- view_key: agents
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Agents
+  nav_icon: dashboard
+  nav_group: operate
+  parent_surface: null
+  notes: Agent operations hub
 - view_key: approvals
   cli_group: null
   representation_tier: live_backend
   nav_label: Approvals
   nav_icon: shield
   nav_group: operate
+  parent_surface: runs
   notes: null
+- view_key: browser
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Browser
+  nav_icon: globe
+  nav_group: develop
+  parent_surface: workspace
+  notes: embedded app preview + agent CDP live view
+- view_key: chat
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Chat
+  nav_icon: send
+  nav_group: operate
+  parent_surface: null
+  notes: Primary chat surface
 - view_key: claims
   cli_group: null
   representation_tier: curated_decorator
   nav_label: Claims
-  nav_icon: matrix
-  nav_group: research
+  nav_icon: doubt
+  nav_group: knowledge
+  parent_surface: knowledge
   notes: claim ledger (scientia claims)
+- view_key: commands
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Commands
+  nav_icon: command
+  nav_group: develop
+  parent_surface: null
+  notes: CLI command surface
+- view_key: compute
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Compute
+  nav_icon: cpu
+  nav_group: compute
+  parent_surface: null
+  notes: Models and mesh
 - view_key: coverage
   cli_group: null
   representation_tier: live_backend
   nav_label: Coverage
-  nav_icon: scale
+  nav_icon: check
   nav_group: system
+  parent_surface: settings
   notes: in-product surface coverage table
 - view_key: dashboard
   cli_group: null
@@ -28,62 +71,103 @@ surfaces:
   nav_label: Dashboard
   nav_icon: dashboard
   nav_group: operate
+  parent_surface: agents
   notes: orchestrator status
+- view_key: discovery-review
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Discovery Review
+  nav_icon: check
+  nav_group: knowledge
+  parent_surface: knowledge
+  notes: human-gated claim review before nanopublication
 - view_key: flow
   cli_group: null
   representation_tier: live_backend
   nav_label: Agents
   nav_icon: flow
   nav_group: operate
+  parent_surface: agents
   notes: agent flow graph
 - view_key: harness
   cli_group: null
   representation_tier: live_backend
   nav_label: Harness
   nav_icon: command
-  nav_group: build
+  nav_group: develop
+  parent_surface: workspace
   notes: null
+- view_key: knowledge
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Knowledge
+  nav_icon: brain
+  nav_group: knowledge
+  parent_surface: null
+  notes: Research and publications
 - view_key: matrix
   cli_group: null
   representation_tier: live_backend
-  nav_label: Policies
-  nav_icon: matrix
+  nav_label: Routing
+  nav_icon: scale
   nav_group: operate
+  parent_surface: agents
   notes: policy/intention matrix
 - view_key: mesh
   cli_group: null
   representation_tier: live_backend
   nav_label: Mesh
-  nav_icon: cpu
-  nav_group: build
+  nav_icon: link
+  nav_group: compute
+  parent_surface: compute
   notes: null
+- view_key: policies
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Policies
+  nav_icon: scale
+  nav_group: operate
+  parent_surface: runs
+  notes: unified policy registry catalog + per-branch status (read-only Phase 1)
 - view_key: publications
   cli_group: null
   representation_tier: curated_decorator
   nav_label: Publications
   nav_icon: file
-  nav_group: research
+  nav_group: knowledge
+  parent_surface: knowledge
   notes: scientia publication lifecycle board
 - view_key: runs
   cli_group: null
   representation_tier: live_backend
   nav_label: Runs
-  nav_icon: scale
+  nav_icon: clock
   nav_group: operate
+  parent_surface: runs
   notes: null
 - view_key: search
   cli_group: null
   representation_tier: live_backend
   nav_label: Search
   nav_icon: search
-  nav_group: operate
+  nav_group: knowledge
+  parent_surface: null
   notes: unified hybrid search (vox-search)
+- view_key: workspace
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Workspace
+  nav_icon: file
+  nav_group: develop
+  parent_surface: null
+  notes: Repo browser and harness
 - view_key: null
   cli_group: add
   representation_tier: none
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: ars
@@ -91,6 +175,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: audit
@@ -98,6 +183,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: auth
@@ -105,6 +191,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: build
@@ -112,6 +199,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: bundle
@@ -119,6 +207,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: bundle-app
@@ -126,6 +215,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: catalog
@@ -133,6 +223,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: check
@@ -140,6 +231,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: ci
@@ -147,6 +239,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: codex
@@ -154,13 +247,15 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: catalog
   cli_group: commands
   representation_tier: live_backend
   nav_label: Commands
   nav_icon: catalog
-  nav_group: operate
+  nav_group: develop
+  parent_surface: commands
   notes: generated command form browser
 - view_key: null
   cli_group: compile
@@ -168,6 +263,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: completions
@@ -175,6 +271,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: component
@@ -182,6 +279,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: settings
   cli_group: config
@@ -189,6 +287,7 @@ surfaces:
   nav_label: Settings
   nav_icon: settings
   nav_group: system
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: db
@@ -196,6 +295,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: deploy
@@ -203,6 +303,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: dev
@@ -210,6 +311,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: diag
@@ -217,6 +319,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: dispatch
@@ -224,6 +327,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: doctor
@@ -231,6 +335,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: drift-check
@@ -238,6 +343,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: emit
@@ -245,6 +351,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: ext
@@ -252,6 +359,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: fabrica
@@ -259,6 +367,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: fmt
@@ -266,6 +375,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: generate
@@ -273,6 +383,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: grammar
@@ -280,6 +391,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: init
@@ -287,6 +399,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: llm
@@ -294,6 +407,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: lock
@@ -301,6 +415,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: login
@@ -308,6 +423,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: logout
@@ -315,6 +431,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: lsp
@@ -322,13 +439,15 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: gamify
   cli_group: ludus
   representation_tier: curated_decorator
   nav_label: Gamify
   nav_icon: spark
-  nav_group: operate
+  nav_group: system
+  parent_surface: settings
   notes: null
 - view_key: null
   cli_group: mcp
@@ -336,20 +455,23 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: memory
   cli_group: memory
   representation_tier: live_backend
   nav_label: Memory
   nav_icon: memory
-  nav_group: operate
+  nav_group: knowledge
+  parent_surface: search
   notes: null
 - view_key: mens
   cli_group: mens
   representation_tier: curated_decorator
   nav_label: Mens
-  nav_icon: cpu
-  nav_group: ai
+  nav_icon: brain
+  nav_group: compute
+  parent_surface: compute
   notes: null
 - view_key: null
   cli_group: migrate
@@ -357,13 +479,15 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: models
   cli_group: model
   representation_tier: live_backend
   nav_label: Models
   nav_icon: cpu
-  nav_group: ai
+  nav_group: compute
+  parent_surface: compute
   notes: null
 - view_key: null
   cli_group: new
@@ -371,13 +495,15 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: oratio
   cli_group: oratio
   representation_tier: curated_decorator
   nav_label: Oratio
-  nav_icon: spark
-  nav_group: ai
+  nav_icon: mic
+  nav_group: compute
+  parent_surface: compute
   notes: null
 - view_key: null
   cli_group: plan
@@ -385,6 +511,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: play
@@ -392,6 +519,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: plugin
@@ -399,6 +527,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: pm
@@ -406,13 +535,23 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
+  cli_group: policy
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
   notes: null
 - view_key: populi
   cli_group: populi
   representation_tier: curated_decorator
   nav_label: Populi
-  nav_icon: flow
-  nav_group: ai
+  nav_icon: users
+  nav_group: compute
+  parent_surface: compute
   notes: null
 - view_key: null
   cli_group: remove
@@ -420,6 +559,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: repair
@@ -427,20 +567,31 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
+  cli_group: repl
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
   notes: null
 - view_key: repository
   cli_group: repo
   representation_tier: live_backend
   nav_label: Repository
-  nav_icon: file
-  nav_group: build
+  nav_icon: branch
+  nav_group: develop
+  parent_surface: workspace
   notes: null
 - view_key: research
   cli_group: research
   representation_tier: curated_decorator
   nav_label: Research
-  nav_icon: memory
-  nav_group: research
+  nav_icon: eye
+  nav_group: knowledge
+  parent_surface: knowledge
   notes: deep-research surface
 - view_key: null
   cli_group: rollback
@@ -448,6 +599,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: run
@@ -455,6 +607,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: schola
@@ -462,13 +615,15 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: scientia
   cli_group: scientia
   representation_tier: curated_decorator
   nav_label: Scientia
-  nav_icon: file
-  nav_group: research
+  nav_icon: beaker
+  nav_group: knowledge
+  parent_surface: knowledge
   notes: Phase H queue dashboard
 - view_key: null
   cli_group: script
@@ -476,6 +631,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: secrets
@@ -483,6 +639,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: share
@@ -490,6 +647,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: shell
@@ -497,13 +655,15 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: skills
   cli_group: skill
   representation_tier: live_backend
   nav_label: Skills
-  nav_icon: catalog
-  nav_group: build
+  nav_icon: puzzle
+  nav_group: develop
+  parent_surface: commands
   notes: null
 - view_key: null
   cli_group: snapshot
@@ -511,6 +671,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: snippet
@@ -518,6 +679,15 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
+  cli_group: speech
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: stop
@@ -525,6 +695,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: sync
@@ -532,6 +703,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: telemetry
@@ -539,6 +711,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: test
@@ -546,6 +719,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: train
@@ -553,6 +727,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: update
@@ -560,6 +735,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: upgrade
@@ -567,6 +743,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: wasm
@@ -574,6 +751,7 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null
 - view_key: null
   cli_group: workflow
@@ -581,4 +759,5 @@ surfaces:
   nav_label: null
   nav_icon: null
   nav_group: null
+  parent_surface: null
   notes: null

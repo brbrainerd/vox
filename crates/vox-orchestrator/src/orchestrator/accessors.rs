@@ -15,6 +15,7 @@ impl Orchestrator {
         let budget = crate::sync_lock::rw_read(&self.budget_manager);
         let total_cost_usd = budget.total_cost_usd();
         let budget_cap_usd = budget.max_financial_cost_micros() as f64 / 1_000_000.0;
+        let global_exploration_cost_usd = budget.global_exploration_cost_usd();
         let agents_map = crate::sync_lock::rw_read(&self.agents);
         let dynamic_agents = crate::sync_lock::rw_read(&self.dynamic_agents);
         let agents: Vec<AgentSummary> = agents_map
@@ -107,6 +108,7 @@ impl Orchestrator {
                 .unwrap_or(0),
             total_cost_usd,
             budget_cap_usd,
+            global_exploration_cost_usd,
             agents,
         }
     }
@@ -411,6 +413,13 @@ impl Orchestrator {
         &self,
     ) -> std::sync::Arc<std::sync::RwLock<crate::conflicts::ConflictManager>> {
         std::sync::Arc::clone(&self.conflict_manager)
+    }
+
+    /// Live multi-agent isolation policy (strategy default + per-agent overrides).
+    pub fn isolation_policy_handle(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::isolation::IsolationPlan>> {
+        std::sync::Arc::clone(&self.isolation_policy)
     }
 
     /// Alias for conflict_manager_handle.

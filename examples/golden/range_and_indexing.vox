@@ -98,6 +98,7 @@ fn test_count_above_and_index_labels() to Unit {
     }
 }
 
+// EXPECT: ok
 fn main() to str {
     test_prefix_sums()
     test_count_above_and_index_labels()

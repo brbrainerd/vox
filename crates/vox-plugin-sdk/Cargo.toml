@@ -1,0 +1,16 @@
+[package]
+name = "vox-plugin-sdk"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Authoring SDK for Vox code plugins: re-exports the stable plugin ABI + the `declare_plugin!` glue macro so plugins drop ~25 lines of identical dylib-export boilerplate. ABI-neutral (byte-identical exports)."
+
+[dependencies]
+vox-plugin-api = { workspace = true }
+abi_stable = { workspace = true }
+# Parses the embedded Plugin.toml at runtime for `declare_plugin!`'s manifest probe.
+toml = { workspace = true }
+
+[lints]
+workspace = true

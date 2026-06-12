@@ -323,7 +323,7 @@ pub(super) async fn run_stats(input: &Path) -> Result<()> {
     if !source_counts.is_empty() {
         println!("{}", "  By Source:".bold().white());
         let mut sources: Vec<_> = source_counts.iter().collect();
-        sources.sort_by(|a, b| b.1.cmp(a.1));
+        sources.sort_by_key(|s| std::cmp::Reverse(*s.1));
         for (src, count) in sources {
             let pct = 100.0 * (*count as f64) / (total as f64);
             println!("    - {:<24} {:>8} ({:.1}%)", src, count, pct);
@@ -334,7 +334,7 @@ pub(super) async fn run_stats(input: &Path) -> Result<()> {
     if !category_counts.is_empty() {
         println!("{}", "  By Category:".bold().white());
         let mut cats: Vec<_> = category_counts.iter().collect();
-        cats.sort_by(|a, b| b.1.cmp(a.1));
+        cats.sort_by_key(|c| std::cmp::Reverse(*c.1));
         for (cat, count) in cats {
             let pct = 100.0 * (*count as f64) / (total as f64);
             println!("    - {:<24} {:>8} ({:.1}%)", cat, count, pct);
