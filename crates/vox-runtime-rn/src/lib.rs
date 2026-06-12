@@ -287,9 +287,13 @@ impl FileJournalHandle {
         self.inner.path().to_string_lossy().into_owned()
     }
 
-    /// Flush + fsync any in-flight bytes. Safe to call from the OS suspend
-    /// hook; today every record-call already fsyncs so this is a defensive
-    /// no-op success.
+    /// Flush + fsync any in-flight bytes. This is the durability point for
+    /// the mobile journal: appends run in [`AppendDurability::Deferred`] mode
+    /// (no per-append fsync), so the JS lifecycle handler MUST call this from
+    /// the OS suspend hook (app backgrounding) or un-synced appends can be
+    /// lost on power-off. Idempotent and safe to call repeatedly.
+    ///
+    /// [`AppendDurability::Deferred`]: vox_journal::AppendDurability::Deferred
     pub fn flush(&self) -> Result<(), FileJournalError> {
         use vox_runtime::{SuspendDeadline, Suspendable};
         self.inner
@@ -301,14 +305,23 @@ impl FileJournalHandle {
 /// Open (or create) a file journal at `path`. Returns a [`FileJournalHandle`]
 /// that the JS side can keep alive for the duration of the workflow.
 ///
-/// Replays any existing entries silently — the JS side calls
+/// Opens in [`AppendDurability::Deferred`] mode — this is the mobile runtime
+/// bridge, so appends are batched (no per-call fsync, to honor battery +
+/// throughput budgets) and durability is taken at
+/// [`FileJournalHandle::flush`], which the JS side wires to the OS suspend
+/// hook. Replays any existing entries silently — the JS side calls
 /// [`FileJournalHandle::replay_all`] explicitly when it wants them.
+///
+/// [`AppendDurability::Deferred`]: vox_journal::AppendDurability::Deferred
 #[uniffi::export]
 pub fn open_file_journal(
     path: String,
 ) -> Result<std::sync::Arc<FileJournalHandle>, FileJournalError> {
-    let opened = vox_journal::FileJournal::<serde_json::Value>::open(path)
-        .map_err(FileJournalError::from)?;
+    let opened = vox_journal::FileJournal::<serde_json::Value>::open_with_durability(
+        path,
+        vox_journal::AppendDurability::Deferred,
+    )
+    .map_err(FileJournalError::from)?;
     Ok(std::sync::Arc::new(FileJournalHandle {
         inner: opened.journal,
     }))
