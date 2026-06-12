@@ -150,6 +150,10 @@ pub fn emit_main(
             needs_post = true;
         }
     }
+    if has_tables {
+        // `healthz` / `readyz` endpoints are emitted for DB-backed services.
+        needs_get = true;
+    }
 
     let mut routing_methods = Vec::new();
     if needs_get {
@@ -277,6 +281,73 @@ pub fn emit_main(
     out.push_str("    serve_embedded(uri).await\n");
     out.push_str("}\n\n");
 
+    if has_tables {
+        out.push_str("fn vox_health_backend_kind() -> &'static str {\n");
+        out.push_str("    let url = vox_db::resolve_app_db_url()\n");
+        out.push_str("        .or_else(vox_db::resolve_codex_db_url);\n");
+        out.push_str("    if let Some(url) = url {\n");
+        out.push_str("        let u = url.to_ascii_lowercase();\n");
+        out.push_str(
+            "        if u.starts_with(\"postgres://\") || u.starts_with(\"postgresql://\") {\n",
+        );
+        out.push_str("            return \"postgres\";\n");
+        out.push_str("        }\n");
+        out.push_str("        if u.starts_with(\"mysql://\") {\n");
+        out.push_str("            return \"mysql\";\n");
+        out.push_str("        }\n");
+        out.push_str("    }\n");
+        out.push_str("    \"libsql\"\n");
+        out.push_str("}\n\n");
+
+        out.push_str(
+            "async fn vox_health_probe_for_backend(backend: &str, db: &Codex) -> (StatusCode, serde_json::Value) {\n",
+        );
+        out.push_str("    match backend {\n");
+        out.push_str(
+            "        \"libsql\" => match vox_db::evaluate_codex_api_readiness(db).await {\n",
+        );
+        out.push_str("            Ok(ready) => {\n");
+        out.push_str("                let status = if ready.ready { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };\n");
+        out.push_str("                (status, serde_json::json!({\n");
+        out.push_str(
+            "                    \"status\": if ready.ready { \"ok\" } else { \"degraded\" },\n",
+        );
+        out.push_str("                    \"backend\": backend,\n");
+        out.push_str("                    \"schema_version\": ready.schema_version,\n");
+        out.push_str("                    \"missing_tables\": ready.missing_tables,\n");
+        out.push_str("                    \"baseline_digest\": ready.baseline_digest_hex\n");
+        out.push_str("                }))\n");
+        out.push_str("            }\n");
+        out.push_str("            Err(e) => (\n");
+        out.push_str("                StatusCode::SERVICE_UNAVAILABLE,\n");
+        out.push_str(
+            "                serde_json::json!({\"status\": \"error\", \"backend\": backend, \"error\": format!(\"{}\", e)})\n",
+        );
+        out.push_str("            ),\n");
+        out.push_str("        },\n");
+        out.push_str("        other => (\n");
+        out.push_str("            StatusCode::SERVICE_UNAVAILABLE,\n");
+        out.push_str("            serde_json::json!({\n");
+        out.push_str("                \"status\": \"degraded\",\n");
+        out.push_str("                \"backend\": other,\n");
+        out.push_str(
+            "                \"error\": format!(\"generated Axum health/readiness probe does not yet include a backend-specific readiness evaluator for {}\", other)\n",
+        );
+        out.push_str("            })\n");
+        out.push_str("        ),\n");
+        out.push_str("    }\n");
+        out.push_str("}\n\n");
+        out.push_str(
+            "async fn handle_healthz(Extension(db): Extension<Arc<Codex>>) -> Response {\n",
+        );
+        out.push_str("    let backend = vox_health_backend_kind();\n");
+        out.push_str(
+            "    let (status, payload) = vox_health_probe_for_backend(backend, db.as_ref()).await;\n",
+        );
+        out.push_str("    (status, Json(payload)).into_response()\n");
+        out.push_str("}\n\n");
+    }
+
     for sf in &module.endpoint_fns {
         let pfx = match sf.kind {
             HirEndpointKind::Query => "q_",
@@ -365,11 +436,15 @@ pub fn emit_main(
         out.push_str("    }\n");
     }
 
-    let has_routes = !module.endpoint_fns.is_empty();
+    let has_routes = !module.endpoint_fns.is_empty() || has_tables;
 
     // Setup routes
     if has_routes {
         out.push_str("    let mut app = Router::new()\n");
+        if has_tables {
+            out.push_str("        .route(\"/healthz\", get(handle_healthz))\n");
+            out.push_str("        .route(\"/readyz\", get(handle_healthz))\n");
+        }
         // Manual routes
         for route in &app_contract.http_routes {
             let method = route_method_from_contract(route.method.as_str());
@@ -422,12 +497,18 @@ pub fn emit_main(
             127, 0, 0, 1
         ));
         out.push_str("    println!(\"Listening on {}\", addr);\n");
+        out.push_str("    let listener = match tokio::net::TcpListener::bind(addr).await {\n");
+        out.push_str("        Ok(listener) => listener,\n");
         out.push_str(
-            "    let listener = tokio::net::TcpListener::bind(addr).await.expect(\"Failed to bind TCP listener\");\n",
-        );
+        "        Err(e) => { eprintln!(\"Failed to bind TCP listener: {}\", e); std::process::exit(2); }\n",
+    );
+        out.push_str("    };\n");
         out.push_str(
-            "    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())\n        .await\n        .expect(\"Server exited with error\");\n",
-        );
+        "    if let Err(e) = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await {\n",
+    );
+        out.push_str("        eprintln!(\"Server exited with error: {}\", e);\n");
+        out.push_str("        std::process::exit(2);\n");
+        out.push_str("    }\n");
         out.push_str("    vox_actor_runtime::builtins::vox_flush_exit_commands();\n");
     } else {
         out.push_str("    println!(\"No routes defined. Exiting.\");\n");
@@ -546,6 +627,7 @@ fn emit_server_fn_handler(
                 inferred_types,
                 Some(&usage),
                 rid,
+                sf.return_type.as_ref(),
             );
             if emitted.contains("return Ok(Json(") || emitted.contains("return Json(") {
                 has_return = true;
@@ -574,6 +656,7 @@ fn emit_server_fn_handler(
                 inferred_types,
                 Some(&usage),
                 rid,
+                sf.return_type.as_ref(),
             );
             if emitted.contains("return Ok(Json(") {
                 has_return = true;
@@ -631,6 +714,7 @@ fn emit_query_fn_handler(
             inferred_types,
             Some(&usage),
             rid,
+            sf.return_type.as_ref(),
         );
         if emitted.contains("return Ok(Json(") {
             has_return = true;

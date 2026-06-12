@@ -3,6 +3,8 @@ import { Glass } from '../../ui/Glass';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from '../../ui/Icons';
 import { voxTransport } from '../../../transport';
+import type { OrchestratorStatus, RoutingSummary, Toast } from '../../../types/tauri';
+import { DEFAULT_BUDGET_CAP_USD } from '../../../config/budget';
 import { PriorityChainEditor } from './PriorityChainEditor';
 
 const SECTIONS = [
@@ -120,7 +122,7 @@ interface SigningKeyDto {
   present: boolean;
 }
 
-function MeshPeersSection({ pushToast }: { pushToast: (t: any) => void }) {
+function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
   const [nodes, setNodes] = useState<MeshNode[]>([]);
   const [meta, setMeta] = useState<MeshNodesResult>({});
   const [trusted, setTrusted] = useState<Record<string, TrustedNodeDto>>({});
@@ -221,7 +223,7 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: any) => void }) {
 }
 
 function SigningKeysSection({ vals, update, pushToast }: {
-  vals: SettingsState; update: (patch: Partial<SettingsState>) => void; pushToast: (t: any) => void;
+  vals: SettingsState; update: (patch: Partial<SettingsState>) => void; pushToast: (t: Toast) => void;
 }) {
   const [key, setKey] = useState<SigningKeyDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -320,7 +322,7 @@ interface SecretStatusDto {
   remediation: string;
 }
 
-function KeysSecretsSection({ pushToast }: { pushToast: (t: any) => void }) {
+function KeysSecretsSection({ pushToast }: { pushToast: (t: Toast) => void }) {
   const [rows, setRows] = useState<SecretStatusDto[]>([]);
   const [loading, setLoading] = useState(true);
   // Holds ONLY the in-flight input value per key. Cleared immediately on save.
@@ -431,7 +433,7 @@ function KeysSecretsSection({ pushToast }: { pushToast: (t: any) => void }) {
 }
 
 interface SettingsViewProps {
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
 }
 
 export function SettingsView({ pushToast }: SettingsViewProps) {
@@ -446,7 +448,7 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
   });
   const [vals, setVals] = useState<SettingsState>({
     doubt: true, autobudget: true, theme: 'arcane', concurrency: 7,
-    capUsd: 5, doubtThresh: 0.6, sign: false, telemetry: 'local',
+    capUsd: DEFAULT_BUDGET_CAP_USD, doubtThresh: 0.6, sign: false, telemetry: 'local',
     isolation: 'wasm', checkpointMins: 5,
   });
 
@@ -468,19 +470,32 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
   };
 
   useEffect(() => {
-    voxTransport.getRoutingSummaryLive().then((s: any) => {
+    voxTransport.getRoutingSummaryLive().then((s: RoutingSummary) => {
       if (s?.routing_priority) setRouting(s.routing_priority);
     }).catch(() => {});
     const hydrate = async () => {
       try {
-        const [theme, telemetry, sign, checkpoint] = await Promise.all([
+        const [theme, telemetry, sign, checkpoint, statusRaw] = await Promise.all([
           invoke<string | null>('get_gui_preference', { key: 'gui.theme' }),
           invoke<string | null>('get_gui_preference', { key: 'gui.telemetry' }),
           invoke<string | null>('get_gui_preference', { key: 'gui.sign' }),
           invoke<string | null>('get_gui_preference', { key: 'gui.checkpointMins' }),
+          invoke<Uint8Array>('get_orchestrator_status_bin').catch(() => null),
         ]);
+        let orchPatch: Partial<SettingsState> = {};
+        if (statusRaw) {
+          try {
+            const { decode } = await import('@msgpack/msgpack');
+            const status = decode(statusRaw) as OrchestratorStatus;
+            if (typeof status.budget_cap === 'number') orchPatch.capUsd = status.budget_cap;
+            if (typeof status.agent_count === 'number') orchPatch.concurrency = status.agent_count;
+          } catch {
+            // ignore decode errors
+          }
+        }
         setVals((prev) => ({
           ...prev,
+          ...orchPatch,
           theme: theme || prev.theme,
           telemetry: telemetry || prev.telemetry,
           sign: sign != null ? sign === 'true' : prev.sign,

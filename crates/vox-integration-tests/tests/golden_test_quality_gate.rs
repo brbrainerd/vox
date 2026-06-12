@@ -8,12 +8,11 @@
 //!
 //! This gate lowers every golden to HIR and inspects each `@test` body for
 //! **unambiguous** tautological assertions. The detection is intentionally
-//! conservative (zero false positives): it flags only
-//!   * `assert(true)`, and
-//!   * `assert(a is a)` where both operands are the *same* identifier or the same
-//!     literal value (`assert(1 is 1)`, `assert("x" is "x")`).
-//! It never flags `assert(false)` (a legitimate unreachable-branch guard) or
-//! `assert(v is 1)` (a real comparison of distinct operands).
+//! conservative (zero false positives): it flags `assert(true)` and `assert(a is a)`
+//! when both operands are the *same* identifier or the same literal value (for example
+//! `assert(1 is 1)` or `assert("x" is "x")`). It never flags `assert(false)` (a
+//! legitimate unreachable-branch guard) or `assert(v is 1)` (a real comparison of
+//! distinct operands).
 //!
 //! Mechanism: HIR derives `Serialize`, so we walk the serialized JSON generically
 //! rather than hand-writing a full `HirStmt`/`HirExpr` visitor. The `Call`/`Ident`/

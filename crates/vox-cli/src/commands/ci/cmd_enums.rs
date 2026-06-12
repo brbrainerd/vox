@@ -186,8 +186,8 @@ pub enum CiCmd {
         #[arg(long)]
         with_coverage: bool,
         /// Run nextest only for the packages affected by changes since `<REF>` (plus their
-        /// transitive reverse-deps). Falls back to `--workspace` if more than
-        /// `VOX_PREPUSH_SINCE_FALLBACK_THRESHOLD` (default 20) packages are impacted.
+        /// transitive reverse-deps). Large impacted sets run in chunks (`VOX_PREPUSH_SINCE_CHUNK_SIZE`,
+        /// default 10). Falls back to `--workspace` only on git/metadata hard failures.
         /// Only meaningful with `--full`. Typical wall-clock for a 1–3 crate edit: 3–20s.
         #[arg(long, value_name = "REF")]
         since: Option<String>,
@@ -198,6 +198,11 @@ pub enum CiCmd {
         /// Skipped in `--dry-run` mode (no elapsed times to compare).
         #[arg(long)]
         enforce_budgets: bool,
+        /// With `--full`, skip the complete-tier static checks (whole-tree docs, clippy,
+        /// doc-inventory, scoped TOESTUB). Use after a green `vox ci pre-push --complete`
+        /// in the same iteration to avoid duplicate heavy work before push.
+        #[arg(long, requires = "full")]
+        skip_complete: bool,
     },
     /// Compare elapsed time from a nextest JUnit artifact against the tier budgets in
     /// `contracts/budgets/test-tier-budgets.v1.yaml`.  Reads `<testsuites time="...">` from
@@ -291,6 +296,13 @@ pub enum CiCmd {
     /// `cargo fmt --all` and stays robust as crates are added/removed.
     #[command(name = "fmt-check")]
     FmtCheck,
+    /// Warn when workflow YAML uses GitHub-hosted runners without a registered exception.
+    #[command(name = "runner-policy-check")]
+    RunnerPolicyCheck {
+        /// Fail (exit 1) instead of advisory warn.
+        #[arg(long)]
+        strict: bool,
+    },
     /// Fail if changed LF-policy text files contain CRLF / CR (`*.ps1` exempt). Forward-only unless `--all`.
     #[command(name = "line-endings")]
     LineEndings {
@@ -373,12 +385,12 @@ pub enum CiCmd {
     /// Full-repo TOESTUB: `cargo build -p vox-code-audit --release` then `cargo run -p vox-code-audit --bin toestub` (replaces `scripts/toestub_self_apply.*`).
     #[command(name = "toestub-self-apply")]
     ToestubSelfApply,
-    /// Scoped TOESTUB: `cargo run -p vox-code-audit --bin toestub -- <ROOT>`.
+    /// Scoped TOESTUB: `cargo run -p vox-code-audit --bin toestub -- [ROOT...]`.
     #[command(name = "toestub-scoped")]
     ToestubScoped {
-        /// Root path for structural scope testing.
-        #[arg(default_value = "crates/vox-repository")]
-        root: PathBuf,
+        /// Root path(s) for structural scope testing (default `crates/vox-repository` when omitted).
+        #[arg(value_name = "ROOT")]
+        roots: Vec<PathBuf>,
         /// Exit policy forwarded to `toestub --mode` (`legacy` keeps historical Error+ fail).
         #[arg(long, value_enum, default_value_t = ToestubCiMode::Legacy)]
         mode: ToestubCiMode,
@@ -551,7 +563,7 @@ pub enum CiCmd {
     /// Fast local smoke: orchestrator compile + command-compliance + rust ecosystem policy.
     #[command(name = "policy-smoke")]
     PolicySmoke,
-    /// Targeted backend tests (`vox-actor-runtime` + orchestrator routing policy modules).
+    /// Targeted backend tests (`vox-actor-runtime`, orchestrator routing policy modules, VoxDb contract checks, and vox-sql P2/P3/P5 interop smoke).
     #[command(name = "backend-tests")]
     BackendTests,
     /// GUI smoke: `web_ir_lower_emit` always; optional Vite (`VOX_WEB_VITE_SMOKE=1`) and Playwright (`VOX_GUI_PLAYWRIGHT=1`) lanes.

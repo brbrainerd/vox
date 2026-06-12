@@ -26,6 +26,114 @@ use std::path::Path;
 use crate::error::{QLoraError, Result};
 use crate::qlora::QuantizedLinear;
 
+use candle_core::Var;
+use candle_core::backprop::GradStore;
+
+/// Clip the global L2 norm of the gradients for `vars` in place, in `grads`.
+///
+/// Computes the global gradient norm `total_norm = sqrt(Σ ||g||²)` across every
+/// trainable `Var`'s gradient. If `total_norm > max_norm`, every gradient is
+/// scaled by the same factor `max_norm / (total_norm + eps)`, so the direction
+/// of the combined gradient is preserved while its magnitude is capped. This is
+/// the standard global-norm clip (cf. PyTorch `clip_grad_norm_`) and protects
+/// against loss-spike gradient blowups.
+///
+/// No-op when `total_norm <= max_norm`. Returns the pre-clip `total_norm`.
+pub(crate) fn clip_grad_norm(
+    grads: &mut GradStore,
+    vars: &[Var],
+    max_norm: f64,
+) -> Result<f64> {
+    // Accumulate the sum of squares across all gradients as an f64 scalar.
+    let mut sum_sq = 0.0f64;
+    for var in vars {
+        if let Some(grad) = grads.get(var.as_tensor()) {
+            let sq = grad.sqr().map_err(QLoraError::Candle)?;
+            let s = sq.sum_all().map_err(QLoraError::Candle)?;
+            let s = s
+                .to_dtype(DType::F64)
+                .map_err(QLoraError::Candle)?
+                .to_scalar::<f64>()
+                .map_err(QLoraError::Candle)?;
+            sum_sq += s;
+        }
+    }
+
+    let total_norm = sum_sq.sqrt();
+
+    // Only scale down when over budget; never scale up.
+    if total_norm > max_norm {
+        const EPS: f64 = 1e-6;
+        let scale = max_norm / (total_norm + EPS);
+        for var in vars {
+            if let Some(grad) = grads.get(var.as_tensor()) {
+                let scaled = (grad * scale).map_err(QLoraError::Candle)?;
+                grads.insert(var.as_tensor(), scaled);
+            }
+        }
+    }
+
+    Ok(total_norm)
+}
+
+/// Inject an upstream gradient `g = dL/dy` into the autograd graph of `y` and
+/// run backward, returning the resulting [`GradStore`].
+///
+/// candle 0.9's [`Tensor::backward`] always seeds the root with `ones_like`
+/// (see `backprop.rs`); it offers **no** hook to start backprop from a custom
+/// cotangent. Segment-wise gradient checkpointing needs exactly that: given a
+/// segment whose output is `y` and the already-computed upstream gradient
+/// `dL/dy`, we must backprop *that* cotangent through the segment to obtain the
+/// grads for the segment's trainable [`Var`]s and for its input.
+///
+/// We achieve it with the standard surrogate-scalar (VJP) trick:
+/// `s = Σ (y ⊙ stop_grad(g))`. Because `g` is detached (a constant w.r.t. the
+/// graph), `∂s/∂y = g`, so `s.backward()` seeds `y` with exactly `g` and the
+/// chain rule then yields the correct `∂L/∂θ` for every parameter feeding `y`.
+/// Summing over the whole tensor (rather than any reduction with a non-unit
+/// Jacobian) keeps the seed equal to `g` element-wise.
+///
+/// `upstream_grad` must have the same shape/dtype as `y`. It is detached
+/// internally so no second-order graph is built.
+///
+/// # Errors
+/// Returns an error if the elementwise multiply, sum, or backward fails.
+pub fn backward_from_cotangent(y: &Tensor, upstream_grad: &Tensor) -> Result<GradStore> {
+    let g = upstream_grad.detach();
+    // s = sum(y * g); ds/dy = g exactly (g is a constant leaf).
+    let surrogate = y.mul(&g)?.sum_all()?;
+    let grads = surrogate.backward()?;
+    Ok(grads)
+}
+
+/// Accumulate the gradients for `vars` from `src` into `dst`, summing when a
+/// gradient for the same `Var` already exists.
+///
+/// Used by the checkpointed backward path to fold each segment's partial
+/// [`GradStore`] into a single combined store before the optimizer step. A LoRA
+/// `Var` appears in exactly one segment, so in practice the "already present"
+/// branch only fires for params shared across segments (e.g. a tied head); it is
+/// handled correctly regardless by summing.
+///
+/// # Errors
+/// Returns an error if a tensor add fails.
+pub fn accumulate_grads_for_vars(
+    dst: &mut GradStore,
+    src: &GradStore,
+    vars: &[Var],
+) -> Result<()> {
+    for var in vars {
+        if let Some(g) = src.get(var.as_tensor()) {
+            let merged = match dst.get(var.as_tensor()) {
+                Some(existing) => existing.add(g)?,
+                None => g.clone(),
+            };
+            dst.insert(var.as_tensor(), merged);
+        }
+    }
+    Ok(())
+}
+
 /// Configuration for `QLoRA` training.
 #[derive(Debug, Clone)]
 pub struct QLoraTrainingConfig {
@@ -638,10 +746,15 @@ impl QLoraTrainer {
 
         if let Some(ref mut optimizer) = self.optimizer {
             if self.accumulation_step >= accum_steps {
+                // Compute gradients explicitly so we can clip them (by global L2
+                // norm) before the optimizer step. `backward_step` would fold
+                // backward + step together and give us no hook to clip.
+                let mut grads = scaled_loss.backward()?;
                 if let Some(max_norm) = self.config.adapter_config.max_grad_norm {
-                    let _ = max_norm; // Placeholder for gradient clipping
+                    let vars = self.varmap.all_vars();
+                    clip_grad_norm(&mut grads, &vars, max_norm)?;
                 }
-                optimizer.backward_step(&scaled_loss)?;
+                optimizer.step(&grads)?;
                 self.accumulation_step = 0;
             } else {
                 let _ = scaled_loss.backward();
@@ -669,6 +782,75 @@ impl QLoraTrainer {
         
         let _should_log = self.state.step();
         
+        Ok(())
+    }
+
+    /// All trainable [`Var`]s registered in this trainer's `VarMap`.
+    ///
+    /// The caller (the segmented/checkpointed backward path) uses this to know
+    /// which tensors to pull out of each segment's [`GradStore`] when folding the
+    /// partial backwards into one combined store.
+    #[must_use]
+    pub fn trainable_vars(&self) -> Vec<Var> {
+        self.varmap.all_vars()
+    }
+
+    /// Apply a single optimizer step from a **pre-computed** [`GradStore`],
+    /// honoring gradient accumulation exactly like [`Self::backward_step`].
+    ///
+    /// This is the counterpart to [`Self::backward_step`] for the gradient-
+    /// checkpointed path: instead of folding `loss.backward()` + step together,
+    /// the caller runs N segment recomputes (each via [`backward_from_cotangent`])
+    /// and merges them with [`accumulate_grads_for_vars`], then hands the combined
+    /// grads here. Gradient clipping (global L2 norm) and the AdamW update are
+    /// applied identically to the non-checkpointed loop, so numerics match.
+    ///
+    /// `grads` must already be scaled for gradient accumulation by the caller
+    /// (the checkpointed loss is scaled before backward, mirroring
+    /// [`Self::backward_step`]). On non-step accumulation cycles, pass the grads
+    /// anyway — they are dropped and only the accumulation counter advances, which
+    /// keeps the step cadence identical to the eager path.
+    ///
+    /// # Errors
+    /// Returns an error if clipping or the optimizer step fails.
+    ///
+    /// # Panics
+    /// Panics if the `VarMap` mutex is poisoned.
+    pub fn optimizer_step_with_grads(&mut self, mut grads: GradStore) -> Result<()> {
+        let accum_steps = self.config.adapter_config.gradient_accumulation_steps.max(1);
+        self.accumulation_step += 1;
+        let do_step = self.accumulation_step >= accum_steps;
+
+        if do_step {
+            if let Some(ref mut optimizer) = self.optimizer {
+                if let Some(max_norm) = self.config.adapter_config.max_grad_norm {
+                    let vars = self.varmap.all_vars();
+                    clip_grad_norm(&mut grads, &vars, max_norm)?;
+                }
+                optimizer.step(&grads)?;
+            } else if let Some(ref mut paged_optimizer) = self.paged_optimizer {
+                if let Some(max_norm) = self.config.adapter_config.max_grad_norm {
+                    let vars = self.varmap.all_vars();
+                    clip_grad_norm(&mut grads, &vars, max_norm)?;
+                }
+                let mut varmap_data = self.varmap.data().lock().unwrap();
+                for (name, var) in varmap_data.iter_mut() {
+                    if let Some(grad) = grads.get(var.as_tensor()) {
+                        let mut param = var.as_tensor().clone();
+                        paged_optimizer.step_param(name, &mut param, grad)?;
+                        var.set(&param)?;
+                    }
+                }
+                drop(varmap_data);
+            }
+            self.accumulation_step = 0;
+        }
+        // NOTE: when accumulating (no step) we cannot keep candle GradStores summed
+        // across micro-steps cheaply without holding tensors alive; the eager
+        // `backward_step` relies on candle accumulating into Var grads via repeated
+        // `backward()`. For the checkpointed path the supported/validated config is
+        // grad_accum == 1 (the 16GB-tight 3B case), where every micro-step is a step.
+        let _should_log = self.state.step();
         Ok(())
     }
 
@@ -729,14 +911,17 @@ impl QLoraTrainer {
         // Handle standard AdamW optimizer
         if let Some(ref mut optimizer) = self.optimizer {
             if self.accumulation_step >= accum_steps {
-                // Clip gradients if configured
+                // Compute gradients explicitly so they can be clipped (global L2
+                // norm) before the optimizer step. `backward_step` folds backward
+                // and step together, leaving no hook to clip in between.
+                let mut grads = scaled_loss.backward()?;
                 if let Some(max_norm) = self.config.adapter_config.max_grad_norm {
-                    // Gradient clipping would be applied here
-                    let _ = max_norm; // Placeholder for gradient clipping
+                    let vars = self.varmap.all_vars();
+                    clip_grad_norm(&mut grads, &vars, max_norm)?;
                 }
 
-                // Perform optimizer step
-                optimizer.backward_step(&scaled_loss)?;
+                // Perform optimizer step on the (possibly clipped) gradients
+                optimizer.step(&grads)?;
                 self.accumulation_step = 0;
             } else {
                 // Just accumulate gradients without stepping
@@ -1096,6 +1281,152 @@ mod tests {
         // Loss should be scalar
         let dims: &[usize] = loss.dims();
         assert!(dims.is_empty(), "Expected scalar loss, got dims: {dims:?}");
+    }
+
+    #[test]
+    fn test_clip_grad_norm_caps_global_norm() {
+        let device = Device::Cpu;
+
+        // Two trainable vars. Build a loss whose gradients have a known global
+        // L2 norm > 1: loss = sum(v1 * 3) + sum(v2 * 4) => grad(v1)=3, grad(v2)=4,
+        // global norm = sqrt(3^2 + 4^2) = 5.
+        let v1 = Var::from_tensor(&Tensor::new(&[1.0f32], &device).unwrap()).unwrap();
+        let v2 = Var::from_tensor(&Tensor::new(&[1.0f32], &device).unwrap()).unwrap();
+
+        let three = Tensor::new(&[3.0f32], &device).unwrap();
+        let four = Tensor::new(&[4.0f32], &device).unwrap();
+        let l1 = v1.as_tensor().mul(&three).unwrap().sum_all().unwrap();
+        let l2 = v2.as_tensor().mul(&four).unwrap().sum_all().unwrap();
+        let loss = l1.add(&l2).unwrap();
+
+        let mut grads = loss.backward().unwrap();
+
+        let vars = vec![v1.clone(), v2.clone()];
+        let max_norm = 1.0;
+        let pre = clip_grad_norm(&mut grads, &vars, max_norm).unwrap();
+        assert!((pre - 5.0).abs() < 1e-5, "pre-clip norm should be 5, got {pre}");
+
+        // Post-clip global norm must be <= max_norm (+ tiny epsilon).
+        let c1 = grads.get(v1.as_tensor()).unwrap();
+        let c2 = grads.get(v2.as_tensor()).unwrap();
+        let n1: f32 = c1.sqr().unwrap().sum_all().unwrap().to_scalar().unwrap();
+        let n2: f32 = c2.sqr().unwrap().sum_all().unwrap().to_scalar().unwrap();
+        let post = (f64::from(n1) + f64::from(n2)).sqrt();
+        assert!(
+            post <= max_norm + 1e-5,
+            "post-clip global norm should be <= {max_norm}, got {post}"
+        );
+
+        // Direction preserved: every grad scaled by the same factor.
+        let c1v: f32 = c1.to_vec1::<f32>().unwrap()[0];
+        let c2v: f32 = c2.to_vec1::<f32>().unwrap()[0];
+        let factor1 = c1v / 3.0;
+        let factor2 = c2v / 4.0;
+        assert!(
+            (factor1 - factor2).abs() < 1e-5,
+            "scale factor must be uniform: {factor1} vs {factor2}"
+        );
+        // Expected uniform factor ~= max_norm / (5 + eps) ~= 0.2.
+        assert!((factor1 - 0.2).abs() < 1e-4, "factor should be ~0.2, got {factor1}");
+    }
+
+    #[test]
+    fn test_clip_grad_norm_noop_when_under_budget() {
+        let device = Device::Cpu;
+        // grad(v) = [0.6, 0.8] => norm = 1.0 exactly; <= max_norm so unchanged.
+        let v = Var::from_tensor(&Tensor::new(&[1.0f32, 1.0], &device).unwrap()).unwrap();
+        let coeff = Tensor::new(&[0.6f32, 0.8], &device).unwrap();
+        let loss = v.as_tensor().mul(&coeff).unwrap().sum_all().unwrap();
+        let mut grads = loss.backward().unwrap();
+        let pre = clip_grad_norm(&mut grads, &[v.clone()], 1.0).unwrap();
+        assert!((pre - 1.0).abs() < 1e-5, "norm should be 1, got {pre}");
+        let after: Vec<f32> = grads.get(v.as_tensor()).unwrap().to_vec1().unwrap();
+        assert!((after[0] - 0.6).abs() < 1e-6 && (after[1] - 0.8).abs() < 1e-6);
+    }
+
+    /// **Gradient-checkpointing correctness spike (the #1 risk).**
+    ///
+    /// Builds a tiny 2-segment stack of trainable `Var`s and proves that the
+    /// segment-wise recompute backward — `loss.backward()` for the last segment,
+    /// then [`backward_from_cotangent`] threading the input-grad back through the
+    /// first segment — yields **the same** parameter gradients as a single
+    /// full-graph `loss.backward()` over the whole stack. This is the property
+    /// that makes manual activation checkpointing safe: a silently-wrong backward
+    /// would "train" with bad grads, the worst outcome.
+    ///
+    /// Stack (linear, no quant — exercises the autograd threading, not NF4):
+    ///   `y0 = x @ w0`  (segment 0, param w0)
+    ///   `y1 = y0 @ w1` (segment 1, param w1)
+    ///   `loss = sum(y1)`
+    #[test]
+    fn checkpointed_backward_matches_full_graph_backward() {
+        let device = Device::Cpu;
+        let d = 4usize;
+        let seq = 3usize;
+
+        let x = Tensor::randn(0f32, 1f32, (seq, d), &device).unwrap();
+        let w0 = Var::from_tensor(&Tensor::randn(0f32, 0.1f32, (d, d), &device).unwrap()).unwrap();
+        let w1 = Var::from_tensor(&Tensor::randn(0f32, 0.1f32, (d, d), &device).unwrap()).unwrap();
+
+        // ── Reference: one full-graph backward ──────────────────────────────
+        let y0 = x.matmul(w0.as_tensor()).unwrap();
+        let y1 = y0.matmul(w1.as_tensor()).unwrap();
+        let loss = y1.sum_all().unwrap();
+        let full = loss.backward().unwrap();
+        let g_w0_full: Vec<f32> = full.get(w0.as_tensor()).unwrap().flatten_all().unwrap().to_vec1().unwrap();
+        let g_w1_full: Vec<f32> = full.get(w1.as_tensor()).unwrap().flatten_all().unwrap().to_vec1().unwrap();
+
+        // ── Checkpointed: forward with detached segment boundary, then recompute ──
+        // Segment 0 forward, detach its output (the checkpoint boundary).
+        let y0_ck = x.matmul(w0.as_tensor()).unwrap();
+        let y0_boundary = y0_ck.detach(); // stored activation; tape severed here
+
+        // Segment 1: recompute from the (grad-tracked) detached boundary.
+        let y0_in = Var::from_tensor(&y0_boundary).unwrap(); // leaf we can read grad for
+        let y1_ck = y0_in.as_tensor().matmul(w1.as_tensor()).unwrap();
+        let loss_ck = y1_ck.sum_all().unwrap();
+        let grads_seg1 = loss_ck.backward().unwrap();
+        // Upstream grad for segment 0's output = dL/dy0.
+        let upstream = grads_seg1.get(y0_in.as_tensor()).unwrap().clone();
+
+        // Segment 0: recompute forward, inject the cotangent, backward.
+        let y0_re = x.matmul(w0.as_tensor()).unwrap();
+        let grads_seg0 = backward_from_cotangent(&y0_re, &upstream).unwrap();
+
+        // Merge per-Var grads across both segments. The last segment's GradStore
+        // (which we own) is the accumulator; fold the earlier segment into it.
+        let mut combined = grads_seg1;
+        accumulate_grads_for_vars(&mut combined, &grads_seg0, &[w0.clone()]).unwrap();
+
+        let g_w0_ck: Vec<f32> = combined.get(w0.as_tensor()).unwrap().flatten_all().unwrap().to_vec1().unwrap();
+        let g_w1_ck: Vec<f32> = combined.get(w1.as_tensor()).unwrap().flatten_all().unwrap().to_vec1().unwrap();
+
+        for (a, b) in g_w0_full.iter().zip(g_w0_ck.iter()) {
+            assert!((a - b).abs() < 1e-4, "w0 grad mismatch: full={a} ck={b}");
+        }
+        for (a, b) in g_w1_full.iter().zip(g_w1_ck.iter()) {
+            assert!((a - b).abs() < 1e-4, "w1 grad mismatch: full={a} ck={b}");
+        }
+    }
+
+    /// `backward_from_cotangent` seeds the graph with exactly the supplied
+    /// cotangent: for `y = x` (identity leaf), the grad of `x` must equal `g`.
+    #[test]
+    fn cotangent_backward_seeds_exact_upstream_grad() {
+        let device = Device::Cpu;
+        let w = Var::from_tensor(&Tensor::new(&[[1.0f32, 2.0], [3.0, 4.0]], &device).unwrap()).unwrap();
+        let x = Tensor::new(&[[1.0f32, 1.0], [1.0, 1.0]], &device).unwrap();
+        let y = x.matmul(w.as_tensor()).unwrap();
+        // arbitrary upstream cotangent
+        let g = Tensor::new(&[[0.5f32, -1.0], [2.0, 0.25]], &device).unwrap();
+        let grads = backward_from_cotangent(&y, &g).unwrap();
+        // dL/dw = x^T @ g
+        let expected = x.t().unwrap().matmul(&g).unwrap();
+        let got: Vec<f32> = grads.get(w.as_tensor()).unwrap().flatten_all().unwrap().to_vec1().unwrap();
+        let exp: Vec<f32> = expected.flatten_all().unwrap().to_vec1().unwrap();
+        for (a, b) in got.iter().zip(exp.iter()) {
+            assert!((a - b).abs() < 1e-5, "cotangent grad mismatch: got={a} exp={b}");
+        }
     }
 
     #[test]

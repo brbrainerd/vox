@@ -1453,7 +1453,7 @@ Disable fallback if `--backend X` was explicitly set (vs defaulted) — exposed 
 
 ## Phase S6 — SSE detection + auto-switch backend
 
-**Goal:** On `vox share --backend cloudflare` (or default), scan the bundled binary's OpenAPI spec (already emitted by Vox per [`crates/vox-codegen/src/codegen_ts/openapi_emit.rs`]) for routes that produce `text/event-stream`. If any present, print `[vox share] App uses streaming; auto-selected --backend localhost-run for SSE compatibility` and switch.
+**Goal:** On `vox share --backend cloudflare` (or default), scan the bundled binary's OpenAPI spec (already emitted by Vox per [`crates/vox-codegen-ts/src/openapi_emit.rs`]) for routes that produce `text/event-stream`. If any present, print `[vox share] App uses streaming; auto-selected --backend localhost-run for SSE compatibility` and switch.
 
 **Files involved:**
 - Create: `crates/vox-share/src/sse_detect.rs`

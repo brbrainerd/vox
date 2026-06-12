@@ -381,6 +381,29 @@ Recommended rollout order: shadow (`routing_experimental`), then training scorin
 - **Token ids ≥ `vocab_size`:** HF tokenizers can emit ids outside the base model’s embedding table after added-token / checkpoint skew or bad JSONL. The loop **skips** such rows (counter + one warning with `max_id` / `vocab_size` / `pair_real_idx`). Preflight **errors** if the first eligible encoded batch is out of range.
 - **Stricter JSONL validation:** Set **`VOX_MENS_TRAIN_JSONL_STRICT=1`** to surface data issues earlier in the pipeline where supported.
 
+## Resilient training
+
+`vox mens train` already does the hard part of crash survival: it writes **atomic** checkpoints (temp-file rename), keeps the last-good checkpoint, and on `--resume <dir>` auto-detects `checkpoint_state.json` to continue from the last step. What it does **not** do is relaunch itself after a process-level crash (OOM kill, driver fault, host reboot). That outer loop is the job of the automation script [`scripts/mens/train_resilient.vox`](https://github.com/vox-foundation/vox/blob/main/scripts/mens/train_resilient.vox).
+
+Run it via the interpreter lane:
+
+```sh
+vox run --mode interp scripts/mens/train_resilient.vox
+```
+
+It launches `vox mens train --resume mens/runs/latest` and, on any **non-zero exit**, relaunches from the last checkpoint while walking a finite **escalation ladder** (no infinite loop — the ladder is bounded by its rung count):
+
+| Rung | `--model` | `--seq-len` | Rationale |
+| --- | --- | --- | --- |
+| 1 | *(auto-scaler chooses)* | *(auto-scaler chooses)* | First, just relaunch — most crashes are transient. |
+| 2 | *(same)* | `256` | Shrink the sequence window to cut activation memory. |
+| 3 | `Qwen/Qwen2.5-Coder-3B-Instruct` | `384` | Drop to a smaller, locally-available model. |
+| 4 | `Qwen/Qwen2.5-Coder-1.5B-Instruct` | `384` | Last resort — smallest model. |
+
+Every rung passes `--resume mens/runs/latest`, so each relaunch continues from the last saved checkpoint rather than restarting from scratch. On the first successful run the script prints a completion message and stops; if all rungs fail it prints an `exhausted all attempts` message and exits (it never loops forever).
+
+> **Caveat — optimizer momentum resets on resume.** The checkpoint state (`checkpoint_state.json`) carries only **step / epoch / data offset / shuffle seed / last loss** — it does **not** persist AdamW's first/second-moment estimates. After a resume the optimizer momentum is re-initialized, which can cause a minor, short-lived convergence blip (a small loss bump for a few steps) before the moments re-warm. This is expected and benign for LoRA fine-tuning; it does not corrupt the adapter weights, which are restored exactly.
+
 ## Related
 
 - **LLM / agent PR hygiene:** [`mens-llm-pr-checklist.md`](../archive/research-2026-q1/mens-llm-pr-checklist.md) — LoRA duplication, layouts, merge, CI test names, parity tiers.

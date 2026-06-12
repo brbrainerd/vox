@@ -13,6 +13,14 @@ pub use cost_defense::{
 };
 pub use policy_types::{PathLiterals, PerCrateOverride, Thresholds};
 
+/// Parse, edit, and pretty-print mesh `donations.vox` policy files (formerly `vox-mesh-policy`).
+pub mod donations_vox;
+/// Alias for [`donations_vox`] (former `vox-mesh-policy` crate surface).
+pub mod mesh_policy {
+    pub use super::donations_vox::*;
+}
+pub use donations_vox::{ParseError as DonationsVoxParseError, load_policy, pretty_print};
+
 const EMBEDDED_YAML: &str = include_str!("../../../contracts/scaling/policy.yaml");
 
 /// Repo-root-relative path to the scaling policy YAML SSOT (for docs, CLI messages, and tooling).

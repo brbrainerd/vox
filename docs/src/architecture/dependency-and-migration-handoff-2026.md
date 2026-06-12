@@ -89,7 +89,7 @@ All call-site counts, file paths, and API deltas below were verified against the
 - *(This is one of the 3 "held" bumps from [PR #146](https://github.com/vox-foundation/vox/pull/146).)*
 
 ### swc_ecma_parser/ast/visit/common 39/23/23/21 → 41/25/25/23
-- **Blast radius:** **1 file** — `vox-drift-check/src/extractors/typescript.rs` (~10 sites), behind the optional `drift-typescript` feature. **Important correction:** the TS *emit* path (`vox-codegen/src/codegen_ts/`) is **string-template based, zero SWC** — the only SWC consumer is the drift-check feature extractor.
+- **Blast radius:** **1 file** — `vox-drift-check/src/extractors/typescript.rs` (~10 sites), behind the optional `drift-typescript` feature. **Important correction:** the TS *emit* path (`vox-codegen-ts/src/`) is **string-template based, zero SWC** — the only SWC consumer is the drift-check feature extractor.
 - **What breaks:** `Atom`/`JsWord` accessor churn (the code already uses the fallible `.value.as_str()` shape; it may move again), and possible `Ident`→`IdentName` split in `MemberProp`/`ImportSpecifier` payloads. **No AST construction** here (parse + read-only `Visit`), so the dreaded `ctxt: SyntaxContext` field additions mostly don't apply.
 - **Fix / verify:** bump all four pins **in one commit** (SWC crates are version-locked); build `--features drift-typescript`; fix accessor/match-arm deltas; green the 2 unit tests.
 - **Agony 3** = SWC's per-major twitchiness + mandatory lockstep, not depth.
@@ -172,4 +172,4 @@ A separate handoff already exists (`docs/agents/codex-turso-allowlist.md`, plus 
 - Turso backlog: `docs/agents/codex-turso-allowlist.md`; policy [`contracts/db/data-storage-policy.v1.yaml`](../../../contracts/db/data-storage-policy.v1.yaml); guards `crates/vox-cli/src/commands/ci/{run_body_helpers/guards.rs,policy_allowlist_parity.rs}`.
 - Currency audit context: [`build-and-crate-org-improvement-plan-2026-06.md`](./build-and-crate-org-improvement-plan-2026-06.md).
 - The candle kernels patch: `patches/candle-kernels-0.9.2/{build.rs,src/lib.rs}`; coupling pins in root `Cargo.toml` `[patch.crates-io]`.
-- Nomenclature map: `crates/vox-cli/src/commands/ci/nomenclature_guard.rs` (LATIN_STRUCTURAL_DENYLIST).
+- Nomenclature map: `crates/vox-cli-ci/src/nomenclature_guard.rs` (LATIN_STRUCTURAL_DENYLIST).

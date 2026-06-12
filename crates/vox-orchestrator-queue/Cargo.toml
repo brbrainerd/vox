@@ -3,6 +3,7 @@ name = "vox-orchestrator-queue"
 description = "Locks, oplog, and affinity tracking for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 5."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 vox-orchestrator-types = { workspace = true }

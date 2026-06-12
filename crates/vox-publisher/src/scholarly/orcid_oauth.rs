@@ -24,38 +24,8 @@ impl PkceVerifier {
 }
 
 fn base64url_no_pad(bytes: &[u8]) -> String {
-    use std::fmt::Write;
-    // Base64url alphabet: A-Z a-z 0-9 - _
-    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    let mut out = String::new();
-    let mut i = 0;
-    while i < bytes.len() {
-        let b0 = bytes[i] as usize;
-        let b1 = if i + 1 < bytes.len() {
-            bytes[i + 1] as usize
-        } else {
-            0
-        };
-        let b2 = if i + 2 < bytes.len() {
-            bytes[i + 2] as usize
-        } else {
-            0
-        };
-        let _ = write!(
-            out,
-            "{}{}",
-            ALPHABET[b0 >> 2] as char,
-            ALPHABET[((b0 & 0x3) << 4) | (b1 >> 4)] as char,
-        );
-        if i + 1 < bytes.len() {
-            let _ = write!(out, "{}", ALPHABET[((b1 & 0xf) << 2) | (b2 >> 6)] as char);
-        }
-        if i + 2 < bytes.len() {
-            let _ = write!(out, "{}", ALPHABET[b2 & 0x3f] as char);
-        }
-        i += 3;
-    }
-    out
+    use base64::Engine as _;
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
 }
 
 /// Parameters for building the ORCID authorization redirect URL.
@@ -122,28 +92,10 @@ pub struct OrcidToken {
 }
 
 fn percent_encode(s: &str) -> String {
-    let mut out = String::new();
-    for b in s.bytes() {
-        match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(b as char);
-            }
-            b => {
-                out.push('%');
-                out.push(
-                    char::from_digit((b >> 4) as u32, 16)
-                        .unwrap_or('0')
-                        .to_ascii_uppercase(),
-                );
-                out.push(
-                    char::from_digit((b & 0xf) as u32, 16)
-                        .unwrap_or('0')
-                        .to_ascii_uppercase(),
-                );
-            }
-        }
-    }
-    out
+    // RFC 3986 unreserved set (A-Za-z0-9-_.~), uppercase %XX for the rest —
+    // exactly what `urlencoding::encode` produces. (Not `form_urlencoded`,
+    // which would encode space as `+`.)
+    urlencoding::encode(s).into_owned()
 }
 
 #[cfg(test)]

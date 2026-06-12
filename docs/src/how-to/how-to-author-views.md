@@ -133,7 +133,7 @@ button(on_click={count = count + 1}) { "Increment" }
 input(on_change={fn(e) handle(e)}, attr_type="text")
 ```
 
-Supported events: `on_click`, `on_change`, `on_input`, `on_submit`, `on_keydown`, `on_keyup`, `on_mouseenter`, `on_mouseleave`. Add more in [`crates/vox-codegen/src/codegen_ts/hir_emit/compat.rs`](../../../crates/vox-codegen/src/codegen_ts/hir_emit/compat.rs).
+Supported events: `on_click`, `on_change`, `on_input`, `on_submit`, `on_keydown`, `on_keyup`, `on_mouseenter`, `on_mouseleave`. Add more in [`crates/vox-codegen-ts/src/hir_emit/compat.rs`](../../../crates/vox-codegen-ts/src/hir_emit/compat.rs).
 
 ## Reserved-keyword attribute names
 

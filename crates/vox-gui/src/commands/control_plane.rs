@@ -10,6 +10,10 @@ pub struct SubmitTaskInput {
     pub files: Vec<String>,
     pub priority: Option<String>,
     pub session_id: Option<String>,
+    pub mode: Option<String>,
+    pub model_hint: Option<String>,
+    pub dry_run: Option<bool>,
+    pub active_skill: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -46,6 +50,10 @@ pub async fn submit_orchestrator_task(
             "file_manifest": file_manifest,
             "priority": priority,
             "session_id": input.session_id.filter(|s| !s.trim().is_empty()),
+            "mode": input.mode.filter(|s| !s.trim().is_empty()),
+            "model_hint": input.model_hint.filter(|s| !s.trim().is_empty()),
+            "dry_run": input.dry_run,
+            "active_skill": input.active_skill.filter(|s| !s.trim().is_empty()),
         }),
     )
     .await?;

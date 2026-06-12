@@ -33,8 +33,6 @@
 
 use serde::Deserialize;
 use serde_json::json;
-use std::io::Read;
-use std::net::TcpStream;
 
 #[derive(Debug, Deserialize)]
 struct Manifest {
@@ -199,102 +197,37 @@ fn resolve_probe_url(app: &AppEntry) -> String {
 }
 
 /// HTTP-GET the URL with a 5s timeout. Returns (live, http_status,
-/// response_time_ms, error).
+/// response_time_ms, error). Redirects are not followed: a 3xx answer
+/// counts as not-live, matching the "2xx within 5s" bar.
 fn probe_health(url: &str) -> (bool, Option<u16>, Option<u64>, Option<String>) {
-    // Parse URL to extract host + port + path. Keep this minimal —
-    // pulling in reqwest::blocking here is fine but avoids the
-    // tokio-runtime-panic complication that bit other gates, since
-    // cr-p1 runs as its own binary outside the vox-cli tokio context.
-    let (host, port, path) = match parse_http_url(url) {
-        Some(t) => t,
-        None => return (false, None, None, Some(format!("malformed url: {url}"))),
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(vox_config::timeouts::D_5S)
+        .connect_timeout(vox_config::timeouts::D_5S)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => return (false, None, None, Some(format!("client: {e}"))),
     };
     let start = std::time::Instant::now();
-    let addr = format!("{host}:{port}");
-    let mut stream = match TcpStream::connect_timeout(
-        &match addr.parse() {
-            Ok(a) => a,
-            Err(_) => {
-                // Hostname → resolve via std::net.
-                let mut addrs = match std::net::ToSocketAddrs::to_socket_addrs(&addr) {
-                    Ok(a) => a,
-                    Err(e) => return (false, None, None, Some(format!("resolve {addr}: {e}"))),
-                };
-                let Some(first) = addrs.next() else {
-                    return (false, None, None, Some(format!("resolve {addr}: no addrs")));
-                };
-                first
-            }
-        },
-        vox_config::timeouts::D_5S,
-    ) {
-        Ok(s) => s,
-        Err(e) => return (false, None, None, Some(format!("connect: {e}"))),
-    };
-    let _ = stream.set_read_timeout(Some(vox_config::timeouts::D_5S));
-    let _ = stream.set_write_timeout(Some(vox_config::timeouts::D_5S));
-    let request = format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
-    use std::io::Write;
-    if let Err(e) = stream.write_all(request.as_bytes()) {
-        return (false, None, None, Some(format!("write: {e}")));
-    }
-    let mut buf = String::new();
-    if let Err(e) = stream.take(8192).read_to_string(&mut buf) {
-        return (false, None, None, Some(format!("read: {e}")));
-    }
-    let elapsed_ms = start.elapsed().as_millis() as u64;
-    // Parse HTTP status line.
-    let first_line = buf.lines().next().unwrap_or("");
-    let parts: Vec<&str> = first_line.splitn(3, ' ').collect();
-    let status: Option<u16> = parts.get(1).and_then(|s| s.parse().ok());
-    let live = matches!(status, Some(s) if (200..300).contains(&s));
-    (live, status, Some(elapsed_ms), None)
-}
-
-/// Minimal HTTP URL parser. Returns (host, port, path). Handles
-/// http://host:port/path and http://host/path. No HTTPS support;
-/// localhost probing doesn't need it.
-fn parse_http_url(url: &str) -> Option<(String, u16, String)> {
-    let rest = url.strip_prefix("http://")?;
-    let (authority, path) = match rest.find('/') {
-        Some(i) => (&rest[..i], &rest[i..]),
-        None => (rest, "/"),
-    };
-    let (host, port) = match authority.rfind(':') {
-        Some(i) => {
-            let host = authority[..i].to_string();
-            let port: u16 = authority[i + 1..].parse().ok()?;
-            (host, port)
+    match client.get(url).send() {
+        Ok(resp) => {
+            let elapsed_ms = start.elapsed().as_millis() as u64;
+            let status = resp.status().as_u16();
+            (
+                resp.status().is_success(),
+                Some(status),
+                Some(elapsed_ms),
+                None,
+            )
         }
-        None => (authority.to_string(), 80),
-    };
-    Some((host, port, path.to_string()))
+        Err(e) => (false, None, None, Some(format!("request: {e}"))),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn parse_http_url_with_port_and_path() {
-        let (host, port, path) = parse_http_url("http://127.0.0.1:8080/health").expect("parse");
-        assert_eq!(host, "127.0.0.1");
-        assert_eq!(port, 8080);
-        assert_eq!(path, "/health");
-    }
-
-    #[test]
-    fn parse_http_url_default_port() {
-        let (host, port, path) = parse_http_url("http://example.com/x").expect("parse");
-        assert_eq!(host, "example.com");
-        assert_eq!(port, 80);
-        assert_eq!(path, "/x");
-    }
-
-    #[test]
-    fn parse_http_url_rejects_https() {
-        assert!(parse_http_url("https://example.com").is_none());
-    }
 
     #[test]
     fn default_ports_are_distinct_for_three_slots() {
