@@ -207,6 +207,81 @@ pub fn run() -> Result<()> {
         checked += 1;
     }
 
+    // Also check bare SKILL.md skills in assets/skills/ (agentskills.io layout:
+    // `<root>/<skill-dir>/SKILL.md`, name must match the directory name).
+    let assets_skills = Path::new("assets/skills");
+    if assets_skills.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(assets_skills) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let dir = entry.path();
+                if !dir.is_dir() {
+                    continue;
+                }
+                let skill_md = dir.join("SKILL.md");
+                if !skill_md.is_file() {
+                    continue;
+                }
+                let dir_name = dir
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
+                let content = std::fs::read_to_string(&skill_md)
+                    .with_context(|| format!("reading {}", skill_md.display()))?;
+                let frontmatter = match parse_frontmatter(&content) {
+                    Some(fm) => fm,
+                    None => {
+                        errors.push(format!(
+                            "{}:no frontmatter block (--- ... ---) found",
+                            skill_md.display()
+                        ));
+                        continue;
+                    }
+                };
+                let name = match extract_scalar(frontmatter, "name") {
+                    Some(n) => n,
+                    None => {
+                        errors.push(format!("{}:missing `name` field", skill_md.display()));
+                        checked += 1;
+                        continue;
+                    }
+                };
+                if !is_valid_name(name) {
+                    errors.push(format!(
+                        "{}:`name` = {:?} does not match ^[a-z0-9][a-z0-9-]{{0,63}}$",
+                        skill_md.display(),
+                        name
+                    ));
+                }
+                if name != dir_name {
+                    errors.push(format!(
+                        "{}:`name` = {:?} does not match directory name {:?}",
+                        skill_md.display(),
+                        name,
+                        dir_name
+                    ));
+                }
+                let description = match extract_scalar(frontmatter, "description") {
+                    Some(d) => d,
+                    None => {
+                        errors.push(format!("{}:missing `description` field", skill_md.display()));
+                        checked += 1;
+                        continue;
+                    }
+                };
+                let desc_chars = description.chars().count();
+                if desc_chars > 1024 {
+                    errors.push(format!(
+                        "{}:`description` is {} chars (max 1024)",
+                        skill_md.display(),
+                        desc_chars
+                    ));
+                }
+                checked += 1;
+            }
+        }
+    }
+
     if errors.is_empty() {
         println!(
             "✓ agentskills-compliance ok ({} skill files checked)",

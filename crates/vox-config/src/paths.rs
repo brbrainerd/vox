@@ -54,12 +54,18 @@ pub fn config_dir() -> Option<PathBuf> {
 /// [agentskills.io](https://agentskills.io) convention (Codex, Cursor, Copilot,
 /// Amp); `.claude/skills` is the most widely honored compatibility path.
 /// Workspace beats user-home. On id collision, callers install first-root-wins.
+///
+/// `assets/skills` (last) holds Apache-2.0 vendored skills shipped with the
+/// Vox source tree. It is shadowed by every interop root so workspace or user
+/// skills always win.
 pub fn skill_search_roots(workspace_root: &Path) -> Vec<PathBuf> {
     const SUBDIRS: [&str; 3] = [".vox/skills", ".agents/skills", ".claude/skills"];
     let mut roots: Vec<PathBuf> = SUBDIRS.iter().map(|d| workspace_root.join(d)).collect();
     if let Some(home) = dirs::home_dir() {
         roots.extend(SUBDIRS.iter().map(|d| home.join(d)));
     }
+    // Lowest precedence: vendored Apache-2.0 skills bundled with the repo.
+    roots.push(workspace_root.join("assets/skills"));
     roots
 }
 
@@ -271,14 +277,19 @@ mod repo_path_tests {
             })
             .collect();
         assert_eq!(rel, vec![".vox/skills", ".agents/skills", ".claude/skills"]);
+        // assets/skills is always the last (lowest-precedence) entry.
+        assert_eq!(
+            roots.last().unwrap().to_string_lossy().replace('\\', "/"),
+            "/repo/assets/skills"
+        );
         // User-home roots mirror the same order under the home dir, when present.
         if let Some(home) = dirs::home_dir() {
-            assert_eq!(roots.len(), 6);
+            assert_eq!(roots.len(), 7);
             assert_eq!(roots[3], home.join(".vox/skills"));
             assert_eq!(roots[4], home.join(".agents/skills"));
             assert_eq!(roots[5], home.join(".claude/skills"));
         } else {
-            assert_eq!(roots.len(), 3);
+            assert_eq!(roots.len(), 4);
         }
     }
 }
