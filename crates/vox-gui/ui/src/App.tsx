@@ -479,6 +479,7 @@ export default function App() {
         planned_steps: 1,
       }
     });
+    let finished = false;
     try {
       const result = await invoke<T>(command, payload);
       await invoke('finish_gui_run', {
@@ -487,14 +488,17 @@ export default function App() {
         completed_steps: 1,
         error: null
       });
+      finished = true;
       return result;
     } catch (err) {
-      await invoke('finish_gui_run', {
-        run_id: runId,
-        success: false,
-        completed_steps: 0,
-        error: String(err),
-      }).catch(() => {});
+      if (!finished) {
+        await invoke('finish_gui_run', {
+          run_id: runId,
+          success: false,
+          completed_steps: 0,
+          error: String(err),
+        }).catch(() => {});
+      }
       throw err;
     }
   }, []);
