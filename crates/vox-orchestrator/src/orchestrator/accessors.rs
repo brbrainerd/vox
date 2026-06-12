@@ -194,6 +194,39 @@ impl Orchestrator {
         all
     }
 
+    /// Rewrite the description of a queued task. Returns an error if the task
+    /// is unknown or not in `Queued` status (a running prompt must not change
+    /// underneath an agent).
+    pub fn edit_task_description(
+        &self,
+        task_id: TaskId,
+        new_description: String,
+    ) -> Result<(), String> {
+        let trimmed = new_description.trim();
+        if trimmed.is_empty() {
+            return Err("description must be non-empty".to_string());
+        }
+        let agents = crate::sync_lock::rw_read(&self.agents);
+        for queue_lock in agents.values() {
+            let mut queue = crate::sync_lock::rw_write(queue_lock);
+            // all_tasks_mut() chains the in-progress task with the queued ones,
+            // so guard by status, not container membership.
+            for task in queue.all_tasks_mut() {
+                if task.id == task_id {
+                    if !matches!(task.status, crate::TaskStatus::Queued) {
+                        return Err(format!(
+                            "task {} is {} and cannot be edited",
+                            task_id.0, task.status
+                        ));
+                    }
+                    task.description = trimmed.to_string();
+                    return Ok(());
+                }
+            }
+        }
+        Err(format!("task {} not found in any queue", task_id.0))
+    }
+
     /// Get a copy of the task assignments map.
     pub fn task_assignments_copy(&self) -> HashMap<TaskId, AgentId> {
         crate::sync_lock::rw_read(&self.task_assignments).clone()

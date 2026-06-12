@@ -366,6 +366,50 @@ pub async fn dispatch_request(
                 Err(e) => response_err(&req.id, format!("{e}")),
             }
         }
+        orch_daemon_method::LIST_TASKS => {
+            let assignments = orch.task_assignments_copy();
+            let tasks: Vec<serde_json::Value> = orch
+                .all_tasks()
+                .into_iter()
+                .map(|t| {
+                    let agent_id = assignments.get(&t.id).map(|a| a.0);
+                    let lifecycle = orch
+                        .task_lifecycle_status_label(t.id)
+                        .unwrap_or_else(|| "unknown".to_string());
+                    let write_files: Vec<String> = t
+                        .file_manifest
+                        .iter()
+                        .filter(|f| matches!(f.access, crate::AccessKind::Write))
+                        .map(|f| f.path.to_string_lossy().to_string())
+                        .collect();
+                    serde_json::json!({
+                        "id": t.id.0,
+                        "description": t.description,
+                        "priority": t.priority,            // raw: "Urgent"|"Normal"|"Background"
+                        "status": t.status,
+                        "lifecycle": lifecycle,            // raw: "Completed"|"InProgress"|"Blocked"|"Queued"
+                        "agent_id": agent_id,
+                        "session_id": t.session_id,
+                        "estimated_complexity": t.estimated_complexity,
+                        "depends_on": t.depends_on.iter().map(|d| d.0).collect::<Vec<u64>>(),
+                        "write_files": write_files,
+                    })
+                })
+                .collect();
+            response_result(&req.id, serde_json::json!({ "tasks": tasks }))
+        }
+        orch_daemon_method::EDIT_TASK => {
+            let Some(task_id) = req.params.get("task_id").and_then(|x| x.as_u64()) else {
+                return response_err(&req.id, "params.task_id (u64) required");
+            };
+            let Some(description) = req.params.get("description").and_then(|x| x.as_str()) else {
+                return response_err(&req.id, "params.description (string) required");
+            };
+            match orch.edit_task_description(TaskId(task_id), description.to_string()) {
+                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Err(e) => response_err(&req.id, e),
+            }
+        }
         orch_daemon_method::DRAIN_AGENT => {
             let Some(agent_id) = req.params.get("agent_id").and_then(|x| x.as_u64()) else {
                 return response_err(&req.id, "params.agent_id (u64) required");
@@ -668,6 +712,121 @@ mod isolation_dispatch_tests {
             &req(
                 orch_daemon_method::VCS_ISOLATION_SET_STRATEGY,
                 serde_json::json!({ "strategy_default": "bogus" }),
+            ),
+        )
+        .await;
+        assert!(matches!(resp.payload, DispatchPayload::Error { .. }));
+    }
+}
+
+#[cfg(test)]
+mod task_dispatch_tests {
+    use super::*;
+    use crate::config::OrchestratorConfig;
+
+    fn req(method: &str, params: serde_json::Value) -> DispatchRequest {
+        DispatchRequest {
+            id: "1".to_string(),
+            method: method.to_string(),
+            params,
+        }
+    }
+
+    fn result_value(resp: &DispatchResponse) -> &serde_json::Value {
+        match &resp.payload {
+            DispatchPayload::Result { value } => value,
+            other => panic!("expected Result payload, got {other:?}"),
+        }
+    }
+
+    async fn orch_with_one_task() -> (Arc<Orchestrator>, u64) {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+        orch.spawn_agent("a1").unwrap();
+        // NOTE: SUBMIT_TASK parses `priority` as the TaskPriority serde enum
+        // (Capitalized "Normal"); omit it to default to Normal. Lowercase
+        // priority strings are only accepted by REORDER_TASK.
+        let resp = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({ "description": "first task" }),
+            ),
+        )
+        .await;
+        let task_id = result_value(&resp)["task_id"].as_u64().unwrap();
+        (orch, task_id)
+    }
+
+    #[tokio::test]
+    async fn list_tasks_returns_submitted_task_with_fields() {
+        let (orch, task_id) = orch_with_one_task().await;
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(orch_daemon_method::LIST_TASKS, serde_json::json!({})),
+        )
+        .await;
+        let v = result_value(&resp);
+        let tasks = v["tasks"].as_array().expect("tasks array");
+        assert_eq!(tasks.len(), 1);
+        let t = &tasks[0];
+        assert_eq!(t["id"].as_u64(), Some(task_id));
+        assert_eq!(t["description"].as_str(), Some("first task"));
+        assert!(t["priority"].is_string());
+        assert!(t["lifecycle"].is_string());
+        assert!(t.get("agent_id").is_some());
+        assert!(t["write_files"].is_array());
+    }
+
+    #[tokio::test]
+    async fn edit_task_rewrites_description_of_queued_task() {
+        let (orch, task_id) = orch_with_one_task().await;
+        let resp = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::EDIT_TASK,
+                serde_json::json!({ "task_id": task_id, "description": "rewritten" }),
+            ),
+        )
+        .await;
+        assert_eq!(result_value(&resp)["ok"], true);
+
+        let list = dispatch_request(
+            "rid",
+            orch,
+            &req(orch_daemon_method::LIST_TASKS, serde_json::json!({})),
+        )
+        .await;
+        let tasks = result_value(&list)["tasks"].as_array().unwrap();
+        assert_eq!(tasks[0]["description"].as_str(), Some("rewritten"));
+    }
+
+    #[tokio::test]
+    async fn edit_task_unknown_id_is_error() {
+        let (orch, _) = orch_with_one_task().await;
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::EDIT_TASK,
+                serde_json::json!({ "task_id": 999_999, "description": "x" }),
+            ),
+        )
+        .await;
+        assert!(matches!(resp.payload, DispatchPayload::Error { .. }));
+    }
+
+    #[tokio::test]
+    async fn edit_task_empty_description_is_error() {
+        let (orch, task_id) = orch_with_one_task().await;
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::EDIT_TASK,
+                serde_json::json!({ "task_id": task_id, "description": "  " }),
             ),
         )
         .await;
