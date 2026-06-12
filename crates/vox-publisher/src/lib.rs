@@ -14,6 +14,7 @@ pub mod publication;
 pub mod publication_preflight;
 pub mod publication_worthiness;
 pub mod research_mesh;
+pub mod scientia_autofill;
 pub mod scientia_contracts;
 pub mod scientia_discovery;
 pub mod scientia_evidence;

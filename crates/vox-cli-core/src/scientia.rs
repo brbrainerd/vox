@@ -191,6 +191,17 @@ pub enum ScientiaCmd {
         #[arg(long)]
         publication_id: String,
     },
+    /// Deterministic archive-metadata autofill: fills MISSING fields (never overwrites),
+    /// records per-field provenance, and reports before/after completeness. No LLM.
+    #[command(name = "publication-autofill")]
+    PublicationAutofill {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Apply the proposed fills to the stored manifest (persists via upsert + digest recompute).
+        #[arg(long, default_value_t = false)]
+        apply: bool,
+    },
     /// Emit destination transform preview JSON
     #[command(name = "publication-transform-preview")]
     PublicationTransformPreview {

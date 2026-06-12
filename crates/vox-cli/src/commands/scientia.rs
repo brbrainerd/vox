@@ -168,6 +168,13 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                         publication_id,
                     })
                 }
+                ScientiaCmd::PublicationAutofill {
+                    publication_id,
+                    apply,
+                } => DbCli::Publication(DbCliPublication::PublicationAutofill {
+                    publication_id,
+                    apply,
+                }),
                 ScientiaCmd::PublicationTransformPreview { publication_id } => {
                     DbCli::Publication(DbCliPublication::PublicationTransformPreview {
                         publication_id,

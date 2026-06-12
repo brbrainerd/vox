@@ -287,6 +287,10 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             DbCliPublication::PublicationDiscoveryExplain { publication_id } => {
                 db::publication_discovery_explain(&publication_id).await
             }
+            DbCliPublication::PublicationAutofill {
+                publication_id,
+                apply,
+            } => db::publication_autofill(&publication_id, apply).await,
             DbCliPublication::PublicationTransformPreview { publication_id } => {
                 db::publication_transform_preview(&publication_id).await
             }
