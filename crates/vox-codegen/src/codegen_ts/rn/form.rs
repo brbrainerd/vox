@@ -140,14 +140,22 @@ pub fn emit_form(form: &HirForm) -> String {
             })
             .unwrap_or_default();
 
-        // For boolean fields we'd need <Switch>, not <TextInput>. For now we
-        // skip boolean rendering for RN until @switch is wired; emit a hint
-        // comment so future-us doesn't silently drop the field.
+        // Boolean fields render as an RN <Switch> bound to the same
+        // `useState<boolean>` declared above — a labelled row rather than a
+        // <TextInput>. Required-ness doesn't apply (a Switch always has a
+        // value), so no error slot is emitted for it.
         if let HirType::Named(t) = &f.ty {
             if t == "bool" {
                 out.push_str(&format!(
-                    "      {{/* TODO(rn): boolean field `{name}` requires <Switch>; not yet emitted */}}\n",
-                    name = f.name
+                    "      <View style={{styles.switch_row}}>\n\
+                     \x20       <Text style={{styles.label}}>{label}{req_marker}</Text>\n\
+                     \x20       <Switch\n\
+                     \x20         value={{{fname}}}\n\
+                     \x20         onValueChange={{set_{fname}}}\n\
+                     \x20         accessibilityLabel={{\"{label}\"}}\n\
+                     \x20       />\n\
+                     \x20     </View>\n",
+                    fname = f.name,
                 ));
                 continue;
             }
@@ -223,6 +231,15 @@ fn field_initial_value(f: &HirFormField) -> &'static str {
     }
 }
 
+/// True if any *visible* (non-hidden) field of `form` is a boolean — i.e. the
+/// emitted `forms.tsx` will render a `<Switch>` and therefore needs it imported.
+pub fn form_renders_switch(form: &HirForm) -> bool {
+    form.fields
+        .iter()
+        .filter(|f| !f.hidden)
+        .any(|f| matches!(&f.ty, HirType::Named(t) if t == "bool"))
+}
+
 /// StyleSheet block appended to `forms.tsx` when any form is emitted. Stable
 /// shape keyed by the style names this module references (`form`, `field`,
 /// `label`, `input`, `field_error`, `banner_error`, `submit`, `submit_text`).
@@ -253,4 +270,79 @@ pub const RN_FORM_STYLESHEET: &str = "const styles = StyleSheet.create({\n\
      \x20   alignItems: \"center\",\n\
      \x20 },\n\
      \x20 submit_text: { color: \"white\", fontWeight: \"500\" },\n\
+     \x20 switch_row: {\n\
+     \x20   flexDirection: \"row\",\n\
+     \x20   alignItems: \"center\",\n\
+     \x20   justifyContent: \"space-between\",\n\
+     \x20 },\n\
      });\n";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vox_compiler::ast::span::Span;
+
+    fn field(name: &str, ty: &str, hidden: bool) -> HirFormField {
+        HirFormField {
+            name: name.to_string(),
+            ty: HirType::Named(ty.to_string()),
+            label: None,
+            required: false,
+            hidden,
+            default: None,
+            constraints: Vec::new(),
+            span: Span::new(0, 0),
+        }
+    }
+
+    fn form_with(fields: Vec<HirFormField>) -> HirForm {
+        HirForm {
+            name: "Settings".to_string(),
+            fields,
+            on_submit: None,
+            success_redirect: None,
+            error_message: None,
+            span: Span::new(0, 0),
+        }
+    }
+
+    #[test]
+    fn boolean_field_emits_switch_not_textinput_or_todo() {
+        let out = emit_form(&form_with(vec![field("done", "bool", false)]));
+        // The boolean state binding is still declared.
+        assert!(out.contains("useState<boolean>(false)"));
+        // It renders a Switch bound to the existing state + setter…
+        assert!(
+            out.contains("<Switch"),
+            "expected a <Switch> element:\n{out}"
+        );
+        assert!(out.contains("value={done}"));
+        assert!(out.contains("onValueChange={set_done}"));
+        // …and NOT a TextInput or the old skip-it TODO.
+        assert!(
+            !out.contains("TODO(rn): boolean field `done`"),
+            "boolean field must no longer be skipped"
+        );
+    }
+
+    #[test]
+    fn string_field_still_emits_textinput() {
+        let out = emit_form(&form_with(vec![field("title", "str", false)]));
+        assert!(out.contains("<TextInput"));
+        assert!(!out.contains("<Switch"));
+    }
+
+    #[test]
+    fn form_renders_switch_detects_visible_bool_only() {
+        assert!(form_renders_switch(&form_with(vec![field(
+            "on", "bool", false
+        )])));
+        // Hidden bool fields are not rendered, so no Switch import is needed.
+        assert!(!form_renders_switch(&form_with(vec![field(
+            "on", "bool", true
+        )])));
+        assert!(!form_renders_switch(&form_with(vec![field(
+            "title", "str", false
+        )])));
+    }
+}
