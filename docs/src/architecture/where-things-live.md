@@ -261,6 +261,13 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | SCIENTIA pre-registration — signing, deviation detection, Bayesian stopping | `crates/vox-prereg/` |
 | SCIENTIA research event types and ResearchEventEmitter trait (L1) | `crates/vox-research-events/` |
 | SCIENTIA RO-Crate 1.2 JSON-LD builder — CFF, CodeMeta, TOP-Level-2, ACM badges | `crates/vox-ro-crate/` |
+| SCIENTIA novelty assessment seam (ChronoFilter + EvidenceConflict + NoveltySignalBreakdown wiring; `assess_novelty()`) | `crates/vox-publisher/src/scientia_novelty_assess.rs` |
+| SCIENTIA semantic similarity for prior art (cosine + Embedder seam) | `crates/vox-publisher/src/scientia_semantic.rs` |
+| SCIENTIA embedding cache (vox-db `scientia_embedding_cache` table) | `crates/vox-db/src/store/ops_embedding_cache.rs` |
+| SCIENTIA automated discovery producers — commit watcher + code-uniqueness signal | `crates/vox-publisher/src/scientia_producers/` (`commit_watcher.rs`, `code_uniqueness.rs`) |
+| SCIENTIA discovery inbox + `scientia.discovery.surfaced` WS topic | vox-db `scientia_discovery_inbox` table + `crates/vox-orchestrator-mcp/src/http_gateway/scientia_feed.rs` |
+| SCIENTIA archive-run orchestrator (autofill-gate → approval → Zenodo → Software Heritage → receipt) | `crates/vox-publisher/src/archive_run.rs` (executor: `crates/vox-cli/src/commands/db/publication/archive_run.rs`) |
+| SCIENTIA GUI surfaces — NoveltyEvidencePanel, DiscoveryInbox, ArchivePanel | `crates/vox-gui/ui/src/components/surfaces/Scientia/` (Tauri commands: `crates/vox-gui/src/commands/scientia_review.rs`) |
 
 > **L0/L1 split:** if your consumer only needs row/param TYPES (no async, no
 > connection), depend on `vox-db-types` directly — not on `vox-db`. The full

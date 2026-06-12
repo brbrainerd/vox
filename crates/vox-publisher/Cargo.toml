@@ -57,8 +57,6 @@ unicode-segmentation = { workspace = true }
 vox-db = { path = "../vox-db", optional = true }
 
 
-
-
 bsky-sdk = { workspace = true, optional = true }
 atrium-api = { workspace = true, optional = true }
 workspace-hack = { workspace = true }
@@ -73,3 +71,4 @@ wiremock = { workspace = true }
 # `cargo test` builds (which pull wiremock + deadpool transitively) hit a
 # rustc-1.92 inference failure inside `deadpool::unmanaged::Pool::timeout_get`.
 deadpool = { workspace = true }
+vox-research-events = { workspace = true }

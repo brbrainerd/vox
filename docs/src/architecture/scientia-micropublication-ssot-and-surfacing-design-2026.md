@@ -21,6 +21,21 @@ training_rationale: "Establishes the target architecture for the micro-publicati
 > nanopublication identity is P1**, and **human review is the spine of the whole
 > pipeline**, not an add-on. §12 critiques v1 and explains why v2 is higher
 > quality.
+>
+> **Revision note (2026-06-12, LANDED).** The surfacing-accuracy, producer, and
+> GUI legs of this design have shipped. Novelty now emits a
+> `NoveltyVerdict::InsufficientEvidence` driven by query-trace HTTP health, real
+> semantic prior-art similarity (cosine + Embedder seam, backed by a vox-db
+> `scientia_embedding_cache`), and a single `assess_novelty()` seam wiring
+> ChronoFilter + EvidenceConflict + a `NoveltySignalBreakdown`; `ClaimVerdict::Contradicted`
+> is now reachable via a MiniCheck contradiction score. Automated producers landed
+> as a `discovery-watch` commit watcher plus a code-uniqueness (embedding-kNN)
+> signal, feeding a `scientia_discovery_inbox` table and a
+> `scientia.discovery.surfaced` WS topic, surfaced through three GUI panels
+> (NoveltyEvidencePanel, DiscoveryInbox, ArchivePanel). The archive pipeline is
+> complete: `publication-archive-run` composes autofill-gate → approval → Zenodo
+> (sandbox default) → Software Heritage → receipt; arXiv remains handoff-only and
+> nanopub publishing stays test-server-only.
 
 ## 0. Scope
 

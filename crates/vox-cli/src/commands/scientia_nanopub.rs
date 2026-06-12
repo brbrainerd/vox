@@ -8,27 +8,31 @@
 //! production-network publishing symbols.
 
 pub use vox_scientia::review_flow::{
-    approval_for, nanopub_build, record_claim_review, resolve_or_create_identity,
+    approval_for, nanopub_build, nanopub_publish_test_server, record_claim_review,
+    resolve_or_create_identity,
 };
 
 #[cfg(test)]
 mod tests {
-    /// Guard (TDD): the nanopub build path must carry NO production-network
-    /// publishing symbols. This file is the entire local build surface; it must
-    /// never grow a network-publish symbol, a test-server toggle, or a hardcoded
-    /// network host. (The forbidden needles are assembled below from fragments so
-    /// this comment cannot itself trip the guard.)
+    /// Guard (TDD): the nanopub CLI surface must carry NO production-network
+    /// publishing symbols. This file re-exports the build + publish-test-server
+    /// paths from `vox_scientia::review_flow`; it must never grow a hardcoded
+    /// production-network host or a bypass of the dual-gate contract.
+    /// (Forbidden needles assembled from fragments so the guard cannot trip on
+    /// its own assertion text.)
     #[test]
     fn no_production_network_publish_symbol_on_nanopub_path() {
         let src = include_str!("scientia_nanopub.rs");
-        // Needles are assembled from fragments so they never appear as a
-        // contiguous literal in THIS file (otherwise the guard would match its
-        // own assertions). The semantics are identical to the literal forms.
+        // Needles assembled from fragments — same semantics as the literal forms.
         let host = format!("{}{}", "knowledgepixels", ".com");
-        let publish = format!("{}{}", "publish_to_", "network");
-        let test_server = format!("{}{}", "use_test_", "server");
+        let publish_net = format!("{}{}", "publish_to_", "network");
+        let publish_prod = format!("{}{}", "publish_to_", "production");
+        let use_test = format!("{}{}", "use_test_", "server");
         assert!(!src.contains(&host));
-        assert!(!src.to_lowercase().contains(&publish));
-        assert!(!src.contains(&test_server));
+        assert!(!src.to_lowercase().contains(&publish_net));
+        assert!(!src.to_lowercase().contains(&publish_prod));
+        assert!(!src.contains(&use_test));
+        // `nanopub_publish_test_server` IS allowed (it is the sanctioned symbol).
+        // Only `publish_to_network` / `publish_to_production` are forbidden.
     }
 }
