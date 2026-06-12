@@ -1,7 +1,7 @@
 ---
 title: "Qwen3.7 profile + MENS 4B-on-RTX-4080 feasibility (revised)"
 description: "Verified June-2026 research on the Qwen3.7 release (closed-weight, API-only) and a codebase-grounded revision of whether a 4B model can be QLoRA-fine-tuned on a 16 GB RTX 4080 in the MENS pipeline."
-category: architecture
+category: "Architecture SSOTs"
 ---
 
 # Qwen3.7 profile + MENS 4B feasibility (revised) — 2026-06-07
