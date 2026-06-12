@@ -311,6 +311,14 @@ fn inject_primitive_dom_markers(
             attrs.push(("data-vox-overlay".to_string(), "\"true\"".to_string()));
         }
         "toast" | "drawer" | "modal" => {
+            // These primitives lower to a plain <div>, losing their tier identity.
+            // Stamp the default tier as data-vox-layer so validate_layer (GA-26) and
+            // portal emit can recover it. (An explicit @layer override, if any, is
+            // already pushed by the component-root path in lower_hir_to_web_ir.)
+            let tier = vox_compiler::hir::nodes::layer::LayerTier::default_for_primitive(
+                original_tag,
+            );
+            attrs.push(("data-vox-layer".to_string(), format!("\"{}\"", tier.as_str())));
             if let Some(z_val) = static_pairs
                 .iter()
                 .find(|(k, _)| k == "z")
