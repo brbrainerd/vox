@@ -411,3 +411,132 @@ pub(crate) async fn require_claimer_node_registered(
     }
     Ok(())
 }
+
+// ── Mesh resource summary (resource-aware orchestration) ───────────────────────
+
+/// Aggregated capacity across all known mesh nodes — the single query an
+/// orchestrator uses to answer "how many nodes are available and what are
+/// their resources?".
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct MeshResourceSummary {
+    pub node_count: usize,
+    /// Nodes accepting new work (not quarantined, not in maintenance drain).
+    pub eligible_node_count: usize,
+    pub gpu_total: u32,
+    pub gpu_allocatable_total: u32,
+    pub memory_free_bytes_total: u64,
+    /// Mean of reported cpu_usage_pct across eligible nodes (0 when none report).
+    pub cpu_usage_pct_avg: f32,
+    pub nodes: Vec<MeshResourceNode>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct MeshResourceNode {
+    pub node_id: String,
+    pub eligible: bool,
+    pub cpu_usage_pct: Option<f32>,
+    pub memory_free_bytes: Option<u64>,
+    pub gpu_allocatable_count: Option<u32>,
+    pub gpu_total_count: Option<u32>,
+    pub loaded_llm_models: Vec<String>,
+    pub labels: Vec<String>,
+}
+
+pub(crate) fn aggregate_resources(nodes: &[NodeRecord]) -> MeshResourceSummary {
+    let now = crate::now_ms();
+    let mut summary = MeshResourceSummary {
+        node_count: nodes.len(),
+        eligible_node_count: 0,
+        gpu_total: 0,
+        gpu_allocatable_total: 0,
+        memory_free_bytes_total: 0,
+        cpu_usage_pct_avg: 0.0,
+        nodes: Vec::with_capacity(nodes.len()),
+    };
+    let mut cpu_sum = 0.0f64;
+    let mut cpu_n = 0usize;
+    for n in nodes {
+        let eligible = n.quarantined != Some(true) && !node_maintenance_blocks_new_work(now, n);
+        if eligible {
+            summary.eligible_node_count += 1;
+            summary.gpu_total += n.gpu_total_count.unwrap_or(0);
+            summary.gpu_allocatable_total += n.gpu_allocatable_count.unwrap_or(0);
+            summary.memory_free_bytes_total += n.memory_free_bytes.unwrap_or(0);
+            if let Some(c) = n.cpu_usage_pct {
+                cpu_sum += f64::from(c);
+                cpu_n += 1;
+            }
+        }
+        summary.nodes.push(MeshResourceNode {
+            node_id: n.id.clone(),
+            eligible,
+            cpu_usage_pct: n.cpu_usage_pct,
+            memory_free_bytes: n.memory_free_bytes,
+            gpu_allocatable_count: n.gpu_allocatable_count,
+            gpu_total_count: n.gpu_total_count,
+            loaded_llm_models: n.loaded_llm_models.clone().unwrap_or_default(),
+            labels: n.capabilities.labels.clone(),
+        });
+    }
+    if cpu_n > 0 {
+        summary.cpu_usage_pct_avg = (cpu_sum / cpu_n as f64) as f32;
+    }
+    summary
+}
+
+pub(crate) async fn resources_summary(
+    State(st): State<PopuliTransportState>,
+    Extension(ctx): Extension<PopuliAuthContext>,
+) -> Result<Json<MeshResourceSummary>, ResponseErr> {
+    if !auth_allows_worker_plane(&ctx) {
+        return Err(ResponseErr(
+            StatusCode::FORBIDDEN,
+            "populi: worker/mesh/admin token required for resource summary".into(),
+        ));
+    }
+    let g = st.inner.read().await;
+    Ok(Json(aggregate_resources(&g.nodes)))
+}
+
+#[cfg(test)]
+mod resources_summary_tests {
+    use super::*;
+
+    fn node(
+        id: &str,
+        cpu: Option<f32>,
+        mem_free: Option<u64>,
+        gpus_alloc: Option<u32>,
+    ) -> NodeRecord {
+        let mut n: NodeRecord = serde_json::from_value(serde_json::json!({
+            "id": id,
+            "capabilities": {},
+            "version": "test",
+            "last_seen_unix_ms": 0,
+        }))
+        .expect("minimal NodeRecord");
+        n.cpu_usage_pct = cpu;
+        n.memory_free_bytes = mem_free;
+        n.gpu_allocatable_count = gpus_alloc;
+        n.gpu_total_count = gpus_alloc;
+        n
+    }
+
+    #[test]
+    fn aggregates_counts_and_capacity_excluding_quarantined() {
+        let mut quarantined = node("q", Some(5.0), None, Some(4));
+        quarantined.quarantined = Some(true);
+        let nodes = vec![
+            node("a", Some(10.0), Some(8 * 1024 * 1024 * 1024), Some(1)),
+            node("b", Some(90.0), Some(2 * 1024 * 1024 * 1024), Some(0)),
+            quarantined,
+        ];
+        let s = aggregate_resources(&nodes);
+        assert_eq!(s.node_count, 3);
+        assert_eq!(s.eligible_node_count, 2);
+        assert_eq!(s.gpu_allocatable_total, 1); // quarantined node's 4 GPUs excluded
+        assert_eq!(s.memory_free_bytes_total, 10 * 1024 * 1024 * 1024);
+        assert!((s.cpu_usage_pct_avg - 50.0).abs() < 0.01);
+        assert_eq!(s.nodes.len(), 3);
+    }
+}
