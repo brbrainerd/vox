@@ -17,13 +17,18 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
+use std::time::Duration;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use vox_journal::FileJournal;
-use vox_runtime::{SuspendDeadline, SuspendError, Suspendable};
+use vox_journal::{AppendDurability, FileJournal};
+use vox_runtime::{
+    JournalFlushStrategy, Resumable, ResumeError, RuntimeProfile, SuspendDeadline, SuspendError,
+    Suspendable,
+};
 
 use crate::WorkflowTracker;
 
@@ -57,21 +62,128 @@ enum JournalEntry {
 
 const JOURNAL_SCHEMA_VERSION: u32 = 1;
 
+/// Background thread that periodically `sync`s the journal to the device.
+///
+/// Spawned for [`JournalFlushStrategy::Periodic`] trackers (the desktop
+/// profile). Stopped + joined on [`Drop`] via a condvar so shutdown is
+/// prompt rather than waiting out the interval.
+#[derive(Debug)]
+struct PeriodicFlusher {
+    stop: Arc<(Mutex<bool>, Condvar)>,
+    ticks: Arc<AtomicU64>,
+    handle: Option<std::thread::JoinHandle<()>>,
+}
+
+impl PeriodicFlusher {
+    fn spawn(journal: Arc<FileJournal<JournalEntry>>, interval: Duration) -> Self {
+        let stop: Arc<(Mutex<bool>, Condvar)> = Arc::new((Mutex::new(false), Condvar::new()));
+        let ticks = Arc::new(AtomicU64::new(0));
+        let thread_stop = Arc::clone(&stop);
+        let thread_ticks = Arc::clone(&ticks);
+        let handle = std::thread::Builder::new()
+            .name("vox-wf-journal-flush".to_string())
+            .spawn(move || {
+                let (lock, cvar) = &*thread_stop;
+                let mut stopped = match lock.lock() {
+                    Ok(g) => g,
+                    Err(_) => return,
+                };
+                while !*stopped {
+                    let (guard, _timeout) = match cvar.wait_timeout(stopped, interval) {
+                        Ok(r) => r,
+                        Err(_) => return,
+                    };
+                    stopped = guard;
+                    if *stopped {
+                        break;
+                    }
+                    if let Err(e) = journal.sync() {
+                        tracing::warn!("file_journal_tracker: periodic flush failed: {e}");
+                    }
+                    thread_ticks.fetch_add(1, Ordering::SeqCst);
+                }
+            })
+            .ok();
+        if handle.is_none() {
+            tracing::warn!(
+                "file_journal_tracker: could not spawn periodic flusher; relying on per-append sync"
+            );
+        }
+        Self {
+            stop,
+            ticks,
+            handle,
+        }
+    }
+}
+
+impl Drop for PeriodicFlusher {
+    fn drop(&mut self) {
+        let (lock, cvar) = &*self.stop;
+        if let Ok(mut stopped) = lock.lock() {
+            *stopped = true;
+        }
+        cvar.notify_all();
+        if let Some(h) = self.handle.take() {
+            let _ = h.join();
+        }
+    }
+}
+
 /// Append-only file-backed [`WorkflowTracker`] implementation.
+///
+/// Flush cadence is profile-driven (spec §10): construct with
+/// [`FileJournalTracker::with_profile`] to adopt the platform's
+/// [`JournalFlushStrategy`]. [`FileJournalTracker::new`] keeps the historical
+/// desktop behavior (every append is synced to the device before returning,
+/// plus a defensive periodic flush).
 #[derive(Debug)]
 pub struct FileJournalTracker {
-    journal: FileJournal<JournalEntry>,
+    journal: Arc<FileJournal<JournalEntry>>,
     /// `(workflow_name, activity_id) -> result`
     results: Mutex<HashMap<(String, String), Value>>,
     /// `(workflow_name, change_id) -> version`
     patches: Mutex<HashMap<(String, String), u32>>,
+    flush_strategy: JournalFlushStrategy,
+    flusher: Option<PeriodicFlusher>,
 }
 
 impl FileJournalTracker {
     /// Open (or create) the file journal at `path` and replay any existing
     /// entries into the in-memory index.
+    ///
+    /// Equivalent to `with_profile(path, RuntimeProfile::Desktop)` — the
+    /// historical behavior for every existing caller.
     pub fn new(path: impl Into<PathBuf>) -> Result<Self> {
-        let opened = FileJournal::<JournalEntry>::open(path)?;
+        Self::with_profile(path, RuntimeProfile::Desktop)
+    }
+
+    /// Open the journal with the flush behavior dictated by `profile`
+    /// (`profile.journal_flush_strategy()`):
+    ///
+    /// - [`RuntimeProfile::Desktop`] → [`JournalFlushStrategy::Periodic`]:
+    ///   per-append device sync (the historical crash-safety contract, which
+    ///   strictly satisfies the periodic bound) plus a defensive background
+    ///   flusher at the strategy's interval.
+    /// - [`RuntimeProfile::Mobile`] → [`JournalFlushStrategy::OnLifecycle`]:
+    ///   appends are handed to the OS but the device sync is deferred to
+    ///   [`Suspendable::suspend`], which the host calls from the iOS/Android
+    ///   backgrounding hook. No background flusher thread (battery budget).
+    pub fn with_profile(path: impl Into<PathBuf>, profile: RuntimeProfile) -> Result<Self> {
+        Self::with_flush_strategy(path, profile.journal_flush_strategy())
+    }
+
+    /// Open the journal with an explicit [`JournalFlushStrategy`] (the
+    /// policy value [`RuntimeProfile::journal_flush_strategy`] produces).
+    pub fn with_flush_strategy(
+        path: impl Into<PathBuf>,
+        strategy: JournalFlushStrategy,
+    ) -> Result<Self> {
+        let durability = match strategy {
+            JournalFlushStrategy::Periodic { .. } => AppendDurability::SyncEachAppend,
+            JournalFlushStrategy::OnLifecycle => AppendDurability::Deferred,
+        };
+        let opened = FileJournal::<JournalEntry>::open_with_durability(path, durability)?;
         let mut results: HashMap<(String, String), Value> = HashMap::new();
         let mut patches: HashMap<(String, String), u32> = HashMap::new();
         for entry in opened.replayed {
@@ -107,10 +219,20 @@ impl FileJournalTracker {
                 }
             }
         }
+        let journal = Arc::new(opened.journal);
+        let flusher = match strategy {
+            JournalFlushStrategy::Periodic { interval_ms } => Some(PeriodicFlusher::spawn(
+                Arc::clone(&journal),
+                Duration::from_millis(interval_ms.max(1)),
+            )),
+            JournalFlushStrategy::OnLifecycle => None,
+        };
         Ok(Self {
-            journal: opened.journal,
+            journal,
             results: Mutex::new(results),
             patches: Mutex::new(patches),
+            flush_strategy: strategy,
+            flusher,
         })
     }
 
@@ -122,6 +244,26 @@ impl FileJournalTracker {
     /// The number of recorded activity completions currently in memory.
     pub fn recorded_count(&self) -> usize {
         self.results.lock().map(|m| m.len()).unwrap_or(0)
+    }
+
+    /// The flush policy this tracker was constructed with.
+    pub fn flush_strategy(&self) -> JournalFlushStrategy {
+        self.flush_strategy
+    }
+
+    /// Whether a background periodic flusher thread is running (desktop
+    /// [`JournalFlushStrategy::Periodic`] profile only).
+    pub fn has_periodic_flusher(&self) -> bool {
+        self.flusher.as_ref().is_some_and(|f| f.handle.is_some())
+    }
+
+    /// How many times the periodic flusher has synced the journal. Always 0
+    /// for [`JournalFlushStrategy::OnLifecycle`] trackers.
+    pub fn periodic_flush_count(&self) -> u64 {
+        self.flusher
+            .as_ref()
+            .map(|f| f.ticks.load(Ordering::SeqCst))
+            .unwrap_or(0)
     }
 }
 
@@ -209,11 +351,31 @@ impl WorkflowTracker for FileJournalTracker {
 }
 
 /// Mobile-aware suspend: delegates to the underlying [`FileJournal`]'s
-/// [`Suspendable`] impl. Today every record-call already fsyncs so this is a
-/// defensive flush.
+/// [`Suspendable`] impl, which `sync_data`s the file so every recorded entry
+/// is on the device before the OS suspends the app.
+///
+/// For [`JournalFlushStrategy::OnLifecycle`] (mobile) trackers this is *the*
+/// durability point; for desktop trackers it is a defensive flush (appends
+/// already sync). The call is synchronous and bounded by a single `fsync`,
+/// comfortably inside [`SuspendDeadline::mobile_default`]. Idempotent.
 impl Suspendable for FileJournalTracker {
     fn suspend(&self, deadline: SuspendDeadline) -> Result<(), SuspendError> {
         self.journal.suspend(deadline)
+    }
+}
+
+/// Foregrounding hook: verify the journal handle survived the suspension.
+///
+/// The in-memory index is process state, so if we are still alive nothing
+/// needs replaying (a killed process replays in [`FileJournalTracker::new`] /
+/// [`FileJournalTracker::with_profile`] instead). What *can* break across an
+/// OS suspension is the file handle itself, so `resume` performs a sync as a
+/// health probe and surfaces any I/O failure to the host.
+impl Resumable for FileJournalTracker {
+    fn resume(&self) -> Result<(), ResumeError> {
+        self.journal
+            .sync()
+            .map_err(|e| ResumeError::Other(format!("journal handle unhealthy after resume: {e}")))
     }
 }
 
@@ -292,6 +454,91 @@ mod tests {
             Some(3)
         );
 
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn default_constructor_is_desktop_profile_with_periodic_flusher() {
+        let path = temp_journal_path();
+        let _ = std::fs::remove_file(&path);
+        let t = FileJournalTracker::new(&path).expect("create");
+        assert!(matches!(
+            t.flush_strategy(),
+            JournalFlushStrategy::Periodic { interval_ms: 5_000 }
+        ));
+        assert!(t.has_periodic_flusher());
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn desktop_profile_has_periodic_flusher() {
+        let path = temp_journal_path();
+        let _ = std::fs::remove_file(&path);
+        let t = FileJournalTracker::with_profile(&path, RuntimeProfile::Desktop).expect("create");
+        assert!(t.has_periodic_flusher());
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn mobile_profile_has_no_periodic_flusher() {
+        let path = temp_journal_path();
+        let _ = std::fs::remove_file(&path);
+        let t = FileJournalTracker::with_profile(&path, RuntimeProfile::Mobile).expect("create");
+        assert!(matches!(
+            t.flush_strategy(),
+            JournalFlushStrategy::OnLifecycle
+        ));
+        assert!(!t.has_periodic_flusher());
+        assert_eq!(t.periodic_flush_count(), 0);
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[tokio::test]
+    async fn mobile_suspend_flushes_durably_and_resume_restores_operation() {
+        let path = temp_journal_path();
+        let _ = std::fs::remove_file(&path);
+
+        let mut t =
+            FileJournalTracker::with_profile(&path, RuntimeProfile::Mobile).expect("create");
+        t.on_activity_completed("wf", "act", "wf/act/1", &json!({"answer": 42}))
+            .await
+            .expect("record");
+
+        // Backgrounding: flush within the mobile deadline.
+        t.suspend(SuspendDeadline::mobile_default())
+            .expect("suspend");
+        // Suspend must be idempotent (spec §10.3).
+        t.suspend(SuspendDeadline::mobile_default())
+            .expect("second suspend");
+
+        // Foregrounding: resume restores normal operation — further records work.
+        t.resume().expect("resume");
+        t.on_activity_completed("wf", "act", "wf/act/2", &json!({"answer": 43}))
+            .await
+            .expect("record after resume");
+
+        drop(t);
+        let t2 = FileJournalTracker::with_profile(&path, RuntimeProfile::Mobile).expect("reopen");
+        assert!(t2.is_activity_completed("wf", "wf/act/1").await.unwrap());
+        assert!(t2.is_activity_completed("wf", "wf/act/2").await.unwrap());
+
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn periodic_flusher_actually_ticks() {
+        let path = temp_journal_path();
+        let _ = std::fs::remove_file(&path);
+        let t = FileJournalTracker::with_flush_strategy(
+            &path,
+            JournalFlushStrategy::Periodic { interval_ms: 10 },
+        )
+        .expect("create");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while t.periodic_flush_count() == 0 && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(t.periodic_flush_count() >= 1, "flusher never ticked");
         std::fs::remove_file(&path).ok();
     }
 

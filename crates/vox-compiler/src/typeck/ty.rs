@@ -119,6 +119,14 @@ impl Ty {
             Ty::Decimal => HirType::Decimal,
             Ty::List(inner) => HirType::Generic("list".into(), vec![inner.to_hir_type()]),
             Ty::Option(inner) => HirType::Generic("option".into(), vec![inner.to_hir_type()]),
+            Ty::Result(ok, err) => {
+                let ok_hir = ok.to_hir_type();
+                if matches!(err.as_ref(), Ty::Str) {
+                    HirType::Generic("Result".into(), vec![ok_hir])
+                } else {
+                    HirType::Generic("Result".into(), vec![ok_hir, err.to_hir_type()])
+                }
+            }
             Ty::Fn(params, ret) => HirType::Function(
                 params.iter().map(|t| t.to_hir_type()).collect(),
                 Box::new(ret.to_hir_type()),
@@ -134,4 +142,19 @@ impl Ty {
 #[must_use]
 pub fn ty_display(ty: &Ty) -> String {
     ty.signature()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hir::HirType;
+
+    #[test]
+    fn result_to_hir_type_is_generic_not_signature_string() {
+        let ty = Ty::Result(Box::new(Ty::Named("Widget".into())), Box::new(Ty::Str));
+        assert_eq!(
+            ty.to_hir_type(),
+            HirType::Generic("Result".into(), vec![HirType::Named("Widget".into())])
+        );
+    }
 }

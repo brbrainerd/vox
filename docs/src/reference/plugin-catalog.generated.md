@@ -22,7 +22,6 @@ _Columns: `id`, `payload-kind`, `extension-points`/`exposes-tools`, `default-sou
 | `mens-candle-cuda` | `MlBackend` | `github:vox-foundation/vox-plugin-mens-candle-cuda` | `vox-ml`, `vox-dev` |
 | `mens-candle-metal` | `MlBackend` | `local:crates/vox-plugin-mens-candle-metal` | `vox-ml-metal`, `vox-dev` |
 | `oratio` | `AudioCapture`, `SpeechToText` | `github:vox-foundation/vox-plugin-oratio` | `vox-dev` |
-| `cloud` | `CloudSync` | `github:vox-foundation/vox-plugin-cloud` | `vox-mesh`, `vox-cloud-only`, `vox-dev` |
 | `webhook` | `HttpListener` | `local:crates/vox-plugin-webhook` | `vox-server`, `vox-dev` |
 | `browser` | `BrowserAutomation` | `github:vox-foundation/vox-plugin-browser` | `vox-dev` |
 | `runtime-wasm` | `SkillRuntime` | `local:crates/vox-plugin-runtime-wasm` | `vox-fullstack`, `vox-edge`, `vox-dev` |
@@ -35,8 +34,8 @@ _Columns: `id`, `payload-kind`, `extension-points`/`exposes-tools`, `default-sou
 |----|---------------|----------------|------------|
 | `skill-compiler` | `vox_validate_file`, `vox_run_tests`, `vox_check_workspace` | `github:vox-foundation/vox-plugin-skill-compiler` | `vox-fullstack`, `vox-ml`, `vox-dev` |
 | `skill-git` | `vox_my_files`, `vox_claim_file`, `vox_transfer_file`, `vox_check_file_owner` | `github:vox-foundation/vox-plugin-skill-git` | `vox-fullstack`, `vox-dev` |
-| `skill-memory` | `vox_memory_store`, `vox_memory_recall`, `vox_memory_search`, `vox_memory_log`, `vox_memory_list_keys`, `vox_knowledge_query`, `vox_session_create`, `vox_session_list`, `vox_session_info`, `vox_session_compact`, `vox_session_cleanup` | `github:vox-foundation/vox-plugin-skill-memory` | `vox-fullstack`, `vox-edge`, `vox-cloud-only`, `vox-server`, `vox-dev` |
-| `skill-orchestrator` | `vox_submit_task`, `vox_task_status`, `vox_orchestrator_status`, `vox_complete_task`, `vox_fail_task`, `vox_cancel_task`, `vox_rebalance`, `vox_queue_status`, `vox_lock_status`, `vox_budget_status`, `vox_agent_events` | `github:vox-foundation/vox-plugin-skill-orchestrator` | `vox-fullstack`, `vox-cloud-only`, `vox-server`, `vox-mesh`, `vox-dev` |
+| `skill-memory` | `vox_memory_store`, `vox_memory_recall`, `vox_memory_search`, `vox_memory_log`, `vox_memory_list_keys`, `vox_knowledge_query`, `vox_session_create`, `vox_session_list`, `vox_session_info`, `vox_session_compact`, `vox_session_cleanup` | `github:vox-foundation/vox-plugin-skill-memory` | `vox-fullstack`, `vox-edge`, `vox-server`, `vox-dev` |
+| `skill-orchestrator` | `vox_submit_task`, `vox_task_status`, `vox_orchestrator_status`, `vox_complete_task`, `vox_fail_task`, `vox_cancel_task`, `vox_rebalance`, `vox_queue_status`, `vox_lock_status`, `vox_budget_status`, `vox_agent_events` | `github:vox-foundation/vox-plugin-skill-orchestrator` | `vox-fullstack`, `vox-server`, `vox-mesh`, `vox-dev` |
 | `skill-rag` | `vox_visual_rag_query` | `github:vox-foundation/vox-plugin-skill-rag` | `vox-fullstack`, `vox-dev` |
 | `skill-testing` | `vox_run_tests`, `vox_test_all` | `github:vox-foundation/vox-plugin-skill-testing` | `vox-fullstack`, `vox-dev` |
 | `skill-testing-validate` | `vox_validate_file`, `vox_validate_source` | `github:vox-foundation/vox-plugin-skill-testing-validate` | `vox-fullstack`, `vox-dev` |

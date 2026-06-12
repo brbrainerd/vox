@@ -25,3 +25,7 @@ crates/vox-scientia/src/producers/
 # vox-workflow-runtime integration tests seed and verify DB state directly.
 # Test-only usage; production code paths go through the typed ops layer.
 crates/vox-workflow-runtime/tests/
+# vox-sql is the sanctioned app-plane SQL backend surface. It must call
+# backend connection/query/execute APIs by design while dialect-agnostic query
+# builders and codegen integration are landing.
+crates/vox-sql/

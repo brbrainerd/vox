@@ -76,7 +76,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-shell-stdlib-types`](../../../crates/vox-shell-stdlib-types/) | Shared data types for the Vox shell stdlib surface (`std.fs.*`). `VoxFileRecord` — the canonical file-metadata type used by both the compiler interpreter path and `vox-actor-runtime` codegen path. L0 — only `serde` dep. |
 | [`vox-research-events`](../../../crates/vox-research-events/) | Typed SCIENTIA research event types and `PreregistrationV1`. |
 | [`vox-rule-pack`](../../../crates/vox-rule-pack/) | Declarative YAML rule-pack loader for code-audit detector patterns and Scientia heuristics. Zero heavy deps. |
-| [`vox-scaling-policy`](../../../crates/vox-scaling-policy/) | Compile-time and runtime accessors for scaling SSOT (contracts/scaling/policy.yaml). |
+| [`vox-scaling-policy`](../../../crates/vox-scaling-policy/) | Compile-time and runtime accessors for scaling SSOT (`contracts/scaling/policy.yaml`); includes [`donations_vox`](../../../crates/vox-scaling-policy/src/donations_vox/) for mesh `donations.vox` parse/pretty-print (folded from retired `vox-mesh-policy`). |
 | [`vox-secrets`](../../../crates/vox-secrets/) | Central secret resolution and compatibility adapters for Vox. |
 
 ### L2 — domain libraries
@@ -87,7 +87,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-config`](../../../crates/vox-config/) | Centralized configuration and env/default resolution for Vox tooling; `project_manifest` parses `[workspace]` / `[bundle]` slices from `Vox.toml` for `vox compile`. |
 | [`vox-constrained-gen`](../../../crates/vox-constrained-gen/) | Grammar-constrained inference engine — Earley/PDA backends, deadlock watchdog, stream-of-revision. |
 | [`vox-doc-inventory`](../../../crates/vox-doc-inventory/) | Generate and verify docs/agents/doc-inventory.json (schema v3) without Python. |
-| [`vox-journal`](../../../crates/vox-journal/) | Generic append-only JSON Lines file journal; crash-safe via per-record sync_data, replays on open. Durable substrate for workflow/actor runtimes and the mobile vox-runtime-rn (deps vox-runtime). |
+| [`vox-journal`](../../../crates/vox-journal/) | Generic append-only JSON Lines file journal; crash-safe via per-record sync_data (default) or deferred-to-lifecycle sync for the mobile profile, replays on open. Durable substrate for workflow/actor runtimes and the mobile vox-runtime-rn (deps vox-runtime). |
 | [`vox-effort-audit`](../../../crates/vox-effort-audit/) | AI-judged audit of git commit history; walks commits, calls model-agnostic judge facade, emits ranked findings JSONL + report. CLI: `vox audit effort`. |
 | [`vox-effort-route`](../../../crates/vox-effort-route/) | Routes effort-audit findings to verified, drafted enforcement artifacts (AGENTS.md rule / lint detector spec / arch rule / CI gate / corpus example / Vox script). CLI: `vox audit effort-route`. |
 | [`vox-eval`](../../../crates/vox-eval/) | Evaluation **metrics** — deterministic scoring of model outputs / Vox samples (format/safety/quality/parse) + MENS `CompileVerdict`. **Not** the interpreter; `--interp` lives in [`vox-compiler/src/eval/`](../../../crates/vox-compiler/src/eval/). |
@@ -124,8 +124,8 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-doc-pipeline`](../../../crates/vox-doc-pipeline/) | Docs lint + doctest helpers for `docs/src/`; Starlight sidebar and RSS are built at **docs-astro** publish time (see root `AGENTS.md`). |
 | [`vox-package`](../../../crates/vox-package/) | Vox package manager runtime: content-addressed artifact cache, registry HTTP client, workspace discovery. |
 | [`vox-quantize`](../../../crates/vox-quantize/) | Data-free k-quant PTQ engine (SafeTensors → Candle GGML quantized SafeTensors; GPU-first, CPU fallback). |
-| [`vox-inference`](../../../crates/vox-inference/) | MENS Mn-T2: `InferenceBackend` trait + multi-backend dispatcher (Candle CPU/CUDA/Metal, llama.cpp RPC, Ollama). Backends implemented; no in-tree consumers yet. |
-| [`vox-distributed-training`](../../../crates/vox-distributed-training/) | MENS Mn-T1/Mn-T6: `TrainingSession`, signed `GradientShard` / `CheckpointBundle`, `OperationKind::TrainingCheckpoint` mapping. |
+| [`vox-populi` — `inference`](../../../crates/vox-populi/src/inference/) | MENS Mn-T2: `InferenceBackend` trait + multi-backend dispatcher (Candle CPU/CUDA/Metal, llama.cpp RPC, Ollama). Merged from retired `vox-inference`. Feature `inference` / `mens-candle-qlora`. |
+| [`vox-populi` — `distributed_training`](../../../crates/vox-populi/src/distributed_training/) | MENS Mn-T1/Mn-T6: `TrainingSession`, signed `GradientShard` / `CheckpointBundle`, `OperationKind::TrainingCheckpoint` mapping. Merged from retired `vox-distributed-training`. |
 | [`vox-ml-cli`](../../../crates/vox-ml-cli/) | ML / Oratio / Populi / telemetry CLI binary (`vox-ml-cli`); Mens training, GPU features, optional workflow glue. |
 | [`vox-forge`](../../../crates/vox-forge/) | Platform-agnostic Git forge API — GitHub, Gitea, Forgejo (GitLab deprecated/unsupported as of 2026-06-03). |
 | [`vox-gamify`](../../../crates/vox-gamify/) | Gamification layer — companions, quests, battles, and free AI integration. |
@@ -154,7 +154,6 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-wire-format-validator`](../../../crates/vox-wire-format-validator/) | CI guard: enforces Wire Format v1 SSOT and Contract IR implementation parity. |
 | [`vox-workflow-runtime`](../../../crates/vox-workflow-runtime/) | Interpreted workflow execution MVP (local + mens activity hooks). |
 | [`vox-runtime-rn`](../../../crates/vox-runtime-rn/) | uniffi-bridged Rust runtime for Vox mobile (React Native + Expo); cross-compiles to iOS/Android, generates TS TurboModule bindings. Bridges vox-runtime + vox-journal to JS; consumed out-of-tree by clients/runtime-rn. |
-| [`vox-mesh-policy`](../../../crates/vox-mesh-policy/) | Parses and pretty-prints `donations.vox` mesh policy files; defines `WorkerDonationPolicy`. |
 | [`vox-tauri-stt`](../../../crates/vox-tauri-stt/) | Tauri 2 on-device speech-to-text plugin — wire format, guest JS facade, Android/iOS native sources. |
 
 ### L5 — surfaces
@@ -187,6 +186,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | `vox ci docs-reality-audit` (doc/code audit artifacts + metrics) | `crates/vox-cli/src/commands/ci/docs_reality_audit.rs` + `contracts/reports/docs-reality-audit/` |
 | `vox ci parse-status` (golden parse matrix → `examples/PARSE_STATUS.md`) | `crates/vox-cli/src/commands/ci/parse_status.rs` |
 | Find the canonical path for GUI surfaces (interop app, experimental visualizer, fixtures, VS Code host) | [`contracts/frontend/surface-ownership.v1.yaml`](../../../contracts/frontend/surface-ownership.v1.yaml) — `apps/interop/marquee_app`, `apps/experimental/visualizer`, `tests/fixtures/frontend/test_app_bundle`, `apps/editor/vox-vscode` |
+| GUI browser preview + agent CDP live view | `crates/vox-gui/ui/src/components/surfaces/Browser/` + `crates/vox-gui/src/commands/browser.rs` — narrative [`vox-gui-browser-support-2026.md`](./vox-gui-browser-support-2026.md) |
 | Add a `Db<Entity>Id` newtype | `crates/vox-db-types/src/ids.rs` (use the `string_id!` macro). |
 | Add a DB store operation | `crates/vox-db/src/<concept>.rs` (impl block on `VoxDb`) |
 | Add a pure-data DB row type | `crates/vox-db-types/src/store_types/` (NOT `vox-db`) |
@@ -230,7 +230,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Interpreter runtime value representation & memory model (copy-on-write) | `crates/vox-compiler/src/eval/value.rs` (`VoxValue`; `List/Object/Tuple` hold `Rc<Vec<…>>`, `Fn.body` is `Rc`) + `crates/vox-compiler/src/eval/env.rs` (`Scope` frames are `Rc<HashMap>`). No GC — pure value semantics via `Rc` + `Rc::make_mut` CoW; `VoxValue` is intentionally `!Send` (single-threaded interp). See [`vox-memory-model-audit-and-value-optimization-2026-06-05.md`](./vox-memory-model-audit-and-value-optimization-2026-06-05.md). |
 | `@versioned` / `@tracked` decorator + interpreter `repo.*` VCS store (auto-snapshot-on-success) | Decorator spine in `crates/vox-compiler/`: lexer token (`src/lexer/token.rs` `AtVersioned`/`AtTracked`) → parser (`src/parser/descent/decl/head.rs` `is_versioned`) → `FnDecl.is_versioned` (`crates/vox-ast/src/decl/fundecl.rs`) → `HirFn.is_versioned` + `uses vcs` injection (`src/hir/lower/decl.rs`) → `VoxValue::Fn { name, is_versioned }` (`src/eval/value.rs`); the auto-`repo.snapshot()` hook fires on successful return in both call paths (`src/eval/mod.rs` `Interpreter::call` + `src/eval/expr.rs` Call arm) against the in-memory `RepoStore` (`src/eval/repo.rs`). Interpreter-only (`--mode interp`); inert in the compiled arms. See [`vcs-as-vox-language-feature-jujutsu-2026.md`](./vcs-as-vox-language-feature-jujutsu-2026.md) §4.3. |
 | Add a code generator (Rust target) | `crates/vox-codegen/src/codegen_rust/` |
-| Add a code generator (TypeScript target) | `crates/vox-codegen/src/codegen_ts/` |
+| Add a code generator (TypeScript target) | `crates/vox-codegen-ts/src/` |
 | Add a layer rule / arch-check rule | `crates/vox-arch-check/src/main.rs` + extend `layers.toml` schema |
 | Add an architectural exception (allowed inversion) | Append `[[known_inversions]]` block in [`layers.toml`](./layers.toml) with a `reason` |
 | Add a new workspace crate | Update [`Cargo.toml`](../../../Cargo.toml) `[workspace.dependencies]` AND add a row to [`layers.toml`](./layers.toml) — `vox-arch-check` will fail otherwise |

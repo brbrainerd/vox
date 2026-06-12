@@ -3,6 +3,7 @@ name = "vox-audit"
 description = "Umbrella CR-L gate runner. Hosts the `vox audit <thing>` subcommand registry and implements the canonical JSON report shape defined in contracts/ci/vox-audit-contract.v1.yaml."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 # This crate ships the primary `vox-audit` bin plus several CR-* gate bins, which makes a bare
 # `cargo run -p vox-audit` ambiguous (it errors with exit 101). CI invokes `cargo run -p vox-audit
 # -- <thing>` without `--bin` (stdlib-coverage, corpus-feedback), so pin the default to the umbrella.

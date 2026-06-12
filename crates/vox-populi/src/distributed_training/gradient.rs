@@ -1,7 +1,7 @@
 use vox_crypto::{SigningKey, VerifyingKey, sign, verify};
 use vox_package::Sha3_512;
 
-use crate::distributed_training::session::SessionId;
+use super::session::SessionId;
 
 /// Signed gradient shard journaled to the op-log in multi-rank mode (Mn-T1 sketch).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,8 +56,8 @@ impl GradientShard {
 
 #[cfg(test)]
 mod tests {
+    use super::SessionId;
     use super::*;
-    use crate::distributed_training::session::SessionId;
     use vox_crypto::generate_signing_keypair;
 
     #[test]

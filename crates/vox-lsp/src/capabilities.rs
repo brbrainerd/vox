@@ -46,6 +46,7 @@ pub fn server_capabilities() -> ServerCapabilities {
             resolve_provider: Some(false),
         }),
         code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
+        document_formatting_provider: Some(OneOf::Left(true)),
         ..Default::default()
     }
 }

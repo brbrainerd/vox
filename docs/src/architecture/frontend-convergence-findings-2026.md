@@ -29,9 +29,9 @@ This findings doc is partially landed:
 - **R3 (`HirRoute`)** — deferred. Touches the active `codegen_rust::emit::http::emit_main` (live Axum `main.rs` emitter) and an active integration test surface; warrants a focused PR.
 - **R4 (deprecated `@server` / `@query` / `@mutation`)** — **landed**. The lexer tokens (`AtServer`/`AtQuery`/`AtMutation`), parser entries (`parse_server_fn`/`parse_query_fn`/`parse_mutation_fn`), AST variants (`Decl::ServerFn`/`Query`/`Mutation`), AST structs (`ServerFnDecl`/`QueryDecl`/`MutationDecl`), HIR lowering branches, fmt printer arms, and consumers in `vox-ml-cli`, `vox-corpus`, `vox-db`, `vox-lsp` are all gone. Five `.vox` fixtures migrated to `@endpoint(kind: …)`. `contracts/speech-to-code/vox_grammar_artifact.json` no longer lists the retired decorators.
 - **R5 (Express server emit)** — deferred. The emitter (`codegen_ts/routes.rs::generate_routes`) is still gated off behind `VOX_EMIT_EXPRESS_SERVER`; consumer audit pending.
-- **R6 (legacy `voxdb.rs`)** — **landed**. `crates/vox-codegen/src/codegen_ts/voxdb.rs` was orphaned (defined `generate_voxdb_handlers` with no callers); deleted alongside R4.
+- **R6 (legacy `voxdb.rs`)** — **landed**. `crates/vox-codegen-ts/src/voxdb.rs` was orphaned (defined `generate_voxdb_handlers` with no callers); deleted alongside R4.
 - **`@py.import` + Python lane** — **landed**. `Decl::PyImport` AST variant + `PyImportDecl` struct removed; `vox-cli/commands/container.rs` lost the `Init` action; `vox-deploy-codegen` lost `pyproject.rs`, `python_dockerfile.rs`, `setup.rs`, `env.rs` (~540 LoC); the `venv_detection_test.rs` integration test was deleted; `vox-corpus`, `vox-ml-cli`, `vox-orchestrator` references purged. Aligns with [AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md): "Vox is the glue language. Python and shell are retired glue surfaces."
-- **VUV-4 lowering correctness fixes** — landed alongside R4. Fixed four real bugs surfaced by the `golden_dashboard_chrome_test` snapshots: (a) `border_x/y/t/b/l/r=true|false` produced literal class strings like `"border-b-true"`; (b) `border=false` produced `"border-false"`; (c) `role={region}` (unbound identifier — invalid TS) emitted instead of `role={"region"}`; (d) `style` attribute pushed CSS string into a JSX expression slot. Affected files: [`web_ir/primitives/mod.rs`](../../../crates/vox-codegen/src/web_ir/primitives/mod.rs), [`web_ir/lower.rs`](../../../crates/vox-codegen/src/web_ir/lower.rs), [`codegen_ts/jsx.rs`](../../../crates/vox-codegen/src/codegen_ts/jsx.rs), [`codegen_ts/hir_emit/mod.rs`](../../../crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs). Snapshot suite re-baselined against the corrected emit.
+- **VUV-4 lowering correctness fixes** — landed alongside R4. Fixed four real bugs surfaced by the `golden_dashboard_chrome_test` snapshots: (a) `border_x/y/t/b/l/r=true|false` produced literal class strings like `"border-b-true"`; (b) `border=false` produced `"border-false"`; (c) `role={region}` (unbound identifier — invalid TS) emitted instead of `role={"region"}`; (d) `style` attribute pushed CSS string into a JSX expression slot. Affected files: [`web_ir/primitives/mod.rs`](../../../crates/vox-codegen/src/web_ir/primitives/mod.rs), [`web_ir/lower.rs`](../../../crates/vox-codegen/src/web_ir/lower.rs), [`codegen_ts/jsx.rs`](../../../crates/vox-codegen-ts/src/jsx.rs), [`codegen_ts/hir_emit/mod.rs`](../../../crates/vox-codegen-ts/src/hir_emit/mod.rs). Snapshot suite re-baselined against the corrected emit.
 - **`vox-react-runtime.ts` / `vox-api.ts` barrels** — deferred. Cosmetic K-reduction with snapshot churn cost; revisit when component snapshots regenerate for VUV-5/6.
 
 ## Premise
@@ -60,8 +60,8 @@ in [§Convergence design](#convergence-design); deletion targets are in
 
 ### Frontend emit pipeline
 
-`crates/vox-codegen/src/codegen_ts/` contains 24 modules orchestrated by
-[emitter.rs](../../../crates/vox-codegen/src/codegen_ts/emitter.rs). The emit fans out
+`crates/vox-codegen-ts/src/` contains 24 modules orchestrated by
+[emitter.rs](../../../crates/vox-codegen-ts/src/emitter.rs). The emit fans out
 into seven distinct outputs from one HIR module:
 
 1. **Components** — `{Name}.tsx` per `component`, optional scoped `{Name}.css`
@@ -109,7 +109,7 @@ truth for the *frontend* projection of HIR. No new layer is needed for component
 ### Wire-format outputs are not unified
 
 Today, three TS-side wire-format emitters each walk HIR independently from
-[emitter.rs](../../../crates/vox-codegen/src/codegen_ts/emitter.rs):
+[emitter.rs](../../../crates/vox-codegen-ts/src/emitter.rs):
 
 - `zod_emit.rs` — Zod schemas from `HirTypeDef` + `HirTable`
 - `schema/from_hir.rs` — JSON Schema from HIR types
@@ -156,7 +156,7 @@ VUV does not change emitted output K — it changes *input* K, which is correct:
 ### Reactive primitives are already minimal
 
 `state`, `derived`, `effect`, `mount`, `cleanup`, `view:` are bare keywords that lower
-to React hooks via [reactive.rs](../../../crates/vox-codegen/src/codegen_ts/reactive.rs).
+to React hooks via [reactive.rs](../../../crates/vox-codegen-ts/src/reactive/mod.rs).
 No signals, no custom reactivity layer. This is the right size — adding more reactive
 primitives would not help; lowering future targets (Dioxus, native) into this set would.
 
@@ -167,10 +167,10 @@ Concrete, mechanical deletions. None changes language semantics.
 | # | Surface | File / Symbol | Reason |
 |---|---|---|---|
 | R1 | `HirFn.is_component` flag | [hir/nodes/decl.rs](../../../crates/vox-compiler/src/hir/nodes/decl.rs) (line ~262) | Tombstoned at parser; flag is dead state |
-| R2 | Path-A component codegen | [codegen_ts/component.rs](../../../crates/vox-codegen/src/codegen_ts/component.rs) | Targets the tombstoned AST path |
+| R2 | Path-A component codegen | [codegen_ts/component.rs](../../../crates/vox-codegen-ts/src/component.rs) | Targets the tombstoned AST path |
 | R3 | `HirRoute` node + lowering | [hir/nodes/decl.rs](../../../crates/vox-compiler/src/hir/nodes/decl.rs) line 176 | Replaced by `HirEndpointFn` + `routes { }` |
 | R4 | Deprecated decorators | ~~`@server`, `@query`, `@mutation`~~ | **Removed** — `@endpoint(kind: …)` is canonical |
-| R5 | Express server emit | [codegen_ts/routes.rs](../../../crates/vox-codegen/src/codegen_ts/routes.rs) | Gated off; `route_manifest.rs` is the active path |
+| R5 | Express server emit | [codegen_ts/routes.rs](../../../crates/vox-rn-codegen/src/routes.rs) | Gated off; `route_manifest.rs` is the active path |
 | R6 | Legacy schema.ts emit | ~~`codegen_ts/voxdb.rs`~~ | **Removed** — orphan; `generate_voxdb_handlers` had no callers |
 
 R1, R2, R4, R6 are landed. R3 is deferred (touches active Axum emit). R5

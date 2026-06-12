@@ -730,6 +730,48 @@ pub fn transcribe_audio_file_with_language(
     transcribe_audio_file(path)
 }
 
+// ─── AsrBackend impl ──────────────────────────────────────────────────────
+
+#[cfg(feature = "cloud")]
+use super::cloud_offload::CloudOffloadBackend;
+
+/// Zero-allocation wrapper so `candle_whisper` participates in the backend dispatch table.
+pub struct CandleWhisperBackend;
+
+impl AsrBackend for CandleWhisperBackend {
+    fn name(&self) -> &'static str {
+        "candle-whisper"
+    }
+
+    fn transcribe_pcm(
+        &self,
+        pcm: &[f32],
+        sample_rate: u32,
+        language_override: Option<&str>,
+    ) -> anyhow::Result<AsrOutput> {
+        if sample_rate != 16_000 {
+            anyhow::bail!(
+                "CandleWhisperBackend requires 16000Hz PCM input, got {}",
+                sample_rate
+            );
+        }
+        let budget_ms =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioAcousticPreprocessBudgetMs)
+                .expose()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(25u64);
+        let pcm = crate::acoustic_preprocess::preprocess_audio_pcm_f32_reported(pcm, budget_ms).0;
+
+        let (raw_text, segments) = transcribe_pcm_internal(&pcm, language_override)?;
+        Ok(AsrOutput {
+            n_best: Vec::new(),
+            confidence: 0.85,
+            raw_text,
+            segments,
+        })
+    }
+}
+
 #[cfg(test)]
 mod chunk_tests {
     use super::chunk_window_ranges;
@@ -784,47 +826,5 @@ mod chunk_tests {
                 None => std::env::remove_var("VOX_ORATIO_NO_SPEECH_THRESHOLD"),
             }
         }
-    }
-}
-
-// ─── AsrBackend impl ──────────────────────────────────────────────────────
-
-#[cfg(feature = "cloud")]
-use super::cloud_offload::CloudOffloadBackend;
-
-/// Zero-allocation wrapper so `candle_whisper` participates in the backend dispatch table.
-pub struct CandleWhisperBackend;
-
-impl AsrBackend for CandleWhisperBackend {
-    fn name(&self) -> &'static str {
-        "candle-whisper"
-    }
-
-    fn transcribe_pcm(
-        &self,
-        pcm: &[f32],
-        sample_rate: u32,
-        language_override: Option<&str>,
-    ) -> anyhow::Result<AsrOutput> {
-        if sample_rate != 16_000 {
-            anyhow::bail!(
-                "CandleWhisperBackend requires 16000Hz PCM input, got {}",
-                sample_rate
-            );
-        }
-        let budget_ms =
-            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioAcousticPreprocessBudgetMs)
-                .expose()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(25u64);
-        let pcm = crate::acoustic_preprocess::preprocess_audio_pcm_f32_reported(pcm, budget_ms).0;
-
-        let (raw_text, segments) = transcribe_pcm_internal(&pcm, language_override)?;
-        Ok(AsrOutput {
-            n_best: Vec::new(),
-            confidence: 0.85,
-            raw_text,
-            segments,
-        })
     }
 }

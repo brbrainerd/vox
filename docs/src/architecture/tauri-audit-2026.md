@@ -100,7 +100,7 @@ This is the key gating item for full mobile unification in this codebase.
 
 1. `tauri_stub` seam appears unused:
    - Module + re-export exist (`crates/vox-codegen/src/codegen_rust/emit/tauri_stub.rs:1-12`, `crates/vox-codegen/src/codegen_rust/emit/mod.rs:18`, `30`).
-2. `mobile_emit` hard-imports `@tauri-apps/api/*` when mobile hooks exist (`crates/vox-codegen/src/codegen_ts/mobile_emit.rs:26-31`) but templates/scaffolds do not provision those packages by default in this repo's common generation path.
+2. `mobile_emit` hard-imports `@tauri-apps/api/*` when mobile hooks exist (`crates/vox-codegen-ts/src/mobile_emit.rs:26-31`) but templates/scaffolds do not provision those packages by default in this repo's common generation path.
 3. `init` prints a `target/generated/tauri-packaging` next-step for mobile templates, but current emission there writes to project-root `tauri-packaging/` (`crates/vox-cli/src/commands/init.rs:33-35`, `94-103`).
 4. Packaging SSOT wording should be made explicitly current-state or explicitly planned-state to avoid drift (`docs/src/architecture/vox-application-packaging-ssot-2026.md:59-63`).
 5. Add a generation contract test around `mobile.ts` import assumptions before changing strategy.

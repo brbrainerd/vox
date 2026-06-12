@@ -627,6 +627,7 @@ fn emit_server_fn_handler(
                 inferred_types,
                 Some(&usage),
                 rid,
+                sf.return_type.as_ref(),
             );
             if emitted.contains("return Ok(Json(") || emitted.contains("return Json(") {
                 has_return = true;
@@ -655,6 +656,7 @@ fn emit_server_fn_handler(
                 inferred_types,
                 Some(&usage),
                 rid,
+                sf.return_type.as_ref(),
             );
             if emitted.contains("return Ok(Json(") {
                 has_return = true;
@@ -712,6 +714,7 @@ fn emit_query_fn_handler(
             inferred_types,
             Some(&usage),
             rid,
+            sf.return_type.as_ref(),
         );
         if emitted.contains("return Ok(Json(") {
             has_return = true;

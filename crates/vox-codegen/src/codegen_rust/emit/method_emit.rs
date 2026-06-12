@@ -8,8 +8,18 @@ use vox_sql::BackendKind;
 use vox_sql::SqlDialect;
 use vox_sql::build::{SqlPredicate, equality_predicate_sql, predicate_sql};
 
-fn db_ref(fallible: bool) -> &'static str {
-    if fallible { "&db" } else { "&*db" }
+fn db_ref(fallible: bool) -> String {
+    if super::script_db::script_db_emit_mode() {
+        if fallible {
+            "VOX_SCRIPT_DB.get().expect(\"vox script db\").as_ref()".into()
+        } else {
+            "&**VOX_SCRIPT_DB.get().expect(\"vox script db\")".into()
+        }
+    } else if fallible {
+        "&db".into()
+    } else {
+        "&*db".into()
+    }
 }
 
 fn await_or_expect_suffix(fallible: bool, expect_msg: &str) -> String {
@@ -107,13 +117,13 @@ where
                 await_or_expect_suffix(fallible, "vox codegen: db delete")
             )
         }
-        HirDbTableOp::All => emit_all_op(emit_expr, table_name, order_by, limit, fallible, db),
+        HirDbTableOp::All => emit_all_op(emit_expr, table_name, order_by, limit, fallible, &db),
         HirDbTableOp::Count => {
             if order_by.is_some() || limit.is_some() {
                 return "/* vox codegen: invalid count modifiers (typecheck should reject) */ 0"
                     .into();
             }
-            emit_count_op(emit_expr, table_name, args, plan, fallible, db)
+            emit_count_op(emit_expr, table_name, args, plan, fallible, &db)
         }
         HirDbTableOp::FilterRecord => emit_filter_record(
             emit_expr,
@@ -124,7 +134,7 @@ where
             limit,
             plan,
             fallible,
-            db,
+            &db,
         ),
         HirDbTableOp::UnsafeQueryRawClause => {
             format!(
@@ -535,7 +545,17 @@ where
     // expression-position FieldAccess lowering. Route them through the same
     // runtime-call registry so the receiver lowers to the builtin instead of a
     // method on an undefined `process`/`fs`/… value.
-    if let HirExpr::Ident(ns, _) = obj
+    // `std.env.get(..)` is the documented long form: the receiver is
+    // FieldAccess(std, env), not a bare `env` ident, so unwrap the `std.`
+    // prefix before the namespace check.
+    let namespace_recv = match obj {
+        HirExpr::Ident(ns, _) => Some(ns.as_str()),
+        HirExpr::FieldAccess(inner, ns, _) if matches!(inner.as_ref(), HirExpr::Ident(s, _) if s == "std") => {
+            Some(ns.as_str())
+        }
+        _ => None,
+    };
+    if let Some(ns) = namespace_recv
         && super::stmt_expr_tail::is_vox_namespace_ident(ns)
         && let Some(s) =
             vox_compiler::builtin_registry::std_namespace_runtime_call(ns, method, &arg_exprs)
@@ -559,6 +579,12 @@ where
             return s;
         }
     }
+    // Vox unwrap() on a fallible db op peels the Result layer only.
+    // Codegen lowers that to `.await.expect(...)`, which already yields the
+    // Ok payload (Option<Row> for get, etc.) — not Option::unwrap().
+    if method == "unwrap" && arg_exprs.is_empty() && o.contains(".expect(\"vox codegen: db") {
+        return o;
+    }
     let call = format!("{}.{}({})", o, method, arg_exprs.join(", "));
     if method == "send" {
         format!("{}.await", call)
@@ -580,7 +606,12 @@ where
     let mut args_iter = args.iter();
     let first_arg = args_iter.next()?;
     let fmt = match &first_arg.value {
-        HirExpr::StringLit(s, _) => format!("\"{}\"", s),
+        HirExpr::StringLit(s, _) => {
+            format!(
+                "\"{}\"",
+                super::stmt_expr::escape_rust_double_quoted_content(s)
+            )
+        }
         other => emit_expr(other),
     };
     let remaining: Vec<String> = args_iter.map(|a| emit_expr(&a.value)).collect();
@@ -730,6 +761,24 @@ fn try_emit_list_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<S
         // first / last: owned Option<T> (Vec::first/last → Option<&T> → .cloned()).
         "first" if arg_exprs.is_empty() => Some(format!("({}.first().cloned())", o)),
         "last" if arg_exprs.is_empty() => Some(format!("({}.last().cloned())", o)),
+
+        // Higher-order list transforms (closures_hof golden).
+        "map" if arg_exprs.len() == 1 => Some(format!(
+            "({}).into_iter().map({}).collect::<Vec<_>>()",
+            o, arg_exprs[0]
+        )),
+        "filter" if arg_exprs.len() == 1 => Some(format!(
+            "({}).into_iter().filter({}).collect::<Vec<_>>()",
+            o, arg_exprs[0]
+        )),
+        "fold" if arg_exprs.len() == 2 => Some(format!(
+            "({}).iter().fold({}, {})",
+            o, arg_exprs[0], arg_exprs[1]
+        )),
+        "sorted_by_key" if arg_exprs.len() == 1 => Some(format!(
+            "({{ let mut __lst = {}; __lst.sort_by_key({}); __lst }})",
+            o, arg_exprs[0]
+        )),
 
         _ => None,
     }

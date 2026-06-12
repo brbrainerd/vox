@@ -3,7 +3,6 @@
 use anyhow::{Result, anyhow};
 use std::process::Command;
 
-use super::ai_fixtures_coverage;
 use super::build_timings;
 use super::canonical_docs;
 use super::check_links;
@@ -16,15 +15,12 @@ use super::command_sync;
 use super::completion_quality;
 use super::contracts_index;
 use super::coverage_gates;
-use super::dep_sprawl;
 use super::determinism_audit;
 use super::doctest_md;
 use super::eval_matrix;
 use super::exec_policy_contract;
 use super::grammar_ssot_parity;
-use super::line_endings;
 use super::mens_scorecard;
-use super::openclaw_contract;
 use super::parse_status;
 use super::release_build;
 use super::scaling_audit;
@@ -46,7 +42,7 @@ use run_body_helpers::{
     run_operator_env_guard, run_query_all_guard, run_repo_guards, run_script_hygiene,
     run_secret_env_guard, run_secrets_contracts, run_secrets_cutover_audit,
     run_secrets_cutover_gates, run_secrets_parity, run_sql_surface_guard, run_ssot_audit,
-    run_ssot_drift, run_toestub_scoped, run_toestub_self_apply, run_turso_import_guard,
+    run_ssot_drift, run_toestub_scoped_roots, run_toestub_self_apply, run_turso_import_guard,
 };
 
 use super::retired_symbol_check;
@@ -72,7 +68,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             super::policy_registry::run_parity(&root).map_err(|e| anyhow!(e))
         }
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
-        CiCmd::CheckFrozen => super::frozen_crates::check_frozen_crates(&root),
+        CiCmd::CheckFrozen => vox_cli_ci::frozen_crates::check_frozen_crates(&root),
         CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(&root),
         CiCmd::GuiVersionSync { write } => super::gui_version_sync::run(&root, write),
         CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
@@ -80,9 +76,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::ModelRoutingCheck => super::model_routing_check::run(&root),
         CiCmd::CheckCodexSsot => check_codex_ssot(&root),
         CiCmd::ContractsIndex => contracts_index::run(&root),
-        CiCmd::AiFixturesCoverage => ai_fixtures_coverage::run(&root),
+        CiCmd::AiFixturesCoverage => vox_cli_ci::ai_fixtures_coverage::run(&root),
         CiCmd::ExecPolicyContract => exec_policy_contract::run(&root),
-        CiCmd::OpenClawContract => openclaw_contract::run(&root),
+        CiCmd::OpenClawContract => vox_cli_ci::openclaw_contract::run(&root),
         CiCmd::OperationsVerify => super::operations_catalog::verify(&root),
         CiCmd::OperationsSync { target, write } => {
             let target = match target {
@@ -125,6 +121,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             with_coverage,
             since,
             enforce_budgets,
+            skip_complete,
         } => super::pre_push::run(
             &root,
             super::pre_push::PrePushOpts {
@@ -138,6 +135,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 with_coverage,
                 since,
                 enforce_budgets,
+                skip_complete,
             },
         ),
         CiCmd::TierBudgetCheck { junit, profile } => {
@@ -161,7 +159,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         }
         CiCmd::FeatureMatrix => run_feature_matrix(&root),
         CiCmd::CompileMatrix => super::compile_matrix::run(&root),
-        CiCmd::RetirementAudit => super::retirement_audit::run(&root),
+        CiCmd::RetirementAudit => vox_cli_ci::retirement_audit::run(&root),
         CiCmd::NoDeiImport => check_no_vox_dei(&root),
         CiCmd::AttentionEventLedgerParity => super::attention_ledger_parity::run(&root),
         CiCmd::CheckSummaryDrift => {
@@ -259,7 +257,10 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         },
         CiCmd::WorkflowScripts { allowlist } => check_workflow_scripts(&root, &allowlist),
         CiCmd::FmtCheck => super::pre_push::check_fmt(&root),
-        CiCmd::LineEndings { all, base, autofix } => line_endings::run(&root, all, base, autofix),
+        CiCmd::RunnerPolicyCheck { strict } => vox_cli_ci::runner_policy_check::run(&root, strict),
+        CiCmd::LineEndings { all, base, autofix } => {
+            vox_cli_ci::line_endings::run(&root, all, base, autofix)
+        }
         CiCmd::ParseStatus { write } => parse_status::run(&root, write),
         CiCmd::MeshGate {
             profile,
@@ -283,14 +284,11 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             min_f1,
             json,
         } => super::detect_rules_bench::run(&rules, &fixtures_root, min_f1, json),
-        CiCmd::ToestubBudget => super::toestub_budget::run(),
-        CiCmd::JsonParseCheck { globs } => super::parse_check::run_json(&globs),
-        CiCmd::YamlParseCheck { globs } => super::parse_check::run_yaml(&globs),
+        CiCmd::ToestubBudget => vox_cli_ci::toestub_budget::run(),
+        CiCmd::JsonParseCheck { globs } => vox_cli_ci::parse_check::run_json(&globs),
+        CiCmd::YamlParseCheck { globs } => vox_cli_ci::parse_check::run_yaml(&globs),
         CiCmd::ToestubSelfApply => run_toestub_self_apply(&root),
-        CiCmd::ToestubScoped {
-            root: scan_root,
-            mode,
-        } => run_toestub_scoped(&root, &scan_root, mode),
+        CiCmd::ToestubScoped { roots, mode } => run_toestub_scoped_roots(&root, &roots, mode),
         CiCmd::ScalingAudit { cmd } => scaling_audit::run(&root, cmd),
         CiCmd::CudaFeatures => run_cuda_features(),
         CiCmd::BuildTimings {
@@ -336,8 +334,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::TursoImportGuard { all } => run_turso_import_guard(&root, all),
         CiCmd::DbSchemaCoverage => super::db_schema_coverage::run(&root),
         CiCmd::PolicyAllowlistParity => super::policy_allowlist_parity::run(&root),
-        CiCmd::RowSerdeLint => super::row_serde_lint::run(&root),
-        CiCmd::StringIdLint => super::string_id_lint::run(&root, false),
+        CiCmd::RowSerdeLint => vox_cli_ci::row_serde_lint::run(&root),
+        CiCmd::StringIdLint => vox_cli_ci::string_id_lint::run(&root, false),
         CiCmd::SecretsContracts => run_secrets_contracts(&root),
         CiCmd::SecretsParity => run_secrets_parity(&root),
         CiCmd::SecretsCutoverGates => run_secrets_cutover_gates(&root),
@@ -516,15 +514,15 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             annotate,
             strict,
         } => super::job_timings::run(run_id, threshold_mins, limit, json, annotate, strict),
-        CiCmd::NomenclatureGuard { json } => super::nomenclature_guard::run(&root, json),
+        CiCmd::NomenclatureGuard { json } => vox_cli_ci::nomenclature_guard::run(&root, json),
         CiCmd::RetiredSymbolCheck => retired_symbol_check::run(&root),
-        CiCmd::SyncIgnoreFiles { verify } => super::sync_ignore_files::run(&root, verify),
+        CiCmd::SyncIgnoreFiles { verify } => vox_cli_ci::sync_ignore_files::run(&root, verify),
         CiCmd::KillStuckTests { what_if } => super::kill_stuck_tests::run(&root, what_if),
         CiCmd::InstallHooks => super::install_hooks::run(&root),
         CiCmd::ScriptHygiene { retired_check } => run_script_hygiene(&root, retired_check),
         CiCmd::DeterminismAudit => determinism_audit::run(&root),
-        CiCmd::DepSprawl { cap } => dep_sprawl::run(&root, cap),
-        CiCmd::DoctestMd { paths, strict } => doctest_md::run(paths, strict).await,
+        CiCmd::DepSprawl { cap } => vox_cli_ci::dep_sprawl::run(&root, cap),
+        CiCmd::DoctestMd { paths, strict } => doctest_md::run(paths, strict),
         CiCmd::TestInventory {
             json,
             output,
@@ -612,9 +610,11 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             check,
         } => super::generate_plugin_catalog_docs::run(catalog_out, bundles_out, check),
         CiCmd::PluginCatalogParity => super::plugin_catalog_parity::run(),
-        CiCmd::NoTauriInCore => super::no_tauri_in_core::check(&root),
-        CiCmd::NoPluginCdylibAsCompileDep => super::no_plugin_cdylib_as_compile_dep::check(&root),
-        CiCmd::PluginDepBoundary => super::plugin_dep_boundary::check(&root),
+        CiCmd::NoTauriInCore => vox_cli_ci::no_tauri_in_core::run(&root),
+        CiCmd::NoPluginCdylibAsCompileDep => {
+            vox_cli_ci::no_plugin_cdylib_as_compile_dep::run(&root)
+        }
+        CiCmd::PluginDepBoundary => vox_cli_ci::plugin_dep_boundary::run(&root),
         CiCmd::PluginAbiParity { build } => super::plugin_abi_parity::run(build),
         CiCmd::PluginSurfaceSync { write } => super::plugin_surface::run(&root, write),
         CiCmd::PluginCatalogSync { write } => super::plugin_catalog_sync::run(&root, write),

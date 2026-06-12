@@ -18,6 +18,7 @@ mod main_boot;
 mod method_emit;
 pub(super) mod ownership;
 mod param_borrow;
+pub(super) mod script_db;
 mod state_machine;
 mod stmt_expr;
 mod stmt_expr_tail;
@@ -79,7 +80,7 @@ pub use tables::{
     validate_db_projection_suffixes_unique,
 };
 pub(crate) use types::emit_type;
-pub use workflow::{emit_fn, emit_lib};
+pub use workflow::{emit_fn, emit_lib, emit_script_lib};
 
 pub struct CodegenOutput {
     /// Relative path → file contents (e.g. `Cargo.toml`, `src/main.rs`).
@@ -372,6 +373,7 @@ use {}::*;
                 false,
                 false,
                 Some(&module.inferred_types),
+                None,
                 None,
                 None,
             );

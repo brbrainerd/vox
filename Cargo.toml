@@ -3,6 +3,7 @@ resolver = "2"
 members = ["crates/*","crates/workspace-hack"]
 exclude = [
     "crates/vox-arch-check/tests/fixtures/missing-desc",
+    "crates/vox-plugin-cloud",
     "crates/vox-plugin-host/tests/fixtures/noop-code",
     "crates/vox-plugin-host/tests/fixtures/noop-code-bad-abi",
     "crates/vox-plugin-host/tests/fixtures/noop-skill",
@@ -66,7 +67,9 @@ vox-secrets                = { path = "crates/vox-secrets" }
 vox-cli                   = { path = "crates/vox-cli" }
 vox-bounded-fs            = { path = "crates/vox-bounded-fs" }
 vox-compiler              = { path = "crates/vox-compiler" }
-vox-codegen         = { path = "crates/vox-codegen" }
+vox-codegen         = { path = "crates/vox-codegen", default-features = false }
+vox-codegen-ts      = { path = "crates/vox-codegen-ts" }
+vox-rn-codegen      = { path = "crates/vox-rn-codegen" }
 vox-config                = { path = "crates/vox-config" }
 vox-container             = { path = "crates/vox-container" }
 vox-container-types       = { path = "crates/vox-container-types" }
@@ -105,10 +108,6 @@ vox-populi                = { path = "crates/vox-populi" }
 vox-populi-types          = { path = "crates/vox-populi-types" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
 vox-mesh-types            = { path = "crates/vox-mesh-types" }
-vox-distributed-training  = { path = "crates/vox-distributed-training" }
-vox-inference             = { path = "crates/vox-inference" }
-
-vox-mesh-policy        = { path = "crates/vox-mesh-policy" }
 
 vox-effort-audit          = { path = "crates/vox-effort-audit" }
 vox-effort-route          = { path = "crates/vox-effort-route" }
@@ -119,6 +118,7 @@ vox-research-shim              = { path = "crates/vox-research-shim" }
 vox-orchestrator-test-helpers = { path = "crates/vox-orchestrator-test-helpers" }
 vox-orchestrator-mcp      = { path = "crates/vox-orchestrator-mcp" }
 vox-orchestrator-queue    = { path = "crates/vox-orchestrator-queue" }
+vox-orchestrator-driver   = { path = "crates/vox-orchestrator-driver" }
 vox-orchestrator-d        = { path = "crates/vox-orchestrator-d" }
 vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
 
@@ -141,6 +141,7 @@ vox-package-types              = { path = "crates/vox-package-types" }
 
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
 vox-cli-core              = { path = "crates/vox-cli-core" }
+vox-cli-ci                = { path = "crates/vox-cli-ci" }
 
 
 vox-project-scaffold      = { path = "crates/vox-project-scaffold" }
@@ -314,6 +315,10 @@ zeroize            = { version = "1", features = ["derive"] }
 # wiremock activates a runtime explicitly.
 deadpool           = { version = "0.12", features = ["rt_tokio_1"] }
 rmcp               = "1.7"
+opentelemetry      = "0.29"
+opentelemetry-otlp = { version = "0.29", default-features = false, features = ["http-proto", "reqwest-client"] }
+opentelemetry_sdk  = { version = "0.29", features = ["rt-tokio"] }
+tracing-opentelemetry = "0.30"
 rmp-serde          = "1"
 libloading         = "0.8"
 lru                = "0.13"
@@ -382,5 +387,7 @@ lto = "fat"
 codegen-units = 1
 strip = "symbols"
 panic = "abort"
+
+
 
 

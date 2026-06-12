@@ -630,8 +630,10 @@ fn test_parse_table_extern_source_pk() {
 
 #[test]
 fn test_parse_table_duplicate_params_error() {
-    assert_parse_fails("@table(pk: a, pk: b) type T { a: int
- b: int }");
+    assert_parse_fails(
+        "@table(pk: a, pk: b) type T { a: int
+ b: int }",
+    );
     assert_parse_fails("@table(extern, extern) type T { id: int }");
     assert_parse_fails("@table(extern, source: \"x\", source: \"y\", pk: id) type T { id: int }");
 }

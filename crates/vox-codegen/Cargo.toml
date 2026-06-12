@@ -11,6 +11,8 @@ publish = false
 
 [features]
 default = []
+# Declared for `check-cfg` when `vox-codegen-ts` sources are embedded via `#[path]` (never enable on `vox-codegen`).
+standalone = []
 
 [dependencies]
 hex = { workspace = true }

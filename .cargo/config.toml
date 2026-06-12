@@ -2,11 +2,26 @@
 # Dedicated vox-schola binary (Candle QLoRA + CUDA by default) — fastest incremental (~15 s).
 vox-schola-dev       = "run -p vox-schola --"
 
+# ---------------------------------------------------------------------------
+# Optional: sccache (shared compiler cache across worktrees / CI)
+# ---------------------------------------------------------------------------
+# Opt in locally — do NOT commit a hard `rustc-wrapper = "sccache"` here:
+# hosted CI runners and fresh agent shells lack the binary, and cargo dies
+# with `could not execute process \`sccache ... rustc -vV\`` before any build.
+# Install: cargo install sccache  (or your OS package manager)
+# Enable per-shell: $env:RUSTC_WRAPPER = "sccache"   (or export RUSTC_WRAPPER)
+# Or per-user: add `[build] rustc-wrapper = "sccache"` to ~/.cargo/config.toml
+#
 [build]
-# i9-14900KS has 32 logical threads; 24 leaves headroom for llvm-cov instrumentation.
-# Baseline warm build-only: 57s at jobs=8; expect ~25-35s at jobs=24.
 jobs = 24
 rustdocflags = ["-D", "warnings"]
+
+# ---------------------------------------------------------------------------
+# Linux: optional faster linker (lld)
+# ---------------------------------------------------------------------------
+# Install: sudo apt install lld   (Debian/Ubuntu) or equivalent on your distro
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
 [target.x86_64-pc-windows-msvc]
 # lld-link is available (C:\Program Files\LLVM\bin\lld-link.exe) but causes
@@ -15,6 +30,7 @@ rustdocflags = ["-D", "warnings"]
 rustflags = ["-C", "link-arg=/DEBUG:NONE", "-C", "link-arg=/STACK:8388608"]
 
 [env]
+SCCACHE_DIR = { value = ".sccache", relative = true }
 # Pin every cargo build/test invocation (including scripts) to a single `target/`
 # dir per checkout, instead of letting tools scatter `target-agent/`,
 # `target-doc-inv/`, etc. across the tree.
@@ -31,6 +47,10 @@ rustflags = ["-C", "link-arg=/DEBUG:NONE", "-C", "link-arg=/STACK:8388608"]
 # cache). That disk cost is reclaimed by a periodic sweep, not by sharing — see
 # docs/superpowers/specs/2026-06-05-target-artifact-gc-design.md.
 CARGO_TARGET_DIR = { value = "target", relative = true }
+# Tauri workspace: embed the Windows common-controls v6 manifest on bin targets.
+# Without this, `vox-gui.exe` fails at startup with STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139).
+# See https://github.com/tauri-apps/tauri/issues/13948
+__TAURI_WORKSPACE__ = "true"
 
 # Per-thread stack size for spawned threads (incl. every `cargo test` thread).
 # The `[target.x86_64-pc-windows-msvc]` `/STACK:8388608` linker arg above only

@@ -6345,7 +6345,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "pollster",
- "prost",
+ "prost 0.14.3",
  "rand 0.10.1",
  "rand_chacha 0.10.0",
  "rayon",
@@ -8067,6 +8067,83 @@ dependencies = [
 ]
 
 [[package]]
+name = "opentelemetry"
+version = "0.29.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e87237e2775f74896f9ad219d26a2081751187eb7c9f5c58dde20a23b95d16c"
+dependencies = [
+ "futures-core",
+ "futures-sink",
+ "js-sys",
+ "pin-project-lite",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
+name = "opentelemetry-http"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46d7ab32b827b5b495bd90fa95a6cb65ccc293555dcc3199ae2937d2d237c8ed"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "http",
+ "opentelemetry",
+ "reqwest 0.12.28",
+ "tracing",
+]
+
+[[package]]
+name = "opentelemetry-otlp"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d899720fe06916ccba71c01d04ecd77312734e2de3467fd30d9d580c8ce85656"
+dependencies = [
+ "futures-core",
+ "http",
+ "opentelemetry",
+ "opentelemetry-http",
+ "opentelemetry-proto",
+ "opentelemetry_sdk",
+ "prost 0.13.5",
+ "reqwest 0.12.28",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "opentelemetry-proto"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c40da242381435e18570d5b9d50aca2a4f4f4d8e146231adb4e7768023309b3"
+dependencies = [
+ "opentelemetry",
+ "opentelemetry_sdk",
+ "prost 0.13.5",
+ "tonic",
+]
+
+[[package]]
+name = "opentelemetry_sdk"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "afdefb21d1d47394abc1ba6c57363ab141be19e27cc70d0e422b7f303e4d290b"
+dependencies = [
+ "futures-channel",
+ "futures-executor",
+ "futures-util",
+ "glob",
+ "opentelemetry",
+ "percent-encoding",
+ "rand 0.9.4",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+]
+
+[[package]]
 name = "option-ext"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8530,6 +8607,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "pin-project"
+version = "1.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2466b2336ed02bcdca6b294417127b90ec92038d1d5c4fbeac971a922e0e0924"
+dependencies = [
+ "pin-project-internal",
+]
+
+[[package]]
+name = "pin-project-internal"
+version = "1.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c96395f0a926bc13b1c17622aaddda1ecb55d49c8f1bf9777e4d877800a43f8b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8849,6 +8946,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "process-wrap"
+version = "9.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e842efad9119158434d193c6682e2ebee4b44d6ad801d7b349623b3f57cdf55"
+dependencies = [
+ "futures",
+ "indexmap 2.14.0",
+ "nix",
+ "tokio",
+ "tracing",
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "prodash"
 version = "31.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8874,12 +8985,35 @@ dependencies = [
 
 [[package]]
 name = "prost"
+version = "0.13.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2796faa41db3ec313a31f7624d9286acf277b52de526150b7e69f3debf891ee5"
+dependencies = [
+ "bytes",
+ "prost-derive 0.13.5",
+]
+
+[[package]]
+name = "prost"
 version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2ea70524a2f82d518bce41317d0fae74151505651af45faf1ffbd6fd33f0568"
 dependencies = [
  "bytes",
- "prost-derive",
+ "prost-derive 0.14.3",
+]
+
+[[package]]
+name = "prost-derive"
+version = "0.13.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
+dependencies = [
+ "anyhow",
+ "itertools 0.14.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -9736,12 +9870,16 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "futures",
+ "http",
  "pastey",
  "pin-project-lite",
+ "process-wrap",
+ "reqwest 0.13.4",
  "rmcp-macros",
  "schemars 1.2.1",
  "serde",
  "serde_json",
+ "sse-stream",
  "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
@@ -11117,6 +11255,19 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "whoami",
+]
+
+[[package]]
+name = "sse-stream"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3962b63f038885f15bce2c6e02c0e7925c072f1ac86bb60fd44c5c6b762fb72"
+dependencies = [
+ "bytes",
+ "futures-util",
+ "http-body",
+ "http-body-util",
+ "pin-project-lite",
 ]
 
 [[package]]
@@ -12699,6 +12850,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "756daf9b1013ebe47a8776667b466417e2d4c5679d441c26230efd9ef78692db"
 
 [[package]]
+name = "tonic"
+version = "0.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "877c5b330756d856ffcc4553ab34a5684481ade925ecc54bcd1bf02b1d0d4d52"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "bytes",
+ "http",
+ "http-body",
+ "http-body-util",
+ "percent-encoding",
+ "pin-project",
+ "prost 0.13.5",
+ "tokio-stream",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
 name = "tower"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12825,6 +12997,24 @@ dependencies = [
  "log",
  "once_cell",
  "tracing-core",
+]
+
+[[package]]
+name = "tracing-opentelemetry"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd8e764bd6f5813fd8bebc3117875190c5b0415be8f7f8059bffb6ecd979c444"
+dependencies = [
+ "js-sys",
+ "once_cell",
+ "opentelemetry",
+ "opentelemetry_sdk",
+ "smallvec",
+ "tracing",
+ "tracing-core",
+ "tracing-log",
+ "tracing-subscriber",
+ "web-time",
 ]
 
 [[package]]
@@ -13154,7 +13344,7 @@ dependencies = [
  "genawaiter",
  "http",
  "libc",
- "prost",
+ "prost 0.14.3",
  "roaring",
  "serde",
  "serde_json",
@@ -14010,6 +14200,7 @@ dependencies = [
  "vox-bounded-fs",
  "vox-build-meta",
  "vox-capability-registry",
+ "vox-cli-ci",
  "vox-cli-core",
  "vox-code-audit",
  "vox-codegen",
@@ -14039,6 +14230,7 @@ dependencies = [
  "vox-mesh-types",
  "vox-openclaw-runtime",
  "vox-orchestrator",
+ "vox-orchestrator-driver",
  "vox-orchestrator-mcp",
  "vox-package",
  "vox-plugin-api",
@@ -14051,6 +14243,7 @@ dependencies = [
  "vox-repository",
  "vox-research-events",
  "vox-research-shim",
+ "vox-rn-codegen",
  "vox-rule-pack",
  "vox-scaling-policy",
  "vox-scientia",
@@ -14075,6 +14268,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-cli-ci"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "glob",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "vox-cli-core",
+]
+
+[[package]]
 name = "vox-cli-core"
 version = "0.6.0"
 dependencies = [
@@ -14083,7 +14290,9 @@ dependencies = [
  "owo-colors",
  "serde",
  "serde_json",
+ "serde_yaml",
  "sysinfo",
+ "tempfile",
  "tokio",
  "tracing",
  "uuid",
@@ -14093,6 +14302,8 @@ dependencies = [
  "vox-foundation",
  "vox-gamify",
  "vox-jsonschema-util",
+ "vox-orchestrator",
+ "vox-orchestrator-driver",
  "vox-repository",
  "vox-secrets",
  "which 8.0.2",
@@ -14175,6 +14386,26 @@ dependencies = [
  "walkdir",
  "workspace-hack",
  "zstd",
+]
+
+[[package]]
+name = "vox-codegen-ts"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "insta",
+ "miette",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "vox-codegen",
+ "vox-compiler",
+ "vox-config",
+ "vox-deploy-codegen",
+ "vox-secrets",
+ "vox-sql",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -14376,27 +14607,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-distributed-training"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "hex",
- "serde",
- "serde_json",
- "sha3",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
- "vox-crypto",
- "vox-orchestrator-queue",
- "vox-package",
- "vox-secrets",
- "workspace-hack",
-]
-
-[[package]]
 name = "vox-doc-inventory"
 version = "0.6.0"
 dependencies = [
@@ -14417,6 +14627,7 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "rayon",
  "serde_json",
  "vox-bounded-fs",
  "vox-compiler",
@@ -14542,9 +14753,13 @@ dependencies = [
 name = "vox-foundation"
 version = "0.6.0"
 dependencies = [
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
  "serde",
  "serde_json",
  "tracing",
+ "tracing-opentelemetry",
  "tracing-subscriber",
  "workspace-hack",
 ]
@@ -14614,6 +14829,7 @@ dependencies = [
 name = "vox-gui"
 version = "0.6.0"
 dependencies = [
+ "base64 0.22.1",
  "cpal",
  "hound",
  "rmp-serde",
@@ -14692,29 +14908,6 @@ dependencies = [
  "serde_json",
  "vox-crypto",
  "zeroize",
-]
-
-[[package]]
-name = "vox-inference"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "candle-core",
- "candle-nn",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokenizers",
- "tokio",
- "tracing",
- "vox-hf-layout",
- "vox-mesh-types",
- "vox-package",
- "vox-quantize",
- "workspace-hack",
 ]
 
 [[package]]
@@ -14811,19 +15004,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-mesh-policy"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "vox-mesh-types",
-]
-
-[[package]]
 name = "vox-mesh-types"
 version = "0.6.0"
 dependencies = [
@@ -14853,6 +15033,7 @@ dependencies = [
  "owo-colors",
  "regex",
  "reqwest 0.12.28",
+ "safetensors 0.7.0",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -15040,6 +15221,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-orchestrator-driver"
+version = "0.6.0"
+dependencies = [
+ "tempfile",
+ "tracing",
+ "vox-orchestrator",
+ "vox-repository",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-orchestrator-mcp"
 version = "0.6.0"
 dependencies = [
@@ -15103,6 +15295,7 @@ dependencies = [
  "vox-openai",
  "vox-openclaw-runtime",
  "vox-orchestrator",
+ "vox-orchestrator-driver",
  "vox-orchestrator-types",
  "vox-package",
  "vox-plugin-catalog",
@@ -15244,14 +15437,6 @@ dependencies = [
  "thiserror 2.0.18",
  "toml 0.8.23",
  "workspace-hack",
-]
-
-[[package]]
-name = "vox-plugin-cloud"
-version = "0.6.0"
-dependencies = [
- "abi_stable",
- "vox-plugin-api",
 ]
 
 [[package]]
@@ -15596,6 +15781,7 @@ dependencies = [
  "vox-plugin-host",
  "vox-populi-types",
  "vox-publisher",
+ "vox-quantize",
  "vox-repository",
  "vox-secrets",
  "vox-tensor",
@@ -15745,6 +15931,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-rn-codegen"
+version = "0.6.0"
+dependencies = [
+ "insta",
+ "serde_json",
+ "vox-codegen",
+ "vox-compiler",
+]
+
+[[package]]
 name = "vox-rule-pack"
 version = "0.6.0"
 dependencies = [
@@ -15785,10 +15981,13 @@ dependencies = [
 name = "vox-scaling-policy"
 version = "0.6.0"
 dependencies = [
+ "anyhow",
  "serde",
  "serde_json",
  "serde_yaml",
+ "thiserror 2.0.18",
  "tracing",
+ "vox-mesh-types",
  "workspace-hack",
 ]
 

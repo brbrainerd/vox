@@ -23,6 +23,7 @@ use crate::web_prefixes::{MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN
 use std::collections::HashMap;
 
 mod async_flags;
+pub use async_flags::has_async_stmts;
 mod contracts;
 mod db_select_normalize;
 mod decl;
@@ -713,7 +714,7 @@ mod tests {
     use super::*;
     use crate::lexer::cursor::lex;
     use crate::parser::parse;
-    use crate::web_prefixes::{MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX};
+    use crate::web_prefixes::{MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX};
 
     fn lower_str(source: &str) -> HirModule {
         let tokens = lex(source);
@@ -721,40 +722,13 @@ mod tests {
         lower_module(&module)
     }
 
-    /// Fully lowered web constructs must not pile into `legacy_ast_nodes` (Path C / HIR bridge).
-    #[test]
-    #[ignore = "Path B removed — owner: compiler sunset: 2026-12-31"]
-    fn hir_lowering_leaves_no_legacy_nodes_for_core_web_decls() {
-        let src = r#"
-import react.use_state
-
-@table type Task { title: str done: bool }
-
-http post "/chat" to Result { return Ok(0) }
-
-@server fn doThing(x: int) to int { return x }
-
-@component TaskView() {
-  state done: bool = false
-  view: <span>{done}</span>
-}
-"#;
-        let hir = lower_str(src);
-        assert!(
-            hir.legacy_ast_nodes.is_empty(),
-            "expected no legacy AST decls, got {:?}",
-            hir.legacy_ast_nodes
-        );
-        assert_eq!(hir.tables.len(), 1);
-        assert_eq!(hir.endpoint_fns.len(), 1);
-        assert_eq!(
-            hir.endpoint_fns[0].route_path,
-            format!("{SERVER_FN_API_PREFIX}{}", "doThing")
-        );
-    }
+    // `hir_lowering_leaves_no_legacy_nodes_for_core_web_decls` was retired:
+    // its fixture relied on the tombstoned `http` and `@component` constructs,
+    // which the parser now rejects outright, so the lowering shape it pinned
+    // is unreachable. `golden_crud_api_vox_lowers_without_legacy_nodes` below
+    // covers the no-legacy-nodes contract on live syntax.
 
     #[test]
-    #[ignore = "Path B removed — owner: compiler sunset: 2026-12-31"]
     fn golden_crud_api_vox_lowers_without_legacy_nodes() {
         let src = include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -769,11 +743,10 @@ http post "/chat" to Result { return Ok(0) }
             hir.legacy_ast_nodes
         );
         assert_eq!(hir.tables.len(), 1);
-        assert_eq!(hir.endpoint_fns.len(), 3);
+        assert_eq!(hir.endpoint_fns.len(), 4);
     }
 
     #[test]
-    #[ignore = "HIR db filter record lowering parity — owner: compiler sunset: 2026-12-31"]
     fn hir_lowering_db_filter_becomes_filter_record_ir() {
         let src = r#"
 @table type User { name: str active: bool }
@@ -791,22 +764,18 @@ fn f() to int {
                 && let crate::hir::HirExpr::Ident(name, _) = callee.as_ref()
                 && name == "len"
                 && cargs.len() == 1
-            {
-                dbg!(&cargs[0].value);
-                if let crate::hir::HirExpr::MethodCall(_, method, _, Some(plan), _) =
+                && let crate::hir::HirExpr::MethodCall(_, method, _, Some(plan), _) =
                     &cargs[0].value
-                    && method == "filter"
-                    && plan.op == crate::hir::HirDbTableOp::FilterRecord
-                {
-                    found = true;
-                }
+                && method == "filter"
+                && plan.op == crate::hir::HirDbTableOp::FilterRecord
+            {
+                found = true;
             }
         }
         assert!(found, "expected FilterRecord in len(db.User.filter(...))");
     }
 
     #[test]
-    #[ignore = "HIR db filter+count chain lowering — owner: compiler sunset: 2026-12-31"]
     fn hir_lowering_db_filter_count_chain_becomes_count_with_filter_args() {
         let src = r#"
 @table type User { name: str active: bool }
@@ -884,7 +853,6 @@ fn f() to Unit {
     }
 
     #[test]
-    #[ignore = "HIR db all().select projection — owner: compiler sunset: 2026-12-31"]
     fn hir_lowering_db_all_select_sets_projection() {
         let src = r#"
 @table type User { name: str active: bool }
@@ -904,7 +872,7 @@ fn f() to int {
                 && cargs.len() == 1
                 && let crate::hir::HirExpr::MethodCall(_, method, _, Some(plan), _) =
                     &cargs[0].value
-                && method == "all"
+                && method == "select"
                 && plan.op == crate::hir::HirDbTableOp::All
                 && plan.projection.as_ref().is_some_and(|c: &Vec<String>| {
                     c.len() == 2 && c[0] == "name" && c[1] == "active"
@@ -913,11 +881,13 @@ fn f() to int {
                 found = true;
             }
         }
-        assert!(found, "expected All with select_cols on db chain");
+        assert!(
+            found,
+            "expected All+projection on db.User.all().select(...) chain"
+        );
     }
 
     #[test]
-    #[ignore = "HIR db where object predicate plan — owner: compiler sunset: 2026-12-31"]
     fn hir_lowering_db_where_object_builds_predicate_plan() {
         let src = r#"
 @table type User { name: str age: int active: bool }
@@ -1078,25 +1048,9 @@ fn f() to Unit {
         assert_eq!(hir.search_indexes.len(), 1);
     }
 
-    #[test]
-    #[ignore = "Path B removed — owner: compiler sunset: 2026-12-31"]
-    fn test_hir_lowering_environment() {
-        let tokens = crate::lexer::lex(
-            r#"
-environment staging {
-    base "node:22-alpine"
-    packages ["curl"]
-}
-"#,
-        );
-        let m = crate::parser::parse(tokens).unwrap();
-        let hir = lower_module(&m);
-        assert_eq!(1, hir.environments.len());
-        let env = &hir.environments[0];
-        assert_eq!(env.name, "staging");
-        assert_eq!(env.base_image.as_deref(), Some("node:22-alpine"));
-        assert_eq!(env.packages, vec!["curl".to_string()]);
-    }
+    // `test_hir_lowering_environment` was retired: the `environment` top-level
+    // construct was removed from the parser ("Unexpected token at top level"),
+    // so the environments lowering it pinned is unreachable from source.
 
     #[test]
     fn hir_lowering_url_decl_goes_to_url_decls_not_legacy() {

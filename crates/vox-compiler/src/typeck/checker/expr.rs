@@ -395,6 +395,34 @@ impl<'a> Checker<'a> {
                 let obj_ty = self.check_expr(object, None);
                 let obj_ty = self.uf.resolve(&obj_ty);
 
+                // Raw-clause queries bypass the typed predicate IR; lint hard.
+                if opt_plan.as_ref().is_some_and(|plan| {
+                    matches!(plan.op, crate::hir::HirDbTableOp::UnsafeQueryRawClause)
+                }) {
+                    self.diags.push(Diagnostic {
+                        severity: TypeckSeverity::Error,
+                        message: "`.query(clause)` builds dynamic SQL; prefer `.all()` or \
+                                  `.get(id)`. (This IR maps to `unsafe_query_raw_clause` in \
+                                  generated Rust.)"
+                            .into(),
+                        span: *span,
+                        expected_type: None,
+                        found_type: None,
+                        context: Some(Diagnostic::capture_context(self.source, *span)),
+                        suggestions: vec![
+                            "Use `db.Table.all()` for full scans.".into(),
+                            "Use `db.Table.get(id)` or `db.Table.find(id)` for primary-key reads."
+                                .into(),
+                        ],
+                        category: DiagnosticCategory::Lint,
+                        code: Some("lint.db_unsafe_query".into()),
+                        fixes: vec![],
+                        line_col: None,
+                        missing_cases: vec![],
+                        ast_node_kind: None,
+                    });
+                }
+
                 // Typed db query-plan chaining. `.where/.filter/.order_by/.limit/
                 // .select` (+ capability modifiers) carry an `opt_plan` from
                 // lowering; they are not methods on the receiver's type. They

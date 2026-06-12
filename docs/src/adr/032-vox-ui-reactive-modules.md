@@ -15,7 +15,7 @@ Accepted (2026-05-03). Phase D shipped end-to-end across four commits in the sam
 
 - `FileKind::from_path` helper at [crates/vox-compiler/src/module.rs](../../../crates/vox-compiler/src/module.rs) (commit `954ad8775`).
 - `parse_with_kind` parser entry, `Parser.file_kind` field, `Decl::ReactiveModule(ReactiveModuleDecl)` AST variant, and the parser dispatch that absorbs module-scope `state` / `derived` / `effect` / `on mount` / `on cleanup` into a synthetic `ReactiveModuleDecl` (commit `26c90f9be`).
-- `HirReactiveModule` HIR node + AST→HIR lowering in [hir/lower/mod.rs](../../../crates/vox-compiler/src/hir/lower/mod.rs) and emit at [codegen_ts/reactive_module_emit.rs](../../../crates/vox-codegen/src/codegen_ts/reactive_module_emit.rs) producing one `<Name>Provider.tsx` per module (typed `Value` interface + Context + Provider + `use<Name>()` hook), wired into `emitter::generate` (commit `a16417db0`).
+- `HirReactiveModule` HIR node + AST→HIR lowering in [hir/lower/mod.rs](../../../crates/vox-compiler/src/hir/lower/mod.rs) and emit at [codegen_ts/reactive_module_emit.rs](../../../crates/vox-codegen-ts/src/reactive_module_emit.rs) producing one `<Name>Provider.tsx` per module (typed `Value` interface + Context + Provider + `use<Name>()` hook), wired into `emitter::generate` (commit `a16417db0`).
 
 **Remaining sub-slices for a future cycle:**
 
@@ -24,7 +24,7 @@ Accepted (2026-05-03). Phase D shipped end-to-end across four commits in the sam
 
 ## Context
 
-Vox today supports reactive members (`state name: T = init`, `derived name = expr`, `effect: { … }`, `on mount: { … }`, `on cleanup: { … }`) inside `component { }` blocks only. The grammar accepts these tokens at top level inside a `ReactiveComponentDecl` member list ([crates/vox-compiler/src/parser/descent/decl/head.rs:253–334](../../../crates/vox-compiler/src/parser/descent/decl/head.rs)) and lowers them to React `useState` / `useMemo` / `useEffect` ([crates/vox-codegen/src/codegen_ts/reactive.rs:740–815](../../../crates/vox-codegen/src/codegen_ts/reactive.rs)). A working golden lives at [examples/golden/reactive_counter.vox](../../../examples/golden/reactive_counter.vox).
+Vox today supports reactive members (`state name: T = init`, `derived name = expr`, `effect: { … }`, `on mount: { … }`, `on cleanup: { … }`) inside `component { }` blocks only. The grammar accepts these tokens at top level inside a `ReactiveComponentDecl` member list ([crates/vox-compiler/src/parser/descent/decl/head.rs:253–334](../../../crates/vox-compiler/src/parser/descent/decl/head.rs)) and lowers them to React `useState` / `useMemo` / `useEffect` ([crates/vox-codegen-ts/src/reactive/mod.rs:740–815](../../../crates/vox-codegen-ts/src/reactive/mod.rs)). A working golden lives at [examples/golden/reactive_counter.vox](../../../examples/golden/reactive_counter.vox).
 
 There is **no module-scope analog**. Authors who need shared state across multiple components must either:
 
@@ -49,7 +49,7 @@ Introduce a **`.vox.ui` file-suffix convention** that authorizes module-scope re
 Each `.vox.ui` file emits one TSX module exporting:
 
 1. A typed React `Context` whose value is the module's reactive bindings.
-2. A `<NameProvider>` component that owns the underlying `useState` / `useMemo` / `useEffect` calls (mirroring the existing reactive-component lowering at [reactive.rs:740–815](../../../crates/vox-codegen/src/codegen_ts/reactive.rs)).
+2. A `<NameProvider>` component that owns the underlying `useState` / `useMemo` / `useEffect` calls (mirroring the existing reactive-component lowering at [reactive.rs:740–815](../../../crates/vox-codegen-ts/src/reactive/mod.rs)).
 3. A `useName()` hook that consumes the context (typed against the module's exported reactive bindings).
 
 Where `Name` is derived from the file basename (e.g., `counter.vox.ui` → `CounterProvider` + `useCounter()`).
@@ -70,7 +70,7 @@ component App() {
 }
 ```
 
-In TSX emit, the import desugars to a `useCounter()` call inside the consuming component. Read-tracking analysis ([state_deps.rs](../../../crates/vox-codegen/src/codegen_ts/hir_emit/state_deps.rs)) must learn that imports from `.vox.ui` modules produce reactive bindings (Phase E ties this in).
+In TSX emit, the import desugars to a `useCounter()` call inside the consuming component. Read-tracking analysis ([state_deps.rs](../../../crates/vox-codegen-ts/src/hir_emit/state_deps.rs)) must learn that imports from `.vox.ui` modules produce reactive bindings (Phase E ties this in).
 
 ### File-discovery wire-up
 
@@ -86,7 +86,7 @@ Implementation strategy: **introduce a single `vox_compiler::module::FileKind::f
 
 ### Read-tracking interaction
 
-Reactive bindings imported from a `.vox.ui` module must be visible to the auto-dep inference pass ([state_deps.rs](../../../crates/vox-codegen/src/codegen_ts/hir_emit/state_deps.rs)) when the consuming component declares `derived` or `effect` that reference them. The `extract_state_deps()` walker's `state_names` set must include the imported bindings; the loader needs to emit those imports as part of the reactive-binding namespace.
+Reactive bindings imported from a `.vox.ui` module must be visible to the auto-dep inference pass ([state_deps.rs](../../../crates/vox-codegen-ts/src/hir_emit/state_deps.rs)) when the consuming component declares `derived` or `effect` that reference them. The `extract_state_deps()` walker's `state_names` set must include the imported bindings; the loader needs to emit those imports as part of the reactive-binding namespace.
 
 This is a hard dependency between Phase D (this ADR) and Phase E (cross-call dep inference). Phase D landing first means Phase E can import-aware-track from day one; Phase E landing first means Phase D can wire imports into the existing analyzer.
 
@@ -131,7 +131,7 @@ Concrete file changes documented in the [Svelte-Mineable Features Implementation
 - New AST node `ReactiveModule` at [crates/vox-ast/src/decl/ui.rs](../../../crates/vox-ast/src/decl/ui.rs).
 - Parser change at [crates/vox-compiler/src/parser/descent/mod.rs](../../../crates/vox-compiler/src/parser/descent/mod.rs) gated on `FileKind::ReactiveModule`.
 - New `vox_compiler::module::FileKind::from_path(path)` helper.
-- Codegen extension at [crates/vox-codegen/src/codegen_ts/reactive.rs](../../../crates/vox-codegen/src/codegen_ts/reactive.rs) emitting the provider+hook pair.
+- Codegen extension at [crates/vox-codegen-ts/src/reactive/mod.rs](../../../crates/vox-codegen-ts/src/reactive/mod.rs) emitting the provider+hook pair.
 - Goldens at `examples/golden/counter.vox.ui` and `examples/golden/counter_consumer.vox`.
 
 ## Related

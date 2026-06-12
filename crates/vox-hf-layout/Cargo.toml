@@ -3,6 +3,7 @@ name = "vox-hf-layout"
 description = "Shared Hugging Face config.json parsing for transformer layout (MENS / Candle plugins)."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish = false
 
 [dependencies]

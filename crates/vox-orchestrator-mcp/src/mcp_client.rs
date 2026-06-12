@@ -214,6 +214,8 @@ pub fn format_cached_tool_schema(tool: &ToolDefinition) -> serde_json::Value {
     })
 }
 
+pub use crate::external_mcp::{ExternalMcpServer, connect_and_list_tools};
+
 // ---------------------------------------------------------------------------
 // Phase 3: Streaming Support (Tasks 9 - 11)
 // ---------------------------------------------------------------------------

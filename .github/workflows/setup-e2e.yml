@@ -3,9 +3,12 @@ name: Setup Pipeline E2E
 on:
   push:
     branches: [main]
-  pull_request:
+    paths:
+      - 'scripts/setup.vox'
+      - 'scripts/**/setup*.vox'
+      - '.github/workflows/setup-e2e.yml'
   schedule:
-    - cron: '0 2 * * *' # Run nightly
+    - cron: '0 2 * * *' # Run nightly (cross-platform clean-room; not per-PR)
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

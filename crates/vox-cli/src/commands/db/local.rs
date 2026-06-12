@@ -201,32 +201,6 @@ fn resolve_app_plane_url_with_env(
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::resolve_app_plane_url_with_env;
-
-    #[test]
-    fn resolve_app_plane_url_prefers_explicit_flag() {
-        let selected = resolve_app_plane_url_with_env(
-            Some("postgres://explicit.example/db"),
-            Some("postgres://env.example/db"),
-        );
-        assert_eq!(selected.as_deref(), Some("postgres://explicit.example/db"));
-    }
-
-    #[test]
-    fn resolve_app_plane_url_uses_app_env_when_flag_absent() {
-        let selected = resolve_app_plane_url_with_env(None, Some("postgres://env.example/db"));
-        assert_eq!(selected.as_deref(), Some("postgres://env.example/db"));
-    }
-
-    #[test]
-    fn resolve_app_plane_url_none_when_no_explicit_or_app_env() {
-        let selected = resolve_app_plane_url_with_env(None, None);
-        assert!(selected.is_none());
-    }
-}
-
 /// Export memory, patterns, and preferences for a user to JSON.
 pub async fn export(user_id: &str, output: Option<&PathBuf>) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
@@ -722,4 +696,30 @@ pub async fn build_regressions(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_app_plane_url_with_env;
+
+    #[test]
+    fn resolve_app_plane_url_prefers_explicit_flag() {
+        let selected = resolve_app_plane_url_with_env(
+            Some("postgres://explicit.example/db"),
+            Some("postgres://env.example/db"),
+        );
+        assert_eq!(selected.as_deref(), Some("postgres://explicit.example/db"));
+    }
+
+    #[test]
+    fn resolve_app_plane_url_uses_app_env_when_flag_absent() {
+        let selected = resolve_app_plane_url_with_env(None, Some("postgres://env.example/db"));
+        assert_eq!(selected.as_deref(), Some("postgres://env.example/db"));
+    }
+
+    #[test]
+    fn resolve_app_plane_url_none_when_no_explicit_or_app_env() {
+        let selected = resolve_app_plane_url_with_env(None, None);
+        assert!(selected.is_none());
+    }
 }

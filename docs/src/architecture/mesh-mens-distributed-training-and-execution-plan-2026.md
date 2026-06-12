@@ -674,19 +674,19 @@ P3-T2 (signing). Mn-T3 (ModelBundle) lands first or in the same series.
 
 **Files Create.**
 
-- `crates/vox-inference/Cargo.toml` (L2; deps:
+- `crates/vox-populi/src/inference/Cargo.toml` (L2; deps:
   `vox-mesh-types`, `vox-populi` for probe, `vox-package` for CAS,
   `vox-plugin-mens-candle-cuda` *behind a feature flag* — see Mn-T13).
-- `crates/vox-inference/src/lib.rs`.
-- `crates/vox-inference/src/backend.rs` — `InferenceBackend` trait,
+- `crates/vox-populi/src/inference/src/lib.rs`.
+- `crates/vox-populi/src/inference/src/backend.rs` — `InferenceBackend` trait,
   `BackendCapabilities`, `BackendId`, `Verdict`.
-- `crates/vox-inference/src/backends/candle_cuda.rs`.
-- `crates/vox-inference/src/backends/candle_metal.rs` (Mn-T13 fills in).
-- `crates/vox-inference/src/backends/candle_cpu.rs`.
-- `crates/vox-inference/src/backends/llama_cpp_rpc.rs`.
-- `crates/vox-inference/src/backends/ollama_subprocess.rs`.
-- `crates/vox-inference/src/dispatcher.rs` — selection logic.
-- `crates/vox-inference/tests/dispatcher_routing.rs`.
+- `crates/vox-populi/src/inference/src/backends/candle_cuda.rs`.
+- `crates/vox-populi/src/inference/src/backends/candle_metal.rs` (Mn-T13 fills in).
+- `crates/vox-populi/src/inference/src/backends/candle_cpu.rs`.
+- `crates/vox-populi/src/inference/src/backends/llama_cpp_rpc.rs`.
+- `crates/vox-populi/src/inference/src/backends/ollama_subprocess.rs`.
+- `crates/vox-populi/src/inference/src/dispatcher.rs` — selection logic.
+- `crates/vox-populi/src/inference/tests/dispatcher_routing.rs`.
 
 **Sketch.**
 
@@ -1180,8 +1180,8 @@ each failure produces a stable `vox/eval/<diagnostic>` ID.
 
 **Files Modify.**
 
-- `crates/vox-inference/src/backends/candle_metal.rs` — full impl.
-- `crates/vox-inference/Cargo.toml` — `metal` feature.
+- `crates/vox-populi/src/inference/src/backends/candle_metal.rs` — full impl.
+- `crates/vox-populi/src/inference/Cargo.toml` — `metal` feature.
 
 **Files Create (opt-in).**
 
@@ -1624,7 +1624,7 @@ Modify: `crates/vox-populi/src/mens/tensor/mod.rs`,
 
 ### Mn-T2 files
 
-Create: `crates/vox-inference/Cargo.toml`, `src/lib.rs`,
+Create: `crates/vox-populi/src/inference/Cargo.toml`, `src/lib.rs`,
 `src/backend.rs`, `src/dispatcher.rs`,
 `src/backends/{candle_cuda,candle_metal,candle_cpu,llama_cpp_rpc,ollama_subprocess}.rs`,
 `tests/dispatcher_routing.rs`.
@@ -1710,8 +1710,8 @@ Create: `crates/vox-mens-eval/Cargo.toml`, `src/lib.rs`,
 
 ### Mn-T13 files
 
-Modify: `crates/vox-inference/src/backends/candle_metal.rs`,
-`crates/vox-inference/Cargo.toml`.
+Modify: `crates/vox-populi/src/inference/src/backends/candle_metal.rs`,
+`crates/vox-populi/src/inference/Cargo.toml`.
 
 Create (opt-in): `crates/vox-plugin-mens-mlx/Cargo.toml`,
 `src/inference.rs`.
