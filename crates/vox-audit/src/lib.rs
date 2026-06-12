@@ -22,6 +22,7 @@
 //!   per-subcommand `gate` / `corpus` / `block_ga` / `cost_metered` fields.
 
 pub mod aggregator;
+pub mod core_gates;
 pub mod ga;
 pub mod recorder;
 pub mod report;
@@ -62,6 +63,10 @@ pub enum CrlGate {
     /// CR-F1 (Foundation): behavioral goldens — `// EXPECT:` stdout matches
     /// `vox run --mode interp`. First registered Foundation-tier gate.
     F1BehavioralGoldens,
+    /// CR-F6 (Foundation): regression budget — zero `todo!`/`unimplemented!`/
+    /// `// vox:skip`/`de-stub-pending` in `vox-compiler`, `vox-codegen`, and
+    /// the golden corpus. Locks the current clean state against regressions.
+    F6RegressionBudget,
     L0SpecToApp,
     L1HumanEval,
     L2MensOnDistribution,
@@ -84,6 +89,7 @@ impl CrlGate {
     pub fn thing_name(self) -> &'static str {
         match self {
             CrlGate::F1BehavioralGoldens => "behavioral-goldens",
+            CrlGate::F6RegressionBudget => "regression-budget",
             CrlGate::L0SpecToApp => "spec-to-app",
             CrlGate::L1HumanEval => "humaneval",
             CrlGate::L2MensOnDistribution => "mens-on-distribution",
@@ -105,6 +111,7 @@ impl CrlGate {
         matches!(
             self,
             CrlGate::F1BehavioralGoldens
+                | CrlGate::F6RegressionBudget
                 | CrlGate::L0SpecToApp
                 | CrlGate::L5AciDefault
                 | CrlGate::L6Retirement
@@ -130,7 +137,7 @@ impl CrlGate {
     /// Distribution / GUI variants enter as their gates land (Phase 0+).
     pub fn tier(self) -> Tier {
         match self {
-            CrlGate::F1BehavioralGoldens => Tier::Foundation,
+            CrlGate::F1BehavioralGoldens | CrlGate::F6RegressionBudget => Tier::Foundation,
             CrlGate::L0SpecToApp
             | CrlGate::L1HumanEval
             | CrlGate::L2MensOnDistribution
@@ -148,6 +155,7 @@ impl CrlGate {
     pub fn all() -> impl Iterator<Item = CrlGate> {
         [
             CrlGate::F1BehavioralGoldens,
+            CrlGate::F6RegressionBudget,
             CrlGate::L0SpecToApp,
             CrlGate::L1HumanEval,
             CrlGate::L2MensOnDistribution,
@@ -244,7 +252,7 @@ pub trait Subcommand: Send + Sync {
     fn run(&self, args: &CommonArgs) -> RunOutcome;
 }
 
-/// Build the canonical registry of subcommands (9 CR-L gates + 1 tooling gate).
+/// Build the canonical registry of subcommands (2 CR-F foundation gates + 9 CR-L gates + 1 tooling gate).
 ///
 /// Order matches `CrlGate::all()` and `contracts/ci/vox-audit-contract.v1.yaml`
 /// §subcommands. Tooling gates appear after the CR-L block.
@@ -252,6 +260,8 @@ pub fn registry() -> Vec<Box<dyn Subcommand>> {
     vec![
         // CR-F1 (Foundation) — first real foundation-tier gate.
         Box::new(subcommands::behavioral_goldens::BehavioralGoldensSubcommand),
+        // CR-F6 (Foundation) — regression budget: zero markers in foundation crates.
+        Box::new(subcommands::regression_budget::RegressionBudgetSubcommand),
         Box::new(subcommands::stubs::SpecToAppStub),
         // P2.3: CR-L1 stub replaced by real vox-check-based impl.
         Box::new(subcommands::humaneval::HumanEvalSubcommand),
@@ -477,8 +487,8 @@ mod tests {
         assert_eq!(registry().len(), CrlGate::all().count());
         assert_eq!(
             registry().len(),
-            11,
-            "1 CR-F foundation gate + 9 CR-L gates + 1 tooling gate (stdlib-coverage) expected"
+            12,
+            "2 CR-F foundation gates + 9 CR-L gates + 1 tooling gate (stdlib-coverage) expected"
         );
     }
 
@@ -505,6 +515,7 @@ mod tests {
             CrlGate::all().filter(|g| g.block_ga()).collect();
         let expected: std::collections::HashSet<CrlGate> = [
             CrlGate::F1BehavioralGoldens,
+            CrlGate::F6RegressionBudget,
             CrlGate::L0SpecToApp,
             CrlGate::L5AciDefault,
             CrlGate::L6Retirement,

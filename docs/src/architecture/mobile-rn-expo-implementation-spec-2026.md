@@ -156,7 +156,7 @@ Real LoC as of 2026-05-28:
 
 | Module / crate | LoC | Status |
 |---|---:|---|
-| `crates/vox-codegen/src/codegen_ts/` (entire dir) | 9,218 | Library production; CLI broken |
+| `crates/vox-codegen-ts/src/` (entire dir) | 9,218 | Library production; CLI broken |
 | ↳ `emitter.rs` (orchestrator) | 527 | Real |
 | ↳ `reactive.rs` (Path C view emit) | 1,214 | Real, migration mode |
 | ↳ `hir_emit/mod.rs` (shared HIR → TS) | 1,488 | Real |
@@ -182,14 +182,14 @@ Real LoC as of 2026-05-28:
 | `crates/vox-tauri-codegen/` | 401 | Production |
 | `crates/vox-gui/` (Rust + TS) | ~90 | Working desktop |
 | `crates/vox-tauri-stt/` (Rust glue + Kotlin + Swift) | 6,138 | Native code unwired; Rust returns "not connected" |
-| `crates/vox-inference/` | (unmeasured here; assumed ~3-5K) | Production for desktop |
+| `crates/vox-populi/src/inference/` | (unmeasured here; assumed ~3-5K) | Production for desktop |
 | `crates/vox-config/` BuildTarget enum | 3 variants (Fullstack / Server / Client) at `config/gamify_web.rs:61` | Real |
 
 Mobile-relevant absences (zero LoC today):
 - `crates/vox-runtime/` umbrella crate
 - `crates/vox-runtime-mobile/` profile
 - `crates/vox-runtime-rn/` uniffi bindings
-- `crates/vox-rn-codegen/` (or `crates/vox-codegen/src/codegen_ts/rn/`)
+- `crates/vox-rn-codegen/` (or `crates/vox-rn-codegen/src/`)
 - `crates/vox-cli-tests/` (the §1 harness)
 - `clients/runtime/` npm packages (`@vox/runtime`, `@vox/runtime-rn`)
 - Any `aarch64-*-android` / `aarch64-apple-ios` references in any Cargo.toml
@@ -442,7 +442,7 @@ The Mobile branch:
 
 ### §6.1 Module layout
 
-New submodule at `crates/vox-codegen/src/codegen_ts/rn/`:
+New submodule at `crates/vox-rn-codegen/src/`:
 
 ```
 codegen_ts/rn/
@@ -963,7 +963,7 @@ The following are NOT modified by this spec:
 ### §12.2 What narrows
 
 - `crates/vox-tauri-codegen/` loses any mobile-specific config emit (e.g. mobile capability filtering for AndroidManifest entries — that work moves to the Expo config plugin in §9).
-- `crates/vox-codegen/src/codegen_ts/mobile_emit.rs` becomes target-agnostic (~80 LoC), no longer emits `@tauri-apps/api` directly.
+- `crates/vox-codegen-ts/src/mobile_emit.rs` becomes target-agnostic (~80 LoC), no longer emits `@tauri-apps/api` directly.
 
 ### §12.3 What retires
 
@@ -1146,7 +1146,7 @@ This is a significant net deletion. The deleted code's responsibilities are abso
 **Deliverables:**
 
 - `crates/vox-tauri-stt/` deleted (§12.3).
-- `crates/vox-codegen/src/codegen_ts/mobile_emit.rs` finalized: no `@tauri-apps/api` references in either lowering.
+- `crates/vox-codegen-ts/src/mobile_emit.rs` finalized: no `@tauri-apps/api` references in either lowering.
 - Tauri-mobile-specific projections in `vox-tauri-codegen` removed.
 - Docs: `docs/how-to/build-android.md`, `docs/how-to/build-ios.md` (new).
 - Tutorial: `docs/tutorials/build-a-mobile-app.md`.

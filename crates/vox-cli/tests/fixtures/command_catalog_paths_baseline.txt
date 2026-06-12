@@ -127,6 +127,7 @@ ci/operator-env-guard
 ci/parse-status
 ci/plugin-abi-parity
 ci/plugin-catalog-parity
+ci/plugin-catalog-sync
 ci/plugin-dep-boundary
 ci/plugin-skill-parity
 ci/plugin-surface-sync
@@ -409,6 +410,7 @@ scientia/claims
 scientia/cost
 scientia/dashboard
 scientia/diagnose
+scientia/evidence-assist
 scientia/feed-source-add
 scientia/feed-source-list
 scientia/finding-candidate-validate

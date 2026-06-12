@@ -6,7 +6,7 @@ license = "Apache-2.0"
 authors = ["Bert Brainerd"]
 repository = "https://github.com/vox-foundation/vox.git"
 rust-version = "1.92"
-description = "Speech-to-text bridge types + guest JS + Android/iOS sources for Tauri 2 apps (register the plugin in your app's src-tauri)."
+description = "Speech-to-text bridge types + guest JS for desktop Tauri 2 apps (register the plugin in your app's src-tauri). Tauri is desktop-only; mobile uses the React Native target."
 publish = false
 
 [lib]

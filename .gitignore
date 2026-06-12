@@ -1,5 +1,9 @@
 # Rust
 target/
+.sccache/
+**/fuzz/target/
+**/fuzz/artifacts/
+**/fuzz/corpus/
 target_*/
 # Side `CARGO_TARGET_DIR=*` trees (mostly repo root); global `target-*/` also covers nested mistakes.
 target-*/
@@ -237,10 +241,5 @@ gui-*.log
 # Superpowers brainstorm visual-companion scratch (local-only)
 .superpowers/
 
-# Generated graph artifacts (semantic test-coverage overlay) — large, regenerable
-graphify-out/graph.coverage.json
-graphify-out/graph.full.json
-graphify-out/graph.json
-graphify-out/*.log
-graphify-out/graph.semantic.json
-graphify-out/_our_journals.txt
+# graphify knowledge-graph artifacts (local tooling) — large, regenerable
+graphify-out/

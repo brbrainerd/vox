@@ -2,6 +2,7 @@
 name = "vox-plugin-populi-mesh"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish = false
 description = "Populi mesh transport plugin (composite: code + skill)."
 

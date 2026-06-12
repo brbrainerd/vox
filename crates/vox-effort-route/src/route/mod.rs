@@ -286,6 +286,8 @@ impl LlmRouter {
             top_p: None,
             max_tokens: Some(self.max_output_tokens),
             response_format: Some(response_format),
+            tools: None,
+            tool_choice: None,
             timeout_ms: Some(self.timeout.as_millis() as u64),
             telemetry_session_id: None,
             telemetry_user_id: None,

@@ -1,10 +1,9 @@
 ---
 source: crates/vox-compiler/tests/web_ir_lower_emit_test.rs
-assertion_line: 52
 expression: tsx
 ---
 <div className={["flex", "flex-col", "p-4"].filter(Boolean).join(" ")}>
   <h1 className={["text-3xl", "font-semibold"].filter(Boolean).join(" ")}>
-    {"Count: {count}"}
+    {"Count: " + count}
   </h1>
 </div>

@@ -104,9 +104,9 @@ impl ScriptOpts {
             let policy: IsolationPolicy = iso.parse().unwrap_or(IsolationPolicy::Permissive);
             match policy {
                 IsolationPolicy::Container => anyhow::bail!(
-                    "--isolation container is not yet implemented.\n\
-                     Use --isolation wasm for portable sandboxing, or --isolation permissive\n\
-                     for trusted code. See docs/src/reference/isolation.md"
+                    "--isolation container is not available for `vox run` script mode.\n\
+                     Use --isolation wasm for portable sandboxing, `vox deploy` for OCI containers,\n\
+                     or --isolation permissive for trusted code. See docs/src/reference/isolation.md"
                 ),
                 IsolationPolicy::Gvisor => anyhow::bail!(
                     "--isolation gvisor requires runsc on PATH and is not yet wired into vox run.\n\

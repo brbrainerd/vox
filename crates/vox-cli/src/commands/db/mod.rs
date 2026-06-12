@@ -1,12 +1,16 @@
 //! `vox db` subcommand — inspect and manage the local VoxDB database.
 
+mod introspect;
 mod local;
 mod publication;
 mod query_plans;
+mod verify;
 
+pub use introspect::*;
 pub use local::*;
 pub use publication::*;
 pub use query_plans::explain;
+pub use verify::*;
 
 pub use super::db_research::*;
 
@@ -145,6 +149,7 @@ mod tests {
             plan: HirDbQueryPlan {
                 table: "User".into(),
                 op: HirDbTableOp::All,
+                primary_key: None,
                 predicate: None,
                 projection: None,
                 order_by: None,

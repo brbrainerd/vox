@@ -59,10 +59,10 @@ impl PersistentDaemon {
                     .stderr(Stdio::null())
                     .spawn()
                     .map_err(|e| format!("failed to spawn vox-orchestrator-d: {e}"))?;
-                if let Ok(mut slot) = self.child.lock() {
-                    if let Some(mut old) = slot.replace(child) {
-                        let _ = old.kill();
-                    }
+                if let Ok(mut slot) = self.child.lock()
+                    && let Some(mut old) = slot.replace(child)
+                {
+                    let _ = old.kill();
                 }
 
                 // Poll until the daemon answers a ping or the deadline elapses.
@@ -74,10 +74,10 @@ impl PersistentDaemon {
                     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                 }
 
-                if let Ok(mut slot) = self.child.lock() {
-                    if let Some(mut spawned) = slot.take() {
-                        let _ = spawned.kill();
-                    }
+                if let Ok(mut slot) = self.child.lock()
+                    && let Some(mut spawned) = slot.take()
+                {
+                    let _ = spawned.kill();
                 }
 
                 Err(format!(

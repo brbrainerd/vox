@@ -23,6 +23,7 @@
           "nav_label": { "type": ["string", "null"] },
           "nav_icon": { "type": ["string", "null"] },
           "nav_group": { "type": ["string", "null"] },
+          "parent_surface": { "type": ["string", "null"] },
           "notes": { "type": ["string", "null"] }
         }
       }

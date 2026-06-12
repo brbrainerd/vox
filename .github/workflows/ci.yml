@@ -19,6 +19,9 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # Self-hosted runner image sets RUSTC_WRAPPER; repeat here for non-container jobs.
+  RUSTC_WRAPPER: sccache
+  SCCACHE_DIR: /cache/sccache
 
 jobs:
   # Setup: cache warmup + path-filter computation.  Path-filter outputs let
@@ -32,7 +35,9 @@ jobs:
   setup:
     name: Cache warmup + path filter
     runs-on: [self-hosted, linux, x64]
-    timeout-minutes: 20
+    # Cold `cargo build -p vox-cli` on ephemeral runners (no actions/cache hit)
+    # routinely exceeds 20m; fail-closed at 40m so downstream gates are not skipped.
+    timeout-minutes: 40
     outputs:
       cache-key: ${{ steps.k.outputs.key }}
       rust_changed: ${{ steps.filter.outputs.rust }}
@@ -77,15 +82,18 @@ jobs:
           components: rustfmt, clippy, llvm-tools-preview
       - uses: actions/cache@v5
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
+          path: ~/.cargo/git
           key: ${{ steps.k.outputs.key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-      - name: Build vox-cli (warms target/ + makes guards available)
-        run: cargo build -p vox-cli
+      - name: Build vox-cli (warms sccache + downstream artifact)
+        run: cargo build -p vox-cli --locked --features completion-toestub
+      - name: Upload vox-cli binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: vox-cli-bin
+          path: target/debug/vox
+          if-no-files-found: error
 
   guards-fast:
     name: Guards (fast)
@@ -94,26 +102,34 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: vox-cli-bin
+          path: target/debug
+      - name: Ensure vox-cli executable
+        run: chmod +x target/debug/vox
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - uses: actions/cache@v5
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
+          path: ~/.cargo/git
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-      - name: Build vox-cli
-        run: cargo build -p vox-cli
+
+      - name: Crate version inheritance (no hardcoded versions)
+        run: |
+          if grep -rnE '^version\s*=\s*"[^"]+"' crates/*/Cargo.toml; then
+            echo "::error::Found hardcoded versions in crate Cargo.toml files. Use 'version.workspace = true'."
+            exit 1
+          fi
 
       - name: Line endings (forward-only)
-        run: cargo run -p vox-cli --quiet -- ci line-endings
+        run: ./target/debug/vox --quiet -- ci line-endings
 
       - name: Workspace manifest resolves (fix-forward guard)
-        run: cargo run -p vox-cli --quiet -- ci manifest
+        run: ./target/debug/vox --quiet -- ci manifest
 
       - name: Format Check
         # Per-manifest, NOT `cargo fmt --all`: the latter passes every crate's
@@ -137,6 +153,9 @@ jobs:
         with:
           tool: cargo-deny,cargo-audit
 
+      - name: Warm cargo-deny advisory DB (shared volume)
+        run: mkdir -p /cache/advisory-db && cargo deny fetch
+
       - name: Dependency licenses + advisories (cargo-deny)
         run: cargo deny check
 
@@ -157,29 +176,29 @@ jobs:
         run: cargo outdated --workspace
 
       - name: Retired symbol documentation guard
-        run: cargo run -p vox-cli --quiet -- ci retired-symbol-check
+        run: ./target/debug/vox --quiet -- ci retired-symbol-check
 
-      # check-docs-ssot, check-codex-ssot, command-compliance, and data-ssot-guards run inside ssot-drift (see run_ssot_drift).
+      # contracts-index, exec-policy, scientia contracts, plugin-catalog run inside ssot-drift.
       - name: SSOT drift bundle (operations-verify, sql-surface + query-all --all, capability-sync, nested guards)
-        run: cargo run -p vox-cli --quiet -- ci ssot-drift
+        run: ./target/debug/vox --quiet -- ci ssot-drift
 
       - name: Determinism Audit
-        run: cargo run -p vox-cli --quiet -- ci determinism-audit
+        run: ./target/debug/vox --quiet -- ci determinism-audit
 
       - name: Dependency Sprawl Check
-        run: cargo run -p vox-cli --quiet -- ci dep-sprawl --cap 25
+        run: ./target/debug/vox --quiet -- ci dep-sprawl --cap 25
 
       - name: Plugin Dependency Boundary (cdylib plugins must not link the spine)
-        run: cargo run -p vox-cli --quiet -- ci plugin-dep-boundary
+        run: ./target/debug/vox --quiet -- ci plugin-dep-boundary
 
       - name: No cdylib plugin as a compile-time dependency (D-2)
-        run: cargo run -p vox-cli --quiet -- ci no-plugin-cdylib-as-compile-dep
+        run: ./target/debug/vox --quiet -- ci no-plugin-cdylib-as-compile-dep
 
       # Builds every current-platform plugin cdylib (default/CPU features), then loads each
       # through the host loader to assert its embedded ABI version matches the host. Catches a
       # plugin drifting from VOX_PLUGIN_ABI_VERSION (e.g. an SDK/ABI bump that wasn't rebuilt).
       - name: Plugin ABI parity (build + load every plugin)
-        run: cargo run -p vox-cli --quiet -- ci plugin-abi-parity --build
+        run: ./target/debug/vox --quiet -- ci plugin-abi-parity --build
 
       - name: Dynamic Workspace Health Audit
         run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-workspace-health.vox
@@ -191,7 +210,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo run -p vox-cli --quiet -- ci secrets-parity
+          ./target/debug/vox --quiet -- ci secrets-parity
           # Meaningful diff scope on clean checkouts (default `git diff HEAD` scans nothing in CI).
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             git fetch origin "${{ github.base_ref }}" --depth=256
@@ -204,22 +223,18 @@ jobs:
               export VOX_SECRET_GUARD_GIT_REF="${{ github.event.before }}...${{ github.sha }}"
             fi
           fi
-          cargo run -p vox-cli --quiet -- ci secret-env-guard
+          ./target/debug/vox --quiet -- ci secret-env-guard
           export VOX_SECRETS_REQUIRE_COMPAT_SUNSET=1
           export VOX_SECRETS_CUTOVER_PHASE=enforce
-          cargo run -p vox-cli --quiet -- ci secrets-cutover-gates
+          ./target/debug/vox --quiet -- ci secrets-cutover-gates
 
-      - name: Contracts index + scaling policy SSOT
+      - name: OpenClaw + scaling policy SSOT (not in ssot-drift bundle)
         run: |
-          cargo run -p vox-cli --quiet -- ci contracts-index
-          cargo run -p vox-cli --quiet -- ci exec-policy-contract
-          cargo run -p vox-cli --quiet -- ci openclaw-contract
-          cargo run -p vox-cli --quiet -- ci scientia-worthiness-contract
-          cargo run -p vox-cli --quiet -- ci scientia-novelty-ledger-contracts
-          cargo run -p vox-cli --quiet -- ci scaling-audit verify
+          ./target/debug/vox --quiet -- ci openclaw-contract
+          ./target/debug/vox --quiet -- ci scaling-audit verify
 
       - name: Vox script check (clean-build-artifacts reference automation)
-        run: cargo run -p vox-cli --quiet -- check scripts/clean-build-artifacts.vox
+        run: ./target/debug/vox --quiet -- check scripts/clean-build-artifacts.vox
 
       - name: Vox script corpus check (all scripts/**/*.vox pass vox check)
         shell: bash
@@ -240,10 +255,10 @@ jobs:
           echo "OK: all scripts/**/*.vox pass vox check."
 
       - name: Workflow scripts allowlist
-        run: cargo run -p vox-cli --quiet -- ci workflow-scripts
+        run: ./target/debug/vox --quiet -- ci workflow-scripts
 
       - name: Doc inventory matches generator (Rust)
-        run: cargo run -p vox-cli --quiet -- ci doc-inventory verify
+        run: ./target/debug/vox --quiet -- ci doc-inventory verify
 
       - name: Docs — no stale `tanstack_start.rs` compiler path
         shell: bash
@@ -302,20 +317,21 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: vox-cli-bin
+          path: target/debug
+      - name: Ensure vox-cli executable
+        run: chmod +x target/debug/vox
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy, llvm-tools-preview
       - uses: actions/cache@v5
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
+          path: ~/.cargo/git
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-      - name: Build vox-cli
-        run: cargo build -p vox-cli
 
       - name: Rustdoc (deny warnings)
         run: RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps
@@ -354,7 +370,7 @@ jobs:
       # rules) and pre-push toestub-scoped, giving one coherent severity model:
       # every detector runs at its authored severity; callers choose min-severity.
       - name: TOESTUB (scoped)
-        run: cargo run -p vox-cli --quiet -- ci toestub-scoped --mode enforce-warn
+        run: ./target/debug/vox --quiet -- ci toestub-scoped --mode enforce-warn
 
       - name: Architecture / Code Drift Guard (TOESTUB)
         if: github.event_name == 'pull_request'
@@ -363,7 +379,7 @@ jobs:
           git fetch origin ${{ github.base_ref }} --depth=1 || true
           if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^docs/src/architecture/"; then
             echo "Architecture docs changed. Running full crates TOESTUB..."
-            cargo run -p vox-cli --quiet -- ci toestub-scoped crates --mode enforce-warn
+            ./target/debug/vox --quiet -- ci toestub-scoped crates --mode enforce-warn
           else
             echo "No architecture docs changed. Skipping full strict TOESTUB."
           fi
@@ -397,16 +413,11 @@ jobs:
       - name: Workspace drift check (vox-drift-check)
         run: cargo run -p vox-drift-check --quiet -- . --severity warning --fail-on warning
 
-      - name: Install cargo-hakari
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-hakari
-
       - name: Verify Hakari (Workspace Dependency Determinism)
         run: cargo hakari generate --diff
 
       - name: Grammar export check (EBNF/GBNF/Lark/JSON-Schema non-empty)
-        run: cargo run -p vox-cli --quiet -- ci grammar-export-check
+        run: ./target/debug/vox --quiet -- ci grammar-export-check
 
   compiler-gates:
     name: Compiler gates (WebIR + projection + golden examples + benches)
@@ -415,39 +426,35 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: vox-cli-bin
+          path: target/debug
+      - name: Ensure vox-cli executable
+        run: chmod +x target/debug/vox
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - uses: actions/cache@v5
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
+          path: ~/.cargo/git
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-      - name: Build vox-cli
-        run: cargo build -p vox-cli
 
       - name: Test inventory snapshot drift gate
         # Keep contracts/reports/test-inventory.v1.json in lockstep with the
         # scanner output. This is a blocking check and should run after vox-cli
         # builds so docs-only changes still validate deterministically.
-        run: cargo run -p vox-cli -- ci test-inventory --check contracts/reports/test-inventory.v1.json
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
+        run: ./target/debug/vox -- ci test-inventory --check contracts/reports/test-inventory.v1.json
 
       - name: SPA scaffold manifest idempotency
         run: cargo nextest run -p vox-cli --test scaffold_spa_manifest_idempotent
 
       - name: Eval benchmark matrix contract + vox-cli GPU compile smoke
         run: |
-          cargo run -p vox-cli --quiet -- ci eval-matrix verify
-          cargo run -p vox-cli --quiet -- ci eval-matrix run --milestone m3-dei-contracts
+          ./target/debug/vox --quiet -- ci eval-matrix verify
+          ./target/debug/vox --quiet -- ci eval-matrix run --milestone m3-dei-contracts
           # GPU compile smoke = the actual GPU crate (the candle-cuda plugin), not
           # `vox-cli --features gpu` (no such feature). `check` without the `cuda`
           # feature compiles the plugin against CPU candle, so no CUDA toolchain needed.
@@ -490,7 +497,7 @@ jobs:
         run: |
           set -euo pipefail
           find examples/golden -name "*.vox" -type f -print0 | while IFS= read -r -d '' f; do
-            cargo run -p vox-cli --quiet -- fmt "$f"
+            ./target/debug/vox --quiet -- fmt "$f"
           done
           if ! git diff --exit-code examples/golden/; then
             echo "vox fmt is not idempotent or examples have unformatted changes."
@@ -504,31 +511,27 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: vox-cli-bin
+          path: target/debug
+      - name: Ensure vox-cli executable
+        run: chmod +x target/debug/vox
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy, llvm-tools-preview
       - uses: actions/cache@v5
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
+          path: ~/.cargo/git
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-      - name: Build vox-cli
-        run: cargo build -p vox-cli
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
 
       - name: Repository SSOT + MCP smoke
         run: |
           cargo nextest run -p vox-repository --lib
           cargo nextest run -p vox-orchestrator --lib -E 'test(detect_layout_node_workspaces)'
-          cargo nextest run -p vox-mcp --lib
+          cargo nextest run -p vox-orchestrator-mcp --lib
           cargo check -p vox-git
 
       - name: Mesh transport + workflow-runtime + CLI feature matrix slice
@@ -544,12 +547,7 @@ jobs:
         # Invocation delegated to scripts/arch-check.vox (SSOT).
         # Layer rule strict; the others warn-only by default. Source of truth:
         # docs/src/architecture/layers.toml.
-        run: cargo run -p vox-cli --quiet -- run scripts/arch-check.vox
-
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-llvm-cov
+        run: ./target/debug/vox --quiet -- run scripts/arch-check.vox
 
       # Conditional coverage: llvm-cov instrumentation adds significant wall-clock
       # time and is meaningless on docs-only PRs.  Run plain nextest when no Rust
@@ -575,7 +573,7 @@ jobs:
           printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
           cargo nextest run --workspace --profile ci --tool-config-file "vox-ci:${junit_cfg}"
 
-      # Slow test partition — runs the four #[ignore = "slow; …"] tests explicitly.
+      # Slow test partition — runs the three #[ignore = "slow; …"] tests explicitly.
       # These are excluded from the workspace nextest step above to keep CI wall-clock
       # under 30 min.  Uses an exact filter so none of the other 250+ intentionally-
       # ignored tests are swept in.  max-threads=1 is enforced by [test-groups.slow] in
@@ -584,7 +582,7 @@ jobs:
         if: needs.setup.outputs.rust_changed == 'true'
         run: |
           cargo nextest run \
-            -E 'test(arch_check_smoke_test) or test(description_rule_produces_output_on_clean_workspace) or test(timeout_kills_long_running_child) or test(generated_ai_fixture_bundle_passes_cargo_check)' \
+            -E 'test(arch_check_live_workspace_smoke_and_description_rule) or test(timeout_kills_long_running_child) or test(generated_ai_fixture_bundle_passes_cargo_check)' \
             --run-ignored ignored-only \
             --profile ci
 
@@ -598,7 +596,7 @@ jobs:
         run: |
           junit="target/nextest/ci/junit.xml"
           if [ -f "${junit}" ]; then
-            cargo run -p vox-cli -- ci tier-budget-check \
+            ./target/debug/vox -- ci tier-budget-check \
               --junit "${junit}" \
               --profile full
           else
@@ -621,20 +619,20 @@ jobs:
 
           mkdir -p "$(dirname "${report_path}")"
 
-          cargo run -p vox-cli -- ci test-runtime-report --junit "${junit_path}" --json --top 20 > "${report_path}"
+          ./target/debug/vox -- ci test-runtime-report --junit "${junit_path}" --json --top 20 > "${report_path}"
           report_status=$?
           if [ ${report_status} -ne 0 ]; then
             echo "::warning title=Runtime report generation failed::test-runtime-report exited with status ${report_status}; skipping downstream warn-mode checks."
             exit 0
           fi
 
-          cargo run -p vox-cli -- ci flake-budget --report-json "${report_path}" --max-candidates 20 --mode warn
+          ./target/debug/vox -- ci flake-budget --report-json "${report_path}" --max-candidates 20 --mode warn
           flake_status=$?
           if [ ${flake_status} -ne 0 ]; then
             echo "::warning title=Flake budget warn-mode check errored::flake-budget exited with status ${flake_status}."
           fi
 
-          cargo run -p vox-cli -- ci ignored-test-age --mode enforce
+          ./target/debug/vox -- ci ignored-test-age --mode enforce
           ignored_status=$?
           if [ ${ignored_status} -ne 0 ]; then
             echo "::error title=Ignored test governance::ignored-test-age enforce mode failed (bare #[ignore] or missing owner/sunset in #[ignore = \"…\"])."
@@ -642,7 +640,7 @@ jobs:
           fi
 
           if [ -f "${baseline_path}" ]; then
-            cargo run -p vox-cli -- ci runtime-regress --baseline "${baseline_path}" --current "${report_path}" --mode warn
+            ./target/debug/vox -- ci runtime-regress --baseline "${baseline_path}" --current "${report_path}" --mode warn
             regress_status=$?
             if [ ${regress_status} -ne 0 ]; then
               echo "::warning title=Runtime regress warn-mode check errored::runtime-regress exited with status ${regress_status}."
@@ -694,7 +692,7 @@ jobs:
           cargo llvm-cov report --text --summary-only
           cargo llvm-cov report --json --summary-only --output-path target/llvm-cov-summary.json
           cargo llvm-cov report --lcov --output-path target/llvm-cov-lcov.info
-          cargo run -p vox-cli --quiet -- ci coverage-gates --summary-json target/llvm-cov-summary.json --mode enforce
+          ./target/debug/vox --quiet -- ci coverage-gates --summary-json target/llvm-cov-summary.json --mode enforce
 
       - name: Upload LLVM coverage artifacts
         if: (success() || failure()) && needs.setup.outputs.rust_changed == 'true'
@@ -712,38 +710,39 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: vox-cli-bin
+          path: target/debug
+      - name: Ensure vox-cli executable
+        run: chmod +x target/debug/vox
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - uses: actions/cache@v5
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
+          path: ~/.cargo/git
           key: ${{ needs.setup.outputs.cache-key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-      - name: Build vox-cli
-        run: cargo build -p vox-cli
 
       - name: TOESTUB contracts — suppression schema + ledger parse
         run: cargo run -p vox-code-audit --bin validate-toestub-contracts
 
       - name: Safety inventory baseline (committed contracts/reports/safety-inventory)
-        run: cargo run -p vox-cli -- ci safety-inventory --check contracts/reports/safety-inventory/baseline.v1.json
+        run: ./target/debug/vox -- ci safety-inventory --check contracts/reports/safety-inventory/baseline.v1.json
 
       - name: Hardcoded values audit gate
         run: node tools/hardcoded-values-audit.mjs .vox/audit/ci-gate --ci-gate contracts/reports/hardcoded-baseline-count.txt
 
       - name: Completion quality audit + gates (LLM premature-completion SSOT)
         run: |
-          cargo run -p vox-cli --features completion-toestub --quiet -- ci completion-audit
-          cargo run -p vox-cli --features completion-toestub --quiet -- ci completion-gates --mode enforce
+          ./target/debug/vox --quiet -- ci completion-audit
+          ./target/debug/vox --quiet -- ci completion-gates --mode enforce
 
       - name: Detector rule SSOT — F1 score gate (contracts/code-audit/rules.v1.yaml)
         run: |
-          cargo run -p vox-cli --quiet -- ci detect-rules-bench \
+          ./target/debug/vox --quiet -- ci detect-rules-bench \
             --rules contracts/code-audit/rules.v1.yaml \
             --fixtures-root contracts/code-audit/fixtures \
             --min-f1 0.70
@@ -754,31 +753,31 @@ jobs:
         run: |
           set -euo pipefail
           cargo run -p vox-code-audit -q --bin toestub -- --mode audit --format json --min-severity info crates \
-            | cargo run -p vox-cli --quiet -- ci toestub-budget
+            | ./target/debug/vox --quiet -- ci toestub-budget
 
       - name: vox-cli build timings (default + GPU/stub + per-crate lanes; wall-clock)
         env:
           VOX_BENCHMARK_TELEMETRY: "1"
           # H.79: enforce soft build budget caps — fails if any lane exceeds budgets.json
           VOX_BUILD_TIMINGS_BUDGET_FAIL: "1"
-        run: cargo run -p vox-cli --quiet -- ci build-timings --crates
+        run: ./target/debug/vox --quiet -- ci build-timings --crates
 
       - name: vox-cli feature matrix + no vox_orchestrator imports
-        run: cargo run -p vox-cli --quiet -- ci feature-matrix && cargo run -p vox-cli --quiet -- ci no-vox-orchestrator-import
+        run: ./target/debug/vox --quiet -- ci feature-matrix && ./target/debug/vox --quiet -- ci no-vox-orchestrator-import
 
       - name: Workspace-wide all-features check (A.4)
         run: cargo check --workspace --all-features
 
       - name: Optional CUDA feature compile (Oratio + Populi Candle, when nvcc exists)
-        run: cargo run -p vox-cli --quiet -- ci cuda-features
+        run: ./target/debug/vox --quiet -- ci cuda-features
 
       - name: Mens corpus mix (strict required sources)
         run: |
-          cargo run -p vox-cli --quiet -- run --interp scripts/ci/corpus_prep.vox
-          cargo run -p vox-cli --quiet -- mens corpus mix --config mens/config/mix.yaml
+          ./target/debug/vox --quiet -- run --interp scripts/ci/corpus_prep.vox
+          ./target/debug/vox --quiet -- mens corpus mix --config mens/config/mix.yaml
 
       - name: Populi CI gate matrix (single manifest)
-        run: cargo run -p vox-cli --quiet -- ci mens-gate --profile ci_full
+        run: ./target/debug/vox --quiet -- ci mens-gate --profile ci_full
 
   # Single required-status check for branch protection. Keep this job's `name:`
   # identical to the existing required check ("Check, Build, and Test (Rust)")
@@ -806,10 +805,9 @@ jobs:
           done
           exit $fail
 
-  # GitHub-hosted exception: stock Node + pnpm (see .cursor/rules/ci-runner-convention.mdc).
   visualizer-ingest-smoke:
     name: Visualizer ingest unit (pnpm + tsx)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
@@ -826,10 +824,9 @@ jobs:
           pnpm install
           pnpm run test:ingest
 
-  # GitHub-hosted exception: needs stock Node + pnpm (see .cursor/rules/ci-runner-convention.mdc).
   web-vite-build-smoke:
     name: Web Vite build smoke (pnpm)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
@@ -846,20 +843,6 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Cache Cargo
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-web-vite-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
-
       - name: Vite production build (full_stack_minimal)
         env:
           VOX_WEB_VITE_SMOKE: "1"
@@ -867,7 +850,7 @@ jobs:
 
   vox-vscode-extension:
     name: VS Code extension (compile + lint)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
@@ -931,11 +914,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-browser-smoke-
             ${{ runner.os }}-cargo-
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
 
       # Prefer nextest for ignored-only integration tests when present; compile-check so the lane
       # stays meaningful until CDP tests land on `vox-plugin-browser`.
@@ -1016,11 +994,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-gui-playwright-
             ${{ runner.os }}-cargo-
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
 
       - name: Install Playwright deps + Chromium
         run: |

@@ -49,7 +49,7 @@ export function usePersistedSparkWindow(
 
   const [window, setWindow] = useState<number[]>(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = window.localStorage.getItem(STORAGE_KEY);
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
@@ -61,9 +61,9 @@ export function usePersistedSparkWindow(
       const next = [...prev, liveValue];
       const trimmed = next.length > MAX ? next.slice(-MAX) : next;
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
       } catch {
-        // Quota exceeded — silently discard.
+        // Quota exceeded or storage denied — silently discard.
       }
       return trimmed;
     });

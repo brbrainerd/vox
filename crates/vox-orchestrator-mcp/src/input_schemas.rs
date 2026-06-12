@@ -155,6 +155,28 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             derived_tool_schema!(crate::params::BrowserExtractJsonParams)
         }
         "vox_browser_act" => derived_tool_schema!(crate::params::BrowserActParams),
+        "vox_browser_back"
+        | "vox_browser_forward"
+        | "vox_browser_reload"
+        | "vox_browser_stop"
+        | "vox_browser_page_info"
+        | "vox_browser_screenshot_viewport"
+        | "vox_browser_screencast_frame" => {
+            derived_tool_schema!(crate::params::BrowserPageParams)
+        }
+        "vox_browser_click_xy" => {
+            derived_tool_schema!(crate::params::BrowserClickPointParams)
+        }
+        "vox_browser_scroll" => derived_tool_schema!(crate::params::BrowserScrollParams),
+        "vox_browser_press" => derived_tool_schema!(crate::params::BrowserKeyParams),
+        "vox_browser_type" => derived_tool_schema!(crate::params::BrowserTypeParams),
+        "vox_browser_set_viewport" => {
+            derived_tool_schema!(crate::params::BrowserViewportParams)
+        }
+        "vox_browser_set_control_lock" => {
+            derived_tool_schema!(crate::params::BrowserControlLockParams)
+        }
+        "vox_browser_list_pages" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
 
         // ── Compiler / workspace ─────────────────────────────────────────────
         "vox_check" | "vox_validate_file" | "vox_compiler::ast_inspect" => {
