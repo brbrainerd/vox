@@ -368,6 +368,327 @@ pub async fn acknowledge_discovery(id: i64) -> Result<(), String> {
         .map_err(|e| format!("{e:#}"))
 }
 
+// ---------------------------------------------------------------------------
+// Archive panel (Task 19): metadata completeness, deterministic autofill, and
+// deposit status (Zenodo DOI / Software Heritage SWHID). Surfaces the Track B
+// archive pipeline. Autofill REUSES the exact SSOT planner + applier
+// (`vox_publisher::scientia_autofill`) and the same persist sequence the CLI
+// `publication-autofill --apply` handler uses, so GUI and CLI stay in agreement.
+// ---------------------------------------------------------------------------
+
+/// Default user id for identity lookup — mirrors the CLI autofill handler
+/// (`publication-autofill`), which always queries the single account-level identity.
+const ARCHIVE_DEFAULT_USER_ID: &str = "local-user";
+
+/// One provenance entry: which field, where its value came from, optional note.
+#[derive(Debug, serde::Serialize)]
+pub struct FieldProvenanceDto {
+    pub field: String,
+    pub origin: String,
+    pub notes: Option<String>,
+}
+
+/// Metadata-completeness report for one publication's manifest.
+#[derive(Debug, serde::Serialize)]
+pub struct CompletionReportDto {
+    pub completeness_0_100: u8,
+    pub required_missing: Vec<String>,
+    pub inferred_ok: Vec<String>,
+    pub human_only_pending: Vec<String>,
+    pub field_provenance: Vec<FieldProvenanceDto>,
+}
+
+fn completion_report_dto(
+    r: vox_publisher::scientia_discovery::ManifestCompletionReport,
+) -> CompletionReportDto {
+    CompletionReportDto {
+        completeness_0_100: r.completeness_0_100,
+        required_missing: r.required_missing,
+        inferred_ok: r.inferred_ok,
+        human_only_pending: r.human_only_pending,
+        field_provenance: r
+            .field_provenance
+            .into_iter()
+            .map(|e| FieldProvenanceDto {
+                field: e.field,
+                origin: e.origin,
+                notes: e.notes,
+            })
+            .collect(),
+    }
+}
+
+/// Build a [`PublicationManifest`] from a loaded DB row (mirrors the CLI helper
+/// `publication_manifest_from_row`).
+fn manifest_from_row(
+    row: &vox_db::PublicationManifestRow,
+) -> vox_publisher::publication::PublicationManifest {
+    vox_publisher::publication::PublicationManifest {
+        publication_id: row.publication_id.clone(),
+        content_type: row.content_type.clone(),
+        source_ref: row.source_ref.clone(),
+        title: row.title.clone(),
+        author: row.author.clone(),
+        abstract_text: row.abstract_text.clone(),
+        body_markdown: row.body_markdown.clone(),
+        citations_json: row.citations_json.clone(),
+        metadata_json: row.metadata_json.clone(),
+    }
+}
+
+/// Load a manifest row by id, mapping a missing publication to a structured error.
+async fn load_manifest_row(
+    db: &vox_db::VoxDb,
+    publication_id: &str,
+) -> Result<vox_db::PublicationManifestRow, String> {
+    db.get_publication_manifest(publication_id)
+        .await
+        .map_err(|e| format!("{e:#}"))?
+        .ok_or_else(|| format!("publication not found: {publication_id}"))
+}
+
+/// Metadata-completeness report for ONE publication. Read-only.
+#[tauri::command]
+pub async fn get_completion_report(
+    publication_id: String,
+) -> Result<CompletionReportDto, String> {
+    let db = db().await?;
+    let row = load_manifest_row(&db, &publication_id).await?;
+    let manifest = manifest_from_row(&row);
+    let report = vox_publisher::scientia_discovery::manifest_completion_report(&manifest);
+    Ok(completion_report_dto(report))
+}
+
+/// One proposed (or applied) field fill, with provenance. `value` is the JSON
+/// value serialized to a compact string for display.
+#[derive(Debug, serde::Serialize)]
+pub struct PlannedFillDto {
+    pub field: String,
+    pub value: String,
+    pub origin: String,
+    pub notes: Option<String>,
+}
+
+/// Result of computing (and optionally applying) the deterministic autofill plan.
+#[derive(Debug, serde::Serialize)]
+pub struct AutofillResultDto {
+    pub fills: Vec<PlannedFillDto>,
+    pub human_only_remaining: Vec<String>,
+    pub completeness_before: u8,
+    /// Equals `completeness_before` when `apply == false`.
+    pub completeness_after: u8,
+}
+
+/// Run `git remote get-url origin`; `None` on any failure. `CREATE_NO_WINDOW`
+/// on Windows so no console window flashes (mirrors the CLI helper).
+fn git_remote_origin() -> Option<String> {
+    let mut cmd = std::process::Command::new("git");
+    cmd.args(["remote", "get-url", "origin"]);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    let out = cmd.output().ok()?;
+    if out.status.success() {
+        let url = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if url.is_empty() { None } else { Some(url) }
+    } else {
+        None
+    }
+}
+
+/// Detect the SPDX license id from a LICENSE file in `repo_root` (mirrors the CLI
+/// helper: reads up to 4 KB of the first LICENSE file; "Apache"/"MIT").
+fn detect_repo_license(repo_root: &std::path::Path) -> Option<String> {
+    for name in &["LICENSE", "LICENSE.md", "LICENSE.txt"] {
+        let path = repo_root.join(name);
+        if let Ok(text) = std::fs::read_to_string(&path) {
+            let text = &text[..text.len().min(4096)];
+            let lower = text.to_lowercase();
+            if lower.contains("apache") {
+                return Some("Apache-2.0".into());
+            }
+            if lower.contains("mit") {
+                return Some("MIT".into());
+            }
+        }
+    }
+    None
+}
+
+/// Compute the deterministic autofill plan for a publication and, when `apply`,
+/// persist it via the SAME sequence as the CLI `publication-autofill --apply`
+/// handler: [`vox_publisher::scientia_autofill::apply_autofill`] → digest
+/// recompute → [`vox_db::VoxDb::upsert_publication_manifest`] →
+/// `append_publication_status_event`. Returns before/after completeness scores.
+///
+/// Autofill inputs are best-effort (any `None` simply fills fewer fields):
+/// repo license + git remote from the resolved repo root, ORCID identity from
+/// the account-level `user_identities` row.
+#[tauri::command]
+pub async fn run_autofill(
+    publication_id: String,
+    apply: bool,
+) -> Result<AutofillResultDto, String> {
+    let db = db().await?;
+    let row = load_manifest_row(&db, &publication_id).await?;
+    let mut manifest = manifest_from_row(&row);
+
+    // Best-effort autofill inputs.
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let repo_license = detect_repo_license(&repo_root);
+    let git_remote = git_remote_origin();
+    let identity_view = db
+        .get_user_identity(ARCHIVE_DEFAULT_USER_ID)
+        .await
+        .ok()
+        .flatten()
+        .map(|r| vox_publisher::scientia_autofill::UserIdentityView {
+            user_id: r.user_id,
+            orcid_id: r.orcid_id,
+        });
+
+    let before = vox_publisher::scientia_discovery::manifest_completion_report(&manifest);
+    let completeness_before = before.completeness_0_100;
+
+    let plan = vox_publisher::scientia_autofill::compute_autofill(
+        &manifest,
+        identity_view.as_ref(),
+        repo_license.as_deref(),
+        git_remote.as_deref(),
+    );
+
+    let mut completeness_after = completeness_before;
+
+    if apply && !plan.fills.is_empty() {
+        let new_meta = vox_publisher::scientia_autofill::apply_autofill(
+            manifest.metadata_json.as_deref(),
+            &mut manifest.abstract_text,
+            &plan,
+        )
+        .map_err(|e| format!("autofill apply: {e:#}"))?;
+        manifest.metadata_json = Some(new_meta);
+        let digest = manifest.content_sha3_256();
+        db.upsert_publication_manifest(vox_db::PublicationManifestParams {
+            publication_id: &manifest.publication_id,
+            content_type: &manifest.content_type,
+            source_ref: manifest.source_ref.as_deref(),
+            title: &manifest.title,
+            author: &manifest.author,
+            abstract_text: manifest.abstract_text.as_deref(),
+            body_markdown: &manifest.body_markdown,
+            citations_json: manifest.citations_json.as_deref(),
+            metadata_json: manifest.metadata_json.as_deref(),
+            revision_history_json: row.revision_history_json.as_deref(),
+            content_sha3_256: &digest,
+            state: row.state.as_str(),
+        })
+        .await
+        .map_err(|e| format!("{e:#}"))?;
+        db.append_publication_status_event(
+            &publication_id,
+            "scientia_autofill_applied",
+            Some(
+                &serde_json::json!({ "fills": plan.fills.len(), "digest": digest, "via": "gui" })
+                    .to_string(),
+            ),
+        )
+        .await
+        .map_err(|e| format!("{e:#}"))?;
+        let after = vox_publisher::scientia_discovery::manifest_completion_report(&manifest);
+        completeness_after = after.completeness_0_100;
+    }
+
+    let fills = plan
+        .fills
+        .into_iter()
+        .map(|f| PlannedFillDto {
+            field: f.field,
+            value: f.value.to_string(),
+            origin: f.origin,
+            notes: f.notes,
+        })
+        .collect();
+
+    Ok(AutofillResultDto {
+        fills,
+        human_only_remaining: plan.human_only_remaining,
+        completeness_before,
+        completeness_after,
+    })
+}
+
+/// Deposit status surfaced from whatever is actually persisted. SWHID +
+/// SWH task status live on `metadata_json.scientia.{swhid, swh_save.task_status}`
+/// (written by `software_heritage::merge_swh_into_metadata_json`). Zenodo DOI +
+/// state are read from the persisted `scholarly_submissions` row for the
+/// `zenodo` adapter (its `metadata_json` is the Zenodo deposition JSON, carrying
+/// `doi`/`expected_doi_hint`; its `status` is the deposition state). Any field is
+/// honestly `None` when nothing is on record ("not yet deposited").
+#[derive(Debug, serde::Serialize)]
+pub struct ArchiveStatusDto {
+    pub swhid: Option<String>,
+    pub swh_task_status: Option<String>,
+    pub zenodo_doi: Option<String>,
+    pub zenodo_state: Option<String>,
+}
+
+/// Deposit status for ONE publication. Read-only; never deposits.
+#[tauri::command]
+pub async fn get_archive_status(publication_id: String) -> Result<ArchiveStatusDto, String> {
+    let db = db().await?;
+    let row = load_manifest_row(&db, &publication_id).await?;
+
+    // Software Heritage: scientia.swhid + scientia.swh_save.task_status.
+    let scientia: Option<serde_json::Value> = row
+        .metadata_json
+        .as_deref()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+        .and_then(|v| v.get("scientia").cloned());
+    let swhid = scientia
+        .as_ref()
+        .and_then(|s| s.get("swhid"))
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+    let swh_task_status = scientia
+        .as_ref()
+        .and_then(|s| s.get("swh_save"))
+        .and_then(|s| s.get("task_status"))
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+
+    // Zenodo: most-recent persisted scholarly submission for the zenodo adapter.
+    let mut zenodo_doi: Option<String> = None;
+    let mut zenodo_state: Option<String> = None;
+    if let Ok(subs) = db.list_scholarly_submissions(&publication_id).await {
+        if let Some(z) = subs.iter().rev().find(|s| s.adapter == "zenodo") {
+            zenodo_state = Some(z.status.clone()).filter(|s| !s.is_empty());
+            zenodo_doi = z
+                .metadata_json
+                .as_deref()
+                .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+                .and_then(|v| {
+                    v.get("doi")
+                        .or_else(|| v.get("expected_doi_hint"))
+                        .and_then(|d| d.as_str())
+                        .filter(|s| !s.is_empty())
+                        .map(str::to_string)
+                });
+        }
+    }
+
+    Ok(ArchiveStatusDto {
+        swhid,
+        swh_task_status,
+        zenodo_doi,
+        zenodo_state,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     /// Guard: this GUI review surface must carry NO production-network publishing

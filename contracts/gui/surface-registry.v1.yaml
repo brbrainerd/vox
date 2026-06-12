@@ -8,6 +8,13 @@ surfaces:
   nav_icon: shield
   nav_group: operate
   notes: null
+- view_key: archive-panel
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Archive Panel
+  nav_icon: beaker
+  nav_group: knowledge
+  notes: metadata completeness, deterministic autofill, and Zenodo/SWH deposit status
 - view_key: claims
   cli_group: null
   representation_tier: curated_decorator

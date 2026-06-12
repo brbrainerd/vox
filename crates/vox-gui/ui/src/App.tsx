@@ -51,6 +51,7 @@ type View =
   | 'scientia'
   | 'discovery-review'
   | 'discovery-inbox'
+  | 'archive-panel'
   | 'claims'
   | 'mens'
   | 'populi'
@@ -240,7 +241,7 @@ export default function App() {
       .catch(() => setAppVersion('unknown'));
 
     invoke('get_initial_view').then((view: any) => {
-      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'scientia', 'discovery-review', 'discovery-inbox', 'claims', 'mens', 'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage', 'publications', 'search'] as string[]).includes(view)) {
+      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'scientia', 'discovery-review', 'discovery-inbox', 'archive-panel', 'claims', 'mens', 'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage', 'publications', 'search'] as string[]).includes(view)) {
         setActiveView(view as View);
       }
     }).catch(() => {});

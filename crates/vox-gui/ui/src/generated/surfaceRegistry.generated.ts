@@ -10,6 +10,7 @@ export interface SurfaceRegistryEntry {
 }
 export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: 'approvals', cliGroup: null, tier: 'live_backend', navLabel: 'Approvals', navIcon: 'shield', navGroup: 'operate' },
+  { viewKey: 'archive-panel', cliGroup: null, tier: 'live_backend', navLabel: 'Archive Panel', navIcon: 'beaker', navGroup: 'knowledge' },
   { viewKey: 'claims', cliGroup: null, tier: 'curated_decorator', navLabel: 'Claims', navIcon: 'doubt', navGroup: 'knowledge' },
   { viewKey: 'coverage', cliGroup: null, tier: 'live_backend', navLabel: 'Coverage', navIcon: 'check', navGroup: 'system' },
   { viewKey: 'dashboard', cliGroup: null, tier: 'live_backend', navLabel: 'Dashboard', navIcon: 'dashboard', navGroup: 'operate' },
