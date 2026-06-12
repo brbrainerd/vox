@@ -589,6 +589,11 @@ fn build_every_fixture_passes_fast_path() {
     for name in &names {
         init_vox_binary_once();
         let run = BuildRun::run(name);
+        // Negative fixtures are deliberate build failures (e.g. a contrast
+        // violation); a dedicated test asserts their specific failure mode.
+        if run.expected.expect_failure {
+            continue;
+        }
         if !run.success {
             failures.push(format!(
                 "{name}: non-zero exit\nstdout:\n{}\nstderr:\n{}",
@@ -619,4 +624,23 @@ fn build_every_fixture_passes_fast_path() {
         );
     }
     eprintln!("vox-cli-tests: {} fixture(s) passed", names.len());
+}
+
+/// The contrast/occlusion guarantees follow the view tree, not the target: a
+/// gray-on-white contrast violation must fail `vox build --target mobile`, the
+/// same way it fails the web build. Regression gate for audit gap XP-4/CONTRAST-5.
+#[test]
+fn build_mobile_fails_on_contrast_violation() {
+    init_vox_binary_once();
+    let run = BuildRun::run("mobile_bad_contrast");
+    assert!(
+        !run.success,
+        "mobile build must gate on the web_ir validators.\n--- stdout ---\n{}\n--- stderr ---\n{}",
+        run.stdout, run.stderr
+    );
+    assert!(
+        run.stderr.contains("insufficient_contrast"),
+        "expected insufficient_contrast in stderr, got:\n{}",
+        run.stderr
+    );
 }
