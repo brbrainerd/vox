@@ -1,4 +1,4 @@
-﻿//! Vox `component Name() { state ...; view: ... }` → React Native TSX.
+//! Vox `component Name() { state ...; view: ... }` → React Native TSX.
 //!
 //! Strategy: walk the HIR `view:` expression, translating React-DOM-flavored
 //! `HirExpr::Jsx` / `HirExpr::JsxSelfClosing` nodes into an abstract `RnNode` tree,
@@ -762,15 +762,25 @@ fn apply_dyn_style_to_node(
     dyn_styles: &mut BTreeMap<String, String>,
 ) -> RnNode {
     match node {
-        RnNode::View { style_key, children } => RnNode::View {
+        RnNode::View {
+            style_key,
+            children,
+        } => RnNode::View {
             style_key: apply_dyn_style(style_key, extra, dyn_styles),
             children,
         },
-        RnNode::Text { style_key, children } => RnNode::Text {
+        RnNode::Text {
+            style_key,
+            children,
+        } => RnNode::Text {
             style_key: apply_dyn_style(style_key, extra, dyn_styles),
             children,
         },
-        RnNode::Pressable { style_key, handler_ts, children } => RnNode::Pressable {
+        RnNode::Pressable {
+            style_key,
+            handler_ts,
+            children,
+        } => RnNode::Pressable {
             style_key: apply_dyn_style(style_key, extra, dyn_styles),
             handler_ts,
             children,
@@ -804,7 +814,9 @@ fn hir_view_child_to_rn(
             style_key: None,
             children: children
                 .iter()
-                .map(|c| hir_view_child_to_rn(c, state_names, endpoint_params, diagnostics, dyn_styles))
+                .map(|c| {
+                    hir_view_child_to_rn(c, state_names, endpoint_params, diagnostics, dyn_styles)
+                })
                 .collect(),
         },
         // VUV `for item, i in items key=item.id { <body> }` — recurse so the body
@@ -1394,7 +1406,12 @@ fn semantic_style_table() -> BTreeMap<&'static str, &'static str> {
 
 /// Strip the outer `{ … }` of a StyleSheet object literal, returning the inner body.
 fn style_object_body(def: &str) -> &str {
-    def.trim().trim_start_matches('{').trim_end_matches('}').trim().trim_end_matches(',').trim()
+    def.trim()
+        .trim_start_matches('{')
+        .trim_end_matches('}')
+        .trim()
+        .trim_end_matches(',')
+        .trim()
 }
 
 /// Build a deterministic, JS-ident-safe synthetic style key from style props.
@@ -1426,7 +1443,11 @@ fn apply_dyn_style(
     let extra_body = rn_props_to_object_body(extra);
     let base_body = style_key
         .as_deref()
-        .and_then(|k| semantic_style_table().get(k).map(|d| style_object_body(d).to_string()))
+        .and_then(|k| {
+            semantic_style_table()
+                .get(k)
+                .map(|d| style_object_body(d).to_string())
+        })
         .filter(|b| !b.is_empty());
     let merged = match base_body {
         Some(b) => format!("{{ {b}, {extra_body} }}"),
@@ -1876,9 +1897,9 @@ mod b3_style_tests {
 #[cfg(test)]
 mod b3_wiring_tests {
     use super::*;
+    use vox_compiler::hir::lower_module;
     use vox_compiler::lexer::lex;
     use vox_compiler::parser::parse;
-    use vox_compiler::hir::lower_module;
 
     /// End-to-end: a mobile component with custom color/spacing kwargs must emit a
     /// StyleSheet entry carrying those props (not silently drop them).
@@ -1894,7 +1915,11 @@ component Card() {
 "#;
         let module = parse(lex(src)).expect("parse");
         let hir = lower_module(&module);
-        let rc = hir.components.iter().find(|c| c.name == "Card").expect("Card");
+        let rc = hir
+            .components
+            .iter()
+            .find(|c| c.name == "Card")
+            .expect("Card");
         let (_name, tsx) = emit_rn_component(
             rc,
             &HashSet::new(),

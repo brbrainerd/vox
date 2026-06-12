@@ -45,7 +45,13 @@ fn walk(
     let Some(node) = module.dom_nodes.get(id.0 as usize) else {
         return;
     };
-    let DomNode::Element { tag, attrs, children, .. } = node else {
+    let DomNode::Element {
+        tag,
+        attrs,
+        children,
+        ..
+    } = node
+    else {
         return;
     };
 
@@ -207,7 +213,11 @@ mod tests {
     fn modal_inside_a_chrome_surface_is_tier_inversion() {
         // A chrome-tier surface (app shell) may parent surfaces, but a Modal(4) is
         // stronger than Chrome(2) → must portal up, not nest.
-        let c = codes(&nested_with_layer(&["column", "section", "modal"], 1, "chrome"));
+        let c = codes(&nested_with_layer(
+            &["column", "section", "modal"],
+            1,
+            "chrome",
+        ));
         assert!(c.iter().any(|c| c == "vox/layer/tier-inversion"), "{c:?}");
     }
 
@@ -256,8 +266,14 @@ mod tests {
 
     #[test]
     fn absolute_position_inside_partition_is_rejected() {
-        let c = codes(&with_attr(&["row", "panel"], ("data-vox-pos-raw", "absolute")));
-        assert!(c.iter().any(|c| c == "vox/layer/absolute-in-partition"), "{c:?}");
+        let c = codes(&with_attr(
+            &["row", "panel"],
+            ("data-vox-pos-raw", "absolute"),
+        ));
+        assert!(
+            c.iter().any(|c| c == "vox/layer/absolute-in-partition"),
+            "{c:?}"
+        );
     }
 
     #[test]
@@ -272,13 +288,22 @@ mod tests {
             &["row", "panel"],
             ("data-vox-raw-class", "shrink-0 absolute z-[9999]"),
         ));
-        assert!(c.iter().any(|c| c == "vox/layer/raw-class-occlusion"), "{c:?}");
+        assert!(
+            c.iter().any(|c| c == "vox/layer/raw-class-occlusion"),
+            "{c:?}"
+        );
     }
 
     #[test]
     fn absolute_inside_a_surface_is_allowed() {
         // Inside a modal subtree, absolute positioning is the surface's own business.
-        let c = codes(&with_attr(&["modal", "panel"], ("data-vox-pos-raw", "absolute")));
-        assert!(!c.iter().any(|c| c == "vox/layer/absolute-in-partition"), "{c:?}");
+        let c = codes(&with_attr(
+            &["modal", "panel"],
+            ("data-vox-pos-raw", "absolute"),
+        ));
+        assert!(
+            !c.iter().any(|c| c == "vox/layer/absolute-in-partition"),
+            "{c:?}"
+        );
     }
 }

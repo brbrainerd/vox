@@ -227,10 +227,22 @@ mod a11p2_portal_tests {
     fn layer_element_renders_through_create_portal() {
         let m = module_with_layer_element();
         let tsx = super::emit_component_view_tsx(&m, "Dialog").expect("emits");
-        assert!(tsx.contains("createPortal("), "expected createPortal; got:\n{tsx}");
-        assert!(tsx.contains("voxResolveLayerRoot(\"modal\")"), "expected resolver; got:\n{tsx}");
+        assert!(
+            tsx.contains("createPortal("),
+            "expected createPortal; got:\n{tsx}"
+        );
+        assert!(
+            tsx.contains("voxResolveLayerRoot(\"modal\")"),
+            "expected resolver; got:\n{tsx}"
+        );
         // data-vox-layer is kept (CSS hook); the analysis-only data-vox-bg is stripped.
-        assert!(tsx.contains("data-vox-layer"), "data-vox-layer kept; got:\n{tsx}");
-        assert!(!tsx.contains("data-vox-bg"), "analysis attr stripped; got:\n{tsx}");
+        assert!(
+            tsx.contains("data-vox-layer"),
+            "data-vox-layer kept; got:\n{tsx}"
+        );
+        assert!(
+            !tsx.contains("data-vox-bg"),
+            "analysis attr stripped; got:\n{tsx}"
+        );
     }
 }

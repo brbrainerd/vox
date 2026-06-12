@@ -624,10 +624,7 @@ fn expo_token_is_a_registered_resolvable_secret() {
         "EXPO_TOKEN is keyed to the `expo` auth registry (vox secrets set expo …)"
     );
     assert!(
-        matches!(
-            id.metadata().class,
-            crate::SecretClass::Integration
-        ),
+        matches!(id.metadata().class, crate::SecretClass::Integration),
         "EXPO_TOKEN is an Integration-class (persistable, shareable) secret"
     );
 }

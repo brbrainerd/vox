@@ -59,7 +59,10 @@ pub fn resolve_color(
 }
 
 /// Levenshtein-nearest palette/registry color name, if within edit distance 3.
-fn suggest_color(input: &str, registry: Option<&vox_compiler::tokens::TokenRegistry>) -> Option<String> {
+fn suggest_color(
+    input: &str,
+    registry: Option<&vox_compiler::tokens::TokenRegistry>,
+) -> Option<String> {
     let mut best: Option<(usize, String)> = None;
     let candidates = palette()
         .keys()
@@ -151,7 +154,10 @@ fn check_unknown_kwargs(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                 || k.starts_with("on")
                 || k.starts_with("aria")
                 || k.len() < 3
-                || matches!(k.as_str(), "className" | "style" | "key" | "id" | "role" | "ref")
+                || matches!(
+                    k.as_str(),
+                    "className" | "style" | "key" | "id" | "role" | "ref"
+                )
             {
                 continue;
             }
@@ -199,7 +205,10 @@ fn walk_contrast(
     let Some(node) = module.dom_nodes.get(id.0 as usize) else {
         return;
     };
-    let DomNode::Element { attrs, children, .. } = node else {
+    let DomNode::Element {
+        attrs, children, ..
+    } = node
+    else {
         return;
     };
 
@@ -212,10 +221,15 @@ fn walk_contrast(
     let effective_bg = own_bg_hex.or(inherited_bg);
 
     // If this node sets a text color and we know the bg, check the ratio.
-    if let Some(fg_raw) = attrs.iter().find(|(k, _)| k == "data-vox-color").map(|(_, v)| v) {
-        if let (Some(fg_hex), Some(bg_hex)) =
-            (resolve_color(fg_raw.trim_matches('"'), registry), effective_bg.clone())
-        {
+    if let Some(fg_raw) = attrs
+        .iter()
+        .find(|(k, _)| k == "data-vox-color")
+        .map(|(_, v)| v)
+    {
+        if let (Some(fg_hex), Some(bg_hex)) = (
+            resolve_color(fg_raw.trim_matches('"'), registry),
+            effective_bg.clone(),
+        ) {
             if let Some(ratio) = vox_compiler::tokens::wcag21_contrast_ratio(&fg_hex, &bg_hex) {
                 let fg = fg_raw.trim_matches('"');
                 if ratio < 3.0 {
@@ -281,7 +295,10 @@ mod tests {
         m
     }
 
-    fn parent_child(parent_attrs: Vec<(&str, &str)>, child_attrs: Vec<(&str, &str)>) -> WebIrModule {
+    fn parent_child(
+        parent_attrs: Vec<(&str, &str)>,
+        child_attrs: Vec<(&str, &str)>,
+    ) -> WebIrModule {
         let enc = |a: Vec<(&str, &str)>| {
             a.into_iter()
                 .map(|(k, v)| (k.to_string(), format!("\"{v}\"")))
@@ -314,7 +331,8 @@ mod tests {
         let mut out = vec![];
         validate_palette(&m, None, &mut out);
         assert!(
-            !out.iter().any(|d| d.code == "web_ir_validate.style.unknown_color"),
+            !out.iter()
+                .any(|d| d.code == "web_ir_validate.style.unknown_color"),
             "{out:?}"
         );
     }
@@ -328,7 +346,11 @@ mod tests {
             .iter()
             .find(|d| d.code == "web_ir_validate.style.unknown_color")
             .expect("unknown color must be rejected");
-        assert!(d.message.contains("zinc.400"), "did-you-mean expected: {}", d.message);
+        assert!(
+            d.message.contains("zinc.400"),
+            "did-you-mean expected: {}",
+            d.message
+        );
     }
 
     #[test]
@@ -336,7 +358,10 @@ mod tests {
         let m = module_with_attrs(vec![("data-vox-bg", "#aaaaaa")]);
         let mut out = vec![];
         validate_palette(&m, None, &mut out);
-        assert!(out.iter().any(|d| d.code == "web_ir_validate.style.unknown_color"));
+        assert!(
+            out.iter()
+                .any(|d| d.code == "web_ir_validate.style.unknown_color")
+        );
     }
 
     // ── A5: unknown style kwargs ────────────────────────────────────────────
@@ -365,9 +390,13 @@ mod tests {
     #[test]
     fn legitimate_html_attrs_are_not_flagged() {
         let mut m = WebIrModule::default();
-        for (i, attr) in [("href", "\"/x\""), ("type", "\"text\""), ("src", "\"a.png\"")]
-            .into_iter()
-            .enumerate()
+        for (i, attr) in [
+            ("href", "\"/x\""),
+            ("type", "\"text\""),
+            ("src", "\"a.png\""),
+        ]
+        .into_iter()
+        .enumerate()
         {
             m.dom_nodes.push(DomNode::Element {
                 id: DomNodeId(i as u32),
@@ -381,7 +410,8 @@ mod tests {
         let mut out = vec![];
         validate_palette(&m, None, &mut out);
         assert!(
-            !out.iter().any(|d| d.code == "web_ir_validate.style.unknown_kwarg"),
+            !out.iter()
+                .any(|d| d.code == "web_ir_validate.style.unknown_kwarg"),
             "real HTML attrs must not be flagged: {out:?}"
         );
     }
@@ -390,11 +420,15 @@ mod tests {
 
     #[test]
     fn gray_text_on_white_panel_is_a_hard_error() {
-        let m = parent_child(vec![("data-vox-bg", "white")], vec![("data-vox-color", "gray.300")]);
+        let m = parent_child(
+            vec![("data-vox-bg", "white")],
+            vec![("data-vox-color", "gray.300")],
+        );
         let mut out = vec![];
         validate_palette(&m, None, &mut out);
         assert!(
-            out.iter().any(|d| d.code == "web_ir_validate.a11y.insufficient_contrast"),
+            out.iter()
+                .any(|d| d.code == "web_ir_validate.a11y.insufficient_contrast"),
             "gray.300 on white is ~1.5:1 and must hard-fail, got: {out:?}"
         );
     }
@@ -402,16 +436,30 @@ mod tests {
     #[test]
     fn marginal_contrast_warns_not_errors() {
         // gray.500 (#6b7280) on gray.100 (#f3f4f6) ≈ 4.2:1 → AA-fail but >3:1.
-        let m = parent_child(vec![("data-vox-bg", "gray.100")], vec![("data-vox-color", "gray.500")]);
+        let m = parent_child(
+            vec![("data-vox-bg", "gray.100")],
+            vec![("data-vox-color", "gray.500")],
+        );
         let mut out = vec![];
         validate_palette(&m, None, &mut out);
-        assert!(out.iter().any(|d| d.code == "web_ir_validate.a11y.low_contrast"), "{out:?}");
-        assert!(!out.iter().any(|d| d.code == "web_ir_validate.a11y.insufficient_contrast"), "{out:?}");
+        assert!(
+            out.iter()
+                .any(|d| d.code == "web_ir_validate.a11y.low_contrast"),
+            "{out:?}"
+        );
+        assert!(
+            !out.iter()
+                .any(|d| d.code == "web_ir_validate.a11y.insufficient_contrast"),
+            "{out:?}"
+        );
     }
 
     #[test]
     fn high_contrast_pair_passes() {
-        let m = parent_child(vec![("data-vox-bg", "white")], vec![("data-vox-color", "zinc.900")]);
+        let m = parent_child(
+            vec![("data-vox-bg", "white")],
+            vec![("data-vox-color", "zinc.900")],
+        );
         let mut out = vec![];
         validate_palette(&m, None, &mut out);
         assert!(out.iter().all(|d| !d.code.contains("contrast")), "{out:?}");

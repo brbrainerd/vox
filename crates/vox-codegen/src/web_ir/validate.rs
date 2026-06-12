@@ -975,8 +975,8 @@ mod tests {
                 "primary": { "$surface_pair": true, "fg": "color.background", "bg": "color.primary" }
             }
         }"##;
-        let registry = vox_compiler::tokens::TokenRegistry::load_from_str(tokens_json)
-            .expect("parse tokens");
+        let registry =
+            vox_compiler::tokens::TokenRegistry::load_from_str(tokens_json).expect("parse tokens");
         let mut m = WebIrModule::default();
         m.dom_nodes.push(DomNode::Element {
             id: DomNodeId(0),

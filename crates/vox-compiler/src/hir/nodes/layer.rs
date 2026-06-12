@@ -225,7 +225,10 @@ mod tests {
         assert_eq!(LayerTier::default_for_primitive("toast"), LayerTier::Toast);
         assert_eq!(LayerTier::default_for_primitive("drawer"), LayerTier::Modal);
         // `overlay` is the transparent portal host — not a surface, stays at Content.
-        assert_eq!(LayerTier::default_for_primitive("overlay"), LayerTier::Content);
+        assert_eq!(
+            LayerTier::default_for_primitive("overlay"),
+            LayerTier::Content
+        );
         assert_eq!(LayerTier::default_for_primitive("row"), LayerTier::Content);
     }
 

@@ -141,10 +141,7 @@ pub async fn run(
                 for d in &errors {
                     eprintln!("error[{}]: {}", d.code, d.message);
                 }
-                anyhow::bail!(
-                    "mobile build failed: {} validator error(s)",
-                    errors.len()
-                );
+                anyhow::bail!("mobile build failed: {} validator error(s)", errors.len());
             }
         }
 
