@@ -262,6 +262,14 @@ impl Interpreter {
             self.module_scope.set(ctor.to_string(), val);
         }
 
+        // `Unit` is a nullary *value* (like Rust's `()`), not a callable
+        // constructor, so bind it directly to the unit/null runtime value rather
+        // than a `Constructor("Unit")`. Without this, `return Unit` / `Ok(Unit)`
+        // (e.g. a `fn ... to Result[Unit]` success path) fails as
+        // `UndefinedVariable("Unit")` and the success path can't be executed.
+        self.scope.set("Unit".to_string(), VoxValue::Null);
+        self.module_scope.set("Unit".to_string(), VoxValue::Null);
+
         // Resolve intra-project Vox-file imports before binding this module's
         // own decls, so a `pub fn` in the importer can shadow an imported one
         // (defining the function in your own file wins).

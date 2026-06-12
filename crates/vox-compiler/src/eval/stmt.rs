@@ -192,6 +192,14 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
         HirStmt::Return { value, .. } => {
             if let Some(val) = value {
                 let v = super::expr::eval_expr(interp, val)?;
+                // If the returned expression already produced an early-return
+                // sentinel — e.g. `return match x { _ => return y }`, or a `?`
+                // inside the returned expression — propagate it as-is. Wrapping
+                // it again would yield `_Return(_Return(..))`, and the call
+                // boundary only unwraps one level, leaking a `_Return` value.
+                if matches!(v, VoxValue::_Return(_)) {
+                    return Ok(v);
+                }
                 // Normalize zero-arg constructors: `return None` produces
                 // `Constructor("None")`; normalize to `Option(None)` so callers
                 // can call `.is_none()` etc. on the returned value.

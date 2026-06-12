@@ -29,3 +29,23 @@ fn is_phone(s: str) to bool {
         Error(_) => false
     }
 }
+
+@test
+fn test_extract_mood() {
+    match extract_mood("my mood was 7 today") {
+        Some(d) => assert(d is "7")
+        None => assert(false)
+    }
+    let no_mood = match extract_mood("nothing here") {
+        Some(_) => "found"
+        None => "none"
+    }
+    assert(no_mood is "none")
+}
+
+@test
+fn test_is_phone() {
+    assert(is_phone("555-1234") is true)
+    assert(is_phone("5551234") is false)
+    assert(is_phone("12-3456") is false)
+}

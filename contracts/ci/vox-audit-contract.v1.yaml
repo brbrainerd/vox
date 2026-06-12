@@ -187,9 +187,19 @@ telemetry:
     - unreachable_panel_member_count
 
 # ----------------------------------------------------------------------------
-# Subcommand inventory (CR-L gates)
+# Subcommand inventory (CR-F foundation gates, then CR-L gates)
 # ----------------------------------------------------------------------------
 subcommands:
+  - name: "vox audit behavioral-goldens"
+    gate: CR-F1
+    corpus: "examples/golden/"
+    block_ga: true                        # CR-F1 blocks GA
+    cost_metered: false
+  - name: "vox audit regression-budget"
+    gate: CR-F6
+    corpus: null                          # scans workspace source, no external corpus
+    block_ga: true                        # CR-F6 blocks GA (regression lock)
+    cost_metered: false
   - name: "vox audit spec-to-app"
     gate: CR-L0
     corpus: "contracts/eval/spec-to-app/"
