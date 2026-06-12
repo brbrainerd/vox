@@ -431,16 +431,10 @@ pub async fn publication_extract_claims(publication_id: &str) -> Result<()> {
     Ok(())
 }
 
-/// Derive a stable `session_id` from a publication id (FNV-1a). `scientia_claims`
-/// is keyed by `session_id`; a publication's extracted claims share this bucket.
-pub(crate) fn publication_session_id(publication_id: &str) -> i64 {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for b in publication_id.as_bytes() {
-        hash ^= *b as u64;
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    hash as i64
-}
+// `publication_session_id` is the SSOT-shared FNV-1a session-id derivation,
+// now owned by `vox_scientia::review_flow`. Re-exported here so in-crate callers
+// keep resolving `publication_session_id(...)` unchanged.
+pub(crate) use vox_scientia::review_flow::publication_session_id;
 
 /// Map a `ClaimVerdict` to its persisted `(verdict_label, confidence)` form.
 pub(crate) fn verdict_to_row(
@@ -507,6 +501,35 @@ pub async fn publication_review_queue(publication_id: &str) -> Result<()> {
     let payload =
         build_claims_payload("scientia_publication_review_queue", publication_id, &claims);
     println!("{}", serde_json::to_string_pretty(&payload)?);
+    Ok(())
+}
+
+/// P3 — `vox scientia evidence-assist`. LLM-assisted ADVISORY evidence /
+/// conclusion suggestions for ONE claim in the review queue. Mirrors the GUI
+/// `suggest_evidence_improvements` command (both call
+/// [`vox_scientia::evidence_assist::suggest`], routed through the model-agnostic
+/// actor-runtime LLM facade). Prints a JSON array; never mutates any decision or
+/// assertion, and degrades to `[]` on any LLM error.
+pub async fn evidence_assist(publication_id: &str, claim_id: i64) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default()
+        .await
+        .context("connect to default Codex / VoxDb")?;
+    let session_id = publication_session_id(publication_id);
+    let claims = db
+        .list_claims_awaiting_review(session_id, publication_id)
+        .await
+        .context("list claims awaiting review")?;
+    let claim = claims
+        .into_iter()
+        .find(|c| c.claim_id == claim_id)
+        .ok_or_else(|| anyhow::anyhow!("claim {claim_id} not in review queue"))?;
+    let suggestions = vox_scientia::evidence_assist::suggest(
+        &claim.text,
+        claim.verdict.as_deref(),
+        claim.confidence,
+    )
+    .await;
+    println!("{}", serde_json::to_string_pretty(&suggestions)?);
     Ok(())
 }
 
@@ -900,13 +923,6 @@ mod tests {
         apply_phase_costs(&mut inputs, std::iter::empty());
         assert_eq!(inputs.extraction_usd, 0.0);
         assert_eq!(inputs.scholarly_submission_usd, 0.0);
-    }
-
-    #[test]
-    fn publication_session_id_is_stable_and_distinct() {
-        let a = publication_session_id("pub-aaa");
-        assert_eq!(a, publication_session_id("pub-aaa"));
-        assert_ne!(a, publication_session_id("pub-bbb"));
     }
 
     #[test]

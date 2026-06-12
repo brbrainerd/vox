@@ -16,6 +16,7 @@ vox-crypto = { workspace = true }
 vox-research-events = { workspace = true }
 vox-db = { workspace = true }
 vox-db-types = { workspace = true }
+vox-actor-runtime = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true, features = ["v4", "serde"] }
 thiserror = { workspace = true }
@@ -41,6 +42,7 @@ vox-search.workspace = true
 feed-rs = "2.3.1"
 nanopub = { workspace = true }
 secrecy = { workspace = true }
+vox-secrets = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

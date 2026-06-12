@@ -64,7 +64,6 @@ gimli = { version = "0.33", default-features = false, features = ["read", "std",
 gix = { version = "0.84", default-features = false, features = ["blob-diff", "blocking-http-transport-reqwest", "max-performance-safe", "progress-tree", "revision", "sha1", "zlib-rs"] }
 gix-diff = { version = "0.64", default-features = false, features = ["blob"] }
 gix-features = { version = "0.48", features = ["crc32", "fs-read-dir", "io-pipe", "once_cell", "parallel", "progress", "walkdir", "zlib"] }
-gix-hash = { version = "0.25", features = ["sha1"] }
 gix-pack = { version = "0.71", default-features = false, features = ["object-cache-dynamic", "pack-cache-lru-dynamic", "pack-cache-lru-static", "sha1", "streaming-input"] }
 gix-packetline = { version = "0.21", features = ["blocking-io"] }
 gix-protocol = { version = "0.62", default-features = false, features = ["blocking-client"] }
@@ -146,6 +145,7 @@ tokio-rustls = { version = "0.26", default-features = false, features = ["ring"]
 tokio-stream = { version = "0.1" }
 tokio-util = { version = "0.7", features = ["codec", "io"] }
 toml_datetime = { version = "1", features = ["serde"] }
+toml_edit = { version = "0.22", features = ["serde"] }
 toml_parser = { version = "1" }
 toml_writer = { version = "1" }
 tower = { version = "0.5", default-features = false, features = ["make", "util"] }
@@ -219,7 +219,6 @@ gimli = { version = "0.33", default-features = false, features = ["read", "std",
 gix = { version = "0.84", default-features = false, features = ["blob-diff", "blocking-http-transport-reqwest", "max-performance-safe", "progress-tree", "revision", "sha1", "zlib-rs"] }
 gix-diff = { version = "0.64", default-features = false, features = ["blob"] }
 gix-features = { version = "0.48", features = ["crc32", "fs-read-dir", "io-pipe", "once_cell", "parallel", "progress", "walkdir", "zlib"] }
-gix-hash = { version = "0.25", features = ["sha1"] }
 gix-pack = { version = "0.71", default-features = false, features = ["object-cache-dynamic", "pack-cache-lru-dynamic", "pack-cache-lru-static", "sha1", "streaming-input"] }
 gix-packetline = { version = "0.21", features = ["blocking-io"] }
 gix-protocol = { version = "0.62", default-features = false, features = ["blocking-client"] }
@@ -303,6 +302,7 @@ tokio-rustls = { version = "0.26", default-features = false, features = ["ring"]
 tokio-stream = { version = "0.1" }
 tokio-util = { version = "0.7", features = ["codec", "io"] }
 toml_datetime = { version = "1", features = ["serde"] }
+toml_edit = { version = "0.22", features = ["serde"] }
 toml_parser = { version = "1" }
 toml_writer = { version = "1" }
 tower = { version = "0.5", default-features = false, features = ["make", "util"] }
@@ -345,7 +345,6 @@ rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", 
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["aws-lc-rs", "tls12"] }
 toml = { version = "0.8" }
-toml_edit = { version = "0.22", default-features = false, features = ["display", "parse", "serde"] }
 tower = { version = "0.5", default-features = false, features = ["retry", "timeout"] }
 tower-http = { version = "0.6", default-features = false, features = ["decompression-gzip", "follow-redirect"] }
 tracing = { version = "0.1" }
@@ -371,7 +370,6 @@ rustls-webpki = { version = "0.103", default-features = false, features = ["aws-
 syn-dff4ba8e3ae991db = { package = "syn", version = "1", features = ["extra-traits", "full", "visit", "visit-mut"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["aws-lc-rs", "tls12"] }
 toml = { version = "0.8" }
-toml_edit = { version = "0.22", default-features = false, features = ["display", "parse", "serde"] }
 tower = { version = "0.5", default-features = false, features = ["retry", "timeout"] }
 tower-http = { version = "0.6", default-features = false, features = ["decompression-gzip", "follow-redirect"] }
 tracing = { version = "0.1" }

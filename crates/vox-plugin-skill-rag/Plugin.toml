@@ -14,4 +14,4 @@ format-version = 1
 skill-md = "rag.skill.md"
 
 [plugin.payload.tools]
-exposes = ["vox_rag_query", "vox_rag_index"]
+exposes = ["vox_visual_rag_query"]

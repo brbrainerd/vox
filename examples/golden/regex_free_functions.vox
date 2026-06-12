@@ -78,8 +78,11 @@ fn test_replace_and_captures() to Unit {
         None => assert(false)
     }
 
-    match extract_version("no version here") {
-        Some(_) => assert(false)
-        None => assert(true)
+    // A string with no version yields None; verify the None path by mapping it
+    // through a fallback (a real observable, not a tautological `assert(true)`).
+    let fallback = match extract_version("no version here") {
+        Some(v) => v
+        None => "none"
     }
+    assert(fallback is "none")
 }

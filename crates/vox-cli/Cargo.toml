@@ -191,6 +191,7 @@ vox-orchestrator-mcp = { workspace = true, optional = true }
 vox-plugin-api = { workspace = true }
 vox-plugin-types = { workspace = true }
 vox-plugin-catalog = { workspace = true }
+toml_edit = { workspace = true }
 vox-plugin-host = { workspace = true }
 # Needed to construct ROption / RString when dispatching into plugin extension
 # trait methods (e.g. the Publication.ingest_tick signature).

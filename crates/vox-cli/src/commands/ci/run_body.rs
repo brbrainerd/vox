@@ -601,7 +601,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::PluginDepBoundary => super::plugin_dep_boundary::check(&root),
         CiCmd::PluginAbiParity { build } => super::plugin_abi_parity::run(build),
         CiCmd::PluginSurfaceSync { write } => super::plugin_surface::run(&root, write),
-        CiCmd::PluginSkillParity => super::plugin_skill_parity::run(),
+        CiCmd::PluginCatalogSync { write } => super::plugin_catalog_sync::run(&root, write),
+        CiCmd::PluginSkillParity { write } => super::plugin_skill_parity::run(write),
         CiCmd::AgentSkillsCompliance => super::agentskills_compliance::run(),
         CiCmd::CoolifyEval { cmd } => super::coolify_eval::run(cmd).await,
         CiCmd::WatchRun {
