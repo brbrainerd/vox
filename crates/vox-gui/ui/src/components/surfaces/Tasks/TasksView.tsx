@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from '../../ui/Icons';
-import { TaskRow, groupTasks, cyclePriority, filterBySession } from './tasksHelpers';
+import { TaskRow, groupTasks, cyclePriority, filterBySession, findWriteOverlaps } from './tasksHelpers';
 
 interface StoredSession { id: string; title: string }
 
@@ -115,6 +115,7 @@ export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
   const presentSessions = Array.from(
     new Set(rows.map(r => r.session_id).filter((s): s is string => !!s)),
   );
+  const overlaps = findWriteOverlaps(rows);
   const { inProgress, queued } = groupTasks(filterBySession(rows, sessionFilter));
 
   const renderRow = (t: TaskRow, editable: boolean) => (
@@ -141,12 +142,30 @@ export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
             {t.description}
           </span>
         )}
-        <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
-          #{t.id}
-          {t.agent_id != null ? ` · agent ${t.agent_id}` : ''}
-          {' · '}
-          {t.lifecycle}
-        </span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-600">
+            #{t.id}
+            {t.agent_id != null ? ` · agent ${t.agent_id}` : ''}
+            {' · '}
+            {t.lifecycle}
+          </span>
+          {t.depends_on.length > 0 && (
+            <span
+              title="Runs after the listed task(s) complete"
+              className="rounded border border-white/10 bg-white/[0.03] px-1 font-mono text-[9px] text-zinc-400"
+            >
+              → after #{t.depends_on.join(', #')}
+            </span>
+          )}
+          {(overlaps.get(t.id)?.length ?? 0) > 0 && (
+            <span
+              title="These tasks write the same files — the orchestrator serializes them via file locks and may split VCS changes"
+              className="rounded border border-amber-400/30 bg-amber-400/10 px-1 font-mono text-[9px] text-amber-300"
+            >
+              ⚠ overlaps #{overlaps.get(t.id)!.join(', #')}
+            </span>
+          )}
+        </div>
       </div>
       {editable && (
         <div className="flex shrink-0 items-center gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">

@@ -28,6 +28,32 @@ export function groupTasks(rows: TaskRow[]): GroupedTasks {
   return { inProgress, queued };
 }
 
+/**
+ * Map each task id to the other queued task ids that write at least one of the
+ * same files. The orchestrator serializes these via file locks (and may split
+ * VCS changes); surfacing it tells the user why two tasks won't run in parallel.
+ */
+export function findWriteOverlaps(rows: TaskRow[]): Map<number, number[]> {
+  const byFile = new Map<string, number[]>();
+  for (const t of rows) {
+    for (const f of t.write_files) {
+      const list = byFile.get(f) ?? [];
+      list.push(t.id);
+      byFile.set(f, list);
+    }
+  }
+  const out = new Map<number, number[]>();
+  for (const ids of byFile.values()) {
+    if (ids.length < 2) continue;
+    for (const id of ids) {
+      const others = ids.filter(o => o !== id);
+      const cur = out.get(id) ?? [];
+      out.set(id, [...new Set([...cur, ...others])].sort((a, b) => a - b));
+    }
+  }
+  return out;
+}
+
 export function filterBySession(rows: TaskRow[], sessionId: string | null): TaskRow[] {
   if (!sessionId) return rows;
   return rows.filter(t => t.session_id === sessionId);

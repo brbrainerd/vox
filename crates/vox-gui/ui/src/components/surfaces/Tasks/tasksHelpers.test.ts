@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { groupTasks, cyclePriority, filterBySession, TaskRow } from './tasksHelpers';
+import { groupTasks, cyclePriority, filterBySession, findWriteOverlaps, TaskRow } from './tasksHelpers';
 
 const row = (over: Partial<TaskRow>): TaskRow => ({
   id: 1,
@@ -42,6 +42,20 @@ describe('filterBySession', () => {
     ];
     expect(filterBySession(rows, null)).toHaveLength(3);
     expect(filterBySession(rows, 'gui-a').map(t => t.id)).toEqual([1]);
+  });
+});
+
+describe('findWriteOverlaps', () => {
+  it('maps each task to the other task ids sharing a write file', () => {
+    const rows = [
+      row({ id: 1, write_files: ['a.rs', 'b.rs'] }),
+      row({ id: 2, write_files: ['b.rs'] }),
+      row({ id: 3, write_files: ['c.rs'] }),
+    ];
+    const m = findWriteOverlaps(rows);
+    expect(m.get(1)).toEqual([2]);
+    expect(m.get(2)).toEqual([1]);
+    expect(m.get(3)).toBeUndefined();
   });
 });
 
