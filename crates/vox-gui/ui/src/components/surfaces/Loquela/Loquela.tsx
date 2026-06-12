@@ -4,6 +4,18 @@ import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { voxTransport } from '../../../transport';
+import { buildSlashEntries, type SlashEntry } from '../../../lib/slashCommands';
+import {
+  COMPOSER_HISTORY_CAP,
+  LOQUELA_FILE_PICKER_DEBOUNCE_MS,
+  LOQUELA_FILE_PICKER_LIMIT,
+  LOQUELA_TIER_MODEL_COUNT,
+} from '../../../config/constants';
+import type { ActiveSkill, CatalogEntry, ChatPayload, Toast } from '../../../types/tauri';
+import {
+  formatSessionBudget,
+  resolveInternalModeSlash,
+} from '../../../lib/slashRouter';
 
 const LQ_MODES = [
   { id: "plan",   label: "Plan",   hint: "Augur drafts a plan, no side effects",       tone: "text-cyan-300   border-cyan-400/30   bg-cyan-400/[0.08]" },
@@ -15,21 +27,10 @@ const LQ_MODES = [
 // Cost is `null` (unknown) — real per-1k pricing is injected from listModels()
 // once available. We never display a fabricated price.
 const LQ_TIERS = [
-  { id: "local",  label: "Local · Mens",    detail: "candle-cuda · 8B",    cost: null, lat: "0.3s" },
-  { id: "mesh",   label: "Mesh · Peers",    detail: "peers",               cost: null, lat: "0.6s" },
-  { id: "cloud",  label: "Cloud · Cascade", detail: "Sonnet → Opus",       cost: null, lat: "1.4s" },
-  { id: "auto",   label: "Auto · Cascade",  detail: "tier-router decides", cost: null, lat: "var" },
-];
-
-const LQ_SLASH = [
-  { cmd: "/plan",    desc: "Draft a multi-step plan without executing",    icon: "flow" },
-  { cmd: "/spawn",   desc: "Spin up a sub-agent on this branch",           icon: "agent" },
-  { cmd: "/audit",   desc: "Socrates citation + invariant audit on file",  icon: "shield" },
-  { cmd: "/verify",  desc: "Run rule-pack + property tests",               icon: "check" },
-  { cmd: "/doubt",   desc: "Inject doubt at threshold N",                   icon: "alert" },
-  { cmd: "/memory",  desc: "Query Mnemosyne (RAG over project memory)",    icon: "memory" },
-  { cmd: "/rollback",desc: "Revert to last durable checkpoint",            icon: "back" },
-  { cmd: "/diff",    desc: "Show pending diff staged by agent",             icon: "file" },
+  { id: "local", label: "Local · Mens", detail: "loading models…", cost: null, lat: null },
+  { id: "mesh", label: "Mesh · Peers", detail: "peers", cost: null, lat: null },
+  { id: "cloud", label: "Cloud · Cascade", detail: "cloud tier", cost: null, lat: null },
+  { id: "auto", label: "Auto · Router", detail: "tier-router decides", cost: null, lat: null },
 ];
 
 interface ChipData {
@@ -98,33 +99,54 @@ function Popover({ open, children, align = "left" }: any) {
   );
 }
 
+export interface SessionBudgetDisplay {
+  spent: number;
+  cap: number;
+  source?: string;
+}
+
+export interface SlashCommandContext {
+  setText: (text: string) => void;
+}
+
 interface LoquelaProps {
   chips: ChipData[];
   setChips: React.Dispatch<React.SetStateAction<ChipData[]>>;
-  onSubmit: (payload: any) => void;
-  activeSkill: any;
-  setActiveSkill: (s: any) => void;
-  skills: any[];
-  toast?: (t: any) => void;
+  onSubmit: (payload: ChatPayload) => void;
+  activeSkill: ActiveSkill | null;
+  setActiveSkill: (s: ActiveSkill | null) => void;
+  skills: CatalogEntry[];
+  toast?: (t: Toast) => void;
   agents?: any[];
+  sessionBudget?: SessionBudgetDisplay;
+  /** When true, the slash command was handled and should not be inserted into the composer. */
+  onSlashCommand?: (cmd: string, ctx: SlashCommandContext) => boolean | Promise<boolean>;
 }
 
-export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill, skills, toast, agents = [] }: LoquelaProps) {
+export function Loquela({
+  chips,
+  setChips,
+  onSubmit,
+  activeSkill,
+  setActiveSkill,
+  skills,
+  toast,
+  agents = [],
+  sessionBudget,
+  onSlashCommand,
+}: LoquelaProps) {
   const [text, setText] = useState("");
   const [mode, setMode] = useState("act");
   const [tier, setTier] = useState("auto");
-  const [iso, setIso]   = useState("wasm");
-  const [budget, setBudget] = useState(5.0);
-  const [doubt,  setDoubt]  = useState(0.6);
-  const [stream, setStream] = useState(true);
-  const [sign,   setSign]   = useState(false);
   const [dryRun, setDryRun] = useState(false);
 
   const [skillOpen, setSkillOpen] = useState(false);
   const [tierOpen,  setTierOpen]  = useState(false);
-  const [moreOpen,  setMoreOpen]  = useState(false);
   const [slashOpen, setSlashOpen] = useState(false);
   const [atOpen,    setAtOpen]    = useState(false);
+  const [fileSuggestions, setFileSuggestions] = useState<string[]>([]);
+  const [fileSuggestionsLoading, setFileSuggestionsLoading] = useState(false);
+  const filePickerDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [slashIdx,  setSlashIdx]  = useState(0);
   const [focused,   setFocused]   = useState(false);
   const [history,   setHistory]   = useState<string[]>([]);
@@ -143,13 +165,48 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
   useEffect(() => {
     const trimmed = text.trimStart();
     setSlashOpen(trimmed.startsWith("/") && !trimmed.includes(" "));
-    const m = text.match(/@(\w*)$/);
+    const m = text.match(/@([^\s]*)$/);
     setAtOpen(!!m);
     setSlashIdx(0);
   }, [text]);
 
+  const atQuery = useMemo(() => {
+    const m = text.match(/@([^\s]*)$/);
+    return m?.[1] ?? "";
+  }, [text]);
+
+  const isPathLikeAtQuery = (q: string) =>
+    q.length === 0 || /[./\\-]/.test(q) || q.includes("/");
+
   useEffect(() => {
-    voxTransport.listModels(24).then((models: any) => {
+    if (!atOpen) {
+      setFileSuggestions([]);
+      setFileSuggestionsLoading(false);
+      if (filePickerDebounceRef.current) clearTimeout(filePickerDebounceRef.current);
+      return;
+    }
+    if (filePickerDebounceRef.current) clearTimeout(filePickerDebounceRef.current);
+    filePickerDebounceRef.current = setTimeout(async () => {
+      setFileSuggestionsLoading(true);
+      try {
+        const paths = await invoke<string[]>("list_repo_files", {
+          query: atQuery || null,
+          limit: LOQUELA_FILE_PICKER_LIMIT,
+        });
+        setFileSuggestions(Array.isArray(paths) ? paths : []);
+      } catch {
+        setFileSuggestions([]);
+      } finally {
+        setFileSuggestionsLoading(false);
+      }
+    }, LOQUELA_FILE_PICKER_DEBOUNCE_MS);
+    return () => {
+      if (filePickerDebounceRef.current) clearTimeout(filePickerDebounceRef.current);
+    };
+  }, [atOpen, atQuery]);
+
+  useEffect(() => {
+    voxTransport.listModels(LOQUELA_TIER_MODEL_COUNT).then((models: any) => {
       if (!Array.isArray(models) || models.length === 0) return;
       const dynamic = models.slice(0, 4).map((m: any, idx: number) => {
         // Real per-1k-token price from the model registry when present;
@@ -160,12 +217,12 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
           label: m.display_name ?? m.model_id ?? `Model ${idx + 1}`,
           detail: m.provider ?? 'runtime',
           cost: perK,
-          lat: 'var',
+          lat: null,
         };
       });
       setRuntimeTiers([
         ...dynamic,
-        { id: 'auto', label: 'Auto · Router', detail: 'live routing summary', cost: null, lat: 'var' },
+        { id: 'auto', label: 'Auto · Router', detail: 'live routing summary', cost: null, lat: null },
       ]);
       if (!dynamic.some((d: any) => d.id === tier) && tier !== 'auto') {
         setTier(dynamic[0]?.id ?? 'auto');
@@ -173,19 +230,24 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
     }).catch(() => {});
   }, []);
 
+  const allSlash = useMemo(() => buildSlashEntries(skills), [skills]);
   const filteredSlash = useMemo(() => {
     const q = text.trimStart().toLowerCase();
-    return LQ_SLASH.filter(s => s.cmd.startsWith(q));
-  }, [text]);
+    return allSlash.filter(s => s.cmd.startsWith(q));
+  }, [text, allSlash]);
 
   const filteredAt = useMemo(() => {
-    const m = text.match(/@(\w*)$/); const q = (m?.[1] || "").toLowerCase();
+    const q = atQuery.toLowerCase();
     return agents.filter(a => a.id.toLowerCase().includes(q) || a.codename?.toLowerCase().includes(q));
-  }, [text, agents]);
+  }, [atQuery, agents]);
+
+  const showFileSuggestions = atOpen && (isPathLikeAtQuery(atQuery) || fileSuggestions.length > 0);
+  const showAtPopover = atOpen && (filteredAt.length > 0 || showFileSuggestions || fileSuggestionsLoading);
 
   const tokens = Math.ceil(text.length / 4) + chips.length * 80;
   const tierObj = runtimeTiers.find(t => t.id === tier) || runtimeTiers[runtimeTiers.length - 1];
-  const estCost = tierObj?.cost == null ? null : (tokens / 1000) * tierObj.cost + 0.002;
+  const estCost =
+    tierObj?.cost == null ? null : (tokens / 1000) * tierObj.cost;
 
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
@@ -248,7 +310,7 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
         setRecording(true);
         toast?.({ tone: 'info', title: 'Recording', body: 'Listening — tap the mic again to stop.', cmd: 'oratio.transcribe' });
       } catch (e) {
-        toast?.({ tone: 'err', title: 'Microphone unavailable', body: String(e), cmd: 'oratio.transcribe' });
+        toast?.({ tone: 'warn', title: 'Microphone unavailable', body: String(e), cmd: 'oratio.transcribe' });
       }
       return;
     }
@@ -266,17 +328,65 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
         toast?.({ tone: 'info', title: 'No speech detected', body: 'The recording produced no transcript.', cmd: 'oratio.transcribe' });
       }
     } catch (e) {
-      toast?.({ tone: 'err', title: 'Transcription failed', body: String(e), cmd: 'oratio.transcribe' });
+      toast?.({ tone: 'warn', title: 'Transcription failed', body: String(e), cmd: 'oratio.transcribe' });
     } finally {
       setTranscribing(false);
     }
   };
 
-  const insertSlash = (cmd: string) => { setText(cmd + " "); setSlashOpen(false); taRef.current?.focus(); };
+  const runSlash = async (entry: SlashEntry) => {
+    // Skill entries pin the skill (rides in the payload's active_skill) rather
+    // than inserting literal text.
+    if (entry.kind === 'skill') {
+      const found = skills.find(
+        (s) => (s.capability_id ?? s.command) === entry.skillId || s.command === entry.skillId,
+      );
+      const name = entry.cmd.slice(1);
+      setActiveSkill(
+        found
+          ? { id: found.capability_id ?? found.command, name: found.command, command: found.command }
+          : { id: entry.skillId ?? name, name, command: name },
+      );
+      setText('');
+      setSlashOpen(false);
+      toast?.({ tone: 'info', title: 'Skill selected', body: name, cmd: 'skill.pin' });
+      taRef.current?.focus();
+      return;
+    }
+    const cmd = entry.cmd;
+    // Internal mode slashes (/plan, /verify, …) flip the composer mode.
+    const internalMode = resolveInternalModeSlash(cmd);
+    if (internalMode) {
+      setMode(internalMode);
+      setText('');
+      setSlashOpen(false);
+      const hint = LQ_MODES.find(m => m.id === internalMode)?.hint;
+      toast?.({ tone: 'info', title: `${internalMode} mode`, body: hint, cmd });
+      taRef.current?.focus();
+      return;
+    }
+    const handled = await onSlashCommand?.(cmd, { setText });
+    if (handled) {
+      setText('');
+      setSlashOpen(false);
+      taRef.current?.focus();
+      return;
+    }
+    setText(cmd + ' ');
+    setSlashOpen(false);
+    taRef.current?.focus();
+  };
   const insertAt = (agent: any) => {
-    setText(t => t.replace(/@\w*$/, `@${agent.id} `));
+    setText(t => t.replace(/@[^\s]*$/, `@${agent.id} `));
     setChips(cs => cs.find(c => c.id === "agent-" + agent.id) ? cs : [...cs, { id: "agent-" + agent.id, kind: "agent", label: `${agent.id} · ${agent.codename}`, meta: agent.phase }]);
     setAtOpen(false); taRef.current?.focus();
+  };
+
+  const insertAtFile = (path: string) => {
+    setText(t => t.replace(/@[^\s]*$/, `@${path} `));
+    addContextRef(path);
+    setAtOpen(false);
+    taRef.current?.focus();
   };
 
   const send = () => {
@@ -284,14 +394,13 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
     const payload = {
       description: text.trim(),
       active_skill: activeSkill?.id,
-      mode, tier, isolation: iso,
-      max_cost_usd: budget,
-      doubt_threshold: doubt,
-      stream, require_signature: sign, dry_run: dryRun,
+      mode,
+      tier,
+      dry_run: dryRun,
       context: chips.map(c => ({ kind: c.kind, ref: c.label })),
     };
     onSubmit(payload);
-    setHistory(h => [text.trim(), ...h].slice(0, 30));
+    setHistory(h => [text.trim(), ...h].slice(0, COMPOSER_HISTORY_CAP));
     setHistIdx(-1);
     setText("");
   };
@@ -302,7 +411,7 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
       setSlashIdx(i => (i + (e.key === "ArrowDown" ? 1 : -1) + filteredSlash.length) % Math.max(1, filteredSlash.length));
       return;
     }
-    if (slashOpen && e.key === "Enter") { e.preventDefault(); const s = filteredSlash[slashIdx]; if (s) insertSlash(s.cmd); return; }
+    if (slashOpen && e.key === "Enter") { e.preventDefault(); const s = filteredSlash[slashIdx]; if (s) void runSlash(s); return; }
     if (slashOpen && e.key === "Escape") { setSlashOpen(false); return; }
     if (e.key === "ArrowUp" && !text && history.length) {
       e.preventDefault(); const ni = Math.min(history.length - 1, histIdx + 1); setHistIdx(ni); setText(history[ni]); return;
@@ -314,7 +423,7 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
     if (e.key === "Enter" && !e.shiftKey && !slashOpen && !atOpen) { e.preventDefault(); send(); }
   };
 
-  const riskTone = mode === "act" && !dryRun && budget > 3 ? "high" : doubt < 0.4 ? "med" : "low";
+  const riskTone = dryRun ? 'low' : mode === 'verify' ? 'med' : mode === 'plan' ? 'low' : 'high';
 
   return (
     <div className="pointer-events-auto p-4">
@@ -351,14 +460,16 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
 
           <div className="relative flex-1">
             <textarea
+              id="loquela-composer"
               ref={taRef}
               value={text}
+              aria-label="Task composer"
               onChange={e => setText(e.target.value)}
               onKeyDown={onKey}
               onFocus={() => setFocused(true)}
               onBlur={() => setTimeout(() => setFocused(false), 120)}
               rows={1}
-              placeholder="Describe a task — e.g. ‘harden cryptographic invariants’. / for commands, @ for agents"
+              placeholder="Describe a task — e.g. ‘harden cryptographic invariants’. / for commands, @ for agents or files"
               className={`min-h-[36px] ${expanded ? "max-h-[360px]" : "max-h-[160px]"} w-full resize-none bg-transparent py-1.5 text-[14px] leading-relaxed text-zinc-100 placeholder:text-zinc-600 outline-none`}
             />
 
@@ -368,7 +479,7 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
                 {filteredSlash.map((s, i) => {
                   const IcoCmp = (Icon as any)[s.icon] || Icon.bolt;
                   return (
-                    <button key={s.cmd} onMouseEnter={() => setSlashIdx(i)} onClick={() => insertSlash(s.cmd)}
+                    <button key={s.cmd} onMouseEnter={() => setSlashIdx(i)} onClick={() => void runSlash(s)}
                             className={`flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left ${i === slashIdx ? "bg-white/5" : ""}`}>
                       <IcoCmp className="size-3.5 text-brass" />
                       <span className="font-mono text-[11px] text-zinc-100">{s.cmd}</span>
@@ -379,17 +490,41 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
               </div>
             )}
 
-            {atOpen && filteredAt.length > 0 && (
-              <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-[280px] rounded-lg border border-white/10 bg-zinc-950/95 p-1 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]">
-                <div className="px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-zinc-500">Mention agent</div>
-                {filteredAt.map(a => (
-                  <button key={a.id} onClick={() => insertAt(a)}
-                          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-white/5">
-                    <span className="font-mono text-[10px] text-violet-300">{a.id}</span>
-                    <span className="text-[11px] text-zinc-200">{a.codename}</span>
-                    <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-zinc-500">{a.phase}</span>
-                  </button>
-                ))}
+            {showAtPopover && (
+              <div className="absolute bottom-[calc(100%+6px)] left-0 z-50 w-[360px] max-h-[280px] overflow-y-auto rounded-lg border border-white/10 bg-zinc-950/95 p-1 backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)]">
+                {filteredAt.length > 0 && (
+                  <>
+                    <div className="px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-zinc-500">Agents</div>
+                    {filteredAt.map(a => (
+                      <button key={a.id} onClick={() => insertAt(a)}
+                              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-white/5">
+                        <span className="font-mono text-[10px] text-violet-300">{a.id}</span>
+                        <span className="text-[11px] text-zinc-200">{a.codename}</span>
+                        <span className="ml-auto font-mono text-[9px] uppercase tracking-widest text-zinc-500">{a.phase}</span>
+                      </button>
+                    ))}
+                  </>
+                )}
+                {showFileSuggestions && (
+                  <>
+                    <div className={`px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-zinc-500 ${filteredAt.length > 0 ? "mt-1 border-t border-white/5" : ""}`}>
+                      Files
+                    </div>
+                    {fileSuggestionsLoading && fileSuggestions.length === 0 && (
+                      <div className="px-2 py-1.5 text-[10px] text-zinc-500">Searching repo…</div>
+                    )}
+                    {fileSuggestions.map(p => (
+                      <button key={p} onClick={() => insertAtFile(p)}
+                              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-white/5">
+                        <Icon.file className="size-3 shrink-0 text-cyan-300" />
+                        <span className="truncate font-mono text-[10px] text-zinc-200">{p}</span>
+                      </button>
+                    ))}
+                    {!fileSuggestionsLoading && fileSuggestions.length === 0 && (
+                      <div className="px-2 py-1.5 text-[10px] text-zinc-500">No matching files</div>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -403,7 +538,7 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
           <Segment value={mode} onChange={setMode} options={LQ_MODES} />
 
           <div className="relative">
-            <button onClick={() => { setTierOpen(o => !o); setMoreOpen(false); setSkillOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-zinc-300 hover:border-white/20">
+            <button onClick={() => { setTierOpen(o => !o); setSkillOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-zinc-300 hover:border-white/20">
               <Icon.cpu className="size-3 text-cyan-300" /><span className="text-zinc-500">Run on</span> <span className="text-zinc-100">{tierObj.label.split(" · ")[0]}</span>
               <Icon.chevR className="size-2.5 text-zinc-500 rotate-90" />
             </button>
@@ -420,22 +555,34 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
           </div>
 
           <div className="relative">
-            <button onClick={() => { setSkillOpen(o => !o); setTierOpen(false); setMoreOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-brass/25 bg-brass/[0.06] px-2 py-1 text-brass hover:bg-brass/[0.12]">
-              <Icon.bolt className="size-3" /><span className="text-brass/70">Skill</span> <span>{activeSkill ? activeSkill.name : "auto"}</span>
+            <button onClick={() => { setSkillOpen(o => !o); setTierOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-brass/25 bg-brass/[0.06] px-2 py-1 text-brass hover:bg-brass/[0.12]">
+              <Icon.bolt className="size-3" /><span className="text-brass/70">Skill</span> <span>{activeSkill ? (activeSkill.name ?? activeSkill.command ?? activeSkill.id) : "auto"}</span>
               <Icon.chevR className="size-2.5 text-brass/60 rotate-90" />
             </button>
             <Popover open={skillOpen}>
               <button onClick={() => { setActiveSkill(null); setSkillOpen(false); }} className="block w-full rounded px-2 py-1.5 text-left text-[11px] text-zinc-400 hover:bg-white/5 hover:text-zinc-100">auto</button>
-              {skills.map(s => (
-                <button key={s.id} onClick={() => { setActiveSkill(s); setSkillOpen(false); }} className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[11px] hover:bg-white/5 ${activeSkill?.id === s.id ? "bg-white/5 text-brass" : "text-zinc-300"}`}>
-                  <span>{s.name}</span>
+              {skills.map(s => {
+                const skillId = s.capability_id ?? s.command;
+                return (
+                <button key={skillId} onClick={() => { setActiveSkill({ id: skillId, name: s.command, command: s.command }); setSkillOpen(false); }} className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[11px] hover:bg-white/5 ${activeSkill?.id === skillId ? "bg-white/5 text-brass" : "text-zinc-300"}`}>
+                  <span>{s.command}</span>
                 </button>
-              ))}
+              );})}
             </Popover>
           </div>
 
-          <MiniSlider label="Budget" value={budget} setValue={setBudget} min={0.25} max={20} step={0.25} fmt={(v: any) => `$${v.toFixed(2)}`} accent="#d4af37" />
-          
+          {(estCost != null || sessionBudget) && (
+            <span className="font-mono text-[9px] text-zinc-500 tabular-nums">
+              {estCost != null && (
+                <>~{tokens} tok · ~${estCost.toFixed(3)}</>
+              )}
+              {estCost != null && sessionBudget && sessionBudget.cap > 0 && ' · '}
+              {sessionBudget && sessionBudget.cap > 0 && (
+                <>{formatSessionBudget(sessionBudget.spent, sessionBudget.cap)}</>
+              )}
+            </span>
+          )}
+
           <div className="ml-auto flex items-center gap-2 font-mono text-[9px] text-zinc-500">
             <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 uppercase tracking-widest ${riskTone === "high" ? "border-amber-400/40 bg-amber-400/10 text-amber-300" : riskTone === "med" ? "border-violet-400/40 bg-violet-400/10 text-violet-300" : "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"}`}>
               {riskTone} risk

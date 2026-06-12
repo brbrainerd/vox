@@ -1,6 +1,5 @@
 ---
 source: crates/vox-compiler/tests/reactive_smoke_test.rs
-assertion_line: 1018
 expression: ts
 ---
 import React, { useState } from "react";
@@ -8,11 +7,12 @@ import React, { useState } from "react";
 export function Clicky(): React.ReactElement {
   const [n, set_n] = useState(0);
   return (
-<button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", "btn"].filter(Boolean).join(" ")} onClick={() => {
-    set_n(n + 1);
-}}
->
-  {n}
-</button>
+    <div className="px-4">
+    <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", "btn"].filter(Boolean).join(" ")} onClick={() => {
+        set_n(n + 1);
+    }}>
+      {n}
+    </button>
+    </div>
   );
 }

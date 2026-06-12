@@ -4,13 +4,26 @@ description = "Shared internals for the vox CLI binary (argv parsing helpers, ex
 version.workspace = true
 edition.workspace = true
 
+[features]
+# `db` (default-on) pulls the persistence-coupled crates and enables the
+# benchmark-telemetry, gamify-shim, and workflow-journal modules. It is on by
+# default so every existing consumer (vox-cli, vox-gui, vox-ml-cli) is unchanged.
+# A `--no-default-features` build drops vox-db/vox-gamify/vox-repository entirely,
+# giving the DB-free slice that the minimal `vox-langtool` binary reuses
+# (see docs/plans/INSTALL-RELEASE-AUDIT.md, Phase 4.1).
+default = ["db"]
+db = ["dep:vox-db", "dep:vox-gamify", "dep:vox-repository"]
+
 [dependencies]
 vox-config = { workspace = true }
-vox-db = { workspace = true }
-vox-gamify = { workspace = true }
+vox-db = { workspace = true, optional = true }
+vox-gamify = { workspace = true, optional = true }
+vox-repository = { workspace = true, optional = true }
+vox-orchestrator = { workspace = true }
+vox-orchestrator-driver = { workspace = true }
 vox-foundation = { workspace = true }
-vox-repository = { workspace = true }
 vox-secrets = { workspace = true }
+serde_yaml = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 owo-colors = { workspace = true }

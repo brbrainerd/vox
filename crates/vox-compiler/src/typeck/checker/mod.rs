@@ -688,7 +688,7 @@ impl<'a> Checker<'a> {
                                 );
                             }
                             Ty::Record(fields)
-                            | Ty::Table(_, fields)
+                            | Ty::Table(_, fields, _)
                             | Ty::Collection(_, fields) => {
                                 if let Some((_, f_ty)) = fields.iter().find(|(n, _)| n == &field) {
                                     let _ = self.uf.unify(&result, f_ty);

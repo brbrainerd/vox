@@ -5347,6 +5347,22 @@ curated:
   mcp_tool: vox_browser_act
   cli_path: null
   parameters: null
+- id: mcp.vox_browser_back
+  title: Browser Back
+  description_human: null
+  description_model: Navigate to the previous history entry for page_id.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_back
+  cli_path: null
+  parameters: null
 - id: mcp.vox_browser_click
   title: Browser Click
   description_human: null
@@ -5361,6 +5377,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_browser_click
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_click_xy
+  title: Browser Click Xy
+  description_human: null
+  description_model: Click at viewport coordinates (x,y) on an existing page_id session.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_click_xy
   cli_path: null
   parameters: null
 - id: mcp.vox_browser_close
@@ -5427,6 +5459,22 @@ curated:
   mcp_tool: vox_browser_fill
   cli_path: null
   parameters: null
+- id: mcp.vox_browser_forward
+  title: Browser Forward
+  description_human: null
+  description_model: Navigate to the next history entry for page_id.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_forward
+  cli_path: null
+  parameters: null
 - id: mcp.vox_browser_goto
   title: Browser Goto
   description_human: null
@@ -5459,6 +5507,22 @@ curated:
   mcp_tool: vox_browser_html
   cli_path: null
   parameters: null
+- id: mcp.vox_browser_list_pages
+  title: Browser List Pages
+  description_human: null
+  description_model: List all currently open browser sessions with page_id, URL, and title.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_list_pages
+  cli_path: null
+  parameters: null
 - id: mcp.vox_browser_open
   title: Browser Open
   description_human: null
@@ -5473,6 +5537,70 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_browser_open
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_page_info
+  title: Browser Page Info
+  description_human: null
+  description_model: Get URL/title and history navigation booleans for page_id.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_page_info
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_press
+  title: Browser Press
+  description_human: null
+  description_model: Press a key/chord on the active page.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_press
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_reload
+  title: Browser Reload
+  description_human: null
+  description_model: Reload the current page_id.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_reload
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_screencast_frame
+  title: Browser Screencast Frame
+  description_human: null
+  description_model: Capture one CDP screencast frame and return image_base64 plus viewport dimensions.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_screencast_frame
   cli_path: null
   parameters: null
 - id: mcp.vox_browser_screenshot
@@ -5491,6 +5619,86 @@ curated:
   mcp_tool: vox_browser_screenshot
   cli_path: null
   parameters: null
+- id: mcp.vox_browser_screenshot_viewport
+  title: Browser Screenshot Viewport
+  description_human: null
+  description_model: Capture viewport-only PNG and return base64 for live UI streaming.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_screenshot_viewport
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_scroll
+  title: Browser Scroll
+  description_human: null
+  description_model: Scroll by dx/dy viewport deltas.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_scroll
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_set_control_lock
+  title: Browser Set Control Lock
+  description_human: null
+  description_model: Set or clear per-page control owner (human or agent) for shared CDP sessions.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_set_control_lock
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_set_viewport
+  title: Browser Set Viewport
+  description_human: null
+  description_model: Set viewport width/height for deterministic coordinate mapping.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_set_viewport
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_stop
+  title: Browser Stop
+  description_human: null
+  description_model: Stop pending navigation/load for page_id.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_stop
+  cli_path: null
+  parameters: null
 - id: mcp.vox_browser_text
   title: Browser Text
   description_human: null
@@ -5505,6 +5713,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_browser_text
+  cli_path: null
+  parameters: null
+- id: mcp.vox_browser_type
+  title: Browser Type
+  description_human: null
+  description_model: Type text into the focused editable element on page_id.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_browser_type
   cli_path: null
   parameters: null
 - id: mcp.vox_browser_wait_for
@@ -8792,6 +9016,22 @@ curated:
   mcp_tool: vox_set_model
   cli_path: null
   parameters: null
+- id: mcp.vox_skill_discover
+  title: Skill Discover
+  description_human: null
+  description_model: List bare SKILL.md skills found under the standard interop roots, with install status.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_skill_discover
+  cli_path: null
+  parameters: null
 - id: mcp.vox_skill_info
   title: Skill Info
   description_human: null
@@ -8886,6 +9126,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_skill_uninstall
+  cli_path: null
+  parameters: null
+- id: mcp.vox_skill_use
+  title: Skill Use
+  description_human: null
+  description_model: Load the full SKILL.md body for an installed skill by id or name (tier-2 disclosure).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_skill_use
   cli_path: null
   parameters: null
 - id: mcp.vox_snapshot_diff
@@ -9049,6 +9305,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_test_decision
+  cli_path: null
+  parameters: null
+- id: mcp.vox_tool_search
+  title: Tool Search
+  description_human: null
+  description_model: Search the MCP tool registry by keyword and return matching tools (name, description, input schema) for progressive tool disclosure.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_tool_search
   cli_path: null
   parameters: null
 - id: mcp.vox_transfer_file

@@ -118,8 +118,18 @@ tools:
   product_lane: ai
   http_read_role_eligible: false
   tier: core
+- name: vox_browser_back
+  description: Navigate to the previous history entry for page_id.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_browser_click
   description: Click an element by CSS selector or xpath:/… target.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_click_xy
+  description: Click at viewport coordinates (x,y) on an existing page_id session.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
@@ -143,6 +153,11 @@ tools:
   product_lane: interop
   http_read_role_eligible: false
   tier: core
+- name: vox_browser_forward
+  description: Navigate to the next history entry for page_id.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_browser_goto
   description: Navigate an existing tab to a URL.
   product_lane: interop
@@ -153,8 +168,33 @@ tools:
   product_lane: interop
   http_read_role_eligible: false
   tier: core
+- name: vox_browser_list_pages
+  description: List all currently open browser sessions with page_id, URL, and title.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_browser_open
   description: Open a Chromium tab at URL via CD (chromiumoxide). Returns page_id for follow-up tools.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_page_info
+  description: Get URL/title and history navigation booleans for page_id.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_press
+  description: Press a key/chord on the active page.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_reload
+  description: Reload the current page_id.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_screencast_frame
+  description: Capture one CDP screencast frame and return image_base64 plus viewport dimensions.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
@@ -163,8 +203,38 @@ tools:
   product_lane: interop
   http_read_role_eligible: false
   tier: core
+- name: vox_browser_screenshot_viewport
+  description: Capture viewport-only PNG and return base64 for live UI streaming.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_scroll
+  description: Scroll by dx/dy viewport deltas.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_set_control_lock
+  description: Set or clear per-page control owner (human or agent) for shared CDP sessions.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_set_viewport
+  description: Set viewport width/height for deterministic coordinate mapping.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_stop
+  description: Stop pending navigation/load for page_id.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
 - name: vox_browser_text
   description: Read inner text for a CSS or xpath target.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_type
+  description: Type text into the focused editable element on page_id.
   product_lane: interop
   http_read_role_eligible: false
   tier: core
@@ -1188,6 +1258,11 @@ tools:
   product_lane: ai
   http_read_role_eligible: false
   tier: core
+- name: vox_skill_discover
+  description: List bare SKILL.md skills found under the standard interop roots, with install status.
+  product_lane: interop
+  http_read_role_eligible: true
+  tier: core
 - name: vox_skill_info
   description: Get detailed info on a specific skill by ID.
   product_lane: interop
@@ -1217,6 +1292,11 @@ tools:
   description: Uninstall an installed skill by ID.
   product_lane: interop
   http_read_role_eligible: false
+  tier: core
+- name: vox_skill_use
+  description: Load the full SKILL.md body for an installed skill by id or name (tier-2 disclosure).
+  product_lane: interop
+  http_read_role_eligible: true
   tier: core
 - name: vox_snapshot_diff
   description: Show the file-level diff between two snapshots.
@@ -1265,6 +1345,11 @@ tools:
   tier: core
 - name: vox_test_decision
   description: Get the Testing Decision Engine's requirement classification (Required/Recommended/Deferred/Skip) for a task by ID.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_tool_search
+  description: Search the MCP tool registry by keyword and return matching tools (name, description, input schema) for progressive tool disclosure.
   product_lane: ai
   http_read_role_eligible: true
   tier: core

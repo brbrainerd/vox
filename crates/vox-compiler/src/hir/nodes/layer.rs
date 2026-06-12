@@ -90,13 +90,31 @@ impl LayerTier {
     /// same tier without re-deriving the rule.
     pub fn default_for_primitive(name: &str) -> Self {
         match name {
+            // PascalCase semantic primitives (future GA-19 surface).
             "Tooltip" | "Menu" | "ComboboxList" | "PopoverContent" => LayerTier::Popover,
             "Dialog" | "AlertDialog" | "ConfirmDialog" | "Modal" => LayerTier::Modal,
             "Toast" | "Snackbar" | "Banner" => LayerTier::Toast,
             "AppShell" | "NavRail" | "StatusBar" | "TabStrip" => LayerTier::Chrome,
             "Wallpaper" | "Backdrop" => LayerTier::Background,
+            // Lowercase web primitive tags (the vocabulary actually emitted today).
+            // NB: `overlay` is the transparent portal-host container, NOT a surface
+            // itself — it legitimately parents surfaces, so it stays at Content.
+            "modal" | "drawer" => LayerTier::Modal,
+            "toast" => LayerTier::Toast,
             _ => LayerTier::Content,
         }
+    }
+
+    /// Whether a surface at this tier may *parent* another surface in the view tree.
+    ///
+    /// Toast and Popover are **leaf surfaces**: they dismiss independently of their
+    /// content lifecycle, so nesting a stronger surface (e.g. a `Modal`) inside one
+    /// would orphan it. Declaring such a child is a category error
+    /// (`vox/layer/leaf-surface`) — the surfaces must be siblings instead. This is
+    /// the rule that makes GA-26 acceptance criterion 2 (Modal-inside-Toast refuses)
+    /// hold even though tier ordering alone (`allows_child`) would permit it.
+    pub fn may_parent_surfaces(self) -> bool {
+        !matches!(self, LayerTier::Toast | LayerTier::Popover)
     }
 }
 
@@ -196,5 +214,33 @@ mod tests {
             LayerTier::default_for_primitive("MyCustomThing"),
             LayerTier::Content
         );
+    }
+
+    #[test]
+    fn default_tier_covers_the_lowercase_primitive_vocabulary() {
+        // The actual web primitive tags are lowercase; the PascalCase rows alone
+        // left "modal"/"toast"/etc. falling through to Content (a wiring bug for
+        // the GA-26 tier checks that key off these tags).
+        assert_eq!(LayerTier::default_for_primitive("modal"), LayerTier::Modal);
+        assert_eq!(LayerTier::default_for_primitive("toast"), LayerTier::Toast);
+        assert_eq!(LayerTier::default_for_primitive("drawer"), LayerTier::Modal);
+        // `overlay` is the transparent portal host — not a surface, stays at Content.
+        assert_eq!(
+            LayerTier::default_for_primitive("overlay"),
+            LayerTier::Content
+        );
+        assert_eq!(LayerTier::default_for_primitive("row"), LayerTier::Content);
+    }
+
+    #[test]
+    fn leaf_surfaces_cannot_parent_other_surfaces() {
+        // Toast and Popover are leaf surfaces: declaring a Modal inside them is a
+        // category error (they dismiss independently and would orphan their child).
+        assert!(!LayerTier::Toast.may_parent_surfaces());
+        assert!(!LayerTier::Popover.may_parent_surfaces());
+        // Structural tiers may parent surfaces.
+        assert!(LayerTier::Modal.may_parent_surfaces());
+        assert!(LayerTier::Content.may_parent_surfaces());
+        assert!(LayerTier::Chrome.may_parent_surfaces());
     }
 }

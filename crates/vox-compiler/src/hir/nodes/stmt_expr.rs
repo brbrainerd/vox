@@ -25,7 +25,7 @@ pub struct HirParam {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum HirDbTableOp {
     Insert,
-    /// Primary key fetch by `_id` (alias: `find`).
+    /// Primary key fetch (alias: `find`).
     Get,
     Delete,
     /// Safe full-table scan (`SELECT * FROM t`).
@@ -80,6 +80,10 @@ pub struct HirDbPlanCapabilities {
 pub struct HirDbQueryPlan {
     pub table: String,
     pub op: HirDbTableOp,
+    /// Optional logical primary-key column used by `Get` / `Delete`.
+    /// `None` falls back to surrogate `_id`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary_key: Option<String>,
     pub predicate: Option<HirDbPredicate>,
     pub projection: Option<Vec<String>>,
     pub order_by: Option<(String, bool)>,

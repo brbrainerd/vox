@@ -1,17 +1,11 @@
 //! SCIENTIA nanopublication surface.
 //!
-//! The builder (TriG emission, Ed25519 signing, Trusty-URI derivation) now lives in the
-//! standalone leaf crate [`vox_nanopub`] so it can be consumed independently of SCIENTIA.
-//! This module re-exports that surface and adds the SCIENTIA-only network-publishing layer.
+//! Trusty-URI signing is provided by [`spec`], which wraps the upstream `nanopub`
+//! crate (the real signing SSOT, consumed by `vox-cli`'s `scientia nanopub` command).
 
-pub mod network;
 pub mod spec;
 
-// Re-export the leaf crate's modules so existing `crate::nanopub::{trig,signing}::*` and
-// `vox_scientia::nanopub::*` consumers keep resolving unchanged.
-pub use vox_nanopub::{
-    NanopubDocument, NanopubGraphs, SignedNanopub, build_nanopub, sign_nanopub, verify_nanopub,
-};
-pub use vox_nanopub::{signing, trig};
-
-pub use network::{ensure_test_server_allowed, publish_to_test_server};
+/// Approval-gated nanopublication TEST-server publishing (#274). The `spec` module
+/// signs the Trusty-URI; this module performs the network deposit to the public
+/// nanopub test server once a human approval gate has passed (see `review_flow`).
+pub mod network;

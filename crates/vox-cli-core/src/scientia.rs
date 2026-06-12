@@ -752,6 +752,8 @@ mod tests {
     /// Guard against drift: every CLI decision MUST map to a value the DB layer
     /// accepts. A typo in `as_stored()` would otherwise only surface as a
     /// runtime DB-validation error rather than a caught programming error.
+    // References `vox_db::store::VALID_DECISIONS`, only available under the `db` feature.
+    #[cfg(feature = "db")]
     #[test]
     fn as_stored_values_are_all_valid_db_decisions() {
         for d in [

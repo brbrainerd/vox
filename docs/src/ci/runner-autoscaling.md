@@ -34,14 +34,31 @@ Docker containers (`vox-runner-1/2`) on a single Windows i9-14900KS (32 threads,
 - `vox ci runner-scale` reconciles a pool of **ephemeral** runners to demand:
   when CI work is queued it spawns one-shot `--ephemeral` containers (each runs a
   **single** job, then self-deregisters and exits); when the queue empties, the
-  pool drains to **0 runners = 0 CPU/RAM**.
-- **Bounded:** up to `MAX_RUNNERS = 4`, each `--cpus=6 --memory=6500m` → at most
-  24 of 32 threads and 26 GB, leaving 8 threads + the rest of RAM for Windows.
+  pool drains to **0 runners = 0 CPU/RAM**. Containers are spawned with **no
+  restart policy**, so a Docker/host restart never resurrects a stale fleet that
+  storms the queue at boot.
+- **Demand = queued jobs**, not workflow runs: each tick enumerates queued and
+  in-progress runs and counts jobs with `status: queued` whose label set the
+  pool can serve (`self-hosted,linux,x64,docker,browser`). One PR fanning out a
+  dozen jobs registers a dozen demand, capped at the pool max.
+- **Bounded:** up to `VOX_RUNNER_MAX` (default 6), each `--cpus=6
+  --memory=6500m` → at most 36 of 32 threads when fully saturated (autoscaler
+  caps at host capacity); tune `VOX_RUNNER_MAX` to leave headroom for Windows.
 - **Warm:** every runner mounts a shared `vox-ci-runner-cache` volume with
   `sccache` (`SCCACHE_DIR=/cache/sccache`), so ephemeral cold starts reuse
   compiler output instead of rebuilding the world.
 - **Never force-kills** a running job; running runners exit on their own after
-  their single job (`spawn_count = max(0, desired - current)`).
+  their single job (`spawn_count = max(0, desired - current)`). The only reap is
+  a short **idle grace window** (`VOX_RUNNER_IDLE_REAP_SECS`, default 300 s) for
+  runners that registered but never got a job (e.g. the queued run was
+  cancelled). Stale **offline** GitHub registrations with no backing container
+  (crashed ephemeral runners) are pruned each tick.
+- **Optional warm pool:** `VOX_RUNNER_WARM_POOL` (default 1) keeps N idle
+  runners registered for instant dispatch; set to `0` for pure scale-to-zero.
+- **Registry cache:** ephemeral runners symlink `~/.cargo/registry`, `~/.cargo/git`,
+  and `~/.cargo/advisory-db` into the shared `vox-ci-runner-cache` volume
+  (`/cache/cargo-registry`, etc.) so cold starts skip re-downloading crates and
+  the cargo-deny advisory DB.
 
 ### Components (this repo)
 | Piece | Path |
@@ -60,7 +77,16 @@ vox run scripts/ci-runners-up.vox   # one schedulable reconcile tick (apply)
 ```
 
 `runner-scale` is **dry-run by default** so it can never silently spawn a
-runaway pool. Demand = count of `queued` workflow runs (`gh api`).
+runaway pool. Demand = count of `queued` **jobs** matching the pool's labels
+(`gh api` runs + per-run jobs).
+
+### Knobs (env, optional — registered in `contracts/config/env-vars.v1.yaml`)
+
+| Env var | Default | Meaning |
+|---|---|---|
+| `VOX_RUNNER_MAX` | `6` | Hard ceiling on concurrent managed runners |
+| `VOX_RUNNER_IDLE_REAP_SECS` | `300` | Grace window before reaping a never-assigned runner |
+| `VOX_RUNNER_WARM_POOL` | `1` | Idle runners to keep registered for instant dispatch |
 
 ## Fail-fast (surfacing "runners are down")
 
@@ -90,7 +116,7 @@ when no critical CI is mid-flight.
 4. **Schedule the reconcile tick** every ~1 min so the pool tracks demand —
    Windows Task Scheduler running `vox run scripts/ci-runners-up.vox`, or a loop.
 5. Verify: `vox ci runner-scale` (dry-run) shows the plan; after a push,
-   `docker ps` shows `vox-runner-eph-*` appear and disappear; idle → 0.
+   `docker ps` shows `vox-runner-auto-*` appear and disappear; idle → 0.
 
 ## Recovery (fleet down right now)
 
@@ -102,4 +128,5 @@ when no critical CI is mid-flight.
 
 ## Cross-refs
 - Runner contract: [`runner-contract.md`](runner-contract.md).
-- Hosted fallback: `.github/workflows/ci-fallback-hosted.yml` (degraded mode; not a required check).
+- Hosted fallback: `.github/workflows/ci-fallback-hosted.yml` (**manual only** via
+  `workflow_dispatch`; not a required check and does not run on PR/push).

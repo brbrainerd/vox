@@ -41,6 +41,18 @@ jobs:
         # Each ships as its own archive so users opt into the heavy ML/scientia plugins.
         run: cargo run --locked -p vox-cli -- ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist --package all
 
+      # SBOM (CycloneDX) — stub for release provenance. Enable when cargo-cyclonedx is
+      # wired into the release pipeline (install: cargo install cargo-cyclonedx).
+      # - name: Generate CycloneDX SBOM
+      #   run: |
+      #     cargo cyclonedx --all-features --format json \
+      #       --output dist/sbom-${{ matrix.target }}.cdx.json
+      # - name: Upload SBOM artifact
+      #   uses: actions/upload-artifact@v7
+      #   with:
+      #     name: sbom-${{ matrix.target }}
+      #     path: dist/sbom-${{ matrix.target }}.cdx.json
+
       - name: Smoke test packaged binary (Unix)
         if: runner.os != 'Windows'
         shell: bash
@@ -126,10 +138,26 @@ jobs:
             echo "$sum  $(basename "$f")" >> checksums.txt
           done
 
+      # Supply-chain SBOM (SPDX) over the published artifacts. continue-on-error so
+      # a tooling hiccup can NEVER block a release; the SBOM is attached only if
+      # generated. NOTE: unverified in local dev — validate on the first tag run.
+      - name: Generate SBOM (SPDX)
+        id: sbom
+        continue-on-error: true
+        uses: anchore/sbom-action@v0
+        with:
+          path: release-artifacts
+          format: spdx-json
+          output-file: release-artifacts/sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
       - name: Create release with assets
         uses: softprops/action-gh-release@v3
         with:
           files: |
             release-artifacts/release-*/*
             release-artifacts/checksums.txt
+            release-artifacts/sbom.spdx.json
           generate_release_notes: true
+          fail_on_unmatched_files: false

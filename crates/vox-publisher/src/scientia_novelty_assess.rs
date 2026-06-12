@@ -247,7 +247,14 @@ pub fn assess_novelty(
     // 6. Flatten verdict
     // ------------------------------------------------------------------
     let (verdict_kind, closest_hit_uri, closest_score) = match verdict {
-        NoveltyVerdict::InsufficientEvidence => ("insufficient_evidence".to_string(), None, None),
+        // main's B6 verdict carries a `reason`; we surface the flattened kind only.
+        NoveltyVerdict::InsufficientEvidence { .. } => {
+            ("insufficient_evidence".to_string(), None, None)
+        }
+        // main's B6 `Contradicted { conflicting_uri }`: a prior-art conflict caps novelty.
+        NoveltyVerdict::Contradicted { conflicting_uri } => {
+            ("contradicted".to_string(), Some(conflicting_uri), None)
+        }
         NoveltyVerdict::Novel => ("novel".to_string(), None, None),
         NoveltyVerdict::PossiblyNovel { closest_score } => {
             ("possibly_novel".to_string(), None, Some(closest_score))

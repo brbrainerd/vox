@@ -13,6 +13,10 @@
 //! tweaks here and push reusable compiler logic toward `vox-compiler`.
 
 use anyhow::{Context, Result};
+use miette::{
+    Diagnostic as MietteDiagnostic, GraphicalReportHandler, LabeledSpan, NamedSource, SourceCode,
+    SourceOffset, SourceSpan,
+};
 use owo_colors::OwoColorize;
 use std::path::Path;
 use vox_compiler::ast::decl::Module;
@@ -129,7 +133,11 @@ pub fn run_frontend_str_with_options(
                 // but usually, run_frontend_str failure means parse failure.
                 let tokens = vox_compiler::lexer::lex(source);
                 if let Err(errors) = vox_compiler::parser::parse(tokens) {
-                    print_parse_errors(&errors, source, file);
+                    if human_diagnostics_enabled(false) {
+                        print_parse_errors_human(&errors, source, file);
+                    } else {
+                        print_parse_errors(&errors, source, file);
+                    }
                 }
             }
             Err(e)
@@ -306,27 +314,137 @@ pub fn format_check_for_llm_json(source: &str, file: &Path) -> String {
     serde_json::to_string_pretty(&env).unwrap_or_default()
 }
 
+/// True when caret-style human diagnostics are requested.
+///
+/// Enabled by `VOX_DIAG_FORMAT=human` or `vox check --human-diagnostics`.
+#[must_use]
+pub fn human_diagnostics_enabled(cli_flag: bool) -> bool {
+    cli_flag
+        || std::env::var("VOX_DIAG_FORMAT")
+            .map(|v| v.eq_ignore_ascii_case("human"))
+            .unwrap_or(false)
+}
+
 /// Print diagnostics in rustc-style to stderr, or JSON to stdout if `json` is true.
+///
+/// When `human` is true (or `VOX_DIAG_FORMAT=human`), renders caret underlines via miette.
 pub fn print_diagnostics(result: &FrontendResult, file: &Path, json: bool) {
+    print_diagnostics_with_mode(result, file, json, false);
+}
+
+/// Like [`print_diagnostics`] but accepts an explicit human-rendering flag from the CLI.
+pub fn print_diagnostics_with_mode(result: &FrontendResult, file: &Path, json: bool, human: bool) {
     if json {
         println!("{}", format_diagnostics_json_pretty(result, file));
-    } else {
-        for (i, d) in result.diagnostics.iter().enumerate() {
-            let code = format!("E{:04}", i + 1);
-            let (line, col) = line_col_for_byte_offset(&result.source, d.span.start);
-            let sev = match d.severity {
-                TypeckSeverity::Error => "error",
-                TypeckSeverity::Warning => "warning",
-            };
-            eprintln!(
-                "{sev}[{code}]: {} at {}:{}:{}",
-                d.message,
-                file.display(),
-                line,
-                col
-            );
+        return;
+    }
+    if human_diagnostics_enabled(human) {
+        print_diagnostics_human(result, file);
+        return;
+    }
+    for (i, d) in result.diagnostics.iter().enumerate() {
+        let code = format!("E{:04}", i + 1);
+        let (line, col) = line_col_for_byte_offset(&result.source, d.span.start);
+        let sev = match d.severity {
+            TypeckSeverity::Error => "error",
+            TypeckSeverity::Warning => "warning",
+        };
+        eprintln!(
+            "{sev}[{code}]: {} at {}:{}:{}",
+            d.message,
+            file.display(),
+            line,
+            col
+        );
+    }
+}
+
+#[derive(Debug)]
+struct HumanSourceDiag {
+    message: String,
+    label: String,
+    span: SourceSpan,
+    source: NamedSource<String>,
+}
+
+impl std::fmt::Display for HumanSourceDiag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for HumanSourceDiag {}
+
+impl MietteDiagnostic for HumanSourceDiag {
+    fn labels(&self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + '_>> {
+        Some(Box::new(std::iter::once(LabeledSpan::new_with_span(
+            Some(self.label.clone()),
+            self.span,
+        ))))
+    }
+
+    fn source_code(&self) -> Option<&dyn SourceCode> {
+        Some(&self.source as &dyn SourceCode)
+    }
+}
+
+/// Caret-style diagnostic rendering for terminal humans (miette fancy).
+pub fn print_diagnostics_human(result: &FrontendResult, file: &Path) {
+    let file_label = file.display().to_string();
+    let named = NamedSource::new(file_label.clone(), result.source.clone());
+    for (i, d) in result.diagnostics.iter().enumerate() {
+        let code = d.code.clone().unwrap_or_else(|| format!("E{:04}", i + 1));
+        let sev = match d.severity {
+            TypeckSeverity::Error => "error",
+            TypeckSeverity::Warning => "warning",
+        };
+        let start = SourceOffset::from(d.span.start);
+        let len = d.span.end.saturating_sub(d.span.start).max(1);
+        let span = SourceSpan::new(start, len);
+        let message = format!("[{code}] {}", d.message);
+        let diag = HumanSourceDiag {
+            message,
+            label: sev.to_string(),
+            span,
+            source: named.clone(),
+        };
+        let handler = GraphicalReportHandler::new();
+        let mut rendered = String::new();
+        if handler.render_report(&mut rendered, &diag).is_ok() {
+            eprint!("{rendered}");
         }
     }
+}
+
+/// Parse errors with caret underlines (miette).
+pub fn print_parse_errors_human(
+    errors: &[vox_compiler::parser::ParseError],
+    source: &str,
+    file: &Path,
+) {
+    let named = NamedSource::new(file.display().to_string(), source.to_string());
+    for e in errors {
+        let start = SourceOffset::from(e.span.start);
+        let len = e.span.end.saturating_sub(e.span.start).max(1);
+        let span = SourceSpan::new(start, len);
+        let diag = HumanSourceDiag {
+            message: e.message.clone(),
+            label: "parse error".to_string(),
+            span,
+            source: named.clone(),
+        };
+        let handler = GraphicalReportHandler::new();
+        let mut rendered = String::new();
+        if handler.render_report(&mut rendered, &diag).is_ok() {
+            eprint!("{rendered}");
+        }
+    }
+    eprintln!(
+        "{} aborting due to {} previous {}",
+        "error".red().bold(),
+        errors.len(),
+        if errors.len() == 1 { "error" } else { "errors" }
+    );
 }
 
 /// Print parse errors to stderr in rustc style.

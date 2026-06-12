@@ -26,7 +26,7 @@ fn collect_md_files(target: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-pub async fn run(paths: Vec<PathBuf>, strict: bool) -> anyhow::Result<()> {
+pub fn run(paths: Vec<PathBuf>, strict: bool) -> anyhow::Result<()> {
     let mut files = Vec::new();
     for p in paths {
         collect_md_files(&p, &mut files);

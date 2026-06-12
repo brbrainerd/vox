@@ -336,6 +336,9 @@ impl LowerCtx {
                     span: f.span,
                 })
                 .collect(),
+            primary_key: t.primary_key.clone(),
+            is_extern: t.is_extern,
+            source: t.source.clone(),
             is_pub: t.is_pub,
             is_deprecated: t.is_deprecated,
             span: t.span,
@@ -406,6 +409,13 @@ impl LowerCtx {
         let view = r.view.as_ref().map(|v| self.lower_expr(v));
         self.def_map.pop_scope();
 
+        let layer = r.layer.as_ref().map(|l| {
+            use crate::hir::nodes::layer::{HirLayerDecl, LayerTier};
+            HirLayerDecl {
+                tier: LayerTier::from_str(&l.tier).unwrap_or(LayerTier::Content),
+                span: l.span,
+            }
+        });
         HirReactiveComponent {
             id,
             name: r.name.clone(),
@@ -413,6 +423,7 @@ impl LowerCtx {
             members,
             view,
             styles: r.styles.clone(),
+            layer,
             span: r.span,
         }
     }

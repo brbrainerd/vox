@@ -35,7 +35,7 @@ jobs:
   # ── Gate that needs no Expo account: prove the generated app bundles. ──────
   bundle:
     name: Generate + export Expo bundle
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@v6
 
@@ -95,7 +95,7 @@ jobs:
   # ── Cloud APK build: only when an Expo account token is wired up. ─────────
   eas-build:
     name: EAS cloud build (Android APK)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     needs: bundle
     # NOTE: the `secrets` context is NOT allowed in a job-level `if:` (GitHub
     # rejects the workflow), so gate on the event here and check EXPO_TOKEN in a

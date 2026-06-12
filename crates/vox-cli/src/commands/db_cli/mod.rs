@@ -30,8 +30,17 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 compact,
                 jsonl,
             } => db::explain(file.as_ref(), query.as_deref(), !compact, jsonl).await,
+            DbCliCore::Introspect { url, compact } => db::introspect(url.as_deref(), compact).await,
+            DbCliCore::Verify {
+                file,
+                url,
+                strict,
+                compact,
+            } => db::verify(file.as_ref(), url.as_deref(), strict, compact).await,
             DbCliCore::Sample { table, limit } => db::sample(&table, limit).await,
-            DbCliCore::Migrate { file } => db::migrate(file.as_ref()).await,
+            DbCliCore::Migrate { file, url, dry_run } => {
+                db::migrate(file.as_ref(), url.as_deref(), dry_run).await
+            }
             DbCliCore::Export { user_id, output } => db::export(&user_id, output.as_ref()).await,
             DbCliCore::Import { path } => db::import(path.as_path()).await,
             DbCliCore::Vacuum => db::vacuum().await,

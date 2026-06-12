@@ -1,0 +1,31 @@
+# Provenance for vendored skills in assets/skills/
+#
+# All skills here are licensed Apache-2.0 and may be redistributed under that
+# license. See the NOTICE file at the repo root for attribution text.
+#
+# Skills sourced from proprietary or non-redistributable upstream licenses
+# MUST NOT be added to this directory.
+
+[upstream]
+repo    = "https://github.com/anthropics/skills"
+license = "Apache-2.0"
+pin     = "57546260929473d4e0d1c1bb75297be2fdfa1949"
+
+# Excluded from vendor (proprietary, no redistribution):
+#   docx-formatting, pdf-summarizer, powerpoint-creator, xlsx-data-analysis
+
+[skills]
+included = [
+  "algorithmic-art",
+  "brand-guidelines",
+  "canvas-design",
+  "claude-api",
+  "frontend-design",
+  "internal-comms",
+  "mcp-builder",
+  "skill-creator",
+  "slack-gif-creator",
+  "theme-factory",
+  "web-artifacts-builder",
+  "webapp-testing",
+]

@@ -389,13 +389,26 @@ pub fn auto_score_model(
 
     #[cfg(feature = "populi-transport")]
     if m.provider_type == crate::models::ProviderType::PopuliMesh {
-        if let Some(json) =
-            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshDonationPolicyJson).expose()
-        {
-            if let Ok(policy) = serde_json::from_str::<vox_mesh_types::WorkerDonationPolicy>(json) {
-                if policy.public_mesh_opt_in {
-                    mens_bonus += 0.15; // Reciprocity bonus for donating to the network
-                }
+        // Prefer the first-class `donations.vox` policy file (parsed via
+        // vox-mesh-policy) when `VOX_MESH_DONATION_POLICY_PATH` points at an
+        // existing file. This keeps the legacy JSON secret as a fallback, so
+        // deployments that never set the path secret behave identically.
+        let policy: Option<vox_mesh_types::WorkerDonationPolicy> =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshDonationPolicyPath)
+                .expose()
+                .map(std::path::PathBuf::from)
+                .filter(|p| p.is_file())
+                .and_then(|p| vox_mesh_policy::load_policy(&p).ok())
+                .or_else(|| {
+                    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshDonationPolicyJson)
+                        .expose()
+                        .and_then(|json| {
+                            serde_json::from_str::<vox_mesh_types::WorkerDonationPolicy>(json).ok()
+                        })
+                });
+        if let Some(policy) = policy {
+            if policy.public_mesh_opt_in {
+                mens_bonus += 0.15; // Reciprocity bonus for donating to the network
             }
         }
     }
@@ -600,5 +613,104 @@ mod axes_override_tests {
         );
         // The override is cleared on guard drop (falls back to env default).
         assert!(super::AXES_OVERRIDE.with(|c| c.borrow().is_none()));
+    }
+}
+
+/// B11 wiring: the model-admission path must read a first-class `donations.vox`
+/// file via `vox_mesh_policy::load_policy` when `VOX_MESH_DONATION_POLICY_PATH`
+/// points at one, applying the reciprocity opt-in bonus — not only the JSON
+/// secret. These tests are serial because they mutate the donation-policy env.
+#[cfg(all(test, feature = "populi-transport"))]
+mod donations_vox_wiring_tests {
+    use super::*;
+    use crate::config::CostPreference;
+    use crate::models::generated::StrengthTag;
+    use crate::models::{ModelCapabilities, ModelSpec, ProviderType};
+
+    fn populi_mesh() -> ModelSpec {
+        ModelSpec {
+            id: "mens/vox-language-model".into(),
+            canonical_slug: "mens/vox-language-model".into(),
+            provider: "populi".into(),
+            provider_type: ProviderType::PopuliMesh,
+            max_tokens: 8192,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free: true,
+            observed_cost_per_1k: None,
+            strengths: vec![StrengthTag::Codegen],
+            capabilities: ModelCapabilities::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        }
+    }
+
+    /// The canonical `donations.vox` fixture used across these tests: a single
+    /// `let public_mesh_opt_in = true` binding, exactly the grammar
+    /// `vox_mesh_policy::parse_source` consumes.
+    const OPT_IN_FIXTURE: &str = "let public_mesh_opt_in = true\n";
+
+    #[test]
+    #[serial_test::serial(donation_policy_env)]
+    fn load_policy_parses_opt_in_from_donations_vox() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("donations.vox");
+        std::fs::write(&path, OPT_IN_FIXTURE).unwrap();
+        let policy = vox_mesh_policy::load_policy(&path).unwrap();
+        assert!(
+            policy.public_mesh_opt_in,
+            "donations.vox `let public_mesh_opt_in = true` must parse to opt-in"
+        );
+    }
+
+    #[test]
+    #[serial_test::serial(donation_policy_env)]
+    fn scoring_applies_reciprocity_bonus_from_donations_vox_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("donations.vox");
+        std::fs::write(&path, OPT_IN_FIXTURE).unwrap();
+
+        let m = populi_mesh();
+
+        // Ensure neither donation-policy secret leaks in from the environment.
+        let prev_json = std::env::var("VOX_MESH_DONATION_POLICY_JSON").ok();
+        let prev_path = std::env::var("VOX_MESH_DONATION_POLICY_PATH").ok();
+        unsafe {
+            std::env::remove_var("VOX_MESH_DONATION_POLICY_JSON");
+            std::env::remove_var("VOX_MESH_DONATION_POLICY_PATH");
+            std::env::set_var("VOX_ROUTING_PREFER_MESH", "false");
+        }
+
+        let baseline =
+            auto_score_model(&m, 5, false, None, CostPreference::Performance, None, None);
+
+        unsafe {
+            std::env::set_var("VOX_MESH_DONATION_POLICY_PATH", &path);
+        }
+        let with_opt_in =
+            auto_score_model(&m, 5, false, None, CostPreference::Performance, None, None);
+
+        // Restore environment.
+        unsafe {
+            std::env::remove_var("VOX_MESH_DONATION_POLICY_PATH");
+            match prev_path {
+                Some(v) => std::env::set_var("VOX_MESH_DONATION_POLICY_PATH", v),
+                None => std::env::remove_var("VOX_MESH_DONATION_POLICY_PATH"),
+            }
+            match prev_json {
+                Some(v) => std::env::set_var("VOX_MESH_DONATION_POLICY_JSON", v),
+                None => std::env::remove_var("VOX_MESH_DONATION_POLICY_JSON"),
+            }
+        }
+
+        assert!(
+            with_opt_in > baseline,
+            "donations.vox opt-in must add the reciprocity bonus \
+             (baseline {baseline} vs with-opt-in {with_opt_in})"
+        );
     }
 }

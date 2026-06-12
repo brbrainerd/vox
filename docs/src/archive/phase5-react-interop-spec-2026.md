@@ -258,7 +258,7 @@ Once `vox migrate drop-island` is stable and all known usages have been migrated
 | Surface | Path | Blocked on |
 |---|---|---|
 | CLI `vox island` command suite | `crates/vox-cli/src/commands/island/` (entire dir: `generate`, `upgrade`, `list`, `cache`, `build`) | `drop-island` codemod stable |
-| Island TS emitter | `crates/vox-codegen/src/codegen_ts/island_emit.rs` | See §5.1 — mark `#[deprecated]` first, remove after codemod stable |
+| Island TS emitter | `crates/vox-codegen-ts/src/island_emit.rs` | See §5.1 — mark `#[deprecated]` first, remove after codemod stable |
 | CLI island templates | `crates/vox-cli/src/templates/islands.rs` | After `vox island` commands removed |
 | Island golden example | `examples/golden/v0_shadcn_island.vox` | After `island_emit.rs` removed |
 | Islands how-to guide | `docs/src/how-to/how-to-islands-and-pages.md` | Replace with migration guide pointing at `vox migrate drop-island` |
@@ -273,9 +273,9 @@ Once `vox migrate drop-island` is stable and all known usages have been migrated
 | File | Change |
 |---|---|
 | `crates/vox-compiler/src/hir/nodes/decl.rs` | Add `HirReactImport` (path, local name, sidecar types path); add `react_imports: Vec<HirReactImport>` to `HirModule` with `SemanticCore` ownership. |
-| `crates/vox-codegen/src/codegen_ts/component.rs` | `generate_component` / `generate_component_from_web_ir` read `react_imports` from module context; emit verbatim ES `import Name from "path"` lines before the React import. |
-| `crates/vox-codegen/src/codegen_ts/mod.rs` | New `emit_components_package` entry point (writes `package.json`, `index.ts`, `types.ts`, per-component files). |
-| `crates/vox-codegen/src/codegen_ts/island_emit.rs` | Mark `format_island_mount_ast`, `island_mount_hir_fragment` as `#[deprecated]` once migration tooling ships; remove after `drop-island` codemod is stable. |
+| `crates/vox-codegen-ts/src/component.rs` | `generate_component` / `generate_component_from_web_ir` read `react_imports` from module context; emit verbatim ES `import Name from "path"` lines before the React import. |
+| `crates/vox-codegen-ts/src/mod.rs` | New `emit_components_package` entry point (writes `package.json`, `index.ts`, `types.ts`, per-component files). |
+| `crates/vox-codegen-ts/src/island_emit.rs` | Mark `format_island_mount_ast`, `island_mount_hir_fragment` as `#[deprecated]` once migration tooling ships; remove after `drop-island` codemod is stable. |
 | `crates/vox-compiler/src/` (new file) | `import_react_resolver.rs` — compiler pass that resolves `import react` declarations, reads the sidecar if present, and populates `HirReactImport.props_type`. |
 
 ### 5.2 New compiler pass — import-react resolution

@@ -3,6 +3,7 @@ name = "vox-orchestrator"
 description = "Multi-agent file-affinity task router. Queue/lock/oplog in vox-orchestrator-queue; MCP protocol tools in vox-orchestrator-mcp."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [features]
 default = [
@@ -94,6 +95,7 @@ vox-bounded-fs.workspace = true
 aes-gcm = { workspace = true, optional = true }
 rand.workspace = true
 base64.workspace = true
+ed25519-dalek.workspace = true
 vox-secrets.workspace = true
 vox-skills = { workspace = true }
 vox-skill-runtime = { workspace = true }
@@ -101,6 +103,7 @@ vox-skill-runtime = { workspace = true }
 vox-research-events.workspace = true
 vox-telemetry.workspace = true
 vox-mesh-types.workspace = true
+vox-mesh-policy = { workspace = true }
 blake3.workspace = true
 crossbeam-queue = { workspace = true }
 workspace-hack = { workspace = true }

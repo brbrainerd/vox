@@ -33,6 +33,8 @@ pub struct SurfaceEntry {
     #[serde(default)]
     pub nav_group: Option<String>,
     #[serde(default)]
+    pub parent_surface: Option<String>,
+    #[serde(default)]
     pub notes: Option<String>,
 }
 
@@ -68,6 +70,7 @@ pub fn backfill(mut reg: SurfaceRegistry, missing: &[String]) -> SurfaceRegistry
             nav_label: None,
             nav_icon: None,
             nav_group: None,
+            parent_surface: None,
             notes: None,
         });
     }
@@ -128,18 +131,19 @@ pub fn generate_ts(reg: &SurfaceRegistry) -> String {
         "  viewKey: string | null;\n  cliGroup: string | null;\n  tier: RepresentationTier;\n",
     );
     out.push_str(
-        "  navLabel: string | null;\n  navIcon: string | null;\n  navGroup: string | null;\n}\n",
+        "  navLabel: string | null;\n  navIcon: string | null;\n  navGroup: string | null;\n  parentSurface: string | null;\n}\n",
     );
     out.push_str("export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [\n");
     for e in &reg.surfaces {
         out.push_str(&format!(
-            "  {{ viewKey: {}, cliGroup: {}, tier: '{}', navLabel: {}, navIcon: {}, navGroup: {} }},\n",
+            "  {{ viewKey: {}, cliGroup: {}, tier: '{}', navLabel: {}, navIcon: {}, navGroup: {}, parentSurface: {} }},\n",
             opt(&e.view_key),
             opt(&e.cli_group),
             tier(&e.representation_tier),
             opt(&e.nav_label),
             opt(&e.nav_icon),
             opt(&e.nav_group),
+            opt(&e.parent_surface),
         ));
     }
     out.push_str("];\n");
@@ -147,12 +151,20 @@ pub fn generate_ts(reg: &SurfaceRegistry) -> String {
 }
 
 fn top_level_groups_from_catalog() -> BTreeSet<String> {
-    crate::command_catalog::build_catalog()
+    let mut groups: BTreeSet<String> = crate::command_catalog::build_catalog()
         .entries
         .into_iter()
         .filter(|e| e.path.len() == 1)
         .map(|e| e.path[0].clone())
-        .collect()
+        .collect();
+    // Union feature-gated top-level groups so the gate is not structurally blind to commands that
+    // are compiled out of this build (e.g. `dei`/`visus`/`safety`/`attention` behind `--features
+    // dei`). Without this, those groups never appear in `missing_groups` and silently escape
+    // classification. See A3.
+    for (name, _feature) in crate::command_catalog::feature_gated_group_names() {
+        groups.insert(name.to_string());
+    }
+    groups
 }
 
 fn load_registry(repo_root: &Path) -> Result<SurfaceRegistry> {
@@ -248,6 +260,7 @@ mod tests {
             nav_label: None,
             nav_icon: None,
             nav_group: None,
+            parent_surface: None,
             notes: None,
         }]);
         let top: BTreeSet<String> = ["scientia", "build", "audit"]
@@ -280,11 +293,25 @@ mod tests {
             nav_label: None,
             nav_icon: None,
             nav_group: None,
+            parent_surface: None,
             notes: None,
         }]);
         let violations = wiring_violations(&r, "switch (activeView) { case 'dashboard': }");
         assert_eq!(violations.len(), 1);
         assert!(violations[0].contains("ghost"));
+    }
+
+    #[test]
+    fn top_level_groups_include_feature_gated_dei_groups() {
+        // Even in a default (non-dei) build, the gate must "see" dei-gated
+        // top-level groups so they can be classified with a waiver (A3).
+        let groups = top_level_groups_from_catalog();
+        for g in ["dei", "visus", "safety", "attention"] {
+            assert!(
+                groups.contains(g),
+                "expected top-level group {g:?} to be present (feature-gate aware), got {groups:?}"
+            );
+        }
     }
 
     #[test]
@@ -296,6 +323,7 @@ mod tests {
             nav_label: Some("Scientia".into()),
             nav_icon: Some("file".into()),
             nav_group: Some("research".into()),
+            parent_surface: None,
             notes: None,
         }]);
         let ts = generate_ts(&r);

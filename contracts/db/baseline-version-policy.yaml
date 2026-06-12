@@ -4,11 +4,9 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 75
-  # Keccak-256 (0x-prefixed) of `vox_db::schema::baseline_sql()` — `vox ci check-codex-ssot` enforces parity when set.
-  # TODO(controller): run `cargo test -p vox-db baseline_policy_matches_compiled_schema` and paste the
-  # expected digest from the assertion message here to replace this placeholder.
-  repository_baseline_digest_hex: "0x2158b37460a42e8586347b93f7d24f51776e8f568ab0efbbb253310409a6f36a"
+  repository_baseline_integer: 76
+  # Keccak-256 of baseline_sql() — recomputed after union of discovery_state + scientia_discovery_inbox.
+  repository_baseline_digest_hex: "RECOMPUTE"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

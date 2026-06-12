@@ -48,6 +48,20 @@ pub fn parse_script(tokens: Vec<Spanned>) -> Result<Module, Vec<ParseError>> {
     p.parse_module_script()
 }
 
+/// Fuzz entry: lex arbitrary UTF-8 (lossy) and run declaration parsing; must not panic.
+pub fn fuzz_parse_decl_bytes(data: &[u8]) {
+    let source = String::from_utf8_lossy(data);
+    let tokens = crate::lexer::lex(&source);
+    let mut parser = Parser::new(tokens);
+    while !matches!(parser.peek(), Token::Eof) {
+        parser.skip_newlines();
+        if matches!(parser.peek(), Token::Eof) {
+            break;
+        }
+        let _ = parser.parse_decl();
+    }
+}
+
 struct Parser {
     tokens: Vec<Spanned>,
     pos: usize,
@@ -483,6 +497,77 @@ impl Parser {
         }
     }
 
+    /// Lookahead: does a leading `@layer(…)` decorator precede a `component` decl
+    /// (as opposed to a `fn`)? Saves and restores the cursor — no tokens consumed.
+    fn atlayer_precedes_component(&mut self) -> bool {
+        let saved = self.pos;
+        self.advance(); // eat @layer
+        if matches!(self.peek(), Token::LParen) {
+            // Skip the balanced (...) argument list.
+            let mut depth = 0usize;
+            loop {
+                match self.peek() {
+                    Token::LParen => depth += 1,
+                    Token::RParen => {
+                        depth -= 1;
+                        self.advance();
+                        if depth == 0 {
+                            break;
+                        }
+                        continue;
+                    }
+                    Token::Eof => break,
+                    _ => {}
+                }
+                self.advance();
+            }
+        }
+        while matches!(self.peek(), Token::Newline) {
+            self.advance();
+        }
+        let is_component = matches!(self.peek(), Token::Component);
+        self.pos = saved;
+        is_component
+    }
+
+    /// Parse a `@layer(tier: <name>)` decorator into an [`AstLayerSpec`].
+    /// Mirrors the inline logic in `parse_fn_decl`; defaults to `content`.
+    fn parse_layer_decorator(&mut self) -> crate::ast::decl::layer_decorator::AstLayerSpec {
+        let l_start = self.span();
+        self.advance(); // eat @layer
+        let mut tier = String::from("content");
+        if self.eat(&Token::LParen) {
+            loop {
+                self.skip_newlines();
+                if matches!(self.peek(), Token::RParen | Token::Eof) {
+                    break;
+                }
+                if let Token::Ident(key) = self.peek().clone() {
+                    self.advance();
+                    let _ = self.expect(&Token::Colon);
+                    if key == "tier" {
+                        if let Token::Ident(v) = self.peek().clone() {
+                            self.advance();
+                            tier = v;
+                        }
+                    } else {
+                        self.advance();
+                    }
+                } else {
+                    self.advance();
+                }
+                if !self.eat(&Token::Comma) {
+                    break;
+                }
+            }
+            let _ = self.expect(&Token::RParen);
+        }
+        crate::ast::decl::layer_decorator::AstLayerSpec {
+            tier,
+            span: l_start.merge(self.span()),
+        }
+    }
+
     pub(crate) fn parse_decl(&mut self) -> Result<Decl, ()> {
         self.skip_newlines();
         // ADR-032: in `.vox.ui` files, top-level `state` / `derived` / `effect` /
@@ -501,6 +586,20 @@ impl Parser {
             Token::Import => self.parse_import(),
             Token::Extern => self.parse_extern_fn(),
             Token::Component => self.parse_reactive_component(),
+            // `@layer(tier:) component Name() { … }` — GA-26 tier on a component.
+            // The bundled decorator arm below routes @layer to parse_fn_decl, so a
+            // component-bound @layer must be caught here first.
+            Token::AtLayer if self.atlayer_precedes_component() => {
+                let spec = self.parse_layer_decorator();
+                self.skip_newlines();
+                match self.parse_reactive_component()? {
+                    crate::ast::decl::Decl::ReactiveComponent(mut inner) => {
+                        inner.layer = Some(spec);
+                        Ok(crate::ast::decl::Decl::ReactiveComponent(inner))
+                    }
+                    other => Ok(other),
+                }
+            }
             Token::Fragment => self.parse_fragment_decl(),
             Token::AtV0 => self.parse_v0_component(),
             Token::AtLoading => self.parse_loading(),

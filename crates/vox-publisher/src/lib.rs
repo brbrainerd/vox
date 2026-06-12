@@ -48,7 +48,10 @@ pub mod zenodo_metadata;
 
 pub mod adapter_health;
 mod social_retry;
+pub mod syndicate;
 mod syndication_outcome;
+
+pub use syndicate::syndicate;
 
 pub use distribution_compile::{ChannelPlan, DistributionCompileReport, compile_for_publish};
 pub use syndication_outcome::{ChannelOutcome, SyndicationResult};

@@ -88,6 +88,8 @@ pub(crate) mod text_normalization;
 #[cfg(feature = "toestub-gate")]
 pub mod toestub_tools;
 pub mod tool_aliases;
+/// `vox_tool_search` — keyword search over the tool registry (progressive disclosure).
+pub mod tool_search;
 /// Training-intent submission via orchestrator (Mens CLI remains canonical executor).
 pub mod training_tools;
 /// Trust rollup inspection tools (`trust_rollups` over VoxDb).
@@ -123,6 +125,8 @@ pub mod mcp_context;
 pub use mcp_context as context;
 pub mod mcp_client;
 pub use mcp_client as client;
+mod external_mcp;
+pub use external_mcp::{ExternalMcpServer, connect_and_list_tools};
 pub mod dei_ipc;
 pub mod http_gateway;
 pub mod journey_envelope;

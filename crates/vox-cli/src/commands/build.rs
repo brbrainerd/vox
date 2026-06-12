@@ -115,6 +115,36 @@ pub async fn run(
     }
 
     if resolved_target == vox_config::BuildTarget::Mobile {
+        // The contrast/occlusion guarantees are target-agnostic semantic checks
+        // over the view tree, but the RN emitter bypasses Web IR. Run the
+        // validators as a blocking analysis pass (the IR itself is discarded) so
+        // a gray-on-white or tier-inversion bug fails the mobile build the same
+        // way it fails web. (Audit gaps XP-4 / CONTRAST-5.)
+        {
+            let web_ir = vox_codegen::web_ir::lower::lower_hir_to_web_ir(&hir);
+            let registry = vox_compiler::tokens::TokenRegistry::load_from_project_dir(
+                file.parent().unwrap_or(Path::new(".")),
+            );
+            let diags = match &registry {
+                Some(reg) => {
+                    vox_codegen::web_ir::validate::validate_web_ir_with_registry(&web_ir, Some(reg))
+                }
+                None => vox_codegen::web_ir::validate::validate_web_ir(&web_ir),
+            };
+            let (errors, warnings): (Vec<_>, Vec<_>) = diags
+                .iter()
+                .partition(|d| !vox_codegen::web_ir::validate::is_advisory_diagnostic(d));
+            for d in &warnings {
+                eprintln!("warning[{}]: {}", d.code, d.message);
+            }
+            if !errors.is_empty() {
+                for d in &errors {
+                    eprintln!("error[{}]: {}", d.code, d.message);
+                }
+                anyhow::bail!("mobile build failed: {} validator error(s)", errors.len());
+            }
+        }
+
         // React Native + Expo lowering. The Rust backend is intentionally NOT
         // emitted here — mobile apps that need on-device Rust pull it in via
         // the uniffi-bridged `@vox/runtime-rn` package, which lives outside the
@@ -125,7 +155,7 @@ pub async fn run(
             mode: vox_codegen::codegen_ts::emitter::BuildMode::App,
             ..Default::default()
         };
-        let rn_output = vox_codegen::codegen_ts::rn::generate_rn(&hir, &ts_opts)
+        let rn_output = vox_rn_codegen::generate_rn(&hir, &ts_opts)
             .map_err(|e| anyhow::anyhow!("RN codegen error: {}", e))?;
         for d in &rn_output.diagnostics {
             eprintln!("warning[{}]: {}", d.code, d.message);

@@ -6,13 +6,15 @@ use std::path::PathBuf;
 
 #[test]
 fn probe_runs_without_gpu() {
-    let result = probe::run_probe(false);
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt.block_on(probe::run_probe(false));
     assert!(result.is_ok());
 }
 
 #[test]
 fn probe_verbose_runs_without_gpu() {
-    let result = probe::run_probe(true);
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt.block_on(probe::run_probe(true));
     assert!(result.is_ok());
 }
 
@@ -21,6 +23,7 @@ fn status_missing_dir_reports_gracefully() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let result = rt.block_on(status::run_status(
         Some(PathBuf::from("/nonexistent/run/dir")),
+        false,
         false,
         false,
         false,
@@ -38,6 +41,7 @@ fn status_json_missing_dir() {
     let result = rt.block_on(status::run_status(
         Some(PathBuf::from("/nonexistent/run/dir")),
         true,
+        false,
         false,
         false,
     ));

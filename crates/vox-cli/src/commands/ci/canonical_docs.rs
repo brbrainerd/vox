@@ -187,22 +187,18 @@ fn verify_owning_globs(repo_root: &Path, map: &CanonicalMap) -> Result<()> {
 
 fn collect_files(repo_root: &Path) -> Result<Vec<PathBuf>> {
     let mut out = Vec::new();
-    let mut stack = vec![repo_root.to_path_buf()];
-    while let Some(dir) = stack.pop() {
-        for entry in std::fs::read_dir(&dir).with_context(|| format!("read {}", dir.display()))? {
-            let entry = entry?;
+    let walker = walkdir::WalkDir::new(repo_root)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_str().unwrap_or("");
+            !(e.file_type().is_dir() && (name == ".git" || name == "target" || name == "book"))
+        });
+    for entry in walker {
+        let entry = entry.with_context(|| format!("read under {}", repo_root.display()))?;
+        if entry.file_type().is_file() {
             let p = entry.path();
-            let t = entry.file_type()?;
-            if t.is_dir() {
-                let name = p.file_name().and_then(|s| s.to_str()).unwrap_or("");
-                if name == ".git" || name == "target" || name == "book" {
-                    continue;
-                }
-                stack.push(p);
-            } else if t.is_file() {
-                let rel = p.strip_prefix(repo_root).unwrap_or(&p).to_path_buf();
-                out.push(rel);
-            }
+            let rel = p.strip_prefix(repo_root).unwrap_or(p).to_path_buf();
+            out.push(rel);
         }
     }
     Ok(out)

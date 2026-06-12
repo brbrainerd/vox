@@ -589,6 +589,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_APP_DB_URL"
+    owner_crate: "vox-secrets"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "App data-plane SQL backend URL (postgres/mysql/libsql/sqlite)."
   - name: "VOX_DEEPSEEK_API_KEY"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -3030,6 +3036,12 @@ variables:
     required: false
     introduced_in: "0.5.0"
     description: "Git ref for pre-push comparison base (default `origin/main` when unset)."
+  - name: "VOX_PREVIEW_URL"
+    owner_crate: "vox-gui"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Base URL for the GUI browser preview surface (Playwright e2e and preview sidecar spawn)."
   - name: "VOX_PROVIDER_DAILY_LIMIT_DEFAULT"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -3144,6 +3156,24 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_RUNNER_IDLE_REAP_SECS"
+    owner_crate: "vox-cli"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "CI runner autoscaler: idle grace window in seconds before reaping a registered-but-never-assigned ephemeral runner (default 300)."
+  - name: "VOX_RUNNER_MAX"
+    owner_crate: "vox-cli"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "CI runner autoscaler: hard ceiling on concurrent managed ephemeral runners (default 6)."
+  - name: "VOX_RUNNER_WARM_POOL"
+    owner_crate: "vox-cli"
+    kind: "string"
+    required: false
+    introduced_in: "0.6.0"
+    description: "CI runner autoscaler: idle runners to keep registered for instant dispatch (default 1)."
   - name: "VOX_RUNPOD_API_KEY"
     owner_crate: "vox-populi"
     kind: "string"
@@ -4265,6 +4295,12 @@ variables:
     required: false
     introduced_in: "0.5.0"
     description: "Feature gate for MCP orchestrator task write RPC surface."
+  - name: "VOX_MENS_ACT_F32"
+    owner_crate: "vox-plugin-mens-candle-cuda"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    description: "MENS QLoRA: force F32 activations/embeddings (escape hatch when BF16 matmul paths fail)."
   - name: "VOX_MENS_BACKGROUND"
     owner_crate: "vox-cli"
     kind: "bool"
@@ -4289,6 +4325,18 @@ variables:
     required: false
     introduced_in: "0.5.0"
     description: "MENS: force training even when caches suggest skipping."
+  - name: "VOX_MENS_GC_SEGMENTS"
+    owner_crate: "vox-plugin-mens-candle-cuda"
+    kind: "int"
+    required: false
+    introduced_in: "0.6.0"
+    description: "MENS QLoRA: gradient-checkpoint segment count when activation checkpointing is enabled."
+  - name: "VOX_MENS_GRADIENT_CHECKPOINTING"
+    owner_crate: "vox-ml-cli"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    description: "MENS training: enable activation gradient checkpointing to reduce VRAM (default off for small models)."
   - name: "VOX_MENS_SKIP_EVAL"
     owner_crate: "vox-cli"
     kind: "bool"

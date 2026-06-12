@@ -43,6 +43,11 @@ pub struct ExpectedFiles {
     /// Optional CLI flags forwarded to `vox build` (e.g. `--target client`).
     #[serde(default)]
     pub extra_args: Vec<String>,
+    /// When true, this fixture is a *negative* case — `vox build` is expected to
+    /// FAIL (e.g. a deliberate contrast/occlusion violation). The all-fixtures
+    /// sweep skips it; a dedicated test asserts the specific failure.
+    #[serde(default)]
+    pub expect_failure: bool,
 }
 
 /// One end-to-end run of `vox build` against a fixture.
@@ -136,6 +141,7 @@ impl BuildRun {
                 forbidden: vec![],
                 emits_rust_backend: false,
                 extra_args: vec![],
+                expect_failure: false,
             }
         };
 
@@ -459,6 +465,10 @@ fn link_node_modules(target: &Path, link_path: &Path) {
 /// Run `npm install` in `tests/` so emitted TypeScript can resolve `react`,
 /// `@tauri-apps/api`, etc. Idempotent across the test process — first call
 /// runs `npm install`; subsequent calls are no-ops.
+///
+/// nextest runs each test in its own process, so the in-process `OnceLock`
+/// alone cannot stop concurrent installs into the same directory; a
+/// directory-based lock serializes them across processes.
 fn ensure_node_modules_installed(tests_dir: &Path) {
     static ONCE: OnceLock<()> = OnceLock::new();
     ONCE.get_or_init(|| {
@@ -470,11 +480,49 @@ fn ensure_node_modules_installed(tests_dir: &Path) {
             );
             return;
         }
-        let node_modules = tests_dir.join("node_modules");
-        // Cheap heuristic: if `react/package.json` exists in node_modules, assume install is done.
-        if node_modules.join("react").join("package.json").is_file() {
+        let installed = |dir: &Path| {
+            dir.join("node_modules")
+                .join("react")
+                .join("package.json")
+                .is_file()
+        };
+        // Cross-process lock: `create_dir` is atomic. Whoever creates the
+        // lock dir runs the install; everyone else waits for the LOCK to be
+        // released. Waiting on a package heuristic instead is racy — `react/`
+        // lands while npm is still extracting `react-native`, and tsc then
+        // runs against a half-populated node_modules.
+        let lock_dir = tests_dir.join(".npm-install-lock");
+        if installed(tests_dir) && !lock_dir.exists() {
             return;
         }
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(600);
+        let we_hold_lock = loop {
+            match std::fs::create_dir(&lock_dir) {
+                Ok(()) => {
+                    // A completed install (by us in a prior run, or by the
+                    // process whose lock release let us get here) is final.
+                    if installed(tests_dir) {
+                        let _ = std::fs::remove_dir(&lock_dir);
+                        break false;
+                    }
+                    break true;
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                    if std::time::Instant::now() > deadline {
+                        // Stale lock (a previous process died mid-install);
+                        // steal it and install ourselves.
+                        let _ = std::fs::remove_dir(&lock_dir);
+                        continue;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                }
+                Err(e) => panic!("creating npm install lock {}: {e}", lock_dir.display()),
+            }
+        };
+        if !we_hold_lock {
+            return;
+        }
+
         let npm = which_executable("npm").unwrap_or_else(|| {
             panic!(
                 "npm not found on PATH; either install Node or set VOX_CLI_TESTS_SKIP_TSC=1 \
@@ -491,6 +539,7 @@ fn ensure_node_modules_installed(tests_dir: &Path) {
             .current_dir(tests_dir)
             .status()
             .expect("spawn npm install");
+        let _ = std::fs::remove_dir(&lock_dir);
         assert!(
             status.success(),
             "npm install in {} failed",
