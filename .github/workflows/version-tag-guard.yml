@@ -29,7 +29,7 @@ jobs:
   assert-version-matches-tag:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Compare Cargo.toml workspace version to git tag
         shell: bash
