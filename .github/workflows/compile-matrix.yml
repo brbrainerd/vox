@@ -36,13 +36,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo build -p vox-cli
-      - run: cargo run -p vox-cli -- ci compile-matrix
+      - run: cargo run -p vox-cli ci compile-matrix
       - name: Compile suite workspace native-binary smoke
         working-directory: examples/compile-suite
         run: ../../target/debug/vox compile --workspace --target native-binary
       - name: Compile suite desktop Tauri generation smoke
         working-directory: examples/compile-suite/packages/desktop
-        run: ../../../target/debug/vox compile --target desktop -o dist src/main.vox
+        run: ../../../../target/debug/vox compile --target desktop -o dist src/main.vox
 
   compile-help-windows:
     name: vox compile --help (windows-latest)
@@ -52,7 +52,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo build -p vox-cli
-      - run: cargo run -p vox-cli -- ci compile-matrix
+      - run: cargo run -p vox-cli ci compile-matrix
 
   compile-help-macos:
     name: vox compile --help (macos-latest)
@@ -62,4 +62,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo build -p vox-cli
-      - run: cargo run -p vox-cli -- ci compile-matrix
+      - run: cargo run -p vox-cli ci compile-matrix

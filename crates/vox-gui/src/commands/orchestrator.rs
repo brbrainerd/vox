@@ -30,7 +30,8 @@ pub fn spawn_orchestrator_status_stream(
                 return;
             }
         };
-        let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(64);
+        let (tx, mut rx) =
+            tokio::sync::mpsc::channel::<serde_json::Value>(crate::config::ORCH_STATUS_CHANNEL_CAP);
 
         // Drive the subscription in its own task so we can drain `rx` concurrently.
         let producer = tokio::spawn(async move {
@@ -72,7 +73,9 @@ pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle, daemon: Arc<Persis
                 return;
             }
         };
-        let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(256);
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(
+            crate::config::AGENT_EVENTS_CHANNEL_CAP,
+        );
 
         // Drive the subscription in its own task so we can drain `rx` concurrently.
         let producer = tokio::spawn(async move {
@@ -213,18 +216,48 @@ fn to_gui_status(status: serde_json::Value) -> GuiOrchestratorStatus {
                     .unwrap_or(0.0),
                 // Per-agent financial cost from the daemon (USD). Absent → unknown.
                 cost: get_opt_f64(&agent, "cost_usd"),
-                // No per-agent budget cap is reported today; leave unknown rather
-                // than fabricate. Follow-up: surface a per-agent cap if added.
-                budget: None,
+                budget: get_opt_f64(&agent, "budget_usd"),
             })
             .collect(),
-        recent_events: Vec::new(),
+        recent_events: status
+            .get("recent_events")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default(),
         alerts: Vec::new(),
-        peers: Vec::new(),
+        peers: status
+            .get("peers")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default(),
         total_cost: get_f64(&status, "total_cost_usd"),
         budget_cap: get_f64(&status, "budget_cap_usd"),
-        mesh_throughput: 0.0,
-        total_vram_gb: 0.0,
+        mesh_throughput: get_f64(&status, "mesh_throughput_mb_s"),
+        total_vram_gb: get_f64(&status, "total_vram_gb"),
+    }
+}
+
+async fn enrich_mesh_from_tool(gui: &mut GuiOrchestratorStatus) {
+    let mesh = call_daemon(
+        "vox-orchestrator-d",
+        orch_daemon_method::TOOL_CALL,
+        serde_json::json!({ "name": "vox_mesh_nodes", "args": {} }),
+        false,
+    )
+    .await;
+    if let Ok(value) = mesh {
+        let nodes = value
+            .get("result")
+            .or(Some(&value))
+            .and_then(|r| r.get("nodes"))
+            .and_then(|n| n.as_array());
+        if let Some(nodes) = nodes {
+            gui.peers = nodes.clone();
+            gui.total_vram_gb = nodes
+                .iter()
+                .filter_map(|n| n.get("vram_gb").and_then(|v| v.as_f64()))
+                .sum();
+        }
     }
 }
 
@@ -232,6 +265,9 @@ fn to_gui_status(status: serde_json::Value) -> GuiOrchestratorStatus {
 pub async fn get_orchestrator_status() -> Result<serde_json::Value, String> {
     let status = daemon_status().await?;
     let mut gui = to_gui_status(status);
+    if gui.peers.is_empty() {
+        enrich_mesh_from_tool(&mut gui).await;
+    }
     gui.alerts = crate::commands::gamify::fetch_gamify_alerts().await;
     serde_json::to_value(gui).map_err(|e| e.to_string())
 }
@@ -240,6 +276,9 @@ pub async fn get_orchestrator_status() -> Result<serde_json::Value, String> {
 pub async fn get_orchestrator_status_bin() -> Result<tauri::ipc::Response, String> {
     let status = daemon_status().await?;
     let mut gui = to_gui_status(status);
+    if gui.peers.is_empty() {
+        enrich_mesh_from_tool(&mut gui).await;
+    }
     gui.alerts = crate::commands::gamify::fetch_gamify_alerts().await;
     let bytes = rmp_serde::to_vec_named(&gui).map_err(|e| e.to_string())?;
     Ok(tauri::ipc::Response::new(bytes))
@@ -299,6 +338,28 @@ pub async fn set_orchestrator_config(config: serde_json::Value) -> Result<(), St
             toml::Value::Boolean(shadow),
         );
     }
+    // Scaling section (Track D): local-resource-aware auto-scaling controls.
+    if let Some(v) = config.get("scalingEnabled").and_then(|v| v.as_bool()) {
+        orch_table.insert("scaling_enabled".to_string(), toml::Value::Boolean(v));
+    }
+    if let Some(v) = config.get("minAgents").and_then(|v| v.as_u64()) {
+        orch_table.insert("min_agents".to_string(), toml::Value::Integer(v as i64));
+    }
+    if let Some(v) = config.get("scalingThreshold").and_then(|v| v.as_u64()) {
+        orch_table.insert(
+            "scaling_threshold".to_string(),
+            toml::Value::Integer(v as i64),
+        );
+    }
+    if let Some(v) = config.get("scaleCpuCeilingPct").and_then(|v| v.as_f64()) {
+        orch_table.insert("scale_cpu_ceiling_pct".to_string(), toml::Value::Float(v));
+    }
+    if let Some(v) = config.get("scaleMemFloorMb").and_then(|v| v.as_u64()) {
+        orch_table.insert(
+            "scale_mem_floor_mb".to_string(),
+            toml::Value::Integer(v as i64),
+        );
+    }
 
     // 3. Save it back
     manifest.orchestrator = Some(orch_table);
@@ -318,4 +379,38 @@ pub async fn set_orchestrator_config(config: serde_json::Value) -> Result<(), St
     });
 
     Ok(())
+}
+
+/// Read the persisted orchestrator settings from the discovered `Vox.toml`
+/// `[orchestrator]` table so the GUI can hydrate its controls instead of
+/// showing hardcoded defaults (fixes the inert-sliders bug).
+#[tauri::command]
+pub async fn get_orchestrator_config() -> Result<serde_json::Value, String> {
+    let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
+    let (manifest, _path) = VoxManifest::discover(&current_dir).map_err(|e| e.to_string())?;
+    let t = manifest.orchestrator.unwrap_or_default();
+    let get_i = |k: &str| t.get(k).and_then(|v| v.as_integer());
+    let get_f = |k: &str| {
+        t.get(k)
+            .and_then(|v| v.as_float().or_else(|| v.as_integer().map(|i| i as f64)))
+    };
+    let get_b = |k: &str| t.get(k).and_then(|v| v.as_bool());
+    let get_s = |k: &str| t.get(k).and_then(|v| v.as_str().map(ToString::to_string));
+    Ok(serde_json::json!({
+        "concurrency": get_i("max_agents"),
+        "capUsd": get_i("financial_cost_budget_micros").map(|m| m as f64 / 1_000_000.0),
+        "doubtThresh": get_f("trust_auto_approve_min"),
+        "isolation": get_s("scope_enforcement").map(|s| match s.as_str() {
+            "Wasm" => "wasm",
+            "Container" => "ctr",
+            _ => "native",
+        }),
+        "autobudget": get_b("exec_time_budget_enabled"),
+        "doubt": get_b("socrates_gate_enforce"),
+        "scalingEnabled": get_b("scaling_enabled"),
+        "minAgents": get_i("min_agents"),
+        "scalingThreshold": get_i("scaling_threshold"),
+        "scaleCpuCeilingPct": get_f("scale_cpu_ceiling_pct"),
+        "scaleMemFloorMb": get_i("scale_mem_floor_mb"),
+    }))
 }

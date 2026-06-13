@@ -683,7 +683,8 @@ async fn maintenance_deadline_expires_and_claims_resume() {
         node_id: "maint-deadline-worker".into(),
         maintenance: true,
         maintenance_until_unix_ms: None,
-        maintenance_for_ms: Some(80),
+        // Keep the window long enough for CI scheduling between admin + inbox POST.
+        maintenance_for_ms: Some(3_000),
     })
     .await
     .unwrap();

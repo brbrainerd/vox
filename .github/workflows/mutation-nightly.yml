@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_LOCKED: true
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -42,4 +43,4 @@ jobs:
           tool: cargo-mutants
 
       - name: Run mutants (package vox-compiler)
-        run: cargo mutants --locked -p vox-compiler --no-times --jobs 4
+        run: cargo mutants -p vox-compiler --no-times --jobs 4

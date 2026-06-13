@@ -37,7 +37,7 @@ jobs:
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
           COOLIFY_READ_TOKEN: ${{ secrets.COOLIFY_READ_TOKEN }}
           COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
-        run: cargo run -p vox-cli --quiet -- ci coolify-eval discover
+        run: cargo run -p vox-cli --quiet ci coolify-eval discover
 
       - name: Sync compose and deploy
         if: ${{ inputs.sync_compose }}
@@ -50,7 +50,7 @@ jobs:
         run: |
           set -euo pipefail
           LOG="$(mktemp)"
-          if cargo run -p vox-cli --quiet -- ci coolify-eval sync-compose \
+          if cargo run -p vox-cli --quiet ci coolify-eval sync-compose \
             --compose vox-eval.compose.yml \
             --domains https://eval.voxlang.org 2>&1 | tee "$LOG"; then
             exit 0

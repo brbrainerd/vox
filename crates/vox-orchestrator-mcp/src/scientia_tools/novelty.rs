@@ -84,6 +84,7 @@ pub async fn vox_scientia_publication_novelty_fetch(
         vox_publisher::scientia_prior_art::PriorArtFetchOptions::default(),
         params.offline,
         &scientia_h,
+        None, // semantic enrichment: CLI path only for now (embedder lives in vox-cli)
     )
     .await
     {
@@ -218,6 +219,7 @@ pub async fn vox_scientia_publication_decision_explain(
             vox_publisher::scientia_prior_art::PriorArtFetchOptions::default(),
             params.offline,
             &scientia_h,
+            None, // semantic enrichment: CLI path only for now (embedder lives in vox-cli)
         )
         .await
         {
@@ -406,6 +408,7 @@ pub async fn vox_scientia_publication_novelty_happy_path(
         vox_publisher::scientia_prior_art::PriorArtFetchOptions::default(),
         params.offline,
         &scientia_h,
+        None, // semantic enrichment: CLI path only for now (embedder lives in vox-cli)
     )
     .await
     {

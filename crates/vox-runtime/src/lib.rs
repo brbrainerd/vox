@@ -1,5 +1,5 @@
 //! Vox runtime — the umbrella crate that downstream runtimes
-//! (`vox-workflow-runtime`, `vox-actor-runtime`, `vox-inference`) compose into
+//! (`vox-workflow-runtime`, `vox-actor-runtime`, `vox-populi::inference`) compose into
 //! a single mobile-and-desktop-aware surface.
 //!
 //! ## Scope today

@@ -30,8 +30,17 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 compact,
                 jsonl,
             } => db::explain(file.as_ref(), query.as_deref(), !compact, jsonl).await,
+            DbCliCore::Introspect { url, compact } => db::introspect(url.as_deref(), compact).await,
+            DbCliCore::Verify {
+                file,
+                url,
+                strict,
+                compact,
+            } => db::verify(file.as_ref(), url.as_deref(), strict, compact).await,
             DbCliCore::Sample { table, limit } => db::sample(&table, limit).await,
-            DbCliCore::Migrate { file } => db::migrate(file.as_ref()).await,
+            DbCliCore::Migrate { file, url, dry_run } => {
+                db::migrate(file.as_ref(), url.as_deref(), dry_run).await
+            }
             DbCliCore::Export { user_id, output } => db::export(&user_id, output.as_ref()).await,
             DbCliCore::Import { path } => db::import(path.as_path()).await,
             DbCliCore::Vacuum => db::vacuum().await,
@@ -287,6 +296,23 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             DbCliPublication::PublicationDiscoveryExplain { publication_id } => {
                 db::publication_discovery_explain(&publication_id).await
             }
+            DbCliPublication::PublicationAutofill {
+                publication_id,
+                apply,
+            } => db::publication_autofill(&publication_id, apply).await,
+            DbCliPublication::DiscoveryWatch { once, repo, limit } => {
+                db::discovery_watch(once, repo.as_deref(), limit).await
+            }
+            DbCliPublication::PublicationArchiveCode {
+                publication_id,
+                origin_url,
+                wait,
+            } => db::publication_archive_code(&publication_id, origin_url.as_deref(), wait).await,
+            DbCliPublication::PublicationArchiveRun {
+                publication_id,
+                production,
+                publish,
+            } => db::publication_archive_run(&publication_id, production, publish).await,
             DbCliPublication::PublicationTransformPreview { publication_id } => {
                 db::publication_transform_preview(&publication_id).await
             }

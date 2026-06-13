@@ -81,7 +81,7 @@ flowchart TB
 | --- | --- |
 | Web UI IR | `crates/vox-codegen/src/web_ir/` — `lower.rs` (`IslandMount`, routes, behaviors), `validate/` |
 | v0 syntax | `crates/vox-compiler/src/parser/descent/decl/tail.rs` — `@v0 "id" Name` and `@v0 from "design.png"` |
-| TS emit + islands | `crates/vox-codegen/src/codegen_ts/` — `emitter.rs`, `island_emit.rs` (no `v0_tsx_normalize` in this crate) |
+| TS emit + islands | `crates/vox-codegen-ts/src/` — `emitter.rs`, `island_emit.rs` (no `v0_tsx_normalize` in this crate) |
 | Deterministic GUI spine | `crates/vox-compiler/tests/web_ir_lower_emit.rs` — lowering + emit regression without a browser |
 | CLI v0 lint + v0 HTTP | `crates/vox-cli/src/v0_tsx_normalize.rs`, `v0.rs` (`VOX_V0_API_URL` override for tests/mocks), `commands/build.rs` named-export validation |
 | Island pipeline | `crates/vox-cli/src/commands/island/` — `generate` with `--image`, cache, shadcn stub |

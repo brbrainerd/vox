@@ -256,6 +256,21 @@ pub async fn handle_tool_call(
         }
     });
 
+    // Verification-driven loop: after a successful file-mutating tool, auto-run
+    // `vox check` on the touched `.vox` file and surface any error diagnostics back
+    // inside the tool result, so the agent self-corrects on its next turn without
+    // having to remember to validate. No-op for non-mutating tools, non-`.vox` paths,
+    // clean files, or when disabled via `VOX_VERIFY_ON_WRITE`. See `post_verification`.
+    let result = match result {
+        Ok(payload) => {
+            Ok(
+                crate::post_verification::verify_and_attach(state, name_canonical, &args, payload)
+                    .await,
+            )
+        }
+        Err(e) => Err(e),
+    };
+
     let duration_ms = start_time.elapsed().as_millis() as i64;
 
     if let Some(ref tid) = trace_for_telemetry {
@@ -338,6 +353,9 @@ async fn handle_tool_call_inner(
         "vox_test_decision" => {
             Ok(task_tools::test_decision(state, serde_json::from_value(args)?).await)
         }
+        "vox_tool_search" => Ok(crate::tool_search::vox_tool_search(serde_json::from_value(
+            args,
+        )?)),
         // B3 HITL: list / resolve approvals awaiting a human decision (the
         // dangerous-tool gate below parks on these).
         "vox_pending_approvals" => Ok(crate::params::ToolResult::ok(serde_json::json!({
@@ -1149,6 +1167,11 @@ async fn handle_tool_call_inner(
             serde_json::from_value(args)?,
         )),
         "vox_skill_parse" => Ok(crate::skills::skill_parse(serde_json::from_value(args)?)),
+        "vox_skill_use" => Ok(crate::skills::skill_use(
+            state,
+            serde_json::from_value(args)?,
+        )),
+        "vox_skill_discover" => Ok(crate::skills::skill_discover(state)),
 
         "vox_plugin_list" => Ok(crate::plugins::plugin_list(state).await),
         "vox_plugin_catalog" => Ok(crate::plugins::plugin_catalog()),
@@ -1199,8 +1222,24 @@ async fn handle_tool_call_inner(
         "vox_browser_open" => {
             Ok(browser_tools::browser_open(state, serde_json::from_value(args)?).await)
         }
+        "vox_browser_list_pages" => Ok(browser_tools::browser_list_pages(state, args).await),
+        "vox_browser_page_info" => {
+            Ok(browser_tools::browser_page_info(state, serde_json::from_value(args)?).await)
+        }
         "vox_browser_close" => {
             Ok(browser_tools::browser_close(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_back" => {
+            Ok(browser_tools::browser_back(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_forward" => {
+            Ok(browser_tools::browser_forward(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_reload" => {
+            Ok(browser_tools::browser_reload(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_stop" => {
+            Ok(browser_tools::browser_stop(state, serde_json::from_value(args)?).await)
         }
         "vox_browser_goto" => {
             Ok(browser_tools::browser_goto(state, serde_json::from_value(args)?).await)
@@ -1208,8 +1247,26 @@ async fn handle_tool_call_inner(
         "vox_browser_click" => {
             Ok(browser_tools::browser_click(state, serde_json::from_value(args)?).await)
         }
+        "vox_browser_click_xy" => {
+            Ok(browser_tools::browser_click_xy(state, serde_json::from_value(args)?).await)
+        }
         "vox_browser_fill" => {
             Ok(browser_tools::browser_fill(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_scroll" => {
+            Ok(browser_tools::browser_scroll(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_press" => {
+            Ok(browser_tools::browser_press(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_type" => {
+            Ok(browser_tools::browser_type(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_set_viewport" => {
+            Ok(browser_tools::browser_set_viewport(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_set_control_lock" => {
+            Ok(browser_tools::browser_set_control_lock(state, serde_json::from_value(args)?).await)
         }
         "vox_browser_wait_for" => {
             Ok(browser_tools::browser_wait_for(state, serde_json::from_value(args)?).await)
@@ -1222,6 +1279,14 @@ async fn handle_tool_call_inner(
         }
         "vox_browser_screenshot" => {
             Ok(browser_tools::browser_screenshot(state, serde_json::from_value(args)?).await)
+        }
+        "vox_browser_screenshot_viewport" => Ok(browser_tools::browser_screenshot_viewport(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
+        "vox_browser_screencast_frame" => {
+            Ok(browser_tools::browser_screencast_frame(state, serde_json::from_value(args)?).await)
         }
         "vox_browser_extract" => {
             Ok(browser_tools::browser_extract(state, serde_json::from_value(args)?).await)
@@ -1295,14 +1360,28 @@ mod registry_dispatch_tests {
         "vox_openclaw_unsubscribe",
         "vox_openclaw_notify",
         "vox_browser_open",
+        "vox_browser_list_pages",
+        "vox_browser_page_info",
         "vox_browser_close",
+        "vox_browser_back",
+        "vox_browser_forward",
+        "vox_browser_reload",
+        "vox_browser_stop",
         "vox_browser_goto",
         "vox_browser_click",
+        "vox_browser_click_xy",
         "vox_browser_fill",
+        "vox_browser_scroll",
+        "vox_browser_press",
+        "vox_browser_type",
+        "vox_browser_set_viewport",
+        "vox_browser_set_control_lock",
         "vox_browser_wait_for",
         "vox_browser_text",
         "vox_browser_html",
         "vox_browser_screenshot",
+        "vox_browser_screenshot_viewport",
+        "vox_browser_screencast_frame",
         "vox_browser_extract",
         "vox_browser_extract_json",
         "vox_browser_act",

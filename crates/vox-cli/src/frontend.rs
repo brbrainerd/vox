@@ -35,13 +35,38 @@ impl OrchestratedViteGuard {
         if std::env::var("VOX_ORCHESTRATE_VITE").ok().as_deref() == Some("0") {
             return Ok((Self(None), None));
         }
+        let pkg_path = app_dir.join("package.json");
+        let pkg_raw = std::fs::read_to_string(&pkg_path)
+            .with_context(|| format!("failed to read {}", pkg_path.display()))?;
+        let pkg_json: serde_json::Value = serde_json::from_str(&pkg_raw)
+            .with_context(|| format!("failed to parse {}", pkg_path.display()))?;
+        let has_script = |name: &str| {
+            pkg_json
+                .get("scripts")
+                .and_then(|scripts| scripts.get(name))
+                .and_then(|v| v.as_str())
+                .is_some()
+        };
+        let (script, url) = if has_script("dev:ssr-upstream") {
+            ("dev:ssr-upstream", "http://127.0.0.1:3001".to_string())
+        } else if has_script("dev") {
+            (
+                "dev",
+                format!("http://127.0.0.1:{}", crate::config::default_port()),
+            )
+        } else {
+            anyhow::bail!(
+                "{} has no `dev:ssr-upstream` or `dev` script",
+                pkg_path.display()
+            );
+        };
         let pnpm = pnpm_executable();
         println!(
-            "  Spawning Vite SSR upstream (pnpm run dev:ssr-upstream) in {} (opt-out via VOX_ORCHESTRATE_VITE=0)...",
-            app_dir.display()
+            "  Spawning preview server (pnpm run {script}) in {} (opt-out via VOX_ORCHESTRATE_VITE=0)...",
+            app_dir.display(),
         );
         let child = std::process::Command::new(pnpm)
-            .args(["run", "dev:ssr-upstream"])
+            .args(["run", script])
             .current_dir(app_dir)
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::inherit())
@@ -53,7 +78,6 @@ impl OrchestratedViteGuard {
                 )
             })?;
         std::thread::sleep(vox_config::timeouts::D_2S);
-        let url = "http://127.0.0.1:3001";
         let inject = if std::env::var("VOX_SSR_DEV_URL")
             .ok()
             .filter(|s| !s.trim().is_empty())

@@ -3,6 +3,7 @@ name = "vox-package"
 description = "Vox package manager: Vox.toml manifests, vox.lock, content-addressed artifact cache, registry client, dependency resolver."
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [features]
 default = ["local"]

@@ -181,6 +181,14 @@ pub fn typecheck_hir_module_with_path(
             }
         }
     }
+    // GA-26: the reserved-tier guard also applies to `@layer(tier:)` on components.
+    for comp in &hir.components {
+        if let Some(l) = &comp.layer {
+            if let Some(d) = layer::check_system_overlay_reservation(l) {
+                diags.push(d);
+            }
+        }
+    }
     // GA-21 + AI fixtures: structural checks on every semantic-core function-like surface.
     let declared_type_names: std::collections::HashSet<&str> =
         hir.types.iter().map(|t| t.name.as_str()).collect();

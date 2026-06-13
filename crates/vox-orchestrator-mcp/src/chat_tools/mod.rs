@@ -12,6 +12,7 @@ mod inline_edit;
 mod plan;
 mod plan_gap;
 mod plan_loop;
+mod skill_catalog;
 
 pub use ambient::ambient_state;
 pub use chat::{chat_history, chat_message};
@@ -52,6 +53,16 @@ pub(crate) fn ts_to_date_str(secs: u64) -> String {
 
 /// Build the full system prompt for the Vox chat assistant.
 pub(crate) async fn build_system_prompt(state: &ServerState, session_id: Option<&str>) -> String {
+    build_system_prompt_with_skill(state, session_id, None).await
+}
+
+/// Like [`build_system_prompt`], but injects the full body of a user-pinned
+/// skill (by id or name) so prompt-only models honor it without a tool call.
+pub(crate) async fn build_system_prompt_with_skill(
+    state: &ServerState,
+    session_id: Option<&str>,
+    pinned_skill: Option<&str>,
+) -> String {
     let ws_root = state
         .workspace_root
         .as_deref()
@@ -91,6 +102,39 @@ pub(crate) async fn build_system_prompt(state: &ServerState, session_id: Option<
         "## Environment\nWorkspace Root: {}\n\nYou are Vox, an elite AI coding assistant. You have access to the Vox MCP toolbelt. You can read and modify files, run tests, inspect VCS history, manage agents, and query the knowledge graph.\n\nRules:\n- Be concise and precise. Prefer code over prose.\n- Always cite which files you modified or plan to modify.\n- When generating code, produce valid, complete implementations — no stubs or placeholders.\n- Use Markdown code blocks with language tags.\n- For multi-file changes, use a structured diff or list each file separately.\n- When asked to plan, produce a numbered task list in Markdown.\n",
         ws_root.display()
     ));
+
+    // Tier-1 skill disclosure (agentskills.io progressive disclosure): name +
+    // description for every installed skill, so even prompt-only models (MENS)
+    // know which skills exist. Alphabetical + capped → cache-prefix stable.
+    // One registry read, reused below for the pinned-skill lookup.
+    let reg = &state.orchestrator.skill_registry;
+    let manifests = reg.list(None);
+    let skill_entries: Vec<skill_catalog::CatalogEntry> = manifests
+        .iter()
+        .map(|m| skill_catalog::CatalogEntry {
+            name: m.name.clone(),
+            description: m.description.clone(),
+        })
+        .collect();
+    prompt.push_str(&skill_catalog::render_skill_catalog(&skill_entries, 64));
+
+    // Pinned-skill ("tier-pinned") disclosure: inject the full SKILL.md body
+    // for an explicitly selected skill. Matched by id or name; works on the
+    // prompt-only MENS path because it needs no tool round-trip.
+    if let Some(pinned) = pinned_skill.map(str::trim).filter(|p| !p.is_empty()) {
+        if let Some(m) = manifests
+            .iter()
+            .find(|m| m.id == pinned || m.name == pinned)
+        {
+            let body = reg.lookup(&m.id).ok().map(|s| s.body).unwrap_or_default();
+            if !body.is_empty() {
+                tracing::info!(skill = %m.id, source = "pinned", "skill_activated");
+                prompt.push_str(&skill_catalog::render_pinned_skill(&m.name, &body));
+            }
+        } else {
+            tracing::warn!(pinned = %pinned, "pinned skill not found in registry");
+        }
+    }
 
     prompt.push_str(params::ANTI_LAZINESS_RIDER);
 
@@ -260,6 +304,7 @@ mod routing_tests {
             attachment_manifest: None,
             temperature: None,
             top_p: None,
+            skill: None,
         };
         let rich = ChatMessageParams {
             prompt: "Hi".into(),
@@ -279,6 +324,7 @@ mod routing_tests {
             attachment_manifest: None,
             temperature: None,
             top_p: None,
+            skill: None,
         };
         let a = chat_grounding_score(&empty, 0);
         let b = chat_grounding_score(&rich, 3);

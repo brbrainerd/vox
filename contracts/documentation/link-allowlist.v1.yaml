@@ -348,8 +348,8 @@ allowlist:
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
-    target: "crates/vox-inference/"
-    reason: "planned-crate: vox-corpus not yet created"
+    target: "../../../crates/vox-populi/src/inference/"
+    reason: "retired-crate: vox-inference merged into vox-populi/src/inference; historical doc link preserved"
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
@@ -379,8 +379,8 @@ allowlist:
 
   # ── where-things-live.md planned crates ───────────────────────────────────────
   - source: "docs/src/architecture/where-things-live.md"
-    target: "../../../crates/vox-mesh-policy/"
-    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    target: "../../../crates/vox-scaling-policy/src/donations_vox/"
+    reason: "retired-crate: vox-mesh-policy folded into vox-scaling-policy/src/donations_vox; historical doc link preserved"
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/where-things-live.md"
@@ -424,11 +424,6 @@ allowlist:
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/where-things-live.md"
-    target: "../../../crates/vox-nanopub/"
-    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
-    expires: "2026-11-30"
-
-  - source: "docs/src/architecture/where-things-live.md"
     target: "../../../crates/vox-prereg/"
     reason: "pre-existing broken link from main-branch merge; planned or renamed file"
     expires: "2026-11-30"
@@ -444,13 +439,13 @@ allowlist:
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/where-things-live.md"
-    target: "../../../crates/vox-inference/"
-    reason: "planned-crate: vox-corpus not yet created"
+    target: "../../../crates/vox-populi/src/inference/"
+    reason: "retired-crate: vox-inference merged into vox-populi/src/inference; historical doc link preserved"
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/where-things-live.md"
-    target: "../../../crates/vox-distributed-training/"
-    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    target: "../../../crates/vox-populi/src/distributed_training/"
+    reason: "retired-crate: vox-distributed-training merged into vox-populi/src/distributed_training; historical doc link preserved"
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/where-things-live.md"
@@ -517,8 +512,8 @@ allowlist:
     expires: "2026-11-30"
 
   - source: "README.md"
-    target: "crates/vox-inference/"
-    reason: "planned-crate: vox-corpus not yet created"
+    target: "../../../crates/vox-populi/src/inference/"
+    reason: "retired-crate: vox-inference merged into vox-populi/src/inference; historical doc link preserved"
     expires: "2026-11-30"
 
   - source: "README.md"

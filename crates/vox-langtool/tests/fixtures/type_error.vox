@@ -1,0 +1,8 @@
+fn add(a: int, b: int) to int {
+    return a + b
+}
+
+fn main() {
+    let x: int = add(1, "not_an_int");
+    print(x);
+}

@@ -801,7 +801,11 @@ fn validate_surface_refs(
             if k != "data-vox-surface" {
                 continue;
             }
-            if registry.lookup_surface(v).is_none() {
+            // Attr values are TS-expression strings (see lower.rs convention comment) —
+            // a plain string literal arrives JSON-encoded with embedded quotes. Strip one
+            // layer before registry lookup.
+            let surface_name = v.trim_matches('"');
+            if registry.lookup_surface(surface_name).is_none() {
                 let known: Vec<&str> = registry.surface_pairs.keys().map(|s| s.as_str()).collect();
                 let hint = if known.is_empty() {
                     String::new()
@@ -811,7 +815,7 @@ fn validate_surface_refs(
                 out.push(WebIrDiagnostic {
                     code: "web_ir_validate.surface.unknown_surface".to_string(),
                     message: format!(
-                        "Unknown surface pair '{v}' — not declared in vox.tokens.json.{hint}"
+                        "Unknown surface pair '{surface_name}' — not declared in vox.tokens.json.{hint}"
                     ),
                     span: None,
                     category: Some("surface".to_string()),
@@ -872,7 +876,10 @@ pub fn is_advisory_diagnostic(d: &WebIrDiagnostic) -> bool {
             | "web_ir_validate.a11y.img_missing_alt"
             | "web_ir_validate.a11y.role_button_missing_keyboard"
     ) || d.code.ends_with("_warning")
-        || d.code.starts_with("web_ir_validate.a11y.")
+        // The a11y family is advisory so emit still produces JSX on a name gap —
+        // EXCEPT the hard WCAG contrast failure, which can block while still emitting.
+        || (d.code.starts_with("web_ir_validate.a11y.")
+            && d.code != "web_ir_validate.a11y.insufficient_contrast")
 }
 
 /// Internal combined validator used by `validate_web_ir_with_metrics` and `validate_web_ir_with_registry`.
@@ -897,6 +904,8 @@ fn validate_web_ir_full(
         super::validate_a11y::validate_a11y_with_registry(module, reg, &mut out);
     }
     super::validate_overlay::validate_overlay(module, &mut out);
+    super::validate_palette::validate_palette(module, registry, &mut out);
+    super::validate_layer::validate_layer(module, &mut out);
 
     (out, metrics)
 }
@@ -917,6 +926,74 @@ mod tests {
             meta,
             children: vec![],
         }
+    }
+
+    #[test]
+    fn insufficient_contrast_is_not_advisory() {
+        // The <3:1 hard WCAG failure must block the build even though the rest of
+        // the a11y family stays advisory (so emit still produces JSX).
+        let hard = WebIrDiagnostic {
+            code: "web_ir_validate.a11y.insufficient_contrast".to_string(),
+            message: String::new(),
+            span: None,
+            category: Some("a11y".to_string()),
+        };
+        assert!(
+            !is_advisory_diagnostic(&hard),
+            "hard WCAG failure must block the build"
+        );
+
+        let soft = WebIrDiagnostic {
+            code: "web_ir_validate.a11y.low_contrast".to_string(),
+            message: String::new(),
+            span: None,
+            category: Some("a11y".to_string()),
+        };
+        assert!(is_advisory_diagnostic(&soft), "low_contrast stays advisory");
+
+        let name_gap = WebIrDiagnostic {
+            code: "web_ir_validate.a11y.img_missing_alt".to_string(),
+            message: String::new(),
+            span: None,
+            category: Some("a11y".to_string()),
+        };
+        assert!(
+            is_advisory_diagnostic(&name_gap),
+            "accessible-name gaps stay advisory"
+        );
+    }
+
+    #[test]
+    fn surface_lookup_tolerates_quoted_attr_values() {
+        use crate::web_ir::{DomNode, DomNodeId, WebIrModule};
+        // Real lowering (lower.rs:280) stores data-vox-surface as a JSON-encoded
+        // string literal — value carries embedded quotes (`"\"primary\""`). The
+        // lookup sites must strip them or every registry lookup misses.
+        let tokens_json = r##"{
+            "color": { "background": "#ffffff", "primary": "#3a86ff" },
+            "surface": {
+                "primary": { "$surface_pair": true, "fg": "color.background", "bg": "color.primary" }
+            }
+        }"##;
+        let registry =
+            vox_compiler::tokens::TokenRegistry::load_from_str(tokens_json).expect("parse tokens");
+        let mut m = WebIrModule::default();
+        m.dom_nodes.push(DomNode::Element {
+            id: DomNodeId(0),
+            tag: "section".to_string(),
+            attrs: vec![("data-vox-surface".to_string(), "\"primary\"".to_string())],
+            children: vec![],
+            span: None,
+        });
+        m.view_roots.push(("Page".to_string(), DomNodeId(0)));
+
+        let diags = validate_web_ir_with_registry(&m, Some(&registry));
+        assert!(
+            !diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.surface.unknown_surface"),
+            "quoted surface value must resolve against the registry, got: {diags:?}"
+        );
     }
 
     #[test]

@@ -6,6 +6,7 @@
 
 pub mod discover;
 pub mod errors;
+pub mod external_skills;
 pub mod host_impl;
 pub mod loader;
 pub mod registry;

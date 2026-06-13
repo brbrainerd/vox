@@ -67,6 +67,12 @@ pub struct NodeRecord {
     /// Truth-layer marker (`layer_a_verified`, `layer_b_allocatable`, `layer_c_advertised`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gpu_truth_layer: Option<String>,
+    /// Total probed GPU VRAM in MB for the primary device (heterogeneity-aware planning).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gpu_vram_total_mb: Option<u64>,
+    /// Probed GPU model name (e.g. `RTX 4080 SUPER`), when probe-backed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gpu_model_name: Option<String>,
     /// NVIDIA kernel driver version (NVML `sys_driver_version`), when probe-backed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nvidia_driver_version: Option<String>,

@@ -15,6 +15,7 @@ impl Orchestrator {
         let budget = crate::sync_lock::rw_read(&self.budget_manager);
         let total_cost_usd = budget.total_cost_usd();
         let budget_cap_usd = budget.max_financial_cost_micros() as f64 / 1_000_000.0;
+        let global_exploration_cost_usd = budget.global_exploration_cost_usd();
         let agents_map = crate::sync_lock::rw_read(&self.agents);
         let dynamic_agents = crate::sync_lock::rw_read(&self.dynamic_agents);
         let agents: Vec<AgentSummary> = agents_map
@@ -107,6 +108,7 @@ impl Orchestrator {
                 .unwrap_or(0),
             total_cost_usd,
             budget_cap_usd,
+            global_exploration_cost_usd,
             agents,
         }
     }
@@ -192,6 +194,39 @@ impl Orchestrator {
             }
         }
         all
+    }
+
+    /// Rewrite the description of a queued task. Returns an error if the task
+    /// is unknown or not in `Queued` status (a running prompt must not change
+    /// underneath an agent).
+    pub fn edit_task_description(
+        &self,
+        task_id: TaskId,
+        new_description: String,
+    ) -> Result<(), String> {
+        let trimmed = new_description.trim();
+        if trimmed.is_empty() {
+            return Err("description must be non-empty".to_string());
+        }
+        let agents = crate::sync_lock::rw_read(&self.agents);
+        for queue_lock in agents.values() {
+            let mut queue = crate::sync_lock::rw_write(queue_lock);
+            // all_tasks_mut() chains the in-progress task with the queued ones,
+            // so guard by status, not container membership.
+            for task in queue.all_tasks_mut() {
+                if task.id == task_id {
+                    if !matches!(task.status, crate::TaskStatus::Queued) {
+                        return Err(format!(
+                            "task {} is {} and cannot be edited",
+                            task_id.0, task.status
+                        ));
+                    }
+                    task.description = trimmed.to_string();
+                    return Ok(());
+                }
+            }
+        }
+        Err(format!("task {} not found in any queue", task_id.0))
     }
 
     /// Get a copy of the task assignments map.

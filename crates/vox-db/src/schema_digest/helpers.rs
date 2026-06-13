@@ -315,6 +315,8 @@ mod tests {
             cors: None,
             is_pub: false,
             is_deprecated: false,
+            is_extern: false,
+            source: None,
             span: dummy_span(),
         })
     }

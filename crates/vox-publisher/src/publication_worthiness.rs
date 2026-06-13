@@ -323,29 +323,265 @@ fn aggregate_score(c: &PublicationWorthinessContract, inputs: &WorthinessInputs)
         + c.weights.metadata_policy * inputs.metadata_policy
 }
 
-/// Conservative cap on [`WorthinessInputs::novelty`] from a live prior-art bundle (min of prior and heuristic proxy).
+/// Low novelty cap applied when the typed decision layer rules a candidate
+/// non-novel for a hard reason (insufficient evidence or contradiction).
+const NOVELTY_NON_NOVEL_CAP: f64 = 0.1;
+
+/// Adapt the publisher-local [`crate::scientia_finding_ledger::NoveltyEvidenceBundleV1`]
+/// into the vox-scientia retrieval-events [`NoveltyEvidenceBundle`] the typed
+/// decision layer scores over.
+///
+/// The two schemas are field-isomorphic; this maps the local enums onto their
+/// `vox_research_events` counterparts. `schema_version` widens `i32 -> u32`
+/// (negative values clamp to 0). An empty `query_traces` vec maps to `None`
+/// (the scorer treats "no traces" as genuine no-signal rather than failed
+/// retrieval). No fields are fabricated; nothing in V1 is dropped.
+fn adapt_bundle_v1(
+    bundle: &crate::scientia_finding_ledger::NoveltyEvidenceBundleV1,
+) -> vox_research_events::schema_types::NoveltyEvidenceBundle {
+    use vox_research_events::schema_types as st;
+
+    fn map_source(s: crate::scientia_finding_ledger::PriorArtSource) -> st::NoveltySource {
+        use crate::scientia_finding_ledger::PriorArtSource as P;
+        match s {
+            P::Openalex => st::NoveltySource::Openalex,
+            P::Crossref => st::NoveltySource::Crossref,
+            P::SemanticScholar => st::NoveltySource::SemanticScholar,
+            P::Manual => st::NoveltySource::Manual,
+            P::Other => st::NoveltySource::Other,
+        }
+    }
+    fn map_recency(r: crate::scientia_finding_ledger::NoveltyRecencyBucket) -> st::RecencyBucket {
+        use crate::scientia_finding_ledger::NoveltyRecencyBucket as B;
+        match r {
+            B::Unknown => st::RecencyBucket::Unknown,
+            B::Stale => st::RecencyBucket::Stale,
+            B::Recent => st::RecencyBucket::Recent,
+            B::VeryRecent => st::RecencyBucket::VeryRecent,
+        }
+    }
+
+    let normalized_hits = bundle
+        .normalized_hits
+        .iter()
+        .map(|h| st::NormalizedHit {
+            source: map_source(h.source),
+            work_uri: h.work_uri.clone(),
+            title: h.title.clone(),
+            year: h.year,
+            lexical_score: h.lexical_score,
+            semantic_score: h.semantic_score,
+            overlap_note: h.overlap_note.clone(),
+            cited_by_count: h.cited_by_count,
+        })
+        .collect();
+
+    let overlap_summary = bundle.overlap_summary.as_ref().map(|o| st::OverlapSummary {
+        max_lexical_score: o.max_lexical_score,
+        max_semantic_score: o.max_semantic_score,
+        recency_bucket: Some(map_recency(o.recency_bucket)),
+    });
+
+    let query_traces = if bundle.query_traces.is_empty() {
+        None
+    } else {
+        Some(
+            bundle
+                .query_traces
+                .iter()
+                .map(|t| st::QueryTrace {
+                    source: t.source.clone(),
+                    request_fingerprint_sha256: t.request_fingerprint_sha256.clone(),
+                    http_status: t.http_status,
+                    cached: t.cached,
+                })
+                .collect(),
+        )
+    };
+
+    st::NoveltyEvidenceBundle {
+        schema_version: u32::try_from(bundle.schema_version).unwrap_or(0),
+        bundle_id: bundle.bundle_id.clone(),
+        candidate_id: bundle.candidate_id.clone(),
+        computed_at_ms: bundle.computed_at_ms,
+        query_digest_sha256: bundle.query_digest_sha256.clone(),
+        sources: bundle.sources.iter().copied().map(map_source).collect(),
+        normalized_hits,
+        overlap_summary,
+        query_traces,
+    }
+}
+
+/// Derive opposing-polarity [`PolarizedHit`]s from a hit's `overlap_note`.
+///
+/// Polarity is read from a `polarity:<support|refute>` marker (the SCIENTIA
+/// claim-extractor convention) or, failing that, from substring cues. Hits
+/// with no polarity cue are `Neutral` and cannot, on their own, create a
+/// conflict. Similarity uses `semantic_score` (falling back to `lexical_score`).
+fn polarized_hits_from_bundle(
+    bundle: &vox_research_events::schema_types::NoveltyEvidenceBundle,
+) -> Vec<vox_scientia::inspect_bridge::PolarizedHit> {
+    use vox_scientia::inspect_bridge::{ClaimPolarity, PolarizedHit};
+    bundle
+        .normalized_hits
+        .iter()
+        .map(|h| {
+            let note = h.overlap_note.as_deref().unwrap_or("").to_ascii_lowercase();
+            let polarity = if note.contains("refute")
+                || note.contains("contradic")
+                || note.contains("oppos")
+                || note.contains("polarity:negative")
+            {
+                ClaimPolarity::Negative
+            } else if note.contains("support")
+                || note.contains("confirm")
+                || note.contains("polarity:positive")
+            {
+                ClaimPolarity::Positive
+            } else {
+                ClaimPolarity::Neutral
+            };
+            PolarizedHit {
+                work_uri: h.work_uri.clone(),
+                similarity: h.semantic_score.or(h.lexical_score).unwrap_or(0.0),
+                polarity,
+                excerpt: h.overlap_note.clone(),
+            }
+        })
+        .collect()
+}
+
+/// Conservative cap on [`WorthinessInputs::novelty`] from a live prior-art bundle.
+///
+/// B5: the typed vox-scientia decision layer
+/// ([`AtomicNoveltyScorer`](vox_scientia::inspect_bridge::AtomicNoveltyScorer) /
+/// [`ChronoFilter`](vox_scientia::inspect_bridge::ChronoFilter) /
+/// [`EvidenceConflictDetector`](vox_scientia::inspect_bridge::EvidenceConflictDetector))
+/// is the **gate**; the scalar `novelty_inputs_adjustment` is the **magnitude**.
+///
+/// Flow: adapt V1 bundle → drop future-dated hits (ChronoFilter, claim = now) →
+/// detect opposing-polarity conflict → score → translate the 5-variant
+/// [`NoveltyVerdict`](vox_scientia::inspect_bridge::NoveltyVerdict) to a cap.
+/// `InsufficientEvidence`/`Contradicted` cap novelty low and explain;
+/// `Novel`/`PossiblyNovel`/`NotNovel` keep the existing scalar `min` behavior.
 #[must_use]
 pub fn apply_prior_art_to_worthiness_inputs(
     inputs: &mut WorthinessInputs,
     bundle: Option<&crate::scientia_finding_ledger::NoveltyEvidenceBundleV1>,
     heuristics: Option<&crate::scientia_heuristics::ScientiaHeuristics>,
 ) -> Vec<String> {
+    use vox_scientia::inspect_bridge::{
+        AtomicNoveltyScorer, ChronoFilter, EvidenceConflictDetector, NoveltyVerdict,
+    };
+
     let Some(bundle) = bundle else {
         return vec![];
     };
-    if bundle.normalized_hits.is_empty() {
+    // A genuinely empty bundle with no query traces carries no signal at all.
+    if bundle.normalized_hits.is_empty() && bundle.query_traces.is_empty() {
         return vec![];
     }
-    let fallback = crate::scientia_heuristics::ScientiaHeuristics::default();
-    let h = heuristics.unwrap_or(&fallback);
-    let (proxy, mut out) = crate::scientia_finding_ledger::novelty_inputs_adjustment(bundle, h);
+
+    let mut out: Vec<String> = Vec::new();
+
+    // 1. Adapt to the decision-layer schema.
+    let mut adapted = adapt_bundle_v1(bundle);
+
+    // 2. ChronoFilter: drop hits that cannot predate the claim (claim = now).
+    let now_secs = chrono::Utc::now().timestamp();
+    let chrono = ChronoFilter::new(now_secs);
+    let before_hits = adapted.normalized_hits.len();
+    let kept: Vec<_> = chrono
+        .filter_hits(&adapted.normalized_hits)
+        .into_iter()
+        .cloned()
+        .collect();
+    let dropped = before_hits - kept.len();
+    if dropped > 0 {
+        out.push(format!(
+            "novelty_chrono_filtered: dropped {dropped} future-dated hit(s) (claim={now_secs})"
+        ));
+    }
+    adapted.normalized_hits = kept;
+    // The pre-computed overlap_summary may reflect now-dropped hits; if every
+    // hit was filtered out, clear it so the scorer reads no prior-art signal.
+    if adapted.normalized_hits.is_empty() {
+        adapted.overlap_summary = None;
+    }
+
+    // 3. Conflict detection over polarized (post-chrono) hits.
+    let polarized = polarized_hits_from_bundle(&adapted);
+    let conflict = EvidenceConflictDetector::default().detect(&adapted.candidate_id, &polarized);
+
+    // 4. Score, then let a detected conflict override to Contradicted.
+    let verdict = match conflict {
+        Some(c) => {
+            let uri = c
+                .contradicting_hits
+                .first()
+                .map(|h| h.work_uri.clone())
+                .unwrap_or_default();
+            NoveltyVerdict::Contradicted {
+                conflicting_uri: uri,
+            }
+        }
+        None => AtomicNoveltyScorer::default().score(&adapted),
+    };
+
+    // 5. Translate the verdict to a novelty cap.
     let before = inputs.novelty;
-    inputs.novelty = before.min(proxy);
-    out.push(format!(
-        "novelty_after_prior_art_min: before={before:.4} after={:.4}",
-        inputs.novelty
-    ));
+    match verdict {
+        NoveltyVerdict::InsufficientEvidence { reason } => {
+            inputs.novelty = inputs.novelty.min(NOVELTY_NON_NOVEL_CAP);
+            out.push(format!(
+                "novelty_gate_insufficient_evidence: {reason}; novelty capped before={before:.4} after={:.4}",
+                inputs.novelty
+            ));
+        }
+        NoveltyVerdict::Contradicted { conflicting_uri } => {
+            inputs.novelty = inputs.novelty.min(NOVELTY_NON_NOVEL_CAP);
+            out.push(format!(
+                "novelty_gate_contradicted: conflicting_uri={conflicting_uri}; novelty capped before={before:.4} after={:.4}",
+                inputs.novelty
+            ));
+        }
+        NoveltyVerdict::Novel
+        | NoveltyVerdict::PossiblyNovel { .. }
+        | NoveltyVerdict::NotNovel { .. } => {
+            // Verdict permits novelty; scalar heuristic sets the magnitude.
+            // (No surviving hits → no prior-art proxy adjustment.)
+            if adapted.normalized_hits.is_empty() {
+                out.push(format!(
+                    "novelty_gate_{}: no surviving prior-art hits; novelty unchanged={before:.4}",
+                    verdict_label(&verdict)
+                ));
+            } else {
+                let fallback = crate::scientia_heuristics::ScientiaHeuristics::default();
+                let h = heuristics.unwrap_or(&fallback);
+                let (proxy, scalar_notes) =
+                    crate::scientia_finding_ledger::novelty_inputs_adjustment(bundle, h);
+                out.extend(scalar_notes);
+                inputs.novelty = before.min(proxy);
+                out.push(format!(
+                    "novelty_after_prior_art_min: before={before:.4} after={:.4}",
+                    inputs.novelty
+                ));
+            }
+        }
+    }
     out
+}
+
+/// Short stable label for a permissive verdict (for telemetry notes).
+fn verdict_label(v: &vox_scientia::inspect_bridge::NoveltyVerdict) -> &'static str {
+    use vox_scientia::inspect_bridge::NoveltyVerdict as V;
+    match v {
+        V::Novel => "novel",
+        V::PossiblyNovel { .. } => "possibly_novel",
+        V::NotNovel { .. } => "not_novel",
+        V::InsufficientEvidence { .. } => "insufficient_evidence",
+        V::Contradicted { .. } => "contradicted",
+    }
 }
 
 /// Advisory venue checks: map `venue_profiles.required_checks` to concrete preflight outcomes (partial).

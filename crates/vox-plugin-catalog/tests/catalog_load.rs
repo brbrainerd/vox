@@ -34,7 +34,6 @@ fn catalog_has_all_code_and_composite_plugins() {
         "mens-candle-cuda",
         "mens-candle-metal",
         "oratio",
-        "cloud",
         "populi-mesh",
         "webhook",
         "browser",
@@ -90,7 +89,6 @@ fn catalog_has_all_bundles() {
         "vox-mesh",
         "vox-server",
         "vox-edge",
-        "vox-cloud-only",
         "vox-dev",
         "vox-mobile",
     ];
@@ -106,9 +104,6 @@ fn status_field_is_present_on_entries() {
     // webhook was explicitly set to stable.
     let webhook = plugins.iter().find(|p| p.id == "webhook").expect("webhook");
     assert_eq!(webhook.status, CatalogStatus::Stable);
-    // cloud was set to alpha.
-    let cloud = plugins.iter().find(|p| p.id == "cloud").expect("cloud");
-    assert_eq!(cloud.status, CatalogStatus::Alpha);
     // skill-v0 was marked deprecated.
     let v0 = plugins
         .iter()

@@ -12,6 +12,7 @@ pub(super) fn try_emit_expr_tail<F>(
     inferred_types: Option<&HashMap<Span, HirType>>,
     usage: Option<&super::usage::UsageTracker>,
     _mode: OwnershipMode,
+    fn_return_type: Option<&HirType>,
     emit: &F,
 ) -> Option<String>
 where
@@ -19,43 +20,62 @@ where
 {
     Some(match expr {
         HirExpr::ObjectLit(fields, span) => {
-            // An object literal ascribed to a user-defined struct type (e.g. the
-            // `Type { field: value, ... }` returned by `@json_as` `from_json`)
-            // must emit a Rust STRUCT literal, not a `serde_json::json!` Value —
-            // the emitted function returns `Result<Struct, String>`, so a JSON
-            // Value would clash (E0308). Builtin types that also map to
-            // `serde_json::Value` (Json/Any/Result/Element) keep the JSON form.
-            // Prefer the typeck-inferred type (populated in the typechecked lanes).
-            // In the script lane `inferred_types` is empty, so fall back to the
-            // `@json_as` `from_json` context hint set by `emit_fn`: inside a
-            // `<Type>_from_json` body the sole struct `ObjectLit` is the decoded
-            // value and must emit `Type { .. }`, not `serde_json::json!`.
-            let struct_name = inferred_types
-                .and_then(|m| m.get(span))
-                .and_then(|t| match t {
+            let struct_from_inferred = |t: &HirType| -> Option<String> {
+                match t {
+                    // User struct/enum names are PascalCase; skip builtins (`str`, `int`, …).
                     HirType::Named(n)
-                        if !matches!(
-                            n.as_str(),
-                            "Json" | "JsonBody" | "Any" | "Result" | "Element"
-                        ) =>
+                        if n != "Json"
+                            && n != "Result"
+                            && n != "Any"
+                            && n.chars().next().is_some_and(|c| c.is_ascii_uppercase()) =>
                     {
                         Some(n.clone())
                     }
-                    _ => None,
-                })
-                .or_else(super::json_as_ctx::current_from_json_struct);
-            if let Some(name) = struct_name {
+                    other => super::types::result_ok_struct_name(other),
+                }
+            };
+            let returns_json = matches!(
+                fn_return_type,
+                Some(HirType::Named(n)) if n == "Json"
+            );
+            let inferred_named = if returns_json {
+                None
+            } else {
+                inferred_types
+                    .and_then(|m| m.get(span))
+                    .and_then(struct_from_inferred)
+            };
+            if let Some(type_name) = inferred_named {
                 let props: Vec<String> = fields
                     .iter()
-                    .map(|(k, v)| format!("{}: {}", k, emit(v, OwnershipMode::Owned)))
+                    .map(|(k, v)| format!("{k}: {}", emit(v, OwnershipMode::Owned)))
                     .collect();
-                format!("{} {{ {} }}", name, props.join(", "))
+                format!("{type_name} {{ {} }}", props.join(", "))
             } else {
                 let props: Vec<String> = fields
                     .iter()
-                    .map(|(k, v)| format!("\"{}\": {}", k, emit(v, OwnershipMode::Owned)))
+                    .map(|(k, v)| {
+                        let val = if matches!(
+                            v,
+                            HirExpr::Ident(name, _)
+                                if name == "None" || name == "null"
+                        ) {
+                            "null".to_string()
+                        } else {
+                            emit(v, OwnershipMode::Owned)
+                        };
+                        format!("\"{k}\": {val}")
+                    })
                     .collect();
-                format!("serde_json::json!({{ {} }})", props.join(", "))
+                let json_lit = format!("serde_json::json!({{ {} }})", props.join(", "));
+                let is_json_val = inferred_types
+                    .and_then(|m| m.get(span))
+                    .is_some_and(|t| matches!(t, HirType::Named(n) if n == "Json"));
+                if is_json_val {
+                    format!("VoxJson({json_lit})")
+                } else {
+                    json_lit
+                }
             }
         }
         HirExpr::MethodCall(obj, method, args, plan, _) => {
@@ -105,24 +125,13 @@ where
             super::with_emit::emit_with(&e, operand.as_ref(), options.as_ref())
         }
         HirExpr::Lambda(params, _ret_ty, body, _, _) => {
-            // Emit a BARE `move |..| ..` closure (NOT wrapped in `Rc::new`):
-            // bare closures coerce to the `FnOnce`/`FnMut`/`Fn` bound of whatever
-            // adapter they are passed to (`Option::map`, `Iterator::map`/`filter`/
-            // `fold`, `Vec::sort_by_key`, …). `Rc::new`-wrapping at the use site
-            // would break those `FnOnce(&T)` adapters (E0277). When a lambda is
-            // produced as a closure *value* (return/assignment of a `Function`
-            // type), the RETURN site wraps it in `std::rc::Rc::new(..)` so it
-            // matches the `Rc<dyn Fn>` repr (see `emit_return_stmt` and
-            // `types.rs`). `move` so captured vars are owned.
-            //
-            // Emit explicit param type annotations when present (Vox lambdas in
-            // adapter args carry them, e.g. `fn(x: int) to bool`). This pins the
-            // closure param type so a predicate invoked indirectly (e.g. a
-            // `filter` predicate called via `pred(__x.clone())`) still infers
-            // (avoids E0282 — Rust cannot infer a standalone closure param type).
-            super::stmt_expr::emit_bare_lambda(params, body, false, &|e| {
-                emit(e, OwnershipMode::Owned)
-            })
+            let mut s = String::new();
+            s.push_str("move | ");
+            let param_strs: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
+            s.push_str(&param_strs.join(", "));
+            s.push_str("| ");
+            s.push_str(&emit(body, OwnershipMode::Owned));
+            s
         }
         HirExpr::Binary(vox_compiler::hir::HirBinOp::Pipe, left, right, _) => {
             format!(
@@ -155,6 +164,7 @@ where
                         inferred_types,
                         usage,
                         None,
+                        None,
                     ));
                 }
             } else {
@@ -177,15 +187,7 @@ where
                     "    {} => {{\n",
                     super::stmt_expr::emit_pattern(&arm.pattern, is_route, is_actor, mutation_tx)
                 ));
-                // An empty arm body (`None => {}`) parses as an empty object
-                // literal; emitting `serde_json::json!({})` would make the arm
-                // return `serde_json::Value` and clash with sibling `()` arms
-                // (E0308). Emit an empty block (`()`), preserving the side-effect
-                // semantics the interpreter has.
-                let is_empty_arm = matches!(arm.body.as_ref(), vox_compiler::hir::HirExpr::ObjectLit(fields, _) if fields.is_empty());
-                if !is_empty_arm {
-                    s.push_str(&emit(&arm.body, OwnershipMode::Owned));
-                }
+                s.push_str(&emit(&arm.body, OwnershipMode::Owned));
                 s.push_str("\n    }\n");
             }
             s.push('}');
@@ -201,6 +203,59 @@ where
 // refactor pass — the inline blocks each carry their own stmt loop +
 // option handling, contributing ~4-6 decision points apiece.
 
+/// Emit one branch of an `if`/`else` used as an expression. The last
+/// `HirStmt::Expr` in the branch is a tail value (no trailing `;`), matching
+/// `emit_block_tail` and Rust if-expression semantics.
+fn emit_if_branch_body(
+    stmts: &[vox_compiler::hir::HirStmt],
+    indent: usize,
+    is_route: bool,
+    is_actor: bool,
+    mutation_tx: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
+) -> String {
+    use vox_compiler::hir::HirStmt;
+    let pad = " ".repeat(indent * 4);
+    if stmts.is_empty() {
+        return String::new();
+    }
+    let last = stmts.len().saturating_sub(1);
+    let mut out = String::new();
+    for (i, stmt) in stmts.iter().enumerate() {
+        if i == last {
+            if let HirStmt::Expr { expr, .. } = stmt {
+                out.push_str(&format!(
+                    "{pad}{}\n",
+                    super::stmt_expr::emit_expr_with(
+                        expr,
+                        is_route,
+                        is_actor,
+                        mutation_tx,
+                        inferred_types,
+                        usage,
+                        super::ownership::OwnershipMode::Owned,
+                        None,
+                    )
+                ));
+                return out;
+            }
+        }
+        out.push_str(&super::stmt_expr::emit_stmt(
+            stmt,
+            indent,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+            None,
+            None,
+        ));
+    }
+    out
+}
+
 fn emit_block_tail(
     stmts: &[vox_compiler::hir::HirStmt],
     is_route: bool,
@@ -209,10 +264,32 @@ fn emit_block_tail(
     inferred_types: Option<&HashMap<Span, HirType>>,
     usage: Option<&super::usage::UsageTracker>,
 ) -> String {
+    use vox_compiler::hir::HirStmt;
     let mut s = String::from("{\n");
-    let n = stmts.len();
+    let last = stmts.len().saturating_sub(1);
     for (i, stmt) in stmts.iter().enumerate() {
-        let emitted = super::stmt_expr::emit_stmt(
+        if i == last {
+            if let HirStmt::Expr { expr, .. } = stmt {
+                // Rust block tail expression: last stmt in a value block must not
+                // end with `;` or the block type becomes `()`.
+                s.push_str(&format!(
+                    "    {}\n",
+                    super::stmt_expr::emit_expr_with(
+                        expr,
+                        is_route,
+                        is_actor,
+                        mutation_tx,
+                        inferred_types,
+                        usage,
+                        super::ownership::OwnershipMode::Owned,
+                        None,
+                    )
+                ));
+                s.push('}');
+                return s;
+            }
+        }
+        s.push_str(&super::stmt_expr::emit_stmt(
             stmt,
             1,
             is_route,
@@ -221,23 +298,8 @@ fn emit_block_tail(
             inferred_types,
             usage,
             None,
-        );
-        // A block in expression position (match arm / if branch / nested block)
-        // returns its final bare expression's value. Drop the trailing `;` on the
-        // last statement when it is an expression, so the block yields the value
-        // instead of `()` (else value-returning match arms hit E0308). Mirrors
-        // the function-body tail logic in durability_lower::emit_plain_body.
-        if i + 1 == n && matches!(stmt, vox_compiler::hir::HirStmt::Expr { .. }) {
-            match emitted.strip_suffix(";\n") {
-                Some(body) => {
-                    s.push_str(body);
-                    s.push('\n');
-                }
-                None => s.push_str(&emitted),
-            }
-        } else {
-            s.push_str(&emitted);
-        }
+            None,
+        ));
     }
     s.push('}');
     s
@@ -259,33 +321,27 @@ where
     F: Fn(&HirExpr, OwnershipMode) -> String,
 {
     let mut s = format!("if {} {{\n", emit(cond, OwnershipMode::Owned));
-    for stmt in then_b {
-        s.push_str(&super::stmt_expr::emit_stmt(
-            stmt,
+    s.push_str(&emit_if_branch_body(
+        then_b,
+        1,
+        is_route,
+        is_actor,
+        mutation_tx,
+        inferred_types,
+        usage,
+    ));
+    s.push_str("    }");
+    if let Some(eb) = else_b {
+        s.push_str(" else {\n");
+        s.push_str(&emit_if_branch_body(
+            eb,
             1,
             is_route,
             is_actor,
             mutation_tx,
             inferred_types,
             usage,
-            None,
         ));
-    }
-    s.push_str("    }");
-    if let Some(eb) = else_b {
-        s.push_str(" else {\n");
-        for stmt in eb {
-            s.push_str(&super::stmt_expr::emit_stmt(
-                stmt,
-                1,
-                is_route,
-                is_actor,
-                mutation_tx,
-                inferred_types,
-                usage,
-                None,
-            ));
-        }
         s.push_str("    }");
     }
     s

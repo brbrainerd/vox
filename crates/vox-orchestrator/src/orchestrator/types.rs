@@ -120,6 +120,8 @@ pub struct OrchestratorStatus {
     pub total_cost_usd: f64,
     /// Financial cost cap (budget) in USD, derived from the budget manager.
     pub budget_cap_usd: f64,
+    /// Routing exploration spend for the current budget period (USD).
+    pub global_exploration_cost_usd: f64,
     /// Per-agent rollups for UI tables.
     pub agents: Vec<AgentSummary>,
 }

@@ -53,12 +53,19 @@ pub async fn llm_chat(
             }
 
             let client = vox_http_client::client();
+            // Bound in-flight requests per provider (AIMD): paid OpenRouter has no
+            // platform RPM cap, so concurrency is the real dial. The permit is held
+            // until the response is handled and released on drop.
+            let throttle = super::throttle::for_provider(&config.provider);
+            let _permit = throttle.acquire().await;
             let req_body = OpenRouterRequest {
                 model: &config.model,
                 messages: &messages,
                 temperature: config.temperature,
                 max_tokens: config.max_tokens,
                 response_format: config.response_format.as_ref(),
+                tools: super::wire::openrouter_tools(config.tools.as_deref()),
+                tool_choice: config.tool_choice.as_ref(),
                 stream: false,
             };
 
@@ -78,6 +85,12 @@ pub async fn llm_chat(
 
             if !res.status().is_success() {
                 let status = res.status();
+                // Feed the throttle before the body is consumed: on 429, halve the
+                // window and honor Retry-After / X-RateLimit-Reset as a cooldown.
+                if status.as_u16() == 429 {
+                    let retry_after = super::throttle::retry_after_from_headers(res.headers());
+                    throttle.on_rate_limited(retry_after);
+                }
                 let err_text = res
                     .text()
                     .await
@@ -132,6 +145,9 @@ pub async fn llm_chat(
                 .json()
                 .await
                 .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
+
+            // Successful response — additively widen the concurrency window.
+            throttle.on_success();
 
             let content = llm_res
                 .choices

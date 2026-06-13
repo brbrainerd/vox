@@ -4,6 +4,11 @@ use vox_compiler::ast::span::Span;
 use vox_compiler::builtin_registry::{BuiltinArgKind, lookup_builtin, std_namespace_runtime_call};
 use vox_compiler::hir::{HirArg, HirBinOp, HirExpr, HirPattern, HirStmt, HirType};
 
+/// Escape `s` for inclusion inside a Rust `"..."` string literal (content only).
+pub(super) fn escape_rust_double_quoted_content(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
 pub(super) fn emit_stmt(
     stmt: &HirStmt,
     indent: usize,
@@ -14,6 +19,7 @@ pub(super) fn emit_stmt(
     usage: Option<&super::usage::UsageTracker>,
     // Rust expression for `Option<String>` request id (e.g. `vox_rid.clone()`), or omit with `None`.
     http_error_rid: Option<&str>,
+    enclosing_return_type: Option<&HirType>,
 ) -> String {
     let pad = " ".repeat(indent * 4);
     match stmt {
@@ -36,7 +42,8 @@ pub(super) fn emit_stmt(
                         mutation_tx,
                         inferred_types,
                         usage,
-                        OwnershipMode::Owned
+                        OwnershipMode::Owned,
+                        None,
                     )
                 )
             } else {
@@ -51,31 +58,13 @@ pub(super) fn emit_stmt(
                         mutation_tx,
                         inferred_types,
                         usage,
-                        OwnershipMode::Owned
+                        OwnershipMode::Owned,
+                        None,
                     )
                 )
             }
         }
         HirStmt::Assign { target, value, .. } => {
-            // Vox's value-semantics collection idiom `xs = xs.push(v)` reassigns the
-            // *result* of `push` back to the binding. Rust's `Vec::push` mutates in
-            // place and returns `()`, so the literal `xs = xs.push(v)` assigns `()`
-            // (E0308). When the RHS is an in-place mutator (`push`/`pop`/…) whose
-            // receiver is the assignment target itself, emit the bare mutation call
-            // — the binding is already `mut` in the generated code, so the effect is
-            // identical to the interpreter's "return the updated list".
-            if let Some(s) = try_emit_self_mutation_assign(
-                target,
-                value,
-                &pad,
-                is_route,
-                is_actor,
-                mutation_tx,
-                inferred_types,
-                usage,
-            ) {
-                return s;
-            }
             // The target must be an l-value; do not emit `.clone()` on ident targets.
             let lhs = emit_assign_target(target, inferred_types, usage);
             format!(
@@ -87,7 +76,8 @@ pub(super) fn emit_stmt(
                     mutation_tx,
                     inferred_types,
                     usage,
-                    OwnershipMode::Owned
+                    OwnershipMode::Owned,
+                    None,
                 )
             )
         }
@@ -100,22 +90,9 @@ pub(super) fn emit_stmt(
             inferred_types,
             usage,
             http_error_rid,
+            enclosing_return_type,
         ),
         HirStmt::Expr { expr, .. } => {
-            // A bare mutator call (`result.push(0)`) in statement position is evaluated
-            // for its side effect: emit the in-place mutation rather than the value-
-            // semantic value-block (which clones, mutates the copy, and discards it).
-            if let Some(s) = try_emit_stmt_mutation(
-                expr,
-                &pad,
-                is_route,
-                is_actor,
-                mutation_tx,
-                inferred_types,
-                usage,
-            ) {
-                return s;
-            }
             format!(
                 "{pad}{};\n",
                 emit_expr_with(
@@ -125,7 +102,8 @@ pub(super) fn emit_stmt(
                     mutation_tx,
                     inferred_types,
                     usage,
-                    OwnershipMode::Owned
+                    OwnershipMode::Owned,
+                    None,
                 )
             )
         }
@@ -141,7 +119,8 @@ pub(super) fn emit_stmt(
                     mutation_tx,
                     inferred_types,
                     usage,
-                    OwnershipMode::Owned
+                    OwnershipMode::Owned,
+                    None,
                 )
             );
             if is_actor {
@@ -157,6 +136,7 @@ pub(super) fn emit_stmt(
                     inferred_types,
                     usage,
                     http_error_rid,
+                    enclosing_return_type,
                 ));
             }
             s.push_str(&format!("{pad}}}\n"));
@@ -177,6 +157,7 @@ pub(super) fn emit_stmt(
                     inferred_types,
                     usage,
                     http_error_rid,
+                    enclosing_return_type,
                 ));
             }
             s.push_str(&format!("{pad}}}\n"));
@@ -200,6 +181,7 @@ pub fn emit_main_stmt(
         false,
         false,
         inferred_types,
+        None,
         None,
         None,
     )
@@ -239,6 +221,7 @@ fn emit_assign_target(
                 inferred_types,
                 usage,
                 OwnershipMode::Owned,
+                None,
             ),
         ),
         // Fallback: use the generic emitter for complex lvalues.
@@ -250,181 +233,9 @@ fn emit_assign_target(
             inferred_types,
             usage,
             OwnershipMode::Owned,
+            None,
         ),
     }
-}
-
-/// Detect and emit the `xs = xs.<mutator>(args)` value-semantics idiom as a bare
-/// in-place mutation statement. Returns `None` when the RHS is not a mutating
-/// method call whose receiver is the same identifier as the assignment target.
-#[allow(clippy::too_many_arguments)]
-fn try_emit_self_mutation_assign(
-    target: &HirExpr,
-    value: &HirExpr,
-    pad: &str,
-    is_route: bool,
-    is_actor: bool,
-    mutation_tx: bool,
-    inferred_types: Option<&HashMap<Span, HirType>>,
-    usage: Option<&super::usage::UsageTracker>,
-) -> Option<String> {
-    let HirExpr::Ident(target_name, _) = target else {
-        return None;
-    };
-    let HirExpr::MethodCall(obj, method, ..) = value else {
-        return None;
-    };
-    if !SELF_MUTATORS.contains(&method.as_str()) {
-        return None;
-    }
-    let HirExpr::Ident(recv_name, _) = obj.as_ref() else {
-        return None;
-    };
-    if recv_name != target_name {
-        return None;
-    }
-    let HirExpr::MethodCall(_, _, args, ..) = value else {
-        return None;
-    };
-    // `emit_method_call` lowers `push` to a value-returning block (the value/reassign
-    // form `let ys = xs.push(v)`), so we cannot reuse it here. The self-reassign
-    // idiom `xs = xs.push(v)` is exactly an in-place mutation of the (already `mut`)
-    // binding, so emit the bare `xs.push(v);` directly.
-    Some(emit_inplace_mutation(
-        target_name,
-        method,
-        args,
-        &pad,
-        is_route,
-        is_actor,
-        mutation_tx,
-        inferred_types,
-        usage,
-    ))
-}
-
-/// Vox list methods that may be lowered to a bare **in-place** Rust `Vec`
-/// mutation (`recv.method(args);`) in statement / self-reassign position.
-///
-/// Every Vox list method is *value-semantic* (the interpreter returns a NEW list;
-/// see `eval/builtins.rs` and the statement-position auto-reassign in
-/// `eval/stmt.rs`). A name may join this set ONLY when all three hold:
-///   1. it is a real Vox list method;
-///   2. Rust's `Vec` has a same-named method with an identical signature that
-///      returns `()` and mutates in place; and
-///   3. that in-place mutation is observationally identical to the interpreter's
-///      "compute the new list, write it back" for the reassign/discard form.
-///
-/// Only `push` and `reverse` satisfy all three. The earlier set was modeled on
-/// Rust's `Vec` API and was WRONG:
-///   - `sort_by_key`/`sort_by`/`retain` take a closure; Vox passes it BY VALUE
-///     while Rust's `Vec` adapters pass `&T`, so the bare in-place call emits
-///     uncompilable Rust (E0277/E0308). These are value-semantic in Vox and are
-///     lowered correctly by `method_emit::try_emit_list_hof` instead.
-///   - `remove(val)` takes a VALUE in Vox but an index in Rust (`Vec::remove`).
-///   - `pop` returns the popped element (not the list), so the reassign form
-///     `xs = xs.pop()` rebinds `xs` to the element — an in-place `xs.pop();` would
-///     diverge (the interpreter handles pop via `apply_pop_side_effect`).
-///   - `insert`/`clear`/`append`/`truncate`/`dedup`/`swap`/`sort` are not Vox list
-///     methods at all.
-const SELF_MUTATORS: &[&str] = &["push", "reverse"];
-
-/// Emit a bare in-place mutator call `recv.method(args);` (the binding is `mut`).
-#[allow(clippy::too_many_arguments)]
-fn emit_inplace_mutation(
-    recv: &str,
-    method: &str,
-    args: &[vox_compiler::hir::HirArg],
-    pad: &str,
-    is_route: bool,
-    is_actor: bool,
-    mutation_tx: bool,
-    inferred_types: Option<&HashMap<Span, HirType>>,
-    usage: Option<&super::usage::UsageTracker>,
-) -> String {
-    let arg_exprs: Vec<String> = args
-        .iter()
-        .map(|a| {
-            emit_expr_with(
-                &a.value,
-                is_route,
-                is_actor,
-                mutation_tx,
-                inferred_types,
-                usage,
-                OwnershipMode::Owned,
-            )
-        })
-        .collect();
-    format!("{pad}{recv}.{method}({});\n", arg_exprs.join(", "))
-}
-
-/// Value-semantic list methods that, called as a **bare statement on an identifier
-/// receiver**, the interpreter auto-reassigns back to that binding (eval/stmt.rs:
-/// "reassign if the result's runtime kind matches the receiver"). These are NOT
-/// in-place `Vec` mutators (the closure takes the element by value), so we cannot
-/// emit a bare `recv.method(args);`. Instead we lower the whole call to its
-/// value-block via `emit_method_call`/`try_emit_list_hof` and assign it back:
-/// `recv = { let mut __v = recv.clone(); __v.sort_by_key(..); __v };`.
-///
-/// Restricted to the sort family because (a) those are the value-semantic list
-/// methods a program writes as a bare statement expecting mutation, and (b) codegen
-/// has a verified value-block lowering for each. Other value-semantic list methods
-/// without a codegen lowering (e.g. `sorted`/`reversed` with no `Vec` analogue)
-/// would emit uncompilable Rust, so they are deliberately excluded.
-const VALUE_SEMANTIC_LIST_REASSIGN: &[&str] =
-    &["sorted_by_key", "sort_by_key", "sorted_by", "sort_by"];
-
-/// Intercept a bare statement-position method call on an identifier receiver and
-/// emit the interpreter-equivalent mutation, NOT the value-block-then-discard the
-/// generic path would produce (which leaves the binding unchanged):
-///   - in-place mutators (`push`/`reverse`) → bare `recv.method(args);`;
-///   - value-semantic sort methods → `recv = <value-block>;` (auto-reassign).
-/// Returns `None` for any other method / non-ident receiver.
-#[allow(clippy::too_many_arguments)]
-fn try_emit_stmt_mutation(
-    expr: &HirExpr,
-    pad: &str,
-    is_route: bool,
-    is_actor: bool,
-    mutation_tx: bool,
-    inferred_types: Option<&HashMap<Span, HirType>>,
-    usage: Option<&super::usage::UsageTracker>,
-) -> Option<String> {
-    let HirExpr::MethodCall(obj, method, args, ..) = expr else {
-        return None;
-    };
-    let HirExpr::Ident(recv_name, _) = obj.as_ref() else {
-        return None;
-    };
-    if SELF_MUTATORS.contains(&method.as_str()) {
-        return Some(emit_inplace_mutation(
-            recv_name,
-            method,
-            args,
-            pad,
-            is_route,
-            is_actor,
-            mutation_tx,
-            inferred_types,
-            usage,
-        ));
-    }
-    if VALUE_SEMANTIC_LIST_REASSIGN.contains(&method.as_str()) {
-        // Lower the whole call to its value-block, then write it back to the
-        // binding — mirrors the interpreter's same-kind auto-reassign.
-        let rhs = emit_expr_with(
-            expr,
-            is_route,
-            is_actor,
-            mutation_tx,
-            inferred_types,
-            usage,
-            OwnershipMode::Owned,
-        );
-        return Some(format!("{pad}{recv_name} = {rhs};\n"));
-    }
-    None
 }
 
 /// Emit the actor-owned loop reduction/GC prelude (reduction counter bump,
@@ -453,37 +264,6 @@ fn push_actor_loop_prelude(s: &mut String, pad: &str) {
 /// contributed ~7 decision points (is_actor + if-let + is_route + mutation_tx
 /// combinations).
 #[allow(clippy::too_many_arguments)]
-/// Emit a Vox lambda as a BARE Rust closure `move |p0, ..| body`.
-///
-/// Bare (un-`Rc`-wrapped) so it coerces into the `FnOnce`/`FnMut`/`Fn` bound of
-/// whatever adapter consumes it (`Option::and_then`, `Iterator::map`, …). Params
-/// are left UNANNOTATED so they infer from the adapter's bound — annotating with
-/// the Vox lambda's declared type (by-value, e.g. `serde_json::Value`) would
-/// clash with by-reference adapters like `Option::and_then(|&Value| ..)`
-/// (E0631). `annotate` is set true only by the list-HOF lowering for `filter`/
-/// `sorted_by_key` predicates, which are invoked INDIRECTLY (`pred(x.clone())`)
-/// so their param type cannot otherwise be inferred (E0282). Closure VALUES
-/// (return/assignment of a `Function` type) are `Rc::new`-wrapped by the caller
-/// (see `emit_return_stmt`) to match the `Rc<dyn Fn>` repr in `types.rs`.
-pub(super) fn emit_bare_lambda<F>(
-    params: &[vox_compiler::hir::HirParam],
-    body: &HirExpr,
-    annotate: bool,
-    emit_owned: &F,
-) -> String
-where
-    F: Fn(&HirExpr) -> String,
-{
-    let param_strs: Vec<String> = params
-        .iter()
-        .map(|p| match (annotate, &p.type_ann) {
-            (true, Some(ty)) => format!("{}: {}", p.name, super::types::emit_type(ty)),
-            _ => p.name.clone(),
-        })
-        .collect();
-    format!("move |{}| {}", param_strs.join(", "), emit_owned(body))
-}
-
 fn emit_return_stmt(
     value: Option<&HirExpr>,
     pad: &str,
@@ -493,6 +273,7 @@ fn emit_return_stmt(
     inferred_types: Option<&HashMap<Span, HirType>>,
     usage: Option<&super::usage::UsageTracker>,
     http_error_rid: Option<&str>,
+    enclosing_return_type: Option<&HirType>,
 ) -> String {
     if is_actor {
         if let Some(v) = value {
@@ -505,22 +286,53 @@ fn emit_return_stmt(
                     mutation_tx,
                     inferred_types,
                     usage,
-                    OwnershipMode::Owned
+                    OwnershipMode::Owned,
+                    None,
                 )
             )
         } else {
             format!("{pad}// return ignored in actor; scaffolding only\n")
         }
     } else if let Some(v) = value {
-        let expr_str = emit_expr_with(
-            v,
-            is_route,
-            is_actor,
-            mutation_tx,
-            inferred_types,
-            usage,
-            OwnershipMode::Owned,
-        );
+        let expr_str = if let HirExpr::Call(callee, args, _, _) = v
+            && let HirExpr::Ident(name, _) = callee.as_ref()
+            && name == "Ok"
+            && args.len() == 1
+            && let HirExpr::ObjectLit(fields, _) = &args[0].value
+            && let Some(struct_name) =
+                enclosing_return_type.and_then(super::types::result_ok_struct_name)
+        {
+            let props: Vec<String> = fields
+                .iter()
+                .map(|(k, field_expr)| {
+                    format!(
+                        "{k}: {}",
+                        emit_expr_with(
+                            field_expr,
+                            is_route,
+                            is_actor,
+                            mutation_tx,
+                            inferred_types,
+                            usage,
+                            OwnershipMode::Owned,
+                            enclosing_return_type,
+                        )
+                    )
+                })
+                .collect();
+            format!("Ok({struct_name} {{ {} }})", props.join(", "))
+        } else {
+            emit_expr_with(
+                v,
+                is_route,
+                is_actor,
+                mutation_tx,
+                inferred_types,
+                usage,
+                OwnershipMode::Owned,
+                enclosing_return_type,
+            )
+        };
         let rid_tok = http_error_rid.unwrap_or("None");
         let route_inference_safe_expr = if is_route {
             route_json_shortcut(v, is_route, is_actor, mutation_tx, inferred_types, usage)
@@ -540,15 +352,10 @@ fn emit_return_stmt(
                 rid = rid_tok,
             ));
             format!("{pad}return Ok(Json({inner}));\n")
-        } else if matches!(v, HirExpr::Lambda(..)) {
-            // A directly-returned closure literal is a `Function`-typed VALUE; the
-            // fn return type lowers to `std::rc::Rc<dyn Fn(..)->..>` (see
-            // `types.rs`), and lambdas otherwise emit BARE (to coerce into adapter
-            // `FnOnce`/`FnMut` bounds). Wrap here so the bare closure becomes the
-            // `Rc<dyn Fn>` repr the signature expects.
-            format!("{pad}return std::rc::Rc::new({});\n", expr_str)
         } else {
-            format!("{pad}return {};\n", expr_str)
+            let wrapped =
+                super::types::wrap_vox_json_return_value(&expr_str, enclosing_return_type);
+            format!("{pad}return {wrapped};\n")
         }
     } else if is_route {
         format!("{pad}return Ok(Json(serde_json::Value::Null));\n")
@@ -578,26 +385,15 @@ where
     };
     let is_borrowing_get =
         |e: &HirExpr| matches!(e, HirExpr::MethodCall(_, m, _, _, _) if m == "get");
-    // Idempotent `.cloned()`: the get-side emit may ALREADY yield an owned
-    // `Option<T>` (the `Index` read form and the list-`get` method arm both append
-    // `.cloned()`), in which case a second `.cloned()` is an `Option<T>::cloned`
-    // type error (E0599). Only add it when the borrow hasn't already been cloned.
-    let cloned = |s: String| {
-        if s.trim_end().ends_with(".cloned()") {
-            s
-        } else {
-            format!("({s}).cloned()")
-        }
-    };
     if is_some_ctor(r) && is_borrowing_get(l) {
         Some((
-            cloned(emit(l, OwnershipMode::Owned)),
+            format!("({}).cloned()", emit(l, OwnershipMode::Owned)),
             emit(r, OwnershipMode::Owned),
         ))
     } else if is_some_ctor(l) && is_borrowing_get(r) {
         Some((
             emit(l, OwnershipMode::Owned),
-            cloned(emit(r, OwnershipMode::Owned)),
+            format!("({}).cloned()", emit(r, OwnershipMode::Owned)),
         ))
     } else {
         None
@@ -684,22 +480,8 @@ where
     // `String + i64`, which has no `Add` impl and fails to compile (the program
     // type-checks but the generated Rust does not).
     if matches!(op, HirBinOp::Add) {
-        // A `+` chain that contains a string literal anywhere is string
-        // concatenation (typeck types `str + X` as `str`). This recursive check
-        // catches NESTED concats like `(a + ":") + item` whose OUTER `+` has
-        // neither operand a direct StringLit — without it the outer `+` emits
-        // `String + String` (E0308). See range_and_indexing / string_interpolation.
-        fn contains_str_lit(e: &HirExpr) -> bool {
-            match e {
-                HirExpr::StringLit(..) => true,
-                HirExpr::Binary(HirBinOp::Add, l, r, _) => {
-                    contains_str_lit(l) || contains_str_lit(r)
-                }
-                _ => false,
-            }
-        }
-        let is_str_concat = contains_str_lit(l)
-            || contains_str_lit(r)
+        let is_str_concat = matches!(l, HirExpr::StringLit(..))
+            || matches!(r, HirExpr::StringLit(..))
             || inferred_types
                 .and_then(|m| m.get(bin_span))
                 .is_some_and(|t| matches!(t, HirType::Named(n) if n == "str"));
@@ -800,6 +582,7 @@ pub(super) fn emit_pattern(
             None,
             None,
             OwnershipMode::Owned,
+            None,
         ),
         HirPattern::Tuple(pats, _) => format!(
             "({})",
@@ -809,40 +592,9 @@ pub(super) fn emit_pattern(
                 .join(", ")
         ),
         HirPattern::Constructor(n, pats, _) => {
-            // Rust struct variant syntax: Name { field: val }
-            // HirPattern::Constructor has positional args?
-            // "Ok(text: str)" -> Constructor("Ok", [Ident("text")])
-            // Rust enum: Ok { text: ... } or Ok(...) depending on def.
-            // Vox ADTs use named fields. So we matched on Struct names.
-            // Wait, parse_typedef uses named fields.
-            // But pattern matching? "Ok(r) -> r". This is positional.
-            // My ADT generator emitted named fields: `Variant { field: Type }`.
-            // Rust requires named matching if defined with names.
-            // Or use tuple variants if positional.
-            // Vox defines `| Ok(text: str)`. This is named.
-            // So `Ok(t)` in match needs to be `Ok { text: t }`.
-            // BUT the parser/HIR doesn't resolve positional match to named fields yet.
-            // This is a semantic gap.
-            // Workaround: Use tuple variants in Rust if possible, or assume names match?
-            // "Ok(r)" -> pattern is Constructor("Ok", [Ident("r")]).
-            // We don't know the field name "text" here without looking up the definition.
-            // For now, emit as tuple style `Ok(p1, p2)` and hope the ADT generation uses tuple variants?
-            // In emit_lib: `variant.fields` are named.
-            // If I change emit_lib to use tuple variants if fields are present?
-            // Or structs?
-            // Vox syntax `Ok(text: str)` looks like named.
-            // But usage `Ok("hi")` looks positional.
-            // Let's generate Tuple variants in Rust for simplicity: `Ok(String)`.
-            // And ignore field names in TypeDef?
-            // Or use the names?
-            // Vox's `Result` error arm is `Error(..)`; Rust's is `Err(..)`. Mirror
-            // the Error→Err rewrite applied to constructor *calls* so match
-            // patterns on Result compile (else E0531 `cannot find variant Error`).
+            // Vox `Error(msg)` is the Result error constructor; Rust spells it `Err`.
             let rust_name = if n == "Error" { "Err" } else { n.as_str() };
             if pats.is_empty() {
-                // Nullary variant (`None`, a unit ADT variant): emit the bare
-                // name. `None()` would be `E0532 expected tuple variant, found
-                // unit variant` against the unit enum variant emitted by emit_lib.
                 rust_name.to_string()
             } else {
                 format!(
@@ -860,7 +612,16 @@ pub(super) fn emit_pattern(
 
 /// Emit one HIR expression as a Rust expression string (for nested codegen / tools).
 pub fn emit_expr(expr: &HirExpr) -> String {
-    emit_expr_with(expr, false, false, false, None, None, OwnershipMode::Owned)
+    emit_expr_with(
+        expr,
+        false,
+        false,
+        false,
+        None,
+        None,
+        OwnershipMode::Owned,
+        None,
+    )
 }
 
 pub(super) fn emit_expr_with(
@@ -871,10 +632,20 @@ pub(super) fn emit_expr_with(
     inferred_types: Option<&HashMap<Span, HirType>>,
     usage: Option<&super::usage::UsageTracker>,
     mode: OwnershipMode,
+    fn_return_type: Option<&HirType>,
 ) -> String {
     let fallible_db = mutation_tx;
     let emit = |e: &HirExpr, m: OwnershipMode| {
-        emit_expr_with(e, is_route, is_actor, mutation_tx, inferred_types, usage, m)
+        emit_expr_with(
+            e,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+            m,
+            fn_return_type,
+        )
     };
     if let Some(s) = super::stmt_expr_tail::try_emit_expr_tail(
         expr,
@@ -885,6 +656,7 @@ pub(super) fn emit_expr_with(
         inferred_types,
         usage,
         mode,
+        fn_return_type,
         &emit,
     ) {
         return s;
@@ -897,18 +669,10 @@ pub(super) fn emit_expr_with(
         // among `f64` arms -> E0308). Vox `float` is always `f64`.
         HirExpr::FloatLit(v, _) => format!("{v}f64"),
         HirExpr::StringLit(v, _) => {
-            // Escape backslash FIRST (else newline/quote escapes get double-escaped),
-            // so Vox strings containing `\` (e.g. regex patterns like `\w`, `\d`)
-            // emit as valid Rust string literals instead of `unknown character escape`.
-            let escaped = v
-                .replace('\\', "\\\\")
-                .replace('"', "\\\"")
-                .replace('\n', "\\n")
-                .replace('\t', "\\t")
-                .replace('\r', "\\r");
+            let escaped = escape_rust_double_quoted_content(v).replace('\n', "\\n");
             match mode {
-                OwnershipMode::Owned => format!("\"{}\".to_string()", escaped),
-                OwnershipMode::Borrowed => format!("\"{}\"", escaped),
+                OwnershipMode::Owned => format!("\"{escaped}\".to_string()"),
+                OwnershipMode::Borrowed => format!("\"{escaped}\""),
             }
         }
         HirExpr::BoolLit(v, _) => v.to_string(),
@@ -957,26 +721,13 @@ pub(super) fn emit_expr_with(
                 return s;
             }
             let c = emit(callee, OwnershipMode::Owned);
-            // `@json_as` generates `<Type>_from_json(j: Json) -> Result[Type]`,
-            // whose Rust param lowers to `serde_json::Value`. The usual caller
-            // binds `j` from `json.parse(..)`, which the runtime returns as the
-            // newtype `VoxJson(serde_json::Value)`. Unwrap the inner Value at the
-            // call site so the argument type matches the param (E0308: expected
-            // `serde_json::Value`, found `VoxJson`). `.0` is a public field.
-            let is_from_json_call =
-                matches!(&**callee, HirExpr::Ident(n, _) if n.ends_with("_from_json"));
             let a: Vec<_> = args
                 .iter()
-                .map(|arg| {
-                    let e = emit(&arg.value, OwnershipMode::Owned);
-                    if is_from_json_call {
-                        format!("({}).0", e)
-                    } else {
-                        e
-                    }
-                })
+                .map(|arg| emit(&arg.value, OwnershipMode::Owned))
                 .collect();
-            if *is_await {
+            let script_auto_await = super::script_db::script_db_emit_mode()
+                && matches!(callee.as_ref(), HirExpr::Ident(name, _) if super::script_db::script_async_call(name));
+            if *is_await || script_auto_await {
                 format!("{}({}).await", c, a.join(", "))
             } else {
                 format!("{}({})", c, a.join(", "))
@@ -1032,6 +783,7 @@ fn try_emit_namespace_call(
             inferred_types,
             usage,
             OwnershipMode::Owned,
+            None,
         )
     };
     let with_await = |s: String| -> String { if is_await { format!("{}.await", s) } else { s } };
@@ -1124,6 +876,7 @@ fn emit_call_args_with_borrow_inference(
                 inferred_types,
                 usage,
                 mode,
+                None,
             )
         })
         .collect()
@@ -1158,6 +911,7 @@ fn route_json_shortcut(
             inferred_types,
             usage,
             OwnershipMode::Owned,
+            None,
         )
     };
     match v {

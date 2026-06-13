@@ -28,11 +28,11 @@ This note supersedes the earlier "Phase B is small" framing.
 
 Vox already ships more of the Svelte-style surface than the original research draft credited:
 
-- `state` / `derived` / `effect` / `on mount` / `on cleanup` / `view:` are working reactive primitives **inside `component { }` blocks** ([reactive_counter.vox](../../../examples/golden/reactive_counter.vox), [codegen_ts/reactive.rs:740–815](../../../crates/vox-codegen/src/codegen_ts/reactive.rs)).
-- Auto-dep inference for `derived`/`effect` already runs ([hir_emit/state_deps.rs](../../../crates/vox-codegen/src/codegen_ts/hir_emit/state_deps.rs)) — emits the React deps array automatically. It descends into lambdas; it does not cross function-decl boundaries.
-- `on:click`, `on:change`, `on:input`, `on:submit`, `on:keydown` directive-style attributes ship today ([compat.rs:27–42](../../../crates/vox-codegen/src/codegen_ts/hir_emit/compat.rs)). The parser path that lowers view-calls already accepts arbitrary `name:suffix` and `name-suffix` attribute names ([pratt_match.rs](../../../crates/vox-compiler/src/parser/descent/expr/pratt_match.rs)).
+- `state` / `derived` / `effect` / `on mount` / `on cleanup` / `view:` are working reactive primitives **inside `component { }` blocks** ([reactive_counter.vox](../../../examples/golden/reactive_counter.vox), [codegen_ts/reactive.rs:740–815](../../../crates/vox-codegen-ts/src/reactive/mod.rs)).
+- Auto-dep inference for `derived`/`effect` already runs ([hir_emit/state_deps.rs](../../../crates/vox-codegen-ts/src/hir_emit/state_deps.rs)) — emits the React deps array automatically. It descends into lambdas; it does not cross function-decl boundaries.
+- `on:click`, `on:change`, `on:input`, `on:submit`, `on:keydown` directive-style attributes ship today ([compat.rs:27–42](../../../crates/vox-codegen-ts/src/hir_emit/compat.rs)). The parser path that lowers view-calls already accepts arbitrary `name:suffix` and `name-suffix` attribute names ([pratt_match.rs](../../../crates/vox-compiler/src/parser/descent/expr/pratt_match.rs)).
 - A `vox_validate_file` MCP tool that runs the full compiler pipeline is registered ([tool-registry.canonical.yaml:1211](../../../contracts/mcp/tool-registry.canonical.yaml)) and dispatched ([mcp_tools/dispatch.rs:237](../../../crates/vox-orchestrator-mcp/src/dispatch.rs)).
-- A `state_machine` keyword emits typed states + events + a reducer function stub ([state_machine_emit.rs](../../../crates/vox-codegen/src/codegen_ts/state_machine_emit.rs)).
+- A `state_machine` keyword emits typed states + events + a reducer function stub ([state_machine_emit.rs](../../../crates/vox-codegen-ts/src/state_machine_emit.rs)).
 - Web IR validates literal `href`/`to` attributes against declared route patterns ([web_ir/validate.rs](../../../crates/vox-codegen/src/web_ir/validate.rs)).
 
 Each phase below is sized against this real baseline, not a clean slate. Phase work should land via the same TDD/review discipline used for the GUI roadmap ([gui-native-roadmap-status-2026.md](gui-native-roadmap-status-2026.md)).
@@ -102,14 +102,14 @@ Phases A, B, C, D, E, F are independent and can land in parallel by separate ses
 
 ## Phase B — `bind:`, `class:`, `style:` directive families (M3)
 
-**Why second:** the syntactic infrastructure is in place. The parser already accepts `name:suffix` attribute names. The mapping table and lowering logic at [compat.rs:27–42](../../../crates/vox-codegen/src/codegen_ts/hir_emit/compat.rs) is the only place new families need to be wired. No grammar change.
+**Why second:** the syntactic infrastructure is in place. The parser already accepts `name:suffix` attribute names. The mapping table and lowering logic at [compat.rs:27–42](../../../crates/vox-codegen-ts/src/hir_emit/compat.rs) is the only place new families need to be wired. No grammar change.
 
 **Decision recorded:** **separator is colon `:`**, identical to the established `on:*` family. Consistent, parser-free, no syntactic carve-out needed.
 
 ### Concrete changes
 
-1. **Extend [`hir_emit/compat.rs`](../../../crates/vox-codegen/src/codegen_ts/hir_emit/compat.rs) `map_jsx_attr_name`** with new directive families:
-   - `bind:value` — lowers to `value={x}` + auto-emitted `onChange={e => set_x(e.target.value)}` when `x` is a reactive `state` binding. The setter name `set_x` is already the convention emitted by [reactive.rs:761](../../../crates/vox-codegen/src/codegen_ts/reactive.rs:761) (`const [{}, set_{}] = useState({});`).
+1. **Extend [`hir_emit/compat.rs`](../../../crates/vox-codegen-ts/src/hir_emit/compat.rs) `map_jsx_attr_name`** with new directive families:
+   - `bind:value` — lowers to `value={x}` + auto-emitted `onChange={e => set_x(e.target.value)}` when `x` is a reactive `state` binding. The setter name `set_x` is already the convention emitted by [reactive.rs:761](../../../crates/vox-codegen-ts/src/reactive/mod.rs:761) (`const [{}, set_{}] = useState({});`).
    - `bind:checked` — same pattern with `e.target.checked`.
    - `bind:group` — emits a coordinated set of controlled inputs (radio group). Lower priority; gate behind a feature flag if it adds scope.
    - `class:NAME` — the directive after the colon is the class name; lowers to `className={clsx(existing, { NAME: value })}` (or simpler ternary if no other `className`). Requires a small clsx-style runtime helper or inline ternary composition.
@@ -131,7 +131,7 @@ Phases A, B, C, D, E, F are independent and can land in parallel by separate ses
 
 ### Verification
 
-- Compiler unit tests in `crates/vox-codegen/src/codegen_ts/hir_emit/compat.rs#tests` for each new directive's TSX output (snapshot tests).
+- Compiler unit tests in `crates/vox-codegen-ts/src/hir_emit/compat.rs#tests` for each new directive's TSX output (snapshot tests).
 - Web IR validation tests for the new diagnostic codes.
 - Reactive smoke test ([crates/vox-compiler/tests/reactive_smoke_test.rs](../../../crates/vox-compiler/tests/reactive_smoke_test.rs)) extended to cover `bind:value` round-trip.
 - New golden file passes `vox check` and produces stable TSX.
@@ -149,7 +149,7 @@ Phases A, B, C, D, E, F are independent and can land in parallel by separate ses
 
 ### Concrete changes
 
-1. **Replace exact-string-match conflict detection** at [codegen_ts/routes.rs:87](../../../crates/vox-codegen/src/codegen_ts/routes.rs):
+1. **Replace exact-string-match conflict detection** at [codegen_ts/routes.rs:87](../../../crates/vox-rn-codegen/src/routes.rs):
    - Introduce a `RoutePattern` type that parses `/users/:id` into segment kinds (`Literal("users")`, `Param("id")`, `Wildcard`).
    - Conflict rule: two routes of the same method conflict if their segment lists unify under any concrete substitution (literal-vs-literal must match; literal-vs-param wins specificity to literal; param-vs-param ambiguous → conflict diagnostic with documented precedence rule).
    - Emit diagnostic code `routes.overlap.unresolvable_precedence` for ambiguous overlap (e.g., two `/:a/:b` routes); allow `routes.overlap.shadowed` (info-level) when one literal route shadows a param route.
@@ -162,7 +162,7 @@ Phases A, B, C, D, E, F are independent and can land in parallel by separate ses
      // …
    } as const;
    ```
-   Authors can then write `<a href={routes.users.show(userId)}>` and get full type-flow. Requires extending [route_manifest.rs](../../../crates/vox-codegen/src/codegen_ts/route_manifest.rs) emit.
+   Authors can then write `<a href={routes.users.show(userId)}>` and get full type-flow. Requires extending [route_manifest.rs](../../../crates/vox-codegen-ts/src/route_manifest.rs) emit.
 
 3. **Loosen the broken-link validator** at [web_ir/validate.rs](../../../crates/vox-codegen/src/web_ir/validate.rs) to accept dynamic expressions whose static type resolves to a known route-builder return value. Hand-written literal `href="/whatever"` continues to be checked exactly.
 
@@ -197,7 +197,7 @@ Phases A, B, C, D, E, F are independent and can land in parallel by separate ses
 
 3. **New AST/HIR node `ReactiveModule`** at [ast/decl/ui.rs](../../../crates/vox-ast/src/decl/ui.rs) — wraps the same `Vec<ReactiveMemberDecl>` already used by `ReactiveComponentDecl`.
 
-4. **Codegen** at [codegen_ts/reactive.rs](../../../crates/vox-codegen/src/codegen_ts/reactive.rs): mirror the `ReactiveComponentDecl` lowering but emit a context+provider+hook scaffold instead of a function component.
+4. **Codegen** at [codegen_ts/reactive.rs](../../../crates/vox-codegen-ts/src/reactive/mod.rs): mirror the `ReactiveComponentDecl` lowering but emit a context+provider+hook scaffold instead of a function component.
 
 5. **Cross-module reactive imports.** A regular `.vox` `component { }` that imports `count` from `./counter.vox.ui` should have the import auto-rewritten in TSX emit to a `useCounterStore()` call. Read-tracking analysis (Phase E below) needs to know that the imported binding is reactive.
 
@@ -227,14 +227,14 @@ Three tiers, each with a bounded analysis budget:
 | Tier | Tracks | Analysis cost | Action when over budget |
 |---|---|---|---|
 | 1 | Direct identifier reads in the same expression tree | O(nodes) | (always run) |
-| 2 | Reads inside `HirExpr::Lambda` bodies whose closure escapes to an effect/derived | O(nodes × lambda depth) | already implemented at [state_deps.rs:95](../../../crates/vox-codegen/src/codegen_ts/hir_emit/state_deps.rs:95); extend to track closure-captured reactive bindings |
+| 2 | Reads inside `HirExpr::Lambda` bodies whose closure escapes to an effect/derived | O(nodes × lambda depth) | already implemented at [state_deps.rs:95](../../../crates/vox-codegen-ts/src/hir_emit/state_deps.rs:95); extend to track closure-captured reactive bindings |
 | 3 | Reads through `HirExpr::Call` to a free function declared in the same module | O(callees × analysis budget) | gate on `@reactive`-annotated callees only; otherwise emit `dep_inference.over_track` info diagnostic and add the conservative "everything in scope" dep set |
 
 Whole-program / cross-crate / dynamic-dispatch analysis: explicitly **not** implemented. Authors get a clean opt-in (`@reactive fn compute(x: int) to int { … }`) for free functions that should participate in dep tracking; without the annotation, the call site over-tracks (correct but pessimistic).
 
 ### Concrete changes
 
-1. **Extend [`hir_emit/state_deps.rs`](../../../crates/vox-codegen/src/codegen_ts/hir_emit/state_deps.rs)** with a `ReadAnalyzer` struct that:
+1. **Extend [`hir_emit/state_deps.rs`](../../../crates/vox-codegen-ts/src/hir_emit/state_deps.rs)** with a `ReadAnalyzer` struct that:
    - Carries a budget (default 100 expression nodes per analysis call; configurable via env or `Vox.toml`).
    - Tracks visited callees in a `HashSet<DeclId>` to bound recursion.
    - When budget is exhausted, returns a `DepSet::Conservative` variant that emits the "over-tracked" diagnostic and falls back to "every reactive binding in scope."
@@ -282,7 +282,7 @@ If a future need surfaces (e.g., MENS-spoke wants per-call effect inference for 
 2. New AST node `FragmentDecl` at [ast/decl/](../../../crates/vox-ast/src/decl/).
 3. New parser production at [parser/descent/decl/](../../../crates/vox-compiler/src/parser/descent/decl/).
 4. New HIR node `HirFragmentDecl`.
-5. New codegen at `crates/vox-codegen/src/codegen_ts/fragment_emit.rs`.
+5. New codegen at `crates/vox-codegen-ts/src/fragment_emit.rs`.
 6. Web IR validation: ensure fragments referenced in JSX exist; ensure the right number/types of args are passed.
 7. Goldens: at minimum `examples/golden/fragment_table_row.vox` (a `<Table>` parameterized by a row fragment).
 
@@ -305,7 +305,7 @@ If a future need surfaces (e.g., MENS-spoke wants per-call effect inference for 
 
 ### Concrete changes
 
-1. **Extend [state_machine_emit.rs](../../../crates/vox-codegen/src/codegen_ts/state_machine_emit.rs)** to additionally emit:
+1. **Extend [state_machine_emit.rs](../../../crates/vox-codegen-ts/src/state_machine_emit.rs)** to additionally emit:
    - A `useFooStateMachine(initial: FooState): { state: FooState, send: (e: FooEvent) => void }` hook for in-component use — internally a `useState` + the existing reducer.
    - An exported reactive class `class Foo { state = $state(initial); send(e: FooEvent) { this.state = fooReducer(this.state, e); } }` for `.vox.ui`-module use (depends on Phase D).
 2. **Stdlib helper** in `vox-stdlib` (or `vox-actor-runtime` if stdlib doesn't exist yet — verify against repo state at implementation time): a generic `<S, E>` reactive-state-machine wrapper that the codegen-emitted class extends. Avoids per-state-machine boilerplate.

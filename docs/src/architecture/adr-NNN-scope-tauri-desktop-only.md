@@ -100,7 +100,7 @@ A quarterly tracking note should be maintained at `docs/src/architecture/rn-taur
 |---|---|
 | `crates/vox-gui` | Unchanged. Continues as Tauri 2 desktop shell. |
 | `crates/vox-tauri-codegen` | Scope narrowed to desktop config emission. Any mobile config-emit code (if present) retires in Phase 3. |
-| `crates/vox-codegen/src/codegen_ts/mobile_emit.rs` | Refactored in Phase 1 to emit to a `@vox/runtime` adapter contract rather than `@tauri-apps/api/event` directly. Two implementations (Tauri-flavored for desktop, Expo-flavored for mobile) fulfill the contract. |
+| `crates/vox-codegen-ts/src/mobile_emit.rs` | Refactored in Phase 1 to emit to a `@vox/runtime` adapter contract rather than `@tauri-apps/api/event` directly. Two implementations (Tauri-flavored for desktop, Expo-flavored for mobile) fulfill the contract. |
 | `crates/vox-tauri-stt/src/plugin.rs` | Retired in Phase 2. The native Kotlin/Swift code is removed in the same PR. |
 | `apps/vox-mental-tracker` | Migrates from Capacitor to Expo in Phase 1 of [mobile-rn-expo-architecture-and-migration-2026.md](mobile-rn-expo-architecture-and-migration-2026.md). Capacitor refs deleted. |
 | `crates/vox-codegen/src/codegen_rust/emit/main_boot.rs:288` | Bug fix is a precondition of this ADR's Acceptance, not part of it. Tracked separately. |

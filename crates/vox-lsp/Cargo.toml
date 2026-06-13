@@ -4,6 +4,16 @@ description = "Vox Language Server Protocol implementation (stdio JSON-RPC)."
 publish = false
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+
+[features]
+# `db` (default-on) enables the Ludus project-DB + gamification telemetry side
+# channel in the LSP binary (cached_project_db + vox_gamify::lsp_telemetry).
+# `--no-default-features` drops vox-db/vox-gamify entirely, leaving a pure
+# lex/parse/typecheck language server — the form a minimal toolchain
+# (e.g. vox-langtool) can embed without pulling persistence.
+default = ["db"]
+db = ["dep:vox-db", "dep:vox-gamify"]
 
 [dependencies]
 tower-lsp-server = { workspace = true }
@@ -14,8 +24,8 @@ tracing = { workspace = true }
 vox-foundation = { workspace = true }
 
 vox-compiler = { workspace = true }
-vox-db.workspace = true
-vox-gamify.workspace = true
+vox-db = { workspace = true, optional = true }
+vox-gamify = { workspace = true, optional = true }
 vox-bounded-fs = { workspace = true }
 vox-secrets.workspace = true
 anyhow = { workspace = true }

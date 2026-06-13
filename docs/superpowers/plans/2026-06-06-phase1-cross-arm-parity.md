@@ -67,7 +67,7 @@ A fresh `vox` build (`2053 @ fb51437ed3`, post-#195) was used to re-measure. Fin
 
 **Files:**
 - Create: `crates/vox-integration-tests/tests/support/ts_exec.rs` (or a `mod` in the parity test) — emit→run→capture helper.
-- Reference: `crates/vox-codegen/src/codegen_ts/emitter.rs`; existing `ts_emit_typecheck_test.rs` for how emit is invoked.
+- Reference: `crates/vox-codegen-ts/src/emitter.rs`; existing `ts_emit_typecheck_test.rs` for how emit is invoked.
 
 - [ ] **Step 1 — Write the failing test** `crates/vox-integration-tests/tests/ts_exec_smoke.rs`:
 
@@ -132,7 +132,7 @@ Concrete starting points (verify live, they may have shifted):
 ## Tasks 1.T*: codegen-ts bug-class fixes (after 1.A measures them)
 
 - [ ] **Step 0 — Measure:** with Task 1.A live, run the parity gate's ts column over all 10 goldens; record the actual failing set + error per golden into the ts allowlist. **This enumerates the T-classes** (unknown until run — the emitter is mature for web/JSX but the plain-stdout `main()` path on this scalar/ADT corpus is unexercised).
-- [ ] Then apply the **same 6-step TDD loop** as the R-tasks, but against `crates/vox-codegen/src/codegen_ts/emitter.rs` (and `jsx.rs`/`reactive.rs` only if a golden touches them — the corpus is plain `main()` programs, so emitter.rs is the likely site), decrementing `arm-parity-allowlist-ts.txt` per fix.
+- [ ] Then apply the **same 6-step TDD loop** as the R-tasks, but against `crates/vox-codegen-ts/src/emitter.rs` (and `jsx.rs`/`reactive.rs` only if a golden touches them — the corpus is plain `main()` programs, so emitter.rs is the likely site), decrementing `arm-parity-allowlist-ts.txt` per fix.
 
 **Exit for the ts arm:** codegen-ts parity ≥ 8/10; ts allowlist ratcheted to ≤ 2 with documented reasons.
 

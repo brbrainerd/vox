@@ -2,7 +2,18 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
+import { EmptyState } from '../../ui/EmptyState';
 import { SurfaceDecoratorProps } from '../decoratorRegistry';
+import { SEARCH_TOP_K } from '../../../config/constants';
+import {
+  ALL_USER_SCOPES,
+  backendScopesFromUserScopes,
+  filterCommandCatalogHits,
+  initialSearchState,
+  USER_SCOPE_LABELS,
+  type UserScope,
+} from '../../../lib/searchController';
+import type { CommandCatalog } from '../../../types/catalog';
 import {
   scoreToPct,
   groupBySource,
@@ -18,37 +29,26 @@ export { scoreToPct, groupBySource } from './searchHelpers';
 
 const SEARCH_SEED_KEY = 'vox_search_seed';
 
-const ALL_SCOPES = ['memory', 'knowledge', 'chunk', 'repo', 'web'] as const;
-type Scope = typeof ALL_SCOPES[number];
-
-const SCOPE_LABELS: Record<Scope, string> = {
-  memory: 'Memory',
-  knowledge: 'Knowledge',
-  chunk: 'Chunk',
-  repo: 'Repo',
-  web: 'Web',
-};
-
 function ScopeChip({
   scope,
   active,
   onToggle,
 }: {
-  scope: Scope;
+  scope: UserScope;
   active: boolean;
   onToggle: () => void;
 }) {
   return (
     <button
       onClick={onToggle}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest transition-colors ${
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40 ${
         active
           ? 'border-brass/40 bg-brass/10 text-brass'
           : 'border-white/5 bg-white/[0.01] text-zinc-500 hover:border-white/10 hover:text-zinc-400'
       }`}
     >
       <span className={`size-1.5 rounded-full ${active ? 'bg-brass' : 'bg-white/15'}`} />
-      {SCOPE_LABELS[scope]}
+      {USER_SCOPE_LABELS[scope]}
     </button>
   );
 }
@@ -65,7 +65,7 @@ function FacetChip({
   return (
     <button
       onClick={onToggle}
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] transition-colors ${
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40 ${
         active
           ? 'border-brass/40 bg-brass/10 text-brass'
           : 'border-white/5 bg-white/[0.01] text-zinc-500 hover:border-white/10 hover:text-zinc-400'
@@ -227,11 +227,12 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
 
   const [query, setQuery] = useState(seedQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(seedQuery);
-  const [selectedScopes, setSelectedScopes] = useState<Scope[]>([]);
+  const [selectedUserScopes, setSelectedUserScopes] = useState<UserScope[]>([]);
+  const [selectedSourceFacets, setSelectedSourceFacets] = useState<string[]>([]);
   const [selectedKinds, setSelectedKinds] = useState<string[]>([]);
   const [pathGlob, setPathGlob] = useState('');
   const [debouncedPathGlob, setDebouncedPathGlob] = useState('');
-  const [topK] = useState(30);
+  const [topK] = useState(SEARCH_TOP_K);
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<SearchResponse | null>(null);
   const [allHits, setAllHits] = useState<UnifiedHit[]>([]);
@@ -250,9 +251,15 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
     return () => clearTimeout(id);
   }, [pathGlob]);
 
-  const toggleScope = useCallback((scope: Scope) => {
-    setSelectedScopes(prev =>
+  const toggleUserScope = useCallback((scope: UserScope) => {
+    setSelectedUserScopes(prev =>
       prev.includes(scope) ? prev.filter(s => s !== scope) : [...prev, scope]
+    );
+  }, []);
+
+  const toggleSourceFacet = useCallback((source: string) => {
+    setSelectedSourceFacets(prev =>
+      prev.includes(source) ? prev.filter(s => s !== source) : [...prev, source]
     );
   }, []);
 
@@ -266,11 +273,11 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
   useEffect(() => {
     setAllHits([]);
     setSelectedIdx(-1);
-  }, [debouncedQuery, selectedScopes, selectedKinds, debouncedPathGlob]);
+  }, [debouncedQuery, selectedUserScopes, selectedKinds, debouncedPathGlob]);
 
   const doSearch = useCallback(async (
     q: string,
-    scopes: Scope[],
+    userScopes: UserScope[],
     kinds: string[],
     glob: string,
     limit: number,
@@ -282,23 +289,37 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
       setAllHits([]);
       return;
     }
+    const effectiveUserScopes =
+      userScopes.length > 0 ? userScopes : initialSearchState.scopes;
+    const backendScope = backendScopesFromUserScopes(effectiveUserScopes);
+    const wantsCommands = effectiveUserScopes.includes('commands');
     const seq = ++seqRef.current;
     setLoading(true);
     try {
       const res = await invoke<SearchResponse>('vox_search_query', {
         query: q,
-        scope: scopes.length > 0 ? scopes : null,
+        scope: backendScope.length > 0 ? backendScope : null,
         kinds: kinds.length > 0 ? kinds : null,
         pathGlob: glob.trim() || null,
         limit,
         offset,
       });
+      let mergedHits = res.hits;
+      if (wantsCommands && !append) {
+        try {
+          const catalog = await invoke<CommandCatalog>('get_command_catalog');
+          const cmdHits = filterCommandCatalogHits(catalog.entries ?? [], q) as UnifiedHit[];
+          mergedHits = [...cmdHits, ...mergedHits];
+        } catch {
+          // catalog unavailable — backend hits only
+        }
+      }
       if (seq === seqRef.current) {
         setResponse(res);
         if (append) {
-          setAllHits(prev => [...prev, ...res.hits]);
+          setAllHits(prev => [...prev, ...mergedHits]);
         } else {
-          setAllHits(res.hits);
+          setAllHits(mergedHits);
         }
       }
     } catch (err) {
@@ -316,13 +337,19 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
 
   // Fire initial / filter-changed search (offset=0, replace).
   useEffect(() => {
-    doSearch(debouncedQuery, selectedScopes, selectedKinds, debouncedPathGlob, topK, 0, false);
-  }, [debouncedQuery, selectedScopes, selectedKinds, debouncedPathGlob, topK, doSearch]);
+    doSearch(debouncedQuery, selectedUserScopes, selectedKinds, debouncedPathGlob, topK, 0, false);
+  }, [debouncedQuery, selectedUserScopes, selectedKinds, debouncedPathGlob, topK, doSearch]);
 
   const loadMore = useCallback(() => {
     if (!response?.next_cursor) return;
-    doSearch(debouncedQuery, selectedScopes, selectedKinds, debouncedPathGlob, topK, response.next_cursor, true);
-  }, [response, debouncedQuery, selectedScopes, selectedKinds, debouncedPathGlob, topK, doSearch]);
+    doSearch(debouncedQuery, selectedUserScopes, selectedKinds, debouncedPathGlob, topK, response.next_cursor, true);
+  }, [response, debouncedQuery, selectedUserScopes, selectedKinds, debouncedPathGlob, topK, doSearch]);
+
+  const displayHits = allHits.filter(h => {
+    if (selectedSourceFacets.length > 0 && !selectedSourceFacets.includes(h.source)) return false;
+    if (selectedKinds.length > 0 && !selectedKinds.includes(h.kind)) return false;
+    return true;
+  });
 
   const openHit = useCallback(async (hit: UnifiedHit) => {
     if (hit.locator.kind === 'file' || hit.locator.kind === 'web') {
@@ -330,6 +357,20 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
         await invoke('open_locator', { locator: hit.locator });
       } catch (err) {
         pushToast({ tone: 'warn', title: 'Could not open', body: String(err) });
+      }
+    } else if (hit.locator.kind === 'chat') {
+      try {
+        localStorage.setItem(SEARCH_SEED_KEY, hit.path ?? '');
+      } catch {
+        /* ignore */
+      }
+      pushToast({ tone: 'info', title: 'Chat session', body: 'Open Chat from the sidebar' });
+    } else if (hit.locator.kind === 'command' || hit.kind === 'command') {
+      try {
+        await navigator.clipboard.writeText(hit.path ?? hit.title ?? '');
+        pushToast({ tone: 'ok', title: 'Command copied', body: hit.path ?? hit.title ?? '' });
+      } catch {
+        pushToast({ tone: 'info', title: 'Command', body: hit.path ?? hit.title ?? '' });
       }
     } else if (hit.path) {
       try {
@@ -344,23 +385,23 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
   // Keyboard navigation.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (allHits.length === 0) return;
+      if (displayHits.length === 0) return;
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIdx(i => Math.min(i + 1, allHits.length - 1));
+        setSelectedIdx(i => (i + 1) % displayHits.length);
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSelectedIdx(i => Math.max(i - 1, 0));
+        setSelectedIdx(i => (i <= 0 ? displayHits.length - 1 : i - 1));
       } else if (e.key === 'Enter' && selectedIdx >= 0) {
         e.preventDefault();
-        openHit(allHits[selectedIdx]);
+        openHit(displayHits[selectedIdx]);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [allHits, selectedIdx, openHit]);
+  }, [displayHits, selectedIdx, openHit]);
 
-  const grouped = allHits.length > 0 ? groupBySource(allHits) : null;
+  const grouped = displayHits.length > 0 ? groupBySource(displayHits) : null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -419,17 +460,17 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
 
         {/* Scope chips */}
         <div className="mt-3 flex flex-wrap gap-2">
-          {ALL_SCOPES.map(scope => (
+          {ALL_USER_SCOPES.map(scope => (
             <ScopeChip
               key={scope}
               scope={scope}
-              active={selectedScopes.includes(scope)}
-              onToggle={() => toggleScope(scope)}
+              active={selectedUserScopes.includes(scope)}
+              onToggle={() => toggleUserScope(scope)}
             />
           ))}
-          {selectedScopes.length > 0 && (
+          {selectedUserScopes.length > 0 && (
             <button
-              onClick={() => setSelectedScopes([])}
+              onClick={() => setSelectedUserScopes([])}
               className="font-mono text-[9px] uppercase tracking-widest text-zinc-600 hover:text-zinc-400 transition"
             >
               clear
@@ -451,12 +492,8 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
                     <FacetChip
                       key={f.value}
                       facet={f}
-                      active={selectedScopes.includes(f.value as Scope)}
-                      onToggle={() => {
-                        if (ALL_SCOPES.includes(f.value as Scope)) {
-                          toggleScope(f.value as Scope);
-                        }
-                      }}
+                      active={selectedSourceFacets.includes(f.value)}
+                      onToggle={() => toggleSourceFacet(f.value)}
                     />
                   ))}
                 </div>
@@ -484,25 +521,30 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
         <div className="flex-1 min-w-0 flex flex-col gap-5">
           {/* Empty / loading / no-results states */}
           {!query.trim() && (
-            <Glass className="p-10 text-center">
-              <Icon.search className="mx-auto size-8 text-zinc-700 mb-3" />
-              <div className="text-sm text-zinc-500">Type to search across all vox corpora</div>
-              <div className="mt-1 font-mono text-[10px] text-zinc-600">memory · knowledge · chunk · repo · web</div>
+            <Glass className="p-4">
+              <EmptyState
+                icon={<Icon.search className="size-8" />}
+                title="Search the workspace"
+                description="Code · docs · chats · commands · memory · web — toggle scopes in the sidebar."
+              />
             </Glass>
           )}
 
-          {query.trim() && loading && allHits.length === 0 && (
+          {query.trim() && loading && displayHits.length === 0 && (
             <Glass className="p-8 text-center text-zinc-500 text-sm">Searching…</Glass>
           )}
 
-          {query.trim() && !loading && response && allHits.length === 0 && (
-            <Glass className="p-10 text-center">
-              <div className="text-sm text-zinc-500">No results for "{query}"</div>
-              {(selectedScopes.length > 0 || selectedKinds.length > 0) && (
-                <div className="mt-1 font-mono text-[10px] text-zinc-600">
-                  Try clearing filters to search all corpora
-                </div>
-              )}
+          {query.trim() && !loading && response && displayHits.length === 0 && (
+            <Glass className="p-4">
+              <EmptyState
+                icon={<Icon.search className="size-8" />}
+                title={`No results for "${query}"`}
+                description={
+                  selectedUserScopes.length > 0 || selectedSourceFacets.length > 0 || selectedKinds.length > 0
+                    ? 'Try clearing filters to search all corpora.'
+                    : 'Broaden the query or switch scopes.'
+                }
+              />
             </Glass>
           )}
 
@@ -520,7 +562,7 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
                   </div>
                   <div className="flex flex-col gap-2">
                     {hits.map((hit, i) => {
-                      const globalIdx = allHits.indexOf(hit);
+                      const globalIdx = displayHits.indexOf(hit);
                       return (
                         <HitRow
                           key={`${source}-${i}`}
