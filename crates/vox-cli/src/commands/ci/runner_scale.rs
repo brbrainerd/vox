@@ -37,8 +37,8 @@ const MANAGED_PREFIX: &str = "vox-runner-auto-";
 const RUNNER_LABELS: &str = "self-hosted,linux,x64,docker,browser";
 const CACHE_VOLUME: &str = "vox-ci-runner-cache";
 
-const CPUS_PER_RUNNER: &str = "6";
-const MEM_PER_RUNNER: &str = "6500m";
+const CPUS_PER_RUNNER: &str = "4";
+const MEM_PER_RUNNER: &str = "5000m";
 /// Shared S3-compatible compile cache (MinIO container `vox-sccache-minio` on
 /// this host; see docs/src/ci/shared-compile-cache.md). Runner containers reach
 /// the host via Docker Desktop's `host.docker.internal`. The host-side probe
@@ -47,7 +47,8 @@ const MEM_PER_RUNNER: &str = "6500m";
 const SCCACHE_S3_BUCKET: &str = "vox-sccache";
 const SCCACHE_S3_CONTAINER_ENDPOINT: &str = "http://host.docker.internal:9000";
 const SCCACHE_S3_HOST_PROBE: &str = "127.0.0.1:9000";
-/// Default ceiling on concurrent managed runners (4 × 6 cpu = 24 of 32 threads).
+/// Default ceiling on concurrent managed runners (6 runners × 4 cpu = 24 vCPU =
+/// WSL2 processors cap; 6 × 5000m = 30 GB < 32 GB WSL2 memory cap).
 /// Override: `VOX_RUNNER_MAX`.
 pub const DEFAULT_MAX_RUNNERS: u32 = 6;
 /// Reap a runner after this many seconds of continuous idle (registered but
@@ -740,6 +741,21 @@ mod tests {
     fn scale_down_reap_zero_when_no_excess() {
         let idle = vec![("vox-runner-auto-a-0".into(), 100)];
         assert!(scale_down_reap_targets(&idle, 0).is_empty());
+    }
+
+    #[test]
+    fn fleet_budget_fits_wsl2_ceiling() {
+        // WSL2 .wslconfig caps: processors=24, memory=32GB.
+        let cpus: u32 = CPUS_PER_RUNNER.parse().unwrap();
+        let mem_mb: u32 = MEM_PER_RUNNER.trim_end_matches('m').parse().unwrap();
+        assert!(
+            DEFAULT_MAX_RUNNERS * cpus <= 24,
+            "fleet vCPU must fit WSL2 24-cpu cap"
+        );
+        assert!(
+            DEFAULT_MAX_RUNNERS * mem_mb <= 32_000,
+            "fleet RAM must fit WSL2 32GB cap"
+        );
     }
 
     #[test]

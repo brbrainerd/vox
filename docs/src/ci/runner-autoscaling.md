@@ -41,9 +41,9 @@ Docker containers (`vox-runner-1/2`) on a single Windows i9-14900KS (32 threads,
   in-progress runs and counts jobs with `status: queued` whose label set the
   pool can serve (`self-hosted,linux,x64,docker,browser`). One PR fanning out a
   dozen jobs registers a dozen demand, capped at the pool max.
-- **Bounded:** up to `VOX_RUNNER_MAX` (default 6), each `--cpus=6
-  --memory=6500m` → at most 36 of 32 threads when fully saturated (autoscaler
-  caps at host capacity); tune `VOX_RUNNER_MAX` to leave headroom for Windows.
+- **Bounded:** up to `VOX_RUNNER_MAX` (default 6), each `--cpus=4
+  --memory=5000m` → at most 24 vCPU / 30 GB when fully saturated (fits the WSL2
+  24-cpu / 32-GB ceiling); tune `VOX_RUNNER_MAX` to leave headroom for Windows.
 - **Warm:** every runner mounts a shared `vox-ci-runner-cache` volume with
   `sccache` (`SCCACHE_DIR=/cache/sccache`), so ephemeral cold starts reuse
   compiler output instead of rebuilding the world.
@@ -84,7 +84,7 @@ runaway pool. Demand = count of `queued` **jobs** matching the pool's labels
 
 | Env var | Default | Meaning |
 |---|---|---|
-| `VOX_RUNNER_MAX` | `6` | Hard ceiling on concurrent managed runners |
+| `VOX_RUNNER_MAX` | `6` | Hard ceiling on concurrent managed runners (6 × 4 cpu / 5000m = 24 vCPU / 30 GB, fits WSL2 24/32) |
 | `VOX_RUNNER_IDLE_REAP_SECS` | `300` | Grace window before reaping a never-assigned runner |
 | `VOX_RUNNER_WARM_POOL` | `1` | Idle runners to keep registered for instant dispatch |
 
