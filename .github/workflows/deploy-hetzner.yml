@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'crates/**'
+      - 'Cargo.lock'
+      - 'Dockerfile*'
+      - '.github/workflows/deploy-hetzner.yml'
   workflow_dispatch:
     inputs:
       skip_tests:
