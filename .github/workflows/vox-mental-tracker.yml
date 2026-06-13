@@ -91,6 +91,13 @@ jobs:
       - name: Playwright
         run: pnpm exec playwright test
         working-directory: apps/vox-mental-tracker
+      - name: Upload route screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vox-mental-tracker-screens
+          path: apps/vox-mental-tracker/tests/e2e/__screens__/
+          if-no-files-found: ignore
 
   contracts:
     runs-on: [self-hosted, linux, x64]

@@ -4,33 +4,66 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
-    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="theme-color" content="#2563eb" />
     <title>Mental Health Tracker</title>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="stylesheet" href="/dist/vox-tokens.css" />
     <style>
+      /* Clinical Clean theme — crisp white surfaces, blue accent, data-forward. */
       :root {
         font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
         line-height: 1.5;
+        --mh-bg: #f7f9fc;
+        --mh-fg: #0f2747;
+        --mh-primary: #2563eb;
+        --mh-secondary: #5b6b80;
+        --mh-border: #e2e8f0;
+        --mh-surface: #ffffff;
       }
       body {
-        margin: 0;
-        padding: 16px;
-        max-width: 720px;
         margin: 0 auto;
-        background: var(--mh-bg, #fafafa);
-        color: var(--mh-fg, #111);
+        padding: 20px 16px;
+        max-width: 720px;
+        background: var(--mh-bg);
+        color: var(--mh-fg);
       }
       .mh-root { display: flex; flex-direction: column; gap: 16px; }
+      h1, h2 { color: var(--mh-fg); font-weight: 600; letter-spacing: -0.01em; margin: 4px 0; }
+      h1 { font-size: 22px; }
+      h2 { font-size: 18px; }
       .mh-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-      .mh-nav { display: flex; gap: 12px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px solid #ddd; }
-      .mh-nav a { color: inherit; }
-      .mh-nav-dot { color: #999; }
-      .mh-sub { color: #666; font-size: 0.9em; }
-      .mh-pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.85em; white-space: pre-wrap; word-break: break-word; }
-      button { padding: 8px 14px; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; font-size: 0.9em; }
-      button:hover { background: #f0f0f0; }
-      a { color: #0066cc; }
+      .mh-nav {
+        display: flex; gap: 4px; flex-wrap: wrap; align-items: center;
+        padding: 10px 12px; background: var(--mh-surface);
+        border: 0.5px solid var(--mh-border); border-radius: 8px; font-size: 13px;
+      }
+      .mh-nav a { color: var(--mh-secondary); text-decoration: none; padding: 2px 6px; border-radius: 6px; }
+      .mh-nav a:hover { color: var(--mh-primary); background: #eef2ff; }
+      .mh-nav-dot { display: none; }
+      .mh-sub { color: var(--mh-secondary); font-size: 13px; }
+      .mh-section-label { color: var(--mh-fg); font-weight: 600; font-size: 13px; margin-top: 8px; }
+      .mh-count { color: var(--mh-secondary); font-size: 13px; }
+      .mh-pre, .mh-list {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 12.5px; white-space: pre-wrap; word-break: break-word;
+        background: var(--mh-surface); border: 0.5px solid var(--mh-border);
+        border-radius: 8px; padding: 12px 14px; color: var(--mh-fg);
+      }
+      .mh-list { line-height: 1.8; }
+      button {
+        padding: 9px 14px; border: 0.5px solid var(--mh-border); border-radius: 6px;
+        background: var(--mh-surface); color: var(--mh-fg); cursor: pointer; font-size: 13px;
+      }
+      button:hover { border-color: var(--mh-primary); color: var(--mh-primary); background: #f5f8ff; }
+      .mh-actions button:first-child, form button[type="submit"] {
+        background: var(--mh-primary); color: #fff; border-color: var(--mh-primary);
+      }
+      a { color: var(--mh-primary); }
+      input, textarea {
+        width: 100%; box-sizing: border-box; padding: 8px 10px;
+        border: 0.5px solid var(--mh-border); border-radius: 6px; font: inherit; color: var(--mh-fg);
+      }
+      input:focus, textarea:focus { outline: none; border-color: var(--mh-primary); box-shadow: 0 0 0 3px #2563eb22; }
     </style>
   </head>
   <body>

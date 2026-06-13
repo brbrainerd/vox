@@ -13,3 +13,4 @@ node_modules/
 /test-results/
 ios/App/build/
 android/app/build/
+/tests/e2e/__screens__/
