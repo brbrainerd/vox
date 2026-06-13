@@ -1,0 +1,55 @@
+{
+  "directed": true,
+  "multigraph": false,
+  "graph": {},
+  "hyperedges": [],
+  "built_at_commit": "test",
+  "nodes": [
+    {
+      "id": "fixture_lib_add",
+      "label": "add()",
+      "file_type": "code",
+      "source_file": "crates/fixture-lib/src/lib.rs",
+      "source_location": "L2",
+      "_origin": "ast",
+      "norm_label": "add()"
+    },
+    {
+      "id": "fixture_lib_multiply",
+      "label": "multiply()",
+      "file_type": "code",
+      "source_file": "crates/fixture-lib/src/lib.rs",
+      "source_location": "L6",
+      "_origin": "ast",
+      "norm_label": "multiply()"
+    },
+    {
+      "id": "fixture_lib_untested_function",
+      "label": "untested_function()",
+      "file_type": "code",
+      "source_file": "crates/fixture-lib/src/lib.rs",
+      "source_location": "L10",
+      "_origin": "ast",
+      "norm_label": "untested_function()"
+    },
+    {
+      "id": "fixture_lib_mystruct_new",
+      "label": ".new()",
+      "file_type": "code",
+      "source_file": "crates/fixture-lib/src/lib.rs",
+      "source_location": "L19",
+      "_origin": "ast",
+      "norm_label": ".new()"
+    },
+    {
+      "id": "fixture_lib_mystruct_get_value",
+      "label": ".get_value()",
+      "file_type": "code",
+      "source_file": "crates/fixture-lib/src/lib.rs",
+      "source_location": "L23",
+      "_origin": "ast",
+      "norm_label": ".get_value()"
+    }
+  ],
+  "links": []
+}

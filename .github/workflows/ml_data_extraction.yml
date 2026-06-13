@@ -9,15 +9,12 @@ on:
     branches:
       - main
     paths:
-      - '**/*.vox'
+      - 'examples/golden/**'
       - 'crates/vox-compiler/**'
-      - 'docs/src/**'
-      - 'docs/src/research/**'
-      - 'examples/**'
-      - 'scripts/vox_system_prompt.txt'
-      - 'crates/vox-cli/src/training/**'
       - 'crates/vox-cli/src/commands/corpus/**'
-      - 'populi/data/**'
+      - 'crates/vox-cli/src/training/**'
+      - 'scripts/ci/**'
+      - 'contracts/eval/**'
   schedule:
     - cron: '0 4 * * *'  # 4 AM UTC nightly
   workflow_dispatch:       # manual trigger

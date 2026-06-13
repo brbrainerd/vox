@@ -1,5 +1,10 @@
 //! Publication manifest and syndication helpers for `vox db publication-*`.
 
+mod archive_code;
+pub use archive_code::*;
+mod archive_run;
+pub use archive_run::*;
+pub(crate) mod embedder;
 mod helpers;
 mod ingest;
 
@@ -10,6 +15,8 @@ mod scholarly;
 pub use scholarly::*;
 mod discovery;
 pub use discovery::*;
+mod discovery_watch;
+pub use discovery_watch::*;
 mod internal;
 pub(crate) use internal::*;
 mod route;

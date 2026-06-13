@@ -9,6 +9,7 @@ on:
       - '.github/workflows/setup-e2e.yml'
   schedule:
     - cron: '0 2 * * *' # Run nightly (cross-platform clean-room; not per-PR)
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

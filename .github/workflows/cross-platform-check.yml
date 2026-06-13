@@ -2,12 +2,7 @@ name: Cross-Platform Check (Windows + macOS)
 on:
   schedule:
     - cron: '0 4 * * 1'   # Weekly Monday
-  pull_request:
-    paths:
-      - 'crates/**'
-      - 'Cargo.*'
-      - '.cargo/**'
-      - '.github/workflows/cross-platform-check.yml'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

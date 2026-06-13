@@ -59,6 +59,8 @@ pub mod oratio_tools;
 pub mod persistence_tools;
 /// Local mens registry status (`vox_populi_local_status`).
 pub mod populi_tools;
+/// Automatic post-mutation `.vox` verification feedback (verification-driven agent loop).
+pub mod post_verification;
 /// `vox init` parity scaffold (`vox_project_init`).
 pub mod project_init_tools;
 /// Socrates questioning / clarification answer persistence (`VoxDb`).
@@ -88,6 +90,8 @@ pub(crate) mod text_normalization;
 #[cfg(feature = "toestub-gate")]
 pub mod toestub_tools;
 pub mod tool_aliases;
+/// `vox_tool_search` — keyword search over the tool registry (progressive disclosure).
+pub mod tool_search;
 /// Training-intent submission via orchestrator (Mens CLI remains canonical executor).
 pub mod training_tools;
 /// Trust rollup inspection tools (`trust_rollups` over VoxDb).

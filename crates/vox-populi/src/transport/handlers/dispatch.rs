@@ -192,12 +192,23 @@ fn select_best_node<'a>(nodes: &'a [NodeRecord], req: &DispatchRequest) -> Optio
         })
         .collect();
 
-    // Load balancing: Sort by CPU usage ascending
+    // Multi-dimensional score (higher wins): idle CPU dominates; free memory,
+    // allocatable GPUs, and model locality break ties. Unreported metrics score
+    // pessimistically so silent nodes don't win by omission.
+    fn score(n: &NodeRecord, req: &DispatchRequest) -> f64 {
+        let cpu = f64::from(n.cpu_usage_pct.unwrap_or(100.0));
+        let free_gib = n.memory_free_bytes.unwrap_or(0) as f64 / (1024.0 * 1024.0 * 1024.0);
+        let gpus = f64::from(n.gpu_allocatable_count.unwrap_or(0));
+        let locality = match (&req.model_id, &n.loaded_llm_models) {
+            (Some(m), Some(loaded)) if loaded.iter().any(|l| l == m) => 1.0,
+            _ => 0.0,
+        };
+        (100.0 - cpu) + 20.0 * (1.0 + free_gib).log2() + 15.0 * gpus + 25.0 * locality
+    }
+
     candidates.sort_by(|a, b| {
-        let a_usage = a.cpu_usage_pct.unwrap_or(100.0);
-        let b_usage = b.cpu_usage_pct.unwrap_or(100.0);
-        a_usage
-            .partial_cmp(&b_usage)
+        score(b, req)
+            .partial_cmp(&score(a, req))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
@@ -426,5 +437,63 @@ pub(crate) async fn execute_on_worker(
                 .to_string(),
             expires_unix_ms: None,
         })),
+    }
+}
+
+#[cfg(test)]
+mod select_best_node_tests {
+    use super::*;
+
+    // NodeRecord has no Default — deserialize a minimal object (every non-id
+    // field is serde-optional).
+    fn node(id: &str, cpu: Option<f32>, mem_free_gib: u64, gpus: u32) -> NodeRecord {
+        let mut n: NodeRecord = serde_json::from_value(serde_json::json!({
+            "id": id,
+            "capabilities": {},
+            "version": "test",
+            "last_seen_unix_ms": 0,
+        }))
+        .expect("minimal NodeRecord");
+        n.cpu_usage_pct = cpu;
+        n.memory_free_bytes = Some(mem_free_gib * 1024 * 1024 * 1024);
+        n.gpu_allocatable_count = Some(gpus);
+        n
+    }
+
+    fn plain_req() -> DispatchRequest {
+        serde_json::from_value(serde_json::json!({ "source": "test" }))
+            .expect("minimal DispatchRequest")
+    }
+
+    #[test]
+    fn prefers_lower_cpu_all_else_equal() {
+        let nodes = vec![
+            node("busy", Some(80.0), 4, 0),
+            node("idle", Some(10.0), 4, 0),
+        ];
+        let best = select_best_node(&nodes, &plain_req()).unwrap();
+        assert_eq!(best.id, "idle");
+    }
+
+    #[test]
+    fn gpu_and_memory_break_cpu_ties() {
+        let nodes = vec![
+            node("small", Some(50.0), 1, 0),
+            node("beefy", Some(50.0), 32, 2),
+        ];
+        let best = select_best_node(&nodes, &plain_req()).unwrap();
+        assert_eq!(best.id, "beefy");
+    }
+
+    #[test]
+    fn model_locality_outweighs_small_cpu_difference() {
+        let mut warm = node("warm", Some(55.0), 8, 1);
+        warm.loaded_llm_models = Some(vec!["qwen3.5-2b".to_string()]);
+        let cold = node("cold", Some(45.0), 8, 1);
+        let mut req = plain_req();
+        req.model_id = Some("qwen3.5-2b".to_string());
+        let nodes = [warm, cold];
+        let best = select_best_node(&nodes, &req).unwrap();
+        assert_eq!(best.id, "warm");
     }
 }

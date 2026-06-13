@@ -3,6 +3,7 @@ pub mod cas_codex;
 pub mod ci_completion;
 pub mod conversations;
 pub mod developer_journeys;
+pub mod discovery;
 pub mod exec_time;
 pub mod execution;
 pub mod external_review;

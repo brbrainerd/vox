@@ -43,6 +43,11 @@ pub struct ExpectedFiles {
     /// Optional CLI flags forwarded to `vox build` (e.g. `--target client`).
     #[serde(default)]
     pub extra_args: Vec<String>,
+    /// When true, this fixture is a *negative* case — `vox build` is expected to
+    /// FAIL (e.g. a deliberate contrast/occlusion violation). The all-fixtures
+    /// sweep skips it; a dedicated test asserts the specific failure.
+    #[serde(default)]
+    pub expect_failure: bool,
 }
 
 /// One end-to-end run of `vox build` against a fixture.
@@ -136,6 +141,7 @@ impl BuildRun {
                 forbidden: vec![],
                 emits_rust_backend: false,
                 extra_args: vec![],
+                expect_failure: false,
             }
         };
 

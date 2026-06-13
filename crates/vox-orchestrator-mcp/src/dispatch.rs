@@ -256,6 +256,21 @@ pub async fn handle_tool_call(
         }
     });
 
+    // Verification-driven loop: after a successful file-mutating tool, auto-run
+    // `vox check` on the touched `.vox` file and surface any error diagnostics back
+    // inside the tool result, so the agent self-corrects on its next turn without
+    // having to remember to validate. No-op for non-mutating tools, non-`.vox` paths,
+    // clean files, or when disabled via `VOX_VERIFY_ON_WRITE`. See `post_verification`.
+    let result = match result {
+        Ok(payload) => {
+            Ok(
+                crate::post_verification::verify_and_attach(state, name_canonical, &args, payload)
+                    .await,
+            )
+        }
+        Err(e) => Err(e),
+    };
+
     let duration_ms = start_time.elapsed().as_millis() as i64;
 
     if let Some(ref tid) = trace_for_telemetry {
@@ -338,6 +353,9 @@ async fn handle_tool_call_inner(
         "vox_test_decision" => {
             Ok(task_tools::test_decision(state, serde_json::from_value(args)?).await)
         }
+        "vox_tool_search" => Ok(crate::tool_search::vox_tool_search(serde_json::from_value(
+            args,
+        )?)),
         // B3 HITL: list / resolve approvals awaiting a human decision (the
         // dangerous-tool gate below parks on these).
         "vox_pending_approvals" => Ok(crate::params::ToolResult::ok(serde_json::json!({
@@ -1149,6 +1167,11 @@ async fn handle_tool_call_inner(
             serde_json::from_value(args)?,
         )),
         "vox_skill_parse" => Ok(crate::skills::skill_parse(serde_json::from_value(args)?)),
+        "vox_skill_use" => Ok(crate::skills::skill_use(
+            state,
+            serde_json::from_value(args)?,
+        )),
+        "vox_skill_discover" => Ok(crate::skills::skill_discover(state)),
 
         "vox_plugin_list" => Ok(crate::plugins::plugin_list(state).await),
         "vox_plugin_catalog" => Ok(crate::plugins::plugin_catalog()),

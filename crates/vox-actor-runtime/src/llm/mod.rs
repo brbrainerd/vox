@@ -4,6 +4,7 @@ pub mod cascade;
 mod chat;
 mod embed;
 mod stream;
+pub mod throttle;
 mod types;
 mod wire;
 

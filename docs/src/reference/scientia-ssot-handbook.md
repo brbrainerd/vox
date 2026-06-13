@@ -71,6 +71,16 @@ Job-layer preflight uses `last_error_class = "preflight"`. Adapter errors use `S
 | MCP contract | `contracts/mcp/tool-registry.canonical.yaml` |
 | Human reference | `docs/src/reference/cli.md`, this handbook |
 
+**Surfacing / producer / archive (2026-06-12, landed).** Additional SSOT locations for the discovery-surfacing, automated-producer, and archive legs:
+
+| Capability | SSOT location |
+|------------|----------------|
+| Novelty assessment seam (`assess_novelty()`: ChronoFilter + EvidenceConflict + NoveltySignalBreakdown) | `crates/vox-publisher/src/scientia_novelty_assess.rs` |
+| Semantic prior-art similarity (cosine + Embedder seam) + embedding cache | `crates/vox-publisher/src/scientia_semantic.rs`; vox-db `scientia_embedding_cache` (`crates/vox-db/src/store/ops_embedding_cache.rs`) |
+| Automated discovery producers (commit watcher, code-uniqueness) | `crates/vox-publisher/src/scientia_producers/` — CLI: `vox scientia discovery-watch` (resumable via `scientia_producer_cursor`) |
+| Discovery inbox + `scientia.discovery.surfaced` WS topic | vox-db `scientia_discovery_inbox`; `crates/vox-orchestrator-mcp/src/http_gateway/scientia_feed.rs` |
+| Archive-run orchestrator | `crates/vox-publisher/src/archive_run.rs` (executor `crates/vox-cli/src/commands/db/publication/archive_run.rs`) — CLI: `vox scientia publication-archive-run` (autofill-gate → approval → Zenodo → Software Heritage → receipt) |
+
 **Rule:** Add behavior in **store + publisher** first; then CLI; then MCP + contracts; then docs. Never document a command that is not in `command-registry.yaml` when `ref_cli_required` applies.
 
 ## 4. Command registry vs command catalog (T004)

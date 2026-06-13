@@ -24,6 +24,7 @@ export const initialSessionChatStore: SessionChatStore = {
 export type SessionChatAction =
   | { type: 'submit'; sessionId: string; runId: string; prompt: string }
   | { type: 'submitResolved'; sessionId: string; runId: string; taskId: string }
+  | { type: 'failRun'; sessionId: string; runId: string; error: string }
   | { type: 'agentEvent'; event: AgentEventFrame }
   | { type: 'hydrate'; sessionId: string; messages: ChatMessage[] };
 
@@ -110,6 +111,17 @@ export function sessionChatReducer(store: SessionChatStore, action: SessionChatA
         ...withSession(store, sid, next),
         taskToSession: { ...store.taskToSession, [taskId]: sid },
       };
+    }
+
+    case 'failRun': {
+      const sid = action.sessionId;
+      const prev = ensureSession(store, sid);
+      const next = chatReducer(prev, {
+        type: 'failRun',
+        runId: action.runId,
+        error: action.error,
+      });
+      return withSession(store, sid, next);
     }
 
     case 'agentEvent': {

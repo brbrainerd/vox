@@ -151,4 +151,6 @@ export interface SubmitTaskResult {
   ok: boolean;
   message: string;
   task_id: string | null;
+  /** Set when the daemon refused a near-duplicate; the id of the existing task. */
+  duplicate_of?: string | null;
 }

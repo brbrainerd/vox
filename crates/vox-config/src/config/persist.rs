@@ -82,6 +82,29 @@ pub(super) fn save_merged_global_config(path: &Path, cfg: &VoxConfig) -> std::io
         root.insert("db".to_string(), Value::Table(db_tab));
     }
 
+    let mut llm = take_toml_subtable(&mut root, "llm");
+    llm.insert(
+        "max_concurrent_requests".to_string(),
+        Value::Integer(i64::try_from(cfg.llm_max_concurrent_requests).unwrap_or(i64::MAX)),
+    );
+    if let Some(v) = cfg.llm_openrouter_max_concurrent {
+        llm.insert(
+            "openrouter_max_concurrent".to_string(),
+            Value::Integer(i64::try_from(v).unwrap_or(i64::MAX)),
+        );
+    }
+    if let Some(v) = cfg.llm_openai_max_concurrent {
+        llm.insert(
+            "openai_max_concurrent".to_string(),
+            Value::Integer(i64::try_from(v).unwrap_or(i64::MAX)),
+        );
+    }
+    llm.insert(
+        "retry_max_attempts".to_string(),
+        Value::Integer(i64::from(cfg.llm_retry_max_attempts)),
+    );
+    root.insert("llm".to_string(), Value::Table(llm));
+
     let out = toml::to_string_pretty(&Value::Table(root))
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
     std::fs::write(path, out)?;

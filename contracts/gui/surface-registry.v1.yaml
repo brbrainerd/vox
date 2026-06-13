@@ -17,6 +17,14 @@ surfaces:
   nav_group: operate
   parent_surface: runs
   notes: null
+- view_key: archive-panel
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Archive Panel
+  nav_icon: beaker
+  nav_group: knowledge
+  parent_surface: null
+  notes: metadata completeness, deterministic autofill, and Zenodo/SWH deposit status
 - view_key: browser
   cli_group: null
   representation_tier: live_backend
@@ -57,6 +65,14 @@ surfaces:
   nav_group: compute
   parent_surface: null
   notes: Models and mesh
+- view_key: console
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Console
+  nav_icon: command
+  nav_group: develop
+  parent_surface: workspace
+  notes: warp-model discovery terminal
 - view_key: coverage
   cli_group: null
   representation_tier: live_backend
@@ -73,6 +89,14 @@ surfaces:
   nav_group: operate
   parent_surface: agents
   notes: orchestrator status
+- view_key: discovery-inbox
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Discovery Inbox
+  nav_icon: eye
+  nav_group: knowledge
+  parent_surface: null
+  notes: unacknowledged surfaced research candidates
 - view_key: discovery-review
   cli_group: null
   representation_tier: live_backend
@@ -137,6 +161,14 @@ surfaces:
   nav_group: knowledge
   parent_surface: knowledge
   notes: scientia publication lifecycle board
+- view_key: review
+  cli_group: null
+  representation_tier: curated_decorator
+  nav_label: Review
+  nav_icon: doubt
+  nav_group: knowledge
+  parent_surface: null
+  notes: human-gated claim review + nanopub build (scientia publication-claim-review / publication-nanopub-build)
 - view_key: runs
   cli_group: null
   representation_tier: live_backend
@@ -153,6 +185,14 @@ surfaces:
   nav_group: knowledge
   parent_surface: null
   notes: unified hybrid search (vox-search)
+- view_key: tasks
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Tasks
+  nav_icon: list
+  nav_group: operate
+  parent_surface: agents
+  notes: live orchestrator task queue (CRUD + reprioritize)
 - view_key: workspace
   cli_group: null
   representation_tier: live_backend
@@ -177,6 +217,14 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
+- view_key: null
+  cli_group: attention
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: dei-gated engine; CLI-only by design pending GUI panel — see A3
 - view_key: null
   cli_group: audit
   representation_tier: none
@@ -297,6 +345,14 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
+- view_key: null
+  cli_group: dei
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: dei-gated engine; CLI-only by design pending GUI panel — see A3
 - view_key: null
   cli_group: deploy
   representation_tier: none
@@ -577,6 +633,14 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
+- view_key: null
+  cli_group: repl
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
 - view_key: repository
   cli_group: repo
   representation_tier: live_backend
@@ -609,6 +673,14 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
+- view_key: null
+  cli_group: safety
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: dei-gated engine; CLI-only by design pending GUI panel — see A3
 - view_key: null
   cli_group: schola
   representation_tier: none
@@ -745,6 +817,14 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
+- view_key: null
+  cli_group: visus
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: dei-gated engine; CLI-only by design pending GUI panel — see A3
 - view_key: null
   cli_group: wasm
   representation_tier: none

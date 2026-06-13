@@ -5,10 +5,14 @@ import { CommandCatalogEntry } from '../../types/catalog';
 import { Agent } from '../../types/dashboard';
 import type { CommandPaletteAction } from '../../types/tauri';
 import { SearchResponse, UnifiedHit } from '../surfaces/Search/searchHelpers';
+import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
+import { SETTINGS_INDEX } from '../surfaces/Settings/settingsIndex';
+import { buildPaletteItems, DocEntryLike } from './paletteSources';
 import { SEARCH_DEBOUNCE_MS, PALETTE_PREVIEW_LIMIT } from '../../config/constants';
 import { backendScopesFromUserScopes, initialSearchState } from '../../lib/searchController';
 
 const SEARCH_SEED_KEY = 'vox_search_seed';
+const SETTINGS_SEED_KEY = 'vox_settings_seed';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -31,7 +35,16 @@ export function CommandPalette({ open, onClose, onAction, agents, skills }: Comm
   const [backendHits, setBackendHits] = useState<UnifiedHit[]>([]);
   const [backendLoading, setBackendLoading] = useState(false);
   const [selectedRowIdx, setSelectedRowIdx] = useState(-1);
+  const [docs, setDocs] = useState<DocEntryLike[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Lazy-load the docs index once the palette first opens (frontmatter walk).
+  useEffect(() => {
+    if (!open || docs.length > 0) return;
+    invoke<DocEntryLike[]>('vox_docs_index')
+      .then(setDocs)
+      .catch(() => setDocs([]));
+  }, [open, docs.length]);
 
   const filteredAgents = useMemo(
     () =>
@@ -131,7 +144,35 @@ export function CommandPalette({ open, onClose, onAction, agents, skills }: Comm
 
   if (!open) return null;
 
-  const hasClientResults = filteredAgents.length > 0 || filteredSkills.length > 0;
+  // Federated, client-side sources: windows/surfaces, settings, documentation.
+  const fedItems = buildPaletteItems(q, {
+    surfaces: SURFACE_REGISTRY,
+    settings: SETTINGS_INDEX,
+    docs,
+  });
+  const fedSurfaces = fedItems.filter(i => i.kind === 'surface');
+  const fedSettings = fedItems.filter(i => i.kind === 'setting');
+  const fedDocs = fedItems.filter(i => i.kind === 'doc');
+
+  const activateFed = (item: (typeof fedItems)[number]) => {
+    if (item.kind === 'surface') {
+      onAction({ id: 'navigate', viewKey: item.viewKey });
+    } else if (item.kind === 'setting') {
+      try {
+        localStorage.setItem(SETTINGS_SEED_KEY, JSON.stringify({ section: item.targetSection }));
+      } catch { /* ignore */ }
+      onAction({ id: 'navigate', viewKey: 'settings' });
+      // Fire after navigation so an already-mounted SettingsView (no remount when
+      // already on Settings) still consumes the seed.
+      try { window.dispatchEvent(new Event('vox-settings-seed')); } catch { /* ignore */ }
+    } else {
+      invoke('open_locator', { locator: { kind: 'file', path: item.path } }).catch(() => {});
+    }
+    onClose();
+  };
+
+  const hasClientResults =
+    filteredAgents.length > 0 || filteredSkills.length > 0 || fedItems.length > 0;
   const hasBackendResults = backendHits.length > 0;
   const noResults = q.length > 0 && !hasClientResults && !hasBackendResults && !backendLoading;
 
@@ -157,7 +198,7 @@ export function CommandPalette({ open, onClose, onAction, agents, skills }: Comm
             autoFocus
             value={q}
             onChange={e => setQ(e.target.value)}
-            placeholder="Search commands, agents, or skills…"
+            placeholder="Search commands, settings, docs, windows, agents…"
             className="flex-1 bg-transparent text-[14px] text-zinc-100 placeholder:text-zinc-600 outline-none"
           />
           {backendLoading && (
@@ -222,6 +263,58 @@ export function CommandPalette({ open, onClose, onAction, agents, skills }: Comm
             );
           })}
 
+          {/* Windows / surfaces */}
+          {fedSurfaces.length > 0 && (
+            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-500 mt-2">Windows</div>
+          )}
+          {fedSurfaces.map((item, i) => (
+            <button
+              key={`surf-${i}`}
+              onClick={() => activateFed(item)}
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-white/[0.04] focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40"
+            >
+              <span className="text-[13px] text-zinc-200">{item.label}</span>
+              <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">{item.detail || 'window'}</span>
+            </button>
+          ))}
+
+          {/* Settings */}
+          {fedSettings.length > 0 && (
+            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-500 mt-2">Settings</div>
+          )}
+          {fedSettings.map((item, i) => (
+            <button
+              key={`set-${i}`}
+              onClick={() => activateFed(item)}
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-white/[0.04] focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40"
+            >
+              <div className="flex flex-col min-w-0">
+                <span className="text-[13px] text-zinc-200">{item.label}</span>
+                <span className="text-[11px] text-zinc-500 truncate max-w-[420px]">{item.detail}</span>
+              </div>
+              <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500 shrink-0 ml-2">settings</span>
+            </button>
+          ))}
+
+          {/* Documentation */}
+          {fedDocs.length > 0 && (
+            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-500 mt-2">Documentation</div>
+          )}
+          {fedDocs.map((item, i) => (
+            <button
+              key={`doc-${i}`}
+              onClick={() => activateFed(item)}
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-white/[0.04] focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40"
+            >
+              <div className="flex flex-col min-w-0">
+                <span className="text-[13px] text-zinc-200 truncate max-w-[440px]">{item.label}</span>
+                <span className="text-[11px] text-zinc-500 truncate max-w-[440px]">{item.detail}</span>
+              </div>
+              <Icon.file className="size-3 text-zinc-500 shrink-0 ml-2" />
+            </button>
+          ))}
+
+          {/* Backend search results */}
           {hasBackendResults && (
             <>
               <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-500 mt-2 border-t border-white/5 flex items-center gap-2">

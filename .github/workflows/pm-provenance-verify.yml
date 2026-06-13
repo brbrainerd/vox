@@ -31,4 +31,4 @@ jobs:
           mkdir -p .vox_modules/provenance
           node='{"schema":"vox.pm.provenance/1","package":"fixture-pkg","version":"0.0.1","content_hash":"ab","built_at_epoch":99,"tool":"ci-fixture","registry":"http://127.0.0.1:9"}'
           printf '%s\n' "$node" > .vox_modules/provenance/fixture-pkg@0.0.1.json
-          cargo run --locked -p vox-cli -- ci pm-provenance --strict
+          cargo run --locked -p vox-cli ci pm-provenance --strict
