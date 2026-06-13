@@ -1056,5 +1056,8 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-matrix-${{ matrix.crate }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-matrix-${{ matrix.crate }}-
+            ${{ runner.os }}-cargo-
       - name: Check with all features
         run: cargo check -p ${{ matrix.crate }} --all-features
