@@ -2,8 +2,8 @@
 title: "VUV Layered Layout Discipline — making Z-fighting and tier inversion structurally unrepresentable (2026)"
 description: "Design memo motivating GA-26: typed Z-tiers, partitioning containers, and Mark<T> typed jump targets. Adopts wlr-layer-shell's four-tier model and i3/Sway's tree-of-partitioning-containers discipline as the structural foundation for VUV view trees."
 category: "Architecture SSOTs"
-status: "research"
-last_updated: "2026-05-10"
+status: "current"
+last_updated: "2026-06-12"
 training_eligible: true
 training_rationale: "Names a class of UI bugs (Z-fighting, accidental occlusion, tier inversion) that appear in every web app and proposes a compile-time prevention strategy grounded in Wayland-compositor practice. Useful as the canonical answer to 'why doesn't VUV expose z-index?'"
 ---
@@ -60,6 +60,20 @@ This is exactly the affordance VUV needs to **eliminate prop-drilling** for cros
 - **Mode-mixing is leaky.** Sway issue [#7591](https://github.com/swaywm/sway/issues/7591) shows mouse-tiling silently dropping a `workspace_layout tabbed` invariant. *Lesson:* invariants expressed only in config (and not in the type system) get bypassed by alternate input paths.
 - **Floating is an unstructured pile.** Once you opt into floating, you lose the tree's guarantees entirely. *Lesson:* VUV's `Float` must itself be a typed primitive that retains tier and mark guarantees, not a free-for-all.
 - **Drop-in i3 compat constrains evolution.** Sway is a near-superset of i3 by design and cannot fix i3's schema mistakes without breaking config compatibility. *Lesson:* VUV is greenfield; we don't owe back-compat to a CSS feature whose semantics are broken.
+
+## §3.5 — Enforcement status (2026-06-12)
+
+As of 2026-06-12 the five rules are wired into the compiler — previously they existed only as unit-tested functions with no production callers. Current state:
+
+| Rule | Status | Where |
+|---|---|---|
+| 1. Partitioning containers; no `position:absolute` inside them | **Enforced** | [`web_ir/validate_layer.rs`](../../../crates/vox-codegen/src/web_ir/validate_layer.rs) — `vox/layer/absolute-in-partition`, `raw-z-index`, `raw-class-occlusion` |
+| 2. Z-tiers a closed enum; one canonical ladder | **Enforced** | `ZTier::z_value()` = tier × 100 (single SSOT); `vox/layer/tier-inversion` over the surface tree |
+| 3. Overlap requires a typed surface parent | **Enforced** | `overlay` is the transparent portal host; `modal`/`toast`/`drawer` carry `data-vox-layer`; everything else is a partition |
+| 4. Subordination as a typed edge | **Partial** | leaf-surface rule (`may_parent_surfaces`: Toast/Popover may not parent surfaces) → `vox/layer/leaf-surface`. Full `Tooltip::for(Mark)` lifetime edges are backlog. |
+| 5. `Mark<T>` typed jump targets | **Backlog** | `HirMark`/`check_duplicate_marks`/`check_dangling_marks` exist but have no surface syntax yet. |
+
+Semantics note: GA-26 acceptance criterion 2 (Modal-inside-Toast refuses) holds via the **leaf-surface** rule, not tier ordering alone — `allows_child` (child ≤ parent) would permit Modal(4) under Toast(5), so `may_parent_surfaces()` is the additional guard. Emit still uses inline `position:fixed` for overlays (portal emission is backlog); the *structural compile-time* guarantees above are independent of that.
 
 ## §4 — The five rules for VUV
 

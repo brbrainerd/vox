@@ -158,6 +158,7 @@ pub async fn publication_novelty_fetch(
     let repo_root = vox_repository::resolve_repo_root_for_ci();
     let scientia_h =
         vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
+    let embedder = super::embedder::CachedLlmEmbedder::from_env(&db);
     let bundle = vox_publisher::scientia_prior_art::fetch_prior_art_federated(
         &client,
         &candidate_id,
@@ -166,6 +167,9 @@ pub async fn publication_novelty_fetch(
         vox_publisher::scientia_prior_art::PriorArtFetchOptions::default(),
         offline,
         &scientia_h,
+        embedder
+            .as_ref()
+            .map(|e| e as &dyn vox_publisher::scientia_semantic::Embedder),
     )
     .await
     .context("prior-art federated fetch")?;
@@ -202,7 +206,155 @@ pub async fn publication_novelty_fetch(
         .await?;
     }
 
-    println!("{}", serde_json::to_string_pretty(&bundle)?);
+    let claim_year = chrono::Datelike::year(&chrono::Utc::now().date_naive());
+    let novelty_config = vox_scientia::inspect_bridge::NoveltyConfig::default();
+    let novelty_assessment = vox_publisher::scientia_novelty_assess::assess_novelty(
+        &bundle,
+        claim_year,
+        &novelty_config,
+    );
+
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema_kind": "scientia_novelty_fetch",
+            "bundle": bundle,
+            "novelty_assessment": novelty_assessment,
+        }))?
+    );
+    Ok(())
+}
+
+/// Default user id for identity lookup — mirrors the `publication-nanopub-build` convention
+/// (the CLI does not expose `--user-id`; it always queries the single account-level identity).
+const DEFAULT_USER_ID: &str = "local-user";
+
+/// Detect the SPDX license identifier from a LICENSE file in the repository root.
+///
+/// Reads up to 4 KB of the first LICENSE file found; checks for "Apache" or "MIT"
+/// (case-insensitive). Returns `None` when no file is present or the text is unrecognised.
+fn detect_repo_license(repo_root: &std::path::Path) -> Option<String> {
+    for name in &["LICENSE", "LICENSE.md", "LICENSE.txt"] {
+        let path = repo_root.join(name);
+        if let Ok(text) = std::fs::read_to_string(&path) {
+            let text = &text[..text.len().min(4096)];
+            let lower = text.to_lowercase();
+            if lower.contains("apache") {
+                return Some("Apache-2.0".into());
+            }
+            if lower.contains("mit license")
+                || lower.contains("permission is hereby granted, free of charge")
+            {
+                return Some("MIT".into());
+            }
+        }
+    }
+    None
+}
+
+/// Run `git remote get-url origin` and return the URL on success.
+/// Uses `CREATE_NO_WINDOW` on Windows so no console window flashes.
+fn git_remote_origin() -> Option<String> {
+    let mut cmd = std::process::Command::new("git");
+    cmd.args(["remote", "get-url", "origin"]);
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let out = cmd.output().ok()?;
+    if out.status.success() {
+        let url = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if url.is_empty() { None } else { Some(url) }
+    } else {
+        None
+    }
+}
+
+/// Deterministic archive-metadata autofill for one publication id.
+///
+/// Without `--apply` the plan is printed as JSON for inspection.
+/// With `--apply` the fills are persisted via digest recompute + upsert,
+/// and before/after completion scores are included in the output.
+pub async fn publication_autofill(publication_id: &str, apply: bool) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let Some(row) = db.get_publication_manifest(publication_id).await? else {
+        anyhow::bail!("publication not found: {publication_id}");
+    };
+    let mut manifest = publication_manifest_from_row(&row);
+
+    // Gather inputs
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let repo_license = detect_repo_license(&repo_root);
+    let git_remote = git_remote_origin();
+
+    let identity_row = db.get_user_identity(DEFAULT_USER_ID).await.ok().flatten();
+    let identity_view = identity_row.map(|r| vox_publisher::scientia_autofill::UserIdentityView {
+        user_id: r.user_id,
+        orcid_id: r.orcid_id,
+    });
+
+    let completeness_before =
+        vox_publisher::scientia_discovery::manifest_completion_report(&manifest);
+
+    let plan = vox_publisher::scientia_autofill::compute_autofill(
+        &manifest,
+        identity_view.as_ref(),
+        repo_license.as_deref(),
+        git_remote.as_deref(),
+    );
+
+    let mut completeness_after: Option<serde_json::Value> = None;
+    let mut applied = false;
+
+    if apply && !plan.fills.is_empty() {
+        let new_meta = vox_publisher::scientia_autofill::apply_autofill(
+            manifest.metadata_json.as_deref(),
+            &mut manifest.abstract_text,
+            &plan,
+        )
+        .context("autofill apply")?;
+        manifest.metadata_json = Some(new_meta);
+        let digest = manifest.content_sha3_256();
+        db.upsert_publication_manifest(vox_db::PublicationManifestParams {
+            publication_id: &manifest.publication_id,
+            content_type: &manifest.content_type,
+            source_ref: manifest.source_ref.as_deref(),
+            title: &manifest.title,
+            author: &manifest.author,
+            abstract_text: manifest.abstract_text.as_deref(),
+            body_markdown: &manifest.body_markdown,
+            citations_json: manifest.citations_json.as_deref(),
+            metadata_json: manifest.metadata_json.as_deref(),
+            revision_history_json: row.revision_history_json.as_deref(),
+            content_sha3_256: &digest,
+            state: row.state.as_str(),
+        })
+        .await?;
+        db.append_publication_status_event(
+            publication_id,
+            "scientia_autofill_applied",
+            Some(&serde_json::json!({ "fills": plan.fills.len(), "digest": digest }).to_string()),
+        )
+        .await?;
+        let report_after = vox_publisher::scientia_discovery::manifest_completion_report(&manifest);
+        completeness_after = Some(serde_json::to_value(&report_after)?);
+        applied = true;
+    }
+
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "publication_id": publication_id,
+            "completeness_before": completeness_before,
+            "plan": plan,
+            "applied": applied,
+            "completeness_after": completeness_after,
+        }))?
+    );
     Ok(())
 }
 

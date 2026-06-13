@@ -8,7 +8,7 @@ use super::spec;
 use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
-pub const BASELINE_VERSION: i64 = 72; // +1: scientia_review_decisions (human-gated discovery review, design §5.1)
+pub const BASELINE_VERSION: i64 = 76; // merge: scientia_discovery_inbox (was 75) + main discovery_state (was 73)
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -117,6 +117,10 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
     SchemaFragment {
         name: "vox_mesh",
         sql: domains::vox_mesh::SCHEMA_VOX_MESH,
+    },
+    SchemaFragment {
+        name: "discovery",
+        sql: domains::discovery::SCHEMA_DISCOVERY,
     },
 ];
 

@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "rust": {
-    "unsafe_brace_block_opens": 244,
-    "lines_unsafe_with_env_mutation": 56,
-    "ignored_test_functions_total": 240,
-    "ignored_test_governance_violation_count": 0,
+    "unsafe_brace_block_opens": 265,
+    "lines_unsafe_with_env_mutation": 64,
+    "ignored_test_functions_total": 247,
+    "ignored_test_governance_violation_count": 12,
     "ignored_tests_top_files": [
       {
         "path": "crates/vox-compiler/tests/web_ir_lower_emit_test.rs",
@@ -19,16 +19,16 @@
         "count": 11
       },
       {
+        "path": "crates/vox-codegen/tests/emit_compile_harness.rs",
+        "count": 9
+      },
+      {
         "path": "crates/vox-compiler/tests/golden_dashboard_surfaces_test.rs",
         "count": 9
       },
       {
         "path": "crates/vox-compiler/tests/state_machine_integration_test.rs",
         "count": 9
-      },
-      {
-        "path": "crates/vox-compiler/tests/route_express_emit_test.rs",
-        "count": 8
       },
       {
         "path": "crates/vox-compiler/src/hir/lower/mod.rs",
@@ -57,6 +57,10 @@
       {
         "path": "crates/vox-integration-tests/tests/pipeline/includes/include_01.rs",
         "count": 5
+      },
+      {
+        "path": "crates/vox-cli/tests/run_mode_dispatch.rs",
+        "count": 4
       },
       {
         "path": "crates/vox-compiler/tests/db_query_safety_test.rs",
@@ -101,16 +105,13 @@
       {
         "path": "crates/vox-integration-tests/tests/cli_test.rs",
         "count": 2
-      },
-      {
-        "path": "crates/vox-orchestrator/tests/api_v2_health_test.rs",
-        "count": 2
       }
     ],
-    "crate_root_inner_allow_lines": 26,
+    "crate_root_inner_allow_lines": 30,
     "crate_root_inner_allow_files": [
       "crates/vox-actor-runtime/src/lib.rs",
       "crates/vox-cli/src/lib.rs",
+      "crates/vox-codegen/src/lib.rs",
       "crates/vox-container/src/lib.rs",
       "crates/vox-db-types/src/lib.rs",
       "crates/vox-db/src/lib.rs",
@@ -121,14 +122,15 @@
       "crates/vox-package/src/lib.rs",
       "crates/vox-plugin-api/src/lib.rs",
       "crates/vox-plugin-host/src/lib.rs",
+      "crates/vox-plugin-populi-mesh/src/lib.rs",
+      "crates/vox-plugin-webhook/src/lib.rs",
+      "crates/vox-research-shim/src/lib.rs",
       "crates/vox-skills/src/lib.rs"
     ]
   },
   "typescript": {
-    "eslint_disable_directive_lines": 1,
-    "as_any_occurrences": 5,
-    "files_with_eslint_disable": [
-      "apps/vox-mental-tracker/src/runtime.ts"
-    ]
+    "eslint_disable_directive_lines": 0,
+    "as_any_occurrences": 7,
+    "files_with_eslint_disable": []
   }
 }

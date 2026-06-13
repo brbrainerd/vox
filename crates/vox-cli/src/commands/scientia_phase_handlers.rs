@@ -735,7 +735,12 @@ pub fn render_latex_handler(scaffold_path: &Path, output: Option<&Path>) -> Resu
 ///
 /// Errors when a figure declared in the scaffold has no corresponding file
 /// under `figures_dir`.
-pub fn arxiv_bundle_handler(scaffold_path: &Path, figures_dir: &Path, output: &Path) -> Result<()> {
+pub fn arxiv_bundle_handler(
+    scaffold_path: &Path,
+    figures_dir: &Path,
+    output: &Path,
+    primary_category: Option<&str>,
+) -> Result<()> {
     let input: vox_scientia::manuscript::scaffold::ScaffoldInput = read_json(scaffold_path)?;
 
     let mut figure_blobs: Vec<(String, Vec<u8>)> = Vec::with_capacity(input.figures.len());
@@ -751,14 +756,42 @@ pub fn arxiv_bundle_handler(scaffold_path: &Path, figures_dir: &Path, output: &P
         figure_blobs.push((f.path.clone(), blob));
     }
 
-    let bytes = vox_scientia::manuscript::latex::render_arxiv_bundle(&input, &figure_blobs)
-        .map_err(|e| anyhow::anyhow!("render_arxiv_bundle: {e}"))?;
+    // Build handoff metadata.  The orcids and license come from the scaffold
+    // when available; no DB lookup is performed here.
+    let (cat, origin) = match primary_category {
+        Some(c) => (c.to_string(), "flag".to_string()),
+        None => ("cs.SE".to_string(), "default".to_string()),
+    };
+    // Extract per-author ORCIDs from the scaffold so the sidecar carries them.
+    let orcids: Vec<(String, Option<String>)> = input
+        .authors
+        .iter()
+        .map(|a| (a.name.clone(), a.orcid.clone()))
+        .collect();
+    let meta = vox_scientia::manuscript::latex::ArxivHandoffMeta {
+        primary_category: cat,
+        category_origin: origin,
+        license_spdx: None, // scaffold does not carry license; operator fills on arXiv
+        comments: None,
+        orcids,
+    };
+
+    let cat_label = meta.primary_category.clone();
+    let origin_label = meta.category_origin.clone();
+    let bytes = vox_scientia::manuscript::latex::render_arxiv_bundle_with_handoff(
+        &input,
+        &figure_blobs,
+        Some(&meta),
+    )
+    .map_err(|e| anyhow::anyhow!("render_arxiv_bundle: {e}"))?;
     std::fs::write(output, &bytes)
         .with_context(|| format!("write arXiv bundle to {}", output.display()))?;
     eprintln!(
-        "arXiv bundle ({} bytes, {} figures) written to {}",
+        "arXiv bundle ({} bytes, {} figures, category: {}, origin: {}) written to {}",
         bytes.len(),
         input.figures.len(),
+        cat_label,
+        origin_label,
         output.display()
     );
     Ok(())
@@ -1202,7 +1235,7 @@ mod tests {
         let figures_dir = tempfile::tempdir().unwrap();
         let outdir = tempfile::tempdir().unwrap();
         let outpath = outdir.path().join("bundle.tar.gz");
-        arxiv_bundle_handler(scaffold.path(), figures_dir.path(), &outpath).unwrap();
+        arxiv_bundle_handler(scaffold.path(), figures_dir.path(), &outpath, None).unwrap();
         let bytes = std::fs::read(&outpath).unwrap();
         let entries = vox_scientia::manuscript::latex::list_bundle_entries(&bytes).unwrap();
         assert!(entries.iter().any(|(p, _)| p == "main.tex"));
@@ -1230,7 +1263,7 @@ mod tests {
         let figures_dir = tempfile::tempdir().unwrap(); // empty
         let outdir = tempfile::tempdir().unwrap();
         let outpath = outdir.path().join("bundle.tar.gz");
-        let err = arxiv_bundle_handler(scaffold.path(), figures_dir.path(), &outpath)
+        let err = arxiv_bundle_handler(scaffold.path(), figures_dir.path(), &outpath, None)
             .unwrap_err()
             .to_string();
         assert!(err.contains("figures/missing.svg"), "got: {err}");

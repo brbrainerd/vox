@@ -98,13 +98,12 @@ pub async fn run(name: Option<&str>, kind: Option<&str>, template: Option<&str>)
         (_, Some("mobile-pwa")) | (_, Some("tauri-mobile")) => {
             println!("  Next steps:");
             println!("    1. pnpm install");
-            println!("    2. vox build src/main.vox -o dist");
+            // Native mobile is the React Native + Expo target, NOT Tauri: ADR
+            // "scope-tauri-desktop-only" keeps Tauri for desktop packaging only.
+            println!("    2. Native mobile: vox build src/main.vox --target mobile -o dist");
             println!(
-                "    3. Follow `{}` (Tauri 2 packaging hints from `vox init`)",
+                "    3. Desktop packaging (optional): follow `{}` (Tauri 2 hints from `vox init`)",
                 TAURI_PACKAGING_HINT_README_REL
-            );
-            println!(
-                "    4. `vox compile --target mobile-android` or `mobile-ios` when tooling is wired"
             );
         }
         _ => {

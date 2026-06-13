@@ -3,7 +3,19 @@
 //! Uses `overlap_summary.max_semantic_score` as the primary signal.
 //! SPECTER2 integration is a stub — Phase 8 wires the actual model.
 
-use vox_research_events::schema_types::NoveltyEvidenceBundle;
+use vox_research_events::schema_types::{NoveltyEvidenceBundle, QueryTrace};
+
+/// Whether a single prior-art query trace represents a successful retrieval.
+///
+/// A trace counts as successful if it was served from cache, or if it carries
+/// an HTTP status in the 2xx success range. A trace with no status and no cache
+/// hit is treated as a failure (we have no evidence the source answered).
+fn trace_succeeded(trace: &QueryTrace) -> bool {
+    if trace.cached == Some(true) {
+        return true;
+    }
+    matches!(trace.http_status, Some(s) if (200..300).contains(&s))
+}
 
 /// The result of an atomic-NEI novelty assessment.
 #[derive(Debug, Clone, PartialEq)]
@@ -17,6 +29,15 @@ pub enum NoveltyVerdict {
         closest_hit_uri: String,
         similarity: f64,
     },
+    /// Prior-art retrieval itself failed (every queried source returned a
+    /// non-success response), so no novelty determination can be made. This is
+    /// distinct from `Novel`: a successful-but-empty search means "no prior art
+    /// found"; a failed search means "we don't know".
+    InsufficientEvidence { reason: String },
+    /// The candidate claim directly conflicts with established prior art.
+    /// Emitted by the contradiction detector (B5); defined here so the verdict
+    /// surface is complete.
+    Contradicted { conflicting_uri: String },
 }
 
 /// Thresholds controlling the novelty classification boundaries.
@@ -55,6 +76,19 @@ impl AtomicNoveltyScorer {
     ///   `semantic_score`, falling back to the first hit if scores are absent)
     /// - otherwise                       → `PossiblyNovel { closest_score }`
     pub fn score(&self, bundle: &NoveltyEvidenceBundle) -> NoveltyVerdict {
+        // Retrieval gate (must run BEFORE the similarity ladder): if we have
+        // per-source query traces and *every* source failed, prior-art
+        // retrieval did not succeed — we cannot conclude novelty. An empty
+        // bundle WITHOUT failed traces (e.g. a successful search that returned
+        // no hits, or no traces at all) is genuine "no signal" and stays Novel.
+        if let Some(traces) = bundle.query_traces.as_ref() {
+            if !traces.is_empty() && traces.iter().all(|t| !trace_succeeded(t)) {
+                return NoveltyVerdict::InsufficientEvidence {
+                    reason: "no prior-art source returned a successful response".into(),
+                };
+            }
+        }
+
         // Derive max score from overlap_summary if present, otherwise scan hits directly.
         let max_score = bundle
             .overlap_summary
@@ -100,7 +134,7 @@ impl AtomicNoveltyScorer {
 mod tests {
     use super::*;
     use vox_research_events::schema_types::{
-        NormalizedHit, NoveltyEvidenceBundle, NoveltySource, OverlapSummary,
+        NormalizedHit, NoveltyEvidenceBundle, NoveltySource, OverlapSummary, QueryTrace,
     };
 
     fn make_bundle(hits: Vec<NormalizedHit>, max_semantic: Option<f64>) -> NoveltyEvidenceBundle {
@@ -168,6 +202,51 @@ mod tests {
             NoveltyVerdict::PossiblyNovel { closest_score }
             if (closest_score - 0.65).abs() < 1e-9
         ));
+    }
+
+    fn trace(source: &str, http_status: Option<i32>, cached: Option<bool>) -> QueryTrace {
+        QueryTrace {
+            source: source.to_string(),
+            request_fingerprint_sha256: "f".repeat(64),
+            http_status,
+            cached,
+        }
+    }
+
+    #[test]
+    fn all_sources_failed_is_insufficient_evidence() {
+        // Empty bundle (max_semantic_score=0.0 → would map to Novel) but every
+        // prior-art source returned a non-success status: retrieval failed.
+        let mut bundle = make_bundle(vec![], Some(0.0));
+        bundle.query_traces = Some(vec![
+            trace("openalex", Some(503), None),
+            trace("crossref", Some(500), None),
+        ]);
+        let scorer = AtomicNoveltyScorer::default();
+        assert!(matches!(
+            scorer.score(&bundle),
+            NoveltyVerdict::InsufficientEvidence { .. }
+        ));
+    }
+
+    #[test]
+    fn partial_failure_is_not_insufficient() {
+        // One source succeeded → not a failure; falls through the normal ladder.
+        let mut bundle = make_bundle(vec![], Some(0.0));
+        bundle.query_traces = Some(vec![
+            trace("openalex", Some(503), None),
+            trace("crossref", Some(200), None),
+        ]);
+        let scorer = AtomicNoveltyScorer::default();
+        assert_eq!(scorer.score(&bundle), NoveltyVerdict::Novel);
+    }
+
+    #[test]
+    fn cached_trace_counts_as_success() {
+        let mut bundle = make_bundle(vec![], Some(0.0));
+        bundle.query_traces = Some(vec![trace("openalex", None, Some(true))]);
+        let scorer = AtomicNoveltyScorer::default();
+        assert_eq!(scorer.score(&bundle), NoveltyVerdict::Novel);
     }
 
     #[test]

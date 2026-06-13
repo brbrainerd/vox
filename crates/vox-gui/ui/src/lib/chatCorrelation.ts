@@ -16,6 +16,8 @@ export interface ChatMessage {
   runId: string;
   taskId?: string;
   error?: string;
+  /** Chat session (tab) this message belongs to. */
+  sessionId?: string;
 }
 
 /** A frame delivered over the `vox://agent-events` Tauri event. */
@@ -62,9 +64,18 @@ export function assistantPersistContent(message: ChatMessage): string {
 }
 
 export type ChatAction =
-  | { type: 'submit'; runId: string; prompt: string }
+  | { type: 'submit'; runId: string; prompt: string; sessionId?: string }
   | { type: 'submitResolved'; runId: string; taskId: string }
+  | { type: 'failRun'; runId: string; error: string }
   | { type: 'agentEvent'; event: AgentEventFrame };
+
+/**
+ * Messages belonging to `sessionId`. Pre-session messages (sessionId == null)
+ * stay visible in whatever tab is active rather than being orphaned.
+ */
+export function messagesForSession(state: ChatState, sessionId: string): ChatMessage[] {
+  return state.messages.filter((m) => m.sessionId === sessionId || m.sessionId == null);
+}
 
 const assistantId = (runId: string) => `${runId}:asst`;
 
@@ -100,6 +111,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         text: action.prompt,
         status: 'done',
         runId: action.runId,
+        sessionId: action.sessionId,
       };
       const assistant: ChatMessage = {
         id: assistantId(action.runId),
@@ -107,6 +119,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         text: '',
         status: 'pending',
         runId: action.runId,
+        sessionId: action.sessionId,
       };
       return { ...state, messages: [...state.messages, user, assistant] };
     }
@@ -116,6 +129,13 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       const next = { ...state, taskToRun: { ...state.taskToRun, [taskId]: action.runId } };
       return mapAssistant(next, action.runId, (m) => ({ ...m, taskId }));
     }
+
+    case 'failRun':
+      return mapAssistant(state, action.runId, (m) => ({
+        ...m,
+        status: 'failed',
+        error: action.error,
+      }));
 
     case 'agentEvent': {
       const { kind } = action.event;

@@ -21,6 +21,21 @@ training_rationale: "Establishes the target architecture for the micro-publicati
 > nanopublication identity is P1**, and **human review is the spine of the whole
 > pipeline**, not an add-on. §12 critiques v1 and explains why v2 is higher
 > quality.
+>
+> **Revision note (2026-06-12, LANDED).** The surfacing-accuracy, producer, and
+> GUI legs of this design have shipped. Novelty now emits a
+> `NoveltyVerdict::InsufficientEvidence` driven by query-trace HTTP health, real
+> semantic prior-art similarity (cosine + Embedder seam, backed by a vox-db
+> `scientia_embedding_cache`), and a single `assess_novelty()` seam wiring
+> ChronoFilter + EvidenceConflict + a `NoveltySignalBreakdown`; `ClaimVerdict::Contradicted`
+> is now reachable via a MiniCheck contradiction score. Automated producers landed
+> as a `discovery-watch` commit watcher plus a code-uniqueness (embedding-kNN)
+> signal, feeding a `scientia_discovery_inbox` table and a
+> `scientia.discovery.surfaced` WS topic, surfaced through three GUI panels
+> (NoveltyEvidencePanel, DiscoveryInbox, ArchivePanel). The archive pipeline is
+> complete: `publication-archive-run` composes autofill-gate → approval → Zenodo
+> (sandbox default) → Software Heritage → receipt; arXiv remains handoff-only and
+> nanopub publishing stays test-server-only.
 
 ## 0. Scope
 
@@ -68,7 +83,7 @@ Legend: **Real** = works end-to-end · **Stub** = placeholder on the path ·
 | Claim extraction | **Real (reachable), low-signal default** | `vox scientia publication-extract-claims` → [`pipeline.rs`](../../../crates/vox-scientia/src/claim_extractor/pipeline.rs); mock verifier unless `VOX_MINICHECK_ENDPOINT` |
 | Prior-art retrieval (vox-publisher) | **Real federated fetch, fake "semantic"** | [`scientia_prior_art.rs`](../../../crates/vox-publisher/src/scientia_prior_art.rs): OpenAlex/Crossref/S2, recency, citations, traces — but `semantic_proxy(lexical)=lexical` |
 | Novelty verdict (vox-scientia `AtomicNoveltyScorer`) | **Orphaned, single-signal, SPECTER2 stub** | [`novelty.rs`](../../../crates/vox-scientia/src/inspect_bridge/novelty.rs) |
-| Micro-publication (nanopub) | **Orphaned + publish stub + non-spec identity + Ed25519** | [`nanopub/`](../../../crates/vox-scientia/src/nanopub/), [`network.rs:15`](../../../crates/vox-scientia/src/nanopub/network.rs:15) |
+| Micro-publication (nanopub) | **Orphaned + publish stub + non-spec identity + Ed25519** | [`nanopub/`](../../../crates/vox-scientia/src/nanopub/), `network.rs` (retired 2026-06-07: dead publish_stub + vox-nanopub removed, spec.rs is SSOT) |
 | Short-form social (Scientia) | **Orphaned truncation stub; excludes Twitter; UTF-8 panic** | [`publication_format.rs`](../../../crates/vox-research-events/src/publication_format.rs) |
 | Social syndication (vox-publisher) | **Real adapters incl. Twitter/X** | [`adapters/twitter.rs`](../../../crates/vox-publisher/src/adapters/twitter.rs) — driven by RSS/news, not claims |
 | `EvidenceConflict` / `ChronoFilter` | **Built, unwired** | [`conflict.rs`](../../../crates/vox-scientia/src/inspect_bridge/conflict.rs), [`chronofact.rs`](../../../crates/vox-scientia/src/inspect_bridge/chronofact.rs) |
@@ -77,7 +92,7 @@ Legend: **Real** = works end-to-end · **Stub** = placeholder on the path ·
 **Seven drift seams nothing keeps in sync:** (1) two Trusty-URI impls that
 disagree — [`preregistration/trusty_uri.rs`](../../../crates/vox-orchestrator/src/preregistration/trusty_uri.rs)
 (`RA`+base64url(SHA-256(canonical JSON))) vs nanopub
-[`trig.rs:57`](../../../crates/vox-nanopub/src/trig.rs:57) (`RA`+**hex**),
+`trig.rs:57` (retired 2026-06-07: vox-nanopub deleted; see [`spec.rs`](../../../crates/vox-scientia/src/nanopub/spec.rs)) (`RA`+**hex**),
 **neither hashing normalized RDF**; (2) two novelty scorers; (3) **two
 `NoveltyEvidenceBundle` types** — `vox-research-events` (read by the scorer) vs
 `NoveltyEvidenceBundleV1` in [`scientia_finding_ledger.rs`](../../../crates/vox-publisher/src/scientia_finding_ledger.rs)
@@ -185,7 +200,7 @@ asserts this." A single shared Vox key is therefore the wrong model on every axi
 - **Vox-the-project** MAY hold a *separate, distinct* identity for
   project-authored artifacts (e.g. the automated Provider Atlas) — that is one
   more identity, **not** a key shared across users.
-- **Retire the hand-rolled hex "trusty URI"** ([`trig.rs:57`](../../../crates/vox-nanopub/src/trig.rs:57))
+- **Retire the hand-rolled hex "trusty URI"** (`trig.rs:57` (retired 2026-06-07: vox-nanopub deleted; see [`spec.rs`](../../../crates/vox-scientia/src/nanopub/spec.rs)))
   and the base64url prereg variant in favor of the one spec-compliant module;
   the preregistration `trusty_uri.rs` becomes a caller of the shared module.
 - **Enrich the assertion/provenance graphs** with the `SciClaimTuple`,

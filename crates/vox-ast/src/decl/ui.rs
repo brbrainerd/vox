@@ -141,6 +141,10 @@ pub struct AstColorToken {
     pub name: String,
     pub light: String,
     pub dark: String,
+    /// Optional `on: <bg-token>` pairing — declares this color is foreground text
+    /// rendered on the named background token. Drives the compile-time WCAG check.
+    #[serde(default)]
+    pub pair_bg: Option<String>,
     pub span: Span,
 }
 
@@ -191,6 +195,9 @@ pub struct ReactiveComponentDecl {
     /// Scoped CSS blocks following the component body (same as classic `@component fn`).
     #[serde(default)]
     pub styles: Vec<StyleBlock>,
+    /// Optional `@layer(tier:)` decorator declaring this component's Z-tier (GA-26).
+    #[serde(default)]
+    pub layer: Option<crate::decl::layer_decorator::AstLayerSpec>,
     /// Source span.
     pub span: Span,
 }

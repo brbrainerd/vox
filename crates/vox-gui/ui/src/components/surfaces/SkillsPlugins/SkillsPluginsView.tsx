@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
+import { mapDiscoveredSkills, type DiscoveredSkill } from './discovery';
 
 // ── Wire types (mirror the MCP tool JSON envelopes) ────────────────────────
 interface SkillInfo {
@@ -35,7 +36,7 @@ interface SkillsPluginsViewProps {
   pushToast: (t: any) => void;
 }
 
-type Tab = 'installed' | 'marketplace';
+type Tab = 'installed' | 'marketplace' | 'discovered';
 
 // Every tool call routes through the single persistent daemon via invoke_mcp_tool —
 // no dedicated Tauri command. Mutating calls (install/remove/uninstall) flow through
@@ -61,6 +62,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
   const [catalogPlugins, setCatalogPlugins] = useState<CatalogPlugin[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchHits, setSearchHits] = useState<SkillInfo[]>([]);
+  const [discovered, setDiscovered] = useState<DiscoveredSkill[]>([]);
 
   const refreshInstalled = useCallback(async () => {
     setLoading(true);
@@ -93,10 +95,23 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
     }
   }, [pushToast]);
 
+  const refreshDiscovered = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await callTool('vox_skill_discover');
+      setDiscovered(mapDiscoveredSkills(unwrap(res?.result)));
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Discovery failed', body: String(err) });
+    } finally {
+      setLoading(false);
+    }
+  }, [pushToast]);
+
   useEffect(() => {
     if (tab === 'installed') refreshInstalled();
-    else refreshMarketplace();
-  }, [tab, refreshInstalled, refreshMarketplace]);
+    else if (tab === 'marketplace') refreshMarketplace();
+    else refreshDiscovered();
+  }, [tab, refreshInstalled, refreshMarketplace, refreshDiscovered]);
 
   const runSearch = useCallback(async () => {
     const q = searchQuery.trim();
@@ -167,9 +182,16 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
           <div className="ml-4 flex items-center gap-1">
             <TabButton id="installed" label="Installed" />
             <TabButton id="marketplace" label="Marketplace" />
+            <TabButton id="discovered" label="Discovered" />
           </div>
           <button
-            onClick={() => (tab === 'installed' ? refreshInstalled() : refreshMarketplace())}
+            onClick={() =>
+              tab === 'installed'
+                ? refreshInstalled()
+                : tab === 'marketplace'
+                  ? refreshMarketplace()
+                  : refreshDiscovered()
+            }
             className="ml-auto flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5"
           >
             <Icon.refresh className="size-3" /> refresh
@@ -178,6 +200,11 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
 
         {loading ? (
           <div className="text-sm text-zinc-500">Loading…</div>
+        ) : tab === 'discovered' ? (
+          <DiscoveredTab
+            discovered={discovered}
+            onSkillUse={(id) => showInfo('vox_skill_use', { id })}
+          />
         ) : tab === 'installed' ? (
           <InstalledTab
             skills={skills}
@@ -331,6 +358,37 @@ function MarketplaceTab(props: {
                 { label: 'Info', onClick: () => onPluginInfo(p.id), tone: 'neutral' },
                 { label: 'Install', onClick: () => onInstallPlugin(p.id), tone: 'ok' },
               ]}
+            />
+          ))
+        )}
+      </Section>
+    </div>
+  );
+}
+
+// ── Discovered tab ───────────────────────────────────────────────────────────
+// Bare SKILL.md skills found under the standard interop roots
+// (.vox/.agents/.claude × workspace+home). Skills under these roots auto-load
+// into the registry at daemon start; this tab surfaces what is discoverable
+// on disk and whether each is currently active.
+function DiscoveredTab(props: { discovered: DiscoveredSkill[]; onSkillUse: (id: string) => void }) {
+  const { discovered, onSkillUse } = props;
+  return (
+    <div className="flex flex-col gap-5">
+      <Section title="Discovered skills" count={discovered.length}>
+        {discovered.length === 0 ? (
+          <Empty text="No SKILL.md skills found under .vox/.agents/.claude roots." />
+        ) : (
+          discovered.map((s) => (
+            <Row
+              key={s.path || s.id}
+              id={s.id}
+              title={s.name || s.id}
+              subtitle={s.description}
+              version={s.installed ? 'active' : 'discovered'}
+              tags={[s.installed ? 'installed' : 'not-installed', s.path].filter(Boolean)}
+              busy={false}
+              actions={[{ label: 'View', onClick: () => onSkillUse(s.id), tone: 'neutral' }]}
             />
           ))
         )}

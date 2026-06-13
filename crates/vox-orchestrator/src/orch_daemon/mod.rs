@@ -283,6 +283,31 @@ pub async fn dispatch_request(
                 .get("tenant_id")
                 .and_then(|x| x.as_str())
                 .map(ToString::to_string);
+            // Near-duplicate scan over live (queued + in-progress) tasks. When a
+            // near-duplicate exists and the caller did not opt in, refuse and
+            // report which task it matched so the GUI can offer merge/skip.
+            let allow_duplicate = req
+                .params
+                .get("allow_duplicate")
+                .and_then(|x| x.as_bool())
+                .unwrap_or(true);
+            let duplicate_of = orch
+                .all_tasks()
+                .iter()
+                .filter(|t| {
+                    crate::services::similarity::jaccard(&t.description, description)
+                        >= crate::services::similarity::NEAR_DUPLICATE_THRESHOLD
+                })
+                .map(|t| t.id.0)
+                .next();
+            if let Some(dup) = duplicate_of {
+                if !allow_duplicate {
+                    return response_result(
+                        &req.id,
+                        serde_json::json!({ "task_id": null, "duplicate_of": dup }),
+                    );
+                }
+            }
             match orch
                 .submit_task_with_agent(
                     description.to_string(),
@@ -296,9 +321,10 @@ pub async fn dispatch_request(
                 )
                 .await
             {
-                Ok(task_id) => {
-                    response_result(&req.id, serde_json::json!({ "task_id": task_id.0 }))
-                }
+                Ok(task_id) => response_result(
+                    &req.id,
+                    serde_json::json!({ "task_id": task_id.0, "duplicate_of": duplicate_of }),
+                ),
                 Err(e) => response_err(&req.id, format!("{e}")),
             }
         }
@@ -364,6 +390,56 @@ pub async fn dispatch_request(
             match orch.reorder_task(TaskId(task_id), priority) {
                 Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
                 Err(e) => response_err(&req.id, format!("{e}")),
+            }
+        }
+        orch_daemon_method::LIST_TASKS => {
+            let assignments = orch.task_assignments_copy();
+            let tasks: Vec<serde_json::Value> = orch
+                .all_tasks()
+                .into_iter()
+                .map(|t| {
+                    let agent_id = assignments.get(&t.id).map(|a| a.0);
+                    let lifecycle = orch
+                        .task_lifecycle_status_label(t.id)
+                        .unwrap_or_else(|| "unknown".to_string());
+                    let write_files: Vec<String> = t
+                        .file_manifest
+                        .iter()
+                        .filter(|f| matches!(f.access, crate::AccessKind::Write))
+                        .map(|f| f.path.to_string_lossy().to_string())
+                        .collect();
+                    serde_json::json!({
+                        "id": t.id.0,
+                        "description": t.description,
+                        "priority": t.priority,            // raw: "Urgent"|"Normal"|"Background"
+                        "status": t.status,
+                        "lifecycle": lifecycle,            // raw: "Completed"|"InProgress"|"Blocked"|"Queued"
+                        "agent_id": agent_id,
+                        "session_id": t.session_id,
+                        "estimated_complexity": t.estimated_complexity,
+                        "depends_on": t.depends_on.iter().map(|d| d.0).collect::<Vec<u64>>(),
+                        "write_files": write_files,
+                        // A2A remote delegation: the mesh node that claimed this
+                        // task (null when executing locally).
+                        "remote_node": t
+                            .populi_remote_delegate
+                            .as_ref()
+                            .and_then(|d| d.claimer_node_id.clone()),
+                    })
+                })
+                .collect();
+            response_result(&req.id, serde_json::json!({ "tasks": tasks }))
+        }
+        orch_daemon_method::EDIT_TASK => {
+            let Some(task_id) = req.params.get("task_id").and_then(|x| x.as_u64()) else {
+                return response_err(&req.id, "params.task_id (u64) required");
+            };
+            let Some(description) = req.params.get("description").and_then(|x| x.as_str()) else {
+                return response_err(&req.id, "params.description (string) required");
+            };
+            match orch.edit_task_description(TaskId(task_id), description.to_string()) {
+                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Err(e) => response_err(&req.id, e),
             }
         }
         orch_daemon_method::DRAIN_AGENT => {
@@ -543,6 +619,334 @@ fn handle_vcs_isolation_set_strategy(
 
     let v = crate::json_vcs_facade::isolation_status_json(orch);
     response_result(id, v)
+}
+
+#[cfg(test)]
+mod isolation_dispatch_tests {
+    use super::*;
+    use crate::config::OrchestratorConfig;
+
+    fn req(method: &str, params: serde_json::Value) -> DispatchRequest {
+        DispatchRequest {
+            id: "1".to_string(),
+            method: method.to_string(),
+            params,
+        }
+    }
+
+    fn result_value(resp: &DispatchResponse) -> &serde_json::Value {
+        match &resp.payload {
+            DispatchPayload::Result { value } => value,
+            other => panic!("expected Result payload, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn status_returns_default_and_empty_collections() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::default()));
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::VCS_ISOLATION_STATUS,
+                serde_json::json!({}),
+            ),
+        )
+        .await;
+        let v = result_value(&resp);
+        assert_eq!(v["strategy_default"], "shared_branch");
+        assert_eq!(v["per_agent"].as_object().map(|m| m.len()), Some(0));
+        assert_eq!(v["active_conflicts"].as_array().map(|a| a.len()), Some(0));
+    }
+
+    #[tokio::test]
+    async fn set_strategy_default_persists_in_shared_orchestrator() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::default()));
+        let set = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::VCS_ISOLATION_SET_STRATEGY,
+                serde_json::json!({ "strategy_default": "separate_branches" }),
+            ),
+        )
+        .await;
+        assert_eq!(result_value(&set)["strategy_default"], "separate_branches");
+
+        // A subsequent status call against the SAME orchestrator must observe it.
+        let status = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::VCS_ISOLATION_STATUS,
+                serde_json::json!({}),
+            ),
+        )
+        .await;
+        assert_eq!(
+            result_value(&status)["strategy_default"],
+            "separate_branches"
+        );
+    }
+
+    #[tokio::test]
+    async fn set_then_clear_per_agent_override() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::default()));
+        let set = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::VCS_ISOLATION_SET_STRATEGY,
+                serde_json::json!({ "agent_id": 7, "strategy": "split_changes" }),
+            ),
+        )
+        .await;
+        assert_eq!(result_value(&set)["per_agent"]["7"], "split_changes");
+
+        let clear = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::VCS_ISOLATION_SET_STRATEGY,
+                serde_json::json!({ "agent_id": 7, "strategy": serde_json::Value::Null }),
+            ),
+        )
+        .await;
+        assert_eq!(
+            result_value(&clear)["per_agent"]
+                .as_object()
+                .map(|m| m.len()),
+            Some(0)
+        );
+    }
+
+    #[tokio::test]
+    async fn set_with_no_fields_is_error() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::default()));
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::VCS_ISOLATION_SET_STRATEGY,
+                serde_json::json!({}),
+            ),
+        )
+        .await;
+        assert!(matches!(resp.payload, DispatchPayload::Error { .. }));
+    }
+
+    #[tokio::test]
+    async fn invalid_strategy_is_error() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::default()));
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::VCS_ISOLATION_SET_STRATEGY,
+                serde_json::json!({ "strategy_default": "bogus" }),
+            ),
+        )
+        .await;
+        assert!(matches!(resp.payload, DispatchPayload::Error { .. }));
+    }
+}
+
+#[cfg(test)]
+mod task_dispatch_tests {
+    use super::*;
+    use crate::config::OrchestratorConfig;
+
+    fn req(method: &str, params: serde_json::Value) -> DispatchRequest {
+        DispatchRequest {
+            id: "1".to_string(),
+            method: method.to_string(),
+            params,
+        }
+    }
+
+    fn result_value(resp: &DispatchResponse) -> &serde_json::Value {
+        match &resp.payload {
+            DispatchPayload::Result { value } => value,
+            other => panic!("expected Result payload, got {other:?}"),
+        }
+    }
+
+    async fn orch_with_one_task() -> (Arc<Orchestrator>, u64) {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+        orch.spawn_agent("a1").unwrap();
+        // NOTE: SUBMIT_TASK parses `priority` as the TaskPriority serde enum
+        // (Capitalized "Normal"); omit it to default to Normal. Lowercase
+        // priority strings are only accepted by REORDER_TASK.
+        let resp = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({ "description": "first task" }),
+            ),
+        )
+        .await;
+        let task_id = result_value(&resp)["task_id"].as_u64().unwrap();
+        (orch, task_id)
+    }
+
+    #[tokio::test]
+    async fn list_tasks_returns_submitted_task_with_fields() {
+        let (orch, task_id) = orch_with_one_task().await;
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(orch_daemon_method::LIST_TASKS, serde_json::json!({})),
+        )
+        .await;
+        let v = result_value(&resp);
+        let tasks = v["tasks"].as_array().expect("tasks array");
+        assert_eq!(tasks.len(), 1);
+        let t = &tasks[0];
+        assert_eq!(t["id"].as_u64(), Some(task_id));
+        assert_eq!(t["description"].as_str(), Some("first task"));
+        assert!(t["priority"].is_string());
+        assert!(t["lifecycle"].is_string());
+        assert!(t.get("agent_id").is_some());
+        assert!(t["write_files"].is_array());
+        // remote_node key is always present (null for a locally-executing task).
+        assert!(t.get("remote_node").is_some());
+        assert!(t["remote_node"].is_null());
+    }
+
+    #[tokio::test]
+    async fn edit_task_rewrites_description_of_queued_task() {
+        let (orch, task_id) = orch_with_one_task().await;
+        let resp = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::EDIT_TASK,
+                serde_json::json!({ "task_id": task_id, "description": "rewritten" }),
+            ),
+        )
+        .await;
+        assert_eq!(result_value(&resp)["ok"], true);
+
+        let list = dispatch_request(
+            "rid",
+            orch,
+            &req(orch_daemon_method::LIST_TASKS, serde_json::json!({})),
+        )
+        .await;
+        let tasks = result_value(&list)["tasks"].as_array().unwrap();
+        assert_eq!(tasks[0]["description"].as_str(), Some("rewritten"));
+    }
+
+    #[tokio::test]
+    async fn edit_task_unknown_id_is_error() {
+        let (orch, _) = orch_with_one_task().await;
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::EDIT_TASK,
+                serde_json::json!({ "task_id": 999_999, "description": "x" }),
+            ),
+        )
+        .await;
+        assert!(matches!(resp.payload, DispatchPayload::Error { .. }));
+    }
+
+    #[tokio::test]
+    async fn edit_task_empty_description_is_error() {
+        let (orch, task_id) = orch_with_one_task().await;
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::EDIT_TASK,
+                serde_json::json!({ "task_id": task_id, "description": "  " }),
+            ),
+        )
+        .await;
+        assert!(matches!(resp.payload, DispatchPayload::Error { .. }));
+    }
+
+    #[tokio::test]
+    async fn near_duplicate_blocked_when_not_allowed() {
+        let (orch, first_id) = orch_with_one_task().await; // "first task"
+        let resp = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({
+                    "description": "first task",
+                    "allow_duplicate": false,
+                }),
+            ),
+        )
+        .await;
+        let v = result_value(&resp);
+        assert_eq!(v["duplicate_of"].as_u64(), Some(first_id));
+        assert!(v["task_id"].is_null());
+        assert_eq!(orch.all_tasks().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn near_duplicate_enqueued_but_flagged_when_allowed() {
+        let (orch, first_id) = orch_with_one_task().await;
+        let resp = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({ "description": "first task" }), // allow_duplicate defaults true
+            ),
+        )
+        .await;
+        let v = result_value(&resp);
+        assert!(v["task_id"].as_u64().is_some());
+        assert_eq!(v["duplicate_of"].as_u64(), Some(first_id));
+        assert_eq!(orch.all_tasks().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn distinct_task_has_no_duplicate_flag() {
+        let (orch, _) = orch_with_one_task().await;
+        let resp = dispatch_request(
+            "rid",
+            orch,
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({ "description": "completely unrelated migration work" }),
+            ),
+        )
+        .await;
+        assert!(result_value(&resp)["duplicate_of"].is_null());
+    }
+
+    #[tokio::test]
+    async fn submit_with_enqueue_hints_carries_tier_and_mode() {
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+        orch.spawn_agent("a1").unwrap();
+        let resp = dispatch_request(
+            "rid",
+            Arc::clone(&orch),
+            &req(
+                orch_daemon_method::SUBMIT_TASK,
+                serde_json::json!({
+                    "description": "tiered task",
+                    "enqueue_hints": { "model_preference": "mesh", "mode": "plan" }
+                }),
+            ),
+        )
+        .await;
+        let task_id = result_value(&resp)["task_id"].as_u64().unwrap();
+        let task = orch
+            .all_tasks()
+            .into_iter()
+            .find(|t| t.id.0 == task_id)
+            .unwrap();
+        assert_eq!(task.model_preference.as_deref(), Some("mesh"));
+        assert_eq!(task.mode.as_deref(), Some("plan"));
+    }
 }
 
 /// Optional out-of-band dispatcher for methods that need state the core daemon

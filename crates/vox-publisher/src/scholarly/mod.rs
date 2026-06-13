@@ -8,6 +8,7 @@ mod idempotency;
 mod openreview;
 pub mod orcid_oauth;
 mod osf;
+pub mod software_heritage;
 mod zenodo;
 
 #[cfg(feature = "scholarly-external-jobs")]

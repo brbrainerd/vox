@@ -28,6 +28,12 @@ pub(super) fn default_scaling_threshold() -> usize {
 pub(super) fn default_idle_retirement() -> u64 {
     300_000
 }
+pub(super) fn default_scale_cpu_ceiling_pct() -> f32 {
+    85.0
+}
+pub(super) fn default_scale_mem_floor_mb() -> u64 {
+    1024
+}
 pub(super) fn default_cost_preference() -> CostPreference {
     // Free-by-default: economy is the baseline; callers must opt-in to Performance explicitly.
     CostPreference::Economy

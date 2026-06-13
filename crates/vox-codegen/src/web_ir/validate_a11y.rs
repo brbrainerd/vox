@@ -268,7 +268,8 @@ fn walk_contrast(
             let surface_ctx: Option<(String, String)> = if let Some(surface_name) = attrs
                 .iter()
                 .find(|(k, _)| k == "data-vox-surface")
-                .map(|(_, v)| v.as_str())
+                // Attr values are JSON-encoded TS-expression strings (lower.rs) — strip quotes.
+                .map(|(_, v)| v.as_str().trim_matches('"'))
             {
                 registry
                     .lookup_surface(surface_name)

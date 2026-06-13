@@ -18,6 +18,8 @@ pub enum SecretId {
     OllamaModel,
     HuggingFaceToken,
     ForgeToken,
+    /// Expo / EAS access token for `eas` CLI build & submit flows.
+    ExpoToken,
     GroqApiKey,
     CerebrasApiKey,
     MistralApiKey,
@@ -159,6 +161,7 @@ pub enum SecretId {
     VoxMeshHttpRateLimit,
     VoxMeshVisibility,
     VoxMeshDonationPolicyJson,
+    VoxMeshDonationPolicyPath,
     VoxOrchestratorEnabled,
     VoxOrchestratorMaxAgents,
     VoxOrchestratorLockTimeoutMs,
@@ -584,6 +587,7 @@ impl SecretId {
             | SecretId::OpenaiApiKey
             | SecretId::AnthropicApiKey
             | SecretId::HuggingFaceToken
+            | SecretId::ExpoToken
             | SecretId::GroqApiKey
             | SecretId::CerebrasApiKey
             | SecretId::MistralApiKey

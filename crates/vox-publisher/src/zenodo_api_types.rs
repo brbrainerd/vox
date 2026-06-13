@@ -17,6 +17,22 @@ pub struct ZenodoDepositionMetadata {
     pub creators: Vec<ZenodoCreator>,
     pub access_right: String,
     pub license: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub publication_date: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub keywords: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub related_identifiers: Vec<ZenodoRelatedIdentifier>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ZenodoRelatedIdentifier {
+    pub identifier: String,
+    pub relation: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resource_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

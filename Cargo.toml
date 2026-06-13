@@ -24,7 +24,7 @@ edition = "2024"
 license = "Apache-2.0"
 authors = ["Bert Brainerd"]
 repository = "https://github.com/vox-foundation/vox.git"
-rust-version = "1.95"
+rust-version = "1.96"
 keywords = ["vox", "language", "compilers"]
 categories = ["development-tools", "compilers"]
 
@@ -52,7 +52,6 @@ debug = 0
 
 [workspace.dependencies]
 vox-scientia = { path = "crates/vox-scientia" }
-vox-nanopub               = { path = "crates/vox-nanopub" }
 vox-ast                   = { path = "crates/vox-ast" }
 workspace-hack            = { path = "crates/workspace-hack" }
 # Internal crates
@@ -107,6 +106,7 @@ vox-hf-layout              = { path = "crates/vox-hf-layout" }
 vox-populi                = { path = "crates/vox-populi" }
 vox-populi-types          = { path = "crates/vox-populi-types" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
+vox-mesh-policy           = { path = "crates/vox-mesh-policy" }
 vox-mesh-types            = { path = "crates/vox-mesh-types" }
 
 vox-effort-audit          = { path = "crates/vox-effort-audit" }

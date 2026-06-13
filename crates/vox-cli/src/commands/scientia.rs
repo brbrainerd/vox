@@ -168,6 +168,31 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                         publication_id,
                     })
                 }
+                ScientiaCmd::PublicationAutofill {
+                    publication_id,
+                    apply,
+                } => DbCli::Publication(DbCliPublication::PublicationAutofill {
+                    publication_id,
+                    apply,
+                }),
+                ScientiaCmd::PublicationArchiveCode {
+                    publication_id,
+                    origin_url,
+                    wait,
+                } => DbCli::Publication(DbCliPublication::PublicationArchiveCode {
+                    publication_id,
+                    origin_url,
+                    wait,
+                }),
+                ScientiaCmd::PublicationArchiveRun {
+                    publication_id,
+                    production,
+                    publish,
+                } => DbCli::Publication(DbCliPublication::PublicationArchiveRun {
+                    publication_id,
+                    production,
+                    publish,
+                }),
                 ScientiaCmd::PublicationTransformPreview { publication_id } => {
                     DbCli::Publication(DbCliPublication::PublicationTransformPreview {
                         publication_id,
@@ -302,6 +327,9 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     kind,
                     interval_ms,
                 }),
+                ScientiaCmd::DiscoveryWatch { once, repo, limit } => {
+                    DbCli::Publication(DbCliPublication::DiscoveryWatch { once, repo, limit })
+                }
                 ScientiaCmd::FeedSourceList => DbCli::Publication(DbCliPublication::FeedSourceList),
                 ScientiaCmd::Diagnose { live } => {
                     return diagnose_adapters(live).await;
@@ -373,15 +401,16 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     publication_id,
                     claim_id,
                     orcid,
+                    publish_test_server,
                 } => {
                     // Connect to the live Codex DB, build + offline-validate the
-                    // signed nanopub (NO network publish), and print the Trusty URI.
+                    // signed nanopub, then optionally publish to the TEST server.
                     let db = vox_db::VoxDb::connect_default()
                         .await
                         .map_err(|e| anyhow::anyhow!("connect to default Codex / VoxDb: {e}"))?;
-                    // SECURITY GATE (P2 Task 3): obtain a content-bound approval
-                    // token from the review ledger BEFORE building. Without an
-                    // "approved" decision this refuses — no nanopub is emitted.
+                    // SECURITY GATE: obtain a content-bound approval token from
+                    // the review ledger BEFORE building. Without an "approved"
+                    // decision this refuses — no nanopub is emitted.
                     let token =
                         super::scientia_nanopub::approval_for(&db, &publication_id, claim_id)
                             .await?;
@@ -398,6 +427,23 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     // line to stdout during offline validation, which would
                     // corrupt machine output. See `scientia_nanopub::nanopub_build`.
                     println!("{}", signed.trusty_uri);
+
+                    if publish_test_server {
+                        // Dual-gate: ApprovalToken (already held) + env var
+                        // VOX_NANOPUB_TEST_SERVER=1. The env-var check happens
+                        // inside `nanopub_publish_test_server` → `ensure_test_server_allowed`.
+                        let user_id = vox_config::paths::local_user_id();
+                        let published_uri = super::scientia_nanopub::nanopub_publish_test_server(
+                            &db,
+                            &publication_id,
+                            claim_id,
+                            &token,
+                            &user_id,
+                            orcid.as_deref(),
+                        )
+                        .await?;
+                        println!("published: {published_uri}");
+                    }
                     return Ok(());
                 }
                 ScientiaCmd::Claims { publication_id } => {
@@ -436,11 +482,13 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     scaffold,
                     figures_dir,
                     output,
+                    primary_category,
                 } => {
                     return super::scientia_phase_handlers::arxiv_bundle_handler(
                         &scaffold,
                         &figures_dir,
                         &output,
+                        primary_category.as_deref(),
                     );
                 }
                 ScientiaCmd::PublicationVenueRecommend {

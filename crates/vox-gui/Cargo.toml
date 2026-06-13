@@ -10,6 +10,9 @@ build = "build.rs"
 [features]
 gui = []
 default = ["gui"]
+# Desktop speech-to-text: pulls cpal/hound mic capture (via vox-ml-cli's
+# `oratio-mic`) + the Oratio plugin host. Default-OFF to keep the stock GUI lean.
+oratio = ["dep:vox-ml-cli", "dep:vox-plugin-host"]
 
 [dependencies]
 vox-cli = { workspace = true }
@@ -24,14 +27,18 @@ vox-db = { workspace = true }
 vox-gamify = { path = "../vox-gamify" }
 vox-secrets = { workspace = true }
 vox-scientia = { workspace = true }
+vox-publisher = { workspace = true }
+chrono = { workspace = true }
 vox-actor-runtime = { workspace = true }
 vox-identity = { workspace = true }
 vox-crypto = { workspace = true }
 vox-search = { workspace = true }
+vox-ml-cli = { workspace = true, optional = true, features = ["oratio-mic"] }
+vox-plugin-host = { workspace = true, optional = true }
 vox-speech = { workspace = true, features = ["stt-candle"] }
 cpal = { workspace = true }
 hound = { workspace = true }
-uuid = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
 toml = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
@@ -41,6 +48,7 @@ tauri-plugin-shell = { version = "2" }
 tauri-plugin-dialog = { version = "2" }
 rmp-serde = "1.1"
 serde_bytes = "0.11"
+portable-pty = "0.9"
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
