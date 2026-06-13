@@ -246,5 +246,5 @@ gui-*.log
 
 # Local `act` artifact server output (see .actrc --artifact-server-path)
 .act-artifacts/
-# graphify knowledge-graph artifacts (local tooling)
+# graphify knowledge-graph artifacts (local tooling) — large, regenerable
 graphify-out/
