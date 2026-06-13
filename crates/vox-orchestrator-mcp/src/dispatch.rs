@@ -256,6 +256,21 @@ pub async fn handle_tool_call(
         }
     });
 
+    // Verification-driven loop: after a successful file-mutating tool, auto-run
+    // `vox check` on the touched `.vox` file and surface any error diagnostics back
+    // inside the tool result, so the agent self-corrects on its next turn without
+    // having to remember to validate. No-op for non-mutating tools, non-`.vox` paths,
+    // clean files, or when disabled via `VOX_VERIFY_ON_WRITE`. See `post_verification`.
+    let result = match result {
+        Ok(payload) => {
+            Ok(
+                crate::post_verification::verify_and_attach(state, name_canonical, &args, payload)
+                    .await,
+            )
+        }
+        Err(e) => Err(e),
+    };
+
     let duration_ms = start_time.elapsed().as_millis() as i64;
 
     if let Some(ref tid) = trace_for_telemetry {
