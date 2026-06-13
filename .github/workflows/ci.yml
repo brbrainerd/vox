@@ -89,7 +89,7 @@ jobs:
       - name: Build vox-cli (warms sccache + downstream artifact)
         run: cargo build -p vox-cli --locked --features completion-toestub
       - name: Upload vox-cli binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vox-cli-bin
           path: target/debug/vox

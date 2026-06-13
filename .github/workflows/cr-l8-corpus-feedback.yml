@@ -160,7 +160,7 @@ jobs:
       # ────────────────────────────────────────────────────────────────────
       - name: Upload CR-L8 artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cr-l8-corpus-feedback-${{ github.run_id }}
           path: |
@@ -290,7 +290,7 @@ jobs:
 
       - name: Upload stdlib-coverage artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: stdlib-coverage-${{ github.run_id }}
           path: |
@@ -400,7 +400,7 @@ jobs:
 
       - name: Upload scripts-check artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: scripts-check-${{ github.run_id }}
           path: |

@@ -84,7 +84,7 @@ jobs:
 
       - name: Upload mutants report
         if: steps.changed.outputs.any_changed == 'true' && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mutants-${{ matrix.crate }}-pr${{ github.event.pull_request.number }}
           path: mutants-out/${{ matrix.crate }}/
