@@ -44,6 +44,9 @@ where
                 inferred_types
                     .and_then(|m| m.get(span))
                     .and_then(struct_from_inferred)
+                    // Script lane: `inferred_types` is empty, so fall back to the
+                    // `<Type>_from_json` body hint recorded by `enter_from_json`.
+                    .or_else(super::json_as_ctx::current_from_json_struct)
             };
             if let Some(type_name) = inferred_named {
                 let props: Vec<String> = fields
