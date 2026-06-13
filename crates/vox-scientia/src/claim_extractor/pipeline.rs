@@ -11,6 +11,10 @@ pub struct ExtractionConfig {
     pub atomic: AtomicConfig,
     pub abstain_threshold: f64,
     pub promotion_threshold: f64,
+    /// Minimum `contradiction_score` from the verifier that promotes a verdict to
+    /// `Contradicted` instead of `Abstain` or `Contested`.  Checked before the
+    /// abstain/support/contest ladder so a high-confidence contradiction always wins.
+    pub contradiction_threshold: f64,
 }
 
 impl Default for ExtractionConfig {
@@ -20,6 +24,7 @@ impl Default for ExtractionConfig {
             atomic: AtomicConfig::default(),
             abstain_threshold: 0.3,
             promotion_threshold: 0.7,
+            contradiction_threshold: 0.6,
         }
     }
 }
@@ -88,7 +93,13 @@ impl ExtractionPipeline {
 
         for claim in &valid_claims {
             let output = self.verifier.verify_claim(&claim.text, &context).await?;
-            let verdict = if output.abstained {
+            // Contradiction is checked first: a high contradiction_score overrides
+            // the abstain/support/contest ladder regardless of support_score.
+            let verdict = if output.contradiction_score >= self.config.contradiction_threshold {
+                ClaimVerdict::Contradicted {
+                    confidence: output.contradiction_score,
+                }
+            } else if output.abstained {
                 ClaimVerdict::Abstain {
                     reason: format!(
                         "support_score={:.2} < τ={:.2}",
@@ -119,20 +130,49 @@ impl ExtractionPipeline {
 }
 
 fn split_sentences(text: &str) -> Vec<String> {
+    /// Trailing tokens after which a `.` does not end a sentence ("e.g.", "vs.", …).
+    const NON_TERMINAL_SUFFIXES: [&str; 4] = ["e.g", "i.e", "etc", "vs"];
+    let chars: Vec<char> = text.chars().collect();
     let mut sentences = Vec::new();
     let mut current = String::new();
-    for ch in text.chars() {
+    for i in 0..chars.len() {
+        let ch = chars[i];
         current.push(ch);
-        if ch == '.' || ch == '!' || ch == '?' {
-            let trimmed = current.trim().to_string();
-            if !trimmed.is_empty() {
-                sentences.push(trimmed);
+        let terminal = match ch {
+            '!' | '?' => true,
+            '.' => {
+                // "12.5ms", "v0.6.2": a dot between digits is decimal/version punctuation.
+                let prev_digit = i > 0 && chars[i - 1].is_ascii_digit();
+                let next_digit = chars.get(i + 1).is_some_and(|c| c.is_ascii_digit());
+                let mid_number = prev_digit && next_digit;
+                let trimmed = current.trim_end_matches('.');
+                let abbrev = NON_TERMINAL_SUFFIXES
+                    .iter()
+                    .any(|s| trimmed.to_lowercase().ends_with(s));
+                let next_starts_sentence = match chars[i + 1..].iter().find(|c| !c.is_whitespace())
+                {
+                    None => true,
+                    Some(c) => {
+                        c.is_uppercase()
+                            || c.is_ascii_digit()
+                            || matches!(c, '"' | '\'' | '(' | '[')
+                    }
+                };
+                !mid_number && !abbrev && next_starts_sentence
+            }
+            _ => false,
+        };
+        if terminal {
+            let t = current.trim().to_string();
+            if !t.is_empty() {
+                sentences.push(t);
             }
             current.clear();
         }
     }
-    if !current.trim().is_empty() {
-        sentences.push(current.trim().to_string());
+    let t = current.trim().to_string();
+    if !t.is_empty() {
+        sentences.push(t);
     }
     sentences
 }
@@ -140,6 +180,27 @@ fn split_sentences(text: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn split_does_not_break_decimal_numbers() {
+        let s = split_sentences("Latency fell to 12.5ms. Throughput rose 3.4x! Done?");
+        assert_eq!(
+            s,
+            vec!["Latency fell to 12.5ms.", "Throughput rose 3.4x!", "Done?"]
+        );
+    }
+
+    #[test]
+    fn split_does_not_break_common_abbreviations_or_versions() {
+        let s = split_sentences("Vox v0.6.2 ships today. See e.g. the docs.");
+        assert_eq!(s.len(), 2, "got: {s:?}");
+    }
+
+    #[test]
+    fn split_handles_trailing_unterminated_text() {
+        let s = split_sentences("First sentence. Trailing fragment without period");
+        assert_eq!(s.len(), 2);
+    }
 
     #[tokio::test]
     async fn pipeline_extracts_from_verifiable_sentence() {
@@ -163,5 +224,34 @@ mod tests {
             .unwrap();
         assert!(result.promotable_claim_ids.is_empty());
         assert!(result.abstained_sentence_count > 0);
+    }
+
+    /// When the context sentence explicitly negates the claim, the pipeline must
+    /// emit at least one `Contradicted` verdict.
+    ///
+    /// Mock scoring for this pair:
+    ///   claim = "The cache reduces latency."  (4 words)
+    ///   context sentence = "The cache does not reduce latency."
+    ///   overlap = 3/4 = 0.75  →  contradiction_score = 0.75
+    ///   default contradiction_threshold = 0.6  →  0.75 ≥ 0.6  →  Contradicted ✓
+    #[tokio::test]
+    async fn negated_claim_against_contradicting_context_is_contradicted() {
+        let pipeline = ExtractionPipeline::new(ExtractionConfig::default());
+        let result = pipeline
+            .extract(
+                "The cache reduces latency.",
+                &["The cache does not reduce latency."],
+            )
+            .await
+            .unwrap();
+        let has_contradicted = result
+            .verdicts
+            .iter()
+            .any(|v| matches!(v, ClaimVerdict::Contradicted { .. }));
+        assert!(
+            has_contradicted,
+            "expected at least one Contradicted verdict, got: {:?}",
+            result.verdicts
+        );
     }
 }

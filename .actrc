@@ -27,6 +27,13 @@
 # stay on the real self-hosted fleet (docs/src/ci/runner-contract.md).
 -P self-hosted=catthehacker/ubuntu:act-24.04
 
+# Windows / macOS jobs: `act` runs Linux containers only, so it CANNOT execute
+# `runs-on: windows-latest` or `macos-latest` jobs. We intentionally do NOT map
+# them to a Linux image — that would silently run OS-specific steps (pwsh paths,
+# .exe, Expand-Archive) under Linux and report a false green. To smoke a Windows
+# or macOS workflow locally, run it on a real host/runner, or scope your `act`
+# invocation to the Linux jobs with `--job <linux-job-id>`.
+
 # Cache directory (bind-mounted into act containers)
 --cache-server-path ~/.cache/act
 
@@ -38,9 +45,10 @@
 --secret-file .secrets
 
 # Artifact server — captures upload-artifact outputs locally.
-# On Windows, override to a writable path with --artifact-server-path
-# (e.g. %TEMP%\act-artifacts).
---artifact-server-path /tmp/act-artifacts
+# Use a repo-relative path so this resolves on Windows, macOS, and Linux hosts
+# alike (the previous hardcoded /tmp/act-artifacts did not exist on Windows
+# hosts). The directory is git-ignored.
+--artifact-server-path ./.act-artifacts
 
 # Bind ~/.cargo into containers so cargo registry downloads are cached across runs.
 # Remove this line if your Docker daemon is on a remote host (bind-mounts won't work).

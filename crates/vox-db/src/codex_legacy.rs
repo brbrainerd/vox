@@ -94,6 +94,9 @@ pub const LEGACY_EXPORT_SKIP_TABLES: &[&str] = &[
     "mesh_dispatch_results", // transient mesh execution state
     "mesh_exec_leases",   // transient mesh execution state
     "schema_version",
+    "scientia_discovery_inbox", // derived surfacing index over draft manifests; regenerable, drafts are SSOT
+    "scientia_embedding_cache", // pure derived cache; regenerated on demand from LLM calls
+    "scientia_producer_cursor", // ephemeral per-producer scan cursor; drafts are idempotent on re-scan
 ];
 
 /// User tables included in [`export_legacy_jsonl`] / accepted by [`import_legacy_jsonl`].
@@ -153,6 +156,7 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "db_snapshots",
     "developer_journey_definitions",
     "developer_journey_steps",
+    "discovery_state",
     "distributed_locks",
     "embeddings",
     "endpoint_reliability",

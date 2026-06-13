@@ -4,6 +4,7 @@ import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { voxTransport } from '../../../transport';
+import { buildSlashEntries, type SlashEntry } from '../../../lib/slashCommands';
 import {
   COMPOSER_HISTORY_CAP,
   LOQUELA_FILE_PICKER_DEBOUNCE_MS,
@@ -30,17 +31,6 @@ const LQ_TIERS = [
   { id: "mesh", label: "Mesh · Peers", detail: "peers", cost: null, lat: null },
   { id: "cloud", label: "Cloud · Cascade", detail: "cloud tier", cost: null, lat: null },
   { id: "auto", label: "Auto · Router", detail: "tier-router decides", cost: null, lat: null },
-];
-
-const LQ_SLASH = [
-  { cmd: "/plan",    desc: "Draft a multi-step plan without executing",    icon: "flow" },
-  { cmd: "/spawn",   desc: "Spin up a sub-agent on this branch",           icon: "agent" },
-  { cmd: "/audit",   desc: "Socrates citation + invariant audit on file",  icon: "shield" },
-  { cmd: "/verify",  desc: "Run rule-pack + property tests",               icon: "check" },
-  { cmd: "/doubt",   desc: "Inject doubt at threshold N",                   icon: "alert" },
-  { cmd: "/memory",  desc: "Query Mnemosyne (RAG over project memory)",    icon: "memory" },
-  { cmd: "/rollback",desc: "Revert to last durable checkpoint",            icon: "back" },
-  { cmd: "/diff",    desc: "Show pending diff staged by agent",             icon: "file" },
 ];
 
 interface ChipData {
@@ -131,6 +121,8 @@ interface LoquelaProps {
   sessionBudget?: SessionBudgetDisplay;
   /** When true, the slash command was handled and should not be inserted into the composer. */
   onSlashCommand?: (cmd: string, ctx: SlashCommandContext) => boolean | Promise<boolean>;
+  queueDepth?: number;
+  onOpenTasks?: () => void;
 }
 
 export function Loquela({
@@ -144,6 +136,8 @@ export function Loquela({
   agents = [],
   sessionBudget,
   onSlashCommand,
+  queueDepth,
+  onOpenTasks,
 }: LoquelaProps) {
   const [text, setText] = useState("");
   const [mode, setMode] = useState("act");
@@ -215,35 +209,52 @@ export function Loquela({
     };
   }, [atOpen, atQuery]);
 
+  // Refresh the model/tier list on focus + every 60s so it never goes stale (C2).
   useEffect(() => {
-    voxTransport.listModels(LOQUELA_TIER_MODEL_COUNT).then((models: any) => {
-      if (!Array.isArray(models) || models.length === 0) return;
-      const dynamic = models.slice(0, 4).map((m: any, idx: number) => {
-        // Real per-1k-token price from the model registry when present;
-        // otherwise leave unknown (null) — never fabricate a number.
-        const perK = typeof m.cost_per_1k === 'number' ? m.cost_per_1k : null;
-        return {
-          id: m.model_id ?? `model-${idx}`,
-          label: m.display_name ?? m.model_id ?? `Model ${idx + 1}`,
-          detail: m.provider ?? 'runtime',
-          cost: perK,
-          lat: null,
-        };
-      });
-      setRuntimeTiers([
-        ...dynamic,
-        { id: 'auto', label: 'Auto · Router', detail: 'live routing summary', cost: null, lat: null },
-      ]);
-      if (!dynamic.some((d: any) => d.id === tier) && tier !== 'auto') {
-        setTier(dynamic[0]?.id ?? 'auto');
-      }
-    }).catch(() => {});
+    let cancelled = false;
+    let firstLoad = true;
+    const loadTiers = () => {
+      voxTransport.listModels(LOQUELA_TIER_MODEL_COUNT).then((models: any) => {
+        if (cancelled || !Array.isArray(models) || models.length === 0) return;
+        const dynamic = models.slice(0, 4).map((m: any, idx: number) => {
+          const perK = typeof m.cost_per_1k === 'number' ? m.cost_per_1k : null;
+          return {
+            id: m.model_id ?? `model-${idx}`,
+            label: m.display_name ?? m.model_id ?? `Model ${idx + 1}`,
+            detail: m.provider ?? 'runtime',
+            cost: perK,
+            lat: null,
+          };
+        });
+        setRuntimeTiers([
+          ...dynamic,
+          { id: 'auto', label: 'Auto · Router', detail: 'live routing summary', cost: null, lat: null },
+        ]);
+        if (firstLoad) {
+          firstLoad = false;
+          if (!dynamic.some((d: any) => d.id === tier) && tier !== 'auto') {
+            setTier(dynamic[0]?.id ?? 'auto');
+          }
+        }
+      }).catch(() => {});
+    };
+    loadTiers();
+    const interval = setInterval(loadTiers, 60_000);
+    const onFocus = () => loadTiers();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const allSlash = useMemo(() => buildSlashEntries(skills), [skills]);
   const filteredSlash = useMemo(() => {
     const q = text.trimStart().toLowerCase();
-    return LQ_SLASH.filter(s => s.cmd.startsWith(q));
-  }, [text]);
+    return allSlash.filter(s => s.cmd.startsWith(q));
+  }, [text, allSlash]);
 
   const filteredAt = useMemo(() => {
     const q = atQuery.toLowerCase();
@@ -343,7 +354,27 @@ export function Loquela({
     }
   };
 
-  const runSlash = async (cmd: string) => {
+  const runSlash = async (entry: SlashEntry) => {
+    // Skill entries pin the skill (rides in the payload's active_skill) rather
+    // than inserting literal text.
+    if (entry.kind === 'skill') {
+      const found = skills.find(
+        (s) => (s.capability_id ?? s.command) === entry.skillId || s.command === entry.skillId,
+      );
+      const name = entry.cmd.slice(1);
+      setActiveSkill(
+        found
+          ? { id: found.capability_id ?? found.command, name: found.command, command: found.command }
+          : { id: entry.skillId ?? name, name, command: name },
+      );
+      setText('');
+      setSlashOpen(false);
+      toast?.({ tone: 'info', title: 'Skill selected', body: name, cmd: 'skill.pin' });
+      taRef.current?.focus();
+      return;
+    }
+    const cmd = entry.cmd;
+    // Internal mode slashes (/plan, /verify, …) flip the composer mode.
     const internalMode = resolveInternalModeSlash(cmd);
     if (internalMode) {
       setMode(internalMode);
@@ -400,7 +431,7 @@ export function Loquela({
       setSlashIdx(i => (i + (e.key === "ArrowDown" ? 1 : -1) + filteredSlash.length) % Math.max(1, filteredSlash.length));
       return;
     }
-    if (slashOpen && e.key === "Enter") { e.preventDefault(); const s = filteredSlash[slashIdx]; if (s) void runSlash(s.cmd); return; }
+    if (slashOpen && e.key === "Enter") { e.preventDefault(); const s = filteredSlash[slashIdx]; if (s) void runSlash(s); return; }
     if (slashOpen && e.key === "Escape") { setSlashOpen(false); return; }
     if (e.key === "ArrowUp" && !text && history.length) {
       e.preventDefault(); const ni = Math.min(history.length - 1, histIdx + 1); setHistIdx(ni); setText(history[ni]); return;
@@ -468,7 +499,7 @@ export function Loquela({
                 {filteredSlash.map((s, i) => {
                   const IcoCmp = (Icon as any)[s.icon] || Icon.bolt;
                   return (
-                    <button key={s.cmd} onMouseEnter={() => setSlashIdx(i)} onClick={() => void runSlash(s.cmd)}
+                    <button key={s.cmd} onMouseEnter={() => setSlashIdx(i)} onClick={() => void runSlash(s)}
                             className={`flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left ${i === slashIdx ? "bg-white/5" : ""}`}>
                       <IcoCmp className="size-3.5 text-brass" />
                       <span className="font-mono text-[11px] text-zinc-100">{s.cmd}</span>
@@ -525,6 +556,16 @@ export function Loquela({
 
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-white/5 pt-2 text-[10px]">
           <Segment value={mode} onChange={setMode} options={LQ_MODES} />
+
+          {typeof queueDepth === 'number' && queueDepth > 0 && (
+            <button
+              onClick={onOpenTasks}
+              title="Open task list"
+              className="flex items-center gap-1 rounded-full border border-brass/25 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass hover:bg-brass/20 focus:outline-none focus:ring-1 focus:ring-brass/40"
+            >
+              {queueDepth} queued
+            </button>
+          )}
 
           <div className="relative">
             <button onClick={() => { setTierOpen(o => !o); setSkillOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-zinc-300 hover:border-white/20">

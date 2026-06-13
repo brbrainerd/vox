@@ -20,7 +20,7 @@ surface:
 
 | Surface | How it connects | Config source |
 |---------|----------------|---------------|
-| Local shells / agent tabs (Windows host) | `localhost:9000` | `%APPDATA%\Mozilla\sccache\config\config` (`[cache.s3]`) |
+| Local shells / agent tabs (Windows host) | S3 via env vars when MinIO is up; falls back to disk cache | `%APPDATA%\Mozilla\sccache\config\config` (`[cache.disk]` default + `SCCACHE_*` env) |
 | Self-hosted runner containers | `host.docker.internal:9000` | env injected by `vox ci runner-scale` at spawn (`shared_cache_env`) |
 | Other LAN machines | `http://<ci-host>:9000` | same sccache config file, LAN endpoint |
 | GitHub-hosted lanes (`gate`, `cross-check`) | GitHub Actions cache service | `SCCACHE_GHA_ENABLED` in the workflow (cannot reach the LAN) |
@@ -66,8 +66,12 @@ runner image — builds never fail because the cache is away.
 | cold | empty bucket | 2m36s | 0% |
 | warm | populated | **39–47s** | **91.9%** |
 
-A fresh worktree, new agent tab, or recycled runner container starts at the
-warm number instead of recompiling the workspace.
+A recycled runner container or new CI run (same absolute path) starts at the
+warm number. **Local worktrees at different paths do not share cached
+artifacts**: sccache cache keys include crate metadata beyond source text, so
+`--remap-path-prefix` does not bridge them (measured: 0% cross-worktree hits
+even with path normalization). Same-path repeated builds — a worktree rebuilt
+after a `cargo clean` — do hit the cache at the warm rate.
 
 ## Verifying
 

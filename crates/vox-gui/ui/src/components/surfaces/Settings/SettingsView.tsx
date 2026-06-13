@@ -6,9 +6,12 @@ import { voxTransport } from '../../../transport';
 import type { OrchestratorStatus, RoutingSummary, Toast } from '../../../types/tauri';
 import { DEFAULT_BUDGET_CAP_USD } from '../../../config/budget';
 import { PriorityChainEditor } from './PriorityChainEditor';
+import { searchSettings } from './settingsIndex';
 
 const SECTIONS = [
   { id: 'orchestrator', icon: 'cpu',     label: 'Orchestrator' },
+  { id: 'scaling',      icon: 'cpu',     label: 'Scaling' },
+  { id: 'llm',          icon: 'bolt',    label: 'LLM & providers' },
   { id: 'routing',      icon: 'matrix',  label: 'Model routing' },
   { id: 'mesh',         icon: 'flow',    label: 'Mesh & peers' },
   { id: 'signing',      icon: 'shield',  label: 'Signing keys' },
@@ -41,6 +44,11 @@ interface SettingsState {
   telemetry: string;
   isolation: string;
   checkpointMins: number;
+  scalingEnabled: boolean;
+  minAgents: number;
+  scalingThreshold: number;
+  scaleCpuCeilingPct: number;
+  scaleMemFloorMb: number;
 }
 
 function Row({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
@@ -91,6 +99,21 @@ interface MeshNode {
   trust_tier?: string | null;
   ed25519_pub_key_b64?: string | null;
   advertised_models?: string[];
+  cpu_usage_pct?: number | null;
+  memory_free_bytes?: number | null;
+  gpu_total_count?: number | null;
+  gpu_allocatable_count?: number | null;
+}
+
+/** Aggregate the node list into the at-a-glance resource summary (client-side
+ * mirror of the populi /v1/populi/resources/summary endpoint). */
+function aggregateMeshResources(nodes: MeshNode[]) {
+  const ready = nodes.filter(n => n.status === 'online');
+  const gpusFree = ready.reduce((s, n) => s + (n.gpu_allocatable_count ?? 0), 0);
+  const ramFreeGib = ready.reduce((s, n) => s + (n.memory_free_bytes ?? 0), 0) / 2 ** 30;
+  const cpuVals = ready.map(n => n.cpu_usage_pct).filter((c): c is number => typeof c === 'number');
+  const cpuAvg = cpuVals.length ? cpuVals.reduce((a, b) => a + b, 0) / cpuVals.length : 0;
+  return { readyCount: ready.length, total: nodes.length, gpusFree, ramFreeGib, cpuAvg, hasMetrics: cpuVals.length > 0 || gpusFree > 0 || ramFreeGib > 0 };
 }
 
 interface MeshNodesResult {
@@ -191,6 +214,18 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
         </div>
       ) : (
         <div className="mt-4 space-y-2">
+          {(() => {
+            const r = aggregateMeshResources(nodes);
+            if (!r.hasMetrics) return null;
+            return (
+              <div className="grid grid-cols-4 gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-3 text-center">
+                <div><div className="text-[18px] text-zinc-100">{r.readyCount}/{r.total}</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">nodes ready</div></div>
+                <div><div className="text-[18px] text-zinc-100">{r.gpusFree}</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">GPUs free</div></div>
+                <div><div className="text-[18px] text-zinc-100">{r.ramFreeGib.toFixed(0)} GiB</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">RAM free</div></div>
+                <div><div className="text-[18px] text-zinc-100">{r.cpuAvg.toFixed(0)}%</div><div className="text-[9px] uppercase tracking-widest text-zinc-500">avg CPU</div></div>
+              </div>
+            );
+          })()}
           {nodes.map(p => {
             const isTrusted = !!trusted[p.id];
             const online = p.status === 'online';
@@ -432,12 +467,95 @@ function KeysSecretsSection({ pushToast }: { pushToast: (t: Toast) => void }) {
   );
 }
 
+function LlmSettingsSection({ pushToast }: { pushToast: (t: any) => void }) {
+  const [cfg, setCfg] = useState({
+    maxConcurrentRequests: 8,
+    openrouterMaxConcurrent: null as number | null,
+    retryMaxAttempts: 4,
+  });
+  const [keyConfigured, setKeyConfigured] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const c = await invoke<Record<string, unknown>>('get_llm_config');
+        setCfg({
+          maxConcurrentRequests: Number(c.max_concurrent_requests ?? 8),
+          openrouterMaxConcurrent:
+            c.openrouter_max_concurrent == null ? null : Number(c.openrouter_max_concurrent),
+          retryMaxAttempts: Number(c.retry_max_attempts ?? 4),
+        });
+      } catch { /* defaults */ }
+      try {
+        const s = await invoke<{ configured: boolean }>('openrouter_key_status');
+        setKeyConfigured(s.configured);
+      } catch { /* probe best-effort */ }
+    })();
+  }, []);
+
+  const save = (next: typeof cfg) => {
+    setCfg(next);
+    invoke('set_llm_config', {
+      config: {
+        maxConcurrentRequests: next.maxConcurrentRequests,
+        openrouterMaxConcurrent: next.openrouterMaxConcurrent,
+        retryMaxAttempts: next.retryMaxAttempts,
+      },
+    }).catch((err) => pushToast({ tone: 'warn', title: 'LLM save failed', body: String(err) }));
+  };
+
+  return (
+    <>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">LLM &amp; providers</h2>
+      <p className="mt-0.5 text-[11px] text-zinc-500">Concurrency throttle for LLM egress. OpenRouter paid tier has no platform request cap, so parallelism is the real dial.</p>
+      <div className="mt-4 space-y-3">
+        <Row label="Max parallel LLM requests" hint="Global ceiling across all providers (AIMD throttle)">
+          <RangeInline value={cfg.maxConcurrentRequests} min={1} max={64} onChange={v => save({ ...cfg, maxConcurrentRequests: v })} />
+        </Row>
+        <Row label="OpenRouter override" hint="Provider-specific cap (0 = use global)">
+          <RangeInline value={cfg.openrouterMaxConcurrent ?? 0} min={0} max={64} onChange={v => save({ ...cfg, openrouterMaxConcurrent: v === 0 ? null : v })} />
+        </Row>
+        <Row label="429 retry attempts" hint="Backoff retries before surfacing a rate-limit error">
+          <RangeInline value={cfg.retryMaxAttempts} min={0} max={10} onChange={v => save({ ...cfg, retryMaxAttempts: v })} />
+        </Row>
+      </div>
+      {keyConfigured !== null && (
+        <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-[11px] text-zinc-400">
+          {keyConfigured
+            ? 'OpenRouter API key is configured.'
+            : 'No OpenRouter key configured — add one under Keys & Secrets.'}
+        </div>
+      )}
+    </>
+  );
+}
+
 interface SettingsViewProps {
   pushToast: (t: Toast) => void;
 }
 
 export function SettingsView({ pushToast }: SettingsViewProps) {
   const [section, setSection] = useState('orchestrator');
+  const [filter, setFilter] = useState('');
+
+  // Deep link from omni-search: { section } seed in localStorage. Read on mount
+  // AND on the 'vox-settings-seed' event, so deep-linking works even when the
+  // Settings surface is already active (no remount fires in that case).
+  useEffect(() => {
+    const consume = () => {
+      try {
+        const raw = localStorage.getItem('vox_settings_seed');
+        if (raw) {
+          localStorage.removeItem('vox_settings_seed');
+          const seed = JSON.parse(raw) as { section?: string };
+          if (seed.section) setSection(seed.section);
+        }
+      } catch { /* ignore malformed seed */ }
+    };
+    consume();
+    window.addEventListener('vox-settings-seed', consume);
+    return () => window.removeEventListener('vox-settings-seed', consume);
+  }, []);
   const [routing, setRouting] = useState({
     efficiency: 25,
     precision: 30,
@@ -450,12 +568,20 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
     doubt: true, autobudget: true, theme: 'arcane', concurrency: 7,
     capUsd: DEFAULT_BUDGET_CAP_USD, doubtThresh: 0.6, sign: false, telemetry: 'local',
     isolation: 'wasm', checkpointMins: 5,
+    scalingEnabled: false, minAgents: 1, scalingThreshold: 5,
+    scaleCpuCeilingPct: 85, scaleMemFloorMb: 1024,
   });
 
   const update = async (patch: Partial<SettingsState>) => {
     const next = { ...vals, ...patch };
     setVals(next);
-    
+
+    // Theme actually applies now: drive the [data-theme] attribute the CSS hooks
+    // key off (the picker was previously inert).
+    if (patch.theme) {
+      document.documentElement.setAttribute('data-theme', patch.theme);
+    }
+
     // Attempt to push to Rust (fails gracefully if command not registered)
     try {
       await invoke('set_orchestrator_config', { config: next });
@@ -503,6 +629,29 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
         }));
       } catch {
         // keep default local state when preference DB isn't available
+      }
+      // Hydrate orchestrator + scaling controls from the persisted Vox.toml
+      // [orchestrator] table (fixes the inert-sliders bug).
+      try {
+        const cfg = await invoke<Record<string, unknown>>('get_orchestrator_config');
+        const num = (k: string) => (cfg[k] == null ? undefined : Number(cfg[k]));
+        const bool = (k: string) => (cfg[k] == null ? undefined : Boolean(cfg[k]));
+        setVals((prev) => ({
+          ...prev,
+          ...(num('concurrency') != null ? { concurrency: num('concurrency')! } : {}),
+          ...(num('capUsd') != null ? { capUsd: num('capUsd')! } : {}),
+          ...(num('doubtThresh') != null ? { doubtThresh: num('doubtThresh')! } : {}),
+          ...(typeof cfg.isolation === 'string' ? { isolation: cfg.isolation } : {}),
+          ...(bool('autobudget') != null ? { autobudget: bool('autobudget')! } : {}),
+          ...(bool('doubt') != null ? { doubt: bool('doubt')! } : {}),
+          ...(bool('scalingEnabled') != null ? { scalingEnabled: bool('scalingEnabled')! } : {}),
+          ...(num('minAgents') != null ? { minAgents: num('minAgents')! } : {}),
+          ...(num('scalingThreshold') != null ? { scalingThreshold: num('scalingThreshold')! } : {}),
+          ...(num('scaleCpuCeilingPct') != null ? { scaleCpuCeilingPct: num('scaleCpuCeilingPct')! } : {}),
+          ...(num('scaleMemFloorMb') != null ? { scaleMemFloorMb: num('scaleMemFloorMb')! } : {}),
+        }));
+      } catch {
+        // daemon-less dev: keep defaults
       }
     };
     hydrate();
@@ -578,6 +727,30 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
     <div className="grid grid-cols-12 gap-5">
       {/* Nav */}
       <Glass className="col-span-12 md:col-span-3 p-3">
+        <input
+          value={filter}
+          onChange={e => setFilter(e.target.value)}
+          placeholder="Search settings…"
+          aria-label="Search settings"
+          className="mb-2 w-full rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[12px] text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-brass/30"
+        />
+        {filter.trim() ? (
+          <nav className="flex flex-col gap-1">
+            {searchSettings(filter).map(entry => (
+              <button
+                key={entry.id}
+                onClick={() => { setSection(entry.section); setFilter(''); }}
+                className="flex flex-col rounded-lg px-3 py-2 text-left text-zinc-300 hover:bg-white/[0.04] hover:text-zinc-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40"
+              >
+                <span className="text-[12px]">{entry.label}</span>
+                <span className="text-[10px] text-zinc-500">{entry.hint}</span>
+              </button>
+            ))}
+            {searchSettings(filter).length === 0 && (
+              <p className="px-3 py-2 text-[11px] text-zinc-600">No settings match.</p>
+            )}
+          </nav>
+        ) : (
         <nav className="flex flex-col gap-1">
           {SECTIONS.map(s => {
             const IcoCmp = (Icon as any)[s.icon] ?? Icon.bolt;
@@ -596,6 +769,7 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
             );
           })}
         </nav>
+        )}
       </Glass>
 
       {/* Content */}
@@ -641,6 +815,35 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
             </div>
           </>
         )}
+
+        {section === 'scaling' && (
+          <>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Scaling</h2>
+            <p className="mt-0.5 text-[11px] text-zinc-500">Spawn and retire agents automatically based on queue load and local host resources</p>
+            <div className="mt-4 space-y-3">
+              <Row label="Auto-scaling" hint="Let the orchestrator add/remove agents dynamically">
+                <Toggle on={vals.scalingEnabled} onClick={() => update({ scalingEnabled: !vals.scalingEnabled })} />
+              </Row>
+              <Row label="Min agents" hint="Never retire below this fleet size">
+                <RangeInline value={vals.minAgents} min={0} max={8} onChange={v => update({ minAgents: v })} />
+              </Row>
+              <Row label="Max agents" hint="Hard ceiling on concurrent agents">
+                <RangeInline value={vals.concurrency} min={1} max={16} onChange={v => update({ concurrency: v })} />
+              </Row>
+              <Row label="Queue threshold" hint="Per-agent queued tasks that trigger a scale-up">
+                <RangeInline value={vals.scalingThreshold} min={1} max={20} onChange={v => update({ scalingThreshold: v })} />
+              </Row>
+              <Row label="CPU ceiling" hint="Don't spawn agents while local CPU is above this (0 = off)">
+                <RangeInline value={vals.scaleCpuCeilingPct} min={0} max={100} step={5} suffix="%" onChange={v => update({ scaleCpuCeilingPct: v })} />
+              </Row>
+              <Row label="Memory floor" hint="Don't spawn agents below this free RAM (0 = off)">
+                <RangeInline value={vals.scaleMemFloorMb} min={0} max={16384} step={256} suffix=" MiB" onChange={v => update({ scaleMemFloorMb: v })} />
+              </Row>
+            </div>
+          </>
+        )}
+
+        {section === 'llm' && <LlmSettingsSection pushToast={pushToast} />}
 
         {section === 'routing' && (
           <>

@@ -26,17 +26,19 @@ interface DashboardProps {
   onAckLudus: (note: LudusAlert) => void;
   filterKind: string;
   setFilterKind: (k: string) => void;
+  onOpenInConsole?: (a: Agent) => void;
 }
 
-export function Dashboard({ 
-  data, 
-  onPause, 
-  onResume, 
-  onDoubt, 
-  onOverrule, 
-  onAckLudus, 
-  filterKind, 
-  setFilterKind 
+export function Dashboard({
+  data,
+  onPause,
+  onResume,
+  onDoubt,
+  onOverrule,
+  onAckLudus,
+  filterKind,
+  setFilterKind,
+  onOpenInConsole,
 }: DashboardProps) {
   const filters = ["all", "validated", "in-progress", "doubted", "speculative"];
   const stream = data.stream.filter(s => filterKind === "all" ? true : s.kind === filterKind);
@@ -112,7 +114,7 @@ export function Dashboard({
                 No active agents — submit a task below to spin one up.
               </div>
             ) : (
-              data.agents.map(a => <AgentRow key={a.id} a={a} onPause={onPause} onResume={onResume} />)
+              data.agents.map(a => <AgentRow key={a.id} a={a} onPause={onPause} onResume={onResume} onOpenInConsole={onOpenInConsole} />)
             )}
           </div>
         </Glass>

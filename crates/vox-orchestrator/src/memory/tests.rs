@@ -7,7 +7,6 @@ use super::config::MemoryConfig;
 
 use super::long_term::LongTermMemory;
 use super::manager::MemoryManager;
-use super::time::unix_secs_to_ymd;
 
 fn memory_workdir() -> TempDir {
     TempDir::new().expect("tempdir")
@@ -74,6 +73,23 @@ fn memory_manager_bootstrap_context() {
 }
 
 #[test]
+fn bootstrap_context_with_project_appends_vox_md() {
+    let dir = memory_workdir();
+    let mgr = MemoryManager::new(test_config(&dir)).expect("create");
+    // Separate workspace dir holding the project file.
+    let ws = memory_workdir();
+    std::fs::write(ws.path().join("VOX.md"), "Run tests with: cargo test\n").expect("write VOX.md");
+
+    let with = mgr.bootstrap_context_with_project(Some(ws.path()));
+    assert!(with.contains("Project Memory (VOX.md)"));
+    assert!(with.contains("Run tests with: cargo test"));
+
+    // Without a workspace root, no project block is added.
+    let without = mgr.bootstrap_context_with_project(None);
+    assert!(!without.contains("Project Memory (VOX.md)"));
+}
+
+#[test]
 fn memory_manager_search() {
     let dir = memory_workdir();
     let mut mgr = MemoryManager::new(test_config(&dir)).expect("create");
@@ -136,15 +152,6 @@ fn disabled_memory_manager_returns_empty_context() {
         ctx.is_empty(),
         "disabled memory should return empty context"
     );
-}
-
-#[test]
-fn unix_secs_to_ymd_basic() {
-    // 2026-02-27 00:00:00 UTC = 1772150400 secs
-    let (y, m, d) = unix_secs_to_ymd(1_772_150_400);
-    assert_eq!(y, 2026);
-    assert_eq!(m, 2);
-    assert_eq!(d, 27);
 }
 
 #[test]

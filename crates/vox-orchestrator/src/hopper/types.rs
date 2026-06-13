@@ -28,6 +28,9 @@ pub enum IntakeSource {
     Agent,
     /// Submitted by a webhook or external integration.
     Webhook,
+    /// Replicated from a peer daemon via a verified `HopperSync` federation
+    /// envelope (B4). `node_id` is the origin daemon's DID/scope-URI.
+    Mesh { node_id: String },
 }
 
 impl IntakeSource {
@@ -36,6 +39,7 @@ impl IntakeSource {
             Self::Developer => "developer",
             Self::Agent => "agent",
             Self::Webhook => "webhook",
+            Self::Mesh { .. } => "mesh",
         }
     }
 }
@@ -173,6 +177,38 @@ impl IntakeItem {
             privacy_class: "local-only".into(),
             state: ItemState::Inbox,
             submitted_at: now_micros(),
+            override_history: vec![],
+        }
+    }
+
+    /// Construct a replicated item from a verified peer `HopperSync` admission
+    /// (B4). Unlike [`IntakeItem::new`], the `item_id` is **preserved** from the
+    /// origin daemon (replication must converge on the same id), and the source
+    /// is marked [`IntakeSource::Mesh`]. The replicated payload is intentionally
+    /// partial — `HopperOpSync::ItemAdmitted` carries only priority/timing/kind,
+    /// not the original intent — so `intent` is a deterministic provenance label.
+    pub fn from_replay(
+        item_id: HopperItemId,
+        classified_priority: TaskPriority,
+        submitted_at_micros: u64,
+        task_kind: String,
+        origin_node_id: String,
+    ) -> Self {
+        Self {
+            item_id,
+            intent: format!("[mesh:{task_kind}] replicated from {origin_node_id}"),
+            affinity_hints: vec![],
+            priority_hint: PriorityHint::Unspecified,
+            source: IntakeSource::Mesh {
+                node_id: origin_node_id,
+            },
+            session_id: None,
+            classified_priority,
+            priority_source: PrioritySource::Orchestrator,
+            confidence: 1.0,
+            privacy_class: "mesh-replicated".into(),
+            state: ItemState::Inbox,
+            submitted_at: submitted_at_micros,
             override_history: vec![],
         }
     }

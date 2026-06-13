@@ -84,6 +84,7 @@ owo-colors = { workspace = true }
 vox-config = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+strsim = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 vox-repository = { workspace = true }

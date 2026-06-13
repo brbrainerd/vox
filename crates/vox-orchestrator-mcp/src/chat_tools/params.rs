@@ -80,6 +80,12 @@ pub struct ChatMessageParams {
     /// Optional top_p override (0.0–1.0).
     #[serde(default)]
     pub top_p: Option<f32>,
+    /// Pinned skill (id or name) the user explicitly selected for this turn.
+    /// The GUI composer sends it as `active_skill`. When set, the skill's full
+    /// SKILL.md body is injected into the system prompt so even prompt-only
+    /// models (MENS) follow it without a tool round-trip.
+    #[serde(default, alias = "active_skill")]
+    pub skill: Option<String>,
 }
 
 fn default_chat_history_session_id() -> String {

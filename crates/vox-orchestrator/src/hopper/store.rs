@@ -30,6 +30,23 @@ pub enum HopperError {
     Terminal,
 }
 
+// ── Mesh replication input ──────────────────────────────────────────────────────
+
+/// A remote `HopperOpSync::ItemAdmitted` decoded into the fields `replay_admitted`
+/// needs (B4). Built by `mesh_adapter::apply_op_fragment` after the envelope's
+/// signature and the peer's trust tier have been verified.
+#[derive(Debug, Clone)]
+pub struct AdmittedReplay {
+    /// Origin daemon's item id — preserved so both hoppers converge on one id.
+    pub item_id: HopperItemId,
+    pub classified_priority: TaskPriority,
+    /// Admission time in unix micros (origin daemon's clock).
+    pub submitted_at_micros: u64,
+    pub task_kind: String,
+    /// Origin daemon DID/scope-URI (provenance).
+    pub origin_node_id: String,
+}
+
 // ── HopperIntake trait ────────────────────────────────────────────────────────
 
 /// Public interface shared by the in-memory (Option A) and persistent (Option B)
@@ -75,6 +92,14 @@ pub trait HopperIntake: Send + Sync {
 
     /// Mark an item as done.
     async fn complete(&self, item_id: &HopperItemId) -> Result<IntakeItem, HopperError>;
+
+    /// Idempotently apply a remote admission replicated from a peer daemon (B4).
+    ///
+    /// Preserves the origin `item_id`; a second apply of the same id is a no-op
+    /// and returns the already-present item. Unlike `submit`, this does **not**
+    /// emit a local `HopperItemAdmitted` bus event — the admission happened on
+    /// the origin daemon, not here.
+    async fn replay_admitted(&self, op: AdmittedReplay) -> IntakeItem;
 }
 
 // ── InMemoryHopper ────────────────────────────────────────────────────────────
@@ -224,6 +249,24 @@ impl HopperIntake for InMemoryHopper {
             .ok_or_else(|| HopperError::NotFound(item_id.0.clone()))?;
         item.state = ItemState::Done;
         Ok(item.clone())
+    }
+
+    async fn replay_admitted(&self, op: AdmittedReplay) -> IntakeItem {
+        let mut items = self.items.write().await;
+        // Idempotent: if we already have this id (re-delivery, or we were the
+        // origin and this is a loopback), return the existing item untouched.
+        if let Some(existing) = items.iter().find(|i| i.item_id == op.item_id) {
+            return existing.clone();
+        }
+        let item = IntakeItem::from_replay(
+            op.item_id,
+            op.classified_priority,
+            op.submitted_at_micros,
+            op.task_kind,
+            op.origin_node_id,
+        );
+        items.push(item.clone());
+        item
     }
 }
 

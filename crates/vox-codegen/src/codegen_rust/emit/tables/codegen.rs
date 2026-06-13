@@ -81,7 +81,9 @@ fn sql_dialect_from_urls(app_url: Option<&str>, codex_url: Option<&str>) -> SqlD
 }
 
 fn generated_sql_dialect() -> SqlDialect {
-    let app_url = std::env::var("VOX_APP_DB_URL").ok();
+    let app_url = vox_secrets::resolve_secret(SecretId::VoxAppDbUrl)
+        .expose()
+        .map(str::to_owned);
     let codex_url = vox_secrets::resolve_secret(SecretId::VoxDbUrl)
         .expose()
         .map(str::to_owned);
@@ -547,7 +549,7 @@ pub fn emit_db_setup(module: &HirModule) -> String {
     out.push_str(
         "    // Keep Codex setup for table runtime and emit a warning instead of hard-failing.\n",
     );
-    out.push_str("    if let Ok(app_url) = std::env::var(\"VOX_APP_DB_URL\") {\n");
+    out.push_str("    if let Some(app_url) = vox_db::resolve_app_db_url() {\n");
     out.push_str("        let u = app_url.to_ascii_lowercase();\n");
     out.push_str(
         "        if u.starts_with(\"postgres://\") || u.starts_with(\"postgresql://\") || u.starts_with(\"mysql://\") {\n",

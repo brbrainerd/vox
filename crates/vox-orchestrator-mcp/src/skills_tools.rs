@@ -174,3 +174,89 @@ pub fn skill_info(state: &ServerState, params: SkillIdParams) -> String {
         .to_json(),
     }
 }
+
+/// Tier-2 progressive disclosure: full SKILL.md body for one installed skill.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SkillUseResponse {
+    pub name: String,
+    pub description: String,
+    pub body: String,
+}
+
+/// `vox_skill_use { id }` — return the full SKILL.md body for an installed
+/// skill, matched by id or name. This is the tier-2 step of agentskills.io
+/// progressive disclosure: tool-calling models load the body on demand after
+/// seeing the tier-1 catalog in the system prompt.
+pub fn skill_use(state: &ServerState, params: SkillIdParams) -> String {
+    let manifest = state
+        .skill_registry
+        .list(None)
+        .into_iter()
+        .find(|m| m.id == params.id || m.name == params.id);
+    match manifest {
+        Some(m) => {
+            let body = state
+                .skill_registry
+                .lookup(&m.id)
+                .ok()
+                .map(|s| s.body)
+                .unwrap_or_default();
+            tracing::info!(skill = %m.id, source = "tool", "skill_activated");
+            ToolResult::ok(SkillUseResponse {
+                name: m.name,
+                description: m.description,
+                body,
+            })
+            .to_json()
+        }
+        None => ToolResult::<String>::err_with_remediation(
+            format!("Skill '{}' not installed.", params.id),
+            REM_SKILL_ID,
+        )
+        .to_json(),
+    }
+}
+
+/// One discovered (possibly not-yet-installed) skill under a standard root.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DiscoveredSkill {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    /// Directory containing the SKILL.md (display/install source).
+    pub path: String,
+    /// True when a skill with this id is already in the registry.
+    pub installed: bool,
+}
+
+/// `vox_skill_discover` — list bare SKILL.md skills found under the standard
+/// interop roots (`.vox`/`.agents`/`.claude` × workspace+home), each tagged
+/// with whether it is already installed. Backs the GUI "Discovered" tab.
+pub fn skill_discover(state: &ServerState) -> String {
+    let ws_root = state
+        .workspace_root
+        .clone()
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let roots = vox_config::paths::skill_search_roots(&ws_root);
+    let installed: std::collections::HashSet<String> = state
+        .skill_registry
+        .list(None)
+        .into_iter()
+        .map(|m| m.id)
+        .collect();
+    let items: Vec<DiscoveredSkill> =
+        vox_plugin_host::external_skills::discover_external_skills(&roots)
+            .into_iter()
+            .map(|ext| {
+                let id = ext.bundle.manifest.id;
+                DiscoveredSkill {
+                    installed: installed.contains(&id),
+                    name: ext.bundle.manifest.name,
+                    description: ext.bundle.manifest.description,
+                    path: ext.path.display().to_string(),
+                    id,
+                }
+            })
+            .collect();
+    ToolResult::ok(items).to_json()
+}

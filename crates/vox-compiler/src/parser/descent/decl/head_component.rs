@@ -1,4 +1,4 @@
-// Reactive component / fragment / module-scope reactive parsing.
+﻿// Reactive component / fragment / module-scope reactive parsing.
 
 use super::super::Parser;
 use crate::ast::decl::{
@@ -154,6 +154,7 @@ impl Parser {
             members,
             view,
             styles: vec![],
+            layer: None,
             span: start.merge(self.span()),
         })
     }

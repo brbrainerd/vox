@@ -754,6 +754,7 @@ impl AgentFleet {
             .iter()
             .copied()
             .collect();
+        let local_snapshot = crate::services::local_resources::snapshot();
         let action = ScalingService::decide_scaling(
             &status,
             &config,
@@ -761,6 +762,7 @@ impl AgentFleet {
             remote_gpu_capacity,
             &idle_dynamic,
             &crate::sync_lock::rw_read(&budget_manager),
+            local_snapshot.as_ref(),
         );
 
         match action {

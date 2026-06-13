@@ -594,10 +594,22 @@ impl BrowserEngine {
         let html = page.content().await.map_err(Self::map_page_err)?;
         let stripped = strip_html_tags(&html);
         let max_chars = max_chars.max(256);
-        if stripped.len() <= max_chars {
+        if stripped.chars().count() <= max_chars {
             Ok(stripped)
         } else {
-            Ok(format!("{}…", &stripped[..max_chars]))
+            // Truncate by char count, not byte index: `stripped` is readability
+            // text from arbitrary web pages and routinely contains multibyte
+            // UTF-8 (curly quotes, accents, CJK). A byte slice at `max_chars`
+            // would panic on a non-char-boundary.
+            // Budget the 1-char ellipsis into the cap so the result never
+            // exceeds max_chars.
+            Ok(format!(
+                "{}…",
+                stripped
+                    .chars()
+                    .take(max_chars.saturating_sub(1))
+                    .collect::<String>()
+            ))
         }
     }
 
@@ -709,9 +721,11 @@ fn key_identity(key: &str) -> (String, String, i64) {
         _ if key.chars().count() == 1 => {
             let ch = key.chars().next().unwrap_or_default();
             if ch.is_ascii_alphabetic() {
+                // DOM `key` preserves the case as given (Shift is a separate
+                // modifier); `code` and the Windows VK use the uppercase identity.
                 let upper = ch.to_ascii_uppercase();
                 let vk = upper as i64;
-                (upper.to_string(), format!("Key{upper}"), vk)
+                (ch.to_string(), format!("Key{upper}"), vk)
             } else if ch.is_ascii_digit() {
                 let vk = ch as i64;
                 (ch.to_string(), format!("Digit{ch}"), vk)
@@ -753,6 +767,27 @@ mod tests {
         assert_eq!(shift_tab.modifiers, 8);
         assert_eq!(shift_tab.key, "Tab");
         assert_eq!(shift_tab.code, "Tab");
+    }
+
+    #[test]
+    fn key_chord_preserves_letter_case_for_dom_key() {
+        // A bare lowercase letter must stay lowercase in the DOM `key` field
+        // (Shift is not held), while `code` and the Windows VK use the
+        // canonical uppercase identity.
+        let lower = KeyChord::parse("a");
+        assert_eq!(lower.key, "a");
+        assert_eq!(lower.code, "KeyA");
+        assert_eq!(lower.windows_vk, 'A' as i64);
+
+        let upper = KeyChord::parse("A");
+        assert_eq!(upper.key, "A");
+        assert_eq!(upper.code, "KeyA");
+        assert_eq!(upper.windows_vk, 'A' as i64);
+
+        let shifted = KeyChord::parse("Shift+a");
+        assert_eq!(shifted.modifiers, 8);
+        assert_eq!(shifted.key, "a");
+        assert_eq!(shifted.code, "KeyA");
     }
 
     #[tokio::test]

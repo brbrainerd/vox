@@ -1,4 +1,4 @@
-// Top-level and declaration parsing.
+﻿// Top-level and declaration parsing.
 
 use super::super::Parser;
 use super::head_types::{
@@ -750,6 +750,7 @@ impl Parser {
                         name,
                         light,
                         dark,
+                        pair_bg: None,
                         span: entry_start.merge(self.span()),
                     });
                 }

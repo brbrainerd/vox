@@ -136,6 +136,17 @@ pub const SPECS_MESH: &[SecretSpec] = &[
         scope_description: "Policy governing GPU resource donation.",
     },
     SecretSpec {
+        id: SecretId::VoxMeshDonationPolicyPath,
+        canonical_env: "VOX_MESH_DONATION_POLICY_PATH",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: Some("mesh_donation_policy_path"),
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Filesystem path to a donations.vox policy file.",
+        scope_description: "Path to the first-class donations.vox policy governing GPU donation.",
+    },
+    SecretSpec {
         id: SecretId::VoxMeshFederationSigningKey,
         canonical_env: "VOX_MESH_FEDERATION_SIGNING_KEY",
         aliases: &[],

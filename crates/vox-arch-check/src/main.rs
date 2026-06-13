@@ -839,21 +839,12 @@ fn dir_entry_should_be_pruned(path: &Path, prune_dir_names: &HashSet<String>) ->
 /// Recursive file listing for repo scans; skips heavy artifact trees (see `walk_prune_dir_names`).
 fn walk_repo_files(root: &Path, prune_dir_names: &HashSet<String>) -> Vec<PathBuf> {
     let mut out = Vec::new();
-    let mut stack = vec![root.to_path_buf()];
-    while let Some(p) = stack.pop() {
-        let entries = match std::fs::read_dir(&p) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-        for e in entries.flatten() {
-            let path = e.path();
-            if path.is_dir() {
-                if !dir_entry_should_be_pruned(&path, prune_dir_names) {
-                    stack.push(path);
-                }
-            } else {
-                out.push(path);
-            }
+    let walker = walkdir::WalkDir::new(root).into_iter().filter_entry(|e| {
+        !(e.file_type().is_dir() && dir_entry_should_be_pruned(e.path(), prune_dir_names))
+    });
+    for entry in walker.filter_map(Result::ok) {
+        if entry.file_type().is_file() {
+            out.push(entry.path().to_path_buf());
         }
     }
     out
