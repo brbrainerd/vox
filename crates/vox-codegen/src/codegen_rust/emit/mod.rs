@@ -14,6 +14,7 @@ mod ai_fixture;
 mod client;
 mod durability_lower;
 mod http;
+mod json_as_ctx;
 mod main_boot;
 mod method_emit;
 pub(super) mod ownership;

@@ -34,7 +34,17 @@ pub fn emit_lib(module: &HirModule) -> String {
     // Helper for casts
     out.push_str("pub fn as_string<T: serde::Serialize>(v: &T) -> String {\n");
     out.push_str("    let val = serde_json::to_value(v).expect(\"vox codegen: serde_json::to_value failed\");\n");
-    out.push_str("    if let Some(s) = val.as_str() { s.to_string() } else { val.to_string() }\n");
+    out.push_str("    if let Some(s) = val.as_str() { return s.to_string(); }\n");
+    // Vox stringifies whole-number floats without the trailing `.0`
+    // (`str(5.0) == \"5\"`); match the interpreter. Only f64 values are touched.
+    out.push_str("    if val.is_f64() {\n");
+    out.push_str("        if let Some(f) = val.as_f64() {\n");
+    out.push_str(
+        "            if f.is_finite() && f.fract() == 0.0 { return format!(\"{}\", f as i64); }\n",
+    );
+    out.push_str("        }\n");
+    out.push_str("    }\n");
+    out.push_str("    val.to_string()\n");
     out.push_str("}\n\n");
 
     // Re-export variants (only for sum types — struct typedefs are top-level structs).
@@ -171,6 +181,31 @@ fn emit_forall(forall: &HirForall, inferred_types: Option<&HashMap<Span, HirType
     out
 }
 
+/// For a `@json_as`-generated `<Type>_from_json` function, return the decoded
+/// struct name (the `T` in the `Result[T]` return type). `None` for any other
+/// function — including `<Type>_to_json` (whose `ObjectLit` is a real JSON
+/// value) and ADT `from_json` (which returns variant constructor calls, not an
+/// `ObjectLit`). Builtin/JSON-ish names are excluded so only user structs win.
+fn from_json_struct_hint(func: &HirFn) -> Option<String> {
+    if !func.name.ends_with("_from_json") {
+        return None;
+    }
+    match func.return_type.as_ref()? {
+        HirType::Generic(outer, args) if outer == "Result" => match args.first()? {
+            HirType::Named(n)
+                if !matches!(
+                    n.as_str(),
+                    "Json" | "JsonBody" | "Any" | "Result" | "Element"
+                ) =>
+            {
+                Some(n.clone())
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 /// Emit a single HIR function (or test) as Rust source.
 pub fn emit_fn(
     func: &HirFn,
@@ -214,6 +249,12 @@ pub fn emit_fn(
     if func.is_llm {
         super::ai_fixture::emit_llm_function_body(&mut out, func);
     } else {
+        // `@json_as` `<Type>_from_json` bodies return `Ok(Type { .. })`. In the
+        // script lane there is no typeck, so record the struct name (the inner
+        // arg of the `Result[Type]` return type) for the tail-emitter's
+        // `ObjectLit` arm to ascribe a struct literal instead of `json!`.
+        let _from_json_guard =
+            from_json_struct_hint(func).map(|name| super::json_as_ctx::enter_from_json(&name));
         let usage = super::usage::UsageTracker::build(&func.body);
         out.push_str(&super::durability_lower::emit_durable_body(
             func,

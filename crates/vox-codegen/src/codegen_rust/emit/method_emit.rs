@@ -562,9 +562,18 @@ where
     {
         return s;
     }
+    if let Some(s) = try_emit_list_hof(emit_expr, method, &o, args) {
+        return s;
+    }
     // For methods whose names are shared between str and List (e.g. `count`,
     // `contains`, `join`), check the receiver's inferred type first so the
     // correct lowering fires.
+    //
+    // Value-semantic list mutators (`push`) in VALUE/reassign position lower to a
+    // block that clones, mutates, and yields the new vec (matches the interpreter,
+    // which returns the new list). Bare STATEMENT-position mutation (`result.push(0)`
+    // for its side effect) is intercepted earlier in `emit_stmt` and emitted as an
+    // in-place `result.push(0);` so the original binding actually grows.
     let recv_is_list = obj_is_list(obj, inferred_types);
     if recv_is_list {
         if let Some(s) = try_emit_list_method(method, &o, &arg_exprs) {
@@ -677,12 +686,86 @@ where
     ))
 }
 
+/// Try to emit Vox list higher-order-function lowerings to Rust iterator chains.
+///
+/// Vox list HOFs (`map`/`filter`/`fold`/`sorted_by_key`) have no direct method
+/// on Rust's `Vec`, so lower them to `into_iter()` adapter chains. `map`/`fold`
+/// pass the closure straight to the adapter (whose `Fn` bound pins the param
+/// type). `filter`/`sorted_by_key` invoke the Vox predicate INDIRECTLY
+/// (`pred(x.clone())`) — Vox closures take their param BY VALUE, but Rust's
+/// `filter`/`sort_by_key` pass `&T`, so we `.clone()` before calling. That
+/// indirect call defeats param inference, so those predicates are emitted with
+/// their declared param TYPE annotated (`annotate = true`) to avoid E0282.
+///
+/// Gated strictly on the exact Vox HOF name + arity. `map`/`filter`/`fold` are
+/// emitted only when the sole/first arg is a closure (lambda or closure-typed
+/// var ident) — this avoids shadowing unrelated `.map`/`.filter` method calls.
+fn try_emit_list_hof<F>(
+    emit_expr: &F,
+    method: &str,
+    o: &str,
+    args: &[vox_compiler::hir::HirArg],
+) -> Option<String>
+where
+    F: Fn(&HirExpr) -> String,
+{
+    let is_closure_arg = |e: &HirExpr| matches!(e, HirExpr::Lambda(..) | HirExpr::Ident(..));
+    match method {
+        "map" if args.len() == 1 && is_closure_arg(&args[0].value) => Some(format!(
+            "({}).into_iter().map({}).collect::<Vec<_>>()",
+            o,
+            emit_expr(&args[0].value)
+        )),
+        "filter" if args.len() == 1 && is_closure_arg(&args[0].value) => Some(format!(
+            "({}).into_iter().filter(|__x| ({})(__x.clone())).collect::<Vec<_>>()",
+            o,
+            emit_hof_predicate(emit_expr, &args[0].value)
+        )),
+        "fold" if args.len() == 2 && is_closure_arg(&args[1].value) => Some(format!(
+            "({}).into_iter().fold({}, {})",
+            o,
+            emit_expr(&args[0].value),
+            emit_expr(&args[1].value)
+        )),
+        // `sorted_by_key`/`sort_by_key` are the SAME value-semantic Vox method
+        // (eval/expr.rs matches both spellings): sort by a key function, returning
+        // a NEW list. The imperative spelling is NOT an in-place mutation — it is
+        // deliberately routed here (and excluded from stmt_expr::SELF_MUTATORS) so
+        // `xs = xs.sort_by_key(f)` lowers to this clone-and-sort value block.
+        "sorted_by_key" | "sort_by_key" if args.len() == 1 && is_closure_arg(&args[0].value) => {
+            Some(format!(
+                "{{ let mut __v = ({}).clone(); __v.sort_by_key(|__e| ({})(__e.clone())); __v }}",
+                o,
+                emit_hof_predicate(emit_expr, &args[0].value)
+            ))
+        }
+        // `sorted_by`/`sort_by` sort by a comparator `fn(a, b) -> int` (<0 / 0 / >0).
+        // Map the Vox int result to `std::cmp::Ordering` via `.cmp(&0)`, mirroring
+        // the interpreter's `n > 0 => swap` ascending semantics (stable sort).
+        "sorted_by" | "sort_by" if args.len() == 1 && is_closure_arg(&args[0].value) => {
+            Some(format!(
+                "{{ let mut __v = ({}).clone(); __v.sort_by(|__a, __b| ({})(__a.clone(), __b.clone()).cmp(&0)); __v }}",
+                o,
+                emit_hof_predicate(emit_expr, &args[0].value)
+            ))
+        }
+        // Vox `list.first()`/`.last()` return an owned `Option<T>`; Rust's
+        // `Vec::first`/`last` return `Option<&T>`, so `.cloned()` aligns the type
+        // with `Some(<owned>)` comparisons (matches the interpreter arm).
+        "first" if args.is_empty() => Some(format!("({}).first().cloned()", o)),
+        "last" if args.is_empty() => Some(format!("({}).last().cloned()", o)),
+        _ => None,
+    }
+}
+
 /// Try to emit Vox **value-semantic** list method lowerings.
 ///
 /// Vox lists are value types: the interpreter's `.push` (eval/builtins.rs) clones
 /// the vec, mutates the clone, and returns the NEW list. Rust's `Vec::push` instead
 /// mutates in place and returns `()`, so a naive `xs = xs.push(y)` assigns `()` to a
 /// `Vec` (E0308). Emit a block that performs the mutation and yields the updated vec.
+/// (Bare statement-position `result.push(0)` is intercepted in `emit_stmt` and
+/// lowered to an in-place mutation instead — see `try_emit_stmt_mutation`.)
 ///
 /// Scope: `push` only for now (the value-semantic mutator goldens actually hit).
 /// Other list mutators (`pop` returns the popped value, not the list; `insert`/
@@ -784,6 +867,21 @@ fn try_emit_list_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<S
     }
 }
 
+/// Emit a `filter`/`sorted_by_key` predicate. When it is a lambda literal, emit
+/// it BARE but with its declared param TYPE annotated (the predicate is invoked
+/// indirectly via `pred(x.clone())`, which defeats closure-param inference →
+/// E0282). A closure-typed variable arg (already `Rc<dyn Fn>`) is emitted as-is.
+fn emit_hof_predicate<F>(emit_expr: &F, arg: &HirExpr) -> String
+where
+    F: Fn(&HirExpr) -> String,
+{
+    if let HirExpr::Lambda(params, _ret, body, _, _) = arg {
+        super::stmt_expr::emit_bare_lambda(params, body, true, emit_expr)
+    } else {
+        emit_expr(arg)
+    }
+}
+
 /// Try to emit Vox string method lowerings that have no direct Rust String equivalent.
 ///
 /// # Lifetime discipline
@@ -794,6 +892,29 @@ fn try_emit_list_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<S
 /// `String` at the end of the `let` statement, leaving `__s` dangling (E0716).
 fn try_emit_str_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<String> {
     match method {
+        // Vox JSON accessors lower to the `serde_json::Value` equivalents.
+        // `as_int`/`as_float`/`as_bool` have no `String` analogue, so they are
+        // unambiguously JSON-value accessors. `as_str` exists on both, but Vox
+        // models it as returning an owned `Option<str>`; on a `serde_json::Value`
+        // the native `.as_str()` yields `Option<&str>`, so map to an owned String
+        // to satisfy downstream `unwrap_or("…".to_string())` / `String` fields.
+        // (The string methods to_upper/to_lower/replace/contains/split are handled
+        // by the E0716-safe arms below — merged from origin/main.)
+        "as_int" if arg_exprs.is_empty() => Some(format!("({}).as_i64()", o)),
+        "as_float" if arg_exprs.is_empty() => Some(format!("({}).as_f64()", o)),
+        "as_bool" if arg_exprs.is_empty() => Some(format!("({}).as_bool()", o)),
+        "as_str" if arg_exprs.is_empty() => {
+            Some(format!("({}).as_str().map(|__s| __s.to_string())", o))
+        }
+        // `xs.get(i)` (list, integer index) returns an owned `Option<T>` in Vox
+        // (matching the `Index` emit). Rust's `Vec::get` returns `Option<&T>`, so
+        // `.cloned()` aligns the type with `Some(<owned>)` comparisons, and the
+        // index is cast to `usize`. String-keyed `get` (serde_json `Value::get`,
+        // map `.get`) is left to the generic path — detected by a string-literal
+        // arg, which must NOT be cast to `usize`.
+        "get" if arg_exprs.len() == 1 && !arg_exprs[0].trim_start().starts_with('"') => {
+            Some(format!("({}).get(({}) as usize).cloned()", o, arg_exprs[0]))
+        }
         // ── Existing arms (updated for E0716 safety) ────────────────────────
         "slice" if arg_exprs.len() == 2 => Some(format!(
             "({{ let __owned = {}; let __s: &str = __owned.as_ref(); let __start = ({}) as usize; let __end = ({}) as usize; let __cnt = __s.chars().count(); let __end = __end.min(__cnt); let __start = __start.min(__end); __s.chars().skip(__start).take(__end - __start).collect::<String>() }})",

@@ -1193,3 +1193,28 @@ mod borrow_emission_tests {
         assert_eq!(out, "x.clone()");
     }
 }
+
+/// Emit a Rust closure for a bare Vox lambda (used by HOF method lowering, e.g.
+/// `method_emit`). Params are left UNANNOTATED unless `annotate` is set (only the
+/// list-HOF predicate lowering sets it, where the param type can't otherwise be
+/// inferred — E0282). Closure VALUES returned/assigned are `Rc::new`-wrapped by
+/// the caller to match the `Rc<dyn Fn>` repr in `types.rs`. (Ported from #231:
+/// main's `stmt_expr.rs` is canonical for the rest; this helper is net-new.)
+pub(super) fn emit_bare_lambda<F>(
+    params: &[vox_compiler::hir::HirParam],
+    body: &HirExpr,
+    annotate: bool,
+    emit_owned: &F,
+) -> String
+where
+    F: Fn(&HirExpr) -> String,
+{
+    let param_strs: Vec<String> = params
+        .iter()
+        .map(|p| match (annotate, &p.type_ann) {
+            (true, Some(ty)) => format!("{}: {}", p.name, super::types::emit_type(ty)),
+            _ => p.name.clone(),
+        })
+        .collect();
+    format!("move |{}| {}", param_strs.join(", "), emit_owned(body))
+}
