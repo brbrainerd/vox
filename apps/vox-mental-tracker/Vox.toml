@@ -7,7 +7,7 @@ kind = "application"
 description = "Local-first mental health tracker (sleep, meals, exercise, mood) — event-log SSOT, exports for clinicians."
 license = "Apache-2.0"
 authors = []
-keywords = ["mental-health", "capacitor", "pwa"]
+keywords = ["mental-health", "tauri", "pwa"]
 targets = []
 
 [dependencies]
