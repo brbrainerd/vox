@@ -39,7 +39,7 @@ fn list_map_filter_fold_and_sorted_by_key_emit() {
     );
     let sum = emit_fn_body(src, "sum_of_evens");
     assert!(
-        sum.contains(".into_iter().filter(") && sum.contains(".iter().fold("),
+        sum.contains(".into_iter().filter(") && sum.contains(".into_iter().fold("),
         "filter/fold must lower to iterator adapters; got:\n{sum}"
     );
     let sort = emit_fn_body(src, "sort_by_length");
