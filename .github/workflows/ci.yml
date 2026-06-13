@@ -95,6 +95,84 @@ jobs:
           path: target/debug/vox
           if-no-files-found: error
 
+  # SSOT auto-regenerate (PR helper, NON-required): regenerate the committed SSOT
+  # artifacts that guards-fast → `vox ci ssot-drift` verifies, and commit the result back
+  # to the PR branch. Removes the manual "regenerate after merge" round-trip — instead of
+  # ssot-drift hard-failing and a human running `vox ci <gen> --write` + committing, the bot
+  # does it. The generators are DETERMINISTIC (verified locally: a second run yields byte-
+  # identical output), so a re-run produces no diff → no commit → the loop self-terminates
+  # after at most one regen commit. Nothing `needs:` this job, so it can never block the
+  # required "Check, Build, and Test (Rust)" gate. Reuses the vox-cli built by `setup`.
+  #
+  # DEPLOYMENT PREREQUISITE: set repo secret `SSOT_AUTOREGEN_TOKEN` to a PAT or GitHub App
+  # token with `contents: write`. The default GITHUB_TOKEN can push but its pushes do NOT
+  # re-trigger workflows, so the required gate would not re-run on the bot's commit (PR would
+  # be unmergeable). With the PAT, the bot's push starts a fresh CI run that re-verifies the
+  # regenerated files. Without the secret it falls back to GITHUB_TOKEN: the bot still
+  # regenerates + commits, but a maintainer must nudge the gate (e.g. close/reopen the PR).
+  ssot-autoregen:
+    name: SSOT auto-regenerate (PR)
+    needs: setup
+    # Same-repo PRs only — fork PRs get a read-only token and fall back to manual regen.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 15
+    permissions:
+      contents: write   # job-scoped override (workflow default is contents: read) to push the regen commit
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          # PAT (preferred) makes the bot's push re-trigger CI; GITHUB_TOKEN is the fallback.
+          token: ${{ secrets.SSOT_AUTOREGEN_TOKEN || secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: vox-cli-bin
+          path: target/debug
+      - name: Ensure vox-cli executable
+        run: chmod +x target/debug/vox
+      - name: Regenerate committed SSOT artifacts
+        shell: bash
+        run: |
+          set -uo pipefail
+          # SOURCE OF TRUTH for this list: run_ssot_drift() in
+          # crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs — each generator it
+          # verifies in read-only mode is re-run here with its --write flag. Keep in sync
+          # when that function gains/loses a generator.
+          VOX=./target/debug/vox
+          for cmd in \
+            "operations-sync --target all --write" \
+            "command-sync --write" \
+            "generate-plugin-catalog-docs" \
+            "gui-version-sync --write" \
+            "capability-sync --write" \
+            "gui-surface-coverage --write" \
+            "gui-surface-registry --write"; do
+            echo "::group::vox ci $cmd"
+            # Best-effort: a generator that errors (not just rewrites) is surfaced as a
+            # warning but does not fail the job — the ssot-drift gate still verifies it.
+            $VOX --quiet ci $cmd || echo "::warning::regenerator failed: vox ci $cmd"
+            echo "::endgroup::"
+          done
+      - name: Commit regenerated artifacts to the PR branch (only if drift)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "SSOT artifacts already fresh — nothing to commit."
+            exit 0
+          fi
+          echo "Regeneration changed:"; git diff --name-only
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          # NO [skip ci]: the regenerated commit must be re-verified by the gate. The
+          # generators are deterministic, so the re-triggered run regenerates identically,
+          # finds no diff, and does not commit again — the loop terminates.
+          git commit -m "chore(ssot): auto-regenerate drifted SSOT artifacts (deterministic; ci.yml ssot-autoregen)"
+          git push origin "HEAD:${{ github.head_ref }}"
+
   guards-fast:
     name: Guards (fast)
     needs: setup
