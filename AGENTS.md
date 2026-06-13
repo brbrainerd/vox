@@ -55,7 +55,19 @@ Install the pre-commit hooks once after cloning: `vox run scripts/install-hooks.
 
 Manually-maintained files that **are** safe to edit:
 - `docs/src/adr/index.md`, `docs/src/adr/README.md` — hand-rolled ADR tables, not generated.
+- `docs/src/architecture/research-index.md` — a hand-curated SSOT index (manual frontmatter), **not** generated despite the name. Edit it directly.
 - Individual ADR / architecture / how-to / tutorial / reference markdown files — these are the **sources** the generators read from.
+
+**Reading diffs cheaply (agents).** Tracked generated artifacts are marked
+`linguist-generated`/`-diff` in `.gitattributes`, so GitHub and local `git show`/`git diff`
+already collapse them to "Binary files differ" — you never pay to read regenerated text.
+The set: `docs/src/**/*.generated.md`, `contracts/reports/gui-surface-{coverage,registry}.v1.json`,
+`crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt`, and `Cargo.lock` (collapsed
+on GitHub, kept locally diffable for supply-chain review). The Astro/index files
+(`SUMMARY.md`, `feed.xml`, `architecture-index.md`) are `.gitignore`d, so they are not in diffs
+at all. If a range still surfaces generated noise, exclude it explicitly rather than reading it,
+e.g. `git diff <base>..<head> -- . ':(exclude)Cargo.lock' ':(exclude)contracts/reports/*.v1.json'`.
+To understand a generated change, read the generator's **input**, never the regenerated output line-by-line.
 
 ## Authored Markdown Frontmatter (Required)
 
