@@ -27,6 +27,7 @@ pub async fn publication_decision_explain(
             abstract_text: manifest.abstract_text.clone(),
         };
         let client = vox_http_client::client();
+        let embedder = super::embedder::CachedLlmEmbedder::from_env(&db);
         let bundle = vox_publisher::scientia_prior_art::fetch_prior_art_federated(
             &client,
             &candidate_id,
@@ -35,6 +36,9 @@ pub async fn publication_decision_explain(
             vox_publisher::scientia_prior_art::PriorArtFetchOptions::default(),
             offline,
             &scientia_h,
+            embedder
+                .as_ref()
+                .map(|e| e as &dyn vox_publisher::scientia_semantic::Embedder),
         )
         .await?;
         manifest.metadata_json = Some(merge_novelty_bundle_into_metadata_json_str(
@@ -125,6 +129,7 @@ pub async fn publication_novelty_happy_path(publication_id: &str, offline: bool)
         abstract_text: row.abstract_text.clone(),
     };
     let client = vox_http_client::client();
+    let embedder = super::embedder::CachedLlmEmbedder::from_env(&db);
     let bundle = vox_publisher::scientia_prior_art::fetch_prior_art_federated(
         &client,
         &candidate_id,
@@ -133,6 +138,9 @@ pub async fn publication_novelty_happy_path(publication_id: &str, offline: bool)
         vox_publisher::scientia_prior_art::PriorArtFetchOptions::default(),
         offline,
         &scientia_h,
+        embedder
+            .as_ref()
+            .map(|e| e as &dyn vox_publisher::scientia_semantic::Embedder),
     )
     .await?;
 
@@ -236,6 +244,14 @@ pub async fn publication_novelty_happy_path(publication_id: &str, offline: bool)
             &scientia_h,
         );
 
+    let claim_year = chrono::Datelike::year(&chrono::Utc::now().date_naive());
+    let novelty_config = vox_scientia::inspect_bridge::NoveltyConfig::default();
+    let novelty_assessment = vox_publisher::scientia_novelty_assess::assess_novelty(
+        &bundle,
+        claim_year,
+        &novelty_config,
+    );
+
     println!(
         "{}",
         serde_json::to_string_pretty(&serde_json::json!({
@@ -247,6 +263,7 @@ pub async fn publication_novelty_happy_path(publication_id: &str, offline: bool)
             "preflight_readiness_score": report.readiness_score,
             "calibration_telemetry": calibration,
             "impact_readership_projection": impact_readership_projection,
+            "novelty_assessment": novelty_assessment,
         }))?
     );
     Ok(())

@@ -71,8 +71,11 @@ type View =
   | 'gamify'
   | 'harness'
   | 'browser'
+  | 'console'
   | 'scientia'
   | 'discovery-review'
+  | 'discovery-inbox'
+  | 'archive-panel'
   | 'claims'
   | 'mens'
   | 'populi'
@@ -94,10 +97,46 @@ type View =
 
 const LEGACY_VIEWS: string[] = [
   'dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository',
-  'mesh', 'gamify', 'harness', 'browser', 'scientia', 'discovery-review', 'claims', 'mens',
+  'mesh', 'gamify', 'harness', 'browser', 'console', 'scientia', 'discovery-review', 'discovery-inbox', 'archive-panel', 'claims', 'mens',
   'populi', 'research', 'oratio', 'approvals', 'policies', 'skills', 'settings', 'coverage',
   'publications', 'search', 'chat', 'agents', 'workspace', 'commands', 'knowledge', 'compute',
+  'review', 'tasks',
 ];
+
+// Single source of truth for valid view ids (deep-link validation + initial-view).
+const KNOWN_VIEWS: string[] = [
+  'dashboard',
+  'flow',
+  'catalog',
+  'matrix',
+  'memory',
+  'models',
+  'runs',
+  'repository',
+  'mesh',
+  'gamify',
+  'harness',
+  'scientia',
+  'discovery-review',
+  'discovery-inbox',
+  'archive-panel',
+  'claims',
+  'mens',
+  'populi',
+  'research',
+  'oratio',
+  'approvals',
+  'policies',
+  'skills',
+  'settings',
+  'coverage',
+  'publications',
+  'search',
+];
+
+function isKnownView(v: unknown): v is View {
+  return typeof v === 'string' && KNOWN_VIEWS.includes(v);
+}
 
 // ─── Agent mapper — shared between EventBus and polling fallback ─────────────
 function mapAgent(a: RawAgentSummary): Agent {
@@ -479,6 +518,7 @@ export default function App() {
         planned_steps: 1,
       }
     });
+    let finished = false;
     try {
       const result = await invoke<T>(command, payload);
       await invoke('finish_gui_run', {
@@ -487,14 +527,17 @@ export default function App() {
         completed_steps: 1,
         error: null
       });
+      finished = true;
       return result;
     } catch (err) {
-      await invoke('finish_gui_run', {
-        run_id: runId,
-        success: false,
-        completed_steps: 0,
-        error: String(err),
-      }).catch(() => {});
+      if (!finished) {
+        await invoke('finish_gui_run', {
+          run_id: runId,
+          success: false,
+          completed_steps: 0,
+          error: String(err),
+        }).catch(() => {});
+      }
       throw err;
     }
   }, []);
@@ -515,6 +558,26 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Cross-surface deep-link: a surface may request navigation to another
+  // surface (optionally seeding a value) by dispatching a `vox://navigate-surface`
+  // CustomEvent. Used by the Discovery Inbox "Open review" action to jump to the
+  // Discovery Review surface with the publication id pre-filled.
+  useEffect(() => {
+    const onNavigate = (e: Event) => {
+      const detail = (e as CustomEvent<{ view?: string; publicationId?: string }>).detail;
+      if (!detail?.view || !isKnownView(detail.view)) return;
+      if (detail.publicationId != null) {
+        try {
+          window.localStorage.setItem('vox_discovery_review_seed', detail.publicationId);
+        } catch { /* localStorage unavailable — surface still switches */ }
+      }
+      setActiveView(detail.view);
+    };
+    window.addEventListener('vox://navigate-surface', onNavigate as EventListener);
+    return () => window.removeEventListener('vox://navigate-surface', onNavigate as EventListener);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -577,44 +640,72 @@ export default function App() {
       input: { session_id: sessionId, role: 'user', content: String(payload.description ?? ''), task_id: null },
     }).catch((err) => pushToast({ tone: 'warn', title: 'Message not saved', body: String(err) }));
     const contextFiles = contextRefsFromPayload(payload);
-    await executeIpcWithRun<SubmitTaskResult>(
-      'submit_orchestrator_task',
-      {
-        input: {
-          description: payload.description,
-          files: contextFiles,
-          priority: payload.priority ?? null,
-          session_id: sessionId || null,
-          mode: payload.mode ?? null,
-          model_hint: payload.model_hint ?? payload.tier ?? null,
-          dry_run: payload.dry_run ?? null,
-          active_skill: payload.active_skill ?? activeSkill?.id ?? null,
-        }
-      },
-      'gui.loquela.submit',
-      // Mint the runId and create the user/assistant bubbles BEFORE the invoke
-      // resolves so streamed tokens correlate to a live transcript entry.
-      (id) => {
-        runId = id;
-        dispatchSessionChat({
-          type: 'submit',
-          sessionId,
-          runId: id,
-          prompt: String(payload.description ?? ''),
-        });
-      },
-    )
-      .then((result) => {
-        if (runId && result?.task_id != null && sessionId) {
+
+    // One submit attempt. `allowDuplicate=false` lets the daemon refuse a
+    // near-duplicate (returning `duplicate_of` with a null task_id) so we can
+    // ask the user instead of silently enqueuing the same work twice.
+    const dispatchAttempt = (allowDuplicate: boolean) =>
+      executeIpcWithRun<SubmitTaskResult>(
+        'submit_orchestrator_task',
+        {
+          input: {
+            description: payload.description,
+            files: contextFiles,
+            priority: payload.priority ?? null,
+            session_id: sessionId || null,
+            mode: payload.mode ?? null,
+            model_hint: payload.model_hint ?? payload.tier ?? null,
+            dry_run: payload.dry_run ?? null,
+            active_skill: payload.active_skill ?? activeSkill?.id ?? null,
+            allow_duplicate: allowDuplicate,
+          }
+        },
+        'gui.loquela.submit',
+        // Mint the runId and create the user/assistant bubbles BEFORE the invoke
+        // resolves so streamed tokens correlate to a live transcript entry.
+        (id) => {
+          runId = id;
           dispatchSessionChat({
-            type: 'submitResolved',
+            type: 'submit',
+            sessionId,
+            runId: id,
+            prompt: String(payload.description ?? ''),
+          });
+        },
+      );
+
+    try {
+      let result = await dispatchAttempt(false);
+      // Refused as a near-duplicate: retract the optimistic bubble and ask.
+      if (result?.task_id == null && result?.duplicate_of) {
+        if (runId) {
+          dispatchSessionChat({
+            type: 'failRun',
             sessionId,
             runId,
-            taskId: String(result.task_id),
+            error: `Skipped — near-duplicate of task #${result.duplicate_of}`,
           });
         }
-      })
-      .catch(err => pushToast({ tone: 'warn', title: 'Dispatch Failed', body: String(err) }));
+        const proceed = window.confirm(
+          `This looks like a near-duplicate of task #${result.duplicate_of}.\n\nSubmit it anyway?`,
+        );
+        if (!proceed) {
+          pushToast({ tone: 'info', title: 'Duplicate skipped', body: `Kept existing task #${result.duplicate_of}.` });
+          return;
+        }
+        result = await dispatchAttempt(true);
+      }
+      if (runId && result?.task_id != null && sessionId) {
+        dispatchSessionChat({
+          type: 'submitResolved',
+          sessionId,
+          runId,
+          taskId: String(result.task_id),
+        });
+      }
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Dispatch Failed', body: String(err) });
+    }
   }, [executeIpcWithRun, pushToast, activeSessionId, activeSkill]);
 
   const handleLoquelaSlash = useCallback(async (
@@ -873,6 +964,10 @@ export default function App() {
     skills: data.skills,
     onAttachContext: attachContext,
     onNavigate: navigateTo,
+    onOpenInConsole: (a: Agent) => {
+      setSelectedAgentId(a.id);
+      navigateTo('console');
+    },
     activeChild: nav.child,
     onChildChange: (vk: string) => setActiveView(vk as View),
     activeSessionId,

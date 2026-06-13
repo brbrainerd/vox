@@ -24,7 +24,7 @@ edition = "2024"
 license = "Apache-2.0"
 authors = ["Bert Brainerd"]
 repository = "https://github.com/vox-foundation/vox.git"
-rust-version = "1.95"
+rust-version = "1.96"
 keywords = ["vox", "language", "compilers"]
 categories = ["development-tools", "compilers"]
 
@@ -52,7 +52,6 @@ debug = 0
 
 [workspace.dependencies]
 vox-scientia = { path = "crates/vox-scientia" }
-vox-nanopub               = { path = "crates/vox-nanopub" }
 vox-ast                   = { path = "crates/vox-ast" }
 workspace-hack            = { path = "crates/workspace-hack" }
 # Internal crates
@@ -107,6 +106,7 @@ vox-hf-layout              = { path = "crates/vox-hf-layout" }
 vox-populi                = { path = "crates/vox-populi" }
 vox-populi-types          = { path = "crates/vox-populi-types" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
+vox-mesh-policy           = { path = "crates/vox-mesh-policy" }
 vox-mesh-types            = { path = "crates/vox-mesh-types" }
 
 vox-effort-audit          = { path = "crates/vox-effort-audit" }
@@ -179,7 +179,10 @@ clap               = { version = "4.5", features = ["derive"] }
 clap_complete      = { version = "4.5" }
 serde              = { version = "1", features = ["derive"] }
 serde_json         = "1"
-serde_yaml         = "0.9"
+# serde_yaml 0.9 is archived/deprecated (RUSTSEC-flagged 0.9.34+deprecated). serde_yaml_ng
+# is the API-compatible maintained fork; the package-rename keeps `serde_yaml::` paths working
+# workspace-wide with zero source changes. (Do NOT use serde_yml — RUSTSEC-2025-0068, unsound.)
+serde_yaml         = { package = "serde_yaml_ng", version = "0.10" }
 toml               = "0.8"
 toml_edit          = "0.22"
 typify             = "0.7"
@@ -325,6 +328,7 @@ lru                = "0.13"
 futures-core       = "0.3"
 quote              = "1"
 similar            = "2"
+strsim             = "0.11"
 globset            = "0.4"
 swc_ecma_parser    = "41"
 swc_ecma_ast       = "25"

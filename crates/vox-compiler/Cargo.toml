@@ -16,6 +16,7 @@ vox-grammar-export = { workspace = true }
 vox-repository = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+strsim = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 miette = { workspace = true }

@@ -7,9 +7,11 @@ interface AgentRowProps {
   a: Agent;
   onPause: (a: Agent) => void;
   onResume: (a: Agent) => void;
+  /** Optional: open this agent's live stream in the Console surface. */
+  onOpenInConsole?: (a: Agent) => void;
 }
 
-export function AgentRow({ a, onPause, onResume }: AgentRowProps) {
+export function AgentRow({ a, onPause, onResume, onOpenInConsole }: AgentRowProps) {
   const t = PHASE_TONE[a.phase as PhaseKind] || PHASE_TONE.Paused;
   const pct = a.progress != null ? Math.round(a.progress * 100) : null;
   const bp = a.budget != null && a.budget > 0 ? (a.cost / a.budget) * 100 : null;
@@ -43,6 +45,16 @@ export function AgentRow({ a, onPause, onResume }: AgentRowProps) {
           >
             {a.phase === "Paused" ? <Icon.play className="size-3.5" /> : <Icon.pause className="size-3.5" />}
           </button>
+          {onOpenInConsole && (
+            <button
+              onClick={() => onOpenInConsole(a)}
+              title="Open in Console"
+              aria-label="open in console"
+              className="rounded-md border border-white/5 bg-white/[0.02] p-1.5 text-zinc-400 hover:border-white/20 hover:text-zinc-100 transition"
+            >
+              <Icon.command className="size-3.5" />
+            </button>
+          )}
         </div>
       </div>
       <div className="mt-2.5 flex items-center gap-2">

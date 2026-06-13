@@ -93,6 +93,10 @@ pub struct CohortPlan {
 
 /// Minimum speedup over single-machine that justifies the coordination overhead of a
 /// federated cohort. Below this, the plan recommends a single machine.
+///
+/// Note: the cohort-speedup estimate (`sum(weights) / max(weights)`) is optimistic —
+/// it assumes perfect parallelism and ignores synchronization/communication overhead,
+/// so real-world speedups will be somewhat lower than the estimate compared here.
 pub const MIN_USEFUL_SPEEDUP: f64 = 1.1;
 
 /// Plan a training cohort for `target_model` (`target_params_b` billions of params),

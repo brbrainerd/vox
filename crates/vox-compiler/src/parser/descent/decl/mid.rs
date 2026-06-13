@@ -375,6 +375,20 @@ impl Parser {
         Ok(attr)
     }
 
+    /// Push a parse error for a duplicated `@table(...)` parameter (e.g.
+    /// `@table(pk: a, pk: b)`); duplicates must error rather than silently
+    /// last-wins.
+    fn push_duplicate_table_param_error(&mut self, param: &str) {
+        use crate::parser::error::{ParseError, ParseErrorClass};
+        self.errors.push(ParseError::classified(
+            self.span(),
+            format!("Duplicate `{param}` parameter in `@table(...)` — each parameter may appear at most once."),
+            vec![format!("remove the extra `{param}`")],
+            Some(self.peek().to_string()),
+            ParseErrorClass::Declaration,
+        ));
+    }
+
     pub(crate) fn parse_table(&mut self) -> Result<Decl, ()> {
         let start = self.span();
         self.advance(); // eat @table
@@ -396,19 +410,35 @@ impl Parser {
                 }
                 match self.peek().clone() {
                     Token::Extern => {
+                        if is_extern {
+                            self.push_duplicate_table_param_error("extern");
+                            return Err(());
+                        }
                         self.advance();
                         is_extern = true;
                     }
                     Token::Ident(k) if k == "extern" => {
+                        if is_extern {
+                            self.push_duplicate_table_param_error("extern");
+                            return Err(());
+                        }
                         self.advance();
                         is_extern = true;
                     }
                     Token::Ident(k) if k == "pk" => {
+                        if primary_key.is_some() {
+                            self.push_duplicate_table_param_error("pk");
+                            return Err(());
+                        }
                         self.advance(); // eat `pk`
                         self.expect(&Token::Colon)?;
                         primary_key = Some(self.parse_ident_name()?);
                     }
                     Token::Ident(k) if k == "source" => {
+                        if source.is_some() {
+                            self.push_duplicate_table_param_error("source");
+                            return Err(());
+                        }
                         self.advance(); // eat `source`
                         self.expect(&Token::Colon)?;
                         source = match self.peek().clone() {

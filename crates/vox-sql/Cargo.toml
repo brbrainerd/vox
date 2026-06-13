@@ -1,5 +1,6 @@
 [package]
 name = "vox-sql"
+description = "Engine-agnostic SQL app-plane backends (libSQL, Postgres, MySQL) for Vox."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

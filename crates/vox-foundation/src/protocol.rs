@@ -25,6 +25,13 @@ pub mod orch_daemon_method {
     pub const CANCEL_TASK: &str = "orch.cancel_task";
     /// Params: `{"task_id": u64, "priority": "urgent|normal|background"}`.
     pub const REORDER_TASK: &str = "orch.reorder_task";
+    /// Params: `{}` → `{"tasks": [{id, description, priority, status, lifecycle,
+    /// agent_id, session_id, estimated_complexity, depends_on, write_files}, ...]}`.
+    /// Lists every queued or in-progress task across all agents.
+    pub const LIST_TASKS: &str = "orch.list_tasks";
+    /// Params: `{"task_id": u64, "description": "..."}` → `{"ok": true}`.
+    /// Rewrites the description of a queued (not in-progress) task.
+    pub const EDIT_TASK: &str = "orch.edit_task";
     /// Params: `{"agent_id": u64}` → `{"drained_count": u64}`.
     pub const DRAIN_AGENT: &str = "orch.drain_agent";
     /// Params: `{}` → `{"rebalanced": u64}`.

@@ -41,3 +41,16 @@
     box-shadow: 0 0 10px rgba(212,175,55,0.5);
   }
 }
+
+/* Theme background overrides (non-layered so they win over the @layer base
+   default of #09090b). Arcane is the default — no override needed. */
+:root[data-theme='void'] html,
+:root[data-theme='void'] body,
+:root[data-theme='void'] #root {
+  background: #050507;
+}
+:root[data-theme='glacier'] html,
+:root[data-theme='glacier'] body,
+:root[data-theme='glacier'] #root {
+  background: #0a0f14;
+}

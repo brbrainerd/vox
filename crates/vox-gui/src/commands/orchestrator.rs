@@ -338,6 +338,28 @@ pub async fn set_orchestrator_config(config: serde_json::Value) -> Result<(), St
             toml::Value::Boolean(shadow),
         );
     }
+    // Scaling section (Track D): local-resource-aware auto-scaling controls.
+    if let Some(v) = config.get("scalingEnabled").and_then(|v| v.as_bool()) {
+        orch_table.insert("scaling_enabled".to_string(), toml::Value::Boolean(v));
+    }
+    if let Some(v) = config.get("minAgents").and_then(|v| v.as_u64()) {
+        orch_table.insert("min_agents".to_string(), toml::Value::Integer(v as i64));
+    }
+    if let Some(v) = config.get("scalingThreshold").and_then(|v| v.as_u64()) {
+        orch_table.insert(
+            "scaling_threshold".to_string(),
+            toml::Value::Integer(v as i64),
+        );
+    }
+    if let Some(v) = config.get("scaleCpuCeilingPct").and_then(|v| v.as_f64()) {
+        orch_table.insert("scale_cpu_ceiling_pct".to_string(), toml::Value::Float(v));
+    }
+    if let Some(v) = config.get("scaleMemFloorMb").and_then(|v| v.as_u64()) {
+        orch_table.insert(
+            "scale_mem_floor_mb".to_string(),
+            toml::Value::Integer(v as i64),
+        );
+    }
 
     // 3. Save it back
     manifest.orchestrator = Some(orch_table);
@@ -357,4 +379,38 @@ pub async fn set_orchestrator_config(config: serde_json::Value) -> Result<(), St
     });
 
     Ok(())
+}
+
+/// Read the persisted orchestrator settings from the discovered `Vox.toml`
+/// `[orchestrator]` table so the GUI can hydrate its controls instead of
+/// showing hardcoded defaults (fixes the inert-sliders bug).
+#[tauri::command]
+pub async fn get_orchestrator_config() -> Result<serde_json::Value, String> {
+    let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
+    let (manifest, _path) = VoxManifest::discover(&current_dir).map_err(|e| e.to_string())?;
+    let t = manifest.orchestrator.unwrap_or_default();
+    let get_i = |k: &str| t.get(k).and_then(|v| v.as_integer());
+    let get_f = |k: &str| {
+        t.get(k)
+            .and_then(|v| v.as_float().or_else(|| v.as_integer().map(|i| i as f64)))
+    };
+    let get_b = |k: &str| t.get(k).and_then(|v| v.as_bool());
+    let get_s = |k: &str| t.get(k).and_then(|v| v.as_str().map(ToString::to_string));
+    Ok(serde_json::json!({
+        "concurrency": get_i("max_agents"),
+        "capUsd": get_i("financial_cost_budget_micros").map(|m| m as f64 / 1_000_000.0),
+        "doubtThresh": get_f("trust_auto_approve_min"),
+        "isolation": get_s("scope_enforcement").map(|s| match s.as_str() {
+            "Wasm" => "wasm",
+            "Container" => "ctr",
+            _ => "native",
+        }),
+        "autobudget": get_b("exec_time_budget_enabled"),
+        "doubt": get_b("socrates_gate_enforce"),
+        "scalingEnabled": get_b("scaling_enabled"),
+        "minAgents": get_i("min_agents"),
+        "scalingThreshold": get_i("scaling_threshold"),
+        "scaleCpuCeilingPct": get_f("scale_cpu_ceiling_pct"),
+        "scaleMemFloorMb": get_i("scale_mem_floor_mb"),
+    }))
 }

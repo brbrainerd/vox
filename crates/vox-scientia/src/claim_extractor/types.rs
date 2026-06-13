@@ -38,6 +38,12 @@ pub struct AtomicClaim {
 pub struct VerifierOutput {
     pub claim_id: u64,
     pub support_score: f64,
+    /// Score in [0,1] indicating how strongly the context contradicts the claim.
+    /// Populated by the Mock backend via lexical-negation asymmetry heuristic, and
+    /// by the HTTP backend when the endpoint returns a `contradiction_score` field.
+    /// 0.0 when the backend has no contradiction signal.
+    #[serde(default)]
+    pub contradiction_score: f64,
     pub abstained: bool,
     pub verifier_model: String,
 }
@@ -45,10 +51,21 @@ pub struct VerifierOutput {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "verdict", rename_all = "snake_case")]
 pub enum ClaimVerdict {
-    Supported { confidence: f64 },
-    Contradicted { confidence: f64 },
-    Contested { confidence: f64 },
-    Abstain { reason: String },
+    Supported {
+        confidence: f64,
+    },
+    /// The context actively contradicts the claim. `confidence` carries the
+    /// contradiction score produced by the verifier (lexical-negation asymmetry
+    /// heuristic in the Mock backend; endpoint-supplied value in the HTTP backend).
+    Contradicted {
+        confidence: f64,
+    },
+    Contested {
+        confidence: f64,
+    },
+    Abstain {
+        reason: String,
+    },
 }
 
 impl ClaimVerdict {

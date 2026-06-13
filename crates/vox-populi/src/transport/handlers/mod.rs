@@ -24,4 +24,6 @@ pub(super) use leases::{
     admin_exec_lease_revoke, exec_lease_grant, exec_lease_list, exec_lease_release,
     exec_lease_renew,
 };
-pub(super) use nodes::{bootstrap_exchange, health, heartbeat, join_node, leave_node, list_nodes};
+pub(super) use nodes::{
+    bootstrap_exchange, health, heartbeat, join_node, leave_node, list_nodes, resources_summary,
+};

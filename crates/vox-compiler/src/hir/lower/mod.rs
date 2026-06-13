@@ -557,6 +557,7 @@ impl LowerCtx {
                                 name: c.name.clone(),
                                 light: c.light.clone(),
                                 dark: c.dark.clone(),
+                                pair_bg: c.pair_bg.clone(),
                                 span: c.span,
                             })
                             .collect(),

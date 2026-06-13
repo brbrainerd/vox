@@ -22,8 +22,8 @@ pub mod types;
 
 pub use crate::types::PrioritySource;
 pub use capability::{DeveloperOverride, DeveloperOverrideMint};
-pub use mesh_adapter::{HopperOpSync, MIN_INTAKE_TRUST_TIER};
-pub use store::{HopperError, HopperIntake, InMemoryHopper};
+pub use mesh_adapter::{HopperOpSync, MIN_INTAKE_TRUST_TIER, ReplicationError, apply_op_fragment};
+pub use store::{AdmittedReplay, HopperError, HopperIntake, InMemoryHopper};
 pub use types::{
     HopperItemId, IntakeItem, IntakeSource, ItemState, PriorityHint, PriorityOverrideRecord,
 };
