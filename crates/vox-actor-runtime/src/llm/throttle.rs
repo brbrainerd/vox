@@ -100,7 +100,7 @@ impl ProviderThrottle {
     /// Additive increase: +1 permit per 8 consecutive successes, up to max.
     pub fn on_success(&self) {
         let streak = self.success_streak.fetch_add(1, Ordering::SeqCst) + 1;
-        if streak % 8 == 0 {
+        if streak.is_multiple_of(8) {
             let limit = self.current_limit.load(Ordering::SeqCst);
             if limit < self.max_limit {
                 self.current_limit.store(limit + 1, Ordering::SeqCst);
