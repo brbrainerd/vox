@@ -19,7 +19,7 @@ export type PhaseKind =
 
 export const PHASE_TONE: Record<PhaseKind, { dot: string; ring: string; text: string; glow: string }> = {
   Verifying:   { dot: "bg-violet-400", ring: "ring-violet-400/30", text: "text-violet-300",  glow: "shadow-[0_0_18px_-4px_rgba(167,139,250,0.55)]" },
-  Executing:   { dot: "bg-brass",      ring: "ring-brass/30",      text: "text-brass",       glow: "shadow-[0_0_18px_-4px_rgba(212,175,55,0.55)]" },
+  Executing:   { dot: "bg-brass",      ring: "ring-brass/30",      text: "text-brass",       glow: "shadow-[0_0_18px_-4px_rgb(var(--brass)_/_0.55)]" },
   Planning:    { dot: "bg-cyan-400",   ring: "ring-cyan-400/30",   text: "text-cyan-300",    glow: "shadow-[0_0_18px_-4px_rgba(34,211,238,0.55)]" },
   Paused:      { dot: "bg-zinc-500",   ring: "ring-zinc-500/30",   text: "text-zinc-300",    glow: "" },
   Validated:   { dot: "bg-emerald-400",ring: "ring-emerald-400/30",text: "text-emerald-300", glow: "" },

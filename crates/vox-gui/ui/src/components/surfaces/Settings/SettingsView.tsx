@@ -6,6 +6,8 @@ import { voxTransport } from '../../../transport';
 import type { OrchestratorStatus, RoutingSummary, Toast } from '../../../types/tauri';
 import { DEFAULT_BUDGET_CAP_USD } from '../../../config/budget';
 import { PriorityChainEditor } from './PriorityChainEditor';
+import { applyTheme } from '../../../lib/theme';
+import { useLocalStorage } from '../../../hooks/useLocalStorage';
 import { searchSettings } from './settingsIndex';
 
 const SECTIONS = [
@@ -13,6 +15,7 @@ const SECTIONS = [
   { id: 'scaling',      icon: 'cpu',     label: 'Scaling' },
   { id: 'llm',          icon: 'bolt',    label: 'LLM & providers' },
   { id: 'routing',      icon: 'matrix',  label: 'Model routing' },
+  { id: 'runtime',      icon: 'flow',    label: 'Runtime' },
   { id: 'mesh',         icon: 'flow',    label: 'Mesh & peers' },
   { id: 'signing',      icon: 'shield',  label: 'Signing keys' },
   { id: 'secrets',      icon: 'shield',  label: 'Keys & Secrets' },
@@ -83,7 +86,7 @@ function RangeInline({
         type="range" min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
         className="vox-range flex-1 h-1 appearance-none rounded-full overflow-hidden"
-        style={{ background: `linear-gradient(to right, #d4af37 ${pct}%, rgba(255,255,255,0.08) ${pct}%)` } as any}
+        style={{ background: `linear-gradient(to right, rgb(var(--brass)) ${pct}%, rgba(255,255,255,0.08) ${pct}%)` } as any}
       />
       <span className="w-14 text-right font-mono text-[11px] text-zinc-200">{value}{suffix}</span>
     </div>
@@ -357,17 +360,55 @@ interface SecretStatusDto {
   remediation: string;
 }
 
+// Backend/profile status header DTO, mirrors Rust `SecretsBackendStatusDto`.
+interface SecretsBackendStatusDto {
+  backendMode: string;
+  profile: string;
+  strict: boolean;
+  available: boolean;
+  detail: string | null;
+}
+
+// One recognised key from an `.env` import preview. NAMES + redacted only — no values.
+interface ImportEnvEntryDto {
+  sourceKey: string;
+  canonicalEnv: string;
+  redacted: string;
+}
+
+interface ImportEnvResultDto {
+  applied: boolean;
+  count: number;
+  entries: ImportEnvEntryDto[];
+}
+
 function KeysSecretsSection({ pushToast }: { pushToast: (t: Toast) => void }) {
   const [rows, setRows] = useState<SecretStatusDto[]>([]);
   const [loading, setLoading] = useState(true);
   // Holds ONLY the in-flight input value per key. Cleared immediately on save.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [status, setStatus] = useState<SecretsBackendStatusDto | null>(null);
+
+  // Per-taxonomy collapse state, persisted (mirrors the Sidebar pattern).
+  const [collapsed, setCollapsed] = useLocalStorage<Record<string, boolean>>('vox_secrets_groups', {});
+  // Tracks which slugs we've already applied the auto-expand default to, so a
+  // user's later manual collapse of a required group is never re-overridden.
+  const seededSlugs = useRef<Set<string>>(new Set());
+
+  // Inline Import .env flow state.
+  const [envPath, setEnvPath] = useState('');
+  const [preview, setPreview] = useState<ImportEnvResultDto | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
 
   const reload = async () => {
     try {
-      const next = await invoke<SecretStatusDto[]>('list_secret_status');
+      const [next, st] = await Promise.all([
+        invoke<SecretStatusDto[]>('list_secret_status'),
+        invoke<SecretsBackendStatusDto>('secrets_backend_status').catch(() => null),
+      ]);
       setRows(next);
+      if (st) setStatus(st);
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Could not load secrets', body: String(err) });
     } finally {
@@ -376,6 +417,86 @@ function KeysSecretsSection({ pushToast }: { pushToast: (t: Toast) => void }) {
   };
 
   useEffect(() => { reload(); }, []);
+
+  // Group rows by taxonomy slug (stable insertion order from the backend list).
+  const groups = React.useMemo(() => {
+    const map = new Map<string, SecretStatusDto[]>();
+    for (const r of rows) {
+      const slug = r.taxonomySlug || 'other';
+      (map.get(slug) ?? map.set(slug, []).get(slug)!).push(r);
+    }
+    return Array.from(map.entries()).map(([slug, items]) => {
+      const set = items.filter(i => i.isPresent).length;
+      const missing = items.length - set;
+      const needsAttention = items.some(i => i.required && !i.isPresent);
+      return { slug, items, set, missing, needsAttention };
+    });
+  }, [rows]);
+
+  // Default: groups with an unmet required secret start expanded; others stay as
+  // stored (or collapsed on first sight). Only seed each slug once.
+  useEffect(() => {
+    if (groups.length === 0) return;
+    setCollapsed(prev => {
+      const next = { ...prev };
+      let changed = false;
+      for (const g of groups) {
+        if (seededSlugs.current.has(g.slug)) continue;
+        seededSlugs.current.add(g.slug);
+        if (!(g.slug in next)) {
+          next[g.slug] = !g.needsAttention;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [groups, setCollapsed]);
+
+  const toggleGroup = (slug: string) =>
+    setCollapsed(prev => ({ ...prev, [slug]: !prev[slug] }));
+
+  const migrate = async () => {
+    setImportBusy(true);
+    try {
+      const moved = await invoke<number>('migrate_auth_store');
+      pushToast({ tone: 'ok', title: 'Auth store migrated', body: `${moved} entr${moved === 1 ? 'y' : 'ies'} moved to vault` });
+      await reload();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Migrate failed', body: String(err) });
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
+  const runPreview = async () => {
+    setImportBusy(true);
+    try {
+      const res = await invoke<ImportEnvResultDto>('import_env', { path: envPath || null, apply: false });
+      setPreview(res);
+      if (res.count === 0) {
+        pushToast({ tone: 'warn', title: 'No managed secrets found', body: envPath || '.env' });
+      }
+    } catch (err) {
+      setPreview(null);
+      pushToast({ tone: 'warn', title: 'Preview failed', body: String(err) });
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
+  const runImport = async () => {
+    setImportBusy(true);
+    try {
+      const res = await invoke<ImportEnvResultDto>('import_env', { path: envPath || null, apply: true });
+      setPreview(null);
+      pushToast({ tone: 'ok', title: 'Secrets imported', body: `${res.count} value${res.count === 1 ? '' : 's'} stored in vault` });
+      await reload();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Import failed', body: String(err) });
+    } finally {
+      setImportBusy(false);
+    }
+  };
 
   const save = async (key: string) => {
     const value = drafts[key];
@@ -407,57 +528,297 @@ function KeysSecretsSection({ pushToast }: { pushToast: (t: Toast) => void }) {
     }
   };
 
+  const renderSecretRow = (r: SecretStatusDto) => (
+    <div key={r.id} className="rounded-md border border-white/5 bg-white/[0.02] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="leading-tight">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[12px] text-zinc-100">{r.canonicalEnv}</span>
+            {r.required && (
+              <span className="rounded-full bg-amber-400/15 px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">required</span>
+            )}
+          </div>
+          <div className="mt-0.5 text-[10px] text-zinc-500">{r.scopeDescription}</div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
+            r.isPresent ? 'bg-emerald-400/15 text-emerald-300' : 'bg-zinc-700/40 text-zinc-400'
+          }`}>{r.isPresent ? 'set' : 'missing'}</span>
+          {r.isPresent && (
+            <span className="font-mono text-[10px] text-zinc-500">{r.redacted}</span>
+          )}
+        </div>
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <input
+          type="password"
+          autoComplete="new-password"
+          placeholder="Paste new value…"
+          value={drafts[r.canonicalEnv] ?? ''}
+          onChange={e => setDrafts(d => ({ ...d, [r.canonicalEnv]: e.target.value }))}
+          className="flex-1 rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
+        />
+        <button
+          disabled={!drafts[r.canonicalEnv] || busy === r.canonicalEnv}
+          onClick={() => save(r.canonicalEnv)}
+          className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+        >save</button>
+        <button
+          disabled={!r.isPresent || busy === r.canonicalEnv}
+          onClick={() => remove(r.canonicalEnv)}
+          className="rounded border border-rose-500/20 bg-rose-500/[0.04] px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10 disabled:opacity-40"
+        >remove</button>
+      </div>
+    </div>
+  );
+
   return (
     <>
-      <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Keys &amp; Secrets</h2>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Keys &amp; Secrets</h2>
+        {status && (
+          <>
+            <span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-zinc-300" title="Active secrets backend mode">
+              backend: {status.backendMode}
+            </span>
+            <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
+              status.strict ? 'bg-amber-400/15 text-amber-300' : 'bg-white/[0.04] text-zinc-300'
+            }`} title="Active resolution profile">
+              profile: {status.profile}
+            </span>
+            <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
+              status.available ? 'bg-emerald-400/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'
+            }`} title={status.detail ?? undefined}>
+              {status.available ? 'available' : 'unavailable'}
+            </span>
+          </>
+        )}
+      </div>
       <p className="mt-0.5 text-[11px] text-zinc-500">
         Managed API keys and tokens (Vox Secrets / Clavis). Values are write-only — once saved they are never shown again, only a redacted preview.
       </p>
+
+      {/* Actions: migrate auth.json + import .env */}
+      <div className="mt-4 rounded-md border border-white/5 bg-white/[0.02] p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            disabled={importBusy}
+            onClick={migrate}
+            className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+          >Migrate auth.json → vault</button>
+          <input
+            type="text"
+            value={envPath}
+            placeholder="default .env (optional path)"
+            onChange={e => { setEnvPath(e.target.value); setPreview(null); }}
+            className="min-w-[180px] flex-1 rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
+          />
+          <button
+            disabled={importBusy}
+            onClick={runPreview}
+            className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+          >Preview</button>
+          {preview && preview.count > 0 && (
+            <button
+              disabled={importBusy}
+              onClick={runImport}
+              className="rounded border border-emerald-400/20 bg-emerald-400/[0.06] px-2 py-1 font-mono text-[10px] text-emerald-300 hover:bg-emerald-400/10 disabled:opacity-40"
+            >Import {preview.count}</button>
+          )}
+        </div>
+        {preview && (
+          <div className="mt-2 rounded border border-white/5 bg-black/20 p-2">
+            <div className="font-display text-[10px] uppercase tracking-widest text-zinc-400">
+              {preview.count} managed secret{preview.count === 1 ? '' : 's'} would import (names only — no values shown)
+            </div>
+            {preview.entries.length > 0 && (
+              <div className="mt-1 flex flex-col gap-0.5">
+                {preview.entries.map(e => (
+                  <div key={e.sourceKey} className="flex items-center gap-2 font-mono text-[10px] text-zinc-400">
+                    <span className="text-zinc-200">{e.sourceKey}</span>
+                    <span className="text-zinc-600">→</span>
+                    <span className="text-zinc-300">{e.canonicalEnv}</span>
+                    <span className="text-zinc-600">{e.redacted}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {loading ? (
         <div className="mt-4 text-[12px] text-zinc-500">Loading…</div>
       ) : (
         <div className="mt-4 space-y-2">
-          {rows.map(r => (
-            <div key={r.id} className="rounded-md border border-white/5 bg-white/[0.02] p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="leading-tight">
+          {groups.map(g => {
+            const isCollapsed = !!collapsed[g.slug];
+            return (
+              <div key={g.slug} className="rounded-md border border-white/5 bg-white/[0.01]">
+                <button
+                  onClick={() => toggleGroup(g.slug)}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-white/[0.02]"
+                >
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-[12px] text-zinc-100">{r.canonicalEnv}</span>
-                    <span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-zinc-300">{r.taxonomySlug}</span>
-                    {r.required && (
-                      <span className="rounded-full bg-amber-400/15 px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">required</span>
+                    <span className="font-mono text-[10px] text-zinc-500">{isCollapsed ? '▸' : '▾'}</span>
+                    <span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-zinc-300">{g.slug}</span>
+                    {g.needsAttention && (
+                      <span className="rounded-full bg-amber-400/15 px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">action needed</span>
                     )}
                   </div>
-                  <div className="mt-0.5 text-[10px] text-zinc-500">{r.scopeDescription}</div>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
-                    r.isPresent ? 'bg-emerald-400/15 text-emerald-300' : 'bg-zinc-700/40 text-zinc-400'
-                  }`}>{r.isPresent ? 'set' : 'missing'}</span>
-                  {r.isPresent && (
-                    <span className="font-mono text-[10px] text-zinc-500">{r.redacted}</span>
-                  )}
-                </div>
+                  <span className="font-mono text-[10px] text-zinc-500">
+                    {g.set} set / {g.missing} missing
+                  </span>
+                </button>
+                {!isCollapsed && (
+                  <div className="space-y-2 px-2 pb-2">
+                    {g.items.map(renderSecretRow)}
+                  </div>
+                )}
               </div>
-              <div className="mt-2 flex items-center gap-2">
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Paste new value…"
-                  value={drafts[r.canonicalEnv] ?? ''}
-                  onChange={e => setDrafts(d => ({ ...d, [r.canonicalEnv]: e.target.value }))}
-                  className="flex-1 rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
-                />
-                <button
-                  disabled={!drafts[r.canonicalEnv] || busy === r.canonicalEnv}
-                  onClick={() => save(r.canonicalEnv)}
-                  className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
-                >save</button>
-                <button
-                  disabled={!r.isPresent || busy === r.canonicalEnv}
-                  onClick={() => remove(r.canonicalEnv)}
-                  className="rounded border border-rose-500/20 bg-rose-500/[0.04] px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10 disabled:opacity-40"
-                >remove</button>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Editable runtime config field, mirrors Rust `UserConfigFieldDto`. */
+interface UserConfigFieldDto {
+  key: string;
+  label: string;
+  hint: string;
+  group: string;
+  kind: 'string' | 'float' | 'int' | 'path' | 'enum';
+  options: string[];
+  default: string;
+  currentValue: string;
+}
+
+const RUNTIME_GROUP_ORDER = ['General', 'Models & endpoints', 'Tuning', 'Training'];
+
+function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
+  const [fields, setFields] = useState<UserConfigFieldDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  // In-flight edits keyed by config key; cleared on reload.
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const savedToast = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const reload = useCallback(async () => {
+    try {
+      const next = await invoke<UserConfigFieldDto[]>('get_user_config');
+      setFields(next);
+      setDrafts({});
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Could not load runtime config', body: String(err) });
+    } finally {
+      setLoading(false);
+    }
+  }, [pushToast]);
+
+  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => () => { if (savedToast.current) clearTimeout(savedToast.current); }, []);
+
+  const save = async (f: UserConfigFieldDto, value: string) => {
+    setBusy(f.key);
+    try {
+      await invoke('set_user_config', { key: f.key, value });
+      if (savedToast.current) clearTimeout(savedToast.current);
+      savedToast.current = setTimeout(() => {
+        pushToast({ tone: 'ok', title: 'Setting saved', body: f.label });
+      }, 600);
+      await reload();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Save failed', body: String(err) });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const reset = async (f: UserConfigFieldDto) => {
+    setBusy(f.key);
+    try {
+      await invoke('reset_user_config', { key: f.key });
+      pushToast({ tone: 'ok', title: 'Reset to default', body: f.label });
+      await reload();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Reset failed', body: String(err) });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const draftFor = (f: UserConfigFieldDto) => drafts[f.key] ?? f.currentValue;
+
+  const control = (f: UserConfigFieldDto) => {
+    if (f.kind === 'enum') {
+      return (
+        <div className="inline-flex flex-wrap items-center rounded-md border border-white/10 bg-black/30 p-0.5">
+          {f.options.map(opt => (
+            <button
+              key={opt}
+              disabled={busy === f.key}
+              onClick={() => save(f, opt)}
+              className={`rounded-[5px] px-2 py-1 font-display text-[10px] uppercase tracking-[0.12em] transition disabled:opacity-40 ${
+                f.currentValue === opt ? 'bg-white/10 text-zinc-50' : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >{opt}</button>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          inputMode={f.kind === 'float' || f.kind === 'int' ? 'numeric' : 'text'}
+          value={draftFor(f)}
+          placeholder={f.default || '—'}
+          onChange={e => setDrafts(d => ({ ...d, [f.key]: e.target.value }))}
+          className="w-56 rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
+        />
+        <button
+          disabled={busy === f.key || draftFor(f) === f.currentValue}
+          onClick={() => save(f, draftFor(f))}
+          className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+        >save</button>
+      </div>
+    );
+  };
+
+  const groups = RUNTIME_GROUP_ORDER
+    .map(g => ({ group: g, items: fields.filter(f => f.group === g) }))
+    .filter(g => g.items.length > 0);
+
+  return (
+    <>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Runtime</h2>
+      <p className="mt-0.5 text-[11px] text-zinc-500">
+        Core user config persisted to your Vox user config (effective values: ENV &gt; Vox.toml &gt; global &gt; defaults)
+      </p>
+      {loading ? (
+        <div className="mt-4 text-[12px] text-zinc-500">Loading…</div>
+      ) : (
+        <div className="mt-4 space-y-5">
+          {groups.map(({ group, items }) => (
+            <div key={group}>
+              <div className="font-display text-[11px] uppercase tracking-[0.15em] text-zinc-400">{group}</div>
+              <div className="mt-2 space-y-2">
+                {items.map(f => (
+                  <Row key={f.key} label={f.label} hint={f.hint}>
+                    <div className="flex items-center gap-2">
+                      {control(f)}
+                      <button
+                        disabled={busy === f.key}
+                        onClick={() => reset(f)}
+                        title="Reset to default"
+                        className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-400 hover:bg-white/5 disabled:opacity-40"
+                      >reset</button>
+                    </div>
+                  </Row>
+                ))}
               </div>
             </div>
           ))}
@@ -572,23 +933,43 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
     scaleCpuCeilingPct: 85, scaleMemFloorMb: 1024,
   });
 
+  // Mirror `vals` into a ref so `update` reads the freshest state, not a stale
+  // closure capture. Without this, a rapid second edit builds `next` from the
+  // pre-first-edit `vals` and persists the first field's old value to Vox.toml.
+  // The ref is written synchronously in `update` (not just via this effect) so
+  // two `update` calls in the same tick — before React re-renders — still
+  // compose instead of the second dropping the first's patch.
+  const valsRef = useRef(vals);
+  useEffect(() => { valsRef.current = vals; }, [vals]);
+
+  // Becomes true once mount hydration finishes. Until then `update` must not push
+  // hardcoded default OrchestratorConfig values to disk (an early click before
+  // get_orchestrator_config resolves would otherwise clobber real config).
+  const [hydrated, setHydrated] = useState(false);
+
   const update = async (patch: Partial<SettingsState>) => {
-    const next = { ...vals, ...patch };
+    const next = { ...valsRef.current, ...patch };
+    valsRef.current = next;
     setVals(next);
 
-    // Theme actually applies now: drive the [data-theme] attribute the CSS hooks
-    // key off (the picker was previously inert).
-    if (patch.theme) {
-      document.documentElement.setAttribute('data-theme', patch.theme);
-    }
+    // Apply the accent palette immediately on theme change (before/independent
+    // of persistence), so the swatch selection takes visible effect at once.
+    // `applyTheme` (lib/theme) drives the [data-theme] attribute the CSS hooks
+    // key off — the picker was previously inert.
+    if (patch.theme !== undefined) applyTheme(next.theme);
 
-    // Attempt to push to Rust (fails gracefully if command not registered)
+    // GUI-only preferences (theme/telemetry/sign/checkpointMins) always persist —
+    // they don't depend on orchestrator hydration.
     try {
-      await invoke('set_orchestrator_config', { config: next });
       for (const [k, v] of Object.entries(patch)) {
         if (['theme', 'telemetry', 'sign', 'checkpointMins'].includes(k)) {
           await invoke('set_gui_preference', { key: `gui.${k}`, value: String(v) });
         }
+      }
+      // Defer orchestrator persistence until real values are loaded, so we never
+      // write defaults over a user's on-disk config before hydration completes.
+      if (hydrated) {
+        await invoke('set_orchestrator_config', { config: next });
       }
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Save failed', body: String(err) });
@@ -625,13 +1006,18 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
           theme: theme || prev.theme,
           telemetry: telemetry || prev.telemetry,
           sign: sign != null ? sign === 'true' : prev.sign,
-          checkpointMins: checkpoint != null ? Number(checkpoint) || prev.checkpointMins : prev.checkpointMins,
+          // checkpointMins is a UI-only preference (no OrchestratorConfig field).
+          checkpointMins: checkpoint != null
+            ? (Number.isFinite(Number(checkpoint)) ? Number(checkpoint) : prev.checkpointMins)
+            : prev.checkpointMins,
         }));
       } catch {
         // keep default local state when preference DB isn't available
       }
       // Hydrate orchestrator + scaling controls from the persisted Vox.toml
-      // [orchestrator] table (fixes the inert-sliders bug).
+      // [orchestrator] table (fixes the inert-sliders bug). Scaling fields are
+      // #273's resource-aware scaling; `setHydrated(true)` gates #229's persist
+      // path (see `if (hydrated)` in `update`).
       try {
         const cfg = await invoke<Record<string, unknown>>('get_orchestrator_config');
         const num = (k: string) => (cfg[k] == null ? undefined : Number(cfg[k]));
@@ -652,6 +1038,8 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
         }));
       } catch {
         // daemon-less dev: keep defaults
+      } finally {
+        setHydrated(true);
       }
     };
     hydrate();
@@ -788,7 +1176,7 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
               <Row label="Auto-doubt threshold" hint="Confidence floor below which Augur intervenes">
                 <RangeInline value={Math.round(vals.doubtThresh * 100)} min={0} max={100} step={5} suffix="%" onChange={v => update({ doubtThresh: v / 100 })} />
               </Row>
-              <Row label="Durable checkpoint cadence" hint="Snapshot interval for resumable runs">
+              <Row label="Durable checkpoint cadence" hint="Snapshot interval for resumable runs (UI preference)">
                 <RangeInline value={vals.checkpointMins} min={1} max={30} step={1} suffix=" min" onChange={v => update({ checkpointMins: v })} />
               </Row>
               <Row label="Default isolation tier" hint="Runtime sandbox for new agents">
@@ -914,6 +1302,8 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
             <PriorityChainEditor pushToast={pushToast} />
           </>
         )}
+
+        {section === 'runtime' && <RuntimeConfigSection pushToast={pushToast} />}
 
         {section === 'mesh' && <MeshPeersSection pushToast={pushToast} />}
 

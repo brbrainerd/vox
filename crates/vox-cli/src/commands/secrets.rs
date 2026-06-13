@@ -245,58 +245,30 @@ pub async fn run(cmd: SecretsCmd) -> Result<()> {
                     path.display()
                 );
             }
-            let content = std::fs::read_to_string(&path)?;
-            let mut count = 0;
-            let backend = if dry_run {
-                None
-            } else {
-                Some(
-                    vox_secrets::backend::vox_vault::VoxCloudBackend::new()
-                        .map_err(|e| anyhow::anyhow!("{:?}", e))?,
-                )
-            };
-
-            for line in content.lines() {
-                let line = line.trim();
-                // simple env parsing ignoring comments
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
-                }
-                if let Some((key, val)) = line.split_once('=') {
-                    let key = key.trim();
-                    let val = val.trim().trim_matches(|c| c == '"' || c == '\'');
-                    // Find if this key is managed
-                    if let Some(spec) = vox_secrets::all_specs().iter().find(|s| {
-                        s.canonical_env == key
-                            || s.aliases.contains(&key)
-                            || s.deprecated_aliases.contains(&key)
-                    }) {
-                        if let Some(b) = &backend {
-                            b.write_secret(spec.canonical_env, val)
-                                .map_err(|e| anyhow::anyhow!("{:?}", e))?;
-                            println!("Imported {} -> {}", key, spec.canonical_env);
-                        } else {
-                            println!(
-                                "(dry-run) Found {} -> {} (val: {})",
-                                key,
-                                spec.canonical_env,
-                                redact_value(val)
-                            );
-                        }
-                        count += 1;
-                    }
+            // Shared SSOT import logic lives in vox_secrets so the GUI and CLI
+            // never diverge. dry_run => apply == false (names only, no writes).
+            let result = vox_secrets::import_env_from_path(&path, !dry_run)
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            for entry in &result.entries {
+                if dry_run {
+                    println!(
+                        "(dry-run) Found {} -> {} (val: {})",
+                        entry.source_key, entry.canonical_env, entry.redacted
+                    );
+                } else {
+                    println!("Imported {} -> {}", entry.source_key, entry.canonical_env);
                 }
             }
             if dry_run {
                 println!(
                     "Dry-run complete: {} managed secrets identified in {}",
-                    count,
+                    result.count(),
                     path.display()
                 );
             } else {
                 println!(
                     "Import complete: {} managed secrets injected into vault from {}",
-                    count,
+                    result.count(),
                     path.display()
                 );
             }

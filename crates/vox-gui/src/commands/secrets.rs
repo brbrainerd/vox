@@ -94,6 +94,98 @@ pub fn set_secret(key: String, value: String) -> Result<bool, String> {
     Ok(vox_secrets::resolve_secret(spec.id).is_present())
 }
 
+/// Non-sensitive backend/profile status header for the Keys & Secrets surface.
+/// Mirrors the data behind the CLI `vox secrets backend-status` command. Carries
+/// only the backend mode selector, active resolution profile, and (if the backend
+/// is unreachable) a non-sensitive availability detail — NEVER any secret value.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SecretsBackendStatusDto {
+    /// `Debug` form of [`vox_secrets::BackendMode`] (e.g. `Auto`, `VoxCloud`).
+    pub backend_mode: String,
+    /// Active resolution profile selector (`dev` / `ci` / `prod` / `hardcut`).
+    pub profile: String,
+    /// `true` when the active profile is strict (CI/prod/hardcut).
+    pub strict: bool,
+    /// `true` when the backend resolves; `false` if a spec reported unavailable.
+    pub available: bool,
+    /// Non-sensitive availability detail when `available == false`.
+    pub detail: Option<String>,
+}
+
+/// Report the active secrets backend mode + resolution profile (non-sensitive).
+#[command]
+// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_secrets backend-status; non-sensitive fields only
+pub fn secrets_backend_status() -> SecretsBackendStatusDto {
+    let mode = vox_secrets::BackendMode::from_env();
+    let profile = vox_secrets::active_resolve_profile();
+    let detail = vox_secrets::backend_unavailable_detail();
+    SecretsBackendStatusDto {
+        backend_mode: format!("{mode:?}"),
+        profile: profile.as_str().to_string(),
+        strict: profile.is_strict(),
+        available: detail.is_none(),
+        detail,
+    }
+}
+
+/// One managed secret recognised during an `.env` import. SECURITY: name +
+/// redacted preview only — never the raw value.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportEnvEntryDto {
+    pub source_key: String,
+    pub canonical_env: String,
+    pub redacted: String,
+}
+
+/// Result of an `.env` import (dry-run preview or applied write).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportEnvResultDto {
+    /// `true` if values were written to the vault; `false` for a dry-run preview.
+    pub applied: bool,
+    /// Number of managed secrets recognised / imported.
+    pub count: usize,
+    /// Recognised managed secrets (names + redacted preview only).
+    pub entries: Vec<ImportEnvEntryDto>,
+}
+
+/// Import managed secrets from a `.env` file. When `apply` is `false` (dry-run)
+/// the result lists only the KEY NAMES (+ redacted preview) that WOULD import —
+/// no values are stored or returned. When `apply` is `true` the values are
+/// written to the vault and only the redaction-safe entries + count come back.
+#[command]
+// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_secrets::import_env_from_path; redaction covered by vox-secrets tests
+pub fn import_env(path: Option<String>, apply: bool) -> Result<ImportEnvResultDto, String> {
+    let p = path
+        .filter(|s| !s.trim().is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from(".env"));
+    let result = vox_secrets::import_env_from_path(&p, apply).map_err(|e| e.to_string())?;
+    Ok(ImportEnvResultDto {
+        applied: result.applied,
+        count: result.count(),
+        entries: result
+            .entries
+            .into_iter()
+            .map(|e| ImportEnvEntryDto {
+                source_key: e.source_key,
+                canonical_env: e.canonical_env.to_string(),
+                redacted: e.redacted,
+            })
+            .collect(),
+    })
+}
+
+/// Migrate plaintext `auth.json` registry tokens into the secure store. Returns
+/// the number of entries moved. No token material is returned.
+#[command]
+// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_secrets::migrate_auth_store_to_secure_store
+pub fn migrate_auth_store() -> Result<usize, String> {
+    vox_secrets::migrate_auth_store_to_secure_store().map_err(|e| e.to_string())
+}
+
 /// Remove a secret. Routes auth.json registry-token keys to
 /// `remove_registry_token`, everything else to the vault `delete_secret`.
 /// Returns `is_present` (`false` on success) — never any value.

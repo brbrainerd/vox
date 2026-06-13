@@ -147,7 +147,7 @@ impl ReviewClient {
                     return Err("No OpenRouter API key".to_string());
                 }
                 self.call_chat_completions(
-                    vox_config::inference::OPENROUTER_CHAT_COMPLETIONS_URL,
+                    &vox_config::openrouter_chat_completions_url(),
                     &key,
                     model,
                     prompt,

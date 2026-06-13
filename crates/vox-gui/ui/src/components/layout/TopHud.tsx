@@ -133,6 +133,17 @@ export function TopHud({
 
   return (
     <Glass className="flex items-stretch overflow-hidden">
+      <div className="flex items-center gap-3 px-5 border-r border-white/5">
+        <div className="relative">
+          <div className="size-8 rounded-lg bg-gradient-to-br from-[rgb(var(--brass))] via-[rgb(var(--brass)_/_0.85)] to-[rgb(var(--brass)_/_0.55)] shadow-[0_0_24px_-4px_rgb(var(--brass)_/_0.6)]" />
+          <div className="absolute inset-0 flex items-center justify-center font-display text-[14px] font-bold text-zinc-950">V</div>
+        </div>
+        <div className="flex flex-col leading-none">
+          <span className="font-display text-[13px] tracking-[0.22em] text-zinc-100">IMPERIUM</span>
+          <span className="text-[9px] uppercase tracking-[0.3em] text-zinc-500">vox · orchestrator</span>
+        </div>
+      </div>
+
       <div className="flex min-w-0 flex-1 items-stretch divide-x divide-white/5 overflow-x-auto">
         <KPI
           label="Active Agents"

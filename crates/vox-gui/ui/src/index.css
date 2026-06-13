@@ -4,7 +4,15 @@
 @tailwind utilities;
 
 @layer base {
-  html, body, #root { 
+  /* Accent palette as a space-separated RGB triple, switched by data-theme.
+     `arcane` is the default and MUST equal the historical gold (#d4af37 →
+     212 175 55). `rgb(var(--brass) / <alpha>)` is wired in tailwind.config.js. */
+  :root,
+  [data-theme="arcane"]  { --brass: 212 175 55; }   /* #d4af37 gold */
+  [data-theme="void"]    { --brass: 139 92 246; }   /* violet */
+  [data-theme="glacier"] { --brass: 34 211 238; }   /* cyan */
+
+  html, body, #root {
     height: 100%; 
     margin: 0; 
     overflow: hidden;
@@ -35,10 +43,10 @@
     width: 12px;
     height: 12px;
     background: #fff;
-    border: 2px solid #d4af37;
+    border: 2px solid rgb(var(--brass));
     border-radius: 50%;
     cursor: pointer;
-    box-shadow: 0 0 10px rgba(212,175,55,0.5);
+    box-shadow: 0 0 10px rgb(var(--brass) / 0.5);
   }
 }
 

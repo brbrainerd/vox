@@ -5,7 +5,7 @@ use std::fs;
 use std::process::Command;
 use std::time::Instant;
 use vox_config::bootstrap_inference::REPAIR_LOOP_PREFERRED;
-use vox_config::inference::{OPENROUTER_CHAT_COMPLETIONS_URL, openrouter_chat_model_preference};
+use vox_config::inference::{openrouter_chat_completions_url, openrouter_chat_model_preference};
 use vox_orchestrator::models::{SelectionIntent, select_with_default_registry};
 use vox_secrets::{SecretId, resolve_secret};
 use vox_telemetry::{RepairAttemptEvent, RepairOutcomeEvent, TelemetryEvent, record_event};
@@ -413,7 +413,7 @@ colon blocks, @auth on all non-public endpoints).";
             })
         };
         let response = http
-            .post(OPENROUTER_CHAT_COMPLETIONS_URL)
+            .post(openrouter_chat_completions_url())
             .header("Authorization", format!("Bearer {}", token))
             .header("X-Title", "Vox Repair Loop")
             .json(&request_body)

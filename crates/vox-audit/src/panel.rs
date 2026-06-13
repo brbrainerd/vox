@@ -177,7 +177,7 @@ impl PanelClient for OpenRouterPanelClient {
 
         let resp = self
             .http
-            .post(vox_config::inference::OPENROUTER_CHAT_COMPLETIONS_URL)
+            .post(vox_config::openrouter_chat_completions_url())
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("X-Title", "Vox Audit Panel")
             .json(&body)

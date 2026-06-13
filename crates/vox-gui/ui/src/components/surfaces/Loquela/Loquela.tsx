@@ -75,7 +75,7 @@ function Segment({ value, onChange, options, size = "sm" }: any) {
   );
 }
 
-function MiniSlider({ label, value, setValue, min, max, step, fmt, accent = "#d4af37" }: any) {
+function MiniSlider({ label, value, setValue, min, max, step, fmt, accent = 'rgb(var(--brass))' }: any) {
   const pct = ((value - min) / (max - min)) * 100;
   return (
     <label className="group flex items-center gap-2 cursor-pointer">
@@ -447,7 +447,7 @@ export function Loquela({
 
   return (
     <div className="pointer-events-auto p-4">
-      <Glass className={`relative overflow-hidden px-3 py-2 transition ${focused ? "ring-1 ring-brass/30 shadow-[0_0_60px_-20px_rgba(212,175,55,0.45)]" : ""}`}>
+      <Glass className={`relative overflow-hidden px-3 py-2 transition ${focused ? "ring-1 ring-brass/30 shadow-[0_0_60px_-20px_rgb(var(--brass)_/_0.45)]" : ""}`}>
         {chips.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 pb-1.5">
             <span className="font-display text-[9px] uppercase tracking-[0.22em] text-zinc-500">Context</span>
@@ -549,7 +549,7 @@ export function Loquela({
             )}
           </div>
 
-          <button onClick={send} disabled={!text.trim()} className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${text.trim() ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgba(212,175,55,0.6)]" : "border-white/5 bg-white/[0.02] text-zinc-600 cursor-not-allowed"}`}>
+          <button onClick={send} disabled={!text.trim()} className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${text.trim() ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)_/_0.6)]" : "border-white/5 bg-white/[0.02] text-zinc-600 cursor-not-allowed"}`}>
             <Icon.send className="size-3.5"/> {dryRun ? "Dry-run" : mode === "plan" ? "Plan" : mode === "verify" ? "Verify" : "Run"}
           </button>
         </div>
@@ -601,6 +601,7 @@ export function Loquela({
             </Popover>
           </div>
 
+          
           {(estCost != null || sessionBudget) && (
             <span className="font-mono text-[9px] text-zinc-500 tabular-nums">
               {estCost != null && (

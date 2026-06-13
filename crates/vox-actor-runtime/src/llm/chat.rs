@@ -37,10 +37,10 @@ pub async fn llm_chat(
                 .base_url
                 .clone()
                 .unwrap_or_else(|| match config.provider.as_str() {
-                    "openrouter" => vox_config::OPENROUTER_CHAT_COMPLETIONS_URL.to_string(),
-                    "openai" => vox_config::OPENAI_CHAT_COMPLETIONS_URL.to_string(),
+                    "openrouter" => vox_config::openrouter_chat_completions_url(),
+                    "openai" => vox_config::openai_chat_completions_url(),
                     "hf_router" | "huggingface" => HF_ROUTER_CHAT_COMPLETIONS_URL.to_string(),
-                    _ => vox_config::OPENROUTER_CHAT_COMPLETIONS_URL.to_string(),
+                    _ => vox_config::openrouter_chat_completions_url(),
                 });
             if matches!(config.provider.as_str(), "hf_endpoint")
                 && (base_url.trim().is_empty()

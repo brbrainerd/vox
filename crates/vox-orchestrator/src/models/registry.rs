@@ -1056,7 +1056,7 @@ impl ModelRegistry {
                         provider: "openrouter".to_string(),
                         model: spec.id.clone(),
                         cost_per_1k: None,
-                        base_url: Some(vox_config::OPENROUTER_CHAT_COMPLETIONS_URL.to_string()),
+                        base_url: Some(vox_config::openrouter_chat_completions_url()),
                         api_key: None,
                         temperature: None,
                         top_p: None,
