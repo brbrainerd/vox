@@ -42,7 +42,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: selfhosted-secondary-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
