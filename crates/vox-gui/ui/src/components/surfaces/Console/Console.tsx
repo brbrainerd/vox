@@ -5,6 +5,7 @@ import { TerminalTab, type PendingLine } from './TerminalTab';
 import { AgentStrip, type AgentChip } from './AgentStrip';
 import { AgentTab } from './AgentTab';
 import { SendToAgent } from './SendToAgent';
+import { renderBlockForAgent, type Block } from './osc633';
 import { listenOrchStatus, sendToAgent } from '../../../transport';
 
 interface Props {
@@ -26,6 +27,7 @@ export function Console({ pushToast, initialAgentId = null }: Props) {
   const [openAgentId, setOpenAgentId] = useState<string | null>(initialAgentId);
   const [composing, setComposing] = useState(false);
   const [lastLine, setLastLine] = useState('');
+  const [latestBlock, setLatestBlock] = useState<Block | null>(null);
   const seq = React.useRef(0);
   const tabId = 'console-1';
   const nowMs = Date.now();
@@ -62,6 +64,25 @@ export function Console({ pushToast, initialAgentId = null }: Props) {
     pushToast({ tone: 'info', title: 'Agent', body: `streaming events for ${agentId}` });
   };
 
+  // What "send to agent" / "copy block" act on: the latest completed shell
+  // block (command + output + exit) when integration is active, else the last
+  // typed line.
+  const blockBody = renderBlockForAgent(latestBlock, lastLine);
+
+  const copyLastBlock = async () => {
+    const writeText = navigator.clipboard?.writeText?.bind(navigator.clipboard);
+    if (!writeText) {
+      pushToast({ tone: 'warn', title: 'Copy failed', body: 'clipboard unavailable' });
+      return;
+    }
+    try {
+      await writeText(blockBody);
+      pushToast({ tone: 'ok', title: 'Copied', body: 'last block to clipboard' });
+    } catch {
+      pushToast({ tone: 'warn', title: 'Copy failed' });
+    }
+  };
+
   const handleSend = (agentId: string, body: string) => {
     setComposing(false);
     sendToAgent(agentId, body)
@@ -73,17 +94,22 @@ export function Console({ pushToast, initialAgentId = null }: Props) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <AgentStrip agents={agents} onOpen={openAgentTab} />
-        <button
-          disabled={agents.length === 0}
-          onClick={() => setComposing(true)}
-          style={{ fontSize: 11, margin: '0 10px' }}
-        >
-          send to agent
-        </button>
+        <div style={{ display: 'flex', gap: 6, margin: '0 10px' }}>
+          <button onClick={copyLastBlock} style={{ fontSize: 11 }}>
+            copy last block
+          </button>
+          <button
+            disabled={agents.length === 0}
+            onClick={() => setComposing(true)}
+            style={{ fontSize: 11 }}
+          >
+            send to agent
+          </button>
+        </div>
       </div>
       {composing && (
         <SendToAgent
-          initialBody={lastLine}
+          initialBody={blockBody}
           agents={agents}
           onSend={handleSend}
           onClose={() => setComposing(false)}
@@ -110,7 +136,7 @@ export function Console({ pushToast, initialAgentId = null }: Props) {
             {openAgentId && <AgentTab agentId={openAgentId} />}
           </div>
           <div style={{ flex: 1, minHeight: 0, display: openAgentId ? 'none' : 'block' }}>
-            <TerminalTab tabId={tabId} pendingLine={pending} />
+            <TerminalTab tabId={tabId} pendingLine={pending} onBlock={setLatestBlock} />
           </div>
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '6px 10px' }}>
             <InputEditor onSubmit={submit} onActiveSuggestion={setActiveAction} />

@@ -17,11 +17,19 @@ vi.mock('../../../transport', () => ({
 }));
 vi.mock('@xterm/xterm', () => ({
   Terminal: class {
+    parser = { registerOscHandler: () => ({ dispose() {} }) };
+    buffer = { active: { cursorY: 0, baseY: 0 } };
     open() {}
     write() {}
     onData() {}
     dispose() {}
     loadAddon() {}
+    registerMarker() {
+      return { dispose() {} };
+    }
+    registerDecoration() {
+      return { onRender() {}, dispose() {} };
+    }
     get cols() {
       return 80;
     }
