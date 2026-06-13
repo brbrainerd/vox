@@ -39,7 +39,7 @@ jobs:
       - name: Build and package release artifacts (core + bootstrap + plugins)
         # `--package all` produces: vox, vox-bootstrap, vox-ml-cli, vox-schola
         # Each ships as its own archive so users opt into the heavy ML/scientia plugins.
-        run: cargo run --locked -p vox-cli -- ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist --package all
+        run: cargo run --locked -p vox-cli ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist --package all
 
       # SBOM (CycloneDX) — stub for release provenance. Enable when cargo-cyclonedx is
       # wired into the release pipeline (install: cargo install cargo-cyclonedx).
