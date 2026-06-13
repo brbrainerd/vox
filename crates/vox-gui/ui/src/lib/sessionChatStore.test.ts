@@ -82,6 +82,27 @@ describe('sessionChatStore', () => {
     expect(getSessionMessages(store, 'sess-a').some(m => m.text === 'old')).toBe(false);
   });
 
+  it('failRun marks the optimistic assistant bubble as failed (duplicate-skip retraction)', () => {
+    let store = sessionChatReducer(initialSessionChatStore, {
+      type: 'submit',
+      sessionId: 'sess-a',
+      runId: 'R1',
+      prompt: 'build the thing',
+    });
+    // Daemon refused as a near-duplicate -> retract the pending bubble.
+    store = sessionChatReducer(store, {
+      type: 'failRun',
+      sessionId: 'sess-a',
+      runId: 'R1',
+      error: 'duplicate of task #7',
+    });
+    const assistant = getSessionMessages(store, 'sess-a').find(m => m.role === 'assistant');
+    expect(assistant?.status).toBe('failed');
+    expect(assistant?.error).toBe('duplicate of task #7');
+    // Other sessions untouched.
+    expect(getSessionMessages(store, 'sess-b').length).toBe(0);
+  });
+
   it('resolveSessionForEvent prefers taskToSession', () => {
     const store = {
       sessions: {},

@@ -146,6 +146,7 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
         complexity: params.complexity.map(|c| c.clamp(1, 10)),
         model_preference: params.model_preference.clone(),
         model_override: params.model_override.clone(),
+        mode: None,
         campaign_id,
         benchmark_tier,
         execution_role,

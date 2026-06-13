@@ -12,6 +12,7 @@ export interface SurfaceRegistryEntry {
 export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: 'agents', cliGroup: null, tier: 'live_backend', navLabel: 'Agents', navIcon: 'dashboard', navGroup: 'operate', parentSurface: null },
   { viewKey: 'approvals', cliGroup: null, tier: 'live_backend', navLabel: 'Approvals', navIcon: 'shield', navGroup: 'operate', parentSurface: 'runs' },
+  { viewKey: 'archive-panel', cliGroup: null, tier: 'live_backend', navLabel: 'Archive Panel', navIcon: 'beaker', navGroup: 'knowledge', parentSurface: null },
   { viewKey: 'browser', cliGroup: null, tier: 'live_backend', navLabel: 'Browser', navIcon: 'globe', navGroup: 'develop', parentSurface: 'workspace' },
   { viewKey: 'chat', cliGroup: null, tier: 'live_backend', navLabel: 'Chat', navIcon: 'send', navGroup: 'operate', parentSurface: null },
   { viewKey: 'claims', cliGroup: null, tier: 'curated_decorator', navLabel: 'Claims', navIcon: 'doubt', navGroup: 'knowledge', parentSurface: 'knowledge' },
@@ -20,6 +21,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: 'console', cliGroup: null, tier: 'live_backend', navLabel: 'Console', navIcon: 'command', navGroup: 'develop', parentSurface: 'workspace' },
   { viewKey: 'coverage', cliGroup: null, tier: 'live_backend', navLabel: 'Coverage', navIcon: 'check', navGroup: 'system', parentSurface: 'settings' },
   { viewKey: 'dashboard', cliGroup: null, tier: 'live_backend', navLabel: 'Dashboard', navIcon: 'dashboard', navGroup: 'operate', parentSurface: 'agents' },
+  { viewKey: 'discovery-inbox', cliGroup: null, tier: 'live_backend', navLabel: 'Discovery Inbox', navIcon: 'eye', navGroup: 'knowledge', parentSurface: null },
   { viewKey: 'discovery-review', cliGroup: null, tier: 'live_backend', navLabel: 'Discovery Review', navIcon: 'check', navGroup: 'knowledge', parentSurface: 'knowledge' },
   { viewKey: 'flow', cliGroup: null, tier: 'live_backend', navLabel: 'Agents', navIcon: 'flow', navGroup: 'operate', parentSurface: 'agents' },
   { viewKey: 'harness', cliGroup: null, tier: 'live_backend', navLabel: 'Harness', navIcon: 'command', navGroup: 'develop', parentSurface: 'workspace' },
@@ -31,6 +33,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: 'review', cliGroup: null, tier: 'curated_decorator', navLabel: 'Review', navIcon: 'doubt', navGroup: 'knowledge', parentSurface: null },
   { viewKey: 'runs', cliGroup: null, tier: 'live_backend', navLabel: 'Runs', navIcon: 'clock', navGroup: 'operate', parentSurface: 'runs' },
   { viewKey: 'search', cliGroup: null, tier: 'live_backend', navLabel: 'Search', navIcon: 'search', navGroup: 'knowledge', parentSurface: null },
+  { viewKey: 'tasks', cliGroup: null, tier: 'live_backend', navLabel: 'Tasks', navIcon: 'list', navGroup: 'operate', parentSurface: 'agents' },
   { viewKey: 'workspace', cliGroup: null, tier: 'live_backend', navLabel: 'Workspace', navIcon: 'file', navGroup: 'develop', parentSurface: null },
   { viewKey: null, cliGroup: 'add', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'ars', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },

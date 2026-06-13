@@ -191,6 +191,53 @@ pub enum ScientiaCmd {
         #[arg(long)]
         publication_id: String,
     },
+    /// Deterministic archive-metadata autofill: fills MISSING fields (never overwrites),
+    /// records per-field provenance, and reports before/after completeness. No LLM.
+    #[command(name = "publication-autofill")]
+    PublicationAutofill {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Apply the proposed fills to the stored manifest (persists via upsert + digest recompute).
+        #[arg(long, default_value_t = false)]
+        apply: bool,
+    },
+    /// Archive the publication's code repository via Software Heritage Save Code Now.
+    ///
+    /// On success (or accepted-without-wait) merges `scientia.swh_save` and
+    /// (when available) `scientia.swhid` into the stored manifest so Zenodo
+    /// `related_identifiers` picks up the SWHID.
+    #[command(name = "publication-archive-code")]
+    PublicationArchiveCode {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Code repository URL to archive.
+        /// Defaults to `metadata_json.scientia.reproducibility.code_repository_url`.
+        /// If neither is present, run publication-autofill first.
+        #[arg(long)]
+        origin_url: Option<String>,
+        /// Poll up to 5 minutes (10 s interval) until task_status is succeeded/failed.
+        #[arg(long, default_value_t = false)]
+        wait: bool,
+    },
+    /// Run the archive pipeline end-to-end (Zenodo deposit + Software Heritage).
+    ///
+    /// Requires a complete manifest and at least one digest-bound approval
+    /// (`publication-approve`). Sandbox Zenodo is the default; `--production`
+    /// targets production, `--publish` publishes the deposition.
+    #[command(name = "publication-archive-run")]
+    PublicationArchiveRun {
+        /// Stable publication id.
+        #[arg(long)]
+        publication_id: String,
+        /// Target production Zenodo instead of the sandbox (default: sandbox).
+        #[arg(long, default_value_t = false)]
+        production: bool,
+        /// Publish the Zenodo deposition rather than leaving it as a draft.
+        #[arg(long, default_value_t = false)]
+        publish: bool,
+    },
     /// Emit destination transform preview JSON
     #[command(name = "publication-transform-preview")]
     PublicationTransformPreview {
@@ -384,6 +431,24 @@ pub enum ScientiaCmd {
         candidate_class: Option<String>,
     },
 
+    /// Track C — Scan new commits for research-worthy signals and create DRAFT
+    /// finding candidates (surfaced for human review, NEVER auto-published).
+    /// Advances a per-producer cursor only after the batch's draft inserts
+    /// succeed. When an embedding provider + code vector index are configured,
+    /// folds a (Supporting-only) code-uniqueness signal into each candidate.
+    #[command(name = "discovery-watch")]
+    DiscoveryWatch {
+        /// Run a single pass and exit (currently the only mode).
+        #[arg(long, default_value_t = false)]
+        once: bool,
+        /// Repository path to scan (default: resolved repo root).
+        #[arg(long)]
+        repo: Option<std::path::PathBuf>,
+        /// When no cursor exists, scan at most this many commits back from HEAD.
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+    },
+
     /// Phase B — Re-execute a manifest's RO-Crate `mainEntity` in a sandbox
     /// and emit the measured `ReplayReport` JSON to stdout.
     #[command(name = "publication-replay-execute")]
@@ -479,8 +544,14 @@ pub enum ScientiaCmd {
     /// resolve (or create) the per-user RSA + ORCID signing identity, assemble
     /// the enriched assertion, RSA-sign it, VALIDATE it OFFLINE (trusty hash +
     /// signature; NO network), and persist the signed artifact to
-    /// `scientia_nanopubs` with `published_state="local"`. This command performs
-    /// NO network publishing of any kind. Prints the resulting Trusty URI.
+    /// `scientia_nanopubs` with `published_state="local"`. Prints the resulting
+    /// Trusty URI.
+    ///
+    /// With `--publish-test-server`: after the build succeeds, also publish the
+    /// signed nanopub to the nanopub TEST server (requires both a human-approved
+    /// claim token AND `VOX_NANOPUB_TEST_SERVER=1` in the environment). The test
+    /// server is a public registry that is periodically wiped — NOT production.
+    /// Prints the published URI. Production publishing is deliberately unimplemented.
     #[command(name = "publication-nanopub-build")]
     PublicationNanopubBuild {
         /// Publication id the claim belongs to (selects the claim bucket).
@@ -493,6 +564,12 @@ pub enum ScientiaCmd {
         /// Overrides the stored identity ORCID; required if none is stored.
         #[arg(long)]
         orcid: Option<String>,
+        /// After building locally, also publish to the nanopub TEST server.
+        /// Requires `VOX_NANOPUB_TEST_SERVER=1` to be set in the environment
+        /// and a persisted human-approved review decision for this claim.
+        /// The test server is public and periodically wiped — NOT production.
+        #[arg(long, default_value_t = false)]
+        publish_test_server: bool,
     },
 
     /// Phase 3 — Render a `ScaffoldInput` JSON to a standalone LaTeX
@@ -527,6 +604,13 @@ pub enum ScientiaCmd {
         /// Output path for the `.tar.gz` bundle.
         #[arg(long)]
         output: std::path::PathBuf,
+        /// arXiv primary category to embed in the handoff sidecar
+        /// (e.g. `cs.SE`, `stat.ML`).  When omitted the default `cs.SE` is
+        /// used and `category_origin` is set to `"default"` in the sidecar,
+        /// reminding the operator to verify.  When supplied explicitly
+        /// `category_origin` is `"flag"`.
+        #[arg(long)]
+        primary_category: Option<String>,
     },
 
     /// Phase E — Print per-class venue routing + policy defaults for the

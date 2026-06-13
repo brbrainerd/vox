@@ -19,7 +19,7 @@ use super::handlers::{
     admin_quarantine, bootstrap_exchange, deliver_a2a, dispatch_results_poll, dispatch_script,
     exec_lease_grant, exec_lease_list, exec_lease_release, exec_lease_renew, execute_on_worker,
     federation_announce, federation_directory, health, heartbeat, join_node, leave_node,
-    list_nodes, queue_stats,
+    list_nodes, queue_stats, resources_summary,
 };
 
 /// Default max JSON body size for control-plane POST routes (join, heartbeat, A2A, …).
@@ -70,6 +70,7 @@ pub fn router(state: PopuliTransportState) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/v1/populi/nodes", get(list_nodes))
+        .route("/v1/populi/resources/summary", get(resources_summary))
         .route("/v1/populi/join", post(join_node))
         .route("/v1/populi/heartbeat", post(heartbeat))
         .route("/v1/populi/leave", post(leave_node))

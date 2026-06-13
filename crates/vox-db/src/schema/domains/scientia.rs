@@ -343,6 +343,43 @@ CREATE TABLE IF NOT EXISTS scientia_nanopubs (
 );
 CREATE INDEX IF NOT EXISTS idx_scientia_nanopubs_claim ON scientia_nanopubs(claim_id);
 
+-- LLM embedding vector cache keyed by sha256(model+text) for novelty scoring.
+-- Upsert semantics: INSERT OR REPLACE so the latest call always wins.
+CREATE TABLE IF NOT EXISTS scientia_embedding_cache (
+    text_sha256   TEXT    PRIMARY KEY,
+    model         TEXT    NOT NULL,
+    vector_json   TEXT    NOT NULL,
+    created_at_ms INTEGER NOT NULL
+);
+
+-- Per-producer scan cursor for automated discovery producers (commit-watcher, ...).
+-- `last_seen` is producer-defined (e.g. the last scanned commit sha). Single row
+-- per producer; advanced ONLY after a batch's draft inserts succeed.
+CREATE TABLE IF NOT EXISTS scientia_producer_cursor (
+    producer      TEXT    PRIMARY KEY,
+    last_seen     TEXT    NOT NULL,
+    updated_at_ms INTEGER NOT NULL
+);
+
+-- Discovery inbox: a surfacing index over draft publication manifests produced
+-- by automated discovery producers (commit-watcher, ...). One row per surfaced
+-- candidate; the GUI lists unacknowledged rows as "new research candidate"
+-- alerts and a WS poller broadcasts new ids on `scientia.discovery.surfaced`.
+-- DERIVED/regenerable: the draft manifest is the source of truth, so this table
+-- is in `LEGACY_EXPORT_SKIP_TABLES`. `signal_codes` is a JSON array string.
+CREATE TABLE IF NOT EXISTS scientia_discovery_inbox (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    publication_id     TEXT    NOT NULL,
+    surfaced_at_ms     INTEGER NOT NULL,
+    intake_tier        TEXT    NOT NULL,
+    signal_codes       TEXT    NOT NULL,                  -- JSON array of signal codes
+    acknowledged_at_ms INTEGER
+);
+-- NOTE: deliberately NO secondary index on this table. An index covering
+-- `acknowledged_at_ms` trips a Turso/libSQL bug on UPDATE when the column moves
+-- off NULL (IdxDelete "no matching index entry"). This is a small, derived
+-- surfacing table; the unacknowledged scan and the id-diff are cheap without one.
+
 -- Append-only per-claim human review decisions (design §5.1). Latest by decided_at_ms wins.
 CREATE TABLE IF NOT EXISTS scientia_review_decisions (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,

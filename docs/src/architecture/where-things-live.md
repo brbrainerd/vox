@@ -171,6 +171,13 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 
 | I want to... | The right place |
 |---|---|
+| List / edit / cancel / reprioritize queued tasks | Daemon RPCs `orch.list_tasks` / `orch.edit_task` in [`orch_daemon/mod.rs`](../../../crates/vox-orchestrator/src/orch_daemon/mod.rs); Tauri wrappers in `crates/vox-gui/src/commands/control_plane.rs`; GUI surface `crates/vox-gui/ui/src/components/surfaces/Tasks/` |
+| Tune LLM/OpenRouter concurrency | `[llm]` section of `VoxConfig` (`crates/vox-config/src/config/`); AIMD throttle in [`vox-actor-runtime::llm::throttle`](../../../crates/vox-actor-runtime/src/llm/throttle.rs) |
+| Query aggregated mesh resources | `GET /v1/populi/resources/summary` → `aggregate_resources` in [`vox-populi .../handlers/nodes.rs`](../../../crates/vox-populi/src/transport/handlers/nodes.rs) |
+| Make scaling honor local CPU/RAM | `crates/vox-orchestrator/src/services/local_resources.rs` (feature `system-metrics`) + `decide_scaling` in `services/scaling.rs` |
+| Near-duplicate task detection | `crates/vox-orchestrator/src/services/similarity.rs` (consumed in `orch_daemon` SUBMIT_TASK) |
+| Multi-tab chat sessions | `crates/vox-gui/ui/src/lib/sessions.ts` + `components/layout/SessionTabs.tsx`; session_id threads through `AgentTask`/events/A2A envelope |
+| Omni-search the palette (settings/docs/windows) | `crates/vox-gui/ui/src/components/layout/paletteSources.ts` + `settings/settingsIndex.ts` + `docs_index.rs` |
 | Add an MCP tool | `crates/vox-orchestrator-mcp/src/<group>_tools.rs` (e.g. `git_tools.rs`); register dispatch in [`mcp/dispatch.rs`](../../../crates/vox-orchestrator-mcp/src/dispatch.rs) |
 | Add an HTTP route (orchestrator) | `crates/vox-orchestrator-mcp/src/services/routes/` |
 | Add a CLI subcommand | `crates/vox-cli/src/commands/<group>.rs` + register in [`commands/mod.rs`](../../../crates/vox-cli/src/commands/mod.rs) |
@@ -255,6 +262,13 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | SCIENTIA pre-registration — signing, deviation detection, Bayesian stopping | `crates/vox-prereg/` |
 | SCIENTIA research event types and ResearchEventEmitter trait (L1) | `crates/vox-research-events/` |
 | SCIENTIA RO-Crate 1.2 JSON-LD builder — CFF, CodeMeta, TOP-Level-2, ACM badges | `crates/vox-ro-crate/` |
+| SCIENTIA novelty assessment seam (ChronoFilter + EvidenceConflict + NoveltySignalBreakdown wiring; `assess_novelty()`) | `crates/vox-publisher/src/scientia_novelty_assess.rs` |
+| SCIENTIA semantic similarity for prior art (cosine + Embedder seam) | `crates/vox-publisher/src/scientia_semantic.rs` |
+| SCIENTIA embedding cache (vox-db `scientia_embedding_cache` table) | `crates/vox-db/src/store/ops_embedding_cache.rs` |
+| SCIENTIA automated discovery producers — commit watcher + code-uniqueness signal | `crates/vox-publisher/src/scientia_producers/` (`commit_watcher.rs`, `code_uniqueness.rs`) |
+| SCIENTIA discovery inbox + `scientia.discovery.surfaced` WS topic | vox-db `scientia_discovery_inbox` table + `crates/vox-orchestrator-mcp/src/http_gateway/scientia_feed.rs` |
+| SCIENTIA archive-run orchestrator (autofill-gate → approval → Zenodo → Software Heritage → receipt) | `crates/vox-publisher/src/archive_run.rs` (executor: `crates/vox-cli/src/commands/db/publication/archive_run.rs`) |
+| SCIENTIA GUI surfaces — NoveltyEvidencePanel, DiscoveryInbox, ArchivePanel | `crates/vox-gui/ui/src/components/surfaces/Scientia/` (Tauri commands: `crates/vox-gui/src/commands/scientia_review.rs`) |
 
 > **L0/L1 split:** if your consumer only needs row/param TYPES (no async, no
 > connection), depend on `vox-db-types` directly — not on `vox-db`. The full

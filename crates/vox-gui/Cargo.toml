@@ -27,6 +27,8 @@ vox-db = { workspace = true }
 vox-gamify = { path = "../vox-gamify" }
 vox-secrets = { workspace = true }
 vox-scientia = { workspace = true }
+vox-publisher = { workspace = true }
+chrono = { workspace = true }
 vox-actor-runtime = { workspace = true }
 vox-identity = { workspace = true }
 vox-crypto = { workspace = true }

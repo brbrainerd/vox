@@ -6,6 +6,7 @@ import { Matrix } from '../surfaces/Matrix/Matrix';
 import { MemoryView } from '../surfaces/Memory/MemoryView';
 import { ModelsView } from '../surfaces/Models/ModelsView';
 import { RunsView } from '../surfaces/Runs/RunsView';
+import { TasksView } from '../surfaces/Tasks/TasksView';
 import { SettingsView } from '../surfaces/Settings/SettingsView';
 import { RepositoryView } from '../surfaces/Repository/RepositoryView';
 import { MeshView } from '../surfaces/Mesh/MeshView';
@@ -84,6 +85,8 @@ function childRenderer(props: SurfaceProps, viewKey: string): React.ReactNode {
       return <ModelsView pushToast={props.pushToast} />;
     case 'runs':
       return <RunsView pushToast={props.pushToast} />;
+    case 'tasks':
+      return <TasksView pushToast={props.pushToast} />;
     case 'settings':
       return <SettingsView pushToast={props.pushToast} />;
     case 'repository':

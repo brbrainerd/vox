@@ -130,11 +130,11 @@ fn recency_from_years(years: &[Option<i32>]) -> NoveltyRecencyBucket {
     }
 }
 
-fn semantic_proxy(lexical: f64) -> f64 {
-    lexical
-}
-
 /// Build an empty bundle (offline / no hits).
+///
+/// Both score fields are `None`: no search ran, so we must not fabricate
+/// "we searched and found nothing". Callers that consume this bundle through
+/// `AtomicNoveltyScorer::score` will receive `InsufficientEvidence`.
 #[must_use]
 pub fn empty_novelty_bundle(candidate_id: &str, query: &PriorArtQuery) -> NoveltyEvidenceBundleV1 {
     let qd = query_digest_sha256(query);
@@ -147,8 +147,8 @@ pub fn empty_novelty_bundle(candidate_id: &str, query: &PriorArtQuery) -> Novelt
         sources: vec![],
         normalized_hits: vec![],
         overlap_summary: Some(NoveltyOverlapSummary {
-            max_lexical_score: Some(0.0),
-            max_semantic_score: Some(0.0),
+            max_lexical_score: None,
+            max_semantic_score: None,
             recency_bucket: NoveltyRecencyBucket::Unknown,
         }),
         query_traces: vec![],
@@ -190,18 +190,14 @@ fn openalex_hits(
             .map(|y| y as i32);
         let cited = w.get("cited_by_count").and_then(|x| x.as_u64());
         let lex = title_lexical_score_with_min_len(search_face, &title, h.prior_art_token_min_len);
-        let sem = semantic_proxy(lex);
         out.push(NormalizedPriorArtHit {
             source: PriorArtSource::Openalex,
             work_uri: uri,
             title,
             year,
             lexical_score: Some(lex),
-            semantic_score: Some(sem),
-            overlap_note: Some(
-                "semantic_score is lexical-derived proxy unless embedding service is configured."
-                    .into(),
-            ),
+            semantic_score: None,
+            overlap_note: None,
             cited_by_count: cited,
         });
     }
@@ -240,14 +236,13 @@ fn crossref_hits(
             format!("https://doi.org/{doi}")
         };
         let lex = title_lexical_score_with_min_len(search_face, &title, h.prior_art_token_min_len);
-        let sem = semantic_proxy(lex);
         out.push(NormalizedPriorArtHit {
             source: PriorArtSource::Crossref,
             work_uri: uri,
             title,
             year,
             lexical_score: Some(lex),
-            semantic_score: Some(sem),
+            semantic_score: None,
             overlap_note: None,
             cited_by_count: None,
         });
@@ -292,14 +287,13 @@ fn s2_hits(
             format!("https://www.semanticscholar.org/paper/{pid}")
         };
         let lex = title_lexical_score_with_min_len(search_face, &title, h.prior_art_token_min_len);
-        let sem = semantic_proxy(lex);
         out.push(NormalizedPriorArtHit {
             source: PriorArtSource::SemanticScholar,
             work_uri: uri,
             title,
             year,
             lexical_score: Some(lex),
-            semantic_score: Some(sem),
+            semantic_score: None,
             overlap_note: None,
             cited_by_count: cited,
         });
@@ -394,6 +388,10 @@ fn s2_api_url(search: &str, limit: u32) -> Result<String> {
 }
 
 /// Fetch prior art from selected sources. Uses Crossref polite pool when `mailto` is set.
+///
+/// Pass `embedder: Some(&impl)` to enrich hits with real cosine semantic scores before
+/// computing the bundle overlap summary. Pass `None` to skip embedding (semantic scores
+/// will be `None` in the bundle).
 pub async fn fetch_prior_art_federated(
     client: &reqwest::Client,
     candidate_id: &str,
@@ -402,6 +400,7 @@ pub async fn fetch_prior_art_federated(
     options: PriorArtFetchOptions,
     offline: bool,
     heuristics: &ScientiaHeuristics,
+    embedder: Option<&dyn crate::scientia_semantic::Embedder>,
 ) -> Result<NoveltyEvidenceBundleV1> {
     let qd = query_digest_sha256(query);
     if offline || query.title.trim().is_empty() {
@@ -521,7 +520,10 @@ pub async fn fetch_prior_art_federated(
         }
     }
 
-    let hits = dedupe_hits(hits);
+    let mut hits = dedupe_hits(hits);
+    if let Some(emb) = embedder {
+        crate::scientia_semantic::enrich_semantic_scores(&search, &mut hits, emb).await;
+    }
     Ok(finalize_bundle(
         candidate_id,
         query,
@@ -540,4 +542,48 @@ pub fn parse_novelty_bundle_from_metadata_json(
     let root: JsonValue = serde_json::from_str(raw.trim()).ok()?;
     let b = root.get(METADATA_KEY_SCIENTIA_NOVELTY_BUNDLE)?;
     serde_json::from_value(b.clone()).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_query() -> PriorArtQuery {
+        PriorArtQuery {
+            title: "Test finding".to_string(),
+            abstract_text: None,
+        }
+    }
+
+    #[test]
+    fn empty_novelty_bundle_scores_are_none() {
+        let bundle = empty_novelty_bundle("cand-1", &test_query());
+        let summary = bundle
+            .overlap_summary
+            .expect("overlap_summary must be Some");
+        // Must not fabricate "we searched and found nothing" — both must be None.
+        assert!(
+            summary.max_lexical_score.is_none(),
+            "max_lexical_score must be None in an empty bundle"
+        );
+        assert!(
+            summary.max_semantic_score.is_none(),
+            "max_semantic_score must be None in an empty bundle"
+        );
+    }
+
+    #[test]
+    fn empty_novelty_bundle_has_no_hits_and_no_traces() {
+        let bundle = empty_novelty_bundle("cand-2", &test_query());
+        assert!(bundle.normalized_hits.is_empty());
+        assert!(bundle.query_traces.is_empty());
+        assert!(bundle.sources.is_empty());
+    }
+
+    #[test]
+    fn empty_novelty_bundle_recency_is_unknown() {
+        let bundle = empty_novelty_bundle("cand-3", &test_query());
+        let summary = bundle.overlap_summary.unwrap();
+        assert_eq!(summary.recency_bucket, NoveltyRecencyBucket::Unknown);
+    }
 }

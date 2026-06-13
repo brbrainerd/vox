@@ -296,6 +296,23 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             DbCliPublication::PublicationDiscoveryExplain { publication_id } => {
                 db::publication_discovery_explain(&publication_id).await
             }
+            DbCliPublication::PublicationAutofill {
+                publication_id,
+                apply,
+            } => db::publication_autofill(&publication_id, apply).await,
+            DbCliPublication::DiscoveryWatch { once, repo, limit } => {
+                db::discovery_watch(once, repo.as_deref(), limit).await
+            }
+            DbCliPublication::PublicationArchiveCode {
+                publication_id,
+                origin_url,
+                wait,
+            } => db::publication_archive_code(&publication_id, origin_url.as_deref(), wait).await,
+            DbCliPublication::PublicationArchiveRun {
+                publication_id,
+                production,
+                publish,
+            } => db::publication_archive_run(&publication_id, production, publish).await,
             DbCliPublication::PublicationTransformPreview { publication_id } => {
                 db::publication_transform_preview(&publication_id).await
             }

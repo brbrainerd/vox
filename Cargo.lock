@@ -14906,6 +14906,7 @@ name = "vox-gui"
 version = "0.6.0"
 dependencies = [
  "base64 0.22.1",
+ "chrono",
  "cpal",
  "hound",
  "portable-pty",
@@ -14940,6 +14941,7 @@ dependencies = [
  "vox-orchestrator-mcp",
  "vox-package-types",
  "vox-plugin-host",
+ "vox-publisher",
  "vox-repository",
  "vox-scientia",
  "vox-search",

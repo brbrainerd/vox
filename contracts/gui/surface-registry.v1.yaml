@@ -17,6 +17,14 @@ surfaces:
   nav_group: operate
   parent_surface: runs
   notes: null
+- view_key: archive-panel
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Archive Panel
+  nav_icon: beaker
+  nav_group: knowledge
+  parent_surface: null
+  notes: metadata completeness, deterministic autofill, and Zenodo/SWH deposit status
 - view_key: browser
   cli_group: null
   representation_tier: live_backend
@@ -81,6 +89,14 @@ surfaces:
   nav_group: operate
   parent_surface: agents
   notes: orchestrator status
+- view_key: discovery-inbox
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Discovery Inbox
+  nav_icon: eye
+  nav_group: knowledge
+  parent_surface: null
+  notes: unacknowledged surfaced research candidates
 - view_key: discovery-review
   cli_group: null
   representation_tier: live_backend
@@ -169,6 +185,14 @@ surfaces:
   nav_group: knowledge
   parent_surface: null
   notes: unified hybrid search (vox-search)
+- view_key: tasks
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Tasks
+  nav_icon: list
+  nav_group: operate
+  parent_surface: agents
+  notes: live orchestrator task queue (CRUD + reprioritize)
 - view_key: workspace
   cli_group: null
   representation_tier: live_backend
