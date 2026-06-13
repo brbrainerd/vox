@@ -238,7 +238,7 @@ sysinfo            = "0.39"
 walkdir            = "2"
 rayon              = "1.10"
 rand               = { version = "0.8", features = ["small_rng", "std_rng"] }
-candle-core         = { version = "0.9", default-features = false }
+candle-core         = { version = "0.10", default-features = false }
 candle-nn           = { version = "0.9", default-features = false }
 candle-transformers = { version = "0.9", default-features = false }
 safetensors        = "0.7"
