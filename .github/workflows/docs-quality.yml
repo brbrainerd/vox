@@ -57,13 +57,13 @@ jobs:
 
       # Hard gate: ```vox blocks in docs must compile via vox-compiler.
       - name: Doctest extraction and check (SSG-agnostic)
-        run: cargo run -p vox-cli -- ci doctest-md --strict
+        run: cargo run -p vox-cli ci doctest-md --strict
 
       - name: Internal Markdown link check
-        run: cargo run -p vox-cli -- ci check-links
+        run: cargo run -p vox-cli ci check-links
 
       - name: Canonical documentation map verify
-        run: cargo run -p vox-cli -- ci canonical-map-verify
+        run: cargo run -p vox-cli ci canonical-map-verify
 
       - name: Install docs-astro deps
         working-directory: docs-astro
@@ -98,8 +98,8 @@ jobs:
       # Hard gate: was continue-on-error.  Pre-commit hook regenerates + stages
       # these; CI verifies the result.  Silent drift is worse than a failed PR.
       - name: Check ignore-file sync
-        run: cargo run -p vox-cli --quiet -- ci sync-ignore-files --verify
+        run: cargo run -p vox-cli --quiet ci sync-ignore-files --verify
 
       # Hard gate: was continue-on-error. Plugin catalog drift runs in ci.yml ssot-drift.
       - name: Check CLI command surface
-        run: cargo run -p vox-cli --quiet -- ci command-sync
+        run: cargo run -p vox-cli --quiet ci command-sync

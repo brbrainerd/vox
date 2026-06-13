@@ -100,9 +100,9 @@ jobs:
       - name: Build vox-cli
         run: cargo build -p vox-cli
       - name: JSON parse check on event-payload contracts
-        run: cargo run -p vox-cli --quiet -- ci json-parse-check 'apps/vox-mental-tracker/contracts/event-payloads/*.json'
+        run: cargo run -p vox-cli --quiet ci json-parse-check 'apps/vox-mental-tracker/contracts/event-payloads/*.json'
       - name: YAML parse check on export contracts
-        run: cargo run -p vox-cli --quiet -- ci yaml-parse-check 'apps/vox-mental-tracker/contracts/export/*.yaml'
+        run: cargo run -p vox-cli --quiet ci yaml-parse-check 'apps/vox-mental-tracker/contracts/export/*.yaml'
 
   app-summary:
     needs: [vox-check, vitest, playwright, contracts]
