@@ -335,6 +335,27 @@ fn test_csv_quote_inner_quotes() to Unit {
     }
 }
 
+/// Human-readable list of effective (non-superseded) events, one per line:
+/// "• <kind> — <payload_json>". Empty-state friendly. Renders in TimelinePage
+/// via the proven query-string → text(mh-list) pattern (cf. weekly_summary_json).
+@query fn timeline_lines() to str {
+    match db.HealthEventLog.all() {
+        Ok(rows) => {
+            let mut out = ""
+            let mut shown = 0
+            for r in rows {
+                if _is_effective(r, rows) {
+                    shown = shown + 1
+                    out = out + "• " + r.event_kind + " — " + r.payload_json + "\n"
+                }
+            }
+            if shown is 0 { return "No events yet. Add one from Home or Voice." }
+            out
+        }
+        Error(_) => "Could not read the event log."
+    }
+}
+
 /// Full CSV export — header + one row per effective (non-superseded) event.
 /// Ported from export_contract.ts `buildHealthCsv` (§3.B).
 @query fn export_health_csv() to str {
@@ -500,14 +521,17 @@ component Home() {
 
 component TimelinePage() {
     state total: int = 0
+    state lines: str = ""
     on mount: {
         total = health_event_count()
+        lines = timeline_lines()
     }
     view: column(raw_class="mh-root") {
         NavBar()
         heading(level=2) { "Timeline" }
-        text(raw_class="mh-sub") { "Events stored: " + str(total) + " — open Export for CSV/HTML dump." }
-        link(href="/") { "← Home" }
+        text(raw_class="mh-sub") { str(total) + " events recorded · superseded & deleted rows hidden" }
+        text(raw_class="mh-list") { lines }
+        link(href="/export") { "Export CSV / clinical HTML →" }
     }
 }
 
@@ -737,11 +761,23 @@ fn _record_notification(kind: str, json: str, action_id: str) to int {
 }
 
 component SettingsPage() {
+    state total: int = 0
+    on mount: {
+        total = health_event_count()
+    }
     view: column(raw_class="mh-root") {
         NavBar()
-        heading(level=1) { "Settings" }
-        text(raw_class="mh-sub") { "Crash report opt-in and app preferences." }
-        link(href="/") { "← Home" }
+        heading(level=2) { "Settings" }
+
+        text(raw_class="mh-section-label") { "Your data" }
+        text(raw_class="mh-sub") { str(total) + " events stored locally on this device." }
+        text(raw_class="mh-sub") { "Timezone: UTC (events are stamped with the device tz at record time)." }
+
+        text(raw_class="mh-section-label") { "Export" }
+        link(href="/export") { "Download CSV / clinical HTML →" }
+
+        text(raw_class="mh-section-label") { "Data safety" }
+        text(raw_class="mh-sub") { "This log is append-only. Nothing is ever overwritten or deleted — edits are recorded as corrections and removals as tombstones, so your clinical history stays intact. To start fresh, export first, then archive the device store outside the app." }
     }
 }
 
