@@ -46,8 +46,8 @@ jobs:
       - name: Install JS deps
         run: pnpm install --frozen-lockfile
         working-directory: apps/vox-mental-tracker
-      - name: Build Sherpa plugin package (declarations)
-        run: pnpm exec tsc -p plugins/vox-sherpa-transcribe/tsconfig.json
+      - name: Build Vox app (populate dist/)
+        run: pnpm build:vox
         working-directory: apps/vox-mental-tracker
       - name: Vitest
         run: pnpm exec vitest run
