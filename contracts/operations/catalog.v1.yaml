@@ -12913,13 +12913,13 @@ operations:
   cli: null
 - id: mesh.dispatch
   title: Mesh Dispatch
-  description: Dispatch a .vox script to the Vox Populi control plane for remote execution (requires configured control URL).
+  description: Dispatch a .vox script or bundle to the Vox Populi control plane for remote execution on a mesh worker (requires configured control URL).
   description_human: null
   product_lane: workflow
   intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
+  side_effect_class: spawns_process
+  scope_kind: global
+  reversible: false
   requires_repo: null
   preferred_for_models: null
   human_takeover_friendly: null
@@ -12997,9 +12997,9 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
+  side_effect_class: writes_files
+  scope_kind: workspace
+  reversible: true
   requires_repo: null
   preferred_for_models: null
   human_takeover_friendly: null
@@ -13017,9 +13017,9 @@ operations:
   description_human: null
   product_lane: interop
   intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
+  side_effect_class: destructive
+  scope_kind: workspace
+  reversible: true
   requires_repo: null
   preferred_for_models: null
   human_takeover_friendly: null
@@ -13057,9 +13057,9 @@ operations:
   description_human: null
   product_lane: workflow
   intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
+  side_effect_class: writes_files
+  scope_kind: session
+  reversible: false
   requires_repo: null
   preferred_for_models: null
   human_takeover_friendly: null

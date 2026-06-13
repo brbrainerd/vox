@@ -679,7 +679,7 @@ tools:
   http_read_role_eligible: false
   tier: core
 - name: vox_mesh_dispatch
-  description: Dispatch a .vox script to the Vox Populi control plane for remote execution (requires configured control URL).
+  description: Dispatch a .vox script or bundle to the Vox Populi control plane for remote execution on a mesh worker (requires configured control URL).
   product_lane: workflow
   http_read_role_eligible: false
   tier: core
