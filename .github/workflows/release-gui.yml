@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+  # Allow on-demand signing/build verification without cutting a release tag.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -82,13 +84,14 @@ jobs:
       # Note: Windows Azure Trusted Signing integration
       - name: Sign Windows Installer
         if: runner.os == 'Windows'
-        uses: azure/trusted-signing-action@v0.3.1
+        uses: azure/trusted-signing-action@v2
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
           endpoint: 'https://cus.codesigning.azure.net/'
-          code-signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_ACCOUNT }}
+          # v2.0.0 renamed `code-signing-account-name` → `signing-account-name`.
+          signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_ACCOUNT }}
           certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE }}
           files-folder: ./crates/vox-gui/src-tauri/target/release/bundle/msi
           files-folder-filter: msi
