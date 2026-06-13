@@ -64,3 +64,20 @@ docs/src/**/*.md text eol=lf
 *.onnx binary
 *.safetensors binary
 *.bin binary
+
+# --- Generated artifacts: collapse in diffs to save review + agent tokens ---
+# `linguist-generated` collapses the file on GitHub diffs/PRs; `-diff` also collapses
+# local `git diff`/`git show` (renders "Binary files differ", no line-by-line text).
+# Only TRACKED, tool-regenerated files no human reads in a diff are listed here.
+# (SUMMARY.md, feed.xml, and architecture-index.md are .gitignore'd — already out of
+#  diffs — and research-index.md is hand-curated, so none of those are listed.)
+#
+# Committed generated docs (regen: `vox ci command-sync` / `generate-plugin-catalog-docs`):
+docs/src/**/*.generated.md                                       linguist-generated=true -diff
+# Generated GUI-surface SSOT reports (the "regenerate after merge" churn; regen: `vox ci gui-surface-*`):
+contracts/reports/gui-surface-coverage.v1.json                   linguist-generated=true -diff
+contracts/reports/gui-surface-registry.v1.json                   linguist-generated=true -diff
+# Regenerated CLI-catalog golden (regen: `UPDATE_CLI_CATALOG_BASELINE=1 cargo test -p vox-cli`):
+crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt linguist-generated=true -diff
+# Lockfile: collapse on GitHub but keep LOCALLY diffable (supply-chain review needs the text):
+Cargo.lock                                                       linguist-generated=true
