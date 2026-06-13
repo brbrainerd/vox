@@ -3,7 +3,13 @@ name: Docs Link Checker
 on:
   push:
     branches: [main]
-  pull_request:
+    paths:
+      - '**/*.md'
+      - '.lycheeignore'
+      - '.github/workflows/link_checker.yml'
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

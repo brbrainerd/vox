@@ -1,13 +1,14 @@
 name: Vox Visus Audit
 
 on:
-  pull_request:
-    branches: [ main, master ]
+  push:
+    branches: [main]
     paths:
       - 'crates/vox-browser/**'
       - 'crates/vox-compiler/**'
       - 'crates/vox-cli/**'
       - 'docs/src/**'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
