@@ -523,6 +523,30 @@ impl MemoryManager {
         out
     }
 
+    /// Like [`Self::bootstrap_context`], plus the workspace `VOX.md` project memory
+    /// (when `workspace_root` is given and a project file exists). The project block is
+    /// appended last so it carries the highest recency in the injected context.
+    pub fn bootstrap_context_with_project(
+        &self,
+        workspace_root: Option<&std::path::Path>,
+    ) -> String {
+        let mut out = self.bootstrap_context();
+        if let Some(block) = workspace_root.and_then(|root| self.project_context(root)) {
+            out.push_str(&block);
+            out.push_str("\n\n");
+        }
+        out
+    }
+
+    /// Load the workspace `VOX.md` project-memory block, or `None` when memory is
+    /// disabled or no project file exists. See [`super::load_project_context`].
+    pub fn project_context(&self, workspace_root: &std::path::Path) -> Option<String> {
+        if !self.config.enabled {
+            return None;
+        }
+        super::load_project_context(workspace_root)
+    }
+
     /// Pre-compaction flush: persist a map of critical key-value pairs to MEMORY.md
     /// and log the flush event to today's daily log.
     ///
