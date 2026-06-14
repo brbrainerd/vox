@@ -1,28 +1,12 @@
----
+﻿---
 title: "Semantic Coverage Remediation Plan (2026-06-13, v2 audited)"
 description: "Audited, self-contained implementation plan to close the REAL semantic test-coverage gap. Includes a fidelity audit of the coverage map (measured false-positive/negative rates), the corrected symbol universe, a mandatory per-symbol verification protocol, worked test examples with real code, analyzer fixes, and a CI ratchet. Written to be executed by Claude Sonnet 4.6 task-by-task and to survive context compression."
 category: "Architecture SSOTs"
-status: "roadmap"
+status: "current"
 training_eligible: false
 ---
 
 # Semantic Coverage Remediation Plan v2 (audited)
-
-> **§0. NUMBERS CORRECTION (2026-06-14) — read before trusting any count below.**
-> An adversarial review found the original denominator filter used a broken
-> heuristic (`id.startswith("src_")`) that silently dropped every production symbol
-> living in a `src/` **subdirectory** (the id prefix is the first path component, so
-> only files directly in `<crate>/src/*.rs` matched). The static figures in §A/§B
-> below therefore **undercounted by ~2.7×**. Fixed in `is_production_symbol`
-> (definitions are now identified by the *absence* of the `crates_` reference
-> prefix) + the cross-crate path; the I4 ambiguous-method over-credit is also fixed.
-> **Authoritative current numbers:** 19,445 production definitions · 3,088 proven
-> (**15.9%**) · 16,357 candidate gaps. The live SSOT is the regenerable
-> `graphify-out/CANDIDATE_GAPS.md` +
-> [`contracts/reports/semantic-coverage.v1.json`](../../../contracts/reports/semantic-coverage.v1.json);
-> treat the specific 7,174 / 12.3–20% / 6,292 figures in §A/§B as *historical
-> (pre-correction)*. The methodology (gap classes, §C protocol, §D patterns) is
-> unchanged and the Wave-1 tests already written remain valid.
 
 > **For agentic workers:** REQUIRED SUB-SKILL — use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task, and `superpowers:test-driven-development` for every individual test. Steps use checkbox (`- [ ]`) syntax.
 >
@@ -32,7 +16,7 @@ training_eligible: false
 
 **Architecture:** A regenerated graphify semantic-coverage map (graph + 3 overlays) is the *prioritization heat-map*. Because the static overlay has measured false-positive/negative rates (§A), every candidate symbol passes a 3-gate verification protocol (§C) before a test is written. Tests follow three behavior-kind patterns with worked examples (§D). Wave 0 fixes the analyzer + builds the gate; Waves 1–5 work the corrected per-crate backlog.
 
-**Tech Stack:** Rust workspace (118 crates), `cargo nextest`, `cargo llvm-cov`, the Python coverage-graph toolchain in [`scripts/coverage-graph/`](../../../scripts/coverage-graph/), graphify graph at `graphify-out/graph.json`.
+**Tech Stack:** Rust workspace (118 crates), `cargo nextest`, `cargo llvm-cov`, the Python coverage-graph toolchain in `scripts/coverage-graph/`, graphify graph at `graphify-out/graph.json`.
 
 ---
 
@@ -81,10 +65,10 @@ Measured on the 30-symbol sample (treat as directional, wide CI, but the mechani
 
 ### A.4 Root causes (so the analyzer can be fixed in Wave 0)
 
-1. **Methods can never be "proven."** `overlay_tests.py` `build_name_index` drops every label starting with `.` (leading-dot, i.e. `.foo()` method labels) from edge targets ([`overlay_tests.py:127`](../../../scripts/coverage-graph/overlay_tests.py)). So **every method symbol is structurally false-negative.** Confirmed: `.redact()`, `.with_obo_token()`, `.new()` (circuit_breaker), `.to_markdown()` all have passing tests yet show unproven.
-2. **Only same-crate assertions are credited.** Cross-crate proof requires the symbol name to be globally unique ([`overlay_tests.py:503-510`](../../../scripts/coverage-graph/overlay_tests.py)). Integration tests in `tests/` dirs and sibling crates that assert on a symbol are dropped → constructors/builders tested via integration flows show unproven. Confirmed: `SnapshotStore`, `RiskScoreEvent`, `get_research_artifact`, `scan_workspace`.
+1. **Methods can never be "proven."** `overlay_tests.py` `build_name_index` drops every label starting with `.` (leading-dot, i.e. `.foo()` method labels) from edge targets (`overlay_tests.py:127`). So **every method symbol is structurally false-negative.** Confirmed: `.redact()`, `.with_obo_token()`, `.new()` (circuit_breaker), `.to_markdown()` all have passing tests yet show unproven.
+2. **Only same-crate assertions are credited.** Cross-crate proof requires the symbol name to be globally unique (`overlay_tests.py:503-510`). Integration tests in `tests/` dirs and sibling crates that assert on a symbol are dropped → constructors/builders tested via integration flows show unproven. Confirmed: `SnapshotStore`, `RiskScoreEvent`, `get_research_artifact`, `scan_workspace`.
 3. **`impl Type {` markers count as the type.** An `impl VoxDb {` line creates a `VoxDb` node; an assertion naming `VoxDb` elsewhere marks it "proven" though it is an impl marker → ~20% false-positive-proven.
-4. **`proves` = "named inside/near an assertion,"** not "the asserted value originates from the symbol" ([`overlay_tests.py:520-556`](../../../scripts/coverage-graph/overlay_tests.py)). Setup values and constructors inside an `assert!(...)`/within 80 chars of `.unwrap()` get spurious proof. This *over*-counts proven (safe direction: real gap ≥ reported).
+4. **`proves` = "named inside/near an assertion,"** not "the asserted value originates from the symbol" (`overlay_tests.py:520-556`). Setup values and constructors inside an `assert!(...)`/within 80 chars of `.unwrap()` get spurious proof. This *over*-counts proven (safe direction: real gap ≥ reported).
 5. **`.vox` goldens are never parsed.** Only `crates/**/*.rs` is scanned; behaviors proven by the 600+ goldens produce no edge.
 
 > **Net:** "unproven" is **biased toward false-negatives** (methods, integration, goldens), and the symbol universe is noise-dominated. The map is a heat-map for *where to look*, never a list of *guaranteed-missing tests*.
@@ -308,7 +292,7 @@ The map cannot be a CI gate until it stops mislabeling methods, integration test
 
 ### Task 0.1 — exclude non-symbols from the report denominator
 
-**File:** [`scripts/coverage-graph/overlay_tests.py`](../../../scripts/coverage-graph/overlay_tests.py) `_write_report` (around L598–612).
+**File:** `scripts/coverage-graph/overlay_tests.py` `_write_report` (around L598–612).
 
 - [ ] **Step 1 — write the failing test.** Add `scripts/coverage-graph/test_overlay_report.py` asserting that, given a tiny graph containing a file node (`label="x.rs"`), an `impl`-marker node, an in-`src` test fn, and one real `src_` fn, the per-crate `Symbols` count includes only the real fn.
 - [ ] **Step 2 — run:** `python scripts/coverage-graph/test_overlay_report.py` → FAIL.
@@ -353,7 +337,7 @@ The map cannot be a CI gate until it stops mislabeling methods, integration test
 Phase 0 (reached-but-unproven) is carried from 2026-06-07 (`REACHED_VS_PROVEN.md`); fresh lcov needs CI instrumentation (local `cargo llvm-cov export` is Windows-blocked, `os error 206`).
 
 - [ ] **Step 1 — refresh** from the next green `main` CI `llvm-cov` artifact: `gh run download <id> -n llvm-cov -D target/` then `python scripts/coverage-graph/ingest_reaches.py --lcov target/llvm-cov-lcov.info --graph graphify-out/graph.json --out graphify-out/graph.json --report graphify-out/REACHED_VS_PROVEN.md`.
-- [ ] **Local alternative:** if a fresh `cargo llvm-cov nextest --workspace --no-fail-fast` profile exists (`target/llvm-cov-target/vox.profdata`), export with [`scripts/coverage-graph/export_lcov_chunked.py`](../../../scripts/coverage-graph/export_lcov_chunked.py) (chunks the 600+ `-object` list past the Windows arg limit), then ingest. Reached-but-unproven is the highest-value subset to drain (line coverage's blind spot).
+- [ ] **Local alternative:** if a fresh `cargo llvm-cov nextest --workspace --no-fail-fast` profile exists (`target/llvm-cov-target/vox.profdata`), export with `scripts/coverage-graph/export_lcov_chunked.py` (chunks the 600+ `-object` list past the Windows arg limit), then ingest. Reached-but-unproven is the highest-value subset to drain (line coverage's blind spot).
 
 ---
 
@@ -361,7 +345,7 @@ Phase 0 (reached-but-unproven) is carried from 2026-06-07 (`REACHED_VS_PROVEN.md
 
 **The per-crate loop (identical for every crate `C`):**
 
-- [ ] **F-loop Step 1** — open the crate's section in `graphify-out/CANDIDATE_GAPS.md` and its `graphify-out/COVERAGE_BEHAVIORS_C.md` (happy-only gaps).
+- [ ] **F-loop Step 1** — open the crate's section in `CANDIDATE_GAPS.md` and its `COVERAGE_BEHAVIORS_C.md` (happy-only gaps).
 - [ ] **F-loop Step 2** — for each candidate, run the §C protocol (Gates 1–3). Expect to reject ~2/3. Tick the candidate's box in `CANDIDATE_GAPS.md` as `n/a (covered)`, `n/a (trivial)`, or keep it for testing.
 - [ ] **F-loop Step 3** — for each surviving symbol, write the missing-kind test(s) per §D (error/edge/invariant first). Commit per symbol or per file.
 - [ ] **F-loop Step 4** — `cargo nextest run -p C` + `cargo clippy -p C -- -D warnings` green; regenerate the overlay for `C` and confirm proven rose; raise `C`'s floor in `semantic-coverage.v1.json` (Task 0.4).
@@ -422,5 +406,5 @@ cp graphify-out/graph.semantic.json graphify-out/graph.json
 ## §H. Related
 - [`semantic-test-coverage-graph-strategy-2026-06-07.md`](semantic-test-coverage-graph-strategy-2026-06-07.md) — strategy SSOT (reached<targeted<proven).
 - [`semantic-gap-audit-2026.md`](semantic-gap-audit-2026.md) + [`semantic-gap-implementation-plan-2026.md`](semantic-gap-implementation-plan-2026.md) — the earlier 8-finding audit (F1–F6 are concrete Wave 1/2 error-path targets).
-- [`scripts/coverage-graph/README.md`](../../../scripts/coverage-graph/README.md) — toolchain runbook.
+- `scripts/coverage-graph/README.md` — toolchain runbook.
 - [`.config/coverage-gates.toml`](../../../.config/coverage-gates.toml) — the line-coverage gate this complements (the "useless touch" signal this plan deliberately does not optimize for).
