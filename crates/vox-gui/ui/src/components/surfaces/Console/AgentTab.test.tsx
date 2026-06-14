@@ -34,4 +34,9 @@ describe('AgentTab', () => {
     emit!({ id: 2, timestamp_ms: 0, kind: { type: 'task_started', agent_id: 'other' } });
     expect(screen.getByText('waiting for events…')).toBeTruthy();
   });
+
+  it('announces the event log via an aria-live region', () => {
+    render(<AgentTab agentId="a1" />);
+    expect(screen.getByLabelText('agent events').getAttribute('aria-live')).toBe('polite');
+  });
 });

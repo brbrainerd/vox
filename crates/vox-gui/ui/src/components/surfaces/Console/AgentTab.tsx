@@ -39,10 +39,12 @@ export function AgentTab({ agentId }: Props) {
   return (
     <div
       aria-label="agent events"
+      role="log"
+      aria-live="polite"
       style={{ fontFamily: 'monospace', fontSize: 12, padding: 8, overflowY: 'auto', height: '100%' }}
     >
       {lines.length === 0 ? (
-        <p style={{ color: '#9ca3af' }}>waiting for events…</p>
+        <p className="text-text-muted">waiting for events…</p>
       ) : (
         lines.map((l, i) => <div key={i}>{l}</div>)
       )}

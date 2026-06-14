@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '../../ui/Button';
 
 export interface AgentChip {
   id: string;
@@ -27,14 +28,15 @@ export function AgentStrip({ agents, onOpen }: Props) {
   return (
     <div aria-label="agents" style={{ display: 'flex', gap: 8, padding: '4px 10px', fontSize: 11 }}>
       {agents.map((a) => (
-        <button
+        <Button
           key={a.id}
           onClick={() => onOpen(a.id)}
           style={{ borderRadius: 10, padding: '2px 8px', cursor: 'pointer' }}
           title={`${a.name} · ${a.state}`}
+          aria-label={`Open agent ${a.name} (${a.state})`}
         >
           {a.name} · {a.state}
-        </button>
+        </Button>
       ))}
     </div>
   );
