@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use vox_compiler::ast::span::Span;
-use vox_compiler::hir::{HirFn, HirForall, HirModule, HirType};
+use vox_compiler::hir::{HirConst, HirFn, HirForall, HirModule, HirType};
 
 use super::script_db;
 use super::tables::{collect_table_select_projections, emit_table_struct};
@@ -46,6 +46,11 @@ pub fn emit_lib(module: &HirModule) -> String {
     out.push_str("    }\n");
     out.push_str("    val.to_string()\n");
     out.push_str("}\n\n");
+
+    // Module-level constants
+    for c in &module.consts {
+        out.push_str(&emit_const(c));
+    }
 
     // Re-export variants (only for sum types — struct typedefs are top-level structs).
     for typedef in &module.types {
@@ -107,6 +112,23 @@ pub fn emit_lib(module: &HirModule) -> String {
     }
 
     out
+}
+
+/// Emit a single `HirConst` as a Rust `const` declaration.
+///
+/// Type annotation: uses `emit_type` when present; falls back to `_` so Rust
+/// infers the type for unannotated constants.  `str` constants are emitted as
+/// `&'static str` literals — using the `String` mapping would require `static`
+/// with `once_cell`, which is heavier than needed for compile-time string data.
+fn emit_const(c: &HirConst) -> String {
+    let vis = if c.is_pub { "pub " } else { "" };
+    let ty = match &c.type_ann {
+        Some(vox_compiler::hir::HirType::Named(n)) if n == "str" => "&'static str".to_string(),
+        Some(ty) => emit_type(ty),
+        None => "_".to_string(),
+    };
+    let value = super::stmt_expr::emit_expr(&c.value);
+    format!("{vis}const {name}: {ty} = {value};\n", name = c.name)
 }
 
 /// Emit a single HIR typedef (struct or ADT) as a Rust type definition.
