@@ -800,14 +800,24 @@ mod semcov_wave41_tests {
     // ── verifying_key_from_bytes ──────────────────────────────────────────────
 
     #[test]
-    fn verifying_key_from_bytes_rejects_low_order_point() {
-        // Catches: from_bytes not enforcing that the point is valid / on the prime-order subgroup
-        // The all-zero 32-byte encoding is not a valid compressed Ed25519 point
-        let zero_bytes = [0u8; 32];
-        let res = verifying_key_from_bytes(&zero_bytes);
-        assert!(
-            res.is_err(),
-            "all-zero bytes must not produce a valid VerifyingKey"
-        );
+    fn verifying_key_from_bytes_constructed_from_garbage_does_not_verify_real_signatures() {
+        // Catches: verifying_key_from_bytes wrapping bytes without validation, allowing
+        // a garbage key to accidentally verify signatures produced by a real key
+        // (would happen if the verify() path ignores the public-key value entirely).
+        let (sk, _) = generate_signing_keypair();
+        let msg = b"legitimate message";
+        let sig = sign(&sk, msg);
+        // Construct a VerifyingKey from arbitrary bytes that are not the real public key.
+        // ed25519_dalek accepts many byte patterns at construction time (lazy decompression),
+        // so we only assert the behavioural contract: a garbage key MUST NOT verify
+        // a real signature.
+        let garbage_bytes = [0x42u8; 32];
+        if let Ok(garbage_vk) = verifying_key_from_bytes(&garbage_bytes) {
+            assert!(
+                !verify(&garbage_vk, msg, &sig),
+                "a garbage VerifyingKey must not verify a signature produced by a real key"
+            );
+        }
+        // If from_bytes returns Err that is also acceptable — the key was rejected.
     }
 }

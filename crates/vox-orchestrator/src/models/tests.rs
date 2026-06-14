@@ -805,8 +805,11 @@ mod semcov_wave34_tests {
 
     #[test]
     fn model_budget_hint_returns_zero_when_no_matching_provider() {
-        // Catches: leaking budget from wrong provider into the model's hint
-        let s = spec("google/gemini", 0.0, true);
+        // Catches: leaking budget from wrong provider into the model's hint.
+        // GoogleDirect models get provider="google" in their LlmUsageKey; a hint
+        // scoped to provider="openrouter" must NOT match them.
+        let mut s = spec("gemini-2.0-flash-lite", 0.0, true);
+        s.provider_type = ProviderType::GoogleDirect;
         let hints = vec![remaining_budget("openrouter", "*", 99, false)];
         let (rem, rl) = model_budget_hint(&s, Some(&hints));
         assert_eq!(rem, 0, "provider mismatch must yield 0 remaining");

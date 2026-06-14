@@ -5,6 +5,8 @@ pub mod errors;
 pub mod policy;
 pub mod redact;
 pub mod resolver;
+#[cfg(test)]
+mod semcov_wave45_tests;
 pub mod sources;
 pub mod spec;
 #[cfg(test)]

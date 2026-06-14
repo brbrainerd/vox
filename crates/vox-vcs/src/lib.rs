@@ -32,6 +32,8 @@ pub use jj_actor::{JjActorHandle, spawn_handle as spawn_jj_actor};
 #[cfg(feature = "jj")]
 pub use jj_backend::JjBackend;
 
+mod semcov_wave44_tests;
+
 #[cfg(test)]
 mod tests {
     use super::{VcsBackendKind, detect};

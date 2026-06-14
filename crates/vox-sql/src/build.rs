@@ -144,7 +144,7 @@ mod tests {
 #[cfg(test)]
 mod semcov_wave39_tests {
     use super::*;
-    use crate::{PlaceholderStyle, SqlDialect};
+    use crate::SqlDialect;
 
     // --- placeholder_sql ---
 

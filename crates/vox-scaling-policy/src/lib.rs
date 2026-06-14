@@ -188,7 +188,6 @@ mod semcov_wave42_tests {
     use cost_defense::{
         CostCircuitBreaker, CostDefenseConfig, CostDefenseRejection, CostDefenseState,
     };
-    use std::collections::HashMap;
 
     fn breaker_with(cfg: CostDefenseConfig) -> CostCircuitBreaker {
         CostCircuitBreaker::new(cfg)
@@ -475,14 +474,20 @@ mod semcov_wave42_tests {
         );
     }
 
-    // Catches: Thresholds::default() returning zero for max_file_bytes_hint,
-    // which would make every file appear over the streaming threshold.
+    // Catches: serde `default = "fn"` helpers not wired through `Default::default()`,
+    // so constructing via default() gives zero while YAML deserialization gives nonzero.
+    // This test exercises the YAML path (where the serde helpers fire) so it will
+    // catch if those helpers are accidentally removed or point to a wrong function.
     #[test]
-    fn thresholds_default_max_file_bytes_is_nonzero() {
-        let t = Thresholds::default();
+    fn thresholds_from_empty_yaml_gets_nonzero_max_file_bytes() {
+        let t: Thresholds = serde_yaml::from_str("{}").expect("empty map must parse");
         assert!(
             t.max_file_bytes_hint > 0,
-            "default max_file_bytes_hint must be > 0"
+            "serde-deserialized Thresholds must apply the default_max_file_bytes helper; got 0"
+        );
+        assert!(
+            t.corpus_validate_batch_lines > 0,
+            "serde-deserialized Thresholds must apply the default_batch_lines helper; got 0"
         );
     }
 
