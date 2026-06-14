@@ -7,9 +7,12 @@ mod semcov_wave47_tests {
     use std::collections::HashMap;
 
     use crate::{
-        exec_grammar::{self, parse, parse_pipeline, ExecPolicy, PolicyViolation, RiskLevel, ViolationKind, risk},
         BuildOpts, RunOpts,
         detect::RuntimePreference,
+        exec_grammar::{
+            self, ExecPolicy, PolicyViolation, RiskLevel, ViolationKind, parse, parse_pipeline,
+            risk,
+        },
     };
     use std::path::PathBuf;
 
@@ -20,14 +23,21 @@ mod semcov_wave47_tests {
         // Catches: default() producing a non-empty image string that silently passes
         // validation and causes a container runtime to run with no image.
         let opts = RunOpts::default();
-        assert!(opts.image.is_empty(), "default image must be empty, not {:?}", opts.image);
+        assert!(
+            opts.image.is_empty(),
+            "default image must be empty, not {:?}",
+            opts.image
+        );
     }
 
     #[test]
     fn run_opts_default_rm_is_true() {
         // Catches: rm defaulting to false, leaving zombie containers after every run.
         let opts = RunOpts::default();
-        assert!(opts.rm, "default RunOpts must have rm=true to avoid container leaks");
+        assert!(
+            opts.rm,
+            "default RunOpts must have rm=true to avoid container leaks"
+        );
     }
 
     #[test]
@@ -120,9 +130,18 @@ mod semcov_wave47_tests {
         // Catches: FromStr only matching exact case ("Auto" vs "auto" vs "AUTO"),
         // causing YAML/env-var config with uppercase values to silently use Auto.
         use std::str::FromStr;
-        assert_eq!(RuntimePreference::from_str("DOCKER").unwrap(), RuntimePreference::Docker);
-        assert_eq!(RuntimePreference::from_str("Podman").unwrap(), RuntimePreference::Podman);
-        assert_eq!(RuntimePreference::from_str("AUTO").unwrap(), RuntimePreference::Auto);
+        assert_eq!(
+            RuntimePreference::from_str("DOCKER").unwrap(),
+            RuntimePreference::Docker
+        );
+        assert_eq!(
+            RuntimePreference::from_str("Podman").unwrap(),
+            RuntimePreference::Podman
+        );
+        assert_eq!(
+            RuntimePreference::from_str("AUTO").unwrap(),
+            RuntimePreference::Auto
+        );
     }
 
     #[test]
@@ -206,7 +225,10 @@ mod semcov_wave47_tests {
     fn parse_whitespace_only_is_empty_error() {
         // Catches: trim() not being called so "\t  \n" is treated as a non-empty
         // command producing ExecAst { command: "\t  \n", … }.
-        assert!(matches!(parse("   \t\n  "), Err(exec_grammar::ParseError::Empty)));
+        assert!(matches!(
+            parse("   \t\n  "),
+            Err(exec_grammar::ParseError::Empty)
+        ));
     }
 
     #[test]
@@ -223,7 +245,11 @@ mod semcov_wave47_tests {
         // end-of-flags sentinel, so subsequent args end up in flags not args.
         let ast = parse("cargo run -- arg1 arg2").unwrap();
         assert!(ast.flags.is_empty(), "flags should be empty after --");
-        assert_eq!(ast.args.len(), 3, "arg1 and arg2 and 'run' should be positional");
+        assert_eq!(
+            ast.args.len(),
+            3,
+            "arg1 and arg2 and 'run' should be positional"
+        );
     }
 
     #[test]
@@ -231,7 +257,11 @@ mod semcov_wave47_tests {
         // Catches: `--flag=` (empty RHS of =) splitting into name="flag" and
         // Some("") vs. being dropped — the empty string value must be preserved.
         let ast = parse("git commit --message=").unwrap();
-        let flag = ast.flags.iter().find(|f| f.name == "message").expect("flag missing");
+        let flag = ast
+            .flags
+            .iter()
+            .find(|f| f.name == "message")
+            .expect("flag missing");
         assert_eq!(flag.value.as_deref(), Some(""));
     }
 
