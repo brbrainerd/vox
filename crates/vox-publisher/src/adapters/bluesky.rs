@@ -256,3 +256,18 @@ async fn sdk_post(
 
     Ok(output.uri.to_string())
 }
+
+#[cfg(test)]
+mod semcov_wave1d_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[cfg(not(feature = "scientia-bluesky-sdk"))]
+    #[test]
+    fn session_cache_returns_stable_singleton() {
+        let a = session_cache();
+        let b = session_cache();
+        // OnceLock::get_or_init must yield the same &'static instance every call.
+        assert!(std::ptr::eq(a, b));
+    }
+}
