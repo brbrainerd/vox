@@ -345,6 +345,16 @@ Use `vox ci pre-push` to run any tier locally. Install the hook once with `cargo
 
 **Budget enforcement:** `--enforce-budgets` compares total elapsed against `contracts/budgets/test-tier-budgets.v1.yaml` (warn at 1.2×, fail at 1.5× measured baseline). No-op if the budgets file is absent. CI also runs `vox ci tier-budget-check --junit target/nextest/ci/junit.xml --profile full` after each nextest run.
 
+## Perennial Bug Patterns (catch early)
+
+> Derived from scanning 528 `fix()` commits — these classes recur. Each line is the cheapest place to catch the class before it lands again.
+
+- **Toolchain-bump lint waves (the #1 perennial).** Every `rust-toolchain.toml` bump (1.92→1.95→1.96…) introduces new `clippy`/`rustdoc` lints that fire workspace-wide and need a cleanup commit (e.g. `manual_is_multiple_of`, `field_reassign_with_default` arrived in 1.96). **Cached clippy hides them.** When bumping the toolchain, run a FRESH check before merging the bump: `CARGO_INCREMENTAL=0 cargo clippy --workspace --all-targets -- -D warnings` and `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps`. A CI gate that does this when `rust-toolchain.toml` changes is the durable catch.
+- **Pre-push clippy gap.** The `fast`/default pre-push hook does **not** run clippy (only `--complete` and above do) — ~45 fixes were clippy errors that landed then got cleaned up. Before pushing Rust changes, run `vox ci pre-push --complete` or `cargo clippy -p <touched-crate> -- -D warnings`. Recurring offenders: `unused_mut`, `field_reassign_with_default`, `len_zero`, `needless_range_loop`.
+- **Doc fences compiled as unintended doctests.** A bare or `rust`-tagged fence in docs is compiled as a doctest; example snippets that aren't meant to compile fail the rustdoc gate ("annotate as `text` so it isn't compiled as Rust" recurs). Mark non-compiling examples ` ```text `; for `vox` excerpts use ` ```vox ` + a leading `// vox:skip` with a reason (see §Markdown Hygiene).
+- **Async handler / async-test regression (codegen).** `@query`/`@mutation` handler emission must `await` (handler_await); and merges have silently reverted async tests to sync (`vox-vcs` cas_fallback). On a merge that touches async code/tests, re-confirm they're still `async` before pushing.
+- **SSOT / schema drift** (largest class, 103 fixes) — already gated by `vox ci ssot-drift` (+ the `ssot-autoregen` PR bot). Don't hand-regenerate after merge; see §Local CI Gate Tiers.
+
 ## PR & Review Discipline (Required, Cross-Tool)
 
 > **Canonical config:** `.coderabbit.yaml` (repo root; CodeRabbit reads it from the **default branch**).
