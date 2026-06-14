@@ -528,3 +528,40 @@ pub(super) fn part_a() -> Vec<Achievement> {
         },
     ]
 }
+
+#[cfg(test)]
+mod semcov_wave1d_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn part_a_first_task_entry_has_exact_known_values() {
+        let achievements = part_a();
+        let first = achievements
+            .iter()
+            .find(|a| a.id.0 == "first_task")
+            .expect("part_a() must contain the `first_task` achievement");
+        assert_eq!(first.name, "Hello World");
+        assert_eq!(first.xp_reward, 50);
+        assert_eq!(first.crystal_reward, 10);
+        assert_eq!(
+            first.category,
+            crate::achievement::AchievementCategory::Tasks
+        );
+        assert!(!first.secret);
+    }
+
+    #[test]
+    fn part_a_achievement_ids_are_unique() {
+        let achievements = part_a();
+        let mut ids: Vec<String> = achievements.iter().map(|a| a.id.0.clone()).collect();
+        let total = ids.len();
+        ids.sort();
+        ids.dedup();
+        assert_eq!(
+            ids.len(),
+            total,
+            "part_a() must not contain duplicate achievement ids"
+        );
+    }
+}

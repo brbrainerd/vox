@@ -233,3 +233,73 @@ pub async fn report_health(
         adapters,
     })
 }
+
+#[cfg(test)]
+mod semcov_wave1d_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::PublisherConfig;
+
+    #[tokio::test]
+    async fn report_health_offline_default_config_is_deterministic() {
+        let cfg = PublisherConfig::default();
+        let report = report_health(&cfg, false)
+            .await
+            .expect("report_health should succeed");
+
+        // Exactly nine adapters in a fixed, documented order.
+        let names: Vec<&str> = report.adapters.iter().map(|a| a.name).collect();
+        assert_eq!(
+            names,
+            vec![
+                "mastodon",
+                "bluesky",
+                "discord",
+                "twitter",
+                "linkedin",
+                "opencollective",
+                "reddit",
+                "zenodo",
+                "openreview",
+            ]
+        );
+
+        let by_name = |n: &str| report.adapters.iter().find(|a| a.name == n).unwrap();
+
+        // Reddit always reports the "unimplemented" Skipped heartbeat, regardless of live flag.
+        match &by_name("reddit").heartbeat_status {
+            Some(HeartbeatStatus::Skipped { reason }) => assert_eq!(reason, "unimplemented"),
+            other => panic!("expected reddit Skipped(unimplemented), got {other:?}"),
+        }
+
+        // With live=false, mastodon/bluesky/twitter/linkedin perform no probe.
+        for n in [
+            "mastodon",
+            "bluesky",
+            "twitter",
+            "linkedin",
+            "opencollective",
+            "zenodo",
+        ] {
+            assert!(
+                by_name(n).heartbeat_status.is_none(),
+                "{n} heartbeat should be None when live=false"
+            );
+        }
+
+        // Default config carries no mastodon/bluesky credentials.
+        assert!(!by_name("mastodon").credentials_present);
+        assert!(!by_name("bluesky").credentials_present);
+
+        // openreview never has a probe wired yet.
+        assert!(by_name("openreview").heartbeat_status.is_none());
+
+        // diagnostic_message is never populated.
+        assert!(
+            report
+                .adapters
+                .iter()
+                .all(|a| a.diagnostic_message.is_none())
+        );
+    }
+}

@@ -265,3 +265,39 @@ mod tests {
         assert_eq!(scaled.damage, 30);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1d_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn archetype_from_str_maps_known_and_defaults_unknown() {
+        assert_eq!(archetype_from_str("architectus"), Archetype::Architectus);
+        assert_eq!(archetype_from_str("scriba"), Archetype::Scriba);
+        assert_eq!(archetype_from_str("legatus"), Archetype::Legatus);
+        assert_eq!(archetype_from_str("centurion"), Archetype::Centurion);
+        // Unknown input (including empty and wrong case) falls back to the default.
+        assert_eq!(archetype_from_str("Centurion"), Archetype::Centurion);
+        assert_eq!(archetype_from_str("paladin"), Archetype::Centurion);
+        assert_eq!(archetype_from_str(""), Archetype::Centurion);
+    }
+
+    #[test]
+    fn centurion_default_set_is_exact() {
+        let abilities = default_abilities(Archetype::Centurion);
+        // Exactly four abilities in canonical unlock order.
+        assert_eq!(abilities.len(), 4);
+        let ids: Vec<&str> = abilities.iter().map(|a| a.id.as_str()).collect();
+        assert_eq!(ids, vec!["gladius", "pilum", "testudo", "decimatio"]);
+        // Damage/heal values per the balance table.
+        let damage: Vec<i32> = abilities.iter().map(|a| a.damage).collect();
+        assert_eq!(damage, vec![20, 35, -25, 60]);
+        // Exactly the first ability is unlocked; the rest require crystals.
+        assert!(abilities[0].unlocked);
+        assert!(abilities[1..].iter().all(|a| !a.unlocked));
+        // Free starter, paid unlocks afterward.
+        assert_eq!(abilities[0].crystal_cost, 0);
+        assert!(abilities[1..].iter().all(|a| a.crystal_cost > 0));
+    }
+}
