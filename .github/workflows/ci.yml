@@ -145,6 +145,9 @@ jobs:
             "operations-sync --target all --write" \
             "command-sync --write" \
             "generate-plugin-catalog-docs" \
+            "plugin-catalog-sync --write" \
+            "plugin-surface-sync --write" \
+            "plugin-skill-parity --write" \
             "gui-version-sync --write" \
             "capability-sync --write" \
             "gui-surface-coverage --write" \
