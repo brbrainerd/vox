@@ -14,7 +14,7 @@
 //! empty (the typical case — the parser doesn't know the source path), the
 //! emitter falls back to the filename basename it's writing the module under.
 
-use super::hir_emit::{EmitCtx, emit_block_stmts, emit_hir_expr};
+use super::hir_emit::{EmitCtx, emit_block_stmts, emit_hir_expr, emit_hir_stmt};
 use std::collections::HashSet;
 use vox_compiler::hir::{
     HirDerived, HirEffect, HirModule, HirOnCleanup, HirOnMount, HirReactiveMember,
@@ -182,10 +182,9 @@ fn emit_member(m: &HirReactiveMember, state_names: &HashSet<String>, out: &mut S
             let stmts = emit_block_stmts(body, &ctx, 2);
             out.push_str(&format!("  useEffect(() => () => {{\n{stmts}  }}, []);\n"));
         }
-        HirReactiveMember::Stmt(_) => {
-            // Module-scope `let` / expr statements aren't yet wired into the
-            // emit; reactive components don't typically have them either at
-            // this level. Skip silently for the minimum-viable slice.
+        HirReactiveMember::Stmt(stmt) => {
+            let s = emit_hir_stmt(stmt, &ctx, 2);
+            out.push_str(&s);
         }
     }
 }

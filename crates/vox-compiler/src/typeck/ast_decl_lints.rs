@@ -635,6 +635,39 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
         }
     }
 
+    // P8-J: @public XOR @auth — combining both is contradictory (token.rs:259-261).
+    // @public skips auth; @auth requires it. Together they are mutually exclusive.
+    for decl in &module.declarations {
+        let f = match decl {
+            Decl::Function(f) => f,
+            Decl::Endpoint(e) => &e.func,
+            _ => continue,
+        };
+        if f.is_pub && f.auth_provider.is_some() {
+            diags.push(Diagnostic {
+                message: format!(
+                    "fn `{}`: `@public` and `@auth(...)` are mutually exclusive — \
+                     `@public` skips authentication while `@auth` requires it.",
+                    f.name
+                ),
+                span: f.span,
+                severity: TypeckSeverity::Error,
+                expected_type: None,
+                found_type: None,
+                context: None,
+                suggestions: vec![
+                    "Remove `@public` to keep authentication, or remove `@auth(...)` to make the endpoint public.".into(),
+                ],
+                category: DiagnosticCategory::Typecheck,
+                code: Some(codes::TYPECK_PUBLIC_AUTH_CONFLICT.into()),
+                fixes: vec![],
+                line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: None,
+            });
+        }
+    }
+
     diags
 }
 

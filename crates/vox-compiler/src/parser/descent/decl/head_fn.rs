@@ -51,6 +51,7 @@ impl Parser {
         let mut inference_model: Option<String> = None;
         let mut training_step = false;
         let mut decorator_effects: Vec<crate::ast::decl::effect::EffectAnnotation> = Vec::new();
+        let mut auth_provider: Option<String> = None;
         let mut webhook: Option<crate::ast::decl::webhook::AstWebhookSpec> = None;
         let mut cors_spec: Option<crate::ast::decl::http_decorators::AstCorsSpec> = None;
         let mut rate_limit: Option<crate::ast::decl::http_decorators::AstRateLimitSpec> = None;
@@ -948,7 +949,14 @@ impl Parser {
                     self.advance();
                     is_pub = true;
                 }
-                Token::AtAuth | Token::AtOfflineCapable | Token::AtCollaborative => {
+                Token::AtAuth => {
+                    self.advance();
+                    if self.eat(&Token::LParen) {
+                        self.skip_paren_args_inner();
+                    }
+                    auth_provider = Some(String::new());
+                }
+                Token::AtOfflineCapable | Token::AtCollaborative => {
                     self.advance();
                     if self.eat(&Token::LParen) {
                         self.skip_paren_args_inner();
@@ -1043,7 +1051,7 @@ impl Parser {
             }),
             is_traced: false,
             is_pub,
-            auth_provider: None,
+            auth_provider,
             roles: vec![],
             cors: None,
             webhook,

@@ -1,0 +1,5 @@
+// expect-error: vox/typeck/public-auth-conflict
+@public
+@server
+@auth(provider: "clerk")
+fn get_profile(id: Int) -> Str { "profile" }

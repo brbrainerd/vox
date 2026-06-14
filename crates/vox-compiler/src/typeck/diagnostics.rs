@@ -739,6 +739,10 @@ pub mod codes {
     /// warning surfaces the gap so developers notice missing lowering during development.
     pub const LOWER_UNLOWERED_DECL: &str = "vox/lower/unlowered-decl";
 
+    /// `@public` and `@auth(...)` applied together on the same function — contradictory because
+    /// `@public` skips authentication while `@auth` requires it (token.rs:259-261).
+    pub const TYPECK_PUBLIC_AUTH_CONFLICT: &str = "vox/typeck/public-auth-conflict";
+
     /// All Phase-1 codes registered for stability, used by the namespace guard test.
     pub const ALL_PHASE_1: &[&str] = &[
         // Core type errors (v0.6, LLM-target CR-L criteria)
@@ -858,6 +862,7 @@ pub mod codes {
         "vox/a11y/listbox-missing-label",
         "vox/a11y/combobox-missing-label",
         "vox/a11y/tabs-missing-label",
+        TYPECK_PUBLIC_AUTH_CONFLICT,
     ];
 
     #[cfg(test)]
