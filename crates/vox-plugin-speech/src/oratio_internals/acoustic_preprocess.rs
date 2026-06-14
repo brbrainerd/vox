@@ -178,4 +178,68 @@ mod tests {
         assert!(d.rms_after > d.rms_before);
         unsafe { std::env::remove_var("VOX_ORATIO_ACOUSTIC_PREPROCESS") };
     }
+
+    // Catches: preprocess_audio_pcm_f32_reported returning a different Vec than the
+    // input when mode=="none", causing unnecessary allocations or silent data mutation.
+    #[test]
+    fn none_mode_returns_identical_samples() {
+        let _guard = TEST_LOCK.lock().unwrap();
+        unsafe { std::env::set_var("VOX_ORATIO_ACOUSTIC_PREPROCESS", "none") };
+        let samples: Vec<f32> = vec![0.5, -0.3, 0.1, 0.9];
+        let (out, d) = preprocess_audio_pcm_f32_reported(&samples, 1000);
+        assert_eq!(out, samples, "mode=none must preserve samples exactly");
+        assert_eq!(d.mode, "none");
+        assert!(!d.skipped_due_to_budget);
+        unsafe { std::env::remove_var("VOX_ORATIO_ACOUSTIC_PREPROCESS") };
+    }
+
+    // Catches: peak_normalize clamping output to values above 1.0, which would
+    // saturate downstream float audio and introduce distortion artifacts.
+    #[test]
+    fn peak_normalize_output_never_exceeds_one() {
+        let _guard = TEST_LOCK.lock().unwrap();
+        unsafe { std::env::set_var("VOX_ORATIO_ACOUSTIC_PREPROCESS", "peak_normalize") };
+        // Samples spanning full range
+        let samples: Vec<f32> = vec![1.0, -1.0, 0.5, -0.5];
+        let (out, _d) = preprocess_audio_pcm_f32_reported(&samples, 1000);
+        for &s in &out {
+            assert!(
+                s.abs() <= 1.0,
+                "sample {s} exceeds ±1.0 after peak normalization"
+            );
+        }
+        unsafe { std::env::remove_var("VOX_ORATIO_ACOUSTIC_PREPROCESS") };
+    }
+
+    // Catches: empty sample slice causing division-by-zero in rms_normalize when
+    // computing mean-square (sum / len with len=0).
+    #[test]
+    fn empty_slice_does_not_panic_in_any_mode() {
+        let _guard = TEST_LOCK.lock().unwrap();
+        for mode in &["none", "peak_normalize", "rms_normalize"] {
+            unsafe { std::env::set_var("VOX_ORATIO_ACOUSTIC_PREPROCESS", mode) };
+            let empty: Vec<f32> = vec![];
+            // Must not panic
+            let (out, d) = preprocess_audio_pcm_f32_reported(&empty, 1000);
+            assert!(out.is_empty(), "empty in → empty out for mode={mode}");
+            assert!(!d.skipped_due_to_budget, "empty slice never triggers budget path");
+            unsafe { std::env::remove_var("VOX_ORATIO_ACOUSTIC_PREPROCESS") };
+        }
+    }
+
+    // Catches: peak_normalize using peak_before==0.0 path producing NaN or Inf
+    // when dividing by zero (0.95 / 0.0), corrupting the output buffer.
+    #[test]
+    fn peak_normalize_all_zero_samples_produces_no_nan() {
+        let _guard = TEST_LOCK.lock().unwrap();
+        unsafe { std::env::set_var("VOX_ORATIO_ACOUSTIC_PREPROCESS", "peak_normalize") };
+        let silent: Vec<f32> = vec![0.0; 100];
+        let (out, d) = preprocess_audio_pcm_f32_reported(&silent, 1000);
+        assert!(
+            out.iter().all(|x| x.is_finite()),
+            "all-zero input must not produce NaN/Inf, got: {out:?}"
+        );
+        assert_eq!(d.peak_before, 0.0);
+        unsafe { std::env::remove_var("VOX_ORATIO_ACOUSTIC_PREPROCESS") };
+    }
 }

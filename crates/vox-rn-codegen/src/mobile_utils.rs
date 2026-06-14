@@ -162,3 +162,70 @@ export const mobile = {
 "#
     .to_string()
 }
+
+#[cfg(test)]
+mod semcov_wave8_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+    use vox_compiler::hir::lower_module;
+    use vox_compiler::lexer::lex;
+    use vox_compiler::parser::parse;
+
+    // Catches: emit_mobile_utils_rn not exporting the `mobile` identifier (import would fail).
+    #[test]
+    fn emitted_mobile_utils_exports_mobile() {
+        let out = emit_mobile_utils_rn();
+        assert!(
+            out.contains("export const mobile"),
+            "must export 'mobile'; got:\n{out}"
+        );
+    }
+
+    // Catches: emit_mobile_utils_rn missing the voxRuntime import.
+    #[test]
+    fn emitted_mobile_utils_imports_vox_runtime() {
+        let out = emit_mobile_utils_rn();
+        assert!(
+            out.contains("@vox/runtime-rn"),
+            "must import from @vox/runtime-rn; got:\n{out}"
+        );
+    }
+
+    // Catches: emit_mobile_utils_rn missing a method (e.g., take_photo dropped).
+    #[test]
+    fn emitted_mobile_utils_has_all_methods() {
+        let out = emit_mobile_utils_rn();
+        for method in ["notify", "vibrate", "take_photo", "transcribe", "transcribe_microphone"] {
+            assert!(
+                out.contains(method),
+                "mobile-utils.ts must contain method '{method}'; got:\n{out}"
+            );
+        }
+    }
+
+    // Catches: component_uses_mobile returning true for a component with NO mobile references.
+    #[test]
+    fn component_without_mobile_returns_false() {
+        let src = r#"
+component Hello() {
+    view: text { "hello" }
+}
+"#;
+        let module = parse(lex(src)).expect("parse");
+        let hir = lower_module(&module);
+        let rc = hir.components.iter().find(|c| c.name == "Hello").expect("Hello");
+        assert!(!component_uses_mobile(rc), "component with no mobile refs must return false");
+    }
+
+    // Catches: any_component_uses_mobile returning true when no component uses mobile.
+    #[test]
+    fn module_without_mobile_returns_false() {
+        let src = r#"
+component A() { view: text { "a" } }
+component B() { view: text { "b" } }
+"#;
+        let module = parse(lex(src)).expect("parse");
+        let hir = lower_module(&module);
+        assert!(!any_component_uses_mobile(&hir));
+    }
+}

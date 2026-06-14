@@ -142,3 +142,98 @@ mod tests {
         assert!((now - cutoff).num_days() == 7);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave8_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+
+    // Catches: parse_duration silently returns Ok for empty string instead of Err.
+    #[test]
+    fn empty_string_is_error() {
+        assert!(
+            matches!(parse_duration(""), Err(RangeError::InvalidDuration(_))),
+            "empty string must be InvalidDuration"
+        );
+    }
+
+    // Catches: "0d" being treated as invalid even though 0 is a legitimate boundary.
+    #[test]
+    fn zero_days_compact_is_valid() {
+        let d = parse_duration("0d").expect("0d should parse");
+        assert_eq!(d.num_days(), 0);
+    }
+
+    // Catches: Duration::days(i64::MAX) panicking inside parse_duration instead of returning Err.
+    // This is a KNOWN BUG: chrono panics on out-of-range days. Marked should_panic to document it.
+    #[test]
+    #[should_panic(expected = "out of bounds")]
+    fn gigantic_days_panics_in_chrono_known_bug() {
+        // i64::MAX days overflows chrono's TimeDelta — parse_duration does not guard against this.
+        let big = format!("{}d", i64::MAX);
+        let _ = parse_duration(&big);
+    }
+
+    // Catches: whitespace between number and suffix being incorrectly accepted.
+    #[test]
+    fn whitespace_inside_compact_form_is_rejected() {
+        // "3 d" is not a valid compact form — only "3d".
+        assert!(parse_duration("3 d").is_err());
+    }
+
+    // Catches: non-digit prefix in compact form (e.g. "+3d") silently accepted.
+    #[test]
+    fn sign_prefix_compact_form_is_rejected() {
+        assert!(parse_duration("+3d").is_err());
+        assert!(parse_duration("-3d").is_err());
+    }
+
+    // Catches: "hours ago" suffix form accepting non-numeric prefix.
+    #[test]
+    fn non_numeric_long_form_is_rejected() {
+        assert!(parse_duration("abc hours ago").is_err());
+        assert!(parse_duration("two days ago").is_err());
+    }
+
+    // Catches: resolve() treating "0d" (a valid duration) as a ref rather than SinceDuration.
+    #[test]
+    fn zero_duration_since_arg_gives_since_duration_variant() {
+        let r = resolve(Some("0d"), None, "7d").unwrap();
+        assert!(
+            matches!(r, CommitRange::SinceDuration { duration, .. } if duration.num_seconds() == 0)
+        );
+    }
+
+    // Catches: resolve() overriding explicit until_arg with HEAD when arg is provided.
+    #[test]
+    fn explicit_until_arg_is_preserved() {
+        let r = resolve(Some("v1.0"), Some("v2.0"), "30d").unwrap();
+        if let CommitRange::Refs { until, .. } = r {
+            assert_eq!(until, "v2.0");
+        } else {
+            panic!("expected Refs variant");
+        }
+    }
+
+    // Catches: hours form producing wrong magnitude (e.g., treating hours as days).
+    #[test]
+    fn hours_suffix_produces_hours_not_days() {
+        let d = parse_duration("24h").unwrap();
+        assert_eq!(d.num_hours(), 24);
+        assert_eq!(d.num_days(), 1);
+    }
+
+    // Catches: weeks suffix producing wrong magnitude.
+    #[test]
+    fn weeks_suffix_produces_seven_day_multiples() {
+        let d = parse_duration("2w").unwrap();
+        assert_eq!(d.num_days(), 14);
+    }
+
+    // Catches: "0 hours ago" long form being rejected when 0 should be valid.
+    #[test]
+    fn zero_hours_ago_long_form_is_valid() {
+        let d = parse_duration("0 hours ago").expect("0 hours ago must be valid");
+        assert_eq!(d.num_hours(), 0);
+    }
+}

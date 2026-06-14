@@ -165,3 +165,133 @@ pub fn vote_majority(outputs: &[(String, String)]) -> VoteOutcome {
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_wave8_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+
+    fn pair(node: &str, hash: &str) -> (String, String) {
+        (node.to_string(), hash.to_string())
+    }
+
+    // Catches: vote_majority returning Consensus for a single replica instead of Consensus (trivially
+    // correct but should be Consensus, not Majority with minority=0 which would be confusing).
+    #[test]
+    fn single_replica_is_consensus() {
+        let out = vote_majority(&[pair("n1", "aabbcc")]);
+        assert!(
+            matches!(out, VoteOutcome::Consensus { .. }),
+            "single replica must be Consensus"
+        );
+    }
+
+    // Catches: empty outputs returning something other than NoVotes (e.g., panicking on sorted[0]).
+    #[test]
+    fn empty_outputs_returns_no_votes() {
+        assert!(matches!(vote_majority(&[]), VoteOutcome::NoVotes));
+    }
+
+    // Catches: exact tie (2 distinct hashes, 1 vote each) being reported as Majority instead of Split.
+    #[test]
+    fn two_way_tie_is_split() {
+        let out = vote_majority(&[pair("n1", "aaa"), pair("n2", "bbb")]);
+        assert!(
+            matches!(out, VoteOutcome::Split { .. }),
+            "exact tie must be Split, not Majority"
+        );
+    }
+
+    // Catches: 3 nodes, 2 agreeing, 1 not — being reported as Consensus or Split instead of Majority.
+    #[test]
+    fn two_of_three_is_majority() {
+        let out = vote_majority(&[pair("n1", "aaa"), pair("n2", "aaa"), pair("n3", "bbb")]);
+        match out {
+            VoteOutcome::Majority {
+                output_blake3_hex,
+                minority_count,
+            } => {
+                assert_eq!(output_blake3_hex, "aaa");
+                assert_eq!(minority_count, 1);
+            }
+            other => panic!("expected Majority, got {other:?}"),
+        }
+    }
+
+    // Catches: all-agreeing replicas producing Majority (minority_count=0) instead of Consensus.
+    #[test]
+    fn all_agree_is_consensus_not_majority() {
+        let out = vote_majority(&[pair("n1", "aaa"), pair("n2", "aaa"), pair("n3", "aaa")]);
+        assert!(matches!(out, VoteOutcome::Consensus { output_blake3_hex } if output_blake3_hex == "aaa"));
+    }
+
+    // Catches: decide_replicas ignoring min_replicas=0 and returning 0 instead of clamping to 1.
+    #[test]
+    fn decide_replicas_clamps_min_to_one() {
+        let policy = RedundancyPolicy {
+            mode: RedundancyMode::None,
+            min_replicas: 0,
+            max_replicas: 1,
+            skip_above: None,
+            determinism_proof_blake3_hex: None,
+        };
+        assert_eq!(decide_replicas(&policy, TrustTier::Unknown), 1);
+    }
+
+    // Catches: skip_above threshold applying when peer_tier is BELOW skip_above (should not skip).
+    #[test]
+    fn skip_above_not_triggered_below_threshold() {
+        let policy = RedundancyPolicy {
+            mode: RedundancyMode::Majority,
+            min_replicas: 3,
+            max_replicas: 5,
+            skip_above: Some(TrustTier::Vetted),
+            determinism_proof_blake3_hex: None,
+        };
+        // Reputable < Vetted, so skip should NOT trigger — min_replicas should apply.
+        assert_eq!(decide_replicas(&policy, TrustTier::Reputable), 3);
+    }
+
+    // Catches: skip_above exactly at threshold not triggering skip (should skip AT or ABOVE).
+    #[test]
+    fn skip_above_exact_match_triggers_skip() {
+        let policy = RedundancyPolicy {
+            mode: RedundancyMode::Majority,
+            min_replicas: 3,
+            max_replicas: 5,
+            skip_above: Some(TrustTier::Vetted),
+            determinism_proof_blake3_hex: None,
+        };
+        assert_eq!(
+            decide_replicas(&policy, TrustTier::Vetted),
+            1,
+            "peer at exactly skip_above threshold must skip to 1 replica"
+        );
+    }
+
+    // Catches: TrustTier ordering being wrong (e.g., Internal < Vetted when it should be higher).
+    #[test]
+    fn trust_tier_ordering_is_monotone() {
+        assert!(TrustTier::Unknown < TrustTier::Attested);
+        assert!(TrustTier::Attested < TrustTier::Reputable);
+        assert!(TrustTier::Reputable < TrustTier::Vetted);
+        assert!(TrustTier::Vetted < TrustTier::Internal);
+    }
+
+    // Catches: RedundancyPolicy serde round-trip dropping skip_above when it's Some.
+    #[test]
+    fn redundancy_policy_round_trips_with_skip_above() {
+        let policy = RedundancyPolicy {
+            mode: RedundancyMode::Adaptive,
+            min_replicas: 2,
+            max_replicas: 8,
+            skip_above: Some(TrustTier::Reputable),
+            determinism_proof_blake3_hex: Some("deadbeef".to_string()),
+        };
+        let json = serde_json::to_string(&policy).unwrap();
+        let back: RedundancyPolicy = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.skip_above, Some(TrustTier::Reputable));
+        assert_eq!(back.min_replicas, 2);
+        assert_eq!(back.max_replicas, 8);
+    }
+}

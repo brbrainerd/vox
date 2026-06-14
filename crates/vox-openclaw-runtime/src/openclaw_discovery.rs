@@ -279,3 +279,96 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod semcov_wave7_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+
+    // Catches: TTL of exactly MIN_CACHE_TTL_SECONDS being incorrectly clamped down
+    #[test]
+    fn ttl_clamp_exact_min_is_preserved() {
+        assert_eq!(
+            clamp_ttl(Some(MIN_CACHE_TTL_SECONDS)),
+            MIN_CACHE_TTL_SECONDS,
+            "exact min TTL must not be clamped further down"
+        );
+    }
+
+    // Catches: TTL of exactly MAX_CACHE_TTL_SECONDS being incorrectly clamped up
+    #[test]
+    fn ttl_clamp_exact_max_is_preserved() {
+        assert_eq!(
+            clamp_ttl(Some(MAX_CACHE_TTL_SECONDS)),
+            MAX_CACHE_TTL_SECONDS,
+            "exact max TTL must not be clamped further up"
+        );
+    }
+
+    // Catches: clamp_ttl(Some(0)) returning 0 instead of MIN (allows zero-TTL cache stalls)
+    #[test]
+    fn ttl_clamp_zero_floors_at_min() {
+        let clamped = clamp_ttl(Some(0));
+        assert!(
+            clamped >= MIN_CACHE_TTL_SECONDS,
+            "zero TTL must be clamped up to MIN_CACHE_TTL_SECONDS, got {clamped}"
+        );
+    }
+
+    // Catches: derive_default_well_known_url doubling the trailing slash
+    // (e.g. "http://host//.well-known/openclaw.json")
+    #[test]
+    fn well_known_url_no_double_slash_when_base_has_trailing_slash() {
+        let url = derive_default_well_known_url("http://localhost:3000/");
+        assert!(
+            !url.contains("//well-known"),
+            "well-known URL must not double-slash: {url}"
+        );
+        assert!(
+            url.ends_with("/.well-known/openclaw.json"),
+            "well-known URL must end with /.well-known/openclaw.json: {url}"
+        );
+    }
+
+    // Catches: derive_default_well_known_url producing wrong suffix when base has no slash
+    #[test]
+    fn well_known_url_correct_when_base_has_no_trailing_slash() {
+        let url = derive_default_well_known_url("http://localhost:3000");
+        assert_eq!(
+            url,
+            "http://localhost:3000/.well-known/openclaw.json",
+            "well-known URL without trailing slash is wrong: {url}"
+        );
+    }
+
+    // Catches: trim_nonempty keeping whitespace-only strings as Some("   ")
+    #[test]
+    fn trim_nonempty_rejects_whitespace_only() {
+        assert_eq!(
+            trim_nonempty(Some("   ".to_string())),
+            None,
+            "whitespace-only string must become None"
+        );
+    }
+
+    // Catches: trim_nonempty discarding a valid non-empty string
+    #[test]
+    fn trim_nonempty_preserves_valid_content() {
+        let result = trim_nonempty(Some("  http://example.com  ".to_string()));
+        assert_eq!(
+            result.as_deref(),
+            Some("http://example.com"),
+            "trim_nonempty must strip whitespace and return Some for non-empty content"
+        );
+    }
+
+    // Catches: fallback_endpoints hardcoding the wrong default HTTP gateway port
+    #[test]
+    fn fallback_http_gateway_matches_constant() {
+        let ep = fallback_endpoints("test".into());
+        assert_eq!(
+            ep.http_gateway_url, DEFAULT_HTTP_GATEWAY_URL,
+            "fallback HTTP gateway must match DEFAULT_HTTP_GATEWAY_URL constant"
+        );
+    }
+}

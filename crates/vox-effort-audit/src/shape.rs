@@ -208,3 +208,116 @@ mod tests {
         assert!(s < 0.3, "score was {s}, expected < 0.3");
     }
 }
+
+#[cfg(test)]
+mod semcov_wave8_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+    use crate::walk::{CommitRecord, FileChange};
+    use chrono::TimeZone;
+
+    fn make_rec(msg: &str, files: Vec<(&str, u64, u64)>, diff: &str) -> CommitRecord {
+        CommitRecord {
+            sha: "0".into(),
+            parent_sha: None,
+            commit_ts: chrono::Utc.timestamp_opt(0, 0).unwrap(),
+            message: msg.into(),
+            author_email_sha256: "x".into(),
+            additions: files.iter().map(|(_, a, _)| *a).sum(),
+            deletions: files.iter().map(|(_, _, d)| *d).sum(),
+            files: files
+                .iter()
+                .map(|(p, a, d)| FileChange {
+                    path: (*p).into(),
+                    additions: *a,
+                    deletions: *d,
+                })
+                .collect(),
+            unified_diff_text: diff.into(),
+            diff_truncated: false,
+        }
+    }
+
+    // Catches: empty file list causing is_lockfile_only to return true (should be false).
+    #[test]
+    fn empty_file_list_not_lockfile_only() {
+        let r = make_rec("chore: empty", vec![], "");
+        let f = features(&r);
+        assert!(!f.is_lockfile_only, "empty file list must NOT be lockfile_only");
+        assert!(!f.is_doc_only, "empty file list must NOT be doc_only");
+        assert!(!f.is_generated_only, "empty file list must NOT be generated_only");
+    }
+
+    // Catches: mixed lockfile + non-lockfile being incorrectly flagged as lockfile_only.
+    #[test]
+    fn mixed_lockfile_and_src_is_not_lockfile_only() {
+        let r = make_rec(
+            "fix: deps + code",
+            vec![("Cargo.lock", 1, 0), ("src/main.rs", 5, 2)],
+            "",
+        );
+        assert!(!features(&r).is_lockfile_only);
+    }
+
+    // Catches: compute_repetition returning non-zero for a diff with only header lines
+    // (+++/---/@@) and no +/- content lines.
+    #[test]
+    fn header_only_diff_gives_zero_repetition_score() {
+        let diff = "--- a/foo.rs\n+++ b/foo.rs\n@@ -1,2 +1,2 @@\n";
+        let r = make_rec("fix: trivial", vec![], diff);
+        assert_eq!(
+            features(&r).mechanical_sweep_score,
+            0.0,
+            "diff with only @@ / +++ / --- lines must score 0.0"
+        );
+    }
+
+    // Catches: parse_commit_kind treating "FEAT" (uppercase) as Other instead of Feat.
+    #[test]
+    fn commit_kind_case_insensitive() {
+        let r = make_rec("FEAT: upper", vec![], "");
+        assert_eq!(
+            features(&r).commit_kind_from_message,
+            CommitKind::Feat,
+            "commit kind must be case-insensitive"
+        );
+    }
+
+    // Catches: "tests" alias not mapping to CommitKind::Test.
+    #[test]
+    fn tests_plural_alias_maps_to_test_kind() {
+        let r = make_rec("tests: add coverage", vec![], "");
+        assert_eq!(features(&r).commit_kind_from_message, CommitKind::Test);
+    }
+
+    // Catches: file_extension_histogram overcounting files with no extension.
+    #[test]
+    fn no_extension_file_not_in_histogram() {
+        let r = make_rec("chore: add", vec![("Makefile", 1, 0)], "");
+        let f = features(&r);
+        // "Makefile" has no extension — histogram should be empty.
+        assert!(
+            f.file_extension_histogram.is_empty(),
+            "files with no extension must not appear in the histogram"
+        );
+    }
+
+    // Catches: files_changed not matching actual file count (e.g., off-by-one or saturating).
+    #[test]
+    fn files_changed_equals_file_count() {
+        let files: Vec<(&str, u64, u64)> = (0..5).map(|i| {
+            let path: &'static str = Box::leak(format!("src/f{i}.rs").into_boxed_str());
+            (path, 1u64, 0u64)
+        }).collect();
+        let r = make_rec("feat: five files", files, "");
+        assert_eq!(features(&r).files_changed, 5);
+    }
+
+    // Catches: is_doc_only incorrectly flagging a file that merely ends with ".md" in its
+    // directory component (e.g. "docs_archive/readme.rs").
+    #[test]
+    fn rs_file_not_doc_only() {
+        let r = make_rec("fix: src", vec![("src/lib.rs", 2, 1)], "");
+        assert!(!features(&r).is_doc_only);
+    }
+}

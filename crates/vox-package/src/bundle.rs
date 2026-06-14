@@ -186,3 +186,125 @@ impl BundleMeta for crate::model_bundle::ModelBundle {
         "model"
     }
 }
+
+#[cfg(test)]
+mod semcov_wave8_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+    use std::sync::Arc;
+    use serde_json::json;
+
+    fn zero_hash() -> [u8; 64] {
+        [0u8; 64]
+    }
+
+    fn make_bundle(kind: Option<&str>) -> Bundle {
+        Bundle {
+            fn_hash: zero_hash(),
+            deps: vec![],
+            bytes: Arc::new(vec![1, 2, 3]),
+            manifest: match kind {
+                Some(k) => json!({"kind": k}),
+                None => json!({}),
+            },
+        }
+    }
+
+    // Catches: to_hex producing wrong length (not 128 chars) or wrong hex for known bytes.
+    #[test]
+    fn bundle_ref_to_hex_is_128_chars_and_correct() {
+        let mut hash = [0u8; 64];
+        hash[0] = 0xde;
+        hash[1] = 0xad;
+        hash[63] = 0xff;
+        let r = BundleRef { fn_hash: hash };
+        let hex = r.to_hex();
+        assert_eq!(hex.len(), 128, "to_hex must produce 128 hex chars");
+        assert!(hex.starts_with("dead"), "first bytes must be 'dead'");
+        assert!(hex.ends_with("ff"), "last byte must be 'ff'");
+    }
+
+    // Catches: BundleRef fn_hash_serde rejecting a valid 128-char hex string on deserialize.
+    #[test]
+    fn bundle_ref_serde_round_trips() {
+        let r = BundleRef { fn_hash: [0xab; 64] };
+        let json = serde_json::to_string(&r).unwrap();
+        assert!(json.contains("\""), "must serialize as a quoted hex string");
+        let back: BundleRef = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.fn_hash, r.fn_hash);
+    }
+
+    // Catches: fn_hash_serde accepting a truncated hex string (< 128 chars) instead of erroring.
+    #[test]
+    fn bundle_ref_short_hex_rejected() {
+        let bad_json = "\"abcd\"";
+        let result: Result<BundleRef, _> = serde_json::from_str(bad_json);
+        assert!(result.is_err(), "short hex must be rejected");
+    }
+
+    // Catches: fn_hash_serde accepting a non-hex string without error.
+    #[test]
+    fn bundle_ref_non_hex_rejected() {
+        let long_non_hex: String = "g".repeat(128);
+        let bad_json = format!("\"{}\"", long_non_hex);
+        let result: Result<BundleRef, _> = serde_json::from_str(&bad_json);
+        assert!(result.is_err(), "non-hex must be rejected");
+    }
+
+    // Catches: kind_label returning "unknown" even for known manifest kinds like "workflow".
+    #[test]
+    fn bundle_meta_kind_label_workflow() {
+        let b = make_bundle(Some("workflow"));
+        assert_eq!(b.kind_label(), "workflow");
+    }
+
+    #[test]
+    fn bundle_meta_kind_label_activity() {
+        let b = make_bundle(Some("activity"));
+        assert_eq!(b.kind_label(), "activity");
+    }
+
+    // Catches: kind_label not falling back to "unknown" for an absent or unknown manifest kind.
+    #[test]
+    fn bundle_meta_kind_label_unknown_for_missing_kind() {
+        let b = make_bundle(None);
+        assert_eq!(b.kind_label(), "unknown");
+        let b2 = make_bundle(Some("something_new"));
+        assert_eq!(b2.kind_label(), "unknown");
+    }
+
+    // Catches: BundleStore::put not being idempotent (second put fails or corrupts data).
+    #[test]
+    fn bundle_store_put_is_idempotent() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = BundleStore::open(tmp.path().to_path_buf()).unwrap();
+        let b = make_bundle(Some("actor"));
+        let r1 = store.put(&b).unwrap();
+        let r2 = store.put(&b).unwrap(); // second put
+        assert_eq!(r1.fn_hash, r2.fn_hash);
+        let loaded = store.lookup(&r1).unwrap().expect("must be present after two puts");
+        assert_eq!(loaded.bytes.as_ref(), b.bytes.as_ref());
+    }
+
+    // Catches: BundleStore::lookup returning None immediately after a put (no flush/sync issue).
+    #[test]
+    fn bundle_store_lookup_after_put() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = BundleStore::open(tmp.path().to_path_buf()).unwrap();
+        let b = make_bundle(Some("workflow"));
+        let r = store.put(&b).unwrap();
+        let found = store.lookup(&r).unwrap();
+        assert!(found.is_some(), "bundle must be findable after put");
+        let found = found.unwrap();
+        assert_eq!(found.fn_hash, b.fn_hash);
+    }
+
+    // Catches: BundleStore::lookup returning Some for a hash that was never stored.
+    #[test]
+    fn bundle_store_lookup_miss_returns_none() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = BundleStore::open(tmp.path().to_path_buf()).unwrap();
+        let r = BundleRef { fn_hash: [0xcc; 64] };
+        assert!(store.lookup(&r).unwrap().is_none(), "miss must return None");
+    }
+}

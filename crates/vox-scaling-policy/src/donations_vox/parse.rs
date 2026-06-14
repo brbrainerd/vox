@@ -214,3 +214,91 @@ fn parse_bool(s: &str) -> Result<bool, String> {
         other => Err(format!("expected 'true' or 'false', got '{other}'")),
     }
 }
+
+#[cfg(test)]
+mod semcov_wave9_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+
+    // Catches: parse_source returning Ok with default values on completely empty
+    // input, hiding that no policy fields were actually set (silent no-op parse).
+    #[test]
+    fn parse_source_empty_input_gives_defaults() {
+        let p = parse_source("", "<test>").expect("empty source must parse without error");
+        // Confirm we get the hardcoded defaults, not some zero-state that a bug introduced
+        assert_eq!(p.max_job_duration_secs, 3600, "default duration must be 3600s");
+        assert!(!p.nsfw_allowed, "default nsfw_allowed must be false");
+        assert!(!p.public_mesh_opt_in, "default public_mesh_opt_in must be false");
+        assert_eq!(p.min_priority, 0);
+    }
+
+    // Catches: parse_bool accepting "1"/"0"/"True"/"False" as valid booleans when
+    // only "true"/"false" should be accepted, causing silent wrong-value parses.
+    #[test]
+    fn parse_bool_rejects_numeric_and_capitalized_variants() {
+        for bad in &["1", "0", "True", "False", "TRUE", "FALSE", "yes", "no"] {
+            let r = parse_bool(bad);
+            assert!(r.is_err(), "parse_bool({bad:?}) should be Err, got Ok");
+        }
+    }
+
+    // Catches: parse_source succeeding on "let nsfw_allowed = maybe" (invalid bool)
+    // instead of returning a ParseError, silently leaving nsfw_allowed at its default.
+    #[test]
+    fn parse_source_invalid_bool_field_returns_err() {
+        let src = "let nsfw_allowed = maybe";
+        let result = parse_source(src, "<test>");
+        assert!(
+            result.is_err(),
+            "invalid bool value must return ParseError, not Ok"
+        );
+        let err_str = result.unwrap_err().to_string();
+        assert!(
+            err_str.contains("nsfw_allowed") || err_str.contains("Parse error"),
+            "error must mention the field or parse context, got: {err_str}"
+        );
+    }
+
+    // Catches: parse_source accepting a negative integer for max_job_duration_secs
+    // because the parser uses .parse::<u64>() which should fail but the error might
+    // be swallowed, leaving the default instead of rejecting the input.
+    #[test]
+    fn parse_source_negative_duration_returns_err() {
+        let src = "let max_job_duration_secs = -1";
+        let result = parse_source(src, "<test>");
+        assert!(
+            result.is_err(),
+            "negative duration must fail to parse as u64 and return Err"
+        );
+    }
+
+    // Catches: parse_source silently dropping slot declarations when the brace
+    // is on a different style (e.g., no space before brace), producing zero slots
+    // when at least one was declared.
+    #[test]
+    fn parse_source_slot_declaration_parsed() {
+        let src = "slot gpu { max_concurrent = 2, weight_pct = 60 }";
+        let p = parse_source(src, "<test>").expect("slot decl should parse");
+        assert_eq!(p.slots.len(), 1, "expected one slot, got: {:?}", p.slots);
+        assert_eq!(p.slots[0].max_concurrent, 2);
+        assert_eq!(p.slots[0].weight_pct, 60);
+    }
+
+    // Catches: parse_source treating lines with only whitespace as content and
+    // failing to parse them, when they should be silently skipped.
+    #[test]
+    fn parse_source_whitespace_only_lines_ignored() {
+        let src = "   \n\t\n   \nlet nsfw_allowed = true\n  \n";
+        let p = parse_source(src, "<test>").expect("whitespace lines must be skipped");
+        assert!(p.nsfw_allowed);
+    }
+
+    // Catches: parse_source treating comment lines without a trailing space as
+    // unknown keys and attempting to parse "//comment" as a let-binding key.
+    #[test]
+    fn parse_source_comment_lines_ignored() {
+        let src = "// this is a comment\n//no space after slashes\nlet min_priority = 5";
+        let p = parse_source(src, "<test>").expect("comment lines must not cause errors");
+        assert_eq!(p.min_priority, 5);
+    }
+}

@@ -185,3 +185,104 @@ mod tests {
         assert_eq!(back.bundle_hash, b.bundle_hash);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave8_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+    use digest_hex::parse_hex_512;
+
+    fn make_bundle(weights: [u8; 64]) -> ModelBundle {
+        ModelBundle {
+            weights_hash: weights,
+            weights_merkle_leaves: None,
+            tokenizer_hash: [0u8; 64],
+            config_hash: [0u8; 64],
+            bundle_hash: [0u8; 64],
+            format: WeightFormat::SafeTensorsSingle,
+            provenance: BundleProvenance {
+                source_label: "test".into(),
+                hf_repo: None,
+            },
+        }
+    }
+
+    // Catches: parse_hex_512 accepting strings shorter than 128 chars without error.
+    #[test]
+    fn parse_hex_512_rejects_short_string() {
+        assert!(parse_hex_512("abcd").is_err());
+    }
+
+    // Catches: parse_hex_512 accepting a 129-char string (one extra) instead of erroring.
+    #[test]
+    fn parse_hex_512_rejects_130_char_string() {
+        let s: String = "a".repeat(130);
+        assert!(parse_hex_512(&s).is_err());
+    }
+
+    // Catches: parse_hex_512 accepting non-hex characters (e.g., 'g') without error.
+    #[test]
+    fn parse_hex_512_rejects_non_hex_chars() {
+        let s: String = "g".repeat(128);
+        assert!(parse_hex_512(&s).is_err());
+    }
+
+    // Catches: parse_hex_512 accepting an empty string (0 chars, not 128) without error.
+    #[test]
+    fn parse_hex_512_rejects_empty() {
+        assert!(parse_hex_512("").is_err());
+    }
+
+    // Catches: compute_model_bundle_content_hash being sensitive to weights_hash changes
+    // (i.e., not ignoring fields in the payload — a tampered weight must invalidate the hash).
+    #[test]
+    fn content_hash_changes_when_weights_hash_changes() {
+        let b1 = make_bundle([0u8; 64]);
+        let mut b2 = make_bundle([0u8; 64]);
+        b2.weights_hash[0] = 0xff;
+
+        let h1 = compute_model_bundle_content_hash(&b1);
+        let h2 = compute_model_bundle_content_hash(&b2);
+        assert_ne!(h1, h2, "different weights_hash must produce different content hash");
+    }
+
+    // Catches: verify_bundle_hash returning true for a bundle whose bundle_hash is all-zeros
+    // (the zero hash is unlikely to be the real SHA3-512 of the payload).
+    #[test]
+    fn zero_bundle_hash_fails_verify() {
+        let b = make_bundle([0u8; 64]); // bundle_hash is also [0u8;64] — wrong
+        assert!(
+            !b.verify_bundle_hash(),
+            "a zero bundle_hash should not verify (SHA3-512 of any real payload ≠ all-zeros)"
+        );
+    }
+
+    // Catches: compute_model_bundle_content_hash not being deterministic (two calls differ).
+    #[test]
+    fn content_hash_is_deterministic() {
+        let b = make_bundle([0xab; 64]);
+        assert_eq!(
+            compute_model_bundle_content_hash(&b),
+            compute_model_bundle_content_hash(&b)
+        );
+    }
+
+    // Catches: WeightFormat::SafeTensorsSharded serde losing the index_hash field.
+    #[test]
+    fn sharded_format_round_trips_index_hash() {
+        let mut b = make_bundle([0u8; 64]);
+        b.bundle_hash = compute_model_bundle_content_hash(&b);
+        b.format = WeightFormat::SafeTensorsSharded {
+            index_hash: [0xde; 64],
+        };
+        // Recompute with new format.
+        b.bundle_hash = compute_model_bundle_content_hash(&b);
+        let json = serde_json::to_string(&b).unwrap();
+        let back: ModelBundle = serde_json::from_str(&json).unwrap();
+        if let WeightFormat::SafeTensorsSharded { index_hash } = back.format {
+            assert_eq!(index_hash, [0xde; 64]);
+        } else {
+            panic!("format variant lost on round-trip");
+        }
+    }
+}

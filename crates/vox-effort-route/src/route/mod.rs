@@ -820,3 +820,159 @@ mod tests {
         assert_eq!(d.judge_tokens_used(), 1200);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave7_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+
+    // Catches: strip_json_fence keeping the ``` suffix on already-bare JSON
+    #[test]
+    fn strip_json_fence_bare_json_is_unchanged() {
+        let raw = r#"{"key":"val"}"#;
+        assert_eq!(strip_json_fence(raw), raw);
+    }
+
+    // Catches: strip_json_fence not stripping the closing ``` when present
+    #[test]
+    fn strip_json_fence_removes_code_fence() {
+        let fenced = "```json\n{\"a\":1}\n```";
+        let stripped = strip_json_fence(fenced);
+        assert!(
+            !stripped.contains("```"),
+            "strip_json_fence must remove all ``` markers, got: {stripped}"
+        );
+        assert!(stripped.contains("{\"a\":1}"), "inner JSON must survive stripping");
+    }
+
+    // Catches: strip_json_fence returning empty string when only a fence is present
+    #[test]
+    fn strip_json_fence_empty_inner_remains_empty() {
+        let fenced = "```json\n\n```";
+        let stripped = strip_json_fence(fenced);
+        // The inner content is whitespace/empty; stripping should not panic
+        assert!(!stripped.contains("```"), "fence markers must be gone: '{stripped}'");
+    }
+
+    // Catches: ArtifactForm::None staging_extension returning a non-empty string
+    // (would cause write_artifact to create a spurious file)
+    #[test]
+    fn artifact_form_none_has_empty_staging_extension() {
+        assert_eq!(
+            ArtifactForm::None.staging_extension(),
+            "",
+            "ArtifactForm::None must produce an empty staging extension"
+        );
+    }
+
+    // Catches: vox_required returning true for non-VoxScript forms (over-blocks runs)
+    #[test]
+    fn only_vox_script_is_vox_required() {
+        for form in [
+            ArtifactForm::AgentsMdRule,
+            ArtifactForm::CodeAuditDetector,
+            ArtifactForm::ArchRule,
+            ArtifactForm::CiGate,
+            ArtifactForm::CorpusNegativeExample,
+            ArtifactForm::None,
+        ] {
+            assert!(
+                !form.vox_required(),
+                "{form:?} must not be vox_required — only VoxScript should be"
+            );
+        }
+        assert!(ArtifactForm::VoxScript.vox_required());
+    }
+
+    // Catches: judge_tokens_used summing wrong direction (e.g. doubling prompt tokens)
+    #[test]
+    fn judge_tokens_used_is_sum_of_prompt_and_completion() {
+        // Build a minimal RemediationDecision to test the helper
+        let decision = RemediationDecision {
+            cluster_id: "c0".into(),
+            member_commit_shas: vec![],
+            member_count: 0,
+            total_member_tokens: 0,
+            artifact_form: ArtifactForm::None,
+            confidence: 0.0,
+            synthesized_fix_summary: String::new(),
+            drafted_artifact: None,
+            verified: false,
+            refutation_note: String::new(),
+            judge_prompt_tokens: 1234,
+            judge_completion_tokens: 567,
+            judge_cost_usd: None,
+        };
+        assert_eq!(
+            decision.judge_tokens_used(),
+            1234 + 567,
+            "judge_tokens_used must be prompt + completion tokens"
+        );
+    }
+
+    // Catches: budget_skipped decision incorrectly marking verified = true
+    #[test]
+    fn budget_skipped_decision_is_unverified_and_none_form() {
+        use crate::bucket::{Bucket, BucketKey};
+        use crate::cluster::Cluster;
+        use crate::load::LoadedFinding;
+        use std::collections::HashMap;
+        use vox_effort_audit::hybrid::MeasuredCost;
+        use vox_effort_audit::judge::schema::{JudgeFinding, RemediationKind, WasteCategory};
+        use vox_effort_audit::output::{FindingRow, JudgeMeta};
+        use vox_effort_audit::shape::{CommitKind, ShapeFeatures};
+
+        let row = FindingRow {
+            schema_version: "1.0".into(),
+            commit_sha: "abc".into(),
+            parent_sha: None,
+            commit_ts: chrono::Utc::now(),
+            author_email_sha256: "0".repeat(64),
+            branch_hint: "main".into(),
+            message_first_line: "t".into(),
+            shape: ShapeFeatures {
+                additions: 1,
+                deletions: 0,
+                files_changed: 1,
+                file_extension_histogram: HashMap::new(),
+                mechanical_sweep_score: 0.0,
+                is_lockfile_only: false,
+                is_generated_only: false,
+                is_doc_only: false,
+                commit_kind_from_message: CommitKind::Other,
+            },
+            cost: MeasuredCost::Unavailable,
+            judge: JudgeMeta {
+                model_id: "m".into(),
+                latency_ms: 0,
+                judge_input_tokens: 0,
+                judge_output_tokens: 0,
+                outcome: "Judged".into(),
+            },
+            finding: Some(JudgeFinding {
+                waste_score: 5,
+                waste_category: WasteCategory::MechanicalSweep,
+                suggested_remediation_kind: RemediationKind::ScriptAutomation,
+                rationale_one_line: "r".into(),
+                evidence_pointers: vec![],
+            }),
+        };
+        let cluster = Cluster {
+            key_suffix: String::new(),
+            bucket: Bucket {
+                key: BucketKey {
+                    waste_category: "MechanicalSweep".into(),
+                    remediation_kind: "ScriptAutomation".into(),
+                    primary_crate: "vox-x".into(),
+                },
+                members: vec![LoadedFinding { row }],
+            },
+        };
+        let d = RemediationDecision::budget_skipped(&cluster, "budget-c1");
+        assert!(!d.verified, "budget_skipped decision must be unverified");
+        assert_eq!(d.artifact_form, ArtifactForm::None, "budget_skipped must use ArtifactForm::None");
+        assert!(d.drafted_artifact.is_none(), "budget_skipped must have no drafted artifact");
+        assert_eq!(d.judge_tokens_used(), 0, "budget_skipped must report 0 judge tokens");
+        assert_eq!(d.judge_cost_usd, None, "budget_skipped must report None cost");
+    }
+}

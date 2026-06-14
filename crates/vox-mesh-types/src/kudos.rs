@@ -52,3 +52,81 @@ pub struct CreditJobRequest {
     pub task_id: Option<String>,
     pub metadata_json: Option<String>,
 }
+
+#[cfg(test)]
+mod semcov_wave8_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+    use crate::attestation::Attestation;
+
+    fn make_attestation(gpu_seconds: f64) -> Attestation {
+        Attestation {
+            task_id: "t1".into(),
+            input_hash_blake3_hex: "aa".into(),
+            output_hash_blake3_hex: "bb".into(),
+            gpu_seconds,
+            trace_blake3_hex: None,
+            ephemeral_pubkey_hex: "cc".into(),
+            signature_b64: "dd".into(),
+            signed_at_unix_ms: 0,
+            tee_quote: None,
+            replay_proof_blake3_hex: None,
+            kudos_signature_b64: None,
+        }
+    }
+
+    // Catches: gpu_compute_ms_from_attestation returning 0 for a non-zero gpu_seconds (e.g., wrong unit).
+    #[test]
+    fn one_second_is_1000_ms() {
+        let a = make_attestation(1.0);
+        assert_eq!(gpu_compute_ms_from_attestation(&a), 1000);
+    }
+
+    // Catches: fractional seconds being truncated to 0 instead of rounded.
+    #[test]
+    fn fractional_second_rounds_to_positive_ms() {
+        let a = make_attestation(0.001);
+        assert_eq!(gpu_compute_ms_from_attestation(&a), 1, "0.001s must be 1ms");
+    }
+
+    // Catches: zero gpu_seconds producing non-zero ms (e.g., off-by-one bias).
+    #[test]
+    fn zero_gpu_seconds_is_zero_ms() {
+        let a = make_attestation(0.0);
+        assert_eq!(gpu_compute_ms_from_attestation(&a), 0);
+    }
+
+    // Catches: f64 Inf from very large gpu_seconds overflowing the u64 cast and panicking.
+    #[test]
+    fn very_large_gpu_seconds_does_not_panic() {
+        let a = make_attestation(f64::MAX);
+        let ms = gpu_compute_ms_from_attestation(&a);
+        // Should saturate at u64::MAX, not panic.
+        assert_eq!(ms, u64::MAX);
+    }
+
+    // Catches: RewardPrimitive::as_str returning wrong slug (e.g., swapping two variants).
+    #[test]
+    fn reward_primitive_as_str_slug_correctness() {
+        assert_eq!(RewardPrimitive::GpuComputeMs.as_str(), "gpu_compute_ms");
+        assert_eq!(RewardPrimitive::CpuComputeMs.as_str(), "cpu_compute_ms");
+        assert_eq!(RewardPrimitive::ResultAttestation.as_str(), "result_attestation");
+        assert_eq!(RewardPrimitive::CodeContribution.as_str(), "code_contribution");
+        assert_eq!(RewardPrimitive::BugFix.as_str(), "bug_fix");
+        assert_eq!(RewardPrimitive::DocsContribution.as_str(), "docs_contribution");
+    }
+
+    // Catches: RewardPrimitive round-tripping serde with wrong variant name.
+    #[test]
+    fn reward_primitive_serde_round_trip() {
+        for prim in [
+            RewardPrimitive::GpuComputeMs,
+            RewardPrimitive::BugFix,
+            RewardPrimitive::DocsContribution,
+        ] {
+            let json = serde_json::to_string(&prim).unwrap();
+            let back: RewardPrimitive = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, prim);
+        }
+    }
+}
