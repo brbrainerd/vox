@@ -130,6 +130,11 @@ pub mod retired_capacitor;
 /// detects multi-file cycles across a full workspace scan.  Phase J.19 / CR-L gate.
 pub mod import_cycles;
 
+/// Cross-crate exact-body split-brain detector. Batch:
+/// [`cross_crate_dup::detect_cross_crate_dup_in_batch`] flags functions whose body is
+/// byte-identical across two or more (non-platform-sibling) crates. Info severity.
+pub mod cross_crate_dup;
+
 use crate::rules::DetectionRule;
 
 /// Returns all built-in detectors.

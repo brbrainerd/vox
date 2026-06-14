@@ -211,6 +211,11 @@ pub const RETIRED_CAPACITOR: &str = "vox/retired/capacitor";
 /// `detectors::import_cycles::detect_import_cycles_in_batch`.
 pub const IMPORT_CYCLE: &str = "vox/import/cycle";
 
+/// A function body is byte-identical across two or more (non-platform-sibling) crates —
+/// a split-brain risk where the copies drift apart silently. Detected by
+/// `detectors::cross_crate_dup::detect_cross_crate_dup_in_batch`. Info severity.
+pub const CROSS_CRATE_DUP: &str = "vox/cross-crate/duplicate-logic";
+
 // ---------------------------------------------------------------------------
 // Codegen (Phase 1)
 // ---------------------------------------------------------------------------
