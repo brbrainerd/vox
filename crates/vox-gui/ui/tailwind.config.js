@@ -31,6 +31,7 @@ export default {
         'vox-ping': 'vox-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
         'vox-shimmer': 'vox-shimmer 2.5s infinite linear',
         'vox-toast-in': 'vox-toast-in 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+        shimmer: 'shimmer 1.5s ease-in-out infinite',
       },
       keyframes: {
         'vox-ping': {
@@ -43,6 +44,10 @@ export default {
         'vox-toast-in': {
           '0%': { transform: 'translateX(24px)', opacity: '0' },
           '100%': { transform: 'translateX(0)', opacity: '1' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '200% 0' },
+          '100%': { backgroundPosition: '-200% 0' },
         },
       },
     },

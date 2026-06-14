@@ -68,7 +68,7 @@ function Row({ label, hint, children }: { label: string; hint: string; children:
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`relative h-5 w-9 rounded-full transition ${on ? 'bg-brass/40' : 'bg-white/10'}`}>
+    <button type="button" aria-label={on ? 'Toggle on' : 'Toggle off'} aria-pressed={on} onClick={onClick} className={`relative h-5 w-9 rounded-full transition ${on ? 'bg-brass/40' : 'bg-white/10'}`}>
       <span className={`absolute top-0.5 size-4 rounded-full bg-zinc-50 transition ${on ? 'left-[18px]' : 'left-0.5'}`} />
     </button>
   );
@@ -246,6 +246,7 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
                     isTrusted ? 'bg-emerald-400/15 text-emerald-300' : 'bg-zinc-700/40 text-zinc-400'
                   }`}>{isTrusted ? 'trusted' : (p.trust_tier ?? 'untrusted')}</span>
                   <button
+                    type="button"
                     disabled={busy === p.id}
                     onClick={() => toggleTrust(p)}
                     className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
@@ -312,6 +313,7 @@ function SigningKeysSection({ vals, update, pushToast }: {
           <div className="rounded-md border border-white/5 bg-white/[0.02] p-4">
             <div className="text-[11px] text-zinc-500">No local node identity yet. Create one to enable signed dispatch.</div>
             <button
+              type="button"
               disabled={rotating}
               onClick={rotate}
               className="mt-3 rounded border border-white/10 bg-white/[0.02] px-3 py-1.5 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
@@ -329,6 +331,7 @@ function SigningKeysSection({ vals, update, pushToast }: {
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-zinc-300">{key.algorithm}</span>
               <button
+                type="button"
                 disabled={rotating}
                 onClick={rotate}
                 className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
@@ -559,11 +562,13 @@ function KeysSecretsSection({ pushToast }: { pushToast: (t: Toast) => void }) {
           className="flex-1 rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
         />
         <button
+          type="button"
           disabled={!drafts[r.canonicalEnv] || busy === r.canonicalEnv}
           onClick={() => save(r.canonicalEnv)}
           className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
         >save</button>
         <button
+          type="button"
           disabled={!r.isPresent || busy === r.canonicalEnv}
           onClick={() => remove(r.canonicalEnv)}
           className="rounded border border-rose-500/20 bg-rose-500/[0.04] px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10 disabled:opacity-40"
@@ -602,6 +607,7 @@ function KeysSecretsSection({ pushToast }: { pushToast: (t: Toast) => void }) {
       <div className="mt-4 rounded-md border border-white/5 bg-white/[0.02] p-3">
         <div className="flex flex-wrap items-center gap-2">
           <button
+            type="button"
             disabled={importBusy}
             onClick={migrate}
             className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
@@ -614,12 +620,14 @@ function KeysSecretsSection({ pushToast }: { pushToast: (t: Toast) => void }) {
             className="min-w-[180px] flex-1 rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
           />
           <button
+            type="button"
             disabled={importBusy}
             onClick={runPreview}
             className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
           >Preview</button>
           {preview && preview.count > 0 && (
             <button
+              type="button"
               disabled={importBusy}
               onClick={runImport}
               className="rounded border border-emerald-400/20 bg-emerald-400/[0.06] px-2 py-1 font-mono text-[10px] text-emerald-300 hover:bg-emerald-400/10 disabled:opacity-40"
@@ -656,6 +664,7 @@ function KeysSecretsSection({ pushToast }: { pushToast: (t: Toast) => void }) {
             return (
               <div key={g.slug} className="rounded-md border border-white/5 bg-white/[0.01]">
                 <button
+                  type="button"
                   onClick={() => toggleGroup(g.slug)}
                   className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-white/[0.02]"
                 >
@@ -759,6 +768,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
           {f.options.map(opt => (
             <button
               key={opt}
+              type="button"
               disabled={busy === f.key}
               onClick={() => save(f, opt)}
               className={`rounded-[5px] px-2 py-1 font-display text-[10px] uppercase tracking-[0.12em] transition disabled:opacity-40 ${
@@ -780,6 +790,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
           className="w-56 rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
         />
         <button
+          type="button"
           disabled={busy === f.key || draftFor(f) === f.currentValue}
           onClick={() => save(f, draftFor(f))}
           className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
@@ -811,6 +822,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
                     <div className="flex items-center gap-2">
                       {control(f)}
                       <button
+                        type="button"
                         disabled={busy === f.key}
                         onClick={() => reset(f)}
                         title="Reset to default"
@@ -963,7 +975,7 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
     try {
       for (const [k, v] of Object.entries(patch)) {
         if (['theme', 'telemetry', 'sign', 'checkpointMins'].includes(k)) {
-          await invoke('set_gui_preference', { key: `gui.${k}`, value: String(v) });
+          await voxTransport.setGuiPreference(`gui.${k}`, String(v));
         }
       }
       // Defer orchestrator persistence until real values are loaded, so we never
@@ -983,10 +995,10 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
     const hydrate = async () => {
       try {
         const [theme, telemetry, sign, checkpoint, statusRaw] = await Promise.all([
-          invoke<string | null>('get_gui_preference', { key: 'gui.theme' }),
-          invoke<string | null>('get_gui_preference', { key: 'gui.telemetry' }),
-          invoke<string | null>('get_gui_preference', { key: 'gui.sign' }),
-          invoke<string | null>('get_gui_preference', { key: 'gui.checkpointMins' }),
+          voxTransport.getGuiPreference('gui.theme'),
+          voxTransport.getGuiPreference('gui.telemetry'),
+          voxTransport.getGuiPreference('gui.sign'),
+          voxTransport.getGuiPreference('gui.checkpointMins'),
           invoke<Uint8Array>('get_orchestrator_status_bin').catch(() => null),
         ]);
         let orchPatch: Partial<SettingsState> = {};
@@ -1127,6 +1139,7 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
             {searchSettings(filter).map(entry => (
               <button
                 key={entry.id}
+                type="button"
                 onClick={() => { setSection(entry.section); setFilter(''); }}
                 className="flex flex-col rounded-lg px-3 py-2 text-left text-zinc-300 hover:bg-white/[0.04] hover:text-zinc-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40"
               >
@@ -1146,6 +1159,7 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
             return (
               <button
                 key={s.id}
+                type="button"
                 onClick={() => setSection(s.id)}
                 className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition ${
                   on ? 'bg-white/[0.05] text-zinc-100' : 'text-zinc-400 hover:bg-white/[0.025] hover:text-zinc-200'
@@ -1184,6 +1198,7 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
                   {([['wasm', 'WASM'], ['ctr', 'Container'], ['native', 'Native']] as [string, string][]).map(([id, l]) => (
                     <button
                       key={id}
+                      type="button"
                       onClick={() => update({ isolation: id })}
                       className={`rounded-[5px] px-2 py-1 font-display text-[10px] uppercase tracking-[0.15em] transition ${
                         vals.isolation === id ? 'bg-white/10 text-zinc-50' : 'text-zinc-500 hover:text-zinc-300'
@@ -1245,6 +1260,7 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
                 {EMPHASIS_PRESETS.map(([name, preset]) => (
                   <button
                     key={name}
+                    type="button"
                     onClick={() => applyEmphasis(preset)}
                     className={`rounded-lg border p-2 text-center transition ${
                       activePreset === name ? 'border-brass/40 bg-brass/[0.05] text-zinc-50' : 'border-white/5 bg-white/[0.02] text-zinc-400 hover:border-white/15 hover:text-zinc-200'
@@ -1268,6 +1284,7 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
             </div>
 
             <button
+              type="button"
               onClick={() => setAdvanced(a => !a)}
               className="mt-4 font-display text-[11px] uppercase tracking-[0.15em] text-zinc-500 hover:text-zinc-300"
             >
@@ -1319,6 +1336,7 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
               {([['off', 'Off', 'Nothing leaves the device'], ['local', 'Local', 'OTLP → localhost:4317'], ['cloud', 'Cloud', 'Encrypted → vendor']] as [string, string, string][]).map(([id, l, h]) => (
                 <button
                   key={id}
+                  type="button"
                   onClick={() => update({ telemetry: id })}
                   className={`rounded-xl border p-3 text-left transition ${
                     vals.telemetry === id ? 'border-brass/40 bg-brass/[0.05]' : 'border-white/5 hover:border-white/15 bg-white/[0.02]'
@@ -1379,6 +1397,7 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
               ].map(t => (
                 <button
                   key={t.id}
+                  type="button"
                   onClick={() => update({ theme: t.id })}
                   className={`rounded-xl border p-3 text-left transition ${
                     vals.theme === t.id ? 'border-brass/40 bg-brass/[0.05]' : 'border-white/5 hover:border-white/15 bg-white/[0.02]'

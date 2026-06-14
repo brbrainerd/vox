@@ -64,3 +64,29 @@
 :root[data-theme='glacier'] #root {
   background: #0a0f14;
 }
+
+/* ─── Global accessibility: focus ring ────────────────────────────────────
+   Applies a 3 px solid ring in the accent colour to every focusable element
+   when reached via keyboard. Per-element Tailwind focus-visible: utilities
+   override this; the rule acts as a safe fallback rather than a ceiling.
+   3 px @ #d4af37 on #09090b → contrast ≥ 3:1 (WCAG 1.4.11 UI component). */
+*:focus-visible {
+  outline: 3px solid var(--color-accent-default);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ─── Respect prefers-reduced-motion ──────────────────────────────────────
+   Disables every vox-* keyframe animation for users with vestibular / motion
+   sensitivity settings. Inline `animation-duration: 0.01ms` avoids removing
+   the `animation` property entirely (which breaks JS that reads it). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

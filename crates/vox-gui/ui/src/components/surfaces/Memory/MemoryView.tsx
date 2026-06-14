@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useVirtualList } from '../../../hooks/useVirtualList';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
@@ -150,6 +151,20 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   const [recallOn, setRecallOn] = useState(false);
   const [hits, setHits] = useState<UnifiedHit[]>([]);
   const [recalling, setRecalling] = useState(false);
+
+  const recallsRef = useRef<HTMLDivElement>(null);
+
+  const RECALL_ITEM_HEIGHT = 52; // px
+  const RECALL_GAP = 6;          // px
+
+  const recentRecalls = memStatus?.recent_recalls ?? [];
+
+  const recallsVL = useVirtualList({
+    containerRef: recallsRef,
+    count: recentRecalls.length,
+    estimateSize: () => RECALL_ITEM_HEIGHT,
+    overscan: 3,
+  });
 
   useEffect(() => {
     invoke<MemoryStatusPayload>('get_memory_status')
@@ -348,20 +363,45 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
           <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-zinc-200">Recent recalls</h3>
           <Icon.clock className="size-3.5 text-zinc-500" />
         </div>
-        <div className="mt-3 space-y-1.5">
-          {(memStatus?.recent_recalls ?? []).map((r, i) => (
-            <button
-              key={i}
-              onClick={() => { setQuery(r.q); recall(r.q); }}
-              className="flex w-full items-center justify-between rounded-md border border-white/5 bg-white/[0.02] px-2.5 py-1.5 text-left hover:border-white/15 hover:bg-white/[0.04] transition"
-            >
-              <div className="min-w-0">
-                <div className="truncate text-[12px] text-zinc-200">{r.q}</div>
-                <div className="font-mono text-[9px] text-zinc-500">{r.n} hits · {r.when} ago</div>
-              </div>
-              <Icon.chevR className="size-3 text-zinc-500 shrink-0" />
-            </button>
-          ))}
+        <div
+          ref={recallsRef}
+          style={{
+            height: Math.min(Math.max(recentRecalls.length, 1) * (RECALL_ITEM_HEIGHT + RECALL_GAP), 312),
+            overflow: 'auto',
+            marginTop: '0.75rem',
+          }}
+          className="custom-scrollbar"
+        >
+          <div style={{ height: recallsVL.totalSize, position: 'relative' }}>
+            {recallsVL.virtualItems.map(vItem => {
+              const r = recentRecalls[vItem.index];
+              return (
+                <div
+                  key={String(vItem.key)}
+                  ref={recallsVL.virtualizer.measureElement}
+                  data-index={vItem.index}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    transform: `translateY(${vItem.start}px)`,
+                    width: '100%',
+                    paddingBottom: RECALL_GAP,
+                  }}
+                >
+                  <button
+                    onClick={() => { setQuery(r.q); recall(r.q); }}
+                    className="flex w-full items-center justify-between rounded-md border border-white/5 bg-white/[0.02] px-2.5 py-1.5 text-left hover:border-white/15 hover:bg-white/[0.04] transition"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-[12px] text-zinc-200">{r.q}</div>
+                      <div className="font-mono text-[9px] text-zinc-500">{r.n} hits · {r.when} ago</div>
+                    </div>
+                    <Icon.chevR className="size-3 text-zinc-500 shrink-0" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </Glass>
 
@@ -416,41 +456,43 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
             {memStatus?.embedding_dim != null ? ` · dim ${memStatus.embedding_dim}` : ''}
           </span>
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-          {(memStatus?.shards ?? []).map(s => (
-            <div
-              key={s.id}
-              className={`rounded-xl border p-3 transition hover:border-white/15 ${
-                s.hot   ? 'border-brass/30 bg-brass/[0.04]' :
-                s.dirty ? 'border-amber-400/30 bg-amber-400/[0.04]' :
-                          'border-white/5 bg-white/[0.02]'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-[11px] text-zinc-300">shard-{s.id}</span>
-                {s.hot   && <span className="rounded-full bg-brass/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-brass">hot</span>}
-                {s.dirty && <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">dirty</span>}
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-1.5 text-[9px]">
-                <div className="rounded border border-white/5 bg-zinc-950/40 px-2 py-1.5">
-                  <div className="uppercase tracking-widest text-zinc-500">Depth</div>
-                  <div className="mt-0.5 font-mono text-[11px] text-zinc-200">{s.depth}</div>
+        <div className="mt-3 max-h-[700px] overflow-y-auto custom-scrollbar">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+            {(memStatus?.shards ?? []).map(s => (
+              <div
+                key={s.id}
+                className={`rounded-xl border p-3 transition hover:border-white/15 ${
+                  s.hot   ? 'border-brass/30 bg-brass/[0.04]' :
+                  s.dirty ? 'border-amber-400/30 bg-amber-400/[0.04]' :
+                            'border-white/5 bg-white/[0.02]'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[11px] text-zinc-300">shard-{s.id}</span>
+                  {s.hot   && <span className="rounded-full bg-brass/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-brass">hot</span>}
+                  {s.dirty && <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">dirty</span>}
                 </div>
-                <div className="rounded border border-white/5 bg-zinc-950/40 px-2 py-1.5">
-                  <div className="uppercase tracking-widest text-zinc-500">Entries</div>
-                  <div className="mt-0.5 font-mono text-[11px] text-zinc-200">{(s.entries ?? 0).toLocaleString()}</div>
+                <div className="mt-2 grid grid-cols-2 gap-1.5 text-[9px]">
+                  <div className="rounded border border-white/5 bg-zinc-950/40 px-2 py-1.5">
+                    <div className="uppercase tracking-widest text-zinc-500">Depth</div>
+                    <div className="mt-0.5 font-mono text-[11px] text-zinc-200">{s.depth}</div>
+                  </div>
+                  <div className="rounded border border-white/5 bg-zinc-950/40 px-2 py-1.5">
+                    <div className="uppercase tracking-widest text-zinc-500">Entries</div>
+                    <div className="mt-0.5 font-mono text-[11px] text-zinc-200">{(s.entries ?? 0).toLocaleString()}</div>
+                  </div>
+                </div>
+                <div className="mt-2 h-8">
+                  <Sparkline
+                    data={s.spark}
+                    color={s.hot ? 'rgb(var(--brass))' : s.dirty ? '#fbbf24' : '#71717a'}
+                    width={160}
+                    height={28}
+                  />
                 </div>
               </div>
-              <div className="mt-2 h-8">
-                <Sparkline
-                  data={s.spark}
-                  color={s.hot ? 'rgb(var(--brass))' : s.dirty ? '#fbbf24' : '#71717a'}
-                  width={160}
-                  height={28}
-                />
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </Glass>
     </div>

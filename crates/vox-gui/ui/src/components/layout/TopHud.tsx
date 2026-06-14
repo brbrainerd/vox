@@ -106,6 +106,7 @@ export function TopHud({
         <button
           type="button"
           onClick={cycleHud}
+          aria-label="Show HUD"
           className="absolute inset-x-0 top-0 mx-auto w-24 rounded-b-md border border-white/10 bg-zinc-950/80 py-0.5 text-[9px] uppercase tracking-widest text-zinc-500 opacity-0 group-hover:opacity-100 transition"
         >
           Show HUD
@@ -126,7 +127,7 @@ export function TopHud({
           {liveLabel}
         </span>
         <button type="button" onClick={onCommand} className="ml-auto text-zinc-500 hover:text-brass">⌘K</button>
-        <button type="button" onClick={cycleHud} className="text-zinc-600 hover:text-zinc-300" title="Expand HUD">▲</button>
+        <button type="button" onClick={cycleHud} aria-label="Expand HUD" className="text-zinc-600 hover:text-zinc-300" title="Expand HUD"><span aria-hidden="true">▲</span></button>
       </Glass>
     );
   }
@@ -210,8 +211,9 @@ export function TopHud({
           onClick={cycleHud}
           className="rounded-md border border-white/5 px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-200"
           title="Collapse HUD (Ctrl+Shift+H)"
+          aria-label="Collapse HUD"
         >
-          ▼
+          <span aria-hidden="true">▼</span>
         </button>
       </div>
     </Glass>

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from '../../ui/Icons';
 import { TaskRow, groupTasks, cyclePriority, filterBySession, findWriteOverlaps } from './tasksHelpers';
+import { useVirtualList } from '../../../hooks/useVirtualList';
 
 interface StoredSession { id: string; title: string }
 
@@ -117,6 +118,26 @@ export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
   );
   const overlaps = findWriteOverlaps(rows);
   const { inProgress, queued } = groupTasks(filterBySession(rows, sessionFilter));
+
+  const inProgressRef = useRef<HTMLDivElement>(null);
+  const queuedRef = useRef<HTMLDivElement>(null);
+
+  const ITEM_HEIGHT = 64; // px — estimated row height
+  const GAP = 6;          // px — space-y-1.5 = 6px
+
+  const inProgressVL = useVirtualList({
+    containerRef: inProgressRef,
+    count: inProgress.length,
+    estimateSize: () => ITEM_HEIGHT,
+    overscan: 3,
+  });
+
+  const queuedVL = useVirtualList({
+    containerRef: queuedRef,
+    count: queued.length,
+    estimateSize: () => ITEM_HEIGHT,
+    overscan: 3,
+  });
 
   const renderRow = (t: TaskRow, editable: boolean) => (
     <div
@@ -268,8 +289,23 @@ export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
           <h2 className="mb-2 px-1 text-[10px] uppercase tracking-widest text-zinc-500">
             In progress ({inProgress.length})
           </h2>
-          <div className="space-y-1.5">
-            {inProgress.map(t => renderRow(t, false))}
+          <div
+            ref={inProgressRef}
+            style={{ height: Math.min(Math.max(inProgress.length, 1) * (ITEM_HEIGHT + GAP), 320), overflow: 'auto' }}
+            className="custom-scrollbar"
+          >
+            <div style={{ height: inProgressVL.totalSize, position: 'relative' }}>
+              {inProgressVL.virtualItems.map(vItem => (
+                <div
+                  key={String(vItem.key)}
+                  ref={inProgressVL.virtualizer.measureElement}
+                  data-index={vItem.index}
+                  style={{ position: 'absolute', top: 0, transform: `translateY(${vItem.start}px)`, width: '100%', paddingBottom: GAP }}
+                >
+                  {renderRow(inProgress[vItem.index], false)}
+                </div>
+              ))}
+            </div>
             {inProgress.length === 0 && !loading && (
               <p className="px-1 text-[11px] text-zinc-600">Nothing running.</p>
             )}
@@ -279,8 +315,23 @@ export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
           <h2 className="mb-2 px-1 text-[10px] uppercase tracking-widest text-zinc-500">
             Queued ({queued.length})
           </h2>
-          <div className="space-y-1.5">
-            {queued.map(t => renderRow(t, true))}
+          <div
+            ref={queuedRef}
+            style={{ height: Math.min(Math.max(queued.length, 1) * (ITEM_HEIGHT + GAP), 320), overflow: 'auto' }}
+            className="custom-scrollbar"
+          >
+            <div style={{ height: queuedVL.totalSize, position: 'relative' }}>
+              {queuedVL.virtualItems.map(vItem => (
+                <div
+                  key={String(vItem.key)}
+                  ref={queuedVL.virtualizer.measureElement}
+                  data-index={vItem.index}
+                  style={{ position: 'absolute', top: 0, transform: `translateY(${vItem.start}px)`, width: '100%', paddingBottom: GAP }}
+                >
+                  {renderRow(queued[vItem.index], true)}
+                </div>
+              ))}
+            </div>
             {queued.length === 0 && !loading && (
               <p className="px-1 text-[11px] text-zinc-600">
                 Queue is empty — the agent is all yours.

@@ -24,8 +24,8 @@ export function LudusBanner({ note, onAck }: LudusBannerProps) {
           <div className={`font-display text-[12px] font-medium tracking-wide ${styling.text}`}>{note.title}</div>
           <div className="mt-0.5 text-[11px] leading-relaxed text-zinc-400">{note.body}</div>
         </div>
-        <button onClick={() => onAck(note)} className="rounded-md border border-white/5 bg-white/[0.03] p-1 text-zinc-500 hover:text-zinc-200 transition" title="Ack">
-          <Icon.x className="size-3.5" />
+        <button type="button" aria-label="Acknowledge alert" onClick={() => onAck(note)} className="rounded-md border border-white/5 bg-white/[0.03] p-1 text-zinc-500 hover:text-zinc-200 transition" title="Ack">
+          <Icon.x className="size-3.5" aria-hidden="true" />
         </button>
       </div>
     </div>

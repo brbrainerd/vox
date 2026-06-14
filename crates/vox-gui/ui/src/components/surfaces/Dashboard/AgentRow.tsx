@@ -39,20 +39,23 @@ export function AgentRow({ a, onPause, onResume, onOpenInConsole }: AgentRowProp
             </div>
             <div className="font-mono text-[10px] text-zinc-500">eta {a.eta}</div>
           </div>
-          <button 
-            onClick={() => (a.phase === "Paused" ? onResume(a) : onPause(a))} 
+          <button
+            type="button"
+            aria-label={a.phase === "Paused" ? "Resume agent" : "Pause agent"}
+            onClick={() => (a.phase === "Paused" ? onResume(a) : onPause(a))}
             className="rounded-md border border-white/5 bg-white/[0.02] p-1.5 text-zinc-400 hover:border-white/20 hover:text-zinc-100 transition"
           >
-            {a.phase === "Paused" ? <Icon.play className="size-3.5" /> : <Icon.pause className="size-3.5" />}
+            {a.phase === "Paused" ? <Icon.play className="size-3.5" aria-hidden="true" /> : <Icon.pause className="size-3.5" aria-hidden="true" />}
           </button>
           {onOpenInConsole && (
             <button
+              type="button"
               onClick={() => onOpenInConsole(a)}
               title="Open in Console"
-              aria-label="open in console"
+              aria-label="Open in Console"
               className="rounded-md border border-white/5 bg-white/[0.02] p-1.5 text-zinc-400 hover:border-white/20 hover:text-zinc-100 transition"
             >
-              <Icon.command className="size-3.5" />
+              <Icon.command className="size-3.5" aria-hidden="true" />
             </button>
           )}
         </div>

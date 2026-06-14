@@ -46,6 +46,8 @@ export class SurfaceErrorBoundary extends React.Component<Props, State> {
           </div>
           <div className="mt-2 font-mono text-[11px] text-zinc-400 break-words">{error.message}</div>
           <button
+            type="button"
+            aria-label="Retry loading surface"
             onClick={() => this.setState({ error: null })}
             className="mt-4 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/[0.06]"
           >

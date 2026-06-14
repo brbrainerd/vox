@@ -9,7 +9,7 @@ import { DashboardData, Agent, StreamItem, LudusAlert } from '../../../types/das
 /** Consistent empty-state hint for a panel with no data yet. */
 function EmptyHint({ icon, title, hint }: { icon?: React.ReactNode; title: string; hint?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/5 py-8 text-center">
+    <div role="status" className="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/5 py-8 text-center">
       {icon && <div className="text-zinc-600">{icon}</div>}
       <div className="text-[12px] text-zinc-400">{title}</div>
       {hint && <div className="text-[11px] text-zinc-600">{hint}</div>}
@@ -57,9 +57,11 @@ export function Dashboard({
           </div>
           <div className="flex gap-1 rounded-lg border border-white/5 bg-white/[0.02] p-1">
             {filters.map(f => (
-              <button 
-                key={f} 
-                onClick={() => setFilterKind(f)} 
+              <button
+                key={f}
+                type="button"
+                aria-pressed={filterKind === f}
+                onClick={() => setFilterKind(f)}
                 className={`rounded-md px-2.5 py-1 text-[10px] font-display uppercase tracking-wider transition ${
                   filterKind === f ? "bg-white/10 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
                 }`}

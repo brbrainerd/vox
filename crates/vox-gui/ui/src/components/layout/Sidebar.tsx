@@ -27,7 +27,7 @@ interface NavItemProps {
 
 function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeClass, collapsed, innerRef }: NavItemProps) {
   return (
-    <button ref={innerRef} onClick={onClick} title={collapsed ? label : undefined}
+    <button type="button" ref={innerRef} onClick={onClick} title={collapsed ? label : undefined} aria-label={collapsed ? label : undefined}
       className={`group relative flex w-full items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 rounded-xl transition ${active ? "bg-white/[0.04] text-zinc-100" : "text-zinc-500 hover:bg-white/[0.025] hover:text-zinc-200"}`}>
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-r bg-brass shadow-[0_0_12px_2px_rgb(var(--brass)_/_0.5)]" />}
       <span className={`flex size-7 items-center justify-center rounded-lg shrink-0 ${active ? "bg-brass/10 text-brass ring-1 ring-brass/30" : "bg-white/[0.02] ring-1 ring-white/5"}`}>{icon}</span>
@@ -115,13 +115,13 @@ export function Sidebar({
             </div>
           )}
           <div className={`flex items-center ${collapsed ? "flex-col gap-1" : "gap-0.5"}`}>
-            <button onClick={() => cycle(-1)} disabled={mode === "rail"} title="Collapse"
+            <button type="button" onClick={() => cycle(-1)} disabled={mode === "rail"} title="Collapse" aria-label="Collapse sidebar"
               className={`flex size-6 items-center justify-center rounded-md border border-white/5 ${mode === "rail" ? "opacity-30 cursor-not-allowed" : "hover:bg-white/5 text-zinc-400 hover:text-zinc-100"}`}>
-              <Icon.chevL className="size-3"/>
+              <Icon.chevL className="size-3" aria-hidden="true"/>
             </button>
-            <button onClick={() => cycle(1)} disabled={mode === "wide"} title="Expand"
+            <button type="button" onClick={() => cycle(1)} disabled={mode === "wide"} title="Expand" aria-label="Expand sidebar"
               className={`flex size-6 items-center justify-center rounded-md border border-white/5 ${mode === "wide" ? "opacity-30 cursor-not-allowed" : "hover:bg-white/5 text-zinc-400 hover:text-zinc-100"}`}>
-              <Icon.chevR className="size-3"/>
+              <Icon.chevR className="size-3" aria-hidden="true"/>
             </button>
           </div>
         </div>
