@@ -697,15 +697,15 @@ mod semcov_wave5_tests {
 
     #[test]
     fn assert_tsc_compiles_skips_when_env_var_set() {
-        std::env::set_var("VOX_CLI_TESTS_SKIP_TSC", "1");
+        unsafe { std::env::set_var("VOX_CLI_TESTS_SKIP_TSC", "1") };
         let run = mock_run_with("mock", "", "", true);
         run.assert_tsc_compiles();
-        std::env::remove_var("VOX_CLI_TESTS_SKIP_TSC");
+        unsafe { std::env::remove_var("VOX_CLI_TESTS_SKIP_TSC") };
     }
 
     #[test]
     fn assert_tsc_compiles_is_noop_when_no_ts_files_in_output() {
-        std::env::remove_var("VOX_CLI_TESTS_SKIP_TSC");
+        unsafe { std::env::remove_var("VOX_CLI_TESTS_SKIP_TSC") };
         let dir = tempfile::tempdir().expect("tempdir");
         std::fs::write(dir.path().join("README.md"), b"# readme").unwrap();
         let run = BuildRun {
@@ -759,7 +759,7 @@ expect_failure = true
 
     #[test]
     fn assert_cargo_check_skips_when_env_var_set() {
-        std::env::set_var("VOX_CLI_TESTS_SKIP_CARGO", "1");
+        unsafe { std::env::set_var("VOX_CLI_TESTS_SKIP_CARGO", "1") };
         let dir = tempfile::tempdir().expect("tempdir");
         let run = BuildRun {
             fixture_name: "mock".to_string(),
@@ -776,12 +776,12 @@ expect_failure = true
             },
         };
         run.assert_cargo_check(); // skip var wins
-        std::env::remove_var("VOX_CLI_TESTS_SKIP_CARGO");
+        unsafe { std::env::remove_var("VOX_CLI_TESTS_SKIP_CARGO") };
     }
 
     #[test]
     fn assert_cargo_check_skips_when_emits_rust_backend_false() {
-        std::env::remove_var("VOX_CLI_TESTS_SKIP_CARGO");
+        unsafe { std::env::remove_var("VOX_CLI_TESTS_SKIP_CARGO") };
         let run = mock_run_with("mock", "", "", true);
         run.assert_cargo_check(); // emits_rust_backend=false -> early return, no panic
     }
