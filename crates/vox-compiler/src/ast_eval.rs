@@ -156,3 +156,37 @@ mod tests {
         assert!(report.coverage_score() >= 0.25);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1d_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn eval_module_empty_module_is_success_with_no_constructs() {
+        let module = crate::ast::decl::Module {
+            declarations: vec![],
+            span: vox_ast::span::Span::new(0, 0),
+        };
+        let report = eval_module(&module);
+        assert!(report.parse_success);
+        assert_eq!(report.error_span, None);
+        assert_eq!(report.node_count, 0);
+        assert!(report.construct_histogram.is_empty());
+        assert!(!report.has_tests);
+        // parse_success is true but zero distinct kinds => 0/8 = 0.0
+        assert!((report.coverage_score() - 0.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn count_module_constructs_empty_module_is_zeroed() {
+        let module = crate::ast::decl::Module {
+            declarations: Vec::new(),
+            span: crate::ast::span::Span::new(0, 0),
+        };
+        let counts = count_module_constructs(&module);
+        assert_eq!(counts.total, 0);
+        assert!(counts.histogram.is_empty());
+        assert!(!counts.has_tests);
+    }
+}
