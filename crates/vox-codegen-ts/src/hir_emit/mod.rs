@@ -1994,16 +1994,167 @@ fn single_trailing_hir_expr(body: &[HirStmt]) -> Option<&HirExpr> {
 
 /// Inject a `key` attribute string into the first JSX element opening tag in `jsx`.
 ///
-/// Finds the first `<` and inserts `key_attr` (e.g. ` key={expr}`) before the
-/// first `>` or `/>`. Falls back to returning the original string if no
-/// suitable insertion point is found.
+/// Scans past the tag name and attribute list, correctly skipping over `{...}`
+/// JSX expression values (which may contain `/` or `>`) and `"..."` / `'...'`
+/// string literals. Inserts `key_attr` (e.g. ` key={expr}`) immediately before
+/// the closing `>` or `/>` of the opening tag.
+///
+/// Falls back to returning the original string unchanged if no opening tag is
+/// found or parsing fails to locate the end of the opening tag.
 fn inject_key_into_jsx(jsx: String, key_attr: &str) -> String {
-    if let Some(lt_pos) = jsx.find('<') {
-        let after_lt = &jsx[lt_pos..];
-        if let Some(rel_end) = after_lt.find(['>', '/']) {
-            let insert_at = lt_pos + rel_end;
-            return format!("{}{}{}", &jsx[..insert_at], key_attr, &jsx[insert_at..]);
+    let Some(lt_pos) = jsx.find('<') else {
+        return jsx;
+    };
+    let chars: Vec<char> = jsx[lt_pos..].chars().collect();
+    let n = chars.len();
+    // Skip past '<' and the tag name (first char after '<' begins the tag name).
+    let mut i = 1; // skip '<'
+    while i < n
+        && chars[i] != '>'
+        && chars[i] != ' '
+        && chars[i] != '\n'
+        && chars[i] != '\t'
+        && chars[i] != '/'
+    {
+        i += 1;
+    }
+    // Scan through attributes, properly balancing {}, [], (), and skipping strings.
+    while i < n {
+        match chars[i] {
+            '>' => {
+                // End of opening tag — insert key here.
+                let insert_at = lt_pos + chars[..i].iter().collect::<String>().len();
+                return format!("{}{}{}", &jsx[..insert_at], key_attr, &jsx[insert_at..]);
+            }
+            '/' if i + 1 < n && chars[i + 1] == '>' => {
+                // Self-closing `/>` — insert key before it.
+                let insert_at = lt_pos + chars[..i].iter().collect::<String>().len();
+                return format!("{}{}{}", &jsx[..insert_at], key_attr, &jsx[insert_at..]);
+            }
+            '{' => {
+                // JSX expression value: skip balanced braces.
+                let mut depth = 1usize;
+                i += 1;
+                while i < n && depth > 0 {
+                    match chars[i] {
+                        '{' => depth += 1,
+                        '}' => depth -= 1,
+                        _ => {}
+                    }
+                    i += 1;
+                }
+            }
+            '"' | '\'' => {
+                // String literal attribute value: skip to matching close quote.
+                let q = chars[i];
+                i += 1;
+                while i < n && chars[i] != q {
+                    if chars[i] == '\\' {
+                        i += 1; // skip escaped char
+                    }
+                    i += 1;
+                }
+                i += 1; // skip closing quote
+            }
+            _ => {
+                i += 1;
+            }
         }
     }
     jsx
+}
+
+#[cfg(test)]
+mod inject_key_tests {
+    use super::inject_key_into_jsx;
+
+    // Basic case: simple element, no tricky chars.
+    #[test]
+    fn basic_element_gets_key_before_close() {
+        let jsx = "<div >children</div>".to_string();
+        let result = inject_key_into_jsx(jsx, " key={x}");
+        assert_eq!(result, "<div  key={x}>children</div>");
+    }
+
+    // Self-closing element: key inserted before `/>`.
+    #[test]
+    fn self_closing_element_gets_key_before_slash_gt() {
+        let jsx = "<img src={item.src} />".to_string();
+        let result = inject_key_into_jsx(jsx, " key={item.id}");
+        // Key must appear before `/>` and the src attribute must be unchanged.
+        assert!(
+            result.contains("src={item.src}"),
+            "src attr must be unchanged: {result}"
+        );
+        assert!(
+            result.contains("key={item.id}"),
+            "key attr must be present: {result}"
+        );
+        assert!(
+            result.ends_with("/>"),
+            "must still be self-closing: {result}"
+        );
+        // Key must appear AFTER the src attribute (not inside it).
+        let key_pos = result.find("key={item.id}").unwrap();
+        let src_end = result.find("src={item.src}").unwrap() + "src={item.src}".len();
+        assert!(key_pos > src_end, "key must come after src: {result}");
+    }
+
+    // Attribute value contains `/` — the old naive scanner would misplace the key.
+    #[test]
+    fn slash_inside_jsx_expression_attr_value_not_confused_with_close() {
+        // Simulates className containing a Tailwind fraction like "w-1/2".
+        let jsx =
+            "<div className={[\"w-1/2\", \"bg-blue-500/50\"].filter(Boolean).join(\" \")}>\n  {x}\n</div>"
+                .to_string();
+        let result = inject_key_into_jsx(jsx, " key={item.id}");
+        // Key must be at the end of the opening tag, after the className attribute.
+        assert!(
+            result.contains("className={[\"w-1/2\", \"bg-blue-500/50\"].filter(Boolean).join(\" \")} key={item.id}>"),
+            "key must be after closing `}}` of className, got: {result}"
+        );
+        // The className string literals must not be mutated.
+        assert!(
+            result.contains("\"w-1/2\""),
+            "fraction class must be intact: {result}"
+        );
+    }
+
+    // Attribute value contains `>` inside a string — old scanner would misplace key.
+    #[test]
+    fn gt_inside_string_attr_value_not_confused_with_opening_tag_close() {
+        let jsx = "<div title={\"a > b\"}>\n  {child}\n</div>".to_string();
+        let result = inject_key_into_jsx(jsx, " key={k}");
+        assert!(
+            result.contains("title={\"a > b\"} key={k}>"),
+            "key must follow the title attr, got: {result}"
+        );
+    }
+
+    // Multi-line opening tag (the actual format the HIR emitter produces).
+    #[test]
+    fn multiline_opening_tag_newline_before_gt() {
+        // HIR emitter format: `<div attrs\n>\n  children\n</div>`
+        let jsx = "<div className={[\"bg-background\", \"p-4\"].filter(Boolean).join(\" \")}\n>\n  <p>text</p>\n</div>".to_string();
+        let result = inject_key_into_jsx(jsx, " key={item.id}");
+        // Key inserted before the `>` that follows the `\n`.
+        assert!(
+            result.contains(".join(\" \")} key={item.id}>")
+                || result.contains(".join(\" \")}\n key={item.id}>"),
+            "key must be before `>` that closes opening tag, got: {result}"
+        );
+        // The Tailwind classes must be intact.
+        assert!(
+            result.contains("\"bg-background\""),
+            "classes intact: {result}"
+        );
+    }
+
+    // No `<` in input — returns unchanged.
+    #[test]
+    fn no_jsx_returns_unchanged() {
+        let jsx = "items.map((item) => item.name)".to_string();
+        let result = inject_key_into_jsx(jsx.clone(), " key={x}");
+        assert_eq!(result, jsx);
+    }
 }
