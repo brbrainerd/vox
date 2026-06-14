@@ -642,4 +642,25 @@ mod tests {
         assert!(r.grind_capped);
         assert!(r.lumens < 10, "Lumens should be tapered down from 10");
     }
+
+    #[test]
+    fn resolve_returns_override_when_present() {
+        let mut o = EventConfigOverrides::default();
+        o.set("task_completed", 999, 42);
+        let r = o.resolve("task_completed");
+        assert_eq!(r.xp, 999);
+        assert_eq!(r.crystals, 42);
+    }
+
+    #[test]
+    fn resolve_falls_back_to_policy_base_when_absent() {
+        let o = EventConfigOverrides::default();
+        let r = o.resolve("task_completed");
+        let base = base_reward("task_completed");
+        // BaseReward has no PartialEq; compare observable fields.
+        assert_eq!(
+            (r.xp, r.crystals, r.lumens, r.grant_shield),
+            (base.xp, base.crystals, base.lumens, base.grant_shield),
+        );
+    }
 }
