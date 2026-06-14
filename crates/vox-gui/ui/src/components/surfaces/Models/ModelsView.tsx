@@ -127,24 +127,36 @@ function ModelGrid({ title, items, activeModel, onSetDefault }: {
   return (
     <section>
       <div className="mb-2 font-display text-[11px] tracking-[0.2em] uppercase text-zinc-400">{title}</div>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-        {items.slice(0, 48).map(m => (
-          <Glass key={m.id} className={`p-4 flex flex-col gap-3 ${activeModel === m.id ? 'ring-1 ring-brass/40' : ''}`}>
-            <div className="flex justify-between gap-2">
-              <div className="min-w-0">
-                <div className="font-mono text-xs text-zinc-100 truncate" title={m.id}>{m.id}</div>
-                <div className="text-[10px] text-zinc-500">{m.provider} · {m.tier}</div>
+      <div role="list" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {items.slice(0, 48).map(m => {
+          const isActive = activeModel === m.id;
+          return (
+            <Glass key={m.id} role="listitem" className={`p-4 flex flex-col gap-3 ${isActive ? 'ring-1 ring-brass/40' : ''}`}>
+              <div className="flex justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-mono text-xs text-zinc-100 truncate" title={m.id}>{m.id}</div>
+                  <div className="text-[10px] text-zinc-500">{m.provider} · {m.tier}</div>
+                </div>
+                {m.is_free && <span className="text-[9px] uppercase tracking-widest text-emerald-400">free</span>}
               </div>
-              {m.is_free && <span className="text-[9px] uppercase tracking-widest text-emerald-400">free</span>}
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-[10px] font-mono text-zinc-400">
-              <div><span className="text-zinc-600">ctx</span> {Math.round(m.max_tokens / 1000)}k</div>
-              <div><span className="text-zinc-600">$/1k</span> {m.cost_per_1k.toFixed(4)}</div>
-              <div><span className="text-zinc-600">p50</span> {m.latency_p50_ms ?? '—'}</div>
-            </div>
-            <button onClick={() => onSetDefault(m.id)} className="mt-auto rounded-lg border border-white/10 px-3 py-1.5 text-[10px] uppercase tracking-widest hover:bg-white/5">Set active</button>
-          </Glass>
-        ))}
+              <div className="grid grid-cols-3 gap-2 text-[10px] font-mono text-zinc-400">
+                <div><span className="text-zinc-600">ctx</span> {Math.round(m.max_tokens / 1000)}k</div>
+                <div><span className="text-zinc-600">$/1k</span> {m.cost_per_1k.toFixed(4)}</div>
+                <div><span className="text-zinc-600">p50</span> {m.latency_p50_ms ?? '—'}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onSetDefault(m.id)}
+                aria-pressed={isActive}
+                aria-current={isActive ? 'true' : undefined}
+                aria-label={`Set ${m.id} as active model${isActive ? ' (currently active)' : ''}`}
+                className="mt-auto rounded-lg border border-white/10 px-3 py-1.5 text-[10px] uppercase tracking-widest hover:bg-white/5"
+              >
+                {isActive ? 'Active' : 'Set active'}
+              </button>
+            </Glass>
+          );
+        })}
       </div>
     </section>
   );
