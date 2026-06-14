@@ -618,7 +618,21 @@ pub async fn browser_set_control_lock(_state: &ServerState, p: BrowserControlLoc
         )
         .to_json();
     }
+    let actor = normalize_actor(p.actor.as_deref());
     let mut locks = control_locks().lock().await;
+    // Authorization: a held lock may only be changed or released by its current
+    // owner. Without this, any caller (default actor "agent") could steal or
+    // release a human's control lock — the bug `non_owner_cannot_steal_or_release_lock`
+    // guards against. An unlocked page may be claimed freely.
+    if let Some(current) = locks.get(&p.page_id)
+        && current != &actor
+    {
+        return ToolResult::<serde_json::Value>::err(format!(
+            "control lock held by {current}; actor {actor} cannot change it on page {}",
+            p.page_id
+        ))
+        .to_json();
+    }
     if owner == "none" {
         locks.remove(&p.page_id);
     } else {

@@ -656,6 +656,11 @@ pub struct BrowserControlLockParams {
     /// "human", "agent", or "none" to clear.
     #[schemars(length(min = 1, max = 16))]
     pub owner: String,
+    /// Caller identity used to authorize the change; only the current lock owner
+    /// may change or release a held lock. Defaults to "agent" when omitted.
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
