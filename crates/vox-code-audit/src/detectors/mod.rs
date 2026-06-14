@@ -139,6 +139,9 @@ pub mod cross_crate_dup;
 /// while other arms do real work — the silent-drop shape behind vanishing-value pipeline bugs.
 pub mod catch_all_swallow;
 
+#[cfg(test)]
+mod semcov_wave32_tests;
+
 use crate::rules::DetectionRule;
 
 /// Returns all built-in detectors.

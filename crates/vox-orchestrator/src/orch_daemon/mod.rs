@@ -1,4 +1,4 @@
-//! JSON-line orchestrator daemon (ADR 022 Phase B): newline-delimited [`vox_foundation::protocol::DispatchRequest`].
+﻿//! JSON-line orchestrator daemon (ADR 022 Phase B): newline-delimited [`vox_foundation::protocol::DispatchRequest`].
 //!
 //! **Transport (`vox-orchestrator-d` process):** set **`VOX_ORCHESTRATOR_DAEMON_SOCKET`** to
 //! `127.0.0.1:9745`, optional `tcp://` prefix, or **`stdio`** / **`-`** / **`stdin`** for one line in, one line out on stdio.

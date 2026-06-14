@@ -68,3 +68,84 @@ impl ForgeError {
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_wave3_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn rate_limited_is_retryable() {
+        let err = ForgeError::RateLimited {
+            retry_after_secs: 30,
+        };
+        assert!(err.is_retryable());
+    }
+
+    #[test]
+    fn network_error_is_retryable() {
+        let err = ForgeError::Network("connection reset".to_string());
+        assert!(err.is_retryable());
+    }
+
+    #[test]
+    fn http_500_is_retryable() {
+        let err = ForgeError::Http {
+            status: 500,
+            message: "Internal Server Error".to_string(),
+        };
+        assert!(err.is_retryable());
+    }
+
+    #[test]
+    fn http_503_is_retryable() {
+        let err = ForgeError::Http {
+            status: 503,
+            message: "Service Unavailable".to_string(),
+        };
+        assert!(err.is_retryable());
+    }
+
+    #[test]
+    fn http_404_not_retryable() {
+        let err = ForgeError::Http {
+            status: 404,
+            message: "not found".to_string(),
+        };
+        assert!(!err.is_retryable());
+    }
+
+    #[test]
+    fn not_found_not_retryable() {
+        let err = ForgeError::NotFound {
+            resource: "/repos/foo/bar".to_string(),
+        };
+        assert!(!err.is_retryable());
+    }
+
+    #[test]
+    fn unauthorized_not_retryable() {
+        let err = ForgeError::Unauthorized {
+            reason: "bad token".to_string(),
+        };
+        assert!(!err.is_retryable());
+    }
+
+    #[test]
+    fn unsupported_not_retryable() {
+        let err = ForgeError::Unsupported {
+            forge: "github".to_string(),
+            operation: "merge".to_string(),
+        };
+        assert!(!err.is_retryable());
+    }
+
+    #[test]
+    fn http_499_boundary_not_retryable() {
+        let err = ForgeError::Http {
+            status: 499,
+            message: "client closed".to_string(),
+        };
+        assert!(!err.is_retryable());
+    }
+}

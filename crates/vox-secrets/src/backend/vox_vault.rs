@@ -1260,6 +1260,229 @@ where
 }
 
 #[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn compute_checksum_is_deterministic() {
+        let a = compute_account_secret_checksum(
+            "acct-1",
+            "secret-key",
+            b"ciphertext",
+            b"nonce12345678901",
+            1,
+            b"wrapped-dek",
+            "kek-ref-1",
+            2,
+            0,
+            1,
+        );
+        let b = compute_account_secret_checksum(
+            "acct-1",
+            "secret-key",
+            b"ciphertext",
+            b"nonce12345678901",
+            1,
+            b"wrapped-dek",
+            "kek-ref-1",
+            2,
+            0,
+            1,
+        );
+        assert_eq!(a, b, "same inputs must produce same checksum");
+    }
+
+    #[test]
+    fn compute_checksum_differs_on_account_id_change() {
+        let a = compute_account_secret_checksum(
+            "acct-1",
+            "secret-key",
+            b"ct",
+            b"nonce",
+            1,
+            b"dek",
+            "kekref",
+            1,
+            0,
+            1,
+        );
+        let b = compute_account_secret_checksum(
+            "acct-2",
+            "secret-key",
+            b"ct",
+            b"nonce",
+            1,
+            b"dek",
+            "kekref",
+            1,
+            0,
+            1,
+        );
+        assert_ne!(a, b, "different account_id must yield different checksum");
+    }
+
+    #[test]
+    fn compute_checksum_differs_on_cipher_version_change() {
+        let a =
+            compute_account_secret_checksum("acct", "sid", b"ct", b"n", 1, b"dek", "kref", 1, 0, 1);
+        let b =
+            compute_account_secret_checksum("acct", "sid", b"ct", b"n", 2, b"dek", "kref", 1, 0, 1);
+        assert_ne!(
+            a, b,
+            "cipher_version is encoded in LE bytes and must affect hash"
+        );
+    }
+
+    #[test]
+    fn compute_checksum_output_is_64_hex_chars() {
+        let h = compute_account_secret_checksum("a", "b", b"c", b"d", 0, b"e", "f", 0, 0, 0);
+        assert_eq!(h.len(), 64, "SHA-256 = 32 bytes = 64 hex chars; got: {h}");
+        assert!(
+            h.chars().all(|c| c.is_ascii_hexdigit()),
+            "output must be lowercase hex"
+        );
+    }
+
+    #[test]
+    fn verify_record_checksum_accepts_correct_checksum() {
+        let acct = "test-account";
+        let sid = "MY_SECRET";
+        let ct = b"encrypted-bytes";
+        let nonce = b"unique-nonce-12";
+        let cipher_version: i64 = 1;
+        let dek = b"wrapped-dek-blob";
+        let kek_ref = "primary";
+        let kek_version: i64 = 3;
+        let rotation_epoch: i64 = 0;
+        let consistency_version: i64 = 1;
+
+        let checksum = compute_account_secret_checksum(
+            acct,
+            sid,
+            ct,
+            nonce,
+            cipher_version,
+            dek,
+            kek_ref,
+            kek_version,
+            rotation_epoch,
+            consistency_version,
+        );
+
+        let record = CloudlessSecretRecord {
+            account_id: acct.to_string(),
+            secret_id: sid.to_string(),
+            ciphertext: ct.to_vec(),
+            nonce: nonce.to_vec(),
+            cipher_version,
+            dek_wrapped: dek.to_vec(),
+            kek_ref: kek_ref.to_string(),
+            kek_version,
+            aad_hash: None,
+            updated_at_ms: 0,
+            rotation_epoch,
+            rotated_at_ms: None,
+            consistency_origin: "local".to_string(),
+            consistency_version,
+            checksum_hash: checksum,
+        };
+        assert!(
+            verify_record_checksum(&record),
+            "correct checksum must pass verify"
+        );
+    }
+
+    #[test]
+    fn verify_record_checksum_rejects_tampered_checksum() {
+        let record = CloudlessSecretRecord {
+            account_id: "acct".to_string(),
+            secret_id: "sid".to_string(),
+            ciphertext: b"ct".to_vec(),
+            nonce: b"n".to_vec(),
+            cipher_version: 1,
+            dek_wrapped: b"dek".to_vec(),
+            kek_ref: "kref".to_string(),
+            kek_version: 1,
+            aad_hash: None,
+            updated_at_ms: 0,
+            rotation_epoch: 0,
+            rotated_at_ms: None,
+            consistency_origin: "local".to_string(),
+            consistency_version: 1,
+            checksum_hash: "deadbeef".to_string(),
+        };
+        assert!(
+            !verify_record_checksum(&record),
+            "tampered checksum must fail verify"
+        );
+    }
+
+    #[test]
+    fn verify_profile_record_checksum_accepts_correct_checksum() {
+        let acct = "profile-account";
+        let sid = "PROFILE_SECRET";
+        let ct = b"profile-ciphertext";
+        let nonce = b"profile-nonce-16";
+        let dek = b"profile-dek";
+        let kek_ref = "profile-kek";
+        let kek_version: i64 = 1;
+
+        // verify_profile_record_checksum calls compute_account_secret_checksum
+        // with hardcoded cipher_version=1, rotation_epoch=0, consistency_version=1
+        let checksum = compute_account_secret_checksum(
+            acct,
+            sid,
+            ct,
+            nonce,
+            1,
+            dek,
+            kek_ref,
+            kek_version,
+            0,
+            1,
+        );
+
+        let record = ProfileSecretRecord {
+            account_id: acct.to_string(),
+            secret_id: sid.to_string(),
+            profile: "dev".to_string(),
+            ciphertext: ct.to_vec(),
+            nonce: nonce.to_vec(),
+            dek_wrapped: dek.to_vec(),
+            kek_ref: kek_ref.to_string(),
+            kek_version,
+            updated_at_ms: 0,
+            checksum_hash: checksum,
+        };
+        assert!(
+            verify_profile_record_checksum(&record),
+            "correct checksum must pass"
+        );
+    }
+
+    #[test]
+    fn verify_profile_record_checksum_rejects_wrong_checksum() {
+        let record = ProfileSecretRecord {
+            account_id: "a".to_string(),
+            secret_id: "b".to_string(),
+            profile: "ci".to_string(),
+            ciphertext: b"c".to_vec(),
+            nonce: b"d".to_vec(),
+            dek_wrapped: b"e".to_vec(),
+            kek_ref: "f".to_string(),
+            kek_version: 1,
+            updated_at_ms: 0,
+            checksum_hash: "wrong".to_string(),
+        };
+        assert!(
+            !verify_profile_record_checksum(&record),
+            "wrong checksum must fail"
+        );
+    }
+}
+
+#[cfg(test)]
 mod path_url_tests {
     use super::*;
 

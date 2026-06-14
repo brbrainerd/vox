@@ -336,6 +336,402 @@ where
 }
 
 #[cfg(test)]
+mod semcov_wave11_tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    // ── Builder pattern ──────────────────────────────────────────────────────
+
+    #[test]
+    fn builder_chain_sets_all_fields() {
+        // Catches: a builder method that silently drops its assignment (mut self mistake)
+        let opts = ActivityOptions::new()
+            .with_retries(3)
+            .with_timeout(Duration::from_secs(5))
+            .with_initial_backoff(Duration::from_millis(50))
+            .with_max_backoff(Duration::from_secs(30))
+            .with_backoff_multiplier(1.5)
+            .with_activity_id("chain-id".to_string());
+        assert_eq!(opts.retries, 3);
+        assert_eq!(opts.timeout, Some(Duration::from_secs(5)));
+        assert_eq!(opts.initial_backoff, Duration::from_millis(50));
+        assert_eq!(opts.max_backoff, Duration::from_secs(30));
+        // Compare to a sentinel that differs from both the default (2.0) and 0.0
+        assert!(
+            (opts.backoff_multiplier - 1.5).abs() < f64::EPSILON,
+            "backoff_multiplier was not stored: got {}",
+            opts.backoff_multiplier
+        );
+        assert_eq!(opts.activity_id.as_deref(), Some("chain-id"));
+    }
+
+    #[test]
+    fn with_retries_zero_is_valid() {
+        // Catches: a guard that rejects 0 retries, or a default that ignores the call
+        let opts = ActivityOptions::new().with_retries(0);
+        assert_eq!(
+            opts.retries, 0,
+            "with_retries(0) must store 0, not the default"
+        );
+    }
+
+    #[test]
+    fn with_retries_u32_max_is_accepted() {
+        // Catches: silent truncation or overflow in a .saturating_add path
+        let opts = ActivityOptions::new().with_retries(u32::MAX);
+        assert_eq!(opts.retries, u32::MAX);
+    }
+
+    #[test]
+    fn with_timeout_secs_zero_stores_zero_duration() {
+        // Catches: a guard that converts 0 → None instead of Duration::ZERO
+        let opts = ActivityOptions::new().with_timeout_secs(0);
+        assert_eq!(
+            opts.timeout,
+            Some(Duration::ZERO),
+            "with_timeout_secs(0) must produce Some(Duration::ZERO)"
+        );
+    }
+
+    #[test]
+    fn with_timeout_secs_and_with_timeout_agree() {
+        // Catches: off-by-one in the secs conversion
+        let a = ActivityOptions::new().with_timeout_secs(7).timeout;
+        let b = ActivityOptions::new()
+            .with_timeout(Duration::from_secs(7))
+            .timeout;
+        assert_eq!(
+            a, b,
+            "with_timeout_secs(n) != with_timeout(Duration::from_secs(n))"
+        );
+    }
+
+    #[test]
+    fn with_backoff_multiplier_zero_is_stored() {
+        // Catches: a clamp that silently replaces 0.0 with 1.0 or the default 2.0
+        let opts = ActivityOptions::new().with_backoff_multiplier(0.0);
+        assert!(
+            opts.backoff_multiplier == 0.0,
+            "backoff_multiplier(0.0) was rejected or clamped: {}",
+            opts.backoff_multiplier
+        );
+    }
+
+    #[test]
+    fn with_max_backoff_zero_is_stored() {
+        // Catches: a guard that ignores Duration::ZERO and keeps the default 60s
+        let opts = ActivityOptions::new().with_max_backoff(Duration::ZERO);
+        assert_eq!(
+            opts.max_backoff,
+            Duration::ZERO,
+            "with_max_backoff(ZERO) must store ZERO, not the default"
+        );
+    }
+
+    // ── parse_duration ───────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_duration_5s_exact() {
+        // Catches: off-by-one or wrong unit in the 's' branch
+        assert_eq!(
+            ActivityOptions::parse_duration("5s"),
+            Some(Duration::from_secs(5)),
+            "\"5s\" must parse to exactly 5 seconds"
+        );
+    }
+
+    #[test]
+    fn parse_duration_100ms_exact() {
+        // Catches: treating "ms" as seconds or dropping two digits
+        assert_eq!(
+            ActivityOptions::parse_duration("100ms"),
+            Some(Duration::from_millis(100)),
+            "\"100ms\" must parse to exactly 100 milliseconds"
+        );
+    }
+
+    #[test]
+    fn parse_duration_empty_string_is_none() {
+        // Catches: a fallback plain-seconds parse that converts "" to Some(ZERO)
+        assert_eq!(
+            ActivityOptions::parse_duration(""),
+            None,
+            "empty string must return None"
+        );
+    }
+
+    #[test]
+    fn parse_duration_unknown_unit_is_none() {
+        // Catches: a greedy suffix strip that returns Some for "5x" via the plain-int fallback
+        assert_eq!(
+            ActivityOptions::parse_duration("5x"),
+            None,
+            "\"5x\" (unknown unit) must return None"
+        );
+    }
+
+    #[test]
+    fn parse_duration_whitespace_only_is_none() {
+        // Catches: trim() turning "   " into "" then succeeding as a plain-int
+        assert_eq!(
+            ActivityOptions::parse_duration("   "),
+            None,
+            "whitespace-only string must return None"
+        );
+    }
+
+    #[test]
+    fn parse_duration_negative_literal_is_none() {
+        // Catches: signed parse path that accepts "-1s" and wraps to a large Duration
+        assert_eq!(
+            ActivityOptions::parse_duration("-1s"),
+            None,
+            "negative literal must return None"
+        );
+    }
+
+    #[test]
+    fn parse_duration_float_literal_is_none() {
+        // Catches: a float→int truncation that silently accepts "1.5s"
+        assert_eq!(
+            ActivityOptions::parse_duration("1.5s"),
+            None,
+            "fractional seconds must return None (no float support)"
+        );
+    }
+
+    #[test]
+    fn parse_duration_minutes_60x_multiplier() {
+        // Catches: wrong multiplier (e.g. 100 instead of 60) in the 'm' branch
+        assert_eq!(
+            ActivityOptions::parse_duration("2m"),
+            Some(Duration::from_secs(120)),
+            "\"2m\" must be exactly 120 seconds"
+        );
+    }
+
+    #[test]
+    fn parse_duration_hours_3600x_multiplier() {
+        // Catches: wrong multiplier in the 'h' branch (e.g. 60 instead of 3600)
+        assert_eq!(
+            ActivityOptions::parse_duration("1h"),
+            Some(Duration::from_secs(3600)),
+            "\"1h\" must be exactly 3600 seconds"
+        );
+    }
+
+    #[test]
+    fn parse_duration_ms_suffix_beats_s_suffix() {
+        // Catches: strip_suffix('s') firing on "100ms" and yielding "100m" (60x error)
+        let ms = ActivityOptions::parse_duration("100ms").expect("must parse");
+        assert!(
+            ms < Duration::from_secs(1),
+            "\"100ms\" parsed to {:?}, expected < 1s (suffix order bug)",
+            ms
+        );
+    }
+
+    // ── ActivityStatus enum ──────────────────────────────────────────────────
+
+    #[test]
+    fn activity_status_variants_are_distinct() {
+        // Catches: accidentally derived Eq implementation that collapses variants
+        let statuses = [
+            ActivityStatus::Running,
+            ActivityStatus::Succeeded,
+            ActivityStatus::Failed,
+            ActivityStatus::TimedOut,
+            ActivityStatus::Retrying,
+        ];
+        for (i, a) in statuses.iter().enumerate() {
+            for (j, b) in statuses.iter().enumerate() {
+                if i == j {
+                    assert_eq!(a, b, "same variant must equal itself");
+                } else {
+                    assert_ne!(
+                        a, b,
+                        "distinct variants must not be equal: {:?} == {:?}",
+                        a, b
+                    );
+                }
+            }
+        }
+    }
+
+    // ── execute_activity ─────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn execute_activity_immediate_success_calls_closure_once() {
+        // Catches: an off-by-one that invokes the closure an extra time even on success
+        let call_count = Arc::new(AtomicU32::new(0));
+        let c = call_count.clone();
+        let opts = ActivityOptions::new();
+        let result = execute_activity("once", &opts, move || {
+            let c = c.clone();
+            async move {
+                c.fetch_add(1, Ordering::SeqCst);
+                Ok::<_, String>("done")
+            }
+        })
+        .await;
+        match result {
+            ActivityResult::Ok(v) => assert_eq!(v, "done"),
+            other => panic!("Expected Ok, got {:?}", other),
+        }
+        assert_eq!(
+            call_count.load(Ordering::SeqCst),
+            1,
+            "closure must be called exactly once on immediate success"
+        );
+    }
+
+    #[tokio::test]
+    async fn execute_activity_retries_exhausted_reports_correct_attempt_count() {
+        // Catches: max_attempts = retries (off-by-one) instead of retries + 1
+        let opts = ActivityOptions::new()
+            .with_retries(2)
+            .with_initial_backoff(Duration::from_millis(1));
+        let result =
+            execute_activity("count-check", &opts, || async { Err::<(), _>("boom") }).await;
+        match result {
+            ActivityResult::Failed(ActivityError::RetriesExhausted { attempts, .. }) => {
+                assert_eq!(
+                    attempts, 3,
+                    "with_retries(2) must yield 3 total attempts (1 initial + 2 retries)"
+                );
+            }
+            other => panic!("Expected RetriesExhausted, got {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn execute_activity_last_error_reflects_final_attempt() {
+        // Catches: last_error captured from attempt 1 rather than the final attempt
+        let call_count = Arc::new(AtomicU32::new(0));
+        let c = call_count.clone();
+        let opts = ActivityOptions::new()
+            .with_retries(1)
+            .with_initial_backoff(Duration::from_millis(1));
+        let result = execute_activity("last-err", &opts, move || {
+            let c = c.clone();
+            async move {
+                let n = c.fetch_add(1, Ordering::SeqCst) + 1;
+                Err::<(), String>(format!("attempt {n}"))
+            }
+        })
+        .await;
+        match result {
+            ActivityResult::Failed(ActivityError::RetriesExhausted { last_error, .. }) => {
+                assert_eq!(
+                    last_error, "attempt 2",
+                    "last_error must come from the final attempt, not the first"
+                );
+            }
+            other => panic!("Expected RetriesExhausted, got {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn execute_activity_with_retries_zero_makes_exactly_one_call() {
+        // Catches: retries=0 being treated as "infinite" or as 1 extra attempt
+        let call_count = Arc::new(AtomicU32::new(0));
+        let c = call_count.clone();
+        let opts = ActivityOptions::new()
+            .with_retries(0)
+            .with_initial_backoff(Duration::from_millis(1));
+        let _result = execute_activity("zero-retry", &opts, move || {
+            let c = c.clone();
+            async move {
+                c.fetch_add(1, Ordering::SeqCst);
+                Err::<(), _>("fail")
+            }
+        })
+        .await;
+        assert_eq!(
+            call_count.load(Ordering::SeqCst),
+            1,
+            "with_retries(0) must call the closure exactly once"
+        );
+    }
+
+    #[tokio::test]
+    async fn execute_activity_timeout_returns_timeout_error_not_retries_exhausted() {
+        // Catches: a bug that maps a timed-out run to RetriesExhausted instead of Timeout
+        let opts = ActivityOptions::new().with_timeout(Duration::from_millis(10));
+        let result = execute_activity("timeout-variant", &opts, || async {
+            tokio::time::sleep(Duration::from_secs(60)).await;
+            Ok::<_, String>("never")
+        })
+        .await;
+        match result {
+            ActivityResult::Failed(ActivityError::Timeout(d)) => {
+                assert_eq!(
+                    d,
+                    Duration::from_millis(10),
+                    "Timeout must carry the configured timeout duration"
+                );
+            }
+            other => panic!("Expected Timeout variant, got {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn execute_activity_succeeds_on_second_attempt_when_one_retry_allowed() {
+        // Catches: a retry loop that exits before the second attempt
+        let call_count = Arc::new(AtomicU32::new(0));
+        let c = call_count.clone();
+        let opts = ActivityOptions::new()
+            .with_retries(1)
+            .with_initial_backoff(Duration::from_millis(1));
+        let result = execute_activity("second-attempt", &opts, move || {
+            let c = c.clone();
+            async move {
+                let n = c.fetch_add(1, Ordering::SeqCst) + 1;
+                if n == 1 {
+                    Err("first attempt fails".to_string())
+                } else {
+                    Ok("second attempt succeeds")
+                }
+            }
+        })
+        .await;
+        match result {
+            ActivityResult::Ok(v) => assert_eq!(v, "second attempt succeeds"),
+            other => panic!("Expected Ok on second attempt, got {:?}", other),
+        }
+        assert_eq!(call_count.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn execute_activity_result_wraps_success_as_ok() {
+        // Catches: execute_activity_result mapping ActivityResult::Ok to Err
+        let opts = ActivityOptions::new();
+        let result =
+            execute_activity_result("wrap-ok", &opts, || async { Ok::<_, String>(42) }).await;
+        match result {
+            Ok(v) => assert_eq!(v, 42),
+            Err(e) => panic!("Expected Ok(42), got Err({e})"),
+        }
+    }
+
+    #[tokio::test]
+    async fn execute_activity_result_wraps_failure_as_err_with_nonempty_message() {
+        // Catches: execute_activity_result returning Ok on failure, or an empty error string
+        let opts = ActivityOptions::new().with_initial_backoff(Duration::from_millis(1));
+        let result =
+            execute_activity_result("wrap-err", &opts, || async { Err::<(), _>("kaboom") }).await;
+        match result {
+            Err(msg) => assert!(
+                !msg.is_empty(),
+                "error message must not be empty on failure"
+            ),
+            Ok(_) => panic!("Expected Err on failure, got Ok"),
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::sync::Arc;

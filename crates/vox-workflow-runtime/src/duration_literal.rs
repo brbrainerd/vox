@@ -228,3 +228,98 @@ mod tests {
         assert!(msg.contains("expected"), "{msg}");
     }
 }
+
+#[cfg(test)]
+mod semcov_wave7_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+
+    // Catches: unit-only string "ms" silently returning 0ms instead of EmptyDigits
+    #[test]
+    fn unit_only_string_is_empty_digits_not_zero_duration() {
+        let err = parse_duration_str("ms").unwrap_err();
+        // Must NOT be Empty (there is a character) — must be UnknownUnit or EmptyDigits
+        assert!(
+            !matches!(err, DurationParseError::Empty),
+            "unit-only 'ms' should not be Empty error: {err:?}"
+        );
+    }
+
+    // Catches: zero value being rejected instead of returning zero-length Duration
+    #[test]
+    fn zero_minutes_returns_zero_duration() {
+        let d = parse_duration_str("0m").unwrap();
+        assert_eq!(
+            d,
+            Duration::from_millis(0),
+            "0m must be a zero Duration, not an error"
+        );
+    }
+
+    // Catches: "1d" computing incorrect ms (e.g. forgetting the *24 factor)
+    #[test]
+    fn one_day_is_exactly_86400_seconds() {
+        let d = parse_duration_str("1d").unwrap();
+        assert_eq!(d.as_secs(), 86_400, "1d must equal exactly 86400 seconds");
+    }
+
+    // Catches: bare integer being rejected, or mis-parsed as milliseconds instead of seconds
+    #[test]
+    fn bare_integer_is_seconds_not_milliseconds() {
+        let d = parse_duration_str("1").unwrap();
+        assert_eq!(
+            d,
+            Duration::from_secs(1),
+            "bare '1' must be 1 second, not 1 ms"
+        );
+    }
+
+    // Catches: very large values overflowing instead of saturating to u64::MAX ms
+    #[test]
+    fn very_large_days_saturate_at_u64_max() {
+        // 99999999d would overflow u128; must saturate without panic
+        let d = parse_duration_str("99999999d").unwrap();
+        assert!(
+            d.as_millis() <= u64::MAX as u128,
+            "large value must saturate, not overflow"
+        );
+    }
+
+    // Catches: negative sign (+/- prefix) being accepted when it should error
+    #[test]
+    fn plus_prefix_is_invalid_number_not_ok() {
+        let err = parse_duration_str("+5s").unwrap_err();
+        assert!(
+            matches!(err, DurationParseError::InvalidNumber(_)),
+            "'+5s' must return InvalidNumber, got: {err:?}"
+        );
+    }
+
+    // Catches: Empty error display not mentioning "empty"
+    #[test]
+    fn empty_error_display_mentions_empty() {
+        let msg = format!("{}", DurationParseError::Empty);
+        assert!(
+            msg.contains("empty"),
+            "Empty error display must contain 'empty': {msg}"
+        );
+    }
+
+    // Catches: whitespace-only string not triggering Empty (treated as invalid unit)
+    #[test]
+    fn whitespace_only_is_empty_error() {
+        let err = parse_duration_str("   \t  ").unwrap_err();
+        assert_eq!(
+            err,
+            DurationParseError::Empty,
+            "whitespace-only must be Empty"
+        );
+    }
+
+    // Catches: unit "h" multiplying by 60 instead of 3600*1000 ms
+    #[test]
+    fn one_hour_is_3600_seconds() {
+        let d = parse_duration_str("1h").unwrap();
+        assert_eq!(d.as_secs(), 3600, "1h must equal 3600 seconds");
+    }
+}

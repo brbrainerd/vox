@@ -89,3 +89,31 @@ fn main() {
     }
     std::process::exit(report::exit_code(&findings, parse_sev(&cli.fail_on)));
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn parse_sev_info() {
+        assert!(matches!(parse_sev("info"), Severity::Info));
+    }
+
+    #[test]
+    fn parse_sev_error() {
+        assert!(matches!(parse_sev("error"), Severity::Error));
+    }
+
+    #[test]
+    fn parse_sev_critical_maps_to_error() {
+        assert!(matches!(parse_sev("critical"), Severity::Error));
+    }
+
+    #[test]
+    fn parse_sev_unknown_falls_back_to_warning() {
+        assert!(matches!(parse_sev("debug"), Severity::Warning));
+        assert!(matches!(parse_sev(""), Severity::Warning));
+        assert!(matches!(parse_sev("WARN"), Severity::Warning));
+    }
+}

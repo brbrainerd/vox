@@ -108,3 +108,79 @@ pub fn mutate_corpus(
 
     Ok(actual)
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    use super::*;
+
+    fn mk(start: usize, end: usize, replacement: &str) -> Mutation {
+        Mutation {
+            start,
+            end,
+            replacement: replacement.to_string(),
+        }
+    }
+
+    #[test]
+    fn apply_mutations_empty_list_returns_source_unchanged() {
+        assert_eq!(apply_mutations("hello world", vec![]), "hello world");
+    }
+
+    #[test]
+    fn apply_mutations_single_replacement_in_middle() {
+        let result = apply_mutations("foo BAR baz", vec![mk(4, 7, "QUX")]);
+        assert_eq!(result, "foo QUX baz");
+    }
+
+    #[test]
+    fn apply_mutations_sorts_and_applies_non_overlapping() {
+        // Provided in reverse order; must be sorted before application.
+        let result = apply_mutations("aXbYc", vec![mk(3, 4, "2"), mk(1, 2, "1")]);
+        assert_eq!(result, "a1b2c");
+    }
+
+    #[test]
+    fn apply_mutations_skips_overlapping_mutation() {
+        // Second mutation starts at 1 < last_end=3 and must be skipped.
+        let result = apply_mutations("abcdef", vec![mk(0, 3, "XYZ"), mk(1, 4, "SKIP")]);
+        assert_eq!(result, "XYZdef");
+    }
+
+    #[test]
+    fn apply_mutations_at_start_and_end() {
+        let result = apply_mutations("hello world", vec![mk(0, 5, "hi"), mk(6, 11, "earth")]);
+        assert_eq!(result, "hi earth");
+    }
+
+    #[test]
+    fn apply_mutations_replacement_can_be_empty_string() {
+        assert_eq!(apply_mutations("aXb", vec![mk(1, 2, "")]), "ab");
+    }
+
+    #[test]
+    fn generate_mutations_produces_valid_spans() {
+        let dummy = Module {
+            declarations: vec![],
+            span: Span::new(0, 0),
+        };
+        let src = "let fooBar = 42;";
+        for _ in 0..20 {
+            let muts = generate_mutations(src, &dummy);
+            for m in &muts {
+                assert!(m.start < m.end);
+                assert!(m.end <= src.len());
+            }
+        }
+    }
+
+    #[test]
+    fn generate_mutations_eventually_mutates_pascal_case() {
+        let dummy = Module {
+            declarations: vec![],
+            span: Span::new(0, 0),
+        };
+        let src = "FooBar";
+        let found = (0..100).any(|_| !generate_mutations(src, &dummy).is_empty());
+        assert!(found, "expected at least one mutation across 100 runs");
+    }
+}

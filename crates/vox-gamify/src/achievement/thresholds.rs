@@ -145,3 +145,103 @@ pub(super) fn for_counter(counter: &str) -> Vec<(&'static str, u32)> {
         _ => vec![],
     }
 }
+
+#[cfg(test)]
+mod semcov_wave13_tests {
+    use super::*;
+
+    // ── Known counters return non-empty threshold lists ────────────────────
+
+    #[test]
+    fn tasks_completed_has_five_thresholds() {
+        // Catches: accidentally returning wrong number of thresholds
+        let thresholds = for_counter("tasks_completed");
+        assert_eq!(
+            thresholds.len(),
+            5,
+            "expected 5 thresholds for tasks_completed"
+        );
+    }
+
+    #[test]
+    fn tasks_completed_first_threshold_is_one() {
+        // Catches: first threshold > 1 (meaning first event never unlocks)
+        let thresholds = for_counter("tasks_completed");
+        let first = thresholds[0];
+        assert_eq!(first.0, "first_task");
+        assert_eq!(first.1, 1);
+    }
+
+    #[test]
+    fn tasks_completed_thresholds_strictly_ascending() {
+        // Catches: thresholds out of order causing premature or missed unlocks
+        let thresholds = for_counter("tasks_completed");
+        let values: Vec<u32> = thresholds.iter().map(|(_, v)| *v).collect();
+        for window in values.windows(2) {
+            assert!(
+                window[0] < window[1],
+                "thresholds must be strictly ascending: {:?}",
+                values
+            );
+        }
+    }
+
+    #[test]
+    fn activity_streak_has_six_thresholds_including_365() {
+        // Catches: accidental deletion of year streak threshold
+        let thresholds = for_counter("activity_streak");
+        assert_eq!(thresholds.len(), 6);
+        let values: Vec<u32> = thresholds.iter().map(|(_, v)| *v).collect();
+        assert!(values.contains(&365), "365-day streak threshold must exist");
+    }
+
+    #[test]
+    fn activity_streak_thresholds_start_at_3() {
+        // Catches: first streak threshold set to 1 or 2 (wrong milestone)
+        let thresholds = for_counter("activity_streak");
+        assert_eq!(thresholds[0].1, 3, "first streak threshold should be 3");
+    }
+
+    #[test]
+    fn unknown_counter_returns_empty_vec() {
+        // Catches: _ wildcard branch returning some default thresholds
+        let thresholds = for_counter("this_counter_does_not_exist_xyz");
+        assert!(
+            thresholds.is_empty(),
+            "unknown counter must return empty vec"
+        );
+    }
+
+    #[test]
+    fn build_streak_3_10_30_thresholds_all_present() {
+        // Catches: typos in consecutive_green_builds arm that drop a threshold
+        let thresholds = for_counter("consecutive_green_builds");
+        let values: Vec<u32> = thresholds.iter().map(|(_, v)| *v).collect();
+        assert!(values.contains(&3), "missing threshold 3");
+        assert!(values.contains(&10), "missing threshold 10");
+        assert!(values.contains(&30), "missing threshold 30");
+    }
+
+    #[test]
+    fn player_level_thresholds_include_milestones_10_through_1000() {
+        // Catches: missing or wrong player_level milestone values
+        let thresholds = for_counter("player_level");
+        let values: Vec<u32> = thresholds.iter().map(|(_, v)| *v).collect();
+        for milestone in [10u32, 25, 50, 100, 200, 500, 1000] {
+            assert!(
+                values.contains(&milestone),
+                "player_level missing milestone {milestone}"
+            );
+        }
+    }
+
+    #[test]
+    fn battles_won_has_thresholds_1_5_20() {
+        // Catches: missing threshold entries in battles_won arm
+        let thresholds = for_counter("battles_won");
+        let values: Vec<u32> = thresholds.iter().map(|(_, v)| *v).collect();
+        assert!(values.contains(&1));
+        assert!(values.contains(&5));
+        assert!(values.contains(&20));
+    }
+}

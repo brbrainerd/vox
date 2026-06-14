@@ -189,3 +189,110 @@ mod tests {
 
     // Removed integration test since it requires spinning up a full orchestrator now.
 }
+
+#[cfg(test)]
+mod semcov_wave3_tests {
+    #![allow(unused_imports)]
+    use super::super::handler::{InboundPayload, WebhookEvent};
+    use super::*;
+    use crate::webhook::sink::WebhookEventSink;
+    use anyhow::Result;
+    use async_trait::async_trait;
+    use std::sync::{Arc, Mutex};
+    use tokio::sync::broadcast;
+
+    fn make_event(source: &str, event_type: &str) -> WebhookEvent {
+        let payload = InboundPayload {
+            source: source.to_string(),
+            event_type: event_type.to_string(),
+            body: serde_json::json!({"ref": "refs/heads/main"}),
+            signature: None,
+            timestamp: None,
+        };
+        WebhookEvent::new(&payload)
+    }
+
+    struct CollectingSink {
+        received: Mutex<Vec<WebhookEvent>>,
+    }
+
+    impl CollectingSink {
+        fn new() -> Self {
+            Self {
+                received: Mutex::new(Vec::new()),
+            }
+        }
+        fn events(&self) -> Vec<WebhookEvent> {
+            self.received.lock().unwrap().clone()
+        }
+    }
+
+    #[async_trait]
+    impl WebhookEventSink for CollectingSink {
+        async fn dispatch(&self, event: WebhookEvent) -> Result<()> {
+            self.received.lock().unwrap().push(event);
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn run_forwards_events_to_sink() {
+        let (tx, _) = broadcast::channel::<WebhookEvent>(16);
+        let sink = Arc::new(CollectingSink::new());
+        let bridge = WebhookOrchestratorBridge::new(&tx, sink.clone());
+        let handle = bridge.spawn();
+
+        tx.send(make_event("github", "push")).unwrap();
+        tx.send(make_event("discord", "message")).unwrap();
+
+        // Allow the bridge task to process events, then drop sender to close channel
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        drop(tx);
+        handle
+            .await
+            .expect("bridge task should complete cleanly after channel close");
+
+        let events = sink.events();
+        assert_eq!(events.len(), 2, "both events must reach the sink");
+        assert_eq!(events[0].source, "github");
+        assert_eq!(events[1].source, "discord");
+    }
+
+    #[tokio::test]
+    async fn run_exits_cleanly_when_channel_closes() {
+        let (tx, _) = broadcast::channel::<WebhookEvent>(4);
+        let sink = Arc::new(CollectingSink::new());
+        let bridge = WebhookOrchestratorBridge::new(&tx, sink.clone());
+        let handle = bridge.spawn();
+        // Close channel immediately
+        drop(tx);
+        // Bridge must terminate (not block forever)
+        tokio::time::timeout(std::time::Duration::from_secs(1), handle)
+            .await
+            .expect("bridge must exit within 1s after channel close")
+            .expect("bridge task must not panic");
+    }
+
+    struct FailingSink;
+    #[async_trait]
+    impl WebhookEventSink for FailingSink {
+        async fn dispatch(&self, _event: WebhookEvent) -> Result<()> {
+            Err(anyhow::anyhow!("simulated dispatch failure"))
+        }
+    }
+
+    #[tokio::test]
+    async fn run_continues_after_dispatch_error() {
+        let (tx, _) = broadcast::channel::<WebhookEvent>(8);
+        let sink = Arc::new(FailingSink);
+        let bridge = WebhookOrchestratorBridge::new(&tx, sink);
+        let handle = bridge.spawn();
+
+        // Send two events; even though dispatch fails, the bridge must not panic/exit early
+        tx.send(make_event("custom", "trigger")).unwrap();
+        tx.send(make_event("custom", "trigger")).unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        drop(tx);
+        handle.await.expect("bridge must survive dispatch errors");
+    }
+}

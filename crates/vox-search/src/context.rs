@@ -56,3 +56,63 @@ impl SearchRuntimeContext {
         self
     }
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use std::path::PathBuf;
+
+    fn ctx_no_db() -> SearchRuntimeContext {
+        SearchRuntimeContext::new(
+            PathBuf::from("/repo"),
+            None,
+            PathBuf::from("/mem"),
+            PathBuf::from("/mem/lt.md"),
+        )
+    }
+
+    #[test]
+    fn debug_masks_db_as_bool() {
+        let ctx = ctx_no_db();
+        let s = format!("{ctx:?}");
+        assert!(
+            s.contains("db_attached: false"),
+            "debug should expose db_attached bool; got: {s}"
+        );
+        assert!(
+            !s.contains("VoxDb"),
+            "debug must not leak VoxDb internals; got: {s}"
+        );
+    }
+
+    #[test]
+    fn debug_masks_trace_id_as_bool() {
+        let ctx = ctx_no_db().with_trace_id(Some("secret-trace-123".to_string()));
+        let s = format!("{ctx:?}");
+        assert!(
+            s.contains("has_trace_id: true"),
+            "debug should show has_trace_id=true; got: {s}"
+        );
+        assert!(
+            !s.contains("secret-trace-123"),
+            "debug must not leak trace id value; got: {s}"
+        );
+    }
+
+    #[test]
+    fn with_trace_id_none_clears_trace() {
+        let ctx = ctx_no_db()
+            .with_trace_id(Some("abc".to_string()))
+            .with_trace_id(None);
+        assert!(ctx.trace_id.is_none());
+        let s = format!("{ctx:?}");
+        assert!(s.contains("has_trace_id: false"), "got: {s}");
+    }
+
+    #[test]
+    fn with_trace_id_sets_value() {
+        let ctx = ctx_no_db().with_trace_id(Some("trace-xyz".to_string()));
+        assert_eq!(ctx.trace_id.as_deref(), Some("trace-xyz"));
+    }
+}

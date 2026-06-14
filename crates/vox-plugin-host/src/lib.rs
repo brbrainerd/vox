@@ -195,3 +195,98 @@ pub fn cached_code_plugin(
     guard.insert(plugin_id, leaked);
     Ok(leaked)
 }
+
+#[cfg(test)]
+mod semcov_wave3_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    // ── resolve_plugins_root ──────────────────────────────────────────────────
+
+    #[test]
+    fn resolve_plugins_root_env_override() {
+        unsafe { std::env::set_var("VOX_PLUGINS_DIR", "/tmp/my-plugins") };
+        let result = resolve_plugins_root();
+        unsafe { std::env::remove_var("VOX_PLUGINS_DIR") };
+        assert_eq!(result, std::path::PathBuf::from("/tmp/my-plugins"));
+    }
+
+    #[test]
+    fn resolve_plugins_root_fallback_is_non_empty() {
+        // Ensure env var is cleared so we exercise the fallback branch.
+        unsafe { std::env::remove_var("VOX_PLUGINS_DIR") };
+        let result = resolve_plugins_root();
+        // The returned path must be absolute (data_local_dir) or the
+        // hardcoded fallback "./vox-plugins".  Either way it must contain
+        // "plugins" to confirm we got the right sub-path.
+        let s = result.to_string_lossy().to_lowercase();
+        assert!(
+            s.contains("plugins"),
+            "expected 'plugins' in path, got: {s}"
+        );
+    }
+
+    // ── format_install_hint ───────────────────────────────────────────────────
+
+    #[test]
+    fn format_install_hint_basic_contains_plugin_id() {
+        let hint = format_install_hint("browser", None);
+        assert!(hint.contains("vox plugin install browser"), "hint: {hint}");
+        assert!(
+            hint.contains("docs/src/reference/plugins.md"),
+            "hint: {hint}"
+        );
+    }
+
+    #[test]
+    fn format_install_hint_cargo_feature_appended() {
+        let hint = format_install_hint(
+            "ml",
+            Some("cargo build -p vox-ml-cli --release --features gpu"),
+        );
+        assert!(hint.contains("cargo build -p vox-ml-cli"), "hint: {hint}");
+        assert!(hint.contains("cargo-feature gate"), "hint: {hint}");
+    }
+
+    #[test]
+    fn format_install_hint_no_cargo_when_none() {
+        let hint = format_install_hint("browser", None);
+        // When no cargo_hint is provided, the "cargo-feature gate" block must be absent.
+        assert!(
+            !hint.contains("cargo-feature gate"),
+            "unexpected cargo section in hint: {hint}"
+        );
+    }
+
+    // ── workspace_local_plugin_source ─────────────────────────────────────────
+
+    #[test]
+    fn workspace_local_plugin_source_env_override_missing_dir_returns_none() {
+        // Point VOX_WORKSPACE_ROOT at a directory that has no crates/ sub-tree.
+        let tmp = tempfile::tempdir().unwrap();
+        unsafe { std::env::set_var("VOX_WORKSPACE_ROOT", tmp.path().to_str().unwrap()) };
+        let result = workspace_local_plugin_source("nonexistent-plugin");
+        unsafe { std::env::remove_var("VOX_WORKSPACE_ROOT") };
+        assert!(
+            result.is_none(),
+            "expected None for missing plugin dir, got: {result:?}"
+        );
+    }
+
+    #[test]
+    fn workspace_local_plugin_source_env_override_hit() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Create a fake crates/vox-plugin-myplugin/Plugin.toml
+        let crate_dir = tmp.path().join("crates").join("vox-plugin-myplugin");
+        std::fs::create_dir_all(&crate_dir).unwrap();
+        std::fs::write(
+            crate_dir.join("Plugin.toml"),
+            "[plugin]\nid = \"myplugin\"\n",
+        )
+        .unwrap();
+        unsafe { std::env::set_var("VOX_WORKSPACE_ROOT", tmp.path().to_str().unwrap()) };
+        let result = workspace_local_plugin_source("myplugin");
+        unsafe { std::env::remove_var("VOX_WORKSPACE_ROOT") };
+        assert_eq!(result, Some(crate_dir));
+    }
+}

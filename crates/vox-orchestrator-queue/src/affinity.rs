@@ -471,3 +471,50 @@ mod tests {
         assert_eq!(map.best_agent_for(Path::new("other/info.md")), Some(agent2));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use std::path::Path;
+    use vox_orchestrator_types::AgentId;
+
+    #[test]
+    fn as_json_empty_map_returns_empty_object() {
+        let map = FileAffinityMap::new();
+        let v = map.as_json();
+        assert!(v.is_object());
+        assert_eq!(v.as_object().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn as_json_contains_path_keys_and_agent_id_values() {
+        let map = FileAffinityMap::new();
+        map.assign(Path::new("src/lib.rs"), AgentId(42));
+        map.assign(Path::new("src/main.rs"), AgentId(7));
+        let v = map.as_json();
+        let obj = v.as_object().unwrap();
+        assert_eq!(obj.len(), 2);
+        // Each value should be a JSON string representing the AgentId
+        let has_lib = obj.contains_key("src/lib.rs") || obj.contains_key("src\\lib.rs");
+        assert!(has_lib, "expected src/lib.rs key in JSON: {:?}", obj);
+        // Verify value is the stringified agent id
+        let key = if obj.contains_key("src/lib.rs") {
+            "src/lib.rs"
+        } else {
+            "src\\lib.rs"
+        };
+        assert_eq!(obj[key].as_str().unwrap(), "42");
+    }
+
+    #[test]
+    fn as_json_after_release_omits_released_path() {
+        let map = FileAffinityMap::new();
+        map.assign(Path::new("a.rs"), AgentId(1));
+        map.assign(Path::new("b.rs"), AgentId(2));
+        map.release(Path::new("a.rs"));
+        let v = map.as_json();
+        let obj = v.as_object().unwrap();
+        assert_eq!(obj.len(), 1, "released path should not appear in JSON");
+    }
+}

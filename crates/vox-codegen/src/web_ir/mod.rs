@@ -28,6 +28,8 @@ pub mod lower;
 pub mod paginated_emit;
 pub mod primitives;
 pub mod semantic_ui_emit;
+#[cfg(test)]
+mod semcov_wave20_tests;
 pub mod validate;
 pub mod validate_a11y;
 pub mod validate_keys;

@@ -416,3 +416,545 @@ impl Default for MessageBus {
         Self::new(100)
     }
 }
+
+#[cfg(test)]
+mod semcov_wave10_tests {
+    use super::*;
+    use crate::types::{A2AMessageType, AgentId, MessageId, ThreadId};
+
+    fn sender() -> AgentId {
+        AgentId(1)
+    }
+    fn recv_a() -> AgentId {
+        AgentId(2)
+    }
+    fn recv_b() -> AgentId {
+        AgentId(3)
+    }
+
+    // ── MessageBus::new / Default ────────────────────────────────────────────
+
+    #[test]
+    fn new_starts_with_empty_inboxes_and_zero_dropped() {
+        // Catches: a bus that leaks state from a previous test or static init
+        let bus = MessageBus::new(10);
+        assert_eq!(bus.dropped_messages(), 0, "dropped must be 0 on fresh bus");
+        assert_eq!(
+            bus.total_messages(),
+            0,
+            "audit trail must be empty on fresh bus"
+        );
+    }
+
+    #[test]
+    fn default_uses_100_inbox_cap_not_zero() {
+        // Catches: Default::default() silently setting max_inbox_size=0 would drop every message
+        let bus = MessageBus::default();
+        let s = sender();
+        let r = recv_a();
+        bus.register_agent(s);
+        bus.register_agent(r);
+        let _id = bus.send(s, r, A2AMessageType::FreeForm, "ping");
+        // If cap were 0, the message would be dropped and inbox would be empty
+        let msgs = bus.inbox_all(r);
+        assert!(
+            !msgs.is_empty(),
+            "default bus must accept at least one message"
+        );
+    }
+
+    // ── register_agent ───────────────────────────────────────────────────────
+
+    #[test]
+    fn register_same_agent_twice_does_not_clear_inbox() {
+        // Catches: second register_agent call replacing (and wiping) the existing inbox
+        let bus = MessageBus::new(10);
+        let s = sender();
+        let r = recv_a();
+        bus.register_agent(s);
+        bus.register_agent(r);
+        bus.send(s, r, A2AMessageType::FreeForm, "first");
+        bus.register_agent(r); // double-register
+        let msgs = bus.inbox_all(r);
+        assert_eq!(
+            msgs.len(),
+            1,
+            "second register_agent must not wipe existing inbox"
+        );
+    }
+
+    #[test]
+    fn register_agent_inbox_starts_empty() {
+        // Catches: inbox pre-populated from a shared pool or leaked state
+        let bus = MessageBus::new(10);
+        bus.register_agent(recv_a());
+        let msgs = bus.inbox(recv_a());
+        assert!(
+            msgs.is_empty(),
+            "newly registered agent must have empty inbox"
+        );
+    }
+
+    // ── broadcast ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn broadcast_with_no_agents_does_not_panic() {
+        // Catches: unwrap() or index into empty agents list inside broadcast
+        let bus = MessageBus::new(10);
+        let _id = bus.broadcast(sender(), A2AMessageType::FreeForm, "hello");
+        assert_eq!(
+            bus.total_messages(),
+            1,
+            "broadcast still lands in audit trail"
+        );
+    }
+
+    #[test]
+    fn broadcast_single_recipient_receives_message() {
+        // Catches: off-by-one that skips delivery when only one non-sender agent exists
+        let bus = MessageBus::new(10);
+        let s = sender();
+        let r = recv_a();
+        bus.register_agent(s);
+        bus.register_agent(r);
+        bus.broadcast(s, A2AMessageType::FreeForm, "hello");
+        let msgs = bus.inbox(r);
+        assert_eq!(
+            msgs.len(),
+            1,
+            "single non-sender agent must receive the broadcast"
+        );
+    }
+
+    #[test]
+    fn broadcast_sender_does_not_receive_own_message() {
+        // Catches: broadcast loop accidentally including the sender's own inbox
+        let bus = MessageBus::new(10);
+        let s = sender();
+        let r = recv_a();
+        bus.register_agent(s);
+        bus.register_agent(r);
+        bus.broadcast(s, A2AMessageType::FreeForm, "hi");
+        let sender_inbox = bus.inbox(s);
+        assert!(
+            sender_inbox.is_empty(),
+            "sender must not receive their own broadcast"
+        );
+    }
+
+    #[test]
+    fn broadcast_all_n_recipients_receive_exactly_once() {
+        // Catches: duplicate delivery or partial fan-out to only first N-1 agents
+        let bus = MessageBus::new(50);
+        let s = sender();
+        bus.register_agent(s);
+        let recipients: Vec<AgentId> = (10u64..15).map(AgentId).collect();
+        for &r in &recipients {
+            bus.register_agent(r);
+        }
+        bus.broadcast(s, A2AMessageType::FreeForm, "broadcast");
+        for r in recipients {
+            let count = bus.inbox(r).len();
+            assert_eq!(count, 1, "agent {r:?} must receive exactly one broadcast");
+        }
+    }
+
+    // ── send_to_group ────────────────────────────────────────────────────────
+
+    #[test]
+    fn send_to_group_empty_slice_no_panic_and_audit_entry() {
+        // Catches: panic on empty receivers slice or missing audit entry
+        let bus = MessageBus::new(10);
+        bus.register_agent(sender());
+        let _id = bus.send_to_group(sender(), &[], A2AMessageType::FreeForm, "nobody");
+        assert_eq!(
+            bus.total_messages(),
+            1,
+            "audit must record even a zero-recipient multicast"
+        );
+    }
+
+    #[test]
+    fn send_to_group_unknown_agent_auto_creates_inbox() {
+        // Catches: silently dropping messages to unregistered agents vs creating their inbox
+        let bus = MessageBus::new(10);
+        bus.register_agent(sender());
+        let unknown = AgentId(999);
+        bus.send_to_group(sender(), &[unknown], A2AMessageType::FreeForm, "hey");
+        let msgs = bus.inbox_all(unknown);
+        assert_eq!(
+            msgs.len(),
+            1,
+            "send_to_group must auto-create inbox for unknown agents"
+        );
+    }
+
+    #[test]
+    fn send_to_group_same_message_id_for_all_recipients() {
+        // Catches: id_gen advanced per recipient, making N messages appear as N separate sends
+        let bus = MessageBus::new(10);
+        let s = sender();
+        let a = recv_a();
+        let b = recv_b();
+        bus.register_agent(s);
+        bus.register_agent(a);
+        bus.register_agent(b);
+        let id = bus.send_to_group(s, &[a, b], A2AMessageType::FreeForm, "group");
+        let msg_a = &bus.inbox_all(a)[0];
+        let msg_b = &bus.inbox_all(b)[0];
+        assert_eq!(msg_a.id, id, "recipient A must see the returned message id");
+        assert_eq!(
+            msg_b.id, id,
+            "recipient B must see the same message id as A"
+        );
+    }
+
+    // ── inbox ────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn inbox_unregistered_agent_returns_empty_not_panic() {
+        // Catches: unwrap on a missing inbox entry
+        let bus = MessageBus::new(10);
+        let msgs = bus.inbox(AgentId(404));
+        assert!(
+            msgs.is_empty(),
+            "inbox for unregistered agent must be empty"
+        );
+    }
+
+    #[test]
+    fn inbox_excludes_acknowledged_messages() {
+        // Catches: acknowledge() marking the flag but inbox() not filtering on it
+        let bus = MessageBus::new(10);
+        let s = sender();
+        let r = recv_a();
+        bus.register_agent(s);
+        bus.register_agent(r);
+        let id = bus.send(s, r, A2AMessageType::FreeForm, "ack-me");
+        let acked = bus.acknowledge(r, id);
+        assert!(acked, "acknowledge must succeed for a real message");
+        let visible = bus.inbox(r);
+        assert!(
+            visible.is_empty(),
+            "inbox() must hide acknowledged messages; got {} messages",
+            visible.len()
+        );
+    }
+
+    #[test]
+    fn inbox_sorts_higher_priority_first() {
+        // Catches: sort direction inversion — Low appearing before Critical
+        let bus = MessageBus::new(10);
+        let s = sender();
+        let r = recv_a();
+        bus.register_agent(s);
+        bus.register_agent(r);
+        // Send low-priority first so insertion order != expected sort order
+        let low = {
+            let id = bus.next_id();
+            let mut m = A2AMessage::new(id, s, Some(r), A2AMessageType::FreeForm, "low");
+            m.priority = crate::types::MessagePriority::Low;
+            m
+        };
+        let high = {
+            let id = bus.next_id();
+            let mut m = A2AMessage::new(id, s, Some(r), A2AMessageType::FreeForm, "high");
+            m.priority = crate::types::MessagePriority::Critical;
+            m
+        };
+        {
+            let inboxes = crate::sync_lock::rw_read(&bus.inboxes);
+            let inbox_lock = inboxes.get(&r).unwrap();
+            let mut inbox = crate::sync_lock::rw_write(inbox_lock);
+            inbox.push_back(low);
+            inbox.push_back(high);
+        }
+        let msgs = bus.inbox(r);
+        assert_eq!(msgs.len(), 2);
+        assert_eq!(
+            msgs[0].priority,
+            crate::types::MessagePriority::Critical,
+            "Critical must sort before Low"
+        );
+    }
+
+    // ── messages_in_thread ───────────────────────────────────────────────────
+
+    #[test]
+    fn messages_in_thread_fifo_ordering() {
+        // Catches: thread messages returned in reverse or insertion order instead of timestamp ASC
+        let bus = MessageBus::new(50);
+        let s = sender();
+        let r = recv_a();
+        bus.register_agent(s);
+        bus.register_agent(r);
+        let tid = ThreadId("t-fifo".to_string());
+
+        // Send three messages; use send_with_vcs_context to attach thread_id
+        use crate::types::{MessagePriority, VcsContext};
+        let ctx = || VcsContext {
+            snapshot_before: None,
+            snapshot_after: None,
+            touched_paths: vec![],
+            change_id: None,
+            op_id: None,
+            content_hash: None,
+        };
+        bus.send_with_vcs_context(
+            s,
+            r,
+            A2AMessageType::FreeForm,
+            "first",
+            ctx(),
+            MessagePriority::Normal,
+            Some(tid.clone()),
+        );
+        bus.send_with_vcs_context(
+            s,
+            r,
+            A2AMessageType::FreeForm,
+            "second",
+            ctx(),
+            MessagePriority::Normal,
+            Some(tid.clone()),
+        );
+        bus.send_with_vcs_context(
+            s,
+            r,
+            A2AMessageType::FreeForm,
+            "third",
+            ctx(),
+            MessagePriority::Normal,
+            Some(tid.clone()),
+        );
+
+        let thread_msgs = bus.messages_in_thread(&tid);
+        assert_eq!(
+            thread_msgs.len(),
+            3,
+            "all three thread messages must be returned"
+        );
+        // Timestamps must be non-decreasing (FIFO)
+        for window in thread_msgs.windows(2) {
+            assert!(
+                window[0].timestamp_ms <= window[1].timestamp_ms,
+                "messages_in_thread must be sorted FIFO by timestamp_ms"
+            );
+        }
+        assert_eq!(
+            thread_msgs[0].payload, "first",
+            "first sent = first in FIFO order"
+        );
+        assert_eq!(
+            thread_msgs[2].payload, "third",
+            "last sent = last in FIFO order"
+        );
+    }
+
+    #[test]
+    fn messages_in_thread_filters_other_threads() {
+        // Catches: returning ALL audit messages when filtering by thread_id
+        let bus = MessageBus::new(10);
+        let s = sender();
+        let r = recv_a();
+        bus.register_agent(s);
+        bus.register_agent(r);
+        // A message with no thread_id
+        bus.send(s, r, A2AMessageType::FreeForm, "no-thread");
+        let tid = ThreadId("only-me".to_string());
+        let msgs = bus.messages_in_thread(&tid);
+        assert!(
+            msgs.is_empty(),
+            "messages_in_thread must not return messages from other threads"
+        );
+    }
+
+    // ── audit_since ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn audit_since_zero_returns_all_messages() {
+        // Catches: since_ms=0 treated as "no filter" but implemented as "> 0" missing msg at ms=0
+        let bus = MessageBus::new(10);
+        let s = sender();
+        let r = recv_a();
+        bus.register_agent(s);
+        bus.register_agent(r);
+        bus.send(s, r, A2AMessageType::FreeForm, "a");
+        bus.send(s, r, A2AMessageType::FreeForm, "b");
+        let all = bus.audit_since(0);
+        assert_eq!(all.len(), 2, "audit_since(0) must return all messages");
+    }
+
+    #[test]
+    fn audit_since_u64_max_returns_empty() {
+        // Catches: overflow when comparing timestamp_ms >= u64::MAX wraps to 0
+        let bus = MessageBus::new(10);
+        let s = sender();
+        let r = recv_a();
+        bus.register_agent(s);
+        bus.register_agent(r);
+        bus.send(s, r, A2AMessageType::FreeForm, "past");
+        let none = bus.audit_since(u64::MAX);
+        assert!(
+            none.is_empty(),
+            "audit_since(u64::MAX) must return empty; got {} messages",
+            none.len()
+        );
+    }
+
+    #[test]
+    fn audit_since_is_inclusive_on_boundary() {
+        // Catches: `>` instead of `>=` in the filter, missing messages at exactly the cutoff
+        let bus = MessageBus::new(10);
+        let s = sender();
+        let r = recv_a();
+        bus.register_agent(s);
+        bus.register_agent(r);
+        bus.send(s, r, A2AMessageType::FreeForm, "msg");
+        bus.sync_audit_trail();
+        let trail = bus.audit_trail();
+        assert!(!trail.is_empty());
+        let ts = trail[0].timestamp_ms;
+        let at_boundary = bus.audit_since(ts);
+        assert!(
+            !at_boundary.is_empty(),
+            "audit_since(exact timestamp) must be inclusive"
+        );
+    }
+
+    // ── dropped_messages ─────────────────────────────────────────────────────
+
+    #[test]
+    fn dropped_messages_zero_initially() {
+        // Catches: dropped counter initialized to garbage or leaking from a shared global
+        let bus = MessageBus::new(5);
+        assert_eq!(
+            bus.dropped_messages(),
+            0,
+            "fresh bus must have 0 dropped messages"
+        );
+    }
+
+    #[test]
+    fn dropped_messages_increments_after_inbox_overflow() {
+        // Catches: drop counter not incremented when oldest message is evicted on overflow
+        let bus = MessageBus::new(2);
+        let s = sender();
+        let r = recv_a();
+        bus.register_agent(s);
+        bus.register_agent(r);
+        bus.send(s, r, A2AMessageType::FreeForm, "1");
+        bus.send(s, r, A2AMessageType::FreeForm, "2");
+        assert_eq!(bus.dropped_messages(), 0, "at capacity but not yet over");
+        bus.send(s, r, A2AMessageType::FreeForm, "3"); // triggers eviction
+        assert_eq!(
+            bus.dropped_messages(),
+            1,
+            "one message must be counted as dropped after overflow"
+        );
+    }
+
+    #[test]
+    fn dropped_messages_monotonically_non_decreasing() {
+        // Catches: counter reset or decrement on acknowledge/drain
+        let bus = MessageBus::new(1);
+        let s = sender();
+        let r = recv_a();
+        bus.register_agent(s);
+        bus.register_agent(r);
+        let id1 = bus.send(s, r, A2AMessageType::FreeForm, "first");
+        let before = bus.dropped_messages();
+        bus.send(s, r, A2AMessageType::FreeForm, "second"); // evicts first
+        let after = bus.dropped_messages();
+        assert!(
+            after >= before,
+            "dropped_messages must never decrease; {before} -> {after}"
+        );
+        // Acknowledge evicted message id (already gone) — counter must not go down
+        bus.acknowledge(r, id1);
+        assert_eq!(
+            bus.dropped_messages(),
+            after,
+            "acknowledge must not alter dropped counter"
+        );
+    }
+
+    // ── acknowledge ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn acknowledge_returns_false_for_unknown_message() {
+        // Catches: returning true for any ack call regardless of whether id exists
+        let bus = MessageBus::new(10);
+        bus.register_agent(recv_a());
+        let phantom = MessageId(u64::MAX);
+        let result = bus.acknowledge(recv_a(), phantom);
+        assert!(
+            !result,
+            "acknowledge must return false for a message id that doesn't exist"
+        );
+    }
+
+    #[test]
+    fn acknowledge_idempotent_second_call_returns_true_but_inbox_still_filters() {
+        // Catches: double-ack flipping acknowledged back to false (toggle bug)
+        let bus = MessageBus::new(10);
+        let s = sender();
+        let r = recv_a();
+        bus.register_agent(s);
+        bus.register_agent(r);
+        let id = bus.send(s, r, A2AMessageType::FreeForm, "ack-twice");
+        let first = bus.acknowledge(r, id);
+        let second = bus.acknowledge(r, id);
+        assert!(first, "first ack must succeed");
+        assert!(
+            second,
+            "second ack on same message must also return true (idempotent)"
+        );
+        // After double-ack the message must still be filtered from inbox()
+        let visible = bus.inbox(r);
+        assert!(
+            visible.is_empty(),
+            "double-ack must not un-acknowledge the message; inbox must still be empty"
+        );
+    }
+
+    #[test]
+    fn acknowledge_wrong_agent_does_not_ack() {
+        // Catches: ack matching by message_id globally instead of per-agent
+        let bus = MessageBus::new(10);
+        let s = sender();
+        let r = recv_a();
+        let bystander = recv_b();
+        bus.register_agent(s);
+        bus.register_agent(r);
+        bus.register_agent(bystander);
+        let id = bus.send(s, r, A2AMessageType::FreeForm, "private");
+        // Bystander tries to ack a message in someone else's inbox
+        let result = bus.acknowledge(bystander, id);
+        assert!(!result, "ack by wrong agent must return false");
+        // Original recipient's message must still be unacknowledged
+        let visible = bus.inbox(r);
+        assert_eq!(
+            visible.len(),
+            1,
+            "original recipient must still have the unacked message"
+        );
+    }
+
+    // ── id_gen monotonicity ───────────────────────────────────────────────────
+
+    #[test]
+    fn next_id_is_strictly_monotonically_increasing() {
+        // Catches: id_gen reset or non-atomic increment racing to produce duplicate ids
+        let bus = MessageBus::new(100);
+        let ids: Vec<MessageId> = (0..16).map(|_| bus.next_id()).collect();
+        for window in ids.windows(2) {
+            assert!(
+                window[0].0 < window[1].0,
+                "next_id must be strictly increasing; {:?} >= {:?}",
+                window[0],
+                window[1]
+            );
+        }
+    }
+}

@@ -109,3 +109,116 @@ impl TrustLevel {
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_wave7_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+
+    // Catches: Trusted requiring approval (security regression — trusted builtins must not block)
+    #[test]
+    fn trusted_does_not_require_approval() {
+        assert!(
+            !TrustLevel::Trusted.requires_approval(),
+            "Trusted must never require approval"
+        );
+    }
+
+    // Catches: Community or Untrusted being silently allowed without approval
+    #[test]
+    fn community_and_untrusted_require_approval() {
+        assert!(
+            TrustLevel::Community.requires_approval(),
+            "Community must require approval"
+        );
+        assert!(
+            TrustLevel::Untrusted.requires_approval(),
+            "Untrusted must require approval"
+        );
+    }
+
+    // Catches: Trusted using container isolation (too restrictive for internal builtins)
+    #[test]
+    fn trusted_isolation_is_permissive_not_container() {
+        assert_eq!(
+            TrustLevel::Trusted.minimum_isolation(),
+            "permissive",
+            "Trusted must have permissive isolation"
+        );
+    }
+
+    // Catches: Community or Untrusted getting permissive isolation (security hole)
+    #[test]
+    fn community_and_untrusted_isolation_is_container() {
+        assert_eq!(
+            TrustLevel::Community.minimum_isolation(),
+            "container",
+            "Community must require container isolation"
+        );
+        assert_eq!(
+            TrustLevel::Untrusted.minimum_isolation(),
+            "container",
+            "Untrusted must require container isolation"
+        );
+    }
+
+    // Catches: NetworkPolicy::None docker flag being wrong (would unintentionally grant network)
+    #[test]
+    fn network_policy_none_maps_to_docker_none() {
+        assert_eq!(NetworkPolicy::None.docker_flag(), "none");
+    }
+
+    // Catches: Unrestricted being mapped to "none" or "host" instead of "bridge"
+    #[test]
+    fn network_policy_unrestricted_maps_to_bridge() {
+        assert_eq!(
+            NetworkPolicy::Unrestricted.docker_flag(),
+            "bridge",
+            "Unrestricted network must use 'bridge' (full access), not 'none' or 'host'"
+        );
+    }
+
+    // Catches: default ResourceLimits having memory_mb = 0, which would prevent execution
+    #[test]
+    fn resource_limits_default_memory_is_nonzero() {
+        let limits = ResourceLimits::default();
+        assert!(
+            limits.memory_mb > 0,
+            "default ResourceLimits memory_mb must be > 0, got {}",
+            limits.memory_mb
+        );
+    }
+
+    // Catches: default cpu_quota being 0.0 (would starve the container)
+    #[test]
+    fn resource_limits_default_cpu_is_positive() {
+        let limits = ResourceLimits::default();
+        assert!(
+            limits.cpu_quota > 0.0,
+            "default cpu_quota must be positive, got {}",
+            limits.cpu_quota
+        );
+    }
+
+    // Catches: default NetworkPolicy not being None (community skills must default to no network)
+    #[test]
+    fn resource_limits_default_network_is_none() {
+        let limits = ResourceLimits::default();
+        assert_eq!(
+            limits.network,
+            NetworkPolicy::None,
+            "default network policy must be None for community-skill safety"
+        );
+    }
+
+    // Catches: TrustLevel default being Trusted instead of Community
+    #[test]
+    fn trust_level_default_is_community_not_trusted() {
+        let t = TrustLevel::default();
+        assert_eq!(
+            t,
+            TrustLevel::Community,
+            "TrustLevel default must be Community, not Trusted (escalation risk)"
+        );
+    }
+}

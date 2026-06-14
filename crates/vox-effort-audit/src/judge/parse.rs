@@ -81,3 +81,70 @@ mod tests {
         assert!(m.contains("11"));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave8_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+
+    // Catches: empty input not returning a Json error (e.g., returning Schema error instead).
+    #[test]
+    fn empty_input_returns_json_error() {
+        assert!(
+            matches!(parse(""), Err(ParseError::Json(_))),
+            "empty string must produce ParseError::Json"
+        );
+    }
+
+    // Catches: waste_score exactly 10 being rejected (should be valid; boundary off-by-one).
+    #[test]
+    fn waste_score_exactly_10_is_valid() {
+        let raw = r#"{"waste_score":10,"waste_category":"Other","suggested_remediation_kind":"Unknown","rationale_one_line":"x"}"#;
+        let f = parse(raw).expect("score 10 must be accepted");
+        assert_eq!(f.waste_score, 10);
+    }
+
+    // Catches: waste_score 0 being rejected (valid minimum).
+    #[test]
+    fn waste_score_zero_is_valid() {
+        let raw = r#"{"waste_score":0,"waste_category":"LegitFeatureWork","suggested_remediation_kind":"NoneNeeded","rationale_one_line":"clean"}"#;
+        let f = parse(raw).expect("score 0 must be accepted");
+        assert_eq!(f.waste_score, 0);
+    }
+
+    // Catches: missing waste_score field not returning Schema error (e.g., serde defaults to 0).
+    #[test]
+    fn missing_waste_score_field_returns_schema_error() {
+        let raw = r#"{"waste_category":"Other","suggested_remediation_kind":"Unknown","rationale_one_line":"x"}"#;
+        assert!(
+            matches!(parse(raw), Err(ParseError::Schema(_))),
+            "missing waste_score must be ParseError::Schema"
+        );
+    }
+
+    // Catches: strip_fence leaving the ``` fence open and breaking serde parse.
+    #[test]
+    fn bare_backtick_fence_stripped() {
+        let raw = "```\n{\"waste_score\":3,\"waste_category\":\"LegitBugfix\",\"suggested_remediation_kind\":\"NoneNeeded\",\"rationale_one_line\":\"ok\"}\n```";
+        parse(raw).expect("bare ``` fence must be stripped before parse");
+    }
+
+    // Catches: invalid waste_category enum variant not returning a Json/Schema error
+    // (e.g., silently defaulting to Other).
+    #[test]
+    fn invalid_waste_category_variant_returns_error() {
+        let raw = r#"{"waste_score":5,"waste_category":"NotARealCategory","suggested_remediation_kind":"NoneNeeded","rationale_one_line":"x"}"#;
+        assert!(
+            parse(raw).is_err(),
+            "unknown waste_category variant must be an error"
+        );
+    }
+
+    // Catches: waste_score == u64::MAX (JSON number) not being caught by schema check
+    // (it would pass as_u64() and then fail score > 10, but let's verify the exact Err variant).
+    #[test]
+    fn huge_waste_score_returns_schema_not_panic() {
+        let raw = r#"{"waste_score":999,"waste_category":"Other","suggested_remediation_kind":"Unknown","rationale_one_line":"x"}"#;
+        assert!(matches!(parse(raw), Err(ParseError::Schema(_))));
+    }
+}

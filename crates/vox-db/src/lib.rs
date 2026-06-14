@@ -109,6 +109,8 @@ pub mod memory;
 mod mens_scorecard_trust;
 /// Declarative SQL migrations using the `schema_version` table (see `crate::schema`).
 pub mod migration;
+/// SQL normalization and content-addressable hashing.
+pub mod normalize;
 /// Data directory and per-user id helpers (delegates to `vox_config`).
 pub mod writer_actor;
 pub use writer_actor::{DbWriteCmd, VoxWriteHandle};
@@ -291,3 +293,6 @@ pub(crate) static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(()
 
 #[cfg(all(test, feature = "local"))]
 mod local_tests;
+
+#[cfg(test)]
+mod semcov_wave18_tests;

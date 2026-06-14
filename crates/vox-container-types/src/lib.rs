@@ -11,6 +11,7 @@
 pub mod detect;
 pub mod exec_grammar;
 mod runtime;
+mod semcov_wave47_tests;
 
 pub use detect::RuntimePreference;
 pub use runtime::{BuildOpts, ContainerRuntime, RunOpts};

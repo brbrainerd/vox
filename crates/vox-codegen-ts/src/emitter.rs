@@ -23,6 +23,7 @@ use super::vox_client::{VOX_CLIENT_FILENAME, emit_vox_client};
 use vox_compiler::hir::{HirFn, HirModule};
 
 /// Output from the TypeScript code generator.
+#[derive(Debug)]
 pub struct CodegenOutput {
     /// List of (filename, content) pairs.
     pub files: Vec<(String, String)>,
@@ -632,4 +633,198 @@ fn maybe_web_ir_validate(
 
 fn is_advisory_diag(d: &super::web_ir::WebIrDiagnostic) -> bool {
     super::web_ir::validate::is_advisory_diagnostic(d)
+}
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use vox_compiler::ast::decl::{RouteEntry, RoutesDecl};
+    use vox_compiler::ast::span::Span;
+    use vox_compiler::hir::nodes::DefId;
+    use vox_compiler::hir::nodes::HirReactiveComponent as HirRC;
+    use vox_compiler::hir::{HirExpr, HirModule, HirReactiveComponent};
+
+    fn span() -> Span {
+        Span::new(0, 0)
+    }
+    fn id() -> DefId {
+        DefId(0)
+    }
+
+    fn empty_hir() -> HirModule {
+        HirModule::default()
+    }
+
+    fn empty_component(name: &str, view: Option<HirExpr>) -> HirReactiveComponent {
+        HirReactiveComponent {
+            id: id(),
+            name: name.to_string(),
+            params: vec![],
+            members: vec![],
+            view,
+            styles: vec![],
+            layer: None,
+            span: span(),
+        }
+    }
+
+    fn default_opts() -> CodegenOptions {
+        CodegenOptions {
+            strict_ai: false,
+            no_emit_entry: true,
+            mode: BuildMode::Library,
+            ..Default::default()
+        }
+    }
+
+    // generate_with_options on a minimal module with no components should succeed.
+    #[test]
+    fn generate_with_options_no_components_succeeds() {
+        let hir = empty_hir();
+        let result = generate_with_options(&hir, default_opts());
+        assert!(result.is_ok(), "empty module should succeed: {result:?}");
+    }
+
+    // A For loop with no key clause triggers validate.list_key.required error.
+    #[test]
+    fn generate_with_options_for_without_key_returns_error() {
+        let for_no_key = HirExpr::For(
+            "item".to_string(),
+            None,
+            Box::new(HirExpr::Ident("items".to_string(), span())),
+            Box::new(HirExpr::Ident("item".to_string(), span())),
+            None, // no key — should trigger error
+            span(),
+        );
+        let comp = empty_component("MyList", Some(for_no_key));
+        let mut hir = empty_hir();
+        hir.components.push(comp);
+        let result = generate_with_options(&hir, default_opts());
+        assert!(result.is_err(), "keyless for should be an error");
+        let msg = result.unwrap_err();
+        assert!(
+            msg.contains("validate.list_key.required"),
+            "unexpected msg: {msg}"
+        );
+        assert!(
+            msg.contains("MyList"),
+            "should mention component name: {msg}"
+        );
+    }
+
+    // A For loop WITH a key clause must not trigger the key error.
+    #[test]
+    fn generate_with_options_for_with_key_succeeds() {
+        let for_with_key = HirExpr::For(
+            "item".to_string(),
+            None,
+            Box::new(HirExpr::Ident("items".to_string(), span())),
+            Box::new(HirExpr::Ident("item".to_string(), span())),
+            Some(Box::new(HirExpr::Ident("item".to_string(), span()))), // has key
+            span(),
+        );
+        let comp = empty_component("MyList", Some(for_with_key));
+        let mut hir = empty_hir();
+        hir.components.push(comp);
+        let result = generate_with_options(&hir, default_opts());
+        if let Err(ref msg) = result {
+            assert!(
+                !msg.contains("validate.list_key.required"),
+                "unexpected key error: {msg}"
+            );
+        }
+    }
+
+    #[test]
+    fn generate_with_options_route_with_loader_but_no_pending_returns_error() {
+        let entry = RouteEntry {
+            path: "/dashboard".to_string(),
+            component_name: "Dashboard".to_string(),
+            children: vec![],
+            redirect: None,
+            is_wildcard: false,
+            loader_name: Some("dashboardLoader".to_string()),
+            pending_component_name: None, // missing → error
+            error_component_name: Some("ErrorPage".to_string()),
+            span: span(),
+        };
+        let routes_decl = RoutesDecl {
+            entries: vec![entry],
+            not_found_component: None,
+            error_component: None,
+            span: span(),
+        };
+        let mut hir = empty_hir();
+        hir.client_routes.push(routes_decl);
+        let result = generate_with_options(&hir, default_opts());
+        assert!(result.is_err());
+        let msg = result.unwrap_err();
+        assert!(msg.contains("validate.route.missing_pending"), "got: {msg}");
+        assert!(
+            msg.contains("/dashboard"),
+            "should mention route path: {msg}"
+        );
+    }
+
+    #[test]
+    fn generate_with_options_route_with_loader_but_no_error_comp_returns_error() {
+        let entry = RouteEntry {
+            path: "/profile".to_string(),
+            component_name: "Profile".to_string(),
+            children: vec![],
+            redirect: None,
+            is_wildcard: false,
+            loader_name: Some("profileLoader".to_string()),
+            pending_component_name: Some("LoadingSpinner".to_string()),
+            error_component_name: None, // missing → error
+            span: span(),
+        };
+        let routes_decl = RoutesDecl {
+            entries: vec![entry],
+            not_found_component: None,
+            error_component: None,
+            span: span(),
+        };
+        let mut hir = empty_hir();
+        hir.client_routes.push(routes_decl);
+        let result = generate_with_options(&hir, default_opts());
+        assert!(result.is_err());
+        let msg = result.unwrap_err();
+        assert!(msg.contains("validate.route.missing_error"), "got: {msg}");
+    }
+
+    #[test]
+    fn generate_with_options_route_without_loader_does_not_require_pending_or_error() {
+        let entry = RouteEntry {
+            path: "/about".to_string(),
+            component_name: "About".to_string(),
+            children: vec![],
+            redirect: None,
+            is_wildcard: false,
+            loader_name: None, // no loader → pending/error not required
+            pending_component_name: None,
+            error_component_name: None,
+            span: span(),
+        };
+        let routes_decl = RoutesDecl {
+            entries: vec![entry],
+            not_found_component: None,
+            error_component: None,
+            span: span(),
+        };
+        let mut hir = empty_hir();
+        // Register the About component with a minimal view so the route validator finds a view root.
+        let minimal_view = HirExpr::JsxFragment(vec![], span());
+        hir.components
+            .push(empty_component("About", Some(minimal_view)));
+        hir.client_routes.push(routes_decl);
+        let result = generate_with_options(&hir, default_opts());
+        if let Err(ref msg) = result {
+            assert!(
+                !msg.contains("validate.route"),
+                "unexpected route error: {msg}"
+            );
+        }
+    }
 }

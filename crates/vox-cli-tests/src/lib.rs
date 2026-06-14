@@ -569,3 +569,257 @@ fn which_executable(name: &str) -> Option<PathBuf> {
     }
     None
 }
+
+#[cfg(test)]
+mod semcov_wave5_tests {
+    use super::*;
+
+    fn mock_run_with(fixture_name: &str, stdout: &str, stderr: &str, success: bool) -> BuildRun {
+        let dir = tempfile::tempdir().expect("tempdir");
+        BuildRun {
+            fixture_name: fixture_name.to_string(),
+            out_dir: dir,
+            stdout: stdout.to_string(),
+            stderr: stderr.to_string(),
+            success,
+            expected: ExpectedFiles {
+                required: vec![],
+                forbidden: vec![],
+                emits_rust_backend: false,
+                extra_args: vec![],
+                expect_failure: false,
+            },
+        }
+    }
+
+    // --- assert_success ---
+
+    #[test]
+    fn assert_success_passes_when_success_true() {
+        let run = mock_run_with("mock", "", "", true);
+        run.assert_success(); // must not panic
+    }
+
+    #[test]
+    #[should_panic(expected = "vox build mock failed")]
+    fn assert_success_panics_when_success_false() {
+        let run = mock_run_with("mock", "stdout line", "stderr line", false);
+        run.assert_success();
+    }
+
+    // --- assert_no_panic ---
+
+    #[test]
+    fn assert_no_panic_passes_on_clean_stderr() {
+        let run = mock_run_with("mock", "", "normal compiler output", true);
+        run.assert_no_panic(); // must not panic
+    }
+
+    #[test]
+    #[should_panic(expected = "produced a panic in stderr")]
+    fn assert_no_panic_fails_when_stderr_contains_panicked_at() {
+        let run = mock_run_with(
+            "mock",
+            "",
+            "thread 'main' panicked at 'index out of bounds', src/main.rs:10",
+            true,
+        );
+        run.assert_no_panic();
+    }
+
+    // --- assert_expected_files ---
+
+    #[test]
+    fn assert_expected_files_passes_when_required_present_and_forbidden_absent() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("index.ts"), b"export {}").unwrap();
+        let run = BuildRun {
+            fixture_name: "mock".to_string(),
+            out_dir: dir,
+            stdout: String::new(),
+            stderr: String::new(),
+            success: true,
+            expected: ExpectedFiles {
+                required: vec!["index.ts".to_string()],
+                forbidden: vec!["stale.js".to_string()],
+                emits_rust_backend: false,
+                extra_args: vec![],
+                expect_failure: false,
+            },
+        };
+        run.assert_expected_files(); // must not panic
+    }
+
+    #[test]
+    #[should_panic(expected = "missing required output file")]
+    fn assert_expected_files_panics_when_required_missing() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let run = BuildRun {
+            fixture_name: "mock".to_string(),
+            out_dir: dir,
+            stdout: String::new(),
+            stderr: String::new(),
+            success: true,
+            expected: ExpectedFiles {
+                required: vec!["missing.ts".to_string()],
+                forbidden: vec![],
+                emits_rust_backend: false,
+                extra_args: vec![],
+                expect_failure: false,
+            },
+        };
+        run.assert_expected_files();
+    }
+
+    #[test]
+    #[should_panic(expected = "produced forbidden file")]
+    fn assert_expected_files_panics_when_forbidden_present() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("stale.js"), b"// stale").unwrap();
+        let run = BuildRun {
+            fixture_name: "mock".to_string(),
+            out_dir: dir,
+            stdout: String::new(),
+            stderr: String::new(),
+            success: true,
+            expected: ExpectedFiles {
+                required: vec![],
+                forbidden: vec!["stale.js".to_string()],
+                emits_rust_backend: false,
+                extra_args: vec![],
+                expect_failure: false,
+            },
+        };
+        run.assert_expected_files();
+    }
+
+    // --- assert_tsc_compiles ---
+
+    #[test]
+    fn assert_tsc_compiles_skips_when_env_var_set() {
+        unsafe { std::env::set_var("VOX_CLI_TESTS_SKIP_TSC", "1") };
+        let run = mock_run_with("mock", "", "", true);
+        run.assert_tsc_compiles();
+        unsafe { std::env::remove_var("VOX_CLI_TESTS_SKIP_TSC") };
+    }
+
+    #[test]
+    fn assert_tsc_compiles_is_noop_when_no_ts_files_in_output() {
+        unsafe { std::env::remove_var("VOX_CLI_TESTS_SKIP_TSC") };
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("README.md"), b"# readme").unwrap();
+        let run = BuildRun {
+            fixture_name: "mock_no_ts".to_string(),
+            out_dir: dir,
+            stdout: String::new(),
+            stderr: String::new(),
+            success: true,
+            expected: ExpectedFiles {
+                required: vec![],
+                forbidden: vec![],
+                emits_rust_backend: false,
+                extra_args: vec![],
+                expect_failure: false,
+            },
+        };
+        run.assert_tsc_compiles(); // no TS files -> returns without invoking tsc
+    }
+
+    // --- ExpectedFiles deserialization ---
+
+    #[test]
+    fn expected_files_deserializes_fully_specified_toml() {
+        let toml = r#"
+required = ["index.ts", "main.rs"]
+forbidden = ["stale.js"]
+emits_rust_backend = true
+extra_args = ["--target", "client"]
+expect_failure = true
+"#;
+        let ef: ExpectedFiles = toml::from_str(toml).expect("parse");
+        assert_eq!(ef.required, vec!["index.ts", "main.rs"]);
+        assert_eq!(ef.forbidden, vec!["stale.js"]);
+        assert!(ef.emits_rust_backend);
+        assert_eq!(ef.extra_args, vec!["--target", "client"]);
+        assert!(ef.expect_failure);
+    }
+
+    #[test]
+    fn expected_files_deserializes_empty_toml_with_defaults() {
+        let toml = "";
+        let ef: ExpectedFiles = toml::from_str(toml).expect("parse empty");
+        assert!(ef.required.is_empty());
+        assert!(ef.forbidden.is_empty());
+        assert!(!ef.emits_rust_backend);
+        assert!(ef.extra_args.is_empty());
+        assert!(!ef.expect_failure);
+    }
+
+    // --- assert_cargo_check ---
+
+    #[test]
+    fn assert_cargo_check_skips_when_env_var_set() {
+        unsafe { std::env::set_var("VOX_CLI_TESTS_SKIP_CARGO", "1") };
+        let dir = tempfile::tempdir().expect("tempdir");
+        let run = BuildRun {
+            fixture_name: "mock".to_string(),
+            out_dir: dir,
+            stdout: String::new(),
+            stderr: String::new(),
+            success: true,
+            expected: ExpectedFiles {
+                required: vec![],
+                forbidden: vec![],
+                emits_rust_backend: true,
+                extra_args: vec![],
+                expect_failure: false,
+            },
+        };
+        run.assert_cargo_check(); // skip var wins
+        unsafe { std::env::remove_var("VOX_CLI_TESTS_SKIP_CARGO") };
+    }
+
+    #[test]
+    fn assert_cargo_check_skips_when_emits_rust_backend_false() {
+        unsafe { std::env::remove_var("VOX_CLI_TESTS_SKIP_CARGO") };
+        let run = mock_run_with("mock", "", "", true);
+        run.assert_cargo_check(); // emits_rust_backend=false -> early return, no panic
+    }
+
+    // --- walk_files ---
+
+    #[test]
+    fn walk_files_returns_empty_for_empty_dir() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let files = walk_files(dir.path());
+        assert!(files.is_empty(), "expected no files, got {files:?}");
+    }
+
+    #[test]
+    fn walk_files_finds_files_in_nested_subdirectory() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let sub = dir.path().join("a").join("b");
+        std::fs::create_dir_all(&sub).unwrap();
+        std::fs::write(sub.join("deep.ts"), b"export {}").unwrap();
+        std::fs::write(dir.path().join("top.ts"), b"export {}").unwrap();
+        let mut files = walk_files(dir.path());
+        files.sort();
+        assert_eq!(files.len(), 2, "expected 2 files, got {files:?}");
+        let names: Vec<_> = files
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert!(names.contains(&"deep.ts".to_string()));
+        assert!(names.contains(&"top.ts".to_string()));
+    }
+
+    #[test]
+    fn walk_files_does_not_include_directories() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir(dir.path().join("subdir")).unwrap();
+        std::fs::write(dir.path().join("file.ts"), b"").unwrap();
+        let files = walk_files(dir.path());
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].file_name().unwrap(), "file.ts");
+    }
+}

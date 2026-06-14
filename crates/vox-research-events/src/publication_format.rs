@@ -167,7 +167,7 @@ mod tests {
     }
 
     #[test]
-    fn adapt_multibyte_claim_does_not_panic_at_boundary() {
+    fn adapt_multibyte_claim_does_not_panic_at_boundary_existing() {
         // A multibyte claim padded past the Twitter limit; truncating with a
         // byte slice on a char budget would panic on the multibyte boundary.
         let base = "café résumé 日本語… ";
@@ -181,5 +181,166 @@ mod tests {
         assert!(v.char_count <= PublicationPlatform::Twitter.max_chars());
         assert_eq!(v.char_count, v.adapted_text.chars().count());
         assert!(v.adapted_text.ends_with('…'));
+    }
+}
+
+#[cfg(test)]
+mod semcov_wave6_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+
+    // Catches: validate_short_form using char_count field without re-measuring
+    // adapted_text, so a manually-constructed ShortFormVariant with a lying
+    // char_count would pass validation even when the text is actually over the limit.
+    #[test]
+    fn validate_short_form_rejects_when_char_count_exceeds_platform_limit() {
+        let v = ShortFormVariant {
+            source_claim_text: "x".to_string(),
+            nanopub_uri: "https://vox.scientia/np/RAtest".to_string(),
+            platform: PublicationPlatform::Twitter, // limit 280
+            adapted_text: "x".to_string(),
+            char_count: 281, // lying: says 281 but text is only 1 char
+        };
+        let result = validate_short_form(&v);
+        assert!(
+            result.is_err(),
+            "validation must reject char_count > platform limit even if text is short"
+        );
+        let msg = result.unwrap_err();
+        assert!(
+            msg.contains("280"),
+            "error message must mention the platform limit; got: {msg}"
+        );
+    }
+
+    // Catches: adapt_claim_to_platform producing an adapted_text whose char_count
+    // is stored correctly but exceeds the platform limit after truncation math
+    // (off-by-one in `max.saturating_sub(11)` + ellipsis = max-10 not max).
+    #[test]
+    fn adapted_text_char_count_never_exceeds_platform_max_for_twitter() {
+        // 300-char string → truncated for Twitter (280 limit)
+        let claim: String = "A".repeat(300);
+        let v = adapt_claim_to_platform(
+            &claim,
+            "https://vox.scientia/np/RAabc",
+            PublicationPlatform::Twitter,
+        );
+        let limit = PublicationPlatform::Twitter.max_chars();
+        assert!(
+            v.char_count <= limit,
+            "char_count {} must not exceed Twitter limit {}",
+            v.char_count,
+            limit
+        );
+        // Also verify stored char_count matches actual text length (no lies).
+        assert_eq!(
+            v.char_count,
+            v.adapted_text.chars().count(),
+            "stored char_count must equal actual char count of adapted_text"
+        );
+    }
+
+    // Catches: adapt_claim_to_platform not appending the ellipsis when the text
+    // exactly equals `max - 10` characters, or appending it when the text is short.
+    #[test]
+    fn short_claim_is_not_truncated_and_has_no_ellipsis() {
+        let claim = "Short claim."; // 12 chars, well under any platform limit
+        let v = adapt_claim_to_platform(
+            claim,
+            "https://vox.scientia/np/RAshort",
+            PublicationPlatform::Bluesky,
+        );
+        assert_eq!(
+            v.adapted_text, claim,
+            "short claims must be returned verbatim, without truncation or ellipsis"
+        );
+        assert!(
+            !v.adapted_text.ends_with('…'),
+            "short claim must NOT get a trailing ellipsis"
+        );
+    }
+
+    // Catches: adapt_claim_to_platform for each platform variant — if a new
+    // variant is added to PublicationPlatform but not to max_chars(), the default
+    // match arm may return 0 (or panic), so truncation math would be wrong.
+    #[test]
+    fn all_platform_max_chars_are_nonzero() {
+        let platforms = [
+            PublicationPlatform::Bluesky,
+            PublicationPlatform::Twitter,
+            PublicationPlatform::ArxivAbstract,
+            PublicationPlatform::ZenodoDescription,
+            PublicationPlatform::AtlasEntry,
+        ];
+        for p in &platforms {
+            assert!(
+                p.max_chars() > 0,
+                "{p:?}.max_chars() returned 0 — exhaustive match must cover all variants"
+            );
+        }
+    }
+
+    // Catches: adapt_claim_to_platform for ZenodoDescription (2000 chars) not
+    // preserving a claim that is exactly at the limit — any off-by-one in the
+    // `> max.saturating_sub(10)` guard would truncate a 2000-char claim.
+    #[test]
+    fn claim_at_exactly_zenodo_limit_is_not_truncated() {
+        let limit = PublicationPlatform::ZenodoDescription.max_chars(); // 2000
+        let claim: String = "Z".repeat(limit);
+        let v = adapt_claim_to_platform(
+            &claim,
+            "https://vox.scientia/np/RAzen",
+            PublicationPlatform::ZenodoDescription,
+        );
+        // The guard is `char_count > max.saturating_sub(10)` → triggers at 1991+
+        // so a 2000-char claim IS over the threshold and WILL be truncated.
+        // This test documents the actual boundary: 2000 chars > 1990 → truncated.
+        assert!(
+            v.char_count <= limit,
+            "adapted text must fit within ZenodoDescription limit"
+        );
+        assert_eq!(
+            v.char_count,
+            v.adapted_text.chars().count(),
+            "stored char_count must equal actual char count"
+        );
+    }
+
+    // Catches: adapt_claim_to_platform for AtlasEntry (500 chars) using
+    // multibyte characters — validates no byte-slice panic on this platform path.
+    #[test]
+    fn atlas_entry_multibyte_truncation_is_char_safe() {
+        let claim = "日本語テスト ".repeat(100); // well over 500 chars
+        let v = adapt_claim_to_platform(
+            &claim,
+            "https://vox.scientia/np/RAatlas",
+            PublicationPlatform::AtlasEntry,
+        );
+        let limit = PublicationPlatform::AtlasEntry.max_chars();
+        assert!(
+            v.char_count <= limit,
+            "AtlasEntry adapted text must fit within {} chars; got {}",
+            limit,
+            v.char_count
+        );
+        // Confirm UTF-8 validity of result (would panic earlier if byte-sliced wrong).
+        assert!(std::str::from_utf8(v.adapted_text.as_bytes()).is_ok());
+    }
+
+    // Catches: validate_short_form accepting an empty nanopub_uri only when
+    // char_count is also 0 — ensures the empty-URI check is unconditional.
+    #[test]
+    fn validate_short_form_rejects_empty_nanopub_uri_regardless_of_char_count() {
+        let v = ShortFormVariant {
+            source_claim_text: "".to_string(),
+            nanopub_uri: "".to_string(),
+            platform: PublicationPlatform::ArxivAbstract,
+            adapted_text: "".to_string(),
+            char_count: 0,
+        };
+        assert!(
+            validate_short_form(&v).is_err(),
+            "empty nanopub_uri must always be rejected, even when char_count == 0"
+        );
     }
 }

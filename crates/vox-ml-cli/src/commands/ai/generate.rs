@@ -424,3 +424,124 @@ pub async fn run(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn runtime_generation_kpi_success_fields() {
+        let kpi = runtime_generation_kpi(
+            true,
+            true,
+            Some(true),
+            Some(true),
+            1,
+            false,
+            Some(500u128),
+            42,
+            0,
+            Some(0),
+            None,
+        );
+        assert_eq!(kpi["schema"], "vox_runtime_generation_kpi_v1");
+        assert_eq!(kpi["success"], true);
+        assert_eq!(kpi["attempts"], 1);
+        assert_eq!(kpi["output_tokens"], 42);
+        assert_eq!(kpi["time_to_first_valid_ms"], 500u64);
+        assert_eq!(kpi["repair_stalled"], false);
+        assert_eq!(kpi["failure_category"], serde_json::Value::Null);
+        assert_eq!(kpi["surface"], "vox-cli");
+    }
+
+    #[test]
+    fn runtime_generation_kpi_failure_fields() {
+        let kpi = runtime_generation_kpi(
+            false,
+            true,
+            Some(false),
+            None,
+            3,
+            true,
+            None,
+            0,
+            2,
+            None,
+            Some("validation"),
+        );
+        assert_eq!(kpi["success"], false);
+        assert_eq!(kpi["repair_stalled"], true);
+        assert_eq!(kpi["surface_contract_failures"], 2);
+        assert_eq!(kpi["strictness_failures"], 2);
+        assert_eq!(kpi["failure_category"], "validation");
+        assert_eq!(kpi["time_to_first_valid_ms"], serde_json::Value::Null);
+        assert_eq!(kpi["canonicalization_failures"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn runtime_generation_kpi_time_to_first_valid_cast() {
+        // Verify u128 -> u64 conversion for large values
+        let large_ms: u128 = u64::MAX as u128;
+        let kpi = runtime_generation_kpi(
+            true,
+            false,
+            None,
+            None,
+            1,
+            false,
+            Some(large_ms),
+            0,
+            0,
+            Some(0),
+            None,
+        );
+        assert_eq!(kpi["time_to_first_valid_ms"], u64::MAX);
+    }
+
+    #[test]
+    fn build_prompt_minimal_mode() {
+        let prompt = build_prompt("write a hello world function", None);
+        assert!(prompt.contains("write a hello world function"));
+        assert!(prompt.contains("# Task:"));
+        assert!(prompt.contains("You are an expert Vox language programmer"));
+    }
+
+    #[test]
+    fn build_prompt_explicit_minimal_mode() {
+        let result = build_prompt("test", Some("minimal"));
+        // minimal mode: no schema context injected
+        assert!(result.contains("# Task:\ntest"));
+    }
+
+    #[test]
+    fn build_prompt_schema_only_mode_has_system_preamble() {
+        // schema-only triggers collect_schema_context (which returns empty if no schema.vox)
+        let result = build_prompt("generate code", Some("schema-only"));
+        assert!(result.contains("You are an expert Vox language programmer"));
+        assert!(result.contains("generate code"));
+    }
+
+    #[test]
+    fn build_prompt_repo_aware_mode() {
+        let result = build_prompt("my task", Some("repo-aware"));
+        assert!(result.contains("my task"));
+        // preamble is always present
+        assert!(result.starts_with("You are an expert Vox language programmer"));
+    }
+
+    #[test]
+    fn build_prompt_full_mode() {
+        let result = build_prompt("full task", Some("full"));
+        assert!(result.contains("full task"));
+    }
+
+    #[test]
+    fn build_prompt_graph_aware_mode_no_extra_context() {
+        // graph-aware falls into the _ arm — no schema context appended
+        let result_graph = build_prompt("task", Some("graph-aware"));
+        let result_minimal = build_prompt("task", Some("minimal"));
+        // Both should produce the same structure (no schema file on disk in test env)
+        assert_eq!(result_graph, result_minimal);
+    }
+}

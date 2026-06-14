@@ -5,6 +5,10 @@
 //! module; blanket Rustdoc on every `pub use` alias would add noise without semantic value.
 #![allow(clippy::collapsible_if)]
 
+/// Adversarial semantic-coverage tests (wave 28).
+#[cfg(test)]
+pub mod semcov_wave28_tests;
+
 /// Durable activity execution: retries, timeouts, and backoff around async work.
 pub mod activity;
 /// Authentication helpers for generated Vox services: API key / bearer validation and retry-after parsing.

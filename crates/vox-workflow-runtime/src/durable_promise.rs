@@ -189,3 +189,91 @@ mod tests {
         assert!(matches!(err, JournalError::SenderDropped(_)));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave7_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+    use tokio::sync::oneshot;
+
+    // Catches: activity_id accessor returning wrong id (copy-paste or field swap)
+    #[tokio::test]
+    async fn activity_id_matches_construction_id() {
+        let p: DurablePromise<u32> = DurablePromise::replayed("my-stable-id".into(), Ok(0));
+        assert_eq!(p.activity_id(), "my-stable-id");
+    }
+
+    // Catches: replayed() wrapping errors returning Ok instead of propagating the error
+    #[tokio::test]
+    async fn replayed_error_propagates_as_err() {
+        let p: DurablePromise<i32> = DurablePromise::replayed(
+            "err-act".into(),
+            Err(JournalError::Cancelled("err-act".into())),
+        );
+        let result = p.await;
+        assert!(
+            result.is_err(),
+            "replayed error must surface as Err, not Ok"
+        );
+        assert!(
+            matches!(result.unwrap_err(), JournalError::Cancelled(_)),
+            "wrong error variant returned"
+        );
+    }
+
+    // Catches: from_serialised silently producing Ok on malformed JSON
+    #[test]
+    fn from_serialised_rejects_corrupt_bytes() {
+        let result = from_serialised::<u32>("corrupt-act".into(), b"not-json-at-all{{{");
+        assert!(
+            result.is_err(),
+            "corrupt bytes must yield JournalCorrupt, not Ok"
+        );
+        match result.unwrap_err() {
+            JournalError::JournalCorrupt(id, _) => {
+                assert_eq!(id, "corrupt-act");
+            }
+            other => panic!("expected JournalCorrupt, got {other:?}"),
+        }
+    }
+
+    // Catches: from_serialised returning Err on valid bytes (type mismatch mis-diagnosed)
+    #[test]
+    fn from_serialised_parses_valid_bytes() {
+        let bytes = b"42";
+        let p = from_serialised::<u32>("valid-act".into(), bytes)
+            .expect("valid JSON bytes must produce a resolved promise");
+        assert_eq!(p.activity_id(), "valid-act");
+    }
+
+    // Catches: ready() not resolving immediately (regression to Pending variant)
+    #[tokio::test]
+    async fn ready_resolves_synchronously_with_value() {
+        let p = ready("ready-act".into(), 777u32);
+        assert_eq!(p.activity_id(), "ready-act");
+        let val = p.await.expect("ready() must resolve Ok immediately");
+        assert_eq!(val, 777);
+    }
+
+    // Catches: JournalCorrupt error display not including the activity_id
+    #[test]
+    fn journal_corrupt_display_includes_activity_id() {
+        let err = JournalError::JournalCorrupt("my-act".into(), "bad checksum".into());
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("my-act"),
+            "JournalCorrupt display must contain the activity_id, got: {msg}"
+        );
+    }
+
+    // Catches: SenderDropped error display not including the activity_id
+    #[test]
+    fn sender_dropped_display_includes_activity_id() {
+        let err = JournalError::SenderDropped("drop-act".into());
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("drop-act"),
+            "SenderDropped display must contain the activity_id, got: {msg}"
+        );
+    }
+}

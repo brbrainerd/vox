@@ -76,6 +76,77 @@ pub struct WorkflowReplayIr {
     pub nodes: Vec<ReplayNode>,
 }
 
+/// P2-T5: unit tests for compute_structural_arg_hash and related types.
+#[cfg(test)]
+mod semcov_wave7_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+    use serde_json::json;
+
+    // Catches: hash function returning the same hex for different argument lists
+    // (collision in the dedup-cache key causes incorrect replay)
+    #[test]
+    fn different_args_produce_different_hashes() {
+        let h1 = compute_structural_arg_hash(&[json!(1), json!("a")]);
+        let h2 = compute_structural_arg_hash(&[json!(2), json!("b")]);
+        assert_ne!(
+            h1, h2,
+            "distinct argument lists must hash to different hex strings"
+        );
+    }
+
+    // Catches: hash being non-deterministic across calls (non-stable sort or RNG)
+    #[test]
+    fn same_args_produce_same_hash_on_repeated_call() {
+        let args = vec![json!({"x": 1}), json!([1, 2, 3])];
+        let h1 = compute_structural_arg_hash(&args);
+        let h2 = compute_structural_arg_hash(&args);
+        assert_eq!(h1, h2, "hash must be deterministic for identical arguments");
+    }
+
+    // Catches: empty argument slice producing wrong or panicking output
+    #[test]
+    fn empty_args_hash_is_stable_non_empty_hex() {
+        let h = compute_structural_arg_hash(&[]);
+        assert!(
+            !h.is_empty(),
+            "empty-args hash must still produce a non-empty hex string"
+        );
+        // blake3 hex is always 64 chars
+        assert_eq!(h.len(), 64, "blake3 hex must be 64 characters");
+    }
+
+    // Catches: arg ordering being ignored (hash([A,B]) == hash([B,A]))
+    // which would treat order-distinct calls as duplicates
+    #[test]
+    fn arg_order_affects_hash() {
+        let h_ab = compute_structural_arg_hash(&[json!("A"), json!("B")]);
+        let h_ba = compute_structural_arg_hash(&[json!("B"), json!("A")]);
+        assert_ne!(h_ab, h_ba, "argument order must affect the hash");
+    }
+
+    // Catches: PopuliHttpOp variants not being distinct (enum layout bug)
+    #[test]
+    fn populi_http_op_variants_are_distinct() {
+        let ops = [
+            PopuliHttpOp::Heartbeat,
+            PopuliHttpOp::Noop,
+            PopuliHttpOp::Join,
+            PopuliHttpOp::Snapshot,
+            PopuliHttpOp::Dispatch,
+            PopuliHttpOp::Wait,
+        ];
+        // All pairs must be unequal
+        for (i, a) in ops.iter().enumerate() {
+            for (j, b) in ops.iter().enumerate() {
+                if i != j {
+                    assert_ne!(a, b, "PopuliHttpOp variants {i} and {j} must not be equal");
+                }
+            }
+        }
+    }
+}
+
 /// Mens-tagged activity (name convention: `mesh_*`, plus [`PopuliHttpOp`]).
 #[derive(Debug, Clone)]
 pub struct PopuliActivity {

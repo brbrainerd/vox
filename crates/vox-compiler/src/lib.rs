@@ -37,6 +37,10 @@ pub mod tokens;
 pub mod typeck;
 pub mod web_prefixes;
 
+/// Adversarial semantic-coverage tests — wave 17.
+#[cfg(test)]
+mod semcov_wave17_tests;
+
 /// Re-export of common types if needed.
 pub use ast::decl::Module;
 /// Re-export parser-backed AST evaluation (replaces regex-based vox-eval constructs).

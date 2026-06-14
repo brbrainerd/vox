@@ -493,3 +493,52 @@ mod tests {
         std::fs::remove_file(&path).ok();
     }
 }
+
+#[cfg(test)]
+mod semcov_wave5_tests {
+    use super::*;
+    use vox_journal::JournalError as InnerJournalError;
+
+    #[test]
+    fn file_journal_error_from_inner_io_maps_to_io_variant() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "no perms");
+        let inner = InnerJournalError::Io(io_err);
+        let mapped = FileJournalError::from(inner);
+        match mapped {
+            FileJournalError::Io(msg) => {
+                assert!(msg.contains("no perms"), "expected io message, got: {msg}")
+            }
+            other => panic!("expected Io variant, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn file_journal_error_from_inner_serde_maps_to_invalid_json_variant() {
+        // Construct a serde_json::Error by parsing invalid JSON
+        let serde_err: serde_json::Error =
+            serde_json::from_str::<serde_json::Value>("not json").unwrap_err();
+        let inner = InnerJournalError::Serde(serde_err);
+        let mapped = FileJournalError::from(inner);
+        match mapped {
+            FileJournalError::InvalidJson(msg) => {
+                assert!(!msg.is_empty(), "expected non-empty InvalidJson message");
+            }
+            other => panic!("expected InvalidJson variant, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn file_journal_error_from_inner_poisoned_maps_to_other_variant() {
+        let inner = InnerJournalError::Poisoned;
+        let mapped = FileJournalError::from(inner);
+        match mapped {
+            FileJournalError::Other(msg) => {
+                assert!(
+                    msg.contains("poisoned"),
+                    "expected 'poisoned' in message, got: {msg}"
+                );
+            }
+            other => panic!("expected Other variant, got: {other:?}"),
+        }
+    }
+}

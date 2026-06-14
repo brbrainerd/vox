@@ -95,3 +95,38 @@ impl From<vox_plugin_host::skill_bundle::SkillBundleError> for SkillError {
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_wave4_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn skill_bundle_error_from_json_variant() {
+        let json_err: serde_json::Error =
+            serde_json::from_str::<serde_json::Value>("{").unwrap_err();
+        let bundle_err = vox_plugin_host::skill_bundle::SkillBundleError::Json(json_err);
+        let skill_err = SkillError::from(bundle_err);
+        assert!(matches!(skill_err, SkillError::Json(_)));
+        assert!(skill_err.to_string().contains("JSON"));
+    }
+
+    #[test]
+    fn skill_bundle_error_from_invalid_manifest_variant() {
+        let bundle_err = vox_plugin_host::skill_bundle::SkillBundleError::InvalidManifest(
+            "missing title".to_string(),
+        );
+        let skill_err = SkillError::from(bundle_err);
+        assert!(matches!(skill_err, SkillError::InvalidManifest(_)));
+        assert!(skill_err.to_string().contains("missing title"));
+    }
+
+    #[test]
+    fn skill_bundle_error_from_toml_variant() {
+        let bundle_err =
+            vox_plugin_host::skill_bundle::SkillBundleError::Toml("invalid toml".to_string());
+        let skill_err = SkillError::from(bundle_err);
+        assert!(matches!(skill_err, SkillError::Toml(_)));
+        assert!(skill_err.to_string().contains("TOML"));
+    }
+}

@@ -360,3 +360,29 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_wave3_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::lockfile::LockfileError;
+
+    #[test]
+    fn lockfile_error_display_io_variant() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "no such file");
+        let err = LockfileError::Io(io_err);
+        let msg = err.to_string();
+        assert!(msg.starts_with("I/O error:"), "got: {msg}");
+        assert!(msg.contains("no such file"));
+    }
+
+    #[test]
+    fn lockfile_error_display_parse_variant() {
+        // Intentionally invalid TOML to get a real toml::de::Error
+        let bad: Result<toml::Value, _> = "not = valid = toml".parse();
+        let toml_err = bad.unwrap_err();
+        let err = LockfileError::Parse(toml_err);
+        let msg = err.to_string();
+        assert!(msg.starts_with("Parse error:"), "got: {msg}");
+    }
+}

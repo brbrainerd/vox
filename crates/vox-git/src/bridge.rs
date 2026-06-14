@@ -434,3 +434,72 @@ mod tests {
         assert_eq!(st.ref_diffs[0].behind, 0);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave4_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use std::fs;
+
+    fn make_fake_repo_with_remote(dir: &std::path::Path) {
+        fs::create_dir_all(dir.join(".git/refs/heads")).unwrap();
+        fs::create_dir_all(dir.join(".git/refs/remotes/origin")).unwrap();
+        fs::write(dir.join(".git/HEAD"), "ref: refs/heads/main\n").unwrap();
+        fs::write(
+            dir.join(".git/refs/heads/main"),
+            "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join(".git/refs/remotes/origin/main"),
+            "b94a8fe5ccb19ba61c4c0873d391e987982fbbd4\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join(".git/config"),
+            "[remote \"origin\"]\n\turl = https://github.com/org/repo.git\n",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn read_ref_returns_correct_object_id_for_branch() {
+        let dir = tempfile::tempdir().unwrap();
+        make_fake_repo_with_remote(dir.path());
+        let bridge = GitBridge::open(dir.path()).unwrap();
+        let ref_name = crate::refs::RefName::branch("main");
+        let result = bridge.read_ref(&ref_name).unwrap();
+        assert!(
+            result.is_some(),
+            "expected Some ObjectId for refs/heads/main"
+        );
+        assert_eq!(
+            result.unwrap().as_str(),
+            "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3"
+        );
+    }
+
+    #[test]
+    fn read_ref_returns_none_for_missing_ref() {
+        let dir = tempfile::tempdir().unwrap();
+        make_fake_repo_with_remote(dir.path());
+        let bridge = GitBridge::open(dir.path()).unwrap();
+        let ref_name = crate::refs::RefName::branch("nonexistent");
+        let result = bridge.read_ref(&ref_name).unwrap();
+        assert!(result.is_none(), "expected None for missing ref");
+    }
+
+    #[test]
+    fn read_ref_works_for_remote_tracking_ref() {
+        let dir = tempfile::tempdir().unwrap();
+        make_fake_repo_with_remote(dir.path());
+        let bridge = GitBridge::open(dir.path()).unwrap();
+        let ref_name = crate::refs::RefName::remote_tracking("origin", "main");
+        let result = bridge.read_ref(&ref_name).unwrap();
+        assert!(result.is_some());
+        assert_eq!(
+            result.unwrap().as_str(),
+            "b94a8fe5ccb19ba61c4c0873d391e987982fbbd4"
+        );
+    }
+}

@@ -275,3 +275,34 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn from_env_returns_mock_when_env_var_absent() {
+        // Ensure the env var is unset for this test.
+        unsafe { std::env::remove_var("VOX_MINICHECK_ENDPOINT") };
+        let verifier = MiniCheckVerifier::from_env();
+        assert!(
+            matches!(verifier.backend, MiniCheckBackend::Mock),
+            "expected Mock backend when VOX_MINICHECK_ENDPOINT is unset"
+        );
+    }
+
+    #[test]
+    fn from_env_returns_http_when_env_var_set() {
+        unsafe { std::env::set_var("VOX_MINICHECK_ENDPOINT", "http://localhost:9090/verify") };
+        let verifier = MiniCheckVerifier::from_env();
+        // Clean up immediately so other tests are not affected.
+        unsafe { std::env::remove_var("VOX_MINICHECK_ENDPOINT") };
+        match verifier.backend {
+            MiniCheckBackend::Http { endpoint } => {
+                assert_eq!(endpoint, "http://localhost:9090/verify");
+            }
+            other => panic!("expected Http backend, got {:?}", other),
+        }
+    }
+}

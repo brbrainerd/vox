@@ -157,3 +157,42 @@ mod tests {
         assert!(parse_agent_frontmatter(raw).is_none());
     }
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn parse_agent_file_path_nonexistent_returns_default() {
+        let path = std::path::Path::new("/nonexistent/path/agent.md");
+        let result = parse_agent_file_path(path).expect("should not error on missing file");
+        assert_eq!(result, AgentFrontmatter::default());
+        assert!(result.scope.is_none());
+        assert!(result.model.is_none());
+    }
+
+    #[test]
+    fn parse_agent_file_path_reads_model_and_scope() {
+        let mut f = tempfile::NamedTempFile::new().expect("tempfile");
+        write!(
+            f,
+            "---\nmodel: openrouter/auto\nscope: [\"src/**\"]\n---\n# Agent\n"
+        )
+        .expect("write");
+        let result = parse_agent_file_path(f.path()).expect("parse ok");
+        assert_eq!(result.model.as_deref(), Some("openrouter/auto"));
+        assert_eq!(result.scope, Some(vec!["src/**".to_string()]));
+    }
+
+    #[test]
+    fn parse_agent_file_path_malformed_frontmatter_returns_default() {
+        // starts with --- but has no closing ---, so parse_agent_frontmatter returns None
+        let mut f = tempfile::NamedTempFile::new().expect("tempfile");
+        write!(f, "---\nmodel: x\nno closing fence\n").expect("write");
+        let result = parse_agent_file_path(f.path()).expect("parse ok");
+        // warn is emitted but result falls back to default
+        assert_eq!(result, AgentFrontmatter::default());
+    }
+}

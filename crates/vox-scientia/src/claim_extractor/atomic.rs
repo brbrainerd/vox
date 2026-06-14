@@ -138,3 +138,103 @@ mod tests {
         assert_eq!(c1[0].id, c2[0].id);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::claim_extractor::types::VerifiabilityClass;
+
+    // extract_tuple is private; we exercise it through decompose() and inspect
+    // the resulting AtomicClaim.tuple field.
+
+    #[test]
+    fn extract_tuple_increased_by_populates_all_fields() {
+        let decomposer = AtomicDecomposer::default();
+        let claims = decomposer.decompose("P95 latency increased by 12ms after the update.");
+        let claim = claims
+            .iter()
+            .find(|c| c.tuple.is_some())
+            .expect("expected at least one claim with a tuple");
+        let tuple = claim.tuple.as_ref().unwrap();
+        assert_eq!(tuple.relation, "increased_by");
+        assert!(
+            !tuple.variable_a.is_empty(),
+            "variable_a should be non-empty"
+        );
+        assert!(
+            !tuple.variable_b.is_empty(),
+            "variable_b should be non-empty"
+        );
+    }
+
+    #[test]
+    fn extract_tuple_decreased_by_populates_relation() {
+        let decomposer = AtomicDecomposer::default();
+        let claims = decomposer.decompose("Error rate decreased by 5 percent.");
+        let claim = claims
+            .iter()
+            .find(|c| c.tuple.is_some())
+            .expect("expected tuple claim");
+        let tuple = claim.tuple.as_ref().unwrap();
+        assert_eq!(tuple.relation, "decreased_by");
+    }
+
+    #[test]
+    fn extract_tuple_rose_by_maps_to_increased_by_relation() {
+        let decomposer = AtomicDecomposer::default();
+        let claims = decomposer.decompose("Throughput rose by 30 percent.");
+        let claim = claims
+            .iter()
+            .find(|c| c.tuple.is_some())
+            .expect("expected tuple claim");
+        let tuple = claim.tuple.as_ref().unwrap();
+        assert_eq!(
+            tuple.relation, "increased_by",
+            "'rose by' should map to 'increased_by'"
+        );
+    }
+
+    #[test]
+    fn extract_tuple_no_match_returns_none_and_semantic_class() {
+        let decomposer = AtomicDecomposer::default();
+        let claims = decomposer.decompose("The system performed well overall.");
+        // No change verb → tuple should be None and verifiability should be Semantic
+        for claim in &claims {
+            assert!(
+                claim.tuple.is_none(),
+                "expected no tuple for plain sentence"
+            );
+            assert_eq!(claim.verifiability, VerifiabilityClass::Semantic);
+        }
+    }
+
+    #[test]
+    fn extract_tuple_variable_b_capped_at_three_words() {
+        let decomposer = AtomicDecomposer::default();
+        // variable_b is taken from the tail after the phrase, limited to 3 words
+        let claims = decomposer
+            .decompose("Latency fell by ten milliseconds in production systems globally.");
+        if let Some(claim) = claims.iter().find(|c| c.tuple.is_some()) {
+            let tuple = claim.tuple.as_ref().unwrap();
+            let word_count = tuple.variable_b.split_whitespace().count();
+            assert!(
+                word_count <= 3,
+                "variable_b word count {} exceeds 3-word cap",
+                word_count
+            );
+        }
+    }
+
+    #[test]
+    fn extract_tuple_numeric_class_assigned_when_tuple_present() {
+        let decomposer = AtomicDecomposer::default();
+        let claims = decomposer.decompose("Cache hit rate improved by 15 percent.");
+        let claim = claims
+            .iter()
+            .find(|c| c.tuple.is_some())
+            .expect("expected tuple claim");
+        assert_eq!(claim.verifiability, VerifiabilityClass::Numeric);
+        assert!((claim.verifiability_score - 0.85).abs() < 1e-9);
+    }
+}

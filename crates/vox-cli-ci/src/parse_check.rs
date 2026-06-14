@@ -120,3 +120,44 @@ mod tests {
         assert!(err.is_err());
     }
 }
+
+#[cfg(test)]
+mod semcov_wave5_tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn expand_globs_empty_patterns_returns_empty_vec() {
+        let result = expand_globs(&[]).expect("no patterns is OK");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn expand_globs_no_match_returns_empty_vec() {
+        let tmp = TempDir::new().expect("tmpdir");
+        let pattern = format!("{}/nonexistent_*.xyz", tmp.path().display());
+        let result = expand_globs(&[pattern]).expect("valid pattern with no match");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn expand_globs_returns_sorted_paths() {
+        let tmp = TempDir::new().expect("tmpdir");
+        fs::write(tmp.path().join("b.json"), "{}").expect("write b");
+        fs::write(tmp.path().join("a.json"), "{}").expect("write a");
+        let pattern = format!("{}/?.json", tmp.path().display());
+        let paths = expand_globs(&[pattern]).expect("valid glob");
+        assert_eq!(paths.len(), 2);
+        // expand_globs sorts before returning
+        assert!(paths[0] < paths[1], "paths must be sorted");
+        assert!(paths[0].ends_with("a.json"));
+        assert!(paths[1].ends_with("b.json"));
+    }
+
+    #[test]
+    fn expand_globs_invalid_pattern_returns_error() {
+        let err = expand_globs(&["[invalid".to_string()]);
+        assert!(err.is_err(), "invalid glob must be an error");
+    }
+}

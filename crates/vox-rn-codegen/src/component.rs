@@ -1824,6 +1824,164 @@ fn hir_type_to_ts(ty: &vox_compiler::hir::HirType) -> String {
 }
 
 #[cfg(test)]
+mod semcov_wave8_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+
+    // Catches: spacing_px returning wrong value for the 4px scale (e.g., off-by-factor of 4).
+    #[test]
+    fn spacing_px_four_is_sixteen() {
+        assert_eq!(spacing_px("4"), Some(16));
+        assert_eq!(spacing_px("1"), Some(4));
+        assert_eq!(spacing_px("0"), Some(0));
+    }
+
+    // Catches: spacing_px accepting non-numeric strings and panicking or returning Some.
+    #[test]
+    fn spacing_px_non_numeric_returns_none() {
+        assert_eq!(spacing_px("abc"), None);
+        assert_eq!(spacing_px(""), None);
+        assert_eq!(spacing_px("-"), None);
+    }
+
+    // Catches: tailwind_token_to_rn_prop treating "text-sm" as a color lookup instead of font-size.
+    #[test]
+    fn text_size_tokens_produce_font_size_not_color() {
+        let result = tailwind_token_to_rn_prop("text-sm");
+        assert_eq!(result, Some(("fontSize".into(), "14".into())));
+        let result2 = tailwind_token_to_rn_prop("text-xs");
+        assert_eq!(result2, Some(("fontSize".into(), "12".into())));
+    }
+
+    // Catches: rounded-full not mapping to a very large borderRadius (9999 convention in RN).
+    #[test]
+    fn rounded_full_produces_9999() {
+        assert_eq!(
+            tailwind_token_to_rn_prop("rounded-full"),
+            Some(("borderRadius".into(), "9999".into()))
+        );
+    }
+
+    // Catches: opacity-0 producing non-zero opacity or panicking.
+    #[test]
+    fn opacity_zero_is_zero_point_zero() {
+        let result = tailwind_token_to_rn_prop("opacity-0").unwrap();
+        assert_eq!(result.0, "opacity");
+        let val: f32 = result.1.parse().unwrap();
+        assert!((val - 0.0).abs() < 1e-6);
+    }
+
+    // Catches: opacity-100 producing a value > 1.0 (should be 1.00).
+    #[test]
+    fn opacity_100_is_one() {
+        let result = tailwind_token_to_rn_prop("opacity-100").unwrap();
+        assert_eq!(result.0, "opacity");
+        let val: f32 = result.1.parse().unwrap();
+        assert!((val - 1.0).abs() < 1e-6);
+    }
+
+    // Catches: w-full not mapping to "100%" string value.
+    #[test]
+    fn w_full_produces_100_percent() {
+        assert_eq!(
+            tailwind_token_to_rn_prop("w-full"),
+            Some(("width".into(), "\"100%\"".into()))
+        );
+    }
+
+    // Catches: h-full not mapping to "100%" (w-full passes but h-full uses different prefix).
+    #[test]
+    fn h_full_produces_100_percent() {
+        assert_eq!(
+            tailwind_token_to_rn_prop("h-full"),
+            Some(("height".into(), "\"100%\"".into()))
+        );
+    }
+
+    // Catches: empty token list returning some style key instead of None.
+    #[test]
+    fn empty_class_tokens_returns_no_style_key() {
+        let key = class_string_to_style_key(&[]);
+        assert!(key.is_none(), "empty token list must return None");
+    }
+
+    // Catches: inject_key_into_first_element mangling a string with no opening JSX tag.
+    #[test]
+    fn inject_key_on_empty_string_returns_unchanged() {
+        let inner = String::new();
+        let result = inject_key_into_first_element(inner.clone(), "item.id");
+        assert_eq!(result, inner, "empty inner must be returned unchanged");
+    }
+
+    // Catches: inject_key_into_first_element inserting key AFTER the closing '>' instead of before it.
+    #[test]
+    fn inject_key_into_element_inserts_before_closing_angle() {
+        let inner = "  <View style={styles.col}>\n  </View>\n".to_string();
+        let result = inject_key_into_first_element(inner.clone(), "item.id");
+        assert!(
+            result.contains("key={item.id}"),
+            "key must be injected; got: {result}"
+        );
+        // The key must appear before the first >, not after.
+        let key_pos = result.find("key={item.id}").unwrap();
+        let first_gt = result.find('>').unwrap();
+        assert!(
+            key_pos < first_gt,
+            "key must be injected inside the opening tag"
+        );
+    }
+
+    // Catches: extract_or_wrap_arrow not handling a bare block expression (starting with '{').
+    #[test]
+    fn extract_or_wrap_arrow_bare_block_gets_arrow_prefix() {
+        let result = extract_or_wrap_arrow("{ doThing(); }");
+        assert!(
+            result.starts_with("() =>"),
+            "bare block must be wrapped; got: {result}"
+        );
+    }
+
+    // Catches: extract_or_wrap_arrow stripping a parenthesized non-arrow expression as if it were an arrow.
+    #[test]
+    fn extract_or_wrap_arrow_clean_arrow_returned_as_is() {
+        let arrow = "() => doSomething()";
+        let result = extract_or_wrap_arrow(arrow);
+        assert_eq!(result.as_ref(), arrow);
+    }
+
+    // Catches: extract_or_wrap_arrow failing to unwrap IIFE form.
+    #[test]
+    fn extract_or_wrap_arrow_iife_unwrapped() {
+        let iife = "(() => doSomething())()";
+        let result = extract_or_wrap_arrow(iife);
+        assert!(
+            result.contains("() => doSomething()"),
+            "IIFE must be unwrapped to bare arrow; got: {result}"
+        );
+        assert!(!result.ends_with(")()"), "trailing () must be stripped");
+    }
+
+    // Catches: synthetic_style_key containing characters that break JS identifiers
+    // (e.g., '#' from hex colors not replaced with '_').
+    #[test]
+    fn synthetic_style_key_is_js_identifier_safe() {
+        let props = vec![
+            ("backgroundColor".to_string(), "\"#2563eb\"".to_string()),
+            ("padding".to_string(), "16".to_string()),
+        ];
+        let key = synthetic_style_key(&props);
+        assert!(
+            key.starts_with("d_"),
+            "synthetic key must start with d_; got: {key}"
+        );
+        assert!(
+            key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'),
+            "synthetic key must be JS-ident-safe; got: {key}"
+        );
+    }
+}
+
+#[cfg(test)]
 mod b3_style_tests {
     use super::*;
 

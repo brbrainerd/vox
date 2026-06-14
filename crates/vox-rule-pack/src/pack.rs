@@ -221,3 +221,108 @@ rules:
         assert!(!rule.matches_line("prefix fooXbar suffix"));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave5_tests {
+    use super::*;
+
+    #[test]
+    fn matches_in_content_returns_empty_for_line_regex_kind() {
+        let yaml = r#"
+version: 1
+rules:
+  - id: test/lr
+    name: LR
+    description: LR
+    severity: warning
+    languages: [rust]
+    match: { kind: line-regex, pattern: "foo" }
+    message: m
+"#;
+        let pack = RulePack::load_from_str(yaml).unwrap();
+        let rule = pack.rule("test/lr").unwrap();
+        // LineRegex kind must return empty vec regardless of content.
+        let result = rule.matches_in_content("foo\nfoo\nfoo");
+        assert_eq!(result, Vec::<usize>::new());
+    }
+
+    #[test]
+    fn matches_in_content_returns_empty_for_substring_kind() {
+        let yaml = r#"
+version: 1
+rules:
+  - id: test/sub
+    name: Sub
+    description: Sub
+    severity: warning
+    languages: [rust]
+    match: { kind: substring, pattern: "foo" }
+    message: m
+"#;
+        let pack = RulePack::load_from_str(yaml).unwrap();
+        let rule = pack.rule("test/sub").unwrap();
+        let result = rule.matches_in_content("foo\nfoo");
+        assert_eq!(result, Vec::<usize>::new());
+    }
+
+    #[test]
+    fn matches_in_content_finds_correct_1indexed_lines_for_multiline_regex() {
+        let yaml = r#"
+version: 1
+rules:
+  - id: test/ml
+    name: ML
+    description: ML
+    severity: warning
+    languages: [rust]
+    match: { kind: multiline-regex, pattern: "TODO" }
+    message: m
+"#;
+        let pack = RulePack::load_from_str(yaml).unwrap();
+        let rule = pack.rule("test/ml").unwrap();
+        // Content: line 1 clean, line 2 matches, line 4 matches.
+        let content = "clean\nTODO fix this\nstill clean\nTODO another";
+        let mut lines = rule.matches_in_content(content);
+        lines.sort();
+        assert_eq!(lines, vec![2, 4], "expected matches on lines 2 and 4");
+    }
+
+    #[test]
+    fn matches_in_content_returns_empty_when_no_match_multiline() {
+        let yaml = r#"
+version: 1
+rules:
+  - id: test/ml2
+    name: ML2
+    description: ML2
+    severity: warning
+    languages: [rust]
+    match: { kind: multiline-regex, pattern: "FIXME" }
+    message: m
+"#;
+        let pack = RulePack::load_from_str(yaml).unwrap();
+        let rule = pack.rule("test/ml2").unwrap();
+        let result = rule.matches_in_content("no match here\nnor here");
+        assert_eq!(result, Vec::<usize>::new());
+    }
+
+    #[test]
+    fn matches_in_content_first_line_match_reports_line_1() {
+        let yaml = r#"
+version: 1
+rules:
+  - id: test/ml3
+    name: ML3
+    description: ML3
+    severity: warning
+    languages: [rust]
+    match: { kind: multiline-regex, pattern: "^START" }
+    message: m
+"#;
+        let pack = RulePack::load_from_str(yaml).unwrap();
+        let rule = pack.rule("test/ml3").unwrap();
+        let content = "START here\nsecond line";
+        let lines = rule.matches_in_content(content);
+        assert_eq!(lines, vec![1]);
+    }
+}

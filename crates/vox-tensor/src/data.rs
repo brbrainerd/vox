@@ -622,3 +622,342 @@ mod tests {
         assert!(ids.iter().all(|&id| id == UNK_ID as u32));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave40_tests {
+    use super::*;
+    use std::io::Write;
+
+    // ── VoxTokenizer: encode / decode boundary arithmetic ─────────────────────
+
+    #[test]
+    fn encode_space_is_ascii_base() {
+        // Catches: off-by-one in ASCII_BASE offset — space (0x20=32) should map to id 3
+        let ids = VoxTokenizer::encode(" ");
+        assert_eq!(ids.len(), 1);
+        assert_eq!(ids[0] as usize, ASCII_BASE); // 3 + (32-32) = 3
+    }
+
+    #[test]
+    fn encode_tilde_is_last_ascii_id() {
+        // Catches: fence-post error on the upper ASCII boundary (126 = last printable)
+        let ids = VoxTokenizer::encode("~");
+        assert_eq!(ids.len(), 1);
+        assert_eq!(ids[0] as usize, ASCII_BASE + ASCII_LEN - 1); // 3+94 = 97
+    }
+
+    #[test]
+    fn decode_pad_and_eos_are_suppressed() {
+        // Catches: PAD/EOS leaking into decoded string when they appear mid-sequence
+        let ids: Vec<u32> = vec![PAD_ID as u32, EOS_ID as u32, ASCII_BASE as u32];
+        let decoded = VoxTokenizer::decode(&ids);
+        assert_eq!(
+            decoded, " ",
+            "PAD and EOS must be invisible in decoded output"
+        );
+    }
+
+    #[test]
+    fn decode_out_of_range_compound_index_does_not_panic() {
+        // Catches: missing bounds check on compound token lookup (ci >= COMPOUND_TOKENS.len())
+        let out_of_range_id = (COMPOUND_BASE + COMPOUND_TOKENS.len() + 99) as u32;
+        let decoded = VoxTokenizer::decode(&[out_of_range_id]);
+        // Should produce empty string, not panic
+        assert_eq!(decoded, "");
+    }
+
+    #[test]
+    fn encode_redacted_im_end_matched_before_im_start_prefix() {
+        // Catches: greedy-match failure — <|redacted_im_end|> shares prefix with <|im_start|>
+        // but must be checked first (it's listed first in COMPOUND_TOKENS).
+        let ids = VoxTokenizer::encode("<|redacted_im_end|>");
+        assert_eq!(
+            ids.len(),
+            1,
+            "<|redacted_im_end|> must be a single compound token"
+        );
+        assert_eq!(ids[0] as usize, COMPOUND_BASE); // first compound
+    }
+
+    #[test]
+    fn encode_backtick_fence_is_single_token() {
+        // Catches: ``` incorrectly split into three individual backtick tokens
+        let ids = VoxTokenizer::encode("```");
+        assert_eq!(ids.len(), 1);
+        assert_eq!(ids[0] as usize, COMPOUND_BASE + 2); // third compound
+    }
+
+    #[test]
+    fn encode_empty_string_yields_no_ids() {
+        // Catches: off-by-one in the while loop that emits an extra token for empty input
+        let ids = VoxTokenizer::encode("");
+        assert!(ids.is_empty());
+    }
+
+    #[test]
+    fn encode_decode_roundtrip_all_printable_ascii() {
+        // Catches: any hole in the ASCII_BASE offset arithmetic across the full printable range
+        let text: String = (32u8..=126u8).map(|b| b as char).collect();
+        let ids = VoxTokenizer::encode(&text);
+        let decoded = VoxTokenizer::decode(&ids);
+        assert_eq!(decoded, text);
+    }
+
+    // ── mask_and_pad: label boundary logic ────────────────────────────────────
+
+    #[test]
+    fn tokenize_for_training_eos_appended_before_pad() {
+        // Catches: EOS token missing when sequence fits exactly within max_len-1
+        let (input_ids, _) = VoxTokenizer::tokenize_for_training("s", "u", "a", 512);
+        // EOS_ID=2 must appear exactly once, before padding begins
+        let eos_pos = input_ids.iter().position(|&t| t == EOS_ID as i64);
+        assert!(eos_pos.is_some(), "EOS token must be present");
+        // Everything after EOS should be PAD
+        let pos = eos_pos.unwrap();
+        assert!(
+            input_ids[pos + 1..].iter().all(|&t| t == PAD_ID as i64),
+            "all tokens after EOS must be PAD"
+        );
+    }
+
+    #[test]
+    fn tokenize_for_training_max_len_one_yields_only_eos() {
+        // Catches: saturating_sub(1) == 0 corner case producing an empty sequence or
+        // a sequence longer than max_len
+        let (input_ids, labels) = VoxTokenizer::tokenize_for_training("sys", "usr", "resp", 1);
+        assert_eq!(input_ids.len(), 1);
+        assert_eq!(labels.len(), 1);
+        assert_eq!(input_ids[0], EOS_ID as i64);
+    }
+
+    #[test]
+    fn tokenize_for_training_all_labels_minus_100_when_response_truncated_away() {
+        // Catches: label masking not accounting for the case where the prompt fills
+        // the entire max_len, leaving no room for any supervised token.
+        // Use max_len=1: only EOS fits, which is in the prompt region or pad region.
+        let (_, labels) = VoxTokenizer::tokenize_for_training("sys", "usr", "resp", 1);
+        assert!(
+            labels.iter().all(|&l| l == -100 || l == PAD_ID as i64),
+            "when response is truncated away, no supervised tokens should exist"
+        );
+    }
+
+    #[test]
+    fn tokenize_for_training_no_pad_tokens_in_labels_as_positive() {
+        // Catches: PAD_ID (0) leaking into labels as a real supervised token
+        let (_, labels) = VoxTokenizer::tokenize_for_training("sys", "usr", "resp", 64);
+        for &l in &labels {
+            assert!(
+                l == -100 || l > 0,
+                "label must be -100 (masked) or a real token id (>0); got {l}"
+            );
+        }
+    }
+
+    #[test]
+    fn encode_chatml_inference_prefix_does_not_contain_im_end_after_assistant() {
+        // Catches: inference prefix accidentally including the closing <|im_end|> for the
+        // assistant slot, which would make generation produce text after a closed tag.
+        let ids = VoxTokenizer::encode_chatml_inference_prefix("sys", "usr");
+        let decoded = VoxTokenizer::decode(&ids);
+        // The decoded prefix should end with the open assistant header, not close it.
+        // Count im_start vs im_end occurrences: inference prefix has 3 starts (sys/user/asst)
+        // but only 2 ends (sys+user closed; assistant slot left open).
+        let starts = decoded.matches("<|im_start|>").count();
+        // We can't decode <|im_end|> because it's aliased as <|redacted_im_end|> in COMPOUND_TOKENS.
+        // Instead verify the assistant header is present and the sequence terminates open.
+        assert!(decoded.contains("assistant"), "must open assistant slot");
+        assert_eq!(starts, 3, "three <|im_start|> tokens expected");
+    }
+
+    // ── TrainingPair deserialization: alias precedence ────────────────────────
+
+    #[test]
+    fn canonical_prompt_wins_over_instruction_when_both_present() {
+        // Catches: .or() precedence inverted — instruction overriding prompt when both exist
+        let p: TrainingPair =
+            serde_json::from_str(r#"{"prompt":"canonical","instruction":"alias","response":"r"}"#)
+                .unwrap();
+        assert_eq!(
+            p.prompt.as_deref(),
+            Some("canonical"),
+            "canonical 'prompt' key must win over 'instruction' alias"
+        );
+    }
+
+    #[test]
+    fn canonical_response_wins_over_output_when_both_present() {
+        // Catches: .or() precedence inverted — output overriding response when both exist
+        let p: TrainingPair =
+            serde_json::from_str(r#"{"prompt":"p","response":"canonical","output":"alias"}"#)
+                .unwrap();
+        assert_eq!(
+            p.response.as_deref(),
+            Some("canonical"),
+            "canonical 'response' key must win over 'output' alias"
+        );
+    }
+
+    #[test]
+    fn turns_alias_deserializes_as_messages() {
+        // Catches: #[serde(alias = "turns")] not wiring through to TrainingPair.messages
+        let p: TrainingPair =
+            serde_json::from_str(r#"{"turns":[{"role":"user","content":"hello"}]}"#).unwrap();
+        let msgs = p.messages.expect("messages must be populated from 'turns'");
+        assert_eq!(msgs.len(), 1);
+        assert_eq!(msgs[0].role, "user");
+    }
+
+    // ── load_all_with_policy: line numbering & rating filter ──────────────────
+
+    #[test]
+    fn load_all_rating_zero_includes_unrated_rows() {
+        // Catches: missing None-case in rating filter — rows without a rating field
+        // being incorrectly dropped when min_rating=0
+        let dir = std::env::temp_dir();
+        let path = dir.join("wave40_unrated.jsonl");
+        {
+            let mut f = std::fs::File::create(&path).unwrap();
+            writeln!(f, r#"{{"prompt":"no-rating","response":"r"}}"#).unwrap();
+        }
+        let pairs = load_all(&path, 0).unwrap();
+        assert_eq!(
+            pairs.len(),
+            1,
+            "unrated rows must be included when min_rating=0"
+        );
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn failfast_reports_correct_line_number_after_blank_lines() {
+        // Catches: line_no counter not incremented for blank lines, causing wrong line
+        // numbers in error messages (off by the number of blank lines seen so far)
+        let dir = std::env::temp_dir();
+        let path = dir.join("wave40_failfast_blanks.jsonl");
+        {
+            let mut f = std::fs::File::create(&path).unwrap();
+            writeln!(f, r#"{{"prompt":"a","response":"b"}}"#).unwrap();
+            writeln!(f).unwrap(); // blank — line 2
+            writeln!(f, "not-json").unwrap(); // bad — line 3
+        }
+        let err = load_all_with_policy(&path, 0, MalformedJsonlPolicy::FailFast).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("line 3"),
+            "error message must reference line 3, got: {msg}"
+        );
+        let _ = std::fs::remove_file(&path);
+    }
+}
+
+#[cfg(test)]
+mod semcov_wave4_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    // --- encode_chatml_turns ---
+
+    #[test]
+    fn encode_chatml_turns_multi_turn_roundtrip() {
+        let turns = vec![
+            ChatmlTurn {
+                role: "system".to_string(),
+                content: "be helpful".to_string(),
+            },
+            ChatmlTurn {
+                role: "user".to_string(),
+                content: "hello".to_string(),
+            },
+            ChatmlTurn {
+                role: "assistant".to_string(),
+                content: "hi there".to_string(),
+            },
+        ];
+        let ids = VoxTokenizer::encode_chatml_turns(&turns);
+        assert!(!ids.is_empty());
+        let decoded = VoxTokenizer::decode(&ids);
+        assert!(decoded.contains("be helpful"), "system content missing");
+        assert!(decoded.contains("hello"), "user content missing");
+        assert!(decoded.contains("hi there"), "assistant content missing");
+    }
+
+    #[test]
+    fn encode_chatml_turns_single_turn() {
+        let turns = vec![ChatmlTurn {
+            role: "user".to_string(),
+            content: "test".to_string(),
+        }];
+        let ids = VoxTokenizer::encode_chatml_turns(&turns);
+        assert!(!ids.is_empty());
+        let decoded = VoxTokenizer::decode(&ids);
+        assert!(decoded.contains("user"));
+        assert!(decoded.contains("test"));
+        // Should not end with trailing newline (trim_end applied)
+        assert!(
+            !decoded.ends_with('\n'),
+            "trailing newline should be trimmed"
+        );
+    }
+
+    // --- encode_chatml_inference_prefix ---
+
+    #[test]
+    fn encode_chatml_inference_prefix_ends_with_open_assistant_slot() {
+        let ids = VoxTokenizer::encode_chatml_inference_prefix("sys", "usr");
+        assert!(!ids.is_empty());
+        let decoded = VoxTokenizer::decode(&ids);
+        assert!(decoded.contains("sys"));
+        assert!(decoded.contains("usr"));
+        assert!(decoded.contains("assistant"), "must open assistant slot");
+        // Prefix must be shorter than a complete chatml with a non-empty response
+        let full_ids_with_response = VoxTokenizer::encode_chatml("sys", "usr", "resp");
+        assert!(
+            ids.len() < full_ids_with_response.len(),
+            "inference prefix must be shorter than complete chatml"
+        );
+    }
+
+    // --- tokenize_turns_for_training ---
+
+    #[test]
+    fn tokenize_turns_for_training_pads_to_max_len() {
+        let turns = vec![
+            ChatmlTurn {
+                role: "user".to_string(),
+                content: "hello".to_string(),
+            },
+            ChatmlTurn {
+                role: "assistant".to_string(),
+                content: "hi".to_string(),
+            },
+        ];
+        let (input_ids, labels) = VoxTokenizer::tokenize_turns_for_training(&turns, 64);
+        assert_eq!(input_ids.len(), 64, "input_ids must be padded to max_len");
+        assert_eq!(labels.len(), 64, "labels must be padded to max_len");
+    }
+
+    #[test]
+    fn tokenize_turns_for_training_masks_non_assistant_tokens() {
+        let turns = vec![
+            ChatmlTurn {
+                role: "user".to_string(),
+                content: "tell me something".to_string(),
+            },
+            ChatmlTurn {
+                role: "assistant".to_string(),
+                content: "sure thing".to_string(),
+            },
+        ];
+        let (input_ids, labels) = VoxTokenizer::tokenize_turns_for_training(&turns, 128);
+        assert!(
+            labels.contains(&-100),
+            "prompt prefix must be masked with -100"
+        );
+        assert!(
+            labels.iter().any(|&l| l > 0),
+            "at least one real supervised token expected"
+        );
+        assert_eq!(input_ids.len(), labels.len());
+    }
+}

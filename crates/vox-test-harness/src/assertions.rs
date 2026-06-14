@@ -40,3 +40,91 @@ pub fn assert_no_errors(diags: &[Diagnostic]) {
         errs.join("\n")
     );
 }
+
+#[cfg(test)]
+mod semcov_wave4_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use vox_compiler::ast::span::Span;
+    use vox_compiler::typeck::diagnostics::TypeckSeverity;
+
+    fn make_diag(msg: &str, sev: TypeckSeverity) -> vox_compiler::typeck::Diagnostic {
+        let span = Span { start: 0, end: 0 };
+        match sev {
+            TypeckSeverity::Error => {
+                vox_compiler::typeck::Diagnostic::error(msg.to_string(), span, "")
+            }
+            TypeckSeverity::Warning => {
+                vox_compiler::typeck::Diagnostic::warning(msg.to_string(), span, "")
+            }
+        }
+    }
+
+    #[test]
+    fn error_messages_returns_only_error_messages() {
+        let diags = vec![
+            make_diag("type mismatch", TypeckSeverity::Error),
+            make_diag("unused variable", TypeckSeverity::Warning),
+            make_diag("undefined name", TypeckSeverity::Error),
+        ];
+        let msgs = error_messages(&diags);
+        assert_eq!(msgs.len(), 2);
+        assert!(msgs.contains(&"type mismatch".to_string()));
+        assert!(msgs.contains(&"undefined name".to_string()));
+        assert!(!msgs.iter().any(|m| m.contains("unused")));
+    }
+
+    #[test]
+    fn error_messages_empty_when_no_errors() {
+        let diags = vec![make_diag("unused variable", TypeckSeverity::Warning)];
+        let msgs = error_messages(&diags);
+        assert!(msgs.is_empty());
+    }
+
+    #[test]
+    fn warning_messages_returns_only_warning_messages() {
+        let diags = vec![
+            make_diag("type mismatch", TypeckSeverity::Error),
+            make_diag("unused variable", TypeckSeverity::Warning),
+            make_diag("dead code", TypeckSeverity::Warning),
+        ];
+        let msgs = warning_messages(&diags);
+        assert_eq!(msgs.len(), 2);
+        assert!(msgs.contains(&"unused variable".to_string()));
+        assert!(msgs.contains(&"dead code".to_string()));
+        assert!(!msgs.iter().any(|m| m.contains("mismatch")));
+    }
+
+    #[test]
+    fn warning_messages_empty_when_no_warnings() {
+        let diags = vec![make_diag("type mismatch", TypeckSeverity::Error)];
+        let msgs = warning_messages(&diags);
+        assert!(msgs.is_empty());
+    }
+
+    #[test]
+    fn assert_no_errors_passes_on_empty_diags() {
+        let diags: Vec<vox_compiler::typeck::Diagnostic> = vec![];
+        assert_no_errors(&diags); // should not panic
+    }
+
+    #[test]
+    fn assert_no_errors_passes_with_only_warnings() {
+        let diags = vec![make_diag("unused", TypeckSeverity::Warning)];
+        assert_no_errors(&diags); // should not panic
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected no type errors")]
+    fn assert_no_errors_panics_on_error_diagnostic() {
+        let diags = vec![make_diag("type mismatch", TypeckSeverity::Error)];
+        assert_no_errors(&diags);
+    }
+
+    #[test]
+    #[should_panic(expected = "type mismatch")]
+    fn assert_no_errors_panic_includes_error_message() {
+        let diags = vec![make_diag("type mismatch", TypeckSeverity::Error)];
+        assert_no_errors(&diags);
+    }
+}

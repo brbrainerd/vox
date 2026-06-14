@@ -240,3 +240,73 @@ pub async fn do_completions_stream(
 
     Sse::new(stream).keep_alive(axum::response::sse::KeepAlive::new())
 }
+
+#[cfg(feature = "execution-api")]
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn parse_output_mode_label_strict_json_underscore() {
+        assert_eq!(parse_output_mode_label("strict_json"), Some("strict_json"));
+    }
+
+    #[test]
+    fn parse_output_mode_label_strict_json_hyphen() {
+        assert_eq!(parse_output_mode_label("strict-json"), Some("strict_json"));
+    }
+
+    #[test]
+    fn parse_output_mode_label_jsonl_records_underscore() {
+        assert_eq!(
+            parse_output_mode_label("jsonl_records"),
+            Some("jsonl_records")
+        );
+    }
+
+    #[test]
+    fn parse_output_mode_label_jsonl_records_hyphen() {
+        assert_eq!(
+            parse_output_mode_label("jsonl-records"),
+            Some("jsonl_records")
+        );
+    }
+
+    #[test]
+    fn parse_output_mode_label_tool_args_json_underscore() {
+        assert_eq!(
+            parse_output_mode_label("tool_args_json"),
+            Some("tool_args_json")
+        );
+    }
+
+    #[test]
+    fn parse_output_mode_label_tool_args_json_hyphen() {
+        assert_eq!(
+            parse_output_mode_label("tool-args-json"),
+            Some("tool_args_json")
+        );
+    }
+
+    #[test]
+    fn parse_output_mode_label_uppercase_normalizes() {
+        assert_eq!(parse_output_mode_label("STRICT_JSON"), Some("strict_json"));
+        assert_eq!(parse_output_mode_label("Strict-Json"), Some("strict_json"));
+    }
+
+    #[test]
+    fn parse_output_mode_label_trims_whitespace() {
+        assert_eq!(
+            parse_output_mode_label("  strict_json  "),
+            Some("strict_json")
+        );
+    }
+
+    #[test]
+    fn parse_output_mode_label_unknown_returns_none() {
+        assert_eq!(parse_output_mode_label("unknown"), None);
+        assert_eq!(parse_output_mode_label(""), None);
+        assert_eq!(parse_output_mode_label("json"), None);
+    }
+}

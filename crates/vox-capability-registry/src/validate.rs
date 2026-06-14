@@ -83,3 +83,110 @@ pub fn validate_cross_registry(
 
     errs
 }
+
+#[cfg(test)]
+mod semcov_wave9_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+    use crate::document::{CapabilityRegistryDoc, CuratedCapability};
+
+    fn minimal_doc() -> CapabilityRegistryDoc {
+        CapabilityRegistryDoc {
+            schema_version: 1,
+            auto_mcp_capabilities: true,
+            auto_cli_capabilities: false,
+            curated: vec![],
+            runtime_builtin_maps: vec![],
+            exemptions: None,
+        }
+    }
+
+    fn make_curated(id: &str, mcp_tool: Option<&str>) -> CuratedCapability {
+        CuratedCapability {
+            id: id.to_string(),
+            title: None,
+            description_human: None,
+            description_model: None,
+            intent_tags: vec![],
+            side_effect_class: None,
+            scope_kind: None,
+            reversible: None,
+            requires_repo: None,
+            requires_git: None,
+            preferred_for_models: None,
+            human_takeover_friendly: None,
+            mens_planner_visible: None,
+            mcp_tool: mcp_tool.map(str::to_string),
+            cli_path: None,
+            parameters: None,
+        }
+    }
+
+    // Catches: validate_cross_registry not detecting duplicate curated capability ids,
+    // allowing two rows with the same id to silently coexist and overwrite each other
+    // in downstream maps.
+    #[test]
+    fn duplicate_curated_id_produces_error() {
+        let mut doc = minimal_doc();
+        doc.curated = vec![
+            make_curated("mcp.my_tool", Some("my_tool")),
+            make_curated("mcp.my_tool", Some("my_tool")), // duplicate
+        ];
+        let errs = validate_cross_registry(&doc, &["my_tool".to_string()], &[]);
+        assert!(
+            errs.iter().any(|e| e.contains("duplicate")),
+            "must report duplicate id, got: {errs:?}"
+        );
+    }
+
+    // Catches: validate_cross_registry not detecting a curated row that references
+    // an MCP tool not in the active tool list, allowing stale/ghost curated entries.
+    #[test]
+    fn unknown_mcp_tool_reference_produces_error() {
+        let mut doc = minimal_doc();
+        doc.auto_mcp_capabilities = false;
+        doc.curated = vec![make_curated("mcp.ghost_tool", Some("ghost_tool"))];
+        let errs = validate_cross_registry(&doc, &[], &[]); // ghost_tool not in mcp_tools
+        assert!(
+            errs.iter().any(|e| e.contains("ghost_tool")),
+            "unknown MCP tool must be flagged, got: {errs:?}"
+        );
+    }
+
+    // Catches: validate_cross_registry accepting a curated id that doesn't match
+    // the implicit MCP id format (e.g. "oratio.transcribe" instead of "mcp.vox_oratio_transcribe"),
+    // allowing drift between id conventions.
+    #[test]
+    fn mismatched_id_vs_implicit_mcp_id_produces_error() {
+        let mut doc = minimal_doc();
+        doc.auto_mcp_capabilities = false;
+        // id is "wrong.id" but mcp_tool is "my_tool" → implicit would be "mcp.my_tool"
+        doc.curated = vec![make_curated("wrong.id", Some("my_tool"))];
+        let errs = validate_cross_registry(&doc, &["my_tool".to_string()], &[]);
+        assert!(
+            errs.iter()
+                .any(|e| e.contains("wrong.id") || e.contains("mcp.my_tool")),
+            "id mismatch must be reported, got: {errs:?}"
+        );
+    }
+
+    // Catches: validate_cross_registry returning errors for uncovered MCP tools
+    // when auto_mcp_capabilities=false, then silently passing when the flag is true —
+    // verifying the auto flag is correctly respected.
+    #[test]
+    fn auto_mcp_capabilities_true_does_not_require_curated_rows() {
+        let mut doc = minimal_doc();
+        doc.auto_mcp_capabilities = true;
+        // No curated rows, but auto_mcp_capabilities=true means all tools are auto-covered
+        let errs =
+            validate_cross_registry(&doc, &["tool_a".to_string(), "tool_b".to_string()], &[]);
+        let coverage_errs: Vec<_> = errs
+            .iter()
+            .filter(|e| e.contains("no curated row"))
+            .collect();
+        assert!(
+            coverage_errs.is_empty(),
+            "auto_mcp_capabilities=true must not require curated rows, got: {coverage_errs:?}"
+        );
+    }
+}

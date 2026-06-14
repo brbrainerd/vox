@@ -339,3 +339,74 @@ impl FileLockManager {
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::locks::{FileLockManager, LockKind};
+    use std::path::Path;
+    use vox_orchestrator_types::AgentId;
+
+    #[test]
+    fn deadlock_check_no_locks_returns_empty() {
+        let mgr = FileLockManager::new();
+        assert!(mgr.deadlock_check().is_empty());
+    }
+
+    #[test]
+    fn deadlock_check_single_agent_no_pairs() {
+        let mgr = FileLockManager::new();
+        mgr.try_acquire(Path::new("a.rs"), AgentId(1), LockKind::Exclusive)
+            .unwrap();
+        mgr.try_acquire(Path::new("b.rs"), AgentId(1), LockKind::Exclusive)
+            .unwrap();
+        // Same agent — no cross-agent pair
+        assert!(mgr.deadlock_check().is_empty());
+    }
+
+    #[test]
+    fn deadlock_check_two_agents_returns_pair() {
+        let mgr = FileLockManager::new();
+        mgr.try_acquire(Path::new("x.rs"), AgentId(1), LockKind::Exclusive)
+            .unwrap();
+        mgr.try_acquire(Path::new("y.rs"), AgentId(2), LockKind::Exclusive)
+            .unwrap();
+        let pairs = mgr.deadlock_check();
+        assert_eq!(pairs.len(), 1);
+        let (a, b, _) = &pairs[0];
+        let ids: std::collections::HashSet<_> = [a.0, b.0].iter().copied().collect();
+        assert!(ids.contains(&1) && ids.contains(&2));
+    }
+
+    #[test]
+    fn active_lock_count_reflects_held_locks() {
+        let mgr = FileLockManager::new();
+        assert_eq!(mgr.active_lock_count(), 0);
+        mgr.try_acquire(Path::new("a.rs"), AgentId(1), LockKind::Exclusive)
+            .unwrap();
+        assert_eq!(mgr.active_lock_count(), 1);
+        mgr.try_acquire(Path::new("b.rs"), AgentId(2), LockKind::Exclusive)
+            .unwrap();
+        assert_eq!(mgr.active_lock_count(), 2);
+        mgr.release(Path::new("a.rs"), AgentId(1));
+        assert_eq!(mgr.active_lock_count(), 1);
+    }
+
+    #[test]
+    fn lock_age_returns_none_for_unlocked_file() {
+        let mgr = FileLockManager::new();
+        assert!(mgr.lock_age(Path::new("missing.rs")).is_none());
+    }
+
+    #[test]
+    fn lock_age_returns_some_for_locked_file() {
+        let mgr = FileLockManager::new();
+        mgr.try_acquire(Path::new("z.rs"), AgentId(3), LockKind::Exclusive)
+            .unwrap();
+        let age = mgr.lock_age(Path::new("z.rs"));
+        assert!(age.is_some(), "expected age for held lock");
+        // Age should be very small (just acquired)
+        assert!(age.unwrap() < 5_000, "lock age should be under 5s");
+    }
+}

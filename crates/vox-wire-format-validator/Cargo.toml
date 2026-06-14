@@ -17,5 +17,8 @@ path = "src/main.rs"
 blake3 = { workspace = true }
 anyhow = { workspace = true }
 
+[dev-dependencies]
+tempfile = { workspace = true }
+
 [lints]
 workspace = true

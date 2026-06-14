@@ -2,6 +2,13 @@
   "schema": "semantic-coverage.v1",
   "note": "Production-symbol proven-coverage floors (Wave-0 corrected denominator). Enforcing gate deferred \u2014 see semantic-coverage-remediation-plan \u00a7E Task 0.4.",
   "source_commit": "a2575c27cf75b2064f1d52c441586ca16fa63f14",
+  "waves_complete": 50,
+  "total_proven_tests_added": 2333,
+  "crates_covered": 38,
+  "new_detectors": ["catch_all_swallow", "cross_crate_dup"],
+  "last_updated": "2026-06-14",
+  "gaps_targeted": 55,
+  "pr": 303,
   "totals": {
     "defs": 19445,
     "proven": 3088,

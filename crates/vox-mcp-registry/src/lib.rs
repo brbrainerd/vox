@@ -14,6 +14,8 @@ pub struct McpToolRegistryEntry {
 
 include!(concat!(env!("OUT_DIR"), "/tool_registry.rs"));
 
+mod semcov_wave46_tests;
+
 /// All A2A message type strings.
 pub const A2A_MESSAGE_TYPES: &[&str] = &[
     "plan_handoff",

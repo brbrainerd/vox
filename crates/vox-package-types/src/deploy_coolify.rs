@@ -94,3 +94,24 @@ impl Default for CoolifyDeployConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_wave3_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::deploy_coolify::CoolifyDeployConfig;
+
+    #[test]
+    fn coolify_deploy_config_default_sets_token_env() {
+        let cfg = CoolifyDeployConfig::default();
+        assert_eq!(cfg.token_env, "COOLIFY_TOKEN");
+        assert!(cfg.base_url.is_none());
+        assert!(cfg.app_uuid.is_none());
+        assert!(!cfg.force_rebuild);
+        assert!(cfg.env.is_empty());
+        assert!(cfg.env_reconciliation_mode.is_none());
+        assert!(cfg.health_endpoints.is_empty());
+        assert!(cfg.poll_interval_secs.is_none());
+        assert!(cfg.poll_timeout_secs.is_none());
+    }
+}

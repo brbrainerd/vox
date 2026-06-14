@@ -493,6 +493,102 @@ impl Drop for MonitoredCargoChild {
     }
 }
 
+#[cfg(test)]
+mod semcov_wave3_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn cargo_request_check_sets_command_and_derives_build_dir() {
+        let cwd = PathBuf::from("/proj");
+        let td = PathBuf::from("/tmp/target");
+        let req = CargoRequest::check(cwd.clone(), Some(td.clone()));
+        assert_eq!(req.command, "check");
+        assert!(req.args.is_empty());
+        assert_eq!(req.target_dir, Some(td.clone()));
+        assert_eq!(req.build_dir, Some(td.join("build")));
+        assert_eq!(req.cwd, cwd);
+    }
+
+    #[test]
+    fn cargo_request_check_no_target_dir_has_none_build_dir() {
+        let cwd = PathBuf::from("/proj");
+        let req = CargoRequest::check(cwd, None);
+        assert_eq!(req.command, "check");
+        assert!(req.target_dir.is_none());
+        assert!(req.build_dir.is_none());
+    }
+
+    #[test]
+    fn cargo_request_test_sets_command_and_passes_args() {
+        let cwd = PathBuf::from("/proj");
+        let td = PathBuf::from("/tmp/target");
+        let args = vec!["--lib".to_string(), "--no-fail-fast".to_string()];
+        let req = CargoRequest::test(cwd.clone(), Some(td.clone()), args.clone());
+        assert_eq!(req.command, "test");
+        assert_eq!(req.args, args);
+        assert_eq!(req.build_dir, Some(td.join("build")));
+    }
+
+    #[test]
+    fn cargo_request_test_none_target_dir() {
+        let cwd = PathBuf::from("/proj");
+        let req = CargoRequest::test(cwd, None, vec![]);
+        assert_eq!(req.command, "test");
+        assert!(req.build_dir.is_none());
+    }
+
+    #[test]
+    fn cargo_request_run_sets_command_and_env() {
+        let cwd = PathBuf::from("/proj");
+        let td = PathBuf::from("/tmp/target");
+        let env = vec![("VOX_PORT".to_string(), "3000".to_string())];
+        let req = CargoRequest::run(
+            cwd.clone(),
+            Some(td.clone()),
+            vec!["--bin".to_string(), "vox".to_string()],
+            env.clone(),
+        );
+        assert_eq!(req.command, "run");
+        assert_eq!(req.env, env);
+        assert_eq!(req.args, vec!["--bin", "vox"]);
+        assert_eq!(req.build_dir, Some(td.join("build")));
+    }
+
+    #[test]
+    fn cargo_request_run_no_target_dir() {
+        let cwd = PathBuf::from("/proj");
+        let req = CargoRequest::run(cwd, None, vec![], vec![]);
+        assert_eq!(req.command, "run");
+        assert!(req.build_dir.is_none());
+        assert!(req.env.is_empty());
+    }
+
+    #[test]
+    fn run_cargo_rejects_disallowed_target_dir() {
+        // A path like /repo/target-ci is forbidden by artifact policy (sprawl rule).
+        // run_cargo should bail before ever spawning cargo.
+        let root = PathBuf::from("/repo");
+        let disallowed = root.join("target-ci");
+        let req = CargoRequest {
+            command: "check".to_string(),
+            args: vec![],
+            cwd: root.clone(),
+            target_dir: Some(disallowed),
+            build_dir: None,
+            env: vec![],
+        };
+        let result = run_cargo(&req);
+        assert!(result.is_err(), "expected error for disallowed target_dir");
+        let msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            msg.contains("Disallowed target directory") || msg.contains("target-ci"),
+            "unexpected error message: {msg}"
+        );
+    }
+}
+
 /// Spawn cargo and return monitored tokio child (async, for dev/watch). Logs completion on exit (Wave 3).
 pub async fn run_cargo_spawn_async(req: &CargoRequest) -> Result<MonitoredCargoChild> {
     set_correlation_id(uuid::Uuid::new_v4().to_string());

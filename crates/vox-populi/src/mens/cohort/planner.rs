@@ -323,3 +323,115 @@ mod tests {
         assert!(!plan.recommend_single_machine);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave15_tests {
+    use super::*;
+
+    fn healthy(id: &str, vram: f64) -> CohortNode {
+        CohortNode::new(id, vram, None)
+    }
+
+    // ── Empty / boundary inputs ──────────────────────────────────────────────
+
+    #[test]
+    fn empty_node_list_does_not_panic_and_recommends_single() {
+        // Catches: panic or unwrap in plan_cohort when the input slice is empty
+        // (e.g. .iter().max_by() returning None used unwrap()).
+        let plan = plan_cohort(&[], "SomeModel", 2.0);
+        assert!(plan.included.is_empty());
+        assert!(plan.excluded.is_empty());
+        assert!(plan.recommend_single_machine);
+        assert_eq!(
+            plan.estimated_speedup, 1.0,
+            "no nodes → speedup must be 1.0"
+        );
+    }
+
+    #[test]
+    fn single_eligible_node_recommends_single_machine() {
+        // Catches: off-by-one where a length-1 included list incorrectly estimates
+        // speedup > 1 (e.g. total/max computed before the length guard).
+        let nodes = vec![healthy("a", 24.0)];
+        let plan = plan_cohort(&nodes, "Model", 2.0);
+        assert_eq!(plan.included.len(), 1);
+        assert!(plan.recommend_single_machine);
+        assert_eq!(plan.estimated_speedup, 1.0);
+    }
+
+    // ── Exclusion-reason priority ────────────────────────────────────────────
+
+    #[test]
+    fn quarantine_takes_priority_over_vram_exclusion() {
+        // Catches: exclusion_reason() checking VRAM before quarantine, causing a
+        // quarantined node to be tagged OverVramBudget instead of Quarantined.
+        let mut n = healthy("q", 1.0); // tiny VRAM — would also fail VRAM check
+        n.quarantined = true;
+        let plan = plan_cohort(&[n], "Model", 2.0);
+        assert_eq!(plan.excluded.len(), 1);
+        assert_eq!(
+            plan.excluded[0].reason,
+            ExclusionReason::Quarantined,
+            "quarantined node must be tagged Quarantined not OverVramBudget"
+        );
+    }
+
+    #[test]
+    fn maintenance_takes_priority_over_opt_out() {
+        // Catches: flag check order bug where maintenance is only checked after
+        // accepts_training, returning NotAcceptingTraining for a node in both states.
+        let mut n = healthy("m", 24.0);
+        n.maintenance = true;
+        n.accepts_training = false;
+        let plan = plan_cohort(&[n], "Model", 2.0);
+        assert_eq!(plan.excluded[0].reason, ExclusionReason::Maintenance);
+    }
+
+    // ── Speedup invariants ───────────────────────────────────────────────────
+
+    #[test]
+    fn speedup_equals_node_count_for_uniform_weight() {
+        // Catches: speedup computation bug where total is accumulated but max_single
+        // is not updated per node, fixing max at 1 and giving speedup == sum instead
+        // of sum/max (both equal n here, but the *formula* is verified).
+        let nodes: Vec<CohortNode> = (0..4).map(|i| healthy(&format!("n{i}"), 24.0)).collect();
+        let plan = plan_cohort(&nodes, "Model", 2.0);
+        let n = plan.included.len() as f64;
+        assert!(
+            (plan.estimated_speedup - n).abs() < 1e-9,
+            "uniform weight: speedup must equal included count {n}, got {}",
+            plan.estimated_speedup
+        );
+    }
+
+    #[test]
+    fn adding_eligible_node_never_decreases_speedup() {
+        // Catches: a bug where the speedup formula divides by sum instead of max,
+        // which decreases speedup as more low-weight nodes join.
+        let base: Vec<CohortNode> = (0..3).map(|i| healthy(&format!("n{i}"), 24.0)).collect();
+        let mut extended = base.clone();
+        extended.push(healthy("n3", 24.0));
+
+        let p_base = plan_cohort(&base, "Model", 2.0);
+        let p_ext = plan_cohort(&extended, "Model", 2.0);
+
+        assert!(
+            p_ext.estimated_speedup >= p_base.estimated_speedup - 1e-9,
+            "adding an eligible node must not decrease speedup: {} → {}",
+            p_base.estimated_speedup,
+            p_ext.estimated_speedup
+        );
+    }
+
+    #[test]
+    fn all_nodes_excluded_speedup_is_one_not_nan() {
+        // Catches: 0.0/0.0 NaN when total==0 and max_single==0 (all excluded).
+        let nodes = vec![healthy("tiny", 1.0)]; // too small for 70B
+        let plan = plan_cohort(&nodes, "Huge-70B", 70.0);
+        assert!(
+            plan.estimated_speedup.is_finite() && plan.estimated_speedup == 1.0,
+            "all-excluded plan must have speedup=1.0, got {}",
+            plan.estimated_speedup
+        );
+    }
+}

@@ -179,6 +179,144 @@ impl CostAggregator {
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
+mod semcov_wave13_tests {
+    use super::*;
+
+    fn rec(agent: &str, cost: f64) -> CostRecord {
+        CostRecord::new_ephemeral(agent, "openrouter", Some("m".into()), 100, 50, cost)
+    }
+
+    // ── avg_cost_per_call math ─────────────────────────────────────────────
+
+    #[test]
+    fn avg_cost_zero_calls_is_zero_not_nan() {
+        // Catches: division by zero returning NaN instead of 0.0
+        let s = CostSummary::default();
+        assert_eq!(s.avg_cost_per_call(), 0.0);
+        assert!(!s.avg_cost_per_call().is_nan());
+    }
+
+    #[test]
+    fn avg_cost_single_call_equals_total() {
+        // Catches: off-by-one in call_count; avg != cost when count wrong
+        let mut s = CostSummary::default();
+        s.add(&rec("a", 0.42));
+        assert!((s.avg_cost_per_call() - 0.42).abs() < 1e-12);
+    }
+
+    #[test]
+    fn avg_cost_two_calls_is_half_total() {
+        // Catches: avg formula divides by wrong denominator
+        let mut s = CostSummary::default();
+        s.add(&rec("a", 0.20));
+        s.add(&rec("a", 0.40));
+        let avg = s.avg_cost_per_call();
+        assert!((avg - 0.30).abs() < 1e-12, "avg={avg}");
+    }
+
+    // ── budget_alert threshold ─────────────────────────────────────────────
+
+    #[test]
+    fn budget_alert_false_at_exactly_80_percent() {
+        // Catches: > vs >= boundary: 80% should NOT trigger alert (strictly > 0.8)
+        let mut agg = CostAggregator::new();
+        agg.set_budget_limit("a", 1.00);
+        agg.record(rec("a", 0.80)); // exactly 80%
+        assert!(
+            !agg.budget_alert("a"),
+            "alert should be false at exactly 80% (boundary is exclusive)"
+        );
+    }
+
+    #[test]
+    fn budget_alert_true_at_80_percent_plus_epsilon() {
+        // Catches: wrong threshold direction (< instead of >)
+        let mut agg = CostAggregator::new();
+        agg.set_budget_limit("a", 1.00);
+        agg.record(rec("a", 0.80001));
+        assert!(agg.budget_alert("a"), "alert should fire just above 80%");
+    }
+
+    #[test]
+    fn budget_remaining_negative_when_over_budget() {
+        // Catches: budget_remaining returning None or 0 instead of negative
+        let mut agg = CostAggregator::new();
+        agg.set_budget_limit("a", 1.00);
+        agg.record(rec("a", 1.50));
+        let remaining = agg.budget_remaining("a").unwrap();
+        assert!(
+            remaining < 0.0,
+            "remaining={remaining} should be negative when over budget"
+        );
+    }
+
+    // ── token accumulation ─────────────────────────────────────────────────
+
+    #[test]
+    fn tokens_accumulate_across_calls() {
+        // Catches: add() overwriting instead of accumulating token counts
+        let mut s = CostSummary::default();
+        s.add(&CostRecord::new_ephemeral("a", "p", None, 100, 50, 0.0));
+        s.add(&CostRecord::new_ephemeral("a", "p", None, 200, 75, 0.0));
+        assert_eq!(s.total_input_tokens, 300);
+        assert_eq!(s.total_output_tokens, 125);
+    }
+
+    // ── no cross-agent leakage ─────────────────────────────────────────────
+
+    #[test]
+    fn agent_summary_does_not_include_other_agents() {
+        // Catches: total_summary used instead of agent-filtered summary
+        let mut agg = CostAggregator::new();
+        agg.record(rec("agent-A", 5.0));
+        agg.record(rec("agent-B", 3.0));
+        let summary = agg.agent_summary("agent-A");
+        assert_eq!(summary.call_count, 1);
+        assert!((summary.total_cost_usd - 5.0).abs() < 1e-12);
+    }
+
+    // ── by_provider breakdown ─────────────────────────────────────────────
+
+    #[test]
+    fn by_provider_accumulates_across_calls_same_provider() {
+        // Catches: by_provider inserting instead of summing per provider
+        let mut s = CostSummary::default();
+        s.add(&CostRecord::new_ephemeral(
+            "a",
+            "openrouter",
+            None,
+            10,
+            5,
+            1.0,
+        ));
+        s.add(&CostRecord::new_ephemeral(
+            "a",
+            "openrouter",
+            None,
+            20,
+            10,
+            2.0,
+        ));
+        let cost = s.by_provider.get("openrouter").copied().unwrap_or(0.0);
+        assert!((cost - 3.0).abs() < 1e-12, "by_provider cost={cost}");
+    }
+
+    // ── model-less record handled ─────────────────────────────────────────
+
+    #[test]
+    fn record_with_no_model_skips_by_model_entry() {
+        // Catches: unwrap() on None model panicking instead of skipping
+        let mut s = CostSummary::default();
+        s.add(&CostRecord::new_ephemeral("a", "p", None, 10, 5, 0.5));
+        assert!(
+            s.by_model.is_empty(),
+            "no model → by_model should remain empty"
+        );
+        assert_eq!(s.call_count, 1);
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

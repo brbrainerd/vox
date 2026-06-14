@@ -113,3 +113,71 @@ impl BuiltinRegistry {
         self.namespaces.get(ns).copied()
     }
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn lookup_method_exact_arity_returns_known_lowering() {
+        let reg = BuiltinRegistry::standard();
+        // str.length() with arity 0 → Property("length")
+        let result = reg.lookup_method("str", "length", 0);
+        assert_eq!(result, Some(BuiltinLowering::Property("length")));
+    }
+
+    #[test]
+    fn lookup_method_arity_mismatch_falls_back_to_name_scan() {
+        let reg = BuiltinRegistry::standard();
+        // str.split has arity=1 registered; ask with arity=99 → falls back via name scan
+        let result = reg.lookup_method("str", "split", 99);
+        // Should still find the MethodRename via the fuzzy scan
+        assert!(result.is_some(), "expected fallback hit for str.split/99");
+        assert!(matches!(
+            result,
+            Some(BuiltinLowering::MethodRename("split"))
+        ));
+    }
+
+    #[test]
+    fn lookup_method_no_type_hint_resolves_unambiguous_property() {
+        let reg = BuiltinRegistry::standard();
+        // Both str.length and list.length map to Property("length") with arity 0.
+        // The no-type-hint path should resolve this when both agree.
+        let result = reg.lookup_method("", "length", 0);
+        assert_eq!(result, Some(BuiltinLowering::Property("length")));
+    }
+
+    #[test]
+    fn lookup_method_returns_none_for_unknown_method() {
+        let reg = BuiltinRegistry::standard();
+        let result = reg.lookup_method("str", "nonexistent_method_xyz", 0);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn lookup_function_exact_hit_returns_inline() {
+        let reg = BuiltinRegistry::standard();
+        let result = reg.lookup_function("std.time.now_ms", 0);
+        assert_eq!(result, Some(BuiltinLowering::Inline("Date.now()")));
+    }
+
+    #[test]
+    fn lookup_function_arity_fallback_still_finds_by_name() {
+        let reg = BuiltinRegistry::standard();
+        // print is registered with arity=1; ask with arity=99
+        let result = reg.lookup_function("print", 99);
+        assert!(result.is_some(), "fallback by name should find print");
+        assert!(matches!(
+            result,
+            Some(BuiltinLowering::FunctionRename("console.log"))
+        ));
+    }
+
+    #[test]
+    fn lookup_function_unknown_returns_none() {
+        let reg = BuiltinRegistry::standard();
+        assert!(reg.lookup_function("totally_unknown_fn", 0).is_none());
+    }
+}

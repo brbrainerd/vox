@@ -1116,7 +1116,237 @@ mod tests {
         );
     }
 
+    // -----------------------------------------------------------------------
+    // semcov_wave14_tests — adversarial WebIR validation
+    // -----------------------------------------------------------------------
+
     #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__dom_id_oob_fires_correct_code() {
+        // Catches: check_dom_id returning wrong diagnostic code, or the OOB guard
+        // not triggering when id == len (boundary: id exactly at len is out-of-range).
+        use crate::web_ir::{DomNode, DomNodeId, WebIrModule};
+        let mut m = WebIrModule::default();
+        m.dom_nodes.push(DomNode::Element {
+            id: DomNodeId(0),
+            tag: "div".to_string(),
+            attrs: vec![],
+            children: vec![],
+            span: None,
+        });
+        // Point the view root at id=1, which is len=1 (one past the end).
+        m.view_roots.push(("Root".to_string(), DomNodeId(1)));
+        let diags = validate_web_ir(&m);
+        assert!(
+            diags.iter().any(|d| d.code == "web_ir_validate.dom.id_oob"),
+            "OOB DomNodeId must emit id_oob diagnostic, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__duplicate_route_contract_id_fires() {
+        // Catches: seen-set insertion returning true for every id instead of only
+        // on genuinely first-seen entries, missing the second duplicate.
+        use crate::web_ir::WebIrModule;
+        let mut m = WebIrModule::default();
+        m.route_nodes.push(RouteNode::RouteTree {
+            routes: vec![
+                make_route("dup_id", "/a", None),
+                make_route("dup_id", "/b", None),
+            ],
+            span: None,
+        });
+        let diags = validate_web_ir(&m);
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.route.duplicate_contract_id"),
+            "duplicate RouteContract id must produce diagnostic, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__empty_loader_id_and_contract_both_fire() {
+        // Catches: early-return after the first error suppressing the second
+        // diagnostic; both empty-id and empty-contract must fire independently.
+        use crate::web_ir::WebIrModule;
+        let mut m = WebIrModule::default();
+        m.route_nodes.push(RouteNode::LoaderContract {
+            route_id: "".to_string(),
+            contract: "".to_string(),
+            span: None,
+        });
+        let diags = validate_web_ir(&m);
+        let codes: Vec<&str> = diags.iter().map(|d| d.code.as_str()).collect();
+        assert!(
+            codes.contains(&"web_ir_validate.route.empty_loader_id"),
+            "empty route_id must fire empty_loader_id, got: {codes:?}"
+        );
+        assert!(
+            codes.contains(&"web_ir_validate.route.empty_loader_contract"),
+            "empty contract must fire empty_loader_contract, got: {codes:?}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__required_state_without_initial_fires() {
+        // Catches: let-binding guard inverted so Required-with-initial passes but
+        // Required-without-initial is incorrectly silenced.
+        use crate::web_ir::{BehaviorNode, FieldOptionality, WebIrModule};
+        let mut m = WebIrModule::default();
+        m.behavior_nodes.push(BehaviorNode::StateDecl {
+            name: "counter".to_string(),
+            initial: None, // Required but no initial value.
+            optionality: FieldOptionality::Required,
+            span: None,
+        });
+        let diags = validate_web_ir(&m);
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.behavior.required_state_without_initial"),
+            "Required StateDecl without initial must fire diagnostic, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__literal_hex_color_fires_correct_code() {
+        // Catches: hex-color pattern not matching 6-digit lowercase hex, or the
+        // diagnostic code being swapped with literal_dimension_value.
+        use crate::web_ir::{StyleDeclarationValue, StyleNode, StyleSelector, WebIrModule};
+        let mut m = WebIrModule::default();
+        m.style_nodes.push(StyleNode::Rule {
+            selector: StyleSelector::Class("btn".to_string()),
+            declarations: vec![(
+                "color".to_string(),
+                StyleDeclarationValue::Raw("#ff0000".to_string()),
+            )],
+            specificity: (0, 1, 0),
+            is_raw_css: false,
+            span: None,
+        });
+        let diags = validate_web_ir(&m);
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.style.literal_color_value"),
+            "hex color must fire literal_color_value, got: {diags:?}"
+        );
+        assert!(
+            !diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.style.literal_dimension_value"),
+            "hex color must NOT fire literal_dimension_value, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__literal_dimension_px_fires_correct_code() {
+        // Catches: dimension suffix list missing "px", or the value parsed as a color.
+        use crate::web_ir::{StyleDeclarationValue, StyleNode, StyleSelector, WebIrModule};
+        let mut m = WebIrModule::default();
+        m.style_nodes.push(StyleNode::Rule {
+            selector: StyleSelector::Class("box".to_string()),
+            declarations: vec![(
+                "margin".to_string(),
+                StyleDeclarationValue::Raw("16px".to_string()),
+            )],
+            specificity: (0, 1, 0),
+            is_raw_css: false,
+            span: None,
+        });
+        let diags = validate_web_ir(&m);
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.style.literal_dimension_value"),
+            "16px must fire literal_dimension_value, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__empty_interop_component_fires() {
+        // Catches: validate_interop checking import_source before component, so an
+        // empty component with non-empty import_source silently passes.
+        use crate::web_ir::{InteropNode, WebIrModule};
+        let mut m = WebIrModule::default();
+        m.interop_nodes.push(InteropNode::ReactComponentRef {
+            component: "".to_string(),
+            import_source: "react-dom".to_string(),
+            props: vec![],
+            span: None,
+        });
+        let diags = validate_web_ir(&m);
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.interop.empty_component"),
+            "empty ReactComponentRef.component must fire diagnostic, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__format_failure_invariant_no_trailing_semicolon() {
+        // Invariant: format_web_ir_validate_failure joins with "; " so a single
+        // diagnostic must not be suffixed with a dangling semicolon.
+        let diag = WebIrDiagnostic {
+            code: "web_ir_validate.dom.id_oob".to_string(),
+            message: "test".to_string(),
+            span: None,
+            category: Some("dom".to_string()),
+        };
+        let s = format_web_ir_validate_failure(&[diag]);
+        assert!(
+            !s.ends_with(';'),
+            "single-diag format must not end with semicolon, got: {s:?}"
+        );
+        // And two diagnostics must have exactly one separator.
+        let d2 = WebIrDiagnostic {
+            code: "web_ir_validate.route.unreachable".to_string(),
+            message: "m2".to_string(),
+            span: None,
+            category: Some("route".to_string()),
+        };
+        let s2 = format_web_ir_validate_failure(&[
+            WebIrDiagnostic {
+                code: "a".to_string(),
+                message: "x".to_string(),
+                span: None,
+                category: None,
+            },
+            d2,
+        ]);
+        assert_eq!(
+            s2.matches("; ").count(),
+            1,
+            "two diags must have exactly one separator, got: {s2:?}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__empty_module_yields_no_diagnostics() {
+        // Boundary: an empty WebIrModule (no dom, routes, behaviors, styles) must
+        // produce zero diagnostics — catches validators that iterate empty vecs but
+        // still push a sentinel error.
+        use crate::web_ir::WebIrModule;
+        let m = WebIrModule::default();
+        let diags = validate_web_ir(&m);
+        assert!(
+            diags.is_empty(),
+            "empty module must yield no diagnostics, got: {diags:?}"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
     fn orphan_link_does_not_suppress_unreachable_warning() {
         // An <a href="/about"> that is NOT reachable from any view root (orphan)
         // must not prevent the route.unreachable warning.

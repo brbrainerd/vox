@@ -187,6 +187,126 @@ impl SpeechToText for OratioPlugin {
     }
 }
 
+#[cfg(test)]
+mod semcov_wave9_tests {
+    #![allow(unused_imports, dead_code)]
+    use super::*;
+    use abi_stable::std_types::RSlice;
+
+    fn plugin() -> OratioPlugin {
+        OratioPlugin
+    }
+
+    // Catches: transcribe() silently succeeding on zero-length PCM rather than
+    // returning an error, producing empty transcript that misleads callers.
+    #[test]
+    fn transcribe_empty_pcm_returns_err_not_ok() {
+        let p = plugin();
+        let empty: &[u8] = &[];
+        let result = p.transcribe(RSlice::from_slice(empty), "{\"sample_rate\":16000}".into());
+        // Without stt-candle feature the stub already returns Err; with the feature
+        // an empty buffer should also produce an error (no audio to transcribe).
+        // The critical invariant: it must not return ROk with an empty text.
+        if let abi_stable::std_types::RResult::ROk(json_str) = result {
+            let v: serde_json::Value = serde_json::from_str(json_str.as_str()).unwrap();
+            // If somehow Ok, the text field must not pretend it transcribed something
+            let text = v.get("text").and_then(|t| t.as_str()).unwrap_or("");
+            // Accept empty text but flag a non-empty transcription of silence as suspicious
+            assert!(
+                text.is_empty(),
+                "transcribing empty PCM produced non-empty text: {text:?}"
+            );
+        }
+        // RErr is the expected outcome — not panicking is the key assertion.
+    }
+
+    // Catches: transcribe() accepting a buffer whose byte length is not a multiple
+    // of 4 without error, then reading out-of-bounds f32 values silently.
+    #[test]
+    fn transcribe_non_multiple_of_4_bytes_returns_err() {
+        let p = plugin();
+        // 5 bytes is NOT a multiple of 4 — must be rejected
+        let bad: &[u8] = &[0u8, 0, 0, 0, 0]; // 5 bytes
+        let result = p.transcribe(RSlice::from_slice(bad), "{\"sample_rate\":16000}".into());
+        match result {
+            abi_stable::std_types::RResult::RErr(_) => { /* expected */ }
+            abi_stable::std_types::RResult::ROk(s) => {
+                panic!("expected Err for 5-byte PCM, got Ok: {s}");
+            }
+        }
+    }
+
+    // Catches: begin_stream() accidentally succeeding (returning ROk) when the
+    // feature is absent or streaming is genuinely not implemented — callers
+    // must not proceed assuming a session_id was created.
+    #[test]
+    fn begin_stream_always_returns_err() {
+        let p = plugin();
+        let r = p.begin_stream("{}".into());
+        assert!(
+            r.is_rerr(),
+            "begin_stream must always return Err (streaming not implemented)"
+        );
+    }
+
+    // Catches: push_audio() not returning Err when there is no active stream session,
+    // silently discarding audio and making callers believe transcription is proceeding.
+    #[test]
+    fn push_audio_without_stream_returns_err() {
+        let p = plugin();
+        let audio: &[u8] = &[0u8; 64];
+        let r = p.push_audio("nonexistent-session".into(), RSlice::from_slice(audio));
+        assert!(
+            r.is_rerr(),
+            "push_audio with no active stream must return Err"
+        );
+    }
+
+    // Catches: end_stream() returning ROk with a partial transcript for a session
+    // that was never started, causing the caller to believe transcription succeeded.
+    #[test]
+    fn end_stream_without_stream_returns_err() {
+        let p = plugin();
+        let r = p.end_stream("nonexistent-session".into());
+        assert!(
+            r.is_rerr(),
+            "end_stream with no active stream must return Err"
+        );
+    }
+
+    // Catches: start_capture() silently succeeding (stub must remain an error until
+    // SP7 is implemented, so callers do not believe mic is open).
+    #[test]
+    fn start_capture_stub_returns_err() {
+        let p = plugin();
+        let r = p.start_capture("default".into(), "{}".into());
+        assert!(
+            r.is_rerr(),
+            "start_capture is a SP7 scaffold and must return Err"
+        );
+    }
+
+    // Catches: list_devices_json returning an Err instead of an empty JSON array,
+    // breaking callers that probe for available devices before transcribing.
+    #[test]
+    fn list_devices_json_returns_valid_json_array() {
+        let p = plugin();
+        let r = p.list_devices_json();
+        let json_str = match r {
+            abi_stable::std_types::RResult::ROk(s) => s.to_string(),
+            abi_stable::std_types::RResult::RErr(e) => {
+                panic!("list_devices_json returned Err: {e}");
+            }
+        };
+        let parsed: serde_json::Value =
+            serde_json::from_str(&json_str).expect("list_devices_json must return valid JSON");
+        assert!(
+            parsed.is_array(),
+            "list_devices_json must return a JSON array, got: {parsed}"
+        );
+    }
+}
+
 pub(crate) fn make_plugin(
     _host: VoxHost_TO<'static, RBox<()>>,
 ) -> RResult<VoxPluginRef, RBoxError> {

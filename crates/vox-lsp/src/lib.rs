@@ -503,3 +503,154 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_wave3_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    // --- byte_index_to_line_col ---
+
+    #[test]
+    fn byte_index_to_line_col_first_line_start() {
+        let text = "hello\nworld\n";
+        let (line, col) = byte_index_to_line_col(text, 0);
+        assert_eq!(line, 0);
+        assert_eq!(col, 0);
+    }
+
+    #[test]
+    fn byte_index_to_line_col_second_line() {
+        let text = "hello\nworld\n";
+        // 'w' is at byte index 6 (after "hello\n")
+        let (line, col) = byte_index_to_line_col(text, 6);
+        assert_eq!(line, 1);
+        assert_eq!(col, 0);
+    }
+
+    // --- quickfixes_for_diagnostics ---
+
+    #[test]
+    fn quickfixes_for_diagnostics_empty_input_returns_empty() {
+        use std::str::FromStr;
+        use tower_lsp_server::ls_types::Uri;
+        let uri = Uri::from_str("file:///tmp/test.vox").unwrap();
+        let result = quickfixes_for_diagnostics(uri, &[]);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn quickfixes_for_diagnostics_diagnostic_without_data_skipped() {
+        use std::str::FromStr;
+        use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, Position, Range, Uri};
+        let uri = Uri::from_str("file:///tmp/test.vox").unwrap();
+        let diag = Diagnostic {
+            range: Range {
+                start: Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: Position {
+                    line: 0,
+                    character: 5,
+                },
+            },
+            severity: Some(DiagnosticSeverity::ERROR),
+            message: "something wrong".to_string(),
+            source: Some("vox-lsp".to_string()),
+            data: None,
+            ..Default::default()
+        };
+        let result = quickfixes_for_diagnostics(uri, &[diag]);
+        assert!(
+            result.is_empty(),
+            "diagnostic with no data should produce no quickfixes"
+        );
+    }
+
+    // --- server_capabilities ---
+
+    #[test]
+    fn server_capabilities_hover_provider_is_true() {
+        use tower_lsp_server::ls_types::HoverProviderCapability;
+        let caps = crate::capabilities::server_capabilities();
+        assert!(
+            matches!(
+                caps.hover_provider,
+                Some(HoverProviderCapability::Simple(true))
+            ),
+            "hover_provider must be Simple(true)"
+        );
+    }
+
+    #[test]
+    fn server_capabilities_code_action_provider_set() {
+        use tower_lsp_server::ls_types::CodeActionProviderCapability;
+        let caps = crate::capabilities::server_capabilities();
+        assert!(
+            matches!(
+                caps.code_action_provider,
+                Some(CodeActionProviderCapability::Simple(true))
+            ),
+            "code_action_provider must be set"
+        );
+    }
+
+    // --- token_to_semantic_type ---
+
+    #[test]
+    fn token_to_semantic_type_keyword_returns_two() {
+        use vox_compiler::lexer::token::Token;
+        let result = crate::grammar::token_to_semantic_type(&Token::Fn);
+        assert_eq!(result, Some(2), "Fn token must map to KEYWORD (index 2)");
+    }
+
+    #[test]
+    fn token_to_semantic_type_punctuation_returns_none() {
+        use vox_compiler::lexer::token::Token;
+        let result = crate::grammar::token_to_semantic_type(&Token::Eof);
+        assert!(
+            result.is_none(),
+            "Eof token must not produce a semantic token type"
+        );
+    }
+
+    // --- encode_semantic_tokens ---
+
+    #[test]
+    fn encode_semantic_tokens_empty_source_returns_empty() {
+        let tokens = crate::grammar::encode_semantic_tokens("");
+        assert!(
+            tokens.is_empty(),
+            "empty source must produce no semantic tokens"
+        );
+    }
+
+    // --- builtin_hover_markdown (gap: unknown word returns None) ---
+
+    #[test]
+    fn builtin_hover_markdown_unknown_word_returns_none() {
+        assert!(
+            builtin_hover_markdown("totally_unknown_symbol_xyz").is_none(),
+            "builtin_hover_markdown must return None for unknown words"
+        );
+    }
+
+    // --- validate_document_with_hir (gap: error path) ---
+
+    #[test]
+    fn validate_document_with_hir_syntax_error_produces_diagnostic() {
+        let diags = validate_document_with_hir("fn broken(");
+        assert!(
+            !diags.is_empty(),
+            "malformed syntax must produce at least one diagnostic via validate_document_with_hir"
+        );
+        assert!(
+            diags.iter().any(|d| {
+                use tower_lsp_server::ls_types::DiagnosticSeverity;
+                d.severity == Some(DiagnosticSeverity::ERROR)
+            }),
+            "at least one ERROR severity diagnostic expected for unclosed paren"
+        );
+    }
+}
