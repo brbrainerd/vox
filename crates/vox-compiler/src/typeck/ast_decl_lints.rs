@@ -351,7 +351,9 @@ fn first_shallow_pure_violation_in_expr(e: &Expr) -> Option<crate::ast::span::Sp
         // side_effect blocks are sanctioned non-determinism; skip them in the pure-fn check.
         | Expr::SideEffect { .. }
         // workflow.version is a metadata marker; not a pure violation.
-        | Expr::WorkflowVersion(_) => None,
+        | Expr::WorkflowVersion(_)
+        // when{} view arms — exhaustiveness is handled separately by the async_view typeck pass.
+        | Expr::AsyncView { .. } => None,
     }
 }
 
