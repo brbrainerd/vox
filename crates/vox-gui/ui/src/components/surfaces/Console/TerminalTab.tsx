@@ -107,7 +107,14 @@ export function TerminalTab({ tabId, pendingLine, onBlock }: Props) {
     }
   }, [pendingLine, tabId]);
 
-  return <div ref={hostRef} aria-label="terminal" style={{ height: '100%', width: '100%' }} />;
+  return (
+    <div
+      ref={hostRef}
+      role="application"
+      aria-label="terminal"
+      style={{ height: '100%', width: '100%' }}
+    />
+  );
 }
 
 /**

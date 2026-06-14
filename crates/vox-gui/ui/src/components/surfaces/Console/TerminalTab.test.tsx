@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, cleanup, waitFor } from '@testing-library/react';
+import { render, cleanup, waitFor, screen } from '@testing-library/react';
 import React from 'react';
 
 const spawnMock = vi.fn().mockResolvedValue(undefined);
@@ -53,6 +53,12 @@ describe('TerminalTab', () => {
     spawnMock.mockClear();
     writeMock.mockClear();
     oscHandler = null;
+  });
+
+  it('exposes the host as a labeled application region', () => {
+    render(<TerminalTab tabId="tab-1" pendingLine={null} />);
+    const host = screen.getByLabelText('terminal');
+    expect(host.getAttribute('role')).toBe('application');
   });
 
   it('spawns a PTY for its tab id on mount', async () => {
