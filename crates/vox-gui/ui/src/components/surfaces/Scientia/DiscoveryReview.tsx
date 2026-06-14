@@ -202,6 +202,16 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
     }
   }, [selectedId, pubId, pushToast]);
 
+  // Esc closes the nanopublish confirm overlay.
+  useEffect(() => {
+    if (!confirmOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setConfirmOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [confirmOpen]);
+
   return (
     <section className="space-y-4">
       {/* header + publication input */}
@@ -221,6 +231,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
             className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 font-mono text-[12px] text-zinc-200 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
           />
           <button
+            type="button"
             onClick={refresh}
             disabled={loading}
             className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-white/[0.06] disabled:opacity-40"
@@ -238,7 +249,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
               Awaiting Review ({queue.length})
             </span>
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-col" aria-live="polite">
             {!pubId.trim() && (
               <div className="px-4 py-8 text-center font-mono text-[11px] text-zinc-600">
                 Enter a publication id to load its review queue.
@@ -253,7 +264,9 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
               const active = c.claim_id === selectedId;
               return (
                 <button
+                  type="button"
                   key={c.claim_id}
+                  aria-pressed={active}
                   onClick={() => {
                     setSelectedId(c.claim_id);
                     setReason('');
@@ -275,7 +288,7 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                   </div>
                   <div className="mt-1 text-[12.5px] leading-snug text-zinc-300">{c.text}</div>
                   <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-zinc-500">
-                    {c.confidence != null && <span className="text-brass">★ {c.confidence.toFixed(2)}</span>}
+                    {c.confidence != null && <span className="text-brass"><span aria-hidden="true">★</span> {c.confidence.toFixed(2)}</span>}
                     {c.is_numeric && <span>numeric</span>}
                   </div>
                 </button>
@@ -347,32 +360,36 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
 
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   disabled={busy}
                   onClick={() => decide('approved')}
                   className="flex items-center gap-1.5 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-[12px] text-emerald-200 hover:bg-emerald-400/15 disabled:opacity-40"
                 >
-                  ✓ Approve
+                  <span aria-hidden="true">✓</span> Approve
                 </button>
                 <button
+                  type="button"
                   disabled={busy}
                   onClick={() => decide('rejected')}
                   className="flex items-center gap-1.5 rounded-lg border border-rose-400/30 bg-rose-400/[0.07] px-4 py-2 text-[12px] text-rose-200 hover:bg-rose-400/10 disabled:opacity-40"
                 >
-                  ✗ Reject
+                  <span aria-hidden="true">✗</span> Reject
                 </button>
                 <button
+                  type="button"
                   disabled={busy}
                   onClick={() => decide('deferred')}
                   className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.02] px-4 py-2 text-[12px] text-zinc-300 hover:bg-white/[0.05] disabled:opacity-40"
                 >
-                  ⏸ Defer
+                  <span aria-hidden="true">⏸</span> Defer
                 </button>
                 <button
+                  type="button"
                   disabled={busy}
                   onClick={doSuggest}
                   className="ml-auto flex items-center gap-1.5 rounded-lg border border-violet-400/30 bg-violet-400/[0.07] px-4 py-2 text-[12px] text-violet-200 hover:bg-violet-400/10 disabled:opacity-40"
                 >
-                  ✦ Suggest evidence improvements (LLM)
+                  <span aria-hidden="true">✦</span> Suggest evidence improvements (LLM)
                 </button>
               </div>
 
@@ -400,11 +417,12 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
                   </div>
                   <div className="mt-3 flex items-center gap-3">
                     <button
+                      type="button"
                       disabled={busy}
                       onClick={() => setConfirmOpen(true)}
                       className="flex items-center gap-2 rounded-lg border border-brass/40 bg-brass/15 px-4 py-2 text-[12px] text-brass hover:bg-brass/25 disabled:opacity-40"
                     >
-                      ⬆ Nanopublish (offline)
+                      <span aria-hidden="true">⬆</span> Nanopublish (offline)
                     </button>
                     <span className="font-mono text-[10px] text-zinc-500">
                       builds + signs + offline-validates, stores locally · no network
@@ -419,8 +437,18 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
 
       {/* confirm dialog */}
       {confirmOpen && selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,.6)' }}>
-          <div className="w-[460px] rounded-xl border border-white/10 bg-zinc-950/90 p-5 backdrop-blur-xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,.6)' }}
+          onClick={() => setConfirmOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Nanopublish claim #${selected.claim_id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="w-[460px] rounded-xl border border-white/10 bg-zinc-950/90 p-5 backdrop-blur-xl"
+          >
             <div className="mb-1 font-display text-[11px] uppercase tracking-[0.2em] text-brass">
               Nanopublish claim #{selected.claim_id} (offline)
             </div>
@@ -435,12 +463,14 @@ export function DiscoveryReview({ pushToast }: SurfaceDecoratorProps) {
             </div>
             <div className="mt-5 flex items-center justify-end gap-2">
               <button
+                type="button"
                 onClick={() => setConfirmOpen(false)}
                 className="rounded-lg border border-white/10 bg-white/[0.02] px-4 py-2 text-[12px] text-zinc-300 hover:bg-white/5"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 disabled={busy}
                 onClick={doNanopublish}
                 className="rounded-lg border border-brass/40 bg-brass/20 px-4 py-2 text-[12px] text-brass hover:bg-brass/30 disabled:opacity-40"

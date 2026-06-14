@@ -31,4 +31,16 @@ describe('DiscoveryReview', () => {
       screen.getByText('Enter a publication id to load its review queue.'),
     ).toBeTruthy();
   });
+
+  it('every button carries an explicit type="button"', () => {
+    render(<DiscoveryReview pushToast={vi.fn()} />);
+    for (const b of screen.getAllByRole('button')) {
+      expect(b.getAttribute('type')).toBe('button');
+    }
+  });
+
+  it('marks the awaiting-review queue as an aria-live region', () => {
+    const { container } = render(<DiscoveryReview pushToast={vi.fn()} />);
+    expect(container.querySelector('[aria-live="polite"]')).toBeTruthy();
+  });
 });
