@@ -13,6 +13,7 @@ pub fn emit_library_package_json(config: LibraryPackageConfig) -> String {
         has_schemas,
         has_openapi,
         has_schema_ts,
+        component_names,
     } = config;
 
     let mut exports = Map::new();
@@ -31,6 +32,12 @@ pub fn emit_library_package_json(config: LibraryPackageConfig) -> String {
     }
     if has_openapi {
         exports.insert("./openapi.json".to_string(), json!("./openapi.json"));
+    }
+    for name in &component_names {
+        exports.insert(
+            format!("./components/{name}"),
+            json!(format!("./components/{name}.tsx")),
+        );
     }
 
     let pkg = json!({
@@ -55,6 +62,8 @@ pub struct LibraryPackageConfig {
     pub has_openapi: bool,
     /// `schema.ts` from `@table` emit (distinct from Zod `schemas.ts`).
     pub has_schema_ts: bool,
+    /// Vox components emitted as `.tsx` files; each gets a `./components/<Name>` export entry.
+    pub component_names: Vec<String>,
 }
 
 impl LibraryPackageConfig {
@@ -65,5 +74,6 @@ impl LibraryPackageConfig {
             || self.has_schemas
             || self.has_schema_ts
             || self.has_openapi
+            || !self.component_names.is_empty()
     }
 }

@@ -353,7 +353,8 @@ fn walk_expr(
         | Expr::DecimalLit { .. }
         | Expr::Ident { .. }
         | Expr::SideEffect { .. }
-        | Expr::WorkflowVersion(_) => {}
+        | Expr::WorkflowVersion(_)
+        | Expr::AsyncView { .. } => {}
     }
 }
 

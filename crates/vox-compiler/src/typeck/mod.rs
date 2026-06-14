@@ -222,6 +222,13 @@ pub fn typecheck_hir_module_with_path(
             }
         }
     }
+    // Drain lower_warnings (populated during HIR lowering) into the diagnostic stream.
+    // Without this the Phase 1C coded warning is write-only and never reaches the user.
+    for msg in hir.lower_warnings.drain(..) {
+        let mut d = Diagnostic::warning(msg, crate::ast::span::Span::new(0, 0), source);
+        d.code = Some(crate::typeck::diagnostics::codes::LOWER_UNLOWERED_DECL.to_string());
+        diags.push(d);
+    }
     diags
 }
 

@@ -1,0 +1,4 @@
+// expect-error: vox/codegen/embed-unimplemented
+@server
+@embed(model: "text-embedding-3-small", dimensions: 1536)
+fn embed_text(text: Str) -> Str { text }

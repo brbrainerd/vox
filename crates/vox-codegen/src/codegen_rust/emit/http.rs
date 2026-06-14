@@ -58,6 +58,104 @@ fn emit_cors_layer_value(policy: &HirCorsPolicy) -> String {
     lines
 }
 
+fn emit_user_id_rate_limit_prelude(sf: &HirEndpointFn, prefix: &str) -> String {
+    let Some(ref rl) = sf.rate_limit else {
+        return String::new();
+    };
+    if rl.by != RateLimitBy::UserId {
+        return String::new();
+    }
+    let suffix = safe_ident_suffix(&format!("{prefix}{}", sf.name));
+    let static_name = format!("VOX_RL_{suffix}");
+    let fn_name = format!("vox_rl_guard_{suffix}");
+    let window = rl.window_secs.max(1);
+    let max_r = rl.max_requests.max(1).min(u64::from(u32::MAX)) as u32;
+    format!(
+        r#"static {static_name}: std::sync::OnceLock<std::sync::Arc<governor::RateLimiter<
+    String,
+    governor::state::keyed::DefaultKeyedStateStore<String>,
+    governor::clock::DefaultClock,
+>>> = std::sync::OnceLock::new();
+
+async fn {fn_name}(
+    req: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> Result<axum::response::Response, axum::response::Response> {{
+    let lim = {static_name}.get_or_init(|| {{
+        let q = governor::Quota::with_period(std::time::Duration::from_secs({window}))
+            .expect("vox codegen: rate limit window")
+            .allow_burst(std::num::NonZeroU32::new({max_r}).expect("vox codegen: rate limit burst"));
+        std::sync::Arc::new(governor::RateLimiter::keyed(q))
+    }});
+    let user_id = req.headers()
+        .get("x-vox-user-id")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("anonymous")
+        .to_string();
+    match lim.check_key(&user_id) {{
+        Ok(_) => Ok(next.run(req).await),
+        Err(_) => Err((StatusCode::TOO_MANY_REQUESTS, Json(vox_http_client::envelope::error_json(
+            "RATE_LIMITED",
+            "Too many requests",
+            None,
+            None,
+        ))).into_response()),
+    }}
+}}
+
+"#
+    )
+}
+
+fn emit_api_key_rate_limit_prelude(sf: &HirEndpointFn, prefix: &str) -> String {
+    let Some(ref rl) = sf.rate_limit else {
+        return String::new();
+    };
+    if rl.by != RateLimitBy::ApiKey {
+        return String::new();
+    }
+    let suffix = safe_ident_suffix(&format!("{prefix}{}", sf.name));
+    let static_name = format!("VOX_RL_{suffix}");
+    let fn_name = format!("vox_rl_guard_{suffix}");
+    let window = rl.window_secs.max(1);
+    let max_r = rl.max_requests.max(1).min(u64::from(u32::MAX)) as u32;
+    format!(
+        r#"static {static_name}: std::sync::OnceLock<std::sync::Arc<governor::RateLimiter<
+    String,
+    governor::state::keyed::DefaultKeyedStateStore<String>,
+    governor::clock::DefaultClock,
+>>> = std::sync::OnceLock::new();
+
+async fn {fn_name}(
+    req: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> Result<axum::response::Response, axum::response::Response> {{
+    let lim = {static_name}.get_or_init(|| {{
+        let q = governor::Quota::with_period(std::time::Duration::from_secs({window}))
+            .expect("vox codegen: rate limit window")
+            .allow_burst(std::num::NonZeroU32::new({max_r}).expect("vox codegen: rate limit burst"));
+        std::sync::Arc::new(governor::RateLimiter::keyed(q))
+    }});
+    let api_key = req.headers()
+        .get("x-api-key")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("anonymous")
+        .to_string();
+    match lim.check_key(&api_key) {{
+        Ok(_) => Ok(next.run(req).await),
+        Err(_) => Err((StatusCode::TOO_MANY_REQUESTS, Json(vox_http_client::envelope::error_json(
+            "RATE_LIMITED",
+            "Too many requests",
+            None,
+            None,
+        ))).into_response()),
+    }}
+}}
+
+"#
+    )
+}
+
 fn emit_ip_rate_limit_prelude(sf: &HirEndpointFn, prefix: &str) -> String {
     let Some(ref rl) = sf.rate_limit else {
         return String::new();
@@ -103,26 +201,105 @@ async fn {fn_name}(
     )
 }
 
+/// Emit a `from_fn` auth-guard middleware for an endpoint with `@auth(provider:, roles:)`.
+///
+/// The guard reads `Authorization: Bearer <token>` and validates it against the env var
+/// `VOX_AUTH_TOKEN_<PROVIDER>`. Role claims are checked against a comma-separated
+/// `VOX_AUTH_ROLES_<PROVIDER>` env var. This is a real, compiling guard — not a comment.
+/// Projects that use a proper JWT/OAuth provider should replace this with their SDK.
+fn emit_auth_guard_prelude(sf: &HirEndpointFn, prefix: &str) -> String {
+    let Some(ref auth) = sf.auth else {
+        return String::new();
+    };
+    let suffix = safe_ident_suffix(&format!("{prefix}{}", sf.name));
+    let fn_name = format!("vox_auth_guard_{suffix}");
+    let provider_upper = auth.provider.to_uppercase().replace(['-', '.'], "_");
+    let token_env = format!("VOX_AUTH_TOKEN_{provider_upper}");
+    let roles_env = format!("VOX_AUTH_ROLES_{provider_upper}");
+    let required_roles: String = if auth.roles.is_empty() {
+        String::new()
+    } else {
+        auth.roles
+            .iter()
+            .map(|r| format!("\"{r}\""))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let role_check = if auth.roles.is_empty() {
+        String::new()
+    } else {
+        format!(
+            r#"    let allowed_roles: &[&str] = &[{required_roles}];
+    let caller_roles_raw = std::env::var("{roles_env}").unwrap_or_default();
+    let caller_roles: Vec<&str> = caller_roles_raw.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+    if !allowed_roles.iter().any(|r| caller_roles.contains(r)) {{
+        return Err((StatusCode::FORBIDDEN, Json(vox_http_client::envelope::error_json(
+            "FORBIDDEN",
+            "Insufficient roles",
+            None,
+            None,
+        ))).into_response());
+    }}
+"#
+        )
+    };
+    format!(
+        r#"async fn {fn_name}(
+    req: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> Result<axum::response::Response, axum::response::Response> {{
+    let expected_token = std::env::var("{token_env}").unwrap_or_default();
+    let bearer = req.headers()
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .unwrap_or("");
+    if expected_token.is_empty() || bearer != expected_token {{
+        return Err((StatusCode::UNAUTHORIZED, Json(vox_http_client::envelope::error_json(
+            "UNAUTHORIZED",
+            "Missing or invalid auth token",
+            None,
+            None,
+        ))).into_response());
+    }}
+{role_check}    Ok(next.run(req).await)
+}}
+
+"#
+    )
+}
+
 fn wrap_method_router(method_router_expr: String, sf: Option<&HirEndpointFn>) -> String {
     let Some(sf) = sf else {
         return method_router_expr;
     };
     let mut out = method_router_expr;
     if let Some(ref rl) = sf.rate_limit {
-        if rl.by == RateLimitBy::Ip {
-            let suffix_raw = match sf.kind {
-                HirEndpointKind::Query => format!("q_{}", sf.name),
-                HirEndpointKind::Mutation => format!("m_{}", sf.name),
-                HirEndpointKind::Server => format!("sf_{}", sf.name),
-            };
-            let suffix = safe_ident_suffix(&suffix_raw);
-            let fn_name = format!("vox_rl_guard_{suffix}");
-            out = format!("{out}.layer(axum::middleware::from_fn({fn_name}))");
+        let suffix_raw = match sf.kind {
+            HirEndpointKind::Query => format!("q_{}", sf.name),
+            HirEndpointKind::Mutation => format!("m_{}", sf.name),
+            HirEndpointKind::Server => format!("sf_{}", sf.name),
+        };
+        let suffix = safe_ident_suffix(&suffix_raw);
+        let fn_name = format!("vox_rl_guard_{suffix}");
+        match rl.by {
+            RateLimitBy::Ip | RateLimitBy::UserId | RateLimitBy::ApiKey => {
+                out = format!("{out}.layer(axum::middleware::from_fn({fn_name}))");
+            }
         }
     }
     if let Some(ref cors) = sf.cors {
         let cors_ex = emit_cors_layer_value(cors);
         out = format!("{out}.layer({cors_ex})");
+    }
+    if sf.auth.is_some() {
+        let suffix_raw = match sf.kind {
+            HirEndpointKind::Query => format!("q_{}", sf.name),
+            HirEndpointKind::Mutation => format!("m_{}", sf.name),
+            HirEndpointKind::Server => format!("sf_{}", sf.name),
+        };
+        let fn_name = format!("vox_auth_guard_{}", safe_ident_suffix(&suffix_raw));
+        out = format!("{out}.layer(axum::middleware::from_fn({fn_name}))");
     }
     out
 }
@@ -355,6 +532,9 @@ pub fn emit_main(
             HirEndpointKind::Server => "sf_",
         };
         out.push_str(&emit_ip_rate_limit_prelude(sf, pfx));
+        out.push_str(&emit_user_id_rate_limit_prelude(sf, pfx));
+        out.push_str(&emit_api_key_rate_limit_prelude(sf, pfx));
+        out.push_str(&emit_auth_guard_prelude(sf, pfx));
     }
 
     out.push_str(

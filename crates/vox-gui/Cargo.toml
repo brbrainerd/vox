@@ -17,6 +17,7 @@ oratio = ["dep:vox-ml-cli", "dep:vox-plugin-host"]
 [dependencies]
 vox-cli = { workspace = true }
 vox-cli-core = { workspace = true }
+vox-git = { workspace = true }
 vox-foundation = { workspace = true }
 vox-orchestrator = { workspace = true }
 vox-orchestrator-mcp = { workspace = true }

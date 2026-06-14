@@ -670,6 +670,8 @@ pub fn emit_expr(expr: &Expr) -> String {
         Expr::SideEffect { .. } => "__side_effect__(/* P1-T7 */)".to_string(),
         // WorkflowVersion is not representable as a TS expression in this emit path
         Expr::WorkflowVersion(_) => String::new(),
+        // AsyncView requires the web runtime; emit a placeholder comment in the TS AST path.
+        Expr::AsyncView { .. } => "/* async view — requires web runtime */".to_string(),
     }
 }
 

@@ -84,9 +84,9 @@ vox-rename-registry       = { layer = 0, staleness_exempt = true }   # rename-re
 vox-shell-stdlib-types    = { layer = 0, staleness_exempt = true }   # VoxFileRecord + std.fs types; shared between compiler interp path and actor-runtime codegen path
 
 # ── L1 — primitives & utilities ───────────────────────────────────────────────
-vox-bounded-fs        = { layer = 1, max_dependents = 25 }
+vox-bounded-fs        = { layer = 1, max_dependents = 25, staleness_exempt = true }
 vox-hf-layout         = { layer = 1, max_loc = 6_000 }               # HF config.json layout (MENS / Candle plugins)
-vox-crypto            = { layer = 1 }
+vox-crypto            = { layer = 1, staleness_exempt = true }
 vox-secrets           = { layer = 1, max_dependents = 27 }  # 26 direct consumers (all call resolve_secret); budget = current + 1. A-9 split (vox-secrets-types) deferred: all consumers use resolution fns, so split would not reduce this fan-in.
 
 vox-jsonschema-util   = { layer = 1 }
@@ -112,12 +112,12 @@ vox-config              = { layer = 2, max_dependents = 20 }
 vox-repository          = { layer = 2 }
 vox-populi-types        = { layer = 2, max_loc = 1_000 }  # ADR-042: NodeRecord + PopuliRegistryFile (pure-data, no async)
 vox-mcp-registry        = { layer = 2 }
-vox-capability-registry = { layer = 2 }
+vox-capability-registry = { layer = 2, staleness_exempt = true }
 
 vox-project-scaffold    = { layer = 2 }
 vox-quantize            = { layer = 2, max_loc = 4_000 }
 vox-skill-runtime       = { layer = 2 }
-vox-constrained-gen     = { layer = 2 }
+vox-constrained-gen     = { layer = 2, staleness_exempt = true }
 vox-doc-inventory       = { layer = 2 }
 vox-journal             = { layer = 2 }                          # append-only JSONL journal; deps vox-runtime (L1) (PR #97)
 # L3: both consume the vox-actor-runtime (L3) LLM facade — every actor-runtime
@@ -138,7 +138,7 @@ vox-sql                 = { layer = 3, max_dependents = 20, max_loc = 8_000 }
 vox-corpus              = { layer = 3, max_loc = 15_000 }
 vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 45_000 }
 vox-codegen         = { layer = 3, max_loc = 25_000 }
-vox-codegen-ts      = { layer = 3, max_loc = 18_000 }
+vox-codegen-ts      = { layer = 3, max_loc = 18_000, orphan_exempt = true } # embedded via #[path] in vox-codegen/src/lib.rs; no direct Cargo.toml consumer by design
 vox-rn-codegen      = { layer = 3, max_loc = 6_000 }
 vox-tauri-codegen       = { layer = 3, max_loc = 6_000 }
 vox-tauri-stt           = { layer = 3, kind = "library", staleness_exempt = true, orphan_exempt = true }
@@ -167,7 +167,7 @@ vox-drift-check              = { layer = 3, kind = "binary", max_loc = 8_000 }
 vox-wire-format-validator    = { layer = 3, kind = "binary", max_loc = 4_000 }
 vox-lsp                 = { layer = 3 }
 vox-gamify              = { layer = 3, max_loc = 20_000 }
-vox-skills              = { layer = 3 }
+vox-skills              = { layer = 3, staleness_exempt = true }
 vox-cli-core            = { layer = 3 }
 
 vox-orchestrator-mcp    = { layer = 3, max_loc = 40_000 }        # Phase 4 extraction
@@ -211,6 +211,8 @@ vox-integration-tests = { layer = 5, kind = "test-only" }
 vox-orchestrator-d    = { layer = 5, kind = "binary" }
 vox-audit             = { layer = 5, kind = "binary" }                   # umbrella CR-L gate runner; contracts/ci/vox-audit-contract.v1.yaml
 voxup                 = { layer = 5, kind = "binary" }
+vox-langtool          = { layer = 5, kind = "binary" }                   # DB-free CLI for Vox language: check, fmt, run, build
+vox-mesh-policy       = { layer = 2 }                                    # Donations.vox mesh policy parser; migration to vox-scaling-policy pending
 
 
 # ── Permitted inversions ──────────────────────────────────────────────────────
@@ -406,7 +408,6 @@ vox-http-envelope        = { plan = "docs/src/architecture/crate-structure-audit
 vox-share                = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-ssg                  = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-install-policy       = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
-# vox-mesh-policy — folded into vox-scaling-policy/src/donations_vox (2026-06-10)
 # vox-distributed-training, vox-inference — merged into vox-populi/src/{distributed_training,inference}
 vox-dashboard            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-mens-eval            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }

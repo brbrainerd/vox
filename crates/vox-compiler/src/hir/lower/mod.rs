@@ -19,6 +19,7 @@
 use crate::ast::decl::*;
 use crate::hir::def_map::DefMap;
 use crate::hir::*;
+use crate::typeck::diagnostics::codes::LOWER_UNLOWERED_DECL;
 use crate::web_prefixes::{MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX};
 use std::collections::HashMap;
 
@@ -336,6 +337,14 @@ impl LowerCtx {
                             crate::hir::nodes::layer::HirLayerDecl { tier, span: l.span }
                         })
                     });
+                    let auth = e
+                        .func
+                        .auth_provider
+                        .as_ref()
+                        .map(|provider| crate::hir::HirAuth {
+                            provider: provider.clone(),
+                            roles: e.func.roles.clone(),
+                        });
                     hir.endpoint_fns.push(crate::hir::HirEndpointFn {
                         kind,
                         id: lowered.id,
@@ -355,6 +364,7 @@ impl LowerCtx {
                         rate_limit,
                         pii,
                         layer,
+                        auth,
                         span: lowered.span,
                     });
                 }
@@ -599,7 +609,41 @@ impl LowerCtx {
                             .collect(),
                     });
                 }
+                Decl::Const(c) => {
+                    let lowered = self.lower_const(c);
+                    hir.consts.push(lowered);
+                }
+                Decl::Config(c) => {
+                    hir.configs.push(self.lower_config(c));
+                }
+                Decl::Theme(t) => {
+                    hir.themes.push(self.lower_theme(t));
+                }
+                Decl::Message(m) => {
+                    hir.messages.push(self.lower_message(m));
+                }
+                Decl::Skill(s) => {
+                    let fn_name = s.func.name.clone();
+                    let span = s.func.span;
+                    let f = self.lower_fn(&s.func);
+                    hir.functions.push(f);
+                    hir.skills.push(HirSkill { fn_name, span });
+                }
+                Decl::AgentDef(a) => {
+                    let fn_name = a.func.name.clone();
+                    let span = a.func.span;
+                    let f = self.lower_fn(&a.func);
+                    hir.functions.push(f);
+                    hir.agent_defs.push(HirAgentDef { fn_name, span });
+                }
                 _ => {
+                    // vox.lower.unlowered_decl: this declaration kind has no HIR lowering arm.
+                    // It is kept in `legacy_ast_nodes` for forward-compatibility, but emit a
+                    // warning so developers notice gaps during development.
+                    let kind = decl.kind_name();
+                    hir.lower_warnings.push(format!(
+                        "{LOWER_UNLOWERED_DECL}: declaration kind '{kind}' has no HIR lowering and was silently dropped"
+                    ));
                     hir.legacy_ast_nodes.push(decl.clone());
                 }
             }

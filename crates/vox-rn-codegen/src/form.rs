@@ -144,10 +144,11 @@ pub fn emit_form(form: &HirForm) -> String {
         // `useState<boolean>` declared above — a labelled row rather than a
         // <TextInput>. Required-ness doesn't apply (a Switch always has a
         // value), so no error slot is emitted for it.
-        if let HirType::Named(t) = &f.ty {
-            if t == "bool" {
-                out.push_str(&format!(
-                    "      <View style={{styles.switch_row}}>\n\
+        if let HirType::Named(t) = &f.ty
+            && t == "bool"
+        {
+            out.push_str(&format!(
+                "      <View style={{styles.switch_row}}>\n\
                      \x20       <Text style={{styles.label}}>{label}{req_marker}</Text>\n\
                      \x20       <Switch\n\
                      \x20         value={{{fname}}}\n\
@@ -155,10 +156,9 @@ pub fn emit_form(form: &HirForm) -> String {
                      \x20         accessibilityLabel={{\"{label}\"}}\n\
                      \x20       />\n\
                      \x20     </View>\n",
-                    fname = f.name,
-                ));
-                continue;
-            }
+                fname = f.name,
+            ));
+            continue;
         }
 
         // RN <TextInput> always works in strings. Numeric fields therefore

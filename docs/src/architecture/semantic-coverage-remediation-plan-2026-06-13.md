@@ -18,7 +18,7 @@ training_eligible: false
 > prefix) + the cross-crate path; the I4 ambiguous-method over-credit is also fixed.
 > **Authoritative current numbers:** 19,445 production definitions · 3,088 proven
 > (**15.9%**) · 16,357 candidate gaps. The live SSOT is the regenerable
-> [`graphify-out/CANDIDATE_GAPS.md`](../../../graphify-out/CANDIDATE_GAPS.md) +
+> `graphify-out/CANDIDATE_GAPS.md` +
 > [`contracts/reports/semantic-coverage.v1.json`](../../../contracts/reports/semantic-coverage.v1.json);
 > treat the specific 7,174 / 12.3–20% / 6,292 figures in §A/§B as *historical
 > (pre-correction)*. The methodology (gap classes, §C protocol, §D patterns) is
@@ -51,7 +51,7 @@ The graph node set is "every identifier token seen," not "this crate's symbols."
 | In-`src/` `#[cfg(test)]` **test functions** (counted as prod symbols!) | label matches a detected `_origin:test` fn in the same file | 1,952 |
 | `benches/`, `examples/`, `build.rs` defs | `source_file` not under `/src/` | ~600 |
 
-**Corrected universe: 7,174 production symbol definitions in `src/`; 882 proven (12.3%); 6,292 unproven.** This is the real denominator. The persisted, cleaned worklist is **[`graphify-out/CANDIDATE_GAPS.md`](../../../graphify-out/CANDIDATE_GAPS.md)** (regenerate: `python scripts/coverage-graph/candidate_gaps.py`).
+**Corrected universe: 7,174 production symbol definitions in `src/`; 882 proven (12.3%); 6,292 unproven.** This is the real denominator. The persisted, cleaned worklist is **`graphify-out/CANDIDATE_GAPS.md`** (regenerate: `python scripts/coverage-graph/candidate_gaps.py`).
 
 ### A.2 The ranking flips — the v1 priorities were wrong
 
@@ -93,7 +93,7 @@ Measured on the 30-symbol sample (treat as directional, wide CI, but the mechani
 
 ## §B. The corrected backlog (the real prioritization)
 
-Source of truth: **[`graphify-out/CANDIDATE_GAPS.md`](../../../graphify-out/CANDIDATE_GAPS.md)** — 6,292 cleaned candidates as `- [ ]` lines grouped by crate, each with `symbol @ file:line`. Per-crate genuine-gap estimate ≈ `cleaned_unproven × ~0.33`.
+Source of truth: **`graphify-out/CANDIDATE_GAPS.md`** — 6,292 cleaned candidates as `- [ ]` lines grouped by crate, each with `symbol @ file:line`. Per-crate genuine-gap estimate ≈ `cleaned_unproven × ~0.33`.
 
 | # | Crate | Cleaned defs | Proven | Cleaned unproven | ~Genuine (×0.33) |
 |---|---|---|---|---|---|
@@ -361,7 +361,7 @@ Phase 0 (reached-but-unproven) is carried from 2026-06-07 (`REACHED_VS_PROVEN.md
 
 **The per-crate loop (identical for every crate `C`):**
 
-- [ ] **F-loop Step 1** — open the crate's section in [`CANDIDATE_GAPS.md`](../../../graphify-out/CANDIDATE_GAPS.md) and its [`COVERAGE_BEHAVIORS_C.md`](../../../graphify-out/) (happy-only gaps).
+- [ ] **F-loop Step 1** — open the crate's section in `graphify-out/CANDIDATE_GAPS.md` and its `graphify-out/COVERAGE_BEHAVIORS_C.md` (happy-only gaps).
 - [ ] **F-loop Step 2** — for each candidate, run the §C protocol (Gates 1–3). Expect to reject ~2/3. Tick the candidate's box in `CANDIDATE_GAPS.md` as `n/a (covered)`, `n/a (trivial)`, or keep it for testing.
 - [ ] **F-loop Step 3** — for each surviving symbol, write the missing-kind test(s) per §D (error/edge/invariant first). Commit per symbol or per file.
 - [ ] **F-loop Step 4** — `cargo nextest run -p C` + `cargo clippy -p C -- -D warnings` green; regenerate the overlay for `C` and confirm proven rose; raise `C`'s floor in `semantic-coverage.v1.json` (Task 0.4).

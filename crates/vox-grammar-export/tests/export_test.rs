@@ -363,3 +363,71 @@ fn test_versioning_alignment() {
     assert!(verify_grammar_alignment().is_ok());
     assert_eq!(get_version(), get_compiler_version());
 }
+
+// ── Phase 7: tree-sitter grammar parity gate ─────────────────────────────────
+
+/// Assert that every decorator the lexer recognises appears somewhere in grammar.js.
+///
+/// We read token.rs + grammar.js at compile time, so the test stays fast and
+/// hermetic. When you add a new `#[token("@foo")]` to the lexer and forget to
+/// update grammar.js, this test fails with the decorator name.
+#[test]
+fn all_decorators_appear_in_grammar_js() {
+    let token_rs = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../crates/vox-compiler/src/lexer/token.rs"
+    ));
+    let grammar_js = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tree-sitter-vox/grammar.js"
+    ));
+
+    // Collect every decorator the lexer defines.
+    let decorators: Vec<&str> = token_rs
+        .lines()
+        .filter_map(|line| {
+            let line = line.trim();
+            if line.starts_with("#[token(\"@") {
+                line.trim_start_matches("#[token(\"")
+                    .trim_end_matches("\")]")
+                    .into()
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    assert!(
+        !decorators.is_empty(),
+        "should find at least one @decorator token in token.rs"
+    );
+
+    let mut missing: Vec<&str> = decorators
+        .iter()
+        .copied()
+        .filter(|d| !grammar_js.contains(d))
+        .collect();
+
+    if !missing.is_empty() {
+        missing.sort_unstable();
+        panic!(
+            "{} decorator(s) missing from tree-sitter-vox/grammar.js:\n  {}",
+            missing.len(),
+            missing.join("\n  ")
+        );
+    }
+}
+
+/// Assert that grammar.js uses `return` not `ret` (the retired spelling).
+#[test]
+fn grammar_js_uses_return_not_ret() {
+    let grammar_js = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tree-sitter-vox/grammar.js"
+    ));
+    // 'ret' as a standalone keyword string must not appear
+    assert!(
+        !grammar_js.contains("'ret'"),
+        "grammar.js still uses 'ret'; the compiler uses 'return'"
+    );
+}

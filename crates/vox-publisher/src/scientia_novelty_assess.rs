@@ -185,7 +185,7 @@ pub fn assess_novelty(
                 .normalized_hits
                 .iter()
                 .find(|v1| v1.work_uri == h.work_uri)
-                .map(|v1| derive_polarity(v1))
+                .map(derive_polarity)
                 .unwrap_or(ClaimPolarity::Positive);
             PolarizedHit {
                 work_uri: h.work_uri.clone(),

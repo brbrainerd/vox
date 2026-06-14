@@ -14,6 +14,8 @@ pub async fn run(args: &EmitClientArgs) -> Result<()> {
         args.emit_ir,
         BuildMode::Library,
         vox_codegen::codegen_rust::RustAppShell::default(),
+        None,
+        None,
     )
     .await
 }

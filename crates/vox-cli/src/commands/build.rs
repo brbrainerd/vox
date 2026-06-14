@@ -28,6 +28,10 @@ fn generated_backend_dir(start: Option<&Path>) -> PathBuf {
 ///
 /// Build target precedence: `cli_build_target` (from `vox build --target`) overrides
 /// `VOX_BUILD_TARGET` and `Vox.toml [build] target` (both applied via [`vox_config::VoxConfig::load`]).
+#[allow(
+    clippy::too_many_arguments,
+    reason = "CLI surface mirrors BuildArgs; bundling into a params struct is a tracked refactor"
+)]
 pub async fn run(
     file: &Path,
     out_dir: &Path,
@@ -37,6 +41,8 @@ pub async fn run(
     emit_ir: bool,
     mode: BuildMode,
     rust_app_shell: RustAppShell,
+    app_name: Option<String>,
+    app_id: Option<String>,
 ) -> Result<()> {
     let frontend = crate::pipeline::run_frontend(file, false).await?;
     crate::pipeline::print_diagnostics(&frontend, file, false);
@@ -153,6 +159,8 @@ pub async fn run(
             tanstack_start: false,
             target: Some("rn".to_string()),
             mode: vox_codegen::codegen_ts::emitter::BuildMode::App,
+            app_name: app_name.clone(),
+            app_id: app_id.clone(),
             ..Default::default()
         };
         let rn_output = vox_rn_codegen::generate_rn(&hir, &ts_opts)
@@ -332,8 +340,12 @@ pub async fn run(
         .unwrap_or(false);
     if emit_scaffold || scaffold_env {
         let project_root = out_dir.parent().unwrap_or(out_dir);
-        vox_codegen::codegen_ts::scaffold::write_scaffold_if_missing(project_root, "vox-app")
-            .with_context(|| "Failed to write web scaffold files")?;
+        vox_codegen::codegen_ts::scaffold::write_scaffold_if_missing(
+            project_root,
+            "vox-app",
+            &hir.imports,
+        )
+        .with_context(|| "Failed to write web scaffold files")?;
     }
 
     // 8. Handle @v0 components

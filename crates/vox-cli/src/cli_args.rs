@@ -57,6 +57,16 @@ pub struct BuildArgs {
     /// Native mobile build target (e.g., ios, android, native). Distinct from `--target`.
     #[arg(long = "mobile-target")]
     pub mobile_target: Option<String>,
+    /// App display name for the mobile (RN/Expo) scaffold's `app.json`
+    /// (slugified for the Expo slug/scheme/npm name). Only meaningful with
+    /// `--target=mobile`. Default: `vox-app`.
+    #[arg(long = "app-name")]
+    pub app_name: Option<String>,
+    /// Reverse-DNS app identifier for the mobile scaffold (iOS
+    /// `bundleIdentifier` + Android `package`), e.g. `com.vox.mentaltracker`.
+    /// Only meaningful with `--target=mobile`. Default: `com.vox.app`.
+    #[arg(long = "app-id")]
+    pub app_id: Option<String>,
     /// Write one-shot toolchain **config** files (Vite, Tailwind v4, tsconfig, package.json) next to
     /// output if missing. The app bootstrap (`entry.tsx`/`vox-app.tsx`) is always emitted, so no
     /// `main.tsx`/`App.tsx` is scaffolded. Same as `VOX_WEB_EMIT_SCAFFOLD=1` (flag wins). `--scaffold`

@@ -74,27 +74,9 @@ fn resolve_code_index() -> Option<QdrantCodeIndex> {
     })
 }
 
-/// Run `git` with `CREATE_NO_WINDOW` on Windows; returns stdout on success.
+/// Run a read-only `git` command in `repo`; returns stdout on success.
 fn run_git(repo: &Path, args: &[&str]) -> Result<String> {
-    let mut cmd = std::process::Command::new("git");
-    cmd.arg("-C").arg(repo).args(args);
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
-    let out = cmd
-        .output()
-        .with_context(|| format!("spawn git {}", args.join(" ")))?;
-    if !out.status.success() {
-        anyhow::bail!(
-            "git {} failed: {}",
-            args.join(" "),
-            String::from_utf8_lossy(&out.stderr).trim()
-        );
-    }
-    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+    vox_git::read_only(repo, args).with_context(|| format!("git {}", args.join(" ")))
 }
 
 /// Parse `git log --numstat` output (one record per commit) into [`CommitView`]s.

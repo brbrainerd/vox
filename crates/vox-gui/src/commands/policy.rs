@@ -216,43 +216,23 @@ pub(crate) fn parse_worktree_porcelain(out: &str) -> Vec<BranchDto> {
 /// worktree` is unavailable. Always returns at least one row when in a repo.
 #[command]
 pub fn list_branches() -> Result<Vec<BranchDto>, String> {
-    use std::process::Command;
     let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
     let root = find_repo_root(&cwd);
 
-    let wt = Command::new("git")
-        .args(["worktree", "list", "--porcelain"])
-        .current_dir(&root)
-        .output();
-    if let Ok(o) = wt
-        && o.status.success()
-    {
-        let parsed = parse_worktree_porcelain(&String::from_utf8_lossy(&o.stdout));
+    if let Ok(wt_out) = vox_git::read_only(&root, &["worktree", "list", "--porcelain"]) {
+        let parsed = parse_worktree_porcelain(&wt_out);
         if !parsed.is_empty() {
             return Ok(parsed);
         }
     }
 
     // Fallback: plain branch list (no worktree paths).
-    let br = Command::new("git")
-        .args(["branch", "--format=%(refname:short)"])
-        .current_dir(&root)
-        .output()
+    let br_out = vox_git::read_only(&root, &["branch", "--format=%(refname:short)"])
         .map_err(|e| format!("git branch failed: {e}"))?;
-    if !br.status.success() {
-        return Err(format!(
-            "git branch: {}",
-            String::from_utf8_lossy(&br.stderr)
-        ));
-    }
-    let cur = Command::new("git")
-        .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .current_dir(&root)
-        .output()
-        .ok()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+    let cur = vox_git::read_only(&root, &["rev-parse", "--abbrev-ref", "HEAD"])
+        .map(|s| s.trim().to_string())
         .unwrap_or_default();
-    Ok(String::from_utf8_lossy(&br.stdout)
+    Ok(br_out
         .lines()
         .filter(|l| !l.trim().is_empty())
         .map(|name| BranchDto {

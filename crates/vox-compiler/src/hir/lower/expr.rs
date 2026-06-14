@@ -283,6 +283,25 @@ impl LowerCtx {
                 max: call.max,
                 span: call.span,
             }),
+            Expr::AsyncView {
+                source,
+                fetching,
+                empty,
+                error_binding,
+                error_arm,
+                ok_binding,
+                ok_arm,
+                span,
+            } => HirExpr::AsyncView(Box::new(crate::hir::nodes::async_view::HirAsyncView {
+                source: Box::new(self.lower_expr(source)),
+                fetching_arm: fetching.as_ref().map(|e| Box::new(self.lower_expr(e))),
+                empty_arm: empty.as_ref().map(|e| Box::new(self.lower_expr(e))),
+                error_binding: error_binding.clone(),
+                error_arm: error_arm.as_ref().map(|e| Box::new(self.lower_expr(e))),
+                ok_binding: ok_binding.clone(),
+                ok_arm: ok_arm.as_ref().map(|e| Box::new(self.lower_expr(e))),
+                span: *span,
+            })),
         }
     }
 

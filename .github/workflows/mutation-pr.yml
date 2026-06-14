@@ -79,6 +79,7 @@ jobs:
       - name: Run mutants (package ${{ matrix.crate }})
         if: steps.changed.outputs.any_changed == 'true'
         run: |
+          mkdir -p mutants-out/${{ matrix.crate }}
           cargo mutants -p ${{ matrix.crate }} --no-times --jobs 2 \
             --output mutants-out/${{ matrix.crate }}
 

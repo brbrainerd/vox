@@ -208,6 +208,7 @@ impl Parser {
             }
             Token::LBrace => self.parse_brace_expr()?,
             Token::Match => self.parse_match()?,
+            Token::When => self.parse_when_view()?,
             Token::If => self.parse_if()?,
             Token::For => self.parse_for()?,
             Token::Fn => self.parse_lambda()?,
@@ -815,6 +816,91 @@ impl Parser {
     // set. Only tags that genuinely belong in a view tree are listed; ordinary function names
     // like `fetch`, `query`, `request` — even when called with named args only — must NOT be
     // sugared into JSX, because that breaks them at the type-check layer.
+
+    /// Parse `when <expr> { fetching => … empty => … error <binding> => … ok <binding> => … }`.
+    pub(crate) fn parse_when_view(&mut self) -> Result<Expr, ()> {
+        let start = self.span();
+        self.advance(); // eat `when`
+        let source = self.parse_expr()?;
+        self.skip_newlines();
+        self.expect(&Token::LBrace)?;
+        self.skip_newlines();
+
+        let mut fetching = None;
+        let mut empty = None;
+        let mut error_binding = None;
+        let mut error_arm = None;
+        let mut ok_binding = None;
+        let mut ok_arm = None;
+
+        loop {
+            self.skip_newlines();
+            match self.peek().clone() {
+                Token::RBrace | Token::Eof => break,
+                Token::Fetching => {
+                    self.advance(); // eat `fetching`
+                    self.expect(&Token::FatArrow)?;
+                    fetching = Some(Box::new(self.parse_expr()?));
+                }
+                Token::Empty => {
+                    self.advance(); // eat `empty`
+                    self.expect(&Token::FatArrow)?;
+                    empty = Some(Box::new(self.parse_expr()?));
+                }
+                Token::Ident(name) if name == "error" => {
+                    self.advance(); // eat `error`
+                    let binding = self.parse_ident_name()?;
+                    self.expect(&Token::FatArrow)?;
+                    error_binding = Some(binding);
+                    error_arm = Some(Box::new(self.parse_expr()?));
+                }
+                Token::Ident(name) if name == "ok" => {
+                    self.advance(); // eat `ok`
+                    let binding = self.parse_ident_name()?;
+                    self.expect(&Token::FatArrow)?;
+                    ok_binding = Some(binding);
+                    ok_arm = Some(Box::new(self.parse_expr()?));
+                }
+                _ => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        format!(
+                            "Unexpected token in `when` view block: `{}`. \
+                             Expected `fetching`, `empty`, `error <binding>`, or `ok <binding>`.",
+                            self.peek()
+                        ),
+                        vec![
+                            "fetching".to_string(),
+                            "empty".to_string(),
+                            "error".to_string(),
+                            "ok".to_string(),
+                        ],
+                        Some(self.peek().to_string()),
+                        ParseErrorClass::Expression,
+                    ));
+                    return Err(());
+                }
+            }
+            self.skip_newlines();
+            // Optional trailing comma/newline separator between arms
+            let _ = self.eat(&Token::Comma);
+        }
+
+        self.skip_newlines();
+        self.expect(&Token::RBrace)?;
+        let span = start.merge(self.span());
+
+        Ok(Expr::AsyncView {
+            source: Box::new(source),
+            fetching,
+            empty,
+            error_binding,
+            error_arm,
+            ok_binding,
+            ok_arm,
+            span,
+        })
+    }
 }
 
 #[must_use]

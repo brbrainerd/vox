@@ -818,7 +818,6 @@ pub fn select_with_default_registry(intent: &SelectionIntent) -> Option<Selectio
 mod tests {
     // Env-mutating tests exercise `from_env` cascades; they are `#[serial]` so no
     // other env-mutating test runs concurrently, and each restores the prior value.
-    #![allow(unsafe_code)]
     use serial_test::serial;
 
     use super::*;
@@ -878,6 +877,7 @@ mod tests {
 
     #[test]
     #[serial]
+    #[allow(unsafe_code)]
     fn from_env_returns_default_when_unset() {
         // SAFETY: tests are gated by the parent test serialization; we restore.
         let prior = std::env::var("VOX_MODEL_AXES").ok();
@@ -892,6 +892,7 @@ mod tests {
 
     #[test]
     #[serial]
+    #[allow(unsafe_code)]
     fn from_env_parses_custom_axes() {
         let prior = std::env::var("VOX_MODEL_AXES").ok();
         unsafe {
