@@ -29,14 +29,17 @@ function CorpusChip({
 }) {
   return (
     <button
+      type="button"
       onClick={onToggle}
+      aria-pressed={active}
+      aria-label={`Scope: ${corpus.name}`}
       className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] transition ${
         active
           ? 'border-white/15 bg-white/[0.04] text-zinc-100'
           : 'border-white/5 bg-white/[0.01] text-zinc-500'
       }`}
     >
-      <span className={`size-1.5 rounded-full ${active ? 'bg-brass' : 'bg-white/15'}`} />
+      <span aria-hidden="true" className={`size-1.5 rounded-full ${active ? 'bg-brass' : 'bg-white/15'}`} />
       {corpus.name}
     </button>
   );
@@ -103,17 +106,19 @@ function HitCard({
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
           {isOpenable && (
             <button
+              type="button"
               onClick={e => { e.stopPropagation(); onOpen(); }}
               className="rounded border border-white/10 bg-white/[0.02] px-1.5 py-0.5 font-mono text-[9px] text-zinc-300 hover:bg-white/5"
             >
-              <Icon.link className="size-2.5 inline mr-0.5" />open
+              <Icon.link aria-hidden="true" className="size-2.5 inline mr-0.5" />open
             </button>
           )}
           <button
+            type="button"
             onClick={e => { e.stopPropagation(); onPin(); }}
             className="rounded border border-white/10 bg-white/[0.02] px-1.5 py-0.5 font-mono text-[9px] text-zinc-300 hover:bg-white/5"
           >
-            <Icon.pin className="size-2.5 inline mr-0.5" />pin
+            <Icon.pin aria-hidden="true" className="size-2.5 inline mr-0.5" />pin
           </button>
         </div>
       </div>
@@ -291,7 +296,9 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
           </div>
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={toggleAutoRecall}
+              aria-pressed={recallOn}
               title={recallOn ? 'Auto-recall on — queries recall as you type' : 'Auto-recall off — press Enter or Recall'}
               className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 font-mono text-[10px] transition ${
                 recallOn
@@ -299,9 +306,10 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                   : 'border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <Icon.eye className="size-3" /> Auto-recall
+              <Icon.eye aria-hidden="true" className="size-3" /> Auto-recall
             </button>
             <button
+              type="button"
               onClick={() =>
                 invoke('mnemosyne_reindex')
                   .then(() => pushToast({ tone: 'ok', title: 'Reindex complete', cmd: 'mnemosyne reindex' }))
@@ -309,18 +317,19 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
               }
               className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1.5 font-mono text-[10px] text-zinc-400 hover:text-zinc-200"
             >
-              <Icon.refresh className="size-3" /> Reindex
+              <Icon.refresh aria-hidden="true" className="size-3" /> Reindex
             </button>
           </div>
         </div>
 
         {/* Search bar */}
         <div className="mt-4 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
-          <Icon.search className="size-3.5 text-zinc-500" />
+          <Icon.search aria-hidden="true" className="size-3.5 text-zinc-500" />
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && recall()}
+            aria-label="Recall query"
             placeholder="Recall… e.g. 'ed25519 invariants', 'checkpoint stall'"
             className="flex-1 bg-transparent text-[13px] text-zinc-100 placeholder:text-zinc-600 outline-none"
           />
@@ -328,9 +337,11 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
           <input
             type="number" min={1} max={50} value={topK}
             onChange={e => setTopK(parseInt(e.target.value) || 8)}
+            aria-label="Number of top hits"
             className="w-12 rounded border border-white/10 bg-white/[0.02] px-1.5 py-0.5 text-center font-mono text-[11px] text-zinc-200 outline-none"
           />
           <button
+            type="button"
             onClick={() => recall()}
             disabled={!query.trim() || recalling}
             className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 font-display text-[10px] uppercase tracking-widest transition ${
@@ -389,7 +400,9 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
                   }}
                 >
                   <button
+                    type="button"
                     onClick={() => { setQuery(r.q); recall(r.q); }}
+                    aria-label={`Re-run recall: ${r.q}`}
                     className="flex w-full items-center justify-between rounded-md border border-white/5 bg-white/[0.02] px-2.5 py-1.5 text-left hover:border-white/15 hover:bg-white/[0.04] transition"
                   >
                     <div className="min-w-0">
@@ -413,14 +426,15 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
           </h3>
           {hits.length > 0 && (
             <button
+              type="button"
               onClick={() => pinHits(hits)}
               className="inline-flex items-center gap-1 rounded-md border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 font-mono text-[10px] text-cyan-300 hover:bg-cyan-400/15"
             >
-              <Icon.pin className="size-3" /> Pin all to context
+              <Icon.pin aria-hidden="true" className="size-3" /> Pin all to context
             </button>
           )}
         </div>
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 space-y-2" aria-label="Recall citations" aria-live="polite" aria-busy={recalling}>
           {recalling &&
             Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-12 rounded-md border border-white/5 bg-white/[0.02] relative overflow-hidden">

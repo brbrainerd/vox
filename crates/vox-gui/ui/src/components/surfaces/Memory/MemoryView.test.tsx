@@ -41,4 +41,28 @@ describe('MemoryView', () => {
     render(<MemoryView pushToast={noopToast} />);
     expect(screen.getByText('Recall')).toBeDefined();
   });
+
+  it('every button carries an explicit type="button"', () => {
+    render(<MemoryView pushToast={noopToast} />);
+    for (const b of screen.getAllByRole('button')) {
+      expect(b.getAttribute('type')).toBe('button');
+    }
+  });
+
+  it('labels the recall search input (no placeholder-as-label)', () => {
+    render(<MemoryView pushToast={noopToast} />);
+    expect(screen.getByLabelText('Recall query')).toBeDefined();
+  });
+
+  it('exposes the Auto-recall toggle with aria-pressed', () => {
+    render(<MemoryView pushToast={noopToast} />);
+    const toggle = screen.getByRole('button', { name: /auto-recall/i });
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('marks the citations region as a polite live region', () => {
+    render(<MemoryView pushToast={noopToast} />);
+    const region = screen.getByLabelText('Recall citations');
+    expect(region.getAttribute('aria-live')).toBe('polite');
+  });
 });
