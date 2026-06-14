@@ -1,0 +1,8 @@
+{
+  "color": {
+    "bg":     { "base": { "value": "#000000" }, "surface": { "value": "#000000" }, "elevated": { "value": "#0a0a0a" } },
+    "text":   { "primary": { "value": "#ffffff" }, "secondary": { "value": "#ffffff" }, "muted": { "value": "{color.neutral.300}" } },
+    "border": { "subtle": { "value": "{color.neutral.400}" }, "strong": { "value": "#ffffff" } },
+    "accent": { "default": { "value": "{color.brass.default}" } }
+  }
+}

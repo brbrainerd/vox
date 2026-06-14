@@ -12,6 +12,16 @@ export default {
         border: 'rgba(255,255,255,0.06)',
         background: '#09090b',
         primary: 'rgb(var(--brass) / <alpha-value>)',
+        // Semantic tokens (Style Dictionary → tokens.generated.css):
+        'bg-base': 'var(--color-bg-base)',
+        'bg-surface': 'var(--color-bg-surface)',
+        'bg-elevated': 'var(--color-bg-elevated)',
+        'text-primary': 'var(--color-text-primary)',
+        'text-secondary': 'var(--color-text-secondary)',
+        'text-muted': 'var(--color-text-muted)',
+        'border-subtle': 'var(--color-border-subtle)',
+        'border-strong': 'var(--color-border-strong)',
+        'accent': 'var(--color-accent-default)',
       },
       fontFamily: {
         display: ['Outfit', 'Inter', 'sans-serif'],

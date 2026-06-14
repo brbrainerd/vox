@@ -335,6 +335,22 @@ class VoxTransport {
   async getMetadata(path: string[]): Promise<CommandMetadata | null> {
     return invoke('get_command_metadata', { path });
   }
+
+  logFrontend(level: 'error' | 'warn' | 'info', message: string): Promise<void> {
+    return invoke('log_frontend', { level, message });
+  }
+
+  getGuiPreference(key: string): Promise<string | null> {
+    return invoke<string | null>('get_gui_preference', { key });
+  }
+
+  setGuiPreference(key: string, value: string): Promise<void> {
+    return invoke('set_gui_preference', { key, value });
+  }
+
+  openLocator(locator: string): Promise<void> {
+    return invoke('open_locator', { locator });
+  }
 }
 
 export const voxTransport = new VoxTransport();
