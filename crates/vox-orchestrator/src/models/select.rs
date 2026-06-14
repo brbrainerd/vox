@@ -1071,3 +1071,58 @@ mod tests {
         assert_eq!(via_policy.model_id, via_cascade.model_id);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1c_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn scope_allows_enforces_provider_locality() {
+        // AllProviders admits everything.
+        assert!(scope_allows(
+            ProviderType::Anthropic,
+            CandidateScope::AllProviders
+        ));
+        assert!(scope_allows(
+            ProviderType::Ollama,
+            CandidateScope::AllProviders
+        ));
+
+        // LocalOnly admits only the three local providers.
+        assert!(scope_allows(
+            ProviderType::Ollama,
+            CandidateScope::LocalOnly
+        ));
+        assert!(scope_allows(
+            ProviderType::VoxLocal,
+            CandidateScope::LocalOnly
+        ));
+        assert!(scope_allows(
+            ProviderType::PopuliMesh,
+            CandidateScope::LocalOnly
+        ));
+        assert!(!scope_allows(
+            ProviderType::Anthropic,
+            CandidateScope::LocalOnly
+        ));
+
+        // CloudOnly is the exact complement of LocalOnly.
+        assert!(scope_allows(
+            ProviderType::Anthropic,
+            CandidateScope::CloudOnly
+        ));
+        assert!(!scope_allows(
+            ProviderType::Ollama,
+            CandidateScope::CloudOnly
+        ));
+        assert!(!scope_allows(
+            ProviderType::VoxLocal,
+            CandidateScope::CloudOnly
+        ));
+        assert!(!scope_allows(
+            ProviderType::PopuliMesh,
+            CandidateScope::CloudOnly
+        ));
+    }
+}

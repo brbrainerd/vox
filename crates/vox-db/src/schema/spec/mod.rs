@@ -203,3 +203,46 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1c_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn usage_field_docs_has_expected_names_types_and_only_last_429_optional() {
+        let fields = usage_field_docs();
+
+        let expected: Vec<(&str, &str, bool)> = vec![
+            ("user_id", "str", false),
+            ("provider", "str", false),
+            ("model", "str", false),
+            ("date", "str", false),
+            ("calls", "int", false),
+            ("tokens_in", "int", false),
+            ("tokens_out", "int", false),
+            ("cost_usd", "float", false),
+            ("is_rate_limited", "bool", false),
+            ("last_429", "int", true),
+        ];
+
+        assert_eq!(fields.len(), expected.len(), "field count drifted");
+
+        for (got, (name, type_str, is_optional)) in fields.iter().zip(expected.iter()) {
+            assert_eq!(&got.name, name, "field name mismatch");
+            assert_eq!(&got.type_str, type_str, "type_str mismatch for {name}");
+            assert_eq!(
+                got.is_optional, *is_optional,
+                "is_optional mismatch for {name}"
+            );
+            assert!(
+                got.references_table.is_none(),
+                "field {name} should not reference a table"
+            );
+        }
+
+        // last_429 is the sole optional field.
+        let optional_count = fields.iter().filter(|f| f.is_optional).count();
+        assert_eq!(optional_count, 1, "exactly one optional field expected");
+    }
+}
