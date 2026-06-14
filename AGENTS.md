@@ -252,29 +252,15 @@ Decorators compose with bare-keyword blocks:
 that can be expressed as a decorator. New execution semantics (durability,
 tracing, sandboxing, rate-limiting) belong as decorators on `fn`.
 
-**Implementation status (2026-05-23, ADR-041 supersedes ADR-028).** `actor`,
-`workflow`, `activity`, `@durable`, and `@scheduled` are **stable public-grammar
-features** backed by a real durable runtime for the supported subset (see
-[ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md),
-[ADR-021](docs/src/adr/021-generated-workflow-durability-parity.md), and
-[ADR-041](docs/src/adr/041-durable-functions-completion-2026.md)). The earlier
-`check_adr028_reserved_keywords` source-text gate in `crates/vox-compiler/src/pipeline.rs`
-that emitted error code `E028` has been **removed**; E028 is retired.
-Out-of-subset behavior (arbitrary `match` replay, unbounded loops, non-deterministic
-ops in workflow bodies) is still policed — but by the determinism lint pass, not
-the old reservation gate. The 2026-05-01 stub-only state described in
-[`durability-runtime-audit-2026.md`](docs/src/architecture/durability-runtime-audit-2026.md)
-was closed by Phases 1–6 of
-[`docs/superpowers/plans/2026-05-23-durable-functions-completion.md`](docs/superpowers/plans/2026-05-23-durable-functions-completion.md).
-
-The `vox ci retirement-audit` gate (planned per
-[CR-L6](docs/src/architecture/v1-llm-target-implementation-plan-2026.md) P1.3)
-will fail CI on drift between this section and the actual parse-time enforcement
-in `pipeline.rs`. Until that gate lands, the
-[`docs-reality-audit-program`](docs/src/contributors/docs-reality-audit-program.md)
-catches this drift quarterly.
-
-See: [`docs/src/architecture/gui-native-roadmap-status-2026.md`](docs/src/architecture/gui-native-roadmap-status-2026.md) §Phase 2; [`docs/src/architecture/durability-runtime-audit-2026.md`](docs/src/architecture/durability-runtime-audit-2026.md).
+**Implementation status (ADR-041 supersedes ADR-028).** `actor`, `workflow`, `activity`,
+`@durable`, and `@scheduled` are **stable public-grammar features** backed by a durable runtime
+for the supported subset; the old `E028` reservation gate is **removed**, and out-of-subset
+behavior is now policed by the determinism lint, not a reservation gate. Supported subset +
+contract: [ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md),
+[ADR-021](docs/src/adr/021-generated-workflow-durability-parity.md),
+[ADR-041](docs/src/adr/041-durable-functions-completion-2026.md). Drift between this section and
+`pipeline.rs` is caught by the [`docs-reality-audit-program`](docs/src/contributors/docs-reality-audit-program.md)
+(and the planned `vox ci retirement-audit` gate, [CR-L6](docs/src/architecture/v1-llm-target-implementation-plan-2026.md) P1.3).
 
 ## Cross-Platform Shell Discipline (Stable Rules)
 
