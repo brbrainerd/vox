@@ -1,0 +1,47 @@
+name: Workflow Lint
+
+# Catches GitHub Actions bugs and security smells in `.github/workflows/**` BEFORE they
+# reach human/CodeRabbit review — ~25% of this repo's fix() commits are review-response, and
+# the recurring workflow-security findings (unpinned actions, persisted credentials, expression
+# injection) are exactly what actionlint + zizmor flag mechanically. Runs only when a workflow
+# file changes, so it's near-free. NON-required (not wired into the merge gate); it's an
+# early-warning surface, not a blocker.
+on:
+  pull_request:
+    paths: ['.github/workflows/**']
+  push:
+    branches: [main]
+    paths: ['.github/workflows/**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    name: actionlint (syntax + shellcheck) + zizmor (security, advisory)
+    # GitHub-hosted: these tools install in seconds and need no self-hosted resources.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # actionlint = high-signal, low-false-positive: real syntax errors, bad `if:`
+      # expressions, shellcheck on `run:` blocks, deprecated patterns. BLOCKING.
+      - name: actionlint
+        uses: docker://rhysd/actionlint:latest
+        with:
+          args: -color
+
+      # zizmor = workflow SAST (artipacked/persist-credentials, unpinned-uses, template
+      # injection, excessive permissions). ADVISORY here: the repo intentionally uses tag
+      # refs (not SHA pins) by convention, which zizmor's blanket policy flags — so failing
+      # on it would block every PR. `|| true` surfaces findings in the log without blocking;
+      # authors fix the high-severity ones (as on PR #288) before review.
+      - name: Install zizmor
+        run: pipx install zizmor || pip install --user zizmor
+      - name: zizmor (advisory — surfaces security findings, does not block)
+        run: zizmor --persona regular .github/workflows/ || true

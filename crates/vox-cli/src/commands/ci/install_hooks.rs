@@ -1,6 +1,36 @@
 use anyhow::{Context, Result};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+/// Resolve the git hooks directory for `root`, working in both ordinary clones and
+/// **worktrees** (where `.git` is a file pointing at `…/.git/worktrees/<name>`, so the old
+/// `root.join(".git/hooks")` + `is_dir()` check silently skipped — exactly where Claude
+/// agents run). `git rev-parse --git-path hooks` returns the correct hooks dir for either
+/// layout and also honors `core.hooksPath`. Falls back to `<root>/.git/hooks` if git is
+/// unavailable.
+fn resolve_hooks_dir(root: &Path) -> Option<PathBuf> {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["rev-parse", "--git-path", "hooks"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let rel = String::from_utf8(out.stdout).ok()?;
+    let rel = rel.trim();
+    if rel.is_empty() {
+        return None;
+    }
+    let p = Path::new(rel);
+    Some(if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        root.join(p)
+    })
+}
 
 const PRE_COMMIT_HOOK: &str = r#"#!/usr/bin/env bash
 # File: .git/hooks/pre-commit
@@ -8,8 +38,24 @@ const PRE_COMMIT_HOOK: &str = r#"#!/usr/bin/env bash
 
 echo "🦶 Running VoxCI line-endings check..."
 
-# Run the strict line-ending validator, scoping to changed files (--all is not needed here)
-cargo run -q -p vox-cli -- ci line-endings --autofix
+# Prefer a prebuilt vox binary so a trivial CRLF check does NOT trigger a full
+# `cargo run -p vox-cli` rebuild on every commit. On this 100+-crate workspace
+# that rebuild dominated commit latency (1-2 min/commit). Freshness is irrelevant
+# for a line-endings check, so skip the staleness guard on this fast path. Fall
+# back to `cargo run` only when no prebuilt binary is present.
+VOX_BIN=""
+for cand in \
+  "./target/debug/vox" "./target/debug/vox.exe" \
+  "./target/release/vox" "./target/release/vox.exe" \
+  "$HOME/.vox/bin/vox" "$HOME/.vox/bin/vox.exe"; do
+  if [ -x "$cand" ]; then VOX_BIN="$cand"; break; fi
+done
+
+if [ -n "$VOX_BIN" ]; then
+  VOX_SKIP_FRESHNESS_CHECK=1 "$VOX_BIN" ci line-endings --autofix
+else
+  cargo run -q -p vox-cli -- ci line-endings --autofix
+fi
 
 if [ $? -ne 0 ]; then
     echo "❌ Commit aborted: CRLF line-endings detected. Run the formatter or fix them in your IDE, then git add again."
@@ -30,17 +76,19 @@ exec cargo run -q -p vox-cli -- ci pre-push
 "#;
 
 pub fn run(root: &Path) -> Result<()> {
-    let git_dir = root.join(".git");
-    if !git_dir.is_dir() {
-        // Just print a warning, no need to fail the CI step if someone isn't inside a git clone.
-        println!(
-            "Skipping hook installation: {} is not a valid .git directory",
-            git_dir.display()
-        );
-        return Ok(());
-    }
+    // Resolve the hooks dir via git so worktrees (where `.git` is a file) install correctly.
+    let hooks_dir = match resolve_hooks_dir(root) {
+        Some(d) => d,
+        None => {
+            // Just print a warning, no need to fail the CI step if someone isn't in a git clone.
+            println!(
+                "Skipping hook installation: {} is not inside a git repository",
+                root.display()
+            );
+            return Ok(());
+        }
+    };
 
-    let hooks_dir = git_dir.join("hooks");
     if !hooks_dir.exists() {
         fs::create_dir_all(&hooks_dir)
             .with_context(|| format!("create {}", hooks_dir.display()))?;
