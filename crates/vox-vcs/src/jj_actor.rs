@@ -41,7 +41,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::Duration;
 use tokio::sync::oneshot;
-use vox_config::timeouts::{D_250MS, D_5S, D_10S, D_30S};
+use vox_config::timeouts::{D_5S, D_10S, D_30S, D_250MS};
 
 /// Upper bound on a single jj operation inside the actor. Remote push/fetch shell
 /// out to `git` and can legitimately take a while, so this is deliberately
@@ -441,7 +441,7 @@ impl VcsBackend for JjActorHandle {
 mod tests {
     use super::*;
     use std::time::Duration;
-    use vox_config::timeouts::{D_250MS, D_5S, D_10S};
+    use vox_config::timeouts::{D_5S, D_10S, D_250MS};
 
     /// A wedged operation elapses to a `VcsError` (so the actor thread is freed
     /// for the next queued command) while a fast operation passes through cleanly.
