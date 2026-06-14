@@ -160,6 +160,7 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
             </div>
             <div className="mt-3 flex justify-end">
               <button
+                type="button"
                 onClick={autofill}
                 disabled={autofilling}
                 className="rounded-lg border border-brass/40 bg-brass/15 px-3 py-1.5 text-[11px] uppercase tracking-wider text-brass hover:bg-brass/20 disabled:opacity-40"

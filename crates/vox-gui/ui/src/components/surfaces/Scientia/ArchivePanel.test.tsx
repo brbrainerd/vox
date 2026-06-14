@@ -69,6 +69,16 @@ describe('ArchivePanel', () => {
     fireEvent.click(screen.getByText('Load'));
   }
 
+  it('every button carries an explicit type (submit for the form, button otherwise)', async () => {
+    await loadPub();
+    await screen.findByLabelText('completeness percent');
+    for (const b of screen.getAllByRole('button')) {
+      expect(['button', 'submit']).toContain(b.getAttribute('type'));
+    }
+    // The Auto-fill action is a plain button, not a form submit.
+    expect(screen.getByText('Auto-fill').getAttribute('type')).toBe('button');
+  });
+
   it('renders the completeness meter (40) and the required-missing checklist item', async () => {
     await loadPub();
     const meter = await screen.findByLabelText('completeness percent');
