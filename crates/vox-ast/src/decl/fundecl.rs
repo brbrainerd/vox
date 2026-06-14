@@ -139,8 +139,13 @@ pub struct FnDecl {
     #[serde(default)]
     pub embed: Option<super::embed_decorator::AstEmbedSpec>,
     /// Whether the function serves as a page layout.
-    /// Whether the function is public.
+    /// Whether the function is public (`pub fn` visibility OR `@public` decorator).
     pub is_pub: bool,
+    /// Set ONLY by the `@public` decorator — means "skip auth-guard" (auth-exempt endpoint).
+    /// Distinct from `is_pub` (which includes `pub fn` visibility) so the
+    /// `@public` + `@auth` XOR lint doesn't misfire on `pub @auth fn`.
+    #[serde(default)]
+    pub is_auth_exempt: bool,
     /// Whether the function records custom metrics.
     /// The name of the recorded metric.
     /// Whether the function is a health check endpoint.
@@ -193,6 +198,14 @@ pub struct FnDecl {
     /// `@training_step` — CUDA-gated training step surface (Mn-T5).
     #[serde(default)]
     pub training_step: bool,
+    /// `@offline_capable` — declares the function can be executed without network access.
+    /// Not yet consumed by codegen; recorded for future capability-gate wiring.
+    #[serde(default)]
+    pub is_offline_capable: bool,
+    /// `@collaborative` — declares the function participates in multi-agent collaboration.
+    /// Not yet consumed by codegen; recorded for future mesh-dispatch wiring.
+    #[serde(default)]
+    pub is_collaborative: bool,
     /// Source location.
     pub span: Span,
 }

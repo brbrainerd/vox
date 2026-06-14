@@ -9,6 +9,9 @@ impl Parser {
     pub(crate) fn parse_fn_decl(&mut self, is_pub: bool) -> Result<FnDecl, ()> {
         let start = self.span();
         let mut is_pub = is_pub;
+        let mut is_auth_exempt = false; // set ONLY by @public decorator, not by `pub fn`
+        let mut is_offline_capable = false;
+        let mut is_collaborative = false;
         let mut preconditions = Vec::new();
         let mut postconditions = Vec::new();
         let mut invariants = Vec::new();
@@ -949,6 +952,7 @@ impl Parser {
                 Token::AtPublic => {
                     self.advance();
                     is_pub = true;
+                    is_auth_exempt = true; // @public means skip auth-guard, distinct from `pub fn`
                 }
                 Token::AtAuth => {
                     self.advance();
@@ -1015,8 +1019,16 @@ impl Parser {
                         auth_provider = Some(String::new());
                     }
                 }
-                Token::AtOfflineCapable | Token::AtCollaborative => {
+                Token::AtOfflineCapable => {
                     self.advance();
+                    is_offline_capable = true;
+                    if self.eat(&Token::LParen) {
+                        self.skip_paren_args_inner();
+                    }
+                }
+                Token::AtCollaborative => {
+                    self.advance();
+                    is_collaborative = true;
                     if self.eat(&Token::LParen) {
                         self.skip_paren_args_inner();
                     }
@@ -1110,6 +1122,7 @@ impl Parser {
             }),
             is_traced: false,
             is_pub,
+            is_auth_exempt,
             auth_provider,
             roles: auth_roles,
             cors: None,
@@ -1128,6 +1141,8 @@ impl Parser {
             effects,
             inference_model,
             training_step,
+            is_offline_capable,
+            is_collaborative,
             span: start.merge(self.span()),
         })
     }

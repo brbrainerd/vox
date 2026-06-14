@@ -78,6 +78,9 @@ fn fn_decl(name: &str) -> FnDecl {
         is_remote: false,
         inference_model: None,
         training_step: false,
+        is_auth_exempt: false,
+        is_offline_capable: false,
+        is_collaborative: false,
         span: zero_span(),
     }
 }

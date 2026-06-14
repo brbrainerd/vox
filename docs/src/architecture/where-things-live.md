@@ -77,6 +77,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-research-events`](../../../crates/vox-research-events/) | Typed SCIENTIA research event types and `PreregistrationV1`. |
 | [`vox-rule-pack`](../../../crates/vox-rule-pack/) | Declarative YAML rule-pack loader for code-audit detector patterns and Scientia heuristics. Zero heavy deps. |
 | [`vox-scaling-policy`](../../../crates/vox-scaling-policy/) | Compile-time and runtime accessors for scaling SSOT (`contracts/scaling/policy.yaml`); includes [`donations_vox`](../../../crates/vox-scaling-policy/src/donations_vox/) for mesh `donations.vox` parse/pretty-print (folded from retired `vox-mesh-policy`). |
+| [`vox-mesh-policy`](../../../crates/vox-mesh-policy/) | Donations.vox mesh policy parser and `WorkerDonationPolicy` type; migration to `vox-scaling-policy::donations_vox` in progress. |
 | [`vox-secrets`](../../../crates/vox-secrets/) | Central secret resolution and compatibility adapters for Vox. |
 
 ### L2 — domain libraries
@@ -105,6 +106,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-code-audit`](../../../crates/vox-code-audit/) | AI code quality stub detector — finds stubs, magic values, empty bodies, missing references, and DRY violations. |
 | [`vox-drift-check`](../../../crates/vox-drift-check/) | Workspace drift and pattern-repetition linter (multi-language: Rust, TypeScript, Vox). |
 | [`vox-codegen`](../../../crates/vox-codegen/) | Codegen + WebIR + vox_ir extracted from vox-compiler. Consumes analysis types from vox-compiler. |
+| [`vox-rn-codegen`](../../../crates/vox-rn-codegen/) | React Native + Expo TypeScript codegen extracted from vox-codegen. |
 | [`vox-codegen/src/projection_bundle.rs`](../../../crates/vox-codegen/src/projection_bundle.rs) | **`project_bundle_from_hir`** — SSOT assembly of WebIR, AppContract, RuntimeProjection, ShellProjection, and RequiredRuntimeCapabilities for emitters. |
 | [`vox-compiler/src/shell_projection.rs`](../../../crates/vox-compiler/src/shell_projection.rs) | Typed shell/mobile primitive projection from HIR (`@back_button`, `@deep_link`, `@push`). |
 | [`vox-compiler/src/required_capabilities.rs`](../../../crates/vox-compiler/src/required_capabilities.rs) | HIR-derived sorted capability id list for packaging / filtered Tauri `runtime-capabilities.projection.json`. |
@@ -134,6 +136,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-openclaw-runtime`](../../../crates/vox-openclaw-runtime/) | OpenClaw client + ARS runtime adapter, executor, context bundles, hooks. |
 | [`vox-research-shim`](../../../crates/vox-research-shim/) | DEI research pipeline and model-selection sub-systems (A-12 wedge). SCIENTIA orchestrator, claim/verify/persist, BroadcastEmitter, ScientiaMeshSubscriber, and `selection::` (FreeTierRouter, ModelScorer, task_routing). Uses `vox_orchestrator::types::RoutingProfile`. |
 | [`vox-orchestrator`](../../../crates/vox-orchestrator/) | Multi-agent file-affinity router. `types::RoutingProfile` (7 routing intent variants), `ModelTier` (Unknown→Local→Free→Fast→Light→Pro→Elite, generated from model-routing.v1.yaml), `CostPreference::Economy` (default — free-by-default policy). Extraction plan: see [2026-05-15-orchestrator-tier-d-plan.md](./2026-05-15-orchestrator-tier-d-plan.md). |
+| [`vox-orchestrator-driver`](../../../crates/vox-orchestrator-driver/) | Thin L3 driver for embedding vox-orchestrator in CLI and MCP hosts. |
 | [`vox-orchestrator-mcp`](../../../crates/vox-orchestrator-mcp/) | MCP (Model Context Protocol) tool layer for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 4. |
 | [`vox-orchestrator-queue`](../../../crates/vox-orchestrator-queue/) | Locks, oplog, and affinity tracking for vox-orchestrator. Extracted in 2026-05-08 reorg Phase 5. |
 | [`vox-orchestrator-test-helpers`](../../../crates/vox-orchestrator-test-helpers/) | Test-only fixtures and mocks for vox-orchestrator: MockBulletinBoard, load_golden_fixture. |
@@ -160,6 +163,8 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Crate | One-line scope |
 |---|---|
 | [`vox-cli`](../../../crates/vox-cli/) | Vox command-line interface: compile, run, bundle, and workspace diagnostics. |
+| [`vox-langtool`](../../../crates/vox-langtool/) | DB-free CLI for the Vox language: check, fmt, run, build (no database runtime required). |
+| [`vox-cli-ci`](../../../crates/vox-cli-ci/) | CI guard checks extracted from vox-cli (runner-policy-check, line-endings, and related). |
 | [`vox-cli-tests`](../../../crates/vox-cli-tests/) | End-to-end `vox build`/`vox new` CLI integration harness (test-only L5; assert_cmd subprocess + tsc/cargo check). |
 | [`vox-integration-tests`](../../../crates/vox-integration-tests/) | Cross-crate integration test harness (test-only L5). |
 | [`vox-orchestrator-d`](../../../crates/vox-orchestrator-d/) | Vox orchestrator daemon binary. Extracted from vox-orchestrator in 2026-05-08 reorg Phase 4. |

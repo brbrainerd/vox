@@ -130,6 +130,17 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             // `lhs |> f` = `f(lhs)`: evaluate lhs as the argument, rhs as callee.
             // Pipe is left-associative: `a |> f |> g` = `g(f(a))`.
             if *op == HirBinOp::Pipe {
+                // When rhs is a bare builtin identifier (str, int, len, …) that is
+                // NOT bound in the current scope, dispatch through call_global_builtin
+                // instead of apply_closure. Without this check, eval_expr returns a
+                // placeholder Fn with an empty body and apply_closure returns Null.
+                if let HirExpr::Ident(name, _) = right.as_ref()
+                    && interp.scope.get(name).is_none()
+                    && interp.module_scope.get(name).is_none()
+                    && let Some(result) = super::builtins::call_global_builtin(name, vec![l.clone()])
+                {
+                    return Ok(result);
+                }
                 let callee = eval_expr(interp, right)?;
                 return apply_closure(interp, &callee, vec![l]);
             }

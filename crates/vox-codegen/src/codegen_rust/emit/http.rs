@@ -201,6 +201,74 @@ async fn {fn_name}(
     )
 }
 
+/// Emit a `from_fn` auth-guard middleware for an endpoint with `@auth(provider:, roles:)`.
+///
+/// The guard reads `Authorization: Bearer <token>` and validates it against the env var
+/// `VOX_AUTH_TOKEN_<PROVIDER>`. Role claims are checked against a comma-separated
+/// `VOX_AUTH_ROLES_<PROVIDER>` env var. This is a real, compiling guard — not a comment.
+/// Projects that use a proper JWT/OAuth provider should replace this with their SDK.
+fn emit_auth_guard_prelude(sf: &HirEndpointFn, prefix: &str) -> String {
+    let Some(ref auth) = sf.auth else {
+        return String::new();
+    };
+    let suffix = safe_ident_suffix(&format!("{prefix}{}", sf.name));
+    let fn_name = format!("vox_auth_guard_{suffix}");
+    let provider_upper = auth.provider.to_uppercase().replace(['-', '.'], "_");
+    let token_env = format!("VOX_AUTH_TOKEN_{provider_upper}");
+    let roles_env = format!("VOX_AUTH_ROLES_{provider_upper}");
+    let required_roles: String = if auth.roles.is_empty() {
+        String::new()
+    } else {
+        auth.roles
+            .iter()
+            .map(|r| format!("\"{r}\""))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let role_check = if auth.roles.is_empty() {
+        String::new()
+    } else {
+        format!(
+            r#"    let allowed_roles: &[&str] = &[{required_roles}];
+    let caller_roles_raw = std::env::var("{roles_env}").unwrap_or_default();
+    let caller_roles: Vec<&str> = caller_roles_raw.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+    if !allowed_roles.iter().any(|r| caller_roles.contains(r)) {{
+        return Err((StatusCode::FORBIDDEN, Json(vox_http_client::envelope::error_json(
+            "FORBIDDEN",
+            "Insufficient roles",
+            None,
+            None,
+        ))).into_response());
+    }}
+"#
+        )
+    };
+    format!(
+        r#"async fn {fn_name}(
+    req: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> Result<axum::response::Response, axum::response::Response> {{
+    let expected_token = std::env::var("{token_env}").unwrap_or_default();
+    let bearer = req.headers()
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .unwrap_or("");
+    if expected_token.is_empty() || bearer != expected_token {{
+        return Err((StatusCode::UNAUTHORIZED, Json(vox_http_client::envelope::error_json(
+            "UNAUTHORIZED",
+            "Missing or invalid auth token",
+            None,
+            None,
+        ))).into_response());
+    }}
+{role_check}    Ok(next.run(req).await)
+}}
+
+"#
+    )
+}
+
 fn wrap_method_router(method_router_expr: String, sf: Option<&HirEndpointFn>) -> String {
     let Some(sf) = sf else {
         return method_router_expr;
@@ -223,6 +291,15 @@ fn wrap_method_router(method_router_expr: String, sf: Option<&HirEndpointFn>) ->
     if let Some(ref cors) = sf.cors {
         let cors_ex = emit_cors_layer_value(cors);
         out = format!("{out}.layer({cors_ex})");
+    }
+    if sf.auth.is_some() {
+        let suffix_raw = match sf.kind {
+            HirEndpointKind::Query => format!("q_{}", sf.name),
+            HirEndpointKind::Mutation => format!("m_{}", sf.name),
+            HirEndpointKind::Server => format!("sf_{}", sf.name),
+        };
+        let fn_name = format!("vox_auth_guard_{}", safe_ident_suffix(&suffix_raw));
+        out = format!("{out}.layer(axum::middleware::from_fn({fn_name}))");
     }
     out
 }
@@ -457,6 +534,7 @@ pub fn emit_main(
         out.push_str(&emit_ip_rate_limit_prelude(sf, pfx));
         out.push_str(&emit_user_id_rate_limit_prelude(sf, pfx));
         out.push_str(&emit_api_key_rate_limit_prelude(sf, pfx));
+        out.push_str(&emit_auth_guard_prelude(sf, pfx));
     }
 
     out.push_str(

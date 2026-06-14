@@ -6,7 +6,7 @@ expression: combined
 import React, { useState } from "react";
 
 export interface PhotoUploaderProps {
-  on_image: any;
+  on_image: (p0: string) => unit;
 }
 
 export function PhotoUploader({ on_image }: PhotoUploaderProps): React.ReactElement {

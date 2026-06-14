@@ -371,6 +371,9 @@ impl Parser {
             ts_extern_module: Some(module),
             inference_model: None,
             training_step: false,
+            is_auth_exempt: false,
+            is_offline_capable: false,
+            is_collaborative: false,
             span: start.merge(self.span()),
         }))
     }

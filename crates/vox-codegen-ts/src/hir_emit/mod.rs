@@ -838,44 +838,41 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
         }
         HirExpr::AsyncView(v) => {
             let source_tsx = emit_hir_expr(&v.source, ctx);
-            #[cfg(feature = "standalone")]
-            {
-                let fetching_tsx = v
-                    .fetching_arm
-                    .as_deref()
-                    .map(|e| emit_hir_expr(e, ctx))
-                    .unwrap_or_else(|| "null".to_string());
-                let empty_tsx = v
-                    .empty_arm
-                    .as_deref()
-                    .map(|e| emit_hir_expr(e, ctx))
-                    .unwrap_or_else(|| "null".to_string());
-                let error_binding = v.error_binding.as_deref().unwrap_or("_err");
-                let error_tsx = v
-                    .error_arm
-                    .as_deref()
-                    .map(|e| emit_hir_expr(e, ctx))
-                    .unwrap_or_else(|| "null".to_string());
-                let ok_binding = v.ok_binding.as_deref().unwrap_or("_data");
-                let ok_tsx = v
-                    .ok_arm
-                    .as_deref()
-                    .map(|e| emit_hir_expr(e, ctx))
-                    .unwrap_or_else(|| "null".to_string());
-                vox_codegen::web_ir::async_state::emit_async_view_tsx(
-                    &source_tsx,
-                    &fetching_tsx,
-                    &empty_tsx,
-                    error_binding,
-                    &error_tsx,
-                    ok_binding,
-                    &ok_tsx,
-                )
-            }
-            #[cfg(not(feature = "standalone"))]
-            {
-                source_tsx
-            }
+            let fetching_tsx = v
+                .fetching_arm
+                .as_deref()
+                .map(|e| emit_hir_expr(e, ctx))
+                .unwrap_or_else(|| "null".to_string());
+            let empty_tsx = v
+                .empty_arm
+                .as_deref()
+                .map(|e| emit_hir_expr(e, ctx))
+                .unwrap_or_else(|| "null".to_string());
+            let error_binding = v.error_binding.as_deref().unwrap_or("_err");
+            let error_tsx = v
+                .error_arm
+                .as_deref()
+                .map(|e| emit_hir_expr(e, ctx))
+                .unwrap_or_else(|| "null".to_string());
+            let ok_binding = v.ok_binding.as_deref().unwrap_or("_data");
+            let ok_tsx = v
+                .ok_arm
+                .as_deref()
+                .map(|e| emit_hir_expr(e, ctx))
+                .unwrap_or_else(|| "null".to_string());
+            // Use `crate::web_ir::…` which resolves in both embedded (standalone=OFF,
+            // production `vox build`) and standalone compile modes. The previous
+            // `vox_codegen::web_ir::…` path only resolved in standalone, silently
+            // falling back to bare `source_tsx` in production.
+            crate::web_ir::async_state::emit_async_view_tsx(
+                &source_tsx,
+                &fetching_tsx,
+                &empty_tsx,
+                error_binding,
+                &error_tsx,
+                ok_binding,
+                &ok_tsx,
+            )
         }
         // WorkflowVersion is not representable as a TS expression in this emit path
         HirExpr::WorkflowVersion(_) => String::new(),

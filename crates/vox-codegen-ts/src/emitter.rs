@@ -231,11 +231,20 @@ pub fn generate_with_options(
     let web_projection = &bundle.web;
     let app_contract = &bundle.app;
 
-    if options.mode != BuildMode::Library && !hir.components.is_empty() {
+    if !hir.components.is_empty() {
         for rc in &hir.components {
             let (filename, content) =
                 generate_reactive_component(hir, rc, web_projection, &mut reactive_stats);
-            files.push((filename, content));
+            // In Library mode the component file must be emitted under
+            // `components/<Name>.tsx` to match the export path in
+            // `emit_library_package_json`. Use a subdir prefix so the export
+            // entry "./components/<Name>" resolves correctly.
+            let emit_filename = if options.mode == BuildMode::Library {
+                format!("components/{}", filename)
+            } else {
+                filename
+            };
+            files.push((emit_filename, content));
             if !rc.styles.is_empty() {
                 let mut css = String::new();
                 for block in &rc.styles {
@@ -246,10 +255,17 @@ pub fn generate_with_options(
                     }
                     css.push_str("}\n");
                 }
-                files.push((format!("{}.css", rc.name), css));
+                let css_filename = if options.mode == BuildMode::Library {
+                    format!("components/{}.css", rc.name)
+                } else {
+                    format!("{}.css", rc.name)
+                };
+                files.push((css_filename, css));
             }
         }
     }
+
+    // In non-Library mode the entry/bootstrap files are emitted below.
 
     // Generate type definitions
     let types_content = generate_types(hir);
@@ -565,23 +581,10 @@ pub fn generate_with_options(
     }
 
     if options.mode == BuildMode::Library {
-        let package_json = serde_json::json!({
-            "name": "vox-generated-api",
-            "version": "0.1.0",
-            "type": "module",
-            "main": "./index.ts",
-            "exports": {
-                ".": "./index.ts"
-            },
-            "peerDependencies": {
-                "zod": "^3.22.4"
-            }
-        });
-        files.push((
-            "package.json".to_string(),
-            serde_json::to_string_pretty(&package_json).unwrap(),
-        ));
-
+        // index.ts barrel — re-export all generated surfaces.
+        // Note: package.json was already pushed at the top of the Library block
+        // (via emit_library_package_json with component exports). Do NOT push a
+        // second package.json here — a duplicate key clobbers the first.
         let mut index_ts = String::new();
         if has_types {
             index_ts.push_str("export * from \"./types\";\n");

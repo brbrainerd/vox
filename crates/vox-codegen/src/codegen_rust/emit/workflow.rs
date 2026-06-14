@@ -116,18 +116,54 @@ pub fn emit_lib(module: &HirModule) -> String {
 
 /// Emit a single `HirConst` as a Rust `const` declaration.
 ///
-/// Type annotation: uses `emit_type` when present; falls back to `_` so Rust
-/// infers the type for unannotated constants.  `str` constants are emitted as
-/// `&'static str` literals — using the `String` mapping would require `static`
-/// with `once_cell`, which is heavier than needed for compile-time string data.
+/// Rust `const` items require a concrete type — `_` is forbidden (E0121).
+/// When no type annotation is present we infer from the literal kind.
+/// String consts use `&'static str` with a borrowed literal (not `.to_string()`
+/// which is non-const, E0015). Non-literal initialisers that can't be expressed
+/// as a `const` produce a `compile_error!` rather than uncompilable code.
 fn emit_const(c: &HirConst) -> String {
+    use vox_compiler::hir::HirExpr;
     let vis = if c.is_pub { "pub " } else { "" };
-    let ty = match &c.type_ann {
-        Some(vox_compiler::hir::HirType::Named(n)) if n == "str" => "&'static str".to_string(),
-        Some(ty) => emit_type(ty),
-        None => "_".to_string(),
+
+    // Helper: escape a string value for a Rust `"..."` literal.
+    let escape_str = |s: &str| -> String {
+        s.replace('\\', "\\\\")
+            .replace('"', "\\\"")
+            .replace('\n', "\\n")
+            .replace('\r', "\\r")
+            .replace('\t', "\\t")
     };
-    let value = super::stmt_expr::emit_expr(&c.value);
+
+    let (ty, value) = match &c.type_ann {
+        Some(vox_compiler::hir::HirType::Named(n)) if n == "str" => {
+            // str-annotated: borrow the literal so it's const-evaluable.
+            let v = match &c.value {
+                HirExpr::StringLit(s, _) => format!("\"{}\"", escape_str(s)),
+                other => super::stmt_expr::emit_expr(other),
+            };
+            ("&'static str".to_string(), v)
+        }
+        Some(ty) => (emit_type(ty), super::stmt_expr::emit_expr(&c.value)),
+        None => {
+            // Infer Rust type from the literal kind.
+            match &c.value {
+                HirExpr::IntLit(n, _) => ("i64".to_string(), n.to_string()),
+                HirExpr::FloatLit(f, _) => ("f64".to_string(), format!("{f}f64")),
+                HirExpr::BoolLit(b, _) => ("bool".to_string(), b.to_string()),
+                HirExpr::StringLit(s, _) => {
+                    ("&'static str".to_string(), format!("\"{}\"", escape_str(s)))
+                }
+                _ => {
+                    return format!(
+                        "compile_error!(\"vox.codegen_rust.const_requires_literal: \
+                         cannot emit const `{}` from a non-literal initialiser \
+                         — add an explicit type annotation\");\n",
+                        c.name
+                    );
+                }
+            }
+        }
+    };
     format!("{vis}const {name}: {ty} = {value};\n", name = c.name)
 }
 

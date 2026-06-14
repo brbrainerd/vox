@@ -24,7 +24,7 @@ fn spawn_emits_tokio_spawn() {
 }
 
 #[test]
-fn workflow_version_emits_noop_tuple() {
+fn workflow_version_emits_coded_error() {
     let expr = HirExpr::WorkflowVersion(HirWorkflowVersion {
         change_id: "add-discount-field".to_string(),
         min: 1,
@@ -33,13 +33,15 @@ fn workflow_version_emits_noop_tuple() {
     });
     let result = emit_expr(&expr);
     assert!(
-        result.contains("add-discount-field"),
-        "WorkflowVersion must include change_id, got: {result}"
+        result.contains("compile_error!"),
+        "WorkflowVersion must emit compile_error! (no Rust runtime backing yet), got: {result}"
     );
-    assert!(result.contains("1u32") && result.contains("3u32"), "Must include min/max, got: {result}");
-    // Must NOT emit compile_error! any more.
     assert!(
-        !result.contains("compile_error!"),
-        "WorkflowVersion must not emit compile_error!, got: {result}"
+        result.contains("add-discount-field"),
+        "compile_error! message must include change_id, got: {result}"
+    );
+    assert!(
+        result.contains("vox.codegen_rust.workflow_version_unimplemented"),
+        "compile_error! must include diagnostic code, got: {result}"
     );
 }

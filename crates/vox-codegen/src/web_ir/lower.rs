@@ -175,6 +175,26 @@ impl DomArena {
             HirExpr::If(cond, then_stmts, else_stmts, _) => {
                 let ctx = EmitCtx::new(state_names);
                 let predicate = emit_hir_expr(cond, &ctx);
+                // If any branch contains non-Expr statements (e.g. `let` bindings), we
+                // cannot safely drop them and emit only the trailing element — that would
+                // produce silently-wrong output (R15). Fall back to the whole `if` as a
+                // TS expression for the entire branch so nothing is lost.
+                let then_has_non_expr = then_stmts
+                    .iter()
+                    .any(|s| !matches!(s, vox_compiler::hir::HirStmt::Expr { .. }));
+                let else_has_non_expr = else_stmts
+                    .as_ref()
+                    .map(|stmts| {
+                        stmts
+                            .iter()
+                            .any(|s| !matches!(s, vox_compiler::hir::HirStmt::Expr { .. }))
+                    })
+                    .unwrap_or(false);
+                if then_has_non_expr || else_has_non_expr {
+                    self.expr_fallback_count += 1;
+                    let ts = emit_hir_expr(expr, &ctx);
+                    return self.push(DomNode::Expr { ts, span: None });
+                }
                 // Lower then branch: each stmt that is an expr becomes a child node.
                 let then_children: Vec<DomNodeId> = then_stmts
                     .iter()
@@ -214,13 +234,13 @@ impl DomArena {
                     span: None,
                 })
             }
-            // `match subject { … }` → DomNode::Conditional via TS string (Task 8B)
+            // `match subject { … }` → DomNode::Expr via TS string (Task 8B / R14)
+            // Full DomNode::Conditional lowering is deferred (arm patterns may not be JSX).
+            // Count this as a fallback so the WebIR parity metric is honest.
             HirExpr::Match(_, _, _) => {
+                self.expr_fallback_count += 1;
                 let ctx = EmitCtx::new(state_names);
                 let ts = emit_hir_expr(expr, &ctx);
-                // Treat the whole match as a TS expression — proper DomNode::Conditional
-                // lowering for match arms is deferred until a full pattern-match lowering
-                // pass is added (each arm has complex patterns that may not be JSX).
                 self.push(DomNode::Expr { ts, span: None })
             }
             _ => {

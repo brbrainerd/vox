@@ -397,6 +397,9 @@ impl Parser {
                 effects: vec![],
                 inference_model: None,
                 training_step: false,
+                is_auth_exempt: false,
+                is_offline_capable: false,
+                is_collaborative: false,
                 span: script_start.merge(script_end),
             };
             decls.push(Decl::Function(main_fn));
@@ -614,8 +617,10 @@ impl Parser {
                 let mut decl = self.parse_decl()?;
                 if let Decl::Endpoint(ref mut ep) = decl {
                     ep.func.is_pub = true;
+                    ep.func.is_auth_exempt = true; // @public also skips auth-guard
                 } else if let Decl::Function(ref mut f) = decl {
                     f.is_pub = true;
+                    f.is_auth_exempt = true; // @public also skips auth-guard
                 }
                 Ok(decl)
             }

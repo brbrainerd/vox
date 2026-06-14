@@ -340,8 +340,12 @@ pub async fn run(
         .unwrap_or(false);
     if emit_scaffold || scaffold_env {
         let project_root = out_dir.parent().unwrap_or(out_dir);
-        vox_codegen::codegen_ts::scaffold::write_scaffold_if_missing(project_root, "vox-app")
-            .with_context(|| "Failed to write web scaffold files")?;
+        vox_codegen::codegen_ts::scaffold::write_scaffold_if_missing(
+            project_root,
+            "vox-app",
+            &hir.imports,
+        )
+        .with_context(|| "Failed to write web scaffold files")?;
     }
 
     // 8. Handle @v0 components

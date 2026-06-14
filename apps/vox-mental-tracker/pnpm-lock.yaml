@@ -17,9 +17,6 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.6(react@19.2.6)
-      vox-tauri-stt-guest:
-        specifier: link:../../crates/vox-tauri-stt/guest-js
-        version: link:../../crates/vox-tauri-stt/guest-js
       workbox-window:
         specifier: ^7.0.0
         version: 7.4.1

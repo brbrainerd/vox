@@ -763,12 +763,15 @@ pub(super) fn emit_expr_with(
             let inner = emit(target, OwnershipMode::Owned);
             format!("tokio::spawn(async move {{ {inner} }})")
         }
-        // `workflow.version("id", min, max)` is a deploy-time patch-marker; at
-        // Rust runtime it is a no-op tuple that the optimizer removes. The
-        // orchestrator checks this triple at workflow-replay time via the journal.
+        // `workflow.version("id", min, max)` — a deploy-time version gate.
+        // The Rust workflow runtime does not yet expose a replay-version API
+        // (tracked under the mesh/workflow epic). Rather than emitting a silent
+        // no-op tuple (the previous behaviour), emit a coded compile_error! so
+        // workflow code using this construct gets an honest build failure until
+        // the runtime API lands.
         HirExpr::WorkflowVersion(v) => {
             format!(
-                "{{ let _ = ({id:?}, {min}u32, {max}u32); }}",
+                r#"compile_error!("vox.codegen_rust.workflow_version_unimplemented: workflow.version({id:?}, {min}, {max}) has no Rust runtime backing yet — tracked under the mesh/workflow epic")"#,
                 id = v.change_id,
                 min = v.min,
                 max = v.max,

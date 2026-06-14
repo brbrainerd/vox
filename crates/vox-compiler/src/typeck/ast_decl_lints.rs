@@ -645,7 +645,10 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
             Decl::Endpoint(e) => &e.func,
             _ => continue,
         };
-        if f.is_pub && f.auth_provider.is_some() {
+        // Only `@public` (is_auth_exempt) conflicts with `@auth`. Plain `pub fn`
+        // visibility does not: a `pub @auth fn` is a legitimately exported+authenticated
+        // endpoint. The previous `f.is_pub` check mis-fired on those.
+        if f.is_auth_exempt && f.auth_provider.is_some() {
             diags.push(Diagnostic {
                 message: format!(
                     "fn `{}`: `@public` and `@auth(...)` are mutually exclusive — \

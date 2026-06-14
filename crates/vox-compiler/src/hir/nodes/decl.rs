@@ -465,6 +465,16 @@ pub enum HirEndpointKind {
     Server,
 }
 
+/// Auth guard emitted for endpoints decorated with `@auth(provider:, roles:)`.
+/// Carried through HIR so the Rust codegen can emit a real middleware guard.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirAuth {
+    /// The auth provider name (e.g. `"clerk"`, `"supabase"`, `"custom"`).
+    pub provider: String,
+    /// Roles the caller must possess; empty = any authenticated caller.
+    pub roles: Vec<String>,
+}
+
 /// A server endpoint function — callable from the frontend, auto-generates API route + fetch wrapper.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirEndpointFn {
@@ -503,6 +513,9 @@ pub struct HirEndpointFn {
     /// `@layer(tier:)` Z-tier annotation (GA-26).
     #[serde(default)]
     pub layer: Option<super::layer::HirLayerDecl>,
+    /// `@auth(provider:, roles:)` guard — `None` = public endpoint, `Some` = auth required.
+    #[serde(default)]
+    pub auth: Option<HirAuth>,
     /// Span covering the declaration.
     pub span: Span,
 }
