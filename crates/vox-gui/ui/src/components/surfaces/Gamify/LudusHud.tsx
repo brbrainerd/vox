@@ -8,7 +8,14 @@ export function LudusHud({ profile }: { profile: LudusProfile }) {
         <div className="font-display text-sm tracking-wider text-brass uppercase">{profile.full_title}</div>
         <div className="font-mono text-[11px] text-zinc-500">Lv {profile.level} · prestige {profile.prestige_level}</div>
       </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.05]">
+      <div
+        className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.05]"
+        role="progressbar"
+        aria-label="XP progress"
+        aria-valuenow={Math.round(Math.max(0, Math.min(1, profile.xp_progress)) * 100)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
         <div className="h-full rounded-full bg-brass/70 transition-all" style={{ width: xpBarPct(profile.xp_progress) }} />
       </div>
       <div className="mt-1 flex justify-between font-mono text-[10px] text-zinc-500">
