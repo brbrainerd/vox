@@ -83,6 +83,7 @@ export function InputEditor({ onSubmit, onActiveSuggestion }: Props) {
       <input
         role="textbox"
         aria-label="console input"
+        aria-autocomplete="inline"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={onKeyDown}
@@ -96,6 +97,20 @@ export function InputEditor({ onSubmit, onActiveSuggestion }: Props) {
           fontFamily: 'monospace',
         }}
       />
+      <span
+        role="status"
+        aria-live="polite"
+        style={{
+          position: 'absolute',
+          width: 1,
+          height: 1,
+          overflow: 'hidden',
+          clip: 'rect(0 0 0 0)',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {top ? `Suggestion: ${top.completion}` : ''}
+      </span>
     </div>
   );
 }

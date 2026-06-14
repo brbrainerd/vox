@@ -33,4 +33,14 @@ describe('InputEditor', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(onSubmit).toHaveBeenCalledWith('vox config show');
   });
+
+  it('marks the input as inline-autocomplete and announces the active completion', async () => {
+    render(<InputEditor onSubmit={vi.fn()} onActiveSuggestion={vi.fn()} />);
+    const input = screen.getByRole('textbox');
+    expect(input.getAttribute('aria-autocomplete')).toBe('inline');
+    fireEvent.change(input, { target: { value: 'vox config' } });
+    await waitFor(() =>
+      expect(screen.getByRole('status').textContent).toMatch(/config show/i),
+    );
+  });
 });
