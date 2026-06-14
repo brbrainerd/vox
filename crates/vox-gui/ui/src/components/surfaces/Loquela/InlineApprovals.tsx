@@ -75,10 +75,15 @@ export function InlineApprovals({ pushToast, onViewAll }: InlineApprovalsProps) 
   const visible = approvals.slice(0, 2);
 
   return (
-    <Glass className="mb-3 border border-amber-400/20 bg-amber-400/[0.04] p-3">
+    <Glass
+      role="region"
+      aria-label="Approval required"
+      aria-live="polite"
+      className="mb-3 border border-amber-400/20 bg-amber-400/[0.04] p-3"
+    >
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Icon.shield className="size-3.5 text-amber-300" />
+          <Icon.shield className="size-3.5 text-amber-300" aria-hidden="true" />
           <span className="font-mono text-[10px] uppercase tracking-widest text-amber-200/90">
             Approval required
           </span>
@@ -96,11 +101,11 @@ export function InlineApprovals({ pushToast, onViewAll }: InlineApprovalsProps) 
           </button>
         )}
       </div>
-      <div className="flex flex-col gap-2">
+      <ul role="list" className="flex flex-col gap-2">
         {visible.map(a => {
           const busy = resolving === a.approval_id;
           return (
-            <div
+            <li
               key={a.approval_id}
               className="flex flex-col gap-2 rounded-lg border border-white/5 bg-black/20 p-2 sm:flex-row sm:items-center sm:justify-between"
             >
@@ -126,10 +131,10 @@ export function InlineApprovals({ pushToast, onViewAll }: InlineApprovalsProps) 
                   Approve
                 </button>
               </div>
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </Glass>
   );
 }
