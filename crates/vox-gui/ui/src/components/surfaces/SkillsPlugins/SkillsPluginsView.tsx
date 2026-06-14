@@ -162,6 +162,9 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
 
   const TabButton = ({ id, label }: { id: Tab; label: string }) => (
     <button
+      type="button"
+      role="tab"
+      aria-selected={tab === id}
       onClick={() => setTab(id)}
       className={`rounded-md px-3 py-1.5 font-display text-[11px] tracking-wider uppercase transition ${
         tab === id ? 'bg-brass/10 text-brass ring-1 ring-brass/30' : 'text-zinc-500 hover:text-zinc-200'
@@ -176,15 +179,17 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
       <Glass className="col-span-12 p-4 overflow-auto">
         <div className="mb-3 flex items-center gap-2">
           <span className="flex size-7 items-center justify-center rounded-lg bg-brass/10 text-brass ring-1 ring-brass/30">
-            <Icon.catalog className="size-4" />
+            <Icon.catalog className="size-4" aria-hidden="true" />
           </span>
           <div className="font-display text-sm tracking-widest uppercase text-zinc-200">Skills &amp; Plugins</div>
-          <div className="ml-4 flex items-center gap-1">
+          <div className="ml-4 flex items-center gap-1" role="tablist" aria-label="Skills and plugins views">
             <TabButton id="installed" label="Installed" />
             <TabButton id="marketplace" label="Marketplace" />
             <TabButton id="discovered" label="Discovered" />
           </div>
           <button
+            type="button"
+            aria-label="Refresh list"
             onClick={() =>
               tab === 'installed'
                 ? refreshInstalled()
@@ -194,7 +199,7 @@ export function SkillsPluginsView({ pushToast }: SkillsPluginsViewProps) {
             }
             className="ml-auto flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5"
           >
-            <Icon.refresh className="size-3" /> refresh
+            <Icon.refresh className="size-3" aria-hidden="true" /> refresh
           </button>
         </div>
 
@@ -318,13 +323,15 @@ function MarketplaceTab(props: {
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && runSearch()}
             placeholder="Search for skills…"
+            aria-label="Search for skills"
             className="flex-1 rounded-md border border-white/10 bg-white/[0.02] px-3 py-1.5 font-mono text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-brass/40"
           />
           <button
+            type="button"
             onClick={runSearch}
             className="flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.02] px-3 py-1.5 font-display text-[11px] tracking-wider uppercase text-zinc-300 hover:bg-white/5"
           >
-            <Icon.search className="size-3.5" /> Search
+            <Icon.search className="size-3.5" aria-hidden="true" /> Search
           </button>
         </div>
         {searchHits.map((s) => (
@@ -460,6 +467,7 @@ function Row(props: {
           {actions.map((a) => (
             <button
               key={a.label}
+              type="button"
               onClick={a.onClick}
               disabled={busy}
               className={`rounded-md border px-3 py-1.5 font-display text-[11px] tracking-wider uppercase transition disabled:cursor-not-allowed disabled:opacity-40 ${toneCls(
