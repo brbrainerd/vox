@@ -8,9 +8,9 @@
 // `arcane` is the default look and must stay byte-identical to the historical
 // fixed gold (#d4af37).
 
-export type ThemeId = 'arcane' | 'void' | 'glacier';
+export type ThemeId = 'arcane' | 'void' | 'glacier' | 'high-contrast';
 
-const KNOWN: ReadonlySet<string> = new Set(['arcane', 'void', 'glacier']);
+const KNOWN: ReadonlySet<string> = new Set(['arcane', 'void', 'glacier', 'high-contrast']);
 
 /** Normalize an arbitrary preference value to a known theme id, defaulting to 'arcane'. */
 export function normalizeTheme(theme: string | null | undefined): ThemeId {
