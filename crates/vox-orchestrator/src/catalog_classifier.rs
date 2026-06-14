@@ -84,7 +84,7 @@ mod semcov_wave1b_tests {
 
         // Ensure the classifier is enabled regardless of host env. nextest runs each
         // test in its own process, so this env mutation does not leak across tests.
-        unsafe { std::env::set_var("VOX_OPENROUTER_CLASSIFIER_ENABLED", "1") };
+        unsafe { std::env::set_var("VOX_OPEN_ROUTER_CLASSIFIER_ENABLED", "1") };
 
         let mut models = vec![fixture("openai", 200_000)];
         classify_models(&mut models).await;

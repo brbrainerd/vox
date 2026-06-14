@@ -754,6 +754,17 @@ class TestProductionSymbolFilter:
             {"id": "src_lib_do_thing", "label": "do_thing()", "_origin": "ast",
              "source_file": "crates/c/src/lib.rs"}, self.TEST_FNS) is True
 
+    def test_subdirectory_definition_is_production(self):
+        # Regression for C1: a symbol in a src/ SUBDIRECTORY has a non-`src_` id
+        # prefix (the first path component is the subdir, not `src`). It MUST still
+        # count as production — the old `startswith("src_")` gate wrongly dropped it.
+        assert is_production_symbol(
+            {"id": "commands_mod_run", "label": "run()", "_origin": "ast",
+             "source_file": "crates/c/src/commands/mod.rs"}, self.TEST_FNS) is True
+        assert is_production_symbol(
+            {"id": "store_pool_acquire", "label": "acquire()", "_origin": "ast",
+             "source_file": "crates/c/src/store/pool.rs"}, self.TEST_FNS) is True
+
     def test_file_node_is_excluded(self):
         assert is_production_symbol(
             {"id": "crates_c_src_lib_rs", "label": "lib.rs", "_origin": "ast",

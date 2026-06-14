@@ -236,15 +236,20 @@ def is_production_symbol(node: dict, test_fn_by_file: dict) -> bool:
     docs/src/architecture/semantic-coverage-remediation-plan-2026-06-13.md §A):
       - test-origin nodes;
       - file nodes (label ends in ``.rs``);
-      - type/std REFERENCE nodes — definitions carry ``src_``-prefixed ids, while
-        references and file nodes carry full-path ``crates_``-prefixed ids;
+      - type/std REFERENCE nodes and file nodes — these carry full-path
+        ``crates_<full/path>_<norm_label>`` ids, whereas a DEFINITION's id is
+        ``<first-path-component-under-crate>_<file>_<name>`` (e.g. ``src_lib_foo``
+        for ``<crate>/src/lib.rs`` but ``commands_mod_run`` for
+        ``<crate>/src/commands/mod.rs``). So definitions are identified by the
+        ABSENCE of the ``crates_`` prefix — NOT the presence of ``src_`` (which
+        would wrongly drop every symbol in a ``src/`` subdirectory);
       - definitions outside ``/src/`` (``benches/``, ``examples/``, ``build.rs``);
       - in-``src`` ``#[cfg(test)]`` test functions (label matches a detected test
         fn in the same file — passed via ``test_fn_by_file``: {rel_path -> {fn_name}}).
     """
     if node.get("_origin") == "test":
         return False
-    if not node.get("id", "").startswith("src_"):
+    if node.get("id", "").startswith("crates_"):  # reference / file nodes
         return False
     label = node.get("label", "")
     if label.endswith(".rs"):
@@ -585,6 +590,7 @@ def run_overlay(
             prev2_c = body[s - 2] if s >= 2 else ""
             is_method_call = prev_c == "." and prev2_c != "." and not prev2_c.isdigit()
 
+            suppress_proves = False
             if is_method_call:
                 # Method path: same-crate method definitions only (no cross-crate
                 # fallback — method names are too ambiguous across crates).
@@ -595,7 +601,14 @@ def run_overlay(
                 if not method_candidates:
                     continue
                 selected = method_candidates
-                conf = "EXTRACTED" if len(method_candidates) == 1 else "AMBIGUOUS"
+                if len(method_candidates) == 1:
+                    conf = "EXTRACTED"
+                else:
+                    # Same method name on >1 type in the crate: we can't tell which
+                    # type's method was called, so record `targets` but NOT `proves`
+                    # (avoid a false "this method is proven"). [review finding I4]
+                    conf = "AMBIGUOUS"
+                    suppress_proves = True
             else:
                 # Resolution: two-path same-crate-first logic.
                 #
@@ -624,7 +637,7 @@ def run_overlay(
                     imported = imported_crates_by_file.get(t["rel_path"], ())
                     cross = [
                         c for c in full_index.get(ident, [])
-                        if c.get("id", "").startswith("src_")
+                        if not c.get("id", "").startswith("crates_")  # definitions only
                         and crate_from_source_file(c.get("source_file", "")) in imported
                     ]
                     cross_crates = {
@@ -672,8 +685,9 @@ def run_overlay(
                     })
                     targeted_ids.add(sym_id)
 
-                # proves edge (if in assertion context)
-                if in_assert:
+                # proves edge (if in assertion context, and not a suppressed
+                # ambiguous-method collision)
+                if in_assert and not suppress_proves:
                     edge_key_p = (node_id, sym_id, "proves")
                     if edge_key_p not in edge_set:
                         edge_set.add(edge_key_p)

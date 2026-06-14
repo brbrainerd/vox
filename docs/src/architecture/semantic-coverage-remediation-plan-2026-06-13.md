@@ -8,6 +8,22 @@ training_eligible: false
 
 # Semantic Coverage Remediation Plan v2 (audited)
 
+> **§0. NUMBERS CORRECTION (2026-06-14) — read before trusting any count below.**
+> An adversarial review found the original denominator filter used a broken
+> heuristic (`id.startswith("src_")`) that silently dropped every production symbol
+> living in a `src/` **subdirectory** (the id prefix is the first path component, so
+> only files directly in `<crate>/src/*.rs` matched). The static figures in §A/§B
+> below therefore **undercounted by ~2.7×**. Fixed in `is_production_symbol`
+> (definitions are now identified by the *absence* of the `crates_` reference
+> prefix) + the cross-crate path; the I4 ambiguous-method over-credit is also fixed.
+> **Authoritative current numbers:** 19,445 production definitions · 3,088 proven
+> (**15.9%**) · 16,357 candidate gaps. The live SSOT is the regenerable
+> [`graphify-out/CANDIDATE_GAPS.md`](../../../graphify-out/CANDIDATE_GAPS.md) +
+> [`contracts/reports/semantic-coverage.v1.json`](../../../contracts/reports/semantic-coverage.v1.json);
+> treat the specific 7,174 / 12.3–20% / 6,292 figures in §A/§B as *historical
+> (pre-correction)*. The methodology (gap classes, §C protocol, §D patterns) is
+> unchanged and the Wave-1 tests already written remain valid.
+
 > **For agentic workers:** REQUIRED SUB-SKILL — use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task, and `superpowers:test-driven-development` for every individual test. Steps use checkbox (`- [ ]`) syntax.
 >
 > **This document is self-contained on purpose.** If your context was compressed and you are resuming: read §A (what the data means), §C (how to verify a symbol before testing it), and §D (how to write the test), then continue at the first unchecked box in §F. Do **not** trust the raw coverage counts without §A.
