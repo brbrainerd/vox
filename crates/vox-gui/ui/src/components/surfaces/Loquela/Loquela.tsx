@@ -53,7 +53,7 @@ function Chip({ chip, onRemove }: { chip: ChipData; onRemove: (c: ChipData) => v
       <IconCmp className="size-3" />
       <span className="truncate max-w-[180px]">{chip.label}</span>
       {chip.meta && <span className="text-zinc-500">· {chip.meta}</span>}
-      <button onClick={() => onRemove(chip)} className="ml-0.5 opacity-40 hover:opacity-100"><Icon.x className="size-2.5" /></button>
+      <button type="button" aria-label={`Remove ${chip.label}`} onClick={() => onRemove(chip)} className="ml-0.5 opacity-40 hover:opacity-100"><Icon.x className="size-2.5" aria-hidden="true" /></button>
     </span>
   );
 }
@@ -65,7 +65,7 @@ function Segment({ value, onChange, options, size = "sm" }: any) {
       {options.map((o: any) => {
         const on = value === o.id;
         return (
-          <button key={o.id} title={o.hint} onClick={() => onChange(o.id)}
+          <button type="button" key={o.id} title={o.hint} aria-pressed={on} onClick={() => onChange(o.id)}
             className={`${pad} font-display uppercase tracking-[0.15em] rounded-[5px] transition ${on ? (o.tone || "bg-white/10 text-zinc-50") : "text-zinc-500 hover:text-zinc-300"}`}>
             {o.label}
           </button>
@@ -456,13 +456,15 @@ export function Loquela({
         )}
 
         <div className="relative flex items-end gap-2">
-          <button onClick={attachContext} title="Attach local file(s) to context (native picker)" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25 transition">
-            <Icon.plus className="size-4" />
+          <button type="button" aria-label="Attach local file(s) to context" onClick={attachContext} title="Attach local file(s) to context (native picker)" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25 transition">
+            <Icon.plus className="size-4" aria-hidden="true" />
           </button>
-          <button onClick={attachUrl} title="Attach a URL to context" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25 transition">
-            <Icon.link className="size-4" />
+          <button type="button" aria-label="Attach a URL to context" onClick={attachUrl} title="Attach a URL to context" className="flex size-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25 transition">
+            <Icon.link className="size-4" aria-hidden="true" />
           </button>
           <button
+            type="button"
+            aria-label="Voice input"
             onClick={toggleMic}
             disabled={transcribing}
             title={transcribing ? 'Transcribing…' : recording ? 'Stop recording & transcribe' : 'Voice input — record & transcribe'}
@@ -475,7 +477,7 @@ export function Loquela({
                 : 'border-white/10 bg-white/[0.02] text-zinc-400 hover:text-zinc-100 hover:border-white/25'
             }`}
           >
-            <Icon.mic className="size-4" />
+            <Icon.mic className="size-4" aria-hidden="true" />
           </button>
 
           <div className="relative flex-1">
@@ -499,7 +501,7 @@ export function Loquela({
                 {filteredSlash.map((s, i) => {
                   const IcoCmp = (Icon as any)[s.icon] || Icon.bolt;
                   return (
-                    <button key={s.cmd} onMouseEnter={() => setSlashIdx(i)} onClick={() => void runSlash(s)}
+                    <button type="button" key={s.cmd} onMouseEnter={() => setSlashIdx(i)} onClick={() => void runSlash(s)}
                             className={`flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left ${i === slashIdx ? "bg-white/5" : ""}`}>
                       <IcoCmp className="size-3.5 text-brass" />
                       <span className="font-mono text-[11px] text-zinc-100">{s.cmd}</span>
@@ -516,7 +518,7 @@ export function Loquela({
                   <>
                     <div className="px-2 pt-1 pb-1.5 font-display text-[9px] uppercase tracking-[0.22em] text-zinc-500">Agents</div>
                     {filteredAt.map(a => (
-                      <button key={a.id} onClick={() => insertAt(a)}
+                      <button type="button" key={a.id} onClick={() => insertAt(a)}
                               className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-white/5">
                         <span className="font-mono text-[10px] text-violet-300">{a.id}</span>
                         <span className="text-[11px] text-zinc-200">{a.codename}</span>
@@ -534,7 +536,7 @@ export function Loquela({
                       <div className="px-2 py-1.5 text-[10px] text-zinc-500">Searching repo…</div>
                     )}
                     {fileSuggestions.map(p => (
-                      <button key={p} onClick={() => insertAtFile(p)}
+                      <button type="button" key={p} onClick={() => insertAtFile(p)}
                               className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-white/5">
                         <Icon.file className="size-3 shrink-0 text-cyan-300" />
                         <span className="truncate font-mono text-[10px] text-zinc-200">{p}</span>
@@ -549,7 +551,7 @@ export function Loquela({
             )}
           </div>
 
-          <button onClick={send} disabled={!text.trim()} className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${text.trim() ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)_/_0.6)]" : "border-white/5 bg-white/[0.02] text-zinc-600 cursor-not-allowed"}`}>
+          <button type="button" onClick={send} disabled={!text.trim()} className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.18em] transition ${text.trim() ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-[0_0_24px_-8px_rgb(var(--brass)_/_0.6)]" : "border-white/5 bg-white/[0.02] text-zinc-600 cursor-not-allowed"}`}>
             <Icon.send className="size-3.5"/> {dryRun ? "Dry-run" : mode === "plan" ? "Plan" : mode === "verify" ? "Verify" : "Run"}
           </button>
         </div>
@@ -559,6 +561,7 @@ export function Loquela({
 
           {typeof queueDepth === 'number' && queueDepth > 0 && (
             <button
+              type="button"
               onClick={onOpenTasks}
               title="Open task list"
               className="flex items-center gap-1 rounded-full border border-brass/25 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass hover:bg-brass/20 focus:outline-none focus:ring-1 focus:ring-brass/40"
@@ -568,13 +571,13 @@ export function Loquela({
           )}
 
           <div className="relative">
-            <button onClick={() => { setTierOpen(o => !o); setSkillOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-zinc-300 hover:border-white/20">
+            <button type="button" aria-expanded={tierOpen} aria-label="Choose model tier" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-zinc-300 hover:border-white/20">
               <Icon.cpu className="size-3 text-cyan-300" /><span className="text-zinc-500">Run on</span> <span className="text-zinc-100">{tierObj.label.split(" · ")[0]}</span>
               <Icon.chevR className="size-2.5 text-zinc-500 rotate-90" />
             </button>
             <Popover open={tierOpen}>
               {runtimeTiers.map(t => (
-                <button key={t.id} onClick={() => { setTier(t.id); setTierOpen(false); }} className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-white/5 ${tier === t.id ? "bg-white/5" : ""}`}>
+                <button type="button" key={t.id} onClick={() => { setTier(t.id); setTierOpen(false); }} className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-white/5 ${tier === t.id ? "bg-white/5" : ""}`}>
                   <div className="flex-1">
                     <div className="text-[11px] text-zinc-100">{t.label}</div>
                     <div className="font-mono text-[9px] text-zinc-500">{t.detail}</div>
@@ -585,16 +588,16 @@ export function Loquela({
           </div>
 
           <div className="relative">
-            <button onClick={() => { setSkillOpen(o => !o); setTierOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-brass/25 bg-brass/[0.06] px-2 py-1 text-brass hover:bg-brass/[0.12]">
+            <button type="button" aria-expanded={skillOpen} aria-label="Choose skill" onClick={() => { setSkillOpen(o => !o); setTierOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-brass/25 bg-brass/[0.06] px-2 py-1 text-brass hover:bg-brass/[0.12]">
               <Icon.bolt className="size-3" /><span className="text-brass/70">Skill</span> <span>{activeSkill ? (activeSkill.name ?? activeSkill.command ?? activeSkill.id) : "auto"}</span>
               <Icon.chevR className="size-2.5 text-brass/60 rotate-90" />
             </button>
             <Popover open={skillOpen}>
-              <button onClick={() => { setActiveSkill(null); setSkillOpen(false); }} className="block w-full rounded px-2 py-1.5 text-left text-[11px] text-zinc-400 hover:bg-white/5 hover:text-zinc-100">auto</button>
+              <button type="button" onClick={() => { setActiveSkill(null); setSkillOpen(false); }} className="block w-full rounded px-2 py-1.5 text-left text-[11px] text-zinc-400 hover:bg-white/5 hover:text-zinc-100">auto</button>
               {skills.map(s => {
                 const skillId = s.capability_id ?? s.command;
                 return (
-                <button key={skillId} onClick={() => { setActiveSkill({ id: skillId, name: s.command, command: s.command }); setSkillOpen(false); }} className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[11px] hover:bg-white/5 ${activeSkill?.id === skillId ? "bg-white/5 text-brass" : "text-zinc-300"}`}>
+                <button type="button" key={skillId} onClick={() => { setActiveSkill({ id: skillId, name: s.command, command: s.command }); setSkillOpen(false); }} className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[11px] hover:bg-white/5 ${activeSkill?.id === skillId ? "bg-white/5 text-brass" : "text-zinc-300"}`}>
                   <span>{s.command}</span>
                 </button>
               );})}
