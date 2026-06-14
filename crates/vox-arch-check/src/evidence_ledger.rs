@@ -331,7 +331,7 @@ mod semcov_wave4_tests {
         fs::write(report_dir.join("2020-Q1.json"), "{}").unwrap();
         write_ledger_with_dir_claim(tmp.path(), "contracts/reports/quarterly/");
         // max_age_days=3650 — even a 2020 file won't be flagged as stale.
-        let findings = crate::check_evidence_ledger(tmp.path()).unwrap();
+        let findings = check_evidence_ledger(tmp.path()).unwrap();
         assert!(
             findings.is_empty(),
             "2020-Q1.json should be recognised as a valid dated artifact; findings: {findings:?}"
@@ -350,7 +350,7 @@ mod semcov_wave4_tests {
         fs::create_dir_all(&report_dir).unwrap();
         fs::write(report_dir.join("2020-Q4.json"), "{}").unwrap();
         write_ledger_with_dir_claim(tmp.path(), "contracts/reports/quarterly/");
-        let findings = crate::check_evidence_ledger(tmp.path()).unwrap();
+        let findings = check_evidence_ledger(tmp.path()).unwrap();
         assert!(
             findings.is_empty(),
             "2020-Q4.json should be recognised as a valid dated artifact; findings: {findings:?}"
@@ -370,7 +370,7 @@ mod semcov_wave4_tests {
         fs::create_dir_all(&report_dir).unwrap();
         fs::write(report_dir.join("2020-Q5.json"), "{}").unwrap();
         write_ledger_with_dir_claim(tmp.path(), "contracts/reports/quarterly/");
-        let findings = crate::check_evidence_ledger(tmp.path()).unwrap();
+        let findings = check_evidence_ledger(tmp.path()).unwrap();
         assert_eq!(
             findings.len(),
             1,
@@ -395,7 +395,7 @@ mod semcov_wave4_tests {
         fs::create_dir_all(&report_dir).unwrap();
         fs::write(report_dir.join("2024-03-15-7day.json"), "{}").unwrap();
         write_ledger_with_dir_claim(tmp.path(), "contracts/reports/quarterly/");
-        let findings = crate::check_evidence_ledger(tmp.path()).unwrap();
+        let findings = check_evidence_ledger(tmp.path()).unwrap();
         assert!(
             findings.is_empty(),
             "2024-03-15-7day.json must be recognised as a valid dated artifact"
