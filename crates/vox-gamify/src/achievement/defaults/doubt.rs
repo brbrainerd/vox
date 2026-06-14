@@ -59,3 +59,31 @@ pub fn doubt_achievements() -> Vec<Achievement> {
         },
     ]
 }
+
+#[cfg(test)]
+mod semcov_wave1d_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn doubt_achievements_table_has_expected_shape() {
+        let a = doubt_achievements();
+        assert_eq!(a.len(), 5);
+        let ids: Vec<&str> = a.iter().map(|x| x.id.0.as_str()).collect();
+        assert_eq!(
+            ids,
+            vec![
+                "healthy_skepticism",
+                "eagle_eye",
+                "blind_faith",
+                "incorruptible",
+                "internal_affairs"
+            ]
+        );
+        let secret: Vec<&Achievement> = a.iter().filter(|x| x.secret).collect();
+        assert_eq!(secret.len(), 1);
+        assert_eq!(secret[0].id.0, "blind_faith");
+        assert_eq!(secret[0].xp_reward, 10);
+        assert_eq!(secret[0].crystal_reward, 0);
+    }
+}

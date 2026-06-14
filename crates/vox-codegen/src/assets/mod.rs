@@ -135,3 +135,30 @@ mod tests {
         assert!(stage.join("app-icon.png").is_file());
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1d_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn copy_path_recursive_copies_nested_directory_tree() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let src = root.path().join("src");
+        let nested = src.join("nested");
+        std::fs::create_dir_all(&nested).expect("mkdir nested");
+        std::fs::write(src.join("top.txt"), b"top").expect("write top");
+        std::fs::write(nested.join("deep.txt"), b"deep").expect("write deep");
+
+        let dst = root.path().join("dst");
+        copy_path_recursive(&src, &dst).expect("recursive copy ok");
+
+        assert!(dst.join("top.txt").is_file());
+        assert!(dst.join("nested").is_dir());
+        assert!(dst.join("nested").join("deep.txt").is_file());
+        assert_eq!(
+            std::fs::read(dst.join("nested").join("deep.txt")).expect("read deep"),
+            b"deep"
+        );
+    }
+}

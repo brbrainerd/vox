@@ -314,3 +314,15 @@ mod tests {
         assert_eq!(app.query_fns[0].route_path, "/api/query/c");
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1d_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn fn_signature_empty_params_no_return_is_unit() {
+        // No params -> empty join; None return -> "Unit" fallback.
+        assert_eq!(fn_signature(&[], None), "fn() -> Unit");
+    }
+}

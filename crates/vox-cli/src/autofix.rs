@@ -67,3 +67,18 @@ If you cannot fix it, return the original source code unchanged."#,
 
     Err(anyhow::anyhow!("All AI providers failed to fix the code."))
 }
+
+#[cfg(test)]
+mod semcov_wave1d_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[tokio::test]
+    async fn autofix_file_returns_source_unchanged_when_no_diagnostics() {
+        let source = "fn main() { let x = 1 }";
+        let result = autofix_file(std::path::Path::new("dummy.vox"), source, &[])
+            .await
+            .expect("empty diagnostics should succeed without any provider");
+        assert_eq!(result, source);
+    }
+}

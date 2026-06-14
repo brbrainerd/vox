@@ -441,3 +441,49 @@ fn extract_search_fixture(
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1d_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn emit_search_web_body_interpolates_query_and_top_k() {
+        let mut out = String::new();
+        emit_search_web_body(&mut out, "rust ownership", 5);
+        // The query is interpolated into the generated `search_query` binding.
+        assert!(out.contains("let search_query = \"rust ownership\";\n"));
+        // The numeric top_k is interpolated into the telemetry field.
+        assert!(out.contains("top_k: Some(5),\n"));
+        // Fixed web-corpus telemetry marker is always emitted.
+        assert!(out.contains("corpus: \"web\".into(),"));
+        // Output is appended, not assigned, so it starts with the query binding.
+        assert!(out.starts_with("    let search_query ="));
+    }
+
+    #[test]
+    fn emit_search_docs_body_interpolates_inputs() {
+        let mut out = String::new();
+        emit_search_docs_body(&mut out, "find frobnicator", 5, 9);
+
+        // query is interpolated into the search_query string literal
+        assert!(
+            out.contains("let search_query = \"find frobnicator\";\n"),
+            "query not interpolated: {out}"
+        );
+        // top_k (5) drives the execute_search_plan arity, not the telemetry value
+        assert!(
+            out.contains(", &plan, 5, &policy, None).await"),
+            "top_k not placed into execute_search_plan: {out}"
+        );
+        // top_k_telemetry (9), distinct from top_k, lands in the telemetry top_k field
+        assert!(
+            out.contains("top_k: Some(9),\n"),
+            "top_k_telemetry not placed into telemetry: {out}"
+        );
+        // docs corpus is hard-coded for this body
+        assert!(out.contains("corpus: \"docs\".into(),\n"), "{out}");
+        // append-only: body must not start with leading whitespace eaten; first line is search_query
+        assert!(out.starts_with("    let search_query ="), "{out}");
+    }
+}
