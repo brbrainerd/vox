@@ -29,10 +29,23 @@ strengths of coverage:
        --out graphify-out/graph.coverage.json --report graphify-out/COVERAGE_MAP.md`
 
 3. **Phase 2 — LLM behavior extraction (per crate)**
-   Run the `phase2-extract-only` Workflow over a crate batch (args `[{crate,total}]`),
-   then synthesize **deterministically** from the run journal — never via an LLM synth
-   step (it fails on large crates and loses extraction):
-   `python recover_and_synth.py --journal <run>/journal.jsonl --out-dir graphify-out --skip-existing`
+   Run the throttled extraction Workflow `phase2_extract_v2.js` over the crate list
+   (args = JSON array of crate names), then synthesize **deterministically** from the
+   run journal — never via an LLM synth step (it fails on large crates and loses
+   extraction):
+   `python recover_and_synth.py --journal <run>/journal.jsonl --out-dir graphify-out`
+
+   > **MUST throttle (large workspace).** Do NOT fan out one agent per crate for all
+   > ~109 crates in a single 16-wide `parallel()` burst — it trips transient
+   > server-side rate limiting (`Server is temporarily limiting requests`) after the
+   > first wave and ~80% of crates fail. `phase2_extract_v2.js` processes the list in
+   > **sequential chunks of 8** (parallel within a chunk, awaited between) to bound the
+   > burst. Do not `.catch`-mask agent failures into `n:0` results — that hides them
+   > from Workflow resume. If a run partially fails: run `recover_and_synth.py` on the
+   > partial journal to lock in the crates that succeeded (synth is deterministic and
+   > composes partial journals), then re-run `phase2_extract_v2.js` over only the
+   > still-empty crate set. See memory `feedback-graphify-large-extraction-throttle`.
+
    Produces `COVERAGE_BEHAVIORS_<crate>.md` + the `COVERAGE_BEHAVIORS_INDEX.md` overview.
 
 4. **Make it queryable**

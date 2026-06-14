@@ -1,0 +1,444 @@
+{
+  "schema": "semantic-coverage.v1",
+  "note": "Production-symbol proven-coverage floors (Wave-0 corrected denominator). Enforcing gate deferred \u2014 see semantic-coverage-remediation-plan \u00a7E Task 0.4.",
+  "source_commit": "a2575c27cf75b2064f1d52c441586ca16fa63f14",
+  "totals": {
+    "defs": 19445,
+    "proven": 3088,
+    "proven_pct": 15.9
+  },
+  "crates": {
+    "vox-actor-runtime": {
+      "defs": 493,
+      "proven": 90
+    },
+    "vox-arch-check": {
+      "defs": 70,
+      "proven": 18
+    },
+    "vox-ast": {
+      "defs": 149,
+      "proven": 7
+    },
+    "vox-audit": {
+      "defs": 297,
+      "proven": 64
+    },
+    "vox-bounded-fs": {
+      "defs": 5,
+      "proven": 2
+    },
+    "vox-build-meta": {
+      "defs": 2,
+      "proven": 1
+    },
+    "vox-capability-registry": {
+      "defs": 29,
+      "proven": 3
+    },
+    "vox-cli": {
+      "defs": 2586,
+      "proven": 535
+    },
+    "vox-cli-ci": {
+      "defs": 54,
+      "proven": 35
+    },
+    "vox-cli-core": {
+      "defs": 97,
+      "proven": 6
+    },
+    "vox-cli-tests": {
+      "defs": 17,
+      "proven": 1
+    },
+    "vox-code-audit": {
+      "defs": 1020,
+      "proven": 87
+    },
+    "vox-codegen": {
+      "defs": 413,
+      "proven": 45
+    },
+    "vox-codegen-ts": {
+      "defs": 231,
+      "proven": 29
+    },
+    "vox-compiler": {
+      "defs": 1088,
+      "proven": 176
+    },
+    "vox-config": {
+      "defs": 219,
+      "proven": 57
+    },
+    "vox-constrained-gen": {
+      "defs": 54,
+      "proven": 7
+    },
+    "vox-container": {
+      "defs": 1,
+      "proven": 0
+    },
+    "vox-container-types": {
+      "defs": 27,
+      "proven": 16
+    },
+    "vox-corpus": {
+      "defs": 284,
+      "proven": 13
+    },
+    "vox-crypto": {
+      "defs": 35,
+      "proven": 13
+    },
+    "vox-db": {
+      "defs": 1103,
+      "proven": 251
+    },
+    "vox-db-types": {
+      "defs": 12,
+      "proven": 2
+    },
+    "vox-deploy-codegen": {
+      "defs": 25,
+      "proven": 1
+    },
+    "vox-doc-inventory": {
+      "defs": 31,
+      "proven": 2
+    },
+    "vox-doc-pipeline": {
+      "defs": 28,
+      "proven": 3
+    },
+    "vox-drift-check": {
+      "defs": 163,
+      "proven": 25
+    },
+    "vox-effort-audit": {
+      "defs": 80,
+      "proven": 28
+    },
+    "vox-effort-route": {
+      "defs": 92,
+      "proven": 31
+    },
+    "vox-eval": {
+      "defs": 20,
+      "proven": 3
+    },
+    "vox-forge": {
+      "defs": 84,
+      "proven": 2
+    },
+    "vox-foundation": {
+      "defs": 14,
+      "proven": 6
+    },
+    "vox-gamify": {
+      "defs": 536,
+      "proven": 79
+    },
+    "vox-git": {
+      "defs": 47,
+      "proven": 18
+    },
+    "vox-grammar-export": {
+      "defs": 34,
+      "proven": 9
+    },
+    "vox-gui": {
+      "defs": 359,
+      "proven": 30
+    },
+    "vox-hf-layout": {
+      "defs": 23,
+      "proven": 6
+    },
+    "vox-http-client": {
+      "defs": 16,
+      "proven": 5
+    },
+    "vox-identity": {
+      "defs": 46,
+      "proven": 4
+    },
+    "vox-journal": {
+      "defs": 15,
+      "proven": 8
+    },
+    "vox-jsonschema-util": {
+      "defs": 12,
+      "proven": 3
+    },
+    "vox-langtool": {
+      "defs": 1,
+      "proven": 1
+    },
+    "vox-lsp": {
+      "defs": 72,
+      "proven": 7
+    },
+    "vox-mcp-registry": {
+      "defs": 1,
+      "proven": 0
+    },
+    "vox-mesh-policy": {
+      "defs": 5,
+      "proven": 1
+    },
+    "vox-mesh-types": {
+      "defs": 86,
+      "proven": 21
+    },
+    "vox-ml-cli": {
+      "defs": 285,
+      "proven": 28
+    },
+    "vox-openai": {
+      "defs": 25,
+      "proven": 3
+    },
+    "vox-openclaw-runtime": {
+      "defs": 103,
+      "proven": 4
+    },
+    "vox-orchestrator": {
+      "defs": 2401,
+      "proven": 420
+    },
+    "vox-orchestrator-d": {
+      "defs": 2,
+      "proven": 0
+    },
+    "vox-orchestrator-driver": {
+      "defs": 9,
+      "proven": 1
+    },
+    "vox-orchestrator-mcp": {
+      "defs": 1289,
+      "proven": 104
+    },
+    "vox-orchestrator-queue": {
+      "defs": 186,
+      "proven": 28
+    },
+    "vox-orchestrator-test-helpers": {
+      "defs": 10,
+      "proven": 2
+    },
+    "vox-orchestrator-types": {
+      "defs": 106,
+      "proven": 20
+    },
+    "vox-package": {
+      "defs": 65,
+      "proven": 10
+    },
+    "vox-package-types": {
+      "defs": 93,
+      "proven": 22
+    },
+    "vox-plugin-api": {
+      "defs": 24,
+      "proven": 4
+    },
+    "vox-plugin-browser": {
+      "defs": 85,
+      "proven": 4
+    },
+    "vox-plugin-catalog": {
+      "defs": 21,
+      "proven": 10
+    },
+    "vox-plugin-cloud": {
+      "defs": 10,
+      "proven": 0
+    },
+    "vox-plugin-host": {
+      "defs": 85,
+      "proven": 15
+    },
+    "vox-plugin-mens-candle-cuda": {
+      "defs": 48,
+      "proven": 4
+    },
+    "vox-plugin-mens-candle-metal": {
+      "defs": 13,
+      "proven": 0
+    },
+    "vox-plugin-nvml-probe": {
+      "defs": 14,
+      "proven": 1
+    },
+    "vox-plugin-populi-mesh": {
+      "defs": 17,
+      "proven": 0
+    },
+    "vox-plugin-publication": {
+      "defs": 8,
+      "proven": 2
+    },
+    "vox-plugin-runtime-container": {
+      "defs": 19,
+      "proven": 1
+    },
+    "vox-plugin-runtime-wasm": {
+      "defs": 15,
+      "proven": 1
+    },
+    "vox-plugin-sdk": {
+      "defs": 5,
+      "proven": 3
+    },
+    "vox-plugin-speech": {
+      "defs": 51,
+      "proven": 2
+    },
+    "vox-plugin-test-harness": {
+      "defs": 29,
+      "proven": 4
+    },
+    "vox-plugin-types": {
+      "defs": 30,
+      "proven": 2
+    },
+    "vox-plugin-webhook": {
+      "defs": 82,
+      "proven": 9
+    },
+    "vox-populi": {
+      "defs": 766,
+      "proven": 88
+    },
+    "vox-populi-types": {
+      "defs": 13,
+      "proven": 0
+    },
+    "vox-project-scaffold": {
+      "defs": 10,
+      "proven": 4
+    },
+    "vox-publisher": {
+      "defs": 863,
+      "proven": 91
+    },
+    "vox-quantize": {
+      "defs": 31,
+      "proven": 13
+    },
+    "vox-rename-registry": {
+      "defs": 12,
+      "proven": 3
+    },
+    "vox-repository": {
+      "defs": 116,
+      "proven": 14
+    },
+    "vox-research-events": {
+      "defs": 528,
+      "proven": 21
+    },
+    "vox-research-shim": {
+      "defs": 167,
+      "proven": 30
+    },
+    "vox-rn-codegen": {
+      "defs": 62,
+      "proven": 6
+    },
+    "vox-rule-pack": {
+      "defs": 31,
+      "proven": 12
+    },
+    "vox-runtime": {
+      "defs": 24,
+      "proven": 17
+    },
+    "vox-runtime-rn": {
+      "defs": 30,
+      "proven": 11
+    },
+    "vox-scaling-policy": {
+      "defs": 30,
+      "proven": 3
+    },
+    "vox-scientia": {
+      "defs": 401,
+      "proven": 103
+    },
+    "vox-scientia-jsonschema-codegen": {
+      "defs": 2,
+      "proven": 1
+    },
+    "vox-search": {
+      "defs": 161,
+      "proven": 17
+    },
+    "vox-secrets": {
+      "defs": 170,
+      "proven": 32
+    },
+    "vox-shell-stdlib-types": {
+      "defs": 1,
+      "proven": 0
+    },
+    "vox-skill-runtime": {
+      "defs": 17,
+      "proven": 7
+    },
+    "vox-skills": {
+      "defs": 64,
+      "proven": 14
+    },
+    "vox-speech": {
+      "defs": 181,
+      "proven": 18
+    },
+    "vox-sql": {
+      "defs": 120,
+      "proven": 19
+    },
+    "vox-tauri-codegen": {
+      "defs": 21,
+      "proven": 2
+    },
+    "vox-tauri-stt": {
+      "defs": 5,
+      "proven": 1
+    },
+    "vox-telemetry": {
+      "defs": 86,
+      "proven": 28
+    },
+    "vox-tensor": {
+      "defs": 47,
+      "proven": 8
+    },
+    "vox-test-harness": {
+      "defs": 55,
+      "proven": 13
+    },
+    "vox-vcs": {
+      "defs": 63,
+      "proven": 17
+    },
+    "vox-wasm-engine": {
+      "defs": 20,
+      "proven": 8
+    },
+    "vox-wire-format-validator": {
+      "defs": 7,
+      "proven": 0
+    },
+    "vox-workflow-runtime": {
+      "defs": 123,
+      "proven": 29
+    },
+    "voxup": {
+      "defs": 12,
+      "proven": 3
+    }
+  }
+}

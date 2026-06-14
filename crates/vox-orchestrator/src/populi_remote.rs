@@ -125,3 +125,29 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1b_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn lease_claimer_node_id_always_orch_prefixed_and_nonempty() {
+        // Invariant: every branch wraps `preferred` in format!("orch-{preferred}"),
+        // so the result is always non-empty and starts with "orch-" regardless of
+        // whether the VoxMeshNodeId secret, populi_scope_id, or host fallback supplies it.
+        let cfg = OrchestratorConfig {
+            populi_scope_id: Some("unit-scope".to_string()),
+            ..Default::default()
+        };
+        let id = lease_claimer_node_id(&cfg);
+        assert!(
+            id.starts_with("orch-"),
+            "node id must be orch- prefixed, got {id:?}"
+        );
+        assert!(
+            id.len() > "orch-".len(),
+            "node id must be non-empty after prefix, got {id:?}"
+        );
+    }
+}

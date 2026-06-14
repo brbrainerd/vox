@@ -165,6 +165,59 @@ def build_name_index(
     return pruned_idx, full_same_crate_idx
 
 
+def build_method_index(nodes: list[dict]) -> dict[str, list[dict]]:
+    """Index METHOD definitions (nodes whose raw label is a leading-dot `.foo()`)
+    by their bare method name, so method assertions can be credited (Task 0.2).
+
+    build_name_index deliberately drops leading-dot labels from the symbol index
+    (a bare `.foo()` is not a useful free-symbol target); but when a test asserts
+    on a method *call* (`x.foo(...)`), the method IS the proof subject. This index
+    is consulted only on the method-call path in run_overlay, same-crate only.
+
+    Same stoplist/keyword/length filters as the symbol index apply, so common
+    container/trait methods (`new`, `get`, `clone`, `iter`, ...) stay filtered.
+    """
+    idx: dict[str, list[dict]] = defaultdict(list)
+    seen: dict[str, set[str]] = defaultdict(set)
+    for node in nodes:
+        if node.get("_origin") == "test":
+            continue
+        raw_label = node.get("label", "")
+        if not raw_label.lstrip().startswith("."):
+            continue
+        name = _strip_label(raw_label)
+        if not name or len(name) <= 2 or name in RUST_KEYWORDS or name in STD_PRELUDE_STOPLIST:
+            continue
+        if node["id"] in seen[name]:
+            continue
+        seen[name].add(node["id"])
+        idx[name].append(node)
+    return dict(idx)
+
+
+USE_FIRST_SEG_RE = re.compile(r"\buse\s+(?:::)?([a-z_][a-z0-9_]*)\b")
+_NON_CRATE_USE_ROOTS = frozenset({"crate", "super", "self", "std", "core", "alloc"})
+
+
+def parse_imported_crates(text: str, known_crates: frozenset) -> set:
+    """Return the set of workspace crates a test file imports via ``use`` paths.
+
+    Used to disambiguate a cross-crate assertion to the crate the test actually
+    imported (Task 0.3). Rust paths use underscores while crate directories use
+    hyphens, so ``use vox_db::X`` maps to crate ``vox-db``. Only first path
+    segments that resolve to a real workspace crate are returned.
+    """
+    out: set = set()
+    for m in USE_FIRST_SEG_RE.finditer(text):
+        seg = m.group(1)
+        if seg in _NON_CRATE_USE_ROOTS:
+            continue
+        cand = seg.replace("_", "-")
+        if cand in known_crates:
+            out.add(cand)
+    return out
+
+
 def crate_from_source_file(source_file: str) -> str:
     """Derive crate name from a source_file path like crates/vox-foo/src/bar.rs"""
     parts = source_file.replace("\\", "/").split("/")
@@ -173,6 +226,40 @@ def crate_from_source_file(source_file: str) -> str:
         return parts[ci + 1]
     except (ValueError, IndexError):
         return "unknown"
+
+
+def is_production_symbol(node: dict, test_fn_by_file: dict) -> bool:
+    """True iff `node` is a real production-symbol DEFINITION worth counting in the
+    per-crate coverage denominator.
+
+    Excludes the false-positive classes the fidelity audit found (see
+    docs/src/architecture/semantic-coverage-remediation-plan-2026-06-13.md §A):
+      - test-origin nodes;
+      - file nodes (label ends in ``.rs``);
+      - type/std REFERENCE nodes and file nodes — these carry full-path
+        ``crates_<full/path>_<norm_label>`` ids, whereas a DEFINITION's id is
+        ``<first-path-component-under-crate>_<file>_<name>`` (e.g. ``src_lib_foo``
+        for ``<crate>/src/lib.rs`` but ``commands_mod_run`` for
+        ``<crate>/src/commands/mod.rs``). So definitions are identified by the
+        ABSENCE of the ``crates_`` prefix — NOT the presence of ``src_`` (which
+        would wrongly drop every symbol in a ``src/`` subdirectory);
+      - definitions outside ``/src/`` (``benches/``, ``examples/``, ``build.rs``);
+      - in-``src`` ``#[cfg(test)]`` test functions (label matches a detected test
+        fn in the same file — passed via ``test_fn_by_file``: {rel_path -> {fn_name}}).
+    """
+    if node.get("_origin") == "test":
+        return False
+    if node.get("id", "").startswith("crates_"):  # reference / file nodes
+        return False
+    label = node.get("label", "")
+    if label.endswith(".rs"):
+        return False
+    sf = (node.get("source_file") or "").replace("\\", "/")
+    if "/src/" not in sf:
+        return False
+    if _strip_label(label) in test_fn_by_file.get(sf, set()):
+        return False
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -411,7 +498,9 @@ def run_overlay(
     print(f"  {len(original_nodes)} nodes, {len(original_links)} links loaded.", flush=True)
 
     pruned_index, full_index = build_name_index(original_nodes)
-    print(f"  Name index: {len(pruned_index)} pruned, {len(full_index)} full symbol names.", flush=True)
+    method_index = build_method_index(original_nodes)
+    print(f"  Name index: {len(pruned_index)} pruned, {len(full_index)} full symbol names, "
+          f"{len(method_index)} method names.", flush=True)
 
     repo = Path(repo_root)
     crates_root = repo / "crates"
@@ -436,6 +525,19 @@ def run_overlay(
             skipped += 1
 
     print(f"  Extracted {len(all_tests)} test functions ({skipped} files skipped).", flush=True)
+
+    # Known workspace crates (for `use`-import resolution) and the set of crates
+    # each test FILE imports — used to disambiguate cross-crate assertions (0.3).
+    known_crates = frozenset(
+        crate_from_source_file(n.get("source_file", "")) for n in original_nodes
+    ) - {"unknown"}
+    imported_crates_by_file: dict[str, set] = {}
+    for rel_path in {t["rel_path"] for t in all_tests}:
+        try:
+            ftext = (repo / rel_path).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        imported_crates_by_file[rel_path] = parse_imported_crates(ftext, known_crates)
 
     # Build new nodes and edges
     new_nodes = []
@@ -479,35 +581,80 @@ def run_overlay(
             if ident in RUST_KEYWORDS or len(ident) <= 2:
                 continue
 
-            # Resolution: two-path same-crate-first logic.
-            #
-            # Path 1 (same-crate, no spread cap): look in the full index for a
-            # symbol whose crate matches the test crate.  The genericness cap does
-            # NOT apply here — a test asserting on a symbol in its own crate is a
-            # valid proof regardless of how common the name is elsewhere.
-            # Stoplist / method-only filters are already applied inside full_index.
-            #
-            # Path 2 (cross-crate fallback, spread cap applies): use pruned_index
-            # and require global uniqueness (exactly one candidate).
-            all_candidates = full_index.get(ident, [])
-            same_crate = [
-                c for c in all_candidates
-                if crate_from_source_file(c.get("source_file", "")) == t["crate"]
-            ]
+            # Method-call detection: is this identifier the method in `recv.ident(`?
+            # i.e. immediately preceded by a single '.' (not '..' range, not a
+            # float like `1.0`). If so, resolve it against the method index
+            # (same-crate only) — this is the Task 0.2 fix for method proofs.
+            s = ident_m.start()
+            prev_c = body[s - 1] if s >= 1 else ""
+            prev2_c = body[s - 2] if s >= 2 else ""
+            is_method_call = prev_c == "." and prev2_c != "." and not prev2_c.isdigit()
 
-            if same_crate:
-                # Path 1: same-crate match — always allowed
-                selected = same_crate
-                conf = "EXTRACTED" if len(same_crate) == 1 else "AMBIGUOUS"
-            else:
-                # Path 2: cross-crate fallback — use pruned index, require uniqueness
-                pruned_candidates = pruned_index.get(ident, [])
-                if len(pruned_candidates) == 1:
-                    selected = pruned_candidates
+            suppress_proves = False
+            if is_method_call:
+                # Method path: same-crate method definitions only (no cross-crate
+                # fallback — method names are too ambiguous across crates).
+                method_candidates = [
+                    c for c in method_index.get(ident, [])
+                    if crate_from_source_file(c.get("source_file", "")) == t["crate"]
+                ]
+                if not method_candidates:
+                    continue
+                selected = method_candidates
+                if len(method_candidates) == 1:
                     conf = "EXTRACTED"
                 else:
-                    # Cross-crate non-unique or pruned-as-generic: drop
-                    continue
+                    # Same method name on >1 type in the crate: we can't tell which
+                    # type's method was called, so record `targets` but NOT `proves`
+                    # (avoid a false "this method is proven"). [review finding I4]
+                    conf = "AMBIGUOUS"
+                    suppress_proves = True
+            else:
+                # Resolution: two-path same-crate-first logic.
+                #
+                # Path 1 (same-crate, no spread cap): look in the full index for a
+                # symbol whose crate matches the test crate.  The genericness cap does
+                # NOT apply here — a test asserting on a symbol in its own crate is a
+                # valid proof regardless of how common the name is elsewhere.
+                # Stoplist / method-only filters are already applied inside full_index.
+                #
+                # Path 2 (cross-crate fallback, spread cap applies): use pruned_index
+                # and require global uniqueness (exactly one candidate).
+                all_candidates = full_index.get(ident, [])
+                same_crate = [
+                    c for c in all_candidates
+                    if crate_from_source_file(c.get("source_file", "")) == t["crate"]
+                ]
+
+                if same_crate:
+                    # Path 1: same-crate match — always allowed
+                    selected = same_crate
+                    conf = "EXTRACTED" if len(same_crate) == 1 else "AMBIGUOUS"
+                else:
+                    # Path 2a: cross-crate via the test file's `use` imports (0.3).
+                    # Restrict full-index DEFINITIONS to crates this test imported;
+                    # if they resolve to exactly one crate, credit it.
+                    imported = imported_crates_by_file.get(t["rel_path"], ())
+                    cross = [
+                        c for c in full_index.get(ident, [])
+                        if not c.get("id", "").startswith("crates_")  # definitions only
+                        and crate_from_source_file(c.get("source_file", "")) in imported
+                    ]
+                    cross_crates = {
+                        crate_from_source_file(c.get("source_file", "")) for c in cross
+                    }
+                    if cross and len(cross_crates) == 1:
+                        selected = cross
+                        conf = "EXTRACTED" if len(cross) == 1 else "AMBIGUOUS"
+                    else:
+                        # Path 2b: cross-crate fallback — globally-unique pruned name.
+                        pruned_candidates = pruned_index.get(ident, [])
+                        if len(pruned_candidates) == 1:
+                            selected = pruned_candidates
+                            conf = "EXTRACTED"
+                        else:
+                            # Cross-crate non-unique or pruned-as-generic: drop
+                            continue
 
             conf_score = 1.0 if conf == "EXTRACTED" else 0.5
 
@@ -538,8 +685,9 @@ def run_overlay(
                     })
                     targeted_ids.add(sym_id)
 
-                # proves edge (if in assertion context)
-                if in_assert:
+                # proves edge (if in assertion context, and not a suppressed
+                # ambiguous-method collision)
+                if in_assert and not suppress_proves:
                     edge_key_p = (node_id, sym_id, "proves")
                     if edge_key_p not in edge_set:
                         edge_set.add(edge_key_p)
@@ -594,10 +742,18 @@ def _write_report(
     targets_count = sum(1 for link in new_links if link["relation"] == "targets")
     proves_count = sum(1 for link in new_links if link["relation"] == "proves")
 
-    # Group code symbols by crate
+    # Build the detected-test-fn set per file (from the test nodes) so in-src
+    # #[cfg(test)] functions are not miscounted as production symbols.
+    test_fn_by_file: dict[str, set[str]] = defaultdict(set)
+    for node in new_nodes:
+        sf = (node.get("source_file") or "").replace("\\", "/")
+        test_fn_by_file[sf].add(node.get("label", ""))
+
+    # Group PRODUCTION code symbols by crate (excludes file nodes, type/std
+    # reference nodes, non-/src/ defs, and in-src test fns — see §A audit).
     crate_symbols: dict[str, list[dict]] = defaultdict(list)
     for node in original_nodes:
-        if node.get("_origin") == "test":
+        if not is_production_symbol(node, test_fn_by_file):
             continue
         crate = crate_from_source_file(node.get("source_file", ""))
         crate_symbols[crate].append(node)

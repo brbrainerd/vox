@@ -141,3 +141,25 @@ pub enum StateError {
     #[error("Deserialization error: {0}")]
     Deserialize(serde_json::Error),
 }
+
+#[cfg(test)]
+mod semcov_wave1b_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn chrono_iso_now_returns_parseable_positive_epoch_seconds() {
+        let s = chrono_iso_now();
+        // Despite the "iso" name, the output is the Debug-format of u64 epoch seconds:
+        // a plain decimal integer string with no separators or alphabetic characters.
+        let secs: u64 = s
+            .parse()
+            .expect("chrono_iso_now() must return a plain u64 decimal string");
+        // The system clock is after the UNIX epoch, so seconds-since-epoch is positive.
+        assert!(secs > 0, "epoch seconds should be positive, got {secs}");
+        assert!(
+            s.chars().all(|c| c.is_ascii_digit()),
+            "output should contain only ASCII digits, got {s:?}"
+        );
+    }
+}

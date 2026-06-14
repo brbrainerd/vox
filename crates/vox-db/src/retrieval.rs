@@ -570,3 +570,51 @@ mod tests {
         assert!(plan.preferred_backends.contains(&SearchBackend::RepoPath));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1b_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn normalized_query_tokens_splits_lowercases_and_keeps_path_chars() {
+        // ':' and whitespace and '!' split; '.', '/', '_', '-' are kept in-token; uppercase -> lowercase
+        let tokens = normalized_query_tokens("Foo.Bar::Baz src/Qux_Quux-1 Hi!");
+        assert_eq!(
+            tokens,
+            vec![
+                "foo.bar".to_string(),
+                "baz".to_string(),
+                "src/qux_quux-1".to_string(),
+                "hi".to_string(),
+            ]
+        );
+        // empty tokens (from consecutive delimiters / leading-trailing) are dropped
+        assert!(normalized_query_tokens("   ::  ").is_empty());
+    }
+
+    #[test]
+    fn normalized_query_tokens_splits_lowercases_and_preserves_special_chars() {
+        // ':' and ' ' are delimiters; '/', '.', '_', '-' are kept inside tokens.
+        let tokens = normalized_query_tokens("Foo::bar baz/qux file.rs my_mod-A");
+        assert_eq!(
+            tokens,
+            vec![
+                "foo".to_string(),
+                "bar".to_string(),
+                "baz/qux".to_string(),
+                "file.rs".to_string(),
+                "my_mod-a".to_string(),
+            ]
+        );
+
+        // Leading/trailing/consecutive delimiters produce no empty tokens.
+        assert_eq!(
+            normalized_query_tokens("  a,,b  "),
+            vec!["a".to_string(), "b".to_string()]
+        );
+
+        // All-delimiter input yields an empty vec.
+        assert!(normalized_query_tokens("!!! ???").is_empty());
+    }
+}

@@ -738,3 +738,62 @@ mod tests {
         assert!(ctx.evidence_count >= 1);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn declared_evidence_citations_none_is_empty() {
+        assert!(declared_evidence_citations(None).is_empty());
+    }
+
+    #[test]
+    fn declared_evidence_citations_trims_dedups_and_merges_summary_markers() {
+        let att = CompletionAttestation {
+            // "a" appears twice (once padded) -> single trimmed entry; "" / "   " dropped
+            evidence_citations: vec![
+                "a".to_string(),
+                " a ".to_string(),
+                String::new(),
+                "   ".to_string(),
+                "b".to_string(),
+            ],
+            // summary adds "c" (new) and "a" (dup of explicit -> skipped)
+            completion_summary: Some("see [[voxcite:c]] and [[voxcite:a]] done".to_string()),
+            ..Default::default()
+        };
+        // Explicit citations come first (order-preserving), then new markers.
+        assert_eq!(
+            declared_evidence_citations(Some(&att)),
+            vec!["a".to_string(), "b".to_string(), "c".to_string()]
+        );
+    }
+
+    #[test]
+    fn whole_word_rejects_substring_and_empty_needle() {
+        // empty needle is always false
+        assert!(!lower_contains_ascii_whole_word("anything here", ""));
+        // "merge" must NOT match inside "emerge"
+        assert!(!lower_contains_ascii_whole_word(
+            "they emerge slowly",
+            "merge"
+        ));
+        // "read" must NOT match inside "spread"
+        assert!(!lower_contains_ascii_whole_word("we spread thin", "read"));
+    }
+
+    #[test]
+    fn whole_word_matches_on_non_alnum_boundaries() {
+        // standalone word delimited by spaces
+        assert!(lower_contains_ascii_whole_word("we merge it", "merge"));
+        // underscore counts as a word char -> "merge" inside "merge_now" is rejected
+        assert!(!lower_contains_ascii_whole_word(
+            "call merge_now please",
+            "merge"
+        ));
+        // match at very start and end of haystack
+        assert!(lower_contains_ascii_whole_word("merge", "merge"));
+    }
+}

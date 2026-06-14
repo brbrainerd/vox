@@ -67,3 +67,34 @@ mod drift_tests {
         assert!(sigma >= 2.0, "sigma={sigma}");
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn semantic_drift_sigma_is_zero_when_text_matches_baseline() {
+        // baseline == entropy of the same text => delta 0 => sigma 0
+        let text = "hello world";
+        let baseline = calculate_entropy(text);
+        let sigma = semantic_drift_sigma(text, baseline);
+        // approximately zero: entropy accumulation order (HashMap) yields tiny FP noise
+        assert!(sigma.abs() < 1e-9, "expected ~0 sigma, got {sigma}");
+    }
+
+    #[test]
+    fn semantic_drift_sigma_divides_delta_by_exactly_point75() {
+        // Divisor is 0.75_f64.max(EPSILON) == 0.75. With baseline 0.0,
+        // sigma == |h - 0| / 0.75 == h / 0.75.
+        let text = "abcd"; // 4 distinct chars, uniform => entropy == 2.0 bits
+        let h = calculate_entropy(text);
+        assert_eq!(h, 2.0, "precondition h={h}");
+        let sigma = semantic_drift_sigma(text, 0.0);
+        let expected = 2.0_f64 / 0.75_f64;
+        assert!(
+            (sigma - expected).abs() < 1e-12,
+            "sigma={sigma} expected={expected}"
+        );
+    }
+}

@@ -97,3 +97,22 @@ pub async fn connect_canonical_optional(
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1b_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn format_degraded_optional_connect_assembles_full_remediation_line() {
+        let err = StoreError::NotFound("boom".to_string());
+        let line = format_degraded_optional_connect(DbConnectSurface::Mcp, &err);
+        let expected = format!(
+            "VoxDB degraded (surface=mcp): Not found: boom. Persistence disabled until resolved. {}",
+            REMEDIATION_CANONICAL_DB
+        );
+        assert_eq!(line, expected);
+        assert!(line.starts_with("VoxDB degraded (surface=mcp): Not found: boom."));
+        assert!(line.ends_with(REMEDIATION_CANONICAL_DB));
+    }
+}
