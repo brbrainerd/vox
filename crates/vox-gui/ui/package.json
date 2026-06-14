@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit && vite build",
+    "tokens:build": "node style-dictionary.config.mjs",
+    "build": "pnpm tokens:build && tsc --noEmit && vite build",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "lint": "tsc --noEmit && vite build"
