@@ -15,3 +15,6 @@ anyhow.workspace = true
 thiserror.workspace = true
 serde = { workspace = true }
 workspace-hack = { workspace = true }
+
+[dev-dependencies]
+serde_json = "1"
