@@ -153,6 +153,76 @@ impl DomArena {
                 content: s.clone(),
                 span: None,
             }),
+            // `for x in items { <li>{x}</li> }` → DomNode::Loop (Task 8B)
+            HirExpr::For(name, index, iterable, body, key_expr, _) => {
+                let ctx = EmitCtx::new(state_names);
+                let iterator = emit_hir_expr(iterable, &ctx);
+                let key = key_expr.as_ref().map(|k| emit_hir_expr(k, &ctx));
+                let body_id = self.lower_expr(body, state_names, async_fn_names);
+                // Embed the variable name in the iterator expression so the DomNode::Loop
+                // emitter can reconstruct `.map((name, idx) => ...)`.
+                let idx = index.as_deref().unwrap_or("_i");
+                let iterator_with_map =
+                    format!("{iterator}.map(({name}: any, {idx}: number) => ");
+                self.push(DomNode::Loop {
+                    iterator: iterator_with_map,
+                    key,
+                    body: vec![body_id],
+                    span: None,
+                })
+            }
+            // `if cond { <A/> } else { <B/> }` → DomNode::Conditional (Task 8B)
+            HirExpr::If(cond, then_stmts, else_stmts, _) => {
+                let ctx = EmitCtx::new(state_names);
+                let predicate = emit_hir_expr(cond, &ctx);
+                // Lower then branch: each stmt that is an expr becomes a child node.
+                let then_children: Vec<DomNodeId> = then_stmts
+                    .iter()
+                    .filter_map(|s| {
+                        if let vox_compiler::hir::HirStmt::Expr { expr: e, .. } = s {
+                            Some(self.lower_expr(e, state_names, async_fn_names))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                let else_children: Vec<DomNodeId> = else_stmts
+                    .as_ref()
+                    .map(|stmts| {
+                        stmts
+                            .iter()
+                            .filter_map(|s| {
+                                if let vox_compiler::hir::HirStmt::Expr { expr: e, .. } = s {
+                                    Some(self.lower_expr(e, state_names, async_fn_names))
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                // If branches reduced to nothing (stmts are non-Expr), fall back to Expr.
+                if then_children.is_empty() && else_children.is_empty() {
+                    self.expr_fallback_count += 1;
+                    let ts = emit_hir_expr(expr, &ctx);
+                    return self.push(DomNode::Expr { ts, span: None });
+                }
+                self.push(DomNode::Conditional {
+                    predicate,
+                    then_children,
+                    else_children,
+                    span: None,
+                })
+            }
+            // `match subject { … }` → DomNode::Conditional via TS string (Task 8B)
+            HirExpr::Match(_, _, _) => {
+                let ctx = EmitCtx::new(state_names);
+                let ts = emit_hir_expr(expr, &ctx);
+                // Treat the whole match as a TS expression — proper DomNode::Conditional
+                // lowering for match arms is deferred until a full pattern-match lowering
+                // pass is added (each arm has complex patterns that may not be JSX).
+                self.push(DomNode::Expr { ts, span: None })
+            }
             _ => {
                 self.expr_fallback_count += 1;
                 let ts = emit_hir_expr(expr, &EmitCtx::new(state_names));
