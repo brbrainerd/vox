@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { AgentChip } from './AgentStrip';
+import { Button } from '../../ui/Button';
 
 interface Props {
   /** Prefilled message body (e.g. the last command line). */
@@ -23,7 +24,17 @@ export function SendToAgent({ initialBody = '', agents, onSend, onClose }: Props
   }, [agents, target]);
   const canSend = target !== '' && body.trim() !== '';
   return (
-    <div role="dialog" aria-label="send to agent" style={{ padding: 12, fontSize: 12 }}>
+    <div
+      role="dialog"
+      aria-label="send to agent"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          onClose();
+        }
+      }}
+      style={{ padding: 12, fontSize: 12 }}
+    >
       <select
         aria-label="agent"
         value={target}
@@ -45,10 +56,10 @@ export function SendToAgent({ initialBody = '', agents, onSend, onClose }: Props
         style={{ width: '100%', fontFamily: 'monospace', marginBottom: 8 }}
       />
       <div style={{ display: 'flex', gap: 8 }}>
-        <button disabled={!canSend} onClick={() => onSend(target, body)}>
+        <Button disabled={!canSend} onClick={() => onSend(target, body)}>
           Send
-        </button>
-        <button onClick={onClose}>Cancel</button>
+        </Button>
+        <Button onClick={onClose}>Cancel</Button>
       </div>
     </div>
   );

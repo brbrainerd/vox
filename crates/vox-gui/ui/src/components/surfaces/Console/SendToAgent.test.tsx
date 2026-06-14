@@ -33,4 +33,17 @@ describe('SendToAgent', () => {
     fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('closes on Escape', () => {
+    const onClose = vi.fn();
+    render(<SendToAgent agents={agents} onSend={vi.fn()} onClose={onClose} />);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('gives action buttons an explicit button type', () => {
+    render(<SendToAgent agents={agents} onSend={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getByText('Send').getAttribute('type')).toBe('button');
+    expect(screen.getByText('Cancel').getAttribute('type')).toBe('button');
+  });
 });
