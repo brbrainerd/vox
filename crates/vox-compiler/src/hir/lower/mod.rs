@@ -19,6 +19,7 @@
 use crate::ast::decl::*;
 use crate::hir::def_map::DefMap;
 use crate::hir::*;
+use crate::typeck::diagnostics::codes::LOWER_UNLOWERED_DECL;
 use crate::web_prefixes::{MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX};
 use std::collections::HashMap;
 
@@ -632,7 +633,7 @@ impl LowerCtx {
                     // warning so developers notice gaps during development.
                     let kind = decl.kind_name();
                     hir.lower_warnings.push(format!(
-                        "vox.lower.unlowered_decl: declaration kind '{kind}' has no HIR lowering and was silently dropped"
+                        "{LOWER_UNLOWERED_DECL}: declaration kind '{kind}' has no HIR lowering and was silently dropped"
                     ));
                     hir.legacy_ast_nodes.push(decl.clone());
                 }

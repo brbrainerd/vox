@@ -727,15 +727,17 @@ pub mod codes {
     /// HTTP/security decorator (`@webhook`, `@cors`, `@rate_limit`, `@pii`, `@layer`) applied to
     /// a bare function that is not an endpoint or component. The decorator would be silently
     /// dropped during lowering (Pattern C); this code surfaces it as an error instead.
-    /// HTTP/security decorator (`@webhook`, `@cors`, `@rate_limit`, `@pii`, `@layer`) applied to
-    /// a bare function that is not an endpoint or component. The decorator would be silently
-    /// dropped during lowering (Pattern C); this code surfaces it as an error instead.
     pub const TYPECK_DECORATOR_REQUIRES_ENDPOINT: &str = "vox/typeck/decorator-requires-endpoint";
 
     /// MENS/mesh decorator (`@inference`, `@training_step`, `@distributed_train`, `@remote`)
     /// applied to a function where Rust codegen is not yet implemented for these decorators.
     /// Previously these were silently emitted as no-ops; this code surfaces the gap explicitly.
     pub const MENS_DECORATOR_UNIMPLEMENTED: &str = "vox/codegen/mens-decorator-unimplemented";
+
+    /// A `Decl` variant reached the catch-all arm of HIR lowering with no matching lowering arm.
+    /// The declaration is preserved in `legacy_ast_nodes` for forward-compatibility, but this
+    /// warning surfaces the gap so developers notice missing lowering during development.
+    pub const LOWER_UNLOWERED_DECL: &str = "vox/lower/unlowered-decl";
 
     /// All Phase-1 codes registered for stability, used by the namespace guard test.
     pub const ALL_PHASE_1: &[&str] = &[
@@ -786,6 +788,7 @@ pub mod codes {
         EFFECT_MISSING_DECLARATION,
         TYPECK_DECORATOR_REQUIRES_ENDPOINT,
         MENS_DECORATOR_UNIMPLEMENTED,
+        LOWER_UNLOWERED_DECL,
         // Pipeline / parse / hygiene (E028 retired by ADR-041 — durability grammar is stable)
         "E0001",
         "E091",

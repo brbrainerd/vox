@@ -222,8 +222,8 @@ fn agent_def_decl_lowers_out_of_legacy_nodes() {
 /// Verify that the catch-all now pushes a `lower_warnings` entry instead of silently dropping.
 #[test]
 fn unlowered_decl_emits_lower_warning() {
-    use vox_compiler::ast::decl::logic::HttpRouteDecl;
     use vox_compiler::ast::decl::HttpMethod;
+    use vox_compiler::ast::decl::logic::HttpRouteDecl;
     let module = make_module(vec![Decl::HttpRoute(HttpRouteDecl {
         method: HttpMethod::Get,
         path: "/test".to_string(),
@@ -249,7 +249,7 @@ fn unlowered_decl_emits_lower_warning() {
         "one lower_warning expected for the unlowered HttpRoute"
     );
     assert!(
-        hir.lower_warnings[0].contains("vox.lower.unlowered_decl"),
+        hir.lower_warnings[0].contains("vox/lower/unlowered-decl"),
         "warning must carry the diagnostic code, got: {:?}",
         hir.lower_warnings[0]
     );
