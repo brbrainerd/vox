@@ -82,14 +82,16 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
 
       <div className="flex gap-2">
         <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Ask a research question…"
+          aria-label="Research question"
+          onKeyDown={e => { if (e.key === 'Enter') void run(); }}
           className="flex-1 rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-200 outline-none focus:border-brass/40" />
-        <button onClick={run} disabled={running}
+        <button type="button" onClick={run} disabled={running}
           className="rounded-lg border border-brass/30 bg-brass/10 px-4 py-2 text-sm text-brass hover:bg-brass/20 disabled:opacity-50">
           {running ? 'Running…' : 'Run'}
         </button>
       </div>
       {running && (
-        <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+        <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3" aria-live="polite">
           <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages('active')} />
           <div className="mt-2 text-[11px] text-zinc-500">
             Running in the background{activeSessionId != null ? ` (session ${activeSessionId})` : ''} — the answer opens automatically when it completes.
@@ -100,7 +102,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
       <div>
         <div className="mb-2 flex items-center justify-between">
           <span className="font-display text-[12px] uppercase tracking-wide text-zinc-400">Recent sessions</span>
-          <button onClick={loadHistory} className="text-[11px] text-zinc-500 hover:text-zinc-200">Refresh</button>
+          <button type="button" onClick={loadHistory} className="text-[11px] text-zinc-500 hover:text-zinc-200">Refresh</button>
         </div>
         {sessions.length === 0 ? (
           <div className="rounded-lg border border-dashed border-white/5 py-6 text-center text-[11px] text-zinc-600">
@@ -110,7 +112,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
           <ul className="space-y-1">
             {sessions.map(s => (
               <li key={s.id}>
-                <button onClick={() => openDetail(s.id)}
+                <button type="button" onClick={() => openDetail(s.id)}
                   className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-left hover:bg-white/[0.04]">
                   <span className="truncate text-[12px] text-zinc-300">{s.query_text}</span>
                   <span className="ml-3 shrink-0 font-mono text-[10px] text-zinc-500">{s.status}</span>
@@ -125,7 +127,7 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
         <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[12px] text-zinc-300">Session {detail.session.id}</span>
-            <button onClick={() => setDetail(null)} className="text-[11px] text-zinc-500 hover:text-zinc-200">Close</button>
+            <button type="button" onClick={() => setDetail(null)} className="text-[11px] text-zinc-500 hover:text-zinc-200">Close</button>
           </div>
           <PipelineTimeline stages={RESEARCH_STAGES} statuses={deriveStages(detail.session.status)} />
           <pre className="mt-2 max-h-[360px] overflow-auto whitespace-pre-wrap text-[12px] text-zinc-300">
