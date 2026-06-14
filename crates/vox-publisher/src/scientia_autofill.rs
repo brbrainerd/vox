@@ -111,15 +111,14 @@ pub fn compute_autofill(
         .as_deref()
         .map(str::trim)
         .is_none_or(|s| s.is_empty())
+        && let Some(lic) = repo_license_spdx.filter(|s| !s.trim().is_empty())
     {
-        if let Some(lic) = repo_license_spdx.filter(|s| !s.trim().is_empty()) {
-            fills.push(PlannedFill {
-                field: "license_spdx".into(),
-                value: serde_json::Value::String(lic.to_string()),
-                origin: "autofill:repo_license".into(),
-                notes: None,
-            });
-        }
+        fills.push(PlannedFill {
+            field: "license_spdx".into(),
+            value: serde_json::Value::String(lic.to_string()),
+            origin: "autofill:repo_license".into(),
+            notes: None,
+        });
     }
 
     // ── authors / authors[0].orcid ───────────────────────────────────────────
@@ -145,17 +144,16 @@ pub fn compute_autofill(
             .as_deref()
             .map(|s| !s.trim().is_empty())
             .unwrap_or(false);
-        if !first_has_orcid {
-            if let Some(ident) = identity {
-                if let Some(ref orcid) = ident.orcid_id {
-                    fills.push(PlannedFill {
-                        field: "authors[0].orcid".into(),
-                        value: serde_json::Value::String(orcid.clone()),
-                        origin: "autofill:user_identity".into(),
-                        notes: None,
-                    });
-                }
-            }
+        if !first_has_orcid
+            && let Some(ident) = identity
+            && let Some(ref orcid) = ident.orcid_id
+        {
+            fills.push(PlannedFill {
+                field: "authors[0].orcid".into(),
+                value: serde_json::Value::String(orcid.clone()),
+                origin: "autofill:user_identity".into(),
+                notes: None,
+            });
         }
     }
 
@@ -166,15 +164,13 @@ pub fn compute_autofill(
         .and_then(|r| r.code_repository_url.as_deref())
         .map(|s| !s.trim().is_empty())
         .unwrap_or(false);
-    if !has_repo_url {
-        if let Some(url) = git_remote_url.filter(|s| !s.trim().is_empty()) {
-            fills.push(PlannedFill {
-                field: "reproducibility.code_repository_url".into(),
-                value: serde_json::Value::String(url.to_string()),
-                origin: "autofill:git_remote".into(),
-                notes: None,
-            });
-        }
+    if !has_repo_url && let Some(url) = git_remote_url.filter(|s| !s.trim().is_empty()) {
+        fills.push(PlannedFill {
+            field: "reproducibility.code_repository_url".into(),
+            value: serde_json::Value::String(url.to_string()),
+            origin: "autofill:git_remote".into(),
+            notes: None,
+        });
     }
 
     // ── keywords ────────────────────────────────────────────────────────────
@@ -324,10 +320,10 @@ pub fn apply_autofill(
                 root[METADATA_KEY_SCIENTIFIC]["authors"] = fill.value.clone();
             }
             "authors[0].orcid" => {
-                if let Some(arr) = root[METADATA_KEY_SCIENTIFIC]["authors"].as_array_mut() {
-                    if let Some(first) = arr.first_mut() {
-                        first["orcid"] = fill.value.clone();
-                    }
+                if let Some(arr) = root[METADATA_KEY_SCIENTIFIC]["authors"].as_array_mut()
+                    && let Some(first) = arr.first_mut()
+                {
+                    first["orcid"] = fill.value.clone();
                 }
             }
             "reproducibility.code_repository_url" => {

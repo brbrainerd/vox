@@ -24,7 +24,6 @@
 //! Run explicitly:
 //!   cargo test -p vox-integration-tests --test ts_emit_behavioral_test -- --ignored --nocapture
 #![allow(missing_docs)]
-#![allow(unsafe_code)] // set_var/remove_var used to isolate VOX_WEBIR_VALIDATE for this test
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -103,6 +102,9 @@ fn golden_ts_dir() -> PathBuf {
 /// Compile one `.vox` source string to TypeScript files using the codegen
 /// pipeline. Returns `Vec<(filename, content)>` of emitted files.
 /// (Same emit flow as `ts_emit_typecheck_test.rs`.)
+// SAFETY: set_var/remove_var used to isolate VOX_WEBIR_VALIDATE; called from
+// #[ignore] tests that are single-threaded with respect to this env var.
+#[allow(unsafe_code)]
 fn compile_to_ts(src: &str, label: &str) -> Vec<(String, String)> {
     let tokens = lex(src);
     let module = parse(tokens).unwrap_or_else(|e| panic!("Parse failed for {label}: {e:?}"));

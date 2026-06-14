@@ -10,7 +10,6 @@
 //!
 //! Run: `cargo test -p vox-integration-tests --test ts_emit_goldens_probe -- --nocapture`
 #![allow(missing_docs)]
-#![allow(unsafe_code)] // set_var/remove_var to isolate VOX_WEBIR_VALIDATE (same as ts_emit_typecheck_test.rs)
 
 use std::path::{Path, PathBuf};
 
@@ -59,6 +58,8 @@ enum TsEmit {
 
 /// Drive codegen-ts for one golden, capturing failure modes (incl. panics from
 /// unsupported constructs) rather than aborting the whole run.
+// SAFETY: set_var/remove_var isolate VOX_WEBIR_VALIDATE; single-threaded test context.
+#[allow(unsafe_code)]
 fn probe_ts_emit(path: &Path) -> TsEmit {
     let src = std::fs::read_to_string(path).unwrap_or_default();
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -159,6 +160,8 @@ fn codegen_ts_golden_emit_census() {
 /// can see whether the `main()` logic survives emission (→ a synthetic entry is
 /// enough) or is dropped by App-mode (→ a new "script" emit mode is needed).
 #[test]
+// SAFETY: set_var/remove_var isolate VOX_WEBIR_VALIDATE; single-threaded test context.
+#[allow(unsafe_code)]
 fn dump_codegen_ts_for_representative_goldens() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden");
     for rel in ["mesh/noop.vox", "decimal_math.vox"] {

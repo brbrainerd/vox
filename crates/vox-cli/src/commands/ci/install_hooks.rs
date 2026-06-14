@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 /// Resolve the git hooks directory for `root`, working in both ordinary clones and
 /// **worktrees** (where `.git` is a file pointing at `…/.git/worktrees/<name>`, so the old
@@ -10,16 +9,9 @@ use std::process::Command;
 /// layout and also honors `core.hooksPath`. Falls back to `<root>/.git/hooks` if git is
 /// unavailable.
 fn resolve_hooks_dir(root: &Path) -> Option<PathBuf> {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .args(["rev-parse", "--git-path", "hooks"])
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let rel = String::from_utf8(out.stdout).ok()?;
+    // Route through vox_git so the concurrency policy is honored (arch-check
+    // forbids raw `Command::new("git")`). This is a read-only query.
+    let rel = vox_git::read_only(root, &["rev-parse", "--git-path", "hooks"]).ok()?;
     let rel = rel.trim();
     if rel.is_empty() {
         return None;

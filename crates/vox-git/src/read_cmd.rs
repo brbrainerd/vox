@@ -16,6 +16,9 @@ const READ_ONLY: &[&str] = &[
     "status",
     "cat-file",
     "ls-files",
+    "remote",
+    "worktree",
+    "branch",
 ];
 
 /// Failure modes for [`read_only`].

@@ -3,11 +3,8 @@
 //! MERGES results by id so successive gate runs accumulate into one report.
 //! Timestamps are passed in by the caller (determinism: no `now()` here).
 //!
-//! DEVIATION FROM PLAN: branch/commit resolution shells `git` directly rather
-//! than via `vox_git::read_only`. `vox-git` is an *optional* dependency of
-//! `vox-cli` (only enabled by the `coderabbit` feature), so it is not available
-//! in the default build. The writer already shells `git` for worktree
-//! enumeration, so this keeps the capture path dependency-free and consistent.
+//! Branch/commit resolution uses `vox_git::read_only` (now a non-optional
+//! dependency of `vox-cli`) to satisfy the arch-check raw-git-exec policy.
 
 use std::path::Path;
 use vox_config::{PolicyResult, PolicyRunReport};
@@ -69,16 +66,13 @@ pub fn write_results(
 /// Run a read-only `git` command in `repo_root`, returning trimmed stdout on
 /// success (exit 0). Best-effort: any failure → `None`.
 fn git_read(repo_root: &Path, args: &[&str]) -> Option<String> {
-    let out = std::process::Command::new("git")
-        .arg("-C")
-        .arg(repo_root)
-        .args(args)
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
+    let out = vox_git::read_only(repo_root, args).ok()?;
+    let trimmed = out.trim().to_string();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
     }
-    Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
 /// Current branch via `git rev-parse --abbrev-ref HEAD`.

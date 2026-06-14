@@ -1,6 +1,5 @@
 //! Harness panel helpers (diff review, MCP text extraction, repo file picker).
 
-use std::process::Command;
 use std::sync::Arc;
 
 use serde_json::Value;
@@ -87,24 +86,9 @@ pub fn list_repo_files(query: Option<String>, limit: Option<usize>) -> Result<Ve
     let repo_ctx = discover_repository_or_fallback(&cwd);
     let repo_root = repo_ctx.root;
 
-    let output = Command::new("git")
-        .args(["-c", "core.autocrlf=false", "ls-files"])
-        .current_dir(&repo_root)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .output()
-        .map_err(|e| format!("git ls-files failed: {e}"))?;
+    let stdout = vox_git::read_only(&repo_root, &["ls-files"]).map_err(|e| e.to_string())?;
 
-    if !output.status.success() {
-        let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        return Err(if err.is_empty() {
-            "git ls-files failed".to_string()
-        } else {
-            err
-        });
-    }
-
-    let all: Vec<String> = String::from_utf8_lossy(&output.stdout)
+    let all: Vec<String> = stdout
         .lines()
         .map(|line| line.replace('\\', "/"))
         .filter(|line| !line.is_empty())

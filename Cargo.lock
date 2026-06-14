@@ -15011,6 +15011,7 @@ dependencies = [
  "vox-db",
  "vox-foundation",
  "vox-gamify",
+ "vox-git",
  "vox-identity",
  "vox-ml-cli",
  "vox-orchestrator",
