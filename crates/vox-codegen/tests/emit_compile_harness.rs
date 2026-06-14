@@ -8,7 +8,8 @@
 //! `rustc` *type* error that snapshot/`*_compiles.rs` (symbol-link) tests do not
 //! catch — only compiling the generated crate does.
 //!
-//! These are `#[ignore]`d because compiling a generated crate (tokio +
+//! Most tests run by default; only tests with known pre-existing blockers are
+//! `#[ignore]`d with a specific reason. Compiling a generated crate (tokio +
 //! `vox-actor-runtime`) takes a while. Run explicitly:
 //!
 //! ```sh
@@ -23,12 +24,24 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Mutex;
 
 use vox_codegen::codegen_rust::generate_script;
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse_script;
 use vox_compiler::typeck::typecheck_hir_module;
+
+// All compile-harness tests share ONE stable target dir so that `tokio` +
+// `vox-actor-runtime` are compiled only once (cold ~100s; warm ~5s each).
+// A mutex serialises access so parallel test threads don't stomp on Cargo's
+// lock files. Place it in `%TEMP%/vox-emit-harness-target` so it survives
+// across `cargo test` invocations (sccache-style warm cache).
+static COMPILE_LOCK: Mutex<()> = Mutex::new(());
+
+fn shared_target_dir() -> PathBuf {
+    std::env::temp_dir().join("vox-emit-harness-target")
+}
 
 /// Workspace root (contains `examples/golden/`).
 fn repo_root() -> PathBuf {
@@ -78,8 +91,10 @@ fn compile_vox_script(src: &str) -> Result<(), String> {
         .map_err(|e| format!("write_to_dir: {e}"))?;
     inject_workspace_patches(dir.path());
 
-    // Per-project target dir: a shared global dir races when `golden_*` tests run in parallel.
-    let target_dir = dir.path().join("target");
+    // Shared stable target dir + lock so every test reuses compiled deps.
+    // The mutex serialises cargo invocations; tests still run in any order.
+    let _guard = COMPILE_LOCK.lock().unwrap();
+    let target_dir = shared_target_dir();
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
     let out = Command::new(cargo)
         .current_dir(dir.path())
@@ -119,7 +134,6 @@ fn assert_golden_compiles(rel: &str) {
 }
 
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn minimal_script_compiles() {
     assert_compiles("fn main() { print(\"hi\") }");
 }
@@ -129,7 +143,6 @@ fn minimal_script_compiles() {
 /// inlining `return <value>` into `fn main() -> ()`. (Regression test for the
 /// entry-wrapper bug this harness originally surfaced.)
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn value_returning_main_compiles() {
     assert_compiles("fn main() to int { return 1 + 2 }");
 }
@@ -137,7 +150,6 @@ fn value_returning_main_compiles() {
 /// Value-semantic list `.push` must compile: Vox `xs = xs.push(y)` returns the new
 /// list, so it must emit a value-returning block (not Rust `Vec::push` → `()`).
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn list_push_compiles() {
     assert_compiles(
         r#"
@@ -155,7 +167,6 @@ fn main() {
 /// the get side is `.cloned()` to an owned `Option<T>` to match the `Some(..)`
 /// side — in both a plain `is` and the `assert(x is y)` → `assert_eq!` path.
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn get_is_some_compiles() {
     assert_compiles(
         r#"
@@ -173,7 +184,6 @@ fn main() {
 }
 
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn list_ops_compile() {
     assert_compiles(
         r#"
@@ -199,7 +209,6 @@ fn main() {
 /// This is the regression guard for borrowed-`&str` signature emission: it must
 /// keep compiling once params can be emitted as `&str`.
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn string_param_shapes_compile() {
     assert_compiles(
         r#"
@@ -220,7 +229,6 @@ fn main() {
 /// Codegen must emit `format!`, not `String + i64`. Regression guard for the
 /// previously-miscompiling mixed-type concatenation.
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn str_plus_numeric_compiles() {
     assert_compiles(
         r#"
@@ -243,7 +251,6 @@ fn main() {
 /// `.sum::<T>()` annotation (E0283 otherwise); the rest produce nested/heterogeneous
 /// types codegen can't yet resolve monomorphically.
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn list_methods_compile() {
     assert_compiles(
         r#"
@@ -287,7 +294,6 @@ fn main() {
 /// Minimal `@json_as` must compile: signatures use `serde_json::Value` (or a
 /// `type Json = …` alias), never a bare undefined `Json` type (CR-F2 #6).
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn json_as_minimal_compiles() {
     assert_compiles(
         r#"
@@ -314,7 +320,6 @@ fn json_as_minimal_compiles() {
 }
 
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn str_methods_compile() {
     assert_compiles(
         r#"
@@ -363,36 +368,30 @@ fn main() {
 }
 
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn golden_noop_compiles() {
     assert_golden_compiles("mesh/noop.vox");
 }
 
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn golden_regex_free_functions_compiles() {
     assert_golden_compiles("regex_free_functions.vox");
 }
 
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn golden_decimal_math_compiles() {
     assert_golden_compiles("decimal_math.vox");
 }
 
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn golden_while_loop_algorithms_compiles() {
     assert_golden_compiles("while_loop_algorithms.vox");
 }
 
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn golden_json_as_typed_compiles() {
     assert_golden_compiles("json_as_typed.vox");
 }
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn golden_tuple_destructure_compiles() {
     assert_golden_compiles("tuple_destructure.vox");
 }
@@ -403,24 +402,21 @@ fn golden_match_arm_stmts_compiles() {
 }
 
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn golden_control_flow_if_compiles() {
     assert_golden_compiles("control_flow_if.vox");
 }
 
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn golden_error_propagation_compiles() {
     assert_golden_compiles("error_propagation.vox");
 }
 
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
 fn golden_closures_hof_compiles() {
     assert_golden_compiles("closures_hof.vox");
 }
 #[test]
-#[ignore = "compiles a generated crate (slow); run with --ignored"]
+#[ignore = "option_type.vox uses @table: pre-existing turso IntoParams/From trait-bound errors in DB codegen (unrelated to Option type support)"]
 fn golden_option_type_compiles() {
     assert_golden_compiles("option_type.vox");
 }
