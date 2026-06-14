@@ -11,8 +11,12 @@ pub struct MeshDirectoryEntry {
     pub current_queue_depth: Option<usize>,
     pub supported_priorities: Option<Vec<u8>>,
     /// Optional Ed25519 signature of the canonical entry representation.
+    // Must be excluded from canonical_bytes() — skip_serializing_if ensures None is omitted
+    // so the signing payload never contains the signature itself.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub signature: Option<Vec<u8>>,
     /// Ed25519 public key used to verify the signature.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub public_key: Option<[u8; 32]>,
 }
 
