@@ -476,24 +476,12 @@ pub struct AutofillResultDto {
     pub completeness_after: u8,
 }
 
-/// Run `git remote get-url origin`; `None` on any failure. `CREATE_NO_WINDOW`
-/// on Windows so no console window flashes (mirrors the CLI helper).
+/// Run `git remote get-url origin`; `None` on any failure.
 fn git_remote_origin() -> Option<String> {
-    let mut cmd = std::process::Command::new("git");
-    cmd.args(["remote", "get-url", "origin"]);
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
-    let out = cmd.output().ok()?;
-    if out.status.success() {
-        let url = String::from_utf8_lossy(&out.stdout).trim().to_string();
-        if url.is_empty() { None } else { Some(url) }
-    } else {
-        None
-    }
+    let cwd = std::env::current_dir().ok()?;
+    let url = vox_git::read_only(&cwd, &["remote", "get-url", "origin"]).ok()?;
+    let url = url.trim().to_string();
+    if url.is_empty() { None } else { Some(url) }
 }
 
 /// Detect the SPDX license id from a LICENSE file in `repo_root` (mirrors the CLI

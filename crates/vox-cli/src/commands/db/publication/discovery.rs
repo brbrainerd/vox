@@ -253,25 +253,12 @@ fn detect_repo_license(repo_root: &std::path::Path) -> Option<String> {
 }
 
 /// Run `git remote get-url origin` and return the URL on success.
-/// Uses `CREATE_NO_WINDOW` on Windows so no console window flashes.
 fn git_remote_origin() -> Option<String> {
-    let mut cmd = std::process::Command::new("git");
-    cmd.args(["remote", "get-url", "origin"]);
-
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
-
-    let out = cmd.output().ok()?;
-    if out.status.success() {
-        let url = String::from_utf8_lossy(&out.stdout).trim().to_string();
-        if url.is_empty() { None } else { Some(url) }
-    } else {
-        None
-    }
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let url = vox_git::read_only(&repo_root, &["remote", "get-url", "origin"])
+        .ok()?;
+    let url = url.trim().to_string();
+    if url.is_empty() { None } else { Some(url) }
 }
 
 /// Deterministic archive-metadata autofill for one publication id.

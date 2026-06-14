@@ -112,7 +112,6 @@ codex = []
 # GitHub CodeRabbit batch PRs (`vox review coderabbit …`).
 coderabbit = [
     "dep:vox-forge",
-    "dep:vox-git",
     "dep:blake3",
     "dep:vox-code-audit",
 ]
@@ -245,7 +244,7 @@ walkdir = { workspace = true }
 sysinfo = { workspace = true }
 
 vox-forge = { workspace = true, optional = true, features = ["github", "gitlab"] }
-vox-git = { workspace = true, optional = true }
+vox-git = { workspace = true }
 blake3 = { workspace = true, optional = true }
 xxhash-rust = { workspace = true, optional = true }
 which = { workspace = true }
