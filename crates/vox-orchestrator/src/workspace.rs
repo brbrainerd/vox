@@ -418,6 +418,7 @@ impl Default for WorkspaceManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vox_config::timeouts::D_250MS;
 
     #[test]
     fn change_id_display() {
@@ -555,7 +556,7 @@ mod tests {
         // The supervised snapshot runs on a detached task; give it a beat, then
         // assert the change log is reachable through the same actor (best effort:
         // at minimum the actor is alive and the path ran without panicking).
-        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        tokio::time::sleep(D_250MS).await;
         let changes = handle.changes().await.expect("actor still alive");
         let _ = changes; // change set may or may not contain our snapshot yet
     }

@@ -13,6 +13,7 @@ use crate::{
 };
 use std::path::Path;
 use std::time::{Duration, Instant};
+use vox_config::timeouts::OP_SHORT;
 
 pub struct BehavioralGoldensSubcommand;
 
@@ -288,7 +289,7 @@ mod tests {
         let out = run_golden(
             "vox-definitely-not-a-real-binary-xyz",
             std::path::Path::new("examples/golden/does-not-matter.vox"),
-            std::time::Duration::from_secs(5),
+            OP_SHORT,
         );
         assert!(matches!(out, GoldenRun::SpawnErr(_)));
     }

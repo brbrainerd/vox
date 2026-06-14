@@ -231,6 +231,8 @@ pub const REPO_LUDUS_PACK_FILE: &str = ".vox/ludus/lex-pack.toml";
 pub const REPO_SPEECH_LEXICON_FILE: &str = ".vox/speech_lexicon.json";
 /// `.vox/toolchain-upgrade-rollback.json` repo upgrade rollback snapshot.
 pub const REPO_TOOLCHAIN_ROLLBACK_FILE: &str = ".vox/toolchain-upgrade-rollback.json";
+/// Project-level VOX.md memory file (agent memory for this repository).
+pub const REPO_VOX_MD_FILE: &str = ".vox/VOX.md";
 
 /// MCP session persistence: `.vox/sessions/<repository_id>` (relative to repository root).
 pub fn mcp_sessions_dir(repository_id: &str) -> PathBuf {

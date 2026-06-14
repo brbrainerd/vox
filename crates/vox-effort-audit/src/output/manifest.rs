@@ -55,7 +55,7 @@ mod tests {
             run_id: "01HW7".into(),
             run_started: chrono::Utc::now(),
             run_completed: chrono::Utc::now(),
-            vox_version: "0.6.0".into(),
+            vox_version: env!("CARGO_PKG_VERSION").into(),
             effort_audit_crate_version: "0.1.0".into(),
             range: RangeManifest {
                 since: "30 days ago".into(),

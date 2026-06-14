@@ -33,6 +33,7 @@ async fn wait_until_async<F, Fut>(
 
 /// Wall-clock ceiling so local TCP daemon tests cannot stall indefinitely if readiness RPC regresses.
 const DAEMON_TEST_TIMEOUT: Duration = vox_config::timeouts::D_60S;
+const D_20MS: Duration = Duration::from_millis(20);
 
 #[tokio::test]
 async fn orchestrator_daemon_ping_and_task_status() {
@@ -214,7 +215,7 @@ async fn orchestrator_daemon_subscribe_events_inner() {
                 agent_id: vox_orchestrator::AgentId(7),
                 text: "hello".to_string(),
             });
-            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            tokio::time::sleep(D_20MS).await;
         }
     });
 

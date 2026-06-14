@@ -11,7 +11,7 @@
 #![allow(clippy::needless_pass_by_value)]
 
 use candle_core::{DType, Device, Module, Tensor};
-use candle_nn::{linear_no_bias, Linear, VarBuilder, VarMap};
+use candle_nn::{Linear, VarBuilder, VarMap, linear_no_bias};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{PeftError, Result};
@@ -717,7 +717,7 @@ mod tests {
 
     #[test]
     fn test_lora_save_load_weights() -> Result<()> {
-        use crate::io::{load_adapter_weights, save_adapter_weights, SaveLoad};
+        use crate::io::{SaveLoad, load_adapter_weights, save_adapter_weights};
         use tempfile::TempDir;
 
         let device = Device::Cpu;

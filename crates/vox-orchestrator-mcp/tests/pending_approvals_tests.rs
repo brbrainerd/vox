@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use vox_orchestrator::ApprovalOutcome;
+
+const D_15S: std::time::Duration = std::time::Duration::from_secs(15);
 use vox_orchestrator_mcp::pending_approvals::PendingApprovals;
 use vox_orchestrator_mcp::server::tool_json_envelope_is_error;
 use vox_orchestrator_mcp::{ServerState, handle_tool_call, load_config};
@@ -63,7 +65,7 @@ async fn dangerous_tool_parks_until_resolved() {
     });
 
     // Wait until the gate registers the pending approval.
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+    let deadline = tokio::time::Instant::now() + D_15S;
     loop {
         if !state.pending_approvals.list().is_empty() {
             break;

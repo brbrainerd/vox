@@ -8,8 +8,10 @@ use vox_orchestrator::orch_daemon::{self, ExtraDispatch};
 use vox_orchestrator_mcp::daemon_extra::McpExtraDispatch;
 use vox_orchestrator_mcp::{ServerState, load_config};
 
+const D_15S: std::time::Duration = std::time::Duration::from_secs(15);
+
 async fn wait_ready(addr: &str) {
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+    let deadline = tokio::time::Instant::now() + D_15S;
     loop {
         let c = orch_daemon::OrchDaemonClient::new(addr.to_string());
         if c.ping().await.is_ok() {

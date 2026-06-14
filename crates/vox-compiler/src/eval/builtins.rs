@@ -1,3 +1,4 @@
+use vox_config::timeouts::HTTP_REQUEST; // HTTP_REQUEST = 30s
 use super::shell_stdlib::{
     interp_csv_parse, interp_csv_parse_records, interp_csv_render, interp_fs_list_dir_detailed,
     interp_fs_stat, interp_io_open, interp_io_save, interp_process_run_capture_json,
@@ -2618,7 +2619,7 @@ fn http_blocking_get_text(url: &str) -> Result<String, String> {
     std::thread::spawn(move || -> Result<String, String> {
         let client = reqwest::blocking::Client::builder()
             .user_agent(concat!("vox-interp/", env!("CARGO_PKG_VERSION")))
-            .timeout(std::time::Duration::from_secs(30))
+            .timeout(HTTP_REQUEST)
             .build()
             .map_err(|e| e.to_string())?;
         let resp = client.get(&url).send().map_err(|e| e.to_string())?;
@@ -2636,7 +2637,7 @@ fn http_blocking_post_json(url: &str, body: &str) -> Result<String, String> {
     std::thread::spawn(move || -> Result<String, String> {
         let client = reqwest::blocking::Client::builder()
             .user_agent(concat!("vox-interp/", env!("CARGO_PKG_VERSION")))
-            .timeout(std::time::Duration::from_secs(30))
+            .timeout(HTTP_REQUEST)
             .build()
             .map_err(|e| e.to_string())?;
         let resp = client

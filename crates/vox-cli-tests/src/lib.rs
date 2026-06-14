@@ -470,6 +470,8 @@ fn link_node_modules(target: &Path, link_path: &Path) {
 /// alone cannot stop concurrent installs into the same directory; a
 /// directory-based lock serializes them across processes.
 fn ensure_node_modules_installed(tests_dir: &Path) {
+    const D_600S: std::time::Duration = std::time::Duration::from_secs(600);
+    const D_500MS: std::time::Duration = std::time::Duration::from_millis(500);
     static ONCE: OnceLock<()> = OnceLock::new();
     ONCE.get_or_init(|| {
         let package_json = tests_dir.join("package.json");
@@ -495,7 +497,7 @@ fn ensure_node_modules_installed(tests_dir: &Path) {
         if installed(tests_dir) && !lock_dir.exists() {
             return;
         }
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(600);
+        let deadline = std::time::Instant::now() + D_600S;
         let we_hold_lock = loop {
             match std::fs::create_dir(&lock_dir) {
                 Ok(()) => {
@@ -514,7 +516,7 @@ fn ensure_node_modules_installed(tests_dir: &Path) {
                         let _ = std::fs::remove_dir(&lock_dir);
                         continue;
                     }
-                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    std::thread::sleep(D_500MS);
                 }
                 Err(e) => panic!("creating npm install lock {}: {e}", lock_dir.display()),
             }

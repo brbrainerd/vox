@@ -11,7 +11,7 @@ use std::fs;
 use std::path::Path;
 
 use candle_core::{Device, Tensor};
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 
 use crate::error::{PeftError, Result};
 

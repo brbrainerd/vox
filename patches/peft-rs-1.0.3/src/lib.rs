@@ -65,14 +65,14 @@ pub use adapters::prompt_tuning::{PromptTuningConfig, PromptTuningLayer};
 pub use adapters::vera::{VeraConfig, VeraLayer};
 pub use error::{PeftError, Result};
 pub use io::{
-    load_adapter_config, load_adapter_weights, load_pretrained, save_adapter_config,
-    save_adapter_weights, save_pretrained, SaveLoad, ADAPTER_CONFIG_FILENAME,
-    ADAPTER_WEIGHTS_FILENAME,
+    ADAPTER_CONFIG_FILENAME, ADAPTER_WEIGHTS_FILENAME, SaveLoad, load_adapter_config,
+    load_adapter_weights, load_pretrained, save_adapter_config, save_adapter_weights,
+    save_pretrained,
 };
-pub use model::{get_peft_model, ModulePattern, PeftModel};
+pub use model::{ModulePattern, PeftModel, get_peft_model};
 pub use registry::AdapterRegistry;
 pub use training::{
-    count_trainable_parameters, format_parameter_count, AdapterTrainingConfig,
-    AdapterTrainingState, LrSchedule,
+    AdapterTrainingConfig, AdapterTrainingState, LrSchedule, count_trainable_parameters,
+    format_parameter_count,
 };
 pub use traits::{Adapter, AdapterConfig, Mergeable, Trainable};

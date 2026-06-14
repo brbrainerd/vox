@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use tokio::sync::Notify;
 use tokio::time::{Duration, timeout};
+use vox_config::timeouts::D_500MS;
 
 /// A simple waitable barrier to replace `sleep` in tests.
 #[derive(Clone, Default)]
@@ -43,7 +44,7 @@ mod semcov_wave4_tests {
             tokio::time::sleep(Duration::from_millis(10)).await;
             b2.signal();
         });
-        let result = barrier.wait_with_timeout(Duration::from_millis(500)).await;
+        let result = barrier.wait_with_timeout(D_500MS).await;
         handle.await.unwrap();
         assert!(
             result,
@@ -66,7 +67,7 @@ mod semcov_wave4_tests {
             tokio::time::sleep(Duration::from_millis(5)).await;
             b2.signal();
         });
-        let result = barrier.wait_with_timeout(Duration::from_millis(500)).await;
+        let result = barrier.wait_with_timeout(D_500MS).await;
         assert!(result);
     }
 

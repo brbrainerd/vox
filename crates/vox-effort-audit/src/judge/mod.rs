@@ -10,6 +10,7 @@ use crate::shape::ShapeFeatures;
 use crate::walk::CommitRecord;
 use async_trait::async_trait;
 use std::time::Duration;
+use vox_config::timeouts::EFFORT_AUDIT_JUDGE_TIMEOUT;
 
 #[derive(Debug, Clone)]
 pub struct JudgeOutcome {
@@ -307,7 +308,7 @@ mod tests {
         let j = LlmJudge {
             config: JudgeConfig::default(),
             resolved_model: "fast".into(),
-            timeout: Duration::from_secs(60),
+            timeout: EFFORT_AUDIT_JUDGE_TIMEOUT,
         };
         assert_eq!(j.model_id(), "fast");
     }

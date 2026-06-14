@@ -12,6 +12,7 @@
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use vox_config::paths::REPO_VOX_MD_FILE;
 
 /// Maximum `@import` recursion depth (mirrors Claude Code's depth-5 cap).
 pub const MAX_IMPORT_DEPTH: usize = 5;
@@ -136,7 +137,7 @@ mod tests {
     fn discovers_dot_vox_fallback() {
         let dir = tempdir().unwrap();
         fs::create_dir_all(dir.path().join(".vox")).unwrap();
-        fs::write(dir.path().join(".vox/VOX.md"), "fallback rules\n").unwrap();
+        fs::write(dir.path().join(REPO_VOX_MD_FILE), "fallback rules\n").unwrap();
         let out = load_project_context(dir.path()).expect("some");
         assert!(out.contains("fallback rules"));
     }
@@ -146,7 +147,7 @@ mod tests {
         let dir = tempdir().unwrap();
         fs::create_dir_all(dir.path().join(".vox")).unwrap();
         fs::write(dir.path().join("VOX.md"), "ROOT\n").unwrap();
-        fs::write(dir.path().join(".vox/VOX.md"), "DOTVOX\n").unwrap();
+        fs::write(dir.path().join(REPO_VOX_MD_FILE), "DOTVOX\n").unwrap();
         let out = load_project_context(dir.path()).expect("some");
         assert!(out.contains("ROOT"));
         assert!(!out.contains("DOTVOX"));

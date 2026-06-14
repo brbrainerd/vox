@@ -41,6 +41,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::Duration;
 use tokio::sync::oneshot;
+use vox_config::timeouts::{D_250MS, D_5S, D_10S, D_30S};
 
 /// Upper bound on a single jj operation inside the actor. Remote push/fetch shell
 /// out to `git` and can legitimately take a while, so this is deliberately
@@ -301,7 +302,7 @@ impl JjActor {
         });
 
         // Wait for the startup result (up to 30 s).
-        match startup_rx.recv_timeout(std::time::Duration::from_secs(30)) {
+        match startup_rx.recv_timeout(D_30S) {
             Ok(Ok(())) => {}
             Ok(Err(e)) => return Err(e),
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
@@ -440,13 +441,14 @@ impl VcsBackend for JjActorHandle {
 mod tests {
     use super::*;
     use std::time::Duration;
+    use vox_config::timeouts::{D_250MS, D_5S, D_10S};
 
     /// A wedged operation elapses to a `VcsError` (so the actor thread is freed
     /// for the next queued command) while a fast operation passes through cleanly.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn op_timeout_bounds_a_wedged_operation() {
         let slow = async {
-            tokio::time::sleep(Duration::from_millis(250)).await;
+            tokio::time::sleep(D_250MS).await;
             Ok::<(), VcsError>(())
         };
         let timed_out = with_op_timeout(Duration::from_millis(20), slow).await;
@@ -456,7 +458,7 @@ mod tests {
         );
 
         let fast = async { Ok::<i32, VcsError>(7) };
-        let passed = with_op_timeout(Duration::from_secs(5), fast).await;
+        let passed = with_op_timeout(D_5S, fast).await;
         assert_eq!(passed.unwrap(), 7, "a fast operation must pass through");
     }
 
@@ -518,7 +520,7 @@ mod tests {
     /// to the caller AND the actor must remain alive to serve subsequent calls.
     #[tokio::test(flavor = "multi_thread")]
     async fn actor_survives_panicking_operation() {
-        tokio::time::timeout(Duration::from_secs(10), async {
+        tokio::time::timeout(D_10S, async {
             let dir = tempfile::tempdir().unwrap();
             let handle = JjActor::spawn(dir.path().to_path_buf()).expect("spawn actor");
 
@@ -550,7 +552,7 @@ mod tests {
     /// A dead actor must return `Err(Unavailable)`, never hang.
     #[tokio::test(flavor = "multi_thread")]
     async fn actor_dead_thread_returns_err() {
-        tokio::time::timeout(Duration::from_secs(10), async {
+        tokio::time::timeout(D_10S, async {
             let dir = tempfile::tempdir().unwrap();
             let handle = JjActor::spawn(dir.path().to_path_buf()).expect("spawn actor");
 

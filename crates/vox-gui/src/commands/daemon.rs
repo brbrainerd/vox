@@ -14,7 +14,13 @@ use std::process::{Command, Stdio};
 
 use tokio::sync::OnceCell;
 use vox_cli_core::daemon_ipc::process_supervision::resolve_managed_binary_path;
+use vox_config::timeouts::{D_100MS, D_15S};
 use vox_orchestrator::orch_daemon::OrchDaemonClient;
+
+/// Deadline for the spawned daemon to become reachable via ping.
+const DAEMON_CONNECT_TIMEOUT: std::time::Duration = D_15S;
+/// Poll interval while waiting for the daemon to start.
+const DAEMON_POLL_INTERVAL: std::time::Duration = D_100MS;
 
 /// Default loopback TCP address the GUI binds its orchestrator daemon to when
 /// `VOX_ORCHESTRATOR_DAEMON_SOCKET` is not set to a TCP address.
@@ -66,12 +72,12 @@ impl PersistentDaemon {
                 }
 
                 // Poll until the daemon answers a ping or the deadline elapses.
-                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+                let deadline = std::time::Instant::now() + DAEMON_CONNECT_TIMEOUT;
                 while std::time::Instant::now() < deadline {
                     if OrchDaemonClient::new(addr.clone()).ping().await.is_ok() {
                         return Ok(addr);
                     }
-                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    tokio::time::sleep(DAEMON_POLL_INTERVAL).await;
                 }
 
                 if let Ok(mut slot) = self.child.lock()

@@ -18,6 +18,7 @@ use std::time::Duration;
 
 pub const D_ZERO: Duration = Duration::ZERO;
 pub const D_1MS: Duration = Duration::from_millis(1);
+pub const D_2MS: Duration = Duration::from_millis(2);
 pub const D_5MS: Duration = Duration::from_millis(5);
 pub const D_10MS: Duration = Duration::from_millis(10);
 pub const D_20MS: Duration = Duration::from_millis(20);
@@ -33,6 +34,7 @@ pub const D_1S: Duration = Duration::from_secs(1);
 pub const D_2S: Duration = Duration::from_secs(2);
 pub const D_3S: Duration = Duration::from_secs(3);
 pub const D_5S: Duration = Duration::from_secs(5);
+pub const D_7S: Duration = Duration::from_secs(7);
 pub const D_10S: Duration = Duration::from_secs(10);
 pub const D_15S: Duration = Duration::from_secs(15);
 pub const D_30S: Duration = Duration::from_secs(30);

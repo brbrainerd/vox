@@ -31,7 +31,10 @@ impl<A: Adapter> BatchAdapterSwitcher<A> {
     /// Create new switcher.
     #[must_use]
     pub fn new(registry: AdapterRegistry<A>) -> Self {
-        Self { registry, mode: InferenceMode::default() }
+        Self {
+            registry,
+            mode: InferenceMode::default(),
+        }
     }
 
     /// Set mode.
@@ -124,7 +127,9 @@ pub fn validate_adapter_compatibility<A: Adapter>(adapters: &[&A]) -> Result<()>
         if adapter.num_parameters() != first_params {
             return Err(PeftError::InvalidConfig(format!(
                 "Adapter {} has {} parameters, expected {}",
-                idx, adapter.num_parameters(), first_params
+                idx,
+                adapter.num_parameters(),
+                first_params
             )));
         }
     }

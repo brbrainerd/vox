@@ -8,6 +8,7 @@
 use crate::cluster::Embedder;
 use async_trait::async_trait;
 use std::time::Duration;
+use vox_config::timeouts::HTTP_REQUEST;
 
 /// Embeds finding rationales through the model-agnostic facade.
 ///
@@ -69,7 +70,7 @@ mod tests {
         // resolved, and provider defers to the facade.
         let e = LlmEmbedder {
             model: "mens/embed-1".into(),
-            timeout: Duration::from_secs(30),
+            timeout: HTTP_REQUEST,
         };
         let cfg = e.config();
         assert_eq!(cfg.provider, "auto");
