@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use vox_config::serde_defaults::default_true;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EffortAuditConfig {
@@ -60,9 +61,6 @@ fn default_max_concurrent() -> usize {
 }
 fn default_max_diff_bytes() -> usize {
     200 * 1024
-}
-fn default_true() -> bool {
-    true
 }
 fn default_transcript_dir() -> PathBuf {
     dirs::home_dir()

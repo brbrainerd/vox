@@ -14,6 +14,8 @@ mod semcov_wave19_tests {
         use crate::locks::{ResourceLockKind, ResourceLockManager};
         use vox_orchestrator_types::AgentId;
 
+        const D_2MS: std::time::Duration = std::time::Duration::from_millis(2);
+
         fn now_plus_ms(delta: u64) -> u64 {
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -114,7 +116,7 @@ mod semcov_wave19_tests {
             mgr.try_acquire("res://exp", AgentId(1), ResourceLockKind::Exclusive, 0)
                 .unwrap();
             // Give wall-clock a moment to overtake expires_ms=now+0
-            std::thread::sleep(std::time::Duration::from_millis(2));
+            std::thread::sleep(D_2MS);
             assert!(
                 !mgr.is_locked("res://exp"),
                 "lock with ttl=0 must read as not locked after expiry"
@@ -154,7 +156,7 @@ mod semcov_wave19_tests {
             let mgr = ResourceLockManager::new();
             mgr.try_acquire("res://old", AgentId(1), ResourceLockKind::Exclusive, 0)
                 .unwrap();
-            std::thread::sleep(std::time::Duration::from_millis(2));
+            std::thread::sleep(D_2MS);
             let result =
                 mgr.try_acquire("res://old", AgentId(2), ResourceLockKind::Exclusive, 5_000);
             assert!(

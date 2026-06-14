@@ -348,15 +348,15 @@ mod semcov_wave11_tests {
         // Catches: a builder method that silently drops its assignment (mut self mistake)
         let opts = ActivityOptions::new()
             .with_retries(3)
-            .with_timeout(Duration::from_secs(5))
-            .with_initial_backoff(Duration::from_millis(50))
-            .with_max_backoff(Duration::from_secs(30))
+            .with_timeout(vox_config::timeouts::D_5S)
+            .with_initial_backoff(vox_config::timeouts::D_50MS)
+            .with_max_backoff(vox_config::timeouts::D_30S)
             .with_backoff_multiplier(1.5)
             .with_activity_id("chain-id".to_string());
         assert_eq!(opts.retries, 3);
-        assert_eq!(opts.timeout, Some(Duration::from_secs(5)));
-        assert_eq!(opts.initial_backoff, Duration::from_millis(50));
-        assert_eq!(opts.max_backoff, Duration::from_secs(30));
+        assert_eq!(opts.timeout, Some(vox_config::timeouts::D_5S));
+        assert_eq!(opts.initial_backoff, vox_config::timeouts::D_50MS);
+        assert_eq!(opts.max_backoff, vox_config::timeouts::D_30S);
         // Compare to a sentinel that differs from both the default (2.0) and 0.0
         assert!(
             (opts.backoff_multiplier - 1.5).abs() < f64::EPSILON,
@@ -399,7 +399,7 @@ mod semcov_wave11_tests {
         // Catches: off-by-one in the secs conversion
         let a = ActivityOptions::new().with_timeout_secs(7).timeout;
         let b = ActivityOptions::new()
-            .with_timeout(Duration::from_secs(7))
+            .with_timeout(vox_config::timeouts::D_7S)
             .timeout;
         assert_eq!(
             a, b,
@@ -436,7 +436,7 @@ mod semcov_wave11_tests {
         // Catches: off-by-one or wrong unit in the 's' branch
         assert_eq!(
             ActivityOptions::parse_duration("5s"),
-            Some(Duration::from_secs(5)),
+            Some(vox_config::timeouts::D_5S),
             "\"5s\" must parse to exactly 5 seconds"
         );
     }
@@ -591,7 +591,7 @@ mod semcov_wave11_tests {
         // Catches: max_attempts = retries (off-by-one) instead of retries + 1
         let opts = ActivityOptions::new()
             .with_retries(2)
-            .with_initial_backoff(Duration::from_millis(1));
+            .with_initial_backoff(vox_config::timeouts::D_1MS);
         let result =
             execute_activity("count-check", &opts, || async { Err::<(), _>("boom") }).await;
         match result {
@@ -612,7 +612,7 @@ mod semcov_wave11_tests {
         let c = call_count.clone();
         let opts = ActivityOptions::new()
             .with_retries(1)
-            .with_initial_backoff(Duration::from_millis(1));
+            .with_initial_backoff(vox_config::timeouts::D_1MS);
         let result = execute_activity("last-err", &opts, move || {
             let c = c.clone();
             async move {
@@ -639,7 +639,7 @@ mod semcov_wave11_tests {
         let c = call_count.clone();
         let opts = ActivityOptions::new()
             .with_retries(0)
-            .with_initial_backoff(Duration::from_millis(1));
+            .with_initial_backoff(vox_config::timeouts::D_1MS);
         let _result = execute_activity("zero-retry", &opts, move || {
             let c = c.clone();
             async move {
@@ -658,9 +658,9 @@ mod semcov_wave11_tests {
     #[tokio::test]
     async fn execute_activity_timeout_returns_timeout_error_not_retries_exhausted() {
         // Catches: a bug that maps a timed-out run to RetriesExhausted instead of Timeout
-        let opts = ActivityOptions::new().with_timeout(Duration::from_millis(10));
+        let opts = ActivityOptions::new().with_timeout(vox_config::timeouts::D_10MS);
         let result = execute_activity("timeout-variant", &opts, || async {
-            tokio::time::sleep(Duration::from_secs(60)).await;
+            tokio::time::sleep(vox_config::timeouts::D_60S).await;
             Ok::<_, String>("never")
         })
         .await;
@@ -668,7 +668,7 @@ mod semcov_wave11_tests {
             ActivityResult::Failed(ActivityError::Timeout(d)) => {
                 assert_eq!(
                     d,
-                    Duration::from_millis(10),
+                    vox_config::timeouts::D_10MS,
                     "Timeout must carry the configured timeout duration"
                 );
             }
@@ -683,7 +683,7 @@ mod semcov_wave11_tests {
         let c = call_count.clone();
         let opts = ActivityOptions::new()
             .with_retries(1)
-            .with_initial_backoff(Duration::from_millis(1));
+            .with_initial_backoff(vox_config::timeouts::D_1MS);
         let result = execute_activity("second-attempt", &opts, move || {
             let c = c.clone();
             async move {
@@ -718,7 +718,7 @@ mod semcov_wave11_tests {
     #[tokio::test]
     async fn execute_activity_result_wraps_failure_as_err_with_nonempty_message() {
         // Catches: execute_activity_result returning Ok on failure, or an empty error string
-        let opts = ActivityOptions::new().with_initial_backoff(Duration::from_millis(1));
+        let opts = ActivityOptions::new().with_initial_backoff(vox_config::timeouts::D_1MS);
         let result =
             execute_activity_result("wrap-err", &opts, || async { Err::<(), _>("kaboom") }).await;
         match result {

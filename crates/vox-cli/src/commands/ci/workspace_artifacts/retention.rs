@@ -9,6 +9,8 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use walkdir::WalkDir;
 
+use vox_config::serde_defaults::default_true;
+
 use crate::artifact_policy;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -60,10 +62,6 @@ pub struct WorktreeTargetsPolicy {
 
 fn default_worktree_target_age() -> u32 {
     7
-}
-
-fn default_true() -> bool {
-    true
 }
 
 impl Default for WorktreeTargetsPolicy {

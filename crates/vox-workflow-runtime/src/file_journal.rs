@@ -24,6 +24,7 @@ use std::time::Duration;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use vox_config::timeouts::D_5S;
 use vox_journal::{AppendDurability, FileJournal};
 use vox_runtime::{
     JournalFlushStrategy, Resumable, ResumeError, RuntimeProfile, SuspendDeadline, SuspendError,
@@ -534,7 +535,7 @@ mod tests {
             JournalFlushStrategy::Periodic { interval_ms: 10 },
         )
         .expect("create");
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let deadline = std::time::Instant::now() + D_5S;
         while t.periodic_flush_count() == 0 && std::time::Instant::now() < deadline {
             std::thread::sleep(std::time::Duration::from_millis(10));
         }

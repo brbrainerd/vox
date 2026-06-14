@@ -238,9 +238,9 @@ sysinfo            = "0.39"
 walkdir            = "2"
 rayon              = "1.10"
 rand               = { version = "0.8", features = ["small_rng", "std_rng"] }
-candle-core         = { version = "0.9", default-features = false }
-candle-nn           = { version = "0.9", default-features = false }
-candle-transformers = { version = "0.9", default-features = false }
+candle-core         = { version = "0.10", default-features = false }
+candle-nn           = { version = "0.10", default-features = false }
+candle-transformers = { version = "0.10", default-features = false }
 safetensors        = "0.7"
 tokenizers         = { version = "0.21", default-features = false, features = ["fancy-regex"] }
 memmap2            = "0.9"
@@ -367,8 +367,8 @@ nanopub            = "0.2"
 [patch.crates-io]
 # Vox: stabilize deep o_proj proxy stacks + correct grad-accum scaling in `training_step_lm`.
 qlora-rs = { path = "patches/qlora-rs-1.0.5" }
-# Vox: pass -ccbin MSVC cl path via cc::Build to avoid missing cl.exe when running cargo build without developer prompt.
-candle-kernels = { path = "patches/candle-kernels-0.9.2" }
+# Vox: pin peft-rs to candle-core 0.10 so it shares the same candle instance as qlora-rs and our crates.
+peft-rs = { path = "patches/peft-rs-1.0.3" }
 # Vox: enable pure-rust crypto on all targets so MSVC builds do not require clang-cl (aegis C backend).
 aegis = { path = "patches/aegis-0.9.8" }
 

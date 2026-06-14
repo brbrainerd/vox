@@ -163,6 +163,7 @@ mod tests {
     use crate::budget::BudgetManager;
     use crate::orchestrator::{AgentSummary, OrchestratorStatus};
     use crate::types::AgentId;
+    use vox_config::timeouts::OP_STANDARD;
 
     fn status(total_queued: usize, total_weighted_load: f64) -> OrchestratorStatus {
         OrchestratorStatus {
@@ -303,7 +304,7 @@ mod tests {
             cpu_usage_pct: 95.0,
             memory_free_mb: 16_000,
         };
-        let old = std::time::Instant::now() - std::time::Duration::from_secs(60);
+        let old = std::time::Instant::now() - OP_STANDARD;
         let idle = vec![(AgentId(1), old)];
         let action = ScalingService::decide_scaling(
             &status(0, 0.0),

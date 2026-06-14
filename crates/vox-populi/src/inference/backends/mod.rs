@@ -5,6 +5,9 @@ pub mod candle_metal;
 pub mod llama_cpp_rpc;
 pub mod ollama_subprocess;
 
+#[cfg(test)]
+pub(crate) mod candle_test_helpers;
+
 pub use candle_cpu::CandleCpuBackend;
 pub use candle_cuda::CandleCudaBackend;
 pub use candle_metal::CandleMetalBackend;

@@ -16,6 +16,7 @@ crate-type = ["rlib", "cdylib", "staticlib"]
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+vox-config = { workspace = true }
 
 # NOTE: workspace-hack is deliberately NOT a dep of this crate.
 # It transitively pulls in `gix` -> `reqwest` -> `native-tls` -> `openssl-sys`,

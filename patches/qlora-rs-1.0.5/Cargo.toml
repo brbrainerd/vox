@@ -81,10 +81,10 @@ version = "1.0"
 version = "1.5"
 
 [dependencies.candle-core]
-version = "0.9"
+version = "0.10"
 
 [dependencies.candle-nn]
-version = "0.9"
+version = "0.10"
 
 [dependencies.cubecl]
 version = "0.9"

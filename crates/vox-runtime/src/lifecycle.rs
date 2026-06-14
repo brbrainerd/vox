@@ -16,6 +16,7 @@
 use std::time::Duration;
 
 use thiserror::Error;
+use vox_config::timeouts::OP_STANDARD;
 
 /// Default time iOS gives an app after `applicationWillResignActive` before
 /// it may kill the process. Subsystems that take longer than this risk
@@ -56,7 +57,7 @@ impl SuspendDeadline {
     /// Default advisory deadline for desktop profiles.
     pub fn desktop_default() -> Self {
         Self::Advisory {
-            duration: Duration::from_secs(60),
+            duration: OP_STANDARD,
         }
     }
 

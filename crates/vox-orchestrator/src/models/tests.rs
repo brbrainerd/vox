@@ -441,6 +441,9 @@ mod semcov_wave34_tests {
     use crate::types::TaskCategory;
     use crate::usage::RemainingBudget;
 
+    const D_5MS: std::time::Duration = std::time::Duration::from_millis(5);
+    const D_60S: std::time::Duration = std::time::Duration::from_secs(60);
+
     // ── helpers ────────────────────────────────────────────────────────────────
 
     fn spec(id: &str, cost: f64, is_free: bool) -> ModelSpec {
@@ -510,7 +513,7 @@ mod semcov_wave34_tests {
             Duration::from_millis(1),
         );
         // Give the penalty a moment to expire (it's 1 ms, so sleep is safe here).
-        std::thread::sleep(Duration::from_millis(5));
+        std::thread::sleep(D_5MS);
         assert!(
             !r.is_penalized("model-x", TaskCategory::CodeGen),
             "expired penalty must not block the model"
@@ -521,11 +524,7 @@ mod semcov_wave34_tests {
     fn penalty_blocks_model_during_active_window() {
         // Catches: is_penalized returning false for a freshly set penalty
         let mut r = ModelRegistry::default();
-        r.record_penalty(
-            "blocked".into(),
-            TaskCategory::Research,
-            Duration::from_secs(60),
-        );
+        r.record_penalty("blocked".into(), TaskCategory::Research, D_60S);
         assert!(
             r.is_penalized("blocked", TaskCategory::Research),
             "active penalty must block model"
@@ -541,11 +540,7 @@ mod semcov_wave34_tests {
     fn penalty_does_not_affect_different_model() {
         // Catches: penalty key collision (e.g., using only category as key)
         let mut r = ModelRegistry::default();
-        r.record_penalty(
-            "alpha".into(),
-            TaskCategory::CodeGen,
-            Duration::from_secs(60),
-        );
+        r.record_penalty("alpha".into(), TaskCategory::CodeGen, D_60S);
         assert!(
             !r.is_penalized("beta", TaskCategory::CodeGen),
             "penalty on alpha must not leak to beta"
