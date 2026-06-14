@@ -333,3 +333,61 @@ mod tests {
         assert!(!analyzer.is_available());
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1e_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn ollama_request_body_contains_model_and_prompt() {
+        let body = AiAnalyzer::ollama_request_body("my prompt", "codellama");
+        let v: serde_json::Value = serde_json::from_str(&body).expect("valid json");
+        assert_eq!(v["model"], "codellama");
+        assert_eq!(v["prompt"], "my prompt");
+        assert_eq!(v["stream"], false);
+        assert_eq!(v["options"]["temperature"], 0.1);
+        assert_eq!(v["options"]["num_predict"], 2048);
+    }
+
+    #[test]
+    fn gemini_request_body_contains_prompt() {
+        let body = AiAnalyzer::gemini_request_body("test prompt");
+        let v: serde_json::Value = serde_json::from_str(&body).expect("valid json");
+        assert_eq!(v["contents"][0]["parts"][0]["text"], "test prompt");
+        assert_eq!(v["generationConfig"]["temperature"], 0.1);
+        assert_eq!(v["generationConfig"]["maxOutputTokens"], 2048);
+    }
+
+    #[test]
+    fn provider_name_ollama() {
+        let a = AiAnalyzer::new(AiProvider::Ollama {
+            url: "http://localhost:11434".to_string(),
+            model: "codellama".to_string(),
+        });
+        assert_eq!(a.provider_name(), "Ollama (local)");
+    }
+
+    #[test]
+    fn provider_name_gemini() {
+        let a = AiAnalyzer::new(AiProvider::Gemini {
+            api_key: "k".to_string(),
+            model: "gemini-3-flash".to_string(),
+        });
+        assert_eq!(a.provider_name(), "Gemini Flash (free tier)");
+    }
+
+    #[test]
+    fn provider_name_disabled() {
+        let a = AiAnalyzer::new(AiProvider::Disabled);
+        assert_eq!(a.provider_name(), "Disabled");
+    }
+
+    #[test]
+    fn provider_name_pollinations() {
+        let a = AiAnalyzer::new(AiProvider::Pollinations {
+            model: "openai".to_string(),
+        });
+        assert_eq!(a.provider_name(), "Pollinations.ai (free)");
+    }
+}

@@ -7,6 +7,8 @@
 
 /// Durable activity execution: retries, timeouts, and backoff around async work.
 pub mod activity;
+/// Authentication helpers for generated Vox services: API key / bearer validation and retry-after parsing.
+pub mod auth;
 /// Host-callable builtins surfaced to generated code (hashing, small helpers).
 pub mod builtins;
 #[cfg(feature = "database")]

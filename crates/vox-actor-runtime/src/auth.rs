@@ -117,3 +117,45 @@ mod tests {
         assert!(!authorize_request(None, Some("Bearer nope"), &cfg));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1e_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn parse_retry_after_seconds_valid_integer() {
+        assert_eq!(
+            parse_retry_after_seconds(Some("30")),
+            Some(Duration::from_secs(30))
+        );
+    }
+
+    #[test]
+    fn parse_retry_after_seconds_with_whitespace() {
+        assert_eq!(
+            parse_retry_after_seconds(Some("  60  ")),
+            Some(Duration::from_secs(60))
+        );
+    }
+
+    #[test]
+    fn parse_retry_after_seconds_none_input_returns_none() {
+        assert_eq!(parse_retry_after_seconds(None), None);
+    }
+
+    #[test]
+    fn parse_retry_after_seconds_non_numeric_returns_none() {
+        assert_eq!(parse_retry_after_seconds(Some("not-a-number")), None);
+        assert_eq!(parse_retry_after_seconds(Some("")), None);
+    }
+
+    #[test]
+    fn parse_retry_after_seconds_zero() {
+        assert_eq!(
+            parse_retry_after_seconds(Some("0")),
+            Some(Duration::from_secs(0))
+        );
+    }
+}
