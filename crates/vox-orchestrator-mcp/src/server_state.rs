@@ -90,6 +90,14 @@ pub struct ServerState {
 }
 
 impl ServerState {
+    /// The trusted caller role for this server (human vs agent), used to authorize
+    /// privileged operations like the browser control lock. Derived from the
+    /// launcher's environment (`VOX_MCP_CALLER_ROLE`), NOT from request bodies, so
+    /// an agent cannot assert "human". See `browser_tools::trusted_caller_role`.
+    pub fn caller_role(&self) -> crate::browser_tools::CallerRole {
+        crate::browser_tools::trusted_caller_role()
+    }
+
     /// Full-featured constructor for a native MCP server host.
     pub fn new_full(config: OrchestratorConfig) -> Self {
         let build = vox_orchestrator::bootstrap::build_repo_scoped_orchestrator(config, None);

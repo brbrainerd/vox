@@ -22,22 +22,81 @@ fn control_locks() -> &'static Mutex<HashMap<String, String>> {
     LOCKS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-fn normalize_actor(actor: Option<&str>) -> String {
-    actor
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .unwrap_or("agent")
-        .to_ascii_lowercase()
+/// Trusted caller role for the current MCP server process.
+///
+/// SECURITY: derived from the `VOX_MCP_CALLER_ROLE` environment variable, which is
+/// set by the TRUSTED launcher (a human IDE/shell), NOT from the in-band tool
+/// request body. This is the trust anchor: an agent cannot assert "human" because
+/// it cannot set the launcher's environment. For the stdio transport one process
+/// == one MCP session == one role, so a process-level role is a complete anchor.
+/// (HTTP-gateway multi-session would derive this per-request from the auth token;
+/// it currently defaults to `Agent`.)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallerRole {
+    Human,
+    Agent,
 }
 
-async fn ensure_control_lock(page_id: &str, actor: Option<&str>) -> Result<(), String> {
-    let actor = normalize_actor(actor);
+impl CallerRole {
+    pub fn from_env() -> Self {
+        match std::env::var("VOX_MCP_CALLER_ROLE")
+            .ok()
+            .as_deref()
+            .map(|s| s.trim().to_ascii_lowercase())
+            .as_deref()
+        {
+            Some("human") => CallerRole::Human,
+            _ => CallerRole::Agent,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            CallerRole::Human => "human",
+            CallerRole::Agent => "agent",
+        }
+    }
+}
+
+/// The process-wide trusted role (read once from the launcher's environment).
+/// Surfaced on the public API via [`crate::server_state::ServerState::caller_role`].
+pub fn trusted_caller_role() -> CallerRole {
+    static ROLE: OnceLock<CallerRole> = OnceLock::new();
+    *ROLE.get_or_init(CallerRole::from_env)
+}
+
+/// Pure authorization: may a caller with `trusted_role` ACT on a page whose lock
+/// owner is `lock_owner` (`None` = unlocked)? Only the owner may; unlocked is open.
+fn lock_action_allowed(lock_owner: Option<&str>, trusted_role: &str) -> bool {
+    match lock_owner {
+        None => true,
+        Some(owner) => owner == trusted_role,
+    }
+}
+
+/// Pure authorization: may `trusted_role` SET a page's lock to `new_owner` given
+/// its `current_owner`? Rules: (1) only a human-role caller may set/own the
+/// "human" lock (no privilege fabrication by an agent); (2) a held lock may only
+/// be changed or released by its current owner; (3) an unlocked page is claimable.
+fn lock_change_allowed(current_owner: Option<&str>, new_owner: &str, trusted_role: &str) -> bool {
+    if new_owner == "human" && trusted_role != "human" {
+        return false;
+    }
+    match current_owner {
+        None => true,
+        Some(owner) => owner == trusted_role,
+    }
+}
+
+async fn ensure_control_lock(page_id: &str) -> Result<(), String> {
+    let trusted = trusted_caller_role();
     let locks = control_locks().lock().await;
-    if let Some(owner) = locks.get(page_id)
-        && owner != &actor
-    {
+    let owner = locks.get(page_id).map(String::as_str);
+    if !lock_action_allowed(owner, trusted.as_str()) {
         return Err(format!(
-            "control lock active for {owner}; actor {actor} is blocked on page {page_id}"
+            "control lock active for {}; caller role {} is blocked on page {page_id}",
+            owner.unwrap_or("?"),
+            trusted.as_str()
         ));
     }
     Ok(())
@@ -200,8 +259,7 @@ pub async fn browser_close(_state: &ServerState, p: BrowserPageParams) -> String
 
 pub async fn browser_back(_state: &ServerState, p: BrowserPageParams) -> String {
     let page_id = p.page_id.clone();
-    let actor = p.actor.clone();
-    if let Err(e) = ensure_control_lock(&page_id, actor.as_deref()).await {
+    if let Err(e) = ensure_control_lock(&page_id).await {
         return ToolResult::<serde_json::Value>::err(e).to_json();
     }
     match tokio::task::spawn_blocking(move || {
@@ -222,8 +280,7 @@ pub async fn browser_back(_state: &ServerState, p: BrowserPageParams) -> String 
 
 pub async fn browser_forward(_state: &ServerState, p: BrowserPageParams) -> String {
     let page_id = p.page_id.clone();
-    let actor = p.actor.clone();
-    if let Err(e) = ensure_control_lock(&page_id, actor.as_deref()).await {
+    if let Err(e) = ensure_control_lock(&page_id).await {
         return ToolResult::<serde_json::Value>::err(e).to_json();
     }
     match tokio::task::spawn_blocking(move || {
@@ -244,8 +301,7 @@ pub async fn browser_forward(_state: &ServerState, p: BrowserPageParams) -> Stri
 
 pub async fn browser_reload(_state: &ServerState, p: BrowserPageParams) -> String {
     let page_id = p.page_id.clone();
-    let actor = p.actor.clone();
-    if let Err(e) = ensure_control_lock(&page_id, actor.as_deref()).await {
+    if let Err(e) = ensure_control_lock(&page_id).await {
         return ToolResult::<serde_json::Value>::err(e).to_json();
     }
     match tokio::task::spawn_blocking(move || {
@@ -266,8 +322,7 @@ pub async fn browser_reload(_state: &ServerState, p: BrowserPageParams) -> Strin
 
 pub async fn browser_stop(_state: &ServerState, p: BrowserPageParams) -> String {
     let page_id = p.page_id.clone();
-    let actor = p.actor.clone();
-    if let Err(e) = ensure_control_lock(&page_id, actor.as_deref()).await {
+    if let Err(e) = ensure_control_lock(&page_id).await {
         return ToolResult::<serde_json::Value>::err(e).to_json();
     }
     match tokio::task::spawn_blocking(move || {
@@ -289,7 +344,7 @@ pub async fn browser_stop(_state: &ServerState, p: BrowserPageParams) -> String 
 pub async fn browser_goto(_state: &ServerState, p: BrowserGotoParams) -> String {
     let page_id = p.page_id.clone();
     let url = p.url.clone();
-    if let Err(e) = ensure_control_lock(&page_id, p.actor.as_deref()).await {
+    if let Err(e) = ensure_control_lock(&page_id).await {
         return ToolResult::<serde_json::Value>::err(e).to_json();
     }
     match tokio::task::spawn_blocking(move || {
@@ -311,7 +366,7 @@ pub async fn browser_goto(_state: &ServerState, p: BrowserGotoParams) -> String 
 pub async fn browser_click(_state: &ServerState, p: BrowserTargetParams) -> String {
     let page_id = p.page_id.clone();
     let target = p.target.clone();
-    if let Err(e) = ensure_control_lock(&page_id, p.actor.as_deref()).await {
+    if let Err(e) = ensure_control_lock(&page_id).await {
         return ToolResult::<serde_json::Value>::err(e).to_json();
     }
     match tokio::task::spawn_blocking(move || {
@@ -334,7 +389,7 @@ pub async fn browser_fill(_state: &ServerState, p: BrowserFillParams) -> String 
     let page_id = p.page_id.clone();
     let target = p.target.clone();
     let value = p.value.clone();
-    if let Err(e) = ensure_control_lock(&page_id, p.actor.as_deref()).await {
+    if let Err(e) = ensure_control_lock(&page_id).await {
         return ToolResult::<serde_json::Value>::err(e).to_json();
     }
     match tokio::task::spawn_blocking(move || {
@@ -495,7 +550,7 @@ pub async fn browser_click_xy(_state: &ServerState, p: BrowserClickPointParams) 
     let page_id = p.page_id.clone();
     let x = p.x;
     let y = p.y;
-    if let Err(e) = ensure_control_lock(&page_id, p.actor.as_deref()).await {
+    if let Err(e) = ensure_control_lock(&page_id).await {
         return ToolResult::<serde_json::Value>::err(e).to_json();
     }
     match tokio::task::spawn_blocking(move || {
@@ -518,7 +573,7 @@ pub async fn browser_scroll(_state: &ServerState, p: BrowserScrollParams) -> Str
     let page_id = p.page_id.clone();
     let dx = p.dx;
     let dy = p.dy;
-    if let Err(e) = ensure_control_lock(&page_id, p.actor.as_deref()).await {
+    if let Err(e) = ensure_control_lock(&page_id).await {
         return ToolResult::<serde_json::Value>::err(e).to_json();
     }
     match tokio::task::spawn_blocking(move || {
@@ -542,7 +597,7 @@ pub async fn browser_scroll(_state: &ServerState, p: BrowserScrollParams) -> Str
 pub async fn browser_type(_state: &ServerState, p: BrowserTypeParams) -> String {
     let page_id = p.page_id.clone();
     let text = p.text.clone();
-    if let Err(e) = ensure_control_lock(&page_id, p.actor.as_deref()).await {
+    if let Err(e) = ensure_control_lock(&page_id).await {
         return ToolResult::<serde_json::Value>::err(e).to_json();
     }
     match tokio::task::spawn_blocking(move || {
@@ -565,7 +620,7 @@ pub async fn browser_press(_state: &ServerState, p: BrowserKeyParams) -> String 
     let page_id = p.page_id.clone();
     let key = p.key.clone();
     let key_out = key.clone();
-    if let Err(e) = ensure_control_lock(&page_id, p.actor.as_deref()).await {
+    if let Err(e) = ensure_control_lock(&page_id).await {
         return ToolResult::<serde_json::Value>::err(e).to_json();
     }
     match tokio::task::spawn_blocking(move || {
@@ -588,7 +643,7 @@ pub async fn browser_set_viewport(_state: &ServerState, p: BrowserViewportParams
     let page_id = p.page_id.clone();
     let width = p.width;
     let height = p.height;
-    if let Err(e) = ensure_control_lock(&page_id, p.actor.as_deref()).await {
+    if let Err(e) = ensure_control_lock(&page_id).await {
         return ToolResult::<serde_json::Value>::err(e).to_json();
     }
     match tokio::task::spawn_blocking(move || {
@@ -618,18 +673,19 @@ pub async fn browser_set_control_lock(_state: &ServerState, p: BrowserControlLoc
         )
         .to_json();
     }
-    let actor = normalize_actor(p.actor.as_deref());
+    // SECURITY: authorize against the TRUSTED process role, NOT the self-asserted
+    // `p.actor` from the request (which an agent could set to "human"). Only the
+    // current owner may change/release a held lock, and only a human-role caller
+    // may set owner="human". See lock_change_allowed.
+    let trusted = trusted_caller_role();
     let mut locks = control_locks().lock().await;
-    // Authorization: a held lock may only be changed or released by its current
-    // owner. Without this, any caller (default actor "agent") could steal or
-    // release a human's control lock — the bug `non_owner_cannot_steal_or_release_lock`
-    // guards against. An unlocked page may be claimed freely.
-    if let Some(current) = locks.get(&p.page_id)
-        && current != &actor
-    {
+    let current = locks.get(&p.page_id).map(String::as_str);
+    if !lock_change_allowed(current, &owner, trusted.as_str()) {
         return ToolResult::<serde_json::Value>::err(format!(
-            "control lock held by {current}; actor {actor} cannot change it on page {}",
-            p.page_id
+            "not authorized: caller role {} cannot set lock owner={owner} on page {} (current owner {})",
+            trusted.as_str(),
+            p.page_id,
+            current.unwrap_or("none")
         ))
         .to_json();
     }
@@ -795,7 +851,7 @@ Use xpath: prefix in target for XPath. Choose the best next step for the instruc
     // SECURITY: enforce the human/agent control lock before any mutating action.
     // `noop` and `wait` are read-only; goto/click/fill mutate page state.
     if matches!(action.as_str(), "goto" | "click" | "fill")
-        && let Err(e) = ensure_control_lock(&p.page_id, p.actor.as_deref()).await
+        && let Err(e) = ensure_control_lock(&p.page_id).await
     {
         return ToolResult::<serde_json::Value>::err(e).to_json();
     }
@@ -958,29 +1014,73 @@ mod tests {
         )
     }
 
-    async fn set_lock(
-        state: &ServerState,
-        page_id: &str,
-        owner: &str,
-        actor: Option<&str>,
-    ) -> serde_json::Value {
+    // Sets the lock under the process's trusted role (Agent by default in tests).
+    // `p.actor` is ignored by the new authorization, so it is not a parameter here.
+    async fn set_lock(state: &ServerState, page_id: &str, owner: &str) -> serde_json::Value {
         let raw = browser_set_control_lock(
             state,
             crate::params::BrowserControlLockParams {
                 page_id: page_id.to_string(),
                 owner: owner.to_string(),
-                actor: actor.map(ToString::to_string),
+                actor: None,
             },
         )
         .await;
         serde_json::from_str(&raw).expect("tool result json")
     }
 
+    // ── Control-lock authorization (pure, role-parameterized — the adversarial
+    //    coverage the self-asserted-actor design could not provide) ──
+
     #[test]
-    fn normalize_actor_defaults_and_lowercases() {
-        assert_eq!(normalize_actor(None), "agent");
-        assert_eq!(normalize_actor(Some("  ")), "agent");
-        assert_eq!(normalize_actor(Some("Human")), "human");
+    fn caller_role_from_env_only_trusts_human_literal() {
+        // The trusted role can only become Human via the launcher-set env var.
+        for (val, expect) in [
+            (Some("human"), CallerRole::Human),
+            (Some("HUMAN"), CallerRole::Human),
+            (Some("  Human  "), CallerRole::Human),
+            (Some("agent"), CallerRole::Agent),
+            (Some("operator"), CallerRole::Agent), // anything not "human" => Agent
+            (Some(""), CallerRole::Agent),
+            (None, CallerRole::Agent), // unset default
+        ] {
+            // SAFETY: nextest runs each test in its own process; no cross-test leak.
+            unsafe {
+                match val {
+                    Some(v) => std::env::set_var("VOX_MCP_CALLER_ROLE", v),
+                    None => std::env::remove_var("VOX_MCP_CALLER_ROLE"),
+                }
+            }
+            assert_eq!(CallerRole::from_env(), expect, "input {val:?}");
+        }
+    }
+
+    #[test]
+    fn lock_action_allowed_only_owner_or_unlocked() {
+        assert!(lock_action_allowed(None, "agent")); // unlocked: any caller acts
+        assert!(lock_action_allowed(None, "human"));
+        assert!(lock_action_allowed(Some("human"), "human")); // owner acts
+        assert!(lock_action_allowed(Some("agent"), "agent"));
+        // ATTACK: an agent acting on a human-locked page is blocked — and there is
+        // no request field it can set to change its trusted role.
+        assert!(!lock_action_allowed(Some("human"), "agent"));
+        assert!(!lock_action_allowed(Some("agent"), "human"));
+    }
+
+    #[test]
+    fn lock_change_allowed_blocks_steal_release_and_privilege_fabrication() {
+        // Privilege fabrication: only a human-role caller may set owner="human".
+        assert!(!lock_change_allowed(None, "human", "agent"));
+        assert!(lock_change_allowed(None, "human", "human"));
+        // Claim an unlocked page as your own role.
+        assert!(lock_change_allowed(None, "agent", "agent"));
+        // ATTACK: agent cannot steal a human-held lock (set it to agent) nor
+        // release it (set "none") — regardless of any actor it claims.
+        assert!(!lock_change_allowed(Some("human"), "agent", "agent"));
+        assert!(!lock_change_allowed(Some("human"), "none", "agent"));
+        // The owner can release/change its own lock.
+        assert!(lock_change_allowed(Some("human"), "none", "human"));
+        assert!(lock_change_allowed(Some("agent"), "none", "agent"));
     }
 
     #[test]
@@ -997,68 +1097,36 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn human_lock_blocks_agent_mutation() {
+    async fn set_control_lock_and_action_gate_enforce_trusted_agent_role() {
+        // The test process's trusted role is Agent (env unset → CallerRole::Agent).
+        // SAFETY: nextest = one process per test, so this does not leak.
+        unsafe { std::env::remove_var("VOX_MCP_CALLER_ROLE") };
         let state = test_state();
-        let page = "page-test-lock-blocks-agent";
-        let res = set_lock(&state, page, "human", Some("human")).await;
+
+        // An agent may claim/release a lock as its own (agent) role.
+        let res = set_lock(&state, "page-agent-claim", "agent").await;
         assert_eq!(res["success"], serde_json::json!(true));
 
-        // The exact gate browser_act / all mutating arms call.
-        let err = ensure_control_lock(page, None).await.unwrap_err();
-        assert!(err.contains("control lock active for human"), "{err}");
-        let err = ensure_control_lock(page, Some("agent")).await.unwrap_err();
-        assert!(err.contains("blocked"), "{err}");
-        // The lock owner is still allowed.
-        assert!(ensure_control_lock(page, Some("human")).await.is_ok());
-    }
-
-    #[tokio::test]
-    async fn unlocked_page_allows_any_actor() {
-        let page = "page-test-unlocked";
-        assert!(ensure_control_lock(page, None).await.is_ok());
-        assert!(ensure_control_lock(page, Some("human")).await.is_ok());
-    }
-
-    #[tokio::test]
-    async fn non_owner_cannot_steal_or_release_lock() {
-        let state = test_state();
-        let page = "page-test-lock-steal";
-        let res = set_lock(&state, page, "human", Some("human")).await;
-        assert_eq!(res["success"], serde_json::json!(true));
-
-        // Agent may not transfer the lock to itself...
-        let res = set_lock(&state, page, "agent", Some("agent")).await;
+        // ATTACK (privilege fabrication): an agent cannot claim a "human" lock,
+        // even though the request body previously let it assert actor:"human".
+        let res = set_lock(&state, "page-human-claim", "human").await;
         assert_eq!(res["success"], serde_json::json!(false));
-        // ...nor release it.
-        let res = set_lock(&state, page, "none", Some("agent")).await;
+
+        // Invalid owner is rejected (role-independent validation).
+        let res = set_lock(&state, "page-bad-owner", "pirate").await;
         assert_eq!(res["success"], serde_json::json!(false));
-        // Owner can release.
-        let res = set_lock(&state, page, "none", Some("human")).await;
-        assert_eq!(res["success"], serde_json::json!(true));
-        assert!(ensure_control_lock(page, Some("agent")).await.is_ok());
-    }
 
-    #[tokio::test]
-    async fn invalid_owner_rejected() {
-        let state = test_state();
-        let res = set_lock(&state, "page-test-bad-owner", "pirate", None).await;
-        assert_eq!(res["success"], serde_json::json!(false));
-    }
+        // ATTACK (action gate): seed a human-held lock and confirm the agent's
+        // mutating browser_act path is blocked — it cannot reach the CDP backend.
+        control_locks()
+            .lock()
+            .await
+            .insert("page-human-locked".to_string(), "human".to_string());
+        let err = ensure_control_lock("page-human-locked").await.unwrap_err();
+        assert!(err.contains("blocked"), "agent must be blocked: {err}");
 
-    #[tokio::test]
-    async fn browser_act_rejects_agent_on_human_locked_page() {
-        let state = test_state();
-        let page = "page-test-act-locked";
-        let res = set_lock(&state, page, "human", Some("human")).await;
-        assert_eq!(res["success"], serde_json::json!(true));
-
-        // Regression for the control-lock bypass: a mutating browser_act from the
-        // default (agent) actor on a human-locked page must fail with the lock
-        // error — it must never reach the CDP backend or the LLM action step.
-        let err = ensure_control_lock(page, None).await.unwrap_err();
-        assert!(
-            err.contains("control lock active for human"),
-            "browser_act mutating arms must be gated by ensure_control_lock: {err}"
-        );
+        // The agent acts freely on its own and on unlocked pages.
+        assert!(ensure_control_lock("page-agent-claim").await.is_ok());
+        assert!(ensure_control_lock("page-never-locked").await.is_ok());
     }
 }
