@@ -11,7 +11,7 @@ mod semcov_wave19_tests {
     // ResourceLockManager tests (resource.rs)
     // -----------------------------------------------------------------------
     mod resource_lock {
-        use crate::locks::resource::{ResourceLockKind, ResourceLockManager};
+        use crate::locks::{ResourceLockKind, ResourceLockManager};
         use vox_orchestrator_types::AgentId;
 
         fn now_plus_ms(delta: u64) -> u64 {
