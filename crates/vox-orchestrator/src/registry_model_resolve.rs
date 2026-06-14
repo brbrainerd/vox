@@ -345,17 +345,23 @@ mod semcov_wave1_tests {
     fn byok_tier_filters_on_provider_substring() {
         let params = RegistryModelResolutionParams::default();
         let cfg = InferenceConfig {
-            tier: TierProfile::BringYourOwnKey { provider: "anthropic".to_string() },
+            tier: TierProfile::BringYourOwnKey {
+                provider: "anthropic".to_string(),
+            },
             ..Default::default()
         };
 
         // provider "openrouter" does not contain "anthropic" -> rejected
         let mismatch = spec_for_pred("openrouter", false);
-        assert!(!inference_predicate(&mismatch, &cfg, &params, false, false, None));
+        assert!(!inference_predicate(
+            &mismatch, &cfg, &params, false, false, None
+        ));
 
         // provider "anthropic-direct" contains "anthropic" and no other filter trips -> accepted
         let matches = spec_for_pred("anthropic-direct", false);
-        assert!(inference_predicate(&matches, &cfg, &params, false, false, None));
+        assert!(inference_predicate(
+            &matches, &cfg, &params, false, false, None
+        ));
     }
 
     #[test]
@@ -363,7 +369,9 @@ mod semcov_wave1_tests {
         let params = RegistryModelResolutionParams::default();
         let cfg = InferenceConfig::default(); // Automatic tier, web_search off
         let paid = spec_for_pred("openrouter", false);
-        assert!(!inference_predicate(&paid, &cfg, &params, true, false, None));
+        assert!(!inference_predicate(
+            &paid, &cfg, &params, true, false, None
+        ));
 
         let free = spec_for_pred("openrouter", true);
         assert!(inference_predicate(&free, &cfg, &params, true, false, None));

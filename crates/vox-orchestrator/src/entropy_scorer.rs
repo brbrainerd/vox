@@ -92,6 +92,9 @@ mod semcov_wave1_tests {
         assert_eq!(h, 2.0, "precondition h={h}");
         let sigma = semantic_drift_sigma(text, 0.0);
         let expected = 2.0_f64 / 0.75_f64;
-        assert!((sigma - expected).abs() < 1e-12, "sigma={sigma} expected={expected}");
+        assert!(
+            (sigma - expected).abs() < 1e-12,
+            "sigma={sigma} expected={expected}"
+        );
     }
 }

@@ -465,7 +465,10 @@ mod semcov_wave1_tests {
 
         let kinds: std::collections::BTreeSet<&str> =
             diffs.iter().map(|d| d["kind"].as_str().unwrap()).collect();
-        assert!(kinds.contains("Modified"), "changed file reported as Modified");
+        assert!(
+            kinds.contains("Modified"),
+            "changed file reported as Modified"
+        );
         assert!(kinds.contains("Added"), "new file reported as Added");
 
         // The modified file's path is surfaced as the Display string.

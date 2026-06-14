@@ -649,7 +649,10 @@ mod semcov_wave1_tests {
         assert_eq!(out.trace_id.as_deref(), Some("trace-prev"));
         assert_eq!(out.correlation_id.as_deref(), Some("corr-prev"));
         // capture mode forced to Derived
-        assert_eq!(out.capture_mode, crate::context_envelope::ContextCaptureMode::Derived);
+        assert_eq!(
+            out.capture_mode,
+            crate::context_envelope::ContextCaptureMode::Derived
+        );
         // observed_via: incoming first, dedup-union with prev's new, then marker appended
         assert_eq!(
             out.observed_via,
@@ -669,6 +672,9 @@ mod semcov_wave1_tests {
         let out = merge_provenance_crdt(&prev, &incoming);
         assert_eq!(out.trace_id.as_deref(), Some("trace-in"));
         assert_eq!(out.correlation_id.as_deref(), Some("corr-in"));
-        assert_eq!(out.observed_via, vec!["context_lifecycle:crdt_merge".to_string()]);
+        assert_eq!(
+            out.observed_via,
+            vec!["context_lifecycle:crdt_merge".to_string()]
+        );
     }
 }

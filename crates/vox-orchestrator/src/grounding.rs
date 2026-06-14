@@ -776,7 +776,10 @@ mod semcov_wave1_tests {
         // empty needle is always false
         assert!(!lower_contains_ascii_whole_word("anything here", ""));
         // "merge" must NOT match inside "emerge"
-        assert!(!lower_contains_ascii_whole_word("they emerge slowly", "merge"));
+        assert!(!lower_contains_ascii_whole_word(
+            "they emerge slowly",
+            "merge"
+        ));
         // "read" must NOT match inside "spread"
         assert!(!lower_contains_ascii_whole_word("we spread thin", "read"));
     }
@@ -786,7 +789,10 @@ mod semcov_wave1_tests {
         // standalone word delimited by spaces
         assert!(lower_contains_ascii_whole_word("we merge it", "merge"));
         // underscore counts as a word char -> "merge" inside "merge_now" is rejected
-        assert!(!lower_contains_ascii_whole_word("call merge_now please", "merge"));
+        assert!(!lower_contains_ascii_whole_word(
+            "call merge_now please",
+            "merge"
+        ));
         // match at very start and end of haystack
         assert!(lower_contains_ascii_whole_word("merge", "merge"));
     }

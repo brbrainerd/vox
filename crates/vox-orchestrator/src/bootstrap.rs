@@ -104,6 +104,9 @@ mod semcov_wave1_tests {
 
         let expected_mem_root = repository.root.join(".vox").join("memory");
         assert_eq!(out.memory.log_dir, expected_mem_root);
-        assert_eq!(out.memory.memory_md_path, expected_mem_root.join("MEMORY.md"));
+        assert_eq!(
+            out.memory.memory_md_path,
+            expected_mem_root.join("MEMORY.md")
+        );
     }
 }
