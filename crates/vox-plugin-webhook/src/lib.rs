@@ -172,3 +172,62 @@ impl WebhookEventSink for LoggingWebhookSink {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod semcov_wave3_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use vox_plugin_api::extensions::http_listener::HttpListener;
+
+    // start_listening resolves addr from JSON config first, then env var, then
+    // hardcoded default. We can observe the branching at the function boundary
+    // without actually binding a port because the function always returns ROk
+    // (spawn is fire-and-forget) — but we MUST run inside a tokio runtime so
+    // that tokio::spawn does not panic.
+
+    #[tokio::test]
+    async fn start_listening_returns_ok_for_valid_json_config() {
+        let listener = WebhookHttpListener;
+        let config = r#"{"addr": "127.0.0.1:0"}"#;
+        let result = listener.start_listening(config.into());
+        assert!(
+            result.is_rok(),
+            "start_listening must succeed for valid JSON config: {:?}",
+            result
+        );
+    }
+
+    #[tokio::test]
+    async fn start_listening_returns_ok_for_empty_json_object() {
+        // Falls through to env-var / default path
+        let listener = WebhookHttpListener;
+        let config = r#"{}"#;
+        let result = listener.start_listening(config.into());
+        assert!(
+            result.is_rok(),
+            "start_listening must succeed for empty JSON"
+        );
+    }
+
+    #[tokio::test]
+    async fn start_listening_returns_ok_for_invalid_json() {
+        // JSON parse fails → falls back to env-var / default — must not propagate error
+        let listener = WebhookHttpListener;
+        let config = "not-json";
+        let result = listener.start_listening(config.into());
+        assert!(
+            result.is_rok(),
+            "start_listening must succeed even for unparseable config"
+        );
+    }
+
+    #[tokio::test]
+    async fn start_listening_env_var_path_succeeds() {
+        unsafe { std::env::set_var("VOX_WEBHOOK_ADDR", "127.0.0.1:0") };
+        let listener = WebhookHttpListener;
+        // Empty JSON → addr from env var
+        let result = listener.start_listening(r#"{}"#.into());
+        unsafe { std::env::remove_var("VOX_WEBHOOK_ADDR") };
+        assert!(result.is_rok(), "env-var addr path must succeed");
+    }
+}

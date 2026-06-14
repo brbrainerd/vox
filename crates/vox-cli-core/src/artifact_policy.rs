@@ -132,3 +132,165 @@ mod tests {
         assert!(is_allowed_artifact_path(&p, root));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave3_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn canonical_workspace_target_appends_target() {
+        let root = Path::new("/workspace/myproject");
+        let result = canonical_workspace_target(root);
+        assert_eq!(result, root.join("target"));
+    }
+
+    #[test]
+    fn canonical_workspace_target_absolute_root() {
+        let root = Path::new("/tmp/repo");
+        let result = canonical_workspace_target(root);
+        assert!(result.ends_with("target"));
+        assert!(result.starts_with(root));
+    }
+
+    #[test]
+    fn repo_path_hash_is_deterministic() {
+        let root = Path::new("/some/repo/path");
+        let h1 = repo_path_hash(root);
+        let h2 = repo_path_hash(root);
+        assert_eq!(h1, h2);
+    }
+
+    #[test]
+    fn repo_path_hash_differs_for_different_paths() {
+        let a = Path::new("/repo/a");
+        let b = Path::new("/repo/b");
+        assert_ne!(repo_path_hash(a), repo_path_hash(b));
+    }
+
+    #[test]
+    fn temp_vox_slot_is_under_temp_vox_targets() {
+        let root = Path::new("/repo/test");
+        let slot = temp_vox_slot(root);
+        let expected_prefix = std::env::temp_dir().join("vox-targets");
+        assert!(
+            slot.starts_with(&expected_prefix),
+            "expected {:?} to start with {:?}",
+            slot,
+            expected_prefix
+        );
+    }
+
+    #[test]
+    fn temp_vox_slot_name_is_16_hex_chars() {
+        let root = Path::new("/repo/test");
+        let slot = temp_vox_slot(root);
+        let leaf = slot.file_name().unwrap().to_string_lossy();
+        assert_eq!(
+            leaf.len(),
+            16,
+            "hex segment should be 16 chars, got {:?}",
+            leaf
+        );
+        assert!(
+            leaf.chars().all(|c| c.is_ascii_hexdigit()),
+            "not all hex: {:?}",
+            leaf
+        );
+    }
+
+    #[test]
+    fn temp_vox_slot_is_deterministic() {
+        let root = Path::new("/repo/proj");
+        assert_eq!(temp_vox_slot(root), temp_vox_slot(root));
+    }
+
+    #[test]
+    fn transient_lane_roots_returns_two_paths() {
+        let root = Path::new("/repo");
+        let [nested_ci, mens_gate] = transient_lane_roots(root);
+        assert!(
+            nested_ci.ends_with("nested-ci"),
+            "first lane should end with nested-ci, got {:?}",
+            nested_ci
+        );
+        assert!(
+            mens_gate.ends_with("mens-gate-safe"),
+            "second lane should end with mens-gate-safe, got {:?}",
+            mens_gate
+        );
+    }
+
+    #[test]
+    fn transient_lane_roots_share_parent() {
+        let root = Path::new("/repo");
+        let [a, b] = transient_lane_roots(root);
+        assert_eq!(
+            a.parent(),
+            b.parent(),
+            "both lanes should share the same slot parent"
+        );
+    }
+
+    #[test]
+    fn transient_lane_roots_differ_across_repos() {
+        let root_a = Path::new("/repo/alpha");
+        let root_b = Path::new("/repo/beta");
+        let [a1, _] = transient_lane_roots(root_a);
+        let [b1, _] = transient_lane_roots(root_b);
+        assert_ne!(a1, b1, "different repos must get different lane roots");
+    }
+
+    #[test]
+    fn ci_nested_target_ends_with_nested_ci() {
+        let root = Path::new("/ci/workspace");
+        let result = ci_nested_target(root);
+        assert!(
+            result.ends_with("nested-ci"),
+            "ci_nested_target should end with nested-ci, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn ci_nested_target_is_under_temp_vox_targets() {
+        let root = Path::new("/ci/workspace");
+        let result = ci_nested_target(root);
+        let expected_prefix = std::env::temp_dir().join("vox-targets");
+        assert!(result.starts_with(&expected_prefix));
+    }
+
+    #[test]
+    fn ci_nested_target_equals_first_transient_root() {
+        let root = Path::new("/ci/workspace");
+        let [first, _] = transient_lane_roots(root);
+        assert_eq!(ci_nested_target(root), first);
+    }
+
+    #[test]
+    fn gate_isolated_target_ends_with_mens_gate_safe() {
+        let root = Path::new("/workspace");
+        let result = gate_isolated_target(root);
+        assert!(
+            result.ends_with("mens-gate-safe"),
+            "gate_isolated_target should end with mens-gate-safe, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn gate_isolated_target_is_under_temp_vox_targets() {
+        let root = Path::new("/workspace");
+        let result = gate_isolated_target(root);
+        let expected_prefix = std::env::temp_dir().join("vox-targets");
+        assert!(result.starts_with(&expected_prefix));
+    }
+
+    #[test]
+    fn gate_isolated_target_equals_second_transient_root() {
+        let root = Path::new("/workspace");
+        let [_, second] = transient_lane_roots(root);
+        assert_eq!(gate_isolated_target(root), second);
+    }
+}

@@ -221,3 +221,63 @@ mod tests {
         assert_eq!(ag.next(), AgentId(2));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave3_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn batch_id_from_str_with_prefix() {
+        let id = BatchId::from_str("B-0042").expect("parse with prefix");
+        assert_eq!(id, BatchId(42));
+    }
+
+    #[test]
+    fn batch_id_from_str_bare_number() {
+        let id = BatchId::from_str("7").expect("parse bare number");
+        assert_eq!(id, BatchId(7));
+    }
+
+    #[test]
+    fn batch_id_from_str_invalid_returns_err() {
+        assert!(BatchId::from_str("not-a-number").is_err());
+    }
+
+    #[test]
+    fn lock_token_display_format() {
+        assert_eq!(LockToken(5).to_string(), "L-0005");
+        assert_eq!(LockToken(0).to_string(), "L-0000");
+        assert_eq!(LockToken(9999).to_string(), "L-9999");
+    }
+
+    #[test]
+    fn lock_token_from_str_with_prefix() {
+        let tok = LockToken::from_str("L-0012").expect("parse with prefix");
+        assert_eq!(tok, LockToken(12));
+    }
+
+    #[test]
+    fn lock_token_from_str_bare_number() {
+        let tok = LockToken::from_str("99").expect("parse bare number");
+        assert_eq!(tok, LockToken(99));
+    }
+
+    #[test]
+    fn lock_token_from_str_invalid_returns_err() {
+        assert!(LockToken::from_str("garbage").is_err());
+    }
+
+    #[test]
+    fn is_zero_f64_true_for_zero() {
+        assert!(is_zero_f64(&0.0));
+    }
+
+    #[test]
+    fn is_zero_f64_false_for_nonzero() {
+        assert!(!is_zero_f64(&0.001));
+        assert!(!is_zero_f64(&-1.0));
+        assert!(!is_zero_f64(&f64::INFINITY));
+    }
+}

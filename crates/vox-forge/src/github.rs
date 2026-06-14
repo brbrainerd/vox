@@ -638,3 +638,166 @@ impl GitForgeProvider for GitHubProvider {
         Ok(remaining)
     }
 }
+
+#[cfg(test)]
+mod semcov_wave3_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::types::{ChangeRequestState, ChangeRequestStatus, ReviewState};
+    use serde_json::json;
+
+    #[test]
+    fn parse_cr_merged_state() {
+        let v = json!({
+            "id": 1,
+            "number": 42,
+            "title": "Fix bug",
+            "body": "desc",
+            "state": "closed",
+            "draft": false,
+            "merged": true,
+            "head": { "ref": "feature" },
+            "base": { "ref": "main" },
+            "user": { "login": "alice" },
+            "assignees": [],
+            "labels": [],
+            "html_url": "https://github.com/org/repo/pull/42",
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-02T00:00:00Z",
+            "mergeable": null
+        });
+        let cr = parse_cr(&v).expect("should parse");
+        assert_eq!(cr.state, ChangeRequestState::Merged);
+        assert_eq!(cr.number, 42);
+        assert_eq!(cr.author, "alice");
+    }
+
+    #[test]
+    fn parse_cr_draft_open_state() {
+        let v = json!({
+            "id": 2,
+            "number": 7,
+            "title": "WIP",
+            "body": "",
+            "state": "open",
+            "draft": true,
+            "merged": false,
+            "head": { "ref": "wip" },
+            "base": { "ref": "main" },
+            "user": { "login": "bob" },
+            "assignees": [],
+            "labels": [],
+            "html_url": "https://github.com/org/repo/pull/7",
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z",
+            "mergeable": null
+        });
+        let cr = parse_cr(&v).expect("should parse");
+        assert_eq!(cr.state, ChangeRequestState::Draft);
+        assert!(cr.is_draft);
+    }
+
+    #[test]
+    fn parse_cr_open_non_draft() {
+        let v = json!({
+            "id": 3,
+            "number": 10,
+            "title": "Ready",
+            "body": "description",
+            "state": "open",
+            "draft": false,
+            "merged": false,
+            "head": { "ref": "feature-x" },
+            "base": { "ref": "main" },
+            "user": { "login": "carol" },
+            "assignees": [{"login": "dave"}],
+            "labels": [],
+            "html_url": "https://github.com/org/repo/pull/10",
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z",
+            "mergeable": true
+        });
+        let cr = parse_cr(&v).expect("should parse");
+        assert_eq!(cr.state, ChangeRequestState::Open);
+        assert_eq!(cr.assignees, vec!["dave"]);
+        assert_eq!(cr.mergeable, Some(true));
+    }
+
+    #[test]
+    fn parse_cr_closed_state() {
+        let v = json!({
+            "id": 4,
+            "number": 5,
+            "title": "Declined",
+            "body": "",
+            "state": "closed",
+            "draft": false,
+            "merged": false,
+            "head": { "ref": "old" },
+            "base": { "ref": "main" },
+            "user": { "login": "eve" },
+            "assignees": [],
+            "labels": [{"name": "bug", "color": "ff0000", "description": null}],
+            "html_url": "https://github.com/org/repo/pull/5",
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z",
+            "mergeable": null
+        });
+        let cr = parse_cr(&v).expect("should parse");
+        assert_eq!(cr.state, ChangeRequestState::Closed);
+        assert_eq!(cr.labels.len(), 1);
+        assert_eq!(cr.labels[0].name, "bug");
+    }
+
+    #[test]
+    fn parse_cr_returns_none_on_missing_state() {
+        let v = json!({"id": 5, "number": 1});
+        assert!(parse_cr(&v).is_none());
+    }
+
+    #[test]
+    fn parse_review_approved() {
+        let v = json!({
+            "state": "APPROVED",
+            "user": { "login": "reviewer1" },
+            "body": "LGTM",
+            "submitted_at": "2024-01-01T00:00:00Z"
+        });
+        let review = parse_review(&v).expect("should parse");
+        assert_eq!(review.state, ReviewState::Approved);
+        assert_eq!(review.reviewer, "reviewer1");
+        assert_eq!(review.body.as_deref(), Some("LGTM"));
+    }
+
+    #[test]
+    fn parse_review_changes_requested() {
+        let v = json!({
+            "state": "CHANGES_REQUESTED",
+            "user": { "login": "reviewer2" },
+            "body": "",
+            "submitted_at": null
+        });
+        let review = parse_review(&v).expect("should parse");
+        assert_eq!(review.state, ReviewState::ChangesRequested);
+        assert!(review.body.is_none());
+        assert!(review.submitted_at.is_none());
+    }
+
+    #[test]
+    fn parse_review_unknown_maps_to_pending() {
+        let v = json!({
+            "state": "SOME_FUTURE_STATE",
+            "user": { "login": "reviewer3" },
+            "body": "",
+            "submitted_at": null
+        });
+        let review = parse_review(&v).expect("should parse");
+        assert_eq!(review.state, ReviewState::Pending);
+    }
+
+    #[test]
+    fn parse_review_missing_state_returns_none() {
+        let v = json!({"user": { "login": "reviewer4" }});
+        assert!(parse_review(&v).is_none());
+    }
+}
