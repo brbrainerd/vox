@@ -179,7 +179,13 @@ fn emit_node(
             } else {
                 body_s
             };
-            format!("{pad}{{{iterator}.map(() => (\n{body_with_key}{pad}))}}\n")
+            // `iterator` already contains the partial expression
+            // `iterable.map((name: any, idx: number) => ` assembled in `lower.rs`.
+            // Append `(\nbody\npad))` to close the arrow-fn body grouping and the `.map(`
+            // call, then close the JSX `{…}` wrapper.
+            // Result: {items.map((item: any, i: number) => (\n<body/>\npad))}
+            let close = format!("{pad}))}}"); // )) closes body-paren + .map(; }} → literal }
+            format!("{pad}{{{iterator}(\n{body_with_key}{close}\n")
         }
         DomNode::Expr { ts, .. } => format!("{pad}{{{ts}}}\n"),
     }
@@ -187,15 +193,67 @@ fn emit_node(
 
 /// Inject a `key` attribute string into the first JSX element opening tag.
 ///
-/// Looks for the first `<` and inserts `key_attr` before the first `>` or `/>`
-/// of that tag. Falls back to returning the original string if no suitable
-/// insertion point is found.
+/// Scans past the tag name and attribute list, correctly skipping over `{...}`
+/// JSX expression values (which may contain `/` or `>`) and `"..."` / `'...'`
+/// string literals. Inserts `key_attr` immediately before the closing `>` or
+/// `/>` of the opening tag.
+///
+/// Falls back to returning the original string unchanged if no opening tag is
+/// found or parsing fails to locate the end of the opening tag.
 fn inject_key_into_jsx(jsx: String, key_attr: &str) -> String {
-    if let Some(lt_pos) = jsx.find('<') {
-        let after_lt = &jsx[lt_pos..];
-        if let Some(rel_end) = after_lt.find(['>', '/']) {
-            let insert_at = lt_pos + rel_end;
-            return format!("{}{}{}", &jsx[..insert_at], key_attr, &jsx[insert_at..]);
+    let Some(lt_pos) = jsx.find('<') else {
+        return jsx;
+    };
+    let chars: Vec<char> = jsx[lt_pos..].chars().collect();
+    let n = chars.len();
+    // Skip past '<' and the tag name.
+    let mut i = 1;
+    while i < n
+        && chars[i] != '>'
+        && chars[i] != ' '
+        && chars[i] != '\n'
+        && chars[i] != '\t'
+        && chars[i] != '/'
+    {
+        i += 1;
+    }
+    // Scan through attributes, properly balancing {}, and skipping string literals.
+    while i < n {
+        match chars[i] {
+            '>' => {
+                let insert_at = lt_pos + chars[..i].iter().collect::<String>().len();
+                return format!("{}{}{}", &jsx[..insert_at], key_attr, &jsx[insert_at..]);
+            }
+            '/' if i + 1 < n && chars[i + 1] == '>' => {
+                let insert_at = lt_pos + chars[..i].iter().collect::<String>().len();
+                return format!("{}{}{}", &jsx[..insert_at], key_attr, &jsx[insert_at..]);
+            }
+            '{' => {
+                let mut depth = 1usize;
+                i += 1;
+                while i < n && depth > 0 {
+                    match chars[i] {
+                        '{' => depth += 1,
+                        '}' => depth -= 1,
+                        _ => {}
+                    }
+                    i += 1;
+                }
+            }
+            '"' | '\'' => {
+                let q = chars[i];
+                i += 1;
+                while i < n && chars[i] != q {
+                    if chars[i] == '\\' {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+                i += 1;
+            }
+            _ => {
+                i += 1;
+            }
         }
     }
     jsx
