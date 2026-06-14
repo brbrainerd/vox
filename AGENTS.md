@@ -210,8 +210,6 @@ All project automation — CI prep, corpus transforms, training pipelines, insta
 - Subprocess calls go through `vox-actor-runtime` process primitives (telemetry-observable)
 - Use the secrets crate (`vox_secrets::resolve_secret(...)`) for secrets — never `env.get("MY_KEY")` for sensitive values
 
-**Do NOT use Python or shell for glue.** Vox is the glue language. Python and shell are retired glue surfaces in this repository.
-
 **Formatting Rust (Windows-safe).** Never run `cargo fmt --all` on this workspace — it passes every crate's target root to a single `rustfmt` process, which overflows the Windows `CreateProcess` command-line limit and dies with `os error 206` ("The filename or extension is too long"). Format the whole workspace with:
 
 ```
