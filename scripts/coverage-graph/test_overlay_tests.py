@@ -816,3 +816,103 @@ class TestProductionSymbolFilter:
         assert row, f"no crate row for 'c' in report:\n{text}"
         symbols = int(row[0].split("|")[2].strip())
         assert symbols == 1, f"expected 1 production symbol, report counted {symbols}"
+
+
+# ---------------------------------------------------------------------------
+# Crediting method (.foo()) assertions (Task 0.2)
+# ---------------------------------------------------------------------------
+
+class TestMethodAssertionCredit:
+    """A test asserting on a same-crate METHOD call (`x.redact(...)`) must create
+    a `proves` edge to that method's definition node (label `.redact()`). Before
+    Task 0.2 the analyzer dropped every leading-dot label, so methods could never
+    be proven — the dominant false-negative class in the fidelity audit."""
+
+    def _run(self, tmp_path, src_body):
+        nodes = [
+            {"id": "src_lib_piifilter", "label": "PiiFilter", "file_type": "code",
+             "source_file": "crates/c/src/lib.rs", "_origin": "ast", "norm_label": "piifilter"},
+            {"id": "src_lib_redact", "label": ".redact()", "file_type": "code",
+             "source_file": "crates/c/src/lib.rs", "_origin": "ast", "norm_label": ".redact()"},
+        ]
+        graph = _make_minimal_graph(nodes)
+        in_json = str(tmp_path / "in.json")
+        out_json = str(tmp_path / "out.json")
+        crate_dir = tmp_path / "crates" / "c" / "src"
+        crate_dir.mkdir(parents=True)
+        (crate_dir / "lib.rs").write_text(src_body, encoding="utf-8")
+        with open(in_json, "w", encoding="utf-8") as f:
+            json.dump(graph, f)
+        run_overlay(graph_path=in_json, repo_root=str(tmp_path), out_path=out_json)
+        with open(out_json, encoding="utf-8") as f:
+            return json.load(f)
+
+    def test_method_assertion_creates_proves_edge(self, tmp_path):
+        src = (
+            "pub struct PiiFilter;\n"
+            "impl PiiFilter { pub fn redact(&self, _s: &str) -> String { \"***\".into() } }\n"
+            "#[cfg(test)]\nmod tests {\n    use super::*;\n    #[test]\n"
+            "    fn redacts_email() {\n"
+            "        let f = PiiFilter;\n"
+            "        assert_eq!(f.redact(\"a@b.com\"), \"***\");\n"
+            "    }\n}\n"
+        )
+        result = self._run(tmp_path, src)
+        proves = {e["target"] for e in result["links"] if e.get("relation") == "proves"}
+        assert "src_lib_redact" in proves, (
+            "method `.redact()` asserted in a test must get a proves edge"
+        )
+
+    def test_method_outside_assertion_is_targets_not_proves(self, tmp_path):
+        # method called but NOT inside an assertion → targets edge, no proves
+        src = (
+            "pub struct PiiFilter;\n"
+            "impl PiiFilter { pub fn redact(&self, _s: &str) -> String { \"***\".into() } }\n"
+            "#[cfg(test)]\nmod tests {\n    use super::*;\n    #[test]\n"
+            "    fn calls_without_asserting() {\n"
+            "        let f = PiiFilter;\n"
+            "        let _out = f.redact(\"x\");\n"
+            "        assert!(true);\n"
+            "    }\n}\n"
+        )
+        result = self._run(tmp_path, src)
+        rels = {(e["target"], e["relation"]) for e in result["links"]}
+        assert ("src_lib_redact", "targets") in rels, "method call should be a targets edge"
+        assert ("src_lib_redact", "proves") not in rels, (
+            "method not inside an assertion must NOT be proven"
+        )
+
+    def test_chained_method_calls_each_credited(self, tmp_path):
+        # both methods in `a.redact(..).trim()` inside an assertion must be proven
+        nodes = [
+            {"id": "src_lib_redact", "label": ".redact()", "file_type": "code",
+             "source_file": "crates/c/src/lib.rs", "_origin": "ast", "norm_label": ".redact()"},
+            {"id": "src_lib_normalize", "label": ".normalize()", "file_type": "code",
+             "source_file": "crates/c/src/lib.rs", "_origin": "ast", "norm_label": ".normalize()"},
+        ]
+        graph = _make_minimal_graph(nodes)
+        in_json = str(tmp_path / "in.json")
+        out_json = str(tmp_path / "out.json")
+        crate_dir = tmp_path / "crates" / "c" / "src"
+        crate_dir.mkdir(parents=True)
+        (crate_dir / "lib.rs").write_text(
+            "pub struct F;\n"
+            "impl F {\n"
+            "    pub fn redact(&self, _s: &str) -> Self { F }\n"
+            "    pub fn normalize(&self) -> String { String::new() }\n"
+            "}\n"
+            "#[cfg(test)]\nmod tests {\n    use super::*;\n    #[test]\n"
+            "    fn chained() {\n"
+            "        assert_eq!(F.redact(\"x\").normalize(), \"\");\n"
+            "    }\n}\n",
+            encoding="utf-8",
+        )
+        with open(in_json, "w", encoding="utf-8") as f:
+            json.dump(graph, f)
+        run_overlay(graph_path=in_json, repo_root=str(tmp_path), out_path=out_json)
+        with open(out_json, encoding="utf-8") as f:
+            result = json.load(f)
+        proves = {e["target"] for e in result["links"] if e.get("relation") == "proves"}
+        assert {"src_lib_redact", "src_lib_normalize"} <= proves, (
+            "both chained methods asserted on must be proven"
+        )

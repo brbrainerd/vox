@@ -165,6 +165,36 @@ def build_name_index(
     return pruned_idx, full_same_crate_idx
 
 
+def build_method_index(nodes: list[dict]) -> dict[str, list[dict]]:
+    """Index METHOD definitions (nodes whose raw label is a leading-dot `.foo()`)
+    by their bare method name, so method assertions can be credited (Task 0.2).
+
+    build_name_index deliberately drops leading-dot labels from the symbol index
+    (a bare `.foo()` is not a useful free-symbol target); but when a test asserts
+    on a method *call* (`x.foo(...)`), the method IS the proof subject. This index
+    is consulted only on the method-call path in run_overlay, same-crate only.
+
+    Same stoplist/keyword/length filters as the symbol index apply, so common
+    container/trait methods (`new`, `get`, `clone`, `iter`, ...) stay filtered.
+    """
+    idx: dict[str, list[dict]] = defaultdict(list)
+    seen: dict[str, set[str]] = defaultdict(set)
+    for node in nodes:
+        if node.get("_origin") == "test":
+            continue
+        raw_label = node.get("label", "")
+        if not raw_label.lstrip().startswith("."):
+            continue
+        name = _strip_label(raw_label)
+        if not name or len(name) <= 2 or name in RUST_KEYWORDS or name in STD_PRELUDE_STOPLIST:
+            continue
+        if node["id"] in seen[name]:
+            continue
+        seen[name].add(node["id"])
+        idx[name].append(node)
+    return dict(idx)
+
+
 def crate_from_source_file(source_file: str) -> str:
     """Derive crate name from a source_file path like crates/vox-foo/src/bar.rs"""
     parts = source_file.replace("\\", "/").split("/")
@@ -440,7 +470,9 @@ def run_overlay(
     print(f"  {len(original_nodes)} nodes, {len(original_links)} links loaded.", flush=True)
 
     pruned_index, full_index = build_name_index(original_nodes)
-    print(f"  Name index: {len(pruned_index)} pruned, {len(full_index)} full symbol names.", flush=True)
+    method_index = build_method_index(original_nodes)
+    print(f"  Name index: {len(pruned_index)} pruned, {len(full_index)} full symbol names, "
+          f"{len(method_index)} method names.", flush=True)
 
     repo = Path(repo_root)
     crates_root = repo / "crates"
@@ -508,35 +540,56 @@ def run_overlay(
             if ident in RUST_KEYWORDS or len(ident) <= 2:
                 continue
 
-            # Resolution: two-path same-crate-first logic.
-            #
-            # Path 1 (same-crate, no spread cap): look in the full index for a
-            # symbol whose crate matches the test crate.  The genericness cap does
-            # NOT apply here — a test asserting on a symbol in its own crate is a
-            # valid proof regardless of how common the name is elsewhere.
-            # Stoplist / method-only filters are already applied inside full_index.
-            #
-            # Path 2 (cross-crate fallback, spread cap applies): use pruned_index
-            # and require global uniqueness (exactly one candidate).
-            all_candidates = full_index.get(ident, [])
-            same_crate = [
-                c for c in all_candidates
-                if crate_from_source_file(c.get("source_file", "")) == t["crate"]
-            ]
+            # Method-call detection: is this identifier the method in `recv.ident(`?
+            # i.e. immediately preceded by a single '.' (not '..' range, not a
+            # float like `1.0`). If so, resolve it against the method index
+            # (same-crate only) — this is the Task 0.2 fix for method proofs.
+            s = ident_m.start()
+            prev_c = body[s - 1] if s >= 1 else ""
+            prev2_c = body[s - 2] if s >= 2 else ""
+            is_method_call = prev_c == "." and prev2_c != "." and not prev2_c.isdigit()
 
-            if same_crate:
-                # Path 1: same-crate match — always allowed
-                selected = same_crate
-                conf = "EXTRACTED" if len(same_crate) == 1 else "AMBIGUOUS"
-            else:
-                # Path 2: cross-crate fallback — use pruned index, require uniqueness
-                pruned_candidates = pruned_index.get(ident, [])
-                if len(pruned_candidates) == 1:
-                    selected = pruned_candidates
-                    conf = "EXTRACTED"
-                else:
-                    # Cross-crate non-unique or pruned-as-generic: drop
+            if is_method_call:
+                # Method path: same-crate method definitions only (no cross-crate
+                # fallback — method names are too ambiguous across crates).
+                method_candidates = [
+                    c for c in method_index.get(ident, [])
+                    if crate_from_source_file(c.get("source_file", "")) == t["crate"]
+                ]
+                if not method_candidates:
                     continue
+                selected = method_candidates
+                conf = "EXTRACTED" if len(method_candidates) == 1 else "AMBIGUOUS"
+            else:
+                # Resolution: two-path same-crate-first logic.
+                #
+                # Path 1 (same-crate, no spread cap): look in the full index for a
+                # symbol whose crate matches the test crate.  The genericness cap does
+                # NOT apply here — a test asserting on a symbol in its own crate is a
+                # valid proof regardless of how common the name is elsewhere.
+                # Stoplist / method-only filters are already applied inside full_index.
+                #
+                # Path 2 (cross-crate fallback, spread cap applies): use pruned_index
+                # and require global uniqueness (exactly one candidate).
+                all_candidates = full_index.get(ident, [])
+                same_crate = [
+                    c for c in all_candidates
+                    if crate_from_source_file(c.get("source_file", "")) == t["crate"]
+                ]
+
+                if same_crate:
+                    # Path 1: same-crate match — always allowed
+                    selected = same_crate
+                    conf = "EXTRACTED" if len(same_crate) == 1 else "AMBIGUOUS"
+                else:
+                    # Path 2: cross-crate fallback — use pruned index, require uniqueness
+                    pruned_candidates = pruned_index.get(ident, [])
+                    if len(pruned_candidates) == 1:
+                        selected = pruned_candidates
+                        conf = "EXTRACTED"
+                    else:
+                        # Cross-crate non-unique or pruned-as-generic: drop
+                        continue
 
             conf_score = 1.0 if conf == "EXTRACTED" else 0.5
 
