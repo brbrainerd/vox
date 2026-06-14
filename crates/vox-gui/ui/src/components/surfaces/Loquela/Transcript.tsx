@@ -15,6 +15,7 @@ export function Transcript({ messages }: { messages: ChatMessage[] }) {
     <Glass
       role="log"
       aria-live="polite"
+      aria-relevant="additions text"
       aria-label="Chat transcript"
       className="mb-3 max-h-[40vh] overflow-y-auto custom-scrollbar p-3"
     >

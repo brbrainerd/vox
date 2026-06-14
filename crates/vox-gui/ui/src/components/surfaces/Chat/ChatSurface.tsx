@@ -105,9 +105,7 @@ export function ChatSurface({
           description="Submit a task from the composer docked below — the transcript mirrors this session here."
         />
       ) : (
-        <div role="log" aria-label="Chat transcript" aria-live="polite" aria-relevant="additions text">
-          <Transcript messages={messages} />
-        </div>
+        <Transcript messages={messages} />
       )}
       <p className="text-[11px] text-text-muted">
         Composer is docked at the bottom — submit tasks there; this view mirrors the same session transcript.
