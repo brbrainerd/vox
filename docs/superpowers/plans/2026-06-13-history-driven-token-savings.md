@@ -63,6 +63,8 @@ Tasks are independent and can land in any order / separate PRs. Recommended sequ
 
 ## Task 1: Collapse generated-file diff noise in `.gitattributes`
 
+> **IMPLEMENTATION OUTCOME (this task is a plan; Step 4 is a verify-then-prune step — read it before the Step 2 block below).** Verification (Step 4) found that `SUMMARY.md`, `feed.xml`, and `architecture-index.md` are **`.gitignore`d** (already out of diffs — marking them is a no-op, consistent with Part 0) and that `research-index.md` is **hand-curated** (not generated). So the **shipped** `.gitattributes` block does NOT include those four; the proposed block in Step 2 lists them only so Step 4's verification has something to prune. The `**/gui-surface-*.md` placeholder in Step 2 resolved to the actual generated artifacts **`contracts/reports/gui-surface-{coverage,registry}.v1.json`** (the `.md` of that name is a hand-authored arch doc and is excluded).
+
 **Files:**
 - Modify: `.gitattributes` (append a "Generated artifacts" block)
 
@@ -75,7 +77,7 @@ Run:
 git show HEAD --stat -- docs/src/feed.xml docs/src/SUMMARY.md docs/src/architecture/architecture-index.md | tail -5
 git log --oneline -1 -- docs/src/feed.xml
 ```
-Expected: a recent commit touches one of these; note that `git show <that-commit> -- docs/src/feed.xml` currently prints the full text diff (the cost we are removing).
+Expected: a recent commit touches one of these; note that `git show <that-commit> -- docs/src/feed.xml` currently prints the full-text diff (the cost we are removing).
 
 - [ ] **Step 2: Append the generated-artifacts block to `.gitattributes`**
 
@@ -185,6 +187,8 @@ git commit -m "chore(hooks): auto-format and re-stage on commit (was fmt-check/b
 ---
 
 ## Task 3: Regenerate SSOT artifacts in the merge queue, not by hand after merge
+
+> **IMPLEMENTATION NOTE — this task was PIVOTED during execution.** The design below (a verify-only job named **`ssot-merge-regen`** triggered on **`merge_group`**) was found **redundant**: `vox ci ssot-drift` already runs as a hard gate inside the existing `guards-fast` job on every event *including* `merge_group`, so adding a merge-queue verify job would duplicate it. The historical churn came from queue *bypass* (admin-merges), now rare since the merge queue is enabled. What actually shipped is a **`ssot-autoregen`** job triggered on **`pull_request`** (same-repo guard: `github.event.pull_request.head.repo.full_name == github.repository`) that **auto-regenerates and commits** the drift back to the PR branch (removing the human round-trip) rather than merely failing. References to `ssot-merge-regen` / `merge_group` below (and in Task 5's deferred note) describe the original plan, not the shipped job — read them as `ssot-autoregen` / `pull_request`.
 
 **Files:**
 - Modify: `.github/workflows/ci.yml` (add a `merge_group`-triggered job, or a step in the existing merge_group path, that regenerates SSOT and fails if it drifts)

@@ -120,13 +120,17 @@ jobs:
     permissions:
       contents: write   # job-scoped override (workflow default is contents: read) to push the regen commit
     steps:
-      - uses: actions/checkout@v6
+      # Pinned to immutable SHAs because this job has `contents: write` (tags can be
+      # re-pointed after creation). SHAs verified equal to v6 / v4 at PR time. The rest of
+      # ci.yml intentionally uses tag refs per repo convention — only this privileged job is
+      # hardened. persist-credentials:false avoids leaving the clone token in .git/config;
+      # the push step below authenticates explicitly via PUSH_TOKEN.
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
-          # PAT (preferred) makes the bot's push re-trigger CI; GITHUB_TOKEN is the fallback.
-          token: ${{ secrets.SSOT_AUTOREGEN_TOKEN || secrets.GITHUB_TOKEN }}
-      - uses: actions/download-artifact@v4
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: vox-cli-bin
           path: target/debug
@@ -160,6 +164,11 @@ jobs:
           done
       - name: Commit regenerated artifacts to the PR branch (only if drift)
         shell: bash
+        env:
+          PR_HEAD_REF: ${{ github.head_ref }}
+          # PAT (preferred) makes the push re-trigger CI; github.token is the fallback.
+          # Passed via env (not inline ${{ }}) to avoid expression injection in the run block.
+          PUSH_TOKEN: ${{ secrets.SSOT_AUTOREGEN_TOKEN || github.token }}
         run: |
           set -euo pipefail
           if git diff --quiet; then
@@ -174,7 +183,9 @@ jobs:
           # generators are deterministic, so the re-triggered run regenerates identically,
           # finds no diff, and does not commit again — the loop terminates.
           git commit -m "chore(ssot): auto-regenerate drifted SSOT artifacts (deterministic; ci.yml ssot-autoregen)"
-          git push origin "HEAD:${{ github.head_ref }}"
+          # Explicit one-shot HTTPS token auth (checkout used persist-credentials:false, so no
+          # credentials linger in .git/config for later steps). GITHUB_REPOSITORY is set by Actions.
+          git push "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${PR_HEAD_REF}"
 
   guards-fast:
     name: Guards (fast)
