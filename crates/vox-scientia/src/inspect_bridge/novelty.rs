@@ -81,12 +81,13 @@ impl AtomicNoveltyScorer {
         // retrieval did not succeed — we cannot conclude novelty. An empty
         // bundle WITHOUT failed traces (e.g. a successful search that returned
         // no hits, or no traces at all) is genuine "no signal" and stays Novel.
-        if let Some(traces) = bundle.query_traces.as_ref() {
-            if !traces.is_empty() && traces.iter().all(|t| !trace_succeeded(t)) {
-                return NoveltyVerdict::InsufficientEvidence {
-                    reason: "no prior-art source returned a successful response".into(),
-                };
-            }
+        if let Some(traces) = bundle.query_traces.as_ref()
+            && !traces.is_empty()
+            && traces.iter().all(|t| !trace_succeeded(t))
+        {
+            return NoveltyVerdict::InsufficientEvidence {
+                reason: "no prior-art source returned a successful response".into(),
+            };
         }
 
         // Derive max score from overlap_summary if present, otherwise scan hits directly.

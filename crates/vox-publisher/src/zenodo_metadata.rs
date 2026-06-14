@@ -135,26 +135,26 @@ pub fn zenodo_deposition_create_body(manifest: &PublicationManifest) -> ZenodoDe
 
     // related_identifiers: reproducibility repos + nanopubs + swhid.
     let mut related_identifiers: Vec<ZenodoRelatedIdentifier> = Vec::new();
-    if let Some(ref sci) = scientific {
-        if let Some(ref repro) = sci.reproducibility {
-            if let Some(ref url) = repro.code_repository_url {
-                if !url.trim().is_empty() {
-                    related_identifiers.push(ZenodoRelatedIdentifier {
-                        identifier: url.clone(),
-                        relation: "isSupplementTo".to_string(),
-                        resource_type: Some("software".to_string()),
-                    });
-                }
-            }
-            if let Some(ref url) = repro.data_repository_url {
-                if !url.trim().is_empty() {
-                    related_identifiers.push(ZenodoRelatedIdentifier {
-                        identifier: url.clone(),
-                        relation: "isSupplementTo".to_string(),
-                        resource_type: Some("dataset".to_string()),
-                    });
-                }
-            }
+    if let Some(ref sci) = scientific
+        && let Some(ref repro) = sci.reproducibility
+    {
+        if let Some(ref url) = repro.code_repository_url
+            && !url.trim().is_empty()
+        {
+            related_identifiers.push(ZenodoRelatedIdentifier {
+                identifier: url.clone(),
+                relation: "isSupplementTo".to_string(),
+                resource_type: Some("software".to_string()),
+            });
+        }
+        if let Some(ref url) = repro.data_repository_url
+            && !url.trim().is_empty()
+        {
+            related_identifiers.push(ZenodoRelatedIdentifier {
+                identifier: url.clone(),
+                relation: "isSupplementTo".to_string(),
+                resource_type: Some("dataset".to_string()),
+            });
         }
     }
     if let Some(ref val) = meta_val {
@@ -177,14 +177,13 @@ pub fn zenodo_deposition_create_body(manifest: &PublicationManifest) -> ZenodoDe
             .get("scientia")
             .and_then(|s| s.get("swhid"))
             .and_then(|v| v.as_str())
+            && !swhid.trim().is_empty()
         {
-            if !swhid.trim().is_empty() {
-                related_identifiers.push(ZenodoRelatedIdentifier {
-                    identifier: swhid.to_string(),
-                    relation: "isIdenticalTo".to_string(),
-                    resource_type: Some("software".to_string()),
-                });
-            }
+            related_identifiers.push(ZenodoRelatedIdentifier {
+                identifier: swhid.to_string(),
+                relation: "isIdenticalTo".to_string(),
+                resource_type: Some("software".to_string()),
+            });
         }
     }
 

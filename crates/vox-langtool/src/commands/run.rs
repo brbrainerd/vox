@@ -14,15 +14,15 @@ pub fn run(file: &Path, _args: &[String]) -> Result<()> {
     // vox-cli's `run_interp`).
     let mut caps = std::collections::HashSet::new();
     let mut has_caps_directive = false;
-    if let Some(first_line) = source.lines().next() {
-        if first_line.starts_with("// vox:caps ") {
-            has_caps_directive = true;
-            for cap in first_line
-                .trim_start_matches("// vox:caps ")
-                .split_whitespace()
-            {
-                caps.insert(cap.to_string());
-            }
+    if let Some(first_line) = source.lines().next()
+        && first_line.starts_with("// vox:caps ")
+    {
+        has_caps_directive = true;
+        for cap in first_line
+            .trim_start_matches("// vox:caps ")
+            .split_whitespace()
+        {
+            caps.insert(cap.to_string());
         }
     }
 

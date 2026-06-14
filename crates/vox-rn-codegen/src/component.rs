@@ -228,10 +228,10 @@ fn tailwind_token_to_rn_prop(tok: &str) -> Option<(String, String)> {
         ("gap-", "gap"),
     ];
     for (prefix, prop) in spacing {
-        if let Some(n) = tok.strip_prefix(prefix) {
-            if let Some(px) = spacing_px(n) {
-                return Some(((*prop).into(), px.to_string()));
-            }
+        if let Some(n) = tok.strip_prefix(prefix)
+            && let Some(px) = spacing_px(n)
+        {
+            return Some(((*prop).into(), px.to_string()));
         }
     }
     // Border radius.
@@ -251,10 +251,10 @@ fn tailwind_token_to_rn_prop(tok: &str) -> Option<(String, String)> {
         return r.map(|px| ("borderRadius".into(), px.to_string()));
     }
     // Opacity.
-    if let Some(o) = tok.strip_prefix("opacity-") {
-        if let Ok(n) = o.parse::<f32>() {
-            return Some(("opacity".into(), format!("{:.2}", n / 100.0)));
-        }
+    if let Some(o) = tok.strip_prefix("opacity-")
+        && let Ok(n) = o.parse::<f32>()
+    {
+        return Some(("opacity".into(), format!("{:.2}", n / 100.0)));
     }
     // Width / height (full → "100%", numeric → 4px scale).
     for (prefix, prop) in [("w-", "width"), ("h-", "height")] {
