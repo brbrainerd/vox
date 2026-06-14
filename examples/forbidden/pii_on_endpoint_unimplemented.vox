@@ -1,0 +1,4 @@
+// expect-error: vox/codegen/pii-unimplemented
+@server
+@pii
+fn get_user_data(id: Int) -> Str { "secret" }

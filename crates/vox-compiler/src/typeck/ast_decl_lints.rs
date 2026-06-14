@@ -607,6 +607,8 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
     for decl in &module.declarations {
         visit_fn_decl_in_decl(decl, &mut |f: &FnDecl| {
             check_mens_decorator_unimplemented(f, &mut diags);
+            // P4-E: @pii / @embed have no Rust codegen runtime wired — surface the gap.
+            check_pii_embed_unimplemented(f, &mut diags);
         });
         if let Decl::Workflow(w) = decl {
             if w.distributed_train_strategy.is_some() || w.distributed_train_peers.is_some() {
@@ -804,6 +806,61 @@ fn check_mens_decorator_unimplemented(f: &FnDecl, diags: &mut Vec<Diagnostic>) {
             ],
             category: DiagnosticCategory::Lint,
             code: Some(codes::MENS_DECORATOR_UNIMPLEMENTED.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
+}
+
+/// Emit `vox/codegen/pii-unimplemented` / `vox/codegen/embed-unimplemented` when `@pii` or
+/// `@embed` are applied to an endpoint function whose Rust codegen has no runtime wired in.
+/// These decorators are stored on the AST/HIR but silently dropped during Rust emit (Task 4E).
+fn check_pii_embed_unimplemented(f: &FnDecl, diags: &mut Vec<Diagnostic>) {
+    if f.pii.is_some() {
+        diags.push(Diagnostic {
+            message: format!(
+                "fn `{}`: `@pii` is not yet implemented in Rust codegen; \
+                 the PII redaction runtime is not wired. Remove `@pii` or implement \
+                 the redaction layer in vox-actor-runtime.",
+                f.name
+            ),
+            span: f.span,
+            severity: TypeckSeverity::Error,
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![
+                "Remove `@pii` or add a redaction wrapper to the vox-actor-runtime crate.".into(),
+            ],
+            category: DiagnosticCategory::Lint,
+            code: Some(codes::PII_UNIMPLEMENTED.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
+    if f.embed.is_some() {
+        diags.push(Diagnostic {
+            message: format!(
+                "fn `{}`: `@embed(...)` is not yet implemented in Rust codegen; \
+                 the vector-embedding runtime is not wired. Remove `@embed` or implement \
+                 the embedding layer via vox-actor-runtime::llm::llm_embed.",
+                f.name
+            ),
+            span: f.span,
+            severity: TypeckSeverity::Error,
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![
+                "Remove `@embed` or wire vox-actor-runtime::llm::llm_embed into the endpoint codegen."
+                    .into(),
+            ],
+            category: DiagnosticCategory::Lint,
+            code: Some(codes::EMBED_UNIMPLEMENTED.into()),
             fixes: vec![],
             line_col: None,
             missing_cases: vec![],

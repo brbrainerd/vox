@@ -743,6 +743,14 @@ pub mod codes {
     /// `@public` skips authentication while `@auth` requires it (token.rs:259-261).
     pub const TYPECK_PUBLIC_AUTH_CONFLICT: &str = "vox/typeck/public-auth-conflict";
 
+    /// `@pii` applied to an endpoint whose Rust codegen has no redaction runtime wired in.
+    /// The decorator is stored on the AST/HIR but silently dropped during Rust emit.
+    pub const PII_UNIMPLEMENTED: &str = "vox/codegen/pii-unimplemented";
+
+    /// `@embed(...)` applied to an endpoint whose Rust codegen has no vector-embedding
+    /// runtime wired in. The decorator is stored on the AST/HIR but silently dropped.
+    pub const EMBED_UNIMPLEMENTED: &str = "vox/codegen/embed-unimplemented";
+
     /// All Phase-1 codes registered for stability, used by the namespace guard test.
     pub const ALL_PHASE_1: &[&str] = &[
         // Core type errors (v0.6, LLM-target CR-L criteria)
@@ -863,6 +871,8 @@ pub mod codes {
         "vox/a11y/combobox-missing-label",
         "vox/a11y/tabs-missing-label",
         TYPECK_PUBLIC_AUTH_CONFLICT,
+        PII_UNIMPLEMENTED,
+        EMBED_UNIMPLEMENTED,
     ];
 
     #[cfg(test)]
