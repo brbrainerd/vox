@@ -50,7 +50,7 @@ export function NoveltyEvidencePanel({ assessment }: { assessment: NoveltyAssess
 
       {insufficient && (
         <div className="mb-3 rounded-lg border border-amber-400/30 bg-amber-400/[0.06] px-3 py-2 font-mono text-[11px] text-amber-200/90">
-          ⚠ Retrieval failed or never ran — do not treat as novel.
+          <span aria-hidden="true">⚠</span> Retrieval failed or never ran — do not treat as novel.
         </div>
       )}
 

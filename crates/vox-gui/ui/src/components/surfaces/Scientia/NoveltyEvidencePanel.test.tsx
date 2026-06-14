@@ -63,4 +63,11 @@ describe('NoveltyEvidencePanel', () => {
     ).toBeTruthy();
     expect(screen.getByText('No prior-art hits.')).toBeTruthy();
   });
+
+  it('renders prior-art hits as a semantic list and hides the decorative warning glyph', () => {
+    const { container, rerender } = render(<NoveltyEvidencePanel assessment={notNovel} />);
+    expect(screen.getByRole('list')).toBeTruthy();
+    rerender(<NoveltyEvidencePanel assessment={insufficient} />);
+    expect(container.querySelector('[aria-hidden="true"]')?.textContent).toBe('⚠');
+  });
 });
