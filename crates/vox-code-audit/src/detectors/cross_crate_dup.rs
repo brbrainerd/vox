@@ -21,7 +21,6 @@ use crate::rules::{Finding, FindingConfidence, Language, Severity, SourceFile};
 use crate::run_context::workspace_crate_key;
 use quote::ToTokens;
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use syn::visit::Visit;
 
@@ -53,28 +52,30 @@ fn platform_base(crate_key: &str) -> &str {
     crate_key
 }
 
-/// True if any attribute is `#[test]` or `#[cfg(test)]` (skip test code).
+/// True if any attribute is `#[test]` or `#[cfg(test)]` (skip test code). Matches `test` as a
+/// whole token, not a substring, so `#[cfg(feature = "fastest")]` is NOT treated as test code.
 fn has_test_attr(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|a| {
         let p = a.path();
-        p.is_ident("test")
-            || (p.is_ident("cfg") && a.to_token_stream().to_string().contains("test"))
+        if p.is_ident("test") {
+            return true;
+        }
+        p.is_ident("cfg")
+            && a.to_token_stream()
+                .to_string()
+                .split(|c: char| !c.is_alphanumeric() && c != '_')
+                .any(|w| w == "test")
     })
 }
 
-fn hash_body(body: &str) -> u64 {
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    body.hash(&mut h);
-    h.finish()
-}
-
-/// One collected function body, ready for cross-crate grouping.
+/// One collected function body, ready for cross-crate grouping. Keeps the full normalized
+/// `body` (not just a hash) so grouping uses exact string equality — no hash-collision risk.
 struct FnRec {
     crate_key: String,
     file: PathBuf,
     line: usize,
     name: String,
-    body_hash: u64,
+    body: String,
 }
 
 struct Collector<'a> {
@@ -115,7 +116,7 @@ impl<'a> Collector<'a> {
             file: self.file.clone(),
             line,
             name,
-            body_hash: hash_body(&body),
+            body,
         });
     }
 }
@@ -165,14 +166,14 @@ pub fn detect_cross_crate_dup_in_batch(files: &[SourceFile]) -> Vec<Finding> {
         recs.extend(c.recs);
     }
 
-    // Group record indices by body hash.
-    let mut by_hash: HashMap<u64, Vec<usize>> = HashMap::new();
+    // Group record indices by EXACT normalized body (string equality — no hash-collision risk).
+    let mut by_body: HashMap<&str, Vec<usize>> = HashMap::new();
     for (i, r) in recs.iter().enumerate() {
-        by_hash.entry(r.body_hash).or_default().push(i);
+        by_body.entry(r.body.as_str()).or_default().push(i);
     }
 
     let mut findings = Vec::new();
-    for idxs in by_hash.values() {
+    for idxs in by_body.values() {
         if idxs.len() < 2 {
             continue;
         }
@@ -231,6 +232,13 @@ pub fn detect_cross_crate_dup_in_batch(files: &[SourceFile]) -> Vec<Finding> {
             });
         }
     }
+    // Deterministic output order (HashMap iteration above is unordered).
+    findings.sort_by(|a, b| {
+        a.file
+            .cmp(&b.file)
+            .then(a.line.cmp(&b.line))
+            .then(a.message.cmp(&b.message))
+    });
     findings
 }
 
@@ -351,5 +359,28 @@ mod tests {
         );
         // 'a' is suppressed; only one site remains in the cluster → no finding.
         assert!(detect_cross_crate_dup_in_batch(&[a, b]).is_empty());
+    }
+
+    #[test]
+    fn cfg_feature_is_not_mistaken_for_test() {
+        // `#[cfg(feature = "fastest")]` contains the substring "test" but is NOT test code —
+        // it must still be analyzed (regression guard for the token-vs-substring fix).
+        let a = rs(
+            "crates/vox-a/src/x.rs",
+            &format!(
+                "#[cfg(feature = \"fastest\")]\npub fn shared(items: &[Item]) -> Result<Summary> {BIG_BODY}"
+            ),
+        );
+        let b = rs(
+            "crates/vox-b/src/y.rs",
+            &format!(
+                "#[cfg(feature = \"fastest\")]\npub fn shared(items: &[Item]) -> Result<Summary> {BIG_BODY}"
+            ),
+        );
+        assert_eq!(
+            detect_cross_crate_dup_in_batch(&[a, b]).len(),
+            1,
+            "#[cfg(feature=\"fastest\")] must not be treated as test code"
+        );
     }
 }
