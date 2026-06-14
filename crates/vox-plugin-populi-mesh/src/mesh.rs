@@ -361,3 +361,120 @@ impl PopuliMeshPlugin {
         mini_rt.block_on(fut)
     }
 }
+
+#[cfg(test)]
+mod semcov_wave5_tests {
+    use super::*;
+    use abi_stable::std_types::RStr;
+
+    // --- stop_transport ---
+
+    #[test]
+    fn stop_transport_on_idle_plugin_returns_ok() {
+        let plugin = PopuliMeshPlugin::new();
+        let result = plugin.stop_transport();
+        assert!(
+            result.is_rok(),
+            "stop_transport on idle plugin must return ROk"
+        );
+    }
+
+    #[test]
+    fn stop_transport_is_idempotent_when_called_twice_without_start() {
+        let plugin = PopuliMeshPlugin::new();
+        let r1 = plugin.stop_transport();
+        let r2 = plugin.stop_transport();
+        assert!(r1.is_rok());
+        assert!(r2.is_rok());
+    }
+
+    // --- dispatch ---
+
+    #[test]
+    fn dispatch_invalid_json_returns_err() {
+        let plugin = PopuliMeshPlugin::new();
+        let result = plugin.dispatch(RStr::from("{not valid json}"));
+        match result {
+            RResult::RErr(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("invalid DispatchRequest JSON"),
+                    "unexpected error: {msg}"
+                );
+            }
+            RResult::ROk(_) => panic!("expected RErr for invalid JSON"),
+        }
+    }
+
+    #[test]
+    fn dispatch_without_start_returns_err() {
+        let plugin = PopuliMeshPlugin::new();
+        let req_json = r#"{"task":"echo","input":{}}"#;
+        let result = plugin.dispatch(RStr::from(req_json));
+        assert!(
+            result.is_rerr(),
+            "dispatch without transport must return RErr"
+        );
+    }
+
+    // --- node_join ---
+
+    #[test]
+    fn node_join_invalid_json_returns_err() {
+        let plugin = PopuliMeshPlugin::new();
+        let result = plugin.node_join(RStr::from("not-json"));
+        match result {
+            RResult::RErr(e) => {
+                let msg = e.to_string();
+                assert!(msg.contains("invalid NodeRecord JSON"), "unexpected: {msg}");
+            }
+            RResult::ROk(_) => panic!("expected RErr for invalid JSON"),
+        }
+    }
+
+    #[test]
+    fn node_join_without_start_transport_returns_err() {
+        let plugin = PopuliMeshPlugin::new();
+        let node_json = r#"{"id":"node-1","addr":"127.0.0.1:9000"}"#;
+        let result = plugin.node_join(RStr::from(node_json));
+        assert!(
+            result.is_rerr(),
+            "node_join before start_transport must fail"
+        );
+    }
+
+    // --- relay_a2a ---
+
+    #[test]
+    fn relay_a2a_invalid_json_returns_err() {
+        let plugin = PopuliMeshPlugin::new();
+        let result = plugin.relay_a2a(
+            RStr::from("http://127.0.0.1:9999"),
+            RStr::from("{bad json}"),
+        );
+        match result {
+            RResult::RErr(e) => {
+                let msg = e.to_string();
+                assert!(
+                    msg.contains("invalid A2ADeliverRequest JSON"),
+                    "unexpected error: {msg}"
+                );
+            }
+            RResult::ROk(_) => panic!("expected RErr for malformed JSON"),
+        }
+    }
+
+    // --- list_nodes ---
+
+    #[test]
+    fn list_nodes_returns_empty_array_when_transport_not_started() {
+        let plugin = PopuliMeshPlugin::new();
+        let result = plugin.list_nodes();
+        match result {
+            RResult::ROk(s) => {
+                assert_eq!(s.as_str(), "[]", "expected empty JSON array");
+            }
+            RResult::RErr(e) => panic!("expected ROk, got RErr: {e}"),
+        }
+    }
+}

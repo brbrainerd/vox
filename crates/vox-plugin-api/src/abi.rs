@@ -125,3 +125,94 @@ pub trait VoxPlugin: Send + Sync {
 }
 
 pub type VoxPluginRef = VoxPlugin_TO<'static, RBox<()>>;
+
+#[cfg(test)]
+mod semcov_wave5_tests {
+    use super::*;
+
+    struct MinimalPlugin;
+    impl VoxPlugin for MinimalPlugin {
+        fn id(&self) -> RString {
+            RString::from("minimal")
+        }
+        fn shutdown(&self) -> RResult<(), RBoxError> {
+            RResult::ROk(())
+        }
+        // All as_* default to RNone — do NOT override them.
+    }
+
+    #[test]
+    fn default_as_ml_backend_returns_rnone() {
+        let p = MinimalPlugin;
+        assert!(
+            p.as_ml_backend().is_rnone(),
+            "expected RNone from default as_ml_backend"
+        );
+    }
+
+    #[test]
+    fn default_as_hardware_probe_returns_rnone() {
+        let p = MinimalPlugin;
+        assert!(p.as_hardware_probe().is_rnone());
+    }
+
+    #[test]
+    fn default_as_mesh_driver_returns_rnone() {
+        let p = MinimalPlugin;
+        assert!(p.as_mesh_driver().is_rnone());
+    }
+
+    #[test]
+    fn default_as_tensor_backend_returns_rnone() {
+        let p = MinimalPlugin;
+        assert!(p.as_tensor_backend().is_rnone());
+    }
+
+    #[test]
+    fn default_as_audio_capture_returns_rnone() {
+        let p = MinimalPlugin;
+        assert!(p.as_audio_capture().is_rnone());
+    }
+
+    #[test]
+    fn default_as_cloud_sync_returns_rnone() {
+        let p = MinimalPlugin;
+        assert!(p.as_cloud_sync().is_rnone());
+    }
+
+    #[test]
+    fn default_as_script_executor_returns_rnone() {
+        let p = MinimalPlugin;
+        assert!(p.as_script_executor().is_rnone());
+    }
+
+    #[test]
+    fn default_as_browser_automation_returns_rnone() {
+        let p = MinimalPlugin;
+        assert!(p.as_browser_automation().is_rnone());
+    }
+
+    #[test]
+    fn default_as_speech_to_text_returns_rnone() {
+        let p = MinimalPlugin;
+        assert!(p.as_speech_to_text().is_rnone());
+    }
+
+    #[test]
+    fn default_as_publication_returns_rnone() {
+        let p = MinimalPlugin;
+        assert!(p.as_publication().is_rnone());
+    }
+
+    #[test]
+    fn default_as_http_listener_returns_rnone() {
+        let p = MinimalPlugin;
+        assert!(p.as_http_listener().is_rnone());
+    }
+
+    #[test]
+    fn default_as_skill_runtime_returns_rnone() {
+        let p = MinimalPlugin;
+        assert!(p.as_skill_runtime().is_rnone());
+    }
+}

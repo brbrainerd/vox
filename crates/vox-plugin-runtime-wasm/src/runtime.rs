@@ -134,3 +134,37 @@ impl SkillRuntime for WasmRuntime {
         })
     }
 }
+
+#[cfg(test)]
+mod semcov_wave5_tests {
+    use super::*;
+    use vox_skill_runtime::SkillRuntime;
+
+    #[test]
+    fn with_fuel_constructs_wasm_runtime_successfully() {
+        // WasmHost::with_fuel configures a Wasmtime engine with fuel enabled;
+        // construction should succeed on any platform that has wasmtime support.
+        let rt = WasmRuntime::with_fuel(500_000).expect("WasmRuntime::with_fuel should succeed");
+        // The constructed runtime must identify itself as the wasm backend.
+        assert_eq!(rt.name(), "wasm");
+        // And must report as available (wasmtime is in-process).
+        assert!(rt.available());
+    }
+
+    #[test]
+    fn with_fuel_zero_constructs_without_panic() {
+        // Zero fuel is a legal (if immediately-exhausting) value; construction
+        // must not panic or return Err — execution would fail, not construction.
+        let rt = WasmRuntime::with_fuel(0);
+        assert!(rt.is_ok(), "with_fuel(0) should construct successfully");
+    }
+
+    #[test]
+    fn with_fuel_large_value_constructs_successfully() {
+        let rt = WasmRuntime::with_fuel(u64::MAX);
+        assert!(
+            rt.is_ok(),
+            "with_fuel(u64::MAX) should construct successfully"
+        );
+    }
+}

@@ -105,3 +105,91 @@ mod tests {
         assert_eq!(RuntimeWasmPlugin.id().as_str(), "runtime-wasm");
     }
 }
+
+#[cfg(test)]
+mod semcov_wave5_tests {
+    use super::*;
+    use abi_stable::std_types::{RResult, RStr};
+
+    // Helper: build a minimal valid RunOpts JSON pointing to a non-existent artifact.
+    fn missing_artifact_json() -> String {
+        r#"{"artifact_path":"/tmp/nonexistent_skill.wasm","ports":[],"env":[],"volumes":[],"detach":false,"name":null,"rm":true,"cpu_limit_fuel":null}"#.to_string()
+    }
+
+    fn run_opts_json_with_name(artifact: &str, name: Option<&str>) -> String {
+        let name_field = match name {
+            Some(n) => format!("\"{}\"", n),
+            None => "null".to_string(),
+        };
+        format!(
+            r#"{{"artifact_path":"{}","ports":[],"env":[],"volumes":[],"detach":false,"name":{},"rm":true,"cpu_limit_fuel":null}}"#,
+            artifact, name_field
+        )
+    }
+
+    // --- .invoke_skill() tests ---
+
+    #[test]
+    fn invoke_skill_returns_err_when_artifact_missing() {
+        let plugin = RuntimeWasmPlugin;
+        let result = plugin.invoke_skill(
+            RStr::from("test-skill"),
+            RStr::from(missing_artifact_json().as_str()),
+        );
+        // Must be an error because the wasm artifact does not exist on disk.
+        assert!(
+            matches!(result, RResult::RErr(_)),
+            "expected RErr when artifact path does not exist, got ROk"
+        );
+    }
+
+    #[test]
+    fn invoke_skill_returns_err_on_invalid_json() {
+        let plugin = RuntimeWasmPlugin;
+        let result = plugin.invoke_skill(
+            RStr::from("test-skill"),
+            RStr::from("not valid json at all"),
+        );
+        assert!(
+            matches!(result, RResult::RErr(_)),
+            "expected RErr on malformed JSON input"
+        );
+    }
+
+    // --- invoke_wasm_skill() tests ---
+
+    #[test]
+    fn invoke_wasm_skill_propagates_json_parse_error() {
+        let result = invoke_wasm_skill("my-skill", "{not: json");
+        assert!(result.is_err(), "should fail on unparseable JSON");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("expected") || msg.contains("JSON") || msg.contains("invalid"),
+            "unexpected error message: {msg}"
+        );
+    }
+
+    #[test]
+    fn invoke_wasm_skill_sets_name_from_skill_id_when_name_is_none() {
+        // Point artifact at a path that does not exist so the error comes from
+        // execution, not JSON parsing — which proves the name-injection branch
+        // was reached (otherwise JSON parse would short-circuit before name is touched).
+        let json = run_opts_json_with_name("/tmp/not_a_real_skill.wasm", None);
+        let result = invoke_wasm_skill("injected-name", &json);
+        // We expect an error (artifact missing) but NOT a JSON parse error,
+        // meaning the name-injection branch (opts.name = Some(skill_id)) was executed.
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            !msg.contains("expected"),
+            "should not be a JSON error; got: {msg}"
+        );
+    }
+
+    #[test]
+    fn invoke_wasm_skill_error_when_artifact_does_not_exist() {
+        let json = run_opts_json_with_name("/absolutely/does/not/exist.wasm", Some("named-skill"));
+        let result = invoke_wasm_skill("named-skill", &json);
+        assert!(result.is_err(), "should fail when wasm artifact is missing");
+    }
+}

@@ -162,3 +162,51 @@ mod tests {
         assert_eq!(resolve_dtype(GgmlDType::Q8_0, 64), GgmlDType::Q8_0);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave5_tests {
+    use super::*;
+    use candle_core::quantized::GgmlDType;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn q5km_uses_q5k_for_matrix_and_q6k_for_sensitive_roles() {
+        let m = QuantMixture::Q5KM;
+        assert_eq!(m.target_for(TensorRole::Matrix), Some(GgmlDType::Q5K));
+        assert_eq!(m.target_for(TensorRole::DownProj), Some(GgmlDType::Q6K));
+        assert_eq!(m.target_for(TensorRole::VProj), Some(GgmlDType::Q6K));
+        assert_eq!(m.target_for(TensorRole::Embedding), Some(GgmlDType::Q6K));
+        assert_eq!(m.target_for(TensorRole::Output), Some(GgmlDType::Q6K));
+        assert_eq!(m.target_for(TensorRole::KeepF32), None);
+    }
+
+    #[test]
+    fn q6k_maps_all_non_keepf32_roles_to_q6k() {
+        let m = QuantMixture::Q6K;
+        assert_eq!(m.target_for(TensorRole::Matrix), Some(GgmlDType::Q6K));
+        assert_eq!(m.target_for(TensorRole::DownProj), Some(GgmlDType::Q6K));
+        assert_eq!(m.target_for(TensorRole::Embedding), Some(GgmlDType::Q6K));
+        assert_eq!(m.target_for(TensorRole::KeepF32), None);
+    }
+
+    #[test]
+    fn q8_0_mixture_maps_all_non_keepf32_to_q8_0() {
+        let m = QuantMixture::Q8_0;
+        assert_eq!(m.target_for(TensorRole::Matrix), Some(GgmlDType::Q8_0));
+        assert_eq!(m.target_for(TensorRole::DownProj), Some(GgmlDType::Q8_0));
+        assert_eq!(m.target_for(TensorRole::VProj), Some(GgmlDType::Q8_0));
+        assert_eq!(m.target_for(TensorRole::KeepF32), None);
+    }
+
+    #[test]
+    fn manual_mixture_returns_mapped_dtype_or_none_for_absent_key() {
+        let mut map = BTreeMap::new();
+        map.insert(TensorRole::Matrix, GgmlDType::Q4K);
+        let m = QuantMixture::Manual(map);
+        assert_eq!(m.target_for(TensorRole::Matrix), Some(GgmlDType::Q4K));
+        // DownProj is not in the map — expect None (no fallback to KeepF32 logic)
+        assert_eq!(m.target_for(TensorRole::DownProj), None);
+        // KeepF32 is short-circuited before the BTreeMap lookup
+        assert_eq!(m.target_for(TensorRole::KeepF32), None);
+    }
+}

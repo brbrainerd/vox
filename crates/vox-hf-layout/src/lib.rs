@@ -443,3 +443,138 @@ mod tests {
         assert_eq!(layout.layer_types, vec!["full_attention", "full_attention"]);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave5_tests {
+    use super::*;
+
+    // --- qwen35_text_config ---
+
+    #[test]
+    fn qwen35_text_config_returns_none_for_gpt2_architecture() {
+        let raw = serde_json::json!({
+            "model_type": "gpt2",
+            "architectures": ["GPT2LMHeadModel"],
+            "text_config": {
+                "hidden_size": 9999
+            }
+        });
+        let arch = classify_hf_architecture(&raw);
+        assert_eq!(arch, HfArchitecture::Gpt2);
+        let result = qwen35_text_config(&raw, HfArchitecture::Gpt2);
+        assert!(result.is_none(), "expected None for Gpt2 architecture");
+    }
+
+    #[test]
+    fn qwen35_text_config_returns_inner_for_qwen35_architecture() {
+        let raw = serde_json::json!({
+            "model_type": "qwen3_5",
+            "text_config": { "hidden_size": 1024 }
+        });
+        let result = qwen35_text_config(&raw, HfArchitecture::Qwen35);
+        assert!(result.is_some(), "expected Some for Qwen35 architecture");
+        let inner = result.unwrap();
+        assert_eq!(
+            inner.get("hidden_size").and_then(|v| v.as_u64()),
+            Some(1024)
+        );
+    }
+
+    // --- qwen35_rope_theta ---
+
+    #[test]
+    fn qwen35_rope_theta_returns_value_from_rope_parameters() {
+        let v = serde_json::json!({
+            "rope_parameters": { "rope_theta": 10000.0, "partial_rotary_factor": 0.5 }
+        });
+        let result = qwen35_rope_theta(&v);
+        assert_eq!(result, Some(10000.0));
+    }
+
+    #[test]
+    fn qwen35_rope_theta_returns_none_when_rope_parameters_absent() {
+        let v = serde_json::json!({ "rope_theta": 5000.0 });
+        let result = qwen35_rope_theta(&v);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn qwen35_rope_theta_returns_none_when_rope_theta_key_absent_in_rope_parameters() {
+        let v = serde_json::json!({ "rope_parameters": { "partial_rotary_factor": 0.25 } });
+        let result = qwen35_rope_theta(&v);
+        assert!(result.is_none());
+    }
+
+    // --- qwen35_partial_rotary_factor ---
+
+    #[test]
+    fn qwen35_partial_rotary_factor_returns_value_from_rope_parameters() {
+        let v = serde_json::json!({
+            "rope_parameters": { "partial_rotary_factor": 0.25, "rope_theta": 10000.0 }
+        });
+        let result = qwen35_partial_rotary_factor(&v);
+        assert_eq!(result, Some(0.25));
+    }
+
+    #[test]
+    fn qwen35_partial_rotary_factor_returns_none_when_key_absent() {
+        let v = serde_json::json!({ "rope_parameters": { "rope_theta": 10000.0 } });
+        let result = qwen35_partial_rotary_factor(&v);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn qwen35_partial_rotary_factor_returns_none_when_rope_parameters_absent() {
+        let v = serde_json::json!({ "partial_rotary_factor": 0.5 });
+        let result = qwen35_partial_rotary_factor(&v);
+        assert!(result.is_none());
+    }
+
+    // --- classify_hf_architecture ---
+
+    #[test]
+    fn classify_gpt2_returns_gpt2() {
+        let v = serde_json::json!({ "model_type": "gpt2", "architectures": ["GPT2LMHeadModel"] });
+        assert_eq!(classify_hf_architecture(&v), HfArchitecture::Gpt2);
+    }
+
+    #[test]
+    fn classify_llama_returns_qwen35() {
+        let v = serde_json::json!({ "model_type": "llama", "architectures": ["LlamaForCausalLM"] });
+        assert_eq!(classify_hf_architecture(&v), HfArchitecture::Qwen35);
+    }
+
+    #[test]
+    fn classify_mistral_returns_qwen35() {
+        let v =
+            serde_json::json!({ "model_type": "mistral", "architectures": ["MistralForCausalLM"] });
+        assert_eq!(classify_hf_architecture(&v), HfArchitecture::Qwen35);
+    }
+
+    #[test]
+    fn classify_qwen2_via_arch_string_returns_qwen35() {
+        let v = serde_json::json!({ "architectures": ["Qwen2ForCausalLM"] });
+        assert_eq!(classify_hf_architecture(&v), HfArchitecture::Qwen35);
+    }
+
+    #[test]
+    fn classify_empty_json_returns_gpt2_fallback() {
+        let v = serde_json::json!({});
+        assert_eq!(classify_hf_architecture(&v), HfArchitecture::Gpt2);
+    }
+
+    #[test]
+    fn from_config_json_str_parses_gpt2_flat_config() {
+        let raw = r#"{"model_type":"gpt2","architectures":["GPT2LMHeadModel"],"n_embd":768,"n_head":12,"n_layer":12,"vocab_size":50257,"n_positions":1024}"#;
+        let layout = HfTransformerLayout::from_config_json_str(raw).expect("gpt2 parse");
+        assert_eq!(layout.architecture, HfArchitecture::Gpt2);
+        assert_eq!(layout.hidden_size, 768);
+        assert_eq!(layout.num_attention_heads, 12);
+        assert_eq!(layout.num_hidden_layers, 12);
+        assert_eq!(layout.vocab_size, 50257);
+        assert_eq!(layout.max_position_embeddings, Some(1024));
+        assert_eq!(layout.namespace_prefix, "h");
+        assert_eq!(layout.num_key_value_heads, 12);
+        assert_eq!(layout.layer_types, vec!["full_attention"; 12]);
+    }
+}
