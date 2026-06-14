@@ -17,6 +17,7 @@ from overlay_tests import (
     find_assertion_spans,
     in_assertion_context,
     crate_from_source_file,
+    is_production_symbol,
     run_overlay,
     _strip_label,
     RUST_KEYWORDS,
@@ -735,3 +736,83 @@ class TestSameCrateBypassesGenericnessCap:
         assert "my_crate_Result" not in edge_targets, (
             "std/prelude name 'Result' must be blocked even on same-crate path"
         )
+
+
+# ---------------------------------------------------------------------------
+# Production-symbol filtering for the per-crate report denominator (Task 0.1)
+# ---------------------------------------------------------------------------
+
+class TestProductionSymbolFilter:
+    """The report's per-crate 'Symbols' count must include only real production
+    definitions: src_-prefixed defs under /src/, excluding file nodes, type/std
+    REFERENCE nodes (crates_-prefixed ids), and in-src #[cfg(test)] test fns."""
+
+    TEST_FNS = {"crates/c/src/lib.rs": {"my_test"}}
+
+    def test_real_src_definition_is_production(self):
+        assert is_production_symbol(
+            {"id": "src_lib_do_thing", "label": "do_thing()", "_origin": "ast",
+             "source_file": "crates/c/src/lib.rs"}, self.TEST_FNS) is True
+
+    def test_file_node_is_excluded(self):
+        assert is_production_symbol(
+            {"id": "crates_c_src_lib_rs", "label": "lib.rs", "_origin": "ast",
+             "source_file": "crates/c/src/lib.rs"}, self.TEST_FNS) is False
+
+    def test_reference_node_is_excluded(self):
+        # type/std-use nodes carry full-path 'crates_' ids, not 'src_'
+        assert is_production_symbol(
+            {"id": "crates_c_src_lib_rs_option", "label": "Option", "_origin": "ast",
+             "source_file": "crates/c/src/lib.rs"}, self.TEST_FNS) is False
+
+    def test_in_src_test_fn_is_excluded(self):
+        assert is_production_symbol(
+            {"id": "src_lib_my_test", "label": "my_test()", "_origin": "ast",
+             "source_file": "crates/c/src/lib.rs"}, self.TEST_FNS) is False
+
+    def test_non_src_definition_is_excluded(self):
+        # benches/examples/build.rs defs are not production library symbols
+        assert is_production_symbol(
+            {"id": "benches_b_bench_it", "label": "bench_it()", "_origin": "ast",
+             "source_file": "crates/c/benches/b.rs"}, self.TEST_FNS) is False
+
+    def test_test_origin_node_is_excluded(self):
+        assert is_production_symbol(
+            {"id": "test::c::crates/c/src/lib.rs::my_test", "label": "my_test",
+             "_origin": "test", "source_file": "crates/c/src/lib.rs"}, self.TEST_FNS) is False
+
+    def test_report_denominator_counts_only_production(self, tmp_path):
+        # A graph with one real def + one file node + one ref node + one in-src
+        # test-fn def. The report's Symbols column must be 1, not 4.
+        nodes = [
+            {"id": "src_lib_do_thing", "label": "do_thing()", "file_type": "code",
+             "source_file": "crates/c/src/lib.rs", "_origin": "ast", "norm_label": "do_thing()"},
+            {"id": "crates_c_src_lib_rs", "label": "lib.rs", "file_type": "code",
+             "source_file": "crates/c/src/lib.rs", "_origin": "ast", "norm_label": "lib.rs"},
+            {"id": "crates_c_src_lib_rs_option", "label": "Option", "file_type": "code",
+             "source_file": "crates/c/src/lib.rs", "_origin": "ast", "norm_label": "option"},
+            {"id": "src_lib_my_test", "label": "my_test()", "file_type": "code",
+             "source_file": "crates/c/src/lib.rs", "_origin": "ast", "norm_label": "my_test()"},
+        ]
+        graph = _make_minimal_graph(nodes)
+        in_json = str(tmp_path / "in.json")
+        out_json = str(tmp_path / "out.json")
+        report = str(tmp_path / "report.md")
+        crate_dir = tmp_path / "crates" / "c" / "src"
+        crate_dir.mkdir(parents=True)
+        (crate_dir / "lib.rs").write_text(
+            "pub fn do_thing() -> i32 { 1 }\n"
+            "#[cfg(test)]\nmod tests {\n    #[test]\n"
+            "    fn my_test() { assert_eq!(do_thing(), 1); }\n}\n",
+            encoding="utf-8",
+        )
+        with open(in_json, "w", encoding="utf-8") as f:
+            json.dump(graph, f)
+        run_overlay(graph_path=in_json, repo_root=str(tmp_path),
+                    out_path=out_json, report_path=report)
+        text = Path(report).read_text(encoding="utf-8")
+        # find the row for crate 'c' and assert Symbols == 1
+        row = [ln for ln in text.splitlines() if ln.startswith("| c |")]
+        assert row, f"no crate row for 'c' in report:\n{text}"
+        symbols = int(row[0].split("|")[2].strip())
+        assert symbols == 1, f"expected 1 production symbol, report counted {symbols}"

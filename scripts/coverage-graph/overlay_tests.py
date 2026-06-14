@@ -175,6 +175,35 @@ def crate_from_source_file(source_file: str) -> str:
         return "unknown"
 
 
+def is_production_symbol(node: dict, test_fn_by_file: dict) -> bool:
+    """True iff `node` is a real production-symbol DEFINITION worth counting in the
+    per-crate coverage denominator.
+
+    Excludes the false-positive classes the fidelity audit found (see
+    docs/src/architecture/semantic-coverage-remediation-plan-2026-06-13.md §A):
+      - test-origin nodes;
+      - file nodes (label ends in ``.rs``);
+      - type/std REFERENCE nodes — definitions carry ``src_``-prefixed ids, while
+        references and file nodes carry full-path ``crates_``-prefixed ids;
+      - definitions outside ``/src/`` (``benches/``, ``examples/``, ``build.rs``);
+      - in-``src`` ``#[cfg(test)]`` test functions (label matches a detected test
+        fn in the same file — passed via ``test_fn_by_file``: {rel_path -> {fn_name}}).
+    """
+    if node.get("_origin") == "test":
+        return False
+    if not node.get("id", "").startswith("src_"):
+        return False
+    label = node.get("label", "")
+    if label.endswith(".rs"):
+        return False
+    sf = (node.get("source_file") or "").replace("\\", "/")
+    if "/src/" not in sf:
+        return False
+    if _strip_label(label) in test_fn_by_file.get(sf, set()):
+        return False
+    return True
+
+
 # ---------------------------------------------------------------------------
 # Brace-matching body extraction
 # ---------------------------------------------------------------------------
@@ -594,10 +623,18 @@ def _write_report(
     targets_count = sum(1 for link in new_links if link["relation"] == "targets")
     proves_count = sum(1 for link in new_links if link["relation"] == "proves")
 
-    # Group code symbols by crate
+    # Build the detected-test-fn set per file (from the test nodes) so in-src
+    # #[cfg(test)] functions are not miscounted as production symbols.
+    test_fn_by_file: dict[str, set[str]] = defaultdict(set)
+    for node in new_nodes:
+        sf = (node.get("source_file") or "").replace("\\", "/")
+        test_fn_by_file[sf].add(node.get("label", ""))
+
+    # Group PRODUCTION code symbols by crate (excludes file nodes, type/std
+    # reference nodes, non-/src/ defs, and in-src test fns — see §A audit).
     crate_symbols: dict[str, list[dict]] = defaultdict(list)
     for node in original_nodes:
-        if node.get("_origin") == "test":
+        if not is_production_symbol(node, test_fn_by_file):
             continue
         crate = crate_from_source_file(node.get("source_file", ""))
         crate_symbols[crate].append(node)
