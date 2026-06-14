@@ -40,6 +40,9 @@ pub mod types;
 pub use span::Span;
 
 #[cfg(test)]
+mod semcov_wave35_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

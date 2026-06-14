@@ -16473,6 +16473,7 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "blake3",
+ "tempfile",
 ]
 
 [[package]]

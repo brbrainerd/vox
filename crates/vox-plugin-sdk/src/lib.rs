@@ -148,6 +148,247 @@ macro_rules! declare_plugin {
 }
 
 #[cfg(test)]
+mod semcov_wave33_tests {
+    use super::std_types::{RBoxError, RResult, RString};
+    use super::{manifest_id_version_json, wrap};
+    use vox_plugin_api::abi::VoxPlugin;
+    use vox_plugin_api::{VOX_PLUGIN_ABI_MIN_SUPPORTED, VOX_PLUGIN_ABI_VERSION, abi_compatible};
+
+    // ---------------------------------------------------------------------------
+    // Shared test fixtures
+    // ---------------------------------------------------------------------------
+
+    #[derive(Clone)]
+    struct NullPlugin;
+    impl VoxPlugin for NullPlugin {
+        fn id(&self) -> RString {
+            RString::from("")
+        }
+        fn shutdown(&self) -> RResult<(), RBoxError> {
+            RResult::ROk(())
+        }
+    }
+
+    #[derive(Clone)]
+    struct ErrorShutdownPlugin;
+    impl VoxPlugin for ErrorShutdownPlugin {
+        fn id(&self) -> RString {
+            RString::from("error-plugin")
+        }
+        fn shutdown(&self) -> RResult<(), RBoxError> {
+            RResult::RErr(RBoxError::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "intentional shutdown failure",
+            )))
+        }
+    }
+
+    #[derive(Clone)]
+    struct UnicodePlugin;
+    impl VoxPlugin for UnicodePlugin {
+        fn id(&self) -> RString {
+            RString::from("плагин-\u{1F600}")
+        }
+        fn shutdown(&self) -> RResult<(), RBoxError> {
+            RResult::ROk(())
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // ABI version boundary tests
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn abi_version_floor_is_compatible() {
+        // Catches: off-by-one where MIN_SUPPORTED itself is rejected (> vs >=)
+        assert!(
+            abi_compatible(VOX_PLUGIN_ABI_MIN_SUPPORTED),
+            "MIN_SUPPORTED must be in the compatible range"
+        );
+    }
+
+    #[test]
+    fn abi_version_ceiling_is_compatible() {
+        // Catches: off-by-one where VOX_PLUGIN_ABI_VERSION itself is rejected (< vs <=)
+        assert!(
+            abi_compatible(VOX_PLUGIN_ABI_VERSION),
+            "current ABI version must be compatible"
+        );
+    }
+
+    #[test]
+    fn abi_one_below_floor_is_rejected() {
+        // Catches: range check uses > instead of >= causing old-ABI plugin to be silently accepted
+        if VOX_PLUGIN_ABI_MIN_SUPPORTED > 0 {
+            assert!(
+                !abi_compatible(VOX_PLUGIN_ABI_MIN_SUPPORTED - 1),
+                "version below MIN_SUPPORTED must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn abi_one_above_ceiling_is_rejected() {
+        // Catches: range check uses < instead of <= causing future-ABI plugin to be silently loaded
+        assert!(
+            !abi_compatible(VOX_PLUGIN_ABI_VERSION + 1),
+            "version above current ABI must be rejected"
+        );
+    }
+
+    #[test]
+    fn abi_zero_rejected_when_floor_is_nonzero() {
+        // Catches: degenerate input 0 slipping through if the check only tests the upper bound
+        if VOX_PLUGIN_ABI_MIN_SUPPORTED > 0 {
+            assert!(
+                !abi_compatible(0),
+                "ABI version 0 must be rejected when floor > 0"
+            );
+        }
+    }
+
+    #[test]
+    fn abi_u32_max_is_rejected() {
+        // Catches: overflow wrapping turning u32::MAX into a value inside the range
+        assert!(!abi_compatible(u32::MAX));
+    }
+
+    #[test]
+    fn abi_range_invariant_floor_le_ceiling() {
+        // Catches: accidental reversal of constants (floor bumped past ceiling) which would
+        // make every ABI version rejected without any compiler error
+        assert!(
+            VOX_PLUGIN_ABI_MIN_SUPPORTED <= VOX_PLUGIN_ABI_VERSION,
+            "MIN_SUPPORTED ({}) must not exceed VERSION ({})",
+            VOX_PLUGIN_ABI_MIN_SUPPORTED,
+            VOX_PLUGIN_ABI_VERSION
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // wrap() / VoxPlugin trait-object marshaling tests
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn wrap_empty_id_survives_erasure() {
+        // Catches: wrap silently truncating or replacing an empty-string id
+        let erased = wrap(NullPlugin);
+        assert_eq!(erased.id().as_str(), "");
+    }
+
+    #[test]
+    fn wrap_unicode_id_survives_erasure() {
+        // Catches: RString conversion dropping non-ASCII / multi-byte code points
+        let erased = wrap(UnicodePlugin);
+        assert_eq!(erased.id().as_str(), "плагин-\u{1F600}");
+    }
+
+    #[test]
+    fn wrap_shutdown_error_propagates_through_trait_object() {
+        // Catches: shutdown error being swallowed or converted to ROk at the FFI boundary
+        let erased = wrap(ErrorShutdownPlugin);
+        assert!(
+            erased.shutdown().is_err(),
+            "error from shutdown must propagate through the trait object"
+        );
+    }
+
+    #[test]
+    fn wrap_id_is_stable_across_two_calls() {
+        // Catches: id() returning a transient allocation that produces different bytes each call
+        let erased = wrap(UnicodePlugin);
+        assert_eq!(erased.id().as_str(), erased.id().as_str());
+    }
+
+    #[test]
+    fn wrap_shutdown_ok_returns_ok() {
+        // Catches: ROk being mistakenly mapped to RErr in the generated vtable dispatch
+        let erased = wrap(NullPlugin);
+        assert!(erased.shutdown().is_ok());
+    }
+
+    // ---------------------------------------------------------------------------
+    // manifest_id_version_json — boundary and adversarial TOML inputs
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn manifest_json_empty_string_falls_back_gracefully() {
+        // Catches: panic or unwrap on empty input instead of the documented fallback
+        let out = manifest_id_version_json("");
+        assert_eq!(out.as_str(), r#"{"id":"","version":"0.0.0"}"#);
+    }
+
+    #[test]
+    fn manifest_json_missing_version_falls_back_to_default() {
+        // Catches: missing `version` key causing an unwrap panic instead of "0.0.0"
+        let toml = "[plugin]\nid = \"only-id\"\nname = \"X\"\n";
+        let out = manifest_id_version_json(toml);
+        assert!(out.as_str().contains("\"version\":\"0.0.0\""));
+        assert!(out.as_str().contains("\"id\":\"only-id\""));
+    }
+
+    #[test]
+    fn manifest_json_missing_id_falls_back_to_empty_string() {
+        // Catches: missing `id` key causing an unwrap panic instead of ""
+        let toml = "[plugin]\nversion = \"3.0.0\"\nname = \"X\"\n";
+        let out = manifest_id_version_json(toml);
+        assert!(out.as_str().contains("\"id\":\"\""));
+        assert!(out.as_str().contains("\"version\":\"3.0.0\""));
+    }
+
+    #[test]
+    fn manifest_json_escapes_double_quote_in_id() {
+        // Catches: raw " in the id field breaking the JSON string boundary and
+        // producing malformed {"id":"foo"bar","version":"0.0.0"}
+        let toml = "[plugin]\nid = 'fo\"o'\nversion = \"1.0.0\"\n";
+        let out = manifest_id_version_json(toml);
+        let s = out.as_str();
+        // Must not contain an unescaped bare " inside the value position
+        assert!(
+            s.contains(r#"\"fo\\\"o\""#) || s.contains(r#""fo\"o""#) || s.contains(r#"fo\"o"#),
+            "double-quote in id must be escaped; got: {s}"
+        );
+        // The overall string must parse as valid JSON key
+        assert!(s.starts_with('{') && s.ends_with('}'));
+    }
+
+    #[test]
+    fn manifest_json_escapes_backslash_in_version() {
+        // Catches: backslash in version field breaking JSON (Windows path smuggled in)
+        let toml = "[plugin]\nid = \"ok\"\nversion = \"1\\\\0\"\n";
+        let out = manifest_id_version_json(toml);
+        let s = out.as_str();
+        // The output must not contain a literal unescaped backslash inside a JSON string
+        // i.e. the sequence `\"1\0\"` (where \0 is NUL) must not appear
+        assert!(
+            !s.contains("\"\\\0\""),
+            "null byte must not be injected; got: {s}"
+        );
+        assert!(s.starts_with('{') && s.ends_with('}'));
+    }
+
+    #[test]
+    fn manifest_json_no_plugin_section_produces_fallback() {
+        // Catches: code assuming [plugin] table always exists and panicking on None
+        let toml = "[other]\nkey = \"value\"\n";
+        let out = manifest_id_version_json(toml);
+        assert_eq!(out.as_str(), r#"{"id":"","version":"0.0.0"}"#);
+    }
+
+    #[test]
+    fn manifest_json_output_is_valid_json_structure() {
+        // Catches: format string typo producing malformed JSON (e.g. single-quoted, missing braces)
+        let toml = "[plugin]\nid = \"my-plugin\"\nversion = \"2.1.0\"\n";
+        let out = manifest_id_version_json(toml);
+        let s = out.as_str();
+        assert!(s.starts_with('{'), "must start with {{");
+        assert!(s.ends_with('}'), "must end with }}");
+        assert!(s.contains("\"id\""), "must have id key");
+        assert!(s.contains("\"version\""), "must have version key");
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::std_types::{RBoxError, RResult, RString};
     use super::wrap;

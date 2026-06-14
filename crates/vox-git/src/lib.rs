@@ -30,3 +30,6 @@ pub mod read_cmd;
 pub mod refs;
 pub use bridge::GitBridge;
 pub use read_cmd::{GitReadError, read_only};
+
+#[cfg(test)]
+mod semcov_wave38_tests;

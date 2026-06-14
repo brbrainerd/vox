@@ -145,3 +145,181 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod semcov_wave39_tests {
+    use super::*;
+    use crate::BackendKind;
+
+    // --- normalize_vox_type whitespace/case ---
+
+    #[test]
+    fn type_with_surrounding_whitespace_maps_correctly() {
+        // Catches: normalize_vox_type not trimming; " str " fails to hit "str" arm → spurious reject
+        let result = vox_type_to_sql(
+            BackendKind::Postgres,
+            " str ",
+            UnsupportedTypePolicy::Reject,
+        );
+        assert_eq!(result.expect("should map trimmed str"), "TEXT");
+    }
+
+    #[test]
+    fn type_name_uppercase_str_maps_via_normalization() {
+        // Catches: case-sensitive match — "STR" not matching "str" arm
+        let result = vox_type_to_sql(BackendKind::Postgres, "STR", UnsupportedTypePolicy::Reject);
+        assert_eq!(result.expect("STR should normalize to str"), "TEXT");
+    }
+
+    #[test]
+    fn option_wrapper_strips_correctly_for_all_backends() {
+        // Catches: option[ ] stripping only working on one backend; inner type normalization broken
+        for backend in [
+            BackendKind::Libsql,
+            BackendKind::Postgres,
+            BackendKind::MySql,
+        ] {
+            let result = vox_type_to_sql(backend, "option[int]", UnsupportedTypePolicy::Reject)
+                .unwrap_or_else(|_| panic!("option[int] should unwrap for {backend:?}"));
+            // int maps to INTEGER (libsql) or BIGINT (pg/mysql)
+            assert!(
+                result == "INTEGER" || result == "BIGINT",
+                "option[int] → unexpected {result} for {backend:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn option_uppercase_wrapper_also_unwraps() {
+        // Catches: option stripping only handled lowercase; "Option[str]" fails
+        let result = vox_type_to_sql(
+            BackendKind::Libsql,
+            "Option[str]",
+            UnsupportedTypePolicy::Reject,
+        );
+        assert_eq!(result.expect("Option[str] should unwrap"), "TEXT");
+    }
+
+    #[test]
+    fn dec_alias_maps_same_as_decimal() {
+        // Catches: only one of "decimal"/"dec" in the match arm; the other falls through to unsupported
+        let dec = vox_type_to_sql(BackendKind::Postgres, "dec", UnsupportedTypePolicy::Reject)
+            .expect("dec alias should map");
+        let decimal = vox_type_to_sql(
+            BackendKind::Postgres,
+            "decimal",
+            UnsupportedTypePolicy::Reject,
+        )
+        .expect("decimal should map");
+        assert_eq!(dec, decimal, "dec and decimal must map identically");
+    }
+
+    #[test]
+    fn id_bracket_prefix_maps_on_all_backends() {
+        // Catches: id[ ] prefix match missing for MySql or Libsql
+        for (backend, expected) in [
+            (BackendKind::Libsql, "INTEGER"),
+            (BackendKind::Postgres, "BIGINT"),
+            (BackendKind::MySql, "BIGINT"),
+        ] {
+            let result = vox_type_to_sql(backend, "id[User]", UnsupportedTypePolicy::Reject)
+                .unwrap_or_else(|_| panic!("id[User] should map for {backend:?}"));
+            assert_eq!(result, expected, "{backend:?}");
+        }
+    }
+
+    #[test]
+    fn opaque_blob_policy_returns_backend_specific_blob_type() {
+        // Catches: OpaqueBlob falling through to JsonText or returning uniform "BLOB" regardless of backend
+        assert_eq!(
+            vox_type_to_sql(
+                BackendKind::Postgres,
+                "Unknown",
+                UnsupportedTypePolicy::OpaqueBlob
+            )
+            .expect("opaque blob postgres"),
+            "BYTEA"
+        );
+        assert_eq!(
+            vox_type_to_sql(
+                BackendKind::MySql,
+                "Unknown",
+                UnsupportedTypePolicy::OpaqueBlob
+            )
+            .expect("opaque blob mysql"),
+            "LONGBLOB"
+        );
+        assert_eq!(
+            vox_type_to_sql(
+                BackendKind::Libsql,
+                "Unknown",
+                UnsupportedTypePolicy::OpaqueBlob
+            )
+            .expect("opaque blob libsql"),
+            "BLOB"
+        );
+    }
+
+    #[test]
+    fn json_text_policy_returns_longtext_for_mysql_not_text() {
+        // Catches: JsonText returning plain "TEXT" for MySQL (breaks large JSON docs >64KB)
+        let result = vox_type_to_sql(
+            BackendKind::MySql,
+            "CustomRecord",
+            UnsupportedTypePolicy::JsonText,
+        )
+        .expect("json text mysql");
+        assert_eq!(
+            result, "LONGTEXT",
+            "MySQL JsonText must use LONGTEXT not TEXT: {result}"
+        );
+    }
+
+    #[test]
+    fn reject_policy_error_message_contains_original_type_name() {
+        // Catches: error message stripping or mangling the type name, making diagnostics useless
+        let err = vox_type_to_sql(
+            BackendKind::Postgres,
+            "MyCustomType",
+            UnsupportedTypePolicy::Reject,
+        )
+        .unwrap_err();
+        assert!(
+            err.vox_type.contains("MyCustomType"),
+            "error must preserve original type name, got: {:?}",
+            err.vox_type
+        );
+    }
+
+    #[test]
+    fn float_maps_to_double_precision_on_postgres_not_float() {
+        // Catches: postgres float mapped to FLOAT instead of DOUBLE PRECISION (loses mantissa bits)
+        let result = vox_type_to_sql(
+            BackendKind::Postgres,
+            "float",
+            UnsupportedTypePolicy::Reject,
+        )
+        .expect("float postgres");
+        assert_eq!(result, "DOUBLE PRECISION");
+    }
+
+    #[test]
+    fn bool_maps_to_integer_on_libsql_not_boolean() {
+        // Catches: SQLite/libsql receiving BOOLEAN DDL which SQLite accepts but stores as NUMERIC affinity
+        let result = vox_type_to_sql(BackendKind::Libsql, "bool", UnsupportedTypePolicy::Reject)
+            .expect("bool libsql");
+        assert_eq!(result, "INTEGER", "libsql bool must be INTEGER not BOOLEAN");
+    }
+
+    #[test]
+    fn bytes_maps_to_bytea_on_postgres_not_blob() {
+        // Catches: postgres bytes returning generic "BLOB" (invalid in Postgres DDL)
+        let result = vox_type_to_sql(
+            BackendKind::Postgres,
+            "bytes",
+            UnsupportedTypePolicy::Reject,
+        )
+        .expect("bytes postgres");
+        assert_eq!(result, "BYTEA");
+    }
+}
