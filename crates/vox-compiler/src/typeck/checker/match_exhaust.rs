@@ -224,3 +224,60 @@ fn check_builtin_match_exhaustiveness(
         diags.push(d);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1c_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::hir::HirExpr;
+
+    #[test]
+    fn builtin_exhaustiveness_reports_missing_option_variant() {
+        let sp = Span::new(0, 1);
+        // match opt { Some(_) => 0 }  -- missing `None`
+        let arm = HirMatchArm {
+            pattern: HirPattern::Constructor("Some".to_string(), vec![], sp),
+            guard: None,
+            body: Box::new(HirExpr::IntLit(0, sp)),
+            span: sp,
+        };
+        let mut diags: Vec<Diagnostic> = Vec::new();
+        check_builtin_match_exhaustiveness(
+            &[arm],
+            sp,
+            &mut diags,
+            "match opt {}",
+            "Option",
+            &[&["Some"], &["None"]],
+        );
+        assert_eq!(diags.len(), 1, "expected one non-exhaustive diagnostic");
+        assert_eq!(diags[0].code.as_deref(), Some("E0301"));
+        assert_eq!(diags[0].missing_cases, vec!["None".to_string()]);
+        assert!(diags[0].message.contains("Option"));
+    }
+
+    #[test]
+    fn builtin_exhaustiveness_wildcard_binding_suppresses_diagnostic() {
+        let sp = Span::new(0, 1);
+        // A bare binding identifier (not a known variant) acts as a wildcard.
+        let arm = HirMatchArm {
+            pattern: HirPattern::Ident("other".to_string(), sp),
+            guard: None,
+            body: Box::new(HirExpr::IntLit(0, sp)),
+            span: sp,
+        };
+        let mut diags: Vec<Diagnostic> = Vec::new();
+        check_builtin_match_exhaustiveness(
+            &[arm],
+            sp,
+            &mut diags,
+            "match res {}",
+            "Result",
+            &[&["Ok"], &["Err", "Error"]],
+        );
+        assert!(
+            diags.is_empty(),
+            "binding ident should cover all remaining cases"
+        );
+    }
+}

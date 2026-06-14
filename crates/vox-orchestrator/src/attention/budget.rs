@@ -398,3 +398,33 @@ pub fn clarification_stop_rule(
     }
     ClarificationLoopStop::Continue
 }
+
+#[cfg(test)]
+mod semcov_wave1c_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn attention_cost_matches_exact_nasa_tlx_formula() {
+        let action = ActionDescriptor {
+            estimated_complexity: 10,
+            tokens_output: 1000,
+            priority: TaskPriority::Urgent,
+            write_file_count: 0,
+            external: false,
+            repeated_approve_count: 0,
+            concurrent_tasks: 1,
+        };
+        let weights = NasaTlxWeights::default();
+        // token_complexity = min(1000/1000, 10) = 1.0
+        // effective_complexity = 0.4*10 + 0.6*1.0 = 4.6 -> mental = 0.46
+        // temporal(Urgent)=1.0, frustration=0, trust_discount(trust=1.0)=0
+        // weighted = 0.35*0.46 + 0.25*1.0 = 0.411 ; csm = 1.0
+        // 100 * 0.411 * 1.0 = 41.1 -> 41
+        let cost = compute_attention_cost_ms(&action, 1.0, 100, &weights);
+        assert_eq!(
+            cost, 41,
+            "exact NASA TLX attention cost for the fixed input"
+        );
+    }
+}

@@ -243,3 +243,36 @@ pub fn to_snake_case(s: &str) -> String {
     }
     result
 }
+
+#[cfg(test)]
+mod semcov_wave1c_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn vector_index_to_ddl_emits_comment_and_snake_cased_create_index() {
+        let vidx = VectorIndexDecl {
+            table_name: "UserProfile".to_string(),
+            index_name: "by_embedding".to_string(),
+            column: "embedding".to_string(),
+            dimensions: 1536,
+            filter_fields: Vec::new(),
+            span: vox_ast::span::Span::new(0, 0),
+        };
+
+        let stmts = vector_index_to_ddl(&vidx);
+
+        assert_eq!(stmts.len(), 2);
+        // Comment preserves the RAW (non-snake-cased) table/index/column names and dims.
+        assert_eq!(
+            stmts[0],
+            "-- Vector index: UserProfile.by_embedding on column 'embedding' with 1536 dimensions"
+        );
+        // CREATE INDEX snake_cases the table name (UserProfile -> user_profile) but
+        // leaves index_name and column verbatim.
+        assert_eq!(
+            stmts[1],
+            "CREATE INDEX IF NOT EXISTS idx_user_profile_by_embedding_vec ON user_profile (embedding);"
+        );
+    }
+}

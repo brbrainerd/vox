@@ -363,3 +363,85 @@ mod shell_stdlib_interp_tests {
         interp_toml_parse(&t).expect("toml parse final step should succeed");
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1c_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn toml_value_to_json_converts_scalars_arrays_and_tables() {
+        // String / Integer / Boolean
+        assert_eq!(
+            toml_value_to_json(&toml::Value::String("hi".to_string())).unwrap(),
+            serde_json::Value::String("hi".to_string())
+        );
+        assert_eq!(
+            toml_value_to_json(&toml::Value::Integer(42)).unwrap(),
+            serde_json::json!(42)
+        );
+        assert_eq!(
+            toml_value_to_json(&toml::Value::Boolean(true)).unwrap(),
+            serde_json::Value::Bool(true)
+        );
+
+        // Float: finite value round-trips through serde_json::Number
+        let jf = toml_value_to_json(&toml::Value::Float(1.5)).unwrap();
+        assert!((jf.as_f64().unwrap() - 1.5).abs() < 1e-9);
+
+        // Array of mixed scalars converts element-wise
+        let arr = toml::Value::Array(vec![
+            toml::Value::Integer(1),
+            toml::Value::String("x".to_string()),
+        ]);
+        assert_eq!(
+            toml_value_to_json(&arr).unwrap(),
+            serde_json::json!([1, "x"])
+        );
+
+        // Table converts to a JSON object preserving keys
+        let mut tbl = toml::map::Map::new();
+        tbl.insert("k".to_string(), toml::Value::Integer(7));
+        let jt = toml_value_to_json(&toml::Value::Table(tbl)).unwrap();
+        assert_eq!(jt, serde_json::json!({ "k": 7 }));
+    }
+
+    #[test]
+    fn toml_value_to_json_non_finite_float_becomes_null() {
+        // serde_json::Number::from_f64 returns None for NaN -> Null branch
+        let jn = toml_value_to_json(&toml::Value::Float(f64::NAN)).unwrap();
+        assert_eq!(jn, serde_json::Value::Null);
+    }
+
+    #[test]
+    fn toml_value_to_json_maps_variants_and_nan_to_null() {
+        // Scalars
+        assert_eq!(
+            toml_value_to_json(&toml::Value::String("hi".to_string())).unwrap(),
+            serde_json::Value::String("hi".to_string())
+        );
+        assert_eq!(
+            toml_value_to_json(&toml::Value::Integer(42)).unwrap(),
+            serde_json::json!(42)
+        );
+        assert_eq!(
+            toml_value_to_json(&toml::Value::Boolean(true)).unwrap(),
+            serde_json::Value::Bool(true)
+        );
+
+        // NaN float has no JSON Number representation -> mapped to Null
+        assert_eq!(
+            toml_value_to_json(&toml::Value::Float(f64::NAN)).unwrap(),
+            serde_json::Value::Null
+        );
+
+        // Nested table with an array becomes an Object containing an Array
+        let mut inner = toml::map::Map::new();
+        inner.insert(
+            "nums".to_string(),
+            toml::Value::Array(vec![toml::Value::Integer(1), toml::Value::Integer(2)]),
+        );
+        let got = toml_value_to_json(&toml::Value::Table(inner)).unwrap();
+        assert_eq!(got, serde_json::json!({ "nums": [1, 2] }));
+    }
+}

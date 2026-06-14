@@ -409,3 +409,42 @@ mod tests {
         assert_eq!(harness.subject.thread_id.as_deref(), Some("thread-fill"));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1c_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn rejects_unsupported_schema_version_and_repo_mismatch() {
+        let mut harness = AgentHarnessSpec::minimal_contract_first(
+            "repo-actual",
+            "Implement the contract-first runtime path",
+            Some("sid-1"),
+            Some("thread-1"),
+            &["artifacts/out.json".to_string()],
+        );
+        harness.schema_version = 2;
+        let res = validate_agent_harness_ingest(
+            &harness,
+            HarnessIngestExpectations {
+                repository_id: "repo-expected",
+                session_id: Some("sid-1"),
+                thread_id: Some("thread-1"),
+            },
+        );
+        let errors = res.expect_err("schema_version 2 + repo mismatch must fail validation");
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.contains("unsupported harness schema_version 2")),
+            "missing schema_version error: {errors:?}"
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.contains("does not match expected") && e.contains("repo-expected")),
+            "missing repository_id mismatch error: {errors:?}"
+        );
+    }
+}

@@ -89,3 +89,52 @@ fn infix_bp(op: BinOp) -> (u8, u8) {
         BinOp::Mul | BinOp::Div | BinOp::Mod => (13, 14),
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1c_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn infix_bp_encodes_precedence_and_left_associativity() {
+        // Exact (left, right) binding powers per operator class.
+        assert_eq!(infix_bp(BinOp::Pipe), (1, 2));
+        assert_eq!(infix_bp(BinOp::Or), (3, 4));
+        assert_eq!(infix_bp(BinOp::And), (5, 6));
+        assert_eq!(infix_bp(BinOp::Is), (7, 8));
+        assert_eq!(infix_bp(BinOp::Isnt), (7, 8));
+        assert_eq!(infix_bp(BinOp::Lt), (9, 10));
+        assert_eq!(infix_bp(BinOp::Gt), (9, 10));
+        assert_eq!(infix_bp(BinOp::Lte), (9, 10));
+        assert_eq!(infix_bp(BinOp::Gte), (9, 10));
+        assert_eq!(infix_bp(BinOp::Add), (11, 12));
+        assert_eq!(infix_bp(BinOp::Sub), (11, 12));
+        assert_eq!(infix_bp(BinOp::Mul), (13, 14));
+        assert_eq!(infix_bp(BinOp::Div), (13, 14));
+        assert_eq!(infix_bp(BinOp::Mod), (13, 14));
+
+        // Invariant: every operator is left-associative (right bp = left bp + 1).
+        for op in [
+            BinOp::Pipe,
+            BinOp::Or,
+            BinOp::And,
+            BinOp::Is,
+            BinOp::Isnt,
+            BinOp::Lt,
+            BinOp::Add,
+            BinOp::Mul,
+        ] {
+            let (l, r) = infix_bp(op);
+            assert_eq!(r, l + 1, "operator {:?} must be left-associative", op);
+        }
+
+        // Invariant: multiplicative binds tighter than additive, which binds
+        // tighter than comparison, etc. (left bp strictly increases by class).
+        assert!(infix_bp(BinOp::Mul).0 > infix_bp(BinOp::Add).0);
+        assert!(infix_bp(BinOp::Add).0 > infix_bp(BinOp::Lt).0);
+        assert!(infix_bp(BinOp::Lt).0 > infix_bp(BinOp::Is).0);
+        assert!(infix_bp(BinOp::Is).0 > infix_bp(BinOp::And).0);
+        assert!(infix_bp(BinOp::And).0 > infix_bp(BinOp::Or).0);
+        assert!(infix_bp(BinOp::Or).0 > infix_bp(BinOp::Pipe).0);
+    }
+}

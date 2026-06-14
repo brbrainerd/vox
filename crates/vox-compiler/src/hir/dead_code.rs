@@ -237,3 +237,144 @@ fn visit_expr(expr: &HirExpr, used: &mut HashSet<String>) {
         _ => {}
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1c_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::ast::span::Span;
+    use crate::hir::*;
+
+    #[test]
+    fn private_unused_function_is_flagged_dead() {
+        let f = crate::hir::HirFn {
+            id: crate::hir::DefId(0),
+            name: "foo".into(),
+            generics: vec![],
+            params: vec![],
+            return_type: None,
+            body: vec![],
+            is_async: false,
+            is_pub: false,
+            is_mobile_native: false,
+            is_pure: false,
+            is_reactive: false,
+            is_versioned: false,
+            is_remote: false,
+            is_llm: false,
+            llm_model: None,
+            ai_structured_output: None,
+            ai_fixture: None,
+            embed: None,
+            is_deprecated: false,
+            schedule_interval: None,
+            durability: None,
+            actor_state_fields: vec![],
+            capabilities: vec![],
+            postconditions: vec![],
+            ts_extern_module: None,
+            generated_hash: None,
+            span: crate::ast::span::Span::new(0, 1),
+            inference_model: None,
+            training_step: true,
+            distributed_train: None,
+        };
+        let module = HirModule {
+            functions: vec![f],
+            ..Default::default()
+        };
+
+        let warnings = check_dead_code(&module);
+
+        assert_eq!(warnings.len(), 1, "exactly one dead-code warning expected");
+        assert_eq!(warnings[0].0, "function `foo` is never used");
+    }
+
+    #[test]
+    fn unused_private_fn_is_reported_as_dead_code() {
+        let dead = HirFn {
+            id: DefId(0),
+            name: "helper".into(),
+            generics: vec![],
+            params: vec![],
+            return_type: None,
+            body: vec![],
+            is_async: false,
+            is_pub: false,
+            is_mobile_native: false,
+            is_pure: false,
+            is_reactive: false,
+            is_versioned: false,
+            is_remote: false,
+            is_llm: false,
+            llm_model: None,
+            ai_structured_output: None,
+            ai_fixture: None,
+            embed: None,
+            is_deprecated: false,
+            schedule_interval: None,
+            durability: None,
+            actor_state_fields: vec![],
+            capabilities: vec![],
+            postconditions: vec![],
+            ts_extern_module: None,
+            generated_hash: None,
+            span: Span::new(0, 1),
+            inference_model: None,
+            training_step: false,
+            distributed_train: None,
+        };
+        let module = HirModule {
+            functions: vec![dead],
+            ..Default::default()
+        };
+        let warnings = check_dead_code(&module);
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].0, "function `helper` is never used");
+        assert_eq!(warnings[0].1, Span::new(0, 1));
+    }
+
+    #[test]
+    fn pub_fn_and_empty_module_are_not_dead_code() {
+        // A pub function is never flagged even if unused.
+        let exported = HirFn {
+            id: DefId(0),
+            name: "api".into(),
+            generics: vec![],
+            params: vec![],
+            return_type: None,
+            body: vec![],
+            is_async: false,
+            is_pub: true,
+            is_mobile_native: false,
+            is_pure: false,
+            is_reactive: false,
+            is_versioned: false,
+            is_remote: false,
+            is_llm: false,
+            llm_model: None,
+            ai_structured_output: None,
+            ai_fixture: None,
+            embed: None,
+            is_deprecated: false,
+            schedule_interval: None,
+            durability: None,
+            actor_state_fields: vec![],
+            capabilities: vec![],
+            postconditions: vec![],
+            ts_extern_module: None,
+            generated_hash: None,
+            span: Span::new(0, 1),
+            inference_model: None,
+            training_step: false,
+            distributed_train: None,
+        };
+        let module = HirModule {
+            functions: vec![exported],
+            ..Default::default()
+        };
+        assert!(check_dead_code(&module).is_empty());
+        // An entirely empty module yields no warnings.
+        assert!(check_dead_code(&HirModule::default()).is_empty());
+    }
+}

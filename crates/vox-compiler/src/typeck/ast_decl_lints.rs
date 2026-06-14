@@ -1029,3 +1029,88 @@ fn check_side_effect_outside_workflow_expr(
         _ => {}
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1c_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::typeck::diagnostics::{Diagnostic, TypeckSeverity, codes};
+
+    #[test]
+    fn let_with_time_now_flags_non_deterministic_call() {
+        use crate::ast::expr::{Arg, Expr};
+        use crate::ast::pattern::Pattern;
+        use crate::ast::span::Span;
+        use crate::ast::stmt::Stmt;
+
+        let sp = Span::new(0, 0);
+        // `let x = time.now()`
+        let value = Expr::MethodCall {
+            object: Box::new(Expr::Ident {
+                name: "time".to_string(),
+                span: sp,
+            }),
+            method: "now".to_string(),
+            args: Vec::<Arg>::new(),
+            span: sp,
+        };
+        let stmt = Stmt::Let {
+            pattern: Pattern::Ident {
+                name: "x".to_string(),
+                span: sp,
+            },
+            type_ann: None,
+            value,
+            mutable: false,
+            span: sp,
+        };
+
+        let mut diags: Vec<Diagnostic> = Vec::new();
+        check_workflow_stmt_determinism(&stmt, "wf", &mut diags);
+
+        assert_eq!(diags.len(), 1, "exactly one diagnostic expected");
+        let d = &diags[0];
+        assert_eq!(d.severity, TypeckSeverity::Error);
+        assert_eq!(
+            d.code.as_deref(),
+            Some(codes::WORKFLOW_NON_DETERMINISTIC_CALL)
+        );
+        assert!(d.message.contains("time.now()"));
+        assert!(d.message.contains("wf"));
+    }
+
+    #[test]
+    fn let_with_deterministic_call_produces_no_diagnostic() {
+        use crate::ast::expr::{Arg, Expr};
+        use crate::ast::pattern::Pattern;
+        use crate::ast::span::Span;
+        use crate::ast::stmt::Stmt;
+
+        let sp = Span::new(0, 0);
+        // `let x = foo.bar()` — receiver is not in NON_DETERMINISTIC_CALLS
+        let value = Expr::MethodCall {
+            object: Box::new(Expr::Ident {
+                name: "foo".to_string(),
+                span: sp,
+            }),
+            method: "bar".to_string(),
+            args: Vec::<Arg>::new(),
+            span: sp,
+        };
+        let stmt = Stmt::Let {
+            pattern: Pattern::Ident {
+                name: "x".to_string(),
+                span: sp,
+            },
+            type_ann: None,
+            value,
+            mutable: false,
+            span: sp,
+        };
+
+        let mut diags: Vec<Diagnostic> = Vec::new();
+        check_workflow_stmt_determinism(&stmt, "wf", &mut diags);
+
+        assert!(diags.is_empty(), "deterministic call must not be flagged");
+    }
+}
