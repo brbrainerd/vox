@@ -3,10 +3,10 @@
 /// `HirExpr::AsyncView` must emit the four-branch IIFE produced by
 /// `emit_async_view_tsx`, not the dead `{src} /* async view */` stub.
 use std::collections::HashSet;
-use vox_codegen_ts::hir_emit::emit_hir_expr;
 use vox_codegen_ts::hir_emit::EmitCtx;
-use vox_compiler::hir::{HirAsyncView, HirExpr};
+use vox_codegen_ts::hir_emit::emit_hir_expr;
 use vox_compiler::ast::span::Span;
+use vox_compiler::hir::{HirAsyncView, HirExpr};
 
 fn s() -> Span {
     Span::new(0, 0)

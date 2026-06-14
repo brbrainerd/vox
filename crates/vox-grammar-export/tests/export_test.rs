@@ -397,7 +397,10 @@ fn all_decorators_appear_in_grammar_js() {
         })
         .collect();
 
-    assert!(!decorators.is_empty(), "should find at least one @decorator token in token.rs");
+    assert!(
+        !decorators.is_empty(),
+        "should find at least one @decorator token in token.rs"
+    );
 
     let mut missing: Vec<&str> = decorators
         .iter()

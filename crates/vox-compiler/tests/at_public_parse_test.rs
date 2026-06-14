@@ -7,7 +7,11 @@ use vox_compiler::{lexer::lex, parser::descent::parse};
 fn parse_ok(src: &str) {
     let toks = lex(src);
     let result = parse(toks);
-    assert!(result.is_ok(), "parse failed for: {src}\nerr: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "parse failed for: {src}\nerr: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -36,7 +40,10 @@ fn at_public_sets_is_pub_true() {
     use vox_compiler::ast::decl::Decl;
     let toks = lex("@public @server\nfn get_health() -> Str { \"ok\" }\n");
     let module = parse(toks).expect("parse");
-    let decl = module.declarations.iter().find(|d| matches!(d, Decl::Endpoint(_)));
+    let decl = module
+        .declarations
+        .iter()
+        .find(|d| matches!(d, Decl::Endpoint(_)));
     let Decl::Endpoint(ep) = decl.expect("endpoint decl") else {
         panic!("expected Endpoint decl");
     };

@@ -137,7 +137,8 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 if let HirExpr::Ident(name, _) = right.as_ref()
                     && interp.scope.get(name).is_none()
                     && interp.module_scope.get(name).is_none()
-                    && let Some(result) = super::builtins::call_global_builtin(name, vec![l.clone()])
+                    && let Some(result) =
+                        super::builtins::call_global_builtin(name, vec![l.clone()])
                 {
                     return Ok(result);
                 }

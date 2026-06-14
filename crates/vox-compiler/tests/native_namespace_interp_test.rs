@@ -3,10 +3,7 @@
 /// Native-only namespaces must produce an actionable "use compiled backend" diagnostic
 /// instead of a confusing UndefinedVariable("OpenClaw") / UndefinedVariable("Scrape").
 use vox_compiler::{
-    eval::Interpreter,
-    hir::lower::lower_module,
-    lexer::lex,
-    parser::descent::parse,
+    eval::Interpreter, hir::lower::lower_module, lexer::lex, parser::descent::parse,
 };
 
 fn eval_fn_main(src: &str) -> String {

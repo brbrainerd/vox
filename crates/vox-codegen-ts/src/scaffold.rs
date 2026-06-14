@@ -8,7 +8,6 @@
 
 use std::path::Path;
 
-
 /// Files relative to project root (`app/`, `vite.config.ts`, etc.).
 pub type ScaffoldFile = (String, String);
 
@@ -117,10 +116,7 @@ export default defineConfig({
 "#
             .to_string(),
         ),
-        (
-            "package.json".to_string(),
-            pkg_json,
-        ),
+        ("package.json".to_string(), pkg_json),
     ]
 }
 
@@ -154,7 +150,7 @@ pub fn package_json_with_extra_deps(extra_packages: &[&str]) -> String {
 /// the `es_module_specifier` fields in `imports`.
 #[must_use]
 pub fn extra_deps_from_imports(imports: &[vox_compiler::hir::HirImport]) -> Vec<String> {
-    use super::external_libs::{bare_package, LIBRARIES};
+    use super::external_libs::{LIBRARIES, bare_package};
     let mut pkgs: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     for imp in imports {
         let Some(spec) = &imp.es_module_specifier else {

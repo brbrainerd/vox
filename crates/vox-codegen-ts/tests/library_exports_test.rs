@@ -54,5 +54,8 @@ fn any_export_true_when_has_components() {
         has_schema_ts: false,
         component_names: vec!["Card".to_string()],
     };
-    assert!(cfg.any_export(), "any_export must be true when component_names is non-empty");
+    assert!(
+        cfg.any_export(),
+        "any_export must be true when component_names is non-empty"
+    );
 }

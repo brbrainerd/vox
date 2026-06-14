@@ -42,10 +42,7 @@ fn multiple_imports_all_land() {
 import react {B} from "@acme/icons"
 component App() { }"#,
     );
-    assert!(
-        pkg.contains("@acme/ui"),
-        "@acme/ui must appear\ngot: {pkg}"
-    );
+    assert!(pkg.contains("@acme/ui"), "@acme/ui must appear\ngot: {pkg}");
     assert!(
         pkg.contains("@acme/icons"),
         "@acme/icons must appear\ngot: {pkg}"

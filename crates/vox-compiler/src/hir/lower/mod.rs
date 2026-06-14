@@ -337,12 +337,14 @@ impl LowerCtx {
                             crate::hir::nodes::layer::HirLayerDecl { tier, span: l.span }
                         })
                     });
-                    let auth = e.func.auth_provider.as_ref().map(|provider| {
-                        crate::hir::HirAuth {
+                    let auth = e
+                        .func
+                        .auth_provider
+                        .as_ref()
+                        .map(|provider| crate::hir::HirAuth {
                             provider: provider.clone(),
                             roles: e.func.roles.clone(),
-                        }
-                    });
+                        });
                     hir.endpoint_fns.push(crate::hir::HirEndpointFn {
                         kind,
                         id: lowered.id,
