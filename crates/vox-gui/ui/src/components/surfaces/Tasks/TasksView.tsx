@@ -28,7 +28,9 @@ const PRIORITY_STYLE: Record<string, string> = {
 function PriorityChip({ value, onCycle }: { value: string; onCycle: () => void }) {
   return (
     <button
+      type="button"
       onClick={onCycle}
+      aria-label={`Priority: ${value}. Click to cycle priority`}
       title="Click to cycle priority (urgent → background → normal)"
       className={`shrink-0 rounded border px-1.5 py-px font-mono text-[9px] uppercase tracking-widest transition focus:outline-none focus:ring-1 focus:ring-brass/40 ${PRIORITY_STYLE[value] ?? PRIORITY_STYLE.normal}`}
     >
@@ -199,21 +201,25 @@ export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
       {editable && (
         <div className="flex shrink-0 items-center gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
           <button
+            type="button"
             title="Edit task text"
+            aria-label={`Edit task #${t.id}`}
             onClick={() => {
               setEditingId(t.id);
               setDraft(t.description);
             }}
             className="rounded p-1 text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-brass/40"
           >
-            <Icon.edit className="size-3.5" />
+            <Icon.edit className="size-3.5" aria-hidden="true" />
           </button>
           <button
+            type="button"
             title="Remove task"
+            aria-label={`Remove task #${t.id}`}
             onClick={() => remove(t.id)}
             className="rounded p-1 text-zinc-400 hover:bg-red-400/10 hover:text-red-300 focus:outline-none focus:ring-1 focus:ring-red-400/40"
           >
-            <Icon.trash className="size-3.5" />
+            <Icon.trash className="size-3.5" aria-hidden="true" />
           </button>
         </div>
       )}
@@ -230,24 +236,28 @@ export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
           </p>
         </div>
         <button
+          type="button"
           onClick={refresh}
           title="Refresh"
+          aria-label="Refresh tasks"
           className="rounded-lg border border-white/10 p-1.5 text-zinc-400 hover:bg-white/[0.05] focus:outline-none focus:ring-1 focus:ring-brass/40"
         >
-          <Icon.refresh className="size-4" />
+          <Icon.refresh className="size-4" aria-hidden="true" />
         </button>
       </div>
 
       <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
-        <Icon.plus className="size-4 text-brass" />
+        <Icon.plus className="size-4 text-brass" aria-hidden="true" />
         <input
           value={newTask}
           onChange={e => setNewTask(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && addTask()}
           placeholder="Add a task…"
+          aria-label="Add a task"
           className="flex-1 bg-transparent text-[13px] text-zinc-100 placeholder:text-zinc-600 outline-none"
         />
         <button
+          type="button"
           onClick={addTask}
           disabled={busy || !newTask.trim()}
           className="rounded-lg border border-brass/30 bg-brass/10 px-2.5 py-1 text-[11px] text-brass disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-brass/40"
@@ -264,7 +274,9 @@ export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
             return (
               <button
                 key={sid ?? '__all__'}
+                type="button"
                 onClick={() => setSessionFilter(sid)}
+                aria-pressed={active}
                 className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40 ${
                   active
                     ? 'border-brass/40 bg-brass/10 text-brass'
@@ -279,7 +291,7 @@ export function TasksView(_props: { pushToast?: (t: unknown) => void }) {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-red-300">
+        <div role="alert" className="rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-[11px] text-red-300">
           {error}
         </div>
       )}

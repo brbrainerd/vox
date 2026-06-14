@@ -35,4 +35,21 @@ describe('TasksView', () => {
     render(<TasksView />);
     expect(screen.getByText('Add')).toBeDefined();
   });
+
+  it('every button carries an explicit type="button"', async () => {
+    render(<TasksView />);
+    for (const b of screen.getAllByRole('button')) {
+      expect(b.getAttribute('type')).toBe('button');
+    }
+  });
+
+  it('the refresh control has an accessible label', () => {
+    render(<TasksView />);
+    expect(screen.getByLabelText('Refresh tasks')).toBeDefined();
+  });
+
+  it('the add-task input is labeled', () => {
+    render(<TasksView />);
+    expect(screen.getByLabelText('Add a task')).toBeDefined();
+  });
 });
