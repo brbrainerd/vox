@@ -90,9 +90,12 @@ export function PoliciesView({ pushToast }: { pushToast: (t: any) => void }) {
                 Policies <span className={`ml-1 inline-block size-1.5 rounded-full align-middle ${STATUS_DOT[worst]}`} />
               </span>
             )}
-            <button onClick={() => setRailCollapsed(c => !c)} title={railCollapsed ? 'Expand' : 'Collapse'}
+            <button type="button" onClick={() => setRailCollapsed(c => !c)}
+              aria-label={railCollapsed ? 'Expand policy rail' : 'Collapse policy rail'}
+              aria-expanded={!railCollapsed}
+              title={railCollapsed ? 'Expand' : 'Collapse'}
               className="flex size-6 items-center justify-center rounded-md border border-white/5 text-zinc-400 hover:bg-white/5 hover:text-zinc-100">
-              <Icon.chevL className={`size-3 transition-transform ${railCollapsed ? 'rotate-180' : ''}`} />
+              <Icon.chevL aria-hidden="true" className={`size-3 transition-transform ${railCollapsed ? 'rotate-180' : ''}`} />
             </button>
           </div>
 
@@ -101,7 +104,9 @@ export function PoliciesView({ pushToast }: { pushToast: (t: any) => void }) {
               {/* Multi-branch selector (worktrees) */}
               <div className="flex flex-wrap gap-1">
                 {branches.map(b => (
-                  <button key={b.branch} onClick={() => toggleBranch(b.branch)}
+                  <button key={b.branch} type="button" onClick={() => toggleBranch(b.branch)}
+                    aria-pressed={selectedBranches.includes(b.branch)}
+                    aria-label={`Branch: ${b.branch}`}
                     className={`rounded-full px-2 py-0.5 font-mono text-[9px] border ${selectedBranches.includes(b.branch) ? 'border-brass/40 bg-brass/10 text-brass' : 'border-white/5 text-zinc-500 hover:text-zinc-300'}`}>
                     {b.branch}{b.isCurrent ? ' ◆' : ''}
                   </button>
@@ -113,13 +118,13 @@ export function PoliciesView({ pushToast }: { pushToast: (t: any) => void }) {
               <div className="rounded-lg border border-white/5 bg-white/[0.02] p-2">
                 {attention.length === 0 ? (
                   <div className="flex items-center gap-1.5 font-mono text-[10px] text-emerald-300/80">
-                    <Icon.check className="size-3" /> all clear
+                    <Icon.check aria-hidden="true" className="size-3" /> all clear
                   </div>
                 ) : (
                   <div className="flex flex-col gap-0.5">
                     <span className="font-display text-[9px] uppercase tracking-[0.2em] text-red-300/90">⚠ Needs attention ({attention.length})</span>
                     {attention.map(r => (
-                      <button key={r.id} onClick={() => setSelectedId(r.id)}
+                      <button key={r.id} type="button" onClick={() => setSelectedId(r.id)}
                         className="text-left font-mono text-[10px] text-zinc-300 hover:text-red-200 truncate">{r.id}</button>
                     ))}
                   </div>
@@ -132,23 +137,26 @@ export function PoliciesView({ pushToast }: { pushToast: (t: any) => void }) {
                   const open = !collapsedGroups[node.group];
                   return (
                     <div key={node.group} className="flex flex-col">
-                      <button onClick={() => toggleGroup(node.group)}
+                      <button type="button" onClick={() => toggleGroup(node.group)}
+                        aria-expanded={open}
+                        aria-label={`${node.group} group`}
                         className="flex items-center justify-between gap-2 rounded-md px-1.5 py-1 hover:bg-white/[0.03]">
                         <span className="flex items-center gap-1.5 min-w-0">
-                          <span className={`size-1.5 rounded-full shrink-0 ${STATUS_DOT[node.worst]}`} />
+                          <span aria-hidden="true" className={`size-1.5 rounded-full shrink-0 ${STATUS_DOT[node.worst]}`} />
                           <span className="font-display text-[10px] text-zinc-300 truncate">{node.group}</span>
                         </span>
                         <span className="flex items-center gap-1.5 shrink-0">
                           <StatusCount counts={node.counts} />
-                          <Icon.chevronDown className={`size-3 text-zinc-600 transition-transform ${open ? '' : '-rotate-90'}`} />
+                          <Icon.chevronDown aria-hidden="true" className={`size-3 text-zinc-600 transition-transform ${open ? '' : '-rotate-90'}`} />
                         </span>
                       </button>
                       {open && node.rows.map(r => {
                         const s = statusForRow(r.id, status, selectedBranches);
                         return (
-                          <button key={r.id} onClick={() => setSelectedId(r.id)}
+                          <button key={r.id} type="button" onClick={() => setSelectedId(r.id)}
+                            aria-pressed={selectedId === r.id}
                             className={`flex items-center gap-1.5 rounded-md pl-5 pr-1.5 py-1 text-left ${selectedId === r.id ? 'bg-white/[0.05] text-zinc-100' : 'text-zinc-500 hover:bg-white/[0.02] hover:text-zinc-300'}`}>
-                            <span className={`size-1 rounded-full shrink-0 ${STATUS_DOT[s]}`} />
+                            <span aria-hidden="true" className={`size-1 rounded-full shrink-0 ${STATUS_DOT[s]}`} />
                             <span className="font-mono text-[10px] truncate">{r.title}</span>
                           </button>
                         );
@@ -175,11 +183,11 @@ export function PoliciesView({ pushToast }: { pushToast: (t: any) => void }) {
                   <div className="font-display text-[11px] text-zinc-400">{detail.title}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button disabled title="Editing arrives in Phase 3 (read-only now)"
+                  <button type="button" disabled title="Editing arrives in Phase 3 (read-only now)"
                     className="flex items-center gap-1 rounded-md border border-white/5 px-2 py-1 font-mono text-[10px] text-zinc-600 opacity-50 cursor-not-allowed">
                     ✎ Edit
                   </button>
-                  <button disabled title="Enable/disable arrives in Phase 2 (read-only now)"
+                  <button type="button" disabled title="Enable/disable arrives in Phase 2 (read-only now)"
                     className="flex items-center gap-1 rounded-md border border-white/5 px-2 py-1 font-mono text-[10px] text-zinc-600 opacity-50 cursor-not-allowed">
                     ⏻ Disable
                   </button>
