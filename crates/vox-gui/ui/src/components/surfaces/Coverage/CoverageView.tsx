@@ -27,8 +27,13 @@ export function CoverageView(_props: SurfaceDecoratorProps) {
       </div>
       <div className="overflow-auto rounded-lg border border-white/10">
         <table className="w-full text-left text-[12px]">
+          <caption className="sr-only">Surface representation coverage by CLI group, view, and representation tier</caption>
           <thead className="text-zinc-500">
-            <tr><th className="p-2">CLI group</th><th className="p-2">View</th><th className="p-2">Tier</th></tr>
+            <tr>
+              <th scope="col" className="p-2">CLI group</th>
+              <th scope="col" className="p-2">View</th>
+              <th scope="col" className="p-2">Tier</th>
+            </tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
