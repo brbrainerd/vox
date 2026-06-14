@@ -179,10 +179,11 @@ export function MeshView({ pushToast }: MeshViewProps) {
             pending: {pendingCount ?? '—'}
           </span>
           <button
+            type="button"
             onClick={refresh}
             className="ml-auto flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.03] px-3 py-1.5 font-display text-[11px] tracking-wider uppercase text-zinc-200 transition hover:bg-white/[0.06]"
           >
-            <Icon.refresh className="size-3.5" /> Refresh
+            <Icon.refresh aria-hidden="true" className="size-3.5" /> Refresh
           </button>
         </div>
 
@@ -211,7 +212,7 @@ export function MeshView({ pushToast }: MeshViewProps) {
       </Glass>
 
       {/* Node table */}
-      <Glass className="col-span-12 overflow-auto p-4">
+      <Glass className="col-span-12 overflow-auto p-4" aria-label="Mesh nodes" aria-live="polite" aria-busy={loading}>
         <div className="mb-3 font-display text-xs tracking-widest uppercase text-zinc-400">
           Nodes
         </div>
@@ -234,13 +235,13 @@ export function MeshView({ pushToast }: MeshViewProps) {
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="text-[10px] uppercase tracking-wider text-zinc-500">
-                <th className="px-2 py-1.5 font-display">Node</th>
-                <th className="px-2 py-1.5 font-display">Status</th>
-                <th className="px-2 py-1.5 font-display">Host</th>
-                <th className="px-2 py-1.5 font-display">GPU</th>
-                <th className="px-2 py-1.5 font-display">Trust</th>
-                <th className="px-2 py-1.5 font-display">Models</th>
-                <th className="px-2 py-1.5 font-display">Last seen</th>
+                <th scope="col" className="px-2 py-1.5 font-display">Node</th>
+                <th scope="col" className="px-2 py-1.5 font-display">Status</th>
+                <th scope="col" className="px-2 py-1.5 font-display">Host</th>
+                <th scope="col" className="px-2 py-1.5 font-display">GPU</th>
+                <th scope="col" className="px-2 py-1.5 font-display">Trust</th>
+                <th scope="col" className="px-2 py-1.5 font-display">Models</th>
+                <th scope="col" className="px-2 py-1.5 font-display">Last seen</th>
               </tr>
             </thead>
             <tbody>
@@ -349,16 +350,21 @@ export function MeshView({ pushToast }: MeshViewProps) {
 
         <div className="mt-3 flex items-center gap-3">
           <button
+            type="button"
             onClick={dispatch}
             disabled={!dispatchConfigured || dispatching || !source.trim()}
             className="flex items-center gap-1.5 rounded-md border border-brass/30 bg-brass/10 px-4 py-1.5 font-display text-[11px] tracking-wider uppercase text-brass transition hover:bg-brass/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <Icon.send className="size-3.5" /> {dispatching ? 'Dispatching…' : 'Dispatch'}
+            <Icon.send aria-hidden="true" className="size-3.5" /> {dispatching ? 'Dispatching…' : 'Dispatch'}
           </button>
         </div>
 
         {dispatchResult && (
-          <pre className="mt-3 max-h-64 overflow-auto rounded-md border border-white/10 bg-black/40 p-3 text-[11px] text-zinc-300">
+          <pre
+            aria-label="Dispatch result"
+            aria-live="polite"
+            className="mt-3 max-h-64 overflow-auto rounded-md border border-white/10 bg-black/40 p-3 text-[11px] text-zinc-300"
+          >
             {dispatchResult}
           </pre>
         )}
