@@ -1,7 +1,7 @@
 /// Task 8D: Spawn + WorkflowVersion Rust emission (replaces compile_error! stubs).
 use vox_codegen::codegen_rust::emit::emit_expr;
-use vox_compiler::hir::{HirExpr, HirWorkflowVersion};
 use vox_compiler::ast::span::Span;
+use vox_compiler::hir::{HirExpr, HirWorkflowVersion};
 
 fn span() -> Span {
     Span { start: 0, end: 0 }
@@ -20,7 +20,10 @@ fn spawn_emits_tokio_spawn() {
         result.contains("async move"),
         "Spawn must wrap in async move, got: {result}"
     );
-    assert!(result.contains("42"), "Spawn must include inner expression, got: {result}");
+    assert!(
+        result.contains("42"),
+        "Spawn must include inner expression, got: {result}"
+    );
 }
 
 #[test]

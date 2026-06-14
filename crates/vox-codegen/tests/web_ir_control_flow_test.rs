@@ -5,13 +5,15 @@
 ///
 /// We construct HirModule directly to avoid parser-level JSX constraints.
 use vox_codegen::web_ir::{DomNode, lower::lower_hir_to_web_ir};
-use vox_compiler::hir::{
-    DefId, HirExpr, HirModule, HirReactiveComponent,
-};
 use vox_compiler::ast::span::Span;
+use vox_compiler::hir::{DefId, HirExpr, HirModule, HirReactiveComponent};
 
-fn s() -> Span { Span::new(0, 0) }
-fn id() -> DefId { DefId(0) }
+fn s() -> Span {
+    Span::new(0, 0)
+}
+fn id() -> DefId {
+    DefId(0)
+}
 
 fn component_with_view(name: &str, view: HirExpr) -> HirModule {
     let mut m = HirModule::default();
@@ -42,7 +44,10 @@ fn for_expr_in_view_produces_loop_node() {
     let hir = component_with_view("TodoList", view);
     let web = lower_hir_to_web_ir(&hir);
 
-    let has_loop = web.dom_nodes.iter().any(|n| matches!(n, DomNode::Loop { .. }));
+    let has_loop = web
+        .dom_nodes
+        .iter()
+        .any(|n| matches!(n, DomNode::Loop { .. }));
     assert!(
         has_loop,
         "HirExpr::For in view must lower to DomNode::Loop, not DomNode::Expr\nnodes: {:?}",
@@ -69,7 +74,10 @@ fn if_expr_in_view_is_not_a_loop() {
     let hir = component_with_view("Guard", view);
     let web = lower_hir_to_web_ir(&hir);
 
-    let has_spurious_loop = web.dom_nodes.iter().any(|n| matches!(n, DomNode::Loop { .. }));
+    let has_spurious_loop = web
+        .dom_nodes
+        .iter()
+        .any(|n| matches!(n, DomNode::Loop { .. }));
     assert!(
         !has_spurious_loop,
         "HirExpr::If in view must not produce DomNode::Loop\nnodes: {:?}",

@@ -38,8 +38,7 @@ fn is_parse_skip(path: &Path) -> bool {
 
 #[test]
 fn golden_corpus_ts_emit_no_panic() {
-    let golden_dir =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden");
+    let golden_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden");
     assert!(golden_dir.is_dir(), "missing {}", golden_dir.display());
 
     let mut files = Vec::new();
@@ -113,5 +112,8 @@ fn golden_corpus_ts_emit_no_panic() {
     eprintln!(
         "golden corpus TS smoke: non-empty={nonempty_count}, parse-skip={parse_skip_count}, panics={panic_count}"
     );
-    assert_eq!(panic_count, 0, "TS emitter panicked on {panic_count} golden files");
+    assert_eq!(
+        panic_count, 0,
+        "TS emitter panicked on {panic_count} golden files"
+    );
 }

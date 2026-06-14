@@ -162,8 +162,7 @@ impl DomArena {
                 // Embed the variable name in the iterator expression so the DomNode::Loop
                 // emitter can reconstruct `.map((name, idx) => ...)`.
                 let idx = index.as_deref().unwrap_or("_i");
-                let iterator_with_map =
-                    format!("{iterator}.map(({name}: any, {idx}: number) => ");
+                let iterator_with_map = format!("{iterator}.map(({name}: any, {idx}: number) => ");
                 self.push(DomNode::Loop {
                     iterator: iterator_with_map,
                     key,
