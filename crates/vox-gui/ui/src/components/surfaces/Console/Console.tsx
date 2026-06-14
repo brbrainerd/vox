@@ -7,6 +7,7 @@ import { AgentTab } from './AgentTab';
 import { SendToAgent } from './SendToAgent';
 import { renderBlockForAgent, type Block } from './osc633';
 import { listenOrchStatus, sendToAgent } from '../../../transport';
+import { Button } from '../../ui/Button';
 
 interface Props {
   pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
@@ -95,16 +96,16 @@ export function Console({ pushToast, initialAgentId = null }: Props) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <AgentStrip agents={agents} onOpen={openAgentTab} />
         <div style={{ display: 'flex', gap: 6, margin: '0 10px' }}>
-          <button onClick={copyLastBlock} style={{ fontSize: 11 }}>
+          <Button onClick={copyLastBlock} style={{ fontSize: 11 }}>
             copy last block
-          </button>
-          <button
+          </Button>
+          <Button
             disabled={agents.length === 0}
             onClick={() => setComposing(true)}
             style={{ fontSize: 11 }}
           >
             send to agent
-          </button>
+          </Button>
         </div>
       </div>
       {composing && (
@@ -129,7 +130,12 @@ export function Console({ pushToast, initialAgentId = null }: Props) {
               }}
             >
               <span>agent {openAgentId}</span>
-              <button onClick={() => setOpenAgentId(null)}>back to terminal</button>
+              <Button
+                onClick={() => setOpenAgentId(null)}
+                aria-label="Close agent view and return to terminal"
+              >
+                back to terminal
+              </Button>
             </div>
           )}
           <div style={{ flex: 1, minHeight: 0, display: openAgentId ? 'block' : 'none' }}>

@@ -60,4 +60,10 @@ describe('Console', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(t.ptyWrite).toHaveBeenCalledWith('console-1', 'echo hi\n'));
   });
+
+  it('gives toolbar controls explicit button type', () => {
+    render(<Console pushToast={vi.fn()} />);
+    expect(screen.getByText('copy last block').getAttribute('type')).toBe('button');
+    expect(screen.getByText('send to agent').getAttribute('type')).toBe('button');
+  });
 });
