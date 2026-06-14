@@ -3,6 +3,7 @@ import { normalizeTheme } from './theme';
 
 describe('normalizeTheme', () => {
   it('keeps known accent themes', () => {
+    expect(normalizeTheme('arcane')).toBe('arcane');
     expect(normalizeTheme('void')).toBe('void');
     expect(normalizeTheme('glacier')).toBe('glacier');
   });

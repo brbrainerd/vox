@@ -30,8 +30,8 @@ export const tokens = {
       "muted": "#a1a1aa"
     },
     "border": {
-      "subtle": "#27272a",
-      "strong": "#3f3f46"
+      "subtle": "#3f3f46",
+      "strong": "#a1a1aa"
     },
     "accent": {
       "default": "#d4af37"

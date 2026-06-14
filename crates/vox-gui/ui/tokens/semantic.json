@@ -2,7 +2,7 @@
   "color": {
     "bg":     { "base": { "value": "{color.neutral.950}" }, "surface": { "value": "{color.neutral.900}" }, "elevated": { "value": "{color.neutral.800}" } },
     "text":   { "primary": { "value": "{color.neutral.50}" }, "secondary": { "value": "{color.neutral.300}" }, "muted": { "value": "{color.neutral.400}" } },
-    "border": { "subtle": { "value": "{color.neutral.800}" }, "strong": { "value": "{color.neutral.700}" } },
+    "border": { "subtle": { "value": "{color.neutral.700}" }, "strong": { "value": "{color.neutral.400}" } },
     "accent": { "default": { "value": "{color.brass.default}" } }
   }
 }
