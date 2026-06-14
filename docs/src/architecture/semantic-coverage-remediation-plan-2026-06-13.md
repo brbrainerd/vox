@@ -2,7 +2,7 @@
 title: "Semantic Coverage Remediation Plan (2026-06-13, v2 audited)"
 description: "Audited, self-contained implementation plan to close the REAL semantic test-coverage gap. Includes a fidelity audit of the coverage map (measured false-positive/negative rates), the corrected symbol universe, a mandatory per-symbol verification protocol, worked test examples with real code, analyzer fixes, and a CI ratchet. Written to be executed by Claude Sonnet 4.6 task-by-task and to survive context compression."
 category: "Architecture SSOTs"
-status: "current"
+status: "roadmap"
 training_eligible: false
 ---
 

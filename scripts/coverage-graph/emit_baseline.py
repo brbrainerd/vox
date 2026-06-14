@@ -11,7 +11,7 @@ Usage: python emit_baseline.py [--map graphify-out/COVERAGE_MAP.md] [--out contr
 import argparse, json, re
 from pathlib import Path
 
-ROW = re.compile(r"\| (vox[\w-]+|workspace-hack) \| (\d+) \| (\d+) \| (\d+) \| (\d+) \|")
+ROW = re.compile(r"\| (vox[\w-]+|workspace-hack) \| (\d+) \| (\d+) \|")
 
 
 def main() -> int:

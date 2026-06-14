@@ -15,7 +15,10 @@ from pathlib import Path
 
 def crate_of(file_path: str) -> str:
     p = (file_path or "").replace("\\", "/")
-    return p.split("crates/")[1].split("/")[0] if "crates/" in p else "?"
+    if "crates/" not in p:
+        return "?"
+    parts = p.split("crates/", 1)[1].split("/")
+    return parts[0] if parts and parts[0] else "?"
 
 
 def main() -> int:

@@ -33,9 +33,9 @@ def main() -> int:
     for n in G["nodes"]:
         if n.get("_origin") == "test":
             test_fn_by_file[(n.get("source_file") or "").replace("\\", "/")].add(n.get("label", ""))
-    for l in G["links"]:
-        if l.get("relation") == "proves":
-            proven.add(l["target"])
+    for link in G["links"]:
+        if link.get("relation") == "proves":
+            proven.add(link["target"])
 
     by_crate = collections.defaultdict(list)
     for n in G["nodes"]:
