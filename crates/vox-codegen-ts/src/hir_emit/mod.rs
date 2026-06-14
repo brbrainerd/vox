@@ -837,11 +837,45 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             format!("{obj_str}[{idx_str}]")
         }
         HirExpr::AsyncView(v) => {
-            // Emit the source expression with a comment marking the async view site.
-            // Full async-view lowering is owned by the Web IR path; this compat emitter
-            // surfaces the source so callers at least get a renderable expression.
-            let src = emit_hir_expr(&v.source, ctx);
-            format!("{src} /* async view */")
+            let source_tsx = emit_hir_expr(&v.source, ctx);
+            #[cfg(feature = "standalone")]
+            {
+                let fetching_tsx = v
+                    .fetching_arm
+                    .as_deref()
+                    .map(|e| emit_hir_expr(e, ctx))
+                    .unwrap_or_else(|| "null".to_string());
+                let empty_tsx = v
+                    .empty_arm
+                    .as_deref()
+                    .map(|e| emit_hir_expr(e, ctx))
+                    .unwrap_or_else(|| "null".to_string());
+                let error_binding = v.error_binding.as_deref().unwrap_or("_err");
+                let error_tsx = v
+                    .error_arm
+                    .as_deref()
+                    .map(|e| emit_hir_expr(e, ctx))
+                    .unwrap_or_else(|| "null".to_string());
+                let ok_binding = v.ok_binding.as_deref().unwrap_or("_data");
+                let ok_tsx = v
+                    .ok_arm
+                    .as_deref()
+                    .map(|e| emit_hir_expr(e, ctx))
+                    .unwrap_or_else(|| "null".to_string());
+                vox_codegen::web_ir::async_state::emit_async_view_tsx(
+                    &source_tsx,
+                    &fetching_tsx,
+                    &empty_tsx,
+                    error_binding,
+                    &error_tsx,
+                    ok_binding,
+                    &ok_tsx,
+                )
+            }
+            #[cfg(not(feature = "standalone"))]
+            {
+                source_tsx
+            }
         }
         // WorkflowVersion is not representable as a TS expression in this emit path
         HirExpr::WorkflowVersion(_) => String::new(),
