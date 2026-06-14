@@ -478,3 +478,25 @@ fn interp_rejects_unsupported_expr_with_clean_diagnostic() {
         }
     }
 }
+
+#[test]
+fn pipe_operator_applies_rhs_to_lhs() {
+    let source = "
+    fn inc(x: Int) -> Int { x + 1 }
+    fn double(x: Int) -> Int { x * 2 }
+    fn main() -> Int {
+        return 2 |> inc |> double
+    }
+    ";
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+    let mut interp = vox_compiler::eval::Interpreter::new(100_000);
+    interp.run_module(&lowered).expect("run");
+    let res = interp.call("main", vec![]).expect("call main");
+    assert_eq!(
+        res,
+        vox_compiler::eval::value::VoxValue::Int(6),
+        "2 |> inc |> double should be (2+1)*2 = 6"
+    );
+}

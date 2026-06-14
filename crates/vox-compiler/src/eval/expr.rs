@@ -127,6 +127,12 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 }
                 return eval_expr(interp, right);
             }
+            // `lhs |> f` = `f(lhs)`: evaluate lhs as the argument, rhs as callee.
+            // Pipe is left-associative: `a |> f |> g` = `g(f(a))`.
+            if *op == HirBinOp::Pipe {
+                let callee = eval_expr(interp, right)?;
+                return apply_closure(interp, &callee, vec![l]);
+            }
             let r = eval_expr(interp, right)?;
             match (op, l, r) {
                 // Integer arithmetic — use checked_* to convert
