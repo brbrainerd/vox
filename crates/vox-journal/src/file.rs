@@ -224,6 +224,506 @@ impl<E> Suspendable for FileJournal<E> {
 }
 
 #[cfg(test)]
+mod semcov_wave48_tests {
+    use super::*;
+    use serde::{Deserialize, Serialize};
+
+    fn temp_path() -> PathBuf {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(1_000);
+        let n = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let pid = std::process::id();
+        std::env::temp_dir().join(format!("vox_journal_wave48_{pid}_{n}.jsonl"))
+    }
+
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    #[serde(tag = "kind")]
+    enum TimestampedEntry {
+        Event { ts: u64, payload: String },
+        Checkpoint { ts: u64, seq: u64 },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct SeqEntry {
+        seq: u64,
+        data: String,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct NullableEntry {
+        id: String,
+        optional: Option<u64>,
+    }
+
+    // ── Serialization ────────────────────────────────────────────────────────
+
+    #[test]
+    fn newline_in_payload_does_not_split_into_two_lines() {
+        // Catches: naive string interpolation of entry value that embeds a
+        //          raw newline, causing the next replay to see two partial lines
+        //          instead of one complete entry.
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        let Opened { journal, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        journal
+            .append(&SeqEntry {
+                seq: 1,
+                data: "line1\nline2".into(),
+            })
+            .unwrap();
+        drop(journal);
+
+        let Opened { replayed, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        assert_eq!(
+            replayed.len(),
+            1,
+            "embedded newline must not split the record"
+        );
+        assert_eq!(replayed[0].data, "line1\nline2");
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn unicode_payload_round_trips_exactly() {
+        // Catches: serde_json escaping multi-byte unicode codepoints incorrectly
+        //          (e.g. surrogate pairs, emojis), producing a lossy round-trip.
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        let Opened { journal, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        let payload = "日本語テスト🦀\u{1F600}".to_string();
+        journal
+            .append(&SeqEntry {
+                seq: 0,
+                data: payload.clone(),
+            })
+            .unwrap();
+        drop(journal);
+
+        let Opened { replayed, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        assert_eq!(replayed.len(), 1);
+        assert_eq!(
+            replayed[0].data, payload,
+            "unicode payload must survive round-trip"
+        );
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn null_optional_field_serializes_and_replays() {
+        // Catches: skipping `None` fields via `skip_serializing_if` then failing
+        //          to deserialize when the key is absent during replay.
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        let Opened { journal, .. } = FileJournal::<NullableEntry>::open(&path).unwrap();
+        journal
+            .append(&NullableEntry {
+                id: "x".into(),
+                optional: None,
+            })
+            .unwrap();
+        journal
+            .append(&NullableEntry {
+                id: "y".into(),
+                optional: Some(42),
+            })
+            .unwrap();
+        drop(journal);
+
+        let Opened { replayed, .. } = FileJournal::<NullableEntry>::open(&path).unwrap();
+        assert_eq!(replayed.len(), 2);
+        assert_eq!(replayed[0].optional, None);
+        assert_eq!(replayed[1].optional, Some(42));
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn tagged_enum_variants_all_round_trip() {
+        // Catches: a serde tag mismatch where one variant is written but another
+        //          is decoded (e.g., missing `kind` field on one variant).
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        let Opened { journal, .. } = FileJournal::<TimestampedEntry>::open(&path).unwrap();
+        journal
+            .append(&TimestampedEntry::Event {
+                ts: 100,
+                payload: "boot".into(),
+            })
+            .unwrap();
+        journal
+            .append(&TimestampedEntry::Checkpoint { ts: 200, seq: 1 })
+            .unwrap();
+        drop(journal);
+
+        let Opened { replayed, .. } = FileJournal::<TimestampedEntry>::open(&path).unwrap();
+        assert_eq!(replayed.len(), 2);
+        assert!(
+            matches!(&replayed[0], TimestampedEntry::Event { ts: 100, .. }),
+            "first variant must decode as Event"
+        );
+        assert!(
+            matches!(
+                &replayed[1],
+                TimestampedEntry::Checkpoint { ts: 200, seq: 1 }
+            ),
+            "second variant must decode as Checkpoint"
+        );
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn large_entry_does_not_get_truncated() {
+        // Catches: internal write buffer size cap that silently truncates entries
+        //          larger than e.g. 4096 bytes before the newline is appended.
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        let big = "A".repeat(128_000);
+        let Opened { journal, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        journal
+            .append(&SeqEntry {
+                seq: 0,
+                data: big.clone(),
+            })
+            .unwrap();
+        drop(journal);
+
+        let Opened { replayed, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        assert_eq!(replayed.len(), 1, "large entry must not be truncated");
+        assert_eq!(replayed[0].data.len(), 128_000);
+        std::fs::remove_file(&path).ok();
+    }
+
+    // ── Sequence ordering ────────────────────────────────────────────────────
+
+    #[test]
+    fn replay_preserves_append_order() {
+        // Catches: replay collecting entries into an unordered structure (e.g.
+        //          HashMap) that randomises the sequence on retrieval.
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        let Opened { journal, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        for i in 0u64..20 {
+            journal
+                .append(&SeqEntry {
+                    seq: i,
+                    data: format!("item{i}"),
+                })
+                .unwrap();
+        }
+        drop(journal);
+
+        let Opened { replayed, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        assert_eq!(replayed.len(), 20);
+        for (i, e) in replayed.iter().enumerate() {
+            assert_eq!(e.seq, i as u64, "entry at index {i} must have seq={i}");
+        }
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn reopen_after_more_appends_grows_replay_set() {
+        // Catches: the writer appending to the wrong file (e.g., it overwrites
+        //          instead of appending) after the first open.
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+
+        let Opened { journal, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        for i in 0..5u64 {
+            journal
+                .append(&SeqEntry {
+                    seq: i,
+                    data: "first".into(),
+                })
+                .unwrap();
+        }
+        drop(journal);
+
+        let Opened { journal, replayed } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        assert_eq!(replayed.len(), 5, "initial 5 entries must replay");
+        for i in 5..10u64 {
+            journal
+                .append(&SeqEntry {
+                    seq: i,
+                    data: "second".into(),
+                })
+                .unwrap();
+        }
+        drop(journal);
+
+        let Opened { replayed, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        assert_eq!(
+            replayed.len(),
+            10,
+            "all 10 entries must replay after second open"
+        );
+        assert_eq!(replayed[9].seq, 9);
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn single_malformed_line_does_not_drop_later_valid_entries() {
+        // Catches: a parse error causing an early return that skips all
+        //          subsequent valid entries instead of only the bad line.
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        std::fs::write(
+            &path,
+            "{\"seq\":1,\"data\":\"ok\"}\n\
+             {broken json\n\
+             {\"seq\":3,\"data\":\"also ok\"}\n\
+             {\"seq\":4,\"data\":\"last\"}\n",
+        )
+        .unwrap();
+
+        let Opened { replayed, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        assert_eq!(
+            replayed.len(),
+            3,
+            "two good lines after the bad line must replay"
+        );
+        assert_eq!(replayed[0].seq, 1);
+        assert_eq!(replayed[1].seq, 3);
+        assert_eq!(replayed[2].seq, 4);
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn empty_file_replays_zero_entries() {
+        // Catches: reading an empty file producing a spurious first entry or
+        //          panicking on an EOF without a newline.
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        std::fs::write(&path, "").unwrap();
+
+        let Opened { replayed, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        assert!(replayed.is_empty(), "empty file must produce zero entries");
+        std::fs::remove_file(&path).ok();
+    }
+
+    // ── Timestamp handling ───────────────────────────────────────────────────
+
+    #[test]
+    fn max_u64_timestamp_serializes_without_overflow() {
+        // Catches: casting u64 timestamps through i64 (which overflows), or
+        //          JSON serializing them as floats that lose the high bits.
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        let Opened { journal, .. } = FileJournal::<TimestampedEntry>::open(&path).unwrap();
+        journal
+            .append(&TimestampedEntry::Event {
+                ts: u64::MAX,
+                payload: "boundary".into(),
+            })
+            .unwrap();
+        drop(journal);
+
+        let Opened { replayed, .. } = FileJournal::<TimestampedEntry>::open(&path).unwrap();
+        assert_eq!(replayed.len(), 1);
+        assert!(
+            matches!(&replayed[0], TimestampedEntry::Event { ts, .. } if *ts == u64::MAX),
+            "u64::MAX timestamp must round-trip exactly"
+        );
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn zero_timestamp_is_not_treated_as_absent() {
+        // Catches: `#[serde(skip_serializing_if = "is_zero")]` or similar
+        //          attribute that omits zero-value timestamps, causing replay
+        //          to fail to deserialize the field.
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        let Opened { journal, .. } = FileJournal::<TimestampedEntry>::open(&path).unwrap();
+        journal
+            .append(&TimestampedEntry::Checkpoint { ts: 0, seq: 0 })
+            .unwrap();
+        drop(journal);
+
+        let Opened { replayed, .. } = FileJournal::<TimestampedEntry>::open(&path).unwrap();
+        assert!(
+            matches!(&replayed[0], TimestampedEntry::Checkpoint { ts: 0, seq: 0 }),
+            "zero timestamp and seq must survive round-trip"
+        );
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn multiple_entries_with_identical_timestamps_all_replay() {
+        // Catches: de-duplication logic keyed on timestamp that collapses
+        //          concurrent entries to a single record.
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        let Opened { journal, .. } = FileJournal::<TimestampedEntry>::open(&path).unwrap();
+        for i in 0..5u64 {
+            journal
+                .append(&TimestampedEntry::Event {
+                    ts: 42,
+                    payload: format!("dup{i}"),
+                })
+                .unwrap();
+        }
+        drop(journal);
+
+        let Opened { replayed, .. } = FileJournal::<TimestampedEntry>::open(&path).unwrap();
+        assert_eq!(
+            replayed.len(),
+            5,
+            "identical timestamps must not cause dedup"
+        );
+        std::fs::remove_file(&path).ok();
+    }
+
+    // ── Journal entry parsing edge cases ────────────────────────────────────
+
+    #[test]
+    fn whitespace_only_lines_are_skipped_not_errored() {
+        // Catches: trim() not being called before JSON parse, causing "   " to
+        //          produce a serde error and drop subsequent valid entries.
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        std::fs::write(
+            &path,
+            "{\"seq\":1,\"data\":\"a\"}\n   \n\t\n{\"seq\":2,\"data\":\"b\"}\n",
+        )
+        .unwrap();
+
+        let Opened { replayed, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        assert_eq!(
+            replayed.len(),
+            2,
+            "whitespace-only lines must be skipped silently"
+        );
+        assert_eq!(replayed[0].seq, 1);
+        assert_eq!(replayed[1].seq, 2);
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn file_not_ending_in_newline_still_replays_last_entry() {
+        // Catches: BufRead::lines dropping the final line when the file ends
+        //          without a trailing newline (in practice lines() handles it,
+        //          but custom parsers might not).
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        // Deliberately no trailing newline on the last line.
+        std::fs::write(
+            &path,
+            "{\"seq\":1,\"data\":\"first\"}\n{\"seq\":2,\"data\":\"last\"}",
+        )
+        .unwrap();
+
+        let Opened { replayed, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        assert_eq!(
+            replayed.len(),
+            2,
+            "entry without trailing newline must replay"
+        );
+        assert_eq!(replayed[1].seq, 2);
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn path_accessor_returns_original_path() {
+        // Catches: path() returning a temp-resolved or canonicalized path that
+        //          no longer compares equal to the one passed at open time.
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        let Opened { journal, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        assert_eq!(
+            journal.path(),
+            path.as_path(),
+            "path() must equal the path used to open"
+        );
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn replay_all_reflects_entries_written_after_open() {
+        // Catches: replay_all() re-using a stale file-position snapshot taken at
+        //          open time rather than seeking to the file start each call.
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        let Opened { journal, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        journal
+            .append(&SeqEntry {
+                seq: 1,
+                data: "a".into(),
+            })
+            .unwrap();
+        journal
+            .append(&SeqEntry {
+                seq: 2,
+                data: "b".into(),
+            })
+            .unwrap();
+        let all = journal.replay_all().unwrap();
+        assert_eq!(
+            all.len(),
+            2,
+            "replay_all must see both entries appended after open"
+        );
+        assert_eq!(all[0].seq, 1);
+        assert_eq!(all[1].seq, 2);
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn deferred_mode_path_and_durability_independent_of_sync_each() {
+        // Catches: open_with_durability(Deferred) accidentally using the
+        //          SyncEachAppend code path (or vice-versa), masking the
+        //          Deferred flag so sync() becomes a double-fsync on mobile.
+        let path = temp_path();
+        let _ = std::fs::remove_file(&path);
+        let Opened { journal, .. } =
+            FileJournal::<SeqEntry>::open_with_durability(&path, AppendDurability::Deferred)
+                .unwrap();
+        // Append without explicit sync; the data must still be OS-buffered.
+        journal
+            .append(&SeqEntry {
+                seq: 99,
+                data: "deferred".into(),
+            })
+            .unwrap();
+        // Explicit sync to make it durable.
+        journal.sync().unwrap();
+        drop(journal);
+
+        let Opened { replayed, .. } = FileJournal::<SeqEntry>::open(&path).unwrap();
+        assert_eq!(
+            replayed.len(),
+            1,
+            "deferred journal must persist on explicit sync"
+        );
+        assert_eq!(replayed[0].seq, 99);
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn creating_journal_in_nonexistent_subdirectory_auto_creates_dirs() {
+        // Catches: missing create_dir_all call so opening a journal in a new
+        //          nested directory returns an I/O error instead of succeeding.
+        let base =
+            std::env::temp_dir().join(format!("vox_journal_wave48_mkdir_{}", std::process::id()));
+        let path = base.join("nested").join("deep").join("journal.jsonl");
+        let _ = std::fs::remove_dir_all(&base);
+
+        let result = FileJournal::<SeqEntry>::open(&path);
+        assert!(
+            result.is_ok(),
+            "open must create intermediate directories: {result:?}"
+        );
+        if let Ok(Opened { journal, .. }) = result {
+            journal
+                .append(&SeqEntry {
+                    seq: 0,
+                    data: "mkdir test".into(),
+                })
+                .unwrap();
+        }
+        std::fs::remove_dir_all(&base).ok();
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use serde::{Deserialize, Serialize};

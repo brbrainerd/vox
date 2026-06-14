@@ -2,6 +2,9 @@
 
 pub mod commands;
 
+#[cfg(test)]
+mod tests;
+
 /// Heuristic: treat file as script-like (uses `parse_script`) unless it
 /// contains app-surface decorators that must live at module position.
 pub fn is_script_like(source: &str) -> bool {
