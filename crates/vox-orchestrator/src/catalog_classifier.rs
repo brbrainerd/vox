@@ -52,3 +52,57 @@ pub async fn classify_models(models: &mut [ModelSpec]) {
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1b_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[tokio::test]
+    async fn classify_models_tags_uptime_and_long_context() {
+        fn fixture(provider: &str, max_tokens: u64) -> crate::models::ModelSpec {
+            crate::models::ModelSpec {
+                id: "test/model".into(),
+                canonical_slug: "test/model".into(),
+                provider: provider.into(),
+                provider_type: crate::models::ProviderType::OpenRouter,
+                max_tokens,
+                cost_per_1k: 0.0,
+                cost_per_1k_input: 0.0,
+                cost_per_1k_output: 0.0,
+                is_free: true,
+                observed_cost_per_1k: None,
+                strengths: vec![crate::models::StrengthTag::Codegen],
+                capabilities: crate::models::spec::ModelCapabilities::default(),
+                cache_creation_cost_per_1k: 0.0,
+                cache_read_cost_per_1k: 0.0,
+                supports_prompt_caching: false,
+                pricing_source: crate::models::spec::PricingSource::Bootstrap,
+                supported_parameters: vec![],
+            }
+        }
+
+        // Ensure the classifier is enabled regardless of host env. nextest runs each
+        // test in its own process, so this env mutation does not leak across tests.
+        unsafe { std::env::set_var("VOX_OPENROUTER_CLASSIFIER_ENABLED", "1") };
+
+        let mut models = vec![fixture("openai", 200_000)];
+        classify_models(&mut models).await;
+
+        let m = &models[0];
+        // Provider "openai" with no catalog uptime -> heuristic 0.99.
+        let uptime = m.capabilities.uptime_score.expect("uptime_score populated");
+        assert!(
+            (uptime - 0.99).abs() < 1e-6,
+            "openai heuristic uptime should be 0.99, got {uptime}"
+        );
+
+        // max_tokens >= 128_000 -> LongContext tagged exactly once.
+        let long_ctx = m
+            .strengths
+            .iter()
+            .filter(|s| **s == crate::models::StrengthTag::LongContext)
+            .count();
+        assert_eq!(long_ctx, 1, "LongContext should be pushed exactly once");
+    }
+}

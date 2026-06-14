@@ -194,3 +194,29 @@ pub fn list_suppressions_blocking(
         Ok(out)
     })
 }
+
+#[cfg(test)]
+mod semcov_wave1b_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[tokio::test]
+    async fn ensure_tables_is_idempotent_and_creates_usable_tables() {
+        let db = crate::VoxDb::connect(crate::DbConfig::Memory)
+            .await
+            .expect("open in-memory db");
+
+        // First call creates the TOESTUB tables.
+        ensure_tables(&db).await.expect("ensure_tables first call");
+        // Second call must be a no-op, not an error (idempotency invariant).
+        ensure_tables(&db)
+            .await
+            .expect("ensure_tables second call is idempotent");
+
+        // Proof the tables actually exist and are usable: a public op that
+        // writes into one of the created tables succeeds.
+        add_suppression(&db, "src/foo.vox", 10, "rule.x", Some("why"))
+            .await
+            .expect("insert into toestub_suppressions created by ensure_tables");
+    }
+}

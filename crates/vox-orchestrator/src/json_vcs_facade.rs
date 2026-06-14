@@ -479,3 +479,18 @@ mod semcov_wave1_tests {
         assert_eq!(modified_path.as_deref(), Some("a.txt"));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1b_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::Orchestrator;
+    use crate::config::OrchestratorConfig;
+
+    #[tokio::test]
+    async fn oplog_list_json_empty_store() {
+        let orch = Orchestrator::new(OrchestratorConfig::default());
+        let v = oplog_list_json(&orch, None, 5).await;
+        assert_eq!(v["operations"].as_array().map(|a| a.len()), Some(0));
+    }
+}

@@ -513,3 +513,37 @@ mod semcov_wave1_tests {
         assert_eq!(repo_relative_glob(root, root), "**/*");
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1b_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn auto_assign_groups_one_group_per_crate_dir() {
+        let d = tempfile::TempDir::new().expect("tempdir");
+        let root = d.path();
+        let crates = root.join("crates");
+        std::fs::create_dir_all(crates.join("foo")).expect("mkdir foo");
+        std::fs::create_dir_all(crates.join("bar")).expect("mkdir bar");
+
+        let mut groups = auto_assign_groups(root);
+        groups.sort_by(|a, b| a.name.cmp(&b.name));
+
+        assert_eq!(groups.len(), 2);
+        assert_eq!(groups[0].name, "bar-group");
+        assert_eq!(groups[1].name, "foo-group");
+        // Pattern is the directory path joined with "/**".
+        let foo_expected = format!("{}/**", crates.join("foo").display());
+        assert_eq!(groups[1].patterns, vec![foo_expected]);
+        assert!(groups[0].default_agent.is_none());
+    }
+
+    #[test]
+    fn auto_assign_groups_missing_crates_dir_is_empty() {
+        let d = tempfile::TempDir::new().expect("tempdir");
+        // No `crates/` subdir created.
+        let groups = auto_assign_groups(d.path());
+        assert!(groups.is_empty());
+    }
+}

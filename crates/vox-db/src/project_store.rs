@@ -39,3 +39,38 @@ pub async fn open_project_db() -> Result<VoxDb, StoreError> {
 pub async fn open_project_code_store() -> Result<VoxDb, StoreError> {
     open_project_db().await
 }
+
+#[cfg(test)]
+mod semcov_wave1b_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[tokio::test]
+    async fn open_project_db_at_root_creates_dot_vox_store_under_given_root() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+
+        // Precondition: nothing exists yet under the fresh root.
+        let expected_db = root.join(".vox").join("store.db");
+        assert!(
+            !expected_db.exists(),
+            "store.db must not exist before the call"
+        );
+
+        let db = open_project_db_at_root(root).await;
+        assert!(
+            db.is_ok(),
+            "open_project_db_at_root should succeed for a writable root"
+        );
+
+        // Observable effect: the .vox/ parent dir was created and the store file now exists.
+        assert!(
+            root.join(".vox").is_dir(),
+            "ensure_parent_dir must have created the .vox/ directory"
+        );
+        assert!(
+            expected_db.exists(),
+            "the local store.db must exist at <root>/.vox/store.db after connect"
+        );
+    }
+}
