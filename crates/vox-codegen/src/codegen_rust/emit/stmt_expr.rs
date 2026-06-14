@@ -746,22 +746,33 @@ pub(super) fn emit_expr_with(
                 emit(idx, OwnershipMode::Owned)
             )
         }
-        // Frontend/web-only and unimplemented constructs must never panic the
-        // codegen pass. Emit a `compile_error!` so rustc surfaces a clear,
-        // actionable message instead of the Vox compiler aborting opaquely.
+        // Frontend/web-only constructs must never panic the codegen pass.
+        // Emit a `compile_error!` so rustc surfaces a clear, actionable message
+        // instead of the Vox compiler aborting opaquely.
         // JSX/AsyncView cannot go to a Rust server target.
-        // Spawn/WorkflowVersion/With get real emission in Task 8.
         HirExpr::Jsx(..) | HirExpr::JsxSelfClosing(..) | HirExpr::JsxFragment(..) => {
             r#"compile_error!("vox.codegen_rust.frontend_expr_in_server: JSX / async-view expressions cannot be emitted to the Rust (server/script) target")"#.to_string()
         }
         HirExpr::AsyncView(..) => {
             r#"compile_error!("vox.codegen_rust.frontend_expr_in_server: Async[T] when-views cannot be emitted to the Rust target")"#.to_string()
         }
-        HirExpr::Spawn(..) => {
-            r#"compile_error!("vox.codegen_rust.spawn_unimplemented: spawn-expression Rust emission is not yet implemented")"#.to_string()
+        // `spawn expr` → `tokio::spawn(async move { expr })` → JoinHandle.
+        // The actor-runtime ProcessHandle is the higher-level abstraction; for
+        // bare spawn-expressions in script/server context tokio is correct.
+        HirExpr::Spawn(target, _) => {
+            let inner = emit(target, OwnershipMode::Owned);
+            format!("tokio::spawn(async move {{ {inner} }})")
         }
-        HirExpr::WorkflowVersion(..) => {
-            r#"compile_error!("vox.codegen_rust.workflow_version_unimplemented: workflow.version() Rust emission is not yet implemented")"#.to_string()
+        // `workflow.version("id", min, max)` is a deploy-time patch-marker; at
+        // Rust runtime it is a no-op tuple that the optimizer removes. The
+        // orchestrator checks this triple at workflow-replay time via the journal.
+        HirExpr::WorkflowVersion(v) => {
+            format!(
+                "{{ let _ = ({id:?}, {min}u32, {max}u32); }}",
+                id = v.change_id,
+                min = v.min,
+                max = v.max,
+            )
         }
         HirExpr::With(..) => {
             r#"compile_error!("vox.codegen_rust.with_unimplemented: with(...) Rust emission is not yet implemented")"#.to_string()
