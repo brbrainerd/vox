@@ -76,8 +76,7 @@ fn resolve_code_index() -> Option<QdrantCodeIndex> {
 
 /// Run a read-only `git` command in `repo`; returns stdout on success.
 fn run_git(repo: &Path, args: &[&str]) -> Result<String> {
-    vox_git::read_only(repo, args)
-        .with_context(|| format!("git {}", args.join(" ")))
+    vox_git::read_only(repo, args).with_context(|| format!("git {}", args.join(" ")))
 }
 
 /// Parse `git log --numstat` output (one record per commit) into [`CommitView`]s.

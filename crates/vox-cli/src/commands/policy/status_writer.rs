@@ -68,7 +68,11 @@ pub fn write_results(
 fn git_read(repo_root: &Path, args: &[&str]) -> Option<String> {
     let out = vox_git::read_only(repo_root, args).ok()?;
     let trimmed = out.trim().to_string();
-    if trimmed.is_empty() { None } else { Some(trimmed) }
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
 }
 
 /// Current branch via `git rev-parse --abbrev-ref HEAD`.

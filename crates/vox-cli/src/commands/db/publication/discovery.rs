@@ -255,8 +255,7 @@ fn detect_repo_license(repo_root: &std::path::Path) -> Option<String> {
 /// Run `git remote get-url origin` and return the URL on success.
 fn git_remote_origin() -> Option<String> {
     let repo_root = vox_repository::resolve_repo_root_for_ci();
-    let url = vox_git::read_only(&repo_root, &["remote", "get-url", "origin"])
-        .ok()?;
+    let url = vox_git::read_only(&repo_root, &["remote", "get-url", "origin"]).ok()?;
     let url = url.trim().to_string();
     if url.is_empty() { None } else { Some(url) }
 }
