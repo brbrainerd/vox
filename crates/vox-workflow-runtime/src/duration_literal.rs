@@ -249,25 +249,29 @@ mod semcov_wave7_tests {
     #[test]
     fn zero_minutes_returns_zero_duration() {
         let d = parse_duration_str("0m").unwrap();
-        assert_eq!(d, Duration::from_millis(0), "0m must be a zero Duration, not an error");
+        assert_eq!(
+            d,
+            Duration::from_millis(0),
+            "0m must be a zero Duration, not an error"
+        );
     }
 
     // Catches: "1d" computing incorrect ms (e.g. forgetting the *24 factor)
     #[test]
     fn one_day_is_exactly_86400_seconds() {
         let d = parse_duration_str("1d").unwrap();
-        assert_eq!(
-            d.as_secs(),
-            86_400,
-            "1d must equal exactly 86400 seconds"
-        );
+        assert_eq!(d.as_secs(), 86_400, "1d must equal exactly 86400 seconds");
     }
 
     // Catches: bare integer being rejected, or mis-parsed as milliseconds instead of seconds
     #[test]
     fn bare_integer_is_seconds_not_milliseconds() {
         let d = parse_duration_str("1").unwrap();
-        assert_eq!(d, Duration::from_secs(1), "bare '1' must be 1 second, not 1 ms");
+        assert_eq!(
+            d,
+            Duration::from_secs(1),
+            "bare '1' must be 1 second, not 1 ms"
+        );
     }
 
     // Catches: very large values overflowing instead of saturating to u64::MAX ms
@@ -295,14 +299,21 @@ mod semcov_wave7_tests {
     #[test]
     fn empty_error_display_mentions_empty() {
         let msg = format!("{}", DurationParseError::Empty);
-        assert!(msg.contains("empty"), "Empty error display must contain 'empty': {msg}");
+        assert!(
+            msg.contains("empty"),
+            "Empty error display must contain 'empty': {msg}"
+        );
     }
 
     // Catches: whitespace-only string not triggering Empty (treated as invalid unit)
     #[test]
     fn whitespace_only_is_empty_error() {
         let err = parse_duration_str("   \t  ").unwrap_err();
-        assert_eq!(err, DurationParseError::Empty, "whitespace-only must be Empty");
+        assert_eq!(
+            err,
+            DurationParseError::Empty,
+            "whitespace-only must be Empty"
+        );
     }
 
     // Catches: unit "h" multiplying by 60 instead of 3600*1000 ms

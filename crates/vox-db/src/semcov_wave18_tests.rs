@@ -11,12 +11,12 @@
 #[cfg(test)]
 mod semcov_wave18_tests {
     // ── imports ──────────────────────────────────────────────────────────────
-    use crate::ddl::emit::{
+    use crate::ddl::{
         collection_index_to_ddl, index_to_ddl, table_info_to_ddl, to_snake_case,
         vox_type_to_sqlite_type,
     };
     use crate::ddl::{describe_diff, diff_schemas, diff_to_sql};
-    use crate::migration::{validate_migrations, Migration};
+    use crate::migration::{Migration, validate_migrations};
     use crate::normalize::normalize_and_hash;
     use crate::schema_digest::{FieldInfo, TableInfo};
     use crate::sql_util::validate_identifier;
@@ -90,7 +90,7 @@ mod semcov_wave18_tests {
             name: name.to_string(),
             type_str: type_str.to_string(),
             is_optional,
-            description: None,
+            references_table: None,
         }
     }
 
@@ -222,7 +222,10 @@ mod semcov_wave18_tests {
             Migration::new(5, "five_b", "CREATE TABLE y(id INTEGER);"),
         ];
         let result = validate_migrations(&m);
-        assert!(result.is_err(), "duplicate version must be rejected, not silently deduplicated");
+        assert!(
+            result.is_err(),
+            "duplicate version must be rejected, not silently deduplicated"
+        );
     }
 
     #[test]
@@ -361,7 +364,10 @@ mod semcov_wave18_tests {
         // Catches: generated index DDL lacks IF NOT EXISTS → re-migration crashes on existing DB.
         let i = idx("Task", "by_status", &["status"]);
         let ddl = index_to_ddl(&i);
-        assert!(ddl.contains("IF NOT EXISTS"), "missing IF NOT EXISTS: {ddl}");
+        assert!(
+            ddl.contains("IF NOT EXISTS"),
+            "missing IF NOT EXISTS: {ddl}"
+        );
     }
 
     #[test]
@@ -380,10 +386,7 @@ mod semcov_wave18_tests {
         // Catches: index name lowercased/modified, breaking name lookup in diff_to_sql.
         let i = idx("Task", "byDone", &["done"]);
         let ddl = index_to_ddl(&i);
-        assert!(
-            ddl.contains("idx_task_byDone"),
-            "index name mangled: {ddl}"
-        );
+        assert!(ddl.contains("idx_task_byDone"), "index name mangled: {ddl}");
     }
 
     #[test]
@@ -463,7 +466,10 @@ mod semcov_wave18_tests {
             !ddl.contains("notes TEXT NOT NULL"),
             "optional field must not have NOT NULL: {ddl}"
         );
-        assert!(ddl.contains("notes TEXT"), "optional field column missing: {ddl}");
+        assert!(
+            ddl.contains("notes TEXT"),
+            "optional field column missing: {ddl}"
+        );
     }
 
     #[test]
@@ -480,8 +486,14 @@ mod semcov_wave18_tests {
             sample_data: vec![],
         };
         let ddl = table_info_to_ddl(&info);
-        assert!(ddl.contains("_id TEXT PRIMARY KEY NOT NULL"), "missing _id: {ddl}");
-        assert!(ddl.contains("_creationTime TEXT NOT NULL"), "missing _creationTime: {ddl}");
+        assert!(
+            ddl.contains("_id TEXT PRIMARY KEY NOT NULL"),
+            "missing _id: {ddl}"
+        );
+        assert!(
+            ddl.contains("_creationTime TEXT NOT NULL"),
+            "missing _creationTime: {ddl}"
+        );
     }
 
     #[test]
@@ -498,7 +510,10 @@ mod semcov_wave18_tests {
             sample_data: vec![],
         };
         let ddl = table_info_to_ddl(&info);
-        assert!(ddl.contains("IF NOT EXISTS"), "missing IF NOT EXISTS: {ddl}");
+        assert!(
+            ddl.contains("IF NOT EXISTS"),
+            "missing IF NOT EXISTS: {ddl}"
+        );
     }
 
     #[test]
@@ -544,7 +559,8 @@ mod semcov_wave18_tests {
         let diff = diff_schemas(&[], &[&new_t], &[], &[], &[], &[]);
         assert!(
             diff.added_tables.contains(&"Widget".to_string()),
-            "added table not detected: {:?}", diff.added_tables
+            "added table not detected: {:?}",
+            diff.added_tables
         );
     }
 
@@ -555,7 +571,8 @@ mod semcov_wave18_tests {
         let diff = diff_schemas(&[&old_t], &[], &[], &[], &[], &[]);
         assert!(
             diff.removed_tables.contains(&"Legacy".to_string()),
-            "removed table not detected: {:?}", diff.removed_tables
+            "removed table not detected: {:?}",
+            diff.removed_tables
         );
     }
 
@@ -568,7 +585,12 @@ mod semcov_wave18_tests {
             vec![named_field("title", "str"), named_field("done", "bool")],
         );
         let diff = diff_schemas(&[&old_t], &[&new_t], &[], &[], &[], &[]);
-        assert_eq!(diff.added_columns.len(), 1, "expected 1 added column: {:?}", diff.added_columns);
+        assert_eq!(
+            diff.added_columns.len(),
+            1,
+            "expected 1 added column: {:?}",
+            diff.added_columns
+        );
         assert_eq!(diff.added_columns[0].1, "done");
     }
 
@@ -584,7 +606,8 @@ mod semcov_wave18_tests {
         assert_eq!(
             diff.removed_columns.len(),
             1,
-            "expected 1 removed column: {:?}", diff.removed_columns
+            "expected 1 removed column: {:?}",
+            diff.removed_columns
         );
         assert_eq!(diff.removed_columns[0].1, "old_field");
     }
@@ -600,7 +623,10 @@ mod semcov_wave18_tests {
         let diff = diff_schemas(&[&old_t], &[&new_t], &[], &[], &[], &[]);
         let sql = diff_to_sql(&diff, &[&new_t], &[]);
         let alter = sql.iter().find(|s| s.contains("ALTER TABLE"));
-        assert!(alter.is_some(), "no ALTER TABLE statement generated: {sql:?}");
+        assert!(
+            alter.is_some(),
+            "no ALTER TABLE statement generated: {sql:?}"
+        );
         let alter = alter.unwrap();
         assert!(
             alter.contains("ADD COLUMN score"),
@@ -621,7 +647,9 @@ mod semcov_wave18_tests {
             );
         }
         // Must generate a WARNING comment instead
-        let has_warning = sql.iter().any(|s| s.contains("WARNING") && s.contains("Deprecated"));
+        let has_warning = sql
+            .iter()
+            .any(|s| s.contains("WARNING") && s.contains("Deprecated"));
         assert!(has_warning, "no WARNING comment for removed table: {sql:?}");
     }
 
@@ -643,7 +671,10 @@ mod semcov_wave18_tests {
         let diff = diff_schemas(&[], &[], &[], &[], &[&old_i], &[]);
         let sql = diff_to_sql(&diff, &[], &[]);
         let has_drop = sql.iter().any(|s| s.contains("DROP INDEX IF EXISTS"));
-        assert!(has_drop, "no DROP INDEX IF EXISTS for removed index: {sql:?}");
+        assert!(
+            has_drop,
+            "no DROP INDEX IF EXISTS for removed index: {sql:?}"
+        );
     }
 
     #[test]
@@ -660,7 +691,10 @@ mod semcov_wave18_tests {
         let new_t = bare_table("Gadget", vec![]);
         let diff = diff_schemas(&[], &[&new_t], &[], &[], &[], &[]);
         let desc = describe_diff(&diff);
-        assert!(desc.contains("Gadget"), "table name missing from describe_diff output: {desc}");
+        assert!(
+            desc.contains("Gadget"),
+            "table name missing from describe_diff output: {desc}"
+        );
     }
 
     #[test]
@@ -673,7 +707,10 @@ mod semcov_wave18_tests {
         let add_pos = desc.find("Added");
         let rem_pos = desc.find("Removed");
         if let (Some(a), Some(r)) = (add_pos, rem_pos) {
-            assert!(a < r, "Removed appears before Added in describe_diff output:\n{desc}");
+            assert!(
+                a < r,
+                "Removed appears before Added in describe_diff output:\n{desc}"
+            );
         }
         // If either is absent the test passes vacuously (content is fine).
     }

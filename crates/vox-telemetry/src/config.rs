@@ -545,12 +545,21 @@ mod semcov_wave6_tests {
         let cfg = TelemetryConfig::all_off();
         assert!(!cfg.enabled, "all_off: enabled must be false");
         assert!(!cfg.remote_upload, "all_off: remote_upload must be false");
-        assert!(!cfg.research_metrics, "all_off: research_metrics must be false");
+        assert!(
+            !cfg.research_metrics,
+            "all_off: research_metrics must be false"
+        );
         assert!(!cfg.model_calls, "all_off: model_calls must be false");
-        assert!(!cfg.agent_orchestration, "all_off: agent_orchestration must be false");
+        assert!(
+            !cfg.agent_orchestration,
+            "all_off: agent_orchestration must be false"
+        );
         assert!(!cfg.build, "all_off: build must be false");
         assert!(!cfg.errors, "all_off: errors must be false");
-        assert!(!cfg.debug_to_stderr, "all_off: debug_to_stderr must be false");
+        assert!(
+            !cfg.debug_to_stderr,
+            "all_off: debug_to_stderr must be false"
+        );
     }
 
     // Catches: TelemetryConfig::default_on() having remote_upload=true — the spec
@@ -559,13 +568,25 @@ mod semcov_wave6_tests {
     fn default_on_has_remote_upload_false_and_categories_true() {
         let cfg = TelemetryConfig::default_on();
         assert!(cfg.enabled, "default_on: enabled must be true");
-        assert!(!cfg.remote_upload, "default_on: remote_upload must be false (local collection only)");
-        assert!(cfg.research_metrics, "default_on: research_metrics must be true");
+        assert!(
+            !cfg.remote_upload,
+            "default_on: remote_upload must be false (local collection only)"
+        );
+        assert!(
+            cfg.research_metrics,
+            "default_on: research_metrics must be true"
+        );
         assert!(cfg.model_calls, "default_on: model_calls must be true");
-        assert!(cfg.agent_orchestration, "default_on: agent_orchestration must be true");
+        assert!(
+            cfg.agent_orchestration,
+            "default_on: agent_orchestration must be true"
+        );
         assert!(cfg.build, "default_on: build must be true");
         assert!(cfg.errors, "default_on: errors must be true");
-        assert!(!cfg.debug_to_stderr, "default_on: debug_to_stderr must default to false");
+        assert!(
+            !cfg.debug_to_stderr,
+            "default_on: debug_to_stderr must default to false"
+        );
     }
 
     // Catches: env_flag() mishandling edge cases like whitespace-padded values,
@@ -650,10 +671,17 @@ mod semcov_wave6_tests {
         let toml = "[telemetry]\nenabled\nbuild = true\n= bad\nmodel_calls = 1\n";
         // Must not panic.
         let cfg = parse_user_config(toml);
-        assert_eq!(cfg.build, Some(true), "valid line after malformed line must be parsed");
+        assert_eq!(
+            cfg.build,
+            Some(true),
+            "valid line after malformed line must be parsed"
+        );
         assert_eq!(cfg.model_calls, Some(true));
         // malformed lines produce None, not Some(false)
-        assert_eq!(cfg.enabled, None, "malformed 'enabled' line must yield None, not Some(false)");
+        assert_eq!(
+            cfg.enabled, None,
+            "malformed 'enabled' line must yield None, not Some(false)"
+        );
     }
 
     // Catches: parse_user_config accepting "maybe" or other unrecognized boolean
@@ -671,7 +699,8 @@ mod semcov_wave6_tests {
             "'yes_please' is not a recognized boolean — must produce None"
         );
         assert_eq!(
-            cfg.errors, Some(true),
+            cfg.errors,
+            Some(true),
             "'true' is recognized and must produce Some(true)"
         );
     }
@@ -681,11 +710,24 @@ mod semcov_wave6_tests {
     // strip quotes before matching.
     #[test]
     fn parse_user_config_recognizes_quoted_boolean_values() {
-        let toml = "[telemetry]\nenabled = \"true\"\nremote_upload = 'false'\nmodel_calls = \"1\"\n";
+        let toml =
+            "[telemetry]\nenabled = \"true\"\nremote_upload = 'false'\nmodel_calls = \"1\"\n";
         let cfg = parse_user_config(toml);
-        assert_eq!(cfg.enabled, Some(true), "double-quoted 'true' must be recognized");
-        assert_eq!(cfg.remote_upload, Some(false), "single-quoted 'false' must be recognized");
-        assert_eq!(cfg.model_calls, Some(true), "double-quoted '1' must be recognized");
+        assert_eq!(
+            cfg.enabled,
+            Some(true),
+            "double-quoted 'true' must be recognized"
+        );
+        assert_eq!(
+            cfg.remote_upload,
+            Some(false),
+            "single-quoted 'false' must be recognized"
+        );
+        assert_eq!(
+            cfg.model_calls,
+            Some(true),
+            "double-quoted '1' must be recognized"
+        );
     }
 
     // Catches: parse_user_config not handling inline TOML comments — a line like
@@ -693,10 +735,19 @@ mod semcov_wave6_tests {
     // not fail because of the `# ...` tail.
     #[test]
     fn parse_user_config_strips_inline_comments() {
-        let toml = "[telemetry]\nenabled = true # enable collection\nbuild = false # disable build\n";
+        let toml =
+            "[telemetry]\nenabled = true # enable collection\nbuild = false # disable build\n";
         let cfg = parse_user_config(toml);
-        assert_eq!(cfg.enabled, Some(true), "inline comment must not prevent parsing enabled");
-        assert_eq!(cfg.build, Some(false), "inline comment must not prevent parsing build");
+        assert_eq!(
+            cfg.enabled,
+            Some(true),
+            "inline comment must not prevent parsing enabled"
+        );
+        assert_eq!(
+            cfg.build,
+            Some(false),
+            "inline comment must not prevent parsing build"
+        );
     }
 
     // Catches: org_policy_disabled() returning true (disabling telemetry) when
@@ -710,12 +761,16 @@ mod semcov_wave6_tests {
         fn scan(content: &str) -> bool {
             for raw_line in content.lines() {
                 let line = raw_line.trim();
-                if line.starts_with('#') { continue; }
+                if line.starts_with('#') {
+                    continue;
+                }
                 let bare = line.split('#').next().unwrap_or("").trim();
                 if let Some(rest) = bare.strip_prefix("enabled") {
                     let rest = rest.trim_start_matches([' ', '=']).trim();
                     let rest = rest.trim_matches('"').trim_matches('\'');
-                    if matches!(rest, "false" | "0" | "off") { return true; }
+                    if matches!(rest, "false" | "0" | "off") {
+                        return true;
+                    }
                 }
             }
             false
@@ -729,8 +784,17 @@ mod semcov_wave6_tests {
             "`enabled = 1` must NOT trigger policy-disabled"
         );
         // But these must still disable.
-        assert!(scan("enabled = false"), "`enabled = false` must trigger policy-disabled");
-        assert!(scan("enabled = 0"), "`enabled = 0` must trigger policy-disabled");
-        assert!(scan("enabled = off"), "`enabled = off` must trigger policy-disabled");
+        assert!(
+            scan("enabled = false"),
+            "`enabled = false` must trigger policy-disabled"
+        );
+        assert!(
+            scan("enabled = 0"),
+            "`enabled = 0` must trigger policy-disabled"
+        );
+        assert!(
+            scan("enabled = off"),
+            "`enabled = off` must trigger policy-disabled"
+        );
     }
 }

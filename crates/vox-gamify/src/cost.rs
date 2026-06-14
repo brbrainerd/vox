@@ -244,7 +244,10 @@ mod semcov_wave13_tests {
         agg.set_budget_limit("a", 1.00);
         agg.record(rec("a", 1.50));
         let remaining = agg.budget_remaining("a").unwrap();
-        assert!(remaining < 0.0, "remaining={remaining} should be negative when over budget");
+        assert!(
+            remaining < 0.0,
+            "remaining={remaining} should be negative when over budget"
+        );
     }
 
     // ── token accumulation ─────────────────────────────────────────────────
@@ -278,8 +281,22 @@ mod semcov_wave13_tests {
     fn by_provider_accumulates_across_calls_same_provider() {
         // Catches: by_provider inserting instead of summing per provider
         let mut s = CostSummary::default();
-        s.add(&CostRecord::new_ephemeral("a", "openrouter", None, 10, 5, 1.0));
-        s.add(&CostRecord::new_ephemeral("a", "openrouter", None, 20, 10, 2.0));
+        s.add(&CostRecord::new_ephemeral(
+            "a",
+            "openrouter",
+            None,
+            10,
+            5,
+            1.0,
+        ));
+        s.add(&CostRecord::new_ephemeral(
+            "a",
+            "openrouter",
+            None,
+            20,
+            10,
+            2.0,
+        ));
         let cost = s.by_provider.get("openrouter").copied().unwrap_or(0.0);
         assert!((cost - 3.0).abs() < 1e-12, "by_provider cost={cost}");
     }
@@ -291,7 +308,10 @@ mod semcov_wave13_tests {
         // Catches: unwrap() on None model panicking instead of skipping
         let mut s = CostSummary::default();
         s.add(&CostRecord::new_ephemeral("a", "p", None, 10, 5, 0.5));
-        assert!(s.by_model.is_empty(), "no model → by_model should remain empty");
+        assert!(
+            s.by_model.is_empty(),
+            "no model → by_model should remain empty"
+        );
         assert_eq!(s.call_count, 1);
     }
 }

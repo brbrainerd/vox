@@ -1925,7 +1925,10 @@ mod semcov_wave8_tests {
         // The key must appear before the first >, not after.
         let key_pos = result.find("key={item.id}").unwrap();
         let first_gt = result.find('>').unwrap();
-        assert!(key_pos < first_gt, "key must be injected inside the opening tag");
+        assert!(
+            key_pos < first_gt,
+            "key must be injected inside the opening tag"
+        );
     }
 
     // Catches: extract_or_wrap_arrow not handling a bare block expression (starting with '{').

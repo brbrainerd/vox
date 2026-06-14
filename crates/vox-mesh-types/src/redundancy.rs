@@ -222,7 +222,9 @@ mod semcov_wave8_tests {
     #[test]
     fn all_agree_is_consensus_not_majority() {
         let out = vote_majority(&[pair("n1", "aaa"), pair("n2", "aaa"), pair("n3", "aaa")]);
-        assert!(matches!(out, VoteOutcome::Consensus { output_blake3_hex } if output_blake3_hex == "aaa"));
+        assert!(
+            matches!(out, VoteOutcome::Consensus { output_blake3_hex } if output_blake3_hex == "aaa")
+        );
     }
 
     // Catches: decide_replicas ignoring min_replicas=0 and returning 0 instead of clamping to 1.

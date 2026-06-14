@@ -439,7 +439,11 @@ mod semcov_wave10_tests {
         // Catches: a bus that leaks state from a previous test or static init
         let bus = MessageBus::new(10);
         assert_eq!(bus.dropped_messages(), 0, "dropped must be 0 on fresh bus");
-        assert_eq!(bus.total_messages(), 0, "audit trail must be empty on fresh bus");
+        assert_eq!(
+            bus.total_messages(),
+            0,
+            "audit trail must be empty on fresh bus"
+        );
     }
 
     #[test]
@@ -453,7 +457,10 @@ mod semcov_wave10_tests {
         let _id = bus.send(s, r, A2AMessageType::FreeForm, "ping");
         // If cap were 0, the message would be dropped and inbox would be empty
         let msgs = bus.inbox_all(r);
-        assert!(!msgs.is_empty(), "default bus must accept at least one message");
+        assert!(
+            !msgs.is_empty(),
+            "default bus must accept at least one message"
+        );
     }
 
     // ── register_agent ───────────────────────────────────────────────────────
@@ -469,7 +476,11 @@ mod semcov_wave10_tests {
         bus.send(s, r, A2AMessageType::FreeForm, "first");
         bus.register_agent(r); // double-register
         let msgs = bus.inbox_all(r);
-        assert_eq!(msgs.len(), 1, "second register_agent must not wipe existing inbox");
+        assert_eq!(
+            msgs.len(),
+            1,
+            "second register_agent must not wipe existing inbox"
+        );
     }
 
     #[test]
@@ -478,7 +489,10 @@ mod semcov_wave10_tests {
         let bus = MessageBus::new(10);
         bus.register_agent(recv_a());
         let msgs = bus.inbox(recv_a());
-        assert!(msgs.is_empty(), "newly registered agent must have empty inbox");
+        assert!(
+            msgs.is_empty(),
+            "newly registered agent must have empty inbox"
+        );
     }
 
     // ── broadcast ────────────────────────────────────────────────────────────
@@ -488,7 +502,11 @@ mod semcov_wave10_tests {
         // Catches: unwrap() or index into empty agents list inside broadcast
         let bus = MessageBus::new(10);
         let _id = bus.broadcast(sender(), A2AMessageType::FreeForm, "hello");
-        assert_eq!(bus.total_messages(), 1, "broadcast still lands in audit trail");
+        assert_eq!(
+            bus.total_messages(),
+            1,
+            "broadcast still lands in audit trail"
+        );
     }
 
     #[test]
@@ -501,7 +519,11 @@ mod semcov_wave10_tests {
         bus.register_agent(r);
         bus.broadcast(s, A2AMessageType::FreeForm, "hello");
         let msgs = bus.inbox(r);
-        assert_eq!(msgs.len(), 1, "single non-sender agent must receive the broadcast");
+        assert_eq!(
+            msgs.len(),
+            1,
+            "single non-sender agent must receive the broadcast"
+        );
     }
 
     #[test]
@@ -514,7 +536,10 @@ mod semcov_wave10_tests {
         bus.register_agent(r);
         bus.broadcast(s, A2AMessageType::FreeForm, "hi");
         let sender_inbox = bus.inbox(s);
-        assert!(sender_inbox.is_empty(), "sender must not receive their own broadcast");
+        assert!(
+            sender_inbox.is_empty(),
+            "sender must not receive their own broadcast"
+        );
     }
 
     #[test]
@@ -542,7 +567,11 @@ mod semcov_wave10_tests {
         let bus = MessageBus::new(10);
         bus.register_agent(sender());
         let _id = bus.send_to_group(sender(), &[], A2AMessageType::FreeForm, "nobody");
-        assert_eq!(bus.total_messages(), 1, "audit must record even a zero-recipient multicast");
+        assert_eq!(
+            bus.total_messages(),
+            1,
+            "audit must record even a zero-recipient multicast"
+        );
     }
 
     #[test]
@@ -553,7 +582,11 @@ mod semcov_wave10_tests {
         let unknown = AgentId(999);
         bus.send_to_group(sender(), &[unknown], A2AMessageType::FreeForm, "hey");
         let msgs = bus.inbox_all(unknown);
-        assert_eq!(msgs.len(), 1, "send_to_group must auto-create inbox for unknown agents");
+        assert_eq!(
+            msgs.len(),
+            1,
+            "send_to_group must auto-create inbox for unknown agents"
+        );
     }
 
     #[test]
@@ -570,7 +603,10 @@ mod semcov_wave10_tests {
         let msg_a = &bus.inbox_all(a)[0];
         let msg_b = &bus.inbox_all(b)[0];
         assert_eq!(msg_a.id, id, "recipient A must see the returned message id");
-        assert_eq!(msg_b.id, id, "recipient B must see the same message id as A");
+        assert_eq!(
+            msg_b.id, id,
+            "recipient B must see the same message id as A"
+        );
     }
 
     // ── inbox ────────────────────────────────────────────────────────────────
@@ -580,7 +616,10 @@ mod semcov_wave10_tests {
         // Catches: unwrap on a missing inbox entry
         let bus = MessageBus::new(10);
         let msgs = bus.inbox(AgentId(404));
-        assert!(msgs.is_empty(), "inbox for unregistered agent must be empty");
+        assert!(
+            msgs.is_empty(),
+            "inbox for unregistered agent must be empty"
+        );
     }
 
     #[test]
@@ -690,7 +729,11 @@ mod semcov_wave10_tests {
         );
 
         let thread_msgs = bus.messages_in_thread(&tid);
-        assert_eq!(thread_msgs.len(), 3, "all three thread messages must be returned");
+        assert_eq!(
+            thread_msgs.len(),
+            3,
+            "all three thread messages must be returned"
+        );
         // Timestamps must be non-decreasing (FIFO)
         for window in thread_msgs.windows(2) {
             assert!(
@@ -698,8 +741,14 @@ mod semcov_wave10_tests {
                 "messages_in_thread must be sorted FIFO by timestamp_ms"
             );
         }
-        assert_eq!(thread_msgs[0].payload, "first", "first sent = first in FIFO order");
-        assert_eq!(thread_msgs[2].payload, "third", "last sent = last in FIFO order");
+        assert_eq!(
+            thread_msgs[0].payload, "first",
+            "first sent = first in FIFO order"
+        );
+        assert_eq!(
+            thread_msgs[2].payload, "third",
+            "last sent = last in FIFO order"
+        );
     }
 
     #[test]
@@ -779,7 +828,11 @@ mod semcov_wave10_tests {
     fn dropped_messages_zero_initially() {
         // Catches: dropped counter initialized to garbage or leaking from a shared global
         let bus = MessageBus::new(5);
-        assert_eq!(bus.dropped_messages(), 0, "fresh bus must have 0 dropped messages");
+        assert_eq!(
+            bus.dropped_messages(),
+            0,
+            "fresh bus must have 0 dropped messages"
+        );
     }
 
     #[test]
@@ -813,7 +866,10 @@ mod semcov_wave10_tests {
         let before = bus.dropped_messages();
         bus.send(s, r, A2AMessageType::FreeForm, "second"); // evicts first
         let after = bus.dropped_messages();
-        assert!(after >= before, "dropped_messages must never decrease; {before} -> {after}");
+        assert!(
+            after >= before,
+            "dropped_messages must never decrease; {before} -> {after}"
+        );
         // Acknowledge evicted message id (already gone) — counter must not go down
         bus.acknowledge(r, id1);
         assert_eq!(
@@ -832,7 +888,10 @@ mod semcov_wave10_tests {
         bus.register_agent(recv_a());
         let phantom = MessageId(u64::MAX);
         let result = bus.acknowledge(recv_a(), phantom);
-        assert!(!result, "acknowledge must return false for a message id that doesn't exist");
+        assert!(
+            !result,
+            "acknowledge must return false for a message id that doesn't exist"
+        );
     }
 
     #[test]
@@ -847,7 +906,10 @@ mod semcov_wave10_tests {
         let first = bus.acknowledge(r, id);
         let second = bus.acknowledge(r, id);
         assert!(first, "first ack must succeed");
-        assert!(second, "second ack on same message must also return true (idempotent)");
+        assert!(
+            second,
+            "second ack on same message must also return true (idempotent)"
+        );
         // After double-ack the message must still be filtered from inbox()
         let visible = bus.inbox(r);
         assert!(
@@ -872,7 +934,11 @@ mod semcov_wave10_tests {
         assert!(!result, "ack by wrong agent must return false");
         // Original recipient's message must still be unacknowledged
         let visible = bus.inbox(r);
-        assert_eq!(visible.len(), 1, "original recipient must still have the unacked message");
+        assert_eq!(
+            visible.len(),
+            1,
+            "original recipient must still have the unacked message"
+        );
     }
 
     // ── id_gen monotonicity ───────────────────────────────────────────────────

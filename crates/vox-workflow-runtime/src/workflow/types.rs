@@ -89,7 +89,10 @@ mod semcov_wave7_tests {
     fn different_args_produce_different_hashes() {
         let h1 = compute_structural_arg_hash(&[json!(1), json!("a")]);
         let h2 = compute_structural_arg_hash(&[json!(2), json!("b")]);
-        assert_ne!(h1, h2, "distinct argument lists must hash to different hex strings");
+        assert_ne!(
+            h1, h2,
+            "distinct argument lists must hash to different hex strings"
+        );
     }
 
     // Catches: hash being non-deterministic across calls (non-stable sort or RNG)
@@ -105,7 +108,10 @@ mod semcov_wave7_tests {
     #[test]
     fn empty_args_hash_is_stable_non_empty_hex() {
         let h = compute_structural_arg_hash(&[]);
-        assert!(!h.is_empty(), "empty-args hash must still produce a non-empty hex string");
+        assert!(
+            !h.is_empty(),
+            "empty-args hash must still produce a non-empty hex string"
+        );
         // blake3 hex is always 64 chars
         assert_eq!(h.len(), 64, "blake3 hex must be 64 characters");
     }

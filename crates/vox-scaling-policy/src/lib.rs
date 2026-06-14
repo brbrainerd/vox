@@ -86,7 +86,10 @@ mod semcov_wave9_tests {
     fn from_yaml_str_rejects_invalid_yaml() {
         let bad = "{{{{not valid yaml at all}}}}";
         let result = ScalingPolicy::from_yaml_str(bad);
-        assert!(result.is_err(), "invalid YAML must return Err, not silently default");
+        assert!(
+            result.is_err(),
+            "invalid YAML must return Err, not silently default"
+        );
     }
 
     // Catches: schema_version field being silently zeroed out by serde when the
@@ -105,8 +108,16 @@ mod semcov_wave9_tests {
         let mut cb = CostCircuitBreaker::new(CostDefenseConfig::default());
         for i in 1..=5u32 {
             cb.record_task_completion("task-loop", "tenant-a", 0.01);
-            let count = cb.state.task_retry_counts.get("task-loop").copied().unwrap_or(0);
-            assert_eq!(count, i, "retry count must equal number of completions at step {i}");
+            let count = cb
+                .state
+                .task_retry_counts
+                .get("task-loop")
+                .copied()
+                .unwrap_or(0);
+            assert_eq!(
+                count, i,
+                "retry count must equal number of completions at step {i}"
+            );
         }
     }
 
@@ -135,9 +146,9 @@ mod semcov_wave9_tests {
         let mut cb = CostCircuitBreaker::new(CostDefenseConfig::default());
         cb.state.daily_spent_usd = cb.config.daily_budget_usd;
         let r = cb.check_before_task(60, "t-zero", "tenant-a", "local", 0.0);
-        let budget_rejection = r.iter().any(|x| {
-            matches!(x, CostDefenseRejection::DailyBudgetExhausted { .. })
-        });
+        let budget_rejection = r
+            .iter()
+            .any(|x| matches!(x, CostDefenseRejection::DailyBudgetExhausted { .. }));
         assert!(
             !budget_rejection,
             "zero-cost task at exact budget boundary must not trigger DailyBudgetExhausted"
@@ -151,7 +162,9 @@ mod semcov_wave9_tests {
         let cb = CostCircuitBreaker::new(CostDefenseConfig::default());
         for tier in &["LOCAL", "Mid", "FRONTIER"] {
             let r = cb.check_before_task(60, "t1", "tenant-a", tier, 0.01);
-            let pinned = r.iter().any(|x| matches!(x, CostDefenseRejection::ModelNotPinned { .. }));
+            let pinned = r
+                .iter()
+                .any(|x| matches!(x, CostDefenseRejection::ModelNotPinned { .. }));
             assert!(!pinned, "model tier {tier:?} must match case-insensitively");
         }
     }

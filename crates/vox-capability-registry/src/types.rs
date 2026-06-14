@@ -60,7 +60,9 @@ mod semcov_wave9_tests {
             capability_id: id.to_string(),
             description: "test".to_string(),
             populi_exposure: exposure,
-            invocation_forms: InvocationForms { mcp_tool: Some(id.to_string()) },
+            invocation_forms: InvocationForms {
+                mcp_tool: Some(id.to_string()),
+            },
         }
     }
 
@@ -95,14 +97,19 @@ mod semcov_wave9_tests {
             make_desc("dup-id", PopuliExposure::Auto),
         ]);
         let count = reg.mens_chat_capabilities().count();
-        assert_eq!(count, 2, "duplicate ids must both be preserved (dedup is caller's job)");
+        assert_eq!(
+            count, 2,
+            "duplicate ids must both be preserved (dedup is caller's job)"
+        );
     }
 
     // Catches: mens_chat_capabilities returning Off entries when all caps are Auto,
     // verifying the filter logic is correct direction.
     #[test]
     fn all_auto_registry_all_visible() {
-        let descs: Vec<_> = (0..5).map(|i| make_desc(&format!("cap-{i}"), PopuliExposure::Auto)).collect();
+        let descs: Vec<_> = (0..5)
+            .map(|i| make_desc(&format!("cap-{i}"), PopuliExposure::Auto))
+            .collect();
         let reg = CapabilityRegistry::from_descriptors(descs);
         assert_eq!(reg.mens_chat_capabilities().count(), 5);
     }

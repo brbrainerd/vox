@@ -256,7 +256,10 @@ mod semcov_wave9_tests {
         let p = plugin();
         let audio: &[u8] = &[0u8; 64];
         let r = p.push_audio("nonexistent-session".into(), RSlice::from_slice(audio));
-        assert!(r.is_rerr(), "push_audio with no active stream must return Err");
+        assert!(
+            r.is_rerr(),
+            "push_audio with no active stream must return Err"
+        );
     }
 
     // Catches: end_stream() returning ROk with a partial transcript for a session
@@ -265,7 +268,10 @@ mod semcov_wave9_tests {
     fn end_stream_without_stream_returns_err() {
         let p = plugin();
         let r = p.end_stream("nonexistent-session".into());
-        assert!(r.is_rerr(), "end_stream with no active stream must return Err");
+        assert!(
+            r.is_rerr(),
+            "end_stream with no active stream must return Err"
+        );
     }
 
     // Catches: start_capture() silently succeeding (stub must remain an error until
@@ -292,8 +298,8 @@ mod semcov_wave9_tests {
                 panic!("list_devices_json returned Err: {e}");
             }
         };
-        let parsed: serde_json::Value = serde_json::from_str(&json_str)
-            .expect("list_devices_json must return valid JSON");
+        let parsed: serde_json::Value =
+            serde_json::from_str(&json_str).expect("list_devices_json must return valid JSON");
         assert!(
             parsed.is_array(),
             "list_devices_json must return a JSON array, got: {parsed}"

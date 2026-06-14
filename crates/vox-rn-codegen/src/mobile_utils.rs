@@ -195,7 +195,13 @@ mod semcov_wave8_tests {
     #[test]
     fn emitted_mobile_utils_has_all_methods() {
         let out = emit_mobile_utils_rn();
-        for method in ["notify", "vibrate", "take_photo", "transcribe", "transcribe_microphone"] {
+        for method in [
+            "notify",
+            "vibrate",
+            "take_photo",
+            "transcribe",
+            "transcribe_microphone",
+        ] {
             assert!(
                 out.contains(method),
                 "mobile-utils.ts must contain method '{method}'; got:\n{out}"
@@ -213,8 +219,15 @@ component Hello() {
 "#;
         let module = parse(lex(src)).expect("parse");
         let hir = lower_module(&module);
-        let rc = hir.components.iter().find(|c| c.name == "Hello").expect("Hello");
-        assert!(!component_uses_mobile(rc), "component with no mobile refs must return false");
+        let rc = hir
+            .components
+            .iter()
+            .find(|c| c.name == "Hello")
+            .expect("Hello");
+        assert!(
+            !component_uses_mobile(rc),
+            "component with no mobile refs must return false"
+        );
     }
 
     // Catches: any_component_uses_mobile returning true when no component uses mobile.

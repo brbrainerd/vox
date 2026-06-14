@@ -820,7 +820,10 @@ mod semcov_wave9_tests {
     fn key_identity_esc_alias_same_as_escape() {
         let (key_esc, code_esc, vk_esc) = key_identity("Esc");
         let (key_escape, code_escape, vk_escape) = key_identity("Escape");
-        assert_eq!(key_esc, key_escape, "Esc and Escape must produce same DOM key");
+        assert_eq!(
+            key_esc, key_escape,
+            "Esc and Escape must produce same DOM key"
+        );
         assert_eq!(code_esc, code_escape);
         assert_eq!(vk_esc, vk_escape);
     }

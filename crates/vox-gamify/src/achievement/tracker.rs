@@ -135,10 +135,7 @@ mod semcov_wave13_tests {
         // Catches: off-by-one where threshold - 1 still unlocks
         let mut tracker = AchievementTracker::new();
         let unlocked = tracker.check_unlocks("agent-x", "tasks_completed", 0);
-        assert!(
-            unlocked.is_empty(),
-            "value below threshold must not unlock"
-        );
+        assert!(unlocked.is_empty(), "value below threshold must not unlock");
     }
 
     #[test]
@@ -146,7 +143,11 @@ mod semcov_wave13_tests {
         // Catches: strict equality check (==) instead of >=
         let mut tracker = AchievementTracker::new();
         let unlocked = tracker.check_unlocks("agent-x", "tasks_completed", 2);
-        assert_eq!(unlocked.len(), 1, "value above threshold should unlock first_task");
+        assert_eq!(
+            unlocked.len(),
+            1,
+            "value above threshold should unlock first_task"
+        );
         assert_eq!(unlocked[0].id.0, "first_task");
     }
 
@@ -159,8 +160,14 @@ mod semcov_wave13_tests {
         // Jump straight from 0 to 5 — both "first_task" (1) and "five_tasks" (5) should unlock
         let unlocked = tracker.check_unlocks("agent-x", "tasks_completed", 5);
         let ids: Vec<&str> = unlocked.iter().map(|a| a.id.0.as_str()).collect();
-        assert!(ids.contains(&"first_task"), "first_task should unlock at value 5");
-        assert!(ids.contains(&"five_tasks"), "five_tasks should unlock at value 5");
+        assert!(
+            ids.contains(&"first_task"),
+            "first_task should unlock at value 5"
+        );
+        assert!(
+            ids.contains(&"five_tasks"),
+            "five_tasks should unlock at value 5"
+        );
     }
 
     // ── Idempotency: re-checking same value does not re-unlock ────────────
@@ -171,7 +178,10 @@ mod semcov_wave13_tests {
         let mut tracker = AchievementTracker::new();
         tracker.check_unlocks("agent-x", "tasks_completed", 1);
         let second = tracker.check_unlocks("agent-x", "tasks_completed", 1);
-        assert!(second.is_empty(), "re-checking same value must not re-unlock");
+        assert!(
+            second.is_empty(),
+            "re-checking same value must not re-unlock"
+        );
     }
 
     // ── Unknown counter returns empty ──────────────────────────────────────
@@ -227,7 +237,10 @@ mod semcov_wave13_tests {
         let mut tracker = AchievementTracker::new();
         let unlocked = tracker.check_unlocks("agent-x", "activity_streak", 6);
         let ids: Vec<&str> = unlocked.iter().map(|a| a.id.0.as_str()).collect();
-        assert!(!ids.contains(&"streak_7"), "streak_7 must not unlock at value 6");
+        assert!(
+            !ids.contains(&"streak_7"),
+            "streak_7 must not unlock at value 6"
+        );
     }
 }
 

@@ -10,7 +10,7 @@
 
 #[cfg(test)]
 mod semcov_wave17_tests {
-    use crate::hir::lower::{lower_module, lower_module_with_config, LowerConfig};
+    use crate::hir::lower::{LowerConfig, lower_module, lower_module_with_config};
     use crate::hir::nodes::effect::HirEffectKind;
     use crate::hir::{HirCapability, validate_module};
     use crate::lexer::cursor::lex;
@@ -108,7 +108,10 @@ mod semcov_wave17_tests {
         let errs = parse_err(
             "@component Counter(start: int) {\n  state n: int = start\n  view: <span>{n}</span>\n}",
         );
-        assert!(!errs.is_empty(), "reactive @component must remain tombstoned");
+        assert!(
+            !errs.is_empty(),
+            "reactive @component must remain tombstoned"
+        );
     }
 
     #[test]
@@ -234,7 +237,11 @@ mod semcov_wave17_tests {
     fn lower_versioned_fn_gets_vcs_capability_injected() {
         // Catches: is_versioned flag not triggering automatic Vcs capability injection
         let hir = lower("@versioned fn snap() to str { return \"\" }");
-        assert_eq!(hir.functions.len(), 1, "versioned fn must appear in hir.functions");
+        assert_eq!(
+            hir.functions.len(),
+            1,
+            "versioned fn must appear in hir.functions"
+        );
         assert!(
             hir.functions[0].is_versioned,
             "is_versioned must be true after lowering"
@@ -384,7 +391,10 @@ fn coordinator() uses net, db to str { db_read() }
         // Catches: Db intrinsic cap not mapped for `db.query`
         let src = r#"fn f() uses nothing to str { db.query("SELECT 1") }"#;
         let diags = effect_diags(src);
-        assert!(!diags.is_empty(), "db.query without uses db must be a violation");
+        assert!(
+            !diags.is_empty(),
+            "db.query without uses db must be a violation"
+        );
         assert!(
             diags.iter().any(|d| d.message.contains("db")),
             "violation must name 'db': {diags:?}"
@@ -396,14 +406,17 @@ fn coordinator() uses net, db to str { db_read() }
         // Catches: effect checker crashing or returning phantom diags on empty input
         let src = "";
         let diags = effect_diags(src);
-        assert!(diags.is_empty(), "empty module must produce no effect diags");
+        assert!(
+            diags.is_empty(),
+            "empty module must produce no effect diags"
+        );
     }
 
     #[test]
     fn endpoint_fn_pure_plus_effects_is_conflict() {
         // Catches: E_EFFECT_PURE_CONFLICT not being raised for endpoints
-        use crate::hir::nodes::{HirEndpointFn, HirEndpointKind, DefId};
         use crate::ast::span::Span;
+        use crate::hir::nodes::{DefId, HirEndpointFn, HirEndpointKind};
         let f = HirEndpointFn {
             kind: HirEndpointKind::Query,
             id: DefId(0),
@@ -422,7 +435,11 @@ fn coordinator() uses net, db to str { db_read() }
             span: Span::new(0, 0),
         };
         let diags = check_endpoint_fn_effects(&[f]);
-        assert_eq!(diags.len(), 1, "pure+uses conflict must produce exactly 1 diag");
+        assert_eq!(
+            diags.len(),
+            1,
+            "pure+uses conflict must produce exactly 1 diag"
+        );
         assert_eq!(
             diags[0].code,
             Some("E_EFFECT_PURE_CONFLICT".to_string()),
@@ -433,8 +450,8 @@ fn coordinator() uses net, db to str { db_read() }
     #[test]
     fn endpoint_fn_duplicate_effect_is_caught() {
         // Catches: E_EFFECT_DUPLICATE check not running for endpoint functions
-        use crate::hir::nodes::{HirEndpointFn, HirEndpointKind, DefId};
         use crate::ast::span::Span;
+        use crate::hir::nodes::{DefId, HirEndpointFn, HirEndpointKind};
         let f = HirEndpointFn {
             kind: HirEndpointKind::Mutation,
             id: DefId(1),
@@ -453,7 +470,11 @@ fn coordinator() uses net, db to str { db_read() }
             span: Span::new(0, 0),
         };
         let diags = check_endpoint_fn_effects(&[f]);
-        assert_eq!(diags.len(), 1, "duplicate effect must produce exactly 1 diag");
+        assert_eq!(
+            diags.len(),
+            1,
+            "duplicate effect must produce exactly 1 diag"
+        );
         assert_eq!(
             diags[0].code,
             Some("E_EFFECT_DUPLICATE".to_string()),

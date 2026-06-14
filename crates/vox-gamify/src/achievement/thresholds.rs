@@ -156,7 +156,11 @@ mod semcov_wave13_tests {
     fn tasks_completed_has_five_thresholds() {
         // Catches: accidentally returning wrong number of thresholds
         let thresholds = for_counter("tasks_completed");
-        assert_eq!(thresholds.len(), 5, "expected 5 thresholds for tasks_completed");
+        assert_eq!(
+            thresholds.len(),
+            5,
+            "expected 5 thresholds for tasks_completed"
+        );
     }
 
     #[test]
@@ -202,7 +206,10 @@ mod semcov_wave13_tests {
     fn unknown_counter_returns_empty_vec() {
         // Catches: _ wildcard branch returning some default thresholds
         let thresholds = for_counter("this_counter_does_not_exist_xyz");
-        assert!(thresholds.is_empty(), "unknown counter must return empty vec");
+        assert!(
+            thresholds.is_empty(),
+            "unknown counter must return empty vec"
+        );
     }
 
     #[test]

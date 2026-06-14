@@ -1207,7 +1207,10 @@ mod tests {
             // pair it with LocalOnly scope for maximal rejection.
             let req = ModelSelectionRequest {
                 intent: SelectionIntent::for_task(TaskCategory::CodeGen),
-                required_capabilities: vec![Capability::SupportsVision, Capability::SupportsAudioInput],
+                required_capabilities: vec![
+                    Capability::SupportsVision,
+                    Capability::SupportsAudioInput,
+                ],
                 candidate_scope: CandidateScope::LocalOnly,
             };
             // Either None (no candidates) or Some(d) where the model must be local.

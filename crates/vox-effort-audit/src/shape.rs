@@ -243,9 +243,15 @@ mod semcov_wave8_tests {
     fn empty_file_list_not_lockfile_only() {
         let r = make_rec("chore: empty", vec![], "");
         let f = features(&r);
-        assert!(!f.is_lockfile_only, "empty file list must NOT be lockfile_only");
+        assert!(
+            !f.is_lockfile_only,
+            "empty file list must NOT be lockfile_only"
+        );
         assert!(!f.is_doc_only, "empty file list must NOT be doc_only");
-        assert!(!f.is_generated_only, "empty file list must NOT be generated_only");
+        assert!(
+            !f.is_generated_only,
+            "empty file list must NOT be generated_only"
+        );
     }
 
     // Catches: mixed lockfile + non-lockfile being incorrectly flagged as lockfile_only.
@@ -305,10 +311,12 @@ mod semcov_wave8_tests {
     // Catches: files_changed not matching actual file count (e.g., off-by-one or saturating).
     #[test]
     fn files_changed_equals_file_count() {
-        let files: Vec<(&str, u64, u64)> = (0..5).map(|i| {
-            let path: &'static str = Box::leak(format!("src/f{i}.rs").into_boxed_str());
-            (path, 1u64, 0u64)
-        }).collect();
+        let files: Vec<(&str, u64, u64)> = (0..5)
+            .map(|i| {
+                let path: &'static str = Box::leak(format!("src/f{i}.rs").into_boxed_str());
+                (path, 1u64, 0u64)
+            })
+            .collect();
         let r = make_rec("feat: five files", files, "");
         assert_eq!(features(&r).files_changed, 5);
     }

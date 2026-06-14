@@ -135,10 +135,7 @@ mod semcov_wave6_tests {
     fn classifier_provider_keywords_take_precedence_over_capability_when_both_present() {
         let c = KeywordObservationClassifier;
         // "latency" is a provider keyword; "benchmark" is capability — provider wins
-        let result = c.classify(
-            "benchmark showed high latency",
-            &serde_json::Value::Null,
-        );
+        let result = c.classify("benchmark showed high latency", &serde_json::Value::Null);
         assert_eq!(
             result,
             ObservationClass::ProviderObservation,

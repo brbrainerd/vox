@@ -401,7 +401,10 @@ mod semcov_wave11_tests {
         let b = ActivityOptions::new()
             .with_timeout(Duration::from_secs(7))
             .timeout;
-        assert_eq!(a, b, "with_timeout_secs(n) != with_timeout(Duration::from_secs(n))");
+        assert_eq!(
+            a, b,
+            "with_timeout_secs(n) != with_timeout(Duration::from_secs(n))"
+        );
     }
 
     #[test]
@@ -546,7 +549,11 @@ mod semcov_wave11_tests {
                 if i == j {
                     assert_eq!(a, b, "same variant must equal itself");
                 } else {
-                    assert_ne!(a, b, "distinct variants must not be equal: {:?} == {:?}", a, b);
+                    assert_ne!(
+                        a, b,
+                        "distinct variants must not be equal: {:?} == {:?}",
+                        a, b
+                    );
                 }
             }
         }
@@ -585,10 +592,8 @@ mod semcov_wave11_tests {
         let opts = ActivityOptions::new()
             .with_retries(2)
             .with_initial_backoff(Duration::from_millis(1));
-        let result = execute_activity("count-check", &opts, || async {
-            Err::<(), _>("boom")
-        })
-        .await;
+        let result =
+            execute_activity("count-check", &opts, || async { Err::<(), _>("boom") }).await;
         match result {
             ActivityResult::Failed(ActivityError::RetriesExhausted { attempts, .. }) => {
                 assert_eq!(
@@ -661,7 +666,11 @@ mod semcov_wave11_tests {
         .await;
         match result {
             ActivityResult::Failed(ActivityError::Timeout(d)) => {
-                assert_eq!(d, Duration::from_millis(10), "Timeout must carry the configured timeout duration");
+                assert_eq!(
+                    d,
+                    Duration::from_millis(10),
+                    "Timeout must carry the configured timeout duration"
+                );
             }
             other => panic!("Expected Timeout variant, got {:?}", other),
         }
@@ -709,8 +718,7 @@ mod semcov_wave11_tests {
     #[tokio::test]
     async fn execute_activity_result_wraps_failure_as_err_with_nonempty_message() {
         // Catches: execute_activity_result returning Ok on failure, or an empty error string
-        let opts = ActivityOptions::new()
-            .with_initial_backoff(Duration::from_millis(1));
+        let opts = ActivityOptions::new().with_initial_backoff(Duration::from_millis(1));
         let result =
             execute_activity_result("wrap-err", &opts, || async { Err::<(), _>("kaboom") }).await;
         match result {

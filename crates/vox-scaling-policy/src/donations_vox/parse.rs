@@ -226,9 +226,15 @@ mod semcov_wave9_tests {
     fn parse_source_empty_input_gives_defaults() {
         let p = parse_source("", "<test>").expect("empty source must parse without error");
         // Confirm we get the hardcoded defaults, not some zero-state that a bug introduced
-        assert_eq!(p.max_job_duration_secs, 3600, "default duration must be 3600s");
+        assert_eq!(
+            p.max_job_duration_secs, 3600,
+            "default duration must be 3600s"
+        );
         assert!(!p.nsfw_allowed, "default nsfw_allowed must be false");
-        assert!(!p.public_mesh_opt_in, "default public_mesh_opt_in must be false");
+        assert!(
+            !p.public_mesh_opt_in,
+            "default public_mesh_opt_in must be false"
+        );
         assert_eq!(p.min_priority, 0);
     }
 

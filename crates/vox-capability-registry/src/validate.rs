@@ -164,7 +164,8 @@ mod semcov_wave9_tests {
         doc.curated = vec![make_curated("wrong.id", Some("my_tool"))];
         let errs = validate_cross_registry(&doc, &["my_tool".to_string()], &[]);
         assert!(
-            errs.iter().any(|e| e.contains("wrong.id") || e.contains("mcp.my_tool")),
+            errs.iter()
+                .any(|e| e.contains("wrong.id") || e.contains("mcp.my_tool")),
             "id mismatch must be reported, got: {errs:?}"
         );
     }
@@ -177,11 +178,8 @@ mod semcov_wave9_tests {
         let mut doc = minimal_doc();
         doc.auto_mcp_capabilities = true;
         // No curated rows, but auto_mcp_capabilities=true means all tools are auto-covered
-        let errs = validate_cross_registry(
-            &doc,
-            &["tool_a".to_string(), "tool_b".to_string()],
-            &[],
-        );
+        let errs =
+            validate_cross_registry(&doc, &["tool_a".to_string(), "tool_b".to_string()], &[]);
         let coverage_errs: Vec<_> = errs
             .iter()
             .filter(|e| e.contains("no curated row"))

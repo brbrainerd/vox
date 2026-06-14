@@ -270,7 +270,10 @@ mod tests {
         // Catches: off-by-one in names.is_empty() early-return that could skip the
         // actual check and return a non-empty set when params slice is empty.
         let r = borrowable("fn f() to int { return 1 }");
-        assert!(r.is_empty(), "zero-param function must yield empty borrowable set, got {r:?}");
+        assert!(
+            r.is_empty(),
+            "zero-param function must yield empty borrowable set, got {r:?}"
+        );
     }
 
     #[test]
@@ -279,7 +282,10 @@ mod tests {
         // Catches: method receiver treated as a plain call-arg (borrow-safe) instead
         // of an owning context — would wrongly mark `s` as borrowable.
         let r = borrowable("fn f(s: str) to Unit { s.to_upper() }");
-        assert!(r.is_empty(), "method receiver must disqualify param, got {r:?}");
+        assert!(
+            r.is_empty(),
+            "method receiver must disqualify param, got {r:?}"
+        );
     }
 
     #[test]
@@ -288,7 +294,10 @@ mod tests {
         // Catches: list/tuple arms not walked in owning context so `x` inside a
         // list literal would incorrectly survive as borrowable.
         let r = borrowable("fn f(x: int) to Unit { std.print([x]) }");
-        assert!(r.is_empty(), "param inside list literal must be disqualified, got {r:?}");
+        assert!(
+            r.is_empty(),
+            "param inside list literal must be disqualified, got {r:?}"
+        );
     }
 
     #[test]
@@ -297,7 +306,10 @@ mod tests {
         // Catches: while-condition arm not disqualifying param identifiers that
         // appear there (condition is an owning context).
         let r = borrowable("fn f(n: int) to Unit { while n { } }");
-        assert!(r.is_empty(), "param in while-condition must be disqualified, got {r:?}");
+        assert!(
+            r.is_empty(),
+            "param in while-condition must be disqualified, got {r:?}"
+        );
     }
 
     #[test]
@@ -306,7 +318,11 @@ mod tests {
         // Invariant: being passed to two separate calls is still borrow-safe.
         // Catches: a bug where second call-site walk would accidentally disqualify.
         let r = borrowable("fn f(a: str) to Unit { std.print(a)\n std.log(a) }");
-        assert_eq!(r, vec!["a"], "param passed to two direct calls must remain borrowable");
+        assert_eq!(
+            r,
+            vec!["a"],
+            "param passed to two direct calls must remain borrowable"
+        );
     }
 
     #[test]
@@ -324,7 +340,10 @@ mod tests {
         // Catches: indexing expressions (obj[idx]) not walking idx in an owning
         // context, so a param used as an index key would be wrongly marked borrowable.
         let r = borrowable("fn f(idx: int) to Unit { let v = [1, 2, 3]\n std.print(v[idx]) }");
-        assert!(r.is_empty(), "param used as index must be disqualified, got {r:?}");
+        assert!(
+            r.is_empty(),
+            "param used as index must be disqualified, got {r:?}"
+        );
     }
 
     #[test]
@@ -335,6 +354,10 @@ mod tests {
         // passing them through the filter untouched.
         let mut r = borrowable("fn f(a: str, b: str, c: str) to int { return 0 }");
         r.sort();
-        assert_eq!(r, vec!["a", "b", "c"], "all unused params must be borrowable");
+        assert_eq!(
+            r,
+            vec!["a", "b", "c"],
+            "all unused params must be borrowable"
+        );
     }
 }

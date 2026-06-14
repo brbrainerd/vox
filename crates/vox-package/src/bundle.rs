@@ -191,8 +191,8 @@ impl BundleMeta for crate::model_bundle::ModelBundle {
 mod semcov_wave8_tests {
     #![allow(unused_imports, dead_code)]
     use super::*;
-    use std::sync::Arc;
     use serde_json::json;
+    use std::sync::Arc;
 
     fn zero_hash() -> [u8; 64] {
         [0u8; 64]
@@ -227,7 +227,9 @@ mod semcov_wave8_tests {
     // Catches: BundleRef fn_hash_serde rejecting a valid 128-char hex string on deserialize.
     #[test]
     fn bundle_ref_serde_round_trips() {
-        let r = BundleRef { fn_hash: [0xab; 64] };
+        let r = BundleRef {
+            fn_hash: [0xab; 64],
+        };
         let json = serde_json::to_string(&r).unwrap();
         assert!(json.contains("\""), "must serialize as a quoted hex string");
         let back: BundleRef = serde_json::from_str(&json).unwrap();
@@ -282,7 +284,10 @@ mod semcov_wave8_tests {
         let r1 = store.put(&b).unwrap();
         let r2 = store.put(&b).unwrap(); // second put
         assert_eq!(r1.fn_hash, r2.fn_hash);
-        let loaded = store.lookup(&r1).unwrap().expect("must be present after two puts");
+        let loaded = store
+            .lookup(&r1)
+            .unwrap()
+            .expect("must be present after two puts");
         assert_eq!(loaded.bytes.as_ref(), b.bytes.as_ref());
     }
 
@@ -304,7 +309,9 @@ mod semcov_wave8_tests {
     fn bundle_store_lookup_miss_returns_none() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let store = BundleStore::open(tmp.path().to_path_buf()).unwrap();
-        let r = BundleRef { fn_hash: [0xcc; 64] };
+        let r = BundleRef {
+            fn_hash: [0xcc; 64],
+        };
         assert!(store.lookup(&r).unwrap().is_none(), "miss must return None");
     }
 }

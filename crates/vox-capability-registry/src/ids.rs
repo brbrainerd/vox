@@ -22,7 +22,10 @@ mod semcov_wave9_tests {
     #[test]
     fn mcp_id_has_mcp_prefix() {
         let id = implicit_mcp_capability_id("vox_oratio_transcribe");
-        assert!(id.starts_with("mcp."), "mcp id must start with 'mcp.', got: {id}");
+        assert!(
+            id.starts_with("mcp."),
+            "mcp id must start with 'mcp.', got: {id}"
+        );
         assert_eq!(id, "mcp.vox_oratio_transcribe");
     }
 
@@ -33,7 +36,10 @@ mod semcov_wave9_tests {
         let id = implicit_mcp_capability_id("");
         // Must not panic; result is "mcp." — document the actual behavior so
         // callers know empty tool names are not filtered here.
-        assert_eq!(id, "mcp.", "empty tool name yields 'mcp.' (caller must validate)");
+        assert_eq!(
+            id, "mcp.",
+            "empty tool name yields 'mcp.' (caller must validate)"
+        );
     }
 
     // Catches: implicit_cli_capability_id using a separator other than '.' (e.g.
@@ -51,7 +57,10 @@ mod semcov_wave9_tests {
     fn cli_id_single_segment_path() {
         let path = vec!["build".to_string()];
         let id = implicit_cli_capability_id(&path);
-        assert_eq!(id, "cli.build", "single-segment CLI path must produce 'cli.build'");
+        assert_eq!(
+            id, "cli.build",
+            "single-segment CLI path must produce 'cli.build'"
+        );
     }
 
     // Catches: implicit_cli_capability_id producing a trailing dot for an empty
@@ -60,6 +69,9 @@ mod semcov_wave9_tests {
     fn cli_id_empty_path_produces_bare_prefix() {
         let id = implicit_cli_capability_id(&[]);
         // Must not panic; behavior is "cli." — callers must validate.
-        assert_eq!(id, "cli.", "empty CLI path yields 'cli.' (caller must validate)");
+        assert_eq!(
+            id, "cli.",
+            "empty CLI path yields 'cli.' (caller must validate)"
+        );
     }
 }

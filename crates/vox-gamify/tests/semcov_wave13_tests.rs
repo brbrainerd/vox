@@ -8,9 +8,9 @@ use vox_gamify::{
     cost::{CostAggregator, CostSummary},
     db::CostRecord,
     leaderboard::{AgentStats, Leaderboard, LeaderboardMetric},
-    profile::{level_from_xp, xp_threshold_for_level, LudusProfile, TrustTier},
+    profile::{LudusProfile, TrustTier, level_from_xp, xp_threshold_for_level},
     reward_policy::{
-        apply_policy, base_reward, trust_tier_multiplier, SessionState, GRIND_ZERO_THRESHOLD,
+        GRIND_ZERO_THRESHOLD, SessionState, apply_policy, base_reward, trust_tier_multiplier,
     },
 };
 
@@ -309,14 +309,28 @@ mod semcov_wave13_tests {
         agg.set_budget_limit("bot", 1.0);
 
         // Spend exactly 80%
-        agg.record(CostRecord::new_ephemeral("bot", "openrouter", None, 0, 0, 0.80));
+        agg.record(CostRecord::new_ephemeral(
+            "bot",
+            "openrouter",
+            None,
+            0,
+            0,
+            0.80,
+        ));
         assert!(
             !agg.budget_alert("bot"),
             "alert must NOT fire at exactly 80% budget usage"
         );
 
         // Push 1 cent over 80%
-        agg.record(CostRecord::new_ephemeral("bot", "openrouter", None, 0, 0, 0.01));
+        agg.record(CostRecord::new_ephemeral(
+            "bot",
+            "openrouter",
+            None,
+            0,
+            0,
+            0.01,
+        ));
         assert!(
             agg.budget_alert("bot"),
             "alert must fire when spend exceeds 80% of budget"
@@ -329,7 +343,10 @@ mod semcov_wave13_tests {
         // propagates through downstream float comparisons.
         let summary = CostSummary::default();
         let avg = summary.avg_cost_per_call();
-        assert!(avg.is_finite(), "avg_cost_per_call with no calls must be finite");
+        assert!(
+            avg.is_finite(),
+            "avg_cost_per_call with no calls must be finite"
+        );
         assert_eq!(avg, 0.0, "avg_cost_per_call with no calls must be 0.0");
     }
 }

@@ -54,9 +54,16 @@ mod semcov_wave7_tests {
     // verifies the computation is right and not accidentally returning None)
     #[test]
     fn zero_tokens_known_rates_yields_some_zero() {
-        let r = ModelRates { input_per_1k_usd: 3.0, output_per_1k_usd: 15.0, known: true };
-        assert_eq!(r.cost_usd(0, 0), Some(0.0),
-            "zero tokens with known rates must yield Some(0.0), not None");
+        let r = ModelRates {
+            input_per_1k_usd: 3.0,
+            output_per_1k_usd: 15.0,
+            known: true,
+        };
+        assert_eq!(
+            r.cost_usd(0, 0),
+            Some(0.0),
+            "zero tokens with known rates must yield Some(0.0), not None"
+        );
     }
 
     // Catches: cost_usd using output rate for input tokens (direction swap bug)
@@ -68,20 +75,33 @@ mod semcov_wave7_tests {
             known: true,
         };
         // 1000 input @ $1/1k = $1.00; 0 output = $0.00 total
-        assert_eq!(r.cost_usd(1000, 0), Some(1.0),
-            "cost must use input rate for prompt tokens");
+        assert_eq!(
+            r.cost_usd(1000, 0),
+            Some(1.0),
+            "cost must use input rate for prompt tokens"
+        );
         // 0 input; 1000 output @ $10/1k = $10.00
-        assert_eq!(r.cost_usd(0, 1000), Some(10.0),
-            "cost must use output rate for completion tokens");
+        assert_eq!(
+            r.cost_usd(0, 1000),
+            Some(10.0),
+            "cost must use output rate for completion tokens"
+        );
     }
 
     // Catches: known=true with 0.0 rates being mistaken for "unknown"
     // (zero-cost model is legitimately priced at zero, must return Some not None)
     #[test]
     fn known_zero_rates_return_some_not_none() {
-        let r = ModelRates { input_per_1k_usd: 0.0, output_per_1k_usd: 0.0, known: true };
-        assert_eq!(r.cost_usd(100, 100), Some(0.0),
-            "a model priced at $0 must return Some(0.0), never None");
+        let r = ModelRates {
+            input_per_1k_usd: 0.0,
+            output_per_1k_usd: 0.0,
+            known: true,
+        };
+        assert_eq!(
+            r.cost_usd(100, 100),
+            Some(0.0),
+            "a model priced at $0 must return Some(0.0), never None"
+        );
     }
 
     // Catches: ModelRates::default() having known=true (default should be unknown)
@@ -89,7 +109,10 @@ mod semcov_wave7_tests {
     fn default_model_rates_are_unknown() {
         let r = ModelRates::default();
         assert!(!r.known, "default ModelRates must have known=false");
-        assert_eq!(r.cost_usd(9999, 9999), None,
-            "default (unknown) rates must return None for any token count");
+        assert_eq!(
+            r.cost_usd(9999, 9999),
+            None,
+            "default (unknown) rates must return None for any token count"
+        );
     }
 }

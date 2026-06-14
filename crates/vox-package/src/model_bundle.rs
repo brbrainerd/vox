@@ -243,7 +243,10 @@ mod semcov_wave8_tests {
 
         let h1 = compute_model_bundle_content_hash(&b1);
         let h2 = compute_model_bundle_content_hash(&b2);
-        assert_ne!(h1, h2, "different weights_hash must produce different content hash");
+        assert_ne!(
+            h1, h2,
+            "different weights_hash must produce different content hash"
+        );
     }
 
     // Catches: verify_bundle_hash returning true for a bundle whose bundle_hash is all-zeros

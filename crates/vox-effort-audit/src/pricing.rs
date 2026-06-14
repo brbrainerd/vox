@@ -89,7 +89,10 @@ mod semcov_wave8_tests {
         };
         let cost = r.cost_usd(u64::MAX, 0).unwrap();
         // Should be a very large finite float (u64::MAX / 1000 * 3.0 ≈ 5.5e16), not Inf/NaN.
-        assert!(cost.is_finite(), "cost for u64::MAX tokens must be finite, got {cost}");
+        assert!(
+            cost.is_finite(),
+            "cost for u64::MAX tokens must be finite, got {cost}"
+        );
         assert!(cost > 0.0);
     }
 

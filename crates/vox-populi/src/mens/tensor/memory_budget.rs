@@ -619,7 +619,10 @@ mod semcov_wave15_tests {
     fn decimal_param_count_parsed_correctly() {
         // Catches: parser dropping the fractional part when a dot is present (e.g.
         // parsing "0.5b" as 0.0 or 5.0 instead of 0.5).
-        assert_eq!(params_b_from_model_hint("Qwen/Qwen2.5-Coder-0.5B-Instruct"), Some(0.5));
+        assert_eq!(
+            params_b_from_model_hint("Qwen/Qwen2.5-Coder-0.5B-Instruct"),
+            Some(0.5)
+        );
         assert_eq!(params_b_from_model_hint("tiny-1.5b-model"), Some(1.5));
     }
 

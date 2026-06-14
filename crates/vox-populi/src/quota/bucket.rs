@@ -110,7 +110,10 @@ mod semcov_wave15_tests {
             capacity: 0,
             refill_per_sec: 0.0,
         });
-        assert!(!b.try_consume(1), "zero-capacity bucket must reject consume(1)");
+        assert!(
+            !b.try_consume(1),
+            "zero-capacity bucket must reject consume(1)"
+        );
     }
 
     #[test]
@@ -123,7 +126,10 @@ mod semcov_wave15_tests {
             capacity: cap,
             refill_per_sec: 0.0,
         });
-        assert!(b.try_consume(cap), "consuming exactly capacity must succeed");
+        assert!(
+            b.try_consume(cap),
+            "consuming exactly capacity must succeed"
+        );
         assert!(!b.try_consume(1), "bucket should be empty after full drain");
     }
 

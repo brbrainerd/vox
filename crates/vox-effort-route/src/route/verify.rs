@@ -51,7 +51,10 @@ mod semcov_wave7_tests {
     #[test]
     fn parse_rejects_malformed_json() {
         let err = parse("not json at all");
-        assert!(err.is_err(), "malformed JSON must produce Err, not a default-Ok");
+        assert!(
+            err.is_err(),
+            "malformed JSON must produce Err, not a default-Ok"
+        );
     }
 
     // Catches: parse() ignoring the refuted field and always returning false
@@ -67,7 +70,10 @@ mod semcov_wave7_tests {
     fn parse_rejects_missing_refuted_field() {
         // Missing the required 'refuted' field
         let err = parse(r#"{"refutation_note":"note only"}"#);
-        assert!(err.is_err(), "JSON missing 'refuted' field must be rejected");
+        assert!(
+            err.is_err(),
+            "JSON missing 'refuted' field must be rejected"
+        );
     }
 
     // Catches: refute_json_schema producing wrong type for 'refuted' (e.g. string not bool)

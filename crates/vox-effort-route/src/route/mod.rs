@@ -842,7 +842,10 @@ mod semcov_wave7_tests {
             !stripped.contains("```"),
             "strip_json_fence must remove all ``` markers, got: {stripped}"
         );
-        assert!(stripped.contains("{\"a\":1}"), "inner JSON must survive stripping");
+        assert!(
+            stripped.contains("{\"a\":1}"),
+            "inner JSON must survive stripping"
+        );
     }
 
     // Catches: strip_json_fence returning empty string when only a fence is present
@@ -851,7 +854,10 @@ mod semcov_wave7_tests {
         let fenced = "```json\n\n```";
         let stripped = strip_json_fence(fenced);
         // The inner content is whitespace/empty; stripping should not panic
-        assert!(!stripped.contains("```"), "fence markers must be gone: '{stripped}'");
+        assert!(
+            !stripped.contains("```"),
+            "fence markers must be gone: '{stripped}'"
+        );
     }
 
     // Catches: ArtifactForm::None staging_extension returning a non-empty string
@@ -970,9 +976,23 @@ mod semcov_wave7_tests {
         };
         let d = RemediationDecision::budget_skipped(&cluster, "budget-c1");
         assert!(!d.verified, "budget_skipped decision must be unverified");
-        assert_eq!(d.artifact_form, ArtifactForm::None, "budget_skipped must use ArtifactForm::None");
-        assert!(d.drafted_artifact.is_none(), "budget_skipped must have no drafted artifact");
-        assert_eq!(d.judge_tokens_used(), 0, "budget_skipped must report 0 judge tokens");
-        assert_eq!(d.judge_cost_usd, None, "budget_skipped must report None cost");
+        assert_eq!(
+            d.artifact_form,
+            ArtifactForm::None,
+            "budget_skipped must use ArtifactForm::None"
+        );
+        assert!(
+            d.drafted_artifact.is_none(),
+            "budget_skipped must have no drafted artifact"
+        );
+        assert_eq!(
+            d.judge_tokens_used(),
+            0,
+            "budget_skipped must report 0 judge tokens"
+        );
+        assert_eq!(
+            d.judge_cost_usd, None,
+            "budget_skipped must report None cost"
+        );
     }
 }

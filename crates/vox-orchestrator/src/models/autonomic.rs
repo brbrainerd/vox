@@ -484,7 +484,10 @@ mod semcov_wave14_tests {
         // silently blocking promotion for models right at the policy boundary.
         // Default threshold is 0.80 (from model-pins.v1.yaml).
         let pins = vox_config::load_model_pins_config().unwrap_or_default();
-        let threshold = pins.classifier.promotion_thresholds.min_classifier_confidence;
+        let threshold = pins
+            .classifier
+            .promotion_thresholds
+            .min_classifier_confidence;
         let result = should_promote(ModelConfidence::Provisional, 0, 0.0, 0.0, threshold);
         assert_eq!(
             result,
@@ -497,7 +500,10 @@ mod semcov_wave14_tests {
     fn provisional_just_below_threshold_does_not_promote() {
         // Catches: `>=` coded as `>`, accepting sub-threshold models.
         let pins = vox_config::load_model_pins_config().unwrap_or_default();
-        let threshold = pins.classifier.promotion_thresholds.min_classifier_confidence;
+        let threshold = pins
+            .classifier
+            .promotion_thresholds
+            .min_classifier_confidence;
         let just_below = (threshold - f32::EPSILON).max(0.0);
         let result = should_promote(ModelConfidence::Provisional, 999, 0.0, 0.0, just_below);
         assert_eq!(
@@ -511,10 +517,7 @@ mod semcov_wave14_tests {
         // Catches: `catalog_median_p50_ms == 0.0` path not treated as "latency unconstrained",
         // causing division-by-zero or always-failing latency check.
         let pins = vox_config::load_model_pins_config().unwrap_or_default();
-        let min_calls = pins
-            .classifier
-            .promotion_thresholds
-            .min_successful_calls;
+        let min_calls = pins.classifier.promotion_thresholds.min_successful_calls;
         let result = should_promote(ModelConfidence::Shadowed, min_calls, 99_999.0, 0.0, 0.99);
         assert_eq!(
             result,
@@ -590,8 +593,11 @@ mod semcov_wave14_tests {
         // an empty iteration.
         let mut prior = std::collections::HashSet::new();
         prior.insert("old-model".to_string());
-        let new_ids =
-            diff_and_emit_discovery(DiscoverySource::AnthropicDirect, &prior, Vec::<DiscoveredModel>::new());
+        let new_ids = diff_and_emit_discovery(
+            DiscoverySource::AnthropicDirect,
+            &prior,
+            Vec::<DiscoveredModel>::new(),
+        );
         assert!(
             new_ids.is_empty(),
             "empty fresh set must yield no new ids (got {new_ids:?})"

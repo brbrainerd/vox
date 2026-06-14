@@ -83,7 +83,10 @@ mod semcov_wave8_tests {
     // Catches: from_str_loose not falling back to VoxScript for genuinely unknown variants.
     #[test]
     fn unknown_kind_string_falls_back_to_vox_script() {
-        assert_eq!(TaskKind::from_str_loose("unknown_future_kind"), TaskKind::VoxScript);
+        assert_eq!(
+            TaskKind::from_str_loose("unknown_future_kind"),
+            TaskKind::VoxScript
+        );
         assert_eq!(TaskKind::from_str_loose(""), TaskKind::VoxScript);
     }
 
@@ -92,8 +95,14 @@ mod semcov_wave8_tests {
     fn known_kind_strings_parse_correctly() {
         assert_eq!(TaskKind::from_str_loose("text_infer"), TaskKind::TextInfer);
         assert_eq!(TaskKind::from_str_loose("image_gen"), TaskKind::ImageGen);
-        assert_eq!(TaskKind::from_str_loose("speech_transcribe"), TaskKind::SpeechTranscribe);
-        assert_eq!(TaskKind::from_str_loose("train_qlora"), TaskKind::TrainQLoRA);
+        assert_eq!(
+            TaskKind::from_str_loose("speech_transcribe"),
+            TaskKind::SpeechTranscribe
+        );
+        assert_eq!(
+            TaskKind::from_str_loose("train_qlora"),
+            TaskKind::TrainQLoRA
+        );
         assert_eq!(TaskKind::from_str_loose("embed"), TaskKind::Embed);
     }
 
@@ -146,6 +155,9 @@ mod semcov_wave8_tests {
     #[test]
     fn display_matches_as_str() {
         assert_eq!(TaskKind::ImageGen.to_string(), TaskKind::ImageGen.as_str());
-        assert_eq!(TaskKind::VoxScript.to_string(), TaskKind::VoxScript.as_str());
+        assert_eq!(
+            TaskKind::VoxScript.to_string(),
+            TaskKind::VoxScript.as_str()
+        );
     }
 }

@@ -164,8 +164,11 @@ mod semcov_wave5_tests {
         assert!(result.is_err(), "should fail on unparseable JSON");
         let msg = result.unwrap_err().to_string();
         assert!(
-            msg.contains("expected") || msg.contains("JSON") || msg.contains("invalid")
-                || msg.contains("key") || msg.contains("line"),
+            msg.contains("expected")
+                || msg.contains("JSON")
+                || msg.contains("invalid")
+                || msg.contains("key")
+                || msg.contains("line"),
             "unexpected error message: {msg}"
         );
     }

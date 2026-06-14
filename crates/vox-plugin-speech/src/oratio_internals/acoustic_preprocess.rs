@@ -222,7 +222,10 @@ mod tests {
             // Must not panic
             let (out, d) = preprocess_audio_pcm_f32_reported(&empty, 1000);
             assert!(out.is_empty(), "empty in → empty out for mode={mode}");
-            assert!(!d.skipped_due_to_budget, "empty slice never triggers budget path");
+            assert!(
+                !d.skipped_due_to_budget,
+                "empty slice never triggers budget path"
+            );
             unsafe { std::env::remove_var("VOX_ORATIO_ACOUSTIC_PREPROCESS") };
         }
     }

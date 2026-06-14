@@ -83,22 +83,35 @@ mod semcov_wave7_tests {
         // Missing 'drafted_body' — must be an error, not a default-populated Ok
         let raw = r#"{"artifact_form":"CiGate","confidence":0.8,"synthesized_fix_summary":"s","form_rationale":"r"}"#;
         let result = parse(raw);
-        assert!(result.is_err(), "missing required field 'drafted_body' must be an error");
+        assert!(
+            result.is_err(),
+            "missing required field 'drafted_body' must be an error"
+        );
     }
 
     // Catches: parse() accepting completely invalid JSON without error
     #[test]
     fn parse_rejects_non_json() {
-        assert!(parse("literally not json").is_err(), "non-JSON input must produce Err");
+        assert!(
+            parse("literally not json").is_err(),
+            "non-JSON input must produce Err"
+        );
     }
 
     // Catches: decide_json_schema confidence bounds being inverted (max < min)
     #[test]
     fn schema_confidence_bounds_are_valid() {
         let s = decide_json_schema(false);
-        let min = s["properties"]["confidence"]["minimum"].as_f64().unwrap_or(f64::MAX);
-        let max = s["properties"]["confidence"]["maximum"].as_f64().unwrap_or(f64::MIN);
-        assert!(min < max, "confidence minimum ({min}) must be less than maximum ({max})");
+        let min = s["properties"]["confidence"]["minimum"]
+            .as_f64()
+            .unwrap_or(f64::MAX);
+        let max = s["properties"]["confidence"]["maximum"]
+            .as_f64()
+            .unwrap_or(f64::MIN);
+        assert!(
+            min < max,
+            "confidence minimum ({min}) must be less than maximum ({max})"
+        );
         assert_eq!(min, 0.0, "confidence minimum must be 0");
         assert_eq!(max, 1.0, "confidence maximum must be 1");
     }
@@ -107,9 +120,7 @@ mod semcov_wave7_tests {
     #[test]
     fn schema_vox_script_absent_when_not_capable() {
         let s = decide_json_schema(false);
-        let forms = s["properties"]["artifact_form"]["enum"]
-            .as_array()
-            .unwrap();
+        let forms = s["properties"]["artifact_form"]["enum"].as_array().unwrap();
         assert!(
             !forms.iter().any(|v| v.as_str() == Some("VoxScript")),
             "VoxScript must not appear in schema when vox_capable=false"

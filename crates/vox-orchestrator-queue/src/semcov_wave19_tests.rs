@@ -42,10 +42,19 @@ mod semcov_wave19_tests {
         fn conflict_returns_err_not_panic() {
             // Catches: unwrap() on existing lock map entry → panic instead of Err
             let mgr = ResourceLockManager::new();
-            mgr.try_acquire("db://row/1", AgentId(1), ResourceLockKind::Exclusive, 60_000)
-                .unwrap();
-            let result =
-                mgr.try_acquire("db://row/1", AgentId(2), ResourceLockKind::Exclusive, 60_000);
+            mgr.try_acquire(
+                "db://row/1",
+                AgentId(1),
+                ResourceLockKind::Exclusive,
+                60_000,
+            )
+            .unwrap();
+            let result = mgr.try_acquire(
+                "db://row/1",
+                AgentId(2),
+                ResourceLockKind::Exclusive,
+                60_000,
+            );
             assert!(
                 result.is_err(),
                 "second acquirer must get Err, not Ok or panic"
@@ -185,7 +194,10 @@ mod semcov_wave19_tests {
             mgr.try_acquire(Path::new("fresh.rs"), AgentId(1), LockKind::Exclusive)
                 .unwrap();
             let count = mgr.force_release_stale(u128::MAX);
-            assert_eq!(count, 0, "fresh lock must not be released with huge timeout");
+            assert_eq!(
+                count, 0,
+                "fresh lock must not be released with huge timeout"
+            );
             assert!(mgr.is_locked(Path::new("fresh.rs")));
         }
 
@@ -273,10 +285,18 @@ mod semcov_wave19_tests {
             mgr.queue_agent_for_lock(AgentId(10), path);
             mgr.queue_agent_for_lock(AgentId(20), path);
             mgr.queue_agent_for_lock(AgentId(30), path);
-            assert_eq!(mgr.dequeue_waiter(path), Some(AgentId(10)), "FIFO: first in must be first out");
+            assert_eq!(
+                mgr.dequeue_waiter(path),
+                Some(AgentId(10)),
+                "FIFO: first in must be first out"
+            );
             assert_eq!(mgr.dequeue_waiter(path), Some(AgentId(20)));
             assert_eq!(mgr.dequeue_waiter(path), Some(AgentId(30)));
-            assert_eq!(mgr.dequeue_waiter(path), None, "empty queue must return None");
+            assert_eq!(
+                mgr.dequeue_waiter(path),
+                None,
+                "empty queue must return None"
+            );
         }
 
         #[test]
@@ -343,8 +363,8 @@ mod semcov_wave19_tests {
     mod projection_registry {
         use crate::oplog::{OperationEntry, OperationId, OperationKind};
         use crate::projection::{Projection, ProjectionError, ProjectionRegistry};
-        use std::sync::atomic::{AtomicU64, Ordering};
         use std::sync::Arc;
+        use std::sync::atomic::{AtomicU64, Ordering};
         use vox_orchestrator_types::AgentId;
 
         fn dummy_entry(kind: OperationKind) -> OperationEntry {
@@ -401,12 +421,24 @@ mod semcov_wave19_tests {
             let c1 = Arc::new(AtomicU64::new(0));
             let c2 = Arc::new(AtomicU64::new(0));
             let reg = ProjectionRegistry::new()
-                .with(CountingProjection { count: Arc::clone(&c1) })
-                .with(CountingProjection { count: Arc::clone(&c2) });
+                .with(CountingProjection {
+                    count: Arc::clone(&c1),
+                })
+                .with(CountingProjection {
+                    count: Arc::clone(&c2),
+                });
             let entry = dummy_entry(OperationKind::Rebalance);
             reg.apply(&entry).await;
-            assert_eq!(c1.load(Ordering::Relaxed), 1, "first projection must receive apply");
-            assert_eq!(c2.load(Ordering::Relaxed), 1, "second projection must receive apply");
+            assert_eq!(
+                c1.load(Ordering::Relaxed),
+                1,
+                "first projection must receive apply"
+            );
+            assert_eq!(
+                c2.load(Ordering::Relaxed),
+                1,
+                "second projection must receive apply"
+            );
         }
 
         #[test]
@@ -428,7 +460,9 @@ mod semcov_wave19_tests {
         fn snapshot_blake3_differs_after_apply() {
             // Catches: blake3 digest always returns a constant (projection snapshot not actually used)
             let c = Arc::new(AtomicU64::new(0));
-            let reg = ProjectionRegistry::new().with(CountingProjection { count: Arc::clone(&c) });
+            let reg = ProjectionRegistry::new().with(CountingProjection {
+                count: Arc::clone(&c),
+            });
             let hash_before = reg.snapshot_blake3();
             c.fetch_add(1, Ordering::Relaxed);
             let hash_after = reg.snapshot_blake3();
@@ -582,8 +616,10 @@ mod semcov_wave19_tests {
                     [0u8; 16],
                 ));
             }
-            let snap: std::collections::BTreeMap<String, crate::projections::affinity::AffinityOwner> =
-                serde_json::from_slice(&proj.snapshot()).unwrap();
+            let snap: std::collections::BTreeMap<
+                String,
+                crate::projections::affinity::AffinityOwner,
+            > = serde_json::from_slice(&proj.snapshot()).unwrap();
             let lamports: Vec<u64> = snap.values().map(|v| v.lamport).collect();
             // Each claim must have a strictly higher lamport than its predecessor
             // (sorted by insertion order, so we check all-distinct and all > 0)
@@ -657,11 +693,16 @@ mod semcov_wave19_tests {
             // Catches: cap.mint stores wrong agent_id (e.g. always 0) or truncates kind label
             let proj = CapabilityProjection::default();
             proj.apply(&cap_entry(77, "cap.mint:execute:sandboxed"));
-            let snap: std::collections::BTreeMap<u64, crate::projections::capabilities::CapabilityRecord> =
-                serde_json::from_slice(&proj.snapshot()).unwrap();
+            let snap: std::collections::BTreeMap<
+                u64,
+                crate::projections::capabilities::CapabilityRecord,
+            > = serde_json::from_slice(&proj.snapshot()).unwrap();
             let record = snap.get(&77).expect("record for op_id=77 must exist");
             assert_eq!(record.agent_id, 77);
-            assert_eq!(record.kind, "execute:sandboxed", "kind must preserve full suffix after first colon");
+            assert_eq!(
+                record.kind, "execute:sandboxed",
+                "kind must preserve full suffix after first colon"
+            );
         }
 
         #[test]
@@ -672,7 +713,11 @@ mod semcov_wave19_tests {
             proj.apply(&cap_entry(2, "cap.revoke:9999")); // non-existent
             let snap: std::collections::BTreeMap<u64, serde_json::Value> =
                 serde_json::from_slice(&proj.snapshot()).unwrap();
-            assert_eq!(snap.len(), 1, "revoke of nonexistent id must leave existing capability intact");
+            assert_eq!(
+                snap.len(),
+                1,
+                "revoke of nonexistent id must leave existing capability intact"
+            );
         }
 
         #[test]
@@ -759,8 +804,16 @@ mod semcov_wave19_tests {
             proj.apply(&kudos_entry(1, "kudos.add:codegen:10"));
             proj.apply(&kudos_entry(1, "kudos.add:review:7"));
             let snap: Vec<(u64, String, i64)> = serde_json::from_slice(&proj.snapshot()).unwrap();
-            let codegen: i64 = snap.iter().filter(|(_, p, _)| p == "codegen").map(|(_, _, v)| v).sum();
-            let review: i64 = snap.iter().filter(|(_, p, _)| p == "review").map(|(_, _, v)| v).sum();
+            let codegen: i64 = snap
+                .iter()
+                .filter(|(_, p, _)| p == "codegen")
+                .map(|(_, _, v)| v)
+                .sum();
+            let review: i64 = snap
+                .iter()
+                .filter(|(_, p, _)| p == "review")
+                .map(|(_, _, v)| v)
+                .sum();
             assert_eq!(codegen, 10);
             assert_eq!(review, 7);
         }
@@ -772,8 +825,16 @@ mod semcov_wave19_tests {
             proj.apply(&kudos_entry(1, "kudos.add:test:5"));
             proj.apply(&kudos_entry(2, "kudos.add:test:3"));
             let snap: Vec<(u64, String, i64)> = serde_json::from_slice(&proj.snapshot()).unwrap();
-            let agent1: i64 = snap.iter().filter(|(a, p, _)| *a == 1 && p == "test").map(|(_, _, v)| v).sum();
-            let agent2: i64 = snap.iter().filter(|(a, p, _)| *a == 2 && p == "test").map(|(_, _, v)| v).sum();
+            let agent1: i64 = snap
+                .iter()
+                .filter(|(a, p, _)| *a == 1 && p == "test")
+                .map(|(_, _, v)| v)
+                .sum();
+            let agent2: i64 = snap
+                .iter()
+                .filter(|(a, p, _)| *a == 2 && p == "test")
+                .map(|(_, _, v)| v)
+                .sum();
             assert_eq!(agent1, 5);
             assert_eq!(agent2, 3);
         }
@@ -784,7 +845,10 @@ mod semcov_wave19_tests {
             let proj = KudosProjection::default();
             proj.apply(&kudos_entry(1, "kudos.add:no_amount_here")); // missing :<amount>
             let snap: Vec<(u64, String, i64)> = serde_json::from_slice(&proj.snapshot()).unwrap();
-            assert!(snap.is_empty(), "malformed kudos label must be silently ignored");
+            assert!(
+                snap.is_empty(),
+                "malformed kudos label must be silently ignored"
+            );
         }
 
         #[test]
@@ -919,7 +983,10 @@ mod semcov_wave19_tests {
             {
                 let map: std::collections::BTreeMap<String, serde_json::Value> =
                     serde_json::from_slice(&proj.snapshot()).unwrap();
-                assert!(map.contains_key("infra/db.toml"), "custom acquire must register path");
+                assert!(
+                    map.contains_key("infra/db.toml"),
+                    "custom acquire must register path"
+                );
             }
             proj.apply(&lock_entry(
                 9,

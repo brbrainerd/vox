@@ -1315,10 +1315,19 @@ mod tests {
             category: Some("route".to_string()),
         };
         let s2 = format_web_ir_validate_failure(&[
-            WebIrDiagnostic { code: "a".to_string(), message: "x".to_string(), span: None, category: None },
+            WebIrDiagnostic {
+                code: "a".to_string(),
+                message: "x".to_string(),
+                span: None,
+                category: None,
+            },
             d2,
         ]);
-        assert_eq!(s2.matches("; ").count(), 1, "two diags must have exactly one separator, got: {s2:?}");
+        assert_eq!(
+            s2.matches("; ").count(),
+            1,
+            "two diags must have exactly one separator, got: {s2:?}"
+        );
     }
 
     #[test]
@@ -1330,7 +1339,10 @@ mod tests {
         use crate::web_ir::WebIrModule;
         let m = WebIrModule::default();
         let diags = validate_web_ir(&m);
-        assert!(diags.is_empty(), "empty module must yield no diagnostics, got: {diags:?}");
+        assert!(
+            diags.is_empty(),
+            "empty module must yield no diagnostics, got: {diags:?}"
+        );
     }
 
     #[test]

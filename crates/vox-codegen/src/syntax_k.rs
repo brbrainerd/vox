@@ -329,8 +329,17 @@ mod semcov_wave14_tests {
         // Catches: hasher returning the empty string for an empty payload instead of
         // the SHA3-256 digest of the empty sequence (64 hex chars).
         let h = sha3_hex(b"");
-        assert_eq!(h.len(), 64, "SHA3-256 of empty bytes must be 64 hex chars, got {:?}", h);
-        assert!(h.chars().all(|c| c.is_ascii_hexdigit()), "digest must be hex, got {:?}", h);
+        assert_eq!(
+            h.len(),
+            64,
+            "SHA3-256 of empty bytes must be 64 hex chars, got {:?}",
+            h
+        );
+        assert!(
+            h.chars().all(|c| c.is_ascii_hexdigit()),
+            "digest must be hex, got {:?}",
+            h
+        );
     }
 
     #[test]
@@ -386,7 +395,10 @@ mod semcov_wave14_tests {
         // with the same content collapse to identical outputs.
         let a = canonical_emitted_files_bytes(&[("x.rs".to_string(), "same".to_string())]);
         let b = canonical_emitted_files_bytes(&[("y.rs".to_string(), "same".to_string())]);
-        assert_ne!(a, b, "different file names must produce different canonical bytes");
+        assert_ne!(
+            a, b,
+            "different file names must produce different canonical bytes"
+        );
     }
 
     #[test]
@@ -402,7 +414,10 @@ mod semcov_wave14_tests {
         };
         let v = enrich_syntax_k_support_metrics(serde_json::Value::Null, rep, None, None);
         let first = &v["representability"]["first_failing_stage"];
-        assert!(first.is_null(), "all-pass payload must have null first_failing_stage, got {first}");
+        assert!(
+            first.is_null(),
+            "all-pass payload must have null first_failing_stage, got {first}"
+        );
     }
 
     #[test]

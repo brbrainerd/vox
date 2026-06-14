@@ -324,11 +324,11 @@ fn validate_name_and_params(
 #[cfg(test)]
 mod semcov_wave12_tests {
     use super::*;
+    use crate::hir::HirModule;
     use crate::hir::{
         DefId, HirMcpResource, HirParam, HirRustImport, HirTable, HirTableField, HirType,
         HirVectorIndex,
     };
-    use crate::hir::HirModule;
 
     // -----------------------------------------------------------------------
     // Helper: zero span
@@ -389,7 +389,8 @@ mod semcov_wave12_tests {
         m.functions.push(named_fn(""));
         let errs = validate_module(&m);
         assert!(
-            errs.iter().any(|e| e.message.contains("function name is empty")),
+            errs.iter()
+                .any(|e| e.message.contains("function name is empty")),
             "expected 'function name is empty' diagnostic, got: {errs:?}"
         );
     }
@@ -414,7 +415,8 @@ mod semcov_wave12_tests {
         m.functions.push(f);
         let errs = validate_module(&m);
         assert!(
-            errs.iter().any(|e| e.message.contains("Empty parameter name")),
+            errs.iter()
+                .any(|e| e.message.contains("Empty parameter name")),
             "expected 'Empty parameter name' diagnostic, got: {errs:?}"
         );
     }
@@ -443,8 +445,9 @@ mod semcov_wave12_tests {
         });
         let errs = validate_module(&m);
         assert!(
-            errs.iter()
-                .any(|e| e.message.contains("mcp resource function must take no parameters")),
+            errs.iter().any(|e| e
+                .message
+                .contains("mcp resource function must take no parameters")),
             "mcp resource with params should error, got: {errs:?}"
         );
     }
@@ -482,7 +485,7 @@ mod semcov_wave12_tests {
         // Catches: validate_module accumulating state across calls (e.g. mutating
         // the module or a thread-local, so error counts differ on re-runs).
         let mut m = HirModule::default();
-        m.functions.push(named_fn(""));  // triggers a function-name error
+        m.functions.push(named_fn("")); // triggers a function-name error
         m.tables.push(HirTable {
             id: DefId(0),
             name: "".to_string(),
@@ -547,9 +550,21 @@ mod semcov_wave12_tests {
             id: DefId(0),
             name: "Users".to_string(),
             fields: vec![
-                HirTableField { name: "id".to_string(), type_ann: dummy_hir_type(), span: zspan() },
-                HirTableField { name: "".to_string(), type_ann: dummy_hir_type(), span: zspan() },
-                HirTableField { name: "".to_string(), type_ann: dummy_hir_type(), span: zspan() },
+                HirTableField {
+                    name: "id".to_string(),
+                    type_ann: dummy_hir_type(),
+                    span: zspan(),
+                },
+                HirTableField {
+                    name: "".to_string(),
+                    type_ann: dummy_hir_type(),
+                    span: zspan(),
+                },
+                HirTableField {
+                    name: "".to_string(),
+                    type_ann: dummy_hir_type(),
+                    span: zspan(),
+                },
             ],
             primary_key: None,
             is_extern: false,

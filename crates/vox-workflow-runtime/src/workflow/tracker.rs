@@ -232,11 +232,11 @@ mod semcov_wave7_tests {
     #[tokio::test]
     async fn activity_not_completed_before_record() {
         let tracker = InMemoryTracker::new();
-        let completed = tracker
-            .is_activity_completed("wf1", "act-A")
-            .await
-            .unwrap();
-        assert!(!completed, "activity must not be reported complete before on_activity_completed");
+        let completed = tracker.is_activity_completed("wf1", "act-A").await.unwrap();
+        assert!(
+            !completed,
+            "activity must not be reported complete before on_activity_completed"
+        );
     }
 
     // Catches: load_activity_result returning stale data for a different workflow/id pair
@@ -250,11 +250,17 @@ mod semcov_wave7_tests {
 
         // Different workflow name — must not see wf1's result
         let wrong_wf = tracker.load_activity_result("wf2", "act-A").await.unwrap();
-        assert!(wrong_wf.is_none(), "wrong workflow must not see another workflow's result");
+        assert!(
+            wrong_wf.is_none(),
+            "wrong workflow must not see another workflow's result"
+        );
 
         // Same workflow, different activity id — must be None
         let wrong_act = tracker.load_activity_result("wf1", "act-B").await.unwrap();
-        assert!(wrong_act.is_none(), "different activity_id must not share a result");
+        assert!(
+            wrong_act.is_none(),
+            "different activity_id must not share a result"
+        );
     }
 
     // Catches: idempotency regression where a second on_activity_completed overwrites
@@ -277,7 +283,11 @@ mod semcov_wave7_tests {
             .await
             .unwrap()
             .expect("result must be present after two completions");
-        assert_eq!(val, json!(99), "stored value must equal last written result");
+        assert_eq!(
+            val,
+            json!(99),
+            "stored value must equal last written result"
+        );
     }
 
     // Catches: is_activity_completed returning false after on_activity_completed succeeds
@@ -288,11 +298,11 @@ mod semcov_wave7_tests {
             .on_activity_completed("wf1", "step", "act-X", &json!(true))
             .await
             .unwrap();
-        let flag = tracker
-            .is_activity_completed("wf1", "act-X")
-            .await
-            .unwrap();
-        assert!(flag, "is_activity_completed must return true after on_activity_completed");
+        let flag = tracker.is_activity_completed("wf1", "act-X").await.unwrap();
+        assert!(
+            flag,
+            "is_activity_completed must return true after on_activity_completed"
+        );
     }
 
     // Catches: DefaultTracker incorrectly returning true for is_activity_completed
@@ -303,18 +313,21 @@ mod semcov_wave7_tests {
             .is_activity_completed("any-wf", "any-act")
             .await
             .unwrap();
-        assert!(!completed, "DefaultTracker must always report not-completed");
+        assert!(
+            !completed,
+            "DefaultTracker must always report not-completed"
+        );
     }
 
     // Catches: DefaultTracker returning a non-None result for load_activity_result
     #[tokio::test]
     async fn default_tracker_load_result_always_none() {
         let tracker = DefaultTracker;
-        let result = tracker
-            .load_activity_result("wf", "act")
-            .await
-            .unwrap();
-        assert!(result.is_none(), "DefaultTracker must always return None for load_activity_result");
+        let result = tracker.load_activity_result("wf", "act").await.unwrap();
+        assert!(
+            result.is_none(),
+            "DefaultTracker must always return None for load_activity_result"
+        );
     }
 
     // Catches: next_activity_attempt_start returning 0 (attempt numbering must start at 1)
@@ -339,7 +352,10 @@ mod semcov_wave7_tests {
             .unwrap();
         // A real workflow/activity must not be polluted
         let real = tracker.load_activity_result("wf1", "act-A").await.unwrap();
-        assert!(real.is_none(), "empty-key entry must not collide with wf1/act-A");
+        assert!(
+            real.is_none(),
+            "empty-key entry must not collide with wf1/act-A"
+        );
         // The empty entry itself must be retrievable
         let empty_entry = tracker.load_activity_result("", "").await.unwrap();
         assert_eq!(empty_entry, Some(json!("empty")));

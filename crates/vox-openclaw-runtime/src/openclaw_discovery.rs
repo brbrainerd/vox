@@ -335,8 +335,7 @@ mod semcov_wave7_tests {
     fn well_known_url_correct_when_base_has_no_trailing_slash() {
         let url = derive_default_well_known_url("http://localhost:3000");
         assert_eq!(
-            url,
-            "http://localhost:3000/.well-known/openclaw.json",
+            url, "http://localhost:3000/.well-known/openclaw.json",
             "well-known URL without trailing slash is wrong: {url}"
         );
     }

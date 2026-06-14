@@ -211,7 +211,10 @@ mod semcov_wave7_tests {
             Err(JournalError::Cancelled("err-act".into())),
         );
         let result = p.await;
-        assert!(result.is_err(), "replayed error must surface as Err, not Ok");
+        assert!(
+            result.is_err(),
+            "replayed error must surface as Err, not Ok"
+        );
         assert!(
             matches!(result.unwrap_err(), JournalError::Cancelled(_)),
             "wrong error variant returned"

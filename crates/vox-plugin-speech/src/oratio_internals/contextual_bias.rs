@@ -24,7 +24,10 @@ mod semcov_wave9_tests {
     #[test]
     fn parse_hotword_csv_empty_string_returns_empty_vec() {
         let result = parse_hotword_csv("");
-        assert!(result.is_empty(), "empty string must yield zero hotwords, got: {result:?}");
+        assert!(
+            result.is_empty(),
+            "empty string must yield zero hotwords, got: {result:?}"
+        );
     }
 
     // Catches: parse_hotword_csv failing to trim leading/trailing whitespace from
@@ -32,7 +35,11 @@ mod semcov_wave9_tests {
     #[test]
     fn parse_hotword_csv_trims_whitespace_around_tokens() {
         let result = parse_hotword_csv("  hello , world  ,  foo  ");
-        assert_eq!(result, vec!["hello", "world", "foo"], "tokens must be trimmed");
+        assert_eq!(
+            result,
+            vec!["hello", "world", "foo"],
+            "tokens must be trimmed"
+        );
     }
 
     // Catches: parse_hotword_csv treating semicolons and newlines as separators
@@ -40,7 +47,11 @@ mod semcov_wave9_tests {
     #[test]
     fn parse_hotword_csv_semicolon_and_newline_delimiters() {
         let result = parse_hotword_csv("alpha;beta\ngamma,delta");
-        assert_eq!(result.len(), 4, "all 4 tokens across mixed delimiters, got: {result:?}");
+        assert_eq!(
+            result.len(),
+            4,
+            "all 4 tokens across mixed delimiters, got: {result:?}"
+        );
         assert!(result.contains(&"alpha".to_string()));
         assert!(result.contains(&"beta".to_string()));
         assert!(result.contains(&"gamma".to_string()));
@@ -56,6 +67,10 @@ mod semcov_wave9_tests {
             result.iter().all(|s| !s.is_empty()),
             "no empty hotword entries allowed, got: {result:?}"
         );
-        assert_eq!(result.len(), 4, "exactly 4 non-empty tokens, got: {result:?}");
+        assert_eq!(
+            result.len(),
+            4,
+            "exactly 4 non-empty tokens, got: {result:?}"
+        );
     }
 }

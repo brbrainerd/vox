@@ -110,10 +110,19 @@ mod semcov_wave8_tests {
     fn reward_primitive_as_str_slug_correctness() {
         assert_eq!(RewardPrimitive::GpuComputeMs.as_str(), "gpu_compute_ms");
         assert_eq!(RewardPrimitive::CpuComputeMs.as_str(), "cpu_compute_ms");
-        assert_eq!(RewardPrimitive::ResultAttestation.as_str(), "result_attestation");
-        assert_eq!(RewardPrimitive::CodeContribution.as_str(), "code_contribution");
+        assert_eq!(
+            RewardPrimitive::ResultAttestation.as_str(),
+            "result_attestation"
+        );
+        assert_eq!(
+            RewardPrimitive::CodeContribution.as_str(),
+            "code_contribution"
+        );
         assert_eq!(RewardPrimitive::BugFix.as_str(), "bug_fix");
-        assert_eq!(RewardPrimitive::DocsContribution.as_str(), "docs_contribution");
+        assert_eq!(
+            RewardPrimitive::DocsContribution.as_str(),
+            "docs_contribution"
+        );
     }
 
     // Catches: RewardPrimitive round-tripping serde with wrong variant name.
