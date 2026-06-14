@@ -6,10 +6,6 @@
 //!
 //! Lives in `tests/` so the `set_global_recorder` OnceLock starts fresh.
 
-// Tests set/restore process env vars to point the sink at a temp dir.
-// SAFETY: single-threaded integration test; each var is snapshotted and restored.
-#![allow(unsafe_code)]
-
 use std::path::PathBuf;
 
 use vox_telemetry::{
@@ -92,6 +88,8 @@ fn model_call() -> TelemetryEvent {
 // registers) uses `tokio::spawn` for async file writes. Without a runtime the
 // composite recorder fan-out panics on the first event.
 #[tokio::test(flavor = "current_thread")]
+// SAFETY: single-threaded integration test; each var is snapshotted and restored.
+#[allow(unsafe_code)]
 async fn init_telemetry_sinks_persists_cr_l8_events_to_jsonl_on_disk() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let events_root = tmp.path().to_path_buf();
