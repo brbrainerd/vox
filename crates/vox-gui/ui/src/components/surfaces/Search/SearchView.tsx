@@ -40,14 +40,16 @@ function ScopeChip({
 }) {
   return (
     <button
+      type="button"
       onClick={onToggle}
+      aria-pressed={active}
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-widest transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40 ${
         active
           ? 'border-brass/40 bg-brass/10 text-brass'
           : 'border-white/5 bg-white/[0.01] text-zinc-500 hover:border-white/10 hover:text-zinc-400'
       }`}
     >
-      <span className={`size-1.5 rounded-full ${active ? 'bg-brass' : 'bg-white/15'}`} />
+      <span aria-hidden="true" className={`size-1.5 rounded-full ${active ? 'bg-brass' : 'bg-white/15'}`} />
       {USER_SCOPE_LABELS[scope]}
     </button>
   );
@@ -64,7 +66,9 @@ function FacetChip({
 }) {
   return (
     <button
+      type="button"
       onClick={onToggle}
+      aria-pressed={active}
       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40 ${
         active
           ? 'border-brass/40 bg-brass/10 text-brass'
@@ -191,20 +195,24 @@ function HitRow({
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
           {isOpenable && (
             <button
+              type="button"
               onClick={e => { e.stopPropagation(); onOpen(); }}
               title={hit.locator.kind === 'web' ? 'Open in browser' : 'Open file'}
+              aria-label={hit.locator.kind === 'web' ? 'Open in browser' : 'Open file'}
               className="rounded p-1 text-zinc-500 hover:text-brass hover:bg-white/[0.04] transition"
             >
-              <Icon.link className="size-3" />
+              <Icon.link className="size-3" aria-hidden="true" />
             </button>
           )}
           {hit.path && (
             <button
+              type="button"
               onClick={copyPath}
               title="Copy path"
+              aria-label="Copy path"
               className="rounded p-1 text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] transition"
             >
-              <Icon.file className="size-3" />
+              <Icon.file className="size-3" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -424,6 +432,7 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
               value={pathGlob}
               onChange={e => setPathGlob(e.target.value)}
               placeholder="**/*.rs"
+              aria-label="Filter results by path glob"
               className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 font-mono text-[11px] text-zinc-300 outline-none focus:border-brass/40 w-28"
             />
           </div>
@@ -431,13 +440,14 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
 
         {/* Search input */}
         <div className="relative flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 focus-within:border-brass/40 transition-colors">
-          <Icon.search className="size-4 shrink-0 text-brass" />
+          <Icon.search className="size-4 shrink-0 text-brass" aria-hidden="true" />
           <input
             autoFocus
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search everything…"
+            aria-label="Search query"
             className="flex-1 bg-transparent text-[14px] text-zinc-100 placeholder:text-zinc-600 outline-none"
           />
           {loading && (
@@ -445,6 +455,8 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
           )}
           {!loading && query && (
             <button
+              type="button"
+              aria-label="Clear search"
               onClick={() => {
                 setQuery('');
                 setDebouncedQuery('');
@@ -453,7 +465,7 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
               }}
               className="text-zinc-500 hover:text-zinc-300 transition"
             >
-              <Icon.x className="size-4" />
+              <Icon.x className="size-4" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -470,6 +482,7 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
           ))}
           {selectedUserScopes.length > 0 && (
             <button
+              type="button"
               onClick={() => setSelectedUserScopes([])}
               className="font-mono text-[9px] uppercase tracking-widest text-zinc-600 hover:text-zinc-400 transition"
             >
@@ -584,6 +597,7 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
           {response?.next_cursor != null && (
             <div className="flex justify-center">
               <button
+                type="button"
                 onClick={loadMore}
                 disabled={loading}
                 className="rounded-lg border border-white/10 bg-white/[0.04] px-5 py-2 font-mono text-[11px] text-zinc-300 hover:border-brass/30 hover:text-brass transition disabled:opacity-50"
