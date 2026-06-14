@@ -125,6 +125,10 @@ pub struct HirModule {
     )]
     pub inferred_types: std::collections::HashMap<Span, HirType>,
 
+    /// Top-level `const` / top-level `let` bindings lowered from [`crate::ast::decl::ConstDecl`].
+    #[serde(default)]
+    pub consts: Vec<HirConst>,
+
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
 }
@@ -190,6 +194,7 @@ impl HirModule {
             ("push", HirFieldOwnership::Shell),
             ("token_decls", HirFieldOwnership::SemanticCore),
             ("route_ids", HirFieldOwnership::SemanticCore),
+            ("consts", HirFieldOwnership::SemanticCore),
             ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
         ]
     }
@@ -908,6 +913,29 @@ pub struct HirPush {
     /// Endpoint called when the user taps a notification action.
     pub on_action: Option<String>,
     /// Source span.
+    pub span: Span,
+}
+
+/// A top-level constant binding lowered from `const Name = …` or top-level `let name = …`.
+///
+/// The parser emits [`crate::ast::decl::Decl::Const`] for both `const` and top-level `let`
+/// (see `parser/descent/mod.rs:627`). This HIR node captures the binding so it is not
+/// silently dropped by the `legacy_ast_nodes` catch-all.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirConst {
+    /// Binding name.
+    pub name: String,
+    /// Initialiser expression.
+    pub value: HirExpr,
+    /// Optional type annotation.
+    pub type_ann: Option<HirType>,
+    /// Exported from module (`pub const …`).
+    pub is_pub: bool,
+    /// `@deprecated` marker.
+    pub is_deprecated: bool,
+    /// `@build_const` — evaluated at compile time only.
+    pub is_build_const: bool,
+    /// Span covering the declaration.
     pub span: Span,
 }
 

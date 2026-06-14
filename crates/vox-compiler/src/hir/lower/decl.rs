@@ -770,6 +770,18 @@ impl LowerCtx {
         }
     }
 
+    pub(crate) fn lower_const(&mut self, c: &crate::ast::decl::ConstDecl) -> HirConst {
+        HirConst {
+            name: c.name.clone(),
+            value: self.lower_expr(&c.value),
+            type_ann: c.type_ann.as_ref().map(|t| self.lower_type(t)),
+            is_pub: c.is_pub,
+            is_deprecated: c.is_deprecated,
+            is_build_const: c.is_build_const,
+            span: c.span,
+        }
+    }
+
     pub(crate) fn lower_state_machine(&mut self, s: &StateMachineDecl) -> HirStateMachineDecl {
         let id = self.def_map.define(s.name.clone());
         HirStateMachineDecl {

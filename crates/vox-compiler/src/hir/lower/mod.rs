@@ -599,6 +599,10 @@ impl LowerCtx {
                             .collect(),
                     });
                 }
+                Decl::Const(c) => {
+                    let lowered = self.lower_const(c);
+                    hir.consts.push(lowered);
+                }
                 _ => {
                     hir.legacy_ast_nodes.push(decl.clone());
                 }
