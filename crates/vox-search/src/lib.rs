@@ -60,3 +60,6 @@ pub use policy::{SEARCH_POLICY_DEFAULT_VERSION, SearchPolicy, SearchPolicyFeedba
 pub use tavily_budget::TavilySessionBudget;
 pub use unified::UnifiedHit;
 pub use vox_actor_runtime::llm::LlmConfig;
+
+#[cfg(test)]
+mod semcov_wave21_tests;

@@ -55,6 +55,9 @@ pub fn apply_global_opts(opts: &GlobalOpts) {
 }
 
 #[cfg(test)]
+mod semcov_wave22_tests;
+
+#[cfg(test)]
 mod global_opts_tests {
     use super::GlobalOpts;
     use clap::Parser;
