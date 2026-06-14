@@ -1045,3 +1045,114 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1d_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn parse_msg_type_maps_aliases_case_and_unknown() {
+        // canonical snake_case
+        assert_eq!(parse_msg_type("plan_handoff"), A2AMessageType::PlanHandoff);
+        // concatenated spelling
+        assert_eq!(parse_msg_type("scoperequest"), A2AMessageType::ScopeRequest);
+        // case-insensitive folding
+        assert_eq!(parse_msg_type("ErRoR_RePoRt"), A2AMessageType::ErrorReport);
+        // remote_task_* aliases remap onto distinct canonical variants
+        assert_eq!(
+            parse_msg_type("remote_task_envelope"),
+            A2AMessageType::PlanHandoff
+        );
+        assert_eq!(
+            parse_msg_type("remote_task_ack"),
+            A2AMessageType::ProgressUpdate
+        );
+        assert_eq!(
+            parse_msg_type("remote_task_result"),
+            A2AMessageType::CompletionNotice
+        );
+        // unknown input falls through to FreeForm
+        assert_eq!(parse_msg_type("totally_unknown"), A2AMessageType::FreeForm);
+        assert_eq!(parse_msg_type(""), A2AMessageType::FreeForm);
+    }
+
+    #[test]
+    fn msg_type_wire_emits_snake_case_wire_strings() {
+        use vox_orchestrator::a2a::A2AMessageType;
+        assert_eq!(
+            super::msg_type_wire(&A2AMessageType::HelpRequest),
+            "help_request"
+        );
+        assert_eq!(super::msg_type_wire(&A2AMessageType::FreeForm), "free_form");
+    }
+
+    #[test]
+    fn fnv1a64_matches_canonical_values_and_is_concatenative() {
+        // Empty input yields the FNV-1a 64-bit offset basis unchanged.
+        assert_eq!(fnv1a64(&[]), 0xcbf2_9ce4_8422_2325);
+        // Canonical FNV-1a-64 hash of the single byte "a".
+        assert_eq!(fnv1a64(&["a"]), 0xaf63_dc4c_8601_ec8c);
+        // Parts are hashed as a byte stream, so splitting is invariant.
+        assert_eq!(fnv1a64(&["ab"]), fnv1a64(&["a", "b"]));
+        // An extra empty part does not change the result.
+        assert_eq!(fnv1a64(&["a", "b"]), fnv1a64(&["a", "", "b"]));
+    }
+
+    #[test]
+    fn default_idempotency_key_matches_fnv1a_format() {
+        // FNV-1a over the concatenated bytes of "ping" then "hi", lower-hex 16-wide.
+        let key = default_idempotency_key(1, 2, "ping", "hi");
+        assert_eq!(key, "mcp-a2a-1-2-21f52f76e48dc9ae");
+
+        // The hash region is exactly 16 lowercase hex digits.
+        let hash_hex = key.strip_prefix("mcp-a2a-1-2-").expect("prefix");
+        assert_eq!(hash_hex.len(), 16);
+        assert!(
+            hash_hex
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+        );
+
+        // Sender/receiver are interpolated verbatim and independent of the hash.
+        let other = default_idempotency_key(7, 9, "ping", "hi");
+        assert_eq!(other, "mcp-a2a-7-9-21f52f76e48dc9ae");
+
+        // Hash is over the *joined* (msg_type, payload): moving the split boundary
+        // changes nothing, but changing the joined bytes changes the key.
+        assert_eq!(
+            default_idempotency_key(1, 2, "pin", "ghi"),
+            default_idempotency_key(1, 2, "ping", "hi"),
+        );
+        assert_ne!(
+            default_idempotency_key(1, 2, "ping", "ho"),
+            default_idempotency_key(1, 2, "ping", "hi"),
+        );
+    }
+
+    #[test]
+    fn a2a_message_may_surface_to_pilot_classifies_pilot_surfacing_types() {
+        // The three pilot-surfacing types return true.
+        assert!(a2a_message_may_surface_to_pilot(
+            &A2AMessageType::HelpRequest
+        ));
+        assert!(a2a_message_may_surface_to_pilot(
+            &A2AMessageType::ErrorReport
+        ));
+        assert!(a2a_message_may_surface_to_pilot(
+            &A2AMessageType::ConflictDetected
+        ));
+
+        // Representative non-surfacing types return false.
+        assert!(!a2a_message_may_surface_to_pilot(
+            &A2AMessageType::PlanHandoff
+        ));
+        assert!(!a2a_message_may_surface_to_pilot(
+            &A2AMessageType::ProgressUpdate
+        ));
+        assert!(!a2a_message_may_surface_to_pilot(&A2AMessageType::FreeForm));
+        assert!(!a2a_message_may_surface_to_pilot(
+            &A2AMessageType::ConflictResolved
+        ));
+    }
+}
