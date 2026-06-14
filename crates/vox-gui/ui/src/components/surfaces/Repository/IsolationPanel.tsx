@@ -1,4 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from '../../ui/Dialog';
+import { Button } from '../../ui/Button';
 import {
   ISOLATION_STRATEGIES,
   conflictRows,
@@ -35,6 +42,10 @@ export function IsolationPanel({ status, onSetDefault, busy, unavailableNote }: 
   const agents = perAgentRows(status);
   const conflicts = conflictRows(status);
 
+  // Changing the default isolation strategy rewrites how every agent's work is
+  // branched/merged — a destructive config change, so it is confirm-gated.
+  const [pending, setPending] = useState<IsolationStrategy | null>(null);
+
   return (
     <section className="space-y-3">
       <h3 className="font-display text-sm text-zinc-100 tracking-wider uppercase">
@@ -56,7 +67,10 @@ export function IsolationPanel({ status, onSetDefault, busy, unavailableNote }: 
           className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1 text-sm text-zinc-200"
           value={current}
           disabled={busy || !onSetDefault}
-          onChange={(e) => onSetDefault?.(e.target.value as IsolationStrategy)}
+          onChange={(e) => {
+            const next = e.target.value as IsolationStrategy;
+            if (next !== current) setPending(next);
+          }}
         >
           {ISOLATION_STRATEGIES.map((s) => (
             <option key={s} value={s}>
@@ -105,6 +119,35 @@ export function IsolationPanel({ status, onSetDefault, busy, unavailableNote }: 
           </ul>
         )}
       </div>
+
+      <Dialog open={pending !== null} onOpenChange={(o) => { if (!o) setPending(null); }}>
+        <DialogContent aria-label="Confirm isolation strategy change">
+          <DialogTitle>Change default isolation strategy?</DialogTitle>
+          <DialogDescription>
+            This changes how every agent&apos;s work is branched and merged
+            {pending ? ` to “${strategyLabel(pending)}”` : ''}. In-flight agents may be affected.
+          </DialogDescription>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button
+              type="button"
+              onClick={() => setPending(null)}
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-sm text-zinc-300 hover:bg-white/5"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (pending) onSetDefault?.(pending);
+                setPending(null);
+              }}
+              className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-sm text-rose-200 hover:bg-rose-500/20"
+            >
+              Change strategy
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
