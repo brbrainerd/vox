@@ -158,7 +158,12 @@ impl DomArena {
                 let ctx = EmitCtx::new(state_names);
                 let iterator = emit_hir_expr(iterable, &ctx);
                 let key = key_expr.as_ref().map(|k| emit_hir_expr(k, &ctx));
-                let body_id = self.lower_expr(body, state_names, async_fn_names);
+                // Unwrap single-expression blocks so `for item in xs { <Li/> }` lowers
+                // the inner `<Li/>` as a DomNode::Element rather than as DomNode::Expr
+                // (which would wrap the element in `{...}` inside the `.map(() => (...))`,
+                // producing invalid TSX like `{items.map(...) => ({<Li/>})}`).
+                let body_unwrapped = unwrap_inline_hir_block_expr(body);
+                let body_id = self.lower_expr(body_unwrapped, state_names, async_fn_names);
                 // Embed the variable name in the iterator expression so the DomNode::Loop
                 // emitter can reconstruct `.map((name, idx) => ...)`.
                 let idx = index.as_deref().unwrap_or("_i");
