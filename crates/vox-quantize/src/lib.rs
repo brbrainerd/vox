@@ -17,3 +17,6 @@ pub use engine::{QuantizeRequest, quantize};
 pub use error::QuantizeError;
 pub use policy::{QuantMixture, TensorRole};
 pub use verify::{QuantReport, TensorQuantStat};
+
+#[cfg(test)]
+mod semcov_wave23_tests;
