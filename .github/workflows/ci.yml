@@ -189,6 +189,58 @@ jobs:
           # credentials linger in .git/config for later steps). GITHUB_REPOSITORY is set by Actions.
           git push "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${PR_HEAD_REF}"
 
+  # Toolchain-bump lint-wave gate (NON-required). Every `rust-toolchain.toml` bump introduces
+  # new clippy/rustdoc lints that fire workspace-wide; on the self-hosted fleet the persisted
+  # `target/` + sccache MASK them, so they land and need a cleanup commit (the #1 perennial in
+  # the 528-fix-commit scan). This job runs a FRESH (cache-defeated) clippy+rustdoc ONLY when
+  # rust-toolchain.toml changed in the PR, surfacing the wave in the bumping PR. Nothing
+  # `needs:` it, so it can never block the required "Check, Build, and Test (Rust)" gate.
+  toolchain-lint-wave:
+    name: Fresh clippy+rustdoc on toolchain bump
+    needs: setup
+    if: github.event_name == 'pull_request'
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Detect rust-toolchain.toml change
+        id: tc
+        shell: bash
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1 || true
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qx 'rust-toolchain.toml'; then
+            echo "rust-toolchain.toml changed — running fresh clippy+rustdoc"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rust-toolchain.toml unchanged — skipping the cold rebuild"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.tc.outputs.changed == 'true'
+        with:
+          components: rustfmt, clippy
+      - name: Fresh clippy + rustdoc (cache + sccache defeated so the new toolchain re-evaluates)
+        if: steps.tc.outputs.changed == 'true'
+        env:
+          CARGO_INCREMENTAL: "0"
+          # Bypass sccache: a cache hit would serve old-toolchain results and hide new lints.
+          RUSTC_WRAPPER: ""
+        run: |
+          set -euo pipefail
+          cargo clean
+          # Allowlist MUST stay in lockstep with the `lints` job's clippy step below.
+          cargo clippy --workspace --all-targets --exclude vox-gui -- \
+            -D warnings \
+            -A clippy::items_after_test_module \
+            -A clippy::collapsible_match \
+            -A clippy::collapsible_if \
+            -A clippy::should_implement_trait \
+            -A clippy::doc_overindented_list_items \
+            -A clippy::doc_lazy_continuation
+          RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps
+
   guards-fast:
     name: Guards (fast)
     needs: setup
