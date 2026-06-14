@@ -8,6 +8,7 @@ use crate::lexer::token::Token;
 impl Parser {
     pub(crate) fn parse_fn_decl(&mut self, is_pub: bool) -> Result<FnDecl, ()> {
         let start = self.span();
+        let mut is_pub = is_pub;
         let mut preconditions = Vec::new();
         let mut postconditions = Vec::new();
         let mut invariants = Vec::new();
@@ -942,6 +943,10 @@ impl Parser {
                         let _ = self.expect(&Token::RParen);
                         embed_span = Some(e_start.merge(self.span()));
                     }
+                }
+                Token::AtPublic => {
+                    self.advance();
+                    is_pub = true;
                 }
                 Token::AtAuth | Token::AtOfflineCapable | Token::AtCollaborative => {
                     self.advance();
