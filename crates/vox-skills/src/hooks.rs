@@ -158,3 +158,37 @@ mod tests {
         assert_eq!(outputs, vec!["done"]);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave4_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn hook_event_display_custom_branch() {
+        let ev = HookEvent::Custom("my.event".to_string());
+        assert_eq!(ev.to_string(), "custom:my.event");
+    }
+
+    #[test]
+    fn hook_event_display_non_custom_variants() {
+        assert_eq!(HookEvent::SkillInstalled.to_string(), "SkillInstalled");
+        assert_eq!(HookEvent::TaskCompleted.to_string(), "TaskCompleted");
+        assert_eq!(HookEvent::BeforeCompaction.to_string(), "BeforeCompaction");
+    }
+
+    #[test]
+    fn custom_hook_fires_via_string_key() {
+        let reg = HookRegistry::new();
+        reg.register(
+            HookEvent::Custom("deploy.pre".to_string()),
+            "custom-hook",
+            Box::new(|ctx| Ok(Some(format!("ctx={ctx}")))),
+        );
+        let out = reg.fire(&HookEvent::Custom("deploy.pre".to_string()), "data");
+        assert_eq!(out, vec!["ctx=data"]);
+        // Different Custom string → no match
+        let out2 = reg.fire(&HookEvent::Custom("deploy.post".to_string()), "data");
+        assert!(out2.is_empty());
+    }
+}

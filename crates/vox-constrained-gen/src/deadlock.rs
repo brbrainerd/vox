@@ -181,3 +181,176 @@ mod tests {
         assert_eq!(cfg.backoff_base_ms, 100);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave4_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::{
+        ConstrainedGenError, ConstrainedSampler, Result, SamplerState,
+        deadlock::{WatchdogConfig, mask_logits_with_retry},
+    };
+
+    /// A sampler that always returns a Deadlock error.
+    struct AlwaysDeadlockSampler;
+    impl ConstrainedSampler for AlwaysDeadlockSampler {
+        fn mask_logits(
+            &self,
+            _logits: &[f32],
+            _state: &SamplerState,
+            _token_strings: &[String],
+        ) -> Result<(Vec<f32>, SamplerState)> {
+            Err(ConstrainedGenError::Deadlock {
+                position: 0,
+                partial_output: "partial".to_string(),
+            })
+        }
+        fn initial_state(&self) -> SamplerState {
+            SamplerState::Empty
+        }
+        fn name(&self) -> &'static str {
+            "always-deadlock"
+        }
+    }
+
+    /// A sampler that always returns a non-retryable (Internal) error.
+    struct AlwaysInternalErrorSampler;
+    impl ConstrainedSampler for AlwaysInternalErrorSampler {
+        fn mask_logits(
+            &self,
+            _logits: &[f32],
+            _state: &SamplerState,
+            _token_strings: &[String],
+        ) -> Result<(Vec<f32>, SamplerState)> {
+            Err(ConstrainedGenError::Internal("fatal".to_string()))
+        }
+        fn initial_state(&self) -> SamplerState {
+            SamplerState::Empty
+        }
+        fn name(&self) -> &'static str {
+            "always-internal-error"
+        }
+    }
+
+    /// A sampler that succeeds on the first call.
+    struct AlwaysSucceedSampler;
+    impl ConstrainedSampler for AlwaysSucceedSampler {
+        fn mask_logits(
+            &self,
+            logits: &[f32],
+            _state: &SamplerState,
+            _token_strings: &[String],
+        ) -> Result<(Vec<f32>, SamplerState)> {
+            Ok((logits.to_vec(), SamplerState::Empty))
+        }
+        fn initial_state(&self) -> SamplerState {
+            SamplerState::Empty
+        }
+        fn name(&self) -> &'static str {
+            "always-succeed"
+        }
+    }
+
+    #[test]
+    fn retry_returns_ok_on_success() {
+        let sampler = AlwaysSucceedSampler;
+        let config = WatchdogConfig {
+            timeout_ms: 5_000,
+            max_retries: 0,
+            backoff_base_ms: 0,
+        };
+        let logits = vec![1.0f32, 2.0];
+        let tokens = vec!["fn".to_string(), "let".to_string()];
+        let result =
+            mask_logits_with_retry(&sampler, &logits, &SamplerState::Empty, &tokens, &config);
+        assert!(result.is_ok(), "expected Ok from successful sampler");
+        let (masked, _) = result.unwrap();
+        assert_eq!(masked, logits);
+    }
+
+    #[test]
+    fn retry_exhausts_on_deadlock_and_returns_last_error() {
+        let sampler = AlwaysDeadlockSampler;
+        // max_retries=0: one attempt, no sleep needed
+        let config = WatchdogConfig {
+            timeout_ms: 5_000,
+            max_retries: 0,
+            backoff_base_ms: 0,
+        };
+        let logits = vec![1.0f32];
+        let tokens: Vec<String> = vec![];
+        let result =
+            mask_logits_with_retry(&sampler, &logits, &SamplerState::Empty, &tokens, &config);
+        assert!(
+            matches!(result, Err(ConstrainedGenError::Deadlock { .. })),
+            "expected Deadlock after exhausting retries"
+        );
+    }
+
+    #[test]
+    fn retry_propagates_non_retryable_error_immediately() {
+        let sampler = AlwaysInternalErrorSampler;
+        // Even with max_retries=3, Internal errors propagate immediately (no retry)
+        let config = WatchdogConfig {
+            timeout_ms: 5_000,
+            max_retries: 3,
+            backoff_base_ms: 0,
+        };
+        let logits = vec![1.0f32];
+        let tokens: Vec<String> = vec![];
+        let result =
+            mask_logits_with_retry(&sampler, &logits, &SamplerState::Empty, &tokens, &config);
+        assert!(
+            matches!(result, Err(ConstrainedGenError::Internal(_))),
+            "expected Internal error to propagate without retry"
+        );
+    }
+
+    #[test]
+    fn retry_multiple_attempts_on_deadlock() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        struct CountingSampler {
+            count: Arc<AtomicUsize>,
+        }
+        impl ConstrainedSampler for CountingSampler {
+            fn mask_logits(
+                &self,
+                _logits: &[f32],
+                _state: &SamplerState,
+                _token_strings: &[String],
+            ) -> Result<(Vec<f32>, SamplerState)> {
+                self.count.fetch_add(1, Ordering::SeqCst);
+                Err(ConstrainedGenError::Deadlock {
+                    position: 0,
+                    partial_output: String::new(),
+                })
+            }
+            fn initial_state(&self) -> SamplerState {
+                SamplerState::Empty
+            }
+            fn name(&self) -> &'static str {
+                "counting"
+            }
+        }
+
+        let count = Arc::new(AtomicUsize::new(0));
+        let sampler = CountingSampler {
+            count: Arc::clone(&count),
+        };
+        let config = WatchdogConfig {
+            timeout_ms: 5_000,
+            max_retries: 2,
+            backoff_base_ms: 0, // no sleep
+        };
+        let result = mask_logits_with_retry(&sampler, &[], &SamplerState::Empty, &[], &config);
+        // max_retries=2 → attempts 0,1,2 → 3 total calls
+        assert_eq!(
+            count.load(Ordering::SeqCst),
+            3,
+            "expected 3 total attempts (attempt 0..=max_retries)"
+        );
+        assert!(matches!(result, Err(ConstrainedGenError::Deadlock { .. })));
+    }
+}

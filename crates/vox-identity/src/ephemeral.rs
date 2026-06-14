@@ -84,3 +84,28 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod semcov_wave4_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use vox_crypto::{verify, verifying_key_to_bytes};
+
+    #[test]
+    fn verifying_key_matches_pubkey_hex() {
+        let signer = EphemeralSigner::new();
+        let vk = signer.verifying_key();
+        let vk_bytes = verifying_key_to_bytes(&vk);
+        let expected_hex = hex::encode(vk_bytes);
+        assert_eq!(signer.pubkey_hex, expected_hex);
+    }
+
+    #[test]
+    fn verifying_key_can_verify_signature() {
+        let signer = EphemeralSigner::new();
+        let msg = b"test message for verifying_key";
+        let sig = signer.sign(msg);
+        let vk = signer.verifying_key();
+        assert!(verify(&vk, msg, &sig));
+    }
+}

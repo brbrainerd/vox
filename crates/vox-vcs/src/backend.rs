@@ -106,3 +106,44 @@ pub async fn boxed_for(root: &Path) -> Box<dyn VcsBackend> {
     let _ = root; // suppress unused-variable lint
     Box::new(CasFallback::new())
 }
+
+#[cfg(test)]
+mod semcov_wave4_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use std::path::PathBuf;
+
+    /// boxed_for() on a plain directory (no .jj) must return a working CasFallback.
+    #[tokio::test]
+    async fn boxed_for_no_jj_dir_returns_cas_fallback() {
+        let dir = tempfile::tempdir().unwrap();
+        // No .jj directory => must fall back to CasFallback regardless of feature flags.
+        let mut backend = crate::backend::boxed_for(dir.path()).await;
+        // The returned backend must be functional: snapshot + changes round-trip.
+        let id = backend
+            .snapshot(Some("probe"), vec![PathBuf::from("probe.rs")])
+            .await
+            .expect("CasFallback snapshot must succeed");
+        let changes = backend.changes().await.expect("changes must succeed");
+        assert!(
+            changes.iter().any(|c| c.id == id),
+            "snapshot id must appear in change list, got {:?}",
+            changes
+        );
+    }
+
+    /// boxed_for() fallback: undo on the returned backend must work (no NothingToUndo
+    /// after a snapshot).
+    #[tokio::test]
+    async fn boxed_for_fallback_undo_removes_last_change() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut backend = crate::backend::boxed_for(dir.path()).await;
+        backend.snapshot(Some("x"), vec![]).await.expect("snapshot");
+        backend
+            .undo()
+            .await
+            .expect("undo after snapshot must succeed");
+        let changes = backend.changes().await.expect("changes");
+        assert!(changes.is_empty(), "all changes must be gone after undo");
+    }
+}

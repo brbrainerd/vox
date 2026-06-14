@@ -622,3 +622,114 @@ mod tests {
         assert!(ids.iter().all(|&id| id == UNK_ID as u32));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave4_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    // --- encode_chatml_turns ---
+
+    #[test]
+    fn encode_chatml_turns_multi_turn_roundtrip() {
+        let turns = vec![
+            ChatmlTurn {
+                role: "system".to_string(),
+                content: "be helpful".to_string(),
+            },
+            ChatmlTurn {
+                role: "user".to_string(),
+                content: "hello".to_string(),
+            },
+            ChatmlTurn {
+                role: "assistant".to_string(),
+                content: "hi there".to_string(),
+            },
+        ];
+        let ids = VoxTokenizer::encode_chatml_turns(&turns);
+        assert!(!ids.is_empty());
+        let decoded = VoxTokenizer::decode(&ids);
+        assert!(decoded.contains("be helpful"), "system content missing");
+        assert!(decoded.contains("hello"), "user content missing");
+        assert!(decoded.contains("hi there"), "assistant content missing");
+    }
+
+    #[test]
+    fn encode_chatml_turns_single_turn() {
+        let turns = vec![ChatmlTurn {
+            role: "user".to_string(),
+            content: "test".to_string(),
+        }];
+        let ids = VoxTokenizer::encode_chatml_turns(&turns);
+        assert!(!ids.is_empty());
+        let decoded = VoxTokenizer::decode(&ids);
+        assert!(decoded.contains("user"));
+        assert!(decoded.contains("test"));
+        // Should not end with trailing newline (trim_end applied)
+        assert!(
+            !decoded.ends_with('\n'),
+            "trailing newline should be trimmed"
+        );
+    }
+
+    // --- encode_chatml_inference_prefix ---
+
+    #[test]
+    fn encode_chatml_inference_prefix_ends_with_open_assistant_slot() {
+        let ids = VoxTokenizer::encode_chatml_inference_prefix("sys", "usr");
+        assert!(!ids.is_empty());
+        let decoded = VoxTokenizer::decode(&ids);
+        assert!(decoded.contains("sys"));
+        assert!(decoded.contains("usr"));
+        assert!(decoded.contains("assistant"), "must open assistant slot");
+        // Prefix must be shorter than a complete chatml with a non-empty response
+        let full_ids_with_response = VoxTokenizer::encode_chatml("sys", "usr", "resp");
+        assert!(
+            ids.len() < full_ids_with_response.len(),
+            "inference prefix must be shorter than complete chatml"
+        );
+    }
+
+    // --- tokenize_turns_for_training ---
+
+    #[test]
+    fn tokenize_turns_for_training_pads_to_max_len() {
+        let turns = vec![
+            ChatmlTurn {
+                role: "user".to_string(),
+                content: "hello".to_string(),
+            },
+            ChatmlTurn {
+                role: "assistant".to_string(),
+                content: "hi".to_string(),
+            },
+        ];
+        let (input_ids, labels) = VoxTokenizer::tokenize_turns_for_training(&turns, 64);
+        assert_eq!(input_ids.len(), 64, "input_ids must be padded to max_len");
+        assert_eq!(labels.len(), 64, "labels must be padded to max_len");
+    }
+
+    #[test]
+    fn tokenize_turns_for_training_masks_non_assistant_tokens() {
+        let turns = vec![
+            ChatmlTurn {
+                role: "user".to_string(),
+                content: "tell me something".to_string(),
+            },
+            ChatmlTurn {
+                role: "assistant".to_string(),
+                content: "sure thing".to_string(),
+            },
+        ];
+        let (input_ids, labels) = VoxTokenizer::tokenize_turns_for_training(&turns, 128);
+        assert!(
+            labels.contains(&-100),
+            "prompt prefix must be masked with -100"
+        );
+        assert!(
+            labels.iter().any(|&l| l > 0),
+            "at least one real supervised token expected"
+        );
+        assert_eq!(input_ids.len(), labels.len());
+    }
+}

@@ -299,3 +299,106 @@ mod tests {
         assert_eq!(findings[0].kind.severity(), "WARN");
     }
 }
+
+#[cfg(test)]
+mod semcov_wave4_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use std::fs;
+
+    fn write_ledger_with_dir_claim(root: &std::path::Path, rel_dir: &str) {
+        let contracts_dir = root.join("contracts").join("reports");
+        fs::create_dir_all(&contracts_dir).unwrap();
+        let claim = format!(
+            r#"{{"q":{{"criterion":"CR-Q","artifact_path":"{rel_dir}","artifact_kind":"directory_with_dated_json","max_age_days":3650}}}}"#
+        );
+        let body = format!(r#"{{"schema_version":1,"claims":{claim},"blocked_claims":{{}}}}"#);
+        fs::write(contracts_dir.join("evidence-ledger.v1.json"), body).unwrap();
+    }
+
+    /// parse_artifact_date: YYYY-Q1 should resolve to 2020-01-01 (first day of Q1).
+    /// We exercise this via the public check_evidence_ledger: a dated-json dir containing
+    /// only `2020-Q1.json` must be recognised as fresh (age >> 0, but max_age_days=3650).
+    #[test]
+    fn quarter_format_q1_is_parsed_as_january() {
+        let tmp = tempfile::tempdir().unwrap();
+        let report_dir = tmp
+            .path()
+            .join("contracts")
+            .join("reports")
+            .join("quarterly");
+        fs::create_dir_all(&report_dir).unwrap();
+        fs::write(report_dir.join("2020-Q1.json"), "{}").unwrap();
+        write_ledger_with_dir_claim(tmp.path(), "contracts/reports/quarterly/");
+        // max_age_days=3650 — even a 2020 file won't be flagged as stale.
+        let findings = crate::check_evidence_ledger(tmp.path()).unwrap();
+        assert!(
+            findings.is_empty(),
+            "2020-Q1.json should be recognised as a valid dated artifact; findings: {findings:?}"
+        );
+    }
+
+    /// parse_artifact_date: YYYY-Q4 should resolve to 2020-10-01 (first day of Q4).
+    #[test]
+    fn quarter_format_q4_is_parsed_as_october() {
+        let tmp = tempfile::tempdir().unwrap();
+        let report_dir = tmp
+            .path()
+            .join("contracts")
+            .join("reports")
+            .join("quarterly");
+        fs::create_dir_all(&report_dir).unwrap();
+        fs::write(report_dir.join("2020-Q4.json"), "{}").unwrap();
+        write_ledger_with_dir_claim(tmp.path(), "contracts/reports/quarterly/");
+        let findings = crate::check_evidence_ledger(tmp.path()).unwrap();
+        assert!(
+            findings.is_empty(),
+            "2020-Q4.json should be recognised as a valid dated artifact; findings: {findings:?}"
+        );
+    }
+
+    /// parse_artifact_date: an invalid quarter Q5 must be rejected — the directory
+    /// should be treated as having NO dated JSON (i.e. DirectoryHasNoDatedReports).
+    #[test]
+    fn quarter_format_q5_is_rejected() {
+        let tmp = tempfile::tempdir().unwrap();
+        let report_dir = tmp
+            .path()
+            .join("contracts")
+            .join("reports")
+            .join("quarterly");
+        fs::create_dir_all(&report_dir).unwrap();
+        fs::write(report_dir.join("2020-Q5.json"), "{}").unwrap();
+        write_ledger_with_dir_claim(tmp.path(), "contracts/reports/quarterly/");
+        let findings = crate::check_evidence_ledger(tmp.path()).unwrap();
+        assert_eq!(
+            findings.len(),
+            1,
+            "2020-Q5.json must not parse as a valid date; expected DirectoryHasNoDatedReports"
+        );
+        assert_eq!(
+            findings[0].kind,
+            crate::evidence_ledger::FindingKind::DirectoryHasNoDatedReports
+        );
+    }
+
+    /// parse_artifact_date: YYYY-MM-DD-suffix form (e.g. 2024-03-15-7day.json)
+    /// must be accepted (takes the first 10 chars as the date).
+    #[test]
+    fn suffixed_date_format_is_recognised() {
+        let tmp = tempfile::tempdir().unwrap();
+        let report_dir = tmp
+            .path()
+            .join("contracts")
+            .join("reports")
+            .join("quarterly");
+        fs::create_dir_all(&report_dir).unwrap();
+        fs::write(report_dir.join("2024-03-15-7day.json"), "{}").unwrap();
+        write_ledger_with_dir_claim(tmp.path(), "contracts/reports/quarterly/");
+        let findings = crate::check_evidence_ledger(tmp.path()).unwrap();
+        assert!(
+            findings.is_empty(),
+            "2024-03-15-7day.json must be recognised as a valid dated artifact"
+        );
+    }
+}

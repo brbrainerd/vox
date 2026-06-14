@@ -108,3 +108,57 @@ impl HarnessIngestExpectations {
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_wave4_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn test_diagnosis_new_sets_required_fields() {
+        let diag = TestDiagnosis::new(
+            "my_test",
+            "vox-compiler",
+            "src/typeck.rs",
+            42usize,
+            TestCategory::Typeck,
+        );
+        assert_eq!(diag.test, "my_test");
+        assert_eq!(diag.crate_name, "vox-compiler");
+        assert_eq!(diag.file, "src/typeck.rs");
+        assert_eq!(diag.line, 42);
+        assert!(diag.expected.is_none());
+        assert!(diag.actual.is_none());
+        assert!(diag.related_decls.is_empty());
+        assert!(diag.suggested_files.is_empty());
+    }
+
+    #[test]
+    fn emit_grpo_reward_serializes_fields_correctly() {
+        let rec = HarnessIngestExpectations {
+            test: "my_test".to_string(),
+            crate_name: "vox-foo".to_string(),
+            ast_reward: 0.95,
+            is_pass: true,
+        };
+        let json = serde_json::to_string(&rec).unwrap();
+        assert!(json.contains("\"test\":\"my_test\""));
+        assert!(json.contains("\"crate_name\":\"vox-foo\""));
+        assert!(json.contains("\"is_pass\":true"));
+    }
+
+    #[test]
+    fn emit_grpo_reward_roundtrips_via_serde() {
+        let rec = HarnessIngestExpectations {
+            test: "roundtrip".to_string(),
+            crate_name: "vox-bar".to_string(),
+            ast_reward: 0.0,
+            is_pass: false,
+        };
+        let json = serde_json::to_string(&rec).unwrap();
+        let decoded: HarnessIngestExpectations = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.test, "roundtrip");
+        assert_eq!(decoded.crate_name, "vox-bar");
+        assert!(!decoded.is_pass);
+    }
+}
