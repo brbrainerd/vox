@@ -106,7 +106,14 @@ function AgentInspector({ node, agent }: { node: GraphNode; agent?: Agent }) {
               <span>Progress</span>
               <span className="font-mono text-zinc-300">{Math.round(agent.progress * 100)}%</span>
             </div>
-            <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/5">
+            <div
+              className="mt-1 h-1 overflow-hidden rounded-full bg-white/5"
+              role="progressbar"
+              aria-label={`${node.label} progress`}
+              aria-valuenow={Math.round(agent.progress * 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
               <div
                 className="h-full bg-gradient-to-r from-violet-400 to-emerald-400 transition-all duration-700"
                 style={{ width: `${agent.progress * 100}%` }}
@@ -229,8 +236,19 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
             return (
               <g
                 key={n.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`${n.label} — ${n.phase}`}
+                aria-pressed={isSel}
                 onClick={() => { setSel(n.id); onSelect?.(n.id); }}
-                className="cursor-pointer"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSel(n.id);
+                    onSelect?.(n.id);
+                  }
+                }}
+                className="cursor-pointer focus:outline-none focus-visible:[outline:2px_solid_rgb(var(--brass))]"
               >
                 {isRoot && <circle cx={x} cy={y} r={100} fill="url(#ag-root-glow)" />}
                 <circle
