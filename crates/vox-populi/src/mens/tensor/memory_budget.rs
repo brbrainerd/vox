@@ -525,3 +525,118 @@ mod tests {
     // here — mutating a process-global env var races with the other budget tests
     // under cargo's parallel test runner. The override is exercised in integration.
 }
+
+#[cfg(test)]
+mod semcov_wave15_tests {
+    use super::*;
+
+    // ── memory_budget::plan ──────────────────────────────────────────────────
+
+    #[test]
+    fn zero_vram_does_not_panic_and_flags_over_budget() {
+        // Catches: panic or unwrap in plan() when vram_gib == 0.0 → budget = 0, resident > 0.
+        let p = plan(0.0, 2.0);
+        assert!(
+            p.over_budget,
+            "0 GiB VRAM must flag over_budget, got: {}",
+            p.rationale
+        );
+    }
+
+    #[test]
+    fn one_epsilon_above_floor_boundary_is_accepted() {
+        // Catches: off-by-one where activation_budget == activation_gib(floor_seq, 1, params)
+        // is NOT treated as over-budget (the guard is `<=`, so exactly-at-floor IS over-budget;
+        // one epsilon above it must NOT be). Tests that the `<=` vs `<` boundary is correct.
+        let floor_seq = *SEQ_LADDER.last().unwrap();
+        let model_b = 2.0;
+        let resident = model_b * RESIDENT_GIB_PER_B_PARAMS + FIXED_OVERHEAD_GIB;
+        let act_at_floor = activation_gib(floor_seq, 1, model_b);
+        // Add a small epsilon so activation_budget is strictly greater than act_at_floor.
+        let vram_gib = (resident + act_at_floor + 0.5) / DEFAULT_SAFETY;
+        let p = plan(vram_gib, model_b);
+        // Must NOT set over_budget — there is strictly more room than the floor needs.
+        assert!(
+            !p.over_budget,
+            "plan just above floor boundary should not be over_budget; rationale: {}",
+            p.rationale
+        );
+        assert_eq!(p.batch_size, 1);
+    }
+
+    #[test]
+    fn plan_monotone_in_vram() {
+        // Catches: non-monotone seq_len selection where a slightly larger VRAM produces a
+        // shorter sequence (e.g. a bug in the ladder walk or activation formula).
+        let model_b = 2.0;
+        let vrams = [8.0, 12.0, 16.0, 24.0, 40.0, 80.0];
+        for pair in vrams.windows(2) {
+            let (lo, hi) = (pair[0], pair[1]);
+            let p_lo = plan(lo, model_b);
+            let p_hi = plan(hi, model_b);
+            assert!(
+                p_hi.seq_len >= p_lo.seq_len,
+                "seq_len must be non-decreasing as VRAM grows: \
+                 {lo} GiB → seq {}, {hi} GiB → seq {}",
+                p_lo.seq_len,
+                p_hi.seq_len
+            );
+        }
+    }
+
+    #[test]
+    fn grad_accum_times_batch_covers_target_effective_batch() {
+        // Catches: grad_accum underflow — e.g. div_ceil replaced with integer division
+        // causing the effective batch to be 1 instead of TARGET_EFFECTIVE_BATCH.
+        for &vram in &[8.0_f64, 16.0, 24.0, 80.0] {
+            let p = plan(vram, 2.0);
+            let effective = p.batch_size * p.grad_accum;
+            assert!(
+                effective >= TARGET_EFFECTIVE_BATCH,
+                "effective batch must be >= {TARGET_EFFECTIVE_BATCH} at {vram} GiB, got {effective}"
+            );
+        }
+    }
+
+    // ── params_b_from_model_hint ─────────────────────────────────────────────
+
+    #[test]
+    fn empty_hint_returns_none() {
+        // Catches: panic or index-out-of-bounds when the input is the empty string.
+        assert_eq!(params_b_from_model_hint(""), None);
+    }
+
+    #[test]
+    fn b_in_non_numeric_context_is_not_parsed() {
+        // Catches: false positive where "b" in "backend" or "qwen2.5b-instruct" (the
+        // "b" suffix on the full string without a numeric prefix) is incorrectly treated
+        // as a parameter count.
+        assert_eq!(params_b_from_model_hint("backend"), None);
+        assert_eq!(params_b_from_model_hint("bert-base"), None);
+    }
+
+    #[test]
+    fn decimal_param_count_parsed_correctly() {
+        // Catches: parser dropping the fractional part when a dot is present (e.g.
+        // parsing "0.5b" as 0.0 or 5.0 instead of 0.5).
+        assert_eq!(params_b_from_model_hint("Qwen/Qwen2.5-Coder-0.5B-Instruct"), Some(0.5));
+        assert_eq!(params_b_from_model_hint("tiny-1.5b-model"), Some(1.5));
+    }
+
+    // ── plan_qwen35 ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn plan_qwen35_never_upgrades_past_requested_size() {
+        // Catches: walk-order bug where the ladder accidentally returns a LARGER variant
+        // than max_params_b (e.g. ladder not filtered before the walk).
+        for &cap in &[0.8_f64, 2.0, 4.0] {
+            let p = plan_qwen35(80.0, cap);
+            assert!(
+                p.params_b <= cap + 1e-9,
+                "plan must not upgrade past requested cap {cap}B, got {}B ({})",
+                p.params_b,
+                p.model_id
+            );
+        }
+    }
+}

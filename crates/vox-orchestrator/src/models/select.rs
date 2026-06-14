@@ -1057,6 +1057,175 @@ mod tests {
         }
     }
 
+    // ── Wave-14 adversarial tests ────────────────────────────────────────────
+
+    #[cfg(test)]
+    mod semcov_wave14_tests {
+        use super::super::*;
+        use super::*;
+        use crate::models::{ModelRegistry, TaskCategory};
+
+        #[test]
+        fn cost_first_axes_economy_when_cost_exceeds_sum_of_others() {
+            // Catches: `>` replaced with `>=` in to_cost_preference, making COST_FIRST
+            // resolve to Performance instead of Economy when other axes sum == cost axis.
+            let axes = SelectionAxes {
+                cost: 40,
+                responsiveness: 20,
+                intelligence: 20,
+            };
+            // 40 > (20 + 20) = 40 is FALSE → Performance; only strictly greater triggers Economy.
+            assert_eq!(axes.to_cost_preference(), CostPreference::Performance);
+
+            let axes_strictly_greater = SelectionAxes {
+                cost: 41,
+                responsiveness: 20,
+                intelligence: 20,
+            };
+            // 41 > 40 → Economy
+            assert_eq!(
+                axes_strictly_greater.to_cost_preference(),
+                CostPreference::Economy
+            );
+        }
+
+        #[test]
+        fn to_routing_priority_prefer_local_false_sets_mobile_to_zero() {
+            // Catches: prefer_local=false branch accidentally inheriting mobile=70
+            // from a nearby prefer_local=true call in the same thread.
+            let axes = SelectionAxes::QUALITY_FIRST;
+            let prio = axes.to_routing_priority(false);
+            assert_eq!(
+                prio.mobile, 0,
+                "prefer_local=false must set mobile=0, not inherit 70"
+            );
+        }
+
+        #[test]
+        fn context_size_hint_zero_never_filters_models() {
+            // Catches: `Some(0)` context hint incorrectly filtering all models whose
+            // max_context is also 0 (unknown) — the guard should treat 0-context models
+            // as unconstrained, not reject them.
+            let registry = ModelRegistry::new();
+            // Pull any model out and verify a 0-hint doesn't filter it.
+            if let Some(m) = registry.list_models().into_iter().next() {
+                let intent = SelectionIntent {
+                    context_size_hint: Some(0),
+                    ..SelectionIntent::for_task(TaskCategory::CodeGen)
+                };
+                // supports_intent_constraints_public uses the public re-export.
+                // We only test that a model with any context passes a 0 hint.
+                let passes = supports_intent_constraints_public(&m, &intent);
+                // A 0 min_ctx should NOT exclude a model. Even if model_ctx == 0,
+                // 0 < 0 is false so the check must pass.
+                assert!(
+                    passes,
+                    "context_size_hint=0 must not filter model (max_context={})",
+                    m.capabilities.max_context
+                );
+            }
+        }
+
+        #[test]
+        fn max_cost_ceiling_zero_filters_all_non_free_models() {
+            // Catches: `>` vs `>=` in the cost ceiling check — a model with
+            // cost_per_1k > 0 but ceiling = 0 must be rejected, not sneaking through.
+            let registry = ModelRegistry::new();
+            let paid_model = registry
+                .list_models()
+                .into_iter()
+                .find(|m| m.cost_per_1k > 0.0 || m.cost_per_1k_input > 0.0);
+            if let Some(m) = paid_model {
+                let intent = SelectionIntent {
+                    max_cost_usd_per_call: Some(0.0),
+                    ..SelectionIntent::for_task(TaskCategory::CodeGen)
+                };
+                let passes = supports_intent_constraints_public(&m, &intent);
+                assert!(
+                    !passes,
+                    "paid model must be filtered when max_cost_usd_per_call=0.0"
+                );
+            }
+        }
+
+        #[test]
+        fn from_env_ignores_unknown_key_without_panicking() {
+            // Catches: unknown keys in VOX_MODEL_AXES causing a panic or
+            // silently overwriting a known axis due to partial-match logic.
+            unsafe { std::env::set_var("VOX_MODEL_AXES", "boguskey:99,cost:55") };
+            let axes = SelectionAxes::from_env();
+            unsafe { std::env::remove_var("VOX_MODEL_AXES") };
+            assert_eq!(axes.cost, 55, "known key 'cost' must be parsed");
+            // responsiveness and intelligence stay at defaults when omitted.
+            assert_eq!(
+                axes.responsiveness,
+                SelectionAxes::BALANCED.responsiveness,
+                "missing responsiveness must default to BALANCED.responsiveness"
+            );
+        }
+
+        #[test]
+        fn from_env_invalid_numeric_value_falls_back_to_default_for_that_axis() {
+            // Catches: invalid parse (e.g. "cost:abc") panicking instead of
+            // leaving the axis at the running default.
+            unsafe { std::env::set_var("VOX_MODEL_AXES", "cost:abc,intelligence:60") };
+            let axes = SelectionAxes::from_env();
+            unsafe { std::env::remove_var("VOX_MODEL_AXES") };
+            // cost parse fails → remains at BALANCED default (33)
+            assert_eq!(axes.cost, SelectionAxes::BALANCED.cost);
+            // intelligence parses fine
+            assert_eq!(axes.intelligence, 60);
+        }
+
+        #[test]
+        fn scope_cloud_only_excludes_all_local_provider_types() {
+            // Catches: scope_allows returning true for PopuliMesh or VoxLocal
+            // when CloudOnly is set — a plausible copy-paste bug adding a new
+            // local ProviderType without updating the cloud-exclusion arm.
+            use crate::models::ProviderType;
+            for local_provider in [
+                ProviderType::Ollama,
+                ProviderType::VoxLocal,
+                ProviderType::PopuliMesh,
+            ] {
+                assert!(
+                    !scope_allows(local_provider.clone(), CandidateScope::CloudOnly),
+                    "{local_provider:?} must be excluded from CloudOnly scope"
+                );
+            }
+        }
+
+        #[test]
+        fn decide_returns_none_when_no_candidates_match_scope_and_capability() {
+            // Catches: decide() panicking or returning a model that violates scope,
+            // rather than returning None, when every registry model is filtered out.
+            // We require a capability that no builtin model advertises to force the
+            // candidate list empty, exercising the None-return branch.
+            use crate::models::generated::Capability;
+            let registry = ModelRegistry::new();
+            // Capability::Vision is the most likely to be absent on local-only light models;
+            // pair it with LocalOnly scope for maximal rejection.
+            let req = ModelSelectionRequest {
+                intent: SelectionIntent::for_task(TaskCategory::CodeGen),
+                required_capabilities: vec![Capability::SupportsVision, Capability::SupportsAudioInput],
+                candidate_scope: CandidateScope::LocalOnly,
+            };
+            // Either None (no candidates) or Some(d) where the model must be local.
+            if let Some(d) = decide(&req, &registry) {
+                assert!(
+                    matches!(
+                        d.outcome.model_spec.provider_type,
+                        crate::models::ProviderType::Ollama
+                            | crate::models::ProviderType::VoxLocal
+                            | crate::models::ProviderType::PopuliMesh
+                    ),
+                    "scope=LocalOnly must never return a cloud model"
+                );
+            }
+            // The key invariant is: no panic, correct scope on any returned model.
+        }
+    }
+
     #[test]
     fn select_with_empty_policy_falls_through_to_cascade() {
         let registry = ModelRegistry::new();

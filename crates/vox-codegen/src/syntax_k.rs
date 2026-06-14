@@ -319,3 +319,107 @@ pub fn measure_syntax_k_event(input: SyntaxKInput<'_>) -> std::io::Result<Syntax
         toolchain_fingerprint: toolchain_fingerprint(),
     })
 }
+
+#[cfg(test)]
+mod semcov_wave14_tests {
+    use super::*;
+
+    #[test]
+    fn sha3_hex_empty_input_is_not_empty_string() {
+        // Catches: hasher returning the empty string for an empty payload instead of
+        // the SHA3-256 digest of the empty sequence (64 hex chars).
+        let h = sha3_hex(b"");
+        assert_eq!(h.len(), 64, "SHA3-256 of empty bytes must be 64 hex chars, got {:?}", h);
+        assert!(h.chars().all(|c| c.is_ascii_hexdigit()), "digest must be hex, got {:?}", h);
+    }
+
+    #[test]
+    fn sha3_hex_deterministic_same_input() {
+        // Invariant: sha3_hex is a pure function — same bytes must always yield
+        // the same digest. Catches non-determinism from timestamp/salt mixing.
+        let a = sha3_hex(b"hello world");
+        let b = sha3_hex(b"hello world");
+        assert_eq!(a, b, "sha3_hex must be deterministic");
+    }
+
+    #[test]
+    fn sha3_hex_different_inputs_differ() {
+        // Boundary: single-bit difference must produce different digests.
+        // Catches accidental truncation that zeroes the digest.
+        let a = sha3_hex(b"a");
+        let b = sha3_hex(b"b");
+        assert_ne!(a, b, "distinct inputs must yield distinct digests");
+    }
+
+    #[test]
+    fn canonical_emitted_files_bytes_order_independent() {
+        // Invariant: file order must not affect the canonical byte sequence.
+        // Catches: sort missing, so insertion order bleeds into the hash.
+        let files_ab = vec![
+            ("alpha.rs".to_string(), "content A".to_string()),
+            ("beta.rs".to_string(), "content B".to_string()),
+        ];
+        let files_ba = vec![
+            ("beta.rs".to_string(), "content B".to_string()),
+            ("alpha.rs".to_string(), "content A".to_string()),
+        ];
+        assert_eq!(
+            canonical_emitted_files_bytes(&files_ab),
+            canonical_emitted_files_bytes(&files_ba),
+            "file order must not affect canonical bytes"
+        );
+    }
+
+    #[test]
+    fn canonical_emitted_files_bytes_empty_is_empty() {
+        // Boundary: zero files must produce empty bytes — catches a sentinel header
+        // being emitted even when the file list is empty.
+        assert!(
+            canonical_emitted_files_bytes(&[]).is_empty(),
+            "empty file list must produce zero bytes"
+        );
+    }
+
+    #[test]
+    fn canonical_emitted_files_bytes_different_names_differ() {
+        // Catches: name not included in the canonical bytes so two different files
+        // with the same content collapse to identical outputs.
+        let a = canonical_emitted_files_bytes(&[("x.rs".to_string(), "same".to_string())]);
+        let b = canonical_emitted_files_bytes(&[("y.rs".to_string(), "same".to_string())]);
+        assert_ne!(a, b, "different file names must produce different canonical bytes");
+    }
+
+    #[test]
+    fn enrich_support_metrics_all_ok_has_no_first_failing_stage() {
+        // Invariant: when every stage passes, first_failing_stage must be null.
+        // Catches: logic short-circuiting on parse_ok=true but then defaulting
+        // first_failing_stage to a non-null value.
+        let rep = RepresentabilityPayload {
+            parse_ok: true,
+            hir_ok: true,
+            web_ir_validate_ok: true,
+            emit_preview_ok: Some(true),
+        };
+        let v = enrich_syntax_k_support_metrics(serde_json::Value::Null, rep, None, None);
+        let first = &v["representability"]["first_failing_stage"];
+        assert!(first.is_null(), "all-pass payload must have null first_failing_stage, got {first}");
+    }
+
+    #[test]
+    fn enrich_support_metrics_parse_fail_wins_over_hir_fail() {
+        // State-ordering: parse failure must be reported even when hir_ok is also
+        // false. Catches: OR-chain evaluated in wrong order, reporting "hir" instead.
+        let rep = RepresentabilityPayload {
+            parse_ok: false,
+            hir_ok: false,
+            web_ir_validate_ok: false,
+            emit_preview_ok: Some(false),
+        };
+        let v = enrich_syntax_k_support_metrics(serde_json::Value::Null, rep, None, None);
+        assert_eq!(
+            v["representability"]["first_failing_stage"].as_str(),
+            Some("parse"),
+            "parse must win as first_failing_stage, got {v}"
+        );
+    }
+}

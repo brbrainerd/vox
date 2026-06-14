@@ -259,4 +259,82 @@ mod tests {
         let r = borrowable("fn f(a: str, b: str) to str { std.print(a)\n return b }");
         assert_eq!(r, vec!["a"]);
     }
+
+    // -----------------------------------------------------------------------
+    // semcov_wave14_tests — adversarial param-borrow inference
+    // -----------------------------------------------------------------------
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__no_params_returns_empty_set() {
+        // Catches: off-by-one in names.is_empty() early-return that could skip the
+        // actual check and return a non-empty set when params slice is empty.
+        let r = borrowable("fn f() to int { return 1 }");
+        assert!(r.is_empty(), "zero-param function must yield empty borrowable set, got {r:?}");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__param_as_method_receiver_is_not_borrowable() {
+        // Catches: method receiver treated as a plain call-arg (borrow-safe) instead
+        // of an owning context — would wrongly mark `s` as borrowable.
+        let r = borrowable("fn f(s: str) to Unit { s.to_upper() }");
+        assert!(r.is_empty(), "method receiver must disqualify param, got {r:?}");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__param_in_list_literal_is_not_borrowable() {
+        // Catches: list/tuple arms not walked in owning context so `x` inside a
+        // list literal would incorrectly survive as borrowable.
+        let r = borrowable("fn f(x: int) to Unit { std.print([x]) }");
+        assert!(r.is_empty(), "param inside list literal must be disqualified, got {r:?}");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__param_used_in_while_condition_is_not_borrowable() {
+        // Catches: while-condition arm not disqualifying param identifiers that
+        // appear there (condition is an owning context).
+        let r = borrowable("fn f(n: int) to Unit { while n { } }");
+        assert!(r.is_empty(), "param in while-condition must be disqualified, got {r:?}");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__param_used_only_as_two_independent_call_args_both_borrowable() {
+        // Invariant: being passed to two separate calls is still borrow-safe.
+        // Catches: a bug where second call-site walk would accidentally disqualify.
+        let r = borrowable("fn f(a: str) to Unit { std.print(a)\n std.log(a) }");
+        assert_eq!(r, vec!["a"], "param passed to two direct calls must remain borrowable");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__two_params_one_in_compound_arg_other_borrowable() {
+        // Boundary: `a` is wrapped in a binary expr (owning), `b` is a bare arg.
+        // Catches: disqualification leaking from `a`'s owning walk to `b`.
+        let r = borrowable("fn f(a: str, b: str) to Unit { std.print(a + \"x\")\n std.log(b) }");
+        assert_eq!(r, vec!["b"], "only `b` should remain borrowable, got {r:?}");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__param_in_index_expression_is_not_borrowable() {
+        // Catches: indexing expressions (obj[idx]) not walking idx in an owning
+        // context, so a param used as an index key would be wrongly marked borrowable.
+        let r = borrowable("fn f(idx: int) to Unit { let v = [1, 2, 3]\n std.print(v[idx]) }");
+        assert!(r.is_empty(), "param used as index must be disqualified, got {r:?}");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn semcov_wave14__all_params_unused_all_borrowable() {
+        // Invariant: an unreferenced param is borrowable (no clone needed either way).
+        // Catches: logic that marks unreferenced params as disqualified instead of
+        // passing them through the filter untouched.
+        let mut r = borrowable("fn f(a: str, b: str, c: str) to int { return 0 }");
+        r.sort();
+        assert_eq!(r, vec!["a", "b", "c"], "all unused params must be borrowable");
+    }
 }

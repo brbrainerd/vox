@@ -473,3 +473,147 @@ mod tests {
         assert!(report.contains("Catalog snapshot"));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave14_tests {
+    use super::*;
+
+    #[test]
+    fn provisional_at_exact_confidence_threshold_promotes_to_shadowed() {
+        // Catches: `>` used instead of `>=` in the classifier-confidence check,
+        // silently blocking promotion for models right at the policy boundary.
+        // Default threshold is 0.80 (from model-pins.v1.yaml).
+        let pins = vox_config::load_model_pins_config().unwrap_or_default();
+        let threshold = pins.classifier.promotion_thresholds.min_classifier_confidence;
+        let result = should_promote(ModelConfidence::Provisional, 0, 0.0, 0.0, threshold);
+        assert_eq!(
+            result,
+            Some(ModelConfidence::Shadowed),
+            "confidence exactly at threshold ({threshold}) must promote Provisional→Shadowed"
+        );
+    }
+
+    #[test]
+    fn provisional_just_below_threshold_does_not_promote() {
+        // Catches: `>=` coded as `>`, accepting sub-threshold models.
+        let pins = vox_config::load_model_pins_config().unwrap_or_default();
+        let threshold = pins.classifier.promotion_thresholds.min_classifier_confidence;
+        let just_below = (threshold - f32::EPSILON).max(0.0);
+        let result = should_promote(ModelConfidence::Provisional, 999, 0.0, 0.0, just_below);
+        assert_eq!(
+            result, None,
+            "confidence just below threshold must not promote (got {result:?})"
+        );
+    }
+
+    #[test]
+    fn shadowed_at_exact_call_threshold_with_zero_median_promotes() {
+        // Catches: `catalog_median_p50_ms == 0.0` path not treated as "latency unconstrained",
+        // causing division-by-zero or always-failing latency check.
+        let pins = vox_config::load_model_pins_config().unwrap_or_default();
+        let min_calls = pins
+            .classifier
+            .promotion_thresholds
+            .min_successful_calls;
+        let result = should_promote(ModelConfidence::Shadowed, min_calls, 99_999.0, 0.0, 0.99);
+        assert_eq!(
+            result,
+            Some(ModelConfidence::Confirmed),
+            "latency check must be skipped when catalog_median=0.0 (zero-median guard)"
+        );
+    }
+
+    #[test]
+    fn shadowed_latency_exactly_at_multiple_promotes() {
+        // Catches: `>` used instead of `>=` in the latency ceiling check, causing
+        // a model whose p50 equals exactly the allowed multiple to be silently blocked.
+        let pins = vox_config::load_model_pins_config().unwrap_or_default();
+        let t = &pins.classifier.promotion_thresholds;
+        let min_calls = t.min_successful_calls;
+        let multiple = t.max_p50_latency_multiple as f64;
+        let catalog_median = 1_000.0_f64;
+        let exactly_at = catalog_median * multiple;
+        let result = should_promote(
+            ModelConfidence::Shadowed,
+            min_calls,
+            exactly_at,
+            catalog_median,
+            0.99,
+        );
+        assert_eq!(
+            result,
+            Some(ModelConfidence::Confirmed),
+            "p50 == catalog_median * multiple must still pass (boundary inclusive)"
+        );
+    }
+
+    #[test]
+    fn shadowed_latency_one_ms_over_multiple_blocks_promotion() {
+        // Catches: `<=` coded as `<`, admitting models whose p50 is one unit
+        // above the ceiling.
+        let pins = vox_config::load_model_pins_config().unwrap_or_default();
+        let t = &pins.classifier.promotion_thresholds;
+        let min_calls = t.min_successful_calls;
+        let multiple = t.max_p50_latency_multiple as f64;
+        let catalog_median = 1_000.0_f64;
+        let one_over = catalog_median * multiple + 1.0;
+        let result = should_promote(
+            ModelConfidence::Shadowed,
+            min_calls,
+            one_over,
+            catalog_median,
+            0.99,
+        );
+        assert_eq!(
+            result, None,
+            "p50 one ms above ceiling must block Shadowed→Confirmed"
+        );
+    }
+
+    #[test]
+    fn confirmed_and_deprecated_are_sink_states_no_promotion() {
+        // Catches: a future refactor accidentally enabling "re-confirmation" of
+        // deprecated models (e.g. when a retired id appears in fresh catalog again).
+        for state in [ModelConfidence::Confirmed, ModelConfidence::Deprecated] {
+            let result = should_promote(state, u32::MAX, 0.0, 1_000.0, 1.0);
+            assert_eq!(
+                result, None,
+                "{:?} must be a sink state — no promotion possible",
+                state
+            );
+        }
+    }
+
+    #[test]
+    fn diff_empty_fresh_set_yields_no_new_ids() {
+        // Catches: diff_and_emit_discovery returning stale items from `prior` on
+        // an empty iteration.
+        let mut prior = std::collections::HashSet::new();
+        prior.insert("old-model".to_string());
+        let new_ids =
+            diff_and_emit_discovery(DiscoverySource::AnthropicDirect, &prior, Vec::<DiscoveredModel>::new());
+        assert!(
+            new_ids.is_empty(),
+            "empty fresh set must yield no new ids (got {new_ids:?})"
+        );
+    }
+
+    #[test]
+    fn confidence_as_str_round_trips_known_values() {
+        // Catches: as_str returning the wrong variant's string (copy-paste swap),
+        // which breaks telemetry wire format without a compile error.
+        let cases = [
+            (ModelConfidence::Provisional, "provisional"),
+            (ModelConfidence::Shadowed, "shadowed"),
+            (ModelConfidence::Confirmed, "confirmed"),
+            (ModelConfidence::Deprecated, "deprecated"),
+        ];
+        for (variant, expected) in cases {
+            assert_eq!(
+                variant.as_str(),
+                expected,
+                "{variant:?}.as_str() must equal \"{expected}\""
+            );
+        }
+    }
+}
