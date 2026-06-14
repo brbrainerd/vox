@@ -103,6 +103,7 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
           className="bg-void min-w-[16rem] flex-1 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 font-mono text-sm text-zinc-200 focus:border-cyan focus:outline-none"
         />
         <button
+          type="button"
           className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-white/[0.06] disabled:opacity-40"
           disabled={busy || !publicationId.trim()}
           onClick={extract}
@@ -110,6 +111,7 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
           {busy ? 'Working…' : 'Extract claims'}
         </button>
         <button
+          type="button"
           className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-white/[0.06] disabled:opacity-40"
           disabled={busy || !publicationId.trim()}
           onClick={loadClaims}
@@ -127,12 +129,12 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
         <div className="font-mono text-xs text-zinc-500">No claims recorded for this publication yet.</div>
       )}
       {claims !== null && claims.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2" role="list" aria-live="polite">
           <div className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
             {claims.length} claim{claims.length === 1 ? '' : 's'}
           </div>
           {claims.map((c) => (
-            <div key={c.claim_id} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+            <div key={c.claim_id} role="listitem" className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
               <div className="mb-1 flex items-center gap-2">
                 <VerdictBadge verdict={c.verdict} />
                 {c.confidence != null && (
