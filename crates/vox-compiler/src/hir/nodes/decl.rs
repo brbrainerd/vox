@@ -154,6 +154,11 @@ pub struct HirModule {
 
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
+
+    /// Warnings emitted during HIR lowering (e.g. unknown decl kinds falling to the catch-all).
+    /// Code: `vox.lower.unlowered_decl`.
+    #[serde(default)]
+    pub lower_warnings: Vec<String>,
 }
 
 /// Snapshot of a post-migration semantic-only HIR shape.
@@ -219,6 +224,7 @@ impl HirModule {
             ("route_ids", HirFieldOwnership::SemanticCore),
             ("consts", HirFieldOwnership::SemanticCore),
             ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
+            ("lower_warnings", HirFieldOwnership::MigrationOnly),
         ]
     }
 

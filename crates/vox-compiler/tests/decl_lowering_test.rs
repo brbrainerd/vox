@@ -215,3 +215,70 @@ fn agent_def_decl_lowers_out_of_legacy_nodes() {
         hir.legacy_ast_nodes
     );
 }
+
+// ── Warning on unknown catch-all ──────────────────────────────────────────────
+
+/// HttpRoute has no HIR lowering arm in the current lowering pass (it falls to the `_` catch-all).
+/// Verify that the catch-all now pushes a `lower_warnings` entry instead of silently dropping.
+#[test]
+fn unlowered_decl_emits_lower_warning() {
+    use vox_compiler::ast::decl::logic::HttpRouteDecl;
+    use vox_compiler::ast::decl::HttpMethod;
+    let module = make_module(vec![Decl::HttpRoute(HttpRouteDecl {
+        method: HttpMethod::Get,
+        path: "/test".to_string(),
+        params: vec![],
+        return_type: None,
+        body: vec![],
+        auth_provider: None,
+        roles: vec![],
+        cors: None,
+        is_traced: false,
+        is_deprecated: false,
+        span: zero_span(),
+    })]);
+    let hir = vox_compiler::hir::lower::lower_module(&module);
+    assert_eq!(
+        hir.legacy_ast_nodes.len(),
+        1,
+        "HttpRoute should still land in legacy_ast_nodes for forward-compat"
+    );
+    assert_eq!(
+        hir.lower_warnings.len(),
+        1,
+        "one lower_warning expected for the unlowered HttpRoute"
+    );
+    assert!(
+        hir.lower_warnings[0].contains("vox.lower.unlowered_decl"),
+        "warning must carry the diagnostic code, got: {:?}",
+        hir.lower_warnings[0]
+    );
+    assert!(
+        hir.lower_warnings[0].contains("http_route"),
+        "warning must name the decl kind, got: {:?}",
+        hir.lower_warnings[0]
+    );
+}
+
+/// After Phase 2, Decl::Const lowers to HirModule.consts — it must NOT hit the catch-all.
+#[test]
+fn const_decl_no_longer_falls_into_legacy_nodes() {
+    // Parser emits Decl::Const for a top-level `let` (see descent/mod.rs:627).
+    let tokens = vox_compiler::lexer::lex("let MAX = 10");
+    let module = vox_compiler::parser::descent::parse(tokens).expect("parse");
+    let hir = vox_compiler::hir::lower::lower_module(&module);
+    assert!(
+        hir.legacy_ast_nodes.is_empty(),
+        "const must lower to hir.consts, not legacy_ast_nodes: {:?}",
+        hir.legacy_ast_nodes
+    );
+    assert!(
+        hir.lower_warnings.is_empty(),
+        "const must not produce a lower_warning (it has a proper lowering arm): {:?}",
+        hir.lower_warnings
+    );
+    assert!(
+        !hir.consts.is_empty(),
+        "const must produce a HirConst entry"
+    );
+}

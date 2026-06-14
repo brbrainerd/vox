@@ -202,6 +202,53 @@ pub enum Decl {
     Tokens(TokensDecl),
 }
 impl Decl {
+    /// A short static label for this declaration kind (used in diagnostics / warnings).
+    pub fn kind_name(&self) -> &'static str {
+        match self {
+            Decl::Function(_) => "fn",
+            Decl::TypeDef(_) => "type",
+            Decl::Import(_) => "import",
+            Decl::Const(_) => "const",
+            Decl::HttpRoute(_) => "http_route",
+            Decl::McpTool(_) => "mcp_tool",
+            Decl::McpResource(_) => "mcp_resource",
+            Decl::Test(_) => "test",
+            Decl::Example(_) => "example",
+            Decl::Forall(_) => "forall",
+            Decl::Table(_) => "table",
+            Decl::Collection(_) => "collection",
+            Decl::Index(_) => "index",
+            Decl::VectorIndex(_) => "vector_index",
+            Decl::SearchIndex(_) => "search_index",
+            Decl::V0Component(_) => "v0_component",
+            Decl::Routes(_) => "routes",
+            Decl::Endpoint(_) => "endpoint",
+            Decl::Skill(_) => "skill",
+            Decl::AgentDef(_) => "agent_def",
+            Decl::Agent(_) => "agent",
+            Decl::Message(_) => "message",
+            Decl::Scheduled(_) => "scheduled",
+            Decl::Config(_) => "config",
+            Decl::Loading(_) => "loading",
+            Decl::Theme(_) => "theme",
+            Decl::Environment(_) => "environment",
+            Decl::Page(_) => "page",
+            Decl::ReactiveComponent(_) => "reactive_component",
+            Decl::ReactiveModule(_) => "reactive_module",
+            Decl::Fragment(_) => "fragment",
+            Decl::Url(_) => "url",
+            Decl::StateMachine(_) => "state_machine",
+            Decl::Workflow(_) => "workflow",
+            Decl::Activity(_) => "activity",
+            Decl::Actor(_) => "actor",
+            Decl::Form(_) => "form",
+            Decl::BackButton(_) => "back_button",
+            Decl::DeepLink(_) => "deep_link",
+            Decl::Push(_) => "push",
+            Decl::Tokens(_) => "tokens",
+        }
+    }
+
     /// Primary source span for this declaration (used for diagnostics).
     pub fn span(&self) -> Span {
         match self {

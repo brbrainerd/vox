@@ -627,6 +627,13 @@ impl LowerCtx {
                     hir.agent_defs.push(HirAgentDef { fn_name, span });
                 }
                 _ => {
+                    // vox.lower.unlowered_decl: this declaration kind has no HIR lowering arm.
+                    // It is kept in `legacy_ast_nodes` for forward-compatibility, but emit a
+                    // warning so developers notice gaps during development.
+                    let kind = decl.kind_name();
+                    hir.lower_warnings.push(format!(
+                        "vox.lower.unlowered_decl: declaration kind '{kind}' has no HIR lowering and was silently dropped"
+                    ));
                     hir.legacy_ast_nodes.push(decl.clone());
                 }
             }
