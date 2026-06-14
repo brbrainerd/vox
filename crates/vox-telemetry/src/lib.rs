@@ -24,6 +24,7 @@ pub mod aggregator;
 pub mod config;
 pub mod no_op;
 pub mod recorder;
+pub mod semcov_wave27_tests;
 pub mod span;
 pub mod types;
 

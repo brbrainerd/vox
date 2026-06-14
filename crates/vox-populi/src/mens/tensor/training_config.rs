@@ -184,6 +184,249 @@ pub struct LoraTrainingConfig {
     pub gradient_checkpointing: bool,
 }
 
+#[cfg(test)]
+mod semcov_wave26_tests {
+    use super::*;
+
+    // ── TrainingDeploymentTarget ─────────────────────────────────────────────
+
+    #[test]
+    fn deployment_target_as_str_roundtrip() {
+        // Catches: as_str() returning wrong variant label, breaking manifest writes.
+        assert_eq!(
+            TrainingDeploymentTarget::Workstation.as_str(),
+            "workstation"
+        );
+        assert_eq!(TrainingDeploymentTarget::MobileEdge.as_str(), "mobile_edge");
+    }
+
+    #[test]
+    fn deployment_target_default_is_workstation() {
+        // Catches: Default impl returning MobileEdge instead of Workstation,
+        // causing unintended mobile-optimized export for all default training runs.
+        assert_eq!(
+            TrainingDeploymentTarget::default(),
+            TrainingDeploymentTarget::Workstation
+        );
+    }
+
+    #[test]
+    fn deployment_target_serde_roundtrip() {
+        // Catches: serde rename_all mismatch where snake_case serialization
+        // produces "mobile_edge" but deserialization expects "mobileEdge".
+        let v = TrainingDeploymentTarget::MobileEdge;
+        let json = serde_json::to_string(&v).unwrap();
+        assert_eq!(json, "\"mobile_edge\"");
+        let back: TrainingDeploymentTarget = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, TrainingDeploymentTarget::MobileEdge);
+    }
+
+    // ── MensTokenizerMode ────────────────────────────────────────────────────
+
+    #[test]
+    fn tokenizer_mode_default_is_vox() {
+        // Catches: Default impl returning Hf, which would break Burn LoRA
+        // training runs that expect corpus-native VoxTokenizer.
+        assert_eq!(MensTokenizerMode::default(), MensTokenizerMode::Vox);
+    }
+
+    #[test]
+    fn tokenizer_mode_hf_serde_roundtrip() {
+        // Catches: snake_case rename producing "h_f" instead of "hf".
+        let v = MensTokenizerMode::Hf;
+        let json = serde_json::to_string(&v).unwrap();
+        assert_eq!(json, "\"hf\"");
+        let back: MensTokenizerMode = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, MensTokenizerMode::Hf);
+    }
+
+    // ── OptimizerExperimentMode ──────────────────────────────────────────────
+
+    #[test]
+    fn optimizer_experiment_mode_default_is_off() {
+        // Catches: Default returning MuonClipLike, silently enabling
+        // experimental optimizer in all default training runs.
+        assert_eq!(
+            OptimizerExperimentMode::default(),
+            OptimizerExperimentMode::Off
+        );
+    }
+
+    #[test]
+    fn optimizer_experiment_serde_roundtrip() {
+        // Catches: serde rename producing "muon_clip_like" vs "muonclip_like"
+        // divergence breaking config reload after a run with this mode.
+        let v = OptimizerExperimentMode::MuonClipLike;
+        let json = serde_json::to_string(&v).unwrap();
+        let back: OptimizerExperimentMode = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, OptimizerExperimentMode::MuonClipLike);
+    }
+
+    // ── ContextFilter ────────────────────────────────────────────────────────
+
+    #[test]
+    fn context_filter_default_is_all_none() {
+        // Catches: Default leaving difficulty_min=Some(0) which would silently
+        // filter out training rows with unset difficulty fields.
+        let f = ContextFilter::default();
+        assert!(f.categories.is_none());
+        assert!(f.difficulty_min.is_none());
+        assert!(f.difficulty_max.is_none());
+        assert!(f.rating_min.is_none());
+    }
+
+    #[test]
+    fn context_filter_boundary_values_serde_roundtrip() {
+        // Catches: u8 overflow when serializing difficulty_min=0 or rating_min=255.
+        let f = ContextFilter {
+            categories: Some(vec!["rust".to_string()]),
+            difficulty_min: Some(0),
+            difficulty_max: Some(255),
+            rating_min: Some(255),
+        };
+        let json = serde_json::to_string(&f).unwrap();
+        let back: ContextFilter = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.difficulty_min, Some(0));
+        assert_eq!(back.difficulty_max, Some(255));
+        assert_eq!(back.rating_min, Some(255));
+    }
+
+    // ── ChatmlConfig ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn chatml_config_default_tokens() {
+        // Catches: default producing empty strings or wrong tokens, causing
+        // chatml_supervised_text to emit malformed training text with no markers.
+        let cfg = ChatmlConfig::default();
+        assert_eq!(cfg.im_start, "<|im_start|>");
+        assert_eq!(cfg.im_end, "<|im_end|>");
+        assert_eq!(cfg.role_system, "system");
+        assert_eq!(cfg.role_user, "user");
+        assert_eq!(cfg.role_assistant, "assistant");
+    }
+
+    #[test]
+    fn chatml_config_custom_tokens_serde_roundtrip() {
+        // Catches: partial serialization omitting one role field, leading to
+        // deserialized ChatmlConfig with Default-filled role on reload.
+        let cfg = ChatmlConfig {
+            im_start: "<s>".to_string(),
+            im_end: "</s>".to_string(),
+            role_system: "sys".to_string(),
+            role_user: "human".to_string(),
+            role_assistant: "gpt".to_string(),
+        };
+        let json = serde_json::to_string(&cfg).unwrap();
+        let back: ChatmlConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.role_user, "human");
+        assert_eq!(back.role_assistant, "gpt");
+        assert_eq!(back.im_start, "<s>");
+    }
+
+    // ── LoraTrainingConfig defaults ──────────────────────────────────────────
+
+    #[test]
+    fn lora_training_config_default_rank_and_alpha() {
+        // Catches: rank=0 or alpha=0.0 default that would make all LoRA
+        // updates zero-scaled, producing a model that never learns.
+        let cfg = LoraTrainingConfig::default();
+        assert!(cfg.rank > 0, "rank must be positive, got {}", cfg.rank);
+        assert!(cfg.alpha > 0.0, "alpha must be positive, got {}", cfg.alpha);
+    }
+
+    #[test]
+    fn lora_training_config_default_grad_accum_positive() {
+        // Catches: grad_accum=0 default that causes a divide-by-zero in the
+        // effective-batch-size computation downstream.
+        let cfg = LoraTrainingConfig::default();
+        assert!(
+            cfg.grad_accum > 0,
+            "grad_accum=0 would cause divide-by-zero"
+        );
+    }
+
+    #[test]
+    fn lora_training_config_default_validation_split_in_range() {
+        // Catches: validation_split_ratio=Some(1.05) or negative default that
+        // causes an empty training set or panic in split logic.
+        let cfg = LoraTrainingConfig::default();
+        if let Some(ratio) = cfg.validation_split_ratio {
+            assert!(
+                ratio > 0.0 && ratio < 1.0,
+                "validation_split_ratio must be in (0, 1), got {ratio}"
+            );
+        }
+    }
+
+    #[test]
+    fn lora_training_config_default_trajectory_boosts_at_least_one() {
+        // Catches: boost defaults < 1.0 that would penalize (down-weight) tool
+        // trace rows instead of boosting them, inverting the intended weighting.
+        let cfg = LoraTrainingConfig::default();
+        assert!(
+            cfg.trajectory_tool_trace_boost >= 1.0,
+            "tool trace boost should not penalize rows"
+        );
+        assert!(
+            cfg.trajectory_failure_category_boost >= 1.0,
+            "failure boost should not penalize rows"
+        );
+        assert!(
+            cfg.trajectory_quality_boost >= 1.0,
+            "quality boost should not penalize rows"
+        );
+    }
+
+    #[test]
+    fn lora_training_config_default_allow_cpu_fallback_is_true() {
+        // Catches: allow_cpu_fallback=false default that would make every
+        // non-GPU machine fail at training startup with no clear message.
+        let cfg = LoraTrainingConfig::default();
+        assert!(
+            cfg.allow_cpu_fallback,
+            "default must allow cpu fallback for portability"
+        );
+    }
+
+    #[test]
+    fn lora_training_config_qlora_ce_last_k_default_nonzero() {
+        // Catches: qlora_ce_last_k=0 default that would compute CE loss over
+        // zero positions per row, producing NaN loss on the first step.
+        let cfg = LoraTrainingConfig::default();
+        assert!(
+            cfg.qlora_ce_last_k > 0,
+            "qlora_ce_last_k=0 produces NaN loss"
+        );
+    }
+
+    #[test]
+    fn lora_training_config_serde_roundtrip_preserves_chatml() {
+        // Catches: serde skip or flatten bug that drops the chatml sub-config,
+        // causing reload to silently reset to Default ChatmlConfig.
+        let mut cfg = LoraTrainingConfig::default();
+        cfg.chatml.role_user = "human".to_string();
+        let json = serde_json::to_string(&cfg).unwrap();
+        let back: LoraTrainingConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            back.chatml.role_user, "human",
+            "chatml must survive serde roundtrip"
+        );
+    }
+
+    // ── CurriculumSchedule ───────────────────────────────────────────────────
+
+    #[test]
+    fn curriculum_schedule_default_all_none() {
+        // Catches: Default setting epoch_1_max_difficulty=Some(0) which would
+        // exclude ALL rows in epoch 1 (difficulty 0 passes but nothing else).
+        let cs = CurriculumSchedule::default();
+        assert!(cs.epoch_1_max_difficulty.is_none());
+        assert!(cs.epoch_2_max_difficulty.is_none());
+        assert!(cs.epoch_3_max_difficulty.is_none());
+        assert!(cs.curriculum_phases.is_none());
+    }
+}
+
 impl Default for LoraTrainingConfig {
     fn default() -> Self {
         Self {
