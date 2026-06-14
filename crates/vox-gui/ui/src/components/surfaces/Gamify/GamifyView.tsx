@@ -104,7 +104,7 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-lg text-zinc-100 tracking-wider uppercase">Gamification</h2>
-        <button onClick={refresh} disabled={loading}
+        <button type="button" onClick={refresh} disabled={loading}
           className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs hover:bg-white/[0.06]">
           {loading ? 'Loading…' : 'Refresh'}
         </button>
@@ -126,7 +126,7 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
                   <div className="text-[12px] text-zinc-200">{n.title}</div>
                   <div className="text-[11px] text-zinc-500">{n.message}</div>
                 </div>
-                <button onClick={() => ack(n.id)} className="shrink-0 rounded-md border border-white/5 bg-white/[0.03] px-2 py-1 text-[10px] text-zinc-400 hover:text-zinc-100">Ack</button>
+                <button type="button" onClick={() => ack(n.id)} aria-label={`Acknowledge ${n.title}`} className="shrink-0 rounded-md border border-white/5 bg-white/[0.03] px-2 py-1 text-[10px] text-zinc-400 hover:text-zinc-100">Ack</button>
               </li>
             ))}
           </ul>
@@ -215,7 +215,14 @@ function Bar({ label, value, max, tone }: { label: string; value: number; max: n
   return (
     <div className="flex items-center gap-2">
       <span className="w-12 shrink-0 font-mono text-[9px] uppercase tracking-wider text-zinc-500">{label}</span>
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/5">
+      <div
+        className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/5"
+        role="progressbar"
+        aria-label={label}
+        aria-valuenow={Math.round(pct)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
         <div className={`h-full rounded-full ${tone}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
