@@ -61,16 +61,42 @@ fn is_neutral_expr(expr: &syn::Expr) -> bool {
             syn::Lit::Str(s) => s.value().is_empty(),
             _ => false,
         },
-        // `Default::default()`, `Vec::new()`, `String::new()`, `HashMap::new()`, … (no args)
+        // `Default::default()` / `T::default()`, and `<empty-container>::new()` — no args.
+        // `new` is restricted to known-empty std containers: an arbitrary `Foo::new()` returns a
+        // meaningful value, not "nothing", so it must NOT be treated as a swallow.
         syn::Expr::Call(call) => {
             if !call.args.is_empty() {
                 return false;
             }
-            if let syn::Expr::Path(p) = call.func.as_ref() {
-                let last = p.path.segments.last().map(|s| s.ident.to_string());
-                matches!(last.as_deref(), Some("default") | Some("new"))
-            } else {
-                false
+            let syn::Expr::Path(p) = call.func.as_ref() else {
+                return false;
+            };
+            let segs = &p.path.segments;
+            match segs.last().map(|s| s.ident.to_string()).as_deref() {
+                Some("default") => true,
+                Some("new") => {
+                    const EMPTY_CONTAINERS: &[&str] = &[
+                        "Vec",
+                        "String",
+                        "HashMap",
+                        "BTreeMap",
+                        "HashSet",
+                        "BTreeSet",
+                        "VecDeque",
+                        "BinaryHeap",
+                        "LinkedList",
+                        "OsString",
+                        "PathBuf",
+                    ];
+                    // The receiver type is the segment before `new` (`Vec::new`, `HashMap::new`,
+                    // `std::collections::HashMap::new`).
+                    segs.iter()
+                        .rev()
+                        .nth(1)
+                        .map(|s| s.ident.to_string())
+                        .is_some_and(|t| EMPTY_CONTAINERS.contains(&t.as_str()))
+                }
+                _ => false,
             }
         }
         // `vec![]`, `Default::default()`-style macros with empty bodies
@@ -256,6 +282,16 @@ mod tests {
             run("fn f(k: Kind) -> Vec<u8> { match k { Kind::A => real(), _ => Vec::new() } }")
                 .len(),
             1
+        );
+    }
+
+    #[test]
+    fn skips_custom_new_constructor() {
+        // `Foo::new()` for a non-container type returns a meaningful value, not "nothing" —
+        // must NOT be flagged as a swallow (only empty std containers' new() count).
+        assert!(
+            run("fn f(k: Kind) -> Perm { match k { Kind::Write => Perm::Write, _ => Permission::new() } }")
+                .is_empty()
         );
     }
 
