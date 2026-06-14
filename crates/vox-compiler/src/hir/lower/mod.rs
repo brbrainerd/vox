@@ -603,6 +603,29 @@ impl LowerCtx {
                     let lowered = self.lower_const(c);
                     hir.consts.push(lowered);
                 }
+                Decl::Config(c) => {
+                    hir.configs.push(self.lower_config(c));
+                }
+                Decl::Theme(t) => {
+                    hir.themes.push(self.lower_theme(t));
+                }
+                Decl::Message(m) => {
+                    hir.messages.push(self.lower_message(m));
+                }
+                Decl::Skill(s) => {
+                    let fn_name = s.func.name.clone();
+                    let span = s.func.span;
+                    let f = self.lower_fn(&s.func);
+                    hir.functions.push(f);
+                    hir.skills.push(HirSkill { fn_name, span });
+                }
+                Decl::AgentDef(a) => {
+                    let fn_name = a.func.name.clone();
+                    let span = a.func.span;
+                    let f = self.lower_fn(&a.func);
+                    hir.functions.push(f);
+                    hir.agent_defs.push(HirAgentDef { fn_name, span });
+                }
                 _ => {
                     hir.legacy_ast_nodes.push(decl.clone());
                 }

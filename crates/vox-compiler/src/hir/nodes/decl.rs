@@ -129,6 +129,29 @@ pub struct HirModule {
     #[serde(default)]
     pub consts: Vec<HirConst>,
 
+    /// Typed configuration blocks lowered from [`crate::ast::decl::ConfigDecl`].
+    /// Config is resolved at runtime from Vox.toml — not emitted to generated code.
+    #[serde(default)]
+    pub configs: Vec<HirConfig>,
+
+    /// Design-token themes lowered from [`crate::ast::decl::ui::ThemeDecl`].
+    #[serde(default)]
+    pub themes: Vec<HirTheme>,
+
+    /// Inter-agent message shapes lowered from [`crate::ast::decl::logic::MessageDecl`].
+    #[serde(default)]
+    pub messages: Vec<HirMessage>,
+
+    /// Packaged LLM/tool skills lowered from [`crate::ast::decl::fundecl::SkillDecl`].
+    /// The underlying function is also in [`Self::functions`].
+    #[serde(default)]
+    pub skills: Vec<HirSkill>,
+
+    /// Agent definitions lowered from [`crate::ast::decl::fundecl::AgentDefDecl`].
+    /// The underlying function is also in [`Self::functions`].
+    #[serde(default)]
+    pub agent_defs: Vec<HirAgentDef>,
+
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
 }
@@ -912,6 +935,72 @@ pub struct HirPush {
     pub on_notification: Option<String>,
     /// Endpoint called when the user taps a notification action.
     pub on_action: Option<String>,
+    /// Source span.
+    pub span: Span,
+}
+
+/// A `@config Name:` typed configuration block lowered to HIR.
+///
+/// Config is resolved at runtime from Vox.toml — not emitted to generated code.
+// codegen: config is resolved at runtime from Vox.toml, not emitted.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirConfig {
+    /// Config block name.
+    pub name: String,
+    /// Declared fields (name + type).
+    pub fields: Vec<HirTableField>,
+    /// `@deprecated` marker.
+    pub is_deprecated: bool,
+    /// Source span.
+    pub span: Span,
+}
+
+/// A `@theme Name { light { … } dark { … } }` design-token theme lowered to HIR.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirTheme {
+    /// Theme name.
+    pub name: String,
+    /// Light-mode token pairs `(key, value)`.
+    pub light: Vec<(String, String)>,
+    /// Dark-mode token pairs `(key, value)`.
+    pub dark: Vec<(String, String)>,
+    /// Source span.
+    pub span: Span,
+}
+
+/// An inter-agent `message Name { … }` shape lowered to HIR.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirMessage {
+    /// Message type name.
+    pub name: String,
+    /// Fields (mirrors ADT variant fields).
+    pub fields: Vec<(String, HirType)>,
+    /// `@deprecated` marker.
+    pub is_deprecated: bool,
+    /// Source span.
+    pub span: Span,
+}
+
+/// A `@skill fn …` packaged LLM/tool skill lowered to HIR.
+///
+/// The inner function is also placed in [`HirModule::functions`] so the type-checker,
+/// interpreter, and codegen pipelines see it as an ordinary callable.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirSkill {
+    /// Function name (mirrors the inner `HirFn::name`).
+    pub fn_name: String,
+    /// Source span.
+    pub span: Span,
+}
+
+/// An `@agent_def fn …` agent definition lowered to HIR.
+///
+/// The inner function is also placed in [`HirModule::functions`] so pipelines
+/// downstream can analyse it without special-casing this decorator.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirAgentDef {
+    /// Function name (mirrors the inner `HirFn::name`).
+    pub fn_name: String,
     /// Source span.
     pub span: Span,
 }
