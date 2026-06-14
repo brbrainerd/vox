@@ -159,6 +159,8 @@ jobs:
             echo "::group::vox ci $cmd"
             # Best-effort: a generator that errors (not just rewrites) is surfaced as a
             # warning but does not fail the job — the ssot-drift gate still verifies it.
+            # $cmd is deliberately unquoted so its words split into subcommand + flags.
+            # shellcheck disable=SC2086
             $VOX --quiet ci $cmd || echo "::warning::regenerator failed: vox ci $cmd"
             echo "::endgroup::"
           done
