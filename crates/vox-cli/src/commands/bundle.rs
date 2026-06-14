@@ -103,6 +103,8 @@ async fn run_app_bundle(
         false,
         BuildMode::App,
         rust_app_shell,
+        None,
+        None,
     )
     .await?;
 

@@ -34,7 +34,19 @@ pub fn map_hir_type_to_ts(ty: &HirType) -> String {
             format!("{}<{}>", name, args_str.join(", "))
         }
         HirType::Decimal => "string".to_string(),
-        _ => "any".to_string(),
+        HirType::Function(params, ret) => {
+            let param_strs: Vec<String> = params
+                .iter()
+                .enumerate()
+                .map(|(i, p)| format!("p{i}: {}", map_hir_type_to_ts(p)))
+                .collect();
+            format!("({}) => {}", param_strs.join(", "), map_hir_type_to_ts(ret))
+        }
+        HirType::Tuple(types) => {
+            let strs: Vec<String> = types.iter().map(map_hir_type_to_ts).collect();
+            format!("[{}]", strs.join(", "))
+        }
+        HirType::Unit => "void".to_string(),
     }
 }
 

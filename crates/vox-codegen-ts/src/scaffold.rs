@@ -13,8 +13,18 @@ pub type ScaffoldFile = (String, String);
 
 /// One-shot toolchain config files written next to the build output when
 /// `--emit-config` (alias `--scaffold`) is set. Config only — no bootstrap.
+///
+/// `imports` is passed so that any npm packages declared in the Vox source
+/// (e.g. `import Dialog from "@radix-ui/react-dialog"`) are included in the
+/// generated `package.json` instead of being silently dropped.
 #[must_use]
-pub fn web_config_files(_project_name: &str) -> Vec<ScaffoldFile> {
+pub fn web_config_files(
+    _project_name: &str,
+    imports: &[vox_compiler::hir::HirImport],
+) -> Vec<ScaffoldFile> {
+    let extras = extra_deps_from_imports(imports);
+    let extra_refs: Vec<&str> = extras.iter().map(String::as_str).collect();
+    let pkg_json = package_json_with_extra_deps(&extra_refs);
     vec![
         (
             "app/globals.css".to_string(),
@@ -106,9 +116,67 @@ export default defineConfig({
 "#
             .to_string(),
         ),
-        (
-            "package.json".to_string(),
-            r#"{
+        ("package.json".to_string(), pkg_json),
+    ]
+}
+
+/// Inject extra npm package names into the static `package.json` template.
+///
+/// `extra_packages` is a list of bare npm specifiers (e.g. `@radix-ui/react-dialog`).
+/// Each is inserted into the `dependencies` block with a `"*"` version placeholder,
+/// suitable for `vox build` to refine later.
+///
+/// Uses serde_json to avoid brittle string-surgery that silently breaks when
+/// the base template's version strings change.
+#[must_use]
+pub fn package_json_with_extra_deps(extra_packages: &[&str]) -> String {
+    if extra_packages.is_empty() {
+        return static_package_json().to_string();
+    }
+    let mut manifest: serde_json::Value =
+        serde_json::from_str(static_package_json()).expect("static_package_json is valid JSON");
+    if let Some(deps) = manifest
+        .get_mut("dependencies")
+        .and_then(|d| d.as_object_mut())
+    {
+        for pkg in extra_packages {
+            deps.entry(*pkg).or_insert_with(|| serde_json::json!("*"));
+        }
+    }
+    serde_json::to_string_pretty(&manifest).unwrap_or_else(|_| static_package_json().to_string())
+}
+
+/// Collect the set of extra npm packages (and their peers) implied by
+/// the `es_module_specifier` fields in `imports`.
+#[must_use]
+pub fn extra_deps_from_imports(imports: &[vox_compiler::hir::HirImport]) -> Vec<String> {
+    use super::external_libs::{LIBRARIES, bare_package};
+    let mut pkgs: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for imp in imports {
+        let Some(spec) = &imp.es_module_specifier else {
+            continue;
+        };
+        let Some(pkg) = bare_package(spec) else {
+            continue;
+        };
+        // Skip packages already in the static template.
+        if matches!(pkg, "react" | "react-dom" | "lucide-react") {
+            continue;
+        }
+        pkgs.insert(pkg.to_string());
+        // Add declared peers from the LIBRARIES table.
+        if let Some(lib) = LIBRARIES.iter().find(|l| l.package == pkg) {
+            for peer in lib.peers {
+                pkgs.insert(peer.to_string());
+            }
+        }
+    }
+    pkgs.into_iter().collect()
+}
+
+/// Return the static package.json template (shared between production and tests).
+fn static_package_json() -> &'static str {
+    r#"{
   "name": "vox-app",
   "type": "module",
   "private": true,
@@ -131,16 +199,35 @@ export default defineConfig({
     "typescript": "^5.6.0",
     "vite": "^6.0.0"
   }
+}"#
 }
-"#
-            .to_string(),
-        ),
-    ]
+
+/// Parse `src` as a Vox module and return the `package.json` content that
+/// would be scaffolded for that project, including any imported npm packages.
+///
+/// Intended for integration tests.
+#[cfg(feature = "standalone")]
+#[must_use]
+pub fn package_json_for_test(src: &str) -> String {
+    use vox_compiler::{hir::lower_module, lexer::lex, parser::parse};
+    let tokens = lex(src);
+    let ast = match parse(tokens) {
+        Ok(m) => m,
+        Err(_) => return static_package_json().to_string(),
+    };
+    let hir = lower_module(&ast);
+    let extras = extra_deps_from_imports(&hir.imports);
+    let extra_refs: Vec<&str> = extras.iter().map(String::as_str).collect();
+    package_json_with_extra_deps(&extra_refs)
 }
 
 /// Write one-shot config files under `project_root` if missing.
-pub fn write_scaffold_if_missing(project_root: &Path, project_name: &str) -> std::io::Result<()> {
-    for (rel, content) in web_config_files(project_name) {
+pub fn write_scaffold_if_missing(
+    project_root: &Path,
+    project_name: &str,
+    imports: &[vox_compiler::hir::HirImport],
+) -> std::io::Result<()> {
+    for (rel, content) in web_config_files(project_name, imports) {
         let path = project_root.join(&rel);
         if path.exists() {
             continue;
@@ -161,7 +248,7 @@ mod tests {
     /// layered `[data-vox-layer="…"]` selectors with the fixed z-index ladder.
     #[test]
     fn globals_css_embeds_seven_tier_ladder() {
-        let files = web_config_files("vox-app");
+        let files = web_config_files("vox-app", &[]);
         let (_, css) = files
             .iter()
             .find(|(rel, _)| rel == "app/globals.css")
@@ -188,7 +275,7 @@ mod tests {
     /// mount target (and the semantic_ui Dialog import resolves).
     #[test]
     fn scaffold_ships_layer_portal_runtime() {
-        let files = web_config_files("vox-app");
+        let files = web_config_files("vox-app", &[]);
         let names: Vec<&str> = files.iter().map(|(r, _)| r.as_str()).collect();
         for expected in [
             "app/vox-layer-roots.tsx",
@@ -204,7 +291,7 @@ mod tests {
     /// `package.json` must therefore NOT pull in `react-router`.
     #[test]
     fn package_json_has_no_react_router() {
-        let files = web_config_files("vox-app");
+        let files = web_config_files("vox-app", &[]);
         let (_, pkg) = files
             .iter()
             .find(|(rel, _)| rel == "package.json")

@@ -35,6 +35,8 @@ async fn run_once(args: &crate::cli_args::TestArgs) -> Result<()> {
         false,
         BuildMode::App,
         vox_codegen::codegen_rust::RustAppShell::default(),
+        None,
+        None,
     )
     .await?;
 

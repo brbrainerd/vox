@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use vox_compiler::ast::span::Span;
-use vox_compiler::hir::{HirFn, HirForall, HirModule, HirType};
+use vox_compiler::hir::{HirConst, HirFn, HirForall, HirModule, HirType};
 
 use super::script_db;
 use super::tables::{collect_table_select_projections, emit_table_struct};
@@ -46,6 +46,11 @@ pub fn emit_lib(module: &HirModule) -> String {
     out.push_str("    }\n");
     out.push_str("    val.to_string()\n");
     out.push_str("}\n\n");
+
+    // Module-level constants
+    for c in &module.consts {
+        out.push_str(&emit_const(c));
+    }
 
     // Re-export variants (only for sum types — struct typedefs are top-level structs).
     for typedef in &module.types {
@@ -107,6 +112,59 @@ pub fn emit_lib(module: &HirModule) -> String {
     }
 
     out
+}
+
+/// Emit a single `HirConst` as a Rust `const` declaration.
+///
+/// Rust `const` items require a concrete type — `_` is forbidden (E0121).
+/// When no type annotation is present we infer from the literal kind.
+/// String consts use `&'static str` with a borrowed literal (not `.to_string()`
+/// which is non-const, E0015). Non-literal initialisers that can't be expressed
+/// as a `const` produce a `compile_error!` rather than uncompilable code.
+fn emit_const(c: &HirConst) -> String {
+    use vox_compiler::hir::HirExpr;
+    let vis = if c.is_pub { "pub " } else { "" };
+
+    // Helper: escape a string value for a Rust `"..."` literal.
+    let escape_str = |s: &str| -> String {
+        s.replace('\\', "\\\\")
+            .replace('"', "\\\"")
+            .replace('\n', "\\n")
+            .replace('\r', "\\r")
+            .replace('\t', "\\t")
+    };
+
+    let (ty, value) = match &c.type_ann {
+        Some(vox_compiler::hir::HirType::Named(n)) if n == "str" => {
+            // str-annotated: borrow the literal so it's const-evaluable.
+            let v = match &c.value {
+                HirExpr::StringLit(s, _) => format!("\"{}\"", escape_str(s)),
+                other => super::stmt_expr::emit_expr(other),
+            };
+            ("&'static str".to_string(), v)
+        }
+        Some(ty) => (emit_type(ty), super::stmt_expr::emit_expr(&c.value)),
+        None => {
+            // Infer Rust type from the literal kind.
+            match &c.value {
+                HirExpr::IntLit(n, _) => ("i64".to_string(), n.to_string()),
+                HirExpr::FloatLit(f, _) => ("f64".to_string(), format!("{f}f64")),
+                HirExpr::BoolLit(b, _) => ("bool".to_string(), b.to_string()),
+                HirExpr::StringLit(s, _) => {
+                    ("&'static str".to_string(), format!("\"{}\"", escape_str(s)))
+                }
+                _ => {
+                    return format!(
+                        "compile_error!(\"vox.codegen_rust.const_requires_literal: \
+                         cannot emit const `{}` from a non-literal initialiser \
+                         — add an explicit type annotation\");\n",
+                        c.name
+                    );
+                }
+            }
+        }
+    };
+    format!("{vis}const {name}: {ty} = {value};\n", name = c.name)
 }
 
 /// Emit a single HIR typedef (struct or ADT) as a Rust type definition.

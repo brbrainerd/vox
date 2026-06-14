@@ -213,6 +213,8 @@ async fn handle_build(req: &DispatchRequest) -> anyhow::Result<()> {
         false,
         BuildMode::App,
         vox_codegen::codegen_rust::RustAppShell::default(),
+        None,
+        None,
     )
     .await
     .context("build failed")?;
@@ -368,6 +370,8 @@ async fn handle_profile(req: &DispatchRequest) -> anyhow::Result<()> {
         false,
         BuildMode::App,
         vox_codegen::codegen_rust::RustAppShell::default(),
+        None,
+        None,
     )
     .await
     .context("build (profile) failed")?;
@@ -417,6 +421,8 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
         false,
         BuildMode::App,
         vox_codegen::codegen_rust::RustAppShell::default(),
+        None,
+        None,
     )
     .await
     .context("initial dev build failed")?;
@@ -464,6 +470,8 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
                 false,
                 BuildMode::App,
                 vox_codegen::codegen_rust::RustAppShell::default(),
+                None,
+                None,
             )
             .await
             {

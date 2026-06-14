@@ -371,6 +371,9 @@ impl Parser {
             ts_extern_module: Some(module),
             inference_model: None,
             training_step: false,
+            is_auth_exempt: false,
+            is_offline_capable: false,
+            is_collaborative: false,
             span: start.merge(self.span()),
         }))
     }
@@ -746,11 +749,18 @@ impl Parser {
                             return Err(());
                         }
                     };
+                    let pair_bg = if matches!(self.peek(), Token::On) {
+                        self.advance(); // eat `on`
+                        self.expect(&Token::Colon)?;
+                        Some(self.parse_ident_name()?)
+                    } else {
+                        None
+                    };
                     colors.push(AstColorToken {
                         name,
                         light,
                         dark,
-                        pair_bg: None,
+                        pair_bg,
                         span: entry_start.merge(self.span()),
                     });
                 }

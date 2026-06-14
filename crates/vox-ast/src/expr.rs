@@ -374,6 +374,25 @@ pub enum Expr {
     },
     /// `workflow.version("change-id", min, max)` patch-marker primitive (P2-T2).
     WorkflowVersion(WorkflowVersionCall),
+    /// `when async_val { fetching => … empty => … error e => … ok x => … }` view expression.
+    AsyncView {
+        /// The `Async[T]`-typed expression being discriminated.
+        source: Box<Expr>,
+        /// Body for the `fetching` arm.
+        fetching: Option<Box<Expr>>,
+        /// Body for the `empty` arm.
+        empty: Option<Box<Expr>>,
+        /// Identifier bound in the `error` arm.
+        error_binding: Option<String>,
+        /// Body for the `error` arm.
+        error_arm: Option<Box<Expr>>,
+        /// Identifier bound in the `ok` arm.
+        ok_binding: Option<String>,
+        /// Body for the `ok` arm.
+        ok_arm: Option<Box<Expr>>,
+        /// Span covering `when` … `}`.
+        span: Span,
+    },
 }
 
 /// Arguments for `workflow.version("change-id", min_supported, max_supported)`.
@@ -419,6 +438,7 @@ impl Expr {
             Expr::JsxSelfClosing(el) => el.span,
             Expr::JsxFragment { span, .. } => *span,
             Expr::WorkflowVersion(c) => c.span,
+            Expr::AsyncView { span, .. } => *span,
         }
     }
 }

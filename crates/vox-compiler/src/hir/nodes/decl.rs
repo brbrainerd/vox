@@ -125,8 +125,40 @@ pub struct HirModule {
     )]
     pub inferred_types: std::collections::HashMap<Span, HirType>,
 
+    /// Top-level `const` / top-level `let` bindings lowered from [`crate::ast::decl::ConstDecl`].
+    #[serde(default)]
+    pub consts: Vec<HirConst>,
+
+    /// Typed configuration blocks lowered from [`crate::ast::decl::ConfigDecl`].
+    /// Config is resolved at runtime from Vox.toml — not emitted to generated code.
+    #[serde(default)]
+    pub configs: Vec<HirConfig>,
+
+    /// Design-token themes lowered from [`crate::ast::decl::ui::ThemeDecl`].
+    #[serde(default)]
+    pub themes: Vec<HirTheme>,
+
+    /// Inter-agent message shapes lowered from [`crate::ast::decl::logic::MessageDecl`].
+    #[serde(default)]
+    pub messages: Vec<HirMessage>,
+
+    /// Packaged LLM/tool skills lowered from [`crate::ast::decl::fundecl::SkillDecl`].
+    /// The underlying function is also in [`Self::functions`].
+    #[serde(default)]
+    pub skills: Vec<HirSkill>,
+
+    /// Agent definitions lowered from [`crate::ast::decl::fundecl::AgentDefDecl`].
+    /// The underlying function is also in [`Self::functions`].
+    #[serde(default)]
+    pub agent_defs: Vec<HirAgentDef>,
+
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
+
+    /// Warnings emitted during HIR lowering (e.g. unknown decl kinds falling to the catch-all).
+    /// Code: `vox.lower.unlowered_decl`.
+    #[serde(default)]
+    pub lower_warnings: Vec<String>,
 }
 
 /// Snapshot of a post-migration semantic-only HIR shape.
@@ -190,7 +222,9 @@ impl HirModule {
             ("push", HirFieldOwnership::Shell),
             ("token_decls", HirFieldOwnership::SemanticCore),
             ("route_ids", HirFieldOwnership::SemanticCore),
+            ("consts", HirFieldOwnership::SemanticCore),
             ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
+            ("lower_warnings", HirFieldOwnership::MigrationOnly),
         ]
     }
 
@@ -431,6 +465,16 @@ pub enum HirEndpointKind {
     Server,
 }
 
+/// Auth guard emitted for endpoints decorated with `@auth(provider:, roles:)`.
+/// Carried through HIR so the Rust codegen can emit a real middleware guard.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirAuth {
+    /// The auth provider name (e.g. `"clerk"`, `"supabase"`, `"custom"`).
+    pub provider: String,
+    /// Roles the caller must possess; empty = any authenticated caller.
+    pub roles: Vec<String>,
+}
+
 /// A server endpoint function — callable from the frontend, auto-generates API route + fetch wrapper.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirEndpointFn {
@@ -469,6 +513,9 @@ pub struct HirEndpointFn {
     /// `@layer(tier:)` Z-tier annotation (GA-26).
     #[serde(default)]
     pub layer: Option<super::layer::HirLayerDecl>,
+    /// `@auth(provider:, roles:)` guard — `None` = public endpoint, `Some` = auth required.
+    #[serde(default)]
+    pub auth: Option<HirAuth>,
     /// Span covering the declaration.
     pub span: Span,
 }
@@ -908,6 +955,95 @@ pub struct HirPush {
     /// Endpoint called when the user taps a notification action.
     pub on_action: Option<String>,
     /// Source span.
+    pub span: Span,
+}
+
+/// A `@config Name:` typed configuration block lowered to HIR.
+///
+/// Config is resolved at runtime from Vox.toml — not emitted to generated code.
+// codegen: config is resolved at runtime from Vox.toml, not emitted.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirConfig {
+    /// Config block name.
+    pub name: String,
+    /// Declared fields (name + type).
+    pub fields: Vec<HirTableField>,
+    /// `@deprecated` marker.
+    pub is_deprecated: bool,
+    /// Source span.
+    pub span: Span,
+}
+
+/// A `@theme Name { light { … } dark { … } }` design-token theme lowered to HIR.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirTheme {
+    /// Theme name.
+    pub name: String,
+    /// Light-mode token pairs `(key, value)`.
+    pub light: Vec<(String, String)>,
+    /// Dark-mode token pairs `(key, value)`.
+    pub dark: Vec<(String, String)>,
+    /// Source span.
+    pub span: Span,
+}
+
+/// An inter-agent `message Name { … }` shape lowered to HIR.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirMessage {
+    /// Message type name.
+    pub name: String,
+    /// Fields (mirrors ADT variant fields).
+    pub fields: Vec<(String, HirType)>,
+    /// `@deprecated` marker.
+    pub is_deprecated: bool,
+    /// Source span.
+    pub span: Span,
+}
+
+/// A `@skill fn …` packaged LLM/tool skill lowered to HIR.
+///
+/// The inner function is also placed in [`HirModule::functions`] so the type-checker,
+/// interpreter, and codegen pipelines see it as an ordinary callable.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirSkill {
+    /// Function name (mirrors the inner `HirFn::name`).
+    pub fn_name: String,
+    /// Source span.
+    pub span: Span,
+}
+
+/// An `@agent_def fn …` agent definition lowered to HIR.
+///
+/// The inner function is also placed in [`HirModule::functions`] so pipelines
+/// downstream can analyse it without special-casing this decorator.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirAgentDef {
+    /// Function name (mirrors the inner `HirFn::name`).
+    pub fn_name: String,
+    /// Source span.
+    pub span: Span,
+}
+
+/// A top-level constant binding lowered from `const Name = …` or top-level `let name = …`.
+///
+/// The parser emits [`crate::ast::decl::Decl::Const`] for both `const` and top-level `let`
+/// (see `parser/descent/mod.rs:627`). This HIR node captures the binding so it is not
+/// silently dropped by the `legacy_ast_nodes` catch-all.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirConst {
+    /// Binding name.
+    pub name: String,
+    /// Initialiser expression.
+    pub value: HirExpr,
+    /// Optional type annotation.
+    pub type_ann: Option<HirType>,
+    /// Exported from module (`pub const …`).
+    pub is_pub: bool,
+    /// `@deprecated` marker.
+    pub is_deprecated: bool,
+    /// `@build_const` — evaluated at compile time only.
+    pub is_build_const: bool,
+    /// Span covering the declaration.
     pub span: Span,
 }
 

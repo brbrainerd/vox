@@ -1,6 +1,9 @@
 // vox:caps process
-// Build web assets into dist/ — run from repo root:
+// Build both targets — run from the app directory:
 //   vox run scripts/build.vox
+// Web/PWA assets land in dist/ (bundled by Vite into web-dist/); the
+// Expo/React-Native project is regenerated into mobile/ (gitignored —
+// always derived from src/main.vox, never hand-edited).
 // Requires `vox` on PATH (see Vox docs: docs/src/how-to/external-app-bootstrap.md).
 
 fn main() to int {
@@ -8,6 +11,6 @@ fn main() to int {
     std.process.run("node", ["scripts/postbuild-fixup.mjs"])
     std.process.run("pnpm", ["build:web"])
     std.process.run("vox", ["run", "scripts/generate-icons.vox"])
-    std.process.run("npx", ["cap", "sync"])
+    std.process.run("vox", ["build", "src/main.vox", "--target=mobile", "-o", "mobile", "--app-name", "Vox Mental Tracker", "--app-id", "com.vox.mentaltracker"])
     return 0
 }

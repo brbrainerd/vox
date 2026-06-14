@@ -296,6 +296,7 @@ impl Parser {
                     | Token::AtOfflineCapable
                     | Token::AtCollaborative
                     | Token::AtLayer
+                    | Token::AtPublic
             ) || matches!(self.peek(), Token::Ident(n) if n == "routes" || n == "url" || n == "state_machine");
 
             let is_tombstoned = matches!(
@@ -396,6 +397,9 @@ impl Parser {
                 effects: vec![],
                 inference_model: None,
                 training_step: false,
+                is_auth_exempt: false,
+                is_offline_capable: false,
+                is_collaborative: false,
                 span: script_start.merge(script_end),
             };
             decls.push(Decl::Function(main_fn));
@@ -605,6 +609,21 @@ impl Parser {
             Token::AtLoading => self.parse_loading(),
             Token::AtTest => self.parse_test(),
             Token::AtExample => self.parse_example(),
+            Token::AtPublic => {
+                // `@public` opts a server/query/mutation fn out of the @auth requirement.
+                // It is a prefix modifier — eat it and parse the inner declaration.
+                self.advance(); // eat @public
+                self.skip_newlines();
+                let mut decl = self.parse_decl()?;
+                if let Decl::Endpoint(ref mut ep) = decl {
+                    ep.func.is_pub = true;
+                    ep.func.is_auth_exempt = true; // @public also skips auth-guard
+                } else if let Decl::Function(ref mut f) = decl {
+                    f.is_pub = true;
+                    f.is_auth_exempt = true; // @public also skips auth-guard
+                }
+                Ok(decl)
+            }
             Token::AtQuery => self.parse_query(),
             Token::AtMutation => self.parse_mutation(),
             Token::AtServer => self.parse_server_endpoint(),

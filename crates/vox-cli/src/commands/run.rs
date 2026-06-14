@@ -165,6 +165,8 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
         false,
         BuildMode::App,
         vox_codegen::codegen_rust::RustAppShell::default(),
+        None,
+        None,
     )
     .await?;
 

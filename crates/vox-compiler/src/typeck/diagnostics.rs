@@ -724,6 +724,33 @@ pub mod codes {
 
     pub const EFFECT_MISSING_DECLARATION: &str = "vox/effect/missing-declaration";
 
+    /// HTTP/security decorator (`@webhook`, `@cors`, `@rate_limit`, `@pii`, `@layer`) applied to
+    /// a bare function that is not an endpoint or component. The decorator would be silently
+    /// dropped during lowering (Pattern C); this code surfaces it as an error instead.
+    pub const TYPECK_DECORATOR_REQUIRES_ENDPOINT: &str = "vox/typeck/decorator-requires-endpoint";
+
+    /// MENS/mesh decorator (`@inference`, `@training_step`, `@distributed_train`, `@remote`)
+    /// applied to a function where Rust codegen is not yet implemented for these decorators.
+    /// Previously these were silently emitted as no-ops; this code surfaces the gap explicitly.
+    pub const MENS_DECORATOR_UNIMPLEMENTED: &str = "vox/codegen/mens-decorator-unimplemented";
+
+    /// A `Decl` variant reached the catch-all arm of HIR lowering with no matching lowering arm.
+    /// The declaration is preserved in `legacy_ast_nodes` for forward-compatibility, but this
+    /// warning surfaces the gap so developers notice missing lowering during development.
+    pub const LOWER_UNLOWERED_DECL: &str = "vox/lower/unlowered-decl";
+
+    /// `@public` and `@auth(...)` applied together on the same function — contradictory because
+    /// `@public` skips authentication while `@auth` requires it (token.rs:259-261).
+    pub const TYPECK_PUBLIC_AUTH_CONFLICT: &str = "vox/typeck/public-auth-conflict";
+
+    /// `@pii` applied to an endpoint whose Rust codegen has no redaction runtime wired in.
+    /// The decorator is stored on the AST/HIR but silently dropped during Rust emit.
+    pub const PII_UNIMPLEMENTED: &str = "vox/codegen/pii-unimplemented";
+
+    /// `@embed(...)` applied to an endpoint whose Rust codegen has no vector-embedding
+    /// runtime wired in. The decorator is stored on the AST/HIR but silently dropped.
+    pub const EMBED_UNIMPLEMENTED: &str = "vox/codegen/embed-unimplemented";
+
     /// All Phase-1 codes registered for stability, used by the namespace guard test.
     pub const ALL_PHASE_1: &[&str] = &[
         // Core type errors (v0.6, LLM-target CR-L criteria)
@@ -771,6 +798,9 @@ pub mod codes {
         WORKFLOW_NON_DETERMINISTIC_CALL,
         WORKFLOW_SIDE_EFFECT_OUTSIDE_WORKFLOW,
         EFFECT_MISSING_DECLARATION,
+        TYPECK_DECORATOR_REQUIRES_ENDPOINT,
+        MENS_DECORATOR_UNIMPLEMENTED,
+        LOWER_UNLOWERED_DECL,
         // Pipeline / parse / hygiene (E028 retired by ADR-041 — durability grammar is stable)
         "E0001",
         "E091",
@@ -840,6 +870,9 @@ pub mod codes {
         "vox/a11y/listbox-missing-label",
         "vox/a11y/combobox-missing-label",
         "vox/a11y/tabs-missing-label",
+        TYPECK_PUBLIC_AUTH_CONFLICT,
+        PII_UNIMPLEMENTED,
+        EMBED_UNIMPLEMENTED,
     ];
 
     #[cfg(test)]

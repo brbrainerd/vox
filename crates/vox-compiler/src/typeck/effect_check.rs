@@ -805,6 +805,7 @@ fn caller() to str { fetch() }",
             rate_limit: None,
             pii: None,
             layer: None,
+            auth: None,
             span: dummy_span(),
         }
     }

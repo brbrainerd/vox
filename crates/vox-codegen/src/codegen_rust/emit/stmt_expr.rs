@@ -746,8 +746,45 @@ pub(super) fn emit_expr_with(
                 emit(idx, OwnershipMode::Owned)
             )
         }
-        _ => unreachable!(
-            "HIR expr variants not handled in stmt_expr::emit_expr_with must be handled by stmt_expr_tail (delegate order bug)"
+        // Frontend/web-only constructs must never panic the codegen pass.
+        // Emit a `compile_error!` so rustc surfaces a clear, actionable message
+        // instead of the Vox compiler aborting opaquely.
+        // JSX/AsyncView cannot go to a Rust server target.
+        HirExpr::Jsx(..) | HirExpr::JsxSelfClosing(..) | HirExpr::JsxFragment(..) => {
+            r#"compile_error!("vox.codegen_rust.frontend_expr_in_server: JSX / async-view expressions cannot be emitted to the Rust (server/script) target")"#.to_string()
+        }
+        HirExpr::AsyncView(..) => {
+            r#"compile_error!("vox.codegen_rust.frontend_expr_in_server: Async[T] when-views cannot be emitted to the Rust target")"#.to_string()
+        }
+        // `spawn expr` → `tokio::spawn(async move { expr })` → JoinHandle.
+        // The actor-runtime ProcessHandle is the higher-level abstraction; for
+        // bare spawn-expressions in script/server context tokio is correct.
+        HirExpr::Spawn(target, _) => {
+            let inner = emit(target, OwnershipMode::Owned);
+            format!("tokio::spawn(async move {{ {inner} }})")
+        }
+        // `workflow.version("id", min, max)` — a deploy-time version gate.
+        // The Rust workflow runtime does not yet expose a replay-version API
+        // (tracked under the mesh/workflow epic). Rather than emitting a silent
+        // no-op tuple (the previous behaviour), emit a coded compile_error! so
+        // workflow code using this construct gets an honest build failure until
+        // the runtime API lands.
+        HirExpr::WorkflowVersion(v) => {
+            format!(
+                r#"compile_error!("vox.codegen_rust.workflow_version_unimplemented: workflow.version({id:?}, {min}, {max}) has no Rust runtime backing yet — tracked under the mesh/workflow epic")"#,
+                id = v.change_id,
+                min = v.min,
+                max = v.max,
+            )
+        }
+        HirExpr::With(..) => {
+            r#"compile_error!("vox.codegen_rust.with_unimplemented: with(...) Rust emission is not yet implemented")"#.to_string()
+        }
+        // All other variants are handled by try_emit_expr_tail above.
+        // Reaching here is a delegate-order bug — name the variant for easier diagnosis.
+        other => unreachable!(
+            "HIR expr variant {:?} was not handled by stmt_expr_tail (delegate order bug)",
+            std::mem::discriminant(other)
         ),
     }
 }
@@ -838,6 +875,17 @@ fn try_emit_namespace_call(
         );
         if let Some(b) = std_namespace_runtime_call(ns_name.as_str(), fn_name.as_str(), &a) {
             return Some(with_await(b));
+        }
+        // Native-only sub-namespaces (mobile, crypto) have no Rust equivalents —
+        // emitting `::std::mobile::...` would produce invalid Rust. Emit a
+        // compile_error! so rustc surfaces a clear actionable message (CR-F4).
+        if matches!(ns_name.as_str(), "mobile" | "crypto") {
+            return Some(format!(
+                r#"compile_error!("vox.codegen_rust.native_namespace_in_server: \
+                    `std.{ns}.*` is only available in native/mobile compiled targets, \
+                    not the Rust server target")"#,
+                ns = ns_name,
+            ));
         }
         let call = format!("::std::{}::{}({})", ns_name, fn_name, a.join(", "));
         return Some(with_await(call));

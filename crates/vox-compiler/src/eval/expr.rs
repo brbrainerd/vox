@@ -127,6 +127,24 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 }
                 return eval_expr(interp, right);
             }
+            // `lhs |> f` = `f(lhs)`: evaluate lhs as the argument, rhs as callee.
+            // Pipe is left-associative: `a |> f |> g` = `g(f(a))`.
+            if *op == HirBinOp::Pipe {
+                // When rhs is a bare builtin identifier (str, int, len, …) that is
+                // NOT bound in the current scope, dispatch through call_global_builtin
+                // instead of apply_closure. Without this check, eval_expr returns a
+                // placeholder Fn with an empty body and apply_closure returns Null.
+                if let HirExpr::Ident(name, _) = right.as_ref()
+                    && interp.scope.get(name).is_none()
+                    && interp.module_scope.get(name).is_none()
+                    && let Some(result) =
+                        super::builtins::call_global_builtin(name, vec![l.clone()])
+                {
+                    return Ok(result);
+                }
+                let callee = eval_expr(interp, right)?;
+                return apply_closure(interp, &callee, vec![l]);
+            }
             let r = eval_expr(interp, right)?;
             match (op, l, r) {
                 // Integer arithmetic — use checked_* to convert
@@ -511,7 +529,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             // instead (CR-F4: an arm that cannot support a construct must say so
             // clearly, never fail opaquely). See where-things-live.md.
             if let HirExpr::Ident(ns_name, _) = obj.as_ref()
-                && matches!(ns_name.as_str(), "Scrape" | "Browser")
+                && matches!(ns_name.as_str(), "Scrape" | "Browser" | "OpenClaw")
             {
                 return Err(EvalError::AssertionFailed(format!(
                     "`{ns}.{m}(...)` is only available in compiled builds \
@@ -519,6 +537,20 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                      interpreter: the `{ns}` namespace is native-codegen-only. \
                      Run this program with `--mode script` to use it.",
                     ns = ns_name,
+                    m = method,
+                )));
+            }
+            // `std.mobile.*` / `std.crypto.*` — two-level namespace, also native-only.
+            if let HirExpr::FieldAccess(inner_obj, sub_ns, _) = obj.as_ref()
+                && let HirExpr::Ident(std_kw, _) = inner_obj.as_ref()
+                && std_kw == "std"
+                && matches!(sub_ns.as_str(), "mobile" | "crypto")
+            {
+                return Err(EvalError::AssertionFailed(format!(
+                    "`std.{sub}.{m}(...)` is only available in compiled native builds \
+                     (`vox build --target mobile`), not the `--mode interp` interpreter. \
+                     Run this program with `--mode script` to use it.",
+                    sub = sub_ns,
                     m = method,
                 )));
             }
@@ -742,7 +774,37 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 other => Ok(other),
             }
         }
-        _ => Ok(VoxValue::Null),
+        // Web/actor/compiled-only constructs are not supported by the
+        // tree-walking interpreter. Mirror the CR-F4 pattern at
+        // eval/expr.rs:513-524 (Scrape/Browser guard): name the construct,
+        // say what to use instead, never silently return Null.
+        HirExpr::Jsx(..) | HirExpr::JsxSelfClosing(..) | HirExpr::JsxFragment(..) => {
+            Err(EvalError::AssertionFailed(
+                "JSX expressions are not supported in --mode interp; \
+                 use the web/compiled backend (`vox build --target web`)"
+                    .into(),
+            ))
+        }
+        HirExpr::AsyncView(..) => Err(EvalError::AssertionFailed(
+            "Async[T] when-views are not supported in --mode interp; \
+             use the web/compiled backend"
+                .into(),
+        )),
+        HirExpr::Spawn(..) => Err(EvalError::AssertionFailed(
+            "spawn is not supported in --mode interp; \
+             use the compiled backend (`vox run --mode script`)"
+                .into(),
+        )),
+        HirExpr::With(..) => Err(EvalError::AssertionFailed(
+            "with(...) is not supported in --mode interp; \
+             use the compiled backend"
+                .into(),
+        )),
+        HirExpr::WorkflowVersion(..) => Err(EvalError::AssertionFailed(
+            "workflow.version(...) is a compiled-workflow marker; \
+             not supported in --mode interp"
+                .into(),
+        )),
     }
 }
 

@@ -138,7 +138,7 @@ vox-sql                 = { layer = 3, max_dependents = 20, max_loc = 8_000 }
 vox-corpus              = { layer = 3, max_loc = 15_000 }
 vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 45_000 }
 vox-codegen         = { layer = 3, max_loc = 25_000 }
-vox-codegen-ts      = { layer = 3, max_loc = 18_000 }
+vox-codegen-ts      = { layer = 3, max_loc = 18_000, orphan_exempt = true } # embedded via #[path] in vox-codegen/src/lib.rs; no direct Cargo.toml consumer by design
 vox-rn-codegen      = { layer = 3, max_loc = 6_000 }
 vox-tauri-codegen       = { layer = 3, max_loc = 6_000 }
 vox-tauri-stt           = { layer = 3, kind = "library", staleness_exempt = true, orphan_exempt = true }
@@ -211,6 +211,8 @@ vox-integration-tests = { layer = 5, kind = "test-only" }
 vox-orchestrator-d    = { layer = 5, kind = "binary" }
 vox-audit             = { layer = 5, kind = "binary" }                   # umbrella CR-L gate runner; contracts/ci/vox-audit-contract.v1.yaml
 voxup                 = { layer = 5, kind = "binary" }
+vox-langtool          = { layer = 5, kind = "binary" }                   # DB-free CLI for Vox language: check, fmt, run, build
+vox-mesh-policy       = { layer = 2 }                                    # Donations.vox mesh policy parser; migration to vox-scaling-policy pending
 
 
 # ── Permitted inversions ──────────────────────────────────────────────────────
@@ -406,7 +408,6 @@ vox-http-envelope        = { plan = "docs/src/architecture/crate-structure-audit
 vox-share                = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-ssg                  = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-install-policy       = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
-# vox-mesh-policy — folded into vox-scaling-policy/src/donations_vox (2026-06-10)
 # vox-distributed-training, vox-inference — merged into vox-populi/src/{distributed_training,inference}
 vox-dashboard            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-mens-eval            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }

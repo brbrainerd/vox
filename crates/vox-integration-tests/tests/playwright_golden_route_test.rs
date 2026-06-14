@@ -40,6 +40,8 @@ async fn golden_route_screenshot_and_a11y() {
         false,
         vox_cli::cli_args::BuildMode::App,
         vox_codegen::codegen_rust::RustAppShell::default(),
+        None,
+        None,
     )
     .await
     .expect("vox build");

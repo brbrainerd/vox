@@ -1,11 +1,13 @@
 # vox-mental-tracker
 
-Local-first mental health tracker scaffold (Vox language + Capacitor). **No cloud sync in v1** — data stays on device; share exports via the system sheet.
+Local-first mental health tracker (Vox language; dual-target: web/PWA via Vite +
+mobile via React Native/Expo). **No cloud sync in v1** — data stays on device;
+share exports via the system sheet.
 
 ## Requirements
 
 - **Vox** CLI (install per [external-app-bootstrap](../../docs/src/how-to/external-app-bootstrap.md) in the main Vox repo when this tree is vendored).
-- **pnpm** for Capacitor/Vite assets.
+- **pnpm** for the web/Vite build; **npm/npx** inside the generated `mobile/` Expo project.
 
 ## Commands
 
@@ -13,11 +15,15 @@ From this directory (with `vox` on `PATH`):
 
 ```bash
 vox check src/main.vox
-vox build src/main.vox -o dist
 pnpm install
-npx cap add android   # once
-vox build src/main.vox -o dist --target android
+pnpm build:web      # web/PWA → web-dist/
+pnpm mobile:gen     # regenerate mobile/ Expo project from src/main.vox
+pnpm mobile:start   # expo dev server (run `npm install` inside mobile/ first)
 ```
+
+Android/iOS builds: see [`docs/how-to/build-android.md`](docs/how-to/build-android.md)
+(EAS for installables; Tauri is desktop-only per the scope-tauri-desktop-only ADR).
+The `mobile/` directory is generated output — never hand-edit it.
 
 Automation scripts live under **`scripts/*.vox`** (run with `vox run`).
 

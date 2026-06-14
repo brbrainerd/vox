@@ -461,6 +461,38 @@ fn collect_deps_and_calls(
                 unannotated,
             );
         }
+        HirExpr::Try(t) => {
+            collect_deps_and_calls(
+                &t.target,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
+        }
+        HirExpr::AsyncView(av) => {
+            for arm in [
+                av.fetching_arm.as_deref(),
+                av.empty_arm.as_deref(),
+                av.error_arm.as_deref(),
+                av.ok_arm.as_deref(),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                collect_deps_and_calls(
+                    arm,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
+            }
+        }
         _ => {}
     }
 }

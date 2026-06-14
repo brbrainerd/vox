@@ -129,11 +129,11 @@ C1 (no NDK; do anytime) ────────────┘
 A6 + B1–B2 (EAS hook, reviewable) ──→ B3 (one EAS iOS build; needs EXPO_TOKEN decision)
 ```
 
-Maintainer decisions needed before execution:
-1. **NDK on the dev host** — approve installing Android NDK + cargo-ndk (A2+).
-2. **EAS usage** — approve free-tier EAS for the iOS one-shot (B3) and the optional
-   `eas-build` CI job (`EXPO_TOKEN` secret).
-3. **Flag vs subcommand** for the native-runtime packaging step (A, default
-   recommendation: `--with-native-runtime` flag).
-4. **PWA dual-target** — confirm keeping the web/PWA build alongside mobile (C,
-   recommended) vs full replacement per the original spec.
+Maintainer decisions — **DECIDED 2026-06-12** (defaults adopted):
+1. **NDK on the dev host** — ✅ approved: install Android NDK + cargo-ndk (A2+).
+2. **EAS usage** — ✅ approved: free-tier EAS for the iOS one-shot (B3) and the
+   optional `eas-build` CI job. The actual B3 run still waits on the `EXPO_TOKEN`
+   secret being configured interactively.
+3. **Flag vs subcommand** — ✅ `--with-native-runtime` flag on `vox build`.
+4. **PWA dual-target** — ✅ keep the web/PWA build alongside mobile (the mobile
+   target emits into `apps/vox-mental-tracker/mobile/`; web build untouched).

@@ -770,6 +770,57 @@ impl LowerCtx {
         }
     }
 
+    pub(crate) fn lower_config(&mut self, c: &crate::ast::decl::ConfigDecl) -> HirConfig {
+        HirConfig {
+            name: c.name.clone(),
+            fields: c
+                .fields
+                .iter()
+                .map(|f| HirTableField {
+                    name: f.name.clone(),
+                    type_ann: self.lower_type(&f.type_ann),
+                    span: f.span,
+                })
+                .collect(),
+            is_deprecated: c.is_deprecated,
+            span: c.span,
+        }
+    }
+
+    pub(crate) fn lower_theme(&mut self, t: &crate::ast::decl::ThemeDecl) -> HirTheme {
+        HirTheme {
+            name: t.name.clone(),
+            light: t.light.clone(),
+            dark: t.dark.clone(),
+            span: t.span,
+        }
+    }
+
+    pub(crate) fn lower_message(&mut self, m: &crate::ast::decl::MessageDecl) -> HirMessage {
+        HirMessage {
+            name: m.name.clone(),
+            fields: m
+                .fields
+                .iter()
+                .map(|f| (f.name.clone(), self.lower_type(&f.type_ann)))
+                .collect(),
+            is_deprecated: m.is_deprecated,
+            span: m.span,
+        }
+    }
+
+    pub(crate) fn lower_const(&mut self, c: &crate::ast::decl::ConstDecl) -> HirConst {
+        HirConst {
+            name: c.name.clone(),
+            value: self.lower_expr(&c.value),
+            type_ann: c.type_ann.as_ref().map(|t| self.lower_type(t)),
+            is_pub: c.is_pub,
+            is_deprecated: c.is_deprecated,
+            is_build_const: c.is_build_const,
+            span: c.span,
+        }
+    }
+
     pub(crate) fn lower_state_machine(&mut self, s: &StateMachineDecl) -> HirStateMachineDecl {
         let id = self.def_map.define(s.name.clone());
         HirStateMachineDecl {
