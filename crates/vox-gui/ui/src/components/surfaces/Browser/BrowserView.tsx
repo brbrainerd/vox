@@ -466,9 +466,11 @@ export function BrowserView({ pushToast }: BrowserViewProps) {
             Preview Vox web apps and mirror agent-driven CDP browser sessions.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2" role="tablist" aria-label="Browser view">
           <button
             type="button"
+            role="tab"
+            aria-selected={tab === 'preview'}
             onClick={() => setTab('preview')}
             className={`px-3 py-1.5 rounded-lg text-[11px] uppercase tracking-wider ${tab === 'preview' ? 'bg-brass/15 text-brass ring-1 ring-brass/30' : 'bg-white/[0.03] text-zinc-400'}`}
           >
@@ -476,6 +478,8 @@ export function BrowserView({ pushToast }: BrowserViewProps) {
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={tab === 'agent'}
             onClick={() => setTab('agent')}
             className={`px-3 py-1.5 rounded-lg text-[11px] uppercase tracking-wider ${tab === 'agent' ? 'bg-brass/15 text-brass ring-1 ring-brass/30' : 'bg-white/[0.03] text-zinc-400'}`}
           >
@@ -658,6 +662,7 @@ export function BrowserView({ pushToast }: BrowserViewProps) {
             </button>
             <button
               type="button"
+              aria-pressed={controlMode === 'agent'}
               onClick={() => setControlModeRemote(controlMode === 'you' ? 'agent' : 'you')}
               className={`rounded-lg px-4 py-2 text-[11px] uppercase tracking-wider ${
                 controlMode === 'you'
@@ -742,7 +747,7 @@ export function BrowserView({ pushToast }: BrowserViewProps) {
             </div>
             <div className="rounded-xl border border-white/10 bg-black/20 p-3 max-h-[360px] overflow-auto">
               <h3 className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Action log</h3>
-              <ul className="space-y-1 text-[11px] font-mono text-zinc-400">
+              <ul role="log" aria-live="polite" aria-label="Browser action log" className="space-y-1 text-[11px] font-mono text-zinc-400">
                 {(actionLog.length ? actionLog : ['(empty)']).map((line, i) => (
                   <li key={`${line}-${i}`}>{line}</li>
                 ))}

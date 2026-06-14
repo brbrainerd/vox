@@ -1,5 +1,33 @@
-import { describe, it, expect } from 'vitest';
-import { mapClickToViewport } from './BrowserView';
+// @vitest-environment jsdom
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import React from 'react';
+
+vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(null) }));
+vi.mock('../../../transport', () => ({
+  listenAgentEvents: () => Promise.resolve(() => {}),
+  listenBrowserFrames: () => Promise.resolve(() => {}),
+  listenPreviewAvailable: () => Promise.resolve(() => {}),
+}));
+
+import { BrowserView, mapClickToViewport } from './BrowserView';
+
+describe('BrowserView component', () => {
+  it('renders the view tabs as a tablist with aria-selected', () => {
+    render(<BrowserView pushToast={() => {}} />);
+    const tablist = screen.getByRole('tablist', { name: /browser view/i });
+    expect(tablist).toBeDefined();
+    const preview = screen.getByRole('tab', { name: /^preview$/i });
+    expect(preview.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('every button carries an explicit type="button"', () => {
+    render(<BrowserView pushToast={() => {}} />);
+    for (const b of screen.getAllByRole('button')) {
+      expect(b.getAttribute('type')).toBe('button');
+    }
+  });
+});
 
 describe('mapClickToViewport', () => {
   it('maps centered click without letterboxing', () => {
