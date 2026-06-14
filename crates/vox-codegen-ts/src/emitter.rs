@@ -59,6 +59,14 @@ pub struct CodegenOptions {
     /// components + routes manifest + client. Default `false` (emit-by-default,
     /// RN parity). `VOX_WEB_NO_EMIT_ENTRY=1` via [`Self::from_env`].
     pub no_emit_entry: bool,
+    /// Human-facing app display name for the mobile (RN/Expo) scaffold's
+    /// `app.json` (`vox build --app-name`). Slugified for the Expo slug /
+    /// scheme / npm package name. `None` → `"vox-app"`.
+    pub app_name: Option<String>,
+    /// Reverse-DNS application identifier for the mobile scaffold — iOS
+    /// `bundleIdentifier` and Android `package` (`vox build --app-id`).
+    /// `None` → `"com.vox.app"`.
+    pub app_id: Option<String>,
 }
 
 impl CodegenOptions {
@@ -76,6 +84,8 @@ impl CodegenOptions {
             mode: BuildMode::App,
             strict_ai: super::web_migration_env::ts_strict_ai_gate_enabled(),
             no_emit_entry: super::web_migration_env::no_emit_entry_gate_enabled(),
+            app_name: None,
+            app_id: None,
         }
     }
 }

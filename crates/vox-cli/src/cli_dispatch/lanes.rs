@@ -241,6 +241,8 @@ async fn run_fabrica_cmd_inner(cmd: latin_cmd::FabricaCmd) -> anyhow::Result<()>
                 a.emit_ir,
                 a.mode,
                 vox_codegen::codegen_rust::RustAppShell::default(),
+                a.app_name.clone(),
+                a.app_id.clone(),
             )
             .await?;
         }

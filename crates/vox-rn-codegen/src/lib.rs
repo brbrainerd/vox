@@ -51,7 +51,7 @@ pub struct RnCodegenOutput {
 ///
 /// The caller is responsible for writing files. Returns `Err` on hard failures
 /// (e.g. unsupported features); use the `diagnostics` field for non-fatal warnings.
-pub fn generate_rn(hir: &HirModule, _options: &CodegenOptions) -> Result<RnCodegenOutput, String> {
+pub fn generate_rn(hir: &HirModule, options: &CodegenOptions) -> Result<RnCodegenOutput, String> {
     let mut files: Vec<(String, String)> = Vec::new();
     let mut diagnostics: Vec<vox_codegen::web_ir::WebIrDiagnostic> = Vec::new();
 
@@ -223,7 +223,12 @@ pub fn generate_rn(hir: &HirModule, _options: &CodegenOptions) -> Result<RnCodeg
     // Expo project scaffolding — emitted only when components exist (no point in
     // an Expo app shell otherwise) and not overwritten on subsequent builds.
     if !hir.components.is_empty() {
-        for (filename, content) in scaffold::emit_expo_scaffold(hir, has_routes) {
+        for (filename, content) in scaffold::emit_expo_scaffold(
+            hir,
+            has_routes,
+            options.app_name.as_deref(),
+            options.app_id.as_deref(),
+        ) {
             files.push((filename, content));
         }
     }

@@ -294,6 +294,8 @@ pub async fn run_workflow(
             false,
             vox_cli_core::cli_args::BuildMode::App,
             vox_cli::RustAppShell::default(),
+            None,
+            None,
         )
         .await?;
 

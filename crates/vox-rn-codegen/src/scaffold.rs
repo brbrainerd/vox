@@ -22,15 +22,26 @@ use vox_compiler::hir::HirModule;
 /// (Expo Router uses file-system routing under `app/`); when false the legacy
 /// `expo/AppEntry.js` boot path is used with a generated App.tsx that mounts
 /// the first declared VUV component.
-pub fn emit_expo_scaffold(hir: &HirModule, has_routes: bool) -> Vec<(String, String)> {
+///
+/// `app_name` is the human-facing display name (`vox build --app-name`); the
+/// Expo slug / scheme / npm package name are its slugified form. `app_id` is
+/// the reverse-DNS identifier used for both the iOS bundle id and the Android
+/// package (`vox build --app-id`). Defaults: `vox-app` / `com.vox.app`.
+pub fn emit_expo_scaffold(
+    hir: &HirModule,
+    has_routes: bool,
+    app_name: Option<&str>,
+    app_id: Option<&str>,
+) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = Vec::new();
 
-    let app_name = "vox-app";
-    let bundle_id = "com.vox.app";
+    let app_name = app_name.unwrap_or("vox-app");
+    let slug = slugify(app_name);
+    let bundle_id = app_id.unwrap_or("com.vox.app");
 
     out.push((
         "app.json".to_string(),
-        emit_app_json(app_name, bundle_id, has_routes),
+        emit_app_json(app_name, &slug, bundle_id, has_routes),
     ));
     out.push(("babel.config.js".to_string(), BABEL_CONFIG.to_string()));
     out.push(("metro.config.js".to_string(), METRO_CONFIG.to_string()));
@@ -38,7 +49,7 @@ pub fn emit_expo_scaffold(hir: &HirModule, has_routes: bool) -> Vec<(String, Str
     out.push(("tsconfig.json".to_string(), TSCONFIG_JSON.to_string()));
     out.push((
         "package.json".to_string(),
-        emit_package_json(app_name, has_routes),
+        emit_package_json(&slug, has_routes),
     ));
 
     // Only emit the flat App.tsx when there are no routes — Expo Router
@@ -50,7 +61,27 @@ pub fn emit_expo_scaffold(hir: &HirModule, has_routes: bool) -> Vec<(String, Str
     out
 }
 
-fn emit_app_json(name: &str, bundle_id: &str, has_routes: bool) -> String {
+/// Lowercase, alphanumeric-and-dash slug for Expo `slug`/`scheme` and the npm
+/// package name (e.g. `"Vox Mental Tracker"` → `"vox-mental-tracker"`).
+fn slugify(name: &str) -> String {
+    let mut out = String::with_capacity(name.len());
+    let mut last_dash = true; // suppress leading dashes
+    for c in name.chars() {
+        if c.is_ascii_alphanumeric() {
+            out.push(c.to_ascii_lowercase());
+            last_dash = false;
+        } else if !last_dash {
+            out.push('-');
+            last_dash = true;
+        }
+    }
+    while out.ends_with('-') {
+        out.pop();
+    }
+    out
+}
+
+fn emit_app_json(name: &str, slug: &str, bundle_id: &str, has_routes: bool) -> String {
     // Use r## boundary so the embedded `#ffffff` color literal doesn't terminate the raw string.
     let plugins = if has_routes {
         "[\"expo-router\"]"
@@ -58,7 +89,7 @@ fn emit_app_json(name: &str, bundle_id: &str, has_routes: bool) -> String {
         "[]"
     };
     let scheme_field = if has_routes {
-        format!(",\n    \"scheme\": \"{name}\"")
+        format!(",\n    \"scheme\": \"{slug}\"")
     } else {
         String::new()
     };
@@ -66,7 +97,7 @@ fn emit_app_json(name: &str, bundle_id: &str, has_routes: bool) -> String {
         r##"{{
   "expo": {{
     "name": "{name}",
-    "slug": "{name}",
+    "slug": "{slug}",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
@@ -192,6 +223,59 @@ fn emit_package_json(name: &str, has_routes: bool) -> String {
 }}
 "#
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn empty_module() -> HirModule {
+        HirModule::default()
+    }
+
+    fn file<'a>(files: &'a [(String, String)], name: &str) -> &'a str {
+        &files
+            .iter()
+            .find(|(n, _)| n == name)
+            .unwrap_or_else(|| panic!("expected {name} in scaffold output"))
+            .1
+    }
+
+    #[test]
+    fn default_identity_is_vox_app() {
+        let files = emit_expo_scaffold(&empty_module(), true, None, None);
+        let app_json = file(&files, "app.json");
+        assert!(app_json.contains("\"name\": \"vox-app\""));
+        assert!(app_json.contains("\"bundleIdentifier\": \"com.vox.app\""));
+        assert!(app_json.contains("\"package\": \"com.vox.app\""));
+    }
+
+    #[test]
+    fn custom_identity_flows_into_app_json_and_package_json() {
+        let files = emit_expo_scaffold(
+            &empty_module(),
+            true,
+            Some("Vox Mental Tracker"),
+            Some("com.vox.mentaltracker"),
+        );
+        let app_json = file(&files, "app.json");
+        // Display name verbatim; slug + scheme are URL-safe slugs.
+        assert!(app_json.contains("\"name\": \"Vox Mental Tracker\""));
+        assert!(app_json.contains("\"slug\": \"vox-mental-tracker\""));
+        assert!(app_json.contains("\"scheme\": \"vox-mental-tracker\""));
+        assert!(app_json.contains("\"bundleIdentifier\": \"com.vox.mentaltracker\""));
+        assert!(app_json.contains("\"package\": \"com.vox.mentaltracker\""));
+        // npm package name must be the slug, never the display name.
+        let pkg = file(&files, "package.json");
+        assert!(pkg.contains("\"name\": \"vox-mental-tracker\""));
+    }
+
+    #[test]
+    fn slugify_handles_spaces_case_and_symbols() {
+        assert_eq!(slugify("Vox Mental Tracker"), "vox-mental-tracker");
+        assert_eq!(slugify("already-slugged"), "already-slugged");
+        assert_eq!(slugify("Weird  __ Name!!"), "weird-name");
+    }
 }
 
 fn emit_app_tsx(first_component: &str) -> String {

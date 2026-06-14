@@ -1,0 +1,3 @@
+// expect-error: vox/typeck/decorator-requires-endpoint
+@webhook(provider: "stripe")
+fn helper() -> Int { 1 }

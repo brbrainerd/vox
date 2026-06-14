@@ -590,7 +590,191 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
         });
     }
 
+    // P4-A: HTTP/security decorators applied to bare fn (not an endpoint or component).
+    // @webhook, @cors, @rate_limit, @pii require @query/@mutation/@server.
+    // @layer requires a component declaration (not a bare fn).
+    for decl in &module.declarations {
+        if let Decl::Function(f) = decl {
+            check_http_decorator_on_bare_fn(f, &mut diags);
+        }
+    }
+
+    // P4-C: MENS/mesh decorators (@inference, @training_step, @distributed_train, @remote)
+    // are stored on HirFn but the Rust codegen emits them as silent no-ops.
+    // Detect them here during typeck and surface a clear diagnostic instead.
+    for decl in &module.declarations {
+        visit_fn_decl_in_decl(decl, &mut |f: &FnDecl| {
+            check_mens_decorator_unimplemented(f, &mut diags);
+        });
+        if let Decl::Workflow(w) = decl {
+            if w.distributed_train_strategy.is_some() || w.distributed_train_peers.is_some() {
+                diags.push(Diagnostic {
+                    message: format!(
+                        "`@distributed_train` on workflow `{}` is not yet implemented in Rust codegen; \
+                         use the MENS runtime (vox-populi) instead.",
+                        w.name
+                    ),
+                    span: w.span,
+                    severity: TypeckSeverity::Error,
+                    expected_type: None,
+                    found_type: None,
+                    context: None,
+                    suggestions: vec![
+                        "Remove `@distributed_train` and call into vox-populi for distributed training.".into(),
+                    ],
+                    category: DiagnosticCategory::Lint,
+                    code: Some(codes::MENS_DECORATOR_UNIMPLEMENTED.into()),
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    ast_node_kind: None,
+                });
+            }
+        }
+    }
+
     diags
+}
+
+/// Emit `vox/typeck/decorator-requires-endpoint` when HTTP/security decorators are applied to a
+/// bare `fn` declaration that is not an endpoint (`@query`/`@mutation`/`@server`) or component.
+///
+/// These decorators are silently dropped during lowering when placed on bare functions (Pattern C).
+/// This lint surfaces the mistake before lowering so the user gets a clear error.
+fn check_http_decorator_on_bare_fn(f: &FnDecl, diags: &mut Vec<Diagnostic>) {
+    if f.webhook.is_some() || f.cors_spec.is_some() || f.rate_limit.is_some() || f.pii.is_some() {
+        let decorator = if f.webhook.is_some() {
+            "@webhook"
+        } else if f.cors_spec.is_some() {
+            "@cors"
+        } else if f.rate_limit.is_some() {
+            "@rate_limit"
+        } else {
+            "@pii"
+        };
+        diags.push(Diagnostic {
+            message: format!(
+                "fn `{}`: `{decorator}` requires `@query`, `@mutation`, or `@server` on the function — \
+                 HTTP/security decorators are silently dropped on bare functions.",
+                f.name
+            ),
+            span: f.span,
+            severity: TypeckSeverity::Error,
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![
+                format!("Add `@query`, `@mutation`, or `@server` to `{}`, or remove `{decorator}`.", f.name),
+            ],
+            category: DiagnosticCategory::Typecheck,
+            code: Some(codes::TYPECK_DECORATOR_REQUIRES_ENDPOINT.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
+
+    if f.layer.is_some() {
+        diags.push(Diagnostic {
+            message: format!(
+                "fn `{}`: `@layer` requires a `component` declaration — \
+                 `@layer` is silently dropped on bare functions.",
+                f.name
+            ),
+            span: f.span,
+            severity: TypeckSeverity::Error,
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![format!(
+                "Convert `{}` to a `component`, or remove `@layer`.",
+                f.name
+            )],
+            category: DiagnosticCategory::Typecheck,
+            code: Some(codes::TYPECK_DECORATOR_REQUIRES_ENDPOINT.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
+}
+
+/// Emit `vox.codegen.mens_decorator_unimplemented` when MENS/mesh decorators (`@inference`,
+/// `@training_step`) are applied to a function. These decorators are stored on the AST/HIR
+/// but the Rust codegen silently emits them as no-ops. Surface a clear error instead.
+fn check_mens_decorator_unimplemented(f: &FnDecl, diags: &mut Vec<Diagnostic>) {
+    if let Some(model) = &f.inference_model {
+        diags.push(Diagnostic {
+            message: format!(
+                "fn `{}`: `@inference(model: \"{model}\")` is not yet implemented in Rust codegen; \
+                 use the MENS runtime (vox-populi) for inference routing.",
+                f.name
+            ),
+            span: f.span,
+            severity: TypeckSeverity::Error,
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![
+                "Remove `@inference` and route through the vox-populi MENS runtime instead.".into(),
+            ],
+            category: DiagnosticCategory::Lint,
+            code: Some(codes::MENS_DECORATOR_UNIMPLEMENTED.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
+    if f.training_step {
+        diags.push(Diagnostic {
+            message: format!(
+                "fn `{}`: `@training_step` is not yet implemented in Rust codegen; \
+                 use the MENS runtime (vox-populi) for training step execution.",
+                f.name
+            ),
+            span: f.span,
+            severity: TypeckSeverity::Error,
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![
+                "Remove `@training_step` and implement via the vox-populi MENS training pipeline."
+                    .into(),
+            ],
+            category: DiagnosticCategory::Lint,
+            code: Some(codes::MENS_DECORATOR_UNIMPLEMENTED.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
+    if f.is_remote {
+        diags.push(Diagnostic {
+            message: format!(
+                "fn `{}`: `@remote` codegen is not yet implemented; \
+                 use the MENS runtime (vox-populi) for remote dispatch.",
+                f.name
+            ),
+            span: f.span,
+            severity: TypeckSeverity::Error,
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![
+                "Remove `@remote` and route through the vox-populi mesh dispatch instead.".into(),
+            ],
+            category: DiagnosticCategory::Lint,
+            code: Some(codes::MENS_DECORATOR_UNIMPLEMENTED.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
 }
 
 /// Emit `vox/remote/param-not-serializable` when an `@remote fn` has a non-serializable param type.
