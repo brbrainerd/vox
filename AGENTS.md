@@ -355,6 +355,8 @@ Use `vox ci pre-push` to run any tier locally. Install the hook once with `cargo
 - **Async handler / async-test regression (codegen).** `@query`/`@mutation` handler emission must `await` (handler_await); and merges have silently reverted async tests to sync (`vox-vcs` cas_fallback). On a merge that touches async code/tests, re-confirm they're still `async` before pushing.
 - **SSOT / schema drift** (largest class, 103 fixes) — already gated by `vox ci ssot-drift` (+ the `ssot-autoregen` PR bot). Don't hand-regenerate after merge; see §Local CI Gate Tiers.
 
+Coverage of these classes by detector + severity + enforcement point (and the still-open gaps) is tracked in [`detector-coverage-ledger.md`](docs/src/contributors/detector-coverage-ledger.md) — add a row when you add a detector.
+
 ## PR & Review Discipline (Required, Cross-Tool)
 
 > **Canonical config:** `.coderabbit.yaml` (repo root; CodeRabbit reads it from the **default branch**).
