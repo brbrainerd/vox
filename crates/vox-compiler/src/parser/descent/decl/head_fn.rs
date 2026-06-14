@@ -52,6 +52,7 @@ impl Parser {
         let mut training_step = false;
         let mut decorator_effects: Vec<crate::ast::decl::effect::EffectAnnotation> = Vec::new();
         let mut auth_provider: Option<String> = None;
+        let mut auth_roles: Vec<String> = vec![];
         let mut webhook: Option<crate::ast::decl::webhook::AstWebhookSpec> = None;
         let mut cors_spec: Option<crate::ast::decl::http_decorators::AstCorsSpec> = None;
         let mut rate_limit: Option<crate::ast::decl::http_decorators::AstRateLimitSpec> = None;
@@ -952,9 +953,67 @@ impl Parser {
                 Token::AtAuth => {
                     self.advance();
                     if self.eat(&Token::LParen) {
-                        self.skip_paren_args_inner();
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                let _ = self.expect(&Token::Colon);
+                                match key.as_str() {
+                                    "provider" => {
+                                        if let Token::StringLit(s) = self.peek().clone() {
+                                            self.advance();
+                                            auth_provider = Some(s);
+                                        } else if let Token::Ident(s) = self.peek().clone() {
+                                            self.advance();
+                                            auth_provider = Some(s);
+                                        }
+                                    }
+                                    "roles" => {
+                                        if self.eat(&Token::LBracket) {
+                                            loop {
+                                                self.skip_newlines();
+                                                if matches!(
+                                                    self.peek(),
+                                                    Token::RBracket | Token::Eof
+                                                ) {
+                                                    break;
+                                                }
+                                                if let Token::StringLit(s) = self.peek().clone() {
+                                                    self.advance();
+                                                    auth_roles.push(s);
+                                                } else {
+                                                    self.advance();
+                                                }
+                                                if !self.eat(&Token::Comma) {
+                                                    break;
+                                                }
+                                            }
+                                            let _ = self.expect(&Token::RBracket);
+                                        } else if let Token::StringLit(s) = self.peek().clone() {
+                                            self.advance();
+                                            auth_roles.push(s);
+                                        }
+                                    }
+                                    _ => {
+                                        self.advance();
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        let _ = self.expect(&Token::RParen);
                     }
-                    auth_provider = Some(String::new());
+                    // Mark @auth present even if no args provided
+                    if auth_provider.is_none() {
+                        auth_provider = Some(String::new());
+                    }
                 }
                 Token::AtOfflineCapable | Token::AtCollaborative => {
                     self.advance();
@@ -1052,7 +1111,7 @@ impl Parser {
             is_traced: false,
             is_pub,
             auth_provider,
-            roles: vec![],
+            roles: auth_roles,
             cors: None,
             webhook,
             cors_spec,
