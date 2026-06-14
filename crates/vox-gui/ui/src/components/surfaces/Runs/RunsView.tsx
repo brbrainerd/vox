@@ -145,7 +145,7 @@ export function RunsView({ pushToast }: RunsViewProps) {
         )}
       </Glass>
 
-      <Glass className="col-span-12 xl:col-span-5 p-4 overflow-auto">
+      <Glass className="col-span-12 xl:col-span-5 p-4 overflow-auto" aria-live="polite">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div className="font-display text-sm tracking-widest uppercase text-zinc-200">Recent Activity</div>
           <span
@@ -167,7 +167,9 @@ export function RunsView({ pushToast }: RunsViewProps) {
             {runs.map(r => (
               <button
                 key={r.run_id}
+                type="button"
                 onClick={() => setSelectedRunId(r.run_id)}
+                aria-pressed={selectedRun?.run_id === r.run_id}
                 className={`rounded-lg border p-3 text-left ${
                   selectedRun?.run_id === r.run_id
                     ? 'border-brass/50 bg-brass/10'
