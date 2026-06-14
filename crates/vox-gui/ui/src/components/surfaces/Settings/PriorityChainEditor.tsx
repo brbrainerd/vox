@@ -165,7 +165,7 @@ export function PriorityChainEditor({ pushToast }: Props) {
         <div className="font-display text-[12px] tracking-[0.12em] uppercase text-zinc-300">
           Model priority chain
         </div>
-        <button className={BTN} onClick={() => setAdding((a) => !a)}>
+        <button type="button" className={BTN} onClick={() => setAdding((a) => !a)} aria-expanded={adding}>
           {adding ? 'close' : '+ add step'}
         </button>
       </div>
@@ -201,26 +201,30 @@ export function PriorityChainEditor({ pushToast }: Props) {
                 dragOver === i ? 'border-brass/50 bg-brass/[0.05]' : 'border-white/5'
               }`}
             >
-              <span className="cursor-grab select-none font-mono text-[11px] text-zinc-600" title="Drag to reorder">
+              <span aria-hidden="true" className="cursor-grab select-none font-mono text-[11px] text-zinc-600" title="Drag to reorder">
                 ⠿
               </span>
-              <span className="font-mono text-[11px] text-brass">{stepIcon(s)}</span>
+              <span aria-hidden="true" className="font-mono text-[11px] text-brass">{stepIcon(s)}</span>
               <span className="font-mono text-[10px] text-zinc-500">{i + 1}.</span>
               <span className="flex-1 text-[12px] text-zinc-200">{stepLabel(s)}</span>
-              <button className={BTN} disabled={i === 0} onClick={() => move(i, i - 1)} title="Move up">
+              <button type="button" className={BTN} disabled={i === 0} onClick={() => move(i, i - 1)} aria-label={`Move step ${i + 1} up`} title="Move up">
                 ↑
               </button>
               <button
+                type="button"
                 className={BTN}
                 disabled={i === steps.length - 1}
                 onClick={() => move(i, i + 1)}
+                aria-label={`Move step ${i + 1} down`}
                 title="Move down"
               >
                 ↓
               </button>
               <button
+                type="button"
                 className="rounded border border-rose-500/20 bg-rose-500/[0.04] px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10"
                 onClick={() => removeStep(i)}
+                aria-label={`Remove step ${i + 1}`}
                 title="Remove step"
               >
                 ✕
@@ -314,6 +318,7 @@ function AddStepMenu({
             max={100}
             value={weight}
             onChange={(e) => setWeight(Number(e.target.value))}
+            aria-label="Axis weight"
             className="vox-range h-1 w-40 appearance-none rounded-full"
           />
           <span className="w-8 font-mono text-[11px] text-zinc-200">{weight}</span>
@@ -333,6 +338,7 @@ function AddStepMenu({
           ) : (
             <input
               className={`${sel} min-w-[16rem]`}
+              aria-label="Model id to pin"
               placeholder="model id"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
@@ -387,6 +393,7 @@ function AddStepMenu({
               ) : (
                 <input
                   className={`${sel} min-w-[14rem]`}
+                  aria-label="Fallback model id to pin"
                   placeholder="model id"
                   value={thenPin}
                   onChange={(e) => setThenPin(e.target.value)}
@@ -407,6 +414,7 @@ function AddStepMenu({
                   max={100}
                   value={thenWeight}
                   onChange={(e) => setThenWeight(Number(e.target.value))}
+                  aria-label="Fallback axis weight"
                   className="vox-range h-1 w-32 appearance-none rounded-full"
                 />
                 <span className="w-8 font-mono text-[11px] text-zinc-200">{thenWeight}</span>
@@ -418,6 +426,7 @@ function AddStepMenu({
 
       <div className="flex justify-end">
         <button
+          type="button"
           className={BTN}
           onClick={() => {
             const s = build();
