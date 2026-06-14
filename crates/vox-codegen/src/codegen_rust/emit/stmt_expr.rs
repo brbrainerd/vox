@@ -862,6 +862,17 @@ fn try_emit_namespace_call(
         if let Some(b) = std_namespace_runtime_call(ns_name.as_str(), fn_name.as_str(), &a) {
             return Some(with_await(b));
         }
+        // Native-only sub-namespaces (mobile, crypto) have no Rust equivalents —
+        // emitting `::std::mobile::...` would produce invalid Rust. Emit a
+        // compile_error! so rustc surfaces a clear actionable message (CR-F4).
+        if matches!(ns_name.as_str(), "mobile" | "crypto") {
+            return Some(format!(
+                r#"compile_error!("vox.codegen_rust.native_namespace_in_server: \
+                    `std.{ns}.*` is only available in native/mobile compiled targets, \
+                    not the Rust server target")"#,
+                ns = ns_name,
+            ));
+        }
         let call = format!("::std::{}::{}({})", ns_name, fn_name, a.join(", "));
         return Some(with_await(call));
     }

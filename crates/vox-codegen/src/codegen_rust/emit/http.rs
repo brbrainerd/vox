@@ -58,6 +58,104 @@ fn emit_cors_layer_value(policy: &HirCorsPolicy) -> String {
     lines
 }
 
+fn emit_user_id_rate_limit_prelude(sf: &HirEndpointFn, prefix: &str) -> String {
+    let Some(ref rl) = sf.rate_limit else {
+        return String::new();
+    };
+    if rl.by != RateLimitBy::UserId {
+        return String::new();
+    }
+    let suffix = safe_ident_suffix(&format!("{prefix}{}", sf.name));
+    let static_name = format!("VOX_RL_{suffix}");
+    let fn_name = format!("vox_rl_guard_{suffix}");
+    let window = rl.window_secs.max(1);
+    let max_r = rl.max_requests.max(1).min(u64::from(u32::MAX)) as u32;
+    format!(
+        r#"static {static_name}: std::sync::OnceLock<std::sync::Arc<governor::RateLimiter<
+    String,
+    governor::state::keyed::DefaultKeyedStateStore<String>,
+    governor::clock::DefaultClock,
+>>> = std::sync::OnceLock::new();
+
+async fn {fn_name}(
+    req: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> Result<axum::response::Response, axum::response::Response> {{
+    let lim = {static_name}.get_or_init(|| {{
+        let q = governor::Quota::with_period(std::time::Duration::from_secs({window}))
+            .expect("vox codegen: rate limit window")
+            .allow_burst(std::num::NonZeroU32::new({max_r}).expect("vox codegen: rate limit burst"));
+        std::sync::Arc::new(governor::RateLimiter::keyed(q))
+    }});
+    let user_id = req.headers()
+        .get("x-vox-user-id")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("anonymous")
+        .to_string();
+    match lim.check_key(&user_id) {{
+        Ok(_) => Ok(next.run(req).await),
+        Err(_) => Err((StatusCode::TOO_MANY_REQUESTS, Json(vox_http_client::envelope::error_json(
+            "RATE_LIMITED",
+            "Too many requests",
+            None,
+            None,
+        ))).into_response()),
+    }}
+}}
+
+"#
+    )
+}
+
+fn emit_api_key_rate_limit_prelude(sf: &HirEndpointFn, prefix: &str) -> String {
+    let Some(ref rl) = sf.rate_limit else {
+        return String::new();
+    };
+    if rl.by != RateLimitBy::ApiKey {
+        return String::new();
+    }
+    let suffix = safe_ident_suffix(&format!("{prefix}{}", sf.name));
+    let static_name = format!("VOX_RL_{suffix}");
+    let fn_name = format!("vox_rl_guard_{suffix}");
+    let window = rl.window_secs.max(1);
+    let max_r = rl.max_requests.max(1).min(u64::from(u32::MAX)) as u32;
+    format!(
+        r#"static {static_name}: std::sync::OnceLock<std::sync::Arc<governor::RateLimiter<
+    String,
+    governor::state::keyed::DefaultKeyedStateStore<String>,
+    governor::clock::DefaultClock,
+>>> = std::sync::OnceLock::new();
+
+async fn {fn_name}(
+    req: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> Result<axum::response::Response, axum::response::Response> {{
+    let lim = {static_name}.get_or_init(|| {{
+        let q = governor::Quota::with_period(std::time::Duration::from_secs({window}))
+            .expect("vox codegen: rate limit window")
+            .allow_burst(std::num::NonZeroU32::new({max_r}).expect("vox codegen: rate limit burst"));
+        std::sync::Arc::new(governor::RateLimiter::keyed(q))
+    }});
+    let api_key = req.headers()
+        .get("x-api-key")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("anonymous")
+        .to_string();
+    match lim.check_key(&api_key) {{
+        Ok(_) => Ok(next.run(req).await),
+        Err(_) => Err((StatusCode::TOO_MANY_REQUESTS, Json(vox_http_client::envelope::error_json(
+            "RATE_LIMITED",
+            "Too many requests",
+            None,
+            None,
+        ))).into_response()),
+    }}
+}}
+
+"#
+    )
+}
+
 fn emit_ip_rate_limit_prelude(sf: &HirEndpointFn, prefix: &str) -> String {
     let Some(ref rl) = sf.rate_limit else {
         return String::new();
@@ -109,15 +207,17 @@ fn wrap_method_router(method_router_expr: String, sf: Option<&HirEndpointFn>) ->
     };
     let mut out = method_router_expr;
     if let Some(ref rl) = sf.rate_limit {
-        if rl.by == RateLimitBy::Ip {
-            let suffix_raw = match sf.kind {
-                HirEndpointKind::Query => format!("q_{}", sf.name),
-                HirEndpointKind::Mutation => format!("m_{}", sf.name),
-                HirEndpointKind::Server => format!("sf_{}", sf.name),
-            };
-            let suffix = safe_ident_suffix(&suffix_raw);
-            let fn_name = format!("vox_rl_guard_{suffix}");
-            out = format!("{out}.layer(axum::middleware::from_fn({fn_name}))");
+        let suffix_raw = match sf.kind {
+            HirEndpointKind::Query => format!("q_{}", sf.name),
+            HirEndpointKind::Mutation => format!("m_{}", sf.name),
+            HirEndpointKind::Server => format!("sf_{}", sf.name),
+        };
+        let suffix = safe_ident_suffix(&suffix_raw);
+        let fn_name = format!("vox_rl_guard_{suffix}");
+        match rl.by {
+            RateLimitBy::Ip | RateLimitBy::UserId | RateLimitBy::ApiKey => {
+                out = format!("{out}.layer(axum::middleware::from_fn({fn_name}))");
+            }
         }
     }
     if let Some(ref cors) = sf.cors {
@@ -355,6 +455,8 @@ pub fn emit_main(
             HirEndpointKind::Server => "sf_",
         };
         out.push_str(&emit_ip_rate_limit_prelude(sf, pfx));
+        out.push_str(&emit_user_id_rate_limit_prelude(sf, pfx));
+        out.push_str(&emit_api_key_rate_limit_prelude(sf, pfx));
     }
 
     out.push_str(

@@ -517,7 +517,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             // instead (CR-F4: an arm that cannot support a construct must say so
             // clearly, never fail opaquely). See where-things-live.md.
             if let HirExpr::Ident(ns_name, _) = obj.as_ref()
-                && matches!(ns_name.as_str(), "Scrape" | "Browser")
+                && matches!(ns_name.as_str(), "Scrape" | "Browser" | "OpenClaw")
             {
                 return Err(EvalError::AssertionFailed(format!(
                     "`{ns}.{m}(...)` is only available in compiled builds \
@@ -525,6 +525,20 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                      interpreter: the `{ns}` namespace is native-codegen-only. \
                      Run this program with `--mode script` to use it.",
                     ns = ns_name,
+                    m = method,
+                )));
+            }
+            // `std.mobile.*` / `std.crypto.*` — two-level namespace, also native-only.
+            if let HirExpr::FieldAccess(inner_obj, sub_ns, _) = obj.as_ref()
+                && let HirExpr::Ident(std_kw, _) = inner_obj.as_ref()
+                && std_kw == "std"
+                && matches!(sub_ns.as_str(), "mobile" | "crypto")
+            {
+                return Err(EvalError::AssertionFailed(format!(
+                    "`std.{sub}.{m}(...)` is only available in compiled native builds \
+                     (`vox build --target mobile`), not the `--mode interp` interpreter. \
+                     Run this program with `--mode script` to use it.",
+                    sub = sub_ns,
                     m = method,
                 )));
             }
