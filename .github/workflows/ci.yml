@@ -210,7 +210,8 @@ jobs:
         shell: bash
         run: |
           git fetch origin "${{ github.base_ref }}" --depth=1 || true
-          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qx 'rust-toolchain.toml'; then
+          # -F (fixed string) so the '.' is literal; -x (whole line) so only the root file matches.
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qxF 'rust-toolchain.toml'; then
             echo "rust-toolchain.toml changed — running fresh clippy+rustdoc"
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
@@ -229,6 +230,9 @@ jobs:
           RUSTC_WRAPPER: ""
         run: |
           set -euo pipefail
+          # Belt-and-suspenders: explicitly unset (the env "" above overrides the workflow-level
+          # sccache, and this guarantees cargo sees no wrapper regardless of GHA env semantics).
+          unset RUSTC_WRAPPER
           cargo clean
           # Allowlist MUST stay in lockstep with the `lints` job's clippy step below.
           cargo clippy --workspace --all-targets --exclude vox-gui -- \
