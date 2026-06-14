@@ -327,3 +327,48 @@ mod tests {
         assert!(!s.contains("if "));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1f_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn strips_root_prefix_and_returns_relative_path() {
+        let root = Path::new("/workspace");
+        let full = Path::new("/workspace/crates/vox-audit/src/lib.rs");
+        let result = relative_to_workspace(full, root);
+        assert_eq!(result, "crates/vox-audit/src/lib.rs");
+    }
+
+    #[test]
+    fn backslashes_are_replaced_with_forward_slashes() {
+        // Simulate a Windows path where strip_prefix returns backslash-separated components.
+        // We build paths using Path::new with raw backslash strings.
+        let root = Path::new("C:\\workspace");
+        let full = Path::new("C:\\workspace\\crates\\vox-audit\\src\\lib.rs");
+        let result = relative_to_workspace(full, root);
+        // strip_prefix succeeds on Windows; to_string_lossy gives backslashes; replace converts them.
+        assert!(
+            !result.contains('\\'),
+            "result contained backslash: {result}"
+        );
+        assert!(
+            result.contains('/'),
+            "result lacked forward slash: {result}"
+        );
+    }
+
+    #[test]
+    fn returns_full_path_when_strip_prefix_fails() {
+        // When root is not a prefix of p, the function falls back to the full path.
+        let root = Path::new("/other");
+        let full = Path::new("/workspace/crates/lib.rs");
+        let result = relative_to_workspace(full, root);
+        // Should return the full path (with backslashes replaced on Windows).
+        assert!(result.contains("workspace"));
+        assert!(result.contains("crates"));
+        assert!(!result.contains('\\'));
+    }
+}
