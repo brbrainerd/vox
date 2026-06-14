@@ -233,7 +233,7 @@ module.exports = grammar({
     ),
 
     return_statement: $ => seq(
-      'ret',
+      'return',
       optional(field('value', $._expression)),
       $._newline,
     ),
@@ -478,15 +478,33 @@ module.exports = grammar({
     // ─── Terminals ─────────────────────────────────────────────
     identifier: $ => /[a-z_][a-zA-Z0-9_]*/,
     type_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
-    keyword: $ => choice(/*SSOT_TS_KW*/'fn', 'let', 'mut'/*END_SSOT_TS_KW*/),
+    keyword: $ => choice(/*SSOT_TS_KW*/'fn', 'let', 'mut', 'return', 'while', 'loop',
+      'break', 'continue', 'async', 'await', 'extern'/*END_SSOT_TS_KW*/),
     integer: $ => /[0-9]+/,
     float: $ => /[0-9]+\.[0-9]+/,
+    // All decorators from crates/vox-compiler/src/lexer/token.rs are covered
+    // by this single rule. The pattern allows dotted namespaces.
+    // SSOT listing (for parity tests):
+    // @component @tool @mcp.tool @resource @mcp.resource @test @example
+    // @query @mutation @server @json_as @field_name @default @skip_if_none
+    // @table @index @native @loading @require @ensure @invariant @forall
+    // @fuzz @pure @reactive @versioned @tracked @scheduled @deprecated
+    // @v0 @ai @prompt @subagent @search @hole @cancellable @form
+    // @back_button @deep_link @push @tokens @cors @rate_limit @uses
+    // @pii @embed @webhook @public @auth @offline_capable @collaborative
+    // @layer @remote @inference @training_step @distributed_train
+    decorator: $ => /@[a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*/,
     string: $ => choice(
+      // standard double/single-quoted string
       seq('"', /([^"\\]|\\.)*/, '"'),
       seq("'", /([^'\\]|\\.)*/, "'"),
+      // raw string: r"..."
+      seq('r"', /[^"]*/, '"'),
+      // dec/template strings are lexed as identifiers followed by the string body
     ),
     boolean: $ => choice('true', 'false'),
-    comment: $ => /\/\/[^\r\n]*/,
+    // line comments: // and # both supported
+    comment: $ => choice(/\/\/[^\r\n]*/, /#[^\r\n]*/),
     _newline: $ => /\r?\n/,
   },
 });
