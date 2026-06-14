@@ -1,11 +1,11 @@
 {
   "schema": "semantic-coverage.v1",
   "note": "Production-symbol proven-coverage floors (Wave-0 corrected denominator). Enforcing gate deferred \u2014 see semantic-coverage-remediation-plan \u00a7E Task 0.4.",
-  "source_commit": "315409b15d4ac3ee08b7b3e7c06c795a3882bab2",
+  "source_commit": "95b1d9c62b98549d9203ed65856a1587d129718d",
   "totals": {
     "defs": 7174,
-    "proven": 1432,
-    "proven_pct": 20.0
+    "proven": 1441,
+    "proven_pct": 20.1
   },
   "crates": {
     "vox-actor-runtime": {
@@ -198,7 +198,7 @@
     },
     "vox-orchestrator": {
       "defs": 867,
-      "proven": 228
+      "proven": 237
     },
     "vox-orchestrator-driver": {
       "defs": 9,
