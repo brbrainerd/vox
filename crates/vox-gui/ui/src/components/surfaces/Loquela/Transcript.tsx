@@ -12,7 +12,12 @@ export function Transcript({ messages }: { messages: ChatMessage[] }) {
   if (messages.length === 0) return null;
 
   return (
-    <Glass className="mb-3 max-h-[40vh] overflow-y-auto custom-scrollbar p-3">
+    <Glass
+      role="log"
+      aria-live="polite"
+      aria-label="Chat transcript"
+      className="mb-3 max-h-[40vh] overflow-y-auto custom-scrollbar p-3"
+    >
       <div className="flex flex-col gap-2">
         {messages.map((m) => (
           <Bubble key={m.id} message={m} />
