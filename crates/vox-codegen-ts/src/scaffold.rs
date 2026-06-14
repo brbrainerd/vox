@@ -8,6 +8,7 @@
 
 use std::path::Path;
 
+
 /// Files relative to project root (`app/`, `vite.config.ts`, etc.).
 pub type ScaffoldFile = (String, String);
 
@@ -108,7 +109,69 @@ export default defineConfig({
         ),
         (
             "package.json".to_string(),
-            r#"{
+            static_package_json().to_string(),
+        ),
+    ]
+}
+
+/// Inject extra npm package names into the static `package.json` template.
+#[cfg(feature = "standalone")]
+///
+/// `extra_packages` is a list of bare npm specifiers (e.g. `@radix-ui/react-dialog`).
+/// Each is inserted into the `dependencies` block with a `"*"` version placeholder,
+/// suitable for `vox build` to refine later.
+#[must_use]
+pub fn package_json_with_extra_deps(extra_packages: &[&str]) -> String {
+    if extra_packages.is_empty() {
+        return static_package_json().to_string();
+    }
+    let extra: String = extra_packages
+        .iter()
+        .map(|pkg| format!("    \"{pkg}\": \"*\""))
+        .collect::<Vec<_>>()
+        .join(",\n");
+    // Inject before the closing `}` of the `dependencies` block.
+    static_package_json().replacen(
+        "    \"lucide-react\": \"^0.400.0\"\n  },",
+        &format!("    \"lucide-react\": \"^0.400.0\",\n{extra}\n  }},"),
+        1,
+    )
+}
+
+/// Collect the set of extra npm packages (and their peers) implied by
+/// the `es_module_specifier` fields in `imports`.
+#[cfg(feature = "standalone")]
+#[must_use]
+pub fn extra_deps_from_imports(
+    imports: &[vox_compiler::hir::HirImport],
+) -> Vec<String> {
+    use crate::external_libs::{bare_package, LIBRARIES};
+    let mut pkgs: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for imp in imports {
+        let Some(spec) = &imp.es_module_specifier else {
+            continue;
+        };
+        let Some(pkg) = bare_package(spec) else {
+            continue;
+        };
+        // Skip packages already in the static template.
+        if matches!(pkg, "react" | "react-dom" | "lucide-react") {
+            continue;
+        }
+        pkgs.insert(pkg.to_string());
+        // Add declared peers from the LIBRARIES table.
+        if let Some(lib) = LIBRARIES.iter().find(|l| l.package == pkg) {
+            for peer in lib.peers {
+                pkgs.insert(peer.to_string());
+            }
+        }
+    }
+    pkgs.into_iter().collect()
+}
+
+/// Return the static package.json template (shared between production and tests).
+fn static_package_json() -> &'static str {
+    r#"{
   "name": "vox-app",
   "type": "module",
   "private": true,
@@ -131,11 +194,26 @@ export default defineConfig({
     "typescript": "^5.6.0",
     "vite": "^6.0.0"
   }
+}"#
 }
-"#
-            .to_string(),
-        ),
-    ]
+
+/// Parse `src` as a Vox module and return the `package.json` content that
+/// would be scaffolded for that project, including any imported npm packages.
+///
+/// Intended for integration tests.
+#[cfg(feature = "standalone")]
+#[must_use]
+pub fn package_json_for_test(src: &str) -> String {
+    use vox_compiler::{hir::lower_module, lexer::lex, parser::parse};
+    let tokens = lex(src);
+    let ast = match parse(tokens) {
+        Ok(m) => m,
+        Err(_) => return static_package_json().to_string(),
+    };
+    let hir = lower_module(&ast);
+    let extras = extra_deps_from_imports(&hir.imports);
+    let extra_refs: Vec<&str> = extras.iter().map(String::as_str).collect();
+    package_json_with_extra_deps(&extra_refs)
 }
 
 /// Write one-shot config files under `project_root` if missing.
