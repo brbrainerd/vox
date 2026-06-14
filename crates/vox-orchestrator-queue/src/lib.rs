@@ -10,3 +10,6 @@ pub mod oplog;
 pub mod projection;
 pub mod projections;
 pub mod sync_lock;
+
+#[cfg(test)]
+mod semcov_wave19_tests;

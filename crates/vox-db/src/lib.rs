@@ -291,3 +291,6 @@ pub(crate) static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(()
 
 #[cfg(all(test, feature = "local"))]
 mod local_tests;
+
+#[cfg(test)]
+mod semcov_wave18_tests;
