@@ -746,8 +746,31 @@ pub(super) fn emit_expr_with(
                 emit(idx, OwnershipMode::Owned)
             )
         }
-        _ => unreachable!(
-            "HIR expr variants not handled in stmt_expr::emit_expr_with must be handled by stmt_expr_tail (delegate order bug)"
+        // Frontend/web-only and unimplemented constructs must never panic the
+        // codegen pass. Emit a `compile_error!` so rustc surfaces a clear,
+        // actionable message instead of the Vox compiler aborting opaquely.
+        // JSX/AsyncView cannot go to a Rust server target.
+        // Spawn/WorkflowVersion/With get real emission in Task 8.
+        HirExpr::Jsx(..) | HirExpr::JsxSelfClosing(..) | HirExpr::JsxFragment(..) => {
+            r#"compile_error!("vox.codegen_rust.frontend_expr_in_server: JSX / async-view expressions cannot be emitted to the Rust (server/script) target")"#.to_string()
+        }
+        HirExpr::AsyncView(..) => {
+            r#"compile_error!("vox.codegen_rust.frontend_expr_in_server: Async[T] when-views cannot be emitted to the Rust target")"#.to_string()
+        }
+        HirExpr::Spawn(..) => {
+            r#"compile_error!("vox.codegen_rust.spawn_unimplemented: spawn-expression Rust emission is not yet implemented")"#.to_string()
+        }
+        HirExpr::WorkflowVersion(..) => {
+            r#"compile_error!("vox.codegen_rust.workflow_version_unimplemented: workflow.version() Rust emission is not yet implemented")"#.to_string()
+        }
+        HirExpr::With(..) => {
+            r#"compile_error!("vox.codegen_rust.with_unimplemented: with(...) Rust emission is not yet implemented")"#.to_string()
+        }
+        // All other variants are handled by try_emit_expr_tail above.
+        // Reaching here is a delegate-order bug — name the variant for easier diagnosis.
+        other => unreachable!(
+            "HIR expr variant {:?} was not handled by stmt_expr_tail (delegate order bug)",
+            std::mem::discriminant(other)
         ),
     }
 }
