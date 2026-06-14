@@ -267,3 +267,105 @@ fn emit_legacy_decision_event(
     };
     vox_telemetry::record_event!(&TelemetryEvent::SelectionDecision(event));
 }
+
+#[cfg(test)]
+mod semcov_wave1_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn generalist_strength_matches_any_task_category() {
+        // The `|| *s == StrengthTag::Generalist` arm means a Generalist model is
+        // eligible for every task, regardless of the per-category strength mapping.
+        let json = r#"{
+            "id": "m-generalist",
+            "provider": "ollama",
+            "provider_type": "ollama",
+            "max_tokens": 8192,
+            "cost_per_1k": 0.0,
+            "is_free": true,
+            "strengths": ["generalist"]
+        }"#;
+        let spec: ModelSpec = serde_json::from_str(json).expect("deserialize ModelSpec");
+        for task in [
+            TaskCategory::CodeGen,
+            TaskCategory::Research,
+            TaskCategory::General,
+            TaskCategory::Review,
+            TaskCategory::Debugging,
+        ] {
+            assert!(
+                model_matches_task_strength(&spec, task),
+                "Generalist must match task {task:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn empty_strengths_match_no_task() {
+        // With no strengths the `.any(..)` predicate has nothing to satisfy, so the
+        // model is never a strength-match for any category.
+        let json = r#"{
+            "id": "m-empty",
+            "provider": "ollama",
+            "provider_type": "ollama",
+            "max_tokens": 8192,
+            "cost_per_1k": 0.0,
+            "is_free": true,
+            "strengths": []
+        }"#;
+        let spec: ModelSpec = serde_json::from_str(json).expect("deserialize ModelSpec");
+        assert!(!model_matches_task_strength(&spec, TaskCategory::CodeGen));
+        assert!(!model_matches_task_strength(&spec, TaskCategory::General));
+    }
+
+    fn spec_for_pred(provider: &str, is_free: bool) -> ModelSpec {
+        ModelSpec {
+            id: "m".to_string(),
+            canonical_slug: "m".to_string(),
+            provider: provider.to_string(),
+            provider_type: crate::models::ProviderType::OpenRouter,
+            max_tokens: 8192,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            observed_cost_per_1k: None,
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::PricingSource::Bootstrap,
+            is_free,
+            strengths: vec![],
+            capabilities: crate::models::ModelCapabilities::default(),
+            supported_parameters: vec![],
+        }
+    }
+
+    #[test]
+    fn byok_tier_filters_on_provider_substring() {
+        let params = RegistryModelResolutionParams::default();
+        let cfg = InferenceConfig {
+            tier: TierProfile::BringYourOwnKey { provider: "anthropic".to_string() },
+            ..Default::default()
+        };
+
+        // provider "openrouter" does not contain "anthropic" -> rejected
+        let mismatch = spec_for_pred("openrouter", false);
+        assert!(!inference_predicate(&mismatch, &cfg, &params, false, false, None));
+
+        // provider "anthropic-direct" contains "anthropic" and no other filter trips -> accepted
+        let matches = spec_for_pred("anthropic-direct", false);
+        assert!(inference_predicate(&matches, &cfg, &params, false, false, None));
+    }
+
+    #[test]
+    fn free_only_rejects_non_free_spec() {
+        let params = RegistryModelResolutionParams::default();
+        let cfg = InferenceConfig::default(); // Automatic tier, web_search off
+        let paid = spec_for_pred("openrouter", false);
+        assert!(!inference_predicate(&paid, &cfg, &params, true, false, None));
+
+        let free = spec_for_pred("openrouter", true);
+        assert!(inference_predicate(&free, &cfg, &params, true, false, None));
+    }
+}

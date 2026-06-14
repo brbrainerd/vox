@@ -407,3 +407,72 @@ mod tests {
         assert_eq!(v["after"], 5678);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::{Orchestrator, OrchestratorConfig};
+
+    #[test]
+    fn merge_existing_lone_workspace_succeeds_with_no_conflicts() {
+        let orch = Orchestrator::new(OrchestratorConfig::default());
+        // Create a workspace so the success (Some) branch of destroy_workspace fires.
+        let created = workspace_create_json(&orch, 5);
+        assert_eq!(created["workspace_created"], true);
+
+        let v = workspace_merge_json(&orch, 5);
+        assert_eq!(v["merged"], true);
+        // Freshly created workspace has zero modified files.
+        assert_eq!(v["files_merged"], 0);
+        // Only one workspace exists, so there are no overlaps to record.
+        assert_eq!(v["conflicts_recorded"], 0);
+
+        // The workspace is destroyed by the merge: status must now report none.
+        let status = workspace_status_json(&orch, 5);
+        assert_eq!(status["has_workspace"], false);
+    }
+
+    #[test]
+    fn diff_of_two_present_snapshots_reports_modified_and_added() {
+        use std::path::PathBuf;
+        let orch = Orchestrator::new(OrchestratorConfig::default());
+
+        // Seed two snapshots directly through the store handle (same handle the
+        // facade reads from), so snapshot_diff_json takes the (Some, Some) branch.
+        let (before_id, after_id) = {
+            let handle = orch.snapshot_store_handle();
+            let mut store = crate::sync_lock::rw_write(&*handle);
+            let before = store.take_snapshot_in_memory(
+                AgentId(1),
+                vec![(PathBuf::from("a.txt"), b"v1".to_vec())],
+                "before".to_string(),
+            );
+            let after = store.take_snapshot_in_memory(
+                AgentId(1),
+                vec![
+                    (PathBuf::from("a.txt"), b"v2".to_vec()), // content changed -> Modified
+                    (PathBuf::from("b.txt"), b"new".to_vec()), // not in before -> Added
+                ],
+                "after".to_string(),
+            );
+            (before.0, after.0)
+        };
+
+        let v = snapshot_diff_json(&orch, before_id, after_id);
+        let diffs = v["diffs"].as_array().expect("diffs array present");
+        assert_eq!(diffs.len(), 2, "one modified + one added file");
+
+        let kinds: std::collections::BTreeSet<&str> =
+            diffs.iter().map(|d| d["kind"].as_str().unwrap()).collect();
+        assert!(kinds.contains("Modified"), "changed file reported as Modified");
+        assert!(kinds.contains("Added"), "new file reported as Added");
+
+        // The modified file's path is surfaced as the Display string.
+        let modified_path = diffs
+            .iter()
+            .find(|d| d["kind"] == "Modified")
+            .map(|d| d["path"].as_str().unwrap().to_string());
+        assert_eq!(modified_path.as_deref(), Some("a.txt"));
+    }
+}

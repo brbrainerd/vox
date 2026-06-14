@@ -616,3 +616,59 @@ mod tests {
         assert_eq!(merge_tags(&prev, &incoming), vec!["a", "b"]);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    fn prov(trace: Option<&str>, corr: Option<&str>, observed: &[&str]) -> ContextProvenance {
+        ContextProvenance {
+            source_plane: crate::context_envelope::ContextSourcePlane::Mcp,
+            source_system: "sys".to_string(),
+            source_tool: None,
+            source_path: None,
+            producer_agent_id: None,
+            producer_node_id: None,
+            producer_session_id: None,
+            producer_thread_id: None,
+            capture_mode: crate::context_envelope::ContextCaptureMode::Inline,
+            policy_version: None,
+            observed_via: observed.iter().map(|s| s.to_string()).collect(),
+            trace_id: trace.map(ToOwned::to_owned),
+            correlation_id: corr.map(ToOwned::to_owned),
+        }
+    }
+
+    #[test]
+    fn merge_provenance_crdt_fills_missing_ids_and_unions_observed() {
+        let prev = prov(Some("trace-prev"), Some("corr-prev"), &["a", "b"]);
+        let incoming = prov(None, None, &["b", "c"]);
+        let out = merge_provenance_crdt(&prev, &incoming);
+        // missing ids backfilled from prev
+        assert_eq!(out.trace_id.as_deref(), Some("trace-prev"));
+        assert_eq!(out.correlation_id.as_deref(), Some("corr-prev"));
+        // capture mode forced to Derived
+        assert_eq!(out.capture_mode, crate::context_envelope::ContextCaptureMode::Derived);
+        // observed_via: incoming first, dedup-union with prev's new, then marker appended
+        assert_eq!(
+            out.observed_via,
+            vec![
+                "b".to_string(),
+                "c".to_string(),
+                "a".to_string(),
+                "context_lifecycle:crdt_merge".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn merge_provenance_crdt_keeps_incoming_ids_over_prev() {
+        let prev = prov(Some("trace-prev"), Some("corr-prev"), &[]);
+        let incoming = prov(Some("trace-in"), Some("corr-in"), &[]);
+        let out = merge_provenance_crdt(&prev, &incoming);
+        assert_eq!(out.trace_id.as_deref(), Some("trace-in"));
+        assert_eq!(out.correlation_id.as_deref(), Some("corr-in"));
+        assert_eq!(out.observed_via, vec!["context_lifecycle:crdt_merge".to_string()]);
+    }
+}

@@ -82,3 +82,28 @@ pub fn repo_scoped_orchestrator_config(
 ) -> OrchestratorConfig {
     repo_scoped_orchestrator_parts(config, repository).0
 }
+
+#[cfg(test)]
+mod semcov_wave1_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::OrchestratorConfig;
+    use std::path::PathBuf;
+
+    #[test]
+    fn repo_scoped_orchestrator_config_roots_memory_under_repo_vox_memory() {
+        // Override input memory paths to a bogus location to prove they get replaced.
+        let mut config = OrchestratorConfig::default();
+        config.memory.log_dir = PathBuf::from("/bogus/log/dir");
+        config.memory.memory_md_path = PathBuf::from("/bogus/MEMORY.md");
+
+        let tmp = tempfile::tempdir().expect("create tempdir");
+        let repository = vox_repository::discover_repository_or_fallback(tmp.path());
+
+        let out = repo_scoped_orchestrator_config(config, &repository);
+
+        let expected_mem_root = repository.root.join(".vox").join("memory");
+        assert_eq!(out.memory.log_dir, expected_mem_root);
+        assert_eq!(out.memory.memory_md_path, expected_mem_root.join("MEMORY.md"));
+    }
+}

@@ -108,3 +108,39 @@ pub fn resolve_provider_limits() -> Vec<ProviderLimitOwned> {
         })
         .collect()
 }
+
+#[cfg(test)]
+mod semcov_wave1_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn parse_limit_json_invalid_and_malformed_keys() {
+        // Invalid JSON -> empty
+        assert_eq!(parse_limit_json("not json"), Vec::new());
+        // Non-object JSON -> empty
+        assert_eq!(parse_limit_json("[1,2,3]"), Vec::new());
+        // Key without '/' has empty model -> skipped; non-u64 value -> skipped
+        let out = parse_limit_json(r#"{"google":5,"openrouter/gpt":"x"}"#);
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn parse_limit_json_valid_entry_and_u32_clamp() {
+        // Valid entry with surrounding whitespace trimmed
+        let out = parse_limit_json(r#"{" google / gemini ": 42}"#);
+        assert_eq!(
+            out,
+            vec![ProviderLimitOwned {
+                provider: "google".to_string(),
+                model: "gemini".to_string(),
+                daily_limit: 42,
+            }]
+        );
+        // Value exceeding u32::MAX is clamped to u32::MAX
+        let big = format!(r#"{{"p/m": {}}}"#, u64::MAX);
+        let clamped = parse_limit_json(&big);
+        assert_eq!(clamped.len(), 1);
+        assert_eq!(clamped[0].daily_limit, u32::MAX);
+    }
+}

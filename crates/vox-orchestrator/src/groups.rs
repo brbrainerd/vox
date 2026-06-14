@@ -478,3 +478,38 @@ patterns = "legacy/*.md"
         );
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn repo_relative_glob_returns_recursive_all_when_dir_is_repo_root() {
+        // dir == repo_root -> stripped rel is empty -> "**/*"
+        let root = Path::new("/work/repo");
+        assert_eq!(repo_relative_glob(root, root), "**/*");
+    }
+
+    #[test]
+    fn repo_relative_glob_normalizes_and_suffixes_nested_dir() {
+        let root = Path::new("/work/repo");
+        let dir = root.join("crates").join("vox-compiler");
+        // rel = "crates/vox-compiler" (separators normalized to '/'), trimmed, then "/**"
+        assert_eq!(repo_relative_glob(root, &dir), "crates/vox-compiler/**");
+    }
+
+    #[test]
+    fn repo_relative_glob_subdir_appends_double_star() {
+        let root = Path::new("/repo");
+        let dir = Path::new("/repo/crates/foo");
+        assert_eq!(repo_relative_glob(root, dir), "crates/foo/**");
+    }
+
+    #[test]
+    fn repo_relative_glob_root_itself_is_recursive_all() {
+        let root = Path::new("/repo");
+        // dir == repo_root => rel is empty after trim => "**/*"
+        assert_eq!(repo_relative_glob(root, root), "**/*");
+    }
+}
