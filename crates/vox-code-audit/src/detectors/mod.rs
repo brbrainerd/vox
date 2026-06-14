@@ -135,6 +135,10 @@ pub mod import_cycles;
 /// byte-identical across two or more (non-platform-sibling) crates. Info severity.
 pub mod cross_crate_dup;
 
+/// Catch-all-swallow detector: flags a `match` whose `_ =>` arm returns a neutral/empty value
+/// while other arms do real work — the silent-drop shape behind vanishing-value pipeline bugs.
+pub mod catch_all_swallow;
+
 use crate::rules::DetectionRule;
 
 /// Returns all built-in detectors.
@@ -199,12 +203,13 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         // Phase J.19 — static import-cycle detection (per-file; see also
         // `import_cycles::detect_import_cycles_in_batch` for multi-file cycles).
         Box::new(import_cycles::ImportCyclesDetector::new()),
+        Box::new(catch_all_swallow::CatchAllSwallowDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    51
+    52
 }
 
 #[cfg(test)]
