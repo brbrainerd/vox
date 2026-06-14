@@ -22,10 +22,10 @@ pub fn trim_context(text: &str, max_tokens: usize) -> String {
     let tail_tokens = &tokens[tokens.len() - tail_len..];
 
     let head = bpe
-        .decode(head_tokens.to_vec())
+        .decode(head_tokens)
         .unwrap_or_else(|_| "[DECODE ERROR]".to_string());
     let tail = bpe
-        .decode(tail_tokens.to_vec())
+        .decode(tail_tokens)
         .unwrap_or_else(|_| "[DECODE ERROR]".to_string());
 
     format!("{}\n... [TRUNCATED] ...\n{}", head, tail)
