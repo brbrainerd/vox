@@ -599,4 +599,20 @@ mod tests {
         assert!(env.content.summary_text.contains("truncated"));
         assert_eq!(env.budget.token_estimate, Some(20));
     }
+
+    #[test]
+    fn merge_tags_dedupes_preserving_first_seen_order() {
+        let prev = vec!["a".to_string(), "b".to_string()];
+        let incoming = vec!["b".to_string(), "c".to_string()];
+        // invariant: each tag once, in first-seen order
+        assert_eq!(merge_tags(&prev, &incoming), vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn merge_tags_trims_and_skips_empty_and_whitespace() {
+        let prev = vec!["  a  ".to_string(), String::new()];
+        let incoming = vec!["   ".to_string(), "a".to_string(), "b".to_string()];
+        // edge: "  a  " -> "a"; empty + whitespace-only dropped; "a" dedup'd
+        assert_eq!(merge_tags(&prev, &incoming), vec!["a", "b"]);
+    }
 }
