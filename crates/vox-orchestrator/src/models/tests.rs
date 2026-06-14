@@ -430,6 +430,8 @@ mod semcov_wave34_tests {
     use std::collections::HashMap;
     use std::time::Duration;
 
+    use vox_config::timeouts::{D_5MS, D_60S};
+
     use crate::config::CostPreference;
     use crate::models::registry::{ModelRegistry, ModelScore};
     use crate::models::scoring::{
@@ -440,9 +442,6 @@ mod semcov_wave34_tests {
     use crate::models::{ModelSpec, ProviderType, StrengthTag};
     use crate::types::TaskCategory;
     use crate::usage::RemainingBudget;
-
-    const D_5MS: std::time::Duration = std::time::Duration::from_millis(5);
-    const D_60S: std::time::Duration = std::time::Duration::from_secs(60);
 
     // ── helpers ────────────────────────────────────────────────────────────────
 

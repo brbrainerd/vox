@@ -113,6 +113,11 @@ impl AdapterConfig for LoraConfig {
                 "dropout must be between 0 and 1".into(),
             ));
         }
+        if self.r > 64 {
+            return Err(PeftError::InvalidConfig(
+                "rank must be ≤ 64 (kernel array limit)".into(),
+            ));
+        }
         Ok(())
     }
 }
@@ -439,31 +444,24 @@ impl Adapter for DoraLayer {
     type Config = LoraConfig;
 
     fn forward(&self, input: &Tensor, base_output: Option<&Tensor>) -> Result<Tensor> {
-        // For DoRA forward pass, we need the base weight
-        // If no base_weight is stored, fall back to regular LoRA
-        if let (Some(base_weight), Some(_base_out)) = (&self.base_weight, base_output) {
-            // Compute the directional component
-            let direction = self.compute_direction(base_weight)?;
-
-            // Compute the output through the normalized, magnitude-scaled weight
+        if let Some(base_weight) = &self.base_weight {
+            // DoRA computes a full replacement output, not a delta on top of base_output.
+            // Reject the incompatible (base_weight + base_output) combination explicitly.
+            if base_output.is_some() {
+                return Err(PeftError::InvalidConfig(
+                    "DoRA forward does not support base_output; call with base_output = None"
+                        .into(),
+                ));
+            }
             // output = input @ (m * direction)^T
+            let direction = self.compute_direction(base_weight)?;
             let input_dims = input.dims();
             let batch_seq = input_dims[0] * input_dims[1];
             let input_2d = input.reshape((batch_seq, self.lora.in_features))?;
-
-            // Apply: input @ direction^T
             let out = input_2d.matmul(&direction.t()?)?;
-
-            // Scale by magnitude
             let mag_2d = self.magnitude.reshape((1, self.lora.out_features))?;
             let out = out.broadcast_mul(&mag_2d)?;
-
-            // Reshape back
-            let out = out.reshape((input_dims[0], input_dims[1], self.lora.out_features))?;
-
-            // Note: The base output difference needs to be accounted for
-            // This is a simplified version; full DoRA requires careful handling
-            Ok(out)
+            out.reshape((input_dims[0], input_dims[1], self.lora.out_features))
         } else {
             // Fall back to regular LoRA if base weight not available
             self.lora.forward(input, base_output)

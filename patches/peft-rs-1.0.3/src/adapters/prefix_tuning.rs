@@ -57,6 +57,12 @@ impl AdapterConfig for PrefixTuningConfig {
         if self.prefix_dim == 0 {
             return Err(PeftError::InvalidConfig("prefix_dim must be > 0".into()));
         }
+        if self.num_heads == 0 {
+            return Err(PeftError::InvalidConfig("num_heads must be > 0".into()));
+        }
+        if self.num_layers == 0 {
+            return Err(PeftError::InvalidConfig("num_layers must be > 0".into()));
+        }
         Ok(())
     }
 }

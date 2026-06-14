@@ -65,6 +65,13 @@ impl AdapterConfig for LoKrConfig {
         if self.alpha == 0 {
             return Err(PeftError::InvalidConfig("alpha must be > 0".into()));
         }
+        if let Some(f) = self.factor {
+            if f == 0 {
+                return Err(PeftError::InvalidConfig(
+                    "factor must be > 0 when specified".into(),
+                ));
+            }
+        }
         Ok(())
     }
 }
