@@ -154,6 +154,7 @@ export function DiscoveryReviewView({ pushToast }: SurfaceDecoratorProps) {
           className="bg-void min-w-[16rem] flex-1 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 font-mono text-sm text-zinc-200 focus:border-cyan focus:outline-none"
         />
         <button
+          type="button"
           className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-white/[0.06] disabled:opacity-40"
           disabled={busy || !pubId}
           onClick={loadClaims}
@@ -171,7 +172,7 @@ export function DiscoveryReviewView({ pushToast }: SurfaceDecoratorProps) {
         <div className="font-mono text-xs text-zinc-500">No claims recorded for this publication yet.</div>
       )}
       {claims !== null && claims.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2" role="list" aria-live="polite">
           <div className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
             {claims.length} claim{claims.length === 1 ? '' : 's'}
           </div>
@@ -179,7 +180,7 @@ export function DiscoveryReviewView({ pushToast }: SurfaceDecoratorProps) {
             const state = reviews[c.claim_id];
             const approved = state?.decision === 'approve';
             return (
-              <div key={c.claim_id} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+              <div key={c.claim_id} role="listitem" className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
                 <div className="mb-2 flex items-center gap-2">
                   <span className="font-mono text-[10px] text-zinc-500">#{c.claim_id}</span>
                   {state?.decision && (
@@ -202,6 +203,7 @@ export function DiscoveryReviewView({ pushToast }: SurfaceDecoratorProps) {
 
                 <div className="flex flex-wrap items-center gap-2">
                   <button
+                    type="button"
                     className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs uppercase tracking-wider text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-40"
                     disabled={busy}
                     onClick={() => review(c.claim_id, 'approve')}
@@ -209,6 +211,7 @@ export function DiscoveryReviewView({ pushToast }: SurfaceDecoratorProps) {
                     Approve
                   </button>
                   <button
+                    type="button"
                     className="rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs uppercase tracking-wider text-red-300 hover:bg-red-500/20 disabled:opacity-40"
                     disabled={busy}
                     onClick={() => review(c.claim_id, 'reject')}
@@ -216,6 +219,7 @@ export function DiscoveryReviewView({ pushToast }: SurfaceDecoratorProps) {
                     Reject
                   </button>
                   <button
+                    type="button"
                     className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs uppercase tracking-wider text-amber-300 hover:bg-amber-500/20 disabled:opacity-40"
                     disabled={busy}
                     onClick={() => review(c.claim_id, 'defer')}
@@ -223,6 +227,7 @@ export function DiscoveryReviewView({ pushToast }: SurfaceDecoratorProps) {
                     Defer
                   </button>
                   <button
+                    type="button"
                     className="ml-auto rounded-lg border border-cyan/30 bg-cyan/10 px-2.5 py-1 text-xs uppercase tracking-wider text-cyan hover:bg-cyan/20 disabled:opacity-40"
                     disabled={busy || !approved}
                     title={approved ? 'Build a signed nanopublication' : 'Approve this claim first'}
