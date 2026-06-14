@@ -248,3 +248,6 @@ gui-*.log
 .act-artifacts/
 # graphify knowledge-graph artifacts (local tooling) — large, regenerable
 graphify-out/
+
+# Isolated git worktrees for parallel development
+.worktrees/
