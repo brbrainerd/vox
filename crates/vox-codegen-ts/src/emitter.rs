@@ -405,6 +405,7 @@ pub fn generate_with_options(
             has_schemas,
             has_openapi,
             has_schema_ts: !hir.tables.is_empty(),
+            component_names: hir.components.iter().map(|c| c.name.clone()).collect(),
         };
         if pkg_cfg.any_export() {
             files.push((
