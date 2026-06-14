@@ -116,6 +116,7 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
           <p className="font-mono text-xs text-zinc-500">Publication pipeline queue snapshot</p>
         </div>
         <button
+          type="button"
           className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-white/[0.06] disabled:opacity-40"
           disabled={loading}
           onClick={refresh}
@@ -124,6 +125,9 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
         </button>
       </div>
 
+      {/* Snapshot region: refetched on a 10s interval + event ping, so announce
+          updates politely to assistive tech. */}
+      <div aria-live="polite">
       {!snap && <div className="font-mono text-xs text-zinc-500">Loading queue snapshot…</div>}
 
       {snap && (
@@ -183,6 +187,7 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
           )}
         </>
       )}
+      </div>
 
       {cost && (
         <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
