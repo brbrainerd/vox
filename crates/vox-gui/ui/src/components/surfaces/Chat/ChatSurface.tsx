@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Transcript } from '../Loquela/Transcript';
+import { Button } from '../../ui/Button';
+import { EmptyState } from '../../ui/EmptyState';
+import { Icon } from '../../ui/Icons';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
 
 interface ChatSession {
@@ -62,32 +65,51 @@ export function ChatSurface({
 
   return (
     <div className="flex flex-col gap-4 min-h-[60vh]">
-      <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
-        {sessions.map(s => (
-          <button
-            key={s.session_id}
-            type="button"
-            onClick={() => onSessionChange?.(s.session_id)}
-            className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs ${
-              s.session_id === activeId
-                ? 'border-brass/40 bg-brass/10 text-brass'
-                : 'border-white/10 text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            {s.title}
-            {s.message_count > 0 ? ` (${s.message_count})` : ''}
-          </button>
-        ))}
-        <button
-          type="button"
+      <div
+        role="tablist"
+        aria-label="Chat sessions"
+        className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1"
+      >
+        {sessions.map(s => {
+          const isActive = s.session_id === activeId;
+          return (
+            <Button
+              key={s.session_id}
+              role="tab"
+              aria-pressed={isActive}
+              aria-selected={isActive}
+              onClick={() => onSessionChange?.(s.session_id)}
+              className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs ${
+                isActive
+                  ? 'border-brass/40 bg-brass/10 text-brass'
+                  : 'border-border-subtle text-text-muted hover:text-zinc-200'
+              }`}
+            >
+              {s.title}
+              {s.message_count > 0 ? ` (${s.message_count})` : ''}
+            </Button>
+          );
+        })}
+        <Button
           onClick={createSession}
-          className="shrink-0 rounded-lg border border-white/10 px-2 py-1 text-xs text-zinc-400 hover:text-brass"
+          aria-label="New chat session"
+          className="shrink-0 rounded-lg border border-border-subtle px-2 py-1 text-xs text-text-muted hover:text-brass"
         >
-          + New
-        </button>
+          <Icon.plus className="size-3.5" aria-hidden="true" /> New
+        </Button>
       </div>
-      <Transcript messages={messages} />
-      <p className="text-[11px] text-zinc-600">
+      {messages.length === 0 ? (
+        <EmptyState
+          icon={<Icon.spark className="size-8 text-brass" aria-hidden="true" />}
+          title="No messages yet"
+          description="Submit a task from the composer docked below — the transcript mirrors this session here."
+        />
+      ) : (
+        <div role="log" aria-label="Chat transcript" aria-live="polite" aria-relevant="additions text">
+          <Transcript messages={messages} />
+        </div>
+      )}
+      <p className="text-[11px] text-text-muted">
         Composer is docked at the bottom — submit tasks there; this view mirrors the same session transcript.
       </p>
     </div>
