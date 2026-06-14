@@ -143,6 +143,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
           </p>
         </div>
         <button
+          type="button"
           onClick={refresh}
           disabled={loading}
           className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-wider hover:bg-white/[0.06] disabled:opacity-40"
@@ -164,12 +165,13 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
           </div>
         )}
 
-        <div className="flex flex-col">
+        <div className="flex flex-col" role="list" aria-live="polite">
           {rows.map((r) => {
             const strong = r.intake_tier === STRONG_TIER;
             return (
               <div
                 key={r.id}
+                role="listitem"
                 className="flex items-start justify-between gap-4 border-b border-white/5 px-4 py-3"
               >
                 <div className="min-w-0 flex-1">
@@ -203,12 +205,14 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <button
+                    type="button"
                     onClick={() => openReview(r.publication_id)}
                     className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-white/[0.06]"
                   >
                     Open review
                   </button>
                   <button
+                    type="button"
                     disabled={busyId === r.id}
                     onClick={() => acknowledge(r.id)}
                     className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-[11px] text-emerald-200 hover:bg-emerald-400/15 disabled:opacity-40"

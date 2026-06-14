@@ -44,6 +44,16 @@ describe('DiscoveryInbox', () => {
     expect(screen.getByText('perf_claim')).toBeTruthy();
   });
 
+  it('all controls are explicit type="button" and rows form an aria-live list', async () => {
+    render(<DiscoveryInbox pushToast={vi.fn()} />);
+    await screen.findByText('commit-abc123');
+    for (const b of screen.getAllByRole('button')) {
+      expect(b.getAttribute('type')).toBe('button');
+    }
+    expect(screen.getByRole('list')).toBeTruthy();
+    expect(screen.getAllByRole('listitem').length).toBeGreaterThan(0);
+  });
+
   it('acknowledging calls the acknowledge command and removes the row', async () => {
     render(<DiscoveryInbox pushToast={vi.fn()} />);
     const pub = await screen.findByText('commit-abc123');
