@@ -735,3 +735,61 @@ db_extra = "de"
         assert!(map.contains_key("train_epochs"));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1f_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::config::vox_config::VoxConfig;
+
+    #[test]
+    fn to_map_contains_required_keys_with_correct_values() {
+        let mut cfg = VoxConfig::default();
+        cfg.model = "test-model".to_string();
+        cfg.daily_budget_usd = 3.5;
+        cfg.llm_max_concurrent_requests = 12;
+
+        let map = cfg.to_map();
+
+        assert_eq!(map.get("model").map(String::as_str), Some("test-model"));
+        assert_eq!(map.get("daily_budget_usd").map(String::as_str), Some("3.5"));
+        assert_eq!(
+            map.get("llm.max_concurrent_requests").map(String::as_str),
+            Some("12")
+        );
+        // Optional key absent when None
+        assert!(!map.contains_key("db_url"));
+    }
+
+    #[test]
+    fn to_map_includes_optional_keys_when_present() {
+        let mut cfg = VoxConfig::default();
+        cfg.db_url = Some("postgres://localhost/vox".to_string());
+        cfg.llm_openrouter_max_concurrent = Some(4);
+
+        let map = cfg.to_map();
+
+        assert_eq!(
+            map.get("db_url").map(String::as_str),
+            Some("postgres://localhost/vox")
+        );
+        assert_eq!(
+            map.get("llm.openrouter_max_concurrent").map(String::as_str),
+            Some("4")
+        );
+    }
+
+    #[test]
+    fn load_from_repo_root_applies_vox_toml_at_given_root() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let vox_toml = dir.path().join("Vox.toml");
+        std::fs::write(
+            &vox_toml,
+            "[vox]\nmodel = \"repo-root-model\"\ndaily_budget_usd = 7.0\n",
+        )
+        .expect("write");
+        let cfg = VoxConfig::load_from_repo_root(dir.path());
+        assert_eq!(cfg.model, "repo-root-model");
+        assert!((cfg.daily_budget_usd - 7.0).abs() < 1e-9);
+    }
+}

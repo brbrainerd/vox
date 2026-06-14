@@ -114,3 +114,48 @@ pub(super) fn save_merged_global_config(path: &Path, cfg: &VoxConfig) -> std::io
 pub(super) fn global_config_path() -> Option<std::path::PathBuf> {
     crate::paths::data_dir().map(|d| d.join("config.toml"))
 }
+
+#[cfg(test)]
+mod semcov_wave1f_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use toml::Value;
+    use toml::map::Map;
+
+    #[test]
+    fn take_toml_subtable_returns_table_and_removes_key() {
+        let mut root: Map<String, Value> = Map::new();
+        let mut inner: Map<String, Value> = Map::new();
+        inner.insert(
+            "url".to_string(),
+            Value::String("https://example.com".to_string()),
+        );
+        root.insert("vox".to_string(), Value::Table(inner));
+
+        let result = take_toml_subtable(&mut root, "vox");
+
+        assert_eq!(
+            result.get("url").and_then(Value::as_str),
+            Some("https://example.com")
+        );
+        // Key must be removed from the root map after taking.
+        assert!(!root.contains_key("vox"));
+    }
+
+    #[test]
+    fn take_toml_subtable_absent_key_returns_empty_map() {
+        let mut root: Map<String, Value> = Map::new();
+        let result = take_toml_subtable(&mut root, "missing");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn take_toml_subtable_non_table_value_returns_empty_map() {
+        let mut root: Map<String, Value> = Map::new();
+        root.insert("vox".to_string(), Value::String("not-a-table".to_string()));
+        let result = take_toml_subtable(&mut root, "vox");
+        assert!(result.is_empty());
+        // Original value is consumed (removed) even when it wasn't a table.
+        assert!(!root.contains_key("vox"));
+    }
+}

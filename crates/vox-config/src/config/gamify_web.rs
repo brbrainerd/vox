@@ -121,3 +121,31 @@ impl WebRunMode {
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_wave1f_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn web_run_mode_as_config_str_all_variants() {
+        assert_eq!(WebRunMode::Auto.as_config_str(), "auto");
+        assert_eq!(WebRunMode::App.as_config_str(), "app");
+        assert_eq!(WebRunMode::Script.as_config_str(), "script");
+    }
+
+    #[test]
+    fn build_target_as_config_str_all_variants() {
+        assert_eq!(BuildTarget::Fullstack.as_config_str(), "fullstack");
+        assert_eq!(BuildTarget::Server.as_config_str(), "server");
+        assert_eq!(BuildTarget::Client.as_config_str(), "client");
+        assert_eq!(BuildTarget::Mobile.as_config_str(), "mobile");
+    }
+
+    #[test]
+    fn gamify_mode_as_config_str_all_variants() {
+        assert_eq!(GamifyMode::Balanced.as_config_str(), "balanced");
+        assert_eq!(GamifyMode::Serious.as_config_str(), "serious");
+        assert_eq!(GamifyMode::Learning.as_config_str(), "learning");
+    }
+}
