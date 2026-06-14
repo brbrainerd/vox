@@ -742,7 +742,37 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 other => Ok(other),
             }
         }
-        _ => Ok(VoxValue::Null),
+        // Web/actor/compiled-only constructs are not supported by the
+        // tree-walking interpreter. Mirror the CR-F4 pattern at
+        // eval/expr.rs:513-524 (Scrape/Browser guard): name the construct,
+        // say what to use instead, never silently return Null.
+        HirExpr::Jsx(..) | HirExpr::JsxSelfClosing(..) | HirExpr::JsxFragment(..) => {
+            Err(EvalError::AssertionFailed(
+                "JSX expressions are not supported in --mode interp; \
+                 use the web/compiled backend (`vox build --target web`)"
+                    .into(),
+            ))
+        }
+        HirExpr::AsyncView(..) => Err(EvalError::AssertionFailed(
+            "Async[T] when-views are not supported in --mode interp; \
+             use the web/compiled backend"
+                .into(),
+        )),
+        HirExpr::Spawn(..) => Err(EvalError::AssertionFailed(
+            "spawn is not supported in --mode interp; \
+             use the compiled backend (`vox run --mode script`)"
+                .into(),
+        )),
+        HirExpr::With(..) => Err(EvalError::AssertionFailed(
+            "with(...) is not supported in --mode interp; \
+             use the compiled backend"
+                .into(),
+        )),
+        HirExpr::WorkflowVersion(..) => Err(EvalError::AssertionFailed(
+            "workflow.version(...) is a compiled-workflow marker; \
+             not supported in --mode interp"
+                .into(),
+        )),
     }
 }
 

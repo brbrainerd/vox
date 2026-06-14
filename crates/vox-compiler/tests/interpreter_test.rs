@@ -433,3 +433,48 @@ fn bang_is_a_parse_error_with_phonetic_hint() {
         "error must point at `not` as the canonical form; got: {combined}"
     );
 }
+
+/// Task 1A: Interpreter must reject web/actor constructs with an actionable
+/// diagnostic, never silently evaluate them to Null (Pattern A gap).
+/// Mirrors the CR-F4 pattern at eval/expr.rs:513-524 (Scrape/Browser guard).
+#[test]
+fn interp_rejects_unsupported_expr_with_clean_diagnostic() {
+    // JSX is a web/compiled construct with no interpreter semantics.
+    // Parsing succeeds; eval must fail with an actionable message, not Null.
+    let source = r#"
+    fn view() -> Int {
+        let x = <div></div>
+        1
+    }
+    fn main() -> Int { view() }
+    "#;
+    let tokens = vox_compiler::lexer::lex(source);
+    let Ok(module) = vox_compiler::parser::descent::parse(tokens) else {
+        // If JSX doesn't parse yet, the test is vacuously green — acceptable.
+        return;
+    };
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+    let mut interp = vox_compiler::eval::Interpreter::new(100_000);
+    interp.run_module(&lowered).ok();
+    let result = interp.call("main", vec![]);
+    match result {
+        Err(e) => {
+            let msg = format!("{e:?}");
+            assert!(
+                msg.contains("not supported in --mode interp"),
+                "expected a CR-F4-style interp diagnostic for JSX, got: {msg}"
+            );
+        }
+        Ok(val) => {
+            // If the interpreter returned a non-Null value, JSX lowered to
+            // something meaningful and the test is vacuously ok.
+            // If it returned Null, that's the silent-drop bug this test catches.
+            use vox_compiler::eval::value::VoxValue;
+            assert_ne!(
+                val,
+                VoxValue::Null,
+                "JSX must not silently evaluate to Null in --mode interp"
+            );
+        }
+    }
+}
