@@ -35,4 +35,11 @@ describe('DiscoveryRail', () => {
     expect(recordMock.mock.calls[0][0]).toBe('vox.scientia.review');
     expect(recordMock.mock.calls[0][1]).toBe(false);
   });
+
+  it('announces help updates via a polite live region', async () => {
+    render(<DiscoveryRail actionId="vox.scientia.review" nowMs={1000} />);
+    const rail = screen.getByLabelText('discovery');
+    expect(rail.getAttribute('aria-live')).toBe('polite');
+    await waitFor(() => expect(screen.getByText('Review queued nanopubs')).toBeTruthy());
+  });
 });

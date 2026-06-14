@@ -51,14 +51,22 @@ export function DiscoveryRail({ actionId, nowMs }: Props) {
 
   if (!help) {
     return (
-      <aside aria-label="discovery" style={{ width: 280, padding: 12, fontSize: 12 }}>
-        <p style={{ color: '#9ca3af' }}>Start typing a vox command to see help and tips.</p>
+      <aside
+        aria-label="discovery"
+        aria-live="polite"
+        style={{ width: 280, padding: 12, fontSize: 12 }}
+      >
+        <p className="text-text-muted">Start typing a vox command to see help and tips.</p>
       </aside>
     );
   }
 
   return (
-    <aside aria-label="discovery" style={{ width: 280, padding: 12, fontSize: 12 }}>
+    <aside
+      aria-label="discovery"
+      aria-live="polite"
+      style={{ width: 280, padding: 12, fontSize: 12 }}
+    >
       <h3 style={{ fontSize: 13, margin: '0 0 6px' }}>{help.example}</h3>
       <p style={{ margin: '0 0 8px' }}>{help.about}</p>
       {help.args.length > 0 && (
