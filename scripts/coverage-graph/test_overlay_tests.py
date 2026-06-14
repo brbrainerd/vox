@@ -916,3 +916,71 @@ class TestMethodAssertionCredit:
         assert {"src_lib_redact", "src_lib_normalize"} <= proves, (
             "both chained methods asserted on must be proven"
         )
+
+
+# ---------------------------------------------------------------------------
+# Crediting cross-crate integration-test assertions via `use` imports (Task 0.3)
+# ---------------------------------------------------------------------------
+
+class TestCrossCrateImportResolution:
+    """An integration test in crate A that `use`s crate B and asserts on a B
+    symbol whose name is NOT globally unique must still produce a `proves` edge
+    to B's definition — resolved via the test file's `use` imports. Before Task
+    0.3 only globally-unique cross-crate names were credited, dropping most
+    integration-test proofs."""
+
+    def _graph(self):
+        # `Widget` is DEFINED in two crates (b and c) -> not globally unique.
+        return _make_minimal_graph([
+            {"id": "src_lib_widget", "label": "Widget", "file_type": "code",
+             "source_file": "crates/vox-b/src/lib.rs", "_origin": "ast", "norm_label": "widget"},
+            {"id": "src_libc_widget", "label": "Widget", "file_type": "code",
+             "source_file": "crates/vox-c/src/lib.rs", "_origin": "ast", "norm_label": "widget"},
+        ])
+
+    def _write_it(self, tmp_path, use_line):
+        it = tmp_path / "crates" / "vox-a" / "tests"
+        it.mkdir(parents=True)
+        (it / "it.rs").write_text(
+            f"{use_line}\n"
+            "#[test]\n"
+            "fn uses_widget() {\n"
+            "    assert_eq!(Widget::tag(), \"b\");\n"
+            "}\n",
+            encoding="utf-8",
+        )
+
+    def _run(self, tmp_path):
+        in_json = str(tmp_path / "in.json")
+        out_json = str(tmp_path / "out.json")
+        with open(in_json, "w", encoding="utf-8") as f:
+            json.dump(self._graph(), f)
+        run_overlay(graph_path=in_json, repo_root=str(tmp_path), out_path=out_json)
+        with open(out_json, encoding="utf-8") as f:
+            return json.load(f)
+
+    def test_imported_crate_disambiguates_cross_crate_proof(self, tmp_path):
+        self._write_it(tmp_path, "use vox_b::Widget;")
+        result = self._run(tmp_path)
+        proves = {e["target"] for e in result["links"] if e.get("relation") == "proves"}
+        assert "src_lib_widget" in proves, "use vox_b should credit B's Widget"
+        assert "src_libc_widget" not in proves, "must NOT credit C's Widget (not imported)"
+
+    def test_no_import_leaves_ambiguous_name_uncredited(self, tmp_path):
+        # No `use` of vox_b/vox_c -> name stays ambiguous -> no proof (no false positive)
+        self._write_it(tmp_path, "// no relevant import")
+        result = self._run(tmp_path)
+        proves = {e["target"] for e in result["links"] if e.get("relation") == "proves"}
+        assert "src_lib_widget" not in proves and "src_libc_widget" not in proves, (
+            "ambiguous cross-crate name with no import must not be proven"
+        )
+
+    def test_symbol_imported_from_two_crates_stays_ambiguous(self, tmp_path):
+        # If the SAME name is imported from both defining crates, it is genuinely
+        # ambiguous -> credit neither (no false positive).
+        self._write_it(tmp_path, "use vox_b::Widget;\nuse vox_c::Widget;")
+        result = self._run(tmp_path)
+        proves = {e["target"] for e in result["links"] if e.get("relation") == "proves"}
+        assert "src_lib_widget" not in proves and "src_libc_widget" not in proves, (
+            "a name imported from two crates resolves to >1 crate -> must not be proven"
+        )

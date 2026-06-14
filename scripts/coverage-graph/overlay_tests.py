@@ -195,6 +195,29 @@ def build_method_index(nodes: list[dict]) -> dict[str, list[dict]]:
     return dict(idx)
 
 
+USE_FIRST_SEG_RE = re.compile(r"\buse\s+(?:::)?([a-z_][a-z0-9_]*)\b")
+_NON_CRATE_USE_ROOTS = frozenset({"crate", "super", "self", "std", "core", "alloc"})
+
+
+def parse_imported_crates(text: str, known_crates: frozenset) -> set:
+    """Return the set of workspace crates a test file imports via ``use`` paths.
+
+    Used to disambiguate a cross-crate assertion to the crate the test actually
+    imported (Task 0.3). Rust paths use underscores while crate directories use
+    hyphens, so ``use vox_db::X`` maps to crate ``vox-db``. Only first path
+    segments that resolve to a real workspace crate are returned.
+    """
+    out: set = set()
+    for m in USE_FIRST_SEG_RE.finditer(text):
+        seg = m.group(1)
+        if seg in _NON_CRATE_USE_ROOTS:
+            continue
+        cand = seg.replace("_", "-")
+        if cand in known_crates:
+            out.add(cand)
+    return out
+
+
 def crate_from_source_file(source_file: str) -> str:
     """Derive crate name from a source_file path like crates/vox-foo/src/bar.rs"""
     parts = source_file.replace("\\", "/").split("/")
@@ -498,6 +521,19 @@ def run_overlay(
 
     print(f"  Extracted {len(all_tests)} test functions ({skipped} files skipped).", flush=True)
 
+    # Known workspace crates (for `use`-import resolution) and the set of crates
+    # each test FILE imports — used to disambiguate cross-crate assertions (0.3).
+    known_crates = frozenset(
+        crate_from_source_file(n.get("source_file", "")) for n in original_nodes
+    ) - {"unknown"}
+    imported_crates_by_file: dict[str, set] = {}
+    for rel_path in {t["rel_path"] for t in all_tests}:
+        try:
+            ftext = (repo / rel_path).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        imported_crates_by_file[rel_path] = parse_imported_crates(ftext, known_crates)
+
     # Build new nodes and edges
     new_nodes = []
     new_links = []
@@ -582,14 +618,30 @@ def run_overlay(
                     selected = same_crate
                     conf = "EXTRACTED" if len(same_crate) == 1 else "AMBIGUOUS"
                 else:
-                    # Path 2: cross-crate fallback — use pruned index, require uniqueness
-                    pruned_candidates = pruned_index.get(ident, [])
-                    if len(pruned_candidates) == 1:
-                        selected = pruned_candidates
-                        conf = "EXTRACTED"
+                    # Path 2a: cross-crate via the test file's `use` imports (0.3).
+                    # Restrict full-index DEFINITIONS to crates this test imported;
+                    # if they resolve to exactly one crate, credit it.
+                    imported = imported_crates_by_file.get(t["rel_path"], ())
+                    cross = [
+                        c for c in full_index.get(ident, [])
+                        if c.get("id", "").startswith("src_")
+                        and crate_from_source_file(c.get("source_file", "")) in imported
+                    ]
+                    cross_crates = {
+                        crate_from_source_file(c.get("source_file", "")) for c in cross
+                    }
+                    if cross and len(cross_crates) == 1:
+                        selected = cross
+                        conf = "EXTRACTED" if len(cross) == 1 else "AMBIGUOUS"
                     else:
-                        # Cross-crate non-unique or pruned-as-generic: drop
-                        continue
+                        # Path 2b: cross-crate fallback — globally-unique pruned name.
+                        pruned_candidates = pruned_index.get(ident, [])
+                        if len(pruned_candidates) == 1:
+                            selected = pruned_candidates
+                            conf = "EXTRACTED"
+                        else:
+                            # Cross-crate non-unique or pruned-as-generic: drop
+                            continue
 
             conf_score = 1.0 if conf == "EXTRACTED" else 0.5
 
