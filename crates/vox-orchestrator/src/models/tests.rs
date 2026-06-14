@@ -524,11 +524,7 @@ mod semcov_wave34_tests {
     fn penalty_blocks_model_during_active_window() {
         // Catches: is_penalized returning false for a freshly set penalty
         let mut r = ModelRegistry::default();
-        r.record_penalty(
-            "blocked".into(),
-            TaskCategory::Research,
-            D_60S,
-        );
+        r.record_penalty("blocked".into(), TaskCategory::Research, D_60S);
         assert!(
             r.is_penalized("blocked", TaskCategory::Research),
             "active penalty must block model"
@@ -544,11 +540,7 @@ mod semcov_wave34_tests {
     fn penalty_does_not_affect_different_model() {
         // Catches: penalty key collision (e.g., using only category as key)
         let mut r = ModelRegistry::default();
-        r.record_penalty(
-            "alpha".into(),
-            TaskCategory::CodeGen,
-            D_60S,
-        );
+        r.record_penalty("alpha".into(), TaskCategory::CodeGen, D_60S);
         assert!(
             !r.is_penalized("beta", TaskCategory::CodeGen),
             "penalty on alpha must not leak to beta"

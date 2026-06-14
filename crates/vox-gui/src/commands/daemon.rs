@@ -14,7 +14,7 @@ use std::process::{Command, Stdio};
 
 use tokio::sync::OnceCell;
 use vox_cli_core::daemon_ipc::process_supervision::resolve_managed_binary_path;
-use vox_config::timeouts::{D_100MS, D_15S};
+use vox_config::timeouts::{D_15S, D_100MS};
 use vox_orchestrator::orch_daemon::OrchDaemonClient;
 
 /// Deadline for the spawned daemon to become reachable via ping.

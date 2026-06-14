@@ -10,6 +10,7 @@ use crate::shape::ShapeFeatures;
 use crate::walk::CommitRecord;
 use async_trait::async_trait;
 use std::time::Duration;
+#[cfg(test)]
 use vox_config::timeouts::EFFORT_AUDIT_JUDGE_TIMEOUT;
 
 #[derive(Debug, Clone)]

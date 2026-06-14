@@ -1,4 +1,3 @@
-use vox_config::timeouts::HTTP_REQUEST; // HTTP_REQUEST = 30s
 use super::shell_stdlib::{
     interp_csv_parse, interp_csv_parse_records, interp_csv_render, interp_fs_list_dir_detailed,
     interp_fs_stat, interp_io_open, interp_io_save, interp_process_run_capture_json,
@@ -10,6 +9,7 @@ use secrecy::ExposeSecret;
 use std::rc::Rc;
 use std::sync::Mutex;
 use std::sync::OnceLock;
+use vox_config::timeouts::HTTP_REQUEST; // HTTP_REQUEST = 30s
 
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
 

@@ -18,7 +18,7 @@ use vox_config::paths::REPO_VOX_MD_FILE;
 pub const MAX_IMPORT_DEPTH: usize = 5;
 
 /// Candidate project-file locations, in precedence order.
-const PROJECT_FILE_NAMES: &[&str] = &["VOX.md", ".vox/VOX.md"];
+const PROJECT_FILE_NAMES: &[&str] = &["VOX.md", REPO_VOX_MD_FILE];
 
 /// Discover and load the workspace `VOX.md`, resolving `@path` imports into one
 /// ready-to-inject block. Returns `None` when no project file exists or it is empty.

@@ -8,6 +8,7 @@
 use crate::cluster::Embedder;
 use async_trait::async_trait;
 use std::time::Duration;
+#[cfg(test)]
 use vox_config::timeouts::HTTP_REQUEST;
 
 /// Embeds finding rationales through the model-agnostic facade.

@@ -13,6 +13,7 @@ use crate::{
 };
 use std::path::Path;
 use std::time::{Duration, Instant};
+#[cfg(test)]
 use vox_config::timeouts::OP_SHORT;
 
 pub struct BehavioralGoldensSubcommand;

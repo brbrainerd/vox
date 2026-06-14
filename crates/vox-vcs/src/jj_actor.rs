@@ -41,7 +41,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::Duration;
 use tokio::sync::oneshot;
-use vox_config::timeouts::{D_5S, D_10S, D_30S, D_250MS};
+use vox_config::timeouts::D_30S;
 
 /// Upper bound on a single jj operation inside the actor. Remote push/fetch shell
 /// out to `git` and can legitimately take a while, so this is deliberately
