@@ -134,3 +134,56 @@ mod tests {
         assert!((c - 0.5).abs() < 1e-9);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn symbol_error_rate_perfect_match() {
+        let ser = symbol_error_rate("getUser setUser", "getUser setUser");
+        assert!((ser - 0.0).abs() < f64::EPSILON, "expected 0.0, got {ser}");
+    }
+
+    #[test]
+    fn symbol_error_rate_one_substitution() {
+        // ref has 2 identifiers; hypothesis substitutes one
+        let ser = symbol_error_rate("getUser setUser", "getUser deleteUser");
+        assert!((ser - 0.5).abs() < 1e-9, "expected 0.5, got {ser}");
+    }
+
+    #[test]
+    fn symbol_error_rate_ignores_non_identifiers() {
+        // punctuation and numbers are filtered out before comparison
+        let ser = symbol_error_rate("foo 123 bar", "foo 456 bar");
+        // only 'foo' and 'bar' count; both match -> 0.0
+        assert!((ser - 0.0).abs() < f64::EPSILON, "expected 0.0, got {ser}");
+    }
+
+    #[test]
+    fn symbol_error_rate_empty_both() {
+        let ser = symbol_error_rate("123 456", "789");
+        // no identifiers on either side
+        assert!(
+            (ser - 0.0).abs() < f64::EPSILON,
+            "expected 0.0 for no-ident inputs, got {ser}"
+        );
+    }
+
+    #[test]
+    fn symbol_error_rate_empty_ref_nonempty_hyp() {
+        // ref has no identifiers; hyp has one -> returns 1.0
+        let ser = symbol_error_rate("123", "foo");
+        assert!((ser - 1.0).abs() < f64::EPSILON, "expected 1.0, got {ser}");
+    }
+
+    #[test]
+    fn symbol_error_rate_underscore_ident_counted() {
+        let ser = symbol_error_rate("_priv_helper", "_priv_helper");
+        assert!(
+            (ser - 0.0).abs() < f64::EPSILON,
+            "underscore-leading ident should match"
+        );
+    }
+}

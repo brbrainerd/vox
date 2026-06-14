@@ -83,3 +83,45 @@ pub fn score_with_config(input: &GateInput<'_>, _config: &GateConfig) -> Confide
         score: raw.clamp(0.0, 1.0),
     }
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::research::types::RoutingTier;
+
+    #[test]
+    fn routing_tier_for_high_score_returns_direct() {
+        let signal = ConfidenceSignal { score: 0.9 };
+        let tier = signal.routing_tier_for(0.7, 0.4, 0.2);
+        assert!(matches!(tier, RoutingTier::Direct));
+    }
+
+    #[test]
+    fn routing_tier_for_mid_score_returns_light() {
+        let signal = ConfidenceSignal { score: 0.5 };
+        let tier = signal.routing_tier_for(0.7, 0.4, 0.2);
+        assert!(matches!(tier, RoutingTier::Light));
+    }
+
+    #[test]
+    fn routing_tier_for_low_nonzero_score_returns_deep_research() {
+        let signal = ConfidenceSignal { score: 0.1 };
+        let tier = signal.routing_tier_for(0.7, 0.4, 0.2);
+        assert!(matches!(tier, RoutingTier::DeepResearch));
+    }
+
+    #[test]
+    fn routing_tier_for_exact_direct_threshold_returns_direct() {
+        let signal = ConfidenceSignal { score: 0.7 };
+        let tier = signal.routing_tier_for(0.7, 0.4, 0.2);
+        assert!(matches!(tier, RoutingTier::Direct));
+    }
+
+    #[test]
+    fn routing_tier_for_exact_light_threshold_returns_light() {
+        let signal = ConfidenceSignal { score: 0.4 };
+        let tier = signal.routing_tier_for(0.7, 0.4, 0.2);
+        assert!(matches!(tier, RoutingTier::Light));
+    }
+}

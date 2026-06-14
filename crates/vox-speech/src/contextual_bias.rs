@@ -85,3 +85,51 @@ mod tests {
         assert!(v.iter().filter(|x| *x == "a").count() == 1);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn parse_hotword_csv_comma_separated() {
+        let result = parse_hotword_csv("hello,world,foo");
+        assert_eq!(result, vec!["hello", "world", "foo"]);
+    }
+
+    #[test]
+    fn parse_hotword_csv_semicolon_separated() {
+        let result = parse_hotword_csv("alpha;beta;gamma");
+        assert_eq!(result, vec!["alpha", "beta", "gamma"]);
+    }
+
+    #[test]
+    fn parse_hotword_csv_newline_separated() {
+        let result = parse_hotword_csv("one\ntwo\nthree");
+        assert_eq!(result, vec!["one", "two", "three"]);
+    }
+
+    #[test]
+    fn parse_hotword_csv_trims_whitespace() {
+        let result = parse_hotword_csv("  foo  ,  bar  ");
+        assert_eq!(result, vec!["foo", "bar"]);
+    }
+
+    #[test]
+    fn parse_hotword_csv_filters_empty_entries() {
+        let result = parse_hotword_csv("a,,b,");
+        assert_eq!(result, vec!["a", "b"]);
+    }
+
+    #[test]
+    fn parse_hotword_csv_empty_input_returns_empty() {
+        let result = parse_hotword_csv("");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn parse_hotword_csv_mixed_delimiters() {
+        let result = parse_hotword_csv("a,b;c\nd");
+        assert_eq!(result, vec!["a", "b", "c", "d"]);
+    }
+}

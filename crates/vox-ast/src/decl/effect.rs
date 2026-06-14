@@ -76,3 +76,124 @@ impl std::fmt::Display for EffectAnnotation {
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    use super::*;
+
+    #[test]
+    fn from_keyword_known_variants() {
+        assert_eq!(
+            EffectAnnotation::from_keyword("net"),
+            Some(EffectAnnotation::Net)
+        );
+        assert_eq!(
+            EffectAnnotation::from_keyword("db"),
+            Some(EffectAnnotation::Db)
+        );
+        assert_eq!(
+            EffectAnnotation::from_keyword("fs"),
+            Some(EffectAnnotation::Fs)
+        );
+        assert_eq!(
+            EffectAnnotation::from_keyword("env"),
+            Some(EffectAnnotation::Env)
+        );
+        assert_eq!(
+            EffectAnnotation::from_keyword("clock"),
+            Some(EffectAnnotation::Clock)
+        );
+        assert_eq!(
+            EffectAnnotation::from_keyword("random"),
+            Some(EffectAnnotation::Random)
+        );
+        assert_eq!(
+            EffectAnnotation::from_keyword("spawn"),
+            Some(EffectAnnotation::Spawn)
+        );
+        assert_eq!(
+            EffectAnnotation::from_keyword("gpu_compute"),
+            Some(EffectAnnotation::GpuCompute)
+        );
+        assert_eq!(
+            EffectAnnotation::from_keyword("mutate"),
+            Some(EffectAnnotation::Mutate)
+        );
+        assert_eq!(
+            EffectAnnotation::from_keyword("vcs"),
+            Some(EffectAnnotation::Vcs)
+        );
+        assert_eq!(
+            EffectAnnotation::from_keyword("nothing"),
+            Some(EffectAnnotation::Nothing)
+        );
+    }
+
+    #[test]
+    fn from_keyword_unknown_returns_none() {
+        assert_eq!(EffectAnnotation::from_keyword("unknown"), None);
+        assert_eq!(EffectAnnotation::from_keyword(""), None);
+        assert_eq!(EffectAnnotation::from_keyword("mcp"), None);
+        assert_eq!(EffectAnnotation::from_keyword("NET"), None);
+    }
+
+    #[test]
+    fn as_str_plain_variants() {
+        let cases = [
+            (EffectAnnotation::Net, "net"),
+            (EffectAnnotation::Db, "db"),
+            (EffectAnnotation::Fs, "fs"),
+            (EffectAnnotation::Env, "env"),
+            (EffectAnnotation::Clock, "clock"),
+            (EffectAnnotation::Random, "random"),
+            (EffectAnnotation::Spawn, "spawn"),
+            (EffectAnnotation::GpuCompute, "gpu_compute"),
+            (EffectAnnotation::Mutate, "mutate"),
+            (EffectAnnotation::Vcs, "vcs"),
+            (EffectAnnotation::Nothing, "nothing"),
+        ];
+        for (variant, expected) in &cases {
+            assert_eq!(variant.as_str(), *expected);
+        }
+    }
+
+    #[test]
+    fn as_str_mcp_returns_mcp_regardless_of_tool_name() {
+        let e = EffectAnnotation::Mcp("browser".to_string());
+        assert_eq!(e.as_str(), "mcp");
+    }
+
+    #[test]
+    fn display_plain_variants() {
+        assert_eq!(EffectAnnotation::Net.to_string(), "net");
+        assert_eq!(EffectAnnotation::Nothing.to_string(), "nothing");
+        assert_eq!(EffectAnnotation::GpuCompute.to_string(), "gpu_compute");
+    }
+
+    #[test]
+    fn display_mcp_includes_tool_name() {
+        let e = EffectAnnotation::Mcp("read_file".to_string());
+        assert_eq!(e.to_string(), "mcp(read_file)");
+    }
+
+    #[test]
+    fn from_keyword_then_as_str_identity() {
+        let keywords = [
+            "net",
+            "db",
+            "fs",
+            "env",
+            "clock",
+            "random",
+            "spawn",
+            "gpu_compute",
+            "mutate",
+            "vcs",
+            "nothing",
+        ];
+        for kw in &keywords {
+            let variant = EffectAnnotation::from_keyword(kw).unwrap();
+            assert_eq!(variant.as_str(), *kw, "round-trip failed for {kw}");
+        }
+    }
+}

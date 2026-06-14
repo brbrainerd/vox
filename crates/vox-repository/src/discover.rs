@@ -136,3 +136,40 @@ mod tests {
         assert!(ctx.capabilities.vox_project);
     }
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn parse_origin_from_git_config_extracts_url() {
+        let config = "[core]\n    repositoryformatversion = 0\n[remote \"origin\"]\n    url = https://github.com/example/repo.git\n    fetch = +refs/heads/*:refs/remotes/origin/*\n";
+        let url = parse_origin_from_git_config(config);
+        assert_eq!(url.as_deref(), Some("https://github.com/example/repo.git"));
+    }
+
+    #[test]
+    fn parse_origin_from_git_config_returns_none_when_no_origin() {
+        let config =
+            "[core]\n    repositoryformatversion = 0\n[branch \"main\"]\n    remote = origin\n";
+        let url = parse_origin_from_git_config(config);
+        assert!(url.is_none());
+    }
+
+    #[test]
+    fn parse_origin_from_git_config_ignores_non_origin_remotes() {
+        let config = "[remote \"upstream\"]\n    url = https://github.com/upstream/repo.git\n[remote \"origin\"]\n    url = https://github.com/fork/repo.git\n";
+        let url = parse_origin_from_git_config(config);
+        assert_eq!(url.as_deref(), Some("https://github.com/fork/repo.git"));
+    }
+
+    #[test]
+    fn discover_repository_or_fallback_succeeds_for_temp_dir() {
+        let dir = tempdir().unwrap();
+        // Should not panic — fallback path returns a valid context from CWD
+        let ctx = discover_repository_or_fallback(dir.path());
+        assert!(!ctx.repository_id.is_empty());
+    }
+}

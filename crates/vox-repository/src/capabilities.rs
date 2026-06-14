@@ -265,3 +265,61 @@ mod tests {
         assert!(m.labels.contains(&"pool=b".into()));
     }
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn apply_mesh_env_sets_gpu_cuda_when_env_is_one() {
+        unsafe { std::env::set_var("VOX_MESH_ADVERTISE_GPU", "1") };
+        let mut h = TaskCapabilityHints::default();
+        apply_mesh_capability_env(&mut h);
+        unsafe { std::env::remove_var("VOX_MESH_ADVERTISE_GPU") };
+        assert!(h.gpu_cuda);
+    }
+
+    #[test]
+    fn apply_mesh_env_sets_gpu_cuda_when_env_is_true_mixed_case() {
+        unsafe { std::env::set_var("VOX_MESH_ADVERTISE_GPU", "True") };
+        let mut h = TaskCapabilityHints::default();
+        apply_mesh_capability_env(&mut h);
+        unsafe { std::env::remove_var("VOX_MESH_ADVERTISE_GPU") };
+        assert!(h.gpu_cuda);
+    }
+
+    #[test]
+    fn apply_mesh_env_does_not_set_flag_when_env_absent() {
+        unsafe { std::env::remove_var("VOX_MESH_ADVERTISE_GPU") };
+        let mut h = TaskCapabilityHints::default();
+        apply_mesh_capability_env(&mut h);
+        assert!(!h.gpu_cuda);
+    }
+
+    #[test]
+    fn apply_mesh_env_sets_device_class_from_env() {
+        unsafe { std::env::set_var("VOX_MESH_DEVICE_CLASS", "server") };
+        let mut h = TaskCapabilityHints::default();
+        apply_mesh_capability_env(&mut h);
+        unsafe { std::env::remove_var("VOX_MESH_DEVICE_CLASS") };
+        assert_eq!(h.device_class.as_deref(), Some("server"));
+    }
+
+    #[test]
+    fn probe_host_capabilities_returns_arch() {
+        let h = probe_host_capabilities();
+        // arch is always populated
+        assert!(h.arch.is_some());
+        let arch = h.arch.unwrap();
+        assert!(!arch.is_empty());
+    }
+
+    #[test]
+    fn probe_host_capabilities_cpu_cores_positive() {
+        let h = probe_host_capabilities();
+        if let Some(cores) = h.cpu_cores {
+            assert!(cores >= 1);
+        }
+    }
+}

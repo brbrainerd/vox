@@ -255,3 +255,32 @@ pub fn search_plan_value(plan: &SearchPlan) -> Value {
 pub fn diagnostics_value(diag: &SearchDiagnostics) -> Value {
     serde_json::to_value(diag).unwrap_or(Value::Null)
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use vox_db::{SearchDiagnostics, SearchPlan};
+
+    #[test]
+    fn search_plan_value_returns_object_for_default_plan() {
+        let plan = SearchPlan::default();
+        let v = search_plan_value(&plan);
+        assert!(v.is_object(), "expected JSON object, got {:?}", v);
+    }
+
+    #[test]
+    fn diagnostics_value_returns_object_for_default_diag() {
+        let diag = SearchDiagnostics::default();
+        let v = diagnostics_value(&diag);
+        assert!(v.is_object(), "expected JSON object, got {:?}", v);
+    }
+
+    #[test]
+    fn diagnostics_value_captures_policy_version() {
+        let mut diag = SearchDiagnostics::default();
+        diag.policy_version = 42;
+        let v = diagnostics_value(&diag);
+        assert_eq!(v["policy_version"], serde_json::json!(42));
+    }
+}

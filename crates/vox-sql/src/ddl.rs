@@ -191,3 +191,186 @@ mod tests {
         assert_eq!(live_table_name(&t), "legacy_tasks");
     }
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use crate::BackendKind;
+    use vox_ast::decl::CollectionDecl;
+    use vox_ast::span::Span;
+    use vox_ast::types::TypeExpr;
+
+    fn sp() -> Span {
+        Span { start: 0, end: 0 }
+    }
+
+    // --- collection_to_ddl ---
+
+    #[test]
+    fn collection_to_ddl_libsql_generates_correct_schema() {
+        let col = CollectionDecl {
+            name: "UserMessage".to_string(),
+            fields: vec![],
+            description: None,
+            is_pub: false,
+            has_spread: false,
+            span: sp(),
+        };
+        let ddl = collection_to_ddl(BackendKind::Libsql, &col)
+            .expect("Libsql collection DDL should succeed");
+        assert!(
+            ddl.contains("user_message"),
+            "table name should be snake_case: {ddl}"
+        );
+        assert!(
+            ddl.contains("_id TEXT PRIMARY KEY"),
+            "should include _id TEXT PRIMARY KEY: {ddl}"
+        );
+        assert!(
+            ddl.contains("doc TEXT NOT NULL"),
+            "should include doc column: {ddl}"
+        );
+        assert!(
+            ddl.contains("_creationTime INTEGER NOT NULL"),
+            "should include _creationTime: {ddl}"
+        );
+    }
+
+    #[test]
+    fn collection_to_ddl_non_libsql_returns_error() {
+        let col = CollectionDecl {
+            name: "Msg".to_string(),
+            fields: vec![],
+            description: None,
+            is_pub: false,
+            has_spread: false,
+            span: sp(),
+        };
+        assert!(
+            collection_to_ddl(BackendKind::Postgres, &col).is_err(),
+            "Postgres should be rejected"
+        );
+        assert!(
+            collection_to_ddl(BackendKind::MySql, &col).is_err(),
+            "MySQL should be rejected"
+        );
+    }
+
+    // --- type_expr_to_vox_type ---
+
+    #[test]
+    fn type_expr_to_vox_type_named() {
+        let ty = TypeExpr::Named {
+            name: "str".to_string(),
+            span: sp(),
+        };
+        assert_eq!(type_expr_to_vox_type(&ty), "str");
+    }
+
+    #[test]
+    fn type_expr_to_vox_type_generic_single_arg() {
+        let ty = TypeExpr::Generic {
+            name: "List".to_string(),
+            args: vec![TypeExpr::Named {
+                name: "int".to_string(),
+                span: sp(),
+            }],
+            span: sp(),
+        };
+        assert_eq!(type_expr_to_vox_type(&ty), "List[int]");
+    }
+
+    #[test]
+    fn type_expr_to_vox_type_function_with_params() {
+        let ty = TypeExpr::Function {
+            params: vec![
+                TypeExpr::Named {
+                    name: "str".to_string(),
+                    span: sp(),
+                },
+                TypeExpr::Named {
+                    name: "int".to_string(),
+                    span: sp(),
+                },
+            ],
+            return_type: Box::new(TypeExpr::Named {
+                name: "bool".to_string(),
+                span: sp(),
+            }),
+            span: sp(),
+        };
+        assert_eq!(type_expr_to_vox_type(&ty), "fn(str, int) -> bool");
+    }
+
+    #[test]
+    fn type_expr_to_vox_type_tuple() {
+        let ty = TypeExpr::Tuple {
+            elements: vec![
+                TypeExpr::Named {
+                    name: "int".to_string(),
+                    span: sp(),
+                },
+                TypeExpr::Named {
+                    name: "str".to_string(),
+                    span: sp(),
+                },
+            ],
+            span: sp(),
+        };
+        assert_eq!(type_expr_to_vox_type(&ty), "(int, str)");
+    }
+
+    #[test]
+    fn type_expr_to_vox_type_unit() {
+        let ty = TypeExpr::Unit { span: sp() };
+        assert_eq!(type_expr_to_vox_type(&ty), "Unit");
+    }
+
+    #[test]
+    fn type_expr_to_vox_type_infer() {
+        let ty = TypeExpr::Infer { span: sp() };
+        assert_eq!(type_expr_to_vox_type(&ty), "_");
+    }
+
+    #[test]
+    fn type_expr_to_vox_type_decimal() {
+        let ty = TypeExpr::Decimal { span: sp() };
+        assert_eq!(type_expr_to_vox_type(&ty), "dec");
+    }
+
+    // --- to_snake_case ---
+
+    #[test]
+    fn to_snake_case_converts_camel_case() {
+        assert_eq!(to_snake_case("UserProfile"), "user_profile");
+        assert_eq!(to_snake_case("MyHttpRequest"), "my_http_request");
+    }
+
+    #[test]
+    fn to_snake_case_already_snake_is_unchanged() {
+        assert_eq!(to_snake_case("user_profile"), "user_profile");
+        assert_eq!(to_snake_case("task"), "task");
+    }
+
+    #[test]
+    fn to_snake_case_non_alphanumeric_becomes_single_underscore() {
+        assert_eq!(to_snake_case("some-field"), "some_field");
+        assert_eq!(to_snake_case("some field"), "some_field");
+    }
+
+    #[test]
+    fn to_snake_case_consecutive_separators_produce_no_double_underscore() {
+        assert_eq!(to_snake_case("foo--bar"), "foo_bar");
+    }
+
+    #[test]
+    fn to_snake_case_trims_leading_and_trailing_underscores() {
+        assert_eq!(to_snake_case("_Task_"), "task");
+    }
+
+    #[test]
+    fn to_snake_case_digits_break_on_following_uppercase() {
+        assert_eq!(to_snake_case("myField2Name"), "my_field2_name");
+    }
+}

@@ -97,3 +97,112 @@ fn generate_adt(typedef: &HirTypeDef) -> String {
 fn map_type_to_ts(ty: &HirType) -> String {
     vox_compiler::contract_ir::wire_type_to_ts(&vox_compiler::contract_ir::project_type(ty))
 }
+
+#[cfg(test)]
+mod semcov_wave2_tests {
+    #![allow(unused_imports)]
+    use super::*;
+    use vox_compiler::ast::span::Span;
+    use vox_compiler::hir::nodes::{DefId, HirType};
+    use vox_compiler::hir::{HirModule, HirTypeDef, HirVariant};
+
+    fn span() -> Span {
+        Span::new(0, 0)
+    }
+    fn id() -> DefId {
+        DefId(0)
+    }
+
+    // Helper: build a minimal HirModule with no fields set except types.
+    fn module_with_types(types: Vec<HirTypeDef>) -> HirModule {
+        HirModule {
+            types,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn generate_types_struct_typedef_emits_export_type_alias() {
+        // A HirTypeDef with no variants and non-empty fields → struct path.
+        let typedef = HirTypeDef {
+            id: id(),
+            name: "Point".to_string(),
+            variants: vec![],
+            fields: vec![
+                ("x".to_string(), HirType::Named("float".to_string())),
+                ("y".to_string(), HirType::Named("float".to_string())),
+            ],
+            is_pub: true,
+            span: span(),
+        };
+        let hir = module_with_types(vec![typedef]);
+        let out = generate_types(&hir);
+        // Must start with `export type Point =`
+        assert!(out.contains("export type Point ="), "got: {out}");
+        // Must contain both field names
+        assert!(out.contains("readonly x:"), "got: {out}");
+        assert!(out.contains("readonly y:"), "got: {out}");
+        // Must NOT contain union syntax for a struct typedef
+        assert!(
+            !out.contains("_tag"),
+            "struct typedef should not emit _tag: {out}"
+        );
+    }
+
+    #[test]
+    fn generate_types_adt_unit_variant_emits_discriminated_union_and_constructor() {
+        // ADT with one unit variant → discriminated union + const constructor
+        let typedef = HirTypeDef {
+            id: id(),
+            name: "Color".to_string(),
+            variants: vec![
+                HirVariant {
+                    name: "Red".to_string(),
+                    fields: vec![],
+                    span: span(),
+                },
+                HirVariant {
+                    name: "Blue".to_string(),
+                    fields: vec![],
+                    span: span(),
+                },
+            ],
+            fields: vec![],
+            is_pub: true,
+            span: span(),
+        };
+        let hir = module_with_types(vec![typedef]);
+        let out = generate_types(&hir);
+        // Union head
+        assert!(out.contains("export type Color ="), "got: {out}");
+        // Unit variants use _tag with their name
+        assert!(out.contains("\"Red\""), "got: {out}");
+        assert!(out.contains("\"Blue\""), "got: {out}");
+        // Const constructor for the final variant has no semicolon after the union arm
+        assert!(out.contains("export const Red:"), "got: {out}");
+        assert!(out.contains("export const Blue:"), "got: {out}");
+    }
+
+    #[test]
+    fn generate_types_adt_variant_with_fields_emits_arrow_constructor() {
+        // Variant with fields → arrow function constructor
+        let typedef = HirTypeDef {
+            id: id(),
+            name: "Shape".to_string(),
+            variants: vec![HirVariant {
+                name: "Circle".to_string(),
+                fields: vec![("radius".to_string(), HirType::Named("float".to_string()))],
+                span: span(),
+            }],
+            fields: vec![],
+            is_pub: true,
+            span: span(),
+        };
+        let hir = module_with_types(vec![typedef]);
+        let out = generate_types(&hir);
+        // Arrow constructor signature present
+        assert!(out.contains("export const Circle = ("), "got: {out}");
+        assert!(out.contains("): Shape =>"), "got: {out}");
+        assert!(out.contains("_tag: \"Circle\""), "got: {out}");
+    }
+}
