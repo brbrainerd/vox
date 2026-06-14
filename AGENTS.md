@@ -55,7 +55,28 @@ Install the pre-commit hooks once after cloning: `vox run scripts/install-hooks.
 
 Manually-maintained files that **are** safe to edit:
 - `docs/src/adr/index.md`, `docs/src/adr/README.md` — hand-rolled ADR tables, not generated.
+- `docs/src/architecture/research-index.md` — a hand-curated SSOT index (manual frontmatter), **not** generated despite the name. Edit it directly.
 - Individual ADR / architecture / how-to / tutorial / reference markdown files — these are the **sources** the generators read from.
+
+**Reading diffs cheaply (agents).** Tracked generated artifacts are marked
+`linguist-generated`/`-diff` in `.gitattributes`, so GitHub and local `git show`/`git diff`
+already collapse them to "Binary files differ" — you never pay to read regenerated text.
+The set: `docs/src/**/*.generated.md`, `contracts/reports/gui-surface-{coverage,registry}.v1.json`,
+`crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt`, and `Cargo.lock` (collapsed
+on GitHub, kept locally diffable for supply-chain review). The Astro/index files
+(`SUMMARY.md`, `feed.xml`, `architecture-index.md`) are `.gitignore`d, so they are not in diffs
+at all. If a range still surfaces generated noise, exclude it explicitly rather than reading it,
+e.g. `git diff <base>..<head> -- . ':(exclude)Cargo.lock' ':(exclude)contracts/reports/*.v1.json'`.
+To understand a generated change, read the generator's **input**, never the regenerated output line-by-line.
+
+**Do not hand-regenerate SSOT after a merge.** Mechanical SSOT drift on a pull request is
+regenerated and committed automatically by the `ssot-autoregen` job in `.github/workflows/ci.yml`
+(same-repo PRs; it re-runs every generator `ssot-drift` verifies — `run_ssot_drift` in
+`crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs` — with `--write`). So if you see a
+generated artifact drift, fix it at the source (the generator or its input); do **not** open a
+`fix(#N): regenerate … after merge` commit — that pattern cost 60+ commits historically.
+(Activation requires the repo secret `SSOT_AUTOREGEN_TOKEN`; without it the bot still commits but
+the gate must be nudged manually.)
 
 ## Authored Markdown Frontmatter (Required)
 
@@ -189,8 +210,6 @@ All project automation — CI prep, corpus transforms, training pipelines, insta
 - Subprocess calls go through `vox-actor-runtime` process primitives (telemetry-observable)
 - Use the secrets crate (`vox_secrets::resolve_secret(...)`) for secrets — never `env.get("MY_KEY")` for sensitive values
 
-**Do NOT use Python or shell for glue.** Vox is the glue language. Python and shell are retired glue surfaces in this repository.
-
 **Formatting Rust (Windows-safe).** Never run `cargo fmt --all` on this workspace — it passes every crate's target root to a single `rustfmt` process, which overflows the Windows `CreateProcess` command-line limit and dies with `os error 206` ("The filename or extension is too long"). Format the whole workspace with:
 
 ```
@@ -231,29 +250,15 @@ Decorators compose with bare-keyword blocks:
 that can be expressed as a decorator. New execution semantics (durability,
 tracing, sandboxing, rate-limiting) belong as decorators on `fn`.
 
-**Implementation status (2026-05-23, ADR-041 supersedes ADR-028).** `actor`,
-`workflow`, `activity`, `@durable`, and `@scheduled` are **stable public-grammar
-features** backed by a real durable runtime for the supported subset (see
-[ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md),
-[ADR-021](docs/src/adr/021-generated-workflow-durability-parity.md), and
-[ADR-041](docs/src/adr/041-durable-functions-completion-2026.md)). The earlier
-`check_adr028_reserved_keywords` source-text gate in `crates/vox-compiler/src/pipeline.rs`
-that emitted error code `E028` has been **removed**; E028 is retired.
-Out-of-subset behavior (arbitrary `match` replay, unbounded loops, non-deterministic
-ops in workflow bodies) is still policed — but by the determinism lint pass, not
-the old reservation gate. The 2026-05-01 stub-only state described in
-[`durability-runtime-audit-2026.md`](docs/src/architecture/durability-runtime-audit-2026.md)
-was closed by Phases 1–6 of
-[`docs/superpowers/plans/2026-05-23-durable-functions-completion.md`](docs/superpowers/plans/2026-05-23-durable-functions-completion.md).
-
-The `vox ci retirement-audit` gate (planned per
-[CR-L6](docs/src/architecture/v1-llm-target-implementation-plan-2026.md) P1.3)
-will fail CI on drift between this section and the actual parse-time enforcement
-in `pipeline.rs`. Until that gate lands, the
-[`docs-reality-audit-program`](docs/src/contributors/docs-reality-audit-program.md)
-catches this drift quarterly.
-
-See: [`docs/src/architecture/gui-native-roadmap-status-2026.md`](docs/src/architecture/gui-native-roadmap-status-2026.md) §Phase 2; [`docs/src/architecture/durability-runtime-audit-2026.md`](docs/src/architecture/durability-runtime-audit-2026.md).
+**Implementation status (ADR-041 supersedes ADR-028).** `actor`, `workflow`, `activity`,
+`@durable`, and `@scheduled` are **stable public-grammar features** backed by a durable runtime
+for the supported subset; the old `E028` reservation gate is **removed**, and out-of-subset
+behavior is now policed by the determinism lint, not a reservation gate. Supported subset +
+contract: [ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md),
+[ADR-021](docs/src/adr/021-generated-workflow-durability-parity.md),
+[ADR-041](docs/src/adr/041-durable-functions-completion-2026.md). Drift between this section and
+`pipeline.rs` is caught by the [`docs-reality-audit-program`](docs/src/contributors/docs-reality-audit-program.md)
+(and the planned `vox ci retirement-audit` gate, [CR-L6](docs/src/architecture/v1-llm-target-implementation-plan-2026.md) P1.3).
 
 ## Cross-Platform Shell Discipline (Stable Rules)
 
@@ -339,6 +344,18 @@ Use `vox ci pre-push` to run any tier locally. Install the hook once with `cargo
 **Slow-test partition** (`--include-slow`): runs three `#[ignore = "slow; ..."]` tests that are excluded by default. CI always sets this flag. The 3 tests are: `arch_check_live_workspace_smoke_and_description_rule`, `timeout_kills_long_running_child`, `generated_ai_fixture_bundle_passes_cargo_check`.
 
 **Budget enforcement:** `--enforce-budgets` compares total elapsed against `contracts/budgets/test-tier-budgets.v1.yaml` (warn at 1.2×, fail at 1.5× measured baseline). No-op if the budgets file is absent. CI also runs `vox ci tier-budget-check --junit target/nextest/ci/junit.xml --profile full` after each nextest run.
+
+## Perennial Bug Patterns (catch early)
+
+> Derived from scanning 528 `fix()` commits — these classes recur. Each line is the cheapest place to catch the class before it lands again.
+
+- **Toolchain-bump lint waves (the #1 perennial).** Every `rust-toolchain.toml` bump (1.92→1.95→1.96…) introduces new `clippy`/`rustdoc` lints that fire workspace-wide and need a cleanup commit (e.g. `manual_is_multiple_of`, `field_reassign_with_default` arrived in 1.96). **Cached clippy hides them.** When bumping the toolchain, run a FRESH check before merging the bump: `CARGO_INCREMENTAL=0 cargo clippy --workspace --all-targets -- -D warnings` and `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps`. A CI gate that does this when `rust-toolchain.toml` changes is the durable catch.
+- **Pre-push clippy gap.** The `fast`/default pre-push hook does **not** run clippy (only `--complete` and above do) — ~45 fixes were clippy errors that landed then got cleaned up. Before pushing Rust changes, run `vox ci pre-push --complete` or `cargo clippy -p <touched-crate> -- -D warnings`. Recurring offenders: `unused_mut`, `field_reassign_with_default`, `len_zero`, `needless_range_loop`.
+- **Doc fences compiled as unintended doctests.** A bare or `rust`-tagged fence in docs is compiled as a doctest; example snippets that aren't meant to compile fail the rustdoc gate ("annotate as `text` so it isn't compiled as Rust" recurs). Mark non-compiling examples ` ```text `; for `vox` excerpts use ` ```vox ` + a leading `// vox:skip` with a reason (see §Markdown Hygiene).
+- **Async handler / async-test regression (codegen).** `@query`/`@mutation` handler emission must `await` (handler_await); and merges have silently reverted async tests to sync (`vox-vcs` cas_fallback). On a merge that touches async code/tests, re-confirm they're still `async` before pushing.
+- **SSOT / schema drift** (largest class, 103 fixes) — already gated by `vox ci ssot-drift` (+ the `ssot-autoregen` PR bot). Don't hand-regenerate after merge; see §Local CI Gate Tiers.
+
+Coverage of these classes by detector + severity + enforcement point (and the still-open gaps) is tracked in [`detector-coverage-ledger.md`](docs/src/contributors/detector-coverage-ledger.md) — add a row when you add a detector.
 
 ## PR & Review Discipline (Required, Cross-Tool)
 

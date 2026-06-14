@@ -95,6 +95,156 @@ jobs:
           path: target/debug/vox
           if-no-files-found: error
 
+  # SSOT auto-regenerate (PR helper, NON-required): regenerate the committed SSOT
+  # artifacts that guards-fast → `vox ci ssot-drift` verifies, and commit the result back
+  # to the PR branch. Removes the manual "regenerate after merge" round-trip — instead of
+  # ssot-drift hard-failing and a human running `vox ci <gen> --write` + committing, the bot
+  # does it. The generators are DETERMINISTIC (verified locally: a second run yields byte-
+  # identical output), so a re-run produces no diff → no commit → the loop self-terminates
+  # after at most one regen commit. Nothing `needs:` this job, so it can never block the
+  # required "Check, Build, and Test (Rust)" gate. Reuses the vox-cli built by `setup`.
+  #
+  # DEPLOYMENT PREREQUISITE: set repo secret `SSOT_AUTOREGEN_TOKEN` to a PAT or GitHub App
+  # token with `contents: write`. The default GITHUB_TOKEN can push but its pushes do NOT
+  # re-trigger workflows, so the required gate would not re-run on the bot's commit (PR would
+  # be unmergeable). With the PAT, the bot's push starts a fresh CI run that re-verifies the
+  # regenerated files. Without the secret it falls back to GITHUB_TOKEN: the bot still
+  # regenerates + commits, but a maintainer must nudge the gate (e.g. close/reopen the PR).
+  ssot-autoregen:
+    name: SSOT auto-regenerate (PR)
+    needs: setup
+    # Same-repo PRs only — fork PRs get a read-only token and fall back to manual regen.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 15
+    permissions:
+      contents: write   # job-scoped override (workflow default is contents: read) to push the regen commit
+    steps:
+      # Pinned to immutable SHAs because this job has `contents: write` (tags can be
+      # re-pointed after creation). SHAs verified equal to v6 / v4 at PR time. The rest of
+      # ci.yml intentionally uses tag refs per repo convention — only this privileged job is
+      # hardened. persist-credentials:false avoids leaving the clone token in .git/config;
+      # the push step below authenticates explicitly via PUSH_TOKEN.
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: vox-cli-bin
+          path: target/debug
+      - name: Ensure vox-cli executable
+        run: chmod +x target/debug/vox
+      - name: Regenerate committed SSOT artifacts
+        shell: bash
+        run: |
+          set -uo pipefail
+          # SOURCE OF TRUTH for this list: run_ssot_drift() in
+          # crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs — each generator it
+          # verifies in read-only mode is re-run here with its --write flag. Keep in sync
+          # when that function gains/loses a generator.
+          VOX=./target/debug/vox
+          for cmd in \
+            "operations-sync --target all --write" \
+            "command-sync --write" \
+            "generate-plugin-catalog-docs" \
+            "plugin-catalog-sync --write" \
+            "plugin-surface-sync --write" \
+            "plugin-skill-parity --write" \
+            "gui-version-sync --write" \
+            "capability-sync --write" \
+            "gui-surface-coverage --write" \
+            "gui-surface-registry --write"; do
+            echo "::group::vox ci $cmd"
+            # Best-effort: a generator that errors (not just rewrites) is surfaced as a
+            # warning but does not fail the job — the ssot-drift gate still verifies it.
+            # $cmd is deliberately unquoted so its words split into subcommand + flags.
+            # shellcheck disable=SC2086
+            $VOX --quiet ci $cmd || echo "::warning::regenerator failed: vox ci $cmd"
+            echo "::endgroup::"
+          done
+      - name: Commit regenerated artifacts to the PR branch (only if drift)
+        shell: bash
+        env:
+          PR_HEAD_REF: ${{ github.head_ref }}
+          # PAT (preferred) makes the push re-trigger CI; github.token is the fallback.
+          # Passed via env (not inline ${{ }}) to avoid expression injection in the run block.
+          PUSH_TOKEN: ${{ secrets.SSOT_AUTOREGEN_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "SSOT artifacts already fresh — nothing to commit."
+            exit 0
+          fi
+          echo "Regeneration changed:"; git diff --name-only
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          # NO [skip ci]: the regenerated commit must be re-verified by the gate. The
+          # generators are deterministic, so the re-triggered run regenerates identically,
+          # finds no diff, and does not commit again — the loop terminates.
+          git commit -m "chore(ssot): auto-regenerate drifted SSOT artifacts (deterministic; ci.yml ssot-autoregen)"
+          # Explicit one-shot HTTPS token auth (checkout used persist-credentials:false, so no
+          # credentials linger in .git/config for later steps). GITHUB_REPOSITORY is set by Actions.
+          git push "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${PR_HEAD_REF}"
+
+  # Toolchain-bump lint-wave gate (NON-required). Every `rust-toolchain.toml` bump introduces
+  # new clippy/rustdoc lints that fire workspace-wide; on the self-hosted fleet the persisted
+  # `target/` + sccache MASK them, so they land and need a cleanup commit (the #1 perennial in
+  # the 528-fix-commit scan). This job runs a FRESH (cache-defeated) clippy+rustdoc ONLY when
+  # rust-toolchain.toml changed in the PR, surfacing the wave in the bumping PR. Nothing
+  # `needs:` it, so it can never block the required "Check, Build, and Test (Rust)" gate.
+  toolchain-lint-wave:
+    name: Fresh clippy+rustdoc on toolchain bump
+    needs: setup
+    if: github.event_name == 'pull_request'
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Detect rust-toolchain.toml change
+        id: tc
+        shell: bash
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1 || true
+          # -F (fixed string) so the '.' is literal; -x (whole line) so only the root file matches.
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qxF 'rust-toolchain.toml'; then
+            echo "rust-toolchain.toml changed — running fresh clippy+rustdoc"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rust-toolchain.toml unchanged — skipping the cold rebuild"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.tc.outputs.changed == 'true'
+        with:
+          components: rustfmt, clippy
+      - name: Fresh clippy + rustdoc (cache + sccache defeated so the new toolchain re-evaluates)
+        if: steps.tc.outputs.changed == 'true'
+        env:
+          CARGO_INCREMENTAL: "0"
+          # Bypass sccache: a cache hit would serve old-toolchain results and hide new lints.
+          RUSTC_WRAPPER: ""
+        run: |
+          set -euo pipefail
+          # Belt-and-suspenders: explicitly unset (the env "" above overrides the workflow-level
+          # sccache, and this guarantees cargo sees no wrapper regardless of GHA env semantics).
+          unset RUSTC_WRAPPER
+          cargo clean
+          # Allowlist MUST stay in lockstep with the `lints` job's clippy step below.
+          cargo clippy --workspace --all-targets --exclude vox-gui -- \
+            -D warnings \
+            -A clippy::items_after_test_module \
+            -A clippy::collapsible_match \
+            -A clippy::collapsible_if \
+            -A clippy::should_implement_trait \
+            -A clippy::doc_overindented_list_items \
+            -A clippy::doc_lazy_continuation
+          RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps
+
   guards-fast:
     name: Guards (fast)
     needs: setup

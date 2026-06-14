@@ -211,6 +211,16 @@ pub const RETIRED_CAPACITOR: &str = "vox/retired/capacitor";
 /// `detectors::import_cycles::detect_import_cycles_in_batch`.
 pub const IMPORT_CYCLE: &str = "vox/import/cycle";
 
+/// A function body is byte-identical across two or more (non-platform-sibling) crates —
+/// a split-brain risk where the copies drift apart silently. Detected by
+/// `detectors::cross_crate_dup::detect_cross_crate_dup_in_batch`. Info severity.
+pub const CROSS_CRATE_DUP: &str = "vox/cross-crate/duplicate-logic";
+
+/// A `match` wildcard arm (`_ =>`) returns a neutral/empty value while other arms do real
+/// work — unmatched cases are silently swallowed (the value vanishes). Detected by
+/// `detectors::catch_all_swallow`. Info severity.
+pub const CATCH_ALL_SWALLOW: &str = "vox/catch-all-swallow";
+
 // ---------------------------------------------------------------------------
 // Codegen (Phase 1)
 // ---------------------------------------------------------------------------

@@ -7,15 +7,18 @@
 pre-commit:
   parallel: false
   commands:
-    # Formatting must pass before any other check so CI never sees a format failure
-    # that slipped through locally.
-    # Cross-platform rustfmt check. Uses `vox ci fmt-check` (chunked over crate
-    # target roots) instead of `cargo fmt --all`, which overflows the Windows
-    # command-line limit (os error 206) on this large workspace with long paths.
-    fmt-check:
-      run: cargo run -p vox-cli --quiet -- ci fmt-check
+    # Auto-format and re-stage so a format slip never becomes a separate `style:`
+    # follow-up commit. WRITE side of the fmt gate; the read-side verification
+    # (`vox ci fmt-check`, the "Format Check" step in ci.yml) stays in CI for
+    # contributors without this hook. scripts/fmt.vox chunks `cargo fmt` per crate
+    # because `cargo fmt --all` overflows the Windows command-line limit (os error
+    # 206) on this large workspace. On already-formatted code it no-ops; when the
+    # dev's edited file is misformatted it formats + `stage_fixed` re-stages it.
+    fmt-fix:
+      run: cargo run -p vox-cli --quiet -- run scripts/fmt.vox
+      stage_fixed: true
       glob: "**/*.rs"
-      fail_text: "rustfmt check failed. Run `cargo fmt` to fix."
+      fail_text: "rustfmt could not format (likely a syntax error). Fix the parse error, then re-commit."
 
     sync-ignore-files:
       run: cargo run -p vox-cli --quiet -- ci sync-ignore-files

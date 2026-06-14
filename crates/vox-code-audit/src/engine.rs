@@ -318,6 +318,13 @@ impl ToestubEngine {
             }
         }
 
+        // Batch (cross-file) detectors run after the per-file pass — they need the full file
+        // set. Cross-crate split-brain emits Info findings; on a scoped scan the subset simply
+        // won't contain two copies, so it can't false-positive. The suppression pass below
+        // still applies to these findings.
+        all_findings
+            .extend(crate::detectors::cross_crate_dup::detect_cross_crate_dup_in_batch(&files));
+
         let mut suppressions_applied: usize = 0;
         let mut suppression_counts_by_family: HashMap<String, usize> = HashMap::new();
         all_findings.retain(|f| {
