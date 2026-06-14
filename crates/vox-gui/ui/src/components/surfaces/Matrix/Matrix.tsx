@@ -27,7 +27,10 @@ function HexCell({ intention, onSelect, selected }: { intention: RoutingIntentio
 
   return (
     <button
+      type="button"
       onClick={() => onSelect(intention.id)}
+      aria-pressed={selected}
+      aria-label={`${intention.branch} routing axis (${intention.parent}, ${Math.round(conf * 100)}% weight, ${intention.phase})`}
       className="group relative aspect-[1/1.05] [clip-path:polygon(50%_0,100%_25%,100%_75%,50%_100%,0_75%,0_25%)] focus:outline-none"
       style={{ background: phaseTone.fill, boxShadow: `inset 0 0 0 1px ${phaseTone.stroke}40` }}
     >
@@ -149,13 +152,20 @@ export function Matrix({ pushToast }: MatrixProps) {
             <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-zinc-500">
               <span>Weight</span><span className="font-mono text-zinc-300">{Math.round(active.conf*100)}%</span>
             </div>
-            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/5">
+            <div
+              className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/5"
+              role="progressbar"
+              aria-valuenow={Math.round(active.conf * 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`${active.branch} routing weight`}
+            >
               <div className="h-full rounded-full bg-gradient-to-r from-violet-400 via-cyan-400 to-emerald-400" style={{ width: `${active.conf*100}%` }} />
             </div>
           </div>
           <div className="mt-4 flex gap-2">
-            <button disabled={busy} onClick={() => nudge(active, 'promote')} className="flex-1 rounded-md border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 font-display text-[11px] uppercase tracking-[0.18em] text-emerald-300 hover:bg-emerald-400/20 transition disabled:opacity-40">Promote</button>
-            <button disabled={busy} onClick={() => nudge(active, 'doubt')}   className="flex-1 rounded-md border border-amber-400/30 bg-amber-400/10 px-3 py-2 font-display text-[11px] uppercase tracking-[0.18em] text-amber-300 hover:bg-amber-400/20 transition disabled:opacity-40">Doubt</button>
+            <button type="button" disabled={busy} onClick={() => nudge(active, 'promote')} className="flex-1 rounded-md border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 font-display text-[11px] uppercase tracking-[0.18em] text-emerald-300 hover:bg-emerald-400/20 transition disabled:opacity-40">Promote</button>
+            <button type="button" disabled={busy} onClick={() => nudge(active, 'doubt')}   className="flex-1 rounded-md border border-amber-400/30 bg-amber-400/10 px-3 py-2 font-display text-[11px] uppercase tracking-[0.18em] text-amber-300 hover:bg-amber-400/20 transition disabled:opacity-40">Doubt</button>
           </div>
         </div>
       </Glass>
