@@ -7,10 +7,7 @@ mod semcov_wave45_tests {
         SecretError,
         policy::{MissingBehavior, SecretPolicy},
         redact::{contains_secret_material, redact_secrets_from_value},
-        spec::{
-            Profile, RequirementMode, RotationPolicy, SecretBundle, SecretClass, SecretId,
-            SecretMaterialKind, SecretSpec, Workflow, all_specs, managed_secret_env_names,
-        },
+        spec::{SecretBundle, SecretClass, SecretId, all_specs, managed_secret_env_names},
         types::{ResolutionStatus, ResolvedSecret, SecretSource},
     };
     use secrecy::SecretString;
