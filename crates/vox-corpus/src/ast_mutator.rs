@@ -1,7 +1,6 @@
 use rand::Rng;
 use rand::seq::SliceRandom;
 use std::io::Write;
-use vox_compiler::ast::Span;
 use vox_compiler::ast::decl::Module;
 
 #[derive(Debug, Clone)]
