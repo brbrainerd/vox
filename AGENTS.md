@@ -69,6 +69,15 @@ at all. If a range still surfaces generated noise, exclude it explicitly rather 
 e.g. `git diff <base>..<head> -- . ':(exclude)Cargo.lock' ':(exclude)contracts/reports/*.v1.json'`.
 To understand a generated change, read the generator's **input**, never the regenerated output line-by-line.
 
+**Do not hand-regenerate SSOT after a merge.** Mechanical SSOT drift on a pull request is
+regenerated and committed automatically by the `ssot-autoregen` job in `.github/workflows/ci.yml`
+(same-repo PRs; it re-runs every generator `ssot-drift` verifies — `run_ssot_drift` in
+`crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs` — with `--write`). So if you see a
+generated artifact drift, fix it at the source (the generator or its input); do **not** open a
+`fix(#N): regenerate … after merge` commit — that pattern cost 60+ commits historically.
+(Activation requires the repo secret `SSOT_AUTOREGEN_TOKEN`; without it the bot still commits but
+the gate must be nudged manually.)
+
 ## Authored Markdown Frontmatter (Required)
 
 Every Markdown file you **create or substantially author** under `docs/src/` (excluding the auto-generated files above and `docs/src/archive/`) MUST begin with a YAML frontmatter block. This is not optional: the `vox-doc-pipeline` lint runs in the pre-push hook and on CI, and a missing or malformed block blocks the merge.
