@@ -1,0 +1,6 @@
+ci(codeql): exclude `vox-gui` from Rust analysis build
+scale: ~6 lines across 1 files [XS]
+
+- `.github/workflows/codeql.yml`: Modified the `cargo build` command for Rust CodeQL analysis to exclude the `vox-gui` crate using `--exclude vox-gui`. This prevents a compile-time panic in `tauri::generate_context!()` due to the frontend (`ui/dist`) not being built in this job. Added comments explaining the exclusion.
+
+--- audit: original='ci(codeql): exclude vox-gui from the analysis build (needs built frontend)' | actual=6L across 1 files | derived=full ---
