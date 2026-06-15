@@ -1,0 +1,11 @@
+fix(docs): Correct frontmatter in 5 documents to resolve lint errors
+scale: ~20 lines across 6 files [M]
+
+- `docs/src/architecture/adr-042-vox-populi-types.md`: Changed `status` from "accepted" to "current".
+- `docs/src/architecture/session-handoff-2026-05-24-lost-work-audit.md`: Changed `category` from "Session handoffs" to "Architecture SSOTs" and `status` from "active" to "current".
+- `docs/src/architecture/free-by-default-audit-2026-05-24.md`: Added a complete YAML frontmatter block including `title`, `description`, `category`, `status`, `last_updated`, `training_eligible`, and `sort_order`.
+- `crates/vox-plugin-catalog/src/docs.rs`: Updated the `category` in `CATALOG_FRONTMATTER` and `BUNDLES_FRONTMATTER` from "reference" to "Language Reference".
+- `docs/src/reference/plugin-catalog.generated.md`: The generated frontmatter now reflects the `Language Reference` category change from `crates/vox-plugin-catalog/src/docs.rs`.
+- `docs/src/reference/distribution-bundles.generated.md`: The generated frontmatter now reflects the `Language Reference` category change from `crates/vox-plugin-catalog/src/docs.rs`.
+
+--- audit: original='chore(docs): fix 5 doc-pipeline frontmatter errors blocking push' | actual=20L across 6 files | derived=full ---
