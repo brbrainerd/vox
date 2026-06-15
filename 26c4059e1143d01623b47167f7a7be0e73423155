@@ -1,0 +1,16 @@
+feat(populi): Add GitHub attestation, device flow, revocation, and quota modules
+scale: ~644 lines across 12 files [L]
+
+- **pairing/github_attestation**: Introduce `AttestationManifest` for signing and verifying attestations, including Gist fetching logic.
+- **pairing/device_flow**: Implement `DeviceFlow` client for GitHub OAuth device flow with `gist` scope.
+- **pairing/revocation**: Add `RevocationGossip` for managing revoked attestation tombstones with retention.
+- **quota/spec**: Define `QuotaPolicy` for per-key quotas and `ReputationEma` for tracking peer reputation.
+- **quota/bucket**: Implement `PeerBucket` for token bucket logic and `QuotaRegistry` for managing per-pubkey quotas.
+- **vox-secrets**: Add `VoxMeshGithubAttestationGistUrl` to `SecretId` and `SPECS_MESH` registry.
+- **vox-populi/tests**: Add comprehensive tests for `AttestationManifest` signing, verification, and expiration.
+- **vox-populi/Cargo.toml**: Add `mockito` as a development dependency for HTTP mocking in tests.
+- **vox-populi/src/pairing/mod.rs**: Export new pairing modules.
+- **vox-populi/src/quota/mod.rs**: Export new quota modules.
+- **vox-populi/src/lib.rs**: Integrate new pairing and quota modules.
+
+--- audit: original='feat(populi): GitHub attestation manifest + device-flow + revocation + quota stub [P5-T2, P5-T3a]' | actual=644L across 12 files | derived=full ---
