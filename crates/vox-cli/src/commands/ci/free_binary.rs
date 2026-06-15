@@ -44,6 +44,17 @@ fn should_reap(
         return false;
     }
 
+    // Guard 2b: never reap a live server/daemon process. The reaper is only
+    // meant to free a LOCKED BINARY, not terminate running services.
+    // Long-lived command patterns that must survive a pre-push hook:
+    let server_cmds = ["serve", "mcp", "daemon", "start", "run"];
+    let is_server = cmdline
+        .iter()
+        .any(|arg| server_cmds.contains(&arg.as_str()));
+    if is_server {
+        return false;
+    }
+
     // Guard 3: exe must reside under the target dir of THIS worktree.
     // Normalize both sides to lowercase string compare — robust on Windows
     // (case-insensitive FS, mixed separators) without canonicalize() (which
@@ -272,6 +283,51 @@ mod tests {
         assert!(should_reap(
             &p("/repo/target/debug/vox"),
             &build_cmd,
+            &target,
+            100,
+            1
+        ));
+    }
+
+    #[test]
+    fn never_reaps_server_daemon_processes() {
+        let target = p("/repo/target");
+        // mcp subcommand must be protected.
+        let mcp_cmd = vec!["vox".to_string(), "mcp".to_string()];
+        assert!(!should_reap(
+            &p("/repo/target/debug/vox"),
+            &mcp_cmd,
+            &target,
+            100,
+            1
+        ));
+        // daemon subcommand must be protected.
+        let daemon_cmd = vec!["vox".to_string(), "daemon".to_string()];
+        assert!(!should_reap(
+            &p("/repo/target/debug/vox"),
+            &daemon_cmd,
+            &target,
+            100,
+            1
+        ));
+        // start subcommand must be protected.
+        let start_cmd = vec!["vox".to_string(), "start".to_string()];
+        assert!(!should_reap(
+            &p("/repo/target/debug/vox"),
+            &start_cmd,
+            &target,
+            100,
+            1
+        ));
+        // run subcommand must be protected.
+        let run_cmd = vec![
+            "vox".to_string(),
+            "run".to_string(),
+            "scripts/foo.vox".to_string(),
+        ];
+        assert!(!should_reap(
+            &p("/repo/target/debug/vox"),
+            &run_cmd,
             &target,
             100,
             1
