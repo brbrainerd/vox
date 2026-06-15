@@ -1,0 +1,6 @@
+docs(adr): correct ADR-043 frontmatter category
+scale: ~2 lines across 1 files [XS]
+
+- docs/src/architecture/adr-043-quantized-safetensors-ondisk-format.md: Changed the `category` frontmatter value from `architecture` to `"Architecture Decisions (ADRs)"`.
+
+--- audit: original='fix(docs): correct ADR-043 frontmatter category to canonical value' | actual=2L across 1 files | derived=full ---
