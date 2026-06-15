@@ -1,0 +1,7 @@
+feat(vox-corpus): add handling for BackButton, DeepLink, and Push Decl variants
+scale: ~3 lines across 1 files [XS]
+
+- `crates/vox-corpus/src/corpus/extract_vox/part_ast.rs`:
+    - Added `BackButton`, `DeepLink`, and `Push` variants to the `decl_kind_and_name` function, returning their respective kind and name strings.
+
+--- audit: original='fix(vox-corpus): handle BackButton/DeepLink/Push Decl variants in extract_decl_blocks_ast' | actual=3L across 1 files | derived=full ---
