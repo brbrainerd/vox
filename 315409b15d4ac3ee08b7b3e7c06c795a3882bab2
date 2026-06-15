@@ -1,0 +1,9 @@
+feat(coverage-graph): add tools for full graph rebuild, throttled extraction, and index generation
+scale: ~229 lines across 4 files [M]
+
+- `scripts/coverage-graph/rebuild_full_graph.py`: Add a new script to rebuild the base AST code graph for Rust crates, using `graphify` to collect files, extract nodes/edges, build the graph, cluster communities, and export to JSON.
+- `scripts/coverage-graph/phase2_extract_v2.js`: Introduce a new JavaScript workflow for throttled per-crate behavior extraction, processing crates in sequential chunks of 8 to avoid server-side rate limiting.
+- `scripts/coverage-graph/build_index.py`: Add a new Python script to generate `COVERAGE_BEHAVIORS_INDEX.md` by processing Phase-2 extraction journals and calculating coverage gaps per crate.
+- `scripts/coverage-graph/README.md`: Update the README to document the new `rebuild_full_graph.py` script and the `phase2_extract_v2.js` workflow, including details on throttling for large workspaces.
+
+--- audit: original='feat(coverage-graph): toolchain for regen + throttled Phase 2 + index' | actual=229L across 4 files | derived=full ---
