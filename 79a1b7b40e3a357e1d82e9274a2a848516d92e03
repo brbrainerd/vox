@@ -1,0 +1,17 @@
+fix(codegen): Make `process.run` compile end-to-end and add `tracing` dependency
+scale: ~88 lines across 4 files [M]
+
+- `crates/vox-codegen/tests/null_and_namespace_lowering.rs`:
+    - Added `process_run_lowers_to_option_capture_builtin` test to verify `process.run` codegen uses `vox_process_run_opt`.
+    - Added `generated_native_manifest_declares_tracing` test to verify `tracing` dependency is added to generated `Cargo.toml`.
+    - Renamed `process_run_error_arm_is_err_not_error` test to `json_parse_error_arm_is_err_not_error` and updated its assertion to check for `Err(m)` instead of `Err(Error)`.
+- `crates/vox-actor-runtime/src/builtins/mod.rs`:
+    - Added `VoxProcessOutcome` struct to represent the outcome of a spawned process, including `code`, `stdout`, and `stderr`.
+    - Added `vox_process_run_opt` function which spawns a command, captures its output, and returns `Option<VoxProcessOutcome>`, aligning with the `process.run` interpreter contract.
+- `crates/vox-compiler/src/builtin_registry.rs`:
+    - Updated the type signature for `process.run` to `Option[Record{code: Int, stdout: Str, stderr: Str}]` to match the new `VoxProcessOutcome` and the interpreter's behavior.
+    - Modified the codegen template for `process.run` to call `vox_process_run_opt` instead of `vox_process_run`.
+- `crates/vox-codegen/src/codegen_rust/pipeline.rs`:
+    - Added `tracing = "0.1"` dependency to both native and WASI `Cargo.toml` templates for generated script crates, resolving `E0433` for scripts using `log.*` macros.
+
+--- audit: original='fix(vox-codegen): make process.run scripts compile end-to-end (contract + tracing dep)' | actual=88L across 4 files | derived=full ---
