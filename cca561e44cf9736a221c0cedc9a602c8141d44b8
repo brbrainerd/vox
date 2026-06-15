@@ -1,0 +1,18 @@
+feat(gui): Add 'Discovered' tab to Skills surface via `vox_skill_discover`
+scale: ~138 lines across 3 files [M]
+
+- `SkillsPluginsView.tsx`:
+  - Added a new 'discovered' tab to the SkillsPluginsView, alongside 'installed' and 'marketplace'.
+  - Implemented `refreshDiscovered` function to call the `vox_skill_discover` MCP tool and process its results.
+  - Integrated the `refreshDiscovered` call into the `useEffect` hook to load data when the 'discovered' tab is active.
+  - Imported `mapDiscoveredSkills` and `DiscoveredSkill` from the new `discovery.ts` module.
+  - Added state `discovered` to store the list of discovered skills.
+- `discovery.ts`:
+  - Created a new module to define `DiscoveredSkill` interface and `mapDiscoveredSkills` function.
+  - `mapDiscoveredSkills` processes raw `vox_skill_discover` results, tolerating malformed payloads and mapping them to `DiscoveredSkill` objects.
+  - Handles missing `id` by dropping the entry, and uses `id` as a fallback for missing `name`.
+  - Ensures `installed` property is a boolean.
+- `discovery.test.ts`:
+  - Added unit tests for `mapDiscoveredSkills` to verify correct mapping of well-formed and malformed data, including handling of missing fields and non-array inputs.
+
+--- audit: original='feat(gui): Discovered tab in Skills surface via vox_skill_discover' | actual=138L across 3 files | derived=full ---
