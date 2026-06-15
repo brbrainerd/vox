@@ -1,0 +1,8 @@
+feat(orchestrator-types): add MergeOutcome::LockWait and DaemonId
+scale: ~121 lines across 3 files [M]
+
+- `crates/vox-orchestrator-types/src/merge_outcome.rs`: New module defining `MergeOutcome` enum with `Merged`, `LockWait`, and `Conflict` variants, and `DaemonId` struct. `LockWait` includes `path`, `leader` (DaemonId), `lease_ms`, and `leader_lamport`.
+- `crates/vox-orchestrator-types/src/lib.rs`: Re-exports `DaemonId` and `MergeOutcome` from the new `merge_outcome` module.
+- `crates/vox-orchestrator-types/Cargo.toml`: Adds `serde_json` as a development dependency.
+
+--- audit: original='feat(orchestrator-types): add MergeOutcome::LockWait (P3-T5)' | actual=121L across 3 files | derived=full ---
