@@ -1,0 +1,8 @@
+fix(codegen, marquee_app): Correct turso error handling and add key to Vox `for` loop
+scale: ~20 lines across 3 files [S]
+
+- `crates/vox-codegen`: Replaced `turso::Error::SqliteFailure` with `turso::Error::QueryReturnedNoRows` in `db.Table.count()` and `count_where()` codegen, aligning with `turso` 0.4.4 API.
+- `apps/interop/marquee_app`: Added `key=item` to the `for item in items` loop in `main.vox` to ensure stable React keys for list rendering.
+- `contracts/reports/perf`: Updated `cr-p1/2026-05-23.json` to reflect that `marquee-app` is now live, with `http_status: 200` and `live: true`, and `live_pct` updated from 0.0 to 0.33.
+
+--- audit: original='fix(slot1+codegen): marquee slot 1 live — main.vox key= fix + turso QueryReturnedNoRows' | actual=20L across 3 files | derived=full ---
