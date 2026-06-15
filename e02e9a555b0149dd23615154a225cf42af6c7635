@@ -1,0 +1,10 @@
+docs(superpowers): design for enforceable LLM/AI settings SSOT
+scale: ~166 lines across 1 files [M]
+
+- Create `docs/superpowers/specs/2026-06-15-llm-ai-settings-ssot-design.md` to document the design for a single source of truth for LLM/AI settings.
+- The design aims to collapse three drifting config registries into one declarative SSOT.
+- It outlines how this SSOT will generate GUI surfaces and CI allowlists, reactively surface changes, and be enforced at compile-time, CI, and runtime.
+- The design extends to cover orchestrator settings.
+- This document supersedes parts of `docs/src/architecture/llm-model-selection-ssot-convergence-and-gui-plan-2026-06-07.md` and the GUI configurable-values/secrets plan for convergence and enforcement.
+
+--- audit: original='docs(spec): enforceable LLM/AI settings SSOT design (strength D + orchestrator)' | actual=166L across 1 files | derived=full ---
