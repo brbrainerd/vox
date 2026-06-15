@@ -1,0 +1,9 @@
+docs(architecture): record implementation status for frontend convergence findings
+scale: ~13 lines across 1 files [S]
+
+- Add "Implementation status" section to `frontend-convergence-findings-2026.md`.
+- Document the status of various findings, including landed features with commit SHAs and deferred items with reasons.
+- Specifically mention the landing of R1+R2 cleanup, Contract IR module, Zod emit through Contract IR, and OpenAPI 3.1 emit.
+- Note the deferral of R3 (`HirRoute`), R4 (deprecated `@server` / `@query` / `@mutation`), R5 (Express server emit), R6 (legacy `voxdb.rs`), and `vox-react-runtime.ts` / `vox-api.ts` barrels.
+
+--- audit: original='docs(architecture): record implementation status on frontend-convergence findings' | actual=13L across 1 files | derived=full ---
