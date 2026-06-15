@@ -1,0 +1,28 @@
+feat(db,cli,compiler): introduce Web IR, OpenReview CLI, and refactor DB commands
+scale: ~14496 lines across 147 files [XL]
+
+- `crates/vox-cli`:
+    - Introduce new `db local` subcommands for local VoxDB inspection, maintenance, and preferences, including `status`, `audit`, `reset`, `schema`, and `explain`.
+    - Introduce new `db publication` subcommands for managing publication manifests and syndication, including `prepare`, `syndicate`, `approve`, `gate`, `openreview-profile`, and `openreview-submission`.
+    - Refactor `db_cli` subcommands into `DbCliCore` and `DbCliPublication` for better organization and to manage line budget.
+    - Update `scientia` commands to support new publication workflows.
+- `crates/vox-compiler`:
+    - Introduce `web_ir` module for Web Intermediate Representation, including lowering, emission to TSX, and validation.
+    - Refactor `codegen_ts` to remove `schema.rs` and introduce new modules for `type_maps`, `from_ast`, `from_hir`, `tanstack_programmatic_routes`, `tanstack_query_emit`, and `island_emit`.
+    - Refactor `hir/lower` to introduce `expr_db.rs` for database query chain extraction and planning, and `db_select_normalize.rs`.
+    - Remove `ssg` module.
+- `crates/vox-db`:
+    - Introduce `local_tests.rs` for local database testing.
+    - Add new `ops_ludus` modules for `gamify_world_battles` and `gamify_rewards_collegium`, while removing `gamify_world` and `gamify_extended`.
+    - Add new `ops_codex` module for `codex_skill_manifests` and remove `codex_metrics_packages`.
+- `crates/vox-mcp`:
+    - Update `scientia_tools` with new constants and improved error messages related to publication workflows.
+    - Adjust various `tools` modules (compiler, db, news, codex, task, vcs, chat, git, reliability, benchmark, toestub) and `memory` handlers.
+- `crates/vox-publisher`:
+    - Introduce `scholarly/openreview.rs` for OpenReview integration and `scholarly/flags.rs`.
+    - Update `scholarly/zenodo.rs` and `submission_package.rs`.
+- `docs`: Add new architecture documents for `internal-web-ir-implementation-blueprint.md`, `internal-web-ir-side-by-side-schema.md`, and `adr/012-internal-web-ir-strategy.md`. Also add `reference/scientia-ssot-handbook.md`.
+- `crates/vox-corpus`: Add `corpus/mix/tests.rs` and remove `corpus/mix/mod.rs`.
+- `crates/vox-integration-tests`: Add new pipeline tests.
+
+--- audit: original='feat(cli): enhance AGENTS.md and add new CLI command for OpenReview profile' | actual=14496L across 147 files | derived=sampled ---
