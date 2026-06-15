@@ -1,0 +1,16 @@
+feat(orchestrator): Implement VRAM admission control in lease-gated dispatch
+scale: ~340 lines across 3 files [L]
+
+- `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/task_submit.rs`:
+  - Added VRAM admission control to `submit_task_to_remote_relay`. Before calling `exec_lease_grant`, it now checks if any healthy, non-maintenance, non-quarantined node has `capabilities.min_vram_mb` greater than or equal to the task's `capability_requirements.min_vram_mb`.
+  - If no node qualifies, the task is set with `PlacementReasonCode::LocalQueueFallbackInsufficientVram` and falls back to the local queue.
+  - If `list_nodes` fails (e.g., network error), the VRAM check is skipped, and the lease grant proceeds optimistically.
+  - Modified the `exec_lease_grant` call to incorporate this new admission logic.
+- `crates/vox-orchestrator/src/orchestrator/tests/populi_single_owner.rs`:
+  - Added new tests for VRAM admission control:
+    - `vram_admission_rejects_oversized_task_and_falls_back_to_local_queue`: Verifies that a task requiring 12 GB VRAM is rejected and falls back to the local queue when only an 8 GB node is available.
+    - `vram_admission_allows_task_when_node_meets_requirement`: Verifies that a task requiring 12 GB VRAM is allowed to proceed to remote hold when a 16 GB node is available.
+- `crates/vox-orchestrator/src/populi_remote.rs`:
+  - Added `PlacementReasonCode::LocalQueueFallbackInsufficientVram` with the stable string "local_queue_fallback_insufficient_vram".
+
+--- audit: original='feat(orchestrator): W2 — VRAM admission control in lease-gated dispatch' | actual=340L across 3 files | derived=full ---
