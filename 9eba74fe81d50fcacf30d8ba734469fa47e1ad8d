@@ -1,0 +1,7 @@
+fix(browser): preserve letter case in KeyChord DOM key identity
+scale: ~25 lines across 1 files [S]
+
+- `crates/vox-plugin-browser/src/engine.rs`: Modified `key_identity` to preserve the original letter case for the DOM `key` field when processing ASCII alphabetic characters, while `code` and `windows_vk` continue to use the uppercase identity.
+- `crates/vox-plugin-browser/src/engine.rs`: Added a regression test `key_chord_preserves_letter_case_for_dom_key` to verify that `KeyChord::parse` correctly handles letter casing for the DOM `key` field, `code`, and `windows_vk`.
+
+--- audit: original='fix(browser): preserve letter case in KeyChord DOM key identity' | actual=25L across 1 files | derived=full ---
