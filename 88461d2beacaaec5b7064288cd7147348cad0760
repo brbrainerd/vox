@@ -1,0 +1,23 @@
+refactor(gamify): rename `vox-ludus` crate to `vox-gamify`
+scale: ~694 lines across 139 files [XL]
+
+- `crates/vox-orchestrator-mcp`: Updated references from `vox_ludus` to `vox_gamify` in `gamify_tools.rs` for companion management, user ID, and notifications.
+- `crates/vox-cli`: Renamed `ludus` commands and modules to `gamify` in `profile.rs`, `quests_notifications.rs`, `companion.rs`, `ctx.rs`, `battle.rs`, `collegium.rs`, `disputes.rs`, `hud.rs`, `arena.rs`, `challenge.rs`, `pack.rs`, `shop.rs`, `simulation.rs`, `sync.rs`, and `mod.rs`.
+- `crates/vox-gamify`: Renamed the crate from `vox-ludus` to `vox-gamify`, including its `Cargo.toml`, `lib.rs`, `event_router.rs`, `quest/slots.rs`, and test files (`gamify_integration_test.rs`, `cost_test.rs`, `freeai_test.rs`).
+- `crates/vox-orchestrator`: Updated `runtime.rs` to use `vox_gamify::ai::FreeAiClient` and `vox_gamify::StreamRoute`.
+- `crates/vox-db`: Updated references in `store/ops_ludus/gamify_world.rs`, `store/ops_ludus/gamify_periodic_conditions.rs`, and `tests/ops_ludus_tests.rs`.
+- `crates/vox-cli-core`: Updated `ludus_shim.rs` and `Cargo.toml`.
+- `crates/vox-config`: Updated `config/gamify_web.rs`.
+- `crates/vox-corpus`: Updated `synthetic_gen/bodies/_routing_body.rs`.
+- `crates/vox-lsp`: Updated `Cargo.toml` and `main.rs`.
+- `crates/vox-orchestrator-mcp`: Updated `Cargo.toml`, `a2a_tools.rs`, `params.rs`, `dispatch.rs`, `dei_tools/vcs_runtime.rs`, `dei_tools/control.rs`, `dei_tools/orchestrator_snapshot.rs`, `chat_tools/chat/message.rs`, and `task_tools/lifecycle.rs`.
+- `crates/vox-orchestrator`: Updated `Cargo.toml` and `orch_daemon/dei_dispatch.rs`.
+- `crates/vox-bounded-fs`: Updated `tests/workspace_guardrails.rs`.
+- `contracts/reports/scaling-audit/rollup`: Updated `INDEX.yaml`.
+- `contracts/config`: Updated `env-vars.v1.yaml`.
+- `contracts/documentation`: Updated `retired-symbols.v1.yaml`.
+- `docs/src/architecture`: Updated `layers.toml`.
+- `Cargo.toml` and `Cargo.lock`: Updated crate name and dependencies.
+- `.github/workflows/ci.yml`: Updated CI configuration.
+
+--- audit: original='refactor(arch): rename vox-ludus → vox-gamify (P-A2.5)' | actual=694L across 139 files | derived=full ---
