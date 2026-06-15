@@ -1,0 +1,7 @@
+docs(housekeeping): update LLM discovery and Phase A completion status
+scale: ~5 lines across 2 files [S]
+
+- **docs/src/.well-known/llms.txt**: Added a new "AI Coding-Assistant Integration" section with a link to the `how-to-mcp-vox-validate` page.
+- **docs/src/architecture/svelte-mineable-features-implementation-plan-2026.md**: Updated the status of "Phase A" from "✅ Shipped" to "✅ Code + docs complete", adding a link to the user-facing how-to documentation for `vox_validate_source`.
+
+--- audit: original='docs(housekeeping): surface MCP how-to in llms.txt; mark Phase A docs-complete' | actual=5L across 2 files | derived=full ---
