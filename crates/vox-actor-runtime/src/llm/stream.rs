@@ -70,6 +70,8 @@ pub async fn llm_stream(
     for (name, value) in openrouter_extra_headers(&config.provider, &config.model) {
         req = req.header(name, value);
     }
+    // NOTE: no whole-request .timeout() here — it would sever long SSE streams.
+    // First-byte deadline for streams is a follow-up (config-audit HC-G04-09).
     let res = req
         .send()
         .await
