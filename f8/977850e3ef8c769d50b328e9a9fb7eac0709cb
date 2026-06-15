@@ -1,0 +1,9 @@
+feat(vox-gamify): Implement FSRS scheduler and suggestion ranking for discovery engine
+scale: ~183 lines across 4 files [M]
+
+- `crates/vox-gamify/src/discovery/fsrs.rs`: Add new module for FSRS-style spaced-repetition state updates, including `MemoryState` struct and `update` function to adjust stability and difficulty based on `Recall` (Seen/Used).
+- `crates/vox-gamify/src/discovery/rank.rs`: Add new module for deterministic suggestion ranking, including `Candidate` struct and `score` function that blends prefix-match, frecency (usage decay), novelty (never-seen boost), and due-ness. Also includes a `rank` function to sort candidates.
+- `crates/vox-gamify/src/discovery/mod.rs`: Introduce `discovery` module, exposing `fsrs` and `rank` submodules, and re-exporting `fsrs_update`, `MemoryState`, and `Recall`.
+- `crates/vox-gamify/src/lib.rs`: Declare `discovery` as a public module.
+
+--- audit: original='feat(vox-gamify): FSRS scheduler + suggestion ranking for discovery engine' | actual=183L across 4 files | derived=full ---
