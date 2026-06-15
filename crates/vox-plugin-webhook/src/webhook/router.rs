@@ -40,7 +40,7 @@ pub struct WebhookState {
 
 impl WebhookState {
     pub fn new(handler: WebhookHandler) -> Self {
-        let (tx, _) = tokio::sync::broadcast::channel(256);
+        let (tx, _) = tokio::sync::broadcast::channel(super::config::channel_cap_from_env());
         Self {
             handler: Arc::new(handler),
             channels: Arc::new(ChannelManager::new()),

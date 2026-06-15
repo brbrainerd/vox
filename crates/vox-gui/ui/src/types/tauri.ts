@@ -140,12 +140,28 @@ export interface ContextChip {
   meta?: string;
 }
 
+/**
+ * A locator the Rust `open_locator` command can act on. Mirrors the backend
+ * `OpenLocatorDto { kind, value }` (see `crates/vox-gui/src/commands/search.rs`).
+ * `kind` selects the handler (file → editor, web → browser); other kinds are no-ops.
+ */
+export interface OpenLocator {
+  kind: 'file' | 'web' | 'memory' | 'chat' | 'command' | 'none';
+  value: string;
+}
+
+/** Outcome of an `open_locator` call. Mirrors the backend `OpenOutcomeDto`. */
+export interface OpenOutcome {
+  /** "spawned" (launched an external app) or "opened". */
+  action: string;
+}
+
 /** Union accepted by the command palette `onAction` handler. */
 export type CommandPaletteAction =
   | Agent
   | CatalogEntry
   | { id: 'submit' | 'search' | 'pause-all' | 'resume-all' | 'ack-all' }
-  | { id: string; type?: 'navigate' | 'agent' | 'command' | 'hit'; viewKey?: string; locator?: { kind: string }; label?: string };
+  | { id: string; type?: 'navigate' | 'agent' | 'command' | 'hit'; viewKey?: string; locator?: OpenLocator; label?: string };
 
 export interface SubmitTaskResult {
   ok: boolean;

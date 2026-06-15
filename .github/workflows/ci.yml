@@ -1150,6 +1150,45 @@ jobs:
             crates/vox-gui/ui/playwright-report
           if-no-files-found: ignore
 
+      - name: GUI visual-review capture (manifest)
+        working-directory: crates/vox-gui/ui
+        run: pnpm exec playwright test --config playwright.config.ts visual-review --project=chromium --workers=1
+        continue-on-error: true
+
+      - name: GUI visual AI review (advisory, non-gating)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          DATE=$(date -u +%F)
+          NOW=$(date -u +%FT%TZ)
+          cargo run -p vox-orchestrator-mcp --bin gui-visual-review -- --ai --date "$DATE" --now "$NOW"
+        continue-on-error: true
+
+      - name: Upload visual-review report + screens (always)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-visual-review-${{ github.run_id }}
+          path: |
+            contracts/reports/gui-visual-review/
+            crates/vox-gui/ui/e2e/screens/manifest.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Commit visual-review cache + report (main only)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ secrets.SSOT_AUTOREGEN_TOKEN }}
+        run: |
+          if ! git diff --quiet -- contracts/reports/gui-visual-review/; then
+            git config user.name "vox-ssot-bot"
+            git config user.email "bot@vox-foundation"
+            git add contracts/reports/gui-visual-review/cache.v1.json contracts/reports/gui-visual-review/ledger.jsonl
+            git commit -m "chore(visual-review): update cache + ledger [skip ci]"
+            git push origin HEAD:main || echo "::warning::visual-review cache push skipped (non-fast-forward)"
+          fi
+        continue-on-error: true
+
       - name: Cache Cargo
         uses: actions/cache@v5
         with:

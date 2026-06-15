@@ -433,6 +433,7 @@ fn coordinator() uses net, db to str { db_read() }
             rate_limit: None,
             pii: None,
             layer: None,
+            auth: None,
             span: Span::new(0, 0),
         };
         let diags = check_endpoint_fn_effects(&[f]);
@@ -469,6 +470,7 @@ fn coordinator() uses net, db to str { db_read() }
             rate_limit: None,
             pii: None,
             layer: None,
+            auth: None,
             span: Span::new(0, 0),
         };
         let diags = check_endpoint_fn_effects(&[f]);

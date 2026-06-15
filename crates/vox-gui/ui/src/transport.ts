@@ -1,7 +1,17 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { ActionManifest } from './types/actionManifest';
-import type { CommandCatalog, OrchestratorStatus, RoutingSummary } from './types/tauri';
+import type {
+  CommandCatalog,
+  OpenLocator,
+  OpenOutcome,
+  OrchestratorStatus,
+  RoutingSummary,
+} from './types/tauri';
+
+// `OpenLocator` / `OpenOutcome` (the `open_locator` IPC DTOs) live in ./types/tauri
+// alongside the other Tauri command types; re-exported here for callers of the hub.
+export type { OpenLocator, OpenOutcome } from './types/tauri';
 
 /** Tauri event name carrying the orchestrator status snapshot (see B1 daemon stream). */
 export const ORCH_STATUS_EVENT = 'vox://orch-status';
@@ -348,8 +358,8 @@ class VoxTransport {
     return invoke('set_gui_preference', { key, value });
   }
 
-  openLocator(locator: string): Promise<void> {
-    return invoke('open_locator', { locator });
+  openLocator(locator: OpenLocator): Promise<OpenOutcome> {
+    return invoke<OpenOutcome>('open_locator', { locator });
   }
 }
 

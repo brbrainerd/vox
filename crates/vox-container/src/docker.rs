@@ -95,6 +95,10 @@ impl ContainerRuntime for DockerRuntime {
             cmd.arg("-v").arg(format!("{host_path}:{container_path}"));
         }
 
+        for arg in opts.resource_args() {
+            cmd.arg(arg);
+        }
+
         cmd.arg(&opts.image);
 
         crate::log_exec_risk(&opts.image);

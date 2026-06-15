@@ -11,6 +11,7 @@ name: Mobile EAS Build (RN/Expo)
 # docs/src/architecture/mobile-eas-ci-setup-2026.md.
 
 on:
+  merge_group:
   push:
     paths:
       - 'apps/vox-mental-tracker/**'
@@ -35,6 +36,8 @@ jobs:
   # ── Gate that needs no Expo account: prove the generated app bundles. ──────
   bundle:
     name: Generate + export Expo bundle
+    # Tier: heavy (self-hosted). merge_group + 'full-ci' label only.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@v6

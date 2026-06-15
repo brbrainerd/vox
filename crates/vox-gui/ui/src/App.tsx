@@ -920,7 +920,7 @@ export default function App() {
     else if ('type' in cmd && cmd.type === 'command') navigateTo('catalog');
     else if ('type' in cmd && cmd.type === 'hit' && cmd.locator) {
       if (cmd.locator.kind === 'chat') navigateTo('chat');
-      else if (cmd.locator.kind === 'file' || cmd.locator.kind === 'web') invoke('open_locator', { locator: cmd.locator }).catch(() => {});
+      else if (cmd.locator.kind === 'file' || cmd.locator.kind === 'web') voxTransport.openLocator(cmd.locator).catch(() => {});
     }
     else if ('id' in cmd && cmd.id === 'submit') focusComposer();
     else if ('id' in cmd && cmd.id === 'pause-all') data.agents.forEach(handlePause);

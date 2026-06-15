@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "model_preference": ["google/gemini-3-flash-preview", "google/gemini-2.5-flash"],
+  "escalation_model": "anthropic/claude-opus-4.8",
+  "per_surface_review_budget_ms": 8000,
+  "total_review_budget_ms": 90000,
+  "max_concurrent_reviews": 3,
+  "max_image_edge_px": 2880,
+  "spike_factor": 1.5
+}
