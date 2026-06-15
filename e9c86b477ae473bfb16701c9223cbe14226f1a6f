@@ -1,0 +1,12 @@
+feat(mens): Implement VRAM-aware training budget and auto-size config
+scale: ~366 lines across 7 files [L]
+
+- `memory_budget.rs` (new): Introduces a VRAM-aware budgeting system that calculates optimal `seq_len`, `batch_size`, and `grad_accum` based on available VRAM and model parameters. It reserves a calibrated resident footprint and fits the largest sequence length and micro-batch whose activation estimate stays under a VRAM safety margin.
+- `train_arm.rs`: Modifies the `run_train` function to make `seq_len`, `batch_size`, and `grad_accum` optional. It now incorporates the VRAM budget plan to fill these parameters when they are not explicitly provided by the user or a domain profile, ensuring adaptive sizing for CUDA devices. The `seq_len` argument in `run_train` is changed from `usize` to `Option<usize>`.
+- `vram_autodetect.rs`: Adds an `nvidia-smi` fallback to `get_system_vram_gb()` for detecting total VRAM. This ensures VRAM detection works out-of-the-box even when the hardware probe is a stub.
+- `training_loop/mod.rs`: Changes the CUDA memory-pool trim frequency from a fixed `16` optimizer steps to every step by default. This is now configurable via the `VOX_MENS_TRIM_EVERY_OPT_STEPS` environment variable, addressing fragmentation issues on memory-tight cards.
+- `action_populi_enum.rs`: Updates the `seq_len` argument in the CLI from a `usize` with a `default_value_t = 512` to an `Option<usize>`, allowing the VRAM-aware budget or presets to apply when `seq_len` is omitted.
+- `manifest/tests.rs`: Fixes a latent test-compile break by adding `launch_argv: Vec::new()` to `TrainingManifest` constructors in several test cases.
+- `tensor/mod.rs`: Adds `memory_budget` to the module exports.
+
+--- audit: original='feat(mens): VRAM-aware training budget — auto-size config to any GPU' | actual=366L across 7 files | derived=full ---
