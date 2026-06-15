@@ -1,0 +1,9 @@
+docs(arch): add vox-telemetry to where-things-live.md L1 table; update metric_type constants location
+scale: ~3 lines across 2 files [S]
+
+- docs/src/architecture/where-things-live.md:
+  - Added `vox-telemetry` crate to the L1 table, describing it as the "L1 telemetry facade" with `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, and `record_event!` macro.
+  - Updated the location of "Orchestrator policy metric_type constants" from `crates/vox-db/src/research_metrics_contract.rs` to `crates/vox-telemetry/src/types.rs`.
+- crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt: This file was modified, but the diff is binary and does not provide human-readable changes.
+
+--- audit: original='docs(arch): add vox-telemetry to where-things-live.md L1 table; update CLI catalog baseline' | actual=3L across 2 files | derived=full ---
