@@ -1,0 +1,11 @@
+feat(telemetry): emit ModelCallEvent after LLM completion in mcp_infer_tool_completion
+scale: ~24 lines across 2 files [S]
+
+- `crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs`:
+  - Added `infer_start` `Instant` to measure latency of `infer_via_provider_adapter`.
+  - Recorded a `vox_telemetry::TelemetryEvent::ModelCall` event after successful LLM completion.
+  - The `ModelCallEvent` includes `model`, `provider`, `prompt_tokens`, `completion_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`, `latency_ms`, `cost_usd`, and `cost_source`.
+  - Trace linkage fields (`task_id`, `parent_task_id`, `trace_id`, `caller_agent_id`) are set to `None`.
+- `crates/vox-orchestrator-mcp/Cargo.toml`: Added `vox-telemetry` as a workspace dependency.
+
+--- audit: original='feat(telemetry/B3): emit ModelCallEvent from infer.rs after each completion' | actual=24L across 2 files | derived=full ---
