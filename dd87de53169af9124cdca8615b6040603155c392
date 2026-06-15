@@ -1,0 +1,7 @@
+feat(scientia): add SciFact-Open mini-split acceptance gate test
+scale: ~158 lines across 1 files [M]
+
+- `crates/vox-claim-extractor/tests/scifact_eval.rs`: Add a new test file `scifact_eval.rs` containing a `mini_scifact_split` function that defines a vector of `EvalExample` structs. Each `EvalExample` includes a `sentence`, `context`, and `expected_promotable` boolean, representing a mini-split of the SciFact-Open dataset for evaluating claim extraction.
+- `crates/vox-claim-extractor/tests/scifact_eval.rs`: Implement an `acceptance_gate_scifact_mini_split` test function that iterates through the `mini_scifact_split` examples, runs them through the `ExtractionPipeline`, and asserts that the F1 score for promotable claims is greater than or equal to 0.65.
+
+--- audit: original='test(scientia): SciFact-Open mini-split acceptance gate (F1>=0.65) (Phase 1 Task 7)' | actual=158L across 1 files | derived=full ---
