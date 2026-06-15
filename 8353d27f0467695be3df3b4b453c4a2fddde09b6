@@ -1,0 +1,17 @@
+feat(gui): add Discovery Inbox surface and surfaced-candidate alerts
+scale: ~447 lines across 12 files [L]
+
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/DiscoveryInbox.tsx`: Adds the new `DiscoveryInbox` React component, which lists unacknowledged `scientia_discovery_inbox` rows. It displays tier badges, signal chips, and surfaced-at times, and provides actions to acknowledge items or deep-link to `DiscoveryReview`. It subscribes to `vox://scientia-queue` for live updates and falls back to a 10s poll.
+- `crates/vox-gui/src/commands/scientia_review.rs`: Implements new Tauri commands `list_discovery_inbox` to retrieve unacknowledged discovery inbox items and `acknowledge_discovery` to mark an item as acknowledged. Defines `DiscoveryInboxDto` for data transfer.
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/DiscoveryInbox.test.tsx`: Adds Vitest unit tests for the `DiscoveryInbox` component, including mocking Tauri invoke and transport bridge.
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/discoveryInboxApi.ts`: Provides TypeScript API wrappers for the `list_discovery_inbox` and `acknowledge_discovery` Tauri commands, including `DiscoveryInboxRow` interface.
+- `crates/vox-gui/ui/src/App.tsx`: Registers the new `discovery-inbox` view, allowing it to be set as the active view. Adds a `useEffect` hook to handle `vox://navigate-surface` custom events for cross-surface deep-linking, specifically for seeding `DiscoveryReview` with a `publicationId` via `localStorage`.
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/DiscoveryReview.tsx`: Modifies `DiscoveryReview` to consume a `publicationId` seed from `localStorage` if present, enabling deep-linking from `DiscoveryInbox`.
+- `contracts/gui/surface-registry.v1.yaml`: Registers the new `discovery-inbox` surface.
+- `crates/vox-gui/src/main.rs`: Registers the new Tauri commands `list_discovery_inbox` and `acknowledge_discovery`.
+- `crates/vox-gui/ui/src/components/layout/Sidebar.tsx`: Adds `discovery-inbox` to the `scientia` section in the sidebar navigation.
+- `crates/vox-gui/ui/src/components/surfaces/decoratorRegistry.ts`: Adds `DiscoveryInbox` to the `surfaceComponentMap`.
+- `crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts`: Regenerates the surface registry.
+- `contracts/reports/gui-surface-registry.v1.json`: Updates the generated surface registry report.
+
+--- audit: original='feat(gui): discovery inbox surface with surfaced-candidate alerts' | actual=447L across 12 files | derived=full ---
