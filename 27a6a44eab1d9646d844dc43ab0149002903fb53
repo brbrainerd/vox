@@ -1,0 +1,7 @@
+feat(vox-effort-audit): add configuration and TOML schema
+scale: ~121 lines across 2 files [M]
+
+- `crates/vox-effort-audit/src/config.rs`: Add `EffortAuditConfig` and `JudgeConfig` structs for audit configuration, including fields for `default_since`, `max_concurrent`, `max_diff_bytes`, `with_transcripts`, `transcript_dir`, `report_top_n`, `model_preference`, `max_total_tokens`, `max_dollar_cost`, and `schema_retry_limit`. Implement `Default` for `JudgeConfig` and provide default functions for all fields.
+- `crates/vox-effort-audit/Cargo.toml`: Add `dirs` and `toml` dependencies.
+
+--- audit: original='feat(vox-effort-audit): config + TOML schema (A5)' | actual=121L across 2 files | derived=full ---
