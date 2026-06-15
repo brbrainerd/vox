@@ -1,0 +1,14 @@
+fix(cli, compiler, docs): harden alias resolution, reject empty React imports, update tutorial
+scale: ~90 lines across 4 files [M]
+
+- **cli(add_component):**
+  - Hardened `alias_dir`, `lib_dir`, and `target_dir` functions to return `Result` and validate path segments. They now reject non-`Normal`, `..`, or absolute path components to prevent malicious `components.json` aliases from writing outside the project root.
+  - Modified `load_components_config` to return an error for malformed `components.json` files instead of silently swallowing them; a default configuration is now only used when the file is absent.
+- **compiler(parser):**
+  - Added validation to `head.rs` to reject empty named React imports (e.g., `import react { } from "..."`) with a `ParseErrorClass::Declaration` error, preventing them from silently lowering to zero imports.
+  - Added a new test case `react_named_import_rejects_empty_braces` in `parser_import_syntax_test.rs` to verify this behavior.
+- **docs(tutorials):**
+  - Added `status: "current"` and `training_eligible: true` frontmatter to `use-a-react-component-from-vox.md`.
+  - Added a `// vox:skip` comment to the `@acme/ui` illustrative block in `use-a-react-component-from-vox.md` per the fenced-vox guideline.
+
+--- audit: original='fix(interop): address CodeRabbit review (5 findings)' | actual=90L across 4 files | derived=full ---
