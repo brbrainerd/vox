@@ -1,0 +1,12 @@
+feat(coverage): Implement CI ratchet for reached-but-unproven symbols
+scale: ~169 lines across 7 files [M]
+
+- scripts/coverage-graph/prune_graph_snapshot.py: New script to prune the full semantic coverage graph to only essential fields (`id`, `label`, `source_file`, `source_location`, `file_type`, `_origin`, and `proves` links) and gzip it into `contracts/reports/semantic-coverage-graph.snapshot.json.gz` for CI.
+- scripts/coverage-graph/ingest_reaches.py: Modified to load gzipped graph snapshots transparently via a new `_load_graph` function, supporting both `.json` and `.json.gz` extensions.
+- scripts/coverage-graph/ratchet_check.py: New script to enforce a non-regressing metric for `reached-but-unproven` symbols in CI. It compares the current count from the `ingest_reaches.py` report against a baseline in `semantic-coverage.v1.json` and fails if the current count is higher.
+- scripts/coverage-graph/emit_unproven_worklist.py: New script to generate per-crate, leverage-ranked worklists of "frontier" symbols (reached-but-unproven and non-trivial) from the semantic coverage graph and LCOV data.
+- .github/workflows/ci.yml: Added a new CI step "Semantic-coverage reach ratchet" that runs `ingest_reaches.py` with the committed graph snapshot and `ratchet_check.py` after the existing `llvm-cov` export, gating on `rust_changed`.
+- contracts/reports/semantic-coverage.v1.json: Added a new `ratchet` section with `reached_not_proven_baseline` set to 5793, a reference to the snapshot, and policy details.
+- contracts/reports/semantic-coverage-graph.snapshot.json.gz: New gzipped snapshot of the pruned semantic coverage graph, used as the baseline for the CI ratchet.
+
+--- audit: original='feat(coverage): CI reach-ratchet — frozen snapshot + ingest + gate (Phase 0)' | actual=169L across 7 files | derived=full ---
