@@ -1,0 +1,13 @@
+fix(vox-gui): migrate App.tsx to use VoxTransport.openLocator and refine types
+scale: ~48 lines across 3 files [S]
+
+- **`crates/vox-gui/ui/src/transport.ts`**:
+  - Removed local `OpenLocator` and `OpenOutcome` interface definitions.
+  - Imported and re-exported `OpenLocator` and `OpenOutcome` from `types/tauri.ts`.
+- **`crates/vox-gui/ui/src/types/tauri.ts`**:
+  - Moved `OpenLocator` and `OpenOutcome` interface definitions from `transport.ts` to this file.
+  - Widened the `locator` property type within `CommandPaletteAction` from `{ kind: string }` to `OpenLocator`.
+- **`crates/vox-gui/ui/src/App.tsx`**:
+  - Replaced direct `invoke('open_locator', ...)` call with `voxTransport.openLocator(cmd.locator)`.
+
+--- audit: original='fix(vox-gui): type CommandPaletteAction.locator + migrate App.tsx open_locator to VoxTransport' | actual=48L across 3 files | derived=full ---
