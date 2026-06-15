@@ -1,0 +1,14 @@
+feat(gui): orchestrator config hydration and LLM settings Tauri bridge
+scale: ~122 lines across 4 files [M]
+
+- `crates/vox-gui/src/commands/llm_settings.rs`: New file implementing Tauri commands for LLM settings.
+  - `get_llm_config`: Reads `max_concurrent_requests`, `openrouter_max_concurrent`, `openai_max_concurrent`, and `retry_max_attempts` from `VoxConfig`.
+  - `set_llm_config`: Updates `VoxConfig` with new values for `max_concurrent_requests`, `openrouter_max_concurrent`, `openai_max_concurrent`, and `retry_max_attempts`.
+  - `openrouter_key_status`: Checks for the presence of the OpenRouter API key.
+- `crates/vox-gui/src/commands/orchestrator.rs`:
+  - `set_orchestrator_config`: Extended to handle new scaling parameters: `scaling_enabled`, `min_agents`, `scaling_threshold`, `scale_cpu_ceiling_pct`, and `scale_mem_floor_mb`.
+  - `get_orchestrator_config`: New command to read orchestrator configuration from `VoxManifest` for GUI hydration.
+- `crates/vox-gui/src/main.rs`: Registered new Tauri commands: `get_orchestrator_config`, `get_llm_config`, `set_llm_config`, and `openrouter_key_status`.
+- `crates/vox-gui/src/commands/mod.rs`: Added `llm_settings` module.
+
+--- audit: original='feat(gui): orchestrator config hydration + LLM settings Tauri bridge' | actual=122L across 4 files | derived=full ---
