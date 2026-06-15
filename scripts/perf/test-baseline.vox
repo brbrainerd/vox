@@ -78,7 +78,9 @@ fn main() {
 
     // fast tier steps
     print("\n[fast tier]")
-    let s_fmt = run_and_record("cargo fmt --check", "cargo", ["fmt", "--all", "--", "--check"])
+    // `cargo fmt --all` overflows the Windows command line (os error 206) on this
+    // workspace; the project-sanctioned check is `VOX_FMT_CHECK=1 vox run scripts/fmt.vox`.
+    let s_fmt = run_and_record("vox run scripts/fmt.vox (check)", "cargo", ["run", "-p", "vox-cli", "--quiet", "--", "run", "scripts/fmt.vox"])
     let s_ssot = run_and_record("vox-cli ci ssot-drift", "cargo", ["run", "-p", "vox-cli", "--quiet", "--", "ci", "ssot-drift"])
     let s_toestub = run_and_record("vox-cli ci toestub-scoped", "cargo", ["run", "-p", "vox-cli", "--quiet", "--", "ci", "toestub-scoped", "--mode", "enforce-warn"])
     let s_arch = run_and_record("scripts/arch-check.vox", "cargo", ["run", "-p", "vox-cli", "--quiet", "--", "run", "scripts/arch-check.vox"])
