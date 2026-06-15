@@ -1,0 +1,12 @@
+fix(ci): improve Coolify deployment status polling robustness
+scale: ~49 lines across 1 files [S]
+
+- `.github/workflows/deploy-hetzner.yml`:
+  - Added `set -u` and `set -o pipefail` for stricter shell script execution.
+  - Introduced `deployment_status_resolve` function to handle nested status paths (`.status`, `.deploymentStatus`, `.deployment.status`, `.data.status`) from API responses.
+  - Added `deployments_list_status_for_uuid` function to fall back to polling the `/api/v1/deployments` and `/api/v1/applications/{app_uuid}/deployments` endpoints if direct status polling fails, searching for the deployment by UUID.
+  - Modified the polling loop to use the new status resolution and fallback logic.
+  - Changed `completed` status to be considered a success state.
+  - Added periodic `curl` command output and `jq` snippet logs for debugging during polling.
+
+--- audit: original='fix(ci): robust Coolify deployment status polling' | actual=49L across 1 files | derived=full ---
