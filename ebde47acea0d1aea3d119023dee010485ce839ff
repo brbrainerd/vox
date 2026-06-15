@@ -1,0 +1,7 @@
+feat(eval): enable mcp-server feature and allow public access to /v1/eval and /health
+scale: ~6 lines across 2 files [S]
+
+- `vox-eval.compose.yml`: Enabled the `mcp-server` feature for `vox-orchestrator` by setting `VOX_CLI_FEATURES`.
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/mod.rs`: Modified the `spawn_http_gateway_if_enabled` function to exempt `/health` endpoint from loopback restrictions when `public_eval_enabled` is true, in addition to `/v1/eval`. Also, adjusted the loopback check to bypass it entirely if `public_eval_enabled` is true.
+
+--- audit: original='fix(eval): enable mcp-server feature and allow public access to /v1/eval and /health' | actual=6L across 2 files | derived=full ---
