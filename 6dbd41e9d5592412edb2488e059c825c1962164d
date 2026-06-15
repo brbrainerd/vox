@@ -1,0 +1,9 @@
+docs(superpowers): document design for Effort Audit Core (S1)
+scale: ~451 lines across 1 files [L]
+
+- Create new design document `docs/superpowers/specs/2026-05-28-effort-audit-core-design.md` detailing Slice 1 of the Effort Audit project.
+- The document outlines the purpose, non-goals, and architecture for an AI-assisted auditor that ranks git commits by estimated AI-agent token spend and suggests remediation kinds.
+- It specifies the scope of S1, which focuses on data collection and generating a ranked findings JSONL and markdown report, deferring clustering, advanced cost signals, and auto-emission to subsequent slices (S2-S4).
+- Key decisions include the creation of a new `vox-effort-audit` crate, a model-agnostic approach using `vox_actor_runtime::llm`, and a hybrid cost signal starting with Claude Code transcripts.
+
+--- audit: original='docs(spec): effort-audit-core S1 design (2026-05-28)' | actual=451L across 1 files | derived=full ---
