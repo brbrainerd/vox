@@ -1,0 +1,8 @@
+fix(gui): Suppress console window flashes on Windows
+scale: ~0 lines across 0 files [XS]
+
+- `vox-gui`: Added `quiet_command` and `quiet_tokio_command` helpers to suppress console window flashes when spawning child processes.
+- `vox-orchestrator`: Added `quiet_command` and `quiet_tokio_command` helpers to suppress console window flashes when spawning child processes.
+- Updated 12 spawn sites across `vox-gui` and `vox-orchestrator` to use the new quiet command helpers.
+
+--- audit: original='fix(gui): suppress console window flashes on Windows (CREATE_NO_WINDOW)' | actual=0L across 0 files | derived=full ---
