@@ -1,0 +1,42 @@
+docs(architecture, reference): Update paths and add new CI workflows
+scale: ~189 lines across 37 files [L]
+
+- **.github/workflows/docs-quality.yml**: Add new workflow for documentation quality checks.
+- **.github/workflows/docs-deploy.yml**: Add new workflow for documentation deployment.
+- **.github/workflows/ci.yml**: Add new workflow for continuous integration.
+- **.github/workflows/link_checker.yml**: Update link checker workflow.
+- **docs/src/architecture/script-surface-audit.md**: Update paths for container entrypoints and add `scripts/check_codex_ssot.ps1`.
+- **docs/src/architecture/capability-registry-ssot.md**: Update relative paths to `contracts/operations/catalog.v1.yaml` and `contracts/cli/command-registry.yaml`.
+- **docs/src/architecture/telemetry-retention-sensitivity-ssot.md**: Update relative paths to `contracts/db/retention-policy.yaml`.
+- **docs/src/architecture/telemetry-trust-ssot.md**: Update relative path to `contracts/orchestration/context-lifecycle-telemetry.schema.json`.
+- **docs/src/reference/cli.md**: Update relative path to `contracts/operations/catalog.v1.yaml`.
+- **docs/src/reference/deployment-compose.md**: Remove reference to `docker/vox-entrypoint.sh`.
+- **crates/vox-mcp/src/tools/dispatch.rs**: Add aliases `vox_get_config`, `vox_set_config`, `vox_map_opencode_session`, and `vox_map_vscode_session` for existing tool calls.
+- **contracts/mcp/tool-registry.canonical.yaml**: Add new canonical tool registry YAML.
+- **docs/book.toml**: Update book configuration.
+- **docs/src/api/vox-mcp.md**: Update documentation.
+- **docs/src/architecture/completion-policy-ssot.md**: Update documentation.
+- **docs/src/architecture/mcp-vox-language-exposure.md**: Update documentation.
+- **docs/src/architecture/nomenclature-migration-map.md**: Update documentation.
+- **docs/src/architecture/operations-catalog-ssot.md**: Update documentation.
+- **docs/src/architecture/scientia-impact-readership-research-2026.md**: Update documentation.
+- **docs/src/architecture/telemetry-implementation-blueprint-2026.md**: Update documentation.
+- **docs/src/architecture/telemetry-taxonomy-contracts-ssot.md**: Update documentation.
+- **docs/src/architecture/telemetry-unification-research-findings-2026.md**: Update documentation.
+- **docs/src/architecture/terminal-exec-policy-research-findings-2026.md**: Update documentation.
+- **docs/src/architecture/vox-cross-platform-runbook.md**: Update documentation.
+- **docs/src/architecture/vox-docker-dotvox-portability-research-2026.md**: Update documentation.
+- **docs/src/architecture/vox-packaging-research-findings-2026.md**: Update documentation.
+- **docs/src/feed.xml**: Update documentation.
+- **docs/src/how-to/how-to-pytorch.md**: Update documentation.
+- **docs/src/reference/cli-command-surface.generated.md**: Update generated CLI command surface.
+- **docs/src/reference/codex-http-api.md**: Update documentation.
+- **docs/src/reference/command-compliance.md**: Update documentation.
+- **docs/src/reference/docker-image-baselines.md**: Update documentation.
+- **docs/src/reference/env-vars.md**: Update documentation.
+- **docs/src/reference/mcp-tool-registry-contract.md**: Update documentation.
+- **docs/src/reference/pm-migration-2026.md**: Update documentation.
+- **docs/src/reference/populi.md**: Update documentation.
+- **infra/coolify/README.md**: Update documentation.
+
+--- audit: original='docs: initialize documentation site and add architecture research, reference guides, and CI/CD workflows' | actual=189L across 37 files | derived=full ---
