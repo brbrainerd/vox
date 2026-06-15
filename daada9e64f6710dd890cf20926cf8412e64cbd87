@@ -1,0 +1,9 @@
+feat(vox-cli): add `telemetry doctor` subcommand to diagnose telemetry status
+scale: ~39 lines across 1 files [S]
+
+- Add `TelemetryCmd::Doctor` variant to `TelemetryCmd` enum.
+- Implement `TelemetryCmd::Doctor` to print effective `TelemetryConfig` (from environment variables), global recorder registration status, and master switch state.
+- The `Doctor` subcommand exits with status 0 if telemetry is active (master switch on) and 1 if the master switch is off.
+- Import `global_recorder` from `vox_telemetry`.
+
+--- audit: original='feat(vox-cli): add `vox telemetry doctor` subcommand' | actual=39L across 1 files | derived=full ---
