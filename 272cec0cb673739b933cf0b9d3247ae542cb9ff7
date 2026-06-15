@@ -1,0 +1,10 @@
+feat(orchestrator): enrich SubAgentDispatchEvent with trace context and dispatch latency
+scale: ~11 lines across 2 files [S]
+
+- `crates/vox-orchestrator/src/subagent_dispatch.rs`:
+    - Added `parent_task_id` (Option<u64>), `span_depth` (u16), and `dispatch_latency_ms` (Option<u64>) fields to the `SubAgentDispatchEvent` struct.
+    - Modified the `SubAgentDispatchEvent::new` function to initialize `parent_task_id` and `span_depth` from the ambient `TraceContext` using `vox_telemetry::current_trace_ctx()`.
+    - Initialized `dispatch_latency_ms` to `None`, to be populated by callers.
+- `crates/vox-orchestrator/Cargo.toml`: Added `vox-telemetry` as a dependency.
+
+--- audit: original='feat(orchestrator/C6): enrich SubAgentDispatchEvent with parent_task_id + span_depth' | actual=11L across 2 files | derived=full ---
