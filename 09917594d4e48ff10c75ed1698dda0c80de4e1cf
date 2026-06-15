@@ -1,0 +1,13 @@
+feat(corpus): Add 7 new spec-to-app contracts, increasing count to 10
+scale: ~316 lines across 8 files [L]
+
+- **contracts/eval/spec-to-app/specs/004-fizzbuzz/spec.toml**: Added a new T1 spec for a FizzBuzz utility function, including prompt, success criteria, and Vox conventions.
+- **contracts/eval/spec-to-app/specs/005-temperature-classifier/spec.toml**: Added a new T1 spec for a temperature classifier utility function, including prompt, success criteria, and Vox conventions.
+- **contracts/eval/spec-to-app/specs/006-notes-list/spec.toml**: Added a new T2 spec for a Notes app skeleton with `@table`, `@auth`, and ADT error variants, including prompt, success criteria, and Vox conventions.
+- **contracts/eval/spec-to-app/specs/007-bookmark-tagger/spec.toml**: Added a new T2 spec for a Bookmark Tagger app with multi-table references and ADT errors, including prompt, success criteria, and Vox conventions.
+- **contracts/eval/spec-to-app/specs/008-rate-limited-search/spec.toml**: Added a new T3 spec for a rate-limited search service with `Result[List, E]`, `match` dispatch, `@auth`, and ADT errors, including prompt, success criteria, and Vox conventions.
+- **contracts/eval/spec-to-app/specs/009-presence-actor/spec.toml**: Added a new T3 spec for a presence actor service with actor, stream endpoint, and ADT error, including prompt, success criteria, and Vox conventions.
+- **contracts/eval/spec-to-app/specs/010-order-pipeline/spec.toml**: Added a new T3 spec for an order processing skeleton with three `@table` refs and a four-variant ADT, including prompt, success criteria, and Vox conventions.
+- **contracts/eval/spec-to-app/manifest.v1.yaml**: Updated `corpus.count_current` from 3 to 10, changed `corpus.status` from `seed` to `target-met`, and reconciled `difficulty_distribution` to `[3, 3, 4]` to match the honest plan §4.1.
+
+--- audit: original='feat(corpus): §4.1 spec-to-app 3 → 10 specs (honest plan §4.1)' | actual=316L across 8 files | derived=full ---
