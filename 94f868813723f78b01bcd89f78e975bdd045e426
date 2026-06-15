@@ -1,0 +1,11 @@
+feat(secrets): register EXPO_TOKEN as a first-class Clavis secret
+scale: ~73 lines across 6 files [M]
+
+- `crates/vox-secrets/src/spec/ids.rs`: Added `SecretId::ExpoToken` to the `SecretId` enum and included it in the `SecretClass::Integration` match arm.
+- `crates/vox-secrets/src/spec/registry/platform.rs`: Registered `SecretId::ExpoToken` in the platform registry with `canonical_env: "EXPO_TOKEN"`, `aliases: &["VOX_EXPO_TOKEN"]`, `auth_registry: Some("expo")`, and a `scope_description` for Expo / EAS access tokens.
+- `crates/vox-secrets/src/tests.rs`: Added a new test `expo_token_is_a_registered_resolvable_secret` to assert that `EXPO_TOKEN` resolves to a spec keyed to the `expo` auth registry and is an `Integration`-class secret.
+- `contracts/secrets/managed-env-names.md`: Added `EXPO_TOKEN` and `VOX_EXPO_TOKEN` to the list of managed environment names.
+- `contracts/secrets/managed-env-names.v1.json`: Regenerated the contract to include `ExpoToken` with its canonical environment and aliases, and classified it as an `Integration` secret with `ApiKey` material kind and `Orchestration` capability.
+- `contracts/secrets/secret-capabilities.v1.json`: Regenerated the contract to include `ExpoToken` with its canonical environment, aliases, `Integration` class, `expo` auth registry, and `Orchestration` capability.
+
+--- audit: original='feat(secrets): register EXPO_TOKEN as a first-class Clavis secret' | actual=73L across 6 files | derived=full ---
