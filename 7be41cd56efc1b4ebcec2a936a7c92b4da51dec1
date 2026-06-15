@@ -1,0 +1,8 @@
+fix(vox-effort-route): defensively gate VoxScript in assemble_decision
+scale: ~67 lines across 1 files [M]
+
+- `ArtifactForm::vox_required` doc comment updated to clarify its purpose regarding Vox-capability.
+- `assemble_decision` now defensively coerces `ArtifactForm::VoxScript` to `ArtifactForm::CiGate` if `vox_capable` is false, preventing Vox artifacts on non-Vox-capable runs.
+- `form_rationale` and `refutation_note` are updated to record this coercion.
+
+--- audit: original='fix(vox-effort-route): defensively gate VoxScript in assemble_decision (B3.1)' | actual=67L across 1 files | derived=full ---
