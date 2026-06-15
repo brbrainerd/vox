@@ -1,0 +1,10 @@
+feat(codegen,cli): hard-error on unsupported RN overlay/tier primitives
+scale: ~70 lines across 5 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/rn/component.rs`: Added a diagnostic error `vox/codegen/rn-unsupported-tier-primitive` for `modal`, `toast`, `drawer`, and `overlay` components when targeting React Native, preventing silent flattening to `<View>`.
+- `crates/vox-cli/src/commands/build.rs`: Modified the mobile build process to hard-error and bail if `rn-unsupported-tier-primitive` diagnostics are found during React Native codegen, instead of just emitting warnings.
+- `crates/vox-cli-tests/tests/build_e2e.rs`: Added a new e2e test `build_mobile_hard_errors_on_unsupported_tier_primitive` to verify that the mobile build fails when encountering unsupported tier primitives.
+- `crates/vox-cli-tests/tests/fixtures/mobile_modal_unsupported/main.vox`: Added a new fixture `mobile_modal_unsupported` containing a `modal` component to trigger the new hard-error.
+- `crates/vox-cli-tests/tests/fixtures/mobile_modal_unsupported/expected_files.toml`: Added configuration for the new fixture, expecting build failure for mobile targets.
+
+--- audit: original='feat(rn): hard-error unsupported overlay/tier primitives instead of silent flatten' | actual=70L across 5 files | derived=full ---
