@@ -1,0 +1,5 @@
+test(gui): assert at least one CLI action exists in action manifest
+scale: ~2 lines across 1 files [XS]
+- `crates/vox-gui/src/commands/action_manifest.rs`: Added an assertion to the `action_manifest_contains_all_actions` test to ensure that the generated manifest contains at least one CLI action.
+
+--- audit: original='test(gui): assert at least one CLI action exists (no vacuous pass)' | actual=2L across 1 files | derived=full ---
