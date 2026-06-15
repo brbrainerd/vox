@@ -1,0 +1,8 @@
+docs(superpowers): add 2026-06-05 dependency currency upgrade handoff plan
+scale: ~93 lines across 1 files [M]
+
+- Add `docs/superpowers/plans/2026-06-05-dependency-currency-upgrade-handoff.md` detailing an assessment of deferred dependency upgrades and a broader "migrate to latest" backlog.
+- The document estimates implementation difficulty, blast radius, and agony for upgrades including wasmtime (42→45), TypeScript 6, gix (0.70→0.83), RustCrypto digest (0.11), rand (0.8→0.9), TS version unification, jj-lib, schemars/typify/thiserror, and vitest 3.
+- The assessment is based on read-only call-site analysis, with estimated effort and recommended order for upgrades.
+
+--- audit: original='@ docs: dependency-currency upgrade handoff (deferred majors + latest-version backlog)' | actual=93L across 1 files | derived=full ---
