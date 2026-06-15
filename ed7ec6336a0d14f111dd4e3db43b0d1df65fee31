@@ -1,0 +1,7 @@
+fix(ci): resolve two Clippy hard errors in Gate 1
+scale: ~16 lines across 2 files [S]
+
+- `vox-telemetry`: rewrite `is_master_enabled` function to use `!matches!` macro for checking `VOX_TELEMETRY` environment variable, resolving a Clippy warning about `match` statements that can be simplified.
+- `vox-repository`: remove no-op `let _ = std::hint::black_box(());` statement from `probe_nvidia_gpu_inventory_best_effort` function, resolving a Clippy warning about unit bindings.
+
+--- audit: original='fix(ci): resolve two clippy hard errors in Gate 1' | actual=16L across 2 files | derived=full ---
