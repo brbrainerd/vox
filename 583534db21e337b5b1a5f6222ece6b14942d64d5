@@ -1,0 +1,11 @@
+fix(vox-audit): bound behavioral golden runs with per-golden timeout
+scale: ~116 lines across 1 files [M]
+
+- `crates/vox-audit/src/subcommands/behavioral_goldens.rs`:
+    - Introduced `golden_timeout()` function to retrieve a per-golden wall-clock budget from `VOX_GOLDEN_TIMEOUT_SECS` environment variable (defaulting to 30 seconds).
+    - Added `GoldenRun` enum to represent the outcome of a golden run: `Done` (process exited, stdout captured), `TimedOut` (exceeded budget, child killed), or `SpawnErr` (failed to spawn `vox`).
+    - Implemented `run_golden` function to execute `vox run --mode interp` with a hard wall-clock timeout.
+    - Modified `run_golden` to drain stdout on a helper thread to prevent pipe-fill deadlocks.
+    - Integrated the timeout mechanism into the behavioral golden execution, ensuring that a hanging golden results in a `TimedOut` status, which is treated as a behavioral failure.
+
+--- audit: original='fix(vox-audit): bound CR-F1 behavioral gate with per-golden timeout' | actual=116L across 1 files | derived=full ---
