@@ -1,0 +1,12 @@
+feat(scientia): add publication format adaptation types and FigurePolicy
+scale: ~156 lines across 2 files [M]
+
+- `publication_format` module:
+    - Introduce `ShortFormVariant` struct for atomic-claim-backed short-form text with nanopub URI.
+    - Define `PublicationPlatform` enum for Bluesky, arXiv, Zenodo, and Atlas, including per-platform character limits.
+    - Add `FigurePolicy` enum to control LLM figure generation (e.g., disabled for Cell/Science 2025).
+    - Implement `validate_short_form` function to check if a `ShortFormVariant` fits platform limits.
+    - Provide a stub `adapt_claim_to_platform` function for future integration with a constrained-generation emitter.
+- `lib.rs`: Re-export new types and functions from `publication_format`.
+
+--- audit: original='feat(scientia): publication format adaptation types + FigurePolicy (Phase 7)' | actual=156L across 2 files | derived=full ---
