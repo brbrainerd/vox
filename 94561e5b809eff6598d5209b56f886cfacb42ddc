@@ -1,0 +1,6 @@
+ci(lychee): whitelist local file links in `.lycheeignore`
+scale: ~2 lines across 1 files [XS]
+
+- `.lycheeignore`: Added two new entries to ignore local file links to `docs/AGENTS.md` and all files within `docs/src/architecture/` to prevent `lychee` from reporting them as missing.
+
+--- audit: original='ci: whitelist missing local file links in lycheeignore' | actual=2L across 1 files | derived=full ---
