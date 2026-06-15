@@ -1,0 +1,12 @@
+docs(superpowers): add vox share implementation plan
+scale: ~1608 lines across 1 files [XL]
+
+- Add `docs/superpowers/plans/2026-05-09-vox-share-feature.md` detailing the implementation plan for the `vox share` feature.
+- The plan outlines a full TDD approach for a public-URL tunnel, including:
+    - LAN, Cloudflare Quick Tunnels, localhost.run, and Tailscale Funnel backends.
+    - Reverse-proxy authentication, SSE detection, and request logging.
+    - Automatic duration-based shutdown.
+    - Integration with the `vox bundle` process.
+    - Architecture, tech stack, and key design decisions.
+
+--- audit: original='docs(share): add vox share implementation plan (S1-S10)' | actual=1608L across 1 files | derived=full ---
