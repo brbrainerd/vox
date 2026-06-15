@@ -1,0 +1,17 @@
+fix(compiler): address CodeRabbit review feedback and CI smoke test failure
+scale: ~245 lines across 16 files [M]
+
+- `pipeline.rs`: Corrected ADR-028 keyword detection to use `find_keyword_outside_comments_and_strings` with an `ident_boundary` flag. This prevents `workflow` and `activity` from being matched within longer identifiers (e.g., `workflow_handle`) and correctly handles various whitespace/punctuation delimiters.
+- `pratt_match.rs`: Revised the view-call trigger logic. The "lowercase + named-only-args" rule for JSX conversion now uses a curated `is_known_html_view_tag` allowlist for HTML elements (e.g., `input`, `select`). This prevents ordinary function calls like `fetch(timeout=5)` from being incorrectly converted to JSX.
+- `primitives/mod.rs`:
+    - Modified `primitive_base_class_overridden` to strip Tailwind state-variant modifier prefixes (e.g., `hover:`, `focus:`) from utility classes before comparison. This ensures author-provided kwargs like `bg=` correctly override primitive defaults like `hover:bg-primary`.
+    - Split border kwargs into width (`border`, `border_x`, etc.) and color (`border_color`). `border_color` now only suppresses default border colors, not bare `border` width classes.
+- `jsx.rs`: Enhanced `transform_view_kwargs` to mirror the HIR-emit path. It now collects static-literal per-primitive kwargs (StringLit, IntLit, BoolLit) and passes them to `primitives::resolve`. This ensures per-primitive dispatch (e.g., `heading(level=1)` producing `<h1>`, `text(size="xs")` producing `text-xs`) is correctly applied in the AST emit path.
+- `parser/descent/tests.rs`: Renamed `test_view_call_positional_arg_rejected` to `test_view_call_positional_arg_does_not_sugar_to_jsx` and tightened the assertion. It now directly verifies that a positional argument in a view-call context results in a regular `Expr::Call` rather than being sugared to JSX.
+- `crates/vox-integration-tests/tests/fixtures/*.vox`: Migrated `chatbot.vox`, `greaterfool_reference.vox`, `web_ir_validate_dup_routes.vox`, and `full_stack_minimal.vox` from raw HTML `div` structures to VUV (Vox UI View) form using primitive components like `column`, `row`, `input`, and `button`. This fixes the `web_vite_smoke_test` CI failure.
+- `.claude/settings.local.json`: Pruned 10 auto-allow entries flagged by CodeRabbit, specifically the `cargo run` smoke test entry and 9 `perl -i` mass-edit entries, removing broad unsafe auto-approvals.
+- `docs/src/how-to/how-to-author-views.md`: Fixed a malformed link from `compat.rs:27` to `compat.rs` in the events section and updated the `last_updated` frontmatter.
+- `docs/src/architecture/gui-authoring-syntax-2026.md`: Added the required `last_updated` frontmatter.
+- `crates/vox-dashboard/app/src/generated/*.tsx`: Regenerated `ComposerPanel.tsx`, `NetworkTab.tsx`, `TaskDispatch.tsx`, and `WorkflowScrubber.tsx` due to codegen changes related to modifier handling and per-primitive resolution.
+
+--- audit: original='fix(vuv): address CodeRabbit review feedback + CI smoke test failure' | actual=245L across 16 files | derived=full ---
