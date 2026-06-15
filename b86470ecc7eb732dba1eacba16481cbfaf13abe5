@@ -1,0 +1,11 @@
+refactor(hir): remove deprecated Path B tests and update gitignore
+scale: ~66 lines across 2 files [M]
+
+- `crates/vox-compiler/src/hir/lower/mod.rs`:
+  - Removed `hir_lowering_leaves_no_legacy_nodes_for_core_web_decls` test, which relied on now-rejected `http` and `@component` constructs.
+  - Removed `golden_crud_api_vox_lowers_without_legacy_nodes` test, which was also part of the deprecated Path B.
+  - Removed `SERVER_FN_API_PREFIX` import, as it was only used by the removed tests.
+  - Added a comment explaining the removal of `hir_lowering_leaves_no_legacy_nodes_for_core_web_decls`.
+- `.gitignore`: Added `graphify-out/` to ignore local tooling artifacts.
+
+--- audit: original='test(hir): close out Path B ignored cohort; gitignore graphify-out' | actual=66L across 2 files | derived=full ---
