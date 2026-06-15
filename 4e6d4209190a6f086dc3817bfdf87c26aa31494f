@@ -1,0 +1,8 @@
+docs(superpowers): Add design specs for vox quantize features
+scale: ~190 lines across 3 files [M]
+
+- **docs/superpowers/specs/2026-05-31-vox-quantize-inference-design.md**: New design document for SP-2, detailing the wiring of quantized inference. This includes resolving the L3→L4 model-forward layering by proposing a new L2 crate `vox-model-qwen` for shared inference model components.
+- **docs/superpowers/specs/2026-05-31-vox-quantize-cli-design.md**: New design document for SP-4, outlining a standalone `vox quantize` CLI. This specifies the command-line interface, input/output flags, and reporting for quantizing local SafeTensors models using the SP-1 engine.
+- **docs/superpowers/specs/2026-05-31-vox-quantize-merge-design.md**: New design document for SP-3, describing how to quantize merged QLoRA output. This addresses the complication of merging a subset of tensors by requiring a recombination of the merged subset over the base model before quantization.
+
+--- audit: original='docs(quantize): SP-2/SP-3/SP-4 design specs' | actual=190L across 3 files | derived=full ---
