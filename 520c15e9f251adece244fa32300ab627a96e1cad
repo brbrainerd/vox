@@ -1,0 +1,15 @@
+feat(vox-cli): add `vox audit effort` subcommand for AI-judged commit audits
+scale: ~445 lines across 10 files [L]
+
+- `crates/vox-cli/src/commands/audit_effort.rs`: New file implementing the `vox audit effort` subcommand, handling CLI arguments, configuration loading, judge model resolution, and pipeline execution.
+- `crates/vox-effort-audit/src/pipeline.rs`: Added `run_with_overrides` function to accept `since_override` and `until_override` for CLI-driven range specification, and updated `run` to thin-wrap it.
+- `crates/vox-cli/src/commands/audit.rs`: Modified `AuditArgs` to include an optional `AuditSubcommand` enum, dispatching to `audit_effort::run` for the `Effort` subcommand.
+- `crates/vox-cli/tests/audit_effort_cli.rs`: New integration test to verify the `vox audit effort --help` output, ensuring expected flags are present.
+- `crates/vox-effort-audit/src/config.rs`: Added an optional `limit: Option<usize>` field to `EffortAuditConfig` to cap the number of judged commits, with corresponding default and TOML deserialization tests.
+- `crates/vox-cli/src/cli_dispatch/mod.rs`: Updated `dispatch_cli` to route `audit` commands to the new subcommand dispatch logic.
+- `crates/vox-cli/src/commands/mod.rs`: Added `audit_effort` module to the `vox-cli` commands.
+- `crates/vox-cli/Cargo.toml`: Added `vox-effort-audit` as a dependency.
+- `Cargo.toml`: Added `vox-effort-audit` to the workspace members.
+- `Cargo.lock`: Updated lockfile to reflect new dependency.
+
+--- audit: original='feat(vox-cli): vox audit effort subcommand (F1)' | actual=445L across 10 files | derived=full ---
