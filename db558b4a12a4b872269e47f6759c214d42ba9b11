@@ -1,0 +1,8 @@
+docs(vcs): P2 plan — spike R2 findings: jj `!Send` requires actor; push via git binary
+scale: ~11 lines across 1 files [S]
+
+- docs/superpowers/plans/2026-06-05-jj-first-class-p2-jj-engine-and-dead-code-removal.md: Add findings from Spike Round 2 for the P2 plan.
+  - Document that `jj-lib 0.42` is `!Send`, necessitating an asynchronous `VcsBackend` and a dedicated JJ-ACTOR for the production engine to handle `tokio::spawn` compatibility.
+  - Clarify that remote push/fetch operations will use the `git` binary instead of `gix`, correcting a previous specification.
+
+--- audit: original='docs(vcs): P2 plan — spike R2 findings (jj !Send -> actor; push via git binary; ops proven)' | actual=11L across 1 files | derived=full ---
