@@ -1,0 +1,17 @@
+feat(codegen-ts/rn): generate Expo Router file-system routes
+scale: ~330 lines across 6 files [L]
+
+- `crates/vox-codegen/src/codegen_ts/rn/routes.rs`: New module to generate Expo Router file-system routes (`app/index.tsx`, `app/about.tsx`, `app/detail/[id].tsx`, `app/_layout.tsx`) from `hir.client_routes`. Each route file re-exports its corresponding component with relative paths.
+- `crates/vox-codegen/src/codegen_ts/rn/scaffold.rs`: Modified `emit_expo_scaffold` to accept a `has_routes` boolean.
+  - When `has_routes` is true:
+    - `package.json`'s `main` field is set to `"expo-router/entry"`.
+    - `app.json` includes `"expo-router"` in `plugins` and adds a `scheme`.
+    - `expo-router`, `expo-linking`, `expo-constants`, and `react-native-screens` are added to `dependencies`.
+    - The flat `App.tsx` is omitted to prevent shadowing Expo Router's entry point.
+  - When `has_routes` is false, the legacy `expo/AppEntry.js` boot path and `App.tsx` are used.
+- `crates/vox-codegen/src/codegen_ts/rn/mod.rs`: Integrated the new `routes` module. Calls `routes::emit_expo_router_files` and passes the `has_routes` flag to `scaffold::emit_expo_scaffold`.
+- `crates/vox-cli-tests/tests/build_e2e.rs`: Added `build_mobile_routes_emits_expo_router_file_tree` test case to verify the correct generation of Expo Router files, `package.json` configuration, and `app.json` plugins when routes are defined.
+- `crates/vox-cli-tests/tests/fixtures/mobile_routes/main.vox`: New fixture defining `Home`, `About`, and `Detail` components with corresponding routes.
+- `crates/vox-cli-tests/tests/fixtures/mobile_routes/expected_files.toml`: New fixture specifying expected and forbidden files for the `mobile_routes` test, ensuring `App.tsx` is not emitted.
+
+--- audit: original='feat(codegen-ts/rn): @routes -> Expo Router file-system route tree' | actual=330L across 6 files | derived=full ---
