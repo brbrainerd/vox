@@ -1,0 +1,8 @@
+fix(browser): prevent `forward()` from erroring at history boundary
+scale: ~37 lines across 3 files [S]
+
+- `crates/vox-plugin-browser/src/engine.rs`: Modified `BrowserEngine::forward()` to return `Ok(())` when at the end of the history stack, instead of returning an error.
+- `contracts/config/env-vars.v1.yaml`: Registered new environment variables: `VOX_PREVIEW_URL`, `VOX_MENS_ACT_F32`, `VOX_MENS_GC_SEGMENTS`, and `VOX_MENS_GRADIENT_CHECKPOINTING`.
+- `docs/superpowers/plans/2026-06-07-claude-code-feature-adoption.md`: Updated internal documentation links to use relative paths and section references instead of absolute file paths.
+
+--- audit: original='fix(ci): repair doc links, register MENS/preview env vars, forward() no-op at boundary' | actual=37L across 3 files | derived=full ---
