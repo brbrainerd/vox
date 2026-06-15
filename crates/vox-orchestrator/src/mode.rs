@@ -69,3 +69,37 @@ impl InferenceConfig {
         self.free_only
     }
 }
+
+#[cfg(test)]
+mod semcov_behavior_tests {
+    use super::*;
+
+    // Catches: regression that maps Balanced (the default tier) to Performance,
+    // silently routing the most common quality tier to paid models and breaking
+    // the free-by-default product directive.
+    #[test]
+    fn to_cost_preference_balanced_and_flash_are_economy_premium_is_performance() {
+        assert_eq!(
+            QualityLevel::Flash.to_cost_preference(),
+            CostPreference::Economy
+        );
+        assert_eq!(
+            QualityLevel::Balanced.to_cost_preference(),
+            CostPreference::Economy
+        );
+        assert_eq!(
+            QualityLevel::Premium.to_cost_preference(),
+            CostPreference::Performance
+        );
+    }
+
+    // Catches: is_free_only returning a hardcoded constant instead of reflecting
+    // the free_only field, which would let paid models leak past a free-only gate.
+    #[test]
+    fn is_free_only_reflects_field() {
+        let mut cfg = InferenceConfig::default();
+        assert!(!cfg.is_free_only()); // default is false
+        cfg.free_only = true;
+        assert!(cfg.is_free_only());
+    }
+}

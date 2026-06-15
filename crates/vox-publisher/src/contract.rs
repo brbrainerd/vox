@@ -142,4 +142,28 @@ mod tests {
         assert!(out.ends_with("..."));
         assert!(out.chars().count() <= 12);
     }
+
+    #[test]
+    fn validate_github_repo_requires_exactly_owner_slash_name() {
+        // Catches: validate_github_repo accepting empty halves ("foo/") or extra path segments
+        // ("a/b/c"), or rejecting a well-formed "owner/name".
+        use super::validate_github_repo;
+        assert!(validate_github_repo("anthropics/claude").is_ok());
+        assert!(validate_github_repo("foo/").is_err());
+        assert!(validate_github_repo("/bar").is_err());
+        assert!(validate_github_repo("a/b/c").is_err());
+        assert!(validate_github_repo("noslash").is_err());
+    }
+
+    #[test]
+    fn validate_news_id_rejects_path_traversal() {
+        // Catches: validate_news_id failing to block "..", "/" or "\\" (path-escape) or
+        // rejecting a clean stem / allowing an empty id.
+        use super::validate_news_id;
+        assert!(validate_news_id("2026-06-15-release").is_ok());
+        assert!(validate_news_id("").is_err());
+        assert!(validate_news_id("../etc/passwd").is_err());
+        assert!(validate_news_id("a/b").is_err());
+        assert!(validate_news_id("a\\b").is_err());
+    }
 }

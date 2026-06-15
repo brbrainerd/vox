@@ -378,3 +378,33 @@ pub(super) fn detect_rust_syn_blockings(
     v.visit_file(&ast);
     v.findings
 }
+
+#[cfg(test)]
+mod semcov_behavior_tests {
+    use super::*;
+
+    // Catches: usize-literal parser failing to strip `_` digit separators or
+    // accepting non-numeric junk as a valid bound.
+    #[test]
+    fn parse_rust_usize_literal_strips_separators() {
+        assert_eq!(parse_rust_usize_literal("1_000"), Some(1000));
+        assert_eq!(parse_rust_usize_literal("42"), Some(42));
+        assert_eq!(parse_rust_usize_literal("0xFF"), None); // hex not handled
+        assert_eq!(parse_rust_usize_literal("abc"), None);
+    }
+
+    // Catches: lookback window scanner ignoring `//`-comment skip, or reading
+    // outside the [idx-window, idx) range and falsely reporting a `for` loop.
+    #[test]
+    fn recent_line_starts_for_loop_window_and_comment_skip() {
+        let lines = vec![
+            "for x in xs {".to_string(),
+            "// for show".to_string(),
+            "do_thing();".to_string(),
+        ];
+        // idx=2 (third line), window=5: real `for` on line 0 is in range.
+        assert!(recent_line_starts_for_loop(&lines, 2, 5));
+        // idx=2, window=1: only line 1 (a comment) is in range => false.
+        assert!(!recent_line_starts_for_loop(&lines, 2, 1));
+    }
+}

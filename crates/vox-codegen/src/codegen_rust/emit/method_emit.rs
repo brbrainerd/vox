@@ -1099,4 +1099,41 @@ mod tests {
             SqlDialect::mysql().placeholder_style
         );
     }
+
+    #[test]
+    fn dialect_for_backend_kind_maps_each_backend() {
+        // Catches: a mis-wired arm (e.g. Postgres accidentally mapped to sqlite),
+        // which would emit the wrong placeholder style ($1 vs ?) in generated SQL.
+        assert_eq!(
+            dialect_for_backend_kind(BackendKind::Postgres).placeholder_style,
+            SqlDialect::postgres().placeholder_style
+        );
+        assert_eq!(
+            dialect_for_backend_kind(BackendKind::MySql).placeholder_style,
+            SqlDialect::mysql().placeholder_style
+        );
+        assert_eq!(
+            dialect_for_backend_kind(BackendKind::Libsql).placeholder_style,
+            SqlDialect::sqlite().placeholder_style
+        );
+    }
+
+    #[test]
+    fn dialect_from_urls_prefers_app_url_then_falls_back_to_sqlite() {
+        // Catches: precedence regression (codex url winning over app url) or a
+        // bad-URL path that panics instead of defaulting to sqlite.
+        assert_eq!(
+            dialect_from_urls(
+                Some("postgres://u:p@localhost:5432/app"),
+                Some("libsql://example.turso.io"),
+            )
+            .placeholder_style,
+            SqlDialect::postgres().placeholder_style
+        );
+        // Both unparseable → sqlite default.
+        assert_eq!(
+            dialect_from_urls(Some("nope"), Some("also-nope")).placeholder_style,
+            SqlDialect::sqlite().placeholder_style
+        );
+    }
 }

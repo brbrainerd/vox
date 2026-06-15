@@ -1,4 +1,4 @@
-﻿//! Normalized errors for scholarly repository adapters (maps cleanly to DB `error_class`).
+//! Normalized errors for scholarly repository adapters (maps cleanly to DB `error_class`).
 //!
 //! ## Persisted `error_class` strings
 //!
@@ -214,5 +214,65 @@ mod tests {
         assert_eq!(tx.error_class(), "transient");
         let rl = classify_scholarly_http(429, "slow");
         assert_eq!(scholarly_http_status_code(&rl), Some(429));
+    }
+
+    #[test]
+    fn http_variant_error_class_derives_from_status() {
+        // Catches: error_class() Http arm misrouting 5xx/429/4xx (e.g. treating 503 as "fatal").
+        let server = ScholarlyError::Http {
+            status: 503,
+            message: "x".into(),
+        };
+        assert_eq!(server.error_class(), "transient");
+        let rl = ScholarlyError::Http {
+            status: 429,
+            message: "x".into(),
+        };
+        assert_eq!(rl.error_class(), "rate_limit");
+        let client = ScholarlyError::Http {
+            status: 404,
+            message: "x".into(),
+        };
+        assert_eq!(client.error_class(), "fatal");
+    }
+
+    #[test]
+    fn retryable_only_true_for_429_5xx_and_rate_transient() {
+        // Catches: retryable() wrongly retrying a 404 or refusing to retry a 500/429.
+        assert!(
+            ScholarlyError::Http {
+                status: 500,
+                message: String::new()
+            }
+            .retryable()
+        );
+        assert!(
+            ScholarlyError::Http {
+                status: 429,
+                message: String::new()
+            }
+            .retryable()
+        );
+        assert!(
+            !ScholarlyError::Http {
+                status: 404,
+                message: String::new()
+            }
+            .retryable()
+        );
+        assert!(
+            ScholarlyError::Transient {
+                message: String::new(),
+                source_status: None
+            }
+            .retryable()
+        );
+        assert!(
+            !ScholarlyError::Fatal {
+                code: "c".into(),
+                message: String::new()
+            }
+            .retryable()
+        );
     }
 }

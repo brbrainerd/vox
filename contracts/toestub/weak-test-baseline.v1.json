@@ -1625,6 +1625,13 @@
       "rule_id_prefix": "weak_test"
     },
     {
+      "line": 536,
+      "owner": "robot",
+      "path_glob": "**/crates/vox-code-audit/src/detectors/import_cycles.rs",
+      "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
+      "rule_id_prefix": "weak_test"
+    },
+    {
       "line": 252,
       "owner": "robot",
       "path_glob": "**/crates/vox-code-audit/src/detectors/llm_provider_call.rs",
@@ -2199,6 +2206,13 @@
       "rule_id_prefix": "weak_test"
     },
     {
+      "line": 161,
+      "owner": "robot",
+      "path_glob": "**/crates/vox-codegen/src/assets/mod.rs",
+      "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
+      "rule_id_prefix": "weak_test"
+    },
+    {
       "line": 225,
       "owner": "robot",
       "path_glob": "**/crates/vox-codegen/src/codegen_rust/emit/param_borrow.rs",
@@ -2395,6 +2409,13 @@
       "rule_id_prefix": "weak_test"
     },
     {
+      "line": 574,
+      "owner": "robot",
+      "path_glob": "**/crates/vox-compiler/src/feature_matrix.rs",
+      "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
+      "rule_id_prefix": "weak_test"
+    },
+    {
       "line": 189,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/fmt/mod.rs",
@@ -2409,14 +2430,14 @@
       "rule_id_prefix": "weak_test"
     },
     {
-      "line": 791,
+      "line": 793,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/hir/lower/json_as.rs",
       "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
       "rule_id_prefix": "weak_test"
     },
     {
-      "line": 1168,
+      "line": 1171,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/hir/nodes/decl.rs",
       "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
@@ -2440,6 +2461,20 @@
       "line": 288,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/tests.rs",
+      "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
+      "rule_id_prefix": "weak_test"
+    },
+    {
+      "line": 139,
+      "owner": "robot",
+      "path_glob": "**/crates/vox-compiler/src/parser/renames.rs",
+      "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
+      "rule_id_prefix": "weak_test"
+    },
+    {
+      "line": 151,
+      "owner": "robot",
+      "path_glob": "**/crates/vox-compiler/src/parser/renames.rs",
       "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
       "rule_id_prefix": "weak_test"
     },
@@ -2591,14 +2626,14 @@
       "rule_id_prefix": "weak_test"
     },
     {
-      "line": 948,
+      "line": 966,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/typeck/diagnostics.rs",
       "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
       "rule_id_prefix": "weak_test"
     },
     {
-      "line": 953,
+      "line": 971,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/typeck/diagnostics.rs",
       "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
@@ -3182,6 +3217,13 @@
       "line": 141,
       "owner": "robot",
       "path_glob": "**/crates/vox-container-types/src/exec_grammar/policy.rs",
+      "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
+      "rule_id_prefix": "weak_test"
+    },
+    {
+      "line": 117,
+      "owner": "robot",
+      "path_glob": "**/crates/vox-container-types/src/runtime.rs",
       "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
       "rule_id_prefix": "weak_test"
     },
@@ -3977,14 +4019,14 @@
       "rule_id_prefix": "weak_test"
     },
     {
-      "line": 388,
+      "line": 391,
       "owner": "robot",
       "path_glob": "**/crates/vox-git/src/bridge.rs",
       "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
       "rule_id_prefix": "weak_test"
     },
     {
-      "line": 483,
+      "line": 486,
       "owner": "robot",
       "path_glob": "**/crates/vox-git/src/bridge.rs",
       "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
@@ -4698,6 +4740,13 @@
       "rule_id_prefix": "weak_test"
     },
     {
+      "line": 28,
+      "owner": "robot",
+      "path_glob": "**/crates/vox-orchestrator-mcp/src/visus_review/mod.rs",
+      "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
+      "rule_id_prefix": "weak_test"
+    },
+    {
       "line": 453,
       "owner": "robot",
       "path_glob": "**/crates/vox-orchestrator-queue/src/affinity.rs",
@@ -4831,7 +4880,7 @@
       "rule_id_prefix": "weak_test"
     },
     {
-      "line": 307,
+      "line": 396,
       "owner": "robot",
       "path_glob": "**/crates/vox-orchestrator/src/circuit_breaker.rs",
       "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
@@ -5086,6 +5135,13 @@
       "line": 168,
       "owner": "robot",
       "path_glob": "**/crates/vox-orchestrator/src/preregistration/signing.rs",
+      "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
+      "rule_id_prefix": "weak_test"
+    },
+    {
+      "line": 277,
+      "owner": "robot",
+      "path_glob": "**/crates/vox-orchestrator/src/queue/drain.rs",
       "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
       "rule_id_prefix": "weak_test"
     },
@@ -5412,7 +5468,7 @@
       "rule_id_prefix": "weak_test"
     },
     {
-      "line": 900,
+      "line": 904,
       "owner": "robot",
       "path_glob": "**/crates/vox-plugin-browser/src/engine.rs",
       "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
@@ -5552,7 +5608,7 @@
       "rule_id_prefix": "weak_test"
     },
     {
-      "line": 155,
+      "line": 192,
       "owner": "robot",
       "path_glob": "**/crates/vox-plugin-runtime-wasm/src/runtime.rs",
       "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
@@ -5867,6 +5923,20 @@
       "rule_id_prefix": "weak_test"
     },
     {
+      "line": 147,
+      "owner": "robot",
+      "path_glob": "**/crates/vox-publisher/src/contract.rs",
+      "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
+      "rule_id_prefix": "weak_test"
+    },
+    {
+      "line": 159,
+      "owner": "robot",
+      "path_glob": "**/crates/vox-publisher/src/contract.rs",
+      "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
+      "rule_id_prefix": "weak_test"
+    },
+    {
       "line": 388,
       "owner": "robot",
       "path_glob": "**/crates/vox-publisher/src/distribution_compile.rs",
@@ -6154,7 +6224,7 @@
       "rule_id_prefix": "weak_test"
     },
     {
-      "line": 415,
+      "line": 480,
       "owner": "robot",
       "path_glob": "**/crates/vox-scaling-policy/src/cost_defense.rs",
       "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",
@@ -6679,7 +6749,7 @@
       "rule_id_prefix": "weak_test"
     },
     {
-      "line": 547,
+      "line": 548,
       "owner": "robot",
       "path_glob": "**/crates/vox-workflow-runtime/src/file_journal.rs",
       "reason": "Grandfathered advisory weak/touch-test; gate guards NEW touch-tests only.",

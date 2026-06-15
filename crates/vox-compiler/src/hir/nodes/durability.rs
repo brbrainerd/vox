@@ -32,3 +32,17 @@ impl DurabilityKind {
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_behavior_tests {
+    use super::*;
+
+    // Catches: a swapped/mislabeled arm (e.g. Workflow returning "activity"),
+    // which would corrupt durable-execution diagnostics and codegen routing.
+    #[test]
+    fn label_distinguishes_all_three_durability_kinds() {
+        assert_eq!(DurabilityKind::Workflow.label(), "workflow");
+        assert_eq!(DurabilityKind::Activity.label(), "activity");
+        assert_eq!(DurabilityKind::Actor.label(), "actor");
+    }
+}

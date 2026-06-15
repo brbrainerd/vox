@@ -932,3 +932,28 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod semcov_pure_tests {
+    use super::*;
+
+    // Catches: parse_description_hints mis-routing a [[research:...]] tag into the
+    // tools bucket (or vice-versa), or dropping the value after the colon.
+    #[test]
+    fn parse_description_hints_separates_tool_and_research() {
+        let (tools, research) =
+            AgentTask::parse_description_hints("do [[tool:ripgrep]] then [[research:rust async]]");
+        assert_eq!(tools, vec!["ripgrep".to_string()]);
+        assert_eq!(research, vec!["rust async".to_string()]);
+    }
+
+    // Catches: complexity() not clamping out-of-range input, letting a 0 or 99
+    // through and skewing weighted_load / scaling math.
+    #[test]
+    fn complexity_clamps_to_one_through_ten() {
+        let lo = AgentTask::new(TaskId(1), "x", TaskPriority::Normal, vec![]).complexity(0);
+        assert_eq!(lo.estimated_complexity, 1);
+        let hi = AgentTask::new(TaskId(2), "x", TaskPriority::Normal, vec![]).complexity(99);
+        assert_eq!(hi.estimated_complexity, 10);
+    }
+}

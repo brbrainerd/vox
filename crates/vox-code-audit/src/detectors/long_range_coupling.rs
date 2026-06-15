@@ -243,4 +243,14 @@ mod tests {
         let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "5-line gap should not fire");
     }
+
+    // Catches: whole-word matcher degrading to substring (flagging `config`
+    // inside `reconfigure`) or missing a boundary at start/end of line.
+    #[test]
+    fn contains_word_respects_boundaries() {
+        assert!(contains_word("apply(config);", "config"));
+        assert!(!contains_word("call reconfigure();", "config"));
+        assert!(contains_word("config", "config")); // whole line
+        assert!(!contains_word("cfg", "config")); // word longer than line
+    }
 }
