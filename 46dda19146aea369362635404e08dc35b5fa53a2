@@ -1,0 +1,27 @@
+feat(ci): add optional COOLIFY_READ_TOKEN for Coolify API polling
+scale: ~439 lines across 7 files [L]
+
+- **`crates/vox-clavis`**:
+    - Introduced `SecretId::CoolifyReadToken` to represent an optional read-capable Coolify API token.
+    - Updated `SecretSpec` for `CoolifyToken` to clarify remediation, suggesting `COOLIFY_READ_TOKEN` for poll/log GETs when `COOLIFY_TOKEN` is deploy-only.
+    - Added `SecretSpec` for `CoolifyReadToken` with remediation details and scope description.
+- **`.github/workflows/deploy-hetzner.yml`**:
+    - Modified deployment workflow to use `COOLIFY_READ_TOKEN` for polling and logs, falling back to `COOLIFY_TOKEN` if `COOLIFY_READ_TOKEN` is not set.
+    - Added `COOLIFY_READ_TOKEN` to the `env` block for the `deploy` job.
+    - Updated `curl` commands for polling deployments and logs to use the `POLL_TOKEN` variable.
+- **`docs/src/ci/deploy-contract.md`**:
+    - Updated documentation to reflect the use of `COOLIFY_READ_TOKEN` for read-only operations (polling, logs, Gate 3 probe) and `COOLIFY_TOKEN` for triggers.
+- **`contracts/clavis/managed-env-names.md`**:
+    - Added `COOLIFY_READ_TOKEN` to the list of managed environment names.
+    - Added `COOLIFY_APP_UUID`, `COOLIFY_BASE_URL`, `COOLIFY_TOKEN`, and `COOLIFY_WEBHOOK_URL` to the list.
+    - Added `VOX_SEARCH_CHUNK_VECTOR_WEIGHT` to the list.
+- **`contracts/clavis/managed-env-names.v1.json`**:
+    - Regenerated the contract, adding `CoolifyWebhookUrl`, `CoolifyBaseUrl`, `CoolifyToken`, `CoolifyReadToken`, and `CoolifyAppUuid` with their respective details and capabilities.
+    - Updated `V0ApiKey` and `OpenClawToken` to include `VOX_V0_API_KEY` and `VOX_OPENCLAW_TOKEN` as aliases, respectively.
+    - Updated `generated_at_ms` timestamp.
+- **`contracts/clavis/secret-capabilities.v1.json`**:
+    - Regenerated the contract, adding `CoolifyWebhookUrl`, `CoolifyBaseUrl`, `CoolifyToken`, `CoolifyReadToken`, and `CoolifyAppUuid` with their respective details and capabilities.
+    - Updated `V0ApiKey` and `OpenClawToken` to include `VOX_V0_API_KEY` and `VOX_OPENCLAW_TOKEN` as aliases, respectively.
+    - Updated `generated_at_ms` timestamp.
+
+--- audit: original='fix(ci): optional COOLIFY_READ_TOKEN for Coolify Gate 2 polling' | actual=439L across 7 files | derived=full ---
