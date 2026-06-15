@@ -1,0 +1,20 @@
+feat(vox-compiler): typecheck `Unit`, `panic`, and ObjectLit-as-Map
+scale: ~80 lines across 6 files [M]
+
+- **`typeck/builtins.rs`**:
+    - Registered `Unit` as `Ty::Unit` with `BindingKind::Constructor` to enable typechecking `Result[Unit]` returns.
+    - Registered `panic` as `Fn(Ty::Str) -> Ty::Never` to enable typechecking `panic` calls.
+- **`typeck/checker/expr.rs`**:
+    - Implemented Object-literal-as-Map unification: when an object literal's expected type is `Ty::Map[K, V]`, it infers as `Map`, checking field values against `V` and unifying keys to `K` (typically `Str`).
+- **`typeck/checker/mod.rs`**:
+    - Modified `let` binding typechecking to pass the type annotation as the expected type to `check_expr`, enabling context-sensitive inference for object literals (e.g., `Map` inference).
+- **`examples/golden/scheduled_tick.vox`**:
+    - Rewrote `@scheduled` example to use a plain `fn` (`scheduled_tick_1h`) with a doc comment, retiring the `@scheduled` annotation per ADR-028.
+    - Updated metadata: title, description, constructs, and `last_validated`.
+- **`examples/golden/pagination.vox`**:
+    - Changed the return type of `fetch_events` from `List[EventLog]` to `Result[List[EventLog]]`.
+    - Added `?` propagation to the `db.EventLog.filter` call and wrapped the return value in `Ok()`.
+- **`examples/golden/ref_types.vox`**:
+    - Changed the `char` literal example to use `str` (`"x"`) instead of `char` (`'x'`), with a comment noting `Char` is a v1.x type.
+
+--- audit: original='feat(vox-compiler): P2 typecheck depth — Unit/panic builtins, ObjectLit-as-Map, golden updates' | actual=80L across 6 files | derived=full ---
