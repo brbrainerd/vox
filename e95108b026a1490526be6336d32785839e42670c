@@ -1,0 +1,12 @@
+feat(mcp): wire auto post-mutation verification into tool dispatch
+scale: ~67 lines across 3 files [M]
+
+- `crates/vox-orchestrator-mcp/src/post_verification.rs`:
+    - Added a new `verify_and_attach_flags_broken_vox_and_passes_clean_vox` integration test for `verify_and_attach`. This test uses `code_validator::vox_check` (via `vox_compiler::pipeline::check_file`) to verify `.vox` files, attaching an advisory for syntactically broken files and passing clean files untouched. It creates and removes temporary probe files within the repository root.
+    - Adjusted the `advisory_from_check_json` function to improve readability by breaking a long conditional statement into multiple lines.
+- `crates/vox-orchestrator-mcp/src/dispatch.rs`:
+    - Modified `handle_tool_call` to integrate post-mutation verification. After a successful tool execution, it now calls `crate::post_verification::verify_and_attach` with the tool's state, name, arguments, and payload. This automatically runs `vox check` on touched `.vox` files and attaches diagnostics to the result, enabling agent self-correction. This step is a no-op for non-mutating tools, non-`.vox` paths, clean files, or when `VOX_VERIFY_ON_WRITE` is disabled.
+- `crates/vox-orchestrator-mcp/src/lib.rs`:
+    - Moved the `post_verification` module declaration to a new position within the `lib.rs` file.
+
+--- audit: original='feat(mcp): wire auto post-mutation verification into tool dispatch' | actual=67L across 3 files | derived=full ---
