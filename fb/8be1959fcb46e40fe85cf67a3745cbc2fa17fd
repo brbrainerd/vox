@@ -1,0 +1,11 @@
+feat(typeck): support chained DB query methods for type checking
+scale: ~76 lines across 2 files [M]
+
+- `crates/vox-compiler/src/typeck/checker/expr.rs`:
+    - Implemented type checking for chained database query methods (`.where`, `.order_by`, `.limit`, `.select`) by handling `opt_plan` in `HirExpr::MethodCall`.
+    - Removed the "not supported yet" diagnostic for `.limit` and `.order_by` methods.
+    - Added a new helper function `db_query_record_fields` to extract record fields from various `Ty` variants (Table, Collection, Record, Result, List, Option) for database query type inference.
+    - Modified the type checking logic for method calls to correctly infer the return type of chained DB queries as `Result[List[Record]]`, threading row fields through the chain.
+- `crates/vox-compiler/tests/match_exhaustiveness_test.rs`: Added a new test case `db_query_chaining_typechecks` to verify that chained database query methods (`.where`, `.order_by`, `.limit`) typecheck correctly without errors.
+
+--- audit: original='@ feat(typeck): db query-plan chaining (.where/.order_by/.limit/.select) typechecks' | actual=76L across 2 files | derived=full ---
