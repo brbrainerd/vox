@@ -1,0 +1,19 @@
+feat(gamify): thread EconomyConfig through reward policy functions
+scale: ~257 lines across 3 files [L]
+
+- `crates/vox-gamify/src/reward_policy.rs`:
+    - Made `NOVELTY_FACTOR` public.
+    - Introduced `learning_mode_crystal_jitter_cfg` to allow passing an `EconomyConfig` for jitter modulus.
+    - Updated the original `learning_mode_crystal_jitter` to call the new `_cfg` variant with a default config.
+    - Added `apply_policy_cfg` which accepts an `EconomyConfig` to source tuning and trust parameters.
+    - Modified the original `apply_policy` to call `apply_policy_cfg` with a default config for backward compatibility.
+- `crates/vox-gamify/src/economy.rs`:
+    - Updated `Tuning::default` to reference `crate::reward_policy::NOVELTY_FACTOR`.
+    - Added `CONTRACT_WORKSPACE_RELPATH` constant.
+    - Implemented `resolve_economy` to load the `EconomyConfig` from environment variable, workspace path, or cargo manifest path, falling back to defaults if not found or invalid.
+- `crates/vox-gamify/src/db/process_rewards.rs`:
+    - Modified `process_event_rewards` to use `OnceLock` to initialize and store a single `EconomyConfig` instance by calling `crate::economy::resolve_economy`.
+    - Switched from `base_reward` to `economy.base_reward` to source base rewards from the loaded config.
+    - Updated calls to `apply_policy` and `learning_mode_crystal_jitter` to their `_cfg` variants, passing the resolved `economy` config.
+
+--- audit: original='feat(gamify): thread EconomyConfig through apply_policy — contract is now the live economy source (HC-G12-05)' | actual=257L across 3 files | derived=full ---
