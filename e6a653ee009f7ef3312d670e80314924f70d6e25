@@ -1,0 +1,9 @@
+feat(visus-review): add one-shot OpenRouter vision call with base64 PNG
+scale: ~98 lines across 1 files [M]
+
+- Introduce `crates/vox-orchestrator-mcp/src/visus_review/vision_call.rs` to provide a function `call_vision_model` for performing one-shot vision completions.
+- The `call_vision_model` function sends a base64 encoded PNG image along with system and user text prompts to the OpenRouter API.
+- It handles OpenRouter API key resolution via `vox_secrets` and constructs the necessary JSON request body.
+- Defines `Usage` struct for tracking prompt tokens, completion tokens, and cost, and internal structs (`OrUsage`, `OrMsg`, `OrChoice`, `OrResp`) for deserializing OpenRouter API responses.
+
+--- audit: original='feat(visus-review): one-shot base64-image vision call to OpenRouter' | actual=98L across 1 files | derived=full ---
