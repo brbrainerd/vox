@@ -1,0 +1,19 @@
+docs(plans): add plan for zero-TS Vox self-sufficiency
+scale: ~284 lines across 1 files [L]
+
+- Add `docs/superpowers/plans/2026-05-08-handoff-zero-ts-vox-self-sufficient.md` detailing a forward-looking handoff plan to make `vox build` emit everything a real app needs, eliminating the need for hand-written TypeScript.
+- The plan outlines:
+    - A vision for zero hand-written TypeScript, including a table of TS files that should be Vox-emitted.
+    - Identified codegen bugs and gaps (8 entries covering hard bugs, missing imports, async dispatch, JSX event types, and tree-shake robustness).
+    - An endpoint execution model for mobile (local SQLite via Capacitor plugin).
+    - TS files to port to Vox (`materializer`, `export_contract`, `export_pipeline`).
+    - Cross-reference to Path C plan #79.
+    - Out-of-scope items.
+    - Five open questions for the implementing session.
+    - Sequencing and parallelism considerations.
+    - Per-PR verification gates.
+    - The end-state directory tree (zero TS files in `apps/*`).
+    - A paste prompt for the new tab.
+- This plan surfaces concrete codegen gaps discovered while wiring `vox-mental-tracker` (PR #70) to render in a browser, plus the runtime/endpoint-execution layer apps need on Capacitor mobile.
+
+--- audit: original='docs(plans): handoff for zero-TS Vox self-sufficiency (#80)' | actual=284L across 1 files | derived=full ---
