@@ -1,0 +1,27 @@
+refactor(plugin): unify SkillManifest to a single canonical type
+scale: ~90 lines across 6 files [M]
+
+- `crates/vox-plugin-types/src/skill_manifest.rs`:
+    - Added `Default` derive to `SkillManifest` struct.
+    - Added `Default` derive to `SkillCategory` enum.
+    - Added `Unknown` variant to `SkillCategory` enum and marked it as `#[default]`.
+    - Added `#[serde(default)]` to `author`, `category`, `permissions`, `tools`, `dependencies`, and `tags` fields in `SkillManifest` to allow deserialization of JSON/TOML without these keys.
+    - Updated documentation for `SkillManifest` to reflect `Default` implementation and its role as the canonical type.
+    - Updated documentation for `author` and `category` fields to mention default values.
+- `crates/vox-plugin-api/src/skill.rs`:
+    - Replaced the slim 5-field `SkillManifest` definition with a re-export of the canonical `SkillManifest`, `SkillCategory`, and `SkillPermission` types from `vox-plugin-types`.
+    - Updated module-level documentation to explain the unification and the use of `..Default::default()`.
+- `crates/vox-plugin-host/src/skill_registry.rs`:
+    - Removed `promote_manifest` and `demote_manifest` bridge functions.
+    - Modified `install()` to directly use the unified `SkillManifest` and fill `author` from `plugin_id` if empty.
+    - Modified `lookup()` to return `entry.manifest.clone()` directly, as `LoadedSkill.manifest` and `entry.manifest` are now the same type.
+    - Removed `format_version` field from `LoadedSkill` construction.
+    - Updated comments to reflect the manifest unification.
+- `crates/vox-plugin-api/tests/skill_types.rs`:
+    - Added `..Default::default()` to `SkillManifest` struct literal in `loaded_skill_round_trip_construct_and_read` test to compile against the now-expanded canonical type.
+- `crates/vox-plugin-host/src/discover.rs`:
+    - Added `..Default::default()` to `SkillManifest` struct literal in `discover` function.
+- `crates/vox-plugin-host/tests/registry_basics.rs`:
+    - Added `..Default::default()` to `SkillManifest` struct literal in `fake_skill` function.
+
+--- audit: original='refactor(plugin): unify SkillManifest to single canonical type (D-17)' | actual=90L across 6 files | derived=full ---
