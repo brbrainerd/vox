@@ -1,0 +1,32 @@
+feat(orchestrator): implement A2A dispatch via DB and Populi mesh, remove vox-dei crate
+scale: ~1071 lines across 111 files [XL]
+
+- `crates/vox-orchestrator`:
+    - Refactored A2A message dispatch to use a new `dispatch` module, separating logic for database persistence (`db.rs`) and Populi mesh relay (`mesh.rs`).
+    - Introduced `remote_poller_noop.rs` and `remote_worker_noop.rs` for conditional compilation when `populi-transport` feature is disabled.
+    - Added `mesh_federation_poll_noop.rs` for conditional compilation when `populi-transport` feature is disabled.
+    - Added new `dei_shim` module with `mod.rs` and `agent_frontmatter.rs` for agent frontmatter parsing.
+    - Updated `Cargo.toml` to reflect new dependencies and features.
+    - Modified `orchestrator/tests.rs` and `orchestrator/agent_lifecycle.rs`.
+    - Added `orchestrator/scaling.rs` and `services/mod.rs`.
+    - Updated `lib.rs`.
+- `crates/vox-dei`: Removed the entire crate, including `src/lib.rs`, `Cargo.toml`, and `README.md`.
+- `crates/vox-ars`: Removed `tests/domain_test.rs` and `tests/openclaw_protocol_fixtures.rs`.
+- `contracts/capability`: Added `capability-registry.yaml` and updated `model-manifest.generated.json`.
+- `contracts/cli`: Added `command-registry.yaml`.
+- `docs`:
+    - Added `architecture/english_core_migration_ledger.md`.
+    - Updated `how-to/how-to-model-routing.md`, `architecture/orphan-surface-inventory.md`, `architecture/agentic-user-journeys.md`, `architecture/god-object-defactor-checklist.md`, `reference/cli.md`, `architecture/crate-topology-buckets.md`, `architecture/script-surface-audit.md`, `ci/workflow-enumeration.md`, `explanation/expl-openclaw-analysis.md`, `explanation/glossary.md`, `ci/build-timings/budgets.json`, `contracts/operations/catalog.v1.schema.json`, `ci/build-timings/snapshot-metadata.json`, `SUMMARY.md`, `adr/013-openclaw-ws-native-strategy.md`, `adr/022-orchestrator-bootstrap-and-daemon-boundaries.md`, `api/vox-orchestrator.md`, `architecture/cli-scope-policy.md`, `architecture/codex-arca-import-policy.md`, `architecture/forward-migration-charter.md`, `architecture/mcp-vox-language-exposure.md`, `architecture/nomenclature-migration-map.md`, `architecture/outbound-http-policy.md`, `architecture/telemetry-implementation-backlog-2026.md`, `architecture/vox-cli-build-feature-inventory.md`, `ci/command-surface-duals.md`, `reference/env-vars.md`, `architecture/crate-build-lanes-migration.md`.
+    - Removed `api/vox-dei.md`.
+- `crates/vox-skills`:
+    - Modified `src/ars_shim/mod.rs`, `src/ars_shim/openclaw.rs`, `src/ars_shim/openclaw_adapter.rs`, `src/ars_shim/openclaw_discovery.rs`, `Cargo.toml`, `tests/domain_test.rs`, `src/ars_shim/domain.rs`, `src/ars_shim/runtime.rs`, `src/ars_shim/executor.rs`, `src/ars_shim/openclaw_gateway_ws.rs`, `src/lib.rs`.
+- `crates/vox-cli`:
+    - Modified `src/commands/extras/ars/run_skill.rs`, `src/commands/openclaw.rs`, `Cargo.toml`, `src/commands/extras/ars/eval_promote.rs`, `src/commands/ci/nomenclature_guard.rs`, `src/commands/extras/ars/registry.rs`, `src/commands/ci/command_compliance/validators.rs`, `src/commands/ci/mod.rs`, `src/commands/ci/operations_catalog.rs`, `src/commands/ci/run_body_helpers/timings.rs`, `src/commands/extras/ars/context.rs`, `src/commands/extras/ars/skills_crud.rs`, `src/commands/ci/run_body_helpers/docs.rs`.
+- `crates/vox-jsonschema-util`: Modified `src/lib.rs`.
+- `contracts/reports`: Modified `operations-catalog-inventory.v1.json`.
+- `crates/vox-mcp`: Modified `src/tools/openclaw_tools.rs` and `Cargo.toml`.
+- `Cargo.toml` and `Cargo.lock`: Updated dependencies across the workspace.
+- `.github/workflows/ci.yml`: Modified CI workflow.
+- `crates/vox-runtime`: Modified `Cargo.toml` and `src/builtins.rs`.
+
+--- audit: original='feat: implement agent frontmatter parsing and orchestrator DEI routing infrastructure' | actual=1071L across 111 files | derived=full ---
