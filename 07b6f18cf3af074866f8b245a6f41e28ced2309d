@@ -1,0 +1,15 @@
+feat(vox-effort-route): implement conditional embedding sub-clustering
+scale: ~219 lines across 1 files [M]
+
+- `crates/vox-effort-route/src/cluster.rs`:
+    - Implemented `maybe_split` function to conditionally split `Bucket`s into `Cluster`s based on size.
+    - Defined `Cluster` struct to represent sub-clusters with a `key_suffix` and `Bucket`.
+    - Introduced `Embedder` trait with an `embed` method for abstracting embedding logic.
+    - Added logic to embed rationale for oversized buckets and perform agglomerative cosine clustering.
+    - Included fallback to not split buckets if embedding fails or if the bucket is not oversized.
+    - Added `split_into_sub_buckets` function to perform the actual splitting based on cluster assignments.
+    - Implemented `cosine_distance` and `agglomerative_cluster` helper functions for clustering.
+    - Added `normalize_vector` function for vector normalization.
+    - Replaced the initial stub comment with a detailed description of the module's purpose.
+
+--- audit: original='feat(vox-effort-route): conditional embedding sub-cluster (A6)' | actual=219L across 1 files | derived=full ---
