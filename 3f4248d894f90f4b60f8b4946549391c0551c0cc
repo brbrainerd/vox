@@ -1,0 +1,6 @@
+docs(architecture): register vox-share in layers.toml and where-things-live.md; tolerate vox-arch-check dev-dep on vox-compiler
+scale: ~7 lines across 2 files [S]
+- docs/src/architecture/layers.toml: Registered `vox-share` at layer 2 and added a `known_inversions` entry to tolerate `vox-arch-check` dev-depending on `vox-compiler`.
+- docs/src/architecture/where-things-live.md: Added `vox-share` to the L2 table with its description.
+
+--- audit: original='fix(arch-check): register vox-share in layers.toml + where-things-live; tolerate arch-check→vox-compiler dev-dep' | actual=7L across 2 files | derived=full ---
