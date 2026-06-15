@@ -1,0 +1,57 @@
+feat(vox-populi): Add new GPU kernels and update documentation
+scale: ~1009639 lines across 3228 files [XL]
+
+DIVERGENCE: original subject claimed 'feat: setup public eval sandbox for vox playground' but this commit actually changed ~1009639 lines across 3228 files. Top areas:
+crates: 624148 lines, 1819 files
+mens: 137439 lines, 52 files
+docs: 126565 lines, 683 files
+contracts: 57332 lines, 125 files
+patches: 28564 lines, 174 files
+(root): 6586 lines, 30 files
+vox-vscode: 6452 lines, 52 files
+tools: 5452 lines, 12 files
+docs-astro: 5322 lines, 18 files
+scripts: 2761 lines, 73 files
+test_app_bundle: 1929 lines, 29 files
+.opencode: 1875 lines, 17 files
+marquee_app: 1719 lines, 16 files
+examples: 1500 lines, 51 files
+.github: 705 lines, 15 files
+schemas: 319 lines, 1 files
+infra: 255 lines, 3 files
+{vox-vscode: 202 lines, 10 files
+.cursor: 138 lines, 9 files
+docker: 110 lines, 3 files
+tree-sitter-vox: 75 lines, 6 files
+test_app: 67 lines, 2 files
+.vox: 47 lines, 13 files
+.config: 36 lines, 1 files
+{docker => infra: 14 lines, 4 files
+tests: 13 lines, 5 files
+.vscode: 6 lines, 1 files
+.gemini: 4 lines, 1 files
+.cargo: 3 lines, 1 files
+scratch: 1 lines, 1 files
+
+- **crates/vox-populi**: Added numerous new GPU kernels for quantized, binary, unary, indexing, conv, reduce, cast, sort, fill, and affine operations. Removed `candle_qlora_train/training_loop.rs`.
+- **docs**: Significantly updated documentation, including new agent inventories, research archives for Q1 2026 (covering scientia pipelines, clavis implementation, LLM target language gap, publication endpoints, tanstack, react interop, vscode extension redesign, diagnostic questioning, and output mediation validation), and architecture documents. Modified `SUMMARY.md`.
+- **contracts**: Added new YAML and JSON contract definitions for operations catalog, capability registry, model manifest, completion task ledger, env vars, managed env names, and secret capabilities. Updated `command-registry.yaml` and `tool-registry.canonical.yaml`.
+- **mens**: Added new log files and removed old checkpoint state files from `runs/v1` and `runs/qwen35_qlora_smoke35_v4`.
+- **crates/vox-orchestrator**: Added new modules for dispatch, populi single owner tests, chat tools, planning, a2a tools, grounding, http gateway, budget, context envelope, and context lifecycle. Modified task submission and model registry.
+- **crates/vox-clavis**: Added new modules for missing registry specs and platform specs. Removed `spec.rs`.
+- **crates/vox-publisher**: Added new modules for the publisher, scientia discovery, and scientia evidence. Removed `lib.rs`, `scholarly_external_jobs.rs`, and `submission_package.rs`.
+- **crates/vox-cli**: Added new commands for CI operations catalog and completion quality. Modified `scientia.rs`, `run_body_helpers/guards.rs`, and `review/coderabbit/ingest.rs`. Removed `db/publication.rs`.
+- **crates/vox-compiler**: Added new builtins and a prototype tokenizer fixture.
+- **crates/vox-mens**: Added new commands for populi CLI, corpus generation, and oratio.
+- **crates/vox-runtime**: Updated builtins.
+- **crates/vox-db**: Modified workflow facade.
+- **crates/vox-workflow-runtime**: Modified workflow tracker tests.
+- **crates/vox-config**: Added operator registry.
+- **crates/vox-search**: Added execution module.
+- **patches**: Removed numerous Aegis-related patch files.
+- **pnpm-lock.yaml**: Updated lock files for `docs-astro`, `crates/vox-dashboard`, `tools/visualizer`, `test_app_bundle/app`, and `marquee_app`.
+- **Cargo.lock**: Updated Rust dependency lock file.
+- **vox-vscode**: Updated `package-lock.json`.
+- **tools**: Removed `dashboard/app.js` and `dashboard/index.css`.
+
+--- audit: original='feat: setup public eval sandbox for vox playground' | actual=1009639L across 3228 files | derived=stat-only ---
