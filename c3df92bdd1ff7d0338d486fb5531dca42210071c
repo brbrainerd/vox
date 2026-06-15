@@ -1,0 +1,7 @@
+docs(arch): add crate organization follow-up design and implementation plan
+scale: ~2149 lines across 2 files [XL]
+
+- Add `docs/src/architecture/2026-05-08-crate-org-followup-design.md` detailing the design for addressing SSOT drift, naming inconsistencies, and deferred crate extractions. This document outlines the problem statement, proposed solutions for naming, SSOT fixes, and specific crate extractions (vox-package, vox-cli-ci, ops_ludus, vox-orchestrator-core, vox-arch-check).
+- Add `docs/src/architecture/2026-05-08-crate-org-followup-plan.md` providing a step-by-step implementation plan for the design, structured into six sequential PRs. It includes verification commands and detailed tasks for each PR, covering naming corrections, crate extractions, and the addition of `vox-arch-check` lints.
+
+--- audit: original='docs(arch): add crate-org-followup design + implementation plan (2026-05-08)' | actual=2149L across 2 files | derived=full ---
