@@ -1,0 +1,7 @@
+feat(repair): include TOESTUB lint findings in LLM prompt
+scale: ~100 lines across 2 files [M]
+
+- `crates/vox-cli/src/commands/repair.rs`: When the `stub-check` feature is enabled, `vox repair` now calls `format_check_for_llm_json` in-process after reading the source file. It appends any TOESTUB lint findings to the error summary under a "LINT WARNINGS (Vox policy violations that must also be fixed)" heading. Each finding includes the rule ID, line number, human-readable message, and optionally a suggestion and minimal repro snippet. This provides the LLM repair agent with context for Vox-specific policy violations.
+- `crates/vox-cli/tests/check_for_llm_envelope.rs`: Added a new test `lint_finding_json_fields_match_repair_loop_expectations` to verify that the JSON structure of lint findings (specifically `rule_id`, `line`, `message`, `suggestion`, and `minimal_repro`) matches what the repair loop expects, ensuring field name stability.
+
+--- audit: original='feat(repair): include TOESTUB lint findings in vox repair LLM prompt' | actual=100L across 2 files | derived=full ---
