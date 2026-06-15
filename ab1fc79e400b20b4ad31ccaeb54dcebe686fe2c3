@@ -1,0 +1,9 @@
+feat(mesh): sync control-plane nodes to local registry with merge logic
+scale: ~144 lines across 4 files [M]
+
+- `crates/vox-populi-types/src/node_record.rs`: Add `merge_registry_by_last_seen` function to merge two `PopuliRegistryFile` instances. It dedupes nodes by ID, prioritizes the record with the fresher `last_seen_unix_ms`, resolves ties to the incoming (control plane) record, takes the maximum `schema_version`, and prefers the incoming `queue_depth`. Includes unit tests for union/fresher, tie-breaking, and strictly fresher local scenarios.
+- `crates/vox-populi/src/http_client.rs`: Add `PopuliHttpClient::sync_node_registry` method. This method fetches the control-plane node list, merges it with the local registry using `merge_registry_by_last_seen`, and persists the result atomically.
+- `crates/vox-orchestrator/src/mesh_federation_poll.rs`: Integrate an opt-in mechanism to call `client.sync_node_registry` within the existing federation poll loop. This is enabled when the `VOX_POPULI_PERSIST_LOCAL_REGISTRY` environment variable is truthy.
+- `crates/vox-populi-types/src/lib.rs`: Export the new `merge_registry_by_last_seen` function.
+
+--- audit: original='feat(mesh): control-plane -> LocalRegistry sync (pure merge + sync_node_registry + opt-in poll)' | actual=144L across 4 files | derived=full ---
