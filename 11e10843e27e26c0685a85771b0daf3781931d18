@@ -1,0 +1,7 @@
+docs(architecture): Update CR-L1 HumanEval-Vox program count to 164
+scale: ~2 lines across 2 files [S]
+
+- docs/src/architecture/v1-release-criteria.md: Updated the CR-L1 HumanEval-Vox benchmark suite program count from 200 to 164, aligning it with HumanEval-Python for direct comparability, as ratified by the council on 2026-05-15.
+- crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt: This file was touched but not meaningfully changed; its content remains identical to the previous version.
+
+--- audit: original='fix(docs+tests): CR-L1 count 164, update CLI catalog baseline' | actual=2L across 2 files | derived=full ---
