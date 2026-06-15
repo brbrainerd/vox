@@ -1,0 +1,18 @@
+feat(cli): add scholarly pipeline run command and enhance existing commands
+scale: ~2959 lines across 46 files [XL]
+
+- `crates/vox-db`: Add new publication store operations for scholarly submissions and external submission jobs, including idempotency checks and validation.
+- `crates/vox-mcp`: Introduce `vox_scientia_publication_scholarly_pipeline_run` tool with parameters for preflight checks, dry runs, staging output, venue, and adapter. Enhance `vox_scientia_publication_scholarly_remote_status_sync_batch` with `max_runtime_secs` and `jitter_secs` parameters.
+- `crates/vox-publisher`: Add `scholarly_remote_status.rs` to normalize adapter remote status strings into job queue semantics. Update `lib.rs` and `scholarly_external_jobs.rs` with new types and logic related to scholarly publishing.
+- `crates/vox-populi`: Move tensor manifest tests to a dedicated file (`crates/vox-populi/src/mens/tensor/manifest/tests.rs`) and remove `NodeRecord` struct from `lib.rs`, indicating refactoring of node management.
+- `crates/vox-cli`: Add `publication-scholarly-pipeline-run` command. Update `db` and `populi_lifecycle` commands to support new parameters like `max_runtime_secs` and `jitter_secs`. Introduce `populi_lifecycle_cmd.rs` and `codex_cmd.rs`. Refactor `db_cli` subcommands.
+- `docs`: Update `scientia-ssot-handbook.md` with new content. Modify `cli.md`, `scientia-publication-readiness-audit.md`, and `voxgiantia-publication-architecture.md`.
+- `crates/vox-scaling-policy`: Add `policy_types.rs` and modify `lib.rs`.
+- `crates/vox-socrates-policy`: Add `confidence_override.rs` and modify `lib.rs`.
+- `crates/vox-toestub`: Add `unwired_module.rs` and update `stub.rs` and `victory_claim.rs`.
+- `crates/vox-ludus`: Modify `quest_engine.rs` and `teaching.rs`.
+- `contracts`: Update `mcp/tool-registry.canonical.yaml` and add `cli/command-registry.yaml`.
+- `scripts`: Add `scientia/acceptance_matrix.ps1`.
+- `vox-vscode`: Update `src/core/mcpToolRegistry.generated.ts`.
+
+--- audit: original='feat(cli): add scholarly pipeline run command and enhance existing commands' | actual=2959L across 46 files | derived=full ---
