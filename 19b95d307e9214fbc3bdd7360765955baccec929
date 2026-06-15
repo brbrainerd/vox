@@ -1,0 +1,12 @@
+feat(gui): Add DiscoveryReview surface for human-gated claim review and nanopub build
+scale: ~393 lines across 8 files [L]
+
+- **crates/vox-gui/ui/src/components/surfaces/Scientia/DiscoveryReviewView.tsx**: Added `DiscoveryReviewView` component, a new React surface for human-gated claim review. It allows users to approve, reject, or defer claims, and build nanopublications for approved claims, routing all mutations through the `execute_command` argv bridge.
+- **crates/vox-gui/ui/src/components/surfaces/Scientia/discoveryReviewArgv.ts**: Added `buildClaimReviewArgv` and `buildNanopubBuildArgv` functions to construct command-line arguments for `vox scientia publication-claim-review` and `vox scientia publication-nanopub-build` respectively, along with `ReviewDecision` type and `REVIEW_DECISIONS` constant.
+- **crates/vox-gui/ui/src/components/surfaces/Scientia/discoveryReviewArgv.test.ts**: Added unit tests for `buildClaimReviewArgv` and `buildNanopubBuildArgv` to verify correct argument construction and handling of optional parameters.
+- **contracts/gui/surface-registry.v1.yaml**: Registered a new GUI surface with `view_key: review`, `nav_label: Review`, and `nav_icon: doubt`, categorized under the `knowledge` navigation group.
+- **crates/vox-gui/ui/src/App.tsx**: Updated the `View` type and the `invoke('get_initial_view')` check to include the new `review` view key.
+- **crates/vox-gui/ui/src/components/surfaces/decoratorRegistry.ts**: Mapped the `DiscoveryReviewView` component to the `review` key in the `surfaceDecorators` registry.
+- **crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts**: Regenerated the TypeScript type definitions to include the new `review` view key.
+
+--- audit: original='feat(gui): DiscoveryReview surface for human-gated claim review + nanopub build (A1)' | actual=393L across 8 files | derived=full ---
