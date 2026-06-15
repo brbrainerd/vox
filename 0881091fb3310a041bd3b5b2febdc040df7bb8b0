@@ -1,0 +1,6 @@
+chore(contracts): refresh capability model-manifest
+scale: ~88 lines across 1 files [M]
+
+- `contracts/capability/model-manifest.generated.json`: Regenerated the model manifest, adding 78 lines and removing 10 lines.
+
+--- audit: original='chore(contracts): refresh capability model-manifest' | actual=88L across 1 files | derived=full ---
