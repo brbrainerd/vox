@@ -10,21 +10,29 @@ use super::gamify_web::{BuildTarget, GamifyMode, WebRunMode};
 use super::persist::{global_config_path, save_merged_global_config};
 use super::toml_schema::VoxToml;
 use super::vox_config::VoxConfig;
+use crate::snapshot::SnapshotCache;
+
+static VOXCONFIG_CACHE: SnapshotCache<VoxConfig> = SnapshotCache::new();
 
 impl VoxConfig {
     /// Load config applying the full precedence chain:
     /// ENV VARS > Vox.toml (workspace) > ~/.vox/config.toml (global) > defaults
+    ///
+    /// Result is cached per snapshot revision — re-reads TOML + env only when
+    /// `vox_config::snapshot::bump()` is called (e.g. on write, or `EnvScratch::drop`).
     pub fn load() -> Self {
-        let mut cfg = Self::default();
+        VOXCONFIG_CACHE.get_or_init(|| {
+            let mut cfg = Self::default();
 
-        if let Some(global_path) = global_config_path() {
-            cfg.apply_toml_file(&global_path);
-        }
+            if let Some(global_path) = global_config_path() {
+                cfg.apply_toml_file(&global_path);
+            }
 
-        cfg.apply_toml_file(Path::new("Vox.toml"));
-        cfg.apply_env();
+            cfg.apply_toml_file(Path::new("Vox.toml"));
+            cfg.apply_env();
 
-        cfg
+            cfg
+        })
     }
 
     /// Load only **defaults + the global config file** (`~/.vox/config.toml`), applying
