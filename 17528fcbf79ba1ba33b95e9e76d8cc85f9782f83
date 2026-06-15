@@ -1,0 +1,18 @@
+docs(plan): scope complete single-source-of-truth for plugin codebase
+scale: ~194 lines across 1 files [M]
+
+- **docs/superpowers/plans/2026-06-07-plugin-codebase-ssot-scoping.md**: Add a new document outlining a plan to establish a complete single-source-of-truth (SSOT) for the plugin codebase.
+  - **Goal**: Extend the SDK's extension-surface SSOT discipline to the entire plugin system, ensuring every plugin datum has exactly one authoring site.
+  - **Problem**: Identify weak identity SSOT in the current plugin system where facts are hand-written in multiple places without cross-checking.
+  - **Duplication Map**: Detail where plugin data (id, version, name, description, status, abi-version, extension-points, exposes-tools, target-triples, artifact-names) are currently declared across `Plugin.toml`, `Cargo.toml`, `declare_plugin!`, `impl VoxPlugin`, and `catalog.toml`, noting where cross-checking is absent or inconsistent.
+  - **Proposed SSOT**: Assign a single authoring site for each datum (e.g., `Plugin.toml` for runtime identity, Rust consts/shared functions for workspace constants, `catalog.toml` for bundle/source).
+  - **6-Phase Plan**: Propose a phased approach to achieve SSOT:
+    1. PS-1: ABI version parity.
+    2. PS-2: Canonical triple set + artifact rule.
+    3. PS-3: Manifest ↔ implementation extension parity.
+    4. PS-4: ID/version into manifest.
+    5. PS-5: Catalog derived from manifests.
+    6. PS-6: `exposes-tools` three-way parity.
+  - **Maintainer Decisions**: Highlight three key decisions required from maintainers: plugin versioning model, catalog derivation direction, and `declare_plugin!` embed-vs-gate strategy.
+
+--- audit: original='docs(plan): scope complete single-source-of-truth over the plugin codebase (#200)' | actual=194L across 1 files | derived=full ---
