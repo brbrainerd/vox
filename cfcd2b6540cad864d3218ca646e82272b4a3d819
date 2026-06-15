@@ -1,0 +1,11 @@
+docs(ci): Add Coolify secrets operator checklist to deploy contract documentation
+scale: ~10 lines across 1 files [S]
+
+- Add a new section "Operator checklist (GitHub Secrets + Coolify UI)" to `docs/src/ci/deploy-contract.md`.
+- Document best practices for Coolify API token scopes, preferring `GET /api/v1/deploy` for Deploy-scoped tokens.
+- Clarify the correct format for `COOLIFY_BASE_URL` (public origin, no trailing slash, API host).
+- Specify `COOLIFY_APP_UUID` as the application resource UUID.
+- Explain `COOLIFY_WEBHOOK_URL` should be the Deploy Webhook URL, not the dashboard login page.
+- Detail behavior when `COOLIFY_WEBHOOK_URL` is expected without an `Authorization` header.
+
+--- audit: original='docs(ci): Coolify secrets operator checklist' | actual=10L across 1 files | derived=full ---
