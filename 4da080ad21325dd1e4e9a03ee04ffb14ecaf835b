@@ -1,0 +1,12 @@
+feat(parser): Add VUV view-call syntax `Ident(kwargs) { children }` as JSX sugar
+scale: ~305 lines across 7 files [L]
+
+- `crates/vox-compiler/src/parser/descent/expr/pratt_match.rs`: Implement parsing for `Ident(kwargs) { children }` syntax. If an `Ident(args)` expression is followed by a `{` (after optional newlines), it is parsed as an `Expr::Jsx` element. This is only applicable when the callee is a bare identifier, not a method chain or field access. Positional arguments are rejected, enforcing keyword-only arguments for view calls.
+- `crates/vox-compiler/src/parser/descent/tests.rs`: Add two new parser tests. `test_parse_view_call_form_lowers_to_jsx` verifies that the new view-call syntax correctly sugars into an `Expr::Jsx` AST node. `test_view_call_positional_arg_rejected` confirms that positional arguments in view calls result in a parse error.
+- `docs/src/architecture/gui-authoring-syntax-2026.md`: Add a new architecture document detailing the "GUI Authoring Syntax (2026): Vox UI as Values (VUV)" design. This document outlines the motivation, status, and implementation phasing of the new syntax, which replaces JSX-shaped view bodies with typed function-call views.
+- `.claude/settings.local.json`: Update Claude's local settings to include new Bash commands for `xargs wc *` and `grep -E "\.rs$"`.
+- `docs/src/SUMMARY.md`: Add an entry for the new `gui-authoring-syntax-2026.md` document to the documentation summary.
+- `docs/src/architecture/architecture-index.md`: Add a link to the new `gui-authoring-syntax-2026.md` document in the architecture index.
+- `docs/src/feed.xml`: Update the documentation feed.
+
+--- audit: original='feat(parser): VUV view-call syntax `Ident(kwargs) { children }` → Expr::Jsx' | actual=305L across 7 files | derived=full ---
