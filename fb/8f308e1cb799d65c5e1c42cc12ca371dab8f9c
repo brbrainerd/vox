@@ -1,0 +1,45 @@
+feat(orchestrator, mcp, db, cli): implement foundational infrastructure and tools
+scale: ~6777 lines across 289 files [XL]
+
+- `crates/vox-orchestrator`:
+    - Introduce `socrates.rs` and `observer_loop.rs` for new orchestrator components.
+    - Refactor task dispatch completion logic, integrating `ObservationReport`, `ObserverAction`, and `VictoryVerdict` from `vox-db`.
+    - Add `budget.rs`, `gate.rs`, `events.rs`, and `fatigue_monitor.rs` for resource management and event handling.
+    - Update `runtime.rs`, `a2a/remote_worker.rs`, `lib.rs`, `a2a/bus/message_bus.rs`, `context_lifecycle.rs`, `topology.rs`, `usage.rs`, `persistence_outbox.rs`, `orch_daemon/mod.rs`, `a2a/jwe.rs`, `services/policy.rs`, `catalog.rs`, `orchestrator/core.rs`, `orchestrator/lease_watchdog.rs`, `handoff.rs`, `config/orchestrator_fields.rs`, `mesh_federation_poll.rs`, `models/scoring.rs`, `orchestrator/agent_lifecycle.rs`, `models/registry.rs`, `models/spec.rs`, and `a2a/dispatch/mesh.rs` for various orchestrator infrastructure changes.
+    - Update `tests.rs`, `handoff_test.rs`, `a2a_integration_test.rs`, and `stress_test.rs` for new and updated orchestrator tests.
+    - Remove `grounding.rs` and reduce `bin/vox_orchestrator_d.rs`.
+- `crates/vox-mcp`:
+    - Refactor `task_tools.rs` to update task submission logic, including session context handling and agent role assignment.
+    - Introduce `context.rs` for MCP context management.
+    - Update `scientia_tools/novelty.rs` to enrich scientia manifests with Socrates and sidecars.
+    - Update `server/lifecycle.rs`, `compiler_tools.rs`, `scientia_tools/novelty.rs`, `chat_tools/chat/message.rs`, `llm_bridge/model_route_policy/resolve.rs`, `llm_bridge/provider_auth.rs`, `dispatch.rs`, `project_init_tools.rs`, `llm_bridge/provider_endpoints.rs`, `tools/input_schemas.rs`, and `scientia_tools/discovery.rs` for various MCP tool and bridge updates.
+    - Update `tests/tool_dispatch_tests.rs`.
+- `crates/vox-db`:
+    - Add `store/ops_mens_intelligence.rs` for CRUD operations on MENS intelligence tables, including `CorpusQualitySummary`, `GrpoStepRow`, and methods for inserting observer events and managing test decisions and victory verdicts.
+    - Add `schema/domains/mens_intelligence.rs` and `store/types/mens.rs`.
+- `crates/vox-cli`:
+    - Refactor `commands/scientia.rs` to update command handling, including `FindingCandidateValidate`, `NoveltyEvidenceBundleValidate`, `CapabilityList`, `ResearchList`, `ResearchMapList`, `RetrievalStatus`, `MirrorSearchCorpus`, `ResearchRefresh`, and `PublicationPrepare`.
+    - Update `commands/ci/operations_catalog.rs`, `commands/db/publication.rs`, `commands/mens/status.rs`, `commands/ci/check_links.rs`, `commands/corpus/validate.rs`, `render.rs`, `commands/ci/workspace_artifacts/mod.rs`, `commands/runtime/shell/check_terminal.rs`, `commands/ci/nomenclature_guard.rs`, `commands/ci/command_compliance/validators.rs`, `commands/mens/populi/train_arm.rs`, `build_service.rs`, `commands/openclaw.rs`, `commands/ci/workspace_artifacts/retention.rs`, `commands/auth.rs`, `commands/run.rs`, `commands/runtime/shell/mod.rs`, `workspace_db.rs`, and `commands/scientia_ledger_contract.rs` for various CLI command and utility updates.
+- `crates/vox-compiler`:
+    - Refactor `eval/builtins.rs`, `eval/expr.rs`, `eval/stmt.rs`, and `eval/mod.rs` for evaluation logic.
+    - Update `toestub/src/detectors/hollow_fn.rs` to refine hollow function detection, including regex updates and allowed function names.
+    - Update `typeck/diagnostics.rs`, `codegen_rust/emit/stmt_expr.rs`, `typeck/ast_decl_lints.rs`, `hir/lower/contracts.rs`, `builtin_registry.rs`, `codegen_shared/route_ir.rs`, `parser/descent/decl/head.rs`, and `parser/descent/mod.rs`.
+    - Update `tests/interpreter_test.rs`.
+- `docs/src`: Update `feed.xml` and `SUMMARY.md` for documentation changes.
+- `crates/vox-publisher`: Update `publication_preflight.rs`, `scientia_prior_art.rs`, `scientia_discovery.rs`, and `tests/scientia_novelty_acceptance.rs`.
+- `crates/vox-toestub`: Update `detectors/reachability.rs`, `engine.rs`, and `bin/debug_test.rs`.
+- `crates/vox-webhook`: Update `bridge.rs` and `signing.rs`.
+- `crates/vox-forge`: Update `github.rs` and `gitlab.rs`.
+- `crates/vox-skills`: Update `ars_shim/openclaw_discovery.rs`, `tests/openclaw_fallback_test.rs`, and `ars_shim/openclaw_adapter.rs`.
+- `crates/vox-clavis`: Update `backend/vox_vault.rs` and `tests/vox_vault_tests.rs`.
+- `crates/vox-capability-registry`: Update `manifest.rs` and `lib.rs`.
+- `crates/vox-repository`: Update `path_safety.rs` and `lib.rs`.
+- `crates/vox-populi`: Add `mens/tensor/candle_qlora_train/db_thread.rs`.
+- `crates/vox-integration-tests`: Update `tests/a2a_mcp_test.rs`.
+- `crates/vox-grammar-export`: Add `lib.rs`.
+- `crates/vox-tools`: Update `mens_chat.rs`.
+- `vox-vscode`: Add `webview-ui/src/components/AgentFlow.tsx`, `src/agents/AgentController.ts`, `src/protocol/webviewMessages.ts`, and `src/SidebarProvider.ts`.
+- `contracts/operations`: Add `catalog.v1.yaml`.
+- `Cargo.lock`: Update dependencies.
+
+--- audit: original='feat: implement foundational orchestrator, compiler, and MCP tool infrastructure with supporting documentation' | actual=6777L across 289 files | derived=full ---
