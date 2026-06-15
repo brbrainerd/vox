@@ -1,0 +1,8 @@
+feat(gui): Loquela slash menu lists installed skills as /skill-name
+scale: ~133 lines across 3 files [M]
+
+- `crates/vox-gui/ui/src/lib/slashCommands.ts`: New module defining `SlashEntry` interface and `BUILTIN_SLASH` array (moving 8 hardcoded slash commands from `Loquela.tsx`). Introduces `buildSlashEntries` function to merge built-in commands with dynamic skill records, handling name collisions (builtins win) and malformed skill data.
+- `crates/vox-gui/ui/src/lib/slashCommands.test.ts`: New module adding unit tests for `buildSlashEntries` to verify correct merging, skill appending, collision handling, and robustness to malformed input.
+- `crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx`: Removed the hardcoded `LQ_SLASH` array. Integrated `buildSlashEntries` to dynamically generate the list of slash commands from `skills` prop, ensuring installed skills appear as `/skill-name` entries. Updated filtering logic to use the new `allSlash` array.
+
+--- audit: original='feat(gui): Loquela slash menu lists installed skills as /skill-name' | actual=133L across 3 files | derived=full ---
