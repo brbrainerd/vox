@@ -76,9 +76,113 @@ pub fn check_no_cwd_relative_contract_paths(source: &str, file: &str) -> Vec<Vio
     hits
 }
 
-/// Check B placeholder — implemented in Task 6. Keep signature stable.
-pub fn check_protected_modules_have_no_env_reads(_source: &str, _file: &str) -> Vec<Violation> {
-    Vec::new()
+/// Crates/paths whose constants are protocol-, format-, crypto-, grammar-, or
+/// calibration-fixed: configurability is an explicit NON-GOAL. Reading env here
+/// is forbidden. The structural form of "unless it never needs configuring".
+pub const PROTECTED_PATH_FRAGMENTS: &[&str] = &[
+    "crates/vox-crypto/",
+    "crates/vox-wire-format-validator/",
+    "crates/vox-grammar-export/",
+    "crates/vox-ast/",
+    "crates/vox-populi/src/mens/tensor/memory_budget.rs",
+];
+
+/// Check B: no `std::env::var` reads inside protected never-configure modules.
+pub fn check_protected_modules_have_no_env_reads(source: &str, file: &str) -> Vec<Violation> {
+    let norm = file.replace('\\', "/");
+    if !PROTECTED_PATH_FRAGMENTS.iter().any(|p| norm.contains(p)) {
+        return Vec::new();
+    }
+    let mut hits = Vec::new();
+    for (i, raw) in source.lines().enumerate() {
+        let line = raw.trim_start();
+        if line.starts_with("//") {
+            continue;
+        }
+        if raw.contains("std::env::var") || raw.contains("env::var(") {
+            hits.push(Violation {
+                check: "protected-module-no-env",
+                file: file.to_string(),
+                line: i + 1,
+                message: "protected never-configure module must not read env; if this value truly \
+                          needs configuring, move it out of the protected path and register it"
+                    .to_string(),
+            });
+        }
+    }
+    hits
+}
+
+use std::collections::HashMap;
+
+/// Check C (pure core): given config-resolver definitions and a map of how many
+/// NON-test references each symbol has, flag any with zero references (dead config).
+pub fn check_unwired_config(
+    defined: &[(String, String, usize)],
+    ref_counts: &HashMap<String, usize>,
+) -> Vec<Violation> {
+    defined
+        .iter()
+        .filter(|(sym, _, _)| ref_counts.get(sym).copied().unwrap_or(0) == 0)
+        .map(|(sym, file, line)| Violation {
+            check: "declared-but-unwired-config",
+            file: file.clone(),
+            line: *line,
+            message: format!(
+                "config resolver `{sym}` has no non-test caller — wire it or delete it (YAGNI)"
+            ),
+        })
+        .collect()
+}
+
+/// Find `pub fn resolve_<x>` / `pub fn <x>_from_env` definitions: (symbol, file, line).
+fn collect_resolver_defs(root: &Path) -> Vec<(String, String, usize)> {
+    let re = regex::Regex::new(r"pub fn (resolve_[a-z0-9_]+|[a-z0-9_]+_from_env)\b").unwrap();
+    let mut defs = Vec::new();
+    collect_rs_files(&root.join("crates"), &mut |path, src| {
+        let rel = path
+            .strip_prefix(root)
+            .unwrap_or(path)
+            .display()
+            .to_string();
+        if rel.contains("config_hygiene.rs") {
+            return;
+        }
+        for (i, line) in src.lines().enumerate() {
+            if let Some(c) = re.captures(line) {
+                defs.push((c[1].to_string(), rel.clone(), i + 1));
+            }
+        }
+    });
+    defs
+}
+
+/// Count references to each known symbol across the tree. `collect_rs_files`
+/// already skips `*_tests.rs`/`tests.rs`, so test-file references don't count.
+/// Note: a `#[cfg(test)] mod tests` INSIDE a normal file WILL be counted; that
+/// is an acceptable conservative approximation (a resolver referenced only by an
+/// in-file test still counts as referenced).
+fn count_symbol_refs(root: &Path, symbols: &[String]) -> HashMap<String, usize> {
+    let mut counts: HashMap<String, usize> = symbols.iter().map(|s| (s.clone(), 0usize)).collect();
+    collect_rs_files(&root.join("crates"), &mut |path, src| {
+        let rel = path
+            .strip_prefix(root)
+            .unwrap_or(path)
+            .display()
+            .to_string();
+        if rel.contains("config_hygiene.rs") {
+            return;
+        }
+        for sym in symbols {
+            // word-boundary-ish: count occurrences of the bare symbol name
+            let n = src.matches(sym.as_str()).count();
+            if n > 0 {
+                *counts.get_mut(sym).unwrap() += n;
+            }
+        }
+    });
+    // Subtract the definition occurrence (each def line contains the symbol once).
+    counts
 }
 
 /// Run all config-hygiene checks across the workspace.
@@ -102,6 +206,19 @@ pub fn run(update_baseline: bool) -> anyhow::Result<()> {
         violations.extend(check_no_cwd_relative_contract_paths(src, &rel));
         violations.extend(check_protected_modules_have_no_env_reads(src, &rel));
     });
+
+    // Check C: two-pass workspace scan — gather resolver definitions, then count
+    // references, then flag any with no non-test caller beyond their own def line.
+    let defs = collect_resolver_defs(&root);
+    let symbols: Vec<String> = defs.iter().map(|(s, _, _)| s.clone()).collect();
+    let mut ref_counts = count_symbol_refs(&root, &symbols);
+    // A definition's own line counts the symbol once; require a reference BEYOND that.
+    for (sym, _, _) in &defs {
+        if let Some(c) = ref_counts.get_mut(sym) {
+            *c = c.saturating_sub(1);
+        }
+    }
+    violations.extend(check_unwired_config(&defs, &ref_counts));
 
     if update_baseline {
         let keys: BTreeSet<String> = violations.iter().map(baseline_key).collect();
@@ -207,5 +324,43 @@ mod tests {
         let news = unbaselined(&all, &base);
         assert_eq!(news.len(), 1);
         assert_eq!(news[0].file, "crates/b.rs");
+    }
+
+    #[test]
+    fn flags_env_read_in_protected_module() {
+        let src = "let n = std::env::var(\"VOX_NONCE_LEN\").unwrap();";
+        let v = check_protected_modules_have_no_env_reads(src, "crates/vox-crypto/src/aead.rs");
+        assert_eq!(v.len(), 1);
+        assert_eq!(v[0].check, "protected-module-no-env");
+    }
+    #[test]
+    fn allows_env_read_in_normal_module() {
+        let src = "let n = std::env::var(\"VOX_RAG_CHUNK\").unwrap();";
+        assert!(
+            check_protected_modules_have_no_env_reads(src, "crates/vox-search/src/ingest.rs")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn flags_resolver_with_no_caller() {
+        let mut refs = std::collections::HashMap::new();
+        refs.insert("resolve_orphan".to_string(), 0usize);
+        refs.insert("resolve_wired".to_string(), 3usize);
+        let defined = vec![
+            (
+                "resolve_orphan".to_string(),
+                "crates/x/src/a.rs".to_string(),
+                10usize,
+            ),
+            (
+                "resolve_wired".to_string(),
+                "crates/x/src/b.rs".to_string(),
+                20usize,
+            ),
+        ];
+        let v = check_unwired_config(&defined, &refs);
+        assert_eq!(v.len(), 1);
+        assert!(v[0].message.contains("resolve_orphan"));
     }
 }

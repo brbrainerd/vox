@@ -1,4 +1,7 @@
 # config-hygiene baseline — grandfathered violations; burn down over time. Regenerate: vox ci config-hygiene --update-baseline
+declared-but-unwired-config|crates/vox-config/src/env_parse.rs
+declared-but-unwired-config|crates/vox-db/src/config.rs
+declared-but-unwired-config|crates/vox-secrets/src/lib.rs
 no-cwd-relative-contract-path|crates/vox-audit/src/bin/cr-a2.rs
 no-cwd-relative-contract-path|crates/vox-audit/src/panel.rs
 no-cwd-relative-contract-path|crates/vox-audit/src/subcommands/humaneval.rs
@@ -63,3 +66,4 @@ no-cwd-relative-contract-path|crates/vox-scaling-policy/src/lib.rs
 no-cwd-relative-contract-path|crates/vox-search/src/searxng_defaults.rs
 no-cwd-relative-contract-path|crates/vox-tauri-codegen/src/lib.rs
 no-cwd-relative-contract-path|crates/vox-test-harness/src/workspace_paths.rs
+protected-module-no-env|crates/vox-populi/src/mens/tensor/memory_budget.rs
