@@ -1,0 +1,30 @@
+fix(deps): regenerate workspace-hack to deduplicate gix 0.70 and update other dependencies
+scale: ~1472 lines across 2 files [XL]
+
+- `Cargo.lock`: Regenerated to deduplicate `gix` to version `0.84` (from `0.70`), resolving a compilation error on Rust 1.96 due to `gix-hash 0.70`. This also updated numerous other transitive dependencies.
+- `crates/workspace-hack/Cargo.toml`:
+    - Updated `bstr` to enable the `serde` feature.
+    - Added `digest` 0.10 with `oid` feature and `digest` 0.11 with `alloc`, `mac`, and `oid` features.
+    - Added `getrandom` 0.2 with `js` and `std` features, alongside the existing `getrandom` 0.3.
+    - Removed explicit pinning of `gix` 0.70 and its related crates (`gix-features`, `gix-pack`, `gix-protocol`, `gix-tempfile`, `gix-transport`, `gix-url`), allowing them to resolve to newer versions (e.g., `0.84`).
+    - Updated `indexmap` to version `2`.
+    - Updated `memchr` to version `2`.
+    - Updated `miniz_oxide` to version `0.7`.
+    - Updated `once_cell` to version `1`.
+    - Updated `parking_lot` to version `0.12`.
+    - Updated `proc-macro2` to version `1`.
+    - Updated `quote` to version `1`.
+    - Updated `rand` to version `0.8`.
+    - Updated `regex` to version `1`.
+    - Updated `rustc-hash` to version `1`.
+    - Updated `serde` to version `1`.
+    - Updated `serde_json` to version `1`.
+    - Updated `syn` to version `2`.
+    - Updated `tokio` to version `1`.
+    - Updated `tracing` to version `0.1`.
+    - Updated `unicode-ident` to version `1`.
+    - Updated `url` to version `2`.
+    - Updated `walkdir` to version `2`.
+    - Updated `zstd` to version `0.12`.
+
+--- audit: original='fix(workspace-hack): regenerate — dedup stale gix 0.70 that breaks on Rust 1.96 (#186)' | actual=1472L across 2 files | derived=full ---
