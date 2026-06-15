@@ -1,0 +1,9 @@
+fix(vox-config): move `BuildTarget` import into test module
+scale: ~3 lines across 1 files [XS]
+
+- `crates/vox-config/src/config/impl_ops.rs`:
+  - Removed `BuildTarget` from the top-level import from `super::gamify_web`.
+  - Added `use super::super::gamify_web::BuildTarget;` inside the `tests` module.
+  - This avoids an unused-import warning as `BuildTarget` is only used within the test module.
+
+--- audit: original='fix(vox-config): move BuildTarget import into test module' | actual=3L across 1 files | derived=full ---
