@@ -1,0 +1,18 @@
+feat(scientia): add discovery inbox persistence and `scientia.discovery.surfaced` WS topic
+scale: ~498 lines across 9 files [L]
+
+- `crates/vox-db`:
+    - Added `scientia_discovery_inbox` table (baseline 74->75) to store surfaced candidate metadata.
+    - Introduced `ops_discovery_inbox.rs` for `DiscoveryInboxRow` and associated database operations (insert, select, max ID).
+    - Updated `lib.rs` to export `DiscoveryInboxRow`.
+    - Added `scientia_discovery_inbox` to `LEGACY_EXPORT_SKIP_TABLES` as it's a derived, regenerable table.
+- `crates/vox-orchestrator-mcp`:
+    - Added `SCIENTIA_DISCOVERY_SURFACED` constant for the new WebSocket topic.
+    - Implemented `poll_discovery_surfaced` in `scientia_feed.rs` to broadcast newly surfaced discovery candidates based on an ID-diff watermark.
+    - Initialized `last_max_inbox_id` from the database to prevent replaying existing rows on poller startup.
+- `crates/vox-cli`:
+    - Modified `discovery_watch.rs` to insert a row into `scientia_discovery_inbox` for each newly created draft publication, including `publication_id`, `surfaced_at_ms`, `intake_tier`, and `signal_codes`.
+    - Added `intake_tier_snake_case` helper function.
+- `contracts/db`: Updated `baseline-version-policy.yaml` to reflect the new baseline version.
+
+--- audit: original='feat(scientia): discovery inbox persistence + scientia.discovery.surfaced WS topic' | actual=498L across 9 files | derived=full ---
