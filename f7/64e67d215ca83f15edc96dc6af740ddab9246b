@@ -1,0 +1,18 @@
+chore(ci,docs,scripts): purge orphaned scripts and CI artifact logs
+scale: ~615 lines across 13 files [L]
+
+- `docs/src/fix_docs.py`: Removed a Python script for fixing documentation links and merging CLI docs.
+- `docs/src/fix_links.py`: Removed a Python script for fixing internal markdown links based on a file map.
+- `docs/src/final_fix.py`: Removed a Python script for ad-hoc link replacements and validation in documentation.
+- `docs/src/fix_links2.py`: Removed a Python script for resolving relative documentation links.
+- `docs/src/generate_summary.py`: Removed a Python script responsible for generating `SUMMARY.md` for documentation.
+- `scripts/_patch_qlora_eta2.py`: Removed a Python script that patched `candle_qlora_train.rs` to add ETA calculation to training logs.
+- `scripts/_patch_qlora_eta.py`: Removed a Python script that patched `candle_qlora_train.rs` to add ETA calculation to training logs.
+- `script/audit_tests.py`: Removed an audit script.
+- `crates/vox-cli/populi/data/failure_feedback.jsonl`: Deleted a CI artifact log file.
+- `docs/src/broken_links.txt`: Deleted a CI artifact log file listing broken documentation links.
+- `docs/src/broken_links_rust.txt`: Deleted a CI artifact log file listing broken Rust documentation links.
+- `docs/ci/build-timings/latest.jsonl`: Deleted a CI artifact log file containing build timings.
+- `scripts/populi/vox_continuous_trainer.ps1`: Moved this PowerShell script to `scripts/populi/` (no content change).
+
+--- audit: original='chore: purge orphaned scripts and CI artifact logs' | actual=615L across 13 files | derived=full ---
