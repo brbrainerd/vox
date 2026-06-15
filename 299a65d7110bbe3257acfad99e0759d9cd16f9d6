@@ -1,0 +1,11 @@
+feat(perf): Add `coverage-report.vox` for Windows-compatible `llvm-cov` JSON output
+scale: ~156 lines across 1 files [M]
+
+- `scripts/perf/coverage-report.vox`: New script to generate `llvm-cov` JSON summaries.
+  - Addresses Windows `CreateProcess` argument-length limits by using `llvm-cov`'s `@file` response mechanism for `-object` paths.
+  - Drives `llvm-cov.exe` directly, bypassing `cargo-llvm-cov`'s command-line limitations on Windows.
+  - Outputs `target/coverage-summary.json` in a format consumable by `vox ci coverage-gates`.
+  - Includes helper functions `rustc_sysroot_and_host` to determine Rust sysroot and host triple, and `llvm_tool_path` to locate `llvm-cov` and `llvm-profdata` executables.
+  - Manually merges profraw files into a profdata file if `cargo-llvm-cov` fails, due to current Vox interpreter limitations with large lists of optional strings in process arguments.
+
+--- audit: original='feat(perf): scripts/perf/coverage-report.vox — Windows-compatible llvm-cov' | actual=156L across 1 files | derived=full ---
