@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use serde::Serialize;
 use tauri::Emitter;
 use vox_cli_core::daemon_ipc::dispatch::call_daemon;
 use vox_foundation::protocol::orch_daemon_method;
@@ -285,7 +286,10 @@ pub async fn get_orchestrator_status_bin() -> Result<tauri::ipc::Response, Strin
 }
 
 #[tauri::command]
-pub async fn set_orchestrator_config(config: serde_json::Value) -> Result<(), String> {
+pub async fn set_orchestrator_config(
+    app_handle: tauri::AppHandle,
+    config: serde_json::Value,
+) -> Result<(), String> {
     // 1. Discover Vox.toml
     let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
     let (mut manifest, path) = VoxManifest::discover(&current_dir).map_err(|e| e.to_string())?;
@@ -366,6 +370,30 @@ pub async fn set_orchestrator_config(config: serde_json::Value) -> Result<(), St
     let toml_str = manifest.to_toml_string().map_err(|e| e.to_string())?;
     std::fs::write(&path, toml_str).map_err(|e| e.to_string())?;
 
+    // 3b. Bump the vox-config snapshot so caches are invalidated and the
+    //     `vox://orchestrator-config-changed` listener fires on the GUI side.
+    vox_config::snapshot::bump(&[
+        "max_agents",
+        "financial_cost_budget_micros",
+        "trust_auto_approve_min",
+        "scope_enforcement",
+        "exec_time_budget_enabled",
+        "socrates_gate_enforce",
+        "scaling_enabled",
+        "min_agents",
+        "scaling_threshold",
+        "scale_cpu_ceiling_pct",
+        "scale_mem_floor_mb",
+    ]);
+    // Also emit the event directly so the GUI updates immediately even if the
+    // snapshot listener fires before the Tauri event loop processes the callback.
+    let _ = app_handle.emit(
+        ORCH_CONFIG_CHANGED_EVENT,
+        OrchestratorConfigChanged {
+            rev: vox_config::snapshot::current_rev(),
+        },
+    );
+
     // 4. Try to signal vox-orchestrator-d to hot-reload if it is running
     // We do this in a fire-and-forget manner to not block or fail the UI update.
     tokio::spawn(async move {
@@ -379,6 +407,36 @@ pub async fn set_orchestrator_config(config: serde_json::Value) -> Result<(), St
     });
 
     Ok(())
+}
+
+/// Tauri event channel the frontend subscribes to for reactive Orchestrator
+/// settings refresh — emitted whenever the orchestrator config snapshot is bumped.
+pub const ORCH_CONFIG_CHANGED_EVENT: &str = "vox://orchestrator-config-changed";
+
+/// Payload for [`ORCH_CONFIG_CHANGED_EVENT`].
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrchestratorConfigChanged {
+    /// Monotonic snapshot revision at the time of the bump.
+    pub rev: u64,
+}
+
+/// Spawn once at GUI startup: forward `vox-config` snapshot bumps that affect
+/// orchestrator config keys to the webview as [`ORCH_CONFIG_CHANGED_EVENT`],
+/// so the Orchestrator settings surface refreshes reactively when config
+/// changes — whether from this GUI, an env reload, or mesh sync.
+///
+/// Mirrors [`crate::commands::user_config::spawn_llm_config_bridge`] (the B2
+/// pattern). Listeners are cheap synchronous callbacks; the Tauri emit is
+/// non-blocking so this satisfies the `vox-config` snapshot contract.
+// toestub-ignore(skeleton/untested-pub-api) — thin bridge from vox-config snapshot bumps to Tauri events; snapshot invalidation logic is tested in vox-config
+pub fn spawn_orchestrator_config_watch(app: tauri::AppHandle) {
+    vox_config::snapshot::on_change(move |change| {
+        let _ = app.emit(
+            ORCH_CONFIG_CHANGED_EVENT,
+            OrchestratorConfigChanged { rev: change.rev },
+        );
+    });
 }
 
 /// Read the effective orchestrator settings (Vox.toml + env overrides) via

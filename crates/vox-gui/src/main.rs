@@ -98,6 +98,10 @@ async fn main() {
             // Reactive Runtime settings: forward vox-config change bumps to the webview
             // as "vox://llm-config-changed" so the settings surface refreshes live.
             commands::user_config::spawn_llm_config_bridge(app.handle().clone());
+            // B2: forward vox-config snapshot bumps to the webview as
+            // "vox://orchestrator-config-changed" so the Orchestrator settings
+            // surface refreshes live after set_orchestrator_config writes.
+            commands::orchestrator::spawn_orchestrator_config_watch(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
