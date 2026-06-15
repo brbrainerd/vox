@@ -1,0 +1,9 @@
+refactor(resolver): simplify feature resolution logic in `Resolver::resolve`
+scale: ~61 lines across 1 files [M]
+
+- `crates/vox-package-types/src/resolver/resolve.rs`:
+    - Replaced nested `if let Some(...)` with `and_then` for retrieving implied features.
+    - Collapsed nested `if` and `if let` statements into a `let Some(...) else { continue; }` for dependency graph lookup.
+    - Simplified conditional logic for adding optional dependencies by removing redundant `should_add` variable and directly checking conditions.
+
+--- audit: original='fix(ci): resolve clippy hard errors across three crates' | actual=61L across 1 files | derived=full ---
