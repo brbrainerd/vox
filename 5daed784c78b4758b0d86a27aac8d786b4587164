@@ -1,0 +1,11 @@
+feat(orchestrator): implement doom-loop cost check and integrate into task flow
+scale: ~71 lines across 5 files [M]
+
+- `gate.rs`: Add `GateResult::DoomLoop` variant and `BudgetGate::check_doom_loop` function to detect agents spending cost without progress.
+- `orchestrator/task_dispatch/submit/task_submit.rs`: Integrate `BudgetGate::check_doom_loop` as a pre-dispatch check, blocking task submission if a doom-loop is detected and returning `OrchestratorError::DoomLoop`.
+- `mcp_tools/llm_bridge/infer.rs`: Handle the new `GateResult::DoomLoop` variant in the exhaustive match for `GateResult`.
+- `orchestrator/types.rs`: Add `OrchestratorError::DoomLoop` variant to represent tasks blocked by doom-loop detection.
+- `orchestrator/task_dispatch/complete/success/mod.rs`: Call `budget_manager.record_task_completion` to reset the doom-loop counter upon successful task completion.
+- `gate.rs`: Add two new tests for `BudgetGate::check_doom_loop` covering detection when the threshold is exceeded and reset after task completion.
+
+--- audit: original='feat(orchestrator): wire doom-loop cost check into gate and task completion (FIX-11)' | actual=71L across 5 files | derived=full ---
