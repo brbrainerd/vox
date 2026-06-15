@@ -215,6 +215,24 @@ fn json_read_str_and_f64() {
     assert!((vox_json_read_f64(raw, "f").unwrap() - 1.5).abs() < f64::EPSILON);
 }
 
+// The Rust codegen lane lowers Vox `as_int()`/`as_float()` to the serde method
+// names `as_i64()`/`as_f64()`, so `VoxJson` must answer those names too (else
+// native-compiled scripts break while the interpreter works). These aliases
+// must behave identically to `as_int`/`as_float`.
+#[test]
+fn json_serde_named_aliases_match_vox_named() {
+    let j = vox_json_parse(r#"{"i":42,"f":1.5,"s":"x"}"#).unwrap();
+    let i = j.get("i".to_string()).unwrap();
+    let f = j.get("f".to_string()).unwrap();
+    assert_eq!(i.as_i64(), Some(42));
+    assert_eq!(i.as_i64(), i.as_int());
+    assert!((f.as_f64().unwrap() - 1.5).abs() < f64::EPSILON);
+    assert_eq!(f.as_f64(), f.as_float());
+    // Wrong-type access yields None on both names, like serde_json.
+    assert_eq!(j.get("s".to_string()).unwrap().as_i64(), None);
+    assert_eq!(j.get("s".to_string()).unwrap().as_f64(), None);
+}
+
 #[tokio::test]
 async fn http_invalid_json_body_is_rejected_before_network() {
     let client = vox_http_client::client();

@@ -391,6 +391,34 @@ fn golden_while_loop_algorithms_compiles() {
 fn golden_json_as_typed_compiles() {
     assert_golden_compiles("json_as_typed.vox");
 }
+
+// Regression: the codegen lane lowers Vox `as_int()`/`as_float()` to the serde
+// names `as_i64()`/`as_f64()`. Before VoxJson grew those aliases, this script
+// compiled under `--mode interp` but failed native codegen with
+// "no method named as_f64/as_i64 found for struct VoxJson". Walks a parsed
+// JSON value with the canonical get/pointer + and_then + as_X idiom for both
+// the int and float leaves.
+#[test]
+fn json_int_and_float_accessors_compile_native() {
+    assert_compiles(
+        "fn read_count(s: str) to Option[int] {\n\
+         return match std.json.parse(s) {\n\
+             Ok(d) => d.get(\"count\").and_then(fn(j: Json) to Option[int] { j.as_int() })\n\
+             Error(_) => None\n\
+         }\n\
+         }\n\
+         fn read_ratio(s: str) to Option[float] {\n\
+         return match std.json.parse(s) {\n\
+             Ok(d) => d.pointer(\"/stats/ratio\").and_then(fn(j: Json) to Option[float] { j.as_float() })\n\
+             Error(_) => None\n\
+         }\n\
+         }\n\
+         fn main() {\n\
+         let _ = read_count(\"{\\\"count\\\":3}\")\n\
+         let _ = read_ratio(\"{\\\"stats\\\":{\\\"ratio\\\":1.5}}\")\n\
+         }",
+    );
+}
 #[test]
 fn golden_tuple_destructure_compiles() {
     assert_golden_compiles("tuple_destructure.vox");

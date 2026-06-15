@@ -241,6 +241,20 @@ impl VoxJson {
     pub fn as_float(&self) -> Option<f64> {
         self.0.as_f64()
     }
+    /// serde-named aliases for [`Self::as_int`] / [`Self::as_float`]. The Rust
+    /// codegen lane lowers the Vox `as_int()` / `as_float()` accessors to the
+    /// `serde_json::Value` method names `as_i64()` / `as_f64()` (see
+    /// `vox-codegen/src/codegen_rust/emit/method_emit.rs`). On a `VoxJson`
+    /// receiver those names must resolve too, otherwise native-compiled scripts
+    /// fail (`no method named as_f64/as_i64 found for struct VoxJson`) while the
+    /// interpreter — which dispatches on the Vox name — succeeds. These aliases
+    /// keep both lanes in parity.
+    pub fn as_i64(&self) -> Option<i64> {
+        self.0.as_i64()
+    }
+    pub fn as_f64(&self) -> Option<f64> {
+        self.0.as_f64()
+    }
     pub fn as_bool(&self) -> Option<bool> {
         self.0.as_bool()
     }
