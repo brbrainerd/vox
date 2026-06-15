@@ -1,0 +1,8 @@
+fix(ci): force git push in CodeRabbit workflow and update telemetry key
+scale: ~148 lines across 3 files [M]
+
+- `crates/vox-cli/src/commands/review/coderabbit/github.rs`: Modified the `git push` command in the CodeRabbit submission workflow to include `-u` (set upstream), `-f` (force), and `-F` (force-with-lease) flags, ensuring the branch is updated unconditionally. Also, updated the error message for a failed `git push` to include the branch name.
+- `crates/vox-populi/src/tensor/candle_qlora_train.rs`: Changed the telemetry key from `GLOBAL_STEP` to `STEP` in the `run_candle_qlora_train` function. Also, assigned the `loss` directly to `loss_f` instead of calling `to_scalar::<f32>().unwrap_or(f32::NAN)`.
+- `README.md`: Significantly expanded and updated the "The Vox Ecosystem" section, adding details about Vox's compilation targets (Rust/Tokio/Axum, TypeScript/React) and its core philosophy. Removed the "The Vox Philosophy" section.
+
+--- audit: original='fix(coderabbit): force git push for isolated PR worktrees to clobber stale branches unconditionally' | actual=148L across 3 files | derived=full ---
