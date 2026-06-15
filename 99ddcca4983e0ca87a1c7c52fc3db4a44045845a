@@ -1,0 +1,12 @@
+refactor(docs, crates): Update crate descriptions and documentation for discoverability
+scale: ~23 lines across 7 files [M]
+
+- docs/src/architecture/where-things-live.md: Add 7 missing crates to the "where things live" documentation: `vox-claim-extractor`, `vox-inspect-bridge`, `vox-nanopub`, `vox-prereg`, `vox-research-events`, `vox-ro-crate`, and `vox-wire-format-validator`.
+- crates/vox-drift-check/src/lib.rs: Add a `//!` docstring describing the crate as a "Workspace-wide multi-language drift and pattern-repetition linter."
+- crates/vox-nanopub/src/lib.rs: Add a `//!` docstring describing the crate as a "SCIENTIA nanopublication builder: TriG emission and Ed25519 signing."
+- crates/vox-ro-crate/src/lib.rs: Add a `//!` docstring describing the crate as a "SCIENTIA RO-Crate 1.2 JSON-LD metadata builder."
+- crates/vox-orchestrator/Cargo.toml: Rewrite the crate description to reflect its post-Phase-5 shape, clarifying that queue/lock/oplog are in `vox-orchestrator-queue` and MCP tools are in `vox-orchestrator-mcp`.
+- docs/src/reference/cli.md: Update the `turso-import-guard` description to replace `vox-pm` with `vox-package`.
+- docs/src/architecture/layers.toml: Add `vox-wire-format-validator` to the L3 binary CI guard.
+
+--- audit: original='refactor(docs+crates): PR1 — SSOT/discoverability fixes + crate descriptions + layers.toml coverage' | actual=23L across 7 files | derived=full ---
