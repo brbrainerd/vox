@@ -1,0 +1,7 @@
+feat(quantize): implement model recombination from base and merged subset
+scale: ~88 lines across 2 files [M]
+
+- `crates/vox-quantize/src/recombine.rs`: New module `recombine` added, containing the `recombine` function. This function takes a base model directory, a merged subset safetensors file, and an output directory. It builds a complete F32 model by loading tensors from the base model and overwriting them with tensors from the merged subset if they exist. It includes a check to ensure all keys in the merged subset are present in the base model, preventing adapter/base mismatches. It also copies the `config.json` file if present. A unit test `merged_subset_overrides_base_keys` is included to verify functionality.
+- `crates/vox-quantize/src/lib.rs`: The new `recombine` module is declared as public.
+
+--- audit: original='feat(quantize): recombine merged-subset over base into complete model' | actual=88L across 2 files | derived=full ---
