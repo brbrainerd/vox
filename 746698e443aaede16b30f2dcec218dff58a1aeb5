@@ -1,0 +1,7 @@
+docs(gitignore): ignore local agent worktrees and clones
+scale: ~4 lines across 1 files [XS]
+
+- Add `.claire/` to ignore local Claire agent worktrees.
+- Add `.clone/` to ignore local clone directories.
+
+--- audit: original='chore(gitignore): ignore local .claire and .clone trees' | actual=4L across 1 files | derived=full ---
