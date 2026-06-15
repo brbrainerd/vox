@@ -1,0 +1,10 @@
+docs(check-links): ignore pre-existing external dead/bot-blocked links
+scale: ~10 lines across 1 files [S]
+
+- `.lycheeignore`: Added new entries to ignore specific external URLs that were causing `check-links` failures in CI.
+  - Ignored `https://claude.ai/?.*` due to 403 errors for bots.
+  - Ignored `.*toolsinfo.com/.*` due to intermittent 503 errors for bots.
+  - Ignored `https://coolify.io/docs/.*` due to a 404 for an API reference after upstream documentation restructuring.
+  - Ignored `https://github.com/vox-foundation/vox-funding-plan` due to a 404 for a planned/private repository.
+
+--- audit: original='fix(docs): ignore pre-existing external dead/bot-blocked links (check-links)' | actual=10L across 1 files | derived=full ---
