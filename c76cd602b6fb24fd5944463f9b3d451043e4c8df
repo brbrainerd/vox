@@ -1,0 +1,6 @@
+docs: add screenshot of mood taps persisting on device
+scale: ~0 lines across 1 files [XS]
+
+- Add `mood-persisted-events-stored-2.png` to document that mood taps persist on device, showing "Events stored: 2" in the Timeline.
+
+--- audit: original='docs: emulator proof — Mood taps persist on-device (Timeline "Events stored: 2")' | actual=0L across 1 files | derived=full ---
