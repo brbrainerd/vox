@@ -1,0 +1,13 @@
+docs(superpowers): add 2026-06-12 Scientia research-pipeline upgrade plan
+scale: ~1260 lines across 1 files [XL]
+
+- Add `docs/superpowers/plans/2026-06-12-scientia-research-pipeline-upgrade.md` detailing a plan to upgrade Vox Scientia to a serious research pipeline.
+- The plan outlines five tracks:
+    - **Track A:** Fixes novelty/claim correctness, including `InsufficientEvidence` verdict, real embeddings via `llm_embed`, chrono/conflict wiring, reachable `Contradicted`, and an eval harness.
+    - **Track B:** Builds the archive pipeline, including Zenodo metadata enrichment, deterministic autofill with provenance, arXiv handoff sidecar, Software Heritage save-code-now, nanopub test-server publish, and an orchestrating command.
+    - **Track C:** Adds automated producers, specifically a commit watcher and code-uniqueness signal over the embedding corpus.
+    - **Track D:** Surfaces functionality in the GUI, including a novelty evidence panel, discovery inbox with OS notifications, and an archive panel.
+    - **Track E:** Closes gates and documentation.
+- The plan emphasizes human approval as a hard gate and explicitly rules out arXiv live submission and production nanopub publishing.
+
+--- audit: original='docs(scientia): research-pipeline upgrade plan — novelty correctness, producers, archive autofill, GUI surfacing' | actual=1260L across 1 files | derived=full ---
