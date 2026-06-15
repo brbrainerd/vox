@@ -1,0 +1,6 @@
+fix(scaffold): update templates to use `@query`, `@mutation`, and `@server` decorators
+scale: ~20 lines across 1 files [S]
+
+- `crates/vox-project-scaffold/src/lib.rs`: Replaced 10 instances of `@endpoint(kind: query|mutation|server)` with their respective shorthand decorators (`@query`, `@mutation`, `@server`) across the `CHATBOT_TEMPLATE`, `DASHBOARD_TEMPLATE`, `API_TEMPLATE`, and `FULL_STACK_TEMPLATE` to align with current decorator parsing.
+
+--- audit: original='fix(scaffold): use current @query/@mutation/@server decorators in templates' | actual=20L across 1 files | derived=full ---
