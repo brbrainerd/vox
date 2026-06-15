@@ -1,0 +1,20 @@
+feat(remote-worker): execute WASM and native bundles
+scale: ~317 lines across 4 files [L]
+
+- `crates/vox-orchestrator/src/a2a/remote_worker.rs`:
+    - Implemented `run_dispatched_bundle` to decode, integrity-check (BLAKE3), classify (WASM vs. native), and execute precompiled bundles.
+    - WASM bundles are run under `wasmtime/WASI` isolation (`--isolation wasm`).
+    - Native bundles are executed directly, requiring a `permissive` policy.
+    - Added `classify_bundle` function to determine `BundleKind` (Wasm or Native) based on leading magic bytes (`\0asm`).
+    - Introduced `parts_from_output` helper to truncate combined stdout/stderr to 10 MiB, shared by source and bundle execution paths.
+    - Refactored `run_dispatched_source` to use `parts_from_output`.
+    - Added new unit tests for bundle classification, integrity checks, and policy enforcement without spawning, and a skip-gated test for WASM execution.
+- `crates/vox-orchestrator/src/a2a/envelope.rs`:
+    - Added `exec_bundle_b64` (base64-encoded bundle) and `exec_bundle_blake3_hex` (BLAKE3 hash) fields to `RemoteTaskEnvelope`.
+    - These fields are optional, default, and skipped if `None` for backward compatibility.
+- `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/task_submit.rs`:
+    - Updated `RemoteTaskEnvelope` instantiations to include `exec_bundle_b64: None` and `exec_bundle_blake3_hex: None`.
+- `crates/vox-orchestrator/src/orchestrator/tests/populi_single_owner.rs`:
+    - Updated `RemoteTaskEnvelope` instantiations in tests to include `exec_bundle_b64: None` and `exec_bundle_blake3_hex: None`.
+
+--- audit: original='feat(mesh): WASM + native bundle execution on the remote worker' | actual=317L across 4 files | derived=full ---
