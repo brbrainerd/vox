@@ -1,0 +1,7 @@
+feat(runtime-rn): open mobile uniffi journal in Deferred durability
+scale: ~73 lines across 2 files [M]
+
+- `crates/vox-runtime-rn/src/lib.rs`: Configured `FileJournal` to open with `AppendDurability::Deferred` for the mobile runtime bridge, improving performance by batching appends and making `FileJournalHandle::flush` the explicit durability point. Updated documentation for `flush()` to reflect its new role in mobile durability.
+- `crates/vox-runtime-rn/tests/bridge_integration.rs`: Added a new integration test `mobile_journal_round_trips_through_deferred_flush` to verify the end-to-end mobile durability contract, including deferred appends, flushing on suspend, and replaying on relaunch.
+
+--- audit: original='feat(runtime-rn): open mobile uniffi journal in Deferred durability' | actual=73L across 2 files | derived=full ---
