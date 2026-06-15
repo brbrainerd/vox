@@ -1,0 +1,13 @@
+feat(audit): add minimal_repro examples to 8 detectors
+scale: ~126 lines across 8 files [M]
+
+- `crates/vox-code-audit/src/detectors/no_test_for_pub_fn.rs`: Added a `minimal_repro` example for public functions missing `@test` annotations.
+- `crates/vox-code-audit/src/detectors/anonymous_error.rs`: Added a `minimal_repro` example for `Result[T, str]` using anonymous error types.
+- `crates/vox-code-audit/src/detectors/ai_laziness.rs`: Added a `minimal_repro` example for placeholder returns or 'implement later' comments.
+- `crates/vox-code-audit/src/detectors/id_at_boundary.rs`: Added a `minimal_repro` example for bare `str` `_id` parameters at `@endpoint` boundaries.
+- `crates/vox-code-audit/src/detectors/hollow_fn.rs`: Added a `minimal_repro` example for structural skeleton functions that compile but do nothing.
+- `crates/vox-code-audit/src/detectors/stub.rs`: Added a `minimal_repro` example for `todo!()` or `unimplemented!()` placeholders.
+- `crates/vox-code-audit/src/detectors/unwrap_call.rs`: Added a `minimal_repro` example for `.unwrap()` calls in production code.
+- `crates/vox-code-audit/src/detectors/empty_body.rs`: Added a `minimal_repro` example for truly empty `{}` function bodies.
+
+--- audit: original='feat(audit): add minimal_repro to 8 more detectors (AI-laziness family + types)' | actual=126L across 8 files | derived=full ---
