@@ -23,6 +23,7 @@
 //! `runner-scale` is **dry-run by default**; `--apply` mutates.
 
 use std::collections::{HashMap, HashSet};
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -532,6 +533,62 @@ fn write_phantom_seen(seen: &HashMap<String, i64>) {
     }
 }
 
+// --- single-instance scale lock ---------------------------------------------
+
+/// After this many seconds without a heartbeat the lock is considered stale
+/// and a new instance may steal it. Covers Task Scheduler double-fire + host
+/// clock jitter.
+const LOCK_STALE_SECS: i64 = 90;
+
+/// True when the lock file is older than [`LOCK_STALE_SECS`].
+pub fn scale_lock_is_stale(written_at: i64, now: i64) -> bool {
+    now - written_at >= LOCK_STALE_SECS
+}
+
+fn scale_lock_path() -> PathBuf {
+    crate::fs_utils::user_home_dir()
+        .join(".vox")
+        .join("ci-runner-scale.lock")
+}
+
+/// RAII guard that holds the scale lock file for the duration of an apply run.
+/// Constructed via [`ScaleLock::acquire`]; released (file removed) on drop.
+pub struct ScaleLock {
+    path: PathBuf,
+}
+
+impl ScaleLock {
+    /// Try to acquire the lock. Returns `Ok(None)` when another instance holds
+    /// a fresh lock (caller should exit early / skip the apply). Returns
+    /// `Ok(Some(_))` when the lock was acquired (fresh or stale).
+    pub fn acquire(now: i64) -> Result<Option<Self>> {
+        let path = scale_lock_path();
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        // Check for a live lock held by another instance.
+        if let Ok(contents) = std::fs::read_to_string(&path) {
+            if let Ok(written_at) = contents.trim().parse::<i64>() {
+                if !scale_lock_is_stale(written_at, now) {
+                    return Ok(None); // another instance holds a fresh lock
+                }
+            }
+        }
+        // Write our timestamp; best-effort (if it fails we skip locking but
+        // don't fail the whole command — safer than blocking all autoscaling).
+        if let Ok(mut f) = std::fs::File::create(&path) {
+            let _ = writeln!(f, "{now}");
+        }
+        Ok(Some(ScaleLock { path }))
+    }
+}
+
+impl Drop for ScaleLock {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Reconcile
 // ---------------------------------------------------------------------------
@@ -542,6 +599,21 @@ fn write_phantom_seen(seen: &HashMap<String, i64>) {
 pub fn run_scale(apply: bool) -> Result<()> {
     let dry_run = !apply;
     let now = now_secs();
+
+    // Acquire single-instance lock for apply runs. Dry-run never mutates state
+    // so it is safe to run concurrently (useful for monitoring).
+    let _lock = if apply {
+        match ScaleLock::acquire(now)? {
+            Some(lock) => Some(lock),
+            None => {
+                println!("runner-scale: another apply is in progress (lock held) — skipping");
+                return Ok(());
+            }
+        }
+    } else {
+        None
+    };
+
     let max = max_runners();
     let reap_secs = idle_reap_secs();
     let warm = warm_pool();
@@ -883,5 +955,16 @@ mod tests {
         assert_eq!(get("CARGO_INCREMENTAL"), "0");
         // Anonymous LAN bucket: no AWS credentials may be injected.
         assert!(!env.iter().any(|(k, _)| k.starts_with("AWS_")));
+    }
+
+    #[test]
+    fn scale_lock_age_steal_policy() {
+        let base = 1_000_000i64;
+        // Fresh lock (written 30s ago) — must not be stolen.
+        assert!(!scale_lock_is_stale(base - 30, base));
+        // Lock written exactly at the stale boundary — stealable.
+        assert!(scale_lock_is_stale(base - LOCK_STALE_SECS, base));
+        // Very old lock — definitely stealable.
+        assert!(scale_lock_is_stale(base - 3600, base));
     }
 }
