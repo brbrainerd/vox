@@ -1,0 +1,13 @@
+feat(container): add CPU, memory, and PIDs resource limits to `RunOpts`
+scale: ~64 lines across 4 files [M]
+
+- `crates/vox-container-types/src/runtime.rs`:
+    - Added `cpus`, `memory`, and `pids_limit` fields to `RunOpts` struct.
+    - Implemented `Default` for `RunOpts` to initialize new resource limit fields to `None`.
+    - Added `resource_args` method to `RunOpts` to generate CLI arguments for resource limits.
+    - Added unit tests for `resource_args` method.
+- `crates/vox-container/src/docker.rs`: Incorporated `opts.resource_args()` into the `docker run` command.
+- `crates/vox-plugin-runtime-container/src/docker.rs`: Incorporated `opts.resource_args()` into the `docker run` command.
+- `crates/vox-cli/src/commands/container.rs`: Updated `RunOpts` initialization to use `..Default::default()` for new fields.
+
+--- audit: original='feat(container): emit cpu/memory/pids resource limits on container run (HC-G07-05)' | actual=64L across 4 files | derived=full ---
