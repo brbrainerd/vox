@@ -1,0 +1,9 @@
+feat(compiler): centralize Phase 1 diagnostic IDs and add namespace tests
+scale: ~101 lines across 4 files [M]
+
+- Introduce `typeck::diagnostics::codes` module to centralize Phase 1 diagnostic IDs as public constants.
+- Add `diagnostic_id_namespace.rs` test to enforce `vox/<category>/<kebab>` format, category validation, and uniqueness for all Phase 1 diagnostic codes.
+- Update `ast_decl_lints.rs` to use the new `codes` constants for `TYPES_DURABLE_PROMISE_ARITY` and rename `vox/remote/param-not-serializable` to `REMOTE_NON_SERIALIZABLE_PARAM`.
+- Update `remote_fn.rs` tests to reflect the diagnostic ID rename from `vox/remote/param-not-serializable` to `vox/remote/non-serializable-param`.
+
+--- audit: original='chore(compiler): centralise Phase 1 diagnostic IDs under codes:: module (P1-T9)' | actual=101L across 4 files | derived=full ---
