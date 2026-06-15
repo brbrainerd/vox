@@ -1,0 +1,10 @@
+chore(claude): update local tool permission allow-list
+scale: ~170 lines across 1 files [M]
+
+- `.claude/settings.local.json`:
+    - Added 12 new `Bash` tool permissions, primarily for `cargo test` commands related to `vox-cli-tests` (e.g., `build_e2e`, `build_component_state_succeeds_end_to_end`, `mobile_list`, `mobile_form`).
+    - Added `Bash` permissions for `git` commands within the `.worktrees/effort-audit-spec` directory (e.g., `git add`, `git commit`).
+    - Added `Bash` permission for `ls` command to inspect `.claude` memory directory.
+    - Removed one `Bash` tool permission.
+
+--- audit: original='chore: sync local Claude Code permission allow-list' | actual=170L across 1 files | derived=full ---
