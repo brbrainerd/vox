@@ -1,0 +1,18 @@
+feat(contracts/eval): Add 12 new humaneval-vox fixtures (18 to 30)
+scale: ~350 lines across 37 files [L]
+
+- **contracts/eval/humaneval-vox/problems/019-sum-ab**: Added `sum_ab` fixture with `reference.vox` and `tests.vox` for integer addition.
+- **contracts/eval/humaneval-vox/problems/020-min-of-two**: Added `min` fixture with `reference.vox` and `tests.vox` for finding the minimum of two integers.
+- **contracts/eval/humaneval-vox/problems/021-square**: Added `square` fixture with `reference.vox` and `tests.vox` for squaring an integer.
+- **contracts/eval/humaneval-vox/problems/022-is-positive**: Added `is_positive` fixture with `reference.vox` and `tests.vox` for checking if an integer is positive.
+- **contracts/eval/humaneval-vox/problems/023-not-bool**: Added `negate` fixture with `reference.vox` and `tests.vox` for boolean negation using `is false`.
+- **contracts/eval/humaneval-vox/problems/024-celsius-to-fahr**: Added `c_to_f` fixture with `reference.vox` and `tests.vox` for Celsius to Fahrenheit conversion.
+- **contracts/eval/humaneval-vox/problems/025-grade-letter**: Added `grade` fixture with `reference.vox` and `tests.vox` for assigning a pass/fail grade based on score.
+- **contracts/eval/humaneval-vox/problems/026-fib-iter**: Added `fib` fixture with `reference.vox` and `tests.vox` for an iterative Fibonacci sequence lookup.
+- **contracts/eval/humaneval-vox/problems/027-fact-iter**: Added `factorial` fixture with `reference.vox` and `tests.vox` for an iterative factorial calculation.
+- **contracts/eval/humaneval-vox/problems/028-power-of-two**: Added `is_pow2_small` fixture with `reference.vox` and `tests.vox` for checking if a number is a power of two.
+- **contracts/eval/humaneval-vox/problems/029-clamp-zero**: Added `clamp_zero` fixture with `reference.vox` and `tests.vox` for clamping negative numbers to zero.
+- **contracts/eval/humaneval-vox/problems/030-str-empty**: Added `is_empty` fixture with `reference.vox` and `tests.vox` for checking if a string is empty.
+- **contracts/eval/humaneval-vox/manifest.v1.yaml**: Updated `count_current` from 18 to 30 and refreshed `corpus_hash` to reflect the new fixtures.
+
+--- audit: original='feat(contracts/eval): P3.1 — humaneval-vox 18 → 30 fixtures' | actual=350L across 37 files | derived=full ---
