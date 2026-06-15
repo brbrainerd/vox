@@ -1,0 +1,9 @@
+fix(ci): declare expo-file-system as a dependency in vox-runtime-rn shim
+scale: ~6 lines across 1 files [XS]
+
+- `ci/expo-bundle-shim/vox-runtime-rn/package.json`:
+    - Added `expo-file-system: "*"` to `dependencies`.
+    - Added a `comment` field explaining the rationale for this dependency.
+    - Changed `private: true` to `private: true,` to accommodate the new fields.
+
+--- audit: original="fix(ci): declare expo-file-system in the @vox/runtime-rn shim's package.json" | actual=6L across 1 files | derived=full ---
