@@ -1,0 +1,6 @@
+docs(feed): regenerate feed.xml
+scale: ~2 lines across 1 files [XS]
+
+- docs/src/feed.xml: Updated the `lastBuildDate` to reflect the regeneration.
+
+--- audit: original='docs: regenerate SUMMARY.md, architecture-index.md, feed.xml' | actual=2L across 1 files | derived=full ---
