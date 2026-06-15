@@ -1,0 +1,12 @@
+fix(vox-ro-crate): correct ISO date off-by-one in metadata formatter
+scale: ~55 lines across 1 files [M]
+
+- `crates/vox-ro-crate/src/metadata.rs`:
+    - Refactored `format_iso_date` to correctly calculate the day of the month by changing `remaining_days` to `remaining` and adjusting the loop logic.
+    - Changed `unix_ts` parameter to `unix_secs` for clarity.
+    - Updated `year` and `remaining` variables from `i64` to `u32` for better type safety and consistency.
+    - Modified `month_days` array initialization to correctly handle leap years within the array definition itself.
+    - Corrected the final day calculation from `remaining_days + 1` to `remaining + 1` to ensure a 1-based day.
+    - Updated `is_leap_year` function parameter type from `i64` to `u32`.
+
+--- audit: original='fix(scientia): correct ISO date off-by-one in RO-Crate metadata formatter (Phase 4)' | actual=55L across 1 files | derived=full ---
