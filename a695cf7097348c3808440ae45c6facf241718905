@@ -1,0 +1,6 @@
+docs(agents): Add `vox audit` umbrella SSOT note
+scale: ~11 lines across 1 files [S]
+
+- AGENTS.md: Document the `vox audit` umbrella, listing its subcommands (`vox audit code`, `vox audit arch`, `vox audit retirement`, `vox audit effort`) and specifying requirements for new audit subcommands to emit findings in JSONL format with `schema_version` and a per-finding discriminator.
+
+--- audit: original='docs(agents): add vox audit umbrella SSOT note (F2)' | actual=11L across 1 files | derived=full ---
