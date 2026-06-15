@@ -1,0 +1,6 @@
+fix(mesh-policy): initialize `accept_sensitive_workloads` in `parse_source`
+scale: ~1 lines across 1 files [XS]
+
+- `crates/vox-mesh-policy/src/parse.rs`: Added `accept_sensitive_workloads: false` to the `WorkerDonationPolicy` struct literal in the `parse_source` function.
+
+--- audit: original='fix(mesh-policy): add accept_sensitive_workloads default in parse.rs [P5-T9 followup]' | actual=1L across 1 files | derived=full ---
