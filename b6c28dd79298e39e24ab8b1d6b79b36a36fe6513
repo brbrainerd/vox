@@ -1,0 +1,10 @@
+feat(orchestrator): inject JWE-decrypted secrets into task environment
+scale: ~193 lines across 5 files [M]
+
+- `crates/vox-orchestrator/src/a2a/secret_bag.rs`: Add `SecretBag` struct to parse JWE-decrypted JSON into a task-scoped secret holder. It exposes secrets declared via `@uses(secret)` and redacts plaintext values in its `Debug` implementation.
+- `crates/vox-orchestrator/src/a2a/remote_worker.rs`: Replace `secret_count`-only logging with full `SecretBag` construction after decrypting JWE payload.
+- `crates/vox-orchestrator/tests/secret_injection.rs`: Add three new tests for `SecretBag` functionality, verifying that it only exposes declared secrets, skips unknown declarations, and redacts values in debug format.
+- `crates/vox-skill-runtime/src/runtime.rs`: Add a default `run_with_secrets` method to the `SkillRuntime` trait, which merges declared secret environment variables into `RunOpts` before calling `run`.
+- `crates/vox-orchestrator/src/a2a/mod.rs`: Add `secret_bag` module to `a2a`.
+
+--- audit: original='feat(orchestrator): inject decrypted JWE secrets via SecretBag into task env (P0-T4)' | actual=193L across 5 files | derived=full ---
