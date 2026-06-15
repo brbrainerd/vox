@@ -1,0 +1,6 @@
+fix(vox-vcs): log `jj snapshot` and `jj undo` failures instead of discarding them
+scale: ~19 lines across 1 files [S]
+
+- `crates/vox-orchestrator/src/workspace.rs`: Changed `spawn_supervised_infallible` calls for `jj snapshot` and `jj undo` to log errors at `error` level with the change ID if the operations fail, instead of silently discarding the `Result`. This ensures that failures in persisting version history or reverting abandoned changes are observable.
+
+--- audit: original='fix(vox-vcs): surface jj snapshot/undo failures instead of swallowing them' | actual=19L across 1 files | derived=full ---
