@@ -1,0 +1,9 @@
+test(golden): add behavioral tests for 4 golden files
+scale: ~178 lines across 4 files [M]
+
+- `examples/golden/error_propagation.vox`: Added `@test` functions `test_parse_int`, `test_divide`, `test_validate_email`, and `test_onboard_user` to cover error handling and result propagation.
+- `examples/golden/str_utils.vox`: Added `@test` functions `test_first_three`, `test_at`, `test_find`, `test_count_vowels`, and `test_shift_char` to verify string utility functions.
+- `examples/golden/json_stdlib.vox`: Added `@test` functions `test_read_kind`, `test_read_mood_score`, and `test_has_payload` to test JSON parsing and data extraction.
+- `examples/golden/option_type.vox`: Added `@test` functions `test_display_bio_and_age` and `test_greet_user` to cover `Option` type usage in user profile display and greeting logic.
+
+--- audit: original='test(golden): add behavioral @test coverage to 4 pure-computational goldens (#221)' | actual=178L across 4 files | derived=full ---
