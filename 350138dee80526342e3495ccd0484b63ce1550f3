@@ -1,0 +1,8 @@
+test(mcp): add end-to-end model routing parity assertion
+scale: ~65 lines across 1 files [M]
+
+- Add `mcp_request_to_canonical_decision_to_route_output_parity` test to `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/tests.rs`.
+- This test verifies that the model resolution, canonical model decision stability, and route telemetry output are consistent for MCP chat model routing.
+- It asserts that a sticky reroute using a canonical decision model ID results in the same model ID.
+
+--- audit: original='test(mcp): add end-to-end model route parity assertion' | actual=65L across 1 files | derived=full ---
