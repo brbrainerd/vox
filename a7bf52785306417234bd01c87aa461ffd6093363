@@ -1,0 +1,18 @@
+feat(vox-audit/panel): Implement content-addressed disk cache for LLM panel
+scale: ~204 lines across 2 files [M]
+
+- `crates/vox-audit/src/panel.rs`:
+  - Added `CachingPanelClient<I: PanelClient>` struct to wrap an inner `PanelClient` with a disk cache.
+  - Implemented `new` constructor for `CachingPanelClient`.
+  - Implemented `cache_key` method using `blake3` hash of `(member.id, system_prompt, user_prompt)`.
+  - Implemented `entry_path` method to construct cache file paths.
+  - Implemented `try_load` method to read cached `PanelResponse` from disk, including `ttl_days` check based on file mtime.
+  - Implemented `try_store` method to write `PanelResponse` to disk.
+  - Implemented `PanelClient` trait for `CachingPanelClient`, handling cache hits and misses.
+  - Added three new unit tests for `CachingPanelClient`: `caching_panel_client_serves_second_call_from_disk`, `caching_panel_client_distinguishes_keys_by_user_prompt`, and `caching_panel_client_zero_ttl_means_no_expiry_check`.
+- `crates/vox-audit/src/subcommands/humaneval.rs`:
+  - Imported `CachingPanelClient`.
+  - Wrapped `OpenRouterPanelClient` with `CachingPanelClient` in `HumanEvalRunner`'s `run` method.
+  - Configured `CachingPanelClient` with `cache_dir` at `contracts/reports/llm-panel-cache/` and `ttl_days` set to 30.
+
+--- audit: original='feat(vox-audit/panel): CachingPanelClient (content-addressed disk cache)' | actual=204L across 2 files | derived=full ---
