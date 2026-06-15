@@ -1,0 +1,6 @@
+docs(mdbook): add new pages to navigation
+scale: ~3 lines across 2 files [S]
+- `docs/src/SUMMARY.md`: Added entries for `warp-research-findings-2026` and `ADR-026` to the main navigation.
+- `docs/src/architecture/architecture-index.md`: Added an entry for `ADR-026` to the architecture index.
+
+--- audit: original='chore(docs): regenerate SUMMARY/architecture-index/feed for new pages' | actual=3L across 2 files | derived=full ---
