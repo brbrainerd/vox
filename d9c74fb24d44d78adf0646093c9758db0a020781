@@ -1,0 +1,9 @@
+feat(arch): Enable strict layer-check in CI and document workspace reorg outcome
+scale: ~225 lines across 4 files [M]
+
+- docs/src/architecture/2026-05-08-workspace-reorg-outcome.md: Add new document detailing the outcome of the workspace reorg, including delivered phases (0, 1, 2, 9), deferred phases (3, 4-6, 7, 8) with rationale, and build-time improvements (CLI incremental 26.76s → 7.6s).
+- docs/src/architecture/build-time-log.md: Update with audit findings for Phases 4-6 (Orchestrator splits), explaining why physical extraction was deferred due to amortized costs and coupling.
+- docs/src/architecture/layers.toml: Reclassify `vox-cli` to `vox-orchestrator` inversion from "transitional" to "permitted exception" based on Phase 7 audit, documenting its load-bearing nature for runtime/observability surfaces.
+- .github/workflows/ci.yml: Remove `--warn-only` flag from `cargo run -p vox-layer-check`, making layer violations a strict build failure.
+
+--- audit: original='feat(arch): Phase 9 — strict layer-check in CI + reorg outcome doc' | actual=225L across 4 files | derived=full ---
