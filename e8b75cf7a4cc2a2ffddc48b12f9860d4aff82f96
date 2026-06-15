@@ -1,0 +1,10 @@
+feat(scholarly): Add Crossref deposit adapter and XML builder
+scale: ~222 lines across 1 files [M]
+
+- Add `crates/vox-publisher/src/scholarly/crossref_deposit.rs` to provide a Crossref deposit adapter.
+- The adapter builds a minimal Crossref Deposit XML schema v5.3.1 document.
+- It POSTs the XML as multipart/form-data to `doi.crossref.org/servlet/deposit`.
+- It uses `VoxCrossrefPlusApiKey` as `login_passwd` for authentication.
+- The adapter includes error handling and status reporting for submissions.
+
+--- audit: original='feat(scientia): Phase 8 — Crossref deposit adapter + XML builder' | actual=222L across 1 files | derived=full ---
