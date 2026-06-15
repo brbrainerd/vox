@@ -1,0 +1,6 @@
+fix(vox-orchestrator-mcp): add CodeEffortJudge to complexity match
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-orchestrator-mcp/src/models_tools.rs`: Added `TaskCategory::CodeEffortJudge` to the match arm that returns a complexity of 6 in `set_active_mcp_model_for_category`, treating it like `Review` for complexity-routing purposes.
+
+--- audit: original='fix(vox-orchestrator-mcp): cover CodeEffortJudge in complexity match (F5)' | actual=2L across 1 files | derived=full ---
