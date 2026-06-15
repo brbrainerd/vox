@@ -1,0 +1,14 @@
+fix(codegen): emit async event handlers for `@query`/`@mutation` and `transcribe_microphone` calls
+scale: ~228 lines across 3 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`:
+    - Added `handler_await` field to `EmitCtx` to promote handler bodies to `async` when they contain `await`able calls, reusing existing async IIFE and `match` dispatch machinery without `local_exec_db`'s db/`?` lowering.
+    - Introduced `EmitCtx::for_handler_await` to create a context specifically for async event handlers.
+    - Modified `emit_hir_expr_attr_value` to correctly emit lambda expressions as event handlers, fixing a double-wrap issue on the web target.
+    - Ensured `if`-as-value arms become awaited async IIFEs only when they contain `await`.
+- `crates/vox-codegen/src/codegen_ts/rn/component.rs`:
+    - Modified `emit_event_handler_with_state` to thread all `@query`/`@mutation` endpoint names as `async_fn_names` into the `EmitCtx`, ensuring that handler bodies calling these endpoints are emitted as `async () => { ... await ... }` arrows.
+- `crates/vox-codegen/src/codegen_ts/hir_emit/async_walker.rs`:
+    - Updated `expr_has_async_call` to detect `transcribe_microphone` method calls, ensuring handlers using this function are also marked as async.
+
+--- audit: original='fix(codegen): emit async event handlers so @query/@mutation calls are awaited' | actual=228L across 3 files | derived=full ---
