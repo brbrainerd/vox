@@ -1,0 +1,38 @@
+feat(orchestrator): Introduce model scoring, usage tracking, and JWE encryption
+scale: ~2565 lines across 116 files [XL]
+
+- `crates/vox-orchestrator`:
+    - Add `scoring.rs` for model scoring logic, including budget matching, quality, efficiency, complexity, economy, and performance metrics.
+    - Enhance `catalog.rs` to include OpenRouter model data for per-request limits and latency statistics, and refine strength tag derivation.
+    - Expand `usage.rs` with new structs for `ModelCost`, `CategoryCost`, and `UnifiedCostSummary` to provide detailed cost breakdowns.
+    - Introduce `a2a/jwe.rs` for JSON Web Encryption (JWE) to secure Agent-to-Agent (A2A) payload proxying.
+    - Refactor `runtime.rs` and `budget.rs` (significant deletions) and update `models/spec.rs`, `models/registry.rs`, `types/tasks.rs`, `gate.rs`, `config/tests.rs`, `orchestrator/core.rs`, `orchestrator/tests.rs`, `services/scaling.rs`, `models/mod.rs`, `bin/vox_orchestrator_d.rs`, `rebalance.rs`, `a2a/mod.rs`, `a2a/remote_worker.rs`, `dei_shim/research/model_select.rs`, `dei_shim/selection/tests.rs`, and `lib.rs` to integrate new scoring, usage, and security features.
+- `crates/vox-mcp`:
+    - Remove `llm_bridge/model_route_policy/scoring.rs` (fully deleted), indicating a migration of scoring logic.
+    - Update `llm_bridge/provider_auth.rs` and `llm_bridge/provider_endpoints.rs` for authentication and endpoint handling.
+    - Modify `llm_bridge/model_route_policy/resolve.rs`, `tests/populi_mcp_http_join_startup.rs`, `tests/tool_dispatch_tests.rs`, `llm_bridge/model_route_policy/tests.rs`, `models.rs`, `tools/task_tools.rs`, `server/lifecycle.rs`, `a2a.rs`, `llm_bridge/infer.rs`, and `llm_bridge/model_route_policy/mod.rs` to align with the new routing and scoring architecture.
+- `crates/vox-clavis`:
+    - Add `backend/vox_vault.rs` for a new secret backend implementation.
+    - Update `spec.rs`, `lib.rs`, `tests.rs`, `backend/mod.rs`, and `Cargo.toml` to support the new vault backend.
+- `crates/vox-cli`:
+    - Add `commands/auth.rs` and `commands/status.rs` for new CLI authentication and status commands.
+    - Update `lib.rs`, `cli_dispatch/mod.rs`, `commands/mod.rs`, and `Cargo.toml` to reflect new CLI commands.
+- `crates/vox-config`:
+    - Update `routing_policy.rs` and `lib.rs` to incorporate new routing configurations.
+    - Add `bootstrap_inference.rs` for bootstrap inference configuration.
+- `README.md`: Significantly update the README, likely reflecting the new features and architecture.
+- `crates/vox-skills`: Add `ars_shim/runtime.rs` and update `tests/openclaw_fallback_test.rs` and `Cargo.toml`.
+- `crates/vox-populi`: Update `tests/http_control_plane.rs`, `transport/mod.rs`, `mens/hub.rs`, `transport/handlers.rs`, and `mens/tensor/vram_autodetect.rs`.
+- `docs`: Many small updates across various architecture and reference documents, including deletions and additions, indicating broad documentation alignment with the new features.
+- `crates/vox-tools`: Add `mens_chat.rs`.
+- `crates/vox-orchestrator/src/catalog_classifier.rs`: New file for catalog classification.
+- `crates/vox-orchestrator/src/dei_shim/selection/resolve.rs`: Update selection resolution.
+- `crates/vox-orchestrator/src/a2a/dispatch/mesh.rs`: New file for mesh dispatch.
+- `crates/vox-ludus`: Update `reward_policy.rs`.
+- `crates/vox-schola`: Update `train.rs`.
+- `Cargo.lock`: Update dependencies.
+- `vox-vscode`: Update `package-lock.json`.
+- `CHANGELOG.md`: Update changelog.
+- Many other crates (`vox-integration-tests`, `vox-compiler`, `vox-db`, `vox-oratio`, `vox-publisher`) have minor updates (2-4 lines changed) to tests or configuration files, indicating broad integration efforts.
+
+--- audit: original='feat: advance auth, routing, and orchestration integration' | actual=2565L across 116 files | derived=full ---
