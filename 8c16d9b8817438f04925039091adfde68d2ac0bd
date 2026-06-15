@@ -1,0 +1,20 @@
+chore(deps): bump rust-deps group with 15 updates
+scale: ~244 lines across 1 files [M]
+
+- Bump `http` from 1.4.1 to 1.4.2
+- Bump `regex` from 1.12.3 to 1.12.4
+- Bump `insta` from 1.47.2 to 1.48.0
+- Bump `uuid` from 1.23.2 to 1.23.3
+- Bump `rust_decimal` from 1.42.0 to 1.42.1
+- Bump `zeroize` from 1.8.2 to 1.9.0
+- Bump `swc_ecma_parser` from 41.0.0 to 41.0.1
+- Bump `which` from 8.0.2 to 8.0.3
+- Bump `wat` from 1.251.0 to 1.252.0
+- Bump `bitflags` from 2.12.1 to 2.13.0
+- Bump `memchr` from 2.8.1 to 2.8.2
+- Bump `regex-syntax` from 0.8.10 to 0.8.11
+- Bump `smallvec` from 1.15.1 to 1.15.2
+- Bump `zerocopy` from 0.8.50 to 0.8.52
+- Bump `cc` from 1.2.63 to 1.2.64
+
+--- audit: original='chore(deps): bump the rust-deps group across 1 directory with 15 updates (#276)' | actual=244L across 1 files | derived=full ---
