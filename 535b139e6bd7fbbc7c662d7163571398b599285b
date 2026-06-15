@@ -1,0 +1,7 @@
+fix(coderabbit): force push baseline branch to avoid fast-forward rejections
+scale: ~369 lines across 2 files [L]
+
+- `crates/vox-cli/src/commands/review/coderabbit/github.rs`: Added the `-f` (force) flag to the `git push` command when pushing the baseline branch to origin.
+- `README.md`: Significantly updated the "What is Vox?" section, including a new introductory paragraph, a revised description of its compilation targets (Rust for backend, TypeScript for frontend), and expanded details on its features like database schema, server endpoints, frontend components, background workflows, and AI agent tools. Also updated the project tagline and removed the "Why Vox?" section.
+
+--- audit: original='fix(coderabbit): force push baseline branch to avoid fast-forward rejections on resume' | actual=369L across 2 files | derived=full ---
