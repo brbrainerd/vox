@@ -1,0 +1,12 @@
+feat(vcs): add isolation REST API, WS topic, and GUI panel
+scale: ~491 lines across 7 files [L]
+
+- **`crates/vox-orchestrator-mcp/src/http_gateway/dashboard_api.rs`**: Implemented `GET /api/v2/vcs/isolation` to retrieve live isolation status and `POST /api/v2/vcs/isolation/strategy` to set default or per-agent isolation strategies.
+- **`crates/vox-orchestrator-mcp/src/http_gateway/mod.rs`**: Registered the new VCS isolation routes in the HTTP gateway and added tests to verify their registration and functionality.
+- **`crates/vox-orchestrator-mcp/src/http_gateway/vcs_feed.rs`**: Introduced `vcs.isolation.changed` WebSocket topic for live updates on isolation policy changes, published by the `POST` handler.
+- **`crates/vox-gui/ui/src/components/surfaces/Repository/IsolationPanel.tsx`**: Added a new React component `IsolationPanel` to display multi-agent VCS isolation status, including strategy selector, per-agent overrides, and live conflicts.
+- **`crates/vox-gui/ui/src/components/surfaces/Repository/isolationHelpers.ts`**: Created pure view-model helper functions for the `IsolationPanel` to normalize raw `isolation_status_json` into render-ready data structures.
+- **`crates/vox-gui/ui/src/components/surfaces/Repository/isolationHelpers.test.ts`**: Added unit tests for the `isolationHelpers` functions, covering strategy labeling, conversion, default strategy, and per-agent/conflict row generation.
+- **`crates/vox-gui/ui/src/components/surfaces/Repository/RepositoryView.tsx`**: Integrated the `IsolationPanel` into the `RepositoryView` component.
+
+--- audit: original='feat(p4): VCS isolation REST/WS endpoint + GUI panel (Tasks 7-8) (#201)' | actual=491L across 7 files | derived=full ---
