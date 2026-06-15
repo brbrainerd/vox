@@ -1,0 +1,8 @@
+feat(codegen-rust): `as_string` handles whole-number floats and captures runtime panics
+scale: ~30 lines across 3 files [S]
+
+- `crates/vox-codegen/src/codegen_rust/emit/workflow.rs`: Modified `as_string` to stringify whole-number `f64` values (e.g., `5.0`) as integers (e.g., `"5"`) to match Vox interpreter semantics. This logic is gated on `is_f64()` to avoid affecting integers.
+- `crates/vox-integration-tests/tests/golden_arm_parity_test.rs`: Enhanced `build_and_run_script` to capture runtime panic messages from `stderr` into temporary files (`temp/vox-f2a-errors/*.run.txt`) for easier debugging. The error message returned by the test now prioritizes the panic line over the first line of `stderr`.
+- `contracts/eval/arm-parity-allowlist-script.txt`: Removed `adt_multi_field.vox` from the allowlist, indicating it now passes. Updated the comment for `range_and_indexing` to reflect a runtime error related to mutation on a cloned object.
+
+--- audit: original='fix(codegen-rust): str(float) drops trailing .0 to match interp -> adt_multi_field GREEN (4/10)' | actual=30L across 3 files | derived=full ---
