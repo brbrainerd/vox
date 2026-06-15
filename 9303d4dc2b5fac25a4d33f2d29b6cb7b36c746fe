@@ -1,0 +1,7 @@
+feat(telemetry): gate telemetry functions with master switch
+scale: ~6 lines across 2 files [S]
+
+- `crates/vox-cli/src/benchmark_telemetry.rs`: Added a check for `vox_telemetry::is_master_enabled()` at the beginning of `telemetry_enabled()` to immediately return `false` if the master switch is off.
+- `crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs`: Added a check for `vox_telemetry::is_master_enabled()` at the beginning of `should_emit_llm_cost_events()` to immediately return `false` if the master switch is off.
+
+--- audit: original='feat(telemetry): wire is_master_enabled() into legacy telemetry gates' | actual=6L across 2 files | derived=full ---
