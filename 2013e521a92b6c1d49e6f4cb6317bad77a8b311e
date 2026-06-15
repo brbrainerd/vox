@@ -1,0 +1,18 @@
+feat(ci): reduce PR fan-out and bound runner contention (Phases 1–3)
+scale: ~748 lines across 13 files [L]
+
+- docs(plan): Add a detailed implementation plan for CI anti-stacking and caching.
+- ci(ml_data_extraction): Narrow `push` trigger paths to `examples/golden`, `crates/vox-compiler`, `crates/vox-cli/src/commands/corpus`, `crates/vox-cli/src/training`, `scripts/ci`, and `contracts/eval`.
+- ci(link_checker): Remove `pull_request` trigger; add `push` trigger with path filtering for markdown files, `.lycheeignore`, and its own workflow file; add `schedule` for nightly runs and `workflow_dispatch`.
+- ci(cross-platform-check): Remove `pull_request` trigger; add `workflow_dispatch`.
+- ci(deploy-hetzner): Add `push` trigger with path filtering for `crates/**`, `Cargo.lock`, `Dockerfile*`, and its own workflow file.
+- ci(vox-visus-audit): Change trigger from `pull_request` to `push` on `main` branch, retaining path filtering; add `workflow_dispatch`.
+- ci(compile-matrix): Update concurrency group from `github.workflow` to `selfhosted-secondary-${{ github.ref }}`.
+- ci(cr-l8-corpus-feedback): Update concurrency group from `github.workflow` to `selfhosted-secondary-${{ github.ref }}`.
+- ci(gitleaks): Remove `pull_request` trigger; add `workflow_dispatch`.
+- ci(mutation-pr): Update concurrency group from `github.workflow` to `selfhosted-secondary-${{ github.ref }}`.
+- ci(vox-mental-tracker): Update concurrency group from `github.workflow` to `selfhosted-secondary-${{ github.ref }}`.
+- ci(codeql): Add `workflow_dispatch` trigger.
+- ci(setup-e2e): Add `workflow_dispatch` trigger.
+
+--- audit: original='ci: anti-stacking — cut per-PR fan-out + bound runner contention (Phases 1–3) (#279)' | actual=748L across 13 files | derived=full ---
