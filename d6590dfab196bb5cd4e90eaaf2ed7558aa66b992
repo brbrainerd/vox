@@ -1,0 +1,6 @@
+chore(contracts): regenerate gui-surface-coverage.v1.json
+scale: ~0 lines across 1 files [XS]
+
+- contracts/reports/gui-surface-coverage.v1.json: Regenerated binary file.
+
+--- audit: original='chore(contracts): regen gui-surface-coverage after os_compat workflow add' | actual=0L across 1 files | derived=full ---
