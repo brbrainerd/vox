@@ -1,0 +1,12 @@
+feat(codegen-rust): implement string builtins and self-mutation assignment
+scale: ~117 lines across 3 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`: Implement handling for value-semantics self-mutation assignments (e.g., `xs = xs.push(v)`) by emitting the bare in-place mutation call, as Rust's `Vec::push` returns `()`.
+- `crates/vox-codegen/src/codegen_rust/emit/method_emit.rs`:
+    - Map Vox `to_upper` and `to_lower` to Rust's `to_uppercase` and `to_lowercase`.
+    - Implement `replace(from, to)` to use Rust's `str::replace` with borrowed arguments.
+    - Implement `contains(x)` to use `&x` for both string and list receivers.
+    - Implement `split(sep)` to collect `str::split` iterator into an owned `Vec<String>`.
+- `contracts/eval/arm-parity-allowlist-script.txt`: Remove `string_interpolation.vox` from the arm-parity allowlist.
+
+--- audit: original='fix(codegen-rust): string builtins + self-mutation assign for string_interpolation golden' | actual=117L across 3 files | derived=full ---
