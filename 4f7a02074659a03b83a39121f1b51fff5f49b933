@@ -1,0 +1,8 @@
+feat(vox-cli): add typed argument kind, possible, and default values to catalog
+scale: ~488 lines across 3 files [L]
+
+- `docs/superpowers/plans`: Add a new implementation plan document for SP-1, detailing the architecture and steps for enriching the command catalog with typed argument information.
+- `crates/vox-cli`: Introduce `ArgValueKind` enum and add `value_kind`, `possible_values`, and `default_values` fields to `CommandCatalogArgument`. Update `push_catalog_entry` to derive these new fields from clap argument introspection.
+- `crates/vox-gui`: Update the synthetic MCP-payload literal in `action_manifest.rs` to include the newly added argument fields, ensuring compilation.
+
+--- audit: original='feat(vox-cli): typed argument kind + possible/default values in command catalog' | actual=488L across 3 files | derived=full ---
