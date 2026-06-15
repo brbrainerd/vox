@@ -1,0 +1,7 @@
+feat(eval): implement the pipe operator `|>`
+scale: ~28 lines across 2 files [S]
+
+- `crates/vox-compiler/src/eval/expr.rs`: Add evaluation logic for the `HirBinOp::Pipe` operator, treating the left-hand side as the argument and the right-hand side as the callee.
+- `crates/vox-compiler/tests/interpreter_test.rs`: Add a new test case `pipe_operator_applies_rhs_to_lhs` to verify the correct behavior of the pipe operator with function chaining.
+
+--- audit: original='fix(interp): implement the |> pipe operator (interp/codegen parity)' | actual=28L across 2 files | derived=full ---
