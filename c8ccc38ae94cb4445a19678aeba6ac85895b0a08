@@ -1,0 +1,6 @@
+fix(integration-tests): migrate workflow_recovery_test from removed `workflow` keyword
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-integration-tests/tests/workflow_recovery_test.rs`: Replaced the `workflow` keyword with `fn` in the `welcome_onboarding` function definition.
+
+--- audit: original='fix(integration-tests): migrate 3 test files from removed HIR workflow/activity fields' | actual=2L across 1 files | derived=full ---
