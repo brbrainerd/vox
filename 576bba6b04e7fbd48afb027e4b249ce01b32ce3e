@@ -1,0 +1,5 @@
+fix(deps): sync Cargo.lock with uniffi 0.28 dependency chain
+scale: ~332 lines across 1 files [L]
+- Cargo.lock: Added 28 new dependency entries, including `askama`, `cargo_metadata 0.15.4`, `fs-err`, and `goblin`, required by `uniffi 0.28` which is a dependency of `vox-runtime-rn`. This resolves `cargo build --locked` failures.
+
+--- audit: original='chore: sync Cargo.lock with vox-runtime-rn uniffi dependency chain' | actual=332L across 1 files | derived=full ---
