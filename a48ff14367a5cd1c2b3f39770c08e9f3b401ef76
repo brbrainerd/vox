@@ -1,0 +1,19 @@
+feat(orchestrator): register VoxLocal as first-class catalog provider
+scale: ~275 lines across 16 files [L]
+
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/provider_adapter.rs`: Added `VoxLocalAdapter` to implement `ProviderAdapter` for the custom `/generate` wire protocol, including request/response structs and prompt extraction logic. This adapter is registered before `OpenAiCompatAdapter` to take precedence.
+- `crates/vox-orchestrator-types`: Added `VoxLocal` variant to `ChatRouteBackend` enum and its corresponding telemetry labels. The `build.rs` script was updated to code-generate the enum variant from `contracts/orchestration/providers.v1.yaml`.
+- `contracts/orchestration/providers.v1.yaml`: Added `VoxLocal` entry to define the new provider type.
+- `crates/vox-orchestrator/src/models/registry.rs`: Updated `ModelRegistry` to handle `ProviderType::VoxLocal`, routing it through `OpenRouter` as a fallback for `vox_runtime` while the MCP path handles it directly.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/provider_auth.rs`: Included `ProviderType::VoxLocal` in the `bearer_for` function, indicating it does not require a bearer token.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/provider_endpoints.rs`: Added `endpoint_for` logic for `ProviderType::VoxLocal`, defaulting to `http://127.0.0.1:7863/generate` with an environment variable override.
+- `crates/vox-orchestrator/src/models/spec.rs`: Updated `route_backend_for_model` to map `ProviderType::VoxLocal` to `ModelRouteBackend::VoxLocal` and added `LlmUsageKey` for `vox_local` provider.
+- `crates/vox-orchestrator/src/catalog.rs`: Flipped `provider_type` from `Ollama` to `VoxLocal` for `MensCatalog` entries.
+- `crates/vox-orchestrator/src/dei_shim/selection/scorer.rs`: Included `ProviderType::VoxLocal` in the `ollama_penalty` scoring logic.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/model_route_policy/policy.rs`: Included `VoxLocal` in `mcp_local_model_allowed` to allow resolver selection when `VOX_INFERENCE_PROFILE` permits local inference.
+- `crates/vox-orchestrator/src/models/key_guard.rs`: Included `ProviderType::VoxLocal` in `provider_secret_is_available` to indicate it doesn't strictly require a Clavis secret.
+- `crates/vox-orchestrator/src/runtime.rs`: Added `voxlocal` as an allowed provider string and mapped `ModelRouteBackend::VoxLocal` to `vox_ludus::StreamRoute::Cascade`.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/model_route_policy/resolve.rs`: Mapped `ProviderType::VoxLocal` to `ChatRouteBackend::VoxLocal` for telemetry labels.
+- `Cargo.lock`: Updated dependencies due to changes.
+
+--- audit: original='feat(orchestrator): register VoxLocal as first-class catalog provider' | actual=275L across 16 files | derived=full ---
