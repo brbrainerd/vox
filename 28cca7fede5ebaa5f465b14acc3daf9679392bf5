@@ -1,0 +1,6 @@
+fix(ci): Extend SQL surface guard allowlist for vox-sql and vox-codegen
+scale: ~6 lines across 1 files [XS]
+
+- `docs/agents/sql-connection-api-allowlist.txt`: Added `crates/vox-sql/` and `crates/vox-codegen/src/codegen_rust/emit/` to the allowlist to prevent false positives from the `sql-surface-guard` for app-plane backend and codegen string literals.
+
+--- audit: original='fix(ci): allow vox-sql and codegen emit in sql-surface-guard' | actual=6L across 1 files | derived=full ---
