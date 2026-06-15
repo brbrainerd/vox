@@ -130,3 +130,13 @@ when no critical CI is mid-flight.
 - Runner contract: [`runner-contract.md`](runner-contract.md).
 - Hosted fallback: `.github/workflows/ci-fallback-hosted.yml` (**manual only** via
   `workflow_dispatch`; not a required check and does not run on PR/push).
+
+## Required-check policy (2026-06-15)
+
+`Cross-Platform (Win/macOS/Ubuntu)` (workflow `cross-platform-check.yml`) is a
+**weekly** scheduled + `workflow_dispatch` check. It is intentionally **not** a
+required status check for merging: it has no PR/merge_group trigger, so requiring
+it permanently blocked the merge queue. Keep it scheduled; do not re-add it to
+branch protection or the merge-queue ruleset's required checks. To enforce it
+per-batch instead, add a `merge_group:` trigger to the workflow first, then
+re-require it — never require it while it is schedule-only.
