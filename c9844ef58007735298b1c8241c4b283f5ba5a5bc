@@ -1,0 +1,14 @@
+feat(vox-cli): introduce `vox-cli-ci` workspace marker and gate `vox-orchestrator-mcp`
+scale: ~68 lines across 8 files [M]
+
+- `crates/vox-cli-ci/src/lib.rs`: New file created as a workspace boundary marker for the `ci/` subcommand cluster. It documents the current bidirectional coupling preventing a full move of `vox-cli/src/commands/ci/` files and outlines the resolution path.
+- `crates/vox-cli-ci/Cargo.toml`: New Cargo.toml for `vox-cli-ci` crate, defining it as a workspace member.
+- `crates/vox-cli/src/commands/generate.rs`: Modified `run` function to conditionally call `run_via_orchestrator` based on the `mcp-server` feature flag. If the feature is not enabled, it falls back to `run_legacy_direct` and prints an informational message. The `run_via_orchestrator` function is now conditionally compiled with `#[cfg(feature = "mcp-server")]`.
+- `crates/vox-cli/Cargo.toml`:
+    - Added `vox-orchestrator-mcp` as an optional dependency, gated by the `mcp-server` feature.
+    - Updated the `mcp-server` feature to include `dep:vox-orchestrator-mcp`.
+- `Cargo.toml`: Added `vox-cli-ci` to the workspace members list.
+- `docs/src/architecture/layers.toml`: Added `vox-cli-ci` with `layer = 3` and a comment indicating its role as a C3 extraction boundary marker.
+- `docs/src/architecture/where-things-live.md`: Added an entry for `vox-cli-ci` describing its purpose as the `ci` subcommand dispatcher and its current status as a workspace boundary marker.
+
+--- audit: original='refactor(vox-cli): extract vox-cli-ci + gate vox-orchestrator-mcp behind mcp-server' | actual=68L across 8 files | derived=full ---
