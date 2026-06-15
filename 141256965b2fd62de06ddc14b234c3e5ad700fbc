@@ -1,0 +1,17 @@
+feat(vox-gui/search): Add accessibility improvements and new tests
+scale: ~67 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Search/SearchView.test.tsx`: Add new test file for `SearchView` component, including tests for:
+  - Rendering the "Unified Search" heading.
+  - Ensuring all buttons have `type="button"`.
+  - Verifying scope chips expose `aria-pressed` attribute.
+  - Confirming the main search input and path filter are labeled with `aria-label`.
+- `crates/vox-gui/ui/src/components/surfaces/Search/SearchView.tsx`:
+  - Add `type="button"` to `ScopeChip` and `FacetChip` components.
+  - Add `aria-pressed` attribute to `ScopeChip` and `FacetChip` components.
+  - Add `aria-hidden="true"` to the `span` element within `ScopeChip` to hide it from assistive technologies.
+  - Add `type="button"` to the open button within `HitRow`.
+  - Add `aria-label` to the open button within `HitRow` to describe its action.
+  - Add `aria-hidden="true"` to the `Icon.link` element within `HitRow`.
+
+--- audit: original='feat(vox-gui/wave6): Search a11y + checklist (Wave 6)' | actual=67L across 2 files | derived=full ---
