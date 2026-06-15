@@ -1,0 +1,24 @@
+feat(clavis,db,cli): implement core architecture for Scientia contracts, CI/CD, and compiler parsing
+scale: ~11401 lines across 192 files [XL]
+
+- `crates/vox-clavis`: Implemented `VoxCloudBackend` for cloudless secret management, including encryption/decryption, key wrapping, and persistence of `CloudlessSecretRecord`s. Added new `SecretError` variants.
+- `crates/vox-db`: Introduced new `ops_external_review` and `ops_clavis_cloudless` modules for persisting external review data (CodeRabbit/GitHub) and encrypted secrets, respectively. Deleted `schema_cutover.rs` and `ludus_schema_cutover.rs` in favor of new schema extension mechanisms.
+- `crates/vox-cli`: Enhanced CI run body guards with `VOX_CLAVIS_HARD_CUT` and `VOX_CLAVIS_PROFILE` environment variables for stricter secret handling. Updated `coderabbit/ingest.rs` to support a new ingestion schema version and detailed external review item processing.
+- `contracts/scientia`: Added numerous new YAML and JSON schema definitions for Scientia contracts, including `implementation-wave-backlog`, `canonical-publication-metadata`, `research-snapshot`, `operator-status-surface`, `route-profile-requirements`, `adapter-capability-registry`, `worthiness-signals`, `consumption-registry`, `evidence-pack`, `document-skill-profiles`, `implementation-kpis`, and `worthiness-eval-harness`.
+- `docs/architecture`: Added new architectural documentation covering mobile-desktop convergence, legacy retirement, CodeRabbit review coverage, and Scientia implementation.
+- `crates/vox-compiler`: Extended the parser with new descent parsing for declarations, added a TypeScript codegen emitter, and updated LLM prompt generation.
+- `crates/vox-publisher`: Implemented `scientia_contracts.rs` for handling Scientia contract publication and updated preflight checks.
+- `crates/vox-corpus`: Added `external_review_replay.rs` and updated training mix preparation.
+- `crates/vox-orchestrator`: Modified environment variable handling in `impl_env.rs` and added tests.
+- `crates/vox-populi`: Updated tensor domain router and Candle QLoRA training loop.
+- `crates/vox-mcp`: Modified HTTP gateway and A2A communication, and added Scientia preflight tools.
+- `crates/vox-schola`: Updated training and serving logic.
+- `mens/data` and `mens/config`: Added new mix reports and updated various configuration files for training and domain profiles.
+- `examples/golden`: Updated golden examples for mobile camera, reference types, actors, and syntax.
+- `crates/vox-doc-pipeline`: Updated pipeline and linting modules.
+- `docs/reference`: Added new reference documentation for review antipatterns, fix pairs, regression challenges, CLI, and Clavis SSOT.
+- `crates/vox-project-scaffold`: Minor updates to the project scaffolding library.
+- `crates/vox-eval`: Initial implementation of the evaluation crate.
+- `crates/vox-scientia-social`: Removed the crate.
+
+--- audit: original='feat: implement core architecture for Scientia contracts, CI/CD pipelines, and compiler descent parsing.' | actual=11401L across 192 files | derived=full ---
