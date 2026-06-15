@@ -1,0 +1,20 @@
+feat(models): add `writes_vox` capability; wire effort-route CLI
+scale: ~317 lines across 15 files [L]
+
+- `crates/vox-orchestrator/src/models/spec.rs`: Add `writes_vox: bool` to `ModelCapabilities`, defaulting to `false` and ensuring back-compatibility with existing JSON by using `#[serde(default)]`. Add unit tests for `writes_vox` default and deserialization behavior.
+- `crates/vox-cli/src/commands/audit_route.rs`: Update `RouteToml` and `resolve_vox_capability` to use `writes_vox` from the model registry as a primary source of truth, with `vox_capable_models` acting as an operator override. Update docblocks to reflect this change.
+- `crates/vox-orchestrator/src/catalog.rs`: Seed `writes_vox: true` for models discovered via `discover_populi_mesh_models`.
+- `crates/vox-orchestrator/src/models/registry.rs`: Seed `writes_vox: true` for the `MENS_LOCAL_MODEL_ID` in the local `MensCatalog`.
+- `crates/vox-orchestrator/src/orchestrator/catalog_refresh.rs`: Seed `writes_vox: true` for the inline mesh-peer push in `registry.rs`.
+- `docs/superpowers/specs/2026-05-30-effort-route-design.md`: Update documentation to reflect the new `writes_vox` capability and its interaction with the effort-route CLI.
+- `crates/vox-orchestrator/src/models/select.rs`: Refactor `decide` function signature for improved readability and adjust model selection logic.
+- `crates/vox-cli/src/commands/ci/gui_surface_coverage.rs`: Minor formatting adjustments.
+- `crates/vox-cli/src/commands/ci/gui_catalog_parity.rs`: Minor formatting adjustments.
+- `crates/vox-cli/src/commands/ci/gui_version_sync.rs`: Minor formatting adjustments.
+- `crates/vox-dei-shim/src/research/model_select.rs`: Remove unused imports and update `ModelSelectionRequest` creation.
+- `crates/vox-orchestrator/src/models/mod.rs`: Update module imports.
+- `crates/vox-dei-shim/src/selection/virtual_models.rs`: Add new `VirtualModel` struct and associated logic.
+- `crates/vox-orchestrator/src/routing/engine.rs`: Minor formatting adjustment.
+- `crates/vox-orchestrator/src/models/scoring.rs`: Remove unused import.
+
+--- audit: original='feat(models): add registry-sourced writes_vox capability; wire effort-route CLI' | actual=317L across 15 files | derived=full ---
