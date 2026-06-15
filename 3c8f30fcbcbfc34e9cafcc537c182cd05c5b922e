@@ -1,0 +1,16 @@
+feat(docs): add `remark-vox-include` plugin and harden doc quality gates
+scale: ~418 lines across 13 files [L]
+
+- docs-astro/src/plugins/remark-vox-include.mjs: Add new `remark-vox-include` plugin to process `{{#include path:anchor}}` directives within fenced code blocks, extracting content between `ANCHOR:` and `ANCHOR_END:` markers.
+- docs-astro/astro.config.mjs: Integrate `remarkVoxInclude` into Astro's markdown `remarkPlugins` to enable build-time processing of include directives.
+- crates/vox-doc-pipeline/src/pipeline/lint.rs, crates/vox-doc-pipeline/src/pipeline/mod.rs, crates/vox-doc-pipeline/src/pipeline/types.rs: Enhance the doc pipeline linting to include a `BrokenIncludeFile` error, causing the build to fail if an included file is missing.
+- docs-astro/src/components/VoxPlayground.astro: Refactor `VoxPlayground` to display a static code demo by default when the backend is offline, replacing the "Execution Offline" banner. The live editor now only appears if the backend health probe succeeds.
+- docs-astro/src/utils/sidebar.mjs: Implement default collapsing for engineering-focused sidebar sections (e.g., Architecture, Contributors, CI & Quality) and add support for status badges (e.g., Experimental, Deprecated) to sidebar items.
+- docs/src/tutorials/tut-actor-basics.md: Correct category from "tutorial" to "tutorials" and set `sort_order` to 4.
+- docs/src/tutorials/tut-first-app.md: Set `sort_order` to 2 and change code fence language from `tsx` to `vox` for an include block.
+- docs/src/tutorials/tut-first-vox-app-checkpoints.md: Set `sort_order` to 3.
+- docs/src/tutorials/tut-ui-integration.md: Set `sort_order` to 5.
+- docs/src/tutorials/tut-workflow-durability.md: Set `sort_order` to 6.
+- docs/src/api/DOC_GAPS.md: Reclassify category from "api-crate" to "contributors".
+
+--- audit: original='fix(docs): resolve {{#include}} in Astro build + harden doc quality gates' | actual=418L across 13 files | derived=full ---
