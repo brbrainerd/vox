@@ -1,0 +1,7 @@
+style(rust): format `TsEmit` enum and `println!` calls in `ts_emit_goldens_probe.rs`
+scale: ~17 lines across 2 files [S]
+
+- `crates/vox-integration-tests/tests/ts_emit_goldens_probe.rs`: Reformatted the `TsEmit::Ok` enum variant to place fields on separate lines and reformatted two `println!` macro calls for improved readability.
+- `docs/src/architecture/codegen-ts-domain-boundary-and-cr-f2-correction-2026.md`: Updated the `category` front matter from "Architecture" to "Architecture SSOTs".
+
+--- audit: original='style: rustfmt phase1 test harnesses + codegen edits' | actual=17L across 2 files | derived=full ---
