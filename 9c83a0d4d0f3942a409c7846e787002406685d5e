@@ -1,0 +1,13 @@
+feat(vox-plugin-test-harness): create new crate for plugin testing utilities
+scale: ~359 lines across 8 files [L]
+
+- `crates/vox-plugin-test-harness/src/manifest_builder.rs`: Add `CodeManifestBuilder` and `SkillManifestBuilder` fluent builders to generate `Plugin.toml` TOML strings for tests.
+- `crates/vox-plugin-test-harness/src/plugin_dir.rs`: Add `PluginDir` struct to manage temporary plugin directories with pre-written and eagerly parsed `Plugin.toml` files, and methods for artifact stub creation.
+- `crates/vox-plugin-test-harness/src/lib.rs`: Define the `vox-plugin-test-harness` crate, re-exporting `manifest_builder` and `plugin_dir` modules, and include example usage and unit tests for the builders.
+- `crates/vox-plugin-test-harness/Cargo.toml`: Add new crate definition with dependencies on `vox-plugin-types`, `tempfile`, and `toml`.
+- `Cargo.toml`: Add `vox-plugin-test-harness` to the workspace members.
+- `Cargo.lock`: Update lockfile to include new crate and its dependencies.
+- `docs/src/architecture/layers.toml`: Register `vox-plugin-test-harness` as a `test-only` crate in layer 3.
+- `docs/src/architecture/where-things-live.md`: Add `vox-plugin-test-harness` to the list of top-level trees with its description.
+
+--- audit: original='feat(D-14): create vox-plugin-test-harness crate' | actual=359L across 8 files | derived=full ---
