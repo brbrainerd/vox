@@ -1,0 +1,18 @@
+feat(compiler): add `@remote` fn annotation and serializable param check
+scale: ~143 lines across 9 files [M]
+
+- `lexer`: Add `Token::AtRemote` for the `@remote` keyword.
+- `parser`:
+    - Allow `@remote` in function attribute positions (direct, async, pub).
+    - Add `is_remote: bool` field to `FnDeclHead` and `FnDecl` AST nodes.
+- `ast`: Add `is_remote: bool` field to `FnDecl` struct.
+- `hir`:
+    - Add `is_remote: bool` field to `HirFn` struct.
+    - Propagate `is_remote` from AST `FnDecl` to `HirFn` during lowering.
+- `typeck`:
+    - Add `lint_ast_declarations` to check `@remote` functions.
+    - Introduce `check_remote_param_serializable` to emit `vox/remote/param-not-serializable` diagnostic for `@remote` functions with non-serializable (function-typed) parameters.
+- `tests`: Add `remote_fn.rs` with acceptance tests for `@remote` function parsing and type-checking, including serializable and non-serializable parameter cases.
+- `vox-test-harness`: Initialize `is_remote` to `false` in `hir_fn` builder.
+
+--- audit: original='feat(compiler): add @remote fn annotation with serializable param check (P1-T3)' | actual=143L across 9 files | derived=full ---
