@@ -1,0 +1,11 @@
+feat(docs): Add `vox-doc-pipeline` crate for `SUMMARY.md` generation
+scale: ~66 lines across 2 files [M]
+
+- `crates/vox-doc-pipeline`: New crate to generate `SUMMARY.md` for documentation.
+  - Iterates through `.md` files in `docs/src`, excluding `SUMMARY.md`.
+  - Sorts files alphabetically, ensuring `index.md` comes first.
+  - Formats file names into title case for display in the summary.
+  - Writes the generated summary to `docs/src/SUMMARY.md`.
+  - Includes basic error handling for directory access and file writing.
+
+--- audit: original='docs: Add basic automated SUMMARY.md generation pipeline' | actual=66L across 2 files | derived=full ---
