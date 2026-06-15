@@ -1,0 +1,6 @@
+fix(gui-visual-review): Await `run` function call
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-orchestrator-mcp/src/bin/gui-visual-review.rs`: Awaited the `run(&args)` function call to correctly handle its `Future` return type.
+
+--- audit: original='feat(visus-review): AI review of changed surfaces + verdict parse + cache update' | actual=2L across 1 files | derived=full ---
