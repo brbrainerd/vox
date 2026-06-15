@@ -1,0 +1,6 @@
+fix(docs): Annotate `TierBudgetCheck` CLI example as `text` to prevent compilation
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Changed the rustdoc code fence for the `TierBudgetCheck` example from `  ` to ` text ` to prevent `cargo test --doc` from attempting to compile the shell invocation as Rust.
+
+--- audit: original="fix(cli): annotate CLI-example doc block as `text` so it isn't compiled as Rust" | actual=2L across 1 files | derived=full ---
