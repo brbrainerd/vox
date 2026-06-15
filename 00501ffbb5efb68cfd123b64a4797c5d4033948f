@@ -1,0 +1,6 @@
+feat(visus-review): seed visual review cache with 37 baseline surfaces
+scale: ~264 lines across 1 files [L]
+
+- contracts/reports/gui-visual-review/cache.v1.json: Add new file containing a JSON object with `schema_version: 0` and an `entries` object. The `entries` object includes 37 key-value pairs, each representing a visual review surface (e.g., "agents", "approvals", "archive-panel", "browser", "catalog", "chat", "claims"). Each surface entry contains `screenshot_sha256`, `score`, `verdict` (all "fail"), `model` ("google/gemini-3-flash-preview"), and `reviewed_at` ("2026-06-15T00:00:00Z").
+
+--- audit: original='chore(visus-review): seed visual-review cache baseline (37 surfaces)' | actual=264L across 1 files | derived=full ---
