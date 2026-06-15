@@ -1,0 +1,7 @@
+docs(plugins): regenerate plugin catalog and distribution bundles documentation
+scale: ~0 lines across 2 files [S]
+
+- Regenerated `docs/src/reference/distribution-bundles.generated.md` from `catalog.toml`.
+- Regenerated `docs/src/reference/plugin-catalog.generated.md` from `catalog.toml`.
+
+--- audit: original='docs(plugins): regenerate catalog/bundles docs after skill-tools SSOT fix' | actual=0L across 2 files | derived=full ---
