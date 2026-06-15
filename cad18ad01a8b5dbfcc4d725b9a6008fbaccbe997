@@ -1,0 +1,29 @@
+feat(vox-orchestrator-mcp): Implement agentic VCS automation Phase 1 and plans
+scale: ~6735 lines across 26 files [XL]
+
+- **`crates/vox-orchestrator-mcp`**:
+    - Add `secret_scan.rs` for detecting secrets in staged content.
+    - Add `commit_tools.rs` with `commit_create` tool for staged changes, secret scanning, workspace-ID trailer, and `git commit --no-verify`.
+    - Add `git_exec.rs` as a safe wrapper for `git` commands, including a denylist for destructive operations (`stash`, `reset --hard`, `clean -f*`, `restore .`, `checkout -- .`).
+    - Add `branch_tools.rs` with `branch_create` tool for name validation, existence checks, and `git branch`.
+    - Add `telemetry_tests.rs` to verify `vox.vcs.*` tracing targets.
+    - Update `vcs_tools/mod.rs` to include new VCS tools.
+    - Remove `git_tools.rs`.
+    - Update `Cargo.toml` to add new dependencies.
+    - Update `input_schemas.rs` and `lib.rs` with minor changes.
+- **`crates/vox-orchestrator-types`**:
+    - Add `vcs_capability.rs` defining `WorkingTreeWrite`, `BranchCreate`, `PushAllowed`, `ForcePushAllowed`, `DestructiveOp` tokens as unforgeable Rust structs with `#[doc(hidden)] pub fn mint`.
+    - Update `lib.rs` to export new types.
+- **`crates/vox-orchestrator/src/workspace.rs`**: Add new functionality related to workspace.
+- **`docs/src/architecture`**:
+    - Add `agentic-vcs-automation-impl-plan-phase1-2026.md`, `phase2-2026.md`, `phase3-2026.md`, `phase4-2026.md`, `phase5-2026.md` detailing implementation plans.
+    - Add `agentic-version-control-automation-research-2026.md` for research.
+    - Add `git-concurrency-policy.md` for prose policy.
+    - Update `architecture-index.md` and `research-index.md` to include new documents.
+    - Fix broken relative link in `where-things-live.md` from `../agents/` to `./`.
+- **`docs/src`**:
+    - Update `feed.xml` with minor changes.
+    - Update `SUMMARY.md` to reflect new documentation.
+- **`Cargo.lock`**: Update due to dependency changes.
+
+--- audit: original='feat(vox-orchestrator-mcp): Phase 1 agentic VCS automation' | actual=6735L across 26 files | derived=full ---
