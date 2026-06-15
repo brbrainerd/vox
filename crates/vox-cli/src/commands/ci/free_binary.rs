@@ -17,8 +17,10 @@ use sysinfo::System;
 ///
 /// Safety guards (in order):
 /// 1. Never reap self.
-/// 2. Never reap a running `vox serve` — killing the server would be
-///    catastrophic and is never the intent of this command.
+/// 2. Never reap a live server/daemon process — killing a running service would
+///    be catastrophic and is never the intent of this command.  Only the
+///    subcommand position (argv[1]) is checked to avoid false positives from
+///    process arguments that happen to contain these words.
 /// 3. The exe must live inside `target_dir/` — this is the primary scope
 ///    narrowing that prevents touching any process not owned by this worktree.
 /// 4. Only `vox` / `vox.exe` / `vox-*` managed siblings are eligible;
@@ -35,23 +37,14 @@ fn should_reap(
         return false;
     }
 
-    // Guard 2: never reap a live `vox serve` process.  The cmdline is checked
-    // rather than the exe name alone because the binary is always `vox` but
-    // the subcommand is what distinguishes a long-lived server from a build
-    // tool invocation.
-    let is_serve = cmdline.iter().any(|arg| arg == "serve");
-    if is_serve {
-        return false;
-    }
-
-    // Guard 2b: never reap a live server/daemon process. The reaper is only
-    // meant to free a LOCKED BINARY, not terminate running services.
-    // Long-lived command patterns that must survive a pre-push hook:
-    let server_cmds = ["serve", "mcp", "daemon", "start", "run"];
-    let is_server = cmdline
-        .iter()
-        .any(|arg| server_cmds.contains(&arg.as_str()));
-    if is_server {
+    // Guard 2: never reap a live server/daemon process. Only the subcommand
+    // position (argv[1]) is checked — not all args — to avoid false positives
+    // from process arguments that happen to contain these words.
+    // "run" is included because `vox run scripts/foo.vox` can be long-lived.
+    // "start" is NOT included — it is not a registered vox CLI subcommand.
+    let subcommand = cmdline.get(1).map(|s| s.as_str()).unwrap_or("");
+    let server_cmds = ["serve", "mcp", "daemon", "run"];
+    if server_cmds.contains(&subcommand) {
         return false;
     }
 
@@ -254,7 +247,7 @@ mod tests {
     #[test]
     fn never_reaps_vox_serve() {
         let target = p("/repo/target");
-        // A vox process whose cmdline contains "serve" must never be reaped.
+        // A vox process with "serve" at argv[1] must never be reaped.
         let serve_cmd = vec!["vox".to_string(), "serve".to_string()];
         assert!(!should_reap(
             &p("/repo/target/debug/vox"),
@@ -263,10 +256,9 @@ mod tests {
             100,
             1
         ));
-        // Variant: serve with extra flags must also be excluded.
+        // Variant: serve with trailing flags (argv[1] == "serve") must also be excluded.
         let serve_cmd2 = vec![
             "vox".to_string(),
-            "--quiet".to_string(),
             "serve".to_string(),
             "--port".to_string(),
             "8080".to_string(),
@@ -310,16 +302,7 @@ mod tests {
             100,
             1
         ));
-        // start subcommand must be protected.
-        let start_cmd = vec!["vox".to_string(), "start".to_string()];
-        assert!(!should_reap(
-            &p("/repo/target/debug/vox"),
-            &start_cmd,
-            &target,
-            100,
-            1
-        ));
-        // run subcommand must be protected.
+        // run subcommand must be protected (vox run <script> can be long-lived).
         let run_cmd = vec![
             "vox".to_string(),
             "run".to_string(),
@@ -332,6 +315,18 @@ mod tests {
             100,
             1
         ));
+        // A short-lived subcommand must still be reapable.
+        let exe = target.join("debug/vox.exe");
+        assert!(
+            should_reap(
+                &exe,
+                &["vox".to_string(), "build".to_string()],
+                &target,
+                9999,
+                0
+            ),
+            "non-server subcommands must still be reapable"
+        );
     }
 
     #[test]
