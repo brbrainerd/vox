@@ -1,0 +1,12 @@
+docs(architecture): Mark M6, M7, M8, M9, and M10 as landed in coverage map
+scale: ~55 lines across 2 files [M]
+
+- docs/src/architecture/web-app-archetype-coverage-2026.md:
+  - Updated the status of "M6. Doom-loop detection (audit FIX-11)" to "Landed", adding details about `BudgetManager::doom_loop_cost_check`, `GateResult::DoomLoop`, pre-dispatch hook in `submit_task_with_agent`, and `record_task_completion` for resetting the counter, including the default threshold and runtime tunability.
+  - Updated the status of "M7. Pre-execution token estimation" to "Landed", adding details about `BudgetManager::would_exceed_token_budget`, pre-dispatch estimation in `process_task_submission_logic` returning `OrchestratorError::BudgetExceeded`, and the conservative heuristic used.
+  - Updated the status of "M8. Schema-aware multi-provider routing" to "Landed (partial)".
+  - Updated the status of "M9. Orchestrator-side retry logic" to "Landed".
+  - Updated the status of "M10. Orchestrator-side caching" to "Landed".
+- docs/src/feed.xml: Regenerated due to changes in the architecture documentation.
+
+--- audit: original='docs(architecture): mark M6/M7/M8/M9/M10 as landed in coverage map' | actual=55L across 2 files | derived=full ---
