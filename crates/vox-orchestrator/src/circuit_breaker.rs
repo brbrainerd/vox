@@ -357,6 +357,35 @@ graduated_alarms:
     }
 
     #[test]
+    fn real_contract_value_change_flows_through() {
+        // Strong consumption proof: take the REAL shipped contract, mutate one value
+        // in its text, and confirm the change reaches CircuitBreakerConfig. If the
+        // overlay silently ignored the contract (the original flat-schema bug), the
+        // parsed value would stay at the default 3 and the assert_ne!/assert_eq! below
+        // would fail. `no_progress_loops: 3` is unique to `trip_thresholds` in the
+        // shipped contract (caution=1, warning=2), so the replace targets exactly it.
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../contracts/orchestration/circuit-breaker.v1.yaml");
+        let text = std::fs::read_to_string(&path).expect("contract file must exist");
+        assert!(
+            text.contains("no_progress_loops: 3"),
+            "contract shape changed; update this test's mutation target"
+        );
+        let mutated = text.replace("no_progress_loops: 3", "no_progress_loops: 11");
+        let parsed = CircuitBreakerConfig::from_contract_str(&mutated)
+            .expect("mutated contract must still parse");
+        let def = CircuitBreakerConfig::default();
+        // The mutated trip threshold flows through...
+        assert_eq!(parsed.no_progress_threshold, 11);
+        assert_ne!(parsed.no_progress_threshold, def.no_progress_threshold);
+        // ...while an untouched sibling key keeps its contract (== default) value.
+        assert_eq!(parsed.tool_thrash_threshold, 15);
+        // ...and the graduated-alarm siblings (value 1/2, not 3) are unaffected.
+        assert_eq!(parsed.caution_no_progress, def.caution_no_progress);
+        assert_eq!(parsed.warning_no_progress, def.warning_no_progress);
+    }
+
+    #[test]
     fn from_contract_str_empty_is_all_defaults() {
         let cfg = CircuitBreakerConfig::from_contract_str("").expect("parse");
         assert_eq!(cfg.no_progress_threshold, 3);
