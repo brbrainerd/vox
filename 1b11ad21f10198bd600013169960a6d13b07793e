@@ -1,0 +1,19 @@
+test: Remove island integration tests and related code
+scale: ~813 lines across 14 files [L]
+
+- `crates/vox-compiler/tests/reactive_smoke_test.rs`: Remove island-specific test cases (`island_v1_contract_format_version_is_one`, `island_try_prop_attr_rejects_empty_name`, `island_compat_metrics_track_ast_and_hir_helpers`) and the `@island Tile` definition. Update assertions to reflect the removal of island declarations.
+- `crates/vox-compiler/tests/web_ir_lower_emit_test.rs`: Delete island-related test cases (`web_ir_lowering_island_mount_in_dom_arena`, `web_ir_island_mount_lowers_from_hir_view`). Update `emit_hir_expr` calls to remove the `island_names` argument.
+- `crates/vox-integration-tests/tests/pipeline/includes/include_02.rs`: Remove `ISLAND_DEMO_SRC` fixture and associated tests (`pipeline_island_parse`, `pipeline_island_codegen`).
+- `crates/vox-integration-tests/tests/pipeline/includes/blueprint_op_s_batch.rs`: Delete island-related tests (`op_s100_optionality_extension_gate_optional_island_prop_in_mixed`, `op_s120_route_island_gate_mixed_has_island_meta_or_mount`, `op_s168_island_jsx_gate_b`).
+- `crates/vox-integration-tests/tests/pipeline/includes/include_03.rs`: Remove `OP_S_PARITY_CHAIN_FIXTURE` and the `op_s047_extra_parity_fixture_pipeline_emits_island_mount` test.
+- `crates/vox-integration-tests/tests/pipeline/includes/include_01.rs`: Remove the `@island Chart` definition and related assertions about `hir.islands`. Update `MIXED_SURFACE_SRC` to remove island usage. Remove snapshot assertion for `vox-islands-meta.ts`.
+- `crates/vox-integration-tests/tests/pipeline/includes/include_04.rs`: Remove island-related tests (`op_s208_mixed_surface_island_meta_ts_gate`, `op_s215_mixed_surface_island_mount_gate`).
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__parity_page_tsx_island_mount_op_s047.snap`: Delete snapshot.
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__islands_meta_ts_interactive_search.snap`: Delete snapshot.
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__mixed_surface_islands_meta_ts.snap`: Delete snapshot.
+- `crates/vox-compiler/tests/runtime_projection_smoke_test.rs`: Remove `island_emit` import.
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__mixed_surface_dash_tsx.snap`: Regenerate snapshot to remove `IslandMount` tag.
+- `crates/vox-compiler/tests/projection_parity_test.rs`: Remove `island_emit` import.
+- `crates/vox-compiler/tests/golden_vox_examples_test.rs`: Remove `island_emit` import.
+
+--- audit: original='test: remove island integration tests and snapshots' | actual=813L across 14 files | derived=full ---
