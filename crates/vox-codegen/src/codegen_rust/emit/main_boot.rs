@@ -395,3 +395,21 @@ fn rust_string_literal(s: &str) -> String {
     out.push('"');
     out
 }
+
+#[cfg(test)]
+mod semcov_string_literal_tests {
+    use super::rust_string_literal;
+
+    #[test]
+    fn rust_string_literal_escapes_quotes_backslash_and_control_chars() {
+        // Catches: an escaping regression that would emit invalid Rust (raw " or
+        // newline inside a "..." literal), or drops the \u{..} form for control bytes.
+        assert_eq!(rust_string_literal("ab"), "\"ab\"");
+        assert_eq!(rust_string_literal("a\"b"), "\"a\\\"b\"");
+        assert_eq!(rust_string_literal("a\\b"), "\"a\\\\b\"");
+        assert_eq!(rust_string_literal("a\nb"), "\"a\\nb\"");
+        assert_eq!(rust_string_literal("a\tb"), "\"a\\tb\"");
+        // 0x01 is a sub-0x20 control char → \u{1} form.
+        assert_eq!(rust_string_literal("\u{1}"), "\"\\u{1}\"");
+    }
+}

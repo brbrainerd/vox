@@ -511,4 +511,33 @@ pub fn hello() to str { "hi" }"#,
             "non-relative imports should not be extracted"
         );
     }
+
+    // Catches: vox-import extractor firing on commented-out imports, or
+    // failing to skip non-Vox files / report wrong 1-indexed line numbers.
+    #[test]
+    fn extract_vox_imports_skips_comments_and_reports_lines() {
+        let f = vox_file(
+            "src/a.vox",
+            "import \"./b.vox\"\n// import \"./c.vox\"\nimport \"./d.vox\"",
+        );
+        let imports = extract_vox_imports(&f);
+        assert_eq!(
+            imports,
+            vec![
+                (1usize, "./b.vox".to_string()),
+                (3usize, "./d.vox".to_string())
+            ]
+        );
+    }
+
+    // Catches: extractor leaking into non-Vox languages (it must early-return
+    // empty for a Rust SourceFile even if the text looks import-like).
+    #[test]
+    fn extract_vox_imports_ignores_non_vox() {
+        let f = SourceFile::new(
+            std::path::PathBuf::from("src/a.rs"),
+            "import \"./b.vox\"".to_string(),
+        );
+        assert!(extract_vox_imports(&f).is_empty());
+    }
 }

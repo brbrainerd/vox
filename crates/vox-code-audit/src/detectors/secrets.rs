@@ -288,4 +288,26 @@ mod tests {
             "AWS-shaped id in block comment should not fire"
         );
     }
+
+    // Catches: synthetic-placeholder filter widening to swallow a real key
+    // (suffix-length check dropped) or narrowing to flag legit doc keys.
+    #[test]
+    fn aws_synthetic_placeholder_only_for_repeated_16char_suffix() {
+        // All-same 16-char suffix => synthetic (must be ignored as a secret).
+        assert!(SecretDetector::aws_key_is_synthetic_placeholder(
+            "AKIAZZZZZZZZZZZZZZZZ"
+        ));
+        // Real-looking mixed suffix => NOT synthetic.
+        assert!(!SecretDetector::aws_key_is_synthetic_placeholder(
+            "AKIA1234567890ABCDEF"
+        ));
+        // Wrong prefix => not synthetic.
+        assert!(!SecretDetector::aws_key_is_synthetic_placeholder(
+            "BKIAZZZZZZZZZZZZZZZZ"
+        ));
+        // Wrong suffix length (15 chars) => not synthetic.
+        assert!(!SecretDetector::aws_key_is_synthetic_placeholder(
+            "AKIAZZZZZZZZZZZZZZZ"
+        ));
+    }
 }

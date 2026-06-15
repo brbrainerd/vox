@@ -19,6 +19,36 @@ pub fn web_ir_validate_gate_enabled() -> bool {
     !env_var_explicitly_disabled(std::env::var("VOX_WEBIR_VALIDATE"))
 }
 
+#[cfg(test)]
+mod semcov_behavior_tests {
+    use super::*;
+
+    #[test]
+    fn env_var_explicitly_disabled_recognizes_falsey_tokens() {
+        // Catches: a regression where only "0"/"false" are honored but "no"/"off"
+        // (case-insensitive) silently stop disabling the gate.
+        assert!(env_var_explicitly_disabled(Ok("0".to_string())));
+        assert!(env_var_explicitly_disabled(Ok("FALSE".to_string())));
+        assert!(env_var_explicitly_disabled(Ok("No".to_string())));
+        assert!(env_var_explicitly_disabled(Ok("oFf".to_string())));
+        // Truthy / unrelated values and a missing var must NOT count as "disabled".
+        assert!(!env_var_explicitly_disabled(Ok("1".to_string())));
+        assert!(!env_var_explicitly_disabled(Ok("yes".to_string())));
+        assert!(!env_var_explicitly_disabled(Err(
+            std::env::VarError::NotPresent
+        )));
+    }
+
+    #[test]
+    fn web_ir_validate_gate_defaults_on_when_unset() {
+        // Catches: an inverted default that would make web-IR validation OFF unless
+        // explicitly enabled (the gate must be opt-OUT, not opt-in).
+        // Safe in-process: this var is read fresh each call and we remove it.
+        unsafe { std::env::remove_var("VOX_WEBIR_VALIDATE") };
+        assert!(web_ir_validate_gate_enabled());
+    }
+}
+
 /// When set (`1`, `true`, `yes`), TypeScript codegen fails if the module contains AI fixtures that are not lowered to TS yet.
 #[must_use]
 pub fn ts_strict_ai_gate_enabled() -> bool {

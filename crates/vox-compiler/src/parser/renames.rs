@@ -119,3 +119,42 @@ fn canonical_path() -> PathBuf {
         .expect("workspace root with contracts/naming/renames.v1.json must be findable");
     workspace_root.join("contracts/naming/renames.v1.json")
 }
+
+#[cfg(test)]
+mod semcov_behavior_tests {
+    use super::*;
+
+    // Catches: the version guard regressing so a non-v1 registry is accepted,
+    // silently letting an incompatible schema through.
+    #[test]
+    fn parse_json_rejects_unsupported_version() {
+        let json = r#"{"version": 2, "entries": []}"#;
+        let err = RenameRegistry::parse_json(json).unwrap_err();
+        assert!(matches!(err, RegistryError::UnsupportedVersion(2)));
+    }
+
+    // Catches: alias-chain detection breaking (a `from` that is also some
+    // entry's `to`), which would create a two-hop rename the resolver can't follow.
+    #[test]
+    fn parse_json_rejects_alias_chain() {
+        let json = r#"{"version":1,"entries":[
+            {"from":"a","to":"b","kind":"primitive","since":"1.0"},
+            {"from":"b","to":"c","kind":"primitive","since":"1.0"}
+        ]}"#;
+        let err = RenameRegistry::parse_json(json).unwrap_err();
+        assert!(matches!(err, RegistryError::AliasChain(_)));
+    }
+
+    // Catches: resolve() losing its mapping, or parse_json failing to index a
+    // valid entry by its `from` key — the happy path the parser depends on.
+    #[test]
+    fn parse_json_indexes_entry_and_resolve_finds_it() {
+        let json = r#"{"version":1,"entries":[
+            {"from":"OldName","to":"NewName","kind":"type","since":"1.0"}
+        ]}"#;
+        let reg = RenameRegistry::parse_json(json).expect("valid v1 registry parses");
+        let entry = reg.resolve("OldName").expect("OldName should resolve");
+        assert_eq!(entry.to, "NewName");
+        assert!(reg.resolve("NewName").is_none()); // canonical name has no rename
+    }
+}

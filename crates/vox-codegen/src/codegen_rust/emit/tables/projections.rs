@@ -67,6 +67,7 @@ pub fn collect_table_select_projections(module: &HirModule) -> HashMap<String, V
 #[cfg(test)]
 mod tests {
     use super::collect_table_select_projections;
+    use super::{db_projection_method_suffix, validate_db_projection_suffixes_unique};
     use vox_compiler::ast::span::Span;
     use vox_compiler::hir::{
         DefId, HirDbPlanCapabilities, HirDbQueryPlan, HirDbTableOp, HirExpr, HirModule,
@@ -120,6 +121,45 @@ mod tests {
             task[0],
             vec!["done".to_string(), "title".to_string()],
             "endpoint fn body projection should be collected"
+        );
+    }
+
+    #[test]
+    fn projection_suffix_joins_columns_with_underscore() {
+        // Catches: a switch to a different separator (e.g. "__" or "-") that would
+        // desync the emitted `from_row_sel_*` helper names from the uniqueness check.
+        assert_eq!(
+            db_projection_method_suffix(&["done".to_string(), "title".to_string()]),
+            "done_title"
+        );
+        assert_eq!(db_projection_method_suffix(&[]), "");
+    }
+
+    #[test]
+    fn distinct_projections_colliding_on_suffix_are_rejected() {
+        // Catches: a collision-detection regression that lets two *different* column
+        // lists collapsing to the same join("_") suffix slip through and emit dup methods.
+        let res = validate_db_projection_suffixes_unique(
+            "Task",
+            &[
+                vec!["a_b".to_string()],                // suffix "a_b"
+                vec!["a".to_string(), "b".to_string()], // also suffix "a_b"
+            ],
+        );
+        assert!(res.is_err());
+        let msg = res.unwrap_err().to_string();
+        assert!(
+            msg.contains("a_b"),
+            "error must name the colliding suffix: {msg}"
+        );
+
+        // Identical projections (same list twice) must NOT error — dedupe, not collision.
+        assert!(
+            validate_db_projection_suffixes_unique(
+                "Task",
+                &[vec!["x".to_string()], vec!["x".to_string()]],
+            )
+            .is_ok()
         );
     }
 }
