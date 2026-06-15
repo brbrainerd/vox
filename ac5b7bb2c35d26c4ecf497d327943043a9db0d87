@@ -1,0 +1,10 @@
+fix(novelty): re-label golden case to novel and update GUI surface registry
+scale: ~10 lines across 5 files [S]
+
+- `crates/vox-publisher/tests/fixtures/novelty_golden.v1.json`: Renamed the `empty_hits__no_traces_at_all__insufficient_evidence` golden case to `empty_hits__no_traces_at_all__novel` and updated its `expected` value from `insufficient_evidence` to `novel`.
+- `contracts/gui/surface-registry.v1.yaml`: Added `parent_surface: null` to the `curation` and `discovery-review` surface definitions.
+- `contracts/reports/gui-surface-registry.v1.json`: Regenerated the GUI surface registry report.
+- `crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts`: Regenerated the TypeScript surface registry.
+- `Cargo.lock`: Updated lockfile due to changes in generated files.
+
+--- audit: original='fix(#274): re-label no-traces golden case to novel (main B6 canonical) + regenerate gui-surface-registry SSOT' | actual=10L across 5 files | derived=full ---
