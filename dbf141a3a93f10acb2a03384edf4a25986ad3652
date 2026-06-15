@@ -1,0 +1,13 @@
+feat(vox-gui): add live agent event stream tab to console
+scale: ~104 lines across 3 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Console/AgentTab.tsx`: New component `AgentTab` displays a live, read-only stream of events for a specific agent by filtering the existing `vox://agent-events` Tauri stream.
+- `crates/vox-gui/ui/src/components/surfaces/Console/AgentTab.test.tsx`: New Vitest tests for `AgentTab` to verify event filtering and display.
+- `crates/vox-gui/ui/src/components/surfaces/Console/Console.tsx`:
+    - Integrate `AgentTab` into the console, allowing it to be opened when an agent chip is clicked.
+    - Add state `openAgentId` to manage which agent's tab is currently open.
+    - Update `openAgentTab` to set `openAgentId` and display a toast notification.
+    - Render `AgentTab` conditionally based on `openAgentId`, providing a toggle to switch between the agent tab and the terminal.
+    - The terminal remains mounted when the agent tab is open, preserving its PTY state.
+
+--- audit: original='feat(vox-gui): live agent-event tabs in the console' | actual=104L across 3 files | derived=full ---
