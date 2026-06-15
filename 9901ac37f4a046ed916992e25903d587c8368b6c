@@ -1,0 +1,51 @@
+feat(clavis,mcp,orchestrator,publisher,search): implement comprehensive system expansion
+scale: ~8156 lines across 55 files [XL]
+
+- **clavis**:
+    - Add `VoxSyndicationTemplateProfile` secret.
+    - Introduce new MCP HTTP configuration secrets: `VoxMcpHttpEnabled`, `VoxMcpHttpAllowUnauthenticated`, `VoxMcpHttpRequireForwardedHttps`, `VoxMcpHttpHealthAuth`, `VoxMcpHttpTrustXForwardedFor`.
+    - Add new LLM provider URL secrets: `VoxGroqChatCompletionsUrl`, `VoxCerebrasChatCompletionsUrl`, `VoxMistralChatCompletionsUrl`, `VoxDeepseekChatCompletionsUrl`, `VoxSambanovaChatCompletionsUrl`, `VoxAnthropicChatCompletionsUrl`.
+    - Remove deprecated secrets: `VoxSocialWorthinessScoreMin`, `VoxMeshMaxStaleMs`.
+    - Update `managed-env-names.v1.json` and `managed-env-names.md` with new and updated secret definitions.
+    - Add `secret-capabilities.v1.json` for secret capability definitions.
+- **mcp**:
+    - Update `http_gateway.rs` and `lifecycle.rs` with new HTTP configuration options.
+    - Update `llm_bridge/provider_endpoints.rs` and `llm_bridge/provider_auth.rs` for new LLM provider integration.
+    - Update `tools/oratio_tools.rs` and `tools/browser_tools.rs`.
+    - Minor changes to `speech_constraints.rs`, `a2a.rs`, `gamify.rs`, `llm_bridge/infer.rs`, `llm_bridge/provider_adapter.rs`, `llm_bridge/providers/metadata.rs`.
+- **orchestrator**:
+    - Refactor `research_dispatch.rs` to simplify LLM configuration and remove redundant code.
+    - Minor changes to `services/news.rs`.
+- **publisher**:
+    - Refactor `lib.rs` to simplify syndication template profile check and remove several social media specific configuration fields (Bluesky, Mastodon, LinkedIn, Discord).
+    - Refactor `publication_preflight.rs` to simplify scholarly adapter readiness check.
+    - Remove `scientific_metadata.rs` and `switching.rs`.
+    - Update `publication_preflight.rs` to remove social media specific checks.
+    - Update `distribution_compile.rs`.
+    - Update `route_simulation_golden.json` fixture.
+- **search**:
+    - Refactor `policy.rs` to remove direct secret resolution for search-related configurations, likely centralizing it elsewhere.
+- **cli**:
+    - Enhance `commands/ci/run_body_helpers/contracts.rs` to generate a capabilities manifest for secrets.
+    - Minor changes to `commands/ci/run_body_helpers/guards.rs`, `commands/clavis.rs`, `commands/db/publication/mod.rs`.
+- **oratio**:
+    - Minor changes to `backends/candle_whisper.rs`, `backends/logit_processors.rs`, `traits.rs`, `acoustic_preprocess.rs`, `routing.rs`, `backend_dispatch.rs`, `streaming_partial.rs`.
+    - Update `Cargo.toml`.
+- **populi**:
+    - Minor changes to `mens/tensor/candle_qlora_train/mod.rs`, `mens/tensor/preset_schema.rs`, `mens/tensor/backend_candle_qlora.rs`, `mens/tensor/candle_qlora_train/device_select.rs`, `mens/hub.rs`.
+- **toestub**:
+    - Minor changes to `review/client.rs`, `detectors/scaling_support.rs`.
+- **bootstrap**:
+    - Minor changes to `engine/install.rs`.
+- **clavis**:
+    - Minor changes to `tests.rs`, `tests/vox_vault_tests.rs`.
+- **schola**:
+    - Minor changes to `curator.rs`.
+- **docs**:
+    - Minor changes to `operations/clavis-cloudless-ops-runbook.md`.
+- **root**:
+    - Update `README.md`.
+    - Update `.github/workflows/ci.yml`.
+    - Update `Cargo.lock`.
+
+--- audit: original='feat: implement comprehensive system expansion including MCP tools, orchestration dispatch, and integration testing infrastructure' | actual=8156L across 55 files | derived=full ---
