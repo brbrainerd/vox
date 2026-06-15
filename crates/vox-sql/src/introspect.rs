@@ -161,6 +161,7 @@ fn text_at(row: &SqlRow, idx: usize) -> Option<String> {
     }
 }
 
+#[cfg(feature = "libsql")]
 fn int_at(row: &SqlRow, idx: usize) -> Option<i64> {
     match row.get(idx).map(|(_k, v)| v) {
         Some(SqlValue::Int(v)) => Some(*v),
