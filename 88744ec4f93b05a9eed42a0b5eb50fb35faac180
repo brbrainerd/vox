@@ -1,0 +1,7 @@
+fix(vox-gui/chat): remove redundant ARIA log region from ChatSurface
+scale: ~5 lines across 2 files [S]
+
+- `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx`: Removed a redundant `div` element with `role="log"` and ARIA attributes that was wrapping the `Transcript` component.
+- `crates/vox-gui/ui/src/components/surfaces/Loquela/Transcript.tsx`: Added `aria-relevant="additions text"` to the `Transcript` component, consolidating the ARIA log region responsibility within `Transcript`.
+
+--- audit: original='fix(vox-gui/wave6): dedupe Transcript log region; ChatSurface delegates to it (Wave 6)' | actual=5L across 2 files | derived=full ---
