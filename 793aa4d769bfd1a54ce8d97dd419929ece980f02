@@ -1,0 +1,13 @@
+fix(coverage-graph): correct denominator, I4, and env-var test
+scale: ~359 lines across 5 files [L]
+
+- `scripts/coverage-graph/overlay_tests.py`:
+    - Corrected `is_production_symbol` to identify production definitions by the absence of the `crates_` prefix in their ID, rather than the presence of `src_`. This fixes an undercounting issue where symbols in `src/` subdirectories were incorrectly excluded from the denominator.
+    - Added `suppress_proves = False` initialization before method call handling.
+    - Modified method call handling to suppress proofs for ambiguous methods (same method name on multiple types), preventing false positives.
+- `scripts/coverage-graph/test_overlay_tests.py`: Added `test_subdirectory_definition_is_production` to verify that symbols in `src/` subdirectories are correctly identified as production symbols.
+- `crates/vox-orchestrator/src/catalog_classifier.rs`: Corrected environment variable name from `VOX_OPENROUTER_CLASSIFIER_ENABLED` to `VOX_OPEN_ROUTER_CLASSIFIER_ENABLED` in `set_var` call.
+- `docs/src/architecture/semantic-coverage-remediation-plan-2026-06-13.md`: Added a "§0. NUMBERS CORRECTION" section to document the denominator correction, the impact on coverage statistics (new totals: 19,445 defs / 3,088 proven / 15.9%), and the fix for ambiguous method proofs.
+- `contracts/reports/semantic-coverage.v1.json`: Updated `source_commit` hash and recalculated `totals` and per-crate `defs` and `proven` counts to reflect the corrected production symbol identification and ambiguous method proof suppression. The overall proven percentage changed from 20.1% (7174 defs / 1441 proven) to 15.9% (19445 defs / 3088 proven).
+
+--- audit: original='fix(coverage-graph): correct denominator (C1: src/ subdir symbols dropped) + I4 + env-var test' | actual=359L across 5 files | derived=full ---
