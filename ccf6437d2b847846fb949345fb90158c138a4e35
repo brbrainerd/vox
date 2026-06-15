@@ -1,0 +1,18 @@
+feat(cli): add `vox migrate names` subcommand and basic rewrite logic
+scale: ~156 lines across 2 files [M]
+
+- `crates/vox-cli/src/commands/migrate/mod.rs`:
+    - Added `MigrateCmd::Names` variant to the `MigrateCmd` enum, representing the new subcommand.
+    - Defined `NamesArgs` struct with `root` (PathBuf, default ".") and `dry_run` (bool) arguments.
+    - Implemented `run_names` function to handle the `migrate names` command:
+        - Loads a `RenameRegistry` from `contracts/naming/renames.v1.json`.
+        - Collects all `.vox` files under the specified root directory.
+        - Iterates through files, reads content, and calls a placeholder `rewrite` function.
+        - The `rewrite` function is currently a pass-through stub, returning the input string unchanged.
+- `crates/vox-cli/tests/migrate_codemod_test.rs`:
+    - Added a new test file for `migrate names` subcommand.
+    - Included `migrate_help_lists_subcommand` test to verify `migrate` help output mentions the new subcommand.
+    - Added `migrate_names_help_shows_dry_run` test to confirm `--dry-run` is listed in `migrate names --help`.
+    - Implemented `migrate_names_dry_run_empty_dir` test to check behavior with an empty directory and `--dry-run`.
+
+--- audit: original='feat(cli): add vox migrate names subcommand skeleton (VUV-9 task 5)' | actual=156L across 2 files | derived=full ---
