@@ -1,0 +1,8 @@
+ci(github-actions): Add restore-keys to all-features-matrix cache
+scale: ~3 lines across 1 files [XS]
+
+- **.github/workflows/ci.yml**:
+  - Added `restore-keys` to the `actions/cache` step for the `all-features-matrix` job.
+  - The `restore-keys` now include a per-crate prefix (`${{ runner.os }}-cargo-matrix-${{ matrix.crate }}-`) and a generic cargo key (`${{ runner.os }}-cargo-`) to improve cache hit rates when `Cargo.lock` changes.
+
+--- audit: original='ci(cache): add restore-keys fallback to all-features-matrix cache (#280)' | actual=3L across 1 files | derived=full ---
