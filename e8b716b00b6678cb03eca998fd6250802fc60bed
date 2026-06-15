@@ -1,0 +1,16 @@
+feat(codegen-web): emit ErrorBoundary and Service Worker registration into default app-hooks
+scale: ~293 lines across 6 files [L]
+
+- `crates/vox-codegen/src/codegen_ts/web_entry.rs`:
+  - Added `emit_error_boundary()` to generate a generic React error boundary component (`vox-error-boundary.tsx`). This boundary catches render errors, logs them, and provides a recoverable fallback UI.
+  - Added `emit_sw_register()` to generate a service worker registration helper (`vox-sw-register.ts`).
+  - Updated `emit_app_hooks_default()` to wire the newly generated error boundary (wrapping the app) and service worker registration (on boot).
+- `crates/vox-codegen/src/codegen_ts/emitter.rs`:
+  - Modified `generate_with_options` to emit `vox-error-boundary.tsx` and `vox-sw-register.ts` alongside the default `app-hooks.tsx` for web targets.
+  - Updated the comment for `emit_app_hooks_default` to reflect that it now includes the error boundary and SW registration.
+- `apps/vox-mental-tracker/src/ErrorBoundary.tsx`: Deleted the hand-written React error boundary component, which included IndexedDB crash logging functionality.
+- `apps/vox-mental-tracker/src/app-hooks.tsx`: Deleted the hand-written app-hooks file that previously wrapped the app with the custom `ErrorBoundary` and registered the service worker from `sync.ts`.
+- `apps/vox-mental-tracker/src/sync.ts`: Deleted the hand-written service worker registration utility.
+- `apps/vox-mental-tracker/scripts/postbuild-fixup.mjs`: Reverted this script to a no-op, as the codegen now handles the app-hooks and other bootstrap glue, eliminating the need for manual overrides. The script is kept as a placeholder.
+
+--- audit: original='feat(codegen-web): emit ErrorBoundary + SW into default app-hooks; app fully generated' | actual=293L across 6 files | derived=full ---
