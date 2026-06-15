@@ -506,7 +506,6 @@ impl DetectionRule for ScalingSurfacesDetector {
         Some(
             "// VIOLATION — blocking I/O call inside an async function\n\
              async fn fetch_user_data(id: UserId) -> UserData {\n\
-             // vox-arch-check: allow abs-path\n\
              \x20   let raw = std::fs::read_to_string(\"/var/data/users.json\") // blocking!\n\
              \x20       .unwrap();\n\
              \x20   parse_user(id, &raw)\n\
@@ -514,7 +513,6 @@ impl DetectionRule for ScalingSurfacesDetector {
              \n\
              // FIX — use async I/O\n\
              async fn fetch_user_data(id: UserId) -> Result<UserData, Error> {\n\
-             // vox-arch-check: allow abs-path\n\
              \x20   let raw = tokio::fs::read_to_string(\"/var/data/users.json\").await?;\n\
              \x20   Ok(parse_user(id, &raw))\n\
              }",

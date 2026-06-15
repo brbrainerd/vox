@@ -54,7 +54,15 @@ staleness         = "warn"
 generated_file_drift = "warn"
 # Rule 10: strict — crates must not directly depend on any of their listed forbidden deps.
 forbidden_deps    = "error"
-# Cross-platform parity forbidden_pattern rules — promoted to error once the tree was clean.
+# NOTE: This key is a single global guard that covers ALL [[forbidden_pattern]] rules
+# simultaneously (raw-git-exec, jj-lib-confined, raw-jj-exec,
+# projection-bundle-ts-emit-boundary, projection-bundle-rust-emit-boundary,
+# crate-allow-unsafe-code, no-capacitor-*, no-axum-*, no-rust-embed-*,
+# no-hardcoded-shell-spawn, no-hardcoded-abs-path, no-hardcoded-dynlib-ext).
+# It was promoted to "error" after a full tree sweep confirmed zero open
+# violations for every rule (see Task 4.2 in the cross-platform parity plan).
+# Adding a new [[forbidden_pattern]] rule with open violations while this is
+# "error" will cause CI to fail immediately for that rule.
 forbidden_pattern = "error"
 
 # ── Rule 10: Forbidden direct dependencies ────────────────────────────────────
@@ -415,6 +423,12 @@ exempt_files     = [
     "crates/vox-compiler/src/fmt/mod.rs",
     # TOML test fixture — /etc paths are in raw-string TOML content, not Rust code.
     "crates/vox-repository/src/populi_toml.rs",
+    # Code-audit detector files: these contain example/documentation path strings inside
+    # Rust string literals (minimal_repro() methods). Using exempt_files here is
+    # intentional — do NOT rely on annotation-in-string suppression for these files,
+    # as that technique works only by coincidence of proximity and is misleading.
+    "crates/vox-code-audit/src/detectors/magic_value.rs",
+    "crates/vox-code-audit/src/detectors/scaling.rs",
 ]
 allow_annotation = "// vox-arch-check: allow abs-path"
 reason           = "Hardcoded absolute paths break across OSes; use std::env::temp_dir()/dirs/Path::join."

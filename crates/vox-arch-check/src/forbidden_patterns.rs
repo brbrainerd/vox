@@ -3,10 +3,15 @@
 //! Implementation: compile `pattern` as a regex; for every file under `file_glob`
 //! that is NOT in `exempt_files`, scan line-by-line for matches. If a match is
 //! preceded (within 2 lines) or followed (within 1 line) by `allow_annotation`,
-//! it is suppressed.
+//! it is suppressed. Concretely: the suppression window is [i-2, i+1] inclusive,
+//! where i is the 0-based line index of the match.
 //!
 //! False positives we tolerate: string literals in doc comments. The annotation
-//! suppression is the escape hatch.
+//! suppression is the escape hatch. For files that legitimately contain example
+//! path strings (e.g., code-audit detector minimal_repro() methods), prefer
+//! adding them to `exempt_files` rather than embedding annotations inside string
+//! literals — annotations inside strings suppress by coincidence of proximity,
+//! not by intent, and confuse future readers.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -41,7 +46,8 @@ pub struct ForbiddenPatternHit {
 
 /// Scan every file under `repo_root` that matches `rule.file_glob` for the
 /// forbidden regex pattern. Returns all hits that are not suppressed by an
-/// `allow_annotation` within a ±2 line window.
+/// `allow_annotation` within a [i-2, i+1] line window (2 lines before, 1 line
+/// after the match at line i).
 ///
 /// `prune_dir_names` is the merged built-in + `layers.toml` directory-name skip set
 /// (see `walk_prune_dir_names` in `main.rs`).
@@ -273,13 +279,18 @@ mod tests {
     #[test]
     fn hardcoded_pwsh_spawn_is_flagged() {
         let dir = tempfile::tempdir().unwrap();
-        // vox-arch-check: allow shell-spawn
+        // No suppression annotation in fixture — expect 1 hit.
         write_fixture(
             &dir,
             "crates/x/src/a.rs",
             "fn f() { let _ = Command::new(\"pwsh\"); }",
         );
-        let hits = scan(dir.path(), &shell_spawn_rule(), &crate::built_in_walk_prune_names()).unwrap();
+        let hits = scan(
+            dir.path(),
+            &shell_spawn_rule(),
+            &crate::built_in_walk_prune_names(),
+        )
+        .unwrap();
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].rule, "no-hardcoded-shell-spawn");
     }
@@ -292,7 +303,12 @@ mod tests {
             "crates/x/src/b.rs",
             "// vox-arch-check: allow shell-spawn\nlet _ = Command::new(\"cmd\");\n",
         );
-        let hits = scan(dir.path(), &shell_spawn_rule(), &crate::built_in_walk_prune_names()).unwrap();
+        let hits = scan(
+            dir.path(),
+            &shell_spawn_rule(),
+            &crate::built_in_walk_prune_names(),
+        )
+        .unwrap();
         assert_eq!(hits.len(), 0);
     }
 
@@ -311,18 +327,32 @@ mod tests {
     #[test]
     fn hardcoded_tmp_path_is_flagged() {
         let dir = tempfile::tempdir().unwrap();
-        // vox-arch-check: allow abs-path
+        // No suppression annotation in fixture — expect 1 hit.
         write_fixture(&dir, "crates/x/src/c.rs", "let p = \"/tmp/contracts\";");
-        let hits = scan(dir.path(), &abs_path_rule(), &crate::built_in_walk_prune_names()).unwrap();
+        let hits = scan(
+            dir.path(),
+            &abs_path_rule(),
+            &crate::built_in_walk_prune_names(),
+        )
+        .unwrap();
         assert_eq!(hits.len(), 1);
     }
 
     #[test]
     fn hardcoded_drive_path_is_flagged() {
         let dir = tempfile::tempdir().unwrap();
-        // vox-arch-check: allow abs-path
-        write_fixture(&dir, "crates/x/src/d.rs", "let p = \"C:\\\\Users\\\\Default\";");
-        let hits = scan(dir.path(), &abs_path_rule(), &crate::built_in_walk_prune_names()).unwrap();
+        // No suppression annotation in fixture — expect 1 hit.
+        write_fixture(
+            &dir,
+            "crates/x/src/d.rs",
+            "let p = \"C:\\\\Users\\\\Default\";",
+        );
+        let hits = scan(
+            dir.path(),
+            &abs_path_rule(),
+            &crate::built_in_walk_prune_names(),
+        )
+        .unwrap();
         assert_eq!(hits.len(), 1);
     }
 
@@ -341,9 +371,14 @@ mod tests {
     #[test]
     fn hardcoded_so_suffix_is_flagged() {
         let dir = tempfile::tempdir().unwrap();
-        // vox-arch-check: allow dynlib-ext
+        // No suppression annotation in fixture — expect 1 hit.
         write_fixture(&dir, "crates/x/src/e.rs", "let lib = \"libfoo.so\";");
-        let hits = scan(dir.path(), &dynlib_ext_rule(), &crate::built_in_walk_prune_names()).unwrap();
+        let hits = scan(
+            dir.path(),
+            &dynlib_ext_rule(),
+            &crate::built_in_walk_prune_names(),
+        )
+        .unwrap();
         assert_eq!(hits.len(), 1);
     }
 }
