@@ -1,0 +1,8 @@
+docs(plan): Vox Console discovery-engine implementation plan
+scale: ~2216 lines across 1 files [XL]
+
+- Add a detailed 14-task TDD plan for implementing the Vox Console discovery engine.
+- The plan covers 9 phases: `discovery_state` schema, FSRS scheduler, ranking, DB-backed exposure ledger, `suggest`/`help`/`record` Tauri commands, `portable-pty` manager, console transport + xterm dependencies + surface registry, input editor with ghost text, discovery rail, xterm terminal tab, agent strip, console surface root, agent tabs + send-to-agent + dashboard deep link, and integration gates.
+- Defer OSC 133 block segmentation to v1+1.
+
+--- audit: original='docs(plan): Vox Console discovery-engine implementation plan' | actual=2216L across 1 files | derived=full ---
