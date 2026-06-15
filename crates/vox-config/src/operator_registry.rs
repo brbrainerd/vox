@@ -879,7 +879,9 @@ fn map_class(c: vox_llm_config::ConfigClass) -> ConfigClass {
 }
 
 /// `true` for real environment-variable-shaped names (`UPPER_SNAKE`), excluding
-/// pseudo-keys like `vox_populi::inference_PROFILE` that are not env vars.
+/// pseudo-keys like `vox_populi::inference_PROFILE` that are not env vars. (Such
+/// pseudo-keys may still appear via a static `OPERATOR_TUNING_ENVS` entry; this
+/// filter only governs what the LLM-registry view contributes.)
 fn is_env_shaped(name: &str) -> bool {
     !name.is_empty()
         && name

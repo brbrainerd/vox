@@ -178,4 +178,22 @@ let direct = std::env::var("GEMINI_DIRECT_MODEL").ok();"#);
         let f = rs(r#"let x = std::env::var("PATH").unwrap();"#);
         assert!(d.detect(&f, None).is_empty(), "non-llm env must not fire");
     }
+
+    #[test]
+    fn matches_both_bare_and_std_qualified_forms() {
+        // The regex is unanchored, so `std::env::var("X")` matches via the `env::var("X")`
+        // substring. Lock this so neither call form silently escapes detection.
+        let d = UnregisteredLlmEnvDetector::new();
+        let bare = rs(r#"let a = env::var("OLLAMA_TUNING_MYSTERY").ok();"#);
+        let qualified = rs(r#"let b = std::env::var("OLLAMA_TUNING_MYSTERY").ok();"#);
+        assert!(!d.detect(&bare, None).is_empty(), "bare env::var must fire");
+        assert!(!d.detect(&qualified, None).is_empty(), "std::env::var must fire");
+    }
+
+    #[test]
+    fn ignores_env_in_full_line_comment() {
+        let d = UnregisteredLlmEnvDetector::new();
+        let f = rs(r#"// example: std::env::var("OLLAMA_TUNING_MYSTERY")"#);
+        assert!(d.detect(&f, None).is_empty(), "commented-out code must not fire");
+    }
 }
