@@ -1,0 +1,6 @@
+style(vox-codegen): allow `collapsible_match` and `collapsible_if` lints
+scale: ~5 lines across 1 files [XS]
+
+- `crates/vox-codegen/src/lib.rs`: Add `#![allow(clippy::collapsible_match, clippy::collapsible_if)]` to suppress newly surfaced lints in Rust 1.96.
+
+--- audit: original='style(vox-codegen): allow collapsible_match/if (Rust 1.96 lint-debt; gate-green, behavior-preserving)' | actual=5L across 1 files | derived=full ---
