@@ -1,0 +1,27 @@
+feat(mobile): migrate vox-mental-tracker to Capacitor, add Sherpa Transcribe plugin
+scale: ~5568 lines across 30 files [XL]
+
+- `apps/vox-mental-tracker`:
+    - Migrated from Tauri to Capacitor for mobile builds.
+    - Added `capacitor.config.ts` for Capacitor configuration.
+    - Updated `src/main.vox` and `tests/e2e/voice_flow.spec.ts` to reflect Capacitor integration for on-device STT.
+    - Modified `scripts/build.vox` to use `npx cap sync` instead of Tauri commands.
+    - Updated `vite.config.ts` to align `build.outDir` with Capacitor's `webDir`.
+    - Removed Tauri-specific code from `src/runtime.ts` and updated comments to refer to Capacitor plugin paths.
+    - Updated `pnpm-lock.yaml` to reflect dependency changes.
+- `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe`:
+    - Added new Capacitor plugin for Sherpa Transcribe.
+    - Implemented `ios/AppleSpeechBackend.swift` and `ios/Plugin.swift` for iOS speech recognition.
+    - Added `android/src/main/java/com/vox/plugins/voxsherpatranscribe/VoxSherpaTranscribePlugin.kt` and `android/src/main/AndroidManifest.xml` for Android speech recognition.
+    - Included `package.json`, `README.md`, and `tsconfig.json` for the plugin.
+    - Added `src/index.ts` to register the Capacitor plugin.
+    - Added `android/build.gradle` for Android build configuration.
+- `apps/editor/vox-vscode`: Refactored `src/core/StatusBarManager.ts` by removing `BudgetSnapshot` type and related helper function, simplifying provider status lookup.
+- `Cargo.lock` and `Cargo.toml`: Updated Rust dependencies.
+- `README.md`: Revised project description and "Why Vox" section for clarity and to reflect the AI-first development philosophy.
+- `AGENTS.md`: Reduced content.
+- `apps/interop/marquee_app/package.json`: Minor dependency updates.
+- `apps/vox-mental-tracker/docs`: Updated `build-android.md`, `ci-lanes.md`, `release.md`, `privacy.md`, and `2026-05-08-app-phase6-release-readiness.md` to reflect the Capacitor migration and updated build processes.
+- `apps/vox-mental-tracker/Vox.toml`: Minor update.
+
+--- audit: original='chore(line-endings): normalize CRLF to LF across apps/vox-mental-tracker and workspace files' | actual=5568L across 30 files | derived=full ---
