@@ -1,0 +1,6 @@
+docs: add mobile proof image for nav bar wrapping and padding
+scale: ~0 lines across 1 files [XS]
+
+- `docs/src/assets/mobile-proof-2026/nav-wrap-and-padding-fixed.png`: Add a new image to document the fix for the navigation bar wrapping and edge padding on mobile.
+
+--- audit: original='docs: emulator proof — NavBar wraps (Settings on line 2) + edge padding' | actual=0L across 1 files | derived=full ---
