@@ -1,0 +1,7 @@
+fix(codegen-rust): drop stale `stream_interval` and `primary_key` fields from test fixtures
+scale: ~5 lines across 2 files [S]
+
+- `crates/vox-codegen/src/codegen_rust/mod.rs`: Removed `primary_key: "id".to_string()` from one `HirTable` test fixture and `stream_interval: None` from three `HirEndpointFn` test fixtures.
+- `crates/vox-codegen/src/codegen_rust/emit/tables/projections.rs`: Removed `stream_interval: None` from one `HirEndpointFn` test fixture.
+
+--- audit: original='chore(codegen-rust): drop stale HirEndpointFn/HirTable test-fixture fields' | actual=5L across 2 files | derived=full ---
