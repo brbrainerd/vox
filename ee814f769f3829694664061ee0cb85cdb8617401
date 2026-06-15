@@ -1,0 +1,18 @@
+feat(vox-vcs): gate jj engine behind default-on 'jj' feature
+scale: ~59 lines across 3 files [M]
+
+- `crates/vox-vcs/src/backend.rs`:
+  - Conditioned `jj_actor` import on `cfg(feature = "jj")`.
+  - Modified `detect` function to return `Cas` if the `jj` feature is not enabled, even if a `.jj` directory exists.
+  - Modified `boxed_for` function to always return `CasFallback` if the `jj` feature is not enabled.
+- `crates/vox-vcs/src/lib.rs`:
+  - Added a "Feature flags" section to the crate-level documentation explaining the new `jj` feature.
+  - Conditioned `jj_actor` and `jj_backend` module declarations on `cfg(feature = "jj")`.
+  - Conditioned `JjActorHandle` and `JjBackend` exports on `cfg(feature = "jj")`.
+- `crates/vox-vcs/Cargo.toml`:
+  - Defined a `jj` feature that makes `jj-lib`, `tokio`, and `futures` dependencies optional.
+  - Set `default = ["jj"]`.
+  - Made `jj-lib`, `tokio`, and `futures` dependencies optional.
+  - Added `rt-multi-thread` feature to `tokio` dependency.
+
+--- audit: original="refactor(vox-vcs): gate jj engine behind default-on 'jj' feature (lean no-jj build)" | actual=59L across 3 files | derived=full ---
