@@ -1,0 +1,7 @@
+feat(docs,contracts): add LANGUAGE_DESIGN_PRIORITIES.md and tokens.v1.json
+scale: ~127 lines across 2 files [M]
+
+- docs: Add `LANGUAGE_DESIGN_PRIORITIES.md` detailing the Vox language design priority stack for LLM-generated code.
+- contracts: Add `contracts/tokens/tokens.v1.json` JSON schema for Vox token files, defining color, spacing, and font tokens.
+
+--- audit: original='chore: add LANGUAGE_DESIGN_PRIORITIES.md and contracts/tokens/tokens.v1.json' | actual=127L across 2 files | derived=full ---
