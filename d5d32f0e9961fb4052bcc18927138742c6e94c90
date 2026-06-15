@@ -1,0 +1,21 @@
+feat(scientia): add automated discovery producers for commit watching and code uniqueness
+scale: ~1221 lines across 16 files [XL]
+
+- `crates/vox-publisher/src/scientia_producers/code_uniqueness.rs`: New module for code uniqueness signal, including `uniqueness_score` (1.0 - max similarity), `extract_snippets` (doc-comment + signature per top-level Rust symbol), and `assess_code_uniqueness` (async embedding and kNN lookup via `CodeKnnIndex`).
+- `crates/vox-cli/src/commands/db/publication/discovery_watch.rs`: New CLI command `vox scientia discovery-watch` to scan commits for research-worthy signals, create DRAFT publication manifests, and optionally fold in code-uniqueness signals using Qdrant.
+- `crates/vox-publisher/src/scientia_producers/commit_watcher.rs`: New module for commit-watcher producer, providing `signals_from_commit` to extract `DiscoverySignal`s from a `CommitView`.
+- `crates/vox-db/src/store/ops_producer_cursor.rs`: New store operations for `scientia_producer_cursor` table, enabling `get_producer_cursor` and `set_producer_cursor` for resumable scans.
+- `crates/vox-publisher/src/scientia_producers/mod.rs`: New module exports for `code_uniqueness` and `commit_watcher` producers.
+- `crates/vox-cli-core/src/scientia.rs`: Added `DiscoveryWatch` subcommand to `ScientiaCmd` enum, defining its arguments (`once`, `repo`, `limit`).
+- `crates/vox-cli/src/commands/db_cli/publication_subcommands.rs`: Added `DiscoveryWatch` subcommand to `DbCliPublication` enum, mirroring the `vox-cli-core` definition.
+- `crates/vox-db/src/schema/domains/scientia.rs`: Added `scientia_producer_cursor` table definition.
+- `contracts/db/baseline-version-policy.yaml`: Updated baseline version from 73 to 74.
+- `crates/vox-cli/src/commands/db_cli/mod.rs`: Added `publication` subcommand to `db_cli`.
+- `crates/vox-cli/src/commands/scientia.rs`: Added `discovery-watch` subcommand.
+- `crates/vox-cli/src/commands/db/publication/mod.rs`: Added `discovery_watch` module.
+- `crates/vox-db/src/schema/manifest.rs`: Updated schema manifest.
+- `crates/vox-db/src/codex_legacy.rs`: Added `scientia_producer_cursor` to `CodexLegacy`.
+- `crates/vox-db/src/store/mod.rs`: Added `ops_producer_cursor` module.
+- `crates/vox-publisher/src/lib.rs`: Added `scientia_producers` module.
+
+--- audit: original='feat(scientia): automated discovery producers — commit watcher + code-uniqueness signal' | actual=1221L across 16 files | derived=full ---
