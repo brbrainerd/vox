@@ -1,0 +1,6 @@
+fix(ci-runner): add --init to docker run to reap zombie processes
+scale: ~4 lines across 1 files [XS]
+
+- `crates/vox-cli/src/commands/ci/runner_scale.rs`: Added the `--init` flag to the `docker run` command when spawning CI runner containers. This ensures `tini` is used as PID 1 to automatically reap zombie/orphaned job processes (e.g., `rustc`) that the `run.sh` script would otherwise leave defunct after a cancelled or crashed job.
+
+--- audit: original='fix(ci-runner): add --init (tini) to reap zombie job processes (#172)' | actual=4L across 1 files | derived=full ---
