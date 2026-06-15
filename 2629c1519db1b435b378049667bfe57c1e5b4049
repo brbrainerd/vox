@@ -1,0 +1,16 @@
+feat(vox-effort-audit): scaffold L2 crate with module structure
+scale: ~74 lines across 11 files [M]
+
+- `crates/vox-effort-audit/Cargo.toml`: Add new crate with dependencies including `vox-actor-runtime`, `gix`, `serde`, `tokio`, and `thiserror`.
+- `crates/vox-effort-audit/src/lib.rs`: Initialize library with module declarations for `config`, `range`, `walk`, `shape`, `judge`, `hybrid`, `output`, and `pipeline`.
+- `crates/vox-effort-audit/src/config.rs`: Create stub module.
+- `crates/vox-effort-audit/src/hybrid/mod.rs`: Create stub module.
+- `crates/vox-effort-audit/src/judge/mod.rs`: Create stub module.
+- `crates/vox-effort-audit/src/output/mod.rs`: Create stub module.
+- `crates/vox-effort-audit/src/pipeline.rs`: Create stub module.
+- `crates/vox-effort-audit/src/range.rs`: Create stub module.
+- `crates/vox-effort-audit/src/shape.rs`: Create stub module.
+- `crates/vox-effort-audit/src/walk.rs`: Create stub module.
+- `Cargo.lock`: Update lockfile to include new crate and its dependencies.
+
+--- audit: original='feat(vox-effort-audit): scaffold L2 crate (A1)' | actual=74L across 11 files | derived=full ---
