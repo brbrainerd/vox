@@ -1,0 +1,8 @@
+chore(deps): ignore transient link check failures for slavakurilyak.com and specific Gradio GitHub links
+scale: ~7 lines across 1 files [XS]
+
+- .lycheeignore:
+  - Added `.*slavakurilyak\.com/.*` to ignore 301 redirects that exceed lychee's max-redirects limit.
+  - Added `https://github\.com/gradio-app/gradio/issues/9463` and `https://github\.com/gradio-app/gradio/pull/3370` to ignore transient 502 errors from CI runners.
+
+--- audit: original='chore: ignore lychee transient failures for slavakurilyak.com and gradio-app GitHub links' | actual=7L across 1 files | derived=full ---
