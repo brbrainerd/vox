@@ -1,0 +1,50 @@
+docs(web): archive island ADRs and remove islands from docs and contracts
+scale: ~466 lines across 45 files [L]
+
+- docs/src/tutorials/tut-ui-integration.md: Rewrote tutorial from "Building UI with Islands" to "UI Integration via React Interop", removing all island-specific content and replacing it with guidance on `component` declarations and external React interop.
+- docs/src/reference/ref-web-model.md: Updated web model reference to reflect the retirement of `@island` and the use of `component` for interactive UI, removing island-specific examples and explanations.
+- README.md: Replaced "Islands, Not Hook Soup" pillar with "React Interop via Plain Components and Endpoints", updating the explanation and code examples to use `component` instead of `@island`.
+- docs/src/reference/cli.md: Marked `vox island` command as retired and removed it from the `app` product lane.
+- examples/golden/v0_shadcn_island.vox: Deleted the golden example for `@v0` shadcn island.
+- contracts/config/env-vars.v1.yaml: Removed island-related environment variables.
+- contracts/operations/catalog.v1.yaml: Removed island-related entries from the operations catalog.
+- contracts/capability/capability-registry.yaml: Removed island-related capabilities.
+- docs/src/archive/how-to-islands-and-pages.md: Archived the "How-to Islands and Pages" document with a superseded header.
+- docs/src/reference/vox-web-stack.md: Updated to remove references to islands and align with the new component-based UI approach.
+- docs/src/journeys/fullstack-data.md: Updated to remove references to islands.
+- docs/src/reference/ref-decorators.md: Removed `@island` decorator from the reference.
+- examples/golden/dashboard_ui.vox: Converted `DataChart` from `@island` to `component` and updated description.
+- docs/src/reference/ref-syntax.md: Updated syntax reference to remove island-related constructs.
+- docs/src/architecture/external-frontend-interop-plan-2026.md: Updated to reflect `@island` retirement and the status of React interop.
+- examples/golden/inventory_rosetta_platform.vox: Converted `StashMeter` from `@island` to `component` and updated description.
+- docs/src/explanation/glossary.md: Removed "island" from the glossary.
+- docs/src/explanation/expl-rosetta-inventory.md: Removed island mentions.
+- .gitignore: Removed `islands/` from `.gitignore`.
+- docs/src/adr/010-tanstack-web-spine.md: Trimmed passing island mentions.
+- docs/src/examples/golden.md: Updated to remove island-related examples.
+- docs/src/explanation/faq.md: Removed island references from FAQ.
+- docs/src/reference/vox-fullstack-artifacts.md: Updated to remove island-related artifacts.
+- contracts/speech-to-code/vox_grammar_artifact.json: Removed island keyword.
+- docs/src/reference/env-vars.md: Removed island-related environment variable documentation.
+- scripts/vox_system_prompt.txt: Removed "island" keyword from the system prompt.
+- contracts/review/coderabbit-semantic-groups.v1.yaml: Removed island-related groups.
+- docs/src/adr/012-internal-web-ir-strategy.md: Marked ADR-012 as superseded.
+- docs/src/adr/027-dual-track-ui-surfaces.md: Marked ADR-027 as superseded.
+- docs/src/api/DOC_GAPS.md: Removed island-related documentation gaps.
+- docs/src/explanation/expl-ml-pipeline.md: Removed island mentions.
+- docs/src/explanation/expl-runtime.md: Removed island mentions.
+- docs/src/index.mdx: Removed "Islands Architecture" pillar reference.
+- docs/src/reference/diagnostic-taxonomy.md: Removed island-related diagnostics.
+- docs/src/reference/shipped-v0.4.md: Updated to reflect island retirement.
+- docs/src/tutorials/tut-first-app.md: Removed island mentions.
+- docs/src/tutorials/tut-getting-started.md: Removed island mentions.
+- examples/golden/index_showcase.vox: Updated constructs to replace `@island` with `component`.
+- mens/config/domain-profiles.yaml: Removed island keyword.
+- scripts/generate-grammars.vox: Removed "island" from the `KEYWORDS` list.
+- .voxignore: Stripped `islands/` from `.voxignore`.
+- contracts/eval/complexity-budget.v1.json: Removed island-related entries.
+- contracts/mens/golden_decl_expectations.yaml: Removed island-related entries.
+- docs/src/api/vox-codegen-ts.md: Removed island-related codegen details.
+- test_app_bundle/vox-app-contract.json: Removed island-related entries.
+
+--- audit: original='docs: archive island ADRs and remove islands from docs and contracts' | actual=466L across 45 files | derived=full ---
