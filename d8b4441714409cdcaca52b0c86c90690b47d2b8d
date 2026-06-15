@@ -1,0 +1,8 @@
+fix(codegen): restore catch-guard for discarded async endpoint calls
+scale: ~22 lines across 1 files [S]
+
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`:
+  - Modified `floating_endpoint_call_name` to remove the exclusion for async function names (`!ctx.async_fn_names.contains(name)`). This restores the `.catch` guard for discarded calls to async endpoint functions, preventing unhandled promise rejections in fire-and-forget scenarios.
+  - Updated the doc comment for `floating_endpoint_call_name` to clarify that the catch-guard applies to discarded async endpoint calls as well, explaining why fire-and-forget + `.catch` is the correct and safe form when the result is unused.
+
+--- audit: original='fix(codegen): restore catch-guard for discarded async endpoint calls (RN tap crash)' | actual=22L across 1 files | derived=full ---
