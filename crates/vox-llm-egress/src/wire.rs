@@ -11,6 +11,21 @@ use crate::{
 };
 
 #[derive(Serialize)]
+struct OpenAiToolFunction<'a> {
+    name: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<&'a str>,
+    parameters: &'a serde_json::Value,
+}
+
+#[derive(Serialize)]
+struct OpenAiTool<'a> {
+    #[serde(rename = "type")]
+    kind: &'static str,
+    function: OpenAiToolFunction<'a>,
+}
+
+#[derive(Serialize)]
 struct OpenAiChatRequest<'a> {
     model: &'a str,
     messages: &'a [ChatMessage],
@@ -21,17 +36,37 @@ struct OpenAiChatRequest<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     response_format: Option<&'a serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<OpenAiTool<'a>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     tool_choice: Option<&'a serde_json::Value>,
     stream: bool,
 }
 
-fn build_request<'a>(req: &'a EgressRequest, params: &'a ChatParams<'a>, messages: &'a [ChatMessage], stream: bool) -> OpenAiChatRequest<'a> {
+fn build_request<'a>(
+    req: &'a EgressRequest,
+    params: &'a ChatParams<'a>,
+    messages: &'a [ChatMessage],
+    stream: bool,
+) -> OpenAiChatRequest<'a> {
+    let tools = params.tools.map(|ts| {
+        ts.iter()
+            .map(|t| OpenAiTool {
+                kind: "function",
+                function: OpenAiToolFunction {
+                    name: &t.name,
+                    description: t.description.as_deref(),
+                    parameters: &t.parameters,
+                },
+            })
+            .collect()
+    });
     OpenAiChatRequest {
         model: &req.model,
         messages,
         temperature: params.temperature,
         max_tokens: params.max_tokens,
         response_format: params.response_format,
+        tools,
         tool_choice: params.tool_choice,
         stream,
     }

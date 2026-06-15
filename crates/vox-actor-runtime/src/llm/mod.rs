@@ -4,9 +4,11 @@ pub mod cascade;
 mod chat;
 mod embed;
 mod stream;
-pub mod throttle;
 mod types;
-mod wire;
+
+/// The per-provider AIMD throttle now lives in `vox-llm-egress` (the sanctioned egress
+/// core). Re-exported here so existing `vox_actor_runtime::llm::throttle::*` paths keep working.
+pub use vox_llm_egress::throttle;
 
 pub use chat::{infer_with_retry, llm_chat};
 pub use embed::llm_embed;

@@ -120,8 +120,7 @@ mod semcov_wave28_tests {
     // prompt_canonical
     // -----------------------------------------------------------------------
     use crate::prompt_canonical::{
-        canonicalize, canonicalize_prompt, detect_conflicts, extract_objectives,
-        order_invariant_pack, safety_pass,
+        canonicalize, canonicalize_prompt, detect_conflicts, order_invariant_pack, safety_pass,
     };
 
     // Catches: canonicalize must handle an all-whitespace input without panicking.

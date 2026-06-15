@@ -1,6 +1,8 @@
 use futures::StreamExt;
-use vox_llm_egress::{chat_once, embed_once, stream_once, ChatMessage, ChatParams, EgressError, EgressRequest};
-use wiremock::matchers::{header, method, path};
+use vox_llm_egress::{
+    chat_once, embed_once, stream_once, ChatMessage, ChatParams, EgressError, EgressRequest, ToolDef,
+};
+use wiremock::matchers::{body_partial_json, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn req(base: String) -> EgressRequest {
@@ -58,6 +60,30 @@ async fn chat_once_parses_cache_tokens_and_body_cost() {
     let out = chat_once(&r, &[], &ChatParams::default()).await.expect("ok");
     assert_eq!(out.cache_read_tokens, 6);
     assert_eq!(out.cost_usd, Some(0.0021));
+}
+
+#[tokio::test]
+async fn chat_once_serializes_tools() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(body_partial_json(serde_json::json!({
+            "tools": [{"type": "function", "function": {"name": "get_weather"}}]
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1}
+        })))
+        .mount(&server)
+        .await;
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let tools = vec![ToolDef {
+        name: "get_weather".into(),
+        description: None,
+        parameters: serde_json::json!({"type": "object"}),
+    }];
+    let params = ChatParams { tools: Some(&tools), ..Default::default() };
+    let out = chat_once(&r, &[], &params).await.expect("tools request must match + succeed");
+    assert_eq!(out.content, "ok");
 }
 
 #[tokio::test]
