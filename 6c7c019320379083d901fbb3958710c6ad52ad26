@@ -1,0 +1,6 @@
+chore(lychee): ignore blueprism.com and strata.io due to 415 bot-blocking
+scale: ~6 lines across 1 files [XS]
+
+- .lycheeignore: Added regex patterns to ignore all URLs from `blueprism.com` and `strata.io` to prevent `lychee` from reporting 415 "Unsupported Media Type" errors.
+
+--- audit: original='chore: ignore blueprism.com and strata.io in lychee (bot-blocking 415)' | actual=6L across 1 files | derived=full ---
