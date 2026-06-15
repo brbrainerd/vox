@@ -1,0 +1,12 @@
+fix(ci): restore Codex SSOT shim and align baseline policy
+scale: ~54 lines across 7 files [M]
+
+- `scripts/check_codex_ssot.sh`: Add new script, a bash delegate to `vox ci check-codex-ssot`.
+- `contracts/db/baseline-version-policy.yaml`: Update `repository_baseline_integer` to 45 and `repository_baseline_digest_hex` to `0x89a0c0007173c886f85860408b617b737342ebc1202426bc8cb53b16ff0c5db9`.
+- `docs/src/architecture/telemetry-trust-ssot.md`: Document build timing telemetry, including `UsageTelemetry` signals, `build_run` tables, `VOX_BENCHMARK_TELEMETRY`, and MCP `vox_benchmark_list` source selectors. Update `last_updated` date.
+- `crates/vox-test-harness/src/hir_builders.rs`: Fix `hir_fn` builder to correctly initialize `is_mobile_native` field instead of `is_deprecated`.
+- `crates/vox-db/src/local_tests.rs`: Fix typo in `std::env::set_var` call for `VOX_DATA_DIR`.
+- `contracts/capability/model-manifest.generated.json`: Regenerate file, adding 32 lines.
+- `CHANGELOG.md`: Add entries for Codex/CI SSOT fixes, telemetry trust SSOT documentation, and test fixes.
+
+--- audit: original='fix(ci): restore Codex SSOT shim and align baseline policy' | actual=54L across 7 files | derived=full ---
