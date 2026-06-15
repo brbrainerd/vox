@@ -1,0 +1,13 @@
+feat(codegen-ts): add golden emit census probe for App mode behavior
+scale: ~189 lines across 2 files [M]
+
+- `crates/vox-integration-tests/tests/ts_emit_goldens_probe.rs`: New integration test added to drive `lex -> parse -> lower -> codegen_ts::generate_with_options` over the 10 `examples/golden/**/*.vox` files that contain `fn main()` and an `// EXPECT:` line.
+  - This probe records whether TypeScript emission succeeds and if the emitted bundle defines a `main` function.
+  - It specifically uses `BuildMode::App` for `codegen_ts::generate_with_options`.
+  - The test confirms that all 10 goldens emit cleanly but none define a `main` function when `BuildMode::App` is used.
+  - It also verifies that `BuildMode::App` emits an empty `vox-app-contract.json` and boilerplate `vox-tanstack-query.tsx`, dropping top-level `fn main` and its logic.
+- `docs/superpowers/plans/2026-06-06-phase1-cross-arm-parity.md`: Updated the plan document with verification notes from the new probe.
+  - Confirms that `codegen-ts` in `BuildMode::App` is a web-app emitter that discards non-web top-level functions, including `fn main()`.
+  - This finding clarifies that Task 1.A for `codegen-ts` requires a new script/console emit mode, not just synthesizing an entry point for the existing `App` mode.
+
+--- audit: original='test(phase1): codegen-ts golden emit census + plan finding (App mode drops main)' | actual=189L across 2 files | derived=full ---
