@@ -1,0 +1,12 @@
+feat(redundancy): Add integration tests for RedundancyPolicy and BOINC-style adaptive voting
+scale: ~183 lines across 1 files [M]
+
+- Add `redundancy_voting.rs` containing integration tests for `RedundancyPolicy` and `decide_replicas` function.
+- Test `decide_replicas` behavior for `RedundancyMode::None`, `RedundancyMode::Majority`, and `RedundancyMode::Race` with various `TrustTier` values.
+- Verify `min_replicas` clamping to 1 and `skip_above` functionality.
+- Include tests for `decide_replicas_with_seed` to ensure deterministic replica count based on a seed.
+- Add tests for `vote_majority` function, covering scenarios with different numbers of votes, outcomes, and `TrustTier` levels.
+- Test `vote_majority` with `VoteOutcome::Correct`, `VoteOutcome::Incorrect`, and mixed outcomes.
+- Verify `vote_majority` behavior when no majority is reached and when a majority is achieved.
+
+--- audit: original='feat(mesh-types): P6-T4 RedundancyPolicy with BOINC adaptive replication' | actual=183L across 1 files | derived=full ---
