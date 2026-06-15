@@ -1,0 +1,9 @@
+fix(deploy): Switch vox-eval to source build in compose due to GHCR 401
+scale: ~9 lines across 1 files [XS]
+
+- `vox-eval.compose.yml`:
+  - Replaced `image` field with `build` configuration for the `vox-eval-sandbox` service.
+  - Configured Docker build context to `.` and Dockerfile to `Dockerfile`.
+  - Added build arguments `VOX_CLI_FEATURES=""` and `CARGO_BUILD_JOBS="1"` to optimize for memory-constrained VPS.
+
+--- audit: original='fix(deploy): switch to source build for Coolify due to GHCR 401' | actual=9L across 1 files | derived=full ---
