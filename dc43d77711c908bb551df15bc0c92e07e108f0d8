@@ -1,0 +1,12 @@
+docs(architecture): add 2026-05-28 session handoff state audit
+scale: ~247 lines across 1 files [M]
+
+- Add `session-handoff-2026-05-28-state-audit.md` documenting the post-v0.6.0 repository state.
+- Detail ground truth including HEADs, origin divergence, workspace version, `cargo check` status, and working tree state.
+- Summarize 78 commits landed since the 05-25 finalization, including PR #92 merge, Phase H endpoint retirement, perf/governance work, telemetry wiring, corpus engineering, and smoke tests.
+- List closed items from the 05-25 handoff: Task #46, T-FIN-2, T-FIN-3.
+- Identify outstanding items: 6 deferred R-* tracks (R-E, R-F, R-H, R-I, R-J, R-K) and 6 new H-* items (unpushed commits, uncommitted working tree groups A-E, PR #90 decision, stale branch decisions).
+- Audit working tree, identifying 4 thematic groups and noting one (telemetry wiring) as mid-edit and untouched.
+- Reference previous handoff documents: `session-handoff-2026-05-24-lost-work-audit.md`, `session-handoff-2026-05-25-state-of-the-work.md`, `session-handoff-2026-05-25-finalization-pass.md`, and `post-sprint-forward-plan-2026-05-25.md`.
+
+--- audit: original="docs(handoff): state audit 2026-05-28 — post-v0.6.0, what's outstanding" | actual=247L across 1 files | derived=full ---
