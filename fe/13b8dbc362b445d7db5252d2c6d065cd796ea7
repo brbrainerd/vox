@@ -1,0 +1,6 @@
+docs(plan): config & hard-coded values remediation plan (Phase 1)
+scale: ~858 lines across 1 files [L]
+
+- **docs/superpowers/plans/2026-06-15-config-hardcoded-values-remediation.md**: Add a new plan document detailing the first phase of remediation for 8 high-severity hard-coded values identified in the config audit. This plan outlines a TDD approach to extract pure, deterministic resolver functions for each configuration seam, preserving existing defaults and enabling env-var overrides. It specifies the goal, architecture, tech stack (Rust, reqwest, vox_config), and scope, referencing the source of truth for findings.
+
+--- audit: original='docs(plan): config & hard-coded-values Phase 1 remediation plan' | actual=858L across 1 files | derived=full ---
