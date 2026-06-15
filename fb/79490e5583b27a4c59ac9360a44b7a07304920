@@ -1,0 +1,8 @@
+feat(gui): implement searchable settings index and deep-linking
+scale: ~103 lines across 3 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Settings/settingsIndex.ts`: Add new file defining `SettingEntry` interface and `SETTINGS_INDEX` array for searchable settings, along with a `searchSettings` function.
+- `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx`: Integrate settings search functionality by adding a filter input box to the settings navigation, displaying search results, and implementing deep-linking via `localStorage` for `vox_settings_seed`.
+- `crates/vox-gui/ui/src/components/surfaces/Settings/settingsIndex.test.ts`: Add new file with Vitest tests for `SETTINGS_INDEX` uniqueness and the `searchSettings` function, covering case-insensitive matching on label, hint, and keywords.
+
+--- audit: original='feat(gui): searchable settings index + filter + deep-link seed (F4)' | actual=103L across 3 files | derived=full ---
