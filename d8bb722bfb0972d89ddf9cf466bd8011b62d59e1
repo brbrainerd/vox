@@ -1,0 +1,8 @@
+feat(scientia): introduce `schema_types` module with Rust types for research events
+scale: ~475 lines across 3 files [L]
+
+- `crates/vox-research-events/src/schema_types.rs`: New module added, containing hand-generated Rust types for 5 JSON schemas: `discovery-signal.schema.json`, `finding-candidate.v1.schema.json`, `novelty-evidence-bundle.v1.schema.json`, `evidence-pack.v1.schema.json`, and `worthiness-signals.v2.schema.json`. These types are derived from the schemas and include `serde` attributes for serialization/deserialization.
+- `crates/vox-research-events/src/lib.rs`: Exported the newly created `schema_types` module and its main structs/enums (`DiscoverySignal`, `DiscoverySignalFamily`, `DiscoverySignalStrength`, `EvidencePackV1`, `FindingCandidateClass`, `FindingCandidateV1`, `NoveltyEvidenceBundle`, `SignalProvenance`, `WorthinessSignalsV2`).
+- `crates/vox-doc-pipeline/src/pipeline/lint.rs`: Added a comment documenting the source JSON schemas and their corresponding Rust types in `vox-research-events::schema_types`, serving as a reminder to keep them in sync.
+
+--- audit: original='feat(scientia): schema_types module in vox-research-events (Phase 0c)' | actual=475L across 3 files | derived=full ---
