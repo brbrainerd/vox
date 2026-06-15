@@ -1,0 +1,13 @@
+feat(crates): introduce Tauri support, enhance CI, and expand AI/ML capabilities
+scale: ~50479 lines across 842 files [XL]
+
+DIVERGENCE: original subject claimed 'chore(crates): multi-wave crate hardening — Tauri convergence, oratio, CI commands, governance' but this commit actually changed ~50479 lines across 842 files. Top areas:
+crates: 50304 lines, 829 files
+.cursor: 162 lines, 11 files
+(root): 9 lines, 1 files
+tests: 4 lines, 1 files
+
+- **New Crates for Tauri Integration**:
+    - `vox-tauri-codegen`: Provides code
+
+--- audit: original='chore(crates): multi-wave crate hardening — Tauri convergence, oratio, CI commands, governance' | actual=50479L across 842 files | derived=stat-only ---
