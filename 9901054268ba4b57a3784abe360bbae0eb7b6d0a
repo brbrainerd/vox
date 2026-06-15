@@ -1,0 +1,15 @@
+feat(web_ir): Add color vocabulary and pairwise WCAG contrast validation
+scale: ~600 lines across 5 files [L]
+
+- **`crates/vox-codegen/src/web_ir/validate_palette.rs`**: New module for color vocabulary and pairwise contrast validation.
+  - Implements checks for `color`, `bg`, and `border_color` kwargs against a vendored Tailwind palette and project token registry.
+  - Computes WCAG contrast ratios for resolvable foreground/background pairs.
+  - Emits `web_ir_validate.style.unknown_color` errors for unknown color values.
+  - Emits `web_ir_validate.a11y.insufficient_contrast` errors (<3:1 ratio) and `low_contrast` warnings (<4.5:1 ratio).
+  - Includes `PALETTE_JSON` constant for the Tailwind palette.
+- **`contracts/tokens/tailwind-palette.v1.json`**: New file containing the vendored Tailwind default color palette (244 colors).
+- **`crates/vox-codegen/src/web_ir/lower.rs`**: Modified to mirror `color`, `bg`, and `border_color` kwarg values into `data-vox-color`, `data-vox-bg`, and `data-vox-border-color` attributes, respectively, for validation.
+- **`crates/vox-codegen/src/web_ir/mod.rs`**: Added `validate_palette` module to the `web_ir` module.
+- **`crates/vox-codegen/src/web_ir/validate.rs`**: Integrated `validate_palette` into the full Web IR validation process.
+
+--- audit: original='feat(web_ir): color vocabulary + pairwise WCAG contrast on style kwargs' | actual=600L across 5 files | derived=full ---
