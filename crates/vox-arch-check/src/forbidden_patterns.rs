@@ -294,4 +294,32 @@ mod tests {
         let hits = scan(dir.path(), &shell_spawn_rule(), &crate::built_in_walk_prune_names()).unwrap();
         assert_eq!(hits.len(), 0);
     }
+
+    fn abs_path_rule() -> ForbiddenPatternRule {
+        ForbiddenPatternRule {
+            name: "no-hardcoded-abs-path".into(),
+            // Absolute Unix roots OR a Windows drive letter, inside a string literal.
+            pattern: r#""(/(tmp|usr|etc|var|home|opt|bin|root)\b|[A-Za-z]:\\)"#.into(),
+            file_glob: "crates/**/*.rs".into(),
+            exempt_files: vec![],
+            allow_annotation: Some("// vox-arch-check: allow abs-path".into()),
+            reason: "Hardcoded absolute paths break across OSes; use std::env::temp_dir()/dirs/Path::join.".into(),
+        }
+    }
+
+    #[test]
+    fn hardcoded_tmp_path_is_flagged() {
+        let dir = tempfile::tempdir().unwrap();
+        write_fixture(&dir, "crates/x/src/c.rs", "let p = \"/tmp/contracts\";");
+        let hits = scan(dir.path(), &abs_path_rule(), &crate::built_in_walk_prune_names()).unwrap();
+        assert_eq!(hits.len(), 1);
+    }
+
+    #[test]
+    fn hardcoded_drive_path_is_flagged() {
+        let dir = tempfile::tempdir().unwrap();
+        write_fixture(&dir, "crates/x/src/d.rs", "let p = \"C:\\\\Users\\\\Default\";");
+        let hits = scan(dir.path(), &abs_path_rule(), &crate::built_in_walk_prune_names()).unwrap();
+        assert_eq!(hits.len(), 1);
+    }
 }

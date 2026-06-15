@@ -402,6 +402,13 @@ exempt_files     = [
 allow_annotation = "// vox-arch-check: allow shell-spawn"
 reason           = "Shell/PowerShell spawns must be cfg(windows)-gated or resolved via which::which(pwsh|powershell)."
 
+[[forbidden_pattern]]
+name             = "no-hardcoded-abs-path"
+pattern          = '"(/(tmp|usr|etc|var|home|opt|bin|root)\b|[A-Za-z]:\\)'
+file_glob        = "crates/**/*.rs"
+allow_annotation = "// vox-arch-check: allow abs-path"
+reason           = "Hardcoded absolute paths break across OSes; use std::env::temp_dir()/dirs/Path::join."
+
 # ── Planned crates (in-flight design docs; not yet on disk) ──────────────────
 # Rule 12 (WTL parity check) consults this table before flagging a
 # where-things-live.md reference as a ghost.  Each entry must point to the
