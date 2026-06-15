@@ -1,0 +1,12 @@
+feat(plugin-sdk): Add `plugin-abi-parity --build` and wire into CI
+scale: ~87 lines across 4 files [M]
+
+- `crates/vox-cli/src/commands/ci/plugin_abi_parity.rs`:
+    - Implemented `collect_current_platform_plugin_crates` to discover plugin crates targeting the current platform.
+    - Implemented `build_all_plugins` to build all discovered plugin crates using `cargo build -p`.
+    - Modified the `run` function to accept a `build` boolean, conditionally building plugins before checking ABI parity.
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Added a `--build` argument to the `PluginAbiParity` subcommand.
+- `.github/workflows/ci.yml`: Added a new CI step to run `vox ci plugin-abi-parity --build`, ensuring plugin ABI parity is checked in CI.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Updated the `run` function to pass the `build` argument to `plugin_abi_parity::run`.
+
+--- audit: original='feat(plugin-sdk): SP-2 — wire plugin-abi-parity into CI with self-building --build (#190)' | actual=87L across 4 files | derived=full ---
