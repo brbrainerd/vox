@@ -1,0 +1,6 @@
+chore(claude): update local Claude Code permission allow-list
+scale: ~38 lines across 1 files [S]
+
+- `.claude/settings.local.json`: Add 37 new Bash commands to the `code.permission.allow-list` for various operations including `grep`, `sed`, `xargs`, `pnpm`, `curl`, `node`, and `esbuild`.
+
+--- audit: original='chore: sync local Claude Code permission allow-list' | actual=38L across 1 files | derived=full ---
