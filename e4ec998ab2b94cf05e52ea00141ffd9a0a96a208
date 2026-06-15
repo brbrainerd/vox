@@ -1,0 +1,8 @@
+feat(vox-gui): Add Console surface and integrate into App
+scale: ~126 lines across 3 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Console/Console.tsx`: Add new `Console` component, which composes `AgentStrip`, `TerminalTab`, `InputEditor`, and `DiscoveryRail`. It handles submitting lines to a PTY and listening for orchestration status to update agent chips.
+- `crates/vox-gui/ui/src/components/surfaces/Console/Console.test.tsx`: Add unit tests for the `Console` component, verifying rendering of its sub-components and the functionality of submitting lines to the terminal write path. Mocks are used for `transport` and `@xterm/xterm` dependencies.
+- `crates/vox-gui/ui/src/App.tsx`: Integrate the new `Console` component by adding `'console'` to the `View` union type and including a `case 'console'` in the `renderView` function to display the `Console` surface.
+
+--- audit: original='feat(vox-gui): Console surface root wired into App (layout A)' | actual=126L across 3 files | derived=full ---
