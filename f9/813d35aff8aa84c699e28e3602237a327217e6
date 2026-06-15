@@ -1,0 +1,15 @@
+feat(vox-telemetry): Add master switch and default-on local collection
+scale: ~114 lines across 3 files [M]
+
+- `crates/vox-telemetry/src/config.rs`:
+    - Renamed `TelemetryConfig::from_env_legacy()` to `TelemetryConfig::from_env()`.
+    - Implemented a master switch for telemetry via the `VOX_TELEMETRY` environment variable, supporting "off", "0", or "false" to disable all telemetry.
+    - Updated default local collection to be "all categories on" (research_metrics, model_calls, agent_orchestration, build, errors).
+    - Introduced `TelemetryConfig::from_env_legacy()` as an alias for `from_env()` for backward compatibility.
+    - Modified `research_metrics` and `model_calls` categories to respect legacy environment variables (`VOX_BENCHMARK_TELEMETRY` and `VOX_MCP_LLM_COST_EVENTS`) if set, otherwise defaulting to `true`.
+- `crates/vox-telemetry/src/lib.rs`:
+    - Exported `is_master_enabled` function from the `config` module.
+- `crates/vox-telemetry/Cargo.toml`:
+    - Added `serial_test` as a development dependency.
+
+--- audit: original='feat(vox-telemetry): VOX_TELEMETRY master switch + default-on local collection' | actual=114L across 3 files | derived=full ---
