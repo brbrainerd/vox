@@ -1,0 +1,8 @@
+docs(quantize): SP-1 to SP-4 TDD implementation plans for vox-quantize
+scale: ~1840 lines across 4 files [XL]
+- docs/superpowers/plans/2026-05-31-vox-quantize-engine.md: Add detailed implementation plan for `vox-quantize` engine (SP-1), covering architecture, tech stack, and a spike task to confirm Candle's quantized-bytes accessor.
+- docs/superpowers/plans/2026-05-31-vox-quantize-inference.md: Add implementation plan for quantized inference wiring (SP-2), including architecture, tech stack, and a task to read existing model code.
+- docs/superpowers/plans/2026-05-31-vox-quantize-merge.md: Add implementation plan for quantizing merged QLoRA (SP-3), detailing architecture, tech stack, and a task for recombining subset-over-base models.
+- docs/superpowers/plans/2026-05-31-vox-quantize-cli.md: Add implementation plan for `vox quantize` CLI (SP-4), outlining architecture, tech stack, and tasks for wiring dependencies and creating the command skeleton.
+
+--- audit: original='docs(quantize): SP-1..SP-4 TDD implementation plans' | actual=1840L across 4 files | derived=full ---
