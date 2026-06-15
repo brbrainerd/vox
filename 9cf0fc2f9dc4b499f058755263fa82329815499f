@@ -1,0 +1,6 @@
+refactor(codegen_ts): improve readability of `ts_ty` function
+scale: ~8 lines across 1 files [XS]
+
+- `crates/vox-codegen/src/codegen_ts/vox_client.rs`: Refactored `ts_ty` function to improve readability by moving `map` and `unwrap_or_else` calls to new lines for `List`/`Set` and `Option` type handling.
+
+--- audit: original='chore: rustfmt on-device-materializer + harness changes' | actual=8L across 1 files | derived=full ---
