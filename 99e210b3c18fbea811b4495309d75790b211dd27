@@ -1,0 +1,6 @@
+fix(gui): prevent double-calling finish_gui_run in executeIpcWithRun
+scale: ~16 lines across 1 files [S]
+
+- `crates/vox-gui/ui/src/App.tsx`: Introduced a `finished` flag to `executeIpcWithRun` to ensure `finish_gui_run` is only invoked once, preventing a double-call if the success path throws an error.
+
+--- audit: original='fix(gui): guard executeIpcWithRun against finish_gui_run double-call' | actual=16L across 1 files | derived=full ---
