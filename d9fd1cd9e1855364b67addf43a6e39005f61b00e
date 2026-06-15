@@ -1,0 +1,7 @@
+feat(gui): add headless e2e relaunch smoke test for GUI-backend wiring
+scale: ~147 lines across 2 files [M]
+
+- `crates/vox-gui/tests/gui_relaunch_smoke.rs`: New test `gui_relaunch_smoke` that verifies the GUI's headless functionality. It relaunches the `vox-orchestrator-d` binary, drives `OrchDaemonClient` RPC calls (ping, orchestrator_status, agent_ids), and asserts a fresh daemon reports zero agents. It also asserts the command-catalog logic (`get_command_catalog` -> `build_catalog`) links and returns a non-empty catalog. This test does not construct a `tauri::Builder` app, making it suitable for bare CI runners without a display. It is gated by the `VOX_GUI_RELAUNCH_SMOKE` environment variable and marked as ignored.
+- `crates/vox-cli/src/commands/ci/gui_smoke.rs`: Added a new "Lane E" to the `gui-smoke` CI command. This lane builds the `vox-orchestrator-d` binary and then runs the `gui_relaunch_smoke` test from `vox-gui`. This lane is also gated by the `VOX_GUI_RELAUNCH_SMOKE` environment variable, skipping cleanly if unset.
+
+--- audit: original='feat(gui): automated headless e2e relaunch smoke (vox ci gui-smoke Lane E)' | actual=147L across 2 files | derived=full ---
