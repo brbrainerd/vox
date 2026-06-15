@@ -1,0 +1,15 @@
+docs(plan): introduce post-sprint forward plan and update residual work plan
+scale: ~428 lines across 2 files [L]
+
+- **docs/src/architecture/post-sprint-forward-plan-2026-05-25.md**:
+    - Add new document outlining the post-sprint forward plan.
+    - Details 11 tracks (R-A through R-K) with concrete prescriptions for items not fixed in the F-* sprint.
+    - Includes sections for acceptance criteria, out-of-scope items, and future session guidance.
+    - Lists companion documents and verified ground truth as of 2026-05-25.
+- **docs/src/architecture/free-by-default-and-residual-work-plan-2026.md**:
+    - Update "Verified ground truth" section to reflect `build.1237` and `cargo check` wall-time (~34s).
+    - Add a new update note (2026-05-25) indicating F-B/C/D/E/F/G execution and cross-referencing the new post-sprint plan.
+    - Remove `Local main ↔ origin/main` divergence and `Tasks complete in audit` entries from ground truth.
+    - Update `Free-tier infrastructure` to reflect `default_cost_preference() = Performance` and `ModelTier variants in YAML` to note the absence of `Fast` and `Free`.
+
+--- audit: original='docs(plan): post-sprint forward plan + master plan reconciliation' | actual=428L across 2 files | derived=full ---
