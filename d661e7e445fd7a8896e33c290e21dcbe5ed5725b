@@ -1,0 +1,10 @@
+feat(wasm-engine): extract `minimal_wasi_exit_success_wasm` to shared test module
+scale: ~55 lines across 3 files [M]
+
+- `crates/vox-wasm-engine/tests/common/mod.rs`: New file created to host shared test fixtures.
+  - Added `minimal_wasi_exit_success_wasm` function, which returns a WASI module that calls `proc_exit(0)`.
+  - Included module-level documentation explaining its purpose and the `#[allow(dead_code)]` attribute.
+- `crates/vox-wasm-engine/tests/wasm_exec_smoke.rs`: Removed the local definition of `minimal_wasi_exit_success_wasm` and imported it from `common`.
+- `crates/vox-wasm-engine/tests/wasm_fuel_integration.rs`: Removed the local definition of `minimal_wasi_exit_success_wasm` and imported it from `common`.
+
+--- audit: original='refactor(wasm-engine): extract shared minimal_wasi_exit_success_wasm helper' | actual=55L across 3 files | derived=full ---
