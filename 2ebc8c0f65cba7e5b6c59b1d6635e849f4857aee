@@ -1,0 +1,22 @@
+feat(orchestrator): Implement multi-agent isolation policies and branch creation
+scale: ~737 lines across 17 files [L]
+
+- `isolation.rs`: Added `IsolationStrategy` enum (SharedBranch, SplitChanges, SeparateBranches) and `IsolationPlan` struct to manage per-workload and per-agent strategy assignments.
+- `workspace.rs`: Implemented `setup_isolation` to apply strategy-specific setup for agents, including creating logical changes for `SplitChanges` and binding to branches for `SeparateBranches`.
+- `isolation_shared_branch_test.rs`: Added a new test to verify that `SharedBranch` isolation correctly denies concurrent writers to the same file via `LockConflict`.
+- `json_vcs_facade.rs`: Added `isolation_status_json` to provide a facade for live multi-agent isolation status, including default strategy, per-agent overrides, and active conflicts.
+- `scope.rs`: Introduced `multi_agent_enforcement` function to escalate `Warn` scope enforcement to `Strict` when multiple agents are active, ensuring stricter boundaries.
+- `jj_backend.rs`: Added `create_branch` operation to create or move local jj bookmarks, used for `SeparateBranches` isolation.
+- `orchestrator/core/mod.rs`: Integrated isolation policy management and conflict resolution into the orchestrator's core.
+- `config/orchestrator_fields.rs`: Added configuration fields for default isolation strategy and per-agent overrides.
+- `orchestrator/task_dispatch/submit/task_submit.rs`: Modified task submission logic to incorporate isolation policies and enforce file locks.
+- `services/policy.rs`: Updated policy services to handle isolation strategies.
+- `jj_actor.rs`: Integrated `create_branch` functionality into the `JjActor`.
+- `orchestrator/task_dispatch/submit/batch.rs`: Adjusted batch processing to account for isolation strategies.
+- `orchestrator/accessors.rs`: Added accessors for the isolation policy handle.
+- `backend.rs`: Extended the VCS backend trait to include `create_branch`.
+- `lib.rs`: Updated crate-level imports and modules.
+- `orchestrator.rs`: Integrated isolation policy into the main orchestrator logic.
+- `config/impl_default.rs`: Updated default configuration for orchestrator fields.
+
+--- audit: original='feat(orchestrator): P4 backend — multi-agent isolation policy + create_branch (Tasks 1-6) (#193)' | actual=737L across 17 files | derived=full ---
