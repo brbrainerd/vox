@@ -1,0 +1,7 @@
+docs(superpowers): Add CLI→GUI hybrid-spine design and surface coverage map
+scale: ~310 lines across 2 files [L]
+
+- docs/superpowers/specs/2026-06-01-cli-gui-hybrid-spine-design.md: New document detailing the approved hybrid-spine system design for deriving GUI panels from CLI metadata. It outlines the problem of current GUI coverage gaps, proposes a solution involving a typed ActionManifest v2, surface decorators, and a canonical ActionEvent path into the Ludus bus, and identifies Scientia as the flagship decorator. It also decomposes the plan into SP-1 to SP-4, with SP-1 (action spine) being the first plan-ready slice.
+- docs/src/architecture/cli-gui-surface-coverage-map-2026.md: New document providing a per-surface gap matrix of CLI versus GUI representation. It identifies CLI-rich/GUI-poor gaps, particularly for `scientia` and `ludus`, and presents an "association thesis" linking VoxScientia, Vox Ludus, and other uncovered surfaces as a single system.
+
+--- audit: original='docs(gui): CLI→GUI hybrid-spine design + per-surface coverage map' | actual=310L across 2 files | derived=full ---
