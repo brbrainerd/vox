@@ -1,0 +1,19 @@
+fix(compiler,corpus): FS/process shape parity, @table insert(id) exclusion, and run_ex script updates
+scale: ~221 lines across 5 files [M]
+
+- `crates/vox-compiler/src/builtin_registry.rs`:
+    - Changed the typecheck for `fs.remove` and `fs.mkdir` from `Result[str]` to `Result[unit]`, aligning with their actual return types (unit/bool) in the interpreter and codegen.
+    - Made `Ty::Unit` shape permissive to match `VoxValue::Null` or `VoxValue::Object(_)` for builtins returning unit.
+- `crates/vox-compiler/src/typeck/builtins.rs`:
+    - Modified the type signature for `@table insert` to exclude the auto-generated `id` primary key from the required record fields, allowing `db.T.insert({...non-id})` to typecheck.
+- `scripts/pre-claim.vox`:
+    - Rewrote the script to use `std.process.run_ex` and `print` instead of `std::process::Command` and `println` for process execution and output.
+    - Updated error handling to use `Error(e)` for `Result` and `std.process.exit`.
+- `scripts/gui-build.vox`:
+    - Migrated `process.run_ex(...).code` usage to `std.process.run_capture_ex(...).exit` to reflect the updated `run_ex` contract where `run_ex` returns `Result[int]` and `run_capture_ex` returns a record with an `exit` field.
+    - Added an empty list for the `env` argument to `std.process.run_capture_ex`.
+- `scripts/ci/gui-e2e-check.vox`:
+    - Migrated `process.run_ex(...).code` usage to `std.process.run_capture_ex(...).exit` for consistency with the updated `run_ex` contract.
+    - Added an empty list for the `env` argument to `std.process.run_capture_ex`.
+
+--- audit: original='fix(compiler,corpus): FS/process shape parity + @table insert(id) + fix run_ex-shape script fallout' | actual=221L across 5 files | derived=full ---
