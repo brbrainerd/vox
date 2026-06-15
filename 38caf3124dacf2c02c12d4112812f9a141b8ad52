@@ -1,0 +1,27 @@
+feat(inference): implement CandleCpu backend with Qwen generation loop
+scale: ~587 lines across 7 files [L]
+
+- `crates/vox-inference/src/backends/candle_cpu.rs`:
+    - Replaced the stub `CandleCpuBackend` with a functional implementation.
+    - Added `load_from_dir` to load Qwen models from local directories.
+    - Implemented the `predict` method using the new `generate` module.
+    - Introduced `LoadedState` to manage per-model state (QwenForward, tokenizer).
+    - Defined `QWEN_DEFAULT_EOS` for Qwen models.
+- `crates/vox-inference/src/generate.rs`:
+    - Added a new module for autoregressive token generation.
+    - Implemented the `generate` function for deterministic decoding (greedy/top-p).
+    - Defined `GenConfig` for generation parameters (max_new_tokens, temperature, top_p, eos_token_id).
+    - Introduced `GenerateError` for generation-specific errors.
+    - Documented the O(seq^2) performance limitation due to re-feeding the full sequence.
+- `crates/vox-inference/src/dispatcher.rs`:
+    - Updated the `auto_dispatch_picks_cpu_but_bundle_load_unsupported` test to reflect that `ModelBundle` loading is not yet supported for `CandleCpuBackend` (due to missing CAS resolver).
+    - Corrected the test to expect an `Unsupported` error with a "CAS" message.
+- `crates/vox-inference/src/backend.rs`:
+    - Added `Q5K` and `Q6K` quantization types to the `Quantization` enum.
+- `crates/vox-inference/src/lib.rs`:
+    - Exposed the new `generate` module.
+- `crates/vox-inference/Cargo.toml`:
+    - Added `tokenizers` dependency.
+- `Cargo.lock`: Updated lockfile to reflect new dependency.
+
+--- audit: original='feat(inference): generate loop + real CandleCpu load_from_dir/predict (stub removed; ModelBundle CAS gap documented)' | actual=587L across 7 files | derived=full ---
