@@ -1,0 +1,8 @@
+feat(populi): introduce `http_auth` module for shared bearer resolution
+scale: ~160 lines across 3 files [M]
+
+- `crates/vox-populi/src/http_auth.rs`: New module added, providing `trimmed_nonempty_secret_arc`, `trimmed_nonempty_secret_string`, `mesh_worker_plane_bearer_string`, and `deliver_bearer_string` functions for consistent secret resolution and bearer token generation. Includes unit tests for these functions.
+- `crates/vox-populi/src/transport/auth.rs`: Refactored `PopuliMeshAuthRuntime::from_env` to utilize the new `http_auth::trimmed_nonempty_secret_arc` for resolving mesh, worker, submitter, admin, and JWT HMAC tokens, significantly reducing code duplication.
+- `crates/vox-populi/Cargo.toml`: Added `reqwest-middleware` as an optional dependency under the `transport` feature.
+
+--- audit: original='fix(populi): add missing http_auth module source' | actual=160L across 3 files | derived=full ---
