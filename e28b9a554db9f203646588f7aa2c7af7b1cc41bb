@@ -1,0 +1,9 @@
+feat(ci): add mandatory `vox check` for scripts; remove `fs.list_recursive`
+scale: ~67 lines across 4 files [M]
+
+- ci(.github/workflows/ci.yml): Add a new "Vox script corpus check" step to the `guards-fast` job. This step finds all `.vox` files in the `scripts/` directory and runs `vox check` on each. The step fails the CI gate if any script fails the check.
+- docs(reference/ref-builtins-stdlib.md): Remove `fs.list_recursive` from the list of interpreter-only caveats and from the `fs.walk` row, as it was never implemented and `fs.glob` is canonical.
+- docs(superpowers/plans/2026-05-23-voxlang-hosting-docs-overhaul.md): Update an example to replace `fs.list_recursive(docs_dir, "*.md")` with `fs.glob(docs_dir + "/**/*.md")`.
+- docs(architecture/vox-stdlib-gap-audit-2026-05-23.md): Mark Task 8 (remove `fs.list_recursive`), Task 10 (all `scripts/**/*.vox` pass `vox check`), and Task 13 (promote `vox check scripts/**` to mandatory CI) as complete in the audit document. Update the deferred tasks section accordingly.
+
+--- audit: original='fix(docs+ci): Task 8 + Task 13 from stdlib gap audit' | actual=67L across 4 files | derived=full ---
