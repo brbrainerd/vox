@@ -1,0 +1,8 @@
+fix(security): Correct constant_time_eq length check to prevent false positives
+scale: ~23 lines across 1 files [S]
+
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/mod.rs`:
+    - Changed `constant_time_eq` to use `(a.len() != b.len()) as u8` instead of `(a.len() ^ b.len()) as u8` for initial length comparison. This prevents false equality when lengths differ by multiples of 256.
+    - Added a new test `constant_time_eq_length_256_multiple_not_equal` to verify the fix, specifically for cases where lengths differ by 256 or 512.
+
+--- audit: original='fix(security): constant_time_eq length XOR truncation (FIX-K-06)' | actual=23L across 1 files | derived=full ---
