@@ -1,0 +1,7 @@
+fix(grounding): improve diagnostic for invalid char boundary in summary processing
+scale: ~30 lines across 1 files [S]
+
+- In `split_summary_into_claim_segments`, replaced a generic `expect` message with a detailed `panic!` message for `char-boundary` errors, including the byte index and string length for better debugging.
+- Added a new test `char_iteration_handles_multibyte_unicode` to `grounding.rs` to verify correct iteration over multibyte UTF-8 characters in the summarization loop.
+
+--- audit: original='fix(hygiene): diagnostic message on char-boundary expect (FIX-E-01)' | actual=30L across 1 files | derived=full ---
