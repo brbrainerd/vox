@@ -1,0 +1,13 @@
+refactor(git): Add `vox-arch-check` comments for git commands and update HTTP client usage
+scale: ~844 lines across 132 files [XL]
+
+- `crates/vox-cli`: Added `// vox-arch-check: allow git-exec` comments to numerous `Command::new("git")` calls across various subcommands (review/coderabbit/github/reviews, repo_upgrade, review/coderabbit/git). This indicates a refactoring for architectural compliance or auditing.
+- `crates/vox-orchestrator`: Replaced `vox_reqwest_defaults` with `vox_http_client` for client building and instantiation in `OpenRouterCatalog`, `OllamaCatalog`, `HuggingFaceCatalog`, and `PopuliMeshCatalog`.
+- `Cargo.lock`: Updated dependencies due to the changes in `crates/vox-orchestrator` and other crates.
+- `Cargo.toml`: Updated `vox-cli` and `vox-http-client` dependencies.
+- `docs/src/architecture/layers.toml`: Modified architecture layer definitions.
+- `crates/vox-mesh-policy`, `crates/vox-http-envelope`, `crates/vox-openai-sse`, `crates/vox-agentos-mutation`, `crates/vox-mens-eval`: Removed these crates, indicating a dependency cleanup or consolidation.
+- Many other crates had minor dependency updates or code formatting changes (e.g., `crates/vox-actor-runtime`, `crates/vox-codegen`, `crates/vox-gamify`, `crates/vox-openai`, `crates/vox-populi`, `crates/vox-search`, `crates/vox-webhook`, `crates/vox-build-meta`, `crates/vox-compiler`, `crates/vox-drift-check`, `crates/vox-forge`, `crates/vox-ml-cli`, `crates/vox-openclaw-runtime`, `crates/vox-oratio`, `crates/vox-package`, `crates/vox-plugin-populi-mesh`, `crates/vox-publisher`, `crates/vox-skills`).
+- `README.md`: Minor update, likely related to the image path fix mentioned in the original commit message.
+
+--- audit: original='docs: fix image path in README' | actual=844L across 132 files | derived=full ---
