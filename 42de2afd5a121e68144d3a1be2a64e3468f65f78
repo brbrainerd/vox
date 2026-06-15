@@ -1,0 +1,8 @@
+refactor(vox-claim-extractor): de-duplicate fnv1a_hash and improve claim validation
+scale: ~37 lines across 3 files [S]
+
+- `crates/vox-claim-extractor/src/minicheck.rs`: Removed a duplicate `fnv1a_hash` function, relying on the one in `crate::atomic`.
+- `crates/vox-claim-extractor/src/pipeline.rs`: Modified claim validation to filter out claims that fail serialization to JSON, logging a warning instead of panicking.
+- `crates/vox-claim-extractor/src/span.rs`: Changed span overlap calculation to use `span_slice` (the text within the span) instead of the entire source text for word comparison.
+
+--- audit: original='fix(scientia): code quality — de-dup fnv1a_hash, span slice, silent-drop guard (Phase 1)' | actual=37L across 3 files | derived=full ---
