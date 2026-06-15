@@ -140,6 +140,7 @@
     "ci completion-audit",
     "ci completion-gates",
     "ci completion-ingest",
+    "ci config-gui-codegen",
     "ci config-hygiene",
     "ci config-registry-parity",
     "ci constrained-gen-smoke",
