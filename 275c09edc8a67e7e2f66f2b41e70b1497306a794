@@ -1,0 +1,8 @@
+fix(codegen): repair TSX emit for `for` loops and `inject_key_into_jsx`
+scale: ~250 lines across 3 files [L]
+
+- `crates/vox-codegen-ts/src/hir_emit/mod.rs`: Hardens `inject_key_into_jsx` to correctly skip JSX expression values (`{...}`) and string literals (`"..."`, `'...'`) when scanning for the end of a JSX opening tag, preventing false matches on `>` or `/` inside attributes.
+- `crates/vox-codegen/src/web_ir/emit_tsx.rs`: Corrects `DomNode::Loop` emit to use the pre-built partial expression from `lower.rs` for `iterator` and only append the arrow function body grouping and closing `.map(` paren, preventing double `.map()` calls. Also updates `inject_key_into_jsx` with the same hardening logic as `hir_emit/mod.rs`.
+- `crates/vox-codegen/src/web_ir/lower.rs`: Calls `unwrap_inline_hir_block_expr` on the `HirExpr::For` body before lowering it to `DomNode`, ensuring single-expression blocks like `{ <Elem/> }` are correctly lowered as `DomNode::Element` instead of `DomNode::Expr`, which would produce invalid TSX.
+
+--- audit: original='fix(codegen): repair ts-noemit failures — inject_key_into_jsx scanner + HirExpr::Block in For body' | actual=250L across 3 files | derived=full ---
