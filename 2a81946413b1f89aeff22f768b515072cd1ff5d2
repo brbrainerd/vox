@@ -1,0 +1,15 @@
+feat(vox-jsonschema-util): Implement initial codegen module for contract validation
+scale: ~238 lines across 11 files [M]
+
+- `crates/vox-jsonschema-util`: Added a new `codegen` module with sub-modules for loading, validating, and emitting code from contract definitions.
+- `crates/vox-jsonschema-util/src/codegen/loader.rs`: Implemented functionality to parse `contracts/index.yaml` into a `ContractIndex` struct.
+- `crates/vox-jsonschema-util/src/codegen/validator.rs`: Implemented validation logic for `ContractIndex` against `index.schema.json` and added `x-vox-version` parity checks for individual JSON schemas.
+- `crates/vox-jsonschema-util/examples/emit_agent_harness.rs`: Added an example to generate a Rust struct for `AgentHarnessSpec` and its related types, including SHA256 manifest generation.
+- `crates/vox-jsonschema-util/src/codegen/diff.rs`: Added a placeholder module for future diffing functionality.
+- `crates/vox-jsonschema-util/src/codegen/emit_rust.rs`: Added a placeholder module for future Rust code emission.
+- `crates/vox-jsonschema-util/src/codegen/emit_sql.rs`: Added a placeholder module for future SQL code emission.
+- `crates/vox-jsonschema-util/Cargo.toml`: Updated dependencies to include `serde`, `serde_yaml`, `regex`, and `sha2`.
+- `crates/vox-orchestrator/src/generated/generated.manifest.sha256`: Added a generated manifest file for `agent_harness.rs`.
+- `.gitignore`: Updated to ignore generated files.
+
+--- audit: original='M-10: First codegen pass inside vox-jsonschema-util' | actual=238L across 11 files | derived=full ---
