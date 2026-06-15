@@ -1,0 +1,6 @@
+fix(orchestrator): propagate session manager init error
+scale: ~3 lines across 1 files [XS]
+
+- `crates/vox-orchestrator/src/bin/vox_orchestrator_d.rs`: Replaced `unwrap_or_else(|e| panic!(...))` with `.context("session manager initialization failed")?` for `SessionManager::new`, allowing the error to propagate via `anyhow::Result` instead of panicking. Added `use anyhow::Context as _;`.
+
+--- audit: original='fix(crash): propagate session-manager init error with ? (FIX-O-03)' | actual=3L across 1 files | derived=full ---
