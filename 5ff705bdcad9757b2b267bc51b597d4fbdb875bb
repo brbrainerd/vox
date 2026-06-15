@@ -1,0 +1,4 @@
+feat(vox-db,
+scale: ~655 lines across 12 files [L]
+
+--- audit: original='feat(vox-db, vox-orchestrator-queue): persist file-lock map to vox-db (P0-T1)' | actual=655L across 12 files | derived=full ---
