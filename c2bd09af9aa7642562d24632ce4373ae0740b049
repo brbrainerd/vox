@@ -1,0 +1,7 @@
+ci(github-actions): run mesh-compose validation on ubuntu-latest
+scale: ~6 lines across 1 files [XS]
+
+- `.github/workflows/ci.yml`: Changed the `mesh-compose-config` job's `runs-on` property from `[self-hosted, linux, x64, docker]` to `ubuntu-latest` to ensure `docker compose config` runs successfully.
+- `.github/workflows/ci.yml`: Added comments explaining why `ubuntu-latest` is used, noting that the self-hosted runner lacked the Docker Compose plugin.
+
+--- audit: original='ci: run mesh-compose validation on ubuntu-latest (self-hosted runner lacks docker compose plugin)' | actual=6L across 1 files | derived=full ---
