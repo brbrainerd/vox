@@ -1,0 +1,14 @@
+feat(codegen): wire `@scheduled` durable boot into Tauri target
+scale: ~59 lines across 2 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/emit/mod.rs`:
+    - Modified `emit_tauri_main_rs` to detect `@scheduled` functions and generate code to register and start them.
+    - Introduced `has_scheduled` and `needs_setup` flags to conditionally generate setup code.
+    - Wrapped the durable-boot prelude within `tauri::async_runtime::block_on` in the Tauri `main.rs` setup.
+    - Used `std::mem::forget` to keep the scheduler handle alive.
+    - Integrated the new scheduled block with the existing `has_tables` setup.
+    - Appended `load_hir_module_from_embedded` when `@scheduled` functions are present.
+- `crates/vox-codegen/src/codegen_rust/mod.rs`:
+    - Added a new test `tauri_main_registers_scheduled_fns` to verify that `@scheduled` functions are registered, the scheduler is started, and the `HirModule` is embedded in the generated Tauri `main.rs`.
+
+--- audit: original='feat(codegen): wire @scheduled durable boot into the Tauri target' | actual=59L across 2 files | derived=full ---
