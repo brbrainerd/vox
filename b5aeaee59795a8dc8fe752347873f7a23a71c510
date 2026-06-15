@@ -1,0 +1,12 @@
+feat(plugin-sdk): `vox plugin scaffold` emits SDK-based, loadable plugins
+scale: ~89 lines across 4 files [M]
+
+- `crates/vox-cli/src/commands/plugin/scaffold.rs`:
+    - Updated `write_plugin_toml` to dynamically stamp `abi-version` in `Plugin.toml` from `VOX_PLUGIN_ABI_VERSION` (12) instead of a hardcoded `1` for `Code` and `Composite` plugin kinds.
+    - Changed `payload_section` generation for `Code` and `Composite` kinds to use `format!` for embedding the `abi` variable.
+    - Added `use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;` to retrieve the current ABI version.
+- `crates/vox-plugin-sdk/src/lib.rs`: Added a documentation comment to the `declare_plugin!` macro, explaining the requirement for `abi_stable` as a direct dependency in consuming crates.
+- `crates/vox-cli/Cargo.toml`: Added a direct dependency on `vox-plugin-api` to access `VOX_PLUGIN_ABI_VERSION`.
+- `Cargo.lock`: Updated due to the new `vox-plugin-api` dependency.
+
+--- audit: original='feat(plugin-sdk): SP-5 — `vox plugin scaffold` emits SDK-based, loadable plugins (#192)' | actual=89L across 4 files | derived=full ---
