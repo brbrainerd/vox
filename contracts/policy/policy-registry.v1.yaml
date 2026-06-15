@@ -70,6 +70,23 @@ policies:
   default_enabled: true
   protected: true
   origin: builtin
+- id: arch-rule/forbidden_pattern
+  domain: arch-rule
+  title: Architecture guard
+  group: Architecture
+  description: Architecture guard (layers.toml [guards].forbidden_pattern = "error")
+  severity: error
+  blocking: true
+  runs_on:
+  - pre-push
+  - ci
+  source:
+    kind: guard
+    ref: docs/src/architecture/layers.toml#guards.forbidden_pattern
+    detail: vox-arch-check guard `forbidden_pattern`
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: arch-rule/generated_file_drift
   domain: arch-rule
   title: '@generated hash header drift'
@@ -584,6 +601,22 @@ policies:
     kind: command
     ref: contracts/ci/check-targets.v1.yaml#retired-symbol-check
     detail: cargo run -q -p vox-cli -- ci retired-symbol-check
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: audit-check/semcov-gates
+  domain: audit-check
+  title: semcov-gates
+  group: Audit checks / audit
+  description: vox-audit semcov-gates (no NEW silent-drop or touch-test findings beyond the committed grandfather baselines)
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/ci/check-targets.v1.yaml#semcov-gates
+    detail: cargo run -q -p vox-audit --bin semcov-gates
   default_enabled: true
   protected: false
   origin: builtin
