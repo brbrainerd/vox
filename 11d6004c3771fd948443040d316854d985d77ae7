@@ -1,0 +1,8 @@
+fix(ci-runner): set RUSTC_WRAPPER after sccache installation
+scale: ~7 lines across 1 files [XS]
+
+- `infra/ci-runner/Dockerfile`:
+    - Moved the `ENV RUSTC_WRAPPER=sccache` declaration from before `cargo install sccache` to after it.
+    - Added comments explaining why `RUSTC_WRAPPER` is set later, preventing build failures where `rustc` would try to invoke a non-existent `sccache`.
+
+--- audit: original='fix(ci-runner): set RUSTC_WRAPPER after sccache install (build was failing) (#162)' | actual=7L across 1 files | derived=full ---
