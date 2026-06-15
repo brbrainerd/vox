@@ -171,7 +171,7 @@ vox-skills              = { layer = 3, staleness_exempt = true }
 vox-cli-core            = { layer = 3 }
 
 vox-orchestrator-mcp    = { layer = 3, max_loc = 40_000 }        # Phase 4 extraction
-vox-mcp-llm-bridge      = { layer = 3, max_loc = 5_000 }         # MCP LLM inference bridge — provider routing, free-tier policy, per-vendor HTTP adapters (extracted from vox-orchestrator-mcp 2026-06-15)
+vox-mcp-llm-bridge      = { layer = 3, max_loc = 5_000, staleness_exempt = true }  # MCP LLM inference bridge — provider routing, free-tier policy, per-vendor HTTP adapters (extracted from vox-orchestrator-mcp 2026-06-15)
 vox-orchestrator-queue  = { layer = 3 }                          # Phase 5 extraction
 vox-orchestrator-driver = { layer = 3 }                          # CLI/MCP embedded orchestrator driver (2026 debt burndown)
 vox-search              = { layer = 3 }
