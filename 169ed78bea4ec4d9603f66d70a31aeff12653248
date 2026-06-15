@@ -1,0 +1,10 @@
+docs(superpowers): add vox-orchestrator-core extraction design
+scale: ~186 lines across 1 files [M]
+
+- Add new design document for splitting `vox-orchestrator` into a `-core` crate.
+- Document supersedes the 2026-05-15 tier-d plan with updated metrics and current state verification.
+- Detail trigger-gated plan, including `max_loc` headroom (19.7% at 56,200 LoC), Rule 13 status, and `vox-arch-check` status.
+- Note that the plan exits at D0 due to current conditions not meeting the trigger thresholds.
+- Provide updated information on `Orchestrator` struct location, external consumers, and `dei_shim` extraction status.
+
+--- audit: original='docs(spec): vox-orchestrator-core extraction design (2026-05-28)' | actual=186L across 1 files | derived=full ---
