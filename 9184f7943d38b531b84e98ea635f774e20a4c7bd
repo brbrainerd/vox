@@ -1,0 +1,8 @@
+fix(deps): update tiktoken-rs to 0.12 and turso to 0.6
+scale: ~302 lines across 3 files [L]
+
+- `Cargo.toml`: Updated `tiktoken-rs` from 0.5 to 0.12 and `turso` from 0.4 to 0.6.
+- `Cargo.lock`: Regenerated due to dependency updates.
+- `crates/vox-orchestrator/src/context/token_optimization.rs`: Removed `.to_vec()` calls when passing `head_tokens` and `tail_tokens` to `bpe.decode()`, as `tiktoken-rs` 0.12's `decode` method now accepts `&[u32]` directly instead of `Vec<u32>`.
+
+--- audit: original='chore(deps): tiktoken-rs 0.5→0.12 + turso 0.4→0.6 (verified builds) (#286)' | actual=302L across 3 files | derived=full ---
