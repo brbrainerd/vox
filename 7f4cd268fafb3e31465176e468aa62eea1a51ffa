@@ -1,0 +1,13 @@
+feat(capabilities): derive microphone capability from Speech module usage
+scale: ~169 lines across 2 files [M]
+
+- contracts/capability/runtime-capabilities.v1.yaml: Added a new `microphone` capability definition, including `tauri_permission`, `android_uses_permission`, and `ios_info_plist_keys` for microphone access.
+- crates/vox-compiler/src/required_capabilities.rs:
+    - Introduced `is_speech_module` and `is_speech_method` helper functions to identify Speech module calls.
+    - Extended `UsageFlags` struct with a `microphone` field to track microphone usage.
+    - Modified `collect_fs_rw_from_expr` to also detect and set the `microphone` flag when `Speech.transcribe` or `Speech.transcribe_microphone` methods are called.
+    - Updated `collect_fs_rw_from_expr` and its recursive calls to pass the new `mic` (microphone) flag.
+    - Refactored `collect_capabilities_from_hir` to initialize `UsageFlags` and pass its fields to the expression collection.
+    - Added logic in `collect_capabilities_from_hir` to add the `microphone` capability to the `required_capabilities` if the `microphone` usage flag is set.
+
+--- audit: original='feat(capabilities): derive microphone capability from Speech use' | actual=169L across 2 files | derived=full ---
