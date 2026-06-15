@@ -1,0 +1,10 @@
+docs(release-criteria): split CR-F2 into sub-criteria and update codegen-rust status
+scale: ~39 lines across 1 files [S]
+
+- `docs/src/architecture/v1-release-criteria.md`:
+    - Split the monolithic `CR-F2 Cross-arm parity` into `CR-F2a (interp==codegen-rust logic parity)`, `CR-F2b (codegen-ts web emit correctness)`, and `CR-F2c (emit-routing/split discipline)`.
+    - Updated the status of `CR-F2a` to reflect a new logic-parity gate and ratchet allowlist.
+    - Noted that `codegen-rust` now passes 3/10 logic goldens (decimal_math, mesh/noop, while_loop_algorithms) and 7 are allowlisted with verified rustc errors.
+    - Removed the previous status indicating 0/10 `codegen-rust` compilation success.
+
+--- audit: original='feat(cr-f2): logic-parity harness + ratchet allowlist; split CR-F2 into a/b/c' | actual=39L across 1 files | derived=full ---
