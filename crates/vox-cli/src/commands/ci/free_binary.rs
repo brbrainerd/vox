@@ -74,7 +74,10 @@ pub fn run(root: &Path, target: Option<PathBuf>, apply: bool) -> Result<()> {
     let target_dir = target.unwrap_or_else(|| root.join("target"));
     let locking = scan_locking_pids(&target_dir);
     if locking.is_empty() {
-        println!("free-binary: no stale vox processes hold {}", target_dir.display());
+        println!(
+            "free-binary: no stale vox processes hold {}",
+            target_dir.display()
+        );
         return Ok(());
     }
     for lp in &locking {

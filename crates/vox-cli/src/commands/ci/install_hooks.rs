@@ -167,18 +167,30 @@ mod tests {
         // The hook must build from source (not cargo run which also tries to relink
         // while already running), reap stale lockers via a copy, and run gates from
         // a sidecar copy so consecutive pushes don't lock each other.
-        assert!(PRE_PUSH_HOOK.contains("cargo build -q -p vox-cli"),
-            "hook must use cargo build (not cargo run) to get the fresh binary path");
-        assert!(PRE_PUSH_HOOK.contains("ci free-binary"),
-            "hook must call free-binary to reap stale lockers");
-        assert!(PRE_PUSH_HOOK.contains("--apply"),
-            "hook must pass --apply to actually kill stale procs");
-        assert!(PRE_PUSH_HOOK.contains("vox-prepush"),
-            "hook must run gates from a sidecar copy (vox-prepush)");
-        assert!(PRE_PUSH_HOOK.contains("ci pre-push"),
-            "hook must invoke ci pre-push subcommand");
+        assert!(
+            PRE_PUSH_HOOK.contains("cargo build -q -p vox-cli"),
+            "hook must use cargo build (not cargo run) to get the fresh binary path"
+        );
+        assert!(
+            PRE_PUSH_HOOK.contains("ci free-binary"),
+            "hook must call free-binary to reap stale lockers"
+        );
+        assert!(
+            PRE_PUSH_HOOK.contains("--apply"),
+            "hook must pass --apply to actually kill stale procs"
+        );
+        assert!(
+            PRE_PUSH_HOOK.contains("vox-prepush"),
+            "hook must run gates from a sidecar copy (vox-prepush)"
+        );
+        assert!(
+            PRE_PUSH_HOOK.contains("ci pre-push"),
+            "hook must invoke ci pre-push subcommand"
+        );
         // Must NOT use the old self-locking form.
-        assert!(!PRE_PUSH_HOOK.contains("cargo run -q -p vox-cli -- ci pre-push"),
-            "hook must NOT use 'cargo run' to invoke pre-push (causes self-lock)");
+        assert!(
+            !PRE_PUSH_HOOK.contains("cargo run -q -p vox-cli -- ci pre-push"),
+            "hook must NOT use 'cargo run' to invoke pre-push (causes self-lock)"
+        );
     }
 }
