@@ -1,0 +1,9 @@
+docs(architecture): skip doctests for Vox snippets in Mesh architecture plans
+scale: ~22 lines across 4 files [S]
+
+- docs/src/architecture/mesh-phase4-dashboard-control-plan-2026.md: Added `// vox:skip` to 10 Vox code blocks to prevent doctest execution.
+- docs/src/architecture/mesh-dashboard-and-distributed-compute-research-2026.md: Added `// vox:skip` to 3 Vox code blocks.
+- docs/src/architecture/mesh-phase1-language-spine-plan-2026.md: Added `// vox:skip` to 3 Vox code blocks.
+- docs/src/architecture/mesh-mens-distributed-training-and-execution-plan-2026.md: Added `// vox:skip` to 1 Vox code block.
+
+--- audit: original='docs(architecture): skip doctest for illustrative mesh Vox snippets' | actual=22L across 4 files | derived=full ---
