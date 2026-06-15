@@ -1,0 +1,6 @@
+fix(peft-rs): wrap `Tensor::reshape` result in `Ok` to handle `PeftError` coercion
+scale: ~2 lines across 1 files [XS]
+
+- `patches/peft-rs-1.0.3/src/adapters/lora.rs`: Wrapped the `Tensor::reshape` call within the `DoraLayer::forward` method in `Ok(...)` to correctly coerce `candle_core::Error` into `PeftError` due to changes in `candle` 0.10.2 where `Tensor::reshape` now returns `Result`. This resolves a type mismatch error (E0308).
+
+--- audit: original='fix(peft-rs): coerce candle 0.10 reshape error into PeftError (Ok(...?))' | actual=2L across 1 files | derived=full ---
