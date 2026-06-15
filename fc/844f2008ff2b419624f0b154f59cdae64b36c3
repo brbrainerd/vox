@@ -1,0 +1,12 @@
+feat(audit): Add workflow-determinism, net-decl, and pure-fn effect detectors
+scale: ~684 lines across 4 files [L]
+
+- `crates/vox-code-audit/src/detectors/pure_fn_impure.rs`: Add new detector `PureFnImpureDetector` to identify `@pure fn` declarations in Vox files that contain impure builtin calls (HTTP, file I/O, database, random, logging, concurrency primitives).
+- `crates/vox-code-audit/src/detectors/effect_net_decl.rs`: Add new detector `EffectNetDeclDetector` to find public or endpoint functions in Vox files that make HTTP/network calls without an `@uses(net)` decorator.
+- `crates/vox-code-audit/src/detectors/workflow_nondeterministic.rs`: Add new detector `WorkflowNondeterministicDetector` to detect calls to non-deterministic builtins (e.g., `time.now`, `random.*`, `uuid()`) inside `workflow { }` blocks or `workflow fn` bodies in Vox source files.
+- `crates/vox-code-audit/src/detectors/mod.rs`:
+    - Add new modules `workflow_nondeterministic`, `effect_net_decl`, and `pure_fn_impure`.
+    - Register the new detectors in the `all_rules` function.
+    - Update `rule_count` from 41 to 44 to reflect the addition of these three new rules.
+
+--- audit: original='feat(audit): Phase 4/5 effect-system detectors — workflow-determinism, net-decl, pure-fn' | actual=684L across 4 files | derived=full ---
