@@ -1,0 +1,15 @@
+feat(vox-cli): persist extracted claims and add `vox scientia claims` command
+scale: ~112 lines across 3 files [M]
+
+- `crates/vox-cli/src/commands/scientia_phase_handlers.rs`:
+    - Persisted extracted claims and their verdicts to `scientia_claims` and `scientia_claim_verdicts` tables.
+    - Derived `session_id` from `publication_id` using FNV-1a for claim storage.
+    - Added `publication_session_id` helper function to generate the session ID.
+    - Implemented `verdict_to_row` helper to convert `VerifiabilityClass` to database-friendly format.
+    - Added `publication_claims` function to retrieve and print publication claims and verdicts as JSON.
+- `crates/vox-cli-core/src/scientia.rs`:
+    - Added `Claims` subcommand to `ScientiaCmd` for listing publication claims, including `publication_id` argument.
+- `crates/vox-cli/src/commands/scientia.rs`:
+    - Integrated the new `ScientiaCmd::Claims` subcommand to call `publication_claims` handler.
+
+--- audit: original='feat(vox-cli): persist extracted claims + `vox scientia claims` read (stage 2)' | actual=112L across 3 files | derived=full ---
