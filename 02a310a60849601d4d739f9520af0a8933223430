@@ -1,0 +1,16 @@
+ci(github-actions): split check-and-test into parallel jobs
+scale: ~331 lines across 1 files [L]
+
+- **.github/workflows/ci.yml**:
+    - Replaced the monolithic `check-and-test` job with six new jobs: `setup`, `guards-fast`, `lints`, `compiler-gates`, `tests`, and `audits`.
+    - Introduced a `setup` job to warm the Cargo cache by building `vox-cli`, with a timeout of 20 minutes.
+    - Created `guards-fast` job for quick checks (e.g., line endings, manifest, fmt, SSOT/data/telemetry guards, doc-inventory, retired-surface guards, contracts index, workflow scripts allowlist), with a timeout of 15 minutes.
+    - Added `lints` job for `rustdoc`, `clippy`, `TOESTUB` scoped, `hakari`, and grammar export checks, with a timeout of 20 minutes.
+    - Implemented `compiler-gates` job for routes/SPA scaffold, eval-matrix, WebIR validate, projection parity, golden examples, and compiler benches, with a timeout of 20 minutes.
+    - Created `tests` job for `nextest`+`llvm-cov`, doctests, repo SSOT/MCP, mesh transport, `vox-db` replication, and coverage report/artifacts, with a timeout of 30 minutes.
+    - Added `audits` job for `TOESTUB` full crates, build timings, feature matrix, all-features check, completion quality, CUDA, mens corpus mix, and populi gate, with a timeout of 25 minutes.
+    - Each new job now explicitly restores the Cargo cache using a key generated in the `setup` job.
+    - The `check-and-test` job's original steps were distributed among these new parallel jobs.
+    - The overall structure now uses `needs` to ensure `guards-fast`, `lints`, `compiler-gates`, `tests`, and `audits` run after `setup`.
+
+--- audit: original='ci: split check-and-test into 5 parallel jobs + summary aggregator' | actual=331L across 1 files | derived=full ---
