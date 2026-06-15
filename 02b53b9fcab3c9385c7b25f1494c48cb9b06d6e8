@@ -1,0 +1,10 @@
+feat(vox-arch-check): add `criteria-format` lint and `check-target` wiring
+scale: ~262 lines across 5 files [L]
+
+- `crates/vox-arch-check/src/criteria_format.rs`: New module implementing `check_criteria_format` to validate `[CR-*]` blocks in `v1-release-criteria.md` for `verify_cmd`, `artifact_path`, and `if_failing` fields. Includes helper functions `field_present` and `split_blocks`.
+- `crates/vox-arch-check/src/main.rs`: Adds a new `run_criteria_format_lint` function and integrates it into the main entry point, allowing `vox-arch-check --lint criteria-format` to execute only this specific lint.
+- `crates/vox-arch-check/tests/criteria_format.rs`: New test file with unit tests for `check_criteria_format`, including a test that asserts the live `v1-release-criteria.md` document passes the lint.
+- `crates/vox-arch-check/src/lib.rs`: Exposes the `criteria_format` module as part of the library's public API.
+- `contracts/ci/check-targets.v1.yaml`: Adds a new `criteria-format` check target for CI and pre-push, configured to run the `vox-arch-check --lint criteria-format` command.
+
+--- audit: original='feat(vox-arch-check): CR-META criteria-format lint (--lint criteria-format) + check-target wiring' | actual=262L across 5 files | derived=full ---
