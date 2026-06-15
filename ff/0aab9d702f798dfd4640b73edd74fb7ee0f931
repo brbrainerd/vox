@@ -1,0 +1,9 @@
+fix(ci): Adjust web_vite_smoke test path for workspace root
+scale: ~14 lines across 4 files [S]
+
+- test(web_vite_smoke): Corrected the `vox_file` path in `full_stack_minimal_vite_production_build` to properly resolve from the workspace root, ensuring the fixture is found during CI runs.
+- feat(cli): Added support for copying `.css` files during React app scaffolding in `scaffold_react_app`.
+- refactor(compiler): Changed the `App` function in `tanstack_programmatic_routes.rs` from a default export to a named export.
+- refactor(vscode): Removed `modelList` state and related handling from the `webview-ui/src/index.tsx` component.
+
+--- audit: original='feat: add frontend scaffolding and TanStack Start integration support for Vox CLI' | actual=14L across 4 files | derived=full ---
