@@ -1,0 +1,6 @@
+fix(deps): Update tower-lsp-server to version 0.23
+scale: ~2 lines across 1 files [XS]
+
+- `Cargo.toml`: Updated `tower-lsp-server` dependency from `0.20` to `0.23`.
+
+--- audit: original='fix(workspace): tower-lsp-server version 0.20 → 0.23 (pre-push manifest error)' | actual=2L across 1 files | derived=full ---
