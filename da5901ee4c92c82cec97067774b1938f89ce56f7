@@ -1,0 +1,10 @@
+docs(vuv): add Gradio/Streamlit research and VUV improvement roadmap
+scale: ~1626 lines across 5 files [XL]
+
+- docs/src/architecture/gradio-streamlit-research-2026.md: Add a new document detailing research on Gradio and Streamlit, including their history, architecture, and suitability for LLM-authored GUIs, with lessons for VUV.
+- docs/superpowers/plans/2026-05-08-vuv-improvement-roadmap.md: Add a new VUV improvement roadmap document outlining a seven-phase plan (VUV-9 to VUV-15), including detailed TDD steps for VUV-9 (naming policy, rename registry, codemod, arch-check enforcement) and resolutions to open questions from the research document.
+- docs/src/feed.xml: Regenerate the RSS feed to include the new documentation.
+- docs/src/SUMMARY.md: Regenerate the documentation summary to include the new documents.
+- docs/src/architecture/architecture-index.md: Regenerate the architecture index to include the new research document.
+
+--- audit: original='docs(vuv): add Gradio/Streamlit research + VUV improvement roadmap' | actual=1626L across 5 files | derived=full ---
