@@ -1,0 +1,23 @@
+fix(interp): carry typed Result errors and fix nullary-variant match catch-all
+scale: ~260 lines across 7 files [L]
+
+- `crates/vox-compiler/src/eval/builtins.rs`:
+    - Updated `Result.err()`, `Result.unwrap()`, `Result.unwrap_err()`, and `Result.expect()` methods to handle `VoxValue::Result` carrying `Box<VoxValue>` for errors instead of `String`.
+    - Modified `Result.map_err()` to pass the actual error `VoxValue` to the closure and box its return value.
+- `crates/vox-compiler/tests/interpreter_test.rs`: Added two new interpreter tests:
+    - `result_carries_typed_error_value`: Verifies that `Result[T, E]` correctly carries a typed error value (e.g., `Error(Timeout(30))`) at runtime, allowing it to be matched.
+    - `nullary_variant_match_is_not_catch_all`: Confirms that bare capitalized patterns (nullary variants) are correctly matched as constructors, preventing them from acting as catch-all bindings.
+- `crates/vox-compiler/src/eval/expr.rs`:
+    - Modified the `eval_expr` function for `Result` constructor calls (`Err` or `Error`) to box the actual error `VoxValue` instead of converting it to a string.
+    - Updated `apply_closure_method` for `Result.map_err` to pass the `Box<VoxValue>` error to the closure and box the closure's return value.
+- `crates/vox-compiler/src/eval/stmt.rs`:
+    - Adjusted `eval_pattern` for `Result` error patterns to destructure the `Box<VoxValue>` error.
+    - Added a new pattern matching arm for `VoxValue::Constructor` to correctly handle bare nullary variant values in `match` statements.
+- `crates/vox-compiler/src/eval/value.rs`:
+    - Changed the `VoxValue::Result` enum variant to store `core::result::Result<Box<VoxValue>, Box<VoxValue>>`, allowing typed error values.
+    - Added a new helper function `err_str` to box a `String` into `VoxValue::Str` for compatibility with existing string-based error handling.
+- `crates/vox-compiler/src/parser/descent/stmt.rs`:
+    - Modified the parser to interpret bare capitalized identifiers (`TypeIdent`) in patterns as `Pattern::Constructor` with no fields, rather than `Pattern::Ident` (a binding), to correctly handle nullary variant matching.
+- `contracts/reports/humaneval/2026-06-03.json`: Added a new HumanEval report file.
+
+--- audit: original='fix(interp): carry typed Result error values + fix nullary-variant match catch-all' | actual=260L across 7 files | derived=full ---
