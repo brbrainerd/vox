@@ -1,0 +1,6 @@
+ci(link-checker): Exclude .claude and node_modules from lychee scan
+scale: ~3 lines across 1 files [XS]
+
+- `.github/workflows/link_checker.yml`: Modified the `lychee-action` arguments to exclude `.claude/**` and `**/node_modules/**` paths from the link checker scan. This prevents the action from checking links in gitignored directories that might exist locally.
+
+--- audit: original='ci: exclude .claude and node_modules from lychee input' | actual=3L across 1 files | derived=full ---
