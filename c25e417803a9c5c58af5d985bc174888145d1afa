@@ -1,0 +1,8 @@
+feat(typeck): register `repo` namespace and `RepoModule` methods
+scale: ~24 lines across 1 files [S]
+
+- `crates/vox-compiler/src/typeck/builtins.rs`:
+    - Registered `repo` as a namespace bound to `RepoModule`.
+    - Defined `RepoModule` methods: `snapshot(str) -> int`, `changes() -> [int]`, and `undo() -> int`.
+
+--- audit: original='feat(compiler): register repo/RepoModule in typechecker (golden typecheck-clean)' | actual=24L across 1 files | derived=full ---
