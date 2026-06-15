@@ -1,0 +1,15 @@
+feat(corpus): migrate 3 golden UI fixtures to view-call form
+scale: ~32 lines across 3 files [S]
+
+- `examples/golden/reactive_counter.vox`:
+  - Converted the `view` block from JSX to VUV view-call syntax, replacing `div` with `column`, `h2` with `heading(level=2)`, `p` with `text()`, and `button` with `button(on_click={...})`.
+  - Removed 5 lines and added 7 lines.
+- `examples/golden/dashboard_ui.vox`:
+  - Updated `last_validated` to `2026-05-02` and `constructs` tag from `jsx` to `vuv-view-call`.
+  - Converted the `view` block from JSX to VUV view-call syntax, replacing `div` with `column` and `h1` with `heading(level=1)`.
+  - Removed 3 lines and added 3 lines.
+- `examples/golden/v0_shadcn_island.vox`:
+  - Converted the `view` block from JSX `<span>"shell"</span>` to VUV view-call `text() { "shell" }`.
+  - Removed 1 line and added 1 line.
+
+--- audit: original='feat(corpus): VUV-7 — migrate 3 golden UI fixtures to view-call form' | actual=32L across 3 files | derived=full ---
