@@ -1,0 +1,16 @@
+feat(gui): Add sidebar filter and improve search keyboard navigation
+scale: ~42 lines across 2 files [S]
+
+- `crates/vox-gui/ui/src/components/layout/Sidebar.tsx`:
+    - Implemented a filter input for the sidebar that narrows navigation items by label.
+    - Force-expands all sections when the filter is active.
+    - Hides empty groups when filtering.
+    - Added a `navFilter` state and `filtering` derived state.
+    - Modified `visibleItems` to filter based on `navFilter`.
+    - Updated `open` logic for sections to always be open when filtering.
+    - Added a `useState` import.
+- `crates/vox-gui/ui/src/components/surfaces/Search/SearchView.tsx`:
+    - Modified arrow key navigation in `SearchView` to wrap around the list of search results.
+    - Added `focus-visible` rings to `ScopeChip` and `FacetChip` components for improved accessibility.
+
+--- audit: original='feat(gui): sidebar filter + search keyboard polish (G4/G5)' | actual=42L across 2 files | derived=full ---
