@@ -1,0 +1,16 @@
+feat(mcp): inject tier-1 skill catalog into chat system prompt
+scale: ~149 lines across 2 files [M]
+
+- `crates/vox-orchestrator-mcp/src/chat_tools/skill_catalog.rs`: New module added to provide functions for rendering skill catalogs and pinned skill bodies.
+  - Defines `CatalogEntry` struct for skill name and description.
+  - Implements `render_skill_catalog` to generate a cache-stable, alphabetical, and length-capped "## Skills" section for the system prompt.
+  - Implements `render_pinned_skill` for direct injection of full skill bodies.
+  - Sets constants `DESC_CAP` (256 chars) and `PINNED_BODY_CAP` (32KB) for content capping.
+- `crates/vox-orchestrator-mcp/src/chat_tools/mod.rs`:
+  - Imports the new `skill_catalog` module.
+  - Modifies `build_system_prompt` to integrate tier-1 skill disclosure.
+  - Retrieves all skills from `state.orchestrator.skill_registry`.
+  - Maps skills to `skill_catalog::CatalogEntry` instances.
+  - Calls `skill_catalog::render_skill_catalog` with these entries and a cap of 64 to append the skill catalog to the system prompt.
+
+--- audit: original='feat(mcp): inject tier-1 skill catalog into chat system prompt' | actual=149L across 2 files | derived=full ---
