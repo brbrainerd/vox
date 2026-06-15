@@ -1,0 +1,8 @@
+fix(arch): reclassify vox-effort-audit as L3 to resolve layer inversion
+scale: ~16 lines across 3 files [S]
+
+- `docs/superpowers/specs/2026-05-28-effort-audit-core-design.md`: Updated the layer classification of `vox-effort-audit` from L2 to L3, explaining that it depends on the L3 `vox-actor-runtime` LLM facade, making it a heavy-runtime consumer like other L3 crates.
+- `docs/superpowers/plans/2026-05-28-effort-audit-core.md`: Corrected the architectural description to state `vox-effort-audit` as an L3 crate due to its consumption of the `vox-actor-runtime` L3 LLM facade.
+- `docs/src/architecture/layers.toml`: Changed the `layer` property for `vox-effort-audit` from 2 to 3 and added a comment explaining the reclassification based on its dependency on `vox-actor-runtime`.
+
+--- audit: original='fix(arch): reclassify vox-effort-audit as L3 (resolve layer inversion)' | actual=16L across 3 files | derived=full ---
