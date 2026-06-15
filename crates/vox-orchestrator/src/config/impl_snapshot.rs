@@ -48,8 +48,11 @@ impl OrchestratorConfig {
             match find_vox_toml() {
                 Some(path) => match Self::load_from_toml(&path) {
                     Ok(loaded) => cfg = loaded,
-                    Err(e) => tracing::debug!(
-                        "OrchestratorConfig::snapshot: failed to load {:?}: {e}",
+                    // A parse failure here means an existing Vox.toml is being silently
+                    // replaced with all-defaults — surface it at warn so a corrupt config
+                    // is visible instead of masquerading as intentional defaults.
+                    Err(e) => tracing::warn!(
+                        "OrchestratorConfig::snapshot: failed to load {:?}, falling back to defaults: {e}",
                         path
                     ),
                 },
