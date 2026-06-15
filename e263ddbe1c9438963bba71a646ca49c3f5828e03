@@ -1,0 +1,6 @@
+docs(audit): update 2026 plan after session 8 verification pass
+scale: ~2 lines across 1 files [XS]
+
+- docs/src/architecture/crate-audit-and-plan-2026.md: Added a new "State after session 8" section, detailing the verification pass results. This section clarifies that `arch-check` is clean and identifies several previously listed P4 tasks (D-3, D-8, A-22, C-10, C-15, D-5, D-11, D-13, D-14) as either false positives or already completed. It also lists the remaining genuine work: D-7-rescope (L), A-12 (L), and X-1.
+
+--- audit: original='docs(audit): session-8 verification pass — retire 9 false-positive tasks' | actual=2L across 1 files | derived=full ---
