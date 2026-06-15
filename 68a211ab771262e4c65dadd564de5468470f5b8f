@@ -1,0 +1,13 @@
+docs(plan): add v1.0 completion roadmap with phased implementation
+scale: ~198 lines across 1 files [M]
+
+- docs/superpowers/plans/2026-06-06-v1-completion-roadmap.md: Add a new document outlining the Vox v1.0 completion roadmap. This plan details the goal of achieving a state where `vox audit --gate all --strict-block-ga` exits 0, covering Foundation (CR-F), Distribution (CR-K), GUI (CR-U), and measurable Product (CR-A/E/D/L) gates. It explicitly carves out 4 external-infra gates (CR-P1/P2/P3, CR-E3) as manual/post-GA. The document describes the architecture where every criterion becomes a registered `vox-audit` gate subcommand, writing JSON artifacts and reporting `{observed, target, met}`. It highlights the gate framework (Phase 0) as keystone, including `CR-META` and `CR-F0` for self-verification. The plan is structured into phases:
+    - Phase 0: Gate framework (keystone, ~20h)
+    - Phase 1: CR-F2 codegen-rust parity (long pole, ~60-80h)
+    - Phase 2: CR-F foundation gates (~50h)
+    - Phase 3: CR-K distribution (~90h)
+    - Phase 4: CR-U GUI (~48h)
+    - Phase 5: Product gates + external-infra carve-out (~40h)
+    The total estimated time is ~310-330h, with 3 parallel streams after Phase 0. It also specifies a reusable failing-test-first gate pattern and golden-driven codegen fixes. The plan descopes codegen-ts to v1.1. The document includes a current-state map audited against `main` as of 2026-06-06, detailing built, partial, and unbuilt gates across various tiers (CR-META, CR-F, CR-K, CR-U, CR-A, CR-E, CR-D, CR-L, CR-P).
+
+--- audit: original='docs(plan): v1.0 completion roadmap — gate-framework-first, TDD, phased' | actual=198L across 1 files | derived=full ---
