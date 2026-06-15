@@ -1,0 +1,10 @@
+feat(quantize): add shape mismatch guard and clear stale merge-quant directories
+scale: ~33 lines across 2 files [S]
+
+- `crates/vox-quantize/src/recombine.rs`:
+    - Added a shape mismatch guard during recombination to ensure merged tensor dimensions match base tensor dimensions, preventing incorrect merges.
+    - Added a new test case `merged_key_shape_mismatch_errors` to verify the shape mismatch guard.
+- `crates/vox-ml-cli/src/commands/schola/merge_qlora.rs`:
+    - Added logic to clear stale `recombined_full` and `quantized` directories before reuse, preventing issues from previous sharded runs or incomplete operations.
+
+--- audit: original='fix(quantize): recombine shape-mismatch guard + clear stale merge-quant dirs' | actual=33L across 2 files | derived=full ---
