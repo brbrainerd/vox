@@ -316,7 +316,7 @@ impl CloudJobSpec {
     /// Construct from config defaults. Use builder pattern for non-default fields.
     pub fn new_train(config: &CloudProviderConfig) -> Self {
         Self {
-            model_id: crate::mens::DEFAULT_MODEL_ID.to_string(),
+            model_id: crate::mens::default_model_id(),
             preset: "auto".to_string(),
             train_data_hf: None,
             adapter_upload_hf: None,
@@ -338,7 +338,7 @@ impl CloudJobSpec {
     /// Construct a serve job spec.
     pub fn new_serve(config: &CloudProviderConfig, max_runtime_secs: u64) -> Self {
         Self {
-            model_id: crate::mens::DEFAULT_MODEL_ID.to_string(),
+            model_id: crate::mens::default_model_id(),
             preset: "auto".to_string(),
             train_data_hf: None,
             adapter_upload_hf: None,

@@ -69,7 +69,10 @@ pub async fn llm_chat(
                 stream: false,
             };
 
-            let mut req = client.post(&base_url).json(&req_body);
+            let mut req = client
+                .post(&base_url)
+                .json(&req_body)
+                .timeout(super::timeout::request_timeout(&config));
             if !api_key.is_empty() {
                 req = req.bearer_auth(api_key);
             }

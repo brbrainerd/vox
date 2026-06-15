@@ -12,7 +12,24 @@ use anyhow::{Context, Result};
 use std::io::Write;
 use std::path::PathBuf;
 
-const DEFAULT_SERVER_URL: &str = "http://127.0.0.1:7863";
+/// Default base URL of the local MENS inference server (`--legacy-direct` path).
+const DEFAULT_INFERENCE_URL: &str = "http://127.0.0.1:7863";
+
+/// Resolve the inference server base URL: explicit `--server-url` wins, then the
+/// `VOX_INFERENCE_URL` environment override, then the built-in default.
+fn resolve_inference_url(explicit: Option<&str>) -> String {
+    resolve_inference_url_from(explicit, std::env::var("VOX_INFERENCE_URL").ok().as_deref())
+}
+
+/// Pure resolution core (precedence: explicit → env override → default), split
+/// out so the precedence logic is unit-testable without touching the process
+/// environment.
+fn resolve_inference_url_from(explicit: Option<&str>, env_override: Option<&str>) -> String {
+    explicit
+        .or(env_override)
+        .unwrap_or(DEFAULT_INFERENCE_URL)
+        .to_string()
+}
 
 /// Run the generate command.
 pub async fn run(
@@ -132,7 +149,7 @@ async fn run_legacy_direct(
     validate: bool,
     max_retries: u32,
 ) -> Result<GenerateOutput> {
-    let url = server_url.unwrap_or(DEFAULT_SERVER_URL);
+    let url = resolve_inference_url(server_url);
     let endpoint = format!("{}/generate", url);
 
     match client.get(format!("{}/health", url)).send().await {
@@ -198,4 +215,37 @@ async fn run_legacy_direct(
         .unwrap_or_default();
 
     Ok((code, valid, errors, warnings, attempts))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_inference_url_prefers_explicit() {
+        // Explicit value wins regardless of any environment override.
+        assert_eq!(
+            resolve_inference_url(Some("http://example.invalid:9000")),
+            "http://example.invalid:9000"
+        );
+    }
+
+    #[test]
+    fn resolve_inference_url_env_then_default() {
+        // No env override → built-in default.
+        assert_eq!(
+            resolve_inference_url_from(None, None),
+            DEFAULT_INFERENCE_URL
+        );
+        // Env override applies when no explicit value is given.
+        assert_eq!(
+            resolve_inference_url_from(None, Some("http://10.0.0.5:7000")),
+            "http://10.0.0.5:7000"
+        );
+        // Explicit value beats the env override.
+        assert_eq!(
+            resolve_inference_url_from(Some("http://explicit:1"), Some("http://env:2")),
+            "http://explicit:1"
+        );
+    }
 }

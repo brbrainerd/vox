@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { voxTransport } from '../../transport';
 import { Icon } from '../ui/Icons';
 import { CommandCatalogEntry } from '../../types/catalog';
 import { Agent } from '../../types/dashboard';
@@ -106,7 +107,7 @@ export function CommandPalette({ open, onClose, onAction, agents, skills }: Comm
   const openHit = useCallback(async (hit: UnifiedHit) => {
     if (hit.locator.kind === 'file' || hit.locator.kind === 'web') {
       try {
-        await invoke('open_locator', { locator: hit.locator });
+        await voxTransport.openLocator(hit.locator);
       } catch {
         // swallow — palette is closing
       }
@@ -166,7 +167,7 @@ export function CommandPalette({ open, onClose, onAction, agents, skills }: Comm
       // already on Settings) still consumes the seed.
       try { window.dispatchEvent(new Event('vox-settings-seed')); } catch { /* ignore */ }
     } else {
-      invoke('open_locator', { locator: { kind: 'file', path: item.path } }).catch(() => {});
+      voxTransport.openLocator({ kind: 'file', value: item.path }).catch(() => {});
     }
     onClose();
   };

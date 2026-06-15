@@ -10,46 +10,46 @@ training_eligible: false
 
 ## TL;DR
 
-- **We proved 15.9% of production behavior, not "most of it."** Of 19,445 production symbols, only **3,088 (15.9%)** are assertion-backed. **7,950** are reached-but-unproven (executed by a test with **zero asserted behavior**), and **~8,407** are neither reached nor proven (effectively dead/untested).
-- **The keystone gap is 7,950, not 3.** A prior committed artifact reported reached-but-unproven as **"3"** — that number came from a near-empty partial llvm-cov run and was flatly wrong. The true figure is **7,950**, and it is the real size of the work.
+- **We proved 15.9% of production behavior, not "most of it."** Of 19,445 production symbols, only **3,088 (15.9%)** are assertion-backed. **5,793** are reached-but-unproven (executed by a test with **zero asserted behavior**) — the keystone gap.
+- **The keystone gap is 5,793 (reproducible), not 3.** An earlier committed artifact reported reached-but-unproven as **"3"** (a near-empty partial run) and was then corrected to a directional **7,950**; the now-**reproducible** figure from a real 1.19M-line-execution run is **5,793**. That is the real size of the remaining work.
 - **We tested the easy leaf functions, not the exigent structural gaps.** The ~2,409 merged semcov tests are broad and well-written, but they overwhelmingly target tokenizers, validators, span merges, serde round-trips, and formatter idempotence — exactly the "useless touch" surface the initiative was meant to avoid.
 - **Of the 7 named structural pipeline-gap patterns, 6 have NO dedicated coverage and 1 (split-brain) has a single weak intra-crate case.** The named headline regression — `top-level let → Decl::Const → catch-all → value vanishes` — is **completely untested** (zero `Decl::Const` references in the entire suite).
-- **The reach data is not yet reproducible in CI.** Every CI run was cancelled; the numbers come from one local llvm-cov run that needed a Windows arg-limit chunking workaround and excluded 3 crates from executing their own tests. Treat the reach column as directionally true, not audit-grade.
+- **Reach is now reproducible locally, but not yet a CI gate.** The 5,793 comes from a real full-workspace run (1.19M lines executed, 60 crates) after fixing the `peft-rs` exit-101 blocker. The remaining gap is wiring this into CI as an enforced ratchet.
 
 ## What is actually DONE (verified)
 
 - **~2,409 semcov `#[test]` functions across ~214 files are merged to `main`** (via PR #299; the larger PR #303 was closed but its content had already landed). This is real, merged, running code — not a branch.
 - **3,088 production symbols are genuinely proven** with specific behavioral assertions on real code paths. That is a real floor, not an aspiration.
 - **Adversarial quality audit of 7 sampled modules found 65–93% "real signal"** — specific behavioral assertions on real paths, with **no purely vacuous tests** in the sample. Crypto AEAD tests check authentication (not just round-trips).
-- **The misreported "3" artifact has been corrected to the true 7,950.** The lie is out of the record.
+- **The misreported "3" artifact has been corrected to the reproducible 5,793** (via 7,950). The lie is out of the record.
 - **Two new `vox-code-audit` detectors landed and DO target the structural patterns**: `catch_all_swallow` (wildcard match arm drops a value) and `cross_crate_dup` (split-brain duplicated logic). These are the right detectors for patterns #1 and #7 — though detectors are not tests, and the tests that would exercise the patterns still do not exist.
 
 ## What is PARTIAL / misleading
 
-- **Reach numbers are not CI-reproducible.** Every CI attempt was cancelled. The 7,950 figure is from a single local llvm-cov run requiring a Windows command-line arg-limit chunking workaround. **3 crates — `vox-compiler`, `vox-corpus`, `vox-config` — were excluded from executing their own tests** (their transitive reach was still counted). So their own reached/proven splits are softer than the table implies, and nothing here is yet gate-enforced.
+- **Reach is reproducible locally but not yet gate-enforced in CI.** The 5,793 is from a real full-workspace run (1.19M lines executed); the earlier 3-crate exclusion (`vox-compiler`/`vox-corpus`/`vox-config`) is resolved — all now compile and execute their own tests after the `peft-rs` fix. What remains is porting the profraw-merge/chunked-export path into CI (Linux, no arg limits) and failing the build when reached-but-unproven rises.
 - **The quality audit, while encouraging, named recurring weak patterns** that inflate apparent coverage:
   - `assert_ne!` on **derived enum discriminants** (proves the derive macro works, not your logic).
   - **Re-asserting self-constructed literals** (you built the value two lines up; asserting it equals itself proves nothing).
   - **Overstated `// Catches:` comments on no-panic tests** — a test that only proves "doesn't panic" claiming to catch a behavioral regression.
   - **Crypto hash correctness is under-pinned**: only SHA3 has a known-answer vector. The other hashes are round-trip-only, which does not pin correctness against an external reference.
-- **"Proven > Reached" anomalies exist** (e.g. `vox-cli`: 641 proven vs 563 reached). This is an artifact of the reach run's exclusions and counting boundaries, not evidence that proof exceeds execution — another reason the reach column is directional, not authoritative.
+- **"Proven > Reached" anomalies exist** (e.g. `vox-cli`: 650 proven vs 219 reached). Proven is a static `proves`-edge count (lcov-independent) while reached is matched per-file/line, so the two are measured differently and a crate whose tests live elsewhere can show proven > reached. Read the two columns as distinct signals, not a subset relationship.
 
 ## What is NOT started (the exigent core)
 
-The whole point of the initiative was to close **structural pipeline-gap patterns** — places where a construct is silently dropped between stages. On that, we have essentially nothing.
+The whole point of the initiative was to close **structural pipeline-gap patterns** — places where a construct is silently dropped between stages. As of 2026-06-15, **6 of 7 are now covered** (#1, #3, #4, #5, #6, #7) by dedicated tests in `crates/vox-compiler/src/semcov_struct_pipeline_tests.rs`, `crates/vox-compiler/tests/decl_lowering_test.rs`, `crates/vox-cli/tests/effort_pricing_parity.rs`, and `crates/vox-cli/tests/behavioral_stdout_interp.rs`. Only #2 (doc-drift) remains, and it is not a coverage gap. The lowering match was also made **exhaustive** (`hir/lower/mod.rs`): a new un-lowered `Decl` variant is now a compile error, not a silent runtime warning.
 
 | # | Pattern | Coverage | Evidence |
 |---|---------|----------|----------|
-| 1 | Silent-drop catch-all match arms | **NONE** | Only "catch-all" mention is `vox-cli-core/semcov_wave22:255` asserting `fallback_source_group` returns the `"core"` default — a leaf string-mapping default, not a test that a wildcard arm *swallowed a value that should have been routed*. No test feeds a construct through a real pipeline match and asserts it doesn't vanish. |
-| 2 | Decorator cliff (keyword recognized, arg ignored) | **NONE** | No semcov test exercises decorator argument wiring. The only `@`-decorator test (`vox-compiler/semcov_wave17:109`) asserts a tombstoned decorator form is **rejected** — guards a removal, not arg propagation. No `@page`/`@route` arg-passthrough assertions exist. |
-| 3 | Context-dependent silent drop | **NONE** | Closest is wave29 ("body must not run when a seed exists", "extract selecting FIRST WorkflowCompleted") — workflow-replay leaf semantics, not "same node accepted in context A, silently dropped in context B." |
-| 4 | Dead emitters (value produced, never consumed) | **NONE** | Zero `emit.*never` / `produced.*consumed` hits. wave29's journal-bookkeeping tests check duplicate entries, not emitter→consumer wiring across a stage boundary. |
-| 5 | Half-wired `when {}` blocks | **NONE** | Every `when` hit is incidental English ("when a seed exists", "alert must fire when spend exceeds 80%"). No test parses/lowers a Vox `when {}` block and asserts all branches reach codegen. |
-| 6 | Structural-only goldens (runtime output unasserted) | **NONE** (arguably the suite *is* an instance of the problem) | No `stdout` / behavioral-output / `runtime.*assert` anywhere. semcov tests assert in-process return values of leaf functions; they never execute a compiled program and assert its observable output. |
-| 7 | Split-brain (duplicated logic diverged across crates) | **PARTIAL (weak)** | One adjacent test: `vox-cli-core/semcov_wave22` "Catches: `ci_nested_target` and `gate_isolated_target` diverging from canonical_workspace_target" — a real same-crate divergence guard. But it's a single intra-crate path-helper case; there is **no cross-crate parity test**. |
+| 1 | Silent-drop catch-all match arms | ✅ **DONE** | `semcov_struct_pipeline_tests`: top-level `let`→`Decl::Const` must lower into `hir.consts`, not the `legacy_ast_nodes` catch-all; name, value, type-annotation and multi-binding survival all pinned. |
+| 2 | Decorator cliff (keyword recognized, arg ignored) | **NONE** (deferred) | Investigation found this is doc-vs-parser **drift**, not a silent HIR drop: `@deprecated("reason")` is documented but does not parse (`Expected fn, found (`). Better fixed as a doc/parser correction than a coverage test. |
+| 3 | Context-dependent silent drop | ✅ **DONE** | `semcov_struct_pipeline_tests`: `@pure` must survive identically on a free fn (→`hir.functions`) and an `@example`-wrapped fn (→`hir.examples`), asserted as a parity relationship. (Investigation falsified 5 drop hypotheses — pipeline is robust here; this is a pin-current guard.) |
+| 4 | Dead emitters (value produced, never consumed) | ✅ **DONE** (and *disproven* as dead) | `decl_lowering_test`: investigation found `hir.lower_warnings` is NOT dead — `typecheck_hir_module` drains it into coded diagnostics. The test pins that producer→consumer wiring (RED if the drain loop is deleted). Real follow-ups surfaced: `@traced` IS a uniformly dead decorator (no `HirFn` field consumes it); make `hir/lower/mod.rs` match exhaustive so a new un-lowered variant is a compile error. |
+| 5 | Half-wired `when {}` blocks | ✅ **DONE** | `semcov_struct_pipeline_tests`: a `when src { fetching… empty… error e… ok x… }` lowers to `HirExpr::AsyncView` with all four arms surviving (`missing_arms()` empty) and bindings intact. |
+| 6 | Structural-only goldens (runtime output unasserted) | ✅ **DONE** | `behavioral_stdout_interp.rs`: runs a real `.vox` program via `vox run --mode interp` and asserts the `print` builtin's token reaches **process stdout** — the first true observable-output assertion in the suite. Used `CARGO_BIN_EXE_vox` for a hermetic build. |
+| 7 | Split-brain (duplicated logic diverged across crates) | ✅ **DONE** | `effort_pricing_parity.rs`: asserts the byte-identical `ModelRates::cost_usd` copies in `vox-effort-audit` and `vox-effort-route` agree across a direction-sensitive matrix; fails on any divergence. |
 
-- **Headline bug — `top-level let → Decl::Const → catch-all → value vanishes`: NO test targets this.** Zero `Decl::Const` references, zero top-level-`let` lowering tests, and the catch-all reference is unrelated. The compiler semcov file (wave17) covers parser empty-input panics, effect-capability mapping, `strip_tests`, and formatter idempotence — never the const-lowering catch-all.
-- **The 7,950 reached-but-unproven set is the untouched core.** Every one of these symbols is executed by a test that asserts nothing about its behavior. Converting them to proven is the actual remaining initiative.
+- **Headline bug — `top-level let → Decl::Const → catch-all → value vanishes`: now regression-guarded.** The fix already existed in `hir/lower/mod.rs` (Const is lowered into `hir.consts`); the test pins it so it cannot silently regress.
+- **The 5,793 reached-but-unproven set is the largely-untouched core.** Every one of these symbols is executed by a test that asserts nothing about its behavior. Converting them to proven is the actual remaining initiative; patterns #1/#5/#7 have made a first dent in the structural slice.
 
 **Honest 2-sentence verdict:** The semcov suite is broad and well-written but almost entirely targets **leaf utility functions** (tokenizers, identifier validators, span merges, redaction, cost/quota math, serde round-trips, formatter idempotence) — exactly the "useless touch" surface, not the structural wiring gaps. Of the 7 structural patterns, **6 have NO dedicated coverage and 1 (split-brain) has only a single weak intra-crate case**, and the named headline regression (`top-level let → Decl::Const → catch-all`) is **completely untested**.
 
@@ -59,29 +59,42 @@ The whole point of the initiative was to close **structural pipeline-gap pattern
 |---|---:|---:|
 | Production symbols (defs) | 19,445 | 100% |
 | Proven (assertion-backed) | 3,088 | 15.9% |
-| Reached-but-unproven (zero asserted behavior) | 7,950 | 40.9% |
-| Neither reached nor proven (~dead/untested) | ~8,407 | ~43.2% |
-| Crates with reached-not-proven > 0 | 60 | — |
+| Reached-but-unproven (zero asserted behavior) | **5,793** | 29.8% |
+| Crates with reached > 0 | 60 | — |
+
+> **Reproducible figure (2026-06-15).** Supersedes the earlier directional 7,950.
+> Produced from a real full-workspace `llvm-cov` run (**1.19M lines executed**),
+> reproduced after fixing the `peft-rs` candle-0.10 compile error (the exit-101
+> blocker) and merging profraws via `llvm-profdata -f file-list` (Windows
+> arg-limit dodge). CI-gating still TODO.
 
 **6 highest-leverage target crates** (largest reached-but-unproven, where proving symbols buys the most):
 
 | Crate | Reached | Proven | Reached-not-proven |
 |---|---:|---:|---:|
-| vox-orchestrator | 1530 | 616 | **1278** |
-| vox-compiler | 967 | 364 | **728** |
-| vox-codegen | 639 | 97 | **554** |
-| vox-db | 652 | 227 | **548** |
-| vox-code-audit | 702 | 309 | **545** |
-| vox-orchestrator-mcp | 522 | 157 | **446** |
+| vox-compiler | 947 | 392 | **699** |
+| vox-orchestrator | 783 | 641 | **666** |
+| vox-code-audit | 758 | 343 | **571** |
+| vox-publisher | 487 | 112 | **419** |
+| vox-codegen | 426 | 80 | **358** |
+| vox-populi | 383 | 156 | **330** |
 
-These 6 crates alone account for **4,099** of the 7,950 reached-but-unproven symbols (~51.6%). `vox-codegen` (554 unproven, only 97 proven) is the worst proven-ratio of the group and is also where patterns #2, #5, and #6 actually live — making it the single best place to attack structure and volume at once.
+These 6 crates account for **~3,043** of the 5,793 reached-but-unproven symbols (~53%). `vox-codegen` (358 unproven, only 80 proven) is the worst proven-ratio of the group and is where patterns #2/#5/#6 live — the best place to attack structure and volume at once.
 
 ## Prioritized next actions
 
-1. **Make the reach run CI-reproducible before trusting any number** — *lever: turns the whole table from "one local run" into an enforceable gate.* Land the Windows arg-limit chunking workaround in CI, stop excluding `vox-compiler`/`vox-corpus`/`vox-config` from executing their own tests, and fix whatever cancels every run. Until this lands, every figure here is directional.
-2. **Write the 7 structural-pattern tests first, starting with the headline `Decl::Const` catch-all** — *lever: closes the actual initiative, not the proxy.* These are ~7–10 high-value tests that each feed a real construct through a real pipeline stage and assert it survives lowering/codegen. This is the work that was supposed to be done and wasn't.
-3. **Add behavioral-output (stdout) golden assertions for compiled programs** — *lever: kills pattern #6, which the current suite arguably *is* an instance of.* Stand up a harness that compiles a `.vox` program and asserts observable output; this is the missing capability behind "structural-only goldens."
-4. **Attack `vox-codegen` next (554 unproven, 97 proven)** — *lever: worst proven-ratio + home of patterns #2/#5/#6, so it buys structure and volume simultaneously.*
-5. **Then grind the orchestrator stack (`vox-orchestrator` 1278 + `vox-orchestrator-mcp` 446 = 1724 unproven)** — *lever: largest raw reduction of the reached-but-unproven set in a single coherent area.*
-6. **Audit and downgrade the weak-test tail** — *lever: stops apparent coverage from inflating.* Replace `assert_ne!`-on-derived-discriminant and self-literal-equality tests with real assertions, add known-answer vectors for every hash (not just SHA3), and correct overstated `// Catches:` comments on no-panic tests so the labels match what is actually proven.
-7. **Wire the two new detectors (`catch_all_swallow`, `cross_crate_dup`) into the gate and pair each with a failing/passing test fixture** — *lever: converts the structural patterns from "detectable" to "regression-guarded," and gives patterns #1 and #7 their first real coverage.*
+**Done (2026-06-15):**
+- ✅ **Reach reproducibility unblocked** — fixed the `peft-rs` candle-0.10 exit-101 error; reach is now a real **5,793** from a 1.19M-line-execution run (profraw batch-merge).
+- ✅ **Structural patterns #1, #3, #4, #5, #6, #7 covered** — headline `let`→`Decl::Const` survival, `@pure` context parity, `lower_warnings` producer→consumer wiring, `when{}` four-arm survival, **stdout behavioral golden**, and cross-crate `cost_usd` split-brain parity.
+- ✅ **Lowering match made exhaustive** — new un-lowered `Decl` variants are now compile errors.
+
+Remaining, in priority order:
+1. **Land the reach run as a CI ratchet — DECISION-GATED.** CI already runs `cargo llvm-cov report --lcov` on Linux (no chunking needed). The blocker is **graph provenance**: `ingest_reaches.py` needs the Phase-1/2 `proves`-edge graph, which is ~109 MB, gitignored, and **not reproducible in CI** (Phase 2 is throttled LLM extraction). The only path is committing a **pruned snapshot** (id/label/source_file/source_location/file_type/_origin + `proves` links) — measured at **~32 MB raw (~5–6 MB gzipped)**. That blob commit **plus** editing `.github/workflows` are hard-to-reverse, repo-affecting changes that need explicit sign-off. *Recommendation:* gzip-commit the pruned snapshot under `contracts/reports/`, add `reached_not_proven` to `semantic-coverage.v1.json` as the baseline, and add a Linux CI step `lcov × snapshot → ingest → fail if rises`.
+2. **Pattern #2 (`@deprecated("reason")`) doc-drift** — small: either make the parser accept the arg or fix the docs; not a coverage gap.
+3. **Three real follow-ups surfaced by the design passes** (small, high-signal):
+   - `@traced` — investigated and fully scoped: it is *unimplemented end-to-end* (no lexer token; `is_traced` is inert AST→HIR plumbing) but **not obviated** (Vox emits no spans anywhere; `vox-telemetry`'s `TraceContext` propagates a trace-id with nothing to hang off). Full implementation handoff: [**`@traced` (TRACE-D) implementation handoff**](../../superpowers/plans/2026-06-15-traced-decorator-implementation.md) — 8-phase TDD plan with verified anchors (lexer token → parser flip → `HirFn` field → codegen span seeded from `TRACE_CTX` → LSP/docs → behavioral proof → interpreter → endpoint/activity/workflow extension).
+   - `@pure`-before-`@example`/`@test` is a parse error (decorator-order asymmetry, R5) — pinned as an `#[ignore]`d executable TODO in `crates/vox-compiler/src/semcov_struct_pipeline_tests.rs`; needs a collect-all-leading-decorators-then-dispatch refactor.
+   - `@deprecated("reason")` arg form is unparseable (R6) — docs corrected; arg threading deferred.
+4. **Grind the reached-but-unproven set** by leverage: `vox-codegen` (358, worst ratio) → `vox-compiler` (699) → `vox-orchestrator` (666) → `vox-code-audit` (571).
+5. **Audit and downgrade the weak-test tail** — replace `assert_ne!`-on-derived-discriminant and self-literal tests, add known-answer vectors for every hash (not just SHA3), correct overstated `// Catches:` comments.
+6. **Wire `catch_all_swallow` / `cross_crate_dup` into the gate with fixtures** — converts the structural detectors from "detectable" to "regression-guarded."

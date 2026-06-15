@@ -10,19 +10,44 @@ use std::path::{Path, PathBuf};
 use tokio::fs;
 use vox_cli_core::cli_args::{BundleMode, CompileKind};
 use vox_codegen::codegen_rust::RustAppShell;
+use vox_compiler::target::Target;
 use vox_config::project_manifest::ProjectManifest;
 
 #[cfg(feature = "script-execution")]
 use crate::commands::runtime::run::script;
 
-fn rust_app_shell_for_compile_app(kind: CompileKind) -> RustAppShell {
+/// Map a [`CompileKind`] to its parity [`Target`].
+///
+/// This is the "projection in" half of the parity contract: every compile
+/// path is resolved to an unambiguous `Target` before the emitter is chosen.
+/// Adding a new `CompileKind` must break this match (no `_` arm).
+fn compile_kind_to_target(kind: CompileKind) -> Target {
     match kind {
+        CompileKind::Script => Target::Interpreter,
+        CompileKind::NativeBinary | CompileKind::Server | CompileKind::Wasi => Target::RustAxum,
         CompileKind::Desktop | CompileKind::MobileAndroid | CompileKind::MobileIos => {
-            RustAppShell::TauriApp
+            Target::RustTauri
         }
-        CompileKind::NativeBinary => RustAppShell::AxumLocalServer,
-        _ => RustAppShell::AxumLocalServer,
     }
+}
+
+/// Map a parity [`Target`] to the concrete [`RustAppShell`] it uses.
+///
+/// Non-Rust targets fall back to `AxumLocalServer` (no shell is instantiated for
+/// them in this path — this arm is only exercised when `compile_kind_to_target`
+/// returns `Interpreter` or `TypeScript`, which today only happens for the
+/// `Script` compile kind that skips the Rust shell entirely).
+fn target_to_rust_app_shell(target: Target) -> RustAppShell {
+    match target {
+        Target::RustTauri => RustAppShell::TauriApp,
+        Target::RustAxum | Target::Interpreter | Target::TypeScript => {
+            RustAppShell::AxumLocalServer
+        }
+    }
+}
+
+fn rust_app_shell_for_compile_app(kind: CompileKind) -> RustAppShell {
+    target_to_rust_app_shell(compile_kind_to_target(kind))
 }
 
 /// Run `vox compile` / `vox fabrica compile`.
@@ -360,6 +385,57 @@ fn maybe_archive_dist_binary(args: &CompileArgs, file: &Path) -> Result<()> {
 mod tests {
     use super::*;
     use vox_codegen::codegen_rust::RustAppShell;
+    use vox_compiler::target::Target;
+
+    #[test]
+    fn target_projection_exhaustive() {
+        // Every CompileKind must map to exactly one Target.
+        // This test breaks if a new CompileKind variant is added without updating
+        // compile_kind_to_target (the exhaustive match there already ensures
+        // compilation fails; this test documents the expected mapping).
+        assert_eq!(
+            compile_kind_to_target(CompileKind::Script),
+            Target::Interpreter
+        );
+        assert_eq!(
+            compile_kind_to_target(CompileKind::NativeBinary),
+            Target::RustAxum
+        );
+        assert_eq!(
+            compile_kind_to_target(CompileKind::Server),
+            Target::RustAxum
+        );
+        assert_eq!(compile_kind_to_target(CompileKind::Wasi), Target::RustAxum);
+        assert_eq!(
+            compile_kind_to_target(CompileKind::Desktop),
+            Target::RustTauri
+        );
+        assert_eq!(
+            compile_kind_to_target(CompileKind::MobileAndroid),
+            Target::RustTauri
+        );
+        assert_eq!(
+            compile_kind_to_target(CompileKind::MobileIos),
+            Target::RustTauri
+        );
+    }
+
+    #[test]
+    fn target_to_shell_covers_all_targets() {
+        // Every Target must produce a valid RustAppShell — no panic.
+        for t in Target::ALL {
+            let _ = target_to_rust_app_shell(t);
+        }
+        // Spot-check the meaningful ones.
+        assert_eq!(
+            target_to_rust_app_shell(Target::RustTauri),
+            RustAppShell::TauriApp
+        );
+        assert_eq!(
+            target_to_rust_app_shell(Target::RustAxum),
+            RustAppShell::AxumLocalServer
+        );
+    }
 
     #[test]
     fn rust_app_shell_desktop_and_mobile_use_tauri() {

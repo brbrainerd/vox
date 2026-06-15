@@ -53,6 +53,7 @@ fn universal_reward_command_path(cli: &Cli) -> Option<&'static str> {
         Cli::Populi { .. } => Some("populi"),
         Cli::Research { .. } => Some("research"),
         Cli::Deploy { .. } => Some("deploy"),
+        Cli::Container { .. } => Some("container"),
         Cli::Plan { .. } => Some("plan"),
         Cli::Doctor { .. } => Some("doctor"),
         _ => Some("command"),
@@ -283,6 +284,9 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         }
         Cli::Deploy { args } => {
             crate::commands::deploy::run(args).await?;
+        }
+        Cli::Container { cmd } => {
+            crate::commands::container::run(cmd).await?;
         }
         Cli::Pm { cmd } => {
             crate::commands::pm::run(cmd).await?;

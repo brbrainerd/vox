@@ -16,6 +16,15 @@ use vox_openclaw_runtime::{
 };
 use vox_skills::new_registry_arc;
 
+// ── Default endpoints (SSOT for OpenClaw ports) ─────────────────────────────────
+
+/// Default OpenClaw gateway listen port (`vox openclaw serve`).
+pub const OPENCLAW_GATEWAY_PORT: u16 = 3850;
+/// Default OpenClaw gateway base URL (subscribe/notify/etc.).
+pub const OPENCLAW_GATEWAY_URL: &str = "http://localhost:3850";
+/// Default OpenClaw MCP/approval-broker base URL (`approvals`/`approve`/`deny`).
+pub const OPENCLAW_MCP_URL: &str = "http://localhost:3847";
+
 // ── Subcommand Enum ────────────────────────────────────────────────────────────
 
 /// Subcommands for `vox openclaw`.
@@ -91,7 +100,7 @@ pub enum OpenClawAction {
     /// Example: `vox openclaw approvals`
     Approvals {
         /// MCP server URL to query (default: http://localhost:3847)
-        #[arg(long, value_name = "URL", default_value = "http://localhost:3847")]
+        #[arg(long, value_name = "URL", default_value = OPENCLAW_MCP_URL)]
         mcp_url: String,
         /// Output as JSON
         #[arg(long, default_value = "false")]
@@ -108,7 +117,7 @@ pub enum OpenClawAction {
         #[arg(long, value_name = "REASON")]
         reason: Option<String>,
         /// MCP server URL (default: http://localhost:3847)
-        #[arg(long, value_name = "URL", default_value = "http://localhost:3847")]
+        #[arg(long, value_name = "URL", default_value = OPENCLAW_MCP_URL)]
         mcp_url: String,
     },
     /// Deny a pending tool-approval request by its ID.
@@ -122,7 +131,7 @@ pub enum OpenClawAction {
         #[arg(long, value_name = "REASON")]
         reason: Option<String>,
         /// MCP server URL (default: http://localhost:3847)
-        #[arg(long, value_name = "URL", default_value = "http://localhost:3847")]
+        #[arg(long, value_name = "URL", default_value = OPENCLAW_MCP_URL)]
         mcp_url: String,
     },
     /// Start the OpenClaw gateway HTTP service (vox-gateway).
@@ -130,7 +139,7 @@ pub enum OpenClawAction {
     /// Example: `vox openclaw serve --port 3850`
     Serve {
         /// TCP port to listen on
-        #[arg(long, default_value_t = 3850)]
+        #[arg(long, default_value_t = OPENCLAW_GATEWAY_PORT)]
         port: u16,
         /// Bind address
         #[arg(long, default_value = "127.0.0.1")]
@@ -142,7 +151,7 @@ pub enum OpenClawAction {
         #[arg(required = true)]
         domain: String,
         /// Gateway URL (default: http://localhost:3850)
-        #[arg(long, default_value = "http://localhost:3850")]
+        #[arg(long, default_value = OPENCLAW_GATEWAY_URL)]
         gateway: String,
         /// Output as JSON
         #[arg(long, default_value = "false")]
@@ -154,7 +163,7 @@ pub enum OpenClawAction {
         #[arg(required = true)]
         domain: String,
         /// Gateway URL (default: http://localhost:3850)
-        #[arg(long, default_value = "http://localhost:3850")]
+        #[arg(long, default_value = OPENCLAW_GATEWAY_URL)]
         gateway: String,
         /// Output as JSON
         #[arg(long, default_value = "false")]
@@ -163,7 +172,7 @@ pub enum OpenClawAction {
     /// List all active semantic domain subscriptions on the gateway.
     Subscriptions {
         /// Gateway URL (default: http://localhost:3850)
-        #[arg(long, default_value = "http://localhost:3850")]
+        #[arg(long, default_value = OPENCLAW_GATEWAY_URL)]
         gateway: String,
         /// Output as JSON
         #[arg(long, default_value = "false")]
@@ -178,7 +187,7 @@ pub enum OpenClawAction {
         #[arg(required = true)]
         message: String,
         /// Gateway URL (default: http://localhost:3850)
-        #[arg(long, default_value = "http://localhost:3850")]
+        #[arg(long, default_value = OPENCLAW_GATEWAY_URL)]
         gateway: String,
         /// Output as JSON
         #[arg(long, default_value = "false")]

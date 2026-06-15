@@ -1,6 +1,8 @@
 use super::value::VoxValue;
 use super::{EvalError, Interpreter};
+use crate::feature_matrix::{ExprFeature, Feature, unsupported_diagnostic};
 use crate::hir::nodes::{HirBinOp, HirExpr, HirUnOp};
+use crate::target::Target;
 
 /// Normalize a bare constructor value into its canonical runtime form.
 ///
@@ -775,36 +777,62 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             }
         }
         // Web/actor/compiled-only constructs are not supported by the
-        // tree-walking interpreter. Mirror the CR-F4 pattern at
-        // eval/expr.rs:513-524 (Scrape/Browser guard): name the construct,
-        // say what to use instead, never silently return Null.
-        HirExpr::Jsx(..) | HirExpr::JsxSelfClosing(..) | HirExpr::JsxFragment(..) => {
+        // tree-walking interpreter. Codes come from the parity matrix so they
+        // stay in sync with the other emitters. Never silently return Null.
+        HirExpr::Jsx(..) => {
+            let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::Jsx), Target::Interpreter);
             Err(EvalError::AssertionFailed(
-                "JSX expressions are not supported in --mode interp; \
-                 use the web/compiled backend (`vox build --target web`)"
-                    .into(),
+                format!("{}: {}", cell.code, cell.message).into(),
             ))
         }
-        HirExpr::AsyncView(..) => Err(EvalError::AssertionFailed(
-            "Async[T] when-views are not supported in --mode interp; \
-             use the web/compiled backend"
-                .into(),
-        )),
-        HirExpr::Spawn(..) => Err(EvalError::AssertionFailed(
-            "spawn is not supported in --mode interp; \
-             use the compiled backend (`vox run --mode script`)"
-                .into(),
-        )),
-        HirExpr::With(..) => Err(EvalError::AssertionFailed(
-            "with(...) is not supported in --mode interp; \
-             use the compiled backend"
-                .into(),
-        )),
-        HirExpr::WorkflowVersion(..) => Err(EvalError::AssertionFailed(
-            "workflow.version(...) is a compiled-workflow marker; \
-             not supported in --mode interp"
-                .into(),
-        )),
+        HirExpr::JsxSelfClosing(..) => {
+            let cell = unsupported_diagnostic(
+                Feature::Expr(ExprFeature::JsxSelfClosing),
+                Target::Interpreter,
+            );
+            Err(EvalError::AssertionFailed(
+                format!("{}: {}", cell.code, cell.message).into(),
+            ))
+        }
+        HirExpr::JsxFragment(..) => {
+            let cell = unsupported_diagnostic(
+                Feature::Expr(ExprFeature::JsxFragment),
+                Target::Interpreter,
+            );
+            Err(EvalError::AssertionFailed(
+                format!("{}: {}", cell.code, cell.message).into(),
+            ))
+        }
+        HirExpr::AsyncView(..) => {
+            let cell =
+                unsupported_diagnostic(Feature::Expr(ExprFeature::AsyncView), Target::Interpreter);
+            Err(EvalError::AssertionFailed(
+                format!("{}: {}", cell.code, cell.message).into(),
+            ))
+        }
+        HirExpr::Spawn(..) => {
+            let cell =
+                unsupported_diagnostic(Feature::Expr(ExprFeature::Spawn), Target::Interpreter);
+            Err(EvalError::AssertionFailed(
+                format!("{}: {}", cell.code, cell.message).into(),
+            ))
+        }
+        HirExpr::With(..) => {
+            let cell =
+                unsupported_diagnostic(Feature::Expr(ExprFeature::With), Target::Interpreter);
+            Err(EvalError::AssertionFailed(
+                format!("{}: {}", cell.code, cell.message).into(),
+            ))
+        }
+        HirExpr::WorkflowVersion(..) => {
+            let cell = unsupported_diagnostic(
+                Feature::Expr(ExprFeature::WorkflowVersion),
+                Target::Interpreter,
+            );
+            Err(EvalError::AssertionFailed(
+                format!("{}: {}", cell.code, cell.message).into(),
+            ))
+        }
     }
 }
 
@@ -1033,5 +1061,47 @@ fn apply_closure_method(
             Err(e) => Ok(Some(VoxValue::Result(Err(e.clone())))),
         },
         _ => Ok(None),
+    }
+}
+
+#[cfg(test)]
+mod interp_exhaustiveness_tests {
+    use super::*;
+    use crate::feature_matrix::{ExprFeature, Feature, unsupported_diagnostic};
+    use crate::target::Target;
+    use crate::typeck::diagnostics::codes;
+
+    #[test]
+    fn jsx_interp_routes_through_parity_matrix() {
+        let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::Jsx), Target::Interpreter);
+        assert_eq!(cell.code, codes::PARITY_FRONTEND_ONLY);
+    }
+
+    #[test]
+    fn async_view_interp_routes_through_parity_matrix() {
+        let cell =
+            unsupported_diagnostic(Feature::Expr(ExprFeature::AsyncView), Target::Interpreter);
+        assert_eq!(cell.code, codes::PARITY_FRONTEND_ONLY);
+    }
+
+    #[test]
+    fn spawn_interp_routes_through_parity_matrix() {
+        let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::Spawn), Target::Interpreter);
+        assert_eq!(cell.code, codes::PARITY_BACKEND_ONLY);
+    }
+
+    #[test]
+    fn with_interp_routes_through_parity_matrix() {
+        let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::With), Target::Interpreter);
+        assert_eq!(cell.code, codes::PARITY_UNIMPLEMENTED);
+    }
+
+    #[test]
+    fn workflow_version_interp_routes_through_parity_matrix() {
+        let cell = unsupported_diagnostic(
+            Feature::Expr(ExprFeature::WorkflowVersion),
+            Target::Interpreter,
+        );
+        assert_eq!(cell.code, codes::PARITY_UNIMPLEMENTED);
     }
 }

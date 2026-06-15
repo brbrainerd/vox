@@ -25,9 +25,8 @@ pub async fn run(action: ContainerAction) -> Result<()> {
             };
 
             tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
-                let rt = vox_container::detect_runtime(pref).context(
-                    "No container runtime available. Install Docker or Podman.",
-                )?;
+                let rt = vox_container::detect_runtime(pref)
+                    .context("No container runtime available. Install Docker or Podman.")?;
                 let _ = rt.build(&opts).context("Container build failed")?;
                 Ok(())
             })
@@ -36,7 +35,14 @@ pub async fn run(action: ContainerAction) -> Result<()> {
 
             println!("✓ Image built successfully.");
         }
-        ContainerAction::Run { image, port, runtime } => {
+        ContainerAction::Run {
+            image,
+            port,
+            runtime,
+            cpus,
+            memory,
+            pids_limit,
+        } => {
             let image = image.unwrap_or_else(|| "vox-app:latest".to_string());
             println!("🚀 Running container image: {}", image);
 
@@ -53,12 +59,14 @@ pub async fn run(action: ContainerAction) -> Result<()> {
                 detach: false,
                 name: None,
                 rm: true,
+                cpus,
+                memory,
+                pids_limit,
             };
 
             tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
-                let rt = vox_container::detect_runtime(pref).context(
-                    "No container runtime available. Install Docker or Podman.",
-                )?;
+                let rt = vox_container::detect_runtime(pref)
+                    .context("No container runtime available. Install Docker or Podman.")?;
                 rt.run(&opts).context("Container run failed")?;
                 Ok(())
             })
@@ -91,5 +99,14 @@ pub enum ContainerAction {
         /// Container runtime: auto, docker, podman (default: auto)
         #[arg(long, default_value = "auto")]
         runtime: Option<String>,
+        /// CPU limit (e.g. "1.5"); passed to the runtime as --cpus
+        #[arg(long)]
+        cpus: Option<String>,
+        /// Memory limit (e.g. "512m", "2g"); passed to the runtime as --memory
+        #[arg(long)]
+        memory: Option<String>,
+        /// Maximum number of process IDs; passed to the runtime as --pids-limit
+        #[arg(long)]
+        pids_limit: Option<u32>,
     },
 }

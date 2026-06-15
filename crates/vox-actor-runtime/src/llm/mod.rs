@@ -5,6 +5,7 @@ mod chat;
 mod embed;
 mod stream;
 pub mod throttle;
+mod timeout;
 mod types;
 mod wire;
 

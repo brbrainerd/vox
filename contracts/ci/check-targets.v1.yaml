@@ -286,3 +286,12 @@ checks:
       - ci
     rust_only: false
     command: ["lychee", "--no-progress", "docs/**/*.md", "README.md"]
+
+  - id: semcov-gates
+    description: "vox-audit semcov-gates (no NEW silent-drop or touch-test findings beyond the committed grandfather baselines)"
+    category: audit
+    blocking: true
+    runs_on:
+      - ci
+    rust_only: true
+    command: ["cargo", "run", "-q", "-p", "vox-audit", "--bin", "semcov-gates"]

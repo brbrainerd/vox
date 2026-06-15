@@ -1,0 +1,264 @@
+{
+  "schema_version": 0,
+  "entries": {
+    "agents": {
+      "screenshot_sha256": "c9803882fd0b8774f149a100a4c6fb0a4d640fe4364b8369e6cd843407b3dbf0",
+      "score": 42,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "approvals": {
+      "screenshot_sha256": "ac746a0509731d0cac4793030e1304bfa9a3e41c3152a5a4f68eef291a9b92fb",
+      "score": 42,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "archive-panel": {
+      "screenshot_sha256": "82d032972fd2bb1471fa0c1ba136213b5ae2454f4ce8fa5d2f2ebbfe88b5cdb4",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "browser": {
+      "screenshot_sha256": "f5c62b5aea3ef24fdcbde13297b00c7769da0cf7f6585ef63691463aefe1c635",
+      "score": 48,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "catalog": {
+      "screenshot_sha256": "5ca9f148868cf07245cbf23ee6976dc9dc8618988cf31f86817320d3802af970",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "chat": {
+      "screenshot_sha256": "6d82582ea47901a589c221250e2da5fe27ee618e71a7f3970afc3750a44d2156",
+      "score": 48,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "claims": {
+      "screenshot_sha256": "18f72fb5cb1de4114ee9d6815ce7cb3d8b2951ea6fdce381bba964b119d55e8d",
+      "score": 48,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "commands": {
+      "screenshot_sha256": "5ca9f148868cf07245cbf23ee6976dc9dc8618988cf31f86817320d3802af970",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "compute": {
+      "screenshot_sha256": "d29f72b74879059d67f39b77f0b415927117163f0c4ac96975f0dcd6df2af36e",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "console": {
+      "screenshot_sha256": "d878335d343f2a87d3c061bd15329bd2dfbaca1ddb796e5b20f039ef0620d4ef",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "coverage": {
+      "screenshot_sha256": "2c1456a626870b6ad1717452b92539149181a42e01daa71640a0dcf19df5a905",
+      "score": 48,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "dashboard": {
+      "screenshot_sha256": "c9803882fd0b8774f149a100a4c6fb0a4d640fe4364b8369e6cd843407b3dbf0",
+      "score": 48,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "discovery-inbox": {
+      "screenshot_sha256": "9443fa439546af63f12802c037800462d3d3f5feae41fb77277a6c444ad27bb7",
+      "score": 42,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "discovery-review": {
+      "screenshot_sha256": "485d8b557e670a27ccaddc8b83bd2c7ed687f994675ea7717fd89cf17302299e",
+      "score": 48,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "flow": {
+      "screenshot_sha256": "b2c2ecbaa4d3bcd27b832c1fa122344dc06373d2875fd149cf795ec26dd0c9f3",
+      "score": 48,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "gamify": {
+      "screenshot_sha256": "1396262f7255ecbba4059a7a5821b41b36f587139fe251753f362a1e60cabc5e",
+      "score": 48,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "harness": {
+      "screenshot_sha256": "e7bf109526980ae25a1a18d21099306b160bab423c4583bc9dfd685fa6af6184",
+      "score": 48,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "knowledge": {
+      "screenshot_sha256": "b3743706324a914950b89062cf492cd8ee8ae869fc8ddb69c9b32fabbaece626",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "matrix": {
+      "screenshot_sha256": "41ca32add47addfe4f8a7f84487a792d9b1077ab6bac9667f59c00fe252838ed",
+      "score": 42,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "memory": {
+      "screenshot_sha256": "5f91935348391b9593bf56cdadf10638496a8b883e56ee6fcc59d80748bd814e",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "mens": {
+      "screenshot_sha256": "cbb4f0a6cf2ce20d68812f344d93be465c5d4508d55692ca80efd64bba3328e9",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "mesh": {
+      "screenshot_sha256": "fceda3c6dd2f56da988b41124fb5cf02eb915ef46be6e6d7921b28c7778de9fd",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "models": {
+      "screenshot_sha256": "d29f72b74879059d67f39b77f0b415927117163f0c4ac96975f0dcd6df2af36e",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "oratio": {
+      "screenshot_sha256": "1abbfb51f772962b38158ce178d2c69eea6e18b274e154ed5c31f632e8022c9f",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "policies": {
+      "screenshot_sha256": "5d149b12d91f3b801ece8025f44b793737cc56e49a85c2a886ebc025ff431beb",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "populi": {
+      "screenshot_sha256": "007b51fac6c7722ac6ad1cb1a18604131ff408e07e794e1e04ffb040bb2fea21",
+      "score": 48,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "publications": {
+      "screenshot_sha256": "757f0a1f81d23e3527efa1c83f09224b13c6cc498a6fd8be6cfeb49dc8fd5da5",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "repository": {
+      "screenshot_sha256": "9ab90cac8730724ebec1c19f5b425e264c3f03eb23fe54f74782f395b3c33088",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "research": {
+      "screenshot_sha256": "b3743706324a914950b89062cf492cd8ee8ae869fc8ddb69c9b32fabbaece626",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "review": {
+      "screenshot_sha256": "c7738e048488b896075b2fba20e342eddbfa18f8fbf665d43caf21391d1c4907",
+      "score": 42,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "runs": {
+      "screenshot_sha256": "584d386a02c7956a82d913eddcef5c0ed11de90419a351c5279a3a9ada4b1ab0",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "scientia": {
+      "screenshot_sha256": "21fdd47aa01e2c197f50b3f71cf638770cc9ae1bdf847ea67876d39f9943dc31",
+      "score": 48,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "search": {
+      "screenshot_sha256": "9589903d0be3b670f3f5283c131a0fb2a8c4bfb80d7fdce0a2e4ec67d98ccdb9",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "settings": {
+      "screenshot_sha256": "2c1456a626870b6ad1717452b92539149181a42e01daa71640a0dcf19df5a905",
+      "score": 48,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "skills": {
+      "screenshot_sha256": "e3f09e0aeda98081895fafe480c9cc51cf9de364cc63013bd5195f44ffb4bb48",
+      "score": 58,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "tasks": {
+      "screenshot_sha256": "5335197483fc656371b90084046713634708c2d7aa5c4eb1e4a36ff1755ac7ad",
+      "score": 38,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    },
+    "workspace": {
+      "screenshot_sha256": "9ab90cac8730724ebec1c19f5b425e264c3f03eb23fe54f74782f395b3c33088",
+      "score": 48,
+      "verdict": "fail",
+      "model": "google/gemini-3-flash-preview",
+      "reviewed_at": "2026-06-15T00:00:00Z"
+    }
+  }
+}

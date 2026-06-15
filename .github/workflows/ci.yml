@@ -620,6 +620,18 @@ jobs:
           VOX_RUNTIME_PROJECTION_INCLUDE_HOST_PROBE: "0"
         run: cargo nextest run -p vox-compiler --test projection_parity_test
 
+      - name: Pipeline parity grep-gate (no silent empty-string drops in emitters)
+        # Forbids `_ => String::new()` / `_ => "".to_string()` in HIR emitters.
+        # Each unsupported (Feature, Target) cell must use unsupported_diagnostic()
+        # to derive a code+message from the parity matrix. See §3.3 of the SSOT.
+        run: cargo nextest run -p vox-compiler --test parity_grep_gate
+
+      - name: Pipeline parity empirical smoke test (matrix cells vs real emitters)
+        # Drives HIR nodes through the real eval/codegen_rust/codegen_ts paths and
+        # verifies the 5 accurately-seeded matrix cells (JSX, AsyncView, Spawn,
+        # With, WorkflowVersion) match actual emitter behavior.
+        run: cargo nextest run -p vox-compiler --test feature_matrix_parity_test
+
       - name: Golden examples strict-parse gate (A.13 — all examples/*.vox must parse)
         # A.13: VOX_EXAMPLES_STRICT_PARSE=1 must be the default in CI.
         # Uses the vox-compiler test suite which already has a strict-parse integration test.
@@ -843,6 +855,19 @@ jobs:
           cargo llvm-cov report --json --summary-only --output-path target/llvm-cov-summary.json
           cargo llvm-cov report --lcov --output-path target/llvm-cov-lcov.info
           ./target/debug/vox --quiet ci coverage-gates --summary-json target/llvm-cov-summary.json --mode enforce
+
+      - name: Semantic-coverage reach ratchet (reached-but-unproven must not rise)
+        if: needs.setup.outputs.rust_changed == 'true'
+        run: |
+          set -euo pipefail
+          python3 scripts/coverage-graph/ingest_reaches.py \
+            --lcov target/llvm-cov-lcov.info \
+            --graph contracts/reports/semantic-coverage-graph.snapshot.json.gz \
+            --out "$RUNNER_TEMP/graph.reached.json" \
+            --report "$RUNNER_TEMP/REACHED_VS_PROVEN.md"
+          python3 scripts/coverage-graph/ratchet_check.py \
+            --report "$RUNNER_TEMP/REACHED_VS_PROVEN.md" \
+            --baseline contracts/reports/semantic-coverage.v1.json
 
       - name: Upload LLVM coverage artifacts
         if: (success() || failure()) && needs.setup.outputs.rust_changed == 'true'
@@ -1136,6 +1161,45 @@ jobs:
             crates/vox-gui/ui/e2e/screens
             crates/vox-gui/ui/playwright-report
           if-no-files-found: ignore
+
+      - name: GUI visual-review capture (manifest)
+        working-directory: crates/vox-gui/ui
+        run: pnpm exec playwright test --config playwright.config.ts visual-review --project=chromium --workers=1
+        continue-on-error: true
+
+      - name: GUI visual AI review (advisory, non-gating)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          DATE=$(date -u +%F)
+          NOW=$(date -u +%FT%TZ)
+          cargo run -p vox-orchestrator-mcp --bin gui-visual-review -- --ai --date "$DATE" --now "$NOW"
+        continue-on-error: true
+
+      - name: Upload visual-review report + screens (always)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-visual-review-${{ github.run_id }}
+          path: |
+            contracts/reports/gui-visual-review/
+            crates/vox-gui/ui/e2e/screens/manifest.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Commit visual-review cache + report (main only)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ secrets.SSOT_AUTOREGEN_TOKEN }}
+        run: |
+          if ! git diff --quiet -- contracts/reports/gui-visual-review/; then
+            git config user.name "vox-ssot-bot"
+            git config user.email "bot@vox-foundation"
+            git add contracts/reports/gui-visual-review/cache.v1.json contracts/reports/gui-visual-review/ledger.jsonl
+            git commit -m "chore(visual-review): update cache + ledger [skip ci]"
+            git push origin HEAD:main || echo "::warning::visual-review cache push skipped (non-fast-forward)"
+          fi
+        continue-on-error: true
 
       - name: Cache Cargo
         uses: actions/cache@v5

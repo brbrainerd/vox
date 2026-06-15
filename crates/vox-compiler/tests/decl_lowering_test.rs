@@ -264,6 +264,60 @@ fn unlowered_decl_emits_lower_warning() {
     );
 }
 
+/// Pattern #4 (dead-emitter) adversarial regression: `lower_warnings` must reach the
+/// REAL diagnostic stream, not just sit in the `hir` field. The test above only checks
+/// the raw field; this one pins the producer→consumer wiring through the public
+/// `typecheck_hir_module`, which drains `lower_warnings` into coded `Diagnostic`s
+/// (typeck/mod.rs). It goes RED if anyone deletes that drain loop — reverting
+/// `lower_warnings` to the write-only dead-emitter state it used to be.
+///
+/// `Decl::HttpRoute` is the ONLY Decl variant with no lowering arm, and `http …`
+/// surface syntax is tombstoned at parse, so there is no parseable trigger — the AST
+/// must be built directly (same convention as `unlowered_decl_emits_lower_warning`).
+#[test]
+fn lower_warning_reaches_typecheck_diagnostic_stream() {
+    use vox_compiler::ast::decl::HttpMethod;
+    use vox_compiler::ast::decl::logic::HttpRouteDecl;
+    let module = make_module(vec![Decl::HttpRoute(HttpRouteDecl {
+        method: HttpMethod::Get,
+        path: "/test".to_string(),
+        params: vec![],
+        return_type: None,
+        body: vec![],
+        auth_provider: None,
+        roles: vec![],
+        cors: None,
+        is_traced: false,
+        is_deprecated: false,
+        span: zero_span(),
+    })]);
+    let mut hir = vox_compiler::hir::lower::lower_module(&module);
+
+    // Producer fired.
+    assert_eq!(
+        hir.lower_warnings.len(),
+        1,
+        "producer must populate lower_warnings"
+    );
+
+    // Consumer must surface it as a coded diagnostic the typechecker returns.
+    let diags = vox_compiler::typeck::typecheck_hir_module("", &mut hir);
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.code.as_deref() == Some("vox/lower/unlowered-decl")),
+        "lower_warning must surface as a coded diagnostic; got codes: {:?}",
+        diags.iter().map(|d| d.code.clone()).collect::<Vec<_>>()
+    );
+
+    // And the drain must empty the field — proves it was consumed, not copied.
+    assert!(
+        hir.lower_warnings.is_empty(),
+        "consumer must drain lower_warnings; still present: {:?}",
+        hir.lower_warnings
+    );
+}
+
 /// After Phase 2, Decl::Const lowers to HirModule.consts — it must NOT hit the catch-all.
 #[test]
 fn const_decl_no_longer_falls_into_legacy_nodes() {

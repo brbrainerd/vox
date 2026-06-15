@@ -89,7 +89,7 @@ impl BrowserEngine {
         }
 
         let mut builder = BrowserConfig::builder()
-            .request_timeout(Duration::from_secs(90))
+            .request_timeout(vox_config::timeouts::BROWSER_CDP_REQUEST)
             .launch_timeout(vox_config::timeouts::D_60S);
         builder = if headless {
             builder.new_headless_mode()

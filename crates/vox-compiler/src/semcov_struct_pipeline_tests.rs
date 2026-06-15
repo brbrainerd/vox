@@ -184,4 +184,57 @@ mod semcov_struct_pipeline_tests {
             "ok-arm binding must survive lowering"
         );
     }
+
+    // ── Pattern #3: context-dependent silent drop ──────────────────────────
+    // The `@pure` marker must survive IDENTICALLY whether it decorates a free
+    // `fn` (context A) or an `@example`-wrapped fn (context B). The two routes
+    // through lowering are different (free fn -> hir.functions; example ->
+    // hir.examples via lower_fn), so a decorator-threading refactor could
+    // preserve purity in one context and silently drop it in the other.
+    // (Note: `to int`, not `-> int`; and the wrapper decorator must precede
+    // `@pure` — `@pure` first is a parse error.)
+
+    #[test]
+    fn pure_marker_survives_in_both_fn_and_example_contexts() {
+        // Catches: @pure honored on a free fn but silently dropped when the same
+        // fn is @example-wrapped (context-dependent drop) — asserted as a parity
+        // relationship so it fires on divergence in either direction.
+        let a = lower("@pure\nfn f() to int { 1 }");
+        let fa = a
+            .functions
+            .iter()
+            .find(|f| f.name == "f")
+            .expect("free fn f must lower");
+        assert!(fa.is_pure, "context A: @pure dropped on free fn");
+
+        let b = lower("@example\n@pure\nfn ef() to int { 1 }");
+        assert_eq!(b.examples.len(), 1, "context B: @example fn must lower");
+        let eb = &b.examples[0];
+        assert_eq!(eb.name, "ef");
+        assert_eq!(
+            fa.is_pure, eb.is_pure,
+            "pattern #3: @pure survives on free fn (A) but is dropped in @example context (B)"
+        );
+        assert!(
+            eb.is_pure,
+            "context B: @pure silently dropped on @example fn"
+        );
+    }
+
+    // ── R5: decorator-order asymmetry (known limitation, executable TODO) ────
+    // `@pure` AFTER `@example`/`@test` parses (see the test above); `@pure` BEFORE
+    // them is a hard parse error because the top-level dispatch in
+    // parser/descent/mod.rs routes a leading `@pure` straight to `parse_fn_decl`,
+    // whose decorator loop has no arm for `@example`/`@test`. The real fix is to
+    // collect ALL leading decorators first, then dispatch on the decl-kind keyword.
+    // This test pins the DESIRED behavior; remove `#[ignore]` once the refactor lands.
+    #[test]
+    #[ignore = "R5: needs collect-all-leading-decorators-then-dispatch refactor in parser/descent/mod.rs"]
+    fn pure_before_example_should_parse_and_stay_pure() {
+        // Catches (post-fix): decorator order changing acceptance or dropping @pure.
+        let m = parse(lex("@pure\n@example\nfn ef() to int { 1 }")).expect(
+            "@pure before @example should parse once decorator collection is order-independent",
+        );
+        assert_eq!(m.declarations.len(), 1, "must lower to exactly one decl");
+    }
 }

@@ -11,6 +11,8 @@ training_rationale: "Architecture contract + remediation plan; transient enforce
 
 > **For agentic workers:** this is the *contract* document. The executable, task-by-task work lives in the companion plan [`docs/superpowers/plans/2026-06-14-pipeline-parity-enforcement.md`](../../superpowers/plans/2026-06-14-pipeline-parity-enforcement.md). Read this to understand *what parity means and why*; read the plan to *do the work*. Both are designed so independent agents can pick up disjoint slices in parallel without shared state.
 
+> **⚠ Audit correction (2026-06-15).** A 5-agent read-only re-audit verified this SSOT against `main` and found the *thesis* sound but several §2 current-state facts stale (the gap-remediation work since `fb2842670e` already converted most silent catch-alls into explicit coded arms). Corrected facts are inlined below as **[CORRECTED 2026-06-15]** notes. Net effect: the silent-drop surface is smaller and concentrated in the TS/web stack; the work shifts from *removing catch-alls* to *centralizing the already-explicit per-emitter decisions into one matrix + adding the gate*. The three design artifacts (§3) are unchanged in shape; only their sizing and one crate-boundary detail are corrected.
+
 **Goal (one sentence):** Every Vox language feature must be wired identically across all internal representations and all emit targets — and any feature that is partially wired must be **rejected by the build pipeline** (a compile error where the type system can enforce it, a required-gate test failure otherwise), not silently degraded, panicked on at runtime, or discovered by a user.
 
 **The thesis:** Vox today has *four* IRs, *four* emit targets, and *three* builtin registries, but **no single place that says "here is the set of features, and here is who must implement each one."** Parity is therefore enforced by human vigilance and a handful of partial tests. That is exactly the failure mode that produced the R1–R15 adversarial-review bugs and the ~55 wiring gaps in the 2026-06-13 pipeline audit. This document defines the missing SSOT and the gate that turns parity from a convention into an invariant.
@@ -89,21 +91,29 @@ These three lists are **maintained by hand and drift independently.** There is n
 
 Catch-all `_ => …` arms in emit code (the sites where a feature can vanish without a trace):
 
-- `codegen_rust/emit/stmt_expr.rs` — 4 catch-all arms (≈ lines 979, 988, 1092, 1264)
-- `codegen_ts/hir_emit/mod.rs` — 13+ catch-all arms (≈ lines 217, 222, 285, 466, 577, 747, 773, 941, 943, 975, 1178, 1181, 1980)
-- `web_ir/lower.rs` — 8 catch-all arms
-- `eval/expr.rs` — fallback block (≈ lines 781–803) returning `EvalError::AssertionFailed` for `Jsx`, `Spawn`, `With`, `WorkflowVersion`
+> **[CORRECTED 2026-06-15]** The numbers below were the state at `fb2842670e`. The gap-remediation work (R1–R15, the 2026-06-13 audit fixes, the `ts-noemit` repair `275c09edc8`) has since converted most of these into *explicit* arms. **Verified current state on `main`:**
+>
+> | Emitter | Original claim | Verified now | What's actually there |
+> |---|---|---|---|
+> | `codegen_rust/emit/stmt_expr.rs` | 4 catch-alls (979/988/1092/1264) | **0 silent feature-enum catch-alls** | `emit_expr_with` (749–789) is exhaustive: explicit `compile_error!` arms for `Jsx`/`AsyncView`/`WorkflowVersion`/`With`, `tokio::spawn` for `Spawn`, and an `unreachable!` safety net (785). The 4 claimed lines match strings/ints/`Option`, not features. |
+> | `codegen_ts/hir_emit/mod.rs` | 13+ catch-alls | **5 real** (222, 1178, 1181, 1979, 1980) + 1 explicit silent drop `WorkflowVersion => String::new()` (878) | `emit_hir_expr` (297) and `emit_hir_stmt` (1088) are now **exhaustive**. Real silent drops: `emit_hir_pattern` `_ => "_"` (1181, loses Constructor/Tuple), bind fallback → inert `onChange` (222), kwarg shapes → `None` (1979/1980). |
+> | `web_ir/lower.rs` | 8 catch-alls | **1 primary** (250) + 1 benign stmt no-op (72) | `DomArena::lower_expr` line 250 `_ =>` is the honest `expr_fallback_count++` → `DomNode::Expr` accumulator. `HirEndpointKind`/`HirDbTableOp` matches are exhaustive. |
+> | `eval/expr.rs` | fallback ~781–803 | **Accurate** (span is 781–**807**) | `eval_expr` is fully exhaustive; `Jsx`/`AsyncView`/`Spawn`/`With`/`WorkflowVersion` return actionable `EvalError`. **This is the model the other emitters should match.** |
+>
+> **Real remaining silent-drop surface ≈ 6 sites, all in the TS/web stack.** The two Rust-side dispatchers (`codegen_rust`, `eval`) are already exhaustive with explicit coded arms — they are *not yet matrix-driven* (each hand-rolls its own `compile_error!`/`EvalError` string), which is the remaining gap this SSOT closes.
 
-The interpreter fallback is the *good* pattern (an error, not a silent drop) but it is a **runtime** error, not a **build-time** one — the user still finds it, not the compiler.
+The interpreter fallback is the *good* pattern (an error, not a silent drop) but it is a **runtime** error, not a **build-time** one — the user still finds it, not the compiler. The codegen_rust `compile_error!` arms are better still (build-time), but their codes are hand-written string literals, not entries in the codes registry — so nothing proves they stay in sync with the matrix. Centralizing them is the point of §3.2.
 
 ### 2.5 What parity enforcement exists today (partial)
 
-- `webir_contract_parity_test.rs` — **the one real cross-emitter gate.** Asserts `lower_hir_to_web_ir()` and `app_contract::project_app_contract()` agree on endpoint *name sets*. Endpoint names only — not feature coverage.
-- `golden_arm_parity_test.rs` — emit-only ratchet (7/10 golden examples emit cleanly; floor ratchets up as fixes land).
-- `tauri_endpoint_client_parity_test.rs` — Tauri command names ↔ `vox_client.invoke()` call sites.
-- `ztier_and_layertier_agree_on_names_and_order()` smoke test — two enums kept lock-step.
+> **[CORRECTED 2026-06-15]** Two tests this section originally listed as existing **do not exist in the codebase**: `webir_contract_parity_test` (described here as "the one real cross-emitter gate") and `tauri_endpoint_client_parity_test`. Both are only *referenced* — the former is a "(Create)" task in the 2026-06-13 gap-remediation plan, the latter appears only in doc inventory. Do not assume either as a baseline. The verified-existing parity tests are:
 
-**None of these assert "every feature is handled by every target."** That gate does not exist yet. Building it is the heart of this initiative.
+- `golden_arm_parity_test.rs` — **EXISTS** at `crates/vox-integration-tests/tests/`. Emit-only ratchet: asserts codegen-rust (`--mode script`) stdout matches each golden's `// EXPECT:` block (the interpreter's verified output), ratcheted against `contracts/eval/arm-parity-allowlist-script.txt`. `#[ignore]` (compiles generated crates).
+- `ztier_and_layertier_agree_on_names_and_order()` — **EXISTS** as an inline smoke test at `crates/vox-codegen/src/web_ir/mod.rs:554` — two enums kept lock-step on the z-ladder.
+- `webir_contract_parity_test` — **DOES NOT EXIST** (planned only). When built, it would assert `lower_hir_to_web_ir()` and `app_contract::project_app_contract()` agree on endpoint name sets.
+- `tauri_endpoint_client_parity_test` — **DOES NOT EXIST** (referenced only). Would assert Tauri command names ↔ `vox_client.invoke()` call sites.
+
+**None of the existing tests assert "every feature is handled by every target."** That gate does not exist yet. Building it (Artifact C, §3.3) is the heart of this initiative.
 
 ### 2.6 Diagnostics infrastructure (the good news)
 
@@ -154,15 +164,23 @@ pub enum Support {
 /// A feature with no row here fails the build (see §3.3).
 pub fn support(feature: Feature, target: Target) -> Support { /* exhaustive match */ }
 
-/// The single helper every emitter calls when it reaches a feature its target
-/// does not implement. Lives in vox-compiler beside the matrix (it reads
-/// `support()`); emitters import it. There is no per-emitter copy.
-pub fn emit_unsupported(feature: Feature, target: Target) -> Diagnostic { /* surfaces support()'s code */ }
+/// The single helper that resolves "what code + message does this unsupported
+/// cell carry." Lives in vox-compiler beside the matrix (it reads `support()`).
+/// Returns the raw (code, message) — NOT a concrete Diagnostic — so each emitter
+/// adapts it into its own native error channel. There is no per-emitter copy of
+/// the decision; there IS a thin per-emitter adapter (see crate-boundary note).
+pub fn unsupported_diagnostic(feature: Feature, target: Target) -> UnsupportedCell { /* surfaces support()'s code + message */ }
 ```
+
+> **[CORRECTED 2026-06-15] — crate-boundary: do NOT return one `Diagnostic` type.** The original draft had `emit_unsupported(...) -> Diagnostic` returning `vox_compiler::typeck::diagnostics::Diagnostic`. The audit found that **`vox-codegen` does not use that type at all** — it errors via `miette::Error` (the Rust emit path) and a codegen-local `WebIrDiagnostic` struct (the web path), and the existing `*-unimplemented` codes actually fire in vox-compiler's *typeck* pass (`ast_decl_lints.rs`), not in codegen. Forcing `vox_compiler::Diagnostic` across the crate boundary would be a brand-new, awkward usage pattern. **Corrected design:** the shared SSOT is `support()` returning the stable `&'static str` code (crate-agnostic). The helper returns a small `UnsupportedCell { code, message }`; each emitter has a one-line adapter into its native channel — `compile_error!("{code}: {message}")` in codegen_rust (already the pattern at stmt_expr.rs:749–782), a `WebIrDiagnostic`/throw in codegen_ts, an `EvalError` in eval, a `Diagnostic` in typeck. The matrix declares the truth once; the adapters are trivial and live with each emitter (so they may be written in Wave 2 without touching `feature_matrix.rs`). Also note the real `Diagnostic` constructor is `Diagnostic::error(message, span, source)` + `.with_code(code)` — there is no `error(code, message)`.
+
+> **[CORRECTED 2026-06-15] — second code registry.** `WebIrDiagnostic` carries codes (e.g. `vox/codegen/missing-ts-ai-lowering`) that are **not** in `ALL_COMPILER_DIAGNOSTIC_CODES`. There are effectively *two* code registries that drift. Done Criterion §6.5 must therefore either (a) fold the WebIr codes into the compiler registry, or (b) explicitly scope parity codes to the compiler registry and leave WebIr codes governed separately. Decide this in Wave 1 Task 3; default recommendation: (a) — one registry, since the whole point is no parallel SSOTs.
 
 `Feature` enumerates decorators, expr/stmt/decl kinds, and builtins. The matrix is an **exhaustive match** on `(Feature, Target)` — so adding either a `Feature` *or* a `Target` variant makes the matrix fail to compile until every new cell is filled in. This is the first half of the build gate.
 
-> **Ownership:** both `support()` and `emit_unsupported()` live in `crates/vox-compiler/src/feature_matrix.rs`. The matrix is **seeded in full (all features × all targets) in Wave 1** and is touched again only in Wave 3 (reconciliation). Emitter agents in Wave 2 never edit it — they only call `support()` / `emit_unsupported()`. This is what keeps the parallel fan-out conflict-free (see §5).
+> **[CORRECTED 2026-06-15] — matrix size (sizing the Wave-1 seed).** Verified current inventory: **56 decorators** (`At*` tokens), **36 expr/stmt kinds** (28 `HirExpr` + 8 `HirStmt`), **41 declaration kinds** (AST `Decl`). That is **133 feature rows × 4 targets = 532 cells** to seed in Wave 1 (builtins deferred to Task 10). This is a large but mechanical single-agent task. Keep rows terse with named row-builders — `all_targets()`, `frontend_only(code)`, `server_only(code)` — so each `Feature` arm is one line, not four. Do not split the seed across agents (it is one exhaustive match in one file; see §5).
+
+> **Ownership:** both `support()` and `unsupported_diagnostic()` live in `crates/vox-compiler/src/feature_matrix.rs`. The matrix is **seeded in full (all features × all targets) in Wave 1** and is touched again only in Wave 3 (reconciliation). Emitter agents in Wave 2 never edit it — they only call `support()` / `unsupported_diagnostic()`. This is what keeps the parallel fan-out conflict-free (see §5).
 
 > **Design note — avoid a second source of truth.** The matrix must be *derived from or checked against* the real emitters, not maintained beside them. The enforcement (§3.3) is what prevents the matrix itself from becoming a fourth registry that drifts. The matrix declares intent; the gate proves the emitters match the declaration.
 
@@ -195,8 +213,8 @@ A new `feature_matrix_parity_test` that, for every `(Feature, Target)` the matri
 
 This work is decomposed so that independent agents touch **disjoint files**. The single rule that makes parallelism safe: **`feature_matrix.rs` is edited only in the two sequential waves (1 and 3); the parallel wave (2) never touches it.**
 
-- **Wave 1 (foundation, sequential, one agent):** `target.rs`, then the *complete* `feature_matrix.rs` — every feature × every target seeded from the §2 audit and the §7 R1–R15 baseline — plus the `emit_unsupported()` helper. The matrix is fully populated here, not incrementally per emitter. These define the types and the helper everything else imports, so they land first and alone.
-- **Wave 2 (fan-out, parallel — one agent per emitter):** each agent removes catch-alls in exactly *one* emitter (`codegen_rust` / `codegen_ts` / `web_ir` / `eval`) and routes unsupported variants through `emit_unsupported()`. These are separate file trees → no merge conflicts. **A Wave-2 agent edits only its emitter's files and its own exhaustiveness test — never `feature_matrix.rs`, never another emitter.**
+- **Wave 1 (foundation, sequential, one agent):** `target.rs`, then the *complete* `feature_matrix.rs` — every feature × every target seeded from the §2 audit and the §7 R1–R15 baseline — plus the `unsupported_diagnostic()` helper. The matrix is fully populated here, not incrementally per emitter. These define the types and the helper everything else imports, so they land first and alone.
+- **Wave 2 (fan-out, one agent per emitter):** each agent routes its *one* emitter's unsupported-feature handling (`codegen_rust` / `codegen_ts` / `web_ir` / `eval`) through `unsupported_diagnostic()` and adds an exhaustiveness regression test. (Per the 2026-06-15 audit, `codegen_rust` and `eval` are already exhaustive — those two are routing tasks; the real silent drops are in TS/web.) These are separate file trees → no merge conflicts. **A Wave-2 agent edits only its emitter's files and its own exhaustiveness test — never `feature_matrix.rs`, never another emitter.**
 - **Wave 3 (gate, sequential, one agent):** the `feature_matrix_parity_test`. If a cell's *declared* support disagrees with the *observed* emitter behavior, the fix is a one-line matrix correction made here, sequentially — never during the parallel wave.
 
 Because the only shared file (`feature_matrix.rs`) is written in Wave 1 and corrected in Wave 3, and both are single-agent sequential waves, the parallel fan-out has **no shared mutable state**. This is a committed design, not a "serialize if it gets conflict-prone" fallback.

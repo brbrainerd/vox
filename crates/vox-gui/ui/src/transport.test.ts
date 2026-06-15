@@ -39,9 +39,18 @@ describe('VoxTransport new methods', () => {
     expect(mockInvoke).toHaveBeenCalledWith('set_gui_preference', { key: 'dock-layout', value: '{"collapsed":true}' });
   });
 
-  it('openLocator calls open_locator', async () => {
-    mockInvoke.mockResolvedValue(undefined);
-    await voxTransport.openLocator('file://path/to/file');
-    expect(mockInvoke).toHaveBeenCalledWith('open_locator', { locator: 'file://path/to/file' });
+  it('openLocator forwards the locator object and returns the outcome', async () => {
+    mockInvoke.mockResolvedValue({ action: 'opened' });
+    const locator = { kind: 'file' as const, value: 'src/main.rs' };
+    const outcome = await voxTransport.openLocator(locator);
+    expect(mockInvoke).toHaveBeenCalledWith('open_locator', { locator });
+    expect(outcome).toEqual({ action: 'opened' });
+  });
+
+  it('openLocator passes a web locator through unchanged', async () => {
+    mockInvoke.mockResolvedValue({ action: 'spawned' });
+    const locator = { kind: 'web' as const, value: 'https://example.test' };
+    await voxTransport.openLocator(locator);
+    expect(mockInvoke).toHaveBeenCalledWith('open_locator', { locator });
   });
 });
