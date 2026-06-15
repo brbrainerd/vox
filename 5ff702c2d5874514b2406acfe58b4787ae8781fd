@@ -1,0 +1,17 @@
+feat(ci): Implement config-hygiene baseline ratcheting
+scale: ~181 lines across 4 files [M]
+
+- `crates/vox-cli/src/commands/ci/config_hygiene.rs`:
+    - Add `baseline_key` function to generate a unique key for each violation.
+    - Introduce `unbaselined` function to filter out violations present in the baseline.
+    - Define `BASELINE_REL_PATH` constant for the baseline file location.
+    - Implement `load_baseline` function to read baseline keys from a file, ignoring comments and empty lines.
+    - Add `update_baseline` function to write current violations to the baseline file.
+    - Modify `run` function to load the baseline, filter violations, and optionally update the baseline.
+    - Update `Violation` struct to include `check` and `file` fields.
+    - Add `BTreeSet` import.
+- `contracts/config/config-hygiene-baseline.txt`: Add new file containing an initial set of grandfathered config hygiene violations.
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Add `update_baseline` argument to the `ConfigHygiene` subcommand.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Pass `update_baseline` argument to the `config_hygiene::run` function.
+
+--- audit: original='feat(ci): config-hygiene baseline ratchet — grandfather existing, block only new violations' | actual=181L across 4 files | derived=full ---
