@@ -1,0 +1,11 @@
+chore(snapshots): refresh codegen-ts golden snapshots to current emit
+scale: ~867 lines across 26 files [L]
+
+- `dashboard_chrome` snapshots: Updated `status_bar_tsx`, `top_bar_tsx`, `left_rail_collapsed_tsx`, and `left_rail_expanded_tsx` to reflect current codegen output, including changes to `div` and `button` elements and their `className` attributes.
+- `dashboard_surfaces` snapshots: Refreshed `surface_stub_tsx`, `forge_surface_stub_tsx`, `mesh_surface_stub_tsx`, `models_surface_stub_tsx`, `runs_surface_stub_tsx`, `code_surface_stub_tsx`, `speak_surface_stub_tsx`, and `settings_surface_stub_tsx` to align with current codegen, primarily affecting `div` and `button` elements and their `className` attributes.
+- `dashboard_composites` snapshots: Updated `node_badge_tsx`, `stat_box_tsx`, `codeframe_tsx`, `toggle_tsx`, `input_tsx`, `state_chip_tsx`, `icon_btn_tsx`, `key_hint_tsx`, `section_heading_tsx`, and `label_tsx` to reflect current codegen output, including changes to `div` and `button` elements and their `className` attributes.
+- `svg_vuv` snapshots: Refreshed `mesh_node_tsx`, `halo_rect_tsx`, and `play_icon_tsx` to align with current codegen output, primarily affecting `div` elements and their `className` attributes.
+
+The updates incorporate Tailwind `className` arrays and primitive lowering, which had not been refreshed since upstream view-emit changes. The new outputs were verified manually.
+
+--- audit: original='chore(snapshots): refresh codegen-ts golden snapshots to current emit' | actual=867L across 26 files | derived=full ---
