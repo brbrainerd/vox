@@ -1,0 +1,44 @@
+feat(mens): decouple vox-mens from vox-cli
+scale: ~2142 lines across 101 files [XL]
+
+- `crates/vox-mens`:
+    - Introduced `process_supervision.rs` for managed binary path resolution, detached spawning, and process-tree termination.
+    - Added `dispatch.rs` for IPC dispatching to daemon binaries, including streaming responses.
+    - Created `pipeline.rs` to centralize compiler frontend execution and error reporting.
+    - Moved `oratio_cmd.rs` (speech-to-text CLI) from `vox-cli` to `vox-mens`.
+    - Added `dispatch_protocol.rs` for JSON line protocol between CLI and daemon.
+    - Introduced `dei_daemon.rs` for daemon-specific logic.
+    - Added `workspace_db.rs` for workspace database management.
+    - Moved `probe.rs` (mens probe command) from `vox-cli` to `vox-mens`.
+    - Moved `status.rs` (mens status command) from `vox-cli` to `vox-mens`.
+    - Moved `bench_completion.rs` (mens bench completion command) from `vox-cli` to `vox-mens`.
+    - Moved `populi/dispatch.rs` (mens populi dispatch command) from `vox-cli` to `vox-mens`.
+    - Moved `populi/mens_tail_subcommands.rs` from `vox-cli` to `vox-mens`.
+    - Updated `Cargo.toml` to reflect new modules and dependencies.
+    - Refactored `training/core.rs` and `commands/corpus/generate.rs`.
+    - Updated `commands/mens/populi/action_populi_enum.rs`.
+    - Updated `lib.rs` to expose new modules.
+    - Minor changes to `commands/ai/workflow.rs`, `commands/mens/eval_local.rs`, `commands/mens/mod.rs`, `commands/populi_cli.rs`, `commands/corpus/mod.rs`, `commands/corpus/validate.rs`, `commands/mens/eval_gate/policy.rs`, `commands/mens/eval_local_prompt.rs`, `commands/mens/models.rs`, `commands/mens/system_prompt_template.rs`, `commands/populi_lifecycle.rs`, `commands/schola/merge_qlora.rs`, `training/mod.rs`.
+- `crates/vox-cli`:
+    - Removed `commands/mens/plan.rs` (349 lines deleted).
+    - Removed `commands/mens/probe.rs` (44 lines deleted).
+    - Removed `src/bin/vox-mens.rs` (10 lines deleted).
+    - Removed `src/compilerd.rs` (2 lines deleted).
+    - Updated `Cargo.toml` to remove `vox-mens` related dependencies.
+    - Refactored `src/lib.rs` and `src/cli_dispatch/mod.rs` to remove `vox-mens` related code.
+    - Updated `src/commands/mod.rs` to remove `vox-mens` commands.
+    - Added `src/main.rs` (25 lines added).
+    - Updated `src/commands/review/coderabbit/ingest.rs`.
+    - Updated `src/commands/dei.rs`.
+    - Updated `src/commands/check.rs` and `src/cli_args.rs`.
+    - Updated `src/commands/review/mod.rs`.
+    - Added `src/commands/scientia_worthiness_enrich.rs`, `src/commands/codex.rs`, `src/commands/runtime/run/sandbox.rs`.
+    - Added `src/commands/diagnostics/doctor/checks_standard/gpu_hardware.rs` and `src/commands/diagnostics/doctor/checks_standard/mod.rs`.
+- `crates/vox-compiler`:
+    - Added `src/pipeline.rs` (7 lines added).
+    - Updated `tests/web_ir_lower_emit_test.rs` and `src/typeck/builtins.rs`.
+- `crates/vox-corpus`:
+    - Updated `src/corpus/dogfood.rs`.
+- `Cargo.toml`: Updated workspace and crate dependencies.
+
+--- audit: original='chore: complete vox-mens structural decoupling' | actual=2142L across 101 files | derived=full ---
