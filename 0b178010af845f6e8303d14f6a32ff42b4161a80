@@ -1,0 +1,6 @@
+fix(codegen): emit `|_app|` for scheduled-only Tauri setup closure
+scale: ~6 lines across 1 files [XS]
+
+- `crates/vox-codegen/src/codegen_rust/emit/mod.rs`: Modified the Tauri setup closure generation to use `|_app|` instead of `|app|` when no `@table` is declared. This prevents an "unused variable: app" warning in the generated crate when only `@scheduled` functions are present, as `app` is only referenced by the `app.manage(...)` block for tables.
+
+--- audit: original='fix(codegen): emit |_app| for scheduled-only Tauri setup closure' | actual=6L across 1 files | derived=full ---
