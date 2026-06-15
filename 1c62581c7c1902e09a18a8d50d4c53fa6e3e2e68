@@ -1,0 +1,10 @@
+docs(ci): document `vox ci pre-push` and link from contributor hub
+scale: ~78 lines across 5 files [M]
+
+- docs/src/contributors/local-ci-pre-push.md: Add new documentation for `vox ci pre-push` command, detailing its modes (`--quick`, default, `--full`), installation of the git hook, bypass mechanism, and tuning the diff base.
+- docs/src/contributors/contributor-hub.md: Remove extensive manual instructions for local CI parity checks and replace them with a link to the new `local-ci-pre-push.md` document.
+- docs/src/ci/runner-contract.md: Update the "Pre-push validation" section to refer to `vox ci pre-push` and link to the new `local-ci-pre-push.md` document, replacing previous copy-paste subset instructions.
+- docs/src/feed.xml: Update the feed to include the new documentation page.
+- docs/src/SUMMARY.md: Add an entry for the new `local-ci-pre-push.md` document to the documentation summary.
+
+--- audit: original='docs(contributors): document vox ci pre-push and link from hub' | actual=78L across 5 files | derived=full ---
