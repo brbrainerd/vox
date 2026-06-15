@@ -41,6 +41,25 @@ macro_rules! secret_key {
     };
 }
 
+/// VoxConfig-tier (sectioned) key: persisted via `VoxConfig`, default owned by
+/// `VoxConfig::default()` (registry `default` left empty to avoid drift).
+macro_rules! vc_key {
+    ($env:literal, $kind:ident, $group:ident, $label:literal, $hint:literal) => {
+        LlmConfigKey {
+            env: $env,
+            default: "",
+            kind: Kind::$kind,
+            group: Group::$group,
+            class: ConfigClass::UserPreference,
+            label: $label,
+            hint: $hint,
+            options: &[],
+            secret: false,
+            persistence: Persistence::VoxConfig,
+        }
+    };
+}
+
 pub const LLM_CONFIG_KEYS: &[LlmConfigKey] = &[
     // ---- Endpoints (non-secret) -----------------------------------------------------
     key!("OPENROUTER_BASE_URL", "https://openrouter.ai/api", Url, ModelsAndEndpoints, "OpenRouter base URL", "OpenAI-compatible OpenRouter endpoint"),
@@ -109,4 +128,14 @@ pub const LLM_CONFIG_KEYS: &[LlmConfigKey] = &[
     secret_key!("OPENCLAW_API_KEY", "OpenClaw API key"),
     secret_key!("OPENCLAW_TOKEN", "OpenClaw token"),
     secret_key!("HF_TOKEN", "Hugging Face token"),
+    // ---- VoxConfig-tier (sectioned ~/.vox/config.toml; default owned by VoxConfig) ---
+    // `default` left empty here: the display default for these comes from
+    // `VoxConfig::default()` at read time so it can't drift from the struct.
+    vc_key!("model", String, General, "Default model", "Model id used when no per-call override is set"),
+    vc_key!("daily_budget_usd", Float, General, "Daily budget (USD)", "Soft cap on spend per day"),
+    vc_key!("per_session_budget_usd", Float, General, "Per-session budget (USD)", "Soft cap on spend per session"),
+    vc_key!("data_dir", Path, Training, "Training data dir", "Directory for MENS training data ([train].data_dir)"),
+    vc_key!("db_url", String, General, "Database URL", "Optional external database URL (blank = local default)"),
+    vc_key!("train_epochs", Int, Training, "Training epochs", "Default epochs for MENS training runs"),
+    vc_key!("train_batch_size", Int, Training, "Training batch size", "Default batch size for MENS training runs"),
 ];
