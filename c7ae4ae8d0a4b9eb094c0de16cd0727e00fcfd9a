@@ -1,0 +1,9 @@
+feat(share): implement first-run consent banner and persist share state
+scale: ~215 lines across 4 files [M]
+
+- `crates/vox-share/src/consent.rs`: Add new module for handling first-run consent, displaying a banner with information about public exposure and Cloudflare, and prompting the user for acceptance.
+- `crates/vox-share/tests/consent_test.rs`: Add unit tests for the consent mechanism, including state persistence, `--accept-tos` flag behavior, and skipping prompts when already accepted.
+- `crates/vox-share/src/state.rs`: Refactor `ShareState` to include `cloudflare_consent_v1` and `consent_text_version` fields, and implement `load` and `save` methods for persisting state to `~/.config/vox/share-state.json`.
+- `crates/vox-share/src/lib.rs`: Export the new `consent` module.
+
+--- audit: original='feat(share): first-run consent banner + share state persistence (S2 task 3)' | actual=215L across 4 files | derived=full ---
