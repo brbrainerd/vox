@@ -1,0 +1,12 @@
+feat(model): add `discover --eval-shadowed` and `pending_eval_ids` to catalog report
+scale: ~95 lines across 2 files [M]
+
+- `crates/vox-cli/src/commands/model/discover.rs`:
+    - Added `--eval-shadowed` flag to `discover` command.
+    - Implemented `render_eval_plan` function to display pending evaluation IDs and the corresponding `vox model eval` command.
+    - Integrated `eval_shadowed` logic to print the evaluation plan and, if an OpenRouter API key is present, invoke `eval::run` for pending models.
+- `crates/vox-orchestrator/src/orchestrator/catalog_refresh.rs`:
+    - Added `pending_eval_ids: Vec<String>` field to `UnifiedCatalogReport` to store discovered-but-unconfirmed model IDs.
+    - Populated `pending_eval_ids` by deriving candidates from the snapshot, 7-day scoreboard IDs, and excluding council-retired IDs.
+
+--- audit: original='feat(models): vox model discover --eval-shadowed loop driver + pending_eval_ids (Track C)' | actual=95L across 2 files | derived=full ---
