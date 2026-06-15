@@ -1,0 +1,20 @@
+feat(mcp): add `vox_skill_use` and `vox_skill_discover` operations
+scale: ~201 lines across 11 files [M]
+
+- **`crates/vox-orchestrator-mcp/src/skills_tools.rs`**:
+    - Implemented `skill_use` function to retrieve the full `SKILL.md` body for an installed skill, matching by ID or name. This includes `SkillUseResponse` struct for serialization.
+    - Implemented `skill_discover` function to list bare `SKILL.md` skills under standard interop roots with their installation status. This includes `DiscoveredSkill` and `DiscoveredSkillResponse` structs.
+- **`contracts/operations/catalog.v1.yaml`**: Added new operation definitions for `skill.discover` and `skill.use`, marking both as `http_read_role_eligible` and `tier: core`.
+- **`contracts/capability/capability-registry.yaml`**: Added new capability entries for `mcp.vox_skill_discover` and `mcp.vox_skill_use`, including their descriptions for models.
+- **`contracts/mcp/tool-registry.canonical.yaml`**: Added new tool entries for `vox_skill_discover` and `vox_skill_use`, specifying their descriptions, product lane, and `http_read_role_eligible` status.
+- **`crates/vox-orchestrator-mcp/src/dispatch.rs`**: Added dispatch logic to handle `vox_skill_use` and `vox_skill_discover` tool calls.
+- **`crates/vox-orchestrator-mcp/src/input_schemas.rs`**:
+    - Updated `tool_input_schema` to include `vox_skill_discover` as a tool without additional properties.
+    - Updated `tool_input_schema` to include `vox_skill_use` as a tool with additional properties.
+- **`crates/vox-mcp-registry/src/lib.rs`**: Added `vox_skill_use` and `vox_skill_discover` to the `SKILL_TOOLS` constant.
+- **`contracts/mcp/http-read-role-governance.yaml`**: Added `vox_skill_discover` and `vox_skill_use` to the list of `read_role_tools`.
+- **`contracts/reports/operations-catalog-inventory.v1.json`**: Updated counts for `catalog_operations`, `mcp_only_operations`, and `mcp_tool_count` to reflect the addition of two new operations.
+- **`contracts/capability/model-manifest.generated.json`**: Regenerated to include the new capabilities.
+- **`contracts/reports/gui-surface-coverage.v1.json`**: Regenerated, indicating changes in GUI surface coverage.
+
+--- audit: original='feat(mcp): vox_skill_use (tier-2) + vox_skill_discover tools' | actual=201L across 11 files | derived=full ---
