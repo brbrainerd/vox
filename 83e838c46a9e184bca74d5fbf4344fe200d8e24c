@@ -1,0 +1,9 @@
+fix(corpus): seed fixtures 002/004 + repair_corpus runner logic-class honesty
+scale: ~87 lines across 4 files [M]
+
+- `crates/vox-audit`: Modified `repair_corpus` subcommand to introduce `is_test_criterion()` helper. This helper identifies "logic-class" fixtures (those with `post_repair_criterion` of "test_runs_clean" or "test_passes") from `expected.json`. The corpus inventory now excludes these fixtures from the "broken" count, tracking them separately, and adjusts the baseline rate calculation accordingly. The report note was updated to reflect this change.
+- `contracts/eval/repair-corpus/projects/002-effect-violation`: Updated `main.vox` to replace `print(n)` with `env.println(as_string(n))`. This changes the error from a type error to an E0002 effect-capability error, aligning it with the intended effect-violation bug class.
+- `contracts/eval/repair-corpus/projects/004-exhaustiveness`: Updated `main.vox` to replace `Option[int]` with a user-defined `Maybe/Just/Nothing` ADT. This ensures the E0001 exhaustiveness error fires, as the checker does not typically fire for standard library types. The function name was also changed from `unwrap_or_default` to `unwrap_or_zero`.
+- `contracts/reports`: Updated `evidence-ledger.v1.json` to reflect the fixes made to seed fixtures 002 and 004.
+
+--- audit: original='fix(corpus): seed fixtures 002/004 + runner logic-class honesty' | actual=87L across 4 files | derived=full ---
