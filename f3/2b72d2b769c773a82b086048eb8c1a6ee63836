@@ -1,0 +1,15 @@
+feat(eval+corpus): add `chr()` runtime; complete HumanEval-Vox to 164 problems
+scale: ~3942 lines across 195 files [XL]
+
+- **runtime**:
+    - Added `chr()` to `call_global_builtin` and `Ident` known-builtins list, fixing `UndefinedVariable("chr")` for problems like `caesar-decode`.
+    - Added `abs`, `max`, and `min` to `Ident` known-builtins list.
+- **HumanEval-Vox corpus**:
+    - Added 64 new problems (101-164), completing the corpus to 164/164 problems.
+    - New problems cover abundant numbers, set operations, string manipulation, list slicing, palindrome, median, first-duplicate, caesar-decode, consonants, run-length encode/decode, GCD/LCM list, Fibonacci list, to-hex, from-hex, insert-sorted, int↔digits, float sum, and power-sum.
+    - Corrected 4 assertion values in generated tests for `count-words-long`, `sum-above-avg`, `count-consonants`, and `sum-list-float`.
+    - Updated `manifest.v1.yaml`: `count_current` from 100 to 164, `held_out_current` from 25 to 44, `status` from `minimum-viable` to `complete`.
+    - Added fixtures for problems 101-164 and a ratification log entry for the final batch.
+    - All 164 problems now pass `vox check` and `vox run`.
+
+--- audit: original='feat(eval+corpus): add chr() runtime; complete HumanEval corpus to 164/164' | actual=3942L across 195 files | derived=full ---
