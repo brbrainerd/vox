@@ -1,0 +1,8 @@
+feat(mesh-types): introduce `Attestation` struct and integrate into `TaskResult`
+scale: ~34 lines across 3 files [S]
+
+- `crates/vox-mesh-types/src/attestation.rs`: Add new `Attestation` struct with fields for `task_id`, `input_hash_blake3_hex`, `output_hash_blake3_hex`, `gpu_seconds`, `trace_blake3_hex`, `ephemeral_pubkey_hex`, `signature_b64`, and `signed_at_unix_ms`.
+- `crates/vox-mesh-types/src/task.rs`: Add an `Option<Attestation>` field named `attestation` to the `TaskResult` struct, defaulting to `None` and skipping serialization if `None`.
+- `crates/vox-mesh-types/src/lib.rs`: Export the new `attestation` module and the `Attestation` struct.
+
+--- audit: original='feat(mesh-types): TaskResult.attestation envelope [P5-T4]' | actual=34L across 3 files | derived=full ---
