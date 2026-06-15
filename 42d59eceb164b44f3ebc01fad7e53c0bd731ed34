@@ -1,0 +1,13 @@
+feat(coderabbit): implement semantic planner with YAML-defined rules
+scale: ~879 lines across 10 files [L]
+
+- Introduce `rules.rs` to define and load semantic grouping rules from YAML, supporting versioned configurations and `cargo metadata` integration for workspace crates.
+- Refactor `groups.rs` to remove hardcoded semantic groups, now relying on the new YAML-based rule system.
+- Update `types.rs` to integrate the new `SemanticRuleSet` and `legacy_chunk_split` option into `SemanticPlanner`.
+- Modify `submit.rs` to load semantic rules dynamically, enforce `max_unassigned_ratio`, and support `legacy_chunk_split`.
+- Update `mod.rs` to export new rule-related functions and adjust tests to use the new planner initialization.
+- Enhance `config.rs` with new fields for `groups_config`, `semantic_workspace_crates`, `max_unassigned_ratio`, and `legacy_chunk_split`.
+- Adjust `historical_planner.rs` to remove unused `SemanticMatcher` import.
+- Update `docs/src/reference/cli.md` to reflect changes in CLI options.
+
+--- audit: original='feat: implement semantic planner for CodeRabbit review submissions' | actual=879L across 10 files | derived=full ---
