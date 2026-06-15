@@ -193,6 +193,12 @@ fn count_symbol_refs(root: &Path, symbols: &[String]) -> HashMap<String, usize> 
 /// `update_baseline`, regenerate the baseline file from the current tree.
 pub fn run(update_baseline: bool) -> anyhow::Result<()> {
     let root = std::env::current_dir()?;
+
+    // Load registry for Check D (env-var parity).
+    let registry_path = root.join("contracts/config/registry.v1.yaml");
+    let registry_yaml = std::fs::read_to_string(&registry_path).unwrap_or_default();
+    let registered_env_vars = load_registered_env_vars(&registry_yaml);
+
     let mut violations = Vec::new();
     collect_rs_files(&root.join("crates"), &mut |path, src| {
         let rel = path
@@ -205,6 +211,7 @@ pub fn run(update_baseline: bool) -> anyhow::Result<()> {
         }
         violations.extend(check_no_cwd_relative_contract_paths(src, &rel));
         violations.extend(check_protected_modules_have_no_env_reads(src, &rel));
+        violations.extend(check_env_reads_registered(src, &rel, &registered_env_vars));
     });
 
     // Check C: two-pass workspace scan — gather resolver definitions, then count
@@ -259,6 +266,57 @@ pub fn run(update_baseline: bool) -> anyhow::Result<()> {
         news.len(),
         grandfathered
     )
+}
+
+/// Load registered env vars from the config registry YAML.
+/// Returns a set of env_var names that are registered (non-null).
+pub fn load_registered_env_vars(registry_yaml: &str) -> std::collections::HashSet<String> {
+    let mut vars = std::collections::HashSet::new();
+    for line in registry_yaml.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("env_var: ") {
+            let v = rest.trim().trim_matches('"');
+            if v != "null" && !v.is_empty() {
+                vars.insert(v.to_string());
+            }
+        }
+    }
+    vars
+}
+
+/// Check D: scan source for VOX_* env reads that are NOT in the registry.
+/// Only flags lines containing `env::var` or `env_var` calls (not consts/docs).
+pub fn check_env_reads_registered(
+    source: &str,
+    file: &str,
+    registered: &std::collections::HashSet<String>,
+) -> Vec<Violation> {
+    let re = regex::Regex::new(r#"["']?(VOX_[A-Z0-9_]+)["']?"#).unwrap();
+    let mut hits = Vec::new();
+    for (i, raw) in source.lines().enumerate() {
+        let trimmed = raw.trim_start();
+        if trimmed.starts_with("//") {
+            continue;
+        }
+        if !raw.contains("env::var") && !raw.contains("env_var") {
+            continue;
+        }
+        for cap in re.captures_iter(raw) {
+            let var_name = &cap[1];
+            if !registered.contains(var_name) {
+                hits.push(Violation {
+                    check: "env-var-not-in-registry",
+                    file: file.to_string(),
+                    line: i + 1,
+                    message: format!(
+                        "VOX_* env var `{var_name}` is not in contracts/config/registry.v1.yaml \
+                         — add an entry with status: active or declared"
+                    ),
+                });
+            }
+        }
+    }
+    hits
 }
 
 fn collect_rs_files(dir: &Path, f: &mut impl FnMut(&Path, &str)) {
@@ -340,6 +398,33 @@ mod tests {
             check_protected_modules_have_no_env_reads(src, "crates/vox-search/src/ingest.rs")
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn registered_env_vars_parsed_from_yaml() {
+        let yaml = "env_var: VOX_WASM_SKILL_FUEL\nenv_var: null\nenv_var: VOX_MENS_DEFAULT_MODEL";
+        let vars = load_registered_env_vars(yaml);
+        assert!(vars.contains("VOX_WASM_SKILL_FUEL"));
+        assert!(vars.contains("VOX_MENS_DEFAULT_MODEL"));
+        assert!(!vars.contains("null"));
+    }
+
+    #[test]
+    fn unregistered_env_read_is_flagged() {
+        let registered = std::collections::HashSet::new(); // empty
+        let src = r#"let v = std::env::var("VOX_UNREGISTERED_KNOB").ok();"#;
+        let hits = check_env_reads_registered(src, "x.rs", &registered);
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].check, "env-var-not-in-registry");
+    }
+
+    #[test]
+    fn registered_env_read_is_not_flagged() {
+        let mut registered = std::collections::HashSet::new();
+        registered.insert("VOX_WASM_SKILL_FUEL".to_string());
+        let src = r#"let v = std::env::var("VOX_WASM_SKILL_FUEL").ok();"#;
+        let hits = check_env_reads_registered(src, "x.rs", &registered);
+        assert!(hits.is_empty());
     }
 
     #[test]
