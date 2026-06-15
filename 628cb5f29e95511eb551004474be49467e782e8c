@@ -1,0 +1,10 @@
+fix(vox-effort-audit): surface git subprocess failures in `walk`
+scale: ~72 lines across 1 files [M]
+
+- `walk.rs`:
+    - Modified `build_record` to propagate `WalkError::Walk` from `unified_diff` failures, making diff body retrieval fatal to prevent silent degradation of LLM judge input.
+    - Enhanced `numstat` to log warnings with SHA and stderr for non-zero exit codes or spawn failures of `git numstat`, treating such commits as empty but allowing the walk to continue.
+    - Updated `unified_diff` to return `WalkError::Walk` on non-successful `git diff` command execution.
+- Added a regression test to assert that `WalkError::Walk` is returned when `git diff` receives invalid SHAs.
+
+--- audit: original='fix(vox-effort-audit): surface git subprocess failures in walk' | actual=72L across 1 files | derived=full ---
