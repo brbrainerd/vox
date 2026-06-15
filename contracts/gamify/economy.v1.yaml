@@ -1,0 +1,151 @@
+# Gamify Economy contract v1 — numeric reward/tuning SSOT.
+#
+# This file externalizes the NUMERIC economy constants that were previously
+# baked directly into `crates/vox-gamify/src/reward_policy.rs` and
+# `crates/vox-gamify/src/streak.rs`. The hard-coded values in those modules
+# remain the in-code fallback default (the canonical SSOT default); this file
+# is overlaid ON TOP of those defaults by `economy::load_economy`. Any key
+# omitted here keeps its hard-coded default, so a partial or absent file is
+# always safe and behavior-preserving.
+#
+# The shipped values below are IDENTICAL to the current hard-coded defaults.
+# A regression test (reward_policy / economy module) asserts this equality so
+# the file is provably consumed and behavior is preserved.
+x-vox-version: 1
+version: 1
+title: Vox Gamify Economy v1
+description: >
+  Single data-file source of truth for the gamify reward table and the scalar
+  tuning constants (anti-grind taper, streak bonus, novelty, trust tiers,
+  daily streak XP). Overlays onto in-code defaults; missing keys fall back.
+
+# ── Scalar tuning constants ───────────────────────────────────────────────
+# Mirrors reward_policy.rs constants and the streak.rs daily-bonus formula.
+tuning:
+  # Anti-grind tiered decay (reward_policy::apply_policy).
+  # After GRIND_TAPER_END occurrences in a session, taper to 0.1x; past
+  # grind_zero_threshold the reward is fully suppressed.
+  grind_taper_end: 30
+  grind_zero_threshold: 31
+  # Tiered grind caps: (full_cap, half_cap). Below full_cap → 1.0x; between
+  # full_cap and half_cap → 0.5x; up to grind_taper_end → 0.1x.
+  grind_caps_high_frequency: [8, 14] # mcp_tool_called, message_sent, etc.
+  grind_caps_default: [15, 25]
+  # Novelty bonus applied to the first occurrence of each event type.
+  novelty_factor: 1.5
+  # Streak bonus: +streak_bonus_per_day per day, capped at streak_bonus_cap_days.
+  streak_bonus_per_day: 0.02
+  streak_bonus_cap_days: 25
+  # Learning-mode crystal jitter modulus (deterministic 0..jitter_modulus-1).
+  learning_jitter_modulus: 4
+  # Daily login streak XP bonus (streak::calculate_bonus): base*streak capped.
+  daily_streak_base_bonus: 10
+  daily_streak_bonus_cap: 100
+
+# ── Trust-tier reward multipliers ─────────────────────────────────────────
+# Mirrors reward_policy::trust_tier_multiplier.
+trust_tier_multipliers:
+  novice: 0.5
+  linked: 1.0
+  proven: 1.2
+  master: 1.5
+
+# ── Reward table ──────────────────────────────────────────────────────────
+# Per-event base rewards. Overlays onto reward_policy::base_reward(); any event
+# omitted here keeps its hard-coded default. Fields: xp, crystals, lumens
+# (default 0), grant_shield (default false). Only entries that differ from a
+# bare (xp, crystals) need lumens/grant_shield.
+rewards:
+  task_completed: { xp: 50, crystals: 5 }
+  task_started: { xp: 5, crystals: 1 }
+  task_submitted: { xp: 8, crystals: 1 }
+  task_failed: { xp: 0, crystals: 0 }
+  task_doubted: { xp: 10, crystals: 2 }
+  task_resolved: { xp: 20, crystals: 4 }
+  agent_spawned: { xp: 25, crystals: 2 }
+  agent_retired: { xp: 10, crystals: 0 }
+  agent_idle: { xp: 0, crystals: 0 }
+  agent_busy: { xp: 2, crystals: 0 }
+  snapshot_captured: { xp: 30, crystals: 6 }
+  operation_undone: { xp: 5, crystals: 0 }
+  operation_redone: { xp: 5, crystals: 0 }
+  conflict_resolved: { xp: 100, crystals: 20, lumens: 10 }
+  plan_handoff: { xp: 40, crystals: 8 }
+  agent_handoff_accepted: { xp: 50, crystals: 10 }
+  peer_teach_session: { xp: 500, crystals: 100, lumens: 50 }
+  message_sent: { xp: 1, crystals: 0 }
+  pr_merged: { xp: 200, crystals: 40, lumens: 15 }
+  code_reviewed: { xp: 100, crystals: 20, lumens: 10 }
+  issue_closed: { xp: 150, crystals: 30 }
+  helped_peer: { xp: 300, crystals: 60, lumens: 20 }
+  bounty_completed: { xp: 1000, crystals: 200, lumens: 50 }
+  refactor: { xp: 150, crystals: 30, lumens: 5 }
+  bug_fix: { xp: 200, crystals: 40, lumens: 8 }
+  test_pass: { xp: 55, crystals: 10 }
+  lint_clean: { xp: 30, crystals: 6 }
+  doc_added: { xp: 28, crystals: 6 }
+  build_completed: { xp: 25, crystals: 5 }
+  build_failed: { xp: 5, crystals: 0 }
+  check_completed: { xp: 15, crystals: 3 }
+  check_failed: { xp: 3, crystals: 0 }
+  test_fail: { xp: 10, crystals: 0 }
+  fmt_completed: { xp: 2, crystals: 0 }
+  cli_command_completed: { xp: 8, crystals: 1 }
+  cli_command_failed: { xp: 2, crystals: 0 }
+  diagnostics_clean: { xp: 5, crystals: 1 }
+  completion_accepted: { xp: 1, crystals: 0 }
+  bundle_completed: { xp: 50, crystals: 10 }
+  build_clean: { xp: 60, crystals: 12 }
+  build_failed_then_fixed: { xp: 100, crystals: 20, lumens: 3 }
+  phoenix_bonus: { xp: 150, crystals: 30, lumens: 5 }
+  build_clean_streak_3: { xp: 200, crystals: 40, grant_shield: true }
+  check_clean_first_try: { xp: 40, crystals: 8 }
+  test_suite_green: { xp: 250, crystals: 50, grant_shield: true }
+  test_coverage_improved: { xp: 150, crystals: 30, lumens: 7 }
+  toestub_violations_fixed: { xp: 300, crystals: 60, lumens: 12 }
+  toestub_scan_clean: { xp: 10, crystals: 5 }
+  stub_check_debt: { xp: 0, crystals: 0 }
+  fmt_applied: { xp: 2, crystals: 0 }
+  doc_coverage_100_pct: { xp: 1000, crystals: 200, lumens: 100 }
+  missing_docs_zero: { xp: 500, crystals: 100, lumens: 40 }
+  ai_thumbs_up: { xp: 20, crystals: 4 }
+  ai_thumbs_down: { xp: 15, crystals: 3 }
+  ai_example_written: { xp: 200, crystals: 40 }
+  ai_example_accepted: { xp: 1000, crystals: 200, lumens: 25 }
+  populi_corpus_contributed: { xp: 500, crystals: 100, lumens: 15 }
+  populi_inference_run: { xp: 5, crystals: 1 }
+  populi_finetune_epoch: { xp: 2000, crystals: 400 }
+  mens_flywheel_triggered: { xp: 200, crystals: 40, lumens: 10 }
+  vox_example_created: { xp: 200, crystals: 40 }
+  vox_example_canonical: { xp: 5000, crystals: 1000, lumens: 500 }
+  migration_applied: { xp: 100, crystals: 20 }
+  seed_completed: { xp: 50, crystals: 10 }
+  vox_web_page_rendered: { xp: 20, crystals: 4 }
+  v0_import_complete: { xp: 150, crystals: 30 }
+  lsp_go_to_def_used: { xp: 1, crystals: 0 }
+  lsp_completion_accepted: { xp: 1, crystals: 0 }
+  openapi_spec_generated: { xp: 100, crystals: 20 }
+  scheduled_job_ran: { xp: 40, crystals: 8 }
+  turso_query_executed: { xp: 10, crystals: 2 }
+  mcp_tool_called: { xp: 15, crystals: 3 }
+  mcp_tool_registered: { xp: 300, crystals: 60 }
+  pkg_published: { xp: 1500, crystals: 300 }
+  pkg_installed: { xp: 20, crystals: 4 }
+  workflow_completed: { xp: 1200, crystals: 240 }
+  workflow_checkpoint_saved: { xp: 50, crystals: 10 }
+  actor_message_sent: { xp: 5, crystals: 1 }
+  actor_spawned: { xp: 60, crystals: 12 }
+  security_review_passed: { xp: 1500, crystals: 300, lumens: 50 }
+  perf_regression_caught: { xp: 800, crystals: 160, lumens: 25 }
+  unsafe_removed: { xp: 400, crystals: 80, lumens: 15 }
+  collegium_created: { xp: 200, crystals: 40 }
+  collegium_joined: { xp: 100, crystals: 20 }
+  arena_joined: { xp: 50, crystals: 10 }
+  virtus_trifecta: { xp: 500, crystals: 100, lumens: 20 }
+  exterminatus: { xp: 200, crystals: 200 }
+  iron_will_recovery: { xp: 300, crystals: 60, lumens: 10 }
+  scribes_fury: { xp: 400, crystals: 80, lumens: 15 }
+  review_fix_ship_bonus: { xp: 320, crystals: 50, lumens: 12 }
+  cost_incurred: { xp: 0, crystals: 0 }
+  continuation_triggered: { xp: 10, crystals: 2 }
+  scope_violation: { xp: 0, crystals: 0 }
