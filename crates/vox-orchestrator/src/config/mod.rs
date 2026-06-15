@@ -8,6 +8,7 @@ mod errors;
 mod impl_default;
 mod impl_env;
 mod impl_load;
+mod impl_snapshot;
 mod impl_validate;
 mod merge_populi;
 mod news;
