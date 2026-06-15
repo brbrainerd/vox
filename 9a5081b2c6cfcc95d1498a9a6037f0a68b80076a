@@ -1,0 +1,18 @@
+feat(vox-effort-route): Introduce Router trait, ArtifactForm, and MockRouter
+scale: ~288 lines across 4 files [L]
+
+- `crates/vox-effort-route/src/route/mod.rs`:
+    - Replaced stub with module documentation for "Cluster re-judge and adversarial verification".
+    - Defined `ArtifactForm` enum with variants like `AgentsMdRule`, `CodeAuditDetector`, `ArchRule`, `CiGate`, `VoxScript`, `CorpusNegativeExample`, and `None`.
+    - Implemented `staging_extension` method for `ArtifactForm` to return file extensions.
+    - Implemented `vox_required` method for `ArtifactForm` to check if Vox is required.
+    - Defined `DraftedArtifact` struct with fields `form`, `staging_path`, `body`, `form_rationale`, and `authoring_model_vox_capable`.
+    - Defined `RemediationDecision` struct with fields `cluster_id`, `member_commit_shas`, `member_count`, and `total_member_tokens`.
+    - Declared `Router` trait with methods `route_drafted_artifact`, `decide_remediation`, `prompt_remediation`, and `verify_remediation`.
+    - Implemented `MockRouter` struct for testing purposes, including its `new` method and `Router` trait implementation.
+    - Added `decide`, `verify`, and `prompt` module imports.
+- `crates/vox-effort-route/src/route/decide.rs`: Created new file with a stub comment.
+- `crates/vox-effort-route/src/route/prompt.rs`: Created new file with a stub comment.
+- `crates/vox-effort-route/src/route/verify.rs`: Created new file with a stub comment.
+
+--- audit: original='feat(vox-effort-route): Router trait + ArtifactForm + MockRouter (B1)' | actual=288L across 4 files | derived=full ---
