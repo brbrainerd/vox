@@ -1,0 +1,7 @@
+feat(vox-gui/models): Add accessibility and testing for ModelsView
+scale: ~108 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Models/ModelsView.test.tsx`: Add new test file for `ModelsView` component, including tests for rendering, button types, and accessibility attributes.
+- `crates/vox-gui/ui/src/components/surfaces/Models/ModelsView.tsx`: Enhance accessibility by adding `role="list"` and `role="listitem"` to model grid elements, and ensure all buttons have `type="button"`. Refactor model card rendering logic for clarity.
+
+--- audit: original='feat(vox-gui/wave5): ModelsView a11y + checklist (Wave 5)' | actual=108L across 2 files | derived=full ---
