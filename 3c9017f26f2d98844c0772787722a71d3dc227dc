@@ -1,0 +1,32 @@
+docs: update README, audit reports, and fix install path
+scale: ~9446 lines across 25 files [XL]
+
+- **README.md**:
+    - Redesigned symbolic images, replacing `vox_new_internet.png` with `old_internet_knot.png`.
+    - Revamped the referencing system, converting inline URLs to numbered references (e.g., `[4]`, `[5]`, `[6]`, `[7]`).
+- **.vox/audit/2026-05-11-hardcoded-values/**:
+    - **summary.csv**: Updated hardcoded URL entries, removing and adding several entries.
+    - **findings.v1.json**: Modified hardcoded value findings, with significant additions and deletions.
+    - **11-brittle-string-needles.md**: Updated hardcoded value IDs (e.g., `hv-0774` to `hv-0772`).
+    - **05-hardcoded-timeouts.md**: Updated hardcoded value IDs (e.g., `hv-0284` to `hv-0282`).
+    - **10-hardcoded-env-var-names.md**: Updated hardcoded value IDs (e.g., `hv-0689` to `hv-0685`) and adjusted the itemized count from 85 to 87.
+    - **07-hardcoded-buffer-sizes.md**: Updated hardcoded value IDs (e.g., `hv-0428` to `hv-0425`).
+    - **14-hardcoded-date-literals.md**: Modified hardcoded date literal entries.
+    - **03-hardcoded-ips.md**: Modified hardcoded IP address entries.
+    - **09-hardcoded-model-names.md**: Modified hardcoded model name entries.
+    - **04-hardcoded-filesystem-paths.md**: Modified hardcoded filesystem path entries.
+    - **06-hardcoded-retry-counts.md**: Modified hardcoded retry count entries.
+    - **01-hardcoded-urls.md**: Modified hardcoded URL entries.
+    - **13-hardcoded-extensions-globs.md**: Modified hardcoded extension glob entries.
+    - **18-hardcoded-provider-names.md**: Modified hardcoded provider name entries.
+    - **08-hardcoded-version-strings.md**: Modified hardcoded version string entries.
+    - **12-brittle-regex-patterns.md**: Modified brittle regex pattern entries.
+    - **16-hardcoded-magic-numbers.md**: Modified hardcoded magic number entries.
+    - **17-hardcoded-canonical-keys.md**: Modified hardcoded canonical key entries.
+    - **README.md**: Modified the audit README.
+    - **19-hardcoded-test-data-in-prod.md**: Modified hardcoded test data entries.
+    - **15-hardcoded-ansi-codes.md**: Modified hardcoded ANSI code entries.
+    - **02-hardcoded-ports.md**: Modified hardcoded port entries.
+- **crates/voxup/src/install.rs**: Changed `std::path::{Path, PathBuf}` to `std::path::Path`.
+
+--- audit: original='docs: redesign symbolic images and revamp referencing system' | actual=9446L across 25 files | derived=full ---
