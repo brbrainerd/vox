@@ -33,9 +33,31 @@ pub fn check_no_cwd_relative_contract_paths(source: &str, file: &str) -> Vec<Vio
     hits
 }
 
-/// Check B placeholder (wired in Task 6).
-pub fn check_protected_modules_have_no_env_reads(_source: &str, _file: &str) -> Vec<Violation> {
-    vec![]
+/// Check B: files in `vox-config` crate must not call std::env::var directly —
+/// they must receive values as parameters to stay testable without env mutation.
+pub fn check_protected_modules_have_no_env_reads(source: &str, file: &str) -> Vec<Violation> {
+    // Only flag files inside vox-config crate (the pure-config layer).
+    let is_protected = file.contains("vox-config") && !file.contains("tests");
+    if !is_protected {
+        return vec![];
+    }
+    let mut hits = Vec::new();
+    for (i, raw) in source.lines().enumerate() {
+        let trimmed = raw.trim_start();
+        if trimmed.starts_with("//") {
+            continue;
+        }
+        if raw.contains("std::env::var") || raw.contains("env::var(") {
+            hits.push(Violation {
+                check: "no-env-read-in-pure-config",
+                file: file.to_string(),
+                line: i + 1,
+                message: "vox-config modules must not call env::var directly;                           accept env values as function parameters instead"
+                    .to_string(),
+            });
+        }
+    }
+    hits
 }
 
 /// Run all config-hygiene checks across the workspace.
@@ -93,6 +115,32 @@ mod tests {
         let v = check_no_cwd_relative_contract_paths(src, "x.rs");
         assert_eq!(v.len(), 1);
         assert_eq!(v[0].check, "no-cwd-relative-contract-path");
+    }
+
+    #[test]
+    fn check_b_flags_env_read_in_vox_config() {
+        let src = "let v = std::env::var(\"FOO\").ok();";
+        let v = check_protected_modules_have_no_env_reads(src, "crates/vox-config/src/lib.rs");
+        assert_eq!(v.len(), 1);
+        assert_eq!(v[0].check, "no-env-read-in-pure-config");
+    }
+
+    #[test]
+    fn check_b_ignores_non_vox_config_files() {
+        let src = "let v = std::env::var(\"FOO\").ok();";
+        assert!(
+            check_protected_modules_have_no_env_reads(src, "crates/vox-actor-runtime/src/lib.rs")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn check_b_ignores_test_files_in_vox_config() {
+        let src = "let v = std::env::var(\"FOO\").ok();";
+        assert!(
+            check_protected_modules_have_no_env_reads(src, "crates/vox-config/src/tests/mod.rs")
+                .is_empty()
+        );
     }
 
     #[test]
