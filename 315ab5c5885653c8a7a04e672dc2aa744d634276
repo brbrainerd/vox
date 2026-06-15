@@ -1,0 +1,11 @@
+refactor(config): de-literalize GUI poll, fetch, and debounce constants
+scale: ~62 lines across 6 files [M]
+
+- `crates/vox-gui/ui/src/config/constants.ts`: Added new constants for chat session limit, Gamify notification and leaderboard limits, search query and path glob debounce times, omni-search palette max results per kind, and Memory recall top-K values.
+- `crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx`: Replaced hardcoded `8` and `50` with `MEMORY_RECALL_TOP_K` and `MEMORY_RECALL_MAX_TOP_K` constants for memory recall top-K input.
+- `crates/vox-gui/ui/src/components/surfaces/Gamify/GamifyView.tsx`: Replaced hardcoded `20` and `10` with `GAMIFY_NOTIFICATIONS_LIMIT` and `GAMIFY_LEADERBOARD_LIMIT` constants for fetching Gamify notifications and leaderboard entries.
+- `crates/vox-gui/ui/src/components/surfaces/Search/SearchView.tsx`: Replaced hardcoded `250` and `300` with `SEARCH_QUERY_DEBOUNCE_MS` and `SEARCH_PATH_GLOB_DEBOUNCE_MS` constants for search query and path glob debouncing.
+- `crates/vox-gui/ui/src/components/layout/paletteSources.ts`: Replaced hardcoded `5` with `PALETTE_MAX_PER_KIND` constant for omni-search palette max results per kind.
+- `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx`: Replaced hardcoded `40` with `CHAT_SESSIONS_LIMIT` constant for fetching chat sessions.
+
+--- audit: original='refactor(config): de-literalize low-severity lt-gui findings' | actual=62L across 6 files | derived=full ---
