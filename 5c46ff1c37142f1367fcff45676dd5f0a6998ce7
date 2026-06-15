@@ -1,0 +1,10 @@
+fix(ci-runner): right-size fleet to 6x4cpu/5000m to fit WSL2
+scale: ~30 lines across 2 files [S]
+
+- `crates/vox-cli`:
+  - Decreased `CPUS_PER_RUNNER` from "6" to "4" and `MEM_PER_RUNNER` from "6500m" to "5000m".
+  - Updated the comment for `DEFAULT_MAX_RUNNERS` to reflect the new resource allocation (6 runners × 4 cpu = 24 vCPU, 6 × 5000m = 30 GB) and its fit within WSL2 limits.
+  - Added a new `fleet_budget_fits_wsl2_ceiling` test to assert that the total CPU and memory for the default runner fleet (6 runners) does not exceed WSL2's typical 24-processor and 32GB memory caps.
+- `docs/src/ci`: Updated `runner-autoscaling.md` to reflect the new per-runner CPU and memory settings and their implications for fitting within WSL2 resource limits.
+
+--- audit: original='fix(ci-runner): right-size fleet to 6×4cpu/5000m to fit WSL2 (end OOM oversubscription) (#282)' | actual=30L across 2 files | derived=full ---
