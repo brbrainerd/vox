@@ -1,0 +1,36 @@
+chore(cleanup): remove unused crates, dependencies, and orphan files
+scale: ~1249 lines across 27 files [XL]
+
+- **Removed crates:**
+  - `vox-codex-api`: Deleted 3-line stub crate and its `Cargo.toml`, `src/lib.rs`, and `src/routes/plans.rs` files.
+  - `vox-scientia-api`: Deleted 4-line re-export facade crate and its `Cargo.toml` and `src/lib.rs` files.
+  - `vox-scientia-runtime`: Deleted 4-line re-export facade crate and its `Cargo.toml` and `src/lib.rs` files.
+- **Removed workspace dependencies:**
+  - `vox-audio-ingress`: Removed `vox-build-meta` from `Cargo.toml`.
+  - `vox-cli-core`: Removed `vox-config` from `Cargo.toml`.
+  - `vox-doc-inventory`: Removed `vox-build-meta` from `Cargo.toml`.
+  - `vox-doc-pipeline`: Removed `vox-build-meta` from `Cargo.toml`.
+  - `vox-mens`: Removed `vox-config`, `vox-identity`, `vox-publisher`, and `vox-search` from `Cargo.toml`.
+  - `vox-runtime`: Removed `vox-socrates-policy` from `Cargo.toml`.
+- **Deleted orphan files/directories:**
+  - `crates/vox-cli/src/commands/extras/dashboard/`: Removed directory and its `mod.rs`.
+  - `jobs.json`: Deleted root-level scratch file.
+  - `runs.json`: Deleted root-level scratch file.
+  - `test.vox`: Deleted root-level scratch file.
+- **Updated `.gitignore`:**
+  - Added `/jobs.json` and `/runs.json` patterns.
+  - Fixed UTF-16 LE mojibake in two lines.
+- **Updated contract files:**
+  - `contracts/capability/capability-registry.yaml`: Replaced "vox-dei-d" with "vox-orchestrator-d" in two `description_model` fields.
+  - `contracts/capability/model-manifest.generated.json`: Replaced "vox-dei-d" with "vox-orchestrator-d" in two description strings.
+  - `contracts/mcp/tool-registry.canonical.yaml`: Replaced "vox-dei-d" with "vox-orchestrator-d" in two tool descriptions.
+  - `contracts/operations/catalog.v1.yaml`: Replaced "vox-dei-d" with "vox-orchestrator-d" in two operation descriptions.
+- **Updated comments:**
+  - `crates/vox-cli/src/commands/extras/mod.rs`: Updated comment to reflect removal of dashboard handlers and reference `commands::dashboard`.
+  - `crates/vox-scientia-core/src/lib.rs`: Updated comment to clarify the crate's role as a facade.
+  - `crates/vox-skills/tests/domain_test.rs`: Updated header comment from `vox-ars` to `vox-skills`.
+- **Tooling fix:**
+  - `.cargo/config.toml`: Aligned `CARGO_TARGET_DIR` in worktree to use table-form `{ value = "target", relative = true }` to prevent `cargo config-merge` failures.
+- **Cargo.lock:** Updated due to dependency changes.
+
+--- audit: original='chore(cleanup): remove vestigial code and orphan deps' | actual=1249L across 27 files | derived=full ---
