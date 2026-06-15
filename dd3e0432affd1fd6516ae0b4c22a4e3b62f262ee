@@ -1,0 +1,24 @@
+refactor(compiler): remove legacy `@component fn` AST/HIR/codegen support
+scale: ~844 lines across 19 files [L]
+
+- `crates/vox-compiler/src/codegen_ts/component.rs`: Rewrote module to only contain `map_vox_type_to_ts`, removing 412 lines of dead TSX emit functions for classic `@component fn`.
+- `docs/src/architecture/frontend-convergence-findings-2026.md`: Added new document detailing frontend convergence findings.
+- `crates/vox-compiler/src/typeck/ast_decl_lints.rs`: Removed `lint_component_react_hooks` function and related `ComponentDecl` match arm.
+- `crates/vox-compiler/src/hir/lower/mod.rs`: Simplified `lower_fn` signature by removing `is_component` parameter and removed `Decl::Component` match arm.
+- `crates/vox-compiler/src/ast/decl/callable.rs`: Removed `Decl::Component` match arms for `apply_callable_attributes` and `apply_callable_flags`.
+- `crates/vox-compiler/src/ast/decl/fundecl.rs`: Removed `ComponentDecl` struct and its associated fields.
+- `crates/vox-compiler/src/hir/lower/decl.rs`: Removed `is_component` field from `HirFn` struct and simplified `lower_fn` signature.
+- `crates/vox-lsp/src/symbols.rs`: Removed `Decl::Component` match arm from `SymbolEngine::get_symbol_info`.
+- `crates/vox-compiler/src/codegen_rust/emit/workflow.rs`: Removed conditional check for `func.is_component` when emitting functions.
+- `crates/vox-compiler/src/ast/decl/types.rs`: Removed `Decl::Component` variant from `Decl` enum and its corresponding `span` implementation.
+- `crates/vox-compiler/src/ast_eval.rs`: Removed `Decl::Component` match arm from `count_module_constructs`.
+- `crates/vox-compiler/src/hir/dead_code.rs`: Removed `is_component` field from `HirFn` in `remove_dead_code`.
+- `crates/vox-compiler/src/hir/nodes/decl.rs`: Removed `is_component` field from `HirFn` struct.
+- `crates/vox-compiler/src/fmt/printer.rs`: Removed `Decl::Component` match arm from `Printer::print_decl`.
+- `crates/vox-corpus/src/corpus/extract_vox/part_ast.rs`: Removed `Decl::Component` match arm.
+- `crates/vox-integration-tests/tests/metamorphic_axiom_test.rs`: Updated field initializers due to `is_component` removal.
+- `crates/vox-mens/src/training/core.rs`: Removed `Decl::Component` match arm.
+- `crates/vox-test-harness/src/hir_builders.rs`: Updated field initializers due to `is_component` removal.
+- `docs/src/architecture/research-index.md`: Added a new entry for frontend convergence findings.
+
+--- audit: original='refactor(compiler): retire dead Path-A @component fn surface (R1+R2)' | actual=844L across 19 files | derived=full ---
