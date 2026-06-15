@@ -1,0 +1,8 @@
+fix(vox-compiler): Allow partial record unification and pass through surface args for db.X.filter
+scale: ~52 lines across 3 files [M]
+
+- **typeck/unify.rs**: Modified record-record unification to be permissive, allowing either side to have extra fields as long as one is a subset of the other. This enables partial record arguments.
+- **hir/lower/expr.rs**: Changed `MethodCall` lowering for `db.X.filter` to pass the original surface-level `HirArg` (single positional `ObjectLit`) to typecheck, instead of flattened per-field arguments. This aligns with the expected `filter(record)` signature.
+- **hir/lower/expr_db.rs**: Added `#[allow(dead_code)]` and a doc comment to the `DbQueryChain::args` field, clarifying that it now holds flattened arguments for downstream codegen but is no longer used by the typechecker due to the change in `expr.rs`.
+
+--- audit: original='fix(vox-compiler): permissive Record-Record unify + db.X.filter({...}) surface-arg passthrough' | actual=52L across 3 files | derived=full ---
