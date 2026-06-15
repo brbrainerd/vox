@@ -1,0 +1,18 @@
+feat(compiler): implement `@webhook` decorator end-to-end and fix arch-check test
+scale: ~203 lines across 13 files [M]
+
+- `crates/vox-compiler/src/parser/descent/decl/head.rs`: Added parsing logic for the `@webhook` decorator, including `provider`, `secret`, `replay_window_secs`, and `idempotent` arguments.
+- `crates/vox-compiler/src/ast/decl/webhook.rs`: Introduced `AstWebhookSpec` and `AstWebhookProvider` to represent the parsed `@webhook` decorator in the AST.
+- `crates/vox-compiler/src/ast/decl/fundecl.rs`: Added an optional `webhook` field to `FnDecl` to store the `AstWebhookSpec`.
+- `crates/vox-compiler/src/ast/decl/mod.rs`: Exported the new `webhook` module.
+- `crates/vox-compiler/src/hir/lower/mod.rs`: Implemented lowering of `AstWebhookSpec` from AST to `HirWebhookDecl` in the HIR.
+- `crates/vox-compiler/src/hir/nodes/decl.rs`: Added an optional `webhook` field to `HirEndpointFn` to store the `HirWebhookDecl`.
+- `crates/vox-compiler/src/typeck/mod.rs`: Integrated webhook declaration validation into the typechecking pipeline, invoking `check_webhook_decl` for each endpoint with a webhook.
+- `crates/vox-compiler/tests/ga_boilerplate_grafts_test.rs`: Added four integration tests for `@webhook` validation: `webhook_custom_without_secret_emits_diagnostic`, `webhook_custom_with_secret_is_clean`, `webhook_replay_window_out_of_range_warns`, and `webhook_stripe_default_window_clean`.
+- `crates/vox-compiler/src/parser/descent/mod.rs`: Initialized `webhook` to `None` in `parse_fundecl`.
+- `crates/vox-codegen/src/codegen_rust/mod.rs`: Added `webhook: None` to `HirEndpointFn` instantiations in tests.
+- `crates/vox-codegen/src/codegen_rust/emit/tables/projections.rs`: Added `webhook: None` to `HirEndpointFn` instantiations in tests.
+- `crates/vox-compiler/src/typeck/effect_check.rs`: No functional change, only a minor whitespace adjustment.
+- `crates/vox-arch-check/tests/rename_consistency_test.rs`: Fixed a pre-existing test by replacing `RenameRegistry::from_str()` with `RenameRegistry::parse_json()`.
+
+--- audit: original='feat(compiler): GA-16 @webhook decorator end-to-end + fix arch-check rename test' | actual=203L across 13 files | derived=full ---
