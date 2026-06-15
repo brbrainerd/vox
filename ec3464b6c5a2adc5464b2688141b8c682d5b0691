@@ -1,0 +1,12 @@
+feat(golden): add exhaustive db_operations.vox behavioral golden
+scale: ~167 lines across 1 files [M]
+
+- Add `db_operations.vox` golden file to test the full `db.*` surface.
+- Implement tests for CRUD operations: `insert`, `all`, `count`, `get`, `find`, `delete`.
+- Include tests for numeric predicates: `gte`, `lte`, `gt`, `lt`, `neq`, `eq`.
+- Add tests for boolean, set, and text predicates: `and`, `or`, `not`, `in`, `contains`.
+- Verify `order_by` (asc/desc), `limit`, and `select` functionality.
+- Test `@query` and `@mutation` driven endpoint handlers.
+- Assert the loud-error contract for fused-chain limits like `.where().select()`.
+
+--- audit: original='test(golden): add exhaustive db_operations.vox behavioral golden' | actual=167L across 1 files | derived=full ---
