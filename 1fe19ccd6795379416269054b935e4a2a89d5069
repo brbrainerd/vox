@@ -1,0 +1,14 @@
+feat(vox-mental-tracker): Scaffold Vite build and add runtime shims for codegen output
+scale: ~1136 lines across 9 files [XL]
+
+- `apps/vox-mental-tracker/pnpm-lock.yaml`: Added new dependencies including `react@19`, `react-dom@19`, `zod`, `vite@6`, and `@vitejs/plugin-react`.
+- `apps/vox-mental-tracker/src/runtime.ts`: Added a new file providing browser-side shims for Vox builtins (`str`, `len`, `Speech.transcribe_microphone`, `std.time.now_ms`, `std.crypto.{uuid,hash_secure}`, `std.json.parse`, `std.regex.compile`, `mobile.transcribe_microphone`) by installing them on `globalThis`.
+- `apps/vox-mental-tracker/src/main.tsx`: Added a new file defining the main React application entry point, including a 30-line custom client-side router that consumes `dist/routes.manifest.ts` and intercepts intra-app `<a>` clicks. It also imports `./runtime` to install the necessary shims.
+- `apps/vox-mental-tracker/index.html`: Added a new HTML entry point for the Vite application, referencing `/src/main.tsx` and including baseline CSS.
+- `apps/vox-mental-tracker/scripts/postbuild-fixup.mjs`: Added a new script to patch `.length()` method calls to `.length` property access in generated `.tsx` and `.ts` files within the `dist` directory as a post-build step.
+- `apps/vox-mental-tracker/vite.config.ts`: Added a new Vite configuration file, enabling the React plugin, setting the build output directory to `web-dist`, and configuring server/preview ports.
+- `apps/vox-mental-tracker/tsconfig.json`: Added a new `tsconfig.json` for the application, configuring TypeScript for a React project with Vite, including `jsx: "react-jsx"` and `moduleResolution: "bundler"`.
+- `apps/vox-mental-tracker/package.json`: Updated `package.json` to add new `react`, `react-dom`, `zod`, `vite`, and `@vitejs/plugin-react` dependencies, along with their `@types` counterparts. Added new scripts: `build:vox`, `build:fixup`, `build:web`, `dev`, and `preview`.
+- `apps/vox-mental-tracker/capacitor.config.ts`: Modified `capacitor.config.ts` to update the `webDir` from `dist` to `web-dist` to align with the Vite build output.
+
+--- audit: original='feat(vox-mental-tracker): Vite scaffold + runtime shims so codegen output bundles' | actual=1136L across 9 files | derived=full ---
