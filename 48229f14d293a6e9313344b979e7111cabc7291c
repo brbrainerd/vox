@@ -1,0 +1,11 @@
+refactor(mental-tracker): remove hand-written web shell and update runtime shims
+scale: ~266 lines across 6 files [L]
+
+- **apps/vox-mental-tracker/src/runtime.ts**: Deleted the hand-written runtime shims, superseded by the Vox-emitted `dist/runtime-install.ts`.
+- **apps/vox-mental-tracker/src/main.tsx**: Deleted the hand-written main entry point, superseded by the Vox-emitted `dist/entry.tsx` and `dist/vox-app.tsx`.
+- **apps/vox-mental-tracker/src/pages/SettingsPage.tsx**: Deleted this orphaned page, as routing is now handled by the Vox-emitted `routes.manifest`.
+- **apps/vox-mental-tracker/vite.config.ts**: Updated comments to reflect that Vite now uses the Vox-emitted `dist/entry.tsx` as the entry point.
+- **apps/vox-mental-tracker/tests/runtime_shim.test.ts**: Updated the import path for runtime shims from `src/runtime` to `dist/runtime-install`.
+- **apps/vox-mental-tracker/tests/e2e/voice_flow.spec.ts**: Updated comments to reflect that `Speech.transcribe_microphone` is now consumed by the Vox-emitted `dist/runtime-install.ts`.
+
+--- audit: original='refactor(mental-tracker): delete hand-written web shell — emitted now drives it (Stage 4)' | actual=266L across 6 files | derived=full ---
