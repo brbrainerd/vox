@@ -1,0 +1,27 @@
+feat(frontend): converge GUI contracts, dependency policy, and WebIR emission
+scale: ~554 lines across 22 files [L]
+
+- **crates/vox-cli/tests/frontend_dependency_policy_test.rs**: Add new test to enforce frontend dependency policy defined in `dependency-policy.v1.yaml`.
+- **contracts/frontend/surface-ownership.v1.yaml**: Add new contract defining frontend surface ownership.
+- **crates/vox-compiler/tests/reactive_smoke_test.rs**: Add new test to ensure `gui-compatibility.v1.yaml` contract matches the JSX attribute mapping matrix used in codegen.
+- **docs/src/reference/frontend-surface-ownership.md**: Add new documentation for frontend surface ownership.
+- **contracts/frontend/gui-compatibility.v1.yaml**: Add new contract defining GUI compatibility, including a `react_attr_matrix`.
+- **contracts/documentation/canonical-map.v1.yaml**: Update canonical map to remove `hitl_archive` alias and bump `x-vox-version` to `0.0.1-alpha.1`.
+- **contracts/index.yaml**: Add new entries for `frontend/dependency-policy.v1.yaml`, `frontend/gui-compatibility.v1.yaml`, and `frontend/surface-ownership.v1.yaml`.
+- **crates/vox-grammar-export/tests/export_test.rs**: Add new test to verify grammar exports track `view_call_surface` and do not reference retired `pratt_jsx`.
+- **crates/vox-compiler/src/codegen_ts/reactive.rs**: Refactor `ReactiveViewEmitPathway` and `ReactiveViewBridgeStats` to rename `LegacyFallbackParityMismatch` to `WebIrViewEmittedParityMismatch`, reflecting a migration policy to converge on a single canonical Web IR view path.
+- **crates/vox-grammar-export/src/ebnf.rs**: Update EBNF grammar to replace `jsx_expr` with `view_call_expr` and define `view_call_block`, `view_call_self_closing`, `view_args`, and `view_arg`, explicitly retiring angle-bracket JSX.
+- **contracts/frontend/dependency-policy.v1.yaml**: Add new contract defining frontend dependency policy, including `package_manager`, `react_major`, and `vite_major` ranges.
+- **crates/vox-grammar-export/src/compact_prompt.rs**: Update compact LLM prompt to replace "JSX" section with "View Calls" and provide examples for `Tag()` and `SelfClosing()` syntax, noting the retirement of angle-bracket JSX.
+- **docs/src/explanation/expl-compiler-lowering.md**: Update compiler lowering explanation to reflect the shift from JSX to view-call syntax.
+- **crates/vox-grammar-export/src/lark.rs**: Update Lark grammar to replace `jsx_expr` with `view_call_expr` and define `view_call_block`, `view_call_self_closing`, `view_args`, and `view_arg`, explicitly retiring angle-bracket JSX.
+- **docs/src/api/vox-codegen-ts.md**: Deprecate `vox-codegen-ts` API stub.
+- **docs/src/architecture/svelte-vs-react-frameworks-research-2026.md**: Update document, removing content related to Svelte vs React framework research.
+- **crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs**: Update CI docs helper to remove reference to `archived-nomenclature-migration-map.md`.
+- **docs/src/adr/027-dual-track-ui-surfaces.md**: Update ADR 027, removing content.
+- **docs/src/architecture/svelte-mineable-features-implementation-plan-2026.md**: Update document, removing content related to Svelte mineable features.
+- **docs/src/reference/vox-web-stack.md**: Update `vox-web-stack` reference, removing content.
+- **crates/vox-grammar-export/src/versioning.rs**: Update versioning information.
+- **docs/src/reference/cli.md**: Update CLI reference, removing content.
+
+--- audit: original='docs: SSOT guards and frontend GUI convergence' | actual=554L across 22 files | derived=full ---
