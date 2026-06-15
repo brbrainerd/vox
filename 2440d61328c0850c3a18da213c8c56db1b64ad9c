@@ -1,0 +1,6 @@
+ci(codeql): install libdbus-1-dev and pkg-config for Rust build
+scale: ~9 lines across 1 files [XS]
+
+- .github/workflows/codeql.yml: Add a step to install `libdbus-1-dev` and `pkg-config` using `apt-get` before the Rust build step. This addresses a build failure where `libdbus-sys` (pulled transitively by `keyring` / `secret-service`) could not find D-Bus development headers on `ubuntu-latest`.
+
+--- audit: original='ci(codeql): install libdbus-1-dev before the rust build' | actual=9L across 1 files | derived=full ---
