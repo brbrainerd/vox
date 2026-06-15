@@ -1,0 +1,15 @@
+fix(web-ir): Align primitive className lowering with hir_emit and re-enable view test
+scale: ~323 lines across 10 files [L]
+
+- `crates/vox-compiler/src/web_ir/lower.rs`: Refactored `lower_jsx_el` to use `fold_primitive_web_ir_element` for primitive emission, aligning `className` lowering with `hir_emit`.
+- `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs`: Made `ViewCallHir` fields and `transform_hir_view_kwargs` public to support `web_ir`'s primitive folding.
+- `crates/vox-compiler/tests/web_ir_lower_emit_test.rs`: Re-enabled `web_ir_view_matches_hir_emit_for_self_closing_jsx` test by removing the `ignore` attribute and associated comment. Removed unused imports.
+- `crates/vox-workflow-runtime/tests/workflow_tracker_tests.rs`: Removed numerous unused helper functions (`sp`, `call_stmt`, `expr_stmt`, `call_stmt_with_int_arg`, `call_stmt_with_string_arg`, etc.) and imports (`jsonschema::validator_for`, `vox_compiler::ast::span::Span`, `vox_compiler::hir::nodes::{DurabilityKind, HirFn}`, `vox_compiler::hir::{DefId, HirExpr, HirStmt}`, `vox_workflow_runtime::{VoxDbTracker, WORKFLOW_JOURNAL_VERSION, WorkflowTracker, interpret_workflow_durable, plan_workflow_activities}`).
+- `examples/golden/inventory_rosetta_platform.vox`: Updated `last_validated` date and modified the `StashMeter` component's view to use `column` with `raw_class` instead of a `div` with `class`.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__counter_tsx_reactive_smoke.snap`: Refreshed snapshot to reflect changes in `className` emission, specifically formatting `className` as an array joined by spaces.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__counter_tsx_with_web_ir_view_on.snap`: Refreshed snapshot to reflect changes in `className` emission, specifically formatting `className` as an array joined by spaces.
+- `crates/vox-compiler/tests/snapshots/web_ir_lower_emit_test__counter_view_tsx_webir_emit.snap`: Refreshed snapshot to reflect changes in `className` emission, specifically formatting `className` as an array joined by spaces.
+- `crates/vox-compiler/tests/snapshots/web_ir_lower_emit_test__op_s126_t_component_view_tsx.snap`: Refreshed snapshot.
+- `crates/vox-compiler/tests/snapshots/web_ir_lower_emit_test__op_s219_hi_literal_view_tsx.snap`: Refreshed snapshot.
+
+--- audit: original='fix(web-ir): align primitive className lowering with hir_emit' | actual=323L across 10 files | derived=full ---
