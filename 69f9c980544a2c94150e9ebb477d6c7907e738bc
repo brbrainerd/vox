@@ -1,0 +1,9 @@
+fix(vuv): resolve CodeRabbit nits for flex, props, and env var guards
+scale: ~133 lines across 17 files [M]
+
+- **`primitives/mod.rs`**: Automatically prepend `flex` to `justify` and `items` kwargs to ensure they function correctly on non-flex containers, making them uniformly effective.
+- **`web_ir/lower.rs`**: Refactor `PRIMITIVE_CONSUMED_PROPS` to `PRIMITIVE_BASE_CONSUMED_PROPS` and delegate universal style kwarg filtering to `primitives::UNIVERSAL_STYLE_KWARGS` via `is_primitive_consumed_prop()`, eliminating duplication and drift risk.
+- **`reactive_smoke_test.rs`**: Implement a `Drop`-based guard for `VOX_WEBIR_EMIT_REACTIVE_VIEWS` environment variable in `reactive_view_bridge_stats_*` tests to ensure it's always restored, preventing leaks to subsequent tests.
+- **`crates/vox-dashboard/app/src/generated/*.tsx`**: Regenerate dashboard TSX files to reflect the changes in `items` and `justify` kwargs, adding `flex` to class lists where these properties are used.
+
+--- audit: original='fix(vuv): resolve final CodeRabbit nits before merge' | actual=133L across 17 files | derived=full ---
