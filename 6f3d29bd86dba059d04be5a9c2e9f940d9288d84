@@ -1,0 +1,9 @@
+feat(scientia): Add DB-assembled dashboard and structured GUI
+scale: ~269 lines across 4 files [L]
+
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/ScientiaDashboard.tsx`: Replaced static command cards with a dynamic dashboard GUI that consumes a `QueueSnapshot` JSON. This includes KPI tiles for candidates, claims pending (verifiable, abstained, extraction-pending), reply window, retraction queue, and stalls. It also displays a by-class breakdown, top candidates by confidence, and a list of stalled candidates.
+- `crates/vox-cli/src/commands/scientia_phase_handlers.rs`: Added `scientia_dashboard` function to assemble a `QueueSnapshot` directly from the live Codex DB. This function retrieves publication manifests as candidates, derives claims pending counts from `scientia_claims_pending_summary`, and identifies retracted candidates for the retraction queue. Also added `retraction_queue_from` helper function.
+- `crates/vox-cli-core/src/scientia.rs`: Added `Dashboard` variant to `ScientiaCmd` enum, defining the new `scientia dashboard` CLI command.
+- `crates/vox-cli/src/commands/scientia.rs`: Integrated the new `ScientiaCmd::Dashboard` variant to call the `scientia_dashboard` handler.
+
+--- audit: original='feat(scientia): Phase H dashboard — DB-assembled QueueSnapshot + structured GUI' | actual=269L across 4 files | derived=full ---
