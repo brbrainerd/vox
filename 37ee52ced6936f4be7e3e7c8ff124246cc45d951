@@ -1,0 +1,6 @@
+fix(vox-cli): gate `v0_validate` module behind `island` feature flag
+scale: ~1 lines across 1 files [XS]
+
+- `crates/vox-cli/src/lib.rs`: Added `#[cfg(feature = "island")]` attribute to the `v0_validate` module declaration.
+
+--- audit: original='fix(vox-cli): gate v0_validate module behind island feature flag' | actual=1L across 1 files | derived=full ---
