@@ -72,7 +72,16 @@ pub async fn ingest_markdown_tree(
     Ok(count)
 }
 
+/// Default RAG markdown chunk size in characters. Override by calling
+/// `chunk_markdown_sections_with_size` with a custom size. No env knob is wired
+/// yet; a `VOX_RAG_CHUNK_CHARS` read at the ingest boundary is a tracked follow-up.
+pub const DEFAULT_RAG_CHUNK_CHARS: usize = 4096;
+
 fn chunk_markdown_sections(text: &str) -> Vec<String> {
+    chunk_markdown_sections_with_size(text, DEFAULT_RAG_CHUNK_CHARS)
+}
+
+fn chunk_markdown_sections_with_size(text: &str, max_chars: usize) -> Vec<String> {
     let mut chunks = Vec::new();
     let mut cur = String::new();
     for line in text.lines() {
@@ -84,7 +93,7 @@ fn chunk_markdown_sections(text: &str) -> Vec<String> {
         } else {
             cur.push_str(line);
             cur.push('\n');
-            if cur.len() > 4096 {
+            if cur.len() > max_chars {
                 chunks.push(cur.trim().to_string());
                 cur.clear();
             }
@@ -97,4 +106,28 @@ fn chunk_markdown_sections(text: &str) -> Vec<String> {
         chunks.push(text.trim().to_string());
     }
     chunks
+}
+
+#[cfg(test)]
+mod chunk_tests {
+    use super::*;
+
+    #[test]
+    fn small_threshold_splits_more() {
+        let text =
+            "para one is fairly long here\nand continues across lines\nmore body text follows\n";
+        let big = chunk_markdown_sections_with_size(text, 4096);
+        let small = chunk_markdown_sections_with_size(text, 20);
+        assert!(small.len() >= big.len());
+        assert!(!small.is_empty());
+    }
+
+    #[test]
+    fn default_wrapper_uses_default_const() {
+        let text = "# Heading\nbody\n";
+        assert_eq!(
+            chunk_markdown_sections(text),
+            chunk_markdown_sections_with_size(text, DEFAULT_RAG_CHUNK_CHARS),
+        );
+    }
 }

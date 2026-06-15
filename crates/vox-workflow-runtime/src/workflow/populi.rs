@@ -14,7 +14,11 @@ pub async fn execute_populi_step(activity: &PopuliActivity) -> anyhow::Result<Va
     let _ = vox_populi::publish_local_registry_best_effort();
     let vox = vox_populi::resolve_vox_toml_best_effort();
     let env = vox_populi::populi_env_resolved(vox.as_deref());
-    let timeout = std::time::Duration::from_millis(activity.timeout_ms.unwrap_or(30_000).max(250));
+    let timeout = activity
+        .timeout_ms
+        .map_or(vox_config::timeouts::HTTP_REQUEST, |ms| {
+            std::time::Duration::from_millis(ms.max(250))
+        });
     if let Some(base) = env.control_addr.clone() {
         let client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
             normalize_control_base(&base),

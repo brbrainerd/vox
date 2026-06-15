@@ -417,7 +417,7 @@ pub fn build_train_spec(
     extra_env: Vec<(String, String)>,
 ) -> CloudJobSpec {
     CloudJobSpec {
-        model_id: model_id.unwrap_or_else(|| crate::mens::DEFAULT_MODEL_ID.to_string()),
+        model_id: model_id.unwrap_or_else(crate::mens::default_model_id),
         preset: "auto".to_string(),
         train_data_hf,
         adapter_upload_hf,

@@ -39,7 +39,25 @@ pub mod discovery_publish;
 /// default, Qwen3.5-4B,
 /// is a `*ForConditionalGeneration` vision-language checkpoint that the text
 /// trainer cannot train (it is rejected up front by the vox-hf-layout VL guard).
+///
+/// The effective default is now operator-tunable at runtime via the
+/// `VOX_MENS_DEFAULT_MODEL` env var (resolved through [`default_model_id`]);
+/// this const remains the SSOT fallback.
 pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen2.5-Coder-7B-Instruct";
+
+/// Resolve the default training/inference base model id from a raw env override,
+/// falling back to [`DEFAULT_MODEL_ID`]. Blank/whitespace overrides fall back.
+pub fn resolve_default_model_id(raw: Option<&str>) -> String {
+    match raw.map(str::trim) {
+        Some(s) if !s.is_empty() => s.to_string(),
+        _ => DEFAULT_MODEL_ID.to_string(),
+    }
+}
+
+/// Convenience: resolve from the `VOX_MENS_DEFAULT_MODEL` process env.
+pub fn default_model_id() -> String {
+    resolve_default_model_id(std::env::var("VOX_MENS_DEFAULT_MODEL").ok().as_deref())
+}
 
 pub use tensor::{
     DeviceKind, GpuInfo, apply_backend_env, detect_gpu_vendor, estimate_training_vram_mb,
@@ -61,3 +79,26 @@ pub use tensor::{
     ExecutionKernel, FineTuneContract, LoraTrainingConfig, MensTokenizerMode,
     OptimizerExperimentMode, PopuliTrainBackend, TrainingDeploymentTarget, run_mens_training,
 };
+
+#[cfg(test)]
+mod default_model_tests {
+    use super::*;
+
+    #[test]
+    fn falls_back_to_const() {
+        assert_eq!(resolve_default_model_id(None), DEFAULT_MODEL_ID);
+    }
+
+    #[test]
+    fn env_override_wins() {
+        assert_eq!(
+            resolve_default_model_id(Some("org/My-Model")),
+            "org/My-Model"
+        );
+    }
+
+    #[test]
+    fn blank_env_falls_back() {
+        assert_eq!(resolve_default_model_id(Some("   ")), DEFAULT_MODEL_ID);
+    }
+}

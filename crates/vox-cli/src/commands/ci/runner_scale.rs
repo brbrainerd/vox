@@ -29,7 +29,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, anyhow};
 
-const REPO_SLUG: &str = "vox-foundation/vox";
+use super::constants::REPO_SLUG;
 const REPO_URL: &str = "https://github.com/vox-foundation/vox";
 const RUNNER_IMAGE: &str = "vox-ci-runner-local:latest";
 /// Name prefix for autoscaler-managed runner containers.

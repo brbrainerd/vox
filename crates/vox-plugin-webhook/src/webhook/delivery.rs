@@ -25,8 +25,8 @@ impl OutboundWebhook {
         Self {
             url: url.into(),
             secret: None,
-            max_retries: 3,
-            backoff_ms: 500,
+            max_retries: super::config::retry_max_from_env(),
+            backoff_ms: super::config::retry_backoff_ms_from_env(),
             headers: Vec::new(),
         }
     }
