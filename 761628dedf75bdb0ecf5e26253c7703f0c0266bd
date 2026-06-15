@@ -1,0 +1,6 @@
+fix(vox-cli): recompile and retry script execution if cached binary fails to launch
+scale: ~25 lines across 1 files [S]
+
+- `crates/vox-cli/src/commands/runtime/run/script.rs`: Modified the `run` function to catch `execute_binary` errors when caching is enabled. If a cached script binary fails to launch (indicating a poisoned or stale artifact), it now recompiles the script with `no_cache: true` and retries the execution once. This addresses issues where an existing cached binary might fail to launch, particularly observed on Windows with "os error 3".
+
+--- audit: original='fix(vox-cli): recompile + retry once when the cached script binary fails to launch' | actual=25L across 1 files | derived=full ---
