@@ -1,0 +1,7 @@
+fix(typeck): make `Ok` polymorphic in the error type `E` for `Result[T, E]`
+scale: ~41 lines across 2 files [S]
+
+- `crates/vox-compiler/src/typeck/builtins.rs`: Modified the type definition of the `Ok` builtin function to be polymorphic in its error type `E`, changing its signature from `Fn([T], Result[T, str])` to `Fn([T], Result[T, E])`. This allows `Ok(v)` to unify `E` with a declared ADT when used in a function returning `Result[T, MyErr]`, rather than forcing `E = str`.
+- `crates/vox-compiler/tests/match_exhaustiveness_test.rs`: Added a new test case `ok_construction_in_typed_result_typechecks` to verify that `Ok(v)` correctly type-checks within functions declared to return `Result[T, MyErr]`, specifically addressing the regression where `Ok("...")` would fail to unify `str` with a custom error ADT.
+
+--- audit: original='fix(typeck): make Ok polymorphic in the error type too (completes typed Result)' | actual=41L across 2 files | derived=full ---
