@@ -1,0 +1,9 @@
+docs(roadmap): update GUI native roadmap status for Phase 6
+scale: ~6 lines across 1 files [XS]
+
+- docs/src/architecture/gui-native-roadmap-status-2026.md:
+    - Mark TASK-6.3 "Surface pair primitive" as "Done" with commit `0fd8bb1a`.
+    - Update description for TASK-6.3 to detail implementation: `surface: NAME` sets `data-vox-surface` and CSS vars `--fg`/`--bg`, `tokens/mod.rs` handles `SurfacePairEntry` and `lookup_surface()`, validator checks for unknown surface names, and 4 integration tests were added.
+    - Update "Phase 6 verdict" to reflect 3 tasks complete and 2 not started (previously 2 complete, 3 not started).
+
+--- audit: original='docs: update roadmap — TASK-6.3 complete, Phase 6 at 3/5' | actual=6L across 1 files | derived=full ---
