@@ -1,0 +1,5 @@
+feat(vox-populi): add `swarm.rs` for future swarm inference routing
+scale: ~25 lines across 1 files [S]
+- `crates/vox-populi/src/inference/swarm.rs`: Add a new file containing a `SwarmInferenceStub` struct and a basic test, serving as a placeholder for future Petals-style swarm inference routing.
+
+--- audit: original='fix(populi): restore missing inference/swarm.rs and distributed_training/{mesh_env,telemetry,strategy/data_parallel}.rs from main' | actual=25L across 1 files | derived=full ---
