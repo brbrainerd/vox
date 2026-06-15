@@ -1,0 +1,8 @@
+docs(superpowers): add 2026-05-08 mobile-gui-correctness-and-tracker-ship plan
+scale: ~3391 lines across 1 files [XL]
+
+- Add new plan document for "Mobile + GUI Correctness + Mental Tracker Ship Plan" to `docs/superpowers/plans/`.
+- The plan outlines six tracks (A-F) for shipping the `vox-mental-tracker` app on web, iOS, and Android.
+- Details include goals, architecture, and tech stack (Rust, TypeScript, React, Capacitor, Kotlin, Swift, Playwright, Vitest, insta).
+
+--- audit: original='docs(plans): add 2026-05-08 mobile-gui-correctness-and-tracker-ship plan' | actual=3391L across 1 files | derived=full ---
