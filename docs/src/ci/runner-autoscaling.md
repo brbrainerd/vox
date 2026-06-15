@@ -113,8 +113,15 @@ when no critical CI is mid-flight.
    docker rm -f vox-runner-1 vox-runner-2   # they deregister on stop
    docker volume create vox-ci-runner-cache # shared sccache (first time only)
    ```
-4. **Schedule the reconcile tick** every ~1 min so the pool tracks demand —
-   Windows Task Scheduler running `vox run scripts/ci-runners-up.vox`, or a loop.
+4. **Schedule the reconcile tick** every ~2 min so the pool tracks demand.
+   The task definition is versioned at `scripts/ci/voxcirunnerscale.task.xml`
+   (Windows Task Scheduler XML, `MultipleInstancesPolicy=IgnoreNew` so a slow
+   tick that overruns 2 min is dropped rather than queued). Install or
+   re-install it with:
+   ```bash
+   vox run scripts/ci/install-runner-schedule.vox
+   ```
+   Verify the registration: `schtasks /Query /TN VoxCIRunnerScale /FO LIST`
 5. Verify: `vox ci runner-scale` (dry-run) shows the plan; after a push,
    `docker ps` shows `vox-runner-auto-*` appear and disappear; idle → 0.
 

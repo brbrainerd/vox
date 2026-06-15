@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<!--
+  Windows Task Scheduler definition for VoxCIRunnerScale.
+  Version this file so the reconcile-tick schedule is reproducible across
+  machine re-images and can be audited via git history.
+
+  Install:  vox run scripts/ci/install-runner-schedule.vox
+  Uninstall: schtasks /Delete /TN "VoxCIRunnerScale" /F
+
+  Policy: IgnoreNew — if the previous tick is still running (slow cargo build
+  slowing the Docker API probe) the new instance is silently dropped rather
+  than queued. The next 2-min tick will catch up; a stacked queue could cause
+  runaway container spawning.
+-->
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Reconcile the ephemeral self-hosted CI runner pool to demand every 2 minutes. Spawns vox-runner-auto-* containers when CI work is queued; drains to 0 when idle. Managed by vox run scripts/ci-runners-up.vox. Source: scripts/ci/voxcirunnerscale.task.xml.</Description>
+    <URI>\VoxCIRunnerScale</URI>
+  </RegistrationInfo>
+  <Triggers>
+    <TimeTrigger>
+      <Repetition>
+        <Interval>PT2M</Interval>
+        <StopAtDurationEnd>false</StopAtDurationEnd>
+      </Repetition>
+      <StartBoundary>2026-01-01T00:00:00</StartBoundary>
+      <Enabled>true</Enabled>
+    </TimeTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>false</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <DisallowStartOnRemoteAppSession>false</DisallowStartOnRemoteAppSession>
+    <UseUnifiedSchedulingEngine>true</UseUnifiedSchedulingEngine>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT3M</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>vox</Command>
+      <Arguments>run scripts/ci-runners-up.vox</Arguments>
+      <WorkingDirectory>C:\Users\Owner\vox</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

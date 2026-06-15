@@ -1,0 +1,55 @@
+// scripts/ci/install-runner-schedule.vox
+//
+// Install (or update) the VoxCIRunnerScale Windows Task Scheduler task from
+// the versioned definition at scripts/ci/voxcirunnerscale.task.xml.
+//
+// Usage:
+//   vox run scripts/ci/install-runner-schedule.vox
+//
+// Requires: Windows, schtasks.exe on PATH, vox on PATH.
+// The task runs as the current interactive user every 2 minutes with
+// MultipleInstancesPolicy=IgnoreNew (overlapping ticks are dropped, not queued).
+//
+// To remove: schtasks /Delete /TN "VoxCIRunnerScale" /F
+// See docs/src/ci/runner-autoscaling.md for the full rollout procedure.
+
+fn env_flag(name: str) to bool {
+    let opt = std.env.get(name);
+    if opt.is_some() {
+        return opt.unwrap() == "1";
+    }
+    return false;
+}
+
+fn main() {
+    let dry_run = env_flag("VOX_RUNNER_DRY_RUN");
+
+    // Resolve the XML path relative to the repo root.
+    let xml_path = "scripts/ci/voxcirunnerscale.task.xml";
+
+    print("install-runner-schedule: registering VoxCIRunnerScale from " + xml_path);
+
+    if dry_run {
+        print("DRY-RUN: would run: schtasks /Create /TN VoxCIRunnerScale /XML " + xml_path + " /F");
+        print("Unset VOX_RUNNER_DRY_RUN to apply.");
+        return;
+    }
+
+    // /F overwrites an existing task with the same name — idempotent re-install.
+    let result = process.run("schtasks", ["/Create", "/TN", "VoxCIRunnerScale", "/XML", xml_path, "/F"]);
+    if result is null {
+        log.error("install-runner-schedule: could not exec schtasks — is this Windows?");
+        process.exit(1);
+    }
+    let r = result.unwrap();
+    if r.stdout != "" {
+        print(r.stdout);
+    }
+    if r.code != 0 {
+        log.error("install-runner-schedule: schtasks exited " + str(r.code));
+        process.exit(r.code);
+    }
+
+    print("install-runner-schedule: VoxCIRunnerScale registered (every 2 min, IgnoreNew overlap policy).");
+    print("Verify: schtasks /Query /TN VoxCIRunnerScale /FO LIST");
+}
