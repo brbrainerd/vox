@@ -1,0 +1,8 @@
+feat(docs): document plan for GUI configurable values and secrets wiring
+scale: ~243 lines across 2 files [M]
+fix(vox-config): refactor `VoxConfig` instantiation in `cache_coherence_tests`
+
+- **docs/superpowers/plans/2026-06-07-gui-configurable-values-and-secrets-wiring.md**: Added a new documentation file outlining the plan to make the Vox GUI a complete control surface for configuration, secrets, and LLM endpoints. This includes verifying current working features and identifying defects in existing settings panels.
+- **crates/vox-config/src/toml_config.rs**: Modified the `cache_coherence_tests` to construct `VoxConfig` using struct-update syntax (`VoxConfig { model: ..., ..Default::default() }`) instead of mutating a default instance. This resolves a `clippy::field_reassign_with_default` warning.
+
+--- audit: original='fix(vox-config): clippy field_reassign_with_default in cache-coherence test' | actual=243L across 2 files | derived=full ---
