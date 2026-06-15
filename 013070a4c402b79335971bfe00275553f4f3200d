@@ -1,0 +1,10 @@
+feat(vox-gui/scientia): Improve DiscoveryInbox accessibility with ARIA roles and button types
+scale: ~16 lines across 2 files [S]
+
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/DiscoveryInbox.tsx`:
+    - Added `type="button"` to the "Refresh", "Open Review", and "Acknowledge" buttons.
+    - Wrapped the inbox rows in a `div` with `role="list"` and `aria-live="polite"`.
+    - Assigned `role="listitem"` to each individual inbox row.
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/DiscoveryInbox.test.tsx`: Added a new test case to verify that all controls have `type="button"` and that inbox rows form an `aria-live` list.
+
+--- audit: original='feat(vox-gui/wave4): DiscoveryInbox a11y + checklist (Wave 4)' | actual=16L across 2 files | derived=full ---
