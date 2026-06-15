@@ -1,0 +1,15 @@
+fix(coderabbit): make worktree creation fully idempotent and robust
+scale: ~477 lines across 9 files [L]
+
+- `crates/vox-cli`: Enhanced `create_chunk_pr_via_worktree` to be fully idempotent by adding steps to prune stale git worktree metadata, forcibly remove pre-existing worktree directories (and their git refs), and force-delete stale local branches before creating a new worktree.
+- `crates/vox-parser`:
+    - `README.md`: Updated the README to clarify the parser's scope, emphasizing it handles the core brace-delimited language surface and explicitly listing constructs it covers and those handled downstream.
+    - `src/lib.rs`: Rewrote the module-level documentation to provide a comprehensive overview of the parser's scope, including a detailed table of constructs covered and those out of scope, and clarified the error strategy.
+    - `src/parser.rs`: Added module-level documentation to clarify its role as the sole parser implementation and referenced the `lib.rs` scope table.
+    - `Cargo.toml`: Added a detailed `description` field to `Cargo.toml` explaining the parser's function and scope.
+- `crates/vox-populi`:
+    - `src/tensor/candle_qlora_graph.rs`: Added `#[cfg_attr(not(test), allow(dead_code))]` to `stacked_lm_logits_shape` to suppress dead code warnings when not in test builds.
+    - `src/tensor/candle_qlora_train.rs`: Removed the import of `stacked_lm_logits_shape` as it is no longer directly used in this file.
+- `README.md`: Updated the main project README to reflect a more concise and impactful description of the Vox language, emphasizing its full-stack, single-binary nature and removing detailed language feature explanations.
+
+--- audit: original='fix(coderabbit): make worktree creation fully idempotent -- prune/force-delete stale branch before add, force push on worktree branch' | actual=477L across 9 files | derived=full ---
