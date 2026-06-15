@@ -1,0 +1,9 @@
+feat(populi): add hardware probe integration tests and documentation
+scale: ~275 lines across 4 files [L]
+
+- `crates/vox-populi/tests/probe_pipeline.rs`: Add 11 integration tests for the `ProbePipeline` public API, verifying default behavior, non-empty model names, probe attempts, and error handling.
+- `crates/vox-populi/tests/probe_pipeline_live.rs`: Add 4 live hardware integration tests for GPU detection, VRAM reporting, and pipeline timeout, gated by the new `hw-probe-live-test` feature flag.
+- `crates/vox-populi/Cargo.toml`: Add `hw-probe-live-test` feature flag to enable live hardware integration tests.
+- `docs/src/reference/populi.md`: Add "Appendix A — Hardware probe pipeline" documenting probe names, outcomes, span attributes, and operator override for the `vox-populi::mens::hardware::pipeline`.
+
+--- audit: original='feat(populi): integration tests, live-test gate, probe appendix in populi.md' | actual=275L across 4 files | derived=full ---
