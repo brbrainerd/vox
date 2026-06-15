@@ -1,0 +1,10 @@
+docs(architecture): clarify native `--mode script` is default-on
+scale: ~13 lines across 1 files [S]
+
+- docs/src/architecture/cr-f2-arm-parity-reality-2026-06-05.md:
+  - Updated `cargo build` command to remove `--features script-execution` and note native `--mode script` is default-on.
+  - Added a build note explaining the native `--mode script` lane is default-on via the `script-execution` feature.
+  - Clarified that the Wasmtime WASI lane moved to opt-in `--features script-wasi` due to its heavy dependency footprint.
+  - Updated comments for `vox run` commands to reflect the default-on native script mode and the status of codegen-rust.
+
+--- audit: original='docs(v1): note native --mode script is default-on (build-feature split)' | actual=13L across 1 files | derived=full ---
