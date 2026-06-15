@@ -1,0 +1,16 @@
+feat(semcov): add 18 free-fn tests across 6 crates; fix 2 codegen issues
+scale: ~650 lines across 16 files [L]
+
+- `vox-orchestrator-mcp`: Add tests for `parse_msg_type`, `msg_type_wire`, `fnv1a64`, `default_idempotency_key`, and `surface_to_pilot` in `a2a_tools.rs`.
+- `vox-publisher`: Add tests for `report_health` in `adapter_health.rs` and `BlueskySession::new` in `adapters/bluesky.rs`.
+- `vox-populi`: Add tests for `is_mesh_mode` and `get_mesh_rank` in `distributed_training/mesh_env.rs`.
+- `vox-code-audit`: Add tests for `ollama_request_body`, `gemini_request_body`, and `provider_name` variants in `ai_analyze.rs`. Add tests for `line_is_prose_safe` boundary cases in `analysis/rust_context.rs`.
+- `vox-codegen`: Add tests for `emit_search_web_body` and `emit_search_docs_body` in `codegen_rust/emit/ai_fixture/llm.rs`. Add tests for `copy_asset_to_output` in `assets/mod.rs`.
+- `vox-actor-runtime`: Add tests for `parse_retry_after_seconds` variants in `auth.rs` and declare `pub mod auth` in `lib.rs`.
+- `vox-gamify`: Add tests for `ability_defaults` in `ability.rs` and `achievement_defaults` in `achievement/defaults/part_a.rs` and `achievement/defaults/doubt.rs`.
+- `vox-compiler`: Add tests for `app_contract` in `app_contract.rs` and `ast_eval` in `ast_eval.rs`.
+- `vox-cli`: Add tests for `autofix` in `autofix.rs`.
+- fix(codegen): Repair `DomNode::Loop` emit in `lower.rs` and `emit_tsx.rs` to prevent doubling `.map()` calls, addressing TSX errors. Harden `inject_key_into_jsx` in `emit_tsx.rs` and `hir_emit/mod.rs` to correctly skip expression values and string literals.
+- fix(codegen): Unwrap `HirExpr::Block` in `For` loop bodies before lowering to `DomNode` in `lower.rs` to correctly render inner elements as `DomNode::Element`.
+
+--- audit: original='test(semcov-wave1d): prove 18 free-fn gaps across 6 crates (batch 4)' | actual=650L across 16 files | derived=full ---
