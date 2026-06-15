@@ -1,0 +1,14 @@
+feat(ci): implement protected-no-env and unwired-config checks
+scale: ~165 lines across 2 files [M]
+
+- `crates/vox-cli/src/commands/ci/config_hygiene.rs`:
+  - Implemented `check_protected_modules_have_no_env_reads` to detect `std::env::var` or `env::var` calls within specified protected paths.
+  - Defined `PROTECTED_PATH_FRAGMENTS` constant listing paths where environment variable reads are forbidden.
+  - Implemented `check_declared_but_unwired_config` to identify `ConfigKey` declarations that are not used in `Config::from_env`.
+  - Added `ConfigKey` struct and `ConfigKeyKind` enum to support the unwired config check.
+  - Introduced `ConfigKeyDeclaration` struct to store details about declared config keys.
+  - Added helper functions `extract_config_key_declarations` and `extract_config_from_env_calls` for parsing config key usage.
+  - Updated `Violation` struct with new check types.
+- `contracts/config/config-hygiene-baseline.txt`: Added new baseline violations for `declared-but-unwired-config` and `protected-module-no-env`.
+
+--- audit: original='feat(ci): config-hygiene Checks B (protected-no-env) + C (unwired-config detector)' | actual=165L across 2 files | derived=full ---
