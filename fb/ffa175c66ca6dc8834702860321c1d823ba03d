@@ -1,0 +1,9 @@
+docs(agents): clarify `workflow` and `activity` keyword status in AGENTS.md
+scale: ~6 lines across 1 files [XS]
+
+- AGENTS.md:
+    - Updated line 295 to state that `workflow { }` and `activity` declarations are reserved per ADR-028 and rejected with E028, replacing the previous rule about non-deterministic builtins within workflow bodies. It now provides forward-compatibility guidance for when the durability runtime lands.
+    - Modified line 298 to remove `@activity` from the list of type boundary decorators, clarifying that `@endpoint` is canonical and `@activity` is detector-only for forward compatibility while `activity` itself is parse-rejected.
+    - Removed `workflow` and `activity` from the implied list of usable bare keywords, explicitly stating their reserved-but-rejected status.
+
+--- audit: original='docs(agents): correct residual workflow/activity drift at AGENTS.md lines 295/298/302' | actual=6L across 1 files | derived=full ---
