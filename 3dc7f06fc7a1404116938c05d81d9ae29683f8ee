@@ -1,0 +1,30 @@
+feat(msrv): Update MSRV to 1.95, upgrade dependencies, and refactor sorts
+scale: ~518 lines across 19 files [L]
+
+- **MSRV**: Bumped minimum supported Rust version to 1.95.
+- **Dependencies**:
+    - `wasmtime` and `pulley-interpreter` updated from 42 to 45.
+    - `sysinfo` updated from 0.38 to 0.39.
+    - `object` updated from 0.37 to 0.39.
+    - `hashbrown` updated from 0.15/0.14/0.16 to include 0.17.
+    - `Cargo.lock` updated to reflect dependency changes.
+- **Refactor**:
+    - `crates/vox-arch-check`: Converted `sort_by` to `sort_by_key(Reverse(..))` for `workspace_dep_warns`.
+    - `crates/vox-ml-cli`: Converted `sort_by` to `sort_by_key(Reverse(..))` for source and category counts.
+    - `crates/vox-audit`: Converted `sort_by` to `sort_by_key(Reverse(..))` for function complexity in `cr-a1.rs` and needle lengths in `cr-d3.rs`.
+    - `crates/vox-cli`:
+        - `worktree_gc.rs`: Changed `sys.processes()` iteration to `sys.processes().values()`.
+        - `vcs.rs`: Converted `sort_by` to `sort_by_key(Reverse(..))` for hot regions.
+        - `fuzzy.rs`: Converted `sort_by` to `sort_by_key(Reverse(..))` for fuzzy search results.
+    - `crates/vox-effort-audit`: Converted `sort_by` to `sort_by_key(Reverse(..))` for commit records.
+- **CI/CD**:
+    - `Dockerfile`, `Dockerfile.ci-runner`, `infra/ci-runner/Dockerfile`, `infra/containers/Dockerfile.populi`: Updated base images and `RUST_VERSION` ARG default to `1.95.0`.
+    - `.github/workflows/publish-ci-runner.yml`: Updated `RUST_VERSION` build-arg to `1.95.0`.
+- **Documentation**:
+    - `docs/src/architecture/cross-platform-ssot-2026.md`: Updated stated Rust MSRV to 1.95.0.
+    - `docs/src/architecture/dependency-consolidation-plan-2026.md`: Updated stated Rust versions in Dockerfile descriptions to 1.95.0.
+- **Configuration**:
+    - `Cargo.toml`: Updated `rust-version` to "1.95".
+    - `rust-toolchain.toml`: Updated toolchain to 1.95.
+
+--- audit: original='chore(deps): MSRV 1.92→1.95 + wasmtime 42→45 + sysinfo 0.38→0.39 (#163)' | actual=518L across 19 files | derived=full ---
