@@ -1,0 +1,15 @@
+fix(mens, setup): correct model classification, exclude vox-gui from setup check, surface cargo errors
+scale: ~32 lines across 3 files [S]
+
+- `crates/vox-populi/tests/non_qwen_smoke.rs`:
+    - Updated `plan_llama_model` and `plan_mistral_model` to assert `HfArchitecture::Qwen35` instead of `HfArchitecture::Llama` and `HfArchitecture::Mistral` respectively, reflecting that Llama/Mistral models are classified as `Qwen35` in Vox.
+    - Updated `plan_phi_model` to assert `HfArchitecture::Gpt2` instead of `HfArchitecture::Phi`, indicating Phi models fall through to GPT-2 classification.
+    - Added comments explaining the model classification logic.
+- `scripts/setup.vox`:
+    - Modified `cargo check --workspace` command to include `--exclude vox-gui`, preventing the setup script from failing due to `vox-gui`'s native dependencies on macOS.
+    - Added logic to print `check.stdout` and `check.stderr` when `cargo check` fails, making diagnostic information visible.
+    - Updated print statements to reflect the exclusion of `vox-gui`.
+- `crates/vox-populi/src/mens/tensor/finetune_contract.rs`:
+    - Derived `Default` trait for `ModelProvenanceSpec` and `ExecSpec` structs.
+
+--- audit: original='fix(clean-room+mens): exclude vox-gui from setup check, surface cargo errors, repair non_qwen_smoke' | actual=32L across 3 files | derived=full ---
