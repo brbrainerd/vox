@@ -1,0 +1,13 @@
+feat(repo-root): Delete stray files and enforce their absence
+scale: ~75 lines across 8 files [M]
+
+- **scripts/migrations/2026-phase1-delete-repo-root-strays.vox**: Added a new migration script to remove specific stray files (`build_errors.txt`, `test_lexer.rs`, `error.vox`, `prototype_vox_tokenizer.json`) and `codex-cutover-*.sidecar.json` files from the repository root.
+- **crates/vox-cli/src/commands/ci/data_storage_guard.rs**: Implemented a new sub-check (`repo-root-strays-absent`) to prevent the presence of the aforementioned stray files and `codex-cutover-*.sidecar.json` files in the repository root.
+- **test_lexer.rs**: Deleted the `test_lexer.rs` file from the repository root.
+- **error.vox**: Deleted the `error.vox` file from the repository root.
+- **codex-cutover-20260412T065226Z.sidecar.json**: Deleted this specific `codex-cutover-*.sidecar.json` file.
+- **codex-cutover-20260412T071753Z.sidecar.json**: Deleted this specific `codex-cutover-*.sidecar.json` file.
+- **.gitignore**: Updated to remove the `sidecar` ignore entry, failing forward in the guard.
+- **crates/vox-compiler/tests/fixtures/prototype_tokenizer.json**: Moved `prototype_vox_tokenizer.json` to this new path and renamed it to `prototype_tokenizer.json`.
+
+--- audit: original='M-06: Delete loose repo-root strays' | actual=75L across 8 files | derived=full ---
