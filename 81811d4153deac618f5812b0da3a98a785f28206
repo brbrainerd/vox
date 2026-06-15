@@ -1,0 +1,16 @@
+refactor(lower): Extract sub-functions from `lower_ai_fixture` and `extract_db_query_chain`
+scale: ~463 lines across 3 files [L]
+
+- `crates/vox-compiler/src/hir/lower/decl.rs`:
+  - Refactored `lower_ai_fixture` by extracting specific fixture lowering logic into new helper functions: `try_lower_hole_fixture`, `try_lower_search_fixture`, `try_lower_subagent_fixture`, `try_lower_prompt_fixture`, `try_lower_intent_fixture`, and `lower_model_pin_fixture`.
+  - `lower_ai_fixture` now uses an `or_else` chain to prioritize and call these new helper functions.
+- `crates/vox-compiler/src/hir/lower/expr_db.rs`:
+  - Refactored `extract_db_query_chain` by extracting the `match` statement for chain modifiers into a new helper function `apply_chain_modifier`.
+  - `apply_chain_modifier` dispatches to seven new, smaller helper functions: `apply_order_by`, `apply_limit`, `apply_select`, `apply_sync`, `apply_using`, `apply_live`, and `apply_scope`.
+- `contracts/reports/arch/cr-a1/2026-05-22.json`:
+  - Updated the CR-A1 architectural report to reflect the reduced complexity of `lower_ai_fixture` and `extract_db_query_chain`, removing them from the "over_budget" list.
+  - Increased `functions_scanned` from 195 to 209 due to the introduction of new helper functions.
+  - Updated `measured_at` timestamp.
+  - Added `emit_stmt` and `has_async_expr` to the "over_budget" list with complexities of 16 and 15 respectively.
+
+--- audit: original='refactor(lower): CR-A1 pass 3 — lower_ai_fixture and extract_db_query_chain off the over-budget list' | actual=463L across 3 files | derived=full ---
