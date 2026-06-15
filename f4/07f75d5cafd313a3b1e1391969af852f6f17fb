@@ -1,0 +1,6 @@
+fix(ci): exclude docs.astro.build from Lychee link checker
+scale: ~1 lines across 1 files [XS]
+
+- `.lycheeignore`: Added `.*docs\.astro\.build.*` to exclude `docs.astro.build` from link checking due to intermittent EOF errors in CI.
+
+--- audit: original='fix(ci): exclude docs.astro.build from lychee link checker (network flake)' | actual=1L across 1 files | derived=full ---
