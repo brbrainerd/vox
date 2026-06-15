@@ -1,0 +1,24 @@
+feat(vox-db): implement 12 Codex research pipeline methods for Phase 0d
+scale: ~405 lines across 3 files [L]
+
+- `crates/vox-db/src/research_pipeline.rs`: New module implementing 12 asynchronous methods for the Scientia research pipeline:
+  - `create_research_session`: Creates a new research session with a given key and query text, returning its row ID.
+  - `update_research_session_status`: Updates the status and `finished_at_ms` for a research session.
+  - `record_research_metric`: Records a metric for a research session.
+  - `store_claim`: Stores a claim associated with a research session.
+  - `store_claim_verdict`: Stores a verdict for a specific claim.
+  - `store_evidence_span`: Stores an evidence span for a claim.
+  - `store_training_pair`: Stores a training pair (query, answer, score) for a research session.
+  - `list_memories_by_type`: Lists memories of a specific type for a research session.
+  - `get_retrieval_config`: Retrieves the retrieval configuration for a research session.
+  - `start_provider_run`: Records the start of a provider run for a research session.
+  - `create_research_source`: Creates a new research source.
+  - `finish_provider_run`: Records the completion of a provider run.
+- `crates/vox-db/tests/scientia_pipeline_methods.rs`: New module with smoke tests for the implemented research pipeline methods, including:
+  - `create_and_update_research_session`
+  - `store_claim_and_verdict`
+  - `store_training_pair_roundtrip`
+  - `provider_run_lifecycle`
+- `crates/vox-db/src/lib.rs`: Exports the new `research_pipeline` module.
+
+--- audit: original='feat(scientia): implement 12 Codex research pipeline methods (Phase 0d)' | actual=405L across 3 files | derived=full ---
