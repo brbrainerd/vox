@@ -1,0 +1,8 @@
+docs(superpowers): plan P4 isolation policy and P5 versioned decorators, mark P2 as implemented
+scale: ~1232 lines across 3 files [XL]
+
+- docs/superpowers/plans/2026-06-06-jj-first-class-p4-isolation-policy-and-gui.md: Added a new plan document detailing the implementation of P4, focusing on orchestrator multi-agent isolation policy and GUI control. This includes defining an `IsolationStrategy` enum, wiring it into existing VCS machinery (`FileLockManager`, `WorkspaceManager`/`JjActorHandle`), and surfacing strategy and conflicts via a new GUI VCS panel.
+- docs/superpowers/plans/2026-06-06-jj-first-class-p5-versioned-decorators-auto-snapshot.md: Added a new plan document outlining the implementation of P5, which introduces `@versioned` / `@tracked` function decorators for auto-snapshotting the `RepoStore` on successful function return. The plan details extending the existing decorator mechanism and integrating with the P3 `repo.*` primitives.
+- docs/superpowers/plans/2026-06-05-jj-first-class-p2-jj-engine-and-dead-code-removal.md: Updated the P2 plan document to mark it as "IMPLEMENTED & MERGED (2026-06-06)". It now includes a detailed status banner explaining the shipped design differences (e.g., `#[async_trait]` `VcsBackend` and `jj_actor` for the `!Send` jj engine) and notes that Task 6 (CLI in-process routing) is intentionally deferred.
+
+--- audit: original='docs(jj): plan the remaining phases (P4 isolation+GUI, P5 decorators) + mark P2 done (#183)' | actual=1232L across 3 files | derived=full ---
