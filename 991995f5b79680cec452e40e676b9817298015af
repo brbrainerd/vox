@@ -1,0 +1,18 @@
+refactor(vox-compiler): extract canonical_json and update doc links
+scale: ~80 lines across 13 files [M]
+
+- **`crates/vox-compiler/src/canonical_json.rs`**: New file created to house the `sort_json_value_keys` function, extracted from `syntax_k.rs`. This module provides analysis-agnostic canonical JSON helpers.
+- **`crates/vox-compiler/src/syntax_k.rs`**: Removed the `sort_json_value_keys` implementation and added a `pub use` re-export from `crate::canonical_json` for back-compatibility.
+- **`crates/vox-compiler/src/app_contract.rs`**: Updated `canonical_app_contract_bytes` to call `crate::canonical_json::sort_json_value_keys` instead of `crate::syntax_k::sort_json_value_keys`.
+- **`crates/vox-compiler/src/runtime_projection.rs`**: Updated `canonical_runtime_projection_bytes` to call `crate::canonical_json::sort_json_value_keys` instead of `crate::syntax_k::sort_json_value_keys`.
+- **`crates/vox-compiler/src/lib.rs`**: Added `pub mod canonical_json;` to expose the new module.
+- **`crates/vox-compiler/src/ast/decl/fundecl.rs`**: Converted an intra-doc link `[`crate::codegen_ts::hir_emit::state_deps`]` to a plain code span `` `vox_compiler_emit::codegen_ts::hir_emit::state_deps` ``.
+- **`crates/vox-compiler/src/hir/core_ir.rs`**: Converted an intra-doc link `[`crate::web_ir::WebProjectionIR`]` to a plain code span `` `vox_compiler_emit::web_ir::WebProjectionIR` ``.
+- **`crates/vox-compiler/src/hir/lower/mod.rs`**: Converted an intra-doc link `[`crate::web_ir::lower::project_web_from_core`]` to a plain code span `` `vox_compiler_emit::web_ir::lower::project_web_from_core` ``.
+- **`crates/vox-compiler/src/hir/nodes/decl.rs`**: Converted an intra-doc link `[`crate::codegen_ts::hir_emit::state_deps`]` to a plain code span `` `vox_compiler_emit::codegen_ts::hir_emit::state_deps` ``.
+- **`crates/vox-compiler/src/lowering_shared/jsx.rs`**: Converted an intra-doc link `[`crate::codegen_ts::hir_emit::compat`]` to a plain code span `` `vox_compiler_emit::codegen_ts::hir_emit::compat` ``.
+- **`crates/vox-compiler/src/lowering_shared/primitive_tags.rs`**: Converted an intra-doc link `` `crate::web_ir::primitives` `` to a plain code span `` `vox_compiler_emit::web_ir::primitives` ``.
+- **`crates/vox-compiler/src/web_migration_env.rs`**: Converted an intra-doc link `[`crate::codegen_ts::generate`]` to a plain code span `` `vox_compiler_emit::codegen_ts::generate` ``.
+- **`.claude/settings.local.json`**: Added a new `grep` command to the `Bash` array.
+
+--- audit: original='refactor(vox-compiler): final precursor — extract canonical_json + doc links' | actual=80L across 13 files | derived=full ---
