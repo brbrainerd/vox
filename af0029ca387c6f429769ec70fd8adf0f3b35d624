@@ -1,0 +1,6 @@
+docs(search): clarify RAG chunk size override mechanism in ingest.rs
+scale: ~5 lines across 1 files [XS]
+
+- `crates/vox-search/src/ingest.rs`: Updated the documentation comment for `DEFAULT_RAG_CHUNK_CHARS` to explicitly state that overriding the chunk size is done by calling `chunk_markdown_sections_with_size` and that an environment variable (`VOX_RAG_CHUNK_CHARS`) is not yet wired for this purpose.
+
+--- audit: original='docs(search): correct RAG chunk-size comment to not imply an unwired env knob (HC-G11-02)' | actual=5L across 1 files | derived=full ---
