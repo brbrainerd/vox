@@ -1,0 +1,17 @@
+feat(quality): add property-based tests for compiler and codegen
+scale: ~253 lines across 6 files [L]
+
+- crates/vox-compiler/tests/property_tests.rs: Add 4 property tests for the Vox compiler:
+  - `parser_accepts_valid_identifiers`: Fuzzes identifier strings against the parser.
+  - `parser_round_trip_fn_decl`: Parses and re-parses simple function declarations.
+  - `formatter_idempotent`: Asserts that formatting twice yields identical output.
+  - `type_annotation_round_trip`: Round-trips simple type names through parsing and formatting.
+- crates/vox-codegen/tests/property_tests.rs: Add 2 property tests for the Vox codegen:
+  - `codegen_deterministic`: Ensures identical Rust output for the same input across multiple runs.
+  - `codegen_no_error_markers`: Verifies generated Rust code contains no `compile_error!` or `todo!` markers.
+- Cargo.toml: Add `proptest` as a workspace dependency.
+- crates/vox-codegen/Cargo.toml: Add `proptest` as a dev-dependency.
+- crates/vox-compiler/Cargo.toml: Add `proptest` as a dev-dependency.
+- Cargo.lock: Update lockfile to include `proptest` and its dependencies.
+
+--- audit: original='feat(quality): proptest property-based tests for vox-compiler + vox-codegen' | actual=253L across 6 files | derived=full ---
