@@ -1,0 +1,6 @@
+fix(docs): correct GitHub organization for vox repository URLs
+scale: ~8 lines across 1 files [XS]
+
+- docs/src/architecture/svelte-mineable-features-implementation-plan-2026.md: Updated four URLs from `https://github.com/anthropics/vox` to `https://github.com/vox-foundation/vox` in the "Phase row table" to point to the correct GitHub organization.
+
+--- audit: original='fix(docs): correct anthropics/vox URLs to vox-foundation/vox' | actual=8L across 1 files | derived=full ---
