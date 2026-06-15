@@ -1,0 +1,10 @@
+feat(scientia): Add `InsufficientEvidence` and `Contradicted` to `NoveltyVerdict`
+scale: ~83 lines across 1 files [M]
+
+- `crates/vox-scientia/src/inspect_bridge/novelty.rs`:
+    - Add `InsufficientEvidence` and `Contradicted` variants to the `NoveltyVerdict` enum.
+    - Introduce a `trace_succeeded` helper function to determine if a `QueryTrace` represents a successful retrieval (cached or 2xx HTTP status).
+    - Modify the `AtomicNoveltyScorer::score` method to return `NoveltyVerdict::InsufficientEvidence` if all prior-art retrieval traces fail, before performing similarity checks.
+    - Import `QueryTrace` from `vox_research_events::schema_types`.
+
+--- audit: original='feat(scientia): NoveltyVerdict gains InsufficientEvidence/Contradicted; failed retrieval no longer maps to Novel (B6)' | actual=83L across 1 files | derived=full ---
