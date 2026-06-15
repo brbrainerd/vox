@@ -1,0 +1,7 @@
+ci(workflows): Add Lychee link checker for Markdown documentation
+scale: ~17 lines across 1 files [S]
+
+- Add new workflow `link_checker.yml` to run on `push` to `main` and `pull_request` events.
+- Configure Lychee action to check Markdown files (`**/*.md`) for broken links, failing the workflow on errors.
+
+--- audit: original='ci: Add Lychee link checker for Markdown docs' | actual=17L across 1 files | derived=full ---
