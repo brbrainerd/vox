@@ -1,0 +1,11 @@
+feat(tracker): implement local-first crash reporting with opt-in upload
+scale: ~168 lines across 4 files [M]
+
+- Add `ErrorBoundary.tsx` React class component to catch unhandled errors, save them to an IndexedDB ring buffer (`vox-crashes`, max 50 entries), and provide functions to load and clear stored crashes.
+- Wrap the main `App` component with `ErrorBoundary` in `main.tsx` to enable global error catching.
+- Add `SettingsPage.tsx` React component to display the count of locally stored crash reports and provide a button to opt-in to send them to the server.
+- Add `record_crash_report` endpoint and `CrashReport` table definition to `main.vox` for server-side crash report handling.
+- Add `SettingsPage` Vox component and `/settings` route to `main.vox`.
+- Add a "Settings" link to the `NavBar` component in `main.vox`.
+
+--- audit: original='feat(tracker): local-first crash reporting with opt-in upload' | actual=168L across 4 files | derived=full ---
