@@ -1,0 +1,9 @@
+docs(architecture): update semantic coverage status for structural patterns
+scale: ~6 lines across 1 files [XS]
+
+- Update `docs/src/architecture/semantic-coverage-status-2026-06-15.md` to reflect that 5 of 7 structural pipeline-gap patterns are now covered, specifically marking #3 and #4 as done.
+- Adjust the list of covered patterns to include #3 and #4.
+- Update the list of test files providing coverage to include `crates/vox-compiler/tests/decl_lowering_test.rs`.
+- Note that #2 is doc-drift (deferred) and #6 (stdout harness) remains.
+
+--- audit: original='docs(coverage): mark structural patterns #3/#4 done (5 of 7 covered)' | actual=6L across 1 files | derived=full ---
