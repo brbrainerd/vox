@@ -1,0 +1,10 @@
+fix(rustfmt): simplify configuration to avoid reformatting
+scale: ~20 lines across 1 files [S]
+
+- `rustfmt.toml`:
+    - Removed `imports_granularity = "Crate"` and `group_imports = "StdExternalCrate"` to prevent a workspace-wide reformatting of import blocks.
+    - Removed `chain_width`, `trailing_comma`, and `brace_style` settings.
+    - Retained `edition = "2024"` to explicitly set the Rust edition.
+    - Updated comments to reflect the conservative, non-reformatting approach, emphasizing that only stable and non-disruptive options are used.
+
+--- audit: original='fix(quality): rustfmt.toml — safe-only settings, no reformatting sweep' | actual=20L across 1 files | derived=full ---
