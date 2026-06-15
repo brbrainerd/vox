@@ -1,0 +1,19 @@
+chore(snapshots): regenerate stale integration test snapshots
+scale: ~82 lines across 14 files [M]
+
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__table_task_lib_rs_emit.snap`: Updated `assertion_line` and changed `turso::Error::SqliteFailure` to `turso::Error::QueryReturnedNoRows` in `count` and `count_where` methods.
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__table_task_main_rs_emit.snap`: Updated `assertion_line` and modified `PRAGMA journal_mode=WAL` execution to explicitly loop through results.
+- `crates/vox-integration-tests/tests/snapshots/greaterfool_parity_gates_test__greaterfool_ref_main_rs_emit.snap`: Modified `PRAGMA journal_mode=WAL` execution to explicitly loop through results.
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__chatbot_fixture_chat_tsx.snap`: Updated `assertion_line`, wrapped the chat container in a `div` with `px-4` class, and added `flex-wrap` to the input area.
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__dashboard_e2e_chatwidget_tsx.snap`: Wrapped the chat widget in a `div` with `px-4` class and simplified the `onClick` handler for the send button.
+- `crates/vox-integration-tests/tests/snapshots/codegen_rust_test__table_struct_output.snap`: Updated `assertion_line` and changed `turso::Error::SqliteFailure` to `turso::Error::QueryReturnedNoRows` in `count` and `count_where` methods.
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__dashboard_e2e_dash_tsx.snap`: Updated `assertion_line`.
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__chatbot_chat_tsx_usestate.snap`: Added `assertion_line` and wrapped the chat container in a `div` with `px-4` class.
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__hooks_demo_tsx_all_hooks.snap`: Added `assertion_line` and wrapped the component in a `div` with `px-4` class.
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__mixed_surface_dash_tsx.snap`: Added `assertion_line` and wrapped the component in a `div` with `px-4` class.
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__multi_route_rust_main_rs_emit.snap`: Updated `assertion_line`.
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__use_effect_timer_tsx_emit.snap`: Added `assertion_line` and wrapped the component in a `div` with `px-4` class.
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__bind_loginform_tsx_expand.snap`: Added `assertion_line` and wrapped the component in a `div` with `px-4` class.
+- `contracts/reports/humaneval/2026-06-03.json`: Updated the `humaneval` report.
+
+--- audit: original='chore(tests): regenerate stale vox-integration-tests snapshots' | actual=82L across 14 files | derived=full ---
