@@ -1,0 +1,16 @@
+feat(vox-arch-check): implement persistent on-disk cache for git-derived data
+scale: ~187 lines across 3 files [M]
+
+- `crates/vox-arch-check/src/cache.rs`: Add new module for persistent on-disk caching.
+  - Defines `CachedData` struct to store SHA-256 key and `git_touched_paths`.
+  - Implements `compute_key` function to generate a cache key from `Cargo.lock`, `layers.toml`, and `where-things-live.md` using SHA-256.
+  - Provides `load` and `store` functions for reading from and writing to the cache, located at `<workspace_root>/target/vox-arch-check-cache/<key>.json`.
+  - Cache operations are non-fatal; errors result in a cache miss.
+- `crates/vox-arch-check/src/main.rs`: Integrate the new cache module.
+  - Imports the `cache` module.
+  - Computes the cache key and attempts to load cached data before calling `git_paths_touched_since`.
+  - If a cache hit occurs, uses the cached `git_touched_paths` result for Rule 8.
+  - If a cache miss occurs, runs `git_paths_touched_since` and stores the result in the cache for future runs.
+- `crates/vox-arch-check/Cargo.toml`: Add `sha2` and `serde_json` dependencies for caching functionality.
+
+--- audit: original='perf(vox-arch-check): persistent git-paths cache (Phase 2)' | actual=187L across 3 files | derived=full ---
