@@ -1,0 +1,9 @@
+feat(mesh): execute dispatched .vox source on remote worker
+scale: ~312 lines across 4 files [L]
+
+- `crates/vox-orchestrator/src/a2a/remote_worker.rs`: Implemented `run_dispatched_source` to execute base64-encoded `.vox` source on the worker, verifying BLAKE3 integrity. This replaces the legacy echo response with real stdout/exit-code/error, respecting `VoxMeshExecPolicy`. Added `DispatchedExecParts` struct and `echo_result` helper.
+- `crates/vox-orchestrator/src/a2a/envelope.rs`: Added `exec_source_b64` and `exec_source_blake3_hex` fields to `RemoteTaskEnvelope` for transmitting `.vox` source and its integrity hash. Included new tests for envelope serialization/deserialization with these fields.
+- `crates/vox-orchestrator/src/orchestrator/tests/populi_single_owner.rs`: Unblocked and updated tests to compile and pass under `--features populi-transport` by adding missing `RemoteTaskEnvelope` and `RemoteTaskResult` imports and initializing new `exec_source_b64` and `exec_source_blake3_hex` fields to `None` in test envelopes.
+- `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/task_submit.rs`: Initialized new `exec_source_b64` and `exec_source_blake3_hex` fields to `None` in `RemoteTaskEnvelope` instances created for task delegation, clarifying that these envelopes carry task payloads, not raw source.
+
+--- audit: original='feat(mesh): execute dispatched .vox source on remote worker (replace echo)' | actual=312L across 4 files | derived=full ---
