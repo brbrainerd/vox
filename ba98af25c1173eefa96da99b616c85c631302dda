@@ -1,0 +1,13 @@
+feat(corpus): migrate render-durable-animation.vox and retire 6 stale scripts
+scale: ~220 lines across 8 files [M]
+
+- `scripts/render-durable-animation.vox`: Migrated to canonical Vox idioms, including `to str` for return types, `not` for boolean negation, and handling `process.run`, `env.get`, and `process.cwd` as Option-returning. Introduced a `run_step` helper for Option/Result discipline.
+- `scripts/index_symbols.vox`: Deleted. This was an aspirational placeholder for symbol indexing, using non-existent `compiler.run_frontend_str` and ES-module destructured imports.
+- `scripts/mens-corpus/emit_diagnostics.vox`: Deleted. This was a pre-migration CommonJS placeholder with no consumer.
+- `scripts/mens-corpus/walk_sources.vox`: Deleted. This was a pre-migration CommonJS placeholder, superseded by `scripts/mens-corpus/helpers/walk_sources.vox`.
+- `scripts/mens-corpus/jsonl_writer.vox`: Deleted. This was a pre-migration CommonJS placeholder, superseded by `scripts/mens-corpus/helpers/jsonl_writer.vox`.
+- `scripts/extract_table_names.vox`: Deleted. This was an aspirational script with top-level statements, non-existent `std/io`, `std/regex`, `std/string` surfaces, and an incorrect regex API usage.
+- `scripts/mens-corpus/walk_docs.vox`: Deleted. This was a pre-migration CommonJS placeholder, superseded by `scripts/mens-corpus/helpers/walk_docs.vox`.
+- `contracts/reports/scripts-pass-baseline.txt`: Added `scripts/render-durable-animation.vox` to the list of passing scripts.
+
+--- audit: original='chore(corpus): retire 6 stale aspirational placeholders + revive render-durable-animation (51/53 = 96%)' | actual=220L across 8 files | derived=full ---
