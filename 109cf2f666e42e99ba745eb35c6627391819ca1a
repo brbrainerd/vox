@@ -1,0 +1,9 @@
+fix(codegen): Handle std.-prefixed namespaces and `never` return type; make sccache opt-in
+scale: ~72 lines across 4 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/emit/method_emit.rs`: Modified `method_emit` to correctly lower `std.<namespace>.<method>` calls (e.g., `std.env.get`) to runtime builtins by unwrapping the `std.` prefix before namespace checks. This fixes an issue where `FieldAccess(std, env)` bypassed the namespace lowering.
+- `crates/vox-codegen/src/codegen_rust/emit/types.rs`: Mapped the `never` type, inferred by typeck for functions with diverging trailing statements, to the unit type `()` in generated Rust code. This resolves `E0425` errors as `-> !` is not always valid for such functions.
+- `crates/vox-codegen/tests/null_and_namespace_lowering.rs`: Added new tests to verify the correct lowering of `std.env.get` calls and the proper emission of return types for functions inferred to return `never`.
+- `.cargo/config.toml`: Removed the hardcoded `rustc-wrapper = "sccache"` to prevent build failures on CI runners and fresh agent shells lacking the `sccache` binary. Updated comments to clarify that `sccache` should be opted in per-shell or per-user.
+
+--- audit: original='fix(codegen): script-mode std.-prefixed namespaces and never return type; make sccache opt-in' | actual=72L across 4 files | derived=full ---
