@@ -1,0 +1,42 @@
+feat(ci, cli, corpus, compiler, orchestrator, populi): enhance CI, refactor CLI commands, and update corpus training
+scale: ~4320 lines across 147 files [XL]
+
+- **ci**: Update `ci.yml` to include all targets for Clippy linting and add a new CI workflow contract test.
+- **cli**:
+    - Remove `vox install` command, replacing it with `vox add`, `vox lock`, and `vox sync` for package management.
+    - Remove `gamify` commands (`battle`, `companions`, `activity`, `quests`, `render`).
+    - Wire `vox fmt` to format `.vox` files in place, with an option to check formatting without writing changes.
+    - Update `vox corpus generate` command.
+    - Refactor `vox schola train gpu` to use new corpus mix preparation utilities.
+    - Update `vox mens populi train_arm` and `vox mens pipeline` commands.
+    - Update `vox dei` command.
+    - Update `vox audit` and `vox diagnostics tools audit` commands.
+    - Update `vox ai workflow` command.
+    - Update `vox review coderabbit historical_planner` command.
+    - Update `vox populi_lifecycle` command.
+    - Update `vox ci command_compliance` validators and tests.
+    - Update `vox ci run_body_helpers` for grammar, guards, matrix, and cuda release build.
+    - Remove `cli_dispatch` module and update `cli_args`, `frontend`, `island_paths`, `commands/mod.rs`, and `templates/islands`.
+- **corpus**: Add `training/mix_prepare.rs` for corpus mix and primary-source sync for Mens training.
+- **compiler**: Update `hir/lower/mod.rs` and `parser/descent/decl/head.rs`. Update `fmt/mod.rs` for `.vox` file formatting.
+- **orchestrator**: Update `runtime.rs` and `session/manager/persist_load.rs`.
+- **populi**:
+    - Update `mens/tensor/hf_keymap.rs` and `mens/hub.rs`.
+    - Update `mens/tensor/candle_qlora_train` and `mens/tensor/qlora_preflight.rs`.
+    - Update `mens/cloud/vast.rs`.
+    - Update `transport/auth.rs`.
+    - Add new training preflight schema validation test.
+    - Update `mens/tensor/candle_qlora_weights.rs`.
+- **mcp**: Update `server/lifecycle.rs` and `dei_tools/control.rs`.
+- **schola**: Update `train.rs`.
+- **oratio**: Update `traits.rs`, `streaming_partial.rs`, `speech_intent.rs`, `contextual_bias.rs`, and `routing.rs`.
+- **publisher**: Update `scholarly/openreview.rs`, `scholarly_external_jobs.rs`, `submission_package.rs`, `lib.rs`, and `scholarly/zenodo.rs`.
+- **toestub**: Update `run_context.rs`, `detectors`, `engine.rs`, `analysis/token_map.rs`, and `suppression.rs`.
+- **db**: Update `store/ops_publication/external_jobs.rs` and `store/ops_questioning.rs`.
+- **ludus**: Update `output_policy.rs`, `db/kpi.rs`, `event_router.rs`, and `reward_policy.rs`.
+- **docs**: Update `doc-inventory.json`, `architecture` documents, `reference/cli.md`, `reference/mens-training.md`, and `reference/pm-migration-2026.md`.
+- **contracts**: Update `cli/command-registry.yaml` and `mens/training-preflight.schema.json`.
+- **gitignore**: Exclude new checkpoint state files.
+- **misc**: Update `CHANGELOG.md`, `Dockerfile`, `.gitlab-ci.yml`, and various integration tests.
+
+--- audit: original='feat(ci, cli, contracts): update CI workflows, command registry, and enhance formatting commands' | actual=4320L across 147 files | derived=full ---
