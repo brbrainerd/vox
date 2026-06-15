@@ -1,0 +1,9 @@
+fix(codegen-ts): correctly bind checkbox checked attribute and add decimal initial value
+scale: ~24 lines across 2 files [S]
+
+- `crates/vox-codegen/tests/form_emit_test.rs`: Add a new test case to verify that the `error_message` defined in a form appears in the emitted component's banner.
+- `crates/vox-codegen/src/codegen_ts/form_emit.rs`:
+    - Modify the `emit_form` function to correctly bind the `checked` attribute for checkbox input types, using `checked={{{fname}}}` instead of `value={{{fname} ?? ""}}`.
+    - Update the `field_initial_value` function to set the initial value for `decimal` types to "0", aligning with `int` and `float`.
+
+--- audit: original='fix(codegen-ts): checkbox checked attr + decimal init + error_message test' | actual=24L across 2 files | derived=full ---
