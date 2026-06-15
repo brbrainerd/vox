@@ -1,0 +1,7 @@
+fix(vox-gui): Add `tracing` dependency to `Cargo.toml`
+scale: ~2 lines across 2 files [S]
+
+- `crates/vox-gui/Cargo.toml`: Added `tracing = { workspace = true }` to the `[dependencies]` section.
+- `Cargo.lock`: Updated to reflect the new `tracing` dependency for `vox-gui`.
+
+--- audit: original='fix(vox-gui): add tracing dep for daemon-unavailable debug logging' | actual=2L across 2 files | derived=full ---
