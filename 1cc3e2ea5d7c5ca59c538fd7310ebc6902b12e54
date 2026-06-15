@@ -1,0 +1,14 @@
+feat(orchestrator): make Axum, RMCP, and related crates optional dependencies
+scale: ~17 lines across 3 files [S]
+
+- `crates/vox-orchestrator/Cargo.toml`:
+    - Made `axum`, `rmcp`, `axum-extra`, and `tower-http` optional dependencies.
+    - Added these crates to the `mcp-native` feature, making them conditional on this feature.
+    - The `mcp-native` feature now explicitly includes `dep:axum`, `dep:rmcp`, `dep:axum-extra`, and `dep:tower-http`.
+- `.github/workflows/ci.yml`:
+    - Updated the "Orchestrator slim build" CI job to remove `mcp-native` from its features list. This verifies that `vox-orchestrator` can be built without Axum/RMCP when `mcp-native` is not enabled.
+    - Renamed the CI job from "Orchestrator no-default-features (news-publish off)" to "Orchestrator slim build (news-publish + mcp-native off → no axum/rmcp)" for clarity.
+- `.claude/settings.local.json`:
+    - Added a new bash command `grep -v "//.*mcp_tools"` to the `ignored_commands` list.
+
+--- audit: original='feat(orchestrator): make axum/rmcp/axum-extra optional under mcp-native feature' | actual=17L across 3 files | derived=full ---
