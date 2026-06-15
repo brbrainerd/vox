@@ -1,0 +1,6 @@
+fix(cli): Add missing `selection_rationale` field to `ModelCallEvent` literal
+scale: ~1 lines across 1 files [XS]
+
+- `crates/vox-cli/tests/telemetry_corpus_feedback_e2e.rs`: Added `selection_rationale: None` to the `ModelCallEvent` literal in the `model_call` test function to resolve a compilation error caused by a missing field.
+
+--- audit: original='fix(cli): add missing `selection_rationale` field to ModelCallEvent test literal' | actual=1L across 1 files | derived=full ---
