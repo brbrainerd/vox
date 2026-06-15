@@ -1,0 +1,6 @@
+fix(vox-gui): clarify Runtime config persistence path in SettingsView
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx`: Updated the subtitle for the "Runtime" settings section to remove the specific `~/.vox/config.toml` path, instead stating "your Vox user config" to accurately reflect that configuration persists to the platform data-dir config.toml.
+
+--- audit: original='fix(vox-gui): correct Runtime subtitle to not claim a specific config path' | actual=2L across 1 files | derived=full ---
