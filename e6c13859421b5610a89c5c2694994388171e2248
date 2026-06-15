@@ -1,0 +1,6 @@
+test(vox-effort-audit): add regression test for mechanical_sweep_score mid-range behavior
+scale: ~14 lines across 1 files [S]
+
+- `crates/vox-effort-audit/src/shape.rs`: Added a new test case `mechanical_sweep_sweep_score_mid_range_on_half_identical` to verify the `mechanical_sweep_score` calculation for a diff with a mix of identical and distinct lines, specifically asserting a score around 0.45 for a 10-line repeated and 10-line distinct diff.
+
+--- audit: original='test(vox-effort-audit): lock in mechanical_sweep_score mid-range behavior' | actual=14L across 1 files | derived=full ---
