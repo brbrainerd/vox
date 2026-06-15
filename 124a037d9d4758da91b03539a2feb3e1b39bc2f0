@@ -1,0 +1,14 @@
+feat(db, codegen): route VOX_APP_DB_URL through vox-secrets facade
+scale: ~61 lines across 9 files [M]
+
+- `vox-db`: Added `resolve_app_db_url()` and `resolve_codex_db_url()` functions to retrieve database URLs via `vox_secrets::resolve_secret`.
+- `vox-db`: Exported new `resolve_app_db_url` and `resolve_codex_db_url` functions from `lib.rs`.
+- `vox-codegen`: Modified `codegen_rust/emit/tables/codegen.rs` to use `vox_secrets::resolve_secret` for `VOX_APP_DB_URL` and `vox_db::resolve_app_db_url()` for emitted app templates.
+- `vox-codegen`: Updated `codegen_rust/emit/http.rs` to use `vox_db::resolve_app_db_url()` and `vox_db::resolve_codex_db_url()` for health backend kind determination.
+- `vox-codegen`: Changed `codegen_rust/emit/method_emit.rs` to use `vox_secrets::resolve_secret` for `VOX_APP_DB_URL` in SQL dialect determination.
+- `vox-codegen`: Modified `codegen_rust/emit/mod.rs` to use `vox_db::resolve_app_db_url()` for app-plane DB URL checks in Tauri runtime.
+- `vox-integration-tests`: Refreshed snapshots in `greaterfool_parity_gates_test__greaterfool_ref_main_rs_emit.snap` to reflect changes in `vox_health_backend_kind` and app URL checks.
+- `vox-compiler`: Refreshed snapshots in `axum_emit_contract_test__mutation_with_schema_main_rs_emit.snap` to reflect changes in `vox_health_backend_kind` and app URL checks.
+- `vox-integration-tests`: Refreshed snapshots in `pipeline_test__table_task_main_rs_emit.snap` to reflect changes in `vox_health_backend_kind` and app URL checks.
+
+--- audit: original='fix(codegen): route VOX_APP_DB_URL through the vox-secrets facade' | actual=61L across 9 files | derived=full ---
