@@ -1,0 +1,9 @@
+fix(verifier): harden word-boundary matching; update `hex` dependency
+scale: ~20 lines across 4 files [S]
+
+- `crates/vox-prereg/src/symbolic.rs`: Modified the `word_match` function in `NumericComparatorVerifier` to harden word-boundary matching. The check for characters surrounding a keyword now excludes alphanumeric characters and underscores, preventing false positives with words like "update" or "value_fell_2".
+- `crates/vox-crypto/Cargo.toml`: Updated the `hex` dependency to use the workspace version.
+- `crates/vox-prereg/Cargo.toml`: Updated the `hex` dependency to use the workspace version.
+- `Cargo.toml`: Added `hex = "0.4.3"` to the workspace dependencies.
+
+--- audit: original='fix(scientia): hex under workspace governance + word-boundary hardening in symbolic verifier (Phase 2)' | actual=20L across 4 files | derived=full ---
