@@ -1,0 +1,7 @@
+docs(populi): add doc comments to `HardwareProbe` trait and supporting types
+scale: ~28 lines across 1 files [S]
+
+- Add doc comments to the `ProbeError` enum variants.
+- Add doc comments to the `HardwareProbe` trait and its methods.
+
+--- audit: original='docs(populi): add doc comments to HardwareProbe trait and supporting types' | actual=28L across 1 files | derived=full ---
