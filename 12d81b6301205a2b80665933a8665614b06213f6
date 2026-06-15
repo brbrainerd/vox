@@ -1,0 +1,30 @@
+refactor(naming): rename `vox-tauri-sherpa` crate to `vox-tauri-stt`
+scale: ~167 lines across 24 files [L]
+
+- **`vox-tauri-stt` crate:**
+    - Renamed crate directory from `vox-tauri-sherpa` to `vox-tauri-stt`.
+    - Updated `Cargo.toml` to reflect the new crate name.
+    - Updated `src/lib.rs` and `README.md` with the new crate name and `stt` (speech-to-text) terminology.
+    - Updated `guest-js/index.ts` and `guest-js/package.json` to use `vox-tauri-stt` and `plugin:vox-stt`.
+    - Updated `src/plugin.rs` to use `PLUGIN_ID` as "vox-stt".
+- **`vox-codegen`:**
+    - Updated `codegen_rust/mod.rs` to reference `vox_tauri_stt::plugin::init()` and `vox-stt` plugin ID in tests.
+    - Updated `codegen_rust/emit/mod.rs` to emit `vox-stt` as the plugin ID, `vox_tauri_stt::plugin::init()` for plugin registration, and `vox-stt:default` permission.
+    - Updated `codegen_rust/emit/mod.rs` to use `vox-tauri-stt` as a path dependency in generated `Cargo.toml`.
+    - Updated snapshot files for `tauri_app_main_rs` and `tauri_app_build_rs` to reflect the new crate name and plugin ID.
+    - Removed `tauri_convergence_snapshots__tauri_app_main_rs.snap.new` snapshot.
+- **`vox-code-audit`:**
+    - Updated `src/detectors/retired_crate_import.rs` to reflect `vox-tauri-stt` as the canonical name for `vox-sherpa-transcribe` in documentation, detection logic, and tests.
+- **`vox-cli`:**
+    - Updated `src/commands/ci/no_tauri_in_core.rs` to exclude `vox-tauri-stt` from core checks.
+- **Documentation:**
+    - Updated `docs/src/architecture/tauri-convergence-migration-plan-2026.md` to reference `vox-tauri-stt`.
+    - Updated `AGENTS.md`, `docs/src/architecture/layers.toml`, `docs/src/architecture/mobile-e2e-testing-strategy-2026.md`, `docs/src/architecture/tauri-audit-2026.md`, and `docs/src/architecture/where-things-live.md` to reflect the name change.
+- **Root `Cargo.toml`:**
+    - Updated workspace member path for `vox-tauri-stt`.
+- **`vox-mental-tracker`:**
+    - Updated `apps/vox-mental-tracker/package.json` to reflect the name change.
+- **`contracts/retirement/retired-surfaces.v1.yaml`:**
+    - Updated to reflect the `vox-tauri-stt` name.
+
+--- audit: original='refactor(naming): rename vox-tauri-sherpa → vox-tauri-stt (C-10)' | actual=167L across 24 files | derived=full ---
