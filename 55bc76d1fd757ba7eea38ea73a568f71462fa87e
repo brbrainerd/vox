@@ -1,0 +1,16 @@
+refactor(golden): migrate UI fixtures to view-call form
+scale: ~18 lines across 4 files [S]
+
+- `examples/golden/web_routing_fullstack.vox`:
+  - Replaced `<div>"wait"</div>` with `text() { "wait" }` in `RoutePending` function.
+  - Replaced `<span>"home"</span>` with `text() { "home" }` in `Home` component.
+  - Replaced `<span>"section"</span>` with `text() { "section" }` in `Section` component.
+  - Replaced `<span>"nf"</span>` with `text() { "nf" }` in `NotFoundPage` component.
+  - Replaced `<span>"err"</span>` with `text() { "err" }` in `ErrorPage` component.
+- `examples/golden/blog_fullstack.vox`:
+  - Replaced `<span>"blog"</span>` with `text() { "blog" }` in `BlogHome` component.
+  - Replaced `<span>"editor"</span>` with `text() { "editor" }` in `PostEditor` component.
+- `examples/golden/getting_started.vox`: Replaced `<div>"Hello Vox"</div>` with `text() { "Hello Vox" }` in `App` component.
+- `examples/golden/ref_syntax.vox`: Replaced `<button>{label}</button>` with `button() { label }` in `Button` component.
+
+--- audit: original='feat(corpus): VUV-7 — migrate 4 simple golden UI fixtures to view-call form' | actual=18L across 4 files | derived=full ---
