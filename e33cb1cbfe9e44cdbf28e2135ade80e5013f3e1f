@@ -1,0 +1,11 @@
+fix(vuv-9): address final review feedback for renames and migration
+scale: ~81 lines across 6 files [M]
+
+- `crates/vox-compiler/tests/rename_alias_test.rs`: Add tests to reject empty `from` and self-renames in the `RenameRegistry`. Update warning message assertion to suggest `vox migrate names`.
+- `crates/vox-cli/tests/migrate_codemod_test.rs`: Add a test to ensure the token-level codemod skips non-primitive rename kinds (e.g., `kwarg`).
+- `crates/vox-compiler/src/parser/renames.rs`: Implement validation in `RenameRegistry::from_str` to reject rename entries with empty `from` fields or where `from` and `to` are identical (self-renames).
+- `crates/vox-cli/src/commands/migrate/mod.rs`: Restrict the token-level rewrite logic in the `rewrite` function to only apply to `RenameKind::Primitive` entries. Non-primitive renames are now skipped.
+- `crates/vox-arch-check/tests/rename_consistency_test.rs`: Add a comment clarifying that the current consistency rule only applies to `RenameKind::Primitive`.
+- `crates/vox-compiler/src/parser/with_registry.rs`: Update the warning message for deprecated primitives to suggest running `vox migrate names` instead of `vox migrate`.
+
+--- audit: original='fix(vuv-9): address final-review feedback' | actual=81L across 6 files | derived=full ---
