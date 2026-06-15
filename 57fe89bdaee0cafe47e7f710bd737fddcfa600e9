@@ -1,0 +1,15 @@
+feat(audit+contracts): Implement MENS panel client and CR-L2 sampling
+scale: ~494 lines across 13 files [L]
+
+- `crates/vox-audit/src/panel.rs`: Added `MensPanelClient` for interacting with the local MENS inference server. This client uses the OpenAI legacy text-completions API (`/v1/completions`) and concatenates system and user prompts. It defaults to `http://127.0.0.1:11434` or `VOX_MENS_ENDPOINT`.
+- `crates/vox-audit/src/subcommands/mens_on_distribution.rs`: Implemented CR-L2 sampling logic for MENS.
+    - Updated `DEFAULT_MENS_ENDPOINT` to `http://127.0.0.1:11434` and added `LEGACY_MENS_ENDPOINT` (`http://127.0.0.1:7863`) for probing both ports.
+    - Integrated `MensPanelClient` to call MENS for prompt completion.
+    - Added logic to spawn sampling on a dedicated OS thread and walk the CR-L1 corpus.
+    - Introduced `VOX_AUDIT_CR_L2_MAX_FIXTURES` environment variable for subsampling.
+    - Enhanced `BackendUnavailable` notes with 3-step remediation instructions for MENS.
+- `contracts/config/env-vars.v1.yaml`: Corrected the `VOX_MENS_ENDPOINT` description to reflect the default port `11434` and clarify the historical `7863` value.
+- `contracts/orchestration/providers.v1.yaml`: Updated the `VoxLocal` provider description to specify the correct MENS endpoint (`http://127.0.0.1:11434`), the actual launcher (`vox-ml-cli mens serve`), and its OpenAI compatibility (v1/completions, not v1/chat/completions). Set `supports_openai_compat` to `false`.
+- `contracts/reports/*.json`: Updated `measured_at` timestamps and minor `note` changes in various audit reports (`_snapshot`, `audit-all`, `deploy`, `aci-default`, `corpus-feedback`, `corpus-feedback/2026-Q2`, `evidence-ledger.v1`, `mens-on-distribution`, `retirement`).
+
+--- audit: original='feat(audit+contracts): MENS local stack — fix port mismatch, ship MensPanelClient, wire CR-L2 sampling' | actual=494L across 13 files | derived=full ---
