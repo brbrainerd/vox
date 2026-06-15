@@ -1,0 +1,8 @@
+fix(ts-emit): correct form submission argument passing and update snapshots
+scale: ~36 lines across 8 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/form_emit.rs`: Modified `emit_form` to pass arguments to `submit_fn` as an object literal `{ field1, field2 }` instead of a comma-separated list of variables. This aligns with the `vox-client` mutation signature, fixing a TypeScript error (TS2345).
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@form_basic.snap`: Updated golden snapshot to reflect the new form submission argument format.
+- `crates/vox-integration-tests/tests/pipeline/includes/snapshots/*`: Updated pipeline snapshots to reflect the corrected TypeScript emit output, specifically removing `.tsx` extensions from import paths in several `manifest_ts.snap` files and adding a type annotation in `chatbot_fixture_chat_tsx.snap`.
+
+--- audit: original='fix(ts-emit): correct TypeScript type errors in emit test fixtures' | actual=36L across 8 files | derived=full ---
