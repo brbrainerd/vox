@@ -1,0 +1,13 @@
+feat(vox-compiler/eval): support built-in Option/Result/Unit constructors
+scale: ~96 lines across 2 files [M]
+
+- `crates/vox-compiler/src/eval/expr.rs`:
+    - `HirExpr::Ident` now resolves "None" to `VoxValue::Option(None)`, "Unit" to `VoxValue::Null`, and "Some", "Ok", "Err", "Error" to `VoxValue::Constructor(name)`.
+    - `HirExpr::Call` now specializes `VoxValue::Constructor` for built-in types:
+        - `("Some", 1)` creates `VoxValue::Option(Some(arg))`.
+        - `("Ok", 1)` creates `VoxValue::Result(Ok(arg))`.
+        - `("Err" | "Error", 1)` creates `VoxValue::Result(Err(string_arg))`, converting non-string arguments to strings via `builtins::vox_value_display`.
+        - Other constructors fall through to `VoxValue::Tagged` for user-defined ADTs.
+- `crates/vox-compiler/tests/result_match_eval_repro.rs`: Added a new test file to reproduce and guard against regressions for `UndefinedVariable` errors when evaluating `Result` and `Option` constructors in test fixtures. The test defines `parse_int` and two `@test` functions (`test_empty_is_error`, `test_nonempty_is_ok`) that use `Error` and `Ok` constructors and pattern matching.
+
+--- audit: original='feat(vox-compiler/eval): built-in Option/Result/Unit constructors' | actual=96L across 2 files | derived=full ---
