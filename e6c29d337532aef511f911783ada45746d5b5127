@@ -1,0 +1,11 @@
+feat(dashboard): add per-node spend gauge and mesh-wide budget bar
+scale: ~150 lines across 6 files [M]
+
+- `crates/vox-dashboard/app/src/lib/spend_gauge.vox`: Add `SpendGauge` component for per-node 24h spend visualization using a conic-gradient ring, and `MeshBudgetBar` component for a mesh-wide aggregate cost bar, refreshing on `MeshNodeBudget` WebSocket events.
+- `crates/vox-dashboard/src/lib.rs`: Add `build_router_with_two_nodes_and_costs` test support function to create a router with pre-populated mesh nodes including cost and capacity data.
+- `crates/vox-dashboard/tests/mesh_phase4_routes.rs`: Add a test case for the new `/api/v2/mesh/budget` route, verifying it returns correct per-node and aggregate budget data.
+- `crates/vox-dashboard/src/api/mesh_topology.rs`: Implement `get_budget` asynchronous function to retrieve and aggregate per-node cost and capacity data, returning it as a JSON response.
+- `crates/vox-dashboard/src/api/mesh.rs`: Register the new `/api/v2/mesh/budget` GET route to the mesh API router, mapping it to the `get_budget` handler.
+- `crates/vox-orchestrator/src/mesh.rs`: Add `cost_cap_usd_24h` field to the `MeshNode` struct to store the 24-hour cost capacity in USD, and initialize it in tests.
+
+--- audit: original='feat(dashboard): per-node spend gauge + mesh-wide budget bar (P4-T6)' | actual=150L across 6 files | derived=full ---
