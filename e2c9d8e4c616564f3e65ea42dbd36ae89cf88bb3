@@ -1,0 +1,8 @@
+feat(vox-audit): add Tier enum and CrlGate::tier() method
+scale: ~67 lines across 1 files [M]
+
+- Introduce `Tier` enum with `Foundation`, `Distribution`, `Gui`, `Product`, and `Tooling` variants to represent release-criteria tiers, including an `as_str` method for string representation.
+- Implement `CrlGate::tier()` method to return the `Tier` for each `CrlGate` variant, mapping existing gates to `Product` or `Tooling` tiers.
+- Establish an invariant that `Tier` declaration order dictates GA evaluation order, with foundation gates evaluated first (CR-F0 scaffold).
+
+--- audit: original='feat(vox-audit): add Tier + CrlGate::tier() + foundation-first ordering invariant (CR-F0 scaffold)' | actual=67L across 1 files | derived=full ---
