@@ -1,0 +1,9 @@
+style(vox-codegen): apply rustfmt fixes to tests and web_ir lowerer
+scale: ~40 lines across 4 files [S]
+
+- `crates/vox-codegen/tests/web_ir_control_flow_test.rs`: Reformatted multiline expressions and `Span`/`DefId` helper functions.
+- `crates/vox-codegen/tests/golden_corpus_ts_smoke_test.rs`: Reformatted `PathBuf` construction and `assert_eq!` call.
+- `crates/vox-codegen/tests/spawn_workflow_emit_test.rs`: Reformatted `assert!` call.
+- `crates/vox-codegen/src/web_ir/lower.rs`: Reformatted `iterator_with_map` string construction.
+
+--- audit: original='style: rustfmt fixes for vox-codegen' | actual=40L across 4 files | derived=full ---
