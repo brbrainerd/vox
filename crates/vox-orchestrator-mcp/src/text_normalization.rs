@@ -6,6 +6,10 @@ use serde_json::Value;
 
 /// Strip a leading ```json … ``` or generic ``` fence from model output.
 #[must_use]
+#[cfg_attr(
+    not(any(feature = "news-publish", feature = "oratio-rerank")),
+    allow(dead_code)
+)]
 pub(crate) fn strip_json_codeblock_fence(s: &str) -> String {
     let block = s.trim();
     if let Some(rest) = block.strip_prefix("```json") {

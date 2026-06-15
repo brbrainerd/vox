@@ -6,7 +6,7 @@ edition.workspace = true
 license.workspace = true
 
 [features]
-default = ["news-publish", "toestub-gate", "json-schema"]
+default = ["toestub-gate", "json-schema"]
 # Mirrors the parent orchestrator features. The crate is always compiled with
 # axum/rmcp/schemars (mcp-native is the whole point), so those are not optional.
 news-publish = [
