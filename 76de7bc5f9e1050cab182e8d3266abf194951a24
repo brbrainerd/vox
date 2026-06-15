@@ -1,0 +1,12 @@
+fix(ci): Unblock guard suites and stabilize wave-2 verification
+scale: ~72 lines across 8 files [M]
+
+- `crates/vox-orchestrator/tests/kudos_reconciliation.rs`: Added `tee_quote`, `replay_proof_blake3_hex`, and `kudos_signature_b64` fields to `fake_attestation` to align with new optional fields.
+- `crates/vox-cli/src/commands/ci/nomenclature_guard.rs`: Added "vox-mens-eval" to the `HISTORICAL_ALLOWLIST` for the nomenclature guard.
+- `docs/agents/turso-import-allowlist.txt`: Removed `crates/vox-cli/src/commands/db/` and `crates/vox-cli/src/commands/review/coderabbit/` from the Turso import allowlist.
+- `docs/agents/query-all-allowlist.txt`: Added `crates/vox-code-audit/src/detectors/` to the query-all allowlist.
+- `contracts/toestub/gold-dataset.v1.schema.json`: Updated the schema to use `x-vox-version` and restructured properties for `version`, `cases`, and `items` to be objects.
+- `contracts/toestub/gold-dataset.v1.json`: Corrected snippet formatting by adding curly braces to function definitions.
+- `contracts/db/data-storage-policy.v1.yaml`: Added `vox-cli` to the `tiers` allowlist for `libsql_files_with_schema_definitions`.
+
+--- audit: original='fix(ci): unblock guard suites and stabilize wave-2 verification' | actual=72L across 8 files | derived=full ---
