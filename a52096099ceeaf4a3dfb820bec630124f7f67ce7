@@ -1,0 +1,20 @@
+chore(vox-mental-tracker): remove postbuild fixups, update runtime and e2e tests
+scale: ~230 lines across 5 files [M]
+
+- `apps/vox-mental-tracker/scripts/postbuild-fixup.mjs`: Removed the script as its patches for `async/await` in handlers and `.length` property access are now handled by the compiler.
+- `apps/vox-mental-tracker/src/runtime.ts`:
+  - Introduced a `SpeechResult` type alias.
+  - Refactored `transcribeMicrophone` to return `SpeechResult | Promise<SpeechResult>`, supporting synchronous test transcripts and asynchronous Web Speech API/Capacitor plugin paths.
+  - Updated `Speech.transcribe_microphone` and `mobile.transcribe_microphone` global declarations to use the new `SpeechResult` type.
+- `apps/vox-mental-tracker/tests/e2e/voice_flow.spec.ts`:
+  - Updated test description and logic to reflect the `__VOX_TEST_TRANSCRIPT__` stubbing mechanism in `src/runtime.ts`.
+  - Modified the test to focus on "voice → parse round-trip" and removed assertions related to saving, clarifying that the backend is not yet running.
+  - Added `page.on("pageerror")` and `page.on("console")` for better debugging.
+- `apps/vox-mental-tracker/playwright.config.ts`:
+  - Configured `webServer` to automatically build and serve the app via `vite preview` if `BASE_URL` is not externally provided.
+  - Defined `port` and `url` constants.
+- `apps/vox-mental-tracker/tests/e2e/smoke.spec.ts`:
+  - Removed the `test.skip` condition, allowing the test to run out of the box due to the new `webServer` configuration.
+  - Simplified `page.goto` to navigate to the root path.
+
+--- audit: original='chore(vox-mental-tracker): strip postbuild fixups, update runtime + e2e after rebase onto main' | actual=230L across 5 files | derived=full ---
