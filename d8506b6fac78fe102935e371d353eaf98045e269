@@ -1,0 +1,6 @@
+fix(docs): demote private `sealed` link in `ReviewDecisionLike` documentation
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-scientia/src/review/mod.rs`: Changed the link to the `sealed` module from `[`sealed`]` to ``sealed in the `ReviewDecisionLike` trait documentation to avoid a rustdoc warning about linking to a private item.
+
+--- audit: original='fix(docs): demote private [sealed] link in vox-scientia review (rustdoc -D warnings)' | actual=2L across 1 files | derived=full ---
