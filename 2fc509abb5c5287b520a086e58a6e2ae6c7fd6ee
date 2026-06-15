@@ -1,0 +1,13 @@
+feat(compat): make os_compat.py config-driven, comprehensive, and scheduled
+scale: ~877 lines across 4 files [L]
+
+- `scripts/coverage-graph/os_compat.py`:
+  - Refactored to load compatibility rules from `os_compat_rules.toml` instead of hardcoded `RULES` list.
+  - Extended scan to include `scripts/**/*.vox` files.
+  - Added `--baseline` flag to enable trend tracking by comparing current scan results with a previous report.
+  - Updated usage instructions and docstring.
+- `scripts/coverage-graph/os_compat_rules.toml`: Added new file defining 12 original and 7 new OS compatibility rules in TOML format, including fields for name, confidence, pattern, note, and exemption flags.
+- `graphify-out/OS_COMPATIBILITY.md`: Updated report format to reflect new rule categories and increased file scan count (3453 Rust files, 67 Vox script files).
+- `.github/workflows/os-compat-report.yml`: Added new GitHub Actions workflow to schedule weekly OS compatibility scans (every Monday at 06:00 UTC) on self-hosted runners, upload the report as an artifact, and print a summary to `GITHUB_STEP_SUMMARY`.
+
+--- audit: original='feat(compat): make os_compat.py config-driven, comprehensive, and scheduled' | actual=877L across 4 files | derived=full ---
