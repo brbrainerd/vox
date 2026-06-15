@@ -1,0 +1,19 @@
+feat(vox-compiler): Add `@example` decorator for corpus-eligible functions
+scale: ~253 lines across 14 files [L]
+
+- `crates/vox-compiler/src/lexer/token.rs`: Add `AtExample` token and its `Display` implementation.
+- `crates/vox-compiler/src/ast/decl/fundecl.rs`: Introduce `ExampleDecl` struct to represent `@example` declarations.
+- `crates/vox-compiler/src/ast/decl/types.rs`: Add `Decl::Example` variant and update its `span()` arm.
+- `crates/vox-compiler/src/ast/decl/callable.rs`: Implement `Decl::Example` arm for deprecated/traced propagation, mirroring `Decl::Test`.
+- `crates/vox-compiler/src/parser/descent/decl/head.rs`: Add `parse_example` function to handle parsing of `@example` declarations, including optional labels.
+- `crates/vox-compiler/src/parser/descent/mod.rs`: Update declaration-position token sets and `parse_decl` dispatch to include `Token::AtExample`.
+- `crates/vox-compiler/src/hir/nodes/decl.rs`: Add `examples: Vec<HirFn>` field to `HirModule` to store lowered `@example` functions, distinct from `tests`.
+- `crates/vox-compiler/src/hir/lower/mod.rs`: Implement lowering of `Decl::Example` into `hir.examples`, ensuring they are kept regardless of `strip_tests`.
+- `crates/vox-compiler/src/fmt/printer.rs`: Add printing logic for `Decl::Example` using `print_fn`.
+- `crates/vox-compiler/src/typeck/ast_decl_lints.rs`: Update `visit_fn_decl_in_decl` to include `Decl::Example`.
+- `crates/vox-compiler/tests/example_decorator_test.rs`: Add new test file with 3 tests covering parsing, type-checking, HIR partitioning, label handling, and a regression guard for the `@example` decorator.
+- `crates/vox-corpus/src/corpus/extract_vox/part_ast.rs`: Update `decl_kind_and_name` to recognize "example" as a kind tag for `Decl::Example`.
+- `crates/vox-ml-cli/src/training/core.rs`: Update `extract_constructs` to include "example" as a construct tag for `Decl::Example`.
+- `docs/superpowers/specs/2026-05-17-at-example-decorator-design.md`: Add a new design document detailing the `@example` decorator.
+
+--- audit: original='feat(vox-compiler): @example decorator (corpus-eligible reference fn)' | actual=253L across 14 files | derived=full ---
