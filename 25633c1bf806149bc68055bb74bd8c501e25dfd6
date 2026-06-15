@@ -1,0 +1,17 @@
+feat(ide): Add native markdown syntax styling and orchestrator snapshot improvements
+scale: ~200 lines across 12 files [M]
+
+- **`vox-vscode/syntaxes/markdown-injection.json`**: Added new JSON file to define markdown code block injection for Vox language syntax highlighting in VS Code.
+- **`tree-sitter-vox/queries/injections.scm`**: Added new Tree-sitter query file to inject Vox and TSX syntax highlighting into fenced code blocks within Markdown documents.
+- **`vox-vscode/package.json`**: Updated `package.json` to version `0.2.1` and registered the new `markdown.vox.codeblock` scope for markdown injection.
+- **`crates/vox-orchestrator/src/mcp_tools/dei_tools/orchestrator_snapshot.rs`**: Refactored `orchestrator_status` to use `get_memory_status_counts` for active/completed task counts and added `max_handoff_count` to the status output and markdown report.
+- **`crates/vox-db/src/store/ops_memory.rs`**: Added a new asynchronous function `get_memory_status_counts` to query the database for active and completed memory counts.
+- **`README.md`**: Restored and updated the root `README.md` with native Vox blocks and expanded architectural explanations, including new references.
+- **`docs/src/architecture/architecture-index.md`**: Added 15 lines to the architecture index markdown file.
+- **`scripts/check_codex_ssot.ps1`**: Added a new PowerShell delegate script `check_codex_ssot.ps1` to invoke `vox ci check-codex-ssot`.
+- **`contracts/db/baseline-version-policy.yaml`**: Updated `repository_baseline_integer` to `54` and `repository_baseline_digest_hex` to reflect changes in the database contract baseline.
+- **`crates/vox-cli/Cargo.toml`**: Updated `vox-grammar-export` and `workspace-hack` dependencies to use workspace versions.
+- **`crates/vox-build-meta/Cargo.toml`**: Updated `workspace-hack` dependency to use workspace version.
+- **`crates/vox-populi/Cargo.toml`**: Updated `workspace-hack` dependency to use workspace version.
+
+--- audit: original='chore(ci): resolve ssot-drift pipeline blockers and missing syntax definitions' | actual=200L across 12 files | derived=full ---
