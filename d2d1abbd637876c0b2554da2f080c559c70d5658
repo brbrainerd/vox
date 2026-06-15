@@ -1,0 +1,23 @@
+fix(vox-gui): type `openLocator` IPC and route surfaces through `VoxTransport`
+scale: ~48 lines across 5 files [S]
+
+- `crates/vox-gui/ui/src/transport.ts`:
+    - Defined `OpenLocator` interface mirroring the backend `OpenLocatorDto { kind, value }`.
+    - Defined `OpenOutcome` interface mirroring the backend `OpenOutcomeDto`.
+    - Updated `VoxTransport.openLocator` method signature to accept `OpenLocator` object and return `Promise<OpenOutcome>`.
+    - Changed the `invoke` call within `openLocator` to pass the `locator` object directly and expect `OpenOutcome`.
+- `crates/vox-gui/ui/src/transport.test.ts`:
+    - Updated `openLocator` tests to pass `OpenLocator` objects and assert on the returned `OpenOutcome`.
+    - Added a test case for `web` kind locator.
+- `crates/vox-gui/ui/src/components/layout/CommandPalette.tsx`:
+    - Imported `voxTransport`.
+    - Replaced direct `invoke('open_locator', ...)` calls with `voxTransport.openLocator(...)`.
+    - Corrected a bug where `CommandPalette` sent `{ kind, path }` by changing `path` to `value` for file locators.
+- `crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx`:
+    - Imported `voxTransport`.
+    - Replaced direct `invoke('open_locator', ...)` calls with `voxTransport.openLocator(...)`.
+- `crates/vox-gui/ui/src/components/surfaces/Search/SearchView.tsx`:
+    - Imported `voxTransport`.
+    - Replaced direct `invoke('open_locator', ...)` calls with `voxTransport.openLocator(...)`.
+
+--- audit: original='fix(vox-gui): type open_locator IPC + route Search/Memory/CommandPalette through VoxTransport' | actual=48L across 5 files | derived=full ---
