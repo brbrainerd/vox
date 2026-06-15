@@ -1,0 +1,20 @@
+refactor(vox-vcs): Make VcsBackend async, remove internal tokio runtime
+scale: ~1236 lines across 5 files [XL]
+
+- `crates/vox-vcs/src/jj_backend.rs`:
+  - Removed the internal `tokio::runtime::Runtime` from `JjBackend`, allowing it to directly await `jj-lib`'s async APIs.
+  - Updated `JjState` to use `tokio::sync::Mutex` for the `Workspace`, enabling `Send + Sync` for `JjBackend` while holding the mutex across `.await` points.
+  - Removed `std::sync::{Arc, Mutex}` imports and added `async_trait` import.
+- `crates/vox-vcs/src/backend.rs`:
+  - Changed `VcsBackend` trait methods to `async fn` and marked the trait with `#[async_trait(?Send)]`.
+  - Updated the trait documentation to explain the move to async, the use of `async_trait`, and the `?Send` bound due to `jj-lib`'s `!Send` futures.
+  - Removed `Sync` from the `VcsBackend` trait bound.
+- `crates/vox-vcs/src/cas_fallback.rs`:
+  - Implemented the `VcsBackend` trait for `CasFallback` with `#[async_trait(?Send)]`, updating all method signatures to `async fn`.
+- `crates/vox-vcs/Cargo.toml`:
+  - Added `async-trait` dependency.
+  - Modified `tokio` dependency features from `["rt", "rt-multi-thread"]` to `["sync"]`.
+  - Added `tokio` dev-dependency with `["macros", "rt-multi-thread"]` features.
+- `Cargo.lock`: Updated dependencies to reflect changes in `Cargo.toml`.
+
+--- audit: original='refactor(vox-vcs): async VcsBackend — drop internal runtime, fix nested-runtime panic' | actual=1236L across 5 files | derived=full ---
