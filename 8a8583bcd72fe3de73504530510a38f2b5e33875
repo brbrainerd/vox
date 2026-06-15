@@ -1,0 +1,10 @@
+docs(architecture): update where-things-live.md for Phase D telemetry
+scale: ~6 lines across 1 files [XS]
+- Update `vox-telemetry` crate description to include `TelemetryConfig`, org-policy hard-off, `VOX_TELEMETRY` environment variable, per-task `TaskAggregate`, and `record_task_started`.
+- Add new lookup rows for:
+    - Telemetry master switch and org-policy hard-off, pointing to `crates/vox-telemetry/src/config.rs`.
+    - `StderrDebugSink`, pointing to `crates/vox-cli/src/telemetry_sink.rs`.
+    - `ResearchMetricsSink`, pointing to `crates/vox-db/src/telemetry_sink.rs`.
+    - LLM retry-loop error events, pointing to `crates/vox-orchestrator/src/infer.rs`.
+
+--- audit: original='docs: update where-things-live.md for Phase D telemetry additions' | actual=6L across 1 files | derived=full ---
