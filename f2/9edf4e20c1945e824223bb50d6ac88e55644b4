@@ -1,0 +1,10 @@
+fix(codegen-rust): Detect nested string concatenations for `format!` emission
+scale: ~30 lines across 2 files [S]
+
+- `codegen_rust/emit/stmt_expr.rs`: Modified `is_str_concat` to recursively check `Add` chains for `StringLit` operands, ensuring nested string concatenations like `(a + ":") + item` are correctly emitted as `format!` macros instead of `String + String` (which can lead to E0308 type errors).
+- `vox-integration-tests/tests/golden_arm_parity_test.rs`:
+    - Modified `build_and_run_script` to accept a `key` parameter.
+    - Added logic to write the full `stderr` output from `rustc` builds to a temporary directory (`temp/vox-f2a-errors/`) for easier debugging of integration test failures.
+    - Updated `codegen_rust_logic_parity_ratchet` to pass the golden test's `key` to `build_and_run_script`.
+
+--- audit: original='fix(codegen-rust): detect nested string-concat (Add chain w/ string literal)' | actual=30L across 2 files | derived=full ---
