@@ -1,0 +1,24 @@
+feat(mcp): add `vox_validate_source` tool and surface autofix data in `DiagnosticInfo`
+scale: ~309 lines across 6 files [L]
+
+- `crates/vox-orchestrator/src/mcp_tools/code_validator.rs`:
+    - Implemented `vox_validate_source` tool for validating Vox source strings without filesystem access.
+    - Refactored pre-validation guard (TODO/macro detection) into a shared helper `pre_validate_source`.
+    - Added `lsp_diagnostics_to_info` function to convert LSP diagnostics to `DiagnosticInfo`, extracting `code` and `fixes` from `Diagnostic.data`.
+    - Implemented `parse_fix` to deserialize autofix data from JSON.
+    - Added 5 new unit tests for `parse_fix`, `lsp_diagnostics_to_info` and `validate_source`.
+- `crates/vox-orchestrator/src/mcp_tools/params.rs`:
+    - Defined `ValidateSourceParams` struct for the new `vox_validate_source` tool.
+    - Added `code: Option<String>` and `fixes: Vec<FixInfo>` fields to `DiagnosticInfo`.
+    - Defined `FixInfo` struct to represent machine-applicable autofix suggestions.
+- `crates/vox-orchestrator/src/mcp_tools/dispatch.rs`:
+    - Wired `vox_validate_source` into the tool dispatch mechanism.
+    - Added `vox_validate_source` to the `registry_dispatch_tests` allowlist.
+- `contracts/mcp/tool-registry.canonical.yaml`:
+    - Registered the new `vox_validate_source` tool with its description.
+- `crates/vox-orchestrator/src/mcp_tools/input_schemas.rs`:
+    - Added input schema for `vox_validate_source`.
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/mod.rs`:
+    - Added `vox_validate_source` to the default allowed tools for the HTTP gateway.
+
+--- audit: original='feat(mcp): add vox_validate_source + surface autofix data in DiagnosticInfo' | actual=309L across 6 files | derived=full ---
