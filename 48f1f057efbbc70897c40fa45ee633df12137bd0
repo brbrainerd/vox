@@ -1,0 +1,8 @@
+docs(pipeline): regenerate documentation files to include token-system.md
+scale: ~274 lines across 3 files [L]
+
+- `docs/src/feed.xml`: Updated the RSS feed to reflect changes in the documentation, including new entries and potentially modified existing ones.
+- `docs/src/SUMMARY.md`: Added an entry for `token-system.md` to the documentation summary.
+- `docs/src/architecture/architecture-index.md`: Added two new entries to the architecture index.
+
+--- audit: original='chore(docs): regenerate SUMMARY.md, architecture-index, feed.xml via vox-doc-pipeline' | actual=274L across 3 files | derived=full ---
