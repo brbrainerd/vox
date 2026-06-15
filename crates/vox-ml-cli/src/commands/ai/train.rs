@@ -77,7 +77,7 @@ async fn run_local(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Result
         .arg("--preset")
         .arg("qwen_4080_16g")
         .arg("--model")
-        .arg(vox_populi::mens::DEFAULT_MODEL_ID)
+        .arg(vox_populi::mens::default_model_id())
         .arg("--data-dir")
         .arg(data_dir)
         .arg("--output-dir")
