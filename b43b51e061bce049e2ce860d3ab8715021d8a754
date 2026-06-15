@@ -1,0 +1,8 @@
+docs(links): Update internal link and harden link checker exclusions
+scale: ~5 lines across 3 files [S]
+
+- docs/src/explanation/expl-durable-execution.md: Corrected a broken internal link from `../reference/ref-language.md` to `../reference/ref-syntax.md` and updated its display text from "Language Reference" to "Vox Language Reference".
+- .github/workflows/link_checker.yml: Added multiple new exclusions to the link checker arguments, including `crates/.*`, `scripts/.*`, `.agents/.*`, `docs/news/templates/.*`, `.*iclr.cc/.*`, `.*ascentcore.com/.*`, `.*eslint-react.*`, `.*modelcontextprotocol.io.*`, `.*docs.doppler.com.*`, and `.*learn.microsoft.com.*`.
+- docs/src/architecture/architecture-index.md: Removed one line.
+
+--- audit: original='docs: Fix broken internal links and harden link checker exclusions' | actual=5L across 3 files | derived=full ---
