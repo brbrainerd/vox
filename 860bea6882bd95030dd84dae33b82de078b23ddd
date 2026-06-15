@@ -1,0 +1,6 @@
+docs(lychee): add ignore file for internal and external links
+scale: ~7 lines across 1 files [XS]
+
+- Add `.lycheeignore` to exclude local file links to refactored crates and specific external URLs that are unresolvable or return 404s.
+
+--- audit: original='chore(docs): add .lycheeignore to bypass internal file refactoring rot and known 404s' | actual=7L across 1 files | derived=full ---
