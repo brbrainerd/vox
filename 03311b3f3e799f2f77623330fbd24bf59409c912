@@ -1,0 +1,10 @@
+feat(telemetry): Improve LLM inference retry and error event accuracy
+scale: ~103 lines across 1 files [M]
+
+- Add `emit_llm_error_event` helper to centralize `ErrorEvent` construction for LLM calls.
+- Track `retry_attempt` across the fallback loop, incrementing it at each `continue` to reflect provider switches.
+- Classify LLM errors into `rate-limited`, `connection-timeout`, `transport-error`, and `llm-api-error` based on HTTP status and error messages.
+- Emit `ErrorEvent` with `retried: true` before each fallback and `retried: false` for terminal errors, replacing the single hardcoded 429 event.
+- Update `ModelCallEvent` to use the accurate `retry_attempt` value.
+
+--- audit: original='feat(telemetry): Phase D — accurate retry_attempt and per-fallback ErrorEvents in LLM inference' | actual=103L across 1 files | derived=full ---
