@@ -1,0 +1,10 @@
+docs(superpowers): Add P2 implementation plan for JjBackend and dead-code removal
+scale: ~440 lines across 1 files [L]
+
+- Introduce a new plan document for the P2 phase of integrating `jj-lib 0.42` as the default VCS engine.
+- Detail the goal of replacing subprocess/feature-gated `jj` usage with an in-process `JjBackend`.
+- Outline the architecture, emphasizing a spike-first approach to establish the async↔sync bridge for `jj-lib`'s API.
+- Specify the tech stack, including Rust, `jj-lib 0.42` (pure-`gix`), `tokio`, `tempfile`, and `vox-arch-check`.
+- Reference the source specification `2026-06-05-jj-first-class-vcs-design.md`.
+
+--- audit: original='docs(vcs): P2 implementation plan — JjBackend (jj-lib 0.42) + dead-code removal' | actual=440L across 1 files | derived=full ---
