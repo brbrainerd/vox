@@ -1,0 +1,40 @@
+feat(versioning): unify compiler version and introduce build metadata
+scale: ~379 lines across 53 files [L]
+
+- **crates/vox-arch-check**:
+    - Add new "Staleness" rule (Rule 6) to `main.rs` to flag crates without recent commits, configurable via `layers.toml`.
+    - Update `main.rs` documentation to reflect the new rule and increased rule count.
+    - Add `staleness_exempt` field to `CrateEntry` and `staleness` guard to `GuardsConfig` in `main.rs`.
+    - Add `build.rs` to emit build metadata using `vox-build-meta`.
+- **crates/vox-build-meta**:
+    - New crate `vox-build-meta` created with `src/lib.rs` to provide `emit()` function for injecting `VOX_BUILD_NUMBER` (git commit count) and `VOX_GIT_HASH` (short SHA) into build environment variables.
+    - Add `Cargo.toml` for the new crate.
+- **crates/vox-cli**:
+    - Refactor `build.rs` to delegate version metadata injection to `vox_build_meta::emit()`, removing duplicated git command logic.
+    - Update `Cargo.toml` to include `vox-build-meta` as a build dependency.
+- **docs/news**:
+    - Replace `docs/news/2026-04-18-v0.8.0-release.md` with `docs/news/2026-04-18-v0.5.0-release.md`, updating the version reference.
+- **examples/golden/*.vox**:
+    - Update `syntax_version` from "0.8" to "0.5.0" in 35 golden example files.
+- **examples/PARSE_STATUS.md**:
+    - Update version references within the document.
+- **examples/STYLE.md**:
+    - Update version references within the document.
+- **docs/src/architecture/layers.toml**:
+    - Adjust version references.
+- **docs/src/architecture/where-things-live.md**:
+    - Add `vox-build-meta` entry to the document.
+- **AGENTS.md**:
+    - Add a new "Versioning Policy" section covering scheme, build metadata, staleness checks, and the rule that doc-version equals compiler-version.
+- **docs/src/architecture/2026-05-02-codebase-cleanup-and-signal-improvement.md**:
+    - Update version references from v0.8 to v0.5.0.
+- **docs/src/architecture/comprehensive-audit-v2-2026.md**:
+    - Update version references from v0.8 to v0.5.0.
+- **docs/src/archive/research-2026-q1/comprehensive-audit-findings-2026.md**:
+    - Update version references from v0.8 to v0.5.0.
+- **Cargo.toml**:
+    - Update workspace `Cargo.toml` to reflect changes in crate structure and dependencies.
+- **Cargo.lock**:
+    - Update `Cargo.lock` to reflect changes in dependencies.
+
+--- audit: original='docs(versioning): unify all 0.8 version references to 0.5.0' | actual=379L across 53 files | derived=full ---
