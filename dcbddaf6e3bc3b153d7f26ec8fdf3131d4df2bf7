@@ -1,0 +1,9 @@
+feat(arch-check): exempt `vox-distributed-training` and `vox-inference` from orphan rule
+scale: ~16 lines across 4 files [S]
+
+- `crates/vox-populi/Cargo.toml`: Removed `distributed-training` and `inference` features, and their corresponding optional dependencies (`vox-distributed-training`, `vox-inference`), which were previously used as a wedge to satisfy `vox-arch-check` Rule 4.
+- `docs/src/architecture/layers.toml`: Added `orphan_exempt = true` to `vox-distributed-training` and `vox-inference` entries. Updated comments to reflect their WIP/pre-integration status and lack of in-tree consumers.
+- `crates/vox-distributed-training/Cargo.toml`: Updated the `description` field to indicate WIP/Mn-T1 status, pre-integration, and the absence of in-tree consumers.
+- `crates/vox-inference/Cargo.toml`: Updated the `description` field to indicate WIP/Mn-T2 status, pre-integration, and the absence of in-tree consumers.
+
+--- audit: original='fix(C-15-new + A-22): orphan_exempt for WIP MENS crates; retire vox-populi wedge' | actual=16L across 4 files | derived=full ---
