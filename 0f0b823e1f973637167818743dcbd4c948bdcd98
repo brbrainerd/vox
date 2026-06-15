@@ -1,0 +1,18 @@
+feat(compiler): wire `@layer(tier:)` decorator and add `system_overlay` guard
+scale: ~135 lines across 13 files [M]
+
+- `crates/vox-compiler/src/parser/descent/decl/head.rs`: Implemented parsing for the `@layer(tier: <ident>)` decorator, capturing the tier as a string.
+- `crates/vox-compiler/tests/ga_boilerplate_grafts_test.rs`: Added two integration tests for `@layer` decorator: one to verify the `vox/layer/reserved-tier` diagnostic for `system_overlay` and another to confirm `modal` tier is allowed.
+- `crates/vox-compiler/src/typeck/layer.rs`: Added `check_system_overlay_reservation` function to emit a diagnostic if `system_overlay` tier is used by user code.
+- `crates/vox-compiler/src/ast/decl/layer_decorator.rs`: Created a new AST type `AstLayerSpec` to represent the parsed `@layer(tier:)` decorator.
+- `crates/vox-compiler/src/typeck/mod.rs`: Integrated the `check_system_overlay_reservation` into the typechecking pipeline for endpoint functions.
+- `crates/vox-compiler/src/hir/lower/mod.rs`: Modified the HIR lowerer to convert `AstLayerSpec` into `HirLayerDecl`, mapping the tier string to `LayerTier`.
+- `crates/vox-codegen/src/codegen_rust/mod.rs`: Updated test cases to include `layer: None` in `HirEndpointFn` for consistency.
+- `crates/vox-compiler/src/ast/decl/fundecl.rs`: Added `layer: Option<AstLayerSpec>` field to `FnDecl` to store the parsed layer decorator.
+- `crates/vox-compiler/src/hir/nodes/decl.rs`: Added `layer: Option<HirLayerDecl>` field to `HirEndpointFn` to store the lowered layer declaration.
+- `crates/vox-compiler/src/ast/decl/mod.rs`: Added `layer_decorator` module to the AST declarations.
+- `crates/vox-codegen/src/codegen_rust/emit/tables/projections.rs`: Updated test cases to include `layer: None` in `HirEndpointFn` for consistency.
+- `crates/vox-compiler/src/parser/descent/mod.rs`: Initialized `layer: None` in `FnDecl` during parsing.
+- `crates/vox-compiler/src/typeck/effect_check.rs`: Updated test cases to include `layer: None` in `HirEndpointFn` for consistency.
+
+--- audit: original='feat(compiler): GA-26 @layer(tier:) end-to-end wiring + reserved-tier guard' | actual=135L across 13 files | derived=full ---
