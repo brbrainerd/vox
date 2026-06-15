@@ -1,0 +1,7 @@
+deps(lucide-react): bump lucide-react to 1.17.0 in /apps/editor/vox-vscode
+scale: ~10 lines across 2 files [S]
+
+- Updated `lucide-react` from `^0.577.0` to `^1.17.0` in `package.json`.
+- Updated `package-lock.json` to reflect the new `lucide-react` version.
+
+--- audit: original='chore(deps): bump lucide-react in /apps/editor/vox-vscode (#110)' | actual=10L across 2 files | derived=full ---
