@@ -25,9 +25,8 @@ pub async fn run(action: ContainerAction) -> Result<()> {
             };
 
             tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
-                let rt = vox_container::detect_runtime(pref).context(
-                    "No container runtime available. Install Docker or Podman.",
-                )?;
+                let rt = vox_container::detect_runtime(pref)
+                    .context("No container runtime available. Install Docker or Podman.")?;
                 let _ = rt.build(&opts).context("Container build failed")?;
                 Ok(())
             })
@@ -36,7 +35,14 @@ pub async fn run(action: ContainerAction) -> Result<()> {
 
             println!("✓ Image built successfully.");
         }
-        ContainerAction::Run { image, port, runtime, cpus, memory, pids_limit } => {
+        ContainerAction::Run {
+            image,
+            port,
+            runtime,
+            cpus,
+            memory,
+            pids_limit,
+        } => {
             let image = image.unwrap_or_else(|| "vox-app:latest".to_string());
             println!("🚀 Running container image: {}", image);
 
@@ -56,13 +62,11 @@ pub async fn run(action: ContainerAction) -> Result<()> {
                 cpus,
                 memory,
                 pids_limit,
-                ..Default::default()
             };
 
             tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
-                let rt = vox_container::detect_runtime(pref).context(
-                    "No container runtime available. Install Docker or Podman.",
-                )?;
+                let rt = vox_container::detect_runtime(pref)
+                    .context("No container runtime available. Install Docker or Podman.")?;
                 rt.run(&opts).context("Container run failed")?;
                 Ok(())
             })
