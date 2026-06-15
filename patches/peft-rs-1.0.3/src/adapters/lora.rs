@@ -461,7 +461,7 @@ impl Adapter for DoraLayer {
             let out = input_2d.matmul(&direction.t()?)?;
             let mag_2d = self.magnitude.reshape((1, self.lora.out_features))?;
             let out = out.broadcast_mul(&mag_2d)?;
-            out.reshape((input_dims[0], input_dims[1], self.lora.out_features))
+            Ok(out.reshape((input_dims[0], input_dims[1], self.lora.out_features))?)
         } else {
             // Fall back to regular LoRA if base weight not available
             self.lora.forward(input, base_output)
