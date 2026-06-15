@@ -1,0 +1,8 @@
+feat(mens/cohort): add heterogeneity-aware cohort planner
+scale: ~345 lines across 3 files [L]
+
+- `crates/vox-populi/src/mens/cohort/planner.rs`: Add new module `planner` containing `CohortNode`, `ExclusionReason`, `CohortPlan`, `CohortPlanner`, `plan_cohort`, and `plan_cohort_with_estimator`. This implements the core logic for VRAM exclusion, throughput-gain estimation, and cohort planning.
+- `crates/vox-populi/src/mens/cohort/mod.rs`: Add new module `cohort` to organize heterogeneity-aware federated-LoRA training cohort planning. It re-exports types and functions from `planner`.
+- `crates/vox-populi/src/mens/mod.rs`: Conditionally enable the `cohort` module when `mens-train` or `mens-cloud` features are active.
+
+--- audit: original='@ feat(mesh): heterogeneity-aware cohort planner (VRAM exclusion + gain metric)' | actual=345L across 3 files | derived=full ---
