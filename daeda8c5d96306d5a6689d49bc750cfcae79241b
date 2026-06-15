@@ -1,0 +1,11 @@
+fix(peft-rs-patch, vox-orchestrator): validate peft-rs configs, import timeouts
+scale: ~52 lines across 4 files [M]
+
+- `patches/peft-rs-1.0.3/src/adapters/lora.rs`:
+    - Added validation to `LoraConfig::check()` to ensure `r` (rank) is less than or equal to 64, preventing potential kernel array out-of-bounds issues.
+    - Modified `DoraLayer::forward()` to explicitly return an error if `base_output` is provided, as DoRA replaces the output rather than applying deltas.
+- `patches/peft-rs-1.0.3/src/adapters/lokr.rs`: Added validation to `LoKrConfig::check()` to ensure `factor` is greater than 0 when explicitly specified, preventing division by zero.
+- `patches/peft-rs-1.0.3/src/adapters/prefix_tuning.rs`: Added validation to `PrefixTuningConfig::check()` to ensure `num_heads` and `num_layers` are greater than 0.
+- `crates/vox-orchestrator/src/models/tests.rs`: Removed local constant definitions for `D_5MS` and `D_60S` and imported them from `vox_config::timeouts`.
+
+--- audit: original='fix(peft-rs-patch+tests): address CodeRabbit PR #305 review comments' | actual=52L across 4 files | derived=full ---
