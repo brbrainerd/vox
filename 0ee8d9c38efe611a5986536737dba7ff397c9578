@@ -1,0 +1,8 @@
+feat(populi-mesh): remove deprecated components and unused code
+scale: ~3318 lines across 55 files [XL]
+
+- vox-plugin-populi-mesh:
+  - Delete `http_lifecycle` module, removing HTTP join and heartbeat functionality.
+  - Delete `node_registry` module, removing node record management.
+
+--- audit: original='fix: eliminate all compiler warnings organically across workspace' | actual=3318L across 55 files | derived=full ---
