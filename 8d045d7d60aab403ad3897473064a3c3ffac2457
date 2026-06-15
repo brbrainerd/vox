@@ -1,0 +1,15 @@
+feat(stdlib): complete regex namespace with `is_match`, `captures`, and `find`
+scale: ~75 lines across 3 files [M]
+
+- `crates/vox-actor-runtime/src/builtins/mod.rs`:
+  - Added `vox_regex_is_match` and `vox_regex_captures` functions.
+  - Flipped parameter order for `vox_regex_replace` and `vox_regex_find` to `(haystack, pattern, ...)`.
+  - Updated doc comments for `vox_regex_replace` and `vox_regex_find` to reflect new parameter order and add details.
+- `crates/vox-compiler/src/builtin_registry.rs`:
+  - Registered type signatures for `regex.is_match(str,str)→bool` and `regex.captures(str,str)→Option[list[str]]`.
+  - Updated codegen bindings for `regex.replace` and `regex.find` to use `haystack`-first argument order.
+  - Added codegen bindings for `regex.is_match` and `regex.captures`.
+- `crates/vox-compiler/src/eval/builtins.rs`:
+  - Added implementation for `regex.find` to the `call_builtin_method` function.
+
+--- audit: original='feat(stdlib): complete regex namespace — add is_match/captures/find, fix arg-order parity' | actual=75L across 3 files | derived=full ---
