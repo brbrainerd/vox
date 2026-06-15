@@ -1,0 +1,24 @@
+feat(corpus+secrets+plugin): Improve plugin UX, fix vault Windows paths, and update corpus mixing
+scale: ~695 lines across 21 files [L]
+
+- **corpus**:
+    - Refactored corpus mixing logic: `MixSource` now stamps `mix_weight` on each row for downstream weighted sampling instead of physical line duplication, which previously caused 99.2% duplication.
+    - Added `physical_repeats: true` option to `MixSource` to restore legacy duplication behavior.
+    - Implemented lane override rule: generic `vox_codegen` lane is overridden by more specific lanes (e.g., `documentation` -> `vox_docs_qa`) when category suggests, fixing upstream tagging.
+    - Added 4 new tests for corpus mixing behaviors.
+- **secrets**:
+    - Fixed `path_to_vault_file_url` on Windows to emit standards-compliant `file:///C:/...` for absolute paths and `file://` for POSIX absolute paths, resolving `I/O error: invalid filename` with Turso.
+    - Added 5 new tests covering Windows absolute, POSIX absolute, and relative path URL generation.
+- **plugin-host**:
+    - Introduced `workspace_local_plugin_source(id)` and `format_install_hint(id, cargo_feature_hint)` helpers.
+    - `PluginMissingError` and `SkillNotInstalledError` now use `format_install_hint` to provide actionable error messages, including workspace-local `--path` install commands for Vox contributors.
+    - Updated `PluginMissingError` and `SkillNotInstalledError` to implement `std::fmt::Display` and `std::error::Error`.
+- **cli**:
+    - `vox plugin install <id>` now auto-prefers workspace source over catalog's `github:` default if `crates/vox-plugin-<id>/Plugin.toml` exists locally, honoring `VOX_NO_LOCAL_PLUGIN_FALLBACK=1` to disable.
+    - Updated stale hardcoded bail messages to surface helper output and distinguish between runtime-plugin missing and cargo-feature missing.
+- **plugin-mens-candle-cuda**:
+    - Added `moe_stubs.rs` with link-only stubs for `candle-kernels` MoE entry points to resolve LNK2019 errors when building with `--features cuda` without reintroducing nvcc dependency for dense models.
+- **reports**:
+    - Updated `evidence-ledger.v1.json` and various dated reports (`spec-to-app`, `repair-corpus`, `plan-fidelity`, `perf/cr-p1`, `deploy`, `aci-default`, `corpus-feedback`, `mens-on-distribution`, `retirement`) to reflect updated LLM gate statuses (CR-L0/L3/L4 now `threshold.met=true`) and CR-P1 probe status (`1/3 live`).
+
+--- audit: original='feat(corpus+secrets+plugin): close 3 LLM gates + fix vault Windows + plugin UX' | actual=695L across 21 files | derived=full ---
