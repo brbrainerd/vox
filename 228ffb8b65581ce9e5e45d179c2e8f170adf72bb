@@ -1,0 +1,8 @@
+feat(vox-effort-audit): add judge prompt and system message
+scale: ~129 lines across 3 files [M]
+
+- `crates/vox-effort-audit/src/judge/prompt.rs`: Add a new module for constructing LLM chat messages for the per-commit judge, including formatting commit record and shape features into a user prompt.
+- `crates/vox-effort-audit/src/judge/prompt_system.md`: Add a new markdown file containing the system message for the LLM judge, defining its role, calibration anchors, scoring rules for `waste_score`, and rules for `suggested_remediation_kind` and `rationale`.
+- `crates/vox-effort-audit/src/judge/mod.rs`: Export the new `prompt` module.
+
+--- audit: original='feat(vox-effort-audit): judge prompt + system message (B2)' | actual=129L across 3 files | derived=full ---
