@@ -1,0 +1,7 @@
+feat(publisher): Introduce venue catalog types and recommender
+scale: ~207 lines across 2 files [M]
+
+- `crates/vox-publisher/src/venue_catalog.rs`: Add new module defining `VenueType`, `ReviewModel`, `VenueEntry`, and `VenueCatalog` structs for whitelisted publication venues and a journal-fit recommender. Implement methods for deserializing from YAML, filtering primary venues, finding by ID, and collecting whitelisted venue IDs.
+- `crates/vox-publisher/src/lib.rs`: Export the new `venue_catalog` module.
+
+--- audit: original='feat(scientia): Phase 8 — venue catalog types + journal-fit recommender' | actual=207L across 2 files | derived=full ---
