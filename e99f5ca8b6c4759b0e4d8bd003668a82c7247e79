@@ -1,0 +1,28 @@
+docs(links): repair 28 broken links caught by CI check-links
+scale: ~65 lines across 8 files [M]
+
+- `docs/src/architecture/mobile-rn-expo-architecture-and-migration-2026.md`:
+  - Corrected 2 relative paths for existing crates from `crates/vox-gui` to `../../../crates/vox-gui`.
+  - Converted 2 links to planned-only targets (`apps/vox-mental-tracker`, `crates/vox-codegen/src/codegen_ts/mobile_emit.rs`) to plain text with `(planned)` annotations.
+  - Corrected 1 relative path for an ADR link from `docs/src/architecture/` to `../adr-037-tauri-mobile-evaluation-2026-05-11.md`.
+- `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md`:
+  - Removed link to non-existent plugin crate `crates/vox-plugin-script-execution/src/executor.rs`, converting it to plain text with a note about its handling.
+  - Removed link to non-existent script `scripts/extract_table_names.vox`, converting it to plain text.
+  - Removed link to `.claude` memory file `feedback_verify_audit_retirement_claims.md`.
+- `docs/src/architecture/mobile-target-evaluation-2026.md`:
+  - Replaced 2 missing screenshot image links with plain text `(screenshot not yet captured — bake-off pending)`.
+  - Updated reference to `research-sources.md` from `_screenshots/mobile-bakeoff-2026/research-sources.md` to `_screenshots/research-sources.md`.
+- `crates/vox-code-audit/src/diagnostics/catalog.rs`:
+  - Reformatted `assert_eq!` call for `explain_url` to a single line.
+- `docs/src/architecture/scientia-self-publication-finalization-plan-2026.md`:
+  - Updated 2 paths for `dei_shim` from `crates/vox-orchestrator/src/dei_shim/research/orchestrator/pipeline.rs` to `crates/vox-dei-shim/src/research/orchestrator/pipeline.rs`.
+- `docs/src/architecture/free-by-default-and-residual-work-plan-2026.md`:
+  - Removed link to missing `_template-adr.md`, converting it to plain text with a note about its absence.
+- `docs/src/reference/migration-0.5-to-0.6.md`:
+  - Converted link to missing `rfc-json-as-2026-05-24.md` to plain text with a `(planned)` note.
+- `docs/src/architecture/_screenshots/research-sources.md`:
+  - Moved this file from `docs/src/architecture/_screenshots/mobile-bakeoff-2026/research-sources.md` to `docs/src/architecture/_screenshots/research-sources.md`.
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+
+--- audit: original='fix(docs): repair 28 broken links caught by vox ci check-links' | actual=65L across 8 files | derived=full ---
