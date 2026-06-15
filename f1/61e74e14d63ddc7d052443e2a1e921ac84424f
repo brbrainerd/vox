@@ -1,0 +1,7 @@
+feat(vox-gui/policies): Improve accessibility of PoliciesView
+scale: ~91 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Policies/PoliciesView.test.tsx`: Add new test file for `PoliciesView` component, including tests for rendering and button accessibility.
+- `crates/vox-gui/ui/src/components/surfaces/Policies/PoliciesView.tsx`: Enhance accessibility of the rail collapse button with `type="button"`, `aria-label`, and `aria-expanded` attributes. Add `aria-hidden="true"` to the chevron icon. Add `type="button"`, `aria-pressed`, and `aria-label` attributes to branch filter buttons.
+
+--- audit: original='feat(vox-gui/wave5): PoliciesView a11y + checklist (Wave 5)' | actual=91L across 2 files | derived=full ---
