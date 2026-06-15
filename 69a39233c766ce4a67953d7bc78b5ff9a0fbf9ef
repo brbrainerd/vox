@@ -1,0 +1,10 @@
+fix(db, compiler, tests): restore db raw-query lint, align DDL, update reactive snapshots
+scale: ~305 lines across 9 files [L]
+
+- **db**: Align `vox-db` DDL with runtime parity, changing `_id` to `INTEGER PRIMARY KEY AUTOINCREMENT` and removing `_creationTime` from `diff.rs` tests.
+- **compiler**: Restore `lint.db_unsafe_query` type-check diagnostic for `db.Table.query(clause)` in `expr.rs`.
+- **compiler**: Update `axum_emit_contract_test__mutation_with_schema_main_rs_emit.snap` to include `get` routing and a `vox_health_probe_for_backend` function for health checks.
+- **tests**: Un-ignore all 9 VUV-9 reactive parity-pin tests in `reactive_smoke_test.rs`.
+- **tests**: Update reactive smoke test snapshots (`counter_tsx_function_and_usememo_op_s205.snap`, `clicky_tsx_classname_onclick.snap`, `box_tsx_css_import.snap`, `v_tsx_usestate_k_op_s074.snap`, `counter_tsx_reactive_smoke.snap`) to include a canonical Web-IR `px-4` layout wrapper.
+
+--- audit: original='fix(tests): restore db raw-query lint, align DDL test, accept Web-IR snapshots' | actual=305L across 9 files | derived=full ---
