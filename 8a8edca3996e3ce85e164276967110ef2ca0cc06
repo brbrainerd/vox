@@ -1,0 +1,13 @@
+feat(gui): add novelty evidence panel to DiscoveryReview
+scale: ~505 lines across 8 files [L]
+
+- `crates/vox-gui/src/commands/scientia_review.rs`: Added `get_novelty_assessment` Tauri command to assess a publication's novelty based on its prior-art bundle, including DTOs for `PriorArtHitDto`, `ConflictDto`, `ConflictHitDto`, `SignalsDto`, and `NoveltyAssessmentDto`.
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/NoveltyEvidencePanel.tsx`: Added new React component `NoveltyEvidencePanel` to render the novelty verdict chip, signal breakdown, top-5 prior art, and evidence conflicts.
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/NoveltyEvidencePanel.test.tsx`: Added Vitest unit tests for the `NoveltyEvidencePanel` component, covering rendering of different assessment types.
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/noveltyApi.ts`: Defined TypeScript interfaces for `PriorArtHit`, `ConflictHit`, `Conflict`, `NoveltySignals`, `NoveltyVerdictKind`, and `NoveltyAssessment`, and a typed wrapper for the `get_novelty_assessment` Tauri command.
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/DiscoveryReview.tsx`: Integrated the `NoveltyEvidencePanel` into `DiscoveryReview`, adding state for `novelty`, `noveltyLoading`, and `noveltyError`, and an `useEffect` hook to lazily load novelty assessments for selected claims.
+- `crates/vox-gui/src/main.rs`: Registered the new `get_novelty_assessment` command with the Tauri application.
+- `crates/vox-gui/Cargo.toml`: Added `vox-publisher` and `chrono` dependencies.
+- `Cargo.lock`: Updated lock file to reflect new dependencies.
+
+--- audit: original='feat(gui): novelty evidence panel on DiscoveryReview cards' | actual=505L across 8 files | derived=full ---
