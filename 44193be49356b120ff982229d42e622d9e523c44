@@ -1,0 +1,14 @@
+feat(runtime): add persistence seam (recordMutation/replayTable/uuid) to adapters
+scale: ~199 lines across 9 files [M]
+
+- **runtime-types**: Add `recordMutation(name, table, row)`, `replayTable(table)`, and `uuid()` methods to the `VoxRuntime` interface, defining the contract for on-device durable persistence.
+- **runtime-rn**: Implement `recordMutation` and `replayTable` using a `FileJournal` backend, dynamically imported to decouple native dependencies from TypeScript compilation. Implement `uuid` using a JS v4 UUID generator.
+- **runtime-rn/__generated__/journal-backend.ts**: Add a new file to bridge the `FileJournal` (from `vox-journal` via uniffi) with `expo-file-system` for durable storage, explicitly excluded from TypeScript compilation.
+- **runtime-rn/package.json**: Add `expo-file-system` as a dependency.
+- **runtime-rn/tests/contract.test.ts**: Add contract tests for the new persistence seam methods.
+- **runtime-rn/tests/ambient.d.ts**: Add ambient type declarations for `expo-file-system.documentDirectory`.
+- **runtime-web**: Implement `recordMutation` and `replayTable` using Tauri `invoke` commands (`vox_runtime_record_mutation`, `vox_runtime_replay_table`). Implement `uuid` using `crypto.randomUUID`.
+- **runtime-web/tests/contract.test.ts**: Add contract tests for the new persistence seam methods.
+- **ci/expo-bundle-shim**: Implement `recordMutation`, `replayTable`, and `uuid` with an in-memory `Map` for session-based persistence in Expo Go.
+
+--- audit: original='runtime: VoxRuntime persistence seam (recordMutation/replayTable/uuid) + adapters' | actual=199L across 9 files | derived=full ---
