@@ -1,0 +1,12 @@
+feat(gui): wire Matrix to live routing-priority state and real Promote/Doubt
+scale: ~364 lines across 7 files [L]
+
+- crates/vox-gui/src/commands/models.rs: Add `get_routing_intentions` command to project live routing-priority axes onto the hex grid, and `nudge_routing_intention` command for real Promote/Doubt mutations. Define `ROUTING_AXES`, `RoutingIntentionDto`, `NudgeDirection`, and helper functions for axis value/note/label.
+- crates/vox-gui/ui/src/components/surfaces/Matrix/Matrix.tsx: Update Matrix component to fetch live routing intentions via `get_routing_intentions` (polled every 8s) instead of hardcoded data. Implement `nudge_routing_intention` calls for Promote/Doubt buttons. Add loading state, busy-guarded mutations, and toasts. Relabel UI to "routing priority axes / weight".
+- crates/vox-gui/ui/src/App.tsx: Modify Matrix rendering to pass `pushToast` prop and remove dead fake `invoke` calls for policy actions.
+- crates/vox-gui/ui/src/data/initialState.ts: Remove the fabricated `intentions` seed data.
+- crates/vox-gui/src/main.rs: Register new Tauri commands `get_routing_intentions` and `nudge_routing_intention`.
+- crates/vox-gui/ui/src/types/dashboard.ts: Remove the `intentions` field from `DashboardData` type.
+- contracts/reports/gui-surface-coverage.v1.json: Regenerate to reflect the new commands.
+
+--- audit: original='feat(gui): wire Matrix to live routing-priority state + real Promote/Doubt (#207)' | actual=364L across 7 files | derived=full ---
