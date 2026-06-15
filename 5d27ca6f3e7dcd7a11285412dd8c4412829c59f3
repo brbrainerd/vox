@@ -1,0 +1,12 @@
+feat(vox-audit, contracts): add held-out contamination guard for HumanEval
+scale: ~228 lines across 2 files [M]
+
+- `crates/vox-audit/src/subcommands/humaneval.rs`:
+    - Added `HeldOutEntry` struct to represent a held-out fixture with its ID, provenance, derivation, and a Blake3 hash of its content.
+    - Added `HeldOutManifest` struct to encapsulate the manifest's schema version, corpus name, total and held-out fixture counts, corpus hash, and a list of `HeldOutEntry`s.
+    - Implemented `build_held_out_manifest` function to scan `problems_dir`, identify fixtures marked `training_eligible: false`, calculate their content hashes, and compile them into a sorted `HeldOutManifest`.
+    - Implemented `verify_held_out_manifest` function to compare a generated manifest against an on-disk manifest, returning an error on discrepancies in schema, hashes, or entry counts.
+    - Added three new tests: `held_out_manifest_on_disk_matches_seed_corpus` (CI gate), `build_held_out_manifest_collects_only_training_eligible_false` (unit invariant), and `emit_held_out_manifest` (ignored regenerator).
+- `contracts/eval/humaneval-vox/held-out.v1.json`: Added a new JSON file containing the manifest for 10 held-out fixtures from the 18-fixture HumanEval seed corpus, including Blake3 hashes for each fixture.
+
+--- audit: original='feat(vox-audit, contracts): held-out contamination guard (R1 / audit omission #4)' | actual=228L across 2 files | derived=full ---
