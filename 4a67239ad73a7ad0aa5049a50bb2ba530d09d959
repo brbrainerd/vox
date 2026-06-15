@@ -1,0 +1,5 @@
+refactor(deps): reorder imports in vox-plugin-webhook/src/lib.rs
+scale: ~4 lines across 1 files [XS]
+- Reordered `HTTP_LISTENER_REVISION`, `HttpListener`, and `HttpListener_TO` imports for `vox_plugin_api::extensions::http_listener`.
+
+--- audit: original='chore: rustfmt vox-plugin-webhook' | actual=4L across 1 files | derived=full ---
