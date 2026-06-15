@@ -1,0 +1,8 @@
+feat(minicheck,share): implement HTTP backend and configurable connect timeout
+scale: ~112 lines across 3 files [M]
+
+- `crates/vox-claim-extractor/src/minicheck.rs`: Implemented the HTTP backend for `MiniCheckVerifier` by performing a `reqwest::Client` POST request to the specified endpoint with a 10-second timeout. The request body is a JSON-serialized `MiniCheckRequest`, and the response is deserialized into `MiniCheckResponse`. Removed `dead_code` attributes from `MiniCheckRequest` and `MiniCheckResponse` structs.
+- `crates/vox-cli/src/commands/share.rs`: Introduced `SHARE_CONNECT_TIMEOUT_SECS` constant (default 10 seconds) for the share proxy's upstream connection timeout, which can be overridden at runtime via the `VOX_SHARE_CONNECT_TIMEOUT_SECS` environment variable. Updated `ShareConfig` to use this configurable timeout. Clarified a TODO comment regarding `target/` paths not being used when no file is provided for sharing.
+- `crates/vox-compiler/src/codegen_ts.rs`: Replaced a raw string error with a structured diagnostic (`[E0404]`) when `codegen_ts` is called directly from the compiler crate, guiding users to `vox-codegen` for TypeScript generation. Updated comments to reflect that this module is a shim for compiler-internal test utilities.
+
+--- audit: original='fix(stubs,hardcoded): resolve 3 actionable TODOs and wire MiniCheck HTTP' | actual=112L across 3 files | derived=full ---
