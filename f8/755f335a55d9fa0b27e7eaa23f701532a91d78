@@ -1,0 +1,10 @@
+feat(gui): implement drag-and-drop model priority-chain editor
+scale: ~470 lines across 5 files [L]
+
+- crates/vox-gui/ui/src/components/surfaces/Settings/PriorityChainEditor.tsx: Add new component for editing the selection policy, including drag-and-drop reordering, adding/removing steps (EmphasizeAxis, PinModel, PreferFree, FallbackWhen), and serialization/hydration of the policy.
+- crates/vox-gui/src/commands/models.rs: Add `get_selection_policy` to read the persisted selection policy JSON from user preferences (defaulting to empty policy) and `set_selection_policy` to validate and persist the selection policy JSON.
+- crates/vox-gui/ui/src/transport.ts: Add `getSelectionPolicy` and `setSelectionPolicy` helper functions for interacting with the backend commands.
+- crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx: Integrate the `PriorityChainEditor` component into the settings view.
+- crates/vox-gui/src/main.rs: Register the new `get_selection_policy` and `set_selection_policy` Tauri commands.
+
+--- audit: original='feat(gui): drag-and-drop model priority-chain editor' | actual=470L across 5 files | derived=full ---
