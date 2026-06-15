@@ -1,5 +1,9 @@
 //! Static path lists and feature matrix lanes for CI guards.
 
+/// Canonical GitHub `owner/name` slug for this project's repository. Single
+/// source of truth for the CI commands that hit the GitHub API.
+pub(crate) const REPO_SLUG: &str = "vox-foundation/vox";
+
 pub(crate) const DOCS_SSOT_FILES: &[&str] = &[
     "docs/src/how-to/how-to-train-mens-4080.md",
     "docs/src/how-to/how-to-voxdb-canonical-store.md",
