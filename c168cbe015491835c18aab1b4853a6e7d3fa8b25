@@ -1,0 +1,7 @@
+fix(codegen-rust): mutating methods now operate on original receiver
+scale: ~35 lines across 2 files [S]
+
+- `crates/vox-codegen/src/codegen_rust/emit/method_emit.rs`: Modified `emit_method_call` to handle mutating collection and string methods (`push`, `pop`, `insert`, `remove`, `clear`, `extend`, `append`, `truncate`, `retain`, `sort`, `sort_by_key`, `sort_by`, `reverse`, `dedup`, `swap`). These methods now operate directly on the original receiver identifier instead of a cloned value, preventing mutations from being discarded. Non-mutating methods continue to use the cloning heuristic.
+- `contracts/eval/arm-parity-allowlist-script.txt`: Removed `range_and_indexing.vox` and `tuple_destructure.vox` from the allowlist, indicating these tests now pass due to the fix.
+
+--- audit: original='fix(codegen-rust): mutating methods use original receiver (no clone) -> range+tuple GREEN (7/10)' | actual=35L across 2 files | derived=full ---
