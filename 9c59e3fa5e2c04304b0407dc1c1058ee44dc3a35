@@ -1,0 +1,9 @@
+feat(scripts): add `vox-dev.ps1` for Windows development
+scale: ~140 lines across 4 files [M]
+
+- `scripts/windows/vox-dev.ps1`: Add new PowerShell script to launch `vox` from the workspace clone, defaulting to `cargo run -p vox-cli` or `vox` from PATH if `VOX_USE_PATH=1`. Supports environment variables for repo root, features, and quiet mode.
+- `docs/src/reference/cli.md`: Document the new `vox-dev.ps1` and existing `vox-dev.sh` scripts under a "Bootstrap / dev launcher" section, including usage, environment variables, and an example for CodeRabbit.
+- `AGENTS.md`: Add a bullet point referencing the new `vox-dev.ps1` and `vox-dev.sh` dev launchers.
+- `scripts/README.md`: Update the table to include `windows/vox-dev.ps1` and `vox-dev.sh` with their purpose.
+
+--- audit: original='doc and vox auto build updates' | actual=140L across 4 files | derived=full ---
