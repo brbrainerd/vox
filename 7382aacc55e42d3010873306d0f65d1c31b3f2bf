@@ -1,0 +1,11 @@
+feat(gui): Implement orchestrator status push stream for GUI
+scale: ~213 lines across 6 files [M]
+
+- `crates/vox-cli-core/src/daemon_ipc/dispatch.rs`: Add `subscribe_daemon` function to spawn a daemon over stdio, send a dispatch request, and stream `DispatchPayload::Event` values into an `mpsc::Sender`.
+- `crates/vox-gui/src/commands/orchestrator.rs`: Introduce `ORCH_STATUS_EVENT` constant and `spawn_orchestrator_status_stream` function. This function spawns a background task that subscribes to the orchestrator daemon's status stream using `subscribe_daemon`, maps raw snapshots to GUI status, and emits them as Tauri events.
+- `crates/vox-gui/src/main.rs`: Integrate `spawn_orchestrator_status_stream` into the Tauri application's `.setup()` hook to start the status stream for the app's lifetime.
+- `crates/vox-gui/ui/src/transport.ts`: Define `ORCH_STATUS_EVENT` and add `listenOrchStatus` function to subscribe to the pushed orchestrator status event stream.
+- `crates/vox-gui/ui/src/App.tsx`: Update `App` component to consume the pushed orchestrator status stream via `listenOrchStatus`, replacing the previous polling mechanism. Retain an initial snapshot fetch and fallback to polling if the listener cannot be set up.
+- `docs/src/architecture/vox-gui-harness-buildout-plan-2026.md`: Update the "Frontend flip" section to document the implementation of the GUI consuming the orchestrator's push stream, detailing the changes in `vox-cli-core`, `vox-gui`, and `vox-gui/ui`.
+
+--- audit: original='@ feat(gui): B1 frontend flip — GUI consumes orch.subscribe push stream' | actual=213L across 6 files | derived=full ---
