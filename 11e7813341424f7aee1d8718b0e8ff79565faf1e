@@ -1,0 +1,4 @@
+docs(
+scale: ~21162 lines across 163 files [XL]
+
+--- audit: original='docs: Migrate to Astro Starlight and retire mdBook' | actual=21162L across 163 files | derived=sampled ---
