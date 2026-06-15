@@ -1,0 +1,6 @@
+fix(ci/docs-guard): exclude `docs/superpowers/` from deprecated command scan
+scale: ~8 lines across 1 files [XS]
+
+- `crates/vox-cli/src/commands/ci/docs_deprecated_command_guard.rs`: Skip directory `docs/superpowers/` and its subdirectories when scanning for deprecated commands. This prevents internal documentation that describes guard logic from triggering false positives.
+
+--- audit: original='fix(ci/docs-guard): exclude docs/superpowers/ from deprecated-command scan' | actual=8L across 1 files | derived=full ---
