@@ -1,0 +1,7 @@
+feat(docs): add FableForge Beat to Panel compiler architecture
+scale: ~540 lines across 2 files [L]
+
+- docs/src/architecture/fableforge-impl/compiler.ts: Add new documentation file detailing the architecture of the FableForge Beat to Panel compiler (T-023), including its purpose, integration points, and data structures (Beat, GameDraft, Panel, Scene, AspectRatio).
+- crates/vox-cli/src/commands/dashboard.rs: Refactor the `vox dashboard` command to support `start` and `stop` subcommands for managing the dashboard daemon. Introduce a `foreground` option to run the daemon in the foreground and add a `daemon_path` argument for specifying the daemon executable.
+
+--- audit: original='fix(mcp): resolve compilation errors in gateway' | actual=540L across 2 files | derived=full ---
