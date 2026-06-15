@@ -1,0 +1,41 @@
+feat(publisher): implement Discord publishing and expanded syndication tracking
+scale: ~1916 lines across 41 files [XL]
+
+- `crates/vox-clavis/src/spec.rs`: Add 30 new `SecretId` entries for various configurations, including search policy, memory vector weights, verification quality, repository limits, GitHub SHA, server settings, benchmark directories, Playwright tests, line endings, Mens scorecard tokens, OpenClaw version, CLI JSON output, Toestub parse failures, build timing budgets, script release, Cargo bin, and Ludus channel/tool args/emergency/session/experiment reward.
+- `crates/vox-clavis/src/modify_specs.py`: Add a new Python script to programmatically insert new `SecretSpec` entries into `spec.rs`, specifically for Reddit (client ID, client secret, refresh token, user agent) and YouTube (client ID, client secret, refresh token, API key).
+- `crates/vox-search/src/policy.rs`: Update `SearchPolicy` to use `vox_clavis::resolve_secret` for retrieving Qdrant URL, collection, vector name, and Tantivy index root, replacing direct environment variable access.
+- `crates/vox-publisher/src/templates.rs`: Add a new `DiscordAnnouncement` news template and corresponding `template_source` entry. Introduce new tests to ensure consistency between news templates in `crates/vox-publisher` and `docs/news/templates`.
+- `crates/vox-publisher/src/syndication_outcome.rs`: Add new methods (`reddit_id`, `discord_id`, `bluesky_id`, `mastodon_id`, `linkedin_id`) to `SyndicationResult` to extract external IDs for each social media channel.
+- `crates/vox-publisher/src/adapters/discord.rs`: Implement the `post` function for Discord, enabling publishing of unified news items to Discord webhooks with support for message content and embedded rich content (title, description, URL, color).
+- `docs/src/architecture/scientia-community-publishing-playbook-2026.md`: Add a new playbook document detailing community publishing architecture.
+- `README.md`: Update the README, likely reflecting new features or project structure.
+- `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs`: Add new guards for CI run body helpers.
+- `docs/src/reference/clavis-ssot.md`: Add a new reference document for Clavis SSOT.
+- `crates/vox-publisher/src/distribution_compile.rs`: Add new distribution compilation logic.
+- `docs/src/index.md`: Update the main index document.
+- `crates/vox-ludus/src/config_gate.rs`: Update configuration gate logic.
+- `crates/vox-publisher/src/topic_packs.rs`: Update topic pack handling.
+- `crates/vox-cli/src/commands/mens/eval_gate/legacy.rs`: Update legacy evaluation gate logic.
+- `crates/vox-cli/src/commands/ci/run_body_helpers/timings.rs`: Update CI run body timing helpers.
+- `crates/vox-compiler/src/codegen_ts/emitter.rs`: Update TypeScript code generation emitter.
+- `crates/vox-publisher/src/types.rs`: Add new types for the publisher.
+- `crates/vox-cli/src/commands/runtime/run/script.rs`: Update runtime script execution.
+- `crates/vox-cli/src/commands/pm/verify.rs`: Update package manager verification.
+- `crates/vox-cli/src/commands/review/coderabbit/ingest.rs`: Update CodeRabbit ingestion for reviews.
+- `crates/vox-cli/src/commands/sync.rs`: Update synchronization command.
+- `crates/vox-cli/src/commands/ci/build_timings.rs`: Update CI build timings.
+- `crates/vox-cli/src/commands/mens/pipeline.rs`: Update Mens pipeline logic.
+- `crates/vox-toestub/src/review/providers.rs`: Update review providers for Toestub.
+- `crates/vox-publisher/news-templates/discord_announcement.md`: Add a new Discord announcement news template.
+- `docs/news/templates/discord_announcement.md`: Add a new Discord announcement template for documentation.
+- `crates/vox-cli/src/commands/ci/scaling_audit.rs`: Update CI scaling audit.
+- `crates/vox-cli/src/commands/pm/mod.rs`: Update package manager module.
+- `crates/vox-cli/src/commands/repo.rs`: Update repository command.
+- `crates/vox-cli/src/commands/vcs.rs`: Update version control system command.
+- `crates/vox-cli/src/commands/live.rs`: Update live command.
+- `crates/vox-integration-tests/tests/playwright_golden_route.rs`: Update Playwright golden route tests.
+- `crates/vox-integration-tests/tests/web_vite_smoke.rs`: Update web Vite smoke tests.
+- `Cargo.lock`: Update Cargo lock file.
+- `crates/vox-compiler/Cargo.toml`: Update Cargo manifest for the compiler crate.
+
+--- audit: original='feat: implement package verification, Discord publishing, and expanded syndication tracking infrastructure' | actual=1916L across 41 files | derived=full ---
