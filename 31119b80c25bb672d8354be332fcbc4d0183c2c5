@@ -1,0 +1,10 @@
+feat(mens): update default model to Qwen2.5-Coder-7B-Instruct
+scale: ~11 lines across 2 files [S]
+
+- `crates/vox-populi/src/mens/mod.rs`:
+    - Updated `DEFAULT_MODEL_ID` constant from "Qwen/Qwen3.5-4B" to "Qwen/Qwen2.5-Coder-7B-Instruct".
+    - Added a detailed comment explaining the change, noting that Qwen2.5-Coder is supported by the Candle QLoRA trainer and the previous default was a vision-language model incompatible with the text trainer.
+- `contracts/mens/training-presets.v1.yaml`:
+    - Updated `default_base_model` from "Qwen/Qwen3.5-4B" to "Qwen/Qwen2.5-Coder-7B-Instruct".
+
+--- audit: original='feat(mens): default to a trainable coder (Qwen2.5-Coder-7B → 3B on 16GB)' | actual=11L across 2 files | derived=full ---
