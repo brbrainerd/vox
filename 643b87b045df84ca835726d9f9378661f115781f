@@ -1,0 +1,12 @@
+feat(eval): expand HumanEval-Vox corpus from 30 to 164 problems
+scale: ~3818 lines across 404 files [XL]
+
+- **contracts/eval/humaneval-vox/problems/**: Added 134 new problems, each comprising a `spec.toml` (id, prompt, held-out flag), `reference.vox` (canonical implementation), and `tests.vox` (test cases).
+  - **031-060**: Added problems covering basic arithmetic, string operations, and simple control flow.
+  - **061-090**: Added problems covering string manipulation, list operations, and `Option`/`Result` patterns.
+  - **091-120**: Added problems covering more complex patterns, nested matches, and ADT errors.
+  - **121-164**: Added problems covering richer match and nested patterns, and multi-step transformations.
+- **contracts/eval/humaneval-vox/held-out.v1.json**: Regenerated to reflect the expanded corpus and mark the held-out subset.
+- **contracts/eval/humaneval-vox/manifest.v1.yaml**: Updated to include all 164 problems in the full corpus.
+
+--- audit: original='feat(eval): HumanEval-Vox corpus 30 → 164 + held-out manifest refresh' | actual=3818L across 404 files | derived=full ---
