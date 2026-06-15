@@ -1,0 +1,24 @@
+fix(scientia): address Phase 0a code-quality review findings
+scale: ~39 lines across 8 files [M]
+
+- `crates/vox-orchestrator/src/dei_shim/research/verifier.rs`:
+    - Documented `nli_model_id` Phase-0a empty-string default as a latent bug for Phase 1.
+    - Documented `Verdict` taxonomy deviation from the SciFact plan, explaining the current variants match pre-existing consumers and Phase 1 will reconcile with SciFact.
+- `crates/vox-orchestrator/src/dei_shim/research/provider.rs`:
+    - Narrowed visibility of `CrawledPage` and `ExtractedChunk` structs to `pub(super)`.
+    - Narrowed visibility of `ProviderRegistry::crawl` and `ProviderRegistry::extract` methods to `pub(super)`.
+- `crates/vox-orchestrator/src/dei_shim/research/orchestrator/pipeline.rs`:
+    - Removed unused `serde_json::json` import.
+    - Dropped unnecessary `mut` from `web_enabled` and `claim_enabled` rollout-flag bindings.
+- `crates/vox-orchestrator/src/dei_shim/research/gate.rs`:
+    - Added a comment annotating the `ConfidenceSignal` exact-zero check for `score` as Phase-0a-stub semantics that won't survive Phase 2 fusion.
+- `crates/vox-orchestrator/tests/scientia_phase_0a_types_round_trip.rs`:
+    - Strengthened `retrieval_diagnostics_serializes` test to assert that the `fusion_weights` array has a length of 3.
+- `crates/vox-orchestrator/src/dei_shim/research/mod.rs`:
+    - Narrowed `pub mod config` to `pub(super) mod config`.
+- `crates/vox-orchestrator/src/dei_shim/research/persistence.rs`:
+    - Tightened persistence slug documentation to specify "at most 80 chars after dash-trim".
+- `crates/vox-orchestrator/src/dei_shim/research/types.rs`:
+    - Added a safety note on the `i32` to `f32` cast for `quality` in `CompetenceSignal::from_verdicts`.
+
+--- audit: original='fix(scientia): address Phase 0a code-quality review findings' | actual=39L across 8 files | derived=full ---
