@@ -69,6 +69,15 @@ fn bare_deprecated_still_parses_with_no_reason() {
     assert_eq!(f.deprecated_reason, None);
 }
 
+#[test]
+fn deprecated_empty_parens_parses_with_no_reason() {
+    // The optional-argument branch must accept `@deprecated()` and leave the
+    // reason unset rather than erroring or capturing a bogus value.
+    let f = first_fn("@deprecated() fn old() to int { return 0 }");
+    assert!(f.is_deprecated);
+    assert_eq!(f.deprecated_reason, None);
+}
+
 // --- Task 3: reason survives lowering --------------------------------------
 
 #[test]
