@@ -1,0 +1,17 @@
+docs(roadmap): update 2026 GUI-native roadmap status to 2026-04-25 audit
+scale: ~106 lines across 1 files [M]
+
+- Update `last_updated` date to 2026-04-25.
+- Clarify provenance of the update, noting it's from a Cowork-sandbox audit against commit `fa350de8`.
+- Specify the canonical roadmap source as `VOX_GUI_NATIVE_ROADMAP_2026.md` at the repository root.
+- Promote TASK-0.4 to ✅ Done, indicating `CorsLayer` is installed and `Referrer-Policy` is present.
+- Promote TASK-0.8 to ✅ Done, confirming dashboard tests are present.
+- Promote TASK-1.4 to ✅ Done, noting the Tailwind block was removed and cosmetic blank-line cleanup applied.
+- Demote TASK-2.1 to 🟡 Partial, due to the residual `components: Vec<HirReactiveComponent>` field in `HirModule` and `SemanticHirModule`.
+- Reclassify TASK-2.6 as 🟡 Partial, adding a note about full retrospective and Path A / Path B re-plan.
+- Update phase verdicts for Phase 0, Phase 1, and Phase 2.
+- Add a new "Repository Hygiene" section, flagging 9 one-shot `.py` scripts violating the `AGENTS.md` §VoxScript-First policy.
+- Rewrite the "Immediate Next Tasks" section, reordering tasks by dependency.
+- Add a new "Audit Log" section detailing status changes.
+
+--- audit: original='docs(roadmap): audit refresh against HEAD fa350de8 (2026-04-25)' | actual=106L across 1 files | derived=full ---
