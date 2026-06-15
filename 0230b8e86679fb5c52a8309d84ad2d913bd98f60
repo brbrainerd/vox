@@ -1,0 +1,7 @@
+feat(codegen-ts): Emit `HirExpr::AsyncView` as a four-branch IIFE
+scale: ~138 lines across 2 files [M]
+
+- `crates/vox-codegen-ts/tests/async_view_emit_test.rs`: Add a new test file to verify the correct TypeScript emission for `HirExpr::AsyncView`, ensuring it produces the expected four-branch IIFE.
+- `crates/vox-codegen-ts/src/hir_emit/mod.rs`: Replace the placeholder `"{src} /* async view */"` emission for `HirExpr::AsyncView` with a call to `vox_codegen::web_ir::async_state::emit_async_view_tsx`. This function generates a four-branch IIFE that narrows `Async[T]` based on its `_tag` discriminant (fetching, empty, error, ok). The arm-emission logic is conditionally compiled under `#[cfg(feature = "standalone")]` to prevent dead-code warnings when `vox-codegen` is used as an embedded source.
+
+--- audit: original='feat(codegen-ts): Task 8C — wire emit_async_view_tsx into HirExpr::AsyncView' | actual=138L across 2 files | derived=full ---
