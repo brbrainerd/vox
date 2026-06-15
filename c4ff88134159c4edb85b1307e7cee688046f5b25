@@ -1,0 +1,7 @@
+chore(deps): update Cargo.lock; extend .claude/settings.local.json allowlist
+scale: ~141 lines across 2 files [M]
+
+- Cargo.lock: Synchronized `Cargo.lock` to reflect the workspace version bump from `0.4.0` to `0.5.0`.
+- .claude/settings.local.json: Added 11 new entries to the `tool_allowlist` array, including `Bash` commands for `curl`, `find`, `pnpm install`, `pnpm build`, `node scripts/setup-content.mjs`, and `git` operations within a worktree, `Read` access to `/tmp/**`, and `WebFetch` permissions for `vox-lang.org`, `vox-foundation.github.io`, and `dns.google`.
+
+--- audit: original='chore: sync Cargo.lock to workspace v0.5.0; extend settings.local allowlist' | actual=141L across 2 files | derived=full ---
