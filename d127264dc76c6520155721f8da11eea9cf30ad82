@@ -1,0 +1,7 @@
+docs: add frontmatter to Rust lesson and update roadmap code example
+scale: ~15 lines across 2 files [S]
+
+- docs/src/learning/rust-via-vox/lesson-01-ownership-pattern-drill.md: Add YAML frontmatter including title, description, category, last_updated, training_eligible, and schema_type.
+- docs/src/architecture/mental-tracker-full-app-roadmap-2026.md: Update a `vox` code block comment to clarify its non-standalone nature and dependency on `record_health_event`.
+
+--- audit: original='docs: add required frontmatter to rust-via-vox lesson-01' | actual=15L across 2 files | derived=full ---
