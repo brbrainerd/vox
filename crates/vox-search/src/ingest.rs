@@ -70,8 +70,7 @@ pub async fn ingest_markdown_tree(
         let doc_id = db
             .upsert_search_document(&source_uri, &title, "text/markdown", &hash)
             .await?;
-        let chunk_bytes =
-            resolve_chunk_bytes(std::env::var("VOX_RAG_CHUNK_BYTES").ok().as_deref());
+        let chunk_bytes = resolve_chunk_bytes(std::env::var("VOX_RAG_CHUNK_BYTES").ok().as_deref());
         let chunks = chunk_markdown_sections(&body, chunk_bytes);
         let refs: Vec<Option<String>> = vec![None; chunks.len()];
         db.replace_search_document_chunks_with_refs(doc_id, &chunks, &refs)
@@ -124,7 +123,10 @@ mod chunk_size_tests {
 
     #[test]
     fn unparseable_keeps_default() {
-        assert_eq!(resolve_chunk_bytes(Some("big")), DEFAULT_MARKDOWN_CHUNK_BYTES);
+        assert_eq!(
+            resolve_chunk_bytes(Some("big")),
+            DEFAULT_MARKDOWN_CHUNK_BYTES
+        );
     }
 
     #[test]
