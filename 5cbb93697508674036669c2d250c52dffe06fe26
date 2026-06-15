@@ -1,0 +1,16 @@
+feat(deps): update rmcp to 1.7, typify to 0.7, cargo_metadata to 0.23, and swc to 41/25/25/23
+scale: ~180 lines across 7 files [M]
+
+- `rmcp`:
+  - `crates/vox-orchestrator-mcp/src/server.rs`: Updated `InitializeResult` and `ServerCapabilities` instantiation to use the new constructor/builder API (`InitializeResult::new`, `ServerCapabilities::builder`). Removed `ToolsCapability` import.
+  - `crates/vox-orchestrator-mcp/src/registry.rs`: Updated `Tool` instantiation to use `Tool::new_with_raw` and `.with_meta()`.
+- `typify`:
+  - `crates/vox-scientia-jsonschema-codegen/src/main.rs`: Updated comment to reflect that `typify` 0.7 still has limitations with root-level `oneOf` schemas.
+- `cargo_metadata`:
+  - `crates/vox-arch-check/src/main.rs`: Changed `Target.kind` comparison from string `"cdylib"` to `TargetKind::CDyLib` and converted `Package.name` to `String` for warnings.
+  - `crates/vox-cli/src/commands/ci/pre_push.rs`: Converted `Package.name` to `String` when inserting into `HashSet` and pushing to `Vec`.
+- `swc_ecma_*`: Updated `swc_ecma_parser`, `swc_ecma_ast`, `swc_ecma_visit`, and `swc_common` versions.
+- `Cargo.toml`: Updated `rmcp` from 0.16 to 1.7, `typify` from 0.6.2 to 0.7, `cargo_metadata` from 0.18 to 0.23, and `swc_ecma_*` crates to their new versions (parser 39->41, ast 23->25, visit 23->25, common 21->23).
+- `Cargo.lock`: Updated dependencies to reflect the new versions.
+
+--- audit: original='chore(deps): dependency-currency Wave C (rmcp 1.7, typify 0.7, cargo_metadata 0.23, swc matched-set) (#161)' | actual=180L across 7 files | derived=full ---
