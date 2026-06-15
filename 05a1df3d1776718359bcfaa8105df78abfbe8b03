@@ -1,0 +1,7 @@
+docs(architecture): update frontmatter status from 'advisory' to 'research'
+scale: ~4 lines across 2 files [S]
+
+- docs/src/architecture/cr-f2-arm-parity-reality-2026-06-05.md: changed `status` from 'advisory' to 'research'
+- docs/src/architecture/v1-foundation-criteria-advisory-2026-06-05.md: changed `status` from 'advisory' to 'research'
+
+--- audit: original="fix(docs): use valid frontmatter status 'research' for advisory docs" | actual=4L across 2 files | derived=full ---
