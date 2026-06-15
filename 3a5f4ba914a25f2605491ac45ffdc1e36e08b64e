@@ -1,0 +1,13 @@
+fix(corpus): Update scheduled_tick and saga_compensation examples
+scale: ~20 lines across 2 files [S]
+
+- `examples/golden/scheduled_tick.vox`:
+    - Replaced the previous comment-based scheduling description with a real `@scheduled("1h")` decorator, reflecting the retirement of E028 per ADR-041.
+    - Updated the file's title, description, `constructs` list, and `last_validated` date to reflect the change.
+    - Added a `@training_prompt` for the new `@scheduled` decorator.
+- `examples/golden/saga_compensation.vox`:
+    - Reframed the example's title and description to clarify it demonstrates application-level manual compensation using `Result` and `match`, explicitly stating no durable workflow runtime is involved.
+    - Updated the `last_validated` date.
+    - Modified the `@training_prompt` to align with the reframed description, emphasizing manual compensation with `Result` and `match` without a durable `@workflow` saga runtime.
+
+--- audit: original='@ fix(corpus): real @scheduled in scheduled_tick; honest manual-compensation framing for saga' | actual=20L across 2 files | derived=full ---
