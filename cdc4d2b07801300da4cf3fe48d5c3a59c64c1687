@@ -1,0 +1,9 @@
+fix(share): bail when --dev is used without a file argument
+scale: ~7 lines across 1 files [XS]
+
+- `crates/vox-cli/src/commands/share.rs`:
+  - Added a check to `run` to bail with an error message if `--dev` is provided without a `FILE` argument.
+  - Updated a comment to clarify behavior when no file is given.
+  - Added a `TODO` comment regarding anchoring paths to the workspace root in `build_or_reuse_bundle`.
+
+--- audit: original='fix(share): bail when --dev given without FILE arg (S8 UX)' | actual=7L across 1 files | derived=full ---
