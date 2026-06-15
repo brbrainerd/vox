@@ -1,0 +1,12 @@
+refactor(code-audit): migrate VictoryClaimDetector to vox-rule-pack
+scale: ~350 lines across 7 files [L]
+
+- `crates/vox-code-audit/src/detectors/victory_claim.rs`: Rewrote `VictoryClaimDetector` to load rules from the embedded `RulePack` instead of using inline `regex::Regex` patterns. Removed `victory_re`, `todo_comment_re`, `fixme_re`, and `hack_re` fields and their initialization logic.
+- `crates/vox-code-audit/src/rule_pack_bridge.rs`: Added a new module to provide `From` trait implementations for converting `vox_rule_pack` enums (`RuleSeverity`, `RuleConfidence`, `RuleLanguage`) to `vox_code_audit` enums (`Severity`, `FindingConfidence`, `Language`) to avoid circular dependencies. Includes unit tests for these conversions.
+- `crates/vox-code-audit/tests/victory_claim_parity.rs`: Added a new integration test to ensure parity of findings (rule ID, line, severity) for `VictoryClaimDetector` on a fixed corpus after the migration to `vox-rule-pack`.
+- `crates/vox-code-audit/src/embedded_rules.rs`: Added a new module to embed `contracts/code-audit/rules.v1.yaml` at compile time and expose it as a process-wide `OnceLock<RulePack>` singleton. Includes tests to verify pack loading and presence of expected victory claim rules.
+- `crates/vox-code-audit/src/lib.rs`: Added `embedded_rules` and `rule_pack_bridge` modules to the crate's public interface.
+- `crates/vox-code-audit/Cargo.toml`: Added a dependency on the `vox-rule-pack` crate.
+- `Cargo.lock`: Updated to reflect the new `vox-rule-pack` dependency.
+
+--- audit: original='refactor(code-audit): victory_claim migrated to vox-rule-pack + parity test' | actual=350L across 7 files | derived=full ---
