@@ -1,0 +1,9 @@
+docs(ci): clarify sccache cross-worktree behavior and update architecture table
+scale: ~10 lines across 1 files [S]
+
+- docs/src/ci/shared-compile-cache.md:
+    - Corrected the description of sccache's cross-worktree caching behavior, stating that local worktrees at different paths do not share cached artifacts due to sccache keys including crate metadata beyond source text, even with `--remap-path-prefix`.
+    - Updated the architecture table to reflect that the local shells/agent tabs on Windows hosts use S3 via environment variables when MinIO is up, falling back to disk cache, and that the config source includes `[cache.disk]` by default and `SCCACHE_*` environment variables.
+    - Clarified that same-path repeated builds (e.g., after `cargo clean`) still benefit from the cache at the warm rate.
+
+--- audit: original='docs(ci): correct shared-compile-cache cross-worktree claim' | actual=10L across 1 files | derived=full ---
