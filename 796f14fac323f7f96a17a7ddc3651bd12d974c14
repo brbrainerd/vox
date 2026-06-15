@@ -1,0 +1,16 @@
+chore(repo): remove generated build outputs, temporary files, and logs
+scale: ~9849 lines across 16 files [XL]
+
+- **artifacts/**: Delete `toestub-crates-audit.json`, a generated audit report.
+- **marquee_app/build/**: Remove `index-C_CxO6X0.js` and `index.html`, which are compiled JavaScript and HTML build artifacts.
+- **vox-vscode/tmp/**: Delete several temporary markdown planning documents: `plan_part1_architecture.md`, `plan_part3_component_tasks.md`, `plan_analysis_round_2.md`, and `plan_part2_visuals.md`.
+- **.vox/artifacts/simulation/**: Remove `summary.md`, a generated simulation summary.
+- **mens/data/**: Delete `metadata.json`.
+- **mens/temp_stabilization/**: Delete `metadata.json`.
+- **.gemini/antigravity/scratch/**: Remove `test_yaml.vox`, a scratch file.
+- **docs/**: Delete `lychee_report.json`, a generated link check report.
+- **.vox/**: Delete `research-audit-codex.db` and `store.db`, which are local database files.
+- **.vox_modules/**: Delete `local_store.db`, another local database file.
+- **crates/vox-ml-cli/**: Delete `check_errors.txt`, a log file.
+
+--- audit: original='chore(repo): remove orphan tracked artifacts and scratch outputs' | actual=9849L across 16 files | derived=full ---
