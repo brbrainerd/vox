@@ -1,0 +1,12 @@
+feat(stdlib): implement `str.slice`, `str.char_at`, and `str.index_of`
+scale: ~122 lines across 7 files [M]
+
+- `crates/vox-compiler/src/eval/builtins.rs`: Implement `str.slice`, `str.char_at`, and `str.index_of` with character-aware logic for the interpreter.
+- `crates/vox-compiler/src/codegen_rust/emit/method_emit.rs`: Add Rust codegen for `str.slice`, `str.char_at`, and `str.index_of`, using character-aware operations.
+- `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs`: Add TypeScript codegen for `str.char_at` and `str.index_of`, wrapping native `charAt` and `indexOf` to convert sentinel values (`""`, `-1`) to `null` for `Option` semantics.
+- `crates/vox-compiler/src/typeck/builtins.rs`: Register `str.slice(int, int) -> str`, `str.char_at(int) -> Option[str]`, and `str.index_of(str) -> Option[int]` in the type checker.
+- `examples/golden/str_utils.vox`: Add a new golden example file demonstrating the usage of `str.slice`, `str.char_at`, and `str.index_of`.
+- `docs/superpowers/plans/2026-05-08-language-features-tracker-index.md`: Update the language features tracker to mark the string utilities plan as landed.
+- `docs/superpowers/plans/2026-05-08-language-string-utils.md`: Amend the string utilities plan document to reflect the actual scope of implementation (only `slice`, `char_at`, `index_of` were new) and details of the implementation.
+
+--- audit: original='feat(stdlib): str.slice / char_at / index_of (plan 4) (#72)' | actual=122L across 7 files | derived=full ---
