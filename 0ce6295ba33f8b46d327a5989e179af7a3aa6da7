@@ -1,0 +1,8 @@
+refactor: Apply rustfmt to multiple crates
+scale: ~65 lines across 10 files [M]
+
+- `crates/vox-codegen-ts`: Apply rustfmt to `src/scaffold.rs`, `tests/async_view_emit_test.rs`, `tests/library_exports_test.rs`, and `tests/package_manifest_test.rs`.
+- `crates/vox-compiler`: Apply rustfmt to `src/eval/expr.rs`, `src/hir/lower/mod.rs`, `tests/at_public_parse_test.rs`, `tests/auth_decorator_test.rs`, and `tests/native_namespace_interp_test.rs`.
+- `crates/vox-grammar-export`: Apply rustfmt to `tests/export_test.rs`.
+
+--- audit: original='style: rustfmt fixes for vox-codegen-ts, vox-compiler, vox-grammar-export' | actual=65L across 10 files | derived=full ---
