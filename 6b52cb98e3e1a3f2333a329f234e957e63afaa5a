@@ -1,0 +1,9 @@
+feat(orchestrator): add `InProcessSkillRuntime` for host-level skills
+scale: ~89 lines across 4 files [M]
+
+- `crates/vox-orchestrator/src/skill_runtime_inproc.rs`: Add `InProcessSkillRuntime` struct and its implementation of the `SkillRuntime` trait. This includes `name`, `available`, `build` (no-op), and `run` (returns immediate success) methods.
+- `crates/vox-orchestrator/tests/skill_runtime_inproc.rs`: Add unit tests for `InProcessSkillRuntime` to verify its availability, trivial command execution, and `run_with_secrets` behavior (ensuring secrets are not leaked to output).
+- `crates/vox-orchestrator/src/lib.rs`: Expose the new `skill_runtime_inproc` module.
+- `crates/vox-orchestrator/Cargo.toml`: Add `vox-skill-runtime` as a dependency and register the new `skill_runtime_inproc` test target.
+
+--- audit: original='feat(orchestrator): in-process executor behind SkillRuntime trait (P0-T7)' | actual=89L across 4 files | derived=full ---
