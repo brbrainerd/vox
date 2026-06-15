@@ -8,6 +8,8 @@
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 
+#[cfg(feature = "gui-visual-review")]
+use crate::visus_tools;
 use crate::{
     benchmark_tools, browser_tools, chat_tools, code_validator, codex_tools, compiler_tools,
     db_tools, exec_time_tools, git_tools, grammar_tools, introspection_tools, openclaw_tools,
@@ -15,8 +17,6 @@ use crate::{
     repo_catalog_tools, repo_index, secrets_tools, task_tools, toestub_tools, tool_aliases,
     training_tools, trust_tools, vcs_tools,
 };
-#[cfg(feature = "gui-visual-review")]
-use crate::visus_tools;
 #[cfg(feature = "news-publish")]
 use crate::{news_tools, scientia_tools};
 
