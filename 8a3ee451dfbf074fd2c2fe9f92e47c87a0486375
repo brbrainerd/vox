@@ -1,0 +1,28 @@
+refactor: update GitHub remote namespace from brbrainerd to vox-foundation
+scale: ~715 lines across 25 files [L]
+
+- `crates/vox-cli/src/commands/publish.rs`: Updated default registry URL.
+- `crates/vox-cli/src/commands/search.rs`: Updated default registry URL.
+- `crates/vox-runtime/src/populi.rs`: Updated remote Populi API base URL in comments and `PopuliConfig` struct.
+- `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard.rs`: Updated default registry URL in configuration.
+- `crates/vox-cli/src/commands/diagnostics/tools/search.rs`: Updated default registry URL.
+- `crates/vox-cli/src/commands/info.rs`: Updated default registry URL.
+- `crates/vox-cli/src/commands/login.rs`: Updated GitHub settings URL for API token.
+- `crates/vox-ludus/src/ai.rs`: Updated `HTTP-Referer` header for OpenRouter API.
+- `crates/vox-skills/src/lib.rs`: Updated `SKILLS_REGISTRY_BASE` constant.
+- `crates/vox-toestub/src/review/formatters.rs`: Updated `helpUri` in SARIF output.
+- `crates/vox-toestub/src/review/providers.rs`: Updated `default_site_url` for OpenRouter.
+- `README.md`: Updated project description and hero banner alt text.
+- `vox-vscode/README.md`: Updated GitHub repository links.
+- `cliff.toml`: Updated GitHub repository URL.
+- `docs/src/.well-known/vox-docs.json`: Updated GitHub repository URL.
+- `docs/book.toml`: Updated GitHub repository URL.
+- `docs/src/feed.xml`: Updated GitHub repository URL.
+- `Cargo.toml`: Updated GitHub repository URL.
+- `Vox.toml`: Updated GitHub repository URL.
+- `docs/src/how-to-setup.md`: Updated GitHub repository URL.
+- `docs/src/tut-getting-started.md`: Updated GitHub repository URL.
+- `docs/theme/head.hbs`: Updated GitHub repository URL.
+- `vox-agent.json`: Updated GitHub repository URL.
+
+--- audit: original='chore: migrate github remote namespace from brbrainerd to vox-foundation codebase-wide' | actual=715L across 25 files | derived=full ---
