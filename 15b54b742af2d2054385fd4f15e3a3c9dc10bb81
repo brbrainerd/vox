@@ -1,0 +1,13 @@
+docs(scripts/show): clarify `vox-mens` installation and environment variable inputs
+scale: ~29 lines across 1 files [S]
+
+- `scripts/show/README.md`:
+    - Added a new section "Runtime prerequisite — install `vox-mens`" detailing that `cargo install --path crates/vox-mens` is required for LLM calls.
+    - Explained that scripts delegate to `vox-mens` and will fail with an error if it's not installed, printing the prompt for manual use.
+    - Added a note about customizing the LLM CLI command.
+    - Added a new section "Inputs are environment variables, not CLI args" explaining that scripts read inputs from environment variables (e.g., `RAW_NERVE_RECORDING_DIR`, `RAW_NERVE_CTA_TYPE`, `RAW_NERVE_OUT`, `RAW_NERVE_WHISPER_OU`).
+    - Included a table listing required and optional environment variables for `script.vox`.
+    - Updated bullet points in the "Future additions" section to reflect that LLM calls go through `vox mens prompt --text "..."` and output drafts are written to a path passed via env var.
+    - Changed "Every script has a 1-line header comment" to "Every script has a header block".
+
+--- audit: original='docs(scripts/show): note vox-mens install requirement and env-var inputs' | actual=29L across 1 files | derived=full ---
