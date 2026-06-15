@@ -1,0 +1,15 @@
+docs(stability): downgrade and audit stability tiers based on architectural volatility
+scale: ~22 lines across 1 files [S]
+
+- README.md:
+    - Renamed "Agent Interfaces" to "Agent Integrations" and updated its description to "Allows AI agents to interact with Vox apps via standard protocols."
+    - Changed the "Audit Justification" for "Agent Integrations" to reflect compliance with Anthropic's Model Context Protocol.
+    - Downgraded "Compiler & LSP" from Stable to Preview, updating its justification to note ongoing AST/HIR unification and legacy HTTP node removal.
+    - Downgraded "Database Engine" from Stable to Preview, updating its justification to mention `vox-db` APIs are locked and integrated via Tauri `State`.
+    - Downgraded "API Endpoints" from Stable to Preview, updating its justification to mention unified architecture and isomorphic TS client emission.
+    - Downgraded "Tauri Desktop UI" from Preview to Experimental, updating its justification to mention native IPC bridge and maturing app signing.
+    - Downgraded "Durable Workflows" from Preview to Experimental, updating its justification to mention locked grammar and hardening checkpointing.
+    - Downgraded "Local AI (MENS)" from Preview to Experimental, updating its justification to mention operational training pipelines and expanding Metal/CUDA coverage.
+    - Renamed the "What it does" column to "Description" and "Architecture & Justification" to "Audit Justification".
+
+--- audit: original='docs: rigorously downgrade and audit stability tiers based on recent architectural volatility' | actual=22L across 1 files | derived=full ---
