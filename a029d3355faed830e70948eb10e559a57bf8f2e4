@@ -1,0 +1,10 @@
+fix(nomenclature-guard): stop treating `mens` and `populi` as Latin roots to retire
+scale: ~21 lines across 1 files [S]
+
+- `crates/vox-cli/src/commands/ci/nomenclature_guard.rs`:
+    - Removed `("populi", "ml")` and `("mens", "ml")` from `LATIN_STRUCTURAL_DENYLIST`.
+    - Added a detailed comment to `LATIN_STRUCTURAL_DENYLIST` explaining that `mens` and `populi` are canonical Vox identities and not Latin roots to be migrated to a generic `ml`.
+    - Updated comments for `vox-populi` and `vox-mens-eval` in `HISTORICAL_ALLOWLIST` to clarify that these names are intentionally retained as canonical identities, rather than being migrated to `vox-ml`.
+    - Updated the comment for `vox-ml-cli` in `HISTORICAL_ALLOWLIST` to reflect its canonical status.
+
+--- audit: original='fix(nomenclature-guard): stop treating `mens`/`populi` as Latin roots to retire (#179)' | actual=21L across 1 files | derived=full ---
