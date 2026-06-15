@@ -1,0 +1,8 @@
+refactor(build): update `build.rs` files and research index
+scale: ~7 lines across 3 files [S]
+
+- `crates/vox-orchestrator-types/build.rs`: Refactored `split` method to use array of characters instead of a closure for splitting strings.
+- `crates/vox-populi/build.rs`: Removed an unnecessary `return` statement.
+- `docs/src/architecture/research-index.md`: Updated the count of findings in "Data Storage SSOT (2026)" from sixty (F1-F60) to seventy-eight (F1-F78) and "Data Storage Migration Backlog (2026)" from M-66 to M-78.
+
+--- audit: original='M-00: Land the SSOT triplet' | actual=7L across 3 files | derived=full ---
