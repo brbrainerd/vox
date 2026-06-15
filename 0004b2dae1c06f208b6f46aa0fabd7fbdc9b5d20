@@ -1,0 +1,10 @@
+feat(vox-gui/inline-approvals): Add accessibility attributes and a new test file
+scale: ~62 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Loquela/InlineApprovals.test.tsx`: Add a new test file for `InlineApprovals` component, including tests for accessibility attributes like `aria-live` and `role="region"`, and ensuring all buttons have `type="button"`.
+- `crates/vox-gui/ui/src/components/surfaces/Loquela/InlineApprovals.tsx`:
+    - Add `role="region"`, `aria-label="Approval required"`, and `aria-live="polite"` to the `Glass` component for accessibility.
+    - Add `aria-hidden="true"` to the `Icon.shield` component.
+    - Change the main container for approval items from a `div` to an unordered list (`ul`) with `role="list"`, and individual items from `div`s to list items (`li`).
+
+--- audit: original='feat(vox-gui/wave6): InlineApprovals a11y + checklist (Wave 6)' | actual=62L across 2 files | derived=full ---
