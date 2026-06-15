@@ -1,0 +1,6 @@
+fix(compiler): add missing `auth` field to `HirEndpointFn` initializers in tests
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-compiler/src/semcov_wave17_tests.rs`: Added `auth: None` to two `HirEndpointFn` initializers to resolve a compilation error caused by the addition of the `auth: Option<HirAuth>` field.
+
+--- audit: original='fix(compiler): add missing auth field to HirEndpointFn test initializers (#307)' | actual=2L across 1 files | derived=full ---
