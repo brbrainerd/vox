@@ -1,0 +1,6 @@
+docs(feed): regenerate Atom feed to update entry timestamps
+scale: ~58 lines across 2 files [M]
+
+- `docs/src/feed.xml`: Regenerated the Atom feed, which updated the `updated` timestamps for all entries and removed an empty `content` element from each entry.
+
+--- audit: original='docs: regenerate CLI surface + inventory for ci pre-push' | actual=58L across 2 files | derived=full ---
