@@ -1,0 +1,8 @@
+feat(tracker-ios): Implement on-device STT via Apple Speech Framework
+scale: ~137 lines across 3 files [M]
+
+- apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/ios/AppleSpeechBackend.swift: Add new file `AppleSpeechBackend.swift` to encapsulate on-device speech recognition logic using `SFSpeechRecognizer` and `AVAudioEngine`. This includes methods for requesting authorization, starting transcription, and handling audio input.
+- apps/vox-mental-tracker/ios/App/App/Info.plist: Add `NSSpeechRecognitionUsageDescription` and `NSMicrophoneUsageDescription` keys with user-facing descriptions to `Info.plist` to comply with Apple's privacy requirements for speech recognition and microphone access.
+- apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/ios/Plugin.swift: Replace the stub implementation in `transcribe` method with a call to `AppleSpeechBackend.shared.transcribe`, integrating the Apple Speech Framework for actual speech-to-text functionality. The method now resolves with the transcribed text and confidence or rejects with an error.
+
+--- audit: original='feat(tracker-ios): on-device STT via Apple Speech Framework' | actual=137L across 3 files | derived=full ---
