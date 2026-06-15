@@ -1,0 +1,10 @@
+feat(quantize): handle empty tensor shapes and add alignment fallback test
+scale: ~74 lines across 3 files [M]
+
+- `crates/vox-quantize/src/engine.rs`:
+    - Added logic to handle 0-D (scalar) tensors, ensuring they remain in F32 format and are not routed to k-quantization.
+    - Added a new test `quantizes_with_alignment_fallback` to verify correct fallback behavior for tensors with last dimensions not divisible by 256 or 32.
+- `crates/vox-quantize/Cargo.toml`: Removed unused dependencies `vox-hf-layout` and `anyhow`.
+- `docs/src/architecture/adr-043-quantized-safetensors-ondisk-format.md`: Clarified that the `ggml_dtype` field in the on-disk format is the Debug string of Candle's `GgmlDType`.
+
+--- audit: original='refactor(quantize): drop unused deps, guard empty shapes, e2e fallback test (SP-1 review)' | actual=74L across 3 files | derived=full ---
