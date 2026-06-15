@@ -1,0 +1,16 @@
+feat(docs): automate and improve durable execution animation rendering
+scale: ~466 lines across 7 files [L]
+
+- `scripts/render-durable-animation.vox`: Add a new VoxScript orchestrator to automate the rendering pipeline for `durable_essentialist_loop.webp`. This script detects Chrome/Chromium, installs Node dependencies, bakes the HTML template, captures frames using Puppeteer via `render.js`, and encodes them into an animated WebP using FFmpeg.
+- `tools/render-durable-animation/render.js`: Add a new Node.js script using Puppeteer-core to bake `template_durable.html` with base64 encoded PNG assets and capture 680 frames (34 seconds at 20 FPS) of the animation from a headless Chrome instance.
+- `tools/render-durable-animation/package.json`: Add a new `package.json` to define the Node.js project and its `puppeteer-core` dependency for headless browser automation.
+- `tools/render-durable-animation/.gitignore`: Add a new `.gitignore` file to exclude generated files and Node.js modules from version control.
+- `docs/src/assets/durable_state_animation.html`: Delete the stale, baked HTML file that contained unresolved placeholders and was previously manually generated.
+- `docs/src/assets/template_durable.html`: Update the animation template to improve legibility and rendering:
+    - Increase font sizes for labels (2.4vh) and packet text (2.6vh).
+    - Modify packet backgrounds to be dark with bright borders for better compression survival.
+    - Adjust framing to be edge-to-edge 960x960, removing letterboxing.
+    - Fix doubled worker labels by setting `font-size: 0` on the parent and applying `font-size: 2.4vh` to the `::after` pseudo-element.
+- `docs/src/assets/durable_essentialist_loop.webp`: The animation was re-rendered with the improved template and automated process.
+
+--- audit: original='chore(docs): polish durable-execution animation and add render automation' | actual=466L across 7 files | derived=full ---
