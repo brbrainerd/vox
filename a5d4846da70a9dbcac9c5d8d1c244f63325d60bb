@@ -1,0 +1,8 @@
+docs(architecture): Register `vox-quantize` in workspace and architecture docs
+scale: ~3 lines across 3 files [S]
+
+- `Cargo.toml`: Added `vox-quantize` to the workspace definition.
+- `docs/src/architecture/layers.toml`: Registered `vox-quantize` with `layer = 2` and `max_loc = 4_000`.
+- `docs/src/architecture/where-things-live.md`: Added `vox-quantize` to the "Grouped map of top-level trees" table with its description.
+
+--- audit: original='fix(quantize): register vox-quantize in workspace + arch docs (Task 1 gap)' | actual=3L across 3 files | derived=full ---
