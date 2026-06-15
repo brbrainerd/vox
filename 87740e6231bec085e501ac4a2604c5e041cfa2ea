@@ -1,0 +1,6 @@
+test(ci): add pre-push --enforce-budgets dry-run test
+scale: ~14 lines across 1 files [S]
+
+- `crates/vox-cli/tests/ci_pre_push.rs`: Add a new test case `pre_push_enforce_budgets_flag_accepted_in_dry_run` to verify that the `ci pre-push --dry-run --enforce-budgets` command executes successfully, ensuring the `--enforce-budgets` flag is correctly parsed even when skipped during a dry run.
+
+--- audit: original='chore(snapshot): capture ci_pre_push.rs test addition (parallel session)' | actual=14L across 1 files | derived=full ---
