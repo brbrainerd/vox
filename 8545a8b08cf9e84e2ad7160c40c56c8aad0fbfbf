@@ -1,0 +1,18 @@
+docs(test-suite): Add design for performance and gate tier redesign
+scale: ~394 lines across 2 files [L]
+
+- Add `docs/superpowers/specs/2026-05-27-test-suite-perf-and-gate-tiers-design.md` detailing:
+    - Scope and success criteria for test-suite performance improvements.
+    - Proposed changes to `vox-arch-check` for internal speedup (persistent cache, batched git calls, fixture-based integration tests).
+    - Extensions to `vox ci pre-push` (e.g., `--with-coverage`, `--since <ref>`, `--include-slow`/`--exclude-slow`, budget enforcement).
+    - Introduction of a `scripts/perf/test-baseline.vox` measurement harness.
+    - Creation of `contracts/budgets/test-tier-budgets.v1.yaml`.
+    - Tuning of `.cargo/config.toml` (e.g., `jobs = 24`, `lld-link`).
+    - Refresh of the AGENTS.md tier table.
+- Add `docs/superpowers/specs/2026-05-27-test-suite-baseline-measurements.md` documenting:
+    - Baseline measurements for various test tiers and steps.
+    - Environmental details (CPU, RAM, OS, toolchain, `target/` size, config files).
+    - Workspace shape (number of crates, test types, snapshot tests, `tokio::test`, `serial_test`, `sleep()` calls, `build.rs` files).
+    - Headline warm numbers for `TOESTUB scoped`, `vox-arch-check`, `cargo nextest run --workspace --no-run` (build-only), and `cargo nextest run --workspace --no-fail-fast --retries 0` (no coverage).
+
+--- audit: original='docs: test-suite perf design + baseline measurements (2026-05-27)' | actual=394L across 2 files | derived=full ---
