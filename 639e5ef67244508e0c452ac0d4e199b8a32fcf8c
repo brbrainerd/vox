@@ -1,0 +1,19 @@
+feat(scientia): arXiv handoff bundle carries pre-filled metadata sidecar + manual-upload checklist
+scale: ~329 lines across 5 files [L]
+
+- `crates/vox-scientia/src/manuscript/latex/bundle.rs`:
+    - Introduced `ArxivHandoffMeta` struct to define metadata for arXiv bundles, including primary category, category origin, license, comments, and author ORCIDs.
+    - Added `render_arxiv_bundle_with_handoff` function to generate arXiv bundles with the new handoff metadata.
+    - Modified `render_arxiv_bundle` to be the original contract-stable entry-point, now producing the same output as before for callers not supplying handoff metadata.
+- `crates/vox-cli/src/commands/scientia_phase_handlers.rs`:
+    - Modified `arxiv_bundle_handler` to accept an optional `primary_category` argument.
+    - Implemented logic to construct `ArxivHandoffMeta` based on the provided `primary_category` (defaulting to "cs.SE" if not provided) and author ORCIDs from the scaffold.
+    - Switched to calling `render_arxiv_bundle_with_handoff` to include the generated metadata.
+- `crates/vox-cli-core/src/scientia.rs`:
+    - Added `--primary-category` flag to the `ScientiaCmd::ArxivBundle` subcommand, allowing users to specify the arXiv primary category.
+- `crates/vox-scientia/src/manuscript/latex/mod.rs`:
+    - Exported `ArxivHandoffMeta` and `render_arxiv_bundle_with_handoff`.
+- `crates/vox-cli/src/commands/scientia.rs`:
+    - Updated the `arxiv_bundle_handler` call to pass the new `primary_category` argument.
+
+--- audit: original='feat(scientia): arXiv handoff bundle carries pre-filled metadata sidecar + manual-upload checklist' | actual=329L across 5 files | derived=full ---
