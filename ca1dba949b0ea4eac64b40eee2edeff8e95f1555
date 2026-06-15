@@ -1,0 +1,7 @@
+fix(build): remove duplicate module stub files in vox-db and vox-populi
+scale: ~10 lines across 2 files [S]
+
+- `crates/vox-db/src/types.rs`: Removed the `types.rs` file containing the `now_unix_ms()` function, which was duplicated by `types/now.rs`.
+- `crates/vox-populi/src/inference.rs`: Removed the `inference.rs` file, which contained only a placeholder comment.
+
+--- audit: original='fix(build): remove duplicate-module stub files (vox-db types.rs, vox-populi inference.rs)' | actual=10L across 2 files | derived=full ---
