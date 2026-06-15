@@ -1,0 +1,9 @@
+feat(vox-cli): add `--strict` flag to `vox check` to treat warnings as errors
+scale: ~26 lines across 4 files [S]
+
+- `cli_args.rs`: Add `strict: bool` field to `CheckArgs` with a `--strict` CLI argument.
+- `commands/check.rs`: Modify `run` function to bail with an error if `args.strict` is true and warnings are present, for both `--for-llm` and normal code paths.
+- `pipeline.rs`: Add `has_warnings()` helper method to `FrontendResult` to check if any warning-severity diagnostic was produced.
+- `compilerd.rs`: Initialize `strict` to `false` in `CheckArgs` when handling profile builds.
+
+--- audit: original='feat(vox-cli): add `vox check --strict` flag (CR-L2 gate)' | actual=26L across 4 files | derived=full ---
