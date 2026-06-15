@@ -1,0 +1,6 @@
+refactor(vox-orchestrator-d): move `tests` module to end of file
+scale: ~24 lines across 1 files [S]
+
+- `crates/vox-orchestrator-d`: Moved the `tests` module from line 13 to the end of the `vox_orchestrator_d.rs` file to satisfy the `clippy::items_after_test_module` lint.
+
+--- audit: original='fix(vox-orchestrator-d): move test module to end (clippy items_after_test_module, 1.96)' | actual=24L across 1 files | derived=full ---
