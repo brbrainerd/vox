@@ -1,0 +1,9 @@
+docs: improve readability of Vox code examples with multi-line formatting
+scale: ~27 lines across 1 files [S]
+
+- Refactor `add_task` function example to use multi-line formatting for the `db.insert` call and the `if` statement body.
+- Update `TaskPage` component example to use multi-line formatting for the `tasks.map` function and the `routes` definition.
+- Correct `TaskPage` component example to use `list[Task]` instead of `List[Task]` for the `tasks` parameter type.
+- Refactor `charge_card` function example to use multi-line formatting for the `if` statement body.
+
+--- audit: original='docs: improve readability of Vox code examples with multi-line formatting' | actual=27L across 1 files | derived=full ---
