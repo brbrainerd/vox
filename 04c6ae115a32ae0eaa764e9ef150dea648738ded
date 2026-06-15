@@ -1,0 +1,18 @@
+fix(ci): improve criteria-format lint, vox_bin resolution, and GA telemetry
+scale: ~117 lines across 6 files [M]
+
+- `crates/vox-arch-check/src/criteria_format.rs`:
+  - Updated `field_present` to require an explicit `:/·` separator after a backticked field, rejecting prose mentions.
+  - Added regression tests for the updated `field_present` logic.
+- `crates/vox-arch-check/src/main.rs`:
+  - Modified `run_criteria_format_lint` to surface artifact write failures (e.g., `create_dir_all`, `fs::write`, `serde_json::to_string_pretty`) by exiting with code 2, instead of silently failing.
+- `crates/vox-audit/src/subcommands/behavioral_goldens.rs`:
+  - Enhanced `vox_bin` resolution to first check `$VOX_BIN`, then `target/{debug,release}/vox[.exe]`, and finally `vox` on PATH, aligning with the integration harness contract.
+- `crates/vox-audit/src/lib.rs`:
+  - Ensured `run_ga_snapshot` emits `vox.audit.run` telemetry for each gate invocation, fulfilling the A11 contract.
+- `docs/superpowers/plans/2026-06-06-phase0-gate-framework.md`:
+  - Added a note detailing the hardening of the gate runner with timeout and `GoldenRun` enum for robust error handling.
+- `contracts/ci/check-targets.v1.yaml`:
+  - Set `criteria-format` check's `rust_only` to `false` to ensure it runs on docs-only PRs, as it validates a Markdown contract.
+
+--- audit: original='fix(review): address CodeRabbit — A11 telemetry, separator-strict CR-META, surfaced I/O errors, vox_bin target fallback, criteria-format not rust-gated' | actual=117L across 6 files | derived=full ---
