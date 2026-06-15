@@ -1,0 +1,4 @@
+refactor(
+scale: ~12 lines across 3 files [S]
+
+--- audit: original='style: rustfmt the vox_git::read_only call sites' | actual=12L across 3 files | derived=full ---
