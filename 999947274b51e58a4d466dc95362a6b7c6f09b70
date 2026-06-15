@@ -1,0 +1,17 @@
+fix(tests): repair 4 broken test files and delete obsolete route test
+scale: ~164 lines across 12 files [M]
+
+- `crates/vox-compiler/tests/route_express_emit_test.rs`: Deleted obsolete test file. This test was ignored, referenced symbols that no longer exist after the Web IR / route-lowering rewrite, and would have required a complete rewrite.
+- `crates/vox-db/tests/ops_agents_tests.rs`: Updated two `create_session` calls to pass `None` for the new `tenant_id: Option<&str>` field.
+- `crates/vox-inference/src/dispatcher.rs`: Renamed `CandleCpuStub` to `CandleCpuBackend` in `mod tests` import and instantiation.
+- `crates/vox-db/tests/ops_retention_tests.rs`: Updated one `create_session` call to pass `None` for the new `tenant_id: Option<&str>` field.
+- `crates/vox-orchestrator-mcp/src/task_tools/tests.rs`: Added `active_skill: None` and `tenant_id: None` to the `base_params` helper function for `SubmitTaskParams`.
+- `crates/vox-scientia/src/class_routing/routing.rs`: Corrected `mod tests` import path from `super::defaults` to `super::super::defaults`.
+- `crates/vox-scientia/src/critic_gate/gate.rs`: Corrected `mod tests` import path from `super::fingerprint` to `super::super::fingerprint`.
+- `crates/vox-scientia/src/dashboard/stalls.rs`: Corrected `mod tests` import path from `super::queue` to `super::super::queue`.
+- `crates/vox-scientia/src/findings_site/meta.rs`: Corrected `mod tests` import path from `super::page` to `super::super::page`.
+- `crates/vox-scientia/src/findings_site/render.rs`: Corrected `mod tests` import path from `super::page::*` to `super::super::page::*`.
+- `crates/vox-scientia/src/manuscript/scaffold/render.rs`: Corrected `mod tests` import path from `super::section_tree` to `super::super::section_tree`.
+- `crates/vox-db/src/local_tests.rs`: Added `tenant_id: None` to the `ModelOutcome` struct in the `unified_llm_turn_writes_llm_and_socrates` test.
+
+--- audit: original='fix(tests): repair 4 broken test files + delete obsolete route test' | actual=164L across 12 files | derived=full ---
