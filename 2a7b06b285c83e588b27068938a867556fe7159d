@@ -1,0 +1,8 @@
+feat(visus-review): add adversarial design-principles review prompt and JSON contract
+scale: ~43 lines across 1 files [S]
+
+- `crates/vox-orchestrator-mcp/src/visus_review/prompt.rs`: Add a new module defining constants and functions for an adversarial GUI screenshot review. This includes:
+    - `RUBRIC`: A constant string detailing 8 design principles for review, each with a number and short description.
+    - `system_prompt()`: A function generating a system prompt for a product-design reviewer, incorporating the `RUBRIC` and specifying a JSON output contract for findings, including `score`, `verdict`, and an array of `findings` (each with `principle`, `severity`, `region`, and `critique`).
+
+--- audit: original='feat(visus-review): adversarial design-principles review prompt + JSON contract' | actual=43L across 1 files | derived=full ---
