@@ -1,0 +1,6 @@
+docs: add image demonstrating row wrap fix
+scale: ~0 lines across 1 files [XS]
+
+- `docs/src/assets/mobile-proof-2026/home-row-wrap-fixed.png`: Add new image.
+
+--- audit: original='docs: emulator proof of row wrap fix (Exercise button now wraps, not overflows)' | actual=0L across 1 files | derived=full ---
