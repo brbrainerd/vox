@@ -1,0 +1,20 @@
+fix(gitignore): untrack 88k files from `target-*/` directories
+scale: ~88036 lines across 9804 files [XL]
+
+DIVERGENCE: original subject claimed 'fix(gitignore): untrack 124k files from target-*/ dirs; add target-*/ glob' but this commit actually changed ~88036 lines across 9804 files. Top areas:
+target: 88001 lines, 9788 files
+(root): 20 lines, 1 files
+crates: 15 lines, 15 files
+
+- Untracked 88,036 files from `target/` directories, primarily build artifacts.
+- Modified `.gitignore` to include `target-*/` glob pattern.
+- Broadened `.gitignore` entry for `.coderabbit/` to cover the entire directory.
+- Updated `semantic_planner` to use generic prefix rules (`target-`, `target_`) for build artifact detection instead of specific named entries.
+- Expanded `is_ignored_build_artifacts` tests to cover all `target-*` cases.
+- Removed numerous `target/debug/build/*/output` and `target/debug/build/*/out/*.rs` files.
+- Removed many `target/debug/deps/*.d` files.
+- Removed `target/generated/Cargo.lock`.
+- Removed `target/generated/src/lib.rs` and `target/generated/src/main.rs`.
+- Removed `target/generated/public/assets/index-Hd_izy62.js`.
+
+--- audit: original='fix(gitignore): untrack 124k files from target-*/ dirs; add target-*/ glob' | actual=88036L across 9804 files | derived=stat-only ---
