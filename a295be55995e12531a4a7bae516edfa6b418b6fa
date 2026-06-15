@@ -1,0 +1,6 @@
+docs(spec): clarify console block segmentation and affordances for v1
+scale: ~9 lines across 1 files [XS]
+
+- `docs/superpowers/specs/2026-06-12-vox-console-discovery-engine-design.md`: Updated the "Blocks" section to explicitly state that v1 ships with raw xterm scrollback, deferring OSC 133 based block segmentation and per-block affordances (copy, re-run, send-to-agent) to a follow-up. Clarified that send-to-agent in v1 operates on the last command line/typed body.
+
+--- audit: original='docs(spec): tighten console §Blocks wording — v1 ships raw scrollback' | actual=9L across 1 files | derived=full ---
