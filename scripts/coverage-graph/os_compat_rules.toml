@@ -1,0 +1,136 @@
+# OS Compatibility Rules — config-driven rule set for os_compat.py
+#
+# Fields:
+#   name                  : string — category key used in reports
+#   confidence            : "high" | "medium" | "low"
+#   pattern               : Python regex string (raw, uncompiled)
+#   note                  : human-readable description of the portability smell
+#   detector_fixture_exempt : bool (default false) — skip lines in vox-code-audit/src/detectors/
+#   url_exempt            : bool (default false) — skip lines containing href=/src=/://
+#
+# Add new rules here without touching os_compat.py.
+
+# ── ORIGINAL 12 RULES ────────────────────────────────────────────────────────
+
+[[rule]]
+name = "abs-unix-path"
+confidence = "high"
+pattern = '"(/(?:tmp|usr|etc|var|home|opt|bin|proc|sys|dev|root)\\b[^"]*)"'
+note = "Hardcoded absolute Unix path literal — breaks on Windows. Use std::env::temp_dir()/dirs/Path."
+detector_fixture_exempt = true
+url_exempt = true
+
+[[rule]]
+name = "home-tilde"
+confidence = "high"
+pattern = '"(~/[^"]*)"'
+note = "Literal ~ home path — not expanded on Windows. Use the `dirs`/`home` crate."
+
+[[rule]]
+name = "win-drive-path"
+confidence = "high"
+pattern = '"([A-Za-z]:\\\\\\\\[^"]*)"'
+note = "Hardcoded Windows drive path — breaks on Unix."
+detector_fixture_exempt = true
+url_exempt = true
+
+[[rule]]
+name = "shell-command"
+confidence = "high"
+pattern = 'Command::new\(\s*"(sh|bash|cmd|cmd\.exe|powershell|pwsh|zsh|/bin/[a-z]+)"'
+note = "OS-specific shell invocation — pick per-OS or avoid the shell."
+
+[[rule]]
+name = "dynlib-ext"
+confidence = "high"
+pattern = '"\.(so|dylib|dll)"|\.(so|dylib|dll)"'
+note = "Hardcoded dynamic-lib extension — differs per OS (.so/.dylib/.dll)."
+detector_fixture_exempt = true
+
+[[rule]]
+name = "env-home-asym"
+confidence = "high"
+pattern = '(?:env::var|var|getenv)\(\s*"HOME"'
+note = "Reads HOME (Unix) — Windows uses USERPROFILE. Use the `dirs` crate."
+
+[[rule]]
+name = "path-sep-env"
+confidence = "high"
+pattern = "\\.(split\\(\\s*'[:;]'\\s*\\)|split\\(\"[:;]\"\\))"
+note = "Splitting on ':' or ';' — PATH separator differs per OS. Use std::env::split_paths."
+
+[[rule]]
+name = "path-join-fmt"
+confidence = "medium"
+pattern = 'format!\(\s*"[^"]*\{\}/'
+note = "Building a path with `/` in format! — use Path::join / PathBuf for portability."
+
+[[rule]]
+name = "crlf-literal"
+confidence = "medium"
+pattern = '"\\\\r\\\\n"'
+note = "Hardcoded CRLF literal — line-ending assumption."
+
+[[rule]]
+name = "os-unix-api"
+confidence = "medium"
+pattern = 'std::os::unix|PermissionsExt|from_mode|\.mode\(0o'
+note = "Unix-only OS API (permissions/mode). Needs a Windows path or cfg gate."
+
+[[rule]]
+name = "os-windows-api"
+confidence = "medium"
+pattern = 'std::os::windows|CREATE_NO_WINDOW|winapi|windows_sys'
+note = "Windows-only OS API. Needs a Unix path or cfg gate."
+
+[[rule]]
+name = "unix-symlink"
+confidence = "medium"
+pattern = 'std::os::unix::fs::symlink|unix::fs::symlink'
+note = "Unix symlink API — Windows uses symlink_file/symlink_dir."
+
+# ── NEW RULES (7 additional) ─────────────────────────────────────────────────
+
+[[rule]]
+name = "hardcoded-newline-crlf"
+confidence = "medium"
+pattern = '\\\\r\\\\n|\\\\\\\\r\\\\\\\\n'
+note = "Hardcoded CRLF sequence — use a platform-aware line ending or write '\\n' and let git handle normalization."
+
+[[rule]]
+name = "file-executable-bit"
+confidence = "medium"
+pattern = 'set_mode|PermissionsExt|fs::set_permissions.*mode\('
+note = "Unix-only file permission API. Windows has no executable bit — needs cfg gate."
+
+[[rule]]
+name = "env-path-colon"
+confidence = "medium"
+pattern = 'env::var\(\s*"PATH"\s*\).*\.split\('
+note = "Splitting PATH on ':' breaks on Windows (uses ';'). Use std::env::split_paths."
+
+[[rule]]
+name = "tempdir-slash"
+confidence = "medium"
+pattern = '"/tmp/'
+note = "Hardcoded /tmp — use std::env::temp_dir() instead."
+detector_fixture_exempt = true
+url_exempt = true
+
+[[rule]]
+name = "process-uid-gid"
+confidence = "high"
+pattern = 'std::os::unix::process|CommandExt::uid\(|CommandExt::gid\('
+note = "Unix UID/GID process APIs don't exist on Windows — needs cfg gate."
+
+[[rule]]
+name = "locale-encoding"
+confidence = "low"
+pattern = '"UTF-8"|"utf-8"|encoding = "utf'
+note = "Hardcoded encoding assumption — may fail on systems with different locales."
+
+[[rule]]
+name = "signal-unix"
+confidence = "high"
+pattern = 'signal::Signal|nix::sys::signal|libc::SIGTERM|libc::SIGKILL|libc::SIGHUP'
+note = "Unix signal APIs — Windows uses different process termination mechanisms."
