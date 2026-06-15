@@ -1,0 +1,10 @@
+docs: update README with detailed ecosystem and plugin information
+scale: ~3801 lines across 2 files [XL]
+
+- `Cargo.lock`: Update dependencies to reflect changes in the project, including new versions for various crates.
+- `README.md`:
+    - Refactor "Optional plugins" section into "Ecosystem & Plugins" with dedicated "CLI Extensions" and "Runtime Plugins (Agent Skills)" subsections.
+    - Expand descriptions for `vox-ml-cli` and `vox-schola` CLI extensions, adding `vox-gui`.
+    - Add a comprehensive list of 27 first-party runtime plugins, categorized by function (Machine Learning & Audio, Execution Sandboxes, etc.).
+
+--- audit: original='docs: harden README architecture and update plugin catalog' | actual=3801L across 2 files | derived=full ---
