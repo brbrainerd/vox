@@ -1,0 +1,6 @@
+feat(populi): implement dispatch persistence and integrate ARS skill runtime in CLI
+scale: ~2310 lines across 64 files [XL]
+
+- `crates/vox-cli`:
+
+--- audit: original='feat: implement populi transport persistence layer and integrate ARS skill runtime in CLI' | actual=2310L across 64 files | derived=full ---
