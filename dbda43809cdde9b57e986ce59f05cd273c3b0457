@@ -1,0 +1,14 @@
+docs(README): refine content, structure, and clarity
+scale: ~252 lines across 1 files [L]
+
+- **Hero Subhead:** Reworded for conciseness and to explicitly state what `.vox` compiles to (database schema, typed server, browser app, deployment artifacts).
+- **Why Vox Section:** Revised language to emphasize Vox's design post-LLM, focusing on collapsing duplications, type-system error handling, and integrated durability/tool exposure.
+- **Pillars Section:**
+    - Restructured content for progressive disclosure, building examples and sophistication.
+    - Eliminated redundant concept statements, ensuring each idea appears once.
+    - Consolidated "Agents, mesh, local training" into "Mesh and provider routing," moving orchestrator and MENS content.
+- **Stability Table:** Trimmed content, moving redundant rule-pack prose to a link to Pillar 5.
+- **Architectural Guardrails Table:** Removed as it duplicated Pillar 5; replaced with a lighter "CI gates beyond the rule pack" listing repo-level invariants.
+- **Meta-scaffolding:** Replaced phrases like "the five pillars build on each other" and "Get involved" with concrete statements.
+
+--- audit: original='docs(README): trim redundancy, reduce bizspeak, deepen information density' | actual=252L across 1 files | derived=full ---
