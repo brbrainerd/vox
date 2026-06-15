@@ -1,0 +1,8 @@
+docs(orchestrator-core-extraction): Clarify D1 manifest expansion and struct-field detection
+scale: ~82 lines across 1 files [M]
+
+- docs/superpowers/specs/2026-05-28-vox-orchestrator-core-extraction-design.md:
+  - Added a new "Expansion note" explaining that the D1 manifest expansion was re-run to include single-file modules (top-level `.rs` files) in addition to subdirectories of `src/`. This increased the candidate count from 23 to 97.
+  - Modified the existing "Struct-field detection note" to clarify the regex used and the modules identified (`config`, `queue`, `types`).
+
+--- audit: original='docs(spec): D1 manifest expansion — add missed single-file modules' | actual=82L across 1 files | derived=full ---
