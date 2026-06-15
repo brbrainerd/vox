@@ -1,0 +1,10 @@
+ci(gui-playwright-smoke): Add non-gating visual review steps
+scale: ~39 lines across 1 files [S]
+
+- .github/workflows/ci.yml:
+    - Added a "GUI visual-review capture (manifest)" step to run Playwright tests for visual review.
+    - Added a "GUI visual AI review (advisory, non-gating)" step to run `gui-visual-review` with AI.
+    - Added an "Upload visual-review report + screens (always)" step to upload artifacts.
+    - Added a "Commit visual-review cache + report (main only)" step to commit visual review cache and ledger on `main` branch pushes.
+
+--- audit: original='ci(visual-review): non-gating capture+AI-review steps in gui-playwright-smoke' | actual=39L across 1 files | derived=full ---
