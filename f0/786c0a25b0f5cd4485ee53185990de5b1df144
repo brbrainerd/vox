@@ -1,0 +1,6 @@
+docs(contracts): update description for vox_browser_click_xy tool
+scale: ~2 lines across 1 files [XS]
+
+- `contracts/mcp/tool-registry.canonical.yaml`: Clarified the description for `vox_browser_click_xy` to specify that the click occurs "on an existing page_id session."
+
+--- audit: original='fix(contracts): align vox_browser_click_xy description with operations catalog' | actual=2L across 1 files | derived=full ---
