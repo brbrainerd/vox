@@ -1,0 +1,21 @@
+feat(gui): Add Skills & Plugins surface with MCP plugin tools
+scale: ~771 lines across 11 files [L]
+
+- **`vox-gui`**:
+  - Add `SkillsPluginsView.tsx` for a new "Skills" surface, providing "Installed" and "Marketplace" tabs.
+  - The "Installed" tab lists skills (`vox_skill_list`) and plugins (`vox_plugin_list`), allowing uninstall/remove/info actions.
+  - The "Marketplace" tab lists plugins (`vox_plugin_catalog`) and skills (`vox_skill_search`), allowing install actions.
+  - All interactions route through `invoke_mcp_tool`.
+  - Update `App.tsx` to include the `SkillsPluginsView` and register the 'skills' route.
+  - Update `Sidebar.tsx` to add a "Skills" navigation item.
+- **`vox-orchestrator-mcp`**:
+  - Introduce `plugin_tools.rs` with MCP tools for plugin management: `vox_plugin_list`, `vox_plugin_catalog`, `vox_plugin_info`, `vox_plugin_install`, and `vox_plugin_remove`.
+  - `server_state.rs` now stores the `plugins_dir` and a `plugin_registry` (Arc<TokRwLock<Registry>>) to manage plugin discovery and state.
+  - `dispatch.rs` registers the new plugin MCP tools.
+  - `lib.rs` exports the new `plugin_tools` module as `plugins`.
+  - `skills_tools.rs` enhances `SkillInfo` with `source`, `permissions`, and `tags` fields, and updates `to_info` and `to_info_with_source` functions to populate these.
+- **`Cargo.lock`**: Update dependencies due to changes in `vox-orchestrator-mcp`.
+- **`Cargo.toml`**: Update `vox-orchestrator-mcp` dependencies.
+- **`gui-surface-coverage.v1.json`**: Regenerate coverage data for the new GUI route.
+
+--- audit: original='@ feat(gui): full Skills & Plugins support (plugin MCP tools + two-tab surface)' | actual=771L across 11 files | derived=full ---
