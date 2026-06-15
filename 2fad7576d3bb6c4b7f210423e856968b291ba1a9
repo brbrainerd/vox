@@ -1,0 +1,13 @@
+feat(audit): Add 4 new detectors for Vox type and syntax rules
+scale: ~817 lines across 5 files [L]
+
+- `crates/vox-code-audit/src/detectors/training_eligible.rs`: Add `TrainingEligibleDetector` to flag `training_eligible: true` files importing from archive/deprecated/legacy paths.
+- `crates/vox-code-audit/src/detectors/id_at_boundary.rs`: Add `IdAtBoundaryDetector` to warn about bare `str`-typed `_id` parameters at Vox API boundaries (`@endpoint`, `@activity`, actor message handlers).
+- `crates/vox-code-audit/src/detectors/syntax_version.rs`: Add `SyntaxVersionDetector` to detect invalid or conflicting `syntax_version` declarations in Vox files.
+- `crates/vox-code-audit/src/detectors/anonymous_error.rs`: Add `AnonymousErrorDetector` to identify Vox functions returning `Result[T, str]` (anonymous error types).
+- `crates/vox-code-audit/src/detectors/mod.rs`:
+    - Add new modules for `id_at_boundary`, `anonymous_error`, `syntax_version`, and `training_eligible` detectors.
+    - Register these 4 new detectors in `all_rules()`.
+    - Update `rule_count()` from 37 to 41.
+
+--- audit: original='feat(audit): Phase 3 type-rule detectors — id-boundary, anon-error, syntax-version, corpus-eligibility' | actual=817L across 5 files | derived=full ---
