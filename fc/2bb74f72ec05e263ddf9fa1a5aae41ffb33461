@@ -1,0 +1,7 @@
+docs(scientia): update strategic plan status and document research-pipeline stage location
+scale: ~3 lines across 2 files [S]
+
+- `docs/src/architecture/scientia-self-publication-finalization-plan-2026.md`: Changed the `status` from "approved" to "research" to resolve a `vox-doc-pipeline` hard error.
+- `docs/src/architecture/where-things-live.md`: Added a new entry documenting the location for adding research-pipeline stages within `crates/vox-orchestrator/src/dei_shim/research/`.
+
+--- audit: original='docs(scientia): record where research-pipeline stages live (Phase 0a)' | actual=3L across 2 files | derived=full ---
