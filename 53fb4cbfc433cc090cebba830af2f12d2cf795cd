@@ -1,0 +1,6 @@
+chore(deps): update Cargo.lock for telemetry unification and CI SSOT
+scale: ~19 lines across 1 files [S]
+
+- Update `Cargo.lock` to reflect changes from telemetry unification (Phase A-D) and CI Single Source of Truth (SSOT) initiatives.
+
+--- audit: original='chore: update Cargo.lock after telemetry unification (Phase A-D) + CI SSOT' | actual=19L across 1 files | derived=full ---
