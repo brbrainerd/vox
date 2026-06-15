@@ -1,0 +1,37 @@
+feat(docs,populi): implement comprehensive documentation framework and Populi tensor training infrastructure
+scale: ~13892 lines across 226 files [XL]
+
+- **docs**:
+    - Refactored and reorganized documentation structure, deleting numerous old API and example files (e.g., `vox-orchestrator.md`, `vox-runtime.md`, `vox-db.md`, `example_chatbot.md`, `DOC_GAPS.md`).
+    - Added new reference documentation for syntax (`ref-syntax.md`), database surface (`ref-db-surface.md`), web models (`ref-web-model.md`), and standard library (`ref-stdlib.md`).
+    - Introduced new how-to guides for database usage (`how-to-database.md`), islands and pages (`how-to-islands-and-pages.md`), testing integration (`how-to-testing-integration.md`), system I/O (`how-to-system-io.md`), and scaling actors (`how-to-scale-actors.md`).
+    - Updated existing documentation, including `SUMMARY.md`, `index.md`, `ref-decorators.md`, `tut-getting-started.md`, `tut-ui-integration.md`, `tut-first-app.md`, `expl-security.md`, `tut-workflow-durability.md`, `expl-ai-orchestration.md`, `how-to-custom-types.md`, `how-to-error-handling.md`, `how-to-unit-test.md`, `expl-capabilities.md`, `glossary.md`, and `expl-runtime.md`.
+    - Added new architecture index (`architecture/INDEX.md`).
+    - Removed various JSON files (`decorators.json`, `keywords.json`).
+    - Introduced `audit_scanner.py` and `syntax_healer.py` scripts.
+- **vox-populi**:
+    - Implemented `domain_profiles.rs` for managing domain-specific training configurations, including `DomainProfile`, `DomainProfileDefaults`, and `DomainProfilesFile` structs.
+    - Enhanced `training_text.rs` with new functions for ChatML formatting, including `chatml_turns_text` and `chatml_turns_prefix_open_assistant`, and updated `chatml_prefix_open_assistant` to use a `ChatmlConfig`.
+    - Modified `training_config.rs` to support new training parameters.
+    - Updated `candle_qlora_train/training_loop.rs` and `candle_qlora_train/mod.rs` for integration with domain profiles.
+- **vox-cli**:
+    - Modified `train_arm.rs` to support loading and applying domain profiles during training, adding a `domain` argument and logic to merge profile settings with command-line arguments.
+- **vox-corpus**:
+    - Added `prompt_gen.rs` for domain-specific prompt generation for synthetic training data, including `PromptDomain` and `DomainTemplates`.
+    - Updated `preflight_part2.rs` to remove `ARCHITECTURAL_PAIRS` constant.
+    - Enhanced `extract_rs.rs` to include `difficulty` in `RsTrainingPair` and to extract type definitions in addition to functions.
+    - Added `prompt_gen.rs` for generating prompts for synthetic training data.
+    - Introduced `prompt_gen.rs` for generating prompts for synthetic training data.
+    - Added `extract_docs.rs` for documentation extraction.
+- **vox-tensor**:
+    - Updated `data.rs` to support new training data structures.
+- **mens**:
+    - Added `system_prompt.txt` and `domain-profiles.yaml` configuration files.
+- **scripts**:
+    - Added `vox_system_prompt.txt`.
+- **vox-integration-tests**:
+    - Added `docs_syntax_verify.rs` for verifying documentation syntax.
+- **examples**:
+    - Added `golden/index_showcase.vox` and `golden/getting_started.vox`.
+
+--- audit: original='feat: implement comprehensive documentation framework and populi tensor training infrastructure' | actual=13892L across 226 files | derived=sampled ---
