@@ -1,0 +1,18 @@
+feat(typeck): implement transitive workflow determinism lint
+scale: ~259 lines across 2 files [L]
+
+- `crates/vox-compiler/src/typeck/determinism_lint.rs`:
+    - Modified `check_workflow_determinism` to recursively check user-defined `fn` callees for non-deterministic operations.
+    - Introduced a `HashMap<&str, &HirFn>` to map function names to `HirFn` definitions for lookup.
+    - Added a `HashSet<&str>` to track visited functions during traversal, preventing infinite loops in cyclic call graphs.
+    - Updated `walk_stmt` and `walk_expr` to resolve bare identifier calls (e.g., `helper()`) in addition to method and field access calls.
+    - Explicitly exempted `activity` calls from transitive checking, as their results are journaled and replay-safe.
+    - Added `HirFn` to `hir` imports and `HashMap`, `HashSet` to `std::collections` imports.
+- `crates/vox-compiler/tests/determinism_lint.rs`:
+    - Added four new tests to cover the transitive determinism lint:
+        - `workflow_calling_plain_fn_using_system_time_is_rejected`: Tests a workflow calling a plain helper function that uses `std.time.now_ms()`.
+        - `workflow_calling_activity_using_system_time_is_allowed`: Tests a workflow calling an activity that uses `std.time.now_ms()`, ensuring it's allowed.
+        - `workflow_transitive_chain_through_two_plain_fns_is_rejected`: Tests a multi-hop call chain (workflow -> fn -> fn -> non-deterministic call).
+        - `workflow_mutually_recursive_plain_fns_are_rejected`: Tests mutually recursive functions that eventually lead to a non-deterministic call.
+
+--- audit: original='feat(typeck): transitive determinism lint (M-6)' | actual=259L across 2 files | derived=full ---
