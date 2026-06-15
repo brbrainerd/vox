@@ -1,0 +1,11 @@
+feat(vox-cli, vox-telemetry): add `vox doctor --project` for project health checks
+scale: ~433 lines across 6 files [L]
+
+- `crates/vox-cli/src/commands/diagnostics/doctor/project_check.rs`: New module implementing the `vox doctor --project` functionality. It discovers and compile-checks all `.vox` files under a specified project root, aggregating results into a `ProjectHealthReport` and emitting a `DoctorProjectCheckEvent` for telemetry. Includes 5 tests for this functionality.
+- `crates/vox-telemetry/src/types.rs`: Added `DoctorProjectCheckEvent` struct, `METRIC_TYPE_DOCTOR_PROJECT_CHECK` constant, and a new `DoctorProjectCheck` variant to `TelemetryEvent` enum to support telemetry for project health checks.
+- `crates/vox-cli/src/cli_args.rs`: Added a new `project: Option<PathBuf>` field to `DoctorArgs` to introduce the `--project [PATH]` argument, defaulting to the current directory.
+- `crates/vox-cli/src/cli_dispatch/lanes.rs`: Modified `run_doctor_command` to prioritize the new project-health check mode when `--project` is specified, ignoring existing environment-check flags.
+- `crates/vox-cli/src/commands/diagnostics/doctor/mod.rs`: Made the new `project_check` module public.
+- `docs/superpowers/specs/2026-05-17-vox-doctor-project-design.md`: New design document detailing the goals, scope, out-of-scope items, and implementation seams for the `vox doctor --project` feature.
+
+--- audit: original='feat(vox-cli, vox-telemetry): vox doctor --project (CR-L7)' | actual=433L across 6 files | derived=full ---
