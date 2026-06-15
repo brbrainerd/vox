@@ -1,0 +1,10 @@
+docs(architecture): update frontmatter status and add category to ADRs
+scale: ~5 lines across 2 files [S]
+
+- `docs/src/architecture/adr-NNN-scope-tauri-desktop-only.md`:
+  - Changed `status` from `proposed` to `experimental`.
+  - Added `category: "Architecture SSOTs"`.
+- `docs/src/architecture/mobile-rn-expo-implementation-spec-2026.md`:
+  - Changed `status` from `draft` to `experimental`.
+
+--- audit: original='fix(docs): correct frontmatter status/category in new architecture docs' | actual=5L across 2 files | derived=full ---
