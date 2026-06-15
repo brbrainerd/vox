@@ -1,0 +1,7 @@
+test: deflake two load-sensitive tests
+scale: ~12 lines across 2 files [S]
+
+- `crates/vox-effort-audit/tests/e2e_smoke.rs`: Increased the budget for `concurrent_judge_completes_under_budget` from 700ms to 850ms to account for scheduler jitter under parallel test execution.
+- `crates/vox-populi/src/transport/router.rs`: Added `#[serial]` attribute to the `bootstrap_exchange_round_trip` test to prevent race conditions when modifying the process-global `VOX_MESH_TOKEN` environment variable.
+
+--- audit: original='test: deflake two load-sensitive tests surfaced by the full-workspace run' | actual=12L across 2 files | derived=full ---
