@@ -17,7 +17,13 @@
     "reached_not_proven": 5793,
     "reached_not_proven_note": "symbols executed by tests but with ZERO asserted behavior \u2014 the keystone gap and the real remaining-work denominator, not proven_pct alone. REPRODUCIBLE figure (supersedes the earlier directional 7950).",
     "reach_source": "local full-workspace llvm-cov 2026-06-15 with 1.19M lines executed, 60 crates reached. Reproduced after fixing the peft-rs candle-0.10 compile error (exit-101 blocker) and merging profraws via llvm-profdata -f file-list (Windows arg-limit dodge). CI-gating still TODO.",
-    "top_unproven_crates": {"vox-compiler": 699, "vox-orchestrator": 666, "vox-code-audit": 571, "vox-publisher": 419, "vox-codegen": 358, "vox-populi": 330}
+    "top_unproven_crates": {"vox-compiler": 699, "vox-orchestrator": 666, "vox-code-audit": 571, "vox-publisher": 419, "vox-codegen": 358, "vox-populi": 330},
+    "ratchet": {
+      "reached_not_proven_baseline": 5793,
+      "snapshot": "contracts/reports/semantic-coverage-graph.snapshot.json.gz",
+      "updated": "2026-06-15",
+      "policy": "CI fails if current reached_not_proven > baseline. Lower the baseline (never raise) in the same PR that adds the proving tests, and regenerate the snapshot if the proven map changed."
+    }
   },
   "crates": {
     "vox-actor-runtime": {

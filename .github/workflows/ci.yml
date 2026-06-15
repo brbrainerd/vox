@@ -844,6 +844,19 @@ jobs:
           cargo llvm-cov report --lcov --output-path target/llvm-cov-lcov.info
           ./target/debug/vox --quiet ci coverage-gates --summary-json target/llvm-cov-summary.json --mode enforce
 
+      - name: Semantic-coverage reach ratchet (reached-but-unproven must not rise)
+        if: needs.setup.outputs.rust_changed == 'true'
+        run: |
+          set -euo pipefail
+          python3 scripts/coverage-graph/ingest_reaches.py \
+            --lcov target/llvm-cov-lcov.info \
+            --graph contracts/reports/semantic-coverage-graph.snapshot.json.gz \
+            --out "$RUNNER_TEMP/graph.reached.json" \
+            --report "$RUNNER_TEMP/REACHED_VS_PROVEN.md"
+          python3 scripts/coverage-graph/ratchet_check.py \
+            --report "$RUNNER_TEMP/REACHED_VS_PROVEN.md" \
+            --baseline contracts/reports/semantic-coverage.v1.json
+
       - name: Upload LLVM coverage artifacts
         if: (success() || failure()) && needs.setup.outputs.rust_changed == 'true'
         uses: actions/upload-artifact@v7
