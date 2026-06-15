@@ -1,0 +1,7 @@
+docs(scientia): Mark Phase 9 of self-publication plan as complete
+scale: ~4 lines across 1 files [XS]
+
+- Update "Phase 9 — First Provider Atlas" section in `scientia-self-publication-finalization-plan-2026.md` to indicate completion on 2026-05-09.
+- Add a detailed status update for Phase 9, outlining completed components: `AtlasManifest` builder, `MeasurementCampaign` (Inspect bridge config + prereg check), `AcademicCoauthor` (ORCID + CRediT taxonomy roles → RO-Crate Person entity), and `AtlasSubmissionGate` (prereg required + reply window cleared + negative-result quota).
+
+--- audit: original='docs(scientia): mark Phase 9 Complete — Provider Atlas types + submission gate' | actual=4L across 1 files | derived=full ---
