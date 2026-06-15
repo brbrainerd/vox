@@ -1,7 +1,11 @@
-name: Cross-Platform Check (Windows + macOS)
+name: Cross-Platform Check (Windows + macOS + Ubuntu)
 on:
+  pull_request:
+  merge_group:
+  push:
+    branches: [main]
   schedule:
-    - cron: '0 4 * * 1'   # Weekly Monday
+    - cron: '0 4 * * 1'   # Weekly Monday belt-and-suspenders run
   workflow_dispatch:
 
 concurrency:
@@ -13,6 +17,7 @@ env:
 
 jobs:
   cross-check:
+    name: Cross-Platform (Win/macOS/Ubuntu)
     strategy:
       fail-fast: false
       matrix:
@@ -25,8 +30,6 @@ jobs:
             target: x86_64-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
     env:
-      # Shared compile cache via the GitHub Actions cache service (see
-      # ci-fallback-hosted.yml `gate` for rationale).
       RUSTC_WRAPPER: sccache
       SCCACHE_GHA_ENABLED: "true"
       CARGO_INCREMENTAL: "0"
@@ -37,10 +40,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+          components: clippy
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.9
-
 
       - uses: actions/cache@v5
         with:
@@ -51,25 +54,36 @@ jobs:
           key: ${{ runner.os }}-cargo-cross-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-cross-
-      
-      - name: cargo check (workspace)
-        # vox-gui is a Tauri bin: `tauri::generate_context!()` requires the built
-        # frontend (`frontendDist = "ui/dist"`) at compile time, which this
-        # lightweight cross-compile sanity check does not produce. Its full build
-        # (incl. the pnpm frontend) is covered by release-gui.yml, so exclude it
-        # here rather than add a node/pnpm toolchain to every cross-check run.
+
+      # Per-PR depth (cheap): prove the whole workspace COMPILES on every OS.
+      # vox-gui is a Tauri bin needing the pnpm-built ui/dist at compile time, so
+      # it is excluded here and covered separately (Phase 5 / release-gui.yml).
+      - name: cargo check (workspace) — every event
         run: cargo check --workspace --exclude vox-gui --target ${{ matrix.target }}
-      
+
+      # Per-PR test signal, kept cheap: only the platform-sensitive crates.
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest
-      
-      - name: nextest (platform-sensitive crates)
+
+      - name: nextest (platform-sensitive crates) — PR/push
+        if: github.event_name != 'merge_group'
         run: |
           cargo nextest run -p vox-config
           cargo nextest run -p vox-cli-core
           cargo nextest run -p vox-populi --lib
+
+      # Merge-queue depth (thorough but amortized): full clippy + full nextest run
+      # ONCE per merge batch, so hosted Windows (2x) / macOS (10x) minutes are not
+      # spent on every push to a PR.
+      - name: clippy (workspace, -D warnings) — merge_group only
+        if: github.event_name == 'merge_group'
+        run: cargo clippy --workspace --exclude vox-gui --target ${{ matrix.target }} -- -D warnings
+
+      - name: nextest (workspace) — merge_group only
+        if: github.event_name == 'merge_group'
+        run: cargo nextest run --workspace --exclude vox-gui
 
       - name: sccache stats
         if: always()
