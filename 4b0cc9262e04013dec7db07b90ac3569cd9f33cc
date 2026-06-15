@@ -1,0 +1,16 @@
+docs(orchestrator): add companion audit for non-routing surfaces
+scale: ~1010 lines across 1 files [XL]
+
+- Add new document `docs/superpowers/specs/2026-05-01-orchestrator-companion-audit-design.md` detailing a full-system audit of `crates/vox-orchestrator` and surrounding surfaces, excluding model selection, catalog, and secret distribution.
+- The audit covers approximately 280 numbered improvements across 22 surface clusters.
+- Improvements are tagged with a four-axis system: risk/capability/hygiene/perf × P0–P3 × S/M/L effort.
+- The document serves as a companion to `model-orchestration-ssot-audit-2026.md` and `nextgen-orchestrator-research-2026.md`.
+- Specific areas covered include:
+    - `crates/vox-orchestrator/src/` (excluding `models/` and `catalog.rs`)
+    - `crates/vox-orchestrator/src/mcp_tools/` (all eight tool subdirectories)
+    - `crates/vox-db/src/store/ops_orchestrator.rs`
+    - `contracts/communication/orchestrator-persistence-outbox.schema.json`
+    - `.vox/agents/orchestrator.md` and `.vox/agents/vox-orchestrator.md`
+- The audit provides a non-routing surface critique and improvement plan, including runtime, handoff, events, grounding, usage/FinOps, MCP dispatch, HTTP gateway, persistence outbox, daemon binary, agent prompts, tests, contracts, ADRs, and five cross-cutting concerns (error handling, async cancellation, observability, security, lifecycle).
+
+--- audit: original='docs(audit): orchestrator companion audit — 209 improvements across 27 clusters' | actual=1010L across 1 files | derived=full ---
