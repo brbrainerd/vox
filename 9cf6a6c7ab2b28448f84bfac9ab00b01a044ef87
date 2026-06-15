@@ -1,0 +1,15 @@
+refactor(cli, mens): Decouple ML commands and fix `vox-cli` dispatch regressions
+scale: ~305 lines across 10 files [L]
+
+- `crates/vox-cli/src/lib.rs`: Introduce `Ext` and `Llm` subcommands, hide `Ars` command, and remove deprecated `Login` and `New` commands.
+- `crates/vox-cli/src/cli_dispatch/mod.rs`: Update `dispatch_cli` to handle new `Ext` subcommand and remove dispatch for the deprecated `Login` command.
+- `crates/vox-cli/src/main.rs`: Refactor main function to dispatch ML-related commands (`mens`, `schola`, `oratio`, `speech`, `populi`, `train`) to `vox-mens` or `vox-schola` binaries, including support for `ext` prefix.
+- `crates/vox-mens/src/main.rs`: Remove `Schola` and `Train` subcommands, and simplify `Oratio` and `Populi` command execution.
+- `crates/vox-mens/src/commands/populi_cli.rs`: Update `PopuliCorpusCmd::IngestWorkflows` to use `_repository` and `_output` to suppress unused variable warnings, and adjust `record_cli_event_fire_and_forget` call.
+- `crates/vox-mens/src/dispatch_protocol.rs`: Remove AI plan-related methods (`AI_PLAN_NEW`, `AI_PLAN_REPLAN`, `AI_PLAN_STATUS`, `AI_PLAN_EXECUTE`) from the dispatch protocol schema.
+- `crates/vox-mens/src/commands/mens/populi/mens_tail_subcommands.rs`: Update comments and enum description to reflect removal of 'plan' subcommand.
+- `crates/vox-mens/Cargo.toml`: Add `vox-cli` as a dependency.
+- `crates/vox-mens/src/dei_daemon.rs`: Remove unused `DeiDaemon` struct.
+- `crates/vox-cli/Cargo.toml`: Add `clap` and `tokio` dependencies.
+
+--- audit: original='refactor(mens): stabilize decoupled ML architecture and fix vox-cli dispatch regressions' | actual=305L across 10 files | derived=full ---
