@@ -1,0 +1,21 @@
+feat(hir): lower Config, Theme, Message, Skill, and AgentDef declarations
+scale: ~370 lines across 5 files [L]
+
+- **`crates/vox-compiler/src/hir/nodes/decl.rs`**:
+    - Added `HirConfig`, `HirTheme`, `HirMessage`, `HirSkill`, and `HirAgentDef` structs to represent these declaration types in the HIR.
+    - Added `configs`, `themes`, `messages`, `skills`, and `agent_defs` fields to `HirModule` to store these new HIR nodes.
+    - Added comments indicating that `HirConfig` is resolved at runtime and not emitted.
+    - Added comments indicating that `Skill` and `AgentDef` functions are also stored in `HirModule::functions`.
+- **`crates/vox-compiler/src/hir/lower/decl.rs`**:
+    - Implemented `lower_config`, `lower_theme`, and `lower_message` methods in `LowerCtx` to transform AST declarations into their corresponding HIR nodes.
+- **`crates/vox-compiler/src/hir/lower/mod.rs`**:
+    - Added lowering arms within `LowerCtx::lower_module` to process `Decl::Config`, `Decl::Theme`, `Decl::Message`, `Decl::Skill`, and `Decl::AgentDef`.
+    - For `Skill` and `AgentDef`, the underlying function (`s.func` or `a.func`) is now lowered and added to `hir.functions`, and then a `HirSkill` or `HirAgentDef` is created referencing that function.
+    - These declarations are no longer caught by `hir.legacy_ast_nodes.push(decl.clone())`.
+- **`crates/vox-compiler/tests/decl_lowering_test.rs`**:
+    - Added a new test file to verify the correct lowering of `Config`, `Theme`, `Message`, `Skill`, and `AgentDef` declarations into their respective `HirModule` vectors.
+    - Contains programmatic construction of AST nodes for these declaration types to test the lowering process.
+- **`crates/vox-compiler/tests/snapshots/axum_emit_contract_test__mutation_with_schema_main_rs_emit.snap`**:
+    - Updated snapshot due to changes in the `HirModule` structure, specifically the addition of new declaration vectors (though they remain empty in this particular snapshot).
+
+--- audit: original='feat(hir): lower Config/Theme/Message/Skill/AgentDef decls out of legacy_ast_nodes' | actual=370L across 5 files | derived=full ---
