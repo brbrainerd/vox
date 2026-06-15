@@ -1,0 +1,14 @@
+feat(doc-pipeline): add UnlabeledCodeFence lint and doc-policy-lint.vox script
+scale: ~220 lines across 4 files [M]
+
+- `crates/vox-doc-pipeline/src/pipeline/lint.rs`: Implemented a new `UnlabeledCodeFence` lint check. This check identifies code fences () that lack a language tag (e.g., bash) and adds a `LintError` for them.
+- `crates/vox-doc-pipeline/src/pipeline/mod.rs`: Added handling for the new `UnlabeledCodeFence` lint kind, printing a `WARN` message to stderr including the file path and line number.
+- `crates/vox-doc-pipeline/src/pipeline/types.rs`: Added `UnlabeledCodeFence { at_line: usize }` to the `LintKind` enum to represent the new lint error type.
+- `scripts/quality/doc-policy-lint.vox`: Added a new Vox-language script that implements various documentation policy checks, including:
+    - Required frontmatter fields (title, description, category, status, last_updated, training_eligible).
+    - Validation of `status` field values.
+    - Enforcement of labeled code fences in `docs/src/architecture/` files.
+    - Detection of `.md` files accidentally placed in `docs/superpowers/`.
+    - Includes helper functions for path manipulation and file system operations.
+
+--- audit: original='feat(doc-pipeline): add UnlabeledCodeFence lint + doc-policy-lint.vox' | actual=220L across 4 files | derived=full ---
