@@ -1,0 +1,22 @@
+style: rustfmt across 17 crates
+scale: ~485 lines across 17 files [L]
+
+- `crates/vox-compiler/src/typeck/builtins.rs`: Applied rustfmt, primarily reformatting `Ty::Fn` definitions for better readability.
+- `crates/vox-compiler/src/builtin_registry.rs`: Applied rustfmt, reformatting `Ty::Fn` definitions within `std_namespace_method_ty`.
+- `crates/vox-compiler/src/eval/expr.rs`: Applied rustfmt, reformatting binary operation match arms for `VoxValue::Int` and `VoxValue::Float` combinations.
+- `crates/vox-compiler/src/eval/builtins.rs`: Applied rustfmt, reformatting `Result.unwrap()` and `fs` method error handling closures.
+- `crates/vox-integration-tests/tests/golden_typecheck_gate.rs`: Applied rustfmt, reformatting `eprintln!` and `format!` calls for typecheck error reporting.
+- `crates/vox-integration-tests/tests/actor_dispatch_e2e_test.rs`: Applied rustfmt, reformatting `use` statement and `serde_json` value extraction.
+- `crates/vox-compiler/src/eval/db.rs`: Applied rustfmt.
+- `crates/vox-compiler/tests/interpreter_test.rs`: Applied rustfmt.
+- `crates/vox-compiler/src/typeck/unify.rs`: Applied rustfmt.
+- `crates/vox-compiler/tests/interpreter_db_test.rs`: Applied rustfmt.
+- `crates/vox-codegen/src/codegen_rust/emit/durability_lower.rs`: Applied rustfmt.
+- `crates/vox-compiler/src/parser/descent/tests.rs`: Applied rustfmt.
+- `crates/vox-codegen/tests/durability_lowering.rs`: Applied rustfmt.
+- `crates/vox-compiler/tests/match_exhaustiveness_test.rs`: Applied rustfmt.
+- `crates/vox-actor-runtime/src/inference_env.rs`: Applied rustfmt, removing a blank line.
+- `crates/vox-publisher/src/scholarly/crossref_deposit.rs`: Applied rustfmt, removing a blank line.
+- `crates/vox-publisher/src/scholarly/osf.rs`: Applied rustfmt, removing a blank line.
+
+--- audit: original="style: rustfmt across the branch's changed crates" | actual=485L across 17 files | derived=full ---
