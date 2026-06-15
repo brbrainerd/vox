@@ -1,0 +1,26 @@
+feat(vox-db): extract `vox-db-types` crate and re-export types
+scale: ~121 lines across 17 files [M]
+
+- **crates/vox-db-types**: New crate created to house pure data types previously in `vox-db`.
+  - `src/lib.rs`: Defines the crate, re-exports `eval_params` and `store_types`, and adds a `MemoryParams` type alias.
+  - `Cargo.toml`: Configures the new crate with `serde`, `serde_json`, `chrono`, and `workspace-hack` dependencies.
+  - `src/eval_params.rs`: Moves `EvalRunParams` struct from `vox-db`.
+  - `src/store_types/mod.rs`: Defines the module for store-related types and re-exports its sub-modules.
+  - `src/store_types/mens.rs`: Moves MENS and GRPO training types (`ObservationReport`, `ObserverAction`, `TestDecision`, `TestDecisionPolicy`, `VictoryCondition`) from `vox-db`.
+  - `src/store_types/params.rs`: Moves request parameter structs (`LogExecutionParams`, `SaveMemoryParams`, etc.) from `vox-db`.
+  - `src/store_types/rows_core.rs`: Moves core row structs (`ExecutionEntry`, `ScheduledEntry`, `ComponentEntry`, etc.) from `vox-db`.
+  - `src/store_types/rows_extended.rs`: Moves extended row structs (`Agent`, `AgentConfig`, `AgentSkill`, etc.) from `vox-db`.
+- **crates/vox-db**:
+  - `src/store/types/mod.rs`: Updates to only contain `StoreError` and re-export all other types from `vox-db-types`.
+  - `src/lib.rs`: Removes local `eval_params` module and re-exports `EvalRunParams` from `vox-db-types`.
+  - `Cargo.toml`: Adds `vox-db-types` as a dependency.
+- **crates/vox-populi**:
+  - `tests/lora_estimates.rs`: Deletes the test file, as the `lora` module was retired.
+  - `Cargo.toml`: Removes `mens` feature.
+- **crates/vox-cli**:
+  - `tests/script_std_builtin_surface.rs`: Updates hard-coded paths for `codegen_rust/emit/stmt_expr.rs` to point to `vox-compiler-emit` instead of `vox-compiler`.
+- **.claude/settings.local.json**: Updates `derived` field to `full`.
+- **Cargo.lock**: Updates dependencies to reflect new `vox-db-types` crate and other changes.
+- **Cargo.toml**: Adds `vox-db-types` to the workspace members.
+
+--- audit: original='refactor(vox-db): extract vox-db-types crate (turso-free type leaf)' | actual=121L across 17 files | derived=full ---
