@@ -1,0 +1,6 @@
+docs(plan): VUV guarantee wiring and cross-platform parity implementation
+scale: ~1389 lines across 1 files [XL]
+
+- Add `docs/superpowers/plans/2026-06-12-vuv-guarantee-wiring-and-cross-platform-parity.md` detailing a plan to implement VUV's headline guarantees (contrast and occlusion impossibility) across web, React Native, and mobile platforms. The plan outlines three phases: Phase A for wiring web guarantees, Phase B for extending to RN/mobile, and Phase C for locking with a compile-fail corpus. It also describes the existing architectural components and the tech stack involved.
+
+--- audit: original='docs(plan): VUV guarantee wiring + cross-platform parity (audit-derived, 21 tasks)' | actual=1389L across 1 files | derived=full ---
