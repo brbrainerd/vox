@@ -1,0 +1,10 @@
+fix(ci): Handle unavailable git merge bases and adjust populi maintenance
+scale: ~22 lines across 3 files [S]
+
+- `crates/vox-cli/src/commands/ci/pre_push.rs`:
+    - Modified `git_diff_name_only_for_prepush` to treat unavailable git merge bases (after primary and `HEAD~1` attempts) as an empty diff, printing an error message. This prevents failures in shallow clones.
+    - Added a new test `changed_docs_md_empty_when_git_diff_unavailable` to verify the empty diff fallback.
+- `crates/vox-populi/tests/http_control_plane.rs`: Increased `maintenance_for_ms` from 80 to 3000 in the `maintenance_deadline_expires_and_claims_resume` test to prevent CI scheduling from expiring maintenance before the blocked-claim assert.
+- `.github/workflows/ci-fallback-hosted.yml`: Added `fetch-depth: 0` to the `actions/checkout` step to fetch full history, ensuring git operations have access to the complete repository.
+
+--- audit: original='fix(ci): pre-push dry-run on shallow clones and populi maintenance flake' | actual=22L across 3 files | derived=full ---
