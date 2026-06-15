@@ -1,0 +1,13 @@
+feat(tracker): add mood form and endpoint for recording mood
+scale: ~31 lines across 2 files [S]
+
+- `apps/vox-mental-tracker/src/main.vox`:
+    - Added `save_mood` endpoint to record mood events with a score and note.
+    - Declared `@form Mood` with `score` (1-10, required) and `note` (max 280 chars, optional) fields.
+    - Configured `Mood` form to call `save_mood` on submit, redirect to `/timeline` on success, and display an error message on failure.
+    - Added `/mood` route to display the new `Mood` form.
+- `apps/vox-mental-tracker/tests/e2e/mood_form.spec.ts`: Added new Playwright E2E tests for the mood form:
+    - Verified that the mood form requires a score.
+    - Verified successful submission and redirection to the `/timeline` page.
+
+--- audit: original='feat(tracker): replace manual mood form with @form Mood' | actual=31L across 2 files | derived=full ---
