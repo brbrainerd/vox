@@ -1,0 +1,14 @@
+feat(db, compiler, publisher, cli, vscode): enhance scholarly publishing, compiler HIR, and CLI DB tools
+scale: ~30521 lines across 374 files [XL]
+
+- crates/vox-db: Introduce new publication status event logging, scholarly submission status patching, and a new `gamify_ludus_misc.rs` module for gamification-related database operations.
+- crates/vox-compiler: Enhance the HIR lowerer to recognize and optimize database query chains, improving query plan generation.
+- crates/vox-publisher: Add new `scholarly_external_jobs.rs` for managing external scholarly submission workflows and introduce new modules for OpenReview and Zenodo integration.
+- crates/vox-cli: Refactor DB commands, add query plan explanation functionality, and introduce new CLI dispatch mechanisms.
+- vox-vscode: Update `package-lock.json` and various UI components (`AgentFlow`, `Dashboard`, `LudusPanel`) and core client logic (`McpAgentConnection`, `VoxMcpClient`).
+- docs: Add new architecture and reference documentation, including boilerplate reduction, fullstack ergonomics, and agent event kind matrices.
+- Cargo.lock: Update Rust dependencies, including adding `base64ct`, `const-oid`, `curve25519-dalek`, `ed25519-dalek`, and `xxhash-rust`, while removing `twox-hash`.
+- schemas: Update `populi-control-plane.openapi.yaml`.
+- Many other files across various crates were modified for bug fixes, refactoring, and new feature implementation.
+
+--- audit: original='feat(dependencies): update Cargo.lock and Cargo.toml with new packages and versions' | actual=30521L across 374 files | derived=sampled ---
