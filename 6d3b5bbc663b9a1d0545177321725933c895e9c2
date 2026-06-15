@@ -1,0 +1,16 @@
+feat(gui): Add Tasks surface, control-plane wrappers, and queue-depth chip
+scale: ~761 lines across 12 files [L]
+
+- `crates/vox-gui/ui/src/components/surfaces/Tasks/TasksView.tsx`: New component for displaying and managing orchestrator tasks, including live queue, add/edit/remove functionality, and icon-driven reprioritization.
+- `crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts`: Updated surface registry to include the new 'tasks' surface and add `parent_surface` to the schema.
+- `crates/vox-gui/src/commands/control_plane.rs`: Added new Tauri commands: `list_orchestrator_tasks`, `edit_orchestrator_task`, and `cancel_orchestrator_task`. Introduced `TaskRowDto` for task data transfer and `normalize_lifecycle` function for consistent lifecycle and priority labels.
+- `contracts/gui/surface-registry.v1.yaml`: Updated surface registry YAML to include the 'tasks' surface.
+- `crates/vox-gui/ui/src/components/surfaces/Tasks/tasksHelpers.test.ts`: New Vitest tests for `groupTasks` and `cyclePriority` helper functions.
+- `crates/vox-gui/ui/src/components/surfaces/Tasks/tasksHelpers.ts`: New helper functions `groupTasks` for categorizing tasks by lifecycle and `cyclePriority` for cycling task priorities.
+- `crates/vox-gui/ui/src/components/ui/Icons.tsx`: Added new `edit`, `trash`, and `list` icons.
+- `crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx`: Integrated a queue-depth chip into the chat composer, linking to the new Tasks surface.
+- `crates/vox-gui/ui/src/App.tsx`: Registered the new `TasksView` and added 'tasks' to the `View` type.
+- `crates/vox-gui/src/main.rs`: Registered the new control plane commands for orchestrator tasks.
+- `contracts/gui/surface-registry.v1.schema.json`: Updated schema to reflect changes in the surface registry.
+
+--- audit: original='feat(gui): Tasks surface + control-plane wrappers + queue-depth chip' | actual=761L across 12 files | derived=full ---
