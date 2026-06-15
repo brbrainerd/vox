@@ -1,0 +1,11 @@
+feat(llm): add minimal_repro to LintFindingPayload and 7 detectors
+scale: ~182 lines across 12 files [M]
+
+- **crates/vox-cli/tests/check_for_llm_envelope.rs**: Added a new test `lint_finding_includes_minimal_repro_when_detector_provides_one` to verify that `minimal_repro` is present and non-empty for `AuthEndpointDetector` findings in the LLM JSON output.
+- **crates/vox-code-audit/src/detectors/**: Implemented `minimal_repro()` for `AuthEndpointDetector`, `DecoratorPositionDetector`, `RetiredDecoratorDetector`, `WorkflowNondeterministicDetector`, `LlmProviderCallDetector`, `EnvSecretShapeDetector`, and `RetiredMemoryApiDetector`, providing example violation and fix snippets.
+- **crates/vox-code-audit/src/engine.rs**: Added `ToestubEngine::minimal_repro_table()` to create a `rule_id` to `minimal_repro` lookup table from all registered rules.
+- **crates/vox-cli/src/pipeline.rs**: Added `minimal_repro: Option<String>` to `LintFindingPayload`, serialized with `skip_serializing_if`. Wired the `minimal_repro_table` lookup into `format_check_for_llm_json` to populate this field for relevant findings.
+- **crates/vox-code-audit/src/rules.rs**: Added a default `minimal_repro()` method to the `DetectionRule` trait, returning `None`, to allow detectors to provide reproduction snippets.
+- **docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md**: Updated the audit plan to mark Phase 2 Task 5 as complete.
+
+--- audit: original='feat(llm): add minimal_repro to LintFindingPayload; complete Phase 2 Task 5' | actual=182L across 12 files | derived=full ---
