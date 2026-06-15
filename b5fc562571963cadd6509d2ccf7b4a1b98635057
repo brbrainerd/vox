@@ -1,0 +1,9 @@
+refactor(style): rustfmt `vox-langtool` and `vox-ml-cli`
+scale: ~67 lines across 4 files [M]
+
+- `crates/vox-ml-cli/src/commands/mens/populi/train_arm.rs`: Reformatted `effective_seq_len` and `effective_batch_size` assignments to be single-line.
+- `crates/vox-langtool/src/commands/build.rs`: Reformatted `anyhow::bail!`, `file_stem().and_then()`, and `vox_codegen::codegen_rust::generate_script()` calls for improved readability.
+- `crates/vox-langtool/src/commands/fmt.rs`: Reformatted `path.file_name().and_then()` call for improved readability.
+- `crates/vox-langtool/tests/integration.rs`: Reformatted `assert!` macro call for improved readability.
+
+--- audit: original='style: rustfmt vox-langtool + vox-ml-cli (pre-push gate)' | actual=67L across 4 files | derived=full ---
