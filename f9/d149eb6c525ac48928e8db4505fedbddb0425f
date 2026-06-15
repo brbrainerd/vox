@@ -1,0 +1,139 @@
+feat(ci,docs,publisher,cli): enhance CI checks, documentation, and publishing capabilities
+scale: ~13920 lines across 217 files [XL]
+
+- `crates/vox-cli`:
+  - `ci/scaling_audit.rs`: Added new constants and validation functions for JSON files against schemas, specifically for scaling audit reports and gold datasets.
+  - `ci/run_body_helpers/matrix.rs`: Refactored `run_mens_gate` to support isolated execution and logging, introducing `MensGateOpts` and `TempGateExe` for better control and cleanup.
+  - `db.rs`: Updated `publication_prepare` and `import` functions to accept `Path` instead of `PathBuf` for broader compatibility, and removed `SyndicationConfig` and `ScholarlyAdapter` imports.
+  - `ci/run_body.rs`: Minor updates to CI run body logic.
+  - `ci/command_compliance/docs_sync.rs`: Minor updates to documentation synchronization.
+  - `commands/schola/train/spawn.rs`: Minor updates to training spawn logic.
+  - `commands/corpus/mod.rs`: Minor updates to corpus command.
+  - `commands/db_cli/mod.rs`: Minor updates to DB CLI.
+  - `commands/mens/populi/action_populi_enum.rs`: Added new action populi enum.
+  - `commands/mens/populi/train_arm.rs`: Minor updates to train arm.
+- `crates/vox-publisher`:
+  - `src/lib.rs`: Expanded `PublisherConfig` with new fields for Twitter and Reddit summary margins, YouTube default category, and worthiness score. Also improved channel policy lookup to be case-insensitive.
+  - `src/switching.rs`: Added a new module for switching logic.
+  - `src/gate.rs`: Minor updates to gate logic.
+  - `src/types.rs`: Minor updates to types.
+  - `src/scholarly.rs`: Minor updates to scholarly module.
+  - `src/contract.rs`: Minor updates to contract.
+  - `tests/routing_policy_tests.rs`: Added new routing policy tests.
+  - `src/publication_worthiness.rs`: Added new publication worthiness module.
+- `crates/vox-mcp`:
+  - `src/tools/scientia_tools.rs`: Refactored publication manifest handling, worthiness score calculation, and scholarly submission logic, removing direct `LocalLedgerAdapter` usage.
+  - `src/context.rs`: Significant reduction in lines, indicating refactoring or removal of context-related code.
+  - `tests/tool_dispatch_tests.rs`: Added new tool dispatch tests.
+  - `src/tools/chat_tools/chat/message.rs`: Minor updates to chat message tools.
+- `crates/vox-compiler`:
+  - `src/codegen_ts/schema.rs`: Added `generate_voxdb_schema_from_hir` to generate TypeScript schema from HIR, aligning with `legacy_ast_nodes` removal.
+  - `src/hir/validate.rs`: Minor updates to HIR validation.
+  - `src/hir/lower/mod.rs`: Added new module for HIR lowering.
+  - `src/typeck/diagnostics.rs`: Minor updates to type checking diagnostics.
+  - `tests/parser_recovery.rs`: Added new parser recovery tests.
+  - `src/hir/nodes/decl.rs`: Minor updates to HIR declaration nodes.
+  - `src/parser/error.rs`: Minor updates to parser error handling.
+  - `tests/voxdb_schema_hir_parity.rs`: Added new VoxDB schema HIR parity tests.
+  - `tests/parser_corpus_no_panic.rs`: Added new parser corpus no panic tests.
+  - `src/hir/lower/decl.rs`: Added new module for HIR lower declaration.
+  - `src/parser/descent/decl/head.rs`: Minor updates to parser descent declaration head.
+- `crates/vox-toestub`:
+  - `src/analysis/token_map.rs`: Added new token map analysis.
+  - `tests/gold_dataset.rs`: Added new gold dataset tests.
+  - `src/detectors/unresolved_ref.rs`: Minor updates to unresolved reference detector.
+  - `src/detectors/scaling.rs`: Minor updates to scaling detector.
+  - `src/run_context.rs`: Added new run context.
+  - `src/engine.rs`: Minor updates to engine.
+  - `src/suppression.rs`: Added new suppression.
+  - `src/detectors/scaling_support.rs`: Minor updates to scaling support detector.
+  - `src/rules.rs`: Minor updates to rules.
+  - `src/report.rs`: Minor updates to report.
+  - `src/detectors/unresolved_ast.rs`: Added new unresolved AST detector.
+  - `src/detectors/secrets.rs`: Minor updates to secrets detector.
+  - `src/detectors/stub.rs`: Minor updates to stub detector.
+  - `src/analysis/rust_context.rs`: Added new Rust context analysis.
+  - `src/bin/toestub.rs`: Minor updates to toestub binary.
+  - `src/detectors/scaling_tests.rs`: Minor updates to scaling tests detector.
+  - `src/detectors/unwired_module.rs`: Minor updates to unwired module detector.
+  - `src/detectors/magic_value.rs`: Minor updates to magic value detector.
+  - `src/detectors/victory_claim.rs`: Minor updates to victory claim detector.
+  - `src/detectors/empty_body.rs`: Minor updates to empty body detector.
+  - `src/detectors/stringly_typed_enum.rs`: Minor updates to stringly typed enum detector.
+  - `src/detectors/unwrap_call.rs`: Minor updates to unwrap call detector.
+  - `src/lib.rs`: Minor updates to toestub library.
+- `docs`:
+  - `AGENTS.md`: Updated to serve as a single source of truth for secret management with Clavis, detailing architecture and compiler pipeline.
+  - `CONTRIBUTING.md`: Added a new file providing a quick start guide, first PR checklist, and links to deeper onboarding resources.
+  - `README.md`: Updated to include a link to the new `CONTRIBUTING.md`.
+  - `agents/doc-inventory.json`: Significant additions and deletions, indicating a major update to the documentation inventory.
+  - `agents/script-registry.json`: Significant additions, indicating updates to the script registry.
+  - `src/architecture/script-surface-audit.md`: Added new architecture documentation.
+  - `src/architecture/voxgiantia-publication-architecture.md`: Added new architecture documentation.
+  - `src/how-to/scientia-publication-operator-inputs.md`: Added new how-to documentation.
+  - `src/reference/scientia-publication-playbook.md`: Added new reference documentation.
+  - `src/architecture/scaling-toestub-rules.md`: Minor updates to architecture documentation.
+  - `src/reference/hir-legacy-inventory.md`: Added new reference documentation.
+  - `src/reference/mens-training.md`: Minor updates to reference documentation.
+  - `src/reference/parser-ambiguity-inventory.md`: Added new reference documentation.
+  - `src/how-to/how-to-contribute-parser-hir.md`: Added new how-to documentation.
+  - `src/how-to/how-to-contribute-populi.md`: Added new how-to documentation.
+  - `src/how-to/how-to-contribute-mens.md`: Added new how-to documentation.
+  - `src/tutorials/tut-first-vox-app-checkpoints.md`: Added new tutorial documentation.
+  - `src/reference/diagnostic-taxonomy.md`: Added new reference documentation.
+  - `src/reference/docker-image-baselines.md`: Added new reference documentation.
+  - `src/reference/env-vars.md`: Minor updates to reference documentation.
+  - `src/how-to/how-to-train-mens-4080.md`: Minor updates to how-to documentation.
+  - `src/reference/cli.md`: Minor updates to reference documentation.
+- `scripts`:
+  - `telemetry_watch.ps1`: Significant reduction in lines, indicating refactoring or removal.
+  - `populi/mens_gate_safe.sh`: Added new script.
+  - `populi/mens_gate_safe.ps1`: Added new script.
+  - `toestub_self_apply.ps1`: Significant reduction in lines, indicating refactoring or removal.
+  - `populi/cursor_background_cuda_build.ps1`: Significant reduction in lines, indicating refactoring or removal.
+  - `populi/release_training_gate.ps1`: Significant reduction in lines, indicating refactoring or removal.
+  - `mens_release_gate.ps1`: Significant reduction in lines, indicating refactoring or removal.
+  - `toestub_self_apply.sh`: Significant reduction in lines, indicating refactoring or removal.
+  - `ci/prep_mens_mix_inputs.sh`: Added new script.
+- `contracts`:
+  - `toestub/gold-dataset.v1.json`: Added new contract.
+  - `index.yaml`: Added new contract.
+  - `reports/toestub-remediation/delta-after-remediation.v1.schema.json`: Added new contract.
+  - `toestub/toestub-run-json.v1.schema.json`: Added new contract.
+  - `toestub/gold-dataset.v1.schema.json`: Added new contract.
+  - `governance/12m-modernization-kpi.md`: Added new contract.
+  - `reports/scaling-audit/findings-array.v1.schema.json`: Added new contract.
+  - `toestub/suppression.v1.schema.json`: Added new contract.
+  - `hir/legacy-baseline.toml`: Added new contract.
+  - `reports/toestub-remediation/REMEDIATION-LANES.yaml`: Added new contract.
+  - `mens/training-preflight.schema.json`: Added new contract.
+  - `toestub/suppressions.v1.example.json`: Added new contract.
+- `crates/vox-corpus`:
+  - `src/corpus/mix.rs`: Minor updates to corpus mix.
+- `crates/vox-clavis`:
+  - `src/spec.rs`: Added new spec.
+- `crates/vox-populi`:
+  - `tests/http_control_plane.rs`: Added new HTTP control plane tests.
+  - `src/mens/tensor/preflight_train.rs`: Added new preflight train module.
+  - `src/mens/tensor/candle_qlora_train/training_loop.rs`: Significant reduction in lines, indicating refactoring or removal.
+  - `src/transport/mod.rs`: Minor updates to transport module.
+  - `src/mens/tensor/candle_qlora_train/mod.rs`: Added new module.
+  - `docker/populi-entrypoint.sh`: Minor updates to Docker entrypoint.
+  - `src/mens/tensor/candle_qlora_train/finalize.rs`: Significant reduction in lines, indicating refactoring or removal.
+  - `tests/openapi_paths.rs`: Added new OpenAPI paths tests.
+  - `src/transport/handlers.rs`: Minor updates to transport handlers.
+  - `src/transport/router.rs`: Added new transport router.
+- `examples`:
+  - `mesh-compose.yml`: Added new example.
+- `crates/vox-integration-tests`:
+  - `tests/docker_healthcheck_contract.rs`: Added new Docker healthcheck contract tests.
+- `.github/workflows`:
+  - `ci.yml`: Added new CI workflow.
+- `crates/vox-orchestrator`:
+  - `src/services/news.rs`: Significant reduction in lines, indicating refactoring or removal.
+- `crates/vox-test-harness`:
+  - `src/hir_builders.rs`: Significant reduction in lines, indicating refactoring or removal.
+- `docker`:
+  - `Dockerfile.populi`: Minor updates to Dockerfile.
+
+--- audit: original='feat(docs): enhance AGENTS.md and add CONTRIBUTING.md for improved onboarding' | actual=13920L across 217 files | derived=sampled ---
