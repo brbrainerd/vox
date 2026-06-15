@@ -1,0 +1,8 @@
+feat(inference): Add Qwen quantized weight loading from SP-1 artifacts
+scale: ~147 lines across 3 files [M]
+
+- `crates/vox-inference/src/qwen_weights.rs`: New module for loading SP-1 quantized artifacts, including `QwenWeights` struct to hold `QMatMul` and `Tensor` weights, `WeightsError` enum for error handling, and `QuantMetadata` for deserializing quantization metadata.
+- `crates/vox-inference/src/lib.rs`: Expose the new `qwen_weights` module.
+- `crates/vox-inference/Cargo.toml`: Add `candle-core` and `vox-quantize` dependencies, and `tempfile` as a dev-dependency.
+
+--- audit: original='feat(inference): load SP-1 quantized artifact into QMatMul/Tensor weights' | actual=147L across 3 files | derived=full ---
