@@ -1,0 +1,16 @@
+docs(architecture): update orchestrator docs, rename audit, and add last_updated fields
+scale: ~60 lines across 5 files [M]
+
+- `docs/src/architecture/2026-05-01-orchestrator-stage1-stage2.md`:
+  - Changed `status` from "current" to "roadmap".
+  - Added `last_updated: "2026-05-01"` field.
+  - Added `bash` language tag to 7 unlabeled fenced code blocks.
+- `docs/src/architecture/orchestrator-companion-audit-findings-2026.md`:
+  - Renamed from `orchestrator-companion-audit.md` to `orchestrator-companion-audit-findings-2026.md`.
+  - Changed `status` from "current" to "research".
+  - Added `last_updated: "2026-05-01"` field.
+- `docs/src/feed.xml`: Updated the filename reference for the renamed audit document.
+- `docs/src/SUMMARY.md`: Updated the filename reference for the renamed audit document.
+- `docs/src/architecture/architecture-index.md`: Updated the filename reference for the renamed audit document.
+
+--- audit: original='fix(docs): address CodeRabbit review feedback (round 3)' | actual=60L across 5 files | derived=full ---
