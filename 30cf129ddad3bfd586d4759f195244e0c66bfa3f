@@ -1,0 +1,9 @@
+feat(scientia): Add initial venue catalog YAML with 7 venues
+scale: ~86 lines across 1 files [M]
+
+- `contracts/scientia/venue-catalog.v1.yaml`: Add new YAML file defining a catalog of academic venues.
+  - Includes definitions for IMC, MLSys, TMLR, JMLR, JAIR, Distill, and Living Reviews.
+  - Each venue entry specifies `id`, `name`, `shortname`, `type`, `primary` status, `focus` areas, `review_model`, `typical_deadline`, `min_pages`, `max_pages`, and `target_atlas`.
+  - Sets `schema_version` to 1.
+
+--- audit: original='feat(scientia): Phase 8 — venue catalog YAML (IMC/MLSys/TMLR/JMLR/JAIR/Distill/LivingReviews)' | actual=86L across 1 files | derived=full ---
