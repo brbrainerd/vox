@@ -1,0 +1,12 @@
+ci(gitleaks): add allowlist config and scan working tree
+scale: ~39 lines across 2 files [S]
+
+- **.gitleaks.toml**:
+    - Added a new configuration file to extend default Gitleaks rules.
+    - Configured an allowlist for paths containing legitimate fake secrets (documentation examples, test code, security detector fixtures) to prevent false positives.
+    - Specifically allowlisted `target/`, `docs/`, `contracts/.*/fixtures/`, test directories/files (`tests?/`, `tests.rs`, `_tests?.rs`), `/sources/auth_json.rs`, and `/preregistration/trusty_uri.rs`.
+- **.github/workflows/gitleaks.yml**:
+    - Changed the Gitleaks scan command from `gitleaks git .` to `gitleaks dir .` to scan only the working tree instead of the full Git history.
+    - Added comments explaining the change to scan the working tree and the auto-discovery of `.gitleaks.toml`.
+
+--- audit: original='ci(gitleaks): add allowlist config + scan working tree (dir) not history' | actual=39L across 2 files | derived=full ---
