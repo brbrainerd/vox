@@ -1,0 +1,8 @@
+refactor(docker): simplify build context copy strategy in Dockerfile
+scale: ~31 lines across 1 files [S]
+
+- Replaced multiple `COPY` commands for individual workspace components (Cargo.toml, Cargo.lock, crates/, patches/, contracts/) with a single `COPY . .` command.
+- Removed comments detailing the previous granular `COPY` strategy and its rationale.
+- Updated comments to reflect the new, simplified `COPY . .` strategy and its benefits for monorepos.
+
+--- audit: original='fix(docker): use robust COPY . . strategy to include all embedded resources' | actual=31L across 1 files | derived=full ---
