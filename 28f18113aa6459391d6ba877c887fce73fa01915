@@ -1,0 +1,14 @@
+feat(mens): add preflight instrumentation and recalibrate memory budget
+scale: ~93 lines across 3 files [M]
+
+- `crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs`:
+  - Added `log_stage` helper function to log wall-clock duration and GPU memory usage for pipeline stages.
+  - Integrated `log_stage` calls around data loading, mmap+embedding, and graph building.
+  - Added an architecture echo at the start of training, logging model type, vocab, d_model, layer type histogram, heads/kv, and rope_theta.
+- `crates/vox-plugin-mens-candle-cuda/src/device.rs`:
+  - Added `mem_pool::device_mem_used_total_mb()` function to retrieve current GPU memory usage (used/total MiB) via `cuMemGetInfo_v2`.
+- `crates/vox-populi/src/mens/tensor/memory_budget.rs`:
+  - Increased `ACT_GIB_PER_KTOK_PER_SQRTB` from 0.95 to 1.6 to account for F32 activations in the Candle graph.
+  - Increased `QWEN2_RESIDENT_GIB_PER_B` from 2.6 to 4.3 to reflect F32 weights, embeddings, and LoRA/optimizer state in the plugin.
+
+--- audit: original='feat(mens): preflight instrumentation + F32-reality budget recalibration' | actual=93L across 3 files | derived=full ---
