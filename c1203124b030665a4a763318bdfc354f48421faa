@@ -1,0 +1,9 @@
+fix(codegen): import `@form` components when referenced in a view
+scale: ~51 lines across 4 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/reactive.rs`: Modified `generate_reactive_component` to include `@form` names in `known_components` for web targets. Updated import generation to import `@form` components from `./forms` instead of `./{comp}`.
+- `crates/vox-codegen/src/codegen_ts/rn/mod.rs`: Modified `generate_rn` to include `@form` names in `known_components` for React Native targets and pass `form_names` to `emit_rn_component`.
+- `apps/vox-mental-tracker/src/main.vox`: Added a new `MoodPage` component that wraps the `Mood` `@form` and added a route `/mood` to `MoodPage`.
+- `crates/vox-codegen/src/codegen_ts/rn/component.rs`: Modified `emit_rn_component` to accept `form_names` and generate imports for `@form` components from `./forms` for React Native targets.
+
+--- audit: original='fix(codegen): import @form components when referenced in a view (web + RN)' | actual=51L across 4 files | derived=full ---
