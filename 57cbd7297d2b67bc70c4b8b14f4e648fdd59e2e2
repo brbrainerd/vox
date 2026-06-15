@@ -1,0 +1,13 @@
+feat(timeouts): introduce BROWSER_CDP_REQUEST and use it for browser engine
+scale: ~17 lines across 4 files [S]
+
+- `crates/vox-config/src/timeouts.rs`:
+    - Added `BROWSER_CDP_REQUEST` constant set to 90 seconds for browser CDP requests.
+    - Added a unit test to verify `BROWSER_CDP_REQUEST` value.
+- `crates/vox-workflow-runtime/src/workflow/populi.rs`:
+    - Modified `execute_populi_step` to use `vox_config::timeouts::HTTP_REQUEST` as the default timeout if `activity.timeout_ms` is not provided.
+- `crates/vox-plugin-browser/src/engine.rs`:
+    - Updated `BrowserEngine` to use `vox_config::timeouts::BROWSER_CDP_REQUEST` for the browser's request timeout instead of a hardcoded 90 seconds.
+- `Cargo.lock`: Updated due to changes in dependencies.
+
+--- audit: original='refactor(timeouts): route browser-CDP + workflow timeouts through vox_config::timeouts SSOT (HC-G10-03, HC-G12-09)' | actual=17L across 4 files | derived=full ---
