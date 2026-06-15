@@ -1,0 +1,11 @@
+fix(candle-qlora): prune old training checkpoints to bound disk usage
+scale: ~92 lines across 1 files [M]
+
+- `crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/checkpoint_mid.rs`:
+    - Added `prune_old_checkpoints` function to delete all but the `N` most recent `checkpoint_step_<N>.safetensors` files in a given directory.
+    - Integrated `prune_old_checkpoints` into `maybe_save_mid_epoch_checkpoint` to run after each mid-epoch checkpoint save.
+    - Configured `N` (number of checkpoints to keep) to default to 3, with an override via the `VOX_MENS_KEEP_CHECKPOINTS` environment variable.
+    - Implemented "most recent" based on the numeric step in the filename, ensuring the highest-step checkpoint is always retained.
+    - Ensured pruning is best-effort, ignoring individual I/O errors to prevent training interruption.
+
+--- audit: original='fix(mens): prune old training checkpoints to bound disk use' | actual=92L across 1 files | derived=full ---
