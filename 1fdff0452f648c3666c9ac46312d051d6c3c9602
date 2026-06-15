@@ -1,0 +1,6 @@
+ci(deps): bump tj-actions/changed-files from 46 to 47
+scale: ~2 lines across 1 files [XS]
+
+- Updated the `tj-actions/changed-files` GitHub Action to version 47 in `.github/workflows/mutation-pr.yml`.
+
+--- audit: original='chore(deps): bump tj-actions/changed-files from 46 to 47 (#123)' | actual=2L across 1 files | derived=full ---
