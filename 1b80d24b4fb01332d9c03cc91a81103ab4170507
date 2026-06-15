@@ -1,0 +1,6 @@
+docs(gitignore): ignore LLM panel cache directory
+scale: ~6 lines across 1 files [XS]
+
+- Add `/contracts/reports/llm-panel-cache/` to `.gitignore` to prevent committing LLM completion bodies and other cache contents.
+
+--- audit: original='chore(gitignore): ignore /contracts/reports/llm-panel-cache/' | actual=6L across 1 files | derived=full ---
