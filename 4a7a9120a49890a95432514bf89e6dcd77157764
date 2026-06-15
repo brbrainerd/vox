@@ -1,0 +1,11 @@
+fix(codegen-rust): Emit Rust struct literals for typed JSON objects and implement JSON accessors
+scale: ~51 lines across 2 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr_tail.rs`: Modified `HirExpr::ObjectLit` emission to generate a Rust struct literal (e.g., `Type { field: value }`) instead of `serde_json::json!({...})` when the object is ascribed to a user-defined struct type. This resolves type mismatches (E0308) for `@json_as` `from_json` functions returning `Result<Struct, String>`. Builtin types like `Json`, `Any`, `Result`, `Element` still emit `serde_json::json!`.
+- `crates/vox-codegen/src/codegen_rust/emit/method_emit.rs`: Implemented lowering for Vox JSON accessor methods:
+  - `as_int()` now maps to `serde_json::Value::as_i64()`.
+  - `as_float()` now maps to `serde_json::Value::as_f64()`.
+  - `as_bool()` now maps to `serde_json::Value::as_bool()`.
+  - `as_str()` now maps to `serde_json::Value::as_str().map(|__s| __s.to_string())` to return an owned `Option<String>`, aligning with Vox's model.
+
+--- audit: original='fix(codegen-rust): partial json_as_typed — JSON accessors + struct-literal emit' | actual=51L across 2 files | derived=full ---
