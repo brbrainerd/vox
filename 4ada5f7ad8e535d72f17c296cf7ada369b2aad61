@@ -1,0 +1,12 @@
+feat(dashboard): add oplog-at endpoint and mesh invite API
+scale: ~285 lines across 7 files [L]
+
+- `crates/vox-dashboard/src/api/oplog_at.rs`: Add new API endpoint `GET /api/v2/oplog/at/{ts}` which returns an op-log snapshot. This is a Phase 4 stub that returns an empty result until `VoxDb` is injected.
+- `crates/vox-dashboard/app/src/lib/oplog_scrubber.vox`: Add `OplogScrubber` Vox component for an audit-log timeline slider, which uses the new `oplog/at` endpoint.
+- `crates/vox-dashboard/src/api/mesh_invite.rs`: Add new API endpoint `POST /api/v2/mesh/invite` for minting one-shot bearer tokens with a TTL for adding nodes.
+- `crates/vox-dashboard/tests/mesh_phase4_routes.rs`: Add integration tests for the `oplog/at` endpoint and the `mesh/invite` bearer minting endpoint.
+- `crates/vox-dashboard/src/router.rs`: Merge the new `oplog_router` into the main dashboard router.
+- `crates/vox-dashboard/src/lib.rs`: Update `build_router_with_empty_mesh` in test support to include the `oplog_router`.
+- `crates/vox-dashboard/src/api/mod.rs`: Export `mesh_invite` and `oplog_at` modules and their respective routers.
+
+--- audit: original='feat(dashboard): audit-log scrubber oplog-at endpoint (P4-T5)' | actual=285L across 7 files | derived=full ---
