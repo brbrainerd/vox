@@ -1,0 +1,12 @@
+feat(plugin-sdk): Add `vox ci plugin-surface-sync` command for extension-point SSOT
+scale: ~375 lines across 7 files [L]
+
+- Add `crates/vox-cli/src/commands/ci/plugin_surface.rs` to implement the `plugin-surface-sync` command. This command extracts plugin extension-point definitions from `crates/vox-plugin-api/src/extensions/*.rs` and `crates/vox-plugin-api/src/abi.rs` into `contracts/plugin/extension-points.v1.yaml`. It also verifies parity between extension modules and `VoxPlugin` accessors.
+- Add `PluginSurfaceSync` enum variant to `crates/vox-cli/src/commands/ci/cmd_enums.rs` to define the new CLI subcommand with a `--write` flag.
+- Add `plugin_surface` module to `crates/vox-cli/src/commands/ci/mod.rs` for the new command.
+- Update `crates/vox-cli/src/commands/ci/run_body.rs` to dispatch the `PluginSurfaceSync` command.
+- Integrate `plugin_surface::run` into `run_ssot_drift` in `crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs` to ensure drift detection is part of CI.
+- Create `contracts/plugin/extension-points.v1.yaml` to store the extracted plugin extension-point surface, including name, module, revision, accessor, and methods for each extension point.
+- Update `contracts/reports/gui-surface-coverage.v1.json` (binary change, likely due to regeneration triggered by the new CI command).
+
+--- audit: original='feat(plugin-sdk): SP-3 — extension-surface SSOT + drift/accessor-parity gate (#198)' | actual=375L across 7 files | derived=full ---
