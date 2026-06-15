@@ -1,0 +1,10 @@
+feat(code-audit): introduce rules.v1.yaml as SSOT for detectors
+scale: ~216 lines across 11 files [M]
+
+- `contracts/code-audit/rules.v1.yaml`: Added the single source of truth (SSOT) for code-audit detector rules, including `victory-claim/premature`, `victory-claim/todo-leftover`, `victory-claim/fixme`, and `victory-claim/hack` rules.
+- `contracts/code-audit/rules.v1.schema.json`: Added a JSON Schema to validate the `rules.v1.yaml` structure.
+- `contracts/code-audit/README.md`: Added a README explaining the purpose of the `code-audit` contracts directory.
+- `crates/vox-rule-pack/tests/canonical_rules.rs`: Added new tests to ensure `rules.v1.yaml` parses correctly and contains all required rules with non-empty patterns.
+- `contracts/code-audit/fixtures/victory-claim/*.txt`: Added new positive and negative test fixtures for the `victory-claim` rules, including `fixme_pos.txt`, `hack_pos.txt`, `premature_neg_doc_comment.txt`, `premature_pos_all_set.txt`, `premature_pos_done.txt`, `todo_neg_unrelated.txt`, and `todo_pos_python.txt`.
+
+--- audit: original='feat(code-audit): rule SSOT — rules.v1.yaml, JSON Schema, victory-claim fixtures, canonical test' | actual=216L across 11 files | derived=full ---
