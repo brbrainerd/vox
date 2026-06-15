@@ -1,0 +1,8 @@
+docs(populi): update limitations for VRAM admission and bootstrap enrollment
+scale: ~4 lines across 1 files [XS]
+
+- docs/src/reference/populi.md:
+  - Updated the "Authoritative remote execution is partial" section to mark VRAM admission control as implemented, detailing its behavior for tasks with `min_vram_mb` and referencing `vram_admission_rejects_oversized_task_and_falls_back_to_local_queue` and `vram_admission_allows_task_when_node_meets_requirement` tests.
+  - Marked one-time bootstrap token exchange (W3/pair CLI) as implemented in the known-limitations section.
+
+--- audit: original='docs(populi): update limitations section — VRAM admission and bootstrap enrollment implemented' | actual=4L across 1 files | derived=full ---
