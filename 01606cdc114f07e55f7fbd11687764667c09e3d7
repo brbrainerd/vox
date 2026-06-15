@@ -1,0 +1,12 @@
+docs(plan): detail S2 implementation for `vox-effort-route`
+scale: ~1467 lines across 1 files [XL]
+- New file `docs/superpowers/plans/2026-05-30-effort-route.md` outlines a 5-phase, 12-task TDD plan for the `vox-effort-route` crate.
+- The plan covers scaffolding, architecture registration, configuration, loading, bucket and conditional clustering (Phase A).
+- It details routing with `Router` trait, `ArtifactForm`, `MockRouter`, prompts, and `LlmRouter` (Phase B).
+- Emitting `jsonl`/`markdown`/staging artifacts with a no-in-tree-write guard is described (Phase C).
+- Pipeline, telemetry, and CLI implementation are planned (Phase D).
+- The plan concludes with finishing and PR preparation (Phase E).
+- It specifies using verified S1 surface signatures (`FindingRow`, `MeasuredCost`, `llm_embed`) and drops the `vox-search` dependency in favor of direct `llm_embed` usage.
+- Includes a self-review mapping spec sections to tasks and flags executor caveats.
+
+--- audit: original='docs(plan): effort-route S2 implementation plan (2026-05-30)' | actual=1467L across 1 files | derived=full ---
