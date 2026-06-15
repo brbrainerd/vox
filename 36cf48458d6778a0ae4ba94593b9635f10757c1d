@@ -1,0 +1,11 @@
+feat(vox-gui/priority-chain-editor): improve accessibility and add form labels
+scale: ~68 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Settings/PriorityChainEditor.test.tsx`: Add new test file for `PriorityChainEditor` component, including tests for button types, `aria-labels` on move/remove buttons, and form input labels.
+- `crates/vox-gui/ui/src/components/surfaces/Settings/PriorityChainEditor.tsx`:
+    - Add `type="button"` to all buttons to prevent unintended form submissions.
+    - Add `aria-expanded` attribute to the "add step" button.
+    - Add `aria-label` attributes to the move up/down and remove step buttons for improved accessibility.
+    - Add `aria-hidden="true"` to decorative span elements within step items.
+
+--- audit: original='feat(vox-gui/wave5): PriorityChainEditor a11y + form labels (Wave 5)' | actual=68L across 2 files | derived=full ---
