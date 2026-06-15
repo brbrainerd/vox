@@ -24,6 +24,7 @@ use std::time::Duration;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+#[cfg(test)]
 use vox_config::timeouts::D_5S;
 use vox_journal::{AppendDurability, FileJournal};
 use vox_runtime::{
