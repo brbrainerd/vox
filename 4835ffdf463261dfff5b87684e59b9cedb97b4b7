@@ -1,0 +1,13 @@
+feat(scientia): implement `publication-archive-run` command for end-to-end archiving
+scale: ~465 lines across 8 files [L]
+
+- `crates/vox-cli/src/commands/db/publication/archive_run.rs`: Add new `publication_archive_run` command handler. This orchestrates the archive pipeline, including manifest completion checks, approval gates, Zenodo submission (deposit, upload, optional publish), and Software Heritage saving. It supports sandbox/production Zenodo and draft/published depositions.
+- `crates/vox-publisher/src/archive_run.rs`: Introduce `ArchiveRunPlan` and `ArchiveStep` for deterministic planning of the archive pipeline. This module defines the steps (Zenodo deposit, upload, publish, Software Heritage save, record receipt) and provides logic for identifying blockers.
+- `crates/vox-cli/src/commands/db_cli/publication_subcommands.rs`: Extend `DbCliPublication` enum with `PublicationArchiveRun` subcommand, including arguments for `publication_id`, `production`, and `publish`.
+- `crates/vox-cli-core/src/scientia.rs`: Add `PublicationArchiveRun` to `ScientiaCmd` enum, mirroring the CLI subcommand structure.
+- `crates/vox-cli/src/commands/scientia.rs`: Map the new `ScientiaCmd::PublicationArchiveRun` to its corresponding `DbCliPublication` variant.
+- `crates/vox-cli/src/commands/db_cli/mod.rs`: Integrate the `publication_archive_run` handler into the `DbCli` command runner.
+- `crates/vox-cli/src/commands/db/publication/mod.rs`: Export the new `archive_run` module.
+- `crates/vox-publisher/src/lib.rs`: Make the new `archive_run` module public.
+
+--- audit: original='feat(scientia): publication-archive-run — one command preflight→autofill-gate→approval→Zenodo→SWH→receipt' | actual=465L across 8 files | derived=full ---
