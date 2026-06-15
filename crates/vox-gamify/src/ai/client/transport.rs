@@ -119,6 +119,12 @@ impl FreeAiClient {
     }
 
     /// OpenRouter chat completions with `stream: true` (SSE `data:` lines).
+    ///
+    /// Kept as a documented local egress (not routed through `vox-llm-egress`) because the
+    /// core's `stream_once` does not surface the per-call `x-response-cost` header that this
+    /// path feeds to `cost_reporter`. Listed as a facade-coverage gap in the egress design
+    /// spec; exempted in the Phase 6 arch-check seal pending an egress streaming-cost extension.
+    // vox-arch-check: allow llm-egress
     pub(crate) fn stream_openrouter(
         http: &reqwest::Client,
         api_key: &str,
@@ -232,7 +238,9 @@ impl FreeAiClient {
     /// Tries each model until one returns a non-empty response.
     /// On rate limit (429) or quota errors, advances to the next model.
     pub(crate) async fn call_openrouter_static(
-        http: &reqwest::Client,
+        // The wire now goes through vox_llm_egress::chat_once (which owns its HTTP client),
+        // so the passed client is no longer used; kept for signature compatibility.
+        _http: &reqwest::Client,
         api_key: &str,
         models: &[String],
         prompt: &str,
@@ -253,52 +261,56 @@ impl FreeAiClient {
         let mut first_rate_limit: Option<(String, Option<u64>)> = None;
 
         for model in &model_list {
-            let body = serde_json::json!({
-                "model": model,
-                "messages": [{ "role": "user", "content": prompt }],
-                "max_tokens": 512,
-            });
-            match http
-                .post(openrouter_base())
-                .header("Authorization", format!("Bearer {}", resolved_key))
-                .header("HTTP-Referer", "https://github.com/vox-foundation/vox")
-                .header("X-Title", "Vox Gamify")
-                .json(&body)
-                .send()
-                .await
-            {
+            // Route the wire through the sanctioned egress core, but keep gamify's own
+            // key + attribution headers (X-Title differs from the orchestrator's).
+            let ereq = vox_llm_egress::EgressRequest {
+                base_url: vox_config::openrouter_chat_completions_url(),
+                api_key: resolved_key.clone(),
+                model: (*model).to_string(),
+                headers: vec![
+                    (
+                        "HTTP-Referer".to_string(),
+                        "https://github.com/vox-foundation/vox".to_string(),
+                    ),
+                    ("X-Title".to_string(), "Vox Gamify".to_string()),
+                ],
+                throttle_key: "openrouter".to_string(),
+                max_concurrent: 8,
+            };
+            let msgs = [vox_llm_egress::ChatMessage {
+                role: "user".to_string(),
+                content: prompt.to_string(),
+            }];
+            let params = vox_llm_egress::ChatParams { max_tokens: Some(512), ..Default::default() };
+            match vox_llm_egress::chat_once(&ereq, &msgs, &params).await {
                 Ok(resp) => {
-                    let status = resp.status();
-                    if status.as_u16() == 429 || status.as_u16() == 402 {
-                        // Rate limited or quota exceeded — try next model
-                        let retry_after = vox_http_client::parse_retry_after(resp.headers());
-
-                        if first_rate_limit.is_none() {
-                            first_rate_limit = Some((model.to_string(), retry_after));
-                        }
-
-                        last_err = format!("model '{}': HTTP {}", model, status);
-                        tracing::debug!("OpenRouter {} for '{}', trying next", status, model);
-                        continue;
+                    let trimmed = resp.content.trim().to_string();
+                    if !trimmed.is_empty() {
+                        tracing::debug!("OpenRouter model '{}' succeeded", model);
+                        return Ok(trimmed);
                     }
-                    match resp.json::<serde_json::Value>().await {
-                        Ok(json) => {
-                            if let Some(text) = json["choices"][0]["message"]["content"].as_str() {
-                                let trimmed = text.trim().to_string();
-                                if !trimmed.is_empty() {
-                                    tracing::debug!("OpenRouter model '{}' succeeded", model);
-                                    return Ok(trimmed);
-                                }
-                            }
-                            last_err = format!("model '{}': empty content in response", model);
-                        }
-                        Err(e) => {
-                            last_err = format!("model '{}': JSON parse: {}", model, e);
-                        }
+                    last_err = format!("model '{}': empty content in response", model);
+                }
+                Err(vox_llm_egress::EgressError::RateLimited { retry_after }) => {
+                    if first_rate_limit.is_none() {
+                        first_rate_limit =
+                            Some((model.to_string(), retry_after.map(|d| d.as_secs())));
                     }
+                    last_err = format!("model '{}': rate limited", model);
+                    tracing::debug!("OpenRouter rate-limited for '{}', trying next", model);
+                    continue;
+                }
+                // Quota exceeded (402) — treat like a rate-limit and try the next model.
+                Err(vox_llm_egress::EgressError::Status { code: 402, .. }) => {
+                    if first_rate_limit.is_none() {
+                        first_rate_limit = Some((model.to_string(), None));
+                    }
+                    last_err = format!("model '{}': HTTP 402", model);
+                    tracing::debug!("OpenRouter 402 for '{}', trying next", model);
+                    continue;
                 }
                 Err(e) => {
-                    last_err = format!("model '{}': HTTP: {}", model, e);
+                    last_err = format!("model '{}': {}", model, e);
                 }
             }
             tracing::debug!(
