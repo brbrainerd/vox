@@ -1,0 +1,7 @@
+fix(ci): address clippy warnings in CI and doctor commands
+scale: ~4 lines across 2 files [S]
+
+- `crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs`: Removed a needless `return` statement in `run_mens_gate_isolated` for Unix builds.
+- `crates/vox-cli/src/commands/diagnostics/doctor/mod.rs`: Added a missing `Ok(())` return in `run_fix_cuda_path` for Windows builds.
+
+--- audit: original='fix(ci): vox-cli unix clippy (doctor cuda stub, needless return)' | actual=4L across 2 files | derived=full ---
