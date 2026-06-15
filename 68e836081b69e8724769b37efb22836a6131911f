@@ -1,0 +1,7 @@
+docs(README): rewrite stability table descriptions for architectural view
+scale: ~24 lines across 1 files [S]
+
+- Update "Audit Justification" column header to "Architecture & Stability Context".
+- Revise descriptions for "Agent Integrations", "Code Validation", "Compiler & LSP", "Database Engine", "Durable Workflows", "RAG & Research", and "Web UI & Rendering" to reflect current architectural stability and ongoing development.
+
+--- audit: original='docs: rewrite stability table descriptions to take an evergreen architectural view' | actual=24L across 1 files | derived=full ---
