@@ -1,0 +1,30 @@
+feat(compiler): warn on uncancellable async handlers (lint.handler.uncancellable_async)
+scale: ~516 lines across 23 files [L]
+
+- feat(compiler): introduce `lint.handler.uncancellable_async` to warn when an event-handler lambda in a component `view` calls an `@endpoint` function and mutates state without being annotated `@cancellable`.
+- lexer/token.rs: Add `Token::AtCancellable` for the `@cancellable` syntax.
+- ast/expr.rs: Add a `cancellable: bool` field to `Expr::Lambda` to store the annotation.
+- hir/nodes/stmt_expr.rs: Update `HirExpr::Lambda` tuple to include a `bool` for the cancellable flag.
+- parser/descent/expr/pratt_match.rs: Implement parsing for the `@cancellable fn(...)` prefix, setting the `cancellable` flag in the AST `Expr::Lambda`.
+- hir/lower/expr.rs: Thread the `cancellable` flag from AST `Expr::Lambda` to HIR `HirExpr::Lambda` during lowering.
+- typeck/async_handler_lint.rs: Add new lint pass `check_async_handlers` to detect uncancellable async handlers.
+- typeck/mod.rs: Register the new `check_async_handlers` lint in `typecheck_hir_module`.
+- typeck/checker/mod.rs: Update `hir_expr_span` and `contains_db_write_or_unsafe_in_expr` to correctly handle the new `HirExpr::Lambda` structure.
+- typeck/checker/expr.rs: Update `check_expr` to handle the new `HirExpr::Lambda` structure.
+- typeck/effect_check.rs: Update `check_expr` to handle the new `HirExpr::Lambda` structure.
+- typeck/effect_deps_lint.rs: Update `check_expr` to handle the new `HirExpr::Lambda` structure.
+- typeck/stale_capture_lint.rs: Update `check_expr` to handle the new `HirExpr::Lambda` structure.
+- codegen/eval/walk passes: Update all `HirExpr::Lambda` match arms across codegen, eval, and walk passes to reflect the new tuple structure.
+- crates/vox-codegen/src/codegen_ts/reactive.rs: Update `scan_hir_expr_for_react_imports` and `collect_callee_refs` to match the new `HirExpr::Lambda` structure.
+- crates/vox-codegen/src/codegen_rust/emit/stmt_expr_tail.rs: Update `emit_expr` to match the new `HirExpr::Lambda` structure.
+- crates/vox-codegen/src/codegen_ts/hir_emit/async_walker.rs: Update `walk_expr` to match the new `HirExpr::Lambda` structure.
+- crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs: Update `walk_expr` to match the new `HirExpr::Lambda` structure.
+- crates/vox-codegen/src/codegen_ts/hir_emit/state_deps.rs: Update `walk_expr` to match the new `HirExpr::Lambda` structure.
+- crates/vox-compiler/src/eval/expr.rs: Update `eval_expr` to match the new `HirExpr::Lambda` structure.
+- crates/vox-compiler/src/hir/db_op_walk.rs: Update `walk_expr` and `walk_expr_mut` to match the new `HirExpr::Lambda` structure.
+- crates/vox-compiler/src/hir/dead_code.rs: Update `walk_expr` to match the new `HirExpr::Lambda` structure.
+- crates/vox-cli/src/commands/db/query_plans.rs: Update `collect_query_plans_expr` to match the new `HirExpr::Lambda` structure.
+- crates/vox-workflow-runtime/src/workflow/plan.rs: Update `walk_expr` to match the new `HirExpr::Lambda` structure.
+- tests/async_handler_test.rs: Add 3 new tests covering warning, cancellable silencing, and sync handler silencing.
+
+--- audit: original='feat(compiler): warn on uncancellable async handlers (lint.handler.uncancellable_async)' | actual=516L across 23 files | derived=full ---
