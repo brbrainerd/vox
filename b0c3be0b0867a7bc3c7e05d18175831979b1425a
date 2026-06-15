@@ -1,0 +1,6 @@
+feat(orchestrator-mcp/C3): scope tool dispatch under TRACE_CTX for span propagation
+scale: ~28 lines across 1 files [S]
+
+- `dispatch.rs`: In `handle_tool_call`, a `TraceContext` is now constructed from tool arguments (`task_id`, `parent_task_id`, `trace_id`, `span_depth`, `agent_id`) and the inner dispatch is executed within `TRACE_CTX::scope` to propagate tracing context to all async code.
+
+--- audit: original='feat(orchestrator-mcp/C3): scope tool dispatch under TRACE_CTX for span propagation' | actual=28L across 1 files | derived=full ---
