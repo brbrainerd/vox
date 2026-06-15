@@ -1,0 +1,37 @@
+feat(autonomic-system, llm-target): model selection and audit gates
+scale: ~13152 lines across 82 files [XL]
+
+- **crates/vox-orchestrator/src/models/select.rs**: Add `select()` function for single-source-of-truth model selection, replacing ad-hoc constants with intent-driven resolution based on multi-axis user input (`SelectionAxes`) and caller hints (`SelectionIntent`).
+- **crates/vox-audit**: Introduce new `vox-audit` crate for LLM-target audit gates, including `aggregator`, `recorder`, `report`, and `subcommands` modules.
+- **crates/vox-audit/src/aggregator.rs**: Implement CR-L8 corpus-feedback aggregator, consuming telemetry events and producing `CorpusFeedbackReport`.
+- **crates/vox-telemetry/src/types.rs**: Extend `TelemetryEvent` enum with new event types for `LintFinding`, `LintAutofix`, `RepairAttempt`, `RepairOutcome`, `AuditRun`, and `SelectionDecisionEvent`. Add session IDs for lint, repair, and audit events.
+- **crates/vox-audit/src/subcommands/corpus_feedback.rs**: Implement `vox audit corpus-feedback` subcommand for CR-L8, loading and aggregating telemetry events into a `CorpusFeedbackReport` and enforcing a freshness gate.
+- **crates/vox-code-audit/src/retirement_parity.rs**: Add CR-L6 retirement-guard parity check, cross-referencing `retired-surfaces.v1.yaml` against detector registry and diagnostic ID catalog.
+- **docs/src/architecture**: Add new architecture documents: `vox-as-llm-target-audit-and-plan-2026.md`, `v1-llm-target-implementation-plan-2026.md`, `model-selection-2026-q2.md`, and `model-autonomic-system-2026.md`.
+- **crates/vox-cli/src/commands/repair.rs**: Modify `repair` command, likely integrating with the new model selection or audit systems.
+- **contracts/orchestration/model-catalog.bootstrap.v1.json**: Update model catalog bootstrap JSON, likely reflecting the 2026-Q2 model catalog refresh.
+- **crates/vox-code-audit/src/detectors**: Add new retirement detectors for `retired_decorator`, `retired_capacitor`, `retired_crate_import`, and `retired_env_var`.
+- **crates/vox-cli/src/commands/audit.rs**: Update `audit` command, likely to integrate with the new `vox-audit` crate and its subcommands.
+- **crates/vox-cli/src/telemetry_corpus_feedback_sink.rs**: Add new telemetry sink for corpus feedback.
+- **contracts/ci/vox-audit-contract.v1.yaml**: Define contract for `vox-audit` CLI, including flag sets, exit codes, and telemetry.
+- **contracts/retirement/retired-surfaces.v1.yaml**: Define retired surfaces contract for parity checks.
+- **crates/vox-code-audit/tests/telemetry_emission_test.rs**: Add telemetry emission tests for `vox-code-audit`.
+- **crates/vox-audit/src/subcommands/aci_default.rs**: Add `aci_default` subcommand to `vox-audit`.
+- **crates/vox-audit/src/recorder.rs**: Implement event recorder for `vox-audit`.
+- **crates/vox-audit/src/subcommands/stubs.rs**: Add `stubs` subcommand to `vox-audit`.
+- **crates/vox-audit/src/subcommands/retirement.rs**: Add `retirement` subcommand to `vox-audit`.
+- **.github/workflows/cr-l8-corpus-feedback.yml**: Add GitHub workflow for CR-L8 corpus feedback.
+- **crates/vox-audit/src/main.rs**: Implement main entry point for `vox-audit` binary.
+- **crates/vox-cli/tests/telemetry_corpus_feedback_e2e.rs**: Add end-to-end tests for telemetry corpus feedback.
+- **contracts/marquee/manifest.v1.yaml**: Add marquee app manifest.
+- **contracts/eval/llm-panel.v1.yaml**: Add LLM panel manifest with version pins.
+- **crates/vox-audit/tests/cr_l8_loop_e2e.rs**: Add end-to-end tests for CR-L8 loop.
+- **crates/vox-cli/tests/cr_l8_flywheel_e2e.rs**: Add end-to-end tests for CR-L8 flywheel.
+- **contracts/index.yaml**: Update contracts index.
+- **crates/vox-cli/src/commands/model/classify.rs**: Add `classify` subcommand to `vox model`.
+- **contracts/orchestration/model-pins.v1.yaml**: Add model pins contract, separating pinning from cataloging.
+- **crates/vox-config/src/model_routing.rs**: Update model routing configuration.
+- **contracts/eval**: Add new evaluation panel skeletons and manifests for `humaneval-vox`, `repair-corpus`, `plan-fidelity`, and `spec-to-app`.
+- **crates/vox-code-audit/src/engine.rs**: Update `vox-code-audit` engine.
+
+--- audit: original='feat: model autonomic system + v1.0 LLM-target gates' | actual=13152L across 82 files | derived=sampled ---
