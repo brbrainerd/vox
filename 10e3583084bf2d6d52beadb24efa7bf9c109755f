@@ -1,0 +1,25 @@
+refactor: green the clippy gate and fix vox-db test regression
+scale: ~139 lines across 15 files [M]
+
+- **crates/vox-db**: Re-added `vox_compiler` and `vox_codegen` as `[dev-dependencies]` to fix a regression in `arca_compiler_table_parity.rs` test, which was broken by the `vox-db` to `vox-compiler` decoupling.
+- **crates/vox-integration-tests**:
+    - `actor_dispatch_e2e_test.rs`: Refactored `match` statements to `if` statements for `__ev == "add"` and `__ev.as_str() == "get"`.
+    - `golden_typecheck_gate.rs`: Refactored `if let Some(errs) = ... { if !errs.is_empty() { ... } }` to use `if let Some(errs) = ... && !errs.is_empty()`.
+- **crates/vox-workflow-runtime/src/file_journal.rs**: Refactored `if write.is_ok() { if let Ok(mut m) = ... }` to use `if write.is_ok() && let Ok(mut m) = ...` in `record_activity_result` and `record_patch_applied`.
+- **crates/vox-research-shim**:
+    - `pipeline.rs`: Refactored `if let Some(db) = db { if let Err(e) = db... }` to use `if let Some(db) = db && let Err(e) = db...`.
+    - `stages.rs`: Refactored `if let Ok(parsed) = ... { if parsed.total_score > 0 { ... } }` to use `if let Ok(parsed) = ... && parsed.total_score > 0`.
+    - `web_gather.rs`: Refactored `if let Some(scope) = site_scope { if !host_matches_site_scope(...) { ... } }` to use `if let Some(scope) = site_scope && !host_matches_site_scope(...)`.
+- **crates/vox-compiler/src/eval/db.rs**:
+    - Refactored `if let Some(w) = take(vals, pos) { if have.as_ref() == Some(&w) { ... } }` to use `if let Some(w) = take(vals, pos) && have.as_ref() == Some(&w)`.
+    - Refactored `if c != "_id" { if let Some(pair) = r.iter().find(...) { ... } }` to use `if c != "_id" && let Some(pair) = r.iter().find(...)`.
+- **crates/vox-audit/src/bin/cr-a2.rs**: Updated doc comments for `json_value_has_version` to condense descriptions of `version` and `schema` fields.
+- **crates/vox-cli-core/src/scientia.rs**: Reflowed a doc comment for the `dashboard` command.
+- **crates/vox-codegen**:
+    - `codegen_ts/rn/scaffold.rs`: Reflowed a doc comment for `metro.config.js`.
+    - `codegen_ts/hir_emit/mod.rs`: Reflowed a doc comment.
+    - `web_ir/mod.rs`: Added two new files, `web_ir/mod.rs` and `web_ir/mod.rs`, which are empty.
+- **crates/vox-scientia/src/class_routing/defaults.rs**: Added `#[allow(clippy::should_implement_trait)]` to `FindingClass::from_str` and a corresponding comment.
+- **Cargo.lock**: Updated `Cargo.lock` due to dependency changes.
+
+--- audit: original='fix: green the clippy gate + restore vox-db test broken by the compiler decoupling (#156)' | actual=139L across 15 files | derived=full ---
