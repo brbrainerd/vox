@@ -1,0 +1,14 @@
+ci(coolify): Enforce public HTTPS health probe for eval sandbox deployments
+scale: ~68 lines across 2 files [M]
+
+- `.github/workflows/deploy-hetzner.yml`:
+    - Added a new `skip_public_health_probe` input to `workflow_dispatch` to bypass the public health check.
+    - Modified the existing Coolify API health check to exit with an error if the status is not 200.
+    - Added a new step to probe the public evaluation host via HTTPS using `curl` with strict TLS verification. This step retries for up to 240 seconds and fails if an HTTP 200 is not received.
+    - Introduced `COOLIFY_PUBLIC_EVAL_HEALTH_URL` environment variable to override the default health check URL.
+- `docs/src/ci/deploy-contract.md`:
+    - Documented "Gate 3 — Production HTTPS (eval sandbox)" which details the new public HTTPS health probe.
+    - Explained the use of `COOLIFY_PUBLIC_EVAL_HEALTH_URL` and `skip_public_health_probe`.
+    - Added an operator cheatsheet for troubleshooting common failures related to TLS, Traefik 503 errors, and HTTP 404s during the public health probe.
+
+--- audit: original='ci(coolify): enforce public HTTPS eval health probe in Gate 3' | actual=68L across 2 files | derived=full ---
