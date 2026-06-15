@@ -1,0 +1,32 @@
+feat(codegen-rn): emit cross-file imports for components, endpoint fns, and Speech
+scale: ~356 lines across 11 files [L]
+
+- `crates/vox-codegen/src/codegen_ts/reactive.rs`:
+    - Introduced `collect_component_import_refs` as a shared helper for collecting import references.
+    - Modified `collect_callee_refs`, `collect_callee_refs_stmt`, `collect_jsx_component_refs`, and `collect_jsx_component_refs_stmt` to be `pub(crate)`.
+    - These changes enable walking `view`, member bodies (state init, derived, effect, `on mount`/`on cleanup`, prelude statements) for import collection, not just view + prelude.
+- `crates/vox-codegen/src/codegen_ts/rn/component.rs`:
+    - Updated `emit_rn_component` to use the new `collect_component_import_refs` helper.
+    - Now emits `import { Sibling } from "./Sibling"` for sibling components and `import { endpointFn } from "./vox-client"` for endpoint functions.
+    - Ensured `mobile` import is added when `Speech.transcribe_microphone` is used.
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`:
+    - Implemented lowering for `Speech.transcribe_microphone()` to `mobile.transcribe_microphone()`.
+    - Implemented lowering for `Speech.transcribe(path)` to a backend-only error, mirroring AST/web emit.
+- `crates/vox-codegen/src/codegen_ts/rn/mod.rs`:
+    - Updated `generate` function to pass `known_components` and `endpoint_names` to `emit_rn_component`.
+- `crates/vox-codegen/src/codegen_ts/rn/mobile_utils.rs`:
+    - Updated `component_uses_mobile` to correctly detect usage of `Speech.transcribe_microphone`.
+- `crates/vox-codegen/tests/component_import_refs_test.rs`:
+    - Added a new test file to verify correct import emission for on-mount endpoint calls and sibling component references.
+- `crates/vox-codegen/tests/deep_link_test.rs`:
+    - Refreshed test to assert `voxRuntime.onDeepLink` and `useDeepLinkRouting` from `@vox/runtime` instead of direct Tauri APIs.
+- `crates/vox-codegen/tests/back_button_test.rs`:
+    - Refreshed test to assert `voxRuntime.onBackButton` from `@vox/runtime` instead of direct Tauri APIs.
+- `crates/vox-codegen/tests/snapshots/mobile_emit_test__mobile_emit_from_shell_projection.snap`:
+    - Refreshed snapshot to reflect changes in mobile emit.
+- `crates/vox-codegen/tests/snapshots/main_boot_snapshot__main_boot_no_scheduled_no_endpoints.snap`:
+    - Refreshed snapshot.
+- `crates/vox-codegen/tests/snapshots/main_boot_snapshot__main_boot_scheduled_actor_server.snap`:
+    - Refreshed snapshot.
+
+--- audit: original='codegen(rn): emit cross-file imports for components, endpoint fns, Speech' | actual=356L across 11 files | derived=full ---
