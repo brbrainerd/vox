@@ -1,0 +1,9 @@
+docs(plan): Outline implementation for 95% semantic coverage without bogus tests
+scale: ~697 lines across 1 files [L]
+
+- Create `docs/superpowers/plans/2026-06-15-semantic-coverage-to-95-percent.md` detailing a plan to convert unproven symbols into proven ones.
+- Define the goal, architecture (CI ratchet, test-quality gate, leverage waves), and tech stack for achieving 95% semantic coverage.
+- Explain the meaning of "95% efficiently, without bogus tests" and provide honest denominators for various code buckets.
+- Include a detailed, task-by-task implementation plan with checkboxes for tracking progress.
+
+--- audit: original='docs(plan): semantic coverage to the efficient ceiling (~95% of frontier, no touch-tests)' | actual=697L across 1 files | derived=full ---
