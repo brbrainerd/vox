@@ -1,0 +1,10 @@
+feat(vox-codegen): lower DurabilityKind to runtime call shapes
+scale: ~170 lines across 5 files [M]
+
+- crates/vox-codegen/src/codegen_rust/emit/durability_lower.rs: New file with `emit_durable_body` function to branch on `DurabilityKind` and emit specific runtime call shapes for Workflow, Activity, Actor, and plain functions.
+- crates/vox-codegen/tests/durability_lowering.rs: New file adding four acceptance tests to verify the correct lowering of Workflow, Activity, Actor, and plain functions.
+- crates/vox-codegen/src/codegen_rust/emit/workflow.rs: Modified `emit_fn` to delegate to `durability_lower::emit_durable_body` for emitting function bodies, replacing the raw loop for statement emission.
+- crates/vox-codegen/src/codegen_rust/emit/mod.rs: Added `durability_lower` module to the `emit` module.
+- docs/src/architecture/where-things-live.md: Updated documentation to include `BundleRef`, `WorkflowDrainState`, and `activity_result_cache` locations.
+
+--- audit: original='feat(vox-codegen): P2-T7 lower DurabilityKind to runtime call shapes' | actual=170L across 5 files | derived=full ---
