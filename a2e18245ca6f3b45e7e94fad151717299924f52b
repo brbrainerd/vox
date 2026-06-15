@@ -1,0 +1,6 @@
+build(docs): regenerate feed.xml
+scale: ~218 lines across 1 files [M]
+
+- docs/src/feed.xml: Regenerated the Atom feed XML, updating entries and metadata.
+
+--- audit: original='chore(docs): regenerate feed.xml after rebase onto main' | actual=218L across 1 files | derived=full ---
