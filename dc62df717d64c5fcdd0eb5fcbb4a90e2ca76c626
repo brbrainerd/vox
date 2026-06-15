@@ -1,0 +1,8 @@
+feat(scientia): Add AI disclosure block and mark Phase 7 complete
+scale: ~96 lines across 3 files [M]
+
+- `crates/vox-ro-crate/src/ai_disclosure.rs`: Add new module defining `AiToolUsage` struct for per-tool declaration (name, version, description, human_verified) and `AiDisclosureBlock` struct. Implement `AiDisclosureBlock::build` to auto-generate disclosure text from a list of tools, setting `human_author_accountable` and `no_llm_generated_figures` to `true`.
+- `crates/vox-ro-crate/src/lib.rs`: Export `AiDisclosureBlock` and `AiToolUsage` from the new `ai_disclosure` module.
+- `docs/src/architecture/scientia-self-publication-finalization-plan-2026.md`: Update the "Phase 7 — Format adaptation" section to mark it as complete, including a status update mentioning the `AiDisclosureBlock` and `AiToolUsage` additions.
+
+--- audit: original='feat(scientia): AI disclosure block (Nature/Science/Cell 2025 norms) + Phase 7 Complete' | actual=96L across 3 files | derived=full ---
