@@ -220,4 +220,21 @@ mod semcov_struct_pipeline_tests {
             "context B: @pure silently dropped on @example fn"
         );
     }
+
+    // ── R5: decorator-order asymmetry (known limitation, executable TODO) ────
+    // `@pure` AFTER `@example`/`@test` parses (see the test above); `@pure` BEFORE
+    // them is a hard parse error because the top-level dispatch in
+    // parser/descent/mod.rs routes a leading `@pure` straight to `parse_fn_decl`,
+    // whose decorator loop has no arm for `@example`/`@test`. The real fix is to
+    // collect ALL leading decorators first, then dispatch on the decl-kind keyword.
+    // This test pins the DESIRED behavior; remove `#[ignore]` once the refactor lands.
+    #[test]
+    #[ignore = "R5: needs collect-all-leading-decorators-then-dispatch refactor in parser/descent/mod.rs"]
+    fn pure_before_example_should_parse_and_stay_pure() {
+        // Catches (post-fix): decorator order changing acceptance or dropping @pure.
+        let m = parse(lex("@pure\n@example\nfn ef() to int { 1 }")).expect(
+            "@pure before @example should parse once decorator collection is order-independent",
+        );
+        assert_eq!(m.declarations.len(), 1, "must lower to exactly one decl");
+    }
 }
