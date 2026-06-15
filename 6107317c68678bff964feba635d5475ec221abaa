@@ -1,0 +1,7 @@
+fix(chronofact, novelty): improve claim year calculation and add novelty test case
+scale: ~15 lines across 2 files [S]
+
+- `crates/vox-inspect-bridge/src/novelty.rs`: Add a new test case `no_summary_no_scores_is_novel` to verify that a bundle with no summary and no scores is considered novel.
+- `crates/vox-inspect-bridge/src/chronofact.rs`: Update `claim_year` calculation to use the average Gregorian year length (365.2425 days) for improved accuracy, replacing the previous integer arithmetic approximation.
+
+--- audit: original='fix(scientia): leap-year-accurate chronofact formula + triple-None novelty edge case (Phase 5)' | actual=15L across 2 files | derived=full ---
