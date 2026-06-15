@@ -1,0 +1,11 @@
+feat(orchestrator): make tower-lsp-server optional with `lsp` feature
+scale: ~12 lines across 2 files [S]
+
+- `crates/vox-orchestrator/Cargo.toml`:
+    - Introduced an `lsp` feature that depends on `tower-lsp-server`.
+    - Made `tower-lsp-server` optional.
+    - Updated `runtime` and `toestub-gate` features to imply the new `lsp` feature.
+- `crates/vox-git/Cargo.toml`:
+    - Updated `tempfile` dev-dependency to use `workspace = true`.
+
+--- audit: original='build(deps): B-9 gate tower-lsp-server behind lsp feature; B-5-trim vox-git tempfile workspace' | actual=12L across 2 files | derived=full ---
