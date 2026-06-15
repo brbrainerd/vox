@@ -1,0 +1,12 @@
+feat(vox-effort-route): implement deterministic finding bucketing
+scale: ~154 lines across 1 files [M]
+
+- Implement `BucketKey` struct for deterministic grouping of findings by waste category, remediation kind, and primary crate.
+- Implement `Bucket` struct to hold a `BucketKey` and its member `LoadedFinding`s.
+- Add `primary_crate` function to derive the owning crate from a finding's evidence pointers or shape histogram, falling back to "<workspace-root>".
+- Add `group` function to group `LoadedFinding`s into `Bucket`s using a `BTreeMap` for deterministic ordering.
+- Define `remediation_kind` function to extract the remediation kind from a finding's remediation pointers.
+- Add `remediation_kind_from_path` helper function to parse remediation kind from a path string.
+- Replace placeholder content in `crates/vox-effort-route/src/bucket.rs` with the new bucketing logic.
+
+--- audit: original='feat(vox-effort-route): deterministic bucketing (A5)' | actual=154L across 1 files | derived=full ---
