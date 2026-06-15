@@ -1,0 +1,7 @@
+fix(tests): serialize environment-mutating tests to prevent races
+scale: ~5 lines across 2 files [S]
+
+- `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs`: Introduced `ENV_MUTEX` within the `sql_surface_tests` module and acquired it in `secret_guard_hard_cut_enabled_by_cutover_phase` and `secrets_cutover_phase_parses_env_values` tests. This serializes tests that mutate process-wide environment variables (`VOX_SECRETS_CUTOVER_PHASE`, `VOX_SECRETS_HARD_CUT`, `VOX_SECRETS_PROFILE`, `VOX_SECRETS_MIGRATION_PHASE`) to prevent race conditions where one test's environment changes could affect another.
+- `crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt`: This binary file was modified, indicating a regeneration of the command catalog baseline.
+
+--- audit: original='fix(tests): serialize env-mutating tests with mutex; update catalog baseline' | actual=5L across 2 files | derived=full ---
