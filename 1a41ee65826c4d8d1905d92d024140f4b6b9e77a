@@ -1,0 +1,20 @@
+feat(gui): real Mesh surface + vox_mesh_* populi tools
+scale: ~677 lines across 4 files [L]
+
+- **crates/vox-gui/ui/src/components/surfaces/Mesh/MeshView.tsx**: Rewrote the MeshView component to display a distributed-node surface. This includes:
+    - Fetching and displaying mesh node data (status, host, GPU, trust, models, last-seen) in a table using `vox_mesh_nodes`.
+    - Displaying queue depth and statistics using `vox_mesh_queue_stats`.
+    - Providing a form for dispatching jobs via `vox_mesh_dispatch`.
+    - Implementing auto-refresh for data and handling empty states.
+    - Replacing the previous `vox ci mesh-gate` panel.
+    - Added `Glass` and `Icon` components for UI.
+- **crates/vox-orchestrator-mcp/src/populi_tools.rs**: Added new Populi introspection MCP tools:
+    - `mesh_nodes`: Retrieves a list of mesh nodes, preferring the control plane and falling back to the local registry.
+    - `mesh_queue_stats`: Retrieves queue statistics, preferring the control plane and falling back to local.
+    - `mesh_dispatch`: Dispatches a script to the control plane (control-plane only).
+    - Implemented `resolve_control_url` to determine the Populi control plane URL from configuration or environment variables.
+    - Added `with_env_token` for Bearer authentication.
+- **crates/vox-orchestrator-mcp/src/dispatch.rs**: Registered the new Populi MCP tools (`vox_mesh_nodes`, `vox_mesh_queue_stats`, `vox_mesh_dispatch`) for handling tool calls.
+- **crates/vox-orchestrator-mcp/Cargo.toml**: Added a dependency on `vox-populi/transport` to enable Populi transport functionality.
+
+--- audit: original='feat(gui): real Mesh surface + vox_mesh_* populi tools' | actual=677L across 4 files | derived=full ---
