@@ -1,0 +1,8 @@
+feat(vox-gui/catalog): Add basic smoke tests for Catalog component
+scale: ~19 lines across 1 files [S]
+
+- Add `Catalog.test.tsx` with two tests:
+  - Verify "Command Center" heading renders.
+  - Verify component renders without crashing when no `skills` prop is provided.
+
+--- audit: original='feat(vox-gui/wave6): Catalog smoke test + checklist audit (Wave 6)' | actual=19L across 1 files | derived=full ---
