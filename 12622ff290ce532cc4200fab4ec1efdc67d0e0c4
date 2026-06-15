@@ -1,0 +1,22 @@
+feat(agentos): mutation SSOT crate, policy runtime, MCP wiring
+scale: ~445 lines across 17 files [L]
+
+- `crates/vox-agentos-mutation`: New crate providing `mutation_kind_for_tool` for canonical mapping of MCP tool names to `mutation_kind` strings.
+- `crates/vox-orchestrator/src/agentos/mutation_classifier.rs`: Removed the `mutation_kind_for_tool` implementation, now delegating to `vox-agentos-mutation`.
+- `crates/vox-orchestrator/src/agentos/policy_runtime.rs`: New module `AgentosPolicyLedger` to track `mutation_kind` per agent and manage `OrchestratorPolicy` state.
+- `crates/vox-orchestrator/src/agentos/mod.rs`: Added `policy_runtime` module.
+- `crates/vox-orchestrator/src/orchestrator/accessors.rs`: Added `record_agentos_mcp_tool` and `evaluate_orchestrator_policy_for_agent` methods to `Orchestrator`.
+- `crates/vox-orchestrator/src/orchestrator.rs`: Added `agentos_policy_ledger` field to `Orchestrator`.
+- `crates/vox-orchestrator/src/orchestrator/core/mod.rs`: Added `policy_runtime` to `AgentosCore`.
+- `crates/vox-orchestrator/Cargo.toml`: Added `vox-agentos-mutation` dependency.
+- `crates/vox-orchestrator/tests/agentos_mcp_policy_wiring.rs`: New integration test for AgentOS MCP policy wiring, verifying risk score changes based on tool `mutation_kind`.
+- `examples/golden/agentos_std_surface.vox`: New golden example demonstrating `std.agentos.mutation_kind_for_tool` and asserting ACI buckets.
+- `crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs`: Removed `visit_vox_files` and refactored `run_script_hygiene` to simplify script hygiene checks.
+- `scripts/ci/script-hygiene.vox`: Updated script hygiene to reflect changes in `matrix.rs`.
+- `docs/agents/workflow-script-allowlist.txt`: Updated script allowlist.
+- `docs/src/architecture/layers.toml`: Added a new architecture layer entry.
+- `crates/vox-dashboard/app/src/generated/routes.ts`: New generated routes file.
+- `crates/vox-agentos-mutation/Cargo.toml`: New Cargo.toml for the `vox-agentos-mutation` crate.
+- `crates/vox-orchestrator/src/calibration.rs`: Minor changes to calibration.
+
+--- audit: original='feat(agentos): mutation SSOT crate, policy runtime, MCP wiring' | actual=445L across 17 files | derived=full ---
