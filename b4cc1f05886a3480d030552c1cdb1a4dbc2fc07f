@@ -1,0 +1,11 @@
+feat(gui): add per-tab pinned working-set scope chips
+scale: ~36 lines across 1 files [S]
+
+- `App.tsx`:
+    - Introduce `scopeDraft` state for managing the input field for new scope paths.
+    - Implement `updateActiveScope` callback to add or remove paths from the active session's `scopePaths`.
+    - Render a "scope" row above the Loquela component, displaying chips for the active tab's pinned scope paths.
+    - Each scope chip shows the last two path segments and includes a button to remove the path.
+    - Add an input field and an "Add" button to allow users to add new paths to the active tab's scope.
+
+--- audit: original='feat(gui): per-tab pinned working-set scope chips (I4)' | actual=36L across 1 files | derived=full ---
