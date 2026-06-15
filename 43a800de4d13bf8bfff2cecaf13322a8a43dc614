@@ -1,0 +1,13 @@
+docs(plan): mark R-A, R-B, R-C, and R-D tracks as done in forward plan
+scale: ~24 lines across 1 files [S]
+
+- `docs/src/architecture/post-sprint-forward-plan-2026-05-25.md`:
+    - Updated the status of tracks R-A, R-B, R-C, and R-D from "READY" to "✅ DONE" in the "Forward Plan Tracks" table.
+    - Added specific completion details for each track:
+        - R-A: Noted completion with `5f1e9f1cd9` and R-B push `e5bb6afccb`.
+        - R-B: Noted completion with commit `e5bb6afccb`.
+        - R-C: Noted completion via sprint §9 log and commit `7f2edd8e7e`.
+        - R-D: Noted completion by implementing Option 2 in session 2 (CR-A3 updated, `frozen_crates.rs` redirects to `data-storage-policy.v1.yaml`).
+    - Updated the "fully executed" checklist to mark R-A, R-B, R-C, and R-D as completed (from ⬜ to ✅).
+
+--- audit: original='docs(plan): close R-A/B/C/D tracks in forward plan; all immediate next steps done' | actual=24L across 1 files | derived=full ---
