@@ -1,0 +1,6 @@
+docs(architecture): audit vox-cli-ci extraction, deferring due to non-urgency
+scale: ~18 lines across 1 files [S]
+
+- docs/src/architecture/build-and-crate-org-improvement-plan-2026-06.md: Updated the status of the `vox-cli-ci` extraction task (WS5-T4) from "URGENT, gated" to "AUDITED 2026-06-03: legitimate but NOT urgent; DEFER." The update includes detailed findings: `ci/` is 26,344 LoC (~32% of `vox-cli`), is the highest-churn subtree (~65% of recent commits), and has a 10s incremental rebuild time. However, the `max_loc` budget is a `warn` not an error, the incremental rebuild win is variable due to `vox-cli`'s dependency on `vox-cli-ci`, and the extraction requires a significant `build_catalog()` -> `VoxCliRoot` DI refactor. The determination is that while the separation has merit, it is not currently forced.
+
+--- audit: original='docs(architecture): vox-cli-ci extraction audit — legitimate but not urgent (defer)' | actual=18L across 1 files | derived=full ---
