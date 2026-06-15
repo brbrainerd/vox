@@ -1,0 +1,11 @@
+feat(config): add `skill_search_roots` for standard skill discovery paths
+scale: ~45 lines across 3 files [S]
+
+- `crates/vox-config/src/paths.rs`:
+    - Added `skill_search_roots` function to return a `Vec<PathBuf>` of skill discovery roots.
+    - Roots are ordered by precedence: workspace-relative `.vox/skills`, `.agents/skills`, `.claude/skills`, followed by the same three under the user's home directory.
+    - Added a test `skill_search_roots_orders_vox_then_agents_then_claude` to verify the order and structure of the returned paths.
+- `crates/vox-config/Cargo.toml`: Added `dirs` crate dependency.
+- `Cargo.lock`: Updated to include `dirs` crate.
+
+--- audit: original='feat(config): standard skill discovery roots (.vox/.agents/.claude)' | actual=45L across 3 files | derived=full ---
