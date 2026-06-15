@@ -1,0 +1,7 @@
+feat(structural): add pipeline-gap tests for `when{}` arms and split-brain pricing
+scale: ~131 lines across 2 files [M]
+
+- `crates/vox-compiler/src/semcov_struct_pipeline_tests.rs`: Add a new test suite for "Pattern #5: half-wired `when {}` blocks". This includes a helper function `lower_when_view` to lower a `when` expression and two tests: `when_view_all_arms_present` to ensure all four `when` arms (fetching, empty, error, ok) are present in the lowered `HirAsyncView`, and `when_view_error_ok_bindings_survive` to verify that bindings for `error e` and `ok x` arms are correctly preserved. The `HirStmt` enum is also imported.
+- `crates/vox-cli/tests/effort_pricing_parity.rs`: Add a new integration test file for "Pattern #7: split-brain pricing parity". This test compares the `cost_usd` function from `vox_effort_audit::pricing::ModelRates` and `vox_effort_route::pricing::ModelRates` across a matrix of inputs to ensure their behavior is identical. It includes a `pair` helper function to create instances of both `ModelRates` structs from common inputs and a `cost_usd_agrees_across_audit_and_route` test function with various test cases (normal, zero, input-only, output-only, known-free, unknown/None).
+
+--- audit: original='test(structural): add pipeline-gap patterns #5 (when{} arms) and #7 (split-brain pricing)' | actual=131L across 2 files | derived=full ---
