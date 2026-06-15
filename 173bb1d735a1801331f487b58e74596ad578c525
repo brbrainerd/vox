@@ -1,0 +1,10 @@
+chore(compiler): silence dead-code warnings for state dependency shims
+scale: ~14 lines across 3 files [S]
+
+- `crates/vox-compiler/src/codegen_ts/hir_emit/state_deps.rs`:
+    - Added `#[allow(dead_code)]` attribute to `extract_state_deps` and `extract_state_deps_with_callees` functions.
+    - Updated comments for `extract_state_deps` to clarify its role as a back-compat shim and mention `extract_state_deps_with_diagnostics` as the active codegen path.
+- `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs`: Removed re-exports of `extract_state_deps` and `extract_state_deps_with_callees`.
+- `crates/vox-compiler/src/codegen_ts/reactive.rs`: Removed imports of `extract_state_deps` and `extract_state_deps_with_callees`.
+
+--- audit: original='chore(compiler): silence dead-code warnings on retained back-compat shims' | actual=14L across 3 files | derived=full ---
