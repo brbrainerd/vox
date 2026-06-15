@@ -1,0 +1,10 @@
+docs(inventory): update generated_at and add two new Rust files
+scale: ~24 lines across 1 files [S]
+
+- docs/agents/doc-inventory.json:
+  - Updated `generated_at` timestamp from `2026-05-11T05:31:55.555Z` to `2026-05-11T05:45:54.896Z`.
+  - Added two new entries for Rust files:
+    - `crates/vox-integration-tests/target.stale-2026-05-11/generated/src/main.rs` (115 lines, 2 plain comments).
+    - `crates/vox-integration-tests/target.stale-2026-05-11/generated/src/lib.rs` (7 lines, 0 comments).
+
+--- audit: original='chore(docs): sync doc-inventory after workspace artifact snapshot paths' | actual=24L across 1 files | derived=full ---
