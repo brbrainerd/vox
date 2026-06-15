@@ -1,0 +1,31 @@
+refactor(islands): drop island-related code, config, and content
+scale: ~850 lines across 34 files [L]
+
+- vox-cli:
+  - Delete `full_stack_minimal_build.rs` test.
+  - Remove `build_islands_if_present`, `apply_island_mount_script_to_index_html`, `IslandsBuildSummary`, `IslandMountScriptInjection`, V2-stub log, and `maybe_write_root_pnpm_workspace` from `frontend.rs`.
+  - Remove callers of island-related functions in `commands/run.rs`, `commands/bundle.rs`, and `compilerd.rs` (initial + watch loop).
+  - Drop `islands/` rule from `coderabbit stack_planner` heuristics.
+  - Clean island doc strings in `v0_tsx_normalize.rs`, `v0_tsx_validate.rs`, and `main.rs` CLI table.
+- vox-grammar-export:
+  - Remove `@island`, `island`, and `island_prop` rules from `ebnf.rs`, `lark.rs`, `compact_prompt.rs`, and `ssot_markdown.rs`.
+  - Remove island-related rules from `tests/export_test.rs`.
+  - Bump `BUILT_GRAMMAR_HASH` in `versioning.rs`.
+- tmLanguage:
+  - Drop `island` keyword from `vox-vscode/syntaxes/vox.tmLanguage.json` and `crates/vox-dashboard/src/utils/vox.tmLanguage.json`.
+- vox-compiler:
+  - Scrub straggler island wording in `typeck/ast_decl_lints.rs` hint strings.
+- vox-corpus:
+  - Remove island construct from `training extractor`, `augmentation thesaurus`, `codegen tag dispatch + complexity table`, `preflight Q&A`, `synthetic web pairs`, and `search seed`.
+  - Specifically, remove island references from `corpus/extract_vox/mod.rs`, `codegen_vox/part_02.rs`, `synthetic_gen/bodies/_web_pairs.inc`, `codegen_vox/part_03.rs`, `synthetic_search_gen.rs`, `corpus/augment/mod.rs`, `corpus/preflight/preflight_part2.rs`, and `training/mod.rs`.
+- vox-mens:
+  - Update Path C system prompt to drop `@island` clause in `training/system_prompt.rs`.
+- vox-ludus:
+  - Remove island achievements (`first_island`, `five_islands`) from `achievement/defaults/part_c.rs`.
+  - Remove `island_built` and `island_registered` rewards from `reward_policy.rs` and `db/process_rewards.rs`.
+  - Remove `island_builder` periodic reward from `periodic_reward/pool.rs`.
+  - Rename `Island Trader` to `v0 Trader` achievement in `achievement/defaults/part_c.rs`.
+  - Remove `ISLAND_COMPONENT` quest template and slot pool from `quest/templates.rs` and `quest/slots.rs`.
+  - Remove `island` from `achievement/thresholds.rs`.
+
+--- audit: original='refactor: drop island residue from CLI stubs, grammar exports, and tmLanguage' | actual=850L across 34 files | derived=full ---
