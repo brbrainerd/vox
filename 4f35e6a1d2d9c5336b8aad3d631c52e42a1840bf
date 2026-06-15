@@ -1,0 +1,12 @@
+feat(typeck): make `Error` constructor polymorphic in error type
+scale: ~89 lines across 2 files [M]
+
+- `crates/vox-compiler/src/typeck/builtins.rs`:
+    - Changed the `Error` variant of `Result` to use the second generic type parameter `E` for its payload instead of `Ty::Str`.
+    - Updated the `Error` constructor function signature to be `Fn([E], Result[T, E])`, making it polymorphic in the error type `E`.
+- `crates/vox-compiler/tests/match_exhaustiveness_test.rs`:
+    - Added `typed_error_adt_construction_typechecks` test case to verify that `Error(NotFound)` for `Result[int, MyErr]` now type-checks.
+    - Added `non_exhaustive_error_adt_match_is_rejected` test case to ensure that non-exhaustive matches on typed error ADTs are rejected.
+    - Added `string_error_still_typechecks` test case to confirm backward compatibility for `Error("msg")` inferring `E = str`.
+
+--- audit: original='feat(typeck): type typed-error ADTs — Error(e) is polymorphic in E' | actual=89L across 2 files | derived=full ---
