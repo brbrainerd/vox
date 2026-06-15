@@ -1,0 +1,8 @@
+refactor(rust, docs): apply rustfmt and update doc categories
+scale: ~41 lines across 3 files [S]
+
+- `crates/vox-ml-cli/src/commands/mens/populi/train_arm.rs`: Applied rustfmt to reformat `resolve_training_sizing` function calls, reducing line count by removing unnecessary newlines.
+- `docs/src/architecture/mens-training-pipeline-audit-and-improvement-plan-2026-06-07.md`: Changed the `category` frontmatter from `architecture` to `Architecture SSOTs`.
+- `docs/src/architecture/qwen-3.7-profile-and-mens-4b-feasibility-2026-06-07.md`: Changed the `category` frontmatter from `architecture` to `Architecture SSOTs`.
+
+--- audit: original='chore: fix pre-existing base-branch pre-push drift (fmt + doc category)' | actual=41L across 3 files | derived=full ---
