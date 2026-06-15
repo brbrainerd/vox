@@ -1,0 +1,12 @@
+feat(vox-gui/loquela): Improve accessibility of the composer
+scale: ~92 lines across 2 files [M]
+
+- `crates/vox-gui/ui`:
+    - Added a new test file for the `Loquela` component to verify accessibility improvements.
+    - Updated the `Loquela` component to include `type="button"` on all buttons for better accessibility.
+    - Added `aria-label` attributes to icon-only buttons for screen reader compatibility.
+    - Added `aria-pressed` attribute to segment buttons.
+    - Added `aria-expanded` attributes to menu buttons.
+    - Replaced placeholder text with an explicit `<label>` for the composer textarea.
+
+--- audit: original='feat(vox-gui/wave6): Loquela composer a11y + checklist (Wave 6)' | actual=92L across 2 files | derived=full ---
