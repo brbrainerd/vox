@@ -1,0 +1,6 @@
+fix(http-gateway): update mesh-node-kill route to Axum 0.7 capture syntax
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-orchestrator-mcp/src/http_gateway/dashboard_api.rs`: Changed the `/mesh/nodes/:id/kill` route to `/mesh/nodes/{id}/kill` to use the Axum 0.7+ capture group syntax, resolving a panic during router build.
+
+--- audit: original='fix(http-gateway): use axum 0.7 capture syntax for the mesh-node-kill route' | actual=2L across 1 files | derived=full ---
