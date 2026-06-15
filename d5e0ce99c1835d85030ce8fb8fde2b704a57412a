@@ -1,0 +1,9 @@
+feat(vox-gui/repository): Add IsolationPanel accessibility, confirm guard, and RepositoryView tests
+scale: ~154 lines across 4 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Repository/IsolationPanel.test.tsx`: New file adding tests for `IsolationPanel` accessibility, including label for strategy select and confirmation dialog for strategy changes.
+- `crates/vox-gui/ui/src/components/surfaces/Repository/IsolationPanel.tsx`: Implement confirmation dialog for changing the default isolation strategy using `Dialog` components, and add state to manage pending strategy changes.
+- `crates/vox-gui/ui/src/components/surfaces/Repository/RepositoryView.test.tsx`: New file adding tests for `RepositoryView`, including heading rendering, explicit `type="button"` for action buttons, and `aria-live="polite"` for command output.
+- `crates/vox-gui/ui/src/components/surfaces/Repository/RepositoryView.tsx`: Add `type="button"` to all action buttons and `aria-label`, `aria-live`, and `aria-busy` attributes to the command output `pre` element for improved accessibility.
+
+--- audit: original='feat(vox-gui/wave5): Repository + IsolationPanel a11y + confirm guard (Wave 5)' | actual=154L across 4 files | derived=full ---
