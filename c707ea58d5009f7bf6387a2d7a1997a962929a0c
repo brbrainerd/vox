@@ -1,0 +1,9 @@
+feat(vox-runtime-rn): enable Android cross-compilation for all four architectures
+scale: ~210 lines across 4 files [M]
+
+- `crates/vox-runtime-rn/Cargo.toml`: Removed `workspace-hack` dependency to allow cross-compilation to Android targets.
+- `crates/vox-runtime/Cargo.toml`: Removed `workspace-hack` dependency to allow cross-compilation to Android targets.
+- `crates/vox-cli-tests/tests/mobile_cross_compile.rs`: Added a new test `mobile_cross_compile_aarch64_android_succeeds` to verify `vox-runtime-rn` builds for `aarch64-linux-android` using `cargo ndk`. This test is automatically skipped if `ANDROID_NDK_HOME` is not set or `cargo-ndk` is not found.
+- `docs/src/architecture/vox-runtime-rn-mobile-cross-compile.md`: Added new documentation detailing toolchain prerequisites, per-target build commands for Android (and deferred iOS), the rationale for removing `workspace-hack`, and the conditions for skipping the new cross-compile test.
+
+--- audit: original='feat(vox-runtime-rn): cross-compile to all four Android architectures' | actual=210L across 4 files | derived=full ---
