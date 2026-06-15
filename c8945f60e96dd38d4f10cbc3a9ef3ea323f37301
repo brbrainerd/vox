@@ -1,0 +1,14 @@
+docs(arch): update forward plan and LLM-target audit for v0.6.0 release
+scale: ~50 lines across 2 files [M]
+
+- docs/src/architecture/post-sprint-forward-plan-2026-05-25.md:
+  - Update v0.6 acceptance tests to reflect verification on 2026-05-25, including `vox-audit` tests.
+  - Add "Session-15 continuation" section detailing commits for v0.6.0 release and Phase 2 LLM-target gap closure.
+  - Document CR-L5 (ACI default) as resolved, noting `OrchestratorConfig::agentos_aci_envelope_enabled` now defaults to `true` and `CHANGELOG.md` update.
+  - Document Phase 2 LLM-target gap closure for `DiagnosticExcerpt`, explaining its addition to `VoxCompilerDiagnosticPayload` to include ±3 source lines around diagnostic spans.
+- docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md:
+  - Update "Coverage assessment" to reflect the addition of `DiagnosticExcerpt` to `VoxCompilerDiagnosticPayload` in `--for-llm` JSON output, closing the "LLM agent doesn't have the file open" gap.
+  - Update ACI envelope status in §2.4 to "on by default since v0.6."
+  - Mark CR-L5 as RESOLVED in v0.6 in §3.7.
+
+--- audit: original='docs(arch): update forward plan + LLM-target audit to reflect session-15 completions' | actual=50L across 2 files | derived=full ---
