@@ -1,0 +1,12 @@
+chore(cache): prune 1010 tracked .vox cache drift artifacts
+scale: ~0 lines across 1010 files [XL]
+
+- Removed numerous `.bin` cache files from `contracts/.vox/cache/drift/`
+- Removed numerous `.bin` cache files from `examples/.vox/cache/drift/`
+- Removed numerous `.bin` cache files from `scripts/.vox/cache/drift/`
+- Removed numerous `.bin` cache files from `tests/.vox/cache/drift/`
+- Removed numerous `.bin` cache files from `patches/.vox/cache/drift/`
+- Removed numerous `.bin` cache files from `apps/.vox/cache/drift/`
+- Removed numerous `.bin` cache files from `infra/.vox/cache/drift/
+
+--- audit: original='chore: prune tracked .vox cache drift artifacts' | actual=0L across 1010 files | derived=full ---
