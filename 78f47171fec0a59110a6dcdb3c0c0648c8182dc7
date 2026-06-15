@@ -1,0 +1,6 @@
+feat(scientia): Implement Trusty URI and Ed25519 for PreregistrationV1
+scale: ~0 lines across 0 files [XS]
+
+- This commit is empty and introduces no changes to the codebase.
+
+--- audit: original='feat(scientia): Trusty URI + Ed25519 sign/verify for PreregistrationV1 (Phase 2 Task 2)' | actual=0L across 0 files | derived=full ---
