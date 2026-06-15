@@ -410,3 +410,44 @@ fn social_credentials_follow_secrets_lenient_vs_strict() {
         }
     }
 }
+
+// ── Band B.3: catalog parity tests ───────────────────────────────────────────
+
+#[test]
+fn catalog_len_matches_config_field_count() {
+    let catalog = OrchestratorConfig::default().to_catalog();
+    // Parity test: catalog must have at least 50 entries (one per public field).
+    assert!(
+        catalog.len() >= 50,
+        "expected >=50 fields, got {}",
+        catalog.len()
+    );
+}
+
+#[test]
+fn catalog_keys_are_unique() {
+    let catalog = OrchestratorConfig::default().to_catalog();
+    let mut keys: Vec<&str> = catalog.iter().map(|f| f.key.as_str()).collect();
+    keys.sort_unstable();
+    let orig_len = keys.len();
+    keys.dedup();
+    assert_eq!(keys.len(), orig_len, "catalog contains duplicate keys");
+}
+
+#[test]
+fn catalog_default_matches_config_default() {
+    let catalog = OrchestratorConfig::default().to_catalog();
+    let max_agents_field = catalog
+        .iter()
+        .find(|f| f.key == "max_agents")
+        .expect("max_agents must be in catalog");
+    let expected = serde_json::json!(OrchestratorConfig::default().max_agents);
+    assert_eq!(
+        max_agents_field.current_value, expected,
+        "current_value for max_agents must match OrchestratorConfig::default().max_agents"
+    );
+    assert_eq!(
+        max_agents_field.default_value, expected,
+        "default_value for max_agents must match OrchestratorConfig::default().max_agents"
+    );
+}

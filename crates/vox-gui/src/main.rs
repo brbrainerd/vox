@@ -137,6 +137,7 @@ async fn main() {
             commands::control_plane::cancel_orchestrator_task,
             commands::control_plane::reorder_orchestrator_task,
             commands::orchestrator::get_orchestrator_config,
+            commands::orchestrator::get_orchestrator_config_catalog,
             commands::llm_settings::get_llm_config,
             commands::llm_settings::set_llm_config,
             commands::llm_settings::openrouter_key_status,

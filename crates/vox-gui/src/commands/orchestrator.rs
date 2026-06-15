@@ -439,6 +439,58 @@ pub fn spawn_orchestrator_config_watch(app: tauri::AppHandle) {
     });
 }
 
+/// Return all orchestrator config fields as structured metadata so the frontend
+/// can render the settings dynamically without hardcoded lists (Band B.3).
+///
+/// Each entry carries: key, label, field_type, current_value, default_value,
+/// group, and description — everything the UI needs to build a settings form.
+#[tauri::command]
+pub async fn get_orchestrator_config_catalog() -> Vec<vox_orchestrator::OrchestratorConfigField> {
+    vox_orchestrator::config::OrchestratorConfig::snapshot().to_catalog()
+}
+
+#[cfg(test)]
+mod catalog_tests {
+    use vox_orchestrator::config::OrchestratorConfig;
+
+    #[test]
+    fn catalog_len_matches_config_field_count() {
+        let catalog = OrchestratorConfig::default().to_catalog();
+        // Parity test: catalog must have at least 50 entries (one per public field).
+        assert!(
+            catalog.len() >= 50,
+            "expected >=50 fields, got {}",
+            catalog.len()
+        );
+    }
+
+    #[test]
+    fn catalog_keys_are_unique() {
+        let catalog = OrchestratorConfig::default().to_catalog();
+        let mut keys: Vec<&str> = catalog.iter().map(|f| f.key.as_str()).collect();
+        keys.sort_unstable();
+        let orig_len = keys.len();
+        keys.dedup();
+        assert_eq!(keys.len(), orig_len, "catalog contains duplicate keys");
+    }
+
+    #[test]
+    fn catalog_default_matches_config_default() {
+        let catalog = OrchestratorConfig::default().to_catalog();
+        let max_agents_field = catalog.iter().find(|f| f.key == "max_agents").unwrap();
+        let default_cfg = OrchestratorConfig::default();
+        let expected = serde_json::json!(default_cfg.max_agents);
+        assert_eq!(
+            max_agents_field.current_value, expected,
+            "current_value for max_agents must match OrchestratorConfig::default().max_agents"
+        );
+        assert_eq!(
+            max_agents_field.default_value, expected,
+            "default_value for max_agents must match OrchestratorConfig::default().max_agents"
+        );
+    }
+}
+
 /// Read the effective orchestrator settings (Vox.toml + env overrides) via
 /// [`OrchestratorConfig::snapshot`] so the GUI always reflects the live effective
 /// value rather than only the Vox.toml defaults (fixes the inert-sliders bug).
