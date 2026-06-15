@@ -74,7 +74,7 @@ pub async fn chat_once(
         let body = res.text().await.unwrap_or_default();
         return Err(EgressError::Status { code: status.as_u16(), body });
     }
-    let cost_usd = res
+    let header_cost = res
         .headers()
         .get("x-response-cost")
         .and_then(|v| v.to_str().ok())
@@ -88,10 +88,29 @@ pub async fn chat_once(
         .as_str()
         .unwrap_or_default()
         .to_string();
-    let prompt_tokens = json["usage"]["prompt_tokens"].as_u64().unwrap_or(0) as u32;
-    let completion_tokens = json["usage"]["completion_tokens"].as_u64().unwrap_or(0) as u32;
+    let usage = &json["usage"];
+    let prompt_tokens = usage["prompt_tokens"].as_u64().unwrap_or(0) as u32;
+    let completion_tokens = usage["completion_tokens"].as_u64().unwrap_or(0) as u32;
+    // Cached tokens: prefer `cache_read_input_tokens`, else `prompt_tokens_details.cached_tokens`.
+    let cache_read_tokens = usage["cache_read_input_tokens"]
+        .as_u64()
+        .or_else(|| usage["prompt_tokens_details"]["cached_tokens"].as_u64())
+        .unwrap_or(0) as u32;
+    // Provider-reported cost from the body (`total_cost`/`cost`), else the header.
+    let cost_usd = usage["total_cost"]
+        .as_f64()
+        .or_else(|| usage["cost"].as_f64())
+        .or(header_cost);
     let model = json["model"].as_str().unwrap_or(&req.model).to_string();
-    Ok(EgressChatResponse { content, prompt_tokens, completion_tokens, model, cost_usd, latency_ms })
+    Ok(EgressChatResponse {
+        content,
+        prompt_tokens,
+        completion_tokens,
+        cache_read_tokens,
+        model,
+        cost_usd,
+        latency_ms,
+    })
 }
 
 /// Streaming OpenAI-compatible chat completion. Yields content deltas. Ported from

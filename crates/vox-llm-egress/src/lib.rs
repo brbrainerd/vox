@@ -62,7 +62,13 @@ pub struct EgressChatResponse {
     pub content: String,
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
+    /// Cached prompt tokens (`usage.cache_read_input_tokens` or
+    /// `usage.prompt_tokens_details.cached_tokens`); 0 when absent.
+    pub cache_read_tokens: u32,
     pub model: String,
+    /// Provider-reported cost (`usage.total_cost`/`usage.cost`, else the
+    /// `x-response-cost` header). `None` when the provider reports none — callers may
+    /// apply their own cost-per-1k estimate.
     pub cost_usd: Option<f64>,
     pub latency_ms: u64,
 }

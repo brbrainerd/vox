@@ -39,6 +39,28 @@ async fn chat_once_sends_bearer_headers_and_parses_usage() {
 }
 
 #[tokio::test]
+async fn chat_once_parses_cache_tokens_and_body_cost() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "model": "m",
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 4,
+                "cache_read_input_tokens": 6,
+                "total_cost": 0.0021
+            }
+        })))
+        .mount(&server)
+        .await;
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let out = chat_once(&r, &[], &ChatParams::default()).await.expect("ok");
+    assert_eq!(out.cache_read_tokens, 6);
+    assert_eq!(out.cost_usd, Some(0.0021));
+}
+
+#[tokio::test]
 async fn chat_once_maps_429_to_rate_limited() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
