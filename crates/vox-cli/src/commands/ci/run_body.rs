@@ -68,7 +68,18 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::PolicyRegistryParity => {
             super::policy_registry::run_parity(&root).map_err(|e| anyhow!(e))
         }
-        CiCmd::ConfigHygiene { update_baseline } => super::config_hygiene::run(update_baseline),
+        CiCmd::ConfigHygiene {
+            update_baseline,
+            write,
+        } => {
+            if write {
+                super::config_hygiene::write_registry(super::config_hygiene::WriteRegistryOpts {
+                    root: root.clone(),
+                })
+            } else {
+                super::config_hygiene::run(update_baseline)
+            }
+        }
         CiCmd::ConfigRegistryParity { update_baseline } => {
             super::config_registry_parity::run(update_baseline)
         }

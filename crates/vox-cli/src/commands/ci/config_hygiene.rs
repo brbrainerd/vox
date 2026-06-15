@@ -301,23 +301,35 @@ pub fn run(update_baseline: bool) -> anyhow::Result<()> {
 // Serde structs for registry.v1.yaml (Phase 1 — replaces fragile line grep)
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct RegistryFile {
     #[serde(default)]
-    #[allow(dead_code)]
     schema_version: String,
     #[serde(default)]
     knobs: Vec<KnobRow>,
 }
 
 /// A single row from the config registry YAML.
-#[derive(Debug, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct KnobRow {
     pub env_var: String,
     #[serde(default)]
     pub description: String,
     #[serde(default)]
     pub status: String,
+    /// Present on rows written by `--write`; absent on hand-authored rows.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub secret: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bucket: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner_crate: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub since: Option<String>,
 }
 
 /// Parse a registry YAML file. Returns `Err` if the file is malformed — never
@@ -347,6 +359,186 @@ pub fn load_registered_env_vars(registry_yaml: &str) -> std::collections::HashSe
         }
     }
     vars
+}
+
+// ---------------------------------------------------------------------------
+// --write: auto-register / prune registry rows
+// ---------------------------------------------------------------------------
+
+/// Options for [`write_registry`].
+pub struct WriteRegistryOpts {
+    /// Repository root (contains `crates/` and `contracts/config/registry.v1.yaml`).
+    pub root: std::path::PathBuf,
+}
+
+/// `true` if the env var name looks like a secret credential.
+fn infer_secret(name: &str) -> bool {
+    let n = name.to_uppercase();
+    n.ends_with("_KEY")
+        || n.ends_with("_TOKEN")
+        || n.ends_with("_SECRET")
+        || n.ends_with("_PASSWORD")
+        || n.ends_with("_PWD")
+        || n.ends_with("_CREDENTIAL")
+        || n.ends_with("API_KEY")
+}
+
+/// Infer the registry bucket from the env var name.
+fn infer_bucket(name: &str) -> &'static str {
+    if name.starts_with("VOX_SECRETS_") || name.starts_with("VOX_CLAVIS_") {
+        "clavis-selector"
+    } else if name.starts_with("VOX_") {
+        "vox-knob"
+    } else {
+        "third-party"
+    }
+}
+
+/// Convert an env var name (`ALL_CAPS`) to a snake_case registry name.
+fn env_var_to_name(env_var: &str) -> String {
+    env_var.to_lowercase()
+}
+
+/// Infer `owner_crate` from the first source file path that contains the env var.
+fn crate_from_path(path: &str) -> String {
+    // path form: crates/<crate-name>/src/...
+    let norm = path.replace('\\', "/");
+    if let Some(after_crates) = norm.strip_prefix("crates/") {
+        if let Some(slash) = after_crates.find('/') {
+            return after_crates[..slash].to_string();
+        }
+    }
+    "unknown".to_string()
+}
+
+/// Collect all env var names found in source (excluding allowlist and Clavis-managed).
+fn collect_source_env_vars(root: &std::path::Path) -> std::collections::HashMap<String, String> {
+    let re = regex::Regex::new(
+        r#"(?:env::var(?:_os)?|env_var|env_flag|env_u32|env_i64|env_u64|env_duration|env_truthy)\s*\(\s*["']([A-Z][A-Z0-9_]{2,})["']"#,
+    )
+    .unwrap();
+    let mut found: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    collect_rs_files(&root.join("crates"), &mut |path, src| {
+        let rel = path
+            .strip_prefix(root)
+            .unwrap_or(path)
+            .display()
+            .to_string();
+        if rel.replace('\\', "/").contains("config_hygiene.rs") {
+            return;
+        }
+        for line in src.lines() {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("//") {
+                continue;
+            }
+            for cap in re.captures_iter(line) {
+                let var = cap[1].to_string();
+                if THIRD_PARTY_ALLOWLIST.contains(&var.as_str()) {
+                    continue;
+                }
+                found.entry(var).or_insert_with(|| rel.clone());
+            }
+        }
+    });
+    found
+}
+
+/// Apply `--write` to `contracts/config/registry.v1.yaml`:
+///
+/// 1. Append stub rows for env vars found in source but absent from the registry.
+/// 2. Remove rows whose `env_var` no longer appears in source, **unless** `status: deprecated`.
+/// 3. Idempotent: a second call produces no changes.
+pub fn write_registry(opts: WriteRegistryOpts) -> anyhow::Result<()> {
+    let registry_path = opts.root.join("contracts/config/registry.v1.yaml");
+
+    // Collect env vars visible in the Clavis-managed set (don't add rows for those).
+    let clavis_names: std::collections::HashSet<String> =
+        vox_secrets::spec::managed_secret_env_names()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+    // Read existing registry (or start empty).
+    let existing_text = std::fs::read_to_string(&registry_path).unwrap_or_default();
+    let mut registry: RegistryFile = if existing_text.trim().is_empty() {
+        RegistryFile {
+            schema_version: "1".to_string(),
+            knobs: Vec::new(),
+        }
+    } else {
+        serde_yaml::from_str(&existing_text)
+            .map_err(|e| anyhow::anyhow!("registry YAML parse error: {e}"))?
+    };
+
+    // Collect env vars present in source.
+    let source_vars = collect_source_env_vars(&opts.root);
+
+    // Build set of env_vars already in registry (non-null, non-empty).
+    let registered: std::collections::HashSet<String> = registry
+        .knobs
+        .iter()
+        .filter(|r| !r.env_var.is_empty() && r.env_var != "null")
+        .map(|r| r.env_var.clone())
+        .collect();
+
+    // 1. Append stub rows for unregistered source vars (skip Clavis-managed).
+    for (var, file_path) in &source_vars {
+        if registered.contains(var) {
+            continue;
+        }
+        if clavis_names.contains(var.as_str()) {
+            continue;
+        }
+        let stub = KnobRow {
+            name: Some(env_var_to_name(var)),
+            env_var: var.clone(),
+            description: String::new(),
+            status: "declared".to_string(),
+            secret: Some(infer_secret(var)),
+            bucket: Some(infer_bucket(var).to_string()),
+            source: Some("env".to_string()),
+            owner_crate: Some(crate_from_path(file_path)),
+            since: Some("2026-06-15".to_string()),
+        };
+        registry.knobs.push(stub);
+    }
+
+    // 2. Prune orphan rows (env_var not in source, not deprecated, not null).
+    registry.knobs.retain(|r| {
+        if r.env_var.is_empty() || r.env_var == "null" {
+            // null/empty env_var rows are config-only (no env wire) — keep them
+            return true;
+        }
+        if r.status == "deprecated" {
+            return true;
+        }
+        // Keep if still referenced in source OR in Clavis-managed set.
+        source_vars.contains_key(&r.env_var) || clavis_names.contains(r.env_var.as_str())
+    });
+
+    // Serialize back. Use serde_yaml to produce canonical output.
+    let out = serde_yaml::to_string(&registry)
+        .map_err(|e| anyhow::anyhow!("registry YAML serialize error: {e}"))?;
+
+    // Only write if changed (idempotency: avoid touching mtime when nothing changed).
+    if out != existing_text {
+        if let Some(parent) = registry_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&registry_path, &out)?;
+        println!(
+            "config-hygiene --write: registry updated ({} rows)",
+            registry.knobs.len()
+        );
+    } else {
+        println!(
+            "config-hygiene --write: no changes ({} rows)",
+            registry.knobs.len()
+        );
+    }
+
+    Ok(())
 }
 
 /// Build the full recognized-env-var set for Check D.
