@@ -1,0 +1,12 @@
+feat(gui): desktop speech-to-text via Oratio plugin and cpal capture
+scale: ~260 lines across 7 files [L]
+
+- `crates/vox-gui/src/commands/oratio.rs`: Added a new Tauri command `oratio_transcribe` for desktop speech-to-text. This command captures audio from the default microphone using `cpal` (gated by the `oratio` feature) and transcribes it via the Oratio plugin. It also includes logic for handling `.txt` and `.md` fixtures for testing and defines `TranscribeResultDto` for frontend communication.
+- `crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx`: Integrated the `oratioVoiceInput` functionality, adding a `recording` state and `startVoiceInput` async function to handle microphone capture, transcription, and updating the text input. The voice input button now triggers this function.
+- `crates/vox-gui/ui/src/components/surfaces/Loquela/oratioVoiceInput.test.ts`: Added unit tests for the `captureVoiceTranscript` function, mocking the Tauri `invoke` API to verify correct command invocation, payload, and error handling.
+- `crates/vox-gui/ui/src/components/surfaces/Loquela/oratioVoiceInput.ts`: Created a new utility file with `captureVoiceTranscript` function and `TranscribeResult` interface. This function invokes the `oratio_transcribe` Tauri command and processes its output.
+- `crates/vox-gui/src/commands/mod.rs`: Declared the new `oratio` module.
+- `crates/vox-gui/src/main.rs`: Registered the `oratio_transcribe` Tauri command.
+- `crates/vox-gui/Cargo.toml`: Added a new `oratio` feature flag that pulls in `vox-ml-cli` (with `oratio-mic` feature), `vox-speech`, `vox-plugin-host`, and `uuid` as optional dependencies, enabling the speech-to-text functionality.
+
+--- audit: original='@ feat(gui): desktop speech-to-text via oratio_transcribe (cpal capture + Oratio plugin) (A4)' | actual=260L across 7 files | derived=full ---
