@@ -1,0 +1,10 @@
+refactor(typeck): Extract binary operator checks into helper functions
+scale: ~135 lines across 2 files [M]
+
+- `crates/vox-compiler/src/typeck/checker/expr_ops.rs`: Refactored `check_binary_op` by extracting logic for `Add` and arithmetic operators (`Sub`, `Mul`, `Div`, `Mod`) into new helper functions.
+  - The `Add` operator now calls `self.check_add_op(&l, &r, span)`.
+  - Arithmetic operators now call `check_arithmetic_op(&l, &r)`.
+  - This change reduced the complexity of `check_binary_op`.
+- `contracts/reports/arch/cr-a1/2026-05-23.json`: Updated the architectural report to reflect the removal of `check_binary_op` from the over-budget list and the addition of a new over-budget function `try_emit_namespace_call` in `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`. The `functions_scanned` count increased from 222 to 226.
+
+--- audit: original='refactor(typeck): CR-A1 pass 6 — check_binary_op off the over-budget list' | actual=135L across 2 files | derived=full ---
