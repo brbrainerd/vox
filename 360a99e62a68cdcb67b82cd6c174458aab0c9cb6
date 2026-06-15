@@ -1,0 +1,6 @@
+test(parser): add ignored test for `@pure` before `@example` decorator order
+scale: ~17 lines across 1 files [S]
+
+- `crates/vox-compiler/src/semcov_struct_pipeline_tests.rs`: Added a new ignored test case `pure_before_example_should_parse_and_stay_pure` to demonstrate the desired parsing behavior when `@pure` precedes `@example`. This test serves as an executable TODO, documenting a known parser limitation (R5: decorator-order asymmetry) where a leading `@pure` decorator prevents correct parsing of subsequent `@example` or `@test` decorators. The test is ignored with a message indicating it requires a refactor in `parser/descent/mod.rs` to collect all leading decorators before dispatching.
+
+--- audit: original='test(parser): executable TODO for @pure-before-@example order asymmetry (R5)' | actual=17L across 1 files | derived=full ---
