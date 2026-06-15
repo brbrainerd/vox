@@ -71,6 +71,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::ConfigRegistryParity { update_baseline } => {
             super::config_registry_parity::run(update_baseline)
         }
+        CiCmd::ConfigGuiCodegen { check } => super::config_gui_codegen::run(check),
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
         CiCmd::CheckFrozen => vox_cli_ci::frozen_crates::check_frozen_crates(&root),
         CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(&root),

@@ -157,6 +157,13 @@ pub enum CiCmd {
         #[arg(long)]
         update_baseline: bool,
     },
+    /// Generate the GUI settings search index from CONFIG_KEYS (searchable SSOT view).
+    #[command(name = "config-gui-codegen")]
+    ConfigGuiCodegen {
+        /// Drift gate: fail if the generated TS differs from CONFIG_KEYS (do not write).
+        #[arg(long)]
+        check: bool,
+    },
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
     SsotDrift,
