@@ -1,0 +1,8 @@
+fix(codegen): Remove unused react-router dependency from web scaffold
+scale: ~22 lines across 1 files [S]
+
+- `crates/vox-codegen/src/codegen_ts/scaffold.rs`:
+    - Removed the `react-router` dependency from the generated `package.json` for the web scaffold.
+    - Added a new test `package_json_has_no_react_router` to ensure that the scaffold's `package.json` does not contain `react-router`.
+
+--- audit: original='fix(codegen): drop unused react-router dep from web scaffold' | actual=22L across 1 files | derived=full ---
