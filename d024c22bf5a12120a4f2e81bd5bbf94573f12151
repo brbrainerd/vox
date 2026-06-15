@@ -1,0 +1,7 @@
+docs(cli): mark --legacy-direct as deprecated escape hatch in docs and module comment
+scale: ~8 lines across 2 files [S]
+
+- `crates/vox-cli/src/commands/generate.rs`: Updated the module-level comment for `--legacy-direct` to explicitly label it as deprecated and an "escape hatch," clarifying its function to bypass the orchestrator and call the inference server directly, and noting it as pre-Task 1.9 behavior.
+- `docs/src/reference/cli.md`: Added a new section detailing the `--legacy-direct` flag, marking it as a deprecated escape hatch, explaining its function to bypass the orchestrator, and advising against its use unless debugging direct inference due to skipped features like health probes and telemetry. Also updated the description of `vox generate` to mention it posts via the orchestrator.
+
+--- audit: original='chore(cli): mark --legacy-direct as deprecated escape hatch in docs and module comment' | actual=8L across 2 files | derived=full ---
