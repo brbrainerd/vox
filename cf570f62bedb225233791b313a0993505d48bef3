@@ -1,0 +1,7 @@
+fix(eval): `is` and `isnt` operators normalize bare nullary constructors
+scale: ~44 lines across 2 files [S]
+
+- `crates/vox-compiler/src/eval/expr.rs`: Modified the `eval_expr` function to normalize both operands of `is` and `isnt` binary operations using `normalize_constructor`. This ensures that bare nullary constructors (like `None` stored as `Constructor("None")`) are compared correctly against their canonical `Option(None)` form.
+- `crates/vox-compiler/tests/interpreter_test.rs`: Added a new test case `returned_none_is_equal_to_none_literal` to verify that an `Option` returning `None` correctly evaluates `mk() is None` as true.
+
+--- audit: original='@ fix(eval): `opt is None` compares equal (normalize bare None constructor)' | actual=44L across 2 files | derived=full ---
