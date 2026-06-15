@@ -1,0 +1,7 @@
+feat(vox-claim-extractor): add MiniCheck verifier and Span integrity checker
+scale: ~169 lines across 2 files [M]
+
+- `crates/vox-claim-extractor/src/minicheck.rs`: Add `MiniCheckVerifier` for grounding claims, including mock and HTTP backends, and a `verify_claim` method.
+- `crates/vox-claim-extractor/src/span.rs`: Add `SpanChecker` for verifying if a claim's text sufficiently overlaps with a given source span, including unit tests.
+
+--- audit: original='feat(scientia): span integrity checker + MiniCheck grounded verifier (Phase 1 Task 5)' | actual=169L across 2 files | derived=full ---
