@@ -1,0 +1,11 @@
+feat(typeck+eval+corpus): Expand Humaneval to 100 problems; fix print/join builtins
+scale: ~1741 lines across 79 files [XL]
+
+- typeck: `print()` now accepts any type, not just `str`, by special-casing its call checker.
+- eval: `list.join(sep)` now uses `vox_value_display` for element formatting instead of debug representation.
+- corpus: Added 25 new Humaneval problems (076-100) with their reference implementations, test cases, and spec files.
+  - New problems include: `is-palindrome-int`, `sum-of-digits`, `count-uppercase`, `count-lowercase`, `capitalize-first`, `repeat-list`, `list-min-max`, `remove-negatives`, `sum-odd`, `count-even`, `is-square`, `int-reverse`, `str-frequency`, `flatten-nested`, `sum-squares`, `is-sorted-desc`, `zip-products`, `last-n`, `first-n`, `range-sum`, `reverse-words`, `digit-product`, `is-power-of-n`, `hamming-distance`, `pangram-check`.
+  - Updated `manifest.v1.yaml` to reflect the new problem count (`count_current` from 75 to 100, `held_out_current` from 20 to 25) and added entries for problems 076-100.
+  - All 100 problems pass `vox check` and `vox run`.
+
+--- audit: original='feat(typeck+eval+corpus): fix print/join builtins; expand humaneval to 100' | actual=1741L across 79 files | derived=full ---
