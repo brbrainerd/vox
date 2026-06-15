@@ -1,0 +1,10 @@
+style(rust): format code in vox-gui and vox-orchestrator-d
+scale: ~37 lines across 5 files [S]
+
+- `crates/vox-gui/src/commands/runs.rs`: Reformatted `db.agent_runs_get` calls for `finish_gui_run` and `get_gui_run`.
+- `crates/vox-gui/src/commands/models.rs`: Reformatted `db.get_user_preference` calls for `effective_routing_priority` and `get_selection_policy`.
+- `crates/vox-gui/src/commands/secrets.rs`: Reformatted `VoxCloudBackend::new()` calls in `set_secret` and `remove_secret`.
+- `crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs`: Reformatted `db.get_user_preference` call in `main`.
+- `crates/vox-gui/src/commands/daemon.rs`: Reformatted `deadline` variable assignment.
+
+--- audit: original='style: cargo fmt remaining touched crates (vox-gui et al.)' | actual=37L across 5 files | derived=full ---
