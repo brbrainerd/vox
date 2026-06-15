@@ -1,0 +1,12 @@
+feat(vox-integration-tests): Revert retirement of integration tests and restore test suite
+scale: ~10286 lines across 108 files [XL]
+
+- `crates/vox-integration-tests`: Reverted the removal of the entire `vox-integration-tests` crate, restoring 10286 lines across 107 files. This includes:
+  - Numerous new and existing test files for orchestrator E2E, workflow, type checking, Rust codegen, pipeline, CLI, LSP, and various other Vox features.
+  - Test fixtures, snapshots, and configuration files (e.g., `pnpm-lock.yaml`, `playwright.config.ts`).
+  - The crate's `Cargo.toml` and `src/lib.rs`.
+- `docs`: Removed `docs/src/architecture/ai-laziness-remediation-plan-2026.md` (616 lines).
+- `Cargo.lock`: Updated to reflect the re-introduction of the `vox-integration-tests` crate and its dependencies.
+- `Cargo.toml`: Updated to include the `vox-integration-tests` crate.
+
+--- audit: original='Revert "chore: retire vox-integration-tests (empty 4-LoC harness, 0 callers)"' | actual=10286L across 108 files | derived=full ---
