@@ -1,0 +1,7 @@
+fix(db): update baseline schema digest and remove duplicate dependency
+scale: ~3 lines across 2 files [S]
+
+- contracts/db/baseline-version-policy.yaml: Updated `repository_baseline_digest_hex` from "RECOMPUTE" to "0x112ccfefbe55549c8bf49f4ccc7b5cf435386fb23076bd2444efcb52136c28e9".
+- crates/vox-publisher/Cargo.toml: Removed the duplicate `vox-research-events` dependency.
+
+--- audit: original='fix(#274): schema digest for BASELINE 76 + dedup vox-research-events in vox-publisher Cargo.toml' | actual=3L across 2 files | derived=full ---
