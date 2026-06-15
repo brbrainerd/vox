@@ -1,0 +1,8 @@
+build(deps): bump github/codeql-action from 3 to 4
+scale: ~6 lines across 1 files [XS]
+
+- Update `github/codeql-action/init` from v3 to v4 in the "Initialize CodeQL" step.
+- Update `github/codeql-action/autobuild` from v3 to v4 in the "Autobuild" step.
+- Update `github/codeql-action/analyze` from v3 to v4 in the "Perform CodeQL Analysis" step.
+
+--- audit: original='chore(deps): bump github/codeql-action from 3 to 4 (#119)' | actual=6L across 1 files | derived=full ---
