@@ -1,0 +1,6 @@
+docs(cli): regenerate `cli-command-surface.generated.md`
+scale: ~0 lines across 1 files [XS]
+
+- Regenerated `docs/src/reference/cli-command-surface.generated.md` to reflect the current CLI command surface.
+
+--- audit: original='fix(docs): regenerate cli-command-surface.generated.md' | actual=0L across 1 files | derived=full ---
