@@ -1,0 +1,55 @@
+feat(mens): add distributed training, inference crates, and compiler decorators
+scale: ~1933 lines across 63 files [XL]
+
+- **vox-package**: Introduce `model_bundle.rs` for content-addressed model bundles (SafeTensors, tokenizer, config) with SHA3-512 digests, and update `bundle.rs` and `Cargo.toml`.
+- **vox-distributed-training**:
+    - Add new crate `vox-distributed-training` with `Cargo.toml`.
+    - Implement `data_parallel.rs` for single-node data-parallel training sessions.
+    - Introduce `checkpoint.rs` for signed checkpoint markers referencing CAS bundles.
+    - Implement `gradient.rs` for gradient sharding.
+    - Implement `session.rs` for training session management.
+    - Add `telemetry.rs` for training telemetry.
+    - Update `mesh_env.rs` to remove `MeshEnv` and `MeshEnvBuilder`.
+    - Add `single_host_smoke.rs` for smoke tests.
+    - Add `strategy/mod.rs`.
+- **vox-compiler**:
+    - **typeck**:
+        - Add `cuda_gate.rs` to enforce `VOX_CUDA_TIER` for `@training_step` and `@distributed_train` workflows.
+        - Update `effect_check.rs` and `mod.rs`.
+    - **hir**:
+        - Modify `lower/decl.rs` to incorporate MENS capabilities from decorators, including `GpuCompute` and `Random`.
+        - Update `lower/expr.rs` and `lower/mod.rs`.
+        - Update `nodes/decl.rs` and `nodes/effect.rs`.
+    - **parser**:
+        - Update `descent/decl/mid.rs` and `descent/decl/head.rs` to parse `@inference`, `@training_step`, and `@distributed_train` decorators.
+        - Update `descent/mod.rs`.
+    - **ast**: Update `decl/effect.rs`, `decl/fundecl.rs`, and `decl/logic.rs`.
+    - **annotations**: Add `inference.rs` and `training.rs` for decorator definitions, and update `mod.rs`.
+    - **lexer**: Update `token.rs`.
+    - Add `mens_decorators.rs` tests for parsing and capability lowering of MENS decorators.
+    - Update `lib.rs`.
+- **vox-inference**:
+    - Add new crate `vox-inference` with `Cargo.toml`.
+    - Implement `backend.rs`, `dispatcher.rs`, `stubs.rs`, and `swarm.rs`.
+    - Update `lib.rs`.
+- **vox-mens-eval**: Add new crate `vox-mens-eval` with `Cargo.toml` and `lib.rs`.
+- **vox-cli**:
+    - Add `commands/model/cas.rs` for model CAS stub.
+    - Update `commands/model/mod.rs` and `Cargo.toml`.
+- **vox-dashboard**:
+    - Update `api/mesh.rs` to add `mesh-policy` anchor.
+    - Update `app/src/generated/routes.manifest.ts` and `Cargo.toml`.
+- **vox-mesh-policy**: Add `parse.rs` and `print.rs`.
+- **vox-mesh-types**: Update `donation_policy.rs`.
+- **vox-orchestrator-queue**: Update `oplog/mod.rs` to include `TrainingCheckpoint` operation kind.
+- **vox-populi**: Update `mens/tensor/mod.rs` and `Cargo.toml`.
+- **docs**:
+    - Update `architecture/where-things-live.md` and `architecture/research-index.md`.
+    - Add `architecture/layers.toml`.
+- **contracts**: Add `config/env-vars.v1.yaml`.
+- **scripts**: Add `mens-corpus/harvest.vox`.
+- **Cargo**: Update `Cargo.lock` and top-level `Cargo.toml`.
+- **vox-integration-tests**: Update `metamorphic_axiom_test.rs`.
+- **vox-test-harness**: Update `hir_builders.rs`.
+
+--- audit: original='feat(mens): distributed training, inference crates, compiler decorators' | actual=1933L across 63 files | derived=full ---
