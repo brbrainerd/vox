@@ -1,0 +1,14 @@
+docs(roadmap): update GUI native roadmap status for TASK-7.3
+scale: ~6 lines across 1 files [XS]
+
+- `docs/src/architecture/gui-native-roadmap-status-2026.md`:
+  - Updated the status of `TASK-7.3 — Delete Vite/Tailwind parallel setup` from "Not started" to "Partial".
+  - Added a detailed description of the partial completion for `TASK-7.3`, including:
+    - Wiring Vox-generated components into Vite entry (`src/App.tsx`).
+    - Extending Tailwind `content` to scan `app/src/generated/`.
+    - Deleting 5 legacy components.
+    - Fixing a cross-component import codegen gap in `reactive.rs` (with 3 new unit tests).
+    - Clarifying that `package.json` and `vite.config.ts` are retained as `vox build` produces TSX, not browser bundles.
+    - Stating that full deletion is blocked on a Vox-integrated bundler.
+
+--- audit: original='docs: update roadmap — TASK-7.3 partial, Phase 7 wiring complete' | actual=6L across 1 files | derived=full ---
