@@ -184,4 +184,40 @@ mod semcov_struct_pipeline_tests {
             "ok-arm binding must survive lowering"
         );
     }
+
+    // ── Pattern #3: context-dependent silent drop ──────────────────────────
+    // The `@pure` marker must survive IDENTICALLY whether it decorates a free
+    // `fn` (context A) or an `@example`-wrapped fn (context B). The two routes
+    // through lowering are different (free fn -> hir.functions; example ->
+    // hir.examples via lower_fn), so a decorator-threading refactor could
+    // preserve purity in one context and silently drop it in the other.
+    // (Note: `to int`, not `-> int`; and the wrapper decorator must precede
+    // `@pure` — `@pure` first is a parse error.)
+
+    #[test]
+    fn pure_marker_survives_in_both_fn_and_example_contexts() {
+        // Catches: @pure honored on a free fn but silently dropped when the same
+        // fn is @example-wrapped (context-dependent drop) — asserted as a parity
+        // relationship so it fires on divergence in either direction.
+        let a = lower("@pure\nfn f() to int { 1 }");
+        let fa = a
+            .functions
+            .iter()
+            .find(|f| f.name == "f")
+            .expect("free fn f must lower");
+        assert!(fa.is_pure, "context A: @pure dropped on free fn");
+
+        let b = lower("@example\n@pure\nfn ef() to int { 1 }");
+        assert_eq!(b.examples.len(), 1, "context B: @example fn must lower");
+        let eb = &b.examples[0];
+        assert_eq!(eb.name, "ef");
+        assert_eq!(
+            fa.is_pure, eb.is_pure,
+            "pattern #3: @pure survives on free fn (A) but is dropped in @example context (B)"
+        );
+        assert!(
+            eb.is_pure,
+            "context B: @pure silently dropped on @example fn"
+        );
+    }
 }
