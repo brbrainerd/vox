@@ -1,0 +1,13 @@
+feat(gui): Enable in-process MCP tool execution
+scale: ~163 lines across 8 files [M]
+
+- `crates/vox-gui/src/commands/mcp.rs`: New module implementing `McpToolHost` to cache a `ServerState` using `OnceCell` and `invoke_mcp_tool` Tauri command to dispatch tool calls via `vox_orchestrator_mcp::handle_tool_call`.
+- `crates/vox-gui/tests/mcp_bridge_tests.rs`: New integration test for the MCP bridge, invoking a read-only tool (`vox_git_status`) and asserting a non-error envelope. This test is `#[ignore]`d due to `ServerState::new_full`'s heavy initialization.
+- `crates/vox-gui/ui/src/transport.ts`: Modified `VoxTransport` to route `handler_kind === 'mcp'` actions to the new `invoke_mcp_tool` Tauri command, processing the JSON result and setting `exit_code` based on `is_error`.
+- `crates/vox-gui/src/main.rs`: Registered `commands::mcp::McpToolHost` as a managed state and `commands::mcp::invoke_mcp_tool` as a Tauri command.
+- `crates/vox-gui/src/commands/mod.rs`: Added `mcp` module to the commands.
+- `docs/src/architecture/vox-gui-harness-buildout-plan-2026.md`: Added a "B5 implementation log" section detailing the decision to use in-process library calls for MCP tools and listing the implemented changes.
+- `crates/vox-gui/Cargo.toml`: Added `vox-orchestrator-mcp` as a dependency.
+- `Cargo.lock`: Updated to reflect the new dependency.
+
+--- audit: original='@ feat(gui): B5 MCP bridge — execute MCP tools from the GUI' | actual=163L across 8 files | derived=full ---
