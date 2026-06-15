@@ -1,0 +1,7 @@
+feat(ci): add config-registry-parity check to config-hygiene gate
+scale: ~226 lines across 2 files [M]
+
+- `crates/vox-cli/src/commands/ci/config_hygiene.rs`: Implemented a new check, `check_env_reads_registered`, which scans Rust source files for `std::env::var("VOX_*")` calls and flags any environment variables not present in `contracts/config/registry.v1.yaml`. Added `load_registered_env_vars` function to parse registered environment variables from the registry YAML. The `run` function now loads the registry and includes the new check in its violation collection.
+- `contracts/config/config-hygiene-baseline.txt`: Updated the baseline to include 141 new `env-var-not-in-registry` violations, effectively grandfathering existing unregistered environment variable reads across various crates (e.g., `vox-actor-runtime`, `vox-audit`, `vox-cli`, `vox-secrets`, `vox-speech`, `vox-telemetry`, `vox-sql`).
+
+--- audit: original='feat(ci): config-registry-parity — every VOX_* env read must be in contracts/config/registry.v1.yaml' | actual=226L across 2 files | derived=full ---
