@@ -1,0 +1,9 @@
+feat(vox-test-harness): promote SyntheticWorkspaceBuilder for cross-crate reuse
+scale: ~419 lines across 4 files [L]
+
+- `crates/vox-test-harness/src/synthetic_workspace.rs`: Added new module `synthetic_workspace` containing `SyntheticWorkspaceBuilder` and related structs (`MemberSpec`, `MemberKind`, `SyntheticWorkspace`). This builder facilitates creating temporary Cargo workspaces with specified members, dependencies, descriptions, Git stubs, changelogs, and extra files.
+- `crates/vox-test-harness/src/lib.rs`: Exported the new `synthetic_workspace` module.
+- `crates/vox-arch-check/tests/helpers/fixture.rs`: Refactored `ArchCheckFixture` to wrap `SyntheticWorkspaceBuilder`. Removed manual file writing logic and replaced it with calls to `SyntheticWorkspaceBuilder` methods, adding arch-check-specific files (`layers.toml`, `where-things-live.md`) via `with_extra_file`. Reduced lines of code by 75 and added 35 lines for the new implementation.
+- `crates/vox-arch-check/Cargo.toml`: Added `vox-test-harness` as a development dependency.
+
+--- audit: original='feat(vox-test-harness): promote synthetic-workspace builder for cross-crate reuse' | actual=419L across 4 files | derived=full ---
