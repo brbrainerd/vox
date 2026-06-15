@@ -1,0 +1,9 @@
+feat(cli): add `vox new fn` command to scaffold test-first Vox functions
+scale: ~469 lines across 5 files [L]
+
+- `crates/vox-project-scaffold`: Add `render_fn_stub` function to generate a Vox function and a paired, intentionally failing `@test` block. This includes logic for identifier validation, parameter and return type rendering, and placeholder generation for TDD.
+- `crates/vox-cli`: Implement the `new fn` subcommand with arguments for function name, input file path, parameters, return type, stdout output, and a `force` flag (currently non-functional for replacement). Integrate `render_fn_stub` for generating the function stub.
+- `docs/src/contributors/coding-agents.md`: Update documentation to include a shortcut callout for `vox new fn` as a friction reducer for the Test-First Policy.
+- `contracts/cli/command-registry.yaml`: Remove several `ci` related commands and reorder others. This appears to be a cleanup or reorganization of the command registry.
+
+--- audit: original='feat(cli): vox new fn — TDD friction reducer for golden Vox examples' | actual=469L across 5 files | derived=full ---
