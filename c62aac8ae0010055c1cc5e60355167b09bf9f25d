@@ -1,0 +1,13 @@
+feat(interp): execute db.* operations against an in-memory store
+scale: ~561 lines across 8 files [L]
+
+- `crates/vox-compiler/src/eval/db.rs`: New module for in-memory DB execution, defining `DbStore` and `DbTable` structs, and `execute_db_plan` function to handle `HirDbQueryPlan`s.
+- `crates/vox-compiler/tests/interpreter_db_test.rs`: New test file with 7 cases to verify `db.*` operations (insert, all, get, find, delete, count, where/filter) in the interpreter.
+- `docs/superpowers/specs/2026-06-03-interpreter-db-execution-design.md`: New design document detailing the problem of missing DB support in the interpreter and the approach for in-memory execution.
+- `crates/vox-compiler/src/eval/expr.rs`: Modified `eval_expr` to intercept `HirExpr::MethodCall` when an `opt_plan` (for DB queries) is present, evaluating arguments and executing the plan via `super::db::execute_db_plan` before touching the receiver.
+- `examples/golden/crud_api.vox`: Added a new `@test` function `db_insert_and_query_roundtrip` to exercise `db.*` operations under `--mode interp` for behavioral coverage.
+- `crates/vox-compiler/src/eval/builtins.rs`: Modified `len` builtin to transparently measure through `Result` and `Option` containers, allowing `len(db.User.all())` to return the row count.
+- `crates/vox-compiler/src/eval/mod.rs`: Added `db` module and `pub db: crate::eval::db::DbStore` field to the `Interpreter` struct, initialized with `DbStore::default()`.
+- `contracts/reports/humaneval/2026-06-03.json`: Updated `measured_at` timestamp.
+
+--- audit: original='feat(interp): execute db.* operations against an in-memory store (--mode interp)' | actual=561L across 8 files | derived=full ---
