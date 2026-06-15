@@ -589,6 +589,68 @@ impl Drop for ScaleLock {
     }
 }
 
+// --- durable decision log ---------------------------------------------------
+
+/// Maximum number of lines to keep in the history file. Older lines are
+/// rotated out when the file exceeds this cap.
+const HISTORY_MAX_LINES: usize = 10_000;
+
+/// Build the JSONL decision-log entry for one reconcile tick.
+///
+/// All 12 numeric fields are included so the log is self-contained for
+/// downstream analysis without requiring the running binary.
+#[allow(clippy::too_many_arguments)]
+pub fn scale_event_json(
+    ts: i64,
+    dry_run: bool,
+    queued_jobs: u32,
+    keep: u32,
+    desired: u32,
+    spawned: u32,
+    reaped_scale_down: u32,
+    reaped_idle: u32,
+    pruned_phantom: u32,
+    cleaned_exited: u32,
+    max: u32,
+    warm: u32,
+) -> String {
+    format!(
+        r#"{{"ts":{ts},"dry_run":{dry_run},"queued_jobs":{queued_jobs},"keep":{keep},"desired":{desired},"spawned":{spawned},"reaped_scale_down":{reaped_scale_down},"reaped_idle":{reaped_idle},"pruned_phantom":{pruned_phantom},"cleaned_exited":{cleaned_exited},"max":{max},"warm":{warm}}}"#
+    )
+}
+
+/// Keep only the last `max_lines` lines from `content`.  Used to cap the
+/// history file so it never grows unbounded.
+pub fn rotate_keep_tail(content: &str, max_lines: usize) -> String {
+    let lines: Vec<&str> = content.lines().collect();
+    if lines.len() <= max_lines {
+        return content.to_string();
+    }
+    lines[lines.len() - max_lines..].join("\n") + "\n"
+}
+
+fn history_path() -> PathBuf {
+    crate::fs_utils::user_home_dir()
+        .join(".vox")
+        .join("ci-runner-history.jsonl")
+}
+
+fn append_history(entry: &str) {
+    let p = history_path();
+    if let Some(parent) = p.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    // Read, rotate-if-needed, then overwrite atomically-ish (single write).
+    let existing = std::fs::read_to_string(&p).unwrap_or_default();
+    let new_content = if existing.is_empty() {
+        format!("{entry}\n")
+    } else {
+        format!("{existing}{entry}\n")
+    };
+    let rotated = rotate_keep_tail(&new_content, HISTORY_MAX_LINES);
+    let _ = std::fs::write(&p, rotated);
+}
+
 // ---------------------------------------------------------------------------
 // Reconcile
 // ---------------------------------------------------------------------------
@@ -742,10 +804,27 @@ pub fn run_scale(apply: bool) -> Result<()> {
     if !dry_run {
         write_state(&new_state);
     }
+
+    // Append an immutable decision record before printing (both apply + dry-run).
+    append_history(&scale_event_json(
+        now,
+        dry_run,
+        demand,
+        keep,
+        desired,
+        spawn,
+        reaped_scale_down,
+        reaped,
+        pruned,
+        dead,
+        max,
+        warm,
+    ));
+
     println!(
         "runner-scale: dry_run={dry_run} queued_jobs={demand} keep={keep} desired={desired} \
          spawned={spawn} reaped_scale_down={reaped_scale_down} reaped_idle={reaped} \
-         pruned_stale={pruned} cleaned_exited={dead} \
+         pruned_phantom={pruned} cleaned_exited={dead} \
          (max={max}, warm={warm}, idle_reap={reap_secs}s, ephemeral)"
     );
     Ok(())
@@ -966,5 +1045,60 @@ mod tests {
         assert!(scale_lock_is_stale(base - LOCK_STALE_SECS, base));
         // Very old lock — definitely stealable.
         assert!(scale_lock_is_stale(base - 3600, base));
+    }
+
+    #[test]
+    fn scale_event_json_has_all_decision_fields() {
+        let s = scale_event_json(
+            1_000_000, // ts
+            false,     // dry_run
+            3,         // queued_jobs
+            2,         // keep
+            3,         // desired
+            1,         // spawned
+            0,         // reaped_scale_down
+            0,         // reaped_idle
+            0,         // pruned_phantom
+            1,         // cleaned_exited
+            6,         // max
+            1,         // warm
+        );
+        // Every key must be present.
+        for key in &[
+            "\"ts\"",
+            "\"dry_run\"",
+            "\"queued_jobs\"",
+            "\"keep\"",
+            "\"desired\"",
+            "\"spawned\"",
+            "\"reaped_scale_down\"",
+            "\"reaped_idle\"",
+            "\"pruned_phantom\"",
+            "\"cleaned_exited\"",
+            "\"max\"",
+            "\"warm\"",
+        ] {
+            assert!(s.contains(key), "missing key {key} in: {s}");
+        }
+        // Must be valid JSON.
+        let v: serde_json::Value = serde_json::from_str(&s).expect("valid JSON");
+        assert_eq!(v["ts"], 1_000_000i64);
+        assert_eq!(v["dry_run"], false);
+        assert_eq!(v["spawned"], 1);
+    }
+
+    #[test]
+    fn history_rotates_when_over_cap() {
+        // Build a content block with 5 lines and cap at 3.
+        let content = "line1\nline2\nline3\nline4\nline5\n";
+        let rotated = rotate_keep_tail(content, 3);
+        let lines: Vec<&str> = rotated.lines().collect();
+        assert_eq!(lines.len(), 3, "should keep exactly 3 lines");
+        assert_eq!(lines[0], "line3");
+        assert_eq!(lines[2], "line5");
+
+        // Under-cap: content unchanged.
+        let small = "a\nb\n";
+        assert_eq!(rotate_keep_tail(small, 10), small);
     }
 }
