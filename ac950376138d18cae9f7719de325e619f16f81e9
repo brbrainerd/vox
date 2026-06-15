@@ -1,0 +1,10 @@
+feat(vox-audit): implement CR-L7 deploy runner for doctor leg
+scale: ~359 lines across 5 files [L]
+
+- `crates/vox-audit/src/subcommands/deploy.rs`: Add `DeployRunner` to implement the doctor leg of the CR-L7 integration test. This runner parses the Marquee manifest, identifies `status: real` applications, and checks all `.vox` files within their fixture paths using `vox_compiler::pipeline::check_file` for error-severity diagnostics. It reports the pass rate and overall status. Includes four new tests for the runner's functionality.
+- `crates/vox-audit/src/subcommands/stubs.rs`: Remove `DeployStub` and its associated test list entries, replacing it with a comment indicating its replacement by `DeployRunner`.
+- `crates/vox-audit/src/lib.rs`: Update the subcommand registry to replace `DeployStub` with `DeployRunner`.
+- `crates/vox-audit/src/subcommands/mod.rs`: Add `deploy` module to the public subcommands.
+- `crates/vox-audit/Cargo.toml`: Add `walkdir` dependency for file system traversal.
+
+--- audit: original='feat(vox-audit): real DeployRunner (CR-L7 doctor-green integration)' | actual=359L across 5 files | derived=full ---
