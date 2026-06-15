@@ -1,0 +1,12 @@
+fix(web_ir): strip JSON quotes from surface lookups to revive contrast pipeline
+scale: ~48 lines across 3 files [S]
+
+- `crates/vox-codegen/src/web_ir/validate.rs`:
+    - Modified `validate_surface_refs` to strip JSON quotes from `data-vox-surface` attribute values before performing a registry lookup. This corrects the issue where `data-vox-surface` values, which are JSON-encoded string literals from lowering, were not being correctly matched in the surface registry.
+    - Added a new test `surface_lookup_tolerates_quoted_attr_values` to verify that surface lookups correctly handle quoted attribute values.
+- `crates/vox-compiler/tests/web_ir_lower_emit_test.rs`:
+    - Removed `#[ignore]` attributes from four `web_ir_lower_emit` tests: `surface_known_name_no_error`, `surface_unknown_name_fires_error`, `surface_primitive_lowers_to_css_vars`, and `surface_without_registry_no_error`. These tests are now enabled, indicating the fix allows them to pass.
+- `crates/vox-codegen/src/web_ir/validate_a11y.rs`:
+    - Modified `walk_contrast` to strip JSON quotes from the `data-vox-surface` attribute value when retrieving it, ensuring correct surface name extraction for accessibility contrast validation.
+
+--- audit: original='fix(web_ir): strip JSON quotes at surface lookups - revives surface contrast pipeline' | actual=48L across 3 files | derived=full ---
