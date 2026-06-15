@@ -1,0 +1,9 @@
+feat(ci): add `gui-visual-review` command for advisory visual AI review
+scale: ~52 lines across 4 files [M]
+
+- `crates/vox-cli-ci/src/gui_visual_review.rs`: New module and function `run` to execute the `gui-visual-review` binary from `vox-orchestrator-mcp`. This command is advisory, always exits with status 0, and can optionally skip AI model calls.
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Add `GuiVisualReview` variant to `CiCmd` enum, defining the new `vox ci gui-visual-review` subcommand with a `--no-ai` argument.
+- `crates/vox-cli-ci/src/lib.rs`: Export the new `gui_visual_review` module.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Add a match arm to dispatch the `GuiVisualReview` command to the `vox_cli_ci::gui_visual_review::run` function.
+
+--- audit: original='feat(ci): advisory `vox ci gui-visual-review` wrapper (never gates)' | actual=52L across 4 files | derived=full ---
