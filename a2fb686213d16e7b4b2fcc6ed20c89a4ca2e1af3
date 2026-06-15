@@ -1,0 +1,10 @@
+feat(vox-effort-route): implement pipeline composition and e2e test
+scale: ~196 lines across 5 files [M]
+
+- `crates/vox-effort-route/src/pipeline.rs`: Implemented the `run` function, which orchestrates the entire effort routing pipeline: loading, bucketing, clustering, routing (decide and verify), and emitting recommendations. This includes defining the `RouteSummary` struct to encapsulate run results.
+- `crates/vox-effort-route/tests/e2e.rs`: Added an end-to-end test for the `vox-effort-route` pipeline. This test uses a fixture `findings.jsonl`, a `MockRouter`, and a `ZeroEmbedder` to verify that the pipeline produces `recommendations.jsonl` and `recommendations.md` outputs and that the summary statistics are as expected.
+- `crates/vox-effort-route/src/lib.rs`: Exported the `pipeline::run` function.
+- `crates/vox-effort-route/Cargo.toml`: Added a dependency on the `anyhow` crate.
+- `Cargo.lock`: Updated to reflect the new `anyhow` dependency.
+
+--- audit: original='feat(vox-effort-route): pipeline composition + e2e (D2)' | actual=196L across 5 files | derived=full ---
