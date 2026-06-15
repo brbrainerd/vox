@@ -1,0 +1,14 @@
+feat(ci): add cross-platform `vox ci fmt-check` to avoid Windows path limit
+scale: ~93 lines across 4 files [M]
+
+- `crates/vox-cli/src/commands/ci/pre_push.rs`:
+  - Implemented `check_fmt` function for cross-platform, chunked `rustfmt --check` using `cargo metadata` to find target root files. This avoids the Windows command-line limit (os error 206) encountered by `cargo fmt --all`.
+  - Modified `step_fmt` to call the new `check_fmt` function, removing platform-specific logic.
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Added `FmtCheck` variant to `CiCmd` enum with a description of its purpose.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Added a match arm to `run` function to execute `super::pre_push::check_fmt` when `CiCmd::FmtCheck` is received.
+- `lefthook.yml`:
+  - Updated the `pre-commit` hook `fmt-check` to use `cargo run -p vox-cli --quiet -- ci fmt-check` instead of `cargo fmt --all -- --check`.
+  - Added a comment explaining the change to avoid Windows command-line overflow.
+  - Updated the `fail_text` message to suggest `cargo fmt` for fixing.
+
+--- audit: original='fix(ci): cross-platform rustfmt check via `vox ci fmt-check` (no os-206)' | actual=93L across 4 files | derived=full ---
