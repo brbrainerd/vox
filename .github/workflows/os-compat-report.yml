@@ -1,0 +1,44 @@
+name: OS Compatibility Report
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # every Monday at 06:00 UTC
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/**/*.rs'
+      - 'scripts/**/*.vox'
+      - 'scripts/coverage-graph/os_compat*.py'
+      - 'scripts/coverage-graph/os_compat_rules.toml'
+
+concurrency:
+  group: os-compat-report
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: OS compatibility scan
+    runs-on: [self-hosted, linux, x64]
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run OS compatibility scanner
+        run: python scripts/coverage-graph/os_compat.py --repo-root . --out graphify-out/OS_COMPATIBILITY.md
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: os-compat-report-${{ github.run_number }}
+          path: graphify-out/OS_COMPATIBILITY.md
+          if-no-files-found: warn
+
+      - name: Print summary
+        run: |
+          echo "## OS Compatibility Summary" >> $GITHUB_STEP_SUMMARY
+          python -c "
+          from pathlib import Path
+          lines = Path('graphify-out/OS_COMPATIBILITY.md').read_text().splitlines()
+          for l in lines[:30]:
+              print(l)
+          " >> $GITHUB_STEP_SUMMARY || true
