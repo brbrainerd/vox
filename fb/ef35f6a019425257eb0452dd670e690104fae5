@@ -1,0 +1,10 @@
+feat(docs-astro): replace Rust-generated feed.xml with Astro RSS endpoint
+scale: ~346 lines across 5 files [L]
+
+- docs-astro/src/pages/feed.xml.ts: Add new Astro endpoint to generate RSS feed from docs collection, filtering by `last_updated` and sorting by date.
+- docs/src/feed.xml: Remove the previously Rust-generated `feed.xml` file.
+- .gitignore: Add `docs/src/feed.xml` to ignore list to prevent tracking the generated file.
+- docs-astro/pnpm-lock.yaml: Update pnpm lockfile to include new dependency.
+- docs-astro/package.json: Add `@astrojs/rss` package dependency.
+
+--- audit: original='feat(docs-astro): replace Rust-generated feed.xml with @astrojs/rss endpoint' | actual=346L across 5 files | derived=full ---
