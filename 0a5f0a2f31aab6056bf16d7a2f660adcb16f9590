@@ -1,0 +1,6 @@
+docs(architecture): add frontmatter to research-sources.md
+scale: ~7 lines across 1 files [XS]
+
+- `docs/src/architecture/_screenshots/research-sources.md`: Added YAML frontmatter including `title`, `description`, `category`, and `last_updated` to resolve a Starlight content-collection schema validation error.
+
+--- audit: original='fix(docs): add frontmatter to research-sources.md (docs-quality schema)' | actual=7L across 1 files | derived=full ---
