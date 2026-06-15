@@ -699,6 +699,26 @@ jobs:
         # docs/src/architecture/layers.toml.
         run: ./target/debug/vox --quiet run scripts/arch-check.vox
 
+      - name: Crate build/dependency audit (refresh leaf-design map)
+        # Regenerates graphify-out/{crate_audit.json,CRATE_BUILD_AUDIT.md} from
+        # cargo metadata + layers.toml (+ build --timings HTML if present), keeping
+        # the dependency / LoC / build-cost map fresh as the codebase changes.
+        # Non-blocking: budget *enforcement* is arch-check's job; this is the map.
+        # Compile-time columns are best-effort here (no --timings build in CI);
+        # refresh them locally with `VOX_AUDIT_BUILD=1`. --mode interp because the
+        # audit walks Json floats (per-crate compile durations).
+        run: ./target/debug/vox --quiet run --mode interp scripts/crate-build-audit.vox
+        continue-on-error: true
+
+      - name: Upload crate-build-audit map
+        uses: actions/upload-artifact@v7
+        with:
+          name: crate-build-audit
+          path: |
+            graphify-out/crate_audit.json
+            graphify-out/CRATE_BUILD_AUDIT.md
+          if-no-files-found: ignore
+
       # Conditional coverage: llvm-cov instrumentation adds significant wall-clock
       # time and is meaningless on docs-only PRs.  Run plain nextest when no Rust
       # crates changed; full llvm-cov nextest otherwise.
