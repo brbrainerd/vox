@@ -1,0 +1,7 @@
+docs(arch): register `vox-effort-route` in layers and Where Things Live
+scale: ~2 lines across 2 files [S]
+
+- docs/src/architecture/layers.toml: Add `vox-effort-route` to layer 2 with `kind = "library"` and `max_loc = 4_000`.
+- docs/src/architecture/where-things-live.md: Add `vox-effort-route` to the grouped map of top-level trees with its description and path.
+
+--- audit: original='docs(arch): register vox-effort-route in layers + WTL (A2)' | actual=2L across 2 files | derived=full ---
