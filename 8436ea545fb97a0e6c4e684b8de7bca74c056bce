@@ -1,0 +1,18 @@
+feat(codegen-ts): centralize builtin method, function, and namespace lowering
+scale: ~160 lines across 4 files [M]
+
+- **`crates/vox-codegen/src/codegen_ts/builtin_registry.rs`**:
+    - Added a new module `builtin_registry` to define `BuiltinLowering` enum and `BuiltinRegistry` struct.
+    - `BuiltinLowering` enumerates strategies for lowering (e.g., `Property`, `Inline`, `MethodRename`, `FunctionRename`).
+    - `BuiltinRegistry` stores mappings for methods, functions, and namespaces, initialized with standard Vox-to-TypeScript lowerings (e.g., `str.length()` to `s.length`, `std.time.now_ms()` to `Date.now()`, `list.append` to `list.push`).
+    - Provides `lookup_method`, `lookup_function`, and `lookup_namespace` methods to query these mappings.
+- **`crates/vox-codegen/tests/builtin_registry_test.rs`**:
+    - Added new tests for `BuiltinRegistry` to verify correct lookups for `str.length`, `std.time.now_ms`, `Speech` namespace, and handling of unknown methods.
+- **`crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`**:
+    - Integrated `BuiltinRegistry` by initializing it once and providing a `registry()` accessor.
+    - Modified `emit_hir_expr` for `HirExpr::Call` to consult the `BuiltinRegistry` for method and function lowering, replacing hardcoded logic for `length` and other methods.
+    - Preserved existing special handling for `char_at` and `index_of`.
+- **`crates/vox-codegen/src/codegen_ts/mod.rs`**:
+    - Added `builtin_registry` to the module exports with a descriptive comment.
+
+--- audit: original='refactor(codegen-ts): centralize method/fn/namespace lowering in builtin_registry' | actual=160L across 4 files | derived=full ---
