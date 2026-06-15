@@ -1,0 +1,7 @@
+fix(ci): support exact file paths in SQL surface guard allowlist
+scale: ~21 lines across 2 files [S]
+
+- `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs`: Modified `load_sql_connection_allowlist` to treat entries ending with `.rs` as exact file paths, preventing the addition of a trailing slash. Updated `sql_connection_path_allowed` to perform an exact string match for non-directory entries in the allowlist, alongside existing prefix matching for directory entries.
+- `docs/agents/sql-connection-api-allowlist.txt`: Narrowed the `vox-sql` allowlist entry from `crates/vox-sql/` to `crates/vox-sql/src/lib.rs` to specifically permit SQL API calls only from the main library file, with an updated comment explaining the rationale.
+
+--- audit: original='fix(ci): narrow vox-sql sql-surface-guard allowlist to src/lib.rs' | actual=21L across 2 files | derived=full ---
