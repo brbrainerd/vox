@@ -1,0 +1,8 @@
+feat(ml-cli): add `quantize` command for SafeTensors model quantization
+scale: ~115 lines across 3 files [M]
+
+- **crates/vox-ml-cli/src/commands/quantize.rs**: New module implementing the `quantize` command, including argument parsing (`QuantizeArgs`), functions for parsing quantization mixture (`parse_mixture`) and device preferences (`parse_device`), and the main `run` function for the command.
+- **crates/vox-ml-cli/src/commands/mod.rs**: Exports the new `quantize` module.
+- **crates/vox-ml-cli/Cargo.toml**: Adds `vox-quantize` as a dependency.
+
+--- audit: original='feat(ml-cli): vox quantize command module (args, parsing, run, report)' | actual=115L across 3 files | derived=full ---
