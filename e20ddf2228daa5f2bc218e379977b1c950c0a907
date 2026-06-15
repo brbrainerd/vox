@@ -1,0 +1,14 @@
+feat(dashboard): implement mesh-aware ⌘K palette with signed audit-log
+scale: ~442 lines across 9 files [L]
+
+- `crates/vox-dashboard/app/src/lib/cmdk.vox`: Add new `CmdK` component for a mesh-aware command palette. This palette allows users to perform destructive actions (kill, pause, drain, replay) on mesh nodes, requiring a confirmation modal where the node ID must be retyped. It integrates with the new API endpoints for these actions.
+- `crates/vox-dashboard/src/api/mesh_actions.rs`: Introduce new API endpoints (`node_kill`, `node_pause`, `node_drain`, `node_replay`) for destructive mesh actions. These endpoints require a `confirm_token` in the request body, emit a `MeshActionCommitted` event, and persist a signed `AuditEntry` via `AuditWriter`.
+- `crates/vox-dashboard/src/audit_log.rs`: Implement `AuditWriter` and `AuditEntry` for creating Ed25519-signed audit log entries. The signature is hex-encoded and stored in-memory.
+- `crates/vox-dashboard/src/api/mesh.rs`: Remove placeholder `node_kill`, `node_pause`, `node_drain`, and `node_replay` functions, replacing them with imports from the new `mesh_actions` module.
+- `crates/vox-dashboard/tests/mesh_phase4_routes.rs`: Add new tests for destructive actions, verifying that a signed audit entry is emitted and that requests without a valid `confirm_token` return a 400 Bad Request status.
+- `crates/vox-dashboard/src/lib.rs`: Add `audit_log` module, introduce `ephemeral_state` helper, and update `build_router_with_empty_mesh` and `build_router_with_signing_keys` to initialize `MeshState` with an `AuditWriter`.
+- `crates/vox-dashboard/src/router.rs`: Add routes for the new destructive mesh actions (`/api/v2/mesh/nodes/:id/kill`, `/api/v2/mesh/nodes/:id/pause`, `/api/v2/mesh/nodes/:id/drain`, `/api/v2/mesh/nodes/:id/replay`).
+- `crates/vox-dashboard/Cargo.toml`: Add `vox-crypto` dependency.
+- `crates/vox-dashboard/src/api/mod.rs`: Export `mesh_actions` module.
+
+--- audit: original='feat(dashboard): mesh-aware ⌘K palette with signed audit-log on destructive actions (P4-T7)' | actual=442L across 9 files | derived=full ---
