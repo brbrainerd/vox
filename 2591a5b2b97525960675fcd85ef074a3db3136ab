@@ -1,0 +1,30 @@
+feat(gui): implement multi-tab chat sessions with persistence and filtering
+scale: ~272 lines across 6 files [L]
+
+- **`crates/vox-gui/ui/src/components/layout/SessionTabs.tsx` (new file):**
+  - Introduces a new React component `SessionTabs` for managing chat sessions.
+  - Displays tabs for each `ChatSession`, showing its title and a badge for queued tasks.
+  - Allows selecting, creating, closing, and renaming sessions.
+  - Implements an inline input for renaming sessions.
+- **`crates/vox-gui/ui/src/App.tsx`:**
+  - Integrates `SessionTabs` into the main application layout.
+  - Manages `ChatSession` state using `useLocalStorage` for persistence.
+  - Initializes sessions, adopting a legacy `gui-loquela` ID for existing transcripts/tasks.
+  - Filters the chat transcript to display messages only for the active session.
+  - Passes the active `sessionId` and `scopePaths` to chat message submissions.
+- **`crates/vox-gui/ui/src/lib/sessions.ts` (new file):**
+  - Defines the `ChatSession` interface with `id`, `title`, `createdAt`, and `scopePaths`.
+  - Provides helper functions:
+    - `createSession`: Generates unique `gui-` IDs and numbered default titles, and attaches optional `scopePaths`.
+    - `closeSession`: Removes a session and determines the next active session, preventing the last session from being closed.
+    - `renameSession`: Updates a session's title, ignoring blank titles.
+- **`crates/vox-gui/ui/src/lib/sessions.test.ts` (new file):**
+  - Adds unit tests for `createSession`, `closeSession`, and `renameSession` functions.
+- **`crates/vox-gui/ui/src/lib/chatCorrelation.ts`:**
+  - Adds an optional `sessionId` field to the `ChatMessage` interface.
+  - Modifies `chatReducer` to stamp the `sessionId` on new user and assistant messages during submission.
+  - Introduces `messagesForSession` selector to filter messages by `sessionId`, ensuring pre-session messages (with `null` `sessionId`) remain visible in any tab.
+- **`crates/vox-gui/ui/src/lib/chatCorrelation.test.ts`:**
+  - Adds a test for `messagesForSession` to verify correct filtering and `sessionId` stamping.
+
+--- audit: original='feat(gui): multi-tab chat sessions over the session_id spine (I1/I2)' | actual=272L across 6 files | derived=full ---
