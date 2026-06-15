@@ -56,13 +56,6 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
         config_class: ConfigClass::CiGate,
     },
     OperatorEnvSpec {
-        name: "vox_populi::inference_PROFILE",
-        description: "Inference strategy (cloud, mobile, lan, desktop).",
-        defaults: "desktop_ollama",
-
-        config_class: ConfigClass::UserPreference,
-    },
-    OperatorEnvSpec {
         name: "POPULI_URL",
         description: "Local Populi base URL.",
         defaults: "http://localhost:11434",
@@ -594,6 +587,8 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
 
         config_class: ConfigClass::UserPreference,
     },
+    // kept: required by operator-env-guard (M-14) — read via std::env::var and not
+    // in the guard SYSTEM_ALLOWLIST, so eviction would flag it as an unregistered env.
     OperatorEnvSpec {
         name: "RUST_LOG",
         description: "Standard Rust logging filter.",
@@ -601,6 +596,8 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
 
         config_class: ConfigClass::Bootstrap,
     },
+    // kept: required by operator-env-guard (M-14) — read via std::env::var and not
+    // in the guard SYSTEM_ALLOWLIST, so eviction would flag it as an unregistered env.
     OperatorEnvSpec {
         name: "HOSTNAME",
         description: "System hostname (auto-detected).",
@@ -706,6 +703,8 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
 
         config_class: ConfigClass::UserPreference,
     },
+    // kept: required by operator-env-guard (M-14) — read via std::env::var and not
+    // in the guard SYSTEM_ALLOWLIST, so eviction would flag it as an unregistered env.
     OperatorEnvSpec {
         name: "COMPUTERNAME",
         description: "Windows system computer name (auto-detected).",
@@ -825,6 +824,8 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
 
         config_class: ConfigClass::NodeLocal,
     },
+    // kept: required by operator-env-guard (M-14) — read via std::env::var and not
+    // in the guard SYSTEM_ALLOWLIST, so eviction would flag it as an unregistered env.
     OperatorEnvSpec {
         name: "CARGO_HOME",
         description: "Standard Cargo home directory.",
@@ -832,21 +833,8 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
 
         config_class: ConfigClass::NodeLocal,
     },
-    OperatorEnvSpec {
-        name: "HOME",
-        description: "Standard Unix home directory.",
-        defaults: "~",
-
-        config_class: ConfigClass::NodeLocal,
-    },
-    OperatorEnvSpec {
-        name: "USERPROFILE",
-        description: "Standard Windows user profile directory.",
-        // vox-arch-check: allow abs-path
-        defaults: "C:\\Users\\Default",
-
-        config_class: ConfigClass::NodeLocal,
-    },
+    // HOME and USERPROFILE evicted: ambient system env, auto-detected, never set in
+    // Vox.toml; already covered by the operator-env-guard SYSTEM_ALLOWLIST.
     OperatorEnvSpec {
         name: "VOX_SECRETS_CUTOVER_PHASE",
         description: "Secrets cutover phase controls (shadow, enforce, decommission).",
