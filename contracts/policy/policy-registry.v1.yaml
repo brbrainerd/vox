@@ -943,6 +943,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.config-hygiene
+  domain: ci-gate
+  title: Ci Config-hygiene
+  group: CI Gates / config
+  description: 'Advisory gate: detects hardcoded env paths, env reads in pure-config modules, and declared-but-unwired env-resolver functions.'
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.config-hygiene
+    detail: vox ci config-hygiene
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.contracts-index
   domain: ci-gate
   title: Ci Contracts-index

@@ -3,6 +3,7 @@
 use std::path::Path;
 
 pub const DEFAULT_MARKDOWN_CHUNK_BYTES: usize = 4096;
+pub const DEFAULT_RAG_CHUNK_CHARS: usize = 4096;
 
 pub fn resolve_chunk_bytes(raw: Option<&str>) -> usize {
     raw.and_then(|s| s.trim().parse::<usize>().ok())
@@ -71,7 +72,7 @@ pub async fn ingest_markdown_tree(
             .upsert_search_document(&source_uri, &title, "text/markdown", &hash)
             .await?;
         let chunk_bytes = resolve_chunk_bytes(std::env::var("VOX_RAG_CHUNK_BYTES").ok().as_deref());
-        let chunks = chunk_markdown_sections(&body, chunk_bytes);
+        let chunks = chunk_markdown_sections_with_size(&body, chunk_bytes);
         let refs: Vec<Option<String>> = vec![None; chunks.len()];
         db.replace_search_document_chunks_with_refs(doc_id, &chunks, &refs)
             .await?;
@@ -80,7 +81,12 @@ pub async fn ingest_markdown_tree(
     Ok(count)
 }
 
-fn chunk_markdown_sections(text: &str, chunk_bytes: usize) -> Vec<String> {
+#[allow(dead_code)]
+fn chunk_markdown_sections(text: &str) -> Vec<String> {
+    chunk_markdown_sections_with_size(text, DEFAULT_RAG_CHUNK_CHARS)
+}
+
+fn chunk_markdown_sections_with_size(text: &str, max_chars: usize) -> Vec<String> {
     let mut chunks = Vec::new();
     let mut cur = String::new();
     for line in text.lines() {
@@ -92,7 +98,7 @@ fn chunk_markdown_sections(text: &str, chunk_bytes: usize) -> Vec<String> {
         } else {
             cur.push_str(line);
             cur.push('\n');
-            if cur.len() > chunk_bytes {
+            if cur.len() > max_chars {
                 chunks.push(cur.trim().to_string());
                 cur.clear();
             }
@@ -105,6 +111,29 @@ fn chunk_markdown_sections(text: &str, chunk_bytes: usize) -> Vec<String> {
         chunks.push(text.trim().to_string());
     }
     chunks
+}
+
+#[cfg(test)]
+mod chunk_tests {
+    use super::*;
+
+    #[test]
+    fn small_threshold_splits_more() {
+        let text = "# Section A\nline1\nline2\nline3\n# Section B\nline4\nline5\nline6\n";
+        let small = chunk_markdown_sections_with_size(text, 10);
+        let big = chunk_markdown_sections_with_size(text, 4096);
+        assert!(!small.is_empty());
+        assert!(small.len() >= big.len());
+    }
+
+    #[test]
+    fn default_wrapper_uses_default_const() {
+        let text = "# Heading\nsome content here\n## Sub\nmore content\n";
+        assert_eq!(
+            chunk_markdown_sections(text),
+            chunk_markdown_sections_with_size(text, DEFAULT_RAG_CHUNK_CHARS)
+        );
+    }
 }
 
 #[cfg(test)]

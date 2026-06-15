@@ -338,6 +338,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn embedded_contract_is_canonical_and_matches_default() {
+        let embedded = CircuitBreakerConfig::embedded();
+        let def = CircuitBreakerConfig::default();
+        assert_eq!(embedded.no_progress_threshold, def.no_progress_threshold);
+        assert_eq!(embedded.tool_thrash_threshold, def.tool_thrash_threshold);
+        assert_eq!(embedded.replan_limit, def.replan_limit);
+        assert_eq!(
+            embedded.ngram_overlap_threshold,
+            def.ngram_overlap_threshold
+        );
+    }
+
+    #[test]
     fn from_contract_str_overrides_defaults() {
         let yaml = r#"
 trip_thresholds:
@@ -412,19 +425,6 @@ graduated_alarms:
         // ...and the graduated-alarm siblings (value 1/2, not 3) are unaffected.
         assert_eq!(parsed.caution_no_progress, def.caution_no_progress);
         assert_eq!(parsed.warning_no_progress, def.warning_no_progress);
-    }
-
-    #[test]
-    fn embedded_contract_is_canonical_and_matches_default() {
-        let embedded = CircuitBreakerConfig::embedded();
-        let def = CircuitBreakerConfig::default();
-        assert_eq!(embedded.no_progress_threshold, def.no_progress_threshold);
-        assert_eq!(embedded.tool_thrash_threshold, def.tool_thrash_threshold);
-        assert_eq!(embedded.replan_limit, def.replan_limit);
-        assert_eq!(
-            embedded.ngram_overlap_threshold,
-            def.ngram_overlap_threshold
-        );
     }
 
     #[test]

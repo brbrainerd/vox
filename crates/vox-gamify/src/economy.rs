@@ -21,6 +21,8 @@ use crate::reward_policy::{BaseReward, EventConfigOverrides};
 use std::collections::HashMap;
 use std::path::Path;
 
+const EMBEDDED_ECONOMY_YAML: &str = include_str!("../../../contracts/gamify/economy.v1.yaml");
+
 /// Scalar tuning constants. Defaults mirror the `reward_policy`/`streak` constants.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tuning {
@@ -113,6 +115,12 @@ pub struct EconomyConfig {
 }
 
 impl EconomyConfig {
+    /// Parse the compile-time-embedded shipped contract.
+    pub fn embedded() -> Self {
+        parse_economy(EMBEDDED_ECONOMY_YAML)
+            .expect("embedded economy.v1.yaml must parse (guarded by config-registry-parity)")
+    }
+
     /// Resolve the effective base reward for an event, applying any reward-table
     /// override on top of the hard-coded [`crate::reward_policy::base_reward`].
     pub fn base_reward(&self, event_type: &str) -> BaseReward {
@@ -120,12 +128,6 @@ impl EconomyConfig {
             .get(event_type)
             .cloned()
             .unwrap_or_else(|| crate::reward_policy::base_reward(event_type))
-    }
-
-    /// Parse the compile-time-embedded shipped contract.
-    pub fn embedded() -> Self {
-        parse_economy(EMBEDDED_ECONOMY_YAML)
-            .expect("embedded economy.v1.yaml must parse (guarded by config-registry-parity)")
     }
 
     /// Materialize the reward table into [`EventConfigOverrides`] so the economy
@@ -270,13 +272,6 @@ pub fn parse_economy(text: &str) -> anyhow::Result<EconomyConfig> {
 /// Repo-relative path to the shipped economy contract, resolved from this crate.
 pub const SHIPPED_CONTRACT_RELPATH: &str = "../../contracts/gamify/economy.v1.yaml";
 
-/// The shipped economy contract, compiled into the binary. Path is relative to
-/// THIS source file (`crates/vox-gamify/src/economy.rs`) → repo-root `contracts/`.
-/// Compile-time embedding means the contract is ALWAYS the live default — it can
-/// never be silently inert in a deployed binary, and there is a single source of
-/// truth (no `Default`-vs-contract drift).
-const EMBEDDED_ECONOMY_YAML: &str = include_str!("../../../contracts/gamify/economy.v1.yaml");
-
 /// Resolve the live [`EconomyConfig`]. A runtime override path (env
 /// `VOX_GAMIFY_ECONOMY_PATH`) layers on top of the compile-time-embedded contract;
 /// when absent or unparseable, the embedded contract is used (never a bare
@@ -316,14 +311,30 @@ pub(crate) fn resolve_economy_from(
 mod tests {
     use super::*;
     use crate::profile::TrustTier;
-    use std::path::PathBuf;
-
-    fn shipped_path() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SHIPPED_CONTRACT_RELPATH)
-    }
 
     fn shipped() -> EconomyConfig {
-        load_economy(shipped_path()).expect("shipped economy contract loads")
+        EconomyConfig::embedded()
+    }
+
+    #[test]
+    fn embedded_contract_parses_and_is_canonical_default() {
+        let embedded = EconomyConfig::embedded();
+        let def = EconomyConfig::default();
+        assert_eq!(embedded.tuning.novelty_factor, def.tuning.novelty_factor);
+        assert_eq!(embedded.trust_tier_multipliers, def.trust_tier_multipliers);
+        assert!(
+            !embedded.rewards.is_empty(),
+            "embedded contract must carry rewards"
+        );
+    }
+
+    #[test]
+    fn resolve_uses_embedded_when_no_override() {
+        let cfg = resolve_economy_from(None, |_p| false);
+        assert!(
+            !cfg.rewards.is_empty(),
+            "must fall back to embedded, not empty Default"
+        );
     }
 
     /// Behavior preservation: the shipped contract's scalar tuning EQUALS the
@@ -506,27 +517,6 @@ mod tests {
         assert_eq!(
             cfg.tuning.grind_taper_end,
             Tuning::default().grind_taper_end
-        );
-    }
-
-    #[test]
-    fn embedded_contract_parses_and_is_canonical_default() {
-        let embedded = EconomyConfig::embedded();
-        let def = EconomyConfig::default();
-        assert_eq!(embedded.tuning.novelty_factor, def.tuning.novelty_factor);
-        assert_eq!(embedded.trust_tier_multipliers, def.trust_tier_multipliers);
-        assert!(
-            !embedded.rewards.is_empty(),
-            "embedded contract must carry rewards"
-        );
-    }
-
-    #[test]
-    fn resolve_uses_embedded_when_no_override() {
-        let cfg = resolve_economy_from(None, |_p| false);
-        assert!(
-            !cfg.rewards.is_empty(),
-            "must fall back to embedded, not empty Default"
         );
     }
 

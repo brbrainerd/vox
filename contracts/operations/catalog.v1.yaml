@@ -2112,6 +2112,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.config-hygiene
+  title: Ci Config-hygiene
+  description: CLI operation `vox ci config-hygiene`
+  description_human: "Advisory gate: detects hardcoded env paths, env reads in pure-config modules, and declared-but-unwired env-resolver functions."
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - config-hygiene
+    status: active
+    latin_ns: null
+    handler_rust: commands::ci::config_hygiene
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.completion-audit
   title: Ci Completion-audit
   description: CLI operation `vox ci completion-audit`

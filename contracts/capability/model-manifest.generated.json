@@ -367,6 +367,17 @@
       "title": "Ci Completion-ingest"
     },
     {
+      "capability_id": "cli.ci.config-hygiene",
+      "cli_path": [
+        "ci",
+        "config-hygiene"
+      ],
+      "curated": true,
+      "description_model": "Advisory gate: detects hardcoded env paths, env reads in pure-config modules, and declared-but-unwired env-resolver functions.",
+      "implicit": false,
+      "title": "Ci Config-hygiene"
+    },
+    {
       "capability_id": "cli.ci.contracts-index",
       "cli_path": [
         "ci",

@@ -873,6 +873,7 @@
     "ci.completion-audit",
     "ci.completion-gates",
     "ci.completion-ingest",
+    "ci.config-hygiene",
     "ci.contracts-index",
     "ci.coolify-eval",
     "ci.coverage-gates",
