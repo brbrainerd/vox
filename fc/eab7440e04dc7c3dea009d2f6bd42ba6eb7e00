@@ -1,0 +1,13 @@
+perf(build): gate `tantivy`/`web-scrape` behind `heavy-retrieval` feature
+scale: ~52 lines across 6 files [M]
+
+- `crates/vox-cli/src/commands/ci/release_build.rs`: Modified `build_and_package_binary` to conditionally add `--features heavy-retrieval` when building `vox-cli` for release, ensuring shipped binaries include full search capabilities.
+- `crates/vox-cli/Cargo.toml`:
+    - Added a new `heavy-retrieval` feature that enables `tantivy-lexical` and `web-scrape` features for `vox-search`.
+    - Removed explicit `tantivy-lexical` and `web-scrape` features from the default `vox-search` dependency, making it lean by default.
+- `crates/vox-orchestrator/Cargo.toml`: Removed explicit `tantivy-lexical` and `web-scrape` features from the `vox-search` dependency.
+- `crates/vox-dei-shim/Cargo.toml`: Removed explicit `tantivy-lexical` and `web-scrape` features from the `vox-search` dependency.
+- `crates/vox-orchestrator-mcp/Cargo.toml`: Removed explicit `tantivy-lexical` and `web-scrape` features from the `vox-search` dependency.
+- `crates/vox-plugin-publication/Cargo.toml`: Removed explicit `tantivy-lexical` and `web-scrape` features from the `vox-search` dependency, as only `EmbeddingService` and `LlmConfig` are used.
+
+--- audit: original='perf(build): gate tantivy/web-scrape behind heavy-retrieval (lean default CLI)' | actual=52L across 6 files | derived=full ---
