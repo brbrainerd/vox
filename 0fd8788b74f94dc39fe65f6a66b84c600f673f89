@@ -1,0 +1,19 @@
+feat(search, lsp, corpus): implement semantic split-brain detection and KCH anticonflation
+scale: ~331 lines across 14 files [L]
+
+- `crates/vox-search/src/symbol_proximity.rs`: Add new module for scanning symbol proximity (split-brain detection) using Qdrant vector search and retired surfaces JSON.
+- `contracts/proximity/retired-surfaces.v1.json`: Add new contract for retired surfaces, used by symbol proximity scanner.
+- `contracts/proximity/retired-surfaces.schema.json`: Add schema for retired surfaces contract.
+- `crates/vox-corpus/src/synthetic_gen/kch_anticonflation.rs`: Add new module to generate synthetic KCH (Knowledge Conflating Hallucinations) anti-conflation pairs.
+- `crates/vox-lsp/src/main.rs`: Implement semantic proximity hover in LSP, providing alerts for symbols like `resolveArenaRound` and `combatRoundResolver` to prevent KCH.
+- `scripts/ci-proximity-drift.vox`: Add new CI script to check for symbol proximity drift against a snapshot, failing if new untriaged high-confidence duplicates are found.
+- `crates/vox-search/src/execution.rs`: Integrate `symbol_proximity` scanning into search execution, adding `symbol_proximity_lines` to search results and RRF fusion.
+- `crates/vox-db/src/retrieval.rs`: Add `SymbolProximity` to `SearchCorpus` and `SearchBackend` enums, and include it in the heuristic search plan for code navigation queries.
+- `crates/vox-corpus/src/synthetic_gen/mod.rs`: Add `emit_kch_anticonflation` configuration option and import `kch_anticonflation` module.
+- `crates/vox-socrates-policy/src/policy_types.rs`: Add `Disambiguate` risk decision type for symbol proximity hints.
+- `crates/vox-search/Cargo.toml`: Update dependencies (likely to enable Qdrant feature).
+- `crates/vox-search/src/a2a_contract.rs`: Update `SearchExecution` struct in tests to include `symbol_proximity_lines`.
+- `crates/vox-search/src/lib.rs`: Export `symbol_proximity` module.
+- `crates/vox-corpus/src/synthetic_gen/bodies/_generate_all_mod.inc`: Include KCH anti-conflation generation in `generate_all`.
+
+--- audit: original='feat(proximity): implement semantic split-brain detection' | actual=331L across 14 files | derived=full ---
