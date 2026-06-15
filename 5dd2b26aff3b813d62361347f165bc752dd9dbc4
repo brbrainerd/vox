@@ -1,0 +1,7 @@
+docs(scientia): mark Phase 3 as complete in self-publication plan
+scale: ~3 lines across 1 files [XS]
+
+- Update `scientia-self-publication-finalization-plan-2026.md` to reflect the completion of Phase 3.
+- Add a status update indicating `reply_window.rs`, `retraction.rs`, and `living_review.rs` have landed in `vox-prereg`, and the Provider Atlas dry-run lifecycle is end-to-end functional.
+
+--- audit: original='feat(scientia): mark Phase 3 Complete + wire vox-prereg Phase 3 modules' | actual=3L across 1 files | derived=full ---
