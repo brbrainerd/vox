@@ -1,0 +1,16 @@
+feat(config): introduce v1 of the operational knob registry
+scale: ~92 lines across 1 files [M]
+
+- **contracts/config/registry.v1.yaml**: Create a new YAML file defining the v1 configuration registry. This includes 10 operational knobs with their names, environment variables, descriptions, owning crates, status, default values, and `since` dates.
+  - `llm_request_timeout_ms`: Configures per-request timeout for LLM HTTP calls.
+  - `wasm_skill_fuel`: Sets the fuel budget for WASM skill execution.
+  - `mens_default_model`: Specifies the default base model ID for MENS.
+  - `rag_chunk_chars`: Defines the maximum character count per RAG markdown chunk.
+  - `gamify_economy_path`: Overrides the path for the gamify economy contract YAML.
+  - `circuit_breaker_contract`: Overrides the path for the circuit-breaker contract YAML.
+  - `circuit_breaker_enabled`: Enables or disables the circuit breaker.
+  - `circuit_breaker_max_failures`: Sets the maximum failures before a circuit trip.
+  - `circuit_breaker_reset_timeout_ms`: Defines the timeout for circuit breaker reset.
+  - `circuit_breaker_failure_rate_threshold`: Sets the failure rate threshold for circuit tripping.
+
+--- audit: original='feat(config): create config registry v1 with operational knobs from HC remediation' | actual=92L across 1 files | derived=full ---
