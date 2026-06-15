@@ -1,0 +1,11 @@
+fix(capabilities): walk JSX props/children for capabilities; assert no mic permission in file-transcribe test
+scale: ~61 lines across 2 files [M]
+
+- `crates/vox-compiler/src/required_capabilities.rs`:
+    - Added logic to `collect_usage_from_expr` to traverse JSX element attributes and children for capability usage.
+    - Added a new test `jsx_attribute_microphone_call_derives_speech_and_microphone` to verify that `Speech.transcribe_microphone()` within a JSX attribute correctly derives `speech` and `microphone` capabilities.
+    - Removed `HirExpr::JsxSelfClosing` and `HirExpr::Jsx` from the list of expressions that do not require further usage collection, as their contents are now explicitly walked.
+- `crates/vox-codegen/src/codegen_rust/mod.rs`:
+    - Added an assertion in the `codegen_speech_transcribe_file` test to ensure that the generated `default.json` capability manifest does not contain any microphone-related permissions when only file-based transcription is used.
+
+--- audit: original='fix: address CodeRabbit re-review — walk JSX props/children for capabilities + assert no mic permission in file-transcribe test' | actual=61L across 2 files | derived=full ---
