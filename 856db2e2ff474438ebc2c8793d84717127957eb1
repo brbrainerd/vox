@@ -1,0 +1,7 @@
+test(codegen): rescope self-import assertion and update form redirect assertion
+scale: ~21 lines across 2 files [S]
+
+- `crates/vox-codegen/tests/component_import_refs_test.rs`: Rescoped the `no_spurious_self_import` invariant to specifically check the `Solo.tsx` component file for self-imports, rather than the entire emitted bundle. This avoids a false-negative because the `vox-app.tsx` bootstrap legitimately imports the root component.
+- `crates/vox-codegen/tests/form_emit_test.rs`: Updated the assertion for form redirection to check for `window.history.pushState` and `PopStateEvent` instead of `navigate()`, reflecting a change to use the History API for router-agnostic redirection.
+
+--- audit: original='test(codegen): rescope self-import + history-API redirect assertions' | actual=21L across 2 files | derived=full ---
