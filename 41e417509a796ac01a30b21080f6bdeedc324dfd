@@ -1,0 +1,18 @@
+feat(visus-review): add change-detection skeleton and report writer
+scale: ~194 lines across 1 files [M]
+
+- `crates/vox-orchestrator-mcp/src/visus_review`: Add new module for GUI visual AI adversarial review.
+  - Introduce `ReviewDecision` enum (`New`, `Changed`, `Cached`) and `decide_status` function to determine review status based on a cache and fresh SHA.
+  - Implement unit tests for `decide_status` covering new, cached, and changed scenarios.
+  - Define `ManifestEntry` struct for deserializing manifest data, including `view_key`, `file`, and `screenshot_sha256`.
+  - Define `CacheEntry` struct for storing cached review data, including `screenshot_sha256`, `score`, `verdict`, `model`, and `reviewed_at`.
+  - Define `CacheIndex` struct to manage a collection of `CacheEntry` instances.
+  - Implement `load_cache` and `save_cache` functions for persistent storage of the review cache.
+  - Introduce `ReviewReportEntry` and `ReviewReport` structs for generating review reports.
+  - Implement `write_report` function to generate a JSON report from review entries.
+  - Define `ReviewInput` struct to encapsulate manifest and cache data for review processing.
+  - Introduce `ReviewOutput` struct to hold the generated report and updated cache.
+  - Implement `run_review` function as the main entry point for the review process, including loading data, making decisions, and generating reports.
+  - Add `types` submodule to organize data structures.
+
+--- audit: original='feat(visus-review): change-detection skeleton, cache decision + report writer (no AI yet)' | actual=194L across 1 files | derived=full ---
