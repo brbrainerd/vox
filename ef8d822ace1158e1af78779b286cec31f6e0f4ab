@@ -1,0 +1,9 @@
+feat(vox-mesh-models): add new model registry crate
+scale: ~255 lines across 5 files [L]
+
+- `crates/vox-mesh-models`: Introduce a new crate to provide an in-memory model registry.
+- `crates/vox-mesh-models/src/registry.rs`: Add `ModelRegistry` struct for aggregating and managing model inventories from mesh nodes, including methods for upserting, removing, and querying models.
+- `crates/vox-mesh-models/src/types.rs`: Define core types `ModelKind`, `ModelEntry`, and `NodeModelMap` for representing model artifacts and node inventories.
+- `docs/src/architecture/layers.toml`: Add `vox-mesh-models` to the architecture layers documentation.
+
+--- audit: original='feat(mesh-models): add vox-mesh-models model registry crate (P4-T12)' | actual=255L across 5 files | derived=full ---
