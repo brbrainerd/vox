@@ -1,0 +1,8 @@
+docs(ref): label unlabeled code fences in three reference documents
+scale: ~8 lines across 3 files [S]
+
+- docs/src/reference/webhook_integration.md: Added `text` language tag to two previously unlabeled code fences.
+- docs/src/reference/ref-installation.md: Added `text` language tag to an unlabeled code fence containing example output.
+- docs/src/reference/tavily-integration-ssot.md: Added `text` language tag to an unlabeled code fence describing a typical use case.
+
+--- audit: original='fix(docs): label unlabeled code fences in three reference docs' | actual=8L across 3 files | derived=full ---
