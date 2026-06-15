@@ -1,0 +1,17 @@
+fix(orchestrator): Normalize agent_id JSON representation across VCS facade
+scale: ~205 lines across 3 files [M]
+
+- `json_vcs_facade.rs`:
+    - Changed `workspace_create_json` to serialize `agent_id` as a raw `u64` string (e.g., "7") instead of its `Display` form (e.g., "A-07").
+    - Changed `takeover_handoff_json` to serialize the top-level `agent_id` as a string (e.g., "7") instead of a bare number (e.g., 7).
+    - Added a test to `json_vcs_facade` to verify `agent_id` parity within the `takeover_handoff_json` bundle, ensuring the top-level `agent_id` matches the `agent_id` embedded in snapshots.
+- `cas_fallback.rs`: Added new tests for `CasFallback`:
+    - `undo_on_empty_is_nothing_to_undo`: Verifies `undo()` returns `NothingToUndo` error when no changes exist.
+    - `multi_path_snapshot_preserves_paths_and_label_in_order`: Confirms `snapshot()` preserves paths and labels correctly.
+    - `ids_are_monotone_with_gaps_after_undo`: Documents and tests that `next_id` is not decremented on undo, leading to ID gaps.
+- `repo.rs`: Added new tests for `RepoStore`:
+    - `empty_store_has_no_changes_and_undo_is_none`: Verifies an empty store has no changes and `undo()` returns `None`.
+    - `ids_are_monotone_with_gaps_after_undo`: Mirrors the `CasFallback` invariant for ID allocation after undo.
+    - `unknown_repo_method_is_an_error`: Tests that calling an unknown method on the repo returns an `AssertionFailed` error.
+
+--- audit: original='fix(orchestrator): agent_id JSON parity across the VCS facade + jj test coverage (#175)' | actual=205L across 3 files | derived=full ---
