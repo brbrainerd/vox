@@ -1,0 +1,13 @@
+fix(codegen-ts): Support async/await in handlers and correct `.length` property access
+scale: ~433 lines across 9 files [L]
+
+- `codegen_ts::hir_emit`: Introduce `EmitCtx` to manage `state_names` and `async_fn_names` for expression emission. `async_fn_names` enables `await` for `@endpoint` calls within event handlers and marks the handler arrow as `async`. Corrected `MethodCall` for "length" to emit property access (`.length`) instead of a method call (`.length()`).
+- `codegen_ts::reactive`: Update `generate_reactive_component` to create `EmitCtx::with_async` for the view pass, using `endpoint_names` to identify async functions. Update `emit_reactive_view_body` and state/derived member emission to use `EmitCtx`.
+- `codegen_ts::reactive_module_emit`: Update `emit_member` for state, derived, and effect members to use `EmitCtx`.
+- `codegen_ts::routes`: Update `emit_hir_route_expr` and `emit_expr_from_hir_arg` to use `EmitCtx`.
+- `web_ir::lower`: Update `DomArena::push` fallback, `fold_primitive_web_ir_element`, `expand_bind_hir_attribute`, and `emit_hir_expr_attr_value` to use `EmitCtx`.
+- `tests/bug_handler_lambda_repro.rs`: Add new test file to reproduce issues with handler lambda emission and incorrect `.length()` lowering.
+- `tests/reactive_smoke_test.rs`: Update test to reflect changes in `EmitCtx` usage.
+- `tests/web_ir_lower_emit_test.rs`: Update test to reflect changes in `EmitCtx` usage.
+
+--- audit: original='fix(codegen-ts): §1.A.2 + §1.A.3 — async await in handlers, .length property access' | actual=433L across 9 files | derived=full ---
