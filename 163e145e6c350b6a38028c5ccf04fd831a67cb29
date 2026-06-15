@@ -1,0 +1,29 @@
+feat(compiler): Introduce build targets, deprecate durability grammar
+scale: ~2250 lines across 24 files [XL]
+
+- **docs/src/architecture**: Added comprehensive architectural specifications for:
+    - `external-frontend-interop-plan-2026.md`: Five-phase React interop plan.
+    - `wire-format-v1-ssot.md`: Versioned wire format contract.
+    - `phase1-build-targets-spec-2026.md`: Specification for build targets.
+    - `phase3-http-ergonomics-spec-2026.md`: Specification for HTTP decorators.
+    - `phase5-react-interop-spec-2026.md`: Specification for React interop and `@island` retirement.
+    - `durability-runtime-audit-2026.md`: Audit confirming parse-only status of durability features.
+- **docs/src/adr**: Added ADR-028 proposing removal of `@scheduled`, `@durable`, `workflow`, and `activity` from the public grammar.
+- **crates/vox-compiler**:
+    - Implemented `check_adr028_reserved_keywords` in `pipeline.rs` to emit `E028` errors for deprecated durability keywords (`@scheduled`, `@durable`, `workflow`, `activity`).
+    - Added 5 TDD tests for the new keyword checks.
+- **crates/vox-config**:
+    - Introduced `BuildTarget` enum (`Fullstack`, `Server`, `Client`) with `serde` and `Default::Fullstack`.
+    - Updated `impl_ops.rs` to read `[build] target` from `Vox.toml` into `VoxConfig::build_target`.
+    - Added 9 TDD tests for `BuildTarget` parsing and default behavior.
+    - Modified `toml_schema.rs` and `vox_config.rs` to include the new `BuildTomlSection` and `build_target` field.
+- **crates/vox-cli**:
+    - Added `--target` CLI flag for `vox build` to specify `BuildTarget` (`fullstack`, `server`, `client`).
+    - Renamed existing `--target` to `--mobile-target`.
+    - Implemented `resolve_has_frontend` in `run.rs` to gate frontend bundling based on `BuildTarget`, forcing `has_frontend=false` for `Server` target.
+    - Added tests for `resolve_has_frontend`.
+- **docs/src/feed.xml**: Removed 41 lines, likely old feed entries.
+- **crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt**: Updated baseline for CLI catalog.
+- **crates/vox-compiler/tests/snapshots/axum_emit_contract_test__mutation_with_schema_main_rs_emit.snap**: Accepted pending snapshot.
+
+--- audit: original='feat(interop): React/TS interop plan, Phase 1 build targets, Phase 4 grammar removal' | actual=2250L across 24 files | derived=full ---
