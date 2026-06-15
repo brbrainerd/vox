@@ -1,0 +1,9 @@
+feat(cli): display minimal reproduction snippet in `vox check --explain` output
+scale: ~21 lines across 1 files [S]
+
+- `crates/vox-cli/src/commands/diagnostics/stub_check/mod.rs`:
+    - Added logic to display the `minimal_repro` snippet from a `DetectionRule` under an "Example:" heading in `explain_diagnostic` output.
+    - Introduced a `matching_rule` variable to avoid redundant rule lookups.
+    - Removed the unused `vox_code_audit::rules::DetectionRule` import.
+
+--- audit: original='feat(explain): show minimal_repro snippet in vox check --explain output' | actual=21L across 1 files | derived=full ---
