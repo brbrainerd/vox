@@ -1,0 +1,7 @@
+docs(architecture): add 2026 web app archetype coverage map
+scale: ~840 lines across 2 files [L]
+
+- Add `web-app-archetype-coverage-2026.md`, detailing a coverage map of 21 web-app archetypes against the current Vox substrate. This document itemizes ~38 archetype-anchored blockers, a 24-item cross-cutting infrastructure spine (CC-00…CC-23), and 17 MENS/orchestrator journey blockers (M1…M17). It is Pareto-ordered into 9 sequencing blocks mapped onto the Phase 1–5 interop plan, serving as a backlog spine for prioritizing language, runtime, codegen, and DevEx work.
+- Update `research-index.md` to include a link to the new "Web App Archetype Coverage Map (2026-05-02)" document.
+
+--- audit: original='docs(architecture): add web-app archetype coverage map (2026)' | actual=840L across 2 files | derived=full ---
