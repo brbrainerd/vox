@@ -1,0 +1,8 @@
+refactor(fmt): apply rustfmt to vox-compiler and vox-orchestrator
+scale: ~1634 lines across 65 files [XL]
+
+- `crates/vox-compiler`: Applied rustfmt to numerous files, including `eval/builtins.rs`, `eval/expr.rs`, `typeck/builtins.rs`, `hir/lower/decl.rs`, `hir/lower/json_as.rs`, `typeck/checker/mod.rs`, `parser/descent/decl/head.rs`, and various test files, primarily for whitespace normalization and consistent formatting.
+- `crates/vox-orchestrator`: Applied rustfmt to numerous files, including `continuation.rs`, `orchestrator/tests/persistence_integrity.rs`, `orchestrator/persistence/replay.rs`, `orchestrator/tests/mod.rs`, and various other modules, primarily for whitespace normalization and consistent formatting.
+- This commit represents a second bulk formatting pass to address accumulated drift in code style.
+
+--- audit: original='chore(fmt): apply rustfmt to vox-compiler and vox-orchestrator (accumulated drift)' | actual=1634L across 65 files | derived=full ---
