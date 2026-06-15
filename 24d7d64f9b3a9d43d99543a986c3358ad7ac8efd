@@ -1,0 +1,9 @@
+fix(vox-config,vox-secrets): harden URL parsing, add disk-only config load, bound env file read
+scale: ~142 lines across 3 files [M]
+
+- `vox-config`: Add `VoxConfig::load_persisted_global()` to load only defaults and the global config file (`~/.vox/config.toml`), excluding environment overrides and workspace `Vox.toml`. This prevents transient environment variables from being baked into the global config file during saves.
+- `vox-config`: Introduce `sanitize_base_url` to validate base URLs for OpenRouter and OpenAI. It trims trailing slashes and falls back to a hardcoded default if the URL is empty or lacks a `scheme://`, logging a warning once.
+- `vox-secrets`: Replace `std::fs::read_to_string` with `vox_bounded_fs::read_utf8_path_capped` in `import_env_from_path` for bounded reading of environment files, preserving the error path for missing or unreadable files.
+- `vox-config`: Add new tests `persisted_global_save_base_does_not_bake_env_budget` and `degenerate_base_url_falls_back_to_default` to cover the new functionality.
+
+--- audit: original='fix(vox-config,vox-secrets): disk-only save base, URL hardening, bounded import-env read' | actual=142L across 3 files | derived=full ---
