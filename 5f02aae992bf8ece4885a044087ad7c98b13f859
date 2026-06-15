@@ -1,0 +1,11 @@
+fix(interp): unify process.run_ex return type and add Regex value type
+scale: ~187 lines across 2 files [M]
+
+- **crates/vox-compiler/src/eval/builtins.rs**:
+    - Implemented `build_match_value` to create a `Tagged "Match"` value from regex captures, used by the interpreter's Regex value type.
+    - Added interpreter dispatch for `Tagged "Regex"` methods (`matches`, `find`, `find_all`) and `Tagged "Match"` method (`group`), aligning with the type-checker's `Regex`/`Match` value-type contract.
+    - Modified `process.run_ex` to return `Result[int]` (exit code) instead of a record containing `stdout`, `stderr`, and `code`, unifying its return type with `std.process.run_ex`.
+- **crates/vox-compiler/src/typeck/builtins.rs**:
+    - Updated the type signature for `process.run_ex` to return `Result[int]`, reflecting the change in its interpreter behavior.
+
+--- audit: original='fix(compiler): unify run_ex shape + add interp Regex value type (wrong-shape parity)' | actual=187L across 2 files | derived=full ---
