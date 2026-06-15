@@ -1,0 +1,9 @@
+fix(codegen): correct Tauri Cargo comment and add tables-only setup test
+scale: ~25 lines across 2 files [S]
+
+- `crates/vox-codegen/src/codegen_rust/mod.rs`:
+    - Add `tauri_tables_only_emits_setup_without_scheduler` test to ensure `@table-only` Tauri modules correctly emit `.setup()` and manage `Codex` without registering a scheduler.
+- `crates/vox-codegen/src/codegen_rust/emit/mod.rs`:
+    - Update comment in `emit_cargo_toml_tauri_app` to reflect that Tauri's `main.rs` now emits the durable boot prelude when scheduled functions are present, correcting previous stale information.
+
+--- audit: original='fix(codegen): correct stale Tauri Cargo comment + add tables-only setup test' | actual=25L across 2 files | derived=full ---
