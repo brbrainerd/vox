@@ -1,0 +1,6 @@
+fix(gui): Remove MiniSlider from Loquela component
+scale: ~1 lines across 1 files [XS]
+
+- `crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx`: Removed the `MiniSlider` component, which was previously used for "Budget" control.
+
+--- audit: original='Merge origin/main into cc_bdesktop2/determined-mayer-8c9dea' | actual=1L across 1 files | derived=full ---
