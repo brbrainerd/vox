@@ -1,0 +1,10 @@
+feat(scientia): Implement 14-day right-of-reply window gate
+scale: ~162 lines across 1 files [M]
+
+- **`crates/vox-prereg/src/reply_window.rs`**: Add new module `reply_window` to enforce a 14-day right-of-reply window for `provider_atlas` topic-packs.
+  - Define `ReplyWindowRecord` struct to track provider ID, window opening timestamp, provider clearance status, and optional reply content.
+  - Define `WindowStatus` enum to represent the current state of the window: `Open`, `Cleared`, or `Expired`.
+  - Implement `ReplyWindowGate` struct with a `status` method to compute the `WindowStatus` based on a given `ReplyWindowRecord` and current Unix timestamp.
+  - Implement `gate_check` method for `ReplyWindowGate` to return a `GateResult` indicating whether publication is allowed.
+
+--- audit: original='feat(scientia): 14-day right-of-reply window gate (Phase 3 Task 1)' | actual=162L across 1 files | derived=full ---
