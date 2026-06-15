@@ -1,0 +1,8 @@
+feat(gui): Add Scientia cost rollup panel to dashboard
+scale: ~226 lines across 3 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/costRollup.test.ts`: Add new test file for `costRollup` module, including tests for `fetchCostRollup` (invoking `execute_command` and parsing stdout, handling non-zero exit codes) and view-model helpers (`providerRows`, `quarterlyRows`).
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/costRollup.ts`: Add new module for fetching and processing Scientia cost rollup data. Defines `CostByProvider`, `QuarterlyCostSummary`, and `CostRollup` interfaces. Implements `fetchCostRollup` to call `vox scientia cost` via `execute_command` bridge and parse its JSON output. Provides `usd` helper and `providerRows`, `quarterlyRows` functions for view-model transformation.
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/ScientiaDashboard.tsx`: Integrate the new cost rollup panel into the existing `ScientiaDashboard`. Add state for `cost` data. Modify `fetchDashboardData` to asynchronously fetch cost rollup data using `fetchCostRollup`, handling potential errors with toasts. Render the cost rollup panel, displaying quarterly summary and per-provider costs, guarded by the `cost` state.
+
+--- audit: original='@ feat(gui): Scientia cost rollup panel via execute_command bridge (A6)' | actual=226L across 3 files | derived=full ---
