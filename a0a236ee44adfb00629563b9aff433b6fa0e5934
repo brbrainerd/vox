@@ -1,0 +1,14 @@
+feat(vox-populi): extract `vox-populi-types` L2 crate for `NodeRecord` and related types
+scale: ~575 lines across 9 files [L]
+
+- **crates/vox-populi-types/src/node_record.rs**: New file containing `NodeRecord`, `PopuliRegistryFile`, `PopuliRegistryError`, `filter_registry_by_max_stale_ms`, `node_maintenance_blocks_new_work`, `sweep_expired_maintenance_on_nodes`, and `MAX_MAINTENANCE_FOR_MS`. These types and functions were moved from `vox-populi`.
+- **crates/vox-populi/src/node_registry.rs**: Removed `NodeRecord`, `PopuliRegistryFile`, `PopuliRegistryError`, and their associated helper functions. The module now re-exports these from `vox-populi-types` and retains `LocalRegistry` (file I/O) as its primary responsibility.
+- **docs/src/architecture/adr-042-vox-populi-types.md**: Added a new Architecture Decision Record (ADR) detailing the rationale for extracting `NodeRecord` into a new L2 crate, `vox-populi-types`, due to its dependency on `TaskCapabilityHints` (L2) making `vox-mesh-types` (L0) an unsuitable location.
+- **crates/vox-populi-types/src/lib.rs**: New file defining the `vox-populi-types` crate, re-exporting the types and functions from `node_record.rs`.
+- **crates/vox-populi-types/Cargo.toml**: New `Cargo.toml` for the `vox-populi-types` crate, declaring it as an L2 crate with dependencies on `vox-mesh-types`, `vox-repository`, `serde`, `serde_json`, `thiserror`, and `workspace-hack`.
+- **Cargo.lock**: Updated to include the new `vox-populi-types` crate and its dependencies.
+- **Cargo.toml**: Added `vox-populi-types` to the workspace members.
+- **crates/vox-populi/Cargo.toml**: Added `vox-populi-types` as a dependency.
+- **docs/src/architecture/layers.toml**: Added `vox-populi-types` as an L2 crate with a `max_loc` of 1,000, as per ADR-042.
+
+--- audit: original='feat(F-E/ADR-042): extract vox-populi-types L2 crate' | actual=575L across 9 files | derived=full ---
