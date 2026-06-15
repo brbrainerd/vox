@@ -1,0 +1,8 @@
+feat(mesh-types): add `accept_sensitive_workloads` to `WorkerDonationPolicy`
+scale: ~5 lines across 1 files [XS]
+
+- `crates/vox-mesh-types/src/donation_policy.rs`:
+    - Added `accept_sensitive_workloads: bool` field to `WorkerDonationPolicy` struct.
+    - Annotated `accept_sensitive_workloads` with `#[serde(default)]` to default to `false` during deserialization if the field is missing.
+
+--- audit: original='feat(mesh-types): accept_sensitive_workloads donation-policy field [P5-T9]' | actual=5L across 1 files | derived=full ---
