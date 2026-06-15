@@ -1,0 +1,11 @@
+feat(atlas): Add `AtlasSubmissionGate` for publication preconditions
+scale: ~148 lines across 1 files [M]
+
+- `crates/vox-publisher/src/atlas/submission.rs`:
+    - Introduce `AtlasSubmissionConfig` struct to configure gate checks, including `prereg_id`, `reply_window_cleared`, and `require_negative_result`.
+    - Define `AtlasGateError` enum for specific submission errors: `MissingPreregistration`, `ReplyWindowNotCleared`, and `NegativeResultQuotaNotMet`.
+    - Implement `Display` and `Error` traits for `AtlasGateError`.
+    - Create `AtlasSubmissionGate` struct with a `check` method to enforce publication preconditions based on the manifest and configuration.
+    - The `check` method verifies preregistration, reply window clearance, and negative result quota.
+
+--- audit: original='feat(scientia): Phase 9 — AtlasSubmissionGate (prereg + reply window + negative-result)' | actual=148L across 1 files | derived=full ---
