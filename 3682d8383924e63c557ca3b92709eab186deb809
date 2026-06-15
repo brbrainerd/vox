@@ -1,0 +1,6 @@
+chore(gui): regenerate GUI surface coverage report
+scale: ~0 lines across 1 files [XS]
+
+- Regenerated `contracts/reports/gui-surface-coverage.v1.json` to include new harness surfaces: `spawn_orchestrator_status_stream`, `get_gui_run`, `invoke_mcp_tool`, `spawn_agent_event_stream`, and the approvals surface.
+
+--- audit: original='@ chore(gui): regenerate gui-surface-coverage report for the new harness surfaces' | actual=0L across 1 files | derived=full ---
