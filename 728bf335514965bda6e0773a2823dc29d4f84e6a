@@ -1,0 +1,7 @@
+docs(architecture): update jj_backend.rs links to vox-vcs
+scale: ~6 lines across 2 files [S]
+
+- `docs/src/architecture/multi-agent-vcs-replication-research-2026.md`: Updated two internal links for `jj_backend.rs` from `vox-orchestrator` to `vox-vcs`.
+- `docs/src/architecture/multi-agent-vcs-replication-spec-2026.md`: Updated one internal link for `jj_backend.rs` from `vox-orchestrator` to `vox-vcs`.
+
+--- audit: original='docs: repoint jj_backend.rs links to vox-vcs (orchestrator copy deleted in T5)' | actual=6L across 2 files | derived=full ---
