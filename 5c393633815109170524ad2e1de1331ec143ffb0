@@ -1,0 +1,12 @@
+refactor: apply rustfmt to multiple crates
+scale: ~199 lines across 13 files [M]
+
+- `crates/vox-ml-cli`: Reformatted `resolve_training_sizing` calls in `train_arm.rs` for improved readability.
+- `crates/vox-gui`: Reformatted `preview_start` and `browser_open_session` functions in `browser.rs`, and `main.rs`.
+- `crates/vox-plugin-browser`: Reformatted `BrowserEngine` methods in `engine.rs` and `browser.rs` for better alignment and readability.
+- `crates/vox-orchestrator-mcp`: Reformatted `browser_tools.rs` and `dispatch.rs` for consistent line breaks and spacing.
+- `crates/vox-plugin-mens-candle-cuda`: Reformatted `recompute_segment` and `checkpointed_backward_step` functions in `model.rs` and `candle_qlora_train/training_loop/logic.rs` respectively.
+- `crates/vox-cli-core`: Reformatted `daemon_ipc/dispatch.rs`.
+- `crates/vox-compiler`: Reformatted `typeck/effect_check.rs`.
+
+--- audit: original='chore: rustfmt after gui launch PR' | actual=199L across 13 files | derived=full ---
