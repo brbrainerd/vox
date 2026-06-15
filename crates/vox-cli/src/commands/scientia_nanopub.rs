@@ -33,6 +33,6 @@ mod tests {
         assert!(!src.to_lowercase().contains(&publish_prod));
         assert!(!src.contains(&use_test));
         // `nanopub_publish_test_server` IS allowed (it is the sanctioned symbol).
-        // Only `publish_to_network` / `publish_to_production` are forbidden.
+        // Only `publish_to_` + `network` / `publish_to_` + `production` are forbidden.
     }
 }

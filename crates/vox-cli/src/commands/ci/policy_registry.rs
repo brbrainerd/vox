@@ -716,11 +716,11 @@ mod default_domain_tests {
     #[test]
     fn arch_rule_entries_cover_guards() {
         let entries = arch_rule_entries(&repo_root()).expect("parse layers.toml [guards]");
-        // layers.toml [guards] has exactly 11 keys (verified 2026-06-06).
+        // layers.toml [guards] has exactly 12 keys (verified 2026-06-15; +1 config-hygiene guard).
         assert_eq!(
             entries.len(),
-            11,
-            "expected 11 arch guards, got {}",
+            12,
+            "expected 12 arch guards, got {}",
             entries.len()
         );
         let orphan = entries

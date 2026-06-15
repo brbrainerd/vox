@@ -1,0 +1,92 @@
+# Config registry v1 — every operational VOX_* env knob must appear here.
+# Fields: name, env_var, description, owner_crate, status, default_value, since
+# status: active (wired + tested), declared (wired, not yet in production path), deprecated
+schema_version: "1"
+knobs:
+  - name: llm_request_timeout_ms
+    env_var: null
+    description: Per-request timeout for unary LLM HTTP calls (chat/embed). Set via LlmConfig.timeout_ms.
+    owner_crate: vox-actor-runtime
+    status: active
+    default_value: "30000"
+    since: "2026-06-15"
+
+  - name: wasm_skill_fuel
+    env_var: VOX_WASM_SKILL_FUEL
+    description: Fuel budget (instruction count) for WASM skill execution.
+    owner_crate: vox-plugin-runtime-wasm
+    status: active
+    default_value: "1000000000"
+    since: "2026-06-15"
+
+  - name: mens_default_model
+    env_var: VOX_MENS_DEFAULT_MODEL
+    description: Default base model id for MENS training/inference.
+    owner_crate: vox-populi
+    status: active
+    default_value: "Qwen/Qwen2.5-Coder-7B-Instruct"
+    since: "2026-06-15"
+
+  - name: rag_chunk_chars
+    env_var: VOX_RAG_CHUNK_CHARS
+    description: Maximum character count per RAG markdown chunk.
+    owner_crate: vox-search
+    status: declared
+    default_value: "4096"
+    since: "2026-06-15"
+
+  - name: gamify_economy_path
+    env_var: VOX_GAMIFY_ECONOMY_PATH
+    description: Override path for the gamify economy contract YAML (falls back to compiled-in default).
+    owner_crate: vox-gamify
+    status: active
+    default_value: null
+    since: "2026-06-15"
+
+  - name: circuit_breaker_contract
+    env_var: VOX_CIRCUIT_BREAKER_CONTRACT
+    description: Override path for the circuit-breaker contract YAML (falls back to compiled-in default).
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: null
+    since: "2026-06-15"
+
+  - name: cost_daily_budget_usd
+    env_var: VOX_COST_DAILY_BUDGET_USD
+    description: Daily LLM cost budget in USD. No live consumer yet — wired when vox-scaling-policy gains a consumer.
+    owner_crate: vox-scaling-policy
+    status: declared
+    default_value: "25.0"
+    since: "2026-06-15"
+
+  - name: cost_monthly_budget_usd
+    env_var: VOX_COST_MONTHLY_BUDGET_USD
+    description: Monthly LLM cost budget in USD. No live consumer yet.
+    owner_crate: vox-scaling-policy
+    status: declared
+    default_value: "500.0"
+    since: "2026-06-15"
+
+  - name: sandbox_cpus
+    env_var: null
+    description: Default CPU quota for sandboxed container runs (RunOpts::sandboxed()).
+    owner_crate: vox-container-types
+    status: active
+    default_value: "2"
+    since: "2026-06-15"
+
+  - name: sandbox_memory
+    env_var: null
+    description: Default memory cap for sandboxed container runs.
+    owner_crate: vox-container-types
+    status: active
+    default_value: "2g"
+    since: "2026-06-15"
+
+  - name: sandbox_pids_limit
+    env_var: null
+    description: Default process cap for sandboxed container runs.
+    owner_crate: vox-container-types
+    status: active
+    default_value: "512"
+    since: "2026-06-15"
