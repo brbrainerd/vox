@@ -1,0 +1,11 @@
+fix(coolify): allow sync and discovery to proceed without read scope
+scale: ~27 lines across 2 files [S]
+
+- `crates/vox-cli/src/commands/ci/coolify_eval.rs`:
+  - Modified `discover` function to handle HTTP 403 (Forbidden) responses from `/api/v1/applications` by printing a message and proceeding without discovery output, instead of bailing out.
+  - Modified `sync_compose` function to handle HTTP 403 (Forbidden) responses from `GET application` by printing a message and continuing to `PATCH` with a write token, instead of bailing out.
+- `.github/workflows/coolify-eval-sync.yml`:
+  - Added `timeout-minutes: 4` to the "Discover Coolify applications" job step.
+  - Added `timeout-minutes: 8` to the "Sync compose and deploy" job step.
+
+--- audit: original='fix(coolify): allow sync without read-scope discovery' | actual=27L across 2 files | derived=full ---
