@@ -1,0 +1,7 @@
+feat(populi): introduce cloud GPU dispatch and Populi training environment
+scale: ~12349 lines across 200 files [XL]
+
+- **crates/vox-populi**:
+    - Add `cloud` module for GPU dispatch, including `resolver`,
+
+--- audit: original='chore: comprehensive workspace cleanup and dependency consolidation across vox ecosystem crates' | actual=12349L across 200 files | derived=sampled ---
