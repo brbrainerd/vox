@@ -172,6 +172,7 @@
     "ci feature-matrix",
     "ci flake-budget",
     "ci fmt-check",
+    "ci free-binary",
     "ci generate-plugin-catalog-docs",
     "ci grammar-drift",
     "ci grammar-export-check",
