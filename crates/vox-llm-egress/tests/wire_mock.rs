@@ -1,4 +1,5 @@
-use vox_llm_egress::{chat_once, ChatMessage, ChatParams, EgressError, EgressRequest};
+use futures::StreamExt;
+use vox_llm_egress::{chat_once, embed_once, stream_once, ChatMessage, ChatParams, EgressError, EgressRequest};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -62,4 +63,42 @@ async fn chat_once_maps_non_2xx_to_status_error() {
     let r = req(format!("{}/chat/completions", server.uri()));
     let err = chat_once(&r, &[], &ChatParams::default()).await.unwrap_err();
     assert!(matches!(err, EgressError::Status { code: 500, .. }), "got {err:?}");
+}
+
+#[tokio::test]
+async fn stream_once_assembles_sse_deltas() {
+    let server = MockServer::start().await;
+    let sse = "data: {\"choices\":[{\"delta\":{\"content\":\"a\"}}]}\n\n\
+               data: {\"choices\":[{\"delta\":{\"content\":\"b\"}}]}\n\n\
+               data: [DONE]\n\n";
+    Mock::given(method("POST"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(sse),
+        )
+        .mount(&server)
+        .await;
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let mut s = stream_once(&r, &[], &ChatParams::default()).await.expect("stream");
+    let mut got = String::new();
+    while let Some(chunk) = s.next().await {
+        got.push_str(&chunk.expect("chunk"));
+    }
+    assert_eq!(got, "ab");
+}
+
+#[tokio::test]
+async fn embed_once_parses_first_embedding() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [{"embedding": [0.1, 0.2, 0.3]}]
+        })))
+        .mount(&server)
+        .await;
+    let r = req(format!("{}/embeddings", server.uri()));
+    let v = embed_once(&r, "hello").await.expect("embed");
+    assert_eq!(v.len(), 3);
+    assert!((v[0] - 0.1).abs() < 1e-6);
 }

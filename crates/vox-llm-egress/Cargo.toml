@@ -11,7 +11,10 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
+futures-util = { workspace = true }
+async-stream = { workspace = true }
 vox-http-client = { workspace = true }
+vox-openai = { workspace = true }
 workspace-hack = { workspace = true }
 
 [dev-dependencies]
