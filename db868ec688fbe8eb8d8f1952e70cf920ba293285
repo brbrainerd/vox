@@ -1,0 +1,11 @@
+fix(codegen-rust): json_as_typed green - struct-literal from_json + VoxJson arg unwrap
+scale: ~114 lines across 6 files [M]
+
+- **`crates/vox-codegen/src/codegen_rust/emit/json_as_ctx.rs`**: Added a new module to manage a thread-local context for `@json_as`-generated function bodies. This context, `CURRENT_FROM_JSON_STRUCT`, stores the name of the struct being decoded by a `<Type>_from_json` function, allowing the tail-emitter to correctly generate Rust struct literals (`Type { .. }`) instead of `serde_json::json!({..})` when type information is unavailable (e.g., in the script codegen lane).
+- **`crates/vox-codegen/src/codegen_rust/emit/workflow.rs`**: Introduced `from_json_struct_hint` to identify the decoded struct name for `<Type>_from_json` functions. `emit_fn` now uses this hint to set the `json_as_ctx` for the duration of the function body's emission, ensuring `ObjectLit` expressions are correctly interpreted as struct literals.
+- **`crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`**: Modified `emit_expr_with` to unwrap `VoxJson` arguments to `serde_json::Value` at call sites for functions ending with `_from_json`. This resolves type mismatches when `json.parse` returns `VoxJson(serde_json::Value)` but the `_from_json` function expects `serde_json::Value`.
+- **`crates/vox-codegen/src/codegen_rust/emit/stmt_expr_tail.rs`**: Updated the `ObjectLit` emission logic to fall back to `super::json_as_ctx::current_from_json_struct` when `inferred_types` is empty (as in the script lane). This ensures that `ObjectLit` expressions within `<Type>_from_json` bodies are correctly emitted as Rust struct literals.
+- **`crates/vox-codegen/src/codegen_rust/emit/mod.rs`**: Added `json_as_ctx` to the module imports.
+- **`contracts/eval/arm-parity-allowlist-script.txt`**: Removed `json_as_typed.vox` from the allowlist, indicating that it now passes parity checks in the script lane.
+
+--- audit: original='@ fix(codegen-rust): json_as_typed green — struct-literal from_json + VoxJson arg unwrap' | actual=114L across 6 files | derived=full ---
