@@ -51,18 +51,24 @@ pub async fn run(action: ContainerAction) -> Result<()> {
                 .parse::<vox_container::detect::RuntimePreference>()
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-            let opts = vox_container::RunOpts {
-                image,
-                ports: port.map(|p| vec![(p, p)]).unwrap_or_default(),
-                env: vec![],
-                volumes: vec![],
-                detach: false,
-                name: None,
-                rm: true,
-                cpus,
-                memory,
-                pids_limit,
-            };
+            // Start from safe-by-default resource limits; explicit flags override.
+            let mut opts = vox_container::RunOpts::sandboxed();
+            opts.image = image;
+            opts.ports = port.map(|p| vec![(p, p)]).unwrap_or_default();
+            opts.env = vec![];
+            opts.volumes = vec![];
+            opts.detach = false;
+            opts.name = None;
+            opts.rm = true;
+            if let Some(c) = cpus {
+                opts.cpus = Some(c);
+            }
+            if let Some(m) = memory {
+                opts.memory = Some(m);
+            }
+            if let Some(p) = pids_limit {
+                opts.pids_limit = Some(p);
+            }
 
             tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
                 let rt = vox_container::detect_runtime(pref)
