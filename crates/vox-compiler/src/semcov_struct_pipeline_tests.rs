@@ -242,12 +242,11 @@ mod semcov_struct_pipeline_tests {
     fn traced_marker_survives_lowering() {
         // Catches: @traced parsed but dropped during lowering (no HirFn.is_traced).
         let hir = lower("@traced\nfn f() to int { return 1 }");
-        let f = hir
-            .functions
-            .iter()
-            .find(|f| f.name == "f")
-            .expect("fn f");
-        assert!(f.is_traced, "@traced must survive lowering into HirFn.is_traced");
+        let f = hir.functions.iter().find(|f| f.name == "f").expect("fn f");
+        assert!(
+            f.is_traced,
+            "@traced must survive lowering into HirFn.is_traced"
+        );
     }
 
     #[test]

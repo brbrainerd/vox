@@ -424,7 +424,5 @@ fn golden_option_type_compiles() {
 #[test]
 #[ignore = "TRACE-D P6: compile-harness test (slow; requires cargo build of generated crate). Run: cargo test -p vox-codegen --test emit_compile_harness traced_fn_compiles -- --ignored"]
 fn traced_fn_compiles() {
-    assert_compiles(
-        "@traced\nfn greet(name: str) to str { return name }",
-    );
+    assert_compiles("@traced\nfn greet(name: str) to str { return name }");
 }
