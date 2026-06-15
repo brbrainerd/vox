@@ -1,0 +1,21 @@
+feat(vox-vcs): introduce JjActorHandle for Send + Sync VcsBackend
+scale: ~462 lines across 6 files [L]
+
+- `crates/vox-vcs/src/jj_actor.rs`: Add `JjActorHandle`, a `Clone + Send + Sync` handle that implements `VcsBackend` by delegating to `JjBackend` on a dedicated OS thread with its own current-thread Tokio runtime. This file contains the actor's command enum, message passing logic, and the actor loop.
+- `crates/vox-vcs/src/backend.rs`:
+    - Update `VcsBackend` trait to be `#[async_trait]` (requiring `Send` futures), removing the `?Send` marker.
+    - Modify `detect` function to return `VcsBackendKind::Jj` if a `.jj` directory exists, otherwise `VcsBackendKind::Cas`.
+    - Update documentation to reflect the `Send`-safe design using `JjActorHandle`.
+    - Add `CasFallback` import.
+- `crates/vox-vcs/src/jj_backend.rs`:
+    - Remove `VcsBackend` trait implementation from `JjBackend` itself, making its methods public `async fn`s. `JjBackend` is now `!Send` and is intended to be used only by `JjActor`.
+    - Remove `async_trait` import.
+- `crates/vox-vcs/src/lib.rs`:
+    - Add `jj_actor` module.
+    - Export `JjActor` and `JjActorHandle`.
+    - Update module documentation to describe `JjActorHandle` and `boxed_for`.
+    - Export `boxed_for` from `backend`.
+- `crates/vox-vcs/src/cas_fallback.rs`: Update `VcsBackend` trait implementation to be `#[async_trait]`, removing the `?Send` marker.
+- `crates/vox-vcs/Cargo.toml`: Add `rt` and `time` features to `tokio` dependency.
+
+--- audit: original='feat(vox-vcs): jj-actor — Send async VcsBackend wrapping the !Send jj engine' | actual=462L across 6 files | derived=full ---
