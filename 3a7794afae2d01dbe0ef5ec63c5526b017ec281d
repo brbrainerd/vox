@@ -1,0 +1,25 @@
+feat(cli,codegen): emit client, build targets, TS wire errors
+scale: ~2306 lines across 48 files [XL]
+
+- **cli**:
+    - Introduce `vox build --target server|client|fullstack` and `vox emit client` commands.
+    - Implement `VOX_BUILD_TARGET` environment variable support.
+    - Refactor `vox-cli-core` daemon IPC to `vox-cli-core/src/daemon_ipc/mod.rs` and `crates/vox-cli/src/compilerd.rs`.
+    - Update `vox dev` command.
+- **codegen_ts**:
+    - Emit `library_package_emit.rs` for `package.json` generation in client builds.
+    - Enhance `vox_client.rs` to parse SSOT error envelope into `VoxWireError` and `VoxApiError.wireError`.
+    - Update `openapi_emit.rs` to reflect wire format v1 SSOT, including absolute paths and an empty `servers[0].url`.
+    - Add `ErrorEnvelope` contract test for OpenAPI generation.
+    - Update snapshots for `golden_ts_test` including `wire_format_round_trip`, `endpoint_call_in_handler`, `form_basic`, `routes_with_loader`, and `back_button`.
+- **codegen_rust**:
+    - Refactor `http.rs` to include `endpoint_fn_by_name`, `safe_ident_suffix`, `emit_cors_layer_value`, and `emit_rate_limit_layer`.
+- **vox-http-envelope**: New crate for HTTP envelope definitions.
+- **docs**:
+    - Refresh `vox-react-backend-interop-audit-2026.md`, `cli.md`, `research-index.md`, and `vox-fullstack-artifacts.md`.
+    - Remove `2026-05-08-llm-misleading-content-cleanup-plan.md`.
+- **vox-config**: Update `impl_ops.rs` for build target configuration.
+- **vox-integration-tests**: Update pipeline snapshots for `blog_fullstack_client_ts` and `web_routing_fullstack_client_ts`.
+- **golden**: Add `error-envelope.example.json`.
+
+--- audit: original='feat(cli,codegen): emit client, build targets, TS wire errors' | actual=2306L across 48 files | derived=full ---
