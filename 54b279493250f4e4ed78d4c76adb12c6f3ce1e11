@@ -1,0 +1,14 @@
+feat(ci): add path-filtered job execution and conditional coverage
+scale: ~62 lines across 1 files [M]
+
+- **.github/workflows/ci.yml**:
+  - Modified the `setup` job to include path filtering, determining if `rust_changed` or `docs_changed` outputs are true based on file changes in `crates/**`, `Cargo.*`, `docs/**`, or `contracts/**`.
+  - Added logic to always set `rust_changed` and `docs_changed` to `true` for `push` events on `main` to prevent skipping on the integration branch.
+  - Updated the `actions/checkout` step to `fetch-depth: 0` to ensure the base ref is always reachable for diffing.
+  - Introduced conditional execution for the `tests` job:
+    - Runs `cargo llvm-cov nextest` with full instrumentation and coverage reporting only when `rust_changed` is `true`.
+    - Runs plain `cargo nextest` without instrumentation when `rust_changed` is `false`, skipping coverage report generation.
+  - Gated coverage upload steps on `rust_changed` to avoid uploading empty artifacts.
+  - Updated job descriptions to reflect the new path-filtering and conditional execution logic.
+
+--- audit: original='feat(quality): path-filtered CI + conditional llvm-cov coverage' | actual=62L across 1 files | derived=full ---
