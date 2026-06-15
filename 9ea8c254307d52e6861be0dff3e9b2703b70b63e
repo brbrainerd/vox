@@ -1,0 +1,18 @@
+fix(contracts): repair 12 malformed JSON schema files
+scale: ~221 lines across 13 files [M]
+
+- `contracts/db/data-storage-guard-report.v1.schema.json`: Corrected malformed JSON structure by adding missing opening braces for object definitions.
+- `contracts/eval/complexity-budget.v1.json`: Corrected malformed JSON structure by adding missing opening braces for object definitions.
+- `contracts/eval/gui_visual_rubric.v1.schema.json`: Corrected malformed JSON structure by adding missing opening braces for object definitions, specifically for `properties`, `timestamp`, `viewport`, `bugs`, `items`, and nested `properties` within `bugs`.
+- `contracts/eval/vision_rubric.v1.schema.json`: Corrected malformed JSON structure by adding missing opening braces for object definitions, specifically for `properties`, `widget_list`, `items`, `visible_errors`, and `items`.
+- `contracts/journeys/canonical-journey-definition.v1.schema.json`: Corrected malformed JSON structure by adding missing opening braces for object definitions.
+- `contracts/journeys/canonical-journey-step.v1.schema.json`: Corrected malformed JSON structure by adding missing opening braces for object definitions, specifically for `properties`, `step_id`, `ordinal`, `actor`, `primary_operation_id`, `persistence_hints`, `items`, `limitation_ids`, `items`, and `maturity`.
+- `contracts/journeys/journey-limitation.v1.schema.json`: Corrected malformed JSON structure by adding missing opening braces for object definitions.
+- `contracts/orchestration/journey-envelope.v1.schema.json`: Corrected malformed JSON structure by adding missing opening braces for object definitions, specifically for `properties`, `envelope_version`, `journey_id`, `session_id`, `thread_id`, `trace_id`, `correlation_id`, `repository_id`, and `origin_surface`.
+- `contracts/reports/arch/cr-a2/2026-05-22.json`: Updated the `malformed_json` list to be empty and updated the `measured_at` timestamp, reflecting the successful repair of the schema files.
+- `contracts/telemetry/completion-detector-snapshot.v1.schema.json`: Corrected malformed JSON structure by adding missing opening braces for object definitions.
+- `contracts/telemetry/completion-finding.v1.schema.json`: Corrected malformed JSON structure by adding missing opening braces for object definitions, specifically for `properties`, `detector_id`, `tier`, `severity`, `confidence`, `file_path`, `line`, `message`, `fingerprint`, and `meta`.
+- `contracts/telemetry/completion-run.v1.schema.json`: Corrected malformed JSON structure by adding missing opening braces for object definitions, specifically for `properties`, `schema_version`, `repository_id`, `branch`, `commit_sha`, `workflow`, `run_kind`, `recorded_at`, `findings_count`, `tier_a_count`, `tier_b_count`, and `tool_versions_json`.
+- `contracts/toestub/toestub-run-json.v1.schema.json`: Corrected malformed JSON structure by adding missing opening braces for object definitions, specifically for `properties`, `schema_version`, `tool_version`, `files_scanned`, `rules_applied`, `rust_parse_failures`, `unresolved_ref_hot_callers`, `items`, `suppressions_applied`, `suppression_counts_by_family`, `additionalProperties`, `findings`, and `items`.
+
+--- audit: original='fix(contracts): repair 12 malformed JSON schema files surfaced by CR-A2' | actual=221L across 13 files | derived=full ---
