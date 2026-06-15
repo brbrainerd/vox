@@ -1,0 +1,9 @@
+feat(vox-gui/console): Improve InputEditor accessibility
+scale: ~25 lines across 2 files [S]
+
+- `crates/vox-gui/ui`:
+  - Add `aria-autocomplete="inline"` to the console input textbox for better accessibility.
+  - Introduce a visually hidden `role="status"` element to announce active suggestions to screen readers.
+- `crates/vox-gui/ui`: Add a test to verify the `aria-autocomplete` attribute and the announcement of active completions.
+
+--- audit: original='feat(vox-gui/wave2): InputEditor a11y + checklist (Wave 2)' | actual=25L across 2 files | derived=full ---
