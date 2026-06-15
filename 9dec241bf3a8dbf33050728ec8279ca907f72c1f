@@ -1,0 +1,10 @@
+fix(codegen-rust): prevent duplicate `.cloned()` calls in `normalize_get_vs_some`
+scale: ~15 lines across 1 files [S]
+
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`:
+    - Introduced a `cloned` helper function to conditionally append `.cloned()` to an expression string.
+    - The `cloned` function checks if the expression already ends with `.cloned()` to avoid adding it redundantly.
+    - Applied the `cloned` helper to both the left and right-hand sides within the `normalize_get_vs_some` function when transforming `x is Some(y)` patterns.
+    - This prevents a type error (E0599) that occurs when `.cloned()` is called on an `Option<T>` that has already been cloned, specifically addressing cases where `Index` reads or list `get` methods already produce owned `Option<T>`.
+
+--- audit: original='fix(codegen-rust): idempotent .cloned() in normalize_get_vs_some (merge fix)' | actual=15L across 1 files | derived=full ---
