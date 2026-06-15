@@ -1,0 +1,11 @@
+feat(share): implement reverse-proxy server
+scale: ~101 lines across 2 files [M]
+
+- `crates/vox-share/src/proxy.rs`:
+    - Implemented the core reverse-proxy logic using Axum, Hyper, and Tokio.
+    - Defined `ProxyConfig` struct to configure upstream and bind addresses.
+    - Created `build_app` function to construct the Axum router, forwarding all requests to the configured upstream.
+    - Added `forward` async function to handle request rewriting and forwarding.
+- `crates/vox-share/tests/proxy_test.rs`: Added a new test file with `proxy_forwards_get_request_body_unchanged` to verify basic GET request forwarding.
+
+--- audit: original='feat(share): reverse-proxy server (S1 task 4)' | actual=101L across 2 files | derived=full ---
