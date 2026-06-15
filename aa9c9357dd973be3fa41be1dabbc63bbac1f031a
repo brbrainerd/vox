@@ -1,0 +1,10 @@
+docs: update path to multi-repo context isolation research document
+scale: ~14 lines across 5 files [S]
+
+- `crates/vox-cli/src/commands/ci/sync_ignore_files.rs`: Updated the hardcoded path to the `multi-repo-context-isolation-research-2026.md` document within the `DERIVED_FILES` constant for `.cursorignore`, `.aiignore`, and `.aiexclude` headers.
+- `.aiexclude`: Updated the reference path to `docs/src/archive/research-2026-q1/multi-repo-context-isolation-research-2026.md §3`.
+- `.aiignore`: Updated the reference path to `docs/src/archive/research-2026-q1/multi-repo-context-isolation-research-2026.md §3`.
+- `.cursorignore`: Updated the reference path to `docs/src/archive/research-2026-q1/multi-repo-context-isolation-research-2026.md §3`.
+- `.voxignore`: Updated the reference path to `docs/src/archive/research-2026-q1/multi-repo-context-isolation-research-2026.md §3`.
+
+--- audit: original='chore: update stale doc path in ignore-file generator and derived files' | actual=14L across 5 files | derived=full ---
