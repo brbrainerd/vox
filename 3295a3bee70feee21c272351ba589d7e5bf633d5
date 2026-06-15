@@ -1,0 +1,30 @@
+feat(docs,contracts,audit): sync documentation, contracts, and audit findings
+scale: ~79261 lines across 294 files [XL]
+
+DIVERGENCE: original subject claimed 'docs(contracts,architecture,audit): sync contracts, 8 new ref docs, docs-reality-audit findings, hardcoded-values audit' but this commit actually changed ~79261 lines across 294 files. Top areas:
+.vox: 56426 lines, 58 files
+docs: 18602 lines, 176 files
+contracts: 4233 lines, 60 files
+
+- docs/:
+  - Add 8 new reference documentation stubs for async concurrency, diagnostic ID policy, doc comments, FFI, literals, operator precedence, package manager, and stdlib index.
+  - Add new architecture documentation for Tauri convergence (ADR-037, audit, migration plan, packaging SSOT), AI-first fixtures research, model catalog SSOT, deep research, Rust warning audit backlog, and various Vox system components.
+  - Add new CI documentation for coverage cost matrix, runner contract, and deploy contract.
+  - Add new contributor documentation for dependency policy and docs-reality-audit program.
+  - Update existing reference documentation for CLI and environment variables.
+  - Update contributor documentation for coding agents task brief format.
+  - Update and archive various research and architecture documents.
+- .vox/audit/2026-05-11-hardcoded-values/: Add comprehensive audit findings for hardcoded values across 20 categories, including URLs, IPs, ports, filesystem paths, timeouts, buffer sizes, retry counts, version strings, model names, environment variable names, brittle string needles, regex patterns, extensions globs, date literals, magic numbers, ANSI codes, provider names, and test data in production. Includes findings.v1.json (27025+ lines), schema, methodology, and summary.csv.
+- contracts/:
+  - Update `cli/command-registry.yaml` to register new CI sub-commands.
+  - Add 6 new telemetry event schema files for fixture and dispatch events.
+  - Add new `speech-to-code/audit-matrix.v1.yaml`, `canary KPI`, and `benchmark manifest`.
+  - Update `orchestration/model-routing.v1.yaml` with routing configuration.
+  - Add new `toestub/suppressions.v1.json` entries.
+  - Add new `reports/docs-reality-audit/` JSON files for findings, inventory, and metrics, along with `safety-inventory baseline` and `ai-fixture-holes ledger`.
+  - Update `config/env-vars.v1.yaml`, `operations/catalog.v1.yaml`, `capability/capability-registry.yaml`, `secrets/managed-env-names.v1.json`, `secrets/secret-capabilities.v1.json`, `documentation/canonical-map.v1.yaml`, and `code-audit/rules.v1.yaml`.
+  - Add new `agentos/ai-first-fixtures.v1.yaml` and its schema.
+  - Add new `manifest/vox-bundle.v1.schema.json`, `scientia/research-mesh-intake.v1.schema.json`, `ci/check-targets.v1.yaml`, `aci/agent-computer-interface-ssot.v1.schema.json`, and `reports/research-eval/results.v1.schema.json`.
+- .vox/audit/2026-05-11-oratio-full-runtime/: Add Oratio full-runtime audit results, including `scorecard.json` and `cpu_eval_spoken_30.txt`.
+
+--- audit: original='docs(contracts,architecture,audit): sync contracts, 8 new ref docs, docs-reality-audit findings, hardcoded-values audit' | actual=79261L across 294 files | derived=stat-only ---
