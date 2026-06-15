@@ -1,12 +1,15 @@
 {
   "schema": "semantic-coverage.v1",
-  "note": "Production-symbol proven-coverage floors (Wave-0 corrected denominator). Enforcing gate deferred \u2014 see semantic-coverage-remediation-plan \u00a7E Task 0.4. CORRECTED 2026-06-15: a prior revision implied reached_not_proven=3 from a near-empty partial llvm-cov run; the true keystone figure is 7950 (see reached-vs-proven-2026-06-14.md and architecture/semantic-coverage-status-2026-06-15.md).",
+  "note": "Production-symbol proven-coverage floors (Wave-0 corrected denominator). Enforcing gate deferred — see semantic-coverage-remediation-plan §E Task 0.4. CORRECTED 2026-06-15: a prior revision implied reached_not_proven=3 from a near-empty partial llvm-cov run; the true keystone figure is 7950 (see reached-vs-proven-2026-06-14.md and architecture/semantic-coverage-status-2026-06-15.md).",
   "source_commit": "a2575c27cf75b2064f1d52c441586ca16fa63f14",
   "waves_complete": 50,
   "semcov_tests_authored": 2409,
   "semcov_tests_note": "~2409 #[test] fns merged to main via PR #299 (earlier '2333' was an estimate). They target leaf utilities, NOT the 7 structural pipeline-gap patterns.",
   "crates_covered": 38,
-  "new_detectors": ["catch_all_swallow", "cross_crate_dup"],
+  "new_detectors": [
+    "catch_all_swallow",
+    "cross_crate_dup"
+  ],
   "last_updated": "2026-06-15",
   "gaps_targeted_note": "The 7 structural pipeline-gap patterns from the original audit remain largely UNTESTED; authored tests target tractable leaf functions. See status doc.",
   "pr": 299,
@@ -14,15 +17,23 @@
     "defs": 19445,
     "proven": 3088,
     "proven_pct": 15.9,
-    "reached_not_proven": 5793,
-    "reached_not_proven_note": "symbols executed by tests but with ZERO asserted behavior \u2014 the keystone gap and the real remaining-work denominator, not proven_pct alone. REPRODUCIBLE figure (supersedes the earlier directional 7950).",
+    "reached_not_proven": 5268,
+    "reached_not_proven_note": "symbols executed by tests but with ZERO asserted behavior — the keystone gap and the real remaining-work denominator, not proven_pct alone. REPRODUCIBLE figure (supersedes the earlier directional 7950).",
     "reach_source": "local full-workspace llvm-cov 2026-06-15 with 1.19M lines executed, 60 crates reached. Reproduced after fixing the peft-rs candle-0.10 compile error (exit-101 blocker) and merging profraws via llvm-profdata -f file-list (Windows arg-limit dodge). CI-gating still TODO.",
-    "top_unproven_crates": {"vox-compiler": 699, "vox-orchestrator": 666, "vox-code-audit": 571, "vox-publisher": 419, "vox-codegen": 358, "vox-populi": 330},
+    "top_unproven_crates": {
+      "vox-compiler": 699,
+      "vox-orchestrator": 666,
+      "vox-code-audit": 571,
+      "vox-publisher": 419,
+      "vox-codegen": 358,
+      "vox-populi": 330
+    },
     "ratchet": {
-      "reached_not_proven_baseline": 5793,
+      "reached_not_proven_baseline": 5268,
       "snapshot": "contracts/reports/semantic-coverage-graph.snapshot.json.gz",
       "updated": "2026-06-15",
-      "policy": "CI fails if current reached_not_proven > baseline. Lower the baseline (never raise) in the same PR that adds the proving tests, and regenerate the snapshot if the proven map changed."
+      "policy": "CI fails if current reached_not_proven > baseline. Lower the baseline (never raise) in the same PR that adds the proving tests, and regenerate the snapshot if the proven map changed.",
+      "note": "Lowered 5793->5268 after Phase-3 waves 1-3 (56 frontier symbols proven) + fuller deterministic re-overlay. Snapshot regenerated."
     }
   },
   "crates": {
