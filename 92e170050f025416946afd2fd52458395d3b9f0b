@@ -1,0 +1,7 @@
+feat(docs): add Vox pipeline gap remediation plan
+scale: ~744 lines across 3 files [L]
+- Add `docs/superpowers/plans/2026-06-13-vox-pipeline-gap-remediation.md` detailing an eight-phase plan to close ~55 verified wiring gaps in the Vox pipeline.
+- Update `tree-sitter-vox/package.json` to bump `tree-sitter-cli` from `^0.22.0` to `^0.22.6` and reformat the `keywords` and `file-types` arrays.
+- Update `tree-sitter-vox/package-lock.json` to reflect the `tree-sitter-cli` dependency update and reformatting.
+
+--- audit: original='chore(tree-sitter): commit package.json/lock updates from Phase 7 npm install; add plan doc' | actual=744L across 3 files | derived=full ---
