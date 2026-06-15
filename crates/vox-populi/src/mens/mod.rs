@@ -41,6 +41,17 @@ pub mod discovery_publish;
 /// trainer cannot train (it is rejected up front by the vox-hf-layout VL guard).
 pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen2.5-Coder-7B-Instruct";
 
+/// Resolve the effective default MENS model ID.
+///
+/// Returns `VOX_MENS_DEFAULT_MODEL` (trimmed) when non-empty, otherwise falls
+/// back to the compile-time [`DEFAULT_MODEL_ID`] constant.
+pub fn resolve_default_model_id(raw: Option<&str>) -> std::borrow::Cow<'static, str> {
+    match raw.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(v) => std::borrow::Cow::Owned(v.to_string()),
+        None => std::borrow::Cow::Borrowed(DEFAULT_MODEL_ID),
+    }
+}
+
 pub use tensor::{
     DeviceKind, GpuInfo, apply_backend_env, detect_gpu_vendor, estimate_training_vram_mb,
     estimate_training_vram_mb_qlora, normalize_device, print_gpu_summary, print_gpu_summary_for,
@@ -61,3 +72,32 @@ pub use tensor::{
     ExecutionKernel, FineTuneContract, LoraTrainingConfig, MensTokenizerMode,
     OptimizerExperimentMode, PopuliTrainBackend, TrainingDeploymentTarget, run_mens_training,
 };
+
+#[cfg(test)]
+mod model_id_tests {
+    use super::*;
+
+    #[test]
+    fn default_when_none() {
+        let result = resolve_default_model_id(None);
+        assert_eq!(result.as_ref(), DEFAULT_MODEL_ID);
+    }
+
+    #[test]
+    fn env_override_used() {
+        let result = resolve_default_model_id(Some("my-org/my-model"));
+        assert_eq!(result.as_ref(), "my-org/my-model");
+    }
+
+    #[test]
+    fn empty_string_keeps_default() {
+        let result = resolve_default_model_id(Some(""));
+        assert_eq!(result.as_ref(), DEFAULT_MODEL_ID);
+    }
+
+    #[test]
+    fn whitespace_only_keeps_default() {
+        let result = resolve_default_model_id(Some("   "));
+        assert_eq!(result.as_ref(), DEFAULT_MODEL_ID);
+    }
+}
