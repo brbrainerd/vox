@@ -1,0 +1,6 @@
+fix(ssot): regenerate gui-surface-registry.v1.json after merge conflict
+scale: ~0 lines across 1 files [XS]
+
+- contracts/reports/gui-surface-registry.v1.json: Regenerated the binary file, indicating a change in its content due to merge resolution.
+
+--- audit: original='fix(ssot): regenerate gui-surface-registry after merge resolution' | actual=0L across 1 files | derived=full ---
