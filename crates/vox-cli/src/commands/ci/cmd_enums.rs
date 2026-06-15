@@ -352,6 +352,17 @@ pub enum CiCmd {
     /// BOMs corrupt `include_str!()` output and break JSON parsing.
     #[command(name = "bom-check")]
     BomCheck,
+    /// Reap stale `vox*` processes that lock this worktree's `target/` build
+    /// output (Windows os-error-5 on relink). Dry-run unless `--apply`.
+    #[command(name = "free-binary")]
+    FreeBinary {
+        /// Target dir to free (defaults to `<root>/target`).
+        #[arg(long)]
+        target: Option<std::path::PathBuf>,
+        /// Actually kill the stale processes (default: dry-run).
+        #[arg(long)]
+        apply: bool,
+    },
     /// Regenerate or verify `examples/PARSE_STATUS.md` from `examples/golden/*.vox`.
     #[command(name = "parse-status")]
     ParseStatus {
@@ -448,6 +459,9 @@ pub enum CiCmd {
         #[arg(long, default_value = "mens/runs/logs")]
         log_dir: PathBuf,
     },
+    /// Check sccache setup and advise on correct configuration.
+    #[command(name = "build-cache-doctor")]
+    BuildCacheDoctor,
     /// Wall-clock timings for key `cargo check` lanes (default CLI, GPU+stub, optional CUDA).
     #[command(name = "build-timings")]
     BuildTimings {
@@ -1011,6 +1025,7 @@ impl CiCmd {
             CiCmd::RepoGuards => Some("ci-gate/ci.repo-guards"),
             CiCmd::LineEndings { .. } => Some("ci-gate/ci.line-endings"),
             CiCmd::BomCheck => Some("ci-gate/ci.bom-check"),
+            CiCmd::FreeBinary { .. } => Some("ci-gate/ci.free-binary"),
             CiCmd::DataSsotGuards => Some("ci-gate/ci.data-ssot-guards"),
             CiCmd::FeatureMatrix => Some("ci-gate/ci.feature-matrix"),
             CiCmd::CompileMatrix => Some("ci-gate/ci.compile-matrix"),
@@ -1044,6 +1059,7 @@ impl CiCmd {
             CiCmd::ScientiaNoveltyLedgerContracts => {
                 Some("ci-gate/ci.scientia-novelty-ledger-contracts")
             }
+            CiCmd::BuildCacheDoctor => Some("ci-gate/ci.build-cache-doctor"),
             // The registry machinery itself is intentionally untracked, and any
             // gate without a registry-backed `ci-gate` row stays grey.
             _ => None,

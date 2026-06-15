@@ -9,7 +9,7 @@
 use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -100,7 +100,14 @@ pub fn probe_binary_version(base: &str) -> Option<String> {
 }
 
 pub fn spawn_detached_null_stdio(base: &str, args: &[&str]) -> anyhow::Result<Child> {
-    let binary = resolve_managed_binary_path(base);
+    let home = vox_config::paths::user_home_dir();
+    let bin_dir = home.join(".vox").join("bin");
+    let target_sibling = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join(executable_name(base))))
+        .unwrap_or_else(|| PathBuf::from(executable_name(base)));
+    let binary = resolve_or_stage_daemon(&target_sibling, &bin_dir)
+        .unwrap_or_else(|_| resolve_managed_binary_path(base));
     Command::new(binary)
         .args(args)
         .stdout(Stdio::null())
@@ -264,6 +271,47 @@ fn current_unix_ms() -> u64 {
         .unwrap_or(0)
 }
 
+/// Copy `src` into `dest_dir` (preserving file name) when the destination is
+/// missing or older than `src`. Returns the staged path.
+///
+/// This is the key daemon-lifecycle fix: long-lived managed daemons must run
+/// from `~/.vox/bin`, not from `target/debug/`. A running daemon exe holds an
+/// open file handle on Windows, preventing `cargo build` from relinking the
+/// binary (os error 5). Staging into a stable directory breaks the coupling.
+pub fn stage_binary(src: &std::path::Path, dest_dir: &std::path::Path) -> std::io::Result<PathBuf> {
+    let name = src.file_name().ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, "source has no file name")
+    })?;
+    let dest = dest_dir.join(name);
+    std::fs::create_dir_all(dest_dir)?;
+    let needs_copy = match (std::fs::metadata(&dest), std::fs::metadata(src)) {
+        (Ok(d), Ok(s)) => match (d.modified(), s.modified()) {
+            (Ok(dm), Ok(sm)) => sm > dm,
+            _ => true,
+        },
+        _ => true, // dest missing
+    };
+    if needs_copy {
+        std::fs::copy(src, &dest)?;
+    }
+    Ok(dest)
+}
+
+/// Resolve the path to launch a long-lived managed daemon from, guaranteeing
+/// it is NOT under a `target/` build dir (which a running daemon would lock,
+/// causing os error 5 on the next `cargo build`).
+///
+/// If `src` (typically the target/debug sibling) exists, stage it into
+/// `dest_dir` (`~/.vox/bin`) first. Otherwise fall back to
+/// `resolve_managed_binary_path` which checks `~/.vox/bin` and PATH.
+pub fn resolve_or_stage_daemon(src: &Path, dest_dir: &Path) -> std::io::Result<PathBuf> {
+    if src.exists() {
+        return stage_binary(src, dest_dir);
+    }
+    let name = src.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+    Ok(resolve_managed_binary_path(name))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -276,5 +324,55 @@ mod tests {
     #[test]
     fn process_is_running_zero_false() {
         assert!(!process_is_running(0));
+    }
+}
+
+#[cfg(test)]
+mod stage_tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn resolve_daemon_stages_and_avoids_target_path() {
+        let tmp = std::env::temp_dir().join(format!("vox-resolve-{}", std::process::id()));
+        let target = tmp.join("target").join("debug");
+        let bin = tmp.join("home").join(".vox").join("bin");
+        std::fs::create_dir_all(&target).unwrap();
+        let src = target.join("vox-demo2-d");
+        std::fs::write(&src, b"x").unwrap();
+
+        let resolved = resolve_or_stage_daemon(&src, &bin).unwrap();
+        // Must NOT be under target/
+        let resolved_str = resolved.to_string_lossy().replace('\\', "/").to_lowercase();
+        assert!(
+            !resolved_str.contains("/target/"),
+            "daemon must not run from target/: {}",
+            resolved.display()
+        );
+        assert!(resolved.exists(), "staged binary must exist");
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn stage_copies_when_dest_missing_or_older() {
+        let tmp = std::env::temp_dir().join(format!("vox-stage-{}", std::process::id()));
+        let src_dir = tmp.join("target").join("debug");
+        let dst_dir = tmp.join("home").join(".vox").join("bin");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&dst_dir).unwrap();
+        let src = src_dir.join("vox-demo-d");
+        let mut f = std::fs::File::create(&src).unwrap();
+        f.write_all(b"binary-v1").unwrap();
+        drop(f);
+
+        let staged = stage_binary(&src, &dst_dir).unwrap();
+        assert_eq!(staged, dst_dir.join("vox-demo-d"));
+        assert_eq!(std::fs::read(&staged).unwrap(), b"binary-v1");
+
+        // Second call with same (not newer) source should succeed (idempotent).
+        let staged2 = stage_binary(&src, &dst_dir).unwrap();
+        assert_eq!(staged2, staged);
+
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
