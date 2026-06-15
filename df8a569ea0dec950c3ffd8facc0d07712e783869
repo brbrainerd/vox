@@ -1,0 +1,7 @@
+feat(vox-effort-audit): add manifest writer for run metadata
+scale: ~78 lines across 2 files [M]
+
+- `crates/vox-effort-audit/src/output/manifest.rs`: New file containing `Manifest` and `RangeManifest` structs for serializing run metadata, and a `write` function to serialize a `Manifest` to a pretty-printed JSON file. Includes a test for round-trip serialization.
+- `crates/vox-effort-audit/src/output/mod.rs`: Adds `manifest` module to the output module.
+
+--- audit: original='feat(vox-effort-audit): run manifest writer (D2)' | actual=78L across 2 files | derived=full ---
