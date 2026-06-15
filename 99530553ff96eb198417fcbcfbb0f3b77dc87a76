@@ -1,0 +1,10 @@
+refactor(app_contract): derive endpoints from ContractIr for AppContractModule
+scale: ~166 lines across 1 files [M]
+
+- `crates/vox-compiler/src/app_contract.rs`: Refactored `project_app_contract` to derive `server_fns`, `query_fns`, and `mutation_fns` from `contract_ir::project(module)` instead of iterating `module.endpoint_fns` multiple times.
+- `crates/vox-compiler/src/app_contract.rs`: Zipped `ContractEndpoint` with its originating `HirEndpointFn` to recover the HIR-level signature string, as `WireType` in `ContractEndpoint` is lossy.
+- `crates/vox-compiler/src/app_contract.rs`: Ensured `name`, `route_path`, and endpoint kind grouping are sourced from Contract IR.
+- `crates/vox-compiler/src/app_contract.rs`: Added a `debug_assert_eq!` to verify `contract_ir::project` maintains a 1:1 mapping and source order for endpoints.
+- `crates/vox-compiler/src/app_contract.rs`: Removed redundant iterations over `module.endpoint_fns` for filtering by kind.
+
+--- audit: original='refactor(contract): derive AppContract endpoints from ContractIr (single endpoint lens)' | actual=166L across 1 files | derived=full ---
