@@ -1,0 +1,12 @@
+feat(populi): enhance ML pipeline with native training, phased gates, and Windows automation
+scale: ~2437 lines across 7 files [XL]
+
+- **`crates/vox-cli/src/main.rs`**: Introduce `VOX_VERSION` constant for CLI versioning, add `Profile` subcommand for latency analysis, and expand `Run` subcommand with `json`, `no_cache`, `eval`, and `script` options. Add new modules: `autofix`, `cli_actions`, `fs_utils`, `isolation`, `pipeline`, `slo_gates`, `training`.
+- **`crates/vox-cli/src/commands/train.rs`**: Refactor `train` command to support native Rust training, add GPU detection logic, and ensure `train.jsonl` existence. Update `run_local` to use `train_qlora.vox` script.
+- **`docs/src/expl-ml-pipeline.md`**: Update ML pipeline architecture diagram and description to reflect native Rust training, phased quality gates, and new evaluation metrics.
+- **`docs/src/how-to-train-populi-4080.md`**: Add new runbook for training Populi on RTX 4080 Super using native Vox training on Windows with PowerShell, including prerequisites and first-run instructions.
+- **`scripts/run_populi_pipeline.ps1`**: Add new PowerShell script for automating the Populi ML pipeline on Windows, including corpus extraction, validation, pairing, evaluation, and training stages with configurable parameters.
+- **`.github/workflows/ml_data_extraction.yml`**: Update ML pipeline workflow to include phased quality gates (`strict_quality_gate`, `benchmark_min_pass_rate`), add a Hugging Face publish hook, and introduce `native_train` input for workflow dispatch. Refine corpus extraction steps to skip rustdoc merge.
+- **`.gitlab-ci.yml`**: Update GitLab CI configuration to align with the new ML pipeline, incorporating phased quality gates and native training options.
+
+--- audit: original='feat(populi): skip rustdoc merge, native-first runbook, phased gates' | actual=2437L across 7 files | derived=full ---
