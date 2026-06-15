@@ -1,0 +1,21 @@
+refactor(webhook): fold vox-webhook library into vox-plugin-webhook
+scale: ~711 lines across 15 files [L]
+
+- `crates/vox-plugin-webhook/Cargo.toml`: Removed `vox-webhook` path dependency; added direct workspace dependencies for `axum`, `sha2`, `sha3`, `ed25519-dalek`, `data-encoding`, `reqwest`, `vox-http-client`, `serde`, and `thiserror`; enabled `time` feature for `tokio`.
+- `crates/vox-plugin-webhook/src/lib.rs`: Updated documentation to reflect inlined webhook server; added `mod webhook;` declaration; changed `use vox_webhook::...` to `use webhook::...`.
+- `crates/vox-plugin-webhook/src/webhook/`: Created new private submodule `webhook` by moving and adapting the entire `vox-webhook` library content.
+- `crates/vox-plugin-webhook/src/webhook/bridge.rs`: Added `WebhookOrchestratorBridge` and related types for routing broadcast events to a `WebhookEventSink`.
+- `crates/vox-plugin-webhook/src/webhook/channel.rs`: Added `ChannelManager` and related types for managing webhook channels.
+- `crates/vox-plugin-webhook/src/webhook/delivery.rs`: Added `OutboundWebhook` and `WebhookDeliveryResult` for outbound webhook delivery with retry logic.
+- `crates/vox-plugin-webhook/src/webhook/handler.rs`: Added `InboundPayload` and `WebhookEvent` for parsing and handling inbound webhook events.
+- `crates/vox-plugin-webhook/src/webhook/mod.rs`: Defined the `webhook` module structure, re-exporting key types and defining `WebhookError`.
+- `crates/vox-plugin-webhook/src/webhook/router.rs`: Added `WebhookState` and Axum router setup for handling inbound webhook requests.
+- `crates/vox-plugin-webhook/src/webhook/signing.rs`: Added utilities for HMAC and digest signing/verification.
+- `crates/vox-plugin-webhook/src/webhook/sink.rs`: Added `WebhookEventSink` trait for abstracting event consumption.
+- `crates/vox-webhook/`: Deleted the entire `vox-webhook` crate directory (9 files).
+- `Cargo.toml`: Removed `vox-webhook` from workspace members.
+- `Cargo.lock`: Updated dependencies to reflect changes in `crates/vox-plugin-webhook/Cargo.toml` and removal of `vox-webhook`.
+- `docs/src/architecture/layers.toml`: Removed `vox-webhook` entry.
+- `docs/src/architecture/where-things-live.md`: Removed `vox-webhook` row and expanded `vox-plugin-webhook` description to note the inlined gateway.
+
+--- audit: original='refactor(D-3): fold vox-webhook library into vox-plugin-webhook' | actual=711L across 15 files | derived=full ---
