@@ -1,0 +1,7 @@
+test(codegen-ts): add golden corpus TS smoke test and initial snapshots
+scale: ~16047 lines across 80 files [XL]
+
+- `crates/vox-codegen/tests`: Added `golden_corpus_ts_smoke_test.rs` to extend the TS-emit snapshot harness to the full `examples/golden/` corpus. This test ensures the TS emitter doesn't panic and captures snapshot diffs for non-empty TS output.
+- `crates/vox-codegen/tests/snapshots`: Added 79 new snapshot files for the `golden_corpus_ts_smoke_test`, covering various examples like `blog_fullstack.snap`, `getting_started.snap`, `index_showcase.snap`, `db_advanced_queries.snap`, `web_routing_fullstack.snap`, and many others. These snapshots capture the initial TypeScript output for a wide range of Vox examples.
+
+--- audit: original='test(codegen-ts): golden corpus TS smoke test + initial snapshots (Task 3B)' | actual=16047L across 80 files | derived=sampled ---
