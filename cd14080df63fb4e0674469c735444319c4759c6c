@@ -1,0 +1,14 @@
+docs(arch): document 2026-05-25 state-of-the-work audit and corrections
+scale: ~157 lines across 1 files [M]
+
+- Create `docs/src/architecture/session-handoff-2026-05-25-state-of-the-work.md` to record:
+    - Ground truth verification including `HEAD` commit, `git rev-list` count, `cargo build`, `cargo run -p vox-arch-check`, and `cargo test -p vox-compiler --lib` results.
+    - Identification of a non-clean working tree with 7 staged files from Session-15 Hp-T3 and a modified `.claude/settings.local.json`.
+    - A list of 40 parallel-agent authored commits landed since the prior handoff (`a50aa27bbc`), highlighting `8015db773f` which completed Phase M @json_as Steps 1-6.
+    - Open project work per `post-sprint-forward-plan-2026-05-25.md`, noting R-E/F/H/I/J/K as gated/deferred and v0.6 acceptance suite pending.
+    - An audit of the task list, confirming 0 open tasks but correcting the status of task #39 (Phase H @endpoint retirement) to reflect only prereqs done.
+    - A reconciliation note confirming two independent work-loss audit documents exist and do not contradict.
+    - Corrections to personal thoroughness gaps from the session.
+    - New tasks opened: #46 (Phase H — execute language-surface retirement) and #47 (Commit Session-15 Hp-T3 PrioritySource staged files).
+
+--- audit: original='docs(arch): handoff — 2026-05-25 state-of-the-work audit + correction record' | actual=157L across 1 files | derived=full ---
