@@ -1,0 +1,17 @@
+feat(quality): add rustfmt.toml and fmt pre-commit hook; update CI checks
+scale: ~610 lines across 7 files [L]
+
+- **rustfmt.toml**: Added a workspace-level `rustfmt.toml` with explicit settings for `edition = "2024"`, `imports_granularity = "Crate"`, `group_imports = "StdExternalCrate"`, `chain_width = 60`, `trailing_comma = "Vertical"`, and `brace_style = "SameLineWhere"`.
+- **lefthook.yml**: Added a `fmt-check` pre-commit hook to run `cargo fmt --all -- --check` on all `.rs` files, ensuring formatting consistency before commit.
+- **.github/workflows/ci.yml**:
+    - Updated `TOESTUB (scoped)` to use `--mode enforce-warn` instead of `legacy`, aligning with a coherent severity model.
+    - Updated `Architecture / Code Drift Guard (TOESTUB)` to use `--mode enforce-warn` for `toestub-scoped crates`.
+    - Added a new step `Workspace drift check (vox-drift-check)` to run `cargo run -p vox-drift-check --quiet -- . --severity warning --fail-on warning`, integrating this check into CI.
+- **.github/workflows/docs-quality.yml**:
+    - Removed `continue-on-error` for `Markdown lint`, making it a hard gate.
+    - Removed the `Check internal docs links` and `Warn if internal link check failed` steps, simplifying the workflow.
+- **docs/src/architecture/tooling-convergence-findings-2026.md**: Added a new document detailing an audit of Vox tooling, identifying fragmentation and proposing a convergence plan, including findings on TOESTUB modes, missing `rustfmt.toml`/pre-commit hook, and `vox-drift-check` not in CI.
+- **docs/src/architecture/research-index.md**: Added a link to the new "Tooling Convergence — Findings & Plan (2026-05-09)" document.
+- **crates/vox-cli/src/commands/ci/pre_push.rs**: Changed the `toestub-scoped` command in `step_toestub_changed` from `--mode legacy` to `--mode enforce-warn`.
+
+--- audit: original='feat(quality): explicit rustfmt.toml + fmt pre-commit hook' | actual=610L across 7 files | derived=full ---
