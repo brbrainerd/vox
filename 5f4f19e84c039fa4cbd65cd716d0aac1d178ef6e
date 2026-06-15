@@ -1,0 +1,12 @@
+chore: update lockfile, gitignore, and audit snapshots; regen held-out test
+scale: ~1225 lines across 11 files [XL]
+
+- Cargo.lock: Updated dependencies for `vox-audit`, `vox-project-scaffold`, `vox-deploy-codegen`, `vox-container`, `vox-package`, and `tempfile`.
+- .gitignore: Added `.vox/telemetry-upload-queue/` to ignore runtime spool state.
+- crates/vox-audit/tests/regen_held_out.rs: Added `println!` statements to output `corpus_hash`, `total_fixtures`, and `held_out_count` during regeneration.
+- contracts/reports/_snapshot/: Added daily audit snapshots for 2026-05-21 and 2026-05-22.
+- contracts/reports/audit-all/: Added daily `audit-all` reports for 2026-05-21 and 2026-05-22.
+- contracts/reports/aci-default/: Added daily `aci-default` reports for 2026-05-21 and 2026-05-22.
+- contracts/reports/retirement/: Added daily `retirement` reports for 2026-05-21 and 2026-05-22.
+
+--- audit: original='chore: lockfile + audit snapshots + held-out test + gitignore polish' | actual=1225L across 11 files | derived=full ---
