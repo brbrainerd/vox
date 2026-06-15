@@ -1,0 +1,18 @@
+feat(orchestrator): add near-duplicate task detection on submission
+scale: ~152 lines across 3 files [M]
+
+- `crates/vox-orchestrator/src/orch_daemon/mod.rs`: Implemented near-duplicate task detection during `SUBMIT_TASK` requests.
+  - Scans live (queued + in-progress) tasks using Jaccard similarity of token sets.
+  - If a near-duplicate is found and `allow_duplicate` is `false` in the request parameters, the submission is refused, and the ID of the duplicate task is returned.
+  - If `allow_duplicate` is `true` or no near-duplicate is found, the task is submitted, and the `duplicate_of` field in the response indicates if a near-duplicate was found.
+  - Added `allow_duplicate` parameter handling to `dispatch_request`.
+- `crates/vox-orchestrator/src/services/similarity.rs`: New module providing token-set similarity functions.
+  - Defines `NEAR_DUPLICATE_THRESHOLD` (0.85) for Jaccard similarity.
+  - Implements `token_set` to convert strings to lowercase alphanumeric token `HashSet`.
+  - Implements `jaccard` function to calculate Jaccard similarity between two strings' token sets.
+  - Includes five unit tests for `jaccard` function covering identical, disjoint, near-duplicate, and normalized cases.
+- `crates/vox-orchestrator/src/services/mod.rs`: Exports the new `similarity` module.
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+--- audit: original='feat(orchestrator): near-duplicate task detection on submit (token Jaccard)' | actual=152L across 3 files | derived=full ---
