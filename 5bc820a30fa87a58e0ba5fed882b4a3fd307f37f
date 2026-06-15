@@ -1,0 +1,19 @@
+feat(runtime-rn): Implement Expo config plugin for native library linking and permissions
+scale: ~625 lines across 6 files [L]
+
+- `clients/runtime-rn/plugin/index.js`: Add new Expo config plugin. This plugin handles:
+    - Linking `libvox_runtime_rn.so` for Android (per-ABI) and `vox_runtime_rn.xcframework` for iOS.
+    - Adding feature-gated permissions to `AndroidManifest.xml` and `Info.plist`.
+    - Registering Candle model asset paths via `assetBundlePatterns`.
+    - The plugin is implemented as CommonJS to be compatible with Expo's plugin resolver.
+- `clients/runtime-rn/plugin.js`: Add an ESM shim for the CommonJS plugin, allowing `import` usage.
+- `clients/runtime-rn/app.plugin.js`: Add an Expo convention entry point for the plugin, re-exporting the main plugin function.
+- `clients/runtime-rn/tests/plugin.test.mjs`: Add 22 unit tests for the new Expo config plugin, covering prop validation, permission additions, and asset pattern generation.
+- `clients/runtime-rn/package.json`:
+    - Update `exports` to include `./plugin`, `./plugin.js`, and `./app.plugin.js`.
+    - Update `files` to include `plugin`, `plugin.js`, and `app.plugin.js`.
+    - Add a `test` script to run the plugin unit tests.
+    - Add `@expo/config-plugins` as an optional peer dependency.
+- `clients/runtime-rn/plugin/package.json`: Add a new `package.json` to declare `plugin/` as a CommonJS module.
+
+--- audit: original='feat(runtime-rn): Expo config plugin — native lib linking, gated permissions, model assets' | actual=625L across 6 files | derived=full ---
