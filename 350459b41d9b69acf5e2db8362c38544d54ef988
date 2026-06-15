@@ -1,0 +1,8 @@
+feat(orchestrator): gate vox-compiler and vox-grammar-export behind mcp-native feature
+scale: ~6 lines across 1 files [XS]
+
+- `crates/vox-orchestrator/Cargo.toml`:
+    - Added `vox-compiler` and `vox-grammar-export` as optional dependencies.
+    - Included `dep:vox-compiler` and `dep:vox-grammar-export` in the `mcp-native` feature, making them conditional.
+
+--- audit: original='feat(orchestrator): gate vox-compiler + vox-grammar-export under mcp-native' | actual=6L across 1 files | derived=full ---
