@@ -33,6 +33,7 @@ pub mod runtime_projection;
 pub mod rust_interop_support;
 pub mod serialization;
 pub mod shell_projection;
+pub mod target;
 pub mod tokens;
 pub mod typeck;
 pub mod web_prefixes;
