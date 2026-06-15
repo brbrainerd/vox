@@ -1,0 +1,47 @@
+feat(drift): introduce `vox-drift-check` for multi-language workspace drift linting
+scale: ~4589 lines across 29 files [XL]
+
+- **`vox-drift-check` crate (new)**:
+    - **Foundation**:
+        - `ExtractedFeatures` schema for string/numeric literals, call sites, imports, function definitions, and body signatures, with Serde support.
+        - `LanguageExtractor` trait and `crate_name_from_path` resolver.
+        - Rust extractor (using `syn`) for literals, `Duration` unit tagging, call sites, `use` imports, and function body hashes (xxh3_64 via `quote` tokenization).
+        - TypeScript extractor (using `swc_ecma_parser`) for literals, imports, and call sites.
+        - Vox extractor (using `vox_compiler::lexer`) for string and numeric literals.
+        - `DriftEngine` for parallel Rayon file walking, language dispatch, and rule execution.
+    - **Sweep Rules**:
+        - `SweepRule` trait implemented by:
+            - `LiteralDedupRule`: Detects duplicate string literals (default threshold=3, min_length=8).
+            - `NumericDedupRule`: Detects duplicate numeric literals (unit-aware, default threshold=3).
+            - `BodyHashRule`: Detects duplicate function bodies based on hash (default threshold=2, min_lines=5).
+            - `CallShapeRule`: Detects duplicate call patterns (default threshold=5).
+    - **Drift Rules**:
+        - `DriftRule` trait with `WorkspaceContext` implemented by:
+            - `ReqwestBypassRule`: Flags direct `reqwest::Client` instantiation outside allowed crates.
+            - `VoxPathLiteralRule`: Identifies hardcoded Vox paths.
+            - `TimeoutLiteralRule`: Flags magic number timeouts.
+            - `SerdeDefaultDupRule`: Detects redundant `#[serde(default)]` attributes.
+            - `VersionStringRule`: Flags hardcoded version strings.
+            - `BearerHeaderInlineRule`: Flags inline bearer tokens.
+    - **Configuration**:
+        - `drift-patterns.toml` for declarative configuration of rules.
+        - `DriftConfig` loader for rule parameters and severity.
+    - **CLI**:
+        - Standalone binary `vox-drift-check` with JSON output and severity filtering.
+    - **Reporting**:
+        - `report.rs` for generating findings.
+- **`vox-cli`**:
+    - New `drift-check` subcommand integrated into `vox-cli`.
+    - Updated `Cargo.toml` and `src/lib.rs` to include the new command.
+    - Modified `src/cli_dispatch/mod.rs` and `src/commands/mod.rs` for command dispatch.
+- **Documentation**:
+    - New plan document: `docs/superpowers/plans/2026-05-09-drift-detection.md`.
+    - New design specification: `docs/superpowers/specs/2026-05-09-drift-detection-design.md`.
+- **`lefthook.yml`**:
+    - Added a `pre-push` hook to run `drift-check --severity warning --fail-on warning`.
+- **`drift-patterns.toml`**:
+    - New configuration file for drift patterns.
+- **`Cargo.lock`**:
+    - Updated due to new dependencies.
+
+--- audit: original='feat(drift): vox-drift-check — multi-language workspace drift linter' | actual=4589L across 29 files | derived=full ---
