@@ -1,0 +1,13 @@
+feat(vox-orchestrator, vox-dashboard): Add CORS to gateway and dashboard integration tests
+scale: ~82 lines across 4 files [M]
+
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/mod.rs`: Install `CorsLayer` with `Any` origin, methods, headers, and exposed headers to the HTTP gateway router.
+- `crates/vox-dashboard/tests/auth.rs`:
+    - Replace placeholder test with new integration tests for the dashboard router.
+    - Add `setup_dummy_assets` function to create a temporary directory with an `index.html` for testing.
+    - Add `test_dashboard_router_serves_asset` to verify asset serving, HTTP status, and security headers (X-Frame-Options, Cache-Control, Content-Security-Policy).
+    - Add `test_dashboard_router_injects_token` to verify token injection into the served HTML.
+- `crates/vox-dashboard/Cargo.toml`: Add `tower` with `util` feature as a dev-dependency.
+- `crates/vox-orchestrator/Cargo.toml`: Add `tower-http` with `cors` feature as a dependency.
+
+--- audit: original='feat(vox-orchestrator, vox-dashboard): TASK-0.4 and TASK-0.8 - install CorsLayer in gateway router and write dashboard integration tests' | actual=82L across 4 files | derived=full ---
