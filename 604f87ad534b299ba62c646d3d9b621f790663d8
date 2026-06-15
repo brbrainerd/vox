@@ -1,0 +1,8 @@
+feat(codegen-ts/rn): Emit external React imports for RN components
+scale: ~60 lines across 3 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/rn/component.rs`: The `emit_rn_component` function now accepts an `es_imports` parameter and uses `emit_react_es_import_lines` to emit external React imports after the `react-native/primitives/Link` import block.
+- `crates/vox-codegen/src/codegen_ts/rn/mod.rs`: The `generate_rn` function now passes `hir.imports` to `emit_rn_component`.
+- `crates/vox-codegen/tests/rn_lifecycle_test.rs`: Added two new tests to verify the correct emission of external React imports for RN components: one for default imports and another for grouped and sorted named imports.
+
+--- audit: original='feat(interop): S7 — emit external react imports on the RN target' | actual=60L across 3 files | derived=full ---
