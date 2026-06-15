@@ -1,0 +1,22 @@
+feat(tree-sitter): Add decorator rule, raw strings, line comments; update keywords and return statement
+scale: ~3129 lines across 4 files [XL]
+
+- **`crates/vox-grammar-export/tests/export_test.rs`**:
+    - Added `all_decorators_appear_in_grammar_js` test to ensure all lexer decorators are present in `grammar.js`.
+    - Added `grammar_js_uses_return_not_ret` test to enforce `return` over `ret` in `grammar.js`.
+- **`tree-sitter-vox/grammar.js`**:
+    - Replaced `ret` with `return` in `return_statement`.
+    - Extended `keyword` list to include `return`, `while`, `loop`, `break`, `continue`, `async`, `await`, `extern`.
+    - Added `decorator` rule matching `@` followed by identifiers, including dotted forms (e.g., `@mcp.tool`).
+    - Added `r"..."` raw string variant to the `string` rule.
+    - Added `#` as a valid line comment character alongside `//`.
+- **`tree-sitter-vox/GRAMMAR_SSOT.md`**:
+    - Created new documentation file detailing the grammar's Single Source of Truth (SSOT).
+    - Documented lexer as SSOT for decorators, keywords, and operators.
+    - Described the new parity enforcement CI gates.
+    - Explained the `decorator` regex rule.
+    - Noted the known `block`/`block_repeat1` conflict preventing parser regeneration.
+- **`tree-sitter-vox/src/grammar.json`**:
+    - Regenerated the Tree-sitter grammar JSON based on the updated `grammar.js`.
+
+--- audit: original='fix(tree-sitter): Phase 7 — parity gate + decorator rule + fix return/ret' | actual=3129L across 4 files | derived=full ---
