@@ -1,0 +1,10 @@
+docs: Add VUV authoring guide and update UI integration tutorial
+scale: ~403 lines across 5 files [L]
+
+- docs/src/how-to/how-to-author-views.md: Add new guide for authoring Vox views (VUV) using function calls, trailing-block children, and typed style kwargs.
+- docs/src/tutorials/tut-ui-integration.md: Rewrite tutorial to use VUV view-call syntax, replacing all angle-bracket JSX examples. Update title and description to reflect VUV focus.
+- docs/src/feed.xml: Update feed to include the new VUV authoring guide.
+- docs/src/SUMMARY.md: Add "How to author Vox views (VUV)" to the documentation summary.
+- .claude/settings.local.json: Add a new `grep` command to check for VUV-related syntax in the UI integration tutorial.
+
+--- audit: original='docs: VUV authoring guide + retire JSX from UI integration tutorial' | actual=403L across 5 files | derived=full ---
