@@ -1,0 +1,28 @@
+test(coverage): Add 24 new behavioral tests for compiler, codegen, and audit
+scale: ~387 lines across 15 files [L]
+
+- `vox-code-audit`:
+  - `Language::from_extension`: Test `Language::from_extension` correctly identifies languages.
+  - `context_around`: Test `context_around` handles various line contexts and boundaries.
+  - `AWS synthetic-key filter`: Test `filter_aws_synthetic_keys` correctly filters keys.
+  - `capitalize_first`: Test `capitalize_first` capitalizes strings as expected.
+  - `double-slash-outside-strings`: Test `double_slash_outside_strings` detects `//` outside string literals.
+  - `contains_word_boundaries`: Test `contains_word_boundaries` for accurate word boundary detection.
+  - `usize-literal parse`: Test `parse_rust_usize_literal` strips separators and rejects invalid input.
+  - `for-loop lookback window`: Test `recent_line_starts_for_loop` correctly identifies `for` loops within a window, skipping comments.
+  - `vox-import extraction`: Test `extract_vox_imports` skips commented imports, reports correct line numbers, and ignores non-Vox files.
+- `vox-codegen`:
+  - `web-IR validate gate default + falsey-env`: Test `web_ir_validate_gate_enabled` defaults to on and `env_var_explicitly_disabled` recognizes various falsey tokens.
+  - `db projection suffix + collision rejection`: Test `db_projection_method_suffix` joins columns with underscores and `validate_db_projection_suffixes_unique` rejects colliding suffixes.
+  - `rust_string_literal escaping`: Test `escape_rust_double_quoted_content` correctly escapes strings.
+  - `dialect_for_backend_kind`: Test `dialect_for_backend_kind` maps each `BackendKind` to the correct SQL dialect.
+  - `dialect_from_urls fallback`: Test `dialect_from_urls` prefers app URLs and falls back to SQLite for unparseable URLs.
+  - `escape_rust_double_quoted_content ordering`: Test `escape_rust_double_quoted_content` handles escaping order correctly.
+- `vox-compiler`:
+  - `HirEffectKind::label (incl. mcp(tool))`: Test `HirEffectKind::label` for various effect kinds, including `mcp(tool)`.
+  - `DurabilityKind::label`: Test `DurabilityKind::label` returns the correct string representation.
+  - `HttpMethod::as_str`: Test `HttpMethod::as_str` returns uppercase HTTP verb strings.
+  - `ContractEndpointKind::default_method`: Test `ContractEndpointKind::default_method` returns `GET` for queries and `POST` for mutations/servers.
+  - `rename parse_json version/alias-chain rejection + index/resolve`: Test `RenameRegistry::parse_json` rejects unsupported versions and alias chains, and correctly indexes and resolves entries.
+
+--- audit: original='test(coverage): Phase-3 wave 2 — prove 24 frontier symbols across 3 crates' | actual=387L across 15 files | derived=full ---
