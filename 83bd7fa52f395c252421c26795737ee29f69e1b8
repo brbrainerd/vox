@@ -1,0 +1,13 @@
+fix(setup-content): validate and recreate symlink if stale or incorrect
+scale: ~26 lines across 1 files [S]
+
+- `docs-astro/scripts/setup-content.mjs`:
+    - Replaced `existsSync(link)` with `lstatSync(link)` to accurately check if `link` is a symbolic link.
+    - Added logic to verify the symlink target using `readlinkSync(link)`.
+    - If `link` exists but is not a symbolic link (e.g., a directory or file), an error is now thrown.
+    - If `link` is a symbolic link but points to an incorrect target, the stale link is removed using `rmSync(link)` and a new, correct symlink is created.
+    - The `type` variable for `symlinkSync` is now defined outside the `createLink` function.
+    - Imported `lstatSync`, `readlinkSync`, and `rmSync` from `node:fs`.
+    - Removed `existsSync` from the `if` condition, now used only for initial check.
+
+--- audit: original='fix(setup-content): validate symlink target before skipping creation' | actual=26L across 1 files | derived=full ---
