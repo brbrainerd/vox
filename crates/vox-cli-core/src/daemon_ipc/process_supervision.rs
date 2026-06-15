@@ -279,9 +279,9 @@ fn current_unix_ms() -> u64 {
 /// open file handle on Windows, preventing `cargo build` from relinking the
 /// binary (os error 5). Staging into a stable directory breaks the coupling.
 pub fn stage_binary(src: &std::path::Path, dest_dir: &std::path::Path) -> std::io::Result<PathBuf> {
-    let name = src
-        .file_name()
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "source has no file name"))?;
+    let name = src.file_name().ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, "source has no file name")
+    })?;
     let dest = dest_dir.join(name);
     std::fs::create_dir_all(dest_dir)?;
     let needs_copy = match (std::fs::metadata(&dest), std::fs::metadata(src)) {
@@ -308,10 +308,7 @@ pub fn resolve_or_stage_daemon(src: &Path, dest_dir: &Path) -> std::io::Result<P
     if src.exists() {
         return stage_binary(src, dest_dir);
     }
-    let name = src
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or_default();
+    let name = src.file_name().and_then(|n| n.to_str()).unwrap_or_default();
     Ok(resolve_managed_binary_path(name))
 }
 
