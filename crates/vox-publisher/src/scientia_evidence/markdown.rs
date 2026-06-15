@@ -106,3 +106,21 @@ pub fn infer_doc_sections_from_markdown(content: &str) -> Vec<DocSectionHint> {
     }
     hints
 }
+
+#[cfg(test)]
+mod semcov_behavior_tests {
+    use super::*;
+
+    #[test]
+    fn slugify_heading_lowercases_collapses_separators_and_falls_back() {
+        // Catches: trailing/duplicate hyphens leaking, non-ascii not stripped, or the
+        // empty-result branch not yielding the "section" fallback.
+        assert_eq!(slugify_heading("Hello, World!"), "hello-world");
+        assert_eq!(
+            slugify_heading("  Multiple   Spaces--Here  "),
+            "multiple-spaces-here"
+        );
+        assert_eq!(slugify_heading("***"), "section");
+        assert_eq!(slugify_heading("Already-slug"), "already-slug");
+    }
+}

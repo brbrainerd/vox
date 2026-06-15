@@ -261,3 +261,70 @@ impl AgentQueue {
         max
     }
 }
+
+#[cfg(test)]
+mod semcov_drain_tests {
+    use super::*;
+    use crate::types::{AgentId, AgentTask, TaskId, TaskPriority, TaskStatus};
+
+    fn task(id: u64) -> AgentTask {
+        AgentTask::new(TaskId(id), format!("t{id}"), TaskPriority::Normal, vec![])
+    }
+
+    // Catches: dequeue() handing out a task whose dependencies are NOT yet in the
+    // completed set (is_ready bypass), violating DAG ordering.
+    #[test]
+    fn dequeue_skips_task_blocked_on_unmet_dependency() {
+        let mut q = AgentQueue::new(AgentId(1), "a");
+        // t2 depends on t1; depends_on() flips status to Blocked.
+        let t2 = task(2).depends_on(TaskId(1));
+        q.enqueue(t2);
+        // Nothing is dequeueable because t1 is not completed.
+        assert!(q.dequeue().is_none());
+    }
+
+    // Catches: mark_complete failing to move the id into `completed` and failing to
+    // unblock dependents, which would deadlock a dependency chain.
+    #[test]
+    fn mark_complete_records_id_and_unblocks_dependents() {
+        let mut q = AgentQueue::new(AgentId(1), "a");
+        q.enqueue(task(1));
+        let t2 = task(2).depends_on(TaskId(1));
+        q.enqueue(t2);
+
+        let first = q.dequeue().expect("t1 ready");
+        assert_eq!(first.id, TaskId(1));
+        assert!(q.mark_complete(TaskId(1)));
+        assert_eq!(q.completed_count(), 1);
+        assert_eq!(q.completed_ids(), &[TaskId(1)]);
+
+        // t2 was Blocked; unblock should have promoted it to Queued and now dequeueable.
+        let second = q.dequeue().expect("t2 now ready");
+        assert_eq!(second.id, TaskId(2));
+    }
+
+    // Catches: mark_complete returning true for a task id that is not the current
+    // in-progress task (wrong-id acknowledgement corrupting completion ledger).
+    #[test]
+    fn mark_complete_rejects_wrong_id() {
+        let mut q = AgentQueue::new(AgentId(1), "a");
+        q.enqueue(task(1));
+        q.dequeue();
+        assert!(!q.mark_complete(TaskId(999)));
+        assert_eq!(q.completed_count(), 0);
+    }
+
+    // Catches: max_handoff_count ignoring queued tasks (or the in-progress task),
+    // under-reporting bounce depth used by the A2A loop breaker.
+    #[test]
+    fn max_handoff_count_takes_max_over_queued_and_in_progress() {
+        let mut q = AgentQueue::new(AgentId(1), "a");
+        let mut hi = task(1);
+        hi.handoff_count = 4;
+        q.enqueue(hi);
+        let mut lo = task(2);
+        lo.handoff_count = 1;
+        q.enqueue(lo);
+        assert_eq!(q.max_handoff_count(), 4);
+    }
+}

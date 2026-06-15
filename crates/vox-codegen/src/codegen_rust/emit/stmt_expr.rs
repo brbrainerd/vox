@@ -1344,3 +1344,20 @@ mod rust_emit_exhaustiveness_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_escape_tests {
+    use super::escape_rust_double_quoted_content;
+
+    #[test]
+    fn escapes_backslash_before_quote_in_correct_order() {
+        // Catches: wrong replace ordering — escaping " first then \ would double-escape
+        // the inserted backslashes and corrupt the literal. Backslash MUST be escaped first.
+        assert_eq!(escape_rust_double_quoted_content("a\"b"), "a\\\"b");
+        assert_eq!(escape_rust_double_quoted_content("a\\b"), "a\\\\b");
+        // Combined: input `\"` -> `\\` then `\"` => `\\\"`.
+        assert_eq!(escape_rust_double_quoted_content("\\\""), "\\\\\\\"");
+        // Plain text is untouched (content-only, no surrounding quotes added).
+        assert_eq!(escape_rust_double_quoted_content("plain"), "plain");
+    }
+}

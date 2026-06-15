@@ -335,4 +335,30 @@ mod tests {
         let _ = StringlyTypedEnumDetector::rust_line_for_pattern_match(line);
         let _ = StringlyTypedEnumDetector::first_double_slash_outside_strings(line);
     }
+
+    // Catches: capitalize_first panicking on empty input, or mangling the
+    // tail when the first char's uppercase form is multi-byte.
+    #[test]
+    fn capitalize_first_handles_empty_and_tail() {
+        assert_eq!(capitalize_first(""), "");
+        assert_eq!(capitalize_first("frame"), "Frame");
+        assert_eq!(capitalize_first("aB"), "AB");
+    }
+
+    // Catches: comment-scanner mistaking a `//` *inside* a string literal for
+    // a real line comment (string-masking regression).
+    #[test]
+    fn double_slash_skips_inside_string_literal() {
+        // `//` is inside the quotes => no real comment found.
+        assert_eq!(
+            StringlyTypedEnumDetector::first_double_slash_outside_strings(r#"let x = "a // b";"#),
+            None
+        );
+        // Real trailing comment => byte index of the `//`.
+        let line = "let x = 1; // note";
+        assert_eq!(
+            StringlyTypedEnumDetector::first_double_slash_outside_strings(line),
+            Some(line.find("//").unwrap())
+        );
+    }
 }

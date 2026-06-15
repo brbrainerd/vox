@@ -43,7 +43,7 @@
       "rule_id_prefix": "arch/cross-crate-dup"
     },
     {
-      "line": 2004,
+      "line": 2018,
       "owner": "robot",
       "path_glob": "**/crates/vox-codegen-ts/src/hir_emit/mod.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
@@ -127,7 +127,7 @@
       "rule_id_prefix": "arch/cross-crate-dup"
     },
     {
-      "line": 786,
+      "line": 789,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/hir/nodes/decl.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
@@ -414,21 +414,21 @@
       "rule_id_prefix": "arch/cross-crate-dup"
     },
     {
-      "line": 112,
+      "line": 116,
       "owner": "robot",
       "path_glob": "**/crates/vox-plugin-runtime-container/src/docker.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "arch/cross-crate-dup"
     },
     {
-      "line": 126,
+      "line": 130,
       "owner": "robot",
       "path_glob": "**/crates/vox-plugin-runtime-container/src/docker.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "arch/cross-crate-dup"
     },
     {
-      "line": 141,
+      "line": 145,
       "owner": "robot",
       "path_glob": "**/crates/vox-plugin-runtime-container/src/docker.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
@@ -1422,7 +1422,7 @@
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 971,
+      "line": 978,
       "owner": "robot",
       "path_glob": "**/crates/vox-cli/src/commands/ci/cmd_enums.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
@@ -1842,28 +1842,28 @@
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 276,
+      "line": 278,
       "owner": "robot",
       "path_glob": "**/crates/vox-codegen-ts/src/hir_emit/mod.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 935,
+      "line": 949,
       "owner": "robot",
       "path_glob": "**/crates/vox-codegen-ts/src/hir_emit/mod.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 937,
+      "line": 951,
       "owner": "robot",
       "path_glob": "**/crates/vox-codegen-ts/src/hir_emit/mod.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 2039,
+      "line": 2053,
       "owner": "robot",
       "path_glob": "**/crates/vox-codegen-ts/src/hir_emit/mod.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
@@ -2066,28 +2066,28 @@
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 159,
+      "line": 160,
       "owner": "robot",
       "path_glob": "**/crates/vox-codegen/src/codegen_rust/emit/script_db.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 965,
+      "line": 977,
       "owner": "robot",
       "path_glob": "**/crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 970,
+      "line": 982,
       "owner": "robot",
       "path_glob": "**/crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 1003,
+      "line": 1015,
       "owner": "robot",
       "path_glob": "**/crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
@@ -2731,7 +2731,7 @@
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 593,
+      "line": 595,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/eval/expr.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
@@ -2808,7 +2808,7 @@
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 535,
+      "line": 536,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/hir/lower/decl.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
@@ -2843,7 +2843,7 @@
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 478,
+      "line": 480,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/hir/lower/json_as.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
@@ -2864,112 +2864,112 @@
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 567,
+      "line": 568,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/decl/head.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 630,
+      "line": 631,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/decl/head.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 893,
+      "line": 894,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/decl/head.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 257,
+      "line": 266,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/decl/head_fn.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 274,
+      "line": 283,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/decl/head_fn.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 328,
+      "line": 337,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/decl/head_fn.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 353,
+      "line": 362,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/decl/head_fn.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 388,
+      "line": 397,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/decl/head_fn.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 405,
+      "line": 414,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/decl/head_fn.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 479,
+      "line": 488,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/decl/head_fn.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 536,
+      "line": 545,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/decl/head_fn.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 544,
+      "line": 553,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/decl/head_fn.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 639,
+      "line": 648,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/decl/head_fn.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 662,
+      "line": 671,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/decl/head_fn.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 738,
+      "line": 747,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/decl/head_fn.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 513,
+      "line": 514,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/parser/descent/mod.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
@@ -3109,21 +3109,21 @@
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 220,
+      "line": 224,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/typeck/checker/expr.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 497,
+      "line": 501,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/typeck/checker/expr.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 554,
+      "line": 558,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/typeck/checker/expr.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
@@ -3224,6 +3224,20 @@
       "line": 168,
       "owner": "robot",
       "path_glob": "**/crates/vox-compiler/src/typeck/unify.rs",
+      "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
+      "rule_id_prefix": "vox/catch-all-swallow"
+    },
+    {
+      "line": 33,
+      "owner": "robot",
+      "path_glob": "**/crates/vox-compiler/tests/deprecated_fn_warning.rs",
+      "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
+      "rule_id_prefix": "vox/catch-all-swallow"
+    },
+    {
+      "line": 72,
+      "owner": "robot",
+      "path_glob": "**/crates/vox-compiler/tests/parity_grep_gate.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
@@ -3473,14 +3487,14 @@
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 242,
+      "line": 251,
       "owner": "robot",
       "path_glob": "**/crates/vox-gamify/src/db/process_rewards.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",
       "rule_id_prefix": "vox/catch-all-swallow"
     },
     {
-      "line": 364,
+      "line": 373,
       "owner": "robot",
       "path_glob": "**/crates/vox-gamify/src/db/process_rewards.rs",
       "reason": "Grandfathered advisory silent-drop finding; gate guards NEW findings only.",

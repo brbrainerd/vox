@@ -318,3 +318,81 @@ pub(super) fn bearer_token_eq(expected: &str, presented: &str) -> bool {
     }
     a.ct_eq(b).into()
 }
+
+#[cfg(test)]
+mod semcov_behavior_tests {
+    use super::*;
+
+    #[test]
+    fn worker_role_is_denied_deliver_but_allowed_worker_plane() {
+        // Catches: a swapped role-matrix arm where Worker is granted A2A deliver
+        // (it must NOT be) or denied the worker plane (it must be allowed).
+        let worker = PopuliAuthContext::Role(PopuliBearerRole::Worker);
+        assert!(
+            auth_allows_worker_plane(&worker),
+            "worker token must reach the worker plane"
+        );
+        assert!(
+            !auth_allows_deliver(&worker),
+            "worker token must NOT be allowed to deliver A2A"
+        );
+    }
+
+    #[test]
+    fn submitter_can_deliver_but_not_worker_plane_or_admin() {
+        // Catches: privilege creep where a Submitter token is mistakenly accepted
+        // on the worker plane or admin routes (it must be deliver-only).
+        let sub = PopuliAuthContext::Role(PopuliBearerRole::Submitter);
+        assert!(auth_allows_deliver(&sub), "submitter must deliver");
+        assert!(
+            !auth_allows_worker_plane(&sub),
+            "submitter must be rejected from worker plane"
+        );
+        assert!(
+            !auth_allows_admin_route(&sub),
+            "submitter must be rejected from admin routes"
+        );
+    }
+
+    #[test]
+    fn classify_bearer_matches_only_the_exact_configured_token() {
+        // Catches: classify_bearer matching on prefix/substring or trimming
+        // incorrectly so a wrong token is granted the Mesh role.
+        let rt = PopuliMeshAuthRuntime::legacy_mesh_token_only("  s3cret-mesh  ");
+        assert_eq!(
+            rt.classify_bearer("s3cret-mesh"),
+            Some(PopuliBearerRole::Mesh),
+            "exact (trimmed) token must classify as Mesh"
+        );
+        assert_eq!(
+            rt.classify_bearer("s3cret"),
+            None,
+            "prefix of the token must NOT classify"
+        );
+        assert_eq!(
+            rt.classify_bearer(""),
+            None,
+            "empty presented token must never classify"
+        );
+    }
+
+    #[test]
+    fn requires_bearer_false_for_empty_runtime_true_when_jwt_set() {
+        // Catches: requires_bearer ignoring the jwt_hmac field, which would leave
+        // a JWT-only deployment silently running in open (FullAccess) mode.
+        let empty = PopuliMeshAuthRuntime::default();
+        assert!(
+            !empty.requires_bearer(),
+            "default runtime has no bearer requirement"
+        );
+        let jwt = PopuliMeshAuthRuntime::with_jwt_hmac_only("hmac-secret");
+        assert!(
+            jwt.requires_bearer(),
+            "jwt-only runtime must still require a bearer"
+        );
+        assert!(
+            jwt.classify_bearer("hmac-secret").is_none(),
+            "jwt secret must NOT be accepted as a static bearer token"
+        );
+    }
+}

@@ -46,3 +46,24 @@ pub fn no_emit_entry_gate_enabled() -> bool {
         Some("1") | Some("true") | Some("yes")
     )
 }
+
+#[cfg(test)]
+mod semcov_behavior_tests {
+    use super::env_var_explicitly_disabled;
+
+    #[test]
+    fn env_var_explicitly_disabled_recognizes_falsey_tokens() {
+        // Catches: a regression where only "0"/"false" are honored but "no"/"off"
+        // (case-insensitive) silently stop disabling the gate.
+        assert!(env_var_explicitly_disabled(Ok("0".to_string())));
+        assert!(env_var_explicitly_disabled(Ok("FALSE".to_string())));
+        assert!(env_var_explicitly_disabled(Ok("No".to_string())));
+        assert!(env_var_explicitly_disabled(Ok("oFf".to_string())));
+        // Truthy / unrelated values and a missing var must NOT count as "disabled".
+        assert!(!env_var_explicitly_disabled(Ok("1".to_string())));
+        assert!(!env_var_explicitly_disabled(Ok("yes".to_string())));
+        assert!(!env_var_explicitly_disabled(Err(
+            std::env::VarError::NotPresent
+        )));
+    }
+}

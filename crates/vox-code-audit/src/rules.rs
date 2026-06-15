@@ -310,3 +310,29 @@ pub(crate) fn rust_byte_is_comment(
         None => crate::analysis::TokenMap::from_rust_source(&file.content).is_comment_byte(abs),
     }
 }
+
+#[cfg(test)]
+mod semcov_behavior_tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    // Catches: a new/removed extension alias silently remapping a language
+    // (e.g. dropping "mjs"→TypeScript or mis-mapping "gd").
+    #[test]
+    fn from_extension_maps_known_and_unknown() {
+        assert_eq!(Language::from_extension("rs"), Language::Rust);
+        assert_eq!(Language::from_extension("mjs"), Language::TypeScript);
+        assert_eq!(Language::from_extension("gd"), Language::GDScript);
+        assert_eq!(Language::from_extension("vox"), Language::Vox);
+        assert_eq!(Language::from_extension("toml"), Language::Unknown);
+    }
+
+    // Catches: off-by-one in the radius window or wrong 1-indexed gutter
+    // numbering in context_around (start/end clamping bug).
+    #[test]
+    fn context_around_clamps_and_numbers_from_one() {
+        let f = SourceFile::new(PathBuf::from("a.rs"), "l1\nl2\nl3".to_string());
+        // radius 1 around line 1 => lines 1..=2, clamped at the top.
+        assert_eq!(f.context_around(1, 1), "   1 | l1\n   2 | l2");
+    }
+}

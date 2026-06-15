@@ -216,3 +216,30 @@ fn user_named_type_projects_as_ref() {
         WireType::Ref(name) if name == "Project"
     ));
 }
+
+// Catches: an as_str arm emitting lowercase or a wrong verb (e.g. "Get"
+// instead of "GET"); these strings go on the wire as the HTTP method.
+#[test]
+fn http_method_as_str_is_uppercase_verb() {
+    assert_eq!(HttpMethod::Get.as_str(), "GET");
+    assert_eq!(HttpMethod::Post.as_str(), "POST");
+    assert_eq!(HttpMethod::Delete.as_str(), "DELETE");
+}
+
+// Catches: the default-method rule regressing so a Query stops being a
+// cacheable GET, or a Mutation/Server being mapped to GET instead of POST.
+#[test]
+fn endpoint_kind_default_method_query_is_get_others_post() {
+    assert_eq!(
+        ContractEndpointKind::Query.default_method(),
+        HttpMethod::Get
+    );
+    assert_eq!(
+        ContractEndpointKind::Mutation.default_method(),
+        HttpMethod::Post
+    );
+    assert_eq!(
+        ContractEndpointKind::Server.default_method(),
+        HttpMethod::Post
+    );
+}
