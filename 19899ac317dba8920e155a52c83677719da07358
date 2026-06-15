@@ -1,0 +1,9 @@
+feat(daemon): apply GUI-persisted routing priority as scorer default
+scale: ~15 lines across 1 files [S]
+
+- `crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs`:
+  - Read `routing_priority` user preference from the database at daemon startup.
+  - Set the `VOX_AUTO_ROUTING_PRIORITY` environment variable based on the retrieved preference, if present and not empty.
+  - Log the applied routing priority.
+
+--- audit: original='@ feat(daemon): apply GUI-persisted model-emphasis as the scorer default' | actual=15L across 1 files | derived=full ---
