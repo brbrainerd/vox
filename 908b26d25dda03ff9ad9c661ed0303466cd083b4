@@ -1,0 +1,25 @@
+feat(inference): Add Candle CUDA/Metal backends with CPU fallback
+scale: ~632 lines across 5 files [L]
+
+- `crates/vox-inference/src/backends/candle_cuda.rs`:
+    - Replaced the stub `CandleCudaBackend` struct with a full implementation.
+    - Added `CandleCudaBackend::new()` and `Default` implementation.
+    - Implemented `CandleCudaBackend::load_from_dir` to load models, attempting CUDA device 0 and falling back to CPU with a warning if CUDA is unavailable.
+    - Implemented the `Backend` trait for `CandleCudaBackend`, including `generate`, `unload_model`, and `backend_id`.
+- `crates/vox-inference/src/backends/candle_metal.rs`:
+    - Replaced the stub `CandleMetalBackend` struct with a full implementation.
+    - Added `CandleMetalBackend::new()` and `Default` implementation.
+    - Implemented `CandleMetalBackend::load_from_dir` to load models, attempting Metal device 0 and falling back to CPU with a warning if Metal is unavailable.
+    - Implemented the `Backend` trait for `CandleMetalBackend`, including `generate`, `unload_model`, and `backend_id`.
+- `crates/vox-inference/src/backends/candle_device.rs`:
+    - Added a new module `candle_device` to centralize shared model loading logic for Candle backends.
+    - Defined `LoadedState` struct to hold `QwenForward`, `Tokenizer`, and `eos` token.
+    - Implemented `load_from_dir_on_device` function to handle common model loading steps on a specified Candle `Device`.
+- `crates/vox-inference/src/backends/candle_cpu.rs`:
+    - Refactored `CandleCpuBackend::load_from_dir` to use the new `candle_device::load_from_dir_on_device` for shared loading logic.
+    - Removed redundant `LoadedState` definition and `QWEN_DEFAULT_EOS` constant, now handled by `candle_device`.
+    - Removed direct imports for `QwenForward`, `QwenWeights`, `HfTransformerLayout`, and `Path` as they are now handled by `candle_device`.
+- `crates/vox-inference/src/backends/mod.rs`:
+    - Exported the new `candle_device` module.
+
+--- audit: original='feat(inference): real CandleCuda + CandleMetal backends (CPU fallback when GPU absent)' | actual=632L across 5 files | derived=full ---
