@@ -1,0 +1,11 @@
+feat(examples): Add cli-tour examples for 100% subcommand coverage
+scale: ~189 lines across 6 files [M]
+
+- **examples/cli-tour/orchestration-and-meta.vox**: New file documenting 20 `vox` orchestration, authentication, and meta commands.
+- **examples/cli-tour/ai-and-data.vox**: New file documenting 19 `vox` AI, ML, and data commands.
+- **examples/cli-tour/build-and-project.vox**: New file documenting 19 `vox` build and project lifecycle commands.
+- **examples/cli-tour/deploy-and-share.vox**: New file documenting 11 `vox` deployment, sharing, and packaging commands.
+- **contracts/reports/arch/cr-d3/2026-05-22.json**: New report detailing 100% subcommand coverage (68/68 subcommands) for CR-D3, including a list of all covered subcommands.
+- **contracts/reports/evidence-ledger.v1.json**: Updated CR-D3 entry to reflect 100% coverage and removed "threshold not yet met" status, adding a trajectory note for the coverage increase.
+
+--- audit: original='feat(examples): CR-D3 — cli-tour examples, 11.8% → 100% subcommand coverage' | actual=189L across 6 files | derived=full ---
