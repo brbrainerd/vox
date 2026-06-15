@@ -1,0 +1,19 @@
+feat(skills): vendor 12 Apache-2.0 skills and integrate into discovery
+scale: ~28740 lines across 128 files [XL]
+
+- **assets/skills/:** Added 12 new Apache-2.0 licensed skills from `anthropics/skills` (algorithmic-art, brand-guidelines, canvas-design, claude-api, frontend-design, internal-comms, mcp-builder, skill-creator, slack-gif-creator, theme-factory, web-artifacts-builder, webapp-testing). This includes a large number of new files across these skill directories, such as `eval-viewer/viewer.html`, `claude-api/shared/model-migration.md`, `mcp-builder/reference/node_mcp_server.md`, and many other documentation, script, and asset files.
+- **assets/skills/SOURCES.toml:** Added a new file to record upstream repository, license, pin commit, and included/excluded lists for the vendored skills.
+- **NOTICE:** Updated with Apache-2.0 attribution for Anthropic, PBC.
+- **crates/vox-cli/src/commands/ci/agentskills_compliance.rs:** Extended the `agentskills-compliance` CI check to also walk `assets/skills/SKILL.md` files, increasing the count of checked skills from 9 to 21.
+- **vox_config::paths::skill_search_roots:** Modified to append `workspace_root/assets/skills` as the lowest-precedence skill discovery root, ensuring it is shadowed by existing interop roots.
+- **assets/skills/skill-creator/scripts/:** Added new Python scripts for skill evaluation and improvement: `aggregate_benchmark.py`, `generate_report.py`, `improve_description.py`, `package_skill.py`, `quick_validate.py`, `run_eval.py`, `run_loop.py`, and `utils.py`.
+- **assets/skills/skill-creator/eval-viewer/:** Added `generate_review.py` and `viewer.html` for skill evaluation review.
+- **assets/skills/mcp-builder/scripts/:** Added `evaluation.py` and `connections.py` for MCP server evaluation.
+- **assets/skills/web-artifacts-builder/scripts/:** Added `init-artifact.sh` and `bundle-artifact.sh`.
+- **assets/skills/webapp-testing/scripts/:** Added `with_server.py`.
+- **assets/skills/webapp-testing/examples/:** Added `element_discovery.py`, `console_logging.py`, and `static_html_automation.py`.
+- **assets/skills/internal-comms/examples/:** Added `company-newsletter.md`, `3p-updates.md`, and `faq-answers.md`.
+- **assets/skills/mcp-builder/scripts/:** Added `example_evaluation.xml`.
+- **assets/skills/theme-factory/themes/:** Added multiple theme definition files (e.g., `arctic-frost.md`, `botanical-garden.md`).
+
+--- audit: original='feat(skills): vendor 12 Apache-2.0 skills from anthropics/skills + wire as lowest-precedence discovery root' | actual=28740L across 128 files | derived=sampled ---
