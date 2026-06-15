@@ -1,0 +1,8 @@
+style(vox-gamify): reorder imports and apply rustfmt wrapping in discovery
+scale: ~21 lines across 3 files [S]
+
+- `crates/vox-gamify/tests/discovery_ledger_tests.rs`: Reordered `use` statements for `ledger` and `Recall`, and applied rustfmt wrapping to `vox_db::VoxDb::connect` calls and `ledger::due_action_ids` calls.
+- `crates/vox-gamify/src/discovery/rank.rs`: Applied rustfmt wrapping to the `rank` function call in a test.
+- `crates/vox-gamify/src/discovery/mod.rs`: Reordered `fsrs` imports.
+
+--- audit: original='style(vox-gamify): rustfmt import ordering + wrapping in discovery' | actual=21L across 3 files | derived=full ---
