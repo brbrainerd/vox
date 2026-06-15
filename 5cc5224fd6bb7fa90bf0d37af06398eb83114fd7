@@ -1,0 +1,16 @@
+refactor(arch): rename `vox-toestub` crate to `vox-code-audit`
+scale: ~264 lines across 86 files [L]
+
+- Renamed the `vox-toestub` crate to `vox-code-audit` across the entire codebase.
+- Updated `Cargo.toml` and `Cargo.lock` files to reflect the crate name change.
+- Modified `crates/vox-cli` to reference `vox-code-audit` instead of `vox-toestub` in various commands, including `ci`, `diagnostics/stub_check`, and `review/coderabbit`.
+- Updated `crates/vox-orchestrator` and `crates/vox-orchestrator-mcp` to use the new crate name.
+- Renamed `crates/vox-code-audit/src/bin/toestub.rs` to `crates/vox-code-audit/src/bin/debug_test.rs` and updated its contents.
+- Created a new `crates/vox-code-audit/src/bin/toestub.rs` with updated crate references.
+- Updated `crates/vox-code-audit/tests/gold_dataset.rs` to use `vox-code-audit` and adjusted its content.
+- Modified various configuration and contract files (e.g., `.github/workflows/ci.yml`, `contracts/reports/scaling-audit/rollup/INDEX.yaml`, `contracts/index.yaml`) to reflect the new crate name.
+- Adjusted references in `docs/src/architecture/layers.toml`.
+- Updated `crates/vox-bounded-fs/tests/workspace_guardrails.rs` to reflect the new crate name.
+- Removed all files from the old `crates/vox-code-audit` directory that were not part of the rename, indicating a potential prior move or refactor of content within the crate.
+
+--- audit: original='refactor(arch): rename vox-toestub → vox-code-audit (P-A1.1)' | actual=264L across 86 files | derived=full ---
