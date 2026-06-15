@@ -130,6 +130,7 @@ pub mod legacy;
 pub mod orchestrator_policy;
 /// Sensitivity classifier and privacy-level-aware routing (D8).
 pub mod privacy_classifier;
+pub mod process_util;
 /// SCIENTIA pre-registration gate — refuses campaigns without a signed prereg (§5.1).
 pub mod research_gate;
 /// Four-dimension risk scorer and HITL escalation matrix (D5 + D9).

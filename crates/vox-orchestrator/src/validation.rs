@@ -9,8 +9,8 @@ use std::path::PathBuf;
 use tower_lsp_server::ls_types::DiagnosticSeverity;
 use vox_code_audit::{Severity, ToestubConfig, ToestubEngine};
 
+use crate::process_util::quiet_command;
 use crate::types::{AgentTask, CompletionAttestation};
-use std::process::Command;
 
 /// Run TOESTUB validation on the files in a completed task's manifest.
 ///
@@ -160,7 +160,7 @@ pub fn post_task_validate(
     });
     if touches_rust {
         // Bounded gate: compile the workspace (fast vs full `cargo test` on every task).
-        let output = Command::new("cargo")
+        let output = quiet_command("cargo")
             .arg("check")
             .arg("--workspace")
             .output();

@@ -1,6 +1,8 @@
 //! Socrates task gate: evidence-weighted confidence against shared [`vox_orchestrator_types::socrates_policy`] thresholds.
 
 use serde::{Deserialize, Serialize};
+
+use crate::process_util::quiet_tokio_command;
 use vox_orchestrator_types::socrates_policy::{
     ConfidencePolicy, RiskBand, RiskDecision, SocratesResearchDecision,
 };
@@ -378,7 +380,7 @@ pub fn spawn_socrates_research_poller(orch: std::sync::Arc<crate::Orchestrator>)
                             .map(|p| p.join("Cargo.toml").exists())
                             .unwrap_or(false)
                         {
-                            let mut c = tokio::process::Command::new("cargo");
+                            let mut c = quiet_tokio_command("cargo");
                             c.arg("check").arg("--message-format=json");
                             if let Ok(out) = c.output().await {
                                 let lines: Vec<&str> = std::str::from_utf8(&out.stdout)

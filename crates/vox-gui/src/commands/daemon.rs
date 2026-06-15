@@ -10,7 +10,9 @@
 //! daemon is reachable, so tool calls, approvals, and the live streams all hit
 //! the same `ServerState`.
 
-use std::process::{Command, Stdio};
+use std::process::Stdio;
+
+use super::process_util::quiet_command;
 
 use tokio::sync::OnceCell;
 use vox_cli_core::daemon_ipc::process_supervision::resolve_managed_binary_path;
@@ -58,7 +60,7 @@ impl PersistentDaemon {
                 }
 
                 // Spawn a fresh daemon and keep the child alive.
-                let child = Command::new(resolve_managed_binary_path("vox-orchestrator-d"))
+                let child = quiet_command(resolve_managed_binary_path("vox-orchestrator-d"))
                     .env("VOX_ORCHESTRATOR_DAEMON_SOCKET", &addr)
                     .stdin(Stdio::null())
                     .stdout(Stdio::null())
