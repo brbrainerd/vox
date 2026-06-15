@@ -1,0 +1,12 @@
+feat(gui): user-mediated duplicate-task confirmation and prune dead session tabs
+scale: ~319 lines across 7 files [L]
+
+- `crates/vox-gui/ui/src/App.tsx`: Implemented user-mediated duplicate task confirmation. The `submit_orchestrator_task` IPC call now sends `allow_duplicate=false` on the first attempt. If the daemon returns a `duplicate_of` response with a null `task_id`, the optimistic streaming bubble is retracted, and the user is prompted to confirm a resubmission with `allow_duplicate=true`.
+- `crates/vox-gui/ui/src/lib/sessionChatStore.ts`: Added a `failRun` action to `SessionChatAction` and updated `sessionChatReducer` to handle it. This action passes through to the existing `chatReducer`'s `failRun` action, allowing a refused submit to cleanly fail its optimistic bubble.
+- `crates/vox-gui/ui/src/lib/sessionChatStore.test.ts`: Added a test case for the `failRun` action, verifying that it correctly marks an optimistic assistant bubble as failed when a duplicate is refused.
+- `crates/vox-gui/ui/src/types/tauri.ts`: Added `duplicate_of?: string | null` to the `SubmitTaskResult` interface to surface the ID of an existing task when the daemon refuses a near-duplicate.
+- `crates/vox-gui/ui/src/components/layout/SessionTabs.tsx`: Deleted this file, as `SessionTabs.tsx` was superseded by the DB-backed session system.
+- `crates/vox-gui/ui/src/lib/sessions.ts`: Deleted this file, as `lib/sessions.ts` was superseded by the DB-backed session system.
+- `crates/vox-gui/ui/src/lib/sessions.test.ts`: Deleted this file, as its corresponding `sessions.ts` was removed.
+
+--- audit: original='feat(gui): user-mediated duplicate-task confirm (J2) + prune dead session tabs' | actual=319L across 7 files | derived=full ---
