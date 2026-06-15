@@ -1,0 +1,8 @@
+feat(audit): Add `weak_test` gate and grandfather baseline
+scale: ~6825 lines across 3 files [XL]
+
+- `crates/vox-audit/src/core_gates.rs`: Add `run_weak_test_gate` function to audit for "weak_test" findings across the workspace, including test trees. This gate uses a suppression baseline to only fail on new findings.
+- `crates/vox-audit/tests/regen_weak_test_baseline.rs`: Add a new ignored test `regenerate_weak_test_baseline` to generate or refresh the `weak-test-baseline.v1.json` file.
+- `contracts/toestub/weak-test-baseline.v1.json`: Add a new baseline file containing 958 grandfathered `weak_test` findings, suppressing them for the `run_weak_test_gate`.
+
+--- audit: original='feat(audit): run_weak_test_gate + grandfather baseline (weak_test gate activation)' | actual=6825L across 3 files | derived=full ---
