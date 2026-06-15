@@ -1,0 +1,21 @@
+feat(test): migrate assert-contains to insta snapshots; add CR-E1 bench + golden @test runner
+scale: ~1433 lines across 23 files [XL]
+
+- **Snapshot migration**: Replaced 341 `assert!(output.contains(...))` assertions with 71 `insta::assert_snapshot!` calls in 10 test files (`codegen_rust_test.rs`, `deploy_test.rs`, `reactive_smoke_test.rs`, `web_ir_lower_emit_test.rs`, `state_machine_integration_test.rs`, `axum_emit_contract_test.rs`, `pipeline/includes/{include_01,02,03}.rs`, `parity_contracts_test.rs`, `greaterfool_parity_gates_test.rs`) to pin full generated output.
+- **CR-E1 benchmark gate**:
+    - Added `crates/vox-compiler/benches/compiler_pipeline.rs` with Criterion benchmarks for compiler pipeline stages (lex/parse/lower/typeck/codegen) and full E2E compilation.
+    - Added `crates/vox-compiler/benches/golden_examples.rs` with benchmarks over all 43 golden `.vox` files.
+    - Added `.github/workflows/bench-nightly.yml` for daily benchmark runs, failing if `full_pipeline/e2e/hello` exceeds 50 ms and uploading Criterion HTML reports.
+    - Updated `crates/vox-compiler/Cargo.toml` to include `criterion` and `insta` dependencies for benchmarking.
+    - Updated `.github/workflows/ci.yml` to include `cargo bench --no-run` smoke test on pushes.
+- **Golden @test runner (CR-D3 gate)**:
+    - Added `crates/vox-integration-tests/tests/golden_vox_test_runner.rs` to discover and run `@test`-decorated functions in golden `.vox` files using the `eval::Interpreter`, failing on `AssertionFailed`/`Panic`.
+    - Updated `crates/vox-integration-tests/Cargo.toml` to include `vox-compiler` dependency for the test runner.
+- **vox-test-harness codegen helpers**:
+    - Added `crates/vox-test-harness/src/pipeline/codegen.rs` with `lower_str`, `codegen_ts_str`, `codegen_ts_file` helpers.
+    - Modified `crates/vox-test-harness/src/pipeline/mod.rs` to export the new `codegen` module.
+    - Corrected `CodegenOutput` path to `codegen_ts::emitter::CodegenOutput`.
+- **Per-crate coverage floors**: Added per-crate coverage floors for 10 Core-10 frozen crates in `.config/coverage-gates.toml`.
+- Updated `Cargo.lock` to reflect dependency changes.
+
+--- audit: original='test(suite): migrate 376→35 assert-contains to insta snapshots; add CR-E1 bench + golden @test runner' | actual=1433L across 23 files | derived=full ---
