@@ -1,0 +1,12 @@
+refactor: Standardize module re-exports and improve error handling
+scale: ~214 lines across 55 files [L]
+
+- `vox-codegen-rust`: Moved `generate` function and `CodegenOutput` struct from `lib.rs` to `emit.rs` and re-exported them from `lib.rs`. Also, improved `emit_table_struct` to handle `_id` retrieval more robustly.
+- `vox-lsp`: Enhanced error handling for parser diagnostics by accurately mapping `ParseError` spans to LSP `Range` objects and providing the error's string representation.
+- `vox-integration-tests`: Updated `pipeline.rs` and `workflow_integration.rs` to use the new direct `vox_hir::lower_module` re-export instead of `vox_hir::lower::lower_module`.
+- `vox-parser`: Re-exported `ParseError` and `parse` directly from `lib.rs`.
+- `vox-cli`: Updated `build.rs` to use the new direct `vox_hir::lower_module` re-export.
+- `vox-codegen-ts`: Modified a comment in `emitter.rs` for generated components.
+- `vox-hir`: Re-exported `lower_module` directly from `lib.rs`.
+
+--- audit: original='Standardize module re-exports across parser, hir, typeck, and codegen' | actual=214L across 55 files | derived=full ---
