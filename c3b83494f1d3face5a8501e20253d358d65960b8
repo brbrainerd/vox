@@ -1,0 +1,13 @@
+docs(interop): Add tutorial for using React components from Vox
+scale: ~111 lines across 1 files [M]
+
+- Add `docs/src/tutorials/use-a-react-component-from-vox.md` detailing how to import and render external React components or hooks within Vox.
+- Document supported import forms: default, named, aliased, and namespace imports.
+- Explain how the Vox compiler emits ES imports and JSX tags for React components.
+- Provide guidance on auto-injected CSS and provider usage.
+- Address React deduplication and opaque/TypeScript authority typing.
+- Note the limitation regarding namespace-member-tag usage.
+- Include examples matching patterns covered by S1/S2/S7 tests, with `vox:skip` for illustrative and emitted output blocks.
+- Add frontmatter with title, description, and category.
+
+--- audit: original='docs(interop): S8 — tutorial "Use a React component from Vox"' | actual=111L across 1 files | derived=full ---
