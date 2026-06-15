@@ -1,0 +1,11 @@
+docs(arch): document session-17 additions to LLM-target audit plan
+scale: ~9 lines across 1 files [XS]
+
+- docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md:
+  - Added a "2026-05-25 session-17 additions" section detailing:
+    - `minimal_repro` implementation on 11 new detectors, bringing the total to 18 of 52.
+    - `vox check --explain <id>` now displays the `minimal_repro` snippet.
+    - `vox repair` now incorporates TOESTUB lint findings (with `suggestion` and `minimal_repro` snippets) into the LLM prompt under `#[cfg(feature = "stub-check")]`.
+  - Updated the description of the `vox repair` MVP to remove "→ re-check. Max 3 attempts." from the loop explanation.
+
+--- audit: original='docs(arch): session-17 breadcrumb — minimal_repro expansion, repair lint enrichment' | actual=9L across 1 files | derived=full ---
