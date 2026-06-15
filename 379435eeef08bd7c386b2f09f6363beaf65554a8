@@ -1,0 +1,30 @@
+feat(release, oratio): ship Mens/Schola plugins as separate archives and harden vox-oratio default features
+scale: ~158 lines across 8 files [M]
+
+- `crates/vox-cli/src/commands/ci/release_build.rs`:
+    - Added `Mens`, `Schola`, and `All` variants to `ReleasePackage` enum.
+    - Modified `run` function to conditionally build and package `vox-mens` and `vox-schola` binaries based on the `ReleasePackage` selection.
+    - Introduced `plugin_executable_name` helper function.
+    - Added unit tests for new release package variants.
+- `.github/workflows/release-binaries.yml`:
+    - Changed `release-build` command to `--package all` to build all artifacts (vox, bootstrap, mens, schola).
+    - Added smoke tests for `vox-mens` and `vox-schola` packaged binaries on Unix and Windows.
+    - Updated artifact naming in smoke tests to include `github.ref_name`.
+- `docs/src/reference/cli.md`:
+    - Updated installation instructions to reflect separate plugin archives.
+    - Added a new "Install tiers" section detailing each `ReleasePackage` variant, its produced artifacts, and use case.
+- `README.md`:
+    - Added a new "Optional plugins (lean install)" section explaining `vox-mens` and `vox-schola` as separate downloadable plugins.
+    - Provided a table outlining each plugin, its subcommands, and reasons for being optional.
+    - Described how to install and use plugin archives from the GitHub Releases page.
+- `crates/vox-oratio/Cargo.toml`:
+    - Changed `default` features to `[]` to prevent accidental inclusion of heavy ML dependencies.
+    - Added comments explaining the rationale for this change.
+- `crates/vox-mens/Cargo.toml`:
+    - Explicitly opted into `stt-candle` and `compiler-rerank` features for `vox-oratio` dependency.
+- `crates/vox-orchestrator/Cargo.toml`:
+    - Explicitly opted into `stt-candle` and `compiler-rerank` features for `vox-oratio` dependency.
+- `crates/vox-tools/Cargo.toml`:
+    - Explicitly opted into `stt-candle` feature for `vox-oratio` dependency.
+
+--- audit: original='feat(release, vox-oratio): ship Mens/Schola plugins as separate archives + harden oratio default-features' | actual=158L across 8 files | derived=full ---
