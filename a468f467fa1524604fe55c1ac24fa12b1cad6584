@@ -1,0 +1,8 @@
+fix(tests): update axum snapshot and register new example roots
+scale: ~73 lines across 3 files [M]
+
+- `crates/vox-compiler/tests/snapshots/axum_emit_contract_test__mutation_with_schema_main_rs_emit.snap`: Update snapshot to reflect `vox_reqwest_defaults` renamed to `vox_http_client` and the removal of `VOX_RUN_WORKFLOW` and `VOX_WORKFLOW_ARGS` environment variable handling, aligning with ADR-041 VoxDb initialization.
+- `examples/examples.ssot.v1.yaml`: Add `examples/compile-suite` to `sandbox_roots` and introduce a new `aspirational_roots` section with `examples/aspirational`.
+- `crates/vox-compiler/tests/examples_ssot_test.rs`: Add `aspirational_roots` field to `ExamplesSsot` struct and modify `examples_tree_has_no_orphan_vox_files` to ignore files under `aspirational_roots`.
+
+--- audit: original='fix(tests): accept axum snapshot + register aspirational/compile-suite in SSOT' | actual=73L across 3 files | derived=full ---
