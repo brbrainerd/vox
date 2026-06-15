@@ -1,0 +1,7 @@
+ci(mutation): make `cargo-mutants` blocking for `vox-compiler` and `vox-codegen`
+scale: ~20 lines across 2 files [S]
+
+- `.github/workflows/mutation-pr.yml`: Removed `continue-on-error: true` for `cargo-mutants` jobs targeting `vox-compiler` and `vox-codegen`, making mutation test failures block PRs. Added comments explaining the rationale and directing to `.cargo/mutants.toml` for exclusions.
+- `.cargo/mutants.toml`: Added `exclude_re` patterns to ignore mutations within `impl fmt::Display for` and `impl fmt::Debug for` blocks, documenting that these are trivial and not caught by tests. Updated the introductory comment to reflect the blocking nature of mutation tests and the purpose of this file for exclusions.
+
+--- audit: original='feat(quality): mutation tests are now blocking on vox-compiler + vox-codegen' | actual=20L across 2 files | derived=full ---
