@@ -1,0 +1,17 @@
+feat(dashboard): wire mesh routes to live orchestrator state
+scale: ~991 lines across 12 files [L]
+
+- **crates/vox-orchestrator/src/mesh.rs**: Create `MeshRegistry` for authoritative in-memory view of connected nodes, including `MeshNodeStatus`, `MeshNodeKind`, `MeshNode`, `MeshEdge`, `MeshTopologySnapshot`, and `MeshRegistry` with methods for upserting, removing, and snapshotting nodes.
+- **crates/vox-dashboard/src/api/mesh.rs**: Refactor mesh API to remove static fixture data, update route comments, and delegate live topology handlers to `mesh_topology.rs`.
+- **crates/vox-dashboard/tests/mesh_phase4_routes.rs**: Add integration tests for live mesh routes (`/api/v2/mesh/nodes`, `/api/v2/mesh/summary`, `/api/v2/mesh/edges`) to verify they return live state from an empty registry instead of fixtures.
+- **crates/vox-dashboard/src/api/mesh_topology.rs**: Introduce `MeshState` struct to hold `MeshRegistry` and `EventBus`, and implement live `get_summary`, `get_nodes`, and `get_edges` handlers for the dashboard's mesh REST surface.
+- **crates/vox-orchestrator/src/events.rs**: Add `MeshNodeBudget` and `MeshActionCommitted` variants to `AgentEventKind`, and define `MeshAction` enum for destructive mesh actions (Kill, Pause, Drain, Replay).
+- **crates/vox-dashboard/src/lib.rs**: Add `test_support` module with `build_mesh_state` and `build_router_with_empty_mesh` helpers for integration testing.
+- **crates/vox-dashboard/app/src/lib/transport.vox**: Add `MeshTopologyStream` VUV component to subscribe to `MeshTopologyChanged`, `MeshNodeBudget`, and `MeshActionCommitted` WebSocket events for live topology updates.
+- **crates/vox-dashboard/src/router.rs**: Update dashboard router to include `mesh_router` with the new `MeshState`.
+- **crates/vox-orchestrator/src/lib.rs**: Export `mesh` module.
+- **crates/vox-dashboard/Cargo.toml**: Add `vox-orchestrator` as a dependency.
+- **crates/vox-dashboard/src/api/mod.rs**: Export `mesh_topology` module.
+- **crates/vox-orchestrator/Cargo.toml**: Remove `vox-dashboard` as an optional dependency.
+
+--- audit: original='feat(dashboard): wire mesh routes to live orchestrator state (P4-T1)' | actual=991L across 12 files | derived=full ---
