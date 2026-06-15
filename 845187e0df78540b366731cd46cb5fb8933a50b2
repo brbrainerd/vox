@@ -1,0 +1,9 @@
+feat(vox-gui/scientia): improve ScientiaDashboard accessibility
+scale: ~58 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/ScientiaDashboard.tsx`:
+    - Added `type="button"` to the Refresh button for semantic correctness.
+    - Wrapped the snapshot display in a `div` with `aria-live="polite"` to announce updates to assistive technologies.
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/ScientiaDashboard.test.tsx`: Added a new test file with a test case to verify the `type="button"` attribute on the Refresh button.
+
+--- audit: original='feat(vox-gui/wave4): ScientiaDashboard a11y + checklist (Wave 4)' | actual=58L across 2 files | derived=full ---
