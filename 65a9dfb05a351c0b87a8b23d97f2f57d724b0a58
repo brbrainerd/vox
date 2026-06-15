@@ -1,0 +1,9 @@
+feat(hopper): introduce mesh adapter stub for cross-daemon replication
+scale: ~83 lines across 4 files [M]
+
+- `crates/vox-orchestrator/src/hopper/mesh_adapter.rs`: Add a new module defining `HopperOpSync` enum for hopper replication operations and `MIN_INTAKE_TRUST_TIER` constant. This module serves as a stub for the mesh-replicated hopper adapter.
+- `tests/hopper_mesh_replication.vox`: Add a new acceptance test file documenting the P6-T9 two-daemon convergence contract, noting that the actual protocol is exercised by a Rust integration test.
+- `crates/vox-orchestrator/src/a2a/dispatch/mesh.rs`: Update comments to indicate that `HopperOpSync` messages are routed through the federation envelope layer.
+- `crates/vox-orchestrator/src/hopper/mod.rs`: Add `mesh_adapter` module to the hopper module and re-export `HopperOpSync` and `MIN_INTAKE_TRUST_TIER`.
+
+--- audit: original='feat(orchestrator): P6-T9 HopperOpSync mesh adapter stub (Hp-T1+T5+T8 mesh adapter — completes hopper Option C)' | actual=83L across 4 files | derived=full ---
