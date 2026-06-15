@@ -1,0 +1,6 @@
+ci(ssot-drift): include catalog-derived docs freshness check
+scale: ~4 lines across 1 files [XS]
+
+- `crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs`: Added a call to `generate_plugin_catalog_docs::run` with `check=true` within the `run_ssot_drift` function to ensure catalog-derived reference documentation (e.g., `plugin-catalog.generated.md`, `distribution-bundles.generated.md`) is up-to-date when `catalog.toml` changes. This prevents drift where `catalog.toml` edits could pass `ci ssot-drift` locally while leaving generated docs stale, a problem previously observed in PR #218.
+
+--- audit: original='ci(ssot-drift): include catalog-docs freshness check' | actual=4L across 1 files | derived=full ---
