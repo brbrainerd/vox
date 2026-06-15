@@ -1,0 +1,16 @@
+feat(vox-cli): implement `ci pre-push` command with configurable steps
+scale: ~128 lines across 2 files [M]
+
+- `crates/vox-cli/src/commands/ci/pre_push.rs`:
+    - Replaced placeholder `bail!("pre-push: not yet implemented")` with the full implementation of the `pre-push` command.
+    - Added logic to execute a series of CI steps, including `fmt`, `line-endings`, `ssot-drift`, `doc-inventory verify`, `clippy`, `toestub-scoped`, and `nextest`.
+    - Introduced `Step` struct to define a label and a run function for each step.
+    - Implemented `build_steps` function to dynamically construct the list of steps based on `PrePushOpts` (e.g., `quick` and `full` flags).
+    - Added `dry_run` functionality to list steps without executing them.
+    - Included timing for individual steps and the total execution.
+    - Added error handling for failed steps.
+    - Defined helper functions (`step_fmt`, `step_line_endings`, `step_ssot_drift`, `step_doc_inventory`, `step_clippy`, `step_toestub_changed`, `step_nextest`) to encapsulate the execution of each CI check.
+    - Introduced `cargo()` helper for spawning `cargo` commands.
+- `crates/vox-cli/tests/ci_pre_push.rs`: Added a new smoke test for `vox ci pre-push --dry-run --quick` to verify that the expected steps are listed without execution.
+
+--- audit: original='feat(vox-cli): implement ci pre-push aggregate (fmt/lints/ssot/toestub/nextest)' | actual=128L across 2 files | derived=full ---
