@@ -1,0 +1,8 @@
+feat(vox-cli): Sort `vox repair` files by import depth for better multi-file repair
+scale: ~26 lines across 1 files [S]
+
+- `crates/vox-cli/src/commands/repair.rs`:
+    - Modified `discover_vox_files` to sort `.vox` files by import count (fewer imports first) instead of lexicographically. This prioritizes files with fewer dependencies, allowing their repairs to stabilize before dependent files are processed.
+    - Added a new private helper function `import_count` to textually count `import` lines in a file, serving as a proxy for dependency depth.
+
+--- audit: original='feat(vox-cli): P4.2 partial — vox repair --project sorts by import depth' | actual=26L across 1 files | derived=full ---
