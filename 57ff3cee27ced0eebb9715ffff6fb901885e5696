@@ -1,0 +1,6 @@
+ci(cargo): remove `scratch/test_block_on` from workspace members
+scale: ~2 lines across 1 files [XS]
+
+- `Cargo.toml`: Removed `scratch/test_block_on` from the `members` array in the workspace configuration.
+
+--- audit: original='ci: remove gitignored scratch path from Cargo.toml workspace members' | actual=2L across 1 files | derived=full ---
