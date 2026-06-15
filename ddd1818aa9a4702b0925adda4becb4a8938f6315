@@ -1,0 +1,10 @@
+chore(gitignore): update rules to ignore build artifacts, logs, and data files
+scale: ~22 lines across 1 files [S]
+
+- Add `**/node_modules/` and `**/out/` to ignore Node.js build artifacts.
+- Add `test_output*.txt`, `bundle_*.txt`, and `*.log` to ignore test and scratch output.
+- Add `populi/data/*.jsonl`, `.vox-research-data/`, `.vox/cache/`, `*.db-wal`, and `*.db-shm` to ignore Populi/AI model data and cache files.
+- Remove `bundle_err*.txt`, `bundle_out*.txt`, and `vox_analyze.log` as they are now covered by more general rules.
+- Add `crates/*/target/` and `crates/*/target_*/` to ignore Rust build targets within crates.
+
+--- audit: original='chore: tighten gitignore rules to prevent compilation sprawl' | actual=22L across 1 files | derived=full ---
