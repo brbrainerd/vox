@@ -1,0 +1,4 @@
+refactor(vox-effort-
+scale: ~35 lines across 5 files [S]
+
+--- audit: original='style(vox-effort-route): clear clippy warnings on S2 code' | actual=35L across 5 files | derived=full ---
