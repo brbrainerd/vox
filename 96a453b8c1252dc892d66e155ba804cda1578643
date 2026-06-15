@@ -1,0 +1,7 @@
+feat(orchestrator): gate AES-GCM behind `populi-transport` feature
+scale: ~5 lines across 2 files [S]
+
+- `crates/vox-orchestrator/src/a2a/mod.rs`: Conditionally compile the `jwe` module based on the `populi-transport` feature.
+- `crates/vox-orchestrator/Cargo.toml`: Make the `aes-gcm` dependency optional and add it as a dependency for the `populi-transport` feature.
+
+--- audit: original='feat(orchestrator): gate aes-gcm behind populi-transport feature' | actual=5L across 2 files | derived=full ---
