@@ -1,0 +1,8 @@
+docs(superpowers): add telemetry Phase B, C, and D implementation plans
+scale: ~2358 lines across 3 files [XL]
+
+- `docs/superpowers/plans/2026-05-09-telemetry-phase-b.md`: Add plan for Telemetry Phase B, focusing on persisting `model_call_event` with split cache tokens, latency, cost, and error fields, and wiring `init_telemetry_sinks` to the workspace DB.
+- `docs/superpowers/plans/2026-05-09-telemetry-phase-c.md`: Add plan for Telemetry Phase C, detailing span propagation across A2A envelopes, MCP dispatch, and LLM calls, using `TRACE_CTX` for `parent_task_id`/`trace_id`/`span_depth`, and emitting `task_root_summary` with aggregated child totals.
+- `docs/superpowers/plans/2026-05-09-telemetry-phase-d.md`: Add plan for Telemetry Phase D, covering the `VOX_TELEMETRY` master switch, `build_summary` mirroring, `error_event` at retry sites, per-task aggregator, and `vox telemetry doctor` subcommand.
+
+--- audit: original='docs(plans): add telemetry Phase B/C/D implementation plans' | actual=2358L across 3 files | derived=full ---
