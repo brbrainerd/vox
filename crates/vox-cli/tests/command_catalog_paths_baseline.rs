@@ -49,7 +49,8 @@ fn command_catalog_paths_match_baseline() {
     let expected = fs::read_to_string(&fixture)
         .unwrap_or_else(|e| panic!("missing {}: {e}", fixture.display()));
     assert_eq!(
-        current, expected,
-        "command catalog paths changed; review diff and run UPDATE_CLI_CATALOG_BASELINE=1 if intentional"
+        current.replace("\r\n", "\n"),
+        expected.replace("\r\n", "\n"),
+        "command-catalog paths baseline drifted (newline-normalized compare)"
     );
 }

@@ -180,3 +180,24 @@ fn ml_workflow_grammar_drift_and_eval_stay_native() {
         "do not use inline Python in ml_data_extraction.yml; use Vox/Rust CLI output"
     );
 }
+
+#[test]
+fn cross_platform_gate_is_required_three_os_matrix() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/cross-platform-check.yml"
+    ));
+    // Must run on PRs and merge-queue batches, not only weekly cron.
+    assert!(yml.contains("pull_request:"), "cross-platform gate must trigger on pull_request");
+    assert!(yml.contains("merge_group:"), "cross-platform gate must trigger on merge_group");
+    // All three target OSes must be present.
+    assert!(yml.contains("windows-latest"), "must cover Windows");
+    assert!(yml.contains("macos-latest"), "must cover macOS");
+    assert!(yml.contains("ubuntu-latest"), "must cover Ubuntu (gate name claims cross-platform)");
+    // Compilation must be proven on every PR (cheap `cargo check`).
+    assert!(yml.contains("cargo check --workspace"), "per-PR depth must `cargo check --workspace`");
+    // Expensive depth (clippy + full nextest) deferred to merge_group to bound hosted-runner cost.
+    assert!(yml.contains("clippy"), "must run clippy -D warnings (merge_group leg)");
+    assert!(yml.contains("nextest"), "must run nextest");
+    assert!(yml.contains("github.event_name == 'merge_group'"), "expensive legs must be merge_group-gated");
+}
