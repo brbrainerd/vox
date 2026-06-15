@@ -96,18 +96,28 @@ impl CircuitBreakerConfig {
     /// Unspecified keys retain their default. SSOT: `contracts/orchestration/circuit-breaker.v1.yaml`.
     pub fn from_contract_str(yaml: &str) -> Result<Self, serde_yaml::Error> {
         #[derive(serde::Deserialize, Default)]
-        struct Overlay {
-            no_progress_threshold: Option<u32>,
-            same_error_threshold: Option<u32>,
-            tool_thrash_threshold: Option<u32>,
-            ngram_overlap_threshold: Option<f64>,
+        struct TripThresholds {
+            no_progress_loops: Option<u32>,
+            same_error_loops: Option<u32>,
+            tool_thrash_count: Option<u32>,
+            ngram_overlap: Option<f64>,
             semantic_drift_sigma: Option<f64>,
-            caution_no_progress: Option<u32>,
-            caution_same_error: Option<u32>,
-            caution_tool_thrash: Option<u32>,
-            warning_no_progress: Option<u32>,
-            warning_same_error: Option<u32>,
-            warning_tool_thrash: Option<u32>,
+        }
+        #[derive(serde::Deserialize, Default)]
+        struct AlarmLevel {
+            no_progress_loops: Option<u32>,
+            same_error_loops: Option<u32>,
+            tool_thrash_count: Option<u32>,
+        }
+        #[derive(serde::Deserialize, Default)]
+        struct GraduatedAlarms {
+            caution: Option<AlarmLevel>,
+            warning: Option<AlarmLevel>,
+        }
+        #[derive(serde::Deserialize, Default)]
+        struct Overlay {
+            trip_thresholds: Option<TripThresholds>,
+            graduated_alarms: Option<GraduatedAlarms>,
             replan_limit: Option<u32>,
         }
         let o: Overlay = if yaml.trim().is_empty() {
@@ -116,38 +126,46 @@ impl CircuitBreakerConfig {
             serde_yaml::from_str(yaml)?
         };
         let mut c = Self::default();
-        if let Some(v) = o.no_progress_threshold {
-            c.no_progress_threshold = v;
+        if let Some(t) = o.trip_thresholds {
+            if let Some(v) = t.no_progress_loops {
+                c.no_progress_threshold = v;
+            }
+            if let Some(v) = t.same_error_loops {
+                c.same_error_threshold = v;
+            }
+            if let Some(v) = t.tool_thrash_count {
+                c.tool_thrash_threshold = v;
+            }
+            if let Some(v) = t.ngram_overlap {
+                c.ngram_overlap_threshold = v;
+            }
+            if let Some(v) = t.semantic_drift_sigma {
+                c.semantic_drift_sigma = v;
+            }
         }
-        if let Some(v) = o.same_error_threshold {
-            c.same_error_threshold = v;
-        }
-        if let Some(v) = o.tool_thrash_threshold {
-            c.tool_thrash_threshold = v;
-        }
-        if let Some(v) = o.ngram_overlap_threshold {
-            c.ngram_overlap_threshold = v;
-        }
-        if let Some(v) = o.semantic_drift_sigma {
-            c.semantic_drift_sigma = v;
-        }
-        if let Some(v) = o.caution_no_progress {
-            c.caution_no_progress = v;
-        }
-        if let Some(v) = o.caution_same_error {
-            c.caution_same_error = v;
-        }
-        if let Some(v) = o.caution_tool_thrash {
-            c.caution_tool_thrash = v;
-        }
-        if let Some(v) = o.warning_no_progress {
-            c.warning_no_progress = v;
-        }
-        if let Some(v) = o.warning_same_error {
-            c.warning_same_error = v;
-        }
-        if let Some(v) = o.warning_tool_thrash {
-            c.warning_tool_thrash = v;
+        if let Some(g) = o.graduated_alarms {
+            if let Some(caution) = g.caution {
+                if let Some(v) = caution.no_progress_loops {
+                    c.caution_no_progress = v;
+                }
+                if let Some(v) = caution.same_error_loops {
+                    c.caution_same_error = v;
+                }
+                if let Some(v) = caution.tool_thrash_count {
+                    c.caution_tool_thrash = v;
+                }
+            }
+            if let Some(warning) = g.warning {
+                if let Some(v) = warning.no_progress_loops {
+                    c.warning_no_progress = v;
+                }
+                if let Some(v) = warning.same_error_loops {
+                    c.warning_same_error = v;
+                }
+                if let Some(v) = warning.tool_thrash_count {
+                    c.warning_tool_thrash = v;
+                }
+            }
         }
         if let Some(v) = o.replan_limit {
             c.replan_limit = v;
@@ -286,14 +304,45 @@ mod tests {
     #[test]
     fn from_contract_str_overrides_defaults() {
         let yaml = r#"
-no_progress_threshold: 7
-same_error_threshold: 9
+trip_thresholds:
+  no_progress_loops: 7
+  same_error_loops: 9
+graduated_alarms:
+  warning:
+    tool_thrash_count: 20
 "#;
         let cfg = CircuitBreakerConfig::from_contract_str(yaml).expect("parse");
         assert_eq!(cfg.no_progress_threshold, 7);
         assert_eq!(cfg.same_error_threshold, 9);
+        assert_eq!(cfg.warning_tool_thrash, 20);
+        // unspecified keys keep their default:
         assert_eq!(cfg.tool_thrash_threshold, 15);
         assert_eq!(cfg.replan_limit, 3);
+    }
+
+    #[test]
+    fn real_contract_file_loads_and_matches_default() {
+        // The shipped contract mirrors Default; loading it must reproduce Default
+        // exactly, proving the nested schema is actually consumed (not ignored).
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../contracts/orchestration/circuit-breaker.v1.yaml");
+        let from_file = CircuitBreakerConfig::from_contract_file(&path);
+        let def = CircuitBreakerConfig::default();
+        assert_eq!(from_file.no_progress_threshold, def.no_progress_threshold);
+        assert_eq!(from_file.same_error_threshold, def.same_error_threshold);
+        assert_eq!(from_file.tool_thrash_threshold, def.tool_thrash_threshold);
+        assert_eq!(
+            from_file.ngram_overlap_threshold,
+            def.ngram_overlap_threshold
+        );
+        assert_eq!(from_file.semantic_drift_sigma, def.semantic_drift_sigma);
+        assert_eq!(from_file.caution_no_progress, def.caution_no_progress);
+        assert_eq!(from_file.caution_same_error, def.caution_same_error);
+        assert_eq!(from_file.caution_tool_thrash, def.caution_tool_thrash);
+        assert_eq!(from_file.warning_no_progress, def.warning_no_progress);
+        assert_eq!(from_file.warning_same_error, def.warning_same_error);
+        assert_eq!(from_file.warning_tool_thrash, def.warning_tool_thrash);
+        assert_eq!(from_file.replan_limit, def.replan_limit);
     }
 
     #[test]
