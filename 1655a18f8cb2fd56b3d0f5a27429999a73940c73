@@ -1,0 +1,7 @@
+feat(cli): implement token-based codemod rewrite for `vox migrate names`
+scale: ~202 lines across 4 files [M]
+
+- `crates/vox-cli`: Implemented token-based identifier rewriting for `vox migrate names` using the Vox lexer. This replaces a pass-through stub with a span-preserving rewrite that substitutes `Ident` and `TypeIdent` tokens from a rename registry while preserving all other token kinds, comments, and inter-token gaps. Added new unit tests for this functionality, covering primitive call sites, string literal preservation, and substring identifier non-rewriting.
+- `crates/vox-compiler`: Introduced `lexer::lex_preserving` to produce a vector of spanned tokens, including comments, for source rewriting tools. This new function is distinct from `lexer::lex` which strips comments.
+
+--- audit: original='feat(cli): implement token-based codemod rewrite (VUV-9 task 6)' | actual=202L across 4 files | derived=full ---
