@@ -959,6 +959,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.config-registry-parity
+  domain: ci-gate
+  title: Ci Config-registry-parity
+  group: CI Gates / config
+  description: Every operational VOX_* env knob read in code must be in the config registry.
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.config-registry-parity
+    detail: vox ci config-registry-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.contracts-index
   domain: ci-gate
   title: Ci Contracts-index

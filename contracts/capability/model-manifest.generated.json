@@ -378,6 +378,17 @@
       "title": "Ci Config-hygiene"
     },
     {
+      "capability_id": "cli.ci.config-registry-parity",
+      "cli_path": [
+        "ci",
+        "config-registry-parity"
+      ],
+      "curated": true,
+      "description_model": "Every operational VOX_* env knob read in code must be in the config registry.",
+      "implicit": false,
+      "title": "Ci Config-registry-parity"
+    },
+    {
       "capability_id": "cli.ci.contracts-index",
       "cli_path": [
         "ci",

@@ -418,6 +418,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - config-registry-parity
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: commands::ci::config_registry_parity
+- surface: vox-cli
+  path:
+  - ci
   - contracts-index
   status: active
   latin_ns: null

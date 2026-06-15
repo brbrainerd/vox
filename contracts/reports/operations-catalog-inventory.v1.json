@@ -1,8 +1,8 @@
 {
-  "catalog_operations": 551,
+  "catalog_operations": 552,
   "paired_operations": 11,
   "mcp_only_operations": 272,
-  "cli_only_operations": 268,
+  "cli_only_operations": 269,
   "mcp_tool_count": 283,
-  "cli_path_count": 279
+  "cli_path_count": 280
 }
