@@ -1,0 +1,8 @@
+fix(policy): Update policy registry, command catalog, and CR-L gate test
+scale: ~42 lines across 3 files [S]
+
+- `contracts/policy/policy-registry.v1.yaml`: Added two new policy definitions: `audit-check/criteria-format` and `crl-gate/behavioral-goldens`. This increases the total number of policies in the registry.
+- `crates/vox-cli/src/commands/ci/policy_registry.rs`: Modified `crl_gate_entries_cover_audit_registry` test to dynamically assert the count of CR-L gate entries against `vox_audit::registry().iter().count()`, removing the hardcoded `10` and replacing it with a dynamic check.
+- `crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt`: Updated the baseline file, reflecting changes in the command catalog due to new policies.
+
+--- audit: original='fix(policy): regen registry + catalog baseline, make crl test dynamic (post-#197-merge)' | actual=42L across 3 files | derived=full ---
