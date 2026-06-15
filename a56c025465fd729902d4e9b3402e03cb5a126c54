@@ -1,0 +1,12 @@
+fix(json): migrate from retired `get_int`/`get_str` to `Json::get` with `and_then`
+scale: ~68 lines across 3 files [M]
+
+- `examples/golden/io_polymorphic.vox`: Replaced `j.get_int("x")` with `j.get("x").and_then(fn(jv: Json) to Option[int] { jv.as_int() }).unwrap_or(-1)`.
+- `examples/golden-ts/string_with_json.vox`: Replaced `j.get_str("kind")` with `j.get("kind").and_then(fn(jv: Json) to Option[str] { jv.as_str() }).unwrap_or("")`.
+- `crates/vox-integration-tests/tests/snapshots/greaterfool_parity_gates_test__greaterfool_ref_main_rs_emit.snap`: Updated snapshot to reflect changes in the generated Rust code, including:
+    - Changed `vox_reqwest_defaults::client_builder()` to `vox_http_client::client_builder()`.
+    - Added `// vox-generated rust_app_shell=AxumLocalServer` comment.
+    - Removed the `VOX_RUN_WORKFLOW` environment variable handling and associated workflow execution logic, replacing it with a call to `load_hir_module_from_embedded()`.
+    - Updated `assertion_line` from 41 to 46.
+
+--- audit: original='fix(examples): migrate retired get_int/get_str to strict-Option Json API' | actual=68L across 3 files | derived=full ---
