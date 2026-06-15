@@ -1,0 +1,18 @@
+refactor(arch): rename `vox-clavis` crate to `vox-secrets`
+scale: ~2910 lines across 252 files [XL]
+
+- Renamed the `vox-clavis` crate to `vox-secrets` across the entire codebase (252 files).
+- Updated `vox-orchestrator` to use `vox-secrets` for resolving environment overrides and secret IDs in `impl_env.rs`.
+- Modified `vox-cli` to reference `vox-secrets` for `RequirementMode`, `SecretBundle`, `Workflow`, `Profile` conversions, and registry token management.
+- Changed `vox-search` to use `vox-secrets` for resolving Qdrant and Tantivy related secret IDs and environment variables.
+- Updated `vox-publisher` to use `vox-secrets` for syndication secrets and various environment variables in its configuration.
+- Migrated `vox-orchestrator-mcp` to use `vox-secrets` for workflow and profile types in `clavis_tools.rs`.
+- Adjusted `vox-config` to resolve inference-related secrets (Ollama URL, HuggingFace token, OpenRouter API key) using `vox-secrets`.
+- Updated `Cargo.lock` to reflect the crate rename.
+- Modified `contracts/config/env-vars.v1.yaml` and `contracts/reports/scaling-audit/rollup/INDEX.yaml` to reflect the new crate name.
+- Renamed `crates/vox-config/src/clavis.rs` to `crates/vox-config/src/secrets.rs` and updated its contents.
+- Updated `crates/vox-secrets/tests/vox_vault_tests.rs` to reflect the new crate name.
+- Adjusted numerous other crates (`vox-oratio`, `vox-plugin-oratio`, `vox-db`, `vox-ml-cli`, `vox-populi`, `vox-gamify`, `vox-runtime`, `vox-code-audit`, `vox-openclaw-runtime`, `vox-compiler-emit`, `vox-cli-core`) to import and use the new `vox-secrets` crate name and its types.
+- This rename standardizes terminology to "secrets" for better industry alignment and clarity.
+
+--- audit: original='refactor(arch): rename vox-clavis → vox-secrets (P-A2.6)' | actual=2910L across 252 files | derived=full ---
