@@ -66,11 +66,15 @@ pub async fn llm_chat(
                 Ok(resp) => {
                     let prompt_tokens = resp.prompt_tokens as i64;
                     let completion_tokens = resp.completion_tokens as i64;
-                    // Provider-reported cost, else our config cost-per-1k estimate.
+                    // Provider-reported cost, else the single estimate_cost helper.
                     let cost_usd = resp.cost_usd.or_else(|| {
-                        config
-                            .cost_per_1k
-                            .map(|c| ((prompt_tokens + completion_tokens) as f64 / 1000.0) * c)
+                        config.cost_per_1k.map(|c| {
+                            vox_llm_egress::estimate_cost(
+                                resp.prompt_tokens,
+                                resp.completion_tokens,
+                                c,
+                            )
+                        })
                     });
                     let latency = resp.latency_ms as i64;
 

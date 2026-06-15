@@ -121,6 +121,13 @@ impl std::error::Error for EgressError {}
 /// Streaming item type for [`stream_once`].
 pub type ChatStream = Pin<Box<dyn Stream<Item = Result<String, EgressError>> + Send>>;
 
+/// The ONE cost estimate: `(prompt+completion tokens)/1000 * cost_per_1k`. Used only when
+/// the provider reports no cost. Callers MUST NOT re-implement this math (single source).
+#[must_use]
+pub fn estimate_cost(prompt_tokens: u32, completion_tokens: u32, cost_per_1k: f64) -> f64 {
+    ((prompt_tokens + completion_tokens) as f64 / 1000.0) * cost_per_1k
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,6 +144,12 @@ mod tests {
             timeout_ms: None,
         };
         assert_eq!(r.throttle_key, "openrouter");
+    }
+
+    #[test]
+    fn estimate_cost_is_tokens_over_1k_times_rate() {
+        assert!((estimate_cost(700, 300, 2.0) - 2.0).abs() < 1e-9); // 1000/1000 * 2.0
+        assert_eq!(estimate_cost(0, 0, 5.0), 0.0);
     }
 
     #[test]

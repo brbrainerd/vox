@@ -260,7 +260,6 @@ pub struct ModelMetric {
 impl ModelMetric {
     /// Build from an LlmResponse, computing cost at `cost_per_1k` rate.
     pub fn from_response(res: &LlmResponse, provider: &str, cost_per_1k: f64) -> Self {
-        let total_tokens = res.prompt_tokens + res.completion_tokens;
         Self {
             ts: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -270,7 +269,12 @@ impl ModelMetric {
             provider: provider.to_string(),
             input_tokens: res.prompt_tokens,
             output_tokens: res.completion_tokens,
-            estimated_cost_usd: (total_tokens as f64 / 1000.0) * cost_per_1k,
+            // Single source for the estimate (vox-llm-egress::estimate_cost).
+            estimated_cost_usd: vox_llm_egress::estimate_cost(
+                res.prompt_tokens,
+                res.completion_tokens,
+                cost_per_1k,
+            ),
         }
     }
 }
