@@ -1,0 +1,9 @@
+chore(settings): update local settings and Cargo.lock
+scale: ~13 lines across 2 files [S]
+
+- `.claude/settings.local.json`:
+    - Added new Bash commands to the `terminal.integrated.shell.windows` history, including `cargo clippy`, `cat`, `bash /tmp/check_atlas.sh`, several `sed` commands for `crates/vox-publisher/src/atlas/manifest.rs`, `crates/vox-publisher/src/atlas/campaign.rs`, and `crates/vox-publisher/src/atlas/coauthor.rs`, a Python command to load a JSON schema, and a `cargo test` command for `vox-cli`.
+    - Removed `Bash(for crate in vox-webhook vox-skills vox-corpus vox-orchestrator-queue vox-package vox-plugin-publication; do *)` from the history.
+- `Cargo.lock`: Updated lock file due to dependency changes.
+
+--- audit: original='chore: update local settings and lock file' | actual=13L across 2 files | derived=full ---
