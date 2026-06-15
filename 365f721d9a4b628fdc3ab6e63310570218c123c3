@@ -1,0 +1,40 @@
+feat(ci, publisher): enhance publication worthiness checks and update CI workflows
+scale: ~91851 lines across 247 files [XL]
+
+DIVERGENCE: original subject claimed 'feat(dependencies): update tokio features and enhance CI workflows' but this commit actually changed ~91851 lines across 247 files. Top areas:
+contracts: 53393 lines, 7 files
+mens: 26963 lines, 5 files
+crates: 5818 lines, 198 files
+vox-vscode: 3318 lines, 14 files
+.opencode: 1322 lines, 9 files
+docs: 906 lines, 10 files
+(root): 86 lines, 2 files
+scripts: 40 lines, 1 files
+.github: 5 lines, 1 files
+
+- **contracts/reports**: Updated scaling audit findings and added new baseline freeze and delta reports for toestub remediation.
+- **mens**: Removed old checkpoint and training manifest files, and updated eval-gates configuration.
+- **crates/vox-ludus**: Modified achievement defaults across multiple parts (A, B, C).
+- **crates/vox-publisher**: Introduced new modules for `publication_worthiness` and `scientia_evidence`, and updated `publication_preflight` and `zenodo_metadata`.
+- **vox-vscode**: Refactored various components including `InlineEditController`, `SnapshotProvider`, `AgentController`, `VisualEditorPanel`, `GhostTextProvider`, `LspClientManager`, `McpAgentConnection`, `StatusBarManager`, `ModelRegistry`, `GamifyManager`, `WorkspaceContextEngine`, and `commands/model`.
+- **crates/vox-cli**: Significantly updated `mens/eval_local`, `db_research/ingest`, `ci/scaling_audit`, `ci/scientia_worthiness_contract`, `mens/eval_gate/policy`, `mens/eval_gate/check_run`, `mens/eval_gate/tests`, `scientia_worthiness_enrich`, `scientia`, `db`, `island/stub_shadcn`, `corpus/generate`, `schola/train/gpu`, `ai/serve/inference`, `db_research/list_map`, `db_research/reliability`, `ci/run_body`, `review/coderabbit/semantic_planner/submit`, `schola/train/run_train`, `ci/command_compliance`, `mens/populi/dispatch`, `db_cli/subcommands`, `clean`, `extras/ars/context`, `ci/run_body_helpers/timings`, `gamify/companions`, `db_cli/mod`, and `mens/populi/action_populi_enum`.
+- **crates/vox-populi**: Updated `mens/tensor/candle_qlora_train` (training loop, finalize, validation, mod, device_select), `candle_inference_serve`, and `manifest/part_build`.
+- **crates/vox-orchestrator**: Refactored `task_dispatch` (complete, submit/batch), `monitor`, `scaling`, `config` (impl_env, tests), `session/manager/persist_load`, `attention/mod`, and `oplog/query`.
+- **crates/vox-toestub**: Added new detector for `unresolved_ref`, updated `secrets`, `scaling`, `engine`, and `god_object` detectors.
+- **crates/vox-capability-registry**: Refactored `lib.rs`, added `types.rs`, `openai.rs`, and `registry.rs`.
+- **crates/vox-mcp**: Updated `tools/scientia_tools.rs`, `tools/chat_tools/chat/message.rs`, and `tools/dispatch.rs`.
+- **docs**: Updated `video-walkthrough-script.md`, `troubleshooting-faq.md`, `skill_marketplace.md`, `webhook_integration.md`, `architecture/vox-organization.md`, `skills/testing-patterns.md`, `skills/error-handling.md`, `skills/vox-pipeline.md`, `skills/vox-orchestrator/SKILL.md`, `architecture/scaling-toestub-rules.md`, and `reference/scientia-publication-worthiness-rules.md`.
+- **.opencode/scripts**: Modified `spawn-agents.ts`, `status.ts`, `review.ts`, and `check-versions.ts`.
+- **crates/vox-db**: Added `socrates_telemetry.rs`.
+- **crates/vox-runtime**: Modified `llm/stream.rs`.
+- **scripts/windows**: Added `run_4080_experiment_cycles.ps1`.
+- **crates/vox-corpus**: Modified `synthetic_gen/mod.rs`.
+- **crates/vox-schola**: Updated `serve.rs` and `train.rs`.
+- **crates/vox-webhook**: Modified `handler.rs`.
+- **crates/vox-doc-pipeline**: Modified `pipeline/summary.rs`.
+- **deny.toml**: Updated deny list configuration.
+- **esbuild.js**: Modified esbuild configuration.
+- **contracts/index.yaml**: Updated contract index.
+- **Many other files**: Numerous smaller changes across various crates and directories.
+
+--- audit: original='feat(dependencies): update tokio features and enhance CI workflows' | actual=91851L across 247 files | derived=stat-only ---
