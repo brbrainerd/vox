@@ -1,0 +1,19 @@
+feat(vox-audit): integrate in-process @test execution into HumanEvalRunner
+scale: ~249 lines across 4 files [M]
+
+- `crates/vox-audit/src/subcommands/humaneval.rs`:
+    - Introduced `execute_fixture_tests` function to run `@test` blocks using `vox_compiler::eval::Interpreter`.
+    - Modified the `run` method to execute `@test` blocks for compile-clean fixtures.
+    - Implemented logic to mark fixtures as failed if any `@test` assertion fails.
+    - Added new counters for total tests ran, passed, failed, and fixtures with evaluation errors.
+    - Updated the final report note to include `@test` execution statistics (passed/total tests, eval-errored fixtures).
+    - Refactored fixture processing to separate compile-check failures from `@test` execution failures.
+- `contracts/eval/humaneval-vox/manifest.v1.yaml`:
+    - Updated `corpus_hash` due to changes in `009-access-level` fixture.
+    - Added `ci.in_process_test_execution` block, detailing policies for `@test` execution failures and evaluation errors.
+- `contracts/eval/humaneval-vox/problems/009-access-level/reference.vox`:
+    - Changed `!active` to `active is false` to align with the interpreter's supported subset.
+- `contracts/eval/humaneval-vox/problems/009-access-level/tests.vox`:
+    - Changed `!active` to `active is false` to align with the interpreter's supported subset.
+
+--- audit: original='feat(vox-audit): in-process @test execution layer for HumanEvalRunner (CR-L1)' | actual=249L across 4 files | derived=full ---
