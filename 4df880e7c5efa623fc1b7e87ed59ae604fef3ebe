@@ -1,0 +1,9 @@
+test(compiler): align tombstone tests with TASK-2.6 and accept SM baselines
+scale: ~106 lines across 4 files [M]
+
+- `crates/vox-compiler/tests/tombstone_test.rs`: Inverted `actor_is_tombstoned` and `workflow_is_tombstoned` tests to `actor_is_supported_after_task_2_6_path_a` and `workflow_is_supported_after_task_2_6_path_a`, asserting that `actor` and `workflow` now parse cleanly without `Tombstoned` errors, per TASK-2.6 Path A and AGENTS.md §Grammar Unification.
+- `crates/vox-compiler/tests/ir_emission_test.rs`: Marked `test_ir_emission_includes_scheduled_jobs_in_web_ir` with `#[ignore]` and added a tombstone comment explaining that `@scheduled` was removed from the public grammar by ADR-028.
+- `crates/vox-compiler/tests/snapshots/state_machine_integration_test__light_state_machine_ts_emit.snap`: Added a new snapshot for the TypeScript emission of the `Light` state machine.
+- `crates/vox-compiler/tests/snapshots/state_machine_integration_test__door_terminal_state_machine_emit.snap`: Added a new snapshot for the TypeScript emission of the `Door` terminal state machine.
+
+--- audit: original='test(cleanup): align stale tests with ADR-028 + TASK-2.6 + accept SM baselines' | actual=106L across 4 files | derived=full ---
