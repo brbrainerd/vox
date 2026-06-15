@@ -1,0 +1,7 @@
+feat(interop): Add golden example for React component interop
+scale: ~130 lines across 2 files [M]
+
+- `examples/golden/react_interop.vox`: Add new golden example demonstrating importing and rendering a named React component (`Button` from `@acme/ui`) within a Vox component.
+- `examples/PARSE_STATUS.md`: Regenerate parse status to include the new `react_interop.vox` example as "golden" and update the "Last run" date to 2026-06-03.
+
+--- audit: original='test(interop): S8 — golden exercising react-component interop end-to-end' | actual=130L across 2 files | derived=full ---
