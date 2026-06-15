@@ -1,0 +1,23 @@
+feat(pipeline, docs): Add intra-project imports for script mode, @json_as RFC, and Phase H audit
+scale: ~376 lines across 3 files [L]
+
+- **crates/vox-compiler/src/pipeline.rs**:
+    - Implemented `inline_imported_decls()` to recursively pre-resolve intra-project local-file imports (`import "./foo.vox"`) at pipeline time.
+    - Loads, lowers, and appends `pub fn` and `pub` type-variant declarations from imported files into the main HIR before type-checking.
+    - Ensures `--mode script` (Rust codegen) sees a merged HIR, eliminating the need for a runtime resolver for intra-project imports.
+    - Handles cyclic imports using a `visited` set of canonicalized paths.
+    - Silently handles read/parse failures for imported files, relying on subsequent type-checking for user-facing diagnostics.
+    - Supports aliased imports by prefixing inlined function names with `<alias>__` for namespace-method dispatch.
+    - Prioritizes importer-defined names over imported names (RFC §3 scope-merge rule).
+    - Modified the `run_frontend_str_with_options` function to incorporate this new import resolution step.
+- **docs/src/architecture/json-as-rfc-2026-05-24.md** (new file):
+    - Added a full RFC for the `@json_as(MyType)` typed JSON deserialization decorator.
+    - Covers motivation, a `serde` audit (borrowing compile-time codegen, `Option` discipline, common attributes like `default`/`rename`/`tag`/`strict`, while skipping lifetime/closure-heavy parts), Vox workload mapping, API surface, structured error shape with JSON Pointer paths, compile-time codegen plan, principle alignment, deferred scope, a 6-step implementation plan, corpus migration impact, risk register, and related RFCs.
+    - Aims to improve ergonomics for 80% of known-schema JSON workloads.
+- **docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md**:
+    - Updated the "Phase H — `@endpoint` retirement" section with a detailed retirement audit.
+    - Identified 4 live use sites of `@endpoint` (1 in `examples/golden`, 3 in `crates/vox-integration-tests/tests/fixtures`) and 9 code-side handlers that must remain.
+    - Revised the retirement path: migrate fixtures first, then release-soak, then retire, estimating 1-2 hours of mandatory migration.
+    - Explicitly stated "DO NOT RETIRE YET" based on the audit findings.
+
+--- audit: original='feat(pipeline+docs): --mode script intra-project imports + @json_as RFC + Phase H audit' | actual=376L across 3 files | derived=full ---
