@@ -1,0 +1,11 @@
+feat(audit): add 5 new detectors for Phase 2 lint extension
+scale: ~1060 lines across 6 files [XL]
+
+- `crates/vox-code-audit/src/detectors/state_machine_unreachable.rs`: Add new detector for unreachable states in `state_machine` blocks, identifying states with no outgoing transitions.
+- `crates/vox-code-audit/src/detectors/secret_span.rs`: Add new detector for leaked secrets in tracing spans, identifying secret-shaped field names in `tracing` macros or `span.record` calls.
+- `crates/vox-code-audit/src/detectors/long_range_coupling.rs`: Add new detector for long-range coupling, identifying `let` bindings whose last use is more than 80 lines from their definition.
+- `crates/vox-code-audit/src/detectors/option_combinator.rs`: Add new detector for `Option` combinator opportunities, identifying `match` expressions over `Option` that can be refactored to use `.map` or `.unwrap_or`.
+- `crates/vox-code-audit/src/detectors/auth_endpoint.rs`: Add new detector for auth endpoints missing decorators, identifying `@endpoint` functions in Vox files that lack `@auth(...)` or `@public`.
+- `crates/vox-code-audit/src/detectors/mod.rs`: Register the 5 new detectors in the `all_rules` function and add module declarations.
+
+--- audit: original='feat(audit): 5 remaining Phase 2 detectors — combinators, secret-span, auth, state-machine, coupling' | actual=1060L across 6 files | derived=full ---
