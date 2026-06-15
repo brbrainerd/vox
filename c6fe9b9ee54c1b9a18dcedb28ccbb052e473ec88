@@ -1,0 +1,9 @@
+docs(interop): skip illustrative blocks in phase-5 sub-spec
+scale: ~2 lines across 1 files [XS]
+
+- `docs/src/architecture/external-frontend-interop-phase5-component-interop-subspec-2026.md`: Added `// vox:skip` comments to two `vox` code blocks.
+  - The first block, illustrating an `extern type ButtonProps` facade, is marked as illustrative and pruned from S5.
+  - The second block, illustrating `import` forms for `Button` and `Dialog`, is marked as illustrative due to `Dialog` appearing in both named and namespace forms.
+  - These changes prevent doctest failures for these non-compilable, illustrative examples.
+
+--- audit: original='docs(interop): vox:skip illustrative blocks in phase-5 sub-spec' | actual=2L across 1 files | derived=full ---
