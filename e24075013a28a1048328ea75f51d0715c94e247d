@@ -1,0 +1,11 @@
+fix(vox-cli): Update Landlock sandbox to 0.4 API with BitFlags and consuming add_rule
+scale: ~21 lines across 1 files [S]
+
+- `crates/vox-cli/src/commands/runtime/run/sandbox.rs`:
+    - Changed `rules` vector type from `Vec<(PathBuf, AccessFs)>` to `Vec<(PathBuf, BitFlags<AccessFs>)>` to align with Landlock 0.4 API.
+    - Updated `Ruleset::add_rule` calls to reassign the `ruleset` variable, as `add_rule` now consumes and returns the ruleset.
+    - Modified `PathBeneath::new` to accept `BitFlags<AccessFs>` for access.
+    - Added error handling for `add_rule` to propagate errors and fail closed if a rule cannot be added.
+    - Imported `BitFlags` from `landlock` crate.
+
+--- audit: original='fix(vox-cli): Landlock sandbox 0.4 API (BitFlags + consuming add_rule, fail-closed)' | actual=21L across 1 files | derived=full ---
