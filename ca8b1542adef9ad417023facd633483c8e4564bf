@@ -1,0 +1,16 @@
+feat(orchestrator): record overlap conflicts on workspace merge-back; add file locking
+scale: ~1423 lines across 13 files [XL]
+
+- `crates/vox-orchestrator-mcp/src/lock_guard.rs`: Add new module `lock_guard` to enforce file locks at the write-tool dispatch path, performing a read-only probe of existing lock state.
+- `crates/vox-orchestrator-mcp/src/dispatch.rs`: Integrate `lock_guard::check_lock` into `handle_tool_call` to reject write tool calls that conflict with existing file locks.
+- `crates/vox-orchestrator/src/merge_conflicts.rs`: Add new module `merge_conflicts` with `record_overlap_conflicts` function to record conflicts when merging workspaces.
+- `crates/vox-orchestrator/src/json_vcs_facade.rs`: Modify `workspace_merge_json` to detect and record overlap conflicts using `merge_conflicts::record_overlap_conflicts` before destroying the workspace, and document the lock order for `workspace_manager` and `conflict_manager`.
+- `crates/vox-orchestrator/tests/vcs_test.rs`: Add a new test case `workspace_merge_json_records_conflicts_on_overlap` to verify conflict recording during workspace merge.
+- `crates/vox-orchestrator-mcp/src/scope_guard.rs`: Change `WRITE_TOOLS` and `PATH_ARG_KEYS` to be `pub(crate)`.
+- `crates/vox-orchestrator/src/lib.rs`: Export the new `merge_conflicts` module.
+- `crates/vox-cli/src/commands/runtime/run/sandbox.rs`: Update `landlock` error handling to use `std::io::Error::other` and add `#[allow(unsafe_code)]` to the `pre_exec` block.
+- `docs/superpowers/plans/2026-06-05-jj-first-class-p0-vox-vcs-foundation.md`: Add new documentation for P0 (vox-vcs foundation).
+- `docs/superpowers/plans/2026-06-05-jj-first-class-p1-wire-safety-substrate.md`: Add new documentation for P1 (safety substrate), including write-path lock enforcement and conflict recording.
+- `docs/superpowers/specs/2026-06-05-jj-first-class-vcs-design.md`: Add new design specification for jj-lib as a first-class Vox VCS.
+
+--- audit: original='jj-first-class VCS: design + P1 multi-agent safety wiring (#157)' | actual=1423L across 13 files | derived=full ---
