@@ -1,0 +1,8 @@
+fix(tests): wait for npm install lock release, not `node_modules/react` heuristic
+scale: ~21 lines across 1 files [S]
+
+- `crates/vox-cli-tests/src/lib.rs`: Modified `ensure_node_modules_installed` to wait for the `.npm-install-lock` directory to be removed, indicating a complete npm installation, rather than relying on the presence of `node_modules/react`. This prevents `tsc --noEmit` from running against a partially populated `node_modules` directory.
+- `crates/vox-cli-tests/src/lib.rs`: Added logic to remove the lock directory if `node_modules` is already installed when acquiring the lock, ensuring proper cleanup and preventing stale locks.
+- `crates/vox-cli-tests/src/lib.rs`: Adjusted the initial `installed(tests_dir)` check to also verify that no lock directory exists, allowing a fresh install if a lock is present but `node_modules` is not fully installed.
+
+--- audit: original='fix(tests): wait on npm-install lock release, not the react heuristic' | actual=21L across 1 files | derived=full ---
