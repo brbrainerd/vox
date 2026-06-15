@@ -1,0 +1,9 @@
+fix(runtime): Safely extract short IDs from UUIDs for agent naming
+scale: ~33 lines across 1 files [S]
+
+- `runtime.rs`:
+    - Introduced `short_id_from_str` helper function to safely extract the first segment of a string (up to the first hyphen) or the first 8 characters if no hyphen is present. This replaces a `.split('-').next().unwrap()` call, preventing panics if a UUID string unexpectedly lacks hyphens.
+    - Modified agent naming logic in `AgentFleet::tick` to use `short_id_from_str` when generating agent names from UUIDs.
+    - Added unit tests for `short_id_from_str` to verify correct behavior with standard UUIDs and hyphen-free strings.
+
+--- audit: original='fix(crash): safe short_id extraction from UUID (FIX-B-02)' | actual=33L across 1 files | derived=full ---
