@@ -1,0 +1,6 @@
+feat(ci): add F1 score gate for detector rules to audits workflow
+scale: ~11 lines across 5 files [S]
+
+- .github/workflows/ci.
+
+--- audit: original='feat(ci): add detect-rules-bench F1 gate to audits workflow (Wave E)' | actual=11L across 5 files | derived=full ---
