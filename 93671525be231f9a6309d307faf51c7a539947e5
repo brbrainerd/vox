@@ -1,0 +1,10 @@
+fix(scientia): address Phase 0a spec-review issues
+scale: ~6 lines across 4 files [S]
+
+- `crates/vox-doc-pipeline`: Add "approved" to `VALID_STATUS` in `lint.rs` to allow strategic plans to reflect successful review.
+- `crates/vox-orchestrator`: Remove import of `research_cache_short_circuit` from `pipeline.rs` and add `#[allow(dead_code)]` to the function in `pipeline_cache.rs` as a temporary measure until Phase 1 re-enables the cache.
+- `docs/src/architecture`: Revert the status of `scientia-self-publication-finalization-plan-2026.md` from "research" to "approved".
+
+Refs: spec-compliance review of Phase 0a (2026-05-09).
+
+--- audit: original='fix(scientia): address Phase 0a spec-review issues' | actual=6L across 4 files | derived=full ---
