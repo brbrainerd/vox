@@ -1,0 +1,9 @@
+fix(vox-compiler/typeck): Alias `Id[T]` to `Ty::Int` in type checking
+scale: ~24 lines across 4 files [S]
+
+- `crates/vox-compiler/src/typeck/ast_decl_lints.rs`: Modified `resolve_type` to alias `Id` to `Ty::Int`, treating `Id[T]` as a surrogate integer type for type-checking purposes.
+- `crates/vox-compiler/src/typeck/infer.rs`: Modified `lower_ast_ty` to alias `Id` to `Ty::Int`, aligning with the surrogate integer representation.
+- `crates/vox-compiler/src/typeck/registration.rs`: Modified `resolve_hir_type` to alias `Id` to `Ty::Int`, ensuring consistent type resolution across HIR.
+- `examples/golden/blog_fullstack.vox`: Updated `list_posts` endpoint to return `Result[List[Post]]` and use `?` propagation for `db.Post.all()`, returning `Ok(rows)`.
+
+--- audit: original='fix(vox-compiler/typeck): Id[T] aliases to Ty::Int (v0.5 surrogate-int reality)' | actual=24L across 4 files | derived=full ---
