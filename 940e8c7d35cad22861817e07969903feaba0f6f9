@@ -1,0 +1,8 @@
+refactor(vox-db): re-export research metrics contract from vox-telemetry
+scale: ~286 lines across 3 files [L]
+
+- `crates/vox-db/src/research_metrics_contract.rs`: Replaced the entire module content with a re-export of `vox_telemetry::types`, preserving the file for backwards compatibility. The extensive documentation and constants related to metric types and sensitivity classes were removed, as they are now handled by `vox-telemetry`.
+- `crates/vox-db/src/store/ops_codex/codex_metrics_packages.rs`: Updated the import of `validate_research_metric_row` from `crate::research_metrics_contract` to `vox_telemetry::validate_research_metric_row`. Also, added error mapping for the `validate_research_metric_row` call to convert `vox_telemetry` errors into `StoreError::Db`.
+- `crates/vox-db/Cargo.toml`: Added a dependency on `vox-telemetry`.
+
+--- audit: original='refactor(vox-db): research_metrics_contract -> re-export from vox-telemetry' | actual=286L across 3 files | derived=full ---
