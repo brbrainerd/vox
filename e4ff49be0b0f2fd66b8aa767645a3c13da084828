@@ -1,0 +1,12 @@
+feat(build): mobile target now runs web_ir validators as a blocking analysis pass
+scale: ~75 lines across 5 files [M]
+
+- `crates/vox-cli/src/commands/build.rs`: Implemented a new analysis pass for `BuildTarget::Mobile` that lowers HIR to Web IR and runs Web IR validators. This pass checks for semantic issues like contrast and occlusion violations, failing the build if errors are found, before proceeding to React Native codegen.
+- `crates/vox-cli-tests/tests/build_e2e.rs`:
+    - Modified `build_every_fixture_passes_fast_path` to skip fixtures marked with `expect_failure`.
+    - Added a new test `build_mobile_fails_on_contrast_violation` to verify that the mobile build correctly fails on a contrast violation, specifically for the `mobile_bad_contrast` fixture.
+- `crates/vox-cli-tests/tests/fixtures/mobile_bad_contrast/main.vox`: Added a new fixture `mobile_bad_contrast` containing a deliberate contrast violation (gray text on a white background).
+- `crates/vox-cli-tests/src/lib.rs`: Added an `expect_failure` boolean field to the `ExpectedFiles` struct to mark negative test cases that are expected to fail.
+- `crates/vox-cli-tests/tests/fixtures/mobile_bad_contrast/expected_files.toml`: Configured the `mobile_bad_contrast` fixture to target mobile and expect failure.
+
+--- audit: original='feat(build): mobile target runs web_ir validators as a blocking analysis pass' | actual=75L across 5 files | derived=full ---
