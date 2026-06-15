@@ -1,0 +1,14 @@
+feat(codegen): Implement value-semantic list methods for script mode
+scale: ~290 lines across 4 files [L]
+
+- `crates/vox-codegen/src/codegen_rust/emit/method_emit.rs`:
+    - Implemented Rust lowering for 12 value-semantic list methods: `reverse`, `reversed`, `extend`, `remove`, `remove_at`, `slice_list`, `index`, `find_index`, `count`, `join`, `contains`, `first`, and `last`.
+    - Added `obj_is_list` helper function to determine if an `HirExpr`'s inferred type is a list, used for disambiguating method calls like `count` and `contains` which exist on both `str` and `List`.
+    - Modified `emit_method_call` to accept `inferred_types: Option<&HashMap<Span, HirType>>` to enable type-based method disambiguation.
+- `crates/vox-codegen/tests/list_method_emit.rs`: Added 14 new fast emit-string tests to verify the correct Rust code generation for the newly implemented list methods.
+- `crates/vox-codegen/tests/emit_compile_harness.rs`:
+    - Updated `compile_vox_script` to call `typecheck_hir_module` to populate `inferred_types`, which is necessary for list/string method disambiguation during compilation.
+    - Added a new `list_methods_compile` integration test to ensure all newly implemented list methods compile successfully under `--mode script`.
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr_tail.rs`: Passed `inferred_types` to `emit_method_call` when handling method expressions.
+
+--- audit: original='feat(codegen): value-semantic list methods (reverse/extend/remove/slice/join/…) (#234)' | actual=290L across 4 files | derived=full ---
