@@ -1,0 +1,17 @@
+feat(compiler): Add `extern fn` for TS-source FFI
+scale: ~115 lines across 12 files [M]
+
+- lexer/token.rs: Add `Token::Extern` keyword.
+- parser/descent/decl/head.rs: Implement `parse_extern_fn` to parse `extern fn name(args) to T = "./module"` syntax, producing a `Decl::Function` with an empty body and `ts_extern_module` set.
+- parser/descent/mod.rs: Dispatch `Token::Extern` to `parse_extern_fn`.
+- ast/decl/fundecl.rs: Add `ts_extern_module: Option<String>` to `FnDecl` to store the external TypeScript module path.
+- hir/nodes/decl.rs: Add `ts_extern_module: Option<String>` to `HirFn` to mirror the AST field.
+- hir/lower/decl.rs: Thread the `ts_extern_module` field through `lower_fn` and initialize it to `None` for other function types.
+- typeck/checker/mod.rs: Modify `check_function` to return early for `extern` functions, skipping body type checking.
+- examples/golden/ts_source_ffi.vox: Add a new example file demonstrating the declaration and usage of `extern fn` with two functions.
+- crates/vox-integration-tests/tests/metamorphic_axiom_test.rs: Initialize `ts_extern_module` to `None` in `HirFn` builder.
+- crates/vox-test-harness/src/hir_builders.rs: Initialize `ts_extern_module` to `None` in `HirFn` builder.
+- docs/superpowers/plans/2026-05-08-language-features-tracker-index.md: Update the status of plan 6 (TS-source FFI) to reflect the foundation being landed.
+- docs/superpowers/plans/2026-05-08-language-ts-source-ffi.md: Add an amendment note detailing the simplified surface syntax and implementation surface.
+
+--- audit: original='feat(compiler): TS-source FFI extern fn (plan 6 foundation)' | actual=115L across 12 files | derived=full ---
