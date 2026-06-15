@@ -1,0 +1,6 @@
+docs(ci): ignore upstream-vendored webview2-rs compare URLs in link checker
+scale: ~5 lines across 1 files [XS]
+
+- `.lycheeignore`: Added a new pattern `https://github\.com/wravery/webview2-rs/compare/.*` to ignore specific 404 links within the vendored `patches/webview2-com-sys-0.38.2/CHANGELOG.md` file. This prevents the link checker from failing on URLs that are outside of our control due to upstream tag restructuring.
+
+--- audit: original='fix(ci): ignore upstream-vendored webview2-rs compare URLs in link checker' | actual=5L across 1 files | derived=full ---
