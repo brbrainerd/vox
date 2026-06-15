@@ -1,0 +1,23 @@
+feat(mesh): Add W3C traceparent-compatible MeshTraceContext for local observability
+scale: ~340 lines across 13 files [L]
+
+- **crates/vox-mesh-types/src/trace.rs**: New file defining `MeshTraceContext`, `TraceId`, `SpanId`, and `ParseTraceparentError` for W3C traceparent compatibility. Includes methods for creation, parsing, serialization, and child span generation, along with unit tests.
+- **crates/vox-mesh-types/src/lib.rs**: Exports new `trace` module and its types (`MeshTraceContext`, `ParseTraceparentError`, `SpanId`, `TraceId`).
+- **crates/vox-mesh-types/Cargo.toml**: Adds `rand` dependency.
+- **crates/vox-populi/src/transport/mod.rs**: Adds `traceparent: Option<String>` field to `A2ADeliverRequest` and `A2AStoredMessage` structs.
+- **crates/vox-populi/src/transport/handlers.rs**:
+    - `deliver_a2a`: Extracts `traceparent` from request and emits `vox.mesh.message_type`, `vox.mesh.privacy_class`, `vox.mesh.trace_id`, and `vox.mesh.dispatch_kind` as tracing span attributes. Passes `traceparent` to `A2AStoredMessage`.
+    - `a2a_inbox` and `a2a_ack`: Emits `vox.mesh.message_id`, `vox.mesh.message_type`, and `vox.mesh.trace_id` as tracing span attributes for claimed messages.
+- **crates/vox-populi/src/transport/store/voxdb.rs**:
+    - Modifies `a2a_from_row` to include `traceparent` when deserializing `A2AStoredMessage`.
+    - Updates `INSERT` and `DO UPDATE SET` statements for `mesh_a2a_messages` to include the `traceparent` column.
+    - Updates `SELECT` statements to retrieve the `traceparent` column.
+- **crates/vox-db/src/schema/domains/vox_mesh.rs**: Adds `traceparent TEXT` column to the `mesh_a2a_messages` table DDL.
+- **crates/vox-orchestrator/src/a2a/dispatch/mesh.rs**: Adds `traceparent: None` to `A2ADeliverRequest` instances in `relay_to_mesh`, `relay_remote_task_envelope`, and `relay_remote_task_cancel`.
+- **crates/vox-orchestrator/src/a2a/remote_worker.rs**: Adds `traceparent: None` to `A2ADeliverRequest` instances in `run_remote_worker_tick`.
+- **crates/vox-orchestrator/src/mcp_tools/a2a_tools.rs**: Adds `traceparent: None` to `A2ADeliverRequest` instances in `a2a_send`.
+- **crates/vox-cli/src/commands/clavis.rs**: Adds `traceparent: None` to `A2ADeliverRequest` instances in `run_sync`.
+- **crates/vox-populi/src/transport/store/tests.rs**: Adds `traceparent: None` to `A2AStoredMessage` in unit tests.
+- **Cargo.lock**: Updates `Cargo.lock` due to dependency changes.
+
+--- audit: original='feat(mesh): W5 local observability — MeshTraceContext, traceparent on A2A types' | actual=340L across 13 files | derived=full ---
