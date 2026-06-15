@@ -1,0 +1,37 @@
+feat(exec-grammar): add pure-Rust exec-policy grammar and fallback path
+scale: ~2016 lines across 20 files [XL]
+
+- `vox-exec-grammar` crate:
+  - Added `ast.rs` with `ExecAst` for parsed command invocations, including `Arg`, `Flag`, `Redirect`, and `RedirectKind` types.
+  - Implemented a POSIX-shell tokeniser for parsing command invocations into the AST.
+  - Added `policy.rs` with `ExecPolicy` for defining and evaluating execution policies, including `PolicyViolation` and `ViolationKind`.
+  - Added `risk.rs` with `RiskLevel` for classifying command execution risk based on policy, including `IMPLICIT_NETWORK_COMMANDS`.
+  - Configured `Cargo.toml` for the new crate.
+  - Added `proptest_tokeniser.rs` with 32 unit tests and 6 proptest properties for the tokeniser.
+- `vox-cli`:
+  - `check_terminal.rs`:
+    - Introduced `run_check_for_ci` to specifically run the pure-Rust fallback path for CI, ensuring it's always exercised.
+    - Modified `run_check` to prioritize the PowerShell AST path when `pwsh` is available, falling back to the pure-Rust tokeniser otherwise.
+    - Added `run_check_rust_fallback` for the pure-Rust exec-policy check using `vox_exec_grammar`.
+  - `exec_policy_contract.rs`:
+    - Refactored to validate `exec-policy.v1.yaml` against JSON Schema and run smoke checks via both pure-Rust fallback and PowerShell AST paths.
+    - Defined `SMOKE_PAYLOADS` and `REJECT_PAYLOADS` for hardcoded tests.
+    - Implemented loading of an optional disk corpus from `contracts/terminal/exec-policy.test-corpus.yaml` for extensible security-regression payloads.
+  - `command_catalog.rs`:
+    - Added `search_entries` and `search_entries_scored` functions for fuzzy matching and ranking command catalog entries.
+    - Implemented `entry_search_key` to build searchable strings including command paths, aliases, and descriptions.
+    - Introduced `SearchOutput` and `ScoredCommandCatalogEntry` for structured search results.
+  - `fuzzy.rs`: Integrated `nucleo` dependency behind the `fuzzy-search` feature for fuzzy searching.
+  - `cli_dispatch/mod.rs`: Updated to integrate the new search functionality.
+  - `lib.rs` and `Cargo.toml`: Updated to include new modules and dependencies.
+- Documentation:
+  - Added `adr/026-third-party-code-provenance.md` detailing policies on AGPL ban, vendoring, and clean-room development.
+  - Added `architecture/warp-research-findings-2026.md` documenting systematic review findings.
+  - Updated `architecture/research-index.md` to include new research findings.
+- Build and Configuration:
+  - Updated `Cargo.lock` with new dependencies.
+  - Added `.voxindexingignore` for the corpus indexer.
+  - Added `contracts/terminal/exec-policy.test-corpus.yaml` for disk-extensible security regression tests.
+  - Updated root `Cargo.toml`.
+
+--- audit: original='feat(exec-grammar): add vox-exec-grammar crate + Rust-fallback exec-policy path' | actual=2016L across 20 files | derived=full ---
