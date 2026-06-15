@@ -1,0 +1,16 @@
+feat(telemetry): implement Layer 2 user-config TOML resolution
+scale: ~308 lines across 3 files [L]
+
+- `crates/vox-telemetry/src/config.rs`:
+    - Implemented resolution of user-specific telemetry configuration from `~/.config/vox/config.toml` (Linux/macOS) and `%APPDATA%\vox\config.toml` (Windows).
+    - Added a `read_user_config` function to parse TOML, supporting `[telemetry]` section headers and top-of-file configuration.
+    - Integrated user configuration as Layer 2 in the `TelemetryConfig::from_env` resolution order, allowing it to override environment variables and defaults.
+    - Updated documentation comments to reflect the completed Layer 2 implementation.
+    - Added five new unit tests covering section scoping, comment handling, unknown keys, and fall-through semantics for user configuration.
+- `crates/vox-compiler/src/hir/nodes/decl.rs`:
+    - Fixed a `HashMap::deserialize` type-inference error in `HirModule::inferred_types` by explicitly specifying type parameters and adding `use serde::Deserialize as _`.
+    - Introduced `serialize_inferred_types` and `deserialize_inferred_types` functions to handle `HashMap<Span, HirType>` serialization/deserialization with string-keyed adapters (`"start-end"` format) for `serde_json` compatibility.
+- `docs/src/architecture/telemetry-unification-design-2026.md`:
+    - Updated the "Phase D" entry to mark Layer 2 (user config TOML) as implemented.
+
+--- audit: original='feat(telemetry): land Layer 2 user-config TOML resolution' | actual=308L across 3 files | derived=full ---
