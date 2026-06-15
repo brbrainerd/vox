@@ -1,0 +1,21 @@
+docs(compiler,codegen): update references to mobile primitives from Capacitor to Tauri 2
+scale: ~23 lines across 7 files [M]
+
+- `crates/vox-compiler/src/ast/decl/mobile.rs`:
+  - Updated module-level docstring to reference `@vox/runtime` adapter (Tauri 2 on desktop, React Native + Expo on mobile) instead of Capacitor.
+  - Updated docstrings for `BackButtonDecl`, `DeepLinkDecl`, and `PushDecl` to reflect wiring through `@vox/runtime` and mention specific Tauri 2/React Native/Expo APIs.
+- `crates/vox-compiler/src/builtin/std/mobile.vox`:
+  - Updated docstring for the `mobile` module to reference `@vox/runtime` adapter (Tauri 2 plugins on desktop, React Native + Expo on mobile) instead of Capacitor.
+  - Updated docstring for `stt()` function to reference `vox-tauri-stt` Tauri STT plugin instead of `VoxSherpaTranscribe` / Capacitor plugin.
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`:
+  - Updated inline comment in `mobile.store_file` to suggest using the Tauri FS plugin for real mobile files instead of Capacitor.
+- `crates/vox-codegen/src/codegen_ts/mod.rs`:
+  - Updated comment for `mobile_emit` module to reference `@vox/runtime` adapter instead of Capacitor.
+- `crates/vox-compiler/src/ast/decl/mod.rs`:
+  - Updated comment for `mobile` module to remove "Capacitor" reference.
+- `crates/vox-compiler/src/parser/descent/decl/head.rs`:
+  - Updated section comment for mobile primitives to remove "Capacitor" reference.
+- `crates/vox-compiler/src/shell_projection.rs`:
+  - Updated docstring for `ShellProjectionModule` to reference native mobile-primitive wiring via Tauri 2 / React Native and `@vox/runtime` adapter, replacing "Capacitor-style wiring".
+
+--- audit: original='docs(compiler,codegen): replace retired Capacitor/VoxSherpaTranscribe references with Tauri 2 equivalents' | actual=23L across 7 files | derived=full ---
