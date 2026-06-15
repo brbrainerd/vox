@@ -1,0 +1,45 @@
+feat(code-audit): add minimal_repro coverage for 31 detectors
+scale: ~517 lines across 32 files [L]
+
+- `architecture`:
+    - `adr_citation`: Added minimal_repro for missing ADR/TASK citations in public functions.
+    - `dry_violation`: Added minimal_repro for near-duplicate function bodies.
+    - `file_organization`: Added minimal_repro for `lib.rs` containing direct struct/enum/trait definitions instead of re-exports.
+    - `god_object`: Added minimal_repro.
+    - `line_endings`: Added minimal_repro.
+    - `reachability`: Added minimal_repro.
+    - `require_justification`: Added minimal_repro.
+    - `schema_compliance`: Added minimal_repro.
+    - `sprawl`: Added minimal_repro.
+    - `state_machine_unreachable`: Added minimal_repro for state machines with terminal sink states.
+    - `syntax_version`: Added minimal_repro.
+    - `training_eligible`: Added minimal_repro.
+    - `unresolved_ref`: Added minimal_repro.
+    - `untested_pub_api`: Added minimal_repro for public functions lacking inline tests.
+    - `unwired_module`: Added minimal_repro.
+    - `workspace_drift`: Added minimal_repro.
+- `control-flow`:
+    - `option_combinator`: Added minimal_repro.
+    - `question_mark`: Added minimal_repro for verbose manual `Result` matching.
+- `deprecated`:
+    - `deprecated_usage`: Added minimal_repro.
+    - `retired_capacitor`: Added minimal_repro.
+    - `retired_crate_import`: Added minimal_repro.
+    - `retired_env_var`: Added minimal_repro.
+- `effect-system`:
+    - `effect_net_decl`: Added minimal_repro.
+    - `panicking_builtin`: Added minimal_repro for panicking built-ins like `.unwrap()` in async handlers.
+- `panicking`:
+    - `ExpectCallDetector`: Added minimal_repro for `.expect()` calls.
+    - `PanicCallDetector`: Added minimal_repro for `panic!` macros.
+- `scaling`: Added minimal_repro for blocking I/O in async functions.
+- `security`:
+    - `secrets`: Added minimal_repro.
+    - `secret_span`: Added minimal_repro.
+- `style`:
+    - `duplicate_prefix`: Added minimal_repro.
+    - `long_range_coupling`: Added minimal_repro.
+    - `magic_value`: Added minimal_repro.
+    - `victory_claim`: Added minimal_repro.
+
+--- audit: original='feat(code-audit): complete minimal_repro coverage — all 49 detectors' | actual=517L across 32 files | derived=full ---
