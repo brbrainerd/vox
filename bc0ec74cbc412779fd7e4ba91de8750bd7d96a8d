@@ -1,0 +1,6 @@
+fix(doc-pipeline): add path tiebreaker to page sorting for unknown statuses
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-doc-pipeline/src/pipeline/mod.rs`: Modified the `push_pages_grouped` function to include `p.path.clone()` as a tiebreaker in the `sort_by_key` closure for pages with unknown statuses, ensuring deterministic sorting when `sort_order` and `title` are identical.
+
+--- audit: original='fix(doc-pipeline): add path tiebreaker to fallback status sort' | actual=2L across 1 files | derived=full ---
