@@ -1,0 +1,6 @@
+chore(contracts): refresh GUI surface coverage report
+scale: ~0 lines across 1 files [XS]
+
+- contracts/reports/gui-surface-coverage.v1.json: Updated the binary content of the GUI surface coverage report.
+
+--- audit: original='chore(contracts): refresh gui surface coverage report' | actual=0L across 1 files | derived=full ---
