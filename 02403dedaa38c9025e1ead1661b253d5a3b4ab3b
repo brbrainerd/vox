@@ -1,0 +1,11 @@
+feat(orchestrator): gate news publishing features behind `news-publish` feature
+scale: ~61 lines across 6 files [M]
+
+- `crates/vox-orchestrator/src/mcp_tools/dispatch.rs`: Conditioned `news_tools` and `scientia_tools` imports and all `vox_news_*` tool dispatch arms with `#[cfg(feature = "news-publish")]`.
+- `crates/vox-orchestrator/src/mcp_tools/mod.rs`: Applied `#[cfg(feature = "news-publish")]` to the `news_tools` and `scientia_tools` module declarations.
+- `crates/vox-orchestrator/src/mcp_tools/scientia_tools/mod.rs`: Applied `#[cfg(feature = "news-publish")]` to the `syndication` module declaration and its `pub use`.
+- `crates/vox-orchestrator/Cargo.toml`: Removed `news-publish` from the default features list.
+- `crates/vox-cli/Cargo.toml`: Added `vox-orchestrator/news-publish` to the `scientia-social` feature to explicitly re-enable it for `vox-cli`.
+- `.claude/settings.local.json`: Added several new `Bash` commands for database operations, type verification, final auditing, and module/dependency analysis.
+
+--- audit: original='feat(orchestrator): move news-publish out of default features' | actual=61L across 6 files | derived=full ---
