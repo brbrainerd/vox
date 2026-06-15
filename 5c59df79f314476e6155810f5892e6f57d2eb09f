@@ -1,0 +1,11 @@
+fix(drift-check): skip .claude worktrees and fail pre-push only on errors
+scale: ~22 lines across 2 files [S]
+
+- `crates/vox-drift-check/src/engine.rs`:
+    - Modified `collect_source_files` to filter out paths containing `.claude` components and to add `.claude` to the `filter_entry` skip list, preventing agent worktree files from being processed.
+    - Updated `FeatureCache` loading logic to always overwrite the `cached.file` path with the current path, addressing stale cache entries from different worktree locations.
+    - Added a new private helper function `path_contains_claude` to check for `.claude` components in a path.
+- `crates/vox-cli/src/commands/ci/pre_push.rs`:
+    - Changed the `step_drift_check` command to use `--fail-on error` instead of `--fail-on warning`, allowing pre-push checks to pass with only warning-level drift findings.
+
+--- audit: original='fix(drift-check): skip .claude worktrees and fix stale-cache path collision' | actual=22L across 2 files | derived=full ---
