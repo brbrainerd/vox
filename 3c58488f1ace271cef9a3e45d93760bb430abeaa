@@ -1,0 +1,8 @@
+docs(roadmap): update GUI native roadmap status for Phase 6
+scale: ~6 lines across 1 files [XS]
+
+- Update `docs/src/architecture/gui-native-roadmap-status-2026.md` to reflect the completion of `TASK-6.2 — Token-ref-only style values`.
+- Update the "Phase 6 verdict" to show 2 tasks complete and 3 not started.
+- Adjust "Immediate Next Tasks" to prioritize `TASK-6.3`.
+
+--- audit: original='docs: update roadmap — TASK-6.2 complete, Phase 6 at 2/5' | actual=6L across 1 files | derived=full ---
