@@ -1,0 +1,11 @@
+feat(cli, deploy): Add CLI run mode aliases and stabilize vox-eval-sandbox deployment
+scale: ~38 lines across 3 files [S]
+
+- `crates/vox-cli/src/cli_args.rs`: Introduced `--interp`, `--script`, and `--app` flags as aliases for `--mode interp`, `--mode script`, and `--mode app` respectively, with conflict resolution for the existing `--mode` flag.
+- `crates/vox-cli/src/cli_dispatch/lanes.rs`: Implemented logic to map the new `--interp`, `--script`, and `--app` CLI flags to the corresponding `RunMode` enum variants when dispatching the `run` command.
+- `vox-eval.compose.yml`:
+    - Added a separate Traefik HTTP router to redirect HTTP traffic to HTTPS for `eval.vox-lang.org`.
+    - Updated the healthcheck command from `vox doctor --probe` (which was panicking in async contexts) to `curl -f http://localhost:3921/health`.
+    - Increased the `start_period` for the healthcheck from 15s to 20s.
+
+--- audit: original='Fix CLI interp flag and stabilize vox-eval-sandbox' | actual=38L across 3 files | derived=full ---
