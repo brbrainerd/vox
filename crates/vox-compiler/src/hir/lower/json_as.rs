@@ -105,6 +105,7 @@ fn build_from_json(
         name: fn_name,
         generics: vec![],
         params: vec![param_j],
+        is_traced: false,
         return_type: Some(HirType::Generic(
             "Result".to_string(),
             vec![HirType::Named(t.name.clone())],
@@ -432,6 +433,7 @@ fn build_to_json(ctx: &mut LowerCtx, t: &TypeDefDecl, ann: &JsonAsAnnotation, sp
         name: fn_name,
         generics: vec![],
         params: vec![param_v],
+        is_traced: false,
         return_type: Some(HirType::Named("Json".to_string())),
         body,
         is_pub: t.is_pub,

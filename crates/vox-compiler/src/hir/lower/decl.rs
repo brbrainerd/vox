@@ -211,6 +211,7 @@ impl LowerCtx {
                 }),
             is_deprecated: f.is_deprecated,
             deprecated_reason: f.deprecated_reason.clone(),
+            is_traced: f.is_traced,
             schedule_interval: None,
             durability: None,
             actor_state_fields: vec![],
@@ -571,6 +572,7 @@ impl LowerCtx {
             embed: None,
             is_deprecated: w.is_deprecated,
             deprecated_reason: None,
+            is_traced: false,
             schedule_interval: None,
             durability: None, // overwritten by caller
             actor_state_fields: vec![],
@@ -613,6 +615,7 @@ impl LowerCtx {
             embed: None,
             is_deprecated: a.is_deprecated,
             deprecated_reason: None,
+            is_traced: false,
             schedule_interval: None,
             durability: None, // overwritten by caller
             actor_state_fields: vec![],
@@ -663,6 +666,7 @@ impl LowerCtx {
             embed: None,
             is_deprecated: a.is_deprecated,
             deprecated_reason: None,
+            is_traced: false,
             schedule_interval: None,
             durability: None, // overwritten by caller
             actor_state_fields,
@@ -716,6 +720,7 @@ impl LowerCtx {
                     embed: None,
                     is_deprecated: a.is_deprecated,
                     deprecated_reason: None,
+                    is_traced: false,
                     schedule_interval: None,
                     durability: None, // overwritten by caller (same as shell)
                     actor_state_fields: vec![],

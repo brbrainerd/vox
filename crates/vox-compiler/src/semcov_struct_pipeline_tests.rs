@@ -239,6 +239,18 @@ mod semcov_struct_pipeline_tests {
     }
 
     #[test]
+    fn traced_marker_survives_lowering() {
+        // Catches: @traced parsed but dropped during lowering (no HirFn.is_traced).
+        let hir = lower("@traced\nfn f() to int { return 1 }");
+        let f = hir
+            .functions
+            .iter()
+            .find(|f| f.name == "f")
+            .expect("fn f");
+        assert!(f.is_traced, "@traced must survive lowering into HirFn.is_traced");
+    }
+
+    #[test]
     fn at_traced_sets_fndecl_is_traced() {
         // Catches: @traced parsed but FnDecl.is_traced not set (decorator-loop gap).
         let m = parse(lex("@traced\nfn f() to int { return 1 }")).expect("parse");

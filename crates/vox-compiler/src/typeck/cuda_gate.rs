@@ -79,6 +79,7 @@ mod tests {
             is_versioned: false,
             is_remote: false,
             is_llm: false,
+            is_traced: false,
             llm_model: None,
             ai_structured_output: None,
             ai_fixture: None,

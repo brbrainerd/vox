@@ -359,6 +359,7 @@ mod semcov_wave12_tests {
             capabilities: vec![],
             is_remote: false,
             is_llm: false,
+            is_traced: false,
             llm_model: None,
             ai_structured_output: None,
             ai_fixture: None,
