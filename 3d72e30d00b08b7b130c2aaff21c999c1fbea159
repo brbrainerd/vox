@@ -1,0 +1,6 @@
+docs(arch): Add audit findings for vox-db split to build-time log
+scale: ~26 lines across 1 files [S]
+
+- docs/src/architecture/build-time-log.md: Documented the audit of splitting `vox-db` into `vox-db-stores`, detailing the high cost due to the orphan rule, the lack of unconditional fat dependencies to gate, and the bounded incremental edit cost. The findings conclude that the split is deferred in favor of other architectural phases.
+
+--- audit: original='docs(arch): Phase 3 — audit vox-db split, defer' | actual=26L across 1 files | derived=full ---
