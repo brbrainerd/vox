@@ -1,0 +1,24 @@
+refactor(workspace): replace inline timeouts with `vox_config::timeouts` constants
+scale: ~557 lines across 116 files [XL]
+
+- **crates/vox-actor-runtime**: Replaced `Duration::from_millis` and `Duration::from_secs` calls with `vox_config::timeouts` constants in `activity.rs`, `durable_scheduler.rs`, `inference_env.rs`, `presence.rs`, `rate_limit.rs`, `subscription.rs`, `supervisor.rs`, and `telemetry_sandbox_timeout_kill.rs`.
+- **crates/vox-audit**: Replaced `Duration::from_secs` calls with `vox_config::timeouts` constants in `cr-p1.rs`, `cr-p2.rs`, and `panel.rs`.
+- **crates/vox-cli**: Replaced `Duration::from_secs` calls with `vox_config::timeouts` constants in `ci/deploy_status.rs`, `ci/mens_scorecard.rs`, `ci/watch_run.rs`, `commands/diagnostics/tools/audit.rs`, `commands/extras/ludus/auth.rs`, `commands/extras/ludus/sync.rs`, `commands/generate.rs`, `commands/live.rs`, `commands/openclaw.rs`, `commands/plugin/install.rs`, `commands/plugin/publish.rs`, `commands/repair.rs`, `commands/review/coderabbit/github/comments.rs`, `commands/review/coderabbit/ingest.rs`, `commands/share.rs`, `fs_utils.rs`, `telemetry_spool.rs`, `utils/share/lifecycle.rs`, `utils/share/sse_detect.rs`, and `v0.rs`.
+- **crates/vox-code-audit**: Replaced `Duration::from_secs` calls with `vox_config::timeouts` constants in `review/client.rs`.
+- **crates/vox-compiler**: Added `hir_module_json_roundtrip.rs` regression test for `HirModule` `serde_json` round-trip, specifically addressing `HashMap<Span, HirType>` serialization.
+- **crates/vox-db**: Replaced `Duration::from_secs` calls with `vox_config::timeouts` constants in `circuit_breaker.rs`.
+- **crates/vox-deploy-codegen**: Added `vox-config` dependency to `Cargo.toml` and replaced `Duration::from_secs` calls with `vox_config::timeouts` constants in `deploy_target.rs`.
+- **crates/vox-drift-check**: Updated `ALLOWED_CRATES` in `timeout_literal.rs` to include `vox-foundation` for L1 foundation crates.
+- **crates/vox-foundation**: Replaced `Duration::from_secs` calls with `vox_config::timeouts` constants in `primitives/backoff.rs`.
+- **crates/vox-gamify**: Replaced `Duration::from_secs` calls with `vox_config::timeouts` constants in `lsp_telemetry.rs` and `output_policy.rs`.
+- **crates/vox-integration-tests**: Replaced `Duration::from_secs` calls with `vox_config::timeouts` constants in `orchestrator_e2e_test.rs`.
+- **crates/vox-ml-cli**: Replaced `Duration::from_secs` calls with `vox_config::timeouts` constants in `commands/populi_attest.rs`, `commands/populi_join.rs`, `commands/populi_lifecycle.rs`, and `commands/populi_cli.rs`.
+- **crates/vox-openclaw-runtime**: Added `vox-config` dependency to `Cargo.toml` and replaced `Duration::from_secs` calls with `vox_config::timeouts` constants in `openclaw.rs`.
+- **crates/vox-oratio**: Replaced `Duration::from_secs` calls with `vox_config::timeouts` constants in `backends/cloud_offload.rs`.
+- **crates/vox-orchestrator**: Replaced `Duration::from_secs` calls with `vox_config::timeouts` constants in `bulletin.rs`, `catalog.rs`, `clarification_db_inbox_poll.rs`, `events.rs`, `mesh.rs`, `orchestrator/observer_loop.rs`, `orchestrator/task_dispatch/submit/mod.rs`, `orchestrator/vcs_ops.rs`, `services/flywheel.rs`, and `orchestrator_daemon_tcp.rs`, `stress_test.rs`.
+- **crates/vox-orchestrator-mcp**: Replaced `Duration::from_secs` calls with `vox_config::timeouts` constants in `http_gateway/eval.rs`, `http_gateway_tests.rs`, and `openclaw_tools.rs`, `server_state.rs`.
+- **crates/vox-orchestrator-queue**: Added `vox-config` dependency to `Cargo.toml` and replaced `Duration::from_secs` calls with `vox_config::timeouts` constants in `leader_election.rs`.
+- **crates/vox-plugin-browser**: Added `vox-config` dependency to `Cargo.toml` and replaced `Duration::from_secs` calls with `vox_config::timeouts` constants in `engine.rs`.
+- **crates/vox-plugin-mens-candle-
+
+--- audit: original='refactor(workspace): mass timeout-literal sweep onto vox_config::timeouts SSOT' | actual=557L across 116 files | derived=full ---
