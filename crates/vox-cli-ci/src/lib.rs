@@ -1,5 +1,7 @@
 //! Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation wedge).
 
+pub mod affected;
+pub mod affected_cmd;
 pub mod ai_fixtures_coverage;
 pub mod dep_sprawl;
 pub mod docs_deprecated_command_guard;

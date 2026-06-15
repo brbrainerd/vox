@@ -744,6 +744,29 @@ pub enum CiCmd {
     /// Detect dependency cycles (HARD on normal-dep cycles) and inventory dev-dep back-edges.
     #[command(name = "dep-cycles")]
     DepCycles,
+    /// Compute or verify the set of workspace crates affected by a set of changed files.
+    /// Reads `contracts/ci/crate-graph.v1.json` (BFS reverse-dep closure).
+    #[command(name = "affected-crates")]
+    AffectedCrates {
+        /// Newline-delimited file listing changed paths (relative to repo root).
+        #[arg(long)]
+        changed: Option<String>,
+        /// Override graph file path.
+        #[arg(long)]
+        graph: Option<String>,
+        /// Regenerate `contracts/ci/crate-graph.v1.json` from `cargo metadata`.
+        #[arg(long)]
+        regen: bool,
+        /// Path for `--regen` output.
+        #[arg(long)]
+        out: Option<String>,
+        /// Verify committed graph matches `cargo metadata` (hard-fail on drift).
+        #[arg(long)]
+        check: bool,
+        /// Write computed outputs to `$GITHUB_OUTPUT`.
+        #[arg(long)]
+        github_output: Option<String>,
+    },
     /// Fail-fast: error immediately when no online self-hosted runner can serve the gate.
     #[command(name = "runner-preflight")]
     RunnerPreflight,
