@@ -23,7 +23,13 @@ use sysinfo::System;
 ///    narrowing that prevents touching any process not owned by this worktree.
 /// 4. Only `vox` / `vox.exe` / `vox-*` managed siblings are eligible;
 ///    build scripts (`*-build`) are excluded.
-fn should_reap(exe: &Path, cmdline: &[String], target_dir: &Path, pid: u32, current_pid: u32) -> bool {
+fn should_reap(
+    exe: &Path,
+    cmdline: &[String],
+    target_dir: &Path,
+    pid: u32,
+    current_pid: u32,
+) -> bool {
     // Guard 1: never reap self.
     if pid == current_pid {
         return false;
@@ -175,7 +181,13 @@ mod tests {
             100,
             1
         ));
-        assert!(should_reap(&p("/repo/target/release/vox"), &no_cmd(), &target, 100, 1));
+        assert!(should_reap(
+            &p("/repo/target/release/vox"),
+            &no_cmd(),
+            &target,
+            100,
+            1
+        ));
     }
 
     #[test]
@@ -200,7 +212,13 @@ mod tests {
             100,
             1
         ));
-        assert!(!should_reap(&p("/home/u/.vox/bin/vox"), &no_cmd(), &target, 100, 1));
+        assert!(!should_reap(
+            &p("/home/u/.vox/bin/vox"),
+            &no_cmd(),
+            &target,
+            100,
+            1
+        ));
     }
 
     #[test]
