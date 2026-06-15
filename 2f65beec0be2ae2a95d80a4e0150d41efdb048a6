@@ -1,0 +1,24 @@
+feat(workspace,apps): Migrate vox-mental-tracker to Tauri 2, retire Capacitor
+scale: ~5605 lines across 32 files [XL]
+
+- apps/vox-mental-tracker:
+  - Delete Capacitor configuration (capacitor.config.ts) and the `vox-sherpa-transcribe` Capacitor plugin.
+  - Update `src/runtime.ts` to use `@tauri-apps/api` for `transcribeMicrophone` and add Tauri environment detection.
+  - Update `src/main.vox` to reflect Tauri Sherpa plugin for on-device STT.
+  - Update `scripts/build.vox` to remove `npx cap sync` and reference Tauri compilation.
+  - Update `tests/e2e/voice_flow.spec.ts` to mention Tauri mobile build pipeline for native STT.
+  - Update `vite.config.ts` to align `build.outDir` with Tauri `frontendDist`.
+  - Add `tests/runtime_shim.test.ts` for `globalThis` runtime shims.
+  - Update `package.json` with Tauri dependencies and remove Capacitor-related ones.
+  - Update `pnpm-lock.yaml` to reflect dependency changes.
+  - Update `Vox.toml` to include Tauri-related configuration.
+  - Update `docs/how-to/build-android.md`, `docs/how-to/release.md`, `docs/contributors/ci-lanes.md`, and `docs/user/privacy.md` for Tauri migration.
+- apps/editor/vox-vscode: Update `StatusBarManager.ts` to improve status display logic and type safety for `BudgetStatus` and `ProviderStatus`.
+- apps/interop/marquee_app: Update `package.json` dependencies.
+- Workspace:
+  - Update `Cargo.lock` to synchronize dependency resolutions.
+  - Update `Cargo.toml` to include new crates as workspace members.
+  - Update `AGENTS.md` with an agent discovery index link and phase-2 status.
+  - Update `README.md` with revised "Why Vox?" section, new installation instructions, and general content improvements.
+
+--- audit: original='chore(workspace,apps): Tauri migration — Capacitor retirement, workspace manifests, Cargo.lock sync' | actual=5605L across 32 files | derived=full ---
