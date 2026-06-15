@@ -9,6 +9,12 @@ license.workspace = true
 # -- <thing>` without `--bin` (stdlib-coverage, corpus-feedback), so pin the default to the umbrella.
 default-run = "vox-audit"
 
+[features]
+# CI-only gate-runner binaries (cr-*). Excluded from the default build to cut
+# 8 of 9 binary codegen units. CI builds with --features ci-gates.
+default = []
+ci-gates = []
+
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
@@ -45,12 +51,14 @@ path = "src/main.rs"
 [[bin]]
 name = "cr-e1"
 path = "src/bin/cr-e1.rs"
+required-features = ["ci-gates"]
 
 # CR-A1 cyclomatic-complexity sweep over primary lowering paths.
 # Per honest plan §5.6. Threshold: max function complexity <= 15.
 [[bin]]
 name = "cr-a1"
 path = "src/bin/cr-a1.rs"
+required-features = ["ci-gates"]
 
 # CR-D3 CLI subcommand example coverage sweep.
 # Per honest plan §5.9. Threshold: 100% of `vox` subcommands have
@@ -58,6 +66,7 @@ path = "src/bin/cr-a1.rs"
 [[bin]]
 name = "cr-d3"
 path = "src/bin/cr-d3.rs"
+required-features = ["ci-gates"]
 
 # CR-A4 lifecycle metadata parity sweep over orchestration contracts.
 # Per honest plan §5.8. Threshold: every orchestration contract declares
@@ -66,30 +75,35 @@ path = "src/bin/cr-d3.rs"
 [[bin]]
 name = "cr-a4"
 path = "src/bin/cr-a4.rs"
+required-features = ["ci-gates"]
 
 # CR-A2 schema-parity sweep over contracts/. Per honest plan §5.7.
 # Initial enforce=false; flipped to true when 100% parity reached.
 [[bin]]
 name = "cr-a2"
 path = "src/bin/cr-a2.rs"
+required-features = ["ci-gates"]
 
 # CR-E2 marquee bundle-size measurement. Per honest plan §5.5.
 # Threshold: 800 KB gzip per app.
 [[bin]]
 name = "cr-e2"
 path = "src/bin/cr-e2.rs"
+required-features = ["ci-gates"]
 
 # CR-P1 marquee-live probe. Per honest plan §5.2. Three apps must
 # answer /health with 2xx.
 [[bin]]
 name = "cr-p1"
 path = "src/bin/cr-p1.rs"
+required-features = ["ci-gates"]
 
 # CR-P2 uptime monitor. Per honest plan §5.3. Probe-and-append +
 # rolling 7-day window roll-up.
 [[bin]]
 name = "cr-p2"
 path = "src/bin/cr-p2.rs"
+required-features = ["ci-gates"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
