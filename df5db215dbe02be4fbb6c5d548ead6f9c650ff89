@@ -1,0 +1,14 @@
+fix(workspace): add missing workspace.dependencies entries for new crates
+scale: ~30 lines across 1 files [S]
+
+- Add `vox-tauri-codegen`, `vox-tauri-sherpa`, `vox-release-artifacts`, and `vox-assets` to `[workspace.members]`.
+- Add `cargo_metadata = "0.18"` and `zeroize = "1"` to `[workspace.dependencies]`.
+- Add `notify = "6"` for file watching to `[workspace.dependencies]`.
+- Add `cpal = "0.15"`, `byteorder = "1"`, `tar = "0.4"`, and `libc = "0.2"` for audio and binary utilities to `[workspace.dependencies]`.
+- Add `dialoguer = "0.11"`, `pulldown-cmark = "0.13"`, and `urlencoding = "2"` for CLI UI to `[workspace.dependencies]`.
+- Add `tiktoken-rs = { version = "0.5", default-features = false }` for language model tokenization to `[workspace.dependencies]`.
+- Add `tower = { version = "0.5", default-features = false }` and `tower-lsp-server = "0.20"` for the LSP stack to `[workspace.dependencies]`.
+- Add `schemars08` (an alias for `schemars` v0.8) to `[workspace.dependencies]`.
+- Change `symphonia` dependency to `{ version = "0.5.4", default-features = false }` to allow crate-level feature overrides.
+
+--- audit: original='fix(workspace): add missing workspace.dependencies entries for new crates wave' | actual=30L across 1 files | derived=full ---
