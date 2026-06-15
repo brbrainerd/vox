@@ -1,0 +1,13 @@
+feat(mesh): advertise probed GPU VRAM and model in NodeRecord
+scale: ~46 lines across 3 files [S]
+
+- `crates/vox-populi/src/transport/handlers/nodes.rs`:
+    - Added logic to `merge_optional_node_fields` to merge `gpu_vram_total_mb` and `gpu_model_name` from source to target `NodeRecord`.
+    - Added a test case `merge_carries_gpu_vram_and_model_from_heartbeat` to verify the merging of these new GPU fields.
+- `crates/vox-populi-types/src/node_record.rs`:
+    - Added `gpu_vram_total_mb` (total probed GPU VRAM in MB) and `gpu_model_name` (probed GPU model name) fields to the `NodeRecord` struct.
+- `crates/vox-populi/src/lib.rs`:
+    - Initialized `gpu_vram_total_mb` and `gpu_model_name` to `None` in `node_record_for_current_process`.
+    - Populated `gpu_vram_total_mb` and `gpu_model_name` in the `NodeRecord` when GPU summary information is available.
+
+--- audit: original='feat(mesh): advertise probed GPU VRAM on NodeRecord (join+heartbeat)' | actual=46L across 3 files | derived=full ---
