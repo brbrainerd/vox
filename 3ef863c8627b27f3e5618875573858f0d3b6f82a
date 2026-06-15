@@ -1,0 +1,9 @@
+feat(plugin-manifest): add status, category, tags, capabilities, and replaces to PluginHeader
+scale: ~25 lines across 1 files [S]
+
+- `crates/vox-plugin-types/src/plugin_manifest.rs`:
+    - Added `status: Option<PluginStatus>`, `category: Option<String>`, `tags: Vec<String>`, `capabilities: Vec<String>`, and `replaces: Option<String>` fields to `PluginHeader`.
+    - All new fields are marked with `#[serde(default)]`.
+    - Introduced a new `PluginStatus` enum with `Alpha`, `Beta`, `Stable`, and `Deprecated` variants, using `#[serde(rename_all = "snake_case")]`.
+
+--- audit: original='feat(D-5): add status/category/tags/capabilities/replaces to PluginHeader' | actual=25L across 1 files | derived=full ---
