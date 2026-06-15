@@ -1,0 +1,8 @@
+fix(vox-db): Register convergence tables and activity result cache in legacy export lists
+scale: ~9 lines across 1 files [XS]
+
+- `crates/vox-db/src/codex_legacy.rs`:
+    - Added `convergence_op_log` and `convergence_op_log_backfill_dlq` to `LEGACY_EXPORT_SKIP_TABLES`.
+    - Added `activity_result_cache` to `LEGACY_EXPORT_TABLES`.
+
+--- audit: original='fix(vox-db): register convergence tables in legacy export skip list' | actual=9L across 1 files | derived=full ---
