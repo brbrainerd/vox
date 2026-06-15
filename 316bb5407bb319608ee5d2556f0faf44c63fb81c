@@ -1,0 +1,14 @@
+feat(telemetry): emit `sandbox.timeout_kill` events for activity timeouts
+scale: ~137 lines across 3 files [M]
+
+- **`crates/vox-actor-runtime/src/activity.rs`**:
+  - Added `emit_sandbox_timeout_kill` helper function to record `METRIC_TYPE_SANDBOX_TIMEOUT_KILL` `ResearchMetric` events.
+  - Modified `execute_activity` to call `emit_sandbox_timeout_kill` when an activity times out, passing `terminal: true` for final kills and `terminal: false` for retries.
+  - The `ResearchMetric` payload now includes `activity_name`, `activity_id`, `attempt`, `max_attempts`, `timeout_ms`, and `terminal` flag.
+- **`crates/vox-actor-runtime/tests/telemetry_sandbox_timeout_kill.rs`**:
+  - Added a new integration test to verify that a terminal activity timeout correctly emits exactly one `sandbox.timeout_kill` `ResearchMetric` event with `terminal=true`.
+- **`contracts/telemetry/events.v1.yaml`**:
+  - Moved `sandbox.timeout_kill` from `blind_spots` to `metric_types`.
+  - Added a detailed description for `sandbox.timeout_kill` under `metric_types`, including its constant, owner crate, sensitivity, and payload details.
+
+--- audit: original='feat(telemetry): wire sandbox.timeout_kill events from vox-actor-runtime' | actual=137L across 3 files | derived=full ---
