@@ -1,0 +1,12 @@
+feat(share): introduce TunnelBackend trait, BackendKind enum, and error types
+scale: ~156 lines across 7 files [M]
+
+- `crates/vox-share/src/backend.rs`: Add `BackendKind` enum with `Lan`, `Cloudflare`, `LocalhostRun`, and `Tailscale` variants, implementing `Default`, `FromStr`, and `Display`. Define `TunnelHandle` struct and `TunnelBackend` trait with `start_tunnel` and `connect_timeout` methods.
+- `crates/vox-share/src/error.rs`: Introduce `ShareError` enum with variants for `BackendUnavailable`, `TunnelCreate`, `TunnelDisconnected`, `Io`, `Config`, and `InvalidBackend`. Define `ShareResult` type alias.
+- `crates/vox-share/tests/backend_trait_test.rs`: Add unit tests for `BackendKind` `FromStr` and `Default` implementations, and a compile-time check for `TunnelBackend` object safety.
+- `crates/vox-share/src/coordinator.rs`: Add stub `ShareConfig` and `ShareSession` structs.
+- `crates/vox-share/src/backends/mod.rs`: Add stub module for backend implementations.
+- `crates/vox-share/src/proxy.rs`: Add stub module for proxy implementation.
+- `crates/vox-share/src/state.rs`: Add stub module for state management.
+
+--- audit: original='feat(share): TunnelBackend trait + BackendKind enum + error types (S1 task 2)' | actual=156L across 7 files | derived=full ---
