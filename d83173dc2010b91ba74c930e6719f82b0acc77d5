@@ -1,0 +1,16 @@
+feat(rn): translate Tailwind utility classes to React Native StyleSheet props
+scale: ~452 lines across 1 files [L]
+
+- **`crates/vox-codegen/src/codegen_ts/rn/component.rs`**:
+    - **`tailwind_tokens_to_rn_props`**: New function to convert an array of Tailwind utility class tokens into a vector of React Native `StyleSheet` property pairs. This addresses the issue where style kwargs were silently dropped on mobile by directly translating them into RN-compatible styles.
+    - **`tailwind_token_to_rn_prop`**: New function to map individual Tailwind utility class tokens (e.g., `bg-blue-600`, `p-8`, `text-zinc-50`) to their corresponding React Native `StyleSheet` property and value.
+        - **Color resolution**: Implemented `resolve_tw_color` to convert Tailwind color suffixes (e.g., `zinc-400`, `white`) to hex strings using the shared palette.
+        - **Spacing conversion**: Implemented `spacing_px` to convert Tailwind spacing values (e.g., `p-8`) to pixel values (e.g., `padding: 32`).
+        - **Radius conversion**: Mapped Tailwind radius classes (e.g., `rounded-md`) to `borderRadius` values.
+        - **Font styles**: Mapped Tailwind font weight (e.g., `font-bold`) and size (e.g., `text-lg`) classes to `fontWeight` and `fontSize` properties.
+        - **Opacity**: Mapped Tailwind opacity classes (e.g., `opacity-50`) to `opacity` property.
+        - **Width/Height**: Mapped Tailwind width/height classes (e.g., `w-full`, `h-16`) to `width` and `height` properties.
+    - **`class_string_to_style_key`**: Modified to integrate the new `tailwind_tokens_to_rn_props` function, ensuring that universal style kwargs are now correctly translated into React Native `StyleSheet` entries instead of being dropped.
+    - **`render_component_node`**: Updated to utilize the new style translation logic, merging the generated `StyleSheet` entries onto the node's semantic base.
+
+--- audit: original='feat(rn): universal style kwargs lower to StyleSheet (no silent drops on mobile)' | actual=452L across 1 files | derived=full ---
