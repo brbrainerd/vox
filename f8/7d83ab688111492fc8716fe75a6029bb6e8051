@@ -1,0 +1,13 @@
+feat(codegen-ts): deduplicate imports, add deep link hooks, and guard empty on_press
+scale: ~80 lines across 2 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/mobile_emit.rs`:
+    - Refactored import generation for mobile setup to deduplicate `@capacitor/app` and other imports.
+    - Added `useEffect` and `useNavigate` imports when a deep link is present.
+    - Guarded against generating `on_press` handler code for `@back_button` if `on_press` is empty.
+    - Introduced `has_back`, `has_deep`, and `has_push` flags to conditionally include imports and setup code.
+- `crates/vox-codegen/tests/deep_link_test.rs`:
+    - Added assertions to `deep_link_emits_app_url_open_listener` to check for `useNavigate` and `useEffect` imports.
+    - Added a new test `back_button_and_deep_link_deduplicates_app_import` to verify that `@capacitor/app` is imported only once when both `@back_button` and `@deep_link` are present.
+
+--- audit: original='fix(codegen-ts): deduplicate mobile.ts imports; add useNavigate/useEffect for deep_link; guard empty on_press' | actual=80L across 2 files | derived=full ---
