@@ -1,0 +1,11 @@
+refactor(codegen): Delete unused `codegen_ts/reactive` module and its submodules
+scale: ~1531 lines across 6 files [XL]
+
+- `crates/vox-codegen/src/codegen_ts/reactive/hooks.rs`: Deleted the `hooks` module, which contained functions for scanning HIR expressions for React imports and collecting reactive binding names.
+- `crates/vox-codegen/src/codegen_ts/reactive/mod.rs`: Deleted the `reactive` module, which served as the entry point for path C reactive components to React TSX via `hir_emit`. This included its submodules and related documentation.
+- `crates/vox-codegen/src/codegen_ts/reactive/effects.rs`: Deleted the `effects` module, which contained functions for emitting dependency inference hints and generating reactive components.
+- `crates/vox-codegen/src/codegen_ts/reactive/bindings.rs`: Deleted the `bindings` module, which contained functions for collecting callee references in HIR expression trees.
+- `crates/vox-codegen/src/codegen_ts/reactive/view.rs`: Deleted the `view` module, which contained logic for handling reactive view emit pathways, stats, and whitespace normalization for JSX.
+- `crates/vox-codegen/src/codegen_ts/reactive/imports.rs`: Deleted the `imports` module, which contained functions for emitting external React/TS import statements.
+
+--- audit: original='chore(codegen): delete orphaned never-compiled codegen_ts/reactive duplicate' | actual=1531L across 6 files | derived=full ---
