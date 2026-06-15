@@ -1,0 +1,8 @@
+chore(cleanup): remove stray root artifacts and update docs links
+scale: ~1280 lines across 15 files [XL]
+
+- docs: Delete `docs/video-walkthrough-script.md`, `docs/test_report_10.md`, and `docs/test_report_8_9.md`.
+- docs: Update internal links in `docs/src/reference/cli.md`, `docs/agents/documentation-rubric.md`, `docs/agents/governance.md`, `docs/src/index.md`, `docs/src/reference/mcp-tool-reference.md`, `docs/src/architecture/mcp-vox-language-exposure.md`, `docs/src/architecture/telemetry-client-disclosure-ssot.md`, and `docs/src/reference/env-vars.md` to use relative paths.
+- chore: Delete `audit.json`, `migration_cargo_metadata_baseline.json`, `mocks_stub.rs`, and `tmp_island_child.vox` from the repository root.
+
+--- audit: original='chore: remove stray root artifacts and fix web-vite integration test + vite scaffold' | actual=1280L across 15 files | derived=full ---
