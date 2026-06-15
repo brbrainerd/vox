@@ -1,0 +1,57 @@
+feat: migrate to native OS installers and remove vox-bootstrap
+scale: ~443822 lines across 861 files [XL]
+
+DIVERGENCE: original subject claimed 'chore: migrate to native OS installers and remove vox-bootstrap' but this commit actually changed ~443822 lines across 861 files. Top areas:
+crates: 432944 lines, 631 files
+test_app_bundle: 1929 lines, 29 files
+scratch: 1757 lines, 60 files
+marquee_app: 1719 lines, 16 files
+docs: 1601 lines, 21 files
+scripts: 1183 lines, 16 files
+contracts: 1135 lines, 5 files
+(root): 702 lines, 26 files
+infra: 258 lines, 3 files
+examples: 220 lines, 31 files
+.github: 169 lines, 3 files
+test_app: 67 lines, 2 files
+patches: 55 lines, 12 files
+tools: 47 lines, 1 files
+.vox: 12 lines, 1 files
+tree-sitter-vox: 8 lines, 1 files
+vox-vscode: 8 lines, 1 files
+tests: 6 lines, 1 files
+mens: 2 lines, 1 files
+
+- chore(crates/vox-populi): add numerous new PTX kernel files for quantized, binary, unary, indexing, conv, reduce, cast, ternary, sort, fill, and affine operations, significantly expanding GPU compute capabilities.
+- chore(crates/vox-bootstrap): remove the entire `vox-bootstrap` crate, including install, evaluate, and main modules, indicating a shift away from its bootstrapping mechanism.
+- chore(scripts): remove `install.sh` and `install.ps1` scripts, and `vox-dev.ps1` and `vox-dev.sh` scripts, consistent with the removal of `vox-bootstrap`.
+- chore(crates/vox-schola): remove `serve.rs`, `train.rs`, `forward.rs`, `cli.rs`, `curator.rs`, `merge.rs`, and `status.rs`, suggesting a refactoring or deprecation of training and serving functionalities.
+- chore(crates/vox-cli): refactor `scientia.rs`, `visus/mod.rs`, `db_cli/types.rs`, `lib.rs`, `ci/run_body_helpers/docs.rs`, and remove `login.rs`, indicating changes to CLI commands and internal structure.
+- feat(crates/vox-cli-core): add `scientia.rs`, likely introducing new core CLI functionalities.
+- chore(crates/vox-populi): refactor `transport/handlers.rs`, `mens/tensor/candle_qlora_train/mod.rs`, `mens/tensor/device.rs`, `mens/tensor/candle_qlora_train/training_loop/mod.rs`, `mens/tensor/candle_inference_serve.rs`, and `mens/tensor/candle_model_qwen.rs`, indicating significant changes to tensor operations and model handling.
+- chore(crates/vox-orchestrator): refactor `mcp_tools/dispatch.rs`, `orchestrator/task_dispatch/complete/success/mod.rs`, `mcp_tools/server_state.rs`, `orchestrator/observer_loop.rs`, `mcp_tools/task_tools/submission.rs`, `orchestrator/core/mod.rs`, `services/topology_ingest.rs`, `mcp_tools/dei_tools/control.rs`, and `config/impl_env.rs`, indicating extensive changes to orchestration and task management.
+- chore(crates/vox-compiler): refactor `parser/descent/decl/mid.rs`, `eval/builtins.rs`, `parser/descent/mod.rs`, `hir/lower/contracts.rs`, `pipeline.rs`, `fmt/printer.rs`, `parser/descent/tests.rs`, `hir/validate.rs`, and `codegen_ts/emitter.rs`, indicating broad changes across the compiler's parsing, evaluation, and code generation stages.
+- chore(crates/vox-corpus): refactor `research_gen.rs` and `corpus/mix/mod.rs`, suggesting updates to research data generation and corpus mixing.
+- chore(crates/vox-config): refactor `operator_registry.rs`, indicating changes to operator configuration.
+- chore(crates/vox-ludus): refactor `schema.rs`, `simulation.rs`, and `db/disputes.rs`, suggesting updates to game schema, simulation logic, and dispute handling.
+- chore(crates/vox-publisher): refactor `publisher/mod.rs`, `adapter_health.rs`, and `adapters/canary.rs`, indicating changes to publishing and health monitoring.
+- chore(crates/vox-search): refactor `policy.rs`, suggesting updates to search policies.
+- chore(crates/vox-oratio): refactor `backends/candle_whisper.rs` and `routing.rs`, indicating changes to speech processing backends and routing.
+- chore(crates/vox-db): refactor `store/ops_ludus/gamify_disputes.rs`, `store/ops_identity.rs`, `store/ops_ludus/gamify_world.rs`, and `facade/vox_mesh.rs`, indicating changes to database operations for ludus and identity.
+- chore(crates/vox-clavis): refactor `backend/vox_vault.rs` and `spec/registry/missing.rs`, suggesting updates to key management and registry specifications.
+- chore(crates/vox-lsp): refactor `main.rs`, indicating changes to the Language Server Protocol implementation.
+- chore(crates/vox-project-scaffold): refactor `lib.rs`, suggesting updates to project scaffolding.
+- chore(contracts): refactor `operations/catalog.v1.yaml` and add `mcp/tool-registry.canonical.yaml`, indicating changes to contract definitions and tool registry.
+- chore(docs): add new architecture documentation for `model-orchestration-ssot-audit-2026.md`, `ludus-adjudication-implementation-plan-2026.md`, and `ludus-identity-github-integration-research-2026.md`.
+- chore(marquee_app): add `pnpm-lock.yaml` and `build/assets/index-C_CxO6X0.js`, indicating updates to the marquee application's dependencies and build output.
+- chore(test_app_bundle): add `app/pnpm-lock.yaml`, indicating updates to the test application bundle's dependencies.
+- chore(infra/containers): add `entrypoints/populi-entrypoint.vox`, indicating a new entrypoint for populi containers.
+- chore(crates/vox-dei): remove `doubt_resolution.rs`.
+- chore(crates/vox-runtime): add `builtins/mod.rs`.
+- chore(crates/vox-container): add `deploy_target.rs`.
+- chore(crates/vox-populi): add `mens/cloud/local_provider.rs` and `mens/hardware/mod.rs`, `mens/hardware/types.rs`.
+- chore(.github/workflows): update `ci.yml`.
+- chore(scripts/quality): add `audit-workspace-health.vox`, `audit-dependency-layers.vox`, `audit-telemetry.vox`, and `generate-matrix-doc.vox`.
+- chore(scratch): remove `patch3.py`, `scratch_extract.vox`, `scratch_test.vox-ir.json`, and `patch.py`.
+
+--- audit: original='chore: migrate to native OS installers and remove vox-bootstrap' | actual=443822L across 861 files | derived=stat-only ---
