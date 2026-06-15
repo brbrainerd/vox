@@ -1,0 +1,6 @@
+docs(architecture): add training_rationale to dependency-consolidation-plan-2026
+scale: ~1 lines across 1 files [XS]
+
+- `docs/src/architecture/dependency-consolidation-plan-2026.md`: Added `training_rationale` field with a description of the SSOT design for installer policy, cross-platform dependency management, and Rust-native toolchain setup.
+
+--- audit: original='fix(docs): add training_rationale to dependency-consolidation-plan' | actual=1L across 1 files | derived=full ---
