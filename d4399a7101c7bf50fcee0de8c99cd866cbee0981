@@ -1,0 +1,14 @@
+feat(vox-gui): hydrate Orchestrator settings from Vox.toml
+scale: ~148 lines across 3 files [M]
+
+- `crates/vox-gui/src/commands/orchestrator.rs`:
+  - Added `get_orchestrator_config` Tauri command to read the `[orchestrator]` table from `Vox.toml`.
+  - Implemented `orchestrator_table_to_settings_json` pure function to map TOML table values to GUI `SettingsState` keys, applying `OrchestratorConfig` defaults for absent keys.
+  - Handled `scope_enforcement` mapping, degrading `Warn` to `Wasm` as the UI lacks a `Warn` tier.
+  - Unit tests added for `orchestrator_table_to_settings_json` covering empty, populated, and `Warn` cases.
+- `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx`:
+  - Modified the mount effect to invoke `get_orchestrator_config` and merge the returned real Orchestrator settings into the UI state, replacing hardcoded initial values.
+  - Updated comment for `checkpointMins` to clarify it's a UI-only preference.
+- `crates/vox-gui/src/main.rs`: Registered the new `get_orchestrator_config` Tauri command.
+
+--- audit: original='feat(vox-gui): hydrate Orchestrator settings from real Vox.toml' | actual=148L across 3 files | derived=full ---
