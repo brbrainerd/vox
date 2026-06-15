@@ -1,0 +1,7 @@
+docs(architecture): add next-gen AI orchestrator research paper
+scale: ~376 lines across 2 files [L]
+
+- Add `nextgen-orchestrator-research-2026.md` detailing systemic flaws, power user demands, and production design patterns for AI orchestrators.
+- Update `research-index.md` to include the new "Next-Generation AI Orchestrator" research document.
+
+--- audit: original='chore: sync docs and fix Dockerfile build deps' | actual=376L across 2 files | derived=full ---
