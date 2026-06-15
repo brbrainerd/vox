@@ -112,7 +112,7 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
     },
     ConfigKey {
         key: "VOX_SEARCH_POLICY_VERSION",
-        kind: ConfigKind::Bool,
+        kind: ConfigKind::Int,
         default: DefaultValue::Literal("1"),
         bound: None,
         group: Group::Tuning,
