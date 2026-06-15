@@ -1,0 +1,16 @@
+docs(audit): forensic record of multi-agent work-loss reports
+scale: ~306 lines across 1 files [L]
+
+- docs/superpowers/specs/2026-05-24-multi-agent-work-loss-audit.md: Add new document detailing a forensic audit of reported work loss across parallel Claude agents. The audit concludes that no git-level work was lost, and symptoms were due to agent-state confusion regarding branches/worktrees. The document includes:
+    - A `tl;dr` summary of findings.
+    - Explanation of the 2026-05-23 22:44 `main` reset, confirming work content survival via PR #93.
+    - Analysis of a "cwd-confusion" incident in the author's session, confirming no work loss.
+    - A detailed timeline of git operations within the audit window.
+    - Evidence-based sections addressing hypotheses about potential damage to `main` and other "lost work" candidates (dangling commits, stashes).
+    - Diagnostic steps for agents to perform before reporting loss.
+    - A recovery plan (though none was required).
+    - An end-state goal for all threads.
+    - Root cause analysis of agent confusion (cwd-bug) and mitigation strategies.
+    - Open items for handoff.
+
+--- audit: original='docs(audit): forensic record of multi-agent work-loss reports' | actual=306L across 1 files | derived=full ---
