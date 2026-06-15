@@ -7,6 +7,7 @@
 //! `chat_requires_nonempty_api_key`, `openrouter_extra_headers`) so all callers resolve
 //! provider key / base-url / attribution headers identically.
 
+use crate::snapshot::SnapshotCache;
 use vox_llm_egress::EgressRequest;
 
 /// Minimal input for [`resolve_egress`]; built from a caller's config without importing
@@ -31,20 +32,30 @@ fn resolve_timeout_ms(timeout_ms: Option<u64>) -> u64 {
     }
 }
 
+static OPENROUTER_KEY_CACHE: SnapshotCache<String> = SnapshotCache::new();
+static OPENAI_KEY_CACHE: SnapshotCache<String> = SnapshotCache::new();
+static ANTHROPIC_KEY_CACHE: SnapshotCache<String> = SnapshotCache::new();
+
 fn resolve_api_key(provider: &str) -> String {
     match provider {
-        "openrouter" => vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
-            .expose()
-            .unwrap_or_default()
-            .to_string(),
-        "openai" => vox_secrets::resolve_secret(vox_secrets::SecretId::OpenaiApiKey)
-            .expose()
-            .unwrap_or_default()
-            .to_string(),
-        "anthropic" => vox_secrets::resolve_secret(vox_secrets::SecretId::AnthropicApiKey)
-            .expose()
-            .unwrap_or_default()
-            .to_string(),
+        "openrouter" => OPENROUTER_KEY_CACHE.get_or_init(|| {
+            vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
+                .expose()
+                .unwrap_or_default()
+                .to_string()
+        }),
+        "openai" => OPENAI_KEY_CACHE.get_or_init(|| {
+            vox_secrets::resolve_secret(vox_secrets::SecretId::OpenaiApiKey)
+                .expose()
+                .unwrap_or_default()
+                .to_string()
+        }),
+        "anthropic" => ANTHROPIC_KEY_CACHE.get_or_init(|| {
+            vox_secrets::resolve_secret(vox_secrets::SecretId::AnthropicApiKey)
+                .expose()
+                .unwrap_or_default()
+                .to_string()
+        }),
         "hf_router" | "huggingface" | "hf_endpoint" => {
             crate::inference::huggingface_hub_token().unwrap_or_default()
         }
@@ -84,30 +95,35 @@ fn extra_headers(provider: &str, model: &str) -> Vec<(String, String)> {
     headers
 }
 
+static ROUTE_HINT_CACHE: SnapshotCache<crate::OpenRouterRouteHint> = SnapshotCache::new();
+
 /// Resolve the OpenRouter route hint from the route-hint / cost-preference secrets.
 /// Ported verbatim from `wire.rs::openrouter_route_hint_from_env`.
 fn openrouter_route_hint_from_env() -> crate::OpenRouterRouteHint {
-    use crate::{OpenRouterRouteHint, RouteCostPreference, derive_openrouter_route_hint};
-    let raw = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenrouterRouteHint)
-        .expose()
-        .unwrap_or("")
-        .to_string();
-    match raw.trim().to_ascii_lowercase().as_str() {
-        "price" | "economy" | "cheap" => OpenRouterRouteHint::Price,
-        "quality" | "performance" | "best" => OpenRouterRouteHint::Quality,
-        "fallback" | "resilience" => OpenRouterRouteHint::Fallback,
-        _ => {
-            let pref_raw = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxCostPreference)
-                .expose()
-                .unwrap_or("")
-                .to_string();
-            let pref = match pref_raw.trim().to_ascii_lowercase().as_str() {
-                "performance" | "quality" => RouteCostPreference::Performance,
-                _ => RouteCostPreference::Economy,
-            };
-            derive_openrouter_route_hint(pref)
+    ROUTE_HINT_CACHE.get_or_init(|| {
+        use crate::{OpenRouterRouteHint, RouteCostPreference, derive_openrouter_route_hint};
+        let raw = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenrouterRouteHint)
+            .expose()
+            .unwrap_or("")
+            .to_string();
+        match raw.trim().to_ascii_lowercase().as_str() {
+            "price" | "economy" | "cheap" => OpenRouterRouteHint::Price,
+            "quality" | "performance" | "best" => OpenRouterRouteHint::Quality,
+            "fallback" | "resilience" => OpenRouterRouteHint::Fallback,
+            _ => {
+                let pref_raw =
+                    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxCostPreference)
+                        .expose()
+                        .unwrap_or("")
+                        .to_string();
+                let pref = match pref_raw.trim().to_ascii_lowercase().as_str() {
+                    "performance" | "quality" => RouteCostPreference::Performance,
+                    _ => RouteCostPreference::Economy,
+                };
+                derive_openrouter_route_hint(pref)
+            }
         }
-    }
+    })
 }
 
 /// Resolve a provider's concurrency ceiling from VoxConfig (the throttle dial).
@@ -198,6 +214,36 @@ mod tests {
         };
         let req = resolve_egress(&input).expect("resolve");
         assert_eq!(req.base_url, "https://custom/v1/chat/completions");
+    }
+
+    #[test]
+    fn resolve_egress_base_url_follows_inference_cache_after_bump() {
+        use crate::toml_config::test_support::{CONFIG_TEST_LOCK as TEST_ENV_LOCK, HomeGuard};
+        let _g = TEST_ENV_LOCK.lock().expect("env lock");
+        let _home = HomeGuard::new();
+        let _ = crate::toml_config::unset_user_config_value("OPENROUTER_BASE_URL");
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", "https://cached-test-1.example/api");
+        }
+        crate::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+        // warmup — populates inference cache
+        let _ = crate::inference::openrouter_base_url();
+
+        // Change env + bump → inference cache invalidates, resolve_egress must see new URL.
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", "https://cached-test-2.example/api");
+        }
+        crate::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+        let url = crate::inference::openrouter_chat_completions_url();
+        assert!(
+            url.contains("cached-test-2.example"),
+            "must pick up new base after bump, got {url}"
+        );
+
+        unsafe {
+            std::env::remove_var("OPENROUTER_BASE_URL");
+        }
+        crate::snapshot::bump(&["OPENROUTER_BASE_URL"]);
     }
 
     #[test]
