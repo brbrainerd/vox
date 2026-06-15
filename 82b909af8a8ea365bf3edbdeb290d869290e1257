@@ -1,0 +1,8 @@
+docs(plan): Mark D0 gate check complete for vox-orchestrator core extraction
+scale: ~8 lines across 1 files [XS]
+
+- docs/superpowers/plans/2026-05-28-vox-orchestrator-core-extraction.md:
+  - Marked steps 1, 2, and 3 as complete.
+  - Added a D0 result section indicating the gate was not tripped, with vox-orchestrator at 61061 LoC and 12.8% headroom.
+
+--- audit: original='docs(plan): D0 gate check 2026-05-28 — not tripped (61061 LoC, 12.8% headroom)' | actual=8L across 1 files | derived=full ---
