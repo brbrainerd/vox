@@ -1,0 +1,8 @@
+feat(vox-cli): emit Ludus reward events on fabrica command completion
+scale: ~129 lines across 1 files [M]
+
+- Introduce `FabricaRewardEvents` struct to define success, failure, capability ID, and command path for reward events.
+- Add `fabrica_lane_name` function to map `FabricaCmd` variants to stable lane names.
+- Implement `fabrica_reward_events` function to map specific fabrica lane names ("build", "check", "test", "fmt", "bundle") to `FabricaRewardEvents` instances, returning `None` for lanes that do not trigger reward events ("run", "dev", "compile", "script").
+
+--- audit: original='feat(vox-cli): emit Ludus reward events on fabrica command completion (SP-3)' | actual=129L across 1 files | derived=full ---
