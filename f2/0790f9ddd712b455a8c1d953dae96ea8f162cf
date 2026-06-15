@@ -1,0 +1,9 @@
+fix(integration-tests): update to reflect TASK-2.6 and TASK-4.2 HIR changes
+scale: ~394 lines across 4 files [L]
+
+- `crates/vox-integration-tests/tests/workflow_integration_test.rs`: Removed tests for the retired `activity` and `workflow` HIR constructs, retaining only tests for generic, table, and argument-mismatch scenarios. Added a comment explaining the removal.
+- `crates/vox-integration-tests/tests/multimodal_image_gen_test.rs`: Deleted file as it exclusively tested the retired `activity` and `workflow` HIR lowering.
+- `crates/vox-integration-tests/tests/workflow_recovery_test.rs`: Deleted file as it exclusively tested the retired `activity` and `workflow` HIR lowering.
+- `crates/vox-integration-tests/tests/metamorphic_axiom_test.rs`: Added the `effects: vec![]` field to `HirFn` instantiation to align with the updated HIR structure.
+
+--- audit: original='fix(integration-tests): catch up to TASK-2.6 / TASK-4.2 HIR changes' | actual=394L across 4 files | derived=full ---
