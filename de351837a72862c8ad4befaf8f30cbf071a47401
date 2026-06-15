@@ -1,0 +1,17 @@
+feat(vox-effort-audit): Implement Judge trait and concrete judges
+scale: ~313 lines across 3 files [L]
+
+- **`crates/vox-effort-audit/src/judge/mod.rs`**:
+    - Replaced stub with `Judge` trait definition, including `JudgeOutcome`, `JudgeStatus`, and `SkipReason` enums.
+    - Implemented `MockJudge` for deterministic testing, routing based on `ShapeFeatures` (mechanical sweep score, doc-only).
+    - Implemented `LlmJudge` which uses `vox_actor_runtime::llm::infer_with_retry` for LLM calls.
+    - `LlmJudge` handles retry logic for schema parse errors, appending corrective messages.
+    - `LlmJudge` maps `ActivityResult` variants to `JudgeStatus::Failed`.
+    - Integrated `JudgeConfig` for `LlmJudge` configuration.
+    - Added new modules `parse`, `prompt`, and `schema` to the `judge` module.
+- **`crates/vox-effort-audit/Cargo.toml`**:
+    - Added `async-trait` dependency.
+- **`Cargo.lock`**:
+    - Updated `async-trait` dependency.
+
+--- audit: original='feat(vox-effort-audit): Judge trait + MockJudge + LlmJudge (B4)' | actual=313L across 3 files | derived=full ---
