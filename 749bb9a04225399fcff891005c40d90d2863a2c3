@@ -1,0 +1,6 @@
+docs(plan): Clarify codegen-ts bootstrap and Task 1.A scope in Phase 1 audit
+scale: ~4 lines across 1 files [XS]
+
+- docs/superpowers/plans/2026-06-06-phase1-cross-arm-parity.md: Updated the description of Task 1.A (codegen-ts Node harness) to clarify that `codegen-ts` emits a multi-file web/library bundle with no runnable entry point, leaving bootstrap to a hand-written `main.tsx`. This explains why Task 1.A must synthesize a `main()`-calling entry, resolve intra-bundle imports, and run under Node/tsx.
+
+--- audit: original='docs(plan): Phase 1 audit — codegen-ts has no main->stdout bootstrap (Task 1.A scope)' | actual=4L across 1 files | derived=full ---
