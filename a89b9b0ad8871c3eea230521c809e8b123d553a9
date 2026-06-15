@@ -1,0 +1,14 @@
+style: apply rustfmt and consolidate bearer token handling
+scale: ~86 lines across 29 files [L]
+
+- `vox-http-client`: Introduce `BEARER_PREFIX` constant and use it in `bearer_auth_header` and `bearer_auth_header_string` for consistent bearer token formatting.
+- `vox-orchestrator-mcp`: Update `http_gateway_tests.rs` to use `vox_http_client::bearer_auth_header` for Authorization headers in tests, and `llm_bridge/provider_adapter.rs` to use `BEARER_PREFIX` for stripping the bearer prefix from API keys.
+- `vox-publisher`: Update `adapters/tests/linkedin.rs` and `adapters/tests/twitter.rs` to use `vox_http_client::bearer_auth_header_string` for Authorization headers in mock tests.
+- `vox-cli`: Update various commands (`agent.rs`, `clean.rs`, `diagnostics/tools/clean.rs`, `repo_upgrade.rs`, `review/coderabbit/semantic_planner/groups.rs`, `extras/ludus/pack.rs`) to use constants from `vox-config::paths` for repository-related directory and file paths.
+- `vox-secrets`: Update `spec/registry/platform.rs` to clarify remediation messages for bearer tokens, indicating they are sent as Authorization headers.
+- `vox-actor-runtime`: Use `vox_http_client::BEARER_PREFIX` in `auth.rs` for parsing bearer tokens.
+- `vox-config`: Add `REPO_CACHE_DIR_PREFIX` constant to `paths.rs`.
+- `crates/vox-oratio`, `crates/vox-package`, `crates/vox-plugin-oratio`, `crates/vox-repository`: Add `vox-config` as a dependency in `Cargo.toml`.
+- Bulk formatting: Apply `rustfmt` to 25+ files across multiple crates to fix formatting drift, ensuring `cargo fmt --all -- --check` passes.
+
+--- audit: original='style: apply rustfmt to all files with pre-existing format drift' | actual=86L across 29 files | derived=full ---
