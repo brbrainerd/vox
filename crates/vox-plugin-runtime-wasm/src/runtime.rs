@@ -17,10 +17,10 @@ use wasmtime::Module;
 
 /// Default WASM skill fuel: ~1B instructions (~seconds of compute). SSOT for the
 /// default; override at runtime with `VOX_WASM_SKILL_FUEL`.
-pub const DEFAULT_WASM_SKILL_FUEL: u64 = 1_000_000_000;
+pub(crate) const DEFAULT_WASM_SKILL_FUEL: u64 = 1_000_000_000;
 
 /// Resolve the fuel budget from a raw env override, falling back to the default.
-pub fn resolve_fuel(raw: Option<&str>) -> u64 {
+pub(crate) fn resolve_fuel(raw: Option<&str>) -> u64 {
     raw.and_then(|s| s.trim().parse::<u64>().ok())
         .unwrap_or(DEFAULT_WASM_SKILL_FUEL)
 }
