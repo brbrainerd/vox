@@ -1,0 +1,29 @@
+docs(quantize): Update plans and specs for GPU-first device selection
+scale: ~174 lines across 5 files [M]
+
+- `docs/superpowers/plans/2026-05-31-vox-quantize-engine.md`:
+    - Updated the goal to reflect `vox-quantize` as device-selectable (GPU-first, CPU fallback).
+    - Modified the crate description to "GPU-first, CPU fallback".
+    - Added `cuda` and `metal` features to `Cargo.toml` for GPU acceleration, mirroring `vox-plugin-mens-candle-cuda`.
+    - Introduced `DevicePref` enum (Auto/Cuda/Metal/Cpu) for device selection.
+    - Updated `QuantizeRequest` to include `device: DevicePref`.
+    - Added `quantize_onto` to `QTensor` for device-specific quantization.
+- `docs/superpowers/plans/2026-05-31-vox-quantize-cli.md`:
+    - Added `DevicePref` import and `device` argument to `QuantizeArgs` with `auto` default.
+    - Implemented `parse_device` function to map string inputs to `DevicePref` enum variants.
+    - Added a test for `parse_device_maps_known_values`.
+    - Updated `quantize` calls to pass the selected device.
+- `docs/superpowers/specs/2026-05-31-vox-quantize-engine-design.md`:
+    - Added a "Device policy (GPU-first)" section detailing device-selectability, GPU-first default, and `quantize_onto` usage.
+    - Clarified that Candle's k-quant `from_float` kernels run host-side, but `quantize_onto` lands results on GPU.
+    - Noted that the dominant GPU win is for SP-2 inference, not the one-time quantize.
+    - Updated the engine's compilation and testing to be device-selectable instead of CPU-only.
+- `docs/superpowers/plans/2026-05-31-vox-quantize-merge.md`:
+    - Updated `vox_quantize::quantize` calls to pass `DevicePref::Cpu` or `DevicePref::Auto`.
+    - Changed `vox_quantize::engine::QuantizeRequest` to `vox_quantize::QuantizeRequest`.
+- `docs/superpowers/plans/2026-05-31-vox-quantize-inference.md`:
+    - Updated the goal to specify "CUDA-first" inference on RTX 4080 with CPU fallback.
+    - Updated `vox_quantize::quantize` call in tests to pass `DevicePref::Cpu`.
+    - Changed `vox_quantize::engine::QuantizeRequest` to `vox_quantize::QuantizeRequest`.
+
+--- audit: original='docs(quantize): GPU-first device selection across specs+plans' | actual=174L across 5 files | derived=full ---
