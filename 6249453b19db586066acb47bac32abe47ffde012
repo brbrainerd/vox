@@ -1,0 +1,13 @@
+docs: update SUMMARY.md and feed.xml
+scale: ~854 lines across 2 files [L]
+
+- docs/src/SUMMARY.md:
+  - Add new entries for "Getting Started", "Concepts", "How-to Guides", "Reference", and "Tutorials" sections.
+  - Update existing entries and their nesting within the "Getting Started" section.
+  - Remove several old entries and adjust indentation.
+- docs/src/feed.xml:
+  - Update the publication date of the feed to April 21, 2026.
+  - Remove 11 entries from the feed.
+  - Add 10 new entries to the feed, including "Getting Started", "Concepts", "How-to Guides", "Reference", and "Tutorials".
+
+--- audit: original='chore: sync doc pipeline SUMMARY.md' | actual=854L across 2 files | derived=full ---
