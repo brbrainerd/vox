@@ -1,0 +1,6 @@
+fix(vox-manuscript-latex): drop unused `std::io::Write` import
+scale: ~1 lines across 1 files [XS]
+
+- `crates/vox-manuscript-latex/src/bundle.rs`: Removed the unused `std::io::Write` import.
+
+--- audit: original='fix(vox-manuscript-latex): drop unused std::io::Write import' | actual=1L across 1 files | derived=full ---
