@@ -1,0 +1,9 @@
+fix(ssot): regenerate surfaceRegistry.generated.ts and update operation counts
+scale: ~8 lines across 4 files [S]
+
+- `contracts/reports/operations-catalog-inventory.v1.json`: incremented `catalog_operations` from 547 to 548, `mcp_only_operations` from 269 to 270, and `mcp_tool_count` from 280 to 281.
+- `contracts/gui/surface-registry.v1.yaml`: added `parent_surface: null` to a surface definition.
+- `crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts`: regenerated to reflect changes in `surface-registry.v1.yaml`.
+- `contracts/reports/gui-surface-registry.v1.json`: updated due to regeneration.
+
+--- audit: original='fix(ssot): regenerate surfaceRegistry.generated.ts after merge' | actual=8L across 4 files | derived=full ---
