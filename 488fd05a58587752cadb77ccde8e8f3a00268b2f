@@ -1,0 +1,14 @@
+feat(parser): Parse `@public` decorator and set `is_pub` flag
+scale: ~63 lines across 3 files [M]
+
+- `crates/vox-compiler/src/parser/descent/mod.rs`:
+    - Add `Token::AtPublic` to the set of tokens that can start a declaration.
+    - Implement parsing for `Token::AtPublic`: it consumes the token, recursively parses the inner declaration, and then sets the `is_pub` field to `true` for `Endpoint` and `Function` declarations.
+- `crates/vox-compiler/src/parser/descent/decl/head_fn.rs`:
+    - Allow the `is_pub` parameter to be mutable within `parse_fn_decl`.
+    - Add a new arm to the decorator parsing loop to handle `Token::AtPublic`, advancing the parser and setting `is_pub` to `true`.
+- `crates/vox-compiler/tests/at_public_parse_test.rs`:
+    - Add a new test file with five tests to verify `@public` decorator parsing for `@server`, `@query`, `@mutation`, and plain functions.
+    - Include a structural test to confirm that `FnDecl::is_pub` is correctly set to `true` when `@public` is used.
+
+--- audit: original='feat(parser): Task 8J — @public decorator parsing' | actual=63L across 3 files | derived=full ---
