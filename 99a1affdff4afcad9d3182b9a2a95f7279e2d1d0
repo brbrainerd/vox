@@ -1,0 +1,6 @@
+fix(docs): Regenerate feed.xml to update entries and build date
+scale: ~40 lines across 1 files [S]
+
+- `docs/src/feed.xml`: Updated the feed to include new documentation entries and refreshed the `lastBuildDate` following a merge with the `main` branch.
+
+--- audit: original='fix(docs): regenerate feed.xml after merge with main' | actual=40L across 1 files | derived=full ---
