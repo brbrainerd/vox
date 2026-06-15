@@ -1,0 +1,24 @@
+feat(publisher): gate publication novelty on vox-scientia decision layer
+scale: ~431 lines across 4 files [L]
+
+- `crates/vox-publisher/src/publication_worthiness.rs`:
+    - Implemented `NOVELTY_NON_NOVEL_CAP` constant for low novelty capping.
+    - Added `adapt_bundle_v1` function to convert `NoveltyEvidenceBundleV1` to `vox_research_events::schema_types::NoveltyEvidenceBundle`.
+    - Integrated `vox-scientia`'s `NoveltyScorer`, `ChronoFilter`, and `ConflictDetector` into the `publication_worthiness` logic.
+    - Introduced `NoveltyDecisionLayerOutput` and `NoveltyDecisionLayer` to encapsulate the scoring and filtering process.
+    - Modified `WorthinessInputs` to include `novelty_decision_layer_output`.
+    - Updated `aggregate_score` to incorporate the novelty decision layer's output, capping novelty based on its findings.
+- `crates/vox-publisher/tests/scientia_novelty_acceptance.rs`:
+    - Added extensive acceptance tests for the new novelty decision layer integration, covering scenarios like:
+        - High novelty with no prior art.
+        - Novelty capped by `ChronoFilter` due to recent prior art.
+        - Novelty capped by `ConflictDetector` due to conflicting prior art.
+        - Novelty capped by `NoveltyScorer` due to insufficient evidence.
+        - Scenarios with multiple prior art hits and their impact on novelty.
+    - Introduced helper functions `high_novelty_inputs` and `novelty_decision_layer_output_for_test` for test setup.
+    - Imported `chrono::Datelike` for date manipulation in tests.
+    - Added `NoveltyQueryTrace` to `scientia_finding_ledger` imports.
+- `crates/vox-publisher/Cargo.toml`: Added `vox-research-events` dependency.
+- `Cargo.lock`: Updated to reflect new dependency.
+
+--- audit: original='feat(publisher): gate publication novelty on vox-scientia decision layer (Scorer/ChronoFilter/ConflictDetector) (B5)' | actual=431L across 4 files | derived=full ---
