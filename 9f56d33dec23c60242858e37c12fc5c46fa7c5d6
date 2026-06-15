@@ -1,0 +1,10 @@
+feat(ci): gui-surface-registry is feature-gate aware for DEI commands
+scale: ~117 lines across 5 files [M]
+
+- `crates/vox-cli/src/command_catalog.rs`: Added `feature_gated_group_names()` to list top-level command groups (`dei`, `visus`, `safety`, `attention`) that are only present when the `dei` feature is enabled, along with a test to ensure these names correspond to actual clap variants.
+- `crates/vox-cli/src/commands/ci/gui_surface_registry.rs`: Modified `top_level_groups_from_catalog()` to union the feature-gated group names from `command_catalog::feature_gated_group_names()` into the set of top-level groups. This ensures that the GUI surface registry gate is aware of these groups even in a default build, allowing them to be classified. Added a test to verify that these DEI-gated groups are included.
+- `contracts/gui/surface-registry.v1.yaml`: Added entries for `attention`, `dei`, `safety`, and `visus` CLI groups with `representation_tier: none` and a waiver note (A3), indicating they are DEI-gated and CLI-only pending GUI panel implementation.
+- `crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts`: Regenerated the TypeScript file to reflect the updated `surface-registry.v1.yaml`.
+- `contracts/reports/gui-surface-registry.v1.json`: Regenerated the JSON report.
+
+--- audit: original='fix(ci): gui-surface-registry is feature-gate aware; Visus/Safety/Attention classified with waiver (A3)' | actual=117L across 5 files | derived=full ---
