@@ -1,0 +1,9 @@
+feat(cr-f2c): add emit-routing gate for HirModule top-level constructs
+scale: ~145 lines across 1 files [M]
+
+- Add `emit_routing_gate.rs` integration test to ensure all `HirModule` top-level constructs are explicitly routed to either Rust, TypeScript, or both emit arms.
+- The test uses a `classify` function to map `HirModule` field names to an `Arm` enum (RustArm, TsArm, Both).
+- It exhaustively checks `HirModule`'s fields using `serde_json` to ensure any new fields added to `HirModule` will fail the test until classified.
+- This prevents silent dropping or double-emitting of new top-level constructs.
+
+--- audit: original='test(cr-f2c): emit-routing gate over HirModule top-level constructs' | actual=145L across 1 files | derived=full ---
