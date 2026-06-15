@@ -1,0 +1,8 @@
+docs: update LLM target audit, implementation plan, and progress notes
+scale: ~118 lines across 3 files [M]
+
+- **docs/news/2026-05-18-llm-target-progress.md**: Add new release notes summarizing LLM-target progress from May 17-18, including shipped CR-L audit runners (CR-L1, CR-L7), tooling (`vox doctor --project`, `vox repair --project`, `vox-audit` panel infrastructure), and language surface additions (`@example`, `@public` post-`@endpoint`, `@endpoint(kind: stream)`).
+- **docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md**: Add a "State-of-the-world update 2026-05-18" scorecard to section §3, detailing the closure status of audit gaps (CR-L8, CR-L6, CR-L5 closed; CR-L3, CR-L4, CR-L7, CR-L2 partial) with commit references, and noting additional closures like HumanEvalRunner and in-process `@test` execution.
+- **docs/src/architecture/v1-llm-target-implementation-plan-2026.md**: Add a "Phase progress 2026-05-18" table to section §1, summarizing the status of P0-P5 (P0/P1 closed, P2/P3/P4 partial, P5 not started) with specific commit references and open items.
+
+--- audit: original='docs: P5 truth-up — audit + implementation plan + release-notes draft' | actual=118L across 3 files | derived=full ---
