@@ -1,0 +1,6 @@
+docs(arch): document Vox Console discovery engine, PTY, and UI in where-things-live
+scale: ~3 lines across 2 files [S]
+
+- docs/src/architecture/where-things-live.md: Add entries for the Vox Console discovery engine (ledger, FSRS, ranking), PTY and discovery Tauri commands, and the Console UI surface.
+
+--- audit: original='docs(arch): register Vox Console discovery engine in where-things-live + registry report' | actual=3L across 2 files | derived=full ---
