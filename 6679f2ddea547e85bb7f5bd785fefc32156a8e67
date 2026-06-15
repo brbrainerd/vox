@@ -1,0 +1,10 @@
+fix(mcp): enforce control lock for mutating browser actions
+scale: ~157 lines across 2 files [M]
+
+- `crates/vox-orchestrator-mcp/src/browser_tools.rs`:
+    - Added a security check to `browser_act` to enforce the human/agent control lock before executing mutating actions (`goto`, `click`, `fill`). Read-only actions (`noop`, `wait`) bypass this check.
+    - Added a new `#[cfg(test)]` module with comprehensive tests for control lock semantics, including ownership transfer, release rules, and bypass regression.
+- `crates/vox-orchestrator-mcp/src/params.rs`:
+    - Added an optional `actor` field to `BrowserActParams` to specify the acting party for the control lock, defaulting to "agent".
+
+--- audit: original='fix(mcp): enforce control lock on browser_act mutating arms + tests' | actual=157L across 2 files | derived=full ---
