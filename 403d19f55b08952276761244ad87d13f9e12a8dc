@@ -1,0 +1,4 @@
+docs(
+scale: ~107 lines across 4 files [M]
+
+--- audit: original='fix(docs): add frontmatter to impl plan; regenerate doc pipeline' | actual=107L across 4 files | derived=full ---
