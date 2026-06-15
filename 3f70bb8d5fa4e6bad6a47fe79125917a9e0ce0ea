@@ -1,0 +1,10 @@
+feat(search): parameterize RAG markdown chunking size
+scale: ~34 lines across 1 files [S]
+
+- `crates/vox-search`:
+  - Introduced `DEFAULT_RAG_CHUNK_CHARS` constant for the default markdown chunk size.
+  - Refactored `chunk_markdown_sections` to call a new `chunk_markdown_sections_with_size` function, passing the default size.
+  - Created `chunk_markdown_sections_with_size` to allow specifying the maximum character size for markdown chunks.
+  - Added unit tests for `chunk_markdown_sections_with_size` and `chunk_markdown_sections` to verify behavior with different chunk sizes and the default wrapper.
+
+--- audit: original='refactor(search): parameterize RAG markdown chunk size (HC-G11-02)' | actual=34L across 1 files | derived=full ---
