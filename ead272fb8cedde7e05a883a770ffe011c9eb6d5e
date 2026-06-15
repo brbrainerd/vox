@@ -1,0 +1,7 @@
+fix(git): stop tracking and delete `.claude/settings.local.json`
+scale: ~671 lines across 1 files [L]
+
+- Remove the `.claude/settings.local.json` file from the repository.
+- This file was previously committed despite being listed in `.gitignore`, leading to tracking issues and merge conflicts.
+
+--- audit: original='chore: stop tracking .claude/settings.local.json (already gitignored)' | actual=671L across 1 files | derived=full ---
