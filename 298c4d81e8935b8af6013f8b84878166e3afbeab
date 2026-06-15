@@ -1,0 +1,6 @@
+docs(audit): update 2026 plan with session 9 completion details
+scale: ~2 lines across 1 files [XS]
+
+- docs/src/architecture/crate-audit-and-plan-2026.md: Updated the "State after session 9" section to reflect the completion of P0-P4 tasks, including A-12 (extraction of `vox-dei-shim` crate) and D-7-rescope Step 1 (migration of `envelope.rs` and `auth_e`). Noted that X-1 tracking PR was superseded and P5 XLs A-19/A-20 were deferred.
+
+--- audit: original='docs(audit): record session-9 completion — all P0-P4 tasks done' | actual=2L across 1 files | derived=full ---
