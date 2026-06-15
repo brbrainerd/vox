@@ -1,0 +1,7 @@
+refactor(vox-mental-tracker): migrate _parse_int_default to strict-Option Json API
+scale: ~5 lines across 1 files [XS]
+
+- `apps/vox-mental-tracker/src/main.vox`:
+    - Updated `_parse_int_default` to use `std.json.get("v").and_then(fn(x: Json) to Option[int] { x.as_int() }).unwrap_or(default_value)` instead of the deprecated `j.get_int("v")` for parsing an integer from a JSON string.
+
+--- audit: original='vox-mental-tracker: migrate _parse_int_default to strict-Option Json API' | actual=5L across 1 files | derived=full ---
