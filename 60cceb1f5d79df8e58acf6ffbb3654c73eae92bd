@@ -1,0 +1,6 @@
+docs(handoff): add 2026-05-28 evening audit notes
+scale: ~121 lines across 1 files [M]
+
+- docs/src/architecture/session-handoff-2026-05-28-evening.md: New document detailing the completion of an 8-item action plan from a test-coverage/telemetry/discoverability audit. It includes ground truth verification, workspace coverage (54.69%), and a list of remaining issues and recommendations.
+
+--- audit: original='docs(handoff): 2026-05-28 morning + evening audit notes' | actual=121L across 1 files | derived=full ---
