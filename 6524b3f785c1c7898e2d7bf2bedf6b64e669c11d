@@ -1,0 +1,20 @@
+refactor(compiler): Remove actor, workflow, and activity HIR
+scale: ~1165 lines across 16 files [XL]
+
+- **codegen_rust/emit/workflow.rs**: Removed imports and code generation logic related to `HirActor` and `HirWorkflow`, including the `append` helper function and workflow emission.
+- **codegen_ts/activity.rs**: Deleted the entire file, which contained TypeScript code generation for `ActivityDecl` and `HirActivity`.
+- **typeck/registration.rs**: Removed `HirActivity`, `HirActor`, and `HirWorkflow` from the module import and deleted their respective registration functions (`register_hir_actor`, `register_hir_workflow`, `register_hir_activity`). Also removed `ActorHandlerSig` and `WorkflowSig` from `TypeEnv` imports.
+- **typeck/checker/mod.rs**: Removed type checking logic for actors, workflows, and activities, including `check_actor`, `check_actor_handler`, `check_workflow`, and `check_activity` methods.
+- **hir/validate.rs**: Removed validation logic for workflows and activities.
+- **hir/nodes/decl.rs**: Deleted `HirActor`, `HirActorHandler`, `HirWorkflow`, and `HirActivity` structs. Removed `actors`, `workflows`, and `activities` fields from `HirModule` and updated `HirModule::hir_fields_by_ownership` to reflect their removal.
+- **hir/lower/decl.rs**: Removed lowering logic for actors, workflows, and activities.
+- **typeck/env.rs**: Removed `ActorHandlerSig` and `WorkflowSig` from the `TypeEnv` module.
+- **codegen_rust/pipeline.rs**: Removed references to actor, workflow, and activity types in the Rust codegen pipeline.
+- **hir/db_op_walk.rs**: Removed database operation walk logic related to actors, workflows, and activities.
+- **hir/lower/mod.rs**: Removed imports and references to actor, workflow, and activity lowering.
+- **codegen_ts/emitter.rs**: Removed references to activity code generation.
+- **vox_ir/mod.rs**: Removed `actors`, `workflows`, and `activities` fields from `VoxIrContent`.
+- **docs/src/architecture/gui-native-roadmap-status-2026.md**: Updated the roadmap status document.
+- **vox_ir/lower.rs**: Removed lowering logic for actors, workflows, and activities from `VoxIr`.
+
+--- audit: original='refactor(compiler): TASK-2.6 Path B — retire actor/workflow/activity HIR' | actual=1165L across 16 files | derived=full ---
