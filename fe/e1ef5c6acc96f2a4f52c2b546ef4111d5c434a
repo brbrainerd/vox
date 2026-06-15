@@ -1,0 +1,6 @@
+fix(ci): exclude expo.dev/settings from Lychee link check
+scale: ~5 lines across 1 files [XS]
+
+- `.lycheeignore`: Added `https://expo.dev/settings/.*` to ignore list to prevent CI failures due to 307 authentication redirects for unauthenticated bots. This URL is valid for authenticated users.
+
+--- audit: original='fix(ci): exclude expo.dev/settings from lychee link check (307 auth redirect)' | actual=5L across 1 files | derived=full ---
