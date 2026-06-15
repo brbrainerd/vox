@@ -1,0 +1,7 @@
+docs(learning): add Rust via Vox lesson 0 and session 1 notes
+scale: ~390 lines across 2 files [L]
+
+- docs/src/learning/rust-via-vox/notes-session-01.md: Add new file containing consolidated revision notes for Session 1, covering ownership (copy, move, borrow), error handling (`?` operator, `Result`), enums, iterators (`iter` vs `into_iter`), `format!`, and `.into()`.
+- docs/src/learning/rust-via-vox/lesson-00-syntax-primer.md: Add new file for Lesson 0, a syntax primer covering `let` bindings, the `&` borrow symbol, `String` vs `&str`, macros, format placeholders, closures, and return types.
+
+--- audit: original='docs(learning): rust-via-vox lesson 0 (syntax primer) + session-01 notes' | actual=390L across 2 files | derived=full ---
