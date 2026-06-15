@@ -1,0 +1,6 @@
+refactor(cli): use shared `default_true` for `tsx` in `add_component`
+scale: ~6 lines across 1 files [XS]
+
+- `crates/vox-cli/src/commands/add_component.rs`: Replaced the local `default_true` function with `vox_config::serde_defaults::default_true` for the `tsx` field in `ComponentsConfig`, removing 5 lines of code.
+
+--- audit: original='refactor(interop): use shared vox_config serde default in add_component' | actual=6L across 1 files | derived=full ---
