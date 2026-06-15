@@ -1,0 +1,12 @@
+feat(telemetry): extract telemetry spooling into `vox-spool` crate
+scale: ~443 lines across 7 files [L]
+
+- `crates/vox-spool/src/queue.rs`: Add `AtomicAppend` trait and `Spooler` struct for atomic JSON file queuing, along with `spool_root`, `ensure_spool`, `enqueue`, `list_pending`, `dequeue`, and `upload_pending` functions.
+- `crates/vox-cli/src/telemetry_spool.rs`: Remove all telemetry spooling logic, replacing it with a re-export of `vox_spool::queue`.
+- `crates/vox-spool/src/jsonl.rs`: Add `ChannelName`, `RotationPolicy`, `FsyncPolicy`, `SpoolConfig`, and `SpoolWriter` for JSONL file writing with rotation and fsync policies.
+- `crates/vox-spool/Cargo.toml`: Create new crate `vox-spool` with dependencies `anyhow`, `serde`, `serde_json`, `tokio`, `tracing`, `uuid`, `reqwest`, and `vox-config`.
+- `crates/vox-spool/src/lib.rs`: Define `jsonl` and `queue` modules.
+- `crates/vox-cli/Cargo.toml`: Add `vox-spool` as a dependency.
+- `crates/vox-cli/src/lib.rs`: Remove `telemetry_spool` module declaration.
+
+--- audit: original='M-03: Extract vox-cli::telemetry_spool into new vox-spool crate' | actual=443L across 7 files | derived=full ---
