@@ -1,0 +1,6 @@
+fix(docker): correct HEALTHCHECK syntax in Dockerfile
+scale: ~2 lines across 1 files [XS]
+
+- Dockerfile: Replaced colons with equals signs for argument assignment in the `HEALTHCHECK` instruction.
+
+--- audit: original='fix(docker): correct HEALTHCHECK syntax (use = instead of :)' | actual=2L across 1 files | derived=full ---
