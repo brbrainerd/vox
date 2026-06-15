@@ -1,0 +1,18 @@
+docs(evidence-ledger): record Phase 3 corpus growth for repair-corpus
+scale: ~16 lines across 7 files [M]
+
+- **contracts/reports/evidence-ledger.v1.json**:
+    - Updated `audit.cr_l3.repair_panel` notes to reflect §4.2 corpus growth from 5 to 50.
+    - Detailed the 9 fixtures per bug class (type-error, effect-violation, logic, exhaustiveness, api-misuse) and their verification status.
+    - Documented latent issues in pre-existing seed fixtures 002, 003, and 004.
+    - Deferred re-measurement against the 50-corpus until the next OpenRouter spend window.
+    - Updated `audit.cr_l0.spec_to_app` notes to reflect §4.1 corpus growth from 3 to 10.
+    - Deferred re-measurement against the 10-spec corpus until the next OpenRouter spend.
+- **contracts/reports/aci-default/2026-05-23.json**: Refreshed `measured_at` timestamp.
+- **contracts/reports/corpus-feedback/2026-05-23.json**: Refreshed `measured_at` timestamp.
+- **contracts/reports/corpus-feedback/2026-Q2.json**: Refreshed `measured_at` timestamp.
+- **contracts/reports/deploy/2026-05-23.json**: Refreshed `measured_at` timestamp.
+- **contracts/reports/mens-on-distribution/2026-05-23.json**: Refreshed `measured_at` timestamp.
+- **contracts/reports/retirement/2026-05-23.json**: Refreshed `measured_at` timestamp.
+
+--- audit: original='docs(evidence-ledger): record Phase 3 corpus closure' | actual=16L across 7 files | derived=full ---
