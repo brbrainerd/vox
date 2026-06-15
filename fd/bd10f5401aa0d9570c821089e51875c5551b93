@@ -1,0 +1,8 @@
+feat(publisher): Implement F1000-style peer review gate with ≥2 signed approvals
+scale: ~246 lines across 3 files [M]
+
+- `crates/vox-publisher/src/peer_review_gate.rs`: Add new module defining `ReviewDecision`, `PeerReview`, and `PeerReviewGateError` enums, along with the `PeerReviewGate` struct and its associated methods for validating and processing peer reviews. This includes logic for signature verification, digest matching, and ensuring a minimum number of approvals.
+- `crates/vox-publisher/src/lib.rs`: Expose the new `peer_review_gate` module.
+- `crates/vox-publisher/Cargo.toml`: Add `hex` dependency for hexadecimal encoding/decoding.
+
+--- audit: original='feat(scientia): Phase 8 — F1000-style peer review gate (≥2 signed approvals)' | actual=246L across 3 files | derived=full ---
