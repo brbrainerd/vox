@@ -1,0 +1,16 @@
+feat(build): gate wasmtime and vox-quantize behind features for leaner defaults
+scale: ~94 lines across 10 files [M]
+
+- `crates/vox-cli`:
+    - The `wasm` subcommand and its associated `vox-wasm-engine` dependency are now gated behind the `script-execution` feature.
+    - A `WasmStub` variant was added to `Cli` to provide a user-friendly error message and rebuild hint when `vox wasm run` is attempted without the `script-execution` feature.
+    - The `script-execution` feature now explicitly lists `vox-wasm-engine` as a dependency.
+    - `vox-wasm-engine` is now an optional dependency.
+- `crates/vox-ml-cli`:
+    - The `quantize` subcommand and its associated `vox-quantize` dependency are now gated behind a new `quantize` feature.
+    - The `gpu` feature now implies the `quantize` feature.
+    - The `broken_inference_stub` feature and its corresponding `inference.rs` module were removed.
+    - `vox-quantize` is now an optional dependency.
+- `.claude/settings.local.json`: Added sccache and grep/awk commands to the `Bash` section.
+
+--- audit: original='perf(build): gate wasmtime + vox-quantize behind features (lean default builds)' | actual=94L across 10 files | derived=full ---
