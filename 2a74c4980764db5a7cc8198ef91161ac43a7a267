@@ -1,0 +1,11 @@
+feat(atlas): Introduce AtlasManifest and builder for T4 publication
+scale: ~135 lines across 6 files [M]
+
+- `crates/vox-publisher/src/atlas/manifest.rs`: Add new `AtlasManifest` struct with fields for schema version, title, type, publication date, findings, and optional external identifiers (Zenodo DOI, arXiv ID, OSF Node ID, RO-Crate path). Implement `negative_result_count`, `positive_result_count`, and `to_json` methods for `AtlasManifest`. Define `AtlasFinding` struct with `id`, `claim_text`, `nanopub_uri`, and `supported` fields. Introduce `AtlasManifestBuilder` for constructing `AtlasManifest` instances.
+- `crates/vox-publisher/src/atlas/mod.rs`: Create new module `atlas` and declare submodules `campaign`, `coauthor`, `manifest`, and `submission`.
+- `crates/vox-publisher/src/atlas/campaign.rs`: Add new file with a module-level documentation comment for `MeasurementCampaign`.
+- `crates/vox-publisher/src/atlas/coauthor.rs`: Add new file with a module-level documentation comment for `AcademicCoauthor`.
+- `crates/vox-publisher/src/atlas/submission.rs`: Add new file with a module-level documentation comment for `Atlas submission pipeline`.
+- `crates/vox-publisher/src/lib.rs`: Declare the new `atlas` module as public.
+
+--- audit: original='feat(scientia): Phase 9 — AtlasManifest builder (T4 publication manifest)' | actual=135L across 6 files | derived=full ---
