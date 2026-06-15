@@ -1,0 +1,9 @@
+refactor(vox-git): remove dead sync stubs and jj-backend feature
+scale: ~138 lines across 4 files [M]
+
+- `crates/vox-git/src/sync.rs`: Deleted the entire file, removing `FetchResult`, `PushResult`, and `SyncDirection` structs, as well as the `sync` module.
+- `crates/vox-git/src/bridge.rs`: Moved `SyncStatus` and `SyncStatusRef` structs from `src/sync.rs` into this file, including their `use` statements.
+- `crates/vox-git/src/lib.rs`: Removed the `pub mod sync;` declaration and `pub use sync::{FetchResult, PushResult, SyncDirection};` exports.
+- `crates/vox-git/Cargo.toml`: Removed the `jj-backend` feature and its corresponding `jj-lib` optional dependency.
+
+--- audit: original='refactor(vox-git): delete dead fetch/push sync stubs + orphaned jj-backend feature' | actual=138L across 4 files | derived=full ---
