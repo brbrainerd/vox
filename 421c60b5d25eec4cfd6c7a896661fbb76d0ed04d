@@ -1,0 +1,6 @@
+fix(deps): Ignore opencontainers.org in Lychee link checks
+scale: ~3 lines across 1 files [XS]
+
+- `.lycheeignore`: Added a new entry to ignore `opencontainers.org` due to transient connection failures observed from GitHub Actions runners.
+
+--- audit: original='fix(check-links): ignore opencontainers.org in lychee (transient network block)' | actual=3L across 1 files | derived=full ---
