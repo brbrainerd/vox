@@ -1,0 +1,25 @@
+feat(syndication): refactor and finalize syndication configuration and adapters
+scale: ~2937 lines across 59 files [XL]
+
+- `crates/vox-publisher`:
+    - Refactored `SyndicationConfig` to use `serde_json::Value` for social platforms (Twitter, Bluesky, Mastodon, Discord) and introduced a `Vec<SocialChannel>` for social broadcast.
+    - Added new fields for `rss`, `hacker_news`, `researchgate`, and `linkedin` enablement.
+    - Removed `TwitterConfig`, `BlueskyConfig`, `MastodonConfig`, `LinkedInConfig`, `DiscordConfig`, `HackerNewsConfig`, and `ResearchGateConfig` structs from `types.rs`.
+    - Updated `publisher/mod.rs` to reflect the new syndication configuration, removing derived configurations and adjusting adapter calls.
+    - Modified `adapters/bluesky.rs` to conditionally compile `reqwest` and `serde` imports based on the `scientia-bluesky-sdk` feature.
+    - Updated `adapters/twitter.rs`, `adapters/mastodon.rs`, `adapters/linkedin.rs`, `adapters/discord.rs`, `adapters/researchgate.rs`, and `adapters/opencollective.rs` to align with the new syndication configuration and remove platform-specific config structs.
+    - Removed `crates/vox-publisher/src/adapters/canary.rs` and `crates/vox-publisher/src/adapter_health.rs`.
+    - Updated `distribution_compile.rs`, `switching.rs`, `topic_packs.rs`, `syndication_outcome.rs`, and `publication_preflight/derivation.rs` to reflect changes in syndication configuration.
+    - Modified `publisher/config.rs` to remove `twitter_override` and `mastodon_override` fields.
+    - Updated various test files (`tests/http_mock_publish.rs`, `tests/dry_run_tests.rs`, `tests/routing_policy_tests.rs`, `adapters/tests/bluesky.rs`, `adapters/tests/mastodon.rs`, `adapters/tests/opencollective.rs`, `adapters/tests/linkedin.rs`, `adapters/tests/discord.rs`, `adapters/tests/twitter.rs`) to match the new adapter signatures and syndication configuration.
+- `crates/vox-clavis`:
+    - Added `social.rs` to `spec/registry` and updated `spec/ids.rs` and `spec/mod.rs`.
+- `docs/src`:
+    - Updated `assets/durable_state_animation.html` and `assets/template_durable.html` with significant line changes (additions and deletions).
+    - Added `architecture/syndication-ecosystem-research-2026.md` and `architecture/research-index.md`.
+- `scratch`: Added numerous Python scripts (`patch.py`, `patch2.py`, `patch3.py`, `patch4.py`, `patch5.py`, `patch_tests.py`, `patch_tests2.py`, `patch_tests3.py`, `patch_tests4.py`, `patch_tests5.py`, `patch_tests6.py`, `patch_tests7.py`) for automated code modifications.
+- `Cargo.lock`: Updated dependencies.
+- `Cargo.toml`: Updated `crates/vox-publisher` dependencies.
+- `README.md`: Modified.
+
+--- audit: original='chore: fix CRLF line endings and finalize syndication refactor' | actual=2937L across 59 files | derived=full ---
