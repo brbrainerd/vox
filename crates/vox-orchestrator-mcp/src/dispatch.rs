@@ -1421,6 +1421,12 @@ mod registry_dispatch_tests {
             if SKIP_DISPATCH_PROBE.contains(&name) {
                 continue;
             }
+            // Tools whose dispatch arm is feature-gated out under the current build are
+            // not dispatchable and are also filtered from the advertised registry; skip
+            // them here so the probe matches the compiled dispatch surface.
+            if !crate::registry::dispatchable_under_features(name) {
+                continue;
+            }
             let res = handle_tool_call(&state, name, json!({})).await;
             if let Err(e) = res {
                 assert!(

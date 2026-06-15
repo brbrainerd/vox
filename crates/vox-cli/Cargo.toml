@@ -191,7 +191,9 @@ vox-doc-pipeline = { path = "../vox-doc-pipeline" }
 vox-research-shim = { workspace = true }
 vox-orchestrator = { workspace = true }
 vox-orchestrator-driver = { workspace = true }
-vox-orchestrator-mcp = { workspace = true, optional = true }
+# Shipping MCP server: keep the full default tool surface (news/scientia/visus).
+# The crate's own default drops these for fast standalone iteration; binaries opt back in.
+vox-orchestrator-mcp = { workspace = true, optional = true, features = ["news-publish", "gui-visual-review"] }
 vox-plugin-api = { workspace = true }
 vox-plugin-types = { workspace = true }
 vox-plugin-catalog = { workspace = true }
