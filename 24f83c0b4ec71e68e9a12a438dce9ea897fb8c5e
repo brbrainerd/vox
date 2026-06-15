@@ -1,0 +1,8 @@
+fix(compiler): validate @table pk and error on duplicate parameters
+scale: ~52 lines across 3 files [M]
+
+- `crates/vox-compiler/src/parser/descent/decl/mid.rs`: Added a `push_duplicate_table_param_error` helper and modified `parse_table` to detect and error on duplicate `extern`, `pk`, and `source` parameters within `@table(...)` declarations, preventing silent last-wins behavior.
+- `crates/vox-compiler/src/typeck/registration.rs`: Modified `register_hir_table` to validate the declared primary key against table fields before materializing it into the `Ty::Table` type, ensuring invalid primary keys do not flow downstream.
+- `crates/vox-compiler/src/parser/descent/tests.rs`: Added new test cases for `test_parse_table_duplicate_params_error` to verify that duplicate `@table` parameters correctly produce parse errors.
+
+--- audit: original='fix(compiler): validate @table pk before materializing; error on duplicate @table params' | actual=52L across 3 files | derived=full ---
