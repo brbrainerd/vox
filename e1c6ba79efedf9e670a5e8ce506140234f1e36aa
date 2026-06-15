@@ -1,0 +1,7 @@
+docs(quantize): Revise SP-2 plan architecture to Option B for vox-quantize-inference
+scale: ~7 lines across 2 files [S]
+
+- docs/superpowers/plans/2026-05-31-vox-quantize-inference.md: Updated the "Architecture" section to reflect a revised plan (Option B). This new approach re-implements a quantized-only Qwen3.5/2.5 forward directly within `vox-inference` using `candle::quantized::QMatMul`, dissolving the L3→L4 layering problem and avoiding a new L2 crate. It explicitly notes that the previous plan's struct-copy extraction was not viable due to `qlora-rs` `QuantizedLinear` usage.
+- .claude/settings.local.json: Added new Bash commands to the `claude.commands` array for finding `candle-core` related directories and `qtensor.rs` files, likely for debugging or exploration related to the architecture revision.
+
+--- audit: original='docs(quantize): update SP-2 plan architecture note to Option B' | actual=7L across 2 files | derived=full ---
