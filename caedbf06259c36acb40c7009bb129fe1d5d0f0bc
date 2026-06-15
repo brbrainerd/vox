@@ -1,0 +1,9 @@
+docs(app-plans): add implementation plans for app phases 2, 4, 5, and 6
+scale: ~226 lines across 4 files [M]
+
+- apps/vox-mental-tracker/docs/plans/2026-05-08-app-phase2-voice-e2e.md: Add plan for Voice E2E, covering regex-based parser parity, `ParsedVoice` struct, and `VoicePage` confirm/edit/save loop tied to `record_raw_transcript`.
+- apps/vox-mental-tracker/docs/plans/2026-05-08-app-phase4-clinician-export.md: Add plan for Clinician export, detailing TS export pipeline, extern bridges for CSV/JSON-bundle/HTML with content hash.
+- apps/vox-mental-tracker/docs/plans/2026-05-08-app-phase5-verification-ci.md: Add plan for CI lane split, including typecheck, unit, e2e, and contracts jobs.
+- apps/vox-mental-tracker/docs/plans/2026-05-08-app-phase6-release-readiness.md: Add plan for Release readiness, outlining per-gate checklist and release how-to documentation.
+
+--- audit: original='docs(app-plans): phase 2/4/5/6 implementation plans' | actual=226L across 4 files | derived=full ---
