@@ -1,0 +1,11 @@
+docs(agents): Add Model-Agnostic LLM Boundary SSOT section
+scale: ~15 lines across 1 files [S]
+
+- AGENTS.md: Added a new "Model-Agnostic LLM Boundary (Required, SSOT)" section detailing the policy for LLM calls.
+  - Specifies that all LLM calls must use `vox_actor_runtime::llm` facades (`infer_with_retry`, `llm_chat`, `llm_stream`, `llm_embed`).
+  - Prohibits hardcoding vendor hostnames or instantiating vendor SDKs directly.
+  - Explains that model selection is config-driven via `vox-orchestrator::models` and that MENS revisions are first-class candidates.
+  - Justifies the policy as enabling quick model adoption and improving token-waste audits.
+  - Describes enforcement via the `vox-code-audit` detector `llm_provider_call`.
+
+--- audit: original='docs(agents): add Model-Agnostic LLM Boundary SSOT section' | actual=15L across 1 files | derived=full ---
