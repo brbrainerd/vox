@@ -1,0 +1,18 @@
+feat(compiler): Add first-class state machine declaration
+scale: ~774 lines across 15 files [L]
+
+- **ast/decl/state_machine.rs**: New file defining AST types for `StateMachineDecl`, `SmStateDecl`, `SmStateField`, `SmTransitionDecl`, `SmEventParam`, and `SmTransitionSource`.
+- **ast/decl/{mod,types}.rs**: Add `Decl::StateMachine` variant and re-export.
+- **hir/nodes/state_machine.rs**: New file defining HIR types for `HirStateMachineDecl`, `HirStateDecl`, `HirStateField`, `HirTransitionDecl`, `HirEventParam`, and `HirTransitionSource`.
+- **hir/nodes/{mod,decl}.rs**: Add `HirModule.state_machines` field to store `HirStateMachineDecl`s.
+- **hir/lower/mod.rs**: Implement lowering logic to convert `ast::decl::StateMachineDecl` into `hir::nodes::state_machine::HirStateMachineDecl`.
+- **parser/descent/decl/tail.rs**: Implement `parse_state_machine` function to parse `state_machine` declarations, including states, terminal states, and transitions with event parameters and source/target states.
+- **parser/descent/tests.rs**: Add `test_parse_state_machine_basic` and `test_parse_state_machine_with_fields` for state machine parsing.
+- **parser/descent/mod.rs**: Re-export `decl/tail.rs` for state machine parsing.
+- **typeck/state_machine_check.rs**: New file implementing structural type checking for state machines, including diagnostics for duplicate states (`E_SM_DUP_STATE`), terminal state transitions (`E_SM_TERMINAL_TRANSITION`), unknown states (`E_SM_UNKNOWN_STATE`), and empty state machines (`W_SM_EMPTY`).
+- **typeck/mod.rs**: Integrate `state_machine_check` into the overall type-checking process.
+- **vox-corpus/src/corpus/extract_vox/part_ast.rs**: Update AST extraction logic to include `StateMachineDecl`.
+- **vox-mens/src/training/core.rs**: Update training core logic to handle new state machine declarations.
+- **docs/src/architecture/gui-native-roadmap-status-2026.md**: Remove 2 lines and add 3 lines, likely updating the roadmap status.
+
+--- audit: original='feat(compiler): TASK-4.1 — state_machine first-class block (parser+HIR+typeck)' | actual=774L across 15 files | derived=full ---
