@@ -1,0 +1,9 @@
+feat(orchestrator): Add integration test for two-daemon lock contention and WAL replay
+scale: ~45 lines across 1 files [S]
+
+- `crates/vox-orchestrator/tests/two_daemon_lock_contention.rs`: Add a new integration test file `two_daemons_no_double_write_under_contention` that verifies:
+    - Two `LockLeaderElection` instances on an in-memory DB, where one becomes leader and the other a follower.
+    - Three agents competing for an exclusive file lock, where only the first agent succeeds.
+    - WAL replay after simulating a daemon restart (dropping `FileLockManager` and rehydrating from DB), ensuring the original lock is recovered with correct holder and kind.
+
+--- audit: original='test(mesh): Phase 0 acceptance fixture — two daemons + WAL replay' | actual=45L across 1 files | derived=full ---
