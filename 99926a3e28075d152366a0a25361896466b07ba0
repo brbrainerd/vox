@@ -1,0 +1,13 @@
+feat(ci): implement ephemeral self-hosted runner autoscaler
+scale: ~561 lines across 9 files [L]
+
+- `crates/vox-cli/src/commands/ci/runner_scale.rs`: New `runner-scale` command to reconcile an ephemeral runner pool to demand, spawning one-shot `--ephemeral` containers capped at 4 runners, each with 6 CPUs and 6.5GB memory. Includes `runner-preflight` to fail fast if no self-hosted runner is online.
+- `scripts/ci-runners-up.vox`: New script to provide a schedulable entrypoint for the `runner-scale` autoscaler, allowing it to be run periodically to manage the runner pool.
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Added `RunnerScale` and `RunnerPreflight` variants to the `CiCmd` enum.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Integrated `runner_scale::run_scale` and `runner_scale::run_preflight` into the `run` function for `CiCmd`.
+- `crates/vox-cli/src/commands/ci/mod.rs`: Added `runner_scale` module to the CI commands.
+- `docs/src/ci/runner-autoscaling.md`: New documentation detailing the design, rollout, and recovery runbook for the ephemeral, demand-scaled self-hosted CI runner pool.
+- `infra/ci-runner/Dockerfile`: New Dockerfile for a reproducible self-hosted CI runner image, including Rust toolchain, sccache configuration, and GitHub Actions runner agent.
+- `infra/ci-runner/entrypoint.sh`: New entrypoint script for the CI runner image, supporting both persistent and ephemeral modes via `RUNNER_EPHEMERAL`.
+
+--- audit: original='feat(ci): ephemeral self-hosted runner autoscaler (scale 0↔4 on demand) (#158)' | actual=561L across 9 files | derived=full ---
