@@ -1,0 +1,6 @@
+docs(share): document research on tunnel options for `vox share`
+scale: ~51 lines across 1 files [M]
+
+- Add `RESEARCH.md` detailing findings on Cloudflare Quick Tunnels, localhost.run, and Tailscale Funnel, including their suitability, limitations, and setup requirements for `vox share`.
+
+--- audit: original='docs(share): research dossier on tunnel options (S1 task 7)' | actual=51L across 1 files | derived=full ---
