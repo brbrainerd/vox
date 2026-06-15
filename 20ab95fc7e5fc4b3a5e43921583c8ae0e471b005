@@ -1,0 +1,14 @@
+feat(arch-check): add forbidden_pattern rule to disallow raw `Command::new("git")`
+scale: ~254 lines across 4 files [L]
+
+- `crates/vox-arch-check/src/forbidden_patterns.rs`: Add new module `forbidden_patterns` containing `ForbiddenPatternRule` struct, `ForbiddenPatternHit` struct, and `scan` function to implement a new rule type. This rule scans files for a regex pattern, allows specifying `exempt_files`, and supports inline `allow_annotation` to suppress matches.
+- `crates/vox-arch-check/src/main.rs`: Integrate the new `forbidden_pattern` rule type.
+  - Add `forbidden_pattern: Vec<ForbiddenPatternRule>` to `LayersConfig` to load rules from `layers.toml`.
+  - Add `forbidden_pattern: Option<String>` to `GuardsConfig` to configure strictness.
+  - Add `forbidden_pattern_hits: Vec<(String, PathBuf, usize, String)>` to `Report` to store rule violations.
+  - Add `strict_forbidden_pattern: bool` to `Report` to track strictness.
+  - Update `Report::is_failure` and `Report::print_summary` to include the new rule's results.
+- `docs/src/architecture/layers.toml`: Add a new `[[forbidden_pattern]]` entry named "raw-git-exec" to forbid `Command::new("git")` outside of `git_exec.rs`.
+- `crates/vox-arch-check/Cargo.toml`: Add `regex` and `globset` dependencies for pattern matching and globbing, and `tempfile` as a dev-dependency.
+
+--- audit: original='feat(arch-check): forbid raw Command::new("git") outside git_exec.rs (P3-T7)' | actual=254L across 4 files | derived=full ---
