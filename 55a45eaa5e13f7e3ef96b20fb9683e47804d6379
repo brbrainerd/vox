@@ -1,0 +1,33 @@
+feat(ci): add Coolify deployment status and automate deployment polling
+scale: ~4659 lines across 20 files [XL]
+
+- **`crates/vox-cli`**:
+    - Add `deploy-status` command to `vox-cli ci` for fetching and formatting the latest `deploy-hetzner.yml` GitHub Action status.
+    - Integrate `deploy_status` command into `ci run_body`.
+    - Update `deploy` command to include a 900-second wait timeout for Coolify deployments.
+- **`crates/vox-container`**:
+    - Enhance `CoolifyTarget` with `wait_timeout_secs` for polling deployment status.
+    - Modify `execute_coolify` to parse deployment UUID from the Coolify API response and poll for deployment completion if `wait_timeout_secs` is set.
+    - Change `curl` command to be silent (`-s`).
+- **`crates/vox-clavis`**:
+    - Introduce new `SecretId`s for Coolify: `CoolifyWebhookUrl`, `CoolifyBaseUrl`, `CoolifyToken`, and `CoolifyAppUuid`.
+    - Register these new Coolify secrets in `SPECS_PLATFORM` with optional policies and remediation messages.
+    - Mark `CoolifyToken` as a sensitive secret.
+- **`.github/workflows/deploy-hetzner.yml`**: Add a new GitHub Actions workflow for deploying to Hetzner.
+- **`docs/src/architecture`**:
+    - Add new architectural documentation:
+        - `ffscript-mutation-api-spec-2026.md`: FFScript Mutation API specification.
+        - `ffscript-linter-design-2026.md`: FFScript linter design.
+        - `ffscript-panel-schema-spec-2026.md`: FFScript panel schema specification.
+        - `fableforge-roadmap-audit-2026-04-23.md`: FableForge roadmap audit.
+        - `dashboard-migration-research-2026.md`: Research on dashboard migration.
+    - Update `research-index.md` to include new architectural documents.
+- **`docs/src/adr`**:
+    - Add `024-dashboard-axum-spa.md` documenting the dashboard Axum SPA.
+    - Update `index.md` to include the new ADR.
+- **`docs/src/ci`**:
+    - Add `deploy-contract.md` detailing the deployment contract.
+    - Add `workflow-enumeration.md` for workflow enumeration.
+- **`VOX_GUI_NATIVE_ROADMAP_2026.md`**: Add a new comprehensive roadmap document for Vox GUI-Native Language.
+
+--- audit: original='feat(ci): automate coolify deployment loop with active polling and LLM auto-heal' | actual=4659L across 20 files | derived=full ---
