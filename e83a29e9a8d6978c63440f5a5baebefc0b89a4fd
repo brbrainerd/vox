@@ -1,0 +1,12 @@
+feat(voxup): wire into workspace metadata and remove `dirs` dependency
+scale: ~63 lines across 2 files [M]
+
+- `crates/voxup/Cargo.toml`:
+  - Adopt workspace inheritance for `version`, `edition`, `authors`, and `license`.
+  - Add `workspace-hack` dependency.
+  - Remove `dirs` dependency.
+- `crates/voxup/src/install.rs`:
+  - Replace `dirs::home_dir()` with a custom `home_dir()` function that resolves the user's home directory using `HOME` or `USERPROFILE` environment variables, consistent with other workspace components.
+  - Refactor `manifest_path` construction for improved readability.
+
+--- audit: original='fix(B-2): wire voxup into workspace metadata + drop dirs dep' | actual=63L across 2 files | derived=full ---
