@@ -1,0 +1,12 @@
+feat(coverage-graph): credit method call assertions for same-crate methods
+scale: ~209 lines across 2 files [M]
+
+- `scripts/coverage-graph/overlay_tests.py`:
+    - Added `build_method_index` function to index method definitions (nodes with leading-dot labels like `.foo()`) by their bare method name. This index filters out common methods and Rust keywords, similar to the symbol index.
+    - Modified `run_overlay` to use the new `build_method_index` for method call resolution.
+    - Updated `run_overlay` to resolve method calls (e.g., `x.redact(...)`) to their corresponding method definitions, but only for methods within the same crate. This resolution path specifically looks for a `.` immediately preceding the identifier, excluding `..` ranges and floats.
+- `scripts/coverage-graph/test_overlay_tests.py`:
+    - Added `TestMethodAssertionCredit` class with a test suite to verify that assertions on same-crate method calls correctly create `proves` edges to the method's definition node.
+    - The test suite includes a helper `_run` method to set up a minimal graph and execute `run_overlay` for method assertion scenarios.
+
+--- audit: original='fix(coverage-graph): credit method (.foo()) assertions (Wave 0 Task 0.2)' | actual=209L across 2 files | derived=full ---
