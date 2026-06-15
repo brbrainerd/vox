@@ -1,0 +1,5 @@
+revert(scripts/setup.vox): restore parenthesized `if` condition
+scale: ~2 lines across 1 files [XS]
+- Reverted the change that removed parentheses from the `if` condition `(not pnpm_ok) and node_ok` in the `main` function.
+
+--- audit: original='revert(setup.vox): restore main version — clean-room needs a vox-codegen fix' | actual=2L across 1 files | derived=full ---
