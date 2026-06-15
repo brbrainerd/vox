@@ -1,0 +1,6 @@
+ci(lychee): ignore `inworld.ai` due to intermittent 503 errors in CI
+scale: ~3 lines across 1 files [XS]
+
+- `.lycheeignore`: Added a new entry to ignore `inworld.ai` links during CI checks, as they intermittently return 503 errors for CI bots, despite the links being valid.
+
+--- audit: original='ci(links): ignore inworld.ai (intermittent 503 to CI bots; link valid)' | actual=3L across 1 files | derived=full ---
