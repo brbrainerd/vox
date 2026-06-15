@@ -1,0 +1,10 @@
+docs(superpowers): Add vox-gui branch consolidation plan
+scale: ~420 lines across 1 files [L]
+
+- Add `docs/superpowers/plans/2026-06-14-vox-gui-branch-consolidation.md` detailing the process for consolidating `vox-gui` design-principles branches onto `main`.
+- The plan outlines cherry-picking a GUI-only commit block into an isolated worktree, grafting fixes, fast-forward pushing, and deleting superseded branches.
+- It records the audit trail for the 2026-06-14 consolidation that landed Phase 0A-0D + Wave 1 of `vox-gui` work.
+- Specifies the use of git worktrees, cherry-pick, pnpm, Style Dictionary 5.x, Vitest, and `gh` CLI.
+- Includes pinned SHAs for critical git operations and notes that CI/CD is out of scope for this process.
+
+--- audit: original='docs(vox-gui): add branch-consolidation plan (post-hoc record)' | actual=420L across 1 files | derived=full ---
