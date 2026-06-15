@@ -1,0 +1,38 @@
+feat(orchestrator): implement autonomous orchestration policy program (D1-D10)
+scale: ~13481 lines across 46 files [XL]
+
+- **`vox-orchestrator` crate**:
+  - Added `OrchestratorPolicy` facade to compose all ten decision axes (D1-D10) into a single `PolicyDecision`.
+  - Implemented `CircuitBreaker` (D6) with five-signal doom-loop detection, including `TripReason`, `AlarmTier`, `CircuitBreakerState`, `CircuitBreakerConfig`, `bigram_jaccard`, and `TripEvent` metrics.
+  - Implemented `ConfidenceFuser` (D3) for composite scoring, fusing five signals (evidence_quality, citation_coverage, source_diversity, contradiction_penalty, entropy_score) into `AnswerDirectly`/`InvokeSocrates`/`Insufficient` decision tiers.
+  - Implemented `TierCascadeRouter` (D1) for three-tier model routing (Economy/Standard/Strong) based on complexity, circuit-breaker alarm level, confidence, and budget.
+  - Implemented `PlanModeTrigger` (D2) for React vs. PlanAndExecute selection using four signals (complexity, dependency_count, tool_hint_count, prior_adequacy_score).
+  - Implemented `RiskMatrix` (D5+D9) for four-dimension HITL escalation scoring (irreversibility, blast_radius, compliance_exposure, confidence_deficit) mapping to `Low`/`Medium`/`High`/`Critical` grades and `Proceed`/`WarnContext`/`Escalate`/`BlockAndEscalate` actions.
+  - Implemented `PrivacyClassifier` (D8) for classifying signals into `Public`/`Internal`/`Private`/`Regulated` and level-aware routing.
+  - Implemented `CachePredictor` (D7) for hit prediction, `OrchestratorBudgetGate` (D7) for token/cost management, and `CompactionTrigger` (D7) for context utilization.
+  - Implemented `CalibrationLoop` (D10) for Welford online variance drift detection and `ContextualBandit` for greedy Beta-posterior bandit selection.
+  - Implemented `DispatchRouter` (D4) for sub-agent spawn vs. inline decisions based on complexity, budget, and chain depth.
+  - Added `EscalationRequired`, `SubAgentDispatched`, and `ChainDepthAlert` variants to `AgentMessage`.
+  - Fixed clippy warnings, updated `budget_gate` to clamp inputs and reset `triggering_fraction`, and aligned `calibration` docs.
+  - Added `Display` implementations for `RiskGrade`, `PrivacyLevel`, `PrivacyRoutingDecision`, `AlarmLevel`, and `RoutingTier` for stable telemetry strings.
+  - Corrected `risk_matrix` hard-critical override to include `confidence_deficit`.
+- **`vox-db` crate**:
+  - Added 14 `METRIC_TYPE_*` constants in `research_metrics_contract` under the `orch.*` namespace.
+- **`vox-orchestrator-test-helpers` crate**:
+  - Added new crate with `MockBulletinBoard` and `load_golden_fixture` for testing.
+- **`contracts/orchestration` directory**:
+  - Added `feature-flags.v1.yaml` and four contract scaffolds (`circuit-breaker.v1.yaml`, `socrates-fusion.v1.yaml`, `plan-mode-trigger.v1.yaml`, `risk-confidence-matrix.v1.yaml`).
+  - Filled contract scaffolds with default values mirroring implementations and added `x-vox-version: 1` metadata.
+- **`docs` directory**:
+  - Added `autonomous-orchestration-policy-research-2026.md` covering D1-D10 decision axes.
+  - Added master plan and 11 phase plans (P1-P11) with TDD task breakdowns.
+  - Regenerated `SUMMARY.md`, `architecture-index.md`, and `feed.xml` to include new documentation.
+  - Replaced dead/flaky links in documentation and fixed confidence semantics in Phase 6 plan.
+  - Corrected `SUMMARY.md` path and metric constant count in Phase 11 plan.
+  - Added language tags to code fences in `autonomous-orchestration-policy-research-2026.md`.
+- **`vox-vscode` directory**:
+  - Updated `tool_aliases.rs` path in `check-mcp-tool-parity.mjs` script after workspace reorg.
+- **`Cargo.toml` / `Cargo.lock`**:
+  - Added `vox-orchestrator-test-helpers` workspace dependency.
+
+--- audit: original='feat(orchestrator): autonomous orchestration policy program (D1–D10) (#81)' | actual=13481L across 46 files | derived=sampled ---
