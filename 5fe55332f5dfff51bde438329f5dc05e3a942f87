@@ -1,0 +1,12 @@
+feat(populi): implement resource-aware dispatch scoring for node selection
+scale: ~79 lines across 1 files [M]
+
+- `select_best_node`: Replaced CPU-only sorting with a composite scoring function.
+  - The new score prioritizes idle CPU, then free RAM, allocatable GPUs, and model locality.
+  - Unreported metrics (CPU usage, free memory, allocatable GPUs) now pessimistically affect the score.
+  - Added a `score` helper function to calculate the composite score for a `NodeRecord`.
+- `select_best_node_tests`: Added new unit tests for the `select_best_node` function.
+  - Includes tests for CPU-based sorting, memory, GPU, and model locality tie-breaking.
+  - Tests cover scenarios with missing metrics and ensure pessimistic scoring.
+
+--- audit: original='feat(populi): resource-aware dispatch scoring (CPU + memory + GPU + model locality)' | actual=79L across 1 files | derived=full ---
