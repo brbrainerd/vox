@@ -36,14 +36,14 @@ training_eligible: false
 
 ## What is NOT started (the exigent core)
 
-The whole point of the initiative was to close **structural pipeline-gap patterns** — places where a construct is silently dropped between stages. As of 2026-06-15, **3 of 7 are now covered** (#1, #5, #7) by dedicated tests in `crates/vox-compiler/src/semcov_struct_pipeline_tests.rs` and `crates/vox-cli/tests/effort_pricing_parity.rs`; 4 remain.
+The whole point of the initiative was to close **structural pipeline-gap patterns** — places where a construct is silently dropped between stages. As of 2026-06-15, **5 of 7 are now covered** (#1, #3, #4, #5, #7) by dedicated tests in `crates/vox-compiler/src/semcov_struct_pipeline_tests.rs`, `crates/vox-compiler/tests/decl_lowering_test.rs`, and `crates/vox-cli/tests/effort_pricing_parity.rs`; #2 is doc-drift (deferred) and #6 (stdout harness) remains.
 
 | # | Pattern | Coverage | Evidence |
 |---|---------|----------|----------|
 | 1 | Silent-drop catch-all match arms | ✅ **DONE** | `semcov_struct_pipeline_tests`: top-level `let`→`Decl::Const` must lower into `hir.consts`, not the `legacy_ast_nodes` catch-all; name, value, type-annotation and multi-binding survival all pinned. |
 | 2 | Decorator cliff (keyword recognized, arg ignored) | **NONE** (deferred) | Investigation found this is doc-vs-parser **drift**, not a silent HIR drop: `@deprecated("reason")` is documented but does not parse (`Expected fn, found (`). Better fixed as a doc/parser correction than a coverage test. |
-| 3 | Context-dependent silent drop | **NONE** (in progress) | No test asserts "same node survives in context A, dropped in context B." Design in flight. |
-| 4 | Dead emitters (value produced, never consumed) | **NONE** (in progress) | `hir.lower_warnings` is a prime suspect (is anything consuming the "silently dropped" warnings?). Design in flight. |
+| 3 | Context-dependent silent drop | ✅ **DONE** | `semcov_struct_pipeline_tests`: `@pure` must survive identically on a free fn (→`hir.functions`) and an `@example`-wrapped fn (→`hir.examples`), asserted as a parity relationship. (Investigation falsified 5 drop hypotheses — pipeline is robust here; this is a pin-current guard.) |
+| 4 | Dead emitters (value produced, never consumed) | ✅ **DONE** (and *disproven* as dead) | `decl_lowering_test`: investigation found `hir.lower_warnings` is NOT dead — `typecheck_hir_module` drains it into coded diagnostics. The test pins that producer→consumer wiring (RED if the drain loop is deleted). Real follow-ups surfaced: `@traced` IS a uniformly dead decorator (no `HirFn` field consumes it); make `hir/lower/mod.rs` match exhaustive so a new un-lowered variant is a compile error. |
 | 5 | Half-wired `when {}` blocks | ✅ **DONE** | `semcov_struct_pipeline_tests`: a `when src { fetching… empty… error e… ok x… }` lowers to `HirExpr::AsyncView` with all four arms surviving (`missing_arms()` empty) and bindings intact. |
 | 6 | Structural-only goldens (runtime output unasserted) | **NONE** (biggest remaining) | Still no `stdout`/behavioral-output assertions; needs a harness that compiles a `.vox` program and asserts observable output. |
 | 7 | Split-brain (duplicated logic diverged across crates) | ✅ **DONE** | `effort_pricing_parity.rs`: asserts the byte-identical `ModelRates::cost_usd` copies in `vox-effort-audit` and `vox-effort-route` agree across a direction-sensitive matrix; fails on any divergence. |
