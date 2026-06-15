@@ -1,0 +1,7 @@
+fix(speech): remove OOM stub that broke short transcription; improve error reporting
+scale: ~143 lines across 2 files [M]
+
+- `crates/vox-speech/src/backends/candle_whisper.rs`: Removed a hardcoded `Err("out of memory simulated for testing")` branch that was triggered for single-window audio (clips < 30 seconds), causing all short transcriptions to silently fail with a fake OOM error. Single-window audio now correctly flows through the real inference loop.
+- `crates/vox-gui/src/commands/mic.rs`: Modified `transcribe_audio_file` to use `{e:#}` for error formatting, surfacing the full `anyhow` context chain in the UI for better diagnostics. Added an ignored `real_mic_capture_and_transcribe_smoke` test to verify end-to-end microphone capture and transcription.
+
+--- audit: original='fix(speech): unbreak short transcription (FORCE-OOM stub) + GUI native file-picker (#217)' | actual=143L across 2 files | derived=full ---
