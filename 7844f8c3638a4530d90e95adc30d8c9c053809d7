@@ -1,0 +1,6 @@
+ci(lychee): ignore cambridge.org due to intermittent 504s from CI
+scale: ~4 lines across 1 files [XS]
+
+- .lycheeignore: Added a new entry to ignore all URLs matching `.*cambridge.org/.*` to prevent CI failures caused by intermittent 504 Gateway Timeout errors when accessing `cambridge.org/core` from GitHub Actions runners.
+
+--- audit: original='ci(links): whitelist cambridge.org (intermittent 504 from CI runners)' | actual=4L across 1 files | derived=full ---
