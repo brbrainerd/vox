@@ -14702,6 +14702,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "vox-llm-config",
+ "vox-llm-egress",
  "vox-secrets",
  "workspace-hack",
 ]

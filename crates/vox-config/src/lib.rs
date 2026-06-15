@@ -18,6 +18,7 @@ pub mod project_manifest;
 pub mod rollout;
 pub mod routing_migration;
 pub mod routing_policy;
+pub mod resolve_egress;
 pub mod scholarly;
 pub mod secrets;
 pub mod snapshot;
