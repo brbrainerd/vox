@@ -1,0 +1,8 @@
+refactor(vox-gui): reorder imports and format code in console commands
+scale: ~20 lines across 3 files [S]
+
+- `crates/vox-gui/src/commands/discovery.rs`: Reordered imports alphabetically and applied rustfmt to multiline `typed.strip_prefix` and `vox_db::Codex::connect` calls.
+- `crates/vox-gui/src/commands/console_a2a.rs`: Reordered imports alphabetically and applied rustfmt to multiline `vox_db::Codex::connect` call.
+- `crates/vox-gui/src/commands/pty.rs`: Reordered imports alphabetically.
+
+--- audit: original='style(vox-gui): rustfmt import ordering in console commands' | actual=20L across 3 files | derived=full ---
