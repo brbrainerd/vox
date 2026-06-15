@@ -1,0 +1,12 @@
+feat(plugin-ssot): Centralize target-triple and artifact naming in `vox-plugin-types`
+scale: ~149 lines across 7 files [M]
+
+- `crates/vox-plugin-types/src/target.rs`: Added a new module defining `PLUGIN_TARGET_TRIPLES` (canonical target triple keys), `current_target_triple()` (detects the current platform's triple), and `plugin_artifact_filename()` (derives the cdylib filename).
+- `crates/vox-plugin-types/src/lib.rs`: Exported the new `target` module and its public items.
+- `crates/vox-plugin-host/src/lib.rs`: Refactored `current_target_triple_key()` to delegate to `vox_plugin_types::current_target_triple()`, removing duplicated `cfg!` logic.
+- `crates/vox-cli/src/commands/ci/plugin_abi_parity.rs`: Refactored `target_triple_key()` to delegate to `vox_plugin_types::current_target_triple()`, removing duplicated `cfg!` logic.
+- `crates/vox-cli/src/commands/ci/plugin_surface.rs`: Added new validation to `check_manifests` to ensure `[artifacts]` keys are canonical target triples and artifact filenames match the derived `plugin_artifact_filename` rule.
+- `crates/vox-cli/Cargo.toml`: Added a dependency on `vox-plugin-types`.
+- `Cargo.lock`: Updated to reflect the new dependency.
+
+--- audit: original='feat(plugin-ssot): PS-2 — canonical target-triple set + artifact-name rule (#204)' | actual=149L across 7 files | derived=full ---
