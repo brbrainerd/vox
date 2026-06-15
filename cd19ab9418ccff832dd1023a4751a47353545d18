@@ -1,0 +1,13 @@
+feat(codegen-rn): emit `<Switch>` for boolean `@form` fields
+scale: ~115 lines across 3 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/rn/form.rs`:
+  - Changed boolean `@form` fields to render as a `<Switch>` component within a `<View>` with a `<Text>` label, replacing a `TODO` comment.
+  - Added a `switch_row` style definition.
+  - Implemented `form_renders_switch` function to determine if any visible boolean field exists in a form.
+- `crates/vox-codegen/src/codegen_ts/rn/mod.rs`:
+  - Conditionally imports `Switch` from `react-native` only if any form in the module renders a boolean field, avoiding unused imports.
+- `crates/vox-cli-tests/tests/fixtures/mobile_app_complete/main.vox`:
+  - Added a `pinned: bool` field to the `record_entry` mutation and the `EntryForm` to extend the e2e fixture.
+
+--- audit: original='feat(codegen-rn): emit <Switch> for boolean @form fields' | actual=115L across 3 files | derived=full ---
