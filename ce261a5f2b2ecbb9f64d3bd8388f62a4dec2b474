@@ -1,0 +1,11 @@
+test(orchestrator): improve circuit breaker contract parsing and add drift guard
+scale: ~53 lines across 1 files [M]
+
+- `crates/vox-orchestrator/src/circuit_breaker.rs`:
+    - Added a comment to `CircuitBreakerConfig::from_contract_str` explaining that overlay field names track contract YAML keys.
+    - Modified `CircuitBreakerConfig::from_contract_file` to log warnings for parsing errors and debug messages for file read errors, instead of silently defaulting.
+    - Renamed `real_contract_file_loads_and_matches_default` test to `real_contract_parses_and_stays_default_compatible`.
+    - Updated the test's assertion to explicitly check that the parsed configuration matches the default configuration, ensuring schema compatibility.
+    - Added a new test `real_contract_parses_and_matches_explicit_values` to verify that specific values from a contract file are correctly parsed and applied.
+
+--- audit: original='test+obs(orchestrator): honest circuit-breaker drift guard + fallback logging (HC-G02-08)' | actual=53L across 1 files | derived=full ---
