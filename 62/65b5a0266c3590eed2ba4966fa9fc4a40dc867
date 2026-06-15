@@ -1,30 +1,26 @@
 feat(compiler): migrate DB IR to method calls and add `@table` parser
 scale: ~823 lines across 45 files [L]
 
-- refactor(compiler): migrate `HirExpr::DbTableOp` to `HirExpr::MethodCall` for DB operations, affecting type checking, HIR lowering, and TS codegen
-- feat(compiler): add parser for `@table` declarations in `parser/descent/decl/mid.rs`
-- chore(compiler): update `db_op_walk` to reflect new DB IR structure
-- chore(compiler): update `codegen_rust/emit/tables/projections.rs` to use new DB IR for collecting select projections
-- chore(compiler): update `hir/lower/expr.rs` to lower DB operations into method calls
-- chore(compiler): update `hir/lower/mod.rs` tests to reflect new DB IR structure
-- chore(compiler): remove `DbTableOp` handling from `typeck/checker/expr.rs`
-- chore(compiler): remove `DbTableOp` handling from `codegen_ts/hir_emit/mod.rs`
-- chore(compiler): update `examples_ssot_test.rs` to reflect DB IR changes
-- chore(compiler): update `typeck/checker/mod.rs` for DB IR changes
-- chore(compiler): remove `DbTableOp` handling from `hir/lower/db_select_normalize.rs`
-- chore(compiler): remove `DbTableOp` handling from `hir/nodes/stmt_expr.rs`
-- chore(compiler): update `parser/descent/mod.rs` to include new table parsing
-- chore(compiler): update `hir/lower/contracts.rs` for DB IR changes
-- chore(compiler): update `codegen_rust/emit/stmt_expr_tail.rs` for DB IR changes
-- chore(cli): update `db/query_plans.rs` for DB IR changes
-- chore(docs): update architecture and contributor guides
-- chore(integration-tests): update `pipeline/includes/include_01.rs` for DB IR changes
-- chore(compiler): update `codegen_rust/emit/method_emit.rs` for DB IR changes
-- chore(compiler): update `hir/lower/async_flags.rs` for DB IR changes
-- chore(compiler): update `codegen_ts/hir_emit/state_deps.rs` for DB IR changes
-- chore(compiler): add `db_query_safety_test.rs`
-- chore(cli): add `check_diagnostics_json_golden.rs` and `golden/check_rust_import_lowering.json`
-- chore(compiler): update `codegen_rust/emit/with_emit.rs` for DB IR changes
-- chore(compiler): update `codegen_ts/routes.rs` for DB IR changes
+- refactor(compiler): migrate `HirExpr::DbTableOp` to `HirExpr::MethodCall` in `hir::lower` and `typeck::checker`
+- feat(compiler): add parser for `@table` declarations in `parser::descent`
+- chore(compiler): update `codegen_ts` to emit `MethodCall` for DB operations
+- chore(compiler): update `codegen_rust` to collect table select projections from `MethodCall`
+- chore(compiler): remove `DbTableOp` from `typeck::checker`
+- chore(compiler): remove `DbTableOp` from `codegen_ts::hir_emit`
+- chore(compiler): remove `DbTableOp` from `hir::nodes`
+- chore(compiler): update `hir::lower` tests to reflect `MethodCall` changes
+- chore(compiler): update `hir::db_op_walk` to handle `MethodCall`
+- chore(compiler): update `hir::lower::db_select_normalize` to handle `MethodCall`
+- chore(compiler): update `hir::lower::contracts` to handle `MethodCall`
+- chore(compiler): update `hir::lower::async_flags` to handle `MethodCall`
+- chore(compiler): update `codegen_rust::emit` for `stmt_expr_tail` and `method_emit`
+- chore(compiler): update `codegen_ts::reactive` and `codegen_ts::routes`
+- chore(compiler): update `eval::expr` and `hir::dead_code`
+- chore(cli): update `db` command and add new `ci` commands
+- chore(docs): update `architecture` and `contributors` documentation
+- chore(integration-tests): update `pipeline` tests
+- chore(scaling-policy): update `cost_defense`
+- chore(workflow-runtime): update `workflow::plan`
+- chore(mens): update `training::core
 
 --- audit: original='chore: Finalize compiler DB IR migration and Astro documentation SSOT' | actual=823L across 45 files | derived=full ---
