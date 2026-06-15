@@ -1,0 +1,18 @@
+fix(scientia): bind ApprovalToken to publication_id and harden review-decision rigor
+scale: ~217 lines across 5 files [M]
+
+- `crates/vox-cli/src/commands/scientia_nanopub.rs`:
+  - Added a check in `nanopub_build` to reject `ApprovalToken`s if their `publication_id` does not match the requested build's `publication_id`, preventing cross-publication replay.
+  - Updated `ReviewDecisionRow` instantiation to use `String` directly for `publication_id` instead of `Option<String>`.
+- `crates/vox-db/src/store/ops_review.rs`:
+  - Changed `ReviewDecisionRow.publication_id` from `Option<String>` to `String`.
+  - Added a Rust-side non-empty guard for `publication_id` in `record_review_decision`.
+- `crates/vox-scientia/src/review/mod.rs`:
+  - Added `publication_id()` method to the `ReviewDecisionLike` trait and its implementation for `ReviewDecisionRow`.
+  - Added `publication_id: String` field to `ApprovalToken`.
+  - Updated `ApprovalToken::new` and `mint_from_decision` to include and pass the `publication_id`.
+  - Added a `publication_id()` getter method to `ApprovalToken`.
+- `crates/vox-db/src/research_pipeline.rs`: Updated `ReviewDecisionRow` instantiation to use `String` directly for `publication_id`.
+- `crates/vox-cli/src/v0.rs`: Updated the error message for a missing v0 API key to reference `SecretId::V0ApiKey` and `vox-secrets`.
+
+--- audit: original='fix(scientia): bind ApprovalToken to publication_id + harden review-decision rigor (P2 follow-up) (#196)' | actual=217L across 5 files | derived=full ---
