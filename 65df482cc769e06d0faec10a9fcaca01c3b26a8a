@@ -1,0 +1,13 @@
+feat(scientia): introduce observation classification and learned profiles
+scale: ~129 lines across 2 files [M]
+
+- `crates/vox-research-events/src/observation.rs`:
+    - Add `LearnedProfileRow` struct for model behavior profiles.
+    - Introduce `ObservationClass` enum for classifying telemetry.
+    - Define `ScientiaObservationClassifier` trait for observation classification.
+    - Implement `KeywordObservationClassifier` as a heuristic classifier.
+    - Define `PenaltyRecord` struct for recording penalties.
+    - Define `ScientiaWeightExtension` struct.
+- `crates/vox-research-events/src/lib.rs`: Re-export new types from `observation.rs`.
+
+--- audit: original='feat(scientia): LearnedProfileRow, ScientiaObservationClassifier, ScoringWeights, PenaltyRecord (Phase 6)' | actual=129L across 2 files | derived=full ---
