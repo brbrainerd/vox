@@ -1,0 +1,16 @@
+feat(parser): sugar `Component()` and `primitive()` to self-closing JSX
+scale: ~156 lines across 8 files [M]
+
+- `crates/vox-compiler/src/parser/descent/expr/pratt_match.rs`: Implemented new parsing logic to sugar capitalized identifier calls (e.g., `Component()`) and primitive calls (e.g., `panel()`) without a trailing block into `Expr::JsxSelfClosing`. This change involved adding a check for uppercase starting characters in the callee and handling the absence of a following `{` block.
+- `crates/vox-compiler/src/parser/descent/tests.rs`: Added three new parser tests to verify the new self-closing JSX sugar:
+    - `test_capitalized_call_no_block_lowers_to_self_closing_jsx`: Confirms `ComposerPanel()` without a block parses to `Expr::JsxSelfClosing`.
+    - `test_capitalized_call_with_named_args_lowers_to_self_closing`: Confirms `PipelineStage(name="Lexer", desc="tok")` parses to `Expr::JsxSelfClosing`.
+    - `test_capitalized_call_with_positional_arg_stays_call`: Ensures calls with positional arguments (like `Some(42)`) are not sugared and remain `Expr::Call`.
+- `crates/vox-dashboard/app/src/app.vox`: Refactored 22 instances of self-closing component and primitive invocations by removing the redundant `() {}` syntax, e.g., `ComposerPanel() {}` became `ComposerPanel()`.
+- `crates/vox-dashboard/app/src/tabs/forge.vox`: Refactored 7 instances of self-closing component and primitive invocations by removing the redundant `() {}` syntax.
+- `crates/vox-dashboard/app/src/tabs/network.vox`: Refactored 5 instances of self-closing component and primitive invocations by removing the redundant `() {}` syntax.
+- `crates/vox-dashboard/app/src/tabs/command.vox`: Refactored 4 instances of self-closing component and primitive invocations by removing the redundant `() {}` syntax.
+- `crates/vox-dashboard/app/src/tabs/speak.vox`: Refactored 2 instances of self-closing component and primitive invocations by removing the redundant `() {}` syntax.
+- `.claude/settings.local.json`: Added a new `grep` command to the `Bash` task list.
+
+--- audit: original='feat(parser): self-closing view-call sugar — `Component()` ≡ `<Component/>`' | actual=156L across 8 files | derived=full ---
