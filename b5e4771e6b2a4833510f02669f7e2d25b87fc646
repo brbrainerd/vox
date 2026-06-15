@@ -1,0 +1,10 @@
+fix(ci): update ignore file generation and documentation
+scale: ~19 lines across 7 files [M]
+
+- `crates/vox-compiler/src/typeck/mod.rs`: Corrected a comment to accurately reference `checker/mod.rs` instead of `Checker.rs`.
+- `crates/vox-cli/src/commands/ci/sync_ignore_files.rs`: Modified `extract_ignore_patterns` to filter out specific comment lines (`# .aiexclude directly.` and `# GitHub Settings`) from derived ignore files.
+- `docs/src/architecture/2026-05-02-codebase-cleanup-and-signal-improvement.md`: Updated frontmatter to add `description`, `category`, `last_updated`, and `training_eligible` fields, and changed `status` from `current` to `roadmap`.
+- `.aiexclude`, `.aiignore`, `.cursorignore`: Removed comment lines related to direct editing and GitHub Copilot content exclusion, as these are now filtered by `sync_ignore_files`.
+- `infra/coolify/README.md`: Updated the R2 adapter note to remove "future" and clarify it refers to archived research.
+
+--- audit: original='fix(review): address CodeRabbit feedback on PR #59' | actual=19L across 7 files | derived=full ---
