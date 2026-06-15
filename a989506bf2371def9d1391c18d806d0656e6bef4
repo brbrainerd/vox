@@ -1,0 +1,6 @@
+chore(docs): regenerate plugin catalog
+scale: ~0 lines across 1 files [XS]
+
+- Regenerate `docs/src/reference/plugin-catalog.generated.md` to update the plugin catalog.
+
+--- audit: original='chore(docs): regenerate plugin catalog after webhook HttpListener' | actual=0L across 1 files | derived=full ---
