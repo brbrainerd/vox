@@ -1,0 +1,6 @@
+build(deps): bump actions/setup-node from 4 to 6
+scale: ~2 lines across 1 files [XS]
+
+- .github/workflows/release-gui.yml: Updated the `actions/setup-node` GitHub Action to version 6.
+
+--- audit: original='chore(deps): bump actions/setup-node from 4 to 6 (#243)' | actual=2L across 1 files | derived=full ---
