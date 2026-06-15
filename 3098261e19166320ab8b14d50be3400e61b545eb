@@ -1,0 +1,6 @@
+fix(populi): suppress unused_mut warning in pipeline::default_for_platform
+scale: ~1 lines across 1 files [XS]
+
+- `crates/vox-populi/src/mens/hardware/pipeline.rs`: Added `#[allow(unused_mut)]` to the `pipeline` variable in `default_for_platform` to silence the `unused_mut` warning.
+
+--- audit: original='fix(populi): suppress unused_mut in pipeline::default_for_platform' | actual=1L across 1 files | derived=full ---
