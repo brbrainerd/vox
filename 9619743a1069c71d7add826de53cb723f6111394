@@ -1,0 +1,10 @@
+fix(scholarly): Add OSF and Crossref Deposit to remote status, update dates
+scale: ~28 lines across 3 files [S]
+
+- `crates/vox-publisher/src/scholarly/mod.rs`:
+    - Add `osf` and `crossref_deposit` arms to `fetch_scholarly_remote_status_for_adapter`.
+    - Update documentation for supported adapters to include `osf` and `crossref_deposit`.
+- `crates/vox-publisher/src/scholarly/osf.rs`: Construct `osf_node_url` using the already-bound `node_id` instead of parsing from JSON.
+- `crates/vox-publisher/src/scholarly/crossref_deposit.rs`: Use `chrono::Utc::now()` for the deposit date in `build_crossref_deposit_xml` instead of a hardcoded date.
+
+--- audit: original='fix(scientia): Phase 8 — adapter dispatch gaps, hardcoded date, stale doc' | actual=28L across 3 files | derived=full ---
