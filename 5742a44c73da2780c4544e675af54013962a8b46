@@ -1,0 +1,12 @@
+feat(vox-prereg): scaffold L2 crate for SCIENTIA pre-registration
+scale: ~894 lines across 7 files [L]
+
+- `crates/vox-prereg/Cargo.toml`: Add new crate with dependencies on `vox-research-events`, `vox-crypto`, `thiserror`, `sha2`, `base64url`, and `serde_json`.
+- `crates/vox-prereg/src/lib.rs`: Define the crate's module structure and re-export public items.
+- `crates/vox-prereg/src/symbolic.rs`: Implement `NumericComparatorVerifier` for symbolic verification of numeric directional claims and `BayesianStoppingRule` for sequential stopping.
+- `crates/vox-prereg/src/signing.rs`: Implement Ed25519 signing and verification for `PreregistrationV1` records.
+- `crates/vox-prereg/src/deviation.rs`: Implement `DeviationDetector` to compare declared metrics/tests in a preregistration against actual campaign usage.
+- `crates/vox-prereg/src/gate.rs`: Implement `PreregGate` to enforce pre-registration requirements before campaign execution.
+- `crates/vox-prereg/src/trusty_uri.rs`: Implement `compute_trusty_uri` for `PreregistrationV1` using canonical JSON and SHA-256 hashing.
+
+--- audit: original='feat(scientia): scaffold vox-prereg L2 crate (Phase 2 Task 1)' | actual=894L across 7 files | derived=full ---
