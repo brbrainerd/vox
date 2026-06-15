@@ -701,7 +701,8 @@ pub fn run_mix_with_options(
         let mut input_lines_count = 0usize;
 
         // Process in chunks to balance parallelism vs memory
-        let chunk_size = 10_000;
+        const MIX_STREAM_CHUNK_LINES: usize = 10_000;
+        let chunk_size = MIX_STREAM_CHUNK_LINES;
         let mut lines_iter = reader.lines();
 
         loop {
