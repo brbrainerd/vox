@@ -1,0 +1,8 @@
+feat(parser): Implement RenameRegistry loader and validation
+scale: ~125 lines across 3 files [M]
+
+- `crates/vox-compiler/src/parser/renames.rs`: Add new module `renames` with `RenameRegistry` struct, `RenameEntry` struct, `RenameKind` enum, and `RegistryError` enum. Implement `RenameRegistry::from_str` to parse a JSON string, validate its version (must be 1), check for duplicate `from` keys, and detect alias chains.
+- `crates/vox-compiler/src/parser/mod.rs`: Declare the new `renames` module.
+- `.claude/settings.local.json`: Add several new `Bash` and `WebFetch` entries to the `allowed_commands` list.
+
+--- audit: original='feat(parser): RenameRegistry loader + validation (VUV-9 task 3)' | actual=125L across 3 files | derived=full ---
