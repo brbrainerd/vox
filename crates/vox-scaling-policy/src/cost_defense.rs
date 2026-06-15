@@ -68,10 +68,16 @@ impl CostDefenseConfig {
     /// `std::env::var("VOX_COST_DAILY_BUDGET_USD").ok().as_deref()` etc.
     pub fn from_env_values(daily: Option<&str>, monthly: Option<&str>) -> Self {
         let mut c = Self::default();
-        if let Some(v) = daily.and_then(|s| s.trim().parse::<f64>().ok()) {
+        if let Some(v) = daily
+            .and_then(|s| s.trim().parse::<f64>().ok())
+            .filter(|v| v.is_finite() && *v > 0.0)
+        {
             c.daily_budget_usd = v;
         }
-        if let Some(v) = monthly.and_then(|s| s.trim().parse::<f64>().ok()) {
+        if let Some(v) = monthly
+            .and_then(|s| s.trim().parse::<f64>().ok())
+            .filter(|v| v.is_finite() && *v > 0.0)
+        {
             c.monthly_budget_usd = v;
         }
         c
@@ -305,6 +311,24 @@ mod budget_env_tests {
     #[test]
     fn unparseable_env_keeps_default() {
         let c = CostDefenseConfig::from_env_values(Some("not-a-number"), None);
+        assert_eq!(c.daily_budget_usd, 25.0);
+    }
+
+    #[test]
+    fn negative_budget_keeps_default() {
+        let c = CostDefenseConfig::from_env_values(Some("-5"), None);
+        assert_eq!(c.daily_budget_usd, 25.0);
+    }
+
+    #[test]
+    fn zero_budget_keeps_default() {
+        let c = CostDefenseConfig::from_env_values(Some("0"), None);
+        assert_eq!(c.daily_budget_usd, 25.0);
+    }
+
+    #[test]
+    fn nan_budget_keeps_default() {
+        let c = CostDefenseConfig::from_env_values(Some("nan"), None);
         assert_eq!(c.daily_budget_usd, 25.0);
     }
 }
