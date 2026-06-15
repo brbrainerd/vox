@@ -1,0 +1,16 @@
+feat(dashboard): Implement "Add a Node" wizard with bearer mint and QR code
+scale: ~191 lines across 5 files [M]
+
+- **`crates/vox-dashboard/app/src/surfaces/wizard_add_node.vox`**: Added a new wizard component for adding nodes. This component handles:
+    - Minting a bearer token via a new API endpoint.
+    - Displaying a one-line install command (with a `--print` option).
+    - Rendering a server-generated QR code SVG.
+    - Providing a copy-to-clipboard function for the bearer URL.
+    - Showing a live countdown for the bearer's 600-second TTL.
+    - Managing UI states for idle, minting, ready, and error.
+- **`crates/vox-dashboard/app/src/interop/QRCode.tsx`**: Introduced a new React component to render SVG QR codes received from the server, ensuring the QR content remains server-authoritative.
+- **`crates/vox-dashboard/src/api/mesh.rs`**: Integrated the new `/api/v2/mesh/invite` POST route for minting bearer tokens.
+- **`crates/vox-dashboard/tests/mesh_phase4_routes.rs`**: Updated the `mint_bearer_returns_three_coequal_forms` test to use `contains("<svg ")` for `qr_svg` assertion, making it more robust.
+- **`crates/vox-dashboard/Cargo.toml`**: Added `qrcode` crate for server-side QR code SVG generation and `uuid` crate.
+
+--- audit: original='feat(dashboard): Add-a-Node wizard with bearer mint, QR, install command (P4-T2)' | actual=191L across 5 files | derived=full ---
