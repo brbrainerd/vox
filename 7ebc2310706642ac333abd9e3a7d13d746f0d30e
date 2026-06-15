@@ -1,0 +1,10 @@
+docs(architecture): update crate names and add vox-openai to where-things-live
+scale: ~20 lines across 2 files [S]
+
+- docs/src/architecture/where-things-live.md:
+  - Renamed `vox-reqwest-defaults` to `vox-http-client`.
+  - Added `vox-openai` crate to the list of top-level trees.
+  - Corrected a leading UTF-8 BOM character.
+- crates/vox-orchestrator-mcp/src/git_exec.rs: Corrected a comment to properly escape backticks for markdown rendering.
+
+--- audit: original='fix: syntax error in git_exec.rs' | actual=20L across 2 files | derived=full ---
