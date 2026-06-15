@@ -1,0 +1,30 @@
+feat(peft-rs): add 12 new adapter types and update candle-core to 0.10.2
+scale: ~12434 lines across 83 files [XL]
+
+- chore(deps): upgrade candle-core, candle-nn, and candle-transformers to 0.10.2 across the workspace
+- feat(patches/peft-rs-1.0.3): introduce a new local patch for `peft-rs` 1.0.3, adding 12 new adapter types (LoRA, BoFT, OFT, AdaLoRA, LOKR, VeRA, IA3, LOHA, Prompt Tuning, Prefix Tuning, DoRA, QA-LoRA) and their associated kernels, configs, and utilities. This patch also updates its `candle-core` dependency to 0.10.2.
+- fix(patches/qlora-rs-1.0.5): update `qlora-rs` patch to depend on `candle-core = "0.10"` to ensure version compatibility.
+- fix(Cargo.toml): update workspace `Cargo.toml` to reflect `candle-core`, `candle-nn`, and `candle-transformers` 0.10.2, and remove the now-superseded `candle-kernels-0.9.2` patch entry.
+- fix(Cargo.lock): update `Cargo.lock` to reflect new dependency versions and resolutions.
+- refactor(crates/vox-populi): simplify candle backend modules (`candle_cpu.rs`, `candle_cuda.rs`, `candle_metal.rs`) by removing redundant code, likely due to changes in `candle-core` or the introduction of `candle_test_helpers.rs`.
+- feat(crates/vox-populi): add `candle_test_helpers.rs` for candle inference backend testing utilities.
+- fix(crates/vox-vcs): correct unused imports in `jj_actor.rs` and update `project_file.rs` to use `REPO_VOX_MD_FILE`.
+- fix(crates/vox-audit): gate `OP_SHORT` import under `#[cfg(test)]` in `behavioral_goldens.rs`.
+- fix(crates/vox-effort-audit): gate `EFFORT_AUDIT_JUDGE_TIMEOUT` import under `#[cfg(test)]` in `judge/mod.rs` and adjust `config.rs`.
+- fix(crates/vox-effort-route): gate `HTTP_REQUEST` import under `#[cfg(test)]` in `embed.rs`.
+- fix(crates/vox-orchestrator): resolve minor issues in `models/tests.rs`, `project_file.rs`, `scaling.rs`, and `workspace.rs`.
+- fix(crates/vox-cli-tests): minor adjustments in `lib.rs`.
+- fix(crates/vox-cli): minor adjustments in `commands/ci/workspace_artifacts/retention.rs`.
+- fix(crates/vox-orchestrator-queue): minor adjustments in `semcov_wave19_tests.rs`.
+- fix(crates/vox-compiler): minor adjustments in `eval/builtins.rs`.
+- fix(crates/vox-test-harness): minor adjustments in `barriers.rs`.
+- fix(crates/vox-orchestrator-mcp): minor adjustments in `tests/daemon_extra_tests.rs` and `tests/pending_approvals_tests.rs`.
+- fix(crates/vox-runtime): minor adjustments in `lifecycle.rs`.
+- fix(crates/vox-workflow-runtime): minor adjustments in `file_journal.rs`.
+- chore(crates/vox-actor-runtime): remove 16 lines from `activity.rs`.
+- chore(crates/vox-gui): add 8 lines and remove 2 lines from `src/commands/daemon.rs`.
+- chore(crates/vox-config): add 2 lines to `src/paths.rs` and `src/timeouts.rs`.
+- chore(crates/vox-runtime): add `Cargo.toml`.
+- chore(crates/vox-vcs): add `Cargo.toml`.
+
+--- audit: original='chore(deps): upgrade candle-core + candle-nn + candle-transformers to 0.10.2' | actual=12434L across 83 files | derived=sampled ---
