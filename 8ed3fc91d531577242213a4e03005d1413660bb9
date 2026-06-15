@@ -1,0 +1,11 @@
+feat(vox-telemetry): implement types, recorder, span, config, and record_event! macro
+scale: ~608 lines across 6 files [L]
+
+- `types.rs`: Add `TelemetryError` enum, payload size and field length constants, and canonical `metric_type` constants (S0-S3).
+- `lib.rs`: Introduce `record_event!` macro, `TelemetryEvent` enum, and `ResearchMetricEvent` struct. Re-export new modules and constants.
+- `config.rs`: Implement `TelemetryConfig` struct for controlling telemetry sinks and categories, with resolution order.
+- `span.rs`: Add `TraceContext` struct for distributed tracing, including methods for creating root and child contexts.
+- `recorder.rs`: Define `TelemetryRecorder` trait, `set_global_recorder`, `global_recorder` functions, and `CompositeRecorder` for fan-out.
+- `no_op.rs`: Provide `NoOpRecorder` as a default, silently discarding all events.
+
+--- audit: original='feat(vox-telemetry): implement types, recorder, span, config, record_event! macro' | actual=608L across 6 files | derived=full ---
