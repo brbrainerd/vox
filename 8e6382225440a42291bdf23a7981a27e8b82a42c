@@ -1,0 +1,11 @@
+feat(vox-effort-route): add configuration and TOML schema
+scale: ~88 lines across 1 files [M]
+
+- `crates/vox-effort-route/src/config.rs`:
+    - Replaced stub with `EffortRouteConfig` struct for `vox audit effort-route` configuration.
+    - Added `RouteJudgeConfig` struct for judge-specific settings.
+    - Implemented `Default` for both `EffortRouteConfig` and `RouteJudgeConfig`.
+    - Defined default values for `min_waste_score`, `max_bucket_size`, `max_context_commits`, `staging_dir`, `model_preference`, `max_total_tokens`, `max_dollar_cost`, and `verify`.
+    - Derived `Debug`, `Clone`, `Serialize`, `Deserialize`, and `PartialEq` for both config structs.
+
+--- audit: original='feat(vox-effort-route): config + TOML schema (A3)' | actual=88L across 1 files | derived=full ---
