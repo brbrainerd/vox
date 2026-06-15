@@ -94,6 +94,9 @@ impl ContainerRuntime for DockerRuntime {
         for (host_path, container_path) in &opts.volumes {
             cmd.arg("-v").arg(format!("{host_path}:{container_path}"));
         }
+        for arg in opts.resource_args() {
+            cmd.arg(arg);
+        }
 
         cmd.arg(&opts.image);
 
