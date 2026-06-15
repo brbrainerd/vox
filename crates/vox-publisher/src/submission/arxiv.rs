@@ -92,3 +92,18 @@ pub fn pack_arxiv_staging_tar_gz(
     enc.finish().map_err(StagingExportError::Io)?;
     Ok(())
 }
+
+#[cfg(test)]
+mod semcov_behavior_tests {
+    use super::*;
+
+    #[test]
+    fn latex_escape_minimal_escapes_specials_and_doubles_newline() {
+        // Catches: missing escape of a TeX special (e.g. % or $ leaking unescaped → broken .tex),
+        // or newline not expanded to a paragraph break (\n\n).
+        assert_eq!(latex_escape_minimal("100% of $x"), r"100\% of \$x");
+        assert_eq!(latex_escape_minimal("a_b^c"), r"a\_b\^c");
+        assert_eq!(latex_escape_minimal("line1\nline2"), "line1\n\nline2");
+        assert_eq!(latex_escape_minimal("plain text"), "plain text");
+    }
+}

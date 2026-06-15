@@ -720,4 +720,18 @@ mod tests {
         assert_eq!(plan.will_retry_channels, vec!["github".to_string()]);
         assert!(plan.skipped_success_channels.is_empty());
     }
+
+    #[test]
+    fn deep_merge_json_recurses_objects_and_null_deletes_key() {
+        // Catches: deep_merge_json clobbering nested objects instead of recursing,
+        // or failing to honor an explicit null overlay as a key deletion.
+        use serde_json::json;
+        let base = json!({ "a": { "x": 1, "y": 2 }, "keep": "v", "drop": "old" });
+        let overlay = json!({ "a": { "y": 9, "z": 3 }, "drop": null });
+        let merged = deep_merge_json(base, overlay);
+        assert_eq!(
+            merged,
+            json!({ "a": { "x": 1, "y": 9, "z": 3 }, "keep": "v" })
+        );
+    }
 }

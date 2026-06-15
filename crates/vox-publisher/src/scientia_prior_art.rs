@@ -586,4 +586,27 @@ mod tests {
         let summary = bundle.overlap_summary.unwrap();
         assert_eq!(summary.recency_bucket, NoveltyRecencyBucket::Unknown);
     }
+
+    #[test]
+    fn title_lexical_score_jaccard_exact_values() {
+        // Catches: Jaccard over-counting (using intersection/min instead of intersection/union),
+        // or failing to dedup tokens / lowercase before comparing.
+        assert_eq!(title_lexical_score("alpha beta", "alpha beta"), 1.0);
+        assert_eq!(title_lexical_score("alpha beta", "gamma delta"), 0.0);
+        // tokens len<=2 dropped at default min_len=2: {alpha,beta,gamma} vs {alpha,beta} → 2/3
+        assert!((title_lexical_score("alpha beta gamma", "ALPHA beta") - (2.0 / 3.0)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn title_lexical_score_with_min_len_filters_short_tokens() {
+        // Catches: token_min_len floor not applied (min_len.max(1)) so short tokens leak in,
+        // and the all-empty-after-filter case not returning 1.0.
+        // min_len=4 drops every token in both → both empty → 1.0
+        assert_eq!(
+            title_lexical_score_with_min_len("a bb ccc", "x yy zzz", 4),
+            1.0
+        );
+        // min_len=2 keeps "ccc"/"ddd": disjoint single-token sets → 0.0
+        assert_eq!(title_lexical_score_with_min_len("ccc", "ddd", 2), 0.0);
+    }
 }

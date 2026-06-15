@@ -58,3 +58,36 @@ impl ScalingProfile {
         }
     }
 }
+
+#[cfg(test)]
+mod semcov_behavior_tests {
+    use super::*;
+
+    // Catches: a swapped Conservative/Aggressive arm in threshold_multiplier that
+    // would make the Aggressive profile scale up LATER than Conservative (it must
+    // scale up earlier, i.e. a lower multiplier).
+    #[test]
+    fn threshold_multiplier_orders_aggressive_below_conservative() {
+        assert_eq!(ScalingProfile::Conservative.threshold_multiplier(), 1.5);
+        assert_eq!(ScalingProfile::Balanced.threshold_multiplier(), 1.0);
+        assert_eq!(ScalingProfile::Aggressive.threshold_multiplier(), 0.7);
+        assert!(
+            ScalingProfile::Aggressive.threshold_multiplier()
+                < ScalingProfile::Conservative.threshold_multiplier()
+        );
+    }
+
+    // Catches: a retirement_multiplier regression where Aggressive retires idle
+    // agents SOONER than Conservative (Aggressive must keep idle agents longer →
+    // larger multiplier).
+    #[test]
+    fn retirement_multiplier_keeps_aggressive_idle_agents_longest() {
+        assert_eq!(ScalingProfile::Conservative.retirement_multiplier(), 0.6);
+        assert_eq!(ScalingProfile::Balanced.retirement_multiplier(), 1.0);
+        assert_eq!(ScalingProfile::Aggressive.retirement_multiplier(), 1.5);
+        assert!(
+            ScalingProfile::Aggressive.retirement_multiplier()
+                > ScalingProfile::Conservative.retirement_multiplier()
+        );
+    }
+}
