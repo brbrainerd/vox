@@ -1,0 +1,13 @@
+fix(ci): add fallback to deploy trigger for Coolify sync when write scope is missing
+scale: ~28 lines across 1 files [S]
+
+- `.github/workflows/coolify-eval-sync.yml`:
+    - Modified the `sync-compose` step to include a fallback mechanism.
+    - If `cargo run` for `sync-compose` fails and the log indicates "Missing required permissions: write", a warning is issued.
+    - A `curl` command is executed to trigger a deploy via the Coolify API as a fallback.
+    - The script now exits with success if the deploy fallback is successful (HTTP 200 or 201).
+    - An error message is displayed and the script exits with failure if both `sync-compose` and the deploy fallback fail.
+    - Added `set -euo pipefail` for robust error handling.
+    - Introduced temporary files (`mktemp`) for logging and `curl` output.
+
+--- audit: original='fix(ci): fallback to deploy trigger when coolify write scope missing' | actual=28L across 1 files | derived=full ---
