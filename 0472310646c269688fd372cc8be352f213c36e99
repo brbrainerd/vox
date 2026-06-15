@@ -1,0 +1,12 @@
+feat(codegen-rust): add golden arm parity test for script codegen
+scale: ~236 lines across 2 files [M]
+
+- `crates/vox-integration-tests/tests/golden_arm_parity_test.rs`: Add a new integration test `golden_arm_parity_test` to verify that `codegen-rust` output for scripts matches the interpreter's verified `// EXPECT:` output.
+  - Generates and builds each logic golden's Rust script crate in a dedicated temporary `CARGO_TARGET_DIR` to ensure isolation and cache dependencies.
+  - Runs the built binary directly to obtain clean stdout for comparison.
+  - Ratchets against an allowlist of currently diverging goldens.
+  - The test is marked `#[ignore]` due to compilation time.
+- `contracts/eval/arm-parity-allowlist-script.txt`: Add a new allowlist file for `CR-F2a` to track goldens whose `codegen-rust` output currently diverges from `// EXPECT:`.
+  - Includes 7 goldens with their specific `rustc` error codes: `adt_multi_field.vox`, `closures_hof.vox`, `json_as_typed.vox`, `range_and_indexing.vox`, `regex_free_functions.vox`, `string_interpolation.vox`, and `tuple_destructure.vox`.
+
+--- audit: original='test(phase1): CR-F2a codegen-rust logic-parity ratchet harness (Task B)' | actual=236L across 2 files | derived=full ---
