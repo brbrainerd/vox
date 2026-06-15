@@ -1,0 +1,12 @@
+feat(mesh-types): Add MeshModelInventory and ModelInventoryEntry types
+scale: ~26 lines across 2 files [S]
+
+- `crates/vox-mesh-types/src/model_inventory.rs`:
+    - Add `ModelInventoryEntry` struct with fields `model_id` (String), `node_id` (String), `vram_mb` (u32), and `quantization` (String).
+    - Add `MeshModelInventory` struct with fields `entries` (Vec<ModelInventoryEntry>) and `snapshot_unix_ms` (u64).
+    - Both structs derive `Debug`, `Clone`, `Serialize`, and `Deserialize`. `MeshModelInventory` also derives `Default`.
+- `crates/vox-mesh-types/src/lib.rs`:
+    - Re-export `MeshModelInventory` and `ModelInventoryEntry` from the crate root.
+    - Add `pub mod model_inventory;` to expose the new module.
+
+--- audit: original='feat(mesh-types): MeshModelInventory snapshot type [P5-T8]' | actual=26L across 2 files | derived=full ---
