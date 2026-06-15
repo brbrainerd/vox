@@ -1,0 +1,25 @@
+feat(compiler): Implement `@versioned` and `@tracked` decorators for auto-snapshotting
+scale: ~308 lines across 18 files [L]
+
+- **lexer**: Add `AtVersioned` and `AtTracked` tokens.
+- **parser**: Parse `@versioned` and `@tracked` decorators, setting `FnDecl.is_versioned`.
+- **ast**: Add `is_versioned` field to `FnDecl`.
+- **hir**:
+    - Add `is_versioned` field to `HirFn`.
+    - Modify `lower_fn_decl` to thread `is_versioned` onto `HirFn`.
+    - Automatically inject `Vcs` capability if `is_versioned` is true.
+    - Update `lower_json_as_decl`, `lower_struct_decl`, `lower_enum_decl`, and `lower_trait_decl` to set `is_versioned: false` for non-function declarations.
+    - Update `hir_builders` to include `is_versioned` in function builders.
+- **eval**:
+    - Add `name` and `is_versioned` fields to `VoxValue::Fn`.
+    - Modify `Interpreter::run_module` to pass `name` and `is_versioned` when creating `VoxValue::Fn` for function declarations.
+    - Implement auto-snapshotting in `Interpreter::call` and `eval_expr` for `Call` expressions: if a `@versioned` function returns successfully, `interp.repo.snapshot()` is called.
+    - Ensure endpoint functions (`@query`, `@mutation`) are not marked `is_versioned`.
+- **typeck**: Update `cuda_gate` to handle the new `is_versioned` field in `HirFn`.
+- **golden examples**: Add `repo_versioned_decorator.vox` demonstrating `@versioned` auto-snapshot behavior.
+- **tests**:
+    - Add `versioned_decorator.rs` with acceptance tests for parsing, lowering, capability injection, and interpreter auto-snapshotting for `@versioned` and `@tracked`.
+    - Update `metamorphic_axiom_test.rs` to reflect changes in `HirFn` structure.
+- **docs**: Update `where-things-live.md` to include `@versioned` and `@tracked`.
+
+--- audit: original='feat(vox-compiler): P5 — @versioned/@tracked decorators + auto-snapshot-on-effect (#187)' | actual=308L across 18 files | derived=full ---
