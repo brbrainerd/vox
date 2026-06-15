@@ -1,0 +1,12 @@
+feat(container): introduce sandboxed RunOpts for safe resource limits
+scale: ~67 lines across 2 files [M]
+
+- `crates/vox-container-types/src/runtime.rs`:
+    - Added `DEFAULT_SANDBOX_CPUS`, `DEFAULT_SANDBOX_MEMORY`, and `DEFAULT_SANDBOX_PIDS` constants for safe default resource limits.
+    - Implemented `RunOpts::sandboxed()` to create `RunOpts` with these safe defaults.
+    - Added unit tests for `RunOpts::sandboxed()` and `RunOpts::default().resource_args()`.
+- `crates/vox-cli/src/commands/container.rs`:
+    - Modified the `run` command to initialize `RunOpts` using `RunOpts::sandboxed()`.
+    - Updated the logic to apply explicit CPU, memory, and PIDs limit flags as overrides to the sandboxed defaults.
+
+--- audit: original='feat(container): safe-by-default resource limits via RunOpts::sandboxed() (close DoS-by-default)' | actual=67L across 2 files | derived=full ---
