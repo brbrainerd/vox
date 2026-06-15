@@ -1,0 +1,15 @@
+docs(reference, architecture): migrate endpoint decorators to bare forms
+scale: ~51 lines across 2 files [M]
+
+- `docs/src/reference/ref-decorators.md`:
+    - Updated `last_updated` to 2026-05-26.
+    - Rewrote the "Backend & Logic" section to document `@server`, `@query`, and `@mutation` as canonical bare-form decorators.
+    - Updated code examples to use `@server`, `@query`, and `@mutation` instead of `@endpoint(kind: ...)`.
+    - Added a "Retired: `@endpoint(kind: ...)`" section, explaining its retirement and providing a migration table.
+    - Removed the "Replaced: `@ser`" heading.
+- `docs/src/architecture/phase1-build-targets-spec-2026.md`:
+    - Updated `types.ts` description to reflect generation from `@server/@query/@mutation` signatures.
+    - Migrated three code blocks and one comment from `@endpoint(kind: ...)` to `@query` or `@mutation`.
+    - Updated `main.vox` description to list `@query/@mutation/@server` stubs.
+
+--- audit: original='docs(reference): migrate doc-pipeline-checked code blocks off retired @endpoint' | actual=51L across 2 files | derived=full ---
