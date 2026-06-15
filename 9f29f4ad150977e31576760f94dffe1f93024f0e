@@ -1,0 +1,18 @@
+feat(quantize): implement end-to-end quantization pipeline and report
+scale: ~188 lines across 2 files [M]
+
+- `crates/vox-quantize/src/engine.rs`:
+    - Added the `QuantizeRequest` struct to define quantization parameters including input/output directories, quantization mixture, verification flag, and device preference.
+    - Implemented the `quantize` function, which orchestrates the full quantization pipeline:
+        - Selects the compute device based on `DevicePref`.
+        - Opens the source SafeTensors model.
+        - Iterates through tensors, resolving their quantization dtype based on `QuantMixture` and `TensorRole`.
+        - Quantizes tensors using `candle_core::quantized::QTensor::quantize`.
+        - Writes quantized tensors to an `ArtifactWriter`.
+        - Calculates and stores `TensorQuantStat` for each tensor, including source/quantized bytes, quantization type, and optional verification metrics (max absolute difference, MSE).
+        - Returns a `QuantReport` summarizing the quantization process, including total source/quantized bytes and per-tensor statistics.
+    - Integrated device selection, policy resolution, reading, verification, and writing modules.
+- `crates/vox-quantize/src/lib.rs`:
+    - Exported `quantize` and `QuantizeRequest` from the `engine` module, making them part of the public API.
+
+--- audit: original='feat(quantize): end-to-end quantize pipeline + QuantReport' | actual=188L across 2 files | derived=full ---
