@@ -1,0 +1,7 @@
+docs(scientia): mark Phase 2 Complete in self-publication plan
+scale: ~6 lines across 2 files [S]
+
+- docs/src/architecture/scientia-self-publication-finalization-plan-2026.md: Updated the "Phase 2 — Pre-registration + symbolic verifiers" section to mark it as "Complete" as of 2026-05-09, adding a status note detailing the shipment of `vox-prereg` and the implementation and testing of related features.
+- Cargo.toml: Added `vox-prereg` crate as a dependency.
+
+--- audit: original='feat(scientia): wire vox-prereg into workspace + mark Phase 2 Complete' | actual=6L across 2 files | derived=full ---
