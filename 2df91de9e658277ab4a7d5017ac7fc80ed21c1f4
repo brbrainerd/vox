@@ -1,0 +1,10 @@
+docs(arch): record Session-16 work in forward plan
+scale: ~66 lines across 1 files [M]
+
+- **docs/src/architecture/post-sprint-forward-plan-2026-05-25.md**: Added a new "Session-16 (2026-05-25) breadcrumb" section detailing work completed. This includes:
+    - Listing 5 commits from the session: `335bb457b8`, `1dde2ea12b`, `76ea641f70`, `e7126e4123`, `83608ae193`.
+    - Documenting the addition of stable `vox/types/*` codes (`vox/types/type-mismatch`, `vox/types/undefined-variable`, `vox/types/arg-count-mismatch`, `vox/types/arg-type-mismatch`, `vox/types/field-not-found`, `vox/types/method-not-found`, `vox/types/unresolved-type`) via `Diagnostic::with_code()` builder, applied at ~12 call sites in `checker/mod.rs`, `checker/expr.rs`, and `checker/expr_ops.rs`, mirrored in `vox-code-audit/catalog.rs` and `ALL_KNOWN_IDS`, enabling `explain_url` for common type errors.
+    - Noting updates to `check_rust_import_lowering` golden file and improved integration test assertions in `agent_mcp_roundtrip_test.rs`.
+    - Documenting the STUB-4 fix for WebSocket channel silent-drops.
+
+--- audit: original='docs(arch): session-16 breadcrumb — vox/types/* codes, STUB-4, repair wiring' | actual=66L across 1 files | derived=full ---
