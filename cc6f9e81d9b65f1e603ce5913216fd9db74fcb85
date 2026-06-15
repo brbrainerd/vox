@@ -1,0 +1,12 @@
+feat(publisher): Add approval-gated short-form syndication and Twitter adapter
+scale: ~224 lines across 4 files [M]
+
+- **crates/vox-publisher/src/syndicate.rs**: New module `syndicate.rs` introduced to provide an approval-gated syndication seam. It includes `content_digest` to generate SHA3-256 digests of claim text and `syndicate` function to lift approved claims into platform-constrained `ShortFormVariant`s, ensuring the `ApprovalToken`'s digest matches the claim's content.
+- **crates/vox-publisher/src/adapters/twitter.rs**: Added `post_variant` function to post an already-adapted, char-validated `ShortFormVariant` to Twitter, preserving the nanopub URI.
+- **crates/vox-research-events/src/publication_format.rs**:
+    - Added `PublicationPlatform::Twitter` with a 280-character limit.
+    - Modified `adapt_claim_to_platform` to use character-safe truncation for short-form variants, counting Unicode scalar values to avoid slicing on byte boundaries.
+    - Updated tests to reflect support for both Bluesky and Twitter.
+- **crates/vox-publisher/src/lib.rs**: Exported the new `syndicate` module and its `syndicate` function.
+
+--- audit: original='feat(publisher): char-safe short-form truncation + Twitter variant + approval-gated syndicate() (B7)' | actual=224L across 4 files | derived=full ---
