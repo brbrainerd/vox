@@ -1,0 +1,12 @@
+feat(vox-ro-crate): introduce RO-Crate 1.2 builder with CFF, TOP, and ACM badge support
+scale: ~398 lines across 7 files [L]
+
+- `crates/vox-ro-crate/src/metadata.rs`: Add `RoCrateMetadata` struct and `build_ro_crate_json` function for generating RO-Crate 1.2 JSON-LD metadata, including support for DOIs, ORCID/ROR, SPDX licenses, and keywords.
+- `crates/vox-ro-crate/src/compliance.rs`: Implement `TopLevel` enum and `TopComplianceReport` struct with an `assess` method to determine TOP compliance levels based on data, code, and preregistration DOIs, and add `AcmBadge` enum and `acm_artifacts_available_badge` function for ACM badge generation.
+- `crates/vox-ro-crate/src/cff.rs`: Introduce `CffAuthor` and `CffMetadata` structs, and `build_cff_json` function for generating Citation File Format (CFF) JSON.
+- `crates/vox-ro-crate/src/lib.rs`: Export new modules and their public items (`metadata`, `compliance`, `cff`).
+- `crates/vox-ro-crate/Cargo.toml`: Add new `vox-ro-crate` crate with dependencies `serde`, `serde_json`, `thiserror`, `vox-crypto`, `vox-research-events`, and `workspace-hack`.
+- `Cargo.toml`: Add `vox-ro-crate` to the workspace members.
+- `docs/src/architecture/scientia-self-publication-finalization-plan-2026.md`: Mark Phase 4 tasks related to `vox-ro-crate` (RO-Crate 1.2 builder, TOP-Level-2 compliance, ACM Artifact Available auto-application, CFF/CodeMeta/SPDX/ORCID/ROR enrichment) as complete.
+
+--- audit: original='feat(scientia): vox-ro-crate (RO-Crate 1.2, TOP compliance, ACM badges, CFF) + mark Phase 4 complete (Phase 4 Tasks 5-8)' | actual=398L across 7 files | derived=full ---
