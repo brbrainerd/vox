@@ -1,0 +1,6 @@
+test(scientia): add Phase 0a end-to-end smoke test for `run_research`
+scale: ~38 lines across 1 files [S]
+
+- `crates/vox-orchestrator/tests/scientia_phase_0a_pipeline_smoke.rs`: Add a new test file to verify the `run_research` function. This test exercises the full orphaned pipeline with all stub modules, confirming `run_research` is callable without a Codex handle and returns a coherent empty `ResearchResult`. It asserts that `sources`, `citations`, and `claim_verdicts` are empty, and `routing_tier` is `RoutingTier::Direct`.
+
+--- audit: original='test(scientia): add Phase 0a end-to-end smoke test for run_research' | actual=38L across 1 files | derived=full ---
