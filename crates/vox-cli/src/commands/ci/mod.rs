@@ -25,6 +25,7 @@ mod docs_reality_audit;
 mod doctest_md;
 mod eval_matrix;
 mod exec_policy_contract;
+mod free_binary;
 mod generate_plugin_catalog_docs;
 mod grammar_ssot_parity;
 mod gui_catalog_parity;
