@@ -1,0 +1,6 @@
+chore(ci): regenerate GUI surface coverage report for `fmt-check`
+scale: ~0 lines across 1 files [XS]
+
+- contracts/reports/gui-surface-coverage.v1.json: Regenerated the binary report to include coverage for the new `vox ci fmt-check` subcommand.
+
+--- audit: original='chore(ci): regenerate gui-surface-coverage for the new `vox ci fmt-check` surface' | actual=0L across 1 files | derived=full ---
