@@ -1,0 +1,8 @@
+fix(vox-db): unblock lib unit tests and add `agent_runs` to legacy export
+scale: ~3 lines across 3 files [S]
+
+- `crates/vox-db/src/codex_legacy.rs`: Added "agent_runs" to `LEGACY_EXPORT_TABLES`.
+- `crates/vox-db/src/ddl/diff.rs`: Added `primary_key: None` to `TableDecl` instantiation in tests.
+- `crates/vox-db/src/schema_digest/helpers.rs`: Added `primary_key: None` to `TableDecl` instantiation in tests.
+
+--- audit: original='@ fix(vox-db): unblock lib unit tests + cover agent_runs in legacy export' | actual=3L across 3 files | derived=full ---
