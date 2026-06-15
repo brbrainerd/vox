@@ -1,3 +1,5 @@
+import { GENERATED_SETTINGS_INDEX } from '../../../config/generatedSettingsIndex';
+
 export interface SettingEntry {
   id: string; // unique, kebab-case
   section: string; // section id used by SettingsView
@@ -27,6 +29,8 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { id: 'keybinds', section: 'keybinds', label: 'Keybinds', hint: 'Global keyboard shortcuts', keywords: ['shortcuts', 'hotkeys', 'keyboard'] },
   { id: 'theme', section: 'theme', label: 'Theme', hint: 'Arcane, Void, or Glacier', keywords: ['dark', 'appearance', 'color'] },
   { id: 'gamify', section: 'gamify', label: 'Gamification', hint: 'Enable and pick a mode', keywords: ['ludus', 'rewards', 'xp'] },
+  // Registry-derived entries (generated from CONFIG_KEYS by `vox ci config-gui-codegen`).
+  ...GENERATED_SETTINGS_INDEX,
 ];
 
 export function searchSettings(query: string): SettingEntry[] {
