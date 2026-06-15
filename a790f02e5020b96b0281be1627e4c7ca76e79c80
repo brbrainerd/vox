@@ -1,0 +1,9 @@
+fix(ci): ensure Gate 3 health check runs when smoke-ci is skipped
+scale: ~7 lines across 1 files [XS]
+
+- **.github/workflows/deploy-hetzner.yml**:
+    - Added `smoke-ci` to the `needs` of the `health-check` job.
+    - Modified the `if` condition for `health-check` to use `always() && needs.deploy-coolify.result == 'success'` to ensure it runs even if `smoke-ci` is skipped.
+    - Added comments explaining the change to prevent Gate 3 from being incorrectly skipped when `workflow_dispatch` with `skip_tests` is used.
+
+--- audit: original='fix(ci): run Gate 3 health probe when smoke-ci job skipped' | actual=7L across 1 files | derived=full ---
