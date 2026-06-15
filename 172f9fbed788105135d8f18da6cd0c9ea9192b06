@@ -1,0 +1,61 @@
+feat(apps): add vox-mental-tracker baseline app and platform support
+scale: ~3800 lines across 55 files [XL]
+
+- apps/vox-mental-tracker/: Add new standalone Vox application for mental health tracking.
+  - .github/workflows/vox-mental-tracker.yml: Add CI workflow.
+  - AGENTS.md: Add agent documentation.
+  - Vox.toml: Add application configuration.
+  - README.md: Add application README.
+  - capacitor.config.ts: Add Capacitor configuration.
+  - contracts/event-payloads/mood_recorded.v1.json: Add JSON schema for mood recorded events.
+  - contracts/export/csv-columns.v1.yaml: Add YAML for CSV export column definition.
+  - contracts/export/json-bundle.v1.yaml: Add YAML for JSON bundle export definition.
+  - docs/README.md: Add documentation README.
+  - docs/architecture/data-model-ssot.md: Add data model SSOT documentation.
+  - docs/architecture/failure-modes-research-2026.md: Add failure modes research documentation.
+  - docs/how-to/build-android.md: Add Android build instructions.
+  - docs/how-to/clinical-export.md: Add clinical export instructions.
+  - docs/user/privacy.md: Add privacy documentation.
+  - package.json: Add package configuration.
+  - playwright.config.ts: Add Playwright configuration.
+  - plugins/vox-sherpa-transcribe/: Add Capacitor plugin scaffold for audio transcription.
+    - android/build.gradle: Add Android build configuration.
+    - android/src/main/AndroidManifest.xml: Add Android manifest.
+    - android/src/main/java/com/vox/plugins/voxsherpatranscribe/VoxSherpaTranscribePlugin.kt: Add Android Kotlin implementation (SpeechRecognizer placeholder).
+    - ios/Plugin.m: Add iOS plugin Objective-C stub.
+    - ios/Plugin.swift: Add iOS plugin Swift stub.
+    - package.json: Add plugin package configuration.
+    - README.md: Add plugin README.
+    - src/index.ts: Add plugin TypeScript entry point.
+    - tsconfig.json: Add plugin TypeScript configuration.
+  - public/manifest.webmanifest: Add web app manifest.
+  - public/sw.js: Add service worker.
+  - scripts/build.vox: Add Vox build script.
+  - scripts/network_guard_note.vox: Add network guard note script.
+  - scripts/preview_workflow.vox: Add preview workflow script.
+  - src/main.vox: Add main Vox source with HealthEventLog and RawTranscript schemas, endpoints (record_event, record_correction, record_raw_transcript, preview_voice_parse, weekly_summary_json, three export endpoints), and five UI components (Home, TimelinePage, WeeklyPage, ExportPage, VoicePage) with routes.
+  - src/ts/export_contract.ts: Add TypeScript helpers for deterministic CSV row projection and JSON bundle creation.
+  - src/ts/intent_parser.ts: Add TypeScript helpers for regex/heuristic NLU for wellness journaling.
+  - tests/e2e/smoke.spec.ts: Add Playwright e2e smoke tests.
+  - tests/export_contract.test.ts: Add Vitest tests for export_contract.
+  - tests/fixtures/parser_cases.json: Add parser test cases.
+  - tests/intent_parser.test.ts: Add Vitest tests for intent_parser.
+  - vitest.config.ts: Add Vitest configuration.
+  - pnpm-lock.yaml: Add pnpm lock file.
+- crates/vox-cli/src/commands/build.rs: Add minor wiring for application build.
+- crates/vox-cli/src/templates/mobile_pwa.rs: Update comments.
+- crates/vox-compiler/src/builtin/std/mobile.vox: Add tiny stdlib stub.
+- crates/vox-compiler/src/builtin_registry.rs: Add small additive entries for endpoint kinds.
+- crates/vox-compiler/src/codegen_ts/component.rs: Refactor component codegen to align with Web IR and reactive components, updating documentation and removing AST-path component emitters.
+- crates/vox-compiler/src/codegen_ts/jsx.rs: Add small additive entries for component shapes.
+- crates/vox-compiler/src/typeck/builtins.rs: Add small additive entries for component shapes.
+- crates/vox-project-scaffold/src/lib.rs: Adjust project scaffold template.
+- docs/src/feed.xml: Update feed.
+- docs/src/how-to/clinical-export-from-vox-apps.md: Add platform-side pointer documentation for clinical export.
+- docs/src/how-to/external-app-bootstrap.md: Add documentation on bootstrapping Vox apps outside the monorepo.
+- docs/src/SUMMARY.md: Update documentation summary.
+- examples/oratio/: Add small TypeScript example invoking the audio transcription pipeline.
+  - codexAudioTranscribe.ts: Add client for Codex / Oratio audio HTTP routes.
+  - README.md: Add example README.
+
+--- audit: original='feat(apps): add vox-mental-tracker baseline (~55% complete per handoff plan)' | actual=3800L across 55 files | derived=full ---
