@@ -1,0 +1,15 @@
+fix(ci): apply FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 to 8 workflows
+scale: ~23 lines across 8 files [M]
+
+- `.github/workflows/mobile-e2e-android.yml`: Added `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` to the workflow's `env` block.
+- `.github/workflows/coolify-eval-sync.yml`: Added `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` to the workflow's `env` block.
+- `.github/workflows/deploy-hetzner.yml`: Added `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` to the workflow's `env` block.
+- `.github/workflows/publish-ci-runner.yml`: Added `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` to the workflow's `env` block.
+- `.github/workflows/release-installers.yml`: Added `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` to the workflow's `env` block.
+- `.github/workflows/vox-mental-tracker.yml`: Added `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` to the workflow's `env` block.
+- `.github/workflows/vox-visus-audit.yml`: Added `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` to the workflow's `env` block.
+- `.github/workflows/docker-eval.yml`: Added `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` to the workflow's `env` block.
+
+This ensures that JavaScript-based GitHub Actions in these workflows, such as `actions/checkout`, `actions/cache`, and `actions/upload-artifact`, consistently use Node.js 20 instead of the default Node.js 24, aligning them with other workflows that already set this environment variable.
+
+--- audit: original='fix(ci): apply FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 consistently across all workflows' | actual=23L across 8 files | derived=full ---
