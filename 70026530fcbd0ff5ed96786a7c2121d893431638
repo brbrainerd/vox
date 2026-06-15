@@ -1,0 +1,7 @@
+feat(vox-effort-audit): Implement JSONL streaming writer for findings
+scale: ~115 lines across 2 files [M]
+
+- `crates/vox-effort-audit/src/output/jsonl.rs`: Add new module `jsonl` with `JsonlWriter` struct for append-only writing of `FindingRow` objects to a JSONL file, including directory creation and flushing on each append. Includes unit tests for `JsonlWriter`.
+- `crates/vox-effort-audit/src/output/mod.rs`: Introduce `FindingRow` and `JudgeMeta` structs, defining the schema for findings.jsonl, and declare `jsonl` as a public module.
+
+--- audit: original='feat(vox-effort-audit): JSONL streaming writer (D1)' | actual=115L across 2 files | derived=full ---
