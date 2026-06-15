@@ -95,6 +95,9 @@ async fn main() {
                 .inner()
                 .clone();
             commands::browser::emit_preview_available_from_env(app.handle().clone(), browser_state);
+            // Reactive Runtime settings: forward vox-config change bumps to the webview
+            // as "vox://llm-config-changed" so the settings surface refreshes live.
+            commands::user_config::spawn_llm_config_bridge(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

@@ -271,12 +271,44 @@ fn apply_voxconfig_field(
     Ok(())
 }
 
+/// Event name the frontend subscribes to for reactive Runtime-settings refresh.
+pub const LLM_CONFIG_CHANGED_EVENT: &str = "vox://llm-config-changed";
+
+/// Payload for [`LLM_CONFIG_CHANGED_EVENT`].
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LlmConfigChanged {
+    pub rev: u64,
+    pub keys: Vec<String>,
+}
+
+/// Spawn once at GUI startup: forward `vox-config` snapshot bumps to the webview as
+/// [`LLM_CONFIG_CHANGED_EVENT`], so the Runtime settings surface refreshes reactively
+/// when config changes — whether from this GUI, an env reload, or mesh sync.
+pub fn spawn_llm_config_bridge(app: tauri::AppHandle) {
+    use tauri::Emitter;
+    vox_config::snapshot::on_change(move |change| {
+        let _ = app.emit(
+            LLM_CONFIG_CHANGED_EVENT,
+            LlmConfigChanged { rev: change.rev, keys: change.changed.clone() },
+        );
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn spec(key: &str) -> &'static LlmConfigKey {
         vox_llm_config::get(key).expect("registry key")
+    }
+
+    #[test]
+    fn change_event_payload_serializes_camel_case() {
+        let p = LlmConfigChanged { rev: 3, keys: vec!["OPENROUTER_BASE_URL".to_string()] };
+        let j = serde_json::to_string(&p).expect("serialize");
+        assert!(j.contains("\"rev\":3"), "rev field present: {j}");
+        assert!(j.contains("OPENROUTER_BASE_URL"), "changed key present: {j}");
     }
 
     #[test]
