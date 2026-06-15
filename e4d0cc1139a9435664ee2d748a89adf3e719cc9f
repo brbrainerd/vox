@@ -1,0 +1,8 @@
+refactor(parser): remove JSX angle-bracket parsing path
+scale: ~152 lines across 5 files [M]
+
+- `crates/vox-compiler`: Removed the `pratt_jsx` module, which handled parsing of angle-bracket JSX syntax. This eliminates the deprecated JSX entry point, aligning with the VUV view-call form (`Ident(kwargs) { children }`) as the canonical authoring shape.
+- `crates/vox-compiler/src/parser/descent/expr`: Modified `pratt_match.rs` to remove the `Token::Lt` branch that previously invoked the JSX parser. Now, encountering a `<` token in an expression context will correctly lead to an "Unexpected token" error, preventing silent parsing of HTML-shaped source.
+- `crates/vox-compiler/src/parser/descent`: Updated `tests.rs` by removing two obsolete JSX-form parser tests (`test_parse_jsx_self_closing`, `test_parse_jsx_with_children`) and converting four reactive codegen tests to use the VUV view-call syntax, ensuring continued coverage of their intended behaviors.
+
+--- audit: original='refactor(parser): retire JSX angle-bracket parser path (VUV-9)' | actual=152L across 5 files | derived=full ---
