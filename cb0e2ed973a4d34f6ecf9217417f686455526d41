@@ -1,0 +1,7 @@
+fix(skills): address minor code-review findings
+scale: ~70 lines across 5 files [M]
+
+- `agentskills_compliance`: Correctly count skill description length in Unicode code points instead of bytes to align with spec limits.
+- `chat_tools`: Optimize `build_system_prompt_with_skill` by reading the skill registry once and reusing the manifest list for both catalog generation and pinned-skill lookup.
+
+--- audit: original='fix(skills): address code-review findings (no critical/important)' | actual=70L across 5 files | derived=full ---
