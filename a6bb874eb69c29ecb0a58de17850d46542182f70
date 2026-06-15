@@ -1,0 +1,8 @@
+feat(orchestrator-queue): introduce backfill hold queue for unknown-parent fragments
+scale: ~306 lines across 3 files [L]
+
+- `crates/vox-orchestrator-queue/src/oplog/backfill.rs`: Add new module `backfill` to implement a bounded hold queue for op-fragments with unknown parents. This includes `BackfillConfig` for queue sizing (max entries, max bytes), `HeldFragment` struct, and `BackfillBuffer` to manage the queue, track parent dependencies, and handle eviction to a DLQ.
+- `crates/vox-db/src/store/ops_convergence.rs`: Add `insert_backfill_dlq` function to persist backfill fragments to the `convergence_op_log_backfill_dlq` table in the database, handling upserts and retry counts.
+- `crates/vox-orchestrator-queue/src/oplog/mod.rs`: Expose the new `backfill` module.
+
+--- audit: original='feat(orchestrator-queue): unknown-parent fragment hold + DLQ (P3-T8)' | actual=306L across 3 files | derived=full ---
