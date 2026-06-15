@@ -1,0 +1,40 @@
+refactor(fmt): rustfmt full workspace pass and Windows fmt-check workaround
+scale: ~2496 lines across 202 files [XL]
+
+- `crates/vox-codegen`: Applied rustfmt across numerous files, including `stmt_expr.rs`, `method_emit.rs`, `ai_fixture/llm.rs`, `usage.rs`, `main_boot.rs`, `http.rs`, `stmt_expr_tail.rs`, `state_machine.rs`, `mod.rs`, `pipeline.rs`, `workflow.rs`, `durability_lower.rs`, `client.rs`, `web_ir/validate_overlay.rs`, and `assets/mod.rs`, primarily for formatting consistency.
+- `crates/vox-arch-check`: Applied rustfmt to `main.rs` and `evidence_ledger.rs`, and `tests/helpers/fixture.rs`, including reformatting of conditional statements and error messages.
+- `crates/vox-distributed-training`: Applied rustfmt to `strategy/mock.rs`, reordering imports and reformatting function calls.
+- `crates/vox-gui`: Applied rustfmt to `commands/orchestrator.rs` and `commands/dynamic_mapping.rs`, reordering imports and reformatting function calls.
+- `crates/vox-telemetry`: Applied rustfmt to `lib.rs` and `aggregator.rs`, reordering imports and reformatting constants and event types, and `config.rs`.
+- `crates/vox-workflow-runtime`: Applied rustfmt to `duration_literal.rs`, `tests/journal_execute.rs`, `tests/return_extract.rs`, `tests/scheduled_basic.rs`, `tests/crash_replay.rs`, and `workflow/tracker.rs`, reformatting conditional statements and function calls.
+- `crates/vox-doc-pipeline`: Applied rustfmt to `pipeline/types.rs` and `pipeline/lint.rs`, reordering imports and reformatting code.
+- `crates/vox-audit`: Applied rustfmt to `bin/cr-a2.rs`, `bin/cr-p1.rs`, `bin/cr-a4.rs`, `bin/cr-d3.rs`, `bin/cr-a1.rs`, and `tests/examples_golden_doctor_green.rs`.
+- `crates/vox-scientia`: Applied rustfmt to `class_routing/defaults.rs`, `critic_gate/fingerprint.rs`, `producers/dep_adoption.rs`, `manuscript/latex/bundle.rs`, `manuscript/scaffold/render.rs`, `class_routing/routing.rs`, `producers/test_corpus.rs`, `producers/doc_corpus.rs`, `dashboard/cost.rs`, `dashboard/mod.rs`, `producers/adr_emergence.rs`, `ro_crate/metadata.rs`, `manuscript/scaffold/safe_slots.rs`, `class_routing/mod.rs`, `critic_gate/gate.rs`, `dashboard/queue.rs`, `findings_site/meta.rs`, `producers/commit_graph.rs`, `replay/mod.rs`, `lib.rs`, `producers/api_surface.rs`, and `replay/hash_compare.rs`, `replay/contract.rs`.
+- `crates/vox-cli`: Applied rustfmt to `commands/ci/pre_push.rs`, `commands/repair.rs`, `commands/ci/docs_deprecated_command_guard.rs`, and `commands/ci/retired_symbol_check.rs`.
+- `crates/vox-compiler`: Applied rustfmt to `tests/example_decorator_test.rs`, `typeck/diagnostics.rs`, `hir/lower/expr_db.rs`, `typeck/checker/expr_field.rs`, and `typeck/checker/match_exhaust.rs`.
+- `crates/vox-db`: Applied rustfmt to `store/ops_publication/manifest.rs`, `store/ops_finding_candidates.rs`, `store/mod.rs`, `tests/publication_approvals_critic_role.rs`, and `tests/ops_finding_candidates_tests.rs`, `tests/scientia_finding_candidates_schema.rs`.
+- `crates/vox-actor-runtime`: Applied rustfmt to `builtins/mod.rs`, `activity.rs`, `mailbox.rs`, `llm/cascade.rs`, `subscription.rs`, and `tests/registry_dispatch.rs`.
+- `crates/vox-dei-shim`: Applied rustfmt to `agent_frontmatter.rs`, `selection/mod.rs`, and `selection/scorer.rs`.
+- `crates/vox-integration-tests`: Applied rustfmt to `tests/parity_contracts_test.rs`, `tests/speech_pipeline_stage_probe_test.rs`, `tests/speech_audit_contract_test.rs`, `tests/speech_benchmark_manifest_test.rs`, and `tests/lsp_capabilities_test.rs`.
+- `crates/vox-orchestrator-mcp`: Applied rustfmt to `git_tools.rs`, `git_exec.rs`, and `memory_tools/handlers_memory.rs`.
+- `crates/vox-populi`: Applied rustfmt to `tests/non_qwen_smoke.rs`, `src/transport/handlers/dispatch.rs`, and `src/http_client.rs`.
+- `crates/vox-publisher`: Applied rustfmt to `research_mesh.rs` and `venue_catalog.rs`.
+- `crates/vox-tauri-codegen`: Applied rustfmt to `lib.rs`.
+- `crates/vox-rename-registry`: Applied rustfmt to `primitive_tags.rs`.
+- `crates/vox-search`: Applied rustfmt to `memory_hybrid.rs`.
+- `crates/vox-config`: Applied rustfmt to `lib.rs` and `tests/cross_module_smoke.rs`.
+- `crates/vox-drift-check`: Applied rustfmt to `rules/reqwest_bypass.rs`.
+- `crates/vox-mesh-policy`: Applied rustfmt to `models/registry.rs`.
+- `crates/vox-lsp`: Applied rustfmt to `lib.rs` and `main.rs`.
+- `crates/vox-tauri-stt`: Applied rustfmt to `plugin.rs` and `lib.rs`.
+- `crates/vox-ml-cli`: Applied rustfmt to `commands/populi_cli.rs`.
+- `crates/vox-plugin-populi-mesh`: Applied rustfmt to `transport/handlers/dispatch.rs`.
+- `crates/vox-plugin-test-harness`: Applied rustfmt to `plugin_dir.rs`.
+- `crates/vox-plugin-host`: Applied rustfmt to `tests/abi_mismatch.rs` and `tests/load_noop_code.rs`.
+- `crates/vox-corpus`: Applied rustfmt to `corpus/mix/mod.rs`.
+- `crates/voxup`: Applied rustfmt to `install.rs`.
+- `crates/vox-gamify`: Applied rustfmt to `quest/slots.rs`.
+- Many other files across the workspace received formatting changes due to the `cargo fmt` pass.
+- Fixed `step_fmt` in `crates/vox-cli/src/commands/ci/pre_push.rs` to iterate per-package on Windows, addressing `MAX_PATH` errors when `cargo fmt --all -- --check` exceeds command-line limits.
+
+--- audit: original='chore: rustfmt full workspace pass + Windows fmt-check workaround' | actual=2496L across 202 files | derived=full ---
