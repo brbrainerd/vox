@@ -1,0 +1,9 @@
+refactor(security): pass Gemini API key in header, not URL query
+scale: ~8 lines across 1 files [XS]
+
+- `crates/vox-code-audit/src/review/client.rs`:
+    - Modified the `generate_review` method to construct the Gemini API URL without including the `api_key` as a query parameter.
+    - Added a `header("x-goog-api-key", api_key)` to the HTTP POST request, sending the API key in the `x-goog-api-key` header instead.
+    - Added a comment explaining the change and its security rationale.
+
+--- audit: original='security(vox-code-audit): pass Gemini api_key via x-goog-api-key header, not URL query (#141)' | actual=8L across 1 files | derived=full ---
