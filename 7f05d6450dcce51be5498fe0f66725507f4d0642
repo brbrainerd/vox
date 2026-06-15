@@ -1,0 +1,6 @@
+fix(codegen): silence `len_zero` clippy lint in `slice_list` guard
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-codegen/src/codegen_rust/emit/method_emit.rs`: Replaced `arg_exprs.len() >= 1` with `!arg_exprs.is_empty()` in the `slice_list` method guard to satisfy the `clippy::len_zero` lint.
+
+--- audit: original='fix(codegen): silence len_zero clippy lint in slice_list guard' | actual=2L across 1 files | derived=full ---
