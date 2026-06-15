@@ -1,0 +1,8 @@
+refactor(symbol-proximity): remove unused `max_ratio` assignment
+scale: ~12 lines across 1 files [S]
+
+- `crates/vox-search/src/symbol_proximity.rs`:
+  - Removed the `max_ratio` variable declaration and its initial assignment to `0.0`.
+  - Initialized `max_ratio` directly within its declaration using an `if/else` block, eliminating a subsequent assignment.
+
+--- audit: original='Fix unused assignment warning in symbol_proximity.rs' | actual=12L across 1 files | derived=full ---
