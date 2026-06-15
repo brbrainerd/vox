@@ -1,0 +1,12 @@
+feat(ci): Add `tier-budget-check` command and CI enforcement
+scale: ~277 lines across 7 files [L]
+
+- **`crates/vox-cli/src/commands/ci/tier_budget_check.rs`**: New module implementing `vox ci tier-budget-check`, which parses JUnit XML for elapsed time and compares it against `test-tier-budgets.v1.yaml` thresholds.
+- **`crates/vox-cli/src/commands/ci/cmd_enums.rs`**: Added `TierBudgetCheck` variant to `CiCmd` enum, defining its arguments (`--junit`, `--profile`).
+- **`.github/workflows/ci.yml`**: Integrated `tier-budget-check` as a new CI step to enforce test-tier budgets, configured with `continue-on-error: true` initially.
+- **`AGENTS.md`**: Added a new "Local CI Gate Tiers (SSOT)" section, detailing the 7 CI tiers, their commands, what they run, and target wall-clock times, along with slow-test partition documentation and budget enforcement notes.
+- **`crates/vox-cli/src/commands/ci/run_body.rs`**: Mapped the `TierBudgetCheck` enum variant to its `run` function.
+- **`crates/vox-cli/src/commands/ci/mod.rs`**: Declared the new `tier_budget_check` module.
+- **`contracts/reports/test-inventory.v1.json`**: Regenerated test inventory, updating counts for `rust_files_scanned` (+1), `cargo_unit_test_functions` (+13), `cargo_integration_test_functions` (+1), `cargo_test_functions_total` (+14), `vox-cli` unit tests (+13), `vox-cli` integration tests (+1), `unit_src` (+1), and `command_new` (-1).
+
+--- audit: original='feat(ci): Phase 5 — test-tier budget enforcement' | actual=277L across 7 files | derived=full ---
