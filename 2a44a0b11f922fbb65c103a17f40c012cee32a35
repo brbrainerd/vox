@@ -1,0 +1,12 @@
+docs(plan): Add re-audit findings for script-lane measurement constraints
+scale: ~16 lines across 1 files [S]
+
+- docs/superpowers/plans/2026-06-06-phase1-cross-arm-parity.md: Add "1.1 Re-audit addendum" section detailing empirical findings from a fresh `vox` build post-#195.
+  - Confirm `interp = 10/10`.
+  - State that the merge did not advance `codegen-rust` parity, with new files being regression guards and `param_borrow.rs` unwired, maintaining the 3/10 baseline.
+  - Document that `vox run --mode script` is impractical for per-golden measurement due to:
+    - Cold build times exceeding 5 minutes per golden.
+    - Corruption of the shared target directory (`~/.vox/script-target`) by failed/interrupted builds.
+    - Presence of a timestamped `INFO` tracing line in stdout.
+
+--- audit: original='docs(plan): Phase 1 re-audit addendum — script-lane measurement constraints' | actual=16L across 1 files | derived=full ---
