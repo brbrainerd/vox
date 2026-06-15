@@ -1,0 +1,6 @@
+ci(lychee): ignore puffersoft.com due to intermittent timeouts
+scale: ~3 lines across 1 files [XS]
+
+- .lycheeignore: Added a new entry to ignore all URLs under `puffersoft.com` to prevent intermittent CI timeouts.
+
+--- audit: original='ci(links): ignore puffersoft.com (intermittent CI timeout; link valid)' | actual=3L across 1 files | derived=full ---
