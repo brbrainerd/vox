@@ -1,0 +1,7 @@
+fix(vox-compiler): refresh `web_ir_lower_emit_test` snapshot to include Tauri transport
+scale: ~17 lines across 1 files [S]
+
+- `crates/vox-compiler/tests/snapshots/web_ir_lower_emit_test__vox_client_query_mutation_transport.snap`: Updated the snapshot to include `isTauri()` and `$tauri()` functions, and integrate Tauri transport into `api_x` and `q_list` client functions.
+- The `assertion_line` metadata was removed from the snapshot.
+
+--- audit: original='@ test(vox-compiler): refresh stale vox-client codegen snapshot (fixes vox ci gui-smoke)' | actual=17L across 1 files | derived=full ---
