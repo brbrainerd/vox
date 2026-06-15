@@ -1,0 +1,28 @@
+feat(vox-config): add config.toml-aware LLM endpoint, profile, and tuning reads
+scale: ~499 lines across 10 files [L]
+
+- `crates/vox-config/src/inference.rs`:
+    - Updated `inference_profile_from_env` to use `resolve_config_str` for reading the inference profile, making it config.toml-aware.
+    - Replaced hardcoded `OPENROUTER_*_URL`, `OPENAI_*_URL`, and `LOCAL_OLLAMA_POPULI_BASE_URL` constants with new config-aware functions (`openrouter_base_url`, `openrouter_chat_completions_url`, `openrouter_embeddings_url`, `openrouter_models_list_url`, `openai_chat_completions_url`, `openai_embeddings_url`, `openai_compatible_base_url`, `local_ollama_populi_base_url`).
+    - Introduced new config-aware functions for LLM tuning parameters: `ollama_tuning_num_ctx`, `ollama_tuning_temperature`, `ollama_tuning_top_p`, `openai_tuning_temperature`, `openai_tuning_top_p`, `together_tuning_temperature`, `together_tuning_top_p`.
+    - Added `OPENAI_COMPATIBLE_BASE_URL` constant.
+- `crates/vox-config/src/env_parse.rs`:
+    - Added `resolve_config_f32`, `resolve_config_i32`, `resolve_config_opt_f32`, and `resolve_config_opt_i32` functions to resolve float and integer config values with layered precedence (env var → config.toml → default/None).
+- `crates/vox-config/src/toml_config.rs`:
+    - Added `test_support` module with `CONFIG_TEST_LOCK` mutex and `HomeGuard` struct for serializing tests and redirecting `HOME`/`USERPROFILE` to a temporary directory.
+- `crates/vox-config/src/lib.rs`:
+    - Exported new config-aware functions for LLM endpoints and tuning parameters.
+- `crates/vox-actor-runtime/src/llm/types.rs`:
+    - Updated `LlmConfig` implementations to use the new config-aware functions for OpenRouter and OpenAI base URLs instead of direct constants.
+- `crates/vox-actor-runtime/src/llm/chat.rs`:
+    - Updated `llm_chat` to use the new config-aware functions for OpenRouter and OpenAI chat completion URLs.
+- `crates/vox-actor-runtime/src/llm/embed.rs`:
+    - Updated `llm_embed` to use the new config-aware functions for OpenRouter and OpenAI embeddings URLs.
+- `crates/vox-actor-runtime/src/llm/stream.rs`:
+    - Updated `llm_stream` to use the new config-aware functions for OpenRouter and OpenAI chat completion URLs.
+- `crates/vox-orchestrator/src/catalog.rs`:
+    - Updated `catalog_from_env` to use `vox_config::openai_compatible_base_url()` instead of a constant.
+- `crates/vox-orchestrator/src/models/registry.rs`:
+    - Updated `resolve_hf_router_url` to use `vox_config::hf_router_chat_completions_url()` instead of a constant.
+
+--- audit: original='feat(vox-config): make LLM endpoint/profile/tuning reads config.toml-aware' | actual=499L across 10 files | derived=full ---
