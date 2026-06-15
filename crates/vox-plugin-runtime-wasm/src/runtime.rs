@@ -15,6 +15,16 @@ use vox_skill_runtime::{BuildOpts, RunOpts, RunOutcome, SkillRuntime};
 use vox_wasm_engine::{Preopen, PreopenMode, WasmExecOpts, WasmHost};
 use wasmtime::Module;
 
+/// Default WASM skill fuel: ~1B instructions (~seconds of compute). SSOT for the
+/// default; override at runtime with `VOX_WASM_SKILL_FUEL`.
+pub const DEFAULT_WASM_SKILL_FUEL: u64 = 1_000_000_000;
+
+/// Resolve the fuel budget from a raw env override, falling back to the default.
+pub fn resolve_fuel(raw: Option<&str>) -> u64 {
+    raw.and_then(|s| s.trim().parse::<u64>().ok())
+        .unwrap_or(DEFAULT_WASM_SKILL_FUEL)
+}
+
 /// Wasmtime-based WASI sandbox runtime.
 ///
 /// Delegates all Wasmtime engine construction, WASI context wiring, and
@@ -26,8 +36,8 @@ pub struct WasmRuntime {
 impl WasmRuntime {
     /// Create a new `WasmRuntime` with a fuel-enabled engine.
     pub fn new() -> Result<Self> {
-        // Default fuel: 1 billion instructions (~seconds of compute on modern hardware).
-        let host = WasmHost::with_fuel(1_000_000_000)?;
+        let fuel = resolve_fuel(std::env::var("VOX_WASM_SKILL_FUEL").ok().as_deref());
+        let host = WasmHost::with_fuel(fuel)?;
         Ok(Self { host })
     }
 
@@ -132,6 +142,26 @@ impl SkillRuntime for WasmRuntime {
             stderr: outcome.stderr_str().into_owned(),
             wall_ms: outcome.wall_ms,
         })
+    }
+}
+
+#[cfg(test)]
+mod fuel_tests {
+    use super::*;
+
+    #[test]
+    fn default_fuel_when_unset() {
+        assert_eq!(resolve_fuel(None), DEFAULT_WASM_SKILL_FUEL);
+    }
+
+    #[test]
+    fn env_override_parsed() {
+        assert_eq!(resolve_fuel(Some("250000000")), 250_000_000);
+    }
+
+    #[test]
+    fn unparseable_env_keeps_default() {
+        assert_eq!(resolve_fuel(Some("lots")), DEFAULT_WASM_SKILL_FUEL);
     }
 }
 
