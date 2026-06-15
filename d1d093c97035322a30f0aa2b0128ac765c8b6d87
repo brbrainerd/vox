@@ -1,0 +1,15 @@
+feat(pipeline): implement bounded-concurrency judge fan-out
+scale: ~257 lines across 2 files [L]
+
+- `crates/vox-effort-audit/src/pipeline.rs`:
+    - Replaced sequential per-commit judge loop with a `FuturesUnordered` driven by a `tokio::sync::Semaphore` for bounded concurrency.
+    - Configured semaphore size using `cfg.max_concurrent`.
+    - Implemented budget enforcement at task-launch time: commits are marked `Skipped(BudgetExhausted)` if `tokens_spent` reaches `cfg.judge.max_total_tokens` before dispatch.
+    - Changed `Box<dyn Judge>` to `Arc<dyn Judge>` internally to allow shared references across spawned futures.
+    - Updated module-level documentation to reflect the new bounded-concurrency pipeline and budget strategy.
+- `crates/vox-effort-audit/tests/e2e_smoke.rs`:
+    - Added `concurrent_judge_completes_under_budget` e2e test.
+    - This test uses a mock judge with a 200ms sleep per call and asserts that 5 commits complete under 700ms with `max_concurrent=4`, demonstrating the performance improvement of concurrency over a sequential baseline.
+    - Disabled transcript scanning in the test to isolate the measurement of the concurrency primitive.
+
+--- audit: original='feat(vox-effort-audit): bounded-concurrency judge fan-out (E3)' | actual=257L across 2 files | derived=full ---
