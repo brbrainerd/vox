@@ -1,0 +1,8 @@
+feat(telemetry): emit ErrorEvent at three new sites
+scale: ~51 lines across 3 files [M]
+
+- `crates/vox-actor-runtime/src/llm/chat.rs`: Emit `ErrorEvent` with `subsystem="llm.http"` and `error_class` derived from HTTP status (e.g., "rate-limited" for 429, "server-error" for 5xx, "client-error" for others) when `llm_chat` receives a non-2xx HTTP response. Includes `task_id`, `trace_id`, `http_status`, and `model`.
+- `crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs`: Emit `ErrorEvent` with `subsystem="llm.http"` and `error_class="rate-limited"` when `mcp_infer_tool_completion` encounters an HTTP 429 response. Includes `task_id`, `trace_id`, `http_status`, `model`, and `provider`.
+- `crates/vox-orchestrator/src/circuit_breaker.rs`: Emit `ErrorEvent` with `subsystem="orch.circuit_breaker"` and `error_class` set to the `TripReason` string when a new `TripEvent` is created. Includes `task_id`, `trace_id`, and `retry_attempt`.
+
+--- audit: original='feat(telemetry): emit ErrorEvent at 3 error sites' | actual=51L across 3 files | derived=full ---
