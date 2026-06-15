@@ -1,0 +1,6 @@
+chore(claude): expand Bash permissions allowlist for session 9
+scale: ~7 lines across 1 files [XS]
+
+- **.claude/settings.local.json**: Added 6 new Bash permission entries to the `permissions.allowlist` array, including commands for `grep`, `dir` with specific paths, `findstr`, and `rm`. One existing entry was modified.
+
+--- audit: original='chore(claude): expand permissions allowlist (session 9)' | actual=7L across 1 files | derived=full ---
