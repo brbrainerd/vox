@@ -1,0 +1,8 @@
+feat(web-ir): Implement primitive base class conflict resolution with author kwargs
+scale: ~84 lines across 3 files [M]
+
+- `crates/vox-compiler/src/web_ir/primitives/mod.rs`: Added `primitive_base_class_overridden` function to determine if a primitive base class should be suppressed based on provided author kwargs. This function implements specific heuristics for `bg`, `color`, `radius`, `border`, `pad`, dimension (`w`, `h`, `max_w`, `max_h`), and `font_family` kwargs.
+- `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs`: Modified `transform_hir_view_kwargs` to collect author kwarg names and filter primitive `base_classes` using `primitive_base_class_overridden` before emitting them.
+- `crates/vox-compiler/src/codegen_ts/jsx.rs`: Modified `transform_view_kwargs` to collect author kwarg names and filter primitive `base_classes` using `primitive_base_class_overridden` before emitting them.
+
+--- audit: original='feat(web-ir): VUV class-conflict resolution — author kwargs override primitive defaults' | actual=84L across 3 files | derived=full ---
