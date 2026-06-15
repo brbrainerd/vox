@@ -1,0 +1,11 @@
+feat(vox-gui): add console transport wrappers, xterm deps, and surface registry entry
+scale: ~118 lines across 6 files [M]
+
+- `crates/vox-gui/ui/src/transport.ts`: Added `discoverySuggest`, `discoveryHelp`, `discoveryRecord`, `ptySpawn`, `ptyWrite`, `ptyClose`, `listenPtyOutput`, and `listenPtyExit` functions for console and PTY terminal transport.
+- `crates/vox-gui/ui/src/transport.console.test.ts`: Added a new Vitest test file for `console transport` to verify `discoverySuggest` and `ptyWrite` functionality.
+- `contracts/gui/surface-registry.v1.yaml`: Added a new `console` entry to the surface registry with `live_backend` representation tier.
+- `crates/vox-gui/ui/package.json`: Added `@xterm/addon-fit` and `@xterm/xterm` dependencies.
+- `crates/vox-gui/ui/pnpm-lock.yaml`: Updated pnpm lockfile to include new xterm dependencies.
+- `crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts`: Regenerated surface registry file to include the new `console` entry.
+
+--- audit: original='feat(vox-gui): console transport wrappers, xterm deps, surface registry entry' | actual=118L across 6 files | derived=full ---
