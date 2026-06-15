@@ -1,0 +1,13 @@
+feat(vox-mental-tracker): port materializer and export_contract helpers
+scale: ~86 lines across 1 files [M]
+
+- Add `_is_backdated` helper function to determine if an event was recorded more than 5 minutes after it occurred, ported from `export_contract.ts`.
+- Add `_csv_quote` helper function to CSV-quote a string, ported from `export_contract.ts`.
+- Add `_is_superseded_in` helper function to check if an event ID is superseded by any other event's `correction_of` field.
+- `weekly_summary_json`: Update comment to reflect that correction-chain collapse is now ported into this function, rather than being handled client-side.
+- `timeline_events_json`: Exclude superseded rows and add an `is_backdated` field to each event.
+- `export_health_csv`: Emit the full CSV, including header and all effective rows.
+- `export_health_json_bundle`: Use `content_sha256` instead of `content_sha256_header_only`.
+- `export_clinical_html`: Improve HTML structure and methodology text.
+
+--- audit: original='feat(vox-mental-tracker): port materializer + export_contract to Vox (§3.A/B)' | actual=86L across 1 files | derived=full ---
