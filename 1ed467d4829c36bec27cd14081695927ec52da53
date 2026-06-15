@@ -1,0 +1,14 @@
+feat(compiler): Introduce Contract IR and OpenAPI 3.1 emission
+scale: ~1044 lines across 8 files [XL]
+
+- `crates/vox-compiler/src/contract_ir/`: New module for Contract IR.
+    - `mod.rs`: Defines `ContractIr`, `ContractType`, `WireType`, and `ContractEndpoint` as a wire-format projection layer between HIR and TS emitters.
+    - `project.rs`: Implements the projection from `HirTypeDef`, `HirEndpointFn`, and `HirType` to Contract IR, handling type conversions like `Decimal`/`BigInt`/`i128` to string, `DateTime` to RFC 3339, and `Option<T>` to optional unwrapped inner types.
+    - `tests.rs`: Adds 8 unit tests for Contract IR projection edge cases.
+- `crates/vox-compiler/src/codegen_ts/zod_emit.rs`: Refactored to consume `ContractIr` instead of HIR directly, preserving existing behavior and centralizing wire-format rules.
+- `crates/vox-compiler/src/codegen_ts/openapi_emit.rs`: New module for OpenAPI 3.1 specification emission, driven by Contract IR. Implements wire-format-v1 rules for paths, HTTP methods, type mappings (e.g., `Decimal` to string with `x-vox-encoding`), sum types as `oneOf` with `_tag` discriminator, and canonical output.
+- `crates/vox-compiler/src/codegen_ts/emitter.rs`: Modified to emit `openapi.json` when a module contains user types or endpoints.
+- `crates/vox-compiler/src/codegen_ts/mod.rs`: Added `openapi_emit` to the module.
+- `crates/vox-compiler/src/lib.rs`: Added `contract_ir` to the module.
+
+--- audit: original='feat(compiler): Contract IR + OpenAPI 3.1 emit (Phase 2 wire-format SSOT)' | actual=1044L across 8 files | derived=full ---
