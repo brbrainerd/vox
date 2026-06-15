@@ -1,0 +1,6 @@
+docs(architecture): normalize GUI audit frontmatter category to "Architecture SSOTs"
+scale: ~2 lines across 1 files [XS]
+
+- `docs/src/architecture/vox-gui-capability-audit-2026.md`: Changed the `category` frontmatter field from "architecture" to "Architecture SSOTs".
+
+--- audit: original='fix(docs): normalize GUI audit frontmatter category' | actual=2L across 1 files | derived=full ---
