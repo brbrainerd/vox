@@ -1,0 +1,13 @@
+feat(compiler): add lint for unresolvable effect dependencies
+scale: ~391 lines across 8 files [L]
+
+- `crates/vox-compiler/src/typeck/effect_deps_lint.rs`: New module implementing `lint.effect.unresolvable_deps` to detect ambiguous function calls within `effect:` blocks that are neither known builtins nor component state names.
+- `crates/vox-compiler/tests/effect_deps_test.rs`: Added three new tests for the effect dependency lint: one for an unresolvable dependency error, one for explicit dependencies suppressing the lint, and one for state-only effects passing.
+- `crates/vox-compiler/src/parser/descent/decl/head.rs`: Modified the parser to recognize and parse an optional `depends_on (a, b)` clause for `effect` declarations, storing the dependencies.
+- `crates/vox-compiler/src/ast/decl/ui.rs`: Extended `EffectDecl` to include an `explicit_deps: Option<Vec<String>>` field to store parsed explicit dependencies.
+- `crates/vox-compiler/src/hir/nodes/decl.rs`: Extended `HirEffect` to include an `explicit_deps: Option<Vec<String>>` field for explicit dependencies.
+- `crates/vox-compiler/src/typeck/mod.rs`: Integrated the new `effect_deps_lint` into the `typecheck_hir_module` pipeline.
+- `crates/vox-compiler/src/hir/lower/decl.rs`: Modified the HIR lowerer to transfer the `explicit_deps` from `ast::EffectDecl` to `hir::HirEffect`.
+- `crates/vox-compiler/src/hir/lower/mod.rs`: Modified the HIR lowerer to transfer the `explicit_deps` from `ast::EffectDecl` to `hir::HirEffect`.
+
+--- audit: original='feat(compiler): lint.effect.unresolvable_deps for ambiguous effect deps' | actual=391L across 8 files | derived=full ---
