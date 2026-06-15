@@ -1,0 +1,13 @@
+fix(lower): register `vox/lower/unlowered-decl` and remove duplicate docstring
+scale: ~16 lines across 3 files [S]
+
+- `crates/vox-compiler/src/typeck/diagnostics.rs`:
+    - Registered `LOWER_UNLOWERED_DECL` constant for the "vox/lower/unlowered-decl" diagnostic code.
+    - Added `LOWER_UNLOWERED_DECL` to the `ALL_PHASE_1` array.
+    - Removed a duplicate docstring block for `TYPECK_DECORATOR_REQUIRES_ENDPOINT`.
+- `crates/vox-compiler/tests/decl_lowering_test.rs`: Updated the assertion for the unlowered declaration warning to use the canonical "vox/lower/unlowered-decl" format.
+- `crates/vox-compiler/src/hir/lower/mod.rs`:
+    - Imported `LOWER_UNLOWERED_DECL` from `typeck::diagnostics::codes`.
+    - Used the `LOWER_UNLOWERED_DECL` constant in the warning message for unlowered declarations.
+
+--- audit: original='fix(lower): register vox/lower/unlowered-decl in diagnostic registry; remove duplicate docstring' | actual=16L across 3 files | derived=full ---
