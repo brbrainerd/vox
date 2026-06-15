@@ -1,0 +1,8 @@
+feat(docs): author design system files and update link checks
+scale: ~377 lines across 5 files [L]
+
+- docs/design-system/: Add new files `04-visual-style-guide.md`, `05-image-generation-prompts.md`, and `06-component-specs.md` to define visual style, image generation prompts, and component specifications for the design system.
+- .lycheeignore: Add `/showcase/` and `/concepts/` to ignore list to prevent `lychee` from flagging valid runtime routes as missing files.
+- docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md: Update the path to `tmp/vox-audit-probes/` to remove a broken internal link.
+
+--- audit: original='fix(docs): repair pre-existing broken internal links (check-links CI)' | actual=377L across 5 files | derived=full ---
