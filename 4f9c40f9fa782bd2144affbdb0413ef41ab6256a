@@ -1,0 +1,9 @@
+fix(refs): update dei_shim path references after A-12 extraction
+scale: ~7 lines across 2 files [S]
+
+- `crates/vox-doc-inventory/src/constants.rs`:
+    - Updated `HOTSPOT_TIER2_RUST` path from `vox-orchestrator/src/dei_shim/research/orchestrator/mod.rs` to `vox-dei-shim/src/research/orchestrator/mod.rs`.
+    - Removed `crates/vox-orchestrator/src/dei_shim/selection/mod.rs` from `HOTSPOT_TIER2_RUST` with a comment indicating it was WIP and not part of the active module tree.
+- `crates/vox-db/src/research_pipeline.rs`: Updated comment to reference `vox-dei-shim/src/research/orchestrator/pipeline.rs` instead of `vox-orchestrator/src/dei_shim/research/orchestrator/pipeline.rs`.
+
+--- audit: original='fix(refs): update stale dei_shim path references after A-12 extraction' | actual=7L across 2 files | derived=full ---
