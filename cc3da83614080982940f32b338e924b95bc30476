@@ -1,0 +1,20 @@
+feat(orchestrator): P12 policy program with registry resolve, flags, and bandit feedback
+scale: ~926 lines across 15 files [L]
+
+- **orchestrator_policy**: Integrate `OrchestrationFeatureFlags` with embedded defaults, add `completion_text_sample` and `session_entropy_baseline` to `PolicyContext`, and update `OrchestratorPolicyConfig` to include feature flags.
+- **registry_model_resolve**: Add new module for MCP-style registry resolution, including `infer_prompt_capability_hints` and `RegistryModelResolutionParams` for model selection.
+- **orchestration_feature_flags**: Introduce new module to parse and manage feature flags from an embedded YAML contract.
+- **mode**: Add new module defining `InferenceConfig`, `TierProfile`, `QualityLevel`, and `Modalities` for inference configuration.
+- **privacy_router**: Add `model_supports_privacy_local_inference` predicate to check if a model supports local inference based on its provider type.
+- **calibration**: Update `arm_stats_from_bandit` to accept a `ContextualBandit` and `BanditArm` for calibration statistics.
+- **entropy_scorer**: Add new module for `EntropyScorer` to calculate entropy drift.
+- **lib**: Export new modules `orchestration_feature_flags`, `mode`, `registry_model_resolve`, and `entropy_scorer`.
+- **orchestrator/accessors**: Add `get_orchestration_feature_flags` accessor.
+- **orchestrator/task_dispatch/complete/success/mod**: Add `bandit_feedback` to `Success` struct.
+- **orchestrator/task_dispatch/complete/fail**: Add `bandit_feedback` to `Fail` struct.
+- **agentos/policy_runtime**: Add `bandit_feedback` to `PolicyRuntime` for task completion.
+- **docs/src/architecture/where-things-live.md**: Document new surfaces related to the P12 policy program.
+- **tests/p12_policy_program_wiring**: Add new tests for P12 policy program wiring, including embedded feature flag parsing and model resolution.
+- **tests/orchestrator_daemon_tcp**: Fix daemon TCP test by ensuring dequeue happens before task complete/fail.
+
+--- audit: original='feat(orchestrator): P12 policy program — registry resolve, flags, bandit feedback' | actual=926L across 15 files | derived=full ---
