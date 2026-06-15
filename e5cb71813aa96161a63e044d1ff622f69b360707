@@ -1,0 +1,14 @@
+feat(code-audit): migrate 5 detectors to rule pack patterns
+scale: ~820 lines across 9 files [L]
+
+- `ai_laziness.rs`: Migrated 7 rules (`ai-laziness/*`) to use `CompiledRule`s from the embedded rule pack, removing 136 lines of hand-compiled regex definitions.
+- `stub.rs`: Migrated 7 rules (`stub/*`) to use `CompiledRule`s from the embedded rule pack, removing 50 lines of hand-compiled regex definitions. Fixed the `stub/throw-not-implemented` pattern to include `(?i)` flag, removing the need for `to_lowercase()` workaround.
+- `deprecated_usage.rs`: Migrated `deprecated-usage` rule to `RulePackDetector` and `raw-jsx-leakage` rule to `CompiledRule`, removing 48 lines of hand-compiled regex definitions.
+- `unwrap_call.rs`: Migrated `rust/unwrap-call` rule to `CompiledRule`, removing 24 lines of hand-compiled regex definitions.
+- `stringly_typed_enum.rs`: Migrated `stringly-typed-enum` rule to `CompiledRule`, removing 16 lines of hand-compiled regex definitions.
+- `rule_pack_detector.rs`: Added new module with `RulePackDetector` helper for generic line/multiline dispatch of `CompiledRule`s and `pack_rule()` convenience accessor (144 lines added).
+- `wave_b_parity.rs`: Added new test file with 24 tests to ensure parity for the migrated detectors (247 lines added).
+- `lib.rs`: Added `rule_pack_detector` module to `lib.rs`.
+- `rules.v1.yaml`: No functional changes, only whitespace.
+
+--- audit: original='feat(code-audit): wave-2 detector migration — patterns sourced from rules.v1.yaml' | actual=820L across 9 files | derived=full ---
