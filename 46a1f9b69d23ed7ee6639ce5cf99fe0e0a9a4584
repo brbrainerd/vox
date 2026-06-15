@@ -1,0 +1,6 @@
+refactor(vox-lsp): remove dead mesh activity walker helpers
+scale: ~111 lines across 1 files [M]
+
+- `crates/vox-lsp/src/lib.rs`: Removed `collect_mesh_activity_spans_from_stmts` and `collect_mesh_activity_spans_from_expr` functions, along with unused imports `Decl`, `Expr`, and `Stmt` from `vox_compiler::ast`. These helpers were related to a workflow that has been removed.
+
+--- audit: original='fix(vox-lsp): remove dead mesh activity walker helpers (workflow tombstoned)' | actual=111L across 1 files | derived=full ---
