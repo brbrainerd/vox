@@ -1,0 +1,11 @@
+feat(vox-cli): add SpoolSink and initialize telemetry sinks at startup
+scale: ~70 lines across 3 files [M]
+
+- `crates/vox-cli/src/telemetry_sink.rs`: Add new `SpoolSink` module and implementation. This sink serializes `TelemetryEvent`s to JSON files in the local spool directory. It uses `tokio::spawn` for asynchronous file I/O and logs errors at DEBUG level.
+- `crates/vox-cli/src/lib.rs`:
+    - Add `telemetry_sink` as a public module.
+    - Introduce `init_telemetry_sinks` function to register process-wide telemetry sinks. This function currently wires the `SpoolSink` and is designed to optionally accept a `vox_db::VoxDb` for future `ResearchMetricsSink` integration (Phase B).
+    - Call `init_telemetry_sinks(None)` during `run_vox_cli_from_parsed` startup.
+- `crates/vox-cli/Cargo.toml`: Add `vox-telemetry` as a workspace dependency.
+
+--- audit: original='feat(vox-cli): add SpoolSink + init_telemetry_sinks; wire at startup (Phase A -- db=None)' | actual=70L across 3 files | derived=full ---
