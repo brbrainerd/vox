@@ -1,0 +1,12 @@
+feat(docs,orchestrator,search,policy): Refactor Vox docs, enhance search, and stabilize integration tests
+scale: ~5061 lines across 164 files [XL]
+
+- docs: Delete numerous archived plan documents and API stubs, update `SUMMARY.md`, and refine architecture documentation.
+- crates/vox-orchestrator: Introduce complexity-based routing for search, add a new test for this functionality, and update MCP tool handling in integration tests.
+- crates/vox-search: Implement durable artifact handling for A2A retrieval responses and update search bundling logic to generate these artifacts.
+- crates/vox-socrates-policy: Refactor `SocratesComplexityJudge` to classify queries into discrete `ComplexityBand`s for improved routing.
+- crates/vox-integration-tests: Update A2A MCP tests to use the new `ServerState::new_full` and direct `handle_tool_call` from `vox_orchestrator::mcp_tools`.
+- crates/vox-clavis: Minor updates to `ids.rs` and `llm.rs`.
+- crates/vox-db: Minor update to `publish_cloud.rs`.
+
+--- audit: original='docs/tests: Hardening Vox docs, deleting redundant stubs, and stabilizing integration tests' | actual=5061L across 164 files | derived=full ---
