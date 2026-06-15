@@ -1,0 +1,7 @@
+docs(architecture): restore coverage map status and regenerate documentation
+scale: ~44 lines across 4 files [S]
+
+- docs/src/architecture: Changed `web-app-archetype-coverage-2026.md` status from "draft" to "research" to resolve a doc pipeline rejection.
+- docs/src: Regenerated `feed.xml`, `SUMMARY.md`, and `architecture-index.md` to reflect the updated status and ensure documentation consistency.
+
+--- audit: original='chore(docs): regenerate doc-pipeline + restore coverage map status' | actual=44L across 4 files | derived=full ---
