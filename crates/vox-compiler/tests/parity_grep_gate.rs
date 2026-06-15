@@ -32,8 +32,103 @@ const EMITTER_FILES: &[&str] = &[
 ];
 
 /// Patterns that indicate a silent empty-string drop from an emitter.
-/// These are NOT flagged in test code (the grep is limited to non-test sections).
+/// These are NOT flagged in test code (the grep skips `#[cfg(test)]` blocks).
 const SILENT_DROP_PATTERNS: &[&str] = &["=> String::new()", "=> \"\".to_string()"];
+
+/// Strip the content of `#[cfg(test)]` blocks from `src`, returning the
+/// non-test portions concatenated.  Uses brace-counting so that test modules
+/// appearing *anywhere* in the file (not just at the end) are excluded, while
+/// production code that follows the last test block is still scanned.
+fn strip_test_blocks(src: &str) -> String {
+    let mut out = String::with_capacity(src.len());
+    let chars = src.chars().peekable();
+    // We scan line-by-line so we can detect `#[cfg(test)]`.
+    let mut remaining = src;
+
+    while !remaining.is_empty() {
+        // Look for the next `#[cfg(test)]` marker.
+        if let Some(idx) = remaining.find("#[cfg(test)]") {
+            // Everything before the marker is production code.
+            out.push_str(&remaining[..idx]);
+            remaining = &remaining[idx + "#[cfg(test)]".len()..];
+            // Skip optional whitespace / newlines until we hit `{` or `mod`.
+            // The common pattern is `#[cfg(test)]\nmod tests {\n...`.
+            // We need to find the opening brace of the block (depth 0→1) and
+            // then skip until the matching closing brace (depth back to 0).
+            let open = match remaining.find('{') {
+                Some(p) => p,
+                None => {
+                    // No opening brace — malformed; just include the rest.
+                    out.push_str(remaining);
+                    break;
+                }
+            };
+            remaining = &remaining[open + 1..]; // consume the `{`
+            let mut depth: usize = 1;
+            let mut close_pos = 0;
+            let bytes = remaining.as_bytes();
+            let mut i = 0;
+            while i < bytes.len() {
+                match bytes[i] {
+                    b'{' => depth += 1,
+                    b'}' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            close_pos = i;
+                            break;
+                        }
+                    }
+                    // Skip string literals to avoid counting braces inside them.
+                    b'"' => {
+                        i += 1;
+                        while i < bytes.len() {
+                            if bytes[i] == b'\\' {
+                                i += 1; // skip escaped char
+                            } else if bytes[i] == b'"' {
+                                break;
+                            }
+                            i += 1;
+                        }
+                    }
+                    // Skip char literals.
+                    b'\'' => {
+                        i += 1;
+                        while i < bytes.len() {
+                            if bytes[i] == b'\\' {
+                                i += 1;
+                            } else if bytes[i] == b'\'' {
+                                break;
+                            }
+                            i += 1;
+                        }
+                    }
+                    // Skip line comments.
+                    b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'/' => {
+                        while i < bytes.len() && bytes[i] != b'\n' {
+                            i += 1;
+                        }
+                    }
+                    _ => {}
+                }
+                i += 1;
+            }
+            if depth == 0 {
+                // Skip past the closing brace of the test block.
+                remaining = &remaining[close_pos + 1..];
+            } else {
+                // Unbalanced — stop scanning.
+                break;
+            }
+        } else {
+            // No more `#[cfg(test)]` markers; include the rest.
+            out.push_str(remaining);
+            break;
+        }
+    }
+    // Suppress unused variable warning from the `chars` binding above.
+    drop(chars);
+    out
+}
 
 #[test]
 fn no_silent_empty_string_drops_in_emitters() {
@@ -47,8 +142,9 @@ fn no_silent_empty_string_drops_in_emitters() {
             Err(e) => panic!("parity_grep_gate: could not read {rel_path}: {e}"),
         };
 
-        // Only scan non-test sections: stop at the first `#[cfg(test)]` line.
-        let non_test_src = src.split("#[cfg(test)]").next().unwrap_or(&src);
+        // Strip #[cfg(test)] blocks with brace-counting — avoids false
+        // negatives from production code that appears after a test module.
+        let non_test_src = strip_test_blocks(&src);
 
         for (line_no, line) in non_test_src.lines().enumerate() {
             // Skip comment lines.

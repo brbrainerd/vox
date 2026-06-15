@@ -484,14 +484,9 @@ fn expr_row(e: ExprFeature) -> Row {
         // Backend-only: bare `spawn expr` → tokio::spawn in codegen_rust (verified);
         // no interpreter or frontend backing.
         Spawn => backend_only(codes::PARITY_BACKEND_ONLY),
-        // `with(...)`: codegen_rust compile_error! + eval EvalError (verified unsupported);
-        // first-pass leaves TypeScript Implemented pending Task 8.
-        With => Row {
-            interpreter: Support::Unsupported(codes::PARITY_UNIMPLEMENTED),
-            rust_axum: Support::Unsupported(codes::PARITY_UNIMPLEMENTED),
-            rust_tauri: Support::Unsupported(codes::PARITY_UNIMPLEMENTED),
-            typescript: Support::Implemented,
-        },
+        // `with(...)`: unsupported on all targets (verified: codegen_rust compile_error!,
+        // eval EvalError, TS emitter routes through unsupported_diagnostic).
+        With => none_yet(codes::PARITY_UNIMPLEMENTED),
         // `workflow.version(...)`: no runtime backing on any target (verified: compile_error!
         // in rust, EvalError in eval, empty-string drop in TS — now declared).
         WorkflowVersion => none_yet(codes::PARITY_UNIMPLEMENTED),

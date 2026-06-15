@@ -876,17 +876,17 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
                 &ok_tsx,
             )
         }
-        // WorkflowVersion has no TS expression backing yet. Emit `undefined as never`
-        // so TypeScript's type-checker surfaces the unsupported construct as a type
-        // error rather than silently producing broken output. Code comes from the
-        // parity matrix so it stays in sync with the other emitters.
+        // WorkflowVersion has no TS expression backing yet. Emit `undefined satisfies never`
+        // which is a real TypeScript type error (TS2735: Type 'undefined' does not satisfy
+        // the expected type 'never') — unlike `as never` which is just a silent assertion.
+        // Code comes from the parity matrix so it stays in sync with the other emitters.
         HirExpr::WorkflowVersion(_) => {
             let cell = unsupported_diagnostic(
                 Feature::Expr(ExprFeature::WorkflowVersion),
                 Target::TypeScript,
             );
             format!(
-                r#"(undefined /* {}: {} */ as never)"#,
+                r#"(undefined satisfies never /* {}: {} */)"#,
                 cell.code, cell.message
             )
         }
@@ -2188,15 +2188,16 @@ mod ts_emit_exhaustiveness_tests {
         );
         // Confirm matrix agrees: WorkflowVersion is none_yet on TS.
         assert_eq!(cell.code, codes::PARITY_UNIMPLEMENTED);
-        // The generated expression must be a visible type-error, not empty.
+        // The generated expression must use `satisfies never` — a real TS compile error,
+        // not the silent `as never` assertion.
         let rendered = format!(
-            r#"(undefined /* {}: {} */ as never)"#,
+            r#"(undefined satisfies never /* {}: {} */)"#,
             cell.code, cell.message
         );
         assert!(!rendered.is_empty());
         assert!(
-            rendered.contains("undefined"),
-            "must emit 'undefined as never' type-error marker"
+            rendered.contains("satisfies never"),
+            "must emit 'satisfies never' to force a real TS type error (TS2735)"
         );
         assert!(rendered.contains(codes::PARITY_UNIMPLEMENTED));
     }

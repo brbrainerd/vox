@@ -98,7 +98,7 @@ fn workflow_version_rust_emitter_produces_parity_code() {
     );
 }
 
-// ── Test 5: WorkflowVersion → TS codegen emits undefined-as-never ────────────
+// ── Test 5: WorkflowVersion → TS codegen emits `satisfies never` type error ──
 
 #[test]
 fn workflow_version_ts_emitter_produces_parity_code() {
@@ -114,9 +114,10 @@ fn workflow_version_ts_emitter_produces_parity_code() {
     let state_names = HashSet::new();
     let ctx = EmitCtx::new(&state_names);
     let output = emit_hir_expr(&wv, &ctx);
+    // Must use `satisfies never` (a real TS compile error, TS2735) not `as never`.
     assert!(
-        output.contains("undefined"),
-        "TS emitter must emit undefined-as-never for WorkflowVersion; got: {output:?}"
+        output.contains("satisfies never"),
+        "TS emitter must emit 'satisfies never' type error for WorkflowVersion; got: {output:?}"
     );
     assert!(
         output.contains(codes::PARITY_UNIMPLEMENTED),
