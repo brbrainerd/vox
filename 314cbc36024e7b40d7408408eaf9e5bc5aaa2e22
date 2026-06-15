@@ -1,0 +1,8 @@
+fix(vox-compiler/typeck): Resolve `@table` names to `Ty::Table` in type annotations
+scale: ~23 lines across 3 files [S]
+
+- `crates/vox-compiler/src/typeck/ast_decl_lints.rs`: Modified `register_table` to define the table name in the type environment as `Ty::Table` (carrying field shapes) in addition to the value binding scope.
+- `crates/vox-compiler/src/typeck/registration.rs`: Modified `register_hir_table` to define the table name in the type environment as `Ty::Table` (carrying field shapes).
+- `crates/vox-compiler/src/typeck/unify.rs`: Added a unification rule to treat `Ty::Named(X)` and `Ty::Table(X, _)` as identical if their names `X` match. This mediates between row-type returns (which produce `Named(X)`) and type annotations (which now resolve to `Table(X, _)`).
+
+--- audit: original='fix(vox-compiler/typeck): @table names resolve to Ty::Table in annotations + Named↔Table unify' | actual=23L across 3 files | derived=full ---
