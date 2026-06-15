@@ -1,0 +1,12 @@
+feat(scientia): persist and display claim verifiability score
+scale: ~34 lines across 4 files [S]
+
+- `crates/vox-db`:
+  - Add `VoxDb::update_claim_verifiability_score` to update a claim's verifiability score in the `scientia_claims` table.
+  - Add a test case to `scientia_pipeline_methods.rs` to verify round-trip persistence of the verifiability score.
+- `crates/vox-cli`:
+  - Update `publication_extract_claims` to call `db.update_claim_verifiability_score` after storing a claim.
+- `crates/vox-gui`:
+  - Update `ClaimsView.tsx` to display the `verifiability_score` for each claim.
+
+--- audit: original='feat(scientia): persist + surface claim verifiability score' | actual=34L across 4 files | derived=full ---
