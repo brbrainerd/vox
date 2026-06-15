@@ -1,0 +1,6 @@
+ci(lychee): whitelist vox-lang.org and GitHub discussions
+scale: ~3 lines across 1 files [XS]
+
+- `.lycheeignore`: Added `https://vox-lang.org/` and `https://github.com/vox-foundation/vox/discussions` to the whitelist.
+
+--- audit: original='ci: whitelist broken links in lycheeignore' | actual=3L across 1 files | derived=full ---
