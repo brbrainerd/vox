@@ -1,0 +1,8 @@
+docs: update README to remove time-bound language
+scale: ~4 lines across 1 files [XS]
+
+- README.md:
+  - Replaced "April 2026 grammar collapse" with "structurally unified form of the legacy HTTP routing decorators" for `@endpoint(kind: …)`.
+  - Replaced specific "Phase status" with a general statement about "Roadmap execution is actively collapsing syntactic redundancy to stabilize the compiler primitives prior to v1.0".
+
+--- audit: original='docs: remove time-bound language to ensure README remains evergreen' | actual=4L across 1 files | derived=full ---
