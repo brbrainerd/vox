@@ -1,0 +1,9 @@
+feat(compiler): gate `std_namespace_method_ty` on `NAMESPACE_BUILTINS` for parity
+scale: ~41 lines across 1 files [S]
+
+- `crates/vox-compiler/src/builtin_registry.rs`:
+    - Added a reliability gate to `std_namespace_method_ty` to reject methods not listed in `NAMESPACE_BUILTINS` for namespaces owned by it, ensuring typecheck parity with interpreter/codegen.
+    - Added `regex.compile` to `NAMESPACE_BUILTINS` to cover a previously omitted method.
+    - Introduced `namespace_builtin_owned` and `namespace_builtin_listed` helper functions to check namespace ownership and method listing within `NAMESPACE_BUILTINS`.
+
+--- audit: original='feat(compiler): make NAMESPACE_BUILTINS the typecheck SSOT (close parity drift hole)' | actual=41L across 1 files | derived=full ---
