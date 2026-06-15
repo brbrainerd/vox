@@ -1,0 +1,9 @@
+fix(doc-pipeline): run markdown doctests only on `vox` fences
+scale: ~11 lines across 4 files [S]
+
+- `crates/vox-doc-pipeline/src/pipeline/doctest.rs`: Modified `check_doctests` to only consider code fences explicitly tagged as `vox` for Vox doctesting, excluding `tsx` and other languages to prevent false positives. Removed a `println!` debug statement.
+- `crates/vox-doc-pipeline/src/pipeline/lint.rs`: Updated `lint_file` to only set `fence_is_vox` for `vox` language tags, removing `tsx` from the condition.
+- `.cursor/rules/documentation-policy.mdc`: Updated documentation policy to clarify that only `vox` fenced blocks are passed through the Vox compiler for doctesting, and other language tags are not.
+- `docs/src/AGENTS.md`: Updated code block policy to specify that only `vox` tagged fenced blocks are run through the Vox parser for doctesting.
+
+--- audit: original='fix(doc-pipeline): run markdown doctests only on vox fences' | actual=11L across 4 files | derived=full ---
