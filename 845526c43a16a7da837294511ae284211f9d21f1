@@ -1,0 +1,25 @@
+feat(telemetry/billing): split cached input tokens into read and creation for Anthropic
+scale: ~65 lines across 7 files [M]
+
+- `crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs`:
+    - Updated `mcp_infer_tool_completion` to accept `cache_read_input_tokens` and `cache_creation_input_tokens` separately.
+    - Combined these two fields into `cached_for_cost` for `estimated_cost_usd` calculation.
+    - Modified logging and `CostIncurred` event emission to use the new split fields.
+- `crates/vox-orchestrator-mcp/src/llm_bridge/provider_adapter.rs`:
+    - Renamed `cached_input_tokens` to `cache_read_input_tokens` in `ProviderInferResult` and added `cache_creation_input_tokens`.
+    - Updated `adapt_result` and `VoxLocalAdapter` to handle the new fields.
+- `crates/vox-orchestrator-mcp/src/llm_bridge/providers/metadata.rs`:
+    - Renamed `cached_input_tokens` to `cache_read_input_tokens` in `HttpCallMetadata` and added `cache_creation_input_tokens`.
+    - Updated documentation for both fields to clarify their purpose and provider applicability.
+- `crates/vox-orchestrator-mcp/src/llm_bridge/providers/anthropic.rs`:
+    - Updated `http_anthropic_direct` to extract `cache_read_input_tokens` and `cache_creation_input_tokens` from Anthropic's usage data.
+    - Adjusted cost calculation to use separate costs for cache reads and cache creation.
+    - Modified `HttpCallMetadata` creation to pass the new split fields.
+- `crates/vox-orchestrator-mcp/src/llm_bridge/providers/openai.rs`:
+    - Renamed `cached_input_tokens` to `cache_read_input_tokens` and set `cache_creation_input_tokens` to `None`.
+- `crates/vox-orchestrator-mcp/src/llm_bridge/providers/gemini.rs`:
+    - Updated `http_gemini_with_metadata` to set both `cache_read_input_tokens` and `cache_creation_input_tokens` to `None`.
+- `crates/vox-orchestrator-mcp/src/llm_bridge/providers/ollama_chat.rs`:
+    - Updated `http_ollama_with_metadata` to set both `cache_read_input_tokens` and `cache_creation_input_tokens` to `None`.
+
+--- audit: original='feat(telemetry/B2): split cached_input_tokens into cache_read + cache_creation' | actual=65L across 7 files | derived=full ---
