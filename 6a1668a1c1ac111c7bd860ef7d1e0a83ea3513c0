@@ -1,0 +1,17 @@
+feat(budget): add doom-loop detection to BudgetManager
+scale: ~163 lines across 5 files [M]
+
+- `crates/vox-orchestrator/src/budget/mod.rs`:
+    - Introduced `CostProgressState` to track cost accumulated since the last task completion for doom-loop detection.
+    - Added `cost_progress` and `doom_loop_threshold_usd` fields to `BudgetManager`.
+    - Initialized `doom_loop_threshold_usd` to $2.00 (2,000,000 micro-dollars).
+    - Implemented `record_cost_progress` to accumulate cost for an agent.
+    - Implemented `reset_cost_progress` to reset the accumulated cost for an agent.
+    - Implemented `check_doom_loop` to determine if an agent has exceeded the doom-loop cost threshold.
+    - Implemented `set_doom_loop_cost_threshold` to configure the doom-loop threshold.
+- `crates/vox-build-meta/build.rs`: Removed all feature-probing logic, replacing it with a comment indicating that optional capabilities are now plugins. The `VOX_BUILD_FEATURES` environment variable is now always set to an empty list.
+- `crates/vox-build-meta/Cargo.toml`: Removed all feature definitions (gpu, oratio, script-execution, etc.), indicating that feature stubs have been retired in favor of a plugin system.
+- `crates/vox-mens/Cargo.toml`: Removed `vox-build-meta` feature dependencies from `mens-candle-cuda` and `cloud` features.
+- `crates/vox-cli/Cargo.toml`: Removed `vox-build-meta` feature dependencies from `script-execution`, `execution-api`, and `stub-check` features.
+
+--- audit: original='chore(build-meta): retire feature-stub probes; capabilities are now plugins' | actual=163L across 5 files | derived=full ---
