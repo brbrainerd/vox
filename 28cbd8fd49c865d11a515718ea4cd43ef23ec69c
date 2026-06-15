@@ -1,0 +1,10 @@
+fix(vox-arch-check): set vox-cli-ci kind=boundary-marker and improve integration tests
+scale: ~34 lines across 2 files [S]
+
+- `docs/src/architecture/layers.toml`: Added `kind = "boundary-marker"` to `vox-cli-ci` to suppress orphan lint warnings, matching `vox-orchestrator-core`.
+- `crates/vox-arch-check/tests/integration.rs`:
+    - Renamed the existing smoke test to `arch_check_smoke_test` and updated its description.
+    - Added a new integration test `description_rule_produces_output_on_clean_workspace` to verify that `arch-check` runs to completion and prints a summary line on a clean workspace when the `description_present` rule is active.
+    - Changed `std::process::Command` to `Command` by adding `use std::process::Command;`.
+
+--- audit: original='fix(vox-arch-check): set vox-cli-ci kind=boundary-marker + improve integration test' | actual=34L across 2 files | derived=full ---
