@@ -1,0 +1,10 @@
+docs(jj-p2): refine P2 plan for `jj-lib` 0.42 API and async bridge
+scale: ~226 lines across 1 files [M]
+
+- **API Verification**: Replaced speculative `docs.rs` API references with verified `jj-lib` 0.42.0 source code signatures, including `async`/`sync` status and file references for `Workspace::init_colocated_git`, `Workspace::init_simple`, `Transaction::commit`, `TreeState::snapshot`, and `op_walk::get_current_head_ops`.
+- **Async/Sync Bridge Redesign**: Updated the plan for `JjBackend` to use an offload-thread bridge for `jj-lib`'s async calls, replacing the problematic nested `block_on()` approach. This involves a dedicated worker thread with its own current-thread runtime and channel-based communication for `VcsBackend` methods.
+- **Snapshot Options**: Documented the construction of `SnapshotOptions` using `GitIgnoreFile::empty` and `EverythingMatcher`, and the use of a no-op `Signer`.
+- **Deletion Ledger Hardening**: Expanded the deletion ledger hardening from `crates/` to a repo-wide grep gate, requiring a "dead" verdict based on LoC/graph analysis.
+- **Plan Scope and Roadmap**: Added a scope-correction changelog and a "phases beyond P2" section to outline remaining roadmap items like orchestrator isolation policy, GUI, decorators, and auto-snapshotting.
+
+--- audit: original='docs(jj-p2): make the P2 plan implementation-ready (verified jj-lib 0.42 API + bridge fix) (#178)' | actual=226L across 1 files | derived=full ---
