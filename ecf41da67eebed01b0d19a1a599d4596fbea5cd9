@@ -1,0 +1,32 @@
+fix(audit): compat — add Finding.diagnostic_id/alternatives/rationale to detectors
+scale: ~197 lines across 28 files [L]
+
+- `ai_laziness`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings for conditional stub branches, assertion-only function bodies, and early-return-only function bodies.
+- `deprecated_usage`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `dry_violation`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `empty_body`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `file_organization`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `god_object`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings for various god object detections.
+- `hollow_fn`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `line_endings`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `magic_value`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings for port, IP, and path magic values.
+- `no_test_for_pub_fn`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `reachability`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `scaling`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings for path literals, magic limits, and Regex::new in hot paths.
+- `scaling_support`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings for unbounded file reads and duplicate environment variable defaults.
+- `schema_compliance`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `secrets`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `sprawl`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `stringly_typed_enum`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `stub`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `unresolved_ref`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `untested_pub_api`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `unwired_module`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `unwrap_call`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `workspace_drift`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings for path-based and version-based workspace drift.
+- `ai_analyze`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `task_queue`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `review/types`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+- `docs/src/architecture/research-index.md`: Added `diagnostic_id: None`, `alternatives: vec![]`, and `rationale: None` to findings.
+
+--- audit: original='fix(audit): compat — add Finding.diagnostic_id/alternatives/rationale to existing detectors' | actual=197L across 28 files | derived=full ---
