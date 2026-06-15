@@ -1,0 +1,21 @@
+feat(gui): Add Scaling and LLM settings, hydrate orchestrator settings, and fix theme application
+scale: ~152 lines across 3 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx`:
+    - Added new "Scaling" and "LLM & providers" sections to the settings view.
+    - Implemented hydration for orchestrator settings (isolation, checkpointMins) from `get_orchestrator_config`.
+    - Added new state variables for scaling settings: `scalingEnabled`, `minAgents`, `scalingThreshold`, `scaleCpuCeilingPct`, `scaleMemFloorMb`.
+    - Added new state variables for LLM settings: `maxConcurrentRequests`, `openrouterMaxConcurrent`, `retryMaxAttempts`, and `keyConfigured` for OpenRouter.
+    - Implemented `LlmSettingsSection` to display and manage LLM configuration, including fetching initial values from `get_llm_config` and `openrouter_key_status`.
+    - Added `ScalingSettingsSection` to display and manage scaling configuration, fetching initial values from `get_orchestrator_config`.
+    - Updated the `SettingsState` interface to include new scaling parameters.
+    - Added `invoke` calls to fetch initial orchestrator, scaling, and LLM configurations.
+    - Added `invoke` calls to save orchestrator, scaling, and LLM configurations.
+    - Implemented a theme picker that updates the `data-theme` attribute on the `document.documentElement` and persists the selection via `set_gui_preference`.
+- `crates/vox-gui/ui/src/App.tsx`:
+    - Applied the persisted theme app-wide on boot by fetching `gui.theme` preference and setting `document.documentElement['data-theme']`.
+    - Added 'tasks' to the list of valid initial view names.
+- `crates/vox-gui/ui/src/index.css`:
+    - Added CSS rules to override background colors for `void` and `glacier` themes, ensuring they apply to `html`, `body`, and `#root`.
+
+--- audit: original='feat(gui): settings hydration + theme fix + Scaling/LLM sections (F1/F2/F3/E3)' | actual=152L across 3 files | derived=full ---
