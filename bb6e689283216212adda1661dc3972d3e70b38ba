@@ -1,0 +1,11 @@
+feat(populi): introduce TTL registry, reorder pipeline, add tracing events
+scale: ~296 lines across 6 files [L]
+
+- **crates/vox-populi/src/mens/hardware/registry.rs**: New file `HardwareRegistryV2` introduced, providing a TTL-aware cache for `HardwareSummary` using `tokio::sync::Mutex` and `OnceLock`. It supports `probe()` with caching and `probe_with_report()` to bypass the cache.
+- **crates/vox-populi/src/mens/hardware/mod.rs**: Replaced `OnceCell<Arc<HardwareSummary>>` with `OnceLock<registry::HardwareRegistryV2>` for the global hardware registry. `HardwareRegistry::probe()` now delegates to `HardwareRegistryV2` with a default 5-minute TTL. Added `HardwareRegistry::invalidate_cache()`. Removed `ComputeBackend` and `vendor_from_model` imports.
+- **crates/vox-populi/src/mens/hardware/tests.rs**: Added new tests for `ProbePipeline`: `pipeline_emits_event_per_attempt` to verify tracing events, `pipeline_reorder_changes_probe_sequence` to test probe reordering, and `pipeline_reorder_unknown_names_appended` for handling unknown probe names during reordering.
+- **crates/vox-populi/src/mens/hardware/pipeline.rs**: Implemented `reorder()` method in `ProbePipeline` to allow reordering of probes based on a list of names. Added `tracing::debug!` events (`vox.mesh.probe.*`) for each probe attempt outcome (not applicable, found, no device, failed) including probe name and duration.
+- **Cargo.toml**: Added `tracing-test` dependency to the workspace.
+- **crates/vox-populi/Cargo.toml**: Added `tracing-test` dependency.
+
+--- audit: original='feat(populi): tracing events, reorder(), TTL registry, wire into global probe() path' | actual=296L across 6 files | derived=full ---
