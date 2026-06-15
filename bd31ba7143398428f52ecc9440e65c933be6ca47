@@ -1,0 +1,10 @@
+chore(ignore): remove stale `crates/vox-py/.venv` entries from ignore files
+scale: ~5 lines across 5 files [S]
+
+- `.aiexclude`: Removed `crates/vox-py/.venv/` entry.
+- `.aiignore`: Removed `crates/vox-py/.venv/` entry.
+- `.cursorignore`: Removed `crates/vox-py/.venv/` entry.
+- `.gitignore`: Removed `crates/vox-py/.venv/` entry.
+- `.voxignore`: Removed `crates/vox-py/.venv/` entry, which was the source of truth for the other AI-related ignore files.
+
+--- audit: original='chore(ignore): remove stale crates/vox-py/.venv entries' | actual=5L across 5 files | derived=full ---
