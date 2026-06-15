@@ -1,0 +1,9 @@
+docs(policy): clarify PowerShell-first terminal exec policy and shelf shell-fluency eval
+scale: ~146 lines across 4 files [M]
+
+- **docs/src/architecture/terminal-exec-policy-ssot.md**: New file, establishing a Single Source of Truth (SSOT) for the terminal execution policy. It clarifies that the PowerShell preference is for host-side policy enforcement and output parsing, not agent code generation superiority. It provides evidence for structured output parsing and AST inspection, and explicitly rejects a MENS PowerShell spoke.
+- **docs/src/architecture/agent-shell-fluency-eval-design-2026.md**: New file, outlining a design for an optional A/B evaluation to test agent shell fluency between PowerShell and Bash. It explicitly states this design is not run or shipped, and is independent of the current terminal exec policy.
+- **AGENTS.md**: Updated the "Cross-Platform Shell Discipline" section with a scope disclaimer for the PowerShell preference, linking to the new `terminal-exec-policy-ssot.md`. Replaced old research links with references to the new SSOT and eval design documents.
+- **docs/src/architecture/research-index.md**: Added entries for the new `terminal-exec-policy-ssot.md` and `agent-shell-fluency-eval-design-2026.md` under the "Core SSoT" section.
+
+--- audit: original='docs(policy): scope PowerShell-first terminal exec policy + shelf shell-fluency eval' | actual=146L across 4 files | derived=full ---
