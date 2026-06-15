@@ -1,0 +1,9 @@
+feat(audit): implement `spec-to-app` panel runner with refinement loop
+scale: ~1258 lines across 4 files [XL]
+
+- `crates/vox-audit/src/subcommands/spec_to_app_panel.rs`: Add new panel-mode runner for CR-L0 spec-to-app, driving OpenRouter-routable members through a generate → vox check → score loop with up to 5 refinement iterations (tunable via `VOX_AUDIT_SPEC_TO_APP_MAX_ITERATIONS`). This includes calibrated Vox system prompts, hard cumulative budget caps (`VOX_AUDIT_BUDGET_USD`), per-spec `max_cost_usd` ceilings, and MENS-current exclusion. Panel work runs on `std::thread::scope` to prevent `reqwest::blocking` panics. Refinement feeds diagnostics and prior drafts back to the model. Evidence preservation is handled by `same_day_canonical_with_panel`.
+- `crates/vox-audit/src/subcommands/spec_to_app.rs`: Refactor `spec_to_app` to replace the `InfrastructureError` early-return for panel mode with a call to the new `spec_to_app_panel.rs` runner. Update documentation to describe two modes: corpus-inventory (default) and panel (`--llm-panel`).
+- `contracts/reports/spec-to-app/2026-05-21.json`: Add a new audit report for `spec-to-app` panel results from 2026-05-21, showing an overall pass rate of 66.7% (met target of 60%) with specific pass rates and median costs for `claude-sonnet` and `gpt-frontier`.
+- `contracts/reports/spec-to-app/2026-05-22.json`: Add a new audit report for `spec-to-app` panel results from 2026-05-22, mirroring the results of the 2026-05-21 report.
+
+--- audit: original='feat(audit): CR-L0 spec-to-app — panel runner + 5-iter refinement loop' | actual=1258L across 4 files | derived=full ---
