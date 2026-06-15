@@ -1,0 +1,6 @@
+ci(coolify): increase sync timeout for compile job
+scale: ~2 lines across 1 files [XS]
+
+- `.github/workflows/coolify-eval-sync.yml`: Increased the `timeout-minutes` for the "Sync compose and deploy" job from 8 to 25 minutes.
+
+--- audit: original='chore(ci): extend coolify sync timeout for compile' | actual=2L across 1 files | derived=full ---
