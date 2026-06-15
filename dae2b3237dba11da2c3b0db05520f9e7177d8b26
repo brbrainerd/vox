@@ -1,0 +1,8 @@
+feat(visus-review): introduce config, report, and cache serde types
+scale: ~121 lines across 3 files [M]
+
+- `crates/vox-orchestrator-mcp/src/visus_review/types.rs`: Add new module defining `VisualReviewConfig`, `Finding`, `ReviewVerdict`, `SurfaceReport`, `RunReport`, and `CacheEntry` structs with `serde` derive macros for serialization/deserialization.
+- `contracts/orchestration/visual-review.config.v1.json`: Add a new JSON schema file for `visual-review.config.v1`, specifying configuration parameters like `schema_version`, `model_preference`, `escalation_model`, review budgets, concurrency limits, image dimensions, and spike factor.
+- `crates/vox-orchestrator-mcp/src/lib.rs`: Add a new public module `visus_review` with a descriptive comment.
+
+--- audit: original='feat(visus-review): config + report/cache serde types (TDD)' | actual=121L across 3 files | derived=full ---
