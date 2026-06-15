@@ -1,0 +1,5 @@
+chore(ci): remove `README_pristine.md` to fix Lychee link checker
+scale: ~0 lines across 1 files [XS]
+- `README_pristine.md`: Deleted the backup file, which was causing issues with the Lychee link checker.
+
+--- audit: original='chore: remove backup file README_pristine.md that breaks lychee link checker' | actual=0L across 1 files | derived=full ---
