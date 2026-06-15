@@ -1,0 +1,12 @@
+feat(vox-db): add `discovery_state` table for Console exposure ledger
+scale: ~59 lines across 7 files [M]
+
+- `crates/vox-db/src/schema/manifest.rs`: Bumps `BASELINE_VERSION` from 72 to 73 and registers the new `discovery` schema fragment.
+- `crates/vox-db/src/schema/domains/sql/discovery.sql`: Adds a new SQL file to create the `discovery_state` table, which stores per-user command/concept exposure ledger data for the Vox Console discovery engine, including `user_id`, `action_id`, `seen_count`, `used_count`, `last_seen_ms`, `last_used_ms`, `dwell_ms_total`, `fsrs_stability`, `fsrs_difficulty`, and `fsrs_due_ms`. It also creates an index `idx_discovery_state_due` on `user_id` and `fsrs_due_ms`.
+- `crates/vox-db/src/schema/domains/discovery.rs`: Adds a new module to expose the `SCHEMA_DISCOVERY` SQL.
+- `crates/vox-db/src/schema/domains/mod.rs`: Integrates the new `discovery` module.
+- `crates/vox-db/src/codex_legacy.rs`: Adds `discovery_state` to `LEGACY_EXPORT_TABLES`.
+- `contracts/db/baseline-version-policy.yaml`: Updates `repository_baseline_integer` to 73 and `repository_baseline_digest_hex` to reflect the schema changes.
+- `crates/vox-db/tests/db_connection_tests.rs`: Adds a new integration test `test_discovery_state_table_exists` to verify the existence and functionality of the `discovery_state` table by inserting and querying a row.
+
+--- audit: original='feat(vox-db): add discovery_state table for console exposure ledger' | actual=59L across 7 files | derived=full ---
