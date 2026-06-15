@@ -1,0 +1,6 @@
+fix(vox-cli): make script cache binary name target-triple-aware
+scale: ~11 lines across 1 files [S]
+
+- `crates/vox-cli/src/commands/runtime/run/script.rs`: Modified the logic for determining the `binary_name` to be target-triple-aware, specifically for Windows targets. This prevents cache misses during cross-compilation by ensuring the cached binary's filename matches the one produced by `NativeBackend::compile`.
+
+--- audit: original='fix(vox-cli): make script-cache binary_name target-triple-aware (CodeRabbit)' | actual=11L across 1 files | derived=full ---
