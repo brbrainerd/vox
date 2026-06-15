@@ -1,0 +1,10 @@
+feat(coverage-graph): filter non-production symbols from per-crate coverage denominator
+scale: ~199 lines across 3 files [M]
+
+- `scripts/coverage-graph/overlay_tests.py`:
+    - Added `is_production_symbol` function to identify production definitions for coverage counting, excluding test-origin nodes, file nodes, reference nodes, definitions outside `/src/`, and in-src `#[cfg(test)]` functions.
+    - Modified `_write_report` to build a `test_fn_by_file` set for use with `is_production_symbol`.
+- `scripts/coverage-graph/candidate_gaps.py`: New file that uses `is_production_symbol` to filter graph nodes and emit a cleaned list of candidate gaps, excluding non-production symbols.
+- `scripts/coverage-graph/test_overlay_tests.py`: Added `TestProductionSymbolFilter` class with test cases for the new `is_production_symbol` function, verifying its behavior for various node types (real src definition, file node, reference node, in-src test fn).
+
+--- audit: original='fix(coverage-graph): exclude non-symbols from per-crate coverage denominator (Wave 0 Task 0.1)' | actual=199L across 3 files | derived=full ---
