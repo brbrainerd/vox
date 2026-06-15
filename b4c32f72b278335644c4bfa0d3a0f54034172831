@@ -1,0 +1,7 @@
+refactor(templates): remove chat layout CSS from template
+scale: ~174 lines across 2 files [M]
+
+- `crates/vox-cli/src/templates.rs`: Removed 137 lines of CSS related to chat layout, messages, and animations.
+- `continue_prompt.md`: Added a new file containing an "Improved AI 'Continue' Prompt" with instructions, imperatives, execution rules, testing and verification guidelines, and tool preferences.
+
+--- audit: original='chore: reduce boilerplate CSS in template, add AI continue prompt' | actual=174L across 2 files | derived=full ---
