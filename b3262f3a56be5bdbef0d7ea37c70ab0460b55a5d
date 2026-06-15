@@ -1,0 +1,9 @@
+fix(gui): CLI actions are not available on mobile
+scale: ~26 lines across 1 files [S]
+
+- `crates/vox-gui/src/commands/action_manifest.rs`:
+    - Changed `ActionHandlerKind::Cli` actions to set `platform.mobile` to `false` instead of `true`.
+    - Added a regression test `cli_actions_are_not_advertised_on_mobile` to assert that all `Cli`-kind actions have `platform.mobile` set to `false`.
+    - Derived `PartialEq` for `ActionHandlerKind` enum to facilitate testing.
+
+--- audit: original='fix(gui): CLI actions are not available on mobile (sidecar-only)' | actual=26L across 1 files | derived=full ---
