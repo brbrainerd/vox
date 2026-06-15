@@ -1,0 +1,27 @@
+feat(hopper): implement in-memory hopper, API, and dashboard panel
+scale: ~1457 lines across 15 files [XL]
+
+- **`vox-orchestrator::hopper`**:
+    - Add `HopperIntake` trait for hopper implementations.
+    - Implement `InMemoryHopper` using `RwLock` for in-memory storage of `IntakeItem`s.
+    - Define core domain types: `IntakeItem`, `IntakeSource`, `ItemState`, `PriorityHint`, `PriorityOverrideRecord`, and `HopperItemId`.
+    - Introduce `DeveloperOverride` sealed capability token and `DeveloperOverrideMint` for signed audit trails.
+- **`vox-dashboard::api::hopper`**:
+    - Implement HTTP API routes for the hopper: `POST /api/v2/hopper/submit`, `GET /api/v2/hopper/inbox`, `GET /api/v2/hopper/assigned`, `GET /api/v2/hopper/history`, and `POST /api/v2/hopper/items/{id}/reprioritize`.
+    - The reprioritize endpoint includes a `confirm_token` guard and audit-log signing.
+- **`vox-dashboard::app::surfaces::HopperTab`**:
+    - Add a new three-column dashboard panel (`Inbox`, `Assigned`, `History`) for hopper items.
+    - Implement `ReprioritizeModal` and `AuditTrailDrawer` components.
+    - Integrate WebSocket subscriptions for `HopperItemAdmitted` and `HopperItemOverridden` events.
+- **`vox-dashboard::app::lib::cmdk`**:
+    - Extend the command palette with quick-submit and urgent/defer reprioritize actions for hopper items.
+- **`vox-dashboard::tests`**:
+    - Add `hopper_panel_smoke.rs` with 4 new tests for hopper functionality.
+    - Update `e2e_mesh.rs` to reflect Phase 4 live-state changes, removing pre-P4 fixture tests and updating contract shape tests for the live-state registry and Phase 4 action protocol.
+- **`Cargo.lock`**: Update dependencies.
+- **`vox-dashboard::router`**: Register new hopper API routes.
+- **`vox-dashboard::api::mesh_topology`**: Minor update.
+- **`vox-dashboard::api`**: Register new hopper API module.
+- **`vox-orchestrator`**: Register new hopper module.
+
+--- audit: original='feat(dashboard): hopper panel with InMemoryHopper, DeveloperOverride cap, signed audit trail (P4-T13, Hp-T1, Hp-T4, Hp-T6)' | actual=1457L across 15 files | derived=full ---
