@@ -1,0 +1,8 @@
+docs(roadmap): Update 2026 roadmap status to April 28
+scale: ~7 lines across 1 files [XS]
+
+- Update `last_updated` date in `gui-native-roadmap-status-2026.md` to 2026-04-28.
+- Update `TASK-2.6` entry in `gui-native-roadmap-status-2026.md` to reference commit `e7f3e884` for the "Align `workflow`/`activity`/`actor`" task.
+- Add "Orphaned caller-side refer" to the description of `TASK-2.6` in `gui-native-roadmap-status-2026.md`.
+
+--- audit: original='docs: sync roadmap to 2026-04-28 — post-session status update' | actual=7L across 1 files | derived=full ---
