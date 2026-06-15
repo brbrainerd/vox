@@ -1,0 +1,10 @@
+feat(v1): Add behavioral golden gate and revise release criteria
+scale: ~913 lines across 11 files [L]
+
+- **crates/vox-integration-tests/tests/golden_behavioral_gate.rs**: New behavioral verification harness that runs goldens with `// EXPECT:` comments under `vox run --mode interp` and asserts stdout matches. Includes self-test and coverage census.
+- **crates/vox-cli/src/commands/run.rs**: Fixed `vox run --mode interp` to use `vox_compiler::eval::builtins::vox_value_display` for printing return values, ensuring user-facing output instead of debug representation.
+- **examples/golden/*.vox**: Added `// EXPECT:` blocks to seven golden files (`adt_multi_field.vox`, `closures_hof.vox`, `decimal_math.vox`, `range_and_indexing.vox`, `string_interpolation.vox`, `tuple_destructure.vox`, `while_loop_algorithms.vox`) to enable behavioral testing.
+- **docs/src/architecture/v1-release-criteria.md**: Revised the v1.0 release criteria into tiered categories (Foundation CR-F, Distribution CR-K, GUI CR-U, Product CR-P/A/E/D/L) and adopted an LLM-actionable CR-META format (verify_cmd, artifact_path, if_failing). Marked CR-F1 (Behavioral Golden Gate) as landed.
+- **docs/src/architecture/v1-foundation-criteria-advisory-2026-06-05.md**: Added a new advisory document detailing the rationale for the revised v1.0 release criteria and the introduction of the Foundation tier.
+
+--- audit: original='feat(v1): CR-F1 behavioral golden gate + foundation-tier criteria' | actual=913L across 11 files | derived=full ---
