@@ -1,0 +1,14 @@
+feat(orchestrator): embed circuit-breaker contract and resolve it at runtime
+scale: ~46 lines across 2 files [S]
+
+- `crates/vox-orchestrator/src/circuit_breaker.rs`:
+    - Embed `contracts/orchestration/circuit-breaker.v1.yaml` into the binary.
+    - Add `CircuitBreakerConfig::embedded()` to parse the embedded contract.
+    - Add `CircuitBreakerConfig::resolve()` to load the circuit breaker configuration:
+        - Prioritize an override file specified by `VOX_CIRCUIT_BREAKER_CONTRACT` environment variable.
+        - Fallback to the embedded contract if the environment variable is not set, the path does not exist, or the file cannot be parsed.
+    - Add a test for the embedded contract.
+- `crates/vox-orchestrator/src/orchestrator_policy.rs`:
+    - Update `OrchestratorPolicyConfig::default()` to use `CircuitBreakerConfig::resolve()` instead of loading from a file path, ensuring the circuit breaker is always active.
+
+--- audit: original='fix(orchestrator): embed circuit-breaker contract; resolve() is never inert in production' | actual=46L across 2 files | derived=full ---
