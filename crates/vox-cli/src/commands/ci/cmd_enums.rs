@@ -149,6 +149,9 @@ pub enum CiCmd {
         /// Regenerate the grandfathered-violations baseline file.
         #[arg(long)]
         update_baseline: bool,
+        /// Auto-register stub rows for unregistered env vars and prune orphan rows.
+        #[arg(long)]
+        write: bool,
     },
     /// Every operational VOX_* env knob read in code must be in the config registry.
     #[command(name = "config-registry-parity")]
