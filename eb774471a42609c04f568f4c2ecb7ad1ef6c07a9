@@ -1,0 +1,8 @@
+feat(telemetry): Wire workspace DB into `init_telemetry_sinks` at CLI startup
+scale: ~8 lines across 1 files [XS]
+
+- `crates/vox-cli/src/lib.rs`:
+    - Modified `run_vox_cli_from_parsed` to connect to the workspace journey database using `connect_cli_workspace_voxdb_with_overrides` and pass the resulting `Option<VoxDb>` to `init_telemetry_sinks`.
+    - Updated the documentation for `init_telemetry_sinks` to reflect that the `db` parameter is `Some` when the workspace journey DB is successfully opened at startup, removing the previous "Phase A/B" explanation.
+
+--- audit: original='feat(telemetry/B4): wire workspace DB into init_telemetry_sinks at CLI startup' | actual=8L across 1 files | derived=full ---
