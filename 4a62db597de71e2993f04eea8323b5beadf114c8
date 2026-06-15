@@ -1,0 +1,11 @@
+fix(contracts): repair JSON schema syntax and update baselines
+scale: ~197 lines across 7 files [M]
+
+- fix(contracts/scientia): add missing opening braces to property value objects in `canonical-publication-metadata.v1.schema.json` and `evidence-pack.v1.schema.json`
+- fix(contracts/telemetry): add missing opening braces to property value objects in `scientia-novelty-decision-calibration.v1.schema.json`
+- fix(crates/vox-publisher): correct environment variable name from `OPENREVIEW_ACCESS_TOKEN` to `VOX_OPENREVIEW_ACCESS_TOKEN` in `scholarly_openreview_mock_test.rs`
+- docs(agents): add `crates/vox-gamify/` and `crates/vox-codegen/src/codegen_rust/` to `sql-connection-api-allowlist.txt`
+- docs(agents): remove `crates/vox-secrets/` from `turso-import-allowlist.txt`
+- chore(crates/vox-cli): update `command_catalog_paths_baseline.txt` to reflect new commands
+
+--- audit: original='fix(contracts): repair pre-existing JSON schema syntax corruption and stale baselines' | actual=197L across 7 files | derived=full ---
