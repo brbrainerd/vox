@@ -1,0 +1,7 @@
+test(orchestrator): add tests for `merge_tags` deduplication, ordering, and trimming
+scale: ~16 lines across 1 files [S]
+
+- Add `merge_tags_dedupes_preserving_first_seen_order` test to verify tags are unique and maintain first-seen order.
+- Add `merge_tags_trims_and_skips_empty_and_whitespace` test to verify tags are trimmed and empty/whitespace-only tags are skipped.
+
+--- audit: original='test(orchestrator): prove merge_tags dedup/order/trim invariants (Wave 1)' | actual=16L across 1 files | derived=full ---
