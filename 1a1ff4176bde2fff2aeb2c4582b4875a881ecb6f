@@ -1,0 +1,12 @@
+feat(compiler): introduce semantic primitives and lowering for GUI
+scale: ~656 lines across 5 files [L]
+
+- `crates/vox-compiler/src/web_ir/primitives/mod.rs`: New module defining 10 semantic primitives (stack, row, wrap, text, heading, link, image, button, panel, card, list, list_item, route_outlet). Each primitive maps to a canonical HTML tag, a base Tailwind class list, and declares its accessibility role. It also handles prop overrides like `gap`, `size`, `weight`, `align`, `wrap`, `variant`, `level`, and `surface`.
+- `crates/vox-compiler/src/web_ir/lower.rs`: Modified to intercept JSX elements matching known primitives. It strips DSL-only consumed props, injects resolved Tailwind classes into the `class` attribute, and emits the canonical HTML tag instead of the Vox keyword.
+- `crates/vox-compiler/tests/web_ir_lower_emit_test.rs`: Added 4 integration tests to verify the correct lowering and emission of primitive elements like `<stack>` and `<button>` into their corresponding HTML tags and Tailwind classes.
+- `crates/vox-compiler/src/web_ir/validate_a11y.rs`: Updated `has_non_empty_text_child` to consider `DomNode::Expr` children as satisfying the accessible-name check for buttons/links, as they may produce text content at runtime, fixing a false positive.
+- `crates/vox-compiler/src/web_ir/mod.rs`: Added `primitives` module to the `web_ir` module.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+--- audit: original='feat(compiler): TASK-6.1 -- semantic primitive set (10 primitives, lowering, 22 tests)' | actual=656L across 5 files | derived=full ---
