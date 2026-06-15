@@ -1,0 +1,9 @@
+fix(docs): Correct lint errors and update document status
+scale: ~6 lines across 2 files [S]
+
+- docs/src/architecture/dependency-consolidation-plan-2026.md:
+  - Changed the document status from "draft" to "roadmap".
+  - Reworded a sentence to clarify the use of the `--install` flag, resolving a linter misinterpretation of an inline backtick.
+- docs/src/contributors/local-ci-pre-push.md: Reworded a sentence to clarify the `--act` mode, resolving a linter misinterpretation of an inline backtick.
+
+--- audit: original='fix(docs): doc-pipeline lint errors in CI/Phase-0 docs' | actual=6L across 2 files | derived=full ---
