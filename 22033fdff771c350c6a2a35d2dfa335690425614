@@ -1,0 +1,19 @@
+feat(mens): Add Qwen2.5-Coder ladder and vision-language fail-fast guard
+scale: ~189 lines across 3 files [M]
+
+- `crates/vox-populi/src/mens/tensor/memory_budget.rs`:
+    - Introduced `QWEN25CODER_LADDER` for Qwen2.5-Coder models (0.5B to 32B).
+    - Added `is_qwen25coder()` and `plan_qwen25coder()` for Qwen2.5-Coder specific budget planning.
+    - Defined `QWEN2_RESIDENT_GIB_PER_B` (2.6 GiB/B) for dense Qwen2/Qwen2.5-Coder models, reflecting their lighter footprint compared to Qwen3.5.
+    - Refactored `plan()` to delegate to `plan_with_resident(.., resident_per_b)` to allow for family-specific resident memory calculations.
+    - Renamed `resident_gib()` to `resident_gib_at()` to accept a `resident_per_b` parameter.
+    - Added unit tests for the Qwen2.5-Coder ladder.
+- `crates/vox-ml-cli/src/commands/mens/populi/train_arm.rs`:
+    - Modified model selection logic to prioritize `is_qwen25coder()` for budget planning and model auto-selection when a coder model is hinted.
+    - Updated auto-retreat messaging to guide users when a pinned model might not fit.
+- `crates/vox-hf-layout/src/lib.rs`:
+    - Implemented a fail-fast guard in `HfTransformerLayout::from_value` to detect and reject vision-language/multimodal models.
+    - Checks for "ForConditionalGeneration" in `architectures` or the presence of `vision_config`, `image_token_id`, or `video_token_id`.
+    - Provides an actionable error message for unsupported multimodal models.
+
+--- audit: original='feat(mens): Qwen2.5-Coder ladder + vision-language fail-fast guard' | actual=189L across 3 files | derived=full ---
