@@ -1,0 +1,4 @@
+fix(scripts): gate worktree target/
+scale: ~37 lines across 1 files [S]
+
+--- audit: original='fix(scripts): gate worktree target/ deletion in clean-build-artifacts.vox (WS1-T4)' | actual=37L across 1 files | derived=full ---
