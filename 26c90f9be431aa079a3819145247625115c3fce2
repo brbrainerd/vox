@@ -1,0 +1,26 @@
+feat(compiler): Add ReactiveModuleDecl AST node and parse .vox.ui reactive modules
+scale: ~187 lines across 7 files [M]
+
+- **`crates/vox-compiler/src/ast/decl/ui.rs`**:
+    - Added `ReactiveModuleDecl` struct for `.vox.ui` reactive modules, including `name`, `members` (a `Vec<ReactiveMemberDecl>`), and `span`.
+- **`crates/vox-compiler/src/ast/decl/types.rs`**:
+    - Added `ReactiveModule` variant to the `Decl` enum, wrapping `ReactiveModuleDecl`.
+    - Updated the `Decl::span()` method to handle the new `ReactiveModule` variant.
+- **`crates/vox-compiler/src/parser/descent/mod.rs`**:
+    - Introduced `parse_with_kind(tokens, FileKind)` as the new primary parsing entry point, allowing specification of the file type.
+    - Modified the original `parse(tokens)` function to be a thin wrapper around `parse_with_kind`, defaulting to `FileKind::Source`.
+    - Added a `file_kind` field to the `Parser` struct, defaulting to `FileKind::Source` in `Parser::new()`.
+- **`crates/vox-compiler/src/parser/descent/decl/head.rs`**:
+    - Implemented `parse_reactive_module_decl()` to parse consecutive module-scope reactive members (`state`, `derived`, `effect`, `on mount`, `on cleanup`) into a `ReactiveModuleDecl`.
+    - Modified `parse_decl()` to check `self.file_kind.allows_module_scope_reactive_members()` and dispatch to `parse_reactive_module_decl()` when appropriate.
+- **`crates/vox-compiler/src/parser/descent/tests.rs`**:
+    - Added three new parser tests:
+        - One to confirm that module-scope `state` in a regular `.vox` file results in a parse error.
+        - One to verify that module-scope `state` in a `.vox.ui` file parses correctly into a `ReactiveModuleDecl`.
+        - One to ensure that module-scope `derived` and `effect` alongside `state` in a `.vox.ui` file parse cleanly.
+- **`crates/vox-corpus/src/corpus/extract_vox/part_ast.rs`**:
+    - Updated `decl_kind_and_name` to include the new `Decl::ReactiveModule` variant.
+- **`crates/vox-mens/src/training/core.rs`**:
+    - Updated `extract_constructs` to include the new `Decl::ReactiveModule` variant.
+
+--- audit: original='feat(compiler): Phase D — ReactiveModuleDecl AST + parse_with_kind entry' | actual=187L across 7 files | derived=full ---
