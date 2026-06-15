@@ -1,0 +1,7 @@
+refactor(codegen): Extract AI fixture pattern matches into helper functions
+scale: ~103 lines across 2 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/emit/ai_fixture/llm.rs`: Extracted five inline `match Option<&HirAiFixture>` expressions from `emit_llm_function_body` into new private helper functions: `extract_model_pin_structured_output`, `extract_intent_fixture`, `extract_prompt_fixture`, `extract_subagent_fixture`, and `extract_search_fixture`. These helpers return the inner payload reference for the matched variant or `None`. This refactoring reduced the cyclomatic complexity of `emit_llm_function_body` from 29 to 25.
+- `contracts/reports/arch/cr-a1/2026-05-22.json`: Updated the CR-A1 architectural report to reflect the new complexity of `emit_llm_function_body` (25) and adjusted `functions_scanned` from 209 to 214, and `measured_at` timestamp.
+
+--- audit: original='refactor(codegen): CR-A1 pass 4 — emit_llm_function_body 29 → 25' | actual=103L across 2 files | derived=full ---
