@@ -1,0 +1,8 @@
+fix(codegen-ts, e2e): Improve async detection in MethodCall; gate E2E tests
+scale: ~42 lines across 2 files [S]
+
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`: Replaced the `starts_with("await ")` string heuristic for detecting async calls in `MethodCall` emission with `async_walker::expr_has_async_call` on the HIR receiver node to determine if parentheses are needed.
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`: Explicitly created a new `EmitCtx` for lambda bodies (`EmitCtx::new(ctx.state_names)`) to strip the async context, ensuring lambdas have their own scope.
+- `apps/vox-mental-tracker/tests/e2e/voice_flow.spec.ts`: Wrapped backend-dependent E2E assertions within an `if (process.env.VOX_BACKEND_URL)` block, making these tests conditional on the presence of the `VOX_BACKEND_URL` environment variable.
+
+--- audit: original='fix(codegen-ts): HIR-level async detection in MethodCall; strip lambda ctx; gate E2E' | actual=42L across 2 files | derived=full ---
