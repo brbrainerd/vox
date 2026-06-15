@@ -1,0 +1,11 @@
+fix(code-audit): weak_test — eliminate CI-gating false positives
+scale: ~131 lines across 1 files [M]
+
+- **`crates/vox-code-audit/src/detectors/weak_test.rs`**:
+    - Exempted `#[should_panic]` tests from the no-assertion rule, as the panic itself serves as the assertion.
+    - Exempted tests with `fn` signatures returning `Result` from the no-assertion rule, as `?` is used for failure signaling.
+    - Modified `fn_body_range` to strip string/char literals and line comments before brace-counting, preventing truncation of function bodies due to `}` characters within them. Brace depth is now computed on a code-only view, while assertion text still uses original lines.
+    - Hardened `only_shallow` against `all()` called on empty iterators.
+    - Added documentation for new exemptions and a known limitation regarding multi-line assertion macros causing potential false negatives (recall gap).
+
+--- audit: original='fix(code-audit): weak_test — eliminate CI-gating false positives (review fixes)' | actual=131L across 1 files | derived=full ---
