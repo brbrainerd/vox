@@ -1,0 +1,14 @@
+feat(gui): Live agent event stream for dashboard visibility
+scale: ~344 lines across 9 files [L]
+
+- `crates/vox-gui/ui/src/App.tsx`: Implemented `mapAgentEvent` to transform `AgentEventFrame` into `StreamItem` for the dashboard, displaying live token streaming, task lifecycle, and agent lifecycle events. Added `AGENT_EVENT_LABELS` for event tagging.
+- `crates/vox-orchestrator/tests/orchestrator_daemon_tcp.rs`: Added `orchestrator_daemon_subscribe_events_streams_agent_events` test to verify the daemon's agent event streaming functionality, asserting receipt of `TokenStreamed` frames.
+- `crates/vox-orchestrator/src/orch_daemon/mod.rs`: Added `stream_agent_events` function to push `AgentEvent`s from the orchestrator's event bus as `DispatchPayload::Event` frames, handling `Lagged` and `Closed` broadcast errors.
+- `crates/vox-gui/src/commands/orchestrator.rs`: Introduced `AGENT_EVENTS_EVENT` constant and `spawn_agent_event_stream` function to subscribe to the daemon's agent-event stream and re-emit events as Tauri events.
+- `crates/vox-orchestrator/src/orch_daemon/client.rs`: Added `subscribe_events` method to `OrchDaemonClient` for subscribing to the live agent-event stream, and refactored subscription logic into a shared `subscribe_with_method` function.
+- `crates/vox-gui/ui/src/transport.ts`: Defined `AGENT_EVENTS_EVENT` and `AgentEventFrame` interface, and added `listenAgentEvents` function to subscribe to agent event Tauri events.
+- `crates/vox-foundation/src/protocol.rs`: Added `SUBSCRIBE_EVENTS` constant to `orch_daemon_method` for the new agent event stream.
+- `crates/vox-gui/src/main.rs`: Called `spawn_agent_event_stream` during application setup.
+- `docs/src/architecture/vox-gui-harness-buildout-plan-2026.md`: Updated documentation to reflect the new agent event streaming capability.
+
+--- audit: original='@ feat(gui): B4-core agent event stream (orch.subscribe_events) -> live Dashboard' | actual=344L across 9 files | derived=full ---
