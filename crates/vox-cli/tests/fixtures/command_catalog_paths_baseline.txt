@@ -10,8 +10,12 @@ ars/snippet/export
 ars/snippet/save
 ars/snippet/search
 audit
+audit/arch
+audit/code
+audit/core
 audit/effort
 audit/effort-route
+audit/retirement
 auth
 auth/connect
 auth/init
@@ -143,6 +147,7 @@ ci/repo-guards
 ci/retired-symbol-check
 ci/retirement-audit
 ci/row-serde-lint
+ci/runner-policy-check
 ci/runner-preflight
 ci/runner-scale
 ci/runtime-regress
@@ -200,6 +205,7 @@ db/audit
 db/build-health
 db/build-regressions
 db/capability-list
+db/discovery-watch
 db/exec-history
 db/explain
 db/export
@@ -219,7 +225,10 @@ db/prune
 db/prune-apply
 db/prune-plan
 db/publication-approve
+db/publication-archive-code
+db/publication-archive-run
 db/publication-arxiv-handoff-record
+db/publication-autofill
 db/publication-decision-explain
 db/publication-discovery-explain
 db/publication-discovery-publish-rss
@@ -383,6 +392,7 @@ policy/status
 populi
 remove
 repair
+repl
 repo
 repo/catalog
 repo/catalog/list
@@ -412,6 +422,7 @@ scientia/claims
 scientia/cost
 scientia/dashboard
 scientia/diagnose
+scientia/discovery-watch
 scientia/evidence-assist
 scientia/feed-source-add
 scientia/feed-source-list
@@ -420,8 +431,11 @@ scientia/ingest-tick
 scientia/mirror-search-corpus
 scientia/novelty-evidence-bundle-validate
 scientia/publication-approve
+scientia/publication-archive-code
+scientia/publication-archive-run
 scientia/publication-arxiv-bundle
 scientia/publication-arxiv-handoff-record
+scientia/publication-autofill
 scientia/publication-claim-review
 scientia/publication-critic-approve
 scientia/publication-critic-gate-check
