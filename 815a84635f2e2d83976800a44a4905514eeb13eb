@@ -1,0 +1,19 @@
+feat(audit): add CR-E1, CR-A1, CR-A4, CR-D3, CR-A2 measurement binaries
+scale: ~2214 lines across 24 files [XL]
+
+- **crates/vox-audit/src/bin/cr-a2.rs**: New binary for schema-parity sweep, checking `schema_version` in YAML/JSON files under `contracts/`. It enforces 100% parity for schema versioning, failing CI for new unversioned contracts.
+- **crates/vox-audit/src/bin/cr-a1.rs**: New binary for cyclomatic-complexity check, scanning Rust files in primary lowering paths (`crates/vox-compiler/src/hir/lower`, `crates/vox-compiler/src/typeck/checker`, `crates/vox-codegen/src/codegen_rust/emit`) and reporting functions exceeding a complexity budget of 15.
+- **crates/vox-audit/src/bin/cr-a4.rs**: New binary for lifecycle metadata parity sweep, verifying that orchestration contracts under `contracts/orchestration/` declare `lifecycle` and `migration_window` metadata.
+- **crates/vox-audit/src/bin/cr-d3.rs**: New binary for CLI subcommand example-coverage sweep, identifying `vox` subcommands without corresponding `.vox` example files in `examples/` or `scripts/`.
+- **crates/vox-audit/src/bin/cr-e1.rs**: New binary for cold-start benchmark, measuring p50/p95/p99 latency of the compiler pipeline (lex+parse+lower+typeck) on a "hello world" fixture, with a p99 budget of 50ms.
+- **contracts/reports/arch/cr-a1/**: Added `2026-05-21.json` and `2026-05-22.json` reports for CR-A1 cyclomatic complexity, detailing functions over budget.
+- **contracts/reports/arch/cr-d3/**: Added `2026-05-21.json` report for CR-D3 CLI example coverage.
+- **contracts/reports/arch/cr-a2/**: Added `2026-05-21.json` and `2026-05-22.json` reports for CR-A2 schema parity.
+- **contracts/reports/arch/cr-a4/**: Added `2026-05-21.json` report for CR-A4 lifecycle metadata.
+- **contracts/reports/perf/cr-e1/**: Added `2026-05-21.json` report for CR-E1 cold-start benchmark.
+- **contracts/orchestration/**: Added `lifecycle: stable` annotations to `circuit-breaker.v1.yaml`, `feature-flags.v1.yaml`, `model-pins.v1.yaml`, `plan-mode-trigger.v1.yaml`, `risk-confidence-matrix.v1.yaml`, `socrates-fusion.v1.yaml`, `tenant-budgets.v1.yaml`, `providers.v1.yaml`, and `model-routing.v1.yaml`.
+- **contracts/db/retention-policy.yaml**: Added `schema_version: 1`.
+- **contracts/mens/golden_decl_expectations.yaml**: Added `schema_version: 1`.
+- **contracts/scientia/distribution.default.yaml**: Added `schema_version: 1`.
+
+--- audit: original='feat(audit): CR-E1/A1/A4/D3/A2 measurement binaries + lifecycle/schema annotations' | actual=2214L across 24 files | derived=full ---
