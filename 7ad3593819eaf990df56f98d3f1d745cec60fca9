@@ -1,0 +1,11 @@
+docs(scientia): Detail Phase 4 plan for `vox-nanopub` and `vox-ro-crate` crates
+scale: ~787 lines across 1 files [L]
+
+- New file `docs/superpowers/plans/2026-05-09-scientia-phase-4-nanopub-rocrate.md` added, outlining the plan for creating two new L2 crates:
+    - `vox-nanopub`: A nanopublication builder for TriG emission, Ed25519 signing, and Trusty URI generation.
+    - `vox-ro-crate`: An RO-Crate 1.2 JSON-LD metadata builder with CFF/CodeMeta/TOP compliance.
+- The plan specifies architecture (pure domain logic, no async/network calls), tech stack (serde, serde_json, sha2, hex, thiserror, vox-crypto, workspace-hack), and strategic reference.
+- It includes detailed tasks for scaffolding both crates, defining their `Cargo.toml` dependencies and initial module structures.
+- The document also outlines tasks for implementing core functionalities like nanopublication structure, signing, and RO-Crate JSON-LD generation.
+
+--- audit: original='docs(scientia): Phase 4 plan — vox-nanopub TriG signing + vox-ro-crate JSON-LD builder' | actual=787L across 1 files | derived=full ---
