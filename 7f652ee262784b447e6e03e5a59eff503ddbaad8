@@ -1,0 +1,7 @@
+feat(secrets): add 6 scholarly SecretId variants and specs
+scale: ~78 lines across 2 files [M]
+
+- `crates/vox-secrets/src/spec/registry/scholarly.rs`: Added `SecretSpec` entries for `VoxOpenAlexEmail`, `VoxSemanticScholarApiKey`, `VoxOsfApiToken`, `VoxArxivAccessToken`, `VoxNanopubSigningKeyHex`, and `VoxSwhidApiToken` to the `SPECS_SCHOLARLY` registry. Each spec includes `id`, `canonical_env`, `policy`, `remediation`, and `scope_description`.
+- `crates/vox-secrets/src/spec/ids.rs`: Added `VoxOpenAlexEmail`, `VoxSemanticScholarApiKey`, `VoxOsfApiToken`, `VoxArxivAccessToken`, `VoxNanopubSigningKeyHex`, and `VoxSwhidApiToken` to the `SecretId` enum and updated the `is_secret_value` method to include these new variants.
+
+--- audit: original='feat(scientia): add 6 scholarly SecretId variants for Phase 0e' | actual=78L across 2 files | derived=full ---
