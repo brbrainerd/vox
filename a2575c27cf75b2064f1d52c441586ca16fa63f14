@@ -1,0 +1,9 @@
+fix(coverage-graph): improve robustness and clarity of coverage scripts
+scale: ~15 lines across 4 files [S]
+
+- `scripts/coverage-graph/candidate_gaps.py`: Renamed loop variable `l` to `link` to improve readability and avoid single-letter variable ambiguity (E741).
+- `scripts/coverage-graph/build_index.py`: Enhanced `crate_of()` function to defensively handle malformed paths (e.g., "crates/" without a crate name) by returning "?" instead of raising an `IndexError`.
+- `scripts/coverage-graph/emit_baseline.py`: Modified the `ROW` regex to remove two unused capture groups, simplifying the pattern as only crate, Symbols, and Proven are used.
+- `docs/src/architecture/semantic-coverage-remediation-plan-2026-06-13.md`: Updated the document's frontmatter `status` from "current" to "roadmap" to reflect its unshipped plan status.
+
+--- audit: original='fix(coverage-graph): address CodeRabbit on #290 — regex/var/parse/status (scoped)' | actual=15L across 4 files | derived=full ---
