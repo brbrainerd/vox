@@ -1,0 +1,11 @@
+fix(mens): production-readiness for QLoRA pipeline and A2A gate receipt
+scale: ~8957 lines across 38 files [XL]
+
+- `crates/vox-mens`: Refactored eval gate logic, including manifest/metrics resolution, anti_stub gate source, and added `gate_receipt.json` for A2A consumption. Updated `dei_daemon` constants and `status.rs` to detect Candle QLoRA artifacts.
+- `scripts/mens`: Reworked `full-pipeline.vox` to a 5-step process, added post-training eval gate, refreshed `eval_results.json`, and updated `run_4080_cycles.vox` to use post-train policy for Cycle 1.
+- `mens/config`: Added `eval-gates-post-train.yaml` for post-training and Cycle 1 gates, updated `eval-gates.yaml` and `mix.yaml` for strictness and path corrections.
+- `docs/src`: Documented the 5-step pipeline, environment variables, `gate_receipt.json`, and updated corpus eval commands to use `validated_mixed.jsonl`. Regenerated `feed.xml` multiple times.
+- `.gitignore`: Added numerous pipeline run artifacts to prevent accidental commits, including `eval_results.json`, `gate_receipt.json`, and `mix_report` files. Untracked existing committed artifacts.
+- `mens/data`: Added a `heldout_bench` scaffold for `eval-local`.
+
+--- audit: original='fix(mens): production-readiness for QLoRA pipeline + A2A gate receipt (#55)' | actual=8957L across 38 files | derived=full ---
