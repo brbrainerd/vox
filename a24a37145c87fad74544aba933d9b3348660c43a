@@ -1,0 +1,8 @@
+fix(codegen-rust): Improve Result type emission and error capture in harness
+scale: ~52 lines across 3 files [M]
+
+- **`crates/vox-codegen/src/codegen_rust/emit/types.rs`**: Modified `emit_type` to correctly emit `Result<T, String>` for Vox `Result[T]` types, addressing Rust compiler error E0107. Previously, it emitted `Result<T>` with a single type argument.
+- **`crates/vox-integration-tests/tests/golden_arm_parity_test.rs`**: Updated `build_and_run_script` to capture and concatenate *all* Rust compiler error lines (`error[...]` or `error:`) from `stderr` when a build fails, instead of just the first one. This provides a full error chain for diagnosis.
+- **`contracts/eval/arm-parity-allowlist-script.txt`**: Updated the allowlist to reflect the full error chains captured by the improved test harness. This involved adding detailed error descriptions for each golden, revealing deeper issues requiring built-in method codegen families (e.g., `closures_hof`, `json_as_typed`, `string_interpolation`) and identifying near-green cases with fewer errors.
+
+--- audit: original='fix(codegen-rust): Result[T]->Result<T,E>; harness full-error capture + diagnosed allowlist' | actual=52L across 3 files | derived=full ---
