@@ -1,0 +1,14 @@
+feat(vuv): add forbidden corpus for layer and style validation errors
+scale: ~136 lines across 9 files [M]
+
+- crates/vox-compiler/tests/forbidden_corpus_test.rs: Add new test suite to verify that files in `examples/forbidden/` fail compilation with specific diagnostic codes. This involves lexing, parsing, typechecking, lowering to Web IR, and validating the Web IR.
+- crates/vox-codegen/src/web_ir/lower.rs: For "toast", "drawer", and "modal" primitives, stamp the default tier as `data-vox-layer` on the generated `<div>` to preserve tier identity for validation and portal emission.
+- crates/vox-compiler/src/typeck/mod.rs: Extend the reserved-tier guard (GA-26) to also check `@layer` declarations on components, not just endpoint functions.
+- examples/forbidden/tier_inversion_modal_in_chrome.vox: Add new example to test `vox/layer/tier-inversion` error.
+- examples/forbidden/contrast_gray_on_white.vox: Add new example to test `web_ir_validate.a11y.insufficient_contrast` error.
+- examples/forbidden/modal_inside_toast.vox: Add new example to test `vox/layer/leaf-surface` error.
+- examples/forbidden/system_overlay_reserved.vox: Add new example to test `vox/layer/reserved-tier` error.
+- examples/forbidden/raw_z_index.vox: Add new example to test `vox/layer/raw-z-index` error.
+- examples/forbidden/unknown_color.vox: Add new example to test `web_ir_validate.style.unknown_color` error.
+
+--- audit: original='test(vuv): forbidden corpus - every impossible bug fails with its exact code' | actual=136L across 9 files | derived=full ---
