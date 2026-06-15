@@ -1,0 +1,6 @@
+docs(lychee): ignore LinkedIn URLs to bypass rate limiting
+scale: ~1 lines across 1 files [XS]
+
+- `.lycheeignore`: Added a new entry to ignore all URLs matching `.*linkedin.com.*` to prevent 429 (Too Many Requests) errors during link checking.
+
+--- audit: original='fix(docs): bypass linkedin rate limit 429 in lychee links checker' | actual=1L across 1 files | derived=full ---
