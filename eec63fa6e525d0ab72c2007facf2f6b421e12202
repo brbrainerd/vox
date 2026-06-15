@@ -1,0 +1,13 @@
+feat(telemetry): Implement org-policy hard-off and build failure telemetry
+scale: ~164 lines across 4 files [M]
+
+- `vox-telemetry`:
+  - Added `org_policy_disabled()` function to read and parse `enabled = false/0/off` from `/etc/vox/telemetry-policy.toml` (Linux/macOS) or `%ProgramData%\vox\telemetry-policy.toml` (Windows).
+  - Integrated `org_policy_disabled()` into `TelemetryConfig::from_env()` and `is_master_enabled()` as the highest-priority telemetry disable mechanism.
+  - Updated documentation for telemetry resolution order in `config.rs`.
+  - Exported `org_policy_disabled` from `lib.rs`.
+- `vox-cli`:
+  - `ci build-timings`: Now emits a `BuildSummaryEvent` with `outcome = "failure"` when `cargo build` fails, ensuring complete build telemetry.
+  - `telemetry doctor`: Added display of `org_policy_disabled` status.
+
+--- audit: original='feat(telemetry): Phase D — org-policy hard-off + build failure telemetry' | actual=164L across 4 files | derived=full ---
