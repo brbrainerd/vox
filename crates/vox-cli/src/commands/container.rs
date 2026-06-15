@@ -36,7 +36,7 @@ pub async fn run(action: ContainerAction) -> Result<()> {
 
             println!("✓ Image built successfully.");
         }
-        ContainerAction::Run { image, port, runtime } => {
+        ContainerAction::Run { image, port, runtime, cpus, memory, pids_limit } => {
             let image = image.unwrap_or_else(|| "vox-app:latest".to_string());
             println!("🚀 Running container image: {}", image);
 
@@ -53,6 +53,9 @@ pub async fn run(action: ContainerAction) -> Result<()> {
                 detach: false,
                 name: None,
                 rm: true,
+                cpus,
+                memory,
+                pids_limit,
                 ..Default::default()
             };
 
@@ -92,5 +95,14 @@ pub enum ContainerAction {
         /// Container runtime: auto, docker, podman (default: auto)
         #[arg(long, default_value = "auto")]
         runtime: Option<String>,
+        /// CPU limit (e.g. "1.5"); passed to the runtime as --cpus
+        #[arg(long)]
+        cpus: Option<String>,
+        /// Memory limit (e.g. "512m", "2g"); passed to the runtime as --memory
+        #[arg(long)]
+        memory: Option<String>,
+        /// Maximum number of process IDs; passed to the runtime as --pids-limit
+        #[arg(long)]
+        pids_limit: Option<u32>,
     },
 }
