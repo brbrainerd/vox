@@ -1,0 +1,9 @@
+fix(workflow-runtime): scheduler restart honors persisted next_due_at_ms
+scale: ~128 lines across 4 files [M]
+
+- `crates/vox-workflow-runtime/src/scheduled/runner.rs`: Modified the scheduler's restart-seeding logic to derive `Instant` deadlines from the persisted `next_due_at_ms` value in the database, rather than `now + interval`. This ensures that a crash during a scheduled interval results in the remainder of the interval being honored. The derived duration is clamped between 0 and the function's configured interval to handle clock skew or corrupted `next_due_at_ms` values.
+- `crates/vox-db/src/facade/scheduled.rs`: Added a new facade method `VoxDb::scheduled_runs_next_due_at_ms(name)` to retrieve the `next_due_at_ms` for a specific scheduled function from the `scheduled_runs` table.
+- `crates/vox-workflow-runtime/tests/scheduled_basic.rs`: Added a new integration test `scheduler_restart_preserves_partial_interval_wait` to verify that the scheduler correctly resumes a partial interval after a simulated restart, by setting `next_due_at_ms` to a future time and asserting the callback fires after the remaining duration.
+- `docs/src/adr/041-durable-functions-completion-2026.md`: Updated ADR-041 §6(a) to mark the "Scheduler restart deadline derivation" issue as landed, describing the fix and referencing the new integration test.
+
+--- audit: original='fix(workflow-runtime): scheduler restart honors persisted next_due_at_ms' | actual=128L across 4 files | derived=full ---
