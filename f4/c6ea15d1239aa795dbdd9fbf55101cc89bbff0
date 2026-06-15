@@ -1,0 +1,9 @@
+test(codegen): Add 6 new behavioral assertions for vox-codegen symbols
+scale: ~109 lines across 4 files [M]
+
+- `crates/vox-codegen/src/assets/mod.rs`: Add tests for `AssetManifest::from_bundle_fragment` and `validate_preflight` to ensure correct handling of missing splash assets and successful validation when all assets are present.
+- `crates/vox-codegen/src/web_ir/mod.rs`: Add tests for `ZTier::to_str` to verify exact string representations and for `SourceSpanTable::get` to confirm correct span retrieval and out-of-bounds handling.
+- `crates/vox-codegen/src/codegen_rust/emit/usage.rs`: Add a test for `UsageTracker::is_last_use` to verify its behavior with recorded and unrecorded spans.
+- `crates/vox-codegen/src/web_ir/primitives/mod.rs`: Add a test for `PrimitiveEmission::class_string` to ensure correct joining order and separator usage.
+
+--- audit: original='test(codegen): Phase-3 wave 1 — prove 6 vox-codegen frontier symbols' | actual=109L across 4 files | derived=full ---
