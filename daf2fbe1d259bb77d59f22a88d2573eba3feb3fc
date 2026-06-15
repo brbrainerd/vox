@@ -1,0 +1,10 @@
+chore(deps): bump actions/upload-artifact from v4 to v7
+scale: ~16 lines across 5 files [S]
+
+- .github/workflows/cr-l8-corpus-feedback.yml: Updated `actions/upload-artifact` to v7 for "Upload CR-L8 artifacts", "Upload stdlib-coverage artifact", and "Upload scripts-check artifact" steps.
+- .github/workflows/cr-l-gates.yml: Updated `actions/upload-artifact` to v7 for "Upload canonical snapshot" and "Upload per-gate reports" steps.
+- .github/workflows/ci.yml: Updated `actions/upload-artifact` to v7 for "Upload vox-cli binary" step.
+- .github/workflows/mutation-pr.yml: Updated `actions/upload-artifact` to v7 for "Upload mutants report" step.
+- .github/workflows/vox-mental-tracker.yml: Updated `actions/upload-artifact` to v7 for "Upload route screenshots" step.
+
+--- audit: original='chore(deps): bump actions/upload-artifact from 4 to 7 (#247)' | actual=16L across 5 files | derived=full ---
