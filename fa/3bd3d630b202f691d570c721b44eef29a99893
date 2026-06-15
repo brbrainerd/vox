@@ -1,0 +1,8 @@
+feat(golden): Add tautological-@test gate and fix 2 fake assertions
+scale: ~253 lines across 3 files [L]
+
+- Add `golden_test_quality_gate.rs` to detect tautological `assert(true)` and `assert(a is a)` patterns in golden `@test` functions. This gate lowers golden files to HIR and inspects serialized JSON for these patterns.
+- In `examples/golden/regex_free_functions.vox`, refactor `test_replace_and_captures` to replace `assert(true)` in the `None` branch of `extract_version` with a fallback assignment and assertion (`assert(fallback is "none")`).
+- In `examples/golden/inventory_rosetta_core.vox`, refactor `test_merge_stacks` to replace `assert(true)` in the `WrongKind` error handler with specific assertions on the error payload (`assert(l is "Potion")` and `assert(r is "Sword")`).
+
+--- audit: original='test(golden): A3 tautological-@test gate + fix 2 fake assertions (#220)' | actual=253L across 3 files | derived=full ---
