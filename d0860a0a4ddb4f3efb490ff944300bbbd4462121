@@ -1,0 +1,14 @@
+perf(budgets): tighten test-tier budgets after arch-check and coverage speedups
+scale: ~166 lines across 9 files [M]
+
+- `contracts/budgets/test-tier-budgets.v1.yaml`: Updated `generated_at` to "2026-05-28" and significantly tightened `fast`, `complete`, `full`, and `full_cov` tier budgets. The `fast` tier `measured_ms` was reduced from 215000 to 60000, `warn_ms` from 258000 to 72000, and `fail_ms` from 323000 to 90000. The `complete` tier `measured_ms` was reduced from 325000 to 140000. The `full` and `full_cov` tiers `measured_ms` were reduced from 495000 and 590000 respectively to 170000. Notes were updated to reflect the arch-check speedup.
+- `crates/vox-plugin-mens-candle-cuda/src/device.rs`: Added a new `mem_pool` module with `trim_default_pool` function to wrap CUDA driver API calls for releasing unused VRAM from the device's async memory pool. This includes `cuCtxGetDevice`, `cuDeviceGetMemPool`, and `cuMemPoolTrimTo` bindings.
+- `crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/training_loop/mod.rs`: Integrated periodic CUDA memory-pool trimming into the training loop, calling `crate::device::mem_pool::trim_default_pool(0)` every `TRIM_EVERY_OPT_STEPS` (16) optimizer steps when the `cuda` feature is enabled.
+- `crates/vox-plugin-mens-candle-cuda/src/manifest.rs`: Added a `launch_argv: Vec<String>` field to `TrainingManifest` and `InitialManifestRun` structs to store the process arguments captured at training start, defaulting to an empty vector for backward compatibility.
+- `crates/vox-populi/src/mens/tensor/manifest/mod.rs`: Added a `launch_argv: Vec<String>` field to `TrainingManifest` and `InitialManifestRun` structs, mirroring the changes in `vox-plugin-mens-candle-cuda/src/manifest.rs`.
+- `crates/vox-plugin-mens-candle-cuda/src/config.rs`: Added a `launch_argv: Vec<String>` field to `LoraTrainingConfig` to store process arguments, defaulting to an empty vector.
+- `crates/vox-populi/src/mens/tensor/training_config.rs`: Added a `launch_argv: Vec<String>` field to `LoraTrainingConfig` to store process arguments, defaulting to an empty vector.
+- `crates/vox-ml-cli/src/commands/schola/train/gpu.rs`: Populated the `launch_argv` field in `LoraTrainingConfig` with `std::env::args().collect()` when initiating GPU training.
+- `crates/vox-populi/src/mens/tensor/manifest/part_build.rs`: Updated `initial_training_manifest` to include the `launch_argv` from the `InitialManifestRun`.
+
+--- audit: original='chore(budgets): tighten test-tier-budgets after arch-check + coverage speedups' | actual=166L across 9 files | derived=full ---
