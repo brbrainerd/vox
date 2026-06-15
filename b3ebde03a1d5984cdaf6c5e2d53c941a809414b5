@@ -1,0 +1,6 @@
+ci(links): whitelist pmc.ncbi.nlm.nih.gov in .lycheeignore to bypass rate limits
+scale: ~4 lines across 1 files [XS]
+
+- .lycheeignore: Added `.*pmc.ncbi.nlm.nih.gov/.*` to ignore links from this domain, which return HTTP 529 (rate-limit) to GitHub Actions runners. This prevents `lychee` link checks from failing on valid articles.
+
+--- audit: original='ci(links): whitelist PMC/NCBI (HTTP 529 rate-limit) in .lycheeignore' | actual=4L across 1 files | derived=full ---
