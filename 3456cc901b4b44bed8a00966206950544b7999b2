@@ -1,0 +1,14 @@
+feat(workspace): consolidate crates and update documentation references
+scale: ~3000 lines across 185 files [XL]
+
+- Deleted 11 orphaned crates: `vox-class-routing`, `vox-critic-gate`, `vox-findings-site`, `vox-manuscript-latex`, `vox-manuscript-scaffold`, `vox-primitives`, `vox-protocol`, `vox-replay-runner`, `vox-scientia-dashboard`, `vox-scientia-producers`, `vox-tracing-init`.
+- Consolidated modules from deleted crates into `vox-scientia` (e.g., `class_routing`, `critic_gate`, `dashboard`, `findings_site`, `manuscript`, `producers`, `replay`) and a new `vox-foundation` crate (e.g., `primitives`, `protocol`, `tracing-init`).
+- Updated `Cargo.toml` workspace membership, `Cargo.lock`, and `hakari.toml` to reflect crate consolidation.
+- Extended `vox-arch-check` with new rules for forbidden dependencies, forbidden code patterns, LoC delta regression, and three-way parity checks between `layers.toml`, `where-things-live.md`, and disk.
+- Updated `vox-cli` to use the new `vox-scientia` module paths for `replay`, `manuscript`, and `critic_gate` functionalities.
+- Removed `crates/_frozen.md` as it is superseded by `layers.toml`.
+- Renamed crate references in over 55 documentation files across `reference/`, `explanation/`, `how-to/`, `ci/`, `architecture/`, `agents/`, and `superpowers/plans/` to reflect the 2026-05-08 rename series.
+- Updated `crates/vox-integration-tests/ts-noemit-scratch/pnpm-lock.yaml` and `package.json` to include `@tauri-apps/api` and regenerate the lockfile after `@types/react` bump.
+- Regenerated `docs/src/reference/cli.md` to sync CLI surface documentation after new subcommands were introduced.
+
+--- audit: original='docs: fix stale crate names from 2026-05-08 rename series' | actual=3000L across 185 files | derived=full ---
