@@ -1,0 +1,15 @@
+feat(tracker): implement offline-first service worker with mutation queue
+scale: ~59 lines across 3 files [M]
+
+- `apps/vox-mental-tracker/public/sw.js`:
+  - Replaced basic service worker with Workbox implementation.
+  - Added `workbox-precaching` for `self.__WB_MANIFEST`.
+  - Implemented `workbox-background-sync` `Queue` named 'vox-mutations' with a 7-day retention for failed requests.
+  - Registered a route for `/api/.*`:
+    - GET requests use `NetworkFirst` strategy with cache 'api-get'.
+    - POST/PUT/DELETE requests attempt network first; if failed, they are added to `mutationQueue` and return a 202 response.
+  - Registered a `CacheFirst` route for `/(static|assets)/.*` with cache 'static-v1'.
+- `apps/vox-mental-tracker/src/sync.ts`: Added new file to register the service worker.
+- `apps/vox-mental-tracker/src/main.tsx`: Called `registerServiceWorker` to activate the service worker.
+
+--- audit: original='feat(tracker): offline-first SW with mutation queue' | actual=59L across 3 files | derived=full ---
