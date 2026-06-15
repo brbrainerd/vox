@@ -1,0 +1,11 @@
+feat(gui): add argument value kind and options to manifest and catalog types
+scale: ~10 lines across 2 files [S]
+
+- `crates/vox-gui/ui/src/types/actionManifest.ts`:
+    - Add `ArgValueKind` type definition (`'flag' | 'value' | 'count'`).
+    - Add `value_kind: ArgValueKind`, `possible_values?: string[]`, and `default_values?: string[]` to `ActionArgument` interface.
+- `crates/vox-gui/ui/src/types/catalog.ts`:
+    - Add `ArgValueKind` type definition (`'flag' | 'value' | 'count'`).
+    - Add `value_kind: ArgValueKind`, `possible_values?: string[]`, and `default_values?: string[]` to `CommandCatalogArgument` interface.
+
+--- audit: original='feat(gui): mirror typed argument fields in TypeScript catalog + manifest types' | actual=10L across 2 files | derived=full ---
