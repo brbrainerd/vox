@@ -1,0 +1,8 @@
+feat(orchestrator): add `orch.list_tasks` and `orch.edit_task` daemon RPCs
+scale: ~199 lines across 3 files [M]
+
+- `crates/vox-orchestrator/src/orch_daemon/mod.rs`: Implemented the `orch.list_tasks` RPC to return a JSON array of all queued and in-progress tasks across agents, including their ID, description, priority, status, lifecycle label, assigned agent ID, session ID, estimated complexity, dependencies, and a list of files marked for writing. Also implemented the `orch.edit_task` RPC to allow rewriting the description of a queued task.
+- `crates/vox-orchestrator/src/orchestrator/accessors.rs`: Added `Orchestrator::edit_task_description` function to update the description of a task, with validation to ensure the task is queued and the new description is not empty.
+- `crates/vox-foundation/src/protocol.rs`: Defined `orch_daemon_method::LIST_TASKS` and `orch_daemon_method::EDIT_TASK` constants for the new RPC methods, including their expected parameters and return types.
+
+--- audit: original='feat(orchestrator): orch.list_tasks + orch.edit_task daemon RPCs' | actual=199L across 3 files | derived=full ---
