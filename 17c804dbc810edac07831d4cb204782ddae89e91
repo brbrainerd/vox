@@ -1,0 +1,15 @@
+feat(orchestrator,oratio,db,docs): Implement core orchestrator, ASR backends, and architecture research
+scale: ~7907 lines across 182 files [XL]
+
+- `docs/src/architecture`: Added extensive new documentation across 40+ files covering ASR speech-to-code, Claude Ultraplan, grammar-constrained decoding, Qwen36 integration, and various research topics including agent handoff, continual learning, GRPO, and hallucination. This includes a migration plan for Vox-0.4.
+- `crates/vox-db`: Introduced `oratio_eval.rs` for ASR evaluation persistence (WER, CER), including run and sample record management. Also added `pool.rs` for database connection pooling and updated `store/ops_planning.rs` and `codex_legacy.rs`.
+- `crates/vox-oratio`: Implemented SRT subtitle formatting (`subtitle/srt.rs`), energy-based VAD (`vad/energy_vad.rs`), and new ASR backends (`candle_whisper.rs`, `sherpa_onnx.rs`). Refined `traits.rs`, `acoustic_preprocess.rs`, and `refine/llm_correction_prompt.rs`.
+- `crates/vox-orchestrator`: Updated model specifications (`models/spec.rs`) to include Anthropic provider type and premium alias mappings. Refactored model registry (`models/registry.rs`) to simplify refresh logic and integrate key availability checks. Added new routing table and key guard models.
+- `crates/vox-cli`: Extended `oratio_cmd.rs` with new subcommands for ASR evaluation (`Eval`, `EvalHistory`) and SRT subtitle generation (`Subtitle`).
+- `crates/vox-mcp`: Updated LLM bridge providers (`anthropic.rs`, `provider_adapter.rs`) and removed `oratio_tools.rs`.
+- `crates/vox-populi`: Removed agent logging from `mens/tensor/candle_qlora_train/training_loop.rs` and updated `candle_model_qwen.rs`.
+- `contracts/capability`: Modified `capability-registry.yaml` and `model-manifest.generated.json`.
+- `scripts`: Added `run_qwen35_qlora_real_4080.ps1` and `scratch_split_4.ps1`, while removing an older Qwen script.
+- `Cargo.lock`: Updated dependencies.
+
+--- audit: original='feat: implement core orchestrator, database operations, oratio backends, and comprehensive architecture research documentation' | actual=7907L across 182 files | derived=full ---
