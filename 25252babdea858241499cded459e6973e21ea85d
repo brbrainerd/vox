@@ -1,0 +1,19 @@
+feat(plugin-ssot): Add manifest↔impl extension-point parity check
+scale: ~117 lines across 4 files [M]
+
+- **`crates/vox-cli/src/commands/ci/plugin_surface.rs`**:
+    - Added `check_impl_parity` function to enforce that a plugin's `provides.extension-points` in its `Plugin.toml` exactly matches the `as_<module>` extension accessors it actually overrides in its `impl VoxPlugin`.
+    - This check identifies cases where a manifest advertises capabilities not surfaced by the binary or vice-versa.
+    - The check iterates through `Plugin.toml` files, parses them, and then scans the corresponding plugin's `src` directory for `fn as_<module>` implementations.
+    - It maps these accessors to extension-point names using the `Surface` data and compares them against the `extension-points` declared in the manifest.
+- **`crates/vox-plugin-runtime-container/Plugin.toml`**:
+    - Removed "SkillRuntime" from `extension-points` as the plugin does not yet override `as_skill_runtime`.
+    - Added a `TODO` comment explaining the temporary removal and the future intent to re-add it.
+- **`crates/vox-plugin-runtime-wasm/Plugin.toml`**:
+    - Removed "SkillRuntime" from `extension-points` as the plugin does not yet override `as_skill_runtime`.
+    - Added a `TODO` comment explaining the temporary removal and the future intent to re-add it.
+- **`crates/vox-plugin-webhook/Plugin.toml`**:
+    - Removed "HttpListener" from `extension-points` as the plugin implements `WebhookEventSink` but not the `HttpListener` extension trait via `as_http_listener`.
+    - Added a `TODO` comment explaining the temporary removal and the future intent to re-add it.
+
+--- audit: original='feat(plugin-ssot): PS-3 — manifest↔impl extension-point parity (caught 3 real bugs) (#205)' | actual=117L across 4 files | derived=full ---
