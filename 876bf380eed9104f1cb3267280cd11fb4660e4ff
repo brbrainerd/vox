@@ -1,0 +1,8 @@
+feat(repo): add repository cleanup ledger and update gitignore
+scale: ~10821 lines across 3 files [XL]
+
+- docs/src/architecture: Add `repo-cleanup-ledger-2026.md` detailing planned repository cleanup actions, including orphan artifact removal, untracking runtime/local state, and surface directory reorganization.
+- .gitignore: Add new entries to ignore runtime memory stubs (`/.vox/memory/`), crate-local `.vox/` state (`crates/*/.vox/`), quarantined Cargo target directories (`crates/*/target.stale-*/`), and quarantined `mens` scratch directories (`/mens/.stale/`). Also adds `/docs/lychee_report.json` and `**/check_errors.txt` to ignore.
+- docs/agents/doc-inventory.json: Regenerate `doc-inventory.json` to include the new `repo-cleanup-ledger-2026.md` and other updated documentation files, reflecting changes in line counts for `crates/vox-db/src/lib.rs` and `crates/vox-orchestrator/src/snapshot.rs`, and adding entries for new markdown files.
+
+--- audit: original='chore(repo): cleanup ledger + ignore hardening for runtime memory & stale-target quarantine' | actual=10821L across 3 files | derived=full ---
