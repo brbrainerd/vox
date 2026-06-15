@@ -1,0 +1,18 @@
+feat(mens): end-to-end QLoRA training and serving pipeline for vox_mens_v1
+scale: ~659 lines across 13 files [L]
+
+- `crates/vox-ml-cli/src/commands/mens/eval_local.rs`: Wired local evaluation to use the `mens-candle-cuda` plugin for inference, replacing a stub. The plugin now loads the model once and dispatches generations.
+- `crates/vox-plugin-mens-candle-cuda/src/model.rs`: Added support for Qwen2/Qwen2.5 q/k/v projection biases in `Qwen2Attention` and applied them during forward pass. Corrected `RmsNorm` to use `forward_diff` for differentiable path, avoiding the fused `apply_op2_no_bwd` kernel that dropped gradients.
+- `crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs`: Implemented CPU-quantization build by loading base weights on CPU to prevent F32 weights from landing on GPU during construction, reducing VRAM peak. Made resident BF16 weight cache the default for training to prevent OOM due to CUDA pool fragmentation.
+- `crates/vox-ml-cli/src/commands/ai/serve/worker.rs`: Wired the inference worker to use the `mens-candle-cuda` plugin's `MlBackend::run_inference` for serving, replacing a Burn stub.
+- `crates/vox-ml-cli/src/commands/mens/populi/dispatch.rs`: Updated `vox mens serve` to use the built-in Axum server (when `execution-api` feature is enabled) instead of delegating to `vox-schola`.
+- `crates/vox-populi/src/mens/tensor/memory_budget.rs`: Recalibrated VRAM budget for activations (`ACT_GIB_PER_KTOK_PER_SQRTB`) to 9.5 based on measured real full-graph backprop peaks, providing a more accurate margin for training.
+- `patches/qlora-rs-1.0.5/src/quantization.rs`: Modified `dequantize_nf4_gpu` to take `out_dtype`, avoiding F32 intermediates for BF16-native dequantization.
+- `patches/qlora-rs-1.0.5/src/qlora.rs`: Implemented zero-initialization for `lora_b` weights after graph build to ensure delta=0 at start.
+- `patches/qlora-rs-1.0.5/src/training.rs`: Corrected paged optimizer write-back by ensuring `var.set()` is called after `step_param` to prevent discarding updates.
+- `crates/vox-plugin-mens-candle-cuda/src/inference.rs`: Added RoPE synthesis fallback and qkv bias loading for inference.
+- `crates/vox-ml-cli/src/commands/ai/serve/schema.rs`: Added `code`, `valid`, and `errors` fields to `GenerateResponse` for orchestrator compatibility.
+- `crates/vox-ml-cli/src/commands/ai/serve/handlers.rs`: Populated `code`, `valid`, and `errors` fields in responses.
+- `scripts/serve_mens_v1.vox`: Added a new script for serving `mens_v1`.
+
+--- audit: original='feat(mens): end-to-end QLoRA training + serving pipeline for vox_mens_v1' | actual=659L across 13 files | derived=full ---
