@@ -1,0 +1,19 @@
+feat(compiler): Add `uses` effect annotations to functions
+scale: ~411 lines across 14 files [L]
+
+- **`crates/vox-compiler/src/typeck/effect_check.rs`**: New file implementing structural effect checks for `E_EFFECT_PURE_CONFLICT` (function is `@pure` and has `uses` clause) and `E_EFFECT_DUPLICATE` (same effect kind appears twice).
+- **`crates/vox-compiler/src/parser/descent/decl/head.rs`**: Modified `parse_fn_decl` to call new `parse_uses_clause` function, which parses `uses effect1, effect2, mcp(tool)` clauses.
+- **`crates/vox-compiler/src/parser/descent/tests.rs`**: Added 4 new tests for parsing function declarations with single, multiple, and no `uses` effects.
+- **`crates/vox-compiler/src/ast/decl/effect.rs`**: New file defining `EffectKind` enum (Net, Db, Fs, Env, Clock, Random, Spawn, Mcp(String)) and `EffectAnnotation` struct for AST representation.
+- **`crates/vox-compiler/src/hir/nodes/effect.rs`**: New file defining `HirEffectKind` enum and `HirEffectSet` type alias for HIR representation of effects.
+- **`crates/vox-compiler/src/hir/lower/decl.rs`**: Modified `lower_fn_decl` to lower `AST::EffectAnnotation` into `HIR::HirEffectKind`.
+- **`crates/vox-compiler/src/ast/decl/fundecl.rs`**: Added `effects: Vec<EffectAnnotation>` field to `FnDecl` struct.
+- **`crates/vox-compiler/src/ast/decl/mod.rs`**: Re-exported `effect` module.
+- **`crates/vox-compiler/src/hir/nodes/decl.rs`**: Added `effects: HirEffectSet` field to `HirFn` struct.
+- **`crates/vox-compiler/src/hir/nodes/mod.rs`**: Re-exported `effect` module.
+- **`crates/vox-compiler/src/typeck/mod.rs`**: Wired in `effect_check::check_fn_effects` to the main type-checking process.
+- **`crates/vox-compiler/src/parser/descent/mod.rs`**: Re-exported `decl` module.
+- **`crates/vox-test-harness/src/hir_builders.rs`**: Added `effects: vec![]` to `hir_fn` builder.
+- **`docs/src/architecture/gui-native-roadmap-status-2026.md`**: Updated roadmap status for TASK-4.2.
+
+--- audit: original='feat(compiler): TASK-4.2 — effect annotations (uses net, db, mcp(...))' | actual=411L across 14 files | derived=full ---
