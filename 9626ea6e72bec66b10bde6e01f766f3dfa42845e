@@ -1,0 +1,16 @@
+feat(docs): add FableForge implementation architecture and update SUMMARY.md
+scale: ~2294 lines across 11 files [XL]
+
+- **docs/src/architecture/fableforge-impl/mutations-doc.ts**: Add new documentation for the FFScriptDoc Immer-based mutation wrapper, detailing its implementation, dependencies, error handling, and versioning.
+- **docs/src/architecture/fableforge-impl/linter-engine.ts**: Add new documentation for the FFScript Linter Engine, outlining its core implementation, design decisions, lint severity, categories, locations, and fix kinds.
+- **docs/src/architecture/fableforge-impl/generation-orchestrator.ts**: Add new documentation for the FableForge Generation Orchestrator, covering provider identification, request interfaces, and architecture.
+- **docs/src/architecture/fableforge-impl/panel-schema.ts**: Add new documentation for the FFScript Panel Schema v0.2.0, including branded scalars, aspect ratio definitions, and schema validation.
+- **docs/src/architecture/fableforge-impl/cascade-delete.ts**: Add new documentation for FableForge Cascade Delete, Auth Guard, and Siloing Specification, detailing `requireGameOwnerOrAdmin` and related concepts.
+- **docs/src/architecture/ffscript-linter-design-2026.md**: Update the FFScript Linter Design document to include a new section on serializable fix descriptors (`FixKind` and `LintFix` interfaces).
+- **docs/src/SUMMARY.md**: Update the documentation summary to include the newly added FableForge implementation architecture documents.
+- **docs/src/architecture/research-index.md**: Update the research index.
+- **docs/src/ci/deploy-contract.md**: Add new documentation for deploying contracts in CI.
+- **docs/src/architecture/architecture-index.md**: Update the architecture index.
+- **docs/src/feed.xml**: Update the feed XML.
+
+--- audit: original='fix(docs): add frontmatter and sync SUMMARY.md' | actual=2294L across 11 files | derived=full ---
