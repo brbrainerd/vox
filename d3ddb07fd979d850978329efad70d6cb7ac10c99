@@ -1,0 +1,10 @@
+feat(docs): add mobile architecture spec and ADR for Tauri desktop-only scope
+scale: ~1354 lines across 5 files [XL]
+
+- docs/src/architecture/mobile-rn-expo-implementation-spec-2026.md: Add comprehensive implementation specification for mobile using React Native, Expo, and uniffi (1241 lines).
+- docs/src/architecture/adr-NNN-scope-tauri-desktop-only.md: Add Architecture Decision Record (ADR) proposing to scope Tauri to desktop only and use React Native/Expo/uniffi for mobile (110 lines).
+- crates/vox-ml-cli/src/training/core.rs: Add `Decl::Example` arm to exhaustive match statement in `extract_constructs` function.
+- crates/vox-plugin-mens-candle-cuda/Cargo.toml: Add `vox-config` workspace dependency.
+- crates/vox-plugin-mens-candle-metal/Cargo.toml: Add `vox-config` workspace dependency.
+
+--- audit: original='chore: follow-ons from @example + SSOT refactor; add mobile architecture docs' | actual=1354L across 5 files | derived=full ---
