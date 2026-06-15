@@ -1,0 +1,9 @@
+feat(eval): implement TupleLit and DecimalLit evaluation
+scale: ~33 lines across 2 files [S]
+
+- `crates/vox-compiler/src/eval/expr.rs`:
+    - Implement evaluation for `HirExpr::TupleLit` by recursively evaluating each element and constructing a `VoxValue::Tuple`.
+    - Implement evaluation for `HirExpr::DecimalLit` by parsing the string representation into an `f64` and returning a `VoxValue::Float`.
+- `crates/vox-compiler/tests/eval_typeck_parity_test.rs`: Add `tuple_literal_evaluates_to_vox_tuple` test case to verify correct evaluation of tuple literals.
+
+--- audit: original='feat(eval): implement TupleLit and DecimalLit in interpreter' | actual=33L across 2 files | derived=full ---
