@@ -1,0 +1,12 @@
+docs(contracts): update descriptions for browser MCP tools
+scale: ~24 lines across 1 files [S]
+
+- `vox_browser_reload`: Clarified description to "Reload the current page_id."
+- `vox_browser_list_pages`: Enhanced description to "List all currently open browser sessions with page_id, URL, and title."
+- `vox_browser_page_info`: Simplified description to "Get URL/title and history navigation booleans for page_id."
+- `vox_browser_screenshot_viewport`: Expanded description to "Capture viewport-only PNG and return base64 for live UI streaming."
+- `vox_browser_scroll`: Refined description to "Scroll by dx/dy viewport deltas."
+- `vox_browser_press`: Updated description to "Press a key/chord on the active page."
+- `vox_browser_set_viewport`: Shortened description to "Set viewport width/height for deterministic coordinate mapping."
+
+--- audit: original='fix(contracts): sync browser MCP tool descriptions with operations catalog' | actual=24L across 1 files | derived=full ---
