@@ -1,0 +1,16 @@
+feat(web_ir): add route reachability and accessibility validators
+scale: ~521 lines across 4 files [L]
+
+- `crates/vox-compiler/src/web_ir`:
+  - Add `validate_a11y.rs` for accessibility checks:
+    - `img` without `alt` or `aria-hidden="true"`
+    - `button`, `a[href]`, or `role="button"` without an accessible name
+    - `role="button"` without a keyboard handler
+  - Enhance `validate.rs` with `validate_route_reachability`:
+    - Checks if route components exist in `view_roots`.
+    - Detects broken links by comparing `a[href]` values against known route patterns.
+    - Warns about unreachable routes (no inbound literal link).
+  - Integrate both new validators into `validate_web_ir_full()`.
+- `crates/vox-compiler/tests`: Add 5 integration tests for route reachability and 12 tests (10 unit, 2 integration) for accessibility validation.
+
+--- audit: original='feat(compiler): TASK-5.2 route reachability validator + TASK-5.3 a11y validator' | actual=521L across 4 files | derived=full ---
