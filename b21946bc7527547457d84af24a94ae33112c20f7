@@ -1,0 +1,6 @@
+fix(orchestrator): add 30-second timeout to HTTP client in tests
+scale: ~5 lines across 1 files [XS]
+
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway_tests.rs`: Configured the `reqwest::Client` used in tests to have a 30-second request timeout.
+
+--- audit: original='fix(orchestrator): add timeout to test HTTP client (FIX-J-01 followup)' | actual=5L across 1 files | derived=full ---
