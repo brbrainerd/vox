@@ -1,0 +1,19 @@
+fix(gui): update brass token colors and settings state management
+scale: ~46 lines across 6 files [M]
+
+- **`crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx`**:
+    - Implemented synchronous `valsRef` to ensure `update` function always uses the freshest state, preventing stale closure captures and ensuring correct state updates on rapid edits.
+    - Introduced a `hydrated` state to prevent `update` from pushing default `OrchestratorConfig` values to disk before mount hydration completes.
+    - Modified `update` logic to persist GUI-only preferences (theme, telemetry, sign, checkpointMins) independently of orchestrator hydration.
+- **`crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx`**:
+    - Updated brass token color definitions in `Glass` component's shadow and `button` component's shadow and background to use `rgb(var(--brass)_/...)` CSS variables for consistency.
+- **`crates/vox-gui/ui/src/components/layout/Sidebar.tsx`**:
+    - Updated the active navigation item's brass shadow to use `rgb(var(--brass)_/...)` CSS variable.
+- **`crates/vox-gui/ui/src/components/layout/TopHud.tsx`**:
+    - Updated the brass token background gradient and shadow to use `rgb(var(--brass)_/...)` CSS variables.
+- **`crates/vox-gui/ui/src/components/ui/Pill.tsx`**:
+    - Updated the `Executing` phase glow color to use `rgb(var(--brass)_/...)` CSS variable.
+- **`README.md`**:
+    - Corrected the path for "Inference (Mens)" from `crates/vox-inference/` to `crates/vox-populi/src/inference/`.
+
+--- audit: original='feat(gui): settings theme hydration, synchronous valsRef, HUD brass-token polish' | actual=46L across 6 files | derived=full ---
