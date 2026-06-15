@@ -1,0 +1,16 @@
+feat(gui): Implement native OS file-picker for Loquela context attachment
+scale: ~247 lines across 11 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx`: Replaced the placeholder typed path/URL prompt with an asynchronous call to `openFileDialog` from `@tauri-apps/plugin-dialog` for attaching local files. The dialog now supports multi-selection, and selected paths are added as context references and a toast notification is displayed. The typed path/URL prompt is retained as a fallback.
+- `crates/vox-gui/ui/package.json`: Added `@tauri-apps/plugin-dialog` dependency.
+- `crates/vox-gui/ui/pnpm-lock.yaml`: Updated pnpm lockfile to include `@tauri-apps/plugin-dialog`.
+- `crates/vox-gui/Cargo.toml`: Added `tauri-plugin-dialog` dependency.
+- `crates/vox-gui/src/main.rs`: Registered `tauri_plugin_dialog` in the Tauri builder.
+- `crates/vox-gui/capabilities/default.json`: Added `dialog:default` and `dialog:allow-open` permissions to the default capabilities.
+- `crates/vox-gui/gen/schemas/acl-manifests.json`: Updated ACL manifests schema.
+- `crates/vox-gui/gen/schemas/capabilities.json`: Updated capabilities schema to include new dialog permissions.
+- `crates/vox-gui/gen/schemas/desktop-schema.json`: Added new dialog-related permission definitions to the desktop schema.
+- `crates/vox-gui/gen/schemas/windows-schema.json`: Added new dialog-related permission definitions to the windows schema.
+- `Cargo.lock`: Updated Rust Cargo lockfile to reflect new dependencies.
+
+--- audit: original='feat(gui): native OS file-picker for Loquela context attach (tauri-plugin-dialog) (#214)' | actual=247L across 11 files | derived=full ---
