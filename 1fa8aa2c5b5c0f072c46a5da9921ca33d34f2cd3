@@ -1,0 +1,10 @@
+feat(ci): scaffold `data-storage-guard` sub-command
+scale: ~43 lines across 5 files [S]
+
+- `crates/vox-cli/src/commands/ci/data_storage_guard.rs`: Add new file with `GuardReport` struct and `run` function stub.
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Add `DataStorageGuard` variant to `CiCmd` enum and define `GuardOpts` struct for its arguments.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Dispatch `DataStorageGuard` command to its `run` function and handle JSON output.
+- `crates/vox-cli/src/commands/ci/mod.rs`: Register `data_storage_guard` module.
+- `.gitlab-ci.yml`: Add a no-op invocation of `vox ci data-storage-guard --json` to the `vox-ci-guards` job.
+
+--- audit: original='M-01: Scaffold data-storage-guard sub-command (stub)' | actual=43L across 5 files | derived=full ---
