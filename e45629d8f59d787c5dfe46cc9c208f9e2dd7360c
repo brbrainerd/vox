@@ -1,0 +1,13 @@
+test(web_ir): fix broken-link validation and promote snapshot tests
+scale: ~38 lines across 4 files [S]
+
+- `crates/vox-compiler/tests/web_ir_lower_emit_test.rs`:
+    - Fixed `web_ir_validate_route_broken_link_is_error` and `web_ir_validate_route_matching_link_is_ok` tests by:
+        - Changing `link_element` to pin the `DomNodeId` of the generated `<a>` element to `0`.
+        - Adding the generated link as a `view_root` to the `WebIrModule` in both tests, ensuring the broken-link validator actually traverses and inspects the link.
+    - Promoted three new snapshot files for `web_ir_lowering_validates_and_emits_counter_view`, `op_s126_fixture_pack_d2`, and `op_s219_final_web_ir_parity_fixture_preview_literal`.
+- `crates/vox-compiler/tests/snapshots/web_ir_lower_emit_test__counter_view_tsx_webir_emit.snap`: Added new snapshot for `counter_view_tsx_webir_emit`.
+- `crates/vox-compiler/tests/snapshots/web_ir_lower_emit_test__op_s126_t_component_view_tsx.snap`: Added new snapshot for `op_s126_t_component_view_tsx`.
+- `crates/vox-compiler/tests/snapshots/web_ir_lower_emit_test__op_s219_hi_literal_view_tsx.snap`: Added new snapshot for `op_s219_hi_literal_view_tsx`.
+
+--- audit: original='test(cleanup): bring vox-compiler suite to fully green' | actual=38L across 4 files | derived=full ---
