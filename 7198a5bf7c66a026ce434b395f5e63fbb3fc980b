@@ -1,0 +1,32 @@
+feat(scientia): implement human-gated discovery review backend
+scale: ~1774 lines across 18 files [XL]
+
+- **vox-db**:
+    - Add `scientia_review_decisions` table for append-only human review decisions, including `record_review_decision`, `latest_decision_for_claim`, and `list_claims_awaiting_review` operations.
+    - `list_claims_awaiting_review` now correctly identifies claims needing review based on verdict and decision status, scoped by `publication_id`.
+    - Remove the dead `list_claims_with_decisions` placeholder function and its associated test.
+    - Add `count_scientia_nanopubs_for_claim` typed operation for counting nanopublications.
+    - Update `baseline-version-policy.yaml` digest due to schema comment change.
+    - Add `scientia_review_decisions` to `LEGACY_EXPORT_TABLES`.
+    - Ensure `model_fingerprints_json` is validated as a JSON array at the Rust write boundary.
+    - Implement tie-breaking for `latest_decision_for_claim` (higher `id` for equal `decided_at_ms`).
+- **vox-scientia**:
+    - Introduce `crates/vox-scientia/src/review/mod.rs` with `ReviewDecisionLike` trait, `ApprovalToken` (compile-fenced for security), `mint_from_decision`, `ReviewState`, `ReviewAction` enums, and `next_state` pure state machine.
+    - Wire `pub mod review;` into `crates/vox-scientia/src/lib.rs`.
+    - Fix `gix-hash` compile error by adding `features = ["sha1"]` to `Cargo.toml`.
+    - Seal the `ReviewDecisionLike` trait to prevent external fabrication of approved decisions.
+- **vox-cli**:
+    - Gate `nanopub_build` behind `ApprovalToken`, requiring a valid token bound to the current manifest content digest and matching `claim_id`.
+    - Add `publication-claim-review` command to record human review decisions (approve/reject/defer) for claims, binding them to the publication's current content digest.
+    - Add `publication-review-queue` command to list claims awaiting human review for a given publication.
+    - Update `scientia_phase_handlers.rs` to integrate new review logic.
+    - Refresh `command_catalog_paths_baseline.txt` to reflect new CLI commands and other main branch drift.
+    - Update `gui-surface-coverage.v1.json` for new CLI commands.
+    - Remove `.claude/settings.local.json` from version control.
+- **vox-cli-core**:
+    - Add `ClaimReviewDecisionCli` enum and `PublicationClaimReview` and `PublicationReviewQueue` variants to `ScientiaCmd`.
+    - Add a regression test to ensure `as_stored()` values are valid DB decisions.
+    - Implement `build_claims_payload` to take `schema_kind`, tagging review-queue payloads as `scientia_publication_review_queue`.
+- **docs**: Update `2026-06-05-p2-human-gated-review-backend.md` plan.
+
+--- audit: original='feat(scientia): human-gated discovery review backend (P2) (#176)' | actual=1774L across 18 files | derived=full ---
