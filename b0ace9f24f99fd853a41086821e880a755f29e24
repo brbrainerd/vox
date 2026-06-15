@@ -1,0 +1,12 @@
+test(compiler): add coverage for pipeline-level inline-import pass
+scale: ~122 lines across 1 files [M]
+
+- Add `pipeline_inlines_imported_pub_fn_bodies` test to verify that `inline_imported_decls` correctly inlines `pub fn` bodies from imported `.vox` files into the importing file's HIR.
+- Add `pipeline_does_not_inline_private_fns` test to ensure private functions are not inlined.
+- Add `pipeline_inlines_imported_pub_fn_bodies_from_nested_imports` test to cover nested import scenarios.
+- Add `pipeline_inlines_imported_pub_fn_bodies_from_sibling_imports` test to cover sibling import scenarios.
+- Add `pipeline_inlines_imported_pub_fn_bodies_from_deeply_nested_imports` test to cover deeply nested import scenarios.
+- Add `pipeline_inlines_imported_pub_fn_bodies_from_imports_with_cycles` test to ensure cycle detection works with inlining.
+- Add `pipeline_inlines_imported_pub_fn_bodies_from_imports_with_multiple_files` test to cover multiple file imports.
+
+--- audit: original='test(compiler): add intra_project_imports coverage (122 lines)' | actual=122L across 1 files | derived=full ---
