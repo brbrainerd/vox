@@ -1,0 +1,7 @@
+refactor(regression_budget): use `is_multiple_of` for evenness checks
+scale: ~4 lines across 1 files [XS]
+
+- Refactored `strip_line_comment` to use `slashes.is_multiple_of(2)` instead of `slashes % 2 == 0`.
+- Refactored `strip_string_literals` to use `slashes.is_multiple_of(2)` instead of `slashes % 2 == 0`.
+
+--- audit: original='chore(clippy): use is_multiple_of in regression_budget' | actual=4L across 1 files | derived=full ---
