@@ -1,0 +1,9 @@
+fix(deps): bump thiserror to 2 and jsonschema to 0.46
+scale: ~182 lines across 4 files [M]
+
+- `Cargo.toml`: Updated `thiserror` from 1 to 2 and `jsonschema` from 0.26 to 0.46.
+- `crates/workspace-hack/Cargo.toml`: Updated `jsonschema` from 0.26 to 0.46. Removed `borrow-or-share` dependency. Added `fluent-uri` dependency at version 0.4.
+- `crates/vox-jsonschema-util/src/lib.rs`: Changed `e.instance_path` to `e.instance_path()` to adapt to the `jsonschema` API change where `instance_path` became a method.
+- `Cargo.lock`: Updated to reflect dependency changes, including `thiserror` and `jsonschema` version bumps, removal of `borrow-or-share`, and addition of `fluent-uri`.
+
+--- audit: original='chore(deps): bump thiserror 1->2 and jsonschema 0.26->0.46 (#149)' | actual=182L across 4 files | derived=full ---
