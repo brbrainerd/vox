@@ -1,0 +1,8 @@
+docs(arch): Add boilerplate reduction design brief and gap analysis
+scale: ~1463 lines across 3 files [XL]
+
+- `docs/src/architecture/boilerplate-reduction-design-brief-2026.md`: Add new 294-line design brief for boilerplate reduction in full-stack and mobile development, ranking 25 categories by frequency, time-burden, and language-leverage, including proposed Vox-language treatments. The brief is filed verbatim with reviewer notes.
+- `docs/src/architecture/boilerplate-reduction-gap-analysis-2026.md`: Add new 1167-line gap analysis document, providing a code-audited row-by-row reconciliation of the 25 categories from the design brief against Vox's existing implementation state. It uses a 5-tier verdict scheme (Shipped, Spec'd-Not-Shipped, Partially Built, No-Spec-Yet, Out-of-Scope) and includes 23 Sonnet-4.6-followable task blocks (GA-01..GA-23) with preconditions, files-to-read, files-to-modify, acceptance criteria, verification commands, and P-stack rubric.
+- `docs/src/architecture/research-index.md`: Add two new entries under "Audits & Assessments" for the boilerplate reduction design brief and gap analysis documents.
+
+--- audit: original='docs(arch): file boilerplate-reduction design brief + code-audited gap analysis' | actual=1463L across 3 files | derived=full ---
