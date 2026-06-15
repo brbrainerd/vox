@@ -1,0 +1,8 @@
+feat(orchestrator): Add sandboxed `/v1/eval` endpoint to HTTP gateway
+scale: ~107 lines across 3 files [M]
+
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/eval.rs`: Add new module `eval.rs` containing the `http_eval` asynchronous function, `EvalRequest` and `EvalResponse` structs, and logic for executing user-provided code in a sandboxed environment using `vox run --interp`. This includes creating a temporary directory and file for the code, handling file writing, executing the `vox` command, capturing stdout/stderr, enforcing a timeout, and returning a structured JSON response.
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/mod.rs`: Import the new `eval` module and register the `http_eval` function to handle POST requests at the `/v1/eval` endpoint.
+- `crates/vox-orchestrator/Cargo.toml`: Add `tempfile` as a dependency.
+
+--- audit: original='feat(orchestrator): Add sandboxed /v1/eval endpoint to HTTP gateway for interactive playground' | actual=107L across 3 files | derived=full ---
