@@ -1,0 +1,14 @@
+fix(codegen-rust): narrow SELF_MUTATORS; route sort_by_key/sort_by via value-block
+scale: ~127 lines across 3 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`:
+    - Narrowed `SELF_MUTATORS` to `push` and `reverse` only.
+    - Updated comments to explain why other methods (e.g., `sort_by_key`, `sort_by`, `retain`, `remove`, `pop`, `insert`, `clear`, `append`, `truncate`, `dedup`, `swap`, `sort`) were removed from `SELF_MUTATORS`.
+    - Clarified that Vox list methods are value-semantic and the conditions for a method to be included in `SELF_MUTATORS`.
+- `crates/vox-codegen/src/codegen_rust/emit/method_emit.rs`:
+    - Added `sort_by_key` as an alias for `sorted_by_key` to be handled by the clone-and-sort value block.
+    - Added `sort_by` as an alias for `sorted_by`, implementing a clone-and-sort value block that maps the Vox integer comparator result to `std::cmp::Ordering` using `.cmp(&0)`.
+- `examples/golden/list_sort_value_semantics.vox`:
+    - Added a new golden example file to demonstrate the value semantics of `sort_by_key` (including reassignment idiom), `sort_by` with a comparator, and `reverse` reassignment.
+
+--- audit: original='fix(codegen-rust): narrow SELF_MUTATORS to push/reverse; route sort_by_key/sort_by via value-block' | actual=127L across 3 files | derived=full ---
