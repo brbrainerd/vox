@@ -1,0 +1,11 @@
+docs(arch): Introduce five-phase Vox language rules and enforcement plan
+scale: ~1944 lines across 6 files [XL]
+
+- docs/src/architecture/vox-language-rules-and-enforcement-plan-2026.md: Add top-level plan for Vox language rules and enforcement, detailing a five-phase approach to align Vox's design philosophy with machine-checkable enforcement, optimize for LLM targeting, and absorb a cross-language audit.
+- docs/src/architecture/vox-language-rules-phase1-ssot-collapse-2026.md: Add Phase 1 plan for "SSOT Collapse," focusing on eliminating hand-mirrored Rust↔Vox surfaces by generating typechecker builtins, LSP completions, system prompt sections, mdbook reference pages, decorator/diagnostic catalogs, and TS codegen headers from single Rust sources.
+- docs/src/architecture/vox-language-rules-phase2-lint-extension-2026.md: Add Phase 2 plan for "Lint Extension," outlining the addition of 14 new detectors to `vox-code-audit` with stable diagnostic IDs, LintFix descriptors, `--explain` pages, and a `--for-llm` JSON mode.
+- docs/src/architecture/vox-language-rules-phase3-typecheck-rules-2026.md: Add Phase 3 plan for "Cheap Typechecker Rules," introducing rules for `Id[T]` at API boundaries, named tagged-union error types, `syntax_version` enforcement, `@deprecated` machine-checking, and `training_eligible` propagation, including a `vox migrate id-strings` codemod.
+- docs/src/architecture/vox-language-rules-phase4-runtime-monitors-2026.md: Add Phase 4 plan for "Runtime Monitors," detailing the implementation of per-call fuel, allocation observer, stack-depth caps, panic-trap boundaries, telemetry redaction for `@secret` fields, capability-violation traps, and a per-call sandbox.
+- docs/src/architecture/vox-language-rules-phase5-effects-determinism-2026.md: Add Phase 5 plan for "Effect System & Workflow Determinism," outlining the introduction of the `@uses(net | fs | time | random | secret)` effect system, `@pure` proving, forbidding non-deterministic builtins, enforcing `fs` glob declarations, and locking the closed bare-keyword table.
+
+--- audit: original='docs(arch): Vox language rules & enforcement plan (Phases 1-5)' | actual=1944L across 6 files | derived=full ---
