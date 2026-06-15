@@ -1,0 +1,16 @@
+feat(gui): display task overlaps and dependencies in TasksView
+scale: ~75 lines across 3 files [M]
+
+- `TasksView.tsx`:
+  - Imports `findWriteOverlaps` from `tasksHelpers`.
+  - Calls `findWriteOverlaps` with the current task rows to determine write overlaps.
+  - Renders a new "→ after #N" badge for tasks with `depends_on` entries, showing task IDs they depend on.
+  - Renders a new "⚠ overlaps #N" badge for tasks that have write overlaps with other tasks, displaying the IDs of overlapping tasks.
+  - Wraps task metadata (`#id`, `agent`, `lifecycle`) and new badges in a flex container for better layout.
+- `tasksHelpers.ts`:
+  - Adds a new `findWriteOverlaps` function that identifies tasks writing to the same files. It returns a map where keys are task IDs and values are arrays of other task IDs that share a write file.
+- `tasksHelpers.test.ts`:
+  - Imports `findWriteOverlaps`.
+  - Adds a new test suite for `findWriteOverlaps` to verify its functionality.
+
+--- audit: original='feat(gui): overlap + dependency badges in the task list (J3)' | actual=75L across 3 files | derived=full ---
