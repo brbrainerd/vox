@@ -1,0 +1,14 @@
+feat(audit-route): use real registry rates, allowlist-only Vox capability, and cost report
+scale: ~102 lines across 3 files [M]
+
+- `crates/vox-cli/src/commands/audit_route.rs`:
+    - The `vox_capable_models` allowlist in `vox.toml` is now the sole source of truth for a judge model's Vox-authoring capability, removing the `model_id.starts_with("mens")` heuristic.
+    - The CLI now looks up real per-direction pricing from the orchestrator model registry (`rates_for`) and passes it into `LlmRouter`.
+    - `judge_max_output_tokens` is now configured via `EffortRouteConfig`.
+- `crates/vox-effort-route/src/emit/markdown.rs`:
+    - The markdown report now displays the real summed judge cost, showing "$X.XX" when known or "unknown (model not in pricing catalog)" otherwise.
+    - Added `judge_prompt_tokens` and `judge_completion_tokens` fields to `RecommendationRow` for cost calculation.
+    - Added new test cases for judge cost reporting scenarios (unknown cost and summed costs).
+- `crates/vox-effort-route/src/emit/snapshots/vox_effort_route__emit__markdown__tests__report_snapshot.snap`: Updated snapshot to reflect the new judge cost reporting.
+
+--- audit: original='feat(audit-route): real registry rates + allowlist-only Vox capability + cost report' | actual=102L across 3 files | derived=full ---
