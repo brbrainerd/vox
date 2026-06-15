@@ -1,0 +1,20 @@
+feat(typeck): Support generic print/to_string and Result-wrap golden files
+scale: ~79 lines across 5 files [M]
+
+- **`crates/vox-compiler/src/typeck/builtins.rs`**:
+    - `print` builtin now accepts `any` type (polymorphic `Ty::GenericParam(0)`) instead of `str`, aligning with runtime behavior.
+    - Added `to_string` builtin, also accepting `any` type and returning `str`, for explicit string conversion.
+- **`examples/golden/db_advanced_queries.vox`**:
+    - `available_products`, `category_preview`, and `is_in_stock` functions now return `Result[List[Product]]` or `Result[bool]` respectively, using `?` operator and `Ok` wrapper.
+    - `restock` function now explicitly types `items` as `List[Product]` and simplifies the update logic to re-insert with new `in_stock` status, avoiding a `TypeVar` inference issue.
+- **`examples/golden/getting_started.vox`**:
+    - `get_notes` function now returns `Result[List[Note]]`.
+    - Added `check_inventory` helper function that returns `Result[str]`.
+    - `order` function now uses the `check_inventory` helper with the `?` operator.
+- **`examples/golden/inventory_rosetta_core.vox`**:
+    - `get_stack_safe` function's `id` parameter type changed from `str` to `Id[InventoryStack]`.
+    - Updated `get_stack_safe` to handle `db.InventoryStack.get` returning `Result` by matching `Ok(opt)` and `Error(_)`.
+- **`examples/golden/multi_tenancy.vox`**:
+    - `get_tenant_resources` and `check_access` functions now return `Result[List[TenantResource]]` or `Result[bool]` respectively, using `?` operator and `Ok` wrapper.
+
+--- audit: original='feat(vox-compiler): P2 followup — generic print, to_string, golden Result-wrap polish' | actual=79L across 5 files | derived=full ---
