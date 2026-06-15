@@ -1,0 +1,10 @@
+feat(orchestrator): add telemetry fields and update schema baseline
+scale: ~168 lines across 5 files [M]
+
+- `crates/vox-search/src/embedding_env.rs`: Add `cost_per_1k` and new telemetry fields (`telemetry_session_id`, `telemetry_user_id`, `telemetry_task_category`, `telemetry_strength_tag`, `telemetry_trace_id`, `telemetry_attempt_number`, `telemetry_skip_interaction`) to `LlmConfig` for HuggingFace and OpenAI embedding configurations.
+- `crates/vox-db/src/local_tests.rs`: Update schema version in legacy chain tests from 17/38 to 99 to reflect a newer baseline.
+- `crates/vox-db/src/codex_legacy.rs`: Add new tables (`account_config`, `anomalous_events`, `corpus_snapshots`, `llm_attempts`, `model_scoreboard`, `node_identities`, `node_trust_grants`, `scholarly_publication_records`, `syndication_events`, `visus_audit_log`, `visus_baselines`, `vox_kudos`, `vox_peer_reputation`) to the list of legacy export tables.
+- `crates/vox-db/src/schema/manifest.rs`: Update `BASELINE_VERSION` from 55 to 58.
+- `docs/src/architecture/model-orchestration-ssot-audit-2026.md`: Update document status to "current", clarify telemetry lands in `llm_interactions` table (v58) with `context_utilization_pct` and `cache_read_tokens`, and add new sections for "Telemetry Cost Loops" and "SSOT for LLM Costing".
+
+--- audit: original='chore(orchestrator): finalize ssot schema and telemetry cost loops' | actual=168L across 5 files | derived=full ---
