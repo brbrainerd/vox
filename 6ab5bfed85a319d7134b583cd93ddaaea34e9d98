@@ -1,0 +1,7 @@
+feat(vox-effort-route): load, validate, and filter findings from JSONL
+scale: ~73 lines across 2 files [M]
+
+- `crates/vox-effort-route/src/load.rs`: Implemented `read` function to parse `findings.jsonl`, schema-validate each `FindingRow` against `SCHEMA_VERSION`, and filter findings based on a `min_waste_score`. Defined `LoadError` enum for I/O, JSON parsing, and schema mismatch errors. Introduced `LoadedFinding` struct to represent a filtered finding.
+- `crates/vox-effort-route/tests/fixtures/findings.jsonl`: Added a new test fixture file containing sample `FindingRow` JSONL data for testing the loading and filtering logic.
+
+--- audit: original='feat(vox-effort-route): load + schema-validate + filter findings (A4)' | actual=73L across 2 files | derived=full ---
