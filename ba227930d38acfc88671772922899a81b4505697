@@ -1,0 +1,9 @@
+feat(ci): add `no-plugin-cdylib-as-compile-dep` guard
+scale: ~103 lines across 4 files [M]
+
+- `crates/vox-cli/src/commands/ci/no_plugin_cdylib_as_compile_dep.rs`: New module implementing a CI check to prevent non-plugin crates from taking compile-time dependencies on `cdylib` plugin crates. This guard identifies four specific `cdylib` plugins (`vox-plugin-nvml-probe`, `vox-plugin-runtime-container`, `vox-plugin-runtime-wasm`, `vox-plugin-publication`) and checks all workspace crates, excluding an allowlist (`vox-plugin-host`, `vox-integration-tests`, and crates under `crates/vox-plugin-host/tests/`), for such dependencies.
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Added `NoPluginCdylibAsCompileDep` variant to the `CiCmd` enum, enabling the new CI check via the CLI.
+- `crates/vox-cli/src/commands/ci/mod.rs`: Declared the new `no_plugin_cdylib_as_compile_dep` module.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Integrated the `no_plugin_cdylib_as_compile_dep::check` function into the `run` function for the `CiCmd::NoPluginCdylibAsCompileDep` variant.
+
+--- audit: original='feat(ci): add no-plugin-cdylib-as-compile-dep guard (D-2)' | actual=103L across 4 files | derived=full ---
