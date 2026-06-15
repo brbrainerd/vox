@@ -1,0 +1,7 @@
+fix(arch-check, cli): collapse `if` in `main.rs`, add `strict_block_ga` to tests
+scale: ~11 lines across 2 files [S]
+
+- `crates/vox-arch-check/src/main.rs`: Collapsed a nested `if` statement checking for `--lint criteria-format` into a single `if let Some(...) && ...` expression.
+- `crates/vox-cli/src/commands/audit.rs`: Added the `strict_block_ga: false` field to three `AuditArgs` test literals within the `tests` module.
+
+--- audit: original='fix: clippy collapsible_if (arch-check --lint dispatch) + strict_block_ga in AuditArgs test literals' | actual=11L across 2 files | derived=full ---
