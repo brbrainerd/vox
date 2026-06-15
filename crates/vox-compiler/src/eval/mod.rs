@@ -311,6 +311,7 @@ impl Interpreter {
                 env: Scope::new(),
                 name: f.name.clone(),
                 is_versioned: f.is_versioned,
+                is_traced: f.is_traced,
             };
             self.scope.set(f.name.clone(), val.clone());
             self.module_scope.set(f.name.clone(), val);
@@ -323,6 +324,7 @@ impl Interpreter {
                 env: Scope::new(),
                 name: f.name.clone(),
                 is_versioned: f.is_versioned,
+                is_traced: f.is_traced,
             };
             self.scope.set(f.name.clone(), val.clone());
             self.module_scope.set(f.name.clone(), val);
@@ -343,6 +345,7 @@ impl Interpreter {
                 // Endpoint fns (`@query`/`@mutation`/...) are a distinct decl and
                 // are never `@versioned`; no auto-snapshot for handler calls.
                 is_versioned: false,
+                is_traced: false,
             };
             self.scope.set(f.name.clone(), val.clone());
             self.module_scope.set(f.name.clone(), val);
@@ -445,6 +448,7 @@ impl Interpreter {
                 env: Scope::new(),
                 name: f.name.clone(),
                 is_versioned: f.is_versioned,
+                is_traced: f.is_traced,
             };
             match alias {
                 None => {
@@ -504,6 +508,7 @@ impl Interpreter {
             mut env,
             name: fn_name,
             is_versioned,
+            is_traced,
         } = val
         {
             if params.len() != args.len() {
@@ -520,6 +525,23 @@ impl Interpreter {
             // Temporary variable to hold the old scope context
             let old_scope = self.scope.clone();
             self.scope = env;
+
+            // TRACE-D P7: open a tracing span for the duration of the call when
+            // the function was decorated with `@traced`. The guard is held until
+            // `result?` / `Ok(res)` so the span covers the entire body execution.
+            let _traced_span_guard = if is_traced {
+                let span = tracing::info_span!(
+                    "vox_fn",
+                    fn_name = %fn_name,
+                    trace_id = tracing::field::Empty,
+                );
+                if let Some(tc) = vox_telemetry::current_trace_context() {
+                    span.record("trace_id", tracing::field::display(&tc.trace_id));
+                }
+                Some(span.entered())
+            } else {
+                None
+            };
 
             // Restore the prior scope on BOTH success and the `?` error path so a
             // failed call cannot leak scope state into a later reuse of the

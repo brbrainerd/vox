@@ -61,6 +61,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     env: interp.scope.clone(),
                     name: String::new(),
                     is_versioned: false,
+                    is_traced: false,
                 })
             } else {
                 Err(EvalError::UndefinedVariable(name.clone()))
@@ -392,6 +393,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 env: interp.scope.clone(),
                 name: String::new(),
                 is_versioned: false,
+                is_traced: false,
             })
         }
         HirExpr::Call(callee, args, _, _) => {
@@ -419,6 +421,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     mut env,
                     name: fn_name,
                     is_versioned,
+                    is_traced: _,
                 } => {
                     env.push_frame();
                     for (p, arg) in params.iter().zip(eval_args) {
