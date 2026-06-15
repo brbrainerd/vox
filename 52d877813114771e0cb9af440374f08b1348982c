@@ -1,0 +1,9 @@
+feat(codegen): plumb VUV primitive resolution into HIR and AST emit paths
+scale: ~538 lines across 4 files [L]
+
+- `crates/vox-compiler/src/web_ir/primitives`: Extracted `resolve_universal_kwarg` from `apply_universal_kwargs` to provide a shared helper for converting kwargs to Tailwind classes. This function is now public and used by both the web_ir lowering pass and codegen_ts emit paths.
+- `crates/vox-compiler/src/codegen_ts/jsx.rs`: Modified `emit_jsx_element` and `emit_jsx_self_closing` to use a new `transform_view_kwargs` pass. This pass resolves JSX tags through `primitives::resolve` to determine the HTML tag and base classes, and converts typed kwarg attributes into `className` contributions. It handles `StringLit`, `IntLit`, `BoolLit`, `DecimalLit` values directly and recursively resolves `if/else` expressions into ternary operators for class generation.
+- `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs`: Implemented a mirrored transformation, `transform_hir_view_kwargs` and `hir_kwarg_to_class_expr`, for reactive components that compile through `HirExpr::Jsx`. This ensures consistent kwarg-to-class conversion for both AST and HIR paths. Static-literal per-primitive kwargs are collected and passed to `primitives::resolve` to apply primitive-specific logic.
+- `.claude/settings.local.json`: Added new bash commands for smoke testing and inspecting `hir_emit/mod.rs`.
+
+--- audit: original='fix(codegen): plumb VUV primitive resolution into HIR + AST emit paths' | actual=538L across 4 files | derived=full ---
