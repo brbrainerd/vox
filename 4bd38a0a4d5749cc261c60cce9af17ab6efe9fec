@@ -1,0 +1,45 @@
+feat(telemetry): surface model selection rationale on ModelCallEvent
+scale: ~103 lines across 16 files [M]
+
+- `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs`:
+  - Introduced `McpModelChoice` struct to hold `model`, `is_free`, and `rationale`.
+  - Added `resolve_mcp_chat_model_sync_with_rationale` function to return `McpModelChoice` including the selection rationale.
+  - Modified `resolve_mcp_chat_model_sync` to call an inner function and discard the rationale, maintaining its original signature.
+  - Renamed the internal synchronous resolver to `resolve_mcp_chat_model_sync_inner` to accept a mutable `rationale` out-parameter.
+  - Exported `McpModelChoice` and `resolve_mcp_chat_model_with_rationale` from the module.
+- `crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs`:
+  - Added `selection_rationale: Option<String>` field to `McpInferRouting` struct.
+  - Modified `call_llm` to use `resolve_mcp_chat_model_with_rationale` and capture the `selection_rationale`.
+  - Passed the captured `selection_rationale` to the `McpInferRouting` instance.
+  - Cloned `routing.selection_rationale` when calling `mcp_infer_tool_completion`.
+- `crates/vox-telemetry/src/types.rs`:
+  - Added `selection_rationale: Option<String>` field to `ModelCallEvent` struct, marked with `#[serde(default)]` for back-compatibility.
+  - Updated `ModelCallEvent` test to include `selection_rationale`.
+- `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/mod.rs`:
+  - Exported `McpModelChoice` and `resolve_mcp_chat_model_with_rationale`.
+- `crates/vox-orchestrator-mcp/src/chat_tools/plan.rs`:
+  - Added `selection_rationale: None` to `McpInferRouting` initialization in `plan`, `plan_replan`, and `plan_replan` (inner).
+- `crates/vox-db/tests/model_call_event_roundtrip.rs`:
+  - Added `selection_rationale: None` and `selection_rationale: Some(...)` to `ModelCallEvent` instances in tests to verify serialization and persistence.
+- `crates/vox-orchestrator-mcp/src/chat_tools/plan_loop.rs`:
+  - Added `selection_rationale: None` to `McpInferRouting` initialization in `maybe_refine_plan` and `maybe_refine_plan` (inner).
+- `crates/vox-orchestrator-mcp/src/compiler_tools.rs`:
+  - Added `selection_rationale: None` to `McpInferRouting` initialization in `generate_vox_code` and `apply_structured_edit`.
+- `crates/vox-db/tests/research_metrics_sink_roundtrip.rs`:
+  - Added `selection_rationale: None` to `ModelCallEvent` instance in test.
+- `crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs`:
+  - Added `selection_rationale: None` to `McpInferRouting` initialization in `chat_message`.
+- `crates/vox-orchestrator-mcp/src/chat_tools/ghost_text.rs`:
+  - Added `selection_rationale: None` to `McpInferRouting` initialization in `ghost_text`.
+- `crates/vox-orchestrator-mcp/src/chat_tools/inline_edit.rs`:
+  - Added `selection_rationale: None` to `McpInferRouting` initialization in `inline_edit`.
+- `crates/vox-orchestrator-mcp/src/db_tools.rs`:
+  - Added `selection_rationale: None` to `McpInferRouting` initialization in `vox_db_explain_query`.
+- `crates/vox-orchestrator-mcp/src/oratio_tools.rs`:
+  - Added `selection_rationale: None` to `McpInferRouting` initialization in `oratio_generate_response`.
+- `crates/vox-orchestrator-mcp/src/scientia_tools/assist.rs`:
+  - Added `selection_rationale: None` to `McpInferRouting` initialization in `scientia_assist`.
+- `crates/vox-telemetry/src/aggregator.rs`:
+  - Added `selection_rationale: None` to `ModelCallEvent` initialization in `aggregate_model_call_events`.
+
+--- audit: original='feat(telemetry): surface model-selection rationale on ModelCallEvent (a2a Slice 2)' | actual=103L across 16 files | derived=full ---
