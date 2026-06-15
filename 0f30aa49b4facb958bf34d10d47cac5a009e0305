@@ -1,0 +1,9 @@
+feat(vox-mental-tracker): persist push tokens and crash reports
+scale: ~45 lines across 1 files [S]
+
+- `record_crash_report`: Implemented persistence for crash reports. It now parses a JSON payload containing `error`, `stack`, and `route` and inserts them into the `CrashReport` table with a server timestamp. Previously, this was a no-op function.
+- `store_push_token`: Implemented persistence for push notification tokens. It now inserts the provided token and a timestamp into a new `PushToken` table. Previously, this called an undefined internal function.
+- `PushToken` table: Added a new `@table` definition for `PushToken` with `id`, `token`, and `registered_at` fields.
+- `CrashReport` table: The existing `@table` definition for `CrashReport` is now utilized.
+
+--- audit: original='vox-mental-tracker: real push-token + crash-report persistence; drop dead route' | actual=45L across 1 files | derived=full ---
