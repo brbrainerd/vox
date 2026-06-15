@@ -1,0 +1,9 @@
+feat(vox-audit): Implement LLM panel infrastructure for HumanEvalRunner
+scale: ~858 lines across 4 files [L]
+
+- `crates/vox-audit/src/panel.rs`: New module defining `PanelClient` trait, `OpenRouterPanelClient` implementation for OpenRouter API calls, `PanelMemberConfig` for deserializing panel member configurations from YAML, and utilities for cost estimation and code extraction from LLM responses.
+- `crates/vox-audit/src/subcommands/humaneval.rs`: Modified `HumanEvalRunner` to dispatch to a new `run_with_panel` function when `--llm-panel` is set. This function loads panel configurations, builds an `OpenRouterPanelClient`, interacts with LLMs, extracts code, checks it with `vox_compiler`, and records pass rates and costs. The previous "not yet wired" sentinel for `--llm-panel` is removed.
+- `crates/vox-audit/src/lib.rs`: Added `pub mod panel;` to expose the new panel module.
+- `crates/vox-audit/Cargo.toml`: Added `vox-config` and `reqwest` with `blocking`, `json`, and `rustls-tls` features as dependencies.
+
+--- audit: original='feat(vox-audit): PanelClient trait + OpenRouter impl wired into HumanEvalRunner (CR-L1)' | actual=858L across 4 files | derived=full ---
