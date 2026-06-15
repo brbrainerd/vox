@@ -1,0 +1,13 @@
+docs(populi): promote W1 lease semantics from design-intent to implemented
+scale: ~8 lines across 2 files [S]
+
+- `docs/src/adr/017-populi-lease-remote-execution.md`:
+  - Updated ADR status from "Accepted (design intent)" to "Accepted (implemented)".
+  - Added details about the single-owner lease lifecycle implementation, including coverage by 13 integration tests in `populi_single_owner.rs`.
+  - Noted that lease-gated remote execution is off by default and referenced the rollout checklist.
+  - Updated `last_updated` date to "2026-05-01".
+- `docs/src/reference/populi.md`:
+  - Corrected the description of authoritative remote execution to state that lease renew loss triggers local fallback and cancel relay, verified by `lease_renew_loss_requeues_locally_and_relays_cancel` and related tests.
+  - Removed the stale claim that "lease renew loss remains operator-dependent until fully wired".
+
+--- audit: original='docs(populi): promote W1 lease semantics from design-intent to implemented' | actual=8L across 2 files | derived=full ---
