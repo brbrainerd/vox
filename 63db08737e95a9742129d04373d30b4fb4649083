@@ -1,0 +1,16 @@
+feat(arch): Extract `vox-orchestrator-queue` crate
+scale: ~235 lines across 22 files [L]
+
+- `crates/vox-orchestrator-queue/`: New crate created, containing `affinity.rs`, `locks/`, `oplog/`, and `sync_lock.rs` modules moved from `vox-orchestrator`.
+- `crates/vox-orchestrator/src/lib.rs`: Updated to re-export `affinity`, `locks`, `oplog`, and `sync_lock` from `vox-orchestrator-queue`.
+- `crates/vox-orchestrator/src/snapshot.rs`: `SnapshotId` and `SnapshotIdGenerator` types removed and re-exported from `vox-orchestrator-types`.
+- `crates/vox-orchestrator/src/workspace.rs`: `ChangeId` type removed and re-exported from `vox-orchestrator-types`.
+- `crates/vox-orchestrator-types/src/agent_types/workspace_ids.rs`: New file created, containing `SnapshotId`, `SnapshotIdGenerator`, and `ChangeId` types moved from `vox-orchestrator`.
+- `crates/vox-orchestrator-types/src/agent_types/file_affinity.rs`: New file created, containing `FileAffinity` and `AccessKind` types moved from `vox-orchestrator`.
+- `crates/vox-orchestrator-types/src/agent_types/mod.rs`: Updated to include the new `workspace_ids` and `file_affinity` modules.
+- `crates/vox-orchestrator-types/src/lib.rs`: Updated to export the new types from `agent_types`.
+- `Cargo.toml`, `crates/vox-orchestrator/Cargo.toml`, `crates/vox-orchestrator-queue/Cargo.toml`: Dependency updates for the new crate structure.
+- `Cargo.lock`: Updated to reflect changes in dependencies.
+- `docs/src/architecture/layers.toml`: Updated to reflect the new crate layering.
+
+--- audit: original='feat(arch): Phase 5 — extract vox-orchestrator-queue' | actual=235L across 22 files | derived=full ---
