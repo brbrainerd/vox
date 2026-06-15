@@ -1,0 +1,6 @@
+refactor(codegen): remove unused `activity.rs` TypeScript code generation module
+scale: ~116 lines across 1 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/activity.rs`: Deleted the `activity.rs` file, which contained functions for generating TypeScript code for Vox activities (`generate_activity`) and an activity runner (`generate_activity_runner`). This file was never integrated into the build process and thus never compiled.
+
+--- audit: original='chore(codegen): delete orphan activity.rs (never compiled)' | actual=116L across 1 files | derived=full ---
