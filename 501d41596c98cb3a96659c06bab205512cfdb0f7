@@ -1,0 +1,7 @@
+style(compiler): rustfmt builtin_registry and eval/builtins
+scale: ~101 lines across 2 files [M]
+
+- `crates/vox-compiler/src/builtin_registry.rs`: Apply rustfmt to improve readability of `namespace_builtin_owned` function and various test cases within `namespace_builtin_parity_tests` by reformatting list and vector initializations.
+- `crates/vox-compiler/src/eval/builtins.rs`: Apply rustfmt to improve readability of `call_builtin_method` function, specifically reformatting `std::path::Path::new(&p).parent().map(...)`, `std::fs::canonicalize(&p)` result handling, and a `filter_map` closure.
+
+--- audit: original='style(compiler): rustfmt the parity guard + shape tests' | actual=101L across 2 files | derived=full ---
