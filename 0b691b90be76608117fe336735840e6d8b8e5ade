@@ -1,0 +1,19 @@
+fix(compiler): remove legacy HTTP route handling and generation
+scale: ~579 lines across 14 files [L]
+
+- `crates/vox-codegen/src/codegen_ts/routes.rs`: Deleted the entire module responsible for generating legacy Express server routes.
+- `crates/vox-codegen/src/codegen_rust/emit/http.rs`: Removed `HirRoute` and `RouteMethod` imports, removed `lower_module_routes` call, and eliminated logic for collecting and checking `needs_put` and `needs_delete` HTTP methods. Updated `has_routes` check to only consider `endpoint_fns`.
+- `crates/vox-codegen/src/codegen_shared/route_ir.rs`: Removed `HirHttpMethod` import, `RouteMethod::from<HirHttpMethod>` implementation, and `RouteIR::from_hir_route` function. Also removed the `lower_module_routes` logic for explicit HTTP routes.
+- `crates/vox-compiler/src/app_contract.rs`: Removed `HirHttpMethod` import, `method_to_string` function, and the mapping of `module.routes` to `AppHttpRouteContract` in `project_app_contract`.
+- `crates/vox-codegen/src/web_ir/lower.rs`: Removed the `lower_http_routes` function, which was responsible for lowering `HirRoute` into `WebIrModule` route nodes.
+- `crates/vox-codegen/src/codegen_ts/emitter.rs`: Removed the import of `generate_routes` and the entire block of code responsible for generating legacy Express server routes based on `VOX_EMIT_EXPRESS_SERVER`.
+- `crates/vox-compiler/src/hir/validate.rs`: Removed the validation loop for `module.routes` that checked for empty HTTP route paths.
+- `crates/vox-compiler/src/hir/db_op_walk.rs`: Removed `HirRoute` from the `walk_hir_db_ops` function.
+- `crates/vox-integration-tests/tests/pipeline/includes/include_04.rs`: Removed `HirRoute` from the `test_module` function.
+- `crates/vox-codegen/src/vox_ir/mod.rs`: Removed `HirRoute` from the `VoxIrModule` struct.
+- `crates/vox-integration-tests/tests/pipeline/includes/blueprint_op_s_batch.rs`: Removed `HirRoute` from the `test_module` function.
+- `crates/vox-integration-tests/tests/pipeline/includes/include_03.rs`: Removed `HirRoute` from the `test_module` function.
+- `crates/vox-codegen/src/codegen_ts/mod.rs`: Removed the `routes` module from the `mod.rs` file.
+- `crates/vox-codegen/src/vox_ir/lower.rs`: Removed `HirRoute` from the `lower_hir_to_vox_ir` function.
+
+--- audit: original='fix(compiler): resolve outstanding borrow and field errors following routes decommissioning' | actual=579L across 14 files | derived=full ---
