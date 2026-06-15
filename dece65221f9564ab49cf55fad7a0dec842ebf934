@@ -1,0 +1,7 @@
+docs(share): add how-to guide and abuse policy for `vox share`
+scale: ~121 lines across 2 files [M]
+
+- docs/src/how-to/how-to-share.md: Add a new how-to guide for sharing Vox apps, detailing `vox share` commands, backend options (Cloudflare, localhost.run, Tailscale, LAN), and authentication methods.
+- docs/src/architecture/share-policy-2026.md: Add a new architecture document outlining the abuse policy and Terms of Service references for the `vox share` feature, clarifying Vox's role and directing abuse complaints to tunnel providers.
+
+--- audit: original='docs(share): how-to guide + abuse policy (S9)' | actual=121L across 2 files | derived=full ---
