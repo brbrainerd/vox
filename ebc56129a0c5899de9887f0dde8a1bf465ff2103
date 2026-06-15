@@ -1,0 +1,13 @@
+feat(vox-gui): add Tauri commands for command discovery
+scale: ~155 lines across 3 files [M]
+- `crates/vox-gui/src/commands/discovery.rs`: New module implementing `discovery_suggest`, `discovery_help`, and `discovery_record` Tauri commands.
+  - `discovery_suggest`: Filters the command catalog by a typed prefix to provide completion suggestions.
+  - `discovery_help`: Provides rich per-action help for a given command.
+  - `discovery_record`: Persists a seen/used exposure event via `vox_gamify::discovery::ledger`.
+  - Includes helper functions `action_id_for` and `match_catalog` for catalog processing.
+  - Defines `Suggestion` struct for UI output.
+  - Contains two unit tests for `match_catalog`.
+- `crates/vox-gui/src/main.rs`: Registers the new `discovery_suggest`, `discovery_help`, and `discovery_record` Tauri commands.
+- `crates/vox-gui/src/commands/mod.rs`: Declares the new `discovery` module.
+
+--- audit: original='feat(vox-gui): discovery suggest/help/record Tauri commands' | actual=155L across 3 files | derived=full ---
