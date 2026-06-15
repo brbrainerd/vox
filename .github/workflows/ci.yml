@@ -1206,7 +1206,7 @@ jobs:
           retention-days: 14
 
       - name: Commit visual-review cache + report (main only)
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
         env:
           GH_TOKEN: ${{ secrets.SSOT_AUTOREGEN_TOKEN }}
         run: |

@@ -14,7 +14,7 @@
 // See docs/src/ci/runner-autoscaling.md for the full rollout procedure.
 
 fn env_flag(name: str) to bool {
-    let opt = std.env.get(name);
+    let opt = env.get(name);
     if opt.is_some() {
         return opt.unwrap() == "1";
     }
