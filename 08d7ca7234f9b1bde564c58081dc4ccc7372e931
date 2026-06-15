@@ -1,0 +1,7 @@
+fix(interp): replace silent Ok(Null) with diagnostic for unsupported constructs
+scale: ~77 lines across 2 files [M]
+
+- `crates/vox-compiler/src/eval/expr.rs`: Replaced the catch-all `_ => Ok(VoxValue::Null)` in `eval_expr` with specific `EvalError::AssertionFailed` diagnostics for unsupported `HirExpr` types in interpreter mode. This includes `Jsx`, `JsxSelfClosing`, `JsxFragment`, `AsyncView`, `Spawn`, `With`, and `WorkflowVersion` expressions, providing actionable messages instead of silently returning `Null`.
+- `crates/vox-compiler/tests/interpreter_test.rs`: Added a new test `interp_rejects_unsupported_expr_with_clean_diagnostic` to verify that the interpreter correctly rejects unsupported expressions like JSX with a specific diagnostic message, rather than silently evaluating them to `Null`.
+
+--- audit: original='fix(interp): replace silent Ok(Null) catch-all with coded unsupported-construct diagnostics' | actual=77L across 2 files | derived=full ---
