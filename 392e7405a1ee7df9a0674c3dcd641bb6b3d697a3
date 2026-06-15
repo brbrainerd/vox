@@ -1,0 +1,9 @@
+docs(architecture): add codebase cleanup and signal improvement plan
+scale: ~333 lines across 1 files [L]
+
+- Add a new architectural document outlining a five-phase plan for codebase cleanup and signal improvement.
+- Detail the goal of retiring stale code, fixing broken references, and converging on single sources of truth for AI tool calls.
+- Describe the architecture of the plan, ordered by risk/payoff, with each phase producing independent, committable work.
+- Include source findings from a five-agent codebase audit, verifying issues like outdated file references in `AGENTS.md`, `CHANGELOG.md`, PR template, and `infra/coolify/README.md`, corrupted ignore files (`.cursorignore`, `.aiignore`, `.aiexclude`), and issues with `infra/containers/entrypoints/vox-entrypoint.sh`.
+
+--- audit: original='docs: add codebase cleanup implementation plan' | actual=333L across 1 files | derived=full ---
