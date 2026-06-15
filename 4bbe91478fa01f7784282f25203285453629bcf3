@@ -1,0 +1,13 @@
+docs(plan): effort-audit-core S1 implementation plan (2026-05-28)
+scale: ~2582 lines across 1 files [XL]
+
+- docs/superpowers/plans/2026-05-28-effort-audit-core.md: Add a new implementation plan for the `vox-effort-audit` crate, detailing 6 phases and 21 tasks for its development. The plan covers:
+  - **Foundations (Phase A):** Crate scaffolding, `layers.toml` registration, `WTL`, `CodeEffortJudge` task category, timeouts constant, and implementation of config/range/walk/shape.
+  - **Judge stack (Phase B):** Schema, prompt and system message, response parsing, `Judge` trait, `MockJudge`, and `LlmJudge` integration via `vox_actor_runtime::llm`.
+  - **Hybrid cost (Phase C):** Claude Code transcript correlator with window and CWD scoping, and ambiguous fallthrough.
+  - **Output (Phase D):** Streaming JSONL writer with stable `schema_version 1.0`, manifest writer, and Markdown renderer with `insta` snapshot and author-leak guard test.
+  - **Pipeline and telemetry (Phase E):** `audit.effort.*` event types, pipeline composition, budget tracking, and bounded concurrency via `Semaphore`.
+  - **CLI and finishing (Phase F):** `vox audit effort` subcommand, `AGENTS.md` umbrella note, coverage floor entry, `README`, and acceptance gate run and PR.
+  - Includes a self-review checklist and caveats for live API field names.
+
+--- audit: original='docs(plan): effort-audit-core S1 implementation plan (2026-05-28)' | actual=2582L across 1 files | derived=full ---
