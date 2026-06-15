@@ -1,0 +1,16 @@
+feat(arch-check): Add Rule 9 for forbidden direct dependencies
+scale: ~81 lines across 2 files [M]
+
+- `crates/vox-arch-check/src/main.rs`:
+    - Added `forbidden_deps` field to `LayersConfig` to store `ForbiddenDepRule` configurations.
+    - Introduced `ForbiddenDepRule` struct to define a crate, its forbidden dependencies, and a reason.
+    - Added `forbidden_deps` field to `GuardsConfig` to specify strictness for Rule 9.
+    - Added `forbidden_dep_violations` to `Report` to track violations and `strict_forbidden_deps` to control strictness.
+    - Updated `Report::is_err` to include `strict_forbidden_deps` in error checking.
+    - Implemented logic to print `forbidden_dep_violations` in the report summary.
+- `docs/src/architecture/layers.toml`:
+    - Updated comment for rule count from "six" to "seven" and "Rule 6" to "Rule 8".
+    - Added `forbidden_deps = "error"` to the `[guards]` section, making Rule 9 strict by default.
+    - Added `[[forbidden_deps]]` entries for `vox-rule-pack` and `vox-code-audit`, forbidding direct dependencies on `vox-search`, `tantivy`, and `qdrant` with specific reasons.
+
+--- audit: original='feat(arch-check): Rule 9 — forbidden direct deps for vox-rule-pack + vox-code-audit' | actual=81L across 2 files | derived=full ---
