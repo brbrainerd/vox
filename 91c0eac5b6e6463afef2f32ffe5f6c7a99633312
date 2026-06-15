@@ -1,0 +1,6 @@
+fix(gui-surface-registry): wire 'tasks' view_key into LEGACY_VIEWS
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-gui/ui/src/App.tsx`: Added 'tasks' to the `LEGACY_VIEWS` array.
+
+--- audit: original="fix(#273): wire 'tasks' view_key into App.tsx LEGACY_VIEWS (gui-surface-registry gate)" | actual=2L across 1 files | derived=full ---
