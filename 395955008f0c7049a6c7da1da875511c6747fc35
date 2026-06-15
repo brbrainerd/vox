@@ -1,0 +1,19 @@
+docs: update audit reports and documentation for hardcoded values
+scale: ~55374 lines across 36 files [XL]
+
+DIVERGENCE: original subject claimed 'chore: remediate hardcoded values and register env vars in SSOT' but this commit actually changed ~55374 lines across 36 files. Top areas:
+.vox: 55037 lines, 25 files
+contracts: 139 lines, 1 files
+.github: 90 lines, 1 files
+docs: 78 lines, 3 files
+(root): 19 lines, 1 files
+crates: 11 lines, 5 files
+
+- **.vox/audit/latest/**: Added 34 new audit reports (2000+ lines each) for various hardcoded values, including URLs, version strings, canonical keys, provider names, timeouts, buffer sizes, regex patterns, magic numbers, IPs, env var names, ports, extensions globs, model names, date literals, retry counts, filesystem paths, test data, and ANSI codes. Also updated `findings.v1.json` (26k+ lines) and `summary.csv` (1.3k+ lines).
+- **docs/**: Updated `how-to-code-signing.md` and removed `tut-getting-started.md`.
+- **.github/workflows/**: Added `release-gui.yml`.
+- **contracts/config/**: Modified `env-vars.v1.yaml`.
+- **README.md**: Updated the main README.
+- **crates/**: Minor modifications to `vox-secrets`, `vox-cli`, `vox-plugin-mens-candle-cuda`, `vox-plugin-mens-candle-metal`, and `vox-populi`.
+
+--- audit: original='chore: remediate hardcoded values and register env vars in SSOT' | actual=55374L across 36 files | derived=stat-only ---
