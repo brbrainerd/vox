@@ -1,0 +1,8 @@
+feat(share): Add Cloudflare Quick Tunnel backend
+scale: ~212 lines across 3 files [M]
+
+- `crates/vox-share/src/backends/cloudflare.rs`: New module implementing the Cloudflare Quick Tunnel backend. This includes logic to spawn `cloudflared tunnel`, parse the tunnel URL from its stderr, and manage the tunnel lifecycle. It relies on `binary_cache` to ensure the `cloudflared` binary is available.
+- `crates/vox-share/tests/cloudflare_backend_test.rs`: New test file for the Cloudflare backend, using a mock `cloudflared` binary to simulate its output and verify URL parsing.
+- `crates/vox-share/src/backends/mod.rs`: Added `cloudflare` module to the public backend modules.
+
+--- audit: original='feat(share): Cloudflare Quick Tunnel backend (S2 task 2)' | actual=212L across 3 files | derived=full ---
