@@ -1,0 +1,11 @@
+feat(orchestrator): Add VoxLocal health probe and task-category routing preference
+scale: ~205 lines across 6 files [M]
+
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/model_route_policy/tests.rs`: Add two new tests for VoxLocal routing preference: one confirming VoxLocal is preferred for Codegen tasks, and another confirming it's not preferred for Research tasks.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/providers/probe.rs`: Implement `probe_vox_local_health` function, which performs a TTL-cached `GET /health` request to the `VOX_LOCAL_ENDPOINT` (default `127.0.0.1:7863`) with a 1-second timeout and 30-second cache, similar to the existing Ollama probe.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/model_route_policy/resolve.rs`: Introduce a preference for `VoxLocal` models for `CodeGen`, `Testing`, `Parsing`, and `TypeChecking` task categories when local inference is allowed and a `VoxLocal` model is registered. This preference is applied before the general model scoring loop.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/limits.rs`: Define new constants `VOX_LOCAL_PROBE_TIMEOUT_SECS` (1 second) and `VOX_LOCAL_PROBE_CACHE_TTL_SECS` (30 seconds) for the VoxLocal health probe.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/provider_adapter.rs`: Integrate `probe_vox_local_health` into the `VoxLocalAdapter`'s `infer` method, ensuring a health check is performed before each inference request to allow for fast failure if the server is down.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/providers/mod.rs`: Export the new `probe_vox_local_health` function.
+
+--- audit: original='feat(orchestrator): VoxLocal health probe + task-category routing preference' | actual=205L across 6 files | derived=full ---
