@@ -1,0 +1,14 @@
+docs(architecture): auto-generate index and add SSoT stubs
+scale: ~150 lines across 7 files [M]
+
+- `docs/src/architecture/architecture-index.md`: Add new auto-generated architecture index.
+- `docs/src/architecture/classification-ssot-2026.md`: Add new SSoT document for component classification and naming conventions.
+- `docs/src/architecture/cryptography-ssot-2026.md`: Add new SSoT document for cryptographic policy, including allowed and banned primitives.
+- `docs/src/architecture/telemetry-trust-ssot.md`: Add new SSoT document for telemetry trust policy.
+- `crates/vox-doc-pipeline/src/pipeline/mod.rs`:
+    - Update the auto-generation comment in `SUMMARY.md` to explicitly warn bots/LLMs.
+    - Implement logic to auto-generate `architecture-index.md` by filtering pages with the "architecture" category.
+- `crates/vox-doc-pipeline/src/pipeline/types.rs`: Derive `Clone` for the `Page` struct to support filtering and collecting pages for the architecture index.
+- `docs/src/SUMMARY.md`: Update the auto-generated summary to include the new architecture SSoT documents.
+
+--- audit: original='docs: finalize SSoT stubs and auto-generate architecture index' | actual=150L across 7 files | derived=full ---
