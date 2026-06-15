@@ -1,0 +1,21 @@
+feat(oratio): introduce runtime config, session management, and routing
+scale: ~11700 lines across 100 files [XL]
+
+- `crates/vox-oratio`: Add `runtime_config` for centralizing tunables, `session` for managing capture lifecycle and state, and `routing` for deterministic intent classification.
+- `crates/vox-cli`: Introduce `ci eval_matrix` command for verifying benchmark matrices and running evaluations.
+- `crates/vox-compiler`: Refactor TypeScript codegen, extracting `hir_emit` for shared logic and significantly reducing `reactive.rs` by moving common emission patterns.
+- `crates/vox-mcp`: Enhance `oratio_tools` with profile and route mode parsing, and add new tools for chat and introspection.
+- `docs`: Update `doc-inventory.json` with significant additions, and revise several markdown files for CLI, CI, and architecture.
+- `scripts`: Update `install.sh` and `install.ps1` with substantial changes, and add a new Windows script to stop stuck Cargo tests.
+- `contracts`: Add new JSON schemas for `benchmark-matrix` and `rpc-methods`, and update `command-registry.yaml`.
+- `.github/workflows`: Update CI and release binary workflows.
+- `.gitlab-ci.yml`: Integrate new CI checks.
+- `README.md` and `CHANGELOG.md`: Update to reflect new features and changes.
+- `crates/vox-mens`: Add `merge_weights` command and update pipeline and training configurations.
+- `crates/vox-tools`: Substantially modify `lib.rs`.
+- `crates/vox-capability-registry`: Update `lib.rs`.
+- `crates/vox-orchestrator`: Minor updates to `a2a.rs` and tests.
+- `crates/vox-bootstrap`: Update `README.md`.
+- `Cargo.lock`: Update dependencies.
+
+--- audit: original='feat(ci): enhance CI workflows with eval matrix and command compliance checks' | actual=11700L across 100 files | derived=full ---
