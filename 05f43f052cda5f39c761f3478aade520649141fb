@@ -1,0 +1,6 @@
+fix(mesh): Correct `ModelKind` import in `ModelRegistry` tests
+scale: ~2 lines across 2 files [S]
+
+- `crates/vox-mesh/src/models/registry.rs`: Updated the import path for `ModelKind` from `crate::types::ModelKind` to `crate::models::types::ModelKind` within the test module.
+
+--- audit: original='fix(mesh+cli): unbreak workspace tests — vox-mesh import + CLI catalog baseline' | actual=2L across 2 files | derived=full ---
