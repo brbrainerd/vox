@@ -1,0 +1,30 @@
+refactor(lang): eradicate `ret` keyword, update UI/durable syntax, improve AI detection
+scale: ~1894 lines across 134 files [XL]
+
+- refactor(lang): Replaced deprecated `ret` keyword with `return` across 170 files, including Vox code strings, doc comments, test fixtures, corpus generators, system prompts, and example files. This change tokenizes `return` as a single BPE token, improving efficiency. Intentional uses in `language_surface.rs`, grammar exports, LSP tooltips, and `ref-syntax.md` were preserved.
+- feat(toestub): Added `ai_laziness.rs` with seven new sub-rules to detect AI "cop-out" patterns (e.g., placeholder returns, "implement later" comments, mock-named functions, custom type default returns, conditional stubs, assertion-only bodies, early-return-only functions). This expands stub detection beyond existing empty body and hollow function checks.
+- docs(adr): Introduced `adr/027-dual-track-ui-surfaces.md` formalizing the dual-track UI strategy: Vox-native reactivity (`component`, `state_machine`, `routes`, `style`) for greenfield development and a React/TanStack interop track (`@island`, `@v0`, classic `@component fn`) for explicit interop. This addresses corpus contamination concerns.
+- docs(readme): Updated `README.md` for post-Phase-2 accuracy, including `@endpoint` usage, plain `fn` for durable execution, and an expanded stability table with "Surface syntax 🟡", "Endpoints 🟡", "Stub detection / AI-laziness gates 🟡", and "Web UI & rendering" reflecting the dual-track decision.
+- docs(animation): Refined durable state animation in `durable_state_animation.html` and `template_durable.html` by adjusting CSS keyframe durations (20s -> 34s), regenerating WebP, balancing layout, and improving packet animation and track visibility.
+- chore(ci): Removed the `version` field from `vox-schema.json` and dropped the corresponding CI parity check, making `Cargo.toml` the sole source of truth for versioning.
+- fix(ci): Bumped `vox-schema.json` version to 0.5.0 to align with the workspace `Cargo.toml` version, resolving a `check-versions` CI gate failure.
+- chore(build): Implemented build disk-bloat mitigations in `.cargo/config.toml` (fixed `CARGO_TARGET_DIR` type) and `Cargo.toml` (`profile.dev debug=1`, `dev.package."*" debug=0`, `incremental=true`, `split-debuginfo="unpacked"`).
+- chore(scripts): Updated `scripts/clean-build-artifacts.vox` to provide more accurate output for skipped manual cleanup steps, returning `Ok("skipped: ...")` instead of `Ok("...cleaned")`.
+- refactor(corpus): Updated `crates/vox-corpus/src/codegen_vox/part_02.rs` to use `return` instead of `ret` and replaced `@query`/`@mutation`/`@server` with `@endpoint(kind: query|mutation|server)` to prevent deprecated syntax from polluting the corpus.
+- refactor(mens): Updated `crates/vox-mens/src/training/system_prompt.rs` to reflect post-Phase-2 syntax, replacing `ret` with `return`, removing tombstoned `actor`/`workflow`/`activity` keywords, and updating `@component fn` examples to `component`/`state_machine` style.
+- chore(docs): Added `AGENTS.md` to list auto-generated documentation files and their regenerator commands, preventing AI agents from directly editing these files.
+- docs(vscode): Updated `vox-vscode/README.md` to reflect keyword changes (`ret` -> `return`), remove tombstoned keywords (`actor`, `workflow`, `activity`, `routes`), remove deprecated decorators (`@server`, `@query`, `@mutation`), and add `@endpoint`. Also removed `@component` decorator from examples.
+- fix(docs): Corrected `--qlora-ce-last-k` default in `docs/src/reference/cli.md` from `1` to `64`.
+- fix(docs): Removed a malformed markdown link in `docs/src/ci/crate-hardening-matrix.md`.
+- fix(docs): Updated doc comment in `crates/vox-compiler/src/ast/expr.rs` to reference `vox-compiler` typechecking instead of retired `vox-typeck`.
+- fix(examples): Corrected `// constructs:` line in `examples/golden/background_jobs.vox` to accurately list used constructs.
+- fix(contributing): Updated `CONTRIBUTING.md` to link to `documentation-governance.md`.
+- chore(repo): Added `.claude/settings.local.json` and `.claude/worktrees/` to `.gitignore` and untracked `.claude/settings.local.json` from the index for repo hygiene.
+- fix(toestub): Refined `ai_laziness` detector logic for `conditional_stub` (catching both branch orderings) and `is_test_gated` (detecting inline `#[cfg(test)]` blocks).
+- fix(docs): Updated various archive links in documentation files (`cli.md`, `contributor-hub.md`, `fullstack-data.md`) to point to canonical live documents or correct archive locations.
+- chore(deps): Refreshed `vox-exec-grammar` version in `Cargo.lock`.
+- refactor(compiler): Removed `ActorDecl`, `ActorHandler`, `WorkflowDecl`, and `ActivityDecl` from `crates/vox-compiler/src/ast/decl/logic.rs` as these keywords are tombstoned.
+- refactor(compiler): Updated `crates/vox-compiler/src/lexer/compact.rs` to reflect the `return` keyword change in examples.
+- chore(cargo): Updated `Cargo.toml` for build profile changes.
+
+--- audit: original='chore: eradicate ret keyword, README accuracy, stub detection, dual-track UI, animation polish (#48)' | actual=1894L across 134 files | derived=full ---
