@@ -1,0 +1,10 @@
+feat(quantize): Implement SafeTensors source reader for single and sharded models
+scale: ~105 lines across 1 files [M]
+
+- `crates/vox-quantize/src/read.rs`:
+    - Replaced placeholder module with `SafeTensorsSource` struct and its `open` method.
+    - Added logic to read either a single `model.safetensors` file or a sharded model via `model.safetensors.index.json` (HF `weight_map`).
+    - Implemented error handling for missing model files and malformed shard index.
+    - Introduced `ShardIndex` struct for deserializing `weight_map`.
+
+--- audit: original='feat(quantize): SafeTensors source reader (single + sharded)' | actual=105L across 1 files | derived=full ---
