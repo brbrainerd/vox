@@ -1,0 +1,10 @@
+feat(codegen-ts): introduce `@vox/runtime` adapter contract and refactor mobile emit
+scale: ~741 lines across 10 files [L]
+
+- **`clients/runtime-types/`**: Add new package defining the `VoxRuntime` TypeScript interface contract, including types for app state, back button, deep links, push notifications, and various runtime operations (e.g., `notify`, `takePhoto`, `vibrate`, `transcribe`, `spawnActor`, `startWorkflow`, `infer`).
+- **`clients/runtime-web/`**: Add new package `@vox/runtime` providing a Tauri 2-backed implementation of the `VoxRuntime` interface. This includes bindings to `@tauri-apps/api/event` for listeners and `@tauri-apps/api/core` for invoking commands, with methods throwing `VoxRuntimeError("UnsupportedOnPlatform")` for unsupported desktop features.
+- **`crates/vox-codegen/src/codegen_ts/mobile_emit.rs`**: Refactor mobile code generation to emit target-agnostic JavaScript that calls methods on `voxRuntime` from the `@vox/runtime` (or `@vox/runtime-rn`) adapter. Introduce `runtime_package_for_target` to resolve the correct runtime package based on the build target. Remove direct imports and calls to `@tauri-apps/api`.
+- **`crates/vox-codegen/src/codegen_ts/emitter.rs`**: Update `generate_with_options` to pass the `options.target` to `mobile_emit::emit_mobile_setup_for_target`, enabling target-aware adapter package selection.
+- **`crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@back_button.snap`**: Update snapshot to reflect the new adapter-shaped emit for back button handling, replacing direct `listen` and `invoke` calls with `voxRuntime.onBackButton`.
+
+--- audit: original='feat(codegen-ts): @vox/runtime adapter contract; refactor mobile_emit through it' | actual=741L across 10 files | derived=full ---
