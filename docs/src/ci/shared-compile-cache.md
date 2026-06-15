@@ -12,6 +12,60 @@ volume, and GitHub-hosted lanes used the 10 GB Actions cache. The same crate
 graph was recompiled in parallel by every agent tab. This page is the SSOT for
 the shared cache that collapses those silos.
 
+## Local dev agents (recommended default)
+
+This is the fastest path for anyone running builds locally — agent tabs, manual
+`cargo build` invocations, or worktree-per-branch workflows.
+
+### 1. Install sccache
+
+```bash
+cargo install sccache
+```
+
+### 2. Configure user-local cargo settings
+
+Add the following to **`~/.cargo/config.toml`** (your user-level config, NOT
+the tracked `.cargo/config.toml` in the repo root):
+
+```toml
+[build]
+rustc-wrapper = "sccache"
+incremental = false
+```
+
+**Why `incremental = false`?**
+Incremental compilation stores per-crate intermediate state in the local
+`target/` directory and **bypasses sccache entirely** — sccache only caches
+whole-crate compilations. With incremental on, sccache records zero writes and
+you get none of the warm-cache speedup. Mixed settings across machines also fork
+the cache key space, so an incremental build on your laptop cannot reuse
+artifacts written by a CI runner. Setting `CARGO_INCREMENTAL=0` (or
+`incremental = false` in config) is always the right choice when sccache is
+the wrapper.
+
+**Why NOT the tracked `.cargo/config.toml`?**
+Putting `rustc-wrapper = "sccache"` in the repo-tracked config forces every
+contributor to have sccache installed — including people who only want to build
+once for a quick PR review. The cross-worktree hit rate is 0% anyway: sccache
+cache keys include the absolute path prefix, so artifacts from one worktree
+directory are never reused by a different worktree directory (measured; see
+[Measured](#measured-vox-bounded-fs--deps-wiped-target-dir-each-pass) below).
+The user-local config gives you the speedup without imposing a dependency on
+everyone else.
+
+### 3. Verify the setup
+
+```bash
+vox ci build-cache-doctor
+```
+
+This command checks that sccache is on the `PATH`, that `CARGO_INCREMENTAL` is
+not overriding the config-file setting, and that the cache backend (disk or
+S3/MinIO) is reachable. Fix any reported warnings before starting a long build.
+
+---
+
 ## Architecture
 
 One MinIO container on the CI host serves an S3-compatible bucket
