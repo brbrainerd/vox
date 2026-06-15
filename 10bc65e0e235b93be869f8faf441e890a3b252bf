@@ -1,0 +1,19 @@
+feat(compiler): Add typed URL primitive (parser, HIR, typeck)
+scale: ~852 lines across 17 files [L]
+
+- Introduce `url Name { Variant, Variant(args) }` declaration syntax in `parser/descent/decl/tail.rs`, dispatched via `Token::Ident "url"`, handling `Token::TypeIdent` for PascalCase variants.
+- Add `UrlDecl`, `UrlVariant`, and `UrlArg` AST nodes in `ast/decl/ui.rs` and `Decl::Url` to `ast/decl/types.rs`.
+- Add `HirUrlDecl`, `HirUrlVariant`, and `HirUrlArg` HIR nodes in `hir/nodes/url.rs`, and `url_decls` vector to `HirModule` and `SemanticHirModule`.
+- Implement lowering for `UrlDecl` in `hir/lower/mod.rs` and add `Decl::Url` to `hir/nodes/decl.rs`.
+- Add `typeck/url_check.rs` to validate unique variant names within a `url` block and unique argument names within a variant, and integrate it into `typeck/mod.rs`.
+- Add two parser tests for `url` blocks in `parser/descent/tests.rs`.
+- Update `parser/descent/mod.rs` to include `parse_url_block`.
+- Update `hir/nodes/mod.rs` to include `url` module.
+- Refactor `crates/vox-mens/src/commands/ai/workflow.rs` to remove workflow/activity-related logic, replacing it with a retirement message (`RETIRED_MSG`) due to the deprecation of `HirWorkflow` and `HirActivity` types.
+- Remove tests and related code in `crates/vox-workflow-runtime/src/workflow/mod.rs` that relied on the retired `HirWorkflow` and `HirActivity` types.
+- Stub `plan_workflow_replay_ir` in `crates/vox-workflow-runtime/src/workflow/plan.rs` to return an empty IR, reflecting the removal of the `HirModule.workflows` field.
+- Add `Decl::Url` arm to `decl_kind_and_name` match in `crates/vox-corpus/src/corpus/extract_vox/part_ast.rs`.
+- Add `Decl::Url("url")` to `extract_constructs` match in `crates/vox-mens/src/training/core.rs`.
+- Update `docs/src/architecture/gui-native-roadmap-status-2026.md` to reflect changes.
+
+--- audit: original='feat(compiler): TASK-4.3 — typed URL primitive (parser+HIR+typeck); fix workspace blast radius' | actual=852L across 17 files | derived=full ---
