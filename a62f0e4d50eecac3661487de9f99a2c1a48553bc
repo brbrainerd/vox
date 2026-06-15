@@ -1,0 +1,19 @@
+chore(crates): migrate 13 internal crates to workspace versioning
+scale: ~46 lines across 14 files [M]
+
+- `crates/vox-journal`: Changed `version = "0.6.0"` to `version.workspace = true`.
+- `crates/vox-openclaw-runtime`: Changed `version = "0.1.0"` to `version.workspace = true`.
+- `crates/vox-plugin-cloud`: Changed `version = "0.1.0"` to `version.workspace = true`.
+- `crates/vox-plugin-mens-candle-cuda`: Changed `version = "0.1.0"` to `version.workspace = true`.
+- `crates/vox-plugin-mens-candle-metal`: Changed `version = "0.1.0"` to `version.workspace = true`.
+- `crates/vox-plugin-oratio`: Changed `version = "0.1.0"` to `version.workspace = true`.
+- `crates/vox-plugin-populi-mesh`: Changed `version = "0.1.0"` to `version.workspace = true`.
+- `crates/vox-plugin-runtime-container`: Changed `version = "0.1.0"` to `version.workspace = true`.
+- `crates/vox-plugin-runtime-wasm`: Changed `version = "0.1.0"` to `version.workspace = true`.
+- `crates/vox-plugin-webhook`: Changed `version = "0.1.0"` to `version.workspace = true`.
+- `crates/vox-runtime-rn`: Changed `version = "0.6.0"` to `version.workspace = true`.
+- `crates/vox-runtime`: Changed `version = "0.6.0"` to `version.workspace = true`.
+- `crates/vox-tauri-stt`: Changed `version = "0.5.0"` to `version.workspace = true`.
+- `Cargo.lock`: Updated to reflect changes in `Cargo.toml` files.
+
+--- audit: original='chore(crates): use workspace versioning for all internal crates (check-versions)' | actual=46L across 14 files | derived=full ---
