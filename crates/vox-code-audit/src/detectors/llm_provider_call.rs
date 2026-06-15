@@ -61,11 +61,17 @@ impl LlmProviderCallDetector {
         }
     }
 
-    /// `true` if `path` is the sanctioned LLM egress facade (the one place allowed to
-    /// reach providers directly). Normalizes Windows/Unix separators.
+    /// `true` if `path` is the sanctioned LLM egress core (`vox-llm-egress`) — the one
+    /// place allowed to reach providers directly. Normalizes Windows/Unix separators.
     fn is_facade_file(path: &std::path::Path) -> bool {
         let s = path.to_string_lossy().replace('\\', "/");
-        s.contains("crates/vox-actor-runtime/src/llm/")
+        s.contains("crates/vox-llm-egress/")
+    }
+
+    /// `true` if `line` carries the documented-local allow annotation, exempting a
+    /// deliberate local egress (e.g. streaming-cost or non-OpenAI-compatible paths).
+    fn has_allow_annotation(line: &str) -> bool {
+        line.contains("vox-arch-check: allow llm-egress")
     }
 
     /// `true` if `line` reaches a provider via a `vox-config` base-url accessor.
@@ -207,6 +213,17 @@ impl DetectionRule for LlmProviderCallDetector {
                 continue;
             }
 
+            // Skip deliberate, documented local egress carrying the allow annotation
+            // within ±5 lines (e.g. streaming-cost or non-OpenAI-compatible provider paths).
+            let ann_start = i.saturating_sub(5);
+            let ann_end = (i + 6).min(file.lines.len());
+            if file.lines[ann_start..ann_end]
+                .iter()
+                .any(|l| Self::has_allow_annotation(l))
+            {
+                continue;
+            }
+
             // Check for HTTP call on the same line first
             if self.has_http_call(line, file.language) {
                 let hostname = self.matched_hostname(line).to_string();
@@ -323,16 +340,38 @@ let resp = http.post(openrouter_base()).bearer_auth(key).json(&body).send().awai
     }
 
     #[test]
-    fn allows_egress_inside_actor_runtime_facade() {
-        // The sanctioned facade uses base-url accessors + client.post — must NOT fire.
+    fn allows_egress_inside_egress_core_crate() {
+        // The sanctioned egress core (vox-llm-egress) builds the provider client — must NOT fire.
         let d = LlmProviderCallDetector::new();
         let code = r#"
 let client = vox_http_client::client();
 let base_url = vox_config::openrouter_chat_completions_url();
 let resp = client.post(&base_url).json(&req_body).send().await?;
 "#;
+        let f = source_at("crates/vox-llm-egress/src/wire.rs", code);
+        assert!(d.detect(&f, None).is_empty(), "vox-llm-egress is the allowlisted egress home");
+    }
+
+    #[test]
+    fn flags_egress_in_actor_runtime_now_that_it_should_delegate() {
+        // After the egress extraction, the facade must delegate — a raw provider call here fires.
+        let d = LlmProviderCallDetector::new();
+        let code = "let resp = client.post(\"https://api.openai.com/v1/chat/completions\").send().await?;";
         let f = source_at("crates/vox-actor-runtime/src/llm/chat.rs", code);
-        assert!(d.detect(&f, None).is_empty(), "facade is the allowlisted egress");
+        assert!(!d.detect(&f, None).is_empty(), "non-egress crates must route through vox-llm-egress");
+    }
+
+    #[test]
+    fn documented_local_allow_annotation_is_respected() {
+        // Deliberate local egress (e.g. streaming-cost / non-OpenAI-compatible) is exempted.
+        let d = LlmProviderCallDetector::new();
+        let code = r#"
+// vox-arch-check: allow llm-egress
+let url = "https://generativelanguage.googleapis.com/v1beta/models/x:generateContent";
+let resp = http.post(&url).json(&body).send().await?;
+"#;
+        let f = source_at("crates/vox-gamify/src/ai/client/transport.rs", code);
+        assert!(d.detect(&f, None).is_empty(), "annotated local egress must be exempt");
     }
 
     #[test]

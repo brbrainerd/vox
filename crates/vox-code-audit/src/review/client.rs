@@ -246,6 +246,9 @@ impl ReviewClient {
         // Endpoint is HTTPS (TLS-encrypted). The API key is passed via the
         // `x-goog-api-key` header rather than the URL query string so it does
         // not leak into request logs.
+        // Direct Gemini is NOT OpenAI-compatible — the egress core can't carry it;
+        // documented local egress per the egress design spec.
+        // vox-arch-check: allow llm-egress
         let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
             model

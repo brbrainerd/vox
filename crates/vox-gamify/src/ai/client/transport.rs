@@ -84,6 +84,9 @@ impl FreeAiClient {
     ) -> Pin<Box<dyn Stream<Item = Result<String, AiError>> + Send>> {
         let resolved_key = resolve_gemini_key(api_key);
 
+        // Direct Gemini (generativelanguage) is NOT OpenAI-compatible — the egress core can't
+        // carry it; documented local egress per the egress design spec.
+        // vox-arch-check: allow llm-egress
         let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{}:streamGenerateContent?key={}",
             model, resolved_key
