@@ -1,0 +1,50 @@
+chore(fmt): apply rustfmt to vox-cli and vox-code-audit crates
+scale: ~1386 lines across 69 files [XL]
+
+Bulk format pass on `crates/vox-cli` and `crates/vox-code-audit`.
+No semantic changes — pure whitespace / line-break normalization.
+`cargo fmt -p vox-cli -p vox-code-audit --check` now exits 0.
+
+- `crates/vox-cli/src/commands/review/coderabbit/github/reviews/stack.rs`: Reformatted `git` command invocations.
+- `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/collector.rs`: Reformatted `git` command invocations.
+- `crates/vox-cli/src/commands/review/coderabbit/github/reviews/worktree.rs`: Reformatted `git` command invocations.
+- `crates/vox-cli/src/commands/ci/pre_push.rs`: Reformatted `check_tier_budget` and `build_steps` functions.
+- `crates/vox-cli/src/commands/scientia_phase_handlers.rs`: Reformatted `read_json`, `manuscript_draft`, `replay_execute`, `publication_extract_claims`, and `merge_extracted_claims_into_metadata` functions.
+- `crates/vox-cli/src/commands/review/coderabbit/git.rs`: Reformatted `WorkspaceGuard` implementation.
+- `crates/vox-code-audit/src/stdlib_parity.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/review/coderabbit/github/reviews/submit_branch.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/review/coderabbit/historical_planner.rs`: Reformatted code.
+- `crates/vox-code-audit/src/retirement_parity.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/review/coderabbit/stack_planner/submit.rs`: Reformatted code.
+- `crates/vox-code-audit/src/detectors/retired_capacitor.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/repair.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/ci/model_routing_check.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/ci/tier_budget_check.rs`: Reformatted code.
+- `crates/vox-code-audit/src/detectors/retired_decorator.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/ci/gui_catalog_parity.rs`: Reformatted code.
+- `crates/vox-code-audit/src/detectors/import_cycles.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/ci/data_storage_guard.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/ci/retirement_audit.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/plugin/scaffold.rs`: Reformatted code.
+- `crates/vox-cli/src/compilerd.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/build.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/scout.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/ci/no_tauri_in_core.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/dei.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/ci/no_plugin_cdylib_as_compile_dep.rs`: Reformatted code.
+- `crates/vox-cli/src/telemetry_corpus_feedback_sink.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/compile.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/tail.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/emit/openapi.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/check.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/ci/release_build.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/gui.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/review/coderabbit/github/reviews/baseline.rs`: Reformatted code.
+- `crates/vox-cli/tests/check_for_llm_envelope.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/diagnostics/stub_check/mod.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/openclaw.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/rollback.rs`: Reformatted code.
+- `crates/vox-cli/src/commands/scientia.rs`: Reformatted code.
+
+--- audit: original='chore(fmt): apply rustfmt to vox-cli and vox-code-audit (accumulated drift)' | actual=1386L across 69 files | derived=full ---
