@@ -1,0 +1,8 @@
+feat(tracker): Add Android release signing script and documentation
+scale: ~46 lines across 3 files [S]
+
+- `apps/vox-mental-tracker/scripts/sign-android.vox`: New Vox script to build a signed Android release APK using environment variables for keystore details.
+- `apps/vox-mental-tracker/docs/release.md`: New documentation for Android release signing, including keystore generation instructions, required environment variables, and the command to run the signing script. Also includes a note on manual iOS release steps.
+- `apps/vox-mental-tracker/.gitignore`: Additions to ignore `.jks`, `.keystore`, `.env.release`, and build output directories for iOS (`ios/App/build/`) and Android (`android/app/build/`).
+
+--- audit: original='feat(tracker): Android release signing pipeline + docs' | actual=46L across 3 files | derived=full ---
