@@ -1,0 +1,38 @@
+feat(compiler+codegen+cli): language surface improvements, SSE, and CLI repair/deploy
+scale: ~2346 lines across 47 files [XL]
+
+- **compiler**:
+    - Revised ADR-028 keyword checks: `workflow` and `activity` are now public grammar, `@scheduled` and `@durable` remain reserved.
+    - Improved type checking for polymorphic instantiation (field/method/call sites), expected-type propagation through `match` arms and `if` expressions.
+    - Enforced explicit `@table` primary key requirement (`id: str` or marked primary field).
+    - Updated `builtins.rs`, `registration.rs`, `mod.rs` for typeck.
+    - Modified `hir/lower/mod.rs` and `hir/lower/decl.rs` for HIR lowering.
+    - Updated `parser/descent/decl/head.rs` and `parser/descent/decl/mid.rs` for parser descent.
+    - Added `app_contract.rs`, `ast/decl/db.rs`, `ast/decl/fundecl.rs`, `hir/nodes/decl.rs`, `hir/validate.rs`, `contract_ir/mod.rs`, `web_prefixes.rs`, `typeck/effect_check.rs`.
+- **codegen**:
+    - Implemented SSE response-shape codegen for `Stream` endpoints.
+    - Added per-actor broadcast type for `subscribe(Actor)` to support SSE bridge payload delivery.
+    - Integrated `subscribe(Actor)` SSE bridge into `SubscriptionManager`.
+    - Implemented actor `broadcast(msg)` builtin with real payload routing.
+    - Improved route/IR and table-projection emission.
+    - Updated `codegen_rust/emit/http.rs`, `codegen_rust/emit/stmt_expr.rs`, `codegen_rust/mod.rs`, `codegen_rust/emit/mod.rs`, `codegen_rust/emit/tables/projections.rs`.
+    - Modified `web_ir/validate_overlay.rs` and `web_ir/lower.rs`.
+- **cli**:
+    - Enhanced `repair` command with import-graph topological sorting using Tarjan's SCC for dependency-aware file processing.
+    - Added a new e2e test (`cr_l7_new_deploy_doctor_e2e.rs`) for `vox new web` -> `vox deploy --dry-run` -> `vox doctor --project` flow.
+    - Updated `deploy.rs` command.
+- **actor-runtime**:
+    - `SubscriptionManager` now carries typed broadcast channels for actor messages, separate from table invalidation signals.
+    - Updated `subscription.rs`.
+- **project-scaffold**:
+    - Updated `lib.rs` to reflect new language surface for `@table`, `@endpoint`, `activity`, and `workflow` declarations in templates.
+- **deploy-codegen**:
+    - Updated `deploy_target.rs`.
+- **test-harness**:
+    - Updated `hir_builders.rs` for alignment with new diagnostics.
+- **documentation**:
+    - Updated `AGENTS.md` and `docs/src/reference/cli-vox-deploy.md` to reflect language surface changes.
+- **examples**:
+    - Updated golden fixtures (`db_native_ir.vox`, `index_showcase.vox`, `iot_telemetry.vox`, `auth_patterns.vox`, `blog_fullstack.vox`, `crud_api.vox`, `db_advanced_queries.vox`, `getting_started.vox`, `inventory_rosetta_core.vox`, `multi_tenancy.vox`, `option_type.vox`, `pagination.vox`, `ref_agents.vox`) to compile clean under new typeck rules.
+
+--- audit: original='feat(compiler+codegen): language-surface improvements across typeck, HIR, codegen' | actual=2346L across 47 files | derived=full ---
