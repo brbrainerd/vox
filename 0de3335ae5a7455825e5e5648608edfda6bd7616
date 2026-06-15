@@ -1,0 +1,6 @@
+fix(ci): correct relative path depth in compile-suite desktop smoke step
+scale: ~2 lines across 1 files [XS]
+
+- `.github/workflows/compile-matrix.yml`: Updated the `run` command for the "Compile suite desktop Tauri generation smoke" job to use `../../../../target/debug/vox` instead of `../../../target/debug/vox`. This corrects the relative path to the `vox` executable, as the working directory `examples/compile-suite/packages/desktop` is four levels deep from the repository root.
+
+--- audit: original='fix(ci): correct relative path depth in compile-suite desktop smoke step' | actual=2L across 1 files | derived=full ---
