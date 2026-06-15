@@ -1,0 +1,17 @@
+fix(arch): route raw git calls through `vox_git::read_only`
+scale: ~172 lines across 12 files [M]
+
+- `crates/vox-gui/src/commands/policy.rs`: Replaced direct `git worktree list`, `git branch`, and `git rev-parse` commands with `vox_git::read_only` calls.
+- `crates/vox-cli/src/commands/db/publication/discovery.rs`: Replaced direct `git remote get-url origin` command with `vox_git::read_only`. Removed Windows-specific `CREATE_NO_WINDOW` flag as it's handled by `vox_git`.
+- `crates/vox-cli/src/commands/db/publication/discovery_watch.rs`: Replaced custom `run_git` function that shelled out to `git` with a call to `vox_git::read_only`.
+- `crates/vox-gui/src/commands/scientia_review.rs`: Replaced direct `git remote get-url origin` command with `vox_git::read_only`. Removed Windows-specific `CREATE_NO_WINDOW` flag.
+- `crates/vox-cli/src/commands/policy/status_writer.rs`: Replaced direct `git` command execution in `git_read` with `vox_git::read_only`. Updated comments to reflect `vox-git` is now a non-optional dependency.
+- `crates/vox-gui/src/commands/harness.rs`: Replaced direct `git ls-files` command with `vox_git::read_only`.
+- `crates/vox-cli/src/commands/ci/install_hooks.rs`: Replaced direct `git rev-parse --git-path hooks` command with `vox_git::read_only`.
+- `crates/vox-git/src/read_cmd.rs`: Extended the `READ_ONLY` allowlist to include `remote`, `worktree`, and `branch` commands.
+- `docs/src/architecture/layers.toml`: Added `staleness_exempt = true` to `vox-bounded-fs`, `vox-crypto`, `vox-capability-registry`, and `vox-constrained-gen`.
+- `crates/vox-cli/Cargo.toml`: Added `vox-git` as a dependency.
+- `crates/vox-gui/Cargo.toml`: Added `vox-git` as a dependency.
+- `Cargo.lock`: Updated due to dependency changes.
+
+--- audit: original='fix(arch): route all raw git calls through vox_git::read_only' | actual=172L across 12 files | derived=full ---
