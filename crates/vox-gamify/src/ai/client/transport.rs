@@ -285,7 +285,10 @@ impl FreeAiClient {
                 role: "user".to_string(),
                 content: prompt.to_string(),
             }];
-            let params = vox_llm_egress::ChatParams { max_tokens: Some(512), ..Default::default() };
+            let params = vox_llm_egress::ChatParams {
+                max_tokens: Some(512),
+                ..Default::default()
+            };
             match vox_llm_egress::chat_once(&ereq, &msgs, &params).await {
                 Ok(resp) => {
                     let trimmed = resp.content.trim().to_string();

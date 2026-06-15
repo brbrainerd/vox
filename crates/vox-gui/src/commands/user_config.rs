@@ -72,7 +72,10 @@ fn generic_flat_value(key: &str, default: &str) -> String {
     }
     let cfg = vox_config::toml_config::load_user_config();
     if let Some(v) = cfg.values.get(key) {
-        return v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string());
+        return v
+            .as_str()
+            .map(str::to_string)
+            .unwrap_or_else(|| v.to_string());
     }
     default.to_string()
 }
@@ -96,21 +99,21 @@ fn flat_effective_value(spec: &LlmConfigKey) -> String {
         "OPENROUTER_BASE_URL" => vox_config::openrouter_base_url(),
         "VOX_OPENAI_BASE_URL" => vox_config::openai_compatible_base_url(),
         "POPULI_URL" => vox_config::local_ollama_populi_base_url(),
-        "OLLAMA_TUNING_TEMPERATURE" => {
-            vox_config::ollama_tuning_temperature().map(|v| v.to_string()).unwrap_or_default()
-        }
-        "OLLAMA_TUNING_TOP_P" => {
-            vox_config::ollama_tuning_top_p().map(|v| v.to_string()).unwrap_or_default()
-        }
-        "OLLAMA_TUNING_NUM_CTX" => {
-            vox_config::ollama_tuning_num_ctx().map(|v| v.to_string()).unwrap_or_default()
-        }
-        "OPENAI_TUNING_TEMPERATURE" => {
-            vox_config::openai_tuning_temperature().map(|v| v.to_string()).unwrap_or_default()
-        }
-        "OPENAI_TUNING_TOP_P" => {
-            vox_config::openai_tuning_top_p().map(|v| v.to_string()).unwrap_or_default()
-        }
+        "OLLAMA_TUNING_TEMPERATURE" => vox_config::ollama_tuning_temperature()
+            .map(|v| v.to_string())
+            .unwrap_or_default(),
+        "OLLAMA_TUNING_TOP_P" => vox_config::ollama_tuning_top_p()
+            .map(|v| v.to_string())
+            .unwrap_or_default(),
+        "OLLAMA_TUNING_NUM_CTX" => vox_config::ollama_tuning_num_ctx()
+            .map(|v| v.to_string())
+            .unwrap_or_default(),
+        "OPENAI_TUNING_TEMPERATURE" => vox_config::openai_tuning_temperature()
+            .map(|v| v.to_string())
+            .unwrap_or_default(),
+        "OPENAI_TUNING_TOP_P" => vox_config::openai_tuning_top_p()
+            .map(|v| v.to_string())
+            .unwrap_or_default(),
         other => generic_flat_value(other, spec.default),
     }
 }
@@ -290,7 +293,10 @@ pub fn spawn_llm_config_bridge(app: tauri::AppHandle) {
     vox_config::snapshot::on_change(move |change| {
         let _ = app.emit(
             LLM_CONFIG_CHANGED_EVENT,
-            LlmConfigChanged { rev: change.rev, keys: change.changed.clone() },
+            LlmConfigChanged {
+                rev: change.rev,
+                keys: change.changed.clone(),
+            },
         );
     });
 }
@@ -305,17 +311,27 @@ mod tests {
 
     #[test]
     fn change_event_payload_serializes_camel_case() {
-        let p = LlmConfigChanged { rev: 3, keys: vec!["OPENROUTER_BASE_URL".to_string()] };
+        let p = LlmConfigChanged {
+            rev: 3,
+            keys: vec!["OPENROUTER_BASE_URL".to_string()],
+        };
         let j = serde_json::to_string(&p).expect("serialize");
         assert!(j.contains("\"rev\":3"), "rev field present: {j}");
-        assert!(j.contains("OPENROUTER_BASE_URL"), "changed key present: {j}");
+        assert!(
+            j.contains("OPENROUTER_BASE_URL"),
+            "changed key present: {j}"
+        );
     }
 
     #[test]
     fn catalog_is_registry_non_secret_view() {
         let cat = get_user_config();
         let reg = vox_llm_config::gui_fields();
-        assert_eq!(cat.len(), reg.len(), "GUI catalog must equal registry gui_fields");
+        assert_eq!(
+            cat.len(),
+            reg.len(),
+            "GUI catalog must equal registry gui_fields"
+        );
         // Secrets must never surface here.
         assert!(
             cat.iter().all(|f| f.key != "OPENROUTER_API_KEY"),

@@ -7,7 +7,7 @@ use std::time::Instant;
 use serde::Serialize;
 
 use crate::{
-    throttle, ChatMessage, ChatParams, ChatStream, EgressChatResponse, EgressError, EgressRequest,
+    ChatMessage, ChatParams, ChatStream, EgressChatResponse, EgressError, EgressRequest, throttle,
 };
 
 #[derive(Serialize)]
@@ -101,7 +101,10 @@ pub async fn chat_once(
     }
 
     let start = Instant::now();
-    let res = http.send().await.map_err(|e| EgressError::Http(e.to_string()))?;
+    let res = http
+        .send()
+        .await
+        .map_err(|e| EgressError::Http(e.to_string()))?;
     let status = res.status();
     if status.as_u16() == 429 {
         let retry_after = throttle::retry_after_from_headers(res.headers());
@@ -110,7 +113,10 @@ pub async fn chat_once(
     }
     if !status.is_success() {
         let body = res.text().await.unwrap_or_default();
-        return Err(EgressError::Status { code: status.as_u16(), body });
+        return Err(EgressError::Status {
+            code: status.as_u16(),
+            body,
+        });
     }
     let header_cost = res
         .headers()
@@ -118,8 +124,10 @@ pub async fn chat_once(
         .and_then(|v| v.to_str().ok())
         .and_then(|s| s.parse::<f64>().ok());
     let latency_ms = start.elapsed().as_millis() as u64;
-    let json: serde_json::Value =
-        res.json().await.map_err(|e| EgressError::Decode(e.to_string()))?;
+    let json: serde_json::Value = res
+        .json()
+        .await
+        .map_err(|e| EgressError::Decode(e.to_string()))?;
     throttle::on_success(&req.throttle_key);
 
     let content = json["choices"][0]["message"]["content"]
@@ -180,7 +188,10 @@ pub async fn stream_once(
         http = http.header(name, value);
     }
 
-    let res = http.send().await.map_err(|e| EgressError::Http(e.to_string()))?;
+    let res = http
+        .send()
+        .await
+        .map_err(|e| EgressError::Http(e.to_string()))?;
     let status = res.status();
     if status.as_u16() == 429 {
         let retry_after = throttle::retry_after_from_headers(res.headers());
@@ -189,7 +200,10 @@ pub async fn stream_once(
     }
     if !status.is_success() {
         let body = res.text().await.unwrap_or_default();
-        return Err(EgressError::Status { code: status.as_u16(), body });
+        return Err(EgressError::Status {
+            code: status.as_u16(),
+            body,
+        });
     }
     throttle::on_success(&req.throttle_key);
 
@@ -244,12 +258,18 @@ pub async fn embed_once(req: &EgressRequest, text: &str) -> Result<Vec<f32>, Egr
     let client = vox_http_client::client();
     let _permit = throttle::acquire_permit(&req.throttle_key, req.max_concurrent).await;
 
-    let body = EmbedRequest { model: &req.model, input: text };
+    let body = EmbedRequest {
+        model: &req.model,
+        input: text,
+    };
     let mut http = apply_auth_headers(client.post(&req.base_url).json(&body), req);
     if let Some(ms) = req.timeout_ms {
         http = http.timeout(std::time::Duration::from_millis(ms));
     }
-    let res = http.send().await.map_err(|e| EgressError::Http(e.to_string()))?;
+    let res = http
+        .send()
+        .await
+        .map_err(|e| EgressError::Http(e.to_string()))?;
     let status = res.status();
     if status.as_u16() == 429 {
         let retry_after = throttle::retry_after_from_headers(res.headers());
@@ -258,14 +278,23 @@ pub async fn embed_once(req: &EgressRequest, text: &str) -> Result<Vec<f32>, Egr
     }
     if !status.is_success() {
         let body = res.text().await.unwrap_or_default();
-        return Err(EgressError::Status { code: status.as_u16(), body });
+        return Err(EgressError::Status {
+            code: status.as_u16(),
+            body,
+        });
     }
     throttle::on_success(&req.throttle_key);
-    let json: serde_json::Value =
-        res.json().await.map_err(|e| EgressError::Decode(e.to_string()))?;
+    let json: serde_json::Value = res
+        .json()
+        .await
+        .map_err(|e| EgressError::Decode(e.to_string()))?;
     let vector = json["data"][0]["embedding"]
         .as_array()
-        .map(|a| a.iter().filter_map(|v| v.as_f64().map(|f| f as f32)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_f64().map(|f| f as f32))
+                .collect()
+        })
         .unwrap_or_default();
     Ok(vector)
 }

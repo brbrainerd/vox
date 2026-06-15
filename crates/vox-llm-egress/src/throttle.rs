@@ -88,7 +88,8 @@ impl ProviderThrottle {
     /// Multiplicative decrease + optional header-driven cooldown.
     pub fn on_rate_limited(&self, retry_after: Option<Duration>) {
         let limit = self.current_limit.load(Ordering::SeqCst);
-        self.current_limit.store((limit / 2).max(1), Ordering::SeqCst);
+        self.current_limit
+            .store((limit / 2).max(1), Ordering::SeqCst);
         self.success_streak.store(0, Ordering::SeqCst);
         if let Some(d) = retry_after {
             let mut guard = self.cooldown_until.lock().expect("throttle lock");
@@ -162,7 +163,9 @@ pub fn retry_after_from_headers(headers: &reqwest::header::HeaderMap) -> Option<
             .ok()?
             .as_millis();
         if reset_ms > now_ms {
-            return Some(Duration::from_millis(((reset_ms - now_ms) as u64).min(120_000)));
+            return Some(Duration::from_millis(
+                ((reset_ms - now_ms) as u64).min(120_000),
+            ));
         }
     }
     None

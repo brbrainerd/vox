@@ -1,6 +1,7 @@
 use futures::StreamExt;
 use vox_llm_egress::{
-    chat_once, embed_once, stream_once, ChatMessage, ChatParams, EgressError, EgressRequest, ToolDef,
+    ChatMessage, ChatParams, EgressError, EgressRequest, ToolDef, chat_once, embed_once,
+    stream_once,
 };
 use wiremock::matchers::{body_partial_json, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -33,8 +34,13 @@ async fn chat_once_sends_bearer_headers_and_parses_usage() {
         .await;
 
     let r = req(format!("{}/chat/completions", server.uri()));
-    let msgs = vec![ChatMessage { role: "user".into(), content: "yo".into() }];
-    let out = chat_once(&r, &msgs, &ChatParams::default()).await.expect("ok");
+    let msgs = vec![ChatMessage {
+        role: "user".into(),
+        content: "yo".into(),
+    }];
+    let out = chat_once(&r, &msgs, &ChatParams::default())
+        .await
+        .expect("ok");
     assert_eq!(out.content, "hi");
     assert_eq!(out.prompt_tokens, 5);
     assert_eq!(out.completion_tokens, 2);
@@ -58,7 +64,9 @@ async fn chat_once_parses_cache_tokens_and_body_cost() {
         .mount(&server)
         .await;
     let r = req(format!("{}/chat/completions", server.uri()));
-    let out = chat_once(&r, &[], &ChatParams::default()).await.expect("ok");
+    let out = chat_once(&r, &[], &ChatParams::default())
+        .await
+        .expect("ok");
     assert_eq!(out.cache_read_tokens, 6);
     assert_eq!(out.cost_usd, Some(0.0021));
 }
@@ -82,8 +90,13 @@ async fn chat_once_serializes_tools() {
         description: None,
         parameters: serde_json::json!({"type": "object"}),
     }];
-    let params = ChatParams { tools: Some(&tools), ..Default::default() };
-    let out = chat_once(&r, &[], &params).await.expect("tools request must match + succeed");
+    let params = ChatParams {
+        tools: Some(&tools),
+        ..Default::default()
+    };
+    let out = chat_once(&r, &[], &params)
+        .await
+        .expect("tools request must match + succeed");
     assert_eq!(out.content, "ok");
 }
 
@@ -95,9 +108,16 @@ async fn chat_once_maps_429_to_rate_limited() {
         .mount(&server)
         .await;
     let r = req(format!("{}/chat/completions", server.uri()));
-    let err = chat_once(&r, &[], &ChatParams::default()).await.unwrap_err();
+    let err = chat_once(&r, &[], &ChatParams::default())
+        .await
+        .unwrap_err();
     assert!(
-        matches!(err, EgressError::RateLimited { retry_after: Some(_) }),
+        matches!(
+            err,
+            EgressError::RateLimited {
+                retry_after: Some(_)
+            }
+        ),
         "expected RateLimited with retry_after, got {err:?}"
     );
 }
@@ -110,8 +130,13 @@ async fn chat_once_maps_non_2xx_to_status_error() {
         .mount(&server)
         .await;
     let r = req(format!("{}/chat/completions", server.uri()));
-    let err = chat_once(&r, &[], &ChatParams::default()).await.unwrap_err();
-    assert!(matches!(err, EgressError::Status { code: 500, .. }), "got {err:?}");
+    let err = chat_once(&r, &[], &ChatParams::default())
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(err, EgressError::Status { code: 500, .. }),
+        "got {err:?}"
+    );
 }
 
 #[tokio::test]
@@ -129,7 +154,9 @@ async fn stream_once_assembles_sse_deltas() {
         .mount(&server)
         .await;
     let r = req(format!("{}/chat/completions", server.uri()));
-    let mut s = stream_once(&r, &[], &ChatParams::default()).await.expect("stream");
+    let mut s = stream_once(&r, &[], &ChatParams::default())
+        .await
+        .expect("stream");
     let mut got = String::new();
     while let Some(chunk) = s.next().await {
         got.push_str(&chunk.expect("chunk"));

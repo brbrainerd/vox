@@ -211,13 +211,24 @@ impl ReviewClient {
             model: model.to_string(),
             headers,
             // referer is set only for OpenRouter; share its throttle, else OpenAI's.
-            throttle_key: if referer.is_some() { "openrouter" } else { "openai" }.to_string(),
+            throttle_key: if referer.is_some() {
+                "openrouter"
+            } else {
+                "openai"
+            }
+            .to_string(),
             max_concurrent: 8,
             timeout_ms: Some(60_000),
         };
         let msgs = [
-            vox_llm_egress::ChatMessage { role: "system".to_string(), content: system },
-            vox_llm_egress::ChatMessage { role: "user".to_string(), content: prompt.to_string() },
+            vox_llm_egress::ChatMessage {
+                role: "system".to_string(),
+                content: system,
+            },
+            vox_llm_egress::ChatMessage {
+                role: "user".to_string(),
+                content: prompt.to_string(),
+            },
         ];
         let params = vox_llm_egress::ChatParams {
             temperature: Some(0.1),

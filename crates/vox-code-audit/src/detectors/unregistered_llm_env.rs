@@ -27,8 +27,10 @@ impl Default for UnregisteredLlmEnvDetector {
 
 impl UnregisteredLlmEnvDetector {
     pub fn new() -> Self {
-        let mut known: HashSet<&'static str> =
-            vox_config::vox_llm_config::LLM_CONFIG_KEYS.iter().map(|k| k.env).collect();
+        let mut known: HashSet<&'static str> = vox_config::vox_llm_config::LLM_CONFIG_KEYS
+            .iter()
+            .map(|k| k.env)
+            .collect();
         // Keys declared in the vox-secrets registry (incl. Band-B routing keys still
         // resolved through the secret plane) are registered — do not flag them.
         known.extend(vox_secrets::spec::managed_secret_env_names());
@@ -81,7 +83,11 @@ impl DetectionRule for UnregisteredLlmEnvDetector {
          GOOD:\n  // add an LlmConfigKey entry, then read via the vox-config accessor backed by it"
     }
 
-    fn detect(&self, file: &SourceFile, _ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
         for (i, line) in file.lines.iter().enumerate() {
             let trimmed = line.trim();
@@ -141,14 +147,20 @@ mod tests {
     fn flags_unregistered_llm_shaped_env() {
         let d = UnregisteredLlmEnvDetector::new();
         let f = rs(r#"let x = std::env::var("OLLAMA_TUNING_MYSTERY").ok();"#);
-        assert!(!d.detect(&f, None).is_empty(), "unregistered llm-shaped env should fire");
+        assert!(
+            !d.detect(&f, None).is_empty(),
+            "unregistered llm-shaped env should fire"
+        );
     }
 
     #[test]
     fn ignores_registered_key() {
         let d = UnregisteredLlmEnvDetector::new();
         let f = rs(r#"let x = std::env::var("OPENROUTER_BASE_URL").ok();"#);
-        assert!(d.detect(&f, None).is_empty(), "registered keys must not fire");
+        assert!(
+            d.detect(&f, None).is_empty(),
+            "registered keys must not fire"
+        );
     }
 
     #[test]
@@ -156,7 +168,10 @@ mod tests {
         // Owned by EnvSecretShapeDetector — must not double-flag here.
         let d = UnregisteredLlmEnvDetector::new();
         let f = rs(r#"let x = std::env::var("OPENROUTER_MYSTERY_API_KEY").unwrap();"#);
-        assert!(d.detect(&f, None).is_empty(), "secret-shaped names are owned by env_secret_shape");
+        assert!(
+            d.detect(&f, None).is_empty(),
+            "secret-shaped names are owned by env_secret_shape"
+        );
     }
 
     #[test]
@@ -187,13 +202,19 @@ let direct = std::env::var("GEMINI_DIRECT_MODEL").ok();"#);
         let bare = rs(r#"let a = env::var("OLLAMA_TUNING_MYSTERY").ok();"#);
         let qualified = rs(r#"let b = std::env::var("OLLAMA_TUNING_MYSTERY").ok();"#);
         assert!(!d.detect(&bare, None).is_empty(), "bare env::var must fire");
-        assert!(!d.detect(&qualified, None).is_empty(), "std::env::var must fire");
+        assert!(
+            !d.detect(&qualified, None).is_empty(),
+            "std::env::var must fire"
+        );
     }
 
     #[test]
     fn ignores_env_in_full_line_comment() {
         let d = UnregisteredLlmEnvDetector::new();
         let f = rs(r#"// example: std::env::var("OLLAMA_TUNING_MYSTERY")"#);
-        assert!(d.detect(&f, None).is_empty(), "commented-out code must not fire");
+        assert!(
+            d.detect(&f, None).is_empty(),
+            "commented-out code must not fire"
+        );
     }
 }

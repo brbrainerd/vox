@@ -325,7 +325,10 @@ let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:ge
 let resp = http.post(&url).json(&body).send().await?;
 "#;
         let f = source_at("crates/vox-gamify/src/ai/client/transport.rs", code);
-        assert!(!d.detect(&f, None).is_empty(), "gamify Gemini egress must be flagged");
+        assert!(
+            !d.detect(&f, None).is_empty(),
+            "gamify Gemini egress must be flagged"
+        );
     }
 
     #[test]
@@ -336,7 +339,10 @@ let resp = http.post(&url).json(&body).send().await?;
 let resp = http.post(openrouter_base()).bearer_auth(key).json(&body).send().await?;
 "#;
         let f = source_at("crates/vox-gamify/src/ai/client/transport.rs", code);
-        assert!(!d.detect(&f, None).is_empty(), "base-url accessor egress must be flagged");
+        assert!(
+            !d.detect(&f, None).is_empty(),
+            "base-url accessor egress must be flagged"
+        );
     }
 
     #[test]
@@ -349,16 +355,23 @@ let base_url = vox_config::openrouter_chat_completions_url();
 let resp = client.post(&base_url).json(&req_body).send().await?;
 "#;
         let f = source_at("crates/vox-llm-egress/src/wire.rs", code);
-        assert!(d.detect(&f, None).is_empty(), "vox-llm-egress is the allowlisted egress home");
+        assert!(
+            d.detect(&f, None).is_empty(),
+            "vox-llm-egress is the allowlisted egress home"
+        );
     }
 
     #[test]
     fn flags_egress_in_actor_runtime_now_that_it_should_delegate() {
         // After the egress extraction, the facade must delegate — a raw provider call here fires.
         let d = LlmProviderCallDetector::new();
-        let code = "let resp = client.post(\"https://api.openai.com/v1/chat/completions\").send().await?;";
+        let code =
+            "let resp = client.post(\"https://api.openai.com/v1/chat/completions\").send().await?;";
         let f = source_at("crates/vox-actor-runtime/src/llm/chat.rs", code);
-        assert!(!d.detect(&f, None).is_empty(), "non-egress crates must route through vox-llm-egress");
+        assert!(
+            !d.detect(&f, None).is_empty(),
+            "non-egress crates must route through vox-llm-egress"
+        );
     }
 
     #[test]
@@ -371,7 +384,10 @@ let url = "https://generativelanguage.googleapis.com/v1beta/models/x:generateCon
 let resp = http.post(&url).json(&body).send().await?;
 "#;
         let f = source_at("crates/vox-gamify/src/ai/client/transport.rs", code);
-        assert!(d.detect(&f, None).is_empty(), "annotated local egress must be exempt");
+        assert!(
+            d.detect(&f, None).is_empty(),
+            "annotated local egress must be exempt"
+        );
     }
 
     #[test]

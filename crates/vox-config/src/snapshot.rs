@@ -36,7 +36,10 @@ pub fn current_rev() -> u64 {
 /// Register a change listener. Invoked synchronously on the writer's thread for every
 /// subsequent [`bump`]. Listeners are never removed (process-lifetime subscriptions).
 pub fn on_change(f: impl Fn(&LlmConfigChange) + Send + Sync + 'static) {
-    listeners().lock().expect("snapshot listeners mutex poisoned").push(Box::new(f));
+    listeners()
+        .lock()
+        .expect("snapshot listeners mutex poisoned")
+        .push(Box::new(f));
 }
 
 /// Advance the revision and notify listeners. Call after any LLM/AI config write.
@@ -48,7 +51,9 @@ pub fn bump(changed_keys: &[&str]) {
     };
     // Hold the lock only to clone out the call list, so a listener that itself touches
     // config (re-entrant bump) cannot deadlock on the listeners mutex.
-    let guard = listeners().lock().expect("snapshot listeners mutex poisoned");
+    let guard = listeners()
+        .lock()
+        .expect("snapshot listeners mutex poisoned");
     for l in guard.iter() {
         l(&change);
     }
@@ -74,7 +79,8 @@ mod tests {
         assert!(after > before, "rev must advance on bump");
         let g = seen.lock().unwrap();
         assert!(
-            g.iter().any(|(_, keys)| keys.iter().any(|k| k == "OPENROUTER_BASE_URL")),
+            g.iter()
+                .any(|(_, keys)| keys.iter().any(|k| k == "OPENROUTER_BASE_URL")),
             "listener must receive the changed key"
         );
     }
@@ -89,6 +95,9 @@ mod tests {
             }
         });
         bump(&[]);
-        assert!(*seen.lock().unwrap(), "empty bump must still notify (reload signal)");
+        assert!(
+            *seen.lock().unwrap(),
+            "empty bump must still notify (reload signal)"
+        );
     }
 }

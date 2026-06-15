@@ -945,7 +945,11 @@ mod llm_view_tests {
             if k.secret || !is_env_shaped(k.env) {
                 continue;
             }
-            assert!(names.contains(k.env), "registry key {} missing from operator view", k.env);
+            assert!(
+                names.contains(k.env),
+                "registry key {} missing from operator view",
+                k.env
+            );
         }
     }
 
@@ -954,7 +958,11 @@ mod llm_view_tests {
         let names: HashSet<&str> = operator_tuning_envs().iter().map(|e| e.name).collect();
         for k in vox_llm_config::LLM_CONFIG_KEYS {
             if k.secret {
-                assert!(!names.contains(k.env), "secret {} leaked into operator tuning view", k.env);
+                assert!(
+                    !names.contains(k.env),
+                    "secret {} leaked into operator tuning view",
+                    k.env
+                );
             }
         }
     }

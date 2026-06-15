@@ -43,7 +43,10 @@ fn registry_covers_every_band_a_accessor() {
         .copied()
         .filter(|k| !registered.contains(k))
         .collect();
-    assert!(missing.is_empty(), "Band-A accessors not in registry: {missing:?}");
+    assert!(
+        missing.is_empty(),
+        "Band-A accessors not in registry: {missing:?}"
+    );
 }
 
 #[test]
@@ -64,6 +67,9 @@ fn deferred_band_b_keys_are_not_yet_registered() {
 fn registry_has_no_band_a_and_band_b_overlap() {
     let band_a: HashSet<&str> = BAND_A_ACCESSOR_KEYS.iter().copied().collect();
     for k in DEFERRED_BAND_B_ACCESSOR_KEYS {
-        assert!(!band_a.contains(k), "{k} listed as both Band-A and deferred Band-B");
+        assert!(
+            !band_a.contains(k),
+            "{k} listed as both Band-A and deferred Band-B"
+        );
     }
 }

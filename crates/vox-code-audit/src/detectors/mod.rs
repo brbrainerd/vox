@@ -97,10 +97,10 @@ pub mod training_eligible;
 pub mod crypto_ban;
 /// `env.get(...)` with secret-shaped argument names (KEY, SECRET, TOKEN, …).
 pub mod env_secret_shape;
-/// LLM/AI env vars not declared in the vox-llm-config SSOT.
-pub mod unregistered_llm_env;
 /// Direct HTTP calls to known LLM provider hostnames, bypassing `populi.*`.
 pub mod llm_provider_call;
+/// LLM/AI env vars not declared in the vox-llm-config SSOT.
+pub mod unregistered_llm_env;
 
 /// Non-deterministic builtins (`time.now`, `random.*`, `uuid()`, etc.) inside a `workflow` body.
 pub mod workflow_nondeterministic;

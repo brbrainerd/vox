@@ -87,7 +87,7 @@ fn extra_headers(provider: &str, model: &str) -> Vec<(String, String)> {
 /// Resolve the OpenRouter route hint from the route-hint / cost-preference secrets.
 /// Ported verbatim from `wire.rs::openrouter_route_hint_from_env`.
 fn openrouter_route_hint_from_env() -> crate::OpenRouterRouteHint {
-    use crate::{derive_openrouter_route_hint, OpenRouterRouteHint, RouteCostPreference};
+    use crate::{OpenRouterRouteHint, RouteCostPreference, derive_openrouter_route_hint};
     let raw = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenrouterRouteHint)
         .expose()
         .unwrap_or("")
@@ -131,14 +131,16 @@ pub fn resolve_egress(input: &EgressResolveInput) -> Result<EgressRequest, Strin
     if chat_requires_nonempty_api_key(&input.provider) && api_key.is_empty() {
         return Err("No API key available for LLM provider".to_string());
     }
-    let base_url = input.base_url_override.clone().unwrap_or_else(|| {
-        match input.provider.as_str() {
-            "openrouter" => crate::inference::openrouter_chat_completions_url(),
-            "openai" => crate::inference::openai_chat_completions_url(),
-            "hf_router" | "huggingface" => crate::inference::hf_router_chat_completions_url(),
-            _ => crate::inference::openrouter_chat_completions_url(),
-        }
-    });
+    let base_url =
+        input
+            .base_url_override
+            .clone()
+            .unwrap_or_else(|| match input.provider.as_str() {
+                "openrouter" => crate::inference::openrouter_chat_completions_url(),
+                "openai" => crate::inference::openai_chat_completions_url(),
+                "hf_router" | "huggingface" => crate::inference::hf_router_chat_completions_url(),
+                _ => crate::inference::openrouter_chat_completions_url(),
+            });
     Ok(EgressRequest {
         base_url,
         api_key,
@@ -203,7 +205,12 @@ mod tests {
         // openrouter requires a key; assert the gate is wired (env may or may not have one,
         // so accept either a present-key Ok or the explicit error — but the error message
         // must be the resolution gate when it fires).
-        let input = EgressResolveInput { provider: "openrouter".into(), model: "x".into(), base_url_override: None, timeout_ms: None };
+        let input = EgressResolveInput {
+            provider: "openrouter".into(),
+            model: "x".into(),
+            base_url_override: None,
+            timeout_ms: None,
+        };
         match resolve_egress(&input) {
             Ok(req) => assert_eq!(req.throttle_key, "openrouter"),
             Err(e) => assert!(e.contains("No API key"), "unexpected error: {e}"),

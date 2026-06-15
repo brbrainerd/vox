@@ -13,9 +13,7 @@ use serde::{Deserialize, Serialize};
 pub mod throttle;
 mod wire;
 
-pub use throttle::{
-    acquire_permit, on_rate_limited, on_success, retry_after_from_headers, Permit,
-};
+pub use throttle::{Permit, acquire_permit, on_rate_limited, on_success, retry_after_from_headers};
 pub use wire::{chat_once, embed_once, stream_once};
 
 /// A fully-resolved provider request. No resolution happens in this crate.
@@ -153,10 +151,16 @@ mod tests {
             timeout_ms: None,
         };
         let dbg = format!("{r:?}");
-        assert!(!dbg.contains("sk-supersecret-token"), "api_key must never appear in Debug: {dbg}");
+        assert!(
+            !dbg.contains("sk-supersecret-token"),
+            "api_key must never appear in Debug: {dbg}"
+        );
         assert!(dbg.contains("***"), "present key should render as ***");
         // An empty key renders empty (distinguishable), still no secret.
-        let empty = EgressRequest { api_key: String::new(), ..r };
+        let empty = EgressRequest {
+            api_key: String::new(),
+            ..r
+        };
         assert!(!format!("{empty:?}").contains("***"));
     }
 }

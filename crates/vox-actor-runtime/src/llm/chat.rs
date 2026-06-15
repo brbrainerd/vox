@@ -42,15 +42,16 @@ pub async fn llm_chat(
                     content: m.content.clone(),
                 })
                 .collect();
-            let wire_tools: Option<Vec<vox_llm_egress::ToolDef>> = config.tools.as_ref().map(|ts| {
-                ts.iter()
-                    .map(|t| vox_llm_egress::ToolDef {
-                        name: t.name.clone(),
-                        description: t.description.clone(),
-                        parameters: t.parameters.clone(),
-                    })
-                    .collect()
-            });
+            let wire_tools: Option<Vec<vox_llm_egress::ToolDef>> =
+                config.tools.as_ref().map(|ts| {
+                    ts.iter()
+                        .map(|t| vox_llm_egress::ToolDef {
+                            name: t.name.clone(),
+                            description: t.description.clone(),
+                            parameters: t.parameters.clone(),
+                        })
+                        .collect()
+                });
             let params = vox_llm_egress::ChatParams {
                 temperature: config.temperature,
                 max_tokens: config.max_tokens,
@@ -67,9 +68,9 @@ pub async fn llm_chat(
                     let completion_tokens = resp.completion_tokens as i64;
                     // Provider-reported cost, else our config cost-per-1k estimate.
                     let cost_usd = resp.cost_usd.or_else(|| {
-                        config.cost_per_1k.map(|c| {
-                            ((prompt_tokens + completion_tokens) as f64 / 1000.0) * c
-                        })
+                        config
+                            .cost_per_1k
+                            .map(|c| ((prompt_tokens + completion_tokens) as f64 / 1000.0) * c)
                     });
                     let latency = resp.latency_ms as i64;
 
@@ -86,7 +87,8 @@ pub async fn llm_chat(
                             cost_usd,
                             latency,
                             true,
-                        ).await;
+                        )
+                        .await;
                     }
 
                     Ok(Ok(LlmResponse {
@@ -105,17 +107,26 @@ pub async fn llm_chat(
                         vox_llm_egress::EgressError::Status { code, body } => (
                             format!("LLM API returned error ({}): {}", code, body),
                             Some(*code),
-                            if *code >= 500 { "server-error" } else { "client-error" },
+                            if *code >= 500 {
+                                "server-error"
+                            } else {
+                                "client-error"
+                            },
                         ),
-                        vox_llm_egress::EgressError::Http(m) => {
-                            (format!("HTTP request failed: {}", m), None, "transport-error")
-                        }
-                        vox_llm_egress::EgressError::Decode(m) => {
-                            (format!("Failed to parse response JSON: {}", m), None, "decode-error")
-                        }
+                        vox_llm_egress::EgressError::Http(m) => (
+                            format!("HTTP request failed: {}", m),
+                            None,
+                            "transport-error",
+                        ),
+                        vox_llm_egress::EgressError::Decode(m) => (
+                            format!("Failed to parse response JSON: {}", m),
+                            None,
+                            "decode-error",
+                        ),
                     };
                     let status_str = http_status.map(|s| s.to_string());
-                    let _ = record_telemetry_attempt(&config, "error", 0, status_str.as_deref()).await;
+                    let _ =
+                        record_telemetry_attempt(&config, "error", 0, status_str.as_deref()).await;
                     {
                         let trace_ctx = vox_telemetry::current_trace_ctx();
                         vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::Error(
@@ -134,8 +145,18 @@ pub async fn llm_chat(
                     }
                     if !config.telemetry_skip_interaction {
                         let _ = record_telemetry_outcome(
-                            &config, &messages, &err_msg, &config.model, 0, 0, 0, None, 0, false,
-                        ).await;
+                            &config,
+                            &messages,
+                            &err_msg,
+                            &config.model,
+                            0,
+                            0,
+                            0,
+                            None,
+                            0,
+                            false,
+                        )
+                        .await;
                     }
                     Ok(Err(err_msg))
                 }
