@@ -1,0 +1,24 @@
+ci(rustfmt): apply rustfmt to workspace; whitelist publicationethics for lychee
+scale: ~181 lines across 19 files [M]
+
+- `crates/vox-orchestrator/src/routing/policy.rs`: Apply rustfmt to reformat `vox_clavis::resolve_secret` calls and `hard_pin_model_id` and `max_spend_usd_per_session` assignments.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/model_route_policy/resolve.rs`: Apply rustfmt to reformat `caps_ok` and `routing_allows` conditions in `resolve_mcp_chat_model_sync`.
+- `crates/vox-config/src/lib.rs`: Apply rustfmt to reorder `hf_router_chat_completions_url` and `clavis_str` imports, and reformat `clavis_cutover_blocks_legacy_env_raw` calls.
+- `crates/vox-orchestrator/build.rs`: Apply rustfmt to reformat `append_capability_intent_codegen` function, specifically `format!` calls for capability flags and intent required capabilities.
+- `crates/vox-cli/src/commands/login_shared.rs`: Apply rustfmt to reformat `std::fs::create_dir_all`, `println!` hints, and `url` filtering in `run_login`, and `keyring::Entry::new` in `run_logout`.
+- `crates/vox-orchestrator/src/routing/engine.rs`: Apply rustfmt to reorder `ModelTier` import and reformat the `candidates.iter().any` condition in `pick_explore_or_exploit`.
+- `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/llm_routing.rs`: Apply rustfmt to reformat `cache_path` construction.
+- `crates/vox-orchestrator/src/mcp_tools/chat_tools/chat/message.rs`: Apply rustfmt to reformat `format!` macro calls.
+- `crates/vox-orchestrator/src/routing/bandit.rs`: Apply rustfmt to reformat `format!` macro calls.
+- `crates/vox-cli/src/commands/model/preferences.rs`: Apply rustfmt to reformat `format!` macro calls.
+- `crates/vox-compiler/src/codegen_rust/emit/workflow.rs`: Apply rustfmt to reformat `format!` macro calls.
+- `crates/vox-config/src/inference.rs`: Apply rustfmt to reformat `format!` macro calls.
+- `crates/vox-cli/src/commands/mod.rs`: Apply rustfmt to reformat `format!` macro calls.
+- `crates/vox-cli/tests/login_alias_tests.rs`: Apply rustfmt to reformat `format!` macro calls.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/provider_endpoints.rs`: Apply rustfmt to reformat `format!` macro calls.
+- `crates/vox-orchestrator/src/models/mod.rs`: Apply rustfmt to reformat `format!` macro calls.
+- `.lycheeignore`: Add `publicationethics.org` to the ignore list to prevent 403 errors during automated link checks.
+- `crates/vox-cli/src/commands/model/show.rs`: Apply rustfmt to reformat `format!` macro calls.
+- `crates/vox-db/src/lib.rs`: Apply rustfmt to reformat `format!` macro calls.
+
+--- audit: original='ci: rustfmt workspace; whitelist publicationethics for lychee' | actual=181L across 19 files | derived=full ---
