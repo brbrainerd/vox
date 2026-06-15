@@ -1,13 +1,29 @@
-feat(crates): introduce Tauri support, enhance CI, and expand AI/ML capabilities
+feat(crates): introduce Tauri support, enhance CI, and refactor orchestration
 scale: ~50479 lines across 842 files [XL]
 
-DIVERGENCE: original subject claimed 'chore(crates): multi-wave crate hardening — Tauri convergence, oratio, CI commands, governance' but this commit actually changed ~50479 lines across 842 files. Top areas:
-crates: 50304 lines, 829 files
-.cursor: 162 lines, 11 files
-(root): 9 lines, 1 files
-tests: 4 lines, 1 files
-
-- **New Crates for Tauri Integration**:
-    - `vox-tauri-codegen`: Provides code
+- **`vox-tauri-codegen`**: New crate for Tauri application code generation, replacing Axum server in desktop apps.
+- **`vox-assets`**: New crate for embedded asset serving in Tauri builds.
+- **`vox-release-artifacts`**: New crate for platform-specific release artifact assembly.
+- **`vox-cli`**: Significant expansion of CI commands, including `speech_runtime_suite`, `safety_inventory`, `docs_reality_audit`, `retirement_audit`, and `compile_matrix` for build orchestration and auditing. Also includes updates to `pre_push` and `check_links` commands.
+- **`vox-orchestrator`**: Refactored research pipeline, governance gates, and session management, with updates to `pipeline.rs`, `web_gather.rs`, `verifier.rs`, `claims.rs`, and `planner.rs`.
+- **`vox-plugin-mens-candle-metal`**: Extensive new code for QLoRA training, inference, and model management, including `candle_qlora_train`, `qlora_preflight`, `model`, `inference`, `hf_keymap`, `manifest`, `merge`, `checkpoint_state`, `config`, `qlora_weights`, and `backend`.
+- **`vox-dashboard`**: Complete removal of the `vox-dashboard` crate, including all associated source files, tests, and configuration.
+- **`vox-gui`**: Added new desktop and Windows schema definitions.
+- **`vox-compiler`**: Updates to parser, type checking, evaluation, and HIR lowering, including new `boilerplate_grafts`, `required_capabilities`, `shell_projection`, and `typeck/diagnostics`. Also includes new `mens_decorators` and `ai_fixture_typeck_diagnostics` tests.
+- **`vox-codegen`**: Updates to Rust and TypeScript code generation, including new AI fixture LLM emission and reactive code generation.
+- **`vox-actor-runtime`**: New LLM cascade functionality.
+- **`vox-arch-check`**: Renamed symbol checks in `forbidden_patterns.rs`.
+- **`vox-search`**: Updates to web dispatcher, symbol proximity, policy, research, memory hybrid, and CRAG components.
+- **`vox-orchestrator-mcp`**: Hardening of TOESTUB dispatch guard and updates to memory tools and HTTP gateway.
+- **`vox-code-audit`**: Updates to `unwrap_call` detector.
+- **`vox-doc-pipeline`**: Updates to linting pipeline.
+- **`vox-integration-tests`**: New tests for speech pipeline stage probe, LSP capabilities, and speech audit contracts.
+- **`vox-db`**: New research pipeline functionality.
+- **`vox-config`**: Updates to project manifest.
+- **`vox-telemetry`**: Updates to types.
+- **`vox-lsp`**: Minor changes to `main.rs`.
+- **`workspace-hack`**: Updated `Cargo.toml`.
+- **`.cursor/audit/rust-warnings/`**: Committed clippy/check audit snapshots.
+- **`tests/fixtures/frontend/test_app_bundle/app/package.json`**: Dependency updates.
 
 --- audit: original='chore(crates): multi-wave crate hardening — Tauri convergence, oratio, CI commands, governance' | actual=50479L across 842 files | derived=stat-only ---
