@@ -1,0 +1,27 @@
+feat(corpus): add 15 plan-fidelity corpus fixtures and update stub message
+scale: ~704 lines across 17 files [L]
+
+- `contracts/eval/plan-fidelity/manifest.v1.yaml`:
+    - Updated `status` from `stub` to `minimum-viable`.
+    - Set `count_current` to 15.
+    - Added 15 new fixture entries to the `fixtures` array.
+- `contracts/eval/plan-fidelity/plans/001-add-clamp-helper-with-test.plan.toml`: Added new Wave 1 plan fixture.
+- `contracts/eval/plan-fidelity/plans/002-rename-function-update-callers.plan.toml`: Added new Wave 1 plan fixture.
+- `contracts/eval/plan-fidelity/plans/003-add-length-guard-with-test.plan.toml`: Added new Wave 1 plan fixture.
+- `contracts/eval/plan-fidelity/plans/004-add-get-user-query-endpoint.plan.toml`: Added new Wave 2 plan fixture.
+- `contracts/eval/plan-fidelity/plans/005-add-update-todo-mutation-endpoint.plan.toml`: Added new Wave 2 plan fixture.
+- `contracts/eval/plan-fidelity/plans/006-add-delete-todo-mutation-endpoint.plan.toml`: Added new Wave 2 plan fixture.
+- `contracts/eval/plan-fidelity/plans/007-extract-shared-types-to-module.plan.toml`: Added new Wave 2 plan fixture.
+- `contracts/eval/plan-fidelity/plans/008-add-net-effect-config-fetch.plan.toml`: Added new Wave 2 plan fixture.
+- `contracts/eval/plan-fidelity/plans/009-add-paginated-list-messages-endpoint.plan.toml`: Added new Wave 2 plan fixture.
+- `contracts/eval/plan-fidelity/plans/010-add-notification-workflow-and-activity.plan.toml`: Added new Wave 2 plan fixture.
+- `contracts/eval/plan-fidelity/plans/011-add-post-body-validation-helper.plan.toml`: Added new Wave 2 plan fixture.
+- `contracts/eval/plan-fidelity/plans/012-add-health-check-query-endpoint.plan.toml`: Added new Wave 2 plan fixture.
+- `contracts/eval/plan-fidelity/plans/013-migrate-workflow-purity-violations.plan.toml`: Added new Wave 3 plan fixture.
+- `contracts/eval/plan-fidelity/plans/014-retire-pure-annotation-on-net-callers.plan.toml`: Added new Wave 3 plan fixture.
+- `contracts/eval/plan-fidelity/plans/015-audit-and-add-fs-effect-declarations.plan.toml`: Added new Wave 3 plan fixture.
+- `crates/vox-audit/src/subcommands/stubs.rs`:
+    - Updated `corpus_stub_outcome` to use a status-agnostic message, clarifying that `minimum-viable` corpora still return `InfrastructureError` until the measurement harness is implemented.
+    - Modified comments to reflect that `minimum-viable` status does not retire the stub.
+
+--- audit: original='feat(corpus): CR-L4 plan-fidelity corpus minimum-viable' | actual=704L across 17 files | derived=full ---
