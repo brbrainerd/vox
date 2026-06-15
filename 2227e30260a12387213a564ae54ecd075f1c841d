@@ -1,0 +1,12 @@
+feat(compiler): Implement Phase F codegen for typed React fragments
+scale: ~330 lines across 7 files [L]
+
+- **codegen_ts/fragment_emit.rs**: New module to emit `fragments.tsx` containing typed React function components for `fragment` declarations. Includes `emit_fragment_decls` function and `FRAGMENTS_FILENAME` constant.
+- **hir/nodes/decl.rs**: Added `HirFragmentDecl` struct to represent a fragment declaration in HIR, including `name`, `params`, `body`, and `span`. Added `fragments: Vec<HirFragmentDecl>` field to `HirModule`.
+- **hir/lower/mod.rs**: Implemented lowering for `Decl::Fragment` into `HirFragmentDecl`, mapping AST parameters and body to HIR. Added a no-op arm for `Decl::ReactiveModule`.
+- **codegen_ts/emitter.rs**: Integrated `emit_fragment_decls` to generate and include `fragments.tsx` in the output if fragments are present.
+- **codegen_ts/mod.rs**: Added `fragment_emit` module to the `codegen_ts` crate.
+- **docs/src/architecture/svelte-mineable-features-implementation-plan-2026.md**: Updated the status of Phase F to "✅ Shipped end-to-end" and detailed the implementation steps.
+- **docs/src/feed.xml**: Updated generated feed XML.
+
+--- audit: original='feat(compiler): Phase F codegen — fragments.tsx with typed React fns' | actual=330L across 7 files | derived=full ---
