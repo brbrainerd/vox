@@ -1,0 +1,6 @@
+ci(docs): install libxml2-utils in docs-deploy workflow
+scale: ~4 lines across 1 files [XS]
+
+- .github/workflows/docs-deploy.yml: Add a step to install `libxml2-utils` via `apt-get` before validating `feed.xml`.
+
+--- audit: original='fix(docs): install libxml2-utils in CI to support xmllint requirement' | actual=4L across 1 files | derived=full ---
