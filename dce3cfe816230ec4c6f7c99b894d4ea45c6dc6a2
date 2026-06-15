@@ -1,0 +1,15 @@
+feat(ci): add `watch-run` command and pre-push hook
+scale: ~312 lines across 10 files [L]
+
+- `crates/vox-cli/src/commands/ci/watch_run.rs`: Add new `watch-run` command to poll GitHub Actions for CI status, displaying failures.
+- `crates/vox-cli/src/commands/ci/install_hooks.rs`: Add a `pre-push` Git hook that runs `doc-pipeline --check`, `cargo check -p vox-integration-tests`, and asynchronously calls `vox ci watch-run --advisory`.
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Add `WatchRun` variant to `CiCmd` enum with arguments for SHA, timeout, advisory mode, and failures-only mode.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Integrate the new `watch_run` command into the `CiCmd` runner.
+- `crates/vox-cli/src/commands/ci/mod.rs`: Declare `watch_run` module.
+- `crates/vox-compiler/src/typeck/checker/expr.rs`: Silence `dead_code` warnings for `check_db_select_projection` and `validate_db_predicate` functions.
+- `crates/vox-cli/src/commands/db/query_plans.rs`: Silence `dead_code` warning for `fallback_plan_from_db_op` function.
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/token.rs`: Silence `dead_code` warning for `generate_or_load` function.
+- `crates/vox-spool/Cargo.toml`: Update `version` to use workspace inheritance.
+- `docs/src/architecture/path-b-decommission-2026.md`: Add frontmatter (title, description, category, status) to the document.
+
+--- audit: original='fix(ci): silence dead_code warnings, add watch-run command' | actual=312L across 10 files | derived=full ---
