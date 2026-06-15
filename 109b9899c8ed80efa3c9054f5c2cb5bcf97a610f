@@ -1,0 +1,12 @@
+docs(decorators, parser): correct `@deprecated` and `workflow`/`activity` doc drift
+scale: ~18 lines across 2 files [S]
+
+- `docs/src/reference/ref-decorators.md`:
+  - Corrected `@deprecated` documentation to state that only the bare form is parseable, and the form with a reason argument (`@deprecated("...")`) is not yet supported.
+  - Updated the effect of `@deprecated` to "Sets the deprecation marker on the declaration" instead of "Emits compiler warnings".
+  - Changed the usage example to the bare form: `@deprecated fn old_compute() to int { return 0 }`.
+- `crates/vox-compiler/src/parser/descent/decl/mid.rs`:
+  - Updated internal parser documentation for `parse_workflow_decl` and `parse_activity_decl` to remove the `[uses ...]` clause from the parse signature.
+  - Added a `NOTE` to both parser functions clarifying that a `uses ...` effect clause is not parsed and is unsupported, despite earlier documentation.
+
+--- audit: original="docs: correct @deprecated + workflow/activity 'uses' drift (R6, R10)" | actual=18L across 2 files | derived=full ---
