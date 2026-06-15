@@ -1,0 +1,14 @@
+feat(eval,typeck): add global sorted/sum; extend max/min; add bool/type_of to known builtins
+scale: ~73 lines across 3 files [M]
+
+- crates/vox-compiler/src/eval/builtins.rs:
+  - Implement `sorted(list)` global function for ascending sort.
+  - Implement `sum(list)` global function.
+  - Extend `max` and `min` global functions to accept a single list argument, returning the max/min element.
+- crates/vox-compiler/src/typeck/builtins.rs:
+  - Register `sorted(list[T]) -> list[T]` in the type checker environment.
+  - Register `sum(list[T]) -> T` in the type checker environment.
+- crates/vox-compiler/src/eval/expr.rs:
+  - Add `sorted`, `sum`, `bool`, and `type_of` to the list of known built-in functions.
+
+--- audit: original='feat(eval+typeck): global sorted/sum; extend max/min; str/list gaps' | actual=73L across 3 files | derived=full ---
