@@ -1,0 +1,23 @@
+feat(telemetry): Add wall-clock task timing and debug-to-stderr mode
+scale: ~153 lines across 6 files [M]
+
+- `crates/vox-telemetry/src/aggregator.rs`:
+  - Add `started_at: Option<Instant>` to `TaskAggregate` to store the wall-clock start time of a task.
+  - Implement `record_task_started(task_id)` to set `started_at` for a given task ID.
+  - Modify `TaskAggregate::observe_model_call` to set `started_at` if it's `None` (fallback).
+  - Update `fill_task_root_summary` to calculate `wall_time_ms` using `started_at` if the field is 0.
+- `crates/vox-telemetry/src/config.rs`:
+  - Add `debug_to_stderr: bool` to `TelemetryConfig`.
+  - Configure `TelemetryConfig::from_env` to set `debug_to_stderr` to `true` when `VOX_TELEMETRY=debug` is set, while keeping telemetry enabled.
+  - Add unit tests for `debug_to_stderr` behavior.
+- `crates/vox-orchestrator-mcp/src/dispatch.rs`:
+  - Call `vox_telemetry::record_task_started(task_id)` at the start of `handle_tool_call` to capture the full task duration.
+- `crates/vox-cli/src/commands/telemetry.rs`:
+  - Display the `debug_to_stderr` field in `vox telemetry doctor` output.
+  - Print a "STATUS: DEBUG" banner when `debug_to_stderr` is active.
+- `crates/vox-telemetry/src/lib.rs`:
+  - Re-export `record_task_started` from the aggregator.
+- `.github/workflows/ci.yml`:
+  - Add the `mens` feature to the `vox-populi` nextest run to include hardware probe pipeline tests in CI.
+
+--- audit: original='feat(telemetry): Phase D — wall_time_ms, VOX_TELEMETRY=debug, mens CI coverage' | actual=153L across 6 files | derived=full ---
