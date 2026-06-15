@@ -1,0 +1,13 @@
+refactor(arch): rename vox-compiler-emit crate to vox-codegen
+scale: ~414 lines across 118 files [XL]
+
+- Renamed the `vox-compiler-emit` crate to `vox-codegen` to better reflect its purpose of code generation.
+- Updated crate dependencies and references in `Cargo.toml` and `Cargo.lock`.
+- Modified imports and module paths across numerous test files in `crates/vox-compiler/tests/` and `crates/vox-integration-tests/tests/` to use the new `vox_codegen` crate name.
+- Updated references to `vox_compiler_emit` in `crates/vox-cli/src/commands/build.rs` and `crates/vox-cli/src/v0_tsx_validate.rs`.
+- Adjusted module paths in `crates/vox-test-harness/src/pipeline/codegen.rs`.
+- Updated `docs/src/architecture/layers.toml` to reflect the crate rename.
+- Renamed the `crates/vox-compiler-emit` directory to `crates/vox-codegen` and moved all its contents.
+- Updated various `use` statements and function calls to `vox_codegen::` instead of `vox_compiler_emit::` in Rust source files.
+
+--- audit: original='refactor(arch): rename vox-compiler-emit → vox-codegen (P-A2.7)' | actual=414L across 118 files | derived=full ---
