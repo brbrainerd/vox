@@ -1,0 +1,5 @@
+feat(ci): Create CNAME file for custom domain
+scale: ~1 lines across 1 files [XS]
+- CNAME: Add `vox-lang.org` as the custom domain.
+
+--- audit: original='Create CNAME' | actual=1L across 1 files | derived=full ---
