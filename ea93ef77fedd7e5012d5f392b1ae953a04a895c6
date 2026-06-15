@@ -1,0 +1,13 @@
+feat(compiler): Add `@form` HIR lowering and type checking
+scale: ~248 lines across 8 files [M]
+
+- `crates/vox-compiler/src/typeck/form_check.rs`: New file for form validation, including checks for unknown `@endpoint` references (`lint.form.unknown_endpoint`), unmatched fields (`lint.form.field_unmatched`), and field type mismatches (`lint.form.field_type_mismatch`).
+- `crates/vox-compiler/src/hir/nodes/form.rs`: New file defining `HirForm` and `HirFormField` structs for representing `@form` declarations in HIR, including fields, `on_submit` endpoint, redirect, error message, and field constraints.
+- `crates/vox-compiler/tests/form_hir_test.rs`: New test file with tests for form lowering and type checking, specifically for correct field count, field type mismatch errors, and unknown endpoint errors.
+- `crates/vox-compiler/src/hir/lower/decl.rs`: Added `lower_form` and `lower_field_constraint` methods to `LowerCtx` for converting AST `FormDecl` and `FieldConstraint` nodes into their HIR equivalents.
+- `crates/vox-compiler/src/hir/nodes/decl.rs`: Added a `forms` field (a vector of `HirForm`) to `HirModule` to store lowered form declarations.
+- `crates/vox-compiler/src/hir/lower/mod.rs`: Modified `LowerCtx::lower_decl` to handle `Decl::Form` by calling `self.lower_form`.
+- `crates/vox-compiler/src/typeck/mod.rs`: Integrated `form_check::check_forms` into `typecheck_hir_module` to perform form-related type checking.
+- `crates/vox-compiler/src/hir/nodes/mod.rs`: Added `form` module to `hir::nodes`.
+
+--- audit: original='feat(compiler): @form HIR + endpoint signature checking' | actual=248L across 8 files | derived=full ---
