@@ -1,0 +1,6 @@
+test(vox-cli): regenerate command catalog baseline for audit/effort-route
+scale: ~0 lines across 1 files [XS]
+
+- `crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt`: Regenerated the binary file to include the new `vox audit effort-route` subcommand and previously missing live commands (`audit/effort`, `ci/gui-surface-coverage`, `ci/gui-version-sync`, `model/shadow`).
+
+--- audit: original='test(vox-cli): regenerate command catalog baseline for audit/effort-route' | actual=0L across 1 files | derived=full ---
