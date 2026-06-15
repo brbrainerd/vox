@@ -1,0 +1,16 @@
+refactor(orchestrator): remove attention budget, news service, and old config
+scale: ~1344 lines across 15 files [XL]
+
+- Remove the `attention` module, which contained NASA TLX weights, trust scoring, and entropy-based auto-approval logic.
+- Remove the `attention_tracker` module, which handled persistence for attention events and agent trust scores.
+- Remove attention budget and trust score fields from `BudgetManager` and related `BudgetSignal` enum variants.
+- Remove all attention-related configuration options from `OrchestratorConfig`.
+- Delete the `NewsService` module, which was responsible for scanning news directories and synchronizing with external platforms.
+- Remove `routing` service, `types`, and `vcs_ops` modules.
+- Update `gate` module by removing `AttentionExhausted` variant from `GateResult` and simplifying `BudgetGate::check`.
+- Modify `schema` by removing `attention_events` and `agent_trust_scores` collections.
+- Update `task_dispatch` to remove planning metadata fields.
+- Remove `scaling` module.
+- Update `lib.rs` and `Cargo.toml` to reflect the removal of these modules and their dependencies.
+
+--- audit: original='feat(orchestrator): enhance planning capabilities and news syndication' | actual=1344L across 15 files | derived=full ---
