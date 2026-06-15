@@ -1,0 +1,6 @@
+docs(starlight): Configure site URL for sitemap generation
+scale: ~1 lines across 1 files [XS]
+
+- `docs-astro/astro.config.mjs`: Added `site: 'https://vox-lang.org/'` to the Astro configuration to specify the base URL for the Starlight site, enabling correct sitemap generation.
+
+--- audit: original='docs: Configure Starlight site URL for sitemap generation' | actual=1L across 1 files | derived=full ---
