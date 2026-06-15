@@ -1,19 +1,62 @@
-feat(automation,clavis): Migrate Vox Automation Pipelines Wave 2 and fix Clavis
+feat(clavis, docs, vox-compiler): Migrate and harden Vox Automation Pipelines
 scale: ~79302 lines across 467 files [XL]
 
-DIVERGENCE: original subject claimed 'Hardening Vox Automation Pipelines: Wave 2 Migration, Capabilities and Clavis fixes' but this commit actually changed ~79302 lines across 467 files. Top areas:
-docs: 49668 lines, 84 files
-(root): 15327 lines, 14 files
-crates: 6754 lines, 313 files
-contracts: 6682 lines, 10 files
-scripts: 302 lines, 4 files
-.github: 146 lines, 11 files
-scratch: 120 lines, 9 files
-.cursor: 96 lines, 7 files
-examples: 86 lines, 3 files
-mens: 75 lines, 8 files
-vox-vscode: 46 lines, 4 files
-
-- docs
+- **docs**:
+  - Update `doc-inventory-index.json` and `doc-inventory.json` with significant additions, likely reflecting a major documentation migration or expansion.
+  - Add numerous new architecture research documents covering topics like web framework interop, GUI visual intelligence, custom model pretraining, environment variable strategies, CSS determinism, Vox as glue, AI panic shortcuts, Fableforge conversion, Erlang comparisons, NNT orchestration, A2A hardening, actor GC, CSS AI inference, memory management, LLM native language, VLM blueprints, Rosetta language comparison, config SSOT, version tracking, agent planning, compiler diagnostics, and Vox library mode.
+  - Introduce new contributor guides for "toestub" and "contribution loop", and update "coding-agents".
+  - Update `expl-rosetta-inventory.md` and `SUMMARY.md`.
+  - Add new prompts for `visus-audit-grounding.v1.md` and `agent-quick-reference.md`.
+  - Add new architecture documents for `vox-syntax-highlighting-ssot-2026.md`, `vox-tensor-pytorch-gap-audit.md`, and `vox-lang-training-ssot-2026.md`.
+  - Add a new script `lychee_icons.py`.
+- **contracts**:
+  - Migrate and update `managed-env-names.v1.json` and `secret-capabilities.v1.json` in `clavis`, indicating hardening and capability fixes.
+  - Add new `managed-env-names.md` and `capability-registry.yaml`.
+  - Introduce new contracts for `gui_visual_rubric.v1.schema.json`, `catalog.v1.yaml`, and `canonical-map.v1.yaml`.
+- **crates/vox-compiler**:
+  - Significantly refactor `codegen_ts/emitter.rs` and `codegen_ts/reactive.rs`.
+  - Add new files for `codegen_ts/route_manifest.rs` and `codegen_ts/zod_emit.rs`.
+  - Update `eval/builtins.rs`, `typeck/builtins.rs`, and `pipeline.rs`.
+  - Add new `css_property_allowlist.rs`.
+  - Refactor `language_surface.rs` and `codegen_ts/vox_client.rs`.
+  - Update and add new tests in `tests/web_ir_environment_gates_test.rs` and `tests/web_ir_lower_emit_test.rs`.
+  - Update `codegen_rust/emit/stmt_expr.rs`.
+- **crates/vox-cli**:
+  - Add new `visus/mod.rs` command.
+  - Update `auth.rs`, `config.rs`, and `populi_cli.rs`.
+  - Add new commands for `ci/run_body_helpers/matrix.rs`, `corpus/mod.rs`, and `plan.rs`.
+- **crates/vox-orchestrator**:
+  - Add new services for `topology_ingest.rs` and `routing.rs`.
+  - Update `types/tasks.rs`, `runtime.rs`, `orchestrator/agent/handoff.rs`, `queue/priority.rs`, `mcp_tools/llm_bridge/infer.rs`, `mcp_tools/llm_bridge/providers/gemini.rs`, `topology.rs`, `handoff.rs`, `attachment_manifest.rs`, and `mcp_tools/params.rs`.
+  - Add new `orchestrator/workflow_bridge.rs` and `mcp_tools/rag_tools.rs`.
+- **crates/vox-config**:
+  - Add new `operator_registry.rs` and `env_parse.rs`.
+  - Add new `toml_config.rs`.
+- **crates/vox-db**:
+  - Add new store operations for `ops_identity.rs`, `ops_visus.rs`, and `ops_learning.rs`.
+  - Add new schema domains for `visus.rs` and `foundation.rs`.
+- **crates/vox-identity**:
+  - Add new `storage.rs`, `trust.rs`, and `identity.rs`.
+- **crates/vox-corpus**:
+  - Update `corpus/preflight/preflight_part2.rs`.
+  - Add new `corpus/dogfood.rs` and `corpus/mix/mod.rs`.
+- **crates/vox-tensor**:
+  - Add new `vox_nn.rs`.
+  - Update `data.rs` and `grpo.rs`.
+- **scripts**:
+  - Add new `mens/full-pipeline.vox` and `generate-bench-scaffold.vox`.
+  - Remove `generate_bench_scaffold.py`.
+- **crates/vox-browser**: Add new `engine.rs`.
+- **crates/vox-crypto**: Add new `facades.rs`.
+- **crates/vox-doc-pipeline**: Add new `pipeline/doctest.rs`.
+- **crates/vox-integration-tests**: Add new `tests/metamorphic_axiom_test.rs` and `tests/actor_gc_sandbox_test.rs`.
+- **crates/vox-populi**: Update `transport/router.rs` and `transport/handlers.rs`.
+- **crates/vox-runtime**: Add new `gc.rs`.
+- **root**: Update `Cargo.lock` and `AGENTS.md`.
+- **examples**: Add new `golden/inventory_rosetta_core.vox`.
+- **.github/workflows**: Add new `vox-visus-audit.yml`.
+- **.cursor/rules**: Add new `voxscript-first-automation.mdc`.
+- **scratch**: Add new `verify_glue.vox` and `scratch_extract.vox`.
+- **prototype_vox_tokenizer.json**: Add a large new tokenizer prototype.
 
 --- audit: original='Hardening Vox Automation Pipelines: Wave 2 Migration, Capabilities and Clavis fixes' | actual=79302L across 467 files | derived=stat-only ---
