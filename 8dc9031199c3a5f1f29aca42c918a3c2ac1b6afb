@@ -1,0 +1,7 @@
+fix(retirement-audit): skip `.claude` directories and update test fixture
+scale: ~7 lines across 2 files [S]
+
+- `crates/vox-cli/src/commands/ci/retirement_audit.rs`: Added `.claude` to the list of directories to skip during retirement audits to prevent scanning nested git worktrees created by agent tools.
+- `crates/vox-code-audit/src/detectors/retired_env_var.rs`: Updated a test fixture to use `retire-by="99.0.0"` instead of `retire-by="0.6.0"` to prevent the retirement scanner from flagging the test string as an overdue marker, and added a comment explaining the change.
+
+--- audit: original='fix(retirement-audit): skip .claude worktrees; use far-future version in test fixture' | actual=7L across 2 files | derived=full ---
