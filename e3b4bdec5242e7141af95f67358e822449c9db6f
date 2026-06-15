@@ -1,0 +1,9 @@
+fix(ci-guards): update SQL connection and Turso import allowlists
+scale: ~8 lines across 2 files [S]
+
+- `docs/agents/sql-connection-api-allowlist.txt`:
+  - Add `crates/vox-gamify/` to allow direct `db.connection()` usage due to the Rust orphan rule preventing `impl VoxDb` for gamification types in `vox-db`.
+  - Add `crates/vox-codegen/src/codegen_rust/emit/tables/` to prevent false positives from the guard regex on code-generated SQL string literals.
+- `docs/agents/turso-import-allowlist.txt`: Remove `crates/vox-secrets/` as it is already listed as a policy owner in `data-storage-policy.v1.yaml`.
+
+--- audit: original='fix(ci-guards): update allowlists to match current codebase' | actual=8L across 2 files | derived=full ---
