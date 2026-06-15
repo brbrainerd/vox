@@ -1,0 +1,11 @@
+feat(compiler): add `raw_css {}` escape hatch and `is_raw_css` flag
+scale: ~138 lines across 6 files [M]
+
+- `ast`: `StyleBlock` gains `is_raw_css: bool` to indicate if it originated from a `raw_css {}` block.
+- `parser`: The parser now recognizes `raw_css { ... }` blocks alongside `style { ... }` blocks, setting the `is_raw_css` flag accordingly.
+- `web_ir`: `StyleNode::Rule` now includes an `is_raw_css: bool` field.
+- `lower`: The `is_raw_css` flag is propagated from `StyleBlock` in the AST to `StyleNode::Rule` in the WebIR.
+- `validator`: Style validation now checks the `is_raw_css` flag; if true, literal CSS values are allowed with a `web_ir_validate.style.raw_css_escape` warning instead of an error.
+- `tests`: Added new tests for `raw_css {}` functionality and fixed two existing roundtrip tests by adding the `is_raw_css: false` field to `StyleNode::Rule` instances.
+
+--- audit: original='feat(compiler): TASK-6.2 -- token-ref-only style values; add raw_css {} escape hatch' | actual=138L across 6 files | derived=full ---
