@@ -1,0 +1,10 @@
+feat(golden): switch FFI golden target from app-specific TS to local zod-backed helper
+scale: ~41 lines across 2 files [S]
+
+- `examples/golden/ts_source_ffi_helper.ts`: Add a new TypeScript helper file that uses `zod` for validation and coercion. This file provides `isValidEmail` and `clampPositive` functions.
+- `examples/golden/ts_source_ffi.vox`:
+    - Update the `description` to reflect that the FFI test now targets a local zod-backed helper for stability.
+    - Replace the `extern fn` declarations `weeklyAggregate` and `resolveCorrections` (which previously pointed to `./ts/materializer`) with `isValidEmail` and `clampPositive`, both pointing to the new `./ts_source_ffi_helper` module.
+    - Refactor the `use_extern` function to `use_externs`, which now calls the new `isValidEmail` and `clampPositive` extern functions.
+
+--- audit: original='test(plan 6): switch FFI golden target from app-specific TS to zod' | actual=41L across 2 files | derived=full ---
