@@ -1,0 +1,14 @@
+feat(vox-gui/e2e): add visual review sweep with hi-DPI capture and manifest
+scale: ~48 lines across 2 files [S]
+
+- `crates/vox-gui/ui/e2e/visual-review.spec.ts`: Add new Playwright E2E test to capture screenshots of all UI surfaces.
+  - Iterates through `SURFACE_REGISTRY` to render each view.
+  - Uses `deviceScaleFactor: 2` for hi-DPI captures.
+  - Saves screenshots as PNG files in `screens/`.
+  - Calculates SHA256 hashes of captured images.
+  - Generates and writes a `manifest.json` file containing image hashes and metadata.
+  - Sets a generous test timeout based on the number of views.
+  - Includes an `installTauriMock` script for page initialization.
+- `crates/vox-gui/ui/playwright.config.ts`: Configure Playwright to only run tests ending in `.spec.ts` to avoid collecting Vitest unit tests.
+
+--- audit: original='feat(vox-gui/e2e): hi-DPI capture sweep emitting sha256 manifest.json' | actual=48L across 2 files | derived=full ---
