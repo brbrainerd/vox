@@ -1,0 +1,9 @@
+feat(drift-check): gate TypeScript drift detection behind a feature flag
+scale: ~17 lines across 3 files [S]
+
+- `crates/vox-drift-check`: Introduced a `drift-typescript` feature flag to conditionally enable the TypeScript drift detection functionality.
+- `crates/vox-drift-check/Cargo.toml`: Made `swc_ecma_parser`, `swc_ecma_ast`, `swc_ecma_visit`, and `swc_common` dependencies optional, linking them to the new `drift-typescript` feature.
+- `crates/vox-drift-check/src/engine.rs`: Added `#[cfg(feature = "drift-typescript")]` attributes to the import and usage of `TypeScriptExtractor` to ensure it's only included when the feature is enabled.
+- `crates/vox-drift-check/src/extractors/mod.rs`: Applied `#[cfg(feature = "drift-typescript")]` to the `typescript` module declaration, making its inclusion conditional.
+
+--- audit: original='feat(drift-check): gate swc_ecma_* deps behind drift-typescript feature' | actual=17L across 3 files | derived=full ---
