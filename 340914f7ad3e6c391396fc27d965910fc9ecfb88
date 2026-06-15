@@ -1,0 +1,14 @@
+feat(db): persist HITL approvals for audit trail
+scale: ~210 lines across 9 files [M]
+
+- crates/vox-db/src/facade/hitl_approvals.rs: Add `HitlApprovalRow` struct and functions for recording, resolving, and retrieving HITL approvals (`hitl_approval_record`, `hitl_approval_resolve`, `hitl_approval_get`, `hitl_approvals_recent`).
+- crates/vox-db/tests/hitl_approvals_tests.rs: Add tests for recording, resolving, and persisting HITL approvals across restarts.
+- crates/vox-orchestrator-mcp/src/dispatch.rs: Integrate best-effort recording of pending HITL approvals and resolution of their outcomes into the `handle_tool_call` function.
+- crates/vox-db/src/schema/domains/execution.rs: Add `hitl_approvals` table to the `execution` domain schema, including `approval_id`, `tool`, `summary`, `status`, `requested_at_ms`, `resolved_at_ms` columns, and indexes.
+- crates/vox-db/src/schema/manifest.rs: Increment `BASELINE_VERSION` to 69.
+- contracts/db/baseline-version-policy.yaml: Update `repository_baseline_integer` to 69 and `repository_baseline_digest_hex` to reflect schema changes.
+- crates/vox-db/src/codex_legacy.rs: Add `hitl_approvals` to `LEGACY_EXPORT_TABLES`.
+- crates/vox-db/src/facade/mod.rs: Export the new `hitl_approvals` module.
+- crates/vox-db/src/lib.rs: Export `HitlApprovalRow`.
+
+--- audit: original='@ feat(db): persist HITL approvals (audit trail) — B3 DB persistence' | actual=210L across 9 files | derived=full ---
