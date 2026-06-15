@@ -1,0 +1,12 @@
+feat(orchestrator): implement lease-gate local fallback for mesh execution
+scale: ~233 lines across 7 files [M]
+
+- `crates/vox-db/src/mesh_exec_leases.rs`: Add new module with `ExecLeaseRow` struct and `VoxDb` methods `exec_lease_grant` (upsert) and `mesh_exec_lease_for_scope` (lookup) for the `mesh_exec_leases` table.
+- `crates/vox-db/src/lib.rs`: Re-export `ExecLeaseRow` and declare `mesh_exec_leases` module.
+- `crates/vox-orchestrator/src/a2a/dispatch/lease_gate.rs`: Add new module implementing `check_before_local_fallback` function, which returns `Err(LeaseGateError::HeldByRemote)` if an unexpired lease for the given scope is held by a different node.
+- `crates/vox-orchestrator/src/a2a/dispatch/mesh.rs`: Add `gate_local_fallback` function, a convenience wrapper that computes `now_ms` and logs rejections, to be called before local execution after a mesh relay failure.
+- `crates/vox-orchestrator/src/a2a/dispatch/mod.rs`: Declare `lease_gate` as a public module and export `gate_local_fallback` from `mesh` module. Update module-level documentation to reflect the new dispatch layer.
+- `crates/vox-orchestrator/src/a2a/mod.rs`: Make `dispatch` module public to allow integration tests to import `lease_gate` directly.
+- `crates/vox-orchestrator/tests/lease_gate.rs`: Add four new tests for `check_before_local_fallback` covering scenarios with no lease, unexpired remote lease, expired remote lease, and local node lease.
+
+--- audit: original='feat(orchestrator): lease-gate local fallback against mesh_exec_leases (P0-T3)' | actual=233L across 7 files | derived=full ---
