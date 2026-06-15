@@ -1,0 +1,6 @@
+docs(vox-populi): clarify `MIN_USEFUL_SPEEDUP` estimate ignores sync overhead
+scale: ~4 lines across 1 files [XS]
+
+- `crates/vox-populi/src/mens/cohort/planner.rs`: Added a detailed note to the `MIN_USEFUL_SPEEDUP` constant's documentation, explaining that the cohort-speedup estimate is optimistic as it assumes perfect parallelism and ignores synchronization/communication overhead.
+
+--- audit: original='docs(populi): note cohort-speedup estimate ignores sync overhead' | actual=4L across 1 files | derived=full ---
