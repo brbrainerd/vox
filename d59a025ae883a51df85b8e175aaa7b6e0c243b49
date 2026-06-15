@@ -1,0 +1,19 @@
+feat(plugin-sdk): Accept a [MIN, MAX] ABI range instead of exact match
+scale: ~58 lines across 3 files [M]
+
+- `vox-plugin-api`:
+  - Add `VOX_PLUGIN_ABI_MIN_SUPPORTED` constant, initialized to `VOX_PLUGIN_ABI_VERSION`.
+  - Add `abi_compatible(plugin_abi)` function to check if `plugin_abi` is within `[MIN, VERSION]`.
+  - Add a compile-time assertion that `VOX_PLUGIN_ABI_MIN_SUPPORTED <= VOX_PLUGIN_ABI_VERSION`.
+  - Update documentation for `VOX_PLUGIN_ABI_VERSION` and `VOX_PLUGIN_ABI_MIN_SUPPORTED` to describe additive vs. breaking bump policies.
+  - Add unit tests for `abi_compatible` function.
+- `vox-plugin-host/loader`:
+  - Modify plugin loading logic to use `abi_compatible(plugin_abi)` instead of exact equality with `VOX_PLUGIN_ABI_VERSION`.
+  - Import `VOX_PLUGIN_ABI_MIN_SUPPORTED` and `abi_compatible`.
+  - Pass `VOX_PLUGIN_ABI_MIN_SUPPORTED` to `AbiMismatchError`.
+- `vox-plugin-host/errors`:
+  - Add `host_abi_min` field to `AbiMismatchError` struct.
+  - Update the `AbiMismatchError` display message to show the supported range: "host supports {min}..={max}".
+  - Add documentation comments for `host_abi` and `host_abi_min` fields.
+
+--- audit: original='feat(plugin-sdk): SP-4 — accept a [MIN, MAX] ABI range instead of exact match (#191)' | actual=58L across 3 files | derived=full ---
