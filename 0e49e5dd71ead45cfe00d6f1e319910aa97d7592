@@ -1,0 +1,15 @@
+feat(attestation): Add TEE quote, replay proof, and kudos signature fields to Attestation
+scale: ~140 lines across 2 files [M]
+
+- `crates/vox-mesh-types/src/attestation.rs`:
+    - Added `tee_quote` field of type `Option<crate::tee_attestation::TeeQuote>` to the `Attestation` struct. This field is optional and represents the TEE attestation quote.
+    - Added `replay_proof_blake3_hex` field of type `Option<String>` to the `Attestation` struct. This field is optional and stores the BLAKE3 hex digest of the replay proof.
+    - Added `kudos_signature_b64` field of type `Option<String>` to the `Attestation` struct. This field is optional and stores the base64-encoded kudos signature.
+- `crates/vox-mesh-types/tests/tee_attestation.rs`:
+    - Added a new test file for TEE attestation envelope integration tests.
+    - Implemented `make_tee_quote` function to create `TeeQuote` instances for testing.
+    - Implemented `make_attestation_with_tee` function to create `Attestation` instances with optional `TeeQuote` for testing.
+    - Added `attestation_with_tee_quote_round_trips` test to verify serialization and deserialization of `Attestation` with a `TeeQuote`.
+    - Added `attestation_without_tee_quote_round_trips` test to verify serialization and deserialization of `Attestation` without a `TeeQuote`.
+
+--- audit: original='feat(mesh-types): P6-T5 TaskResult.attestation + TEE quote envelope (stub)' | actual=140L across 2 files | derived=full ---
