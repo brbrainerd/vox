@@ -1,0 +1,7 @@
+test(cli): update diagnostic goldens with `minimal_repro` field
+scale: ~60 lines across 2 files [M]
+
+- `crates/vox-cli/tests/golden/check_rust_import_lowering.json`: Added the `minimal_repro` field, including `excerpt`, `excerpt_first_line`, and `local_span` for three diagnostic entries.
+- `crates/vox-cli/tests/snapshots/check_for_llm_envelope__check_for_llm_envelope_shape_rust_import_fixture.snap`: Added the `minimal_repro` field, including `excerpt`, `excerpt_first_line`, and `local_span` for three diagnostic entries.
+
+--- audit: original='test(cli): regenerate stale diagnostic goldens for the additive minimal_repro field' | actual=60L across 2 files | derived=full ---
