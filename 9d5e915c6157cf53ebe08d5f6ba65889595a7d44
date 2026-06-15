@@ -1,0 +1,15 @@
+feat(data-storage-guard): Implement policy schema and validation
+scale: ~152 lines across 6 files [M]
+
+- `crates/vox-cli/src/commands/ci/data_storage_guard.rs`:
+    - Added `DataStoragePolicy` struct for deserializing policy YAML.
+    - Implemented `load_policy` function to read, parse, and validate data storage policy YAML against its schema using `vox_jsonschema_util`.
+    - Modified `GuardReport` struct to include `violations` (Vec<String>) and `files_scanned` (u32).
+    - Integrated `load_policy` into the `run` function, adding a `--check-policy-only` option to validate the policy without full guard execution.
+- `contracts/db/data-storage-policy.v1.schema.json`: Added new JSON schema for `DataStoragePolicy`, defining its structure and required fields.
+- `contracts/index.yaml`: Registered `data-storage-policy-v1`, `data-storage-policy-v1-schema`, and `data-storage-guard-report-v1-schema` contracts.
+- `contracts/db/data-storage-guard-report.v1.schema.json`: Added new JSON schema for `DataStorageGuardReport`, defining its structure.
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Added `check_policy_only` boolean flag to `GuardOpts` for the `vox ci data-storage-guard` command.
+- `tests/fixtures/bad-data-storage-policy.yaml`: Added a new fixture file for testing malformed data storage policies.
+
+--- audit: original="M-04: Land the guard's policy-file schema" | actual=152L across 6 files | derived=full ---
