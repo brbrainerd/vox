@@ -1,0 +1,18 @@
+feat(speech-to-code): add schemas, documentation, and core components for speech processing
+scale: ~21994 lines across 91 files [XL]
+
+- **`crates/vox-oratio`**: Introduced new modules for transcript reranking, speech intent classification, acoustic preprocessing, speech normalization, speech lexicon management, contextual bias, streaming partials, failure taxonomy, and tiering. This includes significant additions to `routing.rs` for speech-to-code intent classification and a new `trace.rs` module. Many smaller files were added or modified to support these new functionalities.
+- **`contracts/speech-to-code`**: Added several new JSON schemas including `speech_trace.schema.json`, `kpi-baseline.schema.json`, `failure-taxonomy.schema.json`, and `lexicon.schema.json`. Also added a `README.md` and `labeling_rubric.md` for documentation, and example canary policy and grammar artifact placeholder.
+- **`crates/vox-integration-tests`**: Added new tests for speech schema parity, speech canary, speech benchmark manifest, and speech fixture validation.
+- **`docs`**: Added new reference documentation for speech-to-code pipeline, operations, and mens speech curriculum. Modified existing `oratio-speech.md`.
+- **`crates/vox-mcp`**: Added new modules for speech constraints and updated `oratio_tools.rs` and `compiler_tools.rs`.
+- **`crates/vox-lsp`**: Modified `lib.rs` and added a test for validating with HIR.
+- **`crates/vox-toestub`**: Added new modules for run context and detectors, and modified `engine.rs`.
+- **`crates/vox-compiler`**: Added new tests for speech grammar artifacts and significantly modified `eval.rs`.
+- **`.gitignore`**: Added `artifacts/toestub-crates-audit.json` to exclude local artifacts.
+- **`mens/schemas`**: Added `speech_to_code_trace.schema.json`.
+- **`crates/vox-corpus`**: Added a new corpus mix module and modified several synthetic generation modules.
+- **`crates/vox-cli`**: Modified `commands/gamify/battle.rs`.
+- **`crates/vox-eval`**: Modified `lib.rs`.
+
+--- audit: original='feat(contracts): add speech-to-code schemas and documentation for improved observability' | actual=21994L across 91 files | derived=sampled ---
