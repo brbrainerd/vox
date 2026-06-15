@@ -1,0 +1,6 @@
+docs(contributor-hub): update last_updated date
+scale: ~2 lines across 1 files [XS]
+
+- docs/src/contributors/contributor-hub.md: Changed `last_updated` from 2026-03-28 to 2026-04-03.
+
+--- audit: original='docs: trigger build for github actions-based pages deployment' | actual=2L across 1 files | derived=full ---
