@@ -1,0 +1,8 @@
+feat(config): Add `EFFORT_AUDIT_JUDGE_TIMEOUT` constant
+scale: ~9 lines across 1 files [XS]
+
+- `crates/vox-config/src/timeouts.rs`:
+    - Add `EFFORT_AUDIT_JUDGE_TIMEOUT` constant, set to 60 seconds, for the per-commit LLM judge timeout in `vox audit effort`.
+    - Add a test case to verify `EFFORT_AUDIT_JUDGE_TIMEOUT` is 60 seconds.
+
+--- audit: original='feat(vox-config): add EFFORT_AUDIT_JUDGE_TIMEOUT (A4)' | actual=9L across 1 files | derived=full ---
