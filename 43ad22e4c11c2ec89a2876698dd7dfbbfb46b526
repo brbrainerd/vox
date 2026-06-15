@@ -1,0 +1,10 @@
+refactor(greaterfool): update snapshot for main.rs emit with health probe
+scale: ~402 lines across 1 files [L]
+
+- `crates/vox-integration-tests/tests/snapshots/greaterfool_parity_gates_test__greaterfool_ref_main_rs_emit.snap`:
+    - Added a new `vox_health_backend_kind` function to determine the database backend from environment variables.
+    - Added a new `vox_health_probe_for_backend` function to probe the readiness of different database backends (libsql, postgres, mysql).
+    - Added a new `/health` GET endpoint to the Axum router, which uses the health probe functions to report the application's health status.
+    - Modified the Axum router to include `get` in its routing imports.
+
+--- audit: original='test(integration): refresh greaterfool main.rs emit snapshot' | actual=402L across 1 files | derived=full ---
