@@ -1,0 +1,9 @@
+fix(visus-review): tolerate partial model JSON for Finding and ReviewVerdict
+scale: ~17 lines across 1 files [S]
+
+- `crates/vox-orchestrator-mcp/src/visus_review/types.rs`:
+    - Added `#[serde(default)]` to all fields (`principle`, `severity`, `region`, `critique`) of the `Finding` struct to allow deserialization with missing fields, defaulting them to empty strings.
+    - Added `#[serde(default)]` to `score`, `verdict`, and `findings` fields of the `ReviewVerdict` struct to allow deserialization with missing fields, defaulting `score` to 0, `verdict` to an empty string, and `findings` to an empty vector.
+    - Added a new test `verdict_tolerates_missing_finding_fields` to verify that `ReviewVerdict` and `Finding` structs can be deserialized successfully even when some fields are missing in the JSON input, demonstrating the `#[serde(default)]` behavior.
+
+--- audit: original='fix(visus-review): tolerate partial model JSON (lenient Finding/verdict deser)' | actual=17L across 1 files | derived=full ---
