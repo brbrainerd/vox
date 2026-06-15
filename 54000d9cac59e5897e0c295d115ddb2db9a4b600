@@ -1,0 +1,16 @@
+feat(gui): wire Settings mesh-peers and signing-keys to live data and actions
+scale: ~658 lines across 11 files [L]
+
+- `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx`: Replaced `MOCK_PEERS` and `MOCK_KEYS` with live data fetched via new Tauri commands. Implemented UI for listing mesh nodes, displaying their trust status, and managing trust (trust/untrust actions). Implemented UI for displaying signing key status and initiating key rotation, including master password prompt.
+- `crates/vox-gui/src/commands/mesh.rs`: Added new Tauri commands `list_trusted_nodes`, `trust_mesh_node`, and `untrust_mesh_node` to interact with `vox_identity::TrustedNodeRegistry` for managing local mesh peer trust. Defined `TrustedNodeDto` for serializing trusted node information to the frontend.
+- `crates/vox-identity/src/storage.rs`: Introduced `save_identity_at` and `load_identity_at` functions to allow path-parameterized identity storage/loading. Added `identity_exists` to check for identity file presence. Implemented `rotate_identity` to regenerate the Ed25519 keypair and re-encrypt it under the same master password.
+- `crates/vox-gui/src/commands/signing.rs`: Added new Tauri commands `signing_key_status` and `rotate_signing_key` to expose the local node identity's status and rotation functionality to the GUI. Defined `SigningKeyDto` for safe serialization of signing key information (excluding private material).
+- `crates/vox-identity/src/identity.rs`: Added `pubkey_hex` method to `NodeIdentity` to return the full hex-encoded public key. Added `fingerprint` method to generate a short, human-readable public key fingerprint.
+- `crates/vox-gui/src/main.rs`: Registered new Tauri commands for mesh peer management (`list_trusted_nodes`, `trust_mesh_node`, `untrust_mesh_node`) and signing key management (`signing_key_status`, `rotate_signing_key`).
+- `crates/vox-gui/src/commands/mod.rs`: Added `mesh` and `signing` modules to the commands.
+- `crates/vox-orchestrator-mcp/src/populi_tools.rs`: Added `ed25519_pub_key_b64` to the `vox_mesh_nodes` tool output, allowing the GUI to bind a peer's node_id to its advertised public key.
+- `crates/vox-gui/Cargo.toml`: Updated dependencies to include new modules.
+- `Cargo.lock`: Updated due to dependency changes.
+- `contracts/reports/gui-surface-coverage.v1.json`: Regenerated GUI surface coverage report.
+
+--- audit: original='feat(gui): wire Settings mesh-peers + signing-keys to real data + actions (#206)' | actual=658L across 11 files | derived=full ---
