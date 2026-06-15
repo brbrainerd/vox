@@ -1,0 +1,20 @@
+feat(orchestrator): Implement public `/v1/eval` sandbox endpoint for docs
+scale: ~146 lines across 6 files [M]
+
+- `crates/vox-orchestrator`:
+  - Added `public_eval_enabled` and `public_eval_rate_limiter` fields to `GatewayState`.
+  - Modified `http_eval` to conditionally apply request guards and rate limiting based on `public_eval_enabled`.
+  - Updated `spawn_http_gateway_if_enabled` to initialize `public_eval_enabled` from `VOX_MCP_HTTP_PUBLIC_EVAL_ENABLED` and create a dedicated rate limiter for public eval.
+  - Adjusted the startup check to allow unauthenticated access if `public_eval_enabled` is true.
+- `crates/vox-clavis`:
+  - Added `VoxMcpHttpPublicEvalEnabled` to `SecretId` enum.
+  - Registered `VOX_MCP_HTTP_PUBLIC_EVAL_ENABLED` as a new optional secret specification, allowing unauthenticated access to `/v1/eval` for public playground use.
+- `docs-astro`:
+  - Updated `VoxPlayground.astro` to use `https://eval.vox-lang.org/v1/eval` as the default endpoint.
+  - Added logic to auto-detect backend health on mount by checking the `/health` endpoint and enabling the run button if healthy.
+  - Removed the default localhost endpoint for local docs preview.
+- `docker`:
+  - Added `docker/vox-eval.compose.yml` for a Coolify deployment of the Vox Eval Sandbox.
+  - Configured the service to enable the HTTP gateway, bind to `0.0.0.0`, enable public eval mode, trust `X-Forwarded-For` headers, require forwarded HTTPS, and set a rate limit for anonymous callers.
+
+--- audit: original='feat(orchestrator): Implement public eval sandbox endpoint for docs' | actual=146L across 6 files | derived=full ---
