@@ -1,0 +1,16 @@
+feat(scientia): Add contradiction scoring and verdict to claim extraction
+scale: ~234 lines across 3 files [M]
+
+- `crates/vox-scientia/src/claim_extractor/minicheck.rs`:
+    - Introduced a `contradiction_score` field to `MiniCheckResponse` for HTTP backend.
+    - Implemented a lexical-negation asymmetry heuristic in the `MiniCheckBackend::Mock` to calculate `contradiction_score`. This heuristic identifies potential contradictions based on negation tokens (`not`, `no`, `never`, etc.) in the claim and context sentences.
+    - Added `NEGATORS` constant for the mock backend's heuristic.
+- `crates/vox-scientia/src/claim_extractor/pipeline.rs`:
+    - Added `contradiction_threshold` to `ExtractionConfig` with a default value of 0.6.
+    - Modified the claim verification pipeline to check `contradiction_score` against `contradiction_threshold` *before* the abstain/support/contest ladder. If the score meets the threshold, the verdict is `ClaimVerdict::Contradicted`.
+    - Added a test case to ensure `Contradicted` verdicts are emitted when the context explicitly negates the claim.
+- `crates/vox-scientia/src/claim_extractor/types.rs`:
+    - Added `contradiction_score: f64` to `VerifierOutput` to store the contradiction signal.
+    - Updated the `ClaimVerdict::Contradicted` variant to include a `confidence` field, representing the contradiction score.
+
+--- audit: original='feat(scientia): reachable Contradicted verdict via contradiction_score' | actual=234L across 3 files | derived=full ---
