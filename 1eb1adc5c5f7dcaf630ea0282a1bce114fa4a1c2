@@ -1,0 +1,6 @@
+docs: update README with new voice-to-app architecture diagram
+scale: ~2 lines across 3 files [S]
+
+- README.md: Replaced the old `vox_unification_diagram.png` image with `vox_voice_to_app.png` and updated its alt text to describe the new diagram.
+
+--- audit: original='docs: replace old network stack image with new voice-to-app generated architecture diagram' | actual=2L across 3 files | derived=full ---
