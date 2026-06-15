@@ -1,0 +1,28 @@
+feat(dashboard): type transport events, refine backoff, fix TS errors
+scale: ~299 lines across 7 files [L]
+
+- `crates/vox-dashboard/src/transport.ts`:
+  - Added typed overloads for `on` and `emit` methods using `VoxTransportEventMap`, allowing callers to receive `ConnectionStatusPayload` and `AuthStatusEvent` without `as` casts.
+  - Replaced ad-hoc backoff logic with `Math.min(250 * 2^n, 30_000)` for exponential backoff.
+  - Narrowed `any` parameters to `unknown` and strengthened `callTool` return type to `Promise<unknown>`.
+  - Explicitly typed `useVoxTransport` return as `VoxTransport`.
+  - Initial `authStatus` emit now uses `satisfies AuthStatusEvent`.
+- `crates/vox-dashboard/src/types.ts`:
+  - Exported new types: `ConnectionStatusPayload` (discriminated union), `AuthStatusEvent` (literal union), `VoxTransportEventMap` (event registry).
+  - Exported previously unexported types: `ChatSessionMeta`, `ComposerState`, `ComposerDraft`, `WorkspaceInspectorState`, `ActiveEditorState`, `LastPlanState`, `AttentionStatusPayload`, `AttentionAlert` to resolve `tsc` errors under `strict: true`.
+- `crates/vox-dashboard/src/App.tsx`:
+  - Updated state types for `connectionStatus` and `authStatus` to use the new discriminated unions and literal union types.
+  - Removed redundant `as` casts on transport listeners.
+  - Imported new types `ConnectionStatusPayload` and `AuthStatusEvent`.
+- `crates/vox-dashboard/src/components/ContextExplorer.tsx`:
+  - Corrected import path for `WorkspaceInspectorState` from `'../../../src/types'` to `'../types'`.
+  - Added optional chaining (`?.`) to `inspector?.openFiles`, `inspector?.activeEditor?.diagnostics`, and `inspector?.contextKeys` to guard against `null` or `undefined` values.
+- `crates/vox-dashboard/src/components/ComposerPanel.tsx`:
+  - Corrected import path for `ComposerState` from `'../../../src/types'` to `'../types'`.
+  - Added optional chaining (`?.`) to `composerState?.drafts`.
+- `crates/vox-dashboard/src/components/AttentionPanel.tsx`:
+  - Corrected import path for `AttentionAlert` and `AttentionStatusPayload` from `'../../../src/types'` to `'../types'`.
+- `crates/vox-dashboard/src/components/UnifiedDashboard.tsx`:
+  - Changed prop name for `AttentionPanel` from `alert` to `_alert` to match the component's expected prop.
+
+--- audit: original='feat(dashboard): TASK-0.6 — typed transport events, clean backoff, fix TS module errors' | actual=299L across 7 files | derived=full ---
