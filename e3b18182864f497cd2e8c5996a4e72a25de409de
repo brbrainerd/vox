@@ -1,0 +1,12 @@
+docs(audit): Update 2026 plan with session 5 progress and task details
+scale: ~22 lines across 1 files [S]
+
+- docs/src/architecture/crate-audit-and-plan-2026.md:
+  - Added "7e. Execution log (2026-05-24, session 5 — resumed after context cutoff)" section.
+  - Documented post-session-4 addendum for A-14-reframed, B-3-trim, and A-6-rescope.
+  - Detailed session 5 progress for task B-2: converted `voxup/Cargo.toml` to workspace versions, ported `directories` to `dirs` API, and added `url` to workspace dependencies.
+  - Detailed session 5 progress for task B-6: replaced `mockito` with `wiremock` in `vox-populi` dev-deps and refactored async tests.
+  - Detailed session 5 progress for task B-3-trim (url): migrated `vox-scientia` to use workspace `url`.
+  - Detailed session 5 progress for task B-9: made `tower-lsp-server` feature gate.
+
+--- audit: original='docs(audit): update plan doc — D-17 done, sessions 6-7 state (~43/50)' | actual=22L across 1 files | derived=full ---
