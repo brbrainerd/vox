@@ -1,0 +1,11 @@
+feat(device): Implement GPU-first device selection with CPU fallback
+scale: ~60 lines across 2 files [M]
+
+- `crates/vox-quantize/src/device.rs`:
+    - Added `DevicePref` enum for user device preference (Auto, Cuda, Metal, Cpu).
+    - Implemented `select` function to choose a `candle_core::Device` based on `DevicePref`, prioritizing CUDA, then Metal, then CPU.
+    - Included unit tests for `cpu_pref_always_resolves_to_cpu` and `auto_resolves_without_error`.
+    - Updated module-level documentation.
+- `crates/vox-quantize/src/lib.rs`: Re-exported `DevicePref`.
+
+--- audit: original='feat(quantize): GPU-first device selection with CPU fallback' | actual=60L across 2 files | derived=full ---
