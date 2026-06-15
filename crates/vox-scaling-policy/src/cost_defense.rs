@@ -62,6 +62,28 @@ impl Default for CostDefenseConfig {
     }
 }
 
+impl CostDefenseConfig {
+    /// Overlay daily/monthly USD budget ceilings from raw env strings onto `Default`.
+    /// Unparseable or absent values keep the default. Callers pass
+    /// `std::env::var("VOX_COST_DAILY_BUDGET_USD").ok().as_deref()` etc.
+    pub fn from_env_values(daily: Option<&str>, monthly: Option<&str>) -> Self {
+        let mut c = Self::default();
+        if let Some(v) = daily
+            .and_then(|s| s.trim().parse::<f64>().ok())
+            .filter(|v| v.is_finite() && *v > 0.0)
+        {
+            c.daily_budget_usd = v;
+        }
+        if let Some(v) = monthly
+            .and_then(|s| s.trim().parse::<f64>().ok())
+            .filter(|v| v.is_finite() && *v > 0.0)
+        {
+            c.monthly_budget_usd = v;
+        }
+        c
+    }
+}
+
 // ── Circuit breaker state ────────────────────────────────────────────────────
 
 /// Reason a task was rejected by the cost defense layer.
@@ -265,6 +287,49 @@ impl CostCircuitBreaker {
     pub fn record_task_completion(&mut self, task_id: &str, tenant_id: &str, actual_cost_usd: f64) {
         self.state.record_cost(tenant_id, actual_cost_usd);
         self.state.record_retry(task_id);
+    }
+}
+
+#[cfg(test)]
+mod budget_env_tests {
+    use super::*;
+
+    #[test]
+    fn env_overrides_apply() {
+        let c = CostDefenseConfig::from_env_values(Some("10.0"), Some("200.0"));
+        assert_eq!(c.daily_budget_usd, 10.0);
+        assert_eq!(c.monthly_budget_usd, 200.0);
+    }
+
+    #[test]
+    fn missing_env_keeps_defaults() {
+        let c = CostDefenseConfig::from_env_values(None, None);
+        assert_eq!(c.daily_budget_usd, 25.0);
+        assert_eq!(c.monthly_budget_usd, 500.0);
+    }
+
+    #[test]
+    fn unparseable_env_keeps_default() {
+        let c = CostDefenseConfig::from_env_values(Some("not-a-number"), None);
+        assert_eq!(c.daily_budget_usd, 25.0);
+    }
+
+    #[test]
+    fn negative_budget_keeps_default() {
+        let c = CostDefenseConfig::from_env_values(Some("-5"), None);
+        assert_eq!(c.daily_budget_usd, 25.0);
+    }
+
+    #[test]
+    fn zero_budget_keeps_default() {
+        let c = CostDefenseConfig::from_env_values(Some("0"), None);
+        assert_eq!(c.daily_budget_usd, 25.0);
+    }
+
+    #[test]
+    fn nan_budget_keeps_default() {
+        let c = CostDefenseConfig::from_env_values(Some("nan"), None);
+        assert_eq!(c.daily_budget_usd, 25.0);
     }
 }
 

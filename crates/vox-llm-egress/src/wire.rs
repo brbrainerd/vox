@@ -95,7 +95,10 @@ pub async fn chat_once(
     let _permit = throttle::acquire_permit(&req.throttle_key, req.max_concurrent).await;
 
     let body = build_request(req, params, messages, false);
-    let http = apply_auth_headers(client.post(&req.base_url).json(&body), req);
+    let mut http = apply_auth_headers(client.post(&req.base_url).json(&body), req);
+    if let Some(ms) = req.timeout_ms {
+        http = http.timeout(std::time::Duration::from_millis(ms));
+    }
 
     let start = Instant::now();
     let res = http.send().await.map_err(|e| EgressError::Http(e.to_string()))?;
@@ -242,7 +245,10 @@ pub async fn embed_once(req: &EgressRequest, text: &str) -> Result<Vec<f32>, Egr
     let _permit = throttle::acquire_permit(&req.throttle_key, req.max_concurrent).await;
 
     let body = EmbedRequest { model: &req.model, input: text };
-    let http = apply_auth_headers(client.post(&req.base_url).json(&body), req);
+    let mut http = apply_auth_headers(client.post(&req.base_url).json(&body), req);
+    if let Some(ms) = req.timeout_ms {
+        http = http.timeout(std::time::Duration::from_millis(ms));
+    }
     let res = http.send().await.map_err(|e| EgressError::Http(e.to_string()))?;
     let status = res.status();
     if status.as_u16() == 429 {

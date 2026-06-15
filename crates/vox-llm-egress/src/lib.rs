@@ -33,6 +33,10 @@ pub struct EgressRequest {
     /// Max concurrent in-flight requests for this provider's throttle (resolved from
     /// VoxConfig by `vox_config::resolve_egress`; first call per provider wins).
     pub max_concurrent: usize,
+    /// Per-request HTTP timeout for **unary** calls (chat/embed); resolved by
+    /// `vox_config::resolve_egress`. `None` = no deadline. `stream_once` ignores this
+    /// (a whole-request deadline would truncate long SSE streams).
+    pub timeout_ms: Option<u64>,
 }
 
 impl std::fmt::Debug for EgressRequest {
@@ -46,6 +50,7 @@ impl std::fmt::Debug for EgressRequest {
             .field("headers", &self.headers)
             .field("throttle_key", &self.throttle_key)
             .field("max_concurrent", &self.max_concurrent)
+            .field("timeout_ms", &self.timeout_ms)
             .finish()
     }
 }
@@ -131,6 +136,7 @@ mod tests {
             headers: vec![("X-Title".into(), "vox".into())],
             throttle_key: "openrouter".into(),
             max_concurrent: 8,
+            timeout_ms: None,
         };
         assert_eq!(r.throttle_key, "openrouter");
     }
@@ -144,6 +150,7 @@ mod tests {
             headers: vec![("X-Title".into(), "vox".into())],
             throttle_key: "openrouter".into(),
             max_concurrent: 8,
+            timeout_ms: None,
         };
         let dbg = format!("{r:?}");
         assert!(!dbg.contains("sk-supersecret-token"), "api_key must never appear in Debug: {dbg}");

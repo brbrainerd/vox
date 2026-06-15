@@ -279,6 +279,7 @@ impl FreeAiClient {
                 ],
                 throttle_key: "openrouter".to_string(),
                 max_concurrent: 8,
+                timeout_ms: Some(30_000),
             };
             let msgs = [vox_llm_egress::ChatMessage {
                 role: "user".to_string(),

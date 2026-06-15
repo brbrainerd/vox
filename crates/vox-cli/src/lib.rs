@@ -386,6 +386,12 @@ pub enum Cli {
         #[command(flatten)]
         args: cli_args::DeployArgs,
     },
+    /// Manage OCI containers: build/run the current project with resource limits.
+    Container {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::container::ContainerAction,
+    },
     /// Advanced package manager / registry commands (`search`, `publish`, `vendor`, …).
     Pm {
         #[command(subcommand)]

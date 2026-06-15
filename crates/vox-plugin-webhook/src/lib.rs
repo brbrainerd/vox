@@ -69,7 +69,7 @@ fn init(_host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError
     //
     // NOTE: this relies on a tokio runtime already being active in the host
     // process, which is guaranteed by the vox-plugin-host bootstrap.
-    let addr = std::env::var("VOX_WEBHOOK_ADDR").unwrap_or_else(|_| "0.0.0.0:9080".to_string());
+    let addr = webhook::config::bind_addr_from_env();
     let ingress_token = std::env::var("VOX_WEBHOOK_INGRESS_TOKEN").ok();
 
     let mut state = WebhookState::new(WebhookHandler::new());
@@ -129,8 +129,8 @@ impl HttpListener for WebhookHttpListener {
         let addr = serde_json::from_str::<serde_json::Value>(config_json.as_str())
             .ok()
             .and_then(|v| v.get("addr").and_then(|a| a.as_str()).map(str::to_string))
-            .or_else(|| std::env::var("VOX_WEBHOOK_ADDR").ok())
-            .unwrap_or_else(|| "0.0.0.0:9080".to_string());
+            .or_else(|| std::env::var("VOX_WEBHOOK_ADDR").ok());
+        let addr = webhook::config::resolve_bind_addr(addr.as_deref());
         let ingress_token = std::env::var("VOX_WEBHOOK_INGRESS_TOKEN").ok();
         let mut state = WebhookState::new(WebhookHandler::new());
         if let Some(token) = ingress_token {

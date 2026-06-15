@@ -29,6 +29,7 @@ pub async fn llm_chat(
                 provider: config.provider.clone(),
                 model: config.model.clone(),
                 base_url_override: config.base_url.clone(),
+                timeout_ms: config.timeout_ms,
             };
             let ereq = match vox_config::resolve_egress::resolve_egress(&input) {
                 Ok(r) => r,
@@ -58,6 +59,8 @@ pub async fn llm_chat(
                 tool_choice: config.tool_choice.as_ref(),
             };
 
+            // Timeout (origin/main feature) is now carried by EgressRequest.timeout_ms,
+            // resolved in resolve_egress and applied inside chat_once (unary only).
             match vox_llm_egress::chat_once(&ereq, &wire_msgs, &params).await {
                 Ok(resp) => {
                     let prompt_tokens = resp.prompt_tokens as i64;

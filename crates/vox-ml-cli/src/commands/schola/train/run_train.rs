@@ -98,11 +98,12 @@ pub async fn run_train(
         vox_populi::mens::PopuliTrainBackend::CandleQlora
     ) && model.is_none()
     {
-        model = Some(vox_populi::mens::DEFAULT_MODEL_ID.to_string());
+        let default_model = vox_populi::mens::default_model_id();
         tracing::info!(
-            model = %vox_populi::mens::DEFAULT_MODEL_ID,
+            model = %default_model,
             "Using default HF model for Candle QLoRA (`--model` omitted; see contracts/mens/training-presets.v1.yaml)."
         );
+        model = Some(default_model);
     }
 
     let effective_qlora_require_full_proxy_stack = !qlora_allow_partial_proxy_stack

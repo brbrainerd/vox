@@ -36,6 +36,12 @@ pub struct RunOpts {
     pub name: Option<String>,
     /// Remove container after exit.
     pub rm: bool,
+    /// `--cpus` quota (e.g. `"1.5"`). `None` = unlimited.
+    pub cpus: Option<String>,
+    /// `--memory` cap (e.g. `"512m"`). `None` = unlimited.
+    pub memory: Option<String>,
+    /// `--pids-limit` cap. `None` = unlimited.
+    pub pids_limit: Option<u32>,
 }
 
 impl Default for RunOpts {
@@ -48,7 +54,31 @@ impl Default for RunOpts {
             detach: false,
             name: None,
             rm: true,
+            cpus: None,
+            memory: None,
+            pids_limit: None,
         }
+    }
+}
+
+impl RunOpts {
+    /// CLI resource-limit flags for `docker run` / `podman run`, in a stable order.
+    /// Empty when no limits are set (behavior-preserving).
+    pub fn resource_args(&self) -> Vec<String> {
+        let mut args = Vec::new();
+        if let Some(c) = &self.cpus {
+            args.push("--cpus".to_string());
+            args.push(c.clone());
+        }
+        if let Some(m) = &self.memory {
+            args.push("--memory".to_string());
+            args.push(m.clone());
+        }
+        if let Some(p) = self.pids_limit {
+            args.push("--pids-limit".to_string());
+            args.push(p.to_string());
+        }
+        args
     }
 }
 
@@ -77,4 +107,29 @@ pub trait ContainerRuntime: Send + Sync {
 
     /// Log into a container registry.
     fn login(&self, registry: &str, username: &str, token: &str) -> anyhow::Result<()>;
+}
+
+#[cfg(test)]
+mod resource_args_tests {
+    use super::*;
+
+    #[test]
+    fn no_limits_emits_nothing() {
+        let opts = RunOpts::default();
+        assert!(opts.resource_args().is_empty());
+    }
+
+    #[test]
+    fn limits_emit_flags_in_order() {
+        let opts = RunOpts {
+            cpus: Some("1.5".into()),
+            memory: Some("512m".into()),
+            pids_limit: Some(128),
+            ..RunOpts::default()
+        };
+        assert_eq!(
+            opts.resource_args(),
+            vec!["--cpus", "1.5", "--memory", "512m", "--pids-limit", "128"]
+        );
+    }
 }

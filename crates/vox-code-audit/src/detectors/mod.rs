@@ -141,6 +141,9 @@ pub mod cross_crate_dup;
 /// while other arms do real work — the silent-drop shape behind vanishing-value pipeline bugs.
 pub mod catch_all_swallow;
 
+/// Flags touch-test anti-patterns: #[test] fns that assert nothing meaningful.
+pub mod weak_test;
+
 #[cfg(test)]
 mod semcov_wave32_tests;
 
@@ -210,12 +213,13 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         // `import_cycles::detect_import_cycles_in_batch` for multi-file cycles).
         Box::new(import_cycles::ImportCyclesDetector::new()),
         Box::new(catch_all_swallow::CatchAllSwallowDetector::new()),
+        Box::new(weak_test::WeakTestDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    52
+    53
 }
 
 #[cfg(test)]

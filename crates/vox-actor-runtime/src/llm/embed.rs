@@ -50,6 +50,7 @@ pub async fn llm_embed(
                 provider: config.provider.clone(),
                 model: config.model.clone(),
                 base_url_override: Some(embed_base),
+                timeout_ms: config.timeout_ms,
             };
             let ereq = match vox_config::resolve_egress::resolve_egress(&input) {
                 Ok(r) => r,

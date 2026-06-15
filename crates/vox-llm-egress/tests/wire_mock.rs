@@ -13,6 +13,7 @@ fn req(base: String) -> EgressRequest {
         headers: vec![("X-Title".into(), "vox".into())],
         throttle_key: "test-or".into(),
         max_concurrent: 4,
+        timeout_ms: Some(30_000),
     }
 }
 

@@ -29,6 +29,13 @@ def crate_of(fp: str) -> str:
     return p.split("crates/")[1].split("/")[0] if "crates/" in p else "?"
 
 
+def _load_graph(path: str):
+    import gzip
+    p = Path(path)
+    raw = gzip.decompress(p.read_bytes()) if p.suffix == ".gz" else p.read_bytes()
+    return json.loads(raw)
+
+
 def parse_lcov(path: str):
     """Return ({file -> {fn_name -> reached}}, {file -> set(hit_lines)}).
 
@@ -73,7 +80,7 @@ def main() -> int:
     args = ap.parse_args()
 
     by_fn, hit_lines = parse_lcov(args.lcov)
-    g = json.loads(Path(args.graph).read_text(encoding="utf-8"))
+    g = _load_graph(args.graph)
 
     # symbols with an inbound `proves` edge = proven
     proven_ids = {l["target"] for l in g["links"] if l.get("relation") == "proves"}

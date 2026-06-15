@@ -44,6 +44,9 @@ pub struct SyncStatusRef {
 /// Upper bound on commits visited when computing ahead/behind (guards pathological DAGs / shallow gaps).
 const SYNC_STATUS_GRAPH_CAP: usize = 250_000;
 
+/// Default depth for shallow git operations (see [`GitBridgeConfig::shallow_depth`]).
+const DEFAULT_SHALLOW_DEPTH: u32 = 50;
+
 fn gix_ahead_behind(
     repo: &gix::Repository,
     local_hex: &str,
@@ -149,7 +152,7 @@ impl Default for GitBridgeConfig {
             remote_name: "origin".into(),
             default_branch: "main".into(),
             shallow: false,
-            shallow_depth: 50,
+            shallow_depth: DEFAULT_SHALLOW_DEPTH,
         }
     }
 }

@@ -78,11 +78,13 @@ fn hourly_task() {
 - **Usage**: `@pure fn compute_hash(data: str) to str { return data }`
 
 ### `@deprecated`
-> [!NOTE]
-> Planned — not yet parseable.
 - **Goal**: Marks a function or type as pending removal.
-- **Effect**: Emits compiler warnings when used.
-- **Usage**: `@deprecated("Use new_function instead")`
+- **Effect**: Sets the deprecation marker on the declaration (surfaced by tooling/lints).
+- **Usage**: `@deprecated fn old_compute() to int { return 0 }`
+> [!NOTE]
+> Only the **bare** `@deprecated` form parses today. A reason argument
+> (`@deprecated("Use new_function instead")`) is **not yet parseable** — the parser
+> rejects the `(` and the reason string is not threaded into the AST/HIR.
 
 ## Data Modeling
 

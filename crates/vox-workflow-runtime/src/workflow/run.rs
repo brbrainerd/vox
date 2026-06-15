@@ -1,5 +1,10 @@
 //! Interpreted workflow runner: plan → journal.
 
+/// Default idempotency dedup window (24h, in ms) for a step that omits an
+/// explicit `dedup_window_ms`. Cached activity results within this horizon are
+/// replayed instead of re-executed.
+const DEFAULT_DEDUP_WINDOW_MS: u64 = 24 * 60 * 60 * 1000;
+
 use serde_json::{Value, json};
 use std::time::Duration;
 use vox_compiler::hir::HirModule;
@@ -182,7 +187,7 @@ pub async fn interpret_workflow_durable(
                 tracker
                     .on_activity_completed(workflow_name, &step.name, &activity_id, &entry)
                     .await?;
-                let dedup_ms = step.dedup_window_ms.unwrap_or(24 * 60 * 60 * 1000);
+                let dedup_ms = step.dedup_window_ms.unwrap_or(DEFAULT_DEDUP_WINDOW_MS);
                 let _ = tracker
                     .record_cached_activity_result(
                         &activity_id,

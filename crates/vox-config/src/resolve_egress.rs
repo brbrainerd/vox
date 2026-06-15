@@ -16,6 +16,19 @@ pub struct EgressResolveInput {
     pub model: String,
     /// Explicit endpoint override; when `None`, the provider default is used.
     pub base_url_override: Option<String>,
+    /// Per-request timeout in ms; `Some(>0)` wins, else the SSOT
+    /// `vox_config::timeouts::HTTP_REQUEST` default. Applied to unary calls only.
+    pub timeout_ms: Option<u64>,
+}
+
+/// Resolve the unary request timeout (ms). Precedence: explicit positive `timeout_ms`
+/// → shared `vox_config::timeouts::HTTP_REQUEST`. Mirrors the retired
+/// `vox-actor-runtime/llm/timeout.rs::request_timeout` (now single-sourced here).
+fn resolve_timeout_ms(timeout_ms: Option<u64>) -> u64 {
+    match timeout_ms {
+        Some(ms) if ms > 0 => ms,
+        _ => crate::timeouts::HTTP_REQUEST.as_millis() as u64,
+    }
 }
 
 fn resolve_api_key(provider: &str) -> String {
@@ -133,6 +146,7 @@ pub fn resolve_egress(input: &EgressResolveInput) -> Result<EgressRequest, Strin
         headers: extra_headers(&input.provider, &input.model),
         throttle_key: input.provider.clone(),
         max_concurrent: resolve_max_concurrent(&input.provider).max(1),
+        timeout_ms: Some(resolve_timeout_ms(input.timeout_ms)),
     })
 }
 
@@ -150,11 +164,26 @@ mod tests {
             provider: "hf_router".into(),
             model: "x".into(),
             base_url_override: None,
+            timeout_ms: None,
         };
         let req = resolve_egress(&input).expect("resolve");
         assert!(req.base_url.contains("huggingface"), "got {}", req.base_url);
         assert_eq!(req.throttle_key, "hf_router");
         assert!(req.max_concurrent >= 1);
+        // Unset timeout falls back to the SSOT default (non-zero).
+        assert!(req.timeout_ms.unwrap() > 0);
+    }
+
+    #[test]
+    fn explicit_timeout_overrides_default() {
+        let input = EgressResolveInput {
+            provider: "hf_router".into(),
+            model: "x".into(),
+            base_url_override: None,
+            timeout_ms: Some(5_000),
+        };
+        let req = resolve_egress(&input).expect("resolve");
+        assert_eq!(req.timeout_ms, Some(5_000));
     }
 
     #[test]
@@ -163,6 +192,7 @@ mod tests {
             provider: "hf_router".into(),
             model: "x".into(),
             base_url_override: Some("https://custom/v1/chat/completions".into()),
+            timeout_ms: None,
         };
         let req = resolve_egress(&input).expect("resolve");
         assert_eq!(req.base_url, "https://custom/v1/chat/completions");
@@ -173,7 +203,7 @@ mod tests {
         // openrouter requires a key; assert the gate is wired (env may or may not have one,
         // so accept either a present-key Ok or the explicit error — but the error message
         // must be the resolution gate when it fires).
-        let input = EgressResolveInput { provider: "openrouter".into(), model: "x".into(), base_url_override: None };
+        let input = EgressResolveInput { provider: "openrouter".into(), model: "x".into(), base_url_override: None, timeout_ms: None };
         match resolve_egress(&input) {
             Ok(req) => assert_eq!(req.throttle_key, "openrouter"),
             Err(e) => assert!(e.contains("No API key"), "unexpected error: {e}"),

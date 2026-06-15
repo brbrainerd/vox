@@ -2,7 +2,9 @@ use super::ownership::OwnershipMode;
 use std::collections::HashMap;
 use vox_compiler::ast::span::Span;
 use vox_compiler::builtin_registry::{BuiltinArgKind, lookup_builtin, std_namespace_runtime_call};
+use vox_compiler::feature_matrix::{ExprFeature, Feature, unsupported_diagnostic};
 use vox_compiler::hir::{HirArg, HirBinOp, HirExpr, HirPattern, HirStmt, HirType};
+use vox_compiler::target::Target;
 
 /// Escape `s` for inclusion inside a Rust `"..."` string literal (content only).
 pub(super) fn escape_rust_double_quoted_content(s: &str) -> String {
@@ -749,12 +751,15 @@ pub(super) fn emit_expr_with(
         // Frontend/web-only constructs must never panic the codegen pass.
         // Emit a `compile_error!` so rustc surfaces a clear, actionable message
         // instead of the Vox compiler aborting opaquely.
-        // JSX/AsyncView cannot go to a Rust server target.
+        // Codes come from the parity matrix (feature_matrix.rs) so they stay in sync.
         HirExpr::Jsx(..) | HirExpr::JsxSelfClosing(..) | HirExpr::JsxFragment(..) => {
-            r#"compile_error!("vox.codegen_rust.frontend_expr_in_server: JSX / async-view expressions cannot be emitted to the Rust (server/script) target")"#.to_string()
+            let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::Jsx), Target::RustAxum);
+            format!(r#"compile_error!("{}: {}")"#, cell.code, cell.message)
         }
         HirExpr::AsyncView(..) => {
-            r#"compile_error!("vox.codegen_rust.frontend_expr_in_server: Async[T] when-views cannot be emitted to the Rust target")"#.to_string()
+            let cell =
+                unsupported_diagnostic(Feature::Expr(ExprFeature::AsyncView), Target::RustAxum);
+            format!(r#"compile_error!("{}: {}")"#, cell.code, cell.message)
         }
         // `spawn expr` → `tokio::spawn(async move { expr })` → JoinHandle.
         // The actor-runtime ProcessHandle is the higher-level abstraction; for
@@ -770,15 +775,22 @@ pub(super) fn emit_expr_with(
         // workflow code using this construct gets an honest build failure until
         // the runtime API lands.
         HirExpr::WorkflowVersion(v) => {
+            let cell = unsupported_diagnostic(
+                Feature::Expr(ExprFeature::WorkflowVersion),
+                Target::RustAxum,
+            );
             format!(
-                r#"compile_error!("vox.codegen_rust.workflow_version_unimplemented: workflow.version({id:?}, {min}, {max}) has no Rust runtime backing yet — tracked under the mesh/workflow epic")"#,
+                r#"compile_error!("{code}: {msg} (id={id:?}, min={min}, max={max})")"#,
+                code = cell.code,
+                msg = cell.message,
                 id = v.change_id,
                 min = v.min,
                 max = v.max,
             )
         }
         HirExpr::With(..) => {
-            r#"compile_error!("vox.codegen_rust.with_unimplemented: with(...) Rust emission is not yet implemented")"#.to_string()
+            let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::With), Target::RustAxum);
+            format!(r#"compile_error!("{}: {}")"#, cell.code, cell.message)
         }
         // All other variants are handled by try_emit_expr_tail above.
         // Reaching here is a delegate-order bug — name the variant for easier diagnosis.
@@ -1248,6 +1260,7 @@ mod borrow_emission_tests {
 /// inferred — E0282). Closure VALUES returned/assigned are `Rc::new`-wrapped by
 /// the caller to match the `Rc<dyn Fn>` repr in `types.rs`. (Ported from #231:
 /// main's `stmt_expr.rs` is canonical for the rest; this helper is net-new.)
+// Note: tests for parity matrix routing are below.
 pub(super) fn emit_bare_lambda<F>(
     params: &[vox_compiler::hir::HirParam],
     body: &HirExpr,
@@ -1265,4 +1278,69 @@ where
         })
         .collect();
     format!("move |{}| {}", param_strs.join(", "), emit_owned(body))
+}
+
+#[cfg(test)]
+mod rust_emit_exhaustiveness_tests {
+    use super::*;
+    use vox_compiler::feature_matrix::{ExprFeature, Feature, Support, unsupported_diagnostic};
+    use vox_compiler::target::Target;
+
+    #[test]
+    fn jsx_routes_through_parity_matrix() {
+        let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::Jsx), Target::RustAxum);
+        // Matrix declares JSX frontend-only; code must be the canonical parity code.
+        assert_eq!(
+            cell.code,
+            vox_compiler::typeck::diagnostics::codes::PARITY_FRONTEND_ONLY
+        );
+    }
+
+    #[test]
+    fn async_view_routes_through_parity_matrix() {
+        let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::AsyncView), Target::RustAxum);
+        assert_eq!(
+            cell.code,
+            vox_compiler::typeck::diagnostics::codes::PARITY_FRONTEND_ONLY
+        );
+    }
+
+    #[test]
+    fn with_routes_through_parity_matrix() {
+        let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::With), Target::RustAxum);
+        assert_eq!(
+            cell.code,
+            vox_compiler::typeck::diagnostics::codes::PARITY_UNIMPLEMENTED
+        );
+    }
+
+    #[test]
+    fn workflow_version_routes_through_parity_matrix() {
+        let cell = unsupported_diagnostic(
+            Feature::Expr(ExprFeature::WorkflowVersion),
+            Target::RustAxum,
+        );
+        assert_eq!(
+            cell.code,
+            vox_compiler::typeck::diagnostics::codes::PARITY_UNIMPLEMENTED
+        );
+    }
+
+    #[test]
+    fn rust_axum_and_tauri_agree_on_unsupported_exprs() {
+        // Both Rust shells share the same emitter — their parity status must be identical.
+        for feat in [
+            ExprFeature::Jsx,
+            ExprFeature::AsyncView,
+            ExprFeature::With,
+            ExprFeature::WorkflowVersion,
+        ] {
+            let axum = unsupported_diagnostic(Feature::Expr(feat), Target::RustAxum);
+            let tauri = unsupported_diagnostic(Feature::Expr(feat), Target::RustTauri);
+            assert_eq!(
+                axum.code, tauri.code,
+                "RustAxum/RustTauri must agree on code for {feat:?}"
+            );
+        }
+    }
 }

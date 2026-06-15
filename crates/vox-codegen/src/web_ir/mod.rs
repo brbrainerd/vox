@@ -573,4 +573,32 @@ mod smoke_tests {
             );
         }
     }
+
+    #[test]
+    fn ztier_to_str_exact_names() {
+        // Catches: a renamed/typo tier string desyncing from ZTier::from_str.
+        assert_eq!(ZTier::Background.to_str(), "background");
+        assert_eq!(ZTier::Modal.to_str(), "modal");
+        assert_eq!(ZTier::SystemOverlay.to_str(), "system_overlay");
+    }
+
+    #[test]
+    fn source_span_table_get_returns_pushed_span_and_none_oob() {
+        // Catches: get() mis-indexing (off-by-one on id.0) or missing bounds check.
+        let mut table = SourceSpanTable::default();
+        let id = table.push_span(SourceSpan {
+            file_id: 7,
+            start: 10,
+            end: 20,
+        });
+        assert_eq!(
+            table.get(id),
+            Some(&SourceSpan {
+                file_id: 7,
+                start: 10,
+                end: 20
+            })
+        );
+        assert_eq!(table.get(SourceSpanId(99)), None);
+    }
 }
