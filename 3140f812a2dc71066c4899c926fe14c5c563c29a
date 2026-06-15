@@ -1,0 +1,7 @@
+feat(scholarly): Implement Zenodo new version creation and OpenReview revision note building
+scale: ~112 lines across 2 files [M]
+
+- `crates/vox-publisher/src/scholarly/zenodo.rs`: Add `url_new_version` helper and `create_new_version` function to create a new draft version of an existing Zenodo deposition.
+- `crates/vox-publisher/src/scholarly/openreview.rs`: Add `build_revision_note_content` function to construct the JSON body for submitting a note revision to OpenReview, including a `revision_id` field, along with a unit test.
+
+--- audit: original='feat(scientia): Phase 8 — Zenodo new_version + OpenReview revision flow' | actual=112L across 2 files | derived=full ---
