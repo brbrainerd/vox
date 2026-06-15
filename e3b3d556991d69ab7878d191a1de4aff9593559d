@@ -1,0 +1,6 @@
+refactor(audit): replace modulo operator with `is_multiple_of` for evenness check
+scale: ~4 lines across 1 files [XS]
+
+- `crates/vox-audit/src/subcommands/regression_budget.rs`: Replaced `slashes % 2 == 0` with `slashes.is_multiple_of(2)` in two locations within `strip_line_comment` and `strip_string_literals` functions to satisfy the `clippy::manual_is_multiple_of` lint.
+
+--- audit: original='fix(audit): use is_multiple_of(2) to satisfy clippy::manual_is_multiple_of' | actual=4L across 1 files | derived=full ---
