@@ -1,0 +1,10 @@
+feat(vox-claim-extractor): implement FActScore-style atomic claim decomposer
+scale: ~148 lines across 1 files [M]
+
+- `crates/vox-claim-extractor/src/atomic.rs`: Add a new module `atomic` containing `AtomicConfig` and `AtomicDecomposer` structs.
+  - `AtomicConfig`: Defines configuration for the decomposer, including `max_claims_per_sentence`.
+  - `AtomicDecomposer`: Provides a `decompose` method that splits a sentence into atomic claims based on predefined patterns like " and ", ", and ", " while ", "; ", and ", but ".
+  - The decomposition process iteratively splits segments, limits the number of claims per sentence, and filters out short segments.
+  - Each atomic claim includes its text, offset, and a default `VerifiabilityClass::Claim`.
+
+--- audit: original='feat(scientia): FActScore-style atomic decomposer (Phase 1 Task 4)' | actual=148L across 1 files | derived=full ---
