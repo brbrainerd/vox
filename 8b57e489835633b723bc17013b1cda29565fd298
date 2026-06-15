@@ -1,0 +1,13 @@
+feat(scripts): Add `vox-dev.sh` for running `vox-cli` from source
+scale: ~81 lines across 1 files [M]
+
+- `scripts/vox-dev.sh`: Add a new shell script to simplify running the `vox-cli` development version.
+  - It automatically detects the workspace root.
+  - It supports using `cargo run -p vox-cli` by default.
+  - It can optionally use `vox` from the system PATH via `VOX_USE_PATH=1`.
+  - It allows specifying extra features via `VOX_DEV_FEATURES`.
+  - It automatically adds the `coderabbit` feature if `coderabbit` is found in the arguments and `VOX_DEV_FEATURES` is not set.
+  - It supports a quiet mode via `VOX_DEV_QUIET=1`.
+  - It allows forcing the workspace root via `VOX_REPO_ROOT`.
+
+--- audit: original='feat: add cross-platform dev launcher scripts for vox-cli and update documentation' | actual=81L across 1 files | derived=full ---
