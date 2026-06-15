@@ -1,0 +1,6 @@
+test(codegen): regenerate `reactive_smoke_test__counter_tsx_with_web_ir_canonical_view` snapshot
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__counter_tsx_with_web_ir_canonical_view.snap`: Regenerated snapshot to include the `px-4` padding div wrapping the root component, aligning with changes introduced by commit 11b9d2ccb4.
+
+--- audit: original='test(codegen): regenerate stale reactive counter snapshot (px-4 drift)' | actual=2L across 1 files | derived=full ---
