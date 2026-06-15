@@ -1,0 +1,15 @@
+refactor(populi): apply rustfmt to vox-populi source files
+scale: ~139 lines across 17 files [M]
+
+- `crates/vox-populi/src/mens/tensor`: Apply rustfmt to `debug_loader_test.rs` and `mod.rs`.
+- `crates/vox-populi/src/transport`: Apply rustfmt to `envelope.rs` and `auth.rs`.
+- `crates/vox-populi/src/quota`: Apply rustfmt to `bucket.rs` and `spec.rs`.
+- `crates/vox-populi/src/pairing`: Apply rustfmt to `device_flow.rs`, `github_attestation.rs`, and `revocation.rs`.
+- `crates/vox-populi/src/mens/discovery_publish.rs`: Apply rustfmt.
+- `crates/vox-populi/src/mens/cloud/part_jobs.rs`: Apply rustfmt.
+- `crates/vox-populi/src/http_client.rs`: Apply rustfmt.
+- `crates/vox-populi/src/lib.rs`: Reorder `http_client` and `transport` module declarations.
+- `crates/vox-populi/src/mens/cloud/part_cli.rs`: Delete file.
+- `crates/vox-populi/src/mens/tensor/manifest`: Delete `part_build.rs`, `part_io.rs`, and `part_persist.rs`.
+
+--- audit: original='chore(populi): rustfmt module tree for gate1' | actual=139L across 17 files | derived=full ---
