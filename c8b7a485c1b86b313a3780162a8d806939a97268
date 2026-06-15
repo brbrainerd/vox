@@ -1,0 +1,20 @@
+chore(contracts/eval): update corpus manifests to seed status after P3.2/3/4 landings
+scale: ~18 lines across 3 files [S]
+
+- contracts/eval/plan-fidelity/manifest.v1.yaml:
+  - Changed `status` from `stub` to `seed`.
+  - Updated `count_current` from `0` to `5`.
+  - Replaced `corpus_hash` from a zero-hex sentinel to `"blake3:populated-by-PlanFidelityRunner-at-run-time"`.
+  - Added comment `# 5 fixtures landed 2026-05-18 (P3.3)`.
+- contracts/eval/repair-corpus/manifest.v1.yaml:
+  - Changed `status` from `stub` to `seed`.
+  - Updated `count_current` from `0` to `5`.
+  - Replaced `corpus_hash` from a zero-hex sentinel to `"blake3:populated-by-RepairCorpusRunner-at-run-time"`.
+  - Added comment `# 5 fixtures landed 2026-05-18 (P3.2)`.
+- contracts/eval/spec-to-app/manifest.v1.yaml:
+  - Changed `status` from `stub` to `seed`.
+  - Updated `count_current` from `0` to `3`.
+  - Replaced `corpus_hash` from a zero-hex sentinel to `"blake3:populated-by-SpecToAppRunner-at-run-time"`.
+  - Added comment `# 3 fixtures landed 2026-05-18 (P3.4)`.
+
+--- audit: original='chore(contracts/eval): bump corpus manifests to status:seed after P3.2/3/4' | actual=18L across 3 files | derived=full ---
