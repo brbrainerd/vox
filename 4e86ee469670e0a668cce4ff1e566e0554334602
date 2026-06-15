@@ -1,0 +1,6 @@
+fix(docker): Install build-essential for C/C++ compilation
+scale: ~2 lines across 1 files [XS]
+
+- Dockerfile: Replaced `gcc` with `build-essential` in the `apt-get install` command to provide a complete C/C++ compilation environment, including `g++`, which is required by `cc-rs`.
+
+--- audit: original='fix(docker): install build-essential for g++ (required by cc-rs)' | actual=2L across 1 files | derived=full ---
