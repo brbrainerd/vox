@@ -1,0 +1,12 @@
+feat(gui): wire IsolationPanel to live VCS isolation state via Tauri bridge
+scale: ~412 lines across 8 files [L]
+
+- `orch_daemon`: Add `VCS_ISOLATION_STATUS` and `VCS_ISOLATION_SET_STRATEGY` RPC methods to retrieve and modify VCS isolation state (default strategy, per-agent overrides, and active conflicts).
+- `vox-gui/src/commands`: Add `vcs_isolation.rs` module with Tauri commands `get_vcs_isolation` and `set_vcs_isolation_strategy` to bridge GUI requests to the orchestrator daemon RPC.
+- `RepositoryView.tsx`: Integrate live VCS isolation state by fetching status on mount, passing it to `IsolationPanel`, and handling strategy updates which refetch the status.
+- `isolationHelpers.test.ts`: Add tests for the shape of the live daemon payload for isolation status.
+- `protocol.rs`: Define new `orch_daemon_method` constants for VCS isolation status and strategy setting.
+- `main.rs`: Register the new VCS isolation Tauri commands.
+- `gui-surface-coverage.v1.json`: Regenerate coverage report.
+
+--- audit: original='feat(gui): wire IsolationPanel to live isolation state (daemon RPC bridge) (#203)' | actual=412L across 8 files | derived=full ---
