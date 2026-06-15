@@ -1,0 +1,37 @@
+feat(news): Implement digest-bound approval and publishing gate
+scale: ~1083 lines across 25 files [XL]
+
+- **crates/vox-publisher**:
+    - Introduce `gate.rs` module for evaluating news publishing decisions based on various inputs (dry run, armed status, DB presence, dual approval).
+    - Refactor `SyndicationResult` to use `ChannelOutcome` enum for more detailed status (Disabled, DryRun, Success, Failed).
+    - Add `twitter_text_chunk_max` and `twitter_truncation_suffix` to `PublisherConfig`.
+    - Update `Publisher` struct to include `gate` module.
+- **crates/vox-db**:
+    - Add `record_news_approval_for_digest` to `VoxDb` to record approvals tied to content SHA3-256 digests in `news_publish_approvals_v2` table.
+    - Add `count_news_approvers_for_digest` to count distinct approvers for a given news ID and content digest.
+    - Add `has_dual_news_approval_for_digest` to check for dual approval based on content digest.
+- **crates/vox-mcp**:
+    - Update `vox_news_approve` tool to calculate content digest and use `record_news_approval_for_digest` and `count_news_approvers_for_digest`.
+    - Modify `vox_news_publish` to use the new `evaluate_publish_gate` for determining live syndication.
+- **crates/vox-orchestrator**:
+    - Integrate `evaluate_publish_gate` into `NewsService` to control live news syndication based on dry run status, armed configuration, DB presence, and dual approval.
+    - Pass `twitter_text_chunk_max` and `twitter_truncation_suffix` from orchestrator config to publisher config.
+    - Add `news_service_test.rs` for testing news service functionality, including armed status and approval gates.
+- **crates/vox-publisher/src/adapters/rss.rs**: Update RSS adapter to use `ChannelOutcome`.
+- **crates/vox-publisher/src/adapters/github.rs**: Update GitHub adapter to use `ChannelOutcome`.
+- **crates/vox-publisher/src/adapters/twitter.rs**: Update Twitter adapter to use `ChannelOutcome`.
+- **crates/vox-publisher/src/adapters/opencollective.rs**: Update OpenCollective adapter to use `ChannelOutcome`.
+- **crates/vox-publisher/src/templates.rs**: Update templates to use `ChannelOutcome`.
+- **crates/vox-publisher/src/types.rs**: Add `content_sha3_256` method to `UnifiedNewsItem`.
+- **crates/vox-db/src/schema/domains/news.rs**: Add `news_publish_approvals_v2` and `news_publish_attempts` tables to the database schema.
+- **crates/vox-orchestrator/src/config.rs**: Add `twitter_text_chunk_max` and `twitter_truncation_suffix` to `NewsConfig`.
+- **crates/vox-mcp/tests/tool_dispatch_tests.rs**: Update tests to reflect changes in news approval.
+- **crates/vox-publisher/tests/http_mock_publish.rs**: Update tests to use `ChannelOutcome`.
+- **crates/vox-db/tests/news_approval_tests.rs**: Add new tests for digest-bound news approval.
+- **docs/news/templates/research_update.md**: Minor template updates.
+- **docs/news/templates/README.md**: Minor template updates.
+- **docs/architecture/news_syndication_incident_patterns.md**: Minor documentation updates.
+- **docs/architecture/news_syndication_security.md**: Minor documentation updates.
+- **docs/src/reference/env-vars.md**: Add documentation for `VOX_NEWS_PUBLISH_ARMED`.
+
+--- audit: original='feat(db): implement digest-bound news approval and publishing attempts' | actual=1083L across 25 files | derived=full ---
