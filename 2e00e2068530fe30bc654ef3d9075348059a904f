@@ -1,0 +1,13 @@
+feat(scientia): Introduce `PreregistrationV1` typed object for research events
+scale: ~137 lines across 1 files [M]
+
+- **`crates/vox-research-events/src/preregistration.rs`**:
+    - Add new file defining the `PreregistrationV1` struct and its associated types.
+    - Implement `SubstrateRef` to reference evaluation substrate (code and data) using SWHIDs and optional UK AISI Inspect task IDs.
+    - Define `MetricSpec` for specifying metrics, aggregation methods, and units.
+    - Introduce `StatisticalTest` enum for frequentist or Bayesian test families.
+    - Create `TestSpec` to encapsulate full statistical test specifications, including Bayesian priors/thresholds or frequentist significance levels.
+    - Define `PreregistrationV1` struct with fields for `title`, `authors`, `contact_email`, `version`, `supersedes`, `timestamp`, `description`, `hypotheses`, `metrics`, `test_spec`, `sample_size`, `power_analysis`, `exclusion_criteria`, `data_collection_plan`, `data_analysis_plan`, `ethical_considerations`, `disclosures`, `funding`, and `substrate`.
+    - Add `PreregistrationV1::new()` constructor.
+
+--- audit: original='feat(scientia): PreregistrationV1 typed pre-registration object (Phase 0b Task 2)' | actual=137L across 1 files | derived=full ---
