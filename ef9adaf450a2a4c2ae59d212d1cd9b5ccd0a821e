@@ -1,0 +1,10 @@
+docs: update documentation paths and include training preflight results
+scale: ~10 lines across 5 files [S]
+
+- `CONTRIBUTING.md`: Update installation link for Rust to point to `how-to-cli-ecosystem.md#installation`.
+- `README.md`: Update link for Architecture Decisions Records (ADRs) from `adr/README.md` to `adr/index.md`.
+- `.github/workflows/link_checker.yml`: Configure `lychee-action` to retry failed requests up to 3 times with a 2-second wait and exclude `https://docs.cursor.com/` from link checking.
+- `mens/runs/latest/eval_results.json`: Update `run_id` to `eval_20260406T043343Z`.
+- `mens/runs/latest/training-preflight.json`: Update `contract_digest` to `399d0f400eb31fc7`.
+
+--- audit: original='chore: add link checker workflow, update documentation paths, and include training preflight results' | actual=10L across 5 files | derived=full ---
