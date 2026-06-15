@@ -1,0 +1,17 @@
+feat(codegen-ts): add five new golden fixtures and fix endpoint call in handler
+scale: ~551 lines across 12 files [L]
+
+- `examples/golden-ts/routes_with_loader.vox`: Add new example demonstrating routes with a loader.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@routes_with_loader.snap`: Add snapshot for routes with loader.
+- `examples/golden-ts/component_effect_with_deps.vox`: Add new example for component effect with dependencies.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@component_effect_with_deps.snap`: Add snapshot for component effect with dependencies.
+- `examples/golden-ts/list_render_with_key.vox`: Add new example for list rendering with keys.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@list_render_with_key.snap`: Add snapshot for list rendering with keys.
+- `examples/golden-ts/match_tagged_union.vox`: Add new example for matching tagged unions.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@match_tagged_union.snap`: Add snapshot for matching tagged unions.
+- `examples/golden-ts/string_with_json.vox`: Add new example for string with JSON parsing.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@string_with_json.snap`: Add snapshot for string with JSON parsing.
+- `examples/golden-ts/endpoint_call_in_handler.vox`: Update example to correctly call an endpoint within a handler, changing component name from `C` to `Counter` and state from `label` to `count`.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@endpoint_call_in_handler.snap`: Update snapshot for the corrected endpoint call in handler example.
+
+--- audit: original='test(codegen-ts): add 5 missing golden fixtures; fix endpoint_call_in_handler to actually call endpoint' | actual=551L across 12 files | derived=full ---
