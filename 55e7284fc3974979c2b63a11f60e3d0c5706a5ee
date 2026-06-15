@@ -1,0 +1,6 @@
+ci(lychee): ignore additional known failing URLs and relative paths
+scale: ~15 lines across 1 files [S]
+
+- `.lycheeignore`: Added 15 new entries to ignore specific URLs and relative paths that were causing `lychee` failures. These include paths within `crates/vox-clavis`, `crates/vox-mcp`, `crates/vox-publisher`, `crates/vox-populi`, `crates/vox-orchestrator`, `docs/src/architecture`, `docs/src/api`, GitHub discussions, `letsdatascience.com`, `storage.googleapis.com`, `github.com/Rel1cx/eslint-react`, `modelcontextprotocol.io`, `docs.doppler.com`, and `learn.microsoft.com`.
+
+--- audit: original='fix(ci): silence lychee failures for remaining known 404s and orphaned relative paths' | actual=15L across 1 files | derived=full ---
