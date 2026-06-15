@@ -1,0 +1,9 @@
+test(crypto): add known-answer tests for BLAKE3 and XXH3 hashes
+scale: ~27 lines across 1 files [S]
+
+- `crates/vox-crypto/src/facades.rs`:
+  - Add `secure_hash_blake3_known_answer` test to verify `secure_hash` (BLAKE3) with the empty input, expecting `af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262`.
+  - Add `fast_hash_xxh3_known_answer` test to verify `fast_hash` (XXH3-64) with the empty input and default seed (0), expecting `0x2D06800538D394C2`.
+  - These tests close a gap where hash functions were only checked for inequality, not correctness against known vectors.
+
+--- audit: original='test(crypto): known-answer vectors for BLAKE3 secure_hash + xxh3 fast_hash (R8)' | actual=27L across 1 files | derived=full ---
