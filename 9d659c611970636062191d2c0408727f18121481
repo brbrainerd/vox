@@ -1,0 +1,11 @@
+docs(plan): Mark D1 steps 1-5 as complete in core extraction plan
+scale: ~14 lines across 1 files [S]
+
+- docs/superpowers/plans/2026-05-28-vox-orchestrator-core-extraction.md:
+    - Marked "Step 1: Enumerate sibling modules of `src/orchestrator/`" as complete.
+    - Marked "Step 2: For each candidate, count `crate::<mod>` imports from `src/orchestrator/`" as complete.
+    - Marked "Step 3: For each candidate, count `impl Orchestrator` blocks in its files" as complete.
+    - Marked "Step 4: For each candidate, check whether it's an `Orchestrator` struct field" as complete.
+    - Marked "Step 5: Classify each candidate" as complete.
+
+--- audit: original='docs(plan): mark D1 steps complete' | actual=14L across 1 files | derived=full ---
