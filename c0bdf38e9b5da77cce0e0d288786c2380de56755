@@ -1,0 +1,6 @@
+docs(architecture): update semantic coverage status for `@traced` decorator
+scale: ~5 lines across 1 files [XS]
+
+- docs/src/architecture/semantic-coverage-status-2026-06-15.md: Updated the status of the `@traced` decorator, clarifying that it is unimplemented end-to-end but not obviated, and linking to the full implementation handoff plan.
+
+--- audit: original='docs(coverage): reference the @traced (TRACE-D) implementation handoff (full link)' | actual=5L across 1 files | derived=full ---
