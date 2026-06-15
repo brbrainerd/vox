@@ -1,0 +1,7 @@
+fix(ci): address clippy and dead_code lints
+scale: ~5 lines across 2 files [S]
+
+- `crates/vox-actor-runtime/src/llm/throttle.rs`: Replace `streak % 8 == 0` with `streak.is_multiple_of(8)` to satisfy the `manual_is_multiple_of` clippy lint.
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr_tail.rs`: Restore the call to `json_as_ctx::current_from_json_struct` as a fallback for `ObjectLit` emission when `inferred_types` is empty, resolving a `dead_code` warning.
+
+--- audit: original='fix(ci): green up main CI debt (clippy lints + codegen dead_code) (#283)' | actual=5L across 2 files | derived=full ---
