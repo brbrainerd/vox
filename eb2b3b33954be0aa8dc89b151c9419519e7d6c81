@@ -1,0 +1,14 @@
+feat(marquee): add `start-marquee.vox` script for CR-P1 local-dev bring-up
+scale: ~184 lines across 9 files [M]
+
+- **scripts/start-marquee.vox**: New Vox script to build and spawn `marquee-todo-auth` (slot 2) and `marquee-chat` (slot 3) native binaries for CR-P1 local development. It also documents the Docker-based bring-up for `marquee-app` (slot 1).
+- **crates/vox-audit/src/bin/cr-p1.rs**: Updated `cr-p1` measurement notes to clarify local-dev scope, specify the canonical bring-up runbook using `start-marquee.vox` and Docker, and explain why slot 1 uses Docker.
+- **contracts/reports/perf/cr-p1/2026-05-23.json**: Refreshed `measured_at` timestamp and updated `response_time_ms` for `marquee-app` and `marquee-todo-auth`.
+- **contracts/reports/deploy/2026-05-23.json**: Refreshed `measured_at` timestamp and updated the `note` field.
+- **contracts/reports/aci-default/2026-05-23.json**: Refreshed `measured_at` timestamp.
+- **contracts/reports/corpus-feedback/2026-05-23.json**: Refreshed `measured_at` timestamp.
+- **contracts/reports/corpus-feedback/2026-Q2.json**: Refreshed `measured_at` timestamp.
+- **contracts/reports/mens-on-distribution/2026-05-23.json**: Refreshed `measured_at` timestamp.
+- **contracts/reports/retirement/2026-05-23.json**: Refreshed `measured_at` timestamp.
+
+--- audit: original='feat(marquee): canonical local-dev bring-up + CR-P1 runbook clarification' | actual=184L across 9 files | derived=full ---
