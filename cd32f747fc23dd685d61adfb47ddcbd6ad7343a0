@@ -1,0 +1,16 @@
+feat(compiler): require key on list iterations and add `key=expr` syntax
+scale: ~308 lines across 32 files [L]
+
+- **AST**: `Expr::For` gains a `key: Option<Box<Expr>>` field to store the key expression.
+- **Parser**: `parse_for()` now accepts an optional `key=expr` clause before the loop body.
+- **HIR**: `HirExpr::For` is updated with a new `Option<Box<HirExpr>>` field for the key; over 25 match sites were updated to accommodate this change.
+- **HIR Lowering**: `lower_expr` now correctly propagates the key from the AST to the HIR.
+- **Codegen (hir_emit)**: `emit_hir_expr` injects `key={expr}` into the first JSX element of the for-loop body for reactive components. A new `inject_key_into_jsx` helper function is introduced.
+- **Codegen (jsx.rs)**: The AST path also injects the key via the `inject_key_into_jsx` helper.
+- **Codegen (emitter.rs)**: A new `check_for_missing_keys` function is added to validate that every `HirExpr::For` within a reactive component's view has a `key` expression, returning an error (`validate.list_key.required`) if missing.
+- **Web IR**: `DomNode::Loop` gains a `key: Option<String>` field. `emit_tsx` is updated to handle this key, injecting it into the JSX output.
+- **Web IR Validation**: A new module `validate_keys.rs` is introduced to validate `DomNode::Loop` nodes for missing `key` attributes, and this validator is wired into `validate_web_ir_full`.
+- **Tests**: A new test file `list_keys_test.rs` is added to verify key emission and error handling for missing keys. Existing `for` loops in `.vox` test fixtures are updated with `key=` clauses. The chatbot snapshot is updated.
+- **Various**: Minor updates to `db_op_walk.rs`, `checker/mod.rs`, `stmt_expr.rs`, `query_plans.rs`, `stmt_expr_tail.rs`, `async_walker.rs`, `state_deps.rs`, `eval/expr.rs`, `dead_code.rs`, `async_flags.rs`, `contracts.rs`, `expr.rs`, `effect_check.rs`, and `plan.rs` to accommodate the new `key` field in `HirExpr::For` or related structures.
+
+--- audit: original='feat(compiler): require key on list iterations (validate.list_key.required)' | actual=308L across 32 files | derived=full ---
