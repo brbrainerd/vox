@@ -1,0 +1,9 @@
+fix(codegen-rust): bind index in `for v, i in xs` loops
+scale: ~15 lines across 1 files [S]
+
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr_tail.rs`: Modified the code generation for `HirExpr::For` loops to correctly handle indexed forms (`for v, i in xs`).
+  - When an index is present, the generated Rust code now uses `.into_iter().enumerate()` on the iterable.
+  - The index variable is explicitly shadowed as an `i64` (corresponding to Vox `int`) to ensure type-checking within the loop body.
+  - This resolves `E0425` errors where the index variable `i` was undefined in the emitted Rust.
+
+--- audit: original='fix(codegen-rust): bind index in `for v, i in xs` loops (CR-F2 #5)' | actual=15L across 1 files | derived=full ---
