@@ -1,0 +1,14 @@
+feat(web-ir): Harden token resolution validator with literal value detection
+scale: ~288 lines across 4 files [L]
+
+- `crates/vox-compiler/src/web_ir/mod.rs`:
+    - Add `WebIrDiagnosticSeverity` enum (Warning/Error, default Warning).
+    - Implement `Default` for `WebIrDiagnostic`, setting `severity` to `Warning`.
+- `crates/vox-compiler/src/web_ir/validate.rs`:
+    - Extend `is_literal_style_value` to detect hex colors (#RGB, #RRGGBB, #RGBA, #RRGGBBAA), functional colors (rgb, rgba, hsl, hsla, oklch, oklab, lch, lab, color), 30 common named CSS colors, and 17 dimensional literals (px, rem, em, vh, vw, vmin, vmax, %, pt, cm, mm, ex, ch, fr, dvh, dvw, dvmin, dvmax).
+    - Rename diagnostic code `raw_literal_color` to `literal_value`.
+    - Update 29 `WebIrDiagnostic` construction sites to use `..Default::default()` for severity.
+- `crates/vox-compiler/src/web_ir/lower.rs`: Update one `WebIrDiagnostic` construction site to use `..Default::default()`.
+- `docs/src/architecture/gui-native-roadmap-status-2026.md`: Update roadmap to mark TASK-5.1 as complete and detail its changes.
+
+--- audit: original='feat(web-ir): TASK-5.1 — token resolution validator hardening' | actual=288L across 4 files | derived=full ---
