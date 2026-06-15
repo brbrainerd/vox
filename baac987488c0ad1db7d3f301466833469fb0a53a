@@ -1,0 +1,5 @@
+chore(deps): update `wat` dev-dependency in Cargo.lock
+scale: ~1 lines across 1 files [XS]
+- Update the `wat` dev-dependency to version `1.220` in `Cargo.lock`.
+
+--- audit: original='chore: sync Cargo.lock for vox-orchestrator wat dev-dependency' | actual=1L across 1 files | derived=full ---
