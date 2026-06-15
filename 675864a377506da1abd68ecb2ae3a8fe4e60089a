@@ -1,0 +1,10 @@
+feat(workflow-runtime): derive stable BLAKE3 activity_id when not explicit
+scale: ~53 lines across 2 files [M]
+
+- `crates/vox-workflow-runtime/src/workflow/run.rs`:
+    - Replaced the positional fallback `format!("{workflow_name}-{idx}")` with a call to a new `derive_activity_id` function.
+    - Added `derive_activity_id` function to generate a stable, content-addressed `activity_id` using a BLAKE3 hash of `"{workflow_name}\0{activity_name}\0{position}"`, truncated to 32 hex characters.
+    - Added unit tests for `derive_activity_id` to ensure determinism and uniqueness for different inputs.
+- `crates/vox-workflow-runtime/Cargo.toml`: Added `blake3` dependency.
+
+--- audit: original='feat(workflow-runtime): derive stable BLAKE3 activity_id when not explicit (P1-T4)' | actual=53L across 2 files | derived=full ---
