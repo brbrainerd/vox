@@ -1,0 +1,10 @@
+docs(superpowers): Add P4 platform architecture audit for streaming and deployment
+scale: ~166 lines across 1 files [M]
+
+- Add new document `docs/superpowers/specs/2026-05-18-p4-platform-architecture-audit.md` detailing an audit of the P4 platform architecture.
+- The audit covers two main decisions:
+    - **P4.1 Streaming runtime (SSE vs WebSocket):** Recommends shipping both SSE and WebSocket, dispatched based on the High-Level Intermediate Representation (HIR) shape, with evidence from existing WebSocket gateways (`crates/vox-orchestrator-mcp/src/http_gateway/ws.rs`, `crates/vox-openclaw-runtime/src/openclaw_gateway_ws.rs`) and per-table broadcast channels (`crates/vox-actor-runtime/src/subscription.rs`). Notes SSE is currently only used for internal LLM token streaming (`crates/vox-actor-runtime/src/llm/stream.rs`).
+    - **P4.3 vox deploy platform target (OCI vs Fly vs Railway):** Recommends OCI as the universal substrate and Fly.io as the first-class wrapper, with Railway not adopted in v1.0. Evidence includes existing deploy targets enumeration (`vox-deploy-codegen/src/deploy_target.rs`) and Dockerfile generation (`vox-deploy-codegen::generate_dockerfile_from_spec`).
+- The document provides detailed evidence, verdicts, reasoning, and sequencing for each decision, grounded in the current codebase.
+
+--- audit: original='docs(specs): P4 platform architecture audit — SSE vs WS, OCI vs Fly vs Railway' | actual=166L across 1 files | derived=full ---
