@@ -1,0 +1,5 @@
+fix(ci): avoid unused_mut clippy warning in quiet_command on non-Windows
+scale: ~8 lines across 1 files [XS]
+- `crates/vox-cli/src/commands/ci/runner_scale.rs`: Moved `let mut cmd = Command::new(program);` inside the `#[cfg(windows)]` block and added a non-mut `Command::new(program)` for non-Windows platforms to resolve an `unused_mut` clippy warning.
+
+--- audit: original='fix(clippy): avoid unused_mut in quiet_command on Linux' | actual=8L across 1 files | derived=full ---
