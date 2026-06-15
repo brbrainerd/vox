@@ -1,0 +1,8 @@
+feat(scientia): extend DiscoverySignalFamily and FindingCandidateClass with Mesh variants
+scale: ~8 lines across 1 files [XS]
+
+- `crates/vox-research-events/src/schema_types.rs`:
+    - Add `ProviderObservation` and `ModelCapabilityEvidence` variants to the `DiscoverySignalFamily` enum.
+    - Add `ModelCapabilityAtlas` and `ProviderReliabilityAtlas` variants to the `FindingCandidateClass` enum.
+
+--- audit: original='feat(scientia): extend DiscoverySignalFamily + FindingCandidateClass with Mesh variants (Phase 6)' | actual=8L across 1 files | derived=full ---
