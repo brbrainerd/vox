@@ -1,0 +1,8 @@
+feat(share): scaffold `vox-share` crate for public-URL tunneling
+scale: ~71 lines across 3 files [M]
+
+- `crates/vox-share/Cargo.toml`: Initialize crate with metadata, workspace dependencies, and specific dependencies for `hyper`, `hyper-util`, `tower`, `tower-http`, `hex`.
+- `crates/vox-share/src/lib.rs`: Define crate-level documentation, outlining planned backends (`lan`, `cloudflare`, `localhost_run`, `tailscale`), and declare public modules (`backend`, `backends`, `coordinator`, `error`, `proxy`, `state`) and re-exports of key types.
+- `Cargo.lock`: Update lockfile to include new dependencies for `vox-share`.
+
+--- audit: original='feat(share): scaffold vox-share crate (S1 task 1)' | actual=71L across 3 files | derived=full ---
