@@ -1,0 +1,12 @@
+fix(vox-effort-route): `primary_crate` uses plurality, not first-match
+scale: ~73 lines across 1 files [M]
+
+- `crates/vox-effort-route/src/bucket.rs`:
+    - Refactored `primary_crate` to count occurrences of crates derived from evidence pointers using a `BTreeMap`.
+    - Implemented logic to select the crate with the plurality of evidence pointers.
+    - Added deterministic tie-breaking for plurality by choosing the lexicographically smallest crate name.
+    - Ensured the fallback to "<workspace-root>" if no crate paths are found.
+    - Added three new test cases: `plurality-over-first`, `tie-break-by-name`, and `workspace-root fallback` to validate the new logic.
+    - Introduced a helper function `loaded_multi` for creating `LoadedFinding` instances with multiple evidence pointers in tests.
+
+--- audit: original='fix(vox-effort-route): primary_crate uses plurality not first-match (A5.1)' | actual=73L across 1 files | derived=full ---
