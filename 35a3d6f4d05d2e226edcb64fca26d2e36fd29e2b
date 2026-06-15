@@ -1,0 +1,8 @@
+test(vox-mental-tracker): add unit tests for `_is_backdated` and `_csv_quote`
+scale: ~25 lines across 1 files [S]
+
+- `apps/vox-mental-tracker/src/main.vox`: Added `@test` blocks for:
+    - `_is_backdated`: Tests for scenarios where `event_at` is over the threshold, under the threshold, and when `event_at` is zero.
+    - `_csv_quote`: Tests for plain strings and strings containing inner quotes.
+
+--- audit: original='test(vox-mental-tracker): add @test blocks for helper fns in main.vox' | actual=25L across 1 files | derived=full ---
