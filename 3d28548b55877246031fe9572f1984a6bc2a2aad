@@ -1,0 +1,10 @@
+feat(mens): recalibrate Qwen2 memory budget for bf16 training
+scale: ~12 lines across 1 files [S]
+
+- `crates/vox-populi/src/mens/tensor/memory_budget.rs`:
+    - Updated `QWEN2_RESIDENT_GIB_PER_B` from `4.3` to `2.9`.
+    - Revised comment to reflect calibration based on measured bf16 training (qlora-rs dequantizing base weights to bf16 compute dtype), specifically 3B model using 11.6 GiB on a 16 GiB RTX 4080.
+    - Noted that this allows the model selection ladder to pick 3B for 16 GiB cards (approx. 13 GiB peak at seq 1024) and 7B for 24-32 GiB cards.
+    - Removed previous comment referencing F32 dequantization and OOM conditions for 3B models on 16 GiB cards.
+
+--- audit: original='feat(mens): recalibrate budget to validated bf16 footprint (3B fits 16GB)' | actual=12L across 1 files | derived=full ---
