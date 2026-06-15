@@ -1,0 +1,7 @@
+feat(vox-gui/skills-plugins): Add accessibility improvements and tests
+scale: ~64 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/SkillsPlugins/SkillsPluginsView.test.tsx`: Add new test file for `SkillsPluginsView` component, including tests for rendering, button types, and tablist accessibility.
+- `crates/vox-gui/ui/src/components/surfaces/SkillsPlugins/SkillsPluginsView.tsx`: Enhance accessibility by adding `type="button"`, `role="tab"`, `aria-selected`, `role="tablist"`, `aria-label`, and `aria-hidden="true"` attributes to relevant elements.
+
+--- audit: original='feat(vox-gui/wave6): SkillsPlugins a11y + checklist (Wave 6)' | actual=64L across 2 files | derived=full ---
