@@ -1,0 +1,16 @@
+feat(v0.6): Remove `@endpoint` decorator and retire `AuthEndpointDetector`
+scale: ~399 lines across 11 files [L]
+
+- `crates/vox-code-audit/src/detectors/auth_endpoint.rs`: Delete `AuthEndpointDetector` as the `@endpoint` decorator is removed.
+- `crates/vox-code-audit/src/detectors/mod.rs`: Remove `auth_endpoint` module from `all_rules()` and `pub mod` declaration; decrement `rule_count()` from 51 to 50.
+- `crates/vox-cli/tests/check_for_llm_envelope.rs`: Update test `lint_findings_populated_for_auth_endpoint_violation` to `lint_findings_populated_for_unwrap_violation`, changing the fixture from an `@endpoint` violation to an `UnwrapCallDetector` violation in Rust code.
+- `crates/vox-code-audit/src/detectors/id_at_boundary.rs`: Update boundary decorator regex and docstrings from `@endpoint` to `@query`, `@mutation`, `@server`, or `@activity`.
+- `crates/vox-code-audit/tests/telemetry_emission_test.rs`: Loosen severity assertion in `engine_emits_lint_finding_event_per_finding` to accept "warning" or "error" for lint findings, reflecting the escalated severity of `@endpoint` usage after its removal.
+- `crates/vox-code-audit/src/detectors/effect_net_decl.rs`: Update function declaration regex and test case from `@endpoint fn` to `@query fn`.
+- `crates/vox-compiler/src/hir/validate.rs`: Update error hints for empty route paths from `@endpoint(kind:...)` to the bare form decorators (`@server fn`, `@query fn`, `@mutation fn`).
+- `crates/vox-cli/src/commands/db/mod.rs`: Update test fixture from `@endpoint(kind:query)` to `@query fn`.
+- `crates/vox-cli/src/commands/check.rs`: Update `app_markers` to use bare-form decorators.
+- `crates/vox-cli/src/commands/compile.rs`: Update test fixture from `@endpoint(kind:query)` to `@query fn`.
+- `AGENTS.md`: Update "Retired Surfaces" section to reflect `@server`/`@query`/`@mutation` as canonical, remove `@endpoint` from active decorators, update Grammar Unification example, fix effect-declarations and type-boundaries rules, update auth/access-control rule, and bump version example from 0.5.0 to 0.6.0.
+
+--- audit: original='feat(v0.6): @endpoint hard-remove + AGENTS.md retirement guard' | actual=399L across 11 files | derived=full ---
