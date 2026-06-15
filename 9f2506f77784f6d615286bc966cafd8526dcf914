@@ -1,0 +1,10 @@
+fix(vscode): remove unused imports and variables, update path splitting
+scale: ~17 lines across 5 files [S]
+
+- vox-vscode/src/core/VoxMcpClient.ts: Replaced `require` calls for `fs` and `path` with `import` statements.
+- vox-vscode/webview-ui/src/components/UnifiedDashboard.tsx: Removed unused `useState` and `AnimatePresence` imports, and the `modelList` prop.
+- vox-vscode/webview-ui/src/index.tsx: Removed the `modelList` prop from `UnifiedDashboard` component and updated file path splitting regex to be more concise.
+- crates/vox-integration-tests/tests/web_vite_smoke.rs: Removed two `repo.pop()` calls that were incorrectly modifying the test path.
+- vox-vscode/src/features/linkDiagnostics.ts: Simplified catch block for error handling.
+
+--- audit: original='ci: fix linting and web_vite_smoke panic; trigger docs deploy' | actual=17L across 5 files | derived=full ---
