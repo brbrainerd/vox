@@ -1,0 +1,9 @@
+feat(orchestrator-queue): add lock-leader election with heartbeat
+scale: ~228 lines across 4 files [M]
+
+- `crates/vox-orchestrator-queue/src/locks/leader.rs`: New module `leader.rs` implementing `LockLeaderElection` for leader election via CAS INSERT ON CONFLICT against the `lock_leader` vox-db table. Includes `LeaderRole` enum, `LockMutationProxy` trait for A2A forwarding, and `spawn_heartbeat` for TTL/3 heartbeat refreshes.
+- `crates/vox-orchestrator-queue/tests/leader_election.rs`: New test file for `LockLeaderElection`, covering leader election, follower behavior, heartbeat functionality, and lease expiration.
+- `crates/vox-orchestrator-queue/src/locks/persisted.rs`: Renamed `now_unix_ms` to `now_ms` and made it `pub(super)`. Updated calls to use `now_ms` for `expires_at` and `acquired_at` fields in `VcsLockRow`.
+- `crates/vox-orchestrator-queue/src/locks/mod.rs`: Added `pub mod leader;` to expose the new leader election module.
+
+--- audit: original='feat(orchestrator-queue): lock-leader election with heartbeat (P0-T2)' | actual=228L across 4 files | derived=full ---
