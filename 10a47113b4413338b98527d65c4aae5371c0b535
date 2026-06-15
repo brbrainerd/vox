@@ -1,0 +1,10 @@
+fix(coverage-graph): filter out .json and .md noise nodes from graph
+scale: ~14 lines across 1 files [S]
+
+- `scripts/coverage-graph/merge_behaviors_to_graph.py`:
+    - Modified the graph merging logic to filter out nodes originating from `.json` fixture files (e.g., tokenizer word-nodes) and `.md` README headings.
+    - Introduced an `is_noise` helper function to identify these nodes based on their `source_file` and `_origin` attributes.
+    - Updated the `g["nodes"]` and `g["links"]` assignments to only include nodes and links whose source and target are not identified as noise.
+    - Added a print statement to report the number of dropped noise nodes.
+
+--- audit: original='fix(coverage-graph): drop .json/.md noise nodes from semantic graph' | actual=14L across 1 files | derived=full ---
