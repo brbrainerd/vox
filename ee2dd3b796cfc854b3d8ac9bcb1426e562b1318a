@@ -1,0 +1,9 @@
+fix(candle-kernels): Use `pub static` for PTX and gitignore generated files
+scale: ~42 lines across 14 files [M]
+
+- `patches/candle-kernels-0.9.2/build.rs`: Changed `pub const` to `pub static` for `include_str!` macros generating PTX string constants. This ensures the PTX bytes survive LTO, preventing `CUDA_ERROR_INVALID_IMAGE` errors. Added comments explaining the change.
+- `patches/candle-kernels-00.9.2/src/lib.rs`: Modified the `mdl!` macro to use `pub static` instead of `pub const` for `Module` definitions, ensuring the PTX string data is not stripped by LTO. Added comments explaining the change.
+- `patches/candle-kernels-0.9.2/.gitignore`: Added a new `.gitignore` file to exclude `src/ptx/*.ptx` files from version control. Includes detailed comments explaining why these files are ignored and how to regenerate them.
+- `patches/candle-kernels-0.9.2/src/ptx/*.ptx`: Removed 11 empty `.ptx` files (affine, binary, cast, conv, fill, indexing, quantized, reduce, sort, ternary, unary) from the repository, as they are now generated locally and ignored.
+
+--- audit: original='fix(candle-kernels): pub static (not const) so PTX bytes survive LTO + gitignore .ptx' | actual=42L across 14 files | derived=full ---
