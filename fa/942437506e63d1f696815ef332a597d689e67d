@@ -1,0 +1,7 @@
+test(vox-orchestrator): adopt SyntheticWorkspaceBuilder for affinity test
+scale: ~33 lines across 2 files [S]
+
+- `crates/vox-orchestrator/tests`: Refactored `test_detect_from_repository_layout_cargo` to use `SyntheticWorkspaceBuilder` from `vox-test-harness` for creating temporary test workspaces, replacing manual `fs::create_dir_all` and `fs::write` calls. This simplifies test setup by abstracting the creation of `Cargo.toml` files for `alpha` and `beta` member crates.
+- `crates/vox-orchestrator`: Added `vox-test-harness` as a dependency.
+
+--- audit: original='test(vox-orchestrator): adopt SyntheticWorkspaceBuilder for affinity test' | actual=33L across 2 files | derived=full ---
