@@ -1,0 +1,8 @@
+docs: regenerate documentation files after frontmatter fixes
+scale: ~84 lines across 3 files [M]
+
+- `docs/src/feed.xml`: Regenerated the RSS feed, resulting in 38 additions and 41 deletions.
+- `docs/src/architecture/architecture-index.md`: Updated the architecture index markdown file, with 1 addition and 2 deletions.
+- `docs/src/SUMMARY.md`: Modified the documentation summary file, with 1 addition and 1 deletion.
+
+--- audit: original='chore(docs): regenerate SUMMARY/architecture-index/feed after frontmatter fixes' | actual=84L across 3 files | derived=full ---
