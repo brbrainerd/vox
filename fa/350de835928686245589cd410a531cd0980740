@@ -1,0 +1,12 @@
+fix(compiler): Restore orchestration-primitive HIR and AST types
+scale: ~394 lines across 7 files [L]
+
+- `crates/vox-compiler/src/hir/nodes/decl.rs`: Re-introduced `HirRoute`, `HirHttpMethod`, `HirActor`, `HirActorHandler`, `HirWorkflow`, and `HirActivity` structs.
+- `crates/vox-compiler/src/hir/lower/decl.rs`: Re-introduced `lower_route`, `lower_actor`, `lower_workflow`, and `lower_activity` methods in `LowerCtx`.
+- `docs/src/architecture/gui-native-roadmap-status-2026.md`: Updated status for TASK-0.8 and TASK-2.5 to "Done", and adjusted Phase 0 and Phase 2 verdicts.
+- `crates/vox-compiler/src/codegen_rust/emit/http.rs`: Changed comment to use `﻿use` instead of `use`.
+- `crates/vox-compiler/src/codegen_shared/route_ir.rs`: Changed comment to use `﻿//!` instead of `//!`.
+- `crates/vox-compiler/src/codegen_ts/activity.rs`: Changed comment to use `﻿use` instead of `use`.
+- `crates/vox-compiler/src/codegen_ts/routes.rs`: Changed comment to use `﻿//!` instead of `//!`.
+
+--- audit: original='fix(compiler): TASK-2.6 -- restore actor/workflow/activity/route HIR and AST types' | actual=394L across 7 files | derived=full ---
