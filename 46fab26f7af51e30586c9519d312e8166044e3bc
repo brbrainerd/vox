@@ -1,0 +1,14 @@
+feat(compiler): Add `Vcs` effect and `repo.*` language primitive for VCS operations
+scale: ~462 lines across 12 files [L]
+
+- docs(superpowers): Add a detailed plan for the `repo.*` language primitive and `Vcs` effect.
+- feat(compiler): Introduce `Vcs` effect and `HirCapability::Vcs` to represent version control operations.
+- feat(compiler): Implement `RepoStore` for in-memory VCS state management in `eval/repo.rs`.
+- feat(compiler): Wire `RepoStore` into the `Interpreter` and initialize the `repo` namespace object.
+- feat(compiler): Intercept `repo.*` method calls in `eval/expr.rs` for dispatch to `execute_repo_op`.
+- feat(compiler): Update `effect_check.rs` to enforce `uses vcs` for `repo.*` calls and add related tests.
+- feat(compiler): Extend `ast::decl::EffectAnnotation` and `hir::nodes::effect::HirEffectKind` with `Vcs`.
+- feat(compiler): Update `required_capabilities.rs` and `hir/lower/decl.rs` to handle the new `Vcs` capability.
+- test(golden): Add `repo_operations.vox` golden file to test `repo.snapshot`, `repo.changes`, and `repo.undo` lifecycle.
+
+--- audit: original='jj-first-class P3: repo.* language primitive + Vcs effect (#171)' | actual=462L across 12 files | derived=full ---
