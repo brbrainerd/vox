@@ -1,0 +1,10 @@
+fix(codegen): embed HirModule in generated main for `current_hir_module()`
+scale: ~270 lines across 5 files [L]
+
+- `crates/vox-codegen/tests/main_boot_hir_roundtrip.rs`: Added a new test to verify that the `HirModule` serialized into the generated `main()` function can be deserialized back into an equivalent `HirModule`, ensuring the round-trip integrity of the embedded data.
+- `crates/vox-codegen/src/codegen_rust/emit/main_boot.rs`: Modified `emit_main_boot` to serialize the `HirModule` to JSON and embed it as a `const &str` in the generated `main()` function. This replaces a `TODO` comment with the actual implementation for registering the process-global `HirModule` at startup, addressing ADR-041 §6(b). The raw-string delimiter is dynamically chosen to avoid conflicts with the JSON content.
+- `crates/vox-codegen/tests/snapshots/main_boot_snapshot__main_boot_no_scheduled_no_endpoints.snap`: Updated snapshot to reflect the new `HirModule` embedding logic in the generated `main()` function, including the removal of the `TODO` comment and the addition of the `EMBEDDED_HIR` constant.
+- `crates/vox-codegen/tests/snapshots/main_boot_snapshot__main_boot_scheduled_actor_server.snap`: Updated snapshot to reflect the new `HirModule` embedding logic in the generated `main()` function, including the removal of the `TODO` comment and the addition of the `EMBEDDED_HIR` constant.
+- `docs/src/adr/041-durable-functions-completion-2026.md`: Updated ADR-041 to mark HIR embedding (§6(b)) as landed, noting that HTTP server boot (§6(c)) remains the sole outstanding `phase5-followup`.
+
+--- audit: original='fix(codegen): main_boot embeds HirModule for current_hir_module()' | actual=270L across 5 files | derived=full ---
