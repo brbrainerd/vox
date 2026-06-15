@@ -1,0 +1,5 @@
+feat(dns): Add CNAME file for vox-lang.org
+scale: ~1 lines across 1 files [XS]
+- CNAME: Create new file with the domain `vox-lang.org`.
+
+--- audit: original='Create CNAME' | actual=1L across 1 files | derived=full ---
