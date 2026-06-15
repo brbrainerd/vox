@@ -1,0 +1,12 @@
+feat(eval+corpus): fix 3 interpreter bugs; expand humaneval to 75 problems
+scale: ~1893 lines across 81 files [XL]
+
+- **eval/expr**: Propagate `_Return`, `_Break`, and `_Panic` out of `for-in` loops, fixing an issue where `return` inside a loop only exited the iteration.
+- **eval/stmt**: Implement auto-reassignment for mutable-receiver method calls on statement expressions (e.g., `arr.push(x)` now updates `arr`).
+- **eval/stmt**: Implement index assignment for lists (e.g., `arr[i] = v`), fixing a bug where assignments were silently dropped.
+- **eval/builtins**: Add new built-in methods: `str.chars()` (returns `list[str]`) and `str.ord()` (returns `int`).
+- **humaneval-vox**: Expand the corpus from 50 to 75 problems by adding 25 new problems (051-075): `is-leap-year`, `title-case`, `is-anagram`, `str-is-numeric`, `remove-vowels`, `count-words`, `sum-of-squares`, `is-armstrong`, `count-divisors`, `int-to-binary`, `binary-to-int`, `is-power-of-two`, `unique-elements`, `list-intersection`, `rotate-right`, `max-subarray-sum`, `bubble-sort`, `insertion-sort`, `binary-search`, `count-set-bits`, `is-perfect`, `triangular-number`, `two-sum-exists`, `chunk-list`, `sum-even-squares`.
+- **humaneval-vox**: Update `manifest.v1.yaml` to reflect the new problem count (`count_current=75`, `held_out_current=20`).
+- **humaneval-vox**: Update `017-is-sorted/reference.vox` and `017-is-sorted/tests.vox` (minor changes).
+
+--- audit: original='feat(eval+corpus): fix 3 interpreter bugs; expand humaneval to 75 problems' | actual=1893L across 81 files | derived=full ---
