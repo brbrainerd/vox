@@ -1,0 +1,7 @@
+fix(interp): Register endpoint functions as callables in the interpreter
+scale: ~30 lines across 2 files [S]
+
+- `crates/vox-compiler/src/eval/mod.rs`: Register functions marked with `@query`, `@mutation`, `@endpoint`, or `@server` as `VoxValue::Fn` callables within the interpreter's scope. This allows them to be called directly from `main` or `@test` functions in `--mode interp`, preventing `UndefinedVariable` errors.
+- `examples/golden/crud_api.vox`: Update the `@test fn db_insert_and_query_roundtrip` to call the actual `seed_user`, `user_count`, and `all_users` endpoint functions, verifying their end-to-end functionality in the interpreter. Adjust assertions to reflect the new call sequence and expected database state.
+
+--- audit: original='fix(interp): register @query/@mutation endpoint fns as callables' | actual=30L across 2 files | derived=full ---
