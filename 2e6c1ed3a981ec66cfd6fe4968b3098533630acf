@@ -1,0 +1,7 @@
+chore(deps): remove direct `turso` and `rmp-serde` dependencies from `vox-orchestrator`
+scale: ~23 lines across 2 files [S]
+
+- `crates/vox-orchestrator/Cargo.toml`: Removed direct `turso.workspace = true` and `rmp-serde = { workspace = true }` entries.
+- `Cargo.lock`: Updated to reflect the removal of `turso` and `rmp-serde` as direct dependencies for `vox-orchestrator`.
+
+--- audit: original='chore(orchestrator): remove dead deps rmp-serde and turso' | actual=23L across 2 files | derived=full ---
