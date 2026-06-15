@@ -15,7 +15,9 @@ use std::process::Stdio;
 use super::process_util::quiet_command;
 
 use tokio::sync::OnceCell;
-use vox_cli_core::daemon_ipc::process_supervision::resolve_managed_binary_path;
+use vox_cli_core::daemon_ipc::process_supervision::{
+    resolve_managed_binary_path, resolve_or_stage_daemon,
+};
 use vox_config::timeouts::{D_15S, D_100MS};
 use vox_orchestrator::orch_daemon::OrchDaemonClient;
 
@@ -60,7 +62,27 @@ impl PersistentDaemon {
                 }
 
                 // Spawn a fresh daemon and keep the child alive.
-                let child = quiet_command(resolve_managed_binary_path("vox-orchestrator-d"))
+                // Stage from target/ into ~/.vox/bin first so the running
+                // daemon exe does not lock the target dir (os error 5 on rebuild).
+                let home = vox_config::paths::user_home_dir();
+                let bin_dir = home.join(".vox").join("bin");
+                let target_sibling = std::env::current_exe()
+                    .ok()
+                    .and_then(|p| {
+                        p.parent().map(|d| {
+                            let name = if cfg!(windows) {
+                                "vox-orchestrator-d.exe"
+                            } else {
+                                "vox-orchestrator-d"
+                            };
+                            d.join(name)
+                        })
+                    })
+                    .unwrap_or_else(|| std::path::PathBuf::from("vox-orchestrator-d"));
+                let daemon_bin =
+                    resolve_or_stage_daemon(&target_sibling, &bin_dir)
+                        .unwrap_or_else(|_| resolve_managed_binary_path("vox-orchestrator-d"));
+                let child = quiet_command(daemon_bin)
                     .env("VOX_ORCHESTRATOR_DAEMON_SOCKET", &addr)
                     .stdin(Stdio::null())
                     .stdout(Stdio::null())
