@@ -15240,6 +15240,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-llm-egress"
+version = "0.6.0"
+dependencies = [
+ "futures",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vox-http-client",
+ "wiremock",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-lsp"
 version = "0.6.0"
 dependencies = [
