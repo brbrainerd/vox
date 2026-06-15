@@ -1,0 +1,11 @@
+feat(vox-mental-tracker): log push notification engagement
+scale: ~59 lines across 1 files [M]
+
+- `apps/vox-mental-tracker/src/main.vox`:
+    - Added a `NotificationLog` table to store push notification engagement data, separate from `HealthEventLog`.
+    - Implemented `handle_push_payload` to record "received" notifications, parsing title and body from the payload.
+    - Implemented `handle_push_tap` to record "tapped" notifications, preserving the `action_id`.
+    - Created a shared helper function `_record_notification` to insert data into `NotificationLog`, retaining the raw payload for forensics.
+    - Replaced placeholder `return 0` implementations in `handle_push_payload` and `handle_push_tap` with actual logging logic.
+
+--- audit: original='vox-mental-tracker: real push-notification engagement logging' | actual=59L across 1 files | derived=full ---
