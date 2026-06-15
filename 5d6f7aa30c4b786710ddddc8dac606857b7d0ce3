@@ -1,0 +1,68 @@
+chore: purge examples, modernize QLoRA CI, decouple golden tests
+scale: ~290830 lines across 1509 files [XL]
+
+DIVERGENCE: original subject claimed 'chore: purge examples, modernize QLoRA CI, decouple golden tests' but this commit actually changed ~290830 lines across 1509 files. Top areas:
+crates: 154763 lines, 828 files
+docs: 44414 lines, 196 files
+patches: 41489 lines, 223 files
+(root): 16135 lines, 23 files
+tree-sitter-vox: 13740 lines, 70 files
+vendor: 9262 lines, 18 files
+vox-vscode: 4051 lines, 21 files
+dist1: 2324 lines, 17 files
+examples: 1093 lines, 14 files
+{examples => crates: 753 lines, 14 files
+scripts: 611 lines, 26 files
+.opencode: 506 lines, 3 files
+contracts: 488 lines, 4 files
+.github: 333 lines, 3 files
+{.opencode => .vox}: 284 lines, 20 files
+schemas: 153 lines, 1 files
+.cursor: 125 lines, 4 files
+.agents: 90 lines, 3 files
+populi: 89 lines, 4 files
+infra: 68 lines, 2 files
+docker: 33 lines, 2 files
+.config: 16 lines, 1 files
+.vscode: 6 lines, 1 files
+{tree-sitter-vox: 4 lines, 1 files
+frontend: 0 lines, 10 files
+
+- `docs/agents`: Added `doc-inventory.json` (23041 lines)
+- `Cargo.lock`: Updated dependencies (10912 lines added, 1163 lines deleted)
+- `patches/aegis-0.9.8`: Added numerous Zig and Rust test files and common headers for Aegis (e.g., `raf_test.zig`, `main.zig`, `aegis128x4_common.h`, `tests.rs`), totaling over 10,000 lines.
+- `crates/vox-pm`: Added `ops.rs` (2157 lines), modified `manifest.rs`, and removed `store.rs`.
+- `crates/vox-ludus`: Added `db.rs` (2136 lines), `achievement.rs`, `quest.rs`, `ai.rs`, and `periodic_reward.rs`.
+- `crates/vox-typeck`: Modified `checker.rs`, `check_test.rs`, `decorator_test.rs`, and `check.rs`.
+- `crates/vox-mcp`: Modified `chat_tools.rs`, `mod.rs`, `server.rs`, `vcs_tools.rs`, `compiler_tools.rs`, and `task_tools.rs`.
+- `crates/vox-dei`: Added `orchestrator.rs` and `selection.rs`.
+- `patches/qlora-rs-1.0.5`: Added `quantization.rs`, `training.rs`, and `qlora.rs`.
+- `crates/vox-cli`: Added `populi/mod.rs`, `ci/mod.rs`, `populi/eval_gate.rs`, `extras/ludus/mod.rs`, `lib.rs`, `db_research_impl.rs`, `ci/command_compliance.rs`, `runtime/run/backend.rs`, `commands/island/mod.rs`, `commands/diagnostics/doctor/checks_standard.rs`, `extras/ars/mod.rs`, `review/coderabbit/stack_planner.rs`, `build_service.rs`, `populi/train.rs`, and modified `corpus.rs`, `training/mod.rs`, `main.rs`. Removed `review.rs`, `dashboard.rs`, and `chat.rs`.
+- `crates/vox-orchestrator`: Modified `oplog.rs`, `usage.rs`, `jj_backend.rs`, and `services/routing.rs`.
+- `crates/vox-ast`: Modified `decl/mod.rs`.
+- `crates/vox-config`: Modified `config.rs`.
+- `crates/vox-tensor`: Modified `tensor.rs`, `data.rs`, and `vox_nn.rs`.
+- `crates/vox-populi`: Added `tensor/candle_qlora_train.rs`, `tensor/manifest.rs`, `tensor/burn_hf_load.rs`, and `tensor/backend_burn_lora.rs`.
+- `crates/vox-forge`: Modified `github.rs`, `gitlab.rs`, `types.rs`, and `provider.rs`.
+- `crates/vox-container`: Modified `deploy_target.rs` and `generate.rs`.
+- `crates/vox-toestub`: Modified `review/client.rs`, `detectors/dry_violation.rs`, and `detectors/unresolved_ref.rs`.
+- `crates/vox-git`: Modified `bridge.rs`.
+- `crates/vox-integration-tests`: Modified `pipeline.rs`.
+- `crates/vox-doc-inventory`: Added `lib.rs`.
+- `crates/vox-runtime`: Modified `prompt_canonical.rs` and `builtins.rs`.
+- `crates/vox-codegen-rust`: Modified `lib.rs`, `emit.rs`. Removed `emit_main.rs` and `emit_expr.rs`.
+- `crates/vox-workflow-runtime`: Added `lib.rs`.
+- `crates/vox-db`: Modified `lib.rs`.
+- `crates/vox-oratio`: Added `backends/candle_engine.rs`.
+- `crates/vox-codex-api`: Added `lib.rs`.
+- `vendor/llvm`: Removed numerous `.td` and `.h` files related to LLVM targets and GlobalISel.
+- `tree-sitter-vox`: Removed many `nan` related files from `node_modules`.
+- `docs/book`: Removed `print.html` and `pagefind/pagefind-highlight.js`.
+- `docs/src`: Modified `examples.md` and `api/vox-cli.md`.
+- `dist1/app`: Removed `package-lock.json`.
+- `crates/vox-parser`: Removed `parser/decl.rs` and `parser/expr.rs`.
+- `test_output.txt`: Modified.
+- `.coderabbit-semantic-manifest.json`: Added.
+- Many other files across various crates were added, deleted, or modified in smaller quantities.
+
+--- audit: original='chore: purge examples, modernize QLoRA CI, decouple golden tests' | actual=290830L across 1509 files | derived=stat-only ---
