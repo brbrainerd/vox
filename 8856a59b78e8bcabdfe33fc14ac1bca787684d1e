@@ -1,0 +1,7 @@
+feat(vox-claim-extractor): introduce ExtractionPipeline and constrained JSON envelope
+scale: ~208 lines across 2 files [M]
+
+- `crates/vox-claim-extractor/src/pipeline.rs`: Add `ExtractionPipeline` struct to orchestrate claim extraction, including `ExtractionConfig` for configuration. This pipeline integrates `VeriScoreGate`, `AtomicDecomposer`, `SpanChecker`, and `MiniCheckVerifier` components.
+- `crates/vox-claim-extractor/src/constrained.rs`: Implement `claim_envelope_schema` function to define a JSON schema for claim envelopes and `validate_claim_envelope` for basic validation of claim JSON structures.
+
+--- audit: original='feat(scientia): constrained JSON envelope + composed ExtractionPipeline (Phase 1 Task 6)' | actual=208L across 2 files | derived=full ---
