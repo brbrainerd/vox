@@ -1,0 +1,11 @@
+ci(cli, docs): improve CI watch-run logs, add pnpm install, and stabilize docs pipeline
+scale: ~1177 lines across 6 files [XL]
+
+- `crates/vox-cli/src/commands/ci/watch_run.rs`: Added functionality to fetch and display the last 30 lines of job logs when using `watch-run`.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Added `pnpm install --frozen-lockfile` command before building docs to ensure dependencies are installed.
+- `crates/vox-cli/src/templates/spa.rs`: Added `zod` dependency to the `package.json` template for SPA projects.
+- `.github/workflows/docs-deploy.yml`: Added `pnpm/action-setup` and `actions/setup-node` to the docs deployment workflow to ensure pnpm and Node.js are available.
+- `crates/vox-doc-pipeline/src/pipeline/mod.rs`: Modified the `SUMMARY.md` comparison logic to normalize line endings (`\r\n` to `\n`) for more stable checks.
+- `jobs.json`: Added a new file containing a large JSON structure, likely for testing or debugging CI job data.
+
+--- audit: original='ci: stabilize pipeline, add zod to scaffold, surface watch-run logs' | actual=1177L across 6 files | derived=full ---
