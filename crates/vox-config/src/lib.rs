@@ -20,6 +20,7 @@ pub mod routing_migration;
 pub mod routing_policy;
 pub mod scholarly;
 pub mod secrets;
+pub mod snapshot;
 pub mod serde_defaults;
 pub mod timeouts;
 pub mod toml_config;
