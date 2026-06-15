@@ -1,0 +1,30 @@
+feat(language): GA-01, GA-08, GA-20, GA-26 — boilerplate reduction foundations
+scale: ~1673 lines across 18 files [XL]
+
+- **GA-01 (Typed Async[T] with exhaustive view-arm matching):**
+    - `crates/vox-compiler/src/lexer/token.rs`: Added `when`, `fetching`, and `empty` keywords for `Async` views.
+    - `crates/vox-compiler/src/hir/nodes/async_view.rs`: Introduced `HirAsyncView` with four optional arms (`fetching`, `empty`, `error`, `ok`) and exhaustiveness checks.
+    - `crates/vox-compiler/src/typeck/async_exhaustiveness.rs`: Added `check_async_view` to emit `vox/async/missing-arm` diagnostics for non-exhaustive `Async` view arms.
+    - `crates/vox-codegen/src/web_ir/async_state.rs`: Implemented `emit_async_view_tsx` to render `Async[T]` views as IIFEs, narrowing on `_tag` for discriminated union types, and defined `ASYNC_TYPE_ALIAS`.
+- **GA-08 (i18n message catalog as types):**
+    - `docs/src/architecture/web-app-archetype-coverage-2026.md`: Appended CC-24 coverage details and slotted into block 8 of the Pareto sequence.
+- **GA-20 (Design tokens as types):**
+    - `crates/vox-compiler/src/hir/nodes/tokens.rs`: Introduced new HIR nodes: `HirTokensDecl`, `HirColorToken`, `HirScalarToken`, `HirShadowToken`, `HirFontToken` with light/dark pairs.
+    - `crates/vox-compiler/src/typeck/contrast.rs`: Added `check_tokens` for WCAG 2.1 AA contrast-ratio validation (4.5:1 min) and hex value parsing, emitting `vox/tokens/contrast-violation` and `vox/tokens/invalid-hex`.
+    - `crates/vox-codegen/src/codegen_ts/tokens_emit.rs`: Updated `emit_hir_tokens_css` and `emit_hir_tokens_ts` to emit CSS variables, prefers-color-scheme dark overrides, and typed `VoxTokens` TS exports from HIR.
+- **GA-26 (VUV layered layout discipline: typed Z-tiers + Mark<T>):**
+    - `docs/src/architecture/vuv-layered-layout-discipline-2026.md`: Added a motivation memo detailing the layered layout design, inspired by i3/Sway and wlr-layer-shell.
+    - `crates/vox-compiler/src/hir/nodes/layer.rs`: Defined `LayerTier` (Background, Content, Chrome, Popover, Modal, Toast, SystemOverlay) with `allows_child` rules, `HirLayerDecl`, `HirMark`, and `HirMarkRef`.
+    - `crates/vox-compiler/src/typeck/layer.rs`: Implemented `check_tier_inversions` to detect `vox/layer/tier-inversion`, `vox/layer/duplicate-mark`, and `vox/layer/dangling-mark` diagnostics.
+    - `crates/vox-codegen/src/web_ir/layer_emit.rs`: Implemented `emit_layer_stylesheet` for a deterministic seven-tier CSS ladder with fixed z-index steps and `emit_layer_portal_roots` for `VoxLayerRoots` TSX portal components.
+    - `crates/vox-compiler/src/lexer/token.rs`: Added `AtLayer` and forward-declared decorator tokens for future GAs (`AtCors`, `AtRateLimit`, `AtUses`, `AtPii`, `AtEmbed`, `AtWebhook`, `AtAuth`, `AtOfflineCapable`, `AtCollaborative`).
+    - `docs/src/architecture/boilerplate-reduction-gap-analysis-2026.md`: Added GA-26 task block with DAG sequencing.
+- **Foundation for GA-06 (HTTP Ergonomics):**
+    - `crates/vox-compiler/src/hir/nodes/http_ergonomics.rs`: Introduced `HirCorsPolicy`, `HirRateLimitPolicy`, and `RateLimitBy` HIR nodes.
+- **General:**
+    - `crates/vox-compiler/src/hir/nodes/mod.rs`: Updated module exports for new HIR nodes.
+    - `crates/vox-compiler/src/hir/nodes/decl.rs`: Updated module exports for new HIR declarations.
+    - `crates/vox-compiler/src/typeck/mod.rs`: Updated module exports for new type-checking passes.
+    - `crates/vox-codegen/src/web_ir/mod.rs`: Updated module exports for new WebIR components.
+
+--- audit: original='feat(language): GA-08 + GA-20 + GA-01 + GA-26 — foundations for boilerplate-reduction' | actual=1673L across 18 files | derived=full ---
