@@ -1,0 +1,11 @@
+fix(codegen-rn): ensure `btn_text` style is collected for Pressable/Link children
+scale: ~52 lines across 2 files [M]
+
+- **`crates/vox-codegen/src/codegen_ts/rn/component.rs`**:
+  - Modified `collect_used_styles` to explicitly add `"btn_text"` to the set of used styles for `Pressable` and `Link` components if they contain string literal or expression children. This aligns with the emitter's behavior of wrapping such children in `<Text style={styles.btn_text}>`, resolving `TS2339` errors where `btn_text` was referenced but not collected.
+  - Added a comment to `emit_event_handler_with_state` regarding the current limitation of async endpoint calls within handlers and plans for future improvements.
+- **`crates/vox-cli-tests/tests/ambient-vox-runtime-rn.d.ts`**:
+  - Strengthened the `VoxRuntime` interface definition to mirror the full, strongly-typed contract from `clients/runtime-types/src/index.ts`. This includes adding specific method signatures for `onAppStateChange`, `onBackButton`, `onDeepLink`, `installPushNotifications`, `spawnActor`, `startWorkflow`, `infer`, and `replayTable`, while removing the `[method: string]: unknown` index signature.
+  - Added a comment explaining the purpose of the strong typing for catching misuse of the runtime surface.
+
+--- audit: original='fix(codegen-rn): emit btn_text style whenever a Pressable/Link wraps text' | actual=52L across 2 files | derived=full ---
