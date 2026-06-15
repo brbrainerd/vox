@@ -1,0 +1,9 @@
+fix(codegen): resolve 5 codegen bugs for slot-2/3 marquee app bring-up
+scale: ~218 lines across 4 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`: Introduce `route_json_shortcut` helper to emit `serde_json::json!({"Ok": x})`, `{"Err": x}`, or `serde_json::Value::Array(Vec::new())` for `Result` and empty `Vec` literals in route contexts, bypassing `serde_json::to_value` to resolve type inference issues (E0282, E0283).
+- `crates/vox-codegen/src/codegen_rust/emit/durability_lower.rs`: Modify `emit_actor_body` to correctly emit actor handler bodies (e.g., `ChatRoom::join`) as plain functions, rather than re-emitting the `spawn_process` loop, by checking for `func.name.contains("::")`. Also, consume the `envelope` as `let _ = envelope;` in the actor shell's `spawn_process` loop to compile, as `vox_actor_runtime::Envelope` is a tagged enum without a `.payload` field.
+- `crates/vox-codegen/src/codegen_rust/emit/http.rs`: Implement type-aware parameter extraction in `emit_server_fn_handler`. Parameters are now coerced from `serde_json::Value` to their annotated Rust types (e.g., `as_str().unwrap_or("").to_string()` for `str`, `as_i64().unwrap_or(0)` for `int`) to prevent type errors in downstream codegen.
+- `crates/vox-codegen/src/codegen_rust/emit/workflow.rs`: Ensure an actor state struct is always emitted for actor shells (functions with `durability=Actor` and no `::` in their name), even if `actor_state_fields` is empty, by emitting a unit-like struct (`pub struct ActorNameState;`). This resolves `E0412` / `E0433` when `emit_actor_body` refers to `<ActorName>State::default()`.
+
+--- audit: original='fix(codegen): slot 2 + slot 3 marquee bring-up — five real codegen bugs' | actual=218L across 4 files | derived=full ---
