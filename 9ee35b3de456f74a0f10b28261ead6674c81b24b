@@ -1,0 +1,9 @@
+docs(superpowers): fix `maybe_split` borrow-check defect in plan
+scale: ~16 lines across 1 files [S]
+
+- `docs/superpowers/plans/2026-05-30-effort-route.md`:
+    - Refactored the `maybe_split` pseudocode to use an `embed_failed` flag instead of pushing the unsplit bucket directly within the embedding loop.
+    - This prevents a use-after-move error (E0382) by ensuring the `b` variable is not moved before its use in `split_by_labels`.
+    - Added a comment explaining the borrow-check issue and the chosen solution.
+
+--- audit: original='docs(plan): fix A6 maybe_split borrow-check defect' | actual=16L across 1 files | derived=full ---
