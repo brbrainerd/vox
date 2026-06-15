@@ -40,6 +40,8 @@ pub mod codex;
 pub mod compile;
 /// `vox config` CLI endpoint logic.
 pub mod config;
+/// `vox container` — build/run OCI container images with resource limits (`vox-container`).
+pub mod container;
 /// Training data extraction / mixing pipelines (`vox corpus`).
 /// Codex research ingest / reliability helpers (`vox db` research subcommands).
 mod db_research;
