@@ -1,0 +1,6 @@
+fix(ci): reorder Tauri sidecar build before gui_tauri_prereqs in ci-fallback-hosted.yml
+scale: ~6 lines across 1 files [XS]
+
+- `.github/workflows/ci-fallback-hosted.yml`: Moved the "Tauri prerequisite tests" step to occur after "Build vox CLI sidecar (release)" and before "Build vox-gui (Tauri)".
+
+--- audit: original='fix(ci): stage Tauri sidecar before gui_tauri_prereqs (build.rs needs externalBin)' | actual=6L across 1 files | derived=full ---
