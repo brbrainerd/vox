@@ -1,0 +1,14 @@
+fix(ci): repair broken links flagged by check-links gate
+scale: ~36 lines across 4 files [S]
+
+- docs/src/architecture/2026-05-08-llm-misleading-content-cleanup-plan.md:
+  - Corrected 10 relative paths from `../../` to `../../../` for root-level files (`.github/copilot-instructions.md`, `.cursor/rules/secrets-policy.mdc`, `.cursor/rules/data-storage-policy.mdc`, `.voxindexingignore`, `vox-schema.json`, `contracts/toestub/suppressions.v1.json`, `crates/_frozen.md`).
+  - Corrected 3 relative paths from `../agents/` to `../../agents/` for files within `docs/agents/` (`turso-import-allowlist.txt`, `sql-connection-api-allowlist.txt`, `query-all-allowlist.txt`).
+  - Removed a local machine path leak `file://C:/Users/Owner/.claude/...` by replacing it with plain text reference.
+- .lycheeignore:
+  - Added `.*founderrealtalk\.ggvc\.com/.*` to ignore list, as the domain is defunct.
+  - Added `file://.*docs/src/SUMMARY\.md` to ignore list, as `docs/src/SUMMARY.md` is auto-generated.
+- docs/src/architecture/scientia-self-publication-finalization-plan-2026.md: Removed a dead link to a non-existent `2026-05-09-scientia-phase-0b-research-events-crate.md` file.
+- docs/superpowers/plans/2026-05-08-mobile-gui-correctness-and-tracker-ship.md: Corrected a self-referential double-path link from `docs/superpowers/plans/...` to `...` (relative path).
+
+--- audit: original='fix(ci): repair broken links flagged by check-links gate' | actual=36L across 4 files | derived=full ---
