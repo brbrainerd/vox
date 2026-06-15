@@ -1,0 +1,14 @@
+feat(corpus,orchestrator,pm): Implement time-awareness and corpus generation
+scale: ~36981 lines across 162 files [XL]
+
+- `crates/vox-corpus`: Introduced new modules for synthetic training pair generation (`synthetic_gen.rs`), organic Vox code generation (`codegen_vox.rs`), and corpus extraction from Vox source files (`extract_vox.rs`, `extract_rs.rs`, `extract_docs.rs`, `augment.rs`, `preflight.rs`, `coverage.rs`, `arca_replay.rs`). This includes significant additions for building training data.
+- `crates/vox-orchestrator`: Refactored the orchestrator god-object into smaller, more manageable sub-modules: `core`, `agent_lifecycle`, `scaling`, and `vcs_ops`. This greatly reduces the size of `orchestrator.rs`.
+- `crates/vox-pm`: Added new store operation modules for `ops_codex.rs`, `ops_learning.rs`, `ops_memory.rs`, `ops_agents.rs`, and `ops_cas.rs`, enhancing data persistence and retrieval for various PM domains.
+- `crates/vox-gamify`: Removed the entire `vox-gamify` crate, including its database interactions, AI components, companion logic, quests, achievements, costs, leaderboards, battles, profiles, streaks, challenges, schemas, sprites, and notifications.
+- `crates/vox-mcp`: Updated compiler and chat tools, adjusted LLM bridge providers and inference, and modified orchestrator and task tools.
+- `crates/vox-db`: Added new modules for `rag_evidence.rs`, `circuit_breaker.rs`, and `preferences.rs`.
+- `docs`: Added new architecture documentation for agent time-awareness, mesh coordination, workflow guides, and agent messaging orchestration roadmaps.
+- `Cargo.lock`: Updated dependencies.
+- Many temporary output and error log files were added, indicating extensive testing and debugging during development.
+
+--- audit: original='fix: complete time-awareness implementation — tests pass, no duplicates, cleaned doc' | actual=36981L across 162 files | derived=sampled ---
