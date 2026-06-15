@@ -1,0 +1,6 @@
+fix(ci): correct `cargo check` target argument in cross-platform workflow
+scale: ~2 lines across 1 files [XS]
+
+- `.github/workflows/cross-platform-check.yml`: Changed `cargo check --workspace --targets` to `cargo check --workspace --target ${{ matrix.target }}` to correctly specify the target triple for cross-platform checks.
+
+--- audit: original="fix(ci): cross-platform-check uses '--target', not '--targets'" | actual=2L across 1 files | derived=full ---
