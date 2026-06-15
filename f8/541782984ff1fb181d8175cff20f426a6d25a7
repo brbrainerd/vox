@@ -1,0 +1,13 @@
+feat(ci): add `config-hygiene` command with `no-cwd-relative-contract-path` check
+scale: ~119 lines across 4 files [M]
+
+- `crates/vox-cli/src/commands/ci/config_hygiene.rs`: Add new module `config_hygiene` containing:
+    - `Violation` struct to represent a hygiene violation.
+    - `check_no_cwd_relative_contract_paths` function to identify hardcoded `contracts/...` paths.
+    - `check_protected_modules_have_no_env_reads` placeholder function.
+    - `run` function to execute all config hygiene checks.
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Add `ConfigHygiene` variant to `CiCmd` enum.
+- `crates/vox-cli/src/commands/ci/mod.rs`: Make `config_hygiene` module public.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Add handler for `CiCmd::ConfigHygiene` to call `super::config_hygiene::run()`.
+
+--- audit: original="feat(ci): add 'vox ci config-hygiene' gate with Check A (no cwd-relative contract paths)" | actual=119L across 4 files | derived=full ---
