@@ -1,0 +1,11 @@
+docs(readme): restructure stability table with beginner-friendly descriptions and updated architectural status
+scale: ~26 lines across 1 files [S]
+
+- Refactored the "Stability" table in `README.md` to include a new "Architecture & Justification" column.
+- Updated the "Surface" column to "Feature Area" for clarity.
+- Rewrote descriptions for "Compiler & LSP" and "Database Engine" to be more beginner-friendly and reflect their stable status.
+- Added architectural details and justifications for "Compiler & LSP" and "Database Engine".
+- Removed the "Compiler engine" and "@table & data layer" rows, replacing them with the more descriptive "Compiler & LSP" and "Database Engine" rows.
+- Removed the "Notes" column.
+
+--- audit: original='docs: restructure stability table with beginner-friendly descriptions and updated architectural status' | actual=26L across 1 files | derived=full ---
