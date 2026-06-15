@@ -1,0 +1,11 @@
+docs(scientia): Add Phase 5 plan for `vox-inspect-bridge`
+scale: ~700 lines across 1 files [L]
+
+- Add `docs/superpowers/plans/2026-05-09-scientia-phase-5-inspect-novelty.md` detailing the plan for `vox-inspect-bridge`.
+- The plan outlines the creation of `vox-inspect-bridge` (L3) to implement UK AISI Inspect task descriptor generation, atomic-NEI novelty scoring over `NoveltyEvidenceBundle`, ChronoFact-style timestamp-aware evidence filtering, and EvidenceConflict detection.
+- Specifies the architecture as an L3 crate using async, reqwest, and tokio, generating Inspect task descriptors as JSON.
+- Lists the tech stack including `serde`, `serde_json`, `tokio`, `reqwest`, `thiserror`, `vox-research-events`, and `workspace-hack`.
+- Includes detailed tasks for scaffolding the crate, defining data structures for Inspect tasks, implementing novelty scoring, ChronoFact filtering, and EvidenceConflict detection.
+- Mentions a co-authored contribution from Claude Opus 4.7.
+
+--- audit: original='docs(scientia): Phase 5 plan — vox-inspect-bridge, atomic-NEI novelty, ChronoFact, EvidenceConflict' | actual=700L across 1 files | derived=full ---
