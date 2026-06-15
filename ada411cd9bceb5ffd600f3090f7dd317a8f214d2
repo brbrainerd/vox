@@ -1,0 +1,7 @@
+fix(vox-gui/console): Improve accessibility of console buttons
+scale: ~22 lines across 2 files [S]
+
+- `crates/vox-gui/ui/src/components/surfaces/Console/Console.tsx`: Replaced native `<button>` elements with the `Button` component for "copy last block", "send to agent", and "back to terminal" actions. Added an `aria-label` to the "back to terminal" button.
+- `crates/vox-gui/ui/src/components/surfaces/Console/Console.test.tsx`: Added a test to verify that toolbar controls now have an explicit `type="button"` attribute.
+
+--- audit: original='feat(vox-gui/wave2): Console a11y + checklist (Wave 2)' | actual=22L across 2 files | derived=full ---
