@@ -2,6 +2,18 @@
 //! nothing, tautological self-compares (`assert_eq!(x, x)`), and shallow-only
 //! assertions (`.is_ok()`/`.is_some()`/`!is_empty()`) that pin no value or variant.
 //! These are the "useless touch" tests the semantic-coverage initiative rejects.
+//!
+//! Exemptions (to avoid false positives that would wrongly block legitimate tests):
+//! - `#[should_panic]` tests need no explicit assertion — the panic *is* the assertion.
+//! - `fn` signatures returning a `Result` use `?` to signal failure, so an absent
+//!   `assert!` is not a touch test.
+//!
+//! KNOWN LIMITATION (recall gap, not a precision gap): assertion macros are classified
+//! per *physical line*. A multi-line assertion such as an `assert_eq!(` whose arguments
+//! span several lines is only inspected line-by-line, so shallow/tautological forms that
+//! are split across lines may be under-detected. This is acceptable because it can only
+//! cause false negatives (a weak test slips through), never false positives (a good test
+//! is never wrongly flagged on this account).
 
 use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
 
@@ -58,11 +70,20 @@ impl DetectionRule for WeakTestDetector {
             if t.starts_with("#[test]") || t.contains("#[tokio::test]") {
                 let (start, end) = fn_body_range(lines, i);
                 let fn_sig = lines[start].trim().to_string();
+                // FIX 1: a `#[should_panic]` test (attribute appears on any line
+                // between the `#[test]` line and the `fn` line) is intentionally
+                // assertion-free — the panic is the assertion. Suppress only the
+                // no-assertion finding; tautology/shallow checks still apply.
+                let should_panic = (i..start).any(|k| lines[k].contains("should_panic"));
+                // FIX 2: a test whose `fn` signature returns a `Result` uses `?`
+                // for failure, so an absent `assert!` is not a touch test.
+                let returns_result = fn_sig.contains("->") && fn_sig.contains("Result");
+                let assertion_optional = should_panic || returns_result;
                 let asserts: Vec<String> = (start..end)
                     .map(|k| lines[k].trim().to_string())
                     .filter(|l| l.contains("assert") || l.contains("panic!"))
                     .collect();
-                if asserts.is_empty() {
+                if asserts.is_empty() && !assertion_optional {
                     out.push(self.finding(
                         file,
                         start,
@@ -80,9 +101,13 @@ impl DetectionRule for WeakTestDetector {
                             ));
                         }
                     }
-                    let only_shallow = asserts.iter().all(|a| {
-                        SHALLOW.iter().any(|s| a.contains(s)) && !a.contains("assert_eq!")
-                    });
+                    // Guard against the empty-asserts case: an exempted test
+                    // (`#[should_panic]` / Result-returning) with no asserts must
+                    // not trip `all()`-over-empty == true into a false "only shallow".
+                    let only_shallow = !asserts.is_empty()
+                        && asserts.iter().all(|a| {
+                            SHALLOW.iter().any(|s| a.contains(s)) && !a.contains("assert_eq!")
+                        });
                     if only_shallow {
                         out.push(self.finding(
                             file,
@@ -144,17 +169,66 @@ fn fn_body_range(lines: &[String], test_attr: usize) -> (usize, usize) {
     let mut seen = false;
     let mut k = start;
     while k < lines.len() {
-        depth += lines[k].matches('{').count() as i32;
+        // FIX 3: count braces on a code-only view of the line — string/char
+        // literal contents and trailing line comments are stripped so that a
+        // `let s = "}";` or `// }` does not falsely decrement depth and
+        // truncate the body early (which would cause a false "NO assertion").
+        let code = strip_literals_and_comments(&lines[k]);
+        depth += code.matches('{').count() as i32;
         if depth > 0 {
             seen = true;
         }
-        depth -= lines[k].matches('}').count() as i32;
+        depth -= code.matches('}').count() as i32;
         if seen && depth <= 0 {
             return (start, (k + 1).min(lines.len()));
         }
         k += 1;
     }
     (start, lines.len())
+}
+
+/// Returns a copy of `line` with the *contents* of string literals (`"..."`),
+/// char literals (`'.'`), and any trailing line comment (`//...`) removed, so the
+/// result can be safely scanned for structural braces. Delimiters are preserved
+/// (only their inner contents are blanked) and backslash escapes inside string
+/// and char literals are honored, so an escaped quote does not prematurely close
+/// the literal. Only used for brace counting — never for assertion classification.
+fn strip_literals_and_comments(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            // Trailing line comment: drop the rest of the line.
+            '/' if chars.peek() == Some(&'/') => break,
+            // String literal: keep the quotes, blank the contents.
+            '"' => {
+                out.push('"');
+                while let Some(s) = chars.next() {
+                    if s == '\\' {
+                        // Skip the escaped character (e.g. \" or \\).
+                        chars.next();
+                    } else if s == '"' {
+                        out.push('"');
+                        break;
+                    }
+                }
+            }
+            // Char literal: keep the quotes, blank the contents.
+            '\'' => {
+                out.push('\'');
+                while let Some(s) = chars.next() {
+                    if s == '\\' {
+                        chars.next();
+                    } else if s == '\'' {
+                        out.push('\'');
+                        break;
+                    }
+                }
+            }
+            _ => out.push(c),
+        }
+    }
+    out
 }
 
 fn is_self_compare(a: &str) -> bool {
@@ -219,6 +293,51 @@ mod tests {
         assert!(
             findings(src).is_empty(),
             "a value-pinning assert must NOT be flagged, got: {:?}",
+            findings(src)
+        );
+    }
+
+    #[test]
+    fn does_not_flag_should_panic_without_assert() {
+        let src = "#[test]\n#[should_panic]\nfn t() {\n    parse(\"bad\");\n}\n";
+        assert!(
+            findings(src).is_empty(),
+            "a #[should_panic] test needs no explicit assert, got: {:?}",
+            findings(src)
+        );
+    }
+
+    #[test]
+    fn does_not_flag_result_returning_test() {
+        let src = "#[test]\nfn t() -> anyhow::Result<()> {\n    decode(&v)?;\n    Ok(())\n}\n";
+        assert!(
+            findings(src).is_empty(),
+            "a Result-returning test uses `?` for failure, got: {:?}",
+            findings(src)
+        );
+    }
+
+    #[test]
+    fn brace_in_string_literal_does_not_truncate_body() {
+        let src = "#[test]\nfn t() {\n    let s = \"}\";\n    assert_eq!(real(), 42);\n}\n";
+        assert!(
+            !findings(src)
+                .iter()
+                .any(|f| f.message.contains("NO assertion")),
+            "a `}}` inside a string literal must not truncate the body, got: {:?}",
+            findings(src)
+        );
+    }
+
+    #[test]
+    fn comment_brace_does_not_truncate_body() {
+        let src =
+            "#[test]\nfn t() {\n    // closing } in a comment\n    assert_eq!(real(), 42);\n}\n";
+        assert!(
+            !findings(src)
+                .iter()
+                .any(|f| f.message.contains("NO assertion")),
+            "a `}}` inside a line comment must not truncate the body, got: {:?}",
             findings(src)
         );
     }
