@@ -1,0 +1,29 @@
+feat(clavis): Introduce Clavis for API key management and update dependencies
+scale: ~65896 lines across 418 files [XL]
+
+DIVERGENCE: original subject claimed 'feat(secret-management): introduce Clavis for API key handling and update dependencies' but this commit actually changed ~65896 lines across 418 files. Top areas:
+contracts: 51243 lines, 17 files
+crates: 13734 lines, 378 files
+docs: 766 lines, 18 files
+(root): 147 lines, 3 files
+.config: 5 lines, 1 files
+.cursor: 1 lines, 1 files
+
+- Introduce Clavis for API key, token, and credential management, establishing it as the single source of truth (SSOT) for secrets. This includes new `vox-clavis` source files for `auth_json`, `env`, and `populi_env`, backend integrations for `infisical` and `vault`, and a new `spec.rs` and `types.rs` for defining Clavis structures.
+- Add new documentation for Clavis SSOT (`docs/src/reference/clavis-ssot.md`) and update existing documentation (`docs/src/reference/mens-cloud-gpu.md`, `docs/src/reference/mens-training.md`, `docs/src/reference/cli.md`).
+- Update `Cargo.lock` and `Cargo.toml` to include new dependencies related to Clavis and other enhancements.
+- Introduce new scaling audit reports for `vox-clavis` and `vox-scientia` within `contracts/reports/scaling-audit/`, including a rollup index and specific reports for `vox-clavis`, `vox-scientia-api`, `vox-scientia-core`, `vox-scientia-runtime`, and `vox-scientia-social`.
+- Refactor `vox-db` by deleting several old schema versions (`v2`, `v3`, `v5`, `v6`, `v8`, `v13`, `v15`, `v16`, `v17`) and domain schemas (`cas`, `mens_cloud`, `publication`, `toestub`), while adding new domain schemas for `publish_cloud` and `cas_codex`, and updating `lib.rs` and `codex_legacy.rs`.
+- Enhance `vox-publisher` with new adapters for `youtube` and `reddit`, new `topic_packs.rs`, and updates to `lib.rs`, `types.rs`, and `scientia_evidence.rs`.
+- Update `vox-cli` with new commands for `clavis`, `codex`, `db_retention`, `scientia_worthiness_enrich`, and `db_cli`, and refactor `db.rs`, `login.rs`, and `build.rs`.
+- Modify `vox-orchestrator` with updates to `routing.rs`, `task_dispatch/submit/batch.rs`, `news.rs`, and `runtime.rs`.
+- Refine `vox-mcp` with changes to `scientia_tools.rs`, `chat_tools/chat/message.rs`, `vcs_tools/conflicts.rs`, `ambient.rs`, `repo_index.rs`, `dispatch.rs`, and `llm_bridge/provider_auth.rs`.
+- Update `vox-toestub` detectors, including `unwrap_call.rs`, `unresolved_ref.rs`, `scaling_support.rs`, `stub.rs`, and `scaling.rs`.
+- Adjust `vox-populi` in `mens/tensor/candle_qlora_train/training_loop.rs` and `mens/tensor/manifest/mod.rs`.
+- Remove `crates/vox-ludus/src/schema.rs`.
+- Add new `scientia` contract schemas for `distribution.schema.json`, `social-execution-board.generated.yaml`, `distribution.default.yaml`, `distribution.topic-packs.yaml`, and `social-execution-board.template.yaml`.
+- Update `vox-runtime` in `registry.rs` and `supervisor.rs`.
+- Remove `crates/vox-pm/src/resolver/mod.rs` and add `crates/vox-pm/src/resolver/tests.rs`.
+- Update `contracts/reports/toestub-remediation/delta-after-remediation.json`.
+
+--- audit: original='feat(secret-management): introduce Clavis for API key handling and update dependencies' | actual=65896L across 418 files | derived=stat-only ---
