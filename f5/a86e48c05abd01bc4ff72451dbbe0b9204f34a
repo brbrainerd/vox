@@ -1,0 +1,11 @@
+feat(vox-gui/console): Add accessibility and checklist features to SendToAgent
+scale: ~32 lines across 2 files [S]
+
+- `crates/vox-gui/ui/src/components/surfaces/Console/SendToAgent.tsx`:
+    - Added `Button` component import and replaced native `<button>` elements with `Button` components for 'Send' and 'Cancel' actions.
+    - Implemented `onKeyDown` handler on the dialog to close it when the 'Escape' key is pressed.
+- `crates/vox-gui/ui/src/components/surfaces/Console/SendToAgent.test.tsx`:
+    - Added a test case to verify that the dialog closes when the 'Escape' key is pressed.
+    - Added a test case to ensure the 'Send' and 'Cancel' buttons have an explicit `type="button"` attribute.
+
+--- audit: original='feat(vox-gui/wave2): SendToAgent a11y + checklist (Wave 2)' | actual=32L across 2 files | derived=full ---
