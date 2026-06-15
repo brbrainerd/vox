@@ -1,0 +1,15 @@
+feat(orchestrator-mcp): implement trusted caller role for control lock authorization
+scale: ~284 lines across 2 files [L]
+
+- `browser_tools.rs`:
+    - Introduced `CallerRole` enum (Human, Agent) to represent the trusted caller.
+    - Added `CallerRole::from_env()` to derive the role from the `VOX_MCP_CALLER_ROLE` environment variable.
+    - Implemented `trusted_caller_role()` to provide a process-wide, once-initialized `CallerRole`.
+    - Modified `browser_set_control_lock` and `ensure_control_lock` to authorize based on the trusted `CallerRole` instead of the self-asserted `p.actor`.
+    - Updated `lock_action_allowed` and `lock_change_allowed` to enforce that only the current owner can change/release a lock and only a human-role can set owner=human.
+    - Removed the `normalize_actor` function as actor is no longer derived from request body.
+    - Added integration tests to verify that "steal/release/fabricate" attacks are blocked for adversarial pure functions and agent roles.
+- `server_state.rs`:
+    - Added `caller_role()` method to `ServerState` to expose the trusted `CallerRole` from `browser_tools`.
+
+--- audit: original='feat(orchestrator-mcp): real control-lock authorization via trusted caller role' | actual=284L across 2 files | derived=full ---
