@@ -1,0 +1,8 @@
+fix(ssot-gate): require `app.vox` as source for dashboard generated files
+scale: ~15 lines across 1 files [S]
+
+- Refactored `check_dashboard_ssot.vox` to specifically check for changes to `crates/vox-dashboard/app/src/app.vox` when validating generated `.tsx` files.
+- Previously, the check allowed any `.vox` file within `crates/vox-dashboard/app/src/` to satisfy the SSOT guard, which could lead to false positives.
+- Updated violation message to explicitly state the required `vox_source` file.
+
+--- audit: original='fix(ssot-gate): require specific app.vox source in commit, not any dashboard .vox' | actual=15L across 1 files | derived=full ---
