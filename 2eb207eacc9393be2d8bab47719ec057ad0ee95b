@@ -1,0 +1,6 @@
+fix(ci): Update path to research metrics contract
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-cli/src/commands/ci/run_body_helpers/data_ssot_guards.rs`: Changed the path for `research_contract` from `crates/vox-db/src/research_metrics_contract.rs` to `crates/vox-telemetry/src/types.rs`.
+
+--- audit: original='fix(vox-cli/ci): update data_ssot_guards path to vox-telemetry/src/types.rs' | actual=2L across 1 files | derived=full ---
