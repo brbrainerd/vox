@@ -1,0 +1,8 @@
+fix(codegen-ts): conditionally import useNavigate and fix clippy closure
+scale: ~12 lines across 1 files [S]
+
+- `crates/vox-codegen/src/codegen_ts/emitter.rs`:
+    - Modified the `forms_content` generation to conditionally import `useNavigate` from `@tanstack/react-router` only if any form has a `success_redirect`.
+    - Updated the closure for `hir.forms.iter().map` from `|f| super::form_emit::emit_form(f)` to `super::form_emit::emit_form` to fix a clippy warning.
+
+--- audit: original='fix(codegen-ts): conditional useNavigate import + clippy closure fix' | actual=12L across 1 files | derived=full ---
