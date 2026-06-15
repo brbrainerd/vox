@@ -1,0 +1,41 @@
+feat(db, mcp): refactor publication operations and scientia tools
+scale: ~10339 lines across 141 files [XL]
+
+- refactor(crates/vox-db): Split `ops_publication.rs` into granular modules for external artifacts, external jobs, manifest, scholarly media, and common utilities, improving organization and maintainability.
+- refactor(crates/vox-mcp): Decompose `scientia_tools.rs` into specialized modules for common utilities, external interactions, lifecycle management, media handling, preflight checks, scholarly operations, and syndication, enhancing modularity.
+- docs(architecture): Add new documentation for nomenclature migration mapping and significantly update internal web IR implementation blueprint and side-by-side schema, providing clearer architectural guidance.
+- docs(adr): Update `012-internal-web-ir-strategy.md` with new details.
+- chore(crates/vox-skills): Delete numerous skill-related files, including `openclaw.rs`, `registry.rs`, `parser.rs`, `plugin.rs`, `hooks.rs`, `registry_api.rs`, `manifest.rs`, `bundle.rs`, `builtins.rs`, `mod.rs`, `context.rs`, `runtime.rs`, `domain.rs`, `executor.rs`, and `provider.rs`, indicating a major refactoring or removal of skill management components.
+- refactor(crates/vox-compiler): Refactor `eval.rs` with significant changes, likely related to evaluation capabilities.
+- refactor(crates/vox-repository): Update `populi_toml.rs` with changes to TOML handling.
+- refactor(crates/vox-cli): Update `openclaw.rs` and add `ci/run_body_helpers/docs.rs`, indicating changes to CLI commands and CI documentation generation.
+- docs(explanation): Update `glossary.md` and `expl-openclaw-analysis.md`.
+- docs(reference): Update `cli.md`, `mens-lora-ownership.md`, `env-vars.md`, `oratio-speech.md`, `populi.md`, `codex-http-api.md`, and `vox-web-stack.md`.
+- docs(api): Update `vox-mcp.md` and add `vox-codegen-ts.md`.
+- docs(ci): Update `command-surface-duals.md`.
+- chore(contracts/cli): Update `command-registry.yaml`, likely reflecting changes in available commands or their configurations.
+- docs(agents): Update `doc-inventory.json` and add `governance.md`.
+- chore(crates/vox-db): Add `codex_legacy.rs` and `store/ops_publication/common.rs`, and `store/ops_publication/mod.rs`.
+- chore(crates/vox-mcp): Add `tools/news_tools.rs`.
+- docs(explanation): Add `expl-architecture.md` and `expl-compiler-lowering.md`.
+- chore(crates/vox-skills): Update `registry.rs` and `builtins.rs`.
+- chore(crates/vox-repository): Update `lib.rs`.
+- chore(crates/vox-cli): Update `lib.rs`.
+- chore(crates/vox-compiler): Update `typeck/ast_decl_lints.rs`, `typeck/diagnostics.rs`, `tests/db_query_safety.rs`, `typeck/autofix.rs`, `typeck/checker/expr.rs`, `typeck/checker/expr_ops.rs`, and `typeck/checker/mod.rs`.
+- chore(crates/vox-integration-tests): Update `workflow_integration.rs`, `greaterfool_parity_gates.rs`, `pipeline.rs`, `typeck.rs`, `chatbot_integration.rs`, `db_typeck.rs`, and `stream_emit.rs`.
+- chore(crates/vox-lsp): Update `lib.rs` and `main.rs`.
+- chore(crates/vox-oratio): Update `transcript_rerank.rs`.
+- chore(crates/vox-test-harness): Update `assertions.rs`.
+- chore(docker): Update `vox-compose-populi-environment.block.yaml`.
+- docs(SUMMARY): Update `SUMMARY.md`.
+- docs(adr): Update `006-mens-full-graph-qlora-qlora-rs.md`, `007-qlora-rs-multi-layer-training-api.md`, and `009-populi-hosted-baas.md`.
+- docs(architecture): Update `crate-topology-buckets.md`, `mens-finetune-acceptance-runbook.md`, `vox-cli-build-feature-inventory.md`, `crate-build-lanes-migration.md`, `mens-llm-pr-checklist.md`, `hf-finetune-capability-matrix.md`, and `vox-cross-platform-runbook.md`.
+- docs(ci): Update `crate-hardening-matrix.md`.
+- docs(reference): Update `hf-finetune-gap-matrix.md`, `mobile-edge-ai.md`, `orchestration-unified.md`, and `deployment-compose.md`.
+- chore(scripts): Update `README.md`.
+- chore(crates/vox-cli): Update `commands/ci/cmd_enums.rs`, `pipeline.rs`, `commands/ci/run_body_helpers/matrix.rs`, `commands/populi_cli.rs`, `training/native.rs`, `commands/clavis.rs`, `commands/build.rs`, `commands/ci/run_body.rs`, and `commands/run.rs`.
+- chore(crates/vox-mcp): Update `lib.rs` and `populi_startup.rs`.
+- chore(crates/vox-orchestrator): Update `config/merge_populi.rs`.
+- docs(architecture): Delete `orphan-surface-inventory.md`.
+
+--- audit: original='feat(cli, dependencies): update command registry and add new dependency' | actual=10339L across 141 files | derived=full ---
