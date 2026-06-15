@@ -1,0 +1,6 @@
+docs(superpowers): mark struct types plan as landed in language features tracker
+scale: ~2 lines across 1 files [XS]
+
+- `docs/superpowers/plans/2026-05-08-language-features-tracker-index.md`: Updated the entry for "struct types" to include a link indicating it has landed in pull request #73.
+
+--- audit: original='docs(plans): mark struct types plan landed in #73; sync #72 entry' | actual=2L across 1 files | derived=full ---
