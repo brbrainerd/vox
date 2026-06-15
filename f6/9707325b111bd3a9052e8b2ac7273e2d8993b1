@@ -1,0 +1,11 @@
+docs(spec, plan): refresh headroom and expected-outcome numbers from D0 and D1
+scale: ~17 lines across 2 files [S]
+
+- `docs/superpowers/specs/2026-05-28-vox-orchestrator-core-extraction-design.md`:
+    - Updated frontmatter description with D0 canonical measurement: 61,061 LoC, 12.8% headroom.
+    - Updated trigger-gate row for `max_loc` headroom to 12.8% (~8,940 LoC) at 61,061 LoC.
+    - Replaced "D1 expected outcome (estimated)" section with "D1 manifest committed" showing 31 Move / 17 Trait-inject / 49 Stay across 97 sibling modules.
+- `docs/superpowers/plans/2026-05-28-vox-orchestrator-core-extraction.md`:
+    - Updated "Posture" paragraph with D0 measurement (61,061 LoC, 12.8% headroom) and D1 manifest results (31 Move / 17 Trait-inject / 49 Stay across 97 candidates).
+
+--- audit: original='docs(spec+plan): refresh stale headroom + expected-outcome numbers from D1' | actual=17L across 2 files | derived=full ---
