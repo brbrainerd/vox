@@ -1,0 +1,29 @@
+feat(compiler): add `url` contextual keyword for typed URLs
+scale: ~883 lines across 24 files [L]
+
+- `crates/vox-compiler/src/codegen_ts/url_emit.rs`: New file to emit TypeScript for `url` declarations, generating discriminated unions and builder functions.
+- `crates/vox-compiler/src/typeck/registration.rs`: Register `HirUrlDecl` in the type environment, removing registration for `HirActivity`, `HirActor`, and `HirWorkflow`.
+- `crates/vox-compiler/src/hir/nodes/decl.rs`: Add `url_decls` field to `HirModule` and `SemanticHirModule` to store `HirUrlDecl`s. Remove `actors`, `workflows`, and `activities` fields from `HirModule`.
+- `crates/vox-compiler/src/hir/lower/decl.rs`: Add `lower_url_decl` function to convert `UrlDecl` AST nodes to `HirUrlDecl` HIR nodes. Remove `lower_actor` and `lower_workflow` functions.
+- `crates/vox-compiler/src/codegen_ts/emitter.rs`: Integrate `url_emit` to generate `urls.ts` for typed URL declarations. Remove activity-related code generation.
+- `crates/vox-compiler/src/parser/descent/decl/mid.rs`: Add `parse_url_decl` function to parse `url` declarations, including variants and their arguments.
+- `crates/vox-compiler/src/parser/descent/tests.rs`: Add new test cases for `url` declarations.
+- `docs/src/architecture/gui-native-roadmap-status-2026.md`: Update roadmap status, likely related to GUI/native development.
+- `crates/vox-compiler/src/ast/decl/url.rs`: New file defining `UrlDecl` AST node and its variants/arguments.
+- `crates/vox-compiler/src/hir/lower/mod.rs`: Update module imports to reflect changes in `decl.rs`.
+- `crates/vox-lsp/src/symbols.rs`: Remove code related to symbol handling, likely for removed declaration types.
+- `crates/vox-cli/src/commands/doc.rs`: Remove code related to documentation generation, likely for removed declaration types.
+- `crates/vox-compiler/src/ast/decl/types.rs`: Minor changes, likely related to type definitions.
+- `crates/vox-compiler/src/vox-ir.v1.schema.json`: Update IR schema, likely to include `url_decls` and remove old declaration types.
+- `docs/src/reference/vox-ir.schema.json`: Update IR schema documentation.
+- `crates/vox-lsp/src/lib.rs`: Minor changes, likely related to LSP features.
+- `crates/vox-compiler/src/vox_ir/mod.rs`: Minor changes, likely related to IR module structure.
+- `crates/vox-compiler/src/ast_eval.rs`: Minor changes, likely related to AST evaluation.
+- `crates/vox-compiler/src/codegen_ts/mod.rs`: Add `url_emit` module.
+- `crates/vox-compiler/src/vox_ir/lower.rs`: Minor changes, likely related to IR lowering.
+- `crates/vox-corpus/src/corpus/extract_vox/part_ast.rs`: Minor changes, likely related to AST extraction for corpus.
+- `crates/vox-mens/src/training/core.rs`: Minor changes, likely related to training core.
+- `crates/vox-compiler/src/ast/decl/mod.rs`: Add `url` module.
+- `crates/vox-compiler/src/parser/descent/mod.rs`: Add `decl` module.
+
+--- audit: original='feat(compiler): TASK-4.3 -- add typed URLs primitive (url contextual keyword)' | actual=883L across 24 files | derived=full ---
