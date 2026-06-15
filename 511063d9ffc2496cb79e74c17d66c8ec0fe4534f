@@ -1,0 +1,12 @@
+test(crates): add smoke tests to 7 crates
+scale: ~100 lines across 7 files [M]
+
+- `vox-shell-stdlib-types`: Add test for `VoxFileRecord` construction, cloning, and field values.
+- `vox-container`: Add tests for `RuntimePreference::default()` and `log_exec_risk` not panicking on garbage input.
+- `vox-orchestrator-test-helpers`: Add test for `MockBulletinBoard` starting empty and clearing.
+- `vox-plugin-types`: Add test for `SkillManifest::default()` having empty ID, permissions, and tools.
+- `vox-rename-registry`: Add test for `primitive_tags` including core GUI tags and `all_primitives` not being empty.
+- `vox-build-meta`: Add test for `git_stdout` returning `None` for bogus arguments.
+- `vox-populi-types`: Add test for `MAX_MAINTENANCE_FOR_MS` being 7 days in milliseconds.
+
+--- audit: original='test(vox-*-types): smoke tests for 7 zero-test crates' | actual=100L across 7 files | derived=full ---
