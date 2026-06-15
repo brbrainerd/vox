@@ -1,0 +1,8 @@
+fix(docs): improve markdown formatting for headings and lists
+scale: ~17 lines across 3 files [S]
+
+- `docs/src/architecture/research-index.md`: Add blank lines after `##` headings before list items to resolve MD022 errors.
+- `docs/src/contributors/agent-planning-prompts.md`: Remove a trailing space to resolve an MD009 error, and remove an extra trailing blank line to resolve an MD012 error.
+- `docs/src/contributors/agent-instruction-architecture.md`: Remove a duplicate trailing blank line to resolve an MD012 error.
+
+--- audit: original='fix(docs): add missing blank lines around headings/lists to pass markdownlint' | actual=17L across 3 files | derived=full ---
