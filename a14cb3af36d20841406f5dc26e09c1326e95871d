@@ -1,0 +1,9 @@
+docs: update installation instructions and durable execution image
+scale: ~22 lines across 1 files [S]
+
+- README.md:
+  - Replaced `voxup` and platform-specific installation instructions with source-build instructions using `git clone` and `cargo install`.
+  - Updated the durable execution diagram image from `vox_durable_state_diagram.png` to `durable_essentialist_loop.webp`.
+  - Modified the alt text for the durable execution image from "Durable execution state diagram: commit, execute, recover, complete" to "Durable execution loop: commit, execute, recover, complete".
+
+--- audit: original='docs: revert to source-build installation instructions and restore durable execution webp' | actual=22L across 1 files | derived=full ---
