@@ -1,0 +1,9 @@
+docs(superpowers): Add SP-1 design spec for vox-quantize engine
+scale: ~225 lines across 1 files [M]
+
+- Add `docs/superpowers/specs/2026-05-31-vox-quantize-engine-design.md` detailing the design for the `vox-quantize` core engine.
+- The specification outlines the context, motivation, and goals for a data-free k-quant PTQ engine (SafeTensors to Candle GGML quantized SafeTensors).
+- It confirms feasibility against Candle 0.9.2, vox-hf-layout, Qwen3.5 tensor inventory, merge-qlora, and repo conventions.
+- The document also addresses charter constraints, explicitly stating that Python/Unsloth are out of scope and SafeTensors is the canonical on-disk weight format.
+
+--- audit: original='docs(quantize): SP-1 design spec for vox-quantize engine' | actual=225L across 1 files | derived=full ---
