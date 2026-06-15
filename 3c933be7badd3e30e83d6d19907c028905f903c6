@@ -1,0 +1,8 @@
+ci(github-actions): tier heavy jobs to post-merge or `full-ci` label
+scale: ~17 lines across 1 files [S]
+
+- `.github/workflows/ci.yml`:
+    - Removed `gui-playwright-smoke` from the `ci-summary` job's `needs` and result check, making it no longer a required gate for PRs.
+    - Added a conditional `if` statement to `docker-vox-image-smoke`, `vox-browser-cdp-smoke`, and `gui-playwright-smoke` jobs to run only on pushes to `main` (post-merge) or when the PR has the `full-ci` label.
+
+--- audit: original='ci: tier heavy jobs to post-merge + full-ci label (cut per-PR backlog) (#170)' | actual=17L across 1 files | derived=full ---
