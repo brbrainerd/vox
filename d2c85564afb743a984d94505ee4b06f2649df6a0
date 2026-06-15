@@ -1,0 +1,6 @@
+docs(superpowers): plan test-suite performance and gate tier redesign
+scale: ~1982 lines across 1 files [XL]
+
+- `docs/superpowers/plans/2026-05-27-test-suite-perf-and-gate-tiers.md`: Add a detailed implementation plan for improving test-suite performance and redesigning gate tiers. The plan outlines five phases: measurement harness (P0), cargo knob tuning (P1), `vox-arch-check` speedup (P2), slow test partitioning (P3), and `pre-push` flag extensions (P4). It specifies a goal to cut `vox ci pre-push --full --with-coverage` from ~590s to ≤260s, details architectural changes including an on-disk arch-graph cache and new `vox ci pre-push` flags, and lists the tech stack. It also references related spec and baseline measurement documents.
+
+--- audit: original='docs(plans): test-suite perf and gate tiers implementation plan' | actual=1982L across 1 files | derived=full ---
