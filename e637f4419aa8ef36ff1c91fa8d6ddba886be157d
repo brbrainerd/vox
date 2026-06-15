@@ -1,0 +1,9 @@
+fix(parser): accept phonetic keywords as object-literal keys
+scale: ~59 lines across 2 files [M]
+
+- `crates/vox-compiler/src/parser/descent/expr/pratt_match.rs`:
+    - Modified object literal lookahead to recognize `Token::And`, `Token::Or`, `Token::Not`, and `Token::In` as valid starting tokens for object keys.
+    - Added logic to `parse_object_key` to convert `Token::And`, `Token::Or`, `Token::Not`, and `Token::In` into their string literal equivalents ("and", "or", "not", "in") when used as object keys.
+- `crates/vox-compiler/src/parser/descent/tests.rs`: Added a new test case `object_literal_accepts_phonetic_keyword_keys` to verify that object literals correctly parse with phonetic keywords (`and`, `or`, `not`, `in`) as keys.
+
+--- audit: original='fix(parser): accept phonetic keywords (and/or/not/in) as object-literal keys' | actual=59L across 2 files | derived=full ---
