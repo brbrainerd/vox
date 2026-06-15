@@ -1,0 +1,11 @@
+test(vox-codegen): update main_boot snapshots for `is_versioned` field
+scale: ~6 lines across 2 files [S]
+
+- `crates/vox-codegen/tests/snapshots/main_boot_snapshot__main_boot_no_scheduled_no_endpoints.snap`:
+    - Added `assertion_line: 52`.
+    - Updated the `EMBEDDED_HIR` constant to include the `is_versioned:false` field in the JSON serialization of the `plain` function.
+- `crates/vox-codegen/tests/snapshots/main_boot_snapshot__main_boot_scheduled_actor_server.snap`:
+    - Added `assertion_line: 37`.
+    - Updated the `EMBEDDED_HIR` constant to include the `is_versioned:false` field in the JSON serialization of the `tick`, `Counter`, and `Counter::inc` functions.
+
+--- audit: original="test(vox-codegen): accept main_boot snapshots (main's is_versioned field)" | actual=6L across 2 files | derived=full ---
