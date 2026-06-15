@@ -1,0 +1,9 @@
+docs(architecture): add dependency and migration handoff document
+scale: ~175 lines across 1 files [M]
+
+- Add `docs/src/architecture/dependency-and-migration-handoff-2026.md` detailing deferred migrations and dependency upgrades.
+- Document includes blast radius, breakage, fixes, and difficulty/agony ratings for each item.
+- Covers latest-version dependency upgrades (rmcp, wasmtime, swc, cargo_metadata, sysinfo, typify, jsonschema, thiserror, candle), nominative renames, plugin-SDK / publish-clean / GUI-release work, and Turso-ownership backlog.
+- Provides context on why the document exists, stemming from crate-leaf-design remediation and Wave-A dependency bumps.
+
+--- audit: original='docs(architecture): dependency & migration handoff (deferred latest-version upgrades) (#147)' | actual=175L across 1 files | derived=full ---
