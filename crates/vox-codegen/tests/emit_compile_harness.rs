@@ -422,7 +422,42 @@ fn golden_option_type_compiles() {
 }
 
 #[test]
-#[ignore = "TRACE-D P6: compile-harness test (slow; requires cargo build of generated crate). Run: cargo test -p vox-codegen --test emit_compile_harness traced_fn_compiles -- --ignored"]
 fn traced_fn_compiles() {
+    // TRACE-D P6: verifies that @traced functions emit valid Rust (vox-telemetry dep present).
     assert_compiles("@traced\nfn greet(name: str) to str { return name }");
+}
+
+#[test]
+fn traced_fn_span_emitted() {
+    // Behavioral assertion: generated Rust contains the vox_telemetry span call and the
+    // generated Cargo.toml contains the vox-telemetry dependency.  This is the structural
+    // equivalent of "a span was recorded" without executing the crate at test time.
+    let src = "@traced\nfn greet(name: str) to str { return name }";
+    let module = parse_script(lex(src)).expect("parse");
+    let mut hir = lower_module(&module);
+    let _ = typecheck_hir_module(src, &mut hir);
+    let output = generate_script(&hir, "vox-script", Some(&runtime_path()))
+        .expect("generate_script should succeed for a @traced fn");
+
+    let lib_rs = output
+        .files
+        .get("src/lib.rs")
+        .expect("lib.rs must be generated");
+    assert!(
+        lib_rs.contains("vox_telemetry::current_trace_context"),
+        "@traced fn must emit current_trace_context() call in generated lib.rs;\ngot:\n{lib_rs}"
+    );
+    assert!(
+        lib_rs.contains("tracing::instrument") || lib_rs.contains("tracing::Span"),
+        "@traced fn must emit a tracing span attribute in generated lib.rs;\ngot:\n{lib_rs}"
+    );
+
+    let cargo_toml = output
+        .files
+        .get("Cargo.toml")
+        .expect("Cargo.toml must be generated");
+    assert!(
+        cargo_toml.contains("vox-telemetry"),
+        "generated Cargo.toml must include vox-telemetry dep;\ngot:\n{cargo_toml}"
+    );
 }
