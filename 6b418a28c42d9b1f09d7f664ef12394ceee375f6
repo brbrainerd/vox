@@ -1,0 +1,6 @@
+build(deps): bump actions/cache from v4 to v5
+scale: ~4 lines across 1 files [XS]
+
+- .github/workflows/cr-l-gates.yml: Update `actions/cache` to v5 for "Cache cargo registry" and "Cache cargo" steps.
+
+--- audit: original='chore(deps): bump actions/cache from 4 to 5 (#121)' | actual=4L across 1 files | derived=full ---
