@@ -1,0 +1,11 @@
+fix(ci): update mutation workflow and architecture layers
+scale: ~23 lines across 4 files [S]
+
+- `.github/workflows/mutation-pr.yml`: Remove the `--locked` flag from the `cargo mutants` command.
+- `crates/vox-sql/Cargo.toml`: Add a `description` field for the `vox-sql` crate.
+- `crates/vox-sql/src/lib.rs`: Add a module-level documentation comment describing the crate's purpose.
+- `docs/src/architecture/layers.toml`:
+    - Remove `vox-codegen-ts`, `vox-rn-codegen`, and `vox-orchestrator-driver` entries.
+    - Add `vox-distributed-training`, `vox-inference`, and `vox-mesh-policy` entries with `layer = 3` and `orphan_exempt = true` (and `kind = "library", staleness_exempt = true` for `vox-mesh-policy`).
+
+--- audit: original='fix(ci): arch-check and mutation workflow for PR1 merge' | actual=23L across 4 files | derived=full ---
