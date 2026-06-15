@@ -1,0 +1,9 @@
+docs(ci): clarify sccache cross-worktree behavior and update architecture table
+scale: ~10 lines across 1 files [S]
+
+- docs/src/ci/shared-compile-cache.md:
+  - Updated the architecture table to reflect that the disk cache is the default and S3 is configured via environment variables for Windows hosts.
+  - Clarified that local worktrees at different paths do not share cached artifacts due to sccache cache keys including crate metadata beyond source paths, even with `--remap-path-prefix`.
+  - Noted that same-path repeated builds (e.g., after `cargo clean`) still benefit from the warm cache rate.
+
+--- audit: original='docs(ci): correct shared-compile-cache cross-worktree claim' | actual=10L across 1 files | derived=full ---
