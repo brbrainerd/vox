@@ -1,0 +1,16 @@
+fix(vox-console): improve robustness with guards, validation, and leak safety
+scale: ~142 lines across 11 files [M]
+
+- `crates/vox-gamify/src/discovery/ledger.rs`: Clamp negative `dwell_ms` to 0 in `record` to prevent data corruption; add in-file `#[cfg(test)] mod tests` for `get`, `record`, and `due_action_ids`.
+- `crates/vox-gui/ui/src/components/surfaces/Console/AgentTab.tsx`: Add `disposed` guard to async listener registration to ensure `unlisten` fires even if unmount wins the subscription race; filter out agent event frames missing an `agent_id`.
+- `crates/vox-gui/src/commands/console_a2a.rs`: Reject `AgentId(0)` as a receiver in `parse_receiver` as it is reserved for the console operator.
+- `crates/vox-gui/ui/src/components/surfaces/Console/DiscoveryRail.tsx`: Key `useEffect` hooks on `actionId` only (using `shownAt` ref) to prevent dwell timer restarts from unrelated re-renders caused by `nowMs` changes.
+- `crates/vox-gui/ui/src/components/surfaces/Console/InputEditor.tsx`: Implement a request sequence guard to prevent stale suggestion responses from clobbering fresher results; clear active selection on suggestion fetch failure.
+- `crates/vox-gui/ui/src/components/surfaces/Console/SendToAgent.tsx`: Synchronize the selected target agent when the list of available agents changes, ensuring the target remains valid.
+- `crates/vox-gui/src/commands/discovery.rs`: Return an empty vector immediately from `match_catalog` if `limit` is 0.
+- `crates/vox-gui/ui/src/components/surfaces/Console/Console.tsx`: Add `disposed` guard to async `listenOrchStatus` listener registration to ensure `unlisten` fires correctly.
+- `crates/vox-gui/ui/src/components/surfaces/Console/TerminalTab.tsx`: Add `disposed` guards to async `listenPtyOutput` and `listenPtyExit` listener registrations to ensure `unlisten` fires correctly.
+- `crates/vox-gui/src/commands/pty.rs`: Kill the previous child process when a tab ID is re-spawned to prevent shell and reader thread leaks.
+- `crates/vox-gui/ui/src/App.tsx`: Add 'console' to `LEGACY_VIEWS` to prevent the backend's initial-view 'console' setting from being dropped.
+
+--- audit: original='fix(vox-console): address CodeRabbit review — guards, validation, leak safety' | actual=142L across 11 files | derived=full ---
