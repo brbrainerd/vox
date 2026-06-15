@@ -1,0 +1,7 @@
+feat(vox-db): add ResearchMetricsSink for telemetry recording
+scale: ~59 lines across 2 files [M]
+
+- `crates/vox-db/src/telemetry_sink.rs`: New module defining `ResearchMetricsSink`, which implements `TelemetryRecorder`. It processes `TelemetryEvent::ResearchMetric` events by asynchronously writing them to the `research_metrics` table via `VoxDb::append_research_metric`. Other event types are ignored.
+- `crates/vox-db/src/lib.rs`: Exports the new `telemetry_sink` module.
+
+--- audit: original='feat(vox-db): add ResearchMetricsSink implementing TelemetryRecorder' | actual=59L across 2 files | derived=full ---
