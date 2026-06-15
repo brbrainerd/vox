@@ -1,0 +1,13 @@
+fix(integration-tests): adapt to `mcp_tools` extraction and `EmitCtx` signature
+scale: ~23 lines across 9 files [M]
+
+- `crates/vox-integration-tests/Cargo.toml`: Added `vox-orchestrator-mcp` as a direct dependency.
+- `crates/vox-integration-tests/tests/pipeline/includes/include_04.rs`:
+  - Updated `emit_hir_expr` call to use `EmitCtx::new(&state_set)` instead of `&HashSet::from(...)` for its second argument.
+  - Imported `EmitCtx` from `vox_codegen::codegen_ts::hir_emit`.
+- `crates/vox-integration-tests/tests/mcp_project_init_test.rs`, `crates/vox-integration-tests/tests/repo_shared_ops_lifecycle_test.rs`, `crates/vox-integration-tests/tests/a2a_mcp_test.rs`, `crates/vox-integration-tests/tests/agent_mcp_roundtrip_test.rs`, `crates/vox-integration-tests/tests/orchestrator_bootstrap_surface_parity_test.rs`, `crates/vox-integration-tests/tests/skill_install_test.rs`:
+  - Updated imports for `ServerState` and `handle_tool_call` (aliased as `tools`) from `vox_orchestrator::mcp_tools` to `vox_orchestrator_mcp`.
+  - Updated `ServerState::new_full` call to use `vox_orchestrator_mcp::ServerState`.
+- `Cargo.lock`: Updated due to `Cargo.toml` changes.
+
+--- audit: original='fix(integration-tests): adapt to Phase 4 mcp_tools extraction + Phase A2.7 EmitCtx signature' | actual=23L across 9 files | derived=full ---
