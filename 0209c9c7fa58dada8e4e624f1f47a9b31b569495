@@ -1,0 +1,7 @@
+fix(jj): silence dead_code warning in JjActor::AddRemote
+scale: ~46 lines across 2 files [S]
+
+- `crates/vox-vcs/src/jj_actor.rs`: Add `#[allow(dead_code)]` attributes to `name` and `url` fields of `JjActor::Command::AddRemote` enum variant, as these fields are intentionally unused because remote registration is handled out-of-band.
+- `Cargo.lock`: Update lockfile due to changes in `crates/vox-vcs`.
+
+--- audit: original='fix(merge): reconcile P2 jj engine with main (gix 0.84, Rust 1.96, P1/P3)' | actual=46L across 2 files | derived=full ---
