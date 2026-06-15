@@ -1,0 +1,8 @@
+fix(docs): backtick-escape JSX and loopback URL examples in COVERAGE_BEHAVIORS docs
+scale: ~10 lines across 3 files [S]
+
+- `graphify-out/COVERAGE_BEHAVIORS_vox-codegen.md`: Backtick-escaped `<Link href={{...}}>` in two instances to prevent it from being parsed as a link.
+- `graphify-out/COVERAGE_BEHAVIORS_vox-compiler.md`: Backtick-escaped `key={{expr}}` in two instances to prevent it from being parsed as a link.
+- `graphify-out/COVERAGE_BEHAVIORS_vox-orchestrator-mcp.md`: Backtick-escaped `http://localhost:3000` and `https://127.0.0.1:8080` to prevent them from being parsed as links.
+
+--- audit: original='fix(coverage-graph): backtick-escape JSX/loopback-URL text that lychee parsed as links' | actual=10L across 3 files | derived=full ---
