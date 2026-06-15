@@ -1,0 +1,9 @@
+feat(vox-audit): add CR-F6 regression-budget gate
+scale: ~805 lines across 4 files [L]
+
+- `crates/vox-audit/src/subcommands/regression_budget.rs`: New file implementing the `regression-budget` audit gate. This includes `RegressionBudgetSubcommand`, pure scanner functions (`scan_vox_golden`, `scan_rust_source`, `scan_workspace`, `is_test_file`), and 18 unit tests. It detects `// vox:skip` in `.vox` golden files, reachable `todo!`/`unimplemented!` macros in Rust sources (excluding test files/regions, comments, and string literals), and `de-stub-pending` markers in Rust sources.
+- `crates/vox-audit/src/lib.rs`: Added `CrlGate::F6RegressionBudget` enum variant, registered its name, included it in the `is_block_ga` and `tier` methods, and added it to the `all()` list. The subcommand registry description was updated to reflect the addition of foundation gates.
+- `crates/vox-audit/src/subcommands/mod.rs`: Added a public module declaration for `regression_budget`.
+- `contracts/ci/vox-audit-contract.v1.yaml`: Updated the `subcommands` section to include entries for `behavioral-goldens` (CR-F1) and `regression-budget` (CR-F6), specifying their gate, corpus, `block_ga` (true), and `cost_metered` (false) properties.
+
+--- audit: original='feat(vox-audit): add CR-F6 regression-budget gate (#228)' | actual=805L across 4 files | derived=full ---
