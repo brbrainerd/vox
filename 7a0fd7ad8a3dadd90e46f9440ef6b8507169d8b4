@@ -1,0 +1,14 @@
+chore(docs): untrack generated mdbook artifacts
+scale: ~22441 lines across 54 files [XL]
+
+- docs/book/: Remove numerous generated HTML, CSS, and JavaScript files, including `book-a0b12cfe.js`, `searcher-c2a407aa.js`, `toc-8b658804.js`, `highlight-abc7f01d.js`, `elasticlunr-ef4e11c1.min.js`, `clipboard-1626706a.min.js`, `mark-09e88c2c.min.js`, `searchindex-e3d70974.js`, and various CSS files (`chrome-ae938929.css`, `general-2459343d.css`, `variables-8adf115d.css`, `tomorrow-night-4c0ae647.css`, `highlight-493f70e1.css`, `ayu-highlight-3fdfc3ac.css`, `print-9e4910d8.css`). Also remove generated HTML files like `print.html`, `index.html`, `404.html`, `toc.html`, and other assets such as `doc-inventory.json`, `api/decorators.json`, `api/keywords.json`, `feed.xml`, `favicon-de23e50b.svg`, `favicon-8114d1fc.png`, `assets/hero_bg.png`, `assets/logo.png`, font files, and `.nojekyll`.
+- .gitignore: Add entries to ignore the newly untracked `docs/book` directory.
+- docs/book.toml: Update configuration for the book.
+- docs/theme/head.hbs: Modify the theme's head template.
+- README.md: Update the main README file.
+- .github/workflows/docs-deploy.yml: Add a new GitHub Actions workflow for documentation deployment.
+- Cargo.lock, Cargo.toml, Vox.toml, cliff.toml: Update project dependency and configuration files.
+- contracts/cli/command-registry.schema.json: Modify the command registry schema.
+- docker/Dockerfile.populi: Update the Dockerfile.
+
+--- audit: original='chore: untrack generated mdbook artifacts in docs/book' | actual=22441L across 54 files | derived=sampled ---
