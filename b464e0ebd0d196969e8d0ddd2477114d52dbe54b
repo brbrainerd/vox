@@ -1,0 +1,9 @@
+test(vox-audit,vox-config): add free-fn gap tests for cr-a1, gamify_web, impl_ops, persist
+scale: ~176 lines across 4 files [M]
+
+- `vox-audit/src/bin/cr-a1.rs`: Add tests for `relative_to_workspace` function, covering stripping root prefix, handling backslashes, and fallback behavior.
+- `vox-config/src/config/gamify_web.rs`: Add tests for `WebRunMode`, `BuildTarget`, and `GamifyMode` `as_config_str` methods.
+- `vox-config/src/config/impl_ops.rs`: Add tests for `VoxConfig::to_map` method, verifying required and optional key handling, and `load_from_repo_root` for `Vox.toml` parsing.
+- `vox-config/src/config/persist.rs`: Add tests for `take_toml_subtable` function, covering successful extraction, absent keys, and non-table values.
+
+--- audit: original='test(semcov-wave1e): prove 5 free-fn gaps + fix orphan auth module (3 crates)' | actual=176L across 4 files | derived=full ---
