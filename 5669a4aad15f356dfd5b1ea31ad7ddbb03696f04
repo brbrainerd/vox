@@ -1,0 +1,8 @@
+fix(vox-populi): derive Clone for ProbeError, simplify MockProbe, clarify probe_failures doc
+scale: ~19 lines across 3 files [S]
+
+- `crates/vox-populi/src/mens/hardware/mock.rs`: Simplified the `MockProbe::probe` implementation by directly cloning `self.result`, removing a verbose `match` statement that manually cloned each `ProbeError` variant.
+- `crates/vox-populi/src/mens/hardware/types.rs`: Clarified the documentation for the `probe_failures` field in `HardwareSummary`, specifying the meaning of `None` and `Some(names)` and advising against `Some(vec![])`.
+- `crates/vox-populi/src/mens/hardware/probe.rs`: Derived the `Clone` trait for the `ProbeError` enum.
+
+--- audit: original='fix(populi): derive Clone on ProbeError, simplify MockProbe::probe, clarify probe_failures doc' | actual=19L across 3 files | derived=full ---
