@@ -1,0 +1,15 @@
+feat(vox-cli): centralize Ludus rewards for all CLI commands
+scale: ~99 lines across 2 files [M]
+
+- `crates/vox-cli/src/cli_dispatch/mod.rs`:
+    - Introduced `universal_reward_command_path` function to map top-level CLI commands to a reward `command_path` or `None`.
+    - Excluded Fabrica-routed lanes (e.g., `build`, `check`, `test`, `run`, `fabrica`) and meta commands (`completions`, `commands`) from universal rewards to prevent double-emission or noise.
+    - Assigned specific `command_path` values for common surfaces like `scientia`, `audit`, `ci`, `db`, `mens`, `populi`, `research`, `deploy`, `plan`, and `doctor`.
+    - Defaulted all other commands to a generic "command" path.
+    - Renamed `dispatch_cli` to `dispatch_cli_inner` and wrapped it in a new `dispatch_cli` function to emit universal rewards.
+    - Added logic to emit `cli_command_completed` or `cli_command_failed` rewards via a fire-and-forget shim based on the command's outcome.
+- `crates/vox-gamify/src/reward_policy.rs`:
+    - Added new `cli_command_completed` reward type with 8 XP and 1 Ludus point.
+    - Added new `cli_command_failed` reward type with 2 XP and 0 Ludus points.
+
+--- audit: original='feat(vox-cli): universal Ludus rewards — every CLI command earns at dispatch' | actual=99L across 2 files | derived=full ---
