@@ -1,0 +1,8 @@
+feat(share): Implement LAN backend for local network URL discovery
+scale: ~105 lines across 3 files [M]
+
+- `crates/vox-share/src/backends/lan.rs`: Add new `LanBackend` module to provide a `TunnelBackend` implementation for LAN. This backend detects a routable LAN IP and constructs a `http://<LAN_IP>:<PORT>` URL without spawning a child process.
+- `crates/vox-share/tests/lan_backend_test.rs`: Add integration tests for `LanBackend` to verify it returns a valid LAN URL containing the specified port and that its `kind()` method returns `BackendKind::Lan`.
+- `crates/vox-share/src/backends/mod.rs`: Update module documentation to list available backends and expose the new `lan` module.
+
+--- audit: original='feat(share): LAN backend (S1 task 3)' | actual=105L across 3 files | derived=full ---
