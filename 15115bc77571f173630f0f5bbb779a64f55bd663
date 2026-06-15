@@ -1,0 +1,11 @@
+feat(models): implement ordered SelectionPolicy chain for model routing
+scale: ~785 lines across 6 files [L]
+
+- models/policy.rs (new): Introduces `SelectionPolicy` to define an ordered chain of `SelectionStep`s for model resolution. Each step can emphasize axes, pin models, prefer free tiers, or define fallback conditions. Includes `resolve_policy` to execute the chain and process-global `ACTIVE_POLICY` with `install_active_policy` and `active_policy` functions.
+- types/routing_profile.rs (new): Defines `RoutingProfile` (aliased as `FreeRoutingProfile` to avoid collision) for cost/tier-oriented routing, including `Free`, `Mixed`, `Performance`, and `Local` options. Provides `as_str` for canonical string representation and `is_free_only` / `prefers_free` methods.
+- models/select.rs: Modifies the `select` function to consult the `active_policy` first. If a policy is present and yields a model, it's returned; otherwise, it falls back to the existing selection cascade. Adds `select_with_policy` for explicit policy usage.
+- vox-orchestrator-d/src/bin/vox_orchestrator_d.rs: Adds logic to load and apply a persisted `selection_policy` JSON preference from the database at daemon startup, installing it as the process-global active policy.
+- models/mod.rs: Exports new types and functions related to `policy` (e.g., `SelectionPolicy`, `resolve_policy`, `active_policy`) and `select` (e.g., `select_with_policy`).
+- types/mod.rs: Exports the new `FreeRoutingProfile` and `config_to_routing_profile` from the `routing_profile` module.
+
+--- audit: original='@ feat(models): ordered SelectionPolicy chain + first-class free-tier routing' | actual=785L across 6 files | derived=full ---
