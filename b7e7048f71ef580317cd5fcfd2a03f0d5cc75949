@@ -1,0 +1,9 @@
+docs(roadmap): update TASK-2.6 status and next tasks for Phase 4
+scale: ~20 lines across 1 files [S]
+
+- Update TASK-2.6 row to record commit `6524b3f7` for its completion.
+- Add an audit log entry for 2026-04-29, marking TASK-2.6 Path B as complete.
+- Retire TASK-2.6 from "Immediate Next Tasks" and point to Phase 4.
+- Note that Phases 0-3 are complete and Phase 4 is unblocked.
+
+--- audit: original='docs(roadmap): record TASK-2.6 commit hash; update next-tasks for Phase 4' | actual=20L across 1 files | derived=full ---
