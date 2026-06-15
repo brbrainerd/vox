@@ -1,0 +1,8 @@
+fix(dashboard,generate): release write lock before I/O; bail on invalid --server-url usage
+scale: ~137 lines across 3 files [M]
+
+- `crates/vox-dashboard/src/api/settings.rs`: Modified `put_settings` to clone the updated settings map and release the `RwLock` write guard before performing asynchronous file I/O (writing to disk), preventing serialization of concurrent PUT requests on disk latency.
+- `crates/vox-cli/src/commands/generate.rs`: Changed the behavior when `--server-url` is provided without `--legacy-direct` from a silent warning to an `anyhow::bail!` error, ensuring misconfigurations fail loudly.
+- `docs/src/feed.xml`: Updated the generated RSS feed.
+
+--- audit: original='fix(dashboard,generate): release write lock before async I/O; bail on --server-url without --legacy-direct' | actual=137L across 3 files | derived=full ---
