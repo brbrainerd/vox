@@ -1,0 +1,15 @@
+test(compiler): Add coverage for dead code, match exhaustiveness, and TOML conversion
+scale: ~614 lines across 10 files [L]
+
+- `crates/vox-compiler/src/hir/dead_code.rs`: Add tests for `check_dead_code` to verify private unused functions are flagged as dead code.
+- `crates/vox-compiler/src/typeck/ast_decl_lints.rs`: Add tests for `check_workflow_stmt_determinism` to ensure non-deterministic calls like `time.now()` are flagged within workflows, and deterministic calls are not.
+- `crates/vox-compiler/src/eval/shell_stdlib.rs`: Add tests for `toml_value_to_json` to verify conversion of scalars, arrays, tables, and handling of non-finite floats.
+- `crates/vox-compiler/src/typeck/checker/match_exhaust.rs`: Add tests for `check_builtin_match_exhaustiveness` to confirm missing `Option` variants are reported and wildcard bindings suppress diagnostics.
+- `crates/vox-orchestrator/src/models/select.rs`: Add tests for `scope_allows` to verify correct enforcement of provider locality (AllProviders, LocalOnly, CloudOnly).
+- `crates/vox-compiler/src/parser/descent/expr/pratt_ops.rs`: Add tests for `infix_bp` to confirm correct precedence and left-associativity for binary operators.
+- `crates/vox-db/src/schema/spec/mod.rs`: Add tests for `vector_index_to_ddl` to verify DDL generation for vector indexes with different configurations (dimensions, distance, HNSW parameters).
+- `crates/vox-orchestrator/src/legacy/harness_hand.rs`: Add tests for `attention_budget_allows` to verify budget checks for different attention types and limits.
+- `crates/vox-db/src/ddl/emit.rs`: Add tests for `usage_field_docs` to ensure correct documentation generation for usage fields.
+- `crates/vox-orchestrator/src/attention/budget.rs`: Add tests for `attention_budget_allows` to verify budget checks for different attention types and limits.
+
+--- audit: original='test(coverage): Wave-1 batch 3 — prove 12 gaps the C1 fix revealed (compiler/db/orchestrator)' | actual=614L across 10 files | derived=full ---
