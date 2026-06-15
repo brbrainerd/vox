@@ -1,0 +1,10 @@
+docs(architecture): detail workspace reorg for build-time and layered architecture
+scale: ~112 lines across 1 files [M]
+
+- **docs/src/architecture/2026-05-08-workspace-reorg-design.md**: New document outlining a 10-phase plan for workspace reorganization.
+  - Identifies problems: `workspace-hack` build-time floor, monolith crates (`vox-orchestrator`, `vox-cli`, `vox-db`), layering inversions (e.g., `vox-plugin-host` depending on `vox-db`), and lack of architectural enforcement.
+  - Sets goals: significant build-time improvements (e.g., ≥40% off clean slim build), single source of truth, separation of concerns, and architectural enforceability via CI.
+  - Proposes a 6-layer target architecture model, detailing purpose and post-reorganization crates for each layer (e.g., L0 Pure types, L1 Utilities, L2 Domain, L3 Application, L4 Infrastructure, L5 Entrypoints).
+  - Includes a 10-phase plan for decomposition, splitting `workspace-hack` into 5 concern-specific crates, fixing layering inversions, and installing a CI guard for layer violations.
+
+--- audit: original='docs(architecture): workspace reorg design — build-time + layered architecture' | actual=112L across 1 files | derived=full ---
