@@ -1,0 +1,9 @@
+fix(codegen): Correct two runtime codegen bugs in DB setup
+scale: ~47 lines across 2 files [S]
+
+- `crates/vox-codegen/src/codegen_rust/emit/tables/codegen.rs`:
+    - Modified `emit_db_setup` to handle `PRAGMA journal_mode=WAL` as a `.query()` call followed by draining its result rows. This prevents a panic in Turso's `execute_batch` which rejects result rows. `PRAGMA foreign_keys=ON` is now executed in a separate `execute_batch` call.
+    - Removed a stray `#` character from the raw string closing sequence `"#)"` in the schema migration block, changing it from `#"#)` to `"#)`. This fixes a SQLite parsing error ("bad variable name '#'") that occurred due to the extra `#`.
+- `contracts/reports/perf/cr-p1/2026-05-23.json`: Updated the performance report to reflect successful startup of all three marquee apps (`marquee-app`, `marquee-todo-auth`, `marquee-chat`), indicating the fixes resolved the runtime issues. The `measured_at` timestamp, `response_time_ms`, `http_status`, `error`, `live` status, `live_pct`, `real_apps_live`, and `threshold.met` fields were updated accordingly.
+
+--- audit: original='fix(codegen+evidence): CR-P1 = 3/3 — two slot-2 runtime codegen bugs' | actual=47L across 2 files | derived=full ---
