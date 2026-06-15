@@ -1,0 +1,12 @@
+feat(compiler): infer stdlib effects for unannotated functions bottom-up
+scale: ~235 lines across 2 files [M]
+
+- `crates/vox-compiler/src/typeck/effect_check.rs`:
+    - Added a new pass in `check_effect_compliance` to infer direct stdlib capabilities for unannotated functions.
+    - Introduced `infer_body_effects` and `infer_stmt_effects` functions to recursively traverse HIR statements and expressions, identifying calls to known stdlib modules (e.g., `http.*`, `db.*`).
+    - Inferred capabilities are added to the `cap_map` for unannotated functions, allowing their effects to be considered during caller effect checking.
+- `crates/vox-compiler/tests/effect_inference.rs`:
+    - Added a new test file to verify the bottom-up effect inference.
+    - Included test cases demonstrating that annotated callers are correctly flagged for effect violations when calling unannotated helpers that implicitly use stdlib capabilities not declared by the caller.
+
+--- audit: original='feat(compiler): bottom-up effect inference catches transitive violations (P1-T6)' | actual=235L across 2 files | derived=full ---
