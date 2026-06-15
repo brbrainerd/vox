@@ -1,0 +1,7 @@
+docs(architecture): Update frontmatter category in two MENS architecture documents
+scale: ~4 lines across 2 files [S]
+
+- `docs/src/architecture/mens-training-pipeline-audit-and-improvement-plan-2026-06-07.md`: Changed `category: architecture` to `category: "Architecture SSOTs"`.
+- `docs/src/architecture/qwen-3.7-profile-and-mens-4b-feasibility-2026-06-07.md`: Changed `category: architecture` to `category: "Architecture SSOTs"`.
+
+--- audit: original='chore(docs): fix invalid frontmatter category on 2 base-branch MENS docs' | actual=4L across 2 files | derived=full ---
