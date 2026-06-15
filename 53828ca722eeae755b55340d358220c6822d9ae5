@@ -1,0 +1,12 @@
+feat(compiler): Implement design-token registry and Web IR validation
+scale: ~559 lines across 7 files [L]
+
+- crates/vox-compiler/src/tokens/mod.rs: Add `TokenRegistry` for flattened design tokens, including `load_from_str`, `contains`, `get`, `suggest` (with Levenshtein distance), `all_keys`, and `TokenLoadError`.
+- crates/vox-compiler/src/tokens/validate.rs: Add `validate_token_registry` function to perform consistency checks on the registry, including warnings for empty registries and invalid keys, and introduce `TokenValidationDiagnostic`.
+- crates/vox-compiler/src/lib.rs: Declare `pub mod tokens`.
+- crates/vox-compiler/src/web_ir/validate.rs: Introduce `validate_web_ir_with_tokens` to extend Web IR validation with `TokenRef` checks against the new registry and warnings for raw literal color values.
+- contracts/tokens/tokens.v1.json: Add new JSON Schema draft-07 for `vox.tokens.json`, defining structure for color, spacing, font, radius, typography, and surface pairs.
+- vox.tokens.json: Expand example token file to include `version`, `radius`, `typography`, and `surface.pairs` keys, and add more detailed color and spacing tokens.
+- docs/src/architecture/gui-native-roadmap-status-2026.md: Update roadmap status to mark TASK-4.4 (Add design-token types) as complete.
+
+--- audit: original='feat(compiler): TASK-4.4 — design-token registry + Web IR TokenRef validation' | actual=559L across 7 files | derived=full ---
