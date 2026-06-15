@@ -53,6 +53,7 @@ pub async fn run(action: ContainerAction) -> Result<()> {
                 detach: false,
                 name: None,
                 rm: true,
+                ..Default::default()
             };
 
             tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
