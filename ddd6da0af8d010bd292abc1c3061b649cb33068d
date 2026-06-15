@@ -1,0 +1,8 @@
+fix(codegen-ts): merge `safe_area` and `surface` style attributes
+scale: ~36 lines across 3 files [S]
+
+- `crates/vox-codegen/src/web_ir/lower.rs`: Modified `inject_primitive_dom_markers` to correctly merge `style` attributes. If an existing `style` attribute is present (e.g., from `safe_area` environment variables), the new `style_obj` (e.g., from `surface` styles) is merged into it, preserving both.
+- `crates/vox-codegen/tests/safe_area_test.rs`: Added a new test case `safe_area_top_with_surface_preserves_both` to verify that both `safe_area` and `surface` styles are correctly applied and preserved when used together.
+- `crates/vox-codegen/src/web_ir/primitives/mod.rs`: Added a clarifying comment explaining that `safe_area` is handled via `safe_area_to_style_props()` in the `hir_emit` path, rather than directly in `resolve_universal_kwarg`.
+
+--- audit: original='fix(codegen-ts): merge safe_area + surface style attrs; add clarifying comment' | actual=36L across 3 files | derived=full ---
