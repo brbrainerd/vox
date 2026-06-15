@@ -335,6 +335,18 @@ jobs:
       - name: SSOT drift bundle (operations-verify, sql-surface + query-all --all, capability-sync, nested guards)
         run: ./target/debug/vox --quiet ci ssot-drift
 
+      # Config registry gates — must run after vox binary is built (above).
+      # config-hygiene: A/B/C checks + 116-row baseline (no new hardcoded values).
+      # config-registry-parity: every VOX_* env read must be a CONFIG_KEYS row (698-row baseline).
+      # config-gui-codegen --check: generated TS settings index must match CONFIG_KEYS.
+      # config-gui-codegen --fields --check: generated Rust FIELDS must match CONFIG_KEYS.
+      - name: Config hygiene + registry parity + GUI codegen drift
+        run: |
+          ./target/debug/vox --quiet ci config-hygiene
+          ./target/debug/vox --quiet ci config-registry-parity
+          ./target/debug/vox --quiet ci config-gui-codegen --check
+          ./target/debug/vox --quiet ci config-gui-codegen --fields --check
+
       - name: Determinism Audit
         run: ./target/debug/vox --quiet ci determinism-audit
 
