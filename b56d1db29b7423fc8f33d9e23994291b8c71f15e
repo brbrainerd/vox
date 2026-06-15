@@ -1,0 +1,12 @@
+docs(arch): add telemetry unification design 2026 document
+scale: ~268 lines across 1 files [L]
+
+- Adds a new architecture design document for telemetry unification.
+- Defines a runtime architecture to address open questions from the 2026-Q1 trust-governance pass, including canonical event taxonomy, single ingestion API, redaction standards, and governance for new fields.
+- Introduces a single facade trait for telemetry emission by domain crates.
+- Specifies persistence for model performance data (cache hit rate, cost-per-call, latency).
+- Details propagation of trace context across agent-to-agent boundaries for reconstructible call trees.
+- Describes the addition of a build-summary metric.
+- Sets the default telemetry collection to local-on and remote-off.
+
+--- audit: original='docs(arch): telemetry unification design 2026' | actual=268L across 1 files | derived=full ---
