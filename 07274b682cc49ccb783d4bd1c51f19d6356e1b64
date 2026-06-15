@@ -1,0 +1,15 @@
+fix(populi): address CodeRabbit findings in remote worker and federation
+scale: ~76 lines across 6 files [M]
+
+- `crates/vox-orchestrator/src/a2a/remote_worker.rs`:
+    - Acknowledge malformed envelope JSON messages to prevent poison-pill inbox rows.
+    - Remove `unsafe std::env::set_var` for JWE secrets; secrets are now validated for well-formedness (S1) but not injected into the process environment (S2 concern).
+    - Log `payload_len` instead of the raw payload on context parse failure.
+    - Propagate inbound `traceparent` on the result A2A leg.
+- `crates/vox-populi/src/transport/handlers/federation.rs`: Reject federation announcements if exactly one of `signature` or `public_key` is provided.
+- `docs/src/architecture/populi-mesh-a2a-durability-spec-2026.md`: Mark the document as deprecated and superseded by VoxDb, updating its status, description, and training eligibility.
+- `docs/src/architecture/architecture-index.md`: Update the link to the deprecated durability spec.
+- `docs/src/SUMMARY.md`: Update the link to the deprecated durability spec.
+- `docs/src/feed.xml`: Update the feed to reflect changes in the durability spec.
+
+--- audit: original='fix(populi): address all 6 CodeRabbit review findings' | actual=76L across 6 files | derived=full ---
