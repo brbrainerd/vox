@@ -301,12 +301,62 @@ pub fn spawn_llm_config_bridge(app: tauri::AppHandle) {
     });
 }
 
+/// Recorded LLM spend (actuals) vs the configured budget caps, for the Runtime settings
+/// surface. Spend comes from the single SSOT aggregate (`VoxDb::llm_spend_summary`); the
+/// caps come from `VoxConfig` — same sources the rest of the system routes/charges on.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LlmSpendDto {
+    pub session_usd: f64,
+    pub day_usd: f64,
+    pub total_usd: f64,
+    pub daily_budget_usd: f64,
+    pub per_session_budget_usd: f64,
+}
+
+/// Read recorded LLM spend (session/day/total) + the budget caps. `session_id` scopes the
+/// per-session figure. Returns zeros for spend if the store is unavailable (caps still shown).
+#[command]
+// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over VoxDb::llm_spend_summary + VoxConfig caps
+pub async fn get_llm_spend(session_id: Option<String>) -> Result<LlmSpendDto, String> {
+    let cfg = vox_config::VoxConfig::load();
+    let spend = match vox_db::VoxDb::connect_canonical().await {
+        Ok(db) => db
+            .llm_spend_summary(session_id.as_deref())
+            .await
+            .unwrap_or_default(),
+        // No store yet (fresh install / not connected) — surface caps with zero spend.
+        Err(_) => Default::default(),
+    };
+    Ok(LlmSpendDto {
+        session_usd: spend.session_usd,
+        day_usd: spend.day_usd,
+        total_usd: spend.total_usd,
+        daily_budget_usd: cfg.daily_budget_usd,
+        per_session_budget_usd: cfg.per_session_budget_usd,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn spec(key: &str) -> &'static LlmConfigKey {
         vox_llm_config::get(key).expect("registry key")
+    }
+
+    #[test]
+    fn spend_dto_serializes_camel_case() {
+        let d = LlmSpendDto {
+            session_usd: 0.03,
+            day_usd: 0.1,
+            total_usd: 1.2,
+            daily_budget_usd: 5.0,
+            per_session_budget_usd: 1.0,
+        };
+        let j = serde_json::to_string(&d).expect("serialize");
+        assert!(j.contains("\"sessionUsd\":0.03"), "{j}");
+        assert!(j.contains("\"dailyBudgetUsd\":5.0"), "{j}");
     }
 
     #[test]

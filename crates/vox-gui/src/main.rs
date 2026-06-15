@@ -174,6 +174,7 @@ async fn main() {
             commands::user_config::get_user_config,
             commands::user_config::set_user_config,
             commands::user_config::reset_user_config,
+            commands::user_config::get_llm_spend,
             commands::gamify::get_ludus_profile,
             commands::gamify::list_ludus_notifications,
             commands::gamify::ack_ludus_notification,
