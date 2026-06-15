@@ -1,0 +1,7 @@
+feat(vox-effort-audit): add JudgeFinding schema and JSON schema
+scale: ~99 lines across 2 files [M]
+
+- `crates/vox-effort-audit/src/judge/schema.rs`: Add new module defining `JudgeFinding` struct, `WasteCategory` and `RemediationKind` enums, and a function `judge_finding_json_schema` to generate its JSON schema.
+- `crates/vox-effort-audit/src/judge/mod.rs`: Add `pub mod schema;` to expose the new schema module.
+
+--- audit: original='feat(vox-effort-audit): JudgeFinding schema + JSON Schema (B1)' | actual=99L across 2 files | derived=full ---
