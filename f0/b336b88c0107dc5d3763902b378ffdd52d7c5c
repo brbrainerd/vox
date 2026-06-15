@@ -1,0 +1,10 @@
+refactor(typeck): improve form checking and HirType display
+scale: ~67 lines across 2 files [M]
+
+- `crates/vox-compiler/src/typeck/form_check.rs`:
+    - Introduced `display_hir_ty` function to render `HirType` for diagnostic messages.
+    - Refactored `check_forms` to use `display_hir_ty` for improved readability in diagnostic messages.
+    - Removed unused `dummy_span` variable.
+- `crates/vox-compiler/src/hir/nodes/decl.rs`: Added "forms" to the list of `HirFieldOwnership::AppContract` fields in `HirModule::field_ownership`.
+
+--- audit: original='refactor(compiler): form_check readability + HirType display' | actual=67L across 2 files | derived=full ---
