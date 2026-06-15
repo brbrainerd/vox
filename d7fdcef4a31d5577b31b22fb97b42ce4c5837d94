@@ -1,0 +1,19 @@
+feat(webhook, compiler, db): add HTTP listener to webhook plugin and health probes to generated Axum apps
+scale: ~1930 lines across 10 files [XL]
+
+- **crates/vox-plugin-webhook**:
+    - Implement `HttpListener` extension trait for `WebhookPlugin`, allowing it to start and stop an HTTP server.
+    - Add `HTTP_LISTENER_REVISION` constant.
+    - Configure the HTTP listener to bind to an address from `config_json` or environment variables (`VOX_WEBHOOK_ADDR`), defaulting to `0.0.0.0:9080`.
+    - Add support for an ingress token via `VOX_WEBHOOK_INGRESS_TOKEN`.
+    - Update `Plugin.toml` to declare `HttpListener` as an provided extension point.
+- **crates/vox-integration-tests/tests/pipeline**:
+    - Update `pipeline_test__table_task_main_rs_emit.snap` to include `vox_health_backend_kind` and `vox_health_probe_for_backend` functions for health checks.
+    - Modify `pipeline_test__multi_route_rust_main_rs_emit.snap` to improve error handling for TCP listener binding and server execution.
+- **crates/vox-compiler/tests**:
+    - Update `axum_emit_contract_test__mutation_with_schema_main_rs_emit.snap` to include `vox_health_backend_kind` and `vox_health_probe_for_backend` functions for health checks.
+    - Adjust `db_query_safety_test.rs` lint message to be more general, changing `.query(clause)` to `raw `.query(`.
+- **contracts/policy**: Remove `code-audit/ai-laziness` and `code-audit/arch/empty_body` policies from `policy-registry.v1.yaml`.
+- **crates/vox-db**: Update `ddl/diff.rs` test to assert `_id INTEGER PRIMARY KEY AUTOINCREMENT` instead of `_id TEXT PRIMARY KEY NOT NULL` and `_creationTime TEXT NOT NULL`.
+
+--- audit: original='fix(test): align PR1 snapshots, baselines, and lint assertions with sql interop' | actual=1930L across 10 files | derived=full ---
