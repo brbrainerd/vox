@@ -1,0 +1,9 @@
+feat(vox-mental-tracker): remove client-side event materialization and export logic
+scale: ~760 lines across 8 files [L]
+
+- Removed `src/ts/materializer.ts` and its unit tests, which handled event correction resolution, grouping, and aggregation.
+- Removed `src/ts/export_pipeline.ts` and its unit tests, which built export bundles (CSV, JSON, HTML) from materialized events.
+- Removed `src/ts/export_contract.ts` and its unit tests, which defined event row types, CSV formatting, and backdating logic.
+- These client-side implementations are superseded by server-side Vox endpoints for event processing and export.
+
+--- audit: original='chore(vox-mental-tracker): remove shadowed src/ts/ files and their unit tests' | actual=760L across 8 files | derived=full ---
