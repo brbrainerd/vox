@@ -1,0 +1,13 @@
+docs(architecture): Add Svelte vs React research, implementation plan, and ADR-032
+scale: ~837 lines across 8 files [L]
+
+- docs/src/architecture/svelte-mineable-features-implementation-plan-2026.md: Add new document detailing a phased implementation plan (Phases A–G) for Svelte 5/6-inspired features in Vox, including concrete file changes, scope estimates, and ADR triggers. Notes the deprecation of JSX in favor of typed semantic primitives (TASK-6.1) and rescopes Phase B.
+- docs/src/architecture/svelte-vs-react-frameworks-research-2026.md: Add new research document comparing Svelte 5/6, Next.js 15/16, and TanStack Start against Vox's React-emit baseline. Concludes against adding Svelte as an emit target but identifies seven mineable features (M1–M7) to extend existing Vox surfaces.
+- docs/src/adr/032-vox-ui-reactive-modules.md: Add new Architecture Decision Record (ADR-032) proposing the `.vox.ui` file-suffix convention for module-scope reactive members (`state`, `derived`, `effect`, `on mount`, `on cleanup`), which gates Phase D of the Svelte-mineable features plan.
+- docs/src/SUMMARY.md: Add entries for the new Svelte research, implementation plan, and ADR-032.
+- docs/src/architecture/architecture-index.md: Add links to the new Svelte research and implementation plan documents.
+- docs/src/architecture/research-index.md: Add an entry for the "Svelte 5/6 vs React Meta-Frameworks Research (2026-05-02)" document, summarizing its findings and the identified mineable items.
+- docs/src/feed.xml: Update feed to include the new documentation.
+- docs/src/adr/index.md: Add an entry for ADR-032, linking to the new document and noting its relation to the Svelte-mineable features plan.
+
+--- audit: original='docs(architecture): Svelte vs React research, mineable-features plan, ADR-032' | actual=837L across 8 files | derived=full ---
