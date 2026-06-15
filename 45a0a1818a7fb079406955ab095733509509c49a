@@ -1,0 +1,9 @@
+docs(specs): Add design specs for DB query plan typecheck, Result reconciliation, and durable codegen de-noop
+scale: ~248 lines across 4 files [M]
+
+- docs/superpowers/specs/2026-06-03-db-query-plan-typecheck-design.md: New design document for typed DB query plan chaining (`.where/.filter/.order_by/.limit/.select`), reclassifying it from a "20-min guard removal" to a real type-system feature after empirical verification that `.where()` itself fails typecheck.
+- docs/superpowers/specs/2026-06-03-durable-codegen-de-noop-design.md: New design document for de-nooping emitted durable codegen for workflows, activities, and actors, detailing the current no-op states in `durability_lower.rs` for actor message dispatch and workflow `DefaultTracker` usage.
+- docs/superpowers/specs/2026-06-03-result-two-param-reconciliation.md: New addendum to the `Result[T, E]` two-parameter design, reconciling it with the current codebase by noting that C2 (Option/Result match exhaustiveness) is done, `@endpoint` is retired, and `infer.rs` is dead code.
+- docs/superpowers/plans/2026-06-02-vox-golden-corpus-and-compiler-reality.md: Update the plan document to reference the newly created design specifications for B5, C1, and Track D.
+
+--- audit: original='@ docs(specs): design specs for the spec-gated remainder (B5, C1, Track D)' | actual=248L across 4 files | derived=full ---
