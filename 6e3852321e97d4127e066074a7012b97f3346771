@@ -1,0 +1,9 @@
+feat(orchestrator): gate plugin/skills dependencies under `mcp-native` and remove `vox-plugin-api`
+scale: ~9 lines across 2 files [S]
+
+- `crates/vox-orchestrator/Cargo.toml`:
+  - Added `vox-skills`, `vox-ars-runtime`, and `vox-plugin-host` as optional dependencies.
+  - Included `vox-skills`, `vox-ars-runtime`, and `vox-plugin-host` in the `mcp-native` feature.
+  - Removed the `vox-plugin-api` dependency.
+
+--- audit: original='feat(orchestrator): gate plugin/skills deps under mcp-native, remove dead vox-plugin-api' | actual=9L across 2 files | derived=full ---
