@@ -1,0 +1,25 @@
+fix(dashboard,cli,orchestrator): apply CodeRabbit PR-57 inline fixes
+scale: ~185 lines across 17 files [M]
+
+- .github/workflows/ssot-drift.yml: Use self-hosted runner and tighten `vox-source` guard.
+- contracts/config/env-vars.v1.yaml: Register 10 new dashboard/orchestrator environment variables.
+- crates/vox-cli/src/cli_args.rs: Add `requires=legacy_direct` to `--server-url` argument.
+- crates/vox-cli/src/commands/generate.rs:
+  - Add warning if `--server-url` is used without `--legacy-direct`.
+  - Exit with status 1 if `valid` is `Some(false)`.
+  - Update `vox_inference.py` references to `vox run scripts/vox_inference.vox`.
+- crates/vox-dashboard/src/api/settings.rs: Use `tokio::fs` for async file I/O in `put_settings` handler.
+- crates/vox-dashboard/src/components/islands/AppShellLive.tsx: Use CSS `hidden` class to keep tab panes mounted on switch.
+- crates/vox-dashboard/src/host/keymap.ts: Standardize modifier key order to `ctrl+alt+shift+cmd`.
+- crates/vox-dashboard/src/hooks/useVoxChat.ts: Surface `is_error` from tool call results before extracting reply.
+- crates/vox-dashboard/src/lib.rs: Change `api` module visibility to `pub(crate)`.
+- crates/vox-dashboard/src/vox-elements.d.ts: Remove local JSX intrinsic element declarations, redirecting to generated file.
+- crates/vox-dashboard/tests/settings_api.rs: Add `EnvGuard` for panic-safe environment variable cleanup in tests.
+- crates/vox-orchestrator/src/mcp_tools/llm_bridge/provider_adapter.rs: Concatenate all text chunks from `ChatMessageContent::Parts` instead of `find_map` for the first.
+- crates/vox-orchestrator/src/runtime.rs: Correct `VoxLocal` budget key to "vox_local" to match `spec.rs`.
+- docs/src/adr/027-dual-track-ui-surfaces.md: Update `last_updated` to 2026-05-01.
+- docs/src/feed.xml: Regenerate feed.
+- docs/src/reference/vox-web-stack.md: Clarify that `src/components/islands/` contains hand-written source.
+- scripts/check_dashboard_ssot.vox: Require `.vox` changes to be within `crates/vox-dashboard/app/src/` for SSOT check.
+
+--- audit: original='fix(review): apply all CodeRabbit PR-57 inline fixes' | actual=185L across 17 files | derived=full ---
