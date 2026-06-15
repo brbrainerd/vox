@@ -1,0 +1,26 @@
+feat(examples,tests): Add compile-suite workspace, 6 AI golden fixtures, and 30-utterance speech corpus
+scale: ~349 lines across 85 files [L]
+
+- examples/compile-suite/: New multi-package Vox workspace for compile verification matrix, including desktop and server packages.
+  - examples/compile-suite/README.md: Added README for the compile-suite.
+  - examples/compile-suite/Vox.toml: Added workspace configuration.
+  - examples/compile-suite/packages/desktop/Vox.toml: Added desktop package configuration.
+  - examples/compile-suite/packages/desktop/src/main.vox: Added desktop application entry point.
+  - examples/compile-suite/packages/server/Vox.toml: Added server package configuration.
+  - examples/compile-suite/packages/server/src/main.vox: Added server endpoint.
+- examples/golden/ai_fixtures/: Added 6 new AI-fixture golden files.
+  - examples/golden/ai_fixtures/agent_control_subagent.vox: Added agent control subagent fixture.
+  - examples/golden/ai_fixtures/deferred_fill_hole.vox: Added deferred fill hole fixture.
+  - examples/golden/ai_fixtures/end_to_end_demo.vox: Added end-to-end demo fixture.
+  - examples/golden/ai_fixtures/model_selection_intent_routed.vox: Added model selection intent-routed fixture.
+  - examples/golden/ai_fixtures/query_template_prompt.vox: Added query template prompt fixture.
+  - examples/golden/ai_fixtures/search_substitution_docs.vox: Added search substitution docs fixture.
+- examples/golden/clean_build_stdlib_reference.vox: Added stdlib reference example.
+- examples/PARSE_STATUS.md: Updated parse status to include new golden files and changed generation message.
+- examples/examples.ssot.v1.yaml: Updated SSOT with new examples.
+- tests/speech-to-code/fixtures/corpus_v1/: Added a 30-utterance benchmark corpus.
+  - Added `utt_01.expected.vox` to `utt_10.expected.vox` and corresponding `.txt` files.
+  - Added `utt_11.txt` to `utt_30.txt` for transcription-only utterances.
+  - Added corresponding `.wav` files for all 30 utterances (not reflected in diff stats as they are binary).
+
+--- audit: original='feat(examples,tests): compile-suite workspace, 6 AI golden fixtures, 30-utterance speech corpus' | actual=349L across 85 files | derived=full ---
