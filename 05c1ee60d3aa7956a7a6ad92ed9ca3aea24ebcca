@@ -1,0 +1,26 @@
+feat(compiler, dashboard): wire Vox components into Vite entry and improve codegen
+scale: ~1350 lines across 9 files [XL]
+
+- **`crates/vox-compiler/src/codegen_ts/reactive.rs`**:
+    - Added `collect_jsx_component_refs` and `collect_jsx_component_refs_stmt` functions to recursively walk HIR expression trees.
+    - These new functions identify and collect uppercase JSX tag names corresponding to known Vox components.
+    - This enables the compiler to emit correct cross-component import statements for Vox-generated components.
+- **`crates/vox-dashboard/src/App.tsx`**:
+    - Replaced the original `App` component with a minimal wrapper containing `ErrorBoundary` and `AppShell`.
+    - This refactoring integrates the new Vox-generated `AppShell` component.
+- **`crates/vox-dashboard/app/src/generated/AppShell.tsx`**:
+    - Added a new Vox-generated `AppShell` component, likely containing the main dashboard layout and routing.
+- **`crates/vox-dashboard/tailwind.config.js`**:
+    - Extended Tailwind CSS configuration to scan `app/src/generated/` for classes, ensuring styles are applied to new Vox-generated components.
+- **`crates/vox-dashboard/src/components/ComposerPanel.tsx`**:
+    - Deleted the legacy `ComposerPanel` component, replaced by a Vox-generated equivalent.
+- **`crates/vox-dashboard/src/components/WorkflowScrubber.tsx`**:
+    - Deleted the legacy `WorkflowScrubber` component, replaced by a Vox-generated equivalent.
+- **`crates/vox-dashboard/src/components/EngineeringDiagnostics.tsx`**:
+    - Deleted the legacy `EngineeringDiagnostics` component, replaced by a Vox-generated equivalent.
+- **`crates/vox-dashboard/src/components/MeshTopology.tsx`**:
+    - Deleted the legacy `MeshTopology` component, replaced by a Vox-generated equivalent.
+- **`crates/vox-dashboard/src/components/PipelineView.tsx`**:
+    - Deleted the legacy `PipelineView` component, replaced by a Vox-generated equivalent.
+
+--- audit: original='feat(compiler, dashboard): TASK-7.3 — wire vox-generated components into Vite entry' | actual=1350L across 9 files | derived=full ---
