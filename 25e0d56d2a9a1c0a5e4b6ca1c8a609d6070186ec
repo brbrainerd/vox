@@ -1,0 +1,7 @@
+feat(typeck): allow entity/table names as query-row types
+scale: ~122 lines across 2 files [M]
+
+- `typeck/unify.rs`: Added unification logic for `Ty::Table` and `Ty::Collection` with `Ty::Record`. These types now unify if they have the same field names and an exact count of fields. This enables using entity names (e.g., `HealthEventLog`) as row types in function signatures, which are structurally compatible with `Ty::Record` types produced by database queries.
+- `typeck/registration.rs`: Reordered module registration to process tables before functions. This ensures that when function signatures naming tables are resolved, the table's `env.define_type` alias is already active, allowing the table name to resolve to its field-bearing `Ty::Table` or `Ty::Collection` type.
+
+--- audit: original='typeck: entity/table names are usable as query-row types' | actual=122L across 2 files | derived=full ---
