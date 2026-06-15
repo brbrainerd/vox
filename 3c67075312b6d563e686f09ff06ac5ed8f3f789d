@@ -1,0 +1,12 @@
+feat(daemon): Add ExtraDispatch for tool_call and HITL approvals
+scale: ~266 lines across 7 files [L]
+
+- `crates/vox-orchestrator-mcp/src/daemon_extra.rs`: New module `daemon_extra` with `McpExtraDispatch` struct implementing `ExtraDispatch` trait. This serves `orch.tool_call`, `orch.list_pending_approvals`, and `orch.resolve_approval` against the daemon's `ServerState`.
+- `crates/vox-orchestrator-mcp/tests/daemon_extra_tests.rs`: New test file `daemon_extra_tests` to verify `orch.tool_call` runs read-only tools via `ExtraDispatch`.
+- `crates/vox-orchestrator/src/orch_daemon/mod.rs`: Introduced `ExtraDispatch` trait for out-of-band dispatching. Modified `handle_connection`, `serve_listener`, `run_tcp_server`, and `run_stdio_server` to accept an optional `ExtraDispatch` implementation, and added new `_with_extra` variants for these functions.
+- `crates/vox-foundation/src/protocol.rs`: Added new method constants `orch.tool_call`, `orch.list_pending_approvals`, and `orch.resolve_approval` to `orch_daemon_method`.
+- `crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs`: Wired `McpExtraDispatch` into the daemon's serve loop via the new `_with_extra` functions for TCP and stdio servers.
+- `crates/vox-orchestrator-mcp/src/lib.rs`: Declared `daemon_extra` as a public module.
+- `docs/src/architecture/vox-gui-harness-buildout-plan-2026.md`: Updated the architecture plan to reflect the implementation of daemon dispatch backend for `orch.tool_call`, `orch.list_pending_approvals`, and `orch.resolve_approval` via `ExtraDispatch`.
+
+--- audit: original='@ feat(daemon): orch.tool_call + HITL resolve/list via ExtraDispatch (B5c + B3 cross-process)' | actual=266L across 7 files | derived=full ---
