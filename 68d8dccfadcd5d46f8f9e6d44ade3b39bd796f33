@@ -1,0 +1,4 @@
+feat(orchestrator):
+scale: ~193 lines across 6 files [M]
+
+--- audit: original='feat(orchestrator): W3C traceparent propagation + hopper AgentEvent variants (P0-T8, Hp-T2)' | actual=193L across 6 files | derived=full ---
