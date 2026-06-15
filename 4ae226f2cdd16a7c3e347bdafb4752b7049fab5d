@@ -1,0 +1,27 @@
+feat(compiler): wire @cors, @rate_limit, @pii decorators end-to-end
+scale: ~460 lines across 14 files [L]
+
+- **parser**:
+    - Add parsing logic for `@cors`, `@rate_limit`, and `@pii` decorators on function declarations.
+    - Introduce `AstCorsSpec`, `AstRateLimitSpec`, and `AstPiiSpec` to capture parsed decorator arguments.
+    - Correctly parse `True`/`False` tokens for boolean arguments in `@cors` and `@webhook(idempotent)`.
+- **ast**:
+    - Create `ast/decl/http_decorators.rs` to define `AstCorsSpec`, `AstRateLimitSpec`, `AstRateLimitBy`, `AstPiiSpec`, and `AstPiiClass` AST nodes.
+    - Extend `AstFnDecl` to include optional `cors_spec`, `rate_limit`, and `pii` fields.
+- **hir**:
+    - Implement lowering from AST `AstCorsSpec`, `AstRateLimitSpec`, and `AstPiiSpec` to HIR `HirCorsPolicy`, `HirRateLimitPolicy`, and `HirPiiMarker` respectively.
+    - Extend `HirEndpointFn` to include optional `cors`, `rate_limit`, and `pii` fields.
+    - Extend `PiiClass` enum with `Ip`, `FinancialData`, and `BiometricData` variants.
+- **typeck**:
+    - Add type-checking logic for `@cors` to warn when `allow_credentials: true` is used with a wildcard origin (`vox/cors/credentials-with-wildcard`).
+    - Add type-checking logic for `@pii` to warn if an endpoint with `@pii` does not have a `net` effect (`vox/pii/unannotated-net-effect`).
+    - Extend `pii_class_name` helper to include new `PiiClass` variants.
+- **codegen**:
+    - Update `codegen_rust` to include `cors`, `rate_limit`, and `pii` fields in the `HirEndpointFn` struct for code generation.
+- **tests**:
+    - Add 6 new integration tests:
+        - 2 for `@cors` (one warning for wildcard + credentials, one clean for specific origin + credentials).
+        - 2 for `@pii` (one warning for unannotated net effect, one clean with `net` effect).
+        - 2 for `@rate_limit` (one basic parsing, one with all parameters).
+
+--- audit: original='feat(compiler): GA-06 @cors/@rate_limit + GA-23 @pii end-to-end wiring' | actual=460L across 14 files | derived=full ---
