@@ -1,0 +1,6 @@
+fix(typeck): surface state/derived type mismatches as diagnostics
+scale: ~22 lines across 1 files [S]
+
+- `crates/vox-compiler/src/typeck/checker/mod.rs`: Replaced silent `unify` calls with error handling for type mismatches in `state.init` and `derived.expr` expressions. Now, `Diagnostic::error` is emitted with a detailed message and span when `self.uf.unify` returns an `Err`.
+
+--- audit: original='fix(typeck): surface state/derived type mismatches as diagnostics' | actual=22L across 1 files | derived=full ---
