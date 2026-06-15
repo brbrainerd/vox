@@ -1,0 +1,61 @@
+feat(lang): implement core language infrastructure and tooling
+scale: ~5248 lines across 141 files [XL]
+
+- **`crates/vox-compiler`**:
+    - **`hir/lower/contracts.rs`**: Refactored contract injection in HIR lowering, replacing `append` with `extend` and using iterators for preconditions and postconditions.
+    - **`eval/builtins.rs`**: Modified builtin evaluation logic.
+    - **`language_surface.rs`**: Updated language surface definitions.
+    - **`typeck/builtins.rs`**: Adjusted type-checking for builtins.
+    - **`parser/descent`**:
+        - **`mod.rs`**: Modified parser descent module.
+        - **`decl/head.rs`**: Updated head declarations in parser descent.
+        - **`expr/pratt_match.rs`**: Changed Pratt parser match expressions.
+        - **`decl/mid.rs`**: Modified mid declarations in parser descent.
+        - **`expr/pratt_ops.rs`**: Updated Pratt parser operators.
+        - **`tests.rs`**: Modified parser descent tests.
+    - **`lexer/token.rs`**: Refactored lexer token definitions.
+    - **`hir/validate.rs`**: Modified HIR validation logic.
+    - **`typeck/checker/match_exhaust.rs`**: Added match exhaustiveness checking.
+    - **`parser/error.rs`**: Added new parser error handling.
+    - **`fmt/mod.rs`**: Modified formatter module.
+    - **`fmt/stmt.rs`**: Updated statement formatting.
+    - **`hir/nodes/decl.rs`**: Added new HIR declaration nodes.
+    - **`eval/value.rs`**: Added new evaluation value definitions.
+    - **`ast/decl/fundecl.rs`**: Added new function declaration AST nodes.
+    - **`Cargo.toml`**: Updated compiler dependencies.
+    - **`tests/language_surface_ssot_test.rs`**: Added new language surface tests.
+- **`crates/vox-grammar-export`**:
+    - **`grammar_ir.rs`**: Introduced a new `grammar_ir` module for shared intermediate representation of Vox grammars, including `Production`, `Symbol`, and `Grammar` structs, and a `from_ebnf` parser.
+    - **`lark.rs`**: Significantly expanded Lark grammar export with detailed rules for module, declarations (fn, let, type), type expressions, statements, blocks, expressions (literals, calls, binary ops, unary ops, control flow), patterns, and various terminal definitions.
+    - **`ssot_markdown.rs`**: Added new SSOT Markdown export.
+    - **`automaton.rs`**: Refactored automaton generation.
+    - **`lib.rs`**: Modified library exports.
+    - **`versioning.rs`**: Updated versioning logic.
+    - **`tests/export_test.rs`**: Modified export tests.
+    - **`x_grammar_2.rs`**: Added new grammar export.
+    - **`compact_prompt.rs`**: Modified compact prompt generation.
+    - **`ebnf.rs`**: Modified EBNF generation.
+- **`crates/vox-constrained-gen`**:
+    - **`earley.rs`**: Removed local `Grammar`, `Production`, and `Symbol` definitions, now importing them from `vox_grammar_export::grammar_ir`.
+    - **`pda.rs`**: Modified PDA implementation.
+- **`crates/vox-cli`**:
+    - **`commands/dei.rs`**: Added new DEI command.
+    - **`commands/schola/train/spawn.rs`**: Modified training spawn command.
+    - **`commands/ci/grammar_ssot_parity.rs`**: Added new CI grammar SSOT parity command.
+    - **`commands/grammar.rs`**: Modified grammar command.
+    - **`commands/ci/cmd_enums.rs`**: Added new CI command enums.
+    - **`commands/ci/run_body.rs`**: Added new CI run body command.
+    - **`commands/ci/run_body_helpers/grammar.rs`**: Modified CI run body grammar helpers.
+    - **`commands/auth.rs`**: Modified auth command.
+- **`docs/src`**:
+    - **`architecture/llm-target-language-gap-analysis-2026.md`**: Added new document for LLM target language gap analysis.
+    - **`architecture/llm-target-language-implementation-plan-2026.md`**: Added new document for LLM target language implementation plan.
+    - **`architecture/vox-as-glue-implementation-plan-2026.md`**: Added new document for Vox as glue implementation plan.
+    - **`architecture/research-language-alias-canonicalization-2026.md`**: Added new document for research on language alias canonicalization.
+    - **`reference/ref-syntax.md`**: Updated reference syntax documentation.
+    - **`feed.xml`**: Modified feed XML.
+    - **`explanation/expl-rosetta-inventory.md`**: Modified Rosetta inventory explanation.
+    - **`architecture/research-index.md`**: Added new research index.
+    - **
+
+--- audit: original='feat: implement core language infrastructure including compiler modules, grammar export tooling, VSCode support, and standard library built-ins.' | actual=5248L across 141 files | derived=full ---
