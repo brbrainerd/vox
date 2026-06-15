@@ -33,10 +33,7 @@ const EMITTER_FILES: &[&str] = &[
 
 /// Patterns that indicate a silent empty-string drop from an emitter.
 /// These are NOT flagged in test code (the grep is limited to non-test sections).
-const SILENT_DROP_PATTERNS: &[&str] = &[
-    "=> String::new()",
-    "=> \"\".to_string()",
-];
+const SILENT_DROP_PATTERNS: &[&str] = &["=> String::new()", "=> \"\".to_string()"];
 
 #[test]
 fn no_silent_empty_string_drops_in_emitters() {
@@ -51,10 +48,7 @@ fn no_silent_empty_string_drops_in_emitters() {
         };
 
         // Only scan non-test sections: stop at the first `#[cfg(test)]` line.
-        let non_test_src = src
-            .split("#[cfg(test)]")
-            .next()
-            .unwrap_or(&src);
+        let non_test_src = src.split("#[cfg(test)]").next().unwrap_or(&src);
 
         for (line_no, line) in non_test_src.lines().enumerate() {
             // Skip comment lines.

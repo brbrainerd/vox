@@ -757,7 +757,8 @@ pub(super) fn emit_expr_with(
             format!(r#"compile_error!("{}: {}")"#, cell.code, cell.message)
         }
         HirExpr::AsyncView(..) => {
-            let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::AsyncView), Target::RustAxum);
+            let cell =
+                unsupported_diagnostic(Feature::Expr(ExprFeature::AsyncView), Target::RustAxum);
             format!(r#"compile_error!("{}: {}")"#, cell.code, cell.message)
         }
         // `spawn expr` → `tokio::spawn(async move { expr })` → JoinHandle.
@@ -774,7 +775,10 @@ pub(super) fn emit_expr_with(
         // workflow code using this construct gets an honest build failure until
         // the runtime API lands.
         HirExpr::WorkflowVersion(v) => {
-            let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::WorkflowVersion), Target::RustAxum);
+            let cell = unsupported_diagnostic(
+                Feature::Expr(ExprFeature::WorkflowVersion),
+                Target::RustAxum,
+            );
             format!(
                 r#"compile_error!("{code}: {msg} (id={id:?}, min={min}, max={max})")"#,
                 code = cell.code,
@@ -1286,34 +1290,57 @@ mod rust_emit_exhaustiveness_tests {
     fn jsx_routes_through_parity_matrix() {
         let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::Jsx), Target::RustAxum);
         // Matrix declares JSX frontend-only; code must be the canonical parity code.
-        assert_eq!(cell.code, vox_compiler::typeck::diagnostics::codes::PARITY_FRONTEND_ONLY);
+        assert_eq!(
+            cell.code,
+            vox_compiler::typeck::diagnostics::codes::PARITY_FRONTEND_ONLY
+        );
     }
 
     #[test]
     fn async_view_routes_through_parity_matrix() {
         let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::AsyncView), Target::RustAxum);
-        assert_eq!(cell.code, vox_compiler::typeck::diagnostics::codes::PARITY_FRONTEND_ONLY);
+        assert_eq!(
+            cell.code,
+            vox_compiler::typeck::diagnostics::codes::PARITY_FRONTEND_ONLY
+        );
     }
 
     #[test]
     fn with_routes_through_parity_matrix() {
         let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::With), Target::RustAxum);
-        assert_eq!(cell.code, vox_compiler::typeck::diagnostics::codes::PARITY_UNIMPLEMENTED);
+        assert_eq!(
+            cell.code,
+            vox_compiler::typeck::diagnostics::codes::PARITY_UNIMPLEMENTED
+        );
     }
 
     #[test]
     fn workflow_version_routes_through_parity_matrix() {
-        let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::WorkflowVersion), Target::RustAxum);
-        assert_eq!(cell.code, vox_compiler::typeck::diagnostics::codes::PARITY_UNIMPLEMENTED);
+        let cell = unsupported_diagnostic(
+            Feature::Expr(ExprFeature::WorkflowVersion),
+            Target::RustAxum,
+        );
+        assert_eq!(
+            cell.code,
+            vox_compiler::typeck::diagnostics::codes::PARITY_UNIMPLEMENTED
+        );
     }
 
     #[test]
     fn rust_axum_and_tauri_agree_on_unsupported_exprs() {
         // Both Rust shells share the same emitter — their parity status must be identical.
-        for feat in [ExprFeature::Jsx, ExprFeature::AsyncView, ExprFeature::With, ExprFeature::WorkflowVersion] {
+        for feat in [
+            ExprFeature::Jsx,
+            ExprFeature::AsyncView,
+            ExprFeature::With,
+            ExprFeature::WorkflowVersion,
+        ] {
             let axum = unsupported_diagnostic(Feature::Expr(feat), Target::RustAxum);
             let tauri = unsupported_diagnostic(Feature::Expr(feat), Target::RustTauri);
-            assert_eq!(axum.code, tauri.code, "RustAxum/RustTauri must agree on code for {feat:?}");
+            assert_eq!(
+                axum.code, tauri.code,
+                "RustAxum/RustTauri must agree on code for {feat:?}"
+            );
         }
     }
 }

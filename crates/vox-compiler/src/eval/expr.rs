@@ -786,25 +786,31 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             ))
         }
         HirExpr::AsyncView(..) => {
-            let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::AsyncView), Target::Interpreter);
+            let cell =
+                unsupported_diagnostic(Feature::Expr(ExprFeature::AsyncView), Target::Interpreter);
             Err(EvalError::AssertionFailed(
                 format!("{}: {}", cell.code, cell.message).into(),
             ))
         }
         HirExpr::Spawn(..) => {
-            let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::Spawn), Target::Interpreter);
+            let cell =
+                unsupported_diagnostic(Feature::Expr(ExprFeature::Spawn), Target::Interpreter);
             Err(EvalError::AssertionFailed(
                 format!("{}: {}", cell.code, cell.message).into(),
             ))
         }
         HirExpr::With(..) => {
-            let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::With), Target::Interpreter);
+            let cell =
+                unsupported_diagnostic(Feature::Expr(ExprFeature::With), Target::Interpreter);
             Err(EvalError::AssertionFailed(
                 format!("{}: {}", cell.code, cell.message).into(),
             ))
         }
         HirExpr::WorkflowVersion(..) => {
-            let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::WorkflowVersion), Target::Interpreter);
+            let cell = unsupported_diagnostic(
+                Feature::Expr(ExprFeature::WorkflowVersion),
+                Target::Interpreter,
+            );
             Err(EvalError::AssertionFailed(
                 format!("{}: {}", cell.code, cell.message).into(),
             ))
@@ -1055,7 +1061,8 @@ mod interp_exhaustiveness_tests {
 
     #[test]
     fn async_view_interp_routes_through_parity_matrix() {
-        let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::AsyncView), Target::Interpreter);
+        let cell =
+            unsupported_diagnostic(Feature::Expr(ExprFeature::AsyncView), Target::Interpreter);
         assert_eq!(cell.code, codes::PARITY_FRONTEND_ONLY);
     }
 
@@ -1073,7 +1080,10 @@ mod interp_exhaustiveness_tests {
 
     #[test]
     fn workflow_version_interp_routes_through_parity_matrix() {
-        let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::WorkflowVersion), Target::Interpreter);
+        let cell = unsupported_diagnostic(
+            Feature::Expr(ExprFeature::WorkflowVersion),
+            Target::Interpreter,
+        );
         assert_eq!(cell.code, codes::PARITY_UNIMPLEMENTED);
     }
 }

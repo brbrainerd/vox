@@ -393,13 +393,31 @@ mod tests {
         // This test breaks if a new CompileKind variant is added without updating
         // compile_kind_to_target (the exhaustive match there already ensures
         // compilation fails; this test documents the expected mapping).
-        assert_eq!(compile_kind_to_target(CompileKind::Script), Target::Interpreter);
-        assert_eq!(compile_kind_to_target(CompileKind::NativeBinary), Target::RustAxum);
-        assert_eq!(compile_kind_to_target(CompileKind::Server), Target::RustAxum);
+        assert_eq!(
+            compile_kind_to_target(CompileKind::Script),
+            Target::Interpreter
+        );
+        assert_eq!(
+            compile_kind_to_target(CompileKind::NativeBinary),
+            Target::RustAxum
+        );
+        assert_eq!(
+            compile_kind_to_target(CompileKind::Server),
+            Target::RustAxum
+        );
         assert_eq!(compile_kind_to_target(CompileKind::Wasi), Target::RustAxum);
-        assert_eq!(compile_kind_to_target(CompileKind::Desktop), Target::RustTauri);
-        assert_eq!(compile_kind_to_target(CompileKind::MobileAndroid), Target::RustTauri);
-        assert_eq!(compile_kind_to_target(CompileKind::MobileIos), Target::RustTauri);
+        assert_eq!(
+            compile_kind_to_target(CompileKind::Desktop),
+            Target::RustTauri
+        );
+        assert_eq!(
+            compile_kind_to_target(CompileKind::MobileAndroid),
+            Target::RustTauri
+        );
+        assert_eq!(
+            compile_kind_to_target(CompileKind::MobileIos),
+            Target::RustTauri
+        );
     }
 
     #[test]
@@ -409,8 +427,14 @@ mod tests {
             let _ = target_to_rust_app_shell(t);
         }
         // Spot-check the meaningful ones.
-        assert_eq!(target_to_rust_app_shell(Target::RustTauri), RustAppShell::TauriApp);
-        assert_eq!(target_to_rust_app_shell(Target::RustAxum), RustAppShell::AxumLocalServer);
+        assert_eq!(
+            target_to_rust_app_shell(Target::RustTauri),
+            RustAppShell::TauriApp
+        );
+        assert_eq!(
+            target_to_rust_app_shell(Target::RustAxum),
+            RustAppShell::AxumLocalServer
+        );
     }
 
     #[test]

@@ -881,7 +881,10 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
         // error rather than silently producing broken output. Code comes from the
         // parity matrix so it stays in sync with the other emitters.
         HirExpr::WorkflowVersion(_) => {
-            let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::WorkflowVersion), Target::TypeScript);
+            let cell = unsupported_diagnostic(
+                Feature::Expr(ExprFeature::WorkflowVersion),
+                Target::TypeScript,
+            );
             format!(
                 r#"(undefined /* {}: {} */ as never)"#,
                 cell.code, cell.message
@@ -2179,7 +2182,10 @@ mod ts_emit_exhaustiveness_tests {
 
     #[test]
     fn workflow_version_ts_emits_type_error_expression() {
-        let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::WorkflowVersion), Target::TypeScript);
+        let cell = unsupported_diagnostic(
+            Feature::Expr(ExprFeature::WorkflowVersion),
+            Target::TypeScript,
+        );
         // Confirm matrix agrees: WorkflowVersion is none_yet on TS.
         assert_eq!(cell.code, codes::PARITY_UNIMPLEMENTED);
         // The generated expression must be a visible type-error, not empty.
@@ -2188,7 +2194,10 @@ mod ts_emit_exhaustiveness_tests {
             cell.code, cell.message
         );
         assert!(!rendered.is_empty());
-        assert!(rendered.contains("undefined"), "must emit 'undefined as never' type-error marker");
+        assert!(
+            rendered.contains("undefined"),
+            "must emit 'undefined as never' type-error marker"
+        );
         assert!(rendered.contains(codes::PARITY_UNIMPLEMENTED));
     }
 
