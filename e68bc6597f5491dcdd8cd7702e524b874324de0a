@@ -1,0 +1,6 @@
+chore(report): Regenerate GUI surface coverage report
+scale: ~0 lines across 1 files [XS]
+
+- contracts/reports/gui-surface-coverage.v1.json: Regenerated the binary report file.
+
+--- audit: original='chore(gui): regenerate gui-surface-coverage report for console surface' | actual=0L across 1 files | derived=full ---
