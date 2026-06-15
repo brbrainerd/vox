@@ -1,0 +1,13 @@
+feat(gui): Implement streaming chat transcript via client-side correlation
+scale: ~728 lines across 8 files [L]
+
+- `src/lib/chatCorrelation.ts`: Added a new pure reducer (`chatReducer`) and associated types (`ChatMessage`, `ChatState`, `ChatAction`) to manage the chat transcript state. This reducer handles `submit`, `submitResolved`, and `agentEvent` actions, correlating streamed agent events (like `token_streamed`) to specific chat messages using `agent_id` and `task_id`. It normalizes numeric `task_id` to string.
+- `src/components/surfaces/Loquela/Transcript.tsx`: Added a new `Transcript` React component to render the chat messages, displaying user and assistant bubbles, streaming indicators, and error states.
+- `src/lib/chatCorrelation.test.ts`: Added unit tests for `chatReducer` using Vitest, covering message submission, token streaming, and `task_id` normalization.
+- `src/App.tsx`: Integrated the `chatReducer` using `useReducer` to manage the chat state. Modified `handleLoquelaSubmit` to dispatch `submit` and `submitResolved` actions. The existing `listenAgentEvents` listener was updated to also dispatch `agentEvent` actions to the chat reducer.
+- `vitest.config.ts`: Added a new Vitest configuration file to define unit test inclusion/exclusion patterns, specifically targeting `src/` for unit tests and excluding `e2e/`.
+- `docs/src/architecture/vox-gui-harness-buildout-plan-2026.md`: Updated the "B4-chat" section to reflect the completion of the streaming transcript feature, detailing the client-side implementation approach and the components involved.
+- `crates/vox-gui/ui/package.json`: Added `vitest` as a development dependency and a `test` script to run Vitest tests.
+- `crates/vox-gui/ui/pnpm-lock.yaml`: Updated the pnpm lockfile to reflect the new `vitest` dependency and other potential dependency changes.
+
+--- audit: original='@ feat(gui): B4-chat streaming transcript via client-side token correlation' | actual=728L across 8 files | derived=full ---
