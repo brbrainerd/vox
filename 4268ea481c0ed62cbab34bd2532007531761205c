@@ -1,0 +1,10 @@
+docs: Add test output files
+scale: ~600 lines across 113 files [XL]
+
+- Add `test_out.txt` containing the output of various unit tests.
+- Add `test_all.txt` containing the output of integration tests for `vox_integration_tests`, `chatbot_integration`, `codegen_rust`, `db_typeck`, and `pipeline`.
+- Add `test_wf.txt` containing the output of workflow integration tests, including some failures related to type mismatches.
+- Add `test_output.txt` containing the output of a specific pipeline test.
+- Update various `target/debug/deps/*.d` files, `target/.rustc_info.json`, and other `target/debug` build artifacts, which are generated files and indicate a rebuild.
+
+--- audit: original='Fix all warnings in clippy check' | actual=600L across 113 files | derived=full ---
