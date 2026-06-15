@@ -1,0 +1,35 @@
+feat(compiler): implement core infrastructure, codegen, and documentation
+scale: ~2631 lines across 145 files [XL]
+
+- **crates/vox-compiler**:
+    - Add `DecimalLit`, `Pipe`, `Spawn`, and `With` expression emission to TypeScript codegen.
+    - Introduce `uses_mobile_ident_in_stmt` and `uses_mobile_ident_in_expr` for detecting mobile bridge imports in TS codegen.
+    - Implement `emit_mobile_bridge_fn` for Capacitor invoke calls in TS codegen.
+    - Register `std.mobile` built-in functions (`notify`, `get_location`, `vibrate`, `take_photo`) in the compiler's built-in registry.
+    - Update `hir_emit/mod.rs` to handle new HIR expression types and improve statement emission.
+    - Modify `codegen_ts/component.rs` to conditionally import `mobile-bridge` based on usage.
+    - Update `typeck/builtins.rs` and `typeck/registration.rs` for new built-in types.
+    - Adjust `lexer/token.rs` for new token types.
+    - Refactor `parser/descent` modules (`decl/head.rs`, `decl/mid.rs`, `mod.rs`, `expr/pratt_match.rs`).
+    - Update `ast` modules (`expr.rs`, `scalar_mapping.rs`, `types.rs`, `decl/callable.rs`, `decl/fundecl.rs`).
+    - Modify `hir/db_op_walk.rs`, `hir/nodes/decl.rs`, and `hir/nodes/stmt_expr.rs`.
+    - Add `codegen_ts/schema/type_maps.rs` for type mapping.
+    - Update `codegen_rust/emit/client.rs`.
+- **crates/vox-runtime**: Update `builtins.rs` for new built-in functions.
+- **crates/vox-doc-pipeline**: Adjust `pipeline/summary.rs` and `pipeline/mod.rs`.
+- **docs**:
+    - Add comprehensive documentation for API, decorators, keywords, how-to guides, and reference materials.
+    - Introduce new example documentation files for various features and use cases.
+    - Update `SUMMARY.md` and `feed.xml`.
+    - Add new explanation for Rosetta inventory.
+    - Update existing journey documentation (`durable-workflows.md`, `native-training.md`, `fullstack-data.md`, `ai-agents.md`).
+    - Add `examples/golden.md`.
+- **examples/golden**:
+    - Add `inventory_rosetta_platform.vox` demonstrating actor, workflow, MCP, UI, and capability layers.
+    - Add `inventory_rosetta_core.vox` showcasing ADT errors, pure merge logic, and `@table` persistence.
+    - Add `mobile_camera.vox` example for mobile hardware interface usage.
+    - Add `decimal_math.vox` example.
+    - Add `mobile_test.vox` example.
+- **Cargo.lock**: Update dependencies.
+
+--- audit: original='feat: implement core compiler infrastructure, codegen suites, and comprehensive project documentation' | actual=2631L across 145 files | derived=full ---
