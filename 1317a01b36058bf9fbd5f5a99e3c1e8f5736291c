@@ -1,0 +1,8 @@
+test(orchestrator): verify circuit breaker consumes real contract changes
+scale: ~29 lines across 1 files [S]
+
+- Add `real_contract_value_change_flows_through` test to `circuit_breaker.rs` to prove that `CircuitBreakerConfig` correctly processes changes in the shipped contract.
+- The test loads the `circuit-breaker.v1.yaml` contract, mutates `trip_thresholds.no_progress_loops` from `3` to `11`, and asserts that `parsed.no_progress_threshold` reflects this change.
+- It also verifies that other, unmutated fields like `tool_thrash_threshold` and `caution_no_progress_loops` retain their expected values, confirming selective change application.
+
+--- audit: original='test(orchestrator): prove circuit-breaker consumes real contract via value-change flow-through (HC-G02-08)' | actual=29L across 1 files | derived=full ---
