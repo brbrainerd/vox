@@ -1,0 +1,9 @@
+fix(codegen-ts): correctly bind checkbox `checked` attribute and add `decimal` to initial value types
+scale: ~24 lines across 2 files [S]
+
+- `codegen_ts/form_emit.rs`:
+    - Changed the `value` attribute binding for `<input>` elements to `checked` for `checkbox` types.
+    - Added `decimal` to the types that initialize with `0` in `field_initial_value`.
+- `codegen/tests/form_emit_test.rs`: Added a test case `form_error_message_appears_in_emitted_banner` to verify that the `error_message` from a form definition appears in the emitted component.
+
+--- audit: original='fix(codegen-ts): checkbox checked attr + decimal init + error_message test' | actual=24L across 2 files | derived=full ---
