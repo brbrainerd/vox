@@ -1,0 +1,45 @@
+feat(ci, gui, plugin-catalog): add plugin guards, GUI component, extract AST/nanopub
+scale: ~6238 lines across 155 files [XL]
+
+- **ci**:
+    - Add `plugin-dep-boundary` guard to prevent cdylib plugins from linking heavy Vox spine crates (compiler, db, orchestrator, etc.).
+    - Wire `plugin-dep-boundary` into CI workflow.
+    - Harden `plugin-abi-parity` guard to skip test fixtures and platform-incompatible plugins, and wire `no-plugin-cdylib-as-compile-dep` into CI.
+    - Record `plugin-dep-boundary` in `gui-surface-coverage` report.
+- **gui**:
+    - Add optional `[[component]]` kind to plugin catalog for first-party companion binaries like the Tauri GUI.
+    - Implement on-demand resolution and build/install for the GUI component when `vox gui` is run from a source checkout.
+- **vox-plugin-catalog**:
+    - Add `Component` and `ComponentRequires` structs to `schema.rs` for cataloging GUI and other optional components.
+    - Register `vox-gui` as a component in `catalog.toml`.
+    - Add tests for GUI component presence and distinction from plugins.
+- **vox-ast**:
+    - Extract the Vox AST (26 files, ~2.7k LoC) from `vox-compiler/src/ast/` into a new standalone `vox-ast` crate with only `serde` dependency.
+    - `vox-compiler` now re-exports `vox-ast` to maintain compatibility.
+    - `vox-db` now depends directly on `vox-ast` instead of `vox-compiler`, decoupling it from the compiler spine.
+    - Update `Cargo.toml` and `layers.toml`.
+- **vox-nanopub**:
+    - Extract nanopublication builder (TriG + Ed25519-signing) from `vox-scientia/src/nanopub/` into a new standalone `vox-nanopub` leaf crate.
+    - `vox-nanopub` depends only on `vox-crypto`, `sha2`, and `hex`.
+    - `vox-scientia` now depends on and re-exports `vox-nanopub`.
+    - Update `Cargo.toml`, `layers.toml`, and `where-things-live.md`.
+- **vox-db**:
+    - Drop unused `vox-codegen` dependency, further decoupling `vox-db` from the compiler spine.
+    - Update `Cargo.lock`.
+- **vox-research-shim**:
+    - Rename `vox-dei-shim` to `vox-research-shim` to clarify its purpose as the research-pipeline and model-selection shim.
+    - Update crate directory, `Cargo.toml`, `layers.toml`, `where-things-live.md`, and references in `vox-cli`, `vox-orchestrator-mcp`, `vox-orchestrator`, and `vox-db`.
+    - Remove obsolete entry from `nomenclature_guard`'s historical allowlist.
+- **docs**:
+    - Correct misleading/stale crate descriptions in `Cargo.toml` for `vox-eval`, `vox-scientia`, `vox-inference`, `vox-distributed-training`, and `vox-runtime`.
+    - Correct `vox-eval`/`vox-inference` rows in `where-things-live.md`.
+    - Add `crate & leaf-design remediation plan + verification addendum` to `docs/superpowers/plans/`.
+    - Repoint file links in 36 documentation files due to `vox-ast` extraction and `vox-research-shim` rename.
+    - Regenerate `docs/agents/doc-inventory.json` and `contracts/reports/test-inventory.v1.json` to reflect renames and AST changes.
+- **crates**:
+    - Update `Cargo.lock` after dropping `vox-db` -> `vox-codegen` edge.
+    - Update `Cargo.toml` for `vox-cli`, `vox-compiler`, `vox-scientia`.
+- **vox-scientia**:
+    - Apply `rustfmt` to `nanopub/mod.rs` re-export ordering.
+
+--- audit: original='Crate & leaf-design remediation: vox-ast/vox-nanopub extraction, vox-db decoupling, plugin guards, GUI component, vox-research-shim rename (#145)' | actual=6238L across 155 files | derived=full ---
