@@ -1,0 +1,6 @@
+ci(lychee): whitelist `docs/book.toml`
+scale: ~1 lines across 1 files [XS]
+
+- `.lycheeignore`: Added `file://.*docs/book.toml` to the ignore list.
+
+--- audit: original='ci: whitelist docs/book.toml in lycheeignore' | actual=1L across 1 files | derived=full ---
