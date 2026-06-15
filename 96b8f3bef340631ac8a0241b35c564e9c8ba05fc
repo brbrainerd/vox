@@ -1,0 +1,13 @@
+feat(web-ir): Add universal style kwargs to UI primitives
+scale: ~247 lines across 3 files [M]
+
+- `crates/vox-compiler/src/web_ir/primitives/mod.rs`:
+    - Introduced `UNIVERSAL_STYLE_KWARGS` constant array, defining 44 new typed style kwargs: `pad`, `pad_x/y/t/b/l/r`, `mb/mt/ml/mr/mx/my`, `w`, `h`, `min_w`, `min_h`, `max_w`, `max_h`, `bg`, `color`, `border`, `border_x/y/t/b/l/r`, `border_color`, `radius`, `radius_t/b/l/r`, `radius_tl/tr/bl/br`, `overflow`, `overflow_x/y`, `flex`, `shrink`, `grow`, `justify`, `items`, `tracking`, `leading`, `case`, `italic`, `font_family`, `position`, `inset`, `top`, `bottom`, `left`, `right`, `shadow`, `opacity`, and `raw_class`.
+    - Added `apply_universal_kwargs` function to process these kwargs and convert their values into Tailwind-compatible class strings (e.g., `zinc.400` to `zinc-400`, `flex: 1` to `flex-1`, `case: upper` to `uppercase`).
+    - Modified `resolve` function to call `apply_universal_kwargs` for all primitive emissions, ensuring universal kwargs are applied to `base_classes`.
+- `crates/vox-compiler/src/web_ir/lower.rs`:
+    - Extended `PRIMITIVE_CONSUMED_PROPS` to include all 44 new universal style kwargs, preventing them from leaking as raw HTML attributes.
+    - Removed `position` from the pre-VUV props as it is now covered by the universal kwargs.
+- `.claude/settings.local.json`: Added `Bash(tasklist)` to the list of commands.
+
+--- audit: original='feat(web-ir): VUV-4 typed universal style kwargs on UI primitives' | actual=247L across 3 files | derived=full ---
