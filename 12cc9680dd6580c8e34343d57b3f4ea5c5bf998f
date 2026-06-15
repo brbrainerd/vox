@@ -1,0 +1,6 @@
+feat(visus-review): add `gui-visual-review` CLI binary
+scale: ~45 lines across 1 files [S]
+
+- `crates/vox-orchestrator-mcp/src/bin/gui-visual-review.rs`: Add a new CLI binary that performs advisory GUI visual reviews. This binary always exits with status 0 and never gates CI. It parses command-line arguments for manifest path, screens directory, cache path, report directory, date, and an optional `--ai` flag. It then calls `vox_orchestrator_mcp::visus_review::run` and `write_report`, printing the report path or any errors encountered. Finally, it prints a summary of reviewed, cached, and deferred surfaces.
+
+--- audit: original='feat(visus-review): advisory gui-visual-review CLI binary (always exits 0)' | actual=45L across 1 files | derived=full ---
