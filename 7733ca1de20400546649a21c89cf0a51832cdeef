@@ -1,0 +1,11 @@
+feat(vox-gui/approvals): Add accessibility and testing for ApprovalsView
+scale: ~95 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Approvals/ApprovalsView.test.tsx`: Add new test file for `ApprovalsView` component, including tests for empty state, live region rendering, and accessible button labels.
+- `crates/vox-gui/ui/src/components/surfaces/Approvals/ApprovalsView.tsx`:
+    - Import `Button` component.
+    - Add `aria-hidden="true"` to the shield icon for accessibility.
+    - Wrap the list of approvals in a `div` with `role="list"`, `aria-label="Pending approvals"`, and `aria-live="polite"` to create an accessible live region.
+    - Add `role="listitem"` to each individual approval item.
+
+--- audit: original='feat(vox-gui/wave3): ApprovalsView a11y + checklist (Wave 3)' | actual=95L across 2 files | derived=full ---
