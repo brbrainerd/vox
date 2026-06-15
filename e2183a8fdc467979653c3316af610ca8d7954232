@@ -1,0 +1,34 @@
+chore(cleanup): Remove unused crates, defactor vox-fmt, and reorganize files
+scale: ~5827 lines across 78 files [XL]
+
+- **crates/vox-fmt**: Removed the `vox-fmt` crate entirely, including its `src/lib.rs` and `Cargo.toml`. Its logic was defactored into `vox-compiler`.
+- **crates/vox-orchestrator**:
+    - Removed `src/workflow_runtime.rs`.
+    - Modified `src/orchestrator/accessors.rs`, `src/orchestrator/task_dispatch.rs`, `src/orchestrator/core.rs`, `src/runtime.rs`, `src/orchestrator/scaling.rs`, `src/session.rs`, `src/orchestrator/agent_lifecycle.rs`, `src/models.rs`, `src/orchestrator.rs`, `src/orchestrator/comms.rs`, `src/orchestrator/vcs_ops.rs`, `src/orchestrator/tests.rs`, `src/services/routing.rs`, `tests/scaling_test.rs`, `Cargo.toml`, `tests/vcs_test.rs`, `tests/stress_test.rs`, `src/lib.rs`, `src/services/gateway.rs`, `tests/economy_test.rs`, `tests/routing_tests.rs`, `tests/agent_session_test.rs`, `src/types.rs`, and `src/a2a.rs` due to refactoring and cleanup.
+    - Removed `src/orchestrator/workflow_bridge.rs`.
+- **crates/vox-codex-api**: Removed the `vox-codex-api` crate entirely, including `src/lib.rs`, `tests/http_smoke.rs`, `Cargo.toml`, and `src/bin/codex_dashboard.rs`.
+- **crates/vox-pm**: Removed `src/registry_server.rs`, `src/feedback.rs`, `src/populi.rs`, and `src/cache.rs`.
+- **crates/vox-storage**: Removed the `vox-storage` crate entirely, including `src/lib.rs`, `tests/local_storage_test.rs`, and `Cargo.toml`.
+- **crates/vox-workflow-runtime**: Added `src/db_tracker.rs` and `src/lib.rs`, and updated `Cargo.toml`.
+- **crates/vox-db**: Added `src/lib.rs` and `src/schema/domains/execution.rs`.
+- **crates/vox-cli**: Modified `src/commands/populi/pipeline.rs`, `src/commands/populi/mod.rs`, `src/commands/ai/mod.rs`, and `Cargo.toml`.
+- **crates/vox-mcp**: Modified `src/server.rs`, `src/tools/mod.rs`, `src/qa.rs`, and `src/tools/introspection_tools.rs`.
+- **crates/vox-populi**: Modified `src/tensor/execution_planner.rs`, `Cargo.toml`, and `src/tensor/candle_qlora_train.rs`.
+- **crates/vox-codegen-llvm**: Removed the `vox-codegen-llvm` crate entirely, including `src/lib.rs` and `Cargo.toml`.
+- **crates/vox-codegen-wasm**: Removed the `vox-codegen-wasm` crate entirely, including `src/lib.rs` and `Cargo.toml`.
+- **crates/vox-metal-shim**: Removed the `vox-metal-shim` crate entirely, including `src/lib.rs` and `Cargo.toml`.
+- **crates/vox-corpus**: Modified `src/corpus/mix.rs`.
+- **crates/vox-compiler**: Added `src/lib.rs`.
+- **crates/vox-wasm**: Removed `README.md`.
+- **crates/vox-runtime**: Modified `src/storage/mod.rs`.
+- **crates/vox-lsp**: Removed `Cargo.toml`.
+- **Root directory**:
+    - Updated `Cargo.lock` and `Cargo.toml`.
+    - Removed `debug_load.rs`, `launch_train.bat`, `lib_head.rs`, and `types_head.rs`.
+    - Updated `.gitignore`.
+- **scripts**:
+    - Moved `toestub_self_apply.ps1` and `toestub_self_apply.sh` into the `scripts/` directory.
+    - Added `build_vox.bat`.
+- **patches/candle-kernels-0.9.2**: Added `build.rs`.
+
+--- audit: original='chore(architecture): Codebase Audit Cleanup' | actual=5827L across 78 files | derived=full ---
