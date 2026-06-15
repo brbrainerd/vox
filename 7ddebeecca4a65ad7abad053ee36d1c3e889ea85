@@ -1,0 +1,7 @@
+feat(scripts/show): add publish.vox for Raw Nerve publication artifact generation
+scale: ~196 lines across 2 files [M]
+
+- `scripts/show/publish.vox`: New script added to generate publication artifacts for Raw Nerve episodes. It takes environment variables as input (e.g., `RAW_NERVE_EPISODE_TITLE`, `RAW_NERVE_EPISODE_DATE`, `RAW_NERVE_EPISODE_SLUG`, `RAW_NERVE_EPISODE_SEGMENT`, `RAW_NERVE_EPISODE_ABSTRACT`, `RAW_NERVE_EPISODE_AUTHOR`, `RAW_NERVE_EPISODE_YOUTUBE_URL`, `RAW_NERVE_EPISODE_PLAYGROUND_URL`, `RAW_NERVE_EPISODE_LENGTH_MIN`, `RAW_NERVE_DRAFTS_DIR`) and outputs `citation-key.txt`, `CITATION.cff`, `rss-entry.xml`, `scientia.yaml`, and `README.md` into a drafts directory. It includes functions for requiring and optionally getting environment variables.
+- `scripts/show/README.md`: Updated the table of Vox programs to include `publish.vox` with its description ("episode metadata → CITATION.cff + RSS entry + scientia ingest YAML") and listed its required and optional environment variables.
+
+--- audit: original='feat(scripts/show): add publish.vox -- scientia publication artifact generator' | actual=196L across 2 files | derived=full ---
