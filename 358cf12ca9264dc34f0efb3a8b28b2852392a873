@@ -1,0 +1,6 @@
+feat(scientia): Add NumericComparatorVerifier and BayesianStoppingRule
+scale: ~0 lines across 0 files [XS]
+
+- This commit is a placeholder with no actual changes, likely indicating a planned feature or a rebase artifact.
+
+--- audit: original='feat(scientia): NumericComparatorVerifier + BayesianStoppingRule (Phase 2 Task 4)' | actual=0L across 0 files | derived=full ---
