@@ -1,0 +1,14 @@
+feat(mens): add resilient training launcher with auto-resume and escalation
+scale: ~112 lines across 2 files [M]
+
+- `scripts/mens/train_resilient.vox`: Add a new Vox script that launches `vox mens train` with crash auto-resume and an escalation ladder.
+  - The script relaunches training from the last checkpoint on non-zero exit.
+  - It implements an escalation ladder that first retries with default parameters, then shrinks the sequence length, and finally switches to smaller models (`Qwen/Qwen2.5-Coder-3B-Instruct`, `Qwen/Qwen2.5-Coder-1.5B-Instruct`) if crashes persist.
+  - It uses `process.run` to execute `vox mens train` and falls back to `cargo run -p vox-cli --` if `vox` is not on PATH.
+- `docs/src/reference/mens-training.md`: Add a new section "Resilient training" documenting the `train_resilient.vox` script.
+  - Explains its purpose: relaunching `vox mens train` after process-level crashes.
+  - Provides instructions on how to run the script.
+  - Details the escalation ladder with a table showing model and sequence length changes at each rung.
+  - Clarifies that each relaunch continues from the last saved checkpoint using `--resume`.
+
+--- audit: original='feat(mens): resilient training launcher with crash auto-resume + escalation' | actual=112L across 2 files | derived=full ---
