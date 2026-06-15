@@ -1,0 +1,9 @@
+feat(vox-telemetry): scaffold L1 facade crate and register in workspace
+scale: ~24 lines across 4 files [S]
+
+- `crates/vox-telemetry/Cargo.toml`: Create new `vox-telemetry` crate with `L1 telemetry facade` description and dependencies.
+- `crates/vox-telemetry/src/lib.rs`: Create placeholder `lib.rs` file for the new crate.
+- `Cargo.toml`: Register `vox-telemetry` as an internal crate in the workspace.
+- `docs/src/architecture/layers.toml`: Register `vox-telemetry` as a Layer 1 component.
+
+--- audit: original='feat(vox-telemetry): scaffold L1 facade crate + register in workspace/layers' | actual=24L across 4 files | derived=full ---
