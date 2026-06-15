@@ -1,0 +1,7 @@
+feat(vox-publisher): add contract parity test for NoveltyEvidenceBundleV1
+scale: ~91 lines across 2 files [M]
+
+- `crates/vox-publisher/tests/novelty_bundle_contract_parity.rs`: Add a new test file to ensure `NoveltyEvidenceBundleV1` (hand-written) serializes to JSON compatible with `ScientiaNoveltyEvidenceBundleV1` (typify-generated from schema) and round-trips losslessly. This establishes the contract schema as the single source of truth.
+- `crates/vox-publisher/Cargo.toml`: Add `vox-research-events` as a workspace dependency.
+
+--- audit: original='test(scientia): contract-parity gate for NoveltyEvidenceBundle producer/consumer shapes' | actual=91L across 2 files | derived=full ---
