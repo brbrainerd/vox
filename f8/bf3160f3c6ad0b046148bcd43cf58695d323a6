@@ -1,0 +1,6 @@
+perf(vox-arch-check): eliminate redundant cargo metadata call
+scale: ~11 lines across 1 files [S]
+
+- `crates/vox-arch-check/src/main.rs`: Removed a redundant `cargo metadata --no-deps` call by reusing the `metadata_full` object (which already contains workspace root and members) for all metadata needs. This reduces the number of `cargo metadata` invocations from two to one.
+
+--- audit: original='perf(vox-arch-check): eliminate redundant cargo metadata call (Phase 2)' | actual=11L across 1 files | derived=full ---
