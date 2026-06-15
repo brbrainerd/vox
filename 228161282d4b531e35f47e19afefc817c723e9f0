@@ -1,0 +1,50 @@
+feat(codegen): Implement Tauri IPC and unify endpoint bridge
+scale: ~652 lines across 23 files [L]
+
+- **`crates/vox-codegen/src/codegen_rust/emit/mod.rs`**:
+    - Removed the restriction preventing `@endpoint` functions in Tauri app shells, enabling their use.
+    - Added `#[tauri::command]` attribute generation for endpoint functions.
+    - Refactored `module_has_distributed_subagent` and `module_needs_vox_search_docs` to simplify `forall` iteration.
+    - Formatted `vox-search` dependency string for better readability.
+- **`crates/vox-codegen/src/codegen_rust/emit/ai_fixture/llm.rs`**:
+    - Reformatted `ai_structured_output` and `record_event` calls for improved readability.
+- **`crates/vox-codegen/src/codegen_rust/emit/http.rs`**:
+    - Removed unused imports `HirRoute` and `HirHttpMethod`.
+    - Reformatted several lines for improved readability, including `emit_main` function signature and `vox_http_client` builder.
+- **`crates/vox-codegen/src/codegen_ts/vox_client.rs`**:
+    - Implemented Tauri IPC detection via `isTauri()` function checking `window.__TAURI_INVOKE__`.
+    - Added `$tauri` async function to handle Tauri IPC calls for endpoints.
+    - Modified `emit_one_endpoint` to conditionally use `$tauri` for GET and POST requests when running in a Tauri environment.
+- **`crates/vox-test-harness/src/hir_builders.rs`**:
+    - Removed `HirRoute` and `HirHttpMethod` imports.
+    - Deleted `hir_get_route` function, removing legacy HTTP route building.
+- **`crates/vox-codegen/src/bundler/rolldown_adapter.rs`**:
+    - Reformatted comments and error messages for consistency.
+- **`crates/vox-codegen/tests/property_tests.rs`**:
+    - Reformatted `codegen_rust::generate` call for improved readability.
+- **`crates/vox-codegen/src/codegen_rust/mod.rs`**:
+    - Updated `RustAppShell` enum to include `Tauri` variant and removed `AxumLocalServer`.
+    - Modified `generate` function to handle `Tauri` app shell, calling `generate_tauri_workspace`.
+- **`crates/vox-codegen/src/codegen_ts/emitter.rs`**:
+    - Removed `emit_http_client` function, indicating deprecation of direct HTTP client emission.
+- **`crates/vox-codegen/src/projection_bundle.rs`**:
+    - Added `tauri_app_shell` field to `ProjectionBundle` struct.
+- **`crates/vox-codegen/src/vox_ir/mod.rs`**:
+    - Removed `HirRoute` and `HirHttpMethod` imports.
+- **`crates/vox-codegen/tests/ai_fixture_bundle_compiles.rs`**:
+    - Reformatted `codegen_rust::generate` call for improved readability.
+- **`crates/vox-codegen/tests/ai_fixture_ts_diagnostic.rs`**:
+    - Reformatted `codegen_rust::generate` call for improved readability.
+- **`crates/vox-codegen/tests/tauri_convergence_snapshots.rs`**:
+    - Added a new test case `golden_tauri_emit` to verify Tauri code generation.
+- **`crates/vox-codegen/src/codegen_shared/route_ir.rs`**:
+    - Deleted the file, removing `RouteIr` and related structures.
+- **`crates/vox-codegen/src/web_ir/lower.rs`**:
+    - Removed `lower_route` function, indicating deprecation of web route lowering.
+- **`README.md`**:
+    - Updated the architecture diagram and added incremental academic citations.
+    - Removed content related to legacy Express/HTTP routing.
+- **Snapshot files (`crates/vox-codegen/tests/snapshots/*.snap`)**:
+    - Updated various TypeScript snapshots to reflect changes in client-side code generation, including Tauri IPC integration for endpoints.
+
+--- audit: original='feat: implement Tauri IPC convergence and unified @endpoint bridge' | actual=652L across 23 files | derived=full ---
