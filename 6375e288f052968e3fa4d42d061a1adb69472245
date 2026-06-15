@@ -1,0 +1,10 @@
+feat(orchestrator): gate MCP-only dependencies and remove `vox-eval`
+scale: ~17 lines across 2 files [S]
+
+- `crates/vox-orchestrator/Cargo.toml`:
+    - Added `vox-mcp-registry`, `vox-capability-registry`, `vox-openai-wire`, and `vox-project-scaffold` to the `mcp-native` feature.
+    - Marked `vox-mcp-registry`, `vox-capability-registry`, `vox-openai-wire`, and `vox-project-scaffold` as optional dependencies.
+    - Removed the `vox-eval` dependency.
+- `Cargo.lock`: Updated due to dependency changes.
+
+--- audit: original='feat(orchestrator): gate mcp-only deps + remove dead vox-eval dep' | actual=17L across 2 files | derived=full ---
