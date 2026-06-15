@@ -1,0 +1,18 @@
+feat(clavis): Add new environment variables for AI model tuning and configuration
+scale: ~2491 lines across 3 files [XL]
+
+- contracts/clavis/managed-env-names.md: Add new environment variables:
+  - `ANTHROPIC_TUNING_TEMPERATURE`, `ANTHROPIC_TUNING_TOP_P` for Anthropic model tuning.
+  - `GEMINI_DIRECT_MODEL`, `GEMINI_TUNING_TEMPERATURE`, `GEMINI_TUNING_TOP_P` for Gemini model configuration and tuning.
+  - `OLLAMA_TUNING_NUM_CTX`, `OLLAMA_TUNING_TEMPERATURE`, `OLLAMA_TUNING_TOP_P` for Ollama model tuning.
+  - `OPENAI_TUNING_TEMPERATURE`, `OPENAI_TUNING_TOP_P` for OpenAI model tuning.
+  - `OPENROUTER_GEMINI_MODEL` for OpenRouter Gemini model.
+  - `POPULI_URL` (deprecated) and `TOGETHER_FINETUNE_MODEL`, `TOGETHER_TUNING_TEMPERATURE`, `TOGETHER_TUNING_TOP_P` for Together model tuning.
+  - `VOX_DASHBOARD_AUTO_OPEN`, `VOX_DASHBOARD_ENABLED`, `VOX_DASHBOARD_PORT` for Vox dashboard configuration.
+  - `VOX_GITHUB_CLIENT_ID`, `VOX_GITHUB_OAUTH_TOKEN` for Vox GitHub integration.
+  - `VOX_IDENTITY_KEY_PATH`, `VOX_IDENTITY_MASTER_PWD` for Vox identity management.
+  - `VOX_MCP_HTTP_PUBLIC_EVAL_ENABLED` for Vox MCP HTTP public evaluation.
+- contracts/clavis/managed-env-names.v1.json: Add new secret definitions for `GeminiDirectModel` and `OpenRouterGeminiModel`. Update `generated_at_ms`.
+- contracts/clavis/secret-capabilities.v1.json: Add new secret capabilities for `GeminiDirectModel` and `OpenRouterGeminiModel`. Update `generated_at_ms`.
+
+--- audit: original='chore(clavis): Sync JSON contracts for new eval secret' | actual=2491L across 3 files | derived=full ---
