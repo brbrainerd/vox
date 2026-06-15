@@ -1,0 +1,16 @@
+perf(build): reclaim target sprawl, prune dead deps/features, exclude tauri-utils from hakari
+scale: ~258 lines across 11 files [L]
+
+- docs: Add `build-and-crate-org-improvement-plan-2026-06.md` detailing build-time, crate organization, and target sprawl improvements.
+- docs: Update `comprehensive-audit-v2-2026.md` with a staleness note and reference to the new improvement plan.
+- .config/hakari.toml: Exclude `tauri-utils` and `tauri-build` from the workspace-hack to prevent duplicate HTML parser stacks in non-GUI builds.
+- crates/workspace-hack/Cargo.toml: Add `camino`, `futures-io`, `libc` and `insta` with `yaml` feature; remove `ed25519-dalek`.
+- crates/vox-compiler/Cargo.toml: Remove unused `vox-deploy-codegen` dependency and `ai-fixtures-v1` feature.
+- crates/vox-cli/Cargo.toml: Remove unused `ai-fixtures-v1` feature.
+- crates/vox-codegen/Cargo.toml: Remove unused `ai-fixtures-v1` feature.
+- .github/workflows/ci.yml: Correct GPU compile smoke test to check `vox-plugin-mens-candle-cuda` instead of `vox-cli --features gpu`.
+- .github/workflows/qwen35-native-nightly.yml: Remove invalid `--features gpu` flag from `vox-cli` commands.
+- .claude/settings.local.json: Add new Bash commands for git and python to the Claude settings.
+- Cargo.lock: Update lockfile to reflect dependency changes.
+
+--- audit: original='perf(build): land audit quick wins — reclaim sprawl, prune dead deps/features, exclude tauri-utils from hakari' | actual=258L across 11 files | derived=full ---
