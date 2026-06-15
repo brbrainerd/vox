@@ -1,0 +1,8 @@
+docs(architecture): Add training rationale to AI fixtures lowering document and fix TOML comment
+scale: ~4 lines across 2 files [S]
+
+- docs/src/architecture:
+  - Add `training_rationale` frontmatter field to `ai-fixtures-ts-lowering-follow-on-2026.md` to explain its training eligibility.
+  - Correct a TOML comment in `layers.toml` by changing `#` to `#!` to ensure it's properly parsed as a comment.
+
+--- audit: original='docs: fix doc lint frontmatter error' | actual=4L across 2 files | derived=full ---
