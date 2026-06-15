@@ -1,0 +1,12 @@
+feat(gui): Federate windows, settings, and docs into Command Palette search
+scale: ~95 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/layout/CommandPalette.tsx`:
+    - Integrated `SURFACE_REGISTRY`, `SETTINGS_INDEX`, and `vox_docs_index` into the Command Palette.
+    - Added lazy loading for the documentation index (`vox_docs_index`) when the palette opens.
+    - Introduced `buildPaletteItems` to process and filter federated client-side sources (windows/surfaces, settings, documentation).
+    - Added `SETTINGS_SEED_KEY` constant.
+- `crates/vox-gui/ui/src/App.tsx`:
+    - Added handling for a new 'navigate' action to set the active view based on `cmd.viewKey`.
+
+--- audit: original='feat(gui): omni-search palette — windows, settings, docs federation (G3)' | actual=95L across 2 files | derived=full ---
