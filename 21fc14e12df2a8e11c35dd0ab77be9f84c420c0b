@@ -1,0 +1,14 @@
+feat(compiler): add interp↔codegen parity guard and fix 14 drifts
+scale: ~356 lines across 3 files [L]
+
+- `crates/vox-compiler/src/builtin_registry.rs`:
+    - Added `NAMESPACE_BUILTINS`, a canonical, surface-flagged enumerable table for `std.*` namespaces, serving as the single source of truth for parity testing.
+    - Implemented three `#[cfg(test)]` parity tests: `interpreter_dispatches_every_interp_builtin`, `codegen_lowers_every_rust_builtin`, and `typecheck_knows_every_listed_builtin`.
+    - Extended `std_namespace_runtime_call` to correctly route `fs.read_file`, `fs.read_to_string`, `fs.write_file`, `fs.write_to_file`, `fs.cwd`, `fs.walk`, and `fs.list_recursive` to their respective `vox_actor_runtime::builtins` or `std::env` functions for native codegen.
+- `crates/vox-compiler/src/eval/builtins.rs`:
+    - Added interpreter implementations for `fs.read_bytes` and `fs.canonicalize`.
+    - Added interpreter implementations for `process.run_capture` and `process.run_capture_ex`.
+    - Added interpreter implementations for `json.read_str`, `json.read_f64`, and `json.quote`.
+- `.claude/settings.local.json`: Added a new Bash command to the `sccache_stats_commands` array.
+
+--- audit: original='feat(compiler): enumerable surface-flagged interp↔codegen parity guard + fix all drift' | actual=356L across 3 files | derived=full ---
