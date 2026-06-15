@@ -1,0 +1,9 @@
+docs(plan): update A1 to reflect implementation details
+scale: ~14 lines across 1 files [S]
+
+- Corrected `uuid` feature in `Cargo.toml` from `v7` to `v4` and `serde`.
+- Updated Step 4 to clarify that the workspace `members` glob already covers new crates, removing the need for explicit additions.
+- Commented out `pub use pipeline::run;` in `lib.rs` to defer its addition to Task E2, preventing an E0432 error.
+- Modified the `run_id` generation in the `run` function to use `uuid::Uuid::new_v4()` instead of `now_v7()`.
+
+--- audit: original='docs(plan): patch A1 defects surfaced during execution' | actual=14L across 1 files | derived=full ---
