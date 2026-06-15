@@ -1,0 +1,16 @@
+fix(ci): resolve markdownlint, TS emit, and workflow arg errors
+scale: ~72 lines across 11 files [M]
+
+- `.github/workflows/docs-quality.yml`: Remove the `--check` flag from the `command-sync` action as it now defaults to `--write`.
+- `crates/vox-codegen`: Map Vox `print(x)` to `console.log(x)` in TypeScript emission to avoid conflicts with `window.print` which takes no arguments.
+- `crates/vox-codegen/tests/snapshots`: Update golden snapshot for `component_effect_with_deps` to reflect the `print` to `console.log` change.
+- `docs/src/architecture/research-index.md`: Remove a trailing blank line (MD012).
+- `docs/src/contributors/coding-agents.md`: Fix MD060 table pipe alignment, MD031 fenced code block blank lines, MD032 list item blank lines, and MD012 trailing blank lines.
+- `docs/src/contributors/continuation-prompt-engineering.md`: Fix MD060 table pipe alignment, MD032 list item blank lines, and MD012 trailing blank lines.
+- `docs/src/contributors/contribution-loop.md`: Fix MD040 code language tags, MD060 table pipe alignment, MD032 list item blank lines, and MD012 trailing blank lines.
+- `docs/src/contributors/contributor-hub.md`: Fix MD060 table pipe alignment and MD012 trailing blank lines.
+- `docs/src/contributors/documentation-governance.md`: Remove a trailing blank line (MD012).
+- `docs/src/contributors/local-ci-pre-push.md`: Fix MD060 table pipe alignment.
+- `docs/src/contributors/toestub-contributor-guide.md`: Fix MD022 heading blank lines, MD031 fenced code block blank lines, MD040 code language tags, MD060 table pipe alignment, and MD012 trailing blank lines.
+
+--- audit: original='fix(ci): resolve markdownlint, TS emit, and workflow arg errors' | actual=72L across 11 files | derived=full ---
