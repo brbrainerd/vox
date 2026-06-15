@@ -1,0 +1,7 @@
+feat(scholarly): add OSF and CrossrefDeposit adapter kinds
+scale: ~8 lines across 2 files [S]
+
+- `crates/vox-publisher/src/scholarly/external/mod.rs`: Added `Osf` and `CrossrefDeposit` variants to `ScholarlyAdapterKind` resolution.
+- `docs/src/architecture/scientia-self-publication-finalization-plan-2026.md`: Marked "Phase 8 — Scholarly automation + venue strategy" as complete with a completion date of 2026-05-09 and added a detailed status update.
+
+--- audit: original='docs(scientia): mark Phase 8 Complete — scholarly automation + venue strategy' | actual=8L across 2 files | derived=full ---
