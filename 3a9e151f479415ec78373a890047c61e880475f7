@@ -1,0 +1,10 @@
+docs(roadmap): update GUI native roadmap status for Phase 5
+scale: ~21 lines across 1 files [S]
+
+- Renamed "Phases 5–8" heading to "Phase 5 — Validation Layer"
+- Added a new table for Phase 5 tasks, detailing TASK-5.1 to TASK-5.4 with priorities, statuses, and notes
+- Marked TASK-5.1 "Token resolution validator" as "✅ Done" and provided implementation details
+- Updated the "Phases 6–8" heading and noted their dependency on Phase 5
+- Added a "Phase 5 verdict" summary: "1 complete, 3 not started"
+
+--- audit: original='docs: update roadmap status — TASK-5.1 complete, Phase 5 table added' | actual=21L across 1 files | derived=full ---
