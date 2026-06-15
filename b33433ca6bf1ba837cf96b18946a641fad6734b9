@@ -1,0 +1,9 @@
+ci(links): ignore flaky external links in check-links
+scale: ~10 lines across 1 files [S]
+
+- **.lycheeignore**:
+    - Added `.*huggingface\.co/.*` to ignore all links from huggingface.co due to CI rate-limiting (HTTP 429).
+    - Added `.*byteiota\.com/.*` to ignore all links from byteiota.com due to intermittent timeouts in CI.
+    - Added `.*frontendmasters\.com/.*` to ignore all links from frontendmasters.com due to CI bot blocking (HTTP 403).
+
+--- audit: original='ci(links): ignore flaky huggingface.co/byteiota/frontendmasters in check-links' | actual=10L across 1 files | derived=full ---
