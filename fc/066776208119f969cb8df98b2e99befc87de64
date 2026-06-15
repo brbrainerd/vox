@@ -1,0 +1,10 @@
+feat(runtime): Add `ReactiveStateMachine` helper for Svelte-mineable features
+scale: ~255 lines across 5 files [L]
+
+- `crates/vox-runtime/src/state_machine.rs`: Add new module with `ReactiveStateMachine<S, E>` struct, `Reducer<S, E>` type alias, and associated methods (`new`, `state`, `send`). This provides a runtime instance pattern for state machines.
+- `crates/vox-runtime/src/lib.rs`: Export the new `state_machine` module.
+- `docs/src/architecture/svelte-mineable-features-implementation-plan-2026.md`: Update the implementation plan to mark Phase D and G as partially shipped and ADRs 032 and 033 as accepted.
+- `docs/src/SUMMARY.md`: Update the documentation summary.
+- `docs/src/feed.xml`: Update the RSS feed (generated file).
+
+--- audit: original='feat(runtime): Phase G — ReactiveStateMachine instance helper' | actual=255L across 5 files | derived=full ---
