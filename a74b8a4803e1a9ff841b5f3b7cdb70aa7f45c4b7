@@ -1,0 +1,10 @@
+docs(plan): vox-orchestrator-core extraction implementation plan
+scale: ~764 lines across 1 files [L]
+
+- Create `docs/superpowers/plans/2026-05-28-vox-orchestrator-core-extraction.md` detailing an eight-phase (D0-D7) plan for extracting `vox-orchestrator-core`.
+- The plan outlines the goal, architecture, tech stack, and references the design spec.
+- It specifies a trigger-gated execution, noting that the plan currently exits at D0 due to LoC headroom.
+- D1 (read-only co-move manifest audit) is highlighted as safe for pre-execution.
+- D2-D7 cover skeleton crate creation, module moves, integration, testing, and cleanup.
+
+--- audit: original='docs(plan): vox-orchestrator-core extraction implementation plan' | actual=764L across 1 files | derived=full ---
