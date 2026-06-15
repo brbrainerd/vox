@@ -1,0 +1,18 @@
+fix(compiler,codegen,docs): address CodeRabbit review feedback
+scale: ~73 lines across 6 files [M]
+
+- `crates/vox-compiler/src/required_capabilities.rs`:
+    - Recursively collect usage flags for `HirExpr::Try` expressions to correctly derive capabilities for try-postfix calls.
+    - Add two new tests: `try_postfix_microphone_call_derives_speech_and_microphone` and `try_postfix_fs_read_call_derives_fs_read` to verify capability derivation for `?` operator.
+- `crates/vox-codegen/src/codegen_rust/emit/mod.rs`:
+    - Update DB configuration resolution in the Tauri `.setup` closure to use `vox_db::DbConfig::resolve_canonical()` and `vox_db::Codex::connect()` for secret-policy compliant resolution, mirroring `emit_db_setup`. This involves blocking on the async `connect` call within the sync setup.
+- `crates/vox-codegen/src/codegen_ts/scaffold.rs`:
+    - Enhance the `package_json_does_not_depend_on_react_router` test to check both `dependencies` and `devDependencies` sections for `react-router` to ensure the scaffolded `package.json` remains dependency-free of it.
+- `crates/vox-compiler/src/app_contract.rs`:
+    - Change `debug_assert_eq!` to `assert_eq!` for endpoint count comparison in `project_app_contract` to ensure it's always checked.
+- `docs/superpowers/plans/2026-06-03-codegen-split-brain-fixes.md`:
+    - Update the documentation for DB configuration in the `codegen-split-brain-fixes` plan to reflect the new `resolve_canonical` and `connect` approach.
+- `docs/src/architecture/codegen-ssot-and-split-brain-audit-2026.md`:
+    - Change the `status` of the `codegen-ssot-and-split-brain-audit-2026` document from "current" to "research".
+
+--- audit: original='fix: address CodeRabbit review — DB config resolution, Try-recursion capability walk, release-active assert, exact-key scaffold test, doc status' | actual=73L across 6 files | derived=full ---
