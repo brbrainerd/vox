@@ -1,0 +1,6 @@
+fix(ci): exclude all astro.build links from Lychee checks
+scale: ~1 lines across 1 files [XS]
+
+- Exclude `.*astro.build/.*` from `.lycheeignore` to prevent transient network errors from `astro.build/chat` and other subpaths during CI runs.
+
+--- audit: original='fix(ci): exclude astro.build from lychee link checker (transient network errors)' | actual=1L across 1 files | derived=full ---
