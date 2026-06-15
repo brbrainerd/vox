@@ -1,0 +1,13 @@
+feat(orchestrator-queue): Implement vector-clock affinity with 60s hold-down
+scale: ~150 lines across 1 files [M]
+
+- `affinity.rs`:
+    - Introduced `DaemonId`, `Lamport`, and `AffinityValue` structs to represent vector clock components.
+    - Added `AffinityValue` to `FileAffinityMap`'s inner state, storing `(DaemonId, AgentId, Lamport, assigned_at_ms)`.
+    - Implemented `assign_v()` and `lookup_v()` methods for `FileAffinityMap` to handle gossip-compatible LWW (Last-Writer-Wins) logic.
+    - The LWW logic prioritizes existing owners, then higher Lamport values, and finally `DaemonId` for tie-breaking.
+    - Introduced a `HOLD_DOWN_MS` constant (60 seconds) to ignore higher-lamport remote assertions for a period, allowing local claims to propagate.
+    - Added new tests for the vector-clock affinity logic.
+    - Updated module-level documentation to clarify that affinity is a hint and a separate lock mechanism is required for writes.
+
+--- audit: original='feat(orchestrator-queue): vector-clock affinity LWW with 60s hold-down (P3-T4)' | actual=150L across 1 files | derived=full ---
