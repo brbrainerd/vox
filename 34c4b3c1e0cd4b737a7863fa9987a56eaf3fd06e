@@ -1,0 +1,6 @@
+docs(architecture): update web-bootstrap plan frontmatter category
+scale: ~2 lines across 1 files [XS]
+
+- `docs/src/architecture/web-bootstrap-emission-migration-2026.md`: Changed the `category` frontmatter from "architecture" to "Architecture SSOTs".
+
+--- audit: original='docs: fix web-bootstrap plan frontmatter category (canonical vocabulary)' | actual=2L across 1 files | derived=full ---
