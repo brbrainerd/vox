@@ -1,0 +1,16 @@
+ci(github): migrate compiler-gates job to cargo nextest
+scale: ~46 lines across 1 files [S]
+
+- **.github/workflows/ci.yml**:
+    - Added `taiki-e/install-action@v2` step to install `cargo-nextest`.
+    - Migrated six `cargo test` invocations to `cargo nextest run` in the `compiler-gates` job:
+        - `routes.manifest + vox-client legacy-bundle smoke`: Changed `cargo test -p vox-compiler --test web_ir_lower_emit codegen_output_never_includes_vox_tanstack_router_or_server_fns -q` to `cargo nextest run -p vox-compiler --test web_ir_lower_emit -E 'test(codegen_output_never_includes_vox_tanstack_router_or_server_fns)'`.
+        - `SPA scaffold manifest idempotency`: Changed `cargo test -p vox-cli --test scaffold_spa_manifest_idempotent -q` to `cargo nextest run -p vox-cli --test scaffold_spa_manifest_idempotent`.
+        - `Eval benchmark matrix contract + vox-cli GPU compile smoke`: Changed `cargo test -p vox-compiler --test web_ir_lower_emit` to `cargo nextest run -p vox-compiler --test web_ir_lower_emit`.
+        - `Projection parity gate (WebIR + AppContract + RuntimeProjection)`: Changed `cargo test -p vox-compiler --test projection_parity` to `cargo nextest run -p vox-compiler --test projection_parity`.
+        - `Golden examples strict-parse gate (A.13 — all examples/*.vox must parse)`: Changed `cargo test -p vox-compiler --test golden_examples_strict_parse -- --nocapture 2>&1` to `cargo nextest run -p vox-compiler --test golden_examples_strict_parse --no-capture 2>&1`.
+        - `Golden @test examples gate`: Changed `cargo test -p vox-compiler --test golden_at_test_examples_gate -- --nocapture 2>&1` to `cargo nextest run -p vox-compiler --test golden_at_test_examples_gate --no-capture 2>&1`.
+    - Replaced `--nocapture` with `--no-capture` in nextest commands.
+    - Converted test name filters like `codegen_output_never_includes_vox_tanstack_router_or_server_fns` to nextest `-E 'test(...)'` filter expressions.
+
+--- audit: original='fix(ci): migrate cargo test → cargo nextest run — unify test runner' | actual=46L across 1 files | derived=full ---
