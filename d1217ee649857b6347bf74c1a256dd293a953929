@@ -1,0 +1,49 @@
+feat(compiler): Implement `@tokens` parser, lowerer, and typecheck passes
+scale: ~656 lines across 21 files [L]
+
+- **`vox-compiler/src/typeck/mod.rs`**:
+    - Wire `typecheck_hir_module` to call new lint passes: `contrast::check_tokens` (GA-20), `semantic_ui::check_semantic_ui` (GA-19), and `async_exhaustiveness::check_async_view` (GA-01).
+    - Add `collect_async_views` function to traverse HIR and gather `HirAsyncView` nodes.
+- **`vox-compiler/src/parser/descent/decl/head.rs`**:
+    - Implement `parse_tokens_decl` to parse `@tokens` blocks, including `color`, `spacing`, `radius`, `shadow`, and `font` entries with full span tracking.
+    - Update `parse_decl` to include the new `Tokens` declaration type.
+- **`vox-compiler/src/hir/lower/mod.rs`**:
+    - Add lowering logic for `Decl::Tokens` to `HirTokensDecl`, populating `hir.token_decls` with `HirColorToken`, `HirScalarToken`, `HirShadowToken`, and `HirFontToken` instances.
+- **`vox-compiler/src/ast/decl/ui.rs`**:
+    - Define new AST nodes: `TokensDecl`, `AstColorToken`, `AstScalarToken`, and `AstFontToken` for representing design tokens.
+- **`vox-codegen/src/codegen_ts/reactive.rs`**:
+    - Extend `scan_hir_expr_for_react_imports` to recursively scan `HirExpr::AsyncView` arms for React imports.
+- **`vox-compiler/src/typeck/checker/expr.rs`**:
+    - Add a case for `HirExpr::AsyncView` in the expression checker, recursively checking its source and all four optional arms.
+- **`vox-codegen/src/codegen_ts/hir_emit/async_walker.rs`**:
+    - Update `expr_has_async_call` to traverse `HirExpr::AsyncView`'s source and optional arms to detect async calls.
+- **`vox-compiler/src/typeck/effect_check.rs`**:
+    - Extend `collect_effects_from_expr` to handle `HirExpr::AsyncView` by collecting effects from its source and all arms.
+- **`vox-compiler/src/typeck/stale_capture_lint.rs`**:
+    - Update `check_stale_captures_in_expr` to recursively check `HirExpr::AsyncView`'s source and arms for stale captures.
+- **`vox-compiler/src/typeck/async_handler_lint.rs`**:
+    - Modify `check_async_handlers_in_expr` to traverse `HirExpr::AsyncView`'s source and arms for async handler checks.
+- **`vox-compiler/src/typeck/effect_deps_lint.rs`**:
+    - Update `check_effect_deps_in_expr` to recursively check `HirExpr::AsyncView`'s source and arms for effect dependencies.
+- **`vox-compiler/src/hir/db_op_walk.rs`**:
+    - Add a case for `HirExpr::AsyncView` in `walk_expr_for_db_ops`, recursively walking its source and arms.
+- **`vox-codegen/src/codegen_ts/hir_emit/mod.rs`**:
+    - Extend `emit_expr` to handle `HirExpr::AsyncView` by emitting its source and arms.
+- **`vox-compiler/src/typeck/checker/mod.rs`**:
+    - Add `collect_semantic_ui_callsites` function to gather JSX callsites for semantic UI checks.
+- **`vox-compiler/src/ast/decl/types.rs`**:
+    - Add `Tokens` variant to the `Decl` enum.
+- **`vox-compiler/src/hir/nodes/stmt_expr.rs`**:
+    - Add `AsyncView` variant to the `HirExpr` enum, carrying `HirAsyncView`.
+- **`vox-compiler/src/parser/descent/mod.rs`**:
+    - Update `parse_decl` to include the new `Tokens` declaration type.
+- **`vox-compiler/src/ast/decl/mod.rs`**:
+    - Export new AST nodes: `TokensDecl`, `AstColorToken`, `AstFontToken`, `AstScalarToken`.
+- **`vox-compiler/src/hir/lower/async_flags.rs`**:
+    - Extend `collect_async_flags_from_expr` to handle `HirExpr::AsyncView` by collecting flags from its source and arms.
+- **`vox-compiler/src/hir/lower/contracts.rs`**:
+    - Update `collect_contracts_from_expr` to recursively collect contracts from `HirExpr::AsyncView`'s source and arms.
+- **`vox-corpus/src/corpus/extract_vox/part_ast.rs`**:
+    - Add `Decl::Tokens` arm to exhaustive match.
+
+--- audit: original='feat(compiler): wire GA-01/GA-19/GA-20 parser + typecheck pipeline' | actual=656L across 21 files | derived=full ---
