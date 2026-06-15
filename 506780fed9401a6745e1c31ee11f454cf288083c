@@ -1,0 +1,8 @@
+feat(codegen-web): emit `vox-app.tsx` web bootstrap for app root
+scale: ~166 lines across 3 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/web_entry.rs`: New module added to emit `vox-app.tsx`. This file contains the web application's root bootstrap logic. It emits a dependency-free history-API router when a route manifest is present, otherwise it flat-mounts a single root component. A placeholder is emitted if no routes or components exist.
+- `crates/vox-codegen/src/codegen_ts/emitter.rs`: Modified to call `web_entry::emit_web_app` to generate `vox-app.tsx`. This emission is conditional on the build mode not being `Library` and the presence of components in the HIR. The `has_route_manifest` flag and the first component's name are passed to the emission function.
+- `crates/vox-codegen/src/codegen_ts/mod.rs`: Added `web_entry` module to the `codegen_ts` module.
+
+--- audit: original='feat(codegen-web): emit vox-app.tsx web bootstrap (Stage 1 of web migration)' | actual=166L across 3 files | derived=full ---
