@@ -255,6 +255,7 @@ impl LowerCtx {
                     ai_fixture: None,
                     embed: None,
                     is_deprecated: false,
+                    deprecated_reason: None,
                     schedule_interval: None,
                     durability: Some(DurabilityKind::Activity),
                     actor_state_fields: vec![],
