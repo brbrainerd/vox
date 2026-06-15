@@ -1,0 +1,19 @@
+feat(populi): implement bootstrap exchange and JWE secret injection
+scale: ~254 lines across 5 files [L]
+
+- **`crates/vox-populi/src/transport/router.rs`**:
+    - Added `POST /v1/populi/bootstrap/exchange` endpoint to exchange a one-time bootstrap token for a long-lived mesh bearer token.
+    - Implemented `PopuliTransportState::with_bootstrap_token()` to set the bootstrap token for the server.
+    - Added three integration tests for the bootstrap exchange: happy-path round trip, one-time enforcement (410 Gone on re-use), and wrong token rejection (401 Unauthorized).
+- **`crates/vox-mens/src/commands/populi_cli.rs`**:
+    - Added `populi serve --bootstrap-token` argument to enable the bootstrap exchange on the server.
+    - Added `populi pair --control-url --bootstrap-token` command to allow clients to exchange a bootstrap token for a mesh bearer token and persist it to `~/.vox/config.toml`.
+- **`crates/vox-orchestrator/src/a2a/remote_worker.rs`**:
+    - Implemented decryption of JWE `msg.jwe_payload` using `BLAKE3(VoxMeshJwtHmacSecret)` as the AES-256-GCM key.
+    - Injected decrypted secrets from the JWE payload into the worker environment for task execution.
+- **`crates/vox-populi/src/http_client.rs`**:
+    - Added `PopuliHttpClient::bootstrap_exchange()` method to perform the unauthenticated `POST /v1/populi/bootstrap/exchange` request.
+- **`crates/vox-populi/src/transport/mod.rs`**:
+    - Added `PopuliTransportState::with_bootstrap_token()` builder method to configure the bootstrap token for the transport state.
+
+--- audit: original='feat(populi): W3 — bootstrap exchange, pair CLI, JWE secret injection' | actual=254L across 5 files | derived=full ---
