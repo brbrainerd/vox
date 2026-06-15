@@ -1,0 +1,11 @@
+fix(vox-populi): gate integration tests behind `mens` feature
+scale: ~34 lines across 3 files [S]
+
+- `crates/vox-populi/Cargo.toml`: Added `[[test]]` sections for six integration tests (`probe_pipeline`, `probe_pipeline_live`, `lora_estimates`, `hf_load_config`, `qwen35_native_parity`, `training_presets_yaml_contract`), each with `required-features = ["mens"]`.
+- `crates/vox-cli/Cargo.toml`:
+    - Updated `mcp-server` feature to include `dep:rmcp`.
+    - Updated `execution-api` feature to include `dep:axum-extra`.
+    - Made `rmcp` and `axum-extra` dependencies optional.
+- `crates/vox-cli/src/commands/mod.rs`: Changed the `cfg` attribute for the `review` module from `#[cfg(any(feature = "dei", feature = "coderabbit"))]` to `#[cfg(feature = "coderabbit")]`.
+
+--- audit: original='fix(vox-populi): gate mens-only tests behind required-features' | actual=34L across 3 files | derived=full ---
