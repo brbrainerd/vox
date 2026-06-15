@@ -1,0 +1,15 @@
+fix(vox-cli, eval): resolve Windows stack overflow, remove stale benchmark, make wiremock test hermetic
+scale: ~134 lines across 6 files [M]
+
+- `vox-cli`:
+    - Introduced `run_on_big_stack()` helper in `command_catalog.rs` to execute code on a 32 MiB stack, addressing `STATUS_STACK_OVERFLOW` on Windows during `clap` tree building.
+    - Modified `command_catalog.rs` to use `run_on_big_stack()` for `build_catalog()` calls.
+    - Updated `commands/ci/command_compliance/tests.rs` to use `run_on_big_stack()` when rendering long help for `VoxCliRoot::command()`.
+    - Updated `commands/ci/gui_catalog_parity.rs` to use `run_on_big_stack()` for `generated_manifest_payload()`.
+    - Refactored `v0.rs` by extracting `fetch_v0_tsx_with()` to allow direct injection of API key and URL, making wiremock tests hermetic and removing reliance on process-global state.
+    - Removed `serial_test` dependency and related environment variable restoration logic from `v0.rs` tests.
+- `eval`:
+    - Removed `vox_schola_train_compile` from `benchmark-matrix.json`.
+    - Removed `vox_schola_train_compile` from `benchmark-matrix.schema.json`.
+
+--- audit: original='fix(vox-cli): run clap-tree-building tests on a large stack (Windows STATUS_STACK_OVERFLOW) (#180)' | actual=134L across 6 files | derived=full ---
