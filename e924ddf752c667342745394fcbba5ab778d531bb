@@ -1,0 +1,6 @@
+fix(ci-runner): Set RUNNER_ALLOW_RUNASROOT=1 in Dockerfile
+scale: ~4 lines across 1 files [XS]
+
+- `infra/ci-runner/Dockerfile`: Added `ENV RUNNER_ALLOW_RUNASROOT=1` to allow the GitHub Actions runner to execute as root within the container, preventing `run.sh` from aborting with "Must not run with sudo".
+
+--- audit: original='fix(ci-runner): set RUNNER_ALLOW_RUNASROOT=1 (runner refuses root without it) (#164)' | actual=4L across 1 files | derived=full ---
