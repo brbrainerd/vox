@@ -1,0 +1,5 @@
+chore(lychee): exclude `patches/` from link-checker scan
+scale: ~5 lines across 1 files [XS]
+- `.lycheeignore`: Added `patches/.*` to the ignore list to prevent link-checker failures from vendored upstream patch READMEs.
+
+--- audit: original='chore(lychee): exclude patches/ from link-checker scan' | actual=5L across 1 files | derived=full ---
