@@ -1,0 +1,7 @@
+docs(llm-ssot): add design spec and Band A implementation plan for enforceable LLM/AI settings
+scale: ~1067 lines across 2 files [XL]
+
+- docs/superpowers/plans/2026-06-15-llm-ai-settings-ssot-band-a.md: Add a detailed Band A implementation plan for the LLM/AI settings Single Source of Truth (SSOT). This plan outlines tasks across Phases 0-5, focusing on establishing a declarative registry in `vox-config`, creating views in `vox-gui` and `operator_registry`, sealing egress, surfacing reactive changes, and implementing a snapshot-cached resolver.
+- docs/superpowers/specs/2026-06-15-llm-ai-settings-ssot-design.md: Add the design specification for the enforceable LLM/AI settings SSOT. This document details the problem of fractured LLM/AI configuration, proposes a solution involving a single declarative key registry, and outlines the architectural components for enforcement and reactive updates.
+
+--- audit: original='docs(llm-ssot): enforceable LLM/AI settings SSOT — design spec + Band A plan (#311)' | actual=1067L across 2 files | derived=full ---
