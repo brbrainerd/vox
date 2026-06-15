@@ -19,7 +19,11 @@ pub use throttle::{
 pub use wire::{chat_once, embed_once, stream_once};
 
 /// A fully-resolved provider request. No resolution happens in this crate.
-#[derive(Clone, Debug)]
+///
+/// `Debug` is hand-written to **redact `api_key`** so the bearer token can never leak into
+/// logs/traces/error messages. `headers` here carry only non-secret attribution
+/// (HTTP-Referer / X-Title); the bearer is applied separately from `api_key`.
+#[derive(Clone)]
 pub struct EgressRequest {
     pub base_url: String,
     pub api_key: String,
@@ -29,6 +33,21 @@ pub struct EgressRequest {
     /// Max concurrent in-flight requests for this provider's throttle (resolved from
     /// VoxConfig by `vox_config::resolve_egress`; first call per provider wins).
     pub max_concurrent: usize,
+}
+
+impl std::fmt::Debug for EgressRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Show only whether a key is present, never its value.
+        let api_key = if self.api_key.is_empty() { "" } else { "***" };
+        f.debug_struct("EgressRequest")
+            .field("base_url", &self.base_url)
+            .field("api_key", &api_key)
+            .field("model", &self.model)
+            .field("headers", &self.headers)
+            .field("throttle_key", &self.throttle_key)
+            .field("max_concurrent", &self.max_concurrent)
+            .finish()
+    }
 }
 
 /// One chat message on the wire (OpenAI-compatible).
@@ -114,5 +133,23 @@ mod tests {
             max_concurrent: 8,
         };
         assert_eq!(r.throttle_key, "openrouter");
+    }
+
+    #[test]
+    fn debug_redacts_api_key() {
+        let r = EgressRequest {
+            base_url: "https://x/api".into(),
+            api_key: "sk-supersecret-token".into(),
+            model: "m".into(),
+            headers: vec![("X-Title".into(), "vox".into())],
+            throttle_key: "openrouter".into(),
+            max_concurrent: 8,
+        };
+        let dbg = format!("{r:?}");
+        assert!(!dbg.contains("sk-supersecret-token"), "api_key must never appear in Debug: {dbg}");
+        assert!(dbg.contains("***"), "present key should render as ***");
+        // An empty key renders empty (distinguishable), still no secret.
+        let empty = EgressRequest { api_key: String::new(), ..r };
+        assert!(!format!("{empty:?}").contains("***"));
     }
 }
