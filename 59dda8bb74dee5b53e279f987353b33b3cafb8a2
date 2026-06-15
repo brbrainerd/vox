@@ -1,0 +1,32 @@
+feat(vox-populi): integrate inference and distributed training
+scale: ~1420 lines across 47 files [XL]
+
+- **crates/vox-populi/src/mens/cohort/planner.rs**: Added a new `CohortPlanner` module for VRAM exclusion and throughput estimation, including `CohortNode` and `ExclusionReason` structs.
+- **crates/vox-distributed-training/**: Removed the `vox-distributed-training` crate, deleting its `data_parallel.rs`, `checkpoint.rs`, `gradient.rs`, `session.rs`, `mesh_env.rs`, `lib.rs`, `telemetry.rs`, and `strategy/mod.rs` modules.
+- **crates/vox-inference/**: Removed the `vox-inference` crate, deleting its `backend.rs`, `dispatcher.rs`, `swarm.rs`, and `lib.rs` modules.
+- **crates/vox-populi/src/inference/stubs.rs**: Deleted the `stubs.rs` module, which contained stub backend implementations.
+- **crates/vox-populi/src/transport/handlers/nodes.rs**: Added new `NodeRecord` and `NodeRecordBuilder` structs, along with `NodeRecordError` for node record management.
+- **crates/vox-populi/src/inference/dispatcher.rs**: Modified the inference dispatcher, including changes to `InferenceDispatcher` and `InferenceDispatcherBuilder`.
+- **Cargo.toml**: Updated `Cargo.toml` files across the workspace, including the root `Cargo.toml`, `crates/vox-inference/Cargo.toml`, `crates/vox-distributed-training/Cargo.toml`, and `crates/vox-populi/Cargo.toml`, reflecting the removal of `vox-inference` and `vox-distributed-training` and the integration into `vox-populi`.
+- **crates/vox-populi/src/mens/cohort/mod.rs**: Added a new `cohort` module to `vox-populi/src/mens`.
+- **crates/vox-populi/src/inference/mod.rs**: Modified the `inference` module in `vox-populi`, likely to integrate the previously standalone inference components.
+- **crates/vox-populi/src/mens/mod.rs**: Modified the `mens` module in `vox-populi`.
+- **crates/vox-populi/src/mens/tensor/training_config.rs**: Added a new `training_config.rs` module to `vox-populi/src/mens/tensor`.
+- **crates/vox-populi/src/distributed_training/strategy/mock.rs**: Modified the mock strategy for distributed training within `vox-populi`.
+- **crates/vox-cli/src/commands/model/cas.rs**: Adjusted the `cas.rs` command in `vox-cli`, likely related to architecture updates.
+- **crates/vox-populi-types/src/node_record.rs**: Added a new `node_record.rs` module to `vox-populi-types`.
+- **crates/vox-populi/src/inference/backends/**: Modified several backend modules within `vox-populi/src/inference/backends`, including `candle_cpu.rs`, `candle_cuda.rs`, `candle_device.rs`, and `candle_metal.rs`.
+- **crates/vox-populi/src/lib.rs**: Modified the main library file for `vox-populi`.
+- **crates/vox-populi/src/distributed_training/**: Modified `gradient.rs`, `session.rs`, `checkpoint.rs`, and `mod.rs` within `vox-populi/src/distributed_training`, integrating distributed training components.
+- **crates/vox-populi/src/distributed_training/strategy/mod.rs**: Added a new `mod.rs` to `vox-populi/src/distributed_training/strategy`.
+- **crates/vox-populi/src/inference/backend.rs**: Added a new `backend.rs` module to `vox-populi/src/inference`.
+- **crates/vox-populi/src/inference/generate.rs**: Modified the `generate.rs` module in `vox-populi/src/inference`.
+- **docs/src/architecture/where-things-live.md**: Updated the architecture documentation.
+- **crates/vox-populi/src/inference/backends/llama_cpp_rpc.rs**: Modified the `llama_cpp_rpc.rs` backend.
+- **crates/vox-populi/src/inference/backends/ollama_subprocess.rs**: Modified the `ollama_subprocess.rs` backend.
+- **crates/vox-populi/src/inference/qwen_forward.rs**: Modified the `qwen_forward.rs` module.
+- **docs/src/architecture/layers.toml**: Deleted the `layers.toml` architecture documentation.
+- **crates/vox-populi/src/inference/backends/mod.rs**: Modified the `mod.rs` for inference backends.
+- **crates/vox-populi/src/inference/qwen_weights.rs**: Modified the `qwen_weights.rs` module.
+
+--- audit: original='feat(populi): merge vox-inference and vox-distributed-training into vox-populi' | actual=1420L across 47 files | derived=full ---
