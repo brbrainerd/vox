@@ -1,0 +1,16 @@
+feat(compiler): remove `@endpoint(kind: …)` decorator surface
+scale: ~151 lines across 7 files [M]
+
+- **lexer**:
+  - `token.rs`: Deleted `AtEndpoint` token variant, its `#[token]` attribute, and its `Display` arm. Updated comments for `@query`, `@mutation`, and `@server` to reflect `@endpoint`'s retirement.
+  - `cursor.rs`: Modified `test_query_and_mutation_lex_as_distinct_tokens` to no longer expect `@endpoint` to lex as a known token, instead verifying `@query`, `@mutation`, and `@server` remain distinct. Updated comments to explain `@endpoint`'s retirement.
+- **parser**:
+  - `descent/decl/head.rs`: Deleted the `parse_endpoint` function, which handled the `@endpoint(kind: …)` syntax.
+  - `descent/mod.rs`: Removed `Token::AtEndpoint` from `DECL_LEADING_TOKENS`, `DECL_LEADING_TOKENS_EXCEPT_COMPONENT`, and the decorator dispatch arm in `parse_decl_decorator`.
+  - `descent/tests.rs`: Renamed `test_parse_endpoint_server_fn_brace_shape` to `test_parse_server_decorator_fn_brace_shape` and updated its input to use the canonical `@server fn …` form. Added comments explaining the change.
+- **hir**:
+  - `lower/mod.rs`: Updated the `hir_lowering_maps_endpoint_query_and_mutation_decls` test to use `@query` and `@mutation` directly instead of `@endpoint(kind: …)`. Added comments explaining the canonical forms.
+- **code-audit**:
+  - `detectors/retired_decorator.rs`: Modified `build_finding` to accept a `severity` parameter. Updated `explain()` documentation to reflect that `@endpoint` patterns now escalate to `Severity::Error` (v0.6.0+) while other retired decorators remain `Warning`.
+
+--- audit: original='feat(compiler): retire @endpoint(kind: …) decorator surface (Phase H step 18)' | actual=151L across 7 files | derived=full ---
