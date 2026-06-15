@@ -232,3 +232,24 @@ fn cross_platform_gate_has_stable_required_job_name() {
         "cross-check job must carry the stable name branch-protection requires"
     );
 }
+
+#[test]
+fn gui_cross_build_covers_three_os_with_webkit() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/gui-cross-build.yml"
+    ));
+    assert!(
+        yml.contains("windows-latest")
+            && yml.contains("macos-latest")
+            && yml.contains("ubuntu-latest")
+    );
+    assert!(
+        yml.contains("libwebkit2gtk-4.1-dev"),
+        "Linux GUI build needs WebKitGTK"
+    );
+    assert!(
+        yml.contains("cargo build -p vox-gui"),
+        "must actually compile the GUI crate"
+    );
+}
