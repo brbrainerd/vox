@@ -1,0 +1,10 @@
+feat(ci): ephemeral dispatched runner autoscaler and hosted fallback gate
+scale: ~407 lines across 5 files [L]
+
+- `crates/vox-cli/src/commands/ci/runner_scale.rs`: Refactor runner autoscaler from persistent, idle-reaping containers to ephemeral, one-job runners. Implement scaling based on queued job demand, short idle grace for unassigned runners, and stale registration pruning.
+- `docs/src/ci/runner-autoscaling.md`: Update documentation to reflect the new ephemeral runner autoscaling model, including demand calculation based on queued jobs, bounded scaling, warm pool configuration, and idle grace/stale registration reaping.
+- `contracts/config/env-vars.v1.yaml`: Add new environment variables `VOX_RUNNER_IDLE_REAP_SECS`, `VOX_RUNNER_MAX`, and `VOX_RUNNER_WARM_POOL` for configuring the ephemeral runner autoscaler.
+- `.github/workflows/ci-fallback-hosted.yml`: Restrict the `ci-fallback-hosted` workflow to `workflow_dispatch` only, removing `pull_request` and `push` triggers. This makes it a manual-only fallback and not a required branch protection check.
+- `docs/src/ci/github-hosted-exceptions.md`: Add `ci-fallback-hosted.yml` to the list of GitHub-hosted exceptions, clarifying its manual-only nature and purpose as a portable Rust/GUI smoke test when the self-hosted fleet is down.
+
+--- audit: original='feat(ci): ephemeral dispatched runner autoscaler + self-hosted-only gate' | actual=407L across 5 files | derived=full ---
