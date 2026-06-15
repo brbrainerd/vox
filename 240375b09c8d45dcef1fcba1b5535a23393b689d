@@ -1,0 +1,16 @@
+feat(compiler): wire `Decl::Routes` through HIR to WebIR; fix 4 CLI test failures
+scale: ~85 lines across 9 files [M]
+
+- `crates/vox-compiler`:
+    - Introduce `HirModule::client_routes` to store `RoutesDecl` from the AST.
+    - Modify `hir::lower` to capture `Decl::Routes` into `hir.client_routes` instead of dropping them.
+    - Add `lower_client_routes` in `web_ir/lower.rs` to process `hir.client_routes` and produce `RouteNode::RouteTree` entries in the WebIR.
+    - Remove `#[allow(dead_code)]` from `lower_route_contract_entry` as it is now called by `lower_client_routes`.
+    - Introduce `is_advisory_diagnostic` in `web_ir/validate.rs` to identify soft warnings, including a new `web_ir_validate.route.unreachable` advisory diagnostic.
+    - Update `codegen_ts/emitter.rs` to delegate advisory diagnostic filtering to the new `web_ir::validate::is_advisory_diagnostic` function.
+    - Update `reactive_smoke_test.rs` to filter advisory diagnostics when asserting validation results.
+- `crates/vox-cli`: Fix `@component ParityPage()` to `component ParityPage()` in two test fixtures (`op_s048` and `op_s217`) to resolve test failures.
+- `crates/vox-publisher`: Update `route_simulation_golden.json` digest due to corpus changes related to TASK-8.1.
+- `docs/src/architecture`: Add `mens-training-ssot.md` as a pointer page, fulfilling a requirement for a test.
+
+--- audit: original='fix(compiler): TASK-9.1 -- wire Decl::Routes → HIR → WebIR; fix 4 vox-cli test failures' | actual=85L across 9 files | derived=full ---
