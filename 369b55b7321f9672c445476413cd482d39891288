@@ -1,0 +1,11 @@
+feat(codegen): `row` now wraps by default; `scroll` and `wrap=false` control overflow
+scale: ~149 lines across 7 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/rn/component.rs`: Implemented `row` overflow behavior for React Native. A bare `row` now defaults to `flexWrap: "wrap"`. `row(scroll: "horizontal")` generates a `<ScrollView horizontal>` component. Added a helper function `literal_string_value` to extract string literals from HIR expressions.
+- `crates/vox-codegen/src/web_ir/primitives/mod.rs`: Implemented `row` overflow behavior for web. A bare `row` now defaults to `flex-wrap`. `row(scroll: "horizontal")` adds `flex-nowrap` and `overflow-x-auto`. `row(wrap: "false")` adds `flex-nowrap`. Updated web primitive tests to reflect new default wrapping and scroll/wrap=false behaviors.
+- `crates/vox-codegen/tests/rn_lifecycle_test.rs`: Added a new test case to verify React Native `row` wrapping by default and `scroll="horizontal"` generating a `ScrollView`.
+- `crates/vox-codegen/src/codegen_ts/vox_client.rs`: Hardened the React Native `process.env.EXPO_PUBLIC_*` access by casting `globalThis` to ensure type-checking without `@types/node`.
+- `apps/vox-mental-tracker/src/main.vox`: Migrated the `NavBar` component to use `row(scroll: "horizontal")` to enable horizontal scrolling instead of wrapping.
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` and `crates/vox-codegen/src/codegen_ts/jsx.rs`: Registered the new `scroll` prop in `HIR_PRIMITIVE_CONSUMED_PROPS` and `PRIMITIVE_CONSUMED_PROPS` to prevent it from leaking as a raw attribute.
+
+--- audit: original='codegen: VUV `row` can no longer overflow horizontally (language-level)' | actual=149L across 7 files | derived=full ---
