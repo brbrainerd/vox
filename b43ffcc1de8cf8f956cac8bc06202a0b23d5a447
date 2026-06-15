@@ -1,0 +1,10 @@
+docs(superpowers): Draft config and hardcoded values remediation plan
+scale: ~858 lines across 1 files [L]
+
+- Create `docs/superpowers/plans/2026-06-15-config-hardcoded-values-remediation.md` detailing a Phase 1 implementation plan to address 8 high-severity findings from a config audit.
+- The plan outlines an architectural approach using pure, deterministic resolver functions for each fix, unit testing, and preserving existing defaults.
+- Specifies the tech stack (Rust, `reqwest`, `vox_config::timeouts`, env-vars, `cargo test`).
+- References `graphify-out/config-audit-graph/FINDINGS_INDEX.md` as the source of truth for findings.
+- Defines the scope, focusing on high-severity issues and deferring other concerns to separate plans.
+
+--- audit: original='docs(plan): config & hard-coded-values Phase 1 remediation plan' | actual=858L across 1 files | derived=full ---
