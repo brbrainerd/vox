@@ -1,0 +1,13 @@
+fix(coverage-graph): exclude test fns and std-type refs from reached-but-unproven
+scale: ~295 lines across 2 files [L]
+
+- `scripts/coverage-graph/ingest_reaches.py`:
+    - Added `is_testfn` helper function to identify test functions based on `_origin` "test" or "tests/" in `source_file`.
+    - Defined `STD_TYPES` set containing common Rust standard library types (e.g., "Result", "Option", "Self").
+    - Modified the loop iterating over graph nodes to skip counting test functions and nodes with labels matching `STD_TYPES` when calculating "code" and "reached-not-proven" metrics.
+- `graphify-out/REACHED_VS_PROVEN.md`:
+    - Updated the "Annotated code symbols" count from 39863 to 25333.
+    - Updated the "Total reached-but-unproven symbols" count from 16940 to 7950.
+    - Recalculated and updated the "Code", "Reached", "Proven", and "Reached-not-proven" statistics for all listed crates to reflect the exclusion of test functions and standard type references.
+
+--- audit: original='fix(coverage-graph): exclude test fns + std-type refs from reached-but-unproven' | actual=295L across 2 files | derived=full ---
