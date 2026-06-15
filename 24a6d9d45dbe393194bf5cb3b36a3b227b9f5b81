@@ -1,0 +1,25 @@
+feat(vox-db): add ResearchMetricsSink round-trip integration tests
+scale: ~847 lines across 22 files [L]
+
+- `crates/vox-db/tests/research_metrics_sink_roundtrip.rs`: Add five integration tests for `ResearchMetricsSink` covering `ResearchMetric`, `ModelCall`, `TaskRootSummary`, `BuildSummary`, and `Error` `TelemetryEvent` variants. Each test spawns the sink, records an event, polls for the async write to land, and asserts the row contents.
+- `crates/vox-cli/src/commands/ci/pre_push.rs`: Refactor `vox_self_cmd` and `vox_self_status` functions to improve Windows compatibility by directly invoking the current executable instead of `cargo run`. This avoids "Access is denied" errors when `vox` tries to relink itself.
+- `crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs`: Add `emit_cache_miss_if_applicable` function to emit `orch.cache.miss` `ResearchMetric` events when an LLM call returns without a prompt-cache hit.
+- `docs/src/learning/rust-via-vox/lesson-01-ownership-pattern-drill.md`: Add a new learning document for Rust ownership pattern drills.
+- `crates/vox-test-harness/src/synthetic_workspace.rs`: Improve `write_member` function by using `unwrap_or_else` for `source_override` and reformatting `with_extra_file` in tests for better readability.
+- `crates/vox-gui/src/commands/app_state.rs`: Add a test for `GuiState` holding the initial view.
+- `crates/vox-plugin-browser/src/lib.rs`: Add a test to verify the browser plugin manifest advertises its ID.
+- `crates/vox-wire-format-validator/src/lib.rs`: Add a test to confirm the expected SSOT hash is 64 hexadecimal characters.
+- `crates/voxup/src/manifest.rs`: Add a test to parse a minimal toolchain YAML.
+- `crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs`: Add a test to ensure `OrchestratorConfig` can be default-constructed.
+- `crates/vox-scientia-jsonschema-codegen/src/main.rs`: Add a new test module.
+- `crates/vox-plugin-cloud/src/lib.rs`: Add a new test module.
+- `crates/vox-plugin-nvml-probe/src/lib.rs`: Add a new test module.
+- `crates/vox-plugin-publication/src/lib.rs`: Add a new test module.
+- `crates/vox-plugin-runtime-container/src/lib.rs`: Add a new test module.
+- `crates/vox-plugin-runtime-wasm/src/lib.rs`: Add a new test module.
+- `crates/vox-plugin-host/tests/telemetry_load_failure.rs`: Update `telemetry_load_failure` test to use `assert_eq!` for comparing error messages.
+- `contracts/scientia/distribution.schema.json`: Add 5 lines to the distribution schema.
+- `docs/src/reference/telemetry-metric-contract.md`: Add 5 lines to the telemetry metric contract documentation.
+- `crates/vox-telemetry/src/lib.rs`: Update `TelemetryRecorder` trait to include `record_event` method.
+
+--- audit: original='test(vox-db): ResearchMetricsSink round-trip integration tests' | actual=847L across 22 files | derived=full ---
