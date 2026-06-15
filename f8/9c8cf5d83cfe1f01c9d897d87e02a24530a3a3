@@ -1,0 +1,12 @@
+feat(cli): introduce `vox audit` command for quality gates
+scale: ~611 lines across 7 files [L]
+
+- `crates/vox-cli/src/commands/audit.rs`: Refactored the `audit` command to read quality gate definitions from `contracts/ci/check-targets.v1.yaml` instead of hardcoding OSV queries. This involved removing OSV-related structs and logic, and adding new structs (`CheckManifest`, `CheckEntry`, `AuditArgs`) for parsing the YAML manifest and handling command-line arguments. The command now executes external processes based on the manifest.
+- `contracts/ci/check-targets.v1.yaml`: Added a new YAML file defining a canonical list of quality gates for the Vox workspace. This includes checks for formatting, line endings, SSOT drift, doc frontmatter, and Markdown doctests, each with metadata like ID, description, category, blocking status, run stages, and command to execute.
+- `crates/vox-cli/src/lib.rs`: Added a new `Audit` variant to the `Cli` enum, integrating the `AuditArgs` into the CLI structure.
+- `crates/vox-cli/src/cli_dispatch/mod.rs`: Implemented dispatch logic for the new `Cli::Audit` variant, calling the `audit::run` function.
+- `crates/vox-cli/src/commands/mod.rs`: Declared the `audit` module as public.
+- `biome.json`: Added a new Biome configuration file to enable TypeScript linting for `docs-astro/src`, `vox-vscode/src`, `tools/visualizer/src`, and `crates/vox-codegen/codegen_ts/tests`. Formatting is disabled.
+- `.github/workflows/docs-quality.yml`: Added a new CI step to run Biome TypeScript linting with `npx @biomejs/biome@1.9.4 lint --reporter=github`. This step is configured with `continue-on-error: true` for a bootstrap period.
+
+--- audit: original='feat(quality): biome TypeScript lint gate for docs-astro + vox-codegen TS' | actual=611L across 7 files | derived=full ---
