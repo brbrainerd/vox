@@ -1,0 +1,6 @@
+fix(docker): Set Docker Compose build context to current directory
+scale: ~2 lines across 1 files [XS]
+
+- `docker/vox-eval.compose.yml`: Changed the `eval` service's build `context` from `..` (parent directory) to `.` (current directory).
+
+--- audit: original='fix(docker): Set compose context to dot for Coolify deployment compatibility' | actual=2L across 1 files | derived=full ---
