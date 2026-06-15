@@ -1,0 +1,9 @@
+docs(arch): Log session 5 of crate audit and plan execution
+scale: ~20 lines across 1 files [S]
+
+- **docs/src/architecture/crate-audit-and-plan-2026.md**:
+    - Added a new "7e. Execution log" section detailing session 5 activities.
+    - Documented the completion of tasks B-2 (voxup/Cargo.toml conversion, dirs API port, url workspace dependency), B-6 (mockito to wiremock migration in vox-populi), B-3-trim (url migration in vox-scientia), B-9 (tower-lsp-server feature gate), B-3.5 (vox-compiler/Cargo.toml migration), and A-4-rescope (vox-arch-check dev-dep migration).
+    - Updated the overall task completion state from 29 to approximately 38 out of 50 tasks, indicating that Phase 1 and Phase 2 are now complete, with Phase 3 and beyond remaining.
+
+--- audit: original='docs(arch): log session 5 of crate-audit-and-plan execution' | actual=20L across 1 files | derived=full ---
