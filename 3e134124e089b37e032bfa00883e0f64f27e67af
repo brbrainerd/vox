@@ -1,0 +1,9 @@
+feat(wasm-runtime): allow configuring skill fuel via VOX_WASM_SKILL_FUEL env var
+scale: ~34 lines across 1 files [S]
+
+- Introduce `DEFAULT_WASM_SKILL_FUEL` constant set to 1 billion instructions.
+- Add `resolve_fuel` function to parse fuel from an optional string, falling back to the default.
+- Modify `WasmRuntime::new` to use `resolve_fuel` with the `VOX_WASM_SKILL_FUEL` environment variable.
+- Add unit tests for `resolve_fuel` covering default, valid override, and unparseable override cases.
+
+--- audit: original='feat(wasm-runtime): resolve skill fuel from VOX_WASM_SKILL_FUEL env (HC-G07-01)' | actual=34L across 1 files | derived=full ---
