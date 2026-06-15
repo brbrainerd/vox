@@ -1,0 +1,6 @@
+fix(doc-pipeline): add page path as tiebreaker to SUMMARY.md sorting
+scale: ~6 lines across 2 files [S]
+
+- `crates/vox-doc-pipeline/src/pipeline/mod.rs`: Modified the sorting key for `root_pages` and `status_pages` in `SUMMARY.md` generation to include `p.path.clone()` after `p.sort_order` and `p.title.clone()`, ensuring deterministic sorting across platforms.
+
+--- audit: original='fix(doc-pipeline): add path as tiebreaker in SUMMARY.md sort' | actual=6L across 2 files | derived=full ---
