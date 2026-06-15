@@ -1,0 +1,8 @@
+feat(compiler, dashboard): Port ForgeTab to .vox and fix state machine union emit
+scale: ~131 lines across 3 files [M]
+
+- `crates/vox-dashboard/app/src/tabs/forge.vox`: Ported `ForgeTab` to `.vox`, including `PipelineView` and `WorkflowScrubber` components. Introduced `ScrubberState` and `PipelinePhase` state machines with their respective states and transitions.
+- `crates/vox-compiler/src/codegen_ts/state_machine_emit.rs`: Fixed a bug where the last variant of a state machine union type was emitted without a leading `|` pipe character, ensuring correct TypeScript type generation.
+- `docs/src/architecture/gui-native-roadmap-status-2026.md`: Updated the status of `TASK-7.2` to "In progress" and provided details on the completion of `forge.vox` and the state machine fix. Updated `last_updated` date.
+
+--- audit: original='feat(compiler, dashboard): TASK-7.2 — forge.vox + fix state_machine union pipe emit' | actual=131L across 3 files | derived=full ---
