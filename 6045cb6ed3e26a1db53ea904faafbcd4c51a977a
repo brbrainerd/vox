@@ -1,0 +1,8 @@
+docs(agents): update archived document references
+scale: ~16 lines across 3 files [S]
+
+- `AGENTS.md`: Updated paths for archived research documents related to multi-repo context isolation and telemetry, moving them to `docs/src/archive/research-2026-q1/`.
+- `CHANGELOG.md`: Corrected the path for the archived telemetry remote sink specification document.
+- `.github/PULL_REQUEST_TEMPLATE.md`: Updated the reference to the archived agent event kind ludus matrix document.
+
+--- audit: original='docs(agents): repair archived-doc back-references' | actual=16L across 3 files | derived=full ---
