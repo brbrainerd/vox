@@ -1,0 +1,10 @@
+docs(plan): affected-crate selective CI implementation plan for Sonnet-4.6 handoff
+scale: ~793 lines across 1 files [L]
+
+- New file `docs/superpowers/plans/2026-06-15-affected-crate-selective-ci.md` created, detailing a plan for implementing affected-crate selective CI.
+- The plan outlines making PR-time CI build/test/clippy only the crates affected by a PR's changes (changed crates + their reverse-dependency closure), while keeping a full-workspace build at the merge-queue gate.
+- It describes the architecture, tech stack, and feasibility verdict, including considerations for `resolver v2` and `workspace-hack`.
+- The document is structured as a handoff for a Claude Sonnet 4.6 executor, including hard guardrails, mandatory pre-flight checks, a critique-vs-codebase section, and inline executor notes.
+- It corrects the `vox ci` registry location and updates drifted line anchors within the plan.
+
+--- audit: original='docs(plan): affected-crate selective CI plan as Sonnet-4.6 handoff doc' | actual=793L across 1 files | derived=full ---
