@@ -1,0 +1,22 @@
+ci(github-actions): restore gate resilience, add security, retire GitLab CI
+scale: ~759 lines across 32 files [L]
+
+- ci-fallback-hosted.yml: Add new GitHub-hosted fallback merge gate for fmt, clippy, nextest, doctests, and cargo-deny/audit on ubuntu-latest.
+- .github/workflows/*.yml: Add `concurrency: cancel-in-progress` to 23 PR/push workflows to auto-cancel superseded runs.
+- .github/workflows/codeql.yml: Add CodeQL (Rust + JavaScript-TypeScript) scanning, weekly and on PR/push.
+- .github/workflows/gitleaks.yml: Add gitleaks secret scanning on PR/push/nightly.
+- .github/workflows/docker-eval.yml: Add Trivy image scanning (report-only).
+- .github/dependabot.yml: Add Dependabot configuration for Cargo (grouped), GitHub Actions, and npm (5 manifest directories).
+- .github/CODEOWNERS: Add CODEOWNERS file with a routing skeleton and placeholder team handle.
+- .github/workflows/setup-e2e.yml, compile-matrix.yml, mobile-eas-build.yml: Add Swatinem/rust-cache to these uncached hosted workflows.
+- .gitlab-ci.yml: Remove the parallel GitLab CI pipeline.
+- docs/src/ci/alternatives-and-local-mirroring.md: Update documentation to reflect GitLab CI removal and add a note about its maintenance cost.
+- docs/src/ci/workflow-enumeration.md: Update documentation to remove references to GitLab CI mirroring.
+- docs/src/architecture/data-storage-lint-and-ci-spec-2026.md: Update documentation to reflect GitLab CI removal and mark related wiring steps as obsolete.
+- docs/src/architecture/data-storage-migration-backlog-2026.md: Update documentation to reflect GitLab CI removal and mark related wiring steps as obsolete.
+- docs/src/ci/rcicd-coverage-cost-matrix-2026.md: Update documentation to reflect GitLab CI removal.
+- docs/src/ci/runner-contract.md: Update `last_updated` date.
+- scripts/arch-check.vox: Update script comment to remove reference to .gitlab-ci.yml.
+- .cursor/rules/ci-runner-convention.mdc: Update `last_updated` date.
+
+--- audit: original='ci: restore gate resilience, add security scanning, retire GitLab CI' | actual=759L across 32 files | derived=full ---
