@@ -1,0 +1,9 @@
+fix(secrets): improve keyring write robustness and env var shadowing visibility
+scale: ~86 lines across 4 files [M]
+
+- `crates/vox-secrets/src/sources/auth_json.rs`: Implement round-trip verification for keyring writes. If a secure token write fails to read back correctly, the partial entry is scrubbed, a warning is emitted to stderr, and storage falls back to plaintext in `auth.json`. Added a regression test `write_then_read_round_trips_regardless_of_keyring_health`.
+- `crates/vox-secrets/src/resolver.rs`: Add logic to detect and report when an environment variable shadows a different value stored in `auth.json`. This adds a `detail` field to the `ResolvedSecret` struct.
+- `crates/vox-cli/src/commands/secrets.rs`: Update `DoctorSecretRow` to include a new `detail` field, which is serialized to JSON if present, to surface the shadowing information in `vox secrets status --format json-v1`.
+- `crates/vox-secrets/Cargo.toml`: Add `tempfile` as a development dependency.
+
+--- audit: original='fix(secrets): round-trip-verify keyring writes + surface env-vs-auth.json shadowing' | actual=86L across 4 files | derived=full ---
