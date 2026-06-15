@@ -1,0 +1,14 @@
+fix(ssot-drift): resolve 6 SSOT drift failures and update documentation
+scale: ~884 lines across 9 files [L]
+
+- `contracts/capability/model-manifest.generated.json`: Regenerated to reflect current state, resolving drift.
+- `docs/src/reference/telemetry-metric-contract.md`: Added 14 new `METRIC_TYPE_*` values for various AI-first fixture and system events.
+- `crates/vox-cli/src/commands/ci/run_body_helpers/docs.rs`: Removed `crates/vox-ml-cli/` from `NOMENCLATURE_DOC_BANNED` as it is a grandfathered crate whose paths are legitimately referenced.
+- `contracts/orchestration/model-routing.v1.schema.json`: Removed `quality_weights` and `scoring` from required fields, aligning schema with Rust `#[serde(default)]` behavior.
+- `contracts/scientia/consumption-registry.v1.yaml`: Updated `consumer_paths` for `scientia-research-mesh` to reflect `dei_shim/research/mesh_subscriber.rs` moving to `config/scientia_research_mesh.rs`.
+- `docs/src/archive/claude-design-may-2026/README.md`: Added `training_eligible: false` and `archived_date: 2026-05-28` to comply with archive policy.
+- `contracts/documentation/canonical-map.v1.yaml`: Removed `crates/vox-dashboard/**` from `frontend-surface-ownership owning_crate_globs` as the crate no longer exists.
+- `docs/src/reference/cli-command-surface.generated.md`: Regenerated to resolve drift.
+- `docs/src/reference/mens-train-defaults.generated.md`: Regenerated to resolve drift.
+
+--- audit: original='fix(ssot-drift): resolve 6 ssot-drift failures accumulated since v0.6.0' | actual=884L across 9 files | derived=full ---
