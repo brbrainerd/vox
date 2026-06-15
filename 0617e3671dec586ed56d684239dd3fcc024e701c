@@ -1,0 +1,6 @@
+chore(interop): regenerate GUI surface coverage report
+scale: ~0 lines across 1 files [XS]
+
+- contracts/reports/gui-surface-coverage.v1.json: Regenerated the binary report file to include the `vox component` command, resolving a drift in the single source of truth.
+
+--- audit: original='chore(interop): register `vox component` in gui-surface-coverage report' | actual=0L across 1 files | derived=full ---
