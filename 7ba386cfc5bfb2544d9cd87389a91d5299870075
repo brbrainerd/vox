@@ -1,0 +1,10 @@
+fix(codegen): wire route manifest validation and add tests
+scale: ~198 lines across 3 files [M]
+
+- `crates/vox-codegen`:
+    - Wired `validate_contract_branch` logic into `validate_manifest_symbols` to perform validation of route manifests against the HIR. This ensures that all components, loaders, and pending states referenced in the WebIR route tree are actually defined in the HIR.
+    - Added seven new tests for `validate_manifest_symbols` covering cases like missing components, bad loaders, bad pending states, recursion into children, valid routes, empty HIR, and no routes.
+    - Updated `validate_manifest_symbols` to collect component names from both `hir.components` and `hir.functions` and query names from `hir.endpoint_fns` of kind `HirEndpointKind::Query`.
+    - Added `tempfile` as a `dev-dependency` to resolve a build failure in `assets/mod.rs` when running tests.
+
+--- audit: original='fix(codegen): wire route-manifest validation that was sitting dead-code' | actual=198L across 3 files | derived=full ---
