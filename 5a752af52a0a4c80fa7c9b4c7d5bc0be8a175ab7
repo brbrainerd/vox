@@ -1,0 +1,10 @@
+refactor(web_ir): unify ZTier z-value calculation and enforce consistency
+scale: ~58 lines across 2 files [M]
+
+- `crates/vox-codegen/src/web_ir/mod.rs`:
+    - Added a `z_value()` method to the `ZTier` enum, which calculates the z-index as `tier * 100`. This establishes a single source of truth for z-ladder values.
+    - Added a new test `ztier_and_layertier_agree_on_names_and_order` to ensure that `ZTier` and `LayerTier` enums have matching names and that their `z_value()` calculations (or equivalent for `LayerTier`) produce consistent results.
+- `crates/vox-codegen/src/web_ir/primitives/mod.rs`:
+    - Modified `apply_z_index` and `resolve_universal_kwarg` functions to use the new `ZTier::z_value()` method for determining z-indices, removing the previously hardcoded `match` statements for z-index values. This eliminates redundant z-index definitions and enforces the canonical z-ladder.
+
+--- audit: original='refactor(web_ir): single canonical z ladder (ZTier::z_value, tier*100)' | actual=58L across 2 files | derived=full ---
