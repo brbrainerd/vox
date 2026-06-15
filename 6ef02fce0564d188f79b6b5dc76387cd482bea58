@@ -1,0 +1,33 @@
+chore(fmt): apply rustfmt for Gate 1 smoke parity
+scale: ~1983 lines across 137 files [XL]
+
+- `crates/vox-orchestrator`: Applied rustfmt to `hopper/store.rs`, `hopper/types.rs`, `a2a/dispatch/op_fragment_sync.rs`, `lib.rs`, `hopper/capability.rs`, `mesh.rs`, `registry_model_resolve.rs`, `orchestrator/task_dispatch/complete/fail.rs`, `a2a/dispatch/mod.rs`, `a2a/dispatch/bundle_fetch.rs`, `a2a/mod.rs`, `a2a/secret_bag.rs`, `orchestrator/task_dispatch/complete/success/mod.rs`, and `privacy_router.rs`, as well as several tests.
+- `crates/vox-ml-cli`: Applied rustfmt to `commands/mens/probe.rs`, `commands/populi_attest.rs`, `commands/populi_join.rs`, `commands/mod.rs`, and `commands/ai/workflow.rs`.
+- `crates/vox-compiler`: Applied rustfmt to `eval/builtins.rs`, `typeck/ast_decl_lints.rs`, `typeck/checker/expr_field.rs`, `eval/shell_stdlib.rs`, `hir/lower/expr.rs`, `codegen_rust/emit/durability_lower.rs`, `hir/lower/decl.rs`, `parser/descent/expr/pratt_match.rs`, `side_effect_block.rs`, `builtin_registry.rs`, `typeck/effect_check.rs`, and `typeck/diagnostics.rs`, and several tests.
+- `crates/vox-dashboard`: Applied rustfmt to `tests/provider_atlas.rs`, `tests/hopper_panel_smoke.rs`, `tests/mesh_phase4_routes.rs`, `src/api/hopper.rs`, `src/audit_log.rs`, `tests/e2e_mesh.rs`, `src/api/mesh_actions.rs`, `src/api/mesh_join.rs`, `src/api/mesh.rs`, `src/api/oplog_at.rs`, `src/router.rs`, `src/api/mesh_invite.rs`, and `src/lib.rs`.
+- `crates/vox-publisher`: Applied rustfmt to `tests/provider_atlas.rs`, `src/atlas/trust_snapshot.rs`, `src/scientia_scholarly.rs`, and `tests/trust_snapshot.rs`.
+- `crates/vox-orchestrator-queue`: Applied rustfmt to `src/affinity.rs`, `src/oplog/backfill.rs`, `src/oplog/sign.rs`, `src/locks/leader.rs`, `src/oplog/persist.rs`, `src/oplog/mod.rs`, `src/oplog/checkpoint.rs`, `src/projections/affinity.rs`, `src/projections/capabilities.rs`, `src/projections/kudos.rs`, `src/projections/locks.rs`, and several tests.
+- `crates/vox-codegen`: Applied rustfmt to `tests/durability_lowering.rs`, `src/codegen_rust/emit/durability_lower.rs`, `src/codegen_rust/emit/http.rs`, `src/codegen_ts/openapi_emit.rs`, `src/codegen_ts/jsx.rs`, `src/codegen_ts/mod.rs`, and `tests/openapi_crud_api_test.rs`.
+- `crates/vox-db`: Applied rustfmt to `src/store/ops_external_review.rs`, `src/mesh_exec_leases.rs`, `src/codex_legacy.rs`, `src/local_cli_introspection.rs`, `tests/ops_codex_tests.rs`, `src/mesh_locks.rs`, `src/lib.rs`, and `src/store/ops_convergence.rs`.
+- `crates/vox-mesh-types`: Applied rustfmt to `tests/federation_envelope.rs`, `src/lib.rs`, `tests/tee_attestation.rs`, and `tests/attestation_manifest.rs`.
+- `crates/vox-package`: Applied rustfmt to `src/bundle.rs`, `src/model_bundle.rs`, and `tests/bundle_cas.rs`.
+- `crates/vox-orchestrator-mcp`: Applied rustfmt to `src/tool_aliases.rs` and `src/vcs_tools/branch_tools.rs`.
+- `crates/vox-populi`: Applied rustfmt to `tests/github_attestation.rs`, `tests/ed25519_envelope.rs`, and `tests/http_control_plane.rs`.
+- `crates/vox-distributed-training`: Applied rustfmt to `src/strategy/data_parallel.rs` and `src/gradient.rs`.
+- `crates/vox-orchestrator-types`: Applied rustfmt to `src/merge_outcome.rs` and `tests/routing_and_ids_smoke.rs`.
+- `crates/vox-telemetry`: Applied rustfmt to `tests/recorder_integration.rs` and `tests/metric_validation_integration.rs`.
+- `crates/vox-arch-check`: Applied rustfmt to `src/main.rs` and `src/forbidden_patterns.rs`.
+- `crates/vox-workflow-runtime`: Applied rustfmt to `src/workflow/run.rs` and `src/workflow/plan.rs`.
+- `crates/vox-actor-runtime`: Applied rustfmt to `src/builtins/mod.rs`.
+- `crates/vox-mcp-registry`: Applied rustfmt to `tests/tool_registry_smoke.rs`.
+- `crates/vox-orchestrator-cap-mint`: Applied rustfmt to `src/lib.rs`.
+- `crates/vox-config`: Applied rustfmt to `tests/cross_module_smoke.rs`.
+- `crates/vox-openai-wire`: Applied rustfmt to `tests/chat_completion_multipart_tools_usage.rs`.
+- `crates/vox-search`: Applied rustfmt to `tests/policy_default_smoke.rs`.
+- `crates/vox-cli-core`: Applied rustfmt to `src/lib.rs`.
+- `crates/vox-mesh-policy`: Applied rustfmt to `src/parse.rs`.
+- `crates/vox-protocol`: Applied rustfmt to `tests/dispatch_roundtrip.rs` and `tests/dispatch_wire_roundtrip.rs`.
+- `crates/vox-skill-runtime`: Applied rustfmt to `src/lib.rs`.
+- This commit applies `rustfmt` across 137 files to align with current formatting expectations and prevent CI-only style drift, as indicated by Gate 1 rustfmt checks.
+
+--- audit: original='chore(fmt): apply rustfmt for gate1 smoke parity' | actual=1983L across 137 files | derived=full ---
