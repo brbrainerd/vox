@@ -1,0 +1,9 @@
+fix(interp): O(2^N) module-load hang and `@json_as` tagged-enum decode
+scale: ~62 lines across 4 files [M]
+
+- `eval/mod.rs`: Changed top-level functions to capture an empty environment instead of `self.scope.clone()`. This fixes an O(2^N) performance issue during module loading where each function deep-cloned all prior functions and their captured environments. Sibling/constructor resolution now relies on `module_scope` fallback.
+- `hir/lower/json_as.rs`: Modified `@json_as` ADT decoder to emit constructor applications (`HirExpr::Call`) for non-unit variants, ensuring they evaluate to `VoxValue::Tagged` and match positional constructor patterns. Unit variants now also use the bare constructor identifier. This corrects an issue where `ObjectLit` was emitted, leading to `VoxValue::Object` which was rejected by `match Constructor` patterns.
+- `tests/json_as_test.rs`: Updated two test cases (`adt_tagged_enum_dispatches_on_tag_field` and `adt_tagged_enum_second_variant_dispatches_correctly`) to use `match` dispatch on the typed `Shape` ADT instead of `.get()` on a raw `Json` object, aligning with the corrected `@json_as` behavior and type system.
+- `examples/golden/json_as_typed.vox`: Added an `EXPECT` block to the `main` function to cover the behavioral gate for `json_as_typed.vox`.
+
+--- audit: original='fix(interp): O(2^N) module-load hang + @json_as tagged-enum decode' | actual=62L across 4 files | derived=full ---
