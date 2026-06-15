@@ -1,0 +1,8 @@
+fix(test): correct Vox syntax in fixtures and ignore heavyweight tests
+scale: ~13 lines across 1 files [S]
+
+- `crates/vox-cli/tests/run_mode_dispatch.rs`:
+    - Corrected malformed Vox syntax in inline test fixtures by adding a closing brace `}` to `fn main() {` and changing Python-style `for a in std.args:` to brace syntax `for f in files {`.
+    - Added `#[ignore]` attribute with a detailed explanation and run instructions to `run_mode_script_executes_minimal_main`, `run_mode_auto_matches_script_for_script_shaped_file`, and `run_mode_auto_matches_script_for_script_shaped_file_with_args` tests. This marks them as heavyweight due to their reliance on the script-cache for native compilation, which is too slow for default `cargo nextest run` gates.
+
+--- audit: original='fix(test): repair run_mode_dispatch fixtures + ignore heavyweight script-lane tests' | actual=13L across 1 files | derived=full ---
