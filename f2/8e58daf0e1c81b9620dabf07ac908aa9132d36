@@ -1,0 +1,6 @@
+docs(architecture): add vox-populi-types row to where-things-live.md
+scale: ~1 lines across 1 files [XS]
+
+- `docs/src/architecture/where-things-live.md`: Added a new row to the "Where Things Live" table for `vox-populi-types`, including a description of its pure-data types and a link to ADR-042.
+
+--- audit: original='docs: add vox-populi-types row to where-things-live.md' | actual=1L across 1 files | derived=full ---
