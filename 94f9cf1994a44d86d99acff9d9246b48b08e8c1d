@@ -1,0 +1,13 @@
+fix(eval): support for-over-map/string, mixed numeric arithmetic, and cross-numeric equality
+scale: ~150 lines across 3 files [M]
+
+- `crates/vox-compiler/src/eval/expr.rs`:
+    - Implemented mixed `Int`/`Float` arithmetic operations (`+`, `-`, `*`, `/`) and comparisons (`<`, `>`) by promoting `Int` to `f64` to match typechecker behavior.
+    - Modified `for` loop evaluation to correctly iterate over `Map` (yielding `(key, value)` tuples) and `String` (yielding single-character strings) instead of erroring.
+- `crates/vox-compiler/src/eval/value.rs`:
+    - Added `PartialEq` implementation for `VoxValue` to handle cross-numeric equality between `Int` and `Float` values, promoting `Int` to `f64` for comparison.
+- `crates/vox-compiler/tests/interpreter_test.rs`:
+    - Added `for_over_map_and_string_iterate` test case to verify correct iteration over maps and strings.
+    - Added `mixed_int_float_arithmetic` test case to verify correct evaluation of expressions with mixed `Int` and `Float` operands.
+
+--- audit: original='@ fix(eval): for-over-map/string, mixed Int/Float arithmetic, cross-numeric equality' | actual=150L across 3 files | derived=full ---
