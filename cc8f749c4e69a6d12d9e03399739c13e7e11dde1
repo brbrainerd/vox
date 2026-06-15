@@ -1,0 +1,18 @@
+feat(orchestrator, db, publisher): implement dynamic planning and news approval
+scale: ~6552 lines across 96 files [XL]
+
+- `crates/vox-orchestrator`: Implemented dynamic planning features including goal submission, intake routing, replanning, and workflow handoff. Introduced a new attention budget system with tracking and configuration.
+- `crates/vox-db`: Added new database operations for planning sessions (`ops_planning.rs`) and news approvals (`ops_news.rs`). Included schema definitions for execution and news domains, along with associated tests.
+- `crates/vox-publisher`: Implemented news syndication features, including new adapters for GitHub, RSS, Twitter, and OpenCollective. Added news templates and associated types and contract definitions.
+- `crates/vox-mcp`: Introduced new tools for news management (`news_tools.rs`) and updated existing tools for tasks and input schemas.
+- `vox-vscode/webview-ui`: Added several new UI components for workflow scrubbing, financial dashboards, intention matrices, mesh topologies, and companion HUDs. Updated existing components like AgentFlow, Dashboard, and PipelineView.
+- `docs`: Added new architectural documentation for news syndication security and incident patterns, dynamic agentic planning, and news templates. Removed `feed.xml`.
+- `Cargo.lock`: Updated dependencies.
+- `crates/vox-orchestrator/src/config.rs`: Added extensive configuration options for dynamic planning and attention budgeting.
+- `crates/vox-orchestrator/src/schema.rs`: Updated database schema definitions.
+- `crates/vox-db/src/schema/manifest.rs`: Modified database schema manifest.
+- `crates/vox-publisher/Cargo.toml`: Updated crate dependencies.
+- `vox-vscode/package.json`: Updated VSCode extension dependencies.
+- `crates/vox-mens/Cargo.toml`, `crates/vox-cli/Cargo.toml`, `crates/vox-db/src/lib.rs`, `crates/vox-schola/Cargo.toml`, `Cargo.toml`, `crates/vox-mcp/Cargo.toml`, `crates/vox-orchestrator/Cargo.toml`: Minor dependency updates.
+
+--- audit: original='feat(db): implement planning session and news approval features' | actual=6552L across 96 files | derived=full ---
