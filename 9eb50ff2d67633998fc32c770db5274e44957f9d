@@ -1,0 +1,11 @@
+feat(compiler): add structural pipeline-gap regression tests for `let` lowering
+scale: ~127 lines across 2 files [M]
+
+- `crates/vox-compiler/src/semcov_struct_pipeline_tests.rs`: Add new module with five regression tests to guard against top-level `let` declarations (parsed as `Decl::Const`) being silently dropped during HIR lowering. These tests ensure:
+    - `let` declarations lower to `HirConst` and are not caught by `legacy_ast_nodes` catch-all.
+    - The initializer value (e.g., `42`, string literals) is preserved.
+    - Type annotations (e.g., `: Int`) are preserved.
+    - Multiple top-level `let` declarations are all lowered correctly.
+- `crates/vox-compiler/src/lib.rs`: Add `#[cfg(test)] mod semcov_struct_pipeline_tests;` to include the new test module.
+
+--- audit: original='test(compiler): regression-guard the headline pipeline-gap bug (pattern #1)' | actual=127L across 2 files | derived=full ---
