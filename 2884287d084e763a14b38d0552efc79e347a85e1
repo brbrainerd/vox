@@ -1,0 +1,27 @@
+feat(compiler): add `@json_as` attribute parsing for type definitions
+scale: ~381 lines across 19 files [L]
+
+- `crates/vox-compiler/src/parser/descent/decl/mid.rs`: Implement parsing logic for the new `@json_as` attribute, including its parameters like `naming`, `strict`, `defaults`, and `tag`. This involves parsing the attribute itself and then delegating to `parse_typedef`.
+- `crates/vox-compiler/src/ast/decl/typedef.rs`: Introduce `JsonAsFieldAttr` and `JsonAsAnnotation` structs to represent the parsed `@json_as` attribute and its per-field attributes (`@field_name`, `@default`, `@skip_if_none`). Update `VariantField` to include `json_as_attr`.
+- `crates/vox-compiler/src/lexer/token.rs`: Add new tokens for `@json_as`, `@field_name`, `@default`, and `@skip_if_none` attributes.
+- `crates/vox-compiler/src/parser/descent/mod.rs`: Integrate the new `parse_json_as` method into the main declaration parsing flow.
+- `docs/src/architecture/where-things-live.md`: Update architecture documentation.
+- `docs/src/architecture/layers.toml`: Update architecture layers configuration.
+
+refactor(container): extract `vox-container-types` crate
+
+- `crates/vox-container-types/Cargo.toml`: Create new crate `vox-container-types`.
+- `crates/vox-container-types/src/lib.rs`: Define the public API for `vox-container-types`, re-exporting `ContainerRuntime`, `BuildOpts`, `RunOpts`, `RuntimePreference`, and `exec_grammar`.
+- `crates/vox-container-types/src/runtime.rs`: Move `ContainerRuntime` trait, `BuildOpts`, and `RunOpts` structs from `vox-container` to `vox-container-types`.
+- `crates/vox-container-types/src/detect.rs`: Move `RuntimePreference` enum and its `FromStr` implementation from `vox-container` to `vox-container-types`.
+- `crates/vox-container-types/src/exec_grammar/mod.rs`: Move `exec_grammar` module from `vox-container` to `vox-container-types`.
+- `crates/vox-container-types/src/exec_grammar/ast.rs`: Move `exec_grammar::ast` from `vox-container` to `vox-container-types`.
+- `crates/vox-container-types/src/exec_grammar/policy.rs`: Move `exec_grammar::policy` from `vox-container` to `vox-container-types`.
+- `crates/vox-container-types/src/exec_grammar/risk.rs`: Move `exec_grammar::risk` from `vox-container` to `vox-container-types`.
+- `crates/vox-container/Cargo.toml`: Add `vox-container-types` as a dependency.
+- `crates/vox-container/src/lib.rs`: Remove `runtime` module, import types from `vox-container-types`, and re-export them for backward compatibility. Update `log_exec_risk` to use `exec_grammar` from `vox-container-types`.
+- `crates/vox-container/src/detect.rs`: Remove `RuntimePreference` definition and import it from `vox-container-types`.
+- `crates/vox-container/src/docker.rs`: Update path for `ContainerRuntime` trait.
+- `crates/vox-container/src/podman.rs`: Update path for `ContainerRuntime` trait.
+
+--- audit: original='refactor(container): extract vox-container-types (L0) — D-9-rescope step 1' | actual=381L across 19 files | derived=full ---
