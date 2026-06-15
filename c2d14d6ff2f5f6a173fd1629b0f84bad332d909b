@@ -1,0 +1,6 @@
+ci(links): ignore getmrq.com in link checks
+scale: ~4 lines across 1 files [XS]
+
+- `.lycheeignore`: Added `.*getmrq.com/.*` to ignore links from this domain during CI link checks. This prevents false-positive 402 errors (Payment Required) from an anti-bot/soft-paywall on `getmrq.com`, which was affecting the `agentic-version-control-automation-research-2026.md` document.
+
+--- audit: original='chore(links): ignore getmrq.com in check-links (402 anti-bot false-positive)' | actual=4L across 1 files | derived=full ---
