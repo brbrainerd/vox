@@ -1,0 +1,8 @@
+fix(eval): report actual type names in TypeErrors for `if`, call, and field access
+scale: ~12 lines across 1 files [S]
+
+- `crates/vox-compiler/src/eval/expr.rs`:
+    - Modified error handling for `if` conditions, function calls, and field accesses to use `vox_value_type_name` for more specific `TypeError` messages.
+    - Changed the field access evaluation to borrow the `VoxValue` object instead of consuming it, allowing its type name to be used in error messages.
+
+--- audit: original='fix(interp): report real type names in eval TypeErrors (not "other")' | actual=12L across 1 files | derived=full ---
