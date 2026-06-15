@@ -1,0 +1,13 @@
+feat(vox-gui/chat): Add accessibility attributes and empty state to ChatSurface
+scale: ~128 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx`:
+  - Replaced session buttons with `Button` components, adding `role="tab"`, `aria-pressed`, and `aria-selected` attributes for accessibility.
+  - Added an `EmptyState` component to display when a chat session has no messages.
+  - Imported `Button`, `EmptyState`, and `Icon` components.
+- `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.test.tsx`:
+  - Added a new test file for `ChatSurface`.
+  - Implemented tests to verify `aria-pressed` attribute on active session tabs and the `type="button"` attribute on the "New session" button.
+  - Added a test to ensure the `EmptyState` component renders correctly when a session has no messages.
+
+--- audit: original='feat(vox-gui/wave3): ChatSurface a11y + checklist (Wave 3)' | actual=128L across 2 files | derived=full ---
