@@ -1,0 +1,25 @@
+feat(eval+audit): Add base sources for plan-fidelity evaluation and thread through panel runner
+scale: ~195 lines across 8 files [M]
+
+- **crates/vox-audit/src/subcommands/plan_fidelity.rs**:
+    - `PlanFixture` struct gained `base_source: Option<String>` field to hold content of `base.vox` files.
+    - `discover_plans` function now reads `base.vox` if present in a plan's directory and populates `base_source`.
+    - `corpus_hash` function now incorporates the content of `base_source` into the hash, ensuring cache invalidation when base sources change.
+    - The panel prompt generation logic was updated to use `base_source` when available, instructing the model to modify the provided source.
+- **contracts/eval/plan-fidelity/plans/**:
+    - Added five new `base.vox` files, one for each plan:
+        - `001-add-fn/base.vox`: Contains an `add` function and its test.
+        - `002-add-test/base.vox`: Contains a `classify_score` function.
+        - `003-rename-field/base.vox`: Contains a `Todo` table and related endpoints with an `owner` field.
+        - `004-refactor-loop/base.vox`: Contains two endpoints with duplicate validation logic.
+        - `005-implement-endpoint/base.vox`: Contains a `TodoError` ADT and a skeleton `add_todo` endpoint.
+- **contracts/reports/plan-fidelity/2026-05-22.json**:
+    - Updated `measured_at` timestamp and `corpus_hash`.
+    - Updated `overall_pass_rate` and `median_pass_rate` from 0.4 to 0.6.
+    - Updated `pass_rate` for `claude-sonnet` and `gpt-frontier` from 0.4 to 0.6.
+    - Updated `median_cost_usd` for `claude-sonnet` (0.019935 -> 0.005322) and `gpt-frontier` (0.017224999999999997 -> 0.0063).
+    - Updated the `note` field to reflect the new pass rates and cost, and the impact of base sources.
+- **contracts/reports/evidence-ledger.v1.json**:
+    - Updated the `notes` for `audit.cr_l4.plan_fidelity` to reflect the new measurement results: 60% median pass rate with base sources, a +20pt improvement from the prior 40% without base sources. Also noted that 5-iteration refinement did not further improve results, and discussed remaining challenges.
+
+--- audit: original='feat(eval+audit): CR-L4 base sources per plan + thread through panel runner' | actual=195L across 8 files | derived=full ---
