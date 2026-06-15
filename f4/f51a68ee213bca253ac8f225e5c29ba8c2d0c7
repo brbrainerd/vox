@@ -1,0 +1,7 @@
+chore(deps-dev): bump @vscode/vsce to 3.9.2 in /apps/editor/vox-vscode
+scale: ~328 lines across 2 files [L]
+
+- Bumped `@vscode/vsce` development dependency from `^3.0.0` to `^3.9.2` in `package.json`.
+- Updated `package-lock.json` to reflect the new `@vscode/vsce` version and its transitive dependencies.
+
+--- audit: original='chore(deps-dev): bump @vscode/vsce in /apps/editor/vox-vscode (#113)' | actual=328L across 2 files | derived=full ---
