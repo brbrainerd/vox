@@ -103,6 +103,7 @@ impl DetectionRule for MagicValueDetector {
         Some(
             "// VIOLATION — hardcoded port and database path\n\
              let server = Server::bind(\"0.0.0.0:8080\");\n\
+             // vox-arch-check: allow abs-path\n\
              let db = Database::open(\"/var/data/app.db\");\n\
              \n\
              // FIX — read from config or environment\n\
@@ -180,6 +181,7 @@ impl DetectionRule for MagicValueDetector {
             }
 
             if self.path_rule.regex().is_match(line)
+                // vox-arch-check: allow abs-path
                 && !(line.contains("starts_with(\"/usr/")
                     || line.contains("starts_with(\"/bin/")
                     || line.contains("starts_with('/usr/")

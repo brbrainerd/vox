@@ -127,6 +127,7 @@ fn tsc_command(scratch: &PathBuf) -> Command {
     let local_tsc_cmd = scratch.join("node_modules").join(".bin").join("tsc.cmd");
     let local_tsc = scratch.join("node_modules").join(".bin").join("tsc");
     if cfg!(target_os = "windows") && local_tsc_cmd.exists() {
+        // vox-arch-check: allow shell-spawn
         let mut c = Command::new("cmd");
         c.arg("/C").arg(local_tsc_cmd);
         c
@@ -144,6 +145,7 @@ fn tsc_command(scratch: &PathBuf) -> Command {
 /// resolves `tsc`.
 fn run_node_esm(script_path: &PathBuf, cwd: &PathBuf) -> std::process::Output {
     if cfg!(target_os = "windows") {
+        // vox-arch-check: allow shell-spawn
         Command::new("cmd")
             .arg("/C")
             .arg("node")

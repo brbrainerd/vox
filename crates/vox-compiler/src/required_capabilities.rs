@@ -412,6 +412,7 @@ mod tests {
     #[test]
     fn file_transcribe_derives_speech_but_not_microphone() {
         let res = crate::pipeline::run_frontend_str(
+            // vox-arch-check: allow abs-path
             "fn note() -> Result[str] { Speech.transcribe(\"/tmp/a.wav\") }",
             "t.vox",
         )

@@ -44,8 +44,11 @@ pub fn current_target_triple() -> Option<&'static str> {
 pub fn plugin_artifact_filename(crate_name: &str, triple: &str) -> Option<String> {
     let stem = crate_name.replace('-', "_");
     let (prefix, ext) = match triple {
+        // vox-arch-check: allow dynlib-ext
         "windows-x86_64" | "windows-aarch64" => ("", ".dll"),
+        // vox-arch-check: allow dynlib-ext
         "linux-x86_64" | "linux-aarch64" => ("lib", ".so"),
+        // vox-arch-check: allow dynlib-ext
         "macos-x86_64" | "macos-aarch64" => ("lib", ".dylib"),
         _ => return None,
     };
@@ -67,14 +70,17 @@ mod tests {
     fn artifact_names_follow_the_cdylib_rule() {
         assert_eq!(
             plugin_artifact_filename("vox-plugin-nvml-probe", "windows-x86_64").as_deref(),
+            // vox-arch-check: allow dynlib-ext
             Some("vox_plugin_nvml_probe.dll")
         );
         assert_eq!(
             plugin_artifact_filename("vox-plugin-nvml-probe", "linux-x86_64").as_deref(),
+            // vox-arch-check: allow dynlib-ext
             Some("libvox_plugin_nvml_probe.so")
         );
         assert_eq!(
             plugin_artifact_filename("vox-plugin-speech", "macos-aarch64").as_deref(),
+            // vox-arch-check: allow dynlib-ext
             Some("libvox_plugin_speech.dylib")
         );
         assert_eq!(

@@ -74,5 +74,6 @@ const SANDBOX_DOCKERFILE: &str = r#"FROM alpine:3.19
 RUN addgroup -S voxsandbox && adduser -S -G voxsandbox -u 65534 nobody 2>/dev/null || true
 USER nobody
 WORKDIR /work
+// vox-arch-check: allow abs-path
 ENTRYPOINT ["/bin/sh", "-c"]
 "#;

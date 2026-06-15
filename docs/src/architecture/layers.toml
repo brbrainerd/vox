@@ -406,6 +406,13 @@ reason           = "Shell/PowerShell spawns must be cfg(windows)-gated or resolv
 name             = "no-hardcoded-abs-path"
 pattern          = '"(/(tmp|usr|etc|var|home|opt|bin|root)\b|[A-Za-z]:\\)'
 file_glob        = "crates/**/*.rs"
+exempt_files     = [
+    # Vox DSL formatter golden — annotations inside raw-string Vox source would alter
+    # the round-trip assertion; suppress via exempt_files instead.
+    "crates/vox-compiler/src/fmt/mod.rs",
+    # TOML test fixture — /etc paths are in raw-string TOML content, not Rust code.
+    "crates/vox-repository/src/populi_toml.rs",
+]
 allow_annotation = "// vox-arch-check: allow abs-path"
 reason           = "Hardcoded absolute paths break across OSes; use std::env::temp_dir()/dirs/Path::join."
 

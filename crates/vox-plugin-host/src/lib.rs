@@ -205,9 +205,11 @@ mod semcov_wave3_tests {
 
     #[test]
     fn resolve_plugins_root_env_override() {
+        // vox-arch-check: allow abs-path
         unsafe { std::env::set_var("VOX_PLUGINS_DIR", "/tmp/my-plugins") };
         let result = resolve_plugins_root();
         unsafe { std::env::remove_var("VOX_PLUGINS_DIR") };
+        // vox-arch-check: allow abs-path
         assert_eq!(result, std::path::PathBuf::from("/tmp/my-plugins"));
     }
 

@@ -273,6 +273,7 @@ mod tests {
     #[test]
     fn hardcoded_pwsh_spawn_is_flagged() {
         let dir = tempfile::tempdir().unwrap();
+        // vox-arch-check: allow shell-spawn
         write_fixture(
             &dir,
             "crates/x/src/a.rs",
@@ -310,6 +311,7 @@ mod tests {
     #[test]
     fn hardcoded_tmp_path_is_flagged() {
         let dir = tempfile::tempdir().unwrap();
+        // vox-arch-check: allow abs-path
         write_fixture(&dir, "crates/x/src/c.rs", "let p = \"/tmp/contracts\";");
         let hits = scan(dir.path(), &abs_path_rule(), &crate::built_in_walk_prune_names()).unwrap();
         assert_eq!(hits.len(), 1);
@@ -318,6 +320,7 @@ mod tests {
     #[test]
     fn hardcoded_drive_path_is_flagged() {
         let dir = tempfile::tempdir().unwrap();
+        // vox-arch-check: allow abs-path
         write_fixture(&dir, "crates/x/src/d.rs", "let p = \"C:\\\\Users\\\\Default\";");
         let hits = scan(dir.path(), &abs_path_rule(), &crate::built_in_walk_prune_names()).unwrap();
         assert_eq!(hits.len(), 1);
@@ -338,6 +341,7 @@ mod tests {
     #[test]
     fn hardcoded_so_suffix_is_flagged() {
         let dir = tempfile::tempdir().unwrap();
+        // vox-arch-check: allow dynlib-ext
         write_fixture(&dir, "crates/x/src/e.rs", "let lib = \"libfoo.so\";");
         let hits = scan(dir.path(), &dynlib_ext_rule(), &crate::built_in_walk_prune_names()).unwrap();
         assert_eq!(hits.len(), 1);

@@ -285,6 +285,7 @@ fn repo_memory_cache_dir_extends_tooling_cache_with_memory_subdir() {
 #[test]
 fn project_manifest_load_missing_file_returns_empty_manifest() {
     // Catches: missing Vox.toml returning Err instead of empty-manifest Ok (breaks bootstrapping)
+    // vox-arch-check: allow abs-path
     let p = std::path::PathBuf::from("/tmp/__nonexistent_vox_test_manifest_semcov36__.toml");
     let m = vox_config::project_manifest::ProjectManifest::load(&p)
         .expect("missing file must return Ok with empty manifest");

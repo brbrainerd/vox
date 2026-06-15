@@ -111,6 +111,7 @@ fn run_fix_cuda_path() -> Result<()> {
             Write-Host "Set User CUDA_PATH=$CudaRoot"
             Write-Host "Open a **new** terminal (or restart) so processes pick up the change."
         "#;
+        // vox-arch-check: allow shell-spawn
         std::process::Command::new("pwsh")
             .arg("-NoProfile")
             .arg("-Command")

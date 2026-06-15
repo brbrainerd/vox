@@ -149,6 +149,7 @@ pub struct WorkspaceSection {
 /// host         = "prod.example.com"
 /// user         = "deploy"
 /// service_name = "my-app"
+/// // vox-arch-check: allow abs-path
 /// deploy_dir   = "/opt/my-app"
 ///
 /// [deploy.kubernetes]

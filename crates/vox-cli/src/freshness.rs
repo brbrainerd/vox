@@ -308,8 +308,11 @@ mod tests {
         assert!(is_cargo_build_dir(Path::new("/repo/target/debug")));
         assert!(is_cargo_build_dir(Path::new("/repo/target/debug/deps")));
         assert!(is_cargo_build_dir(Path::new("/repo/target/release")));
+        // vox-arch-check: allow abs-path
         assert!(!is_cargo_build_dir(Path::new("/home/user/.cargo/bin")));
+        // vox-arch-check: allow abs-path
         assert!(!is_cargo_build_dir(Path::new("/home/user/.vox/bin")));
+        // vox-arch-check: allow abs-path
         assert!(!is_cargo_build_dir(Path::new("/usr/local/bin")));
     }
 

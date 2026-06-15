@@ -30,6 +30,7 @@ const PLUGIN_CRATE: &str = "vox-plugin-mens-candle-cuda";
 
 #[cfg(windows)]
 const ARTIFACT: &str = "vox_plugin_mens_candle_cuda.dll";
+// vox-arch-check: allow dynlib-ext
 #[cfg(not(windows))]
 const ARTIFACT: &str = "libvox_plugin_mens_candle_cuda.so";
 
@@ -344,6 +345,7 @@ fn find_newest_cuda() -> Option<PathBuf> {
     let base: PathBuf = if cfg!(windows) {
         PathBuf::from("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA")
     } else {
+        // vox-arch-check: allow abs-path
         PathBuf::from("/usr/local")
     };
     let entries = std::fs::read_dir(&base).ok()?;
@@ -369,6 +371,7 @@ fn cuda_is_usable(root: &Path) -> bool {
             || root
                 .join("lib64")
                 .join("stubs")
+                // vox-arch-check: allow dynlib-ext
                 .join("libcuda.so")
                 .is_file()
     }

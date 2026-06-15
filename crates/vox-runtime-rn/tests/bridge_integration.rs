@@ -12,6 +12,7 @@ use vox_runtime_rn::{
 #[test]
 fn full_round_trip_mobile_lifecycle() {
     // Step 1 — JS side requests a mobile-default config.
+    // vox-arch-check: allow abs-path
     let cfg = default_mobile_config("/tmp/vox-rt-rn-it".to_string());
     assert_eq!(cfg.profile, RuntimeProfile::Mobile);
     assert_eq!(cfg.log_level, "info");
@@ -24,7 +25,9 @@ fn full_round_trip_mobile_lifecycle() {
     // Step 3 — handle round-trips the data + model dirs back to JS as strings.
     let data_back: PathBuf = h.data_dir().into();
     let model_back: PathBuf = h.model_dir().into();
+    // vox-arch-check: allow abs-path
     assert_eq!(data_back, PathBuf::from("/tmp/vox-rt-rn-it/data"));
+    // vox-arch-check: allow abs-path
     assert_eq!(model_back, PathBuf::from("/tmp/vox-rt-rn-it/models"));
 
     // Step 4 — log() should accept every level and never panic.

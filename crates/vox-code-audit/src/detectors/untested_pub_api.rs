@@ -27,6 +27,7 @@ impl UntestedPubApiDetector {
     fn is_binary_path(file: &SourceFile) -> bool {
         let path_str = file.path.to_string_lossy();
         let file_name = file.path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        // vox-arch-check: allow abs-path
         file_name == "main.rs"
             || path_str.contains("/bin/")
             || path_str.contains("\\bin\\")

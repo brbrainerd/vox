@@ -18,6 +18,7 @@ fn microvm_runtime_tier() {
 fn microvm_runtime_build_returns_err() {
     let rt = MicroVmRuntime::new("firecracker");
     let opts = vox_skill_runtime::BuildOpts {
+        // vox-arch-check: allow abs-path
         context_dir: std::path::PathBuf::from("/tmp"),
         artifact_path: None,
         tag: "test".to_string(),

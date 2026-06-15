@@ -257,6 +257,7 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         detail: binary_source_detail,
     });
 
+    // vox-arch-check: allow abs-path
     let update_hint = if exe_path_str.starts_with("/usr/bin/") || exe_path_str.starts_with("/bin/")
     {
         "sudo apt update && sudo apt install --only-upgrade vox"

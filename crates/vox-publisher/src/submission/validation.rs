@@ -133,6 +133,7 @@ pub fn validate_arxiv_submission_tar_gz(bytes: &[u8]) -> Vec<ValidationFinding> 
         if lower == "main.tex" {
             main_tex_present = true;
         }
+        // vox-arch-check: allow dynlib-ext
         for bad in [".exe", ".dll", ".dmg", ".pkg", ".deb", ".msi", ".app/"] {
             if lower.contains(bad) {
                 findings.push(ValidationFinding {

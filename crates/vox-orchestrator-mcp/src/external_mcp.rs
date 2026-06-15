@@ -114,11 +114,9 @@ mod tests {
 
     #[test]
     fn parse_stdio_config_from_json() {
-        let raw = r#"{
-            "name": "filesystem",
-            "command": "npx",
-            "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
-        }"#;
+        // /tmp is a test fixture arg — not portable runtime code.
+        // vox-arch-check: allow abs-path
+        let raw = r#"{ "name": "filesystem", "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"] }"#;
         let cfg: ExternalMcpServer = serde_json::from_str(raw).expect("parse");
         assert_eq!(cfg.name, "filesystem");
         assert_eq!(cfg.command.as_deref(), Some("npx"));

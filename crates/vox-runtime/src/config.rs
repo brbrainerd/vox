@@ -119,14 +119,17 @@ mod tests {
 
     #[test]
     fn mobile_uses_provided_data_root() {
+        // vox-arch-check: allow abs-path
         let cfg = VoxConfig::mobile(PathBuf::from("/var/mobile/app/Documents"));
         assert_eq!(cfg.profile, RuntimeProfile::Mobile);
         assert_eq!(
             cfg.data_dir,
+            // vox-arch-check: allow abs-path
             PathBuf::from("/var/mobile/app/Documents/data")
         );
         assert_eq!(
             cfg.model_dir,
+            // vox-arch-check: allow abs-path
             PathBuf::from("/var/mobile/app/Documents/models")
         );
     }
@@ -155,6 +158,7 @@ mod tests {
 
     #[test]
     fn config_round_trips_through_json() {
+        // vox-arch-check: allow abs-path
         let cfg = VoxConfig::mobile(PathBuf::from("/tmp/vox-mobile-test"));
         let json = serde_json::to_string(&cfg).unwrap();
         let decoded: VoxConfig = serde_json::from_str(&json).unwrap();

@@ -37,8 +37,10 @@ fn raw_string_holds_regex_with_capture_group() {
 
 #[test]
 fn raw_string_holds_windows_path() {
+    // vox-arch-check: allow abs-path
     let src = r##"r"C:\Users\Owner\vox""##;
     match first_token(src) {
+        // vox-arch-check: allow abs-path
         Token::RawStringLit(s) => assert_eq!(s, r"C:\Users\Owner\vox"),
         other => panic!("expected RawStringLit, got {other:?}"),
     }

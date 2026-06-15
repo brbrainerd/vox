@@ -48,6 +48,7 @@ fn run_sandboxed(cli: &str, opts: &SkillRunOpts) -> anyhow::Result<RunOutcome> {
     cmd.args(["run", "--rm"]);
 
     // Filesystem isolation + user hardening.
+    // vox-arch-check: allow abs-path
     cmd.args(["--read-only", "--tmpfs", "/tmp"]);
     cmd.args([
         "--user=nobody",

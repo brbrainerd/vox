@@ -24,10 +24,13 @@ mod platform {
 
     /// Paths that sandboxed scripts may read (but not write).
     const READ_ONLY_PATHS: &[&str] = &[
+        // vox-arch-check: allow abs-path
         "/usr",
         "/lib",
         "/lib64",
+        // vox-arch-check: allow abs-path
         "/etc",
+        // vox-arch-check: allow abs-path
         "/bin",
         "/sbin",
         "/proc/self",
@@ -256,6 +259,7 @@ mod tests {
     #[cfg(target_os = "windows")]
     #[test]
     fn windows_enforce_logs_params() {
+        // vox-arch-check: allow shell-spawn
         let mut cmd = Command::new("cmd");
         cmd.arg("/c").arg("echo hello");
         let opts = default_opts();
@@ -265,6 +269,7 @@ mod tests {
     #[cfg(target_os = "windows")]
     #[test]
     fn windows_job_object_smoke_test() {
+        // vox-arch-check: allow shell-spawn
         let mut child = Command::new("cmd")
             .args(["/c", "timeout /t 1 /nobreak >nul"])
             .spawn()

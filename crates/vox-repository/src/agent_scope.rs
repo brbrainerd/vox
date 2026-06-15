@@ -118,7 +118,9 @@ mod semcov_wave2_tests {
     #[test]
     #[cfg(not(windows))]
     fn normalize_absolute_path_strips_prefix_and_converts_separators() {
+        // vox-arch-check: allow abs-path
         let root = PathBuf::from("/home/user/project");
+        // vox-arch-check: allow abs-path
         let file = "/home/user/project/src/main.vox";
         let result = normalize_task_path(&root, file);
         assert_eq!(result, "src/main.vox");
@@ -127,7 +129,9 @@ mod semcov_wave2_tests {
     #[test]
     #[cfg(windows)]
     fn normalize_absolute_path_strips_prefix_and_converts_separators() {
+        // vox-arch-check: allow abs-path
         let root = PathBuf::from(r"C:\Users\user\project");
+        // vox-arch-check: allow abs-path
         let file = r"C:\Users\user\project\src\main.vox";
         let result = normalize_task_path(&root, file);
         assert_eq!(result, "src/main.vox");
@@ -135,6 +139,7 @@ mod semcov_wave2_tests {
 
     #[test]
     fn normalize_relative_path_passes_through_with_forward_slashes() {
+        // vox-arch-check: allow abs-path
         let root = PathBuf::from("/home/user/project");
         // relative path — no prefix to strip
         let result = normalize_task_path(&root, "crates/vox-cli/src/lib.rs");
@@ -144,6 +149,7 @@ mod semcov_wave2_tests {
     #[cfg(windows)]
     #[test]
     fn normalize_converts_backslashes_to_forward_slashes() {
+        // vox-arch-check: allow abs-path
         let root = PathBuf::from(r"C:\Users\user\project");
         // On Windows a relative path with backslashes should be normalised.
         let result = normalize_task_path(&root, r"crates\vox-cli\src");

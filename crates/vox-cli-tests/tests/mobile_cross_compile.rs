@@ -107,6 +107,7 @@ fn vox_runtime_rn_cross_compiles_to_aarch64_android() {
     assert_cross_compiles(
         "vox-runtime-rn",
         "aarch64-linux-android",
+        // vox-arch-check: allow dynlib-ext
         "libvox_runtime_rn.so",
     );
 }
@@ -117,6 +118,7 @@ fn vox_runtime_rn_cross_compiles_to_armv7_android() {
     assert_cross_compiles(
         "vox-runtime-rn",
         "armv7-linux-androideabi",
+        // vox-arch-check: allow dynlib-ext
         "libvox_runtime_rn.so",
     );
 }
@@ -127,6 +129,7 @@ fn vox_runtime_rn_cross_compiles_to_x86_64_android() {
     assert_cross_compiles(
         "vox-runtime-rn",
         "x86_64-linux-android",
+        // vox-arch-check: allow dynlib-ext
         "libvox_runtime_rn.so",
     );
 }
@@ -137,6 +140,7 @@ fn vox_runtime_rn_cross_compiles_to_i686_android() {
     assert_cross_compiles(
         "vox-runtime-rn",
         "i686-linux-android",
+        // vox-arch-check: allow dynlib-ext
         "libvox_runtime_rn.so",
     );
 }
@@ -145,6 +149,7 @@ fn vox_runtime_rn_cross_compiles_to_i686_android() {
 /// substrate is self-contained.
 #[test]
 fn vox_journal_cross_compiles_to_aarch64_android() {
+    // vox-arch-check: allow dynlib-ext
     assert_cross_compiles("vox-journal", "aarch64-linux-android", "libvox_journal.so");
 }
 

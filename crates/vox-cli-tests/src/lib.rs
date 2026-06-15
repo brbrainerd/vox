@@ -453,6 +453,7 @@ fn link_node_modules(target: &Path, link_path: &Path) {
     #[cfg(windows)]
     {
         if std::os::windows::fs::symlink_dir(target, link_path).is_err() {
+            // vox-arch-check: allow shell-spawn
             let _ = Command::new("cmd")
                 .args(["/C", "mklink", "/J"])
                 .arg(link_path)

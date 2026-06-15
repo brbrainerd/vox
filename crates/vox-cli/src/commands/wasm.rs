@@ -88,6 +88,7 @@ mod tests {
 
     #[test]
     fn parse_preopens_defaults_guest_to_host_and_handles_explicit_guest() {
+        // vox-arch-check: allow abs-path
         let ps = parse_preopens(&["/tmp/data".into()], &["/var/out:/out".into()]).unwrap();
         assert_eq!(ps.len(), 2);
     }

@@ -32,7 +32,9 @@ pub(crate) static IGNORED_DIRS: &[&str] = &[
 ];
 
 pub(crate) static IGNORED_EXTENSIONS: &[&str] = &[
+    // vox-arch-check: allow dynlib-ext
     ".db", ".db-wal", ".db-shm", ".png", ".jpg", ".jpeg", ".webp", ".ico", ".dll", ".exe", ".so",
+    // vox-arch-check: allow dynlib-ext
     ".dylib", ".bin", ".svg", ".woff", ".woff2",
     ".csv", // data export / error dumps (errors.csv etc.) — not source code
     ".md", // documentation — excluded from code review PRs (overridable via allow_markdown_prefixes)
