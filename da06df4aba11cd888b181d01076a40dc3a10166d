@@ -1,0 +1,14 @@
+docs: document Vox grammar unification and update roadmap status
+scale: ~57 lines across 2 files [M]
+
+- AGENTS.md:
+  - Added a new "Grammar Unification (Vox Source Syntax)" section.
+  - Documented the core rule: "Bare-keyword blocks declare scope. Decorators modify declarations."
+  - Listed current bare-keyword set (`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`, `workflow`, `activity`) and decorator set (`@table`, `@endpoint`, `@pure`, `@deprecated`, `@require`, `@mcp.tool`, `@durable`, `@v0`, `@test`, `@scheduled`) with examples.
+  - Stated the rule against introducing new bare keywords for decorator-expressible behavior.
+  - Noted the tombstone status of `actor`, `workflow`, and `activity` at the parser level, linking to TASK-2.6 for their unification into decorator sugar.
+  - Added a link to the `gui-native-roadmap-status-2026.md` document.
+- docs/src/architecture/gui-native-roadmap-status-2026.md:
+  - Updated TASK-1.2 status to "✅ N/A" as `vox-dashboard-d` binary was never created.
+
+--- audit: original='docs: TASK-3.1 — add Grammar Unification rule to AGENTS.md; fix 1.2/1.3 status' | actual=57L across 2 files | derived=full ---
