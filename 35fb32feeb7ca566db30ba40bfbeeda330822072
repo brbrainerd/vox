@@ -1,0 +1,9 @@
+feat(hakari): Exclude L0 leaves from workspace-hack for build performance
+scale: ~58 lines across 7 files [M]
+
+- **.config/hakari.toml**: Configured `[traversal-excludes].workspace-members` and `[final-excludes].workspace-members` to exclude `vox-orchestrator-types`, `vox-db-types`, `vox-protocol`, `vox-mesh-types`, `vox-primitives`, `vox-plugin-types`, and `vox-layer-check` from Hakari's unification process and workspace-hack dependency injection.
+- **crates/**: Removed `workspace-hack` dependency from `vox-db-types/Cargo.toml`, `vox-plugin-types/Cargo.toml`, `vox-primitives/Cargo.toml`, and `vox-protocol/Cargo.toml`.
+- **docs/src/architecture/build-time-log.md**: Added a new section documenting "Phase 2 — workspace-hack leaf exclusion", explaining the rationale, listing excluded crates, and providing build time measurements for L0 leaves.
+- **Cargo.lock**: Updated to reflect the removal of `workspace-hack` dependencies from the specified crates.
+
+--- audit: original='feat(arch): Phase 2 — exclude L0 leaves from workspace-hack' | actual=58L across 7 files | derived=full ---
