@@ -1,0 +1,7 @@
+feat(vox-gui/diff-review): Add accessibility improvements and unit tests
+scale: ~38 lines across 2 files [S]
+
+- `crates/vox-gui/ui/src/components/surfaces/Loquela/DiffReview.test.tsx`: Add new unit tests for the `DiffReview` component, covering loading states, empty diffs, close button functionality, and accessibility of icons within buttons.
+- `crates/vox-gui/ui/src/components/surfaces/Loquela/DiffReview.tsx`: Improve accessibility by adding `aria-hidden="true"` to decorative `Icon.x` and `Icon.file` elements within buttons to prevent screen readers from announcing them.
+
+--- audit: original='feat(vox-gui/wave6): DiffReview a11y + checklist (Wave 6)' | actual=38L across 2 files | derived=full ---
