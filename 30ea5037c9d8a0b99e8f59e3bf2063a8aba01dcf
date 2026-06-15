@@ -1,0 +1,14 @@
+fix(share): align Cargo.toml dependencies and remove dead code
+scale: ~14 lines across 3 files [S]
+
+- `crates/vox-share/Cargo.toml`:
+  - Updated `hex` dependency from `0.4` to `0.4.3`.
+  - Added `http1`, `tokio`, and `json` features to `axum` dependency.
+  - Added `util` feature to `tower` dependency.
+  - Promoted `hyper` and `hyper-util` to workspace dependencies.
+- `Cargo.toml`:
+  - Added `hyper` and `hyper-util` to `[workspace.dependencies]`.
+- `crates/vox-share/src/lib.rs`:
+  - Removed a dead doc comment reference to `RESEARCH.md`.
+
+--- audit: original='chore(share): fix Cargo.toml quality issues (hex, tower, axum, hyper workspace alignment)' | actual=14L across 3 files | derived=full ---
