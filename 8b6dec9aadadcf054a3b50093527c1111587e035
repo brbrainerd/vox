@@ -1,0 +1,10 @@
+fix(cli): resolve React class TS2339 in build_e2e by linking node_modules
+scale: ~67 lines across 1 files [M]
+
+- `crates/vox-cli-tests/src/lib.rs`:
+    - Modified `BuildRun::run_tsc_command` to symlink the shared `node_modules` directory into the test output directory as `<out_dir>/node_modules`.
+    - Removed the `--baseUrl <node_modules>` argument and `NODE_PATH` environment variable from the `tsc` command.
+    - Added a fallback mechanism to use `--baseUrl` and `NODE_PATH` if linking `node_modules` fails.
+    - Updated comments to explain that linking `node_modules` is necessary for correct `@types/react` declaration merging, which resolves TS2339 errors on `this.setState` and `this.props` in React class components.
+
+--- audit: original='test(cli): fix tsc module resolution in build_e2e (React class TS2339)' | actual=67L across 1 files | derived=full ---
