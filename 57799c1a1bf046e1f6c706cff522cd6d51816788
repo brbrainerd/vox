@@ -1,0 +1,23 @@
+feat(vox-mental-tracker): implement voice E2E flow with regex parser and save
+scale: ~231 lines across 3 files [M]
+
+- `apps/vox-mental-tracker/src/main.vox`:
+    - Added `ParsedVoice` type for structured parser output.
+    - Implemented `_parse_int_default` helper for robust string-to-integer conversion.
+    - Implemented `_clamp` helper to constrain integer values within a range.
+    - Replaced `preview_voice_parse` with `parse_voice` endpoint, which now uses `std.regex` to classify transcripts into `ParsedVoice` objects.
+    - Added regex patterns for mood, exercise, meal, sleep, and note intents, mirroring `intent_parser.ts`.
+    - Integrated `_parse_int_default` and `_clamp` for mood score and exercise duration extraction.
+    - Updated `VoicePage` to manage state for `parsed_kind`, `parsed_payload`, and `parsed_confidence`.
+    - Added "Transcribe", "Parse", "Save", and "Reset" buttons to `VoicePage`.
+    - Implemented a save handler in `VoicePage` that calls `record_raw_transcript` and `record_event`.
+    - Refactored `VoicePage` logic to use match-arm statements for cleaner control flow.
+- `apps/vox-mental-tracker/tests/fixtures/parser_cases.json`:
+    - Expanded test fixtures from 4 to 10 cases, covering mood (including clamping), multi-word meals, exercise variations, naps, and a catch-all note.
+    - Added `expect_payload` fields to fixtures for detailed payload validation.
+- `apps/vox-mental-tracker/tests/intent_parser.test.ts`:
+    - Refactored tests to iterate over `parser_cases.json` fixtures, driving both TypeScript and Vox runtimes.
+    - Added type definition for `Fixture` to improve test readability.
+    - Enhanced test assertions to validate `kind` and `payload` fields against fixture expectations.
+
+--- audit: original='feat(vox-mental-tracker): voice E2E (Phase 2) — regex parser + struct return + save flow' | actual=231L across 3 files | derived=full ---
