@@ -1,0 +1,13 @@
+refactor(orchestrator-types): extract AgentId, TaskId, and Switch types to new crate
+scale: ~552 lines across 8 files [L]
+
+- `crates/vox-orchestrator/src/types/ids.rs`: Replaced the full implementation of `AgentId`, `TaskId`, `CorrelationId`, `IdParseError`, `now_unix_ms`, `is_zero_f64`, and ID generators with re-exports from `vox-orchestrator-types::agent_types::ids`.
+- `crates/vox-orchestrator-types/src/agent_types/ids.rs`: Created a new file containing the full implementation of `AgentId`, `TaskId`, `CorrelationId`, `IdParseError`, `now_unix_ms`, `is_zero_f64`, and ID generators, previously located in `vox-orchestrator/src/types/ids.rs`.
+- `crates/vox-orchestrator/src/types/switch.rs`: Replaced the full implementation of `SwitchActionType`, `SwitchAction`, and `SwitchAccessMode` with re-exports from `vox-orchestrator-types::agent_types::switch`.
+- `crates/vox-orchestrator-types/src/agent_types/switch.rs`: Created a new file containing the full implementation of `SwitchActionType`, `SwitchAction`, and `SwitchAccessMode`, previously located in `vox-orchestrator/src/types/switch.rs`. The `SwitchAccessMode::new` constructor now calls `crate::agent_types::ids::now_unix_ms()`.
+- `crates/vox-orchestrator-types/src/agent_types/mod.rs`: Created a new module to re-export the types from `ids.rs` and `switch.rs` within `vox-orchestrator-types::agent_types`.
+- `crates/vox-orchestrator-types/src/lib.rs`: Added `pub mod agent_types;` to expose the new module.
+- `crates/vox-orchestrator-types/Cargo.toml`: Added `thiserror` as a dependency.
+- `Cargo.lock`: Updated to reflect changes in `Cargo.toml`.
+
+--- audit: original='refactor(orchestrator-types): extract AgentId/TaskId/Switch types to leaf crate' | actual=552L across 8 files | derived=full ---
