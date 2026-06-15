@@ -1,0 +1,9 @@
+feat(share): Implement Tailscale Funnel backend
+scale: ~264 lines across 4 files [L]
+
+- `crates/vox-share/src/backends/tailscale.rs`: Add new `TailscaleBackend` for creating tunnels using Tailscale Funnel. This includes logic for detecting the `tailscale` CLI, checking daemon status, validating supported ports (443, 8443, 10000), and managing the Funnel tunnel lifecycle.
+- `crates/vox-share/tests/tailscale_backend_test.rs`: Add unit tests for the `TailscaleBackend`, covering `kind()` assertion, graceful failure of `preflight()` when `tailscale` CLI is not found, and rejection of unsupported ports by `start()`.
+- `crates/vox-share/src/coordinator.rs`: Update `make_backend` function to instantiate `TailscaleBackend` when `BackendKind::Tailscale` is requested, replacing the previous `unimplemented!` placeholder.
+- `crates/vox-share/src/backends/mod.rs`: Add `mod tailscale;` declaration to expose the new Tailscale backend module.
+
+--- audit: original='feat(share): Tailscale Funnel backend (S4)' | actual=264L across 4 files | derived=full ---
