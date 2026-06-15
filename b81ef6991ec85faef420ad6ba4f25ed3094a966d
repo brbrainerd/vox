@@ -1,0 +1,25 @@
+fix(compiler): replace `@endpoint(kind: ...)` with shorthand decorators
+scale: ~207 lines across 32 files [L]
+
+- **crates/vox-compiler**:
+    - Replaced `@endpoint(kind: server)` with `@server` in `ga_boilerplate_grafts_test.rs`.
+    - Replaced `@endpoint(kind: query)`, `@endpoint(kind: server)`, and `@endpoint(kind: mutation)` with `@query`, `@server`, and `@mutation` respectively in `projection_parity_test.rs`, `web_ir_lower_emit_test.rs`, `compiler_pipeline.rs`, `axum_emit_contract_test.rs`, `required_capabilities_test.rs`, `async_handler_test.rs`, `bug_d_imports_repro.rs`, `db_query_safety_test.rs`, `form_hir_test.rs`, `ir_emission_test.rs`, and `shell_projection_smoke_test.rs`.
+    - Refreshed `axum_emit_contract_test__mutation_with_schema_main_rs_emit.snap` due to span offset shifts.
+- **crates/vox-corpus**:
+    - Updated `@endpoint(kind: query)` to `@query` and `@endpoint(kind: mutation)` to `@mutation` in `codegen_vox/part_02.rs` for LLM training examples.
+    - Updated `@endpoint(kind: server)` to `@server` in `codegen_vox/part_02.rs`.
+- **crates/vox-integration-tests**:
+    - Replaced `@endpoint(kind: mutation)` with `@mutation` in comments and code examples within `pipeline/includes/include_01.rs`.
+    - Replaced `@endpoint(kind: query)` with `@query` in `pipeline/includes/include_01.rs`.
+    - Replaced `@endpoint(kind: query)` with `@query` in `parity_contracts_test.rs` and `pipeline/includes/include_03.rs`.
+    - Replaced `@endpoint(kind: server)` with `@server` in `pipeline_test.rs`.
+    - Refreshed `pipeline_test__multi_route_rust_main_rs_emit.snap` due to span offset shifts.
+- **contracts/speech-to-code**:
+    - Updated `vox_grammar_artifact.json` to use `@server`, `@query`, `@mutation`, and `@form` instead of `@endpoint`.
+- **crates/vox-codegen**:
+    - Updated documentation in `codegen_shared/route_ir.rs` to reflect the new shorthand decorators.
+    - Replaced `@endpoint(kind: server)` and `@endpoint(kind: query)` with `@server` and `@query` respectively in `codegen_shared/route_ir.rs` tests.
+    - Replaced `@endpoint(kind: query)` and `@endpoint(kind: mutation)` with `@query` and `@mutation` respectively in `property_tests.rs`, `back_button_test.rs`, `deep_link_test.rs`, `form_emit_test.rs`, `mobile_emit_test.rs`, `route_completeness_test.rs`, `tauri_endpoint_client_parity_test.rs`, and `push_test.rs`.
+    - Modified `codegen_rust/emit/http.rs`, `codegen_ts/form_emit.rs`, and `codegen_ts/vox_client.rs` to align with the new decorator syntax.
+
+--- audit: original='fix(v0.6): complete @endpoint hard-remove across all test fixtures and contracts' | actual=207L across 32 files | derived=full ---
