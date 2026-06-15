@@ -1,0 +1,7 @@
+refactor(populi): remove unused imports in handlers
+scale: ~11 lines across 2 files [S]
+
+- `crates/vox-populi/src/transport/handlers/nodes.rs`: Removed unused imports for `MAX_MAINTENANCE_FOR_MS` and `persist_exec_lease_store`.
+- `crates/vox-populi/src/transport/handlers/mod.rs`: Removed the unused re-export of `ResponseErr` from the `nodes` module.
+
+--- audit: original='refactor(populi): clean up unused imports in handlers/ after MESH-001' | actual=11L across 2 files | derived=full ---
