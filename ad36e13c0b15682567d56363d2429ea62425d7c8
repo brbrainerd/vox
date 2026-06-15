@@ -1,0 +1,7 @@
+feat(ci): Build and push `vox-eval` Docker image via GHA, pull from GHCR in compose
+scale: ~73 lines across 2 files [M]
+
+- **.github/workflows/docker-eval.yml**: New workflow added to build and push the `vox-eval` Docker image to GitHub Container Registry (GHCR) on `push` to `main` or `workflow_dispatch`.
+- **vox-eval.compose.yml**: Modified `eval` service to pull the `vox-eval` image from `ghcr.io/vox-foundation/vox-eval:latest` instead of building it locally, removing the `build` context and `args` for `VOX_CLI_FEATURES`.
+
+--- audit: original='feat(ci): Build vox-eval image via GHA and pull from ghcr.io in Coolify' | actual=73L across 2 files | derived=full ---
