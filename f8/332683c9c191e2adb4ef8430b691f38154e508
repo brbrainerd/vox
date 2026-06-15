@@ -1,0 +1,36 @@
+feat(scientia): P3 Discovery Review GUI, CLI/GUI parity, LLM evidence-assist
+scale: ~5009 lines across 33 files [XL]
+
+- **`vox-scientia`**:
+    - Introduced `review_flow.rs` as the single source of truth (SSOT) for the human-review lifecycle, including `record_claim_review`, `approval_for`, `nanopub_build`, `resolve_or_create_identity`, and `publication_session_id`. This module now handles DB and vault I/O for these operations.
+    - Added `evidence_assist.rs` for LLM-assisted evidence/conclusion suggestions, providing `EvidenceSuggestion` and the `suggest` function.
+    - Updated `lib.rs` to expose the new `review_flow` and `evidence_assist` modules.
+    - Added `vox-secrets` as a dependency.
+- **`vox-cli`**:
+    - Refactored `scientia_nanopub.rs` to delegate review-flow operations (approval, nanopub build, identity resolution) to `vox_scientia::review_flow`, significantly reducing its size.
+    - Refactored `scientia_phase_handlers.rs` to re-export `publication_session_id` from the `review_flow` SSOT.
+    - Added a new `scientia evidence-assist` subcommand in `scientia.rs` for CLI/GUI parity.
+    - Updated `scientia.rs` to include the new `evidence-assist` command.
+    - Fixed clippy lints in `ci/policy_registry.rs` by replacing `.iter().count()` with `.len()`.
+- **`vox-gui`**:
+    - Introduced `DiscoveryReview.tsx` for the P3 Discovery Review GUI surface, including state management for publication ID, review queue, selected claims, and decision recording.
+    - Added `scientia_review.rs` with Tauri commands (`list_publication_review_queue`, `record_publication_claim_review`, `nanopublish_approved_claim`, `suggest_evidence_improvements`) that delegate to `vox_scientia::review_flow` and `evidence_assist`.
+    - Created `discoveryReviewApi.ts` to provide typed wrappers for the Tauri commands.
+    - Registered the `DiscoveryReview` surface in `decoratorRegistry.ts` and `surface-registry.v1.yaml`.
+    - Updated `App.tsx` to remove the explicit `discovery-review` switch case, as it now renders via the decorator registry.
+    - Added `DiscoveryReview.test.tsx` for GUI tests, including parity checks and DTO preservation.
+    - Updated `action_manifest.rs` to allow `Ipc` handler-kind variant and fix `needless_borrows_for_generic_args`.
+    - Removed unused `use super::*` in `scientia.rs` test module.
+    - Updated `main.rs` to reflect changes.
+    - Updated `Cargo.toml` and `package.json` for new dependencies and scripts.
+    - Updated `pnpm-lock.yaml` for dependency changes.
+    - Updated `vitest.config.ts`.
+- **`docs`**:
+    - Added `2026-06-06-p3-discovery-review-gui-design.md` detailing the GUI design and security model.
+    - Added `2026-06-06-p3-discovery-review-gui.md` outlining the 11-task TDD implementation plan.
+    - Included `2026-06-06-p3-discovery-review.html` as an HTML mockup for layout review.
+- **`.coderabbit.yaml`**: Removed the unsupported top-level `version` key.
+- **`vox-identity`**: Fixed clippy lints in `src/storage.rs` related to needless `&path` borrows.
+- **`contracts`**: Regenerated `gui-surface-coverage.v1.json` and `gui-surface-registry.v1.json` reports.
+
+--- audit: original='feat(scientia): P3 Discovery Review GUI surface + CLI/GUI parity + LLM evidence-assist (#211)' | actual=5009L across 33 files | derived=full ---
