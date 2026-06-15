@@ -1,0 +1,12 @@
+fix(populi): address probe pipeline review issues
+scale: ~65 lines across 5 files [M]
+
+- `NodeRecord` gains `probe_failures: Option<Vec<String>>` field to store names of failed probes.
+- `node_record_for_current_process()` populates `NodeRecord::probe_failures` from `HardwareSummary::probe_failures`.
+- `ProbePipeline` gains `pub fn probe_names(&self) -> Vec<&str>` accessor.
+- `ProbePipeline` gains `pub fn validate_probe_names(&self, order: &[&str]) -> Result<(), Vec<String>>` to check for unknown probe names.
+- `ProbePipeline::reorder` documentation updated to reference `validate_probe_names` for rejecting unknown names.
+- Unit test `validate_probe_names_rejects_unknown` added for `ProbePipeline::validate_probe_names`.
+- Integration test `operator_override_rejects_unknown_probe_name` added for `ProbePipeline::validate_probe_names`.
+
+--- audit: original='fix(populi): address final review issues — probe_failures on NodeRecord, validate_probe_names, probe_names()' | actual=65L across 5 files | derived=full ---
