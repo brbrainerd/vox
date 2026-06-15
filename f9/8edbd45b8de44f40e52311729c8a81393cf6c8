@@ -1,0 +1,8 @@
+fix(scientia): improve token-matching for single-word negators in MiniCheckVerifier
+scale: ~16 lines across 1 files [S]
+
+- `crates/vox-scientia/src/claim_extractor/minicheck.rs`: Modified the `contains_negator` closure within `MiniCheckVerifier` to differentiate between single-word and multi-word negators.
+    - Multi-word negators (e.g., "does not") continue to match as phrases using `lower.contains(n)`.
+    - Single-word negators (e.g., "no", "not") now match only whole tokens, preventing false positives where a negator is part of a larger word (e.g., "no" in "know", "not" in "notable"). This is achieved by splitting the text into whitespace-separated tokens, trimming non-alphanumeric characters (excluding apostrophes), and checking for an exact match.
+
+--- audit: original='fix(scientia): token-match single-word negators in the mock verifier' | actual=16L across 1 files | derived=full ---
