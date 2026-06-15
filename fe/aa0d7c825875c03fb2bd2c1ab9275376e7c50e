@@ -1,0 +1,14 @@
+feat(vox-audit/panel): Implement ProtectedPanelClient with retry and exponential backoff
+scale: ~268 lines across 2 files [L]
+
+- `crates/vox-audit/src/panel.rs`:
+    - Added `ProtectedPanelClient` struct to wrap an inner `PanelClient` with retry logic.
+    - Implemented `PanelClient` for `ProtectedPanelClient`, handling retries with exponential backoff for `BadStatus` (429, 5xx) and `Http` errors.
+    - Provided `with_yaml_defaults` constructor for standard retry configuration (3 retries, 30s base, 600s max) and `std::thread::sleep`.
+    - Added a `new` constructor for custom retry parameters and an injectable sleep function, facilitating testing.
+    - Introduced `test_support::SequencedPanelClient` to allow scripting sequences of `Result<PanelResponse, PanelClientError>` for testing retry scenarios.
+- `crates/vox-audit/src/subcommands/humaneval.rs`:
+    - Modified `HumanEvalRunner` to stack `ProtectedPanelClient` between `OpenRouterPanelClient` and `CachingPanelClient`.
+    - The `CachingPanelClient` now wraps a `ProtectedPanelClient` which in turn wraps the `OpenRouterPanelClient`, ensuring retry logic is applied before caching.
+
+--- audit: original='feat(vox-audit/panel): ProtectedPanelClient (retry + exponential backoff)' | actual=268L across 2 files | derived=full ---
