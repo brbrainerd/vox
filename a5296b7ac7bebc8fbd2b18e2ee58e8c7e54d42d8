@@ -1,0 +1,12 @@
+fix(ci): unblock link checker, Docker mcp-server build, and tracing Send
+scale: ~191 lines across 23 files [L]
+
+- `docs/superpowers/plans/orchestrator`, `docs/superpowers/plans/scientia`, `docs/superpowers/plans/tooling`, `docs/superpowers/plans/data-audit`, `docs/superpowers/plans/ci`, `docs/superpowers/plans/handoff`, `docs/superpowers/plans/telemetry`: Corrected numerous relative links to `docs/src` and the repository root to ensure `lychee` link checker passes.
+- `docs/src/architecture`: Updated several mesh-related documentation files to point to live URLs for external resources (Unity Plastic SCM, ggml-org llama.cpp tools/rpc, BOINC home) and fixed a path for the how-to quickstart.
+- `.lycheeignore`: Added `docs/src/feed.xml` to the ignore list for the `lychee` link checker, as it is a build-generated file.
+- `crates/vox-orchestrator/src/a2a/remote_worker.rs`: Changed tracing from `EnteredSpan` to `Instrument` across `await` calls to ensure proper span context propagation.
+- `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/task_submit.rs`: Added `bundle_ref` and `bundle_inline_b64` fields to `RemoteTaskEnvelope` literals for task submission.
+- `crates/vox-orchestrator/src/models/registry.rs`: Imported `std::str::FromStr` for `StrengthTag` to enable string parsing.
+- `crates/vox-cli/Cargo.toml`: Enabled the `mcp-server` feature, which activates `vox-orchestrator-mcp` and `populi-transport` for `populi_startup`.
+
+--- audit: original='fix(ci): unblock link checker, Docker mcp-server build, and tracing Send' | actual=191L across 23 files | derived=full ---
