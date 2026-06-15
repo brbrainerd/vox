@@ -1,0 +1,11 @@
+feat(qlora-rs): Halve QLoRA training VRAM by dequantizing to BF16 for base-matmul
+scale: ~40 lines across 1 files [S]
+
+- `src/qlora.rs`:
+    - Modified `QuantizedLinear::forward` to use `dequantize_nf4_with_dtype` instead of `dequantize_nf4`.
+    - This change allows the dequantized base weight to be stored in BF16 (if `compute_dtype` is BF16), reducing VRAM usage for the retained weight during the backward pass.
+    - The input tensor is now cast to match the dequantized weight's dtype for the matrix multiplication, and the result is cast back to the input's original dtype.
+    - Added comments explaining the VRAM reduction mechanism and the dtype handling for the matmul operation.
+    - Imported `dequantize_nf4_with_dtype` from `crate::quantization`.
+
+--- audit: original='feat(qlora-rs): BF16 base-matmul dequant to halve QLoRA training VRAM' | actual=40L across 1 files | derived=full ---
