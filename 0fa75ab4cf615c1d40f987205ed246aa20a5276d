@@ -1,0 +1,6 @@
+docs(scientia): mark Phase 0d complete in strategic plan
+scale: ~2 lines across 1 files [XS]
+
+- docs/src/architecture/scientia-self-publication-finalization-plan-2026.md: Updated the status of Phase 0d from "TBD — DB schema additions" to "7 DB tables + 12 Codex methods (research_pipeline.rs) — **Complete**".
+
+--- audit: original='docs(scientia): mark Phase 0d complete in strategic plan' | actual=2L across 1 files | derived=full ---
