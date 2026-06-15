@@ -1,0 +1,11 @@
+fix(vox-orchestrator, vox-cli): Correct gateway token handling and safety command output
+scale: ~31 lines across 2 files [S]
+
+- `crates/vox-cli/src/commands/safety.rs`:
+  - Moved `discover_repository_or_fallback` import from `vox_orchestrator` to `vox_repository`.
+  - Removed `owo_colors` formatting from budget signal strings, making them plain strings.
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/mod.rs`:
+  - Changed `bearer_token` to be mutable to allow for modification.
+  - Cloned `bearer_token` and `dashboard_token` when passing them to `HttpGatewayConfig` and `dashboard_router` respectively, addressing double-move issues.
+
+--- audit: original='fix(vox-orchestrator, vox-cli): TASK-0.2 — fix gateway bearer_token mutability and dashboard_token double-move; fix pre-existing safety.rs import and accessor errors' | actual=31L across 2 files | derived=full ---
