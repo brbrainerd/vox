@@ -1,0 +1,7 @@
+refactor(hir): remove `lower_route` from `LowerCtx`
+scale: ~24 lines across 2 files [S]
+
+- `crates/vox-compiler/src/hir/lower/decl.rs`: Removed the `lower_route` method from the `LowerCtx` implementation.
+- `crates/vox-compiler/src/hir/lower/mod.rs`: Removed the call to `self.lower_route(r)` within the `LowerCtx`'s `lower_decl` method, effectively removing the handling of `Decl::HttpRoute` at this level.
+
+--- audit: original='refactor: complete HIR lowering unification for unified decl paths' | actual=24L across 2 files | derived=full ---
