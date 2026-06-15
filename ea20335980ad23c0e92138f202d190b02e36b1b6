@@ -1,0 +1,6 @@
+docs(typeck): update comment about type checking flow
+scale: ~3 lines across 1 files [XS]
+
+- `crates/vox-compiler/src/typeck/mod.rs`: Removed a deprecated comment about `typecheck_module` (AST path) being removed, and updated the remaining comment to state that all type checking flows through `typecheck_hir` in `Checker.rs`.
+
+--- audit: original='chore(typeck): drop tombstone comment for removed AST path' | actual=3L across 1 files | derived=full ---
