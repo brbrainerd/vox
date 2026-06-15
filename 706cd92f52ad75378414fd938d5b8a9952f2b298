@@ -1,0 +1,22 @@
+feat(compiler): consolidate compiler crates into vox-compiler
+scale: ~8245 lines across 136 files [XL]
+
+- `crates/vox-typeck`: Deleted the entire crate, moving its functionality into `vox-compiler`. This includes `check_test.rs`, `decorator_test.rs`, `hir_checker_test.rs`, `speech_builtin_test.rs`, `common/mod.rs`, `README.md`, and `Cargo.toml`.
+- `crates/vox-compiler`:
+    - Added new modules for type checking: `typeck/check/db_checks.rs`, `typeck/check/resolve.rs`, and `typeck/check/patterns.rs`.
+    - Added new AST definition files: `ast/fundecl.rs`, `ast/ui.rs`, `ast/logic.rs`, `ast/typedef.rs`, `ast/decl/db.rs`, `ast/decl/config.rs`.
+    - Modified existing type checking, HIR, AST, and codegen_ts files to integrate the moved functionality and adapt to the new structure.
+    - Updated `Cargo.toml` and `lib.rs` to reflect the consolidation.
+- `crates/vox-pm`: Modified `src/populi.rs` with 232 lines added and 232 lines deleted, indicating a significant refactor or update to the Populi client.
+- `crates/vox-codegen-rust`: Deleted numerous test files (`table_codegen_test.rs`, `codegen_guardrail_test.rs`, `server_fn_test.rs`, `adt_and_vector_test.rs`, `fs_builtins_test.rs`, `decorator_test.rs`, `test_codegen_test.rs`, `speech_transcribe_test.rs`, `llm_tracking_test.rs`) and `README.md`, `Cargo.toml`.
+- `crates/vox-parser`: Deleted many test files (`workflow_recovery_tests.rs`, `expr_recovery_tests.rs`, `parity_test.rs`, `server_fn_test.rs`, `island_decl_test.rs`) and golden test files, along with `README.md` and `Cargo.toml`.
+- `crates/vox-codegen-ts`: Deleted `README.md` and `Cargo.toml`, and `schema_test.rs`.
+- `crates/vox-db`: Modified `src/schema/manifest.rs`, `src/schema/mod.rs`, `src/arca_store/open.rs`, and `src/lib.rs`. Added `src/schema/domains/toestub.rs`.
+- `crates/vox-corpus`: Added `src/mcp_meta.rs`, `src/corpus/augment.rs`. Modified `src/corpus/preflight.rs` and `src/training/mod.rs`.
+- `crates/vox-ast`: Deleted `README.md` and `Cargo.toml`.
+- `crates/vox-hir`: Deleted `README.md` and `Cargo.toml`, and `tests/lower_test.rs`.
+- `crates/vox-lexer`: Deleted `README.md` and `Cargo.toml`.
+- `Cargo.lock`: Updated due to dependency changes.
+- `populi/config/mix.yaml`: Minor modification.
+
+--- audit: original='feat: consolidate compiler crates into vox-compiler' | actual=8245L across 136 files | derived=full ---
