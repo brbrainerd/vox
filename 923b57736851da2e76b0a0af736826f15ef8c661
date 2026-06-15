@@ -1,0 +1,15 @@
+feat(vox-cli, vox-orchestrator): Implement workflow drain CLI and orchestrator state
+scale: ~183 lines across 10 files [M]
+
+- crates/vox-orchestrator/src/drain_oplog/workflow_drain.rs: Add `WorkflowDrainStarted` struct and `WorkflowDrainState` with `record_drain`, `is_draining`, `may_start_new_run`, and `snapshot` methods for in-memory workflow drain management.
+- crates/vox-cli/src/commands/workflow/drain.rs: Add `drain` subcommand to `vox workflow` CLI, including `DrainArgs` and a `run` function to parse workflow content-hash for draining (currently a stub for Phase 2).
+- crates/vox-orchestrator/tests/workflow_drain.rs: Add three acceptance tests for `WorkflowDrainState` to verify correct draining behavior and snapshot functionality.
+- crates/vox-cli/tests/workflow_drain.rs: Add three acceptance tests for `vox workflow drain` and `vox workflow ls` CLI argument parsing.
+- crates/vox-cli/src/commands/workflow/ls.rs: Add `ls` subcommand to `vox workflow` CLI, including `LsArgs` with a `draining` flag and a `run` function (currently a stub for Phase 2).
+- crates/vox-cli/src/commands/workflow.rs: Extend `WorkflowCmd` enum with `Drain` and `Ls` subcommands, and update `run` function to dispatch to their respective handlers.
+- crates/vox-cli/src/commands/db/query_plans.rs: Fix non-exhaustive pattern match in `collect_query_plans_expr` by adding `HirExpr::WorkflowVersion` to the exhaustive match arm.
+- crates/vox-orchestrator/src/drain_oplog/mod.rs: Add new module `workflow_drain` to `drain_oplog`.
+- crates/vox-orchestrator/src/lib.rs: Export the new `drain_oplog` module.
+- .claude/settings.local.json: Add new bash commands for Claude's internal use.
+
+--- audit: original='feat(vox-cli, vox-orchestrator): P2-T3 workflow drain CLI + WorkflowDrainState op-log' | actual=183L across 10 files | derived=full ---
