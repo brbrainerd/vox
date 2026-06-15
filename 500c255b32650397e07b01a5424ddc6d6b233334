@@ -1,0 +1,12 @@
+feat(mesh-types): Add federation envelope, attestation manifest, redundancy, and TEE attestation types
+scale: ~747 lines across 7 files [L]
+
+- `crates/vox-mesh-types/src/attestation_manifest.rs`: New file defining `PublicAttestationManifest` for node identity and capabilities, `SupportedTask` for task declarations, and related types for attestation cache and verification.
+- `crates/vox-mesh-types/src/op_fragment.rs`: New file defining `OpFragmentEnvelope` for signed federation messages, `OpFragmentKind` enum, and `FederationSignature` for ActivityPub-like federation.
+- `crates/vox-mesh-types/src/redundancy.rs`: New file defining `RedundancyPolicy` for task replication, `TrustTier` for peer trust levels, `RedundancyMode` enum, and `VoteOutcome` for result reconciliation.
+- `crates/vox-mesh-types/tests/federation_envelope.rs`: New test file for `OpFragmentEnvelope` serialization, deserialization, and canonical signing bytes.
+- `crates/vox-mesh-types/src/tee_attestation.rs`: New file defining `TeeQuote` for Trusted Execution Environment attestation, `TeeQuoteKind` enum, and related verifier traits.
+- `crates/vox-mesh-types/src/lib.rs`: Export new modules and types: `attestation_manifest`, `op_fragment`, `redundancy`, `tee_attestation`.
+- `crates/vox-mesh-types/Cargo.toml`: No functional changes, likely version bump or dependency update.
+
+--- audit: original='feat(mesh-types): P6-T1 federation envelope + OpFragmentEnvelope' | actual=747L across 7 files | derived=full ---
