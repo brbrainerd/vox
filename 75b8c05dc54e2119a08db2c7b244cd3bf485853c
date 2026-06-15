@@ -1,0 +1,11 @@
+refactor(rustfmt): apply rustfmt to Wave-1 test additions
+scale: ~51 lines across 6 files [M]
+
+- `crates/vox-orchestrator/src/registry_model_resolve.rs`: formatted `inference_predicate` calls and `TierProfile::BringYourOwnKey` struct initialization in `semcov_wave1_tests`.
+- `crates/vox-orchestrator/src/context_lifecycle.rs`: formatted `assert_eq!` calls for `capture_mode` and `observed_via` in `semcov_wave1_tests`.
+- `crates/vox-orchestrator/src/grounding.rs`: formatted `lower_contains_ascii_whole_word` calls in `semcov_wave1_tests`.
+- `crates/vox-orchestrator/src/bootstrap.rs`: formatted `assert_eq!` call for `memory_md_path` in `semcov_wave1_tests`.
+- `crates/vox-orchestrator/src/entropy_scorer.rs`: formatted `assert!` call for `semantic_drift_sigma` in `semcov_wave1_tests`.
+- `crates/vox-orchestrator/src/json_vcs_facade.rs`: formatted `assert!` call for `kinds.contains("Modified")` in `semcov_wave1_tests`.
+
+--- audit: original='style: rustfmt Wave-1 test additions (vox-orchestrator/gamify/db)' | actual=51L across 6 files | derived=full ---
