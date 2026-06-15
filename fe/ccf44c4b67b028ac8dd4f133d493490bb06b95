@@ -1,0 +1,8 @@
+test(gui,db): un-ignore integration test and convert digest printer to a real guard
+scale: ~54 lines across 3 files [M]
+
+- `crates/vox-db`: Replaced an ignored manual digest printer with a real test that asserts `schema_baseline_digest_hex()` and `BASELINE_VERSION` match `contracts/db/baseline-version-policy.yaml`.
+- `crates/vox-gui`: Removed the `#[ignore]` attribute from the `mcp_bridge_tests.rs` integration test, enabling it to run in default `cargo test` runs.
+- `docs`: Updated the `vox-gui-harness-buildout-plan-2026.md` documentation to reflect the changes in the `mcp_bridge_tests.rs` integration test status.
+
+--- audit: original='@ test(gui,db): un-ignore integration test + convert digest printer to a real guard' | actual=54L across 3 files | derived=full ---
