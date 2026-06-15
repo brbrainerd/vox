@@ -1,0 +1,7 @@
+fix(deps): bump recharts from 3.8.0 to 3.8.1 in /apps/editor/vox-vscode
+scale: ~14 lines across 2 files [S]
+
+- `apps/editor/vox-vscode/package.json`: Updated the `recharts` dependency to version `^3.8.1`.
+- `apps/editor/vox-vscode/package-lock.json`: Updated the locked version of `recharts` to `3.8.1` and adjusted its integrity hash.
+
+--- audit: original='chore(deps): bump recharts in /apps/editor/vox-vscode (#109)' | actual=14L across 2 files | derived=full ---
