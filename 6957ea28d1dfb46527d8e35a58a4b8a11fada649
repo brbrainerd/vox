@@ -1,0 +1,6 @@
+docs(telemetry): mark Phase D as landed in design document
+scale: ~2 lines across 1 files [XS]
+
+- docs/src/architecture/telemetry-unification-design-2026.md: Updated the "Phase D" row in the phasing table to include a checkmark (✓) and a "Landed 2026-05-27" note, along with a list of implemented items: org-policy file hard-off, debug_to_stderr + StderrDebugSink, and wall_time_ms aggregation.
+
+--- audit: original='docs(telemetry): mark Phase D as landed (2026-05-27)' | actual=2L across 1 files | derived=full ---
