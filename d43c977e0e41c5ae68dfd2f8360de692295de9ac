@@ -1,0 +1,14 @@
+feat(docs): Add comprehensive research on secrets management and ML corpus strategy
+scale: ~1576 lines across 9 files [XL]
+
+- docs/src/architecture/clavis-one-stop-secrets-research-2026.md: New document detailing research on Clavis as a one-stop secrets manager, including env-var taxonomy, user-facing features, AI-agent credential flows, A2A delegation, and a roadmap.
+- docs/src/architecture/mens-corpus-implementation-plan-2026.md: New document outlining a full implementation plan for the MENS Corpus, including an audit of current synthetic data usage and a multi-wave execution plan.
+- docs/src/architecture/mens-synthetic-corpus-limitations-research-2026.md: New document analyzing limitations of the MENS synthetic corpus and proposing mitigation strategies.
+- README.md: Updated project description and "Why Vox Exists" section to reflect the language's design for human intent and machine execution, and its role in addressing limitations of existing languages for AI agents.
+- .github/workflows/ml_data_extraction.yml: Added a new step to extract the golden corpus (Tier A).
+- docs/src/architecture/research-index.md: Updated the research index to include the new MENS corpus research documents.
+- contracts/db/baseline-version-policy.yaml: Modified the baseline version policy.
+- crates/vox-ludus/src/config_gate.rs: Changed error handling for `experiment_reward_multiplier` from `Err(_)` to `None`.
+- docs/src/architecture/clavis-secrets-env-research-2026.md: Added a cross-reference to the new "Clavis as a one-stop secrets manager" research document.
+
+--- audit: original='feat: add baseline version policy, research documentation, and infrastructure for secrets management and ML data extraction.' | actual=1576L across 9 files | derived=full ---
