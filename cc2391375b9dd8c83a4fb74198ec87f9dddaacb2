@@ -1,0 +1,32 @@
+feat(coverage-graph): recover 49 crate behavior maps from dead-run journals
+scale: ~11681 lines across 44 files [XL]
+
+- **scripts/coverage-graph**: Added `recover_and_synth.py` to deterministically synthesize behavior maps from workflow journal records, addressing LLM synthesis failures on large crates.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-compiler.md**: Generated a new behavior map for `vox-compiler` with 2466 lines, detailing 989 proven-behavior claims across 563 symbols.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-orchestrator.md**: Generated a new behavior map for `vox-orchestrator` with 1769 lines, detailing 685 proven-behavior claims across 398 symbols.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-codegen.md**: Generated a new behavior map for `vox-codegen` with 999 lines, detailing 385 proven-behavior claims across 223 symbols.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-integration-tests.md**: Generated a new behavior map for `vox-integration-tests` with 825 lines, detailing 283 proven-behavior claims across 200 symbols.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-code-audit.md**: Generated a new behavior map for `vox-code-audit` with 574 lines, detailing 336 proven-behavior claims across 97 symbols.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-orchestrator-mcp.md**: Generated a new behavior map for `vox-orchestrator-mcp` with 468 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-scientia.md**: Generated a new behavior map for `vox-scientia` with 454 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-cli.md**: Generated a new behavior map for `vox-cli` with 327 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-publisher.md**: Generated a new behavior map for `vox-publisher` with 327 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-audit.md**: Generated a new behavior map for `vox-audit` with 326 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-gamify.md**: Generated a new behavior map for `vox-gamify` with 271 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-config.md**: Generated a new behavior map for `vox-config` with 220 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-corpus.md**: Generated a new behavior map for `vox-corpus` with 198 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-effort-route.md**: Generated a new behavior map for `vox-effort-route` with 192 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-telemetry.md**: Generated a new behavior map for `vox-telemetry` with 186 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-ml-cli.md**: Generated a new behavior map for `vox-ml-cli` with 162 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-research-shim.md**: Generated a new behavior map for `vox-research-shim` with 158 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-speech.md**: Generated a new behavior map for `vox-speech` with 146 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-drift-check.md**: Generated a new behavior map for `vox-drift-check` with 138 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-workflow-runtime.md**: Generated a new behavior map for `vox-workflow-runtime` with 138 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-mesh-types.md**: Generated a new behavior map for `vox-mesh-types` with 130 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-gui.md**: Generated a new behavior map for `vox-gui` with 128 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-orchestrator-queue.md**: Generated a new behavior map for `vox-orchestrator-queue` with 116 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-effort-audit.md**: Generated a new behavior map for `vox-effort-audit` with 109 lines.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-skills.md**: Generated a new behavior map for `vox-skills` with 103 lines.
+- **graphify-out**: Generated new behavior maps for 23 additional crates, ranging from 15 to 79 lines each, recovering previously lost extraction data.
+
+--- audit: original='feat(coverage-graph): recover 49 crate behavior maps from dead-run journals' | actual=11681L across 44 files | derived=full ---
