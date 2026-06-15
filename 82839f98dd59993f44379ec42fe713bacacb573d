@@ -1,0 +1,8 @@
+feat(vox-cli): add `audit effort-route` subcommand
+scale: ~454 lines across 10 files [L]
+
+- `crates/vox-cli`: Adds the `audit effort-route` subcommand, including its CLI arguments, dispatch logic, and a basic help test. This subcommand routes S1 effort-audit findings to verified, drafted enforcement-artifact proposals.
+- `crates/vox-effort-route`: Introduces `LlmEmbedder` for facade-backed embedding of finding rationales, used by the CLI for sub-clustering.
+- `Cargo.toml`: Updates `vox-cli` and the workspace to include the new `vox-effort-route` dependency.
+
+--- audit: original='feat(vox-cli): vox audit effort-route subcommand (D3)' | actual=454L across 10 files | derived=full ---
