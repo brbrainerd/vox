@@ -1,0 +1,17 @@
+fix(code-audit): flip retired-decorator direction for endpoint decorators
+scale: ~186 lines across 6 files [M]
+
+- `crates/vox-code-audit/src/detectors/retired_decorator.rs`:
+    - Updated documentation to reflect that `@endpoint(kind: ...)` is now the retired form, and bare `@server`, `@query`, `@mutation` are canonical.
+    - Flipped the regex pattern to detect `@endpoint(kind: ...)` as retired.
+    - Updated the diagnostic message to guide users from `@endpoint(kind: ...)` to bare forms.
+- `crates/vox-code-audit/tests/telemetry_emission_test.rs`:
+    - Modified test fixture to use `@endpoint(kind: server)` as the retired form for telemetry emission testing.
+    - Updated assertion message to reflect the new retired form.
+    - Modified clean fixture to use `@server` as the canonical form.
+- `crates/vox-integration-tests/tests/fixtures/chatbot.vox`: Migrated `@endpoint(kind: mutation)` to `@mutation`.
+- `crates/vox-integration-tests/tests/fixtures/full_stack_minimal.vox`: Migrated `@endpoint(kind: server)` to `@server`.
+- `crates/vox-integration-tests/tests/fixtures/greaterfool_reference.vox`: Migrated `@endpoint(kind: server)` to `@server`.
+- `examples/golden/option_type.vox`: Migrated `@endpoint(kind: query)` to `@query`.
+
+--- audit: original='fix(code-audit): flip retired-decorator direction to match Phase B' | actual=186L across 6 files | derived=full ---
