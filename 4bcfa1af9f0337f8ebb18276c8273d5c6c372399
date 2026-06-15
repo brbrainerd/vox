@@ -1,0 +1,9 @@
+ci(docs-quality): add advisory generator-drift job for plugin-catalog, command-sync, ignore-files
+scale: ~38 lines across 1 files [S]
+
+- Add a new `generator-drift` job to `.github/workflows/docs-quality.yml`.
+- This job checks for drift in `ignore-files`, `plugin-catalog` documentation, and `CLI command surface`.
+- It uses `cargo run -p vox-cli` to perform checks: `ci sync-ignore-files --verify`, `ci generate-plugin-catalog-docs --check`, and `ci command-sync --check`.
+- Warnings are issued if drift is detected for any of these checks, but the job does not block PRs.
+
+--- audit: original='ci: add advisory generator-drift job for plugin-catalog, command-sync, ignore-files' | actual=38L across 1 files | derived=full ---
