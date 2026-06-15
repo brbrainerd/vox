@@ -1,0 +1,16 @@
+feat(hopper): Implement PrioritySource typed partial order (Hp-T3)
+scale: ~240 lines across 9 files [M]
+
+- `crates/vox-orchestrator-types/src/agent_types/priority_source.rs`: Add new `PrioritySource` enum with `Ord` implementation encoding `Developer(2) > Orchestrator(1) > LearningPolicy(0)`, a `dominates()` helper, and 6 unit tests.
+- `crates/vox-orchestrator/src/hopper/store.rs`: Update `InMemoryHopper::reprioritize` to set `IntakeItem.priority_source` to `Developer` when a `DeveloperOverride` capability is presented. Add 2 new acceptance tests for Hp-T3, verifying `priority_source` defaults to `Orchestrator` and flips to `Developer` after an override.
+- `docs/src/architecture/post-sprint-forward-plan-2026-05-25.md`: Update forward plan to mark CR-L8 and `json_as_typed.vox` as complete, and add a detailed breadcrumb for Hp-T3 implementation.
+- `crates/vox-orchestrator/src/events.rs`: Deprecate `ReprioritizationActor` enum by aliasing it to `PrioritySource` for backward compatibility.
+- `crates/vox-orchestrator/src/hopper/types.rs`: Add `priority_source: PrioritySource` field to `IntakeItem`, defaulting to `Orchestrator` on initial intake.
+- `crates/vox-orchestrator-types/src/lib.rs`: Re-export `PrioritySource` at the crate root.
+- `crates/vox-orchestrator-types/src/agent_types/mod.rs`: Add `priority_source` module and re-export `PrioritySource`.
+- `crates/vox-orchestrator/src/hopper/mod.rs`: Re-export `PrioritySource`.
+- `crates/vox-orchestrator/src/types/mod.rs`: Re-export `PrioritySource` from `vox-orchestrator-types`.
+
+Closes Hp-T3.
+
+--- audit: original='feat(hopper): Hp-T3 PrioritySource typed partial order (v0.6)' | actual=240L across 9 files | derived=full ---
