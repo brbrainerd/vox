@@ -1,0 +1,15 @@
+feat(vox-effort-route): enforce judge token budget in pipeline
+scale: ~140 lines across 6 files [M]
+
+- `route/mod.rs`:
+    - Added `judge_tokens_used: u64` field to `RemediationDecision` to track judge token cost per cluster.
+    - Implemented `RemediationDecision::budget_skipped` constructor for clusters skipped due to budget exhaustion.
+    - `LlmRouter` now captures and returns `judge_tokens_used` from `LlmResponse` for decide and verify steps.
+    - `MockRouter` now explicitly sets `judge_tokens_used` to 0.
+- `pipeline.rs`:
+    - Introduced `clusters_skipped_over_budget` and `judge_tokens_spent` fields to `RouteSummary`.
+    - Modified the `run` function to enforce `cfg.judge.max_total_tokens` by accumulating `judge_tokens_spent` and using `RemediationDecision::budget_skipped` for subsequent clusters if the budget is exceeded.
+    - Updated `RouteSummary` population to include new budget-related metrics.
+- `emit/artifacts.rs`, `emit/jsonl.rs`, `emit/markdown.rs`, `emit/mod.rs`: Added `judge_tokens_used: 0` to test `RemediationDecision` instances for compatibility.
+
+--- audit: original='fix(vox-effort-route): enforce judge token budget in pipeline (D2.1)' | actual=140L across 6 files | derived=full ---
