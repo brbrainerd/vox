@@ -1,0 +1,12 @@
+feat(codegen): un-ignore 19/20 compile harness tests; add shared target dir
+scale: ~42 lines across 1 files [S]
+
+- `crates/vox-codegen/tests/emit_compile_harness.rs`:
+    - Un-ignored 19 out of 20 `script-codegen` tests, allowing them to run by default.
+    - Added a shared, stable `CARGO_TARGET_DIR` located at `%TEMP%/vox-emit-harness-target` to cache compiled dependencies (`tokio`, `vox-actor-runtime`) across test runs, significantly reducing test execution time.
+    - Introduced a `std::sync::Mutex` (`COMPILE_LOCK`) to serialize access to the shared target directory, preventing race conditions when `cargo` is invoked by parallel test threads.
+    - Modified `compile_vox_script` to use the new shared target directory and acquire the mutex guard.
+    - Updated comments to reflect that most tests now run by default, with only specific tests remaining ignored due to known blockers.
+    - The `golden_option_type_compiles` test remains ignored due to a pre-existing `IntoParams`/`From` trait-bound issue in DB codegen unrelated to `Option` type support.
+
+--- audit: original='test(golden): Task 3C — un-ignore 19/20 compile harness tests; add shared target dir' | actual=42L across 1 files | derived=full ---
