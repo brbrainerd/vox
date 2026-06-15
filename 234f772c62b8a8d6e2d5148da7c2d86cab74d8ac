@@ -1,0 +1,9 @@
+docs(agents): update auto-generated file section and archive links
+scale: ~38 lines across 4 files [S]
+
+- `AGENTS.md`: Updated the "Auto-generated documentation files" section to reflect Astro-first state, clarifying which files are `.gitignore`d and which are committed and synced by `lefthook.yml`. Removed direct archive links and converted them to prose.
+- `infra/coolify/README.md`: Replaced direct links to archived research documents with prose references, explicitly stating they should not be ingested.
+- `CHANGELOG.md`: Updated the entry for "Telemetry (optional remote upload)" to remove a direct link to an archived wire spec document and convert it to prose.
+- `.github/PULL_REQUEST_TEMPLATE.md`: Updated the Gamify section to remove a direct link to an archived agent-event-kind matrix document, converting it to prose and advising against its use as a reference.
+
+--- audit: original='docs(agents): remove direct archive links, update auto-generated file section' | actual=38L across 4 files | derived=full ---
