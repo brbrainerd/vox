@@ -1,0 +1,10 @@
+feat(webhook): make bind addr, retry, and channel-cap configurable via env
+scale: ~197 lines across 5 files [M]
+
+- `crates/vox-plugin-webhook/src/webhook/config.rs`: New file introducing `config` module with default constants and resolver functions for webhook bind address, retry maximum, retry backoff, and channel capacity.
+- `crates/vox-plugin-webhook/src/webhook/mod.rs`: Exports new `config` module and its public functions/constants.
+- `crates/vox-plugin-webhook/src/lib.rs`: Updates `init` and `WebhookHttpListener` to use `webhook::config::bind_addr_from_env()` and `webhook::config::resolve_bind_addr()` respectively, replacing hardcoded bind address literals and direct environment variable access.
+- `crates/vox-plugin-webhook/src/webhook/delivery.rs`: Updates `OutboundWebhook` to use `super::config::retry_max_from_env()` and `super::config::retry_backoff_ms_from_env()` for `max_retries` and `backoff_ms`, replacing hardcoded values.
+- `crates/vox-plugin-webhook/src/webhook/router.rs`: Updates `WebhookState::new` to use `super::config::channel_cap_from_env()` for broadcast channel capacity, replacing a hardcoded value.
+
+--- audit: original='feat(webhook): make bind addr, retry, and channel-cap configurable via env (HC-G10-01/02/04)' | actual=197L across 5 files | derived=full ---
