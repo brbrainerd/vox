@@ -1,0 +1,10 @@
+refactor(infra): replace shell entrypoints with .vox scripts
+scale: ~159 lines across 5 files [M]
+
+- infra/containers/entrypoints/populi-entrypoint.sh: Deleted `populi-entrypoint.sh` shell script.
+- infra/containers/entrypoints/vox-entrypoint.sh: Deleted `vox-entrypoint.sh` shell script.
+- docs/agents/script-registry.json: Updated paths for `vox-entrypoint.vox` and `populi-entrypoint.vox` and added notes indicating they were ported from `.sh` files.
+- docs/src/reference/deployment-compose.md: Updated reference to `vox-entrypoint.sh` to `vox-entrypoint.vox`.
+- docs/src/reference/populi.md: Updated reference to `vox-entrypoint.sh` to `vox-entrypoint.vox`.
+
+--- audit: original='chore(infra): replace shell entrypoints with .vox; update all live doc refs' | actual=159L across 5 files | derived=full ---
