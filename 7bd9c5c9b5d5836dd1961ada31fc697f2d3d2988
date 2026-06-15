@@ -1,0 +1,9 @@
+fix(coverage-graph): refine test detection and document VoxScript deferral
+scale: ~34 lines across 2 files [S]
+
+- `scripts/coverage-graph/overlay_tests.py`:
+    - Changed `detect_tests` to catch `OSError` instead of `Exception` when reading file text.
+    - Modified "Pass 2" test detection logic to only count functions annotated with `#[test]`, `#[tokio::test]`, or `#[rstest]` within `cfg(test)` modules, ignoring unannotated helper functions.
+- `scripts/coverage-graph/README.md`: Added a "Language-policy note" explaining the deferral of rewriting the Python scripts to VoxScript, designating it as a Phase 1.5 follow-up.
+
+--- audit: original='fix(coverage-graph): review findings — test-attr-only detection, narrowed excepts, naming; document VoxScript-policy deferral' | actual=34L across 2 files | derived=full ---
