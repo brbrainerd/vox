@@ -1,0 +1,10 @@
+feat(gui): Add Mens, Populi, and Research decorator surfaces via shared CommandCardsView
+scale: ~268 lines across 5 files [L]
+
+- **`crates/vox-gui/ui/src/components/surfaces/CommandCardsView.tsx`**: New component created to display results of arg-free, read-only CLI commands as dashboard cards. It handles command execution via `invoke('execute_command')`, loading states, and error handling.
+- **`crates/vox-gui/ui/src/components/surfaces/Scientia/ScientiaDashboard.tsx`**: Refactored to use the new `CommandCardsView` component, significantly reducing its size by delegating command execution and rendering logic. It now passes `SCIENTIA_CARDS` (an array of `SurfaceCard`s) to `CommandCardsView`.
+- **`crates/vox-gui/ui/src/components/surfaces/decoratorRegistry.ts`**: Added a `commandSurface` factory function to create decorator components for CLI surfaces using `CommandCardsView`. Registered new decorator surfaces for 'mens' (status, models, probe), 'populi' (status, registry-snapshot), and 'research' (status, history, config show) commands.
+- **`crates/vox-gui/ui/src/App.tsx`**: Updated the `View` type union to include 'mens', 'populi', and 'research' to enable navigation to these new surfaces.
+- **`crates/vox-gui/ui/src/components/layout/Sidebar.tsx`**: Added new navigation items for 'Mens', 'Populi', and 'Research' surfaces to the sidebar.
+
+--- audit: original='feat(gui): Mens / Populi / Research decorator surfaces + shared CommandCardsView' | actual=268L across 5 files | derived=full ---
