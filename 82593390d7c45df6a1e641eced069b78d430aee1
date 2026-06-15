@@ -1,0 +1,8 @@
+fix(codegen): wrap push-handler args into endpoint named-object param shape
+scale: ~61 lines across 3 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/mobile_emit.rs`: Modified `emit_mobile_setup` to pass an empty `HashMap` for `endpoint_param0`. Updated `emit_mobile_setup_for_target` to accept a `HashMap<String, String>` for `endpoint_param0`, which maps endpoint function names to their first parameter's name. This map is used to wrap push callback arguments into the named-object format expected by client endpoints, coercing non-string arguments to JSON for string-typed parameters.
+- `crates/vox-codegen/src/codegen_ts/emitter.rs`: Populated the `endpoint_param0` `HashMap` by iterating through `hir.endpoint_fns` and extracting the name of the endpoint and its first parameter, then passed this map to `emit_mobile_setup_for_target`.
+- `crates/vox-codegen/src/codegen_ts/rn/mod.rs`: Similarly populated the `endpoint_param0` `HashMap` from `hir.endpoint_fns` and passed it to `emit_mobile_setup_for_target` for React Native specific code generation.
+
+--- audit: original='fix(codegen): wrap push-handler args into endpoint named-object param shape' | actual=61L across 3 files | derived=full ---
