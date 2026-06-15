@@ -8,6 +8,11 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Shipped circuit-breaker contract, compiled into the binary (path relative to
+/// THIS file → repo-root `contracts/`). Embedded = always live, never inert.
+const EMBEDDED_CIRCUIT_BREAKER_YAML: &str =
+    include_str!("../../../contracts/orchestration/circuit-breaker.v1.yaml");
+
 /// Reason the circuit was tripped.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TripReason {
@@ -172,6 +177,30 @@ impl CircuitBreakerConfig {
             c.replan_limit = v;
         }
         Ok(c)
+    }
+
+    /// Parse the compile-time-embedded contract.
+    pub fn embedded() -> Self {
+        Self::from_contract_str(EMBEDDED_CIRCUIT_BREAKER_YAML)
+            .expect("embedded circuit-breaker.v1.yaml must parse")
+    }
+
+    /// Resolve the live config: explicit override file (env) wins when present and
+    /// parseable; otherwise the embedded contract. Never silently inert.
+    pub fn resolve() -> Self {
+        if let Ok(p) = std::env::var("VOX_CIRCUIT_BREAKER_CONTRACT") {
+            let path = std::path::PathBuf::from(p);
+            if path.exists() {
+                if let Ok(text) = std::fs::read_to_string(&path) {
+                    if let Ok(cfg) = Self::from_contract_str(&text) {
+                        return cfg;
+                    }
+                    tracing::warn!(path = %path.display(),
+                        "circuit-breaker override failed to parse; using embedded contract");
+                }
+            }
+        }
+        Self::embedded()
     }
 
     /// Load thresholds from the contract file if it exists; otherwise `Default`.
@@ -383,6 +412,19 @@ graduated_alarms:
         // ...and the graduated-alarm siblings (value 1/2, not 3) are unaffected.
         assert_eq!(parsed.caution_no_progress, def.caution_no_progress);
         assert_eq!(parsed.warning_no_progress, def.warning_no_progress);
+    }
+
+    #[test]
+    fn embedded_contract_is_canonical_and_matches_default() {
+        let embedded = CircuitBreakerConfig::embedded();
+        let def = CircuitBreakerConfig::default();
+        assert_eq!(embedded.no_progress_threshold, def.no_progress_threshold);
+        assert_eq!(embedded.tool_thrash_threshold, def.tool_thrash_threshold);
+        assert_eq!(embedded.replan_limit, def.replan_limit);
+        assert_eq!(
+            embedded.ngram_overlap_threshold,
+            def.ngram_overlap_threshold
+        );
     }
 
     #[test]
