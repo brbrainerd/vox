@@ -1,0 +1,39 @@
+feat(compiler,cli,docs): GUI-native roadmap, Scientia RSS auto-publish, effect-check coverage
+scale: ~3304 lines across 63 files [XL]
+
+- **crates/vox-cli/src/v0_tsx_validate.rs**: Added new module for accessibility and structure validation of TSX returned by v0.dev, performing regex-based JSX element scans and feeding results to `web_ir::validate_a11y`.
+- **docs/src/feed.xml**: Updated RSS feed, likely adding new entries.
+- **crates/vox-compiler/src/typeck/effect_check.rs**: Refactored effect checking to walk `endpoint_fns` bodies and added `check_endpoint_fn_effects` for structural effect checks on endpoint functions.
+- **crates/vox-compiler/src/web_ir/validate_a11y.rs**: Introduced internal `AriaRole` inference types and helper functions (`implicit_role`, `has_attr`, `has_aria_name`, `has_non_empty_text_child`) for improved accessibility validation.
+- **crates/vox-compiler/src/web_ir/validate.rs**: Modified `validate_route_reachability` to collect literal href/to values only from DOM nodes reachable from a declared view root, preventing orphan nodes from hiding diagnostics.
+- **crates/vox-cli/src/commands/db/publication/discovery.rs**: Added `publication_discovery_publish_rss` command to auto-publish `auto_draft_eligible` Scientia findings to the local RSS feed, scanning manifests and appending items to `feed.xml`.
+- **crates/vox-compiler/src/hir/lower/decl.rs**: Extended `LowerCtx` to include `durability` and `actor_state_fields` in `HirFn` and added `lower_workflow` to convert AST workflow declarations to `HirFn`.
+- **crates/vox-workflow-runtime/src/workflow/plan.rs**: Modified `plan_workflow_run` to traverse call arguments before early returns, ensuring nested activity calls within arguments are not lost from the replay plan.
+- **crates/vox-mens/src/commands/ai/workflow.rs**: Updated AI workflow command, likely related to new workflow lowering or planning.
+- **crates/vox-compiler/src/parser/descent/decl/mid.rs**: Added new parser descent logic for declarations, specifically for mid-level constructs.
+- **crates/vox-workflow-runtime/tests/workflow_tracker_tests.rs**: Updated workflow tracker tests, likely reflecting changes in workflow planning or execution.
+- **docs/src/architecture/architecture-index.md**: Updated architecture index, potentially to reflect new roadmap or documentation structure.
+- **crates/vox-compiler/src/parser/descent/decl/tail.rs**: Added new parser descent logic for declarations, specifically for tail-level constructs.
+- **crates/vox-compiler/src/typeck/state_machine_check.rs**: Added new state machine checking logic.
+- **docs/src/architecture/github-pages-redirects.md**: Added new documentation for GitHub Pages redirects.
+- **docs/src/architecture/gui-native-roadmap-status-2026.md**: Updated GUI-native roadmap status for 2026.
+- **crates/vox-compiler/src/hir/lower/mod.rs**: Updated HIR lowering module, likely integrating new declaration lowering.
+- **crates/vox-compiler/src/ast/decl/logic.rs**: Added new AST declaration logic.
+- **crates/vox-dashboard/src/transport.ts**: Modified transport logic, likely related to authentication hardening.
+- **.claude/settings.local.json**: Added new Claude settings file.
+- **crates/vox-compiler/src/hir/nodes/durability.rs**: Added new HIR node definitions for durability.
+- **crates/vox-compiler/src/web_ir/mod.rs**: Updated Web IR module, likely integrating new validation logic.
+- **crates/vox-cli/src/v0.rs**: Updated v0 CLI module, likely integrating new TSX validation.
+- **crates/vox-compiler/src/parser/descent/tests.rs**: Updated parser descent tests.
+- **contracts/cli/command-registry.yaml**: Updated CLI command registry.
+- **crates/vox-cli/src/commands/db_cli/publication_subcommands.rs**: Added new publication subcommands for the DB CLI.
+- **crates/vox-compiler/src/tokens/validate.rs**: Added new token validation logic.
+- **docs/src/architecture/vox-gui-native-roadmap-2026.md**: Added new documentation for the Vox GUI-native roadmap for 2026.
+- **crates/vox-cli/src/commands/db_cli/mod.rs**: Updated DB CLI module, likely integrating new publication subcommands.
+- **crates/vox-cli-core/src/scientia.rs**: Added new Scientia core CLI logic.
+- **crates/vox-compiler/src/hir/nodes/decl.rs**: Updated HIR node definitions for declarations.
+- **crates/vox-compiler/src/hir/nodes/state_machine.rs**: Modified HIR node definitions for state machines.
+- **docs-astro/public/**: Updated various public documentation files (architecture, research, contributors, reference, tutorials), likely reflecting new content or structure.
+- **AGENTS.md**: Modified AGENTS documentation.
+
+--- audit: original='feat(task-2.6-path-a): GUI-native roadmap Phases 0-5; TASK-2.6 Path A workflow/activity/actor lowering; Scientia RSS auto-publish; effect-check endpoint coverage' | actual=3304L across 63 files | derived=full ---
