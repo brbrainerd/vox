@@ -1,0 +1,12 @@
+feat(publisher,populi): Implement Provider Atlas finding and opt-in discovery skill
+scale: ~534 lines across 7 files [L]
+
+- `crates/vox-publisher/src/atlas/provider_atlas.rs`: Add `ProviderAtlasFinding` structure and `AtlasObservation` for recording provider capabilities and opt-in status.
+- `crates/vox-populi/src/mens/discovery_publish.rs`: Introduce `DiscoveryPublishConfig` and the core logic for aggregating telemetry into `ProviderAtlasFinding` observations, gated by the `mesh-discovery-publish` feature.
+- `crates/vox-publisher/src/atlas/trust_snapshot.rs`: Implement `TrustGraphSnapshot` and `PeerEntry` for self-publication of a node's local trust graph.
+- `crates/vox-publisher/tests/provider_atlas.rs`: Add integration tests for `ProviderAtlasFinding` and `AtlasObservation` merging logic.
+- `crates/vox-publisher/src/atlas/mod.rs`: Export new `provider_atlas` and `trust_snapshot` modules.
+- `crates/vox-populi/src/mens/mod.rs`: Conditionally include `discovery_publish` module when `mesh-discovery-publish` feature is enabled.
+- `crates/vox-populi/Cargo.toml`: Add `mesh-discovery-publish` feature, depending on `vox-publisher`.
+
+--- audit: original='feat(publisher,populi): P6-T6 Provider Atlas finding + opt-in discovery skill' | actual=534L across 7 files | derived=full ---
