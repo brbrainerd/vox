@@ -1,0 +1,15 @@
+feat(plugin-sdk): `declare_plugin!` reads id/version from `Plugin.toml`
+scale: ~83 lines across 7 files [M]
+
+- `crates/vox-plugin-sdk/src/lib.rs`:
+  - Added `manifest_id_version_json` function to parse `id` and `version` from a `Plugin.toml` string, with minimal JSON escaping and fallback to empty/`0.0.0`.
+  - Modified `declare_plugin!` macro to use `manifest_id_version_json` with `include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/Plugin.toml"))` for its `manifest_json` probe, removing `id` and `version` arguments.
+  - Updated example usage in documentation to reflect the change.
+- `crates/vox-plugin-sdk/Cargo.toml`: Added `toml` dependency for parsing `Plugin.toml`.
+- `crates/vox-cli/src/commands/plugin/scaffold.rs`: Removed `id` and `version` arguments from `declare_plugin!` macro invocation in the plugin scaffold template.
+- `crates/vox-plugin-nvml-probe/src/lib.rs`: Removed `id` and `version` arguments from `declare_plugin!` macro invocation.
+- `crates/vox-plugin-speech/src/lib.rs`: Removed `id` and `version` arguments from `declare_plugin!` macro invocation.
+- `crates/vox-identity/src/storage.rs`: Fixed three `needless_borrow` clippy lints by removing `&` from `&path` arguments where `path` was already `&Path`.
+- `Cargo.lock`: Updated due to new `toml` dependency in `vox-plugin-sdk`.
+
+--- audit: original='feat(plugin-ssot): PS-4 — declare_plugin! reads id/version from Plugin.toml (#212)' | actual=83L across 7 files | derived=full ---
