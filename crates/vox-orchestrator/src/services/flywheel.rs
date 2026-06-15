@@ -1,5 +1,4 @@
 use crate::Orchestrator;
-use crate::process_util::quiet_tokio_command;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::time::interval;
@@ -95,24 +94,16 @@ impl FlywheelMonitor {
                                     tracing::info!(domain = %domain, "Flywheel: Auto-dispatching autonomous training wave...");
                                     drop(in_progress);
 
-                                    let training_flag = training_in_progress.clone();
-                                    let domain_to_train = domain.clone();
-
-                                    tokio::spawn(async move {
-                                        {
-                                            let mut g = training_flag.lock().await;
-                                            *g = true;
-                                        }
-                                        let res =
-                                            trigger_autonomous_training(&domain_to_train).await;
-                                        if let Err(e) = res {
-                                            tracing::error!(domain = %domain_to_train, error = %e, "Flywheel: Autonomous training wave FAILED");
-                                        } else {
-                                            tracing::info!(domain = %domain_to_train, "Flywheel: Autonomous training wave COMPLETED successfully");
-                                        }
-                                        let mut g = training_flag.lock().await;
-                                        *g = false;
-                                    });
+                                    // Autonomous training dispatch was previously a non-portable
+                                    // `pwsh -File scripts/mens-full-pipeline.ps1` spawn; that script
+                                    // does not exist and `pwsh` is not present on stock Linux/macOS.
+                                    // Disabled until reimplemented as a cross-platform
+                                    // `vox run scripts/*.vox` entrypoint. See
+                                    // docs/src/architecture/cross-platform-guarantees-audit-and-enforcement-2026-06-15.md (D2).
+                                    tracing::warn!(
+                                        domain = %domain,
+                                        "Flywheel: autonomous training dispatch is not wired (cross-platform pipeline pending); skipping."
+                                    );
                                 } else {
                                     tracing::debug!(domain = %domain, "Flywheel: Training already in progress, skipping trigger.");
                                 }
@@ -129,27 +120,4 @@ impl FlywheelMonitor {
             }
         });
     }
-}
-
-async fn trigger_autonomous_training(domain: &str) -> anyhow::Result<()> {
-    tracing::info!(domain = %domain, "Starting autonomous training subprocess...");
-
-    let status = quiet_tokio_command("pwsh")
-        .arg("-NonInteractive")
-        .arg("-NoProfile")
-        .arg("-File")
-        .arg("scripts/mens-full-pipeline.ps1")
-        .arg("-Domain")
-        .arg(domain)
-        .status()
-        .await?;
-
-    if !status.success() {
-        anyhow::bail!(
-            "Autonomous training subprocess for domain '{}' exited with code {:?}",
-            domain,
-            status.code()
-        );
-    }
-    Ok(())
 }
