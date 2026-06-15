@@ -1,0 +1,53 @@
+feat(compiler,orchestrator,cli): expand capabilities with interpreter and healing loop
+scale: ~5588 lines across 142 files [XL]
+
+- **compiler**:
+    - **eval**: Introduced a new interpreter with `eval/builtins.rs`, `eval/expr.rs`, `eval/stmt.rs`, `eval/mod.rs`, `eval/env.rs`, and `eval/value.rs` for runtime evaluation of Vox code.
+    - **lexer**: Modified `lexer/token.rs` to support new language constructs for the interpreter.
+    - **parser**: Updated `parser/descent/expr/pratt_match.rs`, `parser/descent/decl/head.rs`, `parser/descent/stmt.rs`, and `parser/descent/mod.rs` to parse new syntax.
+    - **typeck**: Enhanced `typeck/diagnostics.rs`, `typeck/checker/mod.rs`, `typeck/ast_decl_lints.rs`, `typeck/infer.rs`, `typeck/autofix.rs`, and `typeck/checker/expr.rs` for improved type checking and diagnostics.
+    - **hir**: Added `hir/lower/contracts.rs`, `hir/nodes/stmt_expr.rs`, `hir/lower/stmt.rs`, `hir/lower/mod.rs`, `hir/db_op_walk.rs`, `hir/nodes/decl.rs`, `hir/lower/async_flags.rs`, and `hir/lower/decl.rs` for new HIR nodes and lowering logic. Removed `hir/dead_code.rs`.
+    - **ast**: Added `ast/decl/fundecl.rs`, `ast/stmt.rs`, `ast/types.rs`, `ast/decl/types.rs`, and `ast/expr.rs` for new AST nodes.
+    - **codegen_ts**: Added `codegen_ts/hir_emit/mod.rs`, `codegen_ts/routes.rs`, `codegen_ts/hir_emit/state_deps.rs`, `codegen_ts/jsx.rs`, `codegen_ts/component.rs`, and `codegen_ts/schema/type_maps.rs` for TypeScript code generation.
+    - **codegen_rust**: Added `codegen_rust/emit/stmt_expr.rs`.
+    - **tests**: Added new interpreter tests in `interpreter_test.rs` and LLM fixtures in `llm_fixtures.rs` and various `.vox` files.
+    - **misc**: Added `llm_prompt.rs`, `language_surface.rs`, and `react_bridge.rs`. Removed `eval.rs`.
+- **orchestrator**:
+    - **task_dispatch**: Significantly refactored `orchestrator/task_dispatch/complete.rs` and `orchestrator/task_dispatch/submit/task_submit.rs` for task completion and submission logic, including trust score fetching and link validation.
+    - **agent_lifecycle**: Modified `orchestrator/agent_lifecycle.rs`.
+    - **runtime**: Updated `runtime.rs`.
+    - **models**: Modified `models/registry.rs` and `models/spec.rs`.
+    - **rebalance**: Updated `rebalance.rs`.
+    - **services**: Modified `services/scaling.rs`.
+    - **usage**: Updated `usage.rs`.
+    - **core**: Modified `orchestrator/core.rs`.
+    - **catalog**: Updated `catalog.rs`.
+    - **populi_remote**: Modified `populi_remote.rs`.
+    - **queue**: Modified `queue/drain.rs` and `queue/priority.rs`.
+    - **compaction**: Updated `compaction.rs`.
+    - **persistence_outbox**: Added `orchestrator/persistence_outbox.rs`.
+    - **config**: Modified `config/defaults.rs`.
+    - **orch_daemon**: Modified `orch_daemon/mod.rs`.
+    - **grounding**: Removed `grounding.rs`.
+- **populi**:
+    - **mens**: Introduced `mens/healing.rs` for the LLM-based healing loop and `mens/tensor/preset_schema.rs`. Added `mens/mod.rs`.
+- **cli**:
+    - **commands**: Added `commands/test.rs` and `commands/run.rs`. Added `commands/db/query_plans.rs`.
+    - **pipeline**: Modified `pipeline.rs`.
+    - **compilerd**: Updated `compilerd.rs`.
+    - **cli_args**: Added `cli_args.rs`.
+    - **cli_dispatch**: Modified `cli_dispatch/lanes.rs`.
+- **mcp**:
+    - **http_gateway**: Refactored `http_gateway.rs` for WebSocket handling, including event bus subscription.
+    - **params**: Added `params.rs`.
+    - **tools**: Added `tools/task_tools.rs`.
+    - **server**: Modified `server/lifecycle.rs`.
+- **vscode**:
+    - **agents**: Modified `agents/AgentController.ts`.
+    - **core**: Updated `core/VoxMcpClient.ts`.
+    - **sidebar**: Modified `SidebarProvider.ts`.
+    - **visual_editor**: Updated `VisualEditorPanel.ts`.
+    - **mcp_agent_connection**: Modified `McpAgentConnection.ts`.
+-
+
+--- audit: original='feat: expand compiler, cli, and orchestration capabilities' | actual=5588L across 142 files | derived=full ---
