@@ -1,0 +1,7 @@
+docs(specs): actor wire format, Result error widening, and compiler gap findings
+scale: ~724 lines across 3 files [L]
+
+- docs/superpowers/specs/2026-06-03-result-runtime-error-value-design.md: Added a design document proposing to widen the interpreter's `Result` error side from `String` to `VoxValue`. This aims to align runtime behavior with typecheck-time `Result[T, E]` semantics, addressing issues where typed errors are coerced to strings at runtime.
+- docs/superpowers/specs/2026-06-03-additional-compiler-gaps-findings.md: Added a document detailing findings of correctness gaps between interpreter, typechecker, and codegen.
+
+--- audit: original='@ docs(specs): actor wire format (unblocks D3), eval Result-error widening, gap findings' | actual=724L across 3 files | derived=full ---
