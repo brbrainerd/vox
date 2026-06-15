@@ -14273,6 +14273,7 @@ dependencies = [
  "vox-db",
  "vox-foundation",
  "vox-http-client",
+ "vox-llm-egress",
  "vox-openai",
  "vox-openclaw-runtime",
  "vox-orchestrator-types",

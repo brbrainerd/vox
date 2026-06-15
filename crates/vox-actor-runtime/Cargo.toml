@@ -15,6 +15,7 @@ tokio = { workspace = true }
 tokio-stream = { workspace = true }
 async-stream = { workspace = true }
 vox-openai = { workspace = true }
+vox-llm-egress = { workspace = true }
 futures-util = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

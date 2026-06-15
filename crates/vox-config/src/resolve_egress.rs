@@ -51,17 +51,15 @@ fn extra_headers(provider: &str, model: &str) -> Vec<(String, String)> {
     }
     if let Some(v) =
         vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenrouterHttpReferer).expose()
+        && !v.trim().is_empty()
     {
-        if !v.trim().is_empty() {
-            headers.push(("HTTP-Referer".to_string(), v.to_string()));
-        }
+        headers.push(("HTTP-Referer".to_string(), v.to_string()));
     }
     if let Some(v) =
         vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenrouterAppTitle).expose()
+        && !v.trim().is_empty()
     {
-        if !v.trim().is_empty() {
-            headers.push(("X-Title".to_string(), v.to_string()));
-        }
+        headers.push(("X-Title".to_string(), v.to_string()));
     }
     if model == crate::OPENROUTER_AUTO {
         let hint = openrouter_route_hint_from_env();

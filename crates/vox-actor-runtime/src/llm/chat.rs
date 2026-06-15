@@ -4,11 +4,6 @@ use std::future::Future;
 use std::pin::Pin;
 
 use super::types::{ChatMessage, LlmConfig, LlmResponse};
-use super::wire::{
-    OpenRouterRequest, OpenRouterResponse, chat_requires_nonempty_api_key,
-    openrouter_extra_headers, resolve_chat_api_key,
-};
-use crate::inference_env::HF_ROUTER_CHAT_COMPLETIONS_URL;
 use crate::{ActivityOptions, ActivityResult, execute_activity};
 
 type LlmChatActivityFuture =
@@ -27,177 +22,121 @@ pub async fn llm_chat(
         let config = config.clone();
 
         let fut = async move {
-            let api_key = resolve_chat_api_key(&config);
-
-            if chat_requires_nonempty_api_key(&config.provider) && api_key.is_empty() {
-                return Ok(Err("No API key available for LLM provider".to_string()));
-            }
-
-            let base_url = config
-                .base_url
-                .clone()
-                .unwrap_or_else(|| match config.provider.as_str() {
-                    "openrouter" => vox_config::openrouter_chat_completions_url(),
-                    "openai" => vox_config::openai_chat_completions_url(),
-                    "hf_router" | "huggingface" => HF_ROUTER_CHAT_COMPLETIONS_URL.to_string(),
-                    _ => vox_config::openrouter_chat_completions_url(),
-                });
-            if matches!(config.provider.as_str(), "hf_endpoint")
-                && (base_url.trim().is_empty()
-                    || !base_url.contains("chat/completions"))
-            {
-                return Ok(Err(
-                    "hf_endpoint requires a non-empty chat completions base_url (e.g. …/v1/chat/completions)"
-                        .to_string(),
-                ));
-            }
-
-            let client = vox_http_client::client();
-            // Bound in-flight requests per provider (AIMD): paid OpenRouter has no
-            // platform RPM cap, so concurrency is the real dial. The permit is held
-            // until the response is handled and released on drop.
-            let throttle = super::throttle::for_provider(&config.provider);
-            let _permit = throttle.acquire().await;
-            let req_body = OpenRouterRequest {
-                model: &config.model,
-                messages: &messages,
+            // Resolve the provider request once (single-source resolution), then issue
+            // the wire call through the sanctioned egress core. The durable-activity
+            // wrapper, telemetry, and cost-per-1k fallback stay here in the facade.
+            let input = vox_config::resolve_egress::EgressResolveInput {
+                provider: config.provider.clone(),
+                model: config.model.clone(),
+                base_url_override: config.base_url.clone(),
+            };
+            let ereq = match vox_config::resolve_egress::resolve_egress(&input) {
+                Ok(r) => r,
+                Err(e) => return Ok(Err(e)),
+            };
+            let wire_msgs: Vec<vox_llm_egress::ChatMessage> = messages
+                .iter()
+                .map(|m| vox_llm_egress::ChatMessage {
+                    role: m.role.clone(),
+                    content: m.content.clone(),
+                })
+                .collect();
+            let wire_tools: Option<Vec<vox_llm_egress::ToolDef>> = config.tools.as_ref().map(|ts| {
+                ts.iter()
+                    .map(|t| vox_llm_egress::ToolDef {
+                        name: t.name.clone(),
+                        description: t.description.clone(),
+                        parameters: t.parameters.clone(),
+                    })
+                    .collect()
+            });
+            let params = vox_llm_egress::ChatParams {
                 temperature: config.temperature,
                 max_tokens: config.max_tokens,
                 response_format: config.response_format.as_ref(),
-                tools: super::wire::openrouter_tools(config.tools.as_deref()),
+                tools: wire_tools.as_deref(),
                 tool_choice: config.tool_choice.as_ref(),
-                stream: false,
             };
 
-            let mut req = client.post(&base_url).json(&req_body);
-            if !api_key.is_empty() {
-                req = req.bearer_auth(api_key);
-            }
-            // OpenRouter app attribution / route-hint headers (mirrors the orchestrator bridge).
-            for (name, value) in openrouter_extra_headers(&config.provider, &config.model) {
-                req = req.header(name, value);
-            }
-            let start = std::time::Instant::now();
-            let res = req
-                .send()
-                .await
-                .map_err(|e| format!("HTTP request failed: {}", e))?;
+            match vox_llm_egress::chat_once(&ereq, &wire_msgs, &params).await {
+                Ok(resp) => {
+                    let prompt_tokens = resp.prompt_tokens as i64;
+                    let completion_tokens = resp.completion_tokens as i64;
+                    // Provider-reported cost, else our config cost-per-1k estimate.
+                    let cost_usd = resp.cost_usd.or_else(|| {
+                        config.cost_per_1k.map(|c| {
+                            ((prompt_tokens + completion_tokens) as f64 / 1000.0) * c
+                        })
+                    });
+                    let latency = resp.latency_ms as i64;
 
-            if !res.status().is_success() {
-                let status = res.status();
-                // Feed the throttle before the body is consumed: on 429, halve the
-                // window and honor Retry-After / X-RateLimit-Reset as a cooldown.
-                if status.as_u16() == 429 {
-                    let retry_after = super::throttle::retry_after_from_headers(res.headers());
-                    throttle.on_rate_limited(retry_after);
+                    let _ = record_telemetry_attempt(&config, "success", latency, None).await;
+                    if !config.telemetry_skip_interaction {
+                        let _ = record_telemetry_outcome(
+                            &config,
+                            &messages,
+                            &resp.content,
+                            &resp.model,
+                            prompt_tokens,
+                            completion_tokens,
+                            resp.cache_read_tokens as i64,
+                            cost_usd,
+                            latency,
+                            true,
+                        ).await;
+                    }
+
+                    Ok(Ok(LlmResponse {
+                        content: resp.content,
+                        prompt_tokens: resp.prompt_tokens,
+                        completion_tokens: resp.completion_tokens,
+                        model: resp.model,
+                        cost_usd,
+                    }))
                 }
-                let err_text = res
-                    .text()
-                    .await
-                    .unwrap_or_else(|_| String::from("<no body>"));
-                let err_msg = format!("LLM API returned error ({}): {}", status, err_text);
-                let latency = start.elapsed().as_millis() as i64;
-
-                let _ = record_telemetry_attempt(&config, "error", latency, Some(&status.to_string())).await;
-                {
-                    let trace_ctx = vox_telemetry::current_trace_ctx();
-                    let error_class = if status.as_u16() == 429 {
-                        "rate-limited"
-                    } else if status.as_u16() >= 500 {
-                        "server-error"
-                    } else {
-                        "client-error"
-                    };
-                    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::Error(
-                        vox_telemetry::ErrorEvent {
-                            subsystem: "llm.http".into(),
-                            error_class: error_class.into(),
-                            http_status: Some(status.as_u16()),
-                            retry_attempt: 0,
-                            retried: false,
-                            model: Some(config.model.clone()),
-                            provider: None,
-                            task_id: trace_ctx.task_id,
-                            trace_id: Some(trace_ctx.trace_id.to_string()),
+                Err(e) => {
+                    let (err_msg, http_status, error_class) = match &e {
+                        vox_llm_egress::EgressError::RateLimited { .. } => {
+                            (e.to_string(), Some(429u16), "rate-limited")
                         }
-                    ));
+                        vox_llm_egress::EgressError::Status { code, body } => (
+                            format!("LLM API returned error ({}): {}", code, body),
+                            Some(*code),
+                            if *code >= 500 { "server-error" } else { "client-error" },
+                        ),
+                        vox_llm_egress::EgressError::Http(m) => {
+                            (format!("HTTP request failed: {}", m), None, "transport-error")
+                        }
+                        vox_llm_egress::EgressError::Decode(m) => {
+                            (format!("Failed to parse response JSON: {}", m), None, "decode-error")
+                        }
+                    };
+                    let status_str = http_status.map(|s| s.to_string());
+                    let _ = record_telemetry_attempt(&config, "error", 0, status_str.as_deref()).await;
+                    {
+                        let trace_ctx = vox_telemetry::current_trace_ctx();
+                        vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::Error(
+                            vox_telemetry::ErrorEvent {
+                                subsystem: "llm.http".into(),
+                                error_class: error_class.into(),
+                                http_status,
+                                retry_attempt: 0,
+                                retried: false,
+                                model: Some(config.model.clone()),
+                                provider: None,
+                                task_id: trace_ctx.task_id,
+                                trace_id: Some(trace_ctx.trace_id.to_string()),
+                            }
+                        ));
+                    }
+                    if !config.telemetry_skip_interaction {
+                        let _ = record_telemetry_outcome(
+                            &config, &messages, &err_msg, &config.model, 0, 0, 0, None, 0, false,
+                        ).await;
+                    }
+                    Ok(Err(err_msg))
                 }
-
-                if !config.telemetry_skip_interaction {
-                    let _ = record_telemetry_outcome(
-                        &config,
-                        &messages,
-                        &err_msg,
-                        &config.model,
-                        0,
-                        0,
-                        0,
-                        None,
-                        latency,
-                        false,
-                    ).await;
-                }
-
-                return Ok(Err(err_msg));
             }
-
-            let llm_res: OpenRouterResponse = res
-                .json()
-                .await
-                .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
-
-            // Successful response — additively widen the concurrency window.
-            throttle.on_success();
-
-            let content = llm_res
-                .choices
-                .into_iter()
-                .next()
-                .and_then(|c| c.message)
-                .and_then(|m| m.content)
-                .unwrap_or_default();
-
-            let usage = llm_res.usage.unwrap_or_default();
-            let prompt_tokens = usage.prompt_tokens as i64;
-            let completion_tokens = usage.completion_tokens as i64;
-            let cache_read_tokens = usage.cache_read_input_tokens
-                .or_else(|| usage.prompt_tokens_details.as_ref().map(|d| d.cached_tokens))
-                .unwrap_or(0) as i64;
-            let provider_cost = usage.total_cost.or(usage.cost);
-            let cost_usd = provider_cost.or_else(|| {
-                config.cost_per_1k.map(|c| {
-                    ((prompt_tokens + completion_tokens) as f64 / 1000.0) * c
-                })
-            });
-
-            let model_id = llm_res.model.unwrap_or_else(|| config.model.clone());
-            let latency = start.elapsed().as_millis() as i64;
-
-            // Telemetry recording
-            let _ = record_telemetry_attempt(&config, "success", latency, None).await;
-
-            if !config.telemetry_skip_interaction {
-                let _ = record_telemetry_outcome(
-                    &config,
-                    &messages,
-                    &content,
-                    &model_id,
-                    prompt_tokens,
-                    completion_tokens,
-                    cache_read_tokens,
-                    cost_usd,
-                    latency,
-                    true,
-                ).await;
-            }
-
-            Ok(Ok(LlmResponse {
-                content,
-                prompt_tokens: usage.prompt_tokens,
-                completion_tokens: usage.completion_tokens,
-                model: model_id,
-                cost_usd,
-            }))
         };
         let fut_typed: LlmChatActivityFuture = Box::pin(fut);
         fut_typed
