@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "label": "baseline",
+  "records": [
+    { "id": "check_vox_db",              "ok": true, "wall_ms": 0 },
+    { "id": "check_vox_sql",             "ok": true, "wall_ms": 0 },
+    { "id": "check_vox_mcp",             "ok": true, "wall_ms": 0 },
+    { "id": "check_vox_audit",           "ok": true, "wall_ms": 0 },
+    { "id": "check_vox_cli",             "ok": true, "wall_ms": 0 },
+    { "id": "blastradius_vox_db_to_cli", "ok": true, "wall_ms": 0 }
+  ]
+}
