@@ -1,0 +1,10 @@
+test(compiler): add explain_url regression tests for new vox/types/* codes
+scale: ~54 lines across 1 files [M]
+
+- `crates/vox-compiler/src/typeck/diagnostics.rs`: Add four new unit tests to the `explain_url_tests` module:
+    - `type_mismatch_code_produces_explain_url`: Verifies the `explain_url` for `TYPES_TYPE_MISMATCH`.
+    - `undefined_variable_code_produces_explain_url`: Verifies the `explain_url` for `TYPES_UNDEFINED_VARIABLE`.
+    - `method_not_found_code_produces_explain_url`: Verifies the `explain_url` for `TYPES_METHOD_NOT_FOUND`.
+    - `with_code_builder_attaches_stable_code`: Verifies that `Diagnostic::error().with_code()` correctly attaches a stable code, which then produces the expected `explain_url` in the `VoxCompilerDiagnosticPayload`.
+
+--- audit: original='test(compiler): add explain_url regression tests for vox/types/* codes' | actual=54L across 1 files | derived=full ---
