@@ -1,0 +1,7 @@
+feat(vox-gui/console): Add ARIA live region to DiscoveryRail and test
+scale: ~21 lines across 2 files [S]
+
+- `crates/vox-gui/ui/src/components/surfaces/Console/DiscoveryRail.tsx`: Added `aria-live="polite"` to the `aside` element in `DiscoveryRail` to announce dynamic content updates for accessibility. Also replaced `style={{ color: '#9ca3af' }}` with `className="text-text-muted"`.
+- `crates/vox-gui/ui/src/components/surfaces/Console/DiscoveryRail.test.tsx`: Added a new test case to verify that the `DiscoveryRail` component correctly uses `aria-live="polite"` for accessibility announcements.
+
+--- audit: original='feat(vox-gui/wave2): DiscoveryRail a11y + checklist (Wave 2)' | actual=21L across 2 files | derived=full ---
