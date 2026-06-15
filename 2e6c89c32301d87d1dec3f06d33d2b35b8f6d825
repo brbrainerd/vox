@@ -1,0 +1,11 @@
+fix: resolve 4 pre-existing test failures and emit lease_id on routing span
+scale: ~27 lines across 6 files [M]
+
+- `crates/vox-orchestrator/src/mcp_tools/input_schemas.rs`: Remove `#[cfg(feature = "oratio-rerank")]` guards from `vox_oratio_transcribe` and `vox_oratio_listen` schemas, ensuring they are always available for `TOOL_REGISTRY` coverage tests.
+- `crates/vox-orchestrator/src/mcp_tools/introspection_tools.rs`: Update `language_surface` test to assert for `@tool` and `@resource` decorators instead of the deprecated `@mcp.tool` and `@mcp.resource`.
+- `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/task_submit.rs`: Emit `lease_id` on the terminal routing `tracing::info!` span by introducing a `routing_lease_id` variable, populated within the `populi-transport` cfg block.
+- `crates/vox-populi/src/mens/tensor/hf_keymap.rs`: Fix `qwen2_middle_key_matches_hf_naming` test to call `middle_projection_key_for_layout()` which correctly uses `layout.namespace_prefix` for Qwen2 models.
+- `crates/vox-corpus/src/corpus/dogfood.rs`: Gate unused `anyhow::Result`, `serde_json::json`, and `std::io::Write` imports behind `#[cfg(feature = "database")]` to eliminate warnings in non-database builds.
+- `crates/vox-orchestrator/src/models/tests.rs`: Fix `best_free_for_with_filter_skips_ollama` test to use `CostPreference::Economy` instead of `CostPreference::Performance`, as Performance mode intentionally skips free models.
+
+--- audit: original='fix: resolve 4 pre-existing test failures and emit lease_id on routing span' | actual=27L across 6 files | derived=full ---
