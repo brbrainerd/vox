@@ -1,0 +1,10 @@
+fix(runtime): html.length render error and cross-relaunch durable persistence
+scale: ~190 lines across 5 files [M]
+
+- **`crates/vox-codegen`**: The `builtin_registry`'s `lookup_method` now resolves unambiguous `Property` lowerings (e.g., `html.length()` to `html.length`) even without a type hint, preventing `html.length is not a function` errors. This handles cases where a property is mistakenly called as a method.
+- **`clients/runtime-rn/src/runtime.ts`**: Refactored the on-device journal backend to use a durable, cross-relaunch persistence mechanism. The `recordMutation` and `replayTable` methods now delegate to an async record/replay seam, moving from an in-memory map to `expo-file-system` for storage.
+- **`clients/runtime-rn/src/__generated__/journal-backend.ts`**: Implemented the durable journal backend using `expo-file-system`. This file now manages append-only NDJSON files per table in the app's document directory, ensuring data persistence across app relaunches in Expo Go without native modules.
+- **`ci/expo-bundle-shim/vox-runtime-rn/index.js`**: Updated the Expo Go shim to use `expo-file-system` for cross-relaunch durable persistence. It now creates and appends to NDJSON files for each table, replacing the previous in-memory store.
+- **`docs/src/assets/mobile-proof-2026/cross-relaunch-durable-events-3.png`**: Added a new proof image demonstrating the cross-relaunch durability of events.
+
+--- audit: original='fix: html.length render error + cross-relaunch durable persistence' | actual=190L across 5 files | derived=full ---
