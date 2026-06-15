@@ -1,0 +1,10 @@
+docs(plan): update Phase A details for diffing and repetition calculation
+scale: ~23 lines across 2 files [S]
+
+- `docs/superpowers/plans/2026-05-28-effort-audit-core.md`:
+    - Updated Step 3 of Phase A to specify using `gix` for graph traversal and `git` shell-out for diffing, mirroring `crates/vox-git/src/bridge.rs` due to `gix 0.70` lacking a stable unified-diff printer.
+    - Clarified that diff truncation should be incremental by checking `bytes.len()` before `String` allocation.
+    - Revised the `compute_repetition` formula to `1 - (unique_lines / total_lines)` for better accuracy.
+- `Cargo.lock`: Rolled forward to reflect changes from `cargo check` after the `compute_repetition` formula update.
+
+--- audit: original='docs(plan): patch Phase A defects + roll Cargo.lock' | actual=23L across 2 files | derived=full ---
