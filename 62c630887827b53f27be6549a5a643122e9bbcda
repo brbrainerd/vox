@@ -1,0 +1,6 @@
+fix(codegen): replace `len() >= 1` with `!is_empty()` in `slice_list` arm
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-codegen/src/codegen_rust/emit/method_emit.rs`: Changed the condition for the `slice_list` arm from `arg_exprs.len() >= 1` to `!arg_exprs.is_empty()` to fix a clippy warning.
+
+--- audit: original='fix(codegen): clippy len_zero in slice_list arm (unbreak main gate)' | actual=2L across 1 files | derived=full ---
