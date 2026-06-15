@@ -1,0 +1,18 @@
+feat(vox-cli): binary freshness self-check and canonical binary SSOT doctor check
+scale: ~1088 lines across 16 files [XL]
+
+- `crates/vox-cli/src/freshness.rs`: Added a new module for binary freshness self-checks. It compares the embedded build number (`VOX_BUILD_NUMBER`) against the live build number from `git rev-list --count HEAD`. It defines `Freshness` states (Fresh, Stale, Unknown) and provides refresh guidance.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Integrated the freshness check to hard-fail `vox ci *` commands if the binary is stale, with an override environment variable `VOX_SKIP_FRESHNESS_CHECK=1`.
+- `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/freshness.rs`: Added a non-fatal "Binary freshness" check to `vox doctor`, surfacing the same staleness signal as an advisory.
+- `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/binary_ssot.rs`: Added a new "Binary SSOT (canonical vox)" check to `vox doctor`. It enumerates `vox` binaries on `PATH` and in known install locations (`~/.vox/bin`, `~/.cargo/bin`), compares their build numbers, and flags discrepancies. It also skips `target/{debug,release}` directories to avoid false positives for in-progress developer builds.
+- `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/mod.rs`: Integrated the new `freshness` and `binary_ssot` doctor checks.
+- `crates/vox-cli/src/lib.rs`: Exported the new `freshness` module.
+- `crates/voxup/src/install.rs`: Replaced the proxy stub with `establish_single_binary`, which hard-links `~/.vox/bin/vox` and `~/.cargo/bin/vox` to a single inode to prevent drift. It sources bytes from an existing real binary (preferring `~/.vox/bin`) or falls back to copying if hard-linking fails.
+- `crates/voxup/Cargo.toml`: Added `tempfile` as a dev-dependency for testing the hard-linking logic.
+- `docs/superpowers/plans/2026-06-05-vox-binary-freshness-self-check.md`: Added a design plan document for the binary freshness self-check, including frontmatter.
+- `docs/superpowers/specs/2026-06-05-target-artifact-gc-design.md`: Added a new design specification for a garbage collector for build artifacts, detailing scope, safety gates, and handling of various target directories.
+- `.cargo/config.toml`: Corrected a comment regarding `CARGO_TARGET_DIR` behavior for worktrees, clarifying that `relative = true` creates per-worktree target directories.
+- `crates/vox-db/src/store/ops_a2a.rs`, `crates/vox-db/src/store/ops_orchestrator.rs`, `crates/vox-db/src/store/ops_planning.rs`: Removed unnecessary `as u64` casts for `rows_affected` from `libsql` execute results, resolving clippy warnings.
+- `crates/vox-compiler/src/builtin_registry.rs`: Corrected an `explicit_auto_deref` clippy warning by changing `&**b` to `b`.
+
+--- audit: original='feat(vox-cli): binary-freshness self-check + canonical-binary SSOT doctor check (#148)' | actual=1088L across 16 files | derived=full ---
