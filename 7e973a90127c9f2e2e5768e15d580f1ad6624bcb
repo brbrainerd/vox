@@ -1,0 +1,25 @@
+feat(orchestrator): add local CPU/RAM-aware scaling guard
+scale: ~181 lines across 7 files [M]
+
+- `crates/vox-orchestrator/src/services/scaling.rs`:
+    - Modified `decide_scaling` to prevent scaling up if local CPU usage exceeds `scale_cpu_ceiling_pct` or free memory falls below `scale_mem_floor_mb`.
+    - Added new tests for local CPU and memory scaling guards.
+- `crates/vox-orchestrator/src/services/local_resources.rs`:
+    - Added a new module `local_resources` to provide cached snapshots of local CPU usage and free memory.
+    - Implemented `LocalResourceSnapshot` struct to store CPU usage percentage and free memory in MiB.
+    - Implemented a feature-gated `probe` module using `sysinfo` to refresh system metrics, with a 5-second cache TTL.
+    - The `snapshot()` function returns `None` if the `system-metrics` feature is not enabled.
+- `crates/vox-orchestrator/src/config/orchestrator_fields.rs`:
+    - Added `scale_cpu_ceiling_pct` (default 85.0) and `scale_mem_floor_mb` (default 1024) configuration fields.
+- `crates/vox-orchestrator/src/config/defaults.rs`:
+    - Added default values for `scale_cpu_ceiling_pct` (85.0) and `scale_mem_floor_mb` (1024).
+- `crates/vox-orchestrator/src/config/impl_default.rs`:
+    - Included `scale_cpu_ceiling_pct` and `scale_mem_floor_mb` in the default implementation of `OrchestratorConfig`.
+- `crates/vox-orchestrator/src/runtime.rs`:
+    - Integrated `local_resources::snapshot()` into the runtime tick to provide local resource data to `decide_scaling`.
+- `crates/vox-orchestrator/src/services/mod.rs`:
+    - Exported the new `local_resources` module.
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+--- audit: original='feat(orchestrator): local CPU/RAM-aware scaling guard' | actual=181L across 7 files | derived=full ---
