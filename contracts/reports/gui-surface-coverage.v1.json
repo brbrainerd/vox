@@ -180,6 +180,7 @@
     "ci gui-surface-coverage",
     "ci gui-surface-registry",
     "ci gui-version-sync",
+    "ci gui-visual-review",
     "ci ignored-test-age",
     "ci install-hooks",
     "ci job-timings",

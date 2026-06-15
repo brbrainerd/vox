@@ -1,7 +1,7 @@
 ---
 title: vox-gui Surface Map (graphify, 2026-06-14)
 description: Complete edge map of the vox-gui front-end and its Tauri IPC boundary — surfaces, layout shell, shared primitives, lib logic, and the 38 Rust command modules — derived from a graphify AST+semantic extraction. The basis for gap-analysis against the GUI design principles.
-category: architecture
+category: "Architecture SSOTs"
 ---
 
 # vox-gui Surface Map (graphify, 2026-06-14)

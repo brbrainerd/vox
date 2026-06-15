@@ -1,7 +1,7 @@
 ---
 title: GUI & Front-End Design Principles for Tauri + TypeScript (vox-gui)
 description: A directly-applicable catalog of 300+ GUI/front-end design principles spanning UX heuristics, visual design, interaction, accessibility, performance, design systems, desktop-native UX, and Tauri-specific architecture, anchored to primary sources where verified.
-category: architecture
+category: "Architecture SSOTs"
 ---
 
 # GUI & Front-End Design Principles for Tauri + TypeScript (vox-gui)

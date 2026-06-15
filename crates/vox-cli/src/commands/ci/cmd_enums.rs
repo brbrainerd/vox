@@ -303,6 +303,13 @@ pub enum CiCmd {
         #[arg(long)]
         strict: bool,
     },
+    /// Advisory GUI visual AI review (screenshots vs design principles). Always exits 0; never gates.
+    #[command(name = "gui-visual-review")]
+    GuiVisualReview {
+        /// Skip the AI model calls (offline / structural-only).
+        #[arg(long)]
+        no_ai: bool,
+    },
     /// Fail if changed LF-policy text files contain CRLF / CR (`*.ps1` exempt). Forward-only unless `--all`.
     #[command(name = "line-endings")]
     LineEndings {
