@@ -1,0 +1,12 @@
+ci(vox-mental-tracker): cache Playwright browsers across CI runs
+scale: ~23 lines across 1 files [S]
+
+- **.github/workflows/vox-mental-tracker.yml**:
+    - Added a step to resolve the Playwright version from `node_modules/@playwright/test/package.json` and store it as a GitHub Actions output.
+    - Introduced a `actions/cache@v4` step to cache the `~/.cache/ms-playwright` directory.
+    - Configured the cache key to include the runner OS, resolved Playwright version, and 'chromium'.
+    - Defined `restore-keys` for partial cache matches based on Playwright version and runner OS.
+    - Modified the Playwright browser installation step to only run if the cache is missed, removing the `--with-deps` flag.
+    - Updated the name of the Playwright test step.
+
+--- audit: original='ci(vox-mental-tracker): cache Playwright browsers across runs' | actual=23L across 1 files | derived=full ---
