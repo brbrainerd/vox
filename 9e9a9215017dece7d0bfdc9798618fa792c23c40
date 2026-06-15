@@ -1,0 +1,12 @@
+fix(scientia-codegen): prevent generator crash on un-modelable schemas
+scale: ~2221 lines across 2 files [XL]
+
+- `crates/vox-scientia-jsonschema-codegen/src/main.rs`: Implemented `std::panic::catch_unwind` per schema to prevent the generator from crashing on schemas that `typify` cannot model (e.g., root-level `oneOf` discriminated unions).
+  - Un-modelable schemas are now skipped with a warning and a marker in the output, allowing the generation process to continue for other schemas.
+  - Added per-schema progress logging and a summary of skipped schemas.
+  - Silenced default panic output via `std::panic::set_hook` and restored it after processing.
+  - Moved file reading and JSON parsing inside the `catch_unwind` closure to ensure the panic hook is properly restored on early errors.
+  - Downcasted and printed the panic payload to distinguish genuine panics from benign validation-only skips.
+- `crates/vox-research-events/src/schema_types.generated.rs`: Regenerated to reflect the latest schema definitions, incorporating previously un-modelable schemas that are now skipped rather than causing a crash. This resulted in a significant update to the generated Rust types.
+
+--- audit: original='fix(scientia-codegen): stop the schema-types generator crashing on un-modelable schemas (#150)' | actual=2221L across 2 files | derived=full ---
