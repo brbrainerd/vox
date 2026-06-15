@@ -1,0 +1,21 @@
+feat(vox-dashboard): Add asset serving tests, auth status, and build script
+scale: ~1047 lines across 17 files [XL]
+
+- **`crates/vox-dashboard/src/utils/vscode.ts`**: Removed the `vscode.ts` utility file, which handled VS Code API interactions and mapped them to `voxTransport.callTool` methods.
+- **`crates/vox-dashboard/src/assets.rs`**: Modified asset serving logic to include ETag calculation based on `CARGO_PKG_VERSION` and updated the return type for `file_result` to include file length. Added `req_headers` parameter to `serve_asset`.
+- **`crates/vox-dashboard/tests/asset_serving.rs`**: Added new tests for asset serving, specifically verifying HTTP headers like `X-Frame-Options`, `Content-Security-Policy`, and `Cache-Control` when a token is present.
+- **`crates/vox-dashboard/tests/origin_guard.rs`**: Added new tests to ensure Content-Security-Policy (CSP) and origin headers are correctly set to prevent embedding and restrict connections.
+- **`crates/vox-dashboard/src/transport.ts`**: Enhanced `VoxTransport` with a constructor to check for initial token presence and emit `authStatus`. Improved WebSocket error handling to emit `connection_status` on error. Extended reconnect logic to stop on additional authentication failure codes (4401) and emit `authStatus` as 'unauthorized'. Adjusted reconnect backoff strategy.
+- **`crates/vox-dashboard/src/App.tsx`**: Integrated new `authStatus` state to display unauthorized/no token messages in the UI. Updated `connectionStatus` type to include `attempt` and added a listener for `authStatus` events from `VoxTransport`.
+- **`crates/vox-dashboard/build.rs`**: Added a new build script to check for the existence of the `dist/` directory and `index.html` file, providing a warning if they are missing and creating dummy files to allow compilation. Configured `cargo:rerun-if-changed` for the `dist` directory.
+- **`crates/vox-dashboard/tests/auth.rs`**: Added new tests related to authentication, likely for the `VoxTransport` changes.
+- **`crates/vox-dashboard/Cargo.toml`**: Updated dependencies, likely for the new test files or build script.
+- **`Cargo.lock`**: Updated due to changes in `Cargo.toml`.
+- **`crates/vox-dashboard/src/index.css`**: Significantly reduced the size of the CSS file, indicating a large refactor or removal of styles.
+- **`docs/src/architecture/scientia-mesh-integration-research-2026.md`**: Added a new architecture document detailing Scientia Mesh integration research.
+- **`docs/src/architecture/path-b-decommission-2026.md`**: Added a new architecture document for Path B decommissioning.
+- **`docs/src/architecture/dashboard-migration-research-2026.md`**: Modified an existing architecture document, likely updating research on dashboard migration.
+- **`docs/src/architecture/research-index.md`**: Added a new research index document.
+- **`crates/vox-dashboard/tsconfig.tsbuildinfo`**: Removed the TypeScript build info file, likely due to a clean build or configuration change.
+
+--- audit: original='chore(vox-dashboard): TASK-1.1, TASK-1.3, TASK-1.5 — Housekeeping and build updates' | actual=1047L across 17 files | derived=full ---
