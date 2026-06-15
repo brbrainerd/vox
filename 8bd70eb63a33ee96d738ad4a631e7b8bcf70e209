@@ -1,0 +1,11 @@
+fix(orchestrator): Correct circuit breaker contract schema for nested fields
+scale: ~137 lines across 1 files [M]
+
+- `crates/vox-orchestrator/src/circuit_breaker.rs`:
+    - Refactored the `Overlay` struct to correctly deserialize nested `trip_thresholds` and `graduated_alarms` fields.
+    - Introduced new structs `TripThresholds`, `AlarmLevel`, and `GraduatedAlarms` to match the nested contract schema.
+    - Updated the logic to apply deserialized values from the nested `Overlay` structure to the `CircuitBreakerConfig`.
+    - Renamed `no_progress_threshold` to `no_progress_loops`, `same_error_threshold` to `same_error_loops`, `tool_thrash_threshold` to `tool_thrash_count`, and `ngram_overlap_threshold` to `ngram_overlap` within the `TripThresholds` struct.
+    - Removed flat `caution_*` and `warning_*` fields from `Overlay` in favor of the nested `GraduatedAlarms` structure.
+
+--- audit: original='fix(orchestrator): match circuit-breaker loader to nested contract schema (HC-G02-08)' | actual=137L across 1 files | derived=full ---
