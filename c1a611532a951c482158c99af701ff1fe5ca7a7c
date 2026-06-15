@@ -1,0 +1,28 @@
+feat(langtool): introduce DB-free CLI for Vox language tooling
+scale: ~1115 lines across 26 files [XL]
+
+- **New Crate `crates/vox-langtool`**:
+    - Added `vox-langtool` crate, a minimal, DB-free CLI for Vox language.
+    - Implemented `check` command for type-checking `.vox` files.
+    - Implemented `fmt` command for formatting `.vox` files in place, with a `--check` option.
+    - Implemented `run` command for executing `.vox` scripts via the HIR interpreter.
+    - Implemented `build` command for emitting Rust script source via codegen.
+    - Added integration tests for `check`, `fmt`, and `run` commands.
+    - Included various `.vox` fixture files for testing.
+- **`crates/vox-cli-core`**:
+    - Modified `Cargo.toml` to gate `vox-db`, `vox-gamify`, and `vox-repository` behind a default-on `db` feature.
+    - Updated `src/lib.rs` to conditionally compile `benchmark_telemetry`, `gamify_shim`, and `workflow_journal_codex` based on the `db` feature.
+    - Updated `src/scientia.rs` to conditionally compile the `vox_db` test based on the `db` feature.
+- **`.github/workflows/version-tag-guard.yml`**:
+    - Added a new GitHub Actions workflow to assert that the workspace version matches the pushed `v*` tag before release artifact builds.
+- **`.actrc`**:
+    - Modified `.actrc` to use `./.act-artifacts` as the cross-platform artifact path and updated comments regarding `act` limitations on Windows/macOS.
+- **`docs/plans/INSTALL-RELEASE-AUDIT.md`**:
+    - Added a new document detailing the install/upgrade/release audit, including phases for toolchain standardization, version-tag guarding, and DB-free CLI.
+- **Toolchain Standardization**:
+    - Updated `Cargo.toml`, `Dockerfile`, `Dockerfile.ci-runner`, and `infra/ci-runner/Dockerfile` to standardize Rust on 1.96.0.
+    - Updated `contracts/toolchain/workspace-toolchain.v1.yaml` to reflect the standardized Rust version.
+- **`.gitignore`**:
+    - Added `.act-artifacts` to `.gitignore`.
+
+--- audit: original='feat(install/release): toolchain SSoT, version-tag guard, DB-free cli-core slice + vox-langtool' | actual=1115L across 26 files | derived=full ---
