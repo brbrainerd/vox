@@ -6,7 +6,7 @@
 > 1. **Wave 2 is smaller and concentrated, not a symmetric 4-emitter fan-out.** `codegen_rust/emit/stmt_expr.rs` and `eval/expr.rs` are **already exhaustive** with explicit coded arms (`compile_error!` / `EvalError`) — Tasks 4 and 7 change from "remove catch-alls" to "route the existing explicit arms through the matrix and add the exhaustiveness regression test." The real silent-drop work is **~6 sites, all in TS/web**: `codegen_ts/hir_emit/mod.rs` lines 222, 878, 1178, 1181, 1979/1980, and `web_ir/lower.rs` line 250. Re-anchor Tasks 5 & 6 on these exact lines, not the stale counts ("13+", "8").
 > 2. **`emit_unsupported` must NOT return one `Diagnostic` type across crates.** vox-codegen uses `miette::Error` + a local `WebIrDiagnostic`, never `vox_compiler::Diagnostic`. Rename to `unsupported_diagnostic(feature, target) -> UnsupportedCell { code, message }`; `support()` (returning the `&str` code) is the shared truth; each emitter adapts via a one-line native helper. See SSOT §3.2 [CORRECTED].
 > 3. **Task 2's premise is wrong.** `build.rs` has no single `--mode` string site — `--mode` is `app|library` only; target intent is scattered across `BuildMode`, `RunMode` (script/interp/app), `CompileKind`, `BuildTarget` (server/mobile/client/fullstack), and `RustAppShell` (AxumLocalServer/TauriApp). Task 2 becomes "introduce `Target` as the projection these existing selectors map *into*, with round-trip tests," not "rewrite `--mode` parsing." (This scatter is *more* evidence for the thesis.)
-> 4. **Sizes & collisions.** Matrix = **133 rows × 4 = 532 cells** (56 decorators + 36 expr/stmt + 41 decls; builtins deferred). The names `emit_unsupported` and `feature_matrix` are **already taken** (`emit_unsupported_endpoint` in vox-codegen-ts; `run_feature_matrix` CI gate) — use `parity_matrix.rs` / `unsupported_diagnostic()`. The three builtin registries have **three different shapes** (struct-array / HashMap / nested-match), so Task 10's "prove the three lists agree" needs an extractor per registry — eval has no flat list. All four named diagnostic codes DO exist; the real `Diagnostic` ctor is `Diagnostic::error(message, span, source).with_code(code)`.
+> 4. **Sizes & names.** Matrix = **133 rows × 4 = 532 cells** (56 decorators + 36 expr/stmt + 41 decls; builtins deferred). Canonical names: module/file **`feature_matrix.rs`** (`crate::feature_matrix`; the `run_feature_matrix` CI gate is a different crate + a fn, not a real collision), query **`support()`**, helper **`unsupported_diagnostic() -> UnsupportedCell`** (renamed from `emit_unsupported` — that name collides with the existing `emit_unsupported_endpoint` in vox-codegen-ts, and the helper returns raw `(code, message)`, not a `Diagnostic`, per item 2). The three builtin registries have **three different shapes** (struct-array / HashMap / nested-match), so Task 10's "prove the three lists agree" needs an extractor per registry — eval has no flat list. All four named diagnostic codes DO exist; the real `Diagnostic` ctor is `Diagnostic::error(message, span, source).with_code(code)`.
 
 **Goal:** Make a partially-wired Vox feature a *build error*, not a runtime surprise, by introducing a `Target` enum, a `Feature` support matrix, and a hard build gate that kills silent `_ => …` catch-alls across all four emit targets.
 
@@ -37,10 +37,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_target_round_trips_through_cli_mode() {
+    fn every_target_round_trips_through_id() {
         for t in Target::ALL {
-            let mode = t.cli_mode();
-            assert_eq!(Target::from_cli_mode(mode), Some(t), "mode {mode} must round-trip");
+            let id = t.id();
+            assert_eq!(Target::from_id(id), Some(t), "id {id} must round-trip");
         }
     }
 
@@ -77,19 +77,23 @@ impl Target {
     pub const ALL: [Target; 4] =
         [Target::Interpreter, Target::RustAxum, Target::RustTauri, Target::TypeScript];
 
+    // NOTE [CORRECTED 2026-06-15]: expose `id()`/`from_id()` returning canonical
+    // target ids ("interp", "rust-axum", "rust-tauri", "typescript"), NOT
+    // `cli_mode()` — there is no CLI `--mode` value that maps to these targets
+    // (`--mode` is `app|library`). The selector→Target projection is Task 2.
     #[must_use]
-    pub fn cli_mode(self) -> &'static str {
+    pub fn id(self) -> &'static str {
         match self {
             Target::Interpreter => "interp",
-            Target::RustAxum => "script",
-            Target::RustTauri => "tauri",
-            Target::TypeScript => "web",
+            Target::RustAxum => "rust-axum",
+            Target::RustTauri => "rust-tauri",
+            Target::TypeScript => "typescript",
         }
     }
 
     #[must_use]
-    pub fn from_cli_mode(mode: &str) -> Option<Target> {
-        Target::ALL.into_iter().find(|t| t.cli_mode() == mode)
+    pub fn from_id(id: &str) -> Option<Target> {
+        Target::ALL.into_iter().find(|t| t.id() == id)
     }
 }
 ```
@@ -107,39 +111,43 @@ git add crates/vox-compiler/src/target.rs crates/vox-compiler/src/lib.rs
 git commit -m "feat(compiler): add Target enum as SSOT for emit backends"
 ```
 
-### Task 2: Route `build.rs` through `Target`
+### Task 2: Make `Target` the projection of the existing selectors
+
+> **[CORRECTED 2026-06-15] — reframed.** There is **no single `--mode` parsing site** to rewrite. `vox build --mode` is `app|library` only (`BuildMode`); the interp/script/tauri/web intent is spread across `RunMode` (`run.rs`), `CompileKind`, `vox_config::BuildTarget` (`server`/`mobile`/`client`/fullstack), and `RustAppShell` (`AxumLocalServer`/`TauriApp`, chosen at call sites like `compile.rs:rust_app_shell_for_compile_app`). So this task does not *replace* a parser — it makes `Target` the one thing all those selectors **project into**, with round-trip tests proving the mapping is total and unambiguous.
 
 **Files:**
-- Modify: `crates/vox-cli/src/commands/build.rs` (the `--mode` parsing site)
-- Test: `crates/vox-cli/tests/build_target_selection_test.rs` (create)
+- Modify: `crates/vox-compiler/src/target.rs` (add `From`/`from_*` projections — keep the type's home in vox-compiler)
+- Modify: the call sites that derive `RustAppShell` (`crates/vox-cli/src/commands/compile.rs`, and any other `RustAppShell::…` selection) so the shell is derived from a `Target`, not re-decided independently
+- Test: `crates/vox-compiler/src/target.rs` (inline) + `crates/vox-cli/tests/target_projection_test.rs` (create)
 
-- [ ] **Step 1: Read `build.rs`** to find the current `--mode` string matching. Note exact function + line.
+- [ ] **Step 1: Inventory the selector sites.** Grep for the real selectors — `BuildMode`, `RunMode`, `CompileKind`, `BuildTarget`, `RustAppShell` — and list every place that decides "which backend." (The 2026-06-15 audit found these in `vox-cli-core/src/cli_args.rs`, `vox-cli/src/commands/run.rs`, `compile.rs`, `build.rs`.) Note which already imply a unique `Target` and which need a documented mapping.
 
-- [ ] **Step 2: Write the failing test** — assert that the build command maps each `--mode` string to the correct `Target` via `Target::from_cli_mode`, and that an unknown mode is a clean error (not a panic, not a silent default).
+- [ ] **Step 2: Write the failing test** — assert each selector maps to exactly one `Target`, and that the `Target → RustAppShell` projection is correct (`RustAxum → AxumLocalServer`, `RustTauri → TauriApp`).
 
 ```rust
 #[test]
-fn unknown_mode_is_a_clean_error() {
-    // Construct the build args with --mode bogus; assert Err with a helpful message.
-    // (Adapt to the actual build entry signature found in Step 1.)
+fn compile_kind_maps_to_target_and_shell() {
+    // CompileKind::Desktop/MobileAndroid/MobileIos -> Target::RustTauri -> RustAppShell::TauriApp
+    // CompileKind::NativeBinary/Server            -> Target::RustAxum  -> RustAppShell::AxumLocalServer
+    // (Adapt to the real CompileKind variants found in Step 1.)
 }
 ```
 
-- [ ] **Step 3: Run** `cargo test -p vox-cli build_target 2>&1` — expect FAIL.
+- [ ] **Step 3: Run** `cargo test -p vox-compiler target:: && cargo test -p vox-cli target_projection 2>&1` — expect FAIL.
 
-- [ ] **Step 4: Rewrite** the `--mode` site to call `Target::from_cli_mode(mode).ok_or_else(...)`. Replace any downstream `RustAppShell` derivation so `AxumLocalServer`/`TauriApp` is chosen from the `Target`, not re-parsed from the string.
+- [ ] **Step 4: Implement** the projections on `Target` (`from_compile_kind`, `rust_app_shell()`, etc.) and refactor each `RustAppShell` decision site to call `target.rust_app_shell()` instead of re-deciding from a `CompileKind`/string. Do **not** invent a `--mode`→`Target` parser that does not exist.
 
-- [ ] **Step 5: Run** `cargo build -p vox-cli && cargo test -p vox-cli build_target 2>&1` — expect PASS.
+- [ ] **Step 5: Run** `cargo build -p vox-cli && cargo test -p vox-compiler target:: && cargo test -p vox-cli target_projection 2>&1` — expect PASS.
 
 - [ ] **Step 6: Format + commit**
 
 ```bash
-cargo fmt -p vox-cli
-git add crates/vox-cli/src/commands/build.rs crates/vox-cli/tests/build_target_selection_test.rs
-git commit -m "refactor(vox-cli): select emit Target via SSOT enum, reject unknown --mode"
+cargo fmt -p vox-compiler -p vox-cli
+git add crates/vox-compiler/src/target.rs crates/vox-cli/tests/target_projection_test.rs
+git commit -m "refactor(vox-cli): derive RustAppShell from Target; project selectors into the SSOT enum"
 ```
 
-### Task 3: The `Feature` enum + FULLY-SEEDED matrix + `emit_unsupported` helper
+### Task 3: The `Feature` enum + FULLY-SEEDED matrix + `unsupported_diagnostic` helper
 
 > This task populates **every** cell (all features × all four targets) and creates the shared helper Wave 2 calls. After this task, Wave 2 agents never edit this file. This is the keystone that makes the parallel wave conflict-free — do not defer cells to Wave 2.
 
@@ -192,19 +200,31 @@ mod tests {
 - [ ] **Step 5: Create the shared helper.** In the same file:
 
 ```rust
-use crate::typeck::diagnostics::{Diagnostic, TypeckSeverity};
+/// The (code, message) for an unsupported (feature, target) cell. Crate-agnostic
+/// on purpose: vox-codegen does NOT use vox_compiler::Diagnostic (it errors via
+/// miette::Error / WebIrDiagnostic), so the helper returns raw data and each
+/// emitter adapts it into its own channel (SSOT §3.2 [CORRECTED]).
+pub struct UnsupportedCell {
+    pub code: &'static str,
+    pub message: String,
+}
 
 /// Called by every emitter when it reaches a feature its target doesn't implement.
-/// Single home; emitters import this rather than hand-rolling a diagnostic.
+/// Single home; emitters import this rather than hand-rolling the code/message.
 #[must_use]
-pub fn emit_unsupported(feature: Feature, target: Target) -> Diagnostic {
+pub fn unsupported_diagnostic(feature: Feature, target: Target) -> UnsupportedCell {
     match support(feature, target) {
-        Support::Unsupported(code) => Diagnostic::error(code, /* message from feature+target */),
-        Support::Implemented => unreachable!("emit_unsupported called for an Implemented cell"),
+        Support::Unsupported(code) => UnsupportedCell {
+            code,
+            message: format!("{feature:?} is not supported by the {} target", target.id()),
+        },
+        Support::Implemented => {
+            unreachable!("unsupported_diagnostic called for an Implemented cell")
+        }
     }
 }
 ```
-(Adapt `Diagnostic::error` to the real constructor found in `diagnostics.rs`.)
+Each emitter adapts the cell to its native error: `compile_error!("{code}: {message}")` in codegen_rust, a `WebIrDiagnostic`/throw in codegen_ts, an `EvalError` in eval, a `Diagnostic::error(message, span, src).with_code(code)` in typeck.
 
 - [ ] **Step 6: Run** `cargo test -p vox-compiler feature_matrix 2>&1` — expect PASS.
 
@@ -213,7 +233,7 @@ pub fn emit_unsupported(feature: Feature, target: Target) -> Diagnostic {
 ```bash
 cargo fmt -p vox-compiler
 git add crates/vox-compiler/src/feature_matrix.rs crates/vox-compiler/src/lib.rs crates/vox-compiler/src/typeck/diagnostics.rs
-git commit -m "feat(compiler): add fully-seeded Feature support-matrix SSOT + emit_unsupported helper"
+git commit -m "feat(compiler): add fully-seeded Feature support-matrix SSOT + unsupported_diagnostic helper"
 ```
 
 **WAVE 1 GATE:** Tasks 1–3 must be merged before Wave 2 starts. They define the shared types Wave 2 imports.
@@ -222,45 +242,51 @@ git commit -m "feat(compiler): add fully-seeded Feature support-matrix SSOT + em
 
 ## Wave 2 — Emitter fan-out (PARALLEL, one agent per task, disjoint files)
 
-Each task: replace feature-handling `_ => …` catch-alls in *one* emitter with explicit arms, routing genuine gaps through `emit_unsupported(feature, target)` (created in Task 3). **No Wave-2 task edits `feature_matrix.rs`** — the matrix is already fully seeded. A Wave-2 agent touches only its emitter's files and its own exhaustiveness test. If you find a cell the matrix got wrong, do NOT edit it here — note it for Wave 3, which reconciles matrix vs reality sequentially.
+Each task makes *one* emitter route its unsupported-feature handling through `unsupported_diagnostic(feature, target)` (created in Task 3) and adds an exhaustiveness regression test. **No Wave-2 task edits `feature_matrix.rs`** — the matrix is already fully seeded. A Wave-2 agent touches only its emitter's files and its own exhaustiveness test. If you find a cell the matrix got wrong, do NOT edit it here — note it for Wave 3, which reconciles matrix vs reality sequentially.
 
-### Task 4: `codegen_rust` exhaustiveness (Target::RustAxum / RustTauri)
+> **[CORRECTED 2026-06-15] — Wave 2 is smaller and concentrated than originally drawn.** The audit verified that `codegen_rust/emit/stmt_expr.rs` (`emit_expr_with`, exhaustive with explicit `compile_error!` arms at 749–789) and `eval/expr.rs` (exhaustive `EvalError` arms at 781–807) **already have no silent feature-enum catch-alls** — Tasks 4 and 7 therefore *route the existing explicit arms through the matrix and add a regression test*, they do not remove catch-alls. The real remaining silent-drop sites are all TS/web: `codegen_ts/hir_emit/mod.rs` lines 222, 878, 1178, 1181, 1979–1980, and `web_ir/lower.rs` line 250. Anchor Tasks 5 & 6 on those exact lines.
+
+### Task 4: route `codegen_rust` unsupported arms through the matrix (Target::RustAxum / RustTauri)
+
+> **[CORRECTED 2026-06-15] — already exhaustive; this is a routing + regression task.** `emit_expr_with` (stmt_expr.rs:749–789) and `emit_stmt` are already exhaustive over `HirExpr`/`HirStmt` with explicit `compile_error!` arms for `Jsx`/`AsyncView`/`WorkflowVersion`/`With` and an `unreachable!` safety net (no silent `_ =>`). So: do **not** hunt for catch-alls to remove. Instead make those explicit arms matrix-*driven* and add a test that locks them in.
 
 **Files:**
-- Modify: `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs` (catch-alls ≈ 979, 988, 1092, 1264)
+- Modify: `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs` (the explicit unsupported arms at 749–782)
 - Test: `crates/vox-codegen/tests/rust_emit_exhaustiveness_test.rs` (create)
 - (Do NOT edit `crates/vox-compiler/src/feature_matrix.rs`.)
 
-- [ ] **Step 1:** Read each catch-all arm; classify each currently-dropped variant as Implemented-elsewhere vs genuinely-unsupported.
-- [ ] **Step 2:** Write a failing test asserting that emitting an unsupported expr yields the *declared* diagnostic code (not a panic, not empty output).
+- [ ] **Step 1:** For each hand-written `compile_error!("vox.codegen_rust.…")` arm, find the matching `(Feature, Target)` cell; confirm the matrix declares it `Unsupported(code)` with a registered code.
+- [ ] **Step 2:** Write a failing test asserting each unsupported expr emits the *declared* code (via `unsupported_diagnostic(feature, Target::RustAxum/RustTauri).code`), not an ad-hoc string.
 - [ ] **Step 3:** Run it — expect FAIL.
-- [ ] **Step 4:** Replace catch-alls with explicit arms; unsupported variants call `vox_compiler::feature_matrix::emit_unsupported(feature, Target::RustAxum)` (or `RustTauri`) — the helper from Task 3 — which surfaces `support(...)`'s declared code.
+- [ ] **Step 4:** Replace the ad-hoc `compile_error!` string literals with `compile_error!("{code}: {message}")` derived from `vox_compiler::feature_matrix::unsupported_diagnostic(feature, target)`. Keep the `unreachable!` safety net (it guards delegate-order bugs, not features).
 - [ ] **Step 5:** `cargo test -p vox-codegen rust_emit_exhaustiveness 2>&1` — expect PASS. `cargo build -p vox-codegen` clean.
-- [ ] **Step 6:** `cargo fmt -p vox-codegen` + commit `"fix(codegen-rust): replace silent catch-alls with declared Unsupported diagnostics"`.
+- [ ] **Step 6:** `cargo fmt -p vox-codegen` + commit `"fix(codegen-rust): route unsupported-expr arms through the parity matrix"`.
 
-### Task 5: `codegen_ts` exhaustiveness (Target::TypeScript)
+### Task 5: `codegen_ts` — close the real silent drops (Target::TypeScript)
 
 **Files:**
-- Modify: `crates/vox-codegen-ts/src/hir_emit/mod.rs` (13+ catch-alls; see SSOT §2.4 for line list)
+- Modify: `crates/vox-codegen-ts/src/hir_emit/mod.rs` — the **verified** silent-drop sites: `WorkflowVersion => String::new()` (878), `emit_hir_pattern` `_ => "_"` losing Constructor/Tuple (1181) and its inner literal `_` (1178), the bind fallback emitting an inert `onChange` (222), and the kwarg `_ => None` (1979–1980). `emit_hir_expr` (297) / `emit_hir_stmt` (1088) are already exhaustive — do not add catch-alls there.
 - Test: `crates/vox-codegen-ts/tests/ts_emit_exhaustiveness_test.rs` (create)
 
-- [ ] Same 6-step TDD shape as Task 4, for the TypeScript emitter. **Note the `#[path]` embedding trap** (SSOT context): when feature `standalone` is OFF, `crate::` in vox-codegen-ts resolves to vox-codegen — use `super::` for intra-module refs. Commit `"fix(codegen-ts): replace silent catch-alls with declared Unsupported diagnostics"`.
+- [ ] Same TDD shape: for each site, route through `unsupported_diagnostic(feature, Target::TypeScript)` and emit a `WebIrDiagnostic`/throw carrying the declared code instead of a silent empty/`_`/inert value. **Note the `#[path]` embedding trap**: when feature `standalone` is OFF, `crate::` in vox-codegen-ts resolves to vox-codegen — use `super::` for intra-module refs. Commit `"fix(codegen-ts): replace silent drops with declared Unsupported diagnostics"`.
 
-### Task 6: `web_ir/lower` exhaustiveness (frontend projection)
+### Task 6: `web_ir/lower` — make the fallback declared (frontend projection)
 
 **Files:**
-- Modify: `crates/vox-codegen/src/web_ir/lower.rs` (8 catch-alls)
+- Modify: `crates/vox-codegen/src/web_ir/lower.rs` — the primary `DomArena::lower_expr` `_ =>` fallback at **line 250** (`expr_fallback_count++` → `DomNode::Expr`). (The stmt no-op at 72 is benign name-collection; leave it.)
 - Test: `crates/vox-codegen/tests/web_ir_exhaustiveness_test.rs` (create)
 
-- [ ] Same 6-step TDD shape. The R14/R15 fixes (match-arm `expr_fallback_count`, if-branch non-Expr guard) are the template for what "declared, counted, not silent" looks like here. Commit `"fix(web-ir): make lowering catch-alls explicit and counted"`.
+- [ ] Same TDD shape. The R14/R15 fixes (match-arm `expr_fallback_count`, if-branch non-Expr guard) are the template for "declared, counted, not silent" — assert the fallback count is exposed and that genuinely-unsupported exprs surface the matrix's declared code. Commit `"fix(web-ir): make the lowering fallback declared and matrix-checked"`.
 
-### Task 7: `eval` interpreter exhaustiveness (Target::Interpreter)
+### Task 7: route `eval` unsupported arms through the matrix (Target::Interpreter)
+
+> **[CORRECTED 2026-06-15] — already exhaustive; this is a routing + regression task.** `eval_expr` (eval/expr.rs:781–807) is already exhaustive with explicit `EvalError` arms for `Jsx`/`AsyncView`/`Spawn`/`With`/`WorkflowVersion` (no silent `_ =>`). This is the *good* model. The task is to make those errors carry the matrix's declared code and add a regression test, not to remove a catch-all.
 
 **Files:**
-- Modify: `crates/vox-compiler/src/eval/expr.rs` (fallback block ≈ 781–803)
+- Modify: `crates/vox-compiler/src/eval/expr.rs` (the explicit unsupported arms at 781–807)
 - Test: `crates/vox-compiler/tests/interp_exhaustiveness_test.rs` (create)
 
-- [ ] Same 6-step TDD shape. The interpreter already errors (good) but at runtime — convert the blanket fallback into explicit per-variant arms so a *new* `HirExpr` variant cannot silently fall into the catch-all. Each unsupported variant returns the matrix's declared code. Commit `"fix(eval): make interpreter unsupported-expr handling exhaustive and matrix-driven"`.
+- [ ] Make each unsupported arm return an `EvalError` carrying `unsupported_diagnostic(feature, Target::Interpreter).code`; add a test asserting a new `HirExpr` variant cannot silently fall through (the match stays exhaustive) and that each unsupported construct yields its declared code. Commit `"fix(eval): route interpreter unsupported-expr arms through the parity matrix"`.
 
 **WAVE 2 GATE:** all four columns explicit + all four emitters catch-all-free before Wave 3.
 
@@ -306,6 +332,6 @@ Each task: replace feature-handling `_ => …` catch-alls in *one* emitter with 
 ## Self-review notes (author)
 
 - **Spec coverage:** Artifacts A/B/C of SSOT §3 map to Waves 1/1/2-3 respectively; Done Criteria §6.1–6.6 map to Tasks 1–2 / 3 / 4–7 / 8 / 3+10 / final-review. No SSOT requirement is unassigned.
-- **Type consistency:** `Target`, `Feature`, `Support`, `support()`, `emit_unsupported()` are named identically in SSOT and plan; `feature_matrix.rs` is `crates/vox-compiler/src/feature_matrix.rs` everywhere.
-- **Parallel-safety (resolved, not conditional):** the only shared file, `feature_matrix.rs`, is written in full in Wave 1 (Task 3) and corrected in Wave 3 (Task 8) — both single-agent sequential waves. Wave 2's parallel agents call `emit_unsupported()` but never edit the matrix, so the fan-out has no shared mutable state. There is no "serialize if it gets conflict-prone" fallback; the design is conflict-free by construction.
+- **Type consistency:** `Target`, `Feature`, `Support`, `support()`, `unsupported_diagnostic()` are named identically in SSOT and plan; `feature_matrix.rs` is `crates/vox-compiler/src/feature_matrix.rs` everywhere. `Target` exposes `id()`/`from_id()` (not `cli_mode`).
+- **Parallel-safety (resolved, not conditional):** the only shared file, `feature_matrix.rs`, is written in full in Wave 1 (Task 3) and corrected in Wave 3 (Task 8) — both single-agent sequential waves. Wave 2's agents call `unsupported_diagnostic()` but never edit the matrix, so the fan-out has no shared mutable state. There is no "serialize if it gets conflict-prone" fallback; the design is conflict-free by construction.
 - **`#[non_exhaustive]` deliberately omitted** from `Target`/`Feature` (SSOT §3.1): the gate depends on downstream matches breaking when a variant is added, which `#[non_exhaustive]` would prevent.
