@@ -1,0 +1,10 @@
+test(publisher): Add integration tests for TrustGraphSnapshot
+scale: ~91 lines across 1 files [M]
+
+- Add `crates/vox-publisher/tests/trust_snapshot.rs` containing integration tests for `TrustGraphSnapshot` and `TrustGraphSnapshotBuilder`.
+- Test cases include:
+    - `empty_snapshot_round_trip`: Verifies serialization and deserialization of an empty snapshot.
+    - `snapshot_with_peers_round_trip`: Verifies serialization and deserialization of a snapshot with multiple peers.
+    - `peers_at_or_above_tier`: Tests filtering peers based on trust tier.
+
+--- audit: original='feat(publisher,populi): P6-T8 trust-graph snapshot self-publication' | actual=91L across 1 files | derived=full ---
