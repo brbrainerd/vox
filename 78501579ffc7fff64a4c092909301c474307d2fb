@@ -1,0 +1,6 @@
+feat(compiler,runtime): introduce DurablePromise<T> as the single awaitable primitive
+scale: ~298 lines across 5 files [L]
+
+- `vox-workflow-runtime`: Add `durable_promise.rs` defining `DurablePromise<T>`,
+
+--- audit: original='feat(compiler,runtime): introduce DurablePromise[T] as the single awaitable primitive (P1-T1)' | actual=298L across 5 files | derived=full ---
