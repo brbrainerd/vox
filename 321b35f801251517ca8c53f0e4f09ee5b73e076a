@@ -1,0 +1,16 @@
+feat(drift): Implement Rust feature extraction with body hashes
+scale: ~230 lines across 1 files [M]
+
+- `crates/vox-drift-check/src/extractors/rust.rs`:
+    - Add `RustExtractor` struct implementing `LanguageExtractor` for Rust.
+    - Implement `extract_features` method to parse Rust code using `syn` and extract various features.
+    - Introduce `RustVisitor` to traverse the AST and collect features.
+    - Extract string literals (`LiteralLoc`) with their values, locations, and context.
+    - Extract integer literals (`NumericLoc`) with their values, locations, and optional units.
+    - Extract call sites (`CallSite`) including function name, arguments, and location.
+    - Extract function definitions (`FnDef`) including name, parameters, return type, and body hash.
+    - Extract import locations (`ImportLoc`) for `use` statements.
+    - Calculate body hashes for function definitions using `xxh3_64`.
+    - Remove placeholder comment.
+
+--- audit: original='feat(drift): Rust extractor — full feature extraction with body hashes' | actual=230L across 1 files | derived=full ---
