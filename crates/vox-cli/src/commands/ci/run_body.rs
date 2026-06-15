@@ -262,6 +262,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::LineEndings { all, base, autofix } => {
             vox_cli_ci::line_endings::run(&root, all, base, autofix)
         }
+        CiCmd::BomCheck => vox_cli_ci::line_endings::check_bom(&root),
         CiCmd::ParseStatus { write } => parse_status::run(&root, write),
         CiCmd::MeshGate {
             profile,

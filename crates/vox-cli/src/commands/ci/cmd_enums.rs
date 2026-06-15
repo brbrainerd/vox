@@ -323,6 +323,10 @@ pub enum CiCmd {
         #[arg(long)]
         autofix: bool,
     },
+    /// Fail if any git-tracked file begins with a UTF-8 byte-order mark (0xEF 0xBB 0xBF).
+    /// BOMs corrupt `include_str!()` output and break JSON parsing.
+    #[command(name = "bom-check")]
+    BomCheck,
     /// Regenerate or verify `examples/PARSE_STATUS.md` from `examples/golden/*.vox`.
     #[command(name = "parse-status")]
     ParseStatus {
@@ -981,6 +985,7 @@ impl CiCmd {
             CiCmd::CommandCompliance => Some("ci-gate/ci.command-compliance"),
             CiCmd::RepoGuards => Some("ci-gate/ci.repo-guards"),
             CiCmd::LineEndings { .. } => Some("ci-gate/ci.line-endings"),
+            CiCmd::BomCheck => Some("ci-gate/ci.bom-check"),
             CiCmd::DataSsotGuards => Some("ci-gate/ci.data-ssot-guards"),
             CiCmd::FeatureMatrix => Some("ci-gate/ci.feature-matrix"),
             CiCmd::CompileMatrix => Some("ci-gate/ci.compile-matrix"),
