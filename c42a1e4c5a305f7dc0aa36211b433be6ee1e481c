@@ -1,0 +1,6 @@
+docs(arch): Add 2026-05-25 finalization pass session handoff document
+scale: ~151 lines across 1 files [M]
+
+- **docs/src/architecture/session-handoff-2026-05-25-finalization-pass.md**: New document detailing the post-recovery audit and repair pass. It records the state of the workspace, fixes applied (including 4 test breakages and 2 cached-dylib ABI-mismatch failures), and remaining tasks before the v0.6.0 release. It also highlights 3 new latent-bug items for follow-up.
+
+--- audit: original='docs(arch): handoff — 2026-05-25 finalization pass' | actual=151L across 1 files | derived=full ---
