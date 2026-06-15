@@ -1,0 +1,9 @@
+feat(gamify,db): add behavior proofs for EventConfigOverrides::resolve and import_orchestrator_memory_dir
+scale: ~50 lines across 2 files [M]
+
+- `crates/vox-db/tests/legacy_import_extras_test.rs`: Add a new test file to prove `import_orchestrator_memory_dir` errors correctly when given a non-directory path, returning a `StoreError::Db`.
+- `crates/vox-gamify/src/reward_policy.rs`: Add two new tests for `EventConfigOverrides::resolve`:
+    - `resolve_returns_override_when_present`: Proves that `resolve` returns the overridden values when an override is set for an event.
+    - `resolve_falls_back_to_policy_base_when_absent`: Proves that `resolve` falls back to the `base_reward` when no override is present for an event.
+
+--- audit: original='test(gamify,db): prove EventConfigOverrides::resolve branches + import non-dir error (Wave 1)' | actual=50L across 2 files | derived=full ---
