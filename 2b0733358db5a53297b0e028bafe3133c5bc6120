@@ -1,0 +1,12 @@
+fix(codegen-rust): Correct Index, panic!, range, and Json type emission
+scale: ~45 lines across 2 files [S]
+
+- `stmt_expr.rs`:
+    - `emit_assign_target`: For `HirExpr::Index` on the LHS of an assignment, now emits `obj[idx as usize]` to produce an assignable lvalue, rather than the Option-returning read form.
+    - `emit_expr_with`: For `HirExpr::Index` in read contexts, now emits `.get(idx as usize).cloned()` to return `Option<T>`, matching Vox's `Option[T]` indexing behavior and enabling `match` statements.
+    - `emit_expr_with`: For `HirExpr::Panic`, changed emission from `panic(..)` to `panic!(..)`, using the Rust macro.
+    - `emit_expr_with`: For `HirExpr::Range`, now generates a `Vec<i64>` by mapping `(start..end)` to `i64` and collecting, aligning with interpreter behavior.
+- `types.rs`:
+    - `emit_type`: Added `Json` to the types that map to `serde_json::Value`, resolving an `E0425` error.
+
+--- audit: original='fix(codegen-rust): type-emission batch — Index/Option, panic, range, Json (CR-F2)' | actual=45L across 2 files | derived=full ---
