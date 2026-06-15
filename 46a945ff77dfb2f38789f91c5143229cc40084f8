@@ -1,0 +1,7 @@
+perf(build): Increase `jobs` to 24 and revert `lld-link` on Windows
+scale: ~11 lines across 1 files [S]
+
+- `build`: Increased `jobs` from 8 to 24 in `.cargo/config.toml` to utilize more CPU cores for faster compilation.
+- `target.x86_64-pc-windows-msvc`: Reverted the use of `lld-link` by commenting out the `linker` setting in `.cargo/config.toml` due to file-locking issues on Windows.
+
+--- audit: original='perf(build): jobs=24 on 32-thread CPU; lld-link reverted (Windows file-lock issue) (Phase 1)' | actual=11L across 1 files | derived=full ---
