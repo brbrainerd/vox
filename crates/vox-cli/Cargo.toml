@@ -165,7 +165,7 @@ vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-secrets = { workspace = true }
 vox-db = { workspace = true }
-vox-sql = { workspace = true }
+vox-sql = { workspace = true, features = ["postgres", "mysql"] }
 vox-research-events = { workspace = true }
 # `vox-scientia::ro_crate::MainEntity` is the input shape for the replay
 # handler; not pulled in via the producers crate.
@@ -306,7 +306,7 @@ wiremock = { workspace = true }
 # `deadpool::unmanaged::Pool::timeout_get`.
 deadpool = { workspace = true }
 vox-db = { workspace = true }
-vox-sql = { workspace = true }
+vox-sql = { workspace = true, features = ["postgres", "mysql"] }
 vox-orchestrator = { workspace = true }
 
 [[test]]

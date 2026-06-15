@@ -54,12 +54,16 @@ pub fn vox_type_to_sql(
         }),
         UnsupportedTypePolicy::JsonText => Ok(match backend {
             BackendKind::Libsql => "TEXT".to_string(),
+            #[cfg(feature = "postgres")]
             BackendKind::Postgres => "TEXT".to_string(),
+            #[cfg(feature = "mysql")]
             BackendKind::MySql => "LONGTEXT".to_string(),
         }),
         UnsupportedTypePolicy::OpaqueBlob => Ok(match backend {
             BackendKind::Libsql => "BLOB".to_string(),
+            #[cfg(feature = "postgres")]
             BackendKind::Postgres => "BYTEA".to_string(),
+            #[cfg(feature = "mysql")]
             BackendKind::MySql => "LONGBLOB".to_string(),
         }),
     }
@@ -72,25 +76,39 @@ fn normalize_vox_type(ty: &str) -> String {
 fn sql_for_scalar(backend: BackendKind, scalar: &str) -> &'static str {
     match (backend, scalar) {
         (BackendKind::Libsql, "text") => "TEXT",
+        #[cfg(feature = "postgres")]
         (BackendKind::Postgres, "text") => "TEXT",
+        #[cfg(feature = "mysql")]
         (BackendKind::MySql, "text") => "TEXT",
         (BackendKind::Libsql, "int") => "INTEGER",
+        #[cfg(feature = "postgres")]
         (BackendKind::Postgres, "int") => "BIGINT",
+        #[cfg(feature = "mysql")]
         (BackendKind::MySql, "int") => "BIGINT",
         (BackendKind::Libsql, "float") => "REAL",
+        #[cfg(feature = "postgres")]
         (BackendKind::Postgres, "float") => "DOUBLE PRECISION",
+        #[cfg(feature = "mysql")]
         (BackendKind::MySql, "float") => "DOUBLE",
         (BackendKind::Libsql, "bool") => "INTEGER",
+        #[cfg(feature = "postgres")]
         (BackendKind::Postgres, "bool") => "BOOLEAN",
+        #[cfg(feature = "mysql")]
         (BackendKind::MySql, "bool") => "TINYINT(1)",
         (BackendKind::Libsql, "bytes") => "BLOB",
+        #[cfg(feature = "postgres")]
         (BackendKind::Postgres, "bytes") => "BYTEA",
+        #[cfg(feature = "mysql")]
         (BackendKind::MySql, "bytes") => "BLOB",
         (BackendKind::Libsql, "decimal") => "TEXT",
+        #[cfg(feature = "postgres")]
         (BackendKind::Postgres, "decimal") => "NUMERIC",
+        #[cfg(feature = "mysql")]
         (BackendKind::MySql, "decimal") => "DECIMAL(65,30)",
         (BackendKind::Libsql, "id") => "INTEGER",
+        #[cfg(feature = "postgres")]
         (BackendKind::Postgres, "id") => "BIGINT",
+        #[cfg(feature = "mysql")]
         (BackendKind::MySql, "id") => "BIGINT",
         _ => "TEXT",
     }
@@ -102,11 +120,13 @@ mod tests {
 
     #[test]
     fn maps_core_types_per_backend() {
+        #[cfg(feature = "postgres")]
         assert_eq!(
             vox_type_to_sql(BackendKind::Postgres, "bool", UnsupportedTypePolicy::Reject)
                 .expect("map bool"),
             "BOOLEAN"
         );
+        #[cfg(feature = "mysql")]
         assert_eq!(
             vox_type_to_sql(BackendKind::MySql, "int", UnsupportedTypePolicy::Reject)
                 .expect("map int"),
@@ -125,6 +145,7 @@ mod tests {
 
     #[test]
     fn unsupported_policy_rejects_or_falls_back() {
+        #[cfg(feature = "postgres")]
         assert!(
             vox_type_to_sql(
                 BackendKind::Postgres,
@@ -134,6 +155,7 @@ mod tests {
             .is_err()
         );
 
+        #[cfg(feature = "mysql")]
         assert_eq!(
             vox_type_to_sql(
                 BackendKind::MySql,
@@ -156,29 +178,50 @@ mod semcov_wave39_tests {
     #[test]
     fn type_with_surrounding_whitespace_maps_correctly() {
         // Catches: normalize_vox_type not trimming; " str " fails to hit "str" arm → spurious reject
-        let result = vox_type_to_sql(
-            BackendKind::Postgres,
-            " str ",
-            UnsupportedTypePolicy::Reject,
-        );
-        assert_eq!(result.expect("should map trimmed str"), "TEXT");
+        #[cfg(feature = "postgres")]
+        {
+            let result = vox_type_to_sql(
+                BackendKind::Postgres,
+                " str ",
+                UnsupportedTypePolicy::Reject,
+            );
+            assert_eq!(result.expect("should map trimmed str"), "TEXT");
+        }
+        #[cfg(not(feature = "postgres"))]
+        {
+            let result =
+                vox_type_to_sql(BackendKind::Libsql, " str ", UnsupportedTypePolicy::Reject);
+            assert_eq!(result.expect("should map trimmed str"), "TEXT");
+        }
     }
 
     #[test]
     fn type_name_uppercase_str_maps_via_normalization() {
         // Catches: case-sensitive match — "STR" not matching "str" arm
-        let result = vox_type_to_sql(BackendKind::Postgres, "STR", UnsupportedTypePolicy::Reject);
-        assert_eq!(result.expect("STR should normalize to str"), "TEXT");
+        #[cfg(feature = "postgres")]
+        {
+            let result =
+                vox_type_to_sql(BackendKind::Postgres, "STR", UnsupportedTypePolicy::Reject);
+            assert_eq!(result.expect("STR should normalize to str"), "TEXT");
+        }
+        #[cfg(not(feature = "postgres"))]
+        {
+            let result = vox_type_to_sql(BackendKind::Libsql, "STR", UnsupportedTypePolicy::Reject);
+            assert_eq!(result.expect("STR should normalize to str"), "TEXT");
+        }
     }
 
     #[test]
     fn option_wrapper_strips_correctly_for_all_backends() {
         // Catches: option[ ] stripping only working on one backend; inner type normalization broken
-        for backend in [
+        let backends: &[BackendKind] = &[
             BackendKind::Libsql,
+            #[cfg(feature = "postgres")]
             BackendKind::Postgres,
+            #[cfg(feature = "mysql")]
             BackendKind::MySql,
-        ] {
+        ];
+        for &backend in backends {
             let result = vox_type_to_sql(backend, "option[int]", UnsupportedTypePolicy::Reject)
                 .unwrap_or_else(|_| panic!("option[int] should unwrap for {backend:?}"));
             // int maps to INTEGER (libsql) or BIGINT (pg/mysql)
@@ -203,25 +246,43 @@ mod semcov_wave39_tests {
     #[test]
     fn dec_alias_maps_same_as_decimal() {
         // Catches: only one of "decimal"/"dec" in the match arm; the other falls through to unsupported
-        let dec = vox_type_to_sql(BackendKind::Postgres, "dec", UnsupportedTypePolicy::Reject)
-            .expect("dec alias should map");
-        let decimal = vox_type_to_sql(
-            BackendKind::Postgres,
-            "decimal",
-            UnsupportedTypePolicy::Reject,
-        )
-        .expect("decimal should map");
-        assert_eq!(dec, decimal, "dec and decimal must map identically");
+        #[cfg(feature = "postgres")]
+        {
+            let dec = vox_type_to_sql(BackendKind::Postgres, "dec", UnsupportedTypePolicy::Reject)
+                .expect("dec alias should map");
+            let decimal = vox_type_to_sql(
+                BackendKind::Postgres,
+                "decimal",
+                UnsupportedTypePolicy::Reject,
+            )
+            .expect("decimal should map");
+            assert_eq!(dec, decimal, "dec and decimal must map identically");
+        }
+        #[cfg(not(feature = "postgres"))]
+        {
+            let dec = vox_type_to_sql(BackendKind::Libsql, "dec", UnsupportedTypePolicy::Reject)
+                .expect("dec alias should map");
+            let decimal = vox_type_to_sql(
+                BackendKind::Libsql,
+                "decimal",
+                UnsupportedTypePolicy::Reject,
+            )
+            .expect("decimal should map");
+            assert_eq!(dec, decimal, "dec and decimal must map identically");
+        }
     }
 
     #[test]
     fn id_bracket_prefix_maps_on_all_backends() {
         // Catches: id[ ] prefix match missing for MySql or Libsql
-        for (backend, expected) in [
+        let cases: &[(BackendKind, &str)] = &[
             (BackendKind::Libsql, "INTEGER"),
+            #[cfg(feature = "postgres")]
             (BackendKind::Postgres, "BIGINT"),
+            #[cfg(feature = "mysql")]
             (BackendKind::MySql, "BIGINT"),
-        ] {
+        ];
+        for &(backend, expected) in cases {
             let result = vox_type_to_sql(backend, "id[User]", UnsupportedTypePolicy::Reject)
                 .unwrap_or_else(|_| panic!("id[User] should map for {backend:?}"));
             assert_eq!(result, expected, "{backend:?}");
@@ -231,6 +292,7 @@ mod semcov_wave39_tests {
     #[test]
     fn opaque_blob_policy_returns_backend_specific_blob_type() {
         // Catches: OpaqueBlob falling through to JsonText or returning uniform "BLOB" regardless of backend
+        #[cfg(feature = "postgres")]
         assert_eq!(
             vox_type_to_sql(
                 BackendKind::Postgres,
@@ -240,6 +302,7 @@ mod semcov_wave39_tests {
             .expect("opaque blob postgres"),
             "BYTEA"
         );
+        #[cfg(feature = "mysql")]
         assert_eq!(
             vox_type_to_sql(
                 BackendKind::MySql,
@@ -263,44 +326,67 @@ mod semcov_wave39_tests {
     #[test]
     fn json_text_policy_returns_longtext_for_mysql_not_text() {
         // Catches: JsonText returning plain "TEXT" for MySQL (breaks large JSON docs >64KB)
-        let result = vox_type_to_sql(
-            BackendKind::MySql,
-            "CustomRecord",
-            UnsupportedTypePolicy::JsonText,
-        )
-        .expect("json text mysql");
-        assert_eq!(
-            result, "LONGTEXT",
-            "MySQL JsonText must use LONGTEXT not TEXT: {result}"
-        );
+        #[cfg(feature = "mysql")]
+        {
+            let result = vox_type_to_sql(
+                BackendKind::MySql,
+                "CustomRecord",
+                UnsupportedTypePolicy::JsonText,
+            )
+            .expect("json text mysql");
+            assert_eq!(
+                result, "LONGTEXT",
+                "MySQL JsonText must use LONGTEXT not TEXT: {result}"
+            );
+        }
     }
 
     #[test]
     fn reject_policy_error_message_contains_original_type_name() {
         // Catches: error message stripping or mangling the type name, making diagnostics useless
-        let err = vox_type_to_sql(
-            BackendKind::Postgres,
-            "MyCustomType",
-            UnsupportedTypePolicy::Reject,
-        )
-        .unwrap_err();
-        assert!(
-            err.vox_type.contains("MyCustomType"),
-            "error must preserve original type name, got: {:?}",
-            err.vox_type
-        );
+        #[cfg(feature = "postgres")]
+        {
+            let err = vox_type_to_sql(
+                BackendKind::Postgres,
+                "MyCustomType",
+                UnsupportedTypePolicy::Reject,
+            )
+            .unwrap_err();
+            assert!(
+                err.vox_type.contains("MyCustomType"),
+                "error must preserve original type name, got: {:?}",
+                err.vox_type
+            );
+        }
+        #[cfg(not(feature = "postgres"))]
+        {
+            let err = vox_type_to_sql(
+                BackendKind::Libsql,
+                "MyCustomType",
+                UnsupportedTypePolicy::Reject,
+            )
+            .unwrap_err();
+            assert!(
+                err.vox_type.contains("MyCustomType"),
+                "error must preserve original type name, got: {:?}",
+                err.vox_type
+            );
+        }
     }
 
     #[test]
     fn float_maps_to_double_precision_on_postgres_not_float() {
         // Catches: postgres float mapped to FLOAT instead of DOUBLE PRECISION (loses mantissa bits)
-        let result = vox_type_to_sql(
-            BackendKind::Postgres,
-            "float",
-            UnsupportedTypePolicy::Reject,
-        )
-        .expect("float postgres");
-        assert_eq!(result, "DOUBLE PRECISION");
+        #[cfg(feature = "postgres")]
+        {
+            let result = vox_type_to_sql(
+                BackendKind::Postgres,
+                "float",
+                UnsupportedTypePolicy::Reject,
+            )
+            .expect("float postgres");
+            assert_eq!(result, "DOUBLE PRECISION");
+        }
     }
 
     #[test]
@@ -314,12 +400,15 @@ mod semcov_wave39_tests {
     #[test]
     fn bytes_maps_to_bytea_on_postgres_not_blob() {
         // Catches: postgres bytes returning generic "BLOB" (invalid in Postgres DDL)
-        let result = vox_type_to_sql(
-            BackendKind::Postgres,
-            "bytes",
-            UnsupportedTypePolicy::Reject,
-        )
-        .expect("bytes postgres");
-        assert_eq!(result, "BYTEA");
+        #[cfg(feature = "postgres")]
+        {
+            let result = vox_type_to_sql(
+                BackendKind::Postgres,
+                "bytes",
+                UnsupportedTypePolicy::Reject,
+            )
+            .expect("bytes postgres");
+            assert_eq!(result, "BYTEA");
+        }
     }
 }

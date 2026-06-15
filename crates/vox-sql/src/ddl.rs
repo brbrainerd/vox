@@ -157,7 +157,9 @@ fn is_optional_type(ty: &TypeExpr) -> bool {
 fn id_column_sql(backend: BackendKind) -> &'static str {
     match backend {
         BackendKind::Libsql => "_id INTEGER PRIMARY KEY AUTOINCREMENT",
+        #[cfg(feature = "postgres")]
         BackendKind::Postgres => "_id BIGSERIAL PRIMARY KEY",
+        #[cfg(feature = "mysql")]
         BackendKind::MySql => "_id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY",
     }
 }
@@ -247,10 +249,12 @@ mod semcov_wave2_tests {
             has_spread: false,
             span: sp(),
         };
+        #[cfg(feature = "postgres")]
         assert!(
             collection_to_ddl(BackendKind::Postgres, &col).is_err(),
             "Postgres should be rejected"
         );
+        #[cfg(feature = "mysql")]
         assert!(
             collection_to_ddl(BackendKind::MySql, &col).is_err(),
             "MySQL should be rejected"

@@ -1,3 +1,4 @@
+#[cfg(any(feature = "postgres", feature = "mysql"))]
 use std::collections::BTreeMap;
 
 use crate::{
@@ -9,7 +10,9 @@ impl AnySqlBackend {
     pub async fn introspect_schema(&self) -> Result<IntrospectedSchema, SqlBackendError> {
         match self {
             AnySqlBackend::Libsql(_) => introspect_sqlite(self).await,
+            #[cfg(feature = "postgres")]
             AnySqlBackend::Postgres(_) => introspect_postgres(self).await,
+            #[cfg(feature = "mysql")]
             AnySqlBackend::MySql(_) => introspect_mysql(self).await,
         }
     }
@@ -54,6 +57,7 @@ async fn introspect_sqlite(backend: &AnySqlBackend) -> Result<IntrospectedSchema
     })
 }
 
+#[cfg(feature = "postgres")]
 async fn introspect_postgres(
     backend: &AnySqlBackend,
 ) -> Result<IntrospectedSchema, SqlBackendError> {
@@ -79,6 +83,7 @@ async fn introspect_postgres(
     rows_to_schema("postgres", rows, &pk_set)
 }
 
+#[cfg(feature = "mysql")]
 async fn introspect_mysql(backend: &AnySqlBackend) -> Result<IntrospectedSchema, SqlBackendError> {
     let rows = backend
         .query(
@@ -101,6 +106,7 @@ async fn introspect_mysql(backend: &AnySqlBackend) -> Result<IntrospectedSchema,
     rows_to_schema("mysql", rows, &pk_set)
 }
 
+#[cfg(any(feature = "postgres", feature = "mysql"))]
 fn rows_to_schema(
     backend_name: &str,
     rows: Vec<SqlRow>,

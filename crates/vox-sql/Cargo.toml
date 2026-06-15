@@ -8,13 +8,18 @@ authors.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+[features]
+default = []
+postgres = ["sqlx/postgres"]
+mysql = ["sqlx/mysql"]
+
 [dependencies]
 async-trait = { workspace = true }
 vox-db = { workspace = true }
 vox-secrets = { workspace = true }
 vox-ast = { workspace = true }
 turso = { workspace = true }
-sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "postgres", "mysql"] }
+sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio"] }
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["sync"] }
 
