@@ -338,6 +338,14 @@ surfaces:
   parent_surface: null
   notes: null
 - view_key: null
+  cli_group: container
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
+- view_key: null
   cli_group: db
   representation_tier: none
   nav_label: null

@@ -81,7 +81,11 @@ mod tests {
         let mut ids: Vec<&str> = Target::ALL.iter().map(|t| t.id()).collect();
         ids.sort_unstable();
         ids.dedup();
-        assert_eq!(ids.len(), Target::ALL.len(), "every Target id must be unique");
+        assert_eq!(
+            ids.len(),
+            Target::ALL.len(),
+            "every Target id must be unique"
+        );
     }
 
     #[test]

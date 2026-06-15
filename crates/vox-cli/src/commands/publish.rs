@@ -9,7 +9,7 @@ pub async fn run(registry_url: Option<&str>) -> Result<()> {
         .map_err(|e| anyhow::anyhow!("{e}"))
         .with_context(|| "No Vox.toml found. Nothing to publish.")?;
 
-    let url = registry_url.unwrap_or("https://raw.githubusercontent.com/vox-foundation/vox/main/registry");
+    let url = registry_url.unwrap_or(super::pm_lifecycle::DEFAULT_REGISTRY_BASE);
 
     // Read auth token
     let token_path = dirs_path().join("auth_token");

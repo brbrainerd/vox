@@ -27,6 +27,7 @@ fn fn_decl(name: &str) -> FnDecl {
         body: vec![],
         is_async: false,
         is_deprecated: false,
+        deprecated_reason: None,
         is_pure: false,
         is_reactive: false,
         is_versioned: false,

@@ -37,6 +37,7 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         is_versioned: false,
         is_remote: false,
         is_deprecated: false,
+        deprecated_reason: None,
         is_llm: false,
         llm_model: None,
         ai_structured_output: None,

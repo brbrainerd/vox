@@ -364,6 +364,7 @@ mod semcov_wave12_tests {
             ai_fixture: None,
             embed: None,
             is_deprecated: false,
+            deprecated_reason: None,
             schedule_interval: None,
             durability: None,
             actor_state_fields: vec![],

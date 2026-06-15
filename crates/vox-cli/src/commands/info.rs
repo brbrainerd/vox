@@ -2,8 +2,7 @@ use anyhow::Result;
 
 /// `vox info <package>` — display package information.
 pub async fn run(package_name: &str, registry_url: Option<&str>) -> Result<()> {
-    let url = registry_url
-        .unwrap_or("https://raw.githubusercontent.com/vox-foundation/vox/main/registry");
+    let url = registry_url.unwrap_or(super::pm_lifecycle::DEFAULT_REGISTRY_BASE);
     let client = vox_package::RegistryClient::new(url);
 
     match client.info(package_name).await {
