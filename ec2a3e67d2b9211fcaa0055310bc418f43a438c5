@@ -1,0 +1,6 @@
+docs(golden): restore missing ANCHOR: basic_actor in ref_actors.vox
+scale: ~1 lines across 1 files [XS]
+
+- `examples/golden/ref_actors.vox`: Re-added the `// ANCHOR: basic_actor` marker at the beginning of the file. This resolves an "unresolved anchor" error in `vox-doc-pipeline --check` caused by a previous commit removing the opening anchor while leaving the closing `// ANCHOR_END:` and the `{{#include ...:basic_actor}}` reference in `tut-actor-basics.md`.
+
+--- audit: original='docs(golden): restore missing ANCHOR: basic_actor in ref_actors.vox' | actual=1L across 1 files | derived=full ---
