@@ -8,12 +8,14 @@
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 
+#[cfg(feature = "gui-visual-review")]
+use crate::visus_tools;
 use crate::{
     benchmark_tools, browser_tools, chat_tools, code_validator, codex_tools, compiler_tools,
     db_tools, exec_time_tools, git_tools, grammar_tools, introspection_tools, openclaw_tools,
     persistence_tools, populi_tools, project_init_tools, questioning_tools, rag_tools,
     repo_catalog_tools, repo_index, secrets_tools, task_tools, toestub_tools, tool_aliases,
-    training_tools, trust_tools, vcs_tools, visus_tools,
+    training_tools, trust_tools, vcs_tools,
 };
 #[cfg(feature = "news-publish")]
 use crate::{news_tools, scientia_tools};
@@ -503,9 +505,11 @@ async fn handle_tool_call_inner(
         .await),
         "vox_repo_index_status" => Ok(repo_index::repo_index_status(state).await),
         "vox_repo_index_refresh" => Ok(repo_index::repo_index_refresh(state).await),
+        #[cfg(feature = "gui-visual-review")]
         "vox_visus_audit" => {
             Ok(visus_tools::vox_visus_audit(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "gui-visual-review")]
         "vox_visus_baseline" => {
             Ok(visus_tools::vox_visus_baseline(state, serde_json::from_value(args)?).await)
         }
@@ -1415,6 +1419,12 @@ mod registry_dispatch_tests {
         for e in TOOL_REGISTRY {
             let name = e.name;
             if SKIP_DISPATCH_PROBE.contains(&name) {
+                continue;
+            }
+            // Tools whose dispatch arm is feature-gated out under the current build are
+            // not dispatchable and are also filtered from the advertised registry; skip
+            // them here so the probe matches the compiled dispatch surface.
+            if !crate::registry::dispatchable_under_features(name) {
                 continue;
             }
             let res = handle_tool_call(&state, name, json!({})).await;

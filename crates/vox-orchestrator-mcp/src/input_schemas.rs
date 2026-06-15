@@ -363,9 +363,11 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_repo_index_status" | "vox_repo_index_refresh" => {
             parse_obj(r#"{"type":"object","additionalProperties":false}"#)
         }
+        #[cfg(feature = "gui-visual-review")]
         "vox_visus_audit" => parse_obj(
             r#"{"type":"object","properties":{"url":{"type":"string","description":"Target URL for visual audit"}},"required":["url"],"additionalProperties":false}"#,
         ),
+        #[cfg(feature = "gui-visual-review")]
         "vox_visus_baseline" => parse_obj(
             r#"{"type":"object","properties":{"url":{"type":"string"}},"required":["url"],"additionalProperties":false}"#,
         ),

@@ -7,7 +7,8 @@ license.workspace = true
 
 [dependencies]
 vox-orchestrator = { workspace = true }
-vox-orchestrator-mcp = { workspace = true }
+# Shipping MCP server: keep the full default tool surface (news/scientia/visus).
+vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review"] }
 vox-skills.workspace = true
 vox-db.workspace = true
 vox-secrets.workspace = true

@@ -99,8 +99,10 @@ pub mod trust_tools;
 /// Snapshot / oplog / workspace orchestrator VCS tools.
 pub mod vcs_tools;
 /// GUI visual AI adversarial review (advisory; never gates CI).
+#[cfg(feature = "gui-visual-review")]
 pub mod visus_review;
 /// GUI Visual Intelligence tools.
+#[cfg(feature = "gui-visual-review")]
 pub mod visus_tools;
 /// Workspace-relative path resolution (repo root joining, in-repo canonical checks).
 pub(crate) mod workspace_path;

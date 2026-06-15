@@ -3,6 +3,7 @@
 mod agentskills_compliance;
 mod attention_ledger_parity;
 mod attention_parity;
+mod build_bench;
 pub mod build_timings;
 mod canonical_docs;
 mod capability_snapshot;
@@ -19,6 +20,7 @@ mod contracts_index;
 mod coolify_eval;
 pub mod data_storage_guard;
 mod db_schema_coverage;
+mod dep_cycles;
 pub mod deploy_status;
 mod detect_rules_bench;
 mod determinism_audit;

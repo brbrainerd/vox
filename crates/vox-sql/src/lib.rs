@@ -4,12 +4,18 @@
 //! introspection, and migration helpers for brownfield database interop.
 
 use async_trait::async_trait;
+#[cfg(feature = "mysql")]
+use sqlx::mysql::{MySqlArguments, MySqlPoolOptions};
+#[cfg(feature = "postgres")]
+use sqlx::postgres::{PgArguments, PgPoolOptions};
+#[cfg(feature = "postgres")]
 use sqlx::{
-    Arguments, Column, MySql, MySqlPool, PgPool, Postgres, Row,
-    mysql::{MySqlArguments, MySqlPoolOptions},
-    pool::PoolConnection,
-    postgres::{PgArguments, PgPoolOptions},
+    Arguments as _, Column as _, PgPool, Postgres, Row as _,
+    pool::PoolConnection as PgPoolConnection,
 };
+#[cfg(feature = "mysql")]
+use sqlx::{MySql, MySqlPool, pool::PoolConnection as MyPoolConnection};
+#[cfg(any(feature = "postgres", feature = "mysql"))]
 use tokio::sync::Mutex;
 use vox_db::{Codex, DbConfig};
 use vox_secrets::SecretId;
@@ -123,16 +129,20 @@ impl std::error::Error for SqlBackendError {}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BackendKind {
     Libsql,
+    #[cfg(feature = "postgres")]
     Postgres,
+    #[cfg(feature = "mysql")]
     MySql,
 }
 
 impl BackendKind {
     pub fn from_url(url: &str) -> Result<Self, SqlBackendError> {
         let lower = url.to_ascii_lowercase();
+        #[cfg(feature = "postgres")]
         if lower.starts_with("postgres://") || lower.starts_with("postgresql://") {
             return Ok(Self::Postgres);
         }
+        #[cfg(feature = "mysql")]
         if lower.starts_with("mysql://") {
             return Ok(Self::MySql);
         }
@@ -168,7 +178,9 @@ pub trait SqlBackend: Send + Sync {
 
 pub enum AnySqlBackend {
     Libsql(LibsqlBackend),
+    #[cfg(feature = "postgres")]
     Postgres(PostgresBackend),
+    #[cfg(feature = "mysql")]
     MySql(MySqlBackend),
 }
 
@@ -177,7 +189,9 @@ impl AnySqlBackend {
     pub fn backend_kind(&self) -> BackendKind {
         match self {
             Self::Libsql(_) => BackendKind::Libsql,
+            #[cfg(feature = "postgres")]
             Self::Postgres(_) => BackendKind::Postgres,
+            #[cfg(feature = "mysql")]
             Self::MySql(_) => BackendKind::MySql,
         }
     }
@@ -185,7 +199,9 @@ impl AnySqlBackend {
     pub async fn connect_from_url(url: &str) -> Result<Self, SqlBackendError> {
         match BackendKind::from_url(url)? {
             BackendKind::Libsql => Ok(Self::Libsql(LibsqlBackend::connect(url).await?)),
+            #[cfg(feature = "postgres")]
             BackendKind::Postgres => Ok(Self::Postgres(PostgresBackend::connect(url).await?)),
+            #[cfg(feature = "mysql")]
             BackendKind::MySql => Ok(Self::MySql(MySqlBackend::connect(url).await?)),
         }
     }
@@ -211,7 +227,9 @@ impl AnySqlBackend {
     pub fn dialect(&self) -> &SqlDialect {
         match self {
             Self::Libsql(backend) => backend.dialect(),
+            #[cfg(feature = "postgres")]
             Self::Postgres(backend) => backend.dialect(),
+            #[cfg(feature = "mysql")]
             Self::MySql(backend) => backend.dialect(),
         }
     }
@@ -223,7 +241,9 @@ impl AnySqlBackend {
     ) -> Result<Vec<SqlRow>, SqlBackendError> {
         match self {
             Self::Libsql(backend) => backend.query(sql, params).await,
+            #[cfg(feature = "postgres")]
             Self::Postgres(backend) => backend.query(sql, params).await,
+            #[cfg(feature = "mysql")]
             Self::MySql(backend) => backend.query(sql, params).await,
         }
     }
@@ -231,7 +251,9 @@ impl AnySqlBackend {
     pub async fn execute(&self, sql: &str, params: &[SqlValue]) -> Result<u64, SqlBackendError> {
         match self {
             Self::Libsql(backend) => backend.execute(sql, params).await,
+            #[cfg(feature = "postgres")]
             Self::Postgres(backend) => backend.execute(sql, params).await,
+            #[cfg(feature = "mysql")]
             Self::MySql(backend) => backend.execute(sql, params).await,
         }
     }
@@ -239,7 +261,9 @@ impl AnySqlBackend {
     pub async fn begin_transaction(&self) -> Result<(), SqlBackendError> {
         match self {
             Self::Libsql(backend) => backend.begin_transaction().await,
+            #[cfg(feature = "postgres")]
             Self::Postgres(backend) => backend.begin_transaction().await,
+            #[cfg(feature = "mysql")]
             Self::MySql(backend) => backend.begin_transaction().await,
         }
     }
@@ -247,7 +271,9 @@ impl AnySqlBackend {
     pub async fn commit_transaction(&self) -> Result<(), SqlBackendError> {
         match self {
             Self::Libsql(backend) => backend.commit_transaction().await,
+            #[cfg(feature = "postgres")]
             Self::Postgres(backend) => backend.commit_transaction().await,
+            #[cfg(feature = "mysql")]
             Self::MySql(backend) => backend.commit_transaction().await,
         }
     }
@@ -255,7 +281,9 @@ impl AnySqlBackend {
     pub async fn rollback_transaction(&self) -> Result<(), SqlBackendError> {
         match self {
             Self::Libsql(backend) => backend.rollback_transaction().await,
+            #[cfg(feature = "postgres")]
             Self::Postgres(backend) => backend.rollback_transaction().await,
+            #[cfg(feature = "mysql")]
             Self::MySql(backend) => backend.rollback_transaction().await,
         }
     }
@@ -371,12 +399,14 @@ impl SqlBackend for LibsqlBackend {
     }
 }
 
+#[cfg(feature = "postgres")]
 pub struct PostgresBackend {
     pool: PgPool,
     dialect: SqlDialect,
-    tx_conn: Mutex<Option<PoolConnection<Postgres>>>,
+    tx_conn: Mutex<Option<PgPoolConnection<Postgres>>>,
 }
 
+#[cfg(feature = "postgres")]
 impl PostgresBackend {
     #[must_use]
     pub fn pool(&self) -> &PgPool {
@@ -384,6 +414,7 @@ impl PostgresBackend {
     }
 }
 
+#[cfg(feature = "postgres")]
 #[async_trait]
 impl SqlBackend for PostgresBackend {
     async fn connect(url: &str) -> Result<Self, SqlBackendError> {
@@ -497,12 +528,14 @@ impl SqlBackend for PostgresBackend {
     }
 }
 
+#[cfg(feature = "mysql")]
 pub struct MySqlBackend {
     pool: MySqlPool,
     dialect: SqlDialect,
-    tx_conn: Mutex<Option<PoolConnection<MySql>>>,
+    tx_conn: Mutex<Option<MyPoolConnection<MySql>>>,
 }
 
+#[cfg(feature = "mysql")]
 impl MySqlBackend {
     #[must_use]
     pub fn pool(&self) -> &MySqlPool {
@@ -510,6 +543,7 @@ impl MySqlBackend {
     }
 }
 
+#[cfg(feature = "mysql")]
 #[async_trait]
 impl SqlBackend for MySqlBackend {
     async fn connect(url: &str) -> Result<Self, SqlBackendError> {
@@ -623,6 +657,7 @@ impl SqlBackend for MySqlBackend {
     }
 }
 
+#[cfg(feature = "postgres")]
 fn add_pg_argument(args: &mut PgArguments, value: &SqlValue) -> Result<(), SqlBackendError> {
     match value {
         SqlValue::Null => args.add::<Option<i64>>(None),
@@ -636,6 +671,7 @@ fn add_pg_argument(args: &mut PgArguments, value: &SqlValue) -> Result<(), SqlBa
     Ok(())
 }
 
+#[cfg(feature = "mysql")]
 fn add_mysql_argument(args: &mut MySqlArguments, value: &SqlValue) -> Result<(), SqlBackendError> {
     match value {
         SqlValue::Null => args.add::<Option<i64>>(None),
@@ -683,6 +719,7 @@ fn turso_value_to_sql_value(value: turso::Value) -> SqlValue {
     }
 }
 
+#[cfg(feature = "postgres")]
 fn map_postgres_row(row: &sqlx::postgres::PgRow) -> Result<SqlRow, SqlBackendError> {
     let mut out = Vec::with_capacity(row.columns().len());
     for (idx, col) in row.columns().iter().enumerate() {
@@ -691,6 +728,7 @@ fn map_postgres_row(row: &sqlx::postgres::PgRow) -> Result<SqlRow, SqlBackendErr
     Ok(out)
 }
 
+#[cfg(feature = "mysql")]
 fn map_mysql_row(row: &sqlx::mysql::MySqlRow) -> Result<SqlRow, SqlBackendError> {
     let mut out = Vec::with_capacity(row.columns().len());
     for (idx, col) in row.columns().iter().enumerate() {
@@ -699,6 +737,7 @@ fn map_mysql_row(row: &sqlx::mysql::MySqlRow) -> Result<SqlRow, SqlBackendError>
     Ok(out)
 }
 
+#[cfg(feature = "postgres")]
 fn decode_postgres_cell(
     row: &sqlx::postgres::PgRow,
     idx: usize,
@@ -735,6 +774,7 @@ fn decode_postgres_cell(
     )))
 }
 
+#[cfg(feature = "mysql")]
 fn decode_mysql_cell(row: &sqlx::mysql::MySqlRow, idx: usize) -> Result<SqlValue, SqlBackendError> {
     if let Ok(v) = row.try_get::<Option<i32>, _>(idx) {
         return Ok(v.map_or(SqlValue::Null, |n| SqlValue::Int(i64::from(n))));
@@ -806,10 +846,12 @@ mod tests {
 
     #[test]
     fn backend_kind_from_url_dispatch() {
+        #[cfg(feature = "postgres")]
         assert_eq!(
             BackendKind::from_url("postgres://localhost/db").unwrap(),
             BackendKind::Postgres
         );
+        #[cfg(feature = "mysql")]
         assert_eq!(
             BackendKind::from_url("mysql://localhost/db").unwrap(),
             BackendKind::MySql

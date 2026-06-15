@@ -17,6 +17,8 @@ pub fn run(repo_root: &Path, no_ai: bool) -> Result<()> {
             "run",
             "-p",
             "vox-orchestrator-mcp",
+            "--features",
+            "gui-visual-review",
             "--bin",
             "gui-visual-review",
         ])

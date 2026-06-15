@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "scenarios": [
+    { "id": "check_vox_db",    "touch": "crates/vox-db/src/lib.rs",               "args": ["-p", "vox-db"] },
+    { "id": "check_vox_sql",   "touch": "crates/vox-sql/src/lib.rs",              "args": ["-p", "vox-sql"] },
+    { "id": "check_vox_mcp",   "touch": "crates/vox-orchestrator-mcp/src/lib.rs", "args": ["-p", "vox-orchestrator-mcp"] },
+    { "id": "check_vox_audit", "touch": "crates/vox-audit/src/lib.rs",            "args": ["-p", "vox-audit"] },
+    { "id": "check_vox_cli",   "touch": "crates/vox-cli/src/lib.rs",              "args": ["-p", "vox-cli"] },
+    { "id": "blastradius_vox_db_to_cli", "touch": "crates/vox-db/src/lib.rs",     "args": ["-p", "vox-cli"] }
+  ]
+}

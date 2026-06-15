@@ -20,7 +20,8 @@ vox-cli-core = { workspace = true }
 vox-git = { workspace = true }
 vox-foundation = { workspace = true }
 vox-orchestrator = { workspace = true }
-vox-orchestrator-mcp = { workspace = true }
+# Shipping MCP server: keep the full default tool surface (news/scientia/visus).
+vox-orchestrator-mcp = { workspace = true, features = ["news-publish", "gui-visual-review"] }
 vox-repository = { workspace = true }
 vox-package-types = { workspace = true }
 vox-config = { workspace = true }
