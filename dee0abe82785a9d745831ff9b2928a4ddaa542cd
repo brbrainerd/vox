@@ -1,0 +1,9 @@
+feat(codegen): wire actor Envelope dispatch, stopping message drops
+scale: ~308 lines across 4 files [L]
+
+- `crates/vox-integration-tests/tests/actor_dispatch_e2e_test.rs`: Add a new end-to-end test for actor dispatch, mirroring `emit_actor_body`'s output. It verifies that emitted actors correctly decode `{"event","args"}` JSON, call handlers, mutate state for `Message`s, and reply for `Request`s.
+- `crates/vox-codegen/src/codegen_rust/emit/durability_lower.rs`: Implement `emit_actor_dispatch_arm` to generate code for dispatching `on <event>` handlers. This replaces the no-op mailbox loop with a real dispatch table that decodes `event` and positional `args`, calls the appropriate `Actor_event` function, and handles replies for `Request`s.
+- `crates/vox-codegen/tests/durability_lowering.rs`: Add `actor_dispatch_table_routes_to_handlers` test to assert that the codegen output for actors now includes a functional dispatch table for `Envelope`s, routing to handlers like `MyActor_greet` and `MyActor_tick`, and handling replies.
+- `crates/vox-actor-runtime/src/mailbox.rs`: Add `actor_event_args_wire_format_roundtrip` test to pin the `{"event","args"}` JSON wire format contract for actor dispatch.
+
+--- audit: original='feat(codegen): wire actor Envelope dispatch (D3) — emitted actors stop dropping messages' | actual=308L across 4 files | derived=full ---
