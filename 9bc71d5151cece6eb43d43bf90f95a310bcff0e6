@@ -1,0 +1,18 @@
+feat(compiler): Implement struct types with anonymous record literals
+scale: ~210 lines across 14 files [M]
+
+- **parser**: Added parsing for struct type definitions (`type Foo { f: T, ... }`) by branching on `{` after the type name.
+- **AST/HIR**: `HirTypeDef` now includes a `fields` vector to store struct fields; `hir/lower/decl.rs` lowers these fields.
+- **typeck/env**: `AdtDef` gained a `fields` field to represent product types.
+- **typeck/registration**: `register_hir_typedef` now populates the `fields` for struct types.
+- **typeck/checker/expr**: When an object literal's expected type is a named struct, its declared fields are used as expected hints for per-field type checking, and the expression resolves to `Ty::Named(name)`.
+- **typeck/checker/expr_field**: Added logic to resolve field access on `Ty::Named` types (structs) to their declared field types.
+- **typeck/checker/mod**: The function's declared return type is now passed as an expected hint to the return value expression, enabling context-typed checking of anonymous record literals against struct shapes.
+- **codegen_ts/adt**: Generates `export type Foo = { ... }` for struct typedefs.
+- **codegen_ts/zod_emit**: Generates a flat `z.object({ ... })` schema for struct typedefs.
+- **codegen_rust/emit/workflow**: Emits `#[derive(...)] pub struct Foo { pub f: T, ... }` for struct typedefs and skips re-exporting them with `pub use self::Foo::*;`.
+- **examples/golden/struct_types.vox**: Added a new example demonstrating struct type declaration, construction via anonymous record literals, and field access.
+- **docs/superpowers/plans/2026-05-08-language-struct-types.md**: Updated plan document.
+- **typeck/builtins**: Minor update.
+
+--- audit: original='feat(compiler): struct types (plan 1)' | actual=210L across 14 files | derived=full ---
