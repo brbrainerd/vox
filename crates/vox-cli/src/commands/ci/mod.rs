@@ -23,6 +23,7 @@ mod determinism_audit;
 mod dev_loop_audit;
 mod docs_reality_audit;
 mod doctest_md;
+pub(super) mod doctor_build_cache;
 mod eval_matrix;
 mod exec_policy_contract;
 mod free_binary;

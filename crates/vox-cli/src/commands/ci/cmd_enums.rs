@@ -442,6 +442,9 @@ pub enum CiCmd {
         #[arg(long, default_value = "mens/runs/logs")]
         log_dir: PathBuf,
     },
+    /// Check sccache setup and advise on correct configuration.
+    #[command(name = "build-cache-doctor")]
+    BuildCacheDoctor,
     /// Wall-clock timings for key `cargo check` lanes (default CLI, GPU+stub, optional CUDA).
     #[command(name = "build-timings")]
     BuildTimings {
@@ -1039,6 +1042,7 @@ impl CiCmd {
             CiCmd::ScientiaNoveltyLedgerContracts => {
                 Some("ci-gate/ci.scientia-novelty-ledger-contracts")
             }
+            CiCmd::BuildCacheDoctor => Some("ci-gate/ci.build-cache-doctor"),
             // The registry machinery itself is intentionally untracked, and any
             // gate without a registry-backed `ci-gate` row stays grey.
             _ => None,

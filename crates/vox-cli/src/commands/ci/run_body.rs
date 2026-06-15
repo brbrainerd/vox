@@ -60,6 +60,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
     let started = std::time::Instant::now();
 
     let result: Result<()> = match cmd {
+        CiCmd::BuildCacheDoctor => super::doctor_build_cache::run(),
         CiCmd::Manifest => run_manifest(&root),
         CiCmd::PolicyRegistry { write } => {
             super::policy_registry::run_generate(&root, write).map_err(|e| anyhow!(e))
