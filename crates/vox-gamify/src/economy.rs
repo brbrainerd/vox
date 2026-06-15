@@ -53,7 +53,7 @@ impl Default for Tuning {
             grind_zero_threshold: crate::reward_policy::GRIND_ZERO_THRESHOLD,
             grind_caps_high_frequency: (8, 14),
             grind_caps_default: (15, 25),
-            novelty_factor: 1.5,
+            novelty_factor: crate::reward_policy::NOVELTY_FACTOR,
             streak_bonus_per_day: 0.02,
             streak_bonus_cap_days: 25,
             learning_jitter_modulus: 4,
@@ -263,6 +263,49 @@ pub fn parse_economy(text: &str) -> anyhow::Result<EconomyConfig> {
 
 /// Repo-relative path to the shipped economy contract, resolved from this crate.
 pub const SHIPPED_CONTRACT_RELPATH: &str = "../../contracts/gamify/economy.v1.yaml";
+
+/// Workspace-root-relative path to the shipped economy contract.
+pub const CONTRACT_WORKSPACE_RELPATH: &str = "contracts/gamify/economy.v1.yaml";
+
+/// Resolve the live [`EconomyConfig`], loading the shipped economy contract if it
+/// can be found, and otherwise falling back to [`EconomyConfig::default`].
+///
+/// This is the safe runtime entry point: a missing or unparseable contract never
+/// fails the caller — it logs and returns the in-code defaults, which are
+/// behavior-identical to the shipped contract.
+pub fn resolve_economy() -> EconomyConfig {
+    // Candidate locations, in priority order:
+    //  1. Explicit override via env var (deployment / tests).
+    //  2. Current working directory (workspace root when running from repo).
+    //  3. Compile-time crate-relative path (covers `cargo test`/dev runs).
+    let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+    if let Ok(p) = std::env::var("VOX_GAMIFY_ECONOMY_PATH") {
+        candidates.push(p.into());
+    }
+    candidates.push(std::path::PathBuf::from(CONTRACT_WORKSPACE_RELPATH));
+    candidates
+        .push(std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(SHIPPED_CONTRACT_RELPATH));
+
+    for path in candidates {
+        if path.exists() {
+            match load_economy(&path) {
+                Ok(cfg) => {
+                    tracing::debug!("loaded gamify economy contract from {}", path.display());
+                    return cfg;
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "failed to load gamify economy contract {}: {e}; falling back to defaults",
+                        path.display()
+                    );
+                    return EconomyConfig::default();
+                }
+            }
+        }
+    }
+    tracing::debug!("no gamify economy contract found; using in-code defaults");
+    EconomyConfig::default()
+}
 
 #[cfg(test)]
 mod tests {

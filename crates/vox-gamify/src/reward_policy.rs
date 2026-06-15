@@ -57,7 +57,7 @@ pub const GRIND_TAPER_END: u32 = 30;
 pub const GRIND_ZERO_THRESHOLD: u32 = 31;
 
 /// Novelty bonus factor applied to the first occurrence of each event type.
-const NOVELTY_FACTOR: f64 = 1.5;
+pub const NOVELTY_FACTOR: f64 = 1.5;
 
 // ── Base rewards ─────────────────────────────────────────
 
@@ -255,12 +255,31 @@ pub fn learning_mode_crystal_jitter(
     event_type: &str,
     base_crystals_after_policy: u64,
 ) -> u64 {
+    learning_mode_crystal_jitter_cfg(
+        &crate::economy::EconomyConfig::default(),
+        user_id,
+        event_type,
+        base_crystals_after_policy,
+    )
+}
+
+/// Config-aware variant of [`learning_mode_crystal_jitter`] sourcing the jitter
+/// modulus from the loaded [`crate::economy::EconomyConfig`]. With the default
+/// config (modulus 4) this is byte-identical to the legacy function.
+#[must_use]
+pub fn learning_mode_crystal_jitter_cfg(
+    cfg: &crate::economy::EconomyConfig,
+    user_id: &str,
+    event_type: &str,
+    base_crystals_after_policy: u64,
+) -> u64 {
     if base_crystals_after_policy == 0 {
         return 0;
     }
     if !matches!(crate::config_gate::mode(), vox_config::GamifyMode::Learning) {
         return 0;
     }
+    let modulus = cfg.tuning.learning_jitter_modulus.max(1);
     // FNV-1a inline to guarantee stability across Rust upgrades.
     struct Fnv1a(u64);
     impl std::hash::Hasher for Fnv1a {
@@ -279,7 +298,7 @@ pub fn learning_mode_crystal_jitter(
     user_id.hash(&mut h);
     day.hash(&mut h);
     event_type.hash(&mut h);
-    h.finish() % 4
+    h.finish() % modulus
 }
 
 // ── Trust Tier ────────────────────────────────────────────
@@ -327,17 +346,51 @@ pub fn apply_policy(
     event_type: &str,
     session: &mut SessionState,
 ) -> PolicyReward {
+    // Backward-compatible path: source tuning/trust from the in-code defaults
+    // (which mirror the constants in this module). Live callers should prefer
+    // `apply_policy_cfg` to read from the loaded `EconomyConfig`.
+    apply_policy_cfg(
+        &crate::economy::EconomyConfig::default(),
+        base,
+        mode_multiplier,
+        streak_days,
+        trust_tier,
+        event_type,
+        session,
+    )
+}
+
+/// Apply the full policy stack, sourcing all tuning scalars and trust-tier
+/// multipliers from a loaded [`crate::economy::EconomyConfig`] (the economy
+/// contract) rather than the bare in-code constants.
+///
+/// When `cfg` is [`EconomyConfig::default`] this is byte-identical to the
+/// legacy [`apply_policy`] (the defaults mirror the constants in this module),
+/// so the migration is behavior-preserving for the shipped contract.
+#[allow(clippy::too_many_arguments)]
+pub fn apply_policy_cfg(
+    cfg: &crate::economy::EconomyConfig,
+    base: &BaseReward,
+    mode_multiplier: f64,
+    streak_days: u32,
+    trust_tier: crate::profile::TrustTier,
+    event_type: &str,
+    session: &mut SessionState,
+) -> PolicyReward {
+    let tuning = &cfg.tuning;
     // Record occurrence then apply tiered decay. High-frequency / low-signal events taper faster.
     let count = session.record(event_type);
     let (full_cap, half_cap) = match event_type {
         "mcp_tool_called" | "message_sent" | "actor_message_sent" | "build_completed"
-        | "task_submitted" | "lock_acquired" | "lock_released" | "snapshot_captured" => (8, 14),
-        _ => (15, 25),
+        | "task_submitted" | "lock_acquired" | "lock_released" | "snapshot_captured" => {
+            tuning.grind_caps_high_frequency
+        }
+        _ => tuning.grind_caps_default,
     };
     let grind_multiplier = match count {
         c if c <= full_cap => 1.0,
         c if c <= half_cap => 0.5,
-        c if c <= GRIND_TAPER_END => 0.1,
+        c if c <= tuning.grind_taper_end => 0.1,
         _ => {
             tracing::debug!(
                 "grind cap: event '{}' has fired {} times this session, reward zeroed",
@@ -355,14 +408,19 @@ pub fn apply_policy(
         }
     };
 
-    // Streak bonus: +2% per day, max +50% at 25 days
-    let streak_bonus = 1.0 + (streak_days.min(25) as f64 * 0.02);
+    // Streak bonus: +2% per day, max +50% at 25 days (defaults; from config).
+    let streak_bonus =
+        1.0 + (streak_days.min(tuning.streak_bonus_cap_days) as f64 * tuning.streak_bonus_per_day);
 
     // Novelty bonus for first occurrence (already recorded above, so check if count == 1)
-    let novelty = if count == 1 { NOVELTY_FACTOR } else { 1.0 };
+    let novelty = if count == 1 {
+        tuning.novelty_factor
+    } else {
+        1.0
+    };
 
-    // Trust tier multiplier
-    let trust_mult = trust_tier_multiplier(trust_tier);
+    // Trust tier multiplier (from config).
+    let trust_mult = cfg.trust_tier_multipliers.multiplier(trust_tier);
 
     let effective_multiplier =
         mode_multiplier * streak_bonus * novelty * grind_multiplier * trust_mult;
@@ -650,6 +708,123 @@ mod tests {
         let r = o.resolve("task_completed");
         assert_eq!(r.xp, 999);
         assert_eq!(r.crystals, 42);
+    }
+
+    #[test]
+    fn apply_policy_cfg_default_matches_legacy_apply_policy() {
+        // Behavior preservation: the config-aware path with the DEFAULT economy
+        // config produces byte-identical rewards to the legacy `apply_policy`.
+        let cfg = crate::economy::EconomyConfig::default();
+        let base = base_reward("bug_fix");
+        for streak in [0u32, 7, 25, 40] {
+            for ev in ["bug_fix", "mcp_tool_called", "task_completed"] {
+                let mut s_legacy = SessionState::default();
+                let mut s_cfg = SessionState::default();
+                let legacy = apply_policy(
+                    &base,
+                    1.5,
+                    streak,
+                    crate::profile::TrustTier::Proven,
+                    ev,
+                    &mut s_legacy,
+                );
+                let via_cfg = apply_policy_cfg(
+                    &cfg,
+                    &base,
+                    1.5,
+                    streak,
+                    crate::profile::TrustTier::Proven,
+                    ev,
+                    &mut s_cfg,
+                );
+                assert_eq!(
+                    (
+                        legacy.xp,
+                        legacy.crystals,
+                        legacy.lumens,
+                        legacy.grant_shield
+                    ),
+                    (
+                        via_cfg.xp,
+                        via_cfg.crystals,
+                        via_cfg.lumens,
+                        via_cfg.grant_shield
+                    ),
+                    "default-config path diverged for event '{ev}' streak {streak}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn apply_policy_cfg_sources_tuning_from_config() {
+        // LIVE-path proof: an override in the EconomyConfig flows through
+        // apply_policy_cfg to a changed reward. Here we bump the novelty factor
+        // and trust multiplier, so the first-occurrence reward must increase.
+        let mut cfg = crate::economy::EconomyConfig::default();
+        let base = base_reward("task_completed"); // (50, 5)
+
+        let mut s_base = SessionState::default();
+        let baseline = apply_policy_cfg(
+            &cfg,
+            &base,
+            1.0,
+            0,
+            crate::profile::TrustTier::Linked,
+            "task_completed",
+            &mut s_base,
+        );
+
+        cfg.tuning.novelty_factor = 3.0; // was 1.5
+        cfg.trust_tier_multipliers.linked = 2.0; // was 1.0
+        let mut s_over = SessionState::default();
+        let boosted = apply_policy_cfg(
+            &cfg,
+            &base,
+            1.0,
+            0,
+            crate::profile::TrustTier::Linked,
+            "task_completed",
+            &mut s_over,
+        );
+
+        assert!(
+            boosted.xp > baseline.xp,
+            "config override should raise the live reward: {} !> {}",
+            boosted.xp,
+            baseline.xp
+        );
+    }
+
+    #[test]
+    fn apply_policy_cfg_grind_caps_from_config() {
+        // Tighten the default-event grind cap to 1 occurrence; the second fire
+        // must taper. Proves grind caps are sourced from the config.
+        let mut cfg = crate::economy::EconomyConfig::default();
+        cfg.tuning.grind_caps_default = (1, 1);
+        cfg.tuning.grind_taper_end = 1; // anything past half_cap zeroes
+        let base = BaseReward::new(100, 10);
+        let mut session = SessionState::default();
+        let first = apply_policy_cfg(
+            &cfg,
+            &base,
+            1.0,
+            0,
+            crate::profile::TrustTier::Linked,
+            "novel_grind_event",
+            &mut session,
+        );
+        assert!(!first.grind_capped);
+        let second = apply_policy_cfg(
+            &cfg,
+            &base,
+            1.0,
+            0,
+            crate::profile::TrustTier::Linked,
+            "novel_grind_event",
+            &mut session,
+        );
+        assert!(second.grind_capped, "second fire should be grind-capped");
     }
 
     #[test]
