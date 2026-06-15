@@ -1,0 +1,13 @@
+fix(compiler): harden `repo.*` dispatch, validate args, and descend into `Try` for effect checks
+scale: ~153 lines across 3 files [M]
+
+- `crates/vox-compiler/src/eval/repo.rs`:
+    - Added argument validation for `repo.snapshot`, `repo.changes`, and `repo.undo` methods, checking arity and type for `snapshot`'s label argument.
+    - Returned `EvalError::ArityMismatch` or `EvalError::TypeError` for invalid arguments.
+- `crates/vox-compiler/src/typeck/effect_check.rs`:
+    - Modified `check_expr` and `infer_expr_effects` to descend into `HirExpr::Try` nodes, ensuring effect checks are applied to the target expression within a `Try` block.
+    - Added a test case `test_repo_method_call_with_try_requires_vcs` to verify that `repo.snapshot(...)?` correctly requires `uses vcs`.
+- `crates/vox-compiler/src/eval/expr.rs`:
+    - Changed `repo.*` namespace dispatch to gate on AST receiver identity (`HirExpr::Ident("repo", _)`) instead of a spoofable `__namespace__` object field, improving security and robustness.
+
+--- audit: original='fix(compiler): harden repo.* dispatch (AST identity), validate args, descend into Try for effect checks' | actual=153L across 3 files | derived=full ---
