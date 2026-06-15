@@ -1,0 +1,7 @@
+refactor(vox-cli): Remove `island` feature and CLI dispatch arm
+scale: ~9 lines across 2 files [S]
+
+- `crates/vox-cli/src/cli_dispatch/mod.rs`: Removed the `Cli::Island` dispatch arm and its associated `#[cfg(feature = "island")]` attribute.
+- `crates/vox-cli/Cargo.toml`: Removed the `island` feature definition.
+
+--- audit: original='refactor(vox-cli): feature-gate review/rmcp/axum-extra; remove dead island' | actual=9L across 2 files | derived=full ---
