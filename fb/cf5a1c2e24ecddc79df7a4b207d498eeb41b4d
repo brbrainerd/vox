@@ -1,0 +1,13 @@
+feat(cli): Add `fmt` and `install` commands, update chatbot example and docs
+scale: ~1113 lines across 6107 files [XL]
+
+- `crates/vox-cli/src/main.rs`: Introduced new `Fmt` and `Install` subcommands to the CLI, enabling in-place Vox source file formatting and package installation via `vox-pm`.
+- `crates/vox-cli/src/commands/mod.rs`: Added new modules `fmt` and `install` to the CLI commands.
+- `examples/chatbot.vox`: Reformatted the chatbot example file, primarily adjusting spacing around operators and HTML-like tags.
+- `AGENTS.md`: Updated the "Ecosystem & Tooling" section to reflect the completion and integration of the `vox fmt` formatter and `vox install` package manager. Added a new point under "AI-Native" regarding "ZERO Null States" and strict type handling.
+- `vox_completeness_audit_update.md`: Updated the scorecard and status for "Durable Workflow Syntax" and "Code Generation Depth" to "Completed", reflecting full implementation and integration of these features.
+- `continue_prompt.md`: Modified the `ERROR HANDLING` quality gate instruction to emphasize fixing all errors at once before retesting, and updated the `EFFICIENCY` instruction to suggest testing and adding code in chunks.
+- `Cargo.lock`: Updated the lock file to reflect new dependencies for `vox-cli`, specifically `logos` and `vox-pm`.
+- `target/debug/`: Numerous `.d` and `.json` files were modified or deleted, indicating a rebuild of the project due to the code changes.
+
+--- audit: original='chore: Update continue prompt with efficiency/retesting instructions' | actual=1113L across 6107 files | derived=full ---
