@@ -1,0 +1,11 @@
+refactor(compiler): remove stale island references from doc-comments
+scale: ~27 lines across 6 files [M]
+
+- `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs`: Removed doc-comment sections related to "island mount strings", "fine-grained HIR statement emit", and "island and event helpers delegate to `super::island_emit`", as these concepts are now handled by `crate::web_ir`.
+- `crates/vox-compiler/src/hir/lower/mod.rs`: Updated doc-comments to remove references to `Decl::Island` when describing what structured data reaches WebIR and how `Decl` arms map to `HirModule` fields.
+- `crates/vox-compiler/src/codegen_ts/jsx.rs`: Removed doc-comment reference to `super::island_emit::format_island_mount_ast`.
+- `crates/vox-compiler/src/codegen_ts/component.rs`: Updated a doc-comment to remove the mention of "island names" in the context of classic AST codegen and Path C reactive consuming shared helpers.
+- `crates/vox-compiler/src/parser/descent/decl/tail.rs`: Updated a doc-comment to generalize "v0 island stub body" to "v0 stub body".
+- `.claude/settings.local.json`: Added a new `Bash` command to the `post_checkout_commands` list.
+
+--- audit: original='refactor(compiler): scrub stale island references from doc-comments' | actual=27L across 6 files | derived=full ---
