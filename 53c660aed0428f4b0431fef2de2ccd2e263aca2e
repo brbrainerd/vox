@@ -1,0 +1,10 @@
+docs(architecture): replace broken links in new architecture docs
+scale: ~16 lines across 2 files [S]
+
+- docs/src/architecture/adr-NNN-scope-tauri-desktop-only.md:
+  - Replaced `adr-037-tauri-canonical-platform.md` link with plain text "ADR-037 (2026-05-11, not yet filed as a doc)".
+  - Replaced `crates/vox-gui` and `crates/vox-tauri-codegen` links with code spans.
+- docs/src/architecture/mobile-rn-expo-implementation-spec-2026.md:
+  - Replaced `codegen-ssot-unification-design-2026.md` links with plain text "Codegen SSOT Unification 2026 (design doc not yet filed)".
+
+--- audit: original='fix(docs): replace broken markdown links in new architecture docs' | actual=16L across 2 files | derived=full ---
