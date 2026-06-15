@@ -1,0 +1,9 @@
+feat(ci): agentskills-compliance accepts YAML frontmatter and skips test fixtures
+scale: ~78 lines across 1 files [M]
+
+- `crates/vox-cli/src/commands/ci/agentskills_compliance.rs`:
+    - Modified `extract_scalar` to parse both TOML-like (`key = "value"`) and YAML-like (`key: value`) frontmatter for scalar values, including stripping quotes. This addresses an issue where spec-mandated YAML `SKILL.md` files failed due to a TOML-only parser.
+    - Added `is_fixture_path` function to identify and skip test fixture paths (those containing "tests/" or "fixtures/"). This prevents compliance checks from failing on intentionally minimal fixture skills that cannot satisfy all validation rules.
+    - Integrated `is_fixture_path` into the main compliance check logic to bypass validation for identified fixtures.
+
+--- audit: original='feat(ci): agentskills-compliance accepts YAML frontmatter + skips fixtures' | actual=78L across 1 files | derived=full ---
