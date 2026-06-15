@@ -1,0 +1,6 @@
+test(vox-vcs): convert CasFallback parity tests to async
+scale: ~70 lines across 1 files [M]
+
+- `crates/vox-vcs/src/cas_fallback.rs`: Converted four `CasFallback` parity tests (`undo_on_empty_is_nothing_to_undo`, `multi_path_snapshot_preserves_paths_and_label_in_order`, `ids_are_monotone_with_gaps_after_undo`, `undo_restores_previous_state`) from synchronous `#[test]` to asynchronous `#[tokio::test] async` functions, including adding `.await` calls.
+
+--- audit: original='fix(vox-vcs): make CasFallback parity tests async (unbreaks the jj test crate) (#181)' | actual=70L across 1 files | derived=full ---
