@@ -1,0 +1,7 @@
+feat(publisher): Implement ArxivAssist ScholarlyAdapter for staged arXiv submissions
+scale: ~123 lines across 2 files [M]
+
+- `crates/vox-publisher/src/scholarly/arxiv_api.rs`: Add new module `arxiv_api` containing `ArxivAssistAdapter` to handle arXiv submissions. This adapter stages a submission bundle (handoff JSON, `body.md`, `main.tex` stub) and returns a "staged" status, as arXiv lacks an automated deposit API.
+- `crates/vox-publisher/src/scholarly/mod.rs`: Integrate `ArxivAssistAdapter` by importing the new `arxiv_api` module. Update `submit_for_adapter_normalized` and `fetch_status_with_configured_adapter` functions to use `ArxivAssistAdapter` for `ArxivAssist` kind. Extend `fetch_scholarly_remote_status_for_adapter` to recognize "arxiv_assist" and "arxiv" kinds.
+
+--- audit: original='feat(scientia): Phase 8 — ArxivAssist ScholarlyAdapter (staging-based handoff)' | actual=123L across 2 files | derived=full ---
