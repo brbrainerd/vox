@@ -1,0 +1,19 @@
+docs(handoff): document PR #92/#90 harmonization pause snapshot
+scale: ~242 lines across 1 files [M]
+
+- Create `docs/superpowers/specs/2026-05-25-pr-harmonization-pause-handoff.md` to record the state of PR #92 and #90 harmonization.
+- The document details:
+    - Current repository state, including local and origin ref synchronization for `main`, PR #92, and PR #90 branches.
+    - Clean working trees for both the main repository and PR #92's worktree.
+    - Recent activity on the `main` branch.
+    - User decisions made but not yet implemented, such as resolving commit audit docs, the plan for merging PRs, and conflict resolution authority.
+    - Predicted conflict surface for PR #92 (~7 files) and PR #90 (larger).
+    - Pending MENS tasks deferred for a follow-up session.
+    - Corrections and refinements based on prior session findings.
+    - Exact step-by-step commands for the resumer to continue the harmonization process.
+    - Scope exclusions, including stale PRs #70/#68, MENS, and abandoned forks.
+    - A risk register covering cwd-bug mitigation and `Cargo.lock` handling.
+    - An open question regarding immediate execution versus a fresh session.
+- The document is intended to land on `main` as the canonical record once PR #92 merges.
+
+--- audit: original='docs(handoff): PR #92/#90 harmonization pause snapshot (2026-05-25)' | actual=242L across 1 files | derived=full ---
