@@ -1,0 +1,16 @@
+feat(chat): persist composer mode and tier to task enqueue hints
+scale: ~144 lines across 7 files [M]
+
+- `vox-gui/ui`:
+  - `Loquela.tsx`: Refactored model/tier list loading to refresh on window focus and every 60 seconds. Added `cancelled` flag to prevent state updates on unmounted components. Corrected stale tier selection only on the first load to avoid disrupting user selection during background refreshes.
+  - `App.tsx`: Added `mode` and `tier` fields to the `submit_orchestrator_task` payload.
+- `vox-gui/src`:
+  - `commands/control_plane.rs`: Modified `SubmitTaskInput` to include `mode` and `tier` fields. Implemented logic to forward `mode` and `tier` (as `model_preference`) as `enqueue_hints` to the orchestrator daemon, only including non-empty values.
+- `vox-orchestrator/src`:
+  - `orch_daemon/mod.rs`: Added a new test `submit_with_enqueue_hints_carries_tier_and_mode` to verify that `model_preference` and `mode` are correctly carried through when submitting a task with enqueue hints.
+  - `types/tasks.rs`: Added a `mode` field to `TaskEnqueueHints` and `AgentTask` structs to store the interaction mode. Updated `AgentTask::apply_hints` to apply the `mode` from `TaskEnqueueHints`. Initialized `mode` to `None` in `AgentTask::new`.
+  - `planning/replan.rs`: Initialized `mode` to `None` in `enqueue_recovery_first_node`.
+- `vox-orchestrator-mcp/src`:
+  - `task_tools/submission.rs`: Initialized `mode` to `None` in `enqueue_hints_from_submit_params`.
+
+--- audit: original='feat(chat): carry composer mode + tier through submit to the task' | actual=144L across 7 files | derived=full ---
