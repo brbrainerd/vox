@@ -1,0 +1,9 @@
+feat(vox-telemetry): Add TaskTelemetryAggregator and integrate with CompositeRecorder
+scale: ~270 lines across 4 files [L]
+
+- crates/vox-telemetry/src/aggregator.rs: New module `aggregator.rs` introduced, providing `TaskAggregate` struct to accumulate `ModelCallEvent` statistics (input/output tokens, cost, child call count, max span depth) per task, and a global `AGGREGATOR` mutex-protected HashMap to store these aggregates keyed by `task_id`. Includes `observe` function to process `TelemetryEvent`s and `fill_task_root_summary` to populate `TaskRootSummaryEvent` with aggregated data.
+- crates/vox-orchestrator-mcp/src/task_tools/lifecycle.rs: Modified `complete_task` and `fail_task` functions to call `vox_telemetry::fill_task_root_summary` to populate `TaskRootSummaryEvent` with actual aggregated values before recording the event, replacing placeholder zeros.
+- crates/vox-telemetry/src/recorder.rs: `CompositeRecorder::record` method updated to call `crate::aggregator::observe` for every `TelemetryEvent`, ensuring model-call statistics are accumulated.
+- crates/vox-telemetry/src/lib.rs: Added `pub mod aggregator;` and `pub use aggregator::fill_task_root_summary;` to expose the new aggregator module and its `fill_task_root_summary` function.
+
+--- audit: original='feat(vox-telemetry): TaskTelemetryAggregator + wire into CompositeRecorder' | actual=270L across 4 files | derived=full ---
