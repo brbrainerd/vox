@@ -1,0 +1,9 @@
+refactor(quality): adjust Biome TS coverage and enforce as hard gate
+scale: ~7 lines across 2 files [S]
+
+- `.github/workflows/docs-quality.yml`: Removed `continue-on-error` for the Biome TypeScript lint step, making it a hard gate. Updated comments to reflect this graduation from a bootstrap period.
+- `biome.json`:
+  - Removed `vox-vscode/src/**/*.{ts,tsx}` from Biome's include list, as `vox-vscode` is already linted by ESLint in CI.
+  - Added `apps/vox-mental-tracker/src/**/*.{ts,tsx}` to Biome's include list to provide TypeScript linting for the React Native app, which previously lacked CI linting.
+
+--- audit: original='feat(quality): fix biome TS coverage scope + graduate to hard gate' | actual=7L across 2 files | derived=full ---
