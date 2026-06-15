@@ -1,0 +1,12 @@
+fix(codegen-rust): handle non-unit `fn main()` return types in script mode
+scale: ~52 lines across 2 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/pipeline.rs`:
+    - Modified `codegen_rust` to handle `fn main()` functions with non-unit return types (`fn main() to int`, `fn main() to str`) in `ScriptTarget::Native` mode.
+    - For non-unit return types, the `main` function's body is now wrapped in a closure, and its result is printed to `stdout`, mirroring the interpreter's behavior.
+    - Unit-returning or unannotated `main` functions continue to be emitted directly into `fn main()`.
+    - Async `main` functions are still emitted directly into `#[tokio::main] async fn main()`.
+- `crates/vox-codegen/src/codegen_rust/emit/mod.rs`:
+    - Exported `emit_type` from the `types` module for use in `pipeline.rs`.
+
+--- audit: original='fix(codegen-rust): handle `fn main() to T` return (CR-F2 backlog #1)' | actual=52L across 2 files | derived=full ---
