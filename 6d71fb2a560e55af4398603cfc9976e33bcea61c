@@ -1,0 +1,6 @@
+docs(plans): add local CI pre-push and job split implementation plan
+scale: ~695 lines across 1 files [L]
+
+- Add a new plan document detailing the implementation of a `vox ci pre-push` aggregate command and the decomposition of the `ci.yml` `check-and-test` GitHub Actions job into five parallel jobs.
+
+--- audit: original='docs(plans): add local-ci-pre-push + job-split implementation plan' | actual=695L across 1 files | derived=full ---
