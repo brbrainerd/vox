@@ -1,0 +1,9 @@
+docs(architecture): Add new dashboard migration research document
+scale: ~318 lines across 4 files [L]
+
+- Add `dashboard-migration-research-2026.md` with frontmatter for title, description, category, and status.
+- Update `architecture-index.md` to include the new dashboard migration research document.
+- Update `SUMMARY.md` to reflect the new document and other minor changes.
+- Update `feed.xml` with various content and structural changes.
+
+--- audit: original='docs: Fix frontmatter to allow push' | actual=318L across 4 files | derived=full ---
