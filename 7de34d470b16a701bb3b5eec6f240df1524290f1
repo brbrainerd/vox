@@ -1,0 +1,7 @@
+docs(arch): Add detector and heuristic rule SSOT design and implementation plan
+scale: ~2229 lines across 2 files [XL]
+
+- Add `docs/src/architecture/2026-05-09-detector-rule-ssot-plan.md` detailing a step-by-step plan for implementing a Single Source of Truth (SSOT) system for detector regex/heuristic rules, including a new `vox-rule-pack` crate, YAML rule file, pilot migration of `victory_claim`, and an authoring-time benchmark tool.
+- Add `docs/src/architecture/2026-05-09-detector-rule-ssot-design.md` outlining the architectural design for the detector and heuristic rule SSOT, addressing the problem of hard-coded values in Rust source for code-audit detectors and Scientia heuristics.
+
+--- audit: original='docs(arch): detector & heuristic rule SSOT design + implementation plan' | actual=2229L across 2 files | derived=full ---
