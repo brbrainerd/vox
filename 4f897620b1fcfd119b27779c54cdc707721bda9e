@@ -1,0 +1,14 @@
+feat(vox-db): add read functions for SCIENTIA claims and pending counts
+scale: ~273 lines across 5 files [L]
+
+- **`crates/vox-db/src/research_pipeline.rs`**:
+    - Added `VoxDb::list_publication_claims(session_id)` to retrieve claims with their latest non-span verdicts, ordered by creation time.
+    - Added `VoxDb::scientia_claims_pending_summary()` to get global counts of verifiable, abstained, and extraction-running claims.
+- **`crates/vox-db-types/src/research.rs`**:
+    - Defined `ScientiaClaimWithVerdict` DTO for claims joined with verdict details.
+    - Defined `ClaimsPendingCounts` DTO for global claim summary statistics.
+- **`crates/vox-db-types/src/lib.rs`**: Exported new DTOs from `research` module.
+- **`crates/vox-db/tests/scientia_pipeline_methods.rs`**: Added an integration test for `list_publication_claims` and `scientia_claims_pending_summary`, verifying correct verdict joining and count aggregation.
+- **`docs/superpowers/specs/2026-06-01-scientia-claims-persistence-and-gui-design.md`**: Added a new design document outlining the persistence, read, and GUI requirements for SCIENTIA claims.
+
+--- audit: original='feat(vox-db): read functions for SCIENTIA extracted claims (stage 1)' | actual=273L across 5 files | derived=full ---
