@@ -1,0 +1,12 @@
+fix(review): address CodeRabbit feedback on PR #103
+scale: ~53 lines across 7 files [M]
+
+- `crates/vox-cli/src/commands/runtime/run/sandbox.rs`: Propagate errors from `restrict_self()` to ensure fail-closed behavior, preventing unsandboxed execution on restriction failure.
+- `contracts/gui/action-manifest.v1.schema.json`: Made `value_kind` optional in the `ActionManifest` schema to maintain backward compatibility with v1, avoiding a v2 split.
+- `crates/vox-gui/ui/src/App.tsx`: Added six new surfaces (`scientia`, `claims`, `mens`, `populi`, `research`, `oratio`) to the `get_initial_view` allow-list.
+- `docs/src/architecture/cli-gui-surface-coverage-map-2026.md`: Updated the document status from "current" to "research".
+- `crates/vox-cli/src/commands/scientia_phase_handlers.rs`: Extracted the pure `build_claims_payload()` function for building JSON payloads for `vox scientia claims` and added a unit test for its shape.
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/ClaimsView.tsx`: Ensured `setBusy(false)` is always called by moving it into a `finally` block in `ClaimsView`'s `handleExtractClaims` function.
+- `crates/vox-cli/src/telemetry_corpus_feedback_sink.rs`: Added `selection_rationale: None` to the `ModelCallEvent` constructor in tests to align with recent changes in the `main` branch.
+
+--- audit: original='fix(review): address CodeRabbit feedback on PR #103' | actual=53L across 7 files | derived=full ---
