@@ -1,0 +1,11 @@
+docs(handoff): Create PR #92 merge completion playbook for 2026-05-27
+scale: ~328 lines across 1 files [L]
+
+- **New document:** Added `docs/superpowers/specs/2026-05-27-merge-completion-handoff.md` to provide a detailed audit and execution playbook for merging PR #92 into `main`.
+- **Merge strategy:** The document outlines a strategy to complete the merge without losing local-only commits, parallel-session WIP, or remote work, focusing on intelligent feature-combining for conflict resolution.
+- **State audit:** Includes verified Git ref deltas, identifying 40 unpushed commits on local `main` and 76 unpushed commits on the local PR #92 branch.
+- **Conflict resolution:** Predicts 21 file conflicts and provides a per-file resolution table.
+- **Playbook sections:** The document is structured into sections covering verified refs, unpushed `main` inventory, conflict resolution, changes since the prior handoff, missing context flags, two-strategy execution plan, rapid resolution playbook with commands, stale item pruning, and a critical risk register.
+- **Metadata:** Includes front matter with title, description, category, status, last updated date, and training eligibility rationale.
+
+--- audit: original='docs(handoff): PR #92 → main merge completion playbook (2026-05-27)' | actual=328L across 1 files | derived=full ---
