@@ -1,0 +1,9 @@
+fix(codegen-web): improve numeric form field validation and rendering
+scale: ~20 lines across 1 files [S]
+
+- `crates/vox-codegen/src/codegen_ts/form_emit.rs`:
+    - Changed the initial value for numeric fields from `0` to `NaN` to correctly represent an empty state.
+    - Modified the validation logic for required numeric fields to check `Number.isNaN()` instead of `=== ""`.
+    - Updated the rendering of numeric input fields to display an empty string when the value is `NaN`, preventing "NaN" from being shown in the input.
+
+--- audit: original='fix(codegen-web): numeric @form field validation + empty init (web parity)' | actual=20L across 1 files | derived=full ---
