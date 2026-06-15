@@ -1,0 +1,13 @@
+refactor(arch): narrow `unsafe_code` allows from module to item scope
+scale: ~23 lines across 6 files [M]
+
+- `crates/vox-cli/tests/telemetry_corpus_feedback_e2e.rs`: Replaced module-level `#![allow(unsafe_code)]` with item-level `#[allow(unsafe_code)]` on `init_telemetry_sinks_persists_cr_l8_events_to_jsonl_on_disk` test function, adding a safety comment.
+- `crates/vox-integration-tests/tests/ts_emit_goldens_probe.rs`: Removed module-level `#![allow(unsafe_code)]` and added item-level `#[allow(unsafe_code)]` to `probe_ts_emit` and `dump_codegen_ts_for_representative_goldens` functions, along with safety comments.
+- `crates/vox-integration-tests/tests/ts_emit_behavioral_test.rs`: Removed module-level `#![allow(unsafe_code)]` and added item-level `#[allow(unsafe_code)]` to `compile_to_ts` function, along with a safety comment.
+- `crates/vox-cli/src/telemetry_corpus_feedback_sink.rs`: Removed module-level `#![allow(unsafe_code)]` within the `tests` module and added item-level `#[allow(unsafe_code)]` to `disabled_sentinel_resolves_to_none` and `explicit_env_path_overrides_cwd_default` test functions.
+- `crates/vox-orchestrator/src/models/select.rs`: Removed module-level `#![allow(unsafe_code)]` within the `tests` module and added item-level `#[allow(unsafe_code)]` to `from_env_returns_default_when_unset` and `from_env_parses_custom_axes` test functions.
+- `crates/vox-orchestrator/src/types/routing_profile.rs`: Removed module-level `#![allow(unsafe_code)]` within the `tests` module and added item-level `#[allow(unsafe_code)]` to `config_maps_cost_preference_when_secret_unset` test function.
+
+This change resolves `crate-allow-unsafe-code` arch-check violations by narrowing the scope of `#[allow(unsafe_code)]` from entire modules to specific test functions or blocks that mutate process environment variables (`set_var`/`remove_var`). The SAFETY invariant (serial, single-threaded, snapshot+restore) is preserved or made explicit at each site, improving auditability of the unsafe surface.
+
+--- audit: original='fix(arch): narrow unsafe_code allows from module to item scope' | actual=23L across 6 files | derived=full ---
