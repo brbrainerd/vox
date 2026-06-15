@@ -1,0 +1,16 @@
+docs(arch): Clarify `codegen-ts` domain and correct CR-F2 definition
+scale: ~151 lines across 1 files [M]
+
+- **docs/src/architecture/codegen-ts-domain-boundary-and-cr-f2-correction-2026.md**:
+    - Add a new architectural document defining the intended domain boundary between `codegen_rust` and `codegen_ts`.
+    - Specify that `codegen_rust` emits logic/backend code (e.g., `fn main`, server functions, data layer) into native Rust.
+    - Specify that `codegen_ts` emits browser/GUI code (e.g., components, JSX, client routes, client SDK) into TypeScript/React.
+    - Correct the definition of CR-F2 from "three-arm byte-parity stdout" to a more granular set of criteria:
+        - CR-F2a: `codegen-rust` logic parity.
+        - CR-F2b: `codegen-ts` web emit correctness.
+        - CR-F2c: Split discipline.
+    - Outline a 6-step plan to achieve this state, including starting Task B (Rust logic-parity harness).
+    - Prune the idea of `codegen-ts` emitting logic as TypeScript.
+    - Update status to "roadmap / handoff" and link to related documents.
+
+--- audit: original='docs(arch): codegen-ts domain boundary + CR-F2 correction (handoff)' | actual=151L across 1 files | derived=full ---
