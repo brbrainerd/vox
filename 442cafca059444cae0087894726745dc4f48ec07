@@ -1,0 +1,6 @@
+fix(report): regenerate gui-surface-coverage report
+scale: ~0 lines across 1 files [XS]
+
+- contracts/reports/gui-surface-coverage.v1.json: Regenerated the binary file, updating the GUI surface coverage data.
+
+--- audit: original='fix(#274): regenerate gui-surface-coverage report' | actual=0L across 1 files | derived=full ---
