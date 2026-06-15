@@ -1,0 +1,8 @@
+feat(free-by-default): close remaining audit gaps for model routing
+scale: ~26 lines across 3 files [S]
+
+- `crates/vox-orchestrator/src/mode.rs`: Changed `QualityLevel::to_cost_preference` so that `QualityLevel::Balanced` now maps to `CostPreference::Economy` instead of `CostPreference::Performance`. `Flash` and `Balanced` now both prefer `Economy`, while `Premium` prefers `Performance`.
+- `crates/vox-orchestrator/src/routing/engine.rs`: Extended the `quality_first` exploration novelty bonus to include `ModelTier::Fast` and `ModelTier::Free` in addition to `ModelTier::Pro`. This ensures new free and fast models receive equal novelty exploration.
+- `docs/src/architecture/free-by-default-audit-2026-05-24.md`: Updated the audit document to mark the `QualityLevel::Balanced → Economy` and `Exploration bonus parity (Pro/Fast/Free)` items as complete.
+
+--- audit: original='feat(free-by-default): close remaining F-F-7 audit gaps' | actual=26L across 3 files | derived=full ---
