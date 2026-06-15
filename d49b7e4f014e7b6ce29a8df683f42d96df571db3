@@ -1,0 +1,7 @@
+docs(mens): correct DEFAULT_MODEL_ID VRAM retreat for 16 GiB; chore(mens): add mid-epoch checkpoints to resilient training
+scale: ~13 lines across 2 files [S]
+
+- `crates/vox-populi/src/mens/mod.rs`: Corrected the documentation for `DEFAULT_MODEL_ID` to state that the 7B Qwen2.5-Coder model retreats to 1.5B on a 16 GiB GPU, not 3B, based on current memory-budget calibration. Added a note that BF16 activation/embedding bundle and recalibration are expected to lift this ceiling towards 3B.
+- `scripts/mens/train_resilient.vox`: Added `--checkpoint-every 200` to the `mens train` command, enabling mid-epoch checkpoints to limit data loss to approximately 200 steps in case of a crash.
+
+--- audit: original='chore(mens): resilient wrapper mid-epoch checkpoints + fix DEFAULT_MODEL_ID doc drift' | actual=13L across 2 files | derived=full ---
