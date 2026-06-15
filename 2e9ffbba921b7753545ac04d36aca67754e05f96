@@ -1,0 +1,6 @@
+build(docker): install build dependencies for Rust projects
+scale: ~1 lines across 1 files [XS]
+
+- Dockerfile: Add `pkg-config`, `libssl-dev`, and `gcc` to the `builder` stage to support Rust crates that depend on OpenSSL.
+
+--- audit: original='fix(docker): install pkg-config and libssl-dev for openssl-sys compatibility' | actual=1L across 1 files | derived=full ---
