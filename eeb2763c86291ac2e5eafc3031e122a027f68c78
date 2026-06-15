@@ -1,0 +1,14 @@
+chore(test-governance): add owner/sunset markers to 22 ignored tests
+scale: ~44 lines across 7 files [M]
+
+- `crates/vox-compiler/tests/reactive_smoke_test.rs`: Added `owner: vox-compiler; sunset: 2026-12-31` to 10 ignored tests related to JSX→Web-IR migration parity pins.
+- `crates/vox-integration-tests/tests/codegen_rust_test.rs`: Added `owner: vox-compiler; sunset: 2026-12-31` to 3 ignored tests related to activity/workflow keyword changes.
+- `crates/vox-integration-tests/tests/pipeline/includes/include_01.rs`: Added `owner: vox-compiler; sunset: 2026-12-31` to 3 ignored tests related to activity construct changes.
+- `crates/vox-integration-tests/tests/cli_test.rs`: Added `owner: vox-compiler; sunset: 2026-12-31` to 2 ignored tests related to retired JSX angle-bracket syntax.
+- `crates/vox-integration-tests/tests/parity_contracts_test.rs`: Added `owner: vox-compiler; sunset: 2026-12-31` to 2 ignored tests related to activity/workflow constructs.
+- `crates/vox-code-audit/src/stdlib_parity.rs`: Added `owner: vox-code-audit; sunset: 2027-05-27` to 1 ignored diagnostic dump test.
+- `crates/vox-integration-tests/tests/multimodal_image_gen_test.rs`: Added `owner: vox-compiler; sunset: 2026-12-31` to 1 ignored test related to activity/workflow keyword changes.
+
+This brings 22 previously unowned ignored tests into compliance with the workspace test-governance policy, which requires "owner: ..." in the ignore reason. Compliance is now 100%. No tests were deleted.
+
+--- audit: original='chore(test-governance): add owner/sunset markers to 22 unowned #[ignore]' | actual=44L across 7 files | derived=full ---
