@@ -1,0 +1,14 @@
+feat(quantize): implement SafeTensors-canonical artifact writer
+scale: ~157 lines across 1 files [M]
+
+- `crates/vox-quantize/src/write.rs`:
+    - Added `ArtifactWriter` struct to manage writing quantized tensors and their metadata.
+    - Implemented `add_quantized` method to store quantized tensor data and metadata.
+    - Implemented `add_raw` method to store raw tensor data and metadata.
+    - Implemented `write_all` method to save all collected tensors to a SafeTensors file and a `quant-metadata.json` sidecar.
+    - Defined `TensorMeta` struct to hold per-tensor metadata including GGML dtype, original shape, original dtype, and quantization status.
+    - Defined `QuantMetadata` struct to hold overall metadata including mixture name, writer version, and a map of tensor metadata.
+    - Added helper function `quantized_bytes` to extract raw bytes from a `QTensor`.
+    - Initialized the module with documentation explaining the on-disk format for quantized tensors and metadata.
+
+--- audit: original='feat(quantize): write quantized SafeTensors-canonical artifact + metadata sidecar' | actual=157L across 1 files | derived=full ---
