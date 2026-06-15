@@ -1,0 +1,15 @@
+fix(tests): repair all workspace --lib test failures
+scale: ~321 lines across 13 files [L]
+
+- vox-populi: add `WindowsFallbackProbe` to provide a default hardware pipeline for Windows, ensuring it's non-empty on all platforms.
+- vox-lsp: implement a real AST walker for `mesh_workflow_env_warnings` to collect `mesh_` calls, replacing the previous stub.
+- vox-tensor: replace separate `prompt`/`instruction` and `response`/`output` fields with a `TrainingPairRaw` deserialization shim that normalizes `instruction`→`prompt` and `output`→`response`, handling cases where both canonical and alias keys appear in the same JSON row.
+- vox-plugin-mens-candle-cuda: in `qlora_preflight` and `qlora_weights`, pad the `read_safetensors_header` buffer with zeros up to the maximum tensor data end-offset. This allows `SafeTensors::deserialize` to pass offset-range validation without loading multi-GB weight data.
+- vox-oratio/routing: move the error-keyword bias check before the generic fix check in `classify_intent` to prioritize high-confidence error matches over the 0.82 fallback.
+- vox-oratio/ast_mapper: skip connector words ("called", "named", "for") before extracting the symbol name from the transcript in `map_to_ast_target`.
+- vox-gamify: add the 30th reward entry ("SPQR") to the `REWARD_POOL`.
+- vox-publisher: add the missing `url_new_version` method to `ZenodoHttpClient`.
+- vox-cli: handle `HirExpr::AsyncView` in the expression walker for `query_plans`.
+- vox-ml-cli: handle `Decl::Tokens` in the exhaustive match within `collect_constructs`.
+
+--- audit: original='fix(tests): repair all workspace --lib test failures' | actual=321L across 13 files | derived=full ---
