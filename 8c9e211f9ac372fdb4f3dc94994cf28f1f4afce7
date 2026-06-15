@@ -1,0 +1,12 @@
+fix(docs): quote `last_updated` dates in 5 mobile architecture documents
+scale: ~10 lines across 5 files [S]
+
+- docs/src/architecture/mobile-eas-ci-and-emulator-run-2026.md: Quoted `last_updated: 2026-05-30` as `"2026-05-30"`
+- docs/src/architecture/mobile-rn-expo-architecture-and-migration-2026.md: Quoted `last_updated: 2026-05-27` as `"2026-05-27"`
+- docs/src/architecture/mobile-rn-expo-implementation-spec-2026.md: Quoted `last_updated: 2026-05-28` as `"2026-05-28"`
+- docs/src/architecture/mobile-target-evaluation-2026.md: Quoted `last_updated: 2026-05-27` as `"2026-05-27"`
+- docs/src/architecture/vox-runtime-rn-mobile-cross-compile.md: Quoted `last_updated: 2026-05-30` as `"2026-05-30"`
+
+These changes ensure the `last_updated` dates satisfy the Starlight `z.string()` schema, preventing build failures caused by YAML parsing unquoted dates as `Date` objects instead of strings.
+
+--- audit: original='fix(docs): quote last_updated dates so they satisfy the Starlight z.string() schema' | actual=10L across 5 files | derived=full ---
