@@ -1,0 +1,10 @@
+feat(ci): add DataStorageGuard to forbid `schemas` directory
+scale: ~26 lines across 3 files [S]
+
+- `crates/vox-cli/src/commands/ci/data_storage_guard.rs`:
+    - Added a check to `DataStorageGuard` to report a violation if the `schemas` directory exists.
+    - Updated output messages to reflect success or failure with violations.
+- `scripts/migrations/2026-phase1-delete-empty-schemas-dir.vox`: Added a new migration script to remove the `schemas` directory if it exists and is empty.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Added a check to `run_body` to bail out if `DataStorageGuard` reports any violations.
+
+--- audit: original='M-05: Delete empty schemas/ directory' | actual=26L across 3 files | derived=full ---
