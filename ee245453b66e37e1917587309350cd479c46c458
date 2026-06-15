@@ -1,0 +1,14 @@
+feat(orchestrator-queue): Introduce Projection trait and Registry; implement core projections
+scale: ~456 lines across 8 files [L]
+
+- Introduce `Projection` trait for deterministic state rebuilding from the op-log.
+- Implement `ProjectionRegistry` to manage and apply operations to multiple projections.
+- Add `AffinityProjection` to track file-affinity claims by daemon and agent, including workspace creation/merge.
+- Add `LocksProjection` to manage hard locks on file paths, handling `LockAcquire` and `LockRelease` operations.
+- Add `CapabilityProjection` to track minted and revoked capabilities based on custom operations.
+- Add `KudosProjection` to accumulate reputation points per agent and primitive from custom operations.
+- Create `projection_replay.rs` test to verify live vs. replayed state for `LocksProjection` and `AffinityProjection`.
+- Add `HopperInboxProjection` stub to `projections/mod.rs`.
+- Update `lib.rs` to export new projection modules.
+
+--- audit: original='feat(orchestrator-queue): Projection trait + ProjectionRegistry; locks/affinity/caps/kudos as projections (P3-T9)' | actual=456L across 8 files | derived=full ---
