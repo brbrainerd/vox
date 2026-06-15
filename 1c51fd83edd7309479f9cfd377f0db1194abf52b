@@ -1,0 +1,11 @@
+fix(ci): improve Coolify deployment polling, add GPU runner docs
+scale: ~37 lines across 4 files [S]
+
+- `.github/workflows/deploy-hetzner.yml`:
+    - Added logic to fail-fast on Coolify API HTTP 403 errors during deployment polling if the error message indicates missing "read" permissions, providing a specific remediation message.
+    - Modified deployment status checks to be case-insensitive by converting the status to lowercase before comparison.
+- `crates/vox-clavis/src/spec/registry/platform.rs`: Updated the `CoolifyToken` secret specification to clarify that it requires both "Read and Deploy" permissions, and updated the `scope_description`.
+- `docs/src/ci/runner-contract.md`: Added documentation for a new `gpu` runner label and updated the "Actions Runner application version" section with an operator checklist for maintaining runner versions, including the `gpu` pool.
+- `docs/src/ci/deploy-contract.md`: Updated the `CoolifyToken` description and API token scopes in the "Operator checklist" to emphasize the need for both "Deploy and Read" permissions for polling, explaining that Deploy-only tokens result in HTTP 403 errors.
+
+--- audit: original='fix(ci): fail-fast on Coolify 403 read; docs for Read+Deploy token' | actual=37L across 4 files | derived=full ---
