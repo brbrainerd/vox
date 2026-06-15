@@ -1,0 +1,20 @@
+test(populi): add token-bucket and reputation EMA integration tests
+scale: ~136 lines across 1 files [M]
+
+- Add 12 integration tests for `PeerBucket` and `QuotaRegistry` in `crates/vox-populi/tests/quota_bucket.rs`.
+- Test `PeerBucket` functionality including:
+    - Initial full capacity.
+    - Draining tokens and rejecting overflow.
+    - Partial token consumption.
+    - Refilling tokens over time.
+    - Capacity capping during refill.
+- Test `ReputationEma` functionality including:
+    - Initial value.
+    - Decay towards 0 on failures.
+    - Recovery towards 1 on successes.
+    - Alpha smoothing behavior.
+- Test `QuotaRegistry` functionality including:
+    - Per-key isolation of buckets.
+    - Correct recording of outcomes.
+
+--- audit: original='test(populi): quota token-bucket + reputation EMA tests [P5-T3]' | actual=136L across 1 files | derived=full ---
