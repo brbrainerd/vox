@@ -23,6 +23,7 @@
 //! `runner-scale` is **dry-run by default**; `--apply` mutates.
 
 use std::collections::{HashMap, HashSet};
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -59,6 +60,12 @@ pub const DEFAULT_IDLE_REAP_SECS: i64 = 300;
 /// Idle runners to keep registered for instant dispatch (0 = pure
 /// scale-to-zero). Override: `VOX_RUNNER_WARM_POOL`.
 pub const DEFAULT_WARM_POOL: u32 = 1;
+/// Grace window before a phantom offline registration is deregistered from
+/// GitHub. An offline runner with no backing container is assumed to be a
+/// crashed ephemeral that never self-deregistered; after this window the
+/// autoscaler removes its registration even when the fleet is busy.
+/// Override: `VOX_RUNNER_PHANTOM_GRACE_SECS`.
+pub const DEFAULT_PHANTOM_GRACE_SECS: i64 = 120;
 
 /// Cap on workflow runs inspected per status when counting queued jobs.
 const DEMAND_RUNS_PER_STATUS: u32 = 20;
@@ -91,6 +98,10 @@ fn idle_reap_secs() -> i64 {
 
 fn warm_pool() -> u32 {
     env_u32("VOX_RUNNER_WARM_POOL", DEFAULT_WARM_POOL)
+}
+
+fn phantom_grace_secs() -> i64 {
+    env_i64("VOX_RUNNER_PHANTOM_GRACE_SECS", DEFAULT_PHANTOM_GRACE_SECS)
 }
 
 // ---------------------------------------------------------------------------
@@ -159,11 +170,19 @@ pub fn count_matching_queued_jobs(label_lines: &str, runner_labels: &str) -> u32
 pub type RunnerRow = (String, String, bool);
 
 /// Managed GitHub runner registrations that are **offline**, not busy, and have
-/// no backing container — stale leftovers from crashed ephemeral runners.
-pub fn stale_offline_registrations<'a>(
+/// no backing container, and whose first-seen-offline timestamp is older than
+/// `grace_secs`. Returns `(name, first_seen)` pairs.
+///
+/// Unlike the old `stale_offline_registrations`, this function is *not*
+/// gated on whether the fleet is busy — a phantom blocks a registration slot
+/// regardless of load and must be pruned unconditionally once past grace.
+pub fn phantom_offline_registrations<'a>(
     rows: &'a [RunnerRow],
     containers: &HashSet<String>,
-) -> Vec<&'a str> {
+    phantom_seen: &HashMap<String, i64>,
+    now: i64,
+    grace_secs: i64,
+) -> Vec<(&'a str, i64)> {
     rows.iter()
         .filter(|(name, status, busy)| {
             name.starts_with(MANAGED_PREFIX)
@@ -171,7 +190,14 @@ pub fn stale_offline_registrations<'a>(
                 && !busy
                 && !containers.contains(name)
         })
-        .map(|(name, _, _)| name.as_str())
+        .filter_map(|(name, _, _)| {
+            let first_seen = *phantom_seen.get(name.as_str()).unwrap_or(&now);
+            if now - first_seen >= grace_secs {
+                Some((name.as_str(), first_seen))
+            } else {
+                None
+            }
+        })
         .collect()
 }
 
@@ -482,6 +508,149 @@ fn write_state(state: &HashMap<String, i64>) {
     }
 }
 
+// --- phantom-seen persistence -----------------------------------------------
+
+fn phantom_state_path() -> PathBuf {
+    crate::fs_utils::user_home_dir()
+        .join(".vox")
+        .join("ci-runner-phantom.json")
+}
+
+fn read_phantom_seen() -> HashMap<String, i64> {
+    std::fs::read_to_string(phantom_state_path())
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn write_phantom_seen(seen: &HashMap<String, i64>) {
+    let p = phantom_state_path();
+    if let Some(parent) = p.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(s) = serde_json::to_string_pretty(seen) {
+        let _ = std::fs::write(p, s);
+    }
+}
+
+// --- single-instance scale lock ---------------------------------------------
+
+/// After this many seconds without a heartbeat the lock is considered stale
+/// and a new instance may steal it. Covers Task Scheduler double-fire + host
+/// clock jitter.
+const LOCK_STALE_SECS: i64 = 90;
+
+/// True when the lock file is older than [`LOCK_STALE_SECS`].
+pub fn scale_lock_is_stale(written_at: i64, now: i64) -> bool {
+    now - written_at >= LOCK_STALE_SECS
+}
+
+fn scale_lock_path() -> PathBuf {
+    crate::fs_utils::user_home_dir()
+        .join(".vox")
+        .join("ci-runner-scale.lock")
+}
+
+/// RAII guard that holds the scale lock file for the duration of an apply run.
+/// Constructed via [`ScaleLock::acquire`]; released (file removed) on drop.
+pub struct ScaleLock {
+    path: PathBuf,
+}
+
+impl ScaleLock {
+    /// Try to acquire the lock. Returns `Ok(None)` when another instance holds
+    /// a fresh lock (caller should exit early / skip the apply). Returns
+    /// `Ok(Some(_))` when the lock was acquired (fresh or stale).
+    pub fn acquire(now: i64) -> Result<Option<Self>> {
+        let path = scale_lock_path();
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        // Check for a live lock held by another instance.
+        if let Ok(contents) = std::fs::read_to_string(&path) {
+            if let Ok(written_at) = contents.trim().parse::<i64>() {
+                if !scale_lock_is_stale(written_at, now) {
+                    return Ok(None); // another instance holds a fresh lock
+                }
+            }
+        }
+        // Write our timestamp; best-effort (if it fails we skip locking but
+        // don't fail the whole command — safer than blocking all autoscaling).
+        if let Ok(mut f) = std::fs::File::create(&path) {
+            let _ = writeln!(f, "{now}");
+        }
+        Ok(Some(ScaleLock { path }))
+    }
+}
+
+impl Drop for ScaleLock {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
+// --- durable decision log ---------------------------------------------------
+
+/// Maximum number of lines to keep in the history file. Older lines are
+/// rotated out when the file exceeds this cap.
+const HISTORY_MAX_LINES: usize = 10_000;
+
+/// Build the JSONL decision-log entry for one reconcile tick.
+///
+/// All 12 numeric fields are included so the log is self-contained for
+/// downstream analysis without requiring the running binary.
+#[allow(clippy::too_many_arguments)]
+pub fn scale_event_json(
+    ts: i64,
+    dry_run: bool,
+    queued_jobs: u32,
+    keep: u32,
+    desired: u32,
+    spawned: u32,
+    reaped_scale_down: u32,
+    reaped_idle: u32,
+    pruned_phantom: u32,
+    cleaned_exited: u32,
+    max: u32,
+    warm: u32,
+) -> String {
+    format!(
+        r#"{{"ts":{ts},"dry_run":{dry_run},"queued_jobs":{queued_jobs},"keep":{keep},"desired":{desired},"spawned":{spawned},"reaped_scale_down":{reaped_scale_down},"reaped_idle":{reaped_idle},"pruned_phantom":{pruned_phantom},"cleaned_exited":{cleaned_exited},"max":{max},"warm":{warm}}}"#
+    )
+}
+
+/// Keep only the last `max_lines` lines from `content`.  Used to cap the
+/// history file so it never grows unbounded.
+pub fn rotate_keep_tail(content: &str, max_lines: usize) -> String {
+    let lines: Vec<&str> = content.lines().collect();
+    if lines.len() <= max_lines {
+        return content.to_string();
+    }
+    lines[lines.len() - max_lines..].join("\n") + "\n"
+}
+
+fn history_path() -> PathBuf {
+    crate::fs_utils::user_home_dir()
+        .join(".vox")
+        .join("ci-runner-history.jsonl")
+}
+
+fn append_history(entry: &str) {
+    let p = history_path();
+    if let Some(parent) = p.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    // Read, rotate-if-needed, then overwrite atomically-ish (single write).
+    let existing = std::fs::read_to_string(&p).unwrap_or_default();
+    let new_content = if existing.is_empty() {
+        format!("{entry}\n")
+    } else {
+        format!("{existing}{entry}\n")
+    };
+    let rotated = rotate_keep_tail(&new_content, HISTORY_MAX_LINES);
+    let _ = std::fs::write(&p, rotated);
+}
+
 // ---------------------------------------------------------------------------
 // Reconcile
 // ---------------------------------------------------------------------------
@@ -492,18 +661,37 @@ fn write_state(state: &HashMap<String, i64>) {
 pub fn run_scale(apply: bool) -> Result<()> {
     let dry_run = !apply;
     let now = now_secs();
+
+    // Acquire single-instance lock for apply runs. Dry-run never mutates state
+    // so it is safe to run concurrently (useful for monitoring).
+    let _lock = if apply {
+        match ScaleLock::acquire(now)? {
+            Some(lock) => Some(lock),
+            None => {
+                println!("runner-scale: another apply is in progress (lock held) — skipping");
+                return Ok(());
+            }
+        }
+    } else {
+        None
+    };
+
     let max = max_runners();
     let reap_secs = idle_reap_secs();
     let warm = warm_pool();
+    let phantom_grace = phantom_grace_secs();
     let prev = read_state();
+    let mut phantom_seen = read_phantom_seen();
     let rows = runner_rows().unwrap_or_default();
     let busy_map = managed_busy_map(&rows);
 
     // 1. Remove exited managed containers — the primary despawn path now that
-    //    ephemeral runners exit after their single job.
+    //    ephemeral runners exit after their single job. Deregister from GitHub
+    //    first so the registration slot is freed before the container is removed.
     let mut dead = 0u32;
     for name in managed_containers("exited") {
         if !dry_run {
+            deregister(&name);
             let _ = docker(&["rm", "-f", &name]);
         }
         dead += 1;
@@ -562,19 +750,48 @@ pub fn run_scale(apply: bool) -> Result<()> {
         }
     }
 
-    // 3. Prune stale offline GitHub registrations with no backing container —
+    // 3. Prune phantom offline GitHub registrations with no backing container —
     //    leftovers from crashed ephemeral runners that never self-deregistered.
+    //    Unlike the old stale-offline check, phantoms are pruned regardless of
+    //    fleet-busy state once the grace window has elapsed: a phantom blocks a
+    //    registration slot no matter how loaded the fleet is.
     let mut containers: HashSet<String> = running.iter().cloned().collect();
     containers.extend(managed_containers("exited"));
+
+    // Record first-seen timestamp for newly-detected offline phantoms.
+    for (name, status, busy) in &rows {
+        if name.starts_with(MANAGED_PREFIX)
+            && status == "offline"
+            && !busy
+            && !containers.contains(name)
+        {
+            phantom_seen.entry(name.clone()).or_insert(now);
+        }
+    }
+    // Evict entries that have a backing container again (container restarted etc.).
+    phantom_seen.retain(|name, _| !containers.contains(name));
+
     let mut pruned = 0u32;
-    for name in stale_offline_registrations(&rows, &containers) {
+    let mut pruned_names: Vec<String> = Vec::new();
+    for (name, _first_seen) in
+        phantom_offline_registrations(&rows, &containers, &phantom_seen, now, phantom_grace)
+    {
         if dry_run {
-            println!("[dry-run] would prune stale offline registration {name}");
+            println!("[dry-run] would prune phantom offline registration {name}");
         } else {
-            eprintln!("[prune] stale offline registration {name}");
+            eprintln!("[prune] phantom offline registration {name}");
             deregister(name);
         }
+        pruned_names.push(name.to_string());
         pruned += 1;
+    }
+    // Remove pruned entries from phantom_seen so they don't linger.
+    for name in &pruned_names {
+        phantom_seen.remove(name);
+    }
+
+    if !dry_run {
+        write_phantom_seen(&phantom_seen);
     }
 
     // 4. Scale up toward queued-job demand (plus warm pool).
@@ -587,12 +804,145 @@ pub fn run_scale(apply: bool) -> Result<()> {
     if !dry_run {
         write_state(&new_state);
     }
+
+    // Append an immutable decision record before printing (both apply + dry-run).
+    append_history(&scale_event_json(
+        now,
+        dry_run,
+        demand,
+        keep,
+        desired,
+        spawn,
+        reaped_scale_down,
+        reaped,
+        pruned,
+        dead,
+        max,
+        warm,
+    ));
+
     println!(
         "runner-scale: dry_run={dry_run} queued_jobs={demand} keep={keep} desired={desired} \
          spawned={spawn} reaped_scale_down={reaped_scale_down} reaped_idle={reaped} \
-         pruned_stale={pruned} cleaned_exited={dead} \
+         pruned_phantom={pruned} cleaned_exited={dead} \
          (max={max}, warm={warm}, idle_reap={reap_secs}s, ephemeral)"
     );
+    Ok(())
+}
+
+/// Parse the epoch timestamp and per-tick index from a managed container name
+/// of the form `vox-runner-auto-<hex_epoch>-<index>`.
+///
+/// Returns `(epoch_secs, index)` on success; the index is parsed as `u32`.
+pub fn parse_runner_tag(name: &str) -> Option<(i64, u32)> {
+    let tail = name.strip_prefix(MANAGED_PREFIX)?;
+    let (hex_epoch, index_str) = tail.rsplit_once('-')?;
+    let epoch = i64::from_str_radix(hex_epoch, 16).ok()?;
+    let index = index_str.parse::<u32>().ok()?;
+    Some((epoch, index))
+}
+
+/// Build a human-readable status table from live runner rows + containers.
+///
+/// `rows` = GitHub runner API rows; `running` / `exited` = docker container
+/// name lists; `demand` = queued job count; `history_tail` = last N lines of
+/// the decision log (newest-last); `now` = unix seconds.
+pub fn format_status_table(
+    rows: &[RunnerRow],
+    running: &[String],
+    exited: &[String],
+    demand: u32,
+    history_tail: &[String],
+    now: i64,
+) -> String {
+    let mut out = String::new();
+
+    out.push_str("=== CI Runner Fleet Status ===\n");
+    out.push_str(&format!("  queued jobs : {demand}\n"));
+    out.push_str(&format!("  timestamp   : {now}\n\n"));
+
+    // Per-runner table.
+    out.push_str("  CONTAINER                        GH-STATUS  BUSY  AGE(s)\n");
+    out.push_str("  ─────────────────────────────────────────────────────────\n");
+
+    let running_set: HashSet<&str> = running.iter().map(String::as_str).collect();
+    let exited_set: HashSet<&str> = exited.iter().map(String::as_str).collect();
+
+    // Show all managed containers first (running + exited), then any orphaned
+    // GitHub registrations with no container.
+    let mut shown: HashSet<String> = HashSet::new();
+
+    for name in running.iter().chain(exited.iter()) {
+        if !name.starts_with(MANAGED_PREFIX) {
+            continue;
+        }
+        shown.insert(name.clone());
+        let gh_row = rows.iter().find(|(n, _, _)| n == name);
+        let (gh_status, busy) = gh_row
+            .map(|(_, s, b)| (s.as_str(), *b))
+            .unwrap_or(("—", false));
+        let container_state = if running_set.contains(name.as_str()) {
+            "running"
+        } else if exited_set.contains(name.as_str()) {
+            "exited"
+        } else {
+            "—"
+        };
+        let age = parse_runner_tag(name)
+            .map(|(epoch, _)| format!("{}", now - epoch))
+            .unwrap_or_else(|| "?".to_string());
+        out.push_str(&format!(
+            "  {name:<32} {gh_status:<10} {busy:<5} {container_state} age={age}\n"
+        ));
+    }
+
+    // Orphaned GitHub registrations (no container).
+    for (name, status, busy) in rows {
+        if !name.starts_with(MANAGED_PREFIX) || shown.contains(name) {
+            continue;
+        }
+        let age = parse_runner_tag(name)
+            .map(|(epoch, _)| format!("{}", now - epoch))
+            .unwrap_or_else(|| "?".to_string());
+        out.push_str(&format!(
+            "  {name:<32} {status:<10} {busy:<5} (no container) age={age}\n"
+        ));
+    }
+
+    // Decision log tail.
+    if !history_tail.is_empty() {
+        out.push_str("\n=== Recent decisions (newest last) ===\n");
+        for line in history_tail {
+            out.push_str(&format!("  {line}\n"));
+        }
+    }
+
+    out
+}
+
+/// `vox ci runner-status` — print per-runner state, queue depth, and recent
+/// decision-log entries. Read-only; never mutates fleet state.
+pub fn run_status() -> Result<()> {
+    let now = now_secs();
+    let rows = runner_rows().unwrap_or_default();
+    let running = managed_containers("running");
+    let exited = managed_containers("exited");
+    let demand = query_queued_job_demand(max_runners()).unwrap_or(0);
+
+    // Read the last 10 lines of the history file for display.
+    let history_raw = std::fs::read_to_string(history_path()).unwrap_or_default();
+    let history_tail: Vec<String> = history_raw
+        .lines()
+        .rev()
+        .take(10)
+        .map(String::from)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+
+    let table = format_status_table(&rows, &running, &exited, demand, &history_tail, now);
+    print!("{table}");
     Ok(())
 }
 
@@ -692,22 +1042,41 @@ mod tests {
     }
 
     #[test]
-    fn stale_offline_registrations_detected() {
+    fn phantom_pruned_after_grace_regardless_of_busy() {
         let rows: Vec<RunnerRow> = vec![
-            // offline, no container → stale
+            // offline, no container, past grace → prune
             ("vox-runner-auto-aaa-0".into(), "offline".into(), false),
-            // offline but container still exists (starting/restarting) → keep
+            // offline but container still exists → not a phantom
             ("vox-runner-auto-bbb-0".into(), "offline".into(), false),
-            // online → never stale
+            // online → never pruned
             ("vox-runner-auto-ccc-0".into(), "online".into(), false),
-            // busy is never pruned, even if reported offline mid-transition
+            // busy → never pruned even if reported offline mid-transition
             ("vox-runner-auto-ddd-0".into(), "offline".into(), true),
             // unmanaged names are never touched
             ("vox-runner-1".into(), "offline".into(), false),
         ];
         let containers: HashSet<String> = ["vox-runner-auto-bbb-0".to_string()].into();
-        let stale = stale_offline_registrations(&rows, &containers);
-        assert_eq!(stale, vec!["vox-runner-auto-aaa-0"]);
+        let now = 1_000_000i64;
+        let grace = 120i64;
+        // aaa-0 was first seen 200s ago (past grace)
+        let mut phantom_seen: HashMap<String, i64> = HashMap::new();
+        phantom_seen.insert("vox-runner-auto-aaa-0".to_string(), now - 200);
+        let to_prune = phantom_offline_registrations(&rows, &containers, &phantom_seen, now, grace);
+        let names: Vec<&str> = to_prune.iter().map(|(n, _)| *n).collect();
+        assert_eq!(names, vec!["vox-runner-auto-aaa-0"]);
+    }
+
+    #[test]
+    fn phantom_held_one_tick_within_grace() {
+        let rows: Vec<RunnerRow> = vec![("vox-runner-auto-aaa-0".into(), "offline".into(), false)];
+        let containers: HashSet<String> = HashSet::new();
+        let now = 1_000_000i64;
+        let grace = 120i64;
+        // aaa-0 was first seen only 60s ago (within grace)
+        let mut phantom_seen: HashMap<String, i64> = HashMap::new();
+        phantom_seen.insert("vox-runner-auto-aaa-0".to_string(), now - 60);
+        let to_prune = phantom_offline_registrations(&rows, &containers, &phantom_seen, now, grace);
+        assert!(to_prune.is_empty(), "within grace: should not prune yet");
     }
 
     #[test]
@@ -781,5 +1150,106 @@ mod tests {
         assert_eq!(get("CARGO_INCREMENTAL"), "0");
         // Anonymous LAN bucket: no AWS credentials may be injected.
         assert!(!env.iter().any(|(k, _)| k.starts_with("AWS_")));
+    }
+
+    #[test]
+    fn scale_lock_age_steal_policy() {
+        let base = 1_000_000i64;
+        // Fresh lock (written 30s ago) — must not be stolen.
+        assert!(!scale_lock_is_stale(base - 30, base));
+        // Lock written exactly at the stale boundary — stealable.
+        assert!(scale_lock_is_stale(base - LOCK_STALE_SECS, base));
+        // Very old lock — definitely stealable.
+        assert!(scale_lock_is_stale(base - 3600, base));
+    }
+
+    #[test]
+    fn scale_event_json_has_all_decision_fields() {
+        let s = scale_event_json(
+            1_000_000, // ts
+            false,     // dry_run
+            3,         // queued_jobs
+            2,         // keep
+            3,         // desired
+            1,         // spawned
+            0,         // reaped_scale_down
+            0,         // reaped_idle
+            0,         // pruned_phantom
+            1,         // cleaned_exited
+            6,         // max
+            1,         // warm
+        );
+        // Every key must be present.
+        for key in &[
+            "\"ts\"",
+            "\"dry_run\"",
+            "\"queued_jobs\"",
+            "\"keep\"",
+            "\"desired\"",
+            "\"spawned\"",
+            "\"reaped_scale_down\"",
+            "\"reaped_idle\"",
+            "\"pruned_phantom\"",
+            "\"cleaned_exited\"",
+            "\"max\"",
+            "\"warm\"",
+        ] {
+            assert!(s.contains(key), "missing key {key} in: {s}");
+        }
+        // Must be valid JSON.
+        let v: serde_json::Value = serde_json::from_str(&s).expect("valid JSON");
+        assert_eq!(v["ts"], 1_000_000i64);
+        assert_eq!(v["dry_run"], false);
+        assert_eq!(v["spawned"], 1);
+    }
+
+    #[test]
+    fn history_rotates_when_over_cap() {
+        // Build a content block with 5 lines and cap at 3.
+        let content = "line1\nline2\nline3\nline4\nline5\n";
+        let rotated = rotate_keep_tail(content, 3);
+        let lines: Vec<&str> = rotated.lines().collect();
+        assert_eq!(lines.len(), 3, "should keep exactly 3 lines");
+        assert_eq!(lines[0], "line3");
+        assert_eq!(lines[2], "line5");
+
+        // Under-cap: content unchanged.
+        let small = "a\nb\n";
+        assert_eq!(rotate_keep_tail(small, 10), small);
+    }
+
+    #[test]
+    fn parse_runner_tag_decodes_epoch_and_index() {
+        // A canonical managed container name: prefix + hex_epoch + "-" + index
+        let epoch_hex = format!("{:x}", 1_718_000_000i64); // example unix ts
+        let name = format!("vox-runner-auto-{epoch_hex}-3");
+        let (epoch, index) = parse_runner_tag(&name).expect("should parse");
+        assert_eq!(epoch, 1_718_000_000);
+        assert_eq!(index, 3);
+
+        // Unmanaged names must return None.
+        assert!(parse_runner_tag("vox-runner-1").is_none());
+        assert!(parse_runner_tag("other-container").is_none());
+    }
+
+    #[test]
+    fn format_status_table_lists_each_runner_with_state() {
+        let rows: Vec<RunnerRow> = vec![
+            ("vox-runner-auto-abc-0".into(), "online".into(), true),
+            ("vox-runner-auto-abc-1".into(), "online".into(), false),
+        ];
+        let running = vec![
+            "vox-runner-auto-abc-0".to_string(),
+            "vox-runner-auto-abc-1".to_string(),
+        ];
+        let exited: Vec<String> = vec![];
+        let now = i64::from_str_radix("abc", 16).unwrap() + 100;
+        let table = format_status_table(&rows, &running, &exited, 2, &[], now);
+
+        // Both containers must appear.
+        assert!(table.contains("vox-runner-auto-abc-0"), "missing runner 0");
+        assert!(table.contains("vox-runner-auto-abc-1"), "missing runner 1");
+        // Queue depth shown.
+        assert!(table.contains("queued jobs"), "missing queue depth");
     }
 }

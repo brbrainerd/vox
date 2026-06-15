@@ -509,6 +509,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         ),
         CiCmd::RunnerScale { apply } => super::runner_scale::run_scale(apply),
         CiCmd::RunnerPreflight => super::runner_scale::run_preflight(),
+        CiCmd::RunnerStatus => super::runner_scale::run_status(),
         CiCmd::JobTimings {
             run_id,
             threshold_mins,

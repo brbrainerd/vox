@@ -694,6 +694,10 @@ pub enum CiCmd {
     /// Fail-fast: error immediately when no online self-hosted runner can serve the gate.
     #[command(name = "runner-preflight")]
     RunnerPreflight,
+    /// Print per-runner state (container + GitHub status), current queue depth, and recent
+    /// autoscaler decisions from the decision log. Read-only; never mutates fleet state.
+    #[command(name = "runner-status")]
+    RunnerStatus,
     /// Measure CI job run-time (execution, not queue) and warn on anything over the budget (default 10m).
     #[command(name = "job-timings")]
     JobTimings {
