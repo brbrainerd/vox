@@ -1,0 +1,8 @@
+feat(vox-doc-pipeline): add --mode corpus to emit JSONL of documentation
+scale: ~23 lines across 3 files [S]
+
+- `crates/vox-doc-pipeline/src/pipeline/mod.rs`: Added a new `corpus_mode` that, when activated by `--mode corpus`, collects all Markdown files from `docs/src`, reads their content, and writes a `corpus.jsonl` file containing each file's path and content as a JSON object per line.
+- `crates/vox-doc-pipeline/Cargo.toml`: Added `serde_json` as a dependency.
+- `Cargo.lock`: Updated to include `serde_json` and its dependencies.
+
+--- audit: original='feat(docs): add --mode corpus to vox-doc-pipeline to emit JSONL' | actual=23L across 3 files | derived=full ---
