@@ -1,0 +1,20 @@
+feat(orchestrator): implement attention budget and dynamic configuration
+scale: ~1344 lines across 15 files [XL]
+
+- `attention.rs`: Added new module for attention budget core logic, including `NasaTlxWeights` and `TierGateConfig` for dynamic configuration, `AgentTrustScore`, `AttentionEvent`, and `TrustTier` enums.
+- `attention_tracker.rs`: Added new module for persisting attention events and agent trust scores to VoxDB.
+- `budget.rs`: Integrated attention budget tracking into `BudgetManager` with `AttentionBudget` and `AgentTrustScore` fields. Introduced `BudgetSignal` enum to unify budget signals, including `AttentionHigh` and `AttentionCritical`.
+- `config.rs`: Added extensive configuration options for the attention budget system, including `attention_enabled`, `attention_budget_ms`, `attention_alert_threshold`, `attention_interrupt_cost_ms`, `trust_ewma_alpha`, `trust_provisional_threshold`, `trust_trusted_threshold`, `trust_auto_approve_min`, `attention_trust_routing_weight`, `nasa_tlx_weights`, and `tier_gate_config`.
+- `gate.rs`: Extended `GateResult` with `AttentionExhausted` variant and updated `BudgetGate::check` to incorporate attention budget checks.
+- `lib.rs`: Added `attention_tracker` and `attention` modules.
+- `orchestrator/scaling.rs`: Added `calculate_attention_cost` function.
+- `orchestrator/task_dispatch.rs`: Modified `dispatch_task` to incorporate attention budget checks and event recording.
+- `orchestrator/vcs_ops.rs`: Added `calculate_attention_cost` function.
+- `schema.rs`: Updated schema definitions for `AttentionEvent` and `AgentTrustScore`.
+- `services/mod.rs`: Added `news` module.
+- `services/news.rs`: Added new service for monitoring and synchronizing news from `docs/news/`.
+- `services/routing.rs`: Modified `route_task` to incorporate trust scores in routing decisions.
+- `types.rs`: Added `AttentionEventOutcome` and `AttentionEventType` enums.
+- `Cargo.toml`: Added `vox-publisher` dependency.
+
+--- audit: original='feat(orchestrator): harden attention budget implementation and fix I/O delays' | actual=1344L across 15 files | derived=full ---
