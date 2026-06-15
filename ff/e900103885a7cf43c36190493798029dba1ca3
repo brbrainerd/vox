@@ -1,0 +1,7 @@
+style(vox-doc-pipeline): rustfmt code in lint and mod modules
+scale: ~28 lines across 2 files [S]
+
+- `crates/vox-doc-pipeline/src/pipeline/lint.rs`: Applied rustfmt to `suggest` calls, `assert!` macros, and test data definitions for improved readability.
+- `crates/vox-doc-pipeline/src/pipeline/mod.rs`: Applied rustfmt to the `workflow_for_kind` function and the `print_grouped_summary` macro for consistent formatting.
+
+--- audit: original='style: rustfmt vox-doc-pipeline (pre-push gate)' | actual=28L across 2 files | derived=full ---
