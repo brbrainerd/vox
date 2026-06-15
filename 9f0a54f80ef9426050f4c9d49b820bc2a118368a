@@ -1,0 +1,12 @@
+feat(examples, cli): Add ADT golden example; fix CR-L8 flywheel test fixture
+scale: ~84 lines across 2 files [M]
+
+- `examples/golden/json_as_typed.vox`:
+    - Add `Shape` ADT type (`Circle | Square`, tag: "type") to demonstrate `json_as` functionality.
+    - Add `parse_shape_circle` and `parse_shape_square` functions to demonstrate first and second variant dispatch for the `Shape` ADT.
+    - Add `check_shape_missing_tag` and `check_shape_unknown_tag` functions to verify error handling for missing or unregistered ADT tags.
+- `crates/vox-cli/tests/cr_l8_flywheel_e2e.rs`:
+    - Fix test fixture by replacing `@server fn` and `@mutation fn` with the retired forms `@endpoint(kind: server)` and `@endpoint(kind: mutation)`. This ensures the `CR-L8` rule for retired decorator usage is triggered, matching the fix in `vox-audit/tests/cr_l8_loop_e2e.rs`.
+    - Add `#[allow(unsafe_code)]` attribute to `std::env::set_var` and `std::env::remove_var` calls, along with a safety justification, to silence warnings.
+
+--- audit: original='feat(examples+tests): ADT golden example extension + CR-L8 flywheel fix' | actual=84L across 2 files | derived=full ---
