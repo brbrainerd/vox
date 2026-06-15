@@ -1,0 +1,11 @@
+docs(arch): Update Session-14 breadcrumb with resolved failures
+scale: ~14 lines across 1 files [S]
+
+- Update `post-sprint-forward-plan-2026-05-25.md` to mark three pre-existing failures as resolved in Session-14 (commit `e9fa9ece8e`):
+    - `tauri_emit_registers_sherpa_acl_in_build_rs`: Assertion updated to `vox-stt:default` after STT plugin rename.
+    - `tauri_convergence_snapshots`: Snapshot accepted (`use tauri::Manager; use pkg::*;`).
+    - `probe_dashboard_speak_surface_has_no_microphone_path`: Test now skips gracefully when `vox-dashboard` is not present.
+- Update the "Next unblocked work" section to reflect the current state, removing the item to investigate the 3 resolved failures and reordering the remaining items.
+- Add a note about the `cargo test --workspace` status: "237 binaries, 0 failures, 0 warnings."
+
+--- audit: original='docs(arch): Session-14 breadcrumb — all 3 pre-existing failures resolved' | actual=14L across 1 files | derived=full ---
