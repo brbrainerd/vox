@@ -1,0 +1,6 @@
+docs: remove 4 broken links to `graphify-out/CANDIDATE_GAPS.md`
+scale: ~8 lines across 1 files [XS]
+
+- docs/src/architecture/semantic-coverage-remediation-plan-2026-06-13.md: Replaced four markdown links to `graphify-out/CANDIDATE_GAPS.md` with inline code blocks, as the linked file is gitignored and not a valid commit target.
+
+--- audit: original='docs: fix 4 broken links to transient graphify-out/CANDIDATE_GAPS.md' | actual=8L across 1 files | derived=full ---
