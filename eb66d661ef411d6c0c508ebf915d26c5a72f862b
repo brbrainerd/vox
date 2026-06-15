@@ -1,0 +1,6 @@
+fix(docs): add missing ANCHOR start tag for `basic_actor` in `ref_actors.vox`
+scale: ~1 lines across 3 files [S]
+
+- `examples/golden/ref_actors.vox`: Added `// ANCHOR: basic_actor` to define the start of the `basic_actor` code block, resolving an "unresolved anchor" error in the documentation build.
+
+--- audit: original='fix(docs): add missing ANCHOR start tag for basic_actor in ref_actors.vox' | actual=1L across 3 files | derived=full ---
