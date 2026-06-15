@@ -1,0 +1,9 @@
+docs(ci): update Playwright lane description for `vox-mental-tracker`
+scale: ~2 lines across 1 files [XS]
+
+- apps/vox-mental-tracker/docs/contributors/ci-lanes.md:
+  - Clarified Playwright lane's caching strategy for `ms-playwright` and `chromium` installation.
+  - Updated estimated runtimes for warm (~30s) vs. cold (~2 min) cache.
+  - Added a reference to the `codegen-ts-bugs-blocking-tracker.md` plan as a prerequisite for the e2e suite's preview server.
+
+--- audit: original='docs(plans): codegen-ts bugs blocking tracker browser/Capacitor render' | actual=2L across 1 files | derived=full ---
