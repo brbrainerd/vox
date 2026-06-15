@@ -1,0 +1,9 @@
+feat(vox-cli): scaffold `ci pre-push` subcommand
+scale: ~44 lines across 4 files [S]
+
+- `crates/vox-cli/src/commands/ci/pre_push.rs`: Add new module for the `ci pre-push` subcommand, including a `PrePushOpts` struct and a placeholder `run` function that currently bails with "not yet implemented".
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Extend the `CiCmd` enum with a `PrePush` variant, defining its command-line arguments (`quick`, `full`, `dry_run`) and a description of its purpose.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Integrate the new `PrePush` command into the `run` function, calling the `pre_push::run` function with the parsed options.
+- `crates/vox-cli/src/commands/ci/mod.rs`: Declare the new `pre_push` module.
+
+--- audit: original='feat(vox-cli): scaffold ci pre-push subcommand' | actual=44L across 4 files | derived=full ---
