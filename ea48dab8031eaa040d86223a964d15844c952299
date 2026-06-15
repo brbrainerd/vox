@@ -1,0 +1,7 @@
+feat(lower,cli): exhaustively lower Decl variants; add stdout integration test
+scale: ~58 lines across 2 files [M]
+
+- `crates/vox-compiler/src/hir/lower/mod.rs`: Replaced the `_ =>` catch-all in the `Decl` lowering match with an explicit `Decl::HttpRoute(_)` arm. This makes the lowering exhaustive, ensuring that any new `Decl` variants without a lowering rule will result in a compile-time error instead of silently being dropped into `lower_warnings`. The behavior for `HttpRoute` remains unchanged, preserving `legacy_ast_nodes` and the warning.
+- `crates/vox-cli/tests/behavioral_stdout_interp.rs`: Added a new integration test that executes a `.vox` program via `vox run --mode interp` and asserts its `print` builtin's output to `stdout`. This is the first test to verify observable process output, using `CARGO_BIN_EXE_vox` for a hermetic build.
+
+--- audit: original='feat(lower)+test: exhaustive lowering match + pattern #6 stdout golden' | actual=58L across 2 files | derived=full ---
