@@ -1,0 +1,26 @@
+feat(orchestrator): integrate AgentOS signals and semantic-fs discovery
+scale: ~476 lines across 15 files [L]
+
+- `crates/vox-orchestrator`:
+    - Add `agentos_last_mutation_kind` to `PolicyContext` to incorporate AgentOS mutation signals into risk scoring.
+    - Implement `apply_agentos_mutation_risk` to modify risk dimensions based on AgentOS mutation kind.
+    - Add a test case for AgentOS external mutation boosting risk.
+- `crates/vox-secrets`:
+    - Define new `SecretId`s for AgentOS feature flags: `VoxOrchestratorAgentosAciEnvelopeEnabled`, `VoxOrchestratorAgentosGuardrailKernelEnabled`, and `VoxOrchestratorAgentosCheckpointHintsEnabled`.
+    - Add corresponding `SecretSpec` entries for these new AgentOS feature flags in `missing.rs`.
+- `crates/vox-orchestrator/src/config/impl_env.rs`: Implement reading and parsing of new AgentOS feature flag environment variables into `OrchestratorConfig`.
+- `crates/vox-orchestrator-mcp`:
+    - Introduce `SemanticFsDiscoverParams` for semantic file system discovery.
+    - Add `semantic_fs_discover_mcp` handler to rank workspace paths based on an intent using `vox_search`.
+    - Register `vox_semantic_fs_discover` as a new tool in `dispatch.rs`.
+    - Include `mutation_kind` in tool call telemetry for both successful and failed tool calls.
+    - Update `input_schemas.rs` with the schema for `vox_semantic_fs_discover`.
+- `crates/vox-cli`: Update secret guard allowlist to include `crates/vox-orchestrator-mcp/` for dispatch surface.
+- `contracts/secrets`:
+    - Add new environment variable names for AgentOS feature flags to `managed-env-names.v1.json` and `managed-env-names.md`.
+    - Update `secret-capabilities.v1.json` to include the new AgentOS feature flag secrets.
+- `contracts/config`: Add new AgentOS feature flags to `env-vars.v1.yaml`.
+- `contracts/orchestration`: Add new AgentOS feature flags to `feature-flags.v1.yaml`.
+- `contracts/mcp`: Add `vox_semantic_fs_discover` to `tool-registry.canonical.yaml`.
+
+--- audit: original='fix(agentos): close orchestrator and MCP split-brain wiring' | actual=476L across 15 files | derived=full ---
