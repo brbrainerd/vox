@@ -1,0 +1,10 @@
+feat(vox-gui/matrix): Add accessibility attributes and new test file
+scale: ~72 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Matrix/Matrix.test.tsx`: Add new test file for the `Matrix` component, including tests for accessibility attributes like `type="button"`, `aria-pressed`, `aria-label`, and `role="progressbar"`.
+- `crates/vox-gui/ui/src/components/surfaces/Matrix/Matrix.tsx`:
+    - Add `type="button"`, `aria-pressed`, and `aria-label` attributes to the `HexCell` button.
+    - Add `role="progressbar"`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, and `aria-label` attributes to the weight meter div.
+    - Add `type="button"` to the "Promote" and "Demote" buttons.
+
+--- audit: original='feat(vox-gui/wave6): Matrix a11y + checklist (Wave 6)' | actual=72L across 2 files | derived=full ---
