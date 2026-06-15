@@ -1,0 +1,7 @@
+feat(secrets): surface OpenRouterApiKey in `vox secrets status` (Local/Dev)
+scale: ~23 lines across 2 files [S]
+
+- `crates/vox-secrets/src/spec/ids.rs`: Added `SecretId::OpenRouterApiKey` to `ALL_CHAT_OPTIONALS` to make it observable in Local/Dev mode.
+- `crates/vox-secrets/src/tests.rs`: Added a new test `openrouter_visible_in_local_chat_optionals_but_not_blocking_in_dev` to verify that `OpenRouterApiKey` is included in optional requirements for `Workflow::Chat` in `Profile::Dev` and `RequirementMode::Local`, but not in blocking requirements.
+
+--- audit: original='fix(secrets): surface OpenRouterApiKey in `vox secrets status` (Local/Dev)' | actual=23L across 2 files | derived=full ---
