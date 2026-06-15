@@ -1,0 +1,7 @@
+feat(vox-telemetry): add `audit.effort.*` event types and constants
+scale: ~198 lines across 2 files [M]
+
+- `crates/vox-telemetry/src/types.rs`: Add new structs `AuditEffortRunStartedEvent`, `AuditEffortCommitJudgedEvent`, `AuditEffortRunCompletedEvent`, and `AuditEffortRunFailedEvent` for `vox audit effort` telemetry. Define associated `METRIC_TYPE_AUDIT_EFFORT_*` constants.
+- `crates/vox-telemetry/src/lib.rs`: Export the newly defined `AuditEffort*Event` structs and `METRIC_TYPE_AUDIT_EFFORT_*` constants.
+
+--- audit: original='feat(vox-telemetry): add audit.effort.* event types (E1)' | actual=198L across 2 files | derived=full ---
