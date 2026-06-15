@@ -1,0 +1,19 @@
+feat(vox-effort-route): implement LlmRouter and parsing for decide/verify passes
+scale: ~428 lines across 3 files [L]
+
+- `crates/vox-effort-route/src/route/mod.rs`:
+    - Introduce `LlmRouter` struct to handle LLM interactions for routing decisions, including configuration for model, timeout, repository root, max context commits, and verification flag.
+    - Implement `llm_config` method for `LlmRouter` to generate `vox_actor_runtime::llm::LlmConfig` with model-agnostic provider and specific parameters like temperature, max tokens, and response format.
+    - Add `DecideResponse` and `RefuteResponse` imports.
+- `crates/vox-effort-route/src/route/decide.rs`:
+    - Define `DecideResponse` struct for deserializing the LLM's decision output, including artifact form, confidence, fix summary, drafted body, and rationale.
+    - Implement `decide_json_schema` function to generate a JSON schema for the `DecideResponse`, dynamically including "VoxScript" if `vox_capable` is true.
+    - Add `parse` function to clean and deserialize raw JSON strings into `DecideResponse` objects, handling optional JSON code fences.
+    - Include unit tests for `parse` function.
+- `crates/vox-effort-route/src/route/verify.rs`:
+    - Define `RefuteResponse` struct for deserializing the LLM's verification output, indicating if a decision was refuted and why.
+    - Implement `refute_json_schema` function to generate a JSON schema for the `RefuteResponse`.
+    - Add `parse` function to clean and deserialize raw JSON strings into `RefuteResponse` objects, handling optional JSON code fences.
+    - Include unit tests for `parse` function.
+
+--- audit: original='feat(vox-effort-route): decide + verify parsing + LlmRouter (B3)' | actual=428L across 3 files | derived=full ---
