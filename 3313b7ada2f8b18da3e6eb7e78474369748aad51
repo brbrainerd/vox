@@ -1,0 +1,8 @@
+docs(mens): Add 4B single-GPU/heterogeneous mesh plan, pipeline audit, and Qwen3.7 research
+scale: ~519 lines across 3 files [L]
+
+- docs/superpowers/plans/2026-06-07-mens-4b-single-gpu-and-heterogeneous-mesh.md: New document detailing the implementation plan for MENS 4B-on-16GB training on a single GPU and a VRAM-heterogeneity-aware mesh, including architecture, tech stack, and target/fallback ladder.
+- docs/src/architecture/mens-training-pipeline-audit-and-improvement-plan-2026-06-07.md: New document providing a read-only audit of the MENS QLoRA trainer, covering checkpointing, crash diagnosis, VRAM/throughput backlog, and scoping plans for auto-recovery, a VRAM bundle, and federated-LoRA-over-LAN.
+- docs/src/architecture/qwen-3.7-profile-and-mens-4b-feasibility-2026-06-07.md: New document presenting research findings on Qwen3.7 (closed/API-only, no open weights) and a revised feasibility assessment for MENS 4B QLoRA fine-tuning on a 16GB RTX 4080, concluding that 4B is not viable and the pipeline auto-retreats to 2B.
+
+--- audit: original='docs(mens): Qwen3.7 research + pipeline audit + 4B/mesh implementation plan' | actual=519L across 3 files | derived=full ---
