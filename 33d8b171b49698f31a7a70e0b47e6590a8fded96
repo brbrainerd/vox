@@ -1,0 +1,7 @@
+feat(orchestrator): load circuit breaker thresholds from contract overlay
+scale: ~97 lines across 2 files [M]
+
+- `crates/vox-orchestrator/src/circuit_breaker.rs`: Added `CircuitBreakerConfig::from_contract_str` and `CircuitBreakerConfig::from_contract_file` methods to load and overlay circuit breaker thresholds from a YAML contract file onto the default configuration. These methods deserialize an `Overlay` struct with optional fields, applying only the specified values to the `CircuitBreakerConfig`.
+- `crates/vox-orchestrator/src/orchestrator_policy.rs`: Modified `OrchestratorPolicyConfig::default` to load the `circuit_breaker` configuration from `contracts/orchestration/circuit-breaker.v1.yaml` using the new `CircuitBreakerConfig::from_contract_file` method, replacing the direct use of `CircuitBreakerConfig::default()`.
+
+--- audit: original='feat(orchestrator): load circuit-breaker thresholds from contract overlay (HC-G02-08)' | actual=97L across 2 files | derived=full ---
