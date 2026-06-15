@@ -1,0 +1,6 @@
+fix(gui): regenerate gui-surface-coverage.v1.json
+scale: ~0 lines across 1 files [XS]
+
+- Regenerate the `gui-surface-coverage.v1.json` file, which is a binary file.
+
+--- audit: original='fix(#229): regenerate gui-surface-coverage after merge' | actual=0L across 1 files | derived=full ---
