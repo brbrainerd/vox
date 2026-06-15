@@ -1,0 +1,8 @@
+feat(engineering-diagnostics): add Tool Registry & Capabilities section
+scale: ~27 lines across 1 files [S]
+
+- `webview-ui/src/components/EngineeringDiagnostics.tsx`:
+    - Added a new "Tool Registry & Capabilities" section to display information about loaded schemas and tool count.
+    - Modified the "Context Explorer" header to include `flex items-center justify-between` for better alignment.
+
+--- audit: original='y' | actual=27L across 1 files | derived=full ---
