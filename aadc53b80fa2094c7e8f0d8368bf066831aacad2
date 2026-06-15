@@ -1,0 +1,6 @@
+test(cli): refresh command catalog baseline for 5 new subcommands
+scale: ~0 lines across 1 files [XS]
+
+- `crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt`: Updated the binary baseline to include `model/eval`, `scientia/claims`, `scientia/dashboard`, `wasm`, and `wasm/run` subcommands.
+
+--- audit: original='test(cli): refresh command-catalog baseline for 5 new subcommands' | actual=0L across 1 files | derived=full ---
