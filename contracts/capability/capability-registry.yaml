@@ -608,6 +608,24 @@ curated:
   - ci
   - completion-ingest
   parameters: null
+- id: cli.ci.config-hygiene
+  title: Ci Config-hygiene
+  description_human: 'Advisory gate: detects hardcoded env paths, env reads in pure-config modules, and declared-but-unwired env-resolver functions.'
+  description_model: null
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - config-hygiene
+  parameters: null
 - id: cli.ci.contracts-index
   title: Ci Contracts-index
   description_human: null
