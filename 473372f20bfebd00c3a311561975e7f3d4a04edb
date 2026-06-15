@@ -1,0 +1,18 @@
+feat(ci): add autofix for line-endings and enforce Rust 2024 edition
+scale: ~146 lines across 13 files [M]
+
+- `crates/vox-toestub/src/detectors/workspace_drift.rs`: Add detection for Rust edition drift, enforcing Rust 2024 in the root workspace and `edition.workspace = true` in sub-crates.
+- `crates/vox-cli/src/commands/ci/line_endings.rs`: Implement autofix for line-endings, converting CRLF to LF and staging the changes.
+- `crates/vox-cli/src/commands/ci/command_compliance/mcp_wiring.rs`: Add a check for `vox-vscode` parity using `check-mcp-tool-parity.mjs`.
+- `crates/vox-eval/src/lib.rs`: Update temporary `Cargo.toml` files to use `edition = "2024"`.
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Add `autofix` argument to the `line-endings` CI command.
+- `crates/vox-cli/src/commands/ci/install_hooks.rs`: Modify pre-commit hook to use `autofix` for line-endings.
+- `crates/vox-cli/src/commands/ci/run_body.rs`: Pass the new `autofix` argument to the `line_endings::run` function.
+- `crates/vox-toestub/src/detectors/mod.rs`: Update `GodObjectDetector` test to use `hard_max_lines`.
+- `Cargo.lock`: Update dependencies.
+- `vox-vscode/scripts/check-mcp-tool-parity.mjs`: Update path for `tool_aliases.rs` from `vox-mcp` to `vox-orchestrator`.
+- `crates/workspace-hack/Cargo.toml`: Update `edition` to "2024" and remove several `candle-*` and `float8` dependencies. Add `cipher` dependency.
+- `.config/hakari.toml`: Add `candle-core`, `candle-nn`, `candle-transformers`, `float8`, and `cudarc` to `final-excludes.third-party`.
+- `crates/vox-dei/Cargo.toml`: Change `edition = "2024"` to `edition.workspace = true`.
+
+--- audit: original='fix(ci): seamless autofix for line-endings via pre-commit hook' | actual=146L across 13 files | derived=full ---
