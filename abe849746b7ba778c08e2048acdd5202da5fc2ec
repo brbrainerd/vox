@@ -1,0 +1,15 @@
+feat(vox-sherpa-transcribe): remove Capacitor plugin in favor of native Tauri convergence
+scale: ~258 lines across 10 files [L]
+
+- `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/src/index.ts`: Deleted the TypeScript source file defining the Capacitor plugin interface and registration.
+- `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/ios/AppleSpeechBackend.swift`: Removed the iOS Swift file implementing Apple Speech recognition.
+- `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/android/src/main/java/com/vox/plugins/voxsherpatranscribe/VoxSherpaTranscribePlugin.kt`: Deleted the Android Kotlin file implementing speech recognition via `SpeechRecognizer`.
+- `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/android/build.gradle`: Removed the Gradle build configuration for the Android part of the plugin.
+- `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/README.md`: Deleted the README file for the Capacitor plugin.
+- `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/ios/Plugin.swift`: Removed the iOS Swift plugin file.
+- `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/tsconfig.json`: Deleted the TypeScript configuration file.
+- `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/ios/Plugin.m`: Removed the iOS Objective-C plugin file.
+- `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/android/src/main/AndroidManifest.xml`: Deleted the Android manifest file, including the `RECORD_AUDIO` permission.
+- `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/package.json`: Removed the package definition for the Capacitor plugin.
+
+--- audit: original='chore: retire capacitor-based vox-sherpa-transcribe plugin in favor of native tauri convergence' | actual=258L across 10 files | derived=full ---
