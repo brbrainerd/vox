@@ -1,0 +1,12 @@
+fix(secrets): redact .env values in dry-run; fix GUI import key collision
+scale: ~41 lines across 2 files [S]
+
+- `crates/vox-secrets/src/lib.rs`:
+  - Modified `import_env_from_path` to redact `.env` values differently based on the `apply` flag.
+  - When `apply` is `false` (dry-run), values are now redacted to a length-only placeholder (e.g., "•• N chars (redacted)") to prevent leaking sensitive information like provider prefixes.
+  - When `apply` is `true`, values continue to use the `head4…tail2 (redacted)` preview.
+  - Added a new private helper function `redact_length_only` to generate the length-only placeholder.
+  - Updated the dry-run unit test to assert that neither the head4 nor tail2 of the test value leaks when `apply` is `false`.
+- `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx`: Changed the key for import preview rows from `e.canonicalEnv` to `e.sourceKey` to prevent collisions when multiple aliases of one canonical environment variable are present.
+
+--- audit: original='fix(secrets): dry-run import reveals zero chars of .env values + GUI key collision' | actual=41L across 2 files | derived=full ---
