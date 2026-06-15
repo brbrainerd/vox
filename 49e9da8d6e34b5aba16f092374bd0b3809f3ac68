@@ -1,0 +1,18 @@
+refactor(config): centralize serde defaults, timeouts, and path literals
+scale: ~213 lines across 15 files [M]
+
+- feat(vox-config): Add `serde_defaults` module with `default_true` and `default_false` for `#[serde(default = "...")]`
+- feat(vox-config): Add `timeouts` module with named `Duration` constants (e.g., `D_5S`, `HTTP_REQUEST`)
+- feat(vox-config): Add `paths` module with `REPO_DOT_VOX_DIR`, `REPO_DRIFT_CACHE_DIR`, and other repo-relative path string constants
+- refactor(vox-cli): Replace local `default_true` with `vox_config::serde_defaults::default_true` in `command_registry_model.rs`
+- refactor(vox-ml-cli): Replace local `default_true` with `vox_config::serde_defaults::default_true` in `commands/schola/merge_qlora.rs`
+- refactor(vox-orchestrator): Replace local `default_true` and `default_false` with re-exports from `vox_config::serde_defaults` in `config/defaults.rs`
+- refactor(vox-orchestrator): Replace local `default_true` with `vox_config::serde_defaults::default_true` in `contract.rs` and `models/spec.rs`
+- refactor(vox-orchestrator-mcp): Replace local `default_true` with `vox_config::serde_defaults::default_true` in `params.rs` and `scientia_tools/syndication.rs`
+- refactor(vox-publisher): Replace local `default_true` with `vox_config::serde_defaults::default_true` in `types.rs`
+- refactor(vox-plugin-mens-candle-cuda): Replace local `default_true` with `vox_config::serde_defaults::default_true` in `adapter_schema_v3.rs`
+- refactor(vox-plugin-mens-candle-metal): Replace local `default_true` with `vox_config::serde_defaults::default_true` in `adapter_schema_v3.rs`
+- fix(vox-drift-check): Exempt `vox-config` from the `timeout_literal` rule to allow defining constants
+- chore(vox-config): Update `lib.rs` to export new modules (`paths`, `serde_defaults`, `timeouts`)
+
+--- audit: original='refactor(config): add serde_defaults + timeouts SSOT modules; consolidate path literals' | actual=213L across 15 files | derived=full ---
