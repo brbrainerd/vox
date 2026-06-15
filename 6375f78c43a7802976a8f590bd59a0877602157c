@@ -1,0 +1,14 @@
+feat(repo): cluster build-tools, add sprawl triage list, and update doc-inventory
+scale: ~292 lines across 11 files [L]
+
+- **apps/build-tools/render-durable-animation**: Moved `render-durable-animation` from `tools/` to `apps/build-tools/render-durable-animation/`.
+- **scripts/render-durable-animation.vox**: Updated paths to reflect the move of `render-durable-animation` to `apps/build-tools/`.
+- **docs/src/architecture/repo-layout-single-file-parent-dirs-triage-2026.md**: Added a new document listing ~203 paths for single-file parent directories for triage.
+- **docs/src/architecture/repo-layout-sprawl-audit-2026.md**: Updated the sprawl audit document to reflect the move of `render-durable-animation` and categorize it as a "Build-time helper".
+- **docs/src/architecture/repo-cleanup-ledger-2026.md**: Updated the cleanup ledger to reflect the move of `render-durable-animation` and corrected the path for `crates\vox-ml-cli\check_errors.txt`.
+- **docs/src/architecture/where-things-live.md**: Updated the "where things live" document to reflect the move of `render-durable-animation` and corrected the path for `vox-ml-cli`.
+- **docs/src/architecture/research-index.md**: Linked the new `repo-layout-single-file-parent-dirs-triage-2026.md` document.
+- **contracts/documentation/canonical-map.v1.yaml**: Updated `canonical-map` v4 to assign ownership of `apps/build-tools/**` to the `doc-inventory` domain.
+- **docs/agents/doc-inventory.json**: Regenerated the `doc-inventory.json` file.
+
+--- audit: original='chore(repo): cluster build-tools + sprawl triage list' | actual=292L across 11 files | derived=full ---
