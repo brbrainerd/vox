@@ -1333,6 +1333,46 @@ mod registry_dispatch_tests {
     use serde_json::json;
     use std::collections::HashSet;
 
+    /// news-publish tools are dispatch-gated; skip probing when the feature is off.
+    #[cfg(not(feature = "news-publish"))]
+    const SKIP_NEWS_PUBLISH_TOOLS: &[&str] = &[
+        "vox_news_test_syndicate",
+        "vox_news_draft_research",
+        "vox_news_approve",
+        "vox_news_approval_status",
+        "vox_news_simulate_publish_gate",
+        "vox_scientia_publication_prepare",
+        "vox_scientia_publication_approve",
+        "vox_scientia_publication_submit_local",
+        "vox_scientia_publication_status",
+        "vox_scientia_publication_scholarly_remote_status",
+        "vox_scientia_publication_scholarly_remote_status_sync_all",
+        "vox_scientia_publication_scholarly_remote_status_sync_batch",
+        "vox_scientia_publication_arxiv_handoff_record",
+        "vox_scientia_publication_scholarly_staging_export",
+        "vox_scientia_publication_external_jobs_due",
+        "vox_scientia_publication_external_jobs_dead_letter",
+        "vox_scientia_publication_external_jobs_replay",
+        "vox_scientia_publication_external_jobs_tick",
+        "vox_scientia_publication_external_pipeline_metrics",
+        "vox_scientia_publication_scholarly_pipeline_run",
+        "vox_scientia_publication_media_upsert",
+        "vox_scientia_publication_media_list",
+        "vox_scientia_publication_media_delete",
+        "vox_scientia_publication_route_simulate",
+        "vox_scientia_publication_publish",
+        "vox_scientia_publication_retry_failed",
+        "vox_scientia_publication_preflight",
+        "vox_scientia_worthiness_evaluate",
+        "vox_scientia_publication_discovery_scan",
+        "vox_scientia_publication_discovery_explain",
+        "vox_scientia_publication_discovery_refresh_evidence",
+        "vox_scientia_publication_novelty_fetch",
+        "vox_scientia_publication_decision_explain",
+        "vox_scientia_publication_novelty_happy_path",
+        "vox_scientia_assist_suggestions",
+    ];
+
     /// Subprocess / full-workspace tools — do not invoke from this guard (CI time + host deps).
     const SKIP_DISPATCH_PROBE: &[&str] = &[
         "vox_check_workspace",
@@ -1415,6 +1455,10 @@ mod registry_dispatch_tests {
         for e in TOOL_REGISTRY {
             let name = e.name;
             if SKIP_DISPATCH_PROBE.contains(&name) {
+                continue;
+            }
+            #[cfg(not(feature = "news-publish"))]
+            if SKIP_NEWS_PUBLISH_TOOLS.contains(&name) {
                 continue;
             }
             let res = handle_tool_call(&state, name, json!({})).await;
