@@ -1,0 +1,6 @@
+fix(clippy): allow `unused_mut` for `cmd` in `quiet_command` on Windows
+scale: ~1 lines across 1 files [XS]
+
+- `crates/vox-cli/src/commands/ci/runner_scale.rs`: Added `#[allow(unused_mut)]` to the `cmd` variable in `quiet_command` to suppress warnings related to Windows-only `creation_flags` mutation.
+
+--- audit: original='fix(clippy): allow unused_mut on quiet_command (Windows-only flags)' | actual=1L across 1 files | derived=full ---
