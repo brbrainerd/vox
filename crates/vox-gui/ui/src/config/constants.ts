@@ -65,27 +65,3 @@ export const LIVE_EVENT_FRESH_MS = 10_000;
 
 /** Dockview layout persistence debounce (ms). */
 export const LAYOUT_PERSIST_DEBOUNCE_MS = 1000;
-
-/** Chat sessions list fetch page size. */
-export const CHAT_SESSIONS_LIMIT = 40;
-
-/** Gamify notifications list fetch page size. */
-export const GAMIFY_NOTIFICATIONS_LIMIT = 20;
-
-/** Gamify leaderboard fetch page size. */
-export const GAMIFY_LEADERBOARD_LIMIT = 10;
-
-/** Unified search query-input debounce (ms). */
-export const SEARCH_QUERY_DEBOUNCE_MS = 250;
-
-/** Unified search path-glob input debounce (ms). */
-export const SEARCH_PATH_GLOB_DEBOUNCE_MS = 300;
-
-/** Omni-search palette: max results shown per kind (surface/setting/doc). */
-export const PALETTE_MAX_PER_KIND = 5;
-
-/** Memory recall default top-K result count. */
-export const MEMORY_RECALL_TOP_K = 8;
-
-/** Memory recall maximum selectable top-K. */
-export const MEMORY_RECALL_MAX_TOP_K = 50;

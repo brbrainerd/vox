@@ -2,11 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { LudusProfile } from '../../../lib/ludus';
 import { LudusHud } from './LudusHud';
-import {
-  GAMIFY_POLL_MS,
-  GAMIFY_NOTIFICATIONS_LIMIT,
-  GAMIFY_LEADERBOARD_LIMIT,
-} from '../../../config/constants';
+import { GAMIFY_POLL_MS } from '../../../config/constants';
 
 interface GamifyViewProps {
   pushToast: (item: { tone: 'ok' | 'warn' | 'info'; title: string; body?: string }) => void;
@@ -70,8 +66,8 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
     try {
       const [p, n, lb, comp, q] = await Promise.all([
         invoke<LudusProfile>('get_ludus_profile'),
-        invoke<LudusNotification[]>('list_ludus_notifications', { limit: GAMIFY_NOTIFICATIONS_LIMIT }),
-        invoke<LeaderboardEntry[]>('list_gamify_leaderboard', { limit: GAMIFY_LEADERBOARD_LIMIT }),
+        invoke<LudusNotification[]>('list_ludus_notifications', { limit: 20 }),
+        invoke<LeaderboardEntry[]>('list_gamify_leaderboard', { limit: 10 }),
         invoke<Companion[]>('list_gamify_companions'),
         invoke<Quest[]>('list_gamify_quests'),
       ]);

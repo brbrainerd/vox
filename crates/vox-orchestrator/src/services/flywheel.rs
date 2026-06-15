@@ -1,4 +1,5 @@
 use crate::Orchestrator;
+use crate::process_util::quiet_tokio_command;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::time::interval;
@@ -133,7 +134,7 @@ impl FlywheelMonitor {
 async fn trigger_autonomous_training(domain: &str) -> anyhow::Result<()> {
     tracing::info!(domain = %domain, "Starting autonomous training subprocess...");
 
-    let status = tokio::process::Command::new("pwsh")
+    let status = quiet_tokio_command("pwsh")
         .arg("-NonInteractive")
         .arg("-NoProfile")
         .arg("-File")

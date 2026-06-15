@@ -82,6 +82,31 @@ impl RunOpts {
     }
 }
 
+#[cfg(test)]
+mod resource_args_tests {
+    use super::*;
+
+    #[test]
+    fn no_limits_emits_nothing() {
+        let opts = RunOpts::default();
+        assert!(opts.resource_args().is_empty());
+    }
+
+    #[test]
+    fn limits_emit_flags_in_order() {
+        let opts = RunOpts {
+            cpus: Some("1.5".into()),
+            memory: Some("512m".into()),
+            pids_limit: Some(128),
+            ..RunOpts::default()
+        };
+        assert_eq!(
+            opts.resource_args(),
+            vec!["--cpus", "1.5", "--memory", "512m", "--pids-limit", "128"]
+        );
+    }
+}
+
 /// Unified interface for OCI-compatible container runtimes.
 pub trait ContainerRuntime: Send + Sync {
     /// Human-readable runtime name (`"docker"` or `"podman"`).
@@ -107,29 +132,4 @@ pub trait ContainerRuntime: Send + Sync {
 
     /// Log into a container registry.
     fn login(&self, registry: &str, username: &str, token: &str) -> anyhow::Result<()>;
-}
-
-#[cfg(test)]
-mod resource_args_tests {
-    use super::*;
-
-    #[test]
-    fn no_limits_emits_nothing() {
-        let opts = RunOpts::default();
-        assert!(opts.resource_args().is_empty());
-    }
-
-    #[test]
-    fn limits_emit_flags_in_order() {
-        let opts = RunOpts {
-            cpus: Some("1.5".into()),
-            memory: Some("512m".into()),
-            pids_limit: Some(128),
-            ..RunOpts::default()
-        };
-        assert_eq!(
-            opts.resource_args(),
-            vec!["--cpus", "1.5", "--memory", "512m", "--pids-limit", "128"]
-        );
-    }
 }

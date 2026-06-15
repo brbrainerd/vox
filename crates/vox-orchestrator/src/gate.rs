@@ -5,6 +5,7 @@
 
 use crate::attention::AttentionBudget;
 use crate::budget::BudgetManager;
+use crate::process_util::quiet_tokio_command;
 use crate::types::AgentId;
 use crate::usage::{DEFAULT_RATE_LIMIT_RETRY_SECS, LlmUsageKey, UsageTracker};
 use async_trait::async_trait;
@@ -108,12 +109,11 @@ impl BehavioralGate {
             }
 
             let mut cmd = if is_js {
-                let mut c =
-                    tokio::process::Command::new(if cfg!(windows) { "npm.cmd" } else { "npm" });
+                let mut c = quiet_tokio_command(if cfg!(windows) { "npm.cmd" } else { "npm" });
                 c.arg("test");
                 c
             } else {
-                let mut c = tokio::process::Command::new("cargo");
+                let mut c = quiet_tokio_command("cargo");
                 c.arg("test");
                 if let Some(p) = module_path {
                     c.arg(p);

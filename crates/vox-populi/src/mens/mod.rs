@@ -39,10 +39,6 @@ pub mod discovery_publish;
 /// default, Qwen3.5-4B,
 /// is a `*ForConditionalGeneration` vision-language checkpoint that the text
 /// trainer cannot train (it is rejected up front by the vox-hf-layout VL guard).
-///
-/// The effective default is now operator-tunable at runtime via the
-/// `VOX_MENS_DEFAULT_MODEL` env var (resolved through [`default_model_id`]);
-/// this const remains the SSOT fallback.
 pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen2.5-Coder-7B-Instruct";
 
 /// Resolve the default training/inference base model id from a raw env override,
@@ -100,5 +96,10 @@ mod default_model_tests {
     #[test]
     fn blank_env_falls_back() {
         assert_eq!(resolve_default_model_id(Some("   ")), DEFAULT_MODEL_ID);
+    }
+
+    #[test]
+    fn empty_string_keeps_default() {
+        assert_eq!(resolve_default_model_id(Some("")), DEFAULT_MODEL_ID);
     }
 }

@@ -17,6 +17,7 @@ use vox_foundation::protocol::orch_daemon_method;
 use vox_orchestrator::orch_daemon::OrchDaemonClient;
 
 use crate::commands::daemon::PersistentDaemon;
+use crate::commands::process_util::quiet_command;
 
 /// Tauri event channel carrying browser live-view frames to the UI.
 pub const BROWSER_FRAME_EVENT: &str = "vox://browser-frame";
@@ -967,7 +968,7 @@ fn run_playwright_validate(
 ) -> Result<PlaywrightValidateResult, String> {
     let pnpm = vox_cli::frontend::pnpm_executable();
 
-    let install = std::process::Command::new(pnpm)
+    let install = quiet_command(pnpm)
         .args(["exec", "playwright", "install", "chromium"])
         .current_dir(ui_dir)
         .env("VOX_PREVIEW_URL", preview_url)
@@ -988,7 +989,7 @@ fn run_playwright_validate(
         });
     }
 
-    let test = std::process::Command::new(pnpm)
+    let test = quiet_command(pnpm)
         .args([
             "exec",
             "playwright",

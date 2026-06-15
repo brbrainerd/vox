@@ -7,11 +7,7 @@ import { Icon } from '../../ui/Icons';
 import { Sparkline } from '../../ui/Sparkline';
 import { renderHighlights, UnifiedHit, SearchResponse } from '../Search/searchHelpers';
 import { attachItemsFromHits, AttachItem } from '../../../lib/loquelaContext';
-import {
-  MEMORY_RECALL_DEBOUNCE_MS,
-  MEMORY_RECALL_TOP_K,
-  MEMORY_RECALL_MAX_TOP_K,
-} from '../../../config/constants';
+import { MEMORY_RECALL_DEBOUNCE_MS } from '../../../config/constants';
 
 // Corpus vocabulary aligned with vox_db SearchCorpus variants.
 // Scope ids must match the corpus names accepted by vox_search_query.
@@ -154,7 +150,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   // Scope uses the corpus vocabulary aligned with vox_search_query.
   // Default: all three memory/knowledge/chunk corpora active.
   const [scope, setScope] = useState<MemCorpusId[]>(['memory', 'knowledge', 'chunk']);
-  const [topK, setTopK] = useState(MEMORY_RECALL_TOP_K);
+  const [topK, setTopK] = useState(8);
   // Auto-recall is a persisted GUI preference (gui.memory.autoRecall), hydrated
   // from the workspace db via get_gui_preference and written back on toggle —
   // the same pattern Settings uses for theme/telemetry/sign.
@@ -340,8 +336,8 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
           />
           <span className="font-mono text-[10px] text-zinc-500">top</span>
           <input
-            type="number" min={1} max={MEMORY_RECALL_MAX_TOP_K} value={topK}
-            onChange={e => setTopK(parseInt(e.target.value) || MEMORY_RECALL_TOP_K)}
+            type="number" min={1} max={50} value={topK}
+            onChange={e => setTopK(parseInt(e.target.value) || 8)}
             aria-label="Number of top hits"
             className="w-12 rounded border border-white/10 bg-white/[0.02] px-1.5 py-0.5 text-center font-mono text-[11px] text-zinc-200 outline-none"
           />

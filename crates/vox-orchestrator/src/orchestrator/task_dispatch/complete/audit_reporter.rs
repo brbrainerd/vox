@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use crate::process_util::quiet_tokio_command;
+
 pub async fn verify_broken_links(write_files: &[PathBuf]) -> String {
     let mut broken_links_report = String::new();
     let md_files: Vec<_> = write_files
@@ -10,7 +12,7 @@ pub async fn verify_broken_links(write_files: &[PathBuf]) -> String {
     if !md_files.is_empty() {
         let mut broken_reports = Vec::new();
         for md_file in md_files {
-            let out = tokio::process::Command::new("cargo")
+            let out = quiet_tokio_command("cargo")
                 .arg("run")
                 .arg("-p")
                 .arg("vox-cli")

@@ -3,6 +3,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::process_util::quiet_command;
+
 use vox_db::{DbConfig, SearchCorpus, SearchPlan, VoxDb, heuristic_search_plan};
 use vox_repository::discover_repository_or_fallback;
 use vox_search::{
@@ -372,7 +374,7 @@ pub async fn open_locator(locator: OpenLocatorDto) -> Result<OpenOutcomeDto, Str
     match kind.as_str() {
         "file" => {
             let editor = std::env::var("VOX_EDITOR").unwrap_or_else(|_| "code".into());
-            std::process::Command::new(&editor)
+            quiet_command(&editor)
                 .arg(&value)
                 .spawn()
                 .map_err(|e| format!("failed to spawn editor: {e}"))?;
@@ -382,7 +384,7 @@ pub async fn open_locator(locator: OpenLocatorDto) -> Result<OpenOutcomeDto, Str
         }
         "web" => {
             let (prog, args) = url_open_command(std::env::consts::OS, &value);
-            std::process::Command::new(&prog)
+            quiet_command(&prog)
                 .args(&args)
                 .spawn()
                 .map_err(|e| format!("failed to open URL: {e}"))?;

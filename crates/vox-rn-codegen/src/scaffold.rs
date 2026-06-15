@@ -290,6 +290,18 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+mod runtime_pin_tests {
+    use super::*;
+
+    #[test]
+    fn runtime_version_is_semver_triple() {
+        let parts: Vec<&str> = VOX_RUNTIME_NPM_VERSION.split('.').collect();
+        assert_eq!(parts.len(), 3, "expected MAJOR.MINOR.PATCH");
+        assert!(parts.iter().all(|p| p.parse::<u32>().is_ok()));
+    }
+}
+
 fn emit_app_tsx(first_component: &str) -> String {
     format!(
         r#"// Auto-emitted root component. The first declared `component` in your Vox source

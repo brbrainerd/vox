@@ -1,0 +1,9 @@
+[package]
+name = "vox-mcp-llm-bridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "MCP LLM inference bridge — provider routing, free-tier policy, and per-vendor HTTP adapters."
+
+[dependencies]
+workspace-hack = { workspace = true }

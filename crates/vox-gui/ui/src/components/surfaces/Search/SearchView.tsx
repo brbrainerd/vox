@@ -5,11 +5,7 @@ import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { EmptyState } from '../../ui/EmptyState';
 import { SurfaceDecoratorProps } from '../decoratorRegistry';
-import {
-  SEARCH_TOP_K,
-  SEARCH_QUERY_DEBOUNCE_MS,
-  SEARCH_PATH_GLOB_DEBOUNCE_MS,
-} from '../../../config/constants';
+import { SEARCH_TOP_K } from '../../../config/constants';
 import {
   ALL_USER_SCOPES,
   backendScopesFromUserScopes,
@@ -254,13 +250,13 @@ export function SearchView({ pushToast }: SurfaceDecoratorProps) {
 
   // Debounce query.
   useEffect(() => {
-    const id = setTimeout(() => setDebouncedQuery(query), SEARCH_QUERY_DEBOUNCE_MS);
+    const id = setTimeout(() => setDebouncedQuery(query), 250);
     return () => clearTimeout(id);
   }, [query]);
 
   // Debounce pathGlob.
   useEffect(() => {
-    const id = setTimeout(() => setDebouncedPathGlob(pathGlob), SEARCH_PATH_GLOB_DEBOUNCE_MS);
+    const id = setTimeout(() => setDebouncedPathGlob(pathGlob), 300);
     return () => clearTimeout(id);
   }, [pathGlob]);
 
