@@ -1,0 +1,10 @@
+feat(gui): implement type-aware command form rendering and default value seeding
+scale: ~163 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/CommandCatalogForm.tsx`:
+    - Added `argControl` function to map `CommandCatalogArgument` types to appropriate GUI controls ('flag', 'select', 'count', 'text').
+    - Modified `handleCommandSelect` to seed argument values from `SP-1`'s `default_values` when a command is selected.
+    - Imported `CommandCatalogArgument` type.
+- `docs/superpowers/specs/2026-06-01-sp2-type-aware-form-renderer-design.md`: Added a new design document detailing the scope refinement and implementation plan for the type-aware generated form renderer (SP-2).
+
+--- audit: original='feat(gui): type-aware generated command form renderer (SP-2)' | actual=163L across 2 files | derived=full ---
