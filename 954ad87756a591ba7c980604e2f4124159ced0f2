@@ -1,0 +1,9 @@
+feat(compiler): introduce `FileKind` enum for `.vox.ui` discovery
+scale: ~147 lines across 4 files [M]
+
+- `crates/vox-compiler/src/module.rs`: Add new module defining `FileKind` enum (`Source`, `ReactiveModule`, `Unknown`) and `FileKind::from_path` helper. This helper determines the file type based on `.vox` and `.vox.ui` extensions, prioritizing `.vox.ui`. Includes six unit tests covering various path scenarios.
+- `crates/vox-compiler/src/lib.rs`: Export the new `module` for public use within the compiler crate.
+- `docs/src/adr/032-vox-ui-reactive-modules.md`: Update ADR status to "current" and `last_updated` to "2026-05-03", indicating the start of Phase D code work.
+- `docs/src/adr/033-typed-fragment-primitive.md`: Update ADR status to "current" and clarify that Phase F foundation slices begin, but codegen is gated on Phase 6.
+
+--- audit: original='feat(compiler): accept ADRs 032/033 + FileKind helper for .vox.ui discovery' | actual=147L across 4 files | derived=full ---
