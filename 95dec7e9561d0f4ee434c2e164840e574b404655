@@ -1,0 +1,10 @@
+fix(codegen-rust): auto-reassign value-semantic list sort methods in bare statements
+scale: ~79 lines across 2 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`:
+    - Introduced `VALUE_SEMANTIC_LIST_REASSIGN` constant array listing `sorted_by_key`, `sort_by_key`, `sorted_by`, and `sort_by`.
+    - Modified `try_emit_stmt_mutation` to handle these methods by emitting an assignment `recv = <value-block>;` to mirror interpreter's write-back for bare statement calls.
+    - Updated comments to clarify the distinction between in-place mutators and value-semantic methods requiring re-assignment.
+- `examples/golden/list_sort_value_semantics.vox`: Added `test_sort_by_key_bare_statement_reassigns` to verify the new behavior for `sort_by_key` in a bare statement.
+
+--- audit: original='fix(codegen-rust): bare-statement value-semantic sort methods auto-reassign (interp parity)' | actual=79L across 2 files | derived=full ---
