@@ -1,0 +1,6 @@
+docs(roadmap): update status for TASK-0.6 in GUI native roadmap
+scale: ~4 lines across 1 files [XS]
+
+- docs/src/architecture/gui-native-roadmap-status-2026.md: Updated the status of `TASK-0.6 — Harden transport.ts: backoff, auth refresh` from "Partial" to "Done", detailing the implemented features: typed discriminated-union events, exponential backoff, 4401 auth close-code handling, UI banner wiring, and fixes for type exports and import paths.
+
+--- audit: original='docs(roadmap): update status after 2026-04-29 session' | actual=4L across 1 files | derived=full ---
