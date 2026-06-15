@@ -1,0 +1,18 @@
+feat(ci): implement CI command suite, Toestub engine, and MCP Scientia tools
+scale: ~3013 lines across 25 files [XL]
+
+- `contracts/operations/catalog.v1.yaml`: Added `canonical_name` and `latin_aliases` fields to operation rows, and updated various operation definitions.
+- `crates/vox-cli`: Implemented a new `ci` command suite with several subcommands and validators.
+- `crates/vox-cli/src/commands/ci/operations_catalog.rs`: Added `canonical_name` and `latin_aliases` fields to `OperationRow` and implemented `verify_catalog_nomenclature` for validating naming conventions.
+- `crates/vox-cli/src/commands/ci/nomenclature_guard.rs`: Added a new `nomenclature-guard` command to enforce English-first naming policy for crates, including a Latin structural denylist and historical allowlist.
+- `crates/vox-cli/src/commands/ci/command_compliance/validators.rs`: Added `check_latin_alias_parity_with_catalog` to ensure consistency between `visible_alias` in `lib.rs` and `latin_aliases` in the operations catalog.
+- `crates/vox-cli/src/commands/ci/command_compliance/tests.rs`: Added new tests for `latin_alias_parity_with_catalog` and `latin_english_alias_declared_in_lib` to validate naming conventions.
+- `crates/vox-toestub`: Introduced the Toestub engine with new detectors for code hygiene.
+- `crates/vox-toestub/src/detectors/reachability.rs`: Added a new detector to identify trivial or unreachable code blocks in Rust functions.
+- `crates/vox-toestub/src/engine.rs`: Modified the Toestub engine to incorporate new detectors and improve analysis.
+- `crates/vox-mcp/src/tools/scientia_tools`: Added new tools for lifecycle management, discovery, and preflight checks within MCP Scientia.
+- `scripts/ci`: Added new Python scripts `patch_catalog.py` and `add_canonical_names.py` for CI automation related to the operations catalog.
+- `docs/src/architecture/english_core_migration_ledger.md`: Updated documentation related to the English core migration ledger.
+- Many smaller files across `crates/vox-cli/src/commands/ci` and `crates/vox-toestub/src/detectors` were added or modified to support the new CI commands and Toestub detectors.
+
+--- audit: original='feat: implement CI command suite, Toestub engine, and MCP Scientia tools for repository hygiene and contract validation' | actual=3013L across 25 files | derived=full ---
