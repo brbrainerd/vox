@@ -1,0 +1,18 @@
+feat(codegen-ts/rn): translate `for` loops to `RnNode::Loop` for pure React Native output
+scale: ~193 lines across 4 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/rn/component.rs`:
+    - Added `RnNode::Loop` enum variant to represent VUV `for` loops, including fields for `iterator_ts`, `item_name`, `index_name`, `key_ts`, and a vector of `RnNode` for the body.
+    - Implemented `hir_view_child_to_rn` to handle `HirExpr::For`, recursively translating the loop body into `RnNode`s to prevent React-DOM elements (like `<div>`, `<p>`) from leaking into React Native output.
+    - Extended `collect_used_styles`, `emit_rn_node`, and `clone_rn_node` to fully support the new `RnNode::Loop` variant.
+    - Introduced `inject_key_into_first_element` helper to insert the `key` attribute into the first JSX element of a rendered loop body string.
+    - Modified `emit_rn_node` to render `RnNode::Loop` as `{iterator.map((item, i) => (<rn-body/>))}` with key injection.
+- `crates/vox-cli-tests/tests/build_e2e.rs`: Added `build_mobile_list_renders_pure_rn_inside_for_loop` test to verify:
+    - `for` loops are translated to `.map(...)`.
+    - Loop bodies exclusively use React Native components (`<View>`, `<Text>`) and contain no React DOM tags (`<div>`, `<p>`) or `className` attributes.
+    - The `key` attribute is correctly injected onto the first element of the loop body.
+    - The generated TypeScript compiles against `@types/react-native`.
+- `crates/vox-cli-tests/tests/fixtures/mobile_list/main.vox`: Added new fixture `mobile_list` with a `for` loop to test the new React Native codegen.
+- `crates/vox-cli-tests/tests/fixtures/mobile_list/expected_files.toml`: Added configuration for the `mobile_list` fixture, specifying `TodoList.tsx` as an expected output file.
+
+--- audit: original='fix(codegen-ts/rn): translate for-loop bodies recursively to RN nodes' | actual=193L across 4 files | derived=full ---
