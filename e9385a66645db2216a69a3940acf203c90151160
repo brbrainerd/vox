@@ -1,0 +1,5 @@
+chore(deps): update Cargo.lock for `serial_test` dev dependency
+scale: ~1 lines across 1 files [XS]
+- Regenerate `Cargo.lock` to include `serial_test` 3.x as a new development dependency.
+
+--- audit: original='chore(Cargo.lock): regenerate for serial_test dev-dep in vox-dashboard' | actual=1L across 1 files | derived=full ---
