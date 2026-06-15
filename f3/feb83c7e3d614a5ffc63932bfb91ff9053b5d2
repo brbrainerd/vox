@@ -1,0 +1,14 @@
+feat(dashboard): Implement settings API backend and host shell abstractions
+scale: ~367 lines across 9 files [L]
+
+- **crates/vox-dashboard/src/api/settings.rs**: Add new module for GET/PUT `/api/dashboard/settings` endpoint, persisting flat JSON to `$VOX_CONFIG_DIR/dashboard-settings.json`.
+- **crates/vox-dashboard/tests/settings_api.rs**: Add two tests for the settings API, covering initial empty state and PUT persistence.
+- **crates/vox-dashboard/src/host/toasts.ts**: Introduce a new module for info/warn/error toast notifications with auto-dismiss and subscription capabilities.
+- **crates/vox-dashboard/src/host/settings.ts**: Implement an async `get`/`set` API for dashboard settings, backed by the new `/api/dashboard/settings` endpoint.
+- **crates/vox-dashboard/src/host/keymap.ts**: Add a new module for a chord-based keybinding registry.
+- **crates/vox-dashboard/src/host/index.ts**: Create a barrel module to export `toasts`, `settings`, and `keymap` from the host shell.
+- **crates/vox-dashboard/src/router.rs**: Merge the new `settings_router` into the existing `dashboard_router`.
+- **crates/vox-dashboard/src/api/mod.rs**: Add a barrel module to expose the `settings` module and its `settings_router`.
+- **crates/vox-dashboard/src/lib.rs**: Expose the new `api` module publicly.
+
+--- audit: original='feat(dashboard): settings API backend + host shell abstraction (Phase 2 enablers)' | actual=367L across 9 files | derived=full ---
