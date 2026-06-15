@@ -1,0 +1,6 @@
+fix(vox-jsonschema-util): format SHA256 digest bytes explicitly in example
+scale: ~8 lines across 1 files [XS]
+
+- `crates/vox-jsonschema-util/examples/emit_agent_harness.rs`: Changed the SHA256 digest formatting from `format!("{:x}", ...)` to an explicit byte-by-byte hexadecimal formatting using `iter().map(|b| format!("{b:02x}")).collect()` because the `Array<u8>` type (formerly `GenericArray`) no longer implements `LowerHex`.
+
+--- audit: original='fix(vox-jsonschema-util): hex-format sha256 digest in example (green the clippy gate)' | actual=8L across 1 files | derived=full ---
