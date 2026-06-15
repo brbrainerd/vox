@@ -1,0 +1,12 @@
+fix(ci): gui-surface-coverage counts decorator-driven surfaces
+scale: ~83 lines across 2 files [M]
+
+- `crates/vox-cli/src/commands/ci/gui_surface_coverage.rs`:
+    - Added `GUI_DECORATOR_REGISTRY` constant for the decorator registry file path.
+    - Modified `parse_gui_routes` function to accept `app_src` and `decorator_src` as arguments instead of reading from `GUI_APP`.
+    - Updated `parse_gui_routes` to extract decorator-only surface keys from the `surfaceDecorators` object literal in `decoratorRegistry.ts`.
+    - Modified `parse_gui_routes` to read the `GUI_APP` and `GUI_DECORATOR_REGISTRY` files and pass their contents to the parsing logic.
+    - Updated the `run` function to call `parse_gui_routes` with the contents of `GUI_APP` and `GUI_DECORATOR_REGISTRY`.
+    - Added error handling for reading `GUI_DECORATOR_REGISTRY`.
+
+--- audit: original='@ fix(ci): gui-surface-coverage counts decorator-driven surfaces (A5)' | actual=83L across 2 files | derived=full ---
