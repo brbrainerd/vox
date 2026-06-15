@@ -1,0 +1,12 @@
+feat(vox-gui/tasks): Improve accessibility of task controls
+scale: ~39 lines across 2 files [S]
+
+- `crates/vox-gui/ui/src/components/surfaces/Tasks/TasksView.tsx`:
+    - Added `type="button"` to all buttons for explicit semantic meaning.
+    - Added `aria-label` attributes to the priority cycle button, edit task button, and remove task button for improved screen reader accessibility.
+    - Added `aria-hidden="true"` to icon elements within buttons to prevent redundant screen reader announcements.
+- `crates/vox-gui/ui/src/components/surfaces/Tasks/TasksView.test.tsx`:
+    - Added tests to verify that all buttons have `type="button"`.
+    - Added tests to verify accessible labels for the refresh control and the add-task input.
+
+--- audit: original='feat(vox-gui/wave6): Tasks a11y + checklist (Wave 6)' | actual=39L across 2 files | derived=full ---
