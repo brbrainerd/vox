@@ -17,6 +17,7 @@ pub mod canonical_json;
 pub mod codegen_ts;
 pub mod contract_ir;
 pub mod eval;
+pub mod feature_matrix;
 pub mod fmt;
 pub mod generated_vox;
 pub mod hir;
