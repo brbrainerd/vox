@@ -1,0 +1,17 @@
+feat(vox-effort-audit): implement heuristic shape features for commit analysis
+scale: ~194 lines across 1 files [M]
+
+- `crates/vox-effort-audit/src/shape.rs`:
+    - Add `ShapeFeatures` struct to store various heuristic features of a commit, including:
+        - `additions`, `deletions`, `files_changed`
+        - `file_extension_histogram`
+        - `mechanical_sweep_score` (placeholder, currently 0.0)
+        - `is_lockfile_only`, `is_generated_only`, `is_doc_only` flags
+        - `commit_kind_from_message` derived from the commit message.
+    - Define `CommitKind` enum for classifying commit types (Feat, Fix, Chore, Refactor, Docs, Test, Style, Ci, Other).
+    - Implement `features` function to compute and return `ShapeFeatures` for a given `CommitRecord`.
+    - Implement `parse_commit_kind` function to extract `CommitKind` from a commit message.
+    - Implement logic to determine `is_lockfile_only`, `is_doc_only`, and `is_generated_only` based on file paths.
+    - Replace the initial stub comment with a detailed module-level documentation.
+
+--- audit: original='feat(vox-effort-audit): heuristic shape features (A8)' | actual=194L across 1 files | derived=full ---
