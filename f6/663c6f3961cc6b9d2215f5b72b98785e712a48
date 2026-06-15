@@ -1,0 +1,8 @@
+fix(vox-cli): Correct Landlock rules type to `BitFlags<AccessFs>`
+scale: ~5 lines across 1 files [XS]
+
+- `crates/vox-cli/src/commands/runtime/run/sandbox.rs`:
+    - Imported `BitFlags` from `landlock` crate.
+    - Changed the type of `rules` vector from `Vec<(PathBuf, AccessFs)>` to `Vec<(PathBuf, BitFlags<AccessFs>)>` to match `landlock` 0.4.4's `AccessFs::from_read`/`from_all` return type.
+
+--- audit: original='fix(vox-cli): Landlock rules hold BitFlags<AccessFs> (clean-room Linux build)' | actual=5L across 1 files | derived=full ---
