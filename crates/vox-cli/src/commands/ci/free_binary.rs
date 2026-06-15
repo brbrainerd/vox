@@ -29,9 +29,7 @@ fn should_reap(exe: &Path, target_dir: &Path, pid: u32, current_pid: u32) -> boo
         .file_name()
         .map(|n| n.to_string_lossy().to_lowercase())
         .unwrap_or_default();
-    file == "vox"
-        || file == "vox.exe"
-        || file.starts_with("vox-") && !file.ends_with("-build")
+    file == "vox" || file == "vox.exe" || (file.starts_with("vox-") && !file.ends_with("-build"))
 }
 
 #[cfg(test)]
@@ -46,28 +44,75 @@ mod tests {
     #[test]
     fn reaps_vox_exe_under_target() {
         let target = p("/repo/target");
-        assert!(should_reap(&p("/repo/target/debug/vox.exe"), &target, 100, 1));
-        assert!(should_reap(&p("/repo/target/debug/vox-orchestrator-d"), &target, 100, 1));
+        assert!(should_reap(
+            &p("/repo/target/debug/vox.exe"),
+            &target,
+            100,
+            1
+        ));
+        assert!(should_reap(
+            &p("/repo/target/debug/vox-orchestrator-d"),
+            &target,
+            100,
+            1
+        ));
         assert!(should_reap(&p("/repo/target/release/vox"), &target, 100, 1));
     }
 
     #[test]
     fn never_reaps_self() {
         let target = p("/repo/target");
-        assert!(!should_reap(&p("/repo/target/debug/vox.exe"), &target, 1, 1));
+        assert!(!should_reap(
+            &p("/repo/target/debug/vox.exe"),
+            &target,
+            1,
+            1
+        ));
     }
 
     #[test]
     fn ignores_procs_outside_target() {
         let target = p("/repo/target");
-        assert!(!should_reap(&p("/other-wt/target/debug/vox.exe"), &target, 100, 1));
+        assert!(!should_reap(
+            &p("/other-wt/target/debug/vox.exe"),
+            &target,
+            100,
+            1
+        ));
         assert!(!should_reap(&p("/home/u/.vox/bin/vox"), &target, 100, 1));
     }
 
     #[test]
     fn ignores_non_vox_binaries() {
         let target = p("/repo/target");
-        assert!(!should_reap(&p("/repo/target/debug/build-script-build"), &target, 100, 1));
-        assert!(!should_reap(&p("/repo/target/debug/some-test-bin"), &target, 100, 1));
+        assert!(!should_reap(
+            &p("/repo/target/debug/build-script-build"),
+            &target,
+            100,
+            1
+        ));
+        assert!(!should_reap(
+            &p("/repo/target/debug/some-test-bin"),
+            &target,
+            100,
+            1
+        ));
+    }
+
+    #[test]
+    fn handles_windows_paths() {
+        let target = p("C:\\repo\\target");
+        assert!(should_reap(
+            &p("C:\\repo\\target\\debug\\vox.exe"),
+            &target,
+            100,
+            1
+        ));
+        assert!(!should_reap(
+            &p("C:\\other\\target\\debug\\vox.exe"),
+            &target,
+            100,
+            1
+        ));
     }
 }
