@@ -1,0 +1,8 @@
+fix(gui): remove unused `get_routing_summary` IPC registration
+scale: ~4 lines across 3 files [S]
+
+- `crates/vox-gui/ui/e2e/screenshots.spec.ts`: Removed the `get_routing_summary` case from the mock install function, leaving only `get_routing_summary_live`.
+- `crates/vox-gui/src/commands/models.rs`: Removed the `#[tauri::command]` attribute from the `get_routing_summary` function, making it an internal helper.
+- `crates/vox-gui/src/main.rs`: Removed `commands::models::get_routing_summary` from the list of registered Tauri commands.
+
+--- audit: original='fix(gui): remove dead get_routing_summary IPC registration; keep internal helper (A7)' | actual=4L across 3 files | derived=full ---
