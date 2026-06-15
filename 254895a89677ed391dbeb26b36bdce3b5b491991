@@ -1,0 +1,9 @@
+feat(codegen-ts): emit React form components from `@form` declarations
+scale: ~208 lines across 4 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/form_emit.rs`: New module to emit a self-contained React function component for each `HirForm`. This includes `useState` for fields, client-side validation (required, max_len, min_len), an async submit handler calling the bound `@endpoint`, optional `navigate()` redirect on success, accessible `<label>`/`<input>` pairs with ARIA error associations, and a banner error `<div>` for server-side failures.
+- `crates/vox-codegen/tests/form_emit_test.rs`: New integration tests to verify the emitted React form components. Tests cover label rendering, `type="number"` for integer fields, `await` calls for endpoints, `navigate` redirects, and required-field validation.
+- `crates/vox-codegen/src/codegen_ts/emitter.rs`: Integrates the `form_emit` module into `generate_with_options` to produce `forms.tsx` containing the generated React form components. Adds necessary imports for React and `useNavigate`.
+- `crates/vox-codegen/src/codegen_ts/mod.rs`: Declares the new `form_emit` module.
+
+--- audit: original='feat(codegen-ts): emit React form components from @form decls' | actual=208L across 4 files | derived=full ---
