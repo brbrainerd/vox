@@ -1,0 +1,9 @@
+docs(orchestrator): Correct `short_id_from_str` implementation and tests
+scale: ~23 lines across 1 files [S]
+
+- `docs/src/architecture/2026-05-01-orchestrator-stage1-stage2.md`:
+    - Updated the `short_id_from_str` helper function to use `s.find('-')` for truncating the string at the first hyphen or to the first 8 characters if no hyphen is present. This aligns the documentation with the actual runtime implementation.
+    - Replaced the `short_id_never_panics_on_uuid_without_hyphens` test with `short_id_from_hyphen_free_string` to better reflect the expected behavior and assertion for hyphen-free inputs.
+    - Renamed and adjusted the assertion for the test case handling standard UUIDs to `short_id_from_standard_uuid`.
+
+--- audit: original='fix(docs): correct short_id_from_str in plan doc (FIX-B-02)' | actual=23L across 1 files | derived=full ---
