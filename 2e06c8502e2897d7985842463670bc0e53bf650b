@@ -1,0 +1,7 @@
+fix(plugin-cloud, telemetry-docs): consistency fixes from semantic-gap audit
+scale: ~19 lines across 2 files [S]
+
+- `crates/vox-plugin-cloud/src/sync.rs`: Changed `CloudSync::list_remote_json` to return an explicit "not yet implemented" error instead of `Ok("[]")`, aligning its behavior with sibling methods and preventing callers from misinterpreting an empty array as "no remote artifacts."
+- `docs/superpowers/plans/telemetry/2026-05-09-telemetry-phase-b.md`: Added a reader note to Task 3 clarifying that `task_id`, `parent_task_id`, `trace_id`, and `caller_agent_id` fields are intentionally `None` in Phase B, directing readers to the Phase C preview for when these fields will be populated.
+
+--- audit: original='fix(plugin-cloud, telemetry-docs): consistency fixes from semantic-gap audit' | actual=19L across 2 files | derived=full ---
