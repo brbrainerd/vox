@@ -1,0 +1,11 @@
+feat(codegen-ts): emit imported npm dependencies into package.json
+scale: ~141 lines across 2 files [M]
+
+- `crates/vox-codegen-ts/src/scaffold.rs`:
+    - Extracted the static `package.json` content into a new `static_package_json()` function.
+    - Added `package_json_with_extra_deps` function, gated by `#[cfg(feature = "standalone")]`, to inject additional npm package names into the `dependencies` block of the `package.json`.
+    - Added `extra_deps_from_imports` function, gated by `#[cfg(feature = "standalone")]`, to collect npm package names and their peer dependencies from `HirImport.es_module_specifier` fields.
+    - Introduced `package_json_for_test` function to parse Vox source, extract `HirImport.es_module_specifier` fields, look up peer dependencies in `external_libs::LIBRARIES`, and inject them into the generated `package.json` for testing purposes.
+- `crates/vox-codegen-ts/tests/package_manifest_test.rs`: Added new test file with tests for `package_json_for_test` to verify that imported npm packages and their known peer dependencies are correctly added to the generated `package.json`.
+
+--- audit: original='feat(codegen-ts): Task 8G — emit imported npm deps + peers into package.json' | actual=141L across 2 files | derived=full ---
