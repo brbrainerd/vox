@@ -1,0 +1,9 @@
+fix(ci): Ensure `expo-file-system` is installed after `expo install --fix`
+scale: ~9 lines across 1 files [XS]
+
+- **.github/workflows/mobile-eas-build.yml**:
+  - Added an `npm install --no-audit --no-fund` step immediately after `npx expo install` to ensure newly pinned dependencies like `expo-file-system` are materialized in `node_modules`.
+  - Updated comments to clarify why `npm install` is needed, explaining that `expo install --fix` may add a dependency to `package.json` but not always install it.
+  - Removed `|| true` from the `npx expo install` command to allow potential failures to be reported.
+
+--- audit: original='fix(ci): run npm install after expo install so expo-file-system materializes' | actual=9L across 1 files | derived=full ---
