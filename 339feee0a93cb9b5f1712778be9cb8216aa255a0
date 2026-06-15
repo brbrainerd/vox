@@ -1,0 +1,7 @@
+docs(architecture): revert `vox-scaling-policy` and `vox-populi` descriptions
+scale: ~8 lines across 1 files [XS]
+
+- Reverted the description for `vox-scaling-policy` to remove mention of `donations_vox` and `vox-mesh-policy`.
+- Reverted the description for `vox-populi` to remove details about `inference` and `distributed_training` modules, `InferenceBackend` trait, multi-backend dispatcher, and feature flags.
+
+--- audit: original='docs: scope where-things-live to SQL-only PR1 changes' | actual=8L across 1 files | derived=full ---
