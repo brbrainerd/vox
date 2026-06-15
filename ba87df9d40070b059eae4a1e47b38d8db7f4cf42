@@ -1,0 +1,11 @@
+feat(quantize): implement round-trip MSE/max-abs and report types
+scale: ~64 lines across 2 files [M]
+
+- `crates/vox-quantize/src/verify.rs`:
+    - Implemented `round_trip_mse` and `round_trip_max_abs` functions to calculate quantization errors.
+    - Defined `TensorQuantStat` and `QuantReport` structs for reporting quantization statistics.
+    - Added a test case `q8_0_error_smaller_than_q4k` to verify error calculation.
+    - Updated module documentation.
+- `crates/vox-quantize/src/lib.rs`: Exported `QuantReport` and `TensorQuantStat` from the `verify` module.
+
+--- audit: original='feat(quantize): round-trip MSE/max-abs + report types' | actual=64L across 2 files | derived=full ---
