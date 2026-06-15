@@ -1,0 +1,9 @@
+fix(vox-cli): update dei/visus call sites for submit_task signature
+scale: ~5 lines across 2 files [S]
+
+- `crates/vox-cli/src/commands/dei.rs`:
+  - Added `TaskId` to the import list from `vox_orchestrator`.
+  - Modified the `orchestrator.submit_task` call to pass an additional `None` argument for `tenant_id`.
+- `crates/vox-cli/src/commands/visus/mod.rs`: Added an additional `None` argument to the `orchestrator.submit_task_with_agent` call.
+
+--- audit: original='fix(vox-cli): update dei/visus call sites for current submit_task signature' | actual=5L across 2 files | derived=full ---
