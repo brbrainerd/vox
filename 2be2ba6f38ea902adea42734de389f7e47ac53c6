@@ -1,0 +1,23 @@
+feat(compiler): add agent and environment HIR nodes, type-checking, and lowering
+scale: ~1712 lines across 52 files [XL]
+
+- `crates/vox-compiler`:
+    - Introduce `HirAgent` and `HirEnvironment` nodes to the HIR for native agent and container environment definitions.
+    - Implement lowering logic for `AgentDecl` into `HirAgent` in `hir::lower::decl`.
+    - Add type-checking for agents and environments in `typeck::checker`, including agent handlers and migration rules.
+    - Update `typeck::registration` to register agent definitions and their handler signatures in the type environment.
+    - Extend `typeck::env` with `Agent` binding kind and `AgentHandlerSig` to support agent type information.
+- `examples/golden`: Add new golden files (`ref_syntax.vox`, `ref_types.vox`, `ref_agents.vox`, `ref_orchestrator.vox`, `ref_actors.vox`) to demonstrate new syntax and type features.
+- `docs`:
+    - Substantially revise `docs/src/reference/ref-syntax.md` and `docs/src/reference/ref-type-system.md` to reflect new language features.
+    - Update `docs/src/explanation/expl-actors-workflows.md` and `docs/src/architecture/web-architecture-analysis-2026.md` with new architectural details.
+    - Refactor and update numerous tutorial and how-to guides (`tut-first-app.md`, `tut-actor-basics.md`, `how-to-deploy.md`, `tut-ui-integration.md`, `how-to-database.md`, `how-to-pytorch.md`, `how-to-ai-agents.md`, `how-to-islands-and-pages.md`, `tut-workflow-durability.md`, `how-to-error-handling.md`, `how-to-system-io.md`, `how-to-testing-integration.md`, `how-to-custom-types.md`, `how-to-unit-test.md`, `how-to-scale-actors.md`, `how-to-rust-crate-imports.md`) to align with new compiler capabilities and documentation structure.
+    - Update `docs/src/reference/ref-decorators.md`, `docs/src/reference/ref-web-model.md`, `docs/src/reference/ref-db-surface.md`, `docs/src/reference/ref-builtins-hashing.md` with minor corrections and additions.
+    - Revise `docs/src/architecture/vox-language-testing-pipeline.md` and `docs/src/architecture/internal-web-ir-side-by-side-schema.md` for consistency.
+    - Make minor updates to `docs/src/explanation/glossary.md`, `docs/src/explanation/why-vox-for-ai.md`, `docs/src/explanation/expl-ai-orchestration.md`, `docs/src/explanation/expl-capabilities.md`, `docs/src/explanation/expl-ml-pipeline.md`, `docs/src/explanation/expl-security.md`.
+    - Update `docs/src/journeys/ai-agents.md`, `docs/src/journeys/durable-workflows.md`, `docs/src/journeys/fullstack-data.md`, `docs/src/journeys/native-training.md`.
+    - Adjust `docs/src/architecture/automated-testing-research-2026.md` and `docs/src/architecture/orchestrator-multi-agent-groundwork-2026.md`.
+    - Update `docs/src/architecture/INDEX.md`.
+- `mens`: Update evaluation and training preflight JSON files.
+
+--- audit: original='docs: add extensive documentation for web architecture, testing, and language features alongside compiler type-checking and HIR updates.' | actual=1712L across 52 files | derived=full ---
