@@ -1,0 +1,7 @@
+test(structural): add pipeline-gap patterns for context-dependent purity and emitter wiring
+scale: ~90 lines across 2 files [M]
+
+- `crates/vox-compiler/tests/decl_lowering_test.rs`: Added a new test case `lower_warning_reaches_typecheck_diagnostic_stream` to verify that `lower_warnings` are correctly drained into the diagnostic stream by `typecheck_hir_module`, ensuring the producer-to-consumer wiring for unlowered declarations. This specifically uses `Decl::HttpRoute` to trigger the warning.
+- `crates/vox-compiler/src/semcov_struct_pipeline_tests.rs`: Added a new test case `pure_marker_survives_in_both_fn_and_example_contexts` to assert that the `@pure` decorator is preserved identically whether applied to a free function or an `@example`-wrapped function, preventing context-dependent silent drops of purity information during lowering.
+
+--- audit: original='test(structural): add pipeline-gap patterns #3 (context drop) and #4 (emitter wiring)' | actual=90L across 2 files | derived=full ---
