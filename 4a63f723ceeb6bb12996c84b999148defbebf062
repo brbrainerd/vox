@@ -1,0 +1,12 @@
+feat(scientia): Introduce `InsufficientEvidence` novelty verdict
+scale: ~139 lines across 2 files [M]
+
+- `crates/vox-scientia/src/inspect_bridge/novelty.rs`:
+  - Add `NoveltyVerdict::InsufficientEvidence` to represent cases where retrieval never succeeded (no HTTP 2xx response) or never ran.
+  - Modify `AtomicNoveltyScorer::score` to return `InsufficientEvidence` if no source returned an HTTP 2xx status.
+  - Update the decision ladder documentation for `AtomicNoveltyScorer::score` to include `InsufficientEvidence`.
+- `crates/vox-publisher/src/scientia_prior_art.rs`:
+  - Modify `empty_novelty_bundle` to set `max_lexical_score` and `max_semantic_score` to `None` instead of `Some(0.0)` in the `NoveltyOverlapSummary`.
+  - Add a test `empty_novelty_bundle_scores_are_none` to verify that `empty_novelty_bundle` correctly sets scores to `None`.
+
+--- audit: original='feat(scientia): InsufficientEvidence novelty verdict driven by retrieval health' | actual=139L across 2 files | derived=full ---
