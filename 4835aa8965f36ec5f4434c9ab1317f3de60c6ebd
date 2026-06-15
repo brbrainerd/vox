@@ -1,0 +1,9 @@
+feat(quantize): derive Default for DevicePref enum
+scale: ~9 lines across 1 files [XS]
+
+- `crates/vox-quantize/src/device.rs`:
+    - Added `Default` derive macro to the `DevicePref` enum.
+    - Marked the `Auto` variant as the default using `#[default]`.
+    - Removed the manual `impl Default for DevicePref` block, reducing lines of code.
+
+--- audit: original='style(quantize): derive Default for DevicePref (clippy enum-default)' | actual=9L across 1 files | derived=full ---
