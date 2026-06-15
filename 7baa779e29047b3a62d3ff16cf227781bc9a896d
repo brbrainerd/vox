@@ -1,0 +1,7 @@
+docs(plan): Detail v1.0 gate framework and update roadmap scope
+scale: ~1050 lines across 2 files [XL]
+
+- docs/superpowers/plans/2026-06-06-phase0-gate-framework.md: Add a new, detailed implementation plan for Phase 0 of the v1.0 roadmap. This plan outlines five TDD tasks to establish the core gate framework in `vox-audit`, `vox-cli`, and `vox-arch-check`. Key aspects include introducing `Tier` and foundation-first ordering, integrating the CR-F1 behavioral harness, implementing a `--strict-block-ga` GA roll-up with `_snapshot` artifact generation, including standalone product binaries via a sibling-exe adapter, and adding a CR-META criteria-format lint.
+- docs/superpowers/plans/2026-06-06-v1-completion-roadmap.md: Update the v1.0 completion roadmap to reflect the detailed Phase 0 plan and clarify the scope of subsequent phases. The roadmap now explicitly states that `codegen-ts` is in scope for v1.0, aiming for CR-F2 all-three-arm parity. It also redefines the handling of `external_infra` gates (CR-P1/P2/P3, CR-E3) to be built as real harness+gate PRs in a new Phase 6, removing the prior manual-checklist carve-out. The plan's grounding in the `vox-audit` architecture (CrlGate/Subcommand registry, retirement.rs template, AuditReport/Threshold shape) is emphasized, correcting earlier drafts. The per-phase scope-on-entry is noted for context-limit pacing.
+
+--- audit: original='docs(plan): v1.0 roadmap rewrite (codegen-ts in full + external-infra in PRs) + detailed Phase 0 gate-framework plan' | actual=1050L across 2 files | derived=full ---
