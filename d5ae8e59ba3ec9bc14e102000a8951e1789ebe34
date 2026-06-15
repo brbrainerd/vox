@@ -1,0 +1,11 @@
+refactor(plugins): Delete `vox-plugin-oratio-mic` crate
+scale: ~167 lines across 8 files [M]
+
+- Delete `crates/vox-plugin-oratio-mic` directory, removing `mic.rs`, `lib.rs`, `Plugin.toml`, and `Cargo.toml`.
+- Remove `oratio-mic` plugin entry from `crates/vox-plugin-catalog/catalog.toml`.
+- Remove `oratio-mic` from the `vox-dev` bundle in `crates/vox-plugin-catalog/catalog.toml`.
+- Update `docs/src/architecture/where-things-live.md` to remove the `vox-plugin-oratio-mic` entry and update `vox-plugin-oratio` description to include AudioCapture.
+- Remove `vox-plugin-oratio-mic` row from `docs/src/architecture/layers.toml`.
+- Remove "7e. Execution log (2026-05-24, session 5 — resumed after context cutoff)" section from `docs/src/architecture/crate-audit-and-plan-2026.md`.
+
+--- audit: original='refactor(plugins): D-8 delete vox-plugin-oratio-mic (duplicate of vox-plugin-oratio)' | actual=167L across 8 files | derived=full ---
