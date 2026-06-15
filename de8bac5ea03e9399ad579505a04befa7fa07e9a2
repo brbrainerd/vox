@@ -1,0 +1,8 @@
+docs(scientia): Update design, handbook, and architecture for micropublication pipeline
+scale: ~32 lines across 3 files [S]
+
+- `docs/src/architecture/scientia-micropublication-ssot-and-surfacing-design-2026.md`: Added a revision note detailing the landed surfacing-accuracy, producer, and GUI legs, including `NoveltyVerdict::InsufficientEvidence`, real semantic prior-art similarity, `assess_novelty()` seam, `ClaimVerdict::Contradicted`, automated `discovery-watch` producers, `scientia_discovery_inbox` table, `scientia.discovery.surfaced` WS topic, and three GUI panels (NoveltyEvidencePanel, DiscoveryInbox, ArchivePanel). Also documented the complete archive pipeline (`publication-archive-run`).
+- `docs/src/reference/scientia-ssot-handbook.md`: Added a new section "Surfacing / producer / archive (2026-06-12, landed)" with a table mapping capabilities to their SSOT locations for novelty assessment, semantic prior-art, embedding cache, automated discovery producers, discovery inbox, and archive-run orchestrator.
+- `docs/src/architecture/where-things-live.md`: Added new entries to the "Grouped map of top-level trees" for SCIENTIA novelty assessment seam, semantic similarity, embedding cache, automated discovery producers, discovery inbox, archive-run orchestrator, and GUI surfaces.
+
+--- audit: original='docs(scientia): where-things-live + design-doc revision + handbook for the pipeline upgrade' | actual=32L across 3 files | derived=full ---
