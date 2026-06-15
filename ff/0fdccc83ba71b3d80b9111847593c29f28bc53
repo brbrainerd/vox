@@ -1,0 +1,54 @@
+feat(orchestration): generate model routing enums, update registry, and add docs
+scale: ~8365 lines across 169 files [XL]
+
+- docs/src/architecture/: Added new documentation for data storage migration, linting, CI, SSOT, inference tuning, telemetry-driven cost accounting, and build stabilization findings. Updated model orchestration SSOT audit documentation.
+- crates/vox-orchestrator/:
+    - Generated `ModelTier`, `StrengthTag`, and `TaskCategory` enums from `model-routing.v1.yaml` in `build.rs`.
+    - Refactored `catalog.rs` to use the new `StrengthTag` enum and removed old strength inference logic.
+    - Updated `models/registry.rs` to include `ModelScore` struct and `scoreboard` field, and removed `task_category_premium_key`.
+    - Refactored `models/spec.rs` to use generated enums, added `observed_cost_per_1k` to `ModelSpec`, and removed old enum definitions.
+    - Updated `types/tasks.rs` to use generated `TaskCategory` enum.
+    - Modified `orchestrator/task_dispatch/submit/task_submit.rs` and `models/routing_table.rs` with routing table changes.
+    - Updated `mcp_tools/llm_bridge/infer.rs` with new model routing logic.
+    - Refactored `models/tests.rs` and `orchestrator/task_dispatch/submit/batch.rs` for consistency.
+    - Adjusted `mcp_tools/llm_bridge/providers/anthropic.rs`, `mcp_tools/llm_bridge/model_route_policy/tests.rs`, `mcp_tools/llm_bridge/provider_adapter.rs`, `catalog_classifier.rs`, `mcp_tools/chat_tools/chat/message.rs`, `mcp_tools/llm_bridge/providers/gemini.rs`, `mcp_tools/llm_bridge/providers/types.rs`, `mcp_tools/input_schemas.rs`, `orchestrator/task_dispatch/complete/success/healing.rs`, `mcp_tools/chat_tools/inline_edit.rs`, `orchestrator/task_dispatch/submit/goal.rs`, `mcp_tools/browser_tools.rs`, `mcp_tools/chat_tools/ghost_text.rs`, `mcp_tools/llm_bridge/model_route_policy/resolve.rs`, `mcp_tools/llm_bridge/providers/ollama_chat.rs`, `dei_shim/route_telemetry.rs`, `dei_shim/selection/scorer.rs`, `mcp_tools/chat_tools/plan_loop.rs`, `mcp_tools/compiler_tools.rs`, `mcp_tools/llm_bridge/provider_endpoints.rs`, `mcp_tools/task_tools/submission.rs`, `mcp_tools/llm_bridge/provider_auth.rs`, `mcp_tools/text_normalization.rs`, `mcp_tools/chat_tools/plan.rs`, `mcp_tools/chat_tools/mod.rs`, `orchestrator.rs`, `bin/vox_orchestrator_d.rs`, `Cargo.toml`, and `tests/economy_test.rs` for various minor fixes and updates.
+- crates/vox-db/:
+    - Added `store/ops_scientia.rs` for telemetry and scoreboard operations.
+    - Updated `store/ops_agents.rs` and `facade/vox_mesh.rs`.
+    - Added `schema/domains/scientia.rs` and updated `schema/domains/agents.rs`.
+    - Modified `store/types/rows_core.rs`, `store/types/params.rs`, `schema_extensions.rs`, `store/ops_ludus/gamify_disputes.rs`, and `store/ops_ludus/gamify_world.rs`.
+- crates/vox-cli/:
+    - Added `wix/main.wxs` for Windows installer.
+    - Added new commands: `ci/run_body_helpers/orchestration_audit.rs`, `model/pricing.rs`, `model/explain.rs`, `model/scoreboard.rs`, `model/costs.rs`, `diagnostics/doctor/checks_standard/model_catalog.rs`, `diagnostics/doctor/checks_standard/model_telemetry.rs`, `model/discover.rs`, `model/mod.rs`, `model/rollup.rs`, `ci/run_body_helpers/data_ssot_guards.rs`, `lib.rs`, and `diagnostics/doctor/checks_standard/mod.rs`.
+    - Updated `commands/clavis.rs` and `Cargo.toml`.
+    - Modified `tests/full_stack_minimal_build.rs`.
+- crates/vox-runtime/:
+    - Updated `llm/chat.rs` to record telemetry for LLM API errors.
+    - Removed `inference_env.rs` and updated `model_resolution.rs`.
+    - Modified `llm/types.rs` and `builtins/mod.rs`.
+- contracts/orchestration/:
+    - Added `model-catalog.bootstrap.v1.json`.
+    - Added `model-routing.v1.yaml` and `providers.v1.yaml`.
+    - Added `model-routing.v1.schema.json`.
+- crates/vox-orchestrator-types/:
+    - Added `build.rs` for code generation.
+    - Updated `src/lib.rs` and `Cargo.toml`.
+- contracts/db/: Added `data-storage-policy.v1.yaml`.
+- crates/vox-clavis/:
+    - Added `spec/registry/llm.rs`.
+    - Updated `spec/ids.rs` and `src/lib.rs`.
+- crates/vox-populi/:
+    - Updated `tests/http_control_plane.rs`.
+    - Modified `mens/cloud/local_provider.rs` to refactor `LocalProvider` to meet `CloudProvider` trait.
+    - Updated `mens/hardware/mod.rs` and `mens/tensor/device.rs`.
+- scripts/: Added new migration scripts and orchestrator scripts.
+- crates/vox-config/: Updated `inference.rs`, `routing_policy.rs`, and `src/lib.rs`.
+- crates/vox-crypto/: Added `facades.rs`.
+- .cursor/rules/: Added `data-storage-policy.mdc`.
+- crates/vox-oratio/: Updated `serve.rs`.
+- crates/vox-openai-wire/: Updated `chat_completion.rs`.
+- crates/vox-mens/: Updated `Cargo.toml`, `commands/ai/train.rs`, and `commands/corpus/mod.rs`.
+- contracts/operations/: Added `catalog.v1.yaml`.
+- crates/vox-mesh-types/: Updated `secret_sync.rs`.
+
+--- audit: original='fix(orchestration): stabilize build infrastructure, resolve schema regressions, and update documentation' | actual=8365L across 169 files | derived=full ---
