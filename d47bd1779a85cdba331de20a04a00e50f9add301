@@ -1,0 +1,7 @@
+feat(cli-tests): add ambient declaration for `@vox/runtime-rn` to fix TSC gate
+scale: ~44 lines across 2 files [S]
+
+- `crates/vox-cli-tests/tests/ambient-vox-runtime-rn.d.ts`: Add a new ambient declaration file for the `@vox/runtime-rn` module, providing type definitions for `VoxRuntimeError`, `VoxRuntime` interface (including methods like `recordMutation`, `replayTable`, `uuid`, `notify`, `vibrate`, `takePhoto`, `transcribe`, `transcribeMicrophone`), and `createVoxRuntime` function. This allows `tsc --noEmit` to resolve imports of this module in generated `vox-client.ts` files.
+- `crates/vox-cli-tests/src/lib.rs`: Modify `BuildRun::assert_tsc_compiles` to copy the `ambient-vox-runtime-rn.d.ts` file into each fixture's output directory before running `tsc --noEmit`. This ensures the TypeScript compiler can resolve the `@vox/runtime-rn` import, which is used in the on-device local-exec preamble, without requiring a full `node_modules` installation of the package.
+
+--- audit: original='test(cli-tests): resolve @vox/runtime-rn in the mobile tsc gate' | actual=44L across 2 files | derived=full ---
