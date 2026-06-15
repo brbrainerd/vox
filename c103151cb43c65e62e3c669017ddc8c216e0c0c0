@@ -1,0 +1,7 @@
+feat(coverage-graph): add semantic-coverage baseline snapshot and generation script
+scale: ~488 lines across 2 files [L]
+
+- `contracts/reports/semantic-coverage.v1.json`: Add a new JSON file containing the per-crate semantic-coverage baseline snapshot, including total definitions, proven symbols, and proven percentage for each crate. This snapshot reflects Wave 0 Task 0.4 data with 7174 total definitions and 1432 proven symbols (20.0%).
+- `scripts/coverage-graph/emit_baseline.py`: Add a new Python script to generate the semantic-coverage baseline snapshot from a `COVERAGE_MAP.md` file. The script parses crate coverage data (definitions and proven symbols) and outputs it in the `semantic-coverage.v1.json` format.
+
+--- audit: original='feat(coverage-graph): corrected per-crate semantic-coverage baseline snapshot (Wave 0 Task 0.4 data)' | actual=488L across 2 files | derived=full ---
