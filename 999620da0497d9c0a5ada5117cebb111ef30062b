@@ -1,0 +1,10 @@
+feat(share): Implement cloudflared binary cache with SHA256 verification
+scale: ~252 lines across 5 files [L]
+
+- `crates/vox-share/src/binary_cache.rs`: Add new module for lazy-downloading, SHA256-verifying, and disk-caching the `cloudflared` binary. This includes platform-specific download URLs and checksums, and functions to manage the cache path.
+- `crates/vox-share/tests/binary_cache_test.rs`: Add new test file for the `binary_cache` module, including tests for version string, cached binary name format, and SHA256 verification logic.
+- `crates/vox-share/src/lib.rs`: Expose the new `binary_cache` module.
+- `crates/vox-share/Cargo.toml`: Add new dependencies `sha2`, `reqwest`, and `dirs` for hashing, HTTP requests, and directory path resolution, respectively. Remove `reqwest` from `dev-dependencies` as it's now a primary dependency.
+- `Cargo.lock`: Update lockfile to reflect new dependencies.
+
+--- audit: original='feat(share): cloudflared binary cache with SHA256 verify (S2 task 1)' | actual=252L across 5 files | derived=full ---
