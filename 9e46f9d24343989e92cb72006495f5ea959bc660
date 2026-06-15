@@ -1,0 +1,8 @@
+feat(vox-gui): add `send_to_agent` Tauri command for console A2A messaging
+scale: ~65 lines across 3 files [M]
+
+- `crates/vox-gui/src/commands/console_a2a.rs`: New module defining `send_to_agent` Tauri command to send free-form messages from the console operator (AgentId(0)) to a specified agent's A2A inbox via `send_to_db_with_breaker`. Includes `parse_receiver` helper for agent ID parsing and unit tests.
+- `crates/vox-gui/src/commands/mod.rs`: Exports the new `console_a2a` module.
+- `crates/vox-gui/src/main.rs`: Registers the `send_to_agent` Tauri command.
+
+--- audit: original='feat(vox-gui): send_to_agent A2A Tauri command for the console' | actual=65L across 3 files | derived=full ---
