@@ -1,0 +1,21 @@
+feat(vox-workflow-runtime): implement `workflow.version()` patch-marker primitive
+scale: ~531 lines across 28 files [L]
+
+- **AST:** Add `Expr::WorkflowVersion(WorkflowVersionCall)` and `WorkflowVersionCall` struct to `ast/expr.rs`.
+- **Parser:** Special-case `Token::Workflow` followed by `.version("id", min, max)` in `pratt_match.rs` to produce `Expr::WorkflowVersion`.
+- **HIR:** Add `HirExpr::WorkflowVersion(HirWorkflowVersion)` to `hir/nodes/expr.rs` and `HirWorkflowVersion` to `hir/nodes/stmt_expr.rs`.
+- **Lowering:** Implement lowering from `Expr::WorkflowVersion` to `HirExpr::WorkflowVersion` in `hir/lower/expr.rs`.
+- **Workflow Planning:** Refactor `plan.rs` to use `Vec<ReplayNode>` instead of `Vec<PlannedActivity>`, allowing `ReplayNode::WorkflowPatch` to flow through. Filter `ReplayNode::WorkflowPatch` when collecting `PlannedActivity`.
+- **Workflow Runtime:**
+    - Refactor `interpret_workflow_durable` in `run.rs` to iterate over mixed `ReplayNode` variants.
+    - Add `handle_workflow_patch` in `run.rs` to process `ReplayNode::WorkflowPatch` and journal `WorkflowPatch` events.
+    - Update activity counting in `on_workflow_started` to only count `ReplayNode::Activity`.
+- **Workflow Tracker:** Add `load_workflow_patch` and `record_workflow_patch` no-op default implementations to `WorkflowTracker` trait in `tracker.rs`. `DefaultTracker` inherits these.
+- **Type Checking:** Propagate new variants to match sites in `typeck/ast_decl_lints.rs`, `typeck/checker/mod.rs`, `typeck/checker/expr.rs`, `typeck/effect_check.rs`, `typeck/effect_deps_lint.rs`, `typeck/infer.rs`, `typeck/stale_capture_lint.rs`, `typeck/async_handler_lint.rs`.
+- **Code Generation:** Propagate new variants to match sites in `codegen_ts/reactive.rs`, `codegen_ts/hir_emit/async_walker.rs`, `codegen_ts/hir_emit/mod.rs`, `codegen_ts/jsx.rs`.
+- **Compiler Utilities:** Propagate new variants to match sites in `hir/db_op_walk.rs`, `hir/lower/async_flags.rs`, `hir/lower/contracts.rs`, `parser/with_registry.rs`, `react_bridge.rs`.
+- **Tests:**
+    - Add `workflow_version.rs` acceptance tests for parsing and lowering `workflow.version()`.
+    - Add `workflow_patch.rs` acceptance test for `workflow.version()` emitting a `WorkflowPatch` journal event on first run.
+
+--- audit: original='feat(vox-workflow-runtime): P2-T2 workflow.version() patch-marker primitive' | actual=531L across 28 files | derived=full ---
