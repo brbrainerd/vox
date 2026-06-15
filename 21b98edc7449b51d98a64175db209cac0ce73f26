@@ -1,0 +1,11 @@
+feat(docs,orchestration): free-by-default audit and model catalog reclassification
+scale: ~372 lines across 3 files [L]
+
+- docs(architecture): Add `free-by-default-audit-2026-05-24.md` documenting 89 `is_free`/`free_only` call sites, residual gaps, and healthy patterns.
+- docs(architecture): Update `where-things-live.md` to include `RoutingProfile` location, `ModelTier` ordering, and `CostPreference::Economy` default note.
+- feat(orchestration): Reclassify 9 bootstrap models in `model-catalog.bootstrap.v1.json`:
+    - 5 models (vox-llama3-8b-v2, vox-flash-v2, vox-haiku-v2, vox-gemma2-9b-v2, vox-qwen2-7b-v2) reclassified from `local`/`light` to `free` tier.
+    - 4 models (vox-flash-128k-v2, vox-haiku-128k-v2, vox-gemma2-27b-v2, vox-qwen2-72b-v2) reclassified from `light` to `fast` tier.
+    - Adjust JSON formatting for `strengths` and `supported_parameters` arrays in `model-catalog.bootstrap.v1.json`.
+
+--- audit: original='docs(routing): free-by-default audit + catalog tier reclassification' | actual=372L across 3 files | derived=full ---
