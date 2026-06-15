@@ -1,0 +1,19 @@
+fix(config,llm): validate runtime settings, coerce types, and route OpenRouter URL
+scale: ~107 lines across 8 files [M]
+
+- `vox-gui`:
+    - Validate `f64` fields in runtime settings to reject `NaN`, `Inf`, and negative values.
+    - Validate `i64` fields in runtime settings to reject negative values.
+    - Update `set_user_config` and `reset_user_config` to load the persisted global configuration as the base for saving.
+    - Relabel the "data_dir" field to "Training data dir" with an updated hint clarifying its purpose for MENS training data and that it does not relocate app runtime data.
+- `vox-orchestrator-mcp`: Coerce `max_agents` and `financial_cost_budget_micros` from float to integer, and `trust_auto_approve_min` from integer to float when reading TOML configuration, preventing silent defaulting on type mismatches.
+- `vox-gamify`:
+    - Convert `OPENROUTER_BASE` constant to a function `openrouter_base()` that calls `vox_config::openrouter_chat_completions_url()` to honor custom `OPENROUTER_BASE_URL`.
+    - Update `FreeAiClient` to use the new `openrouter_base()` function for OpenRouter API calls.
+- `vox-cli`: Update `repair` command to use `vox_config::openrouter_chat_completions_url()` for OpenRouter API calls.
+- `vox-orchestrator-mcp`: Update `endpoint_for` to use `vox_config::openrouter_chat_completions_url()` for OpenRouter endpoints.
+- `vox-audit`: Update `OpenRouterPanelClient` to use `vox_config::openrouter_chat_completions_url()` for OpenRouter API calls.
+- `vox-code-audit`: Update `ReviewClient` to use `vox_config::openrouter_chat_completions_url()` for OpenRouter API calls.
+- Add new tests: `float_rejects_nan_inf_and_negative`, `float_accepts_valid_nonnegative`, `int_rejects_negative`, and `numeric_type_mismatch_is_coerced_not_defaulted`.
+
+--- audit: original='fix(vox-gui,llm): validate budgets, coerce config types, config-aware OpenRouter URL' | actual=107L across 8 files | derived=full ---
