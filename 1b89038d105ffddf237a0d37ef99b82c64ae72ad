@@ -1,0 +1,10 @@
+docs(gui-native-roadmap): Update TASK-0.3 status to done and remove from next tasks
+scale: ~11 lines across 1 files [S]
+
+- docs/src/architecture/gui-native-roadmap-status-2026.md:
+    - Updated the status of "TASK-0.3 — Strict Origin/Host allowlist middleware" from "🟡 Partial" to "✅ Done".
+    - Updated the commit hash associated with TASK-0.3 from `00588f6a` to `327bf460`.
+    - Updated the description for TASK-0.3 to reflect the extraction of origin checks into `origin_guard.rs`, inclusion of a JSON error body, strict WebSocket upgrade checks, and comprehensive unit tests.
+    - Removed "TASK-0.3 (finish)" from the "Immediate Next Tasks" section.
+
+--- audit: original='docs: update GUI-native roadmap status for TASK-0.3' | actual=11L across 1 files | derived=full ---
