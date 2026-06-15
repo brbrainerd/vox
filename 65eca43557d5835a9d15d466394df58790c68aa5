@@ -1,0 +1,16 @@
+fix(docs,golden): update ADR statuses, architecture RFC, layers, and golden example
+scale: ~24 lines across 5 files [S]
+
+- docs/src/adr/028-deprecate-stub-durability-grammar.md: Changed `status` from "superseded" to "deprecated".
+- docs/src/adr/041-durable-functions-completion-2026.md: Changed `status` from "accepted" to "current".
+- docs/src/architecture/closures-rfc-2026-05-23.md:
+    - Changed `category` from "architecture" to "Architecture SSOTs".
+    - Changed `status` from "rfc" to "research".
+    - Added `// vox:skip` to 9 Vox code blocks to prevent parsing errors.
+- docs/src/architecture/layers.toml:
+    - Moved `vox-distributed-training` and `vox-inference` from the `[planned]` section to the `[crates]` section, setting `layer = 3` for both.
+    - Added comments indicating their promotion and that the crates are now on disk.
+    - Removed the `[planned]` entries for `vox-distributed-training` and `vox-inference`.
+- examples/golden/auth_patterns.vox: Replaced `if !is_admin` with `if not is_admin` to use the phonetic `not` operator.
+
+--- audit: original='fix(pre-existing): doc-pipeline + arch-check + golden cleanups' | actual=24L across 5 files | derived=full ---
