@@ -31,14 +31,24 @@ fn main() -> ExitCode {
     let sd = run_silent_drop_gate(&crates, sd_baseline);
     let wt = run_weak_test_gate(&crates, wt_baseline);
 
-    println!("silent-drop: ok={} {}", sd.ok, sd.detail.unwrap_or_default());
-    println!("weak-test:   ok={} {}", wt.ok, wt.detail.unwrap_or_default());
+    println!(
+        "silent-drop: ok={} {}",
+        sd.ok,
+        sd.detail.unwrap_or_default()
+    );
+    println!(
+        "weak-test:   ok={} {}",
+        wt.ok,
+        wt.detail.unwrap_or_default()
+    );
 
     if sd.ok && wt.ok {
         println!("coverage-gates: OK (no new silent-drop or touch-test findings)");
         ExitCode::SUCCESS
     } else {
-        eprintln!("::error::coverage-gates: NEW finding(s) beyond baseline — add a real assertion / fix the silent drop, or (if intentional) regenerate the baseline.");
+        eprintln!(
+            "::error::coverage-gates: NEW finding(s) beyond baseline — add a real assertion / fix the silent drop, or (if intentional) regenerate the baseline."
+        );
         ExitCode::FAILURE
     }
 }
