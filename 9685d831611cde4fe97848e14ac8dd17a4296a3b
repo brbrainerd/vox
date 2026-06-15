@@ -1,0 +1,13 @@
+fix(vox-compiler/typeck): Table row methods return Named row type, not anonymous Record
+scale: ~43 lines across 2 files [S]
+
+- `crates/vox-compiler/src/typeck/builtins.rs`:
+    - `lookup_method` for `Ty::Table` now binds the table `name` in addition to `fields`.
+    - Introduced `row_ty = Ty::Named(name.clone())` for table row types.
+    - Methods `get`, `find`, `query`, and `all` now return `Result[Option[row_ty]]` or `Result[List[row_ty]]` instead of `Result[Option[Record(...)]]` or `Result[List[Record(...)]]`.
+    - The `insert` method's input type remains `Record(fields.clone())` to allow object literal matching, while its return type remains `Result[Int]`.
+- `contracts/marquee/manifest.v1.yaml`:
+    - Removed "real db.Todo.all() read path" from `features_deferred`.
+    - Added "real db.Todo.all() read path (Task T, 2026-05-18)" to `features_shipped_followups`.
+
+--- audit: original='fix(vox-compiler/typeck): @table row methods return Named row type, not anonymous Record' | actual=43L across 2 files | derived=full ---
