@@ -1,0 +1,8 @@
+feat(vox-oratio): add eval manifest JSONL fixtures
+scale: ~11 lines across 3 files [S]
+
+- Add `blender_films.jsonl` fixture with three entries for Blender films (Sintel, Tears of Steel, Big Buck Bunny), including URLs for video and SRT, descriptions, and types.
+- Add `librispeech_test_clean.jsonl` fixture with three entries for LibriSpeech test-clean audio, including URLs, expected text, descriptions, and types.
+- Add `vox_code_corpus_v1.jsonl` fixture with five entries for Vox Code Corpus v1, including IDs, URLs, expected code snippets, descriptions, and types.
+
+--- audit: original='test(vox-oratio): add eval manifest fixtures' | actual=11L across 3 files | derived=full ---
