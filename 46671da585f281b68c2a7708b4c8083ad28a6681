@@ -1,0 +1,8 @@
+docs(architecture): Document GUI Visual AI Adversarial Review
+scale: ~27 lines across 2 files [S]
+
+- Introduce `docs/src/architecture/gui-visual-ai-review.md` detailing the non-gating, cache-driven AI review process for Playwright screenshots of `vox-gui` surfaces.
+- Describe "The rule" for AI review, "How it works" (Discover, Capture, Cache, Review, Report), and "Model" configuration.
+- Add a link to the new `gui-visual-ai-review.md` in `docs/src/architecture/where-things-live.md` under the "GUI visual AI review" entry.
+
+--- audit: original='docs(architecture): GUI visual AI review SSOT (the rule + cache + model config)' | actual=27L across 2 files | derived=full ---
