@@ -1,0 +1,12 @@
+feat(orchestrator,dashboard): Migrate dashboard to Rust binary and standalone SPA
+scale: ~6183 lines across 63 files [XL]
+
+- `crates/vox-dashboard`:
+    - Migrated dashboard from VS Code webview to a standalone Rust binary serving a React SPA.
+    - Updated `App.tsx` to use `VoxTransport` for WebSocket communication and `vscode.ts` for VS Code API.
+    - Added `assets.rs` for embedding and serving static SPA assets.
+    - Introduced `transport.ts` for WebSocket and HTTP tool call communication with the orchestrator.
+    - Updated `tailwind.config.js`, `postcss.config.js`, `index.css` for Tailwind CSS configuration and injection.
+    - Added `package.json`, `pnpm-lock.yaml`, `tsconfig.json`,
+
+--- audit: original='feat(orchestrator,dashboard): Fix dashboard startup and layout - Initialize ServerState and HTTP gateway in vox-orchestrator-d. - Add ServerState::new_for_daemon constructor. - Fix Tailwind paths in dashboard and inject directives in index.css. - Verify dashboard full-screen UI layout bounds.' | actual=6183L across 63 files | derived=full ---
