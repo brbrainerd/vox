@@ -1,0 +1,16 @@
+fix(ci): Support exact-file allowlist paths; refresh dylib cache on version bump
+scale: ~148 lines across 4 files [M]
+
+- `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs`:
+  - Modified `load_query_all_allowlist` to no longer auto-append '/' to non-directory entries, allowing for exact-file path allowances.
+  - Updated `query_all_path_allowed` to dispatch based on entry suffix: prefix-match for directories (trailing '/') and exact-match for file paths (no trailing '/').
+  - Added two new unit tests for exact-file matching and the no-trailing-slash boundary condition.
+  - Narrowed the allowlist entry for `check_for_llm_envelope.rs` from a broad directory grant to a specific file path.
+- `crates/vox-plugin-host/tests/abi_mismatch.rs` and `crates/vox-plugin-host/tests/load_noop_code.rs`:
+  - Enhanced `built_dylib` function to include the workspace root `Cargo.toml` modification time as part of the dylib cache key.
+  - This ensures that cached dylibs are considered stale and rebuilt if the workspace version has been bumped, preventing ABI mismatches.
+- `docs/agents/query-all-allowlist.txt`:
+  - Updated the allowlist file header to document both directory prefix (trailing '/') and exact-file path (no trailing '/') syntaxes.
+  - Modified the entry for `crates/vox-cli/tests/` to specifically target `crates/vox-cli/tests/check_for_llm_envelope.rs` as an exact-file allowance.
+
+--- audit: original='fix(ci): T-FIN-2 allowlist exact-file paths; T-FIN-3 dylib cache key on version bump' | actual=148L across 4 files | derived=full ---
