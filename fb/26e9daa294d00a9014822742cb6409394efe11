@@ -1,0 +1,6 @@
+refactor(candle_qlora_train): simplify memory pool trimming condition
+scale: ~4 lines across 1 files [XS]
+
+- `crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/training_loop/mod.rs`: Refactored the `if let Err` statement for `trim_default_pool` to a single line, removing unnecessary indentation and line breaks.
+
+--- audit: original='chore(fmt): format vox-plugin-mens-candle-cuda (drift from parallel session)' | actual=4L across 1 files | derived=full ---
