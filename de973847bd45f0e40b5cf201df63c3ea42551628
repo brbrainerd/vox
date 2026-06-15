@@ -1,0 +1,21 @@
+feat(typeck): Introduce two-parameter `Result[T, E]` type
+scale: ~264 lines across 13 files [L]
+
+- **`Ty::Result` enum variant**: Changed from `Result(Box<Ty>)` to `Result(Box<Ty>, Box<Ty>)` to explicitly support an error type `E`.
+- **`Ty::Result` default error type**: `Result[T]` now defaults to `Result[T, str]` for backward compatibility, and its `signature()` method prints `Result[T]` when `E` is `str`.
+- **`builtin_registry.rs`**: Updated numerous built-in functions to use the two-parameter `Result` type, consistently setting the error type to `Ty::Str`.
+- **`typeck/builtins.rs`**: Modified built-in function signatures to reflect the new `Result[T, E]` structure, using `Ty::Str` as the default error type.
+- **`typeck/registration.rs` & `typeck/ast_decl_lints.rs`**: Updated `resolve_hir_type` and `resolve_type` functions to correctly parse and construct `Ty::Result` from `HirType` and `TypeExpr`, defaulting `E` to `Ty::Str` if not provided.
+- **`typeck/unify.rs`**:
+    - `resolve()`: Updated to recurse into both `ok` and `err` types for `Ty::Result`.
+    - `instantiate_inner()`: Updated to recurse into both `ok` and `err` types for `Ty::Result`.
+    - `occurs()`: Updated to check for type variable occurrences in both `ok` and `err` types for `Ty::Result`.
+- **`typeck/checker/expr.rs`**: Adjusted `get_inner_types` to correctly extract the `ok` type from `Ty::Result`.
+- **`typeck/checker/expr_ops.rs`**: Updated `unify_match_arm_pattern_ty` to handle the new `Result` structure.
+- **`typeck/checker/match_exhaust.rs`**: Modified `get_adt_variants` to correctly extract the `ok` type from `Result` for exhaustiveness checking.
+- **`typeck/infer.rs`**: Updated `infer_ty_from_expr` to handle the new `Result` structure.
+- **`typeck/checker/mod.rs`**: Minor update to `Checker` struct.
+- **`match_exhaustiveness_test.rs`**: Added a new test case `result_error_arm_binds_declared_error_type` to verify that the `Error(code)` arm correctly binds the declared error type `E`.
+- **`docs/superpowers/plans/2026-06-02-vox-golden-corpus-and-compiler-reality.md`**: Added a new documentation file.
+
+--- audit: original='@ feat(typeck): two-parameter Result[T, E] with a real error-type slot' | actual=264L across 13 files | derived=full ---
