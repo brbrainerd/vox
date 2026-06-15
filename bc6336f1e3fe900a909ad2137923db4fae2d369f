@@ -1,0 +1,8 @@
+feat(cli): register `vox audit` command and regenerate command surface
+scale: ~37 lines across 3 files [S]
+
+- `contracts/operations/catalog.v1.yaml`: Added a new operation with `id: audit`, `title: Audit`, and `description: Run quality gates from contracts/ci/check-targets.v1.yaml; umbrella for lint, test, audit, doc, and arch checks.`. This operation is configured for the CLI with `path: [audit]`, `status: active`, and `handler_rust: commands::audit`.
+- `contracts/cli/command-registry.yaml`: Added a new command entry for `surface: vox-cli` with `path: [audit]`, `status: active`, and `handler_rust: commands::audit`.
+- `docs/src/reference/cli-command-surface.generated.md`: This generated file was implicitly updated due to changes in the command registry.
+
+--- audit: original='feat(quality): register vox audit in operations catalog + regenerate command surface' | actual=37L across 3 files | derived=full ---
