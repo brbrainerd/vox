@@ -1,0 +1,8 @@
+feat(vox-gui/scientia): improve ClaimsView accessibility
+scale: ~58 lines across 2 files [M]
+
+- `ClaimsView.tsx`: Add `type="button"` to "Extract" and "Load" buttons for improved accessibility.
+- `ClaimsView.tsx`: Add `role="list"` and `aria-live="polite"` to the claims container and `role="listitem"` to individual claims for screen reader compatibility.
+- `ClaimsView.test.tsx`: Add new test file with tests for button `type="button"` attribute and claims list `aria-live` and `role` attributes.
+
+--- audit: original='feat(vox-gui/wave4): ClaimsView a11y + checklist (Wave 4)' | actual=58L across 2 files | derived=full ---
