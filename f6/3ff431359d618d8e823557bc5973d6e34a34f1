@@ -1,0 +1,11 @@
+docs: Redesign landing page with new logo, hero background, and AI-focused copy
+scale: ~104 lines across 4 files [M]
+
+- `README.md`:
+  - Added Vox logo (`docs/src/assets/logo.png`) and hero background image (`docs/src/assets/hero_bg.png`).
+  - Rewrote the landing page copy to emphasize AI-native development, type safety, full-stack capabilities, and durable execution.
+  - Replaced "Vox Programming Language" heading with a centered block containing the logo, title, and a new tagline.
+  - Updated the "Vision" section to "The Vox Philosophy" with revised bullet points.
+- `RELEASE_NOTES.md`: Added new release notes for "Vox Compiler Refactoring & Quality Improvements (2026-02-22)", detailing modularization, bug fixes, and clippy lint resolution across `vox-parser`, `vox-typeck`, `vox-codegen-rust`, `vox-codegen-ts`, and `vox-hir`.
+
+--- audit: original='docs: Add Vox logo, hero BG, and redesign landing page copy for dev focus' | actual=104L across 4 files | derived=full ---
