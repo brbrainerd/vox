@@ -1,0 +1,31 @@
+refactor(examples): update syntax to use braces for blocks and types
+scale: ~209 lines across 5 files [M]
+
+- examples/pytorch_inference.vox:
+    - Replaced `fn ... to ...:` with `fn ... to ... { ... }` for function definitions.
+    - Replaced `for ... in ...:` with `for ... in ... { ... }` for loop blocks.
+    - Replaced `if ... is ...:` with `if ... is ... { ... }` for conditional blocks.
+    - Removed comments and blank lines, reducing overall line count.
+- examples/agent.vox:
+    - Converted `@table type AgentMemory:` to `@table type AgentMemory { ... }`.
+    - Converted `fn ... to ...:` to `fn ... to ... { ... }` for function definitions.
+    - Removed `@agent_def` and `@mcp.tool` decorators.
+    - Removed `@action` decorator.
+- examples/chatbot_server_fn.vox:
+    - Converted `@server fn ... to ...:` to `@server fn ... to ... { ... }`.
+    - Converted `@component fn ... to Element:` to `@component fn ... to Element { ... }`.
+    - Converted `let send_message = fn(_e):` to `let send_message = fn(_e) (...)`.
+    - Simplified the `Chatbot` component's JSX structure, removing input and button elements.
+- examples/dashboard.vox:
+    - Converted `@component fn ... to Element:` to `@component fn ... to Element { ... }`.
+    - Converted `fn handle_send():` to `let handle_send = fn() (...)`.
+    - Converted `http get ... to list[int]:` to `http get ... to list[int] { ... }`.
+    - Converted `routes:` to `routes { ... }`.
+    - Simplified the `ChatWidget` component's JSX structure.
+- examples/simple_server_fn.vox:
+    - Converted `@server fn ... to Greeting:` to `@server fn ... to Greeting { ... }`.
+    - Converted `@server fn ... to int:` to `@server fn ... to int { ... }`.
+    - Converted `@component fn ... to Element:` to `@component fn ... to Element { ... }`.
+    - Converted `let handle_click = fn(_e):` to `let handle_click = fn(_e) (...)`.
+
+--- audit: original='fix: complete parser brace syntax for parity_test examples' | actual=209L across 5 files | derived=full ---
