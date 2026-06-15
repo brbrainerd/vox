@@ -1,0 +1,10 @@
+refactor(nanopub): retire dead publish_stub surface and delete vox-nanopub crate
+scale: ~259 lines across 14 files [L]
+
+- `crates/vox-nanopub`: Deleted the entire crate, which provided TriG emission, Ed25519 signing, and Trusty-URI derivation for nanopublications. This crate was superseded by `vox-scientia/src/nanopub/spec.rs` which uses the upstream `nanopub` crate for signing.
+- `crates/vox-scientia/src/nanopub`: Removed `network.rs` which contained the `publish_stub` function and related `NanopubNetworkConfig` and `PublishResult` structs, as this was a dead stub. Also removed re-exports of `vox-nanopub` types and functions from `mod.rs`.
+- `crates/vox-publisher/src/scientia_scholarly.rs`: Removed re-exports of `vox_scientia::nanopub` builder types (`NanopubDocument`, `NanopubGraphs`, `SignedNanopub`, `build_nanopub`, `sign_nanopub`) that originated from the now-deleted `vox-nanopub` crate.
+- `docs/src/architecture/where-things-live.md`: Updated the architecture documentation to remove references to `vox-nanopub` and repointed the nanopub-signing row to `crates/vox-scientia/src/nanopub/spec.rs`.
+- `Cargo.toml`, `Cargo.lock`, `.config/hakari.toml`, `crates/vox-scientia/Cargo.toml`, `docs/src/architecture/layers.toml`, `contracts/documentation/link-allowlist.v1.yaml`: Pruned configuration and documentation files to remove references and dependencies related to the `vox-nanopub` crate.
+
+--- audit: original='refactor(scientia): retire dead nanopub publish_stub surface + delete superseded vox-nanopub leaf crate (B10)' | actual=259L across 14 files | derived=full ---
