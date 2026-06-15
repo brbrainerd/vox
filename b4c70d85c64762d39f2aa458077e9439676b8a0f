@@ -1,0 +1,20 @@
+fix(coverage): update reached-but-unproven count to 7950 in reports
+scale: ~294 lines across 2 files [L]
+
+- `contracts/reports/reached-vs-proven-2026-06-14.md`:
+    - Updated the total count of "reached-but-unproven" symbols from 3 to 7950.
+    - Corrected the total annotated code symbols from 26323 to 25333.
+    - Replaced the summary table with detailed per-crate counts for "Code", "Reached", "Proven", and "Reached-not-proven" for 100+ crates, reflecting the new, comprehensive data.
+- `contracts/reports/semantic-coverage.v1.json`:
+    - Updated `semcov_tests_authored` from 2333 to 2409.
+    - Added `semcov_tests_note` explaining the source and focus of authored tests.
+    - Updated `last_updated` from "2026-06-14" to "2026-06-15".
+    - Updated `pr` from 303 to 299.
+    - Added `gaps_targeted_note` clarifying the status of testing for structural pipeline-gap patterns.
+    - Added `reached_not_proven` with a value of 7950.
+    - Added `reached_not_proven_note` explaining the significance of this metric.
+    - Added `neither_reached_nor_proven_approx` with a value of 8407.
+    - Added `reach_source` indicating "local c".
+    - Updated the `note` field to reflect the correction of `reached_not_proven` from 3 to 7950 and reference relevant documentation.
+
+--- audit: original='fix(coverage): correct reached-but-unproven from 3 to true 7950 (keystone metric)' | actual=294L across 2 files | derived=full ---
