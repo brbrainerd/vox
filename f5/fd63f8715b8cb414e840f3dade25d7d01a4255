@@ -1,0 +1,7 @@
+feat(visus-review): add per-run time budget and spike detection module
+scale: ~134 lines across 2 files [M]
+
+- `crates/vox-orchestrator-mcp/src/visus_review/mod.rs`: Implemented a per-run time budget for AI reviews. Surfaces are now deferred if the `total_review_budget_ms` is exceeded, preventing further AI calls. The `start` time is recorded, and `deferred` count is removed.
+- `crates/vox-orchestrator-mcp/src/visus_review/spike.rs`: Added a new module for trailing-median spike detection. This includes `LedgerRow` struct for serializing review metrics and an `is_spike` function to determine if a value exceeds a factor of the median of historical data, with unit tests.
+
+--- audit: original='feat(visus-review): per-run time budget + trailing-median spike warning (TDD)' | actual=134L across 2 files | derived=full ---
