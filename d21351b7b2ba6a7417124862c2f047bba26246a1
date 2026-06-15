@@ -1,0 +1,19 @@
+style: rustfmt auto-format across `vox-effort-audit` and `vox-cli`
+scale: ~162 lines across 14 files [M]
+
+- `crates/vox-effort-audit/src/judge/prompt.rs`: Applied rustfmt to `LlmChatMessage` struct instantiation and `fake_rec`, `fake_shape` test helper functions.
+- `crates/vox-effort-audit/src/pipeline.rs`: Applied rustfmt to `run` and `run_with_overrides` function calls and type annotations.
+- `crates/vox-effort-audit/src/hybrid/transcripts.rs`: Applied rustfmt to `chrono::Utc` calls and `MeasuredCost` enum destructuring in tests.
+- `crates/vox-effort-audit/src/shape.rs`: Applied rustfmt to `lockfiles` array definition, `is_generated_only` boolean assignment, and `big` string literal in tests.
+- `crates/vox-cli/src/commands/audit_effort.rs`: Applied rustfmt to `std::fs::read_to_string` call, `select_with_default_registry` call, and `println!` macro arguments.
+- `crates/vox-effort-audit/src/judge/schema.rs`: Applied rustfmt to `waste_score` field in `JudgeFinding` struct, `JudgeFinding` instantiation in tests, and `s["properties"]` access in tests.
+- `crates/vox-effort-audit/src/output/markdown.rs`: Applied rustfmt to `ranked.sort_by_key` closure, and `BTreeMap` instantiations for `cat_counts` and `rem_counts`.
+- `crates/vox-effort-audit/src/judge/parse.rs`: Applied rustfmt to `strip_fence` function's `strip_prefix` calls.
+- `crates/vox-effort-audit/src/walk.rs`: Applied rustfmt to `CommitRecord` struct instantiation in tests.
+- `crates/vox-effort-audit/src/judge/mod.rs`: Applied rustfmt to `Judge` struct instantiation in tests.
+- `crates/vox-effort-audit/src/lib.rs`: Applied rustfmt to `Config` struct instantiation in tests.
+- `crates/vox-effort-audit/src/output/jsonl.rs`: Applied rustfmt to `FindingRow` struct instantiation in tests.
+- `crates/vox-effort-audit/src/config.rs`: Applied rustfmt to `Config` struct instantiation in tests.
+- `crates/vox-cli/src/commands/ci/mod.rs`: Applied rustfmt to `ci_command` function call in tests.
+
+--- audit: original='style: rustfmt vox-effort-audit + vox-cli touch-ups (F5)' | actual=162L across 14 files | derived=full ---
