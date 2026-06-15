@@ -1,0 +1,6 @@
+fix(codegen-ts): use `registration` event listener for push token
+scale: ~7 lines across 1 files [XS]
+
+- `crates/vox-codegen/src/codegen_ts/mobile_emit.rs`: Changed push notification registration logic to listen for the `registration` event to obtain the device token, instead of calling `getDeliveredNotifications`. The generated TypeScript now adds an event listener for `PushNotifications.addListener('registration', ...)` and passes `token.value` to the `on_reg` endpoint.
+
+--- audit: original='fix(codegen-ts): @push on_register uses registration event listener, not getDeliveredNotifications' | actual=7L across 1 files | derived=full ---
