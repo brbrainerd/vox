@@ -1,0 +1,25 @@
+feat(audit): Add 9 new detectors, diagnostic catalog, and LLM JSON output
+scale: ~2868 lines across 30 files [XL]
+
+- **vox-code-audit**:
+    - Added `CryptoBanDetector` to detect imports of banned cryptography crates (`aegis`, `ring`, `md5`, `sha1`, `openssl`).
+    - Added `LlmProviderCallDetector` to identify direct HTTP calls to known LLM provider hostnames.
+    - Added `EnvSecretShapeDetector` to flag `env.get` calls with secret-shaped argument names.
+    - Added `PanickingBuiltinDetector` to detect panicking builtins (`unwrap`, `expect`, `panic!`, `todo!`) within fault-critical contexts.
+    - Added `DecoratorPositionDetector` to find decorator/keyword position mismatches in Vox files.
+    - Added `RequireJustificationDetector` to enforce justification for `require` statements.
+    - Added `AdrCitationDetector` to check for missing ADR citations.
+    - Added `QuestionMarkOpportunityDetector` to suggest `?` operator usage.
+    - Added `DuplicatePrefixDetector` to identify identifiers with repeated prefixes.
+    - Introduced `diagnostics::catalog` with 31 stable diagnostic IDs and `explain_url()` functionality.
+    - Enhanced `report.rs` to support `OutputFormat::LlmJson` and `format_llm_json()`.
+    - Updated `rules.rs` and `detectors/mod.rs` to integrate new detectors and diagnostic ID methods.
+- **vox-arch-check**:
+    - Implemented Rule 9 for `@generated-hash` drift detection using FNV-1a.
+- **vox-cli**:
+    - Extended `stub_check` command with `--explain <ID>`, `--list-diagnostics`, and `--rationale-required` flags.
+    - Updated `cli_dispatch/lanes.rs` and `cli_args.rs` for new CLI options.
+- **vox-drift-check**:
+    - Applied compatibility fixes to `Finding` struct.
+
+--- audit: original='feat(audit): Phase 2 lint extension + Phase 1 arch rules' | actual=2868L across 30 files | derived=full ---
