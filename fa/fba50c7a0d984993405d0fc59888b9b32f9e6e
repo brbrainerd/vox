@@ -1,0 +1,8 @@
+perf(qlora): Cache bf16 dequantized weights and relax memory pool trim
+scale: ~43 lines across 3 files [S]
+
+- `patches/qlora-rs-1.0.5/src/qlora.rs`: Modified `QuantizedLinear` to cache dequantized NF4 weights at the configured compute dtype (bf16) using `dequantize_nf4_with_dtype`. This avoids re-dequantizing on every forward pass.
+- `crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/training_loop/mod.rs`: Changed the default CUDA memory-pool trim frequency from every optimizer step to every 16 steps. The previous default was found to be pure overhead with bf16 weight caching.
+- `crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs`: Enabled weight caching by default for `QLoraConfig` unless `VOX_MENS_NO_WEIGHT_CACHE` environment variable is set.
+
+--- audit: original='perf(mens): cache bf16 dequantized weights — kill per-forward CPU NF4 dequant' | actual=43L across 3 files | derived=full ---
