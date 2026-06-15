@@ -1,0 +1,7 @@
+fix(codegen-rust): correct tail expression return and float literal suffix
+scale: ~41 lines across 2 files [S]
+
+- `durability_lower.rs`: Modified `emit_plain_body` to handle implicit returns for non-Unit functions. If the last statement in a function body is an expression and the function has a non-Unit return type, the trailing semicolon is removed from the emitted Rust code to allow the expression's value to be returned. This fixes E0308 (mismatched types) when a Vox function implicitly returns a value.
+- `stmt_expr.rs`: Modified `emit_expr_with` to append an `f64` suffix to float literals. This ensures that `f64` values like `0.0` are correctly emitted as `0.0f64` instead of just `0`, preventing type unification issues (E0308) where `0` would be inferred as an `i32`.
+
+--- audit: original='fix(codegen-rust): tail-expr return + f64 float-literal suffix (CR-F2)' | actual=41L across 2 files | derived=full ---
