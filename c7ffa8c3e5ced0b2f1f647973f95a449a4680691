@@ -1,0 +1,15 @@
+docs(populi): add strategic plan, S1 specs, and probe correctness plan
+scale: ~3317 lines across 8 files [XL]
+
+- **populi-mesh-north-star-2026.md**: Added the strategic plan for the Populi mesh, outlining seven workstreams across three capability slices (S1, S2, S3) and decomposing them into 12 child specifications.
+- **populi-mesh-improvement-backlog-2026.md**: Added a backlog of 210 tagged improvement items (MESH-001 to MESH-210) for opportunistic burn-down.
+- **populi-mesh-probe-correctness-spec-2026.md**: Added the S1 child specification for W2 partial, detailing the refactoring of hardware probes behind a trait, introduction of a mock harness, and establishing correctness criteria for various probes (NVML, wgpu, DRM, Metal, DXGI).
+- **populi-mesh-a2a-durability-spec-2026.md**: Added the S1 child specification for W6 partial, outlining the replacement of three JSON-file stores with a single SQLite-backed store for A2A inbox, exec-lease, and dispatch-results, including versioned envelopes and fsync discipline.
+- **populi-mesh-local-observability-spec-2026.md**: Added the S1 child specification for W5 partial, focusing on local observability improvements.
+- **populi-mesh-config-baseline-spec-2026.md**: Added the S1 child specification for W7 partial, designing the `Vox.toml` `[mesh]` schema, sensible defaults, and an environment variable precedence policy.
+- **populi-mesh-probe-correctness-plan-2026.md**: Added a 17-task TDD implementation plan for the `populi-mesh-probe-correctness-spec-2026.md`, covering the `HardwareProbe` trait, mock harness, refactored probes, operator override, observability, and tests.
+- **research-index.md**: Added entries for all the newly introduced architecture documents.
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
+
+--- audit: original='docs(populi): mesh north-star + S1 specs + probe-correctness plan' | actual=3317L across 8 files | derived=full ---
