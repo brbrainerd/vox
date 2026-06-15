@@ -1,0 +1,22 @@
+feat(gui): surface real-time cost tracking in dashboard and Loquela
+scale: ~62 lines across 5 files [M]
+
+- crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx:
+  - Removed hardcoded `LQ_TIERS` cost constants, now using `null` for unknown costs.
+  - Dynamically fetched model costs from `voxTransport.listModels` are now used, falling back to `null` if not available.
+- crates/vox-gui/src/commands/orchestrator.rs:
+  - `GuiAgentSummary` now includes `cost: Option<f64>` for per-agent cost and `budget: Option<f64>`.
+  - Added `get_opt_f64` helper to safely read optional `f64` values from JSON.
+  - `to_gui_status` now maps `total_cost_usd` and `budget_cap_usd` from the daemon status instead of hardcoded values.
+  - Per-agent `cost_usd` is now mapped to `GuiAgentSummary.cost`.
+- crates/vox-orchestrator/src/orchestrator/accessors.rs:
+  - `Orchestrator::status()` now retrieves `total_cost_usd` and `budget_cap_usd` from the `BudgetManager`.
+  - `AgentSummary` now includes `cost_usd` retrieved from the `BudgetManager`.
+- crates/vox-orchestrator/src/orchestrator/types.rs:
+  - `OrchestratorStatus` gained `total_cost_usd: f64` and `budget_cap_usd: f64` fields.
+  - `AgentSummary` gained `cost_usd: f64` field.
+- crates/vox-orchestrator/src/services/scaling.rs:
+  - Updated `OrchestratorStatus` test builder to include `total_cost_usd` and `budget_cap_usd`.
+  - Updated `AgentSummary` test builder to include `cost_usd`.
+
+--- audit: original='@ feat(gui): surface real cost tracking (Dashboard budget burn + per-agent + Loquela pricing)' | actual=62L across 5 files | derived=full ---
