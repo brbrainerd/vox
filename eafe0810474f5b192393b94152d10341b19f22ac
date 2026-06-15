@@ -1,0 +1,21 @@
+feat(contracts/eval): Add seed corpora for spec-to-app, plan-fidelity, and repair-corpus
+scale: ~384 lines across 23 files [L]
+
+- **contracts/eval/spec-to-app/specs**:
+  - Added `001-greet-cli/spec.toml` (18 lines) defining a T1 single-function deliverable.
+  - Added `002-todo-list/spec.toml` (30 lines) defining a T2 multi-feature todo list with authentication.
+  - Added `003-counter-actor/spec.toml` (30 lines) defining a T3 actor-based counter with streaming.
+- **contracts/eval/plan-fidelity/plans**:
+  - Added `001-add-fn/plan.toml` (31 lines) for adding a new pure function and a test.
+  - Added `002-add-test/plan.toml` (26 lines) for adding tests to an existing function.
+  - Added `003-rename-field/plan.toml` (38 lines) for renaming a table column across multiple files.
+  - Added `004-refactor-loop/plan.toml` (39 lines) for extracting duplicated validation logic into a helper function.
+  - Added `005-implement-endpoint/plan.toml` (51 lines) for implementing a new endpoint with effects, authentication, and ADT errors.
+- **contracts/eval/repair-corpus/projects**:
+  - Added `001-type-error`: `Vox.toml` (5 lines), `expected.json` (7 lines), and `src/main.vox` (11 lines) for a type error bug.
+  - Added `002-effect-violation`: `Vox.toml` (5 lines), `expected.json` (6 lines), and `src/main.vox` (12 lines) for an effect violation bug.
+  - Added `003-logic`: `Vox.toml` (5 lines), `expected.json` (7 lines), and `src/main.vox` (14 lines) for a logic error bug.
+  - Added `004-exhaustiveness`: `Vox.toml` (5 lines), `expected.json` (6 lines), and `src/main.vox` (9 lines) for an exhaustiveness bug in a match statement.
+  - Added `005-api-misuse`: `Vox.toml` (5 lines), `expected.json` (7 lines), and `src/main.vox` (17 lines) for an API misuse bug.
+
+--- audit: original='feat(contracts/eval): P3.2 + P3.3 + P3.4 — seed corpora across 3 CR-L gates' | actual=384L across 23 files | derived=full ---
