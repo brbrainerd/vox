@@ -1,0 +1,17 @@
+fix(codegen-rust): Lower list HOFs to iterators and use Rc<dyn Fn> for closures
+scale: ~155 lines across 5 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/emit/method_emit.rs`: Implement `try_emit_list_hof` to lower Vox list higher-order functions (`map`, `filter`, `fold`, `sorted_by_key`, `first`, `last`) to Rust iterator chains.
+  - `map`/`fold` directly pass the closure to the adapter.
+  - `filter`/`sorted_by_key` predicates are invoked indirectly via `x.clone()` to match Vox's by-value closure parameter semantics, and their parameter types are explicitly annotated to aid inference and prevent E0282.
+  - `first`/`last` are lowered to `.cloned().next()` and `.cloned().last()` respectively.
+  - This lowering is strictly gated on the HOF name, arity, and the presence of a closure argument to avoid conflicts with unrelated method calls.
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`:
+  - Add `emit_bare_lambda` helper function to emit a bare `move |..| ..` closure.
+  - This helper is used when a lambda is passed as an argument to an adapter (e.g., `Iterator::map`).
+  - Closure values (return or assignment of a `Function` type) are `Rc::new`-wrapped by the caller (`emit_return_stmt`) to match the `Rc<dyn Fn>` representation.
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr_tail.rs`: Update the `HirExpr::Lambda` arm to use the new `emit_bare_lambda` helper. This ensures closures passed to adapters are bare and not `Rc::new`-wrapped at the point of definition.
+- `crates/vox-codegen/src/codegen_rust/emit/types.rs`: Change `HirType::Function` representation from `Box<dyn Fn(...) -> ...>` to `std::rc::Rc<dyn Fn(...) -> ...>`. `Rc<dyn Fn>` is `Clone` (via refcount bump), which is necessary for value-semantics codegen that clones closure-typed variables, unlike `Box<dyn Fn>`.
+- `contracts/eval/arm-parity-allowlist-script.txt`: Remove `closures_hof.vox` from the allowlist as it now passes all tests, indicating full logic parity.
+
+--- audit: original='fix(codegen-rust): list-HOF iterator lowering + Rc<dyn Fn> closures (CR-F2a 10/10)' | actual=155L across 5 files | derived=full ---
