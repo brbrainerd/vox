@@ -1,0 +1,6 @@
+chore(reports): update GUI surface coverage report
+scale: ~0 lines across 1 files [XS]
+
+- contracts/reports/gui-surface-coverage.v1.json: regenerated binary file to reflect changes in GUI surface coverage due to new decorator surfaces (Scientia, Claims, Mens, Populi, Research, Oratio)
+
+--- audit: original='chore(gui): regenerate gui-surface-coverage report for new surfaces' | actual=0L across 1 files | derived=full ---
