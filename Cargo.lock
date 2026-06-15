@@ -14273,6 +14273,7 @@ dependencies = [
  "vox-db",
  "vox-foundation",
  "vox-http-client",
+ "vox-llm-egress",
  "vox-openai",
  "vox-openclaw-runtime",
  "vox-orchestrator-types",
@@ -14581,6 +14582,7 @@ dependencies = [
  "vox-config",
  "vox-http-client",
  "vox-jsonschema-util",
+ "vox-llm-egress",
  "vox-orchestrator-types",
  "vox-rule-pack",
  "vox-scaling-policy",
@@ -14676,6 +14678,7 @@ dependencies = [
  "tracing",
  "vox-ast",
  "vox-codegen",
+ "vox-codegen-ts",
  "vox-config",
  "vox-eval",
  "vox-foundation",
@@ -14701,6 +14704,8 @@ dependencies = [
  "tempfile",
  "toml 0.8.23",
  "tracing",
+ "vox-llm-config",
+ "vox-llm-egress",
  "vox-secrets",
  "workspace-hack",
 ]
@@ -15016,6 +15021,7 @@ dependencies = [
  "schemars 1.2.1",
  "serde",
  "serde_json",
+ "serde_yaml_ng",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -15027,6 +15033,7 @@ dependencies = [
  "vox-config",
  "vox-db",
  "vox-http-client",
+ "vox-llm-egress",
  "vox-openai",
  "vox-secrets",
  "workspace-hack",
@@ -15229,6 +15236,30 @@ dependencies = [
  "vox-codegen",
  "vox-compiler",
  "vox-foundation",
+]
+
+[[package]]
+name = "vox-llm-config"
+version = "0.6.0"
+dependencies = [
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-llm-egress"
+version = "0.6.0"
+dependencies = [
+ "async-stream",
+ "futures",
+ "futures-util",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vox-http-client",
+ "vox-openai",
+ "wiremock",
+ "workspace-hack",
 ]
 
 [[package]]

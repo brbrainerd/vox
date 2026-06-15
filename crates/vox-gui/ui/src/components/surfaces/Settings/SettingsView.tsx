@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Glass } from '../../ui/Glass';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { Icon } from '../../ui/Icons';
 import { voxTransport } from '../../../transport';
 import type { OrchestratorStatus, RoutingSummary, Toast } from '../../../types/tauri';
@@ -728,6 +729,12 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
   }, [pushToast]);
 
   useEffect(() => { reload(); }, [reload]);
+  // Reactive refresh: the backend emits "vox://llm-config-changed" whenever config
+  // changes (this GUI, env reload, or mesh sync). Re-pull the catalog on each event.
+  useEffect(() => {
+    const un = listen('vox://llm-config-changed', () => { reload(); });
+    return () => { un.then((f) => f()); };
+  }, [reload]);
   useEffect(() => () => { if (savedToast.current) clearTimeout(savedToast.current); }, []);
 
   const save = async (f: UserConfigFieldDto, value: string) => {

@@ -2,9 +2,11 @@
 //!
 //! Design (OpenRouter-informed, 2026-06): paid OpenRouter traffic has no
 //! platform RPM cap — concurrency is the real dial — while free models 429
-//! readily. We bound in-flight requests per provider with a user-configured
-//! ceiling, halve the window on 429 (honoring Retry-After / X-RateLimit-Reset
-//! as a cooldown), and additively recover one permit per 8 successes.
+//! readily. We bound in-flight requests per provider with a ceiling supplied by
+//! the caller (resolved from VoxConfig in `vox_config::resolve_egress`, so this
+//! crate stays free of a config dependency), halve the window on 429 (honoring
+//! Retry-After / X-RateLimit-Reset as a cooldown), and additively recover one
+//! permit per 8 successes.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -112,27 +114,34 @@ impl ProviderThrottle {
 
 static REGISTRY: OnceLock<Mutex<HashMap<String, &'static ProviderThrottle>>> = OnceLock::new();
 
-/// Throttle for `provider`, created on first use from VoxConfig limits.
-/// Leaked intentionally: providers are a small fixed set per process.
-pub fn for_provider(provider: &str) -> &'static ProviderThrottle {
+/// Throttle for `provider`, created on first use with `max_limit` (the caller resolves
+/// the limit from VoxConfig — this crate takes no config dependency). The first call's
+/// limit wins; later calls reuse the existing per-provider throttle. Leaked
+/// intentionally: providers are a small fixed set per process.
+pub fn for_provider(provider: &str, max_limit: usize) -> &'static ProviderThrottle {
     let registry = REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
     let mut map = registry.lock().expect("throttle registry lock");
     if let Some(t) = map.get(provider) {
         return t;
     }
-    let cfg = vox_config::VoxConfig::load();
-    let limit = match provider {
-        "openrouter" => cfg
-            .llm_openrouter_max_concurrent
-            .unwrap_or(cfg.llm_max_concurrent_requests),
-        "openai" => cfg
-            .llm_openai_max_concurrent
-            .unwrap_or(cfg.llm_max_concurrent_requests),
-        _ => cfg.llm_max_concurrent_requests,
-    };
-    let throttle: &'static ProviderThrottle = Box::leak(Box::new(ProviderThrottle::new(limit)));
+    let throttle: &'static ProviderThrottle = Box::leak(Box::new(ProviderThrottle::new(max_limit)));
     map.insert(provider.to_string(), throttle);
     throttle
+}
+
+/// Acquire a permit for `provider`, creating its throttle with `max_limit` on first use.
+pub async fn acquire_permit(provider: &str, max_limit: usize) -> Permit<'static> {
+    for_provider(provider, max_limit).acquire().await
+}
+
+/// Feed a 429 back to `provider`'s throttle (halve window + optional cooldown).
+pub fn on_rate_limited(provider: &str, retry_after: Option<Duration>) {
+    for_provider(provider, 1).on_rate_limited(retry_after);
+}
+
+/// Record a success for `provider`'s throttle (additive recovery).
+pub fn on_success(provider: &str) {
+    for_provider(provider, 1).on_success();
 }
 
 /// Parse `Retry-After` (seconds) or `X-RateLimit-Reset` (epoch ms) into a wait.
@@ -172,7 +181,6 @@ mod tests {
         let t = ProviderThrottle::new(2);
         let g1 = t.acquire().await;
         let _g2 = t.acquire().await;
-        // Third acquire must not resolve while two are held.
         let pending = tokio::time::timeout(Duration::from_millis(50), t.acquire()).await;
         assert!(pending.is_err(), "third permit should block at limit 2");
         drop(g1);

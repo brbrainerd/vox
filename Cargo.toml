@@ -58,6 +58,8 @@ workspace-hack            = { path = "crates/workspace-hack" }
 vox-build-meta            = { path = "crates/vox-build-meta" }
 vox-telemetry             = { path = "crates/vox-telemetry" }
 vox-foundation            = { path = "crates/vox-foundation" }
+vox-llm-config            = { path = "crates/vox-llm-config" }
+vox-llm-egress            = { path = "crates/vox-llm-egress" }
 
 
 vox-audit                 = { path = "crates/vox-audit" }

@@ -1,0 +1,12 @@
+[package]
+name = "vox-llm-config"
+description = "SSOT for LLM/AI setting keys: the declarative LlmConfigKey registry (env name + display metadata + secret classification). vox-secrets, vox-config, and vox-gui are views over it. Pure-data, zero workspace deps (layer 0)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+workspace-hack = { workspace = true }
+
+[lints]
+workspace = true

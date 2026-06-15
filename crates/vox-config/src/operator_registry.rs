@@ -869,7 +869,101 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
     },
 ];
 
+fn map_class(c: vox_llm_config::ConfigClass) -> ConfigClass {
+    match c {
+        vox_llm_config::ConfigClass::UserPreference => ConfigClass::UserPreference,
+        vox_llm_config::ConfigClass::NodeLocal => ConfigClass::NodeLocal,
+        vox_llm_config::ConfigClass::Bootstrap => ConfigClass::Bootstrap,
+        vox_llm_config::ConfigClass::CiGate => ConfigClass::CiGate,
+    }
+}
+
+/// `true` for real environment-variable-shaped names (`UPPER_SNAKE`), excluding
+/// pseudo-keys like `vox_populi::inference_PROFILE` that are not env vars. (Such
+/// pseudo-keys may still appear via a static `OPERATOR_TUNING_ENVS` entry; this
+/// filter only governs what the LLM-registry view contributes.)
+fn is_env_shaped(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
+}
+
+/// LLM/AI operator envs derived from the `vox-llm-config` SSOT: every non-secret,
+/// env-shaped key. Keeps the CI tuning-knob allowlist in sync with the registry
+/// without a second hand-maintained copy.
+fn llm_operator_envs() -> Vec<OperatorEnvSpec> {
+    vox_llm_config::LLM_CONFIG_KEYS
+        .iter()
+        .filter(|k| !k.secret && is_env_shaped(k.env))
+        .map(|k| OperatorEnvSpec {
+            name: k.env,
+            description: k.hint,
+            defaults: k.default,
+            config_class: map_class(k.class),
+        })
+        .collect()
+}
+
+/// The full operator tuning-env surface: static infra knobs (`OPERATOR_TUNING_ENVS`)
+/// plus the LLM-registry view, deduped by name (the static entry wins on overlap).
+/// SSOT for LLM keys = `vox-llm-config`.
+#[must_use]
+pub fn operator_tuning_envs() -> Vec<OperatorEnvSpec> {
+    let mut out: Vec<OperatorEnvSpec> = OPERATOR_TUNING_ENVS
+        .iter()
+        .map(|e| OperatorEnvSpec {
+            name: e.name,
+            description: e.description,
+            defaults: e.defaults,
+            config_class: e.config_class,
+        })
+        .collect();
+    for spec in llm_operator_envs() {
+        if out.iter().any(|e| e.name == spec.name) {
+            continue;
+        }
+        out.push(spec);
+    }
+    out
+}
+
 #[must_use]
 pub fn all_operator_env_names() -> Vec<&'static str> {
-    OPERATOR_TUNING_ENVS.iter().map(|e| e.name).collect()
+    operator_tuning_envs().into_iter().map(|e| e.name).collect()
+}
+
+#[cfg(test)]
+mod llm_view_tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn llm_non_secret_env_keys_appear_in_operator_view() {
+        let names: HashSet<&str> = operator_tuning_envs().iter().map(|e| e.name).collect();
+        for k in vox_llm_config::LLM_CONFIG_KEYS {
+            if k.secret || !is_env_shaped(k.env) {
+                continue;
+            }
+            assert!(
+                names.contains(k.env),
+                "registry key {} missing from operator view",
+                k.env
+            );
+        }
+    }
+
+    #[test]
+    fn secrets_never_in_operator_view() {
+        let names: HashSet<&str> = operator_tuning_envs().iter().map(|e| e.name).collect();
+        for k in vox_llm_config::LLM_CONFIG_KEYS {
+            if k.secret {
+                assert!(
+                    !names.contains(k.env),
+                    "secret {} leaked into operator tuning view",
+                    k.env
+                );
+            }
+        }
+    }
 }

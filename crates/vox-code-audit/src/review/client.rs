@@ -195,67 +195,56 @@ impl ReviewClient {
         referer: Option<&str>,
         policy: &ConfidencePolicy,
     ) -> Result<(String, usize), String> {
+        // OpenAI-compatible chat (OpenRouter/OpenAI) routes through the sanctioned egress
+        // core. The review client keeps its own key + attribution headers.
         let system = review_system_prompt(policy);
-        let body = serde_json::json!({
-            "model": model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": system
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
+        let headers = match referer {
+            Some(r) => vec![
+                ("HTTP-Referer".to_string(), r.to_string()),
+                ("X-Title".to_string(), "Vox Code Review".to_string()),
             ],
-            "temperature": 0.1,
-            "max_tokens": 4096
-        });
+            None => Vec::new(),
+        };
+        let ereq = vox_llm_egress::EgressRequest {
+            base_url: url.to_string(),
+            api_key: api_key.to_string(),
+            model: model.to_string(),
+            headers,
+            // referer is set only for OpenRouter; share its throttle, else OpenAI's.
+            throttle_key: if referer.is_some() {
+                "openrouter"
+            } else {
+                "openai"
+            }
+            .to_string(),
+            max_concurrent: 8,
+            timeout_ms: Some(60_000),
+        };
+        let msgs = [
+            vox_llm_egress::ChatMessage {
+                role: "system".to_string(),
+                content: system,
+            },
+            vox_llm_egress::ChatMessage {
+                role: "user".to_string(),
+                content: prompt.to_string(),
+            },
+        ];
+        let params = vox_llm_egress::ChatParams {
+            temperature: Some(0.1),
+            max_tokens: Some(4096),
+            ..Default::default()
+        };
 
-        let mut req = self
-            .http
-            .post(url)
-            .header("Authorization", format!("Bearer {}", api_key))
-            .header("Content-Type", "application/json");
-
-        if let Some(r) = referer {
-            req = req.header("HTTP-Referer", r);
-            req = req.header("X-Title", "Vox Code Review");
-        }
-
-        let resp = req
-            .json(&body)
-            .send()
+        let resp = vox_llm_egress::chat_once(&ereq, &msgs, &params)
             .await
-            .map_err(|e| format!("HTTP error: {e}"))?;
+            .map_err(|e| e.to_string())?;
 
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(format!("HTTP {status}: {text}"));
-        }
-
-        let json: serde_json::Value = resp
-            .json()
-            .await
-            .map_err(|e| format!("JSON parse error: {e}"))?;
-
-        let text = json
-            .pointer("/choices/0/message/content")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
-
-        let tokens = json
-            .pointer("/usage/total_tokens")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0) as usize;
-
-        if text.is_empty() {
+        if resp.content.is_empty() {
             return Err("Empty response from provider".to_string());
         }
-
-        Ok((text, tokens))
+        let tokens = (resp.prompt_tokens + resp.completion_tokens) as usize;
+        Ok((resp.content, tokens))
     }
 
     /// Call the Gemini generateContent endpoint.
@@ -269,6 +258,9 @@ impl ReviewClient {
         // Endpoint is HTTPS (TLS-encrypted). The API key is passed via the
         // `x-goog-api-key` header rather than the URL query string so it does
         // not leak into request logs.
+        // Direct Gemini is NOT OpenAI-compatible — the egress core can't carry it;
+        // documented local egress per the egress design spec.
+        // vox-arch-check: allow llm-egress
         let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
             model

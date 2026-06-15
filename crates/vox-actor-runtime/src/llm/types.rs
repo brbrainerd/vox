@@ -297,7 +297,7 @@ pub struct LlmResponse {
 
 #[cfg(test)]
 mod tests {
-    use super::{LlmConfig, LlmResponse, LlmToolDef, ModelRegistryEntry};
+    use super::{LlmConfig, LlmResponse, ModelRegistryEntry};
     use std::collections::HashMap;
     use std::sync::Mutex;
 
@@ -323,58 +323,9 @@ mod tests {
         assert_eq!(legacy_resp.cost_usd, None);
     }
 
-    #[test]
-    fn llm_config_tools_and_tool_choice_serialize_openai_shape() {
-        let cfg = LlmConfig {
-            provider: "openrouter".into(),
-            model: "openrouter/auto".into(),
-            cost_per_1k: None,
-            base_url: None,
-            api_key: None,
-            temperature: None,
-            top_p: None,
-            max_tokens: None,
-            response_format: None,
-            tools: Some(vec![LlmToolDef {
-                name: "search".into(),
-                description: Some("Search the repo".into()),
-                parameters: serde_json::json!({
-                    "type": "object",
-                    "properties": { "query": { "type": "string" } },
-                    "required": ["query"]
-                }),
-            }]),
-            tool_choice: Some(serde_json::json!("auto")),
-            timeout_ms: None,
-            telemetry_session_id: None,
-            telemetry_user_id: None,
-            telemetry_task_category: None,
-            telemetry_strength_tag: None,
-            telemetry_trace_id: None,
-            telemetry_attempt_number: None,
-            telemetry_skip_interaction: false,
-        };
-
-        let body = super::super::wire::OpenRouterRequest {
-            model: &cfg.model,
-            messages: &[],
-            temperature: cfg.temperature,
-            max_tokens: cfg.max_tokens,
-            response_format: cfg.response_format.as_ref(),
-            tools: super::super::wire::openrouter_tools(cfg.tools.as_deref()),
-            tool_choice: cfg.tool_choice.as_ref(),
-            stream: false,
-        };
-        let json = serde_json::to_value(&body).expect("serialize request");
-        let tools = json
-            .get("tools")
-            .and_then(|v| v.as_array())
-            .expect("tools array");
-        assert_eq!(tools.len(), 1);
-        assert_eq!(tools[0]["type"], "function");
-        assert_eq!(tools[0]["function"]["name"], "search");
-        assert_eq!(json.get("tool_choice"), Some(&serde_json::json!("auto")));
-    }
+    // (OpenAI tool/tool_choice serialization is now owned + tested by `vox-llm-egress`
+    // — see its `chat_once_serializes_tools` wiremock test. The old wire-based shape
+    // test was removed with `wire.rs` when request-building moved to the egress core.)
 
     #[test]
     #[allow(unsafe_code)]

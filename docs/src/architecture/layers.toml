@@ -73,6 +73,7 @@ vox-scientia = { layer = 3, staleness_exempt = true, max_loc = 15_000 }  # umbre
 
 # ── L0 — pure types ───────────────────────────────────────────────────────────
 vox-orchestrator-types = { layer = 0 }
+vox-llm-config         = { layer = 0, staleness_exempt = true }   # SSOT for LLM/AI setting-key metadata; pure-data, zero workspace deps; vox-secrets/vox-config/vox-gui are views
 
 vox-db-types           = { layer = 0 }
 vox-mesh-types         = { layer = 0 }
@@ -109,6 +110,8 @@ vox-runtime           = { layer = 1, max_dependents = 20 }       # umbrella runt
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
 vox-config              = { layer = 2, max_dependents = 20 }
+vox-llm-egress          = { layer = 2, max_dependents = 10 }   # sanctioned LLM provider wire; pure egress (deps = vox-http-client + reqwest), no config/secret resolution
+
 vox-repository          = { layer = 2 }
 vox-populi-types        = { layer = 2, max_loc = 1_000 }  # ADR-042: NodeRecord + PopuliRegistryFile (pure-data, no async)
 vox-mcp-registry        = { layer = 2 }

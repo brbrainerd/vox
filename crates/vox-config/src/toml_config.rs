@@ -66,6 +66,8 @@ pub fn reload_user_config() {
     };
     let mut guard = cache.lock().expect("config cache mutex poisoned");
     *guard = fresh;
+    drop(guard);
+    crate::snapshot::bump(&[]);
 }
 
 /// Read the on-disk config.toml as a raw top-level TOML table (preserving every
@@ -115,6 +117,9 @@ pub fn set_user_config_value(key: &str, value: &str) -> Result<(), String> {
         .into_iter()
         .filter(|(_, v)| !matches!(v, toml::Value::Table(_)))
         .collect();
+    // Drop the cache lock before notifying so a listener that re-reads config can't deadlock.
+    drop(guard);
+    crate::snapshot::bump(&[key]);
     Ok(())
 }
 
@@ -133,6 +138,8 @@ pub fn unset_user_config_value(key: &str) -> Result<bool, String> {
             .into_iter()
             .filter(|(_, v)| !matches!(v, toml::Value::Table(_)))
             .collect();
+        drop(guard);
+        crate::snapshot::bump(&[key]);
     }
     Ok(removed)
 }

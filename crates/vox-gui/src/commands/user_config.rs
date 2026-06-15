@@ -1,20 +1,22 @@
 //! Tauri commands for the "Runtime" Settings surface — view/edit core user
 //! config persisted to `~/.vox/config.toml`.
 //!
-//! Two config tiers are exposed through one flat catalog:
-//!  * **VoxConfig-tier** sectioned fields (`[vox]`/`[train]`/`[db]`) routed through
+//! The field catalog is a **view over the `vox-llm-config` SSOT**: `get_user_config`
+//! iterates [`vox_config::vox_llm_config::gui_fields`] (every non-secret LLM/AI key)
+//! rather than a hand-maintained list, so the GUI can never drift from the registry.
+//! Two persistence tiers are routed by each key's `Persistence`:
+//!  * **VoxConfig-tier** sectioned fields (`[vox]`/`[train]`/`[db]`) via
 //!    [`vox_config::VoxConfig::load`] / `save`.
-//!  * **inference-tier** flat top-level keys routed through
-//!    [`vox_config::toml_config::set_user_config_value`].
+//!  * **Flat** top-level keys via [`vox_config::toml_config::set_user_config_value`].
 //!
 //! CACHE-COHERENCE: `VoxConfig::save()` does a direct `fs::write` that bypasses the
 //! flat config cache. After any VoxConfig-tier write we call
 //! [`vox_config::toml_config::reload_user_config`] so a subsequent flat write reads the
-//! sectioned tables back and never clobbers them. The flat writers themselves
-//! read-modify-write the file fresh, so neither tier clobbers the other.
+//! sectioned tables back and never clobbers them.
 
 use serde::Serialize;
 use tauri::command;
+use vox_config::vox_llm_config::{self, Kind, LlmConfigKey, Persistence};
 
 /// One editable config field as presented to the Runtime settings UI.
 #[derive(Debug, Clone, Serialize)]
@@ -25,7 +27,7 @@ pub struct UserConfigFieldDto {
     pub hint: String,
     /// "General" | "Models & endpoints" | "Tuning" | "Training"
     pub group: String,
-    /// "string" | "float" | "int" | "path" | "enum"
+    /// "string" | "float" | "int" | "path" | "enum" | "bool"
     pub kind: String,
     /// Allowed values when `kind == "enum"`.
     pub options: Vec<String>,
@@ -33,213 +35,9 @@ pub struct UserConfigFieldDto {
     pub current_value: String,
 }
 
-/// Which persistence tier a key belongs to.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Tier {
-    /// Sectioned `VoxConfig` field routed through `VoxConfig::load()`/`save()`.
-    VoxConfig,
-    /// Flat top-level key routed through `set_user_config_value`.
-    Flat,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum Kind {
-    String,
-    Float,
-    Int,
-    Path,
-    Enum,
-}
-
-impl Kind {
-    fn as_str(self) -> &'static str {
-        match self {
-            Kind::String => "string",
-            Kind::Float => "float",
-            Kind::Int => "int",
-            Kind::Path => "path",
-            Kind::Enum => "enum",
-        }
-    }
-}
-
-/// Static metadata for one field (everything except `current_value`).
-struct FieldSpec {
-    key: &'static str,
-    label: &'static str,
-    hint: &'static str,
-    group: &'static str,
-    kind: Kind,
-    options: &'static [&'static str],
-    tier: Tier,
-}
-
-const PROFILE_OPTIONS: &[&str] = &[
-    "desktop_ollama",
-    "cloud_openai_compatible",
-    "mobile_litert",
-    "mobile_coreml",
-    "lan_gateway",
-];
-
-/// The full catalog. `default` values are computed at read time so they track the
-/// live `VoxConfig::default()` / accessor defaults.
-const FIELDS: &[FieldSpec] = &[
-    // ---- General (VoxConfig-tier) -------------------------------------------------
-    FieldSpec {
-        key: "model",
-        label: "Default model",
-        hint: "Model id used when no per-call override is set",
-        group: "General",
-        kind: Kind::String,
-        options: &[],
-        tier: Tier::VoxConfig,
-    },
-    FieldSpec {
-        key: "daily_budget_usd",
-        label: "Daily budget (USD)",
-        hint: "Soft cap on spend per day",
-        group: "General",
-        kind: Kind::Float,
-        options: &[],
-        tier: Tier::VoxConfig,
-    },
-    FieldSpec {
-        key: "per_session_budget_usd",
-        label: "Per-session budget (USD)",
-        hint: "Soft cap on spend per session",
-        group: "General",
-        kind: Kind::Float,
-        options: &[],
-        tier: Tier::VoxConfig,
-    },
-    FieldSpec {
-        key: "data_dir",
-        label: "Training data dir",
-        hint: "Directory for MENS training data ([train].data_dir); does NOT relocate the app's runtime data",
-        group: "General",
-        kind: Kind::Path,
-        options: &[],
-        tier: Tier::VoxConfig,
-    },
-    FieldSpec {
-        key: "db_url",
-        label: "Database URL",
-        hint: "Optional external database URL (blank = local default)",
-        group: "General",
-        kind: Kind::String,
-        options: &[],
-        tier: Tier::VoxConfig,
-    },
-    // ---- Models & endpoints (inference-tier flat keys) ----------------------------
-    FieldSpec {
-        key: "vox_populi::inference_PROFILE",
-        label: "Inference profile",
-        hint: "Where chat/completion traffic runs",
-        group: "Models & endpoints",
-        kind: Kind::Enum,
-        options: PROFILE_OPTIONS,
-        tier: Tier::Flat,
-    },
-    FieldSpec {
-        key: "OPENROUTER_BASE_URL",
-        label: "OpenRouter base URL",
-        hint: "OpenAI-compatible OpenRouter endpoint",
-        group: "Models & endpoints",
-        kind: Kind::String,
-        options: &[],
-        tier: Tier::Flat,
-    },
-    FieldSpec {
-        key: "VOX_OPENAI_BASE_URL",
-        label: "OpenAI base URL",
-        hint: "OpenAI-compatible cloud endpoint",
-        group: "Models & endpoints",
-        kind: Kind::String,
-        options: &[],
-        tier: Tier::Flat,
-    },
-    FieldSpec {
-        key: "POPULI_URL",
-        label: "Local Ollama base URL",
-        hint: "Local Ollama / Populi HTTP endpoint",
-        group: "Models & endpoints",
-        kind: Kind::String,
-        options: &[],
-        tier: Tier::Flat,
-    },
-    // ---- Tuning (inference-tier flat keys) ----------------------------------------
-    FieldSpec {
-        key: "OLLAMA_TUNING_TEMPERATURE",
-        label: "Ollama temperature",
-        hint: "Sampling temperature for local Ollama",
-        group: "Tuning",
-        kind: Kind::Float,
-        options: &[],
-        tier: Tier::Flat,
-    },
-    FieldSpec {
-        key: "OLLAMA_TUNING_TOP_P",
-        label: "Ollama top-p",
-        hint: "Nucleus sampling cutoff for local Ollama",
-        group: "Tuning",
-        kind: Kind::Float,
-        options: &[],
-        tier: Tier::Flat,
-    },
-    FieldSpec {
-        key: "OLLAMA_TUNING_NUM_CTX",
-        label: "Ollama context window",
-        hint: "num_ctx tokens for local Ollama",
-        group: "Tuning",
-        kind: Kind::Int,
-        options: &[],
-        tier: Tier::Flat,
-    },
-    FieldSpec {
-        key: "OPENAI_TUNING_TEMPERATURE",
-        label: "OpenAI temperature",
-        hint: "Sampling temperature for OpenAI-compatible cloud",
-        group: "Tuning",
-        kind: Kind::Float,
-        options: &[],
-        tier: Tier::Flat,
-    },
-    FieldSpec {
-        key: "OPENAI_TUNING_TOP_P",
-        label: "OpenAI top-p",
-        hint: "Nucleus sampling cutoff for OpenAI-compatible cloud",
-        group: "Tuning",
-        kind: Kind::Float,
-        options: &[],
-        tier: Tier::Flat,
-    },
-    // ---- Training (VoxConfig-tier) ------------------------------------------------
-    FieldSpec {
-        key: "train_epochs",
-        label: "Training epochs",
-        hint: "Default epochs for MENS training runs",
-        group: "Training",
-        kind: Kind::Int,
-        options: &[],
-        tier: Tier::VoxConfig,
-    },
-    FieldSpec {
-        key: "train_batch_size",
-        label: "Training batch size",
-        hint: "Default batch size for MENS training runs",
-        group: "Training",
-        kind: Kind::Int,
-        options: &[],
-        tier: Tier::VoxConfig,
-    },
-];
-
-fn spec_for(key: &str) -> Result<&'static FieldSpec, String> {
-    FIELDS
-        .iter()
-        .find(|f| f.key == key)
-        .ok_or_else(|| format!("unknown config key: {key}"))
+/// Look up the registry key, mapping "not found" to an error string for IPC.
+fn key_for(key: &str) -> Result<&'static LlmConfigKey, String> {
+    vox_llm_config::get(key).ok_or_else(|| format!("unknown config key: {key}"))
 }
 
 /// Read the VoxConfig-tier field `key` from `cfg` as a string.
@@ -256,33 +54,37 @@ fn voxconfig_value(cfg: &vox_config::VoxConfig, key: &str) -> String {
     }
 }
 
-/// Default value for `key` as a display string (from `VoxConfig::default()` or the
-/// inference accessor defaults).
-fn default_value(key: &str) -> String {
-    let d = vox_config::VoxConfig::default();
-    match key {
-        // VoxConfig-tier
-        "model"
-        | "daily_budget_usd"
-        | "per_session_budget_usd"
-        | "data_dir"
-        | "db_url"
-        | "train_epochs"
-        | "train_batch_size" => voxconfig_value(&d, key),
-        // inference-tier flat keys (defaults mirror the resolver fallbacks)
-        "vox_populi::inference_PROFILE" => "desktop_ollama".to_string(),
-        "OPENROUTER_BASE_URL" => "https://openrouter.ai/api".to_string(),
-        "VOX_OPENAI_BASE_URL" => "https://api.openai.com/v1".to_string(),
-        "POPULI_URL" => "http://localhost:11434".to_string(),
-        // tuning defaults are "unset" → empty
-        _ => String::new(),
+/// Display default for a key: VoxConfig-tier defaults come from `VoxConfig::default()`
+/// (so they never drift from the struct); flat keys use the registry literal default.
+fn default_value(spec: &LlmConfigKey) -> String {
+    match spec.persistence {
+        Persistence::VoxConfig => voxconfig_value(&vox_config::VoxConfig::default(), spec.env),
+        Persistence::FlatToml | Persistence::EnvOnly => spec.default.to_string(),
     }
 }
 
-/// Current effective value of a flat inference-tier key (env > config.toml > default),
-/// rendered for display.
-fn flat_effective_value(key: &str) -> String {
-    match key {
+/// Generic flat resolver for keys without a dedicated accessor: env > config.toml > default.
+fn generic_flat_value(key: &str, default: &str) -> String {
+    if let Ok(v) = std::env::var(key) {
+        if !v.is_empty() {
+            return v;
+        }
+    }
+    let cfg = vox_config::toml_config::load_user_config();
+    if let Some(v) = cfg.values.get(key) {
+        return v
+            .as_str()
+            .map(str::to_string)
+            .unwrap_or_else(|| v.to_string());
+    }
+    default.to_string()
+}
+
+/// Current effective value of a flat key (env > config.toml > default), rendered for
+/// display. Keys with dedicated accessors use them (precedence + URL sanitization);
+/// the rest fall through to [`generic_flat_value`].
+fn flat_effective_value(spec: &LlmConfigKey) -> String {
+    match spec.env {
         "vox_populi::inference_PROFILE" => {
             // Re-render the resolved enum to its canonical slug.
             match vox_config::inference_profile_from_env() {
@@ -312,44 +114,43 @@ fn flat_effective_value(key: &str) -> String {
         "OPENAI_TUNING_TOP_P" => vox_config::openai_tuning_top_p()
             .map(|v| v.to_string())
             .unwrap_or_default(),
-        _ => String::new(),
+        other => generic_flat_value(other, spec.default),
     }
 }
 
-/// Build the full catalog, filling `current_value` from the effective config.
+/// Build the full catalog from the registry, filling `current_value` from the
+/// effective config. Secret keys are excluded (managed via the Keys & Secrets tab).
 #[command]
-// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_config; routing + cache-coherence covered by vox-config tests
+// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over the vox-llm-config view; routing + cache-coherence covered by vox-config tests
 pub fn get_user_config() -> Vec<UserConfigFieldDto> {
     let cfg = vox_config::VoxConfig::load();
-    FIELDS
-        .iter()
-        .map(|f| {
-            let current_value = match f.tier {
-                Tier::VoxConfig => voxconfig_value(&cfg, f.key),
-                Tier::Flat => flat_effective_value(f.key),
+    vox_llm_config::gui_fields()
+        .into_iter()
+        .filter_map(|f| {
+            let spec = vox_llm_config::get(f.key)?;
+            let current_value = match spec.persistence {
+                Persistence::VoxConfig => voxconfig_value(&cfg, spec.env),
+                Persistence::FlatToml | Persistence::EnvOnly => flat_effective_value(spec),
             };
-            UserConfigFieldDto {
+            Some(UserConfigFieldDto {
                 key: f.key.to_string(),
                 label: f.label.to_string(),
                 hint: f.hint.to_string(),
                 group: f.group.to_string(),
-                kind: f.kind.as_str().to_string(),
-                options: f.options.iter().map(|s| s.to_string()).collect(),
-                default: default_value(f.key),
+                kind: f.kind.to_string(),
+                options: f.options.iter().map(|s| (*s).to_string()).collect(),
+                default: default_value(spec),
                 current_value,
-            }
+            })
         })
         .collect()
 }
 
-/// Validate `value` against the field's `kind`, returning the trimmed value to store.
-fn validate(spec: &FieldSpec, value: &str) -> Result<String, String> {
+/// Validate `value` against the registry key's `kind`, returning the trimmed value.
+fn validate(spec: &LlmConfigKey, value: &str) -> Result<String, String> {
     let v = value.trim();
     match spec.kind {
         Kind::Float => {
-            if v.is_empty() {
-                return Err(format!("{} must be a number", spec.label));
-            }
             let f = v
                 .parse::<f64>()
                 .map_err(|_| format!("{} must be a number", spec.label))?;
@@ -362,9 +163,6 @@ fn validate(spec: &FieldSpec, value: &str) -> Result<String, String> {
             Ok(v.to_string())
         }
         Kind::Int => {
-            if v.is_empty() {
-                return Err(format!("{} must be an integer", spec.label));
-            }
             let i = v
                 .parse::<i64>()
                 .map_err(|_| format!("{} must be an integer", spec.label))?;
@@ -373,6 +171,10 @@ fn validate(spec: &FieldSpec, value: &str) -> Result<String, String> {
             }
             Ok(v.to_string())
         }
+        Kind::Bool => match v {
+            "true" | "false" => Ok(v.to_string()),
+            _ => Err(format!("{} must be true or false", spec.label)),
+        },
         Kind::Enum => {
             if spec.options.contains(&v) {
                 Ok(v.to_string())
@@ -380,10 +182,8 @@ fn validate(spec: &FieldSpec, value: &str) -> Result<String, String> {
                 Err(format!("{} is not a valid {} value", v, spec.label))
             }
         }
-        Kind::String | Kind::Path => {
-            // URL-ish endpoint keys must be non-empty when this tier requires a value;
-            // db_url is genuinely optional and may be cleared via reset, so a non-empty
-            // set is still required here (use reset to clear).
+        Kind::String | Kind::Url | Kind::Path => {
+            // Non-empty on set; clear optional keys (e.g. db_url) via reset, not an empty set.
             if v.is_empty() {
                 return Err(format!("{} must not be empty", spec.label));
             }
@@ -392,16 +192,16 @@ fn validate(spec: &FieldSpec, value: &str) -> Result<String, String> {
     }
 }
 
-/// Persist one config field. Routes by tier; refreshes the flat cache after any
-/// VoxConfig-tier write to keep both writers coherent.
+/// Persist one config field. Routes by persistence tier; refreshes the flat cache
+/// after any VoxConfig-tier write to keep both writers coherent.
 #[command]
 // toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_config; routing + cache-coherence covered by vox-config tests
 pub fn set_user_config(key: String, value: String) -> Result<(), String> {
-    let spec = spec_for(&key)?;
+    let spec = key_for(&key)?;
     let stored = validate(spec, &value)?;
 
-    match spec.tier {
-        Tier::VoxConfig => {
+    match spec.persistence {
+        Persistence::VoxConfig => {
             // Use the persisted-global config as the save base, NOT `load()`: `save()`
             // writes every field, so an env-folded base would bake transient overrides
             // (VOX_BUDGET_USD / VOX_DATA_DIR / …) permanently into config.toml.
@@ -412,7 +212,7 @@ pub fn set_user_config(key: String, value: String) -> Result<(), String> {
             // write read-modify-writes against the sectioned tables we just wrote.
             vox_config::toml_config::reload_user_config();
         }
-        Tier::Flat => {
+        Persistence::FlatToml | Persistence::EnvOnly => {
             vox_config::toml_config::set_user_config_value(&key, &stored)?;
         }
     }
@@ -424,9 +224,9 @@ pub fn set_user_config(key: String, value: String) -> Result<(), String> {
 #[command]
 // toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_config; routing + cache-coherence covered by vox-config tests
 pub fn reset_user_config(key: String) -> Result<(), String> {
-    let spec = spec_for(&key)?;
-    match spec.tier {
-        Tier::VoxConfig => {
+    let spec = key_for(&key)?;
+    match spec.persistence {
+        Persistence::VoxConfig => {
             // Persisted-global base (see `set_user_config`): avoid re-persisting env overrides.
             let mut cfg = vox_config::VoxConfig::load_persisted_global();
             let default = vox_config::VoxConfig::default();
@@ -440,7 +240,7 @@ pub fn reset_user_config(key: String) -> Result<(), String> {
             cfg.save().map_err(|e| e.to_string())?;
             vox_config::toml_config::reload_user_config();
         }
-        Tier::Flat => {
+        Persistence::FlatToml | Persistence::EnvOnly => {
             vox_config::toml_config::unset_user_config_value(&key)?;
         }
     }
@@ -474,39 +274,108 @@ fn apply_voxconfig_field(
     Ok(())
 }
 
+/// Event name the frontend subscribes to for reactive Runtime-settings refresh.
+pub const LLM_CONFIG_CHANGED_EVENT: &str = "vox://llm-config-changed";
+
+/// Payload for [`LLM_CONFIG_CHANGED_EVENT`].
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LlmConfigChanged {
+    pub rev: u64,
+    pub keys: Vec<String>,
+}
+
+/// Spawn once at GUI startup: forward `vox-config` snapshot bumps to the webview as
+/// [`LLM_CONFIG_CHANGED_EVENT`], so the Runtime settings surface refreshes reactively
+/// when config changes — whether from this GUI, an env reload, or mesh sync.
+pub fn spawn_llm_config_bridge(app: tauri::AppHandle) {
+    use tauri::Emitter;
+    vox_config::snapshot::on_change(move |change| {
+        let _ = app.emit(
+            LLM_CONFIG_CHANGED_EVENT,
+            LlmConfigChanged {
+                rev: change.rev,
+                keys: change.changed.clone(),
+            },
+        );
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn float_spec() -> &'static FieldSpec {
-        spec_for("daily_budget_usd").expect("float field")
+    fn spec(key: &str) -> &'static LlmConfigKey {
+        vox_llm_config::get(key).expect("registry key")
     }
 
-    fn int_spec() -> &'static FieldSpec {
-        spec_for("train_epochs").expect("int field")
+    #[test]
+    fn change_event_payload_serializes_camel_case() {
+        let p = LlmConfigChanged {
+            rev: 3,
+            keys: vec!["OPENROUTER_BASE_URL".to_string()],
+        };
+        let j = serde_json::to_string(&p).expect("serialize");
+        assert!(j.contains("\"rev\":3"), "rev field present: {j}");
+        assert!(
+            j.contains("OPENROUTER_BASE_URL"),
+            "changed key present: {j}"
+        );
+    }
+
+    #[test]
+    fn catalog_is_registry_non_secret_view() {
+        let cat = get_user_config();
+        let reg = vox_llm_config::gui_fields();
+        assert_eq!(
+            cat.len(),
+            reg.len(),
+            "GUI catalog must equal registry gui_fields"
+        );
+        // Secrets must never surface here.
+        assert!(
+            cat.iter().all(|f| f.key != "OPENROUTER_API_KEY"),
+            "secret API keys must not appear in the Runtime catalog"
+        );
+        // A previously-hidden key is now surfaced.
+        assert!(
+            cat.iter().any(|f| f.key == "ANTHROPIC_TUNING_TEMPERATURE"),
+            "registry-driven catalog should surface formerly-hidden tuning keys"
+        );
     }
 
     #[test]
     fn float_rejects_nan_inf_and_negative() {
-        let spec = float_spec();
-        assert!(validate(spec, "nan").is_err());
-        assert!(validate(spec, "inf").is_err());
-        assert!(validate(spec, "-5").is_err());
-        // 1e999 overflows f64 to +inf and must be rejected as non-finite.
-        assert!(validate(spec, "1e999").is_err());
+        let s = spec("daily_budget_usd");
+        assert!(validate(s, "nan").is_err());
+        assert!(validate(s, "inf").is_err());
+        assert!(validate(s, "-5").is_err());
+        assert!(validate(s, "1e999").is_err());
     }
 
     #[test]
     fn float_accepts_valid_nonnegative() {
-        let spec = float_spec();
-        assert_eq!(validate(spec, " 2.5 ").as_deref(), Ok("2.5"));
-        assert_eq!(validate(spec, "0").as_deref(), Ok("0"));
+        let s = spec("daily_budget_usd");
+        assert_eq!(validate(s, " 2.5 ").as_deref(), Ok("2.5"));
+        assert_eq!(validate(s, "0").as_deref(), Ok("0"));
     }
 
     #[test]
     fn int_rejects_negative() {
-        let spec = int_spec();
-        assert!(validate(spec, "-3").is_err());
-        assert_eq!(validate(spec, "4").as_deref(), Ok("4"));
+        let s = spec("train_epochs");
+        assert!(validate(s, "-3").is_err());
+        assert_eq!(validate(s, "4").as_deref(), Ok("4"));
+    }
+
+    #[test]
+    fn enum_validates_against_options() {
+        let s = spec("vox_populi::inference_PROFILE");
+        assert!(validate(s, "desktop_ollama").is_ok());
+        assert!(validate(s, "not_a_profile").is_err());
+    }
+
+    #[test]
+    fn unknown_key_is_rejected() {
+        assert!(key_for("NOT_A_REAL_KEY").is_err());
     }
 }

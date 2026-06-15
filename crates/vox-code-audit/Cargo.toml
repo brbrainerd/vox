@@ -28,6 +28,7 @@ clap = { workspace = true, features = ["derive"] }
 vox-scaling-policy = { workspace = true }
 vox-secrets = { workspace = true }
 vox-config = { workspace = true }
+vox-llm-egress = { workspace = true }
 vox-bounded-fs = { workspace = true }
 vox-orchestrator-types = { workspace = true }
 vox-jsonschema-util = { workspace = true }

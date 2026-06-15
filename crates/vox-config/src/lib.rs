@@ -2,6 +2,10 @@
 //!
 //! Precedence: CLI args > env > config file > defaults.
 
+/// Re-export of the LLM/AI setting-key SSOT. `vox-config` is a *view* over
+/// [`vox_llm_config`]: typed env-resolving accessors here are backed by the registry.
+pub use vox_llm_config;
+
 pub mod bootstrap_inference;
 pub mod config;
 pub mod env_parse;
@@ -11,12 +15,14 @@ pub mod operator_registry;
 pub mod paths;
 pub mod policy;
 pub mod project_manifest;
+pub mod resolve_egress;
 pub mod rollout;
 pub mod routing_migration;
 pub mod routing_policy;
 pub mod scholarly;
 pub mod secrets;
 pub mod serde_defaults;
+pub mod snapshot;
 pub mod timeouts;
 pub mod toml_config;
 
