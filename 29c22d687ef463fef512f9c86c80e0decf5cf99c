@@ -1,0 +1,7 @@
+fix(vox-gui/scientia): Improve NoveltyEvidencePanel accessibility
+scale: ~9 lines across 2 files [S]
+
+- `NoveltyEvidencePanel.tsx`: Mark the decorative warning glyph as `aria-hidden="true"` to improve accessibility.
+- `NoveltyEvidencePanel.test.tsx`: Add a test to verify that prior-art hits render as a semantic list and the decorative warning glyph is hidden from assistive technologies.
+
+--- audit: original='feat(vox-gui/wave4): NoveltyEvidencePanel a11y + checklist (Wave 4)' | actual=9L across 2 files | derived=full ---
