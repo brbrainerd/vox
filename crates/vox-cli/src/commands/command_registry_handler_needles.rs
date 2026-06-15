@@ -13,6 +13,7 @@
 // commands::bundle
 // commands::check
 // commands::ci
+// commands::ci::config_hygiene
 // commands::codex
 // commands::db_cli
 // commands::memory_cli
