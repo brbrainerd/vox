@@ -1,0 +1,46 @@
+feat: Initial import of Vox project
+scale: ~141127 lines across 800 files [XL]
+
+DIVERGENCE: original subject claimed '' but this commit actually changed ~141127 lines across 800 files. Top areas:
+crates: 80183 lines, 404 files
+docs: 30968 lines, 230 files
+vox-vscode: 12857 lines, 42 files
+vendor: 9262 lines, 18 files
+dist1: 2324 lines, 17 files
+.opencode: 2268 lines, 37 files
+examples: 1489 lines, 22 files
+(root): 1157 lines, 20 files
+.github: 365 lines, 2 files
+packages: 183 lines, 2 files
+.agents: 28 lines, 2 files
+.cursor: 26 lines, 1 files
+.cargo: 9 lines, 1 files
+.config: 8 lines, 1 files
+.vox_modules: 0 lines, 1 files
+
+- `vox-vscode`: Added `package-lock.json` and `out/webview.js`, indicating new VS Code extension components.
+- `docs`: Significant additions to `book/print.html`, `dashboard/app.js`, `dashboard/index.css`, `book/book-a0b12cfe.js`, `book/css/chrome-ae938929.css`, `book/searcher-c2a407aa.js`, `book/architecture.html`, `book/examples.html`, `book/language-guide.html`, `book/ecosystem.html`, `book/actors-and-workflows.html`, `book/css/general-2459343d.css`, `book/css/variables-8adf115d.css`, `dashboard/index.html`, and various API documentation files (`vox-orchestrator.md`, `vox-cli.md`, `vox-runtime.md`, `vox-gamify.md`, `vox-db.md`, `vox-pm.md`, `vox-mcp.md`, `vox-ast.md`, `vox-toestub.md`, `examples.md`). This suggests a comprehensive new documentation set and dashboard.
+- `crates/vox-orchestrator`: Extensive new files including `orchestrator.rs`, `memory.rs`, `session.rs`, `types.rs`, `oplog.rs`, `config.rs`, `snapshot.rs`, `locks.rs`, `queue.rs`, `compaction.rs`, `a2a.rs`, `events.rs`, `usage.rs`, `security.rs`, `runtime.rs`, `workspace.rs`, `jj_backend.rs`, `models.rs`, `handoff.rs`, `affinity.rs`, `budget.rs`, indicating a new core orchestrator service.
+- `vendor/llvm`: Numerous new `.td` and `.h` files under `include/llvm/Target/`, suggesting integration or vendoring of LLVM target-related definitions.
+- `crates/vox-gamify`: New files for `db.rs`, `ai.rs`, `companion.rs`, `quest.rs`, `achievement.rs`, `cost.rs`, indicating a new gamification system.
+- `crates/vox-codegen-rust`: New files for `emit_main.rs`, `emit_expr.rs`, `emit_lib.rs`, `emit_agent.rs`, `emit_table.rs`, suggesting a new Rust code generation module.
+- `crates/vox-cli`: New command implementations for `review.rs`, `dashboard.rs`, `corpus.rs`, `chat.rs`, `gamify.rs`, `doctor.rs`, `deploy.rs`, `setup.rs`, `training/mod.rs`, `orchestrator.rs`, `serve_dashboard/api.rs`, `learn.rs`, `install.rs`, indicating a significantly expanded command-line interface.
+- `crates/vox-db`: New files for `schema_digest.rs`, `ddl.rs`, `auto_migrate.rs`, `learning.rs`, `lib.rs`, `collection.rs`, suggesting a new database management and learning component.
+- `crates/vox-typeck`: New files for `checker.rs`, `tests/check_tests.rs`, `tests/decorator_tests.rs`, indicating a new type checking system.
+- `crates/vox-parser`: New files for `parser/decl.rs`, `parser/expr.rs`, suggesting a new parsing module.
+- `crates/vox-mcp`: New files for `tools/chat_tools.rs`, `orchestrator_tools.rs`, `memory.rs`, `tools/mod.rs`, `tools/vcs_tools.rs`, `server.rs`, indicating a new multi-component platform or agent system.
+- `crates/vox-pm`: New files for `resolver.rs`, `manifest.rs`, `lockfile.rs`, suggesting a new package manager.
+- `crates/vox-fmt`: New `lib.rs` file, indicating a new formatting library.
+- `crates/vox-tensor`: New files for `tensor.rs`, `data.rs`, `nn.rs`, suggesting a new tensor manipulation and neural network library.
+- `crates/vox-runtime`: New `llm.rs` file, indicating large language model integration.
+- `crates/vox-container`: New files for `deploy_target.rs`, `env.rs`, `generate.rs`, suggesting containerization features.
+- `crates/vox-forge`: New files for `github.rs`, `gitlab.rs`, indicating integration with Git hosting services.
+- `crates/vox-ast`: New `decl/mod.rs` file, suggesting a new Abstract Syntax Tree definition.
+- `crates/vox-toestub`: New files for `review/client.rs`, `ai_analyze.rs`, `detectors/stub.rs`, indicating AI analysis and review tooling.
+- `crates/vox-config`: New `config.rs` file, suggesting a new configuration management system.
+- `crates/vox-codegen-ts`: New `schema.rs` file, suggesting TypeScript code generation.
+- `.opencode/plugins/vox-opencode-plugin`: Added `package-lock.json`, indicating a new OpenCode plugin.
+- `examples/greater_fool`: Added `ftt.vox`, indicating a new example project.
+- Many other crates and directories received numerous new files, indicating a large-scale initial import of the Vox project codebase.
+
+--- audit: original='' | actual=141127L across 800 files | derived=stat-only ---
