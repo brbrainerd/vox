@@ -1,0 +1,17 @@
+feat(ci): shared S3 compile cache for runners and agents
+scale: ~202 lines across 3 files [M]
+
+- `crates/vox-cli/src/commands/ci/runner_scale.rs`: Implemented shared S3-compatible compile cache for runners.
+  - Added constants `SCCACHE_S3_BUCKET`, `SCCACHE_S3_CONTAINER_ENDPOINT`, and `SCCACHE_S3_HOST_PROBE` for MinIO configuration.
+  - Introduced `s3_cache_reachable` function to probe the MinIO server on the host via TCP.
+  - Added `shared_cache_env` function to generate environment variables for sccache, including `SCCACHE_BUCKET`, `SCCACHE_ENDPOINT`, and `SCCACHE_NO_CREDENTIALS`, and `CARGO_INCREMENTAL=0`.
+  - Modified `spawn` function to conditionally inject shared cache environment variables based on `s3_cache_reachable`.
+  - Updated `runner_scale` command to use the new shared cache logic.
+- `docs/src/ci/shared-compile-cache.md`: Added new documentation detailing the shared compile cache architecture, server lifecycle, and usage.
+  - Describes how local shells, agent tabs, self-hosted runner containers, and other LAN machines connect to the MinIO bucket.
+  - Explains the anonymous read/write access on the LAN and the trade-offs.
+  - Provides commands for starting, stopping, and managing the MinIO container.
+  - Includes measured performance numbers for cold and warm builds.
+- `crates/vox-cli/src/commands/ci/pre_push.rs`: Annotated `Vec<String>` type in `filter_nextest_packages_removes_skipped_names` test to resolve a type inference issue (E0282).
+
+--- audit: original='ci(cache): shared S3 compile cache for runners + agents (MinIO/sccache)' | actual=202L across 3 files | derived=full ---
