@@ -1,0 +1,6 @@
+fix(orchestrator-mcp): add missing selection_rationale to ModelCallEvent literal
+scale: ~1 lines across 1 files [XS]
+
+- `crates/vox-orchestrator-mcp/tests/trace_propagation.rs`: Added `selection_rationale: None` to the `ModelCallEvent` literal in the `emit_model_call` test to match the updated struct definition.
+
+--- audit: original='fix(orchestrator-mcp): add missing selection_rationale to ModelCallEvent test literal' | actual=1L across 1 files | derived=full ---
