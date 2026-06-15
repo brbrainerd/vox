@@ -1,0 +1,6 @@
+docs(superpowers): design for Effort Route (S2)
+scale: ~285 lines across 1 files [L]
+
+- docs/superpowers/specs/
+
+--- audit: original='docs(spec): effort-route S2 design (2026-05-30)' | actual=285L across 1 files | derived=full ---
