@@ -1,0 +1,16 @@
+refactor(codegen,lower): Extract builtin dispatch and AI fixture lowering
+scale: ~424 lines across 3 files [L]
+
+- **`crates/vox-compiler/src/hir/lower/decl.rs`**:
+    - Extracted `lower_effect_to_capability` function to handle the mapping of `EffectAnnotation` to `HirCapability`, replacing an inline match statement within `lower_fn`.
+    - Extracted `lower_ai_fixture` function to encapsulate the logic for lowering AI fixture specifications (hole, search, subagent, prompt, intent-routed, model pin), replacing an inline conditional block within `lower_fn`.
+    - Removed the `ai_fixture` field from the `LowerCtx` struct.
+- **`crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`**:
+    - Extracted `emit_builtin_ident_call` function to handle the emission of code for built-in functions (broadcast, str, assert, assert_eq, assert_ne, print, len), replacing an inline `if-chain` within `emit_expr_with`.
+    - Added `HirArg` to the `vox_compiler::hir` import list.
+- **`contracts/reports/arch/cr-a1/2026-05-22.json`**:
+    - Updated `functions_scanned` count from 192 to 195.
+    - Updated `measured_at` timestamp.
+    - Adjusted complexity metrics for `emit_expr_with` (from 51 to 37) and `lower_ai_fixture` (from 31 to 29), reflecting the refactoring. The entry for `lower_fn` was replaced by `lower_ai_fixture` in the over-budget list.
+
+--- audit: original='refactor(codegen+lower): CR-A1 pass 2 — emit_expr_with 51→37, lower_fn off the list' | actual=424L across 3 files | derived=full ---
