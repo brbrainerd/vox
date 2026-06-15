@@ -1,0 +1,9 @@
+feat(compiler): add `tokens_emit.rs` for CSS and TypeScript token generation
+scale: ~124 lines across 1 files [M]
+
+- `crates/vox-compiler/src/codegen_ts/tokens_emit.rs`: Add new module containing `emit_tokens_css` and `emit_tokens_ts` functions.
+  - `emit_tokens_css`: Generates a CSS string with `:root` custom properties from a `TokenRegistry`.
+  - `emit_tokens_ts`: Generates a TypeScript string with a `voxTokens` constant and corresponding type from a `TokenRegistry`.
+  - Both functions sort entries for deterministic output.
+
+--- audit: original='fix(compiler): commit missing tokens_emit.rs — fixes E0583 compile error' | actual=124L across 1 files | derived=full ---
