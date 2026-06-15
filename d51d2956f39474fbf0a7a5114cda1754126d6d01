@@ -1,0 +1,8 @@
+feat(typeck): support `range(n)` single-argument shorthand
+scale: ~12 lines across 1 files [S]
+
+- `crates/vox-compiler/src/typeck/checker/expr.rs`:
+    - Added special-case logic within `Checker::check_call` to handle `range(n)` calls.
+    - When `range` is called with a single argument, it now type-checks that argument against `Int`, bypassing the usual argument count mismatch for the `(int, int) -> list[int]` signature.
+
+--- audit: original='feat(typeck): accept range(n) single-arg shorthand' | actual=12L across 1 files | derived=full ---
