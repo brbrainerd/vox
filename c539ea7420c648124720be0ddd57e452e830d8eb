@@ -1,0 +1,7 @@
+test(codegen): regenerate web-bootstrap golden and reactive padding snapshots
+scale: ~1353 lines across 7 files [XL]
+
+- `golden_ts_test__golden_ts_emit` snapshots for `component_effect_with_deps`, `component_state`, `endpoint_call_in_handler`, `list_render_with_key`, `routes_with_loader`, and `safe_area` were updated to include six new appended files: `vox-app.tsx`, `runtime-install.ts`, `entry.tsx`, `app-hooks.tsx`, `vox-error-boundary.tsx`, and `vox-sw-register.ts`. This reflects the web-bootstrap migration from PR #97.
+- `reactive_smoke_test__counter_tsx_with_web_ir_canonical_view.snap` was updated to include a `div` wrapper with `className="px-4"`, aligning with the WebIR canonical-view padding parity change.
+
+--- audit: original='test(codegen): regenerate web-bootstrap golden + reactive padding snapshots' | actual=1353L across 7 files | derived=full ---
