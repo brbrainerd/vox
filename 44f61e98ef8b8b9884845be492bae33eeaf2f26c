@@ -1,0 +1,8 @@
+ci(github-actions): Expand feature matrix and add orchestrator no-default check
+scale: ~6 lines across 1 files [XS]
+
+- **.github/workflows/ci.yml**:
+    - Added a new CI job "Orchestrator no-default-features (news-publish off)" to `ci.yml` that runs `cargo check -p vox-orchestrator --no-default-features --features runtime,json-schema,mcp-native,toestub-gate`.
+    - Expanded the `all-features` matrix to include `vox-compiler-emit`, `vox-db-types`, and `vox-ars-runtime` crates.
+
+--- audit: original='ci: expand feature matrix — add new crates + orchestrator no-default check' | actual=6L across 1 files | derived=full ---
