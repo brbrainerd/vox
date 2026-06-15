@@ -1,0 +1,12 @@
+chore(workspace): Expand vox-schema; remove Ludus legacy cutover hook
+scale: ~21976 lines across 7 files [XL]
+
+- `crates/vox-db`: Remove `apply_ludus_gamify_cutover` from `legacy/mod.rs` as Ludus DDL is now owned by baseline.
+- `vox-schema.json`: Register all workspace members (e.g., `vox-audio-ingress`, `vox-bootstrap`, `vox-bounded-fs`) to expand schema coverage.
+- `docs/agents/database-nomenclature.md`: Update documentation to reflect the removal of the Ludus domain cutover and legacy no-op hooks, and add a CI guard for `query_all`.
+- `docs/src/architecture/legacy-retirement-roadmap.md`: Update the roadmap to mark the Ludus cutover module as removed and its DDL as living in baseline fragments.
+- `docs/src/architecture/orphan-surface-inventory.md`: Update the inventory to reflect the removal of `ludus_schema_cutover.rs` from the DB baseline vs. legacy/cutover chain.
+- `docs/src/architecture/ludus-schema-inventory.md`: Update the description and content to indicate that extended Ludus tables are now part of baseline gamification coordination and the legacy hook is removed.
+- `docs/agents/doc-inventory.json`: Regenerate the document inventory, updating `generated_at` and various file statistics (e.g., `crates/vox-mcp/src/params.rs`, `crates/vox-forge/src/types.rs`, `crates/vox-db/src/lib.rs`, `crates/vox-orchestrator/src/jj_backend.rs`).
+
+--- audit: original='chore: expand vox-schema for workspace crates; remove Ludus legacy hook' | actual=21976L across 7 files | derived=sampled ---
