@@ -1,0 +1,10 @@
+feat(dashboard): implement "join someone else's mesh" wizard
+scale: ~240 lines across 5 files [M]
+
+- crates/vox-dashboard/app/src/surfaces/wizard_join_mesh.vox: Add a new three-stage Vox UI wizard for joining a mesh, allowing users to paste an invite URL, preview the slot policy, and then join as a worker node.
+- crates/vox-dashboard/src/api/mesh_join.rs: Introduce new API handlers for `/api/v2/mesh/invite/preview` (to validate and decode an invite bearer without consuming it) and `/api/v2/mesh/join` (to consume the bearer and register the machine as a worker node).
+- crates/vox-orchestrator/src/mesh.rs: Add `peek_bearer()` to `MeshRegistry` to check for the existence and validity of a bearer token without consuming it, used by the join-wizard preview endpoint.
+- crates/vox-dashboard/src/api/mesh.rs: Wire the new `/api/v2/mesh/invite/preview` and `/api/v2/mesh/join` routes into the mesh router and update the documentation comment route table.
+- crates/vox-dashboard/src/api/mod.rs: Publicly expose the new `mesh_join` module.
+
+--- audit: original="feat(dashboard): join-someone-else's-mesh wizard (P4-T11)" | actual=240L across 5 files | derived=full ---
