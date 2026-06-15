@@ -781,57 +781,64 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
         // stay in sync with the other emitters. Never silently return Null.
         HirExpr::Jsx(..) => {
             let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::Jsx), Target::Interpreter);
-            Err(EvalError::AssertionFailed(
-                format!("{}: {}", cell.code, cell.message).into(),
-            ))
+            Err(EvalError::AssertionFailed(format!(
+                "{}: {}",
+                cell.code, cell.message
+            )))
         }
         HirExpr::JsxSelfClosing(..) => {
             let cell = unsupported_diagnostic(
                 Feature::Expr(ExprFeature::JsxSelfClosing),
                 Target::Interpreter,
             );
-            Err(EvalError::AssertionFailed(
-                format!("{}: {}", cell.code, cell.message).into(),
-            ))
+            Err(EvalError::AssertionFailed(format!(
+                "{}: {}",
+                cell.code, cell.message
+            )))
         }
         HirExpr::JsxFragment(..) => {
             let cell = unsupported_diagnostic(
                 Feature::Expr(ExprFeature::JsxFragment),
                 Target::Interpreter,
             );
-            Err(EvalError::AssertionFailed(
-                format!("{}: {}", cell.code, cell.message).into(),
-            ))
+            Err(EvalError::AssertionFailed(format!(
+                "{}: {}",
+                cell.code, cell.message
+            )))
         }
         HirExpr::AsyncView(..) => {
             let cell =
                 unsupported_diagnostic(Feature::Expr(ExprFeature::AsyncView), Target::Interpreter);
-            Err(EvalError::AssertionFailed(
-                format!("{}: {}", cell.code, cell.message).into(),
-            ))
+            Err(EvalError::AssertionFailed(format!(
+                "{}: {}",
+                cell.code, cell.message
+            )))
         }
         HirExpr::Spawn(..) => {
             let cell =
                 unsupported_diagnostic(Feature::Expr(ExprFeature::Spawn), Target::Interpreter);
-            Err(EvalError::AssertionFailed(
-                format!("{}: {}", cell.code, cell.message).into(),
-            ))
+            Err(EvalError::AssertionFailed(format!(
+                "{}: {}",
+                cell.code, cell.message
+            )))
         }
         HirExpr::With(..) => {
             let cell =
                 unsupported_diagnostic(Feature::Expr(ExprFeature::With), Target::Interpreter);
-            Err(EvalError::AssertionFailed(
-                format!("{}: {}", cell.code, cell.message).into(),
-            ))
+            Err(EvalError::AssertionFailed(format!(
+                "{}: {}",
+                cell.code, cell.message
+            )))
         }
         HirExpr::WorkflowVersion(..) => {
             let cell = unsupported_diagnostic(
                 Feature::Expr(ExprFeature::WorkflowVersion),
                 Target::Interpreter,
             );
-            Err(EvalError::AssertionFailed(
-                format!("{}: {}", cell.code, cell.message).into(),
-            ))
+            Err(EvalError::AssertionFailed(format!(
+                "{}: {}",
+                cell.code, cell.message
+            )))
         }
     }
 }
