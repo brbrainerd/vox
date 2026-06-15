@@ -1,0 +1,8 @@
+fix(plugin-catalog): use canonical 'Language Reference' category in generated docs
+scale: ~4 lines across 3 files [S]
+
+- `crates/vox-plugin-catalog/src/docs.rs`: Changed the `category` field from `"reference"` to `"Language Reference"` in `CATALOG_FRONTMATTER` and `BUNDLES_FRONTMATTER` constants.
+- `docs/src/reference/distribution-bundles.generated.md`: No changes to this generated file, implying it was regenerated with the updated category.
+- `docs/src/reference/plugin-catalog.generated.md`: No changes to this generated file, implying it was regenerated with the updated category.
+
+--- audit: original="fix(plugin-catalog): use canonical 'Language Reference' category in generated docs" | actual=4L across 3 files | derived=full ---
