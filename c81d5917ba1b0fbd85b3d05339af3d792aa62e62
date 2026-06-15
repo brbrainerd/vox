@@ -1,0 +1,7 @@
+docs(skills): add interop research and TDD implementation plan
+scale: ~882 lines across 2 files [L]
+
+- docs/superpowers/plans/2026-06-12-skill-ecosystem-interop-and-awareness.md: Add a detailed 686-line implementation plan for skill ecosystem interoperability and model awareness. This plan outlines five tracks of bite-sized TDD tasks covering auto-discovery, model awareness (tier-1 catalog injection, tier-2 `vox_skill_use` tool, pinned-skill injection, activation telemetry), GUI /slash + palette integration, vendored skill bundles, and hygiene/verification.
+- docs/src/architecture/skill-ecosystem-interop-research-2026-06-12.md: Add a 196-line research document detailing an audit of the skill spine (6 crates, gates, 9 plugins), GUI/chat surfacing, LLM-layer seams, the mid-2026 agentskills.io ecosystem table (41 clients), and a license-verified bundling catalog. It identifies five gaps, noting that a TOML-only frontmatter parser (G1) was fixed, and discovery of bare `SKILL.md` directories (G2) is planned.
+
+--- audit: original='docs(skills): interop research + full TDD implementation plan' | actual=882L across 2 files | derived=full ---
