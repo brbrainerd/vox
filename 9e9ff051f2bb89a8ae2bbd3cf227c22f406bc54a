@@ -1,0 +1,6 @@
+refactor(ci): satisfy clippy::collapsible_if in platform_data_dir for XDG_DATA_HOME
+scale: ~8 lines across 1 files [XS]
+
+- `crates/vox-config/src/paths.rs`: Refactored the `platform_data_dir` function for non-Windows/macOS targets to use a single `if let ... &&` expression, collapsing nested `if` statements when checking `XDG_DATA_HOME` environment variable, to satisfy the `clippy::collapsible_if` lint.
+
+--- audit: original='fix(ci): satisfy clippy collapsible-if in platform_data_dir (XDG)' | actual=8L across 1 files | derived=full ---
