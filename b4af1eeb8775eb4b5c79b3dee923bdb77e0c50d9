@@ -1,0 +1,12 @@
+feat(workflow-runtime): profile-driven journal flush and suspendable runtime
+scale: ~403 lines across 4 files [L]
+
+- `vox-journal` now supports `AppendDurability` with `SyncEachAppend` (default) and `Deferred` options.
+- `FileJournal::sync()` is now an unbounded `impl` to allow `Suspendable` to flush regardless of entry type.
+- `FileJournal` in `vox-workflow-runtime` is now profile-driven:
+    - Desktop profile uses `SyncEachAppend` and a new `PeriodicFlusher` background thread for periodic syncing.
+    - Mobile/OnLifecycle profile defers durability to `suspend()` via `AppendDurability::Deferred`.
+- Added `Resumable` trait to `vox-runtime`.
+- Updated `docs/src/architecture/where-things-live.md` to reflect the new `vox-journal` durability options.
+
+--- audit: original='feat(workflow-runtime): profile-driven journal flush + Suspendable (mobile Phase 2)' | actual=403L across 4 files | derived=full ---
