@@ -8,6 +8,9 @@
 
 use serde::{Deserialize, Serialize};
 
+const EMBEDDED_CIRCUIT_BREAKER_YAML: &str =
+    include_str!("../../../contracts/orchestration/circuit-breaker.v1.yaml");
+
 /// Reason the circuit was tripped.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TripReason {
@@ -174,6 +177,29 @@ impl CircuitBreakerConfig {
         Ok(c)
     }
 
+    /// Return the config parsed from the embedded contract YAML.
+    pub fn embedded() -> Self {
+        Self::from_contract_str(EMBEDDED_CIRCUIT_BREAKER_YAML)
+            .expect("embedded circuit-breaker.v1.yaml must parse")
+    }
+
+    /// Resolve config: check `VOX_CIRCUIT_BREAKER_CONTRACT` env var, fall back to embedded.
+    pub fn resolve() -> Self {
+        if let Ok(p) = std::env::var("VOX_CIRCUIT_BREAKER_CONTRACT") {
+            let path = std::path::PathBuf::from(p);
+            if path.exists() {
+                if let Ok(text) = std::fs::read_to_string(&path) {
+                    if let Ok(cfg) = Self::from_contract_str(&text) {
+                        return cfg;
+                    }
+                    tracing::warn!(path = %path.display(),
+                        "circuit-breaker override failed to parse; using embedded contract");
+                }
+            }
+        }
+        Self::embedded()
+    }
+
     /// Load thresholds from the contract file if it exists; otherwise `Default`.
     pub fn from_contract_file(path: &std::path::Path) -> Self {
         match std::fs::read_to_string(path) {
@@ -307,6 +333,19 @@ impl TripEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn embedded_contract_is_canonical_and_matches_default() {
+        let embedded = CircuitBreakerConfig::embedded();
+        let def = CircuitBreakerConfig::default();
+        assert_eq!(embedded.no_progress_threshold, def.no_progress_threshold);
+        assert_eq!(embedded.tool_thrash_threshold, def.tool_thrash_threshold);
+        assert_eq!(embedded.replan_limit, def.replan_limit);
+        assert_eq!(
+            embedded.ngram_overlap_threshold,
+            def.ngram_overlap_threshold
+        );
+    }
 
     #[test]
     fn from_contract_str_overrides_defaults() {
