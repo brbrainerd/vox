@@ -1,0 +1,6 @@
+fix(ci): install expo-file-system for Expo bundle export
+scale: ~5 lines across 1 files [XS]
+
+- `.github/workflows/mobile-eas-build.yml`: Added `expo-file-system` to the `npx expo install` command within the "Export bundle" job to resolve module dependencies for the `@vox/runtime-rn` CI shim.
+
+--- audit: original='fix(ci): install expo-file-system for the Expo bundle export' | actual=5L across 1 files | derived=full ---
