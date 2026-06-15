@@ -1,0 +1,7 @@
+docs(architecture): update README link; ci: extend lycheeignore for bot-blocked sites
+scale: ~11 lines across 2 files [S]
+
+- docs/src/architecture/boilerplate-reduction-gap-analysis-2026.md: Corrected a relative link to `README.md` by adding an additional `../` to the path.
+- .lycheeignore: Added new entries to ignore specific URLs from Hacker News, Help Net Security, and ScienceDirect, as these sites return errors (429 or 400) to CI bots but are valid for human users.
+
+--- audit: original='\ufeffdocs(ci): fix README link and extend lycheeignore for CI bots' | actual=11L across 2 files | derived=full ---
