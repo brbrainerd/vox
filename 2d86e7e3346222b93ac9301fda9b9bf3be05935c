@@ -1,0 +1,18 @@
+feat(cap-mint): introduce `vox-orchestrator-cap-mint` facade for capability minting
+scale: ~143 lines across 8 files [M]
+
+- **`crates/vox-orchestrator-cap-mint`**: New crate providing a sealed-trait facade for `WorkingTreeWrite` and `BranchCreate` capability minting.
+  - Defines `MintToken` as the sole implementor of `sealed::MintWitness`.
+  - Exports `mint_working_tree_write` and `mint_branch_create` functions, which are the only intended external callers of the now `pub(crate)` capability constructors.
+- **`crates/vox-orchestrator-types`**:
+  - Modified `WorkingTreeWrite::mint` and `BranchCreate::mint` to be `pub(crate)`, restricting direct external construction.
+  - Introduced a `sealed` module with the `MintWitness` trait, consumed exclusively by `vox-orchestrator-cap-mint`.
+  - Updated doc comments for `WorkingTreeWrite` and `BranchCreate` to reflect the new minting mechanism.
+- **`crates/vox-orchestrator-mcp/src/vcs_tools/branch_tools.rs`**:
+  - Updated `branch_create` to use `vox_orchestrator_cap_mint::mint_working_tree_write` instead of directly calling `WorkingTreeWrite::mint`.
+- **`Cargo.toml`**: Added `vox-orchestrator-cap-mint` to the workspace.
+- **`crates/vox-orchestrator-mcp/Cargo.toml`**: Added `vox-orchestrator-cap-mint` as a dependency.
+- **`docs/src/architecture/where-things-live.md`**: Added an entry for `vox-orchestrator-cap-mint`.
+- **`docs/src/architecture/layers.toml`**: Added `vox-orchestrator-cap-mint` to layer 1.
+
+--- audit: original='feat(cap-mint): sealed-trait facade for capability minting (P3-T6)' | actual=143L across 8 files | derived=full ---
