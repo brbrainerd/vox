@@ -1,0 +1,13 @@
+feat(orchestrator): Implement HopperSync federation envelope application
+scale: ~488 lines across 8 files [L]
+
+- `crates/vox-orchestrator/src/hopper/mesh_adapter.rs`: Implemented `apply_op_fragment` to verify Ed25519 signatures on `HopperSync` envelopes, gate on `MIN_INTAKE_TRUST_TIER`, decode `HopperOpSync`, and apply `ItemAdmitted` via `HopperIntake::replay_admitted`. Added `ReplicationError::UnsupportedOpVariant` for `ItemOverridden`/`ItemTransitioned`.
+- `docs/superpowers/specs/2026-06-07-hopper-mesh-sync.md`: Added a new design specification document detailing the HopperSync Mesh Replication (B4) implementation.
+- `crates/vox-orchestrator/src/hopper/store.rs`: Introduced `AdmittedReplay` struct for remote admissions and added `replay_admitted` to the `HopperIntake` trait and `InMemoryHopper` implementation for idempotent application of replicated items, preserving origin `item_id`.
+- `crates/vox-orchestrator/src/hopper/types.rs`: Added `IntakeSource::Mesh` variant with `node_id` for replicated items and `IntakeItem::from_replay` to construct items from verified peer `HopperSync` admissions.
+- `crates/vox-orchestrator/src/types/tasks.rs`: Added `TaskPriority::from_u8` to map `u8` values to `TaskPriority`, defaulting to `Normal` for out-of-range values.
+- `crates/vox-orchestrator/src/hopper/mod.rs`: Exported `ReplicationError`, `apply_op_fragment`, and `AdmittedReplay`.
+- `crates/vox-orchestrator/Cargo.toml`: Added `ed25519-dalek` dependency.
+- `Cargo.lock`: Updated lockfile.
+
+--- audit: original='feat(orchestrator): apply verified HopperSync federation envelopes into the hopper (B4)' | actual=488L across 8 files | derived=full ---
