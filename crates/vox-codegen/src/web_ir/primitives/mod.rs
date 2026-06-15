@@ -1122,4 +1122,20 @@ mod tests {
             e.base_classes
         );
     }
+
+    #[test]
+    fn class_string_exact_join_order_and_separator() {
+        // Catches: class_string() using the wrong separator or reordering classes.
+        let e = PrimitiveEmission {
+            html_tag: "div",
+            base_classes: vec![
+                "flex".to_string(),
+                "flex-col".to_string(),
+                "gap-4".to_string(),
+            ],
+            aria_role: None,
+            surface_ref: None,
+        };
+        assert_eq!(e.class_string(), "flex flex-col gap-4");
+    }
 }

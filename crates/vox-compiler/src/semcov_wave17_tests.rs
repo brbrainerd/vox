@@ -425,6 +425,7 @@ fn coordinator() uses net, db to str { db_read() }
             return_type: None,
             body: vec![],
             route_path: "/api/query/bad_fn".to_string(),
+            auth: None,
             is_pure: true,
             effects: vec![HirEffectKind::Net],
             webhook: None,
@@ -432,7 +433,6 @@ fn coordinator() uses net, db to str { db_read() }
             rate_limit: None,
             pii: None,
             layer: None,
-            auth: None,
             span: Span::new(0, 0),
         };
         let diags = check_endpoint_fn_effects(&[f]);
@@ -461,6 +461,7 @@ fn coordinator() uses net, db to str { db_read() }
             return_type: None,
             body: vec![],
             route_path: "/api/mutation/dup_fn".to_string(),
+            auth: None,
             is_pure: false,
             effects: vec![HirEffectKind::Db, HirEffectKind::Db],
             webhook: None,
@@ -468,7 +469,6 @@ fn coordinator() uses net, db to str { db_read() }
             rate_limit: None,
             pii: None,
             layer: None,
-            auth: None,
             span: Span::new(0, 0),
         };
         let diags = check_endpoint_fn_effects(&[f]);

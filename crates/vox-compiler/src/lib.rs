@@ -41,6 +41,11 @@ pub mod web_prefixes;
 #[cfg(test)]
 mod semcov_wave17_tests;
 
+/// Structural pipeline-gap regression tests (pattern #1: silent-drop catch-all —
+/// the headline top-level-`let` → `Decl::Const` → lowering bug).
+#[cfg(test)]
+mod semcov_struct_pipeline_tests;
+
 /// Re-export of common types if needed.
 pub use ast::decl::Module;
 /// Re-export parser-backed AST evaluation (replaces regex-based vox-eval constructs).

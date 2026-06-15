@@ -847,7 +847,9 @@ impl Parser {
 
     // ── TASK-2.6 Path A: workflow / activity / actor ──────────────────────────
 
-    /// Parse `workflow Name(params) [uses ...] [to ReturnType] { body }`.
+    /// Parse `workflow Name(params) [to ReturnType] { body }`.
+    /// NOTE: a `uses ...` effect clause is NOT parsed (no `effects` field on `WorkflowDecl`);
+    /// the form is unsupported despite earlier doc drift claiming it.
     pub(crate) fn parse_workflow_decl(&mut self) -> Result<Decl, ()> {
         let start = self.span();
         self.advance(); // eat `workflow`
@@ -958,7 +960,9 @@ impl Parser {
         }))
     }
 
-    /// Parse `activity Name(params) [uses ...] [to ReturnType] { body }`.
+    /// Parse `activity Name(params) [to ReturnType] { body }`.
+    /// NOTE: a `uses ...` effect clause is NOT parsed (no `effects` field on `ActivityDecl`);
+    /// the form is unsupported despite earlier doc drift claiming it.
     pub(crate) fn parse_activity_decl(&mut self) -> Result<Decl, ()> {
         use crate::ast::decl::ActivityDecl;
         let start = self.span();
