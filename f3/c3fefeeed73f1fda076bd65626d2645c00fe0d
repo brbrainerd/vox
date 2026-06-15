@@ -1,0 +1,6 @@
+docs(architecture): Update CR-F2 ARM parity for `script` mode to 3/10
+scale: ~2 lines across 1 files [XS]
+
+- `docs/src/architecture/cr-f2-arm-parity-reality-2026-06-05.md`: Updated the `script` mode parity from 1/10 to 3/10, noting that `noop`, `while_loop_algorithms`, and `decimal_math` are now green.
+
+--- audit: original='docs(v1): CR-F2 ratchet 1->3/10 (type-emission batch)' | actual=2L across 1 files | derived=full ---
