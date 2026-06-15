@@ -1,0 +1,11 @@
+feat(vox-gui/research): Improve accessibility and add basic tests for ResearchView
+scale: ~64 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Research/ResearchView.test.tsx`: Add new test file with basic accessibility tests for `ResearchView`.
+- `crates/vox-gui/ui/src/components/surfaces/Research/ResearchView.tsx`:
+  - Add `aria-label="Research question"` to the research query input.
+  - Add `onKeyDown` handler to the research query input to trigger `run()` on Enter key press.
+  - Set `type="button"` for the "Run" and "Refresh" buttons.
+  - Add `aria-live="polite"` to the research running status container.
+
+--- audit: original='feat(vox-gui/wave6): Research a11y + checklist (Wave 6)' | actual=64L across 2 files | derived=full ---
