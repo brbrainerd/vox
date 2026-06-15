@@ -1,0 +1,7 @@
+feat(vox-gui/console): Add ARIA application role to TerminalTab host element
+scale: ~17 lines across 2 files [S]
+
+- `crates/vox-gui/ui/src/components/surfaces/Console/TerminalTab.tsx`: Added `role="application"` to the root `div` element of the `TerminalTab` component to improve accessibility.
+- `crates/vox-gui/ui/src/components/surfaces/Console/TerminalTab.test.tsx`: Added a new test case to verify that the `TerminalTab` host element has the `application` ARIA role and is labeled correctly.
+
+--- audit: original='feat(vox-gui/wave2): TerminalTab a11y + checklist (Wave 2)' | actual=17L across 2 files | derived=full ---
