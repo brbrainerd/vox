@@ -1,0 +1,8 @@
+docs(spec): clarify `@endpoint` retirement scope in v0.6.0 release design
+scale: ~9 lines across 1 files [XS]
+
+- docs/superpowers/specs/2026-05-26-v0.6.0-release-design.md:
+  - Added a "Mid-stream correction" section detailing that the retirement of `@endpoint` only applies to the decorator surface, not the shared `EndpointDecl` AST node, `EndpointKind` enum, or associated codegen handlers.
+  - Updated the status to note that Section 1 was executed with a narrower scope than initially specified.
+
+--- audit: original='docs(spec): record mid-stream correction on @endpoint retirement scope' | actual=9L across 1 files | derived=full ---
