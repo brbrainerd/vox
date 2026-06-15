@@ -1,0 +1,6 @@
+fix(security): remove WebSocket query parameter token fallback
+scale: ~21 lines across 1 files [S]
+
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/ws.rs`: Removed the logic that allowed authentication tokens to be passed via `token` or `bearer` query parameters for loopback connections. This included removing the `axum::extract::Query` parameter from the `http_ws` function signature and deleting the associated conditional logic for token validation.
+
+--- audit: original='fix(security): remove WS query-param token fallback (FIX-K-05)' | actual=21L across 1 files | derived=full ---
