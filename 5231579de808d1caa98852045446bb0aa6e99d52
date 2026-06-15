@@ -1,0 +1,12 @@
+docs(vox-system-prompt): move and format system prompt as Starlight MDX
+scale: ~30 lines across 1 files [S]
+
+- `docs/src/reference/vox-system-prompt.md`:
+    - Moved content from `vox_system_prompt.txt` to this new MDX file.
+    - Added Starlight frontmatter including `title`, `description`, `category`, `status`, `training_eligible`, `training_rationale`, and `sort_order`.
+    - Added `vox:skip` annotations to code blocks.
+    - Reformatted content to Markdown, including headings for "Language Philosophy" and "Construct Reference".
+    - Updated the introductory paragraph to describe Vox as an AI-native, full-stack language.
+    - Expanded the "Construct Reference" section with descriptions for `action`, `component`, `config`, `const`, `endpoint`, `fixture`, `function`, `hook`, `import`, and `mcp_reso`.
+
+--- audit: original='docs: move vox_system_prompt.txt to docs/src/reference/vox-system-prompt.md' | actual=30L across 1 files | derived=full ---
