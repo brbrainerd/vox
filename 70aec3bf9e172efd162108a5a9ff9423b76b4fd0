@@ -1,0 +1,32 @@
+feat(arch): Extract `vox-orchestrator-mcp` and `vox-orchestrator-d` crates
+scale: ~2170 lines across 157 files [XL]
+
+- **`vox-orchestrator-mcp` crate:**
+    - Moved `mcp_tools/*` (33,885 LoC) from `vox-orchestrator` to `vox-orchestrator-mcp/src/*`.
+    - Moved `services/routes/` (HTTP routing) to `vox-orchestrator-mcp/src/services/routes/`.
+    - Created `Cargo.toml` for `vox-orchestrator-mcp`, adding dependencies for `schemars`, `axum`, `rmcp`, `tower-http`, `axum-extra`, `vox-compiler`, `vox-grammar-export`, `vox-mcp-registry`, `vox-capability-registry`, `vox-openai-wire`, `vox-project-scaffold`, `vox-skills`, `vox-ars-runtime`, and `vox-plugin-host`.
+    - Updated `dispatch.rs` to route static MCP tools, including `benchmark_tools`, `browser_tools`, `chat_tools`, `clavis_tools`, `code_validator`, `codex_tools`, `compiler_tools`, `db_tools`, `exec_time_tools`, `git_tools`, `grammar_tools`, `introspection_tools`, `openclaw_tools`, `persistence_tools`, `populi_tools`, `project_init_tools`, `questioning_tools`, `rag_tools`, `repo_catalog_tools`, `repo_index`, `task_tools`, `toestub_tools`, `training_tools`, `trust_tools`, `vcs_tools`, `visus_tools`, `news_tools`, `scientia_tools`, `oratio_tools`, and `speech_pipeline_tools`.
+    - Updated `task_tools/submission.rs` for task submission logic, including `SubmitTaskParams`, `SubmitTaskResponse`, `ToolResult`, `TaskCategory`, `TaskEnqueueHints`, and `TaskPriority`.
+    - Updated `a2a_tools.rs` for Agent-to-Agent communication, including `A2ADeliveryPlane`, `A2AInboxPlane`, and `A2AMessageType`.
+    - Updated `input_schemas.rs` to define JSON schemas for MCP tool input parameters, using `schemars::schema_for` and manual overrides.
+    - Updated `chat_tools/plan.rs` for chat planning logic, including `PlanDepth`, `PlanListSessionsParams`, `PlanLoopMode`, `PlanParams`, `PlanReplanParams`, `PlanResumeParams`, `PlanStatusParams`, `PlanTask`, `PlanResult`, `McpChatModelResolution`, `McpInferRouting`, and `mcp_infer_completion`.
+    - Updated `llm_bridge/model_route_policy/tests.rs` with tests for LLM model routing and resolution, including `ModelRegistry`, `ModelRouteBackend`, `ModelSpec`, `ProviderType`, `CostPreference`, and `OrchestratorConfig`.
+    - Adjusted `crate::mcp_tools::X` references to `crate::X` within the new crate.
+    - Widened visibility of `models::spec` to `pub` for `PricingSource::Bootstrap` construction.
+    - Added `_ =>` fallbacks to `match` arms for `TaskPriority` due to `#[non_exhaustive]`.
+- **`vox-orchestrator-d` crate:**
+    - Moved `bin/vox_orchestrator_d.rs` to `vox-orchestrator-d/src/bin/`.
+    - Created `Cargo.toml` for `vox-orchestrator-d`.
+- **`vox-orchestrator` crate:**
+    - Removed `mcp-native` feature from `Cargo.toml`.
+    - Removed dependencies: `schemars`, `axum`, `rmcp`, `tower-http`, `axum-extra`, `vox-compiler`, `vox-grammar-export`, `vox-mcp-registry`, `vox-capability-registry`, `vox-openai-wire`, `vox-project-scaffold`, `vox-skills`, `vox-ars-runtime`, `vox-plugin-host`.
+    - Removed `contract.rs`'s `use schemars as _;` marker.
+    - Adjusted `crate::X` references to `vox_orchestrator::X` for cross-crate usage.
+- **`vox-cli` crate:**
+    - Updated `Cargo.toml` to remove `vox-orchestrator/mcp-native` and add `vox-orchestrator-mcp` as an unconditional dependency.
+    - Updated `src/commands/mcp_server/mod.rs` and `src/commands/generate.rs` to reflect the new `vox-orchestrator-mcp` dependency.
+- **Build system:**
+    - Updated `Cargo.lock` to reflect new crate structure and dependencies.
+    - Modified root `Cargo.toml` to include the new `vox-orchestrator-mcp` and `vox-orchestrator-d` crates.
+
+--- audit: original='feat(arch): Phase 4 — extract vox-orchestrator-mcp + vox-orchestrator-d' | actual=2170L across 157 files | derived=full ---
