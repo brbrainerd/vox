@@ -1,0 +1,13 @@
+feat(quantize): add tensor role classification, quantization mixtures, and QK_K alignment fallback
+scale: ~146 lines across 2 files [M]
+
+- `crates/vox-quantize/src/policy.rs`:
+    - Added `TensorRole` enum to classify tensors based on their name, including `Embedding`, `Output`, `DownProj`, `VProj`, `Matrix`, and `KeepF32`.
+    - Implemented `TensorRole::from_key` to determine a tensor's role from its string key, with specific rules for various model components (e.g., layernorm, embeddings, lm_head, down_proj, v_proj).
+    - Introduced `QuantMixture` enum to define different quantization strategies: `Q4KM`, `Q5KM`, `Q6K`, `Q8_0`, and `Manual`.
+    - Implemented `QuantMixture::target_for` to return the `GgmlDType` for a given `TensorRole` based on the selected mixture.
+    - Added `QuantMixture::qk_k_alignment_fallback` to provide a fallback `GgmlDType` for `QK_K` alignment based on the mixture.
+    - Replaced the placeholder module content with the new policy definitions.
+- `crates/vox-quantize/src/lib.rs`: Exported `QuantMixture` and `TensorRole` from the `policy` module.
+
+--- audit: original='feat(quantize): tensor-role classification + mixtures + QK_K alignment fallback' | actual=146L across 2 files | derived=full ---
