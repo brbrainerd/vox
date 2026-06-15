@@ -1,0 +1,8 @@
+feat(reports): Add Q2 2026 and daily corpus-feedback reports
+scale: ~59 lines across 3 files [M]
+
+- `contracts/reports/corpus-feedback/`: Add new JSON reports for Q2 2026, 2026-05-21, and 2026-05-22.
+- The daily reports indicate no events were processed and reference the Q2 report.
+- The Q2 report is an empty-events artifact, meeting the threshold per `llm-panel.v1.yaml`'s `fallback_when_unreachable` convention.
+
+--- audit: original='chore(reports): CR-L8 corpus-feedback Q2 + daily artifacts' | actual=59L across 3 files | derived=full ---
