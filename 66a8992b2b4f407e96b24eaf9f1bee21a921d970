@@ -1,0 +1,10 @@
+feat(coverage-graph): Add semantic behavior maps for five crates
+scale: ~441 lines across 5 files [L]
+
+- **vox-populi**: New semantic behavior map detailing coverage for cryptographic envelope/attestation, HTTP control-plane, quota/rate-limiting, and MENS model-training pipeline.
+- **vox-actor-runtime**: New semantic behavior map summarizing coverage for scheduling, LLM result parsing, activity retry, and auth, noting gaps in stateful and security-adjacent surfaces.
+- **vox-secrets**: New semantic behavior map outlining coverage for secret-resolution policy, cryptographic vault backend, and local token store, highlighting happy-path-only proofs.
+- **vox-tensor**: New semantic behavior map covering tokenizer and training-tensor preparation, JSONL data-loading, and replay buffer, noting happy-path-only coverage for data loading and replay.
+- **vox-search**: New semantic behavior map detailing coverage for SearXNG policy validators, ranking/serialization utilities, CRAG query expansion, and hybrid memory search engine, identifying happy-path-only proofs for the latter.
+
+--- audit: original='feat(coverage-graph): Phase 2 behavior maps for 5 more crates' | actual=441L across 5 files | derived=full ---
