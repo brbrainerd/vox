@@ -1,0 +1,8 @@
+feat(parser): resolve renamed primitives with deprecation warnings
+scale: ~449 lines across 3 files [L]
+
+- `crates/vox-compiler/src/parser/with_registry.rs`: Added a new module `with_registry` that provides `parse_with_registry` function. This function parses source code, walks the AST to identify deprecated primitive Jsx/JsxSelfClosing nodes using a `RenameRegistry`, rewrites their tags to canonical names, and generates `Warning` messages with mandated formats.
+- `crates/vox-compiler/tests/rename_alias_test.rs`: Added a new test case `deprecated_primitive_resolves_with_warning` to verify that `parse_with_registry` correctly resolves deprecated primitive aliases, updates the AST, and emits the expected deprecation warnings.
+- `crates/vox-compiler/src/parser/mod.rs`: Exported the new `with_registry` module and its public items (`ParseResult`, `Warning`, `parse_with_registry`).
+
+--- audit: original='feat(parser): resolve renamed primitives with deprecation warning (VUV-9 task 4)' | actual=449L across 3 files | derived=full ---
