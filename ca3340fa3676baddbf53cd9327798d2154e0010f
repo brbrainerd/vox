@@ -1,0 +1,26 @@
+feat(cross-platform): enforce parity with CI gate and arch-check
+scale: ~977 lines across 87 files [L]
+
+- **CI:**
+    - Rewrite `cross-platform-check.yml` to be a required 3-OS PR gate (Windows, macOS, Ubuntu).
+    - Add `gui-cross-build.yml` for 3-OS Tauri GUI compile checks.
+    - Register `gui-cross-build.yml` in `github-hosted-exceptions.md`.
+    - Add 3 contract tests in `crates/vox-cli/tests/ci_workflow_contract.rs` to verify the 3-OS required gate.
+    - Wire `vox ci script-hygiene` into CI guards-fast, extending `SCRIPT_GLUE_ALLOWLIST` in `crates/vox-cli/src/commands/ci/run_body_helpers/matrix.rs` and `scripts/ci/script-hygiene.vox` to include Python coverage graph tooling and new prohibited extensions (`.bat`, `.cmd`).
+    - Update `ci.yml` to reflect new CI workflows.
+- **`vox-arch-check`:**
+    - Promote `forbidden_pattern` from warn to error.
+    - Add `forbidden_pattern` rules for `shell-spawn`, `abs-path`, and `dynlib-ext` in `crates/vox-arch-check/src/forbidden_patterns.rs`.
+    - Clear all 153 `forbidden_pattern` warnings with `allow-annotations` across 70 files, including `crates/vox-runtime-rn/src/lib.rs` and `crates/vox-orchestrator-mcp/src/external_mcp.rs`.
+    - Refine `forbidden_patterns.rs` suppression window description.
+- **`vox-orchestrator`:** Remove dead non-portable `pwsh` spawn in `crates/vox-orchestrator/src/services/flywheel.rs`.
+- **`vox-ml-cli`:** Target-gate `windows-sys`/`libc` in `crates/vox-ml-cli/Cargo.toml` to fix Linux/macOS build breaks.
+- **`scripts`:** Replace `cargo fmt --all` with `vox run scripts/fmt.vox` in `scripts/perf/test-baseline.vox`.
+- **`docs`:**
+    - Add `docs/src/architecture/cross-platform-guarantees-audit-and-enforcement-2026-06-15.md` documenting the enforcement.
+    - Update `docs/src/architecture/layers.toml`.
+- **`.gitattributes`:** Pin `eol=lf` and extend `EXT_LF` for `snap/txt/jsonl/sql/xml`.
+- **`apps/editor/vox-vscode`:** Update `.vscodeignore`.
+- **Various crates:** Update `Cargo.lock` and other files with minor changes to reflect the new architecture checks and CI setup.
+
+--- audit: original='feat: cross-platform parity enforcement (Win/Linux/macOS CI gate + arch-check spine)' | actual=977L across 87 files | derived=full ---
