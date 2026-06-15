@@ -1,0 +1,7 @@
+feat(code-audit): register 14 scaling rule metadata stubs in rules.v1.yaml
+scale: ~192 lines across 2 files [M]
+
+- `contracts/code-audit/rules.v1.yaml`: Added 14 new rule definitions under the `scaling/*` ID prefix. These rules serve as metadata stubs for scaling policies, using a `___vox_scaling_dynamic___` sentinel pattern to indicate dynamic detection logic. Each stub includes `id`, `parent_id`, `name`, `description`, `severity`, `confidence`, `languages`, `match` (with the sentinel pattern), `message`, and `suggestion` fields.
+- `crates/vox-rule-pack/tests/canonical_rules.rs`: Updated the assertion for the minimum number of expected rules from 29 to 43 to account for the newly added scaling rule metadata stubs.
+
+--- audit: original='feat(code-audit): wave-4 — scaling/* metadata stubs in rules.v1.yaml' | actual=192L across 2 files | derived=full ---
