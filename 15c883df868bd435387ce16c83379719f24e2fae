@@ -1,0 +1,7 @@
+feat(scholarly): Introduce ORCID PKCE OAuth state machine types
+scale: ~185 lines across 2 files [M]
+
+- `crates/vox-publisher/src/scholarly/orcid_oauth.rs`: Add new module defining types for ORCID PKCE OAuth 2.0, including `PkceVerifier`, `PkceChallenge`, `AuthorizationRequest`, `TokenExchangeRequest`, `AuthorizationResponse`, and `TokenResponse`. This module also includes a `base64url_no_pad` utility function.
+- `crates/vox-publisher/src/scholarly/mod.rs`: Make the new `orcid_oauth` module public.
+
+--- audit: original='feat(scientia): Phase 8 — ORCID PKCE OAuth state machine types' | actual=185L across 2 files | derived=full ---
