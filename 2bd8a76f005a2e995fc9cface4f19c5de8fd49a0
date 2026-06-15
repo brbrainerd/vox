@@ -1,0 +1,10 @@
+feat(effort-audit): compute real judge cost from model pricing
+scale: ~201 lines across 5 files [M]
+
+- `crates/vox-effort-audit/src/pricing.rs`: New `ModelRates` primitive with `cost_usd()` method to calculate real USD cost from token usage and model pricing. Returns `None` if pricing is unknown, `Some(0.0)` for known rates with zero tokens.
+- `crates/vox-effort-audit/src/output/manifest.rs`: Changed `judge_total_estimated_usd: f64` to `judge_total_cost_usd: Option<f64>` to reflect real cost or unknown status.
+- `crates/vox-effort-audit/src/pipeline.rs`: Modified `run` and `run_with_overrides` functions to accept `ModelRates` and enforce `max_dollar_cost` alongside the token budget. Dollar cap is only enforced when pricing is known.
+- `crates/vox-effort-audit/tests/e2e_smoke.rs`: Added new e2e tests to assert `Some(0.0)` for known rates with zero tokens and `None` for unknown rates. Updated existing test to pass `ModelRates`.
+- `crates/vox-effort-audit/src/lib.rs`: Added `pricing` module to `lib.rs`.
+
+--- audit: original='feat(effort-audit): compute real judge cost from model pricing' | actual=201L across 5 files | derived=full ---
