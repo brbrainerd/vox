@@ -1,0 +1,10 @@
+fix(mens/config): update mix.yaml with correct commands and new .vox source
+scale: ~11 lines across 1 files [S]
+
+- `mens/config/mix.yaml`:
+    - Updated comment for `vox_corpus_extract_pkg.jsonl` to reflect the `vox mens corpus extract-rs crates` command and the `populi` to `mens` pipeline reorg.
+    - Added a new source entry for `vox_corpus_extract_pkg_vox.jsonl` with weight 2.0 and its production command.
+    - Added the production command for `mutated_vox.jsonl`.
+    - Changed the description for `vox_corpus_extract_pkg.jsonl` from "Human-mined vox workspace code" to "Human-mined Rust workspace code".
+
+--- audit: original='fix(corpus): populate the missing Wave-0 GOLDEN sources + update mix.yaml' | actual=11L across 1 files | derived=full ---
