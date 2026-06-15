@@ -1,0 +1,11 @@
+docs(policy): Add Vox language enforcement rules to AGENTS.md and register guard
+scale: ~30 lines across 2 files [S]
+- AGENTS.md: Add "Vox Language Enforcement Rules (LLM Guard)" section detailing rules for `.vox` source files, including:
+    - Effect declarations for `pub fn` and `@endpoint fn` regarding network calls and purity.
+    - Type boundaries for `Id[T]` parameters and named error types.
+    - Decorator position for keywords like `@durable fn`.
+    - Auth/access control requiring `@auth` or `@public` on `@endpoint fn`.
+    - State machine completeness.
+- docs/src/architecture/layers.toml: Register `generated_file_drift = "warn"` under `[guards]` to enable Rule 9 for generated file drift detection.
+
+--- audit: original='docs(policy): Vox language enforcement rules in AGENTS.md + generated_file_drift guard in layers.toml' | actual=30L across 2 files | derived=full ---
