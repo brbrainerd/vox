@@ -1,0 +1,10 @@
+feat(gui): implement omni-search data sources for docs and palette
+scale: ~208 lines across 5 files [M]
+
+- `crates/vox-gui/src/commands/docs_index.rs`: Add new Tauri command `vox_docs_index` to walk `docs/src/**/*.md` frontmatter, parse `title` and `description`, and return a list of `DocEntry` structs. Includes `parse_frontmatter` function with 3 tests.
+- `crates/vox-gui/ui/src/components/layout/paletteSources.ts`: Introduce `PaletteItem` type for federated search results (surface, setting, doc). Implement `buildPaletteItems` function to filter and combine `SurfaceEntryLike`, `SettingEntry`, and `DocEntryLike` based on a query, with per-kind caps.
+- `crates/vox-gui/ui/src/components/layout/paletteSources.test.ts`: Add 4 Vitest tests for `buildPaletteItems` covering surface, setting, and doc matching, and empty query handling.
+- `crates/vox-gui/src/commands/mod.rs`: Register the new `docs_index` module.
+- `crates/vox-gui/src/main.rs`: Expose `vox_docs_index` Tauri command.
+
+--- audit: original='feat(gui): omni-search data sources — docs index + palette federation logic (G1/G2)' | actual=208L across 5 files | derived=full ---
