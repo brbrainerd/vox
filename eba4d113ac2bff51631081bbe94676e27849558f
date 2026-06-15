@@ -1,0 +1,16 @@
+docs(superpowers): add PR #92 handoff snapshot for CI fixes and MENS training
+scale: ~320 lines across 1 files [L]
+
+- Add a new document `docs/superpowers/specs/2026-05-24-pr92-handoff.md` detailing the status of PR #92.
+- The document covers:
+    - The resolution of four failing CI checks (`check-links`, `docs-quality`, `generator-drift`, `vox audit --gate all --strict-block-ga`).
+    - The status of the Qwen3.5-4B QLoRA training run, which is a blocker for the CR-L2 MENS-on-distribution at `met=true`.
+    - A summary of the 8 most recent commits in PR #92 and what they fixed.
+    - An explanation for the 7-day lookback requirement for `same_day_canonical_with_panel` due to CI date drift.
+    - Details on how the `docs_deprecated_command_guard` fix exposed 49 latent violations and the `is_historical_or_audit_doc()` carve-out.
+    - The current state of MENS training (step 135/6608, 165h ETA) and open decisions.
+    - Post-training mechanical work (CR-L2 flip to `met=true`).
+    - A path-filter explanation for why Docs Quality hasn't re-run.
+    - A prioritized backlog including `cli-vox-deploy` frontmatter, marquee slots, and doctor follow-ons.
+
+--- audit: original='docs: PR #92 handoff snapshot — CI fixes landed, MENS training pending' | actual=320L across 1 files | derived=full ---
