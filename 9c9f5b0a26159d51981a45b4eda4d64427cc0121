@@ -1,0 +1,8 @@
+fix(setup.vox, docs): remove parenthesized if-conditions, update MDX syntax
+scale: ~56 lines across 3 files [M]
+
+- `scripts/setup.vox`: Removed parentheses from `if` conditions to resolve Rust compilation errors, changing `if (not pnpm_ok) and node_ok` to `if not pnpm_ok and node_ok`.
+- `docs-astro/scripts/setup-content.mjs`: Added new logic to create and manage a symlink from `docs-astro/src/examples` to the repository's `examples` directory, ensuring `remark-vox-include` can resolve example paths. This includes checks for existing links, stale links, and non-symlink files.
+- `docs/src/index.mdx`: Updated MDX comment syntax from `<!-- ... -->` to `{/* ... */}` and self-closing image tags from `<img ...>` to `<img ... />`.
+
+--- audit: original='fix(setup.vox): remove parenthesized if-conditions breaking generated Rust' | actual=56L across 3 files | derived=full ---
