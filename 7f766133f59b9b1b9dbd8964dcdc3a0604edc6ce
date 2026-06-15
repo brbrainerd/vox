@@ -1,0 +1,9 @@
+refactor(vox-compiler): move JSX mapping helpers to lowering_shared
+scale: ~186 lines across 4 files [M]
+
+- `crates/vox-compiler/src/codegen_ts/hir_emit/compat.rs`: Removed `map_hir_type_to_ts`, `map_jsx_attr_name`, and `map_jsx_tag` functions, reducing the file from 85 to 9 lines. Updated module documentation to reflect its new role as a back-compat shim re-exporting from `lowering_shared::jsx`.
+- `crates/vox-compiler/src/lowering_shared/jsx.rs`: Added a new file containing the `map_hir_type_to_ts`, `map_jsx_attr_name`, and `map_jsx_tag` functions, along with their associated documentation.
+- `crates/vox-compiler/src/web_ir/lower.rs`: Updated imports to use `map_hir_type_to_ts` and `map_jsx_attr_name` from `crate::lowering_shared::jsx` instead of `crate::codegen_ts::hir_emit`.
+- `crates/vox-compiler/src/lowering_shared/mod.rs`: Added `pub mod jsx;` to expose the new `jsx` module.
+
+--- audit: original='refactor(vox-compiler): move JSX mapping helpers to lowering_shared' | actual=186L across 4 files | derived=full ---
