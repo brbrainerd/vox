@@ -1,0 +1,7 @@
+docs(architecture): Fix broken internal links in research and planning documents
+scale: ~9 lines across 2 files [S]
+
+- `docs/src/architecture/agentic-control-surface-research-2026.md`: Updated two internal links from `hitl_research_doubt_metaphor.md` to `hitl-doubt-loop-ssot.md`.
+- `docs/src/architecture/planning-meta/12-question-gate-standard.md`: Corrected an internal link from `cognitive_architecture_budget_switching.md` to `agent-event-kind-ludus-matrix.md`.
+
+--- audit: original='docs: Fix remaining broken internal links causing lychee failures' | actual=9L across 2 files | derived=full ---
