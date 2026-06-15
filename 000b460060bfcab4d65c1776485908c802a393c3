@@ -1,0 +1,27 @@
+feat(plugin-ssot): Make manifest `tools.exposes` authoritative for SKILL.md `vox-tools`
+scale: ~158 lines across 12 files [M]
+
+- `plugin-skill-parity`:
+  - Added `--write` option to rewrite `SKILL.md` frontmatter `vox-tools` from the manifest.
+  - Modified `run()` function to accept a `write` boolean, enabling the rewrite functionality.
+  - Implemented `frontmatter_block` and `frontmatter_vox_tools` functions to parse SKILL.md frontmatter.
+  - Added logic to compare and optionally rewrite `vox-tools` lists based on the manifest.
+  - Updated documentation to reflect the new exposes-tools parity enforcement and `--write` flag.
+  - Excluded `tests/` fixtures from parity checks for consistency.
+- `ci/cmd_enums.rs`:
+  - Updated `CiCmd::PluginSkillParity` to include a `write` boolean argument.
+  - Modified command description to mention `vox-tools` frontmatter matching the manifest.
+- `ci/run_body.rs`:
+  - Modified the call to `plugin_skill_parity::run` to pass the `write` argument.
+- `ci/run_body_helpers/docs.rs`:
+  - Integrated `plugin_skill_parity::run(false)` into `run_ssot_drift` for verification in CI.
+- `populi.skill.md`: Updated `vox-tools` list to `["vox_populi_join", "vox_populi_dispatch"]`.
+- `git.skill.md`: Updated `vox-tools` list to `["vox_git_status", "vox_git_diff", "vox_git_resolve_conflict"]`.
+- `memory.skill.md`: Updated `vox-tools` list to `["vox_memory_get", "vox_memory_set", "vox_memory_search"]`.
+- `orchestrator.skill.md`: Updated `vox-tools` list to `["vox_orchestrator_submit", "vox_orchestrator_status", "vox_orchestrator_budget"]`.
+- `rag.skill.md`: Updated `vox-tools` list to `["vox_rag_query", "vox_rag_index"]`.
+- `testing.validate.skill.md`: Updated `vox-tools` list to `["vox_test_validate"]`.
+- `testing.skill.md`: Updated `vox-tools` list to `["vox_test_run", "vox_test_select"]`.
+- `v0.skill.md`: Updated `vox-tools` list to `["vox_v0_compat"]`.
+
+--- audit: original='feat(plugin-ssot): PS-6 — SKILL.md vox-tools == manifest exposes (manifest authoritative) (#216)' | actual=158L across 12 files | derived=full ---
