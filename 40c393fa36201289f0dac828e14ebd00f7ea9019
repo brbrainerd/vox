@@ -1,0 +1,21 @@
+feat(compiler): add `side_effect { ... }` blocks for sanctioned non-determinism
+scale: ~269 lines across 11 files [L]
+
+- `crates/vox-compiler/tests/side_effect_block.rs`: Add new test file for `side_effect` blocks, including tests for parsing, determinism suppression, and flagging `side_effect` outside a workflow.
+- `crates/vox-compiler/src/typeck/ast_decl_lints.rs`:
+    - Modify `first_shallow_pure_violation_in_expr` to skip `Expr::SideEffect` blocks during pure-function checks.
+    - Add a new lint pass to flag `side_effect { }` blocks used outside a workflow body, introducing `check_side_effect_outside_workflow_stmt` and `check_side_effect_outside_workflow_expr`.
+- `crates/vox-compiler/src/hir/lower/expr.rs`: Implement lowering for `Expr::SideEffect`, desugaring it into a synthesized anonymous inline activity (`__side_effect_<n>`) and a zero-argument call.
+- `crates/vox-compiler/src/hir/lower/mod.rs`:
+    - Add `synthesis_counter` and `synthesised_fns` fields to `LowerCtx` to manage synthesized activities.
+    - Implement `next_synthesis_counter` to generate unique names.
+    - Extend `hir.functions` with synthesized activities after the main declaration pass.
+- `crates/vox-compiler/src/ast/expr.rs`: Add `SideEffect` variant to the `Expr` enum, representing the `side_effect { stmts }` construct.
+- `crates/vox-compiler/src/parser/descent/expr/pratt_match.rs`: Add parsing logic for the `side_effect` keyword, consuming the block and creating an `Expr::SideEffect` AST node.
+- `crates/vox-compiler/src/typeck/infer.rs`: Add inference rule for `Expr::SideEffect`, inferring it as a fresh type variable after inferring its statements.
+- `crates/vox-codegen/src/codegen_ts/jsx.rs`: Add a placeholder for `Expr::SideEffect` in TS codegen, noting it should be desugared at HIR.
+- `crates/vox-compiler/src/lexer/token.rs`: Add `SideEffect` token for the `side_effect` keyword.
+- `crates/vox-compiler/src/parser/with_registry.rs`: Update `walk_expr` to handle the new `SideEffect` expression variant.
+- `crates/vox-compiler/src/typeck/mod.rs`: Add `side-effect-outside-workflow` diagnostic code.
+
+--- audit: original='feat(compiler): side_effect { … } blocks for sanctioned non-determinism (P1-T7)' | actual=269L across 11 files | derived=full ---
