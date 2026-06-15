@@ -1,0 +1,10 @@
+feat(coderabbit): add full-repo review, Pro tier config, fix worktree recursion
+scale: ~2205 lines across 5 files [XL]
+
+- `crates/vox-cli/src/commands/review/coderabbit/semantic_planner.rs`: Add new `semantic_planner` module for CodeRabbit, including `collect_all_files()` for full-repo review mode, and logic to group files by semantic context. This module also handles worktree creation and PR submission.
+- `crates/vox-cli/src/commands/review/coderabbit/github.rs`: Add new `github` module for GitHub API interactions, including functions to parse owner/repo from URLs, resolve GitHub tokens, and submit branches/PRs. Includes hardening for `copy_dir_recursive` with `max_depth` and `.coderabbit` guard to prevent worktree recursion issues.
+- `crates/vox-cli/src/commands/review/coderabbit/mod.rs`: Add new `coderabbit` module, defining `CodeRabbitAction` enum for CLI subcommands, and integrating the new `semantic_planner` and `github` modules. Introduces `--full-repo` flag for `semantic-submit`.
+- `crates/vox-cli/src/commands/review/coderabbit/config.rs`: Add new `config` module to load CodeRabbit configuration from `Vox.toml`, including tier-based defaults for `delay_between_prs_secs` and `max_files_per_pr`.
+- `Vox.toml`: Update `[workspace]` members to `["crates/*/Vox.toml"]` and add `[review.coderabbit]` section with `tier = 'pro'` to centralize CodeRabbit configuration.
+
+--- audit: original='feat(coderabbit): fix worktree recursion bug, add --full-repo, centralize Pro tier config' | actual=2205L across 5 files | derived=full ---
