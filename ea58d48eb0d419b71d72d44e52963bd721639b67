@@ -1,0 +1,52 @@
+feat(backlog): restore 43-commit local backlog with deduplication and recovery
+scale: ~18657 lines across 247 files [XL]
+
+- `crates/vox-db`: Introduce new store types for extended rows, parameters, and core rows, along with new research types and ID definitions.
+- `crates/vox-code-audit`: Add `stdlib_parity` module for three-way diffing of built-in symbols across binary, documentation, and corpus.
+- `crates/vox-compiler`:
+    - Enhance `eval/builtins.rs` to correctly handle `Option.unwrap()`, `unwrap_or()`, `unwrap_or_default()`, and `expect()` methods, fixing a silent-wrong-output footgun.
+    - Add `eval_typeck_parity_test.rs` to prevent future eval/typeck drift by ensuring typecheck and evaluation return types align.
+    - Refactor `pipeline.rs` with significant deletions and additions, likely for improved compilation flow.
+    - Update `typeck/builtins.rs` and `typeck/checker/expr.rs` with substantial changes, indicating type-checking improvements.
+    - Modify `eval/expr.rs` and `eval/mod.rs` for evaluation logic adjustments.
+    - Introduce `typeck/determinism_lint.rs` and `tests/determinism_lint.rs` for enforcing deterministic behavior.
+    - Add `typeck/mod.rs` for new type-checking modules.
+    - Update `parser/descent/expr/pratt_match.rs` and `parser/descent/decl/head.rs` for parsing improvements.
+    - Modify `lexer/cursor.rs` and `lexer/token.rs` for lexical analysis.
+    - Update `builtin_registry.rs` for managing built-in functions.
+- `docs`:
+    - Add new architecture documents for `vox-stdlib-gap-audit`, `closures-rfc`, `mobile-e2e-testing-strategy`, `discoverability-audit`, `mens-corpus-audit-findings`, `cross-platform-ssot`, and `plugin-registration-resolution`.
+    - Introduce new design system documents for `concepts-page`, `showcase-gallery`, `content-blocks`, and `landing-page`, along with an updated `README.md`.
+    - Update `index.mdx` and `ref-builtins-stdlib.md` with significant changes.
+    - Add `mens-quality-scoring.md` reference.
+    - Add `adr/041-durable-functions-completion-2026.md` for durable functions.
+    - Remove `llms-full.txt`, `vox-docs.json`, `llms.txt`, and `eval-sandbox-deployment.md`.
+- `crates/vox-audit`: Add `stdlib_coverage.rs` subcommand for auditing standard library coverage.
+- `crates/vox-orchestrator-mcp`: Add `dashboard_grid.html` and `dashboard_api.rs` for dashboard functionality.
+- `crates/vox-workflow-runtime`:
+    - Add `scheduled/runner.rs` for scheduled workflow execution.
+    - Introduce `tests/crash_replay.rs`, `tests/codegen_roundtrip.rs`, `tests/in_memory_tracker.rs`, `tests/voxdb_tracker_basic.rs`, `tests/journal_execute.rs`, `tests/return_extract.rs`, and `tests/scheduled_basic.rs` for testing workflow runtime components.
+    - Add `workflow/tracker.rs`, `journal/mod.rs`, `workflow/return_extract.rs`, `journal/execute.rs`, `workflow/hir_context.rs`, and `scheduled/mod.rs` for workflow management.
+- `crates/vox-gui`: Add `commands/memory.rs` for memory commands and update `ui/src/components/layout/WidgetContainer.tsx` and `ui/src/hooks/usePersistedDbState.ts`.
+- `crates/vox-codegen`: Add `codegen_rust/emit/main_boot.rs` for code generation and new tests for durability and Tauri endpoint client parity.
+- `crates/vox-distributed-training`: Add new modules for `strategy/data_parallel.rs`, `strategy/mock.rs`, `checkpoint.rs`, `gradient.rs`, and `session.rs`.
+- `scripts`:
+    - Modify `check_dashboard_ssot.vox` and `quality/doc-policy-lint.vox` with significant changes.
+    - Remove `docs-reality-audit-cycle.vox`, `setup.vox`, `migrate-corpus.vox`, `quality/audit-telemetry.vox`, `ci-proximity-drift.vox`, `ci/gui-e2e-check.vox`, `arch-check.vox`, and `install-hooks.vox`.
+    - Add `sync_golden_vox.vox`.
+- `crates/vox-cli`: Update `commands/run.rs` and `commands/check.rs` with significant changes, and add `commands/diagnostics/doctor/checks_standard/completions.rs`.
+- `crates/vox-inference`: Add `backend.rs`, `dispatcher.rs`, and new backends for `candle_cpu`, `candle_cuda`, `candle_metal`, `llama_cpp_rpc`, and `ollama_subprocess`.
+- `crates/vox-actor-runtime`: Add `registry.rs` and `tests/registry_dispatch.rs`.
+- `crates/vox-populi`: Add `tests/non_qwen_smoke.rs`.
+- `crates/vox-integration-tests`: Update `tests/workflow_integration_test.rs`.
+- `examples`: Remove `db_advanced_queries.vox`, `index_showcase.vox`, and `multi_tenancy.vox`. Add `aspirational/intra-project-imports/README.md` and `golden/durable_workflow_real.vox`.
+- `contracts`: Add `dashboard/dashboard_layout.v1.schema.json` and `reports/scripts-pass-baseline.txt`.
+- `.github/workflows`: Add `cr-l8-corpus-feedback.yml` and `cross-platform-check.yml`.
+- `apps/vox-mental-tracker`: Remove `src/main.vox`.
+- `README.md`: Update with significant changes.
+
+This commit restores a local backlog of 43 commits, addressing two critical git history issues: tree corruption in `crates/vox-audit/src/subcommands/` due to duplicate index entries and unintentional deletion of `crates/vox-bounded-fs/` and `crates/vox-audit/tests/cr_l8_loop_e2e.rs`. The restoration includes content related to durable functions completion (ADR-041), design system kit, README synchronization, sidebar category SSOT, golden migrations, and ADR-028 supersede. The `mod.rs` version with `stdlib_coverage` was chosen for its currency.
+
+Refs ADR-041, ADR-028.
+
+--- audit: original='feat: restore 43-commit local backlog onto clean tree (dedupe + recovery)' | actual=18657L across 247 files | derived=sampled ---
