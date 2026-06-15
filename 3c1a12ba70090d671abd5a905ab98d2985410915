@@ -1,0 +1,17 @@
+docs(architecture): Add 2026-06-03 execution log and A-5 reassessment
+scale: ~47 lines across 1 files [S]
+
+- docs/src/architecture/build-and-crate-org-improvement-plan-2026-06.md:
+  - Added an "Execution log (2026-06-03)" section detailing build improvements:
+    - Reclaimed 83.03 GB from orphan `target/` directories.
+    - Reduced `vox-cli` crate count from 833 to 692 (a 16.9% reduction) by:
+      - Excluding `tauri-utils` from Hakari.
+      - Gating `wasmtime` (`script-execution` feature).
+      - Gating `tantivy` (`heavy-retrieval` feature).
+    - Reduced `vox-ml-cli` crate count from 613 to 593 by gating `quantize` and removing dead stubs.
+    - Removed a dead `vox-deploy-codegen` edge.
+    - Documented `sccache` installation and `GC-script` worktree guard implementation.
+    - Noted completion of `ai-fixtures-v1` updates, CUDA-CI fix, and WS6-T1 banner.
+  - Added a "Reality-checks (A-5 reassessment)" section explaining why `vox-build-driver` extraction is blocked due to `build::run`'s transitive `pipeline` dependency being shared by ~17 `vox-cli` commands, making a clean lift impossible without a large pipeline extraction or a `vox-build-driver` -> `vox-cli` cycle.
+
+--- audit: original='docs(architecture): execution log + A-5 reassessment in the build/crate-org plan' | actual=47L across 1 files | derived=full ---
