@@ -1,0 +1,74 @@
+feat(compiler,mcp,cli,vscode): implement AppContract IR and attention budgeting
+scale: ~4827 lines across 82 files [XL]
+
+- docs(architecture): Add extensive documentation for React Interop implementation plan, Tanstack Start codegen spec, implementation backlog, research findings, and minimal shell strategy. Update legacy retirement roadmap and Tanstack web backlog/roadmap.
+- crates(vox-compiler):
+    - `typeck/infer`: Implement `lower_ast_ty` function to convert AST types to internal `Ty` for improved type inference.
+    - `typeck/checker/expr`: Enhance `check_expr` to support contextual bidirectional type checking, especially for object literals, and update argument checking in function calls.
+    - `typeck/checker/mod`: Refactor type checking logic.
+    - `typeck/unify`: Adjust unification logic.
+    - `codegen_ts/hir_emit`: Introduce `emit_mobile_web_api_utils` with conditional generation for native (Capacitor) mobile APIs based on target.
+    - `builtin_registry`: Add new built-in types.
+    - `typeck/checker/match_exhaust`: Modify match exhaustiveness checking.
+    - `typeck/checker/expr_ops`: Update expression operation checking.
+    - `typeck/checker/expr_field`: Adjust expression field checking.
+    - `hir/nodes/decl`: Update declaration nodes.
+    - `codegen_ts/emitter`: Modify code generation emitter.
+    - `typeck/env`: Update type checking environment.
+    - `web_ir/lower`: Adjust web IR lowering.
+    - `app_contract`: Add new module for application contract.
+    - `hir/lower/mod`: Update HIR lowering.
+- crates(vox-mcp):
+    - `a2a`: Implement logic to suppress low-priority A2A messages based on orchestrator's attention focus depth and record suppressions.
+    - `server/lifecycle`: Update server lifecycle management.
+    - `memory/handlers_preferences`: Add handler preferences.
+    - `tools/dispatch`: Update tool dispatching.
+    - `dei_tools/orchestrator_snapshot`: Add orchestrator snapshot tools.
+    - `params`: Update MCP parameters.
+- crates(vox-cli):
+    - `commands/attention`: Add new `attention` command with subcommands `snapshot`, `list-events`, and `overrides` to manage and inspect the attention-budgeting system.
+    - `commands/ci/attention_ledger_parity`: Add CI command for attention ledger parity.
+    - `commands/build`: Update build command.
+    - `commands/ci/attention_parity`: Add CI command for attention parity.
+    - `templates/mobile_pwa`: Update mobile PWA templates.
+    - `lib`: Update CLI library.
+    - `cli_dispatch/mod`: Update CLI dispatch.
+    - `compilerd`: Modify compiler daemon.
+    - `cli_args`: Update CLI arguments.
+    - `commands/ci/cmd_enums`: Add CI command enums.
+    - `commands/ci/mod`: Update CI commands.
+    - `commands/ci/run_body`: Add CI run body command.
+    - `commands/mod`: Update CLI commands.
+    - `cli_dispatch/lanes`: Modify CLI dispatch lanes.
+    - `commands/ai/workflow`: Update AI workflow command.
+    - `commands/bundle`: Update bundle command.
+    - `commands/run`: Update run command.
+    - `commands/test`: Update test command.
+- vox-vscode:
+    - `webview-ui/src/components/AttentionPanel`: Add new `AttentionPanel` component to display real-time attention budget status, including visual indicators for exhaustion and alerts.
+    - `SidebarProvider`: Update sidebar provider.
+    - `protocol/webviewMessages`: Update webview messages protocol.
+    - `types/attention`: Add new types for attention data.
+    - `core/VoxMcpClient`: Update MCP client.
+    - `package.json`: Update package dependencies.
+    - `webview-ui/src/index`: Update webview UI entry point.
+    - `core/mcpToolRegistry.generated`: Add generated MCP tool registry.
+    - `protocol/hostToWebviewMessages`: Update host to webview messages protocol.
+    - `types/index`: Update types index.
+- crates(vox-orchestrator):
+    - `config/impl_env`: Update environment implementation configuration.
+    - `events`: Add orchestrator events.
+    - `attention_tracker`: Add attention tracker.
+    - `budget`: Add budget management.
+    - `attention/budget`: Add attention budget.
+- contracts(operations): Add `catalog.v1.yaml`.
+- contracts(mcp): Add `tool-registry.canonical.yaml`.
+- crates(vox-db): Add `store/ops_learning.rs`.
+- crates(vox-tensor): Add `data.rs`.
+- crates(vox-project-scaffold): Update library.
+- crates(vox-container): Add `generate.rs`.
+- crates(vox-scientia-social): Update Cargo.toml and lib.rs.
+- examples(golden): Update `dashboard_ui.vox`, `inventory_rosetta_platform.vox`, `ref_syntax.vox`, `getting_started.vox`, `index_showcase.vox`, `mobile_camera.vox`.
+- examples:
+
+--- audit: original='feat: implement AppContract IR for unified codegen and MCP tool/resource registration' | actual=4827L across 82 files | derived=full ---
