@@ -1,0 +1,11 @@
+refactor(codegen): remove unused classic `@component` emit path and helpers
+scale: ~430 lines across 1 files [L]
+
+- `crates/vox-codegen/src/codegen_ts/component.rs`:
+    - Removed `generate_component` and `generate_component_from_web_ir` functions, which had no live callsites.
+    - Removed private helper functions `emit_component_stmt`, `emit_component_expr`, `emit_component_pattern`, `uses_mobile_ident_in_stmt`, and `uses_mobile_ident_in_expr`, as they were only used by the removed component generation functions.
+    - Removed unused JSX and AST imports.
+    - Retained `ts_default_value` and `map_vox_type_to_ts` functions, as they are still consumed by the live reactive component emitter.
+    - Updated module-level documentation to reflect the retirement of the classic AST → TSX emit path and the focus on reactive codegen.
+
+--- audit: original='chore(codegen): remove dead classic @component emit path' | actual=430L across 1 files | derived=full ---
