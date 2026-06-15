@@ -1,4 +1,4 @@
-﻿//! Map `distribution_policy.retry_profile` / `rate_limit_profile` into bounded HTTP retries for social syndication.
+//! Map `distribution_policy.retry_profile` / `rate_limit_profile` into bounded HTTP retries for social syndication.
 //!
 //! **Crate `backon`:** not used here — [`vox_foundation::primitives::backoff::backoff_ms_geometric_attempt`] matches
 //! publisher policy (capped geometric delay, no extra dependency). Revisit only if we unify many async

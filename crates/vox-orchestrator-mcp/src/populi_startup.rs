@@ -1,4 +1,4 @@
-﻿//! Best-effort mens local registry publish when MCP starts (mirrors `vox run`), plus optional HTTP
+//! Best-effort mens local registry publish when MCP starts (mirrors `vox run`), plus optional HTTP
 //! control-plane **join** and **heartbeat** when a client-suitable base URL is configured.
 
 use crate::server_state::ServerState;

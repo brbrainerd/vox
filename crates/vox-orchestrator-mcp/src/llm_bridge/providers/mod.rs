@@ -1,4 +1,4 @@
-﻿//! HTTP clients for OpenRouter-compatible, Gemini, and Ollama chat APIs.
+//! HTTP clients for OpenRouter-compatible, Gemini, and Ollama chat APIs.
 
 mod anthropic;
 mod gemini;

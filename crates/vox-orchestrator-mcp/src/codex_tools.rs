@@ -1,4 +1,4 @@
-﻿//! Codex **relational** helpers (manifest V16/V17) over [`ServerState::db`].
+//! Codex **relational** helpers (manifest V16/V17) over [`ServerState::db`].
 //!
 //! Mirrors `vox-codex-api` POST bodies where applicable; no HTTP required from MCP.
 

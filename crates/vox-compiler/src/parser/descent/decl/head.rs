@@ -1,4 +1,4 @@
-﻿// Top-level and declaration parsing.
+// Top-level and declaration parsing.
 
 use super::super::Parser;
 use super::head_types::{

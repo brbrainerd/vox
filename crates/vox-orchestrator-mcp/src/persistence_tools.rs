@@ -1,4 +1,4 @@
-﻿//! Orchestrator persistence outbox inspection tools.
+//! Orchestrator persistence outbox inspection tools.
 
 use crate::params::ToolResult;
 use crate::server_state::ServerState;

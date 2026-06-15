@@ -1,4 +1,4 @@
-﻿//! Live DEI orchestrator inspection and lightweight control surfaces exposed as MCP tools.
+//! Live DEI orchestrator inspection and lightweight control surfaces exposed as MCP tools.
 //!
 //! Covers agent queues, lock/budget summaries, Gamify-backed history, affinity graphs,
 //! JSON config patch, task submission shims, session heartbeats, and cost recording.

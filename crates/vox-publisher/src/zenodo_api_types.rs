@@ -1,4 +1,4 @@
-﻿//! Typed JSON for Zenodo Deposit API (subset used by scholarly adapter).
+//! Typed JSON for Zenodo Deposit API (subset used by scholarly adapter).
 
 use serde::{Deserialize, Serialize};
 

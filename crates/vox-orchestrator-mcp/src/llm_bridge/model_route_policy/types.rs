@@ -1,4 +1,4 @@
-﻿use vox_orchestrator::types::TaskCategory;
+use vox_orchestrator::types::TaskCategory;
 
 /// Heuristics for MCP chat model resolution from the orchestrator registry.
 #[derive(Debug, Clone)]

@@ -1,4 +1,4 @@
-﻿//! Grammar and Observer MCP tools.
+//! Grammar and Observer MCP tools.
 //!
 //! - `vox_export_grammar_ebnf` — export the Vox EBNF grammar (Task 39, restored wire)
 //! - `vox_observer_status` — return observer summary for a task_id (Task 69)
