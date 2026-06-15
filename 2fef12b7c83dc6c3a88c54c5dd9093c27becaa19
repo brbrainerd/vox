@@ -1,0 +1,16 @@
+feat(populi): zero-env serve, token auto-gen, config subcommands, quickstart guide
+scale: ~261 lines across 6 files [L]
+
+- `crates/vox-mens/src/commands/populi_cli.rs`:
+    - Added `--enable` flag to `populi serve` command, making it mandatory to explicitly opt-in.
+    - Changed default bind address for `populi serve` to `127.0.0.1:0` (OS-assigned free port).
+    - Added `populi config` subcommand with `show` and `check` subcommands for inspecting and validating mesh configuration.
+    - Implemented logic for auto-generating a 32-char hex bearer token on first run of `populi serve`, persisting it to `~/.vox/config.toml` as `mesh.token`, and injecting it as `VOX_MESH_TOKEN`.
+    - Modified `populi serve` to print the actual bound address to stdout and log it via tracing.
+- `crates/vox-populi/tests/http_control_plane.rs`: Added `traceparent: None` to 10 `ClaimRequest` and `JobResultAttestationRequest` constructors in integration tests.
+- `crates/vox-populi/src/transport/router.rs`: Modified `serve` function to print the bound address to stdout.
+- `docs/src/how-to/populi-quickstart.md`: Added a new quickstart guide covering first run, node join, token management, fixed-port override, and troubleshooting.
+- `crates/vox-mens/Cargo.toml`: Added `vox-config` dependency.
+- `Cargo.lock`: Updated lockfile.
+
+--- audit: original='feat(mesh): W7 config baseline — zero-env serve, token auto-gen, config subcommand, quickstart' | actual=261L across 6 files | derived=full ---
