@@ -1,0 +1,9 @@
+feat(scratch): remove all files and add gitkeep
+scale: ~1260 lines across 63 files [XL]
+
+- Removed 61 files from the `scratch/` directory, including various test files for web apps, builtins, processes, and other Vox features.
+- Added `scratch/.gitkeep` to ensure the `scratch/` directory remains tracked by Git.
+- Updated `.gitignore` to ignore all files within `scratch/` except for `scratch/.gitkeep`.
+- Added a `scratch-clean` sub-check to `crates/vox-cli/src/commands/ci/data_storage_guard.rs` to enforce the hygiene of the `scratch/` directory.
+
+--- audit: original='M-08: scratch/ hygiene' | actual=1260L across 63 files | derived=full ---
