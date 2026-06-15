@@ -1,0 +1,9 @@
+ci(fallback): exclude vox-gui from hosted-gate nextest and doctests
+scale: ~7 lines across 1 files [XS]
+
+- `.github/workflows/ci-fallback-hosted.yml`:
+    - Modified the `Test (nextest)` step to exclude `vox-gui` from the `cargo nextest run` command.
+    - Modified the `Doctests` step to exclude `vox-gui` from the `cargo test --doc` command.
+    - Added comments explaining the exclusion of `vox-gui` due to it being a Tauri/GTK frontend not built in this lane, and the absence of `glib/GTK` system dependencies on the GitHub-hosted runner.
+
+--- audit: original='ci(fallback): exclude vox-gui from hosted-gate nextest + doctests (fix glib gate failure) (#185)' | actual=7L across 1 files | derived=full ---
