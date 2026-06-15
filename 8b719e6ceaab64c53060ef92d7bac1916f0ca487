@@ -1,0 +1,11 @@
+fix(doc-pipeline): Resolve three hard errors blocking push
+scale: ~56 lines across 5 files [M]
+
+- `crates/vox-doc-pipeline/src/pipeline/lint.rs`: Modified the `lint_file` function to correctly identify code fences. The previous logic for `ShortCodeFence` detection was too broad, causing false positives for inline code snippets like `` `identifier` is text `` because it incorrectly treated spaces after backticks as part of a valid language tag. The updated logic now ensures that text immediately following backticks in a code fence must either be empty or consist only of alphanumeric characters, hyphens, or underscores, preventing prose from being misidentified as a short code fence.
+- `docs/src/archive/research-2026-q1/scientia-pipeline-ssot-2026.md`: Corrected two malformed code fence openers from `
+ox` to `vox. Added `// vox:skip` annotations to two `vox` code blocks containing SQL-like `table` syntax, which is not valid as standalone Vox top-level syntax, to ensure doctests skip them.
+- `docs/src/architecture/vox-language-rules-phase2-lint-extension-2026.md`: Added a `// vox:skip` annotation to a `vox` code block containing an `@example` decorator and named-argument syntax, as these are planned features and not yet valid.
+- `docs/src/architecture/vox-language-rules-phase5-effects-determinism-2026.md`: Added a `// vox:skip` annotation to a `vox` code block containing the `workflow` keyword, as it is a reserved keyword and documents future syntax.
+- `.claude/settings.local.json`: Added several new Bash commands to the `excluded_commands` list, including `find` and `xargs` operations on crate files, `cat` commands, and PowerShell `Get-ChildItem` and `Select-Object` commands.
+
+--- audit: original='fix(doc-pipeline): eliminate 3 hard errors blocking push' | actual=56L across 5 files | derived=full ---
