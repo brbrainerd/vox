@@ -8,6 +8,8 @@ pub use vox_llm_config;
 
 pub mod bootstrap_inference;
 pub mod config;
+pub mod config_key;
+pub mod config_registry;
 pub mod env_parse;
 pub mod inference;
 pub mod model_routing;
