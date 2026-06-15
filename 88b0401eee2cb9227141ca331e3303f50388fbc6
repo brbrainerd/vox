@@ -1,0 +1,7 @@
+feat(codegen-ts/rn): Implement React Native form generation
+scale: ~383 lines across 5 files [L]
+
+- `crates/vox-codegen/src/codegen_ts/rn`: Added `form.rs` for generating React Native form components and integrated it into `mod.rs` to emit `forms.tsx`. This includes state management, validation logic, and rendering using `<View>`, `<Text>`, `<TextInput>`, and `<Pressable>` primitives, with `onChangeText` for input handling and `onPress` for submission.
+- `crates/vox-cli-tests`: Added new end-to-end tests (`build_e2e.rs`) to validate the React Native form generation. This includes `build_mobile_form_produces_pure_rn_form` to assert correct RN primitive usage and absence of web DOM elements, and `mobile_and_web_form_share_validation_logic` to ensure consistent validation logic between web and mobile targets. Also added a new fixture `mobile_form` with a sample `@form` declaration and its expected output files.
+
+--- audit: original='feat(codegen-ts/rn): @form RN lowering — View / TextInput / Pressable' | actual=383L across 5 files | derived=full ---
