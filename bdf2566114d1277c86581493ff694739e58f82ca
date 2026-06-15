@@ -1,0 +1,6 @@
+fix(semcov_wave17): remove duplicate `auth` field from `HirEndpointFn` literals
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-compiler/src/semcov_wave17_tests.rs`: Removed duplicate `auth: None,` field from two `HirEndpointFn` struct literal instantiations within the `coordinator()` test function. This resolves a field specified twice error (E0062) that occurred after an auto-merge.
+
+--- audit: original='fix(merge): drop duplicate auth field from semcov_wave17 HirEndpointFn literals' | actual=2L across 1 files | derived=full ---
