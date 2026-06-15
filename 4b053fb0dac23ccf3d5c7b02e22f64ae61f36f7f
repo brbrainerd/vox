@@ -1,0 +1,10 @@
+feat(ml-cli): add --quantize option to merge-qlora command
+scale: ~99 lines across 5 files [M]
+
+- `crates/vox-ml-cli/src/commands/schola/merge_qlora.rs`: Implemented the `--quantize` option, allowing the merged QLoRA adapter to be recombined with the base model and then quantized. This involves calling `vox_quantize::recombine::recombine` and `vox_quantize::quantize` directly.
+- `crates/vox-ml-cli/src/commands/mens/populi/action_populi_enum.rs`: Added the `quantize: Option<String>` argument to the `MergeQlora` enum variant, enabling the CLI to accept the `--quantize` flag with a mixture string.
+- `crates/vox-ml-cli/src/commands/mens/populi/dispatch.rs`: Updated the `MergeQlora` dispatch to pass the new `quantize` argument to the `run_merge_qlora` function.
+- `crates/vox-ml-cli/tests/merge_quantize.rs`: Added a new integration test to verify the `merge-qlora --quantize` functionality. This test drives the `recombine` and `quantize` functions with mock data to ensure a quantized artifact is produced.
+- `crates/vox-ml-cli/src/commands/mens/populi/gpu_tests_body.rs`: Updated existing `merge_qlora` test calls to include `None` for the new `quantize` argument, maintaining compatibility.
+
+--- audit: original='feat(ml-cli): --quantize on merge-qlora (recombine over base + quantize)' | actual=99L across 5 files | derived=full ---
