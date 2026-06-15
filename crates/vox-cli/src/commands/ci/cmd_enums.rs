@@ -150,6 +150,13 @@ pub enum CiCmd {
         #[arg(long)]
         update_baseline: bool,
     },
+    /// Every operational VOX_* env knob read in code must be in the config registry.
+    #[command(name = "config-registry-parity")]
+    ConfigRegistryParity {
+        /// Regenerate the registration-backlog baseline.
+        #[arg(long)]
+        update_baseline: bool,
+    },
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
     SsotDrift,
