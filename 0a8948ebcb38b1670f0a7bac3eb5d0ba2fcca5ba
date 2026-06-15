@@ -1,0 +1,10 @@
+feat(orchestrator): Implement project-scoped VOX.md memory with import resolution
+scale: ~265 lines across 5 files [L]
+
+- `crates/vox-orchestrator/src/memory/project_file.rs`: New module to discover and load `VOX.md` (or `.vox/VOX.md`) from the workspace root. It recursively resolves `@path` imports (up to a depth of 5, with cycle guarding) and returns a single, ready-to-inject string block. Missing or cyclic imports are marked with HTML comments.
+- `crates/vox-orchestrator/src/memory/manager.rs`: Added `MemoryManager::project_context` to load the `VOX.md` block, respecting the memory enabled/disabled state. Introduced `MemoryManager::bootstrap_context_with_project` to append the project memory block to the existing bootstrap context, ensuring it's last for recency.
+- `crates/vox-orchestrator/src/memory/tests.rs`: Added a new test `bootstrap_context_with_project_appends_vox_md` to verify the correct integration of project memory into the bootstrap context.
+- `crates/vox-orchestrator/src/memory/mod.rs`: Exported `MAX_IMPORT_DEPTH` and `load_project_context` from the new `project_file` module.
+- `docs/src/architecture/where-things-live.md`: Added a new row documenting the location and purpose of the project-scoped `VOX.md` memory.
+
+--- audit: original='feat(orchestrator): project-scoped VOX.md memory (CLAUDE.md analogue)' | actual=265L across 5 files | derived=full ---
