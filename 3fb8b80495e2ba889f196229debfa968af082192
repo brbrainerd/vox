@@ -1,0 +1,9 @@
+docs(changelog): document website migration, new `scripts/show` automation, and `.voxignore` update
+scale: ~7 lines across 1 files [XS]
+
+- **`CHANGELOG.md`**:
+    - Added an entry under `Added` for the new `scripts/show/` Raw Nerve content automation, detailing `script.vox`, `topic-suggest.vox`, and `title-workshop.vox` programs.
+    - Added an entry under `Changed` for the website domain migration from `vox-lang.org` to `voxlang.org`, noting the files affected and those intentionally left unchanged.
+    - Added an entry under `Changed` for the removal of stale `crates/vox-py/.venv/` ignore entries from `.voxignore`.
+
+--- audit: original='docs(changelog): note voxlang.org migration + scripts/show automation' | actual=7L across 1 files | derived=full ---
