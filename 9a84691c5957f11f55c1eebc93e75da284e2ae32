@@ -1,0 +1,5 @@
+test(vox-cli): regenerate command catalog baseline for ci/tier-budget-check
+scale: ~0 lines across 1 files [XS]
+- Regenerated `crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt` to include the `vox ci tier-budget-check` subcommand.
+
+--- audit: original='test(vox-cli): regenerate command catalog baseline for ci/tier-budget-check' | actual=0L across 1 files | derived=full ---
