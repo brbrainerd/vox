@@ -112,6 +112,7 @@ pub fn mutate_corpus(
 #[cfg(test)]
 mod semcov_wave2_tests {
     use super::*;
+    use vox_compiler::ast::span::Span;
 
     fn mk(start: usize, end: usize, replacement: &str) -> Mutation {
         Mutation {
