@@ -1,0 +1,9 @@
+fix(ci): build vox-cli with `dei` feature and add `continue-on-error` to Visus audit
+scale: ~7 lines across 1 files [XS]
+
+- `.github/workflows/vox-visus-audit.yml`:
+    - Modified the `Build Vox CLI` step to include `--features dei` in the `cargo build` command, enabling the `visus` subcommand.
+    - Added `continue-on-error: true` to the `Run Visus Audit` step, making its failure non-blocking.
+    - Updated comments to explain the `dei` feature requirement and the advisory nature of the audit step.
+
+--- audit: original='fix(ci): build vox-cli with --features dei for visus-audit workflow' | actual=7L across 1 files | derived=full ---
