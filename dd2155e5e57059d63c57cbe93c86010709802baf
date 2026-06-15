@@ -1,0 +1,26 @@
+feat(corpus): add 15 repair corpus fixtures across 5 bug classes
+scale: ~918 lines across 46 files [L]
+
+- **contracts/eval/repair-corpus/manifest.v1.yaml**: Updated to include the 15 new problem definitions.
+- **type-error**:
+    - **001-type-return-mismatch**: Added `buggy.vox` and `fixed.vox` for a function with a return type mismatch, and `meta.toml`.
+    - **002-type-arg-type-mismatch**: Added `buggy.vox` and `fixed.vox` for a function with an argument type mismatch, and `meta.toml`.
+    - **003-type-arg-count-mismatch**: Added `buggy.vox` and `fixed.vox` for a function called with an incorrect number of arguments, and `meta.toml`.
+- **effect-violation**:
+    - **004-effect-pure-http-call**: Added `buggy.vox` and `fixed.vox` for a pure function making an HTTP call, and `meta.toml`.
+    - **005-effect-workflow-nondeterministic**: Added `buggy.vox` and `fixed.vox` for a workflow using `std.time.now_ms()` directly, and `meta.toml`.
+    - **006-effect-net-undeclared**: Added `buggy.vox` and `fixed.vox` for a function using `std.net` without declaring the effect, and `meta.toml`.
+- **logic**:
+    - **007-logic-fizzbuzz-off-by-one**: Added `buggy.vox` and `fixed.vox` for a FizzBuzz implementation with an off-by-one error in the loop range, and `meta.toml`.
+    - **008-logic-grade-threshold**: Added `buggy.vox` and `fixed.vox` for a grading function with incorrect comparison operators (`>` instead of `>=`), and `meta.toml`.
+    - **009-logic-max-operator**: Added `buggy.vox` and `fixed.vox` for a `find_max` function using `<` instead of `>` for comparison, and `meta.toml`.
+- **exhaustiveness**:
+    - **010-exhaustive-bool-match**: Added `buggy.vox` and `fixed.vox` for a match expression on a boolean missing an arm, and `meta.toml`.
+    - **011-exhaustive-adt-missing-arm**: Added `buggy.vox` and `fixed.vox` for a match expression on an ADT missing one variant, and `meta.toml`.
+    - **012-exhaustive-adt-missing-two**: Added `buggy.vox` and `fixed.vox` for a match expression on an ADT missing two variants, and `meta.toml`.
+- **api-misuse**:
+    - **013-api-arg-count-too-few**: Added `buggy.vox` and `fixed.vox` for a function called with too few arguments, and `meta.toml`.
+    - **014-api-arg-count-too-many**: Added `buggy.vox` and `fixed.vox` for a function called with too many arguments, and `meta.toml`.
+    - **015-api-wrong-effect-declared**: Added `buggy.vox` and `fixed.vox` for a function declaring an incorrect effect, and `meta.toml`.
+
+--- audit: original='feat(corpus): CR-L3 repair corpus minimum-viable (15 fixtures, 5 bug classes)' | actual=918L across 46 files | derived=full ---
