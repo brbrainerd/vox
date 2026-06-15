@@ -620,6 +620,12 @@ jobs:
           VOX_RUNTIME_PROJECTION_INCLUDE_HOST_PROBE: "0"
         run: cargo nextest run -p vox-compiler --test projection_parity_test
 
+      - name: Pipeline parity grep-gate (no silent empty-string drops in emitters)
+        # Forbids `_ => String::new()` / `_ => "".to_string()` in HIR emitters.
+        # Each unsupported (Feature, Target) cell must use unsupported_diagnostic()
+        # to derive a code+message from the parity matrix. See §3.3 of the SSOT.
+        run: cargo nextest run -p vox-compiler --test parity_grep_gate
+
       - name: Golden examples strict-parse gate (A.13 — all examples/*.vox must parse)
         # A.13: VOX_EXAMPLES_STRICT_PARSE=1 must be the default in CI.
         # Uses the vox-compiler test suite which already has a strict-parse integration test.
