@@ -1,0 +1,11 @@
+feat(docs): add design system specs and update link checking configuration
+scale: ~377 lines across 5 files [L]
+
+- docs/design-system/: Add three new design system specification files:
+  - `04-visual-style-guide.md`: Defines the visual style guide, including the palette, Tailwind classes, and typography.
+  - `05-image-generation-prompts.md`: Contains prompts for generating images, including a shared style suffix and a hero image prompt.
+  - `06-component-specs.md`: Specifies reusable JSX component contracts, props, and layout rules.
+- .lycheeignore: Add `/showcase/` and `/concepts/` to ignore list to prevent `lychee` from flagging valid live-site runtime routes as broken links.
+- docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md: Remove a broken internal link to the uncommitted `tmp/vox-audit-probes/` path.
+
+--- audit: original='fix(docs): repair pre-existing broken internal links (check-links CI)' | actual=377L across 5 files | derived=full ---
