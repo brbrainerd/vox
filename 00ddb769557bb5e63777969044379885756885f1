@@ -1,0 +1,8 @@
+docs(vuv): Update SSOTs to reflect guarantee enforcement reality
+scale: ~39 lines across 3 files [S]
+
+- docs/src/architecture/gui-authoring-syntax-2026.md: Update status header to reflect VUV-1 through VUV-9 implementation and end-to-end enforcement of headline guarantees (bad contrast, occlusion/tier-inversion). Add a new "Guarantee enforcement status (2026-06-12)" section with a table mapping guarantees to validators and diagnostic codes.
+- docs/src/architecture/vuv-layered-layout-discipline-2026.md: Change status from "research" to "current" and update `last_updated` date. Add a new section "§3.5 — Enforcement status (2026-06-12)" detailing the compiler wiring of the five layout rules, including a table with their status and where they are enforced.
+- docs/src/architecture/where-things-live.md: Add rows for the VUV contrast/color-vocabulary guarantee (validate_palette), VUV occlusion/tier-inversion guarantee (validate_layer), and how to add a "forbidden-corpus" regression case.
+
+--- audit: original='docs(vuv): SSOTs reflect enforced guarantee reality (2026-06-12)' | actual=39L across 3 files | derived=full ---
