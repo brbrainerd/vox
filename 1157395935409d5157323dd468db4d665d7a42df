@@ -1,0 +1,11 @@
+feat(vox-vcs): scaffold `VcsBackend` trait and `CasFallback` in-memory backend
+scale: ~209 lines across 6 files [M]
+
+- `crates/vox-vcs/src/cas_fallback.rs`: Add `CasFallback` struct and implement `VcsBackend` for it, providing in-memory storage for changes, diffs, and basic undo functionality.
+- `crates/vox-vcs/src/types.rs`: Define core VCS types: `ChangeId`, `Change`, `Diff`, `Conflict`, and `ResolveStrategy`.
+- `crates/vox-vcs/src/backend.rs`: Introduce the `VcsBackend` trait with methods for snapshotting, listing changes, diffing, undoing, and conflict resolution. Also adds `VcsError` enum and `VcsBackendKind` enum, along with a `detect` function that currently defaults to `CasBackendKind`.
+- `crates/vox-vcs/src/lib.rs`: Set up the crate, re-exporting key types and the `VcsBackend` trait, and providing a module for the `CasFallback`.
+- `crates/vox-vcs/Cargo.toml`: Initialize the `vox-vcs` crate with dependencies for serialization, error handling, and tracing.
+- `Cargo.toml`: Add `vox-vcs` to the workspace members.
+
+--- audit: original='feat(vox-vcs): scaffold crate — VcsBackend trait + types + in-memory CasFallback' | actual=209L across 6 files | derived=full ---
