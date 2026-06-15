@@ -1,0 +1,18 @@
+ci(deploy): switch deploy pipeline to ubuntu-latest runners
+scale: ~194 lines across 1 files [M]
+
+- `.github/workflows/deploy-hetzner.yml`:
+    - Changed `smoke-ci` job to use `ubuntu-latest` runner instead of `self-hosted, linux, x64`.
+    - Added steps to `smoke-ci` for installing Rust toolchain with `rustfmt` and `clippy`, and caching Cargo.
+    - Replaced `Rust fmt` step with `Rust fmt check`.
+    - Removed `TOESTUB Scoped` step.
+    - Removed the entire `docker-smoke` job.
+    - Changed `deploy-coolify` job to use `ubuntu-latest` runner instead of `self-hosted, linux, x64`.
+    - Updated `deploy-coolify` job's `needs` to depend only on `smoke-ci`.
+    - Adjusted `deploy-coolify` job's `if` condition.
+    - Removed steps related to Docker build and push from `deploy-coolify`.
+    - Added steps for building and pushing a Docker image using `docker/build-push-action`.
+    - Added steps for deploying to Coolify using `coolify-deploy-action`.
+    - Removed the `deploy-hetzner` job.
+
+--- audit: original='fix(ci): switch deploy pipeline to ubuntu-latest runners — no self-hosted runners registered on vox repo' | actual=194L across 1 files | derived=full ---
