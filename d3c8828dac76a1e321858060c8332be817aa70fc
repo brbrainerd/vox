@@ -1,0 +1,16 @@
+fix(plugins): Restore real tool names in SKILL.md and manifests
+scale: ~136 lines across 18 files [M]
+
+- `crates/vox-cli`: Update `plugin_skill_parity` to make `SKILL.md` `vox-tools` authoritative for tool names, rewriting `Plugin.toml` `exposes` from `SKILL.md` instead of vice-versa.
+- `crates/vox-plugin-catalog`: Update `exposes-tools` lists in `catalog.toml` to reflect real tool names.
+- `crates/vox-plugin-skill-v0`: Update `v0.skill.md` `vox-tools` to `vox_generate_code` and `vox_write_file`, and update `Plugin.toml` `exposes` accordingly.
+- `crates/vox-plugin-skill-testing-validate`: Update `testing.validate.skill.md` `vox-tools` to `vox_validate_file` and `vox_validate_source`.
+- `crates/vox-plugin-populi-mesh`: Update `populi.skill.md` `vox-tools` to `vox_populi_local_status`, `vox_orchestrator_status`, `vox_submit_task`.
+- `crates/vox-plugin-skill-git`: Update `git.skill.md` `vox-tools` to `vox_my_files`, `vox_claim_file`, `vox_transfer_file`, `vox_check_file_owner`.
+- `crates/vox-plugin-skill-memory`: Update `memory.skill.md` `vox-tools` with a comprehensive list of memory-related tools.
+- `crates/vox-plugin-skill-orchestrator`: Update `orchestrator.skill.md` `vox-tools` with a comprehensive list of orchestrator-related tools.
+- `crates/vox-plugin-skill-rag`: Update `rag.skill.md` `vox-tools` to `vox_visual_rag_query`.
+- `crates/vox-plugin-skill-testing`: Update `testing.skill.md` `vox-tools` to `vox_run_tests` and `vox_test_all`.
+- Many `Plugin.toml` files were updated to align their `tools.exposes` with the corrected `SKILL.md` `vox-tools` lists.
+
+--- audit: original='fix(plugins): restore real tool names — flip skill-tools SSOT to SKILL.md (#218)' | actual=136L across 18 files | derived=full ---
