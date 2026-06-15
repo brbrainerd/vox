@@ -1,0 +1,7 @@
+chore(deps): bump actions/checkout from 4 to 6
+scale: ~6 lines across 2 files [S]
+
+- .github/workflows/cr-l-gates.yml: Updated `actions/checkout` to v6 in both `build` and `test` jobs.
+- .github/workflows/version-tag-guard.yml: Updated `actions/checkout` to v6 in the `check-version-tag` job.
+
+--- audit: original='chore(deps): bump actions/checkout from 4 to 6 (#240)' | actual=6L across 2 files | derived=full ---
