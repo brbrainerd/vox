@@ -270,7 +270,7 @@ pub use budget::{AgentBudgetAllocation, BudgetManager, BudgetSignal};
 pub use compaction::{
     CompactionConfig, CompactionEngine, CompactionResult, CompactionStrategy, Turn,
 };
-pub use config::{OrchestratorConfig, ScalingProfile};
+pub use config::{FieldType, OrchestratorConfig, OrchestratorConfigField, ScalingProfile};
 pub use conflicts::{ConflictId, ConflictManager, ConflictResolution, FileConflict};
 pub use context::ContextStore;
 pub use context_envelope::{

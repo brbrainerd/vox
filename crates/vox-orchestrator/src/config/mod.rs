@@ -8,6 +8,7 @@ mod errors;
 mod impl_default;
 mod impl_env;
 mod impl_load;
+mod impl_snapshot;
 mod impl_validate;
 mod merge_populi;
 mod news;
@@ -17,7 +18,7 @@ mod scientia_research_mesh;
 pub use enums::{CostPreference, OverflowStrategy, ScalingProfile};
 pub use errors::{ConfigError, ConfigValidationError};
 pub use news::NewsConfig;
-pub use orchestrator_fields::OrchestratorConfig;
+pub use orchestrator_fields::{FieldType, OrchestratorConfig, OrchestratorConfigField};
 pub use scientia_research_mesh::ScientiaResearchMeshConfig;
 
 #[cfg(test)]

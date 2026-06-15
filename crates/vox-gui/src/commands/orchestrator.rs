@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use serde::Serialize;
 use tauri::Emitter;
 use vox_cli_core::daemon_ipc::dispatch::call_daemon;
 use vox_foundation::protocol::orch_daemon_method;
@@ -285,7 +286,10 @@ pub async fn get_orchestrator_status_bin() -> Result<tauri::ipc::Response, Strin
 }
 
 #[tauri::command]
-pub async fn set_orchestrator_config(config: serde_json::Value) -> Result<(), String> {
+pub async fn set_orchestrator_config(
+    app_handle: tauri::AppHandle,
+    config: serde_json::Value,
+) -> Result<(), String> {
     // 1. Discover Vox.toml
     let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
     let (mut manifest, path) = VoxManifest::discover(&current_dir).map_err(|e| e.to_string())?;
@@ -366,6 +370,30 @@ pub async fn set_orchestrator_config(config: serde_json::Value) -> Result<(), St
     let toml_str = manifest.to_toml_string().map_err(|e| e.to_string())?;
     std::fs::write(&path, toml_str).map_err(|e| e.to_string())?;
 
+    // 3b. Bump the vox-config snapshot so caches are invalidated and the
+    //     `vox://orchestrator-config-changed` listener fires on the GUI side.
+    vox_config::snapshot::bump(&[
+        "max_agents",
+        "financial_cost_budget_micros",
+        "trust_auto_approve_min",
+        "scope_enforcement",
+        "exec_time_budget_enabled",
+        "socrates_gate_enforce",
+        "scaling_enabled",
+        "min_agents",
+        "scaling_threshold",
+        "scale_cpu_ceiling_pct",
+        "scale_mem_floor_mb",
+    ]);
+    // Also emit the event directly so the GUI updates immediately even if the
+    // snapshot listener fires before the Tauri event loop processes the callback.
+    let _ = app_handle.emit(
+        ORCH_CONFIG_CHANGED_EVENT,
+        OrchestratorConfigChanged {
+            rev: vox_config::snapshot::current_rev(),
+        },
+    );
+
     // 4. Try to signal vox-orchestrator-d to hot-reload if it is running
     // We do this in a fire-and-forget manner to not block or fail the UI update.
     tokio::spawn(async move {
@@ -381,36 +409,123 @@ pub async fn set_orchestrator_config(config: serde_json::Value) -> Result<(), St
     Ok(())
 }
 
-/// Read the persisted orchestrator settings from the discovered `Vox.toml`
-/// `[orchestrator]` table so the GUI can hydrate its controls instead of
-/// showing hardcoded defaults (fixes the inert-sliders bug).
+/// Tauri event channel the frontend subscribes to for reactive Orchestrator
+/// settings refresh — emitted whenever the orchestrator config snapshot is bumped.
+pub const ORCH_CONFIG_CHANGED_EVENT: &str = "vox://orchestrator-config-changed";
+
+/// Payload for [`ORCH_CONFIG_CHANGED_EVENT`].
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrchestratorConfigChanged {
+    /// Monotonic snapshot revision at the time of the bump.
+    pub rev: u64,
+}
+
+/// Spawn once at GUI startup: forward `vox-config` snapshot bumps that affect
+/// orchestrator config keys to the webview as [`ORCH_CONFIG_CHANGED_EVENT`],
+/// so the Orchestrator settings surface refreshes reactively when config
+/// changes — whether from this GUI, an env reload, or mesh sync.
+///
+/// Mirrors [`crate::commands::user_config::spawn_llm_config_bridge`] (the B2
+/// pattern). Listeners are cheap synchronous callbacks; the Tauri emit is
+/// non-blocking so this satisfies the `vox-config` snapshot contract.
+// toestub-ignore(skeleton/untested-pub-api) — thin bridge from vox-config snapshot bumps to Tauri events; snapshot invalidation logic is tested in vox-config
+pub fn spawn_orchestrator_config_watch(app: tauri::AppHandle) {
+    vox_config::snapshot::on_change(move |change| {
+        // Only forward bumps that are a general reload (empty keys) or that
+        // contain at least one orchestrator key. This prevents spurious
+        // full-catalog refetches triggered by unrelated bumps such as LLM
+        // config changes or EnvScratch::drop.
+        let is_orch = change.changed.is_empty()
+            || change.changed.iter().any(|k| {
+                k.starts_with("VOX_ORCHESTRATOR_") || k.starts_with("VOX_CIRCUIT_BREAKER_")
+            });
+        if is_orch {
+            let _ = app.emit(
+                ORCH_CONFIG_CHANGED_EVENT,
+                OrchestratorConfigChanged { rev: change.rev },
+            );
+        }
+    });
+}
+
+/// Return all orchestrator config fields as structured metadata so the frontend
+/// can render the settings dynamically without hardcoded lists (Band B.3).
+///
+/// Each entry carries: key, label, field_type, current_value, default_value,
+/// group, and description — everything the UI needs to build a settings form.
+#[tauri::command]
+pub async fn get_orchestrator_config_catalog() -> Vec<vox_orchestrator::OrchestratorConfigField> {
+    vox_orchestrator::config::OrchestratorConfig::snapshot().to_catalog()
+}
+
+#[cfg(test)]
+mod catalog_tests {
+    use vox_orchestrator::config::OrchestratorConfig;
+
+    #[test]
+    fn catalog_len_matches_config_field_count() {
+        let catalog = OrchestratorConfig::default().to_catalog();
+        // Exact parity test: catalog must have exactly 106 entries — one per
+        // field! macro invocation in to_catalog(). Using an exact count rather
+        // than a floor catches catalog shrinkage as well as unintentional growth.
+        // If you intentionally add or remove fields, update this count to match.
+        assert_eq!(
+            catalog.len(),
+            106,
+            "catalog field count changed — update this test if fields were intentionally added/removed"
+        );
+    }
+
+    #[test]
+    fn catalog_keys_are_unique() {
+        let catalog = OrchestratorConfig::default().to_catalog();
+        let mut keys: Vec<&str> = catalog.iter().map(|f| f.key.as_str()).collect();
+        keys.sort_unstable();
+        let orig_len = keys.len();
+        keys.dedup();
+        assert_eq!(keys.len(), orig_len, "catalog contains duplicate keys");
+    }
+
+    #[test]
+    fn catalog_default_matches_config_default() {
+        let catalog = OrchestratorConfig::default().to_catalog();
+        let max_agents_field = catalog.iter().find(|f| f.key == "max_agents").unwrap();
+        let default_cfg = OrchestratorConfig::default();
+        let expected = serde_json::json!(default_cfg.max_agents);
+        assert_eq!(
+            max_agents_field.current_value, expected,
+            "current_value for max_agents must match OrchestratorConfig::default().max_agents"
+        );
+        assert_eq!(
+            max_agents_field.default_value, expected,
+            "default_value for max_agents must match OrchestratorConfig::default().max_agents"
+        );
+    }
+}
+
+/// Read the effective orchestrator settings (Vox.toml + env overrides) via
+/// [`OrchestratorConfig::snapshot`] so the GUI always reflects the live effective
+/// value rather than only the Vox.toml defaults (fixes the inert-sliders bug).
 #[tauri::command]
 pub async fn get_orchestrator_config() -> Result<serde_json::Value, String> {
-    let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
-    let (manifest, _path) = VoxManifest::discover(&current_dir).map_err(|e| e.to_string())?;
-    let t = manifest.orchestrator.unwrap_or_default();
-    let get_i = |k: &str| t.get(k).and_then(|v| v.as_integer());
-    let get_f = |k: &str| {
-        t.get(k)
-            .and_then(|v| v.as_float().or_else(|| v.as_integer().map(|i| i as f64)))
+    let cfg = vox_orchestrator::config::OrchestratorConfig::snapshot();
+    let isolation = match cfg.scope_enforcement {
+        vox_orchestrator::scope::ScopeEnforcement::Strict => "strict",
+        vox_orchestrator::scope::ScopeEnforcement::Warn => "warn",
+        vox_orchestrator::scope::ScopeEnforcement::Disabled => "disabled",
     };
-    let get_b = |k: &str| t.get(k).and_then(|v| v.as_bool());
-    let get_s = |k: &str| t.get(k).and_then(|v| v.as_str().map(ToString::to_string));
     Ok(serde_json::json!({
-        "concurrency": get_i("max_agents"),
-        "capUsd": get_i("financial_cost_budget_micros").map(|m| m as f64 / 1_000_000.0),
-        "doubtThresh": get_f("trust_auto_approve_min"),
-        "isolation": get_s("scope_enforcement").map(|s| match s.as_str() {
-            "Wasm" => "wasm",
-            "Container" => "ctr",
-            _ => "native",
-        }),
-        "autobudget": get_b("exec_time_budget_enabled"),
-        "doubt": get_b("socrates_gate_enforce"),
-        "scalingEnabled": get_b("scaling_enabled"),
-        "minAgents": get_i("min_agents"),
-        "scalingThreshold": get_i("scaling_threshold"),
-        "scaleCpuCeilingPct": get_f("scale_cpu_ceiling_pct"),
-        "scaleMemFloorMb": get_i("scale_mem_floor_mb"),
+        "concurrency": cfg.max_agents,
+        "capUsd": cfg.financial_cost_budget_micros as f64 / 1_000_000.0,
+        "doubtThresh": cfg.trust_auto_approve_min,
+        "isolation": isolation,
+        "autobudget": cfg.exec_time_budget_enabled,
+        "doubt": cfg.socrates_gate_enforce,
+        "scalingEnabled": cfg.scaling_enabled,
+        "minAgents": cfg.min_agents,
+        "scalingThreshold": cfg.scaling_threshold,
+        "scaleCpuCeilingPct": cfg.scale_cpu_ceiling_pct,
+        "scaleMemFloorMb": cfg.scale_mem_floor_mb,
     }))
 }
