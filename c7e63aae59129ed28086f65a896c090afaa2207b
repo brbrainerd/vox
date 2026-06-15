@@ -1,0 +1,18 @@
+feat(codegen): enable on-device execution for `@mutation`/`@query` bodies in React Native
+scale: ~492 lines across 3 files [L]
+
+- `crates/vox-codegen/src/codegen_ts/vox_client.rs`:
+    - Implemented `compute_local_exec_names` to identify endpoints executable on-device.
+    - Generated local-execution code for identified endpoints, routing database operations to `voxRuntime`.
+    - Added a `local_exec_preamble` for React Native specific helper functions.
+    - Ensured web/desktop targets remain unchanged, continuing to use HTTP client.
+    - Mapped endpoint parameters for positional-to-named object rewrites within local bodies.
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`:
+    - Introduced `EmitCtx.local_exec_db` to gate the rewrite of `db` operations for on-device execution.
+    - Added `EmitCtx.current_fn` to provide the endpoint function name for tracing `recordMutation` calls.
+    - Modified `EmitCtx` constructors to properly initialize new fields while preserving existing behavior for web/component contexts.
+- `ci/expo-bundle-shim/vox-runtime-rn/index.js`:
+    - Exported `VoxRuntimeError` class for error handling in the generated client.
+    - Exported `createVoxRuntime` function to allow the on-device client to resolve `voxRuntime`.
+
+--- audit: original='codegen: execute @mutation/@query bodies on-device (RN) — real persistence' | actual=492L across 3 files | derived=full ---
