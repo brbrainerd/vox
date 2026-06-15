@@ -12,6 +12,7 @@ mod command_compliance;
 mod command_sync;
 mod compile_matrix;
 pub mod completion_quality;
+pub mod config_hygiene;
 mod contracts_index;
 mod coolify_eval;
 pub mod data_storage_guard;

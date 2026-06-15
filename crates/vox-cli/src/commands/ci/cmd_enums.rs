@@ -943,6 +943,9 @@ pub enum CiCmd {
     /// Walk crates/vox-plugin-* for *.skill.md files and enforce AgentSkills frontmatter contract (name, description, format, directory match).
     #[command(name = "agentskills-compliance")]
     AgentSkillsCompliance,
+    /// Machine guardrails: no cwd-relative contract paths, protected-module env-read guard, and more.
+    #[command(name = "config-hygiene")]
+    ConfigHygiene,
     /// Poll GitHub Actions checks for the current HEAD (or a specific SHA) and print failures.
     #[command(name = "watch-run")]
     WatchRun {
