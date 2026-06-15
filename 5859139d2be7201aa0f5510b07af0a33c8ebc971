@@ -1,0 +1,13 @@
+refactor(typeck): reduce check_expr complexity and refactor std namespace field access
+scale: ~748 lines across 2 files [L]
+
+- `crates/vox-compiler/src/typeck/checker/expr.rs`:
+    - Instantiate polymorphic bindings for `HirExpr::Ident` lookups (e.g., `None`, generic builtins) using `self.uf.instantiate` to ensure fresh type variables.
+    - Add special handling for `subscribe` calls with an `ActorRef` argument to return `Stream[T]` instead of `Stream[str]`.
+    - Extract `check_method_call_expr` to handle `HirExpr::MethodCall` cases, routing to `check_actor_method_call` and `check_named_method_call`.
+    - Extract `check_lambda_expr` to handle `HirExpr::Lambda` cases.
+    - Extract `check_try_expr` to handle `HirExpr::Try` cases, refactoring the enclosing return type compatibility check into `check_try_enclosing_return_compatible`.
+- `crates/vox-compiler/src/typeck/checker/expr_field.rs`:
+    - Refactor `check_expr_field_access` to collapse 17 near-duplicate `Ty::Named(n) if n == "StdXxxNs"` match arms into a table-driven dispatch for standard namespace field lookups, delegating to `std_namespace_method_ty`.
+
+--- audit: original='refactor(typeck): CR-A1 — reduce check_expr complexity 78 → 53 via arm extraction' | actual=748L across 2 files | derived=full ---
