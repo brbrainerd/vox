@@ -1,0 +1,10 @@
+feat(tracker): add app icon generation and splash screen configuration
+scale: ~53 lines across 5 files [M]
+
+- Add `apps/vox-mental-tracker/scripts/generate-icons.vox` script to resize a master PNG into various Android and iOS app icon sizes using ImageMagick.
+- Update `apps/vox-mental-tracker/scripts/build.vox` to a `fn main()` structure, incorporating `vox run scripts/generate-icons.vox` before `npx cap sync`.
+- Create `apps/vox-mental-tracker/public/icons/README.md` with instructions for placing `master.png` and generating a placeholder icon using ImageMagick.
+- Configure the SplashScreen plugin in `apps/vox-mental-tracker/capacitor.config.ts` with custom duration, background color, and display settings.
+- Add `@capacitor/splash-screen ^6.0.0` to `apps/vox-mental-tracker/package.json` dependencies.
+
+--- audit: original='feat(tracker): app icons + splash screen' | actual=53L across 5 files | derived=full ---
