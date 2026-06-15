@@ -1,0 +1,6 @@
+fix(corpus): regex_free_functions @test uses match for Option comparison
+scale: ~14 lines across 1 files [S]
+
+- `examples/golden/regex_free_functions.vox`: Replaced `is Some(...)` and `is None` comparisons with `match` statements for `extract_version`'s `Option` return values in `test_replace_and_captures`. This corrects the comparison logic for `Option` types.
+
+--- audit: original='@ fix(corpus): regex_free_functions @test uses match, not `is None`' | actual=14L across 1 files | derived=full ---
