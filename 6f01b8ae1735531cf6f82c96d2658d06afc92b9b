@@ -1,0 +1,15 @@
+feat(compiler): Add `fragment` keyword, AST node, and parser support
+scale: ~94 lines across 8 files [M]
+
+- **Lexer**: Introduce `Token::Fragment` for the `fragment` keyword and update its `Display` implementation.
+- **AST**:
+    - Add `FragmentDecl` struct to `ast/decl/ui.rs` with fields for `name`, `params`, `body`, and `span`.
+    - Extend `Decl` enum in `ast/decl/types.rs` with a `Fragment(FragmentDecl)` variant and update its `span` matching.
+- **Parser**:
+    - Add `parse_fragment_decl` function to `parser/descent/decl/head.rs` to parse `fragment Ident(params) { expr }` syntax.
+    - Integrate `Token::Fragment` dispatch into the top-level `parse_decl` in `parser/descent/mod.rs`.
+- **Corpus**: Update `decl_kind_and_name` in `vox-corpus/src/corpus/extract_vox/part_ast.rs` to classify `Decl::Fragment` as "fragment".
+- **Training**: Update `extract_constructs` in `vox-mens/src/training/core.rs` to classify `Decl::Fragment` as "fragment".
+- **Tests**: Add two new parser tests in `parser::descent::tests.rs` for `fragment` declarations with and without parameters, verifying name, parameters, and body parsing.
+
+--- audit: original='feat(compiler): Phase F skeleton — fragment keyword + AST + parser' | actual=94L across 8 files | derived=full ---
