@@ -1,0 +1,10 @@
+feat(capabilities): distinguish speech (STT plugin) from microphone permission
+scale: ~206 lines across 5 files [M]
+
+- `crates/vox-compiler/src/required_capabilities.rs`: Refactored `is_speech_method` into `speech_method_uses_microphone` to explicitly differentiate between `Speech.transcribe` (which does not use the microphone) and `Speech.transcribe_microphone` (which does). Introduced `UsageFlags` with separate `speech` and `microphone` fields to track STT plugin usage and OS microphone permission requirements independently. Updated `collect_usage_from_expr` to populate these new flags based on method calls.
+- `contracts/capability/runtime-capabilities.v1.yaml`: Added a new `speech` capability for speech-to-text via the STT plugin, which includes the `vox-stt:default` Tauri permission. Modified the existing `microphone` capability to specifically describe OS microphone capture for `transcribe_microphone`, removing the `vox-stt:default` Tauri permission from it.
+- `crates/vox-codegen/src/codegen_rust/emit/mod.rs`: Updated the logic for gating the STT plugin to key off the new `speech` capability instead of `microphone`, ensuring that any `Speech.*` method triggers the plugin.
+- `crates/vox-codegen/src/codegen_rust/mod.rs`: Added a new test `tauri_emits_stt_for_file_transcribe_without_mic_permission` to verify that `Speech.transcribe` correctly derives the `speech` capability (STT plugin) but not the `microphone` capability (OS mic permission).
+- `crates/vox-compiler/tests/required_capabilities_test.rs`: Added new tests `transcribe_microphone_derives_speech_and_microphone` and `file_transcribe_derives_speech_only` to confirm that `transcribe_microphone` correctly requires both `speech` and `microphone` capabilities, while `transcribe` only requires `speech`.
+
+--- audit: original='feat(capabilities): distinguish speech (STT plugin) from microphone (mic permission)' | actual=206L across 5 files | derived=full ---
