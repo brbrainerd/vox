@@ -1,0 +1,11 @@
+feat(vox-vcs): Implement `JjBackend` for `jj-lib` 0.42 integration
+scale: ~286 lines across 3 files [L]
+
+- `crates/vox-vcs/src/jj_backend.rs`: Add new `JjBackend` module, confining all `jj-lib` calls. This includes:
+    - Initializing `UserSettings` with explicit user name and email.
+    - Performing colocated Git repository initialization using `Workspace::init_colocated_git`.
+    - Implementing the full sequence for snapshotting the working copy and committing it as a change, involving `Workspace::start_working_copy_mutation`, `LockedWorkingCopy::snapshot`, `Transaction::commit`, and `CommitBuilder`.
+- `crates/vox-vcs/src/lib.rs`: Export the new `JjBackend` module.
+- `crates/vox-vcs/Cargo.toml`: Add `jj-lib` (with `git` feature), `tokio` (with `rt` and `rt-multi-thread` features), and `futures` as dependencies. Add `tempfile` as a dev-dependency.
+
+--- audit: original='feat(vox-vcs): JjBackend spike — colocated init + snapshot + change log (jj-lib 0.42)' | actual=286L across 3 files | derived=full ---
