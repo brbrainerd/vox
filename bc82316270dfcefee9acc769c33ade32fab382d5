@@ -1,0 +1,118 @@
+refactor(compiler): improve web_ir validation, codegen, and HIR lowering
+scale: ~7803 lines across 301 files [XL]
+
+- `vox-compiler`:
+    - Refactored `web_ir/primitives/mod.rs` by reformatting `UNIVERSAL_STYLE_KWARGS` for readability.
+    - Enhanced `web_ir/validate_a11y.rs` with more concise conditional checks for accessibility attributes and text content.
+    - Updated `codegen_ts/hir_emit/state_deps.rs` to use more compact conditional `if let` statements for dependency collection.
+    - Modified `web_ir/lower.rs` to use `if let` for conditional logic.
+    - Refactored `hir/lower/decl.rs` and `hir/lower/expr.rs` to use `if let` for conditional logic.
+    - Updated `typeck/effect_check.rs` to use `if let` for conditional logic.
+    - Refactored `codegen_ts/url_emit.rs` to use `if let` for conditional logic.
+    - Updated `parser/descent/decl/head.rs` to use `if let` for conditional logic.
+    - Refactored `pipeline.rs` to use `if let` for conditional logic.
+    - Updated `typeck/ast_decl_lints.rs` to use `if let` for conditional logic.
+    - Refactored `web_ir/validate.rs` and `web_ir/validate_overlay.rs` to use `if let` for conditional logic.
+    - Updated `codegen_ts/jsx.rs` to use `if let` for conditional logic.
+    - Refactored `hir/lower/mod.rs` to use `if let` for conditional logic.
+    - Updated `hir/validate.rs` to use `if let` for conditional logic.
+    - Refactored `typeck/state_machine_check.rs` to use `if let` for conditional logic.
+    - Updated `codegen_ts/state_machine_emit.rs` to use `if let` for conditional logic.
+    - Refactored `typeck/registration.rs` to use `if let` for conditional logic.
+    - Updated `eval/expr.rs` to use `if let` for conditional logic.
+    - Refactored `codegen_ts/emitter.rs` to use `if let` for conditional logic.
+    - Updated `tokens/mod.rs` to use `if let` for conditional logic.
+    - Refactored `codegen_ts/reactive.rs` and `codegen_ts/reactive_module_emit.rs` to use `if let` for conditional logic.
+    - Updated `typeck/checker/mod.rs` to use `if let` for conditional logic.
+    - Refactored `eval/builtins.rs` to use `if let` for conditional logic.
+    - Updated `ast/decl/callable.rs` to use `if let` for conditional logic.
+    - Refactored `codegen_ts/mod.rs` to use `if let` for conditional logic.
+    - Updated `codegen_ts/route_manifest.rs` to use `if let` for conditional logic.
+    - Refactored `parser/descent/expr/pratt_match.rs` to use `if let` for conditional logic.
+    - Updated `tokens/contrast.rs` to use `if let` for conditional logic.
+    - Refactored `codegen_rust/emit/http.rs` to use `if let` for conditional logic.
+    - Removed `app_contract.rs`.
+- `vox-cli`:
+    - Updated `v0_tsx_validate.rs` and `v0_validate.rs` to use `if let` for conditional logic.
+    - Refactored `commands/dashboard.rs` to use `if let` for conditional logic.
+    - Updated `commands/ci/data_storage_guard.rs` to use `if let` for conditional logic.
+    - Refactored `commands/ci/watch_run.rs` to use `if let` for conditional logic.
+    - Updated `commands/ci/pre_push.rs` to use `if let` for conditional logic.
+    - Refactored `commands/safety.rs` to use `if let` for conditional logic.
+    - Updated `commands/ci/run_body.rs` to use `if let` for conditional logic.
+    - Refactored `commands/ci/deploy_status.rs` to use `if let` for conditional logic.
+    - Updated `commands/toolchain_upgrade.rs` to use `if let` for conditional logic.
+    - Refactored `commands/generate.rs` to use `if let` for conditional logic.
+    - Updated `command_catalog.rs` to use `if let` for conditional logic.
+    - Refactored `commands/runtime/shell/check_terminal.rs` to use `if let` for conditional logic.
+    - Updated `commands/ci/exec_policy_contract.rs` and `commands/model/pricing.rs` to use `if let` for conditional logic.
+- `vox-mens`:
+    - Refactored `commands/mens/watch_telemetry.rs` to use `if let` for conditional logic.
+    - Updated `commands/corpus/generate.rs` to use `if let` for conditional logic.
+    - Refactored `commands/corpus/validate.rs` to use `if let` for conditional logic.
+    - Updated `commands/mens/pipeline.rs` to use `if let` for conditional logic.
+    - Refactored `commands/mens/eval_gate/tests.rs` to use `if let` for conditional logic.
+    - Updated `commands/populi_cli.rs` to use `if let` for conditional logic.
+    - Refactored `training/instruction.rs` to use `if let` for conditional logic.
+- `vox-populi`:
+    - Refactored `transport/handlers/a2a.rs` to use `if let` for conditional logic.
+    - Updated `transport/store/in_memory.rs` and `transport/store/voxdb.rs` to use `if let` for conditional logic.
+    - Refactored `mens/hardware/registry.rs` to use `if let` for conditional logic.
+    - Updated `transport/handlers/dispatch.rs` to use `if let` for conditional logic.
+    - Refactored `transport/mod.rs` to use `if let` for conditional logic.
+    - Updated `mens/hardware/pipeline.rs` to use `if let` for conditional logic.
+    - Refactored `transport/store/tests.rs` to use `if let` for conditional logic.
+- `vox-orchestrator`:
+    - Refactored `orchestrator/task_dispatch/submit/task_submit.rs` to use `if let` for conditional logic.
+    - Updated `build.rs` to use `if let` for conditional logic.
+    - Refactored `mcp_tools/http_gateway/eval.rs` to use `if let` for conditional logic.
+    - Updated `tool_receipt.rs` to use `if let` for conditional logic.
+    - Refactored `lib.rs` to use `if let` for conditional logic.
+    - Updated `mcp_tools/http_gateway/mod.rs` to use `if let` for conditional logic.
+    - Refactored `budget/mod.rs` and `orchestrator/safety.rs` to use `if let` for conditional logic.
+    - Updated `mcp_tools/http_gateway/origin_guard.rs` to use `if let` for conditional logic.
+    - Refactored `context/token_optimization.rs` and `legacy/harness_hand.rs` to use `if let` for conditional logic.
+    - Updated `models/scoring.rs` to use `if let` for conditional logic.
+    - Refactored `mcp_tools/code_validator.rs` to use `if let` for conditional logic.
+    - Updated `mcp_tools/llm_bridge/provider_auth.rs` and `models/registry.rs` to use `if let` for conditional logic.
+    - Refactored `a2a/remote_worker.rs` to use `if let` for conditional logic.
+- `vox-corpus`:
+    - Refactored `arca_replay.rs` to use `if let` for conditional logic.
+    - Updated `flywheel.rs` to use `if let` for conditional logic.
+    - Refactored `corpus/mix/mod.rs` to use `if let` for conditional logic.
+    - Updated `ast_mutator.rs` to use `if let` for conditional logic.
+- `vox-publisher`:
+    - Refactored `submission/validation.rs` to use `if let` for conditional logic.
+    - Updated `publication_preflight/mod.rs` to use `if let` for conditional logic.
+- `vox-dashboard`:
+    - Refactored `assets.rs` to use `if let` for conditional logic.
+    - Updated `tests/auth.rs`, `tests/asset_serving.rs`, `tests/settings_api.rs`, and `tests/origin_guard.rs` to use `if let` for conditional logic.
+- `vox-toestub`:
+    - Refactored `detectors/hollow_fn.rs` to use `if let` for conditional logic.
+    - Updated `detectors/ai_laziness.rs` to use `if let` for conditional logic.
+    - Refactored `detectors/workspace_drift.rs` to use `if let` for conditional logic.
+- `vox-search`:
+    - Refactored `memory_hybrid.rs` to use `if let` for conditional logic.
+    - Updated `symbol_proximity.rs` to use `if let` for conditional logic.
+    - Added `policy.rs`.
+- `vox-config`:
+    - Refactored `config/impl_ops.rs` to use `if let` for conditional logic.
+    - Updated `env_parse.rs` to use `if let` for conditional logic.
+    - Refactored `config/gamify_web.rs` to use `if let` for conditional logic.
+- `vox-exec-grammar`:
+    - Refactored `ast.rs` to use `if let` for conditional logic.
+    - Updated `tests/proptest_tokeniser.rs` to use `if let` for conditional logic.
+    - Refactored `risk.rs` to use `if let` for conditional logic.
+- `vox-oratio`:
+    - Refactored `subtitle/srt.rs` to use `if let` for conditional logic.
+    - Updated `backends/candle_whisper.rs` to use `if let` for conditional logic.
+    - Refactored `refine/rules.rs` to use `if let` for conditional logic.
+- `vox-lsp`: Refactored `main.rs` to use `if let` for conditional logic.
+- `vox-clavis`: Refactored `backend/vox_vault.rs` to use `if let` for conditional logic.
+- `vox-ludus`: Refactored `event_router.rs` and `periodic_reward/evaluate.rs` to use `if let` for conditional logic.
+- `vox-jsonschema-util`: Refactored `codegen/validator.rs` and `examples/emit_agent_harness.rs` to use `if let` for conditional logic.
+- `vox-container`: Refactored `deploy_target.rs` to use `if let` for conditional logic.
+- `vox-doc-pipeline`: Refactored `pipeline/lint.rs` to use `if let` for conditional logic.
+- `vox-mesh-types`: Refactored `trace.rs` to use `if let` for conditional logic.
+
+--- audit: original='chore(ci): unblock Coolify deploy smoke (fmt, clippy, orchestrator lints)' | actual=7803L across 301 files | derived=full ---
