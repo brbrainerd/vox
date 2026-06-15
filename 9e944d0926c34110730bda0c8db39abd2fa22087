@@ -1,0 +1,8 @@
+feat(coverage-graph): Implement chunked LCOV export and line-based reach ingestion
+scale: ~354 lines across 3 files [L]
+
+- **`scripts/coverage-graph/export_lcov_chunked.py`**: Add a new script to export LCOV data from `llvm-cov` by chunking the object file list. This addresses a Windows command-line argument limit (`os error 206`) when dealing with many test binaries. It concatenates LCOV outputs from multiple `llvm-cov export` calls, each with a subset of object files.
+- **`scripts/coverage-graph/ingest_reaches.py`**: Modify `parse_lcov` to ingest coverage data based on per-line hit counts (`DA:` records) in addition to function-level reach (`FN`/`FNDA:` records). This provides robustness against Rust name mangling by matching reach by a symbol's definition line. The function now returns both function-level reach and a set of hit lines per file.
+- **`graphify-out/REACHED_VS_PROVEN.md`**: Add a new markdown report detailing "Reached-but-NOT-Proven" symbols. This report quantifies 16,940 symbols that execute in tests but lack asserted behavior, broken down by crate, with `vox-orchestrator` (2,447), `vox-compiler` (1,694), and `vox-cli` (1,212) having the highest counts.
+
+--- audit: original='feat(coverage-graph): Phase 0 LIVE — reached layer from local profdata (16,940 reached-but-unproven)' | actual=354L across 3 files | derived=full ---
