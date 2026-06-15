@@ -1,0 +1,15 @@
+docs(telemetry): document VOX_TELEMETRY master switch and telemetry unification
+scale: ~14 lines across 2 files [S]
+
+- **CHANGELOG.md**:
+    - Added an "Unreleased" section detailing telemetry unification (Phases A–D), including:
+        - `vox-telemetry` L1 facade crate with `TelemetryEvent` enum and associated tools.
+        - `VOX_TELEMETRY` master switch functionality.
+        - `vox telemetry doctor` subcommand.
+        - `ModelCallEvent`, `TaskRootSummaryEvent`, `BuildSummaryEvent`, and `ErrorEvent`.
+        - Trace propagation enhancements.
+- **docs/src/reference/env-vars.md**:
+    - Added documentation for the `VOX_TELEMETRY` environment variable, describing its function as a master telemetry switch.
+    - Updated the description for `VOX_MCP_LLM_COST_EVENTS` to clarify that it is superseded by `VOX_TELEMETRY=off`.
+
+--- audit: original='docs: document VOX_TELEMETRY master switch and telemetry unification' | actual=14L across 2 files | derived=full ---
