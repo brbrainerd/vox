@@ -1,0 +1,17 @@
+docs(tracker): expand release checklist with mobile-specific gates
+scale: ~23 lines across 1 files [S]
+
+- apps/vox-mental-tracker:
+  - Update automated gates to use checkboxes and add `tsc --noEmit` check.
+  - Add new manual gates for Android and iOS, covering:
+    - Release APK installation and execution on real devices.
+    - TestFlight upload.
+    - Privacy manifest review.
+    - Icon and splash screen rendering on various mobile devices.
+    - Deep linking functionality.
+    - Push notification registration and routing.
+    - Offline-first service worker behavior.
+  - Reorder and renumber existing manual gates.
+  - Update the privacy documentation audit gate.
+
+--- audit: original='docs(tracker): expand release checklist for mobile readiness' | actual=23L across 1 files | derived=full ---
