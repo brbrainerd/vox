@@ -1,0 +1,15 @@
+feat(compiler): add first-class `state_machine` declaration with exhaustiveness
+scale: ~1142 lines across 22 files [XL]
+
+- **AST**: Introduced `StateMachineDecl`, `SmState`, `SmField`, `SmTransition`, and `SmFromPattern` for state machine representation.
+- **Parser**: Added parsing logic for `state_machine` declarations, including `partial`, `terminal`, `from`, and `any` keywords in `decl/mid.rs` and `mod.rs`.
+- **HIR**: Added `HirStateMachineDecl`, `HirSmState`, `HirSmField`, `HirSmTransition`, and `HirSmFrom` nodes, and a `state_machines` field to `HirModule`.
+- **Type Checker**: Implemented `state_machine_check.rs` to perform 5 structural and exhaustiveness checks (duplicate states, ambiguous transitions, terminal outgoing, unreachable terminals, exhaustiveness) and added diagnostics.
+- **Codegen (TypeScript)**: Added `state_machine_emit.rs` to generate discriminated union types for states and events, and a typed reducer stub in `state_machines.ts`. Updated `emitter.rs`.
+- **VoxIR**: Added `state_machines` field to `VoxIrContent` and updated `lower.rs`.
+- **Tests**: Added `state_machine_integration_test.rs` with 11 unit and 9 integration tests for parsing, lowering, type checking, and codegen of state machines.
+- **Documentation**: Updated `gui-native-roadmap-status-2026.md` (7 lines removed).
+- **Downstream Updates**: Modified `vox-corpus` and `vox-mens` to accommodate the new state machine variant.
+- **General Compiler**: Updated `ast/decl/mod.rs`, `ast/decl/types.rs`, `hir/lower/mod.rs`, `typeck/mod.rs`, `typeck/diagnostics.rs`, `ast_eval.rs`, and `vox-test-harness/src/hir_builders.rs` to integrate state machine support.
+
+--- audit: original='feat(compiler): TASK-4.1 -- add state_machine first-class block' | actual=1142L across 22 files | derived=full ---
