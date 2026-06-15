@@ -1,0 +1,9 @@
+docs(superpowers): Add implementation plan for `@traced` decorator
+scale: ~248 lines across 1 files [M]
+
+- Add new document `docs/superpowers/plans/2026-06-15-traced-decorator-implementation.md` detailing a full 8-phase implementation plan for the `@traced` decorator.
+- The plan covers lexer token, parser `is_traced` flip, `HirFn` field + lowering, Rust codegen span seeding from `TRACE_CTX`, LSP+docs, behavioral proof, interpreter, and endpoint/activity/workflow extension.
+- The document also includes an investigation verdict confirming `@traced` fills a useful gap, as Vox currently emits no spans.
+- Design defaults and risks (HIR fan-out, arg-form, `set_decorators` orphaned) are documented.
+
+--- audit: original='docs(handoff): full @traced (TRACE-D) implementation plan' | actual=248L across 1 files | derived=full ---
