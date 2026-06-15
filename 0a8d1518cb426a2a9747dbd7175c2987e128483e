@@ -1,0 +1,16 @@
+feat(workspace-audit): integrate parallel crate-audit-track snapshot
+scale: ~1260 lines across 34 files [XL]
+
+- docs/src/architecture: Add `crate-audit-and-plan-2026.md` (514 lines) detailing a 58-task phased audit plan, and update `where-things-live.md`, `layers.toml`, `research-index.md`, and `governance.md` to align with audit findings.
+- crates/vox-codegen: Refactor `main_boot.rs` to introduce `has_scheduled` helper and shared `emit_durable_boot_prelude` and `emit_durable_boot_helpers` for durable functions. Update `http.rs` to inject durable boot into production `emit_main`.
+- crates/vox-plugin-grammar-export: Delete plugin crate, including `lib.rs`, `Plugin.toml`, and `Cargo.toml`.
+- crates/vox-plugin-script-execution: Delete plugin crate, including `executor.rs`, `lib.rs`, `Plugin.toml`, and `Cargo.toml`.
+- crates/vox-arch-check: Add new rule 14 "No-cdylib-as-normal-dep" to prevent static linking of cdylibs, and introduce `orphan_exempt` and `cdylib_dep` fields to configuration.
+- crates/vox-cli: Update `login_shared.rs` to conditionally use keyring features based on `keyring-store` feature flag.
+- Cargo.lock: Update dependencies due to workspace changes.
+- crates/vox-plugin-catalog: Remove entries for retired plugins from `catalog.toml`.
+- crates/vox-plugin-api: Remove `grammar_export.rs` and update `abi.rs` and `extensions/mod.rs` to reflect plugin retirements.
+- Cargo.toml: Update workspace dependencies and per-crate dependency tweaks across `vox-cli`, `vox-mesh`, `vox-mesh-types`, `vox-orchestrator`, `vox-plugin-types`, `vox-populi`, `vox-scientia`, `vox-tensor`.
+- crates/vox-cli-core: Rename `ludus_shim.rs` to `gamify_shim.rs` and update `lib.rs` declarations.
+
+--- audit: original='chore(workspace-audit): integrate parallel crate-audit-track snapshot' | actual=1260L across 34 files | derived=full ---
