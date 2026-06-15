@@ -1,0 +1,10 @@
+feat(vox-gui/gamify): Improve accessibility and add tests for GamifyView
+scale: ~91 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Gamify/GamifyView.test.tsx`: Add comprehensive tests for `GamifyView` component, covering rendering of headings, refresh control, companion bars, and notifications.
+- `crates/vox-gui/ui/src/components/surfaces/Gamify/GamifyView.tsx`:
+  - Add `type="button"` to the refresh button.
+  - Add `type="button"` and `aria-label` to the "Ack" button for notifications.
+  - Add `role="progressbar"`, `aria-label`, `aria-valuenow`, and `aria-valuemax` attributes to the `Bar` component for improved accessibility.
+
+--- audit: original='feat(vox-gui/wave6): GamifyView a11y + checklist (Wave 6)' | actual=91L across 2 files | derived=full ---
