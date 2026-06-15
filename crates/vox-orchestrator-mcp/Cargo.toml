@@ -5,6 +5,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[[bin]]
+name = "gui-visual-review"
+path = "src/bin/gui-visual-review.rs"
+required-features = ["gui-visual-review"]
+
 [features]
 default = ["toestub-gate", "json-schema"]
 # Mirrors the parent orchestrator features. The crate is always compiled with
@@ -20,6 +25,7 @@ toestub-gate = ["vox-orchestrator/toestub-gate"]
 json-schema = ["vox-orchestrator/json-schema"]
 populi-transport = ["vox-orchestrator/populi-transport", "vox-populi/transport"]
 oratio-rerank = ["dep:vox-speech"]
+gui-visual-review = []
 
 [dependencies]
 vox-orchestrator-driver = { workspace = true }

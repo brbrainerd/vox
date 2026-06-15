@@ -13,8 +13,10 @@ use crate::{
     db_tools, exec_time_tools, git_tools, grammar_tools, introspection_tools, openclaw_tools,
     persistence_tools, populi_tools, project_init_tools, questioning_tools, rag_tools,
     repo_catalog_tools, repo_index, secrets_tools, task_tools, toestub_tools, tool_aliases,
-    training_tools, trust_tools, vcs_tools, visus_tools,
+    training_tools, trust_tools, vcs_tools,
 };
+#[cfg(feature = "gui-visual-review")]
+use crate::visus_tools;
 #[cfg(feature = "news-publish")]
 use crate::{news_tools, scientia_tools};
 
@@ -503,9 +505,11 @@ async fn handle_tool_call_inner(
         .await),
         "vox_repo_index_status" => Ok(repo_index::repo_index_status(state).await),
         "vox_repo_index_refresh" => Ok(repo_index::repo_index_refresh(state).await),
+        #[cfg(feature = "gui-visual-review")]
         "vox_visus_audit" => {
             Ok(visus_tools::vox_visus_audit(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "gui-visual-review")]
         "vox_visus_baseline" => {
             Ok(visus_tools::vox_visus_baseline(state, serde_json::from_value(args)?).await)
         }

@@ -1229,7 +1229,7 @@ jobs:
         run: |
           DATE=$(date -u +%F)
           NOW=$(date -u +%FT%TZ)
-          cargo run -p vox-orchestrator-mcp --bin gui-visual-review -- --ai --date "$DATE" --now "$NOW"
+          cargo run -p vox-orchestrator-mcp --features gui-visual-review --bin gui-visual-review -- --ai --date "$DATE" --now "$NOW"
         continue-on-error: true
 
       - name: Upload visual-review report + screens (always)
