@@ -1,0 +1,28 @@
+feat(cli): Add reward-based filtering and diversity check domain to corpus commands
+scale: ~118 lines across 9 files [M]
+
+- `crates/vox-cli/src/commands/corpus/generate.rs`:
+    - Modified `run_diversity_check` to accept an optional `domain` argument for telemetry.
+    - Added a fallback mechanism in `run_diversity_check` to extract code from a `code` field in JSON if not in standard Vox format.
+    - Integrated telemetry recording for diversity checks, including the new `domain` parameter.
+- `crates/vox-cli/src/commands/corpus/validate.rs`:
+    - Added an optional `reward_hook` argument to `run_validate` for reward-based filtering.
+    - Implemented logic to reject records based on `cargo_build` or `cargo_test` reward hooks, quarantining failed records.
+- `crates/vox-cli/src/commands/corpus/mod.rs`:
+    - Added `reward_hook` option to the `CorpusAction::Validate` subcommand.
+    - Added `domain` option to the `CorpusAction::Diversity` subcommand.
+    - Updated `run` function to pass new arguments to `run_validate` and `run_diversity_check`.
+- `crates/vox-cli/src/commands/mens/pipeline.rs`:
+    - Updated `run` function to pass `reward_hook: None` to `corpus::run_validate` when called from the pipeline.
+- `.github/workflows/link_checker.yml`:
+    - Updated `lychee-action` arguments to exclude additional external URLs (`storage.googleapis.com`, `babel.dev`, `diva-portal.org`, `.gemini/antigravity/`).
+- `docs/src/architecture/codex-turso-allowlist.md`:
+    - Corrected a relative path for `query-all-allowlist.txt` and `turso-import-allowlist.txt`.
+- `docs/src/how-to/how-to-cli-ecosystem.md`:
+    - Updated link from `ref-language.md` to `ref-syntax.md`.
+- `docs/src/reference/diagnostic-taxonomy.md`:
+    - Updated link from `ref-language.md` to `ref-syntax.md`.
+- `docs/src/reference/parser-ambiguity-inventory.md`:
+    - Updated link from `ref-language.md` to `../reference/ref-syntax.md` and clarified its title.
+
+--- audit: original='docs: Harden link checker and fix internal/external regression; fix CLI build' | actual=118L across 9 files | derived=full ---
