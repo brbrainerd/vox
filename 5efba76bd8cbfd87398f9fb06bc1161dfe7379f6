@@ -1,0 +1,14 @@
+feat(gui-manifest): require typed value_kind and optional values in action-manifest schema
+scale: ~60 lines across 2 files [M]
+
+- **contracts/gui/action-manifest.v1.schema.json**:
+    - Added `value_kind` as a required property to argument definitions, with allowed enum values "flag", "value", and "count".
+    - Added optional `possible_values` (array of strings) and `default_values` (array of strings) properties to argument definitions.
+- **crates/vox-cli/src/commands/ci/gui_catalog_parity.rs**:
+    - Updated the synthetic MCP-payload argument to include `value_kind: "value"`, `possible_values: []`, and `default_values: []` to conform to the updated schema.
+    - Added a new test `generated_manifest_validates_with_typed_args` that:
+        - Regenerates the action manifest payload.
+        - Validates the generated manifest against the `action-manifest.v1.schema.json`.
+        - Asserts that every argument in the manifest has a `value_kind` defined.
+
+--- audit: original='feat(gui-manifest): require typed value_kind + possible/default values in action-manifest schema' | actual=60L across 2 files | derived=full ---
