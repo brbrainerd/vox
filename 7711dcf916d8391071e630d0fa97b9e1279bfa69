@@ -1,0 +1,7 @@
+feat(compiler,scripts): Implement std.path methods in interpreter; harden clean-build-artifacts.vox
+scale: ~208 lines across 2 files [M]
+
+- **compiler**: Implemented `std.path::{basename,dirname,join_many,resolve}` in `eval/builtins.rs` for the interpreter, matching their existing typecheck and native codegen implementations. This resolves "Method <name> not found" runtime errors for scripts using these methods.
+- **scripts**: `clean-build-artifacts.vox` now automatically skips active Git worktrees by checking `git worktree list --porcelain` and skips `target/` directories modified within the last 2 hours using `std.fs.stat().modified_ms` and `std.time.now_ms`. The `VOX_CLEAN_WORKTREES` environment variable is now a final confirmation rather than the sole guard.
+
+--- audit: original='feat(compiler,scripts): close std.path interp parity + harden GC script (WS1-T4)' | actual=208L across 2 files | derived=full ---
