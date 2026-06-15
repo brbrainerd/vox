@@ -1,0 +1,12 @@
+feat(codegen_rust): Implement Rust emission for `HirExpr::Spawn` and `HirExpr::WorkflowVersion`
+scale: ~72 lines across 2 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`:
+    - Implemented Rust emission for `HirExpr::Spawn` to `tokio::spawn(async move { ... })`, replacing the `compile_error!` stub.
+    - Implemented Rust emission for `HirExpr::WorkflowVersion` as a no-op tuple marker `let _ = ("id", min_u32, max_u32);`, replacing the `compile_error!` stub.
+    - Removed comments indicating `Spawn` and `WorkflowVersion` were unimplemented.
+- `crates/vox-codegen/tests/spawn_workflow_emit_test.rs`: Added a new test file to verify the correct Rust emission for `HirExpr::Spawn` and `HirExpr::WorkflowVersion`.
+    - `spawn_emits_tokio_spawn` test asserts that `HirExpr::Spawn` emits `tokio::spawn` and `async move` with the inner expression.
+    - `workflow_version_emits_noop_tuple` test asserts that `HirExpr::WorkflowVersion` emits a tuple containing the change ID, min, and max values, and does not emit `compile_error!`.
+
+--- audit: original='feat(codegen_rust): real Rust emission for Spawn + WorkflowVersion (Task 8D)' | actual=72L across 2 files | derived=full ---
