@@ -10,6 +10,27 @@ use super::orchestrator_fields::OrchestratorConfig;
 
 static ORCHESTRATOR_CACHE: SnapshotCache<OrchestratorConfig> = SnapshotCache::new();
 
+/// Walk up from the current executable's location to find `Vox.toml`.
+///
+/// Using `std::env::current_exe()` (rather than `current_dir()`) is reliable in
+/// a Tauri process where the working directory may be `C:\Windows\System32` or the
+/// application bundle directory. We walk up at most 10 levels to avoid infinite
+/// traversal on unusual path layouts.
+fn find_vox_toml() -> Option<std::path::PathBuf> {
+    let mut dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    for _ in 0..10 {
+        let candidate = dir.join("Vox.toml");
+        if candidate.exists() {
+            return Some(candidate);
+        }
+        match dir.parent() {
+            Some(p) => dir = p.to_path_buf(),
+            None => break,
+        }
+    }
+    None
+}
+
 impl OrchestratorConfig {
     /// Returns the env-merged effective config, cached per snapshot rev.
     ///
@@ -22,10 +43,19 @@ impl OrchestratorConfig {
         ORCHESTRATOR_CACHE.get_or_init(|| {
             let mut cfg = Self::default();
 
-            // Apply Vox.toml [orchestrator] section if present.
-            let cwd_toml = std::path::Path::new("Vox.toml");
-            if let Ok(loaded) = Self::load_from_toml(cwd_toml) {
-                cfg = loaded;
+            // Resolve Vox.toml by walking up from the binary (not from CWD, which is
+            // unreliable in a Tauri/GUI process).
+            match find_vox_toml() {
+                Some(path) => match Self::load_from_toml(&path) {
+                    Ok(loaded) => cfg = loaded,
+                    Err(e) => tracing::debug!(
+                        "OrchestratorConfig::snapshot: failed to load {:?}: {e}",
+                        path
+                    ),
+                },
+                None => tracing::debug!(
+                    "OrchestratorConfig::snapshot: Vox.toml not found from exe parent; using defaults"
+                ),
             }
 
             // Apply env overrides (VOX_ORCHESTRATOR_* wins over Vox.toml).

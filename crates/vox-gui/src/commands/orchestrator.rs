@@ -432,10 +432,20 @@ pub struct OrchestratorConfigChanged {
 // toestub-ignore(skeleton/untested-pub-api) — thin bridge from vox-config snapshot bumps to Tauri events; snapshot invalidation logic is tested in vox-config
 pub fn spawn_orchestrator_config_watch(app: tauri::AppHandle) {
     vox_config::snapshot::on_change(move |change| {
-        let _ = app.emit(
-            ORCH_CONFIG_CHANGED_EVENT,
-            OrchestratorConfigChanged { rev: change.rev },
-        );
+        // Only forward bumps that are a general reload (empty keys) or that
+        // contain at least one orchestrator key. This prevents spurious
+        // full-catalog refetches triggered by unrelated bumps such as LLM
+        // config changes or EnvScratch::drop.
+        let is_orch = change.changed.is_empty()
+            || change.changed.iter().any(|k| {
+                k.starts_with("VOX_ORCHESTRATOR_") || k.starts_with("VOX_CIRCUIT_BREAKER_")
+            });
+        if is_orch {
+            let _ = app.emit(
+                ORCH_CONFIG_CHANGED_EVENT,
+                OrchestratorConfigChanged { rev: change.rev },
+            );
+        }
     });
 }
 
@@ -456,11 +466,14 @@ mod catalog_tests {
     #[test]
     fn catalog_len_matches_config_field_count() {
         let catalog = OrchestratorConfig::default().to_catalog();
-        // Parity test: catalog must have at least 50 entries (one per public field).
-        assert!(
-            catalog.len() >= 50,
-            "expected >=50 fields, got {}",
-            catalog.len()
+        // Exact parity test: catalog must have exactly 106 entries — one per
+        // field! macro invocation in to_catalog(). Using an exact count rather
+        // than a floor catches catalog shrinkage as well as unintentional growth.
+        // If you intentionally add or remove fields, update this count to match.
+        assert_eq!(
+            catalog.len(),
+            106,
+            "catalog field count changed — update this test if fields were intentionally added/removed"
         );
     }
 
@@ -498,9 +511,9 @@ mod catalog_tests {
 pub async fn get_orchestrator_config() -> Result<serde_json::Value, String> {
     let cfg = vox_orchestrator::config::OrchestratorConfig::snapshot();
     let isolation = match cfg.scope_enforcement {
-        vox_orchestrator::scope::ScopeEnforcement::Strict => "native",
-        vox_orchestrator::scope::ScopeEnforcement::Warn => "native",
-        vox_orchestrator::scope::ScopeEnforcement::Disabled => "native",
+        vox_orchestrator::scope::ScopeEnforcement::Strict => "strict",
+        vox_orchestrator::scope::ScopeEnforcement::Warn => "warn",
+        vox_orchestrator::scope::ScopeEnforcement::Disabled => "disabled",
     };
     Ok(serde_json::json!({
         "concurrency": cfg.max_agents,
