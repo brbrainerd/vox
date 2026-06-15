@@ -1,0 +1,6 @@
+chore(gui): regenerate surface-coverage report
+scale: ~0 lines across 1 files [XS]
+
+- contracts/reports/gui-surface-coverage.v1.json: Regenerated the binary file to reflect changes in the default-on status of the `script` command in the build surface.
+
+--- audit: original='chore(gui): regen surface-coverage report — script cmd now default-on' | actual=0L across 1 files | derived=full ---
