@@ -1,0 +1,13 @@
+feat(marquee): Add `todo-auth` app and update manifest
+scale: ~182 lines across 3 files [M]
+
+- **apps/marquee/todo-auth/src/main.vox**: Add new Vox application for a todo-CRUD service with bearer token authentication. This includes `@table` definitions for `User` and `Todo`, `@endpoint` definitions for `list_todos`, `add_todo`, and `complete_todo`, all protected by `@auth(scheme: bearer)`. It also contains internal pure helper functions, `@test` blocks for validation and auth-gate testing, and `@example` blocks.
+- **apps/marquee/todo-auth/Vox.toml**: Add new package manifest for the `marquee-todo-auth` application, defining its name, version, kind, description, license, and keywords.
+- **contracts/marquee/manifest.v1.yaml**: Update the `marquee-todo-auth` entry:
+    - Change `status` from `archetype-approved` to `real`.
+    - Add `vox_toml` and `entry` fields pointing to the new application files.
+    - Add `features_shipped` detailing the implemented `@endpoint` kinds, `@auth` scheme, `@table` types, test coverage, and `@example` blocks.
+    - Add `features_deferred` outlining known gaps related to `Id[User]` foreign keys, `db.Todo.all()` return types, and the absence of `@public` decorator support.
+    - Add `test_coverage_status` as `partial`.
+
+--- audit: original='feat(marquee): Slot 2 (todo-auth) seed fixture lands (CR-P1, CR-L0, CR-L7)' | actual=182L across 3 files | derived=full ---
