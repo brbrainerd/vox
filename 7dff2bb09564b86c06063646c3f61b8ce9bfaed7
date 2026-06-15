@@ -1,0 +1,15 @@
+chore(deps): bump 5 workspace dependencies
+scale: ~131 lines across 3 files [M]
+
+- `Cargo.toml`:
+    - Bump `hf-hub` from `0.4` to `0.5`.
+    - Bump `nvml-wrapper` from `0.11` to `0.12`.
+    - Bump `sherpa-onnx` from `1.12` to `1.13`.
+    - Bump `strum` from `0.26` to `0.28`.
+    - Bump `which` from `7` to `8`.
+- `crates/workspace-hack/Cargo.toml`:
+    - Remove duplicate `console` entries and consolidate to `console = "0.16"`.
+    - Remove `ureq` dependency.
+- `Cargo.lock`: Update lockfile to reflect dependency changes.
+
+--- audit: original='chore(deps): dependency-currency Wave A (7 low-risk bumps) (#146)' | actual=131L across 3 files | derived=full ---
