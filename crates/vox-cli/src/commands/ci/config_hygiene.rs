@@ -365,37 +365,69 @@ pub fn build_recognized_env_vars(registry_yaml: &str) -> std::collections::HashS
     recognized
 }
 
-/// Check D: scan source for VOX_* env reads that are NOT in the registry.
-/// Only flags lines containing `env::var` or `env_var` calls (not consts/docs).
+/// OS/toolchain/CI env names that don't need registry rows.
+/// These are treated as "registered" for Check D purposes (bucket: third-party).
+pub const THIRD_PARTY_ALLOWLIST: &[&str] = &[
+    "HOME",
+    "PATH",
+    "RUST_LOG",
+    "RUST_BACKTRACE",
+    "OUT_DIR",
+    "CARGO_MANIFEST_DIR",
+    "CARGO_PKG_VERSION",
+    "CARGO_PKG_NAME",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME",
+    "XDG_CACHE_HOME",
+    "GITHUB_SHA",
+    "GITHUB_REF",
+    "GITHUB_ACTIONS",
+    "TMPDIR",
+    "TEMP",
+    "TMP",
+    "USERPROFILE",
+    "LOCALAPPDATA",
+];
+
+/// Check D: scan source for env reads (any ALL_CAPS name) that are NOT in the
+/// registry or the third-party allowlist.
+/// Detects `env::var`, `env::var_os`, and common wrapper helpers
+/// (`env_var`, `env_flag`, `env_u32`, `env_i64`, `env_u64`, `env_duration`, `env_truthy`).
 pub fn check_env_reads_registered(
     source: &str,
     file: &str,
     registered: &std::collections::HashSet<String>,
 ) -> Vec<Violation> {
-    let re = regex::Regex::new(r#"["']?(VOX_[A-Z0-9_]+)["']?"#).unwrap();
+    // Matches the env var name (ALL_CAPS, ≥3 chars) in env read calls.
+    let re = regex::Regex::new(
+        r#"(?:env::var(?:_os)?|env_var|env_flag|env_u32|env_i64|env_u64|env_duration|env_truthy)\s*\(\s*["']([A-Z][A-Z0-9_]{2,})["']"#,
+    )
+    .unwrap();
     let mut hits = Vec::new();
     for (i, raw) in source.lines().enumerate() {
         let trimmed = raw.trim_start();
         if trimmed.starts_with("//") {
             continue;
         }
-        if !raw.contains("env::var") && !raw.contains("env_var") {
-            continue;
-        }
         for cap in re.captures_iter(raw) {
             let var_name = &cap[1];
-            if !registered.contains(var_name) {
-                hits.push(Violation {
-                    check: "env-var-not-in-registry",
-                    file: file.to_string(),
-                    line: i + 1,
-                    message: format!(
-                        "VOX_* env var `{var_name}` is not in contracts/config/registry.v1.yaml \
-                         — add an entry with status: active or declared"
-                    ),
-                    env_var: Some(var_name.to_string()),
-                });
+            if registered.contains(var_name) {
+                continue;
             }
+            if THIRD_PARTY_ALLOWLIST.contains(&var_name) {
+                continue;
+            }
+            hits.push(Violation {
+                check: "env-var-not-in-registry",
+                file: file.to_string(),
+                line: i + 1,
+                message: format!(
+                    "env var `{var_name}` is not in contracts/config/registry.v1.yaml \
+                     — add an entry with status: active or declared, or add to \
+                     THIRD_PARTY_ALLOWLIST if it is an OS/toolchain/CI name"
+                ),
+                env_var: Some(var_name.to_string()),
+            });
         }
     }
     hits
