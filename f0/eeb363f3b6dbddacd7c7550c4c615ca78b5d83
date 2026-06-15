@@ -1,0 +1,26 @@
+refactor(cli): remove island subcommand and related infrastructure
+scale: ~1648 lines across 21 files [XL]
+
+- **`crates/vox-cli/src/v0.rs`**: Removed `IslandCache`, `generate_island_tsx`, and `emit_island_stub` functions, along with their associated `cfg(feature = "island")` gates and imports.
+- **`crates/vox-cli/src/templates/islands.rs`**: Deleted the entire file, which contained embedded templates for the `islands/` Vite app.
+- **`crates/vox-cli/src/commands/island/stub_shadcn.rs`**: Deleted the file, removing functionality for injecting or updating island stubs.
+- **`crates/vox-cli/src/commands/island/build.rs`**: Deleted the file, removing `bootstrap_islands_if_needed` and `build_islands` functions.
+- **`crates/vox-cli/src/island_paths.rs`**: Deleted the file, removing all island-related path resolution utilities like `island_root`, `island_package_root`, and `island_component_tsx_path`.
+- **`crates/vox-cli/src/commands/island/list_cache.rs`**: Deleted the file, removing the `list_islands` function.
+- **`crates/vox-cli/src/commands/island/actions.rs`**: Deleted the file, removing island-specific actions.
+- **`crates/vox-cli/src/frontend.rs`**: Reduced `build_islands_if_present()` to a no-op stub.
+- **`crates/vox-cli/src/cli_actions.rs`**: Removed `IslandCacheAction` enum and related logic.
+- **`crates/vox-cli/src/commands/island/mod.rs`**: Deleted the entire `island` command module.
+- **`crates/vox-cli/src/table.rs`**: Deleted the file, which was likely related to island display.
+- **`crates/vox-cli/src/commands/llm.rs`**: Removed the `@island` branch from help messages.
+- **`crates/vox-cli/src/lib.rs`**: Stripped `cfg(feature="island")` gates.
+- **`contracts/cli/command-registry.yaml`**: Removed the `island` entry.
+- **`crates/vox-cli/src/cli_dispatch/mod.rs`**: Removed `Cli::Island` variant.
+- **`crates/vox-cli/Cargo.toml`**: Removed the `island` feature.
+- **`crates/vox-cli/src/commands/mod.rs`**: Removed the `island` command module import.
+- **`crates/vox-cli/src/command_contract.rs`**: Removed "island" from product-lane mapping.
+- **`crates/vox-cli/src/templates/mod.rs`**: Removed `islands` module import.
+- **`crates/vox-cli/src/templates/tanstack.rs`**: Removed the `/islands/island-mount.js` script tag.
+- **`crates/vox-cli/src/commands/ci/constants.rs`**: Removed the "island" feature-matrix entry.
+
+--- audit: original='refactor(cli): remove vox island subcommand and templates' | actual=1648L across 21 files | derived=full ---
