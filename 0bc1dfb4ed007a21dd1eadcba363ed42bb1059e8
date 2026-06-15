@@ -1,0 +1,8 @@
+docs(quantize): Confirm candle QTensor accessors for SP-1 spike
+scale: ~9 lines across 1 files [XS]
+
+- docs/superpowers/specs/2026-05-31-vox-quantize-engine-design.md: Added a new section confirming the signatures of `candle-core` QTensor accessors after verification against source code.
+  - Confirmed `data()` for raw block bytes, `storage_size_in_bytes()` for byte accounting, and `quantize_onto()` for GPU path.
+  - Noted that `quantize_onto()` requires the source tensor to be on the CPU and that the k-quant `from_float` kernel runs host-side on the CPU for the CUDA backend.
+
+--- audit: original='docs(quantize): confirm candle QTensor accessors for SP-1 (Task 0 spike)' | actual=9L across 1 files | derived=full ---
