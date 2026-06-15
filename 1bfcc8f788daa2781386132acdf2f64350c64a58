@@ -1,0 +1,10 @@
+feat(actor-runtime/llm): LLM trace_id inherits from `TRACE_CTX`
+scale: ~7 lines across 2 files [S]
+
+- `crates/vox-actor-runtime/src/llm/chat.rs`:
+    - Removed direct usage of `uuid::Uuid` for generating `trace_id`.
+    - Modified `infer_with_retry` to obtain `trace_id` from `vox_telemetry::current_trace_ctx().trace_id`.
+    - This allows `trace_id` to flow through the call tree when within a `TRACE_CTX` scope, or mint a new UUID if no scope is active.
+- `crates/vox-actor-runtime/Cargo.toml`: Added `vox-telemetry` as a dependency.
+
+--- audit: original='feat(actor-runtime/C4): LLM trace_id inherits from TRACE_CTX (was per-call mint)' | actual=7L across 2 files | derived=full ---
