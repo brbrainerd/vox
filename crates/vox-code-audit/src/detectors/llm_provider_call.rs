@@ -10,6 +10,8 @@ pub struct LlmProviderCallDetector {
     vox_http_call: Regex,
     /// Matches Rust HTTP client library calls.
     rust_http_call: Regex,
+    /// Matches `vox-config` provider base-url accessors (alternative egress trigger).
+    base_url_call: Regex,
     supported_langs: Vec<Language>,
 }
 
@@ -48,11 +50,27 @@ impl LlmProviderCallDetector {
             )
             .expect("valid vox_http_call regex"),
             rust_http_call: Regex::new(
-                r"\b(reqwest::Client|reqwest::get|isahc|ureq|attohttpc)\b",
+                r"(\breqwest::Client\b|\breqwest::get\b|\bisahc\b|\bureq\b|\battohttpc\b|\.post\(|\.get\()",
             )
             .expect("valid rust_http_call regex"),
+            base_url_call: Regex::new(
+                r"(vox_config::[a-z_]*base_url\(|\bopenrouter_base\()",
+            )
+            .expect("valid base_url_call regex"),
             supported_langs: vec![Language::Vox, Language::Rust, Language::TypeScript],
         }
+    }
+
+    /// `true` if `path` is the sanctioned LLM egress facade (the one place allowed to
+    /// reach providers directly). Normalizes Windows/Unix separators.
+    fn is_facade_file(path: &std::path::Path) -> bool {
+        let s = path.to_string_lossy().replace('\\', "/");
+        s.contains("crates/vox-actor-runtime/src/llm/")
+    }
+
+    /// `true` if `line` reaches a provider via a `vox-config` base-url accessor.
+    fn has_base_url_call(&self, line: &str) -> bool {
+        self.base_url_call.is_match(line)
     }
 
     /// Returns `true` if `line` contains a known provider hostname.
@@ -163,6 +181,11 @@ impl DetectionRule for LlmProviderCallDetector {
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
+        // The sanctioned facade is the one place allowed to reach providers directly.
+        if Self::is_facade_file(&file.path) {
+            return findings;
+        }
+
         for (i, line) in file.lines.iter().enumerate() {
             let line_num = i + 1;
 
@@ -176,7 +199,11 @@ impl DetectionRule for LlmProviderCallDetector {
                 continue;
             }
 
-            if !self.has_hostname(line) {
+            // Trigger on a literal provider hostname (any lang) or, for Rust workspace
+            // code, a `vox-config` base-url accessor (the second-egress signature).
+            let trigger = self.has_hostname(line)
+                || (file.language == Language::Rust && self.has_base_url_call(line));
+            if !trigger {
                 continue;
             }
 
@@ -266,6 +293,46 @@ let x = populi.complete(m, p);
         let f = source("vox", code);
         let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "comment lines should not be flagged");
+    }
+
+    fn source_at(path: &str, code: &str) -> SourceFile {
+        SourceFile::new(PathBuf::from(path), code.to_string())
+    }
+
+    #[test]
+    fn flags_rust_second_egress_via_provider_hostname_outside_facade() {
+        // vox-gamify Gemini path: literal provider hostname + a `.post(` egress call.
+        let d = LlmProviderCallDetector::new();
+        let code = r#"
+let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}", model, key);
+let resp = http.post(&url).json(&body).send().await?;
+"#;
+        let f = source_at("crates/vox-gamify/src/ai/client/transport.rs", code);
+        assert!(!d.detect(&f, None).is_empty(), "gamify Gemini egress must be flagged");
+    }
+
+    #[test]
+    fn flags_rust_second_egress_via_base_url_accessor_outside_facade() {
+        // vox-gamify OpenRouter path: base-url accessor + `.post(` outside the facade.
+        let d = LlmProviderCallDetector::new();
+        let code = r#"
+let resp = http.post(openrouter_base()).bearer_auth(key).json(&body).send().await?;
+"#;
+        let f = source_at("crates/vox-gamify/src/ai/client/transport.rs", code);
+        assert!(!d.detect(&f, None).is_empty(), "base-url accessor egress must be flagged");
+    }
+
+    #[test]
+    fn allows_egress_inside_actor_runtime_facade() {
+        // The sanctioned facade uses base-url accessors + client.post — must NOT fire.
+        let d = LlmProviderCallDetector::new();
+        let code = r#"
+let client = vox_http_client::client();
+let base_url = vox_config::openrouter_chat_completions_url();
+let resp = client.post(&base_url).json(&req_body).send().await?;
+"#;
+        let f = source_at("crates/vox-actor-runtime/src/llm/chat.rs", code);
+        assert!(d.detect(&f, None).is_empty(), "facade is the allowlisted egress");
     }
 
     #[test]
