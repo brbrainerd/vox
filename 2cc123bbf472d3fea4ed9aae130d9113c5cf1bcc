@@ -1,0 +1,8 @@
+feat(audit): add minimal_repro examples to three detectors
+scale: ~47 lines across 3 files [S]
+
+- `crates/vox-code-audit/src/detectors/pure_fn_impure.rs`: Added a `minimal_repro` example demonstrating a `@pure` function with a `log.info()` side-effect and its fix.
+- `crates/vox-code-audit/src/detectors/stringly_typed_enum.rs`: Added a `minimal_repro` example for a stringly-typed enum with alternatives in a comment and its fix using a proper ADT/enum.
+- `crates/vox-code-audit/src/detectors/crypto_ban.rs`: Added a `minimal_repro` example for a banned crypto crate (`ring`) in `Cargo.toml` and its fix using a pure-Rust alternative.
+
+--- audit: original='feat(audit): add minimal_repro to crypto_ban, pure_fn_impure, stringly_typed_enum' | actual=47L across 3 files | derived=full ---
