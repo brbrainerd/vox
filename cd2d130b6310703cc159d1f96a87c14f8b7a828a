@@ -1,0 +1,11 @@
+feat(vox-compiler): add `minimal_repro` field to diagnostic payload
+scale: ~323 lines across 3 files [L]
+
+- `crates/vox-compiler/src/typeck/diagnostics.rs`:
+    - Added `MinimalRepro` struct with `excerpt`, `excerpt_first_line`, and `local_span` fields.
+    - Added `minimal_repro: Option<MinimalRepro>` field to `VoxCompilerDiagnosticPayload`, serialized as `None` by default.
+    - Implemented logic to populate `minimal_repro` using a 3-line context window around the diagnostic span.
+- `docs/superpowers/specs/2026-05-17-minimal-repro-diagnostic-design.md`: Added a new design document detailing the `minimal_repro` field, its purpose for LLM repair loops, its structure, and the algorithm for generating the excerpt.
+- `crates/vox-compiler/tests/snapshots/diagnostic_snapshots__rust_import_dup_diagnostic_payload_snapshot.snap`: Updated snapshot to include the new `minimal_repro` field in diagnostic payloads and added previously missing `related_spans: []` entries.
+
+--- audit: original='feat(vox-compiler): minimal_repro field on diagnostic envelope' | actual=323L across 3 files | derived=full ---
