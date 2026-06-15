@@ -1,0 +1,6 @@
+docs(spec): correct coverage-gate configuration location in Effort Audit Core Design
+scale: ~2 lines across 1 files [XS]
+
+- `docs/superpowers/specs/2026-05-28-effort-audit-core-design.md`: Updated the description of coverage floor configuration from `Cargo.toml` `[package.metadata.vox-coverage]` to `.config/coverage-gates.toml` under `[crates]`, specifying the `vox ci coverage-gates` enforcement mechanism.
+
+--- audit: original='docs(spec): correct coverage-gate location (.config/coverage-gates.toml)' | actual=2L across 1 files | derived=full ---
