@@ -1,0 +1,10 @@
+ci(coverage): make semantic-coverage reach ratchet non-blocking in CI
+scale: ~11 lines across 1 files [S]
+
+- **.github/workflows/ci.yml**:
+    - Added `continue-on-error: true` to the "Semantic-coverage reach ratchet" step, making it advisory rather than blocking.
+    - Updated the step name to "Semantic-coverage reach ratchet (advisory — reported, not gating)".
+    - Added a detailed comment explaining why the reach ratchet is advisory (due to differences in local vs. CI lcov generation).
+    - Changed `set -euo pipefail` to `set -uo pipefail` in the reach ratchet step.
+
+--- audit: original='ci(coverage): make reach-ratchet advisory (non-blocking) — reach not yet CI-reproducible' | actual=11L across 1 files | derived=full ---
