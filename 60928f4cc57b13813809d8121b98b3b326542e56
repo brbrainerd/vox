@@ -1,0 +1,10 @@
+feat(vox-db-types): extract `Research*` and `Oratio*` structs from `vox-db`
+scale: ~322 lines across 5 files [L]
+
+- `crates/vox-db-types/src/store_types/research.rs`: Added new file containing the `ExternalResearchPacket`, `ResearchIngestRequest`, `ResearchIngestResult`, `CapabilityMapRecord`, `ResearchEvalRunRecord`, and `ResearchEvalSampleRecord` structs.
+- `crates/vox-db/src/research.rs`: Removed the `ExternalResearchPacket`, `ResearchIngestRequest`, `ResearchIngestResult`, `CapabilityMapRecord`, `ResearchEvalRunRecord`, and `ResearchEvalSampleRecord` structs, replacing them with a `pub use vox_db_types::store_types::research::*;` re-export.
+- `crates/vox-db-types/src/store_types/oratio.rs`: Added new file containing the `OratioEvalRunRecord`, `OratioEvalRunStartParams`, and `OratioEvalSampleRecord` structs.
+- `crates/vox-db/src/oratio_eval.rs`: Removed the `OratioEvalRunRecord`, `OratioEvalRunStartParams`, and `OratioEvalSampleRecord` structs, replacing them with a `pub use vox_db_types::store_types::oratio::*;` re-export.
+- `crates/vox-db-types/src/store_types/mod.rs`: Added `pub mod oratio;` and `pub mod research;` to expose the new modules.
+
+--- audit: original='refactor(vox-db-types): extract Research*/Oratio* structs from vox-db' | actual=322L across 5 files | derived=full ---
