@@ -1,0 +1,11 @@
+feat(vox-runtime): introduce foundational types for runtime configuration and lifecycle
+scale: ~737 lines across 6 files [L]
+
+- `crates/vox-runtime/src/profile.rs`: Add `RuntimeProfile` enum to define desktop vs. mobile execution profiles, including `SchedulerThreads`, `JournalFlushStrategy`, and `ModelLoadingStrategy` policies.
+- `crates/vox-runtime/src/lifecycle.rs`: Introduce `Suspendable` and `Resumable` traits, `SuspendDeadline` enum, and `SuspendError`/`ResumeError` types for managing OS suspend/resume cycles.
+- `crates/vox-runtime/src/config.rs`: Define `VoxConfig` struct for per-instance runtime configuration (data_dir, model_dir, log_level, profile) with `desktop()` and `mobile()` constructors.
+- `crates/vox-runtime/tests/profile_integration.rs`: Add integration tests for `VoxConfig` and `RuntimeProfile` defaults, and an end-to-end suspend/resume flow using an `InMemoryJournal`.
+- `crates/vox-runtime/src/lib.rs`: Export core types and modules, providing an overview of the crate's scope and purpose.
+- `crates/vox-runtime/Cargo.toml`: Configure crate as `rlib`, `cdylib`, and `staticlib` for desktop and mobile linking, and add dependencies.
+
+--- audit: original='feat(vox-runtime): Phase 2 foundation crate (RuntimeProfile, VoxConfig, Suspendable)' | actual=737L across 6 files | derived=full ---
