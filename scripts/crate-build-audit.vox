@@ -1,0 +1,406 @@
+// vox:caps fs process env
+// scripts/crate-build-audit.vox
+//
+// Dynamic crate-dependency + build-time audit. Refreshes the leaf-design map
+// as the codebase changes. Reads `cargo metadata` (dependency adjacency +
+// per-crate LoC), `docs/src/architecture/layers.toml` (layer + budgets), and
+// the most recent `cargo build --timings` HTML (per-crate compile self-time),
+// then writes:
+//   graphify-out/crate_audit.json     — machine-readable per-crate dataset
+//   graphify-out/CRATE_BUILD_AUDIT.md — human report + leaf-design findings
+//
+// Usage:
+//   vox run --mode interp scripts/crate-build-audit.vox            # refresh from existing timings
+//   VOX_AUDIT_BUILD=1 vox run --mode interp scripts/crate-build-audit.vox  # cold-rebuild first, then audit
+//
+// Run with `--mode interp` for speed: this script does no heavy compute, so the
+// tree-walking interpreter (no Rust compile step) is the fast path. It runs in
+// the native lane too (Json.as_int()/as_float() codegen parity was fixed by the
+// VoxJson as_i64/as_f64 aliases), but native adds a multi-minute first compile.
+//
+// Source of truth for crate→layer assignment: docs/src/architecture/layers.toml
+// Companion stale-by-hand docs it supersedes: build-time-baseline.md / build-time-log.md
+
+import fs;
+import process;
+import json;
+import env;
+
+// ── JSON accessors (strict-Option API) ──────────────────────────────────────
+fn jstr(j: Json, k: str) to str {
+    return j.get(k).and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+}
+fn jarr(j: Json, k: str) to list[Json] {
+    return j.get(k).and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
+}
+fn jfloat(j: Json, k: str) to float {
+    return j.get(k).and_then(fn(x: Json) to Option[float] { x.as_float() }).unwrap_or(0.0)
+}
+
+fn contains_str(xs: list[str], v: str) to bool {
+    for x in xs { if x == v { return true } }
+    return false
+}
+
+fn find_idx(xs: list[str], v: str) to int {
+    let mut i = 0
+    while i < xs.len() {
+        if xs.get(i).unwrap() == v { return i }
+        i = i + 1
+    }
+    return -1
+}
+
+// Round a float to 1 decimal place, as a display string.
+fn fmt1(f: float) to str {
+    let scaled = int(f * 10.0 + 0.5)
+    let whole = scaled / 10
+    let frac = scaled - whole * 10
+    return str(whole) + "." + str(frac)
+}
+
+// Extract an integer field from a layers.toml inline-table body, e.g.
+// "layer = 3, max_loc = 45_000". Returns -1 if the key is absent.
+fn toml_int(body: str, key: str) to int {
+    let after = body.split(key + " =")
+    if after.len() < 2 { return -1 }
+    let tail = after.get(1).unwrap()
+    // value ends at the next comma or closing brace
+    let v0 = tail.split(",").get(0).unwrap()
+    let v1 = v0.split("}").get(0).unwrap().trim().replace("_", "")
+    let p = json.parse(v1)
+    if p.is_err() { return -1 }
+    return p.unwrap().as_int().unwrap_or(-1)
+}
+
+fn main() {
+    print("crate-build-audit: dependency + LoC + build-time refresh")
+    if not fs.exists("graphify-out") {
+        match fs.mkdir("graphify-out") { Ok(_) => {} Error(_) => {} }
+    }
+
+    // ── Optional: cold rebuild to refresh timings ───────────────────────────
+    let do_build = env.get("VOX_AUDIT_BUILD").unwrap_or("") == "1"
+    if do_build {
+        print("VOX_AUDIT_BUILD=1 → cold timed build (this takes minutes)...")
+        let b = process.run("cargo", ["build", "--workspace",
+            "--exclude", "vox-gui",
+            "--exclude", "vox-plugin-mens-candle-cuda",
+            "--exclude", "vox-plugin-mens-candle-metal",
+            "--timings"])
+        if b is null { print("  could not spawn cargo build"); }
+        else {
+            let br = b.unwrap()
+            if br.code != 0 { print("  build exited " + str(br.code) + " (continuing with partial timings)") }
+            else { print("  build OK") }
+        }
+    }
+
+    // ── 1. cargo metadata → packages ────────────────────────────────────────
+    let proc = process.run("cargo", ["metadata", "--format-version", "1", "--no-deps"])
+    if proc is null { print("error: could not spawn cargo metadata"); process.exit(1) }
+    let parsed = json.parse(proc.unwrap().stdout)
+    if parsed.is_err() { print("error: cargo metadata JSON parse: " + parsed.unwrap_err()); process.exit(1) }
+    let pkgs = jarr(parsed.unwrap(), "packages")
+
+    // names[] = workspace crate names
+    let mut names = []
+    for p in pkgs { names = names.push(jstr(p, "name")) }
+
+    // depsList[i] = internal (workspace) deps of crate i, deduped
+    let mut depsList = []
+    for p in pkgs {
+        let mut inner = []
+        for d in jarr(p, "dependencies") {
+            let dn = jstr(d, "name")
+            if dn != jstr(p, "name") {
+                if contains_str(names, dn) {
+                    if not contains_str(inner, dn) { inner = inner.push(dn) }
+                }
+            }
+        }
+        depsList = depsList.push(inner)
+    }
+
+    // ── 2. LoC per crate (src/**/*.rs) ──────────────────────────────────────
+    let mut locs = []
+    let mut i = 0
+    while i < names.len() {
+        let name = names.get(i).unwrap()
+        let g = fs.glob("crates/" + name + "/src/**/*.rs")
+        let mut loc = 0
+        if not g.is_err() {
+            for f in g.unwrap() {
+                let c = fs.read(f)
+                if not c.is_err() { loc = loc + c.unwrap().split("\n").len() }
+            }
+        }
+        locs = locs.push(loc)
+        i = i + 1
+    }
+
+    // ── 3. layers.toml → layer / max_loc / max_dependents ───────────────────
+    // Parse the inline-table rows into parallel lookup lists first, then read
+    // values per-crate in `names` order (Vox lists have no indexed set()).
+    let mut ltNames = []
+    let mut ltLayer = []
+    let mut ltMaxLoc = []
+    let mut ltMaxDep = []
+    let lt = fs.read("docs/src/architecture/layers.toml")
+    if not lt.is_err() {
+        for line in lt.unwrap().split("\n") {
+            let raw = line.split("#").get(0).unwrap().trim()
+            if raw.contains("= {") {
+                if raw.contains("layer =") {
+                    let cname = raw.split("=").get(0).unwrap().trim()
+                    let bodyParts = raw.split("{")
+                    if bodyParts.len() >= 2 {
+                        let body = bodyParts.get(1).unwrap()
+                        ltNames = ltNames.push(cname)
+                        ltLayer = ltLayer.push(toml_int(body, "layer"))
+                        ltMaxLoc = ltMaxLoc.push(toml_int(body, "max_loc"))
+                        ltMaxDep = ltMaxDep.push(toml_int(body, "max_dependents"))
+                    }
+                }
+            }
+        }
+    }
+    let mut layerOf = []
+    let mut maxLoc = []
+    let mut maxDep = []
+    i = 0
+    while i < names.len() {
+        let idx = find_idx(ltNames, names.get(i).unwrap())
+        if idx < 0 {
+            layerOf = layerOf.push(-1)
+            maxLoc = maxLoc.push(-1)
+            maxDep = maxDep.push(-1)
+        } else {
+            layerOf = layerOf.push(ltLayer.get(idx).unwrap())
+            maxLoc = maxLoc.push(ltMaxLoc.get(idx).unwrap())
+            maxDep = maxDep.push(ltMaxDep.get(idx).unwrap())
+        }
+        i = i + 1
+    }
+
+    // ── 4. fan-in (how many crates depend on crate i) ───────────────────────
+    let mut fanIn = []
+    i = 0
+    while i < names.len() {
+        let target = names.get(i).unwrap()
+        let mut count = 0
+        for inner in depsList {
+            if contains_str(inner, target) { count = count + 1 }
+        }
+        fanIn = fanIn.push(count)
+        i = i + 1
+    }
+
+    // ── 5. compile self-time from newest cargo-timings HTML ─────────────────
+    // Collect (name,duration) units first, then sum per crate in names order.
+    let mut unitNames = []
+    let mut unitDurs = []
+    let htmlPath = "target/cargo-timings/cargo-timing.html"
+    let mut haveTimings = false
+    if fs.exists(htmlPath) {
+        let h = fs.read(htmlPath).unwrap()
+        let after = h.split("UNIT_DATA = ")
+        if after.len() > 1 {
+            let arrStr = after.get(1).unwrap().split("];").get(0).unwrap() + "]"
+            let ua = json.parse(arrStr)
+            if not ua.is_err() {
+                haveTimings = true
+                for u in ua.unwrap().as_array().unwrap_or([]) {
+                    unitNames = unitNames.push(jstr(u, "name"))
+                    unitDurs = unitDurs.push(jfloat(u, "duration"))
+                }
+            }
+        }
+    }
+    let mut compileS = []
+    i = 0
+    while i < names.len() {
+        let target = names.get(i).unwrap()
+        let mut sum = 0.0
+        let mut u = 0
+        while u < unitNames.len() {
+            if unitNames.get(u).unwrap() == target { sum = sum + unitDurs.get(u).unwrap() }
+            u = u + 1
+        }
+        compileS = compileS.push(sum)
+        i = i + 1
+    }
+
+    // ── 6. Emit machine JSON ────────────────────────────────────────────────
+    let mut totalLoc = 0
+    i = 0
+    while i < names.len() { totalLoc = totalLoc + locs.get(i).unwrap(); i = i + 1 }
+
+    let mut j = "[\n"
+    i = 0
+    while i < names.len() {
+        let mut depsJson = "["
+        let inner = depsList.get(i).unwrap()
+        let mut di = 0
+        while di < inner.len() {
+            depsJson = depsJson + "\"" + inner.get(di).unwrap() + "\""
+            if di < inner.len() - 1 { depsJson = depsJson + "," }
+            di = di + 1
+        }
+        let mut row = "  {\"crate\":\"" + names.get(i).unwrap() + "\""
+        row = row + ",\"layer\":" + str(layerOf.get(i).unwrap())
+        row = row + ",\"loc\":" + str(locs.get(i).unwrap())
+        row = row + ",\"fan_in\":" + str(fanIn.get(i).unwrap())
+        row = row + ",\"fan_out\":" + str(inner.len())
+        row = row + ",\"compile_s\":" + fmt1(compileS.get(i).unwrap())
+        row = row + ",\"max_loc\":" + str(maxLoc.get(i).unwrap())
+        row = row + ",\"max_dependents\":" + str(maxDep.get(i).unwrap())
+        row = row + ",\"deps\":" + depsJson + "]}"
+        j = j + row
+        if i < names.len() - 1 { j = j + ",\n" }
+        i = i + 1
+    }
+    j = j + "\n]\n"
+    fs.write_file("graphify-out/crate_audit.json", j)
+
+    // ── 7. Emit human report ────────────────────────────────────────────────
+    let mut md = "# Crate Build & Dependency Audit\n\n"
+    md = md + "Auto-generated by `scripts/crate-build-audit.vox`. "
+    md = md + "Refresh: `vox run --mode interp scripts/crate-build-audit.vox` "
+    md = md + "(add `VOX_AUDIT_BUILD=1` to re-measure compile times).\n\n"
+    md = md + "- Workspace crates: **" + str(names.len()) + "**\n"
+    md = md + "- Total src LoC: **" + str(totalLoc) + "**\n"
+    if haveTimings { md = md + "- Compile times: from latest `cargo build --timings`\n" }
+    else { md = md + "- Compile times: _none found — run with VOX_AUDIT_BUILD=1_\n" }
+    md = md + "\n"
+
+    // Top 15 by fan-in
+    md = md + "## Recompile blast radius — top 15 by fan-in\n\n"
+    md = md + "| Crate | Dependents | Layer | LoC | compile s | over budget |\n"
+    md = md + "|---|---|---|---|---|---|\n"
+    md = md + top_table(names, fanIn, layerOf, locs, compileS, fanIn, maxDep, 15, "dep")
+
+    // Top 15 by compile time
+    md = md + "\n## Build-cost hotspots — top 15 by compile self-time\n\n"
+    md = md + "| Crate | compile s | Layer | LoC | fan-in | over budget |\n"
+    md = md + "|---|---|---|---|---|---|\n"
+    md = md + top_table_f(names, compileS, layerOf, locs, fanIn, maxLoc, 15)
+
+    // Leaf design summary
+    let mut leaves = 0
+    let mut orphans = 0
+    i = 0
+    while i < names.len() {
+        if depsList.get(i).unwrap().len() == 0 { leaves = leaves + 1 }
+        if fanIn.get(i).unwrap() == 0 { orphans = orphans + 1 }
+        i = i + 1
+    }
+    md = md + "\n## Leaf design\n\n"
+    md = md + "- True leaves (depend on no workspace crate): **" + str(leaves) + "**\n"
+    md = md + "- Zero-dependent crates (fan-in = 0 — candidate orphans/binaries): **" + str(orphans) + "**\n"
+
+    // ── Optimization targets (computed from current data) ───────────────────
+    md = md + "\n## Optimization targets\n\n"
+
+    md = md + "### Over LoC budget (arch-check warns; split candidates)\n\n"
+    i = 0
+    let mut anyOver = false
+    while i < names.len() {
+        let ml = maxLoc.get(i).unwrap()
+        let lc = locs.get(i).unwrap()
+        if ml >= 0 { if lc > ml {
+            md = md + "- `" + names.get(i).unwrap() + "` — " + str(lc) + " LoC (budget " + str(ml) + "), compile " + fmt1(compileS.get(i).unwrap()) + "s\n"
+            anyOver = true
+        } }
+        i = i + 1
+    }
+    if not anyOver { md = md + "- _none_\n" }
+
+    md = md + "\n### Slow per kLoC (macro/generic/dep bloat — best ROI to trim deps)\n\n"
+    i = 0
+    while i < names.len() {
+        let lc = locs.get(i).unwrap()
+        let cs = compileS.get(i).unwrap()
+        if lc > 1000 {
+            let perK = cs / (int(lc) / 1000.0)
+            if perK > 2.0 {
+                md = md + "- `" + names.get(i).unwrap() + "` — " + fmt1(perK) + " s/kLoC (" + fmt1(cs) + "s for " + str(lc) + " LoC)\n"
+            }
+        }
+        i = i + 1
+    }
+
+    md = md + "\n### Zero-dependent libraries (verify still needed)\n\n"
+    i = 0
+    while i < names.len() {
+        if fanIn.get(i).unwrap() == 0 {
+            md = md + "- `" + names.get(i).unwrap() + "` (L" + str(layerOf.get(i).unwrap()) + ", " + str(locs.get(i).unwrap()) + " LoC)\n"
+        }
+        i = i + 1
+    }
+
+    fs.write_file("graphify-out/CRATE_BUILD_AUDIT.md", md)
+
+    print("wrote graphify-out/crate_audit.json (" + str(names.len()) + " crates)")
+    print("wrote graphify-out/CRATE_BUILD_AUDIT.md")
+}
+
+// Top-N table by an integer key (sortKey). Emits markdown rows.
+fn top_table(names: list[str], sortKey: list[int], layerOf: list[int], locs: list[int], compileS: list[float], fanIn: list[int], budget: list[int], n: int, kind: str) to str {
+    let mut usedNames = []
+    let mut out = ""
+    let mut picked = 0
+    while picked < n {
+        let mut best = -1
+        let mut bestVal = -1
+        let mut k = 0
+        while k < names.len() {
+            if not contains_str(usedNames, names.get(k).unwrap()) {
+                if sortKey.get(k).unwrap() > bestVal { bestVal = sortKey.get(k).unwrap(); best = k }
+            }
+            k = k + 1
+        }
+        if best < 0 { picked = n } else {
+            usedNames = usedNames.push(names.get(best).unwrap())
+            let b = budget.get(best).unwrap()
+            let fi = fanIn.get(best).unwrap()
+            let mut over = ""
+            if b >= 0 { if fi > b { over = "⚠ fan-in>" + str(b) } }
+            out = out + "| `" + names.get(best).unwrap() + "` | " + str(fanIn.get(best).unwrap())
+            out = out + " | L" + str(layerOf.get(best).unwrap()) + " | " + str(locs.get(best).unwrap())
+            out = out + " | " + fmt1(compileS.get(best).unwrap()) + " | " + over + " |\n"
+            picked = picked + 1
+        }
+    }
+    return out
+}
+
+// Top-N table by a float key (compile time).
+fn top_table_f(names: list[str], sortKey: list[float], layerOf: list[int], locs: list[int], fanIn: list[int], maxLoc: list[int], n: int) to str {
+    let mut usedNames = []
+    let mut out = ""
+    let mut picked = 0
+    while picked < n {
+        let mut best = -1
+        let mut bestVal = -1.0
+        let mut k = 0
+        while k < names.len() {
+            if not contains_str(usedNames, names.get(k).unwrap()) {
+                if sortKey.get(k).unwrap() > bestVal { bestVal = sortKey.get(k).unwrap(); best = k }
+            }
+            k = k + 1
+        }
+        if best < 0 { picked = n } else {
+            usedNames = usedNames.push(names.get(best).unwrap())
+            let ml = maxLoc.get(best).unwrap()
+            let lc = locs.get(best).unwrap()
+            let mut over = ""
+            if ml >= 0 { if lc > ml { over = "⚠ LoC>" + str(ml) } }
+            out = out + "| `" + names.get(best).unwrap() + "` | " + fmt1(sortKey.get(best).unwrap())
+            out = out + " | L" + str(layerOf.get(best).unwrap()) + " | " + str(lc)
+            out = out + " | " + str(fanIn.get(best).unwrap()) + " | " + over + " |\n"
+            picked = picked + 1
+        }
+    }
+    return out
+}
