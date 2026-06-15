@@ -1,0 +1,6 @@
+refactor(vox-cli): reflow `Error::other` closure in `sandbox.rs`
+scale: ~4 lines across 1 files [XS]
+
+- `crates/vox-cli/src/commands/runtime/run/sandbox.rs`: Reformatted the `map_err` closure for `std::io::Error::other` to a single line, removing unnecessary curly braces and newlines.
+
+--- audit: original='style(vox-cli): reflow sandbox.rs Error::other to satisfy rustfmt (post-#157)' | actual=4L across 1 files | derived=full ---
