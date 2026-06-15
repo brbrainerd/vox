@@ -1,0 +1,36 @@
+feat(pricing): DeepSeek off-peak discount, AnthropicDirect catalog, LiteLLM cache pricing
+scale: ~1482 lines across 35 files [XL]
+
+- **crates/vox-orchestrator/src/orchestrator/catalog_refresh.rs**: Added a new background task for refreshing the model catalog, fetching data from OpenRouter and LiteLLM, merging it into the `ModelRegistry`, and persisting it to cache.
+- **crates/vox-orchestrator/src/models/registry.rs**: Implemented `apply_litellm_pricing` to integrate LiteLLM oracle data, including cache pricing and Anthropic models, into the `ModelRegistry`.
+- **crates/vox-cli/src/commands/model/pricing.rs**: Extended the `model pricing` CLI command with new subcommands: `Check` for pricing freshness and `Refresh` to manually fetch and update the local pricing catalog.
+- **crates/vox-orchestrator/src/catalog.rs**: Updated `ModelCatalog` implementations (OpenRouter, Ollama, HuggingFace, Mens, AnthropicDirect) to include new fields for cache pricing (`cache_creation_cost_per_1k`, `cache_read_cost_per_1k`), `supports_prompt_caching`, and `pricing_source`.
+- **crates/vox-orchestrator/src/mcp_tools/llm_bridge/infer.rs**: Modified `estimated_cost_usd` to apply DeepSeek off-peak discounts and account for cached tokens when calculating LLM inference costs.
+- **crates/vox-orchestrator/src/models/scoring.rs**: Introduced `is_deepseek_off_peak` function to determine if DeepSeek's off-peak pricing window is active and added routing score bonuses (`DEEPSEEK_OFFPEAK_V3_BONUS`, `DEEPSEEK_OFFPEAK_R1_BONUS`) for DeepSeek models during these periods.
+- **contracts/operations/catalog.v1.yaml**: Updated the catalog schema to reflect new pricing fields.
+- **contracts/capability/capability-registry.yaml**: Added new capabilities related to pricing and catalog management.
+- **contracts/cli/command-registry.yaml**: Updated CLI command definitions to include new pricing commands.
+- **crates/vox-orchestrator/src/mcp_tools/llm_bridge/providers/anthropic.rs**: Enhanced Anthropic provider to support direct catalog integration.
+- **crates/vox-doc-pipeline/src/pipeline/feed.rs**: Adjusted feed generation logic, likely to accommodate new catalog data.
+- **docs/src/feed.xml**: Updated documentation feed.
+- **AGENTS.md**: Modified agent documentation.
+- **crates/vox-orchestrator/src/mcp_tools/llm_bridge/providers/openai.rs**: Minor updates to OpenAI provider.
+- **crates/vox-orchestrator/tests/economy_test.rs**: Added or updated economy-related tests.
+- **crates/vox-dashboard/src/transport.ts**: Minor changes to dashboard transport.
+- **crates/vox-orchestrator/src/orchestrator/core/mod.rs**: Updated orchestrator core, likely to integrate the new catalog refresh task.
+- **crates/vox-orchestrator/src/mcp_tools/chat_tools/mod.rs**: Minor changes to chat tools.
+- **crates/vox-orchestrator/src/mcp_tools/llm_bridge/provider_auth.rs**: Minor updates to provider authentication.
+- **contracts/reports/operations-catalog-inventory.v1.json**: Updated catalog inventory report.
+- **crates/vox-orchestrator/src/mcp_tools/llm_bridge/infer_test_stub.rs**: Minor changes to inference test stub.
+- **crates/vox-orchestrator/src/mcp_tools/llm_bridge/provider_endpoints.rs**: Minor updates to provider endpoints.
+- **crates/vox-orchestrator/src/mcp_tools/llm_bridge/provider_adapter.rs**: Minor updates to provider adapter.
+- **crates/vox-orchestrator/src/mcp_tools/llm_bridge/providers/metadata.rs**: Minor updates to provider metadata.
+- **crates/vox-orchestrator/src/models/mod.rs**: Minor changes to models module.
+- **docs/src/SUMMARY.md**: Updated documentation summary.
+- **docs/src/adr/022-orchestrator-bootstrap-and-daemon-boundaries.md**: Updated ADR.
+- **.lycheeignore**: Added new entries to ignore list.
+- **crates/vox-orchestrator/src/mcp_tools/llm_bridge/providers/gemini.rs**: Minor updates to Gemini provider.
+- **crates/vox-orchestrator/src/mcp_tools/llm_bridge/providers/ollama_chat.rs**: Minor updates to Ollama chat provider.
+- **crates/vox-orchestrator/src/orchestrator.rs**: Minor updates to orchestrator.
+
+--- audit: original='feat(pricing): DeepSeek cost optimisation — off-peak discount, AnthropicDirect catalog, LiteLLM cache pricing' | actual=1482L across 35 files | derived=full ---
