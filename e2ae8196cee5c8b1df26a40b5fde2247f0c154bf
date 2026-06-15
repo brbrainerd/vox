@@ -1,0 +1,10 @@
+feat(compiler): add form checking and HirType display utility
+scale: ~67 lines across 2 files [M]
+
+- `crates/vox-compiler/src/typeck/form_check.rs`:
+    - Implement `check_forms` function to validate `@form` declarations, including checking for field type mismatches.
+    - Introduce `display_hir_ty` utility function to render `HirType` as a human-readable string for diagnostic messages.
+    - Remove unused `Span` and `dummy_span` imports.
+- `crates/vox-compiler/src/hir/nodes/decl.rs`: Add "forms" to the list of `HirModule` fields with `AppContract` ownership.
+
+--- audit: original='refactor(compiler): form_check readability + HirType display' | actual=67L across 2 files | derived=full ---
