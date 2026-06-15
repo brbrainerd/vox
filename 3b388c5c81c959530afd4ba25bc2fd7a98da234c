@@ -1,0 +1,10 @@
+chore(reports): Update daily contract audit report snapshots for 2026-05-27
+scale: ~86 lines across 6 files [M]
+
+- contracts/reports/corpus-feedback: Add new daily snapshot `2026-05-27.json` and update `measured_at` timestamp in `2026-Q2.json`. The new daily report notes no events for this run and references the existing Q2 report.
+- contracts/reports/stdlib-coverage: Add new daily snapshot `2026-05-27.json` indicating clean stdlib coverage with 0 errors.
+- contracts/reports/aci-default: Add new daily snapshot `2026-05-27.json`.
+- contracts/reports/retirement: Add new daily snapshot `2026-05-27.json`.
+- contracts/reports/humaneval: Update `measured_at` timestamp in `2026-05-27.json`.
+
+--- audit: original='chore(reports): 2026-05-27 audit report snapshots' | actual=86L across 6 files | derived=full ---
