@@ -1,0 +1,17 @@
+ci(workflows): Gate heavy CI jobs behind merge_group or 'full-ci' label
+scale: ~9 lines across 3 files [S]
+
+- **.github/workflows/mobile-e2e-android.yml**:
+  - Added `merge_group` as a trigger event.
+  - Modified the `android-e2e` job to run only on `merge_group` events or if the PR has the 'full-ci' label.
+  - Added a comment explaining the tiering for this job.
+- **.github/workflows/mobile-eas-build.yml**:
+  - Added `merge_group` as a trigger event.
+  - Modified the `bundle` job to run only on `merge_group` events or if the PR has the 'full-ci' label.
+  - Added a comment explaining the tiering for this job.
+- **.github/workflows/mutation-pr.yml**:
+  - Added `merge_group` as a trigger event.
+  - Modified the `cargo-mutants` job to run only on `merge_group` events or if the PR has the 'full-ci' label.
+  - Added a comment explaining the tiering for this job.
+
+--- audit: original='ci(tier): gate Mobile E2E/EAS + Mutation-PR behind merge_group + full-ci label (#314)' | actual=9L across 3 files | derived=full ---
