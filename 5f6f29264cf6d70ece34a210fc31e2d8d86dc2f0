@@ -1,0 +1,26 @@
+feat(orchestrator): integrate in-process jj-actor; remove jj-backend feature
+scale: ~265 lines across 10 files [L]
+
+- `crates/vox-orchestrator/src/jj_backend.rs`: Deleted the `jj_backend` module, removing the previous integration wrapper for `jj-lib`.
+- `crates/vox-orchestrator/src/workspace.rs`:
+    - Replaced the `jj-backend` feature flag with `jj`.
+    - Added a `vcs: Option<vox_vcs::JjActorHandle>` field to `WorkspaceManager` to hold the in-process jj VCS handle.
+    - Added a `set_vcs` method to `WorkspaceManager` to inject the `JjActorHandle`.
+    - Updated the `flush_snapshot_commit` logic to use the new `vcs` field when the `jj` feature is enabled.
+- `crates/vox-orchestrator/src/orchestrator/core/mod.rs`:
+    - Added `enable_jj_vcs` function to spawn the in-process jj VCS actor and inject its handle into the `WorkspaceManager`.
+    - Modified `spawn_background_tasks` to call `enable_jj_vcs` if the `jj` feature is enabled, attempting to discover the repo root from CWD.
+- `crates/vox-vcs/src/jj_actor.rs`:
+    - Added a public `spawn_handle` function to `jj_actor` to simplify spawning the actor.
+    - Derived `Debug` for `JjActorHandle`.
+- `crates/vox-orchestrator/src/lib.rs`: Removed the `jj_backend` module declaration.
+- `crates/vox-vcs/src/lib.rs`: Exported `spawn_handle` as `spawn_jj_actor` under the `jj` feature.
+- `crates/vox-doc-inventory/src/constants.rs`: Removed `crates/vox-orchestrator/src/jj_backend.rs` from `HOTSPOT_TIER2_RUST`.
+- `docs/agents/orchestrator.md`: Updated documentation to reflect that jj integration is now via the `vox-vcs` in-process actor.
+- `crates/vox-orchestrator/Cargo.toml`:
+    - Changed the default feature from `jj-backend` to `jj`.
+    - Replaced the direct `jj-lib` dependency with `vox-vcs` with the `jj` feature enabled.
+    - Removed the `jj-backend` feature definition.
+- `Cargo.lock`: Updated dependencies due to changes in `Cargo.toml`.
+
+--- audit: original='feat(orchestrator): wire in-process jj-actor (replaces JjBridge subprocess); drop jj-backend feature' | actual=265L across 10 files | derived=full ---
