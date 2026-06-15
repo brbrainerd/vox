@@ -1,0 +1,12 @@
+feat(parser,pipeline): Add `attr_X=` escape and ADR-028 comment-skip fix
+scale: ~159 lines across 6 files [M]
+
+- `pipeline`: Implement `find_outside_comments_and_strings` to skip comments and string literals when checking for ADR-028 reserved keywords, preventing false positives.
+- `parser/descent/expr/pratt_match`: Extend view-call self-closing logic to include lowercase callees with at least one named argument, covering raw HTML elements like `input`.
+- `parser/descent/expr/pratt_match`: Implement `attr_` prefix stripping for attribute names, allowing keywords like `type` to be used as HTML attributes (e.g., `input(attr_type="checkbox")`).
+- `parser/descent/tests`: Add a new test case for `attr_` prefix stripping.
+- `examples/golden/index_showcase.vox`: Update `input` element to use `attr_type="checkbox"` and include `checked` and `on_change` attributes, enabling a functional checkbox.
+- `vox-dashboard/app/src/tabs/forge.vox`: Revert "orchestration" back to "workflow" in a comment, now that the ADR-028 comment-skip fix is in place.
+- `.claude/settings.local.json`: Add a new `grep` command to the settings.
+
+--- audit: original='feat(parser,pipeline): VUV `attr_X=` escape + ADR-028 comment-skip fix' | actual=159L across 6 files | derived=full ---
