@@ -87,6 +87,15 @@ mod tests {
     }
 
     #[test]
+    fn lexes_at_traced() {
+        let toks = lex_tokens("@traced fn f() to int { return 1 }");
+        assert!(
+            toks.iter().any(|t| matches!(t, Token::AtTraced)),
+            "@traced must lex to AtTraced"
+        );
+    }
+
+    #[test]
     fn test_simple_let_binding() {
         let tokens = lex_tokens("let x = 5");
         assert_eq!(
