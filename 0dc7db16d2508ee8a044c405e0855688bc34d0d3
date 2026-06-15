@@ -1,0 +1,12 @@
+docs(architecture): add multi-agent VCS replication research, spec, and Phase 1 implementation plan
+scale: ~2463 lines across 7 files [XL]
+
+- docs/src/architecture/multi-agent-vcs-replication-impl-plan-phase1-2026.md: Add a new 1754-line document detailing the step-by-step TDD implementation plan for Phase 1 of multi-agent VCS replication, focusing on local op-log gossip.
+- docs/src/architecture/multi-agent-vcs-replication-spec-2026.md: Add a new 303-line architecture specification for multi-agent VCS replication, defining primitives, wire protocol, and rollout phases.
+- docs/src/architecture/multi-agent-vcs-replication-research-2026.md: Add a new 134-line research document surveying existing VCS and CRDT systems and recommending an op-log gossip approach built on jj-lib and Populi mesh.
+- docs/src/architecture/research-index.md: Update the research index to include links and descriptions for the new multi-agent VCS replication research and spec documents.
+- docs/src/SUMMARY.md: Update the main summary document to include the new multi-agent VCS replication documentation.
+- docs/src/architecture/architecture-index.md: Update the architecture index to include the new multi-agent VCS replication documentation.
+- docs/src/feed.xml: Regenerate the RSS feed, resulting in a change of 133 additions and 128 deletions.
+
+--- audit: original='docs(architecture): add multi-agent VCS replication research, spec, and Phase 1 impl plan' | actual=2463L across 7 files | derived=full ---
