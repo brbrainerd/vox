@@ -1,0 +1,11 @@
+feat(models): add `vox model eval` command and latency injection
+scale: ~663 lines across 6 files [L]
+
+- `crates/vox-cli/src/commands/model/eval.rs`: Add new `eval` command to `vox model` CLI. This command runs a 10-fixture benchmark against models, calculating intelligence (pass rate), token efficiency (tokens per passed), and responsiveness (p50/p99 latency). It then writes `quality_score` (pass rate) and observed p50 latency back to the model scoreboard.
+- `crates/vox-orchestrator/src/models/registry.rs`: Implement `inject_scoreboard_latency` function to update `ModelSpec`'s `capabilities.latency_p50_ms` with observed p50 values from `ModelScoreboardRow`s, ensuring the latency scorer uses real telemetry.
+- `crates/vox-orchestrator/src/models/tests.rs`: Add new test module `scoreboard_latency_injection_tests` to verify the correct injection of scoreboard latency into model capabilities.
+- `crates/vox-orchestrator/src/orchestrator/core/telemetry.rs`: Call `registry.inject_scoreboard_latency` during `refresh_model_scoreboard` to close the latency gap, logging the number of updated latency p50s.
+- `crates/vox-cli/src/commands/model/mod.rs`: Register the new `eval` subcommand under `ModelCmd`.
+- `crates/vox-cli/src/lib.rs`: Add `models` as a visible alias for the `model` subcommand.
+
+--- audit: original='@ feat(models): data-backed 3-axis measurement + vox models eval' | actual=663L across 6 files | derived=full ---
