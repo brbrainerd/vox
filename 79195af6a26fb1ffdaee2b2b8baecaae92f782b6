@@ -1,0 +1,6 @@
+refactor(gui): reformat `list_discovery_inbox` and `get_completion_report`
+scale: ~8 lines across 1 files [XS]
+
+- `crates/vox-gui/src/commands/scientia_review.rs`: Reformatted the function signatures for `list_discovery_inbox` and `get_completion_report` to place the `limit: Option<i64>` and `publication_id: String` parameters on the same line as the function name, reducing line count.
+
+--- audit: original='style(gui): rustfmt scientia_review command handlers' | actual=8L across 1 files | derived=full ---
