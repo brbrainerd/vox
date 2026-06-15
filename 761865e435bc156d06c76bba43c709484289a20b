@@ -1,0 +1,6 @@
+build(deps): update `oratio-feature` optional dependencies in `Cargo.lock`
+scale: ~4 lines across 1 files [XS]
+
+- Update `Cargo.lock` to reflect changes in optional dependencies for the `oratio-feature` crate.
+
+--- audit: original='build(gui): lockfile for oratio-feature optional deps (A4 follow-up)' | actual=4L across 1 files | derived=full ---
