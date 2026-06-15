@@ -65,10 +65,10 @@ fn default_value(spec: &LlmConfigKey) -> String {
 
 /// Generic flat resolver for keys without a dedicated accessor: env > config.toml > default.
 fn generic_flat_value(key: &str, default: &str) -> String {
-    if let Ok(v) = std::env::var(key) {
-        if !v.is_empty() {
-            return v;
-        }
+    if let Ok(v) = std::env::var(key)
+        && !v.is_empty()
+    {
+        return v;
     }
     let cfg = vox_config::toml_config::load_user_config();
     if let Some(v) = cfg.values.get(key) {
