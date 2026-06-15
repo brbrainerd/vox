@@ -489,6 +489,1051 @@ pub struct OrchestratorConfig {
     pub budget_gate_config: Option<crate::budget_gate::BudgetGateConfig>,
 }
 
+// ── Config catalog (Band B.3) ─────────────────────────────────────────────────
+
+/// Primitive type of a config field, used to drive frontend input rendering.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum FieldType {
+    Bool,
+    Int,
+    Float,
+    String,
+    Duration,
+}
+
+/// Single entry in the orchestrator config catalog returned by
+/// [`OrchestratorConfig::to_catalog`].
+#[derive(Debug, Clone, Serialize)]
+pub struct OrchestratorConfigField {
+    /// Canonical TOML / env-var key name.
+    pub key: std::string::String,
+    /// Human-readable label suitable for a settings form.
+    pub label: std::string::String,
+    /// Primitive type of the field.
+    pub field_type: FieldType,
+    /// Current effective value (from snapshot).
+    pub current_value: serde_json::Value,
+    /// Default value (from `OrchestratorConfig::default()`).
+    pub default_value: serde_json::Value,
+    /// Logical settings group / section.
+    pub group: std::string::String,
+    /// One-sentence description.
+    pub description: std::string::String,
+}
+
+impl OrchestratorConfig {
+    /// Returns a flat catalog of every public config field with its current and
+    /// default value, type, label, group, and description.
+    ///
+    /// The catalog is the authoritative source of truth for the dynamic
+    /// orchestrator settings surface in the GUI (Band B.3).
+    pub fn to_catalog(&self) -> Vec<OrchestratorConfigField> {
+        let defaults = Self::default();
+        let mut out = Vec::new();
+
+        macro_rules! field {
+            ($key:expr, $label:expr, $ftype:expr, $self_val:expr, $def_val:expr, $group:expr, $desc:expr) => {
+                out.push(OrchestratorConfigField {
+                    key: $key.to_string(),
+                    label: $label.to_string(),
+                    field_type: $ftype,
+                    current_value: serde_json::json!($self_val),
+                    default_value: serde_json::json!($def_val),
+                    group: $group.to_string(),
+                    description: $desc.to_string(),
+                });
+            };
+        }
+
+        // ── Core ──────────────────────────────────────────────────────────────
+        field!(
+            "enabled",
+            "Enabled",
+            FieldType::Bool,
+            self.enabled,
+            defaults.enabled,
+            "core",
+            "Whether the orchestrator is enabled."
+        );
+        field!(
+            "max_agents",
+            "Max Agents",
+            FieldType::Int,
+            self.max_agents,
+            defaults.max_agents,
+            "core",
+            "Maximum number of concurrent agents."
+        );
+        field!(
+            "min_agents",
+            "Min Agents",
+            FieldType::Int,
+            self.min_agents,
+            defaults.min_agents,
+            "core",
+            "Minimum number of concurrent agents."
+        );
+        field!(
+            "log_level",
+            "Log Level",
+            FieldType::String,
+            self.log_level,
+            defaults.log_level,
+            "core",
+            "Log level for orchestrator events."
+        );
+        field!(
+            "fallback_to_single_agent",
+            "Fallback to Single Agent",
+            FieldType::Bool,
+            self.fallback_to_single_agent,
+            defaults.fallback_to_single_agent,
+            "core",
+            "Whether to fall back to a single agent when routing is ambiguous."
+        );
+        field!(
+            "bulletin_capacity",
+            "Bulletin Capacity",
+            FieldType::Int,
+            self.bulletin_capacity,
+            defaults.bulletin_capacity,
+            "core",
+            "Bulletin board broadcast channel capacity."
+        );
+        field!(
+            "lock_timeout_ms",
+            "Lock Timeout",
+            FieldType::Duration,
+            self.lock_timeout_ms,
+            defaults.lock_timeout_ms,
+            "core",
+            "Lock timeout in milliseconds."
+        );
+        field!(
+            "idle_timeout_ms",
+            "Idle Timeout",
+            FieldType::Duration,
+            self.idle_timeout_ms,
+            defaults.idle_timeout_ms,
+            "core",
+            "Global system idle timeout in milliseconds."
+        );
+        field!(
+            "task_timeout_ms",
+            "Task Timeout",
+            FieldType::Duration,
+            self.task_timeout_ms,
+            defaults.task_timeout_ms,
+            "core",
+            "Default task execution timeout in milliseconds."
+        );
+        field!(
+            "event_bus_capacity",
+            "Event Bus Capacity",
+            FieldType::Int,
+            self.event_bus_capacity,
+            defaults.event_bus_capacity,
+            "core",
+            "Event bus capacity."
+        );
+
+        // ── Scaling ───────────────────────────────────────────────────────────
+        field!(
+            "scaling_enabled",
+            "Scaling Enabled",
+            FieldType::Bool,
+            self.scaling_enabled,
+            defaults.scaling_enabled,
+            "scaling",
+            "Whether dynamic scaling is enabled."
+        );
+        field!(
+            "scaling_threshold",
+            "Scaling Threshold",
+            FieldType::Int,
+            self.scaling_threshold,
+            defaults.scaling_threshold,
+            "scaling",
+            "Queued tasks per agent to trigger scaling."
+        );
+        field!(
+            "scaling_lookback_ticks",
+            "Scaling Lookback Ticks",
+            FieldType::Int,
+            self.scaling_lookback_ticks,
+            defaults.scaling_lookback_ticks,
+            "scaling",
+            "Number of ticks to look back for predictive scaling."
+        );
+        field!(
+            "max_spawn_per_tick",
+            "Max Spawn Per Tick",
+            FieldType::Int,
+            self.max_spawn_per_tick,
+            defaults.max_spawn_per_tick,
+            "scaling",
+            "Max number of agents to spawn in one scaling tick."
+        );
+        field!(
+            "scaling_cooldown_ms",
+            "Scaling Cooldown",
+            FieldType::Duration,
+            self.scaling_cooldown_ms,
+            defaults.scaling_cooldown_ms,
+            "scaling",
+            "Cooldown in ms between scale-up actions."
+        );
+        field!(
+            "idle_retirement_ms",
+            "Idle Retirement",
+            FieldType::Duration,
+            self.idle_retirement_ms,
+            defaults.idle_retirement_ms,
+            "scaling",
+            "Time an idle dynamic agent lives before retirement in ms."
+        );
+        field!(
+            "scale_cpu_ceiling_pct",
+            "CPU Ceiling %",
+            FieldType::Float,
+            self.scale_cpu_ceiling_pct,
+            defaults.scale_cpu_ceiling_pct,
+            "scaling",
+            "Do not spawn new agents at/above this CPU% (0 disables)."
+        );
+        field!(
+            "scale_mem_floor_mb",
+            "Memory Floor MiB",
+            FieldType::Int,
+            self.scale_mem_floor_mb,
+            defaults.scale_mem_floor_mb,
+            "scaling",
+            "Do not spawn new agents below this free MiB (0 disables)."
+        );
+        field!(
+            "resource_weight",
+            "Resource Weight",
+            FieldType::Float,
+            self.resource_weight,
+            defaults.resource_weight,
+            "scaling",
+            "Weight of system resource usage in load calculation."
+        );
+        field!(
+            "resource_cpu_multiplier",
+            "CPU Multiplier",
+            FieldType::Float,
+            self.resource_cpu_multiplier,
+            defaults.resource_cpu_multiplier,
+            "scaling",
+            "Baseline multiplier for CPU usage in load calculation."
+        );
+        field!(
+            "resource_mem_multiplier",
+            "Memory Multiplier",
+            FieldType::Float,
+            self.resource_mem_multiplier,
+            defaults.resource_mem_multiplier,
+            "scaling",
+            "Baseline multiplier for Memory usage in load calculation."
+        );
+        field!(
+            "resource_exponent",
+            "Resource Exponent",
+            FieldType::Float,
+            self.resource_exponent,
+            defaults.resource_exponent,
+            "scaling",
+            "Exponent applied to the final resource factor."
+        );
+        field!(
+            "urgent_rebalance_threshold",
+            "Urgent Rebalance Threshold",
+            FieldType::Int,
+            self.urgent_rebalance_threshold,
+            defaults.urgent_rebalance_threshold,
+            "scaling",
+            "Urgent tasks on a single agent that triggers auto-rebalance."
+        );
+        field!(
+            "execution_time_budget_multiplier",
+            "Execution Time Budget Multiplier",
+            FieldType::Float,
+            self.execution_time_budget_multiplier,
+            defaults.execution_time_budget_multiplier,
+            "scaling",
+            "Safety multiplier for computing execution time budgets."
+        );
+
+        // ── Cost ──────────────────────────────────────────────────────────────
+        field!(
+            "financial_cost_budget_micros",
+            "Financial Cost Budget (micros)",
+            FieldType::Int,
+            self.financial_cost_budget_micros,
+            defaults.financial_cost_budget_micros,
+            "cost",
+            "Absolute cost cap across tasks in micros before blocking."
+        );
+
+        // ── Heartbeat ─────────────────────────────────────────────────────────
+        field!(
+            "heartbeat_interval_ms",
+            "Heartbeat Interval",
+            FieldType::Duration,
+            self.heartbeat_interval_ms,
+            defaults.heartbeat_interval_ms,
+            "heartbeat",
+            "Heartbeat check interval in milliseconds."
+        );
+        field!(
+            "stale_threshold_ms",
+            "Stale Threshold",
+            FieldType::Duration,
+            self.stale_threshold_ms,
+            defaults.stale_threshold_ms,
+            "heartbeat",
+            "Threshold in ms before an agent is considered stale."
+        );
+
+        // ── Continuation ──────────────────────────────────────────────────────
+        field!(
+            "auto_continue_enabled",
+            "Auto Continue Enabled",
+            FieldType::Bool,
+            self.auto_continue_enabled,
+            defaults.auto_continue_enabled,
+            "continuation",
+            "Whether auto-continuation is enabled."
+        );
+        field!(
+            "continuation_cooldown_ms",
+            "Continuation Cooldown",
+            FieldType::Duration,
+            self.continuation_cooldown_ms,
+            defaults.continuation_cooldown_ms,
+            "continuation",
+            "Cooldown between auto-continuations per agent in ms."
+        );
+        field!(
+            "max_auto_continuations",
+            "Max Auto Continuations",
+            FieldType::Int,
+            self.max_auto_continuations,
+            defaults.max_auto_continuations,
+            "continuation",
+            "Maximum auto-continuations before requiring manual intervention."
+        );
+
+        // ── Validation & Gates ────────────────────────────────────────────────
+        field!(
+            "toestub_gate",
+            "TOESTUB Gate",
+            FieldType::Bool,
+            self.toestub_gate,
+            defaults.toestub_gate,
+            "validation",
+            "Whether to run TOESTUB validation after each completed task."
+        );
+        field!(
+            "behavioral_gate_on_complete",
+            "Behavioral Gate on Complete",
+            FieldType::Bool,
+            self.behavioral_gate_on_complete,
+            defaults.behavioral_gate_on_complete,
+            "validation",
+            "Run behavioral gate (cargo test / npm test) on task completion."
+        );
+        field!(
+            "completion_markdown_link_audit_enabled",
+            "Markdown Link Audit",
+            FieldType::Bool,
+            self.completion_markdown_link_audit_enabled,
+            defaults.completion_markdown_link_audit_enabled,
+            "validation",
+            "Verify Markdown writes via vox ci check-links on completion."
+        );
+        field!(
+            "max_debug_iterations",
+            "Max Debug Iterations",
+            FieldType::Int,
+            self.max_debug_iterations,
+            defaults.max_debug_iterations,
+            "validation",
+            "Maximum re-routes due to validation failures."
+        );
+        field!(
+            "max_toestub_debug_iterations",
+            "Max TOESTUB Iterations",
+            FieldType::Int,
+            self.max_toestub_debug_iterations,
+            defaults.max_toestub_debug_iterations,
+            "validation",
+            "TOESTUB-specific max auto-debug retries."
+        );
+        field!(
+            "max_socrates_debug_iterations",
+            "Max Socrates Iterations",
+            FieldType::Int,
+            self.max_socrates_debug_iterations,
+            defaults.max_socrates_debug_iterations,
+            "validation",
+            "Socrates-specific max requeue retries."
+        );
+        field!(
+            "plan_adequacy_shadow",
+            "Plan Adequacy Shadow",
+            FieldType::Bool,
+            self.plan_adequacy_shadow,
+            defaults.plan_adequacy_shadow,
+            "validation",
+            "Record plan adequacy in lineage/telemetry only."
+        );
+        field!(
+            "plan_adequacy_enforce",
+            "Plan Adequacy Enforce",
+            FieldType::Bool,
+            self.plan_adequacy_enforce,
+            defaults.plan_adequacy_enforce,
+            "validation",
+            "Reject structurally thin plans at enqueue."
+        );
+
+        // ── Socrates / Trust ──────────────────────────────────────────────────
+        field!(
+            "socrates_gate_shadow",
+            "Socrates Gate Shadow",
+            FieldType::Bool,
+            self.socrates_gate_shadow,
+            defaults.socrates_gate_shadow,
+            "trust",
+            "Emit Socrates decisions to logs without blocking."
+        );
+        field!(
+            "socrates_gate_enforce",
+            "Socrates Gate Enforce",
+            FieldType::Bool,
+            self.socrates_gate_enforce,
+            defaults.socrates_gate_enforce,
+            "trust",
+            "Requeue tasks on non-answer Socrates risk decisions."
+        );
+        field!(
+            "socrates_reputation_routing",
+            "Socrates Reputation Routing",
+            FieldType::Bool,
+            self.socrates_reputation_routing,
+            defaults.socrates_reputation_routing,
+            "trust",
+            "Blend agent_reliability into routing."
+        );
+        field!(
+            "socrates_reputation_weight",
+            "Socrates Reputation Weight",
+            FieldType::Float,
+            self.socrates_reputation_weight,
+            defaults.socrates_reputation_weight,
+            "trust",
+            "Weight applied to Arca agent_reliability in routing scores."
+        );
+        field!(
+            "trust_gate_relax_enabled",
+            "Trust Gate Relax",
+            FieldType::Bool,
+            self.trust_gate_relax_enabled,
+            defaults.trust_gate_relax_enabled,
+            "trust",
+            "Allow high-reliability agents to skip certain gates."
+        );
+        field!(
+            "trust_gate_relax_min_reliability",
+            "Trust Gate Relax Min Reliability",
+            FieldType::Float,
+            self.trust_gate_relax_min_reliability,
+            defaults.trust_gate_relax_min_reliability,
+            "trust",
+            "Minimum reliability for trust gate relaxation."
+        );
+        field!(
+            "trust_ewma_alpha",
+            "Trust EWMA Alpha",
+            FieldType::Float,
+            self.trust_ewma_alpha,
+            defaults.trust_ewma_alpha,
+            "trust",
+            "EWMA alpha for trust score updates."
+        );
+        field!(
+            "trust_auto_approve_min",
+            "Trust Auto-Approve Min",
+            FieldType::Float,
+            self.trust_auto_approve_min,
+            defaults.trust_auto_approve_min,
+            "trust",
+            "Minimum trust score for auto-approve eligibility."
+        );
+        field!(
+            "trust_provisional_threshold",
+            "Trust Provisional Threshold",
+            FieldType::Int,
+            self.trust_provisional_threshold,
+            defaults.trust_provisional_threshold,
+            "trust",
+            "Minimum outcomes for Untrusted to Provisional."
+        );
+        field!(
+            "trust_trusted_threshold",
+            "Trust Trusted Threshold",
+            FieldType::Int,
+            self.trust_trusted_threshold,
+            defaults.trust_trusted_threshold,
+            "trust",
+            "Minimum outcomes for Provisional to Trusted."
+        );
+        field!(
+            "trust_task_completion_floor",
+            "Trust Completion Floor",
+            FieldType::Float,
+            self.trust_task_completion_floor,
+            defaults.trust_task_completion_floor,
+            "trust",
+            "Disqualifying floor for task completion trust rollups."
+        );
+        field!(
+            "trust_task_completion_weight",
+            "Trust Completion Weight",
+            FieldType::Float,
+            self.trust_task_completion_weight,
+            defaults.trust_task_completion_weight,
+            "trust",
+            "Weight for task completion trust rollups during routing."
+        );
+        field!(
+            "routing_exploration_epsilon",
+            "Routing Exploration Epsilon",
+            FieldType::Float,
+            self.routing_exploration_epsilon,
+            defaults.routing_exploration_epsilon,
+            "trust",
+            "Exploration epsilon for routing decisions."
+        );
+        field!(
+            "repo_shard_specialization_weight",
+            "Shard Specialization Weight",
+            FieldType::Float,
+            self.repo_shard_specialization_weight,
+            defaults.repo_shard_specialization_weight,
+            "trust",
+            "Routing bonus for shard-role specialization."
+        );
+        field!(
+            "repo_shard_validation_failure_penalty",
+            "Shard Validation Failure Penalty",
+            FieldType::Float,
+            self.repo_shard_validation_failure_penalty,
+            defaults.repo_shard_validation_failure_penalty,
+            "trust",
+            "Penalty per recent shard validation failure."
+        );
+        field!(
+            "repo_reduce_conflict_cooldown_penalty",
+            "Reduce Conflict Cooldown Penalty",
+            FieldType::Float,
+            self.repo_reduce_conflict_cooldown_penalty,
+            defaults.repo_reduce_conflict_cooldown_penalty,
+            "trust",
+            "Penalty while an agent is in reducer conflict cooldown."
+        );
+        field!(
+            "repo_reduce_conflict_cooldown_ms",
+            "Reduce Conflict Cooldown",
+            FieldType::Duration,
+            self.repo_reduce_conflict_cooldown_ms,
+            defaults.repo_reduce_conflict_cooldown_ms,
+            "trust",
+            "Cooldown window in ms after reducer conflict churn."
+        );
+
+        // ── Planning ──────────────────────────────────────────────────────────
+        field!(
+            "planning_enabled",
+            "Planning Enabled",
+            FieldType::Bool,
+            self.planning_enabled,
+            defaults.planning_enabled,
+            "planning",
+            "Enable dynamic planning mode."
+        );
+        field!(
+            "planning_router_enabled",
+            "Planning Router",
+            FieldType::Bool,
+            self.planning_router_enabled,
+            defaults.planning_router_enabled,
+            "planning",
+            "Enable intake router classification at ingress."
+        );
+        field!(
+            "planning_replan_enabled",
+            "Planning Replan",
+            FieldType::Bool,
+            self.planning_replan_enabled,
+            defaults.planning_replan_enabled,
+            "planning",
+            "Enable branch-based replanning after qualifying failures."
+        );
+        field!(
+            "planning_workflow_handoff_enabled",
+            "Planning Workflow Handoff",
+            FieldType::Bool,
+            self.planning_workflow_handoff_enabled,
+            defaults.planning_workflow_handoff_enabled,
+            "planning",
+            "Allow workflow runtime handoff path from planner."
+        );
+        field!(
+            "planning_llm_synthesis_enabled",
+            "Planning LLM Synthesis",
+            FieldType::Bool,
+            self.planning_llm_synthesis_enabled,
+            defaults.planning_llm_synthesis_enabled,
+            "planning",
+            "Use LLM to synthesize plan nodes instead of heuristics."
+        );
+        field!(
+            "planning_shadow_mode",
+            "Planning Shadow Mode",
+            FieldType::Bool,
+            self.planning_shadow_mode,
+            defaults.planning_shadow_mode,
+            "planning",
+            "Compute planning decisions but keep direct execution path."
+        );
+        field!(
+            "planning_auto_mode_enabled",
+            "Planning Auto Mode",
+            FieldType::Bool,
+            self.planning_auto_mode_enabled,
+            defaults.planning_auto_mode_enabled,
+            "planning",
+            "Enable planning_mode=auto for goal ingress."
+        );
+        field!(
+            "planning_rollout_percent",
+            "Planning Rollout %",
+            FieldType::Int,
+            self.planning_rollout_percent,
+            defaults.planning_rollout_percent,
+            "planning",
+            "Rollout percentage for auto planning (0-100)."
+        );
+        field!(
+            "planning_depth",
+            "Planning Depth",
+            FieldType::String,
+            self.planning_depth,
+            defaults.planning_depth,
+            "planning",
+            "Planning depth configuration."
+        );
+        field!(
+            "parallel_context_enabled",
+            "Parallel Context",
+            FieldType::Bool,
+            self.parallel_context_enabled,
+            defaults.parallel_context_enabled,
+            "planning",
+            "Enable parallel context gathering."
+        );
+        field!(
+            "context_gather_timeout_secs",
+            "Context Gather Timeout",
+            FieldType::Duration,
+            self.context_gather_timeout_secs,
+            defaults.context_gather_timeout_secs,
+            "planning",
+            "Timeout in seconds for context gathering."
+        );
+        field!(
+            "min_quality_score",
+            "Min Quality Score",
+            FieldType::Float,
+            self.min_quality_score,
+            defaults.min_quality_score,
+            "planning",
+            "Minimum quality score for plan acceptance."
+        );
+        field!(
+            "context_compression_enabled",
+            "Context Compression",
+            FieldType::Bool,
+            self.context_compression_enabled,
+            defaults.context_compression_enabled,
+            "planning",
+            "Enable context compression."
+        );
+
+        // ── Context Lifecycle ─────────────────────────────────────────────────
+        field!(
+            "context_lifecycle_shadow",
+            "Context Lifecycle Shadow",
+            FieldType::Bool,
+            self.context_lifecycle_shadow,
+            defaults.context_lifecycle_shadow,
+            "context",
+            "Log context envelope violations without blocking."
+        );
+        field!(
+            "context_lifecycle_enforce",
+            "Context Lifecycle Enforce",
+            FieldType::Bool,
+            self.context_lifecycle_enforce,
+            defaults.context_lifecycle_enforce,
+            "context",
+            "Reject invalid cross-boundary context envelopes at ingress."
+        );
+        field!(
+            "completion_grounding_shadow",
+            "Completion Grounding Shadow",
+            FieldType::Bool,
+            self.completion_grounding_shadow,
+            defaults.completion_grounding_shadow,
+            "context",
+            "Log completion citation grounding mismatches."
+        );
+        field!(
+            "completion_grounding_enforce",
+            "Completion Grounding Enforce",
+            FieldType::Bool,
+            self.completion_grounding_enforce,
+            defaults.completion_grounding_enforce,
+            "context",
+            "Requeue tasks when declared citations are absent."
+        );
+        field!(
+            "chatml_strict",
+            "ChatML Strict",
+            FieldType::Bool,
+            self.chatml_strict,
+            defaults.chatml_strict,
+            "context",
+            "Collapse system/user turns into ChatML format."
+        );
+
+        // ── Attention Budget ──────────────────────────────────────────────────
+        field!(
+            "attention_enabled",
+            "Attention Enabled",
+            FieldType::Bool,
+            self.attention_enabled,
+            defaults.attention_enabled,
+            "attention",
+            "Enable attention budget tracking."
+        );
+        field!(
+            "attention_budget_ms",
+            "Attention Budget",
+            FieldType::Duration,
+            self.attention_budget_ms,
+            defaults.attention_budget_ms,
+            "attention",
+            "Pilot attention budget per session period in ms."
+        );
+        field!(
+            "attention_alert_threshold",
+            "Attention Alert Threshold",
+            FieldType::Float,
+            self.attention_alert_threshold,
+            defaults.attention_alert_threshold,
+            "attention",
+            "Ratio of budget that triggers AttentionHigh signal."
+        );
+        field!(
+            "attention_interrupt_cost_ms",
+            "Interrupt Cost",
+            FieldType::Duration,
+            self.attention_interrupt_cost_ms,
+            defaults.attention_interrupt_cost_ms,
+            "attention",
+            "Baseline interrupt recovery cost in ms."
+        );
+        field!(
+            "attention_trust_routing_weight",
+            "Trust Routing Weight",
+            FieldType::Float,
+            self.attention_trust_routing_weight,
+            defaults.attention_trust_routing_weight,
+            "attention",
+            "Routing weight applied to trust scores."
+        );
+
+        // ── Execution Time Budgeting ──────────────────────────────────────────
+        field!(
+            "exec_time_budget_enabled",
+            "Exec Time Budget",
+            FieldType::Bool,
+            self.exec_time_budget_enabled,
+            defaults.exec_time_budget_enabled,
+            "exec_budget",
+            "Enable per-tool execution time budget learning."
+        );
+        field!(
+            "exec_time_safety_multiplier",
+            "Exec Time Safety Multiplier",
+            FieldType::Float,
+            self.exec_time_safety_multiplier,
+            defaults.exec_time_safety_multiplier,
+            "exec_budget",
+            "Safety multiplier applied to P90 for recommended_budget_ms."
+        );
+        field!(
+            "exec_time_timeout_rate_alert",
+            "Exec Time Timeout Rate Alert",
+            FieldType::Float,
+            self.exec_time_timeout_rate_alert,
+            defaults.exec_time_timeout_rate_alert,
+            "exec_budget",
+            "Timeout rate threshold for ToolLatencyHigh signal."
+        );
+        field!(
+            "exec_time_default_budget_ms",
+            "Exec Time Default Budget",
+            FieldType::Duration,
+            self.exec_time_default_budget_ms,
+            defaults.exec_time_default_budget_ms,
+            "exec_budget",
+            "Default budget ms when no history exists."
+        );
+        field!(
+            "exec_time_history_window_days",
+            "Exec Time History Window",
+            FieldType::Int,
+            self.exec_time_history_window_days,
+            defaults.exec_time_history_window_days,
+            "exec_budget",
+            "History window in days for agent_exec_history queries."
+        );
+
+        // ── AgentOS ───────────────────────────────────────────────────────────
+        field!(
+            "agentos_aci_envelope_enabled",
+            "ACI Envelope Enabled",
+            FieldType::Bool,
+            self.agentos_aci_envelope_enabled,
+            defaults.agentos_aci_envelope_enabled,
+            "agentos",
+            "Include validated ACI block in MCP tool JSON responses."
+        );
+        field!(
+            "agentos_guardrail_kernel_enabled",
+            "Guardrail Kernel",
+            FieldType::Bool,
+            self.agentos_guardrail_kernel_enabled,
+            defaults.agentos_guardrail_kernel_enabled,
+            "agentos",
+            "Run guardrail kernel before mutating tools."
+        );
+        field!(
+            "agentos_checkpoint_hints_enabled",
+            "Checkpoint Hints",
+            FieldType::Bool,
+            self.agentos_checkpoint_hints_enabled,
+            defaults.agentos_checkpoint_hints_enabled,
+            "agentos",
+            "Emit sparse checkpoint hints for telemetry consumers."
+        );
+        field!(
+            "local_breakeven_tokens",
+            "Local Breakeven Tokens",
+            FieldType::Int,
+            self.local_breakeven_tokens,
+            defaults.local_breakeven_tokens,
+            "agentos",
+            "Daily local token threshold before enforcing local-tier inference."
+        );
+
+        // ── Observer ──────────────────────────────────────────────────────────
+        field!(
+            "observer_enabled",
+            "Observer Enabled",
+            FieldType::Bool,
+            self.observer_enabled,
+            defaults.observer_enabled,
+            "observer",
+            "Enable the autonomous Observer loop (OAPV)."
+        );
+        field!(
+            "observer_poll_interval_ms",
+            "Observer Poll Interval",
+            FieldType::Duration,
+            self.observer_poll_interval_ms,
+            defaults.observer_poll_interval_ms,
+            "observer",
+            "Background poll interval for the Observer loop."
+        );
+
+        // ── Research ──────────────────────────────────────────────────────────
+        field!(
+            "research_max_hops",
+            "Research Max Hops",
+            FieldType::Int,
+            self.research_max_hops,
+            defaults.research_max_hops,
+            "research",
+            "Maximum retrieval hops for iterative research loops."
+        );
+        field!(
+            "research_quality_gate_enabled",
+            "Research Quality Gate",
+            FieldType::Bool,
+            self.research_quality_gate_enabled,
+            defaults.research_quality_gate_enabled,
+            "research",
+            "Automated quality check on retrieved evidence before synthesis."
+        );
+        field!(
+            "research_quality_target",
+            "Research Quality Target",
+            FieldType::Float,
+            self.research_quality_target,
+            defaults.research_quality_target,
+            "research",
+            "Minimum evidence quality to skip iterative hops."
+        );
+        field!(
+            "research_model_enabled",
+            "Research Model Enabled",
+            FieldType::Bool,
+            self.research_model_enabled,
+            defaults.research_model_enabled,
+            "research",
+            "Prefer the dedicated research synthesis lane (Lane G)."
+        );
+
+        // ── Populi / Mesh ─────────────────────────────────────────────────────
+        field!(
+            "populi_poll_interval_secs",
+            "Populi Poll Interval",
+            FieldType::Duration,
+            self.populi_poll_interval_secs,
+            defaults.populi_poll_interval_secs,
+            "mesh",
+            "Background poll interval (seconds) for populi federation cache."
+        );
+        field!(
+            "populi_http_timeout_ms",
+            "Populi HTTP Timeout",
+            FieldType::Duration,
+            self.populi_http_timeout_ms,
+            defaults.populi_http_timeout_ms,
+            "mesh",
+            "HTTP client timeout for populi control plane."
+        );
+        field!(
+            "populi_routing_experimental",
+            "Populi Routing (Experimental)",
+            FieldType::Bool,
+            self.populi_routing_experimental,
+            defaults.populi_routing_experimental,
+            "mesh",
+            "Use remote populi node labels when scoring routes."
+        );
+        field!(
+            "populi_rebalance_on_remote_schedulable_drop",
+            "Populi Rebalance on Drop",
+            FieldType::Bool,
+            self.populi_rebalance_on_remote_schedulable_drop,
+            defaults.populi_rebalance_on_remote_schedulable_drop,
+            "mesh",
+            "Rebalance local queues when remote schedulable count drops."
+        );
+        field!(
+            "populi_replay_queued_routes_on_remote_schedulable_drop",
+            "Populi Replay Routes on Drop",
+            FieldType::Bool,
+            self.populi_replay_queued_routes_on_remote_schedulable_drop,
+            defaults.populi_replay_queued_routes_on_remote_schedulable_drop,
+            "mesh",
+            "Re-route queued tasks when remote schedulable count drops."
+        );
+        field!(
+            "populi_training_routing_experimental",
+            "Populi Training Routing (Experimental)",
+            FieldType::Bool,
+            self.populi_training_routing_experimental,
+            defaults.populi_training_routing_experimental,
+            "mesh",
+            "Apply training-task specific placement boosts/penalties."
+        );
+        field!(
+            "populi_training_budget_pressure",
+            "Populi Training Budget Pressure",
+            FieldType::Float,
+            self.populi_training_budget_pressure,
+            defaults.populi_training_budget_pressure,
+            "mesh",
+            "Soft budget-pressure scalar for expensive training placements."
+        );
+        field!(
+            "populi_remote_execute_experimental",
+            "Populi Remote Execute (Experimental)",
+            FieldType::Bool,
+            self.populi_remote_execute_experimental,
+            defaults.populi_remote_execute_experimental,
+            "mesh",
+            "Allow remote task-envelope dispatch over populi A2A relay."
+        );
+        field!(
+            "populi_remote_result_poll_interval_secs",
+            "Populi Remote Result Poll",
+            FieldType::Duration,
+            self.populi_remote_result_poll_interval_secs,
+            defaults.populi_remote_result_poll_interval_secs,
+            "mesh",
+            "Poll interval (seconds) for remote_task_result inbox draining."
+        );
+        field!(
+            "populi_remote_result_max_messages_per_poll",
+            "Populi Remote Result Max Messages",
+            FieldType::Int,
+            self.populi_remote_result_max_messages_per_poll,
+            defaults.populi_remote_result_max_messages_per_poll,
+            "mesh",
+            "Max remote_task_result messages per poll tick."
+        );
+        field!(
+            "populi_remote_worker_poll_interval_secs",
+            "Populi Remote Worker Poll",
+            FieldType::Duration,
+            self.populi_remote_worker_poll_interval_secs,
+            defaults.populi_remote_worker_poll_interval_secs,
+            "mesh",
+            "Poll interval (seconds) for remote worker inbox ticks."
+        );
+        field!(
+            "populi_remote_lease_gating_enabled",
+            "Populi Remote Lease Gating",
+            FieldType::Bool,
+            self.populi_remote_lease_gating_enabled,
+            defaults.populi_remote_lease_gating_enabled,
+            "mesh",
+            "Await mesh relay before local enqueue for gated roles."
+        );
+        field!(
+            "populi_remote_lease_timeout_ms",
+            "Populi Remote Lease Timeout",
+            FieldType::Duration,
+            self.populi_remote_lease_timeout_ms,
+            defaults.populi_remote_lease_timeout_ms,
+            "mesh",
+            "Timeout in ms for authoritative Populi remote leases."
+        );
+
+        out
+    }
+}
+
 #[cfg(test)]
 mod isolation_config_tests {
     use super::*;
