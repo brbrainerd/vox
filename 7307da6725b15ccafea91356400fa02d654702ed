@@ -1,0 +1,10 @@
+feat(plugin-sdk): Validate `Plugin.toml` `provides` against SSOT
+scale: ~77 lines across 1 files [M]
+
+- `crates/vox-cli/src/commands/ci/plugin_surface.rs`:
+    - Added `check_manifest_provides` function to validate `provides.extension-points` entries in `Plugin.toml` files against the SSOT of extension points.
+    - Integrated `check_manifest_provides` into the `plugin_surface` command's main logic.
+    - Updated documentation comments to describe the new "manifest-provides parity" invariant.
+    - Added `anyhow` context to error messages for better debugging.
+
+--- audit: original='feat(plugin-sdk): SP-6 — validate Plugin.toml `provides` against the surface SSOT (#199)' | actual=77L across 1 files | derived=full ---
