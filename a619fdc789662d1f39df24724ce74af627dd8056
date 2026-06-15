@@ -1,0 +1,15 @@
+style: format code with rustfmt
+scale: ~102 lines across 10 files [M]
+
+- `crates/vox-ml-cli/src/commands/mens/plugin_heal.rs`: Apply rustfmt to `rebuild_and_reinstall` and `run_plugin_build_unix` functions, and `read_plugin_version`.
+- `crates/vox-populi/src/mens/tensor/memory_budget.rs`: Apply rustfmt to string formatting in `plan_qwen25coder` and `params_b_from_model_hint` test assertions.
+- `crates/vox-cli/src/cli_dispatch/lanes.rs`: Apply rustfmt to `run_fabrica_cmd` and `fabrica_reward_events` test assertions.
+- `crates/vox-hf-layout/src/lib.rs`: Apply rustfmt to conditional string formatting in `HfTransformerLayout::validate_text_qlora_compatibility`.
+- `crates/vox-populi/src/mens/tensor/vram_autodetect.rs`: Apply rustfmt to `nvidia_smi_total_vram_gb` function.
+- `crates/vox-cli/src/command_catalog.rs`: Apply rustfmt to `push_catalog_entry` function's `takes_value` match statement.
+- `crates/vox-cli/src/commands/ci/gui_catalog_parity.rs`: Apply rustfmt to `compile_validator` call in tests.
+- `crates/vox-db/src/research_pipeline.rs`: Apply rustfmt to `scientia_claims_pending_summary` function signature.
+- `crates/vox-populi/src/mens/tensor/mod.rs`: Reorder `memory_budget` module declaration to be grouped with other `mens-train` and `mens-cloud` features.
+- `crates/vox-ml-cli/src/commands/mens/populi/train_arm.rs`: Apply rustfmt to `requested_b` variable assignment in `run_train`.
+
+--- audit: original='style: cargo fmt for touched crates' | actual=102L across 10 files | derived=full ---
