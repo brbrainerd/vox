@@ -1,0 +1,14 @@
+feat(console): Implement OSC 633 block segmentation and block-aware actions
+scale: ~654 lines across 9 files [L]
+
+- `crates/vox-gui/src/commands/pty.rs`: Injects shell-integration snippets for PowerShell and Bash on PTY spawn to emit OSC 633 markers, preserving existing user prompts/traps. Handles `.exe` suffix stripping and ensures correct `$LASTEXITCODE` for PowerShell.
+- `crates/vox-gui/ui/src/components/surfaces/Console/osc633.ts`: Adds a pure reducer for OSC 633 markers to build `Block` objects (command, exit code, lines, running state) and provides `decodeCommand` for `E` payloads and `renderBlockForAgent` for block formatting.
+- `crates/vox-gui/ui/src/components/surfaces/Console/osc633.test.ts`: Adds unit tests for the OSC 633 block reducer, covering block creation, exit codes, and handling of incomplete blocks.
+- `crates/vox-gui/ui/src/components/surfaces/Console/TerminalTab.tsx`: Registers an OSC 633 handler with xterm.js, uses the `osc633` reducer to build blocks, captures output from the xterm buffer, paints per-block exit-status dots, and reports completed blocks via `onBlock`. Replaces `any` casts with specific `@xterm/xterm` types (`IDisposable`, `registerMarker`, `registerDecoration`).
+- `crates/vox-gui/ui/src/components/surfaces/Console/TerminalTab.test.tsx`: Mocks xterm.js to capture and drive the OSC 633 handler for testing block integration.
+- `crates/vox-gui/ui/src/components/surfaces/Console/Console.tsx`: Tracks the latest completed block, uses `renderBlockForAgent` for "send to agent" and a new "copy last block" action, falling back to the last typed line if no shell integration is present. Adds clipboard API guards and toast notifications for copy actions.
+- `crates/vox-gui/ui/src/components/surfaces/Console/Console.test.tsx`: Adds tests for the new block-aware copy functionality.
+- `docs/superpowers/specs/2026-06-12-console-osc633-block-segmentation-design.md`: Adds a design document detailing the OSC 633/133 block segmentation.
+- `docs/src/architecture/where-things-live.md`: Updates the architecture documentation to include block segmentation.
+
+--- audit: original='feat(console): OSC 633/133 block segmentation + block-aware send-to-agent (#275)' | actual=654L across 9 files | derived=full ---
