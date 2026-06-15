@@ -1,0 +1,18 @@
+docs(plan): revise 2026-06-12 plan with code-verified corrections and new features
+scale: ~1298 lines across 1 files [XL]
+
+- **docs/superpowers/plans/2026-06-12-async-chat-tasklist-resource-scheduling-omnisearch.md**:
+    - Updated the "Goal" section to include multi-tab sessions, intake deduplication with user mediation, and A2A remote delegation visibility.
+    - Added a new "Revision 2" section detailing code-verified corrections and new features.
+    - Introduced a "Multi-Tab Sessions" section outlining the implementation of `session_id` for persistent chat and task states across tabs.
+    - Added an "Intake Deduplication" section describing the detection and user-mediated handling of near-duplicate incoming tasks.
+    - Included an "A2A Visibility Tracks" section explaining how to surface and manage A2A remote delegation.
+    - Expanded on the "Omni-Search" functionality, detailing the inclusion of surfaces/windows and backend corpora.
+    - Provided a detailed breakdown of "Code-Verified Corrections" for settings, chat, and search bugs.
+    - Added a "Resource Scheduling" section with details on agent scaling and LLM concurrency throttling.
+    - Included a "Tasklist" section outlining the GUI for managing queued orchestrator work.
+    - Revised and expanded the "Plan" and "Implementation Notes" sections with more granular steps and considerations for each feature.
+    - Added a "Testing" section with specific test cases for each new feature and correction.
+    - Updated the "Dependencies" and "Risks" sections to reflect the revised plan.
+
+--- audit: original='docs(plan): rev 2 — code-verified corrections + multi-tab sessions, intake dedup, A2A visibility tracks' | actual=1298L across 1 files | derived=full ---
