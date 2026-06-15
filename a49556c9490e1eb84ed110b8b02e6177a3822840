@@ -1,0 +1,12 @@
+chore(workspace): remove `workspace-hack` dependency from four crates
+scale: ~33 lines across 7 files [M]
+
+- **.config/hakari.toml**: Added `vox-plugin-api`, `vox-nanopub`, `vox-research-events`, and `vox-quantize` to both `workspace-members` arrays, ensuring Hakari does not re-add `workspace-hack` as a dependency for these crates.
+- **crates/workspace-hack/Cargo.toml**: Removed `libc` dependency from the `[dependencies]` and `[dev-dependencies]` sections. Modified the `libc` dependency in `[target.'cfg(target_os = "linux")'.dependencies]` to remove `default-features = false`.
+- **crates/vox-nanopub/Cargo.toml**: Removed the `workspace-hack` dependency.
+- **crates/vox-plugin-api/Cargo.toml**: Removed the `workspace-hack` dependency.
+- **crates/vox-quantize/Cargo.toml**: Removed the `workspace-hack` dependency.
+- **crates/vox-research-events/Cargo.toml**: Removed the `workspace-hack` dependency.
+- **Cargo.lock**: Updated lockfile to reflect dependency changes.
+
+--- audit: original='chore(plugins): publish-clean the ready leaf crates (drop workspace-hack) (#166)' | actual=33L across 7 files | derived=full ---
