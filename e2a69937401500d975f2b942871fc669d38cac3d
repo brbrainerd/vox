@@ -1,0 +1,18 @@
+docs(parity): update pipeline-parity plan and SSOT based on 2026-06-15 audit
+scale: ~182 lines across 2 files [M]
+
+- `docs/superpowers/plans/2026-06-14-pipeline-parity-enforcement.md`:
+  - Added a "⚠ Audit correction (2026-06-15)" section detailing four execution assumption drifts.
+  - Corrected Wave 2 scope: `codegen_rust` and `eval` are already exhaustive; tasks 4 and 7 now focus on routing existing explicit arms through the matrix and adding exhaustiveness regression tests.
+  - Re-anchored Tasks 5 and 6 to specific silent-drop sites in `codegen_ts` and `web_ir`.
+  - Renamed `emit_unsupported` to `unsupported_diagnostic` to clarify its return type (`UnsupportedCell`) and avoid `vox_compiler::Diagnostic` usage in `vox-codegen`.
+  - Clarified that `support()` returns the `&str` code as the shared truth.
+  - Updated the `Target` definition for Task 2, noting that no single `--mode` site exists and `Target` is the projection for `BuildMode`/`RunMode`/`CompileKind`/`BuildTarget`/`RustAppShell`.
+  - Corrected the matrix size to 133 rows x 4 = 532 cells and renamed `feature_matrix.rs` to `parity_matrix.rs`.
+  - Updated Task 1 body to use `id()`/`from_id()` instead of `cli_mode`.
+- `docs/src/architecture/pipeline-parity-ssot-2026-06-14.md`:
+  - Added a "⚠ Audit correction (2026-06-15)" note explaining that the thesis is sound but current-state facts are stale, with corrections inlined as **[CORRECTED 2026-06-15]** notes.
+  - Clarified that the silent-drop surface is smaller and concentrated in the TS/web stack, shifting work from removing catch-alls to centralizing explicit decisions and adding a gate.
+  - Noted that the three design artifacts (§3) are unchanged in shape, only sizing and one crate-boundary detail are corrected.
+
+--- audit: original='docs(parity): correct pipeline-parity plan + SSOT against 2026-06-15 audit' | actual=182L across 2 files | derived=full ---
