@@ -1,0 +1,7 @@
+docs(summary, index): Add generated SUMMARY.md and initial index.md
+scale: ~6 lines across 2 files [S]
+
+- docs/src/SUMMARY.md: Add generated file with a single entry for the introduction.
+- docs/src/index.md: Add new file with an introductory overview of the Vox language.
+
+--- audit: original='docs: Add generated SUMMARY.md and structure' | actual=6L across 2 files | derived=full ---
