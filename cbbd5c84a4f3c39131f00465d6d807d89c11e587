@@ -1,0 +1,6 @@
+fix(ci): enable script-execution feature for vox-cli in setup-e2e workflow
+scale: ~6 lines across 1 files [XS]
+
+- .github/workflows/setup-e2e.yml: Added `--features script-execution` to all three `cargo run -p vox-cli -- run scripts/setup.vox` commands.
+
+--- audit: original='fix(ci): build vox-cli with --features script-execution in setup-e2e' | actual=6L across 1 files | derived=full ---
