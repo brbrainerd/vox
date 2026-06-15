@@ -1,0 +1,11 @@
+feat(pre_push): add test tier budget enforcement
+scale: ~165 lines across 1 files [M]
+
+- `crates/vox-cli/src/commands/ci/pre_push.rs`:
+    - Added a new `check_tier_budget` function to enforce test execution time budgets.
+    - This function reads `contracts/budgets/test-tier-budgets.v1.yaml` to compare `total_ms` against `warn_ms` and `fail_ms` thresholds.
+    - It prints a warning if `total_ms` exceeds `warn_ms` and returns an error if `total_ms` exceeds `fail_ms`.
+    - Introduced `tier_budget_key` to map profile names to budget keys.
+    - Integrated `check_tier_budget` into the `run` function, conditionally calling it if `opts.enforce_budgets` is true.
+
+--- audit: original='chore(snapshot): capture pre_push.rs tier-budget enforcement addition' | actual=165L across 1 files | derived=full ---
