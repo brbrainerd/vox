@@ -1,0 +1,13 @@
+feat(telemetry): emit `orch.task.cancelled` events for task cancellations
+scale: ~123 lines across 3 files [M]
+
+- `crates/vox-orchestrator/src/orchestrator/agent/lifecycle_ops.rs`:
+    - Added `emit_task_cancelled` helper function to record `orch.task.cancelled` `ResearchMetric` events.
+    - Called `emit_task_cancelled` when a task is cancelled, distinguishing between "populi_remote" and "queue" paths.
+- `crates/vox-orchestrator/tests/telemetry_task_cancelled.rs`: Added a new integration test to verify that cancelling a locally-queued task emits a single `orch.task.cancelled` event with `path=queue`.
+- `contracts/telemetry/events.v1.yaml`:
+    - Moved `orch.task.cancelled` from `blind_spots` to `metric_types`.
+    - Added a detailed description for `orch.task.cancelled` in `metric_types`, including its constant, owner crate, sensitivity, and how it's emitted.
+    - Emptied the `blind_spots` list.
+
+--- audit: original='feat(telemetry): wire orch.task.cancelled events from vox-orchestrator' | actual=123L across 3 files | derived=full ---
