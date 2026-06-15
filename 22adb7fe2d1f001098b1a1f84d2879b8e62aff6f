@@ -1,0 +1,19 @@
+feat(compiler): Add Capacitor mobile primitive declarations and codegen
+scale: ~494 lines across 14 files [L]
+
+- **`ast/decl/mobile.rs`**: New file defining `BackButtonDecl`, `DeepLinkDecl`, and `PushDecl` AST nodes.
+- **`ast/decl/mod.rs`**: Added `BackButtonDecl`, `DeepLinkDecl`, and `PushDecl` to the `Decl` enum.
+- **`ast/decl/types.rs`**: Added `BackButtonDecl`, `DeepLinkDecl`, and `PushDecl` to the `Decl` enum's `span()` method.
+- **`hir/nodes/decl.rs`**: Added `HirBackButton`, `HirDeepLink`, and `HirPush` structs, and optional fields for them (`back_button`, `deep_link`, `push`) to `HirModule`.
+- **`hir/lower/mod.rs`**: Implemented lowering logic for `Decl::BackButton`, `Decl::DeepLink`, and `Decl::Push` into their respective HIR nodes.
+- **`lexer/token.rs`**: Added `AtBackButton`, `AtDeepLink`, and `AtPush` tokens and their `Display` implementations.
+- **`parser/descent/decl/head.rs`**: Implemented `parse_back_button_decl`, `parse_deep_link_decl`, and `parse_push_decl` functions. `parse_deep_link_decl` handles both quoted scheme and identifier for `on_link`.
+- **`parser/descent/mod.rs`**: Dispatched parsing of new mobile declarations from the main descent logic.
+- **`codegen_ts/mobile_emit.rs`**: New file with `emit_mobile_setup` to generate `mobile.ts` for Capacitor setup.
+- **`codegen_ts/emitter.rs`**: Integrated `mobile_emit::emit_mobile_setup` into the TypeScript emitter after the forms block.
+- **`codegen_ts/mod.rs`**: Exported `mobile_emit` module.
+- **`codegen/tests/back_button_test.rs`**: New test file for `@back_button` declaration, including fallback.
+- **`codegen/tests/deep_link_test.rs`**: New test file for `@deep_link` declaration.
+- **`codegen/tests/push_test.rs`**: New test file for `@push` declaration.
+
+--- audit: original='feat(compiler): @back_button / @deep_link / @push → Capacitor mobile listeners' | actual=494L across 14 files | derived=full ---
