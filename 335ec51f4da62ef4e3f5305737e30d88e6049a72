@@ -1,0 +1,9 @@
+docs(architecture): Add repo layout sprawl audit and navigation map
+scale: ~163 lines across 4 files [M]
+
+- docs/src/architecture/repo-layout-sprawl-audit-2026.md: Add new document "Repository layout sprawl audit (2026)" detailing sparse directory metrics, `contracts/` breadth, root-level tracked files, and a section on why sprawl exists.
+- docs/src/architecture/where-things-live.md: Add a new section "Repository roots (navigation)" with a grouped map of top-level trees and a link to the new sprawl audit document.
+- docs/src/architecture/research-index.md: Add a link to the new "Repository layout sprawl audit (2026)" document.
+- docs/agents/doc-inventory.json: Update `generated_at` timestamp and `docs/src/architecture/where-things-live.md` entry to reflect increased line count.
+
+--- audit: original='docs(architecture): repo layout sprawl audit + navigation map' | actual=163L across 4 files | derived=full ---
