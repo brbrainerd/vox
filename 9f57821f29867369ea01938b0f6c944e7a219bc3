@@ -1,0 +1,6 @@
+test(cli): refresh command catalog baseline
+scale: ~0 lines across 1 files [XS]
+
+- `crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt`: updated binary baseline file, likely to include a previously missing command.
+
+--- audit: original='test(cli): refresh command catalog baseline (generate command was missing)' | actual=0L across 1 files | derived=full ---
