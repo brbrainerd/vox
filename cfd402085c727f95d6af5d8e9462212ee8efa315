@@ -1,0 +1,14 @@
+feat(codegen-web): add --no-emit-entry option to skip web bootstrap emission
+scale: ~30 lines across 3 files [S]
+
+- `crates/vox-codegen/src/codegen_ts/emitter.rs`:
+    - Added `no_emit_entry` boolean field to `CodegenOptions` struct, defaulting to `false`.
+    - Implemented `no_emit_entry` parsing from `VOX_WEB_NO_EMIT_ENTRY` environment variable in `CodegenOptions::from_env`.
+    - Modified the condition for emitting the web bootstrap to include `!options.no_emit_entry`, preventing emission when the option is enabled.
+- `crates/vox-cli/src/commands/build.rs`:
+    - Added logic to set the `no_emit_entry` option for `codegen_ts::emitter::CodegenOptions` based on the `VOX_WEB_NO_EMIT_ENTRY` environment variable.
+- `docs/src/architecture/web-bootstrap-emission-migration-2026.md`:
+    - Updated the "Staged build order" section to mark stages 0-4 as complete.
+    - Updated stage 5 to reflect that `--no-emit-entry` opt-out is wired and that the retirement of `scaffold.rs` bootstrap and documentation updates are in progress.
+
+--- audit: original='feat(codegen-web): --no-emit-entry opt-out for the web bootstrap (Stage 5a)' | actual=30L across 3 files | derived=full ---
