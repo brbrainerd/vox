@@ -1,0 +1,8 @@
+docs: regenerate documentation index and feed
+scale: ~301 lines across 3 files [L]
+
+- `docs/src/SUMMARY.md`: Add entries for `build-time-baseline.md`, `build-time-log.md`, `naming-and-guards-design.md`, `where-things-live.md`, `workspace-reorg-design.md`, and `workspace-reorg-outcome.md`.
+- `docs/src/architecture/architecture-index.md`: Add entries for `layers.toml`, `naming-and-guards-design.md`, `workspace-reorg-design.md`, and `workspace-reorg-outcome.md`.
+- `docs/src/feed.xml`: Regenerate to include new documentation pages.
+
+--- audit: original='chore(docs): regenerate SUMMARY.md / architecture-index.md / feed.xml' | actual=301L across 3 files | derived=full ---
