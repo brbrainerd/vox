@@ -1,0 +1,9 @@
+fix(workspace): restore HTTP and other dependencies to workspace manifest
+scale: ~299 lines across 2 files [L]
+
+- Add `vox-tracing-init` to workspace members.
+- Add `typify` and `regress` to workspace dependencies.
+- Add `reqwest-middleware`, `reqwest-retry`, and `http` to workspace dependencies, including specific features for `reqwest-middleware`.
+- Update `Cargo.lock` to reflect the added dependencies.
+
+--- audit: original='fix(workspace): restore shared HTTP deps in workspace manifest' | actual=299L across 2 files | derived=full ---
