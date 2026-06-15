@@ -1,0 +1,13 @@
+docs(superpowers): Design Vox Console discovery engine
+scale: ~190 lines across 1 files [M]
+
+- **docs/superpowers/specs/2026-06-12-vox-console-discovery-engine-design.md**: Add a new specification document detailing the design for the "Vox Console" discovery engine. This document outlines a Warp-model discovery terminal surface within `vox-gui`, featuring:
+    - An owned input line with fish-style autosuggestion.
+    - Portable PTY tabs for full terminal control.
+    - OSC 133 blocks for per-block actions.
+    - A persistent discovery rail that updates live with help, examples, and spaced-repetition tips.
+    - Integration with `vox-gamify` for an FSRS-style exposure ledger to manage command discovery.
+    - Agent strip/tabs and A2A send functionality wired to the existing orchestrator daemon.
+    - Goals include making `vox` CLI entries discoverable, providing full terminal control, and implementing a local learning model for command exposure.
+
+--- audit: original='docs(spec): Vox Console discovery-engine design' | actual=190L across 1 files | derived=full ---
