@@ -1,0 +1,7 @@
+chore(reports): regenerate model-manifest and gui-surface-coverage reports
+scale: ~80 lines across 2 files [M]
+
+- contracts/capability/model-manifest.generated.json: Regenerated the model manifest, adding 80 lines of new content.
+- contracts/reports/gui-surface-coverage.v1.json: Regenerated the GUI surface coverage report (binary file change).
+
+--- audit: original='chore: regenerate gui-surface-coverage + model-manifest SSOT reports' | actual=80L across 2 files | derived=full ---
