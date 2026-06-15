@@ -1,0 +1,14 @@
+feat(contracts): add new browser navigation and interaction capabilities
+scale: ~224 lines across 1 files [M]
+
+- Add `mcp.vox_browser_back` capability for navigating to the previous browser history entry.
+- Add `mcp.vox_browser_click_xy` capability for clicking at specific viewport coordinates.
+- Add `mcp.vox_browser_forward` capability for navigating to the next browser history entry.
+- Add `mcp.vox_browser_refresh` capability for refreshing a browser page.
+- Add `mcp.vox_browser_scroll` capability for scrolling a browser page.
+- Add `mcp.vox_browser_scroll_to_bottom` capability for scrolling to the bottom of a browser page.
+- Add `mcp.vox_browser_scroll_to_top` capability for scrolling to the top of a browser page.
+- Add `mcp.vox_browser_type` capability for typing text into a browser element.
+- Add `mcp.vox_browser_wait_for_elements` capability for waiting for specific elements to appear on a browser page.
+
+--- audit: original='chore(contracts): sync capability registry from operations catalog' | actual=224L across 1 files | derived=full ---
