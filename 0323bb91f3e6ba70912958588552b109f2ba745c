@@ -1,0 +1,12 @@
+refactor(vox-compiler-emit): relocate `web_migration_env` and prune unused dependencies
+scale: ~21 lines across 8 files [M]
+
+- `crates/vox-compiler-emit/Cargo.toml`: Removed unused `rust_decimal`, `tokio`, `anyhow`, and `thiserror` dependencies.
+- `crates/vox-compiler-emit/src/web_migration_env.rs`: Moved `web_migration_env.rs` from `crates/vox-compiler/src/` to this crate.
+- `crates/vox-compiler-emit/src/lib.rs`: Added `web_migration_env` module.
+- `crates/vox-compiler-emit/src/codegen_ts/emitter.rs`: Updated import path for `web_ir_validate_gate_enabled` to `crate::web_migration_env`.
+- `crates/vox-compiler-emit/src/codegen_ts/reactive.rs`: Updated import path for `web_ir_emit_reactive_views_enabled` to `crate::web_migration_env`.
+- `crates/vox-compiler/src/lib.rs`: Removed `web_migration_env` module.
+- `.claude/settings.local.json`: Updated `grep` command to reflect the `web_migration_env.rs` relocation and added a `git mv` command.
+
+--- audit: original='refactor(vox-compiler-emit): prune unused deps + relocate web_migration_env' | actual=21L across 8 files | derived=full ---
