@@ -1,0 +1,15 @@
+refactor(cli): remove `vox schola` command and `vox-schola` binary
+scale: ~77 lines across 12 files [M]
+
+- `crates/vox-cli/src/commands/ci/release_build.rs`: Removed `ReleasePackage::Schola` enum variant and associated build/packaging logic for `vox-schola` binary. Updated `plugin_executable_name` documentation.
+- `crates/vox-cli/src/main.rs`: Removed `schola` from the list of ML commands and removed the special handling for `vox schola` to delegate to `vox-schola` binary. All ML/AI commands now uniformly delegate to `vox-ml-cli`.
+- `crates/vox-cli/src/commands/ext.rs`: Removed `ExtCmd::Schola` variant.
+- `crates/vox-cli/src/lib.rs`: Removed `Cli::Schola` variant.
+- `crates/vox-cli/src/commands/ci/eval_matrix.rs`: Removed `PKG_VOX_SCHOLA` constant and the `vox_schola_train_compile` entry from `BENCHMARK_CLASS_IDS` and `run_benchmark_class`.
+- `crates/vox-cli/src/cli_dispatch/mod.rs`: Removed `Cli::Schola` from the `unreachable!` macro arm for ML/AI commands.
+- `crates/vox-cli/src/commands/ci/nomenclature_guard.rs`: Removed the `("schola", "tutorial")` denylist entry and the `"vox-schola"` allowlist entry.
+- `crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs`: Removed `crates/vox-schola/` from the allowed paths for secret guards.
+- `docs/src/reference/cli.md`: Updated the description of specialized domains, removing `vox schola` and `vox-schola` binary references. Updated the "Toolchain Binary Split" table to remove `vox-schola` and clarify `vox-ml-cli`'s scope.
+- `README.md`: Removed the `vox-schola` entry from the extensions table.
+
+--- audit: original='refactor(schola): retire the dead `vox schola` command into MENS (#177)' | actual=77L across 12 files | derived=full ---
