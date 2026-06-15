@@ -91,6 +91,79 @@ impl Default for CircuitBreakerConfig {
     }
 }
 
+impl CircuitBreakerConfig {
+    /// Parse thresholds from contract YAML text, overlaying onto `Default`.
+    /// Unspecified keys retain their default. SSOT: `contracts/orchestration/circuit-breaker.v1.yaml`.
+    pub fn from_contract_str(yaml: &str) -> Result<Self, serde_yaml::Error> {
+        #[derive(serde::Deserialize, Default)]
+        struct Overlay {
+            no_progress_threshold: Option<u32>,
+            same_error_threshold: Option<u32>,
+            tool_thrash_threshold: Option<u32>,
+            ngram_overlap_threshold: Option<f64>,
+            semantic_drift_sigma: Option<f64>,
+            caution_no_progress: Option<u32>,
+            caution_same_error: Option<u32>,
+            caution_tool_thrash: Option<u32>,
+            warning_no_progress: Option<u32>,
+            warning_same_error: Option<u32>,
+            warning_tool_thrash: Option<u32>,
+            replan_limit: Option<u32>,
+        }
+        let o: Overlay = if yaml.trim().is_empty() {
+            Overlay::default()
+        } else {
+            serde_yaml::from_str(yaml)?
+        };
+        let mut c = Self::default();
+        if let Some(v) = o.no_progress_threshold {
+            c.no_progress_threshold = v;
+        }
+        if let Some(v) = o.same_error_threshold {
+            c.same_error_threshold = v;
+        }
+        if let Some(v) = o.tool_thrash_threshold {
+            c.tool_thrash_threshold = v;
+        }
+        if let Some(v) = o.ngram_overlap_threshold {
+            c.ngram_overlap_threshold = v;
+        }
+        if let Some(v) = o.semantic_drift_sigma {
+            c.semantic_drift_sigma = v;
+        }
+        if let Some(v) = o.caution_no_progress {
+            c.caution_no_progress = v;
+        }
+        if let Some(v) = o.caution_same_error {
+            c.caution_same_error = v;
+        }
+        if let Some(v) = o.caution_tool_thrash {
+            c.caution_tool_thrash = v;
+        }
+        if let Some(v) = o.warning_no_progress {
+            c.warning_no_progress = v;
+        }
+        if let Some(v) = o.warning_same_error {
+            c.warning_same_error = v;
+        }
+        if let Some(v) = o.warning_tool_thrash {
+            c.warning_tool_thrash = v;
+        }
+        if let Some(v) = o.replan_limit {
+            c.replan_limit = v;
+        }
+        Ok(c)
+    }
+
+    /// Load thresholds from the contract file if it exists; otherwise `Default`.
+    pub fn from_contract_file(path: &std::path::Path) -> Self {
+        match std::fs::read_to_string(path) {
+            Ok(text) => Self::from_contract_str(&text).unwrap_or_default(),
+            Err(_) => Self::default(),
+        }
+    }
+}
+
 /// Pure, allocation-free circuit breaker.
 pub struct CircuitBreaker {
     config: CircuitBreakerConfig,
@@ -209,6 +282,26 @@ impl TripEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn from_contract_str_overrides_defaults() {
+        let yaml = r#"
+no_progress_threshold: 7
+same_error_threshold: 9
+"#;
+        let cfg = CircuitBreakerConfig::from_contract_str(yaml).expect("parse");
+        assert_eq!(cfg.no_progress_threshold, 7);
+        assert_eq!(cfg.same_error_threshold, 9);
+        assert_eq!(cfg.tool_thrash_threshold, 15);
+        assert_eq!(cfg.replan_limit, 3);
+    }
+
+    #[test]
+    fn from_contract_str_empty_is_all_defaults() {
+        let cfg = CircuitBreakerConfig::from_contract_str("").expect("parse");
+        assert_eq!(cfg.no_progress_threshold, 3);
+        assert_eq!(cfg.ngram_overlap_threshold, 0.85);
+    }
 
     #[test]
     fn no_trip_when_all_signals_zero() {
