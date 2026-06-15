@@ -1,0 +1,8 @@
+docs(roadmap): Update GUI native roadmap status for 2026
+scale: ~6 lines across 1 files [XS]
+
+- Update `docs/src/architecture/gui-native-roadmap-status-2026.md` to reflect that TASK-7.2 is now complete.
+- Update the description for TASK-7.2 to detail the completion of all 4 tabs (`forge.vox`, `speak.vox`, `command.vox`, `network.vox`) and their respective components and state machines.
+- Update the overall Phase 7 verdict to show 2 tasks complete and 1 not started.
+
+--- audit: original='docs: update roadmap — TASK-7.2 complete, Phase 7 at 2/3' | actual=6L across 1 files | derived=full ---
