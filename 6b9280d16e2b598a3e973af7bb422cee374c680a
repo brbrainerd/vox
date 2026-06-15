@@ -1,0 +1,47 @@
+feat(web): implement full-stack web IR, TanStack integration, and Scientia contract infrastructure
+scale: ~8134 lines across 123 files [XL]
+
+- **`crates/vox-compiler`**:
+    - Introduce `route_manifest.rs` for generating `routes.manifest.ts` from WebIR route trees, replacing `tanstack_programmatic_routes.rs`.
+    - Enhance `codegen_ts/reactive.rs` to conditionally emit reactive component views from WebIR, with a new `VOX_WEBIR_EMIT_REACTIVE_VIEWS` environment variable.
+    - Update `parser/descent/decl/tail.rs` to support `@v0 from "design.png"` syntax for v0 components.
+    - Refactor `web_ir/lower.rs` to improve lowering of HIR to WebIR, including handling of `bind:` attributes and collecting binding names from statements.
+    - Add `codegen_ts/scaffold.rs` for generating TypeScript scaffolds.
+    - Modify `codegen_ts/emitter.rs` to remove TanStack programmatic route generation.
+    - Introduce `codegen_ts/vox_client.rs` for client-side Vox code generation.
+    - Update `codegen_rust/emit/client.rs` for client-side Rust code generation.
+    - Refine `codegen_ts/hir_emit/mod.rs` for improved HIR expression emission.
+    - Enhance `typeck/ast_decl_lints.rs` for better AST declaration linting.
+    - Update `codegen_rust/emit/http.rs` for HTTP-related Rust code generation.
+    - Add `web_migration_env.rs` for web migration environment setup.
+    - Refine `web_ir/validate.rs` for WebIR validation.
+    - Update `codegen_shared/route_ir.rs` for route IR structures.
+    - Modify `hir/nodes/decl.rs` for HIR declaration nodes.
+    - Update `codegen_ts/routes.rs` for route-related TypeScript generation.
+    - Refine `app_contract.rs` for application contract handling.
+    - Update `ast/decl/ui.rs` for UI-related AST declarations.
+    - Introduce `web_ir/mod.rs` for the web IR module.
+    - Update `codegen_ts/mod.rs` for general TypeScript code generation.
+    - Remove `codegen_ts/tanstack_start.rs`.
+    - Update `codegen_ts/tanstack_query_emit.rs`.
+    - Refine `codegen_rust/mod.rs` and `lexer/token.rs`.
+    - Add `hir/db_op_walk.rs` and `hir/lower/decl.rs`.
+    - Introduce `react_bridge.rs`.
+    - Update `typeck/checker/mod.rs`.
+- **`crates/vox-cli`**:
+    - Introduce `commands/migrate/mod.rs` for web/React interop source migrations, including patching legacy `@component fn` and `@hook fn` syntax.
+    - Update `templates/spa.rs` for SPA template generation.
+    - Add `commands/diagnostics/doctor/checks_standard/web_frontend.rs` for web frontend diagnostics.
+    - Refactor `commands/build.rs` and `frontend.rs`.
+    - Update `commands/bundle.rs` to remove significant code.
+    - Refine `templates/tanstack.rs` for TanStack template generation.
+    - Update `compilerd.rs`, `command_contract.rs`, `lib.rs`, `cli_args.rs`, `cli_dispatch/mod.rs`, `cli_dispatch/lanes.rs`, `commands/ai/workflow.rs`, `commands/diagnostics/doctor/checks_standard/mod.rs`, `commands/mod.rs`, `commands/run.rs`, and `commands/test.rs`.
+- **`crates/vox-integration-tests`**:
+    - Update `pipeline/includes/include_01.rs` to test `routes.manifest.ts` generation instead of `App.tsx`.
+    - Refine `pipeline/includes/include_03.rs`, `reactive_smoke.rs`, `axum_emit_contract.rs`, `migrate_web_smoke.rs`, `scaffold_spa_manifest_idempotent.rs`, `pipeline/includes/blueprint_op_s_batch.rs`, `chatbot_integration.rs`, `pipeline/includes/include_02.rs`, `scaffold_tanstack_start_layout.rs`, `scaffold_idempotent.rs`, `pipeline.rs`, `full_stack_minimal_build.rs`, `pipeline_env.rs`, `cli_test.rs`, `venv_detection.rs`, `pipeline/includes/include_04.rs`, `typeck.rs`, and `web_vite_smoke.rs`.
+    - Update `fixtures/chatbot.vox`, `fixtures/full_stack_minimal.vox`, and `fixtures/greaterfool_reference.vox`.
+- **`docs`**:
+    - Revise `architecture/react-interop-implementation-plan-2026.md` and `architecture/tanstack-web-backlog.md`.
+    - Add `architecture/react-interop-migration-charter-2026.md`, `architecture/react-interop-backlog-2026.md`,
+
+--- audit: original='feat: implement full-stack web IR, TanStack integration, and Scientia contract infrastructure with expanded CLI and VS Code support.' | actual=8134L across 123 files | derived=full ---
