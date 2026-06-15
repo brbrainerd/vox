@@ -1,0 +1,6 @@
+fix(docs): update telemetry unification design status to roadmap
+scale: ~2 lines across 1 files [XS]
+
+- docs/src/architecture/telemetry-unification-design-2026.md: Changed the `status` front matter from "design" to "roadmap" to align with valid statuses for the doc-pipeline and reflect the in-flight nature of the 4-phase plan.
+
+--- audit: original='fix(docs): telemetry-unification-design-2026 status "design" -> "roadmap"' | actual=2L across 1 files | derived=full ---
