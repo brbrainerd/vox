@@ -1,0 +1,13 @@
+feat(vox-gui): add SendToAgent composer and Dashboard-to-Console deep link
+scale: ~175 lines across 8 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Console/SendToAgent.tsx`: Add new `SendToAgent` component for composing and sending free-form notes to agents.
+- `crates/vox-gui/ui/src/components/surfaces/Console/Console.tsx`: Integrate `SendToAgent` component, adding a "Send to Agent" button to the console. Implement `initialAgentId` prop to allow deep linking to a specific agent's tab.
+- `crates/vox-gui/ui/src/components/surfaces/Console/SendToAgent.test.tsx`: Add unit tests for the `SendToAgent` component.
+- `crates/vox-gui/ui/src/components/surfaces/Dashboard/Dashboard.tsx`: Pass `onOpenInConsole` prop to `AgentRow` components to enable deep linking.
+- `crates/vox-gui/ui/src/components/surfaces/Dashboard/AgentRow.tsx`: Add an "Open in Console" button that triggers the `onOpenInConsole` callback.
+- `crates/vox-gui/ui/src/App.tsx`: Implement `onOpenInConsole` handler in the Dashboard view to set the selected agent and switch to the Console view. Pass `initialAgentId` to the Console component based on the selected agent.
+- `crates/vox-gui/ui/src/transport.ts`: Add `sendToAgent` function for invoking the backend to send messages to agents.
+- `crates/vox-gui/ui/src/components/surfaces/Console/Console.test.tsx`: Mock `sendToAgent` in console tests.
+
+--- audit: original='feat(vox-gui): send-to-agent composer + Dashboard->Console deep link' | actual=175L across 8 files | derived=full ---
