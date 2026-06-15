@@ -1,0 +1,20 @@
+feat(a2a): harden dispatched subprocess env and gate secrets by trust tier
+scale: ~270 lines across 3 files [L]
+
+- `crates/vox-orchestrator/src/a2a/remote_worker.rs`:
+    - Introduced `baseline_passthrough_env` to define a curated set of essential environment variables (PATH, HOME, TMPDIR, etc.) to preserve across platforms.
+    - Implemented `harden_dispatch_env` to clear the subprocess environment, restore the curated baseline, and then add tier-gated secrets.
+    - Modified `run_dispatched_source` and `run_dispatched_bundle` to use `harden_dispatch_env` for subprocess hardening.
+    - Updated `run_dispatched_source` and `run_dispatched_bundle` to extract `required_secrets` from the task and pass them to the secret gating mechanism.
+    - Integrated `secret_gate::gate_secrets` to filter forwarded secrets based on the `ExecTier::BareMetal` (currently injecting nothing).
+- `crates/vox-orchestrator/src/a2a/secret_gate.rs`:
+    - Added a new module `secret_gate` to define trust-tier gating for forwarded secrets.
+    - Introduced `ExecTier` enum (BareMetal, Sandboxed) to represent isolation levels.
+    - Defined `Sensitivity` enum (LowValue, Credential) for classifying secret sensitivity.
+    - Implemented `classify_secret` to determine sensitivity based on `SecretSpec` (e.g., `auth_registry` or `required` policy implies Credential).
+    - Created `gate_secrets` function to filter a `SecretBag` based on `ExecTier` and declared `SecretId`s, ensuring only allowed secrets are returned.
+    - Added unit tests for `gate_secrets` covering `BareMetal` (no secrets), `Sandboxed` (filters credentials), and `classify_secret` behavior.
+- `crates/vox-orchestrator/src/a2a/mod.rs`:
+    - Added `secret_gate` module to the `a2a` module.
+
+--- audit: original='feat(mesh): trust-tier secret gating + dispatched-subprocess env hardening' | actual=270L across 3 files | derived=full ---
