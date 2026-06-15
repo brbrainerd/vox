@@ -1,6 +1,7 @@
 //! GUI visual AI adversarial review. Advisory: never gates CI.
 pub mod model_select;
 pub mod prompt;
+pub mod spike;
 pub mod types;
 pub mod vision_call;
 pub use types::*;
@@ -163,11 +164,38 @@ pub async fn run(args: &RunArgs<'_>) -> RunReport {
     };
 
     let mut surfaces = Vec::new();
-    let (mut reviewed, mut cached, deferred) = (0usize, 0usize, 0usize);
+    let (mut reviewed, mut cached) = (0usize, 0usize);
     let mut total_review_ms = 0u64;
+    let start = std::time::Instant::now();
 
     for entry in &manifest.surfaces {
+        // Per-run time budget: once exhausted, defer remaining surfaces without
+        // calling the model. Cached surfaces are cheap, so we only budget-gate
+        // surfaces that would otherwise trigger an AI review.
         let decision = decide_status(&cache, &entry.view_key, &entry.sha256);
+        if args.do_ai
+            && decision != ReviewDecision::Cached
+            && (start.elapsed().as_millis() as u64) >= cfg.total_review_budget_ms
+        {
+            eprintln!(
+                "::warning::gui-visual-review: '{}' deferred (review budget {}ms exhausted)",
+                entry.view_key, cfg.total_review_budget_ms
+            );
+            surfaces.push(SurfaceReport {
+                view_key: entry.view_key.clone(),
+                screenshot_sha256: entry.sha256.clone(),
+                status: "deferred".into(),
+                score: None,
+                verdict: None,
+                findings: vec![],
+                model: None,
+                prompt_tokens: None,
+                completion_tokens: None,
+                cost_usd: None,
+                review_ms: None,
+            });
+            continue;
+        }
         match decision {
             ReviewDecision::Cached => {
                 cached += 1;
@@ -234,7 +262,7 @@ pub async fn run(args: &RunArgs<'_>) -> RunReport {
         }
     }
 
-    let deferred = deferred + surfaces.iter().filter(|s| s.status == "deferred").count();
+    let deferred = surfaces.iter().filter(|s| s.status == "deferred").count();
 
     // Persist the updated cache so subsequent runs short-circuit reviewed surfaces.
     if args.do_ai {
@@ -251,7 +279,9 @@ pub async fn run(args: &RunArgs<'_>) -> RunReport {
         }
     }
 
-    RunReport {
+    let total_cost_usd: f64 = surfaces.iter().filter_map(|s| s.cost_usd).sum();
+
+    let mut report = RunReport {
         schema_version: 1,
         generated_at: args.now_iso.clone(),
         default_model: model,
@@ -263,7 +293,61 @@ pub async fn run(args: &RunArgs<'_>) -> RunReport {
         surfaces_deferred: deferred,
         spiked: false,
         spike_detail: String::new(),
+    };
+
+    // Trailing-median spike detection over the ledger (advisory only). All
+    // ledger IO is guarded so any failure merely warns and never aborts.
+    let ledger_path = args.report_dir.join("ledger.jsonl");
+    let history: Vec<u64> = std::fs::read_to_string(&ledger_path)
+        .ok()
+        .map(|s| {
+            s.lines()
+                .filter_map(|l| serde_json::from_str::<spike::LedgerRow>(l).ok())
+                .map(|r| r.total_review_ms)
+                .collect()
+        })
+        .unwrap_or_default();
+    let (spiked, detail) = spike::is_spike(&history, report.total_review_ms, cfg.spike_factor);
+    report.spiked = spiked;
+    report.spike_detail = detail;
+    if spiked {
+        eprintln!(
+            "::warning::gui-visual-review: TIME SPIKE — {}",
+            report.spike_detail
+        );
     }
+
+    // Append this run's row to the ledger (best-effort).
+    let row = spike::LedgerRow {
+        ts: args.now_iso.clone(),
+        surfaces_reviewed: report.surfaces_reviewed,
+        total_review_ms: report.total_review_ms,
+        total_cost_usd,
+        model: report.default_model.clone(),
+    };
+    match serde_json::to_string(&row) {
+        Ok(line) => {
+            if let Some(parent) = ledger_path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            use std::io::Write;
+            match std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&ledger_path)
+            {
+                Ok(mut f) => {
+                    if let Err(e) = writeln!(f, "{line}") {
+                        eprintln!("::warning::gui-visual-review: ledger append failed: {e}");
+                    }
+                }
+                Err(e) => eprintln!("::warning::gui-visual-review: ledger open failed: {e}"),
+            }
+        }
+        Err(e) => eprintln!("::warning::gui-visual-review: ledger serialize failed: {e}"),
+    }
+
+    report
 }
 
 async fn review_surface(args: &RunArgs<'_>, entry: &ManifestEntry, model: &str) -> SurfaceReport {
