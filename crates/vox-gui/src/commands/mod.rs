@@ -25,6 +25,7 @@ pub mod oratio;
 pub mod orchestrator;
 pub mod policy;
 pub mod preferences;
+pub mod process_util;
 pub mod pty;
 pub mod research;
 pub mod runs;
