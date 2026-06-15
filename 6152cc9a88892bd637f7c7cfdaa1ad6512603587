@@ -1,0 +1,9 @@
+feat(codegen,compiler): assert STT Cargo dep absent without speech; clarify usage-walker names
+scale: ~91 lines across 2 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/mod.rs`: Added an assertion to `tauri_omits_stt_without_speech` that `vox-tauri-stt` does not appear in `src-tauri/Cargo.toml` when no speech capability is present.
+- `crates/vox-compiler/src/required_capabilities.rs`:
+    - Renamed `collect_fs_rw_from_expr` and `collect_fs_rw_from_stmt` to `collect_usage_from_expr` and `collect_usage_from_stmt` respectively, to reflect that these walkers now also collect microphone usage via `UsageFlags`, not just file system read/write.
+    - Added a `TODO(capabilities)` comment at `is_speech_method` noting that file-based `transcribe(path)` does not use the microphone at runtime and a future change may want to split the STT-plugin need from microphone permission.
+
+--- audit: original='test(codegen): assert STT Cargo dep absent without speech; clarify usage-walker names' | actual=91L across 2 files | derived=full ---
