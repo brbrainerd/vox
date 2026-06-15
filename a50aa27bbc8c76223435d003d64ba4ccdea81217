@@ -1,0 +1,6 @@
+docs(arch): Add 2026-05-24 lost-work forensic audit and recovery record
+scale: ~196 lines across 1 files [M]
+
+- docs/src/architecture/session-handoff-2026-05-24-lost-work-audit.md: New document detailing the audit and recovery of uncommitted working-tree edits lost during a parallel-agent commit storm. It includes a timeline of operations, identifies the `jj-keep` snapshot (`cea30891cb`) containing the lost work, and outlines recovery steps. The document also notes that parallel agents run `git add` on the whole tree before their own commits, potentially staging files from other sessions.
+
+--- audit: original='docs(arch): handoff — 2026-05-24 lost-work forensic audit + recovery record' | actual=196L across 1 files | derived=full ---
