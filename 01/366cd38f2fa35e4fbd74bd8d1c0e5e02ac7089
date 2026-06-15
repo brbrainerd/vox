@@ -1,35 +1,57 @@
 feat(compiler): typed Results, fused db chains, actor dispatch, full workspace test cleanup
 scale: ~13138 lines across 675 files [XL]
 
-- feat(compiler): exact decimal arithmetic in interpreter, compiled regex, interp http/time, Option/Result exhaustiveness
-- feat(typeck): two-parameter Result[T, E] with a real error-type slot, polymorphic Error(e) and Ok(v) constructors, and db query-plan chaining typechecks with projection column validation
-- feat(interp): execute db.* operations against an in-memory store, execute fused db query chains, register @query/@mutation endpoint fns as callables
-- feat(codegen): wire actor Envelope dispatch for real message handling
-- feat(humaneval): execute tests.vox behaviorally, regenerate held-out manifest, remove 164 orphan directories
-- feat(corpus): typecheck-clean 71-golden corpus and add 9 new goldens for untrained features
-- fix(codegen): clear 3 warnings (unreachable HirType arm, 2 spurious closure muts), restore catch-guard for discarded async endpoint calls
-- fix(corpus): update scheduled_tick.vox to use real @scheduled, reframe saga_compensation.vox, regex_free_functions @test uses match
-- fix(eval): `opt is None` compares equal by normalizing bare None constructor, fix for-over-map/string iteration, mixed Int/Float arithmetic, and cross-numeric equality, report real type names in TypeErrors
-- fix(parser): accept phonetic keywords (and/or/not/in) as object-literal keys
+- feat(compiler): implement exact decimal arithmetic in interpreter
+- feat(compiler): add compiled regex and match object support to interpreter
+- feat(compiler): add real blocking std.http and std.time.now_ms dispatch to interpreter
+- feat(compiler): enable exhaustiveness checking for Option and Result matches
+- feat(compiler): typecheck db query-plan chaining methods (.where, .order_by, .limit, .select)
+- feat(compiler): make `Error(e)` and `Ok(v)` constructors polymorphic in the error type for `Result[T, E]`
+- feat(compiler): validate db .select(...) projection columns against row fields
+- feat(compiler): execute db.* operations against an in-memory store in interpreter mode
+- feat(compiler): execute fused db query chains (where + select/order_by/limit) in interpreter
+- fix(compiler): normalize bare `None` constructor for `is`/`isnt` comparisons
+- fix(compiler): fix `for-over-map`/`for-over-string` iteration and mixed Int/Float arithmetic/comparison in interpreter
+- fix(compiler): carry typed Result error values in interpreter and fix nullary-variant match catch-all
+- fix(compiler): register @query/@mutation endpoint functions as callables in interpreter
+- fix(compiler): report real type names in interpreter TypeErrors instead of "other"
+- chore(compiler): delete dead `typeck/infer.rs` module
+- feat(codegen): wire actor Envelope dispatch for emitted actors, preventing message drops
+- fix(codegen): restore catch-guard for discarded async endpoint calls to prevent unhandled promise rejections
+- fix(codegen): clear 3 warnings (unreachable HirType arm, 2 spurious closure muts)
+- test(codegen): regenerate stale reactive counter snapshot
+- test(codegen): refresh stale TS-emit tests and snapshots to current behavior
+- fix(parser): accept phonetic keywords (and/or/not/in) as object-literal keys for db predicates
+- feat(humaneval): execute `tests.vox` behaviorally in interpreter mode
+- feat(humaneval): regenerate held-out manifest and remove 164 orphan directories
+- feat(corpus): typecheck-clean 71 goldens and add 9 new goldens for untrained features
+- fix(corpus): update `regex_free_functions` @test to use `match` instead of `is None`
+- fix(corpus): update `scheduled_tick.vox` to use real `@scheduled` and reframe `saga_compensation.vox`
+- docs(specs): add design specs for actor wire format, eval Result-error widening, and compiler gaps
+- docs(plan): add golden-corpus and compiler-reality plan and execution log
+- fix(orchestrator): repair three pre-existing broken tests
+- fix(orchestrator-mcp): add missing `selection_rationale` field to `ModelCallEvent` test literal
+- fix(cli): add missing `selection_rationale` field to `ModelCallEvent` test literal
+- fix(cli): annotate CLI-example doc block as `text` to prevent Rust compilation
+- test(cli): regenerate stale diagnostic goldens for additive `minimal_repro` field
+- test(cli): refresh command-catalog baseline for 5 new subcommands
+- test(cli): fix tsc module resolution in build_e2e for React class components
+- fix(scaffold): use current `@query`/`@mutation`/`@server` decorators in templates
+- fix(gui): migrate `vox-gui/ui` to React 19 and Vite 6
 - fix(hir): omit empty db-plan fields from serialized HIR
-- fix(orchestrator): repair three pre-existing broken tests in select.rs, bundle_fetch.rs, and economy_test.rs
-- fix(cli): add missing `selection_rationale` field to ModelCallEvent test literal, annotate CLI-example doc block as `text`
-- fix(scaffold): use current @query/@mutation/@server decorators in templates
-- fix(gui): migrate vox-gui/ui to React 19 + Vite 6
-- fix(orchestrator-mcp): add missing selection_rationale to ModelCallEvent test literal
-- chore(typeck): delete dead infer.rs (legacy AST-based inference)
-- chore(tests): regenerate stale reactive counter snapshot, vox-integration-tests snapshots, vox-cli diagnostic goldens, refresh stale TS-emit tests + snapshots, deflake two load-sensitive tests
-- chore(links): ignore getmrq.com in check-links
-- chore(crates): use workspace versioning for all internal crates, remove 7 unused `Duration` imports
-- docs(plan): golden-corpus & compiler-reality plan + execution log
-- docs(specs): design specs for the spec-gated remainder (B5, C1, Track D), actor wire format, eval Result-error widening, gap findings
-- docs(golden): add display anchors so golden.md excludes training metadata
-- ci(codeql): install libdbus-1-dev and full GUI system deps, exclude vox-gui from analysis build
+- chore(tests): regenerate stale `vox-integration-tests` snapshots
+- chore(crates): use workspace versioning for all internal crates
+- chore(links): ignore `getmrq.com` in check-links due to anti-bot false-positive
+- chore: remove 7 unused `Duration` imports across multiple crates
+- ci(codeql): install `libdbus-1-dev` and `pkg-config` before Rust build
+- ci(codeql): install full GUI system dependencies for CodeQL build
+- ci(codeql): exclude `vox-gui` from CodeQL analysis build
 - ci(gitleaks): add allowlist config and scan working tree instead of history
-- test(golden): add exhaustive db_operations.vox behavioral golden
+- test(golden): add exhaustive `db_operations.vox` behavioral golden
 - test(plugin-host): make plugin fixtures self-contained workspace roots
 - test(populi): commit missing HF config fixtures and un-ignore them
-- test(cli): fix tsc module resolution in build_e2e, refresh command-catalog baseline for 5 new subcommands
-- style: rustfmt across 23 changed crates
+- test: deflake two load-sensitive tests (`vox-effort-audit` and `vox-populi`)
+- style: apply `rustfmt` across changed crates
+- docs(golden): add display anchors to `golden.md` to exclude training metadata
 
 --- audit: original='Compiler-reality: typed Results, fused db chains, actor dispatch + full workspace test cleanup (#137)' | actual=13138L across 675 files | derived=sampled ---
