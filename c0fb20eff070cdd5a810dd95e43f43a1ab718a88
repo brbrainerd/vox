@@ -1,0 +1,8 @@
+fix(vox-mental-tracker): resolve 15 parse errors in main.vox
+scale: ~24 lines across 1 files [S]
+
+- Replace `!expr` with `not expr` in `_is_backdated` test assertions and `_is_superseded_in` guard conditions.
+- Introduce `let result = ...` bindings for long string concatenations used as match-arm tail expressions in `weekly_summary_json`, `timeline_events_json`, and `export_health_csv` functions.
+- Split inline CSS `{...}` in `export_clinical_html` into `lbrace` and `rbrace` literals to avoid collision with template interpolation grammar.
+
+--- audit: original='vox-mental-tracker: fix 15 parse errors blocking Phase 1B build' | actual=24L across 1 files | derived=full ---
