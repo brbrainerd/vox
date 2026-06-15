@@ -1,0 +1,7 @@
+fix(codegen-web): Make `@form` redirects router-agnostic using History API
+scale: ~23 lines across 2 files [S]
+
+- `crates/vox-codegen/src/codegen_ts/form_emit.rs`: Replaced `useNavigate` hook with `window.history.pushState` and `window.dispatchEvent(new PopStateEvent("popstate"))` for success redirects, making them compatible with any router (including the Vox-emitted dependency-free router, react-router, and @tanstack/react-router). Removed the conditional import of `useNavigate`.
+- `crates/vox-codegen/src/codegen_ts/emitter.rs`: Removed the conditional import of `useNavigate` from `@tanstack/react-router` as forms now use the History API for redirects.
+
+--- audit: original='fix(codegen-web): @form redirect is router-agnostic (works with emitted router)' | actual=23L across 2 files | derived=full ---
