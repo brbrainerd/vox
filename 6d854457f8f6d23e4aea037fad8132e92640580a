@@ -1,0 +1,10 @@
+docs(ci): ignore specific external dead/bot-blocked links in `check-links`
+scale: ~10 lines across 1 files [S]
+
+- `.lycheeignore`:
+    - Added `https://claude.ai/?.*` to ignore `claude.ai` links that return 403 to CI bots.
+    - Added `.*toolsinfo.com/.*` to ignore `toolsinfo.com` links that return intermittent 503 to CI bots.
+    - Added `https://coolify.io/docs/.*` to ignore `coolify.io` API reference links that return 404 due to upstream restructuring.
+    - Added `https://github.com/vox-foundation/vox-funding-plan` to ignore links to a planned/private GitHub repository that returns 404 to CI.
+
+--- audit: original='fix(docs): ignore pre-existing external dead/bot-blocked links (check-links)' | actual=10L across 1 files | derived=full ---
