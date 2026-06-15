@@ -1,0 +1,12 @@
+feat(mesh-policy): introduce `vox-mesh-policy` crate for `donations.vox` management
+scale: ~347 lines across 6 files [L]
+
+- `crates/vox-mesh-policy`: New crate providing functionality to parse, pretty-print, and manage `donations.vox` policy files.
+- `crates/vox-mesh-policy/src/parse.rs`: Added module for parsing `donations.vox` source into a `WorkerDonationPolicy` struct, including error handling for I/O and parsing.
+- `crates/vox-mesh-policy/src/print.rs`: Added module for pretty-printing a `WorkerDonationPolicy` struct back into a canonical `donations.vox` source string.
+- `crates/vox-mesh-policy/src/lib.rs`: Main library file, exposing `parse` and `print` modules and including a round-trip test for policy parsing and printing.
+- `crates/vox-mesh-types/src/task.rs`: Modified `TaskKind` enum to include `as_str` and `from_str_loose` methods for canonical string representation and loose parsing, respectively.
+- `crates/vox-mesh-policy/Cargo.toml`: Added new `Cargo.toml` for the `vox-mesh-policy` crate, defining dependencies and package metadata.
+- `Cargo.toml`: Added `vox-mesh-policy` to the workspace members.
+
+--- audit: original='feat(mesh-policy): add vox-mesh-policy L2 crate for donations.vox round-trip (P4-T3)' | actual=347L across 6 files | derived=full ---
