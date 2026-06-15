@@ -1,0 +1,7 @@
+fix(orchestrator-mcp): restore control-lock authorization and re-add actor field
+scale: ~19 lines across 2 files [S]
+
+- `crates/vox-orchestrator-mcp/src/browser_tools.rs`: Re-introduced authorization logic in `browser_set_control_lock` to ensure that only the current owner can change or release a held control lock, preventing unauthorized lock stealing or releasing.
+- `crates/vox-orchestrator-mcp/src/params.rs`: Added an `actor: Option<String>` field to `BrowserControlLockParams` to identify the caller for authorization purposes, defaulting to "agent" when omitted.
+
+--- audit: original='fix(orchestrator-mcp): restore control-lock authorization (lock-stealing hole, unbreaks main)' | actual=19L across 2 files | derived=full ---
