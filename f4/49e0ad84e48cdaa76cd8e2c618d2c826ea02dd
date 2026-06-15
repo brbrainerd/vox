@@ -1,0 +1,8 @@
+feat(gui): Add Oratio surface and sidebar navigation
+scale: ~6 lines across 3 files [S]
+
+- `crates/vox-gui/ui/src/components/surfaces/decoratorRegistry.ts`: Add `oratio` command surface with 'Vox Oratio' title, 'Speech-to-code runtime' description, and two commands: 'doctor' (Runtime Health) and 'status' (Backend Status).
+- `crates/vox-gui/ui/src/App.tsx`: Add 'oratio' to the `View` type union.
+- `crates/vox-gui/ui/src/components/layout/Sidebar.tsx`: Add a new `NavItem` for 'Oratio' to the sidebar, using the `Icon.spark` icon.
+
+--- audit: original='feat(gui): Oratio decorator surface (speech-to-code runtime)' | actual=6L across 3 files | derived=full ---
