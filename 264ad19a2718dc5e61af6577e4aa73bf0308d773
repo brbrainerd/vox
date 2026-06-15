@@ -1,0 +1,6 @@
+docs(architecture): update status of codebase cleanup plan to current
+scale: ~2 lines across 1 files [XS]
+
+- `docs/src/architecture/2026-05-02-codebase-cleanup-and-signal-improvement.md`: Changed the `status` frontmatter field from `proposed` to `current`.
+
+--- audit: original='docs: fix frontmatter status to pass doc pipeline' | actual=2L across 1 files | derived=full ---
