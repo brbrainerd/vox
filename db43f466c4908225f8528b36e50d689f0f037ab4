@@ -1,0 +1,6 @@
+test(pipeline): remove golden_v0_shadcn_island test
+scale: ~16 lines across 1 files [S]
+
+- `crates/vox-integration-tests/tests/pipeline/includes/include_01.rs`: Removed the `golden_v0_shadcn_island_codegen_includes_routes_manifest` test function, which was failing due to a missing fixture file.
+
+--- audit: original='test: drop golden_v0_shadcn_island test' | actual=16L across 1 files | derived=full ---
