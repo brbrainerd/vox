@@ -1,0 +1,20 @@
+feat(populi): implement write-through to MeshStore from handlers
+scale: ~100 lines across 3 files [M]
+
+- `crates/vox-populi/src/transport/handlers.rs`:
+    - Added `store_put_a2a` helper function to asynchronously write `A2AStoredMessage` to `MeshStore`.
+    - Added `store_ack_a2a` helper function to asynchronously acknowledge A2A messages in `MeshStore`.
+    - Added `store_put_exec_lease` helper function to asynchronously write `RemoteExecLeaseRow` to `MeshStore`.
+    - Added `store_revoke_exec_lease` helper function to asynchronously revoke execution leases in `MeshStore`.
+    - Integrated `store_put_a2a` calls into `a2a_deliver` handler for both new and idempotent message paths.
+    - Integrated `store_put_a2a` call into `a2a_inbox_claim` handler when a lease is stamped.
+    - Integrated `store_put_a2a` call into `a2a_lease_renew` handler for updated lease fields.
+    - Integrated `store_ack_a2a` call into `a2a_ack` handler after in-memory updates.
+    - Integrated `store_put_exec_lease` calls into `exec_lease_grant` handler for new and renewed leases.
+    - Integrated `store_put_exec_lease` call into `exec_lease_renew` handler.
+    - Integrated `store_revoke_exec_lease` calls into `exec_lease_release` and `admin_revoke` handlers.
+    - All MeshStore writes are `tokio::spawn`ed as fire-and-forget, logging failures as WARN.
+- `crates/vox-populi/src/transport/mod.rs`: Promoted `RemoteExecLeaseRow` visibility from `pub(super)` to `pub`.
+- `crates/vox-populi/src/transport/store/mod.rs`: Removed unused `PathBuf` import.
+
+--- audit: original='feat(populi): write-through from handlers to durable MeshStore' | actual=100L across 3 files | derived=full ---
