@@ -1,4 +1,4 @@
-﻿use crate::params::ToolResult;
+use crate::params::ToolResult;
 use crate::server_state::ServerState;
 
 pub async fn exec_time_query(state: &ServerState, args: serde_json::Value) -> String {

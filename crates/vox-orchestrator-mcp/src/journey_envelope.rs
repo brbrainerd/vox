@@ -1,4 +1,4 @@
-﻿//! Versioned journey metadata for structured transcripts (`conversation_messages` payload).
+//! Versioned journey metadata for structured transcripts (`conversation_messages` payload).
 //!
 //! SSOT: `contracts/orchestration/journey-envelope.v1.schema.json`.
 

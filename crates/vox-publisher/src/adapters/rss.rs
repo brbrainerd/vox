@@ -1,4 +1,4 @@
-﻿use crate::contract::NewsSiteConfig;
+use crate::contract::NewsSiteConfig;
 use crate::types::UnifiedNewsItem;
 use anyhow::{Context, Result};
 use std::fs;

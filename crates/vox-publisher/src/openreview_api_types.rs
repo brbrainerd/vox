@@ -1,4 +1,4 @@
-﻿//! Typed JSON for OpenReview API v2 (subset used by the scholarly adapter).
+//! Typed JSON for OpenReview API v2 (subset used by the scholarly adapter).
 
 use serde::{Deserialize, Serialize};
 

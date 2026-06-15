@@ -1,4 +1,4 @@
-﻿use crate::PublisherConfig;
+use crate::PublisherConfig;
 use crate::contract::DEFAULT_GITHUB_REST_BASE;
 use crate::types::{ForgeConfig, ForgePostType, UnifiedNewsItem};
 use anyhow::{Result, anyhow};

@@ -1,4 +1,4 @@
-﻿//! Normalized errors for scholarly repository adapters (maps cleanly to DB `error_class`).
+//! Normalized errors for scholarly repository adapters (maps cleanly to DB `error_class`).
 //!
 //! ## Persisted `error_class` strings
 //!

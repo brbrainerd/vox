@@ -1,4 +1,4 @@
-﻿//! Central caps for MCP HTTP LLM calls (avoid scattered literals).
+//! Central caps for MCP HTTP LLM calls (avoid scattered literals).
 
 /// Max output tokens passed to OpenRouter / Gemini-style HTTP APIs from MCP tools.
 pub(crate) const HTTP_MAX_OUTPUT_TOKENS_CAP: u64 = 8192;

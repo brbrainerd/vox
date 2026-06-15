@@ -1,4 +1,4 @@
-﻿use super::super::params::{ChatHistoryParams, ChatTranscriptEntry};
+use super::super::params::{ChatHistoryParams, ChatTranscriptEntry};
 use super::hydrate::context_history_or_hydrate;
 use crate::params::ToolResult;
 use crate::server_state::ServerState;

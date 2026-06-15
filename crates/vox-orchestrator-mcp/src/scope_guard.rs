@@ -1,4 +1,4 @@
-﻿//! Scope enforcement for write-capable MCP tools.
+//! Scope enforcement for write-capable MCP tools.
 //!
 //! When an agent has declared `.vox/agents/{agent_id}.md` with a `scope:` front-matter
 //! block, write tool calls that reference paths outside that scope are rejected at the

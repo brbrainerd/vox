@@ -1,4 +1,4 @@
-﻿//! Shared interruption-policy adapters for MCP surfaces.
+//! Shared interruption-policy adapters for MCP surfaces.
 
 use vox_orchestrator::{
     A2AMessageType, AttentionBudget, InterruptionChannel, InterruptionDecision,

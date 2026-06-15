@@ -1,4 +1,4 @@
-﻿use vox_orchestrator::json_vcs_facade;
+use vox_orchestrator::json_vcs_facade;
 
 use super::parse::parse_operation_id_value;
 use crate::params::ToolResult;
