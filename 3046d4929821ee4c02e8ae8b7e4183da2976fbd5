@@ -1,0 +1,7 @@
+feat(ci): Add GitHub Actions workflow for Rust check, build, and test
+scale: ~46 lines across 2 files [S]
+
+- **.github/workflows/ci.yml**: Add new CI workflow to run `cargo fmt --check`, `cargo clippy`, `cargo build`, and `cargo test` on push to `main` and pull requests.
+- **crates/vox-codegen-ts/src/component.rs**: Change `Option` type mapping from `T | null` to `T | undefined` in TypeScript code generation.
+
+--- audit: original='docs/chore: Update README developer copy and finalize release notes' | actual=46L across 2 files | derived=full ---
