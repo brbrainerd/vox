@@ -1,0 +1,25 @@
+feat(langtool): introduce DB-free CLI for Vox language tooling
+scale: ~1117 lines across 26 files [XL]
+
+- **crates/vox-langtool**: New crate providing `check`, `fmt`, `run`, and `build` subcommands for Vox language files, designed to operate without a database.
+- **crates/vox-langtool/src/commands/check.rs**: Implemented `check` command for type-checking `.vox` files, reporting errors and warnings.
+- **crates/vox-langtool/src/commands/fmt.rs**: Implemented `fmt` command for formatting `.vox` files in place, with an option to `check` only. Includes atomic file writing.
+- **crates/vox-langtool/src/commands/run.rs**: Implemented `run` command to execute `.vox` scripts via the HIR interpreter, including support for `// vox:caps` directives.
+- **crates/vox-langtool/src/commands/build.rs**: Implemented `build` command to emit Rust script source via codegen for `.vox` files.
+- **crates/vox-langtool/src/main.rs**: Main entry point for the `vox-langtool` CLI, parsing commands and delegating to subcommands.
+- **crates/vox-langtool/tests/integration.rs**: Added integration tests for `check`, `fmt`, `run`, and `build` commands, using fixture `.vox` files.
+- **crates/vox-langtool/Cargo.toml**: Defined new `vox-langtool` crate with dependencies.
+- **crates/vox-cli-core/Cargo.toml**: Modified to introduce a `db` feature, making `vox-db`, `vox-gamify`, and `vox-repository` optional dependencies. `vox-langtool` explicitly disables this feature.
+- **crates/vox-cli-core/src/lib.rs**: Updated to support the new `db` feature gating.
+- **crates/vox-cli-core/src/scientia.rs**: Conditionally compiled `vox_db` test based on the `db` feature.
+- **.github/workflows/version-tag-guard.yml**: Added a new GitHub Actions workflow to assert workspace version matches `v*` tags before release.
+- **docs/plans/INSTALL-RELEASE-AUDIT.md**: Added extensive documentation for install/upgrade/release audit phases, covering toolchain standardization, version-tag guard, and DB-free CLI.
+- **.actrc**: Updated to use a cross-platform artifact path (`./.act-artifacts`) and documented `act` limitations for Windows/macOS jobs.
+- **Cargo.toml**: Updated workspace definition.
+- **Cargo.lock**: Updated to reflect dependency changes.
+- **Dockerfile.ci-runner**, **infra/ci-runner/Dockerfile**, **Dockerfile**: Standardized Rust toolchain to 1.96.0.
+- **contracts/toolchain/workspace-toolchain.v1.yaml**: Updated toolchain definition.
+- **.gitignore**: Added `.act-artifacts` to ignore list.
+- **crates/vox-langtool/tests/fixtures/**: Added various `.vox` fixture files for testing.
+
+--- audit: original='feat(install/release): toolchain SSoT, version-tag guard, DB-free cli-core slice + vox-langtool' | actual=1117L across 26 files | derived=full ---
