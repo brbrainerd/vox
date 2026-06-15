@@ -54,6 +54,8 @@ staleness         = "warn"
 generated_file_drift = "warn"
 # Rule 10: strict — crates must not directly depend on any of their listed forbidden deps.
 forbidden_deps    = "error"
+# Cross-platform parity forbidden_pattern rules — promoted to error once the tree was clean.
+forbidden_pattern = "error"
 
 # ── Rule 10: Forbidden direct dependencies ────────────────────────────────────
 # vox-rule-pack and vox-code-audit must never directly depend on heavy search/
@@ -258,6 +260,7 @@ exempt_files     = [
     "crates/vox-orchestrator-mcp/src/git_exec.rs",
     "crates/vox-build-meta/src/lib.rs",
     "crates/vox-cli/src/commands/ci/data_storage_guard.rs",
+    "crates/vox-cli/src/commands/ci/install_hooks.rs",  # uses vox_git::read_only(); pattern match hits the comment only
     "crates/vox-cli/src/commands/ci/line_endings.rs",
     "crates/vox-cli/src/commands/ci/pre_push.rs",
     "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
