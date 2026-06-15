@@ -1,0 +1,29 @@
+fix(scientia): improve robustness and correctness across services
+scale: ~314 lines across 15 files [L]
+
+- `vox-db`:
+    - `ops_user_identity`: Add `validate_nanopub_state` to ensure `published_state` values are valid lifecycle states (`local`, `test_server`, `published`).
+    - `ops_user_identity`: Ensure `update_nanopub_published_state` returns an error if the `trusty_uri` does not correspond to an existing nanopub.
+    - `ops_producer_cursor`: Add `upsert_producer_cursor` to insert or update a producer cursor.
+    - `ops_discovery_inbox`: Add `upsert_discovery_inbox` to insert or update a discovery inbox entry.
+- `vox-gui`:
+    - `App.tsx`: Validate deep-link views against a `KNOWN_VIEWS` constant to prevent invalid navigation.
+    - `App.tsx`: Refactor initial view loading to use `isKnownView` for validation.
+    - `ArchivePanel.tsx`: Guard against stale `ArchivePanel` loads by ensuring `publication_id` is present before fetching archive status.
+    - `DiscoveryReview.tsx`: Add a placeholder for a `DiscoveryReview` component.
+    - `scientia_review`: Clamp the `list_discovery_inbox` limit between 1 and 500.
+    - `scientia_review`: Improve license detection by making it UTF-8 safe and tightening MIT license detection to avoid substring false positives.
+    - `scientia_review`: Propagate database errors from `list_scholarly_submissions` instead of silently failing, preventing fake 'not deposited' states.
+- `vox-publisher`:
+    - `code_uniqueness`: Count distinct snippet texts for uniqueness assessment, avoiding inflation by duplicate snippets.
+    - `scientia_autofill`: Bootstrap authors from `manifest.author` even without an identity, populating ORCID as null if not available.
+    - `scientia_novelty_assess`: Correctly match conflict polarity by `work_uri` after chronological filtering to ensure the correct hit's polarity is used.
+- `vox-cli`:
+    - `discovery_watch`: Read Rust snippets from the commit's blob via `git show` instead of the current worktree for accurate content.
+    - `discovery`: Add `publish_to_production` to the `guard_test` command, forbidding its use.
+    - `archive_run`: Clear `VOX_ZENODO_PUBLISH_DEPOSITION` when `publish=false` to prevent unintended deposition.
+    - `scientia_nanopub`: Add `publish_nanopub` command.
+- `vox-scientia`:
+    - `pipeline`: Treat digit and quote sentence-starts as boundaries in the claim extractor pipeline.
+
+--- audit: original='fix(scientia): address CodeRabbit review on PR #274' | actual=314L across 15 files | derived=full ---
