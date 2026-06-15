@@ -1,0 +1,10 @@
+docs: add frontmatter to new architecture and API documentation files
+scale: ~111 lines across 5 files [M]
+
+- docs/src/api/vox-codegen-ts.md: Add YAML frontmatter with title, description, category, and status.
+- docs/src/architecture/internal-web-ir-implementation-blueprint.md: Add YAML frontmatter with title, description, category, and status.
+- docs/src/SUMMARY.md: Regenerate the table of contents.
+- docs/src/architecture/architecture-index.md: Regenerate the architecture index.
+- docs/src/feed.xml: Regenerate the RSS feed, resulting in minor content changes.
+
+--- audit: original='docs: add frontmatter to new doc files; regenerate SUMMARY.md and feed' | actual=111L across 5 files | derived=full ---
