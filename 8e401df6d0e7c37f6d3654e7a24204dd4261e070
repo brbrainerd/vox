@@ -1,0 +1,11 @@
+feat(cli): wire `vox generate` command through orchestrator VoxLocal path
+scale: ~285 lines across 6 files [L]
+
+- `crates/vox-cli/src/commands/generate.rs`: Refactor `run` function to dispatch to `run_via_orchestrator` by default, or `run_legacy_direct` if `--legacy-direct` is specified. Update comments to reflect orchestrator routing and MENS model.
+- `crates/vox-orchestrator/src/mcp_tools/llm_bridge/mod.rs`: Expose `pub vox_local_generate()` function and `VoxLocalGenerateResult` struct for generating Vox code via the local MENS inference server with TTL-cached health probes and `VOX_LOCAL_ENDPOINT` resolution.
+- `crates/vox-cli/src/cli_args.rs`: Add `GenerateArgs` struct for `vox generate` command, including `prompt`, `output`, `no_validate`, `max_retries`, `legacy_direct`, and `server_url` arguments.
+- `crates/vox-cli/src/cli_dispatch/mod.rs`: Add dispatch arm for `Cli::Generate` to call `crate::commands::generate::run` with the new `GenerateArgs`.
+- `crates/vox-cli/src/lib.rs`: Add `Cli::Generate` variant with `GenerateArgs` to the main CLI enum.
+- `crates/vox-cli/src/commands/mod.rs`: Publicly expose the `generate` module.
+
+--- audit: original='feat(cli): wire `vox generate` command through orchestrator VoxLocal path' | actual=285L across 6 files | derived=full ---
