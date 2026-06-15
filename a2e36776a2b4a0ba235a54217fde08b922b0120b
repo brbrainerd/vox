@@ -1,0 +1,7 @@
+fix(vox-arch-check-tests): remove redundant `cargo build` calls from test helpers
+scale: ~49 lines across 2 files [S]
+
+- `crates/vox-arch-check/tests/integration.rs`: Removed `cargo build -p vox-arch-check` call from `arch_check_binary()` function. Updated comments to reflect that the binary is expected to be pre-built by Cargo/nextest.
+- `crates/vox-arch-check/tests/helpers/fixture.rs`: Removed `cargo build -p vox-arch-check` call from `ArchCheckFixture::binary()` function. Updated comments to explain that the build is handled by Cargo/nextest and to prevent race conditions on Windows.
+
+--- audit: original='fix(vox-arch-check-tests): remove parallel cargo-build race in test helpers' | actual=49L across 2 files | derived=full ---
