@@ -44,3 +44,7 @@ pub type MemoryParams<'a> = store_types::SaveMemoryParams<'a>;
 /// Typed string-ID newtypes for DB row fields (UUIDs, hashes, human-readable IDs).
 pub mod ids;
 pub use ids::{DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId, DbUserId};
+
+/// Hybrid retrieval planning types and rank-fusion helpers (vector + keyword search).
+/// Shared contracts used by MCP, the orchestrator, and VoxDb-backed retrieval surfaces.
+pub mod retrieval;
