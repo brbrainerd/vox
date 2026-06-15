@@ -1,0 +1,19 @@
+feat(gui): Implement canonical agent_runs store and repoint GUI Runs
+scale: ~534 lines across 11 files [L]
+
+- **vox-db**:
+    - Introduced `agent_runs` table in `execution.rs` schema to store agent/CLI run details including command, repo, worktree, model, cost, tokens, status, planned/completed steps, artifacts, approval reference, timestamps, and last error.
+    - Updated `BASELINE_VERSION` from 67 to 68 in `manifest.rs` to reflect the new `agent_runs` table.
+    - Added `agent_runs.rs` facade with `AgentRunRow` struct and functions for `agent_runs_upsert`, `agent_runs_get`, and `agent_runs_recent`.
+    - Included `agent_runs` module in `facade/mod.rs` and re-exported `AgentRunRow` in `lib.rs`.
+    - Added `agent_runs_tests.rs` with `agent_runs_persist_query_and_survive_restart` test case.
+- **vox-gui**:
+    - Repointed `crates/vox-gui/src/commands/runs.rs` to use the new `vox_db::AgentRunRow` for richer `StartGuiRunInput` and `GuiRunRecord`.
+    - Modified `start_gui_run` to insert into the new `agent_runs` table instead of `workflow_run_log`.
+    - Added `get_gui_run` command to retrieve a single run by ID, registered in `main.rs`.
+    - Updated `RunsView.tsx` to fetch selected run by ID using `get_gui_run` and display new fields like command, model, and cost.
+    - Added new fields (`command`, `model`, `cost_usd`) to `GuiRunRecord` and `RunRow` types.
+- **docs**:
+    - Updated `vox-gui-harness-buildout-plan-2026.md` to reflect the implementation of B2.
+
+--- audit: original='@ feat(gui): B2 canonical agent_runs store + GUI Runs repoint' | actual=534L across 11 files | derived=full ---
