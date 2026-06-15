@@ -1,0 +1,37 @@
+feat(agentos): ACI contracts, guardrails, semantic-fs, and telemetry
+scale: ~1284 lines across 54 files [XL]
+
+- **contracts/aci**: Add `agent-computer-interface.v1.schema.json` and `agent-computer-interface.v1.yaml` for ACI definitions.
+- **contracts/benchmarks**: Add `agentos-aci-suite.v1.yaml` for AgentOS ACI benchmarks.
+- **contracts/telemetry**: Add `agentos-guardrail-deny.v1.schema.json` and update `events.v1.yaml` for guardrail telemetry.
+- **contracts/orchestration**: Add `feature-flags.v1.yaml`.
+- **crates/vox-orchestrator**:
+    - **agentos**: Introduce `mutation_classifier.rs` for mapping tool names to ACI mutation kinds, `guardrail_kernel.rs` for preflight guardrail checks, `risk_scoring.rs` for tool risk assessment, `checkpoint_engine.rs` for checkpointing logic, `intent_planner.rs`, `context_budget_manager.rs`, `replay_fast_forward.rs`, and `mod.rs`.
+    - **context_envelope**: Add `context_envelope.rs` for handling context envelopes.
+    - **grounding**: Add `grounding.rs`.
+    - **risk_matrix**: Add `risk_matrix.rs`.
+    - **config**: Update `orchestrator_fields.rs` and `impl_default.rs` for new configuration flags.
+    - **lib.rs**: Update `lib.rs` to integrate new AgentOS modules.
+    - **context_lifecycle**: Add `context_lifecycle.rs`.
+- **crates/vox-orchestrator-mcp**:
+    - **aci**: Introduce `envelope.rs` for attaching and validating ACI envelopes, `normalization.rs`, `contracts.rs`, and `mod.rs`.
+    - **agentos_telemetry**: Add `agentos_telemetry.rs` for recording guardrail deny events.
+    - **dispatch**: Update `dispatch.rs`.
+    - **memory_tools**: Add `mod.rs`, `tests.rs`, and `retrieval.rs`.
+    - **lib.rs**: Update `lib.rs`.
+- **crates/vox-cli**:
+    - **commands/runtime/shell**: Introduce `aci_adapter.rs` for ACI shell execution probes, and update `mod.rs`, `check_terminal.rs`.
+    - **commands/runtime/shell/backends**: Add `mod.rs`, `powershell.rs`, and `nushell.rs`.
+- **crates/vox-search**:
+    - **semantic_fs**: Introduce `mod.rs`, `intent_ops.rs`, and `indexer.rs` for semantic file system operations.
+    - **lib.rs**: Update `lib.rs`.
+- **crates/vox-integration-tests**: Add `agentos_aci_bench.rs` for AgentOS ACI integration tests.
+- **crates/vox-db**: Update `research_metrics_contract.rs` to include `METRIC_TYPE_AGENTOS_GUARDRAIL_DENY`.
+- **crates/vox-telemetry**: Update `types.rs` and `lib.rs`.
+- **docs/src/architecture**: Add `agentos-ssot-2026.md`, `search-retrieval-ssot-2026.md`, `research-index.md`, and update `where-things-live.md`.
+- **.github/workflows**: Update `ci.yml`.
+- **AGENTS.md**: Add `AGENTS.md`.
+- **Cargo.lock**: Update `Cargo.lock`.
+- **crates/vox-orchestrator-mcp/Cargo.toml**: Update `Cargo.toml`.
+
+--- audit: original='feat(agentos): ACI contracts, guardrails, semantic-fs, and telemetry' | actual=1284L across 54 files | derived=full ---
