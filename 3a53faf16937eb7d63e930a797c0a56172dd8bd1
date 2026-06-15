@@ -1,0 +1,16 @@
+feat(models): trace free-tier selection rationale and route forced-free swaps
+scale: ~48 lines across 3 files [S]
+
+- `free_tier_adapter.rs`:
+    - Changed `route_free_tier_latency` to return `Option<(ModelSpec, &'static str)>`, including a human-readable rationale.
+    - Modified candidate processing to retain the rationale alongside the `ModelSpec`.
+    - Updated unit tests to destructure and assert the presence of a non-empty rationale.
+- `policy.rs`:
+    - Modified `enforce_free_tier_if_needed` to use `free_tier_adapter::route_free_tier_latency` for forced-free swaps, honoring FIM/latency hints.
+    - Added `tracing::info!` to log the selected model's ID, provider, rationale, and route when a free-tier model is enforced via the `FreeTierRouter`.
+    - Fallback to `registry.best_free_for_with_filter` if the router returns nothing.
+- `resolve.rs`:
+    - Updated `resolve_mcp_chat_model_sync` to destructure the `ModelSpec` and rationale from `route_free_tier_latency`.
+    - Added `tracing::info!` to log the selected model's ID, provider, rationale, and route when a free-tier model is selected for latency-critical requests.
+
+--- audit: original='feat(models): free-tier selection rationale tracing + route forced-free swap through adapter (A2/A3)' | actual=48L across 3 files | derived=full ---
