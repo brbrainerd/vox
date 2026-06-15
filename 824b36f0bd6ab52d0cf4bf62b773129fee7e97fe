@@ -1,0 +1,6 @@
+fix(ci): silence `unused_mut` lint in `quiet_command` on non-Windows targets
+scale: ~3 lines across 1 files [XS]
+
+- `crates/vox-cli/src/commands/ci/runner_scale.rs`: Add `#[cfg_attr(not(windows), allow(unused_mut))]` to the `cmd` variable in `quiet_command` to silence the `unused_mut` lint on non-Windows platforms, where the variable is not mutated.
+
+--- audit: original='fix(ci): silence unused_mut in quiet_command on non-Windows targets' | actual=3L across 1 files | derived=full ---
