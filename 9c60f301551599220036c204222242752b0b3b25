@@ -1,0 +1,10 @@
+feat(golden): add layered_overlay exemplar for correct overlap
+scale: ~40 lines across 1 files [S]
+
+- `examples/golden/layered_overlay.vox`: Add new golden exemplar demonstrating correct overlap using `@layer(tier:)` for a chrome shell, content panel, and an overlay portal hosting a modal and toast. This includes:
+    - A `TopBar` component with `chrome` tier.
+    - An `App` component containing the `TopBar`, a `panel` with readable content, and an `overlay` hosting a `modal` and `toast`.
+    - Metadata for the exemplar, including `title`, `description`, `status: golden`, `category: example`, `training_eligible: true`, and `difficulty: intermediate`.
+    - A `@training_prompt` for building such an app shell.
+
+--- audit: original='docs(golden): layered_overlay exemplar - canonical correct-overlap sample' | actual=40L across 1 files | derived=full ---
