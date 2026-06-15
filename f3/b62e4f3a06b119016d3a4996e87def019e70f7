@@ -1,0 +1,10 @@
+docs(gui): add design principles, surface map, and phase 0A plan
+scale: ~1480 lines across 5 files [XL]
+
+- docs/superpowers/plans/2026-06-14-vox-gui-phase0a-visual-security-foundation.md: Add a detailed implementation plan for Phase 0A of vox-gui, focusing on visual and security foundations (design tokens, high-contrast theme, WCAG contrast testing, `cn` helper, CSP).
+- docs/src/architecture/gui-frontend-design-principles-2026-06-14.md: Introduce a comprehensive catalog of over 300 GUI/front-end design principles for `vox-gui`, covering UX heuristics, visual design, interaction, accessibility, performance, design systems, desktop-native UX, and Tauri-specific architecture.
+- docs/src/architecture/vox-gui-surface-map-2026-06-14.md: Add a complete surface map of the `vox-gui` front-end and its Tauri IPC boundary, derived from a `graphify` AST+semantic extraction, detailing its four-layer architecture.
+- docs/superpowers/specs/2026-06-14-vox-gui-design-principles-application-design.md: Add a design specification for applying the GUI design principles to every surface of `vox-gui`, outlining the goal, scope, and a verified baseline audit.
+- .gitignore: Add `.worktrees/` to ignore isolated git worktrees for parallel development.
+
+--- audit: original='test(semcov-wave1f): prove 6 free-fn gaps in vox-audit + vox-config' | actual=1480L across 5 files | derived=full ---
