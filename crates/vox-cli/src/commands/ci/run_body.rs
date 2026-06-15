@@ -527,6 +527,44 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             repeat,
         } => super::build_bench::run_build_bench(&root, label, write, compare, repeat),
         CiCmd::DepCycles => super::dep_cycles::run_dep_cycles(&root),
+        CiCmd::AffectedCrates {
+            changed,
+            graph,
+            regen,
+            out,
+            check,
+            github_output,
+        } => {
+            let mut args: Vec<String> = vec![];
+            if regen {
+                args.push("--regen".into());
+            }
+            if check {
+                args.push("--check".into());
+            }
+            if let Some(p) = changed {
+                args.push("--changed".into());
+                args.push(p);
+            }
+            if let Some(p) = graph {
+                args.push("--graph".into());
+                args.push(p);
+            }
+            if let Some(p) = out {
+                args.push("--out".into());
+                args.push(p);
+            }
+            if let Some(p) = github_output {
+                args.push("--github-output".into());
+                args.push(p);
+            }
+            let code = vox_cli_ci::affected_cmd::run_affected_cmd(&args);
+            if code == 0 {
+                Ok(())
+            } else {
+                Err(anyhow!("affected-crates exited with code {code}"))
+            }
+        }
         CiCmd::RunnerPreflight => super::runner_scale::run_preflight(),
         CiCmd::RunnerStatus => super::runner_scale::run_status(),
         CiCmd::JobTimings {

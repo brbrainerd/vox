@@ -115,6 +115,7 @@
     "catalog remove",
     "check",
     "ci",
+    "ci affected-crates",
     "ci agentskills-compliance",
     "ci ai-fixtures-coverage",
     "ci artifact-audit",

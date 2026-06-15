@@ -1,0 +1,773 @@
+{
+  "schema_version": 1,
+  "crates": {
+    "vox-actor-runtime": [
+      "vox-config",
+      "vox-foundation",
+      "vox-http-client",
+      "vox-llm-egress",
+      "vox-openai",
+      "vox-openclaw-runtime",
+      "vox-orchestrator-types",
+      "vox-plugin-host",
+      "vox-secrets",
+      "vox-shell-stdlib-types",
+      "vox-skills",
+      "vox-telemetry",
+      "workspace-hack"
+    ],
+    "vox-arch-check": [
+      "vox-build-meta",
+      "vox-rename-registry",
+      "vox-test-harness"
+    ],
+    "vox-ast": [
+      "workspace-hack"
+    ],
+    "vox-audit": [
+      "vox-code-audit",
+      "vox-compiler",
+      "vox-config",
+      "vox-container",
+      "vox-deploy-codegen",
+      "vox-package",
+      "vox-project-scaffold",
+      "vox-telemetry",
+      "workspace-hack"
+    ],
+    "vox-bounded-fs": [
+      "vox-scaling-policy",
+      "workspace-hack"
+    ],
+    "vox-build-meta": [],
+    "vox-capability-registry": [
+      "workspace-hack"
+    ],
+    "vox-cli": [
+      "vox-actor-runtime",
+      "vox-audit",
+      "vox-bounded-fs",
+      "vox-build-meta",
+      "vox-capability-registry",
+      "vox-cli-ci",
+      "vox-cli-core",
+      "vox-codegen",
+      "vox-compiler",
+      "vox-config",
+      "vox-constrained-gen",
+      "vox-container",
+      "vox-corpus",
+      "vox-crypto",
+      "vox-db",
+      "vox-deploy-codegen",
+      "vox-doc-inventory",
+      "vox-doc-pipeline",
+      "vox-drift-check",
+      "vox-effort-audit",
+      "vox-effort-route",
+      "vox-eval",
+      "vox-foundation",
+      "vox-git",
+      "vox-grammar-export",
+      "vox-http-client",
+      "vox-identity",
+      "vox-jsonschema-util",
+      "vox-mcp-registry",
+      "vox-mesh-types",
+      "vox-orchestrator",
+      "vox-orchestrator-driver",
+      "vox-package",
+      "vox-plugin-api",
+      "vox-plugin-catalog",
+      "vox-plugin-host",
+      "vox-plugin-types",
+      "vox-populi",
+      "vox-project-scaffold",
+      "vox-publisher",
+      "vox-repository",
+      "vox-research-events",
+      "vox-research-shim",
+      "vox-rn-codegen",
+      "vox-rule-pack",
+      "vox-scaling-policy",
+      "vox-scientia",
+      "vox-search",
+      "vox-secrets",
+      "vox-sql",
+      "vox-tauri-codegen",
+      "vox-telemetry",
+      "workspace-hack"
+    ],
+    "vox-cli-ci": [
+      "vox-cli-core"
+    ],
+    "vox-cli-core": [
+      "vox-bounded-fs",
+      "vox-config",
+      "vox-db",
+      "vox-foundation",
+      "vox-gamify",
+      "vox-jsonschema-util",
+      "vox-orchestrator",
+      "vox-orchestrator-driver",
+      "vox-repository",
+      "vox-secrets"
+    ],
+    "vox-cli-tests": [
+      "vox-cli",
+      "vox-codegen",
+      "vox-compiler"
+    ],
+    "vox-code-audit": [
+      "vox-bounded-fs",
+      "vox-config",
+      "vox-http-client",
+      "vox-jsonschema-util",
+      "vox-llm-egress",
+      "vox-orchestrator-types",
+      "vox-rule-pack",
+      "vox-scaling-policy",
+      "vox-secrets",
+      "vox-telemetry",
+      "workspace-hack"
+    ],
+    "vox-codegen": [
+      "vox-compiler",
+      "vox-config",
+      "vox-deploy-codegen",
+      "vox-repository",
+      "vox-secrets",
+      "vox-sql",
+      "vox-tauri-codegen",
+      "vox-workflow-runtime",
+      "workspace-hack"
+    ],
+    "vox-codegen-ts": [
+      "vox-codegen",
+      "vox-compiler",
+      "vox-config",
+      "vox-deploy-codegen",
+      "vox-secrets",
+      "vox-sql",
+      "workspace-hack"
+    ],
+    "vox-compiler": [
+      "vox-ast",
+      "vox-codegen",
+      "vox-codegen-ts",
+      "vox-config",
+      "vox-eval",
+      "vox-foundation",
+      "vox-grammar-export",
+      "vox-jsonschema-util",
+      "vox-repository",
+      "vox-secrets",
+      "vox-shell-stdlib-types",
+      "vox-test-harness",
+      "workspace-hack"
+    ],
+    "vox-config": [
+      "vox-llm-config",
+      "vox-llm-egress",
+      "vox-secrets",
+      "workspace-hack"
+    ],
+    "vox-constrained-gen": [
+      "vox-grammar-export",
+      "workspace-hack"
+    ],
+    "vox-container": [
+      "vox-container-types",
+      "workspace-hack"
+    ],
+    "vox-container-types": [
+      "workspace-hack"
+    ],
+    "vox-corpus": [
+      "vox-bounded-fs",
+      "vox-compiler",
+      "vox-db",
+      "vox-mcp-registry",
+      "vox-repository"
+    ],
+    "vox-crypto": [],
+    "vox-db": [
+      "vox-ast",
+      "vox-codegen",
+      "vox-compiler",
+      "vox-config",
+      "vox-db-types",
+      "vox-mesh-types",
+      "vox-orchestrator-types",
+      "vox-plugin-types",
+      "vox-repository",
+      "vox-secrets",
+      "vox-telemetry",
+      "vox-test-harness",
+      "workspace-hack"
+    ],
+    "vox-db-types": [],
+    "vox-deploy-codegen": [
+      "vox-config",
+      "vox-container-types",
+      "workspace-hack"
+    ],
+    "vox-doc-inventory": [
+      "vox-bounded-fs",
+      "vox-repository",
+      "workspace-hack"
+    ],
+    "vox-doc-pipeline": [
+      "vox-bounded-fs",
+      "vox-compiler",
+      "workspace-hack"
+    ],
+    "vox-drift-check": [
+      "vox-code-audit",
+      "vox-compiler",
+      "vox-config",
+      "workspace-hack"
+    ],
+    "vox-effort-audit": [
+      "vox-actor-runtime",
+      "vox-config",
+      "vox-git",
+      "vox-secrets",
+      "vox-telemetry"
+    ],
+    "vox-effort-route": [
+      "vox-actor-runtime",
+      "vox-config",
+      "vox-effort-audit",
+      "vox-git",
+      "vox-telemetry"
+    ],
+    "vox-eval": [
+      "workspace-hack"
+    ],
+    "vox-forge": [
+      "vox-http-client",
+      "workspace-hack"
+    ],
+    "vox-foundation": [
+      "workspace-hack"
+    ],
+    "vox-gamify": [
+      "vox-bounded-fs",
+      "vox-config",
+      "vox-db",
+      "vox-http-client",
+      "vox-llm-egress",
+      "vox-openai",
+      "vox-secrets",
+      "workspace-hack"
+    ],
+    "vox-git": [
+      "vox-bounded-fs",
+      "workspace-hack"
+    ],
+    "vox-grammar-export": [
+      "workspace-hack"
+    ],
+    "vox-gui": [
+      "vox-actor-runtime",
+      "vox-build-meta",
+      "vox-cli",
+      "vox-cli-core",
+      "vox-config",
+      "vox-crypto",
+      "vox-db",
+      "vox-foundation",
+      "vox-gamify",
+      "vox-git",
+      "vox-identity",
+      "vox-orchestrator",
+      "vox-orchestrator-mcp",
+      "vox-package-types",
+      "vox-publisher",
+      "vox-repository",
+      "vox-scientia",
+      "vox-search",
+      "vox-secrets",
+      "vox-speech"
+    ],
+    "vox-hf-layout": [
+      "vox-bounded-fs"
+    ],
+    "vox-http-client": [
+      "workspace-hack"
+    ],
+    "vox-identity": [
+      "vox-crypto"
+    ],
+    "vox-integration-tests": [
+      "vox-actor-runtime",
+      "vox-bounded-fs",
+      "vox-cli",
+      "vox-codegen",
+      "vox-compiler",
+      "vox-config",
+      "vox-deploy-codegen",
+      "vox-lsp",
+      "vox-orchestrator",
+      "vox-orchestrator-mcp",
+      "vox-repository",
+      "vox-scaling-policy",
+      "vox-secrets",
+      "vox-skills",
+      "vox-speech",
+      "vox-test-harness",
+      "vox-workflow-runtime",
+      "workspace-hack"
+    ],
+    "vox-journal": [
+      "vox-runtime"
+    ],
+    "vox-jsonschema-util": [
+      "workspace-hack"
+    ],
+    "vox-langtool": [
+      "vox-cli-core",
+      "vox-codegen",
+      "vox-compiler",
+      "vox-foundation"
+    ],
+    "vox-llm-config": [
+      "workspace-hack"
+    ],
+    "vox-llm-egress": [
+      "vox-http-client",
+      "vox-openai",
+      "workspace-hack"
+    ],
+    "vox-lsp": [
+      "vox-bounded-fs",
+      "vox-compiler",
+      "vox-db",
+      "vox-foundation",
+      "vox-gamify",
+      "vox-secrets",
+      "workspace-hack"
+    ],
+    "vox-mcp-llm-bridge": [
+      "workspace-hack"
+    ],
+    "vox-mcp-registry": [
+      "workspace-hack"
+    ],
+    "vox-mesh-policy": [
+      "vox-mesh-types"
+    ],
+    "vox-mesh-types": [],
+    "vox-ml-cli": [
+      "vox-actor-runtime",
+      "vox-bounded-fs",
+      "vox-cli-core",
+      "vox-compiler",
+      "vox-config",
+      "vox-constrained-gen",
+      "vox-corpus",
+      "vox-crypto",
+      "vox-db",
+      "vox-eval",
+      "vox-foundation",
+      "vox-http-client",
+      "vox-jsonschema-util",
+      "vox-mesh-types",
+      "vox-populi",
+      "vox-repository",
+      "vox-scaling-policy",
+      "vox-secrets"
+    ],
+    "vox-openai": [
+      "workspace-hack"
+    ],
+    "vox-openclaw-runtime": [
+      "vox-config",
+      "vox-db",
+      "vox-http-client",
+      "vox-plugin-host",
+      "vox-secrets",
+      "workspace-hack"
+    ],
+    "vox-orchestrator": [
+      "vox-actor-runtime",
+      "vox-bounded-fs",
+      "vox-code-audit",
+      "vox-config",
+      "vox-corpus",
+      "vox-crypto",
+      "vox-db",
+      "vox-foundation",
+      "vox-gamify",
+      "vox-http-client",
+      "vox-lsp",
+      "vox-mesh-policy",
+      "vox-mesh-types",
+      "vox-orchestrator-queue",
+      "vox-orchestrator-types",
+      "vox-package",
+      "vox-populi",
+      "vox-publisher",
+      "vox-repository",
+      "vox-research-events",
+      "vox-search",
+      "vox-secrets",
+      "vox-skill-runtime",
+      "vox-skills",
+      "vox-telemetry",
+      "vox-test-harness",
+      "vox-vcs",
+      "workspace-hack"
+    ],
+    "vox-orchestrator-d": [
+      "vox-config",
+      "vox-db",
+      "vox-foundation",
+      "vox-orchestrator",
+      "vox-orchestrator-mcp",
+      "vox-repository",
+      "vox-secrets",
+      "vox-skills",
+      "workspace-hack"
+    ],
+    "vox-orchestrator-driver": [
+      "vox-orchestrator",
+      "vox-repository",
+      "workspace-hack"
+    ],
+    "vox-orchestrator-mcp": [
+      "vox-actor-runtime",
+      "vox-bounded-fs",
+      "vox-capability-registry",
+      "vox-code-audit",
+      "vox-compiler",
+      "vox-config",
+      "vox-corpus",
+      "vox-crypto",
+      "vox-db",
+      "vox-foundation",
+      "vox-gamify",
+      "vox-grammar-export",
+      "vox-http-client",
+      "vox-jsonschema-util",
+      "vox-lsp",
+      "vox-mcp-registry",
+      "vox-mesh-types",
+      "vox-openai",
+      "vox-openclaw-runtime",
+      "vox-orchestrator",
+      "vox-orchestrator-driver",
+      "vox-orchestrator-types",
+      "vox-package",
+      "vox-plugin-catalog",
+      "vox-plugin-host",
+      "vox-plugin-types",
+      "vox-populi",
+      "vox-project-scaffold",
+      "vox-publisher",
+      "vox-repository",
+      "vox-research-events",
+      "vox-research-shim",
+      "vox-scientia",
+      "vox-search",
+      "vox-secrets",
+      "vox-skills",
+      "vox-telemetry",
+      "workspace-hack"
+    ],
+    "vox-orchestrator-queue": [
+      "vox-config",
+      "vox-crypto",
+      "vox-db",
+      "vox-orchestrator-types",
+      "workspace-hack"
+    ],
+    "vox-orchestrator-test-helpers": [
+      "vox-orchestrator",
+      "vox-orchestrator-types"
+    ],
+    "vox-orchestrator-types": [],
+    "vox-package": [
+      "vox-compiler",
+      "vox-config",
+      "vox-db",
+      "vox-http-client",
+      "vox-package-types",
+      "workspace-hack"
+    ],
+    "vox-package-types": [
+      "workspace-hack"
+    ],
+    "vox-plugin-api": [
+      "vox-plugin-types"
+    ],
+    "vox-plugin-browser": [
+      "vox-config",
+      "vox-plugin-api",
+      "workspace-hack"
+    ],
+    "vox-plugin-catalog": [
+      "workspace-hack"
+    ],
+    "vox-plugin-host": [
+      "vox-plugin-api",
+      "vox-plugin-types",
+      "vox-telemetry",
+      "workspace-hack"
+    ],
+    "vox-plugin-mens-candle-cuda": [
+      "vox-compiler",
+      "vox-config",
+      "vox-db",
+      "vox-eval",
+      "vox-hf-layout",
+      "vox-plugin-api",
+      "vox-secrets",
+      "vox-tensor"
+    ],
+    "vox-plugin-mens-candle-metal": [
+      "vox-compiler",
+      "vox-config",
+      "vox-db",
+      "vox-eval",
+      "vox-hf-layout",
+      "vox-plugin-api",
+      "vox-secrets",
+      "vox-tensor"
+    ],
+    "vox-plugin-nvml-probe": [
+      "vox-plugin-api",
+      "vox-plugin-sdk",
+      "workspace-hack"
+    ],
+    "vox-plugin-populi-mesh": [
+      "vox-bounded-fs",
+      "vox-config",
+      "vox-crypto",
+      "vox-db",
+      "vox-foundation",
+      "vox-http-client",
+      "vox-identity",
+      "vox-mesh-types",
+      "vox-plugin-api",
+      "vox-populi",
+      "vox-repository",
+      "vox-secrets",
+      "workspace-hack"
+    ],
+    "vox-plugin-publication": [
+      "vox-db",
+      "vox-plugin-api",
+      "vox-publisher",
+      "vox-scientia",
+      "vox-search",
+      "workspace-hack"
+    ],
+    "vox-plugin-runtime-container": [
+      "vox-container",
+      "vox-container-types",
+      "vox-plugin-api",
+      "vox-skill-runtime",
+      "workspace-hack"
+    ],
+    "vox-plugin-runtime-wasm": [
+      "vox-plugin-api",
+      "vox-skill-runtime",
+      "vox-wasm-engine",
+      "workspace-hack"
+    ],
+    "vox-plugin-sdk": [
+      "vox-plugin-api"
+    ],
+    "vox-plugin-speech": [
+      "vox-config",
+      "vox-plugin-api",
+      "vox-plugin-sdk",
+      "vox-secrets",
+      "workspace-hack"
+    ],
+    "vox-plugin-test-harness": [
+      "vox-plugin-types"
+    ],
+    "vox-plugin-types": [],
+    "vox-plugin-webhook": [
+      "vox-config",
+      "vox-http-client",
+      "vox-plugin-api"
+    ],
+    "vox-populi": [
+      "vox-bounded-fs",
+      "vox-config",
+      "vox-constrained-gen",
+      "vox-corpus",
+      "vox-crypto",
+      "vox-db",
+      "vox-foundation",
+      "vox-grammar-export",
+      "vox-hf-layout",
+      "vox-http-client",
+      "vox-identity",
+      "vox-mesh-types",
+      "vox-orchestrator-queue",
+      "vox-package",
+      "vox-populi-types",
+      "vox-quantize",
+      "vox-repository",
+      "vox-secrets",
+      "vox-tensor",
+      "workspace-hack"
+    ],
+    "vox-populi-types": [
+      "vox-mesh-types",
+      "vox-repository",
+      "workspace-hack"
+    ],
+    "vox-project-scaffold": [
+      "vox-package-types",
+      "vox-repository",
+      "workspace-hack"
+    ],
+    "vox-publisher": [
+      "vox-bounded-fs",
+      "vox-config",
+      "vox-db",
+      "vox-forge",
+      "vox-foundation",
+      "vox-http-client",
+      "vox-jsonschema-util",
+      "vox-research-events",
+      "vox-scientia",
+      "vox-secrets",
+      "workspace-hack"
+    ],
+    "vox-quantize": [],
+    "vox-rename-registry": [],
+    "vox-repository": [
+      "vox-bounded-fs",
+      "vox-config",
+      "workspace-hack"
+    ],
+    "vox-research-events": [],
+    "vox-research-shim": [
+      "vox-actor-runtime",
+      "vox-config",
+      "vox-db",
+      "vox-orchestrator",
+      "vox-orchestrator-types",
+      "vox-research-events",
+      "vox-search",
+      "vox-secrets",
+      "workspace-hack"
+    ],
+    "vox-rn-codegen": [
+      "vox-codegen",
+      "vox-compiler"
+    ],
+    "vox-rule-pack": [
+      "workspace-hack"
+    ],
+    "vox-runtime": [
+      "vox-config"
+    ],
+    "vox-runtime-rn": [
+      "vox-journal",
+      "vox-runtime"
+    ],
+    "vox-scaling-policy": [
+      "vox-mesh-types",
+      "workspace-hack"
+    ],
+    "vox-scientia": [
+      "vox-actor-runtime",
+      "vox-config",
+      "vox-crypto",
+      "vox-db",
+      "vox-db-types",
+      "vox-http-client",
+      "vox-research-events",
+      "vox-search",
+      "vox-secrets"
+    ],
+    "vox-scientia-jsonschema-codegen": [
+      "workspace-hack"
+    ],
+    "vox-search": [
+      "vox-actor-runtime",
+      "vox-bounded-fs",
+      "vox-config",
+      "vox-db",
+      "vox-http-client",
+      "vox-secrets",
+      "workspace-hack"
+    ],
+    "vox-secrets": [
+      "vox-bounded-fs",
+      "vox-crypto",
+      "workspace-hack"
+    ],
+    "vox-shell-stdlib-types": [],
+    "vox-skill-runtime": [
+      "workspace-hack"
+    ],
+    "vox-skills": [
+      "vox-container",
+      "vox-db",
+      "vox-http-client",
+      "vox-openclaw-runtime",
+      "vox-package",
+      "vox-plugin-host",
+      "vox-skill-runtime",
+      "workspace-hack"
+    ],
+    "vox-speech": [
+      "vox-config",
+      "vox-secrets",
+      "workspace-hack"
+    ],
+    "vox-sql": [
+      "vox-ast",
+      "vox-db",
+      "vox-secrets"
+    ],
+    "vox-tauri-codegen": [
+      "vox-compiler"
+    ],
+    "vox-tauri-stt": [],
+    "vox-telemetry": [
+      "workspace-hack"
+    ],
+    "vox-tensor": [
+      "vox-actor-runtime",
+      "workspace-hack"
+    ],
+    "vox-test-harness": [
+      "vox-codegen",
+      "vox-compiler",
+      "vox-config",
+      "vox-secrets",
+      "workspace-hack"
+    ],
+    "vox-vcs": [
+      "vox-config",
+      "workspace-hack"
+    ],
+    "vox-wasm-engine": [
+      "workspace-hack"
+    ],
+    "vox-wire-format-validator": [],
+    "vox-workflow-runtime": [
+      "vox-compiler",
+      "vox-config",
+      "vox-db",
+      "vox-journal",
+      "vox-populi",
+      "vox-runtime",
+      "workspace-hack"
+    ],
+    "voxup": [
+      "workspace-hack"
+    ],
+    "workspace-hack": []
+  }
+}
