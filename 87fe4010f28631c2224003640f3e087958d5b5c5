@@ -1,0 +1,10 @@
+docs(plan): update LLM facade surface details in S1 B4 step
+scale: ~9 lines across 1 files [XS]
+
+- docs/superpowers/plans/2026-05-28-effort-audit-core.md:
+  - Clarified `LlmResponse` fields: `content: String` (not `text`), `prompt_tokens: u32`, `completion_tokens: u32` (not a `usage` struct).
+  - Corrected `infer_with_retry` signature to accept `candidates: Vec<LlmConfig>` and return a nested `Result`.
+  - Added a note on the retry pattern for schema failures, advising to append both bad output and corrective user message.
+  - Noted that the sketch below uses original (wrong) field names and referenced the canonical implementation commit.
+
+--- audit: original='docs(plan): record real LLM facade surface in S1 B4 step' | actual=9L across 1 files | derived=full ---
