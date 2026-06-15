@@ -722,6 +722,25 @@ pub enum CiCmd {
         #[arg(long)]
         apply: bool,
     },
+    /// Reproducible wall-clock build scenarios with a committed baseline; --compare emits a phase delta.
+    #[command(name = "build-bench")]
+    BuildBench {
+        /// Label for this run (used in the delta report heading + snapshot filename).
+        #[arg(long)]
+        label: Option<String>,
+        /// Write the full snapshot JSON to this path.
+        #[arg(long)]
+        write: Option<String>,
+        /// Compare against a baseline snapshot JSON and emit a delta report.
+        #[arg(long)]
+        compare: Option<String>,
+        /// Run each scenario N times and keep the min wall time (default 3).
+        #[arg(long, default_value_t = 3)]
+        repeat: u32,
+    },
+    /// Detect dependency cycles (HARD on normal-dep cycles) and inventory dev-dep back-edges.
+    #[command(name = "dep-cycles")]
+    DepCycles,
     /// Fail-fast: error immediately when no online self-hosted runner can serve the gate.
     #[command(name = "runner-preflight")]
     RunnerPreflight,

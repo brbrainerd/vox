@@ -520,6 +520,13 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             },
         ),
         CiCmd::RunnerScale { apply } => super::runner_scale::run_scale(apply),
+        CiCmd::BuildBench {
+            label,
+            write,
+            compare,
+            repeat,
+        } => super::build_bench::run_build_bench(&root, label, write, compare, repeat),
+        CiCmd::DepCycles => super::dep_cycles::run_dep_cycles(&root),
         CiCmd::RunnerPreflight => super::runner_scale::run_preflight(),
         CiCmd::RunnerStatus => super::runner_scale::run_status(),
         CiCmd::JobTimings {
