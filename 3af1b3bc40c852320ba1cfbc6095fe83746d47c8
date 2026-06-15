@@ -1,0 +1,10 @@
+feat(lexer,corpus,builtin): Add hash-padded raw strings and revive migrate-arrows
+scale: ~129 lines across 5 files [M]
+
+- lexer: Add three new `RawStringLit` regex arms for Rust-style `r#"..."#`, `r##"..."##`, and `r###"..."###` raw strings, with priorities 8, 7, and 6 respectively. These allow embedding `"` characters in the string body as long as they are not followed by the matching number of `#` characters. The bare `r"..."` raw string now has priority 5.
+- corpus: Revive `scripts/migrate-arrows.vox` by updating it to use hash-padded raw strings for regex patterns that contain embedded quotes (e.g., `r#"\"\s*->\s*"#`). Update `fs.read_to_string` to handle `Result` and `fs.write_file` to use the correct function name. Replace `fs.list_recursive` with `fs.glob` and update list manipulation to be immutable.
+- builtin_registry: Change the return type of `regex.replace` from `Result[Str]` to `Str` and `regex.find` from `Result[Option[Str]]` to `Option[Str]` to align with evaluation-side semantics where compile errors are silently discarded.
+- tests: Add four new test cases for hash-padded raw strings in `crates/vox-compiler/tests/raw_string_test.rs`: `hash_padded_raw_string_allows_embedded_quote`, `hash_padded_holds_regex_with_embedded_quote`, `double_hash_padded_allows_single_hash_in_body`, and `empty_hash_padded_raw_string`.
+- contracts: Add `scripts/migrate-arrows.vox` to `scripts-pass-baseline.txt`.
+
+--- audit: original='feat(lexer+corpus): hash-padded raw-strings r#"..."# + migrate-arrows revival (50/59, 85%)' | actual=129L across 5 files | derived=full ---
