@@ -1,0 +1,12 @@
+feat(vox-audit): Implement four remaining P1 CR-L runners, remove stubs
+scale: ~1162 lines across 7 files [XL]
+
+- `crates/vox-audit/src/subcommands/repair_corpus.rs`: Added new module for `RepairCorpusRunner` (CR-L3), which walks `contracts/eval/repair-corpus/projects/*/` and exercises `vox repair --project`. It includes corpus-validity and an opt-in LLM-panel pass-rate layer.
+- `crates/vox-audit/src/subcommands/spec_to_app.rs`: Added new module for `SpecToAppRunner` (CR-L0), which walks `contracts/eval/spec-to-app/specs/*/spec.toml` and reports corpus inventory. The autonomous agent loop is a future integration.
+- `crates/vox-audit/src/subcommands/plan_fidelity.rs`: Added new module for `PlanFidelityRunner` (CR-L4), which walks `contracts/eval/plan-fidelity/plans/*/plan.toml` and reports corpus inventory.
+- `crates/vox-audit/src/subcommands/mens_on_distribution.rs`: Added new module for `MensOnDistributionRunner` (CR-L2), which reuses the CR-L1 humaneval corpus and reports corpus routing. MENS sampling is an opt-in LLM-panel mode.
+- `crates/vox-audit/src/subcommands/stubs.rs`: Reduced to a tombstone module, removing all stub runner implementations and the `corpus_stub_outcome` helper.
+- `crates/vox-audit/src/lib.rs`: Updated the `registry()` function to replace four stub runner references with their new, real `Box::new` implementations: `SpecToAppRunner`, `MensOnDistributionRunner`, `RepairCorpusRunner`, and `PlanFidelityRunner`.
+- `crates/vox-audit/src/subcommands/mod.rs`: Added new modules `mens_on_distribution`, `plan_fidelity`, `repair_corpus`, and `spec_to_app` to the `mod.rs` file.
+
+--- audit: original='feat(vox-audit): P1 — all 9 CR-L runners now real (no stubs left)' | actual=1162L across 7 files | derived=full ---
