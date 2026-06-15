@@ -61,7 +61,25 @@ impl Default for RunOpts {
     }
 }
 
+/// Safe default CPU quota for untrusted-image runs (`--cpus`).
+pub const DEFAULT_SANDBOX_CPUS: &str = "2";
+/// Safe default memory cap for untrusted-image runs (`--memory`).
+pub const DEFAULT_SANDBOX_MEMORY: &str = "2g";
+/// Safe default process cap for untrusted-image runs (`--pids-limit`).
+pub const DEFAULT_SANDBOX_PIDS: u32 = 512;
+
 impl RunOpts {
+    /// `RunOpts` with safe resource limits applied — the correct starting point
+    /// for running untrusted/external images. Callers may override any field.
+    pub fn sandboxed() -> Self {
+        Self {
+            cpus: Some(DEFAULT_SANDBOX_CPUS.to_string()),
+            memory: Some(DEFAULT_SANDBOX_MEMORY.to_string()),
+            pids_limit: Some(DEFAULT_SANDBOX_PIDS),
+            ..Self::default()
+        }
+    }
+
     /// CLI resource-limit flags for `docker run` / `podman run`, in a stable order.
     /// Empty when no limits are set (behavior-preserving).
     pub fn resource_args(&self) -> Vec<String> {
@@ -132,4 +150,23 @@ pub trait ContainerRuntime: Send + Sync {
 
     /// Log into a container registry.
     fn login(&self, registry: &str, username: &str, token: &str) -> anyhow::Result<()>;
+}
+
+#[cfg(test)]
+mod sandboxed_tests {
+    use super::*;
+
+    #[test]
+    fn sandboxed_sets_safe_limits() {
+        let o = RunOpts::sandboxed();
+        assert_eq!(o.cpus.as_deref(), Some(DEFAULT_SANDBOX_CPUS));
+        assert_eq!(o.memory.as_deref(), Some(DEFAULT_SANDBOX_MEMORY));
+        assert_eq!(o.pids_limit, Some(DEFAULT_SANDBOX_PIDS));
+        assert!(!o.resource_args().is_empty());
+    }
+
+    #[test]
+    fn plain_default_stays_unbounded_for_explicit_opt_out() {
+        assert!(RunOpts::default().resource_args().is_empty());
+    }
 }
