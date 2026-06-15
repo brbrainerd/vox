@@ -1,0 +1,9 @@
+docs(spec): clarify S2 dependencies and embedding strategy
+scale: ~7 lines across 1 files [XS]
+
+- docs/superpowers/specs/2026-05-30-effort-route-design.md:
+    - Removed `vox-search` from the dependency list and added a "Not a dep" section explaining why `vox-search` is not used (due to its `VoxDb`-coupling) and that S2 directly calls `vox_actor_runtime::llm::llm_embed` for in-memory clustering.
+    - Updated the description of `vox-actor-runtime` to explicitly state it provides both LLM and embedding facade (`llm_embed`).
+    - Corrected the embedding strategy for sub-clustering to directly use `vox_actor_runtime::llm::llm_embed` instead of `vox_search` with a fallback.
+
+--- audit: original='docs(spec): correct S2 against real S1 surface' | actual=7L across 1 files | derived=full ---
