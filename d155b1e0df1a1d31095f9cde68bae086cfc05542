@@ -1,0 +1,10 @@
+fix(ci): restore cargo-deny v2 deny.toml schema
+scale: ~17 lines across 1 files [S]
+
+- `deny.toml`:
+  - Updated `advisories` and `licenses` sections to use `version = 2`.
+  - Removed `severity-threshold` from `advisories`.
+  - Removed `unlicensed`, `deny` list for licenses, `copyleft`, and `allow-osi-fsf-free` from `licenses`.
+  - Added `Unicode-3.0` to the allowed licenses.
+
+--- audit: original='fix(ci): restore cargo-deny v2 deny.toml schema on self-hosted gate' | actual=17L across 1 files | derived=full ---
