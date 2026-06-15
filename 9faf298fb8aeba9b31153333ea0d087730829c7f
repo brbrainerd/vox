@@ -1,0 +1,6 @@
+docs: remove CNAME file
+scale: ~1 lines across 1 files [XS]
+
+- Remove the CNAME file, which previously pointed to `vox-lang.org`.
+
+--- audit: original='Delete CNAME' | actual=1L across 1 files | derived=full ---
