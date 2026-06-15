@@ -1,0 +1,7 @@
+feat(dashboard): replace TanStack Router-specific App.tsx with framework-agnostic routes.manifest.ts
+scale: ~51 lines across 2 files [M]
+
+- `crates/vox-dashboard/app/src/generated/App.tsx`: Deleted the TanStack Router-specific `App` component, which previously handled route creation and rendering using `createRootRoute`, `createRoute`, and `createRouter`.
+- `crates/vox-dashboard/app/src/generated/routes.manifest.ts`: Added a new file exporting `voxRoutes`, a framework-agnostic `VoxRoute[]` manifest. This manifest defines the application's routes, including the root path "/" and its associated `AppShell` component, replacing the previous TanStack Router setup.
+
+--- audit: original='chore(dashboard): replace hand-rolled App.tsx with generated routes.manifest.ts' | actual=51L across 2 files | derived=full ---
