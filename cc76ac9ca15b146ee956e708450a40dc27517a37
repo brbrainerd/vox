@@ -1,0 +1,6 @@
+fix(ci): Remove spurious `--` from `vox ci` commands in CI workflow
+scale: ~84 lines across 1 files [M]
+
+- `.github/workflows/ci.yml`: Removed the `--` argument separator from 42 invocations of `./target/debug/vox --quiet -- ci <subcommand>` across various CI steps. This corrects the command to `./target/debug/vox --quiet ci <subcommand>`, allowing the `ci` subcommand to be correctly parsed by the `vox` binary.
+
+--- audit: original='fix(ci): drop spurious `--` before subcommand in direct vox-binary guard steps (#278)' | actual=84L across 1 files | derived=full ---
