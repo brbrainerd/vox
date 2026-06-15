@@ -1,0 +1,43 @@
+docs(roadmap): update status after 2026-04-29 session
+scale: ~68 lines across 1 files [M]
+
+- docs/src/architecture/gui-native-roadmap-status-2026.md:
+  - Updated TASK-0.6 status from "Partial" to "Done", detailing the implementation of typed discriminated-union events, exponential backoff, 4401 auth close-code handling, UI banner wiring, and fixes for type exports and import paths.
+  - Updated "Phase 0 verdict" from "7 complete, 1 partial" to "8/8 complete", indicating full completion.
+  - Removed the entry for TASK-2.1, which was previously marked as "Done".
+  - Removed the entry for TASK-2.2, which was previously marked as "Done".
+  - Removed the entry for TASK-2.3, which was previously marked as "Done".
+  - Removed the entry for TASK-2.4, which was previously marked as "Done".
+  - Removed the entry for TASK-2.5, which was previously marked as "Done".
+  - Removed the entry for TASK-2.6, which was previously marked as "Partial".
+  - Removed the entry for TASK-2.7, which was previously marked as "Done".
+  - Removed the entry for TASK-2.8, which was previously marked as "Done".
+  - Removed the entry for TASK-2.9, which was previously marked as "Done".
+  - Removed the entry for TASK-2.10, which was previously marked as "Done".
+  - Updated "Phase 2 verdict" from "10 complete, 1 partial" to "5/6 complete".
+  - Removed the entry for TASK-3.1, which was previously marked as "Done".
+  - Removed the entry for TASK-3.2, which was previously marked as "Done".
+  - Removed the entry for TASK-3.3, which was previously marked as "Done".
+  - Removed the entry for TASK-3.4, which was previously marked as "Done".
+  - Removed the entry for TASK-3.5, which was previously marked as "Done".
+  - Removed the entry for TASK-3.6, which was previously marked as "Done".
+  - Removed the entry for TASK-3.7, which was previously marked as "Done".
+  - Removed the entry for TASK-3.8, which was previously marked as "Done".
+  - Removed the entry for TASK-3.9, which was previously marked as "Done".
+  - Removed the entry for TASK-3.10, which was previously marked as "Done".
+  - Updated "Phase 3 verdict" from "10 complete" to "0/0 complete".
+  - Removed the entry for TASK-4.1, which was previously marked as "Done".
+  - Removed the entry for TASK-4.2, which was previously marked as "Done".
+  - Removed the entry for TASK-4.3, which was previously marked as "Done".
+  - Removed the entry for TASK-4.4, which was previously marked as "Done".
+  - Removed the entry for TASK-4.5, which was previously marked as "Done".
+  - Removed the entry for TASK-4.6, which was previously marked as "Done".
+  - Removed the entry for TASK-4.7, which was previously marked as "Done".
+  - Removed the entry for TASK-4.8, which was previously marked as "Done".
+  - Removed the entry for TASK-4.9, which was previously marked as "Done".
+  - Removed the entry for TASK-4.10, which was previously marked as "Done".
+  - Updated "Phase 4 verdict" from "10 complete" to "0/0 complete".
+  - Removed the "Next tasks" section.
+  - Added an audit log entry for the 2026-04-29 session.
+
+--- audit: original='docs(roadmap): update status after 2026-04-29 session' | actual=68L across 1 files | derived=full ---
