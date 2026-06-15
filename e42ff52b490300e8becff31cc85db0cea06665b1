@@ -1,0 +1,26 @@
+feat(vox-compiler): Add `@public` decorator and `kind: stream` to `@endpoint`
+scale: ~67 lines across 8 files [M]
+
+- **`apps/marquee/todo-auth/src/main.vox`**:
+    - Replaced a deferred comment with a real `@endpoint(kind: query) @public fn health()` definition.
+    - Updated comments to reflect `@public` parsing.
+- **`crates/vox-compiler/src/parser/descent/decl/head.rs`**:
+    - Added `kind: stream` to the `EndpointKind` parsing logic for `@endpoint`.
+    - Updated the error message hint for `kind:` to include `stream`.
+    - Implemented parsing for the `AtPublic` token after `@endpoint`, allowing optional paren arguments for future compatibility.
+- **`contracts/marquee/manifest.v1.yaml`**:
+    - Updated `features_deferred` and `features_shipped_followups` for `todo-auth` to reflect `@public` landing.
+    - Updated `features_deferred` and `features_shipped_followups` for `chat` to reflect `kind: stream` landing.
+- **`crates/vox-compiler/src/hir/lower/mod.rs`**:
+    - Added logic to lower `EndpointKind::Stream` to `HirEndpointKind::Server` with `SERVER_FN_API_PREFIX`, preserving the AST distinction for future streaming codegen.
+- **`crates/vox-compiler/src/ast/decl/fundecl.rs`**:
+    - Added `Stream` variant to the `EndpointKind` enum with documentation.
+- **`crates/vox-compiler/src/lexer/token.rs`**:
+    - Introduced `AtPublic` token for the `@public` decorator.
+    - Added `AtPublic` to the `Display` implementation for `Token`.
+- **`apps/marquee/chat/src/main.vox`**:
+    - Added a real `@endpoint(kind: stream) @auth(scheme: bearer) fn watch_room()` definition.
+- **`crates/vox-db/src/schema_digest/api.rs`**:
+    - Added an exhaustive match arm for `EndpointKind::Stream` in `generate_schema_digest`, currently as a no-op.
+
+--- audit: original='feat(vox-compiler): @public post-@endpoint + @endpoint(kind: stream)' | actual=67L across 8 files | derived=full ---
