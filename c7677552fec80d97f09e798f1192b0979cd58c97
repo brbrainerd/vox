@@ -1,0 +1,8 @@
+feat(vox-effort-audit): Implement Claude Code transcript correlation
+scale: ~275 lines across 3 files [L]
+
+- `crates/vox-effort-audit/src/hybrid/transcripts.rs`: Add new module to read Claude Code transcripts, normalize paths, and correlate them with Git commits based on `cwd` and timestamp within a window. This includes functions for resolving costs for a commit and parsing JSONL transcript files.
+- `crates/vox-effort-audit/src/hybrid/mod.rs`: Introduce `MeasuredCost` enum to represent different states of cost measurement (Measured, Estimated, Ambiguous, Unavailable) and declare `transcripts` as a public module.
+- `crates/vox-effort-audit/tests/fixtures/transcripts/sample.jsonl`: Add a new fixture file containing sample Claude Code transcript data in JSONL format for testing purposes.
+
+--- audit: original='feat(vox-effort-audit): Claude Code transcript correlation (C1)' | actual=275L across 3 files | derived=full ---
