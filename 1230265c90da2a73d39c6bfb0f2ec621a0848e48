@@ -1,0 +1,7 @@
+refactor(orchestrator): remove unused `ContentMerge`, `MergeSide`, `OperationDag`, and `DagNodeId` types
+scale: ~276 lines across 2 files [L]
+
+- `crates/vox-orchestrator/src/jj_backend.rs`: Deleted the `MergeSide`, `ContentMerge`, `OperationDag`, and `DagNodeId` structs, along with their associated methods and implementations. These types were previously used for N-way merge and operation graph representation but are now obsolete due to the use of `jj-lib`.
+- `crates/vox-orchestrator/src/lib.rs`: Removed the public re-exports of `ContentMerge`, `DagNodeId`, `MergeSide`, and `OperationDag` from the `jj_backend` module.
+
+--- audit: original='refactor(orchestrator): delete dead ContentMerge/OperationDag (jj-lib obviates; zero consumers)' | actual=276L across 2 files | derived=full ---
