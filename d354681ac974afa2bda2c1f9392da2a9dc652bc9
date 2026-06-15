@@ -1,0 +1,9 @@
+feat(dashboard): Migrate dashboard UI to VUV-form syntax and typed kwargs
+scale: ~923 lines across 4 files [L]
+
+- `crates/vox-dashboard/app/src/app.vox`: Rewrote the main dashboard application from JSX to VUV-form syntax, replacing JSX elements with function calls and Tailwind class strings with typed style kwargs. This included `ChatMessage` and `ComposerPanel` components.
+- `crates/vox-dashboard/app/src/tabs/command.vox`: Migrated the `CommandTab` components, including `DiagnosticRow`, from JSX to VUV-form syntax, using typed style kwargs and `raw_class` for unsupported styles.
+- `crates/vox-dashboard/app/src/tabs/forge.vox`: Converted the `ForgeTab` components, such as `PipelineStage`, from JSX to VUV-form syntax with typed style kwargs. Also updated the comment from "workflow" to "orchestration" to avoid keyword collision.
+- `crates/vox-dashboard/app/src/tabs/network.vox`: Transformed the `NetworkTab` components, including `NodeBadge` and `MeshLegend`, from JSX to VUV-form syntax, utilizing typed style kwargs and `raw_class`.
+
+--- audit: original='feat(dashboard): VUV-6 — full dashboard cutover to view-call form' | actual=923L across 4 files | derived=full ---
