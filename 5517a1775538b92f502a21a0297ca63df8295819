@@ -1,0 +1,20 @@
+fix(review): address 8 code-review findings and Cargo config merge conflict
+scale: ~58 lines across 6 files [M]
+
+- `contracts/tokens/tokens.v1.json`:
+  - Corrected `$id` domain from `vox-lang.dev` to `vox-lang.org`.
+  - Tightened `additionalProperties` to `false` to reject unknown keys.
+- `crates/vox-compiler/src/codegen_ts/tokens_emit.rs`:
+  - Added `debug_assert!` to `emit_tokens_css` to guard against unsafe CSS custom property characters in token keys.
+  - Replaced the `output_is_deterministic` test with a cross-registry test that verifies identical CSS/TS output regardless of key insertion order.
+- `.github/workflows/vox-visus-audit.yml`:
+  - Gated the "Run Visus Audit" job on the `VOX_VISUS_STAGING_URL` repository variable being set.
+  - Added `if: always()` and `if-no-files-found: ignore` to the "Upload Visus Artifacts" step.
+- `contracts/workflow/workflow-journal.v1.schema.json`:
+  - Added "workflow" to the `required` properties for `SignalWaitSatisfied` and `TimerWaitCompleted` event variants.
+- `docs/src/how-to/how-to-scale-actors.md`:
+  - Fixed a grammatical error: "because and provides" changed to "because it provides".
+- `.cargo/config.toml`:
+  - Changed `CARGO_TARGET_DIR` to use the table form `{ value = "target", relative = true }` to ensure clean merging with global Cargo configurations.
+
+--- audit: original='fix(review): address all 8 code-review findings + fix Cargo config merge conflict' | actual=58L across 6 files | derived=full ---
