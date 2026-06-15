@@ -1,0 +1,13 @@
+feat(catalog): populate metadata for mesh, plugin, and approval operations
+scale: ~68 lines across 4 files [M]
+
+- `contracts/capability/capability-registry.yaml`:
+  - Added `side_effect_class`, `scope_kind`, and `reversible` metadata to `mesh.dispatch`, `plugin.install`, `plugin.remove`, and `approvals.resolve` operations.
+  - Updated `mesh.dispatch` description to include "bundle" execution.
+- `contracts/operations/catalog.v1.yaml`:
+  - Added `side_effect_class`, `scope_kind`, and `reversible` metadata to `mesh.dispatch`, `plugin.install`, `plugin.remove`, and `approvals.resolve` operations.
+  - Updated `mesh.dispatch` description to include "bundle" execution.
+- `contracts/capability/model-manifest.generated.json`: Regenerated to reflect changes in `capability-registry.yaml`.
+- `contracts/mcp/tool-registry.canonical.yaml`: Updated `vox_mesh_dispatch` description to include "bundle" execution.
+
+--- audit: original='feat(catalog): mutation metadata for mesh/plugin/approval ops (partial #101) (#284)' | actual=68L across 4 files | derived=full ---
