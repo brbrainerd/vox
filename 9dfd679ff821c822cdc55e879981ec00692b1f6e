@@ -1,0 +1,27 @@
+feat(vox-gui): group Keys & Secrets by taxonomy, add backend status & import/migrate actions
+scale: ~634 lines across 5 files [L]
+
+- **crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx**:
+    - Reworked Keys & Secrets UI:
+        - Implemented collapsible per-taxonomy groups for secrets, with state persisted in local storage.
+        - Added auto-expansion for required-unmet groups.
+        - Integrated backend/profile status badges using `SecretsBackendStatusDto`.
+        - Added "Migrate auth.json -> vault" and "Import .env" preview/confirm flows.
+        - Introduced `useLocalStorage` hook for persisting UI state.
+    - Defined new DTOs: `SecretsBackendStatusDto`, `ImportEnvEntryDto`, `ImportEnvResultDto`.
+- **crates/vox-secrets/src/lib.rs**:
+    - Added `active_resolve_profile()` to expose the currently active secret resolution profile.
+    - Added `backend_unavailable_detail()` to probe backend reachability and return detail if unavailable.
+    - Extracted `.env` import logic into a shared `import_env_from_path` function.
+    - Defined `ImportEnvEntry` and `ImportEnvResult` structs for `.env` import operations, ensuring no raw secret values are exposed.
+- **crates/vox-gui/src/commands/secrets.rs**:
+    - Added `secrets_backend_status` Tauri command to report non-sensitive backend mode and profile status.
+    - Added `import_env` Tauri command for `.env` file import (dry-run and apply).
+    - Added `migrate_auth_store` Tauri command for migrating `auth.json` to the vault.
+    - Defined `SecretsBackendStatusDto` for GUI consumption.
+- **crates/vox-cli/src/commands/secrets.rs**:
+    - Refactored `import-env` command to use the new shared `vox_secrets::import_env_from_path` function, removing duplicated logic.
+- **crates/vox-gui/src/main.rs**:
+    - Registered new Tauri commands: `secrets_backend_status`, `import_env`, and `migrate_auth_store`.
+
+--- audit: original='@ feat(vox-gui): group Keys & Secrets by taxonomy + backend status + import/migrate actions' | actual=634L across 5 files | derived=full ---
