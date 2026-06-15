@@ -1,0 +1,25 @@
+test(codegen): refresh TS-emit snapshots and fix two test assertions
+scale: ~1391 lines across 9 files [XL]
+
+- `crates/vox-codegen/tests/component_import_refs_test.rs`:
+    - Added `emit_file` helper to extract output for a single generated file.
+    - Modified `no_spurious_self_import` test to use `emit_file` and assert against `Solo.tsx` specifically, preventing false positives from combined output.
+    - Updated assertion message for `no_spurious_self_import`.
+- `crates/vox-codegen/tests/form_emit_test.rs`:
+    - Updated `form_emits_react_component_with_inputs_and_labels` test assertion to check for `window.history.pushState` and `PopStateEvent` instead of `navigate()`, reflecting router-agnostic redirect changes.
+- `crates/vox-codegen/src/codegen_ts/form_emit.rs`:
+    - Updated module doc comment to accurately describe router-agnostic redirect mechanism (`history.pushState` + `popstate`).
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@routes_with_loader.snap`:
+    - Regenerated snapshot to include new web bootstrap files (`vox-app.tsx`, `runtime-install.ts`, `error-boundary.tsx`, `sw-register.ts`, `app-hooks.ts`, `entry.ts`).
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@component_effect_with_deps.snap`:
+    - Regenerated snapshot to include new web bootstrap files (`vox-app.tsx`, `runtime-install.ts`, `error-boundary.tsx`, `sw-register.ts`, `app-hooks.ts`, `entry.ts`).
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@component_state.snap`:
+    - Regenerated snapshot to include new web bootstrap files (`vox-app.tsx`, `runtime-install.ts`, `error-boundary.tsx`, `sw-register.ts`, `app-hooks.ts`, `entry.ts`).
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@list_render_with_key.snap`:
+    - Regenerated snapshot to include new web bootstrap files (`vox-app.tsx`, `runtime-install.ts`, `error-boundary.tsx`, `sw-register.ts`, `app-hooks.ts`, `entry.ts`).
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@safe_area.snap`:
+    - Regenerated snapshot to include new web bootstrap files (`vox-app.tsx`, `runtime-install.ts`, `error-boundary.tsx`, `sw-register.ts`, `app-hooks.ts`, `entry.ts`).
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@endpoint_call_in_handler.snap`:
+    - Regenerated snapshot to include new web bootstrap files (`vox-app.tsx`, `runtime-install.ts`, `error-boundary.tsx`, `sw-register.ts`, `app-hooks.ts`, `entry.ts`).
+
+--- audit: original='test(codegen): refresh stale TS-emit tests + snapshots to current behavior' | actual=1391L across 9 files | derived=full ---
