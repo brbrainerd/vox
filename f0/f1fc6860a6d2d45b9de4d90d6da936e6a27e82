@@ -1,0 +1,15 @@
+refactor: Apply `cargo fmt` to multiple crates
+scale: ~225 lines across 10 files [M]
+
+- `crates/vox-codegen/src/web_ir/validate_palette.rs`: Reformatted `suggest_color`, `check_unknown_kwargs`, and `walk_contrast` functions.
+- `crates/vox-rn-codegen/src/component.rs`: Reformatted `RnNode` enum variants in `apply_dyn_style_to_node` and `hir_view_child_to_rn` function calls.
+- `crates/vox-codegen/src/web_ir/validate_layer.rs`: Reformatted `DomNode::Element` destructuring in `walk` and test assertions in `tests` module.
+- `crates/vox-codegen/src/web_ir/emit_tsx.rs`: Reformatted assertions in `a11p2_portal_tests` module.
+- `crates/vox-codegen/src/web_ir/lower.rs`: Reformatted `attrs.push` call in `inject_primitive_dom_markers`.
+- `crates/vox-cli/src/commands/build.rs`: Reformatted `anyhow::bail!` macro call.
+- `crates/vox-compiler/src/hir/nodes/layer.rs`: Reformatted assertion in `LayerTier::default_for_primitive` test.
+- `crates/vox-secrets/src/tests.rs`: Reformatted `matches!` macro call.
+- `crates/vox-codegen/src/web_ir/validate.rs`: Reformatted `TokenRegistry::load_from_str` call.
+- `crates/vox-rn-codegen/tests/rn_lifecycle_test.rs`: Reformatted `tsx.contains` assertion.
+
+--- audit: original='style: cargo fmt VUV + Expo changes (Windows-safe via scripts/fmt.vox)' | actual=225L across 10 files | derived=full ---
