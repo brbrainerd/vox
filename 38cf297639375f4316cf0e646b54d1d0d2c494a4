@@ -1,0 +1,27 @@
+feat(effort-route): add real per-token cost primitive on decisions
+scale: ~190 lines across 6 files [M]
+
+- `crates/vox-effort-route/src/route/mod.rs`:
+  - `RemediationDecision` struct:
+    - Replaced `judge_tokens_used: u64` with `judge_prompt_tokens: u64` and `judge_completion_tokens: u64`.
+    - Added `judge_cost_usd: Option<f64>` to store the real USD cost of judge calls.
+    - Introduced a `judge_tokens_used()` helper method to sum prompt and completion tokens.
+    - Updated `budget_exhausted()` to initialize new token fields to 0 and `judge_cost_usd` to `None`.
+  - `LlmRouter` trait:
+    - Modified `infer` method to return `prompt_tokens` and `completion_tokens` separately.
+    - Added a `rates: ModelRates` field to `LlmRouter` to hold pricing information.
+    - Updated `MockRouter` to return `None` for `judge_cost_usd`.
+- `crates/vox-effort-route/src/pricing.rs`:
+  - New file `pricing.rs` introduced.
+  - Defined `ModelRates` struct with `input_per_1k_usd`, `output_per_1k_usd`, and a `known` flag.
+  - Implemented `cost_usd` method for `ModelRates` to calculate the real USD cost based on prompt and completion tokens, returning `None` if rates are not known.
+- `crates/vox-effort-route/src/emit/artifacts.rs`:
+  - Updated `RemediationDecision` initialization in tests to use `judge_prompt_tokens`, `judge_completion_tokens`, and `judge_cost_usd`.
+- `crates/vox-effort-route/src/emit/jsonl.rs`:
+  - Updated `RemediationDecision` initialization in tests to use `judge_prompt_tokens`, `judge_completion_tokens`, and `judge_cost_usd`.
+- `crates/vox-effort-route/src/emit/mod.rs`:
+  - Updated `RemediationDecision` initialization in tests to use `judge_prompt_tokens`, `judge_completion_tokens`, and `judge_cost_usd`.
+- `crates/vox-effort-route/src/lib.rs`:
+  - Added `pub mod pricing;` to expose the new pricing module.
+
+--- audit: original='feat(effort-route): add real per-token cost primitive on decisions' | actual=190L across 6 files | derived=full ---
