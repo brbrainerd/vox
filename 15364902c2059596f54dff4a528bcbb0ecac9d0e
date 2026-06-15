@@ -1,0 +1,16 @@
+feat(gui): Add characteristic emphasis model control and persistence
+scale: ~121 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx`:
+    - Implemented an "Emphasis" panel with presets (Balanced, Intelligence, Efficiency, Responsiveness) and three sliders for "Intelligence," "Efficiency," and "Responsiveness."
+    - Mapped "Intelligence" to `precision`, "Efficiency" to `efficiency`, and "Responsiveness" to `latency` for routing priority.
+    - Added an "Advanced" toggle to reveal raw 6-axis sliders.
+    - Updated the routing save toast message to indicate persistence.
+    - Added state for the `advanced` toggle.
+- `crates/vox-gui/src/commands/models.rs`:
+    - Added `apply_routing_csv` function to parse a CSV string of routing priorities and apply them to a base `RoutingPriorityDto`.
+    - Implemented `effective_routing_priority` to retrieve routing priority from the database user preference (`routing_priority`) if available, otherwise falling back to environment variables or defaults.
+    - Modified `set_routing_priority` to persist the 6-axis CSV to the `routing_priority` user preference in the database.
+    - Updated `get_routing_summary` to report the effective priority, considering the database preference.
+
+--- audit: original='@ feat(gui): characteristic-emphasis model control (intelligence/efficiency/responsiveness) + persist' | actual=121L across 2 files | derived=full ---
