@@ -1,0 +1,16 @@
+fix(compiler,workflow-runtime): enforce literal CSS value restrictions and remove dead workflow planning code
+scale: ~324 lines across 3 files [L]
+
+- `crates/vox-compiler/src/web_ir/validate.rs`:
+    - Add `check_literal_value` function to validate `StyleDeclarationValue`s, specifically disallowing raw hex/rgb/hsl literals, `Color` variants, and `Length` dimensions. This check fires unconditionally, without requiring a token registry.
+    - Modify `validate_styles_with_registry` to call `check_literal_value` for each declaration.
+    - Update `validate_styles` function signature to `validate_styles_with_registry` and add an optional `registry` parameter.
+    - Import `CssColor` and `StyleDeclarationValue` for new validation logic.
+- `crates/vox-compiler/tests/web_ir_lower_emit_test.rs`: Add four new tests to verify `check_literal_value` functionality:
+    - `web_ir_validate_style_rejects_hex_color_raw`: Rejects raw hex color values.
+    - `web_ir_validate_style_rejects_color_variant`: Rejects `Color` enum variants.
+    - `web_ir_validate_style_rejects_literal_dimension`: Rejects literal `Length` dimensions.
+    - `web_ir_validate_style_accepts_token_ref`: Ensures `TokenRef` values pass through validation.
+- `crates/vox-workflow-runtime/src/workflow/plan.rs`: Remove the entire function body of `plan_workflow_replay_ir`, replacing it with an `anyhow::bail!` error message indicating that workflow HIR is no longer available and durable workflows are handled by `vox-orchestrator`. This removes dead code related to processing workflow HIR.
+
+--- audit: original='fix(compiler,workflow-runtime): TASK-5.1 literal CSS value enforcement + workflow tombstone repair' | actual=324L across 3 files | derived=full ---
