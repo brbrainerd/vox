@@ -1,0 +1,7 @@
+docs(telemetry): document new `audit.effort` and `audit.route` metric types
+scale: ~8 lines across 2 files [S]
+
+- docs/src/reference/telemetry-metric-contract.md: Added 8 new rows to the telemetry metric contract table, documenting `audit.effort.run.started`, `audit.effort.run.completed`, `audit.effort.commit.judged`, `audit.route.run.started`, `audit.route.run.completed`, `audit.route.run.failed`, and `audit.route.cluster.decided` metric types.
+- contracts/reports/gui-surface-coverage.v1.json: Regenerated this file, which was previously stale.
+
+--- audit: original='chore: clear pre-existing ssot-drift backlog surfaced by fast pre-push hook' | actual=8L across 2 files | derived=full ---
