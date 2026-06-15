@@ -1,0 +1,8 @@
+feat(llm_bridge): route latency-critical free-tier selection via FreeTierRouter
+scale: ~192 lines across 3 files [M]
+
+- `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/free_tier_adapter.rs`: Added a new module `free_tier_adapter` containing `route_free_tier_latency` function. This function builds a `FreeTierRouteRequest` from resolution hints and capabilities, runs the `FreeTierRouter`, applies an `accept` gate, and prioritizes `ModelTier::Fast` for latency-critical work.
+- `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs`: Modified `resolve_mcp_chat_model_sync` to use `free_tier_adapter::route_free_tier_latency` for latency-critical free-tier model selection, replacing the previous `registry.best_free_for_with_filter` call. The `accept` closure now re-applies local-Ollama and routing-profile gating.
+- `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/mod.rs`: Added `free_tier_adapter` as a module.
+
+--- audit: original='feat(models): route latency-critical free-tier selection through FreeTierRouter' | actual=192L across 3 files | derived=full ---
