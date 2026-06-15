@@ -1,0 +1,6 @@
+fix(orchestrator): Remove duplicate `isolation_dispatch_tests` module
+scale: ~130 lines across 1 files [M]
+
+- `crates/vox-orchestrator/src/orch_daemon/mod.rs`: Removed a duplicate `mod isolation_dispatch_tests` block (128 lines) that was causing a compile error (E0428 'defined multiple times') due to a bad merge. The first instance of the module was preserved.
+
+--- audit: original='fix(orchestrator): remove duplicate isolation_dispatch_tests module (E0428, broke main)' | actual=130L across 1 files | derived=full ---
