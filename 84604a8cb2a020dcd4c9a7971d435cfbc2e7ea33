@@ -1,0 +1,19 @@
+refactor(arch): rename `vox-pm` crate to `vox-package`
+scale: ~282 lines across 74 files [L]
+
+- `crates/vox-cli`: Updated references from `vox-pm` to `vox-package` in `add`, `ci/run_body_helpers/guards`, `ci/command_compliance/validators`, `lock`, `pm_lifecycle`, `pm/mod`, `pm/verify`, `publish`, `remove`, `sync`, `tree`, `update`, `agent`, `audit`, `deploy`, `diagnostics/doctor/checks_standard/tail`, `diagnostics/tools/architect`, `diagnostics/tools/audit`, `diagnostics/tools/search`, `info`, `mod`, `runtime/info/tree`, `search`, `share`, `snippet`, `latin_cmd`, and `lib.rs`.
+- `crates/vox-cli/tests`: Updated `pm_lifecycle_integration.rs` to reflect the `vox-package` rename and adjusted artifact content.
+- `crates/vox-db`: Updated comments in `src/store/ops_agents.rs` to refer to `vox-package/feedback.rs`.
+- `crates/vox-doc-inventory`: Updated `src/constants.rs` to use `vox-package` in `HOTSPOT_TIER1`, `HOTSPOT_TIER2_RUST`, and `SYMBOL_HINT_PATHS`.
+- `docs/src/architecture/layers.toml`: Updated `known_inversions` entries from `vox-pm` to `vox-compiler/db`.
+- `contracts/reports/scaling-audit/rollup/INDEX.yaml`: Updated references from `vox-pm` to `vox-package`.
+- `contracts/db/data-storage-policy.v1.yaml`: Updated references from `vox-pm` to `vox-package`.
+- `Cargo.toml`, `Cargo.lock`, `Vox.toml`: Updated crate name and dependencies.
+- `crates/vox-package/Cargo.toml`: Renamed the crate.
+- `crates/vox-orchestrator-mcp/Cargo.toml`, `crates/vox-orchestrator/Cargo.toml`, `crates/vox-project-scaffold/Cargo.toml`, `crates/vox-skills/Cargo.toml`: Updated dependencies to reflect the `vox-package` rename.
+- `crates/vox-db/src/codex_legacy.rs`, `crates/vox-db/src/codex_schema.rs`, `crates/vox-db/src/config.rs`, `crates/vox-db/src/lib.rs`, `crates/vox-db/src/store/ops_codex/codex_metrics_packages.rs`, `crates/vox-db/src/store/ops_learning.rs`, `crates/vox-db/tests/ops_ludus_tests.rs`, `crates/vox-db/tests/ops_skill_tests.rs`, `crates/vox-db/tests/ops_workflow_tests.rs`: Updated references from `vox-pm` to `vox-package`.
+- `crates/vox-orchestrator/src/dei_shim/research/orchestrator/mod.rs`, `crates/vox-orchestrator/src/groups.rs`, `crates/vox-orchestrator/tests/affinity_group_tests.rs`, `crates/vox-orchestrator/tests/routing_tests.rs`: Updated references from `vox-pm` to `vox-package`.
+- `crates/vox-project-scaffold/src/lib.rs`: Updated references from `vox-pm` to `vox-package`.
+- `.github/workflows/ci.yml`: Updated references from `vox-pm` to `vox-package`.
+
+--- audit: original='refactor(arch): rename vox-pm → vox-package (P-A1.3)' | actual=282L across 74 files | derived=full ---
