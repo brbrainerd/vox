@@ -1,0 +1,15 @@
+docs: refactor and expand documentation, introduce new API reference
+scale: ~948 lines across 104 files [XL]
+
+- docs/src: Substantially refactored and expanded the documentation suite, including:
+    - `SUMMARY.md`: Significant additions and deletions, indicating a major restructuring of the documentation index.
+    - `feed.xml`: Large changes, likely reflecting updates to the documentation's RSS feed.
+    - `api/`: Added a comprehensive new section for API documentation, including dedicated pages for decorators, keywords, and various Vox components (e.g., `vox-ast`, `vox-cli`, `vox-runtime`). This involved creating many new small files.
+    - `reference/`: Updated existing reference documents (`ref-syntax.md`, `ref-decorators.md`, `ref-type-system.md`) to correct example paths and potentially add new content.
+    - `explanation/`, `how-to/`, `tutorials/`: Updated existing guides and explanations, primarily by correcting example file paths.
+    - `architecture/`: Minor updates to internal links within architectural documentation.
+- docs/book.toml: Minor changes, likely related to the documentation structure or build configuration.
+- crates/vox-populi: Added a conditional compilation attribute to `training_text` module in `mens/tensor`, enabling it only when the `mens-train` feature is active.
+- mens/runs: Minor changes to `eval_results.json` and `training-preflight.json`, likely updates to evaluation or training run metadata.
+
+--- audit: original='docs: initialize comprehensive documentation suite for the Vox language and ecosystem' | actual=948L across 104 files | derived=full ---
