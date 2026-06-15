@@ -1,0 +1,12 @@
+docs(scientia): Add Phase 3 reputational firewall implementation plan
+scale: ~629 lines across 1 files [L]
+
+- Add `docs/superpowers/plans/2026-05-09-scientia-phase-3-reputational-firewall.md` detailing the implementation of three modules for `vox-prereg`:
+    - A 14-day right-of-reply window gate (`reply_window.rs`).
+    - Retraction nanopub emission.
+    - Living-review versioned-DOI management.
+- Outline the architectural approach for these pure domain logic modules.
+- Specify the tech stack, leveraging existing `vox-prereg` dependencies.
+- Provide a detailed task breakdown for `reply_window.rs`, including Rust code snippets for constants, structs, and function signatures.
+
+--- audit: original='docs(scientia): Phase 3 implementation plan — reputational firewall (right-of-reply, retraction, living review)' | actual=629L across 1 files | derived=full ---
