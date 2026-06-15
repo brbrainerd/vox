@@ -1,0 +1,6 @@
+docs(arch): increase vox-secrets fan-in budget to 27
+scale: ~2 lines across 1 files [XS]
+
+- `docs/src/architecture/layers.toml`: Updated `vox-secrets` `max_dependents` from 25 to 27, adding a comment explaining the rationale for the increase and the deferral of the A-9 split.
+
+--- audit: original='chore(arch): align vox-secrets fan-in budget with reality (A-9 deferral)' | actual=2L across 1 files | derived=full ---
