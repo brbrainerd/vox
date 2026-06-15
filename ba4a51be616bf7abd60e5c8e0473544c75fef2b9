@@ -1,0 +1,13 @@
+feat(arch-check): add rule 15 for workspace-member dependency budget
+scale: ~48 lines across 2 files [S]
+
+- `crates/vox-arch-check/src/main.rs`:
+    - Added rule 15, "Workspace-dep budget", to the documentation.
+    - Introduced `max_workspace_deps: Option<usize>` to `CrateEntry` struct for per-crate budget configuration.
+    - Added `workspace_deps: Option<String>` to `GuardsConfig` for promoting rule 15 to an error.
+    - Added `workspace_dep_warns: Vec<(String, usize, usize)>` to `Report` to store rule 15 violations.
+    - Added `strict_workspace_deps: bool` to `Report` to indicate if rule 15 is strict.
+    - Updated the count of warn-only rules from "thirteen" to "fourteen".
+- `docs/src/architecture/layers.toml`: Set `max_workspace_deps = 60` for `vox-cli`.
+
+--- audit: original='feat(arch-check): rule 15 workspace-dep budget (A-14-reframed)' | actual=48L across 2 files | derived=full ---
