@@ -1,0 +1,6 @@
+ci(deps): bump softprops/action-gh-release from v2 to v3
+scale: ~2 lines across 1 files [XS]
+
+- .github/workflows/bundle-release.yml: Update `softprops/action-gh-release` action to use version `v3` instead of `v2`.
+
+--- audit: original='chore(deps): bump softprops/action-gh-release from 2 to 3 (#245)' | actual=2L across 1 files | derived=full ---
