@@ -1,0 +1,15 @@
+refactor(gamify): rename CLI command `ludus` to `gamify` with `ludus` as alias
+scale: ~198 lines across 10 files [M]
+
+- `crates/vox-cli/src/lib.rs`: Renamed the `Ludus` CLI command to `Gamify` and added `visible_alias = "ludus"` to allow both `vox gamify` and `vox ludus`. Updated the command's help message to reflect the new canonical name and alias.
+- `crates/vox-cli/src/commands/ci/nomenclature_guard.rs`: Updated the `LATIN_STRUCTURAL_DENYLIST` to map "ludus" to "gamify" instead of "gamification". Removed the `vox-gamify` entry from `HISTORICAL_ALLOWLIST` as "gamify" is not a denied root.
+- `crates/vox-cli/src/commands/ci/command_compliance/validators.rs`: Added a new entry `("gamify", "ludus")` to `check_latin_alias_parity_with_catalog` to validate the new alias.
+- `contracts/operations/catalog.v1.yaml`: Updated the `ludus` operation's `title` to "Gamify" and `description` to "CLI operation `vox gamify` (alias `ludus`)". Set `canonical_name` to `gamify` and added `ludus` to `latin_aliases`. Changed the `cli.path` for `ludus` and `ludus.hud` operations from `ludus` to `gamify`.
+- `contracts/capability/capability-registry.yaml`: Removed the `cli.ludus` and `cli.ludus.hud` capabilities. Added new capabilities `cli.gamify` and `cli.gamify.hud` with updated descriptions and `cli_path` reflecting the `gamify` command.
+- `contracts/cli/command-registry.yaml`: Removed the `vox-cli` command entries for `path: [ludus]` and `path: [ludus, hud]`. Added new entries for `path: [gamify]` and `path: [gamify, hud]` with `handler_rust: commands::extras::ludus_cli`.
+- `docs/src/reference/cli.md`: Updated the section header from `vox ludus` to `vox gamify` (alias `vox ludus`). Modified the description to clarify `vox gamify` as the canonical command and `vox ludus` as the alias. Updated the reachability table to list `gamify` instead of `ludus`.
+- `contracts/capability/model-manifest.generated.json`: Regenerated to reflect changes in capability registry.
+- `contracts/reports/gui-surface-registry.v1.json`: Regenerated to reflect changes in command surface.
+- `docs/src/reference/cli-command-surface.generated.md`: Regenerated to reflect changes in command surface.
+
+--- audit: original='refactor(gamify): canonical CLI command vox gamify (ludus retained as alias) (#174)' | actual=198L across 10 files | derived=full ---
