@@ -1,0 +1,8 @@
+codegen(rn): improve React Native app bundling for Hermes compatibility
+scale: ~60 lines across 3 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/vox_client.rs`: Introduced `VoxClientTarget` enum to differentiate between web and React Native client generation. The React Native client now resolves the API base URL using `process.env.EXPO_PUBLIC_VOX_API_URL` instead of `import.meta.env.VITE_API_URL` to avoid Hermes parse-time errors. A back-compatible `emit_vox_client` wrapper was added for web targets.
+- `crates/vox-codegen/src/codegen_ts/rn/mod.rs`: Updated the React Native codegen to use `emit_vox_client_for_target` with `VoxClientTarget::ReactNative` when generating `vox-client.ts`.
+- `crates/vox-codegen/src/codegen_ts/rn/scaffold.rs`: Modified the generated `package.json` for React Native to include `zod` and `expo-asset` as dependencies, and updated `expo-status-bar` and `react-native` versions to be compatible with Expo SDK 52.
+
+--- audit: original='codegen(rn): make the generated Expo app actually bundle (Hermes-safe)' | actual=60L across 3 files | derived=full ---
