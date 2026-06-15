@@ -1,0 +1,35 @@
+refactor(style): format Rust code with cargo fmt
+scale: ~420 lines across 30 files [L]
+
+- crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/free_tier_adapter.rs: Apply rustfmt to improve readability of test assertions and `free_spec` calls.
+- crates/vox-orchestrator/src/a2a/remote_worker.rs: Apply rustfmt to improve readability of `parse_required_secrets`, `run_dispatched_bundle`, and test assertions.
+- crates/vox-populi/tests/sync_node_registry.rs: Apply rustfmt to improve readability of test assertions.
+- crates/vox-cli/src/commands/model/eval.rs: Apply rustfmt to improve readability of `FIXTURES` array, `VoxDb::connect` call, and `tracing::debug!` macro.
+- crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs: Apply rustfmt to improve readability of function calls.
+- crates/vox-orchestrator/src/a2a/secret_gate.rs: Apply rustfmt to improve readability of test assertions.
+- crates/vox-cli/src/commands/model/discover.rs: Apply rustfmt to improve readability of `render_eval_plan` function.
+- crates/vox-orchestrator-mcp/src/dispatch.rs: Apply rustfmt.
+- crates/vox-orchestrator-mcp/tests/pending_approvals_tests.rs: Apply rustfmt.
+- crates/vox-secrets/src/backend/vox_vault.rs: Apply rustfmt.
+- crates/vox-cli/src/commands/model/explain.rs: Apply rustfmt.
+- crates/vox-db/src/facade/hitl_approvals.rs: Apply rustfmt.
+- crates/vox-orchestrator-mcp/src/plugin_tools.rs: Apply rustfmt.
+- crates/vox-orchestrator-mcp/src/server_state.rs: Apply rustfmt.
+- crates/vox-orchestrator/src/models/policy.rs: Apply rustfmt.
+- crates/vox-db/tests/agent_runs_tests.rs: Apply rustfmt.
+- crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs: Apply rustfmt.
+- crates/vox-orchestrator/src/models/discovery_pipeline.rs: Apply rustfmt.
+- crates/vox-db/tests/hitl_approvals_tests.rs: Apply rustfmt.
+- crates/vox-orchestrator-mcp/src/skills_tools.rs: Apply rustfmt.
+- crates/vox-cli/src/commands/wasm.rs: Apply rustfmt.
+- crates/vox-populi-types/src/node_record.rs: Apply rustfmt.
+- crates/vox-secrets/src/tests.rs: Apply rustfmt.
+- crates/vox-cli/src/commands/mod.rs: Apply rustfmt.
+- crates/vox-db/src/lib.rs: Apply rustfmt.
+- crates/vox-orchestrator/src/a2a/mod.rs: Apply rustfmt.
+- crates/vox-orchestrator/src/models/mod.rs: Apply rustfmt.
+- crates/vox-orchestrator/src/orchestrator/tests/populi_single_owner.rs: Apply rustfmt.
+- crates/vox-populi-types/src/lib.rs: Apply rustfmt.
+- crates/vox-orchestrator/src/models/tests.rs: Apply rustfmt.
+
+--- audit: original="style: cargo fmt the session's touched crates" | actual=420L across 30 files | derived=full ---
