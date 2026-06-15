@@ -1,0 +1,9 @@
+docs(arch): add missing `where-things-live.md` entries and module docstrings
+scale: ~17 lines across 4 files [S]
+
+- docs/src/architecture/where-things-live.md: Add entries for `vox-claim-extractor`, `vox-drift-check`, `vox-inspect-bridge`, `vox-nanopub`, `vox-prereg`, `vox-research-events`, and `vox-ro-crate` to document their locations.
+- crates/vox-drift-check: Update module docstring to include "copy-paste drift, stale patterns, and diverging implementations across Rust, TypeScript, Vox source files, and the monorepo".
+- crates/vox-nanopub: Update module docstring to include "Trusty URI derivation" and clarify its role in converting atomic claims to signed nanopublications.
+- crates/vox-ro-crate: Update module docstring to include its role in producing "CFF, CodeMeta, TOP-Level-2, and ACM badge compliance surfaces for research artifacts".
+
+--- audit: original='fix(arch): add missing lib.rs docstrings and where-things-live.md entries' | actual=17L across 4 files | derived=full ---
