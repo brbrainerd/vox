@@ -1,0 +1,12 @@
+refactor(scientia): apply clippy fixes and refactor autofill logic
+scale: ~14 lines across 4 files [S]
+
+- `crates/vox-publisher/src/scientia_autofill.rs`:
+    - Corrected doc comment indentation for `authors` field.
+    - Replaced `map(|s| serde_json::from_str(s))` with `map(serde_json::from_str)` for a redundant closure.
+    - Removed unused import `ReproducibilityAttestation`.
+- `crates/vox-publisher/src/scientia_novelty_assess.rs`: Replaced `map_or(false, |s| ...)` with `is_some_and(|s| ...)` for `http_status` and `semantic_score` checks.
+- `crates/vox-scientia/src/claim_extractor/minicheck.rs`: Replaced `split(|c| c == '.' || c == '!' || c == '?')` with `split(['.', '!', '?'])` for char-array split.
+- `crates/vox-scientia/src/inspect_bridge/novelty.rs`: Replaced `map_or(false, |s| ...)` with `is_some_and(|s| ...)` for `http_status` check.
+
+--- audit: original='chore(scientia): clippy gate fixes across Track A + pre-existing autofill debt' | actual=14L across 4 files | derived=full ---
