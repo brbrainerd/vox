@@ -1,0 +1,12 @@
+feat(mens): auto-regenerate PTX, plugin, and corpus for CUDA training
+scale: ~654 lines across 7 files [L]
+
+- `crates/vox-ml-cli/src/commands/mens/plugin_heal.rs` (new file): Implemented `ensure_cuda_plugin` to self-heal the `mens-candle-cuda` runtime plugin. This function rebuilds and reinstalls the plugin if it's missing, stale, or has an ABI mismatch, ensuring `vox mens train --device cuda` works out of the box. It handles Windows-specific toolchain setup (vcvars64.bat, CUDA_PATH/HOME).
+- `patches/candle-kernels-0.9.2/build.rs`: Modified the build script to automatically compile missing or stale `.ptx` files from `.cu` sources using `nvcc`. It now declares `rerun-if-changed` for kernel sources and headers, resolves `nvcc` via `PATH` or `CUDA_PATH/HOME`, and supports `sm_80` virtual architecture.
+- `crates/vox-ml-cli/src/commands/mens/populi/train_arm.rs`: Added a `compiler_version` check to the corpus staleness logic. The corpus is now regenerated if its `compiler_version` in `metadata.json` differs from the current build's `CARGO_PKG_VERSION`, preventing issues from compiler version bumps that change pair encoding.
+- `crates/vox-ml-cli/src/commands/mens/populi/dispatch.rs`: Added logic to set the `VOX_MENS_NO_AUTO_HEAL` environment variable if the `--no-auto-heal` flag is provided, allowing the plugin self-healing to be disabled.
+- `crates/vox-ml-cli/src/commands/schola/train/run_train.rs`: Integrated the `plugin_heal::ensure_cuda_plugin` call into the CUDA training path, making plugin self-healing a preflight step for `mens-candle-cuda` training.
+- `crates/vox-ml-cli/src/commands/mens/populi/action_populi_enum.rs`: Added a `--no-auto-heal` CLI argument to disable the automatic rebuild/reinstall of the `mens-candle-cuda` plugin.
+- `crates/vox-ml-cli/src/commands/mens/mod.rs`: Declared the new `plugin_heal` module.
+
+--- audit: original='feat(mens): self-healing CUDA training — auto-regen PTX, plugin, corpus' | actual=654L across 7 files | derived=full ---
