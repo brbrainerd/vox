@@ -1,0 +1,7 @@
+fix(ci): migrate deny.toml to cargo-deny v2 and inherit workspace license
+scale: ~73 lines across 50 files [L]
+
+- `deny.toml`: Migrated to `cargo-deny` v2 schema, explicitly allowing a broader set of licenses, setting `unmaintained = "none"` for transitive advisories, and adding `unused-ignored-advisory = "allow"` and `unused-allowed-license = "allow"`.
+- Many crates (`vox-actor-runtime`, `vox-arch-check`, `vox-audit`, `vox-build-meta`, `vox-cli-core`, `vox-cli`, `vox-code-audit`, `vox-compiler`, `vox-config`, `vox-db-types`, `vox-db`, `vox-drift-check`, `vox-eval`, `vox-forge`, `vox-git`, `vox-grammar-export`, `vox-gui`, `vox-hf-layout`, `vox-identity`, `vox-integration-tests`, `vox-lsp`, `vox-mesh-policy`, `vox-mesh-types`, `vox-ml-cli`, `vox-orchestrator-d`, `vox-orchestrator-mcp`, `vox-orchestrator-queue`, `vox-orchestrator`, `vox-package-types`, `vox-package`, `vox-plugin-browser`, `vox-plugin-cloud`, `vox-plugin-mens-candle-cuda`, `vox-plugin-mens-candle-metal`, `vox-plugin-nvml-probe`, `vox-plugin-populi-mesh`, `vox-plugin-publication`, `vox-plugin-runtime-container`, `vox-plugin-runtime-wasm`, `vox-plugin-speech`, `vox-plugin-webhook`, `vox-project-scaffold`, `vox-repository`, `vox-rule-pack`, `vox-scaling-policy`, `vox-scientia`, `vox-search`, `vox-tensor`, `vox-vcs`): Added `license.workspace = true` to `Cargo.toml` to inherit the workspace license.
+
+--- audit: original='fix(ci): migrate deny.toml to cargo-deny v2 and inherit workspace license' | actual=73L across 50 files | derived=full ---
