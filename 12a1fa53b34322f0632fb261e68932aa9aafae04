@@ -1,0 +1,14 @@
+feat(share): integrate app bundling and dev server for `.vox` files
+scale: ~268 lines across 2 files [L]
+
+- `crates/vox-cli/src/commands/share.rs`:
+    - Add optional `FILE` positional argument to `vox share` to specify a `.vox` app file.
+    - Implement `build_or_reuse_bundle` function to build the app from the specified file, using a source-hash-based warm cache in `target/share-bundle/`.
+    - Implement `spawn_dev_server` function to run `vox dev <file> --port <port>` as a background child process when `--dev` is used with a `FILE`.
+    - Update `ShareConfig` to accept an optional `app_binary` path, removing the hardcoded `None`.
+    - Modify `run` function to conditionally call `build_or_reuse_bundle` or `spawn_dev_server` based on the presence of `FILE` and the `--dev` flag.
+    - Add `anyhow::Context` import.
+- `crates/vox-cli/tests/share_bundle_cache_test.rs`:
+    - Add new integration tests to verify that `vox share --help` output mentions the `FILE` argument and the `--dev` flag.
+
+--- audit: original='feat(share): bundle/dev integration (S8)' | actual=268L across 2 files | derived=full ---
