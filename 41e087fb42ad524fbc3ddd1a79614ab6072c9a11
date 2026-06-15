@@ -1,0 +1,10 @@
+feat(eval): add held-out manifest regenerator and update manifest
+scale: ~22 lines across 2 files [S]
+
+- Add `crates/vox-audit/tests/regen_held_out.rs`, a new ignored test that regenerates `held-out.v1.json` on demand.
+- Update `contracts/eval/humaneval-vox/held-out.v1.json`:
+  - Increment `total_fixtures` from 18 to 30.
+  - Update `corpus_hash` from `blake3:b6c5fe32f5b8067ac5bb5720c307b522365b2c4c7db0aeca151a7e52beb63816` to `blake3:d3758c07d6e69062c24ef6b5da298420424a0fc50c59304e30a6bd2f44fb2bb1`.
+  - Add a newline at the end of the file.
+
+--- audit: original='chore(eval): regenerate held-out.v1.json after humaneval expansion' | actual=22L across 2 files | derived=full ---
