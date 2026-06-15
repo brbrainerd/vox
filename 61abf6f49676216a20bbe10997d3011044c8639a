@@ -1,0 +1,7 @@
+feat(compiler): forbid non-deterministic calls in workflow bodies
+scale: ~255 lines across 2 files [L]
+
+- `crates/vox-compiler/src/typeck/ast_decl_lints.rs`: Added a new AST-level lint `vox/workflow/non-deterministic-call` to `lint_ast_declarations`. This lint recursively walks `Decl::Workflow` bodies and flags calls to `time.now()` and `random.*` methods, as these break deterministic replay. Regular function bodies are unaffected.
+- `crates/vox-compiler/tests/workflow_determinism.rs`: Added a new test file with unit tests to verify the `vox/workflow/non-deterministic-call` lint. Tests include flagging `time.now()` and `random.*` in workflows, ensuring they are not flagged in regular functions, and confirming pure workflows without non-deterministic calls are clean.
+
+--- audit: original='feat(compiler): forbid non-deterministic calls in workflow bodies (P1-T5)' | actual=255L across 2 files | derived=full ---
