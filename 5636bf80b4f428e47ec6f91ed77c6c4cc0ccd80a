@@ -1,0 +1,13 @@
+feat(identity): add EphemeralSigner for per-job Ed25519 subkeys
+scale: ~83 lines across 2 files [M]
+
+- `crates/vox-identity/src/ephemeral.rs`: Add new module `ephemeral` containing `EphemeralSigner` struct.
+  - `EphemeralSigner` wraps an `ed25519-dalek` signing keypair.
+  - Provides `new()` to generate a fresh keypair.
+  - Exposes `pubkey_hex` (hex-encoded 32-byte verifying key) and a `sign()` method returning a 64-byte signature.
+  - Includes `verifying_key()` to return the `VerifyingKey` struct.
+  - Implements `Default` for `EphemeralSigner`.
+  - Adds unit tests for sign-verify round-trip, unique public keys across instances, and tampered message rejection.
+- `crates/vox-identity/src/lib.rs`: Re-export `EphemeralSigner` from the new `ephemeral` module.
+
+--- audit: original='feat(identity): per-job ephemeral Ed25519 subkey [P5-T6]' | actual=83L across 2 files | derived=full ---
