@@ -1,0 +1,25 @@
+feat(webhook,skills,orchestrator): introduce sandbox, webhook bridge, and upgrade fixes
+scale: ~1677 lines across 35 files [XL]
+
+- **webhook**:
+    - Add `WebhookOrchestratorBridge` to convert webhook events into orchestrator inbox items.
+    - Implement bearer token authentication for webhook ingress.
+    - Enhance webhook signing to support HMAC-SHA256 and Ed25519 signatures, alongside SHA3-256.
+    - Refactor webhook handler to use `WebhookEvent` broadcast channel.
+- **skills**:
+    - Introduce `sandbox` module for container-backed skill execution using `vox-container`.
+    - Implement `SandboxPolicy` to determine isolation tier (container vs. permissive) based on skill trust level.
+    - Add `fallback` module for handling skill execution failures.
+    - Update `ars_shim` to include manifest resource limits and domain changes.
+    - Add `openclaw_fallback_test` and `domain_test`.
+- **orchestrator**:
+    - Introduce `account_registry` for managing account-related memory.
+    - Update `memory` module with new config and manager structures.
+    - Add `a2a_integration_test` and remove `a2a_test`.
+    - Update `runtime` and `grounding` modules.
+- **cli**:
+    - Improve `toolchain_upgrade` command with more robust OpenClaw sidecar installation and error handling, including a bootstrap environment check.
+- **clavis**:
+    - Update `spec` module.
+
+--- audit: original='feat: update orchestrator, skills, and webhook integrations' | actual=1677L across 35 files | derived=full ---
