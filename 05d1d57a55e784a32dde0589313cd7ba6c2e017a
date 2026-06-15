@@ -1,0 +1,7 @@
+docs: regenerate feed.xml and SUMMARY.md
+scale: ~106 lines across 2 files [M]
+
+- `docs/src/feed.xml`: Regenerated the RSS feed, resulting in 50 lines added and 50 lines deleted due to pipeline processing.
+- `docs/src/SUMMARY.md`: Regenerated the table of contents, removing a duplicate entry for ADR 030 and adjusting other entries, resulting in 2 lines added and 4 lines deleted.
+
+--- audit: original='docs: regenerate SUMMARY.md and feed.xml; remove duplicate ADR 030 entry' | actual=106L across 2 files | derived=full ---
