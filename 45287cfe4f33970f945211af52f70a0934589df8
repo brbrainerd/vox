@@ -1,0 +1,16 @@
+feat(plugin-sdk): introduce `vox-plugin-sdk` crate and `declare_plugin!` macro
+scale: ~249 lines across 11 files [M]
+
+- `crates/vox-plugin-sdk`: New L1 leaf crate `vox-plugin-sdk` created, providing the `declare_plugin!` macro and re-exporting `vox-plugin-api` and `abi_stable` types for plugin authors.
+- `crates/vox-plugin-sdk/Cargo.toml`: New `Cargo.toml` for `vox-plugin-sdk` defining its package metadata and dependencies on `vox-plugin-api` and `abi_stable`.
+- `crates/vox-plugin-nvml-probe/src/lib.rs`: Refactored `vox-plugin-nvml-probe` to use the new `declare_plugin!` macro, removing ~30 lines of boilerplate for dylib exports.
+- `crates/vox-plugin-speech/src/lib.rs`: Refactored `vox-plugin-speech` to use the new `declare_plugin!` macro, removing ~23 lines of boilerplate for dylib exports.
+- `crates/vox-plugin-nvml-probe/Cargo.toml`: Added `vox-plugin-sdk` as a dependency.
+- `crates/vox-plugin-speech/Cargo.toml`: Added `vox-plugin-sdk` as a dependency.
+- `Cargo.toml`: Added `vox-plugin-sdk` to the workspace members.
+- `Cargo.lock`: Updated to include new dependencies for `vox-plugin-sdk` and its transitive dependencies (+10 lines).
+- `.config/hakari.toml`: Added `vox-plugin-sdk` to the `workspace-members` list to exclude it from Hakari's traversal.
+- `docs/src/architecture/layers.toml`: Registered `vox-plugin-sdk` as a Layer 1 crate.
+- `docs/src/architecture/where-things-live.md`: Added `vox-plugin-sdk` to the list of top-level trees.
+
+--- audit: original='feat(plugin-sdk): SP-1 — vox-plugin-sdk crate + declare_plugin! glue macro (#184)' | actual=249L across 11 files | derived=full ---
