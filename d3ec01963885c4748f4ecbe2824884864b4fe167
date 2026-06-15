@@ -1,0 +1,16 @@
+docs(arch): add Mesh & Language Distribution SSOT and eight TDD phase plans
+scale: ~22592 lines across 11 files [XL]
+
+- Add `docs/src/architecture/mesh-and-language-distribution-ssot-2026.md` detailing the single source of truth for mesh and language distribution.
+- Add `docs/src/architecture/mesh-phase0-foundations-plan-2026.md` for Phase 0 (Foundations) implementation.
+- Add `docs/src/architecture/mesh-phase1-language-spine-plan-2026.md` for Phase 1 (Language Spine) implementation.
+- Add `docs/src/architecture/mesh-phase2-code-mobility-plan-2026.md` for Phase 2 (Code Mobility & Versioning) implementation.
+- Add `docs/src/architecture/mesh-phase3-vcs-gossip-plan-2026.md` for Phase 3 (VCS Gossip) implementation.
+- Add `docs/src/architecture/mesh-phase4-dashboard-control-plan-2026.md` for Phase 4 (Dashboard Mesh-Control Surface) implementation.
+- Add `docs/src/architecture/mesh-phase5-public-internet-plan-2026.md` for Phase 5 (Public-Internet Safety) implementation.
+- Add `docs/src/architecture/mesh-phase6-grand-network-plan-2026.md` for Phase 6 (Grand Network / Volunteer Compute) implementation.
+- Add `docs/src/architecture/mesh-mens-distributed-training-and-execution-plan-2026.md` for MENS distributed training and execution.
+- Add `docs/src/architecture/mesh-dashboard-and-distributed-compute-research-2026.md` for dashboard and distributed compute research.
+- Update `docs/src/architecture/research-index.md` to include references to the new architecture documents.
+
+--- audit: original='docs(arch): add Mesh & Language Distribution SSOT + eight TDD phase plans' | actual=22592L across 11 files | derived=sampled ---
