@@ -1,0 +1,9 @@
+feat(gamify): externalize economy reward and tuning constants to YAML
+scale: ~625 lines across 4 files [L]
+
+- **`crates/vox-gamify/src/economy.rs`**: Added a new module to load and manage gamify economy configurations from a YAML file. This module defines `Tuning` and `RewardTable` structs to hold scalar tuning constants and event-specific reward configurations, respectively. It includes functions to load these configurations from a specified path, overlaying them onto in-code defaults. It also provides a method to convert the loaded `EconomyConfig` into `EventConfigOverrides` for use with the existing reward policy.
+- **`contracts/gamify/economy.v1.yaml`**: Introduced a new YAML contract file that serves as the single source of truth for gamify economy constants. This file defines default values for tuning parameters like grind taper, grind caps, novelty bonus, streak bonus, and trust tiers, as well as base rewards for various gamify events. These values are identical to the hard-coded defaults in the Rust code, ensuring behavior preservation upon initial loading.
+- **`crates/vox-gamify/src/lib.rs`**: Declared the new `economy` module as public.
+- **`crates/vox-gamify/Cargo.toml`**: Added `serde_yaml` as a dependency to enable YAML deserialization.
+
+--- audit: original='feat(gamify): externalize economy reward/tuning constants into contracts SSOT + loader (HC-G12-05)' | actual=625L across 4 files | derived=full ---
