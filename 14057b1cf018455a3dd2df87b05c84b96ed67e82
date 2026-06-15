@@ -1,0 +1,8 @@
+feat(ml-cli): integrate `quantize` command and add integration test
+scale: ~32 lines across 3 files [S]
+
+- `crates/vox-ml-cli/tests/quantize_cli.rs`: Add a new integration test for the `quantize` CLI command. This test creates a dummy SafeTensors model and config, runs the `quantize` command, and asserts that the output `quant-metadata.json` file is created.
+- `crates/vox-ml-cli/src/main.rs`: Integrate the `quantize` command into the CLI dispatch, allowing it to be called from the command line.
+- `crates/vox-ml-cli/Cargo.toml`: Add `candle-core` as a development dependency for the new integration test.
+
+--- audit: original='feat(ml-cli): wire vox quantize into command dispatch + integration test' | actual=32L across 3 files | derived=full ---
