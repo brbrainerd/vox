@@ -1,0 +1,7 @@
+feat(ci): add `semcov-gates` CI check for new silent-drop and weak-test findings
+scale: ~63 lines across 2 files [M]
+
+- `crates/vox-audit/src/bin/semcov-gates.rs`: New binary that runs `run_silent_drop_gate` and `run_weak_test_gate` from `vox_audit::core_gates` against specified baseline files. It exits with a non-zero code if new findings are detected beyond the grandfathered baselines.
+- `contracts/ci/check-targets.v1.yaml`: Registered `semcov-gates` as a new blocking CI check. This check runs the `semcov-gates` binary from `vox-audit` and is marked as `rust_only`.
+
+--- audit: original='feat(ci): semcov-gates bin + CI registration — activate silent-drop + weak-test gates' | actual=63L across 2 files | derived=full ---
