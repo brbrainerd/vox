@@ -1,0 +1,7 @@
+feat(ci-runner): install libglib2.0-dev and suppress autoscaler console windows
+scale: ~24 lines across 2 files [S]
+
+- infra/ci-runner/Dockerfile: Add `libglib2.0-dev` to the `apt` baseline to resolve flaking `glib` gate on self-hosted runners.
+- crates/vox-cli/src/commands/ci/runner_scale.rs: Introduce `quiet_command` helper to set `CREATE_NO_WINDOW` flag on Windows for `gh` and `docker` shell-outs, preventing console windows from appearing during autoscaler operations.
+
+--- audit: original='fix(ci-runner): install libglib2.0-dev + suppress autoscaler console windows' | actual=24L across 2 files | derived=full ---
