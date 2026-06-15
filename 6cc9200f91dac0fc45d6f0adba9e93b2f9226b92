@@ -1,0 +1,11 @@
+feat(cli): add `vox emit openapi` command and update CLI documentation
+scale: ~105 lines across 8 files [M]
+
+- `crates/vox-cli/src/commands/emit/openapi.rs`: Add new `openapi.rs` module implementing the `vox emit openapi` command. This command generates a standalone OpenAPI 3.1 JSON specification from a single Vox source file.
+- `crates/vox-cli/src/cli_args.rs`: Define `EmitOpenapiArgs` struct to parse command-line arguments for `vox emit openapi`, including `file`, `out`, `package_name`, and `package_version`.
+- `crates/vox-cli/src/commands/emit/mod.rs`: Add `Openapi` subcommand to the `EmitCmd` enum and wire it to the `openapi::run` function.
+- `docs/src/reference/cli.md`: Add a new section `## vox emit openapi` describing the new command. Also, add a row for `retirement-audit` to the `vox ci` table.
+- `README.md`: Update the canonical domain for `voxlang.org` to `vox-lang.org`. Add a new `## The CLI` section containing a recommendation to run `vox commands --recommended`.
+- `contracts/reports/operations-catalog-inventory.v1.json`: Increment `catalog_operations`, `cli_only_operations`, and `cli_path_count` by 1 to reflect the addition of the new `vox emit openapi` command.
+
+--- audit: original='feat(cli): add vox emit openapi + fix command-compliance gaps' | actual=105L across 8 files | derived=full ---
