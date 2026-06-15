@@ -1,0 +1,7 @@
+feat(compiler): add rename registry contract and loader tests
+scale: ~61 lines across 2 files [M]
+
+- `crates/vox-compiler`: Add a new test file `rename_alias_test.rs` containing unit tests for the rename registry loader and alias resolution. These tests cover loading from a canonical path, rejecting duplicate `from` keys, rejecting alias chains, and accepting empty entries.
+- `contracts/naming`: Add a new JSON file `renames.v1.json` which serves as the initial, empty rename registry contract. It includes a schema reference, version, and a comment explaining its purpose.
+
+--- audit: original='feat(contracts): rename registry contract + failing loader tests (VUV-9 task 2)' | actual=61L across 2 files | derived=full ---
