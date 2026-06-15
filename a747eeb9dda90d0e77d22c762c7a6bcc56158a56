@@ -1,0 +1,5 @@
+refactor(scientia): remove unused imports from scientia_autofill
+scale: ~5 lines across 1 files [XS]
+- `crates/vox-publisher/src/scientia_autofill.rs`: Removed unused imports `ReproducibilityAttestation` and `ScientificAuthor` from `scientific_metadata`.
+
+--- audit: original='chore(scientia): drop unused imports in scientia_autofill' | actual=5L across 1 files | derived=full ---
