@@ -1,0 +1,14 @@
+feat(share): implement `ShareSession` and `ShareConfig` for coordinating sharing
+scale: ~152 lines across 2 files [M]
+
+- `crates/vox-share/src/coordinator.rs`:
+    - Replaced stub `ShareConfig` and `ShareSession` structs with full implementations.
+    - Added `ShareConfig` struct with fields for `backend`, `upstream_port`, `proxy_port`, `duration`, `app_binary`, and `connect_timeout`.
+    - Added `ShareSession` struct with fields for `tunnel_handle`, `proxy_port`, `proxy_shutdown`, `duration_timer`, and `_app_child`.
+    - Implemented `ShareSession::start` to initialize a sharing session, including optional app spawning, proxy setup, and tunnel backend connection.
+    - Implemented `ShareSession::shutdown` to gracefully terminate the session.
+    - Implemented `Drop` for `ShareSession` to ensure shutdown on drop.
+- `crates/vox-share/tests/coordinator_test.rs`: Added a new integration test for `ShareSession` using the LAN backend.
+    - The test spawns a dummy `axum` app, configures and starts a `ShareSession`, and verifies connectivity through the proxy.
+
+--- audit: original='feat(share): coordinator (S1 task 5)' | actual=152L across 2 files | derived=full ---
