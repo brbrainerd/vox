@@ -1,0 +1,19 @@
+test(snapshots): add 13 reactive_smoke baselines
+scale: ~249 lines across 14 files [M]
+
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__counter_tsx_function_and_usememo_op_s205.snap`: Add snapshot for `Counter` component with `useMemo` and `useEffect`.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__counter_tsx_reactive_smoke.snap`: Add snapshot for `Counter` component with basic reactive elements.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__counter_tsx_with_web_ir_view_on.snap`: Add snapshot for `Counter` component with web IR view.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__clicky_tsx_classname_onclick.snap`: Add snapshot for `Clicky` component with `className` and `onClick` handler.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__box_tsx_css_import.snap`: Add snapshot for `Box` component with CSS import.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__panel_tsx_island_mount_attrs.snap`: Add snapshot for `Panel` component demonstrating island mount with attributes.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__parity_page_tsx_data_prop_label_op_s166.snap`: Add snapshot for `ParityPage` component with `data-prop-label`.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__parity_page_tsx_island_mount_classic_route.snap`: Add snapshot for `ParityPage` component with classic route island mount.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__parity_page_tsx_island_mount_op_s161.snap`: Add snapshot for `ParityPage` component with island mount.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__v_tsx_usestate_k_op_s074.snap`: Add snapshot for `V` component with `useState`.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__panel_tsx_web_ir_datachartisland.snap`: Add snapshot for `Panel` component with `DataChart` island.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__vox_islands_meta_datachart.snap`: Add snapshot for `VOX_ISLAND_NAMES` metadata including `DataChart`.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__island_mount_ast_z.snap`: Add snapshot for island mount AST for component `Z`.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__island_mount_hir_fragment_z.snap`: Add snapshot for island mount HIR fragment for component `Z`.
+
+--- audit: original='test(snapshots): accept 13 reactive_smoke baselines (was orphaned .snap.new)' | actual=249L across 14 files | derived=full ---
