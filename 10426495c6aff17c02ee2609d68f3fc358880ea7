@@ -1,0 +1,8 @@
+feat(arch): register vox-runtime, vox-journal, vox-runtime-rn and refine cdylib rule
+scale: ~18 lines across 3 files [S]
+
+- `crates/vox-arch-check/src/main.rs`: Modified Rule 14 (`no-cdylib-as-normal-dep`) to only flag dependencies on crates explicitly marked with `kind = "plugin"` in `layers.toml`. This clarifies that the rule applies to plugin boundaries, not merely the presence of a `cdylib` target, allowing dual `rlib`/`cdylib` crates (like uniffi mobile FFI bridges) to be linked as `rlib` in-tree without being flagged.
+- `docs/src/architecture/layers.toml`: Added entries for `vox-runtime` (L1), `vox-journal` (L2), and `vox-runtime-rn` (L3) with their respective layer assignments and `max_dependents` or `orphan_exempt` properties.
+- `docs/src/architecture/where-things-live.md`: Added descriptions for `vox-runtime`, `vox-journal`, and `vox-runtime-rn` to the architecture documentation.
+
+--- audit: original='fix(arch): register vox-runtime/vox-journal/vox-runtime-rn + scope cdylib rule to plugins' | actual=18L across 3 files | derived=full ---
