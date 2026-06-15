@@ -1,0 +1,15 @@
+feat(vox-effort-route): scaffold L2 crate with initial module structure
+scale: ~72 lines across 10 files [M]
+
+- `crates/vox-effort-route/Cargo.toml`: Add new crate with dependencies on `vox-effort-audit`, `vox-actor-runtime`, `vox-config`, `vox-telemetry`, `gix`, `serde`, `serde_json`, `chrono`, `uuid`, `tracing`, `tokio`, `futures`, `thiserror`, and `async-trait`. Also add dev-dependencies for `insta`, `tempfile`, `toml`, and `tokio`.
+- `crates/vox-effort-route/src/lib.rs`: Create library root with module declarations for `config`, `load`, `bucket`, `cluster`, `route`, `emit`, and `pipeline`. Includes a module-level documentation comment.
+- `crates/vox-effort-route/src/bucket.rs`: Create stub file.
+- `crates/vox-effort-route/src/cluster.rs`: Create stub file.
+- `crates/vox-effort-route/src/config.rs`: Create stub file.
+- `crates/vox-effort-route/src/emit/mod.rs`: Create stub file.
+- `crates/vox-effort-route/src/load.rs`: Create stub file.
+- `crates/vox-effort-route/src/pipeline.rs`: Create stub file.
+- `crates/vox-effort-route/src/route/mod.rs`: Create stub file.
+- `Cargo.lock`: Update lockfile to include new dependencies.
+
+--- audit: original='feat(vox-effort-route): scaffold L2 crate (A1)' | actual=72L across 10 files | derived=full ---
