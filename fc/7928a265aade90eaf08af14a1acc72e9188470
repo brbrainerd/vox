@@ -1,0 +1,20 @@
+chore: migrate website domain from vox-lang.org to voxlang.org
+scale: ~450 lines across 131 files [XL]
+
+- **docs**: Updated all instances of the old domain `vox-lang.org` to `voxlang.org` in `.well-known` files (llms-full.txt, vox-docs.json, llms.txt), architecture documents (eval-sandbox-deployment.md, starlight-site-strategy-2026.md, vox-language-rules-phase2-lint-extension-2026.md), CI documentation (deploy-contract.md), and archive documents (readme-scientia-2026.md, scientia-community-publishing-playbook-2026.md).
+- **docs-astro**: Updated `astro.config.mjs` and all static HTML files under `public/` (e.g., `architecture-index.html`, `contributor-hub.html`, `cli.html`, `tut-getting-started.html`) to reflect the new domain. Also updated `docs-astro/public/CNAME`.
+- **contracts**: Updated `$id` URIs in all JSON schema files (e.g., `eval/mens-scorecard-summary.schema.json`, `capability/capability-registry.schema.json`, `communication/a2a-clarification-payload.schema.json`, `scientia/arxiv-handoff.schema.json`, `tokens/tokens.v1.json`) to use `voxlang.org`.
+- **crates/vox-code-audit**: Updated diagnostic explain URLs in `src/diagnostics/catalog.rs` and `src/report.rs` to use `voxlang.org`.
+- **crates/vox-cli**: Updated domain references in `src/commands/ci/command_compliance/validators.rs`, `src/commands/ci/cmd_enums.rs`, `src/commands/ci/eval_matrix.rs`, and `src/commands/ci/mens_scorecard.rs`.
+- **crates/vox-publisher**: Updated default site base URL in `src/contract.rs` and email addresses in `src/scholarly/crossref_deposit.rs` and `src/scientia_prior_art.rs`.
+- **crates/vox-grammar-export**: Updated the `$id` for the AST schema in `src/json_schema.rs`.
+- **crates/vox-orchestrator-mcp**: Updated schema `$id` in `src/dei_ipc.rs` and health check URL example in `src/http_gateway/status.rs`.
+- **crates/vox-compiler**: Updated the `$id` for `vox-ir.v1.schema.json`.
+- **README.md**: Updated the canonical domain link.
+- **CI/CD**: Updated domain references in `.github/workflows/coolify-eval-sync.yml`, `.github/workflows/deploy-hetzner.yml`, and `.gitlab-ci.yml`.
+- **CNAME**: Updated the CNAME file to point to `voxlang.org`.
+- **CITATION.cff**: Updated the URL.
+- **docker**: Updated domain references in `docker/vox-eval.compose.yml` and `vox-eval.compose.yml`.
+- **.lycheeignore**: Updated the ignored domain.
+
+--- audit: original='chore: migrate website domain to voxlang.org (was vox-lang.org)' | actual=450L across 131 files | derived=full ---
