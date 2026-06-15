@@ -1,0 +1,6 @@
+fix(docker): Copy patches directory to builder stage
+scale: ~1 lines across 1 files [XS]
+
+- `Dockerfile`: Added `COPY patches/ patches/` to copy the `patches` directory into the builder stage.
+
+--- audit: original='fix(docker): Copy patches directory to builder stage' | actual=1L across 1 files | derived=full ---
