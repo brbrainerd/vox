@@ -1,0 +1,12 @@
+feat(share): Implement SSE detection and auto-switch backend
+scale: ~228 lines across 7 files [M]
+
+- `crates/vox-share/src/sse_detect.rs`: New module to detect Server-Sent Events (SSE) routes by probing `openapi.json` for `text/event-stream` content types.
+- `crates/vox-share/tests/sse_detect_test.rs`: New tests for the SSE detection logic, including OpenAPI spec parsing and live server interaction.
+- `crates/vox-share/src/coordinator.rs`: Modified `ShareSession::start` to perform SSE detection. If SSE routes are found and the backend is Cloudflare (which buffers responses), it automatically switches to `localhost.run` for compatibility, unless `allow_buffered_streaming` is true.
+- `crates/vox-cli/src/commands/share.rs`: Added `--allow-buffered-streaming` CLI argument to prevent the automatic backend switch for SSE routes.
+- `crates/vox-share/tests/fallback_test.rs`: Updated test configurations to include the new `allow_buffered_streaming` field.
+- `crates/vox-share/src/lib.rs`: Added `sse_detect` module to `vox-share` crate.
+- `crates/vox-share/tests/coordinator_test.rs`: Updated test configurations to include the new `allow_buffered_streaming` field.
+
+--- audit: original='feat(share): SSE detection + auto-switch backend (S6)' | actual=228L across 7 files | derived=full ---
