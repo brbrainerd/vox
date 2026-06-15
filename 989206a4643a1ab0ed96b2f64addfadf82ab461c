@@ -1,0 +1,9 @@
+feat(ci): enhance `mens gate` command with nested target directory and Windows safety
+scale: ~332 lines across 7 files [L]
+
+- `crates/vox-populi/src/mens/tensor/candle_qlora_train`: Refactored `training_loop.rs` to extract telemetry payload creation into a new function `build_train_step_payload`. Added `adapter_provenance_from_config` and `build_adapter_manifest_v3` functions in `finalize.rs` to support a new `PopuliAdapterManifestV3` schema, including provenance fields.
+- `crates/vox-cli`: Implemented `nested_cargo_target_dir` function in `matrix.rs` to create a unique target directory for `mens gate` commands, preventing file-lock collisions. Modified `run_mens_gate` to use this nested target directory. Updated `gpu_tests_body.rs` to use the new `AdapterProvenanceFields` in `PopuliAdapterManifestV3` for QLoRA adapter manifest creation.
+- `scripts`: Updated `mens_release_gate.ps1` and `release_training_gate.ps1` PowerShell scripts to ensure safe execution on Windows by building `vox-cli` into an isolated target directory and then copying the `vox.exe` executable to a temporary location before running the `mens gate` command. This prevents file-lock issues.
+- `scripts/populi/gates.yaml`: Modified `ci_full` profile steps to explicitly specify `--lib` for `cargo test` commands, ensuring tests are run against the library target.
+
+--- audit: original='feat(ci): add nested cargo target directory support and enhance mens gate command' | actual=332L across 7 files | derived=full ---
