@@ -1,0 +1,6 @@
+docs(plans): add 2026-05-09 astro-migration-and-doc-cleanup plan
+scale: ~875 lines across 1 files [L]
+
+- docs/superpowers/plans/2026-05-09-astro-migration-and-doc-cleanup.md: Add new plan document detailing the Astro migration and documentation cleanup. This plan outlines the goal to complete the mdBook to Astro/Starlight move, eliminate committed auto-generated artifacts, add pre-commit hooks, and delete stray files. It describes three tracks: Astro-first artifact elimination, pre-commit hooks for generators, and deletion of stray artifacts and fixes for broken cross-references.
+
+--- audit: original='docs(plans): add 2026-05-09 astro-migration-and-doc-cleanup plan' | actual=875L across 1 files | derived=full ---
