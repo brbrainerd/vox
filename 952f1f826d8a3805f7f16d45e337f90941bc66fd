@@ -1,0 +1,12 @@
+fix(review): address CodeRabbit feedback on PR #54
+scale: ~36 lines across 4 files [S]
+
+- docs/src/architecture/:
+    - Moved `2026-05-01-orchestrator-companion-audit-design.md` to this directory.
+    - Updated relative links within `2026-05-01-orchestrator-companion-audit-design.md` to reflect its new location.
+    - Corrected the frontmatter `cluster count` in `2026-05-01-orchestrator-companion-audit-design.md` from 22 to 27 surface clusters (A..AB).
+    - Added `2026-05-01-orchestrator-stage1-stage2.md` to this directory.
+- crates/vox-orchestrator/src/grounding.rs: Refactored `split_summary_handles_multibyte_unicode` test to directly exercise `split_summary_into_claim_segments` instead of duplicating the iteration pattern, removing 12 lines of test code.
+- crates/vox-orchestrator/src/mcp_tools/http_gateway/eval.rs: Modified the 413 response to return a JSON body matching the API error shape.
+
+--- audit: original='fix(review): address CodeRabbit feedback on PR #54' | actual=36L across 4 files | derived=full ---
