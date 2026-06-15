@@ -1,0 +1,12 @@
+feat(compiler): enforce capabilities for stdlib MethodCall nodes
+scale: ~109 lines across 2 files [M]
+
+- `crates/vox-compiler/src/typeck/effect_check.rs`:
+    - Updated documentation to specify stdlib intrinsic capabilities checked by module name on `MethodCall` nodes.
+    - Added logic within `check_expr` to enforce `HirCapability` requirements for `HirExpr::MethodCall` nodes when the receiver is a known stdlib module identifier.
+    - If a `MethodCall` to a stdlib module (e.g., `http.*`, `db.*`, `fs.*`, `env.*`, `time.*`/`clock.*`, `process.*`) is made from a function that does not declare the matching `uses` capability, a `DiagnosticCategory::EffectViolation` error is generated.
+    - Introduced `stdlib_module_capability` helper function (not shown in diff, but implied by usage) to map module names to `HirCapability`.
+- `docs/src/architecture/gui-native-roadmap-status-2026.md`:
+    - Updated the status of `TASK-4.2` to reflect that the stdlib intrinsic annotation pass is now complete, removing the "Pending: stdlib intrinsic annotation pass (Phase 5)" note.
+
+--- audit: original='feat(compiler): TASK-4.2 stdlib annotation pass -- enforce capabilities on stdlib MethodCall nodes' | actual=109L across 2 files | derived=full ---
