@@ -1,0 +1,26 @@
+feat(orchestrator): introduce safety features, budget controls, and resource locking
+scale: ~1617 lines across 44 files [XL]
+
+- `crates/vox-orchestrator`:
+    - Added `tool_receipt.rs` for cryptographic tool execution receipts and a ledger to track them.
+    - Enhanced `budget` module with `HaltAgent` and `DoomLoopSuspect` signals, and `DriftState` for agent semantic drift detection.
+    - Introduced `locks/resource.rs` for generic resource locking with exclusive/shared modes.
+    - Added `privacy_router.rs` for privacy level routing policies and `pii_filter.rs` for PII detection.
+    - Implemented `orchestrator/safety.rs` for safety checks and `judge_model.rs` for model judging.
+    - Added `context/token_optimization.rs` and `context/injection_policy.rs` for context management.
+    - Introduced `generated/agent_harness.rs` for agent harness specifications.
+    - Added `socrates.rs` for task completion logic and `runtime.rs` for runtime configuration.
+    - Created `orchestrator/accessors.rs` for orchestrator state access.
+    - Added `schema/fleet-quota.v1.schema.json` for fleet quota schema.
+    - Refactored `compaction.rs` and updated `Cargo.toml` with new dependencies.
+- `crates/vox-cli`:
+    - Added `commands/safety.rs` to provide CLI access to safety status, tool ledger, and resource locks.
+    - Updated `cli_dispatch/mod.rs` and `lib.rs` to include new safety commands.
+- `crates/vox-scaling-policy`:
+    - Modified `cost_defense.rs` to integrate with new budget and safety mechanisms.
+- `docs`:
+    - Added new Architecture Decision Records (ADRs) `025-multi-agent-lock-coherence.md` and `024-formal-intent.md`.
+    - Updated `SUMMARY.md`, `feed.xml`, and `architecture-index.md` to reflect new documentation.
+- `Cargo.lock`: Updated dependencies to reflect new crates and features.
+
+--- audit: original='fix(docker): include missing generated source files and fix ADR frontmatter' | actual=1617L across 44 files | derived=full ---
