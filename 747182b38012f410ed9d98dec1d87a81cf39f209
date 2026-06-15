@@ -1,0 +1,13 @@
+feat(vox-populi): add MockProbe and probe_failures to HardwareSummary
+scale: ~94 lines across 8 files [M]
+
+- `crates/vox-populi/src/mens/hardware/tests.rs`: Add a new test file containing two `tokio::test` functions to verify the behavior of `MockProbe`.
+- `crates/vox-populi/src/mens/hardware/mock.rs`: Add a new test-only `MockProbe` struct that implements the `HardwareProbe` trait, allowing for configurable probe results in tests.
+- `crates/vox-populi/src/mens/hardware/mod.rs`: Add `mock` and `tests` modules, conditionally compiled for tests, and initialize the new `probe_failures` field to `None` in existing `HardwareSummary` literals.
+- `crates/vox-populi/src/mens/hardware/types.rs`: Add an optional `probe_failures` field of type `Option<Vec<String>>` to the `HardwareSummary` struct, which is skipped during serialization if `None`.
+- `crates/vox-populi/src/mens/hardware/linux_drm.rs`: Initialize the new `probe_failures` field to `None` in `HardwareSummary` literals within `probe_drm`.
+- `crates/vox-populi/src/mens/hardware/macos_metal.rs`: Initialize the new `probe_failures` field to `None` in the `HardwareSummary` literal within `probe_metal`.
+- `crates/vox-populi/src/mens/hardware/wgpu_probe.rs`: Initialize the new `probe_failures` field to `None` in the `HardwareSummary` literal within `probe_wgpu`.
+- `crates/vox-populi/src/mens/hardware/win_dxgi.rs`: Initialize the new `probe_failures` field to `None` in `HardwareSummary` literals within `probe_dxgi`.
+
+--- audit: original='feat(populi): add MockProbe and probe_failures field on HardwareSummary' | actual=94L across 8 files | derived=full ---
