@@ -1,0 +1,11 @@
+feat(marquee): land P3.5 slot-2 and slot-3 real fixtures
+scale: ~491 lines across 6 files [L]
+
+- `apps/marquee/chat/src/main.vox`: Add new Vox Chat application (Marquee Slot 3) demonstrating actors, `@server` streaming, `@table`, `@auth(scheme: bearer)`, and `@test`.
+- `apps/marquee/chat/Vox.toml`: Add `Vox.toml` configuration for the new `marquee-chat` application.
+- `apps/marquee/todo-auth/src/main.vox`: Add new Vox Todo-CRUD application (Marquee Slot 2) demonstrating `@auth(scheme: bearer)`, `@query`/`@mutation`, `@table`, and `@test`.
+- `apps/marquee/todo-auth/Vox.toml`: Add `Vox.toml` configuration for the new `marquee-todo-auth` application.
+- `contracts/marquee/manifest.v1.yaml`: Update Marquee manifest to mark slots 2 and 3 as `real` status, update descriptions, and add `fixture_path` and `vox_toml` for the newly landed applications.
+- `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md`: Update Phase H `@endpoint` retirement audit to mark step 16 complete, noting that all 4 live sites were already migrated to `@query`/`@mutation`/`@server`.
+
+--- audit: original='feat(marquee): land P3.5 slot-2 and slot-3 real fixtures (CR-P1)' | actual=491L across 6 files | derived=full ---
