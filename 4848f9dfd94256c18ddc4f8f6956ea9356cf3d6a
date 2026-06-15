@@ -1,0 +1,7 @@
+fix(gitignore): allow JSONL test fixtures to be committed
+scale: ~3 lines across 1 files [XS]
+
+- Update `.gitignore` to unignore `*.jsonl` files within `**/tests/fixtures/` directories, allowing test fixture files like `crates/vox-effort-audit/tests/fixtures/transcripts/sample.jsonl` to be committed without requiring `git add -f`.
+- The general `*.jsonl` rule is preserved for other directories like `target/` and `populi/data/`.
+
+--- audit: original='chore(gitignore): allow test-fixture .jsonl files' | actual=3L across 1 files | derived=full ---
