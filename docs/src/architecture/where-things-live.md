@@ -178,7 +178,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | I want to... | The right place |
 |---|---|
 | List / edit / cancel / reprioritize queued tasks | Daemon RPCs `orch.list_tasks` / `orch.edit_task` in [`orch_daemon/mod.rs`](../../../crates/vox-orchestrator/src/orch_daemon/mod.rs); Tauri wrappers in `crates/vox-gui/src/commands/control_plane.rs`; GUI surface `crates/vox-gui/ui/src/components/surfaces/Tasks/` |
-| Tune LLM/OpenRouter concurrency | `[llm]` section of `VoxConfig` (`crates/vox-config/src/config/`); AIMD throttle in [`vox-actor-runtime::llm::throttle`](../../../crates/vox-actor-runtime/src/llm/throttle.rs) |
+| Tune LLM/OpenRouter concurrency | `[llm]` section of `VoxConfig` (`crates/vox-config/src/config/`); AIMD throttle in [`vox-actor-runtime::llm`](../../../crates/vox-actor-runtime/src/llm/mod.rs) |
 | Query aggregated mesh resources | `GET /v1/populi/resources/summary` → `aggregate_resources` in [`vox-populi .../handlers/nodes.rs`](../../../crates/vox-populi/src/transport/handlers/nodes.rs) |
 | Make scaling honor local CPU/RAM | `crates/vox-orchestrator/src/services/local_resources.rs` (feature `system-metrics`) + `decide_scaling` in `services/scaling.rs` |
 | Near-duplicate task detection | `crates/vox-orchestrator/src/services/similarity.rs` (consumed in `orch_daemon` SUBMIT_TASK) |

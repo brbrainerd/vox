@@ -27,7 +27,7 @@ Adding or removing a scenario means editing `build-bench-scenarios.v1.json` and 
 
 ## Selective CI + soundness backstop
 
-PR-time selective CI (see [affected-crate-selective-ci](affected-crate-selective-ci.md)) builds only affected crates on PRs; the merge-queue gate and nightly run the full `--workspace`. No build-time optimization here weakens that backstop.
+PR-time selective CI (PR #348) builds only affected crates on PRs; the merge-queue gate and nightly run the full `--workspace`. No build-time optimization here weakens that backstop.
 
 ## Historical log
 
