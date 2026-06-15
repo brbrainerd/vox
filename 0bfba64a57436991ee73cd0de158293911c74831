@@ -1,0 +1,6 @@
+fix(db): correct `self.conn` usage in `scheduled.rs` facade
+scale: ~22 lines across 1 files [S]
+
+- `crates/vox-db/src/facade/scheduled.rs`: Replaced `self.conn().await?` with `self.conn.clone()` in six instances across `schedule_run`, `scheduled_run_next_due_at`, `scheduled_runs_due_now`, and `update_scheduled_run_next_due_at` functions. This corrects the usage of `VoxDb.conn` from an incorrect method call to a field clone, resolving compilation errors.
+
+--- audit: original='fix(db): scheduled.rs facade uses self.conn.clone() not self.conn().await' | actual=22L across 1 files | derived=full ---
