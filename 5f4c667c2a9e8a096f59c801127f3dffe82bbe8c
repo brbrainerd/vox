@@ -1,0 +1,57 @@
+refactor(nomenclature): Converge codebase-wide naming for Mens, Populi, Schola, and DEI
+scale: ~123053 lines across 364 files [XL]
+
+DIVERGENCE: original subject claimed 'Refactor: codebase-wide nomenclature convergence (Mens, Populi, Schola, DEI)' but this commit actually changed ~123053 lines across 364 files. Top areas:
+mens: 114571 lines, 15 files
+docs: 3902 lines, 75 files
+crates: 3836 lines, 234 files
+(root): 406 lines, 7 files
+scripts: 176 lines, 15 files
+contracts: 48 lines, 1 files
+populi: 44 lines, 2 files
+docker: 16 lines, 3 files
+schemas: 16 lines, 1 files
+.cargo: 12 lines, 1 files
+{populi => mens}: 10 lines, 6 files
+examples: 8 lines, 2 files
+infra: 4 lines, 1 files
+tools: 4 lines, 1 files
+
+- **mens/**: Renamed `populi/` directories and files to `mens/` for consistency, including checkpoint states, adapter manifests, training manifests, and model cards. This involved significant additions of new `mens/` files and deletion of old `populi/` files.
+- **crates/vox-populi**: Refactored `lib.rs`, `Cargo.toml`, `http_client.rs`, and `transport.rs` to align with new nomenclature, including substantial additions and deletions.
+- **docs/src/api**: Renamed `vox-orchestrator.md` to `vox-dei.md` and updated content, along with adding `vox-dei-sandbox.md`.
+- **crates/vox-cli**: Updated `Cargo.toml`, `lib.rs`, and numerous command modules (`mens/mod.rs`, `dei.rs`, `schola/train.rs`, `ci/mod.rs`, `corpus.rs`, `populi_cli.rs`, `mens/pipeline.rs`, `ai/train.rs`, `mens/eval_gate.rs`, `ai/mod.rs`, `mod.rs`) to reflect the new naming conventions.
+- **docs/src/reference**: Renamed `populi.md` to `mens-training.md`, `populi-lora-ownership.md` to `mens-lora-ownership.md`, and updated `cli.md`, `env-vars.md`, `mens-cloud-gpu.md`, and `populi-coordination.md`.
+- **crates/vox-mesh**: Removed the entire `vox-mesh` crate, including `lib.rs` and `Cargo.toml`.
+- **docs/src/how-to**: Renamed `how-to-train-populi-4080.md` to `how-to-train-mens-4080.md`.
+- **docs/src/architecture**: Renamed `populi-finetune-acceptance-runbook.md` to `mens-finetune-acceptance-runbook.md` and updated `populi-workflow-guide.md`, `crate-build-lanes-migration.md`, `mens-architecture-2026-synthesis.md`, `vox-cli-build-feature-inventory.md`, `vox-cross-platform-runbook.md`, and `mens-llm-pr-checklist.md`.
+- **crates/vox-mens**: Added `Cargo.toml` and `lib.rs`, and updated `tensor/qlora_preflight.rs`, `tensor/execution_planner.rs`, `tensor/preset_schema.rs`.
+- **docs/agents**: Updated `doc-inventory.json` and removed `AGENTS.md`.
+- **crates/vox-workflow-runtime**: Updated `lib.rs`.
+- **scripts/populi**: Updated `gates.yaml`.
+- **crates/vox-orchestrator**: Updated `config.rs` and `populi_federation.rs`.
+- **crates/vox-runtime**: Updated `mens.rs` and `model_resolution.rs`.
+- **crates/vox-mcp**: Updated `tools/mod.rs`, `populi_startup.rs`, `dei_tools.rs`, and `server.rs`.
+- **crates/vox-schola**: Updated `train.rs`, `cli.rs`, `Cargo.toml`, `probe.rs`, and `serve.rs`.
+- **crates/vox-repository**: Updated `populi_toml.rs`.
+- **crates/vox-db**: Updated `populi_registry_telemetry.rs`.
+- **docs/src/adr**: Updated `009-populi-hosted-baas.md`, `006-mens-full-graph-qlora-qlora-rs.md`, and `008-populi-transport.md`.
+- **docs/src/explanation**: Updated `expl-ml-pipeline.md`, `glossary.md`, and `faq.md`.
+- **docs/src**: Updated `SUMMARY.md`, `feed.xml`, and `architecture/web-architecture-analysis-2026.md`.
+- **contracts/cli**: Updated `command-registry.yaml`.
+- **crates/vox-corpus**: Updated `synthetic_gen.rs`.
+- **crates/vox-lsp**: Updated `tests/diagnostic_tests.rs` and `lib.rs`.
+- **crates/vox-skills**: Updated `skills/populi.skill.md`.
+- **schemas**: Updated `populi-control-plane.openapi.yaml`.
+- **crates/vox-ludus**: Updated `achievement.rs`.
+- **crates/vox-tools**: Updated `mens_chat.rs`.
+- **populi/config**: Removed `mix.yaml` and `mix.example.yaml`.
+- **mens/config**: Added `mix.yaml` and `mix.example.yaml`.
+- **crates/vox-capability-registry**: Updated `tests/registry_test.rs` and `lib.rs`.
+- **CHANGELOG.md**: Updated.
+- **README.md**: Updated.
+- **Cargo.lock**: Updated due to dependency changes.
+- **.cargo/config.toml**: Updated.
+- **scripts**: Updated `run_qwen25_qlora_real_4080.ps1`.
+
+--- audit: original='Refactor: codebase-wide nomenclature convergence (Mens, Populi, Schola, DEI)' | actual=123053L across 364 files | derived=stat-only ---
