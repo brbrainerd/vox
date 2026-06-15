@@ -1,0 +1,15 @@
+feat(compiler): warn on uncancellable async handlers
+scale: ~516 lines across 23 files [L]
+
+- feat(compiler): introduce `lint.handler.uncancellable_async` warning for async event handlers that mutate state without `@cancellable` annotation.
+- typeck/async_handler_lint.rs: add new lint pass `check_async_handlers` to detect uncancellable async handlers.
+- tests/async_handler_test.rs: add three new tests for the async handler lint: one that warns, one that is silenced by `@cancellable`, and one for pure sync handlers.
+- lexer/token.rs: add `Token::AtCancellable` for the new `@cancellable` syntax.
+- ast/expr.rs: add `cancellable: bool` field to `Expr::Lambda` to store the annotation.
+- hir/nodes/stmt_expr.rs: update `HirExpr::Lambda` to include a `bool` field for the cancellable flag.
+- parser/descent/expr/pratt_match.rs: implement parsing for `@cancellable fn(...)` syntax and thread the `cancellable` flag into `Expr::Lambda`.
+- hir/lower/expr.rs: update `lower_expr` to correctly handle the new `cancellable` field during AST to HIR lowering.
+- typeck/mod.rs: register the new `check_async_handlers` lint in `typecheck_hir_module`.
+- codegen/eval/walk passes: update `HirExpr::Lambda` match arms in `codegen_ts/reactive.rs`, `hir/db_op_walk.rs`, `typeck/checker/mod.rs`, `vox-cli/src/commands/db/query_plans.rs`, `codegen_rust/emit/stmt_expr_tail.rs`, `eval/expr.rs`, `hir/dead_code.rs`, `typeck/checker/expr.rs`, `typeck/effect_check.rs`, `typeck/effect_deps_lint.rs`, `codegen_ts/hir_emit/async_walker.rs`, `codegen_ts/hir_emit/mod.rs`, `codegen_ts/hir_emit/state_deps.rs`, `typeck/stale_capture_lint.rs`, and `vox-workflow-runtime/src/workflow/plan.rs` to account for the new `cancellable` field in `HirExpr::Lambda`.
+
+--- audit: original='feat(compiler): warn on uncancellable async handlers (lint.handler.uncancellable_async)' | actual=516L across 23 files | derived=full ---
