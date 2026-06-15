@@ -1,0 +1,17 @@
+feat(codegen-ts): add 5 new golden fixtures and fix endpoint call in handler
+scale: ~551 lines across 12 files [L]
+
+- `examples/golden-ts/routes_with_loader.vox`: Add new example for routes with a loader.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@routes_with_loader.snap`: Add new snapshot for routes with a loader, including generated React components for Home and About, and `vox-app-contract.json` and `vox-tanstack-query.tsx` files.
+- `examples/golden-ts/component_effect_with_deps.vox`: Add new example for a component with an effect and dependencies.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@component_effect_with_deps.snap`: Add new snapshot for a component with an effect and dependencies, including the generated `Timer.tsx` component.
+- `examples/golden-ts/list_render_with_key.vox`: Add new example for list rendering with a key.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@list_render_with_key.snap`: Add new snapshot for list rendering with a key, including the generated `ItemList.tsx` component.
+- `examples/golden-ts/match_tagged_union.vox`: Add new example for matching tagged unions.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@match_tagged_union.snap`: Add new snapshot for matching tagged unions.
+- `examples/golden-ts/string_with_json.vox`: Add new example for string manipulation with JSON parsing.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@string_with_json.snap`: Add new snapshot for string manipulation with JSON parsing.
+- `examples/golden-ts/endpoint_call_in_handler.vox`: Refactor `C` component to `Counter` and update its state and button action to call `get_count()` endpoint.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@endpoint_call_in_handler.snap`: Update snapshot to reflect the changes in `endpoint_call_in_handler.vox`, specifically changing `label` to `count` and the button's `onClick` handler.
+
+--- audit: original='test(codegen-ts): add 5 missing golden fixtures; fix endpoint_call_in_handler to actually call endpoint' | actual=551L across 12 files | derived=full ---
