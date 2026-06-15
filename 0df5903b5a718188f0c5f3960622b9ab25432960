@@ -1,0 +1,24 @@
+feat(cli): add container resource limit flags; deduplicate constants
+scale: ~103 lines across 7 files [M]
+
+- `crates/vox-cli/src/commands/generate.rs`:
+    - Refactored inference server URL resolution into `resolve_inference_url` function, supporting explicit argument, environment variable, and default precedence.
+    - Added unit tests for `resolve_inference_url` precedence logic.
+    - Renamed `DEFAULT_SERVER_URL` to `DEFAULT_INFERENCE_URL` for clarity.
+- `crates/vox-cli/src/commands/openclaw.rs`:
+    - Defined `OPENCLAW_GATEWAY_PORT`, `OPENCLAW_GATEWAY_URL`, and `OPENCLAW_MCP_URL` constants.
+    - Replaced hardcoded OpenClaw MCP URLs in `Approvals`, `Approve`, and `Deny` subcommands with `OPENCLAW_MCP_URL`.
+    - Replaced hardcoded OpenClaw gateway port in `Serve` subcommand with `OPENCLAW_GATEWAY_PORT`.
+- `crates/vox-cli/src/commands/container.rs`:
+    - Added `--cpus`, `--memory`, and `--pids-limit` flags to `container run` subcommand.
+    - Passed these new resource limit flags to the underlying container runtime.
+- `crates/vox-cli/src/commands/ci/constants.rs`:
+    - Introduced `REPO_SLUG` constant for the canonical GitHub repository slug.
+- `crates/vox-cli/src/commands/ci/job_timings.rs`:
+    - Replaced local `REPO_SLUG` constant with import from `constants.rs`.
+- `crates/vox-cli/src/commands/ci/runner_scale.rs`:
+    - Replaced local `REPO_SLUG` constant with import from `constants.rs`.
+- `crates/vox-cli/src/commands/ci/watch_run.rs`:
+    - Replaced local `GITHUB_REPO` constant with `REPO_SLUG` imported from `constants.rs`.
+
+--- audit: original='feat(cli): container limit flags + dedup inference-url/openclaw-port/repo-slug literals (HC-G07-05, HC-G03-02/03/04)' | actual=103L across 7 files | derived=full ---
