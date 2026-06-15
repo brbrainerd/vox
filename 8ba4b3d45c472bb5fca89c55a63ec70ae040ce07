@@ -1,0 +1,11 @@
+feat(typeck): close 19 golden-corpus gaps, 62/62 passing
+scale: ~146 lines across 6 files [M]
+
+- **typeck/builtins**: Register `panic(str) -> Unit` and `has_capability(cap) -> bool` functions. Define `Unit` constant.
+- **parser/descent**: Add `extern` and `fragment` tokens to `is_decl_position` in `parse_module_script`. Add 26 function-level decorator tokens (`@deprecated`, `@pure`, `@require`, `@ensure`, `@invariant`, `@fuzz`, `@reactive`, `@remote`, `@ai`, `@prompt`, `@subagent`, `@search`, `@hole`, `@inference`, `@training_step`, `@native`, `@uses`, `@auth`, `@cors`, `@rate_limit`, `@pii`, `@embed`, `@webhook`, `@offline_capable`, `@collaborative`, `@layer`) to `is_decl_position`.
+- **typeck/checker/expr_field**: Add handling for field access on `Ty::Named` types that resolve to `BindingKind::Table`, allowing direct lookup of fields on table types.
+- **typeck/checker/expr**: Instantiate `GenericParam` to `TypeVar` when looking up identifier bindings to correctly unify polymorphic constants like `None`, `Ok`, `Error` with concrete inferred types. Add variant-ADT branch in `ObjectLit` checker to accept variant payloads as `Named(T)` when the ADT has variants but no raw fields.
+- **typeck/unify**: Add `Record` to `Map` coercion, allowing `{a: 1, b: 2}` to unify with `Map[str, int]`. Add `Str` to `Char` coercion, allowing single-quoted characters to be accepted by `char` annotations.
+- **typeck/boilerplate_grafts**: Downgrade `@hole` diagnostic severity from `Error` to `Warning`.
+
+--- audit: original='fix(typeck): close 19 golden-corpus gaps → 62/62 passing' | actual=146L across 6 files | derived=full ---
