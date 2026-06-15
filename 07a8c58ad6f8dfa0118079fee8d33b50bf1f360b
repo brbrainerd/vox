@@ -1,0 +1,12 @@
+fix(ci): Resolve 3 GitHub Actions CI failures and update documentation links
+scale: ~38 lines across 9 files [M]
+
+- fix(ci/ssot-drift): Update `crates/vox-mesh-types/Cargo.toml` and `crates/vox-cli-core/Cargo.toml` to use `version.workspace = true` and `edition.workspace = true` to prevent SSOT drift.
+- fix(ci/vite): Correct the test target name from `web_vite_smoke` to `web_vite_smoke_test` in `.github/workflows/ci.yml` for the `vox-web-vite-smoke` job.
+- fix(ci/links): Exclude `docs/src/archive` from the `lychee` link checker in `.github/workflows/link_checker.yml`.
+- fix(docs/links): Convert absolute `file://` paths to relative paths in `docs/src/architecture/ludus-security-and-anti-cheat-research-2026.md`.
+- fix(docs/links): Correct the relative path for `AGENTS.md` in `docs/src/architecture/model-orchestration-ssot-audit-2026.md` from `../../AGENTS.md` to `../../../AGENTS.md`.
+- fix(docs/links): Replace links to IDE-private artifacts with plain text notes in `docs/src/architecture/build-stabilization-findings-2026.md`.
+- fix(docs/links): Add new entries for planned-but-not-yet-authored architecture stubs to `.lycheeignore`.
+
+--- audit: original='fix: resolve 3 GitHub Actions CI failures' | actual=38L across 9 files | derived=full ---
