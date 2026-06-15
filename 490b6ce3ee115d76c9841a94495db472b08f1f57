@@ -1,0 +1,8 @@
+feat(perf): Add test-baseline script, schema, and initial budgets
+scale: ~226 lines across 3 files [M]
+
+- `scripts/perf/test-baseline.vox`: Add a new Vox script to measure wall-clock time for CI gate tiers (fast, complete, full, full_cov, doctests), recording environment details and individual step timings.
+- `contracts/reports/test-baseline.v1.schema.json`: Add a JSON schema for the output of the `test-baseline.vox` script, defining the structure for performance reports including environment details, tier timings, and slowest tests.
+- `contracts/budgets/test-tier-budgets.v1.yaml`: Add initial YAML budget definitions for test tiers, including measured, warning, and failure thresholds in milliseconds, with notes on future expected improvements.
+
+--- audit: original='feat(contracts): test-baseline.v1 JSON schema (Phase 0)' | actual=226L across 3 files | derived=full ---
