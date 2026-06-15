@@ -1,0 +1,13 @@
+feat(mesh/p2-t1): Implement BundleStore CAS and HirFn generated_hash stamping
+scale: ~1023 lines across 11 files [XL]
+
+- `crates/vox-package`: Added `BundleStore` for content-addressed storage of compiled functions, keyed by SHA3-512 hash. Introduced `BundleRef` and `Bundle` structs for representing function bundles and their metadata.
+- `crates/vox-compiler`: Implemented `generated_hash: Option<String>` on `HirFn` to store a stable SHA3-512 hash for `Workflow` and `Activity` durability kinds. This hash is computed over a span-stripped `serde_json` representation of semantic fields (name, params, return_type, body, version) to ensure stability against whitespace-only changes.
+- `crates/vox-compiler`: Modified HIR lowering passes to stamp `generated_hash` for `Workflow` and `Activity` functions and initialize `generated_hash` to `None` for other `HirFn` constructors.
+- `crates/vox-package/tests`: Added acceptance tests for `BundleStore` functionality, covering round-trip storage, cache hits, and idempotent `put` operations.
+- `crates/vox-compiler/tests`: Added acceptance tests to verify the stability of `generated_hash` across whitespace changes and its sensitivity to body modifications for workflows and activities.
+- `crates/vox-test-harness`: Updated `hir_fn` builder to initialize `generated_hash` to `None`.
+- `.claude/settings.local.json`: Updated Claude settings.
+- `Cargo.lock`: Updated dependencies.
+
+--- audit: original='feat(mesh/p2-t1): BundleStore CAS + generated_hash stamping on HirFn' | actual=1023L across 11 files | derived=full ---
