@@ -1,0 +1,8 @@
+feat(compiler): warn on stale state captures in lifecycle closures
+scale: ~326 lines across 3 files [L]
+
+- `crates/vox-compiler/src/typeck/stale_capture_lint.rs`: Add a new lint (`lint.closure.stale_capture`) that warns when a lambda inside an `on_mount:` or `effect:` (without an explicit `depends_on` clause) captures a component state variable by name. This detects cases where the closure would silently read a stale value.
+- `crates/vox-compiler/tests/stale_capture_test.rs`: Add new tests for the `stale_capture_lint`, including cases that should warn (closure in `on_mount` capturing state) and cases that should not (closure in `effect` with explicit `depends_on`, closure in event handler).
+- `crates/vox-compiler/src/typeck/mod.rs`: Integrate the new `stale_capture_lint` into the `typecheck_hir_module` function, ensuring it runs as part of the type-checking process.
+
+--- audit: original='feat(compiler): warn on stale state captures in lifecycle closures (lint.closure.stale_capture)' | actual=326L across 3 files | derived=full ---
