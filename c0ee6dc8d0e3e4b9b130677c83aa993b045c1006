@@ -1,0 +1,7 @@
+feat(vox-gui/coverage): improve accessibility of CoverageView table
+scale: ~32 lines across 2 files [S]
+
+- `crates/vox-gui/ui/src/components/surfaces/Coverage/CoverageView.test.tsx`: Add new tests for accessibility features of the `CoverageView` table, including checking for a caption and `scope="col"` on column headers.
+- `crates/vox-gui/ui/src/components/surfaces/Coverage/CoverageView.tsx`: Add a visually hidden `<caption>` to the coverage table for improved accessibility and add `scope="col"` attributes to table header cells.
+
+--- audit: original='feat(vox-gui/wave5): CoverageView a11y + checklist (Wave 5)' | actual=32L across 2 files | derived=full ---
