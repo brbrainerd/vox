@@ -1,0 +1,16 @@
+docs: cleanup post-merge: update crate names, deprecate audit, remove `vox-mcp-meta`
+scale: ~128 lines across 11 files [M]
+
+- **docs/src/architecture/ludus-adjudication-implementation-plan-2026.md**: Renamed `vox-ludus` references to `vox-gamify` in code paths for event processing and dispute lifecycle.
+- **docs/src/feed.xml**: Updated `vox-ludus` to `vox-gamify` in the feed.
+- **docs/src/architecture/crate-classification-2026-05-08.md**: Changed document status from `research` to `deprecated`, added `superseded_by` links to `workspace-reorg-outcome.md` and `crate-org-followup-design.md`, and inserted a snapshot blockquote explaining its deprecation.
+- **docs/src/architecture/vox-gui-native-roadmap-2026.md**: Updated `vox-ludus` to `vox-gamify` in crate path descriptions and the "Ludus" component description.
+- **vox-schema.json**: Removed the `vox-mcp-meta` entry from the schema.
+- **docs/src/SUMMARY.md**: Updated `vox-ludus` to `vox-gamify`.
+- **docs/src/architecture/architecture-index.md**: Updated `vox-ludus` to `vox-gamify`.
+- **docs/src/architecture/classification-ssot-2026.md**: Renamed `vox-ludus` to `vox-gamify` in the "Game/Combat" section.
+- **docs/src/reference/mcp-tool-registry-contract.md**: Replaced `vox-mcp-meta` with `vox-mcp-registry` in the list of crates re-exporting the tool registry table.
+- **docs/src/adr/004-codex-arca-turso-ssot.md**: Added a nomenclature footnote clarifying that `vox-pm` was renamed to `vox-package`.
+- **docs/src/adr/015-vox-docker-oci-portability-ssot.md**: Added a nomenclature footnote clarifying that `vox-pm` was renamed to `vox-package`.
+
+--- audit: original='docs: post-merge cleanup — ADR footnotes, vox-mcp-meta sweep, classification re-stamp' | actual=128L across 11 files | derived=full ---
