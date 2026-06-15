@@ -1,0 +1,13 @@
+fix(examples): update golden corpus to match compiler fixes and idiomatic patterns
+scale: ~170 lines across 4 files [M]
+
+- `examples/golden/json_as_typed.vox`:
+  - Rewrote `parse_product` and `round_trip_product` demo functions to use `match` statements for error handling instead of `if r.is_err()`.
+  - Updated field access from `p.get("name")` to direct struct field access `p.name` for idiomatic typed deserialization.
+  - Added new `match` arms for `Search`/`Fetch` and `Circle`/`Square` ADTs in `parse_adt` and `round_trip_adt` functions to demonstrate Phases 5-6.
+  - Removed `Json.as_str()` calls when accessing `name` from `Product_to_json` output, as `out` is already a `Json` type.
+- `examples/golden/option_type.vox`: Replaced `db.UserProfile.filter({ name: name })` with `db.UserProfile.all()` and added a comment explaining the simplification, pending collection-method refresh.
+- `examples/golden/ref_syntax.vox`: Wrapped the integer argument to `print()` with `str()` to explicitly convert it to a string, as `print` expects a string.
+- `examples/aspirational/tensor_gc_computation.vox`: Moved `tensor_gc_computation.vox` from `golden/` to `aspirational/` as it requires tensor arithmetic not yet supported by the type system and is marked with `// vox:skip`.
+
+--- audit: original='fix(examples): update golden corpus to match fixed compiler' | actual=170L across 4 files | derived=full ---
