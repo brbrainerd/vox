@@ -1,0 +1,10 @@
+docs(README): update installation instructions and add Killer Features section
+scale: ~56 lines across 1 files [M]
+
+- Update macOS/Linux installation to recommend `voxup` with a `curl | sh` command, while retaining Homebrew as an alternative for macOS.
+- Remove specific Debian/Ubuntu installation instructions.
+- Update Windows installation to recommend `voxup-init.exe` or `.msi` installer, noting secure signing.
+- Add a "Getting Started" section with `vox init` and `vox run` commands.
+- Add a "Killer Features" section detailing Local AI Inference & Fine-Tuning and Distributed Mesh Computing.
+
+--- audit: original='docs: audit installation instructions and add Killer Features section to README' | actual=56L across 1 files | derived=full ---
