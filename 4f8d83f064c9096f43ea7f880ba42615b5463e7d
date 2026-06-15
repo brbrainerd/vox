@@ -1,0 +1,7 @@
+docs(architecture): update category to 'Architecture SSOTs' in two MENS audit documents
+scale: ~4 lines across 2 files [S]
+
+- docs/src/architecture/mens-training-pipeline-audit-and-improvement-plan-2026-06-07.md: Changed the `category` frontmatter from `architecture` to `"Architecture SSOTs"`.
+- docs/src/architecture/qwen-3.7-profile-and-mens-4b-feasibility-2026-06-07.md: Changed the `category` frontmatter from `architecture` to `"Architecture SSOTs"`.
+
+--- audit: original="docs: use canonical category 'Architecture SSOTs' in two MENS audit docs" | actual=4L across 2 files | derived=full ---
