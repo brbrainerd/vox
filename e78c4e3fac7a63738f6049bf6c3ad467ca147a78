@@ -1,0 +1,7 @@
+fix(docs): correct ADR-041 link depth and lycheeignore route patterns
+scale: ~10 lines across 2 files [S]
+
+- `.lycheeignore`: Updated patterns for `/showcase/` and `/concepts/` to match `file://` URIs, resolving issues with lychee's link checking.
+- `docs/design-system/07-content-blocks.md`: Corrected the relative path for the link to `ADR-041` from `../../../` to `../../`.
+
+--- audit: original='fix(docs): correct ADR-041 link depth + lycheeignore route patterns' | actual=10L across 2 files | derived=full ---
