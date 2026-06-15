@@ -1,0 +1,14 @@
+feat(populi-cli,mesh-types): Implement public attestation manifest and `vox populi attest` CLI
+scale: ~610 lines across 9 files [L]
+
+- `crates/vox-ml-cli/src/commands/populi_attest.rs`: Add new `populi attest` subcommand for publishing and fetching public attestation manifests.
+- `crates/vox-ml-cli/src/commands/populi_join.rs`: Add new `populi join` subcommand for parsing invite URLs and fetching attestation manifests.
+- `crates/vox-mesh-types/tests/attestation_manifest.rs`: Add integration tests for `PublicAttestationManifest` serialization and canonical bytes.
+- `crates/vox-ml-cli/src/commands/populi_cli.rs`: Integrate `Attest` and `Join` subcommands into the main `PopuliCli` enum and `run` function.
+- `crates/vox-ml-cli/src/commands/mens/probe.rs`: Add conditional compilation for `vox mens probe` to require the `gpu` feature.
+- `crates/vox-ml-cli/src/commands/mod.rs`: Declare new `populi_attest` and `populi_join` modules.
+- `crates/vox-mesh-types/src/donation_policy.rs`: Add an optional `redundancy` field to `WorkerDonationPolicy`.
+- `crates/vox-mesh-types/src/redundancy.rs`: Derive `PartialEq` for `RedundancyPolicy`.
+- `crates/vox-ml-cli/src/commands/populi_lifecycle.rs`: Initialize `accept_sensitive_workloads` and `redundancy` fields in `WorkerDonationPolicy` during `populi init`.
+
+--- audit: original='feat(mesh-types,populi): P6-T2 public attestation manifest + vox populi attest CLI' | actual=610L across 9 files | derived=full ---
