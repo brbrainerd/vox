@@ -1,0 +1,13 @@
+feat(parser): parse function-level decorators and their arguments
+scale: ~111 lines across 2 files [M]
+
+- `crates/vox-compiler/src/parser/descent/mod.rs`:
+    - Added `skip_paren_args_inner` helper to consume parenthesized argument lists, advancing the parser past them.
+    - Updated `recover_to_top_level` to include new decorator tokens, preventing parse errors when they precede declarations.
+    - Added new decorator tokens (`@uses`, `@auth`, `@cors`, `@rate_limit`, `@pii`, `@embed`, `@webhook`, `@offline_capable`, `@collaborative`, `@layer`) to the list of tokens that can precede a declaration.
+- `crates/vox-compiler/src/parser/descent/decl/head.rs`:
+    - Modified `parse_fn_decl` to recognize and process the new function-level decorators.
+    - `@uses` decorator arguments are parsed into `decorator_effects`, supporting `mcp` with a tool identifier.
+    - Other decorators (`@auth`, `@cors`, `@rate_limit`, `@pii`, `@embed`, `@webhook`, `@offline_capable`, `@collaborative`, `@layer`) are recognized, and their arguments are skipped using `skip_paren_args_inner`.
+
+--- audit: original='feat(parser): wire @uses/@auth/@cors/@rate_limit/@pii/@embed/@webhook/@offline_capable/@collaborative/@layer decorators' | actual=111L across 2 files | derived=full ---
