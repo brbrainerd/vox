@@ -1,0 +1,6 @@
+docs(gitignore): ignore `.worktrees/` directory
+scale: ~3 lines across 1 files [XS]
+
+- Add `.worktrees/` to `.gitignore` to prevent it from being tracked by Git.
+
+--- audit: original='chore(gitignore): ignore .worktrees/ for agent isolation' | actual=3L across 1 files | derived=full ---
