@@ -1,0 +1,6 @@
+fix(peft-rs): Coerce `candle` operation errors into `PeftError` in `DoraLayer`
+scale: ~2 lines across 1 files [XS]
+
+- `patches/peft-rs-1.0.3/src/adapters/lora.rs`: Wrapped the `out.reshape` call in `DoraLayer::forward` with `Ok(...)` and added a `?` to propagate `candle` operation errors, ensuring they are correctly handled by `PeftError`.
+
+--- audit: original='fix(peft-rs): coerce candle 0.10 op errors into PeftError (Ok(...?)) — unblock mens CUDA build' | actual=2L across 1 files | derived=full ---
