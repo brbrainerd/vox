@@ -1,0 +1,6 @@
+docs(agents): add vox-populi store to turso-import allowlist
+scale: ~1 lines across 1 files [XS]
+
+- docs/agents/turso-import-allowlist.txt: Added `crates/vox-populi/src/transport/store/` to the allowlist.
+
+--- audit: original='chore(agents): turso-import allowlist for populi mesh VoxDb store' | actual=1L across 1 files | derived=full ---
