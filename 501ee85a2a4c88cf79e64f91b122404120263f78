@@ -1,0 +1,11 @@
+feat(compiler): lint.effect.unresolvable_deps for ambiguous effect dependencies
+scale: ~391 lines across 8 files [L]
+
+- `crates/vox-compiler/src/typeck`: Adds a new lint `lint.effect.unresolvable_deps` to detect unresolvable dependencies in `effect:` blocks. This lint fires when an `effect:` block calls a function that is neither a known builtin nor a component state name, making dependency tracking ambiguous. The lint is suppressed by an explicit `depends_on` clause.
+- `crates/vox-compiler/src/parser`: Extends the parser to recognize and parse an optional `depends_on (a, b)` clause for `effect:` declarations, allowing users to explicitly declare dependencies.
+- `crates/vox-compiler/src/ast`: Modifies `EffectDecl` to include an `explicit_deps: Option<Vec<String>>` field to store the parsed explicit dependencies.
+- `crates/vox-compiler/src/hir`: Extends `HirEffect` with an `explicit_deps: Option<Vec<String>>` field to carry explicit dependency information through the HIR.
+- `crates/vox-compiler/src/hir/lower`: Updates the HIR lowerer to populate the `explicit_deps` field in `HirEffect` from the AST.
+- `crates/vox-compiler/tests`: Adds three new tests to verify the behavior of the new lint: one for unresolvable dependency errors, one for successful suppression with explicit dependencies, and one for effects with only local state.
+
+--- audit: original='feat(compiler): lint.effect.unresolvable_deps for ambiguous effect deps' | actual=391L across 8 files | derived=full ---
