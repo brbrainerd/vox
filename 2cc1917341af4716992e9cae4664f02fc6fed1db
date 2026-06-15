@@ -1,0 +1,14 @@
+feat(qlora): implement token-aligned CE masking and preflight configs
+scale: ~125 lines across 9 files [M]
+
+- `crates/vox-populi/src/mens/tensor/candle_qlora_train/ce_mask_align.rs`: Add new module `ce_mask_align` with `aligned_prefix_token_len` function to calculate token-aligned supervised-prefix length for masked Cross-Entropy, addressing BPE boundary skew.
+- `crates/vox-populi/src/mens/tensor/candle_qlora_train/training_loop.rs`: Integrate `aligned_prefix_token_len` into `try_encode_training_step` to determine `prefix_len` for CE masking. Add a check in `forward_masked_ce` to ensure target token IDs are within the vocabulary dimension. Add a `trivial_training_pair` helper function for tests.
+- `crates/vox-populi/src/mens/tensor/candle_qlora_train/validation.rs`: Update validation pass to use `aligned_prefix_token_len` for calculating `prefix_len`.
+- `crates/vox-populi/src/mens/tensor/candle_qlora_train/mod.rs`: Declare `ce_mask_align` as a module.
+- `crates/vox-populi/src/mens/tensor/execution_planner.rs`: Add `curriculum_schedule` field to `LoraTrainingConfig` in tests.
+- `mens/runs/agent_cpu_micro/training-preflight.json`: Add new preflight configuration file for `agent_cpu_micro` with `qlora` execution kernel.
+- `mens/runs/agent_fg_debug/training-preflight.json`: Add new preflight configuration file for `agent_fg_debug` with `qlora` execution kernel.
+- `mens/runs/agent_monitor_cuda/training-preflight.json`: Add new preflight configuration file for `agent_monitor_cuda` with `qlora` execution kernel.
+- `mens/runs/agent_monitor_v2/training-preflight.json`: Add new preflight configuration file for `agent_monitor_v2` with `qlora` execution kernel.
+
+--- audit: original='feat: implement execution planner and Candle QLoRA training infrastructure' | actual=125L across 9 files | derived=full ---
