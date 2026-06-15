@@ -1,0 +1,15 @@
+feat(eval+typeck): Add stdlib builtins for global functions and list/string methods
+scale: ~201 lines across 2 files [M]
+
+- **eval/builtins**:
+    - Implement `reversed()`, `sorted()`, `sum()`, `max()`, `min()`, `flatten()` list methods.
+    - Implement `to_int()` and `to_float()` string methods.
+    - Implement `abs()`, `max(a,b)`, `min(a,b)` global functions.
+    - Change `first()` and `last()` list methods to return `Option<T>` instead of `T|null`.
+    - Add `vox_value_cmp` helper for total ordering in `sorted()`, `max()`, and `min()`.
+- **typeck/builtins**:
+    - Define type signatures for `abs()`, `max(a,b)`, `min(a,b)` global functions.
+    - Define type signatures for `sorted()`, `reversed()`, `sum()`, `max()`, `min()`, `flatten()`, `first()`, `last()`, `is_empty()` list methods.
+    - Define type signatures for `to_int()` and `to_float()` string methods.
+
+--- audit: original='feat(typeck+eval): add stdlib gap builtins for LLM-target CR-L' | actual=201L across 2 files | derived=full ---
