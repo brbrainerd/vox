@@ -1,0 +1,12 @@
+feat(arch): Introduce layer-check tool, layers.toml, and build-time baselines
+scale: ~489 lines across 8 files [L]
+
+- **crates/vox-layer-check**: New crate providing a tool to validate workspace dependency edges against a defined layered architecture. It parses `cargo metadata`, checks dependencies against `layers.toml`, and reports inversions. It supports a `--warn-only` mode for transitional phases.
+- **docs/src/architecture/layers.toml**: New configuration file defining the layered architecture for 76 workspace crates (L0-L5) and listing two known transitional inversions.
+- **docs/src/architecture/build-time-baseline.md**: New documentation detailing build-time baselines for incremental checks, including scenarios for `vox-orchestrator` (~5s) and `vox-cli` (~27s).
+- **docs/src/architecture/build-time-log.md**: New documentation to log phase-by-phase build-time deltas.
+- **.github/workflows/ci.yml**: Added a CI step to run `vox-layer-check` in `--warn-only` mode after the orchestrator slim build. Modified the orchestrator slim build command to include `mcp-native` feature.
+- **crates/vox-orchestrator/src/services/mod.rs**: Gated the `routes` module under the `mcp-native` feature flag to align with slim build requirements.
+- **Cargo.lock**: Updated to include new dependencies for `vox-layer-check`.
+
+--- audit: original='feat(arch): Phase 0 — layer-check tool, layers.toml, build-time baseline' | actual=489L across 8 files | derived=full ---
