@@ -856,10 +856,17 @@ jobs:
           cargo llvm-cov report --lcov --output-path target/llvm-cov-lcov.info
           ./target/debug/vox --quiet ci coverage-gates --summary-json target/llvm-cov-summary.json --mode enforce
 
-      - name: Semantic-coverage reach ratchet (reached-but-unproven must not rise)
+      # ADVISORY (non-blocking): the reach baseline (semantic-coverage.v1.json) is
+      # measured from a local full-workspace lcov; CI's lcov differs, so the absolute
+      # reached-but-unproven count is not yet reproducible across environments (see
+      # docs/.../semantic-coverage-status-2026-06-15.md). Reported for visibility but
+      # NOT gating until the reach layer is calibrated to CI's lcov. The deterministic
+      # `semcov-gates` check (silent-drop + weak-test) IS blocking.
+      - name: Semantic-coverage reach ratchet (advisory — reported, not gating)
         if: needs.setup.outputs.rust_changed == 'true'
+        continue-on-error: true
         run: |
-          set -euo pipefail
+          set -uo pipefail
           python3 scripts/coverage-graph/ingest_reaches.py \
             --lcov target/llvm-cov-lcov.info \
             --graph contracts/reports/semantic-coverage-graph.snapshot.json.gz \
