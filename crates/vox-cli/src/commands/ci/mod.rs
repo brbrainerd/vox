@@ -3,6 +3,7 @@
 mod agentskills_compliance;
 mod attention_ledger_parity;
 mod attention_parity;
+mod build_bench;
 pub mod build_timings;
 mod canonical_docs;
 mod capability_snapshot;
