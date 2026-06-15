@@ -1,0 +1,15 @@
+feat(code-audit): add `weak_test` detector for anti-patterns in Rust tests
+scale: ~231 lines across 2 files [M]
+
+- `crates/vox-code-audit/src/detectors/weak_test.rs`: Add new `WeakTestDetector` module to identify weak Rust tests. This detector flags `#[test]` functions that:
+    - Assert nothing.
+    - Assert a tautology (e.g., `assert_eq!(x, x)`).
+    - Only use shallow checks (`.is_ok()`, `.is_some()`, `.is_err()`, `.is_none()`, `.is_empty()`) without pinning a specific value or variant.
+    - Includes `SHALLOW` constant for common shallow assertion patterns.
+    - Implements `DetectionRule` trait, setting severity to `Warning` and language to `Rust`.
+- `crates/vox-code-audit/src/detectors/mod.rs`:
+    - Declare `weak_test` as a public module.
+    - Register `WeakTestDetector` in the `all_rules()` function.
+    - Increment `rule_count()` from 52 to 53.
+
+--- audit: original='feat(code-audit): weak_test detector flags touch-test anti-patterns (Phase 1 Task 1.1)' | actual=231L across 2 files | derived=full ---
