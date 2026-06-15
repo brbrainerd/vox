@@ -1,0 +1,7 @@
+refactor(vox-dashboard): apply clippy suggestions for Rust 1.75+
+scale: ~12 lines across 2 files [S]
+
+- `crates/vox-dashboard/src/assets.rs`: Refactored `if let Some(...) = ... { if ... { ... } }` to use `if let Some(...) = ... && ...` for `IF_NONE_MATCH` header check, leveraging `collapsible_if` lint.
+- `crates/vox-dashboard/build.rs`: Removed unnecessary `&` borrows for `dist_dir` and `index_file` in `fs::create_dir_all` and `fs::write` calls, addressing `clippy::borrow` lint.
+
+--- audit: original='fix(ci): clippy 1.95 for vox-dashboard (borrow + collapsible-if)' | actual=12L across 2 files | derived=full ---
