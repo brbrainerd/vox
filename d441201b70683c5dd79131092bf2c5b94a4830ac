@@ -1,0 +1,10 @@
+docs(vcs): record verified P2 spike findings for `JjBackend`
+scale: ~10 lines across 1 files [S]
+
+- docs/superpowers/plans/2026-06-05-jj-first-class-p2-jj-engine-and-dead-code-removal.md: Added a detailed summary of the verified spike findings for Phase 2, including:
+    - Confirmation of `JjBackend`'s in-process functionality (init, snapshot, commit, op-log read)
+    - Identification of `jj-lib`'s `features = ["git"]` requirement for `vox-vcs/Cargo.toml`
+    - Explanation of `Workspace`'s `Send` but `!Sync` nature, necessitating `std::sync::Mutex` and a dedicated Tokio runtime for `JjBackend`
+    - Documentation of the verified construction process for `UserSettings`, working copy snapshotting, commit creation, and op-log walking.
+
+--- audit: original='docs(vcs): record verified P2 spike findings (features=git, Send/!Sync Mutex, construction)' | actual=10L across 1 files | derived=full ---
