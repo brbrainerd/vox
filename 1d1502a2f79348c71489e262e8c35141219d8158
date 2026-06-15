@@ -1,0 +1,14 @@
+docs(reference): add Vox 0.5 to 0.6 migration guide
+scale: ~175 lines across 1 files [M]
+
+- Add `docs/src/reference/migration-0.5-to-0.6.md` detailing language-surface and stdlib changes between Vox 0.5 and 0.6.
+- Document removal of `@endpoint(kind: ...)` decorator in favor of bare `@server`, `@query`, `@mutation` decorators.
+- Explain the change from `Json::get_str` and `Json::get_int` to a strict-Option `Json` API.
+- Introduce the new `@json_as(MyType)` typed JSON deserialization.
+- Describe the addition of raw strings (`r"..."` and `r#"..."#`).
+- Cover the introduction of intra-project imports (`import "./foo.vox"` and `pub fn`).
+- Detail the semantic change for typed list subscript, where `list[i]` now returns `Option[T]` instead of `T` (which previously panicked).
+- Outline workspace and runtime changes, including mesh SSOT deliverables like Unified Task Hopper and PrioritySource.
+- Note the integration with `CHANGELOG [0.6.0]` and the v0.6 release-design spec.
+
+--- audit: original='docs(reference): add Vox 0.5 → 0.6 migration guide' | actual=175L across 1 files | derived=full ---
