@@ -1,0 +1,10 @@
+docs(roadmap): update GUI native roadmap for TASK-9.1 completion
+scale: ~9 lines across 1 files [XS]
+
+- `docs/src/architecture/gui-native-roadmap-status-2026.md`: Added a new section for "Phase 9 — Route Pipeline Restoration" and marked TASK-9.1 as complete.
+  - TASK-9.1 details: `Decl::Routes` now lowers to `hir.client_routes` (via `HirModule::client_routes`), `lower_client_routes` in `web_ir/lower.rs` produces `RouteNode::RouteTree`, and `routes.manifest.ts` is emitted on build.
+  - Added validation for duplicate `routes {}` (triggering `web_ir_validate.route.duplicate_contract_id`) and set `is_advisory_diagnostic` as SSOT in `web_ir::validate`.
+  - Resolved 4 vox-cli test failures and updated corpus digest golden.
+  - Added TASK-5.1 (partial) to the "Next Steps" section, noting literal CSS value enforcement in `style {}` blocks with `raw_css {}` as an escape hatch.
+
+--- audit: original='docs: update roadmap — TASK-9.1 complete (routes pipeline restored)' | actual=9L across 1 files | derived=full ---
