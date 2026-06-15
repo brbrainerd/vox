@@ -5,6 +5,7 @@ import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { Icon } from '../../ui/Icons';
 import type { ChatMessage } from '../../../lib/chatCorrelation';
+import { CHAT_SESSIONS_LIMIT } from '../../../config/constants';
 
 interface ChatSession {
   session_id: string;
@@ -33,7 +34,7 @@ export function ChatSurface({
 
   const loadSessions = useCallback(async () => {
     try {
-      const list = await invoke<ChatSession[]>('chat_list_sessions', { limit: 40 });
+      const list = await invoke<ChatSession[]>('chat_list_sessions', { limit: CHAT_SESSIONS_LIMIT });
       setSessions(list);
       if (!activeId && list.length > 0) {
         onSessionChange?.(list[0].session_id);

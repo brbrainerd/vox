@@ -1,4 +1,5 @@
 import { SettingEntry } from '../surfaces/Settings/settingsIndex';
+import { PALETTE_MAX_PER_KIND } from '../../config/constants';
 
 export interface SurfaceEntryLike {
   viewKey: string | null;
@@ -26,7 +27,7 @@ export interface PaletteSources {
   docs: DocEntryLike[];
 }
 
-const MAX_PER_KIND = 5;
+const MAX_PER_KIND = PALETTE_MAX_PER_KIND;
 
 export function buildPaletteItems(query: string, sources: PaletteSources): PaletteItem[] {
   const q = query.trim().toLowerCase();
