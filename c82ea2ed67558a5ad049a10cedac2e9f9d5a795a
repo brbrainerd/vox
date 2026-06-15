@@ -1,0 +1,7 @@
+fix(orchestrator): eliminate port-collision flake in populi_single_owner tests
+scale: ~80 lines across 1 files [M]
+
+- `crates/vox-orchestrator/src/orchestrator/tests/populi_single_owner.rs`: Replaced `vox_populi::transport::serve` with `serve_with_listener` in 10 test cases to prevent `EADDRINUSE` errors. This change passes the `TcpListener` directly to the server, eliminating the race window where another process could claim the port between binding and serving.
+- `crates/vox-orchestrator/src/orchestrator/tests/populi_single_owner.rs`: Removed `tokio::time::sleep(std::time::Duration::from_millis(50))` calls in the affected tests, as the `serve_with_listener` API ensures the listener is ready immediately.
+
+--- audit: original='fix(orchestrator): eliminate port-collision flake in populi_single_owner tests' | actual=80L across 1 files | derived=full ---
