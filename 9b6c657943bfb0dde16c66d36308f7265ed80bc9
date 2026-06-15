@@ -1,0 +1,10 @@
+feat(ci): add doc frontmatter lint, doctest-md, and workspace drift check to pre-push
+scale: ~58 lines across 1 files [M]
+
+- `crates/vox-cli/src/commands/ci/pre_push.rs`:
+    - Added `vox-doc-pipeline --lint-only` step to validate doc frontmatter and code fences.
+    - Added `vox ci doctest-md --strict` step to run doctest extraction.
+    - Added `vox-drift-check workspace` step to ensure drift checks run even without lefthook.
+    - Updated the module-level doc comment to list the newly added steps in the execution order.
+
+--- audit: original='feat(quality): pre-push now covers doc frontmatter, doctest-md, drift-check' | actual=58L across 1 files | derived=full ---
