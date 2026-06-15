@@ -1,0 +1,13 @@
+feat(ci): Coolify API deploy, rust-toolchain pin, workflow bumps, dashboard search
+scale: ~519 lines across 27 files [L]
+
+- docs/src/architecture: Added a new `search-retrieval-ssot-2026.md` document detailing the single source of truth for agent-facing search and retrieval, and updated `architecture-index.md` and `research-index.md` to link to it.
+- crates/vox-dashboard: Enhanced `ContextExplorer.tsx` with new state variables for memory search and knowledge graph queries, and added a new section for memory search functionality.
+- .github/workflows: Updated `ci.yml`, `deploy-hetzner.yml`, `docs-deploy.yml`, `ml_data_extraction.yml`, `docker-eval.yml`, `bench-nightly.yml`, `release-binaries.yml`, `docs-quality.yml`, `link_checker.yml`, `release-installers.yml`, `mutation-nightly.yml`, `qwen35-native-nightly.yml`, `ssot-drift.yml`, `vox-visus-audit.yml`, and `pm-provenance-verify.yml` to bump GitHub Actions versions (e.g., `checkout@v4` to `v6`, `cache@v4` to `v5`, `upload-artifact@v4` to `v7`).
+- docs/src/ci: Updated `deploy-contract.md` to document the Coolify API deployment trigger using `GET …/applications/{uuid}/start?instant_deploy=true` and its fallback mechanisms, and updated `runner-contract.md` last updated date.
+- rust-toolchain.toml: Added a new file to pin the Rust toolchain to stable with `rustfmt` and `clippy` components.
+- contracts/config: Added `COOLIFY_TOKEN` and `COOLIFY_WEBHOOK_URL` to `env-vars.v1.yaml`.
+- AGENTS.md: Added a link to the new search and retrieval SSOT documentation.
+- docs/src: Updated `SUMMARY.md` to include the new search and retrieval SSOT document.
+
+--- audit: original='fix(ci): Coolify API deploy, rust-toolchain pin, workflow bumps' | actual=519L across 27 files | derived=full ---
