@@ -1,0 +1,10 @@
+feat(drift): implement caching, baseline mode, and integration tests
+scale: ~185 lines across 5 files [M]
+
+- `crates/vox-drift-check/src/cache.rs`: Add `FeatureCache` for SHA-256-keyed bincode caching of `ExtractedFeatures` at `.vox/cache/drift/`. Includes `new`, `from_workspace`, `hash_file`, `store`, and `load` methods, along with a test for cache round-tripping.
+- `crates/vox-drift-check/src/engine.rs`: Integrate `FeatureCache` into `extract_workspace` to cache extracted features based on file content hash, short-circuiting extraction on cache hits and storing results on misses.
+- `crates/vox-drift-check/src/bin/vox_drift_check.rs`: Add `--baseline <path>` option to filter findings against a JSON baseline file and `--update-baseline` to write current findings to a baseline file (defaulting to `.vox/cache/drift/baseline.json`).
+- `crates/vox-drift-check/tests/integration.rs`: Add three integration tests: `detects_planted_reqwest_bypass`, `detects_duplicate_string_literals`, and `cache_avoids_reparse_on_second_run`.
+- `crates/vox-drift-check/Cargo.toml`: Enable the `serde` feature for the `bincode` crate.
+
+--- audit: original='feat(drift): cache layer, --baseline mode, and integration tests' | actual=185L across 5 files | derived=full ---
