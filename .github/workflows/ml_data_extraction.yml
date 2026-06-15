@@ -40,6 +40,10 @@ on:
         required: false
         default: 'false'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # ── Platform portability notes ───────────────────────────────────────────────
 # GitHub-specific: github.sha, github.event.inputs.*, workflow_dispatch
 # Forgejo equivalent: gitea.sha, workflow_dispatch (Forgejo Actions supports this)

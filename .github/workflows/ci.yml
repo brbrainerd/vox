@@ -1,12 +1,17 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
-  # Run the gate on GitHub merge-queue batches so "Require merge queue" can
-  # serialize main and verify each batch once (eliminates the cancel-thrash
-  # from rapid direct pushes; the required check name below is unchanged).
+  # merge_group is the authoritative gate: GitHub's merge queue serialises main
+  # and verifies each batch exactly once via "Require merge queue" branch
+  # protection. Running the full gate again on push:main after a successful
+  # merge_group run is pure duplication — it wastes two runner-slots per merge,
+  # creates a second in-progress run that competes with the next PR's gate run,
+  # and the cancel-thrash from rapid pushes can starve the queue. All post-merge
+  # observability jobs (docker-vox-image-smoke, gui-playwright-smoke, etc.) that
+  # genuinely need to run on main are tiered behind the `full-ci` label or the
+  # `github.event_name != 'pull_request'` guard and continue to fire via
+  # merge_group (which is not a pull_request event).
   merge_group:
 
 concurrency:
@@ -50,14 +55,14 @@ jobs:
       - id: k
         run: echo "key=${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}" >> "$GITHUB_OUTPUT"
 
-      # Compute path-filters.  On push:main AND merge_group (the integration
-      # paths) always emit true so we never skip gates on the integration branch.
+      # Compute path-filters.  On merge_group (the integration path) always emit
+      # true so we never skip gates on the integration branch.
       # (merge_group has no github.base_ref, so the PR-style diff below would be
       # meaningless and could skip `tests` — fail-closed by running everything.)
       - id: filter
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "merge_group" ]; then
+          if [ "${{ github.event_name }}" = "merge_group" ]; then
             echo "rust=true"  >> "$GITHUB_OUTPUT"
             echo "docs=true"  >> "$GITHUB_OUTPUT"
           else
@@ -720,7 +725,7 @@ jobs:
       # Conditional coverage: llvm-cov instrumentation adds significant wall-clock
       # time and is meaningless on docs-only PRs.  Run plain nextest when no Rust
       # crates changed; full llvm-cov nextest otherwise.
-      # On push:main setup always sets rust_changed=true so coverage always runs.
+      # On merge_group setup always sets rust_changed=true so coverage always runs.
       - name: Run Tests — llvm-cov nextest (Rust changed)
         if: needs.setup.outputs.rust_changed == 'true'
         env:
