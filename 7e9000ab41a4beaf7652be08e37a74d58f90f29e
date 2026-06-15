@@ -1,0 +1,16 @@
+feat(vox-cli-tests): extend Android cross-compile gates to 4 architectures + vox-journal
+scale: ~78 lines across 1 files [M]
+
+- refactor(mobile_cross_compile.rs):
+  - Extract `ndk_toolchain()` function to encapsulate NDK environment checks and `cargo-ndk` availability, returning `Option<(String, PathBuf)>` to allow silent skipping.
+  - Extract `assert_cross_compiles(package, triple, lib)` helper function to generalize the cross-compilation and artifact assertion logic.
+- test(mobile_cross_compile.rs):
+  - Replace the single `mobile_cross_compile_aarch64_android_succeeds` test with five new tests using the `assert_cross_compiles` helper:
+    - `vox_runtime_rn_cross_compiles_to_aarch64_android` (replaces original)
+    - `vox_runtime_rn_cross_compiles_to_armv7_android` (new)
+    - `vox_runtime_rn_cross_compiles_to_x86_64_android` (new)
+    - `vox_runtime_rn_cross_compiles_to_i686_android` (new)
+    - `vox_journal_cross_compiles_to_aarch64_android` (new)
+  - Update `cargo-ndk` availability check to use `match` for clarity.
+
+--- audit: original='test(vox-cli-tests): extend Android cross-compile gates to 4 archs + vox-journal' | actual=78L across 1 files | derived=full ---
