@@ -52,6 +52,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: null, cliGroup: 'completions', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'component', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: 'settings', cliGroup: 'config', tier: 'live_backend', navLabel: 'Settings', navIcon: 'settings', navGroup: 'system', parentSurface: null },
+  { viewKey: null, cliGroup: 'container', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'db', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'dei', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'deploy', tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },

@@ -40,6 +40,8 @@ pub struct FnDecl {
     pub is_async: bool,
     /// Whether the function is marked as deprecated.
     pub is_deprecated: bool,
+    /// Optional human-readable reason from `@deprecated("reason")`. `None` for the bare form.
+    pub deprecated_reason: Option<String>,
     /// Whether the function is pure (no side effects).
     pub is_pure: bool,
     /// Whether the function carries an `@reactive` decorator. When set, the auto-dep
