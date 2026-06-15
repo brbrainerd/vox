@@ -1,0 +1,39 @@
+feat(scientia): spec-compliant per-user nanopublication identity (P1 micro-publication)
+scale: ~3520 lines across 45 files [XL]
+
+- **`vox-cli`**:
+    - Added `scientia_nanopub` command for building and offline-validating nanopublications.
+    - Added `scientia` command for `publication-nanopub-build` (local, offline-validated, no publish).
+- **`vox-scientia`**:
+    - Implemented `nanopub-crate` wrapper for building, RSA-signing, and offline-validating nanopublications.
+    - Added `NanopubProfile` for signing with ORCID identity and RSA private key.
+    - Introduced `SignedNanopubDoc` to hold serialized TriG and Trusty URI.
+    - Implemented `effective_orcid` for canonical ORCID precedence.
+    - Implemented `resolve_or_create_identity` for get-or-create per-user nanopublication signing identity.
+    - Added `enriched nanopub assertion` (tuple/verifiability/confidence/novelty/prior-art).
+    - Wrapped nanopub RSA private key in `secrecy::SecretString` for CodeQL hardening.
+- **`vox-db`**:
+    - Added `user_identities` table to bind `user_id` to RSA signing material (ORCID, public key, private key `SecretId` reference).
+    - Added `scientia_nanopubs` table for local/staged ledger of signed claim artifacts.
+    - Implemented store operations (`upsert_user_identity`, `get_user_identity`, `insert_nanopub`, `get_nanopub_by_trusty_uri`).
+    - Updated `baseline-version-policy` digest and legacy export tables for baseline 71.
+    - Removed `arca_compiler_table_parity.rs` test.
+    - Added `ops_user_identity_tests.rs` for `user_identities` and `scientia_nanopubs` store ops.
+- **`vox-secrets`**:
+    - Added `store_secret` for public use.
+    - Introduced `SecretId::VoxUserRsaNanopubPrivateKeyB64` for per-user RSA nanopub keys.
+- **`vox-jsonschema-util`**:
+    - Migrated `digest 0.11` by hex-encoding `finalize()` per-byte, unblocking #155 build.
+- **`docs`**:
+    - Added `P1 plan` and `micro-publication SSOT/surfacing design doc` for `scientia`.
+    - Added `P2 human-gated review backend plan` for `scientia`.
+    - Documented `Turso-ownership migration handoff` and `Vox binary freshness/SSOT design`.
+    - Reworded removed `vox-mens` crate paths to non-path form for nomenclature accuracy.
+    - Fixed markdownlint MD022/MD032 blank-line issues in `binary-freshness` doc.
+- **`ci`**:
+    - Regenerated `gui-surface-coverage` for `publication-nanopub-build` command.
+- **`Cargo.lock`**: Updated dependencies.
+- **`Cargo.toml`**: Updated `vox-cli` and `vox-scientia` dependencies.
+- **`contracts`**: Updated `env-vars.v1.yaml` and `baseline-version-policy.yaml`.
+
+--- audit: original='feat(scientia): spec-compliant per-user nanopublication identity (P1 micro-publication) (#144)' | actual=3520L across 45 files | derived=full ---
