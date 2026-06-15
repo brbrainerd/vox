@@ -1,0 +1,7 @@
+fix(codegen-ts): merge `safe_area` and `surface` styles, add test and comment
+scale: ~36 lines across 3 files [S]
+
+- `crates/vox-codegen/src/web_ir`: Modified `lower.rs` to correctly merge existing `style` attributes with newly generated styles (e.g., from `safe_area` or `surface`). Previously, new styles would overwrite existing ones; now they are combined into a single style object. Added a clarifying comment in `primitives/mod.rs` about `safe_area`'s special handling.
+- `crates/vox-codegen/tests`: Added a new test case `safe_area_top_with_surface_preserves_both` to verify that `safe_area` and `surface` styles are correctly merged and both are preserved in the output.
+
+--- audit: original='fix(codegen-ts): merge safe_area + surface style attrs; add clarifying comment' | actual=36L across 3 files | derived=full ---
