@@ -1,0 +1,17 @@
+feat(codegen): Render imported React components as JSX tags in `view:`
+scale: ~70 lines across 1 files [M]
+
+- **`crates/vox-codegen/src/codegen_ts/reactive.rs`**:
+    - Added three new tests to verify the rendering of imported React components within `view:` blocks.
+        - `imported_react_component_used_in_view_emits_es_import_not_sibling_import`: Confirms that `import react MyButton from "..."` components:
+            - Emit their ES import.
+            - Render as JSX component tags (`<MyButton/>`).
+            - Do not emit spurious sibling imports (`./MyButton`).
+        - `imported_react_namespace_emits_namespace_import`: Verifies that `import react * as X from "..."` correctly emits a namespace import.
+            - Documents the current limitation that namespace member tags (`<Dialog.Root>`) are not yet rendered as JSX elements, instead lowering to call expressions.
+        - `imported_react_named_component_emits_es_import_not_sibling_import`: Ensures that `import react { MyButton } from "..."` components:
+            - Emit their ES import.
+            - Render as JSX component tags (`<MyButton/>`).
+            - Do not emit spurious sibling imports (`./MyButton`).
+
+--- audit: original='feat(interop): S2 — imported react components render as JSX tags' | actual=70L across 1 files | derived=full ---
