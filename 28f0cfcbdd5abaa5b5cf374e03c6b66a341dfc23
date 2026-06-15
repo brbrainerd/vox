@@ -1,0 +1,10 @@
+feat(populi): add Hugging Face config fixtures and refine .gitignore
+scale: ~38 lines across 5 files [S]
+
+- Add `crates/vox-populi/tests/fixtures/hf/gpt2_tiny_config.json` with GPT-2 model parameters.
+- Add `crates/vox-populi/tests/fixtures/hf/llama_tiny_config.json` with Llama model parameters.
+- Add `crates/vox-populi/tests/fixtures/hf_config_llama_class.json` with Llama model parameters.
+- Add `crates/vox-populi/tests/fixtures/hf_config_mistral_like.json` with Mistral model parameters.
+- Update `.gitignore` to specifically ignore generated test fixture artifacts within `crates/vox-populi/tests/fixtures/` while explicitly allowing `*.json` files in the same directory, ensuring the newly added config fixtures are tracked.
+
+--- audit: original='test(populi): commit the missing HF config fixtures + un-ignore them' | actual=38L across 5 files | derived=full ---
