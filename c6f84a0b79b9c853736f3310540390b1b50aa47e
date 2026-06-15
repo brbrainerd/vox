@@ -1,0 +1,6 @@
+fix(corpus): add Decl::Example arm to decl_kind_and_name match
+scale: ~1 lines across 1 files [XS]
+
+- `crates/vox-corpus/src/corpus/extract_vox/part_ast.rs`: Added a match arm for `Decl::Example` to the `decl_kind_and_name` function, returning `"example"` as the kind and the example's function name. This resolves a non-exhaustive match error.
+
+--- audit: original='fix(corpus): add Decl::Example arm to decl_kind_and_name exhaustive match' | actual=1L across 1 files | derived=full ---
