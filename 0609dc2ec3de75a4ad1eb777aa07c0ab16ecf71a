@@ -1,0 +1,8 @@
+refactor(typeck): remove `check_route` and route iteration
+scale: ~30 lines across 1 files [S]
+
+- `crates/vox-compiler/src/typeck/checker/mod.rs`:
+    - Removed the `check_route` function, which was responsible for type-checking `HirRoute` instances.
+    - Removed the loop that iterated over `module.routes` and called `self.check_route` for each.
+
+--- audit: original='refactor: complete typeck unification for unified decl paths' | actual=30L across 1 files | derived=full ---
