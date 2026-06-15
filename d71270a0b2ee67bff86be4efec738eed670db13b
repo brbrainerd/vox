@@ -1,0 +1,20 @@
+refactor(arch): rename `vox-ars-runtime` to `vox-openclaw-runtime`
+scale: ~222 lines across 38 files [L]
+
+- Renamed the `vox-ars-runtime` crate to `vox-openclaw-runtime` to better reflect its coupling with the OpenClaw runtime adapter and skill executor context.
+- Updated `Cargo.toml` and `Cargo.lock` to reflect the crate rename and dependency changes.
+- Modified `crates/vox-skills/tests/openclaw_fallback_test.rs` to use `vox_openclaw_runtime` imports for `manifest`, `domain`, and `runtime` modules.
+- Updated `crates/vox-cli/src/commands/extras/ars/run_skill.rs` to import `HookRegistry` and `ArsRuntime` from `vox_openclaw_runtime`.
+- Changed `crates/vox-cli/src/commands/openclaw.rs` to use `vox_openclaw_runtime` for `DefaultOpenClawRuntimeAdapter`, `OpenClawClient`, `OpenClawConnectionOverrides`, `OpenClawDiscoveryOverrides`, `OpenClawRemoteConfig`, `OpenClawRuntimeAdapter`, `ArsSkill`, and `OpenClawSkillSpec`.
+- Adjusted `crates/vox-cli/src/commands/extras/ars/eval_promote.rs` to reference `vox_openclaw_runtime` for `manifest::ResourceLimits`, `executor::execute_vox_task`, `SkillManifest`, and `SkillCategory`.
+- Updated `crates/vox-skills/tests/domain_test.rs` to import `ArsSkill`, `manifest::{ResourceLimits, SkillKind}`, and `openclaw::OpenClawSkillSpec` from `vox_openclaw_runtime`.
+- Modified `crates/vox-cli/src/commands/ci/nomenclature_guard.rs` to update the historical allowlist entry for the renamed crate.
+- Changed `crates/vox-orchestrator-mcp/src/openclaw_tools.rs` to use `vox_openclaw_runtime` for `OpenClawClient`, `OpenClawConnectionOverrides`, `OpenClawDiscoveryOverrides`, `OpenClawRemoteConfig`, `OpenClawRuntimeAdapter`, `connect_runtime_adapter_with_overrides`, `resolve_openclaw_endpoints`, `OpenClawAdapterError`, and `OpenClawSkillSpec`.
+- Renamed the `crates/vox-ars-runtime` directory to `crates/vox-openclaw-runtime` and updated its `src/lib.rs` with a new module structure and re-exports.
+- Updated various files in `crates/vox-cli/src/commands/extras/ars/` to reflect the crate rename.
+- Modified `crates/vox-runtime/Cargo.toml` and `crates/vox-runtime/src/builtins/mod.rs` for consistency.
+- Updated `crates/vox-skills/Cargo.toml` and `crates/vox-skills/src/sandbox/` files (`fallback.rs`, `policy.rs`, `runner.rs`) to use the new crate name.
+- Adjusted `contracts/reports/scaling-audit/rollup/INDEX.yaml`, `contracts/communication/protocol-catalog.yaml`, and `contracts/documentation/retired-symbols.v1.yaml` for consistency.
+- Updated `.github/workflows/ci.yml` and `docs/src/architecture/layers.toml` to reflect the crate rename.
+
+--- audit: original='refactor(arch): rename vox-ars-runtime → vox-openclaw-runtime (P-A1.2)' | actual=222L across 38 files | derived=full ---
