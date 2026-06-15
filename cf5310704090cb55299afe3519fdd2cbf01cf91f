@@ -1,0 +1,11 @@
+feat(vox-populi): add integration test for `PopuliHttpClient::sync_node_registry`
+scale: ~78 lines across 1 files [M]
+
+- Add `sync_node_registry.rs` to test the `PopuliHttpClient::sync_node_registry` method.
+- The test uses `wiremock` to mock the control plane's `/v1/populi/nodes` endpoint.
+- It verifies the merge logic of `sync_node_registry` by pre-seeding a `LocalRegistry` with a `tempfile`-backed JSON file and asserting the final state after synchronization.
+- The merge logic tested includes: control-plane-fresher wins conflicts, local-only nodes are kept, control-plane-only nodes are added, and strictly-fresher-local nodes are retained.
+- The test also asserts that `schema_version` and `queue_depth` are updated from the control plane.
+- This test is feature-gated to `transport`.
+
+--- audit: original='test(mesh): wiremock integration test for sync_node_registry fetch+merge+persist' | actual=78L across 1 files | derived=full ---
