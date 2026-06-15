@@ -1,0 +1,9 @@
+feat(codegen-ts): centralize method, function, and namespace lowering in `builtin_registry`
+scale: ~160 lines across 4 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/builtin_registry.rs`: Added a new module `builtin_registry` to centralize the lowering rules for Vox methods, functions, and namespaces to TypeScript. This includes defining `BuiltinLowering` enum for different lowering strategies (Property, Inline, MethodRename, FunctionRename) and `BuiltinRegistry` to store these mappings.
+- `crates/vox-codegen/tests/builtin_registry_test.rs`: Added unit tests for the `BuiltinRegistry` to verify correct lookups for methods, functions, and namespaces, and handling of unknown entries.
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`: Integrated the `BuiltinRegistry` into the HIR emission process. Method calls now consult the registry for lowering rules, replacing hardcoded logic for `length` and other string methods.
+- `crates/vox-codegen/src/codegen_ts/mod.rs`: Added `builtin_registry` as a public module.
+
+--- audit: original='refactor(codegen-ts): centralize method/fn/namespace lowering in builtin_registry' | actual=160L across 4 files | derived=full ---
