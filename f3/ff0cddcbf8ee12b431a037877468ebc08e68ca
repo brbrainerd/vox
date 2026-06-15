@@ -1,0 +1,7 @@
+test(golden): add EXPECT blocks for regex_free_functions and mesh/noop
+scale: ~4 lines across 2 files [S]
+
+- `examples/golden/regex_free_functions.vox`: Added three `EXPECT` blocks to verify the output of `email_valid`, `redact_card_number`, and `extract_version` functions.
+- `examples/golden/mesh/noop.vox`: Added an `EXPECT` block to verify the return value of `main`.
+
+--- audit: original='test(v1): extend CR-F1 behavioral coverage to 9 goldens' | actual=4L across 2 files | derived=full ---
