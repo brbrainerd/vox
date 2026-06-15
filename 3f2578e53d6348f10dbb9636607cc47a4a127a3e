@@ -1,0 +1,35 @@
+feat(vscode): implement unified dashboard and engineering diagnostics
+scale: ~1710 lines across 30 files [XL]
+
+- **webview-ui/src/index.tsx**: Refactored webview entry point to remove individual dashboard components and integrate `UnifiedDashboard` and `EngineeringDiagnostics`. Removed numerous `lucide-react` icons no longer needed.
+- **webview-ui/src/components/Dashboard.tsx**: Deleted the old `Dashboard` component.
+- **webview-ui/src/components/UnifiedDashboard.tsx**: Added a new `UnifiedDashboard` component, consolidating functionality from previous dashboards (Financial, Ludus, and the old Dashboard). It displays operations, stats, pipeline information, budget history, model lists, Ludus snapshots, and mesh topology.
+- **webview-ui/src/components/FinancialDashboard.tsx**: Deleted the `FinancialDashboard` component.
+- **webview-ui/src/components/LudusPanel.tsx**: Deleted the `LudusPanel` component.
+- **webview-ui/src/components/CompanionHUD.tsx**: Deleted the `CompanionHUD` component.
+- **webview-ui/src/components/EngineeringDiagnostics.tsx**: Added a new `EngineeringDiagnostics` component to display MCP (Multi-Control Plane) diagnostics, including logs, status, and control options.
+- **.vscode/tasks.json**: Added new VS Code tasks for `debug-mcp`, `mcp-up`, `mcp-down`, `mcp-logs`, and `mcp-restart`.
+- **tmp/plan_part1_architecture.md**: Added a new temporary markdown file outlining architecture plans.
+- **scripts/check-activation-parity.mjs**: Removed this script.
+- **package.json**: Updated dependencies, specifically removing `react-router-dom` and `recharts`, and adding `framer-motion` and `lucide-react`.
+- **tmp/plan_part3_component_tasks.md**: Added a new temporary markdown file outlining component tasks.
+- **src/core/VoxMcpClient.ts**: Modified `VoxMcpClient` to include a new `getMcpDiagnostics` method and updated `postMessage` calls.
+- **scripts/debug-mcp.js**: Added a new script for debugging MCP.
+- **crates/vox-cli/src/commands/mcp.rs**: Added a new `mcp` command to the `vox-cli` for managing the Multi-Control Plane (up, down, logs, restart).
+- **.vscode/launch.json**: Added new VS Code launch configurations for debugging the extension and webview.
+- **.dockerignore**: Added a new `.dockerignore` file.
+- **tmp/plan_analysis_round_2.md**: Added a new temporary markdown file for analysis.
+- **tmp/plan_part2_visuals.md**: Added a new temporary markdown file outlining visual plans.
+- **compose.debug.yaml**: Added a new Docker Compose debug configuration.
+- **scripts/smoke-webview-render.mjs**: Modified the smoke test script for webview rendering.
+- **Dockerfile**: Added a new Dockerfile.
+- **compose.yaml**: Added a new Docker Compose configuration.
+- **.github/workflows/docs-deploy.yml**: Modified the docs deployment workflow.
+- **.vscode/settings.json**: Added new VS Code settings.
+- **crates/vox-cli/src/cli_dispatch/mod.rs**: Updated `cli_dispatch` to include the new `mcp` command.
+- **crates/vox-cli/src/commands/mod.rs**: Updated `commands` to include the new `mcp` command.
+- **crates/vox-cli/src/lib.rs**: Updated `lib.rs` to include the new `mcp` command.
+- **docs/book.toml**: Modified the documentation configuration.
+- **.vox/store.db**: This file was not changed.
+
+--- audit: original='feat: implement webview dashboard, engineering diagnostics, and VS Code development environment configuration' | actual=1710L across 30 files | derived=full ---
