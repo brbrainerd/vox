@@ -1,0 +1,11 @@
+feat(effort-route): enforce real dollar budget in the routing pipeline
+scale: ~121 lines across 1 files [M]
+
+- `pipeline.rs`:
+    - Added `total_judge_cost_usd: Option<f64>` to `RouteSummary` to track the total real USD judge cost, initialized to `None` and updated only when a model's cost is known.
+    - Modified `run` function to incorporate `max_dollar_cost` from `cfg.judge` as `dollar_budget`.
+    - Introduced a new budget gate that stops routing and emits budget-skipped rows if either `judge_tokens_spent` exceeds `token_budget` or `cost_spent` exceeds `dollar_budget`.
+    - Passed `cfg.cluster_distance_threshold` to `crate::cluster::maybe_split`.
+    - Renamed `budget` to `token_budget` for clarity.
+
+--- audit: original='feat(effort-route): enforce real dollar budget in the routing pipeline' | actual=121L across 1 files | derived=full ---
