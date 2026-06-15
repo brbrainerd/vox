@@ -1,0 +1,13 @@
+feat(web-ir,dashboard): Promote `gap` to universal kwarg and refactor dashboard
+scale: ~143 lines across 7 files [M]
+
+- **`crates/vox-compiler/src/web_ir`**:
+    - Promoted `gap`, `gap_x`, and `gap_y` from primitive-specific (layout-only) kwargs to universal kwargs available on all primitives.
+    - Removed `apply_gap()` calls from individual primitive `resolve()` implementations, as gap handling is now universal.
+- **`crates/vox-dashboard/app/src`**:
+    - Refactored all `.vox` files to use the new `gap` kwarg instead of `raw_class="gap-N"`. This involved many small changes across `app.vox`, `command.vox`, `forge.vox`, `network.vox`, and `speak.vox`.
+    - Replaced `raw_class="items-X"` with the existing universal `items=X` kwarg.
+    - Removed redundant `raw_class="flex items-center justify-center"` from button calls, as these styles are now inherent to the button base classes.
+    - Retained legitimate `raw_class` uses for custom CSS classes (`tab-btn`), state variants (`hover:bg-X`), and untyped Tailwind utilities (`backdrop-blur`, `py-1.5`, `h-0.5`).
+
+--- audit: original='feat(web-ir,dashboard): promote `gap` to universal kwarg + raw_class sweep' | actual=143L across 7 files | derived=full ---
