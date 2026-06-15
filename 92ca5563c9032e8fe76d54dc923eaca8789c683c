@@ -1,0 +1,14 @@
+feat(vox-drift-check): Scaffold new `vox-drift-check` crate
+scale: ~387 lines across 29 files [L]
+
+- `crates/vox-drift-check/`: Added new crate with `Cargo.toml` defining package metadata, dependencies, and a binary target.
+- `crates/vox-drift-check/src/`: Initialized `lib.rs` to declare modules, and created placeholder files for `bin/vox_drift_check.rs`, `cache.rs`, `config.rs`, `engine.rs`, `extractor.rs`, `features.rs`, and `report.rs`.
+- `crates/vox-drift-check/src/extractors/`: Added `mod.rs` to declare sub-modules, and created placeholder files for `rust.rs`, `typescript.rs`, and `vox.rs`.
+- `crates/vox-drift-check/src/rules/`: Added `mod.rs` to declare sub-modules, and created placeholder files for `bearer_header.rs`, `reqwest_bypass.rs`, `serde_default_dup.rs`, `timeout_literal.rs`, `version_string.rs`, and `vox_path_literal.rs`.
+- `crates/vox-drift-check/src/sweep/`: Added `mod.rs` to declare sub-modules, and created placeholder files for `body_hash.rs`, `call_shape.rs`, `literal_dedup.rs`, and `numeric_dedup.rs`.
+- `Cargo.toml`: Registered `vox-drift-check` in the workspace and added new `swc_ecma_parser`, `swc_ecma_ast`, `swc_ecma_visit`, and `swc_common` workspace dependencies.
+- `Cargo.lock`: Updated lock file to include new dependencies and crate.
+- `docs/src/architecture/layers.toml`: Added `vox-drift-check` to the architecture layers configuration.
+- `docs/src/architecture/where-things-live.md`: Documented the new `vox-drift-check` crate.
+
+--- audit: original='chore: scaffold vox-drift-check crate with workspace registration' | actual=387L across 29 files | derived=full ---
