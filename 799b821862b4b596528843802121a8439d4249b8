@@ -1,0 +1,7 @@
+chore(deps-dev): bump @playwright/test to 1.60.0 in /crates/vox-integration-tests
+scale: ~28 lines across 2 files [S]
+
+- `crates/vox-integration-tests/package.json`: Updated `@playwright/test` from `^1.49.1` to `^1.60.0`.
+- `crates/vox-integration-tests/pnpm-lock.yaml`: Updated lockfile to reflect the new `@playwright/test` version.
+
+--- audit: original='chore(deps-dev): bump @playwright/test in /crates/vox-integration-tests (#124)' | actual=28L across 2 files | derived=full ---
