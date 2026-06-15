@@ -1,0 +1,20 @@
+refactor: Fix clippy warnings and reformat code across codebase
+scale: ~5310 lines across 3861 files [XL]
+
+- `crates/vox-parser`: Reformat code, add explicit `self` to method calls, and adjust imports.
+- `crates/vox-codegen-rust`: Reformat code, adjust `emit_cargo_toml` and `emit_main` functions for better readability and clippy compliance.
+- `crates/vox-hir`: Reformat code, adjust `LowerCtx` initialization, and update `has_async_stmts` calls for functions and tests.
+- `crates/vox-typeck`: Reformat code, adjust imports, and update `check_function_body` and `check_body` calls for clippy compliance.
+- `crates/vox-integration-tests`: Reformat code in `pipeline.rs` and `workflow_integration.rs` for better readability and clippy compliance, including multiline assertions and activity return values.
+- `crates/vox-codegen-ts`: Reformat code in `component.rs`, `jsx.rs`, `routes.rs`, `emitter.rs`, `activity.rs`, and `adt.rs`.
+- `crates/vox-cli`: Reformat code in `bundle.rs`, `build.rs`, `v0.rs`, `check.rs`, `run.rs`, `main.rs`, `templates.rs`, `commands/mod.rs`, and `commands/test.rs`.
+- `crates/vox-ast`: Reformat code in `expr.rs`, `pattern.rs`, `types.rs`, `stmt.rs`, `lib.rs`, and `decl.rs`.
+- `crates/vox-lexer`: Reformat code in `cursor.rs` and `lib.rs`.
+- `crates/vox-runtime`: Reformat code in `activity.rs`, `scheduler.rs`, `lib.rs`, `supervisor.rs`, `process.rs`, `registry.rs`, `mailbox.rs`, and `pid.rs`.
+- `crates/vox-pm`: Reformat code in `store.rs`, `namespace.rs`, `lib.rs`, `schema.rs`, and `hash.rs`.
+- `crates/vox-lsp`: Reformat code in `main.rs`.
+- `crates/vox-codegen-llvm`: Reformat code in `lib.rs`.
+- `examples`: Reformat `chatbot.vox`.
+- `target`: Clean up various debug and build artifacts.
+
+--- audit: original='Fix clippy warnings across codebase' | actual=5310L across 3861 files | derived=full ---
