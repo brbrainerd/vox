@@ -1,0 +1,14 @@
+feat(audit): Implement full deploy gate with new, dry-run deploy, and doctor legs
+scale: ~399 lines across 5 files [L]
+
+- **`crates/vox-audit/tests/examples_golden_doctor_green.rs`**: Added a new test to ensure all golden examples compile cleanly, skipping those explicitly marked. This test iterates through `examples/golden/*.vox` files, parses them, and checks for type-checking diagnostics.
+- **`crates/vox-audit/src/subcommands/deploy.rs`**:
+    - Modified the `DeployRunner` subcommand to incorporate new "new" and "deploy --dry-run" legs in addition to the existing "doctor" leg for each marquee fixture.
+    - Introduced `run_new_and_deploy_legs()` to scaffold a fresh web project, run `vox deploy --dry-run`, and then re-run the doctor over the scaffolded sources.
+    - Updated the `met` condition to require all three legs (new, deploy, doctor) to pass and their combined wallclock time to be within the CR-P3 budget (120s).
+    - Added timing measurements for each leg and the total trio, surfacing these in the audit report's `note` field.
+- **`apps/marquee/todo-auth/src/main.vox`**: Added `id: int` fields to the `User` and `Todo` table types.
+- **`contracts/reports/deploy/2026-05-21.json`**: Added a new deploy audit report for 2026-05-21, reflecting the new three-leg audit process and its results.
+- **`contracts/reports/deploy/2026-05-22.json`**: Added a new deploy audit report for 2026-05-22, reflecting the new three-leg audit process and its results.
+
+--- audit: original='feat(audit): CR-L7 deploy gate full legs — new + deploy --dry-run + doctor + slot 1 marquee' | actual=399L across 5 files | derived=full ---
