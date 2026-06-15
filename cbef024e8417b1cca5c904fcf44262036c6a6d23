@@ -1,0 +1,11 @@
+feat(codegen): enforce `pending` and `error` components for routes with `loader`
+scale: ~132 lines across 6 files [M]
+
+- `crates/vox-codegen/tests/route_completeness_test.rs`: Added new tests to verify that routes with loaders fail compilation if `pending:` or `error:` components are missing, and pass if both are present.
+- `crates/vox-codegen/src/codegen_ts/emitter.rs`: Implemented `check_route_completeness` and `check_route_entries_completeness` functions to validate that routes declaring a `loader` also provide `pending:` and `error:` components. These checks are integrated into `generate_with_options`, causing compilation to fail with `validate.route.missing_pending` or `validate.route.missing_error` if either is absent.
+- `crates/vox-compiler/src/parser/descent/decl/tail.rs`: Modified `parse_optional_route_with_clause` to parse an optional `error:` component name within the `with (...)` clause of a route. Updated error messages and expected keys for the `with` clause.
+- `crates/vox-codegen/src/web_ir/lower.rs`: Extended `lower_route_contract_entry` to include the `error_component_name` in the generated Web IR metadata if present.
+- `crates/vox-compiler/src/ast/decl/ui.rs`: Added a new `error_component_name: Option<String>` field to the `RouteEntry` struct to store the name of the error component.
+- `crates/vox-ssg/src/lib.rs`: Updated test data to include `error_component_name: None` in `RouteEntry` initializations.
+
+--- audit: original='feat(codegen): require pending+error components on loaded routes (B5)' | actual=132L across 6 files | derived=full ---
