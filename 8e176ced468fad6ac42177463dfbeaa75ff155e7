@@ -1,0 +1,5 @@
+feat(orchestrator-mcp): add trace propagation integration test
+scale: ~100 lines across 1 files [M]
+- `crates/vox-orchestrator-mcp/tests/trace_propagation.rs`: Add a new integration test to verify `TRACE_CTX` propagation. This test synthesizes a 3-deep nested `TRACE_CTX` scope and asserts that emitted `ModelCallEvent` rows correctly record `task_id`, `parent_task_id`, `trace_id`, and `span_depth` at each level.
+
+--- audit: original='test(orchestrator-mcp/C7): 3-deep call tree records correct span depth + parent linkage' | actual=100L across 1 files | derived=full ---
