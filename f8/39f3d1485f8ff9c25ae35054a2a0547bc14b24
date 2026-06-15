@@ -1,0 +1,18 @@
+feat(web-ir): Add route reachability validation to Web IR
+scale: ~225 lines across 2 files [M]
+
+- `crates/vox-compiler/src/web_ir/validate.rs`:
+    - Add `validate_route_reachability()` function to the Web IR validation pass.
+    - Introduce new diagnostic codes:
+        - `web_ir_validate.route.missing_component`: Emitted when `RouteContract.meta["component"]` refers to a non-existent view root.
+        - `web_ir_validate.route.unreachable` (Warning): Emitted when no inbound `<link href|to>` DOM node points to a route's ID or pattern (root `/` is exempt).
+    - Implement helper functions:
+        - `collect_route_ids()`: Recursively collects all `RouteContract.id` values.
+        - `collect_link_targets()`: Scans DOM for `href` or `to` attributes on `<link>` or `<a>` tags.
+        - `route_component_name()`: Extracts the component name from `RouteContract.meta`.
+        - `check_routes_reachability()`: Recursively checks routes for component existence and inbound link reachability.
+    - Integrate `validate_route_reachability()` into `validate_web_ir_with_metrics()`.
+    - Add 5 new tests for route reachability validation.
+- `docs/src/architecture/gui-native-roadmap-status-2026.md`: Update the status of TASK-5.2 to "Done" and provide a summary of the implemented features.
+
+--- audit: original='feat(web-ir): TASK-5.2 — route reachability validator' | actual=225L across 2 files | derived=full ---
