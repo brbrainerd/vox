@@ -1,0 +1,13 @@
+feat(json_as): add ADT integration tests and script migration
+scale: ~159 lines across 8 files [M]
+
+- `crates/vox-compiler/tests/json_as_test.rs`: Add 4 new tagged-enum ADT integration tests covering tag dispatch, multi-variant routing, missing-tag errors, and unknown-tag errors, completing coverage for the `build_from_json_adt` code path.
+- `scripts/quality/generate-matrix-doc.vox`: Introduce `@json_as(MatrixProduct)` and `@json_as(MatrixFeature)` type definitions; replace per-field `Option` ladders with `from_json` call-site validation, skipping malformed entries.
+- `examples/golden/control_flow_if.vox`: Fix pre-existing `!` operator violation by replacing `!active` with `not active`.
+- `examples/golden/inventory_rosetta_platform.vox`: Fix pre-existing `!` operator violation by replacing `!has_capability(...)` with `not has_capability(...)`.
+- `docs/src/reference/vox-ir.schema.json`: Remove `routes` from `module.required` as `VoxIrContent` never serializes this key, unblocking `test_ir_emission_with_hashing_and_inference`.
+- `crates/vox-compiler/tests/ir_emission_test.rs`: Remove stale `#[ignore]` from `test_ir_emission_includes_scheduled_jobs_in_web_ir` and update the comment to reflect the schema fix, activating both IR tests.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__counter_tsx_with_web_ir_canonical_view.snap`: Accept snapshot drift due to string interpolation codegen changing to `"literal " + var` form.
+- `docs/src/architecture/post-sprint-forward-plan-2026-05-25.md`: Add a breadcrumb entry detailing the changes made in this commit.
+
+--- audit: original='feat(tests): ADT integration tests, script migration, and pre-existing test fixes' | actual=159L across 8 files | derived=full ---
