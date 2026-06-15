@@ -1,0 +1,12 @@
+feat(vox-cli-tests): add end-to-end CLI integration test harness
+scale: ~7573 lines across 23 files [XL]
+
+- `crates/vox-cli-tests/`: New crate providing a test harness for `vox build`.
+  - `src/lib.rs`: Implements the core logic for running `vox build` as a subprocess, asserting exit code, stderr for panics, expected file existence, TypeScript compilation via `tsc --noEmit`, and Rust compilation via `cargo check`.
+  - `tests/build_e2e.rs`: Contains the end-to-end integration tests, utilizing the harness with various fixtures.
+  - `Cargo.toml`: Defines the new crate, its dependencies, and declares `vox-cli` as a dev-dependency to ensure the binary is built before tests run.
+  - `tests/package.json`, `tests/package-lock.json`, `tests/tsconfig.json`: Node.js configuration and dependencies for TypeScript compilation checks, including `@types/react`, `react-native`, `expo`, and `tanstack`.
+  - `tests/fixtures/`: Adds eight new test fixtures (`component_state`, `endpoint_query_mutation`, `form_basic`, `full_app`, `mobile_back_button`, `mobile_counter`, `routes_with_loader`, `state_machine`) with `main.vox` source files and `expected_files.toml` for output validation.
+- `crates/vox-orchestrator/src/catalog.rs`: Refactors `PopuliMeshCatalog::refresh` to use a new `discover_populi_mesh_models` function, enabling live Populi mesh model discovery via a federation directory.
+
+--- audit: original='test(vox-cli-tests): add end-to-end CLI integration test harness' | actual=7573L across 23 files | derived=full ---
