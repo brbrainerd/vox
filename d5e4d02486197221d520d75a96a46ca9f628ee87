@@ -1,0 +1,9 @@
+fix: address second-round CodeRabbit feedback
+scale: ~160 lines across 4 files [M]
+
+- `typeck/checker/mod.rs`: Implemented proper reactive-component scoping by pushing a new scope, binding `db` and parameters, forward-declaring state/derived names with fresh type variables, checking init/expr and unifying against forward-declared bindings, and routing `Stmt` prelude members through `check_stmt`.
+- `http_gateway/mod.rs`: Replaced `println!` debug statements with `tracing::debug!` to honor `RUST_LOG` filters and prevent stdout corruption.
+- `origin_guard.rs`: Removed client-controlled `Host` header fallback for loopback decisions, now relying solely on the `Origin` header. Added a doc-comment clarifying the threat model (browser cross-origin / DNS-rebinding defense) and updated tests to reflect this change.
+- `typeck/checker/expr.rs`: Instantiated piped function types before unification to prevent type variable leakage and incorrect monomorphization across generic function pipe sites.
+
+--- audit: original='fix: address second-round CodeRabbit feedback (4 items)' | actual=160L across 4 files | derived=full ---
