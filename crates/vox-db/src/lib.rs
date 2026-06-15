@@ -128,8 +128,9 @@ pub mod project_store;
 mod questioning_telemetry;
 mod research;
 pub mod research_pipeline;
-/// Hybrid retrieval helpers (vector / full-text fusion) for RAG-style pipelines.
-pub mod retrieval;
+/// Hybrid retrieval helpers — re-exported from the pure-data `vox-db-types` leaf
+/// so edits to these contracts no longer rebuild every vox-db dependent.
+pub use vox_db_types::retrieval;
 /// AST → [`crate::SchemaDigest`] for LLM context and codegen.
 pub mod schema_digest;
 /// OS keyring helpers for API tokens and similar secrets.

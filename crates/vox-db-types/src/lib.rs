@@ -44,3 +44,6 @@ pub type MemoryParams<'a> = store_types::SaveMemoryParams<'a>;
 /// Typed string-ID newtypes for DB row fields (UUIDs, hashes, human-readable IDs).
 pub mod ids;
 pub use ids::{DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId, DbUserId};
+
+/// Hybrid retrieval planning types + rank fusion (pure contracts; no DB runtime).
+pub mod retrieval;
