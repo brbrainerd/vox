@@ -1,0 +1,11 @@
+feat(web_ir): detect and suggest corrections for single-character style-kwarg typos
+scale: ~98 lines across 2 files [M]
+
+- `crates/vox-codegen/src/web_ir/validate_palette.rs`:
+    - Added `check_unknown_kwargs` function to `validate_palette`.
+    - This new function identifies view-call kwargs that are not recognized HTML attributes or framework attributes, and are edit-distance 1 from a `UNIVERSAL_STYLE_KWARG`.
+    - It generates a diagnostic suggesting the correct style kwarg.
+    - Implemented logic to skip common HTML/framework attributes and already valid style kwargs.
+- `examples/forbidden/unknown_kwarg_typo.vox`: Added a new test case to verify the detection of a single-character typo in a style kwarg (`colr` instead of `color`).
+
+--- audit: original='feat(web_ir): reject single-char style-kwarg typos (unknown_kwarg + did-you-mean)' | actual=98L across 2 files | derived=full ---
