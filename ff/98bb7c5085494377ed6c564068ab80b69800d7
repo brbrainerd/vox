@@ -1,0 +1,6 @@
+docs(scientia): update micropublication link in architecture design doc
+scale: ~6 lines across 1 files [XS]
+
+- `docs/src/architecture/scientia-micropublication-ssot-and-surfacing-design-2026.md`: Updated the link for "Micro-publication (nanopub)" from `network.rs:15` to `network.rs` (retired 2026-06-07: dead publish_stub + vox-nanopub removed, spec.rs is SSOT) to reflect the removal of `network.rs` and `trig.rs` and point to `spec.rs` as the SSOT.
+
+--- audit: original='docs(scientia): fix broken links to B10-deleted network.rs/trig.rs (point to spec.rs)' | actual=6L across 1 files | derived=full ---
