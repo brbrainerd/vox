@@ -1,0 +1,8 @@
+feat(vox-mental-tracker): split CI into parallel lanes and add voice-flow E2E test
+scale: ~140 lines across 3 files [M]
+
+- .github/workflows/vox-mental-tracker.yml: Split the CI workflow into four parallel jobs (`vox-check`, `vitest`, `playwright`, `contracts`) and an `app-summary` aggregator job.
+- apps/vox-mental-tracker/docs/contributors/ci-lanes.md: Added documentation for the new CI lane structure, including descriptions of each lane's purpose, wall-clock budget, and instructions for running them locally.
+- apps/vox-mental-tracker/tests/e2e/voice_flow.spec.ts: Added a new Playwright E2E test (`voice → parse → save round-trip`) that covers the full transcribe, parse, and save loop by stubbing the speech bridge with a deterministic transcript.
+
+--- audit: original='feat(vox-mental-tracker): CI lane split + voice-flow E2E (Phase 5)' | actual=140L across 3 files | derived=full ---
