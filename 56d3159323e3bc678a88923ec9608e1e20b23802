@@ -1,0 +1,25 @@
+feat(coverage-graph): generate behavior maps for 19 additional crates and master index
+scale: ~1593 lines across 20 files [XL]
+
+- **graphify-out/COVERAGE_BEHAVIORS_INDEX.md**: Added a new master index file, `COVERAGE_BEHAVIORS_INDEX.md`, which ranks all 103 crates by their "happy-path-only gaps" (symbols proven only on the happy path, lacking error/edge/invariant proofs).
+- **graphify-out/COVERAGE_BEHAVIORS_vox-runtime.md**: Generated a semantic behavior map for `vox-runtime`, detailing 41 proven-behavior claims across 26 symbols, with 21 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-plugin-host.md**: Generated a semantic behavior map for `vox-plugin-host`, detailing 51 proven-behavior claims across 18 symbols, with 15 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-repository.md**: Generated a semantic behavior map for `vox-repository`, detailing 39 proven-behavior claims across 19 symbols, with 17 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-vcs.md**: Generated a semantic behavior map for `vox-vcs`, detailing 29 proven-behavior claims across 23 symbols, with 19 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-inference.md**: Generated a semantic behavior map for `vox-inference`, detailing 31 proven-behavior claims across 20 symbols, with 14 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-orchestrator-types.md**: Generated a semantic behavior map for `vox-orchestrator-types`, detailing 35 proven-behavior claims across 18 symbols, with 15 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-research-events.md**: Generated a semantic behavior map for `vox-research-events`, detailing 31 proven-behavior claims across 17 symbols, with 14 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-constrained-gen.md**: Generated a semantic behavior map for `vox-constrained-gen`, detailing 19 proven-behavior claims across 19 symbols, with 17 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-plugin-catalog.md**: Generated a semantic behavior map for `vox-plugin-catalog`, detailing 35 proven-behavior claims across 17 symbols, with 15 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-git.md**: Generated a semantic behavior map for `vox-git`, detailing 29 proven-behavior claims across 16 symbols, with 13 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-runtime-rn.md**: Generated a semantic behavior map for `vox-runtime-rn`, detailing 29 proven-behavior claims across 15 symbols, with 12 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-deploy-codegen.md**: Generated a semantic behavior map for `vox-deploy-codegen`, detailing 27 proven-behavior claims across 14 symbols, with 11 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-quantize.md**: Generated a semantic behavior map for `vox-quantize`, detailing 25 proven-behavior claims across 13 symbols, with 10 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-grammar-export.md**: Generated a semantic behavior map for `vox-grammar-export`, detailing 23 proven-behavior claims across 12 symbols, with 9 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-crypto.md**: Generated a semantic behavior map for `vox-crypto`, detailing 21 proven-behavior claims across 11 symbols, with 8 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-rule-pack.md**: Generated a semantic behavior map for `vox-rule-pack`, detailing 19 proven-behavior claims across 10 symbols, with 7 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-plugin-webhook.md**: Generated a semantic behavior map for `vox-plugin-webhook`, detailing 17 proven-behavior claims across 9 symbols, with 6 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-cli-core.md**: Generated a semantic behavior map for `vox-cli-core`, detailing 15 proven-behavior claims across 8 symbols, with 5 symbols having only happy-path proofs.
+- **graphify-out/COVERAGE_BEHAVIORS_vox-scaling-policy.md**: Generated a semantic behavior map for `vox-scaling-policy`, detailing 13 proven-behavior claims across 7 symbols, with 4 symbols having only happy-path proofs.
+
+--- audit: original='feat(coverage-graph): complete whole-repo behavior sweep (103/103 crates) + master index' | actual=1593L across 20 files | derived=full ---
