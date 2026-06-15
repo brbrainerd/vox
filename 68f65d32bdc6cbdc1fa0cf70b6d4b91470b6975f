@@ -1,0 +1,9 @@
+feat(reqwest-defaults): add `middleware` feature and smoke test
+scale: ~35 lines across 2 files [S]
+
+- `crates/vox-reqwest-defaults/Cargo.toml`:
+    - Added a new `middleware` feature, enabling `async-trait`, `http`, `reqwest-middleware`, `reqwest-retry`, and `tracing` as optional dependencies.
+    - Added a `[[test]]` section for `middleware_stack_smoke` that requires the `middleware` feature.
+- `crates/vox-reqwest-defaults/tests/middleware_stack_smoke.rs`: Added a new test file `middleware_stack_smoke.rs` to verify the construction of `ClientWithMiddleware` with and without retry logic using `populi_control_plane_client`.
+
+--- audit: original='fix(reqwest-defaults): declare middleware feature and smoke test' | actual=35L across 2 files | derived=full ---
