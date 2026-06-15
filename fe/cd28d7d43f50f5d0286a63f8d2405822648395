@@ -1,0 +1,9 @@
+refactor(vox-effort-route): dedup JSON fence stripping and add deferred items
+scale: ~41 lines across 3 files [S]
+
+- chore(route): Add a "Deferred follow-ups" section to `mod.rs` documenting known limitations and future work regarding `git show` timeouts, embedder model reuse, and telemetry event wiring.
+- feat(route): Introduce `strip_json_fence` function in `mod.rs` to remove optional markdown code fences (` json ` or `  `) from LLM responses.
+- refactor(route/decide): Replace inline JSON fence stripping logic in `decide::parse` with a call to the new `strip_json_fence` utility.
+- refactor(route/verify): Replace inline JSON fence stripping logic in `verify::parse` with a call to the new `strip_json_fence` utility.
+
+--- audit: original='refactor(vox-effort-route): dedup fence-stripping + note deferred items (E0)' | actual=41L across 3 files | derived=full ---
