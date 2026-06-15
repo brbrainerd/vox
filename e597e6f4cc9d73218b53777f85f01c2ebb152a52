@@ -1,0 +1,16 @@
+feat(share): add URL-token and basic-auth middleware
+scale: ~427 lines across 11 files [L]
+
+- `crates/vox-share/src/auth.rs`: New module for authentication modes (`AuthMode::None`, `AuthMode::UrlToken`, `AuthMode::Basic`) and an Axum middleware function (`auth_middleware`). Includes `FromStr` implementation for parsing auth modes and a `decorate_url` method.
+- `crates/vox-share/tests/auth_test.rs`: New test file for the `AuthMode` functionality, covering URL decoration, parsing, and middleware behavior.
+- `crates/vox-share/src/proxy.rs`: Integrate `auth_middleware` into the proxy's Axum router, applying it as a layer. Add `auth_mode` to `ProxyConfig`.
+- `crates/vox-cli/src/commands/share.rs`: Introduce `--auth` argument to specify authentication mode (none, basic:user:pass, or auto-generated URL token). Parse the argument and pass the `AuthMode` to the share configuration. Update public URL display to use the decorated URL.
+- `crates/vox-share/src/coordinator.rs`: Add `auth_mode` to `ShareConfig` and `ShareSession`. Use `AuthMode::decorate_url` to generate the `public_url` for the session.
+- `crates/vox-share/src/lib.rs`: Expose the new `auth` module.
+- `crates/vox-share/tests/coordinator_test.rs`: Update test to include `AuthMode::None` in `ShareConfig`.
+- `crates/vox-share/tests/fallback_test.rs`: Update test to include `AuthMode::None` in `ShareConfig`.
+- `crates/vox-share/tests/proxy_test.rs`: Update test to include `AuthMode::None` in `ProxyConfig`.
+- `crates/vox-share/Cargo.toml`: Add `hex` and `rand` dependencies.
+- `Cargo.lock`: Update lockfile with new dependencies.
+
+--- audit: original='feat(share): auth middleware — URL-token + basic-auth (S5)' | actual=427L across 11 files | derived=full ---
