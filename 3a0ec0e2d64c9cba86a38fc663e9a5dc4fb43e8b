@@ -1,0 +1,19 @@
+feat(audit): Implement CR-P1 and CR-P2 measurement binaries
+scale: ~824 lines across 14 files [L]
+
+- **crates/vox-audit/src/bin/cr-p1.rs**: Added `cr-p1` binary to measure CR-P1 ("three apps deployed live"). It loads `contracts/marquee/manifest.v1.yaml`, resolves probe URLs for "real" apps (manifest, env var, or default localhost port), HTTP-GETs `/health` endpoints with a 5s timeout, and determines live status.
+- **crates/vox-audit/src/bin/cr-p2.rs**: Added `cr-p2` binary to measure CR-P2 ("99.9% uptime over 7 days"). It supports two modes: probe-and-append (default) which probes app health and appends to `monitor.jsonl`, and compute-only (`--compute-only`) which rolls up existing logs. Both modes generate a 7-day uptime artifact.
+- **contracts/reports/perf/cr-p1/2026-05-23.json**: Added an example CR-P1 artifact showing initial measurement results (0/3 apps live due to connection refused errors).
+- **contracts/reports/perf/cr-p2/2026-05-23-7day.json**: Added an example CR-P2 artifact showing initial measurement results (0% uptime across 3 samples).
+- **contracts/reports/evidence-ledger.v1.json**: Updated the evidence ledger to include new entries for `perf.cr_p1.three_apps_live_measured` and `perf.cr_p2.uptime_7d_measured`, reflecting the new measurement binaries and their initial sub-bar status.
+- **crates/vox-audit/Cargo.toml**: Added new binary targets for `cr-p1` and `cr-p2`.
+- **contracts/reports/_snapshot/2026-05-23.json**: Updated `measured_at` timestamps.
+- **contracts/reports/aci-default/2026-05-23.json**: Updated `measured_at` timestamp.
+- **contracts/reports/audit-all/2026-05-23.json**: Updated `measured_at` timestamp.
+- **contracts/reports/corpus-feedback/2026-05-23.json**: Updated `measured_at` timestamp.
+- **contracts/reports/corpus-feedback/2026-Q2.json**: Updated `measured_at` timestamp.
+- **contracts/reports/deploy/2026-05-23.json**: Updated `measured_at` timestamp.
+- **contracts/reports/mens-on-distribution/2026-05-23.json**: Updated `measured_at` timestamp.
+- **contracts/reports/retirement/2026-05-23.json**: Updated `measured_at` timestamp.
+
+--- audit: original='feat(audit): CR-P1/CR-P2 measurement binaries — live-probe + rolling 7-day uptime monitor' | actual=824L across 14 files | derived=full ---
