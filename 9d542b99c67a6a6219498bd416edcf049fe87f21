@@ -1,0 +1,30 @@
+feat(mental-tracker): modernize web app with Clinical-Clean UI and Playwright screenshots
+scale: ~1709 lines across 13 files [XL]
+
+- `apps/vox-mental-tracker/src/main.vox`:
+    - Implemented `timeline_lines()` query to retrieve and format effective (non-superseded) health events.
+    - Updated `TimelinePage` to display `timeline_lines()` output and event count, replacing placeholder text with a data-forward summary and a link to export.
+    - Modified `SettingsPage` to display data summary and export shortcut, ensuring no destructive "clear data" option is present.
+- `apps/vox-mental-tracker/index.html`:
+    - Applied "Clinical-Clean" theme with new CSS variables for background, foreground, primary/secondary colors, borders, and surfaces.
+    - Updated `meta theme-color` to `#2563eb`.
+    - Adjusted body padding and `max-width`.
+    - Redefined styles for `.mh-root`, `h1`, `h2`, `.mh-actions`, `.mh-nav`, `.mh-nav-dot`, `.mh-sub`, and `.mh-pre` for the new theme.
+- `apps/vox-mental-tracker/tests/e2e/routes.spec.ts`: Added new Playwright E2E tests.
+    - Created tests to verify each of the 7 routes renders correctly and captures a full-page screenshot.
+    - Added a test to assert that the `/settings` route contains no destructive clear/delete controls.
+- `apps/vox-mental-tracker/tests/e2e/mood_form.spec.ts`:
+    - Modified the mood form submission test to conditionally assert URL redirection based on the `VOX_BACKEND_URL` environment variable, allowing the test to pass without a backend.
+- `apps/vox-mental-tracker/pnpm-lock.yaml`: Regenerated lockfile due to dependency changes.
+- `docs/superpowers/plans/2026-06-13-vox-mental-tracker-modernization.md`: Added a detailed implementation plan for the modernization effort.
+- `docs/superpowers/specs/2026-06-13-vox-mental-tracker-modernization-design.md`: Added a design specification for the mental tracker modernization.
+- `.github/workflows/vox-mental-tracker.yml`:
+    - Updated CI workflow to remove the `tsc` step for a deleted plugin.
+    - Added a step to upload Playwright screenshots as a CI artifact.
+- `apps/vox-mental-tracker/.gitignore`: Added `tests/e2e/__screens__/` to ignore Playwright screenshots.
+- `apps/vox-mental-tracker/Vox.toml`: Updated `vox-cli` version.
+- `apps/vox-mental-tracker/capacitor.config.ts`: Deleted Capacitor configuration file.
+- `apps/vox-mental-tracker/ios/App/App/Info.plist`: Deleted iOS `Info.plist` file.
+- `apps/vox-mental-tracker/ios/App/App/PrivacyInfo.xcprivacy`: Deleted iOS `PrivacyInfo.xcprivacy` file.
+
+--- audit: original='feat(mental-tracker): modernize to working web app — green CI, Clinical-Clean UI, Playwright screenshots (#281)' | actual=1709L across 13 files | derived=full ---
