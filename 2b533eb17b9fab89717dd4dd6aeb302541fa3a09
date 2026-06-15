@@ -1,0 +1,11 @@
+feat(scientia): scaffold `vox-nanopub` crate with TriG builder, signing, and network stub
+scale: ~214 lines across 6 files [M]
+
+- `crates/vox-nanopub/src/trig.rs`: Added `NanopubGraphs` and `NanopubDocument` structs, and `build_nanopub` function to construct a TriG nanopublication from a claim, provider ID, and timestamp. Includes prefix definitions and graph structures for head, assertion, provenance, and publication info.
+- `crates/vox-nanopub/src/signing.rs`: Added `SignedNanopub` struct, `sign_nanopub` function to sign a `NanopubDocument` using `vox-crypto`, and `verify_nanopub` function to verify the signature. Includes unit tests for round-trip signing/verification and tampered data detection.
+- `crates/vox-nanopub/src/network.rs`: Added `NanopubNetworkConfig` struct, `PublishResult` struct, and a `publish_stub` function for simulating network publication. Includes a test for the stub's error return.
+- `crates/vox-nanopub/src/lib.rs`: Exported modules (`trig`, `signing`, `network`) and their public items.
+- `crates/vox-nanopub/Cargo.toml`: Added new crate definition with dependencies including `sha2`, `hex`, `thiserror`, `vox-crypto`, and `vox-research-events`.
+- `Cargo.toml`: Added `vox-nanopub` to the workspace members.
+
+--- audit: original='feat(scientia): scaffold vox-nanopub crate with TriG builder, signing, and network stub (Phase 4 Tasks 1-4)' | actual=214L across 6 files | derived=full ---
