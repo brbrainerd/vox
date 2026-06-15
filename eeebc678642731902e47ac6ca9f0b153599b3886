@@ -1,0 +1,8 @@
+feat(vox-effort-route): add new crate for routing audit findings to enforcement artifacts
+scale: ~75 lines across 3 files [M]
+
+- `crates/vox-effort-route/README.md`: Add a comprehensive README for the new `vox-effort-route` crate, detailing its purpose, CLI usage, output layout, and `ArtifactForm` types.
+- `AGENTS.md`: Update the `AGENTS.md` file to include `vox audit effort-route` under the unified `vox audit` umbrella, describing its function.
+- `.config/coverage-gates.toml`: Add a new coverage gate entry for `vox-effort-route` with a target of 70.0%, noting current coverage limitations.
+
+--- audit: original='docs(vox-effort-route): umbrella + coverage floor + README (E1)' | actual=75L across 3 files | derived=full ---
