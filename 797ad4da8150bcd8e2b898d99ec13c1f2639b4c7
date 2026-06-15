@@ -1,0 +1,18 @@
+feat(dashboard): Migrate to `voxTransport` and add theme linting
+scale: ~275 lines across 13 files [L]
+
+- `crates/vox-dashboard/src/App.tsx`: Refactored `App` component to use `voxTransport` for communication, removing `vscode` API dependency. Added `connectionStatus` state and updated `chatSessionId` to 'vox-dashboard'.
+- `crates/vox-compiler/src/typeck/ast_decl_lints.rs`: Added new linting rules for `@theme` declarations to check for WCAG contrast ratio compliance (minimum 4.5:1) between background and foreground colors.
+- `crates/vox-dashboard/src/components/UnifiedDashboard.tsx`: Migrated `UnifiedDashboard` to use `voxTransport` for setting agent budget and updated styling for better overflow handling.
+- `crates/vox-dashboard/src/components/ContextExplorer.tsx`: Replaced `vscode.postMessage` calls with `voxTransport.callTool` for refreshing inspector, planning goals, and querying the repository.
+- `crates/vox-dashboard/src/components/EngineeringDiagnostics.tsx`: Updated `EngineeringDiagnostics` to use `voxTransport` and adjusted styling for flow and AST views.
+- `crates/vox-dashboard/src/components/AttentionPanel.tsx`: Migrated `AttentionPanel` to use `voxTransport.callTool` for setting attention preferences.
+- `crates/vox-dashboard/src/components/AgentFlow.tsx`: Removed `vscode` API dependency.
+- `crates/vox-dashboard/src/components/ComposerPanel.tsx`: Removed `vscode` API dependency.
+- `crates/vox-dashboard/src/components/IntentionMatrix.tsx`: Removed `vscode` API dependency.
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/mod.rs`: Added a new `allow_public_eval` configuration option to exempt `/v1/eval` from the origin allowlist when enabled.
+- `crates/vox-dashboard/src/components/WorkflowScrubber.tsx`: Removed `vscode` API dependency.
+- `crates/vox-dashboard/tailwind.config.js`: Added `font-rajdhani` to Tailwind CSS configuration.
+- `crates/vox-dashboard/src/transport.ts`: Removed `getVsCodeApi` utility.
+
+--- audit: original='fix(orchestrator): Exempt /v1/eval from origin allowlist when public eval is enabled' | actual=275L across 13 files | derived=full ---
