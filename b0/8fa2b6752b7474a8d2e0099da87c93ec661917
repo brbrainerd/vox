@@ -1,51 +1,30 @@
 feat(semcov-waves2-50): add 2333 adversarial semantic coverage tests across 39 crates
 scale: ~26508 lines across 178 files [XL]
 
-- test(semcov-wave19): add 1061 lines of adversarial tests for `vox-orchestrator-queue` covering resource locks, refresh logic, sync locks, and projections
-- test(semcov-wave18): add 782 lines of adversarial tests for `vox-db` covering SQL identifier validation, migration validation, DDL emission, schema diffing, and normalization
-- test(semcov-wave27): add 632 lines of adversarial tests for `vox-telemetry` covering types validation, serde invariants, AI attribute mapping, trace context, and recorder fan-out
-- test(semcov-wave34): add 619 lines of adversarial tests for `vox-orchestrator` models covering registry invariants, cost calculation, penalty logic, scoreboard routing, and pricing source trust hierarchy
-- test(semcov-wave17): add 578 lines of adversarial tests for `vox-compiler` covering parser descent, HIR lowering, type effect checking, and formatter idempotency
-- test(semcov-wave10): add 542 lines of adversarial tests for `vox-orchestrator` message bus covering new/default state, message sending/receiving, broadcast, inbox limits, and audit trails
-- test(semcov-wave28): add 510 lines of adversarial tests for `vox-actor-runtime`
-- test(semcov-wave48): add 500 lines of adversarial tests for `vox-journal` file operations
-- test(semcov-wave2): add 484 lines of adversarial tests for `vox-crypto` facades
-- test(semcov-wave37): add 483 lines of adversarial tests for `vox-eval`
-- test(semcov-wave32): add 446 lines of adversarial tests for `vox-code-audit` detectors
-- test(semcov-wave22): add 427 lines of adversarial tests for `vox-cli-core`
-- test(semcov-wave6): add 427 lines of adversarial tests for `vox-scaling-policy`
-- test(semcov-wave29): add 407 lines of adversarial tests for `vox-workflow-runtime` journal execution and replay
-- test(semcov-wave11): add 396 lines of adversarial tests for `vox-actor-runtime` activity
-- test(semcov-wave35): add 396 lines of adversarial tests for `vox-ast`
-- test(semcov-wave47): add 380 lines of adversarial tests for `vox-container-types`
-- test(semcov-wave45): add 376 lines of adversarial tests for `vox-secrets`
-- test(semcov-wave13): add 352 lines of adversarial tests for `vox-gamify` scoring logic (streak, cost, achievements)
-- test(semcov-wave40): add 339 lines of adversarial tests for `vox-tensor` data
-- test(semcov-wave49): add 323 lines of adversarial tests for `vox-identity`
-- test(semcov-wave25): add 316 lines of adversarial tests for `vox-scientia`
-- test(semcov-wave21): add 316 lines of adversarial tests for `vox-search` query, index, and normalization
-- test(semcov-wave36): add 308 lines of adversarial tests for `vox-config`
-- test(semcov-wave30): add 304 lines of adversarial tests for `vox-corpus` analysis and training normalization
-- test(semcov-wave12): add 300 lines of adversarial tests for `vox-compiler` HIR validation
-- test(semcov-wave23): add 295 lines of adversarial tests for `vox-quantize`
-- test(semcov-wave44): add 285 lines of adversarial tests for `vox-vcs`
-- test(semcov-wave39): add 273 lines of adversarial tests for `vox-sql` build
-- test(semcov-wave26): add 268 lines of adversarial tests for `vox-telemetry` config
-- test(semcov-wave50): add 257 lines of adversarial tests for `vox-langtool`
-- test(semcov-wave5): add 254 lines of adversarial tests for `vox-cli-tests`
-- test(semcov-wave46): add 254 lines of adversarial tests for `vox-mcp-registry`
-- test(semcov-wave33): add 241 lines of adversarial tests for `vox-plugin-sdk`
-- test(semcov-wave38): add 237 lines of adversarial tests for `vox-git`
-- test(semcov-wave14): add 230 lines of adversarial tests for `vox-codegen` web_ir validation
-- test(semcov-wave31): add 195 lines of adversarial tests for `vox-codegen-ts` emitter
-- fix(mesh-types): add `skip_serializing_if` to `signature` and `public_key` in `MeshDirectoryEntry` to prevent `null` serialization, found by wave25 tests
-- fix(compile): update `tiktoken-rs` decode calls to pass `&[u32]` slices directly instead of `.to_vec()`
-- fix(container-types): add `serde_json` as dev-dependency for `semcov_wave47_tests`
-- fix(corpus): remove unused `Span` import in `ast_mutator`
-- fix(semcov-wave4): use `super::*` import path in `evidence_ledger` tests to resolve clippy rejection
-- fix(semcov-wave5): wrap `set_var`/`remove_var` in `unsafe{}` blocks in `vox-cli-tests` and extend `vox-plugin-runtime-wasm` error assertion for `serde_json` parse errors
+- test(semcov-wave2): add 46 free-fn gap tests across 13 crates (scientia, corpus, ml-cli, codegen-ts, speech, orch-queue, search, ast, drift-check, secrets, research-shim, repository, sql)
+- test(semcov-wave3): add free-fn gap tests across 7 crates (cli-core, lsp, orchestrator-types, plugin-host, forge, package-types, plugin-webhook)
+- test(semcov-wave4): add 28 free-fn gap tests across 9 crates (crypto, test-harness, identity, tensor, arch-check, skills, constrained-gen, vcs, git)
+- test(semcov-wave5): add 31 free-fn gap tests across 10 crates (cli-tests, eval, hf-layout, plugin-populi-mesh, plugin-runtime-wasm, quantize, plugin-api, cli-ci, rule-pack, runtime-rn)
+- test(semcov-wave6-13): add ~250 behavior gap tests across 20 crates (research-events, effort-route, openclaw-runtime, effort-audit, mesh-types, package, plugin-browser, plugin-speech, scaling-policy, capability-registry, rn-codegen, orchestrator, actor-runtime, compiler, telemetry, workflow-runtime, gamify)
+- test(semcov-wave14-15): add 56 gap tests across vox-orchestrator, vox-codegen, vox-populi
+- test(semcov-wave17-19): add tests for vox-compiler (parser, hir, typeck, fmt), vox-db (sql_util, migration, ddl, diff, normalize), and vox-orchestrator-queue (resource, locks, sync_lock, projection)
+- test(semcov-wave20-22): add 65 gap tests across vox-codegen (web_ir, codegen_rust), vox-search (query, index, normalization), and vox-cli-core (output, command routing)
+- test(semcov-wave23-25): add tests for vox-quantize, vox-scientia, vox-mesh-types
+- test(semcov-wave26-28): add tests for vox-populi, vox-telemetry, vox-actor-runtime
+- test(semcov-wave29-31): add 75 gap tests across vox-workflow-runtime (journal), vox-corpus (analysis, training normalization), and vox-codegen-ts (route_pattern, schema/type_maps)
+- test(semcov-wave32-34): add tests for vox-code-audit, vox-plugin-sdk, and llm/orchestrator
+- test(semcov-wave35-37): add tests for vox-ast, vox-config, vox-eval
+- test(semcov-wave38-40): add tests for vox-git, vox-sql, vox-tensor
+- test(semcov-wave47-50): add tests for vox-container-types, vox-journal, vox-identity, vox-langtool
+- fix(semcov-wave4): update `evidence_ledger` tests to use `super::*` imports
+- fix(semcov-wave5): wrap `set_var`/`remove_var` in `unsafe{}` blocks in `vox-cli-tests` and extend `vox-plugin-runtime-wasm` error assertion
 - fix(semcov-wave10): remove duplicate `isolation_dispatch_tests` module in `orch_daemon/mod.rs`
-- style: apply rustfmt across the workspace, addressing drift from new test additions and module declarations
+- fix(compile): update `tiktoken-rs` decode calls to pass `&[u32]` slices directly instead of `.to_vec()`
+- fix(mesh-types): add `#[serde(skip_serializing_if = "...")]` to `signature` and `public_key` in `MeshDirectoryEntry`
+- fix(corpus): remove unused `Span` import in `ast_mutator`
+- fix(container-types): add `serde_json` as a dev-dependency for `semcov_wave47` tests
+- docs(coverage): convert broken relative links in remediation plan to plain text
+- style: apply rustfmt across the workspace to address drift from test additions and module declarations
 - chore(coverage): update semantic-coverage baseline after adding waves 2-50 tests
 - chore: update `Cargo.lock` for `serde_json` dev-dependency in `vox-container-types
 
