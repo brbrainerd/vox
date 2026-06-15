@@ -1,0 +1,7 @@
+docs(arch): register `vox-cli-tests` in architecture documentation
+scale: ~2 lines across 2 files [S]
+
+- docs/src/architecture/layers.toml: Added `vox-cli-tests` to the `[crates]` table with `layer = 5` and `kind = "test-only"`.
+- docs/src/architecture/where-things-live.md: Added an entry for `vox-cli-tests` to the "Grouped map of top-level trees" table, describing it as an "End-to-end `vox build`/`vox new` CLI integration harness (test-only L5)".
+
+--- audit: original='fix(arch): resolve evidence-ledger lint failure' | actual=2L across 2 files | derived=full ---
