@@ -1,0 +1,12 @@
+feat(ci): Add `ignore-tracked-parity` guard and document root files
+scale: ~45 lines across 7 files [M]
+
+- **`crates/vox-cli/src/commands/ci/data_storage_guard.rs`**: Implemented a new `ignore-tracked-parity` sub-check that iterates through `.voxignore`, `.aiignore`, `.cursorignore`, and `.aiexclude` files. For each entry that is not empty, a comment, a wildcard, or a directory, it checks if the file is tracked by Git using `git ls-files`. If a file is listed in an ignore file but is also tracked, a violation is reported.
+- **`docs/src/reference/repo-root-files.md`**: Added a new documentation file outlining canonical configuration files (`vox-agent.json`, `vox-schema.json`, `vox.tokens.json`) permitted at the repository root. It specifies that these files must be tracked in version control and should never be ignored, and mentions that the `vox ci data-storage-guard` enforces this parity.
+- **`.aiexclude`**: Removed `vox-agent.json` and `vox-schema.json` from the ignore list.
+- **`.aiignore`**: Removed `vox-agent.json` and `vox-schema.json` from the ignore list.
+- **`.cursorignore`**: Removed `vox-agent.json` and `vox-schema.json` from the ignore list.
+- **`.voxignore`**: Removed `vox-agent.json` and `vox-schema.json` from the ignore list.
+- **`.gitignore`**: Updated binary file content (no line changes visible in diff).
+
+--- audit: original='M-07: Fix ignored-but-tracked contradiction' | actual=45L across 7 files | derived=full ---
