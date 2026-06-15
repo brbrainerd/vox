@@ -1,0 +1,12 @@
+feat(scientia): approval-gated nanopub TEST-server publishing
+scale: ~421 lines across 7 files [L]
+
+- `crates/vox-scientia/src/nanopub/network.rs`: Replaced `publish_stub` with `publish_to_test_server` for publishing signed nanopubs to the public test registry. Added `ensure_test_server_allowed` to enforce `VOX_NANOPUB_TEST_SERVER=1` environment variable for test server access.
+- `crates/vox-scientia/src/review_flow.rs`: Introduced `nanopub_publish_test_server` function to publish locally built nanopubs to the test server, gated by an `ApprovalToken` and the `VOX_NANOPUB_TEST_SERVER` environment variable. Updated documentation to reflect the new test server publishing capability and explicitly state that production publishing remains unimplemented.
+- `crates/vox-db/src/store/ops_user_identity.rs`: Added `update_nanopub_published_state` to update the `published_state` of a nanopublication artifact (e.g., from `local` to `test_server`) and store the `published_uri` if it differs from the `trusty_uri`.
+- `crates/vox-cli/src/commands/scientia_nanopub.rs`: Updated TDD guard to ensure no production-network publishing symbols are introduced, now also covering the `nanopub_publish_test_server` path and its dual-gate contract.
+- `crates/vox-cli/src/commands/scientia.rs`: Modified `publication-nanopub-build` command to include an optional `--publish-test-server` flag. If set, it calls `nanopub_publish_test_server` after a successful local build, enforcing the dual-gate security.
+- `crates/vox-cli-core/src/scientia.rs`: Added `--publish-test-server` argument to the `PublicationNanopubBuild` command, with documentation explaining its requirements (human-approved claim token and `VOX_NANOPUB_TEST_SERVER=1`) and the nature of the test server.
+- `crates/vox-scientia/src/nanopub/mod.rs`: Updated module imports to reflect changes in `network.rs`.
+
+--- audit: original='feat(scientia): approval-gated nanopub TEST-server publishing' | actual=421L across 7 files | derived=full ---
