@@ -1,0 +1,31 @@
+feat(gui): introduce Claude dashboard UI and refactor main application
+scale: ~12150 lines across 252 files [XL]
+
+- feat(vox-gui/ui): Add new Claude dashboard UI components, including `app.jsx`, `loquela.jsx`, `dashboard.jsx`, `ui.jsx`, `intention.jsx`, `data.js`, `flow.jsx`, `catalog.jsx`, and `topbar.jsx`.
+- feat(vox-gui/ui): Implement new UI surfaces for Memory (`MemoryView.tsx`), Loquela (`Loquela.tsx`), Settings (`SettingsView.tsx`), Flow (`AgentFlow.tsx`), Dashboard (`Dashboard.tsx`, `AgentRow.tsx`, `StreamCard.tsx`, `LudusBanner.tsx`), Catalog (`Catalog.tsx`), and Matrix (`Matrix.tsx`).
+- refactor(vox-gui/ui): Rework `App.tsx` to integrate new UI components, manage state, and handle events, significantly increasing its size.
+- feat(vox-gui/ui): Introduce new UI components like `SuperpowersCatalog.tsx`, `Icons.tsx`, `Sidebar.tsx`, `TopHud.tsx`, `CommandPalette.tsx`, `Pill.tsx`, `Sparkline.tsx`, `Toasts.tsx`, `Glass.tsx`, and `UnifiedDashboard.tsx`.
+- feat(vox-gui/ui): Add new hooks `useSparkWindow.ts` and `useLocalStorage.ts` for UI state management.
+- feat(vox-gui/ui): Update `transport.ts` for new UI interactions and `index.css` and `tailwind.config.js` for styling.
+- feat(vox-gui/ui): Add new e2e test for dashboard (`dashboard.spec.ts`) and update `playwright.config.ts`.
+- docs(archive): Archive Claude design files (`app.jsx`, `loquela.jsx`, `dashboard.jsx`, `ui.jsx`, `intention.jsx`, `data.js`, `flow.jsx`, `catalog.jsx`, `topbar.jsx`, `Vox Imperium.html`).
+- docs(architecture): Add new architecture documentation for zero-copy emission, superpowers, native code emission, zero-copy codegen, and state unification.
+- docs(superpowers): Add new superpower plans for Claude design Tauri integration and dashboard ingestion.
+- feat(vox-codegen): Update `stmt_expr.rs`, `state_machine.rs`, `usage.rs`, `durability_lower.rs`, `workflow.rs`, `http.rs`, and `stmt_expr_tail.rs` for Rust code generation.
+- feat(vox-codegen): Add new `web_ir` module with `mod.rs`, `primitives/mod.rs`, and `validate_overlay.rs`.
+- feat(vox-codegen): Update `tauri_convergence_snapshots__tauri_app_main_rs.snap.new` snapshot.
+- feat(vox-actor-runtime): Modify `mailbox.rs` and `storage.rs` for actor runtime improvements.
+- feat(vox-orchestrator): Update `orchestrator/tests/persistence_integrity.rs`, `orchestrator/agent/doubt.rs`, `orchestrator/workflow_bridge.rs`, `continuation.rs`, `monitor.rs`, `orch_daemon/mod.rs`, `orchestrator/core/mod.rs`, `types/tasks.rs`, `planning/prompts.rs`, and `queue/priority.rs`.
+- feat(vox-gui): Update `main.rs` and add new commands `orchestrator.rs` and `dynamic_mapping.rs`.
+- feat(vox-skills): Add new skill markdown files for writing plans, test-driven development, subagent-driven development, and systematic debugging.
+- chore(deps): Update `Cargo.lock` and `Cargo.toml` for various dependency changes.
+- chore(scripts): Add new GUI-related scripts `gui-build.vox`, `gui-registry-check.vox`, and `gui-e2e-check.vox`.
+- feat(vox-cli): Update `dei.rs` and `rollback.rs` commands.
+- feat(vox-compiler): Modify `typeck/mod.rs` and `typeck/checker/mod.rs`.
+- chore(github): Update `mobile-e2e-ios.yml` workflow.
+- chore(cleanup): Remove `crates/vox-claim-extractor/tests/scifact_eval.rs`, `crates/vox-orchestrator-cap-mint/src/lib.rs`, `crates/vox-orchestrator-core/src/lib.rs`, `crates/vox-distributed-training/tests/single_host_smoke.rs`, `crates/vox-scientia-ingest/tests/ingest_async_integration.rs`, `crates/vox-scientia-ingest/tests/ingest_smoke.rs`, `crates/vox-distributed-training/Cargo.toml`, `crates/vox-claim-extractor/Cargo.toml`, `crates/vox-scientia-ingest/Cargo.toml`, `crates/vox-inspect-bridge/Cargo.toml`, `crates/vox-nanopub/Cargo.toml`, `crates/vox-prereg/Cargo.toml`, and `crates/vox-ro-crate/Cargo.toml`.
+- feat(vox-orchestrator-mcp): Update `llm_bridge/model_route_policy/tests.rs`.
+- feat(vox-scientia): Update `Cargo.toml`.
+- feat(readme): Update `README.md`.
+
+--- audit: original='chore(perf): finalize zero-copy MessagePack IPC and centralize WAL config' | actual=12150L across 252 files | derived=sampled ---
