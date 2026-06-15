@@ -1,0 +1,15 @@
+feat(compiler): exact decimal, compiled regex, interp http/time, Option/Result exhaustiveness
+scale: ~698 lines across 10 files [L]
+
+- `crates/vox-compiler/src/eval/builtins.rs`: Implemented `Regex` and `Match` `VoxValue` types with methods for `matches`, `find`, `find_all`, and `group` respectively, enabling compiled regex objects in the interpreter.
+- `crates/vox-compiler/tests/interpreter_test.rs`: Added new interpreter tests for exact decimal arithmetic, compiled regex `find` and `group` methods, `std.http.get` with blocking behavior, and `std.time.now_ms`.
+- `crates/vox-integration-tests/tests/golden_typecheck_gate.rs`: Added a new integration test to type-check all golden examples, ensuring they pass `vox check` and preventing regressions.
+- `crates/vox-compiler/src/typeck/checker/match_exhaust.rs`: Extended match exhaustiveness checking (`E0301`) to built-in sum types `Option` and `Result`, adding `check_builtin_match_exhaustiveness` function.
+- `crates/vox-compiler/tests/match_exhaustiveness_test.rs`: Added new type-checking tests to verify that non-exhaustive matches on `Option` and `Result` are correctly rejected with `E0301`.
+- `crates/vox-compiler/src/eval/expr.rs`: Modified `DecimalLit` evaluation to use `rust_decimal::Decimal` for exact fixed-point arithmetic and implemented arithmetic operations (`Add`, `Sub`, `Mul`, `Div`, `Rem`, `Pow`) for `VoxValue::Decimal`.
+- `crates/vox-compiler/src/eval/value.rs`: Added `Decimal`, `Regex`, and `Match` variants to the `VoxValue` enum to support exact decimals and compiled regular expressions.
+- `crates/workspace-hack/Cargo.toml`: Updated dependencies, adding `reqwest` with `blocking` and `json` features, `rust_decimal`, and `regex`.
+- `crates/vox-compiler/Cargo.toml`: Added `rust_decimal` and `regex` dependencies.
+- `Cargo.lock`: Updated lock file to reflect dependency changes.
+
+--- audit: original='@ feat(compiler): exact decimal, compiled regex, interp http/time, Option/Result exhaustiveness' | actual=698L across 10 files | derived=full ---
