@@ -1,0 +1,21 @@
+feat(arch): extract dei_shim into new `vox-dei-shim` crate
+scale: ~1074 lines across 54 files [XL]
+
+- New crate `crates/vox-dei-shim/` created, containing the `dei_shim` module's functionality.
+- `crates/vox-orchestrator/src/dei_shim/selection/` module and its sub-modules (`scorer.rs`, `tests.rs`, `free_tier.rs`, `virtual_models.rs`, `task_routing.rs`, `weights.rs`, `mod.rs`) were removed from `vox-orchestrator`.
+- `crates/vox-orchestrator/src/dei_shim/mod.rs` was removed.
+- `crates/vox-orchestrator/src/lib.rs` was updated to remove the `dei_shim` module.
+- `crates/vox-dei-shim/Cargo.toml` was added to define the new crate.
+- `crates/vox-dei-shim/src/lib.rs` was added as the entry point for the new crate.
+- `Cargo.lock` was updated to reflect the new crate and dependency changes.
+- `crates/vox-cli/Cargo.toml` and `crates/vox-orchestrator-mcp/Cargo.toml` were updated to depend on `vox-dei-shim`.
+- `crates/vox-cli/src/commands/research/mod.rs` was updated to import from `vox_dei_shim::` instead of `vox_orchestrator::dei_shim::`.
+- `crates/vox-orchestrator-mcp/src/memory_tools/handlers_memory.rs`, `crates/vox-orchestrator-mcp/src/memory_tools/params.rs`, and `crates/vox-orchestrator-mcp/src/server_state.rs` were updated to use the new `vox-dei-shim` crate.
+- `crates/vox-dei-shim/src/research/` and its sub-modules (`model_select.rs`, `orchestrator/config.rs`, `orchestrator/pipeline.rs`, `mesh_subscriber.rs`, `claims.rs`, `config.rs`, `emitter.rs`, `gate.rs`, `json_parse.rs`, `mod.rs`, `orchestrator/helpers.rs`, `orchestrator/mod.rs`, `orchestrator/pipeline_cache.rs`, `orchestrator/stages.rs`, `orchestrator/web_gather.rs`, `persistence.rs`, `planner.rs`, `provider.rs`, `research_event_metrics_bridge.rs`, `search_policy_feedback.rs`, `types.rs`, `verifier.rs`) were moved to the new `vox-dei-shim` crate.
+- `crates/vox-dei-shim/src/agent_frontmatter.rs` and `crates/vox-dei-shim/src/route_telemetry.rs` were moved to the new `vox-dei-shim` crate.
+- Eight scientia integration tests (`scientia_phase_0a_pipeline_smoke.rs`, `scientia_phase_0a_verifier_stub.rs`, `scientia_phase_0a_claims_stub.rs`, `scientia_phase_0a_gate_stub.rs`, `scientia_phase_0a_persistence.rs`, `scientia_phase_0a_planner_stub.rs`, `scientia_phase_0a_provider_stub.rs`, `scientia_phase_0a_types_round_trip.rs`) were moved to `crates/vox-dei-shim/tests/`.
+- `docs/src/architecture/where-things-live.md` and `docs/src/architecture/layers.toml` were updated.
+- `docs/src/architecture/crate-audit-and-plan-2026.md` was updated.
+- The root `Cargo.toml` was updated.
+
+--- audit: original='feat(arch): extract dei_shim as vox-dei-shim wedge crate (A-12)' | actual=1074L across 54 files | derived=full ---
