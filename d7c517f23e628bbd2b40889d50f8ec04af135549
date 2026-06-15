@@ -1,0 +1,9 @@
+docs(roadmap): Update 2026 GUI native roadmap status for Phase 8 and next tasks
+scale: ~10 lines across 1 files [S]
+
+- Update Phase 8 status to reflect TASK-8.1 (atomic corpus migration PR) as complete with commit `135b7591` and details on migrated files and verification script.
+- Mark TASK-8.2 (MENS training run) as "Not started" and pending operator action.
+- Add a verdict for Phase 8: "1 complete, 1 pending operator action (compute)."
+- Revise "Immediate Next Tasks" to prioritize TASK-8.2 and clarify TASK-7.3 as a remaining partial task that can run in parallel.
+
+--- audit: original='docs: update roadmap — TASK-8.1 complete, TASK-8.2 pending operator compute' | actual=10L across 1 files | derived=full ---
