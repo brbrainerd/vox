@@ -72,8 +72,9 @@ pub async fn ingest_markdown_tree(
     Ok(count)
 }
 
-/// Default RAG markdown chunk size in characters. Override at the call boundary
-/// (e.g. via `VOX_RAG_CHUNK_CHARS`) by passing `chunk_markdown_sections_with_size`.
+/// Default RAG markdown chunk size in characters. Override by calling
+/// `chunk_markdown_sections_with_size` with a custom size. No env knob is wired
+/// yet; a `VOX_RAG_CHUNK_CHARS` read at the ingest boundary is a tracked follow-up.
 pub const DEFAULT_RAG_CHUNK_CHARS: usize = 4096;
 
 fn chunk_markdown_sections(text: &str) -> Vec<String> {
