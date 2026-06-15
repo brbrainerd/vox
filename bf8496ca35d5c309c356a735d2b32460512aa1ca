@@ -1,0 +1,6 @@
+ci(lychee): ignore tauri.app links to prevent CI timeouts
+scale: ~4 lines across 1 files [XS]
+
+- `.lycheeignore`: Added a new entry to ignore all links to `tauri.app` to prevent intermittent CI timeouts.
+
+--- audit: original='ci(links): ignore tauri.app (intermittent CI timeouts; docs links valid)' | actual=4L across 1 files | derived=full ---
