@@ -1,0 +1,31 @@
+refactor(ci): apply cargo fmt --all across workspace
+scale: ~8482 lines across 526 files [XL]
+
+- `crates/vox-orchestrator-mcp`: Reordered imports, adjusted function call formatting, and refactored conditional checks for `handle_tool_call` and `submit_task`.
+- `crates/vox-plugin-mens-candle-cuda`: Reordered imports and reformatted conditional statements in `run_candle_qlora_train`.
+- `crates/vox-orchestrator-mcp/src/task_tools`: Reformatted function signatures and conditional checks in `submission.rs`.
+- `crates/vox-compiler/src/parser/descent/decl`: Reformatted conditional statements and variable assignments in `head.rs`.
+- `crates/vox-drift-check/src/config.rs`: Reformatted default function definitions and struct field attributes.
+- `crates/vox-cli/tests/migrate_codemod_test.rs`: Reformatted command arguments and multiline string literals in tests.
+- `crates/vox-arch-check/src/main.rs`: Reformatted function calls and conditional expressions.
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`: Reformatted code structure.
+- `crates/vox-compiler/tests/golden_dashboard_chrome_test.rs`: Reformatted test code.
+- `crates/vox-dashboard/tests/settings_test.rs`: Reformatted test code.
+- `crates/vox-gamify/src/periodic_reward/evaluate.rs`: Reformatted code structure.
+- `crates/vox-orchestrator/src/config/impl_env.rs`: Reformatted code.
+- `crates/vox-orchestrator/src/dei_shim/research/orchestrator/pipeline.rs`: Reformatted code.
+- `crates/vox-compiler/tests/rename_alias_test.rs`: Reformatted test code.
+- `crates/vox-plugin-populi-mesh/src/mesh.rs`: Reformatted code.
+- `crates/vox-gamify/src/db/companion.rs`: Reformatted code.
+- `crates/vox-plugin-catalog/src/docs.rs`: Reformatted code.
+- `crates/vox-publisher/src/peer_review_gate.rs`: Reformatted code.
+- `crates/vox-orchestrator/src/calibration.rs`: Reformatted code.
+- `crates/vox-share/tests/auth_test.rs`: Reformatted test code.
+- `crates/vox-db/src/research_metrics_contract.rs`: Reformatted code.
+- `crates/vox-prereg/src/gate.rs`: Reformatted code.
+- `crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs`: Reformatted code.
+- `crates/vox-plugin-catalog/tests/catalog_load.rs`: Reformatted test code.
+- `crates/vox-gamify/src/db/quest_battle.rs`: Reformatted code.
+- Many other files across various crates were reformatted by `cargo fmt --all`.
+
+--- audit: original='fix(ci): apply cargo fmt --all across workspace' | actual=8482L across 526 files | derived=full ---
