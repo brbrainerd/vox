@@ -1,0 +1,14 @@
+perf(qlora-rs): GPU-vectorized NF4 dequantization for speed and memory
+scale: ~135 lines across 2 files [M]
+
+- `patches/qlora-rs-1.0.5/src/quantization.rs`:
+    - Introduced `dequantize_nf4_gpu` function for GPU-resident NF4 dequantization using Candle tensor operations.
+    - `dequantize_nf4_gpu` unpacks nibbles via `index_select` into 256-entry LUTs, interleaves elements, gathers NF4 codebook via `index_select`, and broadcasts per-block scales.
+    - Modified `dequantize_nf4` to dispatch to `dequantize_nf4_gpu` on CUDA devices for symmetric quantization, falling back to the CPU path for asymmetric quantization or on non-CUDA devices, or if any operation is unsupported.
+    - Removed the previous CPU scalar loop for NF4 dequantization from the primary `dequantize_nf4` path.
+- `crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs`:
+    - Changed the default `qlora_cfg.cache_dequantized` to `false`, enabling on-the-fly dequantization.
+    - Updated the logic to opt into persistent caching via the `VOX_MENS_WEIGHT_CACHE=1` environment variable, instead of opting out with `VOX_MENS_NO_WEIGHT_CACHE`.
+    - Updated comments to reflect the performance and memory benefits of the new GPU dequantization, making on-the-fly dequantization the preferred default.
+
+--- audit: original='perf(qlora-rs): GPU-vectorized NF4 dequant — fast AND memory-optimal' | actual=135L across 2 files | derived=full ---
