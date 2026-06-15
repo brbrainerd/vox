@@ -1,0 +1,6 @@
+docs: update README with new architectural diagram
+scale: ~2 lines across 3 files [S]
+
+- `README.md`: Replaced the `vox_voice_to_app.png` image with `vox_architecture_prism.png` and updated its alt text to describe the new "architectural prism" diagram.
+
+--- audit: original='docs: replace voice-to-app diagram with an abstract architectural prism diagram' | actual=2L across 3 files | derived=full ---
