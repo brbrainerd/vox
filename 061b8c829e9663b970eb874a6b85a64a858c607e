@@ -1,0 +1,10 @@
+docs(superpowers): add D1 manifest for vox-orchestrator-core extraction
+scale: ~38 lines across 1 files [S]
+
+- Add "D1 manifest (audited 2026-05-28)" section to the design document.
+- Detail the methodology for struct-field detection, including a corrected regex for `use crate::<mod>::<Type>` imports.
+- Clarify that `impl Orchestrator` blocks are internal to `src/orchestrator/`.
+- Include a table classifying 12 modules (types, a2a, models, config, queue, agent, preregistration, session, hopper, routing, safety, workflow_bridge) by LoC, `crate::` imports, `impl Orchestrator` blocks, struct field presence, and extraction decision (Move, Trait-inject, or Stay).
+- Note that the manifest was generated following D1 steps on the current main HEAD.
+
+--- audit: original='docs(spec): vox-orchestrator-core D1 manifest 2026-05-28' | actual=38L across 1 files | derived=full ---
