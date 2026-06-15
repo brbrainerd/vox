@@ -1,0 +1,11 @@
+refactor(vox-cli): inline vox-bounded-fs imports, remove bounded_read shim
+scale: ~154 lines across 66 files [L]
+
+- `crates/vox-cli/src/commands/ci/bounded_read.rs` was deleted, removing the `pub(crate)` re-export shim.
+- `crates/vox-cli-ci/src/lib.rs` was updated to reflect the removal of `bounded_read` from the blocker list for `vox-cli-ci` extraction.
+- `crates/vox-cli/src/compilerd.rs` and `crates/vox-cli/src/commands/publish.rs` were updated to directly import `read_utf8_path_capped` from `vox_bounded_fs`.
+- `crates/vox-cli/src/commands/runtime/run/run.rs`, `crates/vox-cli/src/lock_telemetry.rs`, and `crates/vox-cli/src/v0_tsx_normalize.rs` were updated to directly import `read_utf8_path_capped` from `vox_bounded_fs`.
+- 54 other files in `crates/vox-cli/src/commands/` (including `agent.rs`, `build.rs`, `fmt.rs`, `snippet.rs`, `debug.rs`, `compact.rs`, `pipeline.rs`, `frontend.rs`, `dispatch_protocol.rs`, `scientia_ledger_contract.rs`, `db_retention.rs`, `db_research/ingest.rs`, `db/publication/mod.rs`, `db/publication/helpers.rs`, `db/local.rs`, `extras/ars/*`, `extras/ludus/*`, `extras/snippet/mod.rs`, `diagnostics/*`, `review/coderabbit/*`, `runtime/shell/*`) were updated to directly import `read_utf8_path_capped` from `vox_bounded_fs`.
+- Many files within `crates/vox-cli/src/commands/ci/` (e.g., `canonical_docs.rs`, `capability_sync.rs`, `check_links.rs`, `command_compliance/*`, `command_sync.rs`, `completion_quality.rs`, `contracts_index.rs`, `coverage_gates.rs`, `eval_matrix.rs`, `exec_policy_contract.rs`, `mens_scorecard.rs`, `operations_catalog.rs`, `release_build.rs`, `run_body_helpers/*`, `scaling_audit/*`, `scientia_worthiness_contract.rs`) were updated to directly import `read_utf8_path_capped` from `vox_bounded_fs`.
+
+--- audit: original='refactor(vox-cli): inline vox-bounded-fs imports — eliminates bounded_read shim' | actual=154L across 66 files | derived=full ---
