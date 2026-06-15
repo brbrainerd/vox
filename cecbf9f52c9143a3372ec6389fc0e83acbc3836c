@@ -1,0 +1,6 @@
+docs(README): clarify plugin archive naming convention
+scale: ~10 lines across 1 files [S]
+
+- README.md: Updated the "install-tier" section to include `vox-schola` alongside `vox-mens` in the example archive naming convention, clarifying that both follow the same pattern.
+
+--- audit: original='docs(README): name vox-schola archive alongside vox-mens' | actual=10L across 1 files | derived=full ---
