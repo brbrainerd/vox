@@ -1,0 +1,32 @@
+refactor(db, publisher, compiler): migrate DB ops to circuit breaker, enhance publisher metadata, and update compiler HIR
+scale: ~11647 lines across 192 files [XL]
+
+- refactor(db): Migrate numerous database operations across `ops_ludus`, `ops_codex`, `ops_questioning`, `ops_memory`, `ops_agents`, `ops_planning`, `ops_orchestrator`, `ops_publication`, `ops_mens_cloud`, `ops_learning`, `ops_retention`, `ops_news`, `ops_build`, `ops_cas`, `ops_mcp_diagnostics` to use a circuit breaker pattern, improving resilience and error handling. This involved significant changes to parameter handling and error propagation.
+- feat(publisher): Enhance `switching.rs` to support legacy metadata keys for syndication and introduce `ManifestSyndicationParseNotes` for better metadata parsing feedback.
+- feat(compiler): Introduce `runtime_projection.rs` and `hir/db_op_walk.rs` for new runtime projection and HIR database operation walking capabilities.
+- feat(db): Add `research_metrics_contract.rs` and `schema_cutover.rs` for new research metrics contracts and schema cutover logic.
+- feat(mcp): Add `workspace_path.rs` and `text_normalization.rs` for workspace path utilities and text normalization.
+- refactor(db): Update `codex_chat.rs`, `codex_metrics_packages.rs`, `gamify_world.rs`, `gamify_activity.rs`, `manifest.rs`, `external_jobs.rs`, `scholarly_media.rs`, `external_artifacts.rs`, `gamify_world_battles.rs`, `legacy_import_extras.rs`, `collection.rs`, `gamify_rewards_collegium.rs`, `workflow.rs`, `toestub_store.rs`, `codex_skill_manifests.rs`, `codex_legacy.rs`, `preferences.rs`, `actor_state.rs`, `syntax_k_telemetry.rs`, `open.rs`, `benchmark_telemetry.rs`, `populi_control_telemetry.rs`, and `workflow_journal.rs` with various refactorings and new functionalities.
+- refactor(cli): Update `validators.rs`, `local.rs`, `publication.rs`, `reliability.rs`, `eval_matrix.rs`, `watch_telemetry.rs`, `fmt.rs`, `gpu.rs`, `run_body_helpers/data_ssot_guards.rs`, `run_train.rs` with various refactorings and new functionalities.
+- refactor(mcp): Update `compiler_tools.rs`, `oratio_tools.rs`, `preflight.rs`, `syndication.rs`, `input_schemas.rs`, `benchmark_tools.rs`, and `speech_constraints.rs` with various refactorings and new functionalities.
+- refactor(populi): Update `candle_qlora_train/mod.rs`, `training_loop.rs`, `candle_inference_serve.rs`, `qlora_preflight.rs`, `validation.rs`, and `qwen35_native_parity.rs` with various refactorings and new functionalities.
+- refactor(orchestrator): Update `tests.rs`, `mutations.rs`, `complete.rs`, `runtime.rs`, `lineage.rs`, and `task_submit.rs` with various refactorings and new functionalities.
+- refactor(compiler): Update `golden_vox_examples.rs`, `syntax_k.rs`, `web_ir_lower_emit.rs`, `lower/mod.rs`, `core_ir.rs`, `diagnostics.rs`, `reactive.rs`, `head.rs`, and `ast_decl_lints.rs` with various refactorings and new functionalities.
+- refactor(corpus): Update `mix_prepare.rs` and `mix/mod.rs` with various refactorings and new functionalities.
+- refactor(oratio): Update `routing.rs` and `traits.rs` with various refactorings and new functionalities.
+- refactor(schola): Update `train.rs` and `gpu.rs` with various refactorings and new functionalities.
+- docs: Update `telemetry-metric-contract.md`, `env-vars.md`, and `how-to-scientia-publication.md` with documentation improvements.
+- ci: Update `ci.yml` for CI workflow adjustments.
+- feat(db): Add `ops_lineage.rs` for new lineage operations.
+- feat(db): Add `circuit_breaker.rs` for circuit breaker implementation.
+- feat(db): Add `training_run.rs` for training run management.
+- feat(db): Add `socrates_telemetry.rs` for Socrates telemetry.
+- feat(db): Add `research.rs` for research operations.
+- feat(db): Add `tests/ops_ludus_tests.rs`, `tests/ops_retention_tests.rs`, `tests/ops_orchestrator_tests.rs`, `tests/ops_codex_tests.rs`, `tests/sync_embedded_replica_integration.rs`, `tests/sync_remote_integration.rs`, `tests/common/mod.rs` for new and updated database tests.
+- feat(compiler): Add `typeck/checker/mod.rs` for type checking.
+- feat(config): Add `rollout.rs` for rollout configuration.
+- feat(mcp): Add `params.rs` for MCP parameters.
+- feat(contracts): Add `syntax-k-event.schema.json`, `retention-policy.yaml`, `speech_trace.mens.schema.json`, and `speech_trace.schema.json` for new contract schemas.
+- refactor(db): Update `coordination.sql` for SQL schema adjustments.
+
+--- audit: original='feat(cli, ci, contracts): enhance .gitignore, update CI workflows, and improve documentation' | actual=11647L across 192 files | derived=full ---
