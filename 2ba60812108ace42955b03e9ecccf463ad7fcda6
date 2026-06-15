@@ -1,0 +1,7 @@
+refactor(codegen): remove unused `route_ir` module and related exports
+scale: ~224 lines across 2 files [M]
+
+- `crates/vox-codegen/src/codegen_shared/route_ir.rs`: Deleted the `route_ir` module, including the `RouteIR` struct and its associated types and functions, as it was only used in a test callsite and not in production emitters.
+- `crates/vox-codegen/src/codegen_shared/mod.rs`: Removed the module declaration for `route_ir` and its re-exports (`RouteIR`, `RouteKind`, `RouteMethod`, `RouteParam`, `lower_module_routes`).
+
+--- audit: original='chore(codegen): remove dead RouteIR (only test callsite)' | actual=224L across 2 files | derived=full ---
