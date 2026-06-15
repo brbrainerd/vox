@@ -1,0 +1,10 @@
+feat(plugin-ssot): Gate Plugin.toml abi-version against host constant
+scale: ~66 lines across 1 files [M]
+
+- `crates/vox-cli/src/commands/ci/plugin_surface.rs`:
+    - Renamed `check_manifest_provides` to `check_manifests` to reflect its expanded responsibilities.
+    - Modified `check_manifests` to enforce that the `abi-version` in every `Plugin.toml` (code or composite) matches the `VOX_PLUGIN_ABI_VERSION` constant from the host's surface.
+    - Updated the module-level documentation to include the new `abi-version` parity check alongside the existing `provides.extension-points` check.
+    - Added new error handling and reporting for `abi-version` mismatches.
+
+--- audit: original='feat(plugin-ssot): PS-1 — gate every Plugin.toml abi-version against the const (#202)' | actual=66L across 1 files | derived=full ---
