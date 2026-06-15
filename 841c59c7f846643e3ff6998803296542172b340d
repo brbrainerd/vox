@@ -1,0 +1,6 @@
+fix(ssot): regenerate gui-surface-registry.v1.json
+scale: ~0 lines across 1 files [XS]
+
+- contracts/reports/gui-surface-registry.v1.json: Regenerated the binary file.
+
+--- audit: original='fix(ssot): regenerate gui-surface-registry (tasks view now referenced)' | actual=0L across 1 files | derived=full ---
