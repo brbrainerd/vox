@@ -1,0 +1,9 @@
+feat(tracker-ios): add PrivacyInfo.xcprivacy with health data unlinked and no tracking
+scale: ~40 lines across 1 files [S]
+
+- Add `PrivacyInfo.xcprivacy` to declare privacy practices for the iOS app.
+- Declare `NSPrivacyAccessedAPITypes` for `UserDefaults` (CA92.1) and `FileTimestamp` (C617.1).
+- Declare `NSPrivacyCollectedDataTypes` for `HealthFitness`, specifying it is not linked to the user's identity, is not used for tracking, and is collected for app functionality.
+- Set `NSPrivacyTracking` to `false` and declare an empty `NSPrivacyTrackingDomains` array, indicating no tracking is performed.
+
+--- audit: original='feat(tracker-ios): privacy manifest (no tracking, health-data unlinked)' | actual=40L across 1 files | derived=full ---
