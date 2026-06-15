@@ -1,0 +1,6 @@
+test(codegen): fail loudly if Solo.tsx is missing in self-import check
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-codegen/tests/component_import_refs_test.rs`: Replaced `.unwrap_or_default()` with `.expect("Solo.tsx must be emitted")` when retrieving the `Solo.tsx` component, causing the test to panic if the file is not found.
+
+--- audit: original='test(codegen): fail loudly if Solo.tsx is missing in self-import check' | actual=2L across 1 files | derived=full ---
