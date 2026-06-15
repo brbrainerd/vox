@@ -1,0 +1,7 @@
+docs(scientia): land approved v2 strategic plan and Phase 0a implementation plan
+scale: ~1854 lines across 2 files [XL]
+
+- **docs/src/architecture/scientia-self-publication-finalization-plan-2026.md**: Added the "SCIENTIA Self-Publication Finalization Plan (2026)" document, outlining a multi-phase roadmap to finalize SCIENTIA into an autonomous, high-signal self-publication system. This plan details the adoption of SciClaims + VeriScore + MiniCheck, SPECTER2, and Inspect AI, along with architectural reputational firewalls, six new crates (vox-research-events, vox-claim-extractor, vox-nanopub, vox-prereg, vox-ro-crate, vox-inspect-bridge), and an 11-phase, 17-week critical path. The plan was approved on 2026-05-09.
+- **docs/superpowers/plans/2026-05-09-scientia-phase-0a-phantom-imports.md**: Added the "SCIENTIA Phase 0a — Phantom-Import Resolution" implementation plan. This plan details the activation of the orphaned `vox-orchestrator/dei_shim/research/` tree by creating seven type-correct, behavior-empty stub modules (`claims`, `gate`, `planner`, `provider`, `types`, `verifier`, `persistence`) and declaring `pub mod research` in `dei_shim/mod.rs`. Each stub is marked with `// PHASE_0a_STUB` for future integration.
+
+--- audit: original='docs(scientia): land approved v2 strategic plan + Phase 0a implementation plan' | actual=1854L across 2 files | derived=full ---
