@@ -1,0 +1,9 @@
+feat(populi): Implement KV-cache decoding for LoraVoxTransformer and eval inference
+scale: ~1299 lines across 4 files [XL]
+
+- `crates/vox-populi/src/tensor/lora.rs`: Add `LoraConfig` struct and `LoraLinear` module for Low-Rank Adaptation (LoRA). This includes the core LoRA algorithm, supporting `rank`, `alpha`, and `dropout` parameters.
+- `crates/vox-cli/src/commands/ai/serve/inference.rs`: Introduce `LoadedPopuliEvalModel` for efficient local evaluation. This model now supports KV-cache decoding, performing a single prefill pass for the prompt and then one-token-at-a-time decoding by appending to the cache.
+- `crates/vox-populi/src/tensor/mod.rs`: Re-export `LoraLinear`, `LoraAttentionKvCache`, and `LoraTransformerKvCache` from the `lora` module, making them publicly accessible.
+- `docs/src/how-to-train-populi-4080.md`: Update the documentation for the 4080 mixed-corpus training path, specifically correcting `vox` command invocations to `vox populi` and updating the `last_updated` date.
+
+--- audit: original='feat(populi): KV-cache decode in LoraVoxTransformer + eval inference' | actual=1299L across 4 files | derived=full ---
