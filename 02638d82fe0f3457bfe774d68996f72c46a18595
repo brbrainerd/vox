@@ -1,0 +1,14 @@
+feat(dashboard,security,cli): Implement loopback token auth, strict origin validation, and CLI foreground ownership
+scale: ~295 lines across 9 files [L]
+
+- `crates/vox-dashboard/src/transport.ts`: Implement WebSocket auto-reconnect with exponential backoff, retrieve WS URL and bearer token from meta tags, and add connection state management.
+- `crates/vox-dashboard/src/assets.rs`: Add Content-Security-Policy, X-Frame-Options, and Referrer-Policy headers to dashboard assets, and pass an optional token extension to `serve_asset`.
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/mod.rs`: Generate a 32-byte secure token for loopback dashboard sessions, write it to a temporary file, and enforce strict Origin/Host allowlist validation for HTTP gateway requests.
+- `crates/vox-cli/src/commands/dashboard.rs`: Change CLI dashboard command to own the orchestrator process in the foreground instead of detaching, and add active socket polling to wait for the orchestrator to be ready.
+- `crates/vox-dashboard/src/bin/vox_dashboard_d.rs`: Delete the `vox_dashboard_d.rs` binary, as the dashboard is now owned by the CLI.
+- `crates/vox-dashboard/src/App.tsx`: Resolve React hooks violation by moving `useVoxTransport` call to the top level, and add error handling for `playSound`.
+- `crates/vox-dashboard/src/router.rs`: Modify `dashboard_router` to accept and layer an optional token extension.
+- `crates/vox-dashboard/Cargo.toml`: Change default feature flag for `embedded-assets` to be empty, and update `tower-http` and `mime_guess` to use workspace versions.
+- `Cargo.toml`: Update `tower-http` workspace version to 0.5.2.
+
+--- audit: original='feat(security,dashboard): Implement loopback token auth and strict origin validation' | actual=295L across 9 files | derived=full ---
