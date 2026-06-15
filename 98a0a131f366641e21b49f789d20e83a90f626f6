@@ -1,0 +1,30 @@
+feat(eval, codegen): CoW interpreter values, codegen borrow groundwork, emit→compile harness
+scale: ~1912 lines across 26 files [XL]
+
+- **eval**: Implemented copy-on-write (CoW) for `VoxValue::{List,Object,Tuple}` using `Rc<Vec<...>>` and `Rc::make_mut` for O(1) clones, preserving pure value semantics.
+- **eval**: Implemented CoW for scope frames (`Rc<HashMap>`) and function bodies (`Rc<Vec<HirStmt>>`) to optimize closure captures and recursive calls.
+- **eval**: Added `Scope::get_mut` for in-place CoW writes to environments.
+- **eval**: Ensured `VoxValue` is `!Send` via `static_assertions` to enforce single-threaded interpreter invariant.
+- **eval**: Updated `builtins.rs` to use `iter()` on `Rc<Vec>` for list processing.
+- **eval**: Refactored `expr.rs` and `stmt.rs` to integrate CoW value handling.
+- **eval**: Added `eval_cow_semantics_test.rs` with 8 new tests to verify CoW semantics, including aliasing, closure, and recursion safety.
+- **eval**: Added `eval_memory.rs` benchmarks for `append_loop`, `big_list_pass`, `closure_pipeline`, `object_pass`, and `deep_recursion` to measure CoW performance improvements.
+- **eval**: Added `#[cfg(test)]` for `Scope::get_mut` and `VoxValue` constructors/clone equality in `env.rs` and `value.rs`.
+- **codegen**: Introduced `param_borrow.rs` for conservative parameter borrow inference, identifying parameters whose every use is a direct call argument.
+- **codegen**: Corrected `emit_ident_expr` in `stmt_expr.rs` to emit `.as_str()` only for `str`-typed identifiers and `&n` for other types, fixing a latent bug for non-string borrowed arguments.
+- **codegen**: Added `borrow_emission_tests` for `str` to `.as_str()`, non-str to `&n`, and owned to `.clone()`.
+- **codegen**: Added `emit_compile_harness.rs` to generate and `cargo build` full native script crates, verifying generated Rust body type-checks for ownership/borrow changes.
+- **codegen**: Fixed `generate_script` in `stmt_expr.rs` to correctly handle value-returning `main()` functions by wrapping the body in a closure/async block.
+- **codegen**: Added `value_returning_main_compiles` harness case.
+- **codegen**: Removed spurious borrows on numeric binary operands in `emit_binary_expr` in `stmt_expr.rs`, applying borrows only for non-numeric operations (e.g., string concatenation).
+- **codegen**: Added `binary_op_emit.rs` tests for numeric literals, numeric locals, and string concatenation.
+- **codegen**: Updated `usage.rs`, `rn/component.rs`, and `vox_client.rs` for clippy fixes.
+- **docs**: Updated `vox-memory-model-audit-and-value-optimization-2026-06-05.md` to reflect CoW changes and architecture.
+- **docs**: Updated `zero-copy-rust-emission-plan-2026.md` with escape analysis plan.
+- **docs**: Updated `expl-memory-model.md` and `where-things-live.md`.
+- **docs**: Corrected comment in `stmt_expr.rs` regarding binary-op borrows for string concatenation.
+- **clippy**: Addressed `clippy::iter_nth` in `eval/expr.rs` and `clippy::collapsible_match` across `vox-codegen` for Rust 1.95 compatibility.
+- **refactor**: Made `expr_owning` in `param_borrow.rs` sound by precisely handling `ObjectLit`, `Lambda`, `For` expressions and conservatively disqualifying other compound shapes.
+- **deps**: Updated `vox-compiler/Cargo.toml` and `Cargo.lock`.
+
+--- audit: original='Copy-on-write interpreter values (−67% to −94%) + codegen borrow groundwork & emit→compile harness (#165)' | actual=1912L across 26 files | derived=full ---
