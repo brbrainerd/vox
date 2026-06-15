@@ -1,0 +1,8 @@
+docs(architecture): add web bootstrap emission migration plan
+scale: ~101 lines across 1 files [M]
+
+- Add a new architecture document outlining the plan to migrate the web bootstrap to Vox-emitted output.
+- Detail the problem of the current hand-written web shell and the goal of achieving RN parity.
+- Include Stage-0 findings regarding `str()`/`len()` rewrites and the need for browser-fallback globals for `mobile.*`, `Speech.*`, and `std.*`.
+
+--- audit: original='docs: web-bootstrap emission migration plan (scouted, staged)' | actual=101L across 1 files | derived=full ---
