@@ -1,0 +1,13 @@
+feat(mcp): add post-mutation verification helpers for vox files
+scale: ~224 lines across 2 files [M]
+
+- `crates/vox-orchestrator-mcp/src/post_verification.rs`: New module providing functions for automatic post-mutation verification feedback.
+  - `verifiable_vox_path`: Determines if a tool is file-mutating and touches a `.vox` file, returning the path if so.
+  - `advisory_from_check_json`: Creates a model-facing advisory from `vox_check` diagnostics if errors are found.
+  - `attach_advisory`: Injects the advisory into the tool result JSON under `meta.auto_verification`.
+  - `verify_and_attach`: Asynchronously runs `vox_check` on a `.vox` file and attaches any resulting advisory to the tool result.
+  - `is_auto_verify_enabled`: Checks the `VOX_VERIFY_ON_WRITE` environment variable to determine if auto-verification is enabled.
+  - Defines `MUTATING_FILE_TOOLS` constant listing tools that trigger auto-verification.
+- `crates/vox-orchestrator-mcp/src/lib.rs`: Adds `post_verification` module to the crate.
+
+--- audit: original='feat(mcp): post-mutation verification helpers (verification-driven loop)' | actual=224L across 2 files | derived=full ---
