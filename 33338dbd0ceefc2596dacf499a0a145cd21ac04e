@@ -1,0 +1,12 @@
+feat(gui): Run research asynchronously via persistent daemon executor
+scale: ~205 lines across 7 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Research/ResearchView.tsx`: Replaced blocking `execute_command(['research','run'])` with asynchronous `startResearchAsync` call. Introduced `activeSessionId` state to track running research and removed `result` state. Updated `handleRunResearch` to use the async action and set `running` state. Modified `useEffect` to listen for Scientia queue updates and auto-open session details upon terminal status.
+- `crates/vox-gui/src/commands/research.rs`: Added new Tauri command `start_research_async` to dispatch `research.run` to the persistent orchestrator daemon. This command returns `{session_id, task_id, status: "running"}` immediately without waiting for pipeline completion.
+- `crates/vox-gui/ui/src/components/surfaces/Research/researchActions.test.ts`: Added Vitest tests for `startResearchAsync` to verify it invokes the correct Tauri command and forwards arguments.
+- `crates/vox-gui/ui/src/components/surfaces/Research/researchActions.ts`: Defined `ResearchRunHandle` interface and `startResearchAsync` function to encapsulate the asynchronous research initiation via Tauri's `invoke`.
+- `crates/vox-orchestrator-mcp/tests/daemon_extra_tests.rs`: Added an assertion to the `daemon_research_run_enqueues_session_via_extra_dispatch` test to verify that `research.run` immediately returns `status: "running"`.
+- `crates/vox-gui/src/commands/mod.rs`: Added `research` module to the commands.
+- `crates/vox-gui/src/main.rs`: Registered the new `start_research_async` Tauri command.
+
+--- audit: original='feat(gui): Research runs async via persistent daemon executor + status poller (A2)' | actual=205L across 7 files | derived=full ---
