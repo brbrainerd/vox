@@ -1,0 +1,7 @@
+refactor(vox-vcs): remove synchronous cas_fallback tests
+scale: ~64 lines across 1 files [M]
+
+- Removed 4 synchronous tests from `crates/vox-vcs/src/cas_fallback.rs` that were likely replaced by asynchronous versions or are no longer relevant.
+- The removed tests covered: `undo_on_empty_is_nothing_to_undo`, `multi_path_snapshot_preserves_paths_and_label_in_order`, and `ids_are_monotone_with_gaps_after_undo`.
+
+--- audit: original='fix(vox-vcs): restore async cas_fallback tests (merge regressed them to sync)' | actual=64L across 1 files | derived=full ---
