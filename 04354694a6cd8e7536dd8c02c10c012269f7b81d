@@ -1,0 +1,7 @@
+docs(architecture): Add codegen split-brain audit advisory and fix plan
+scale: ~881 lines across 2 files [L]
+
+- Add `docs/src/architecture/codegen-ssot-and-split-brain-audit-2026.md` detailing an audit of the multi-target codegen pipeline, identifying split-brain issues and minimum emission sets for web, Tauri, and React Native.
+- Add `docs/superpowers/plans/2026-06-03-codegen-split-brain-fixes.md` outlining an implementation plan to fix four correctness/data-integrity bugs in multi-target codegen, delete dead code, and begin collapsing duplicate HTTP-endpoint-contract representations onto `ContractIr`.
+
+--- audit: original='docs(architecture): codegen split-brain audit advisory + fix plan' | actual=881L across 2 files | derived=full ---
