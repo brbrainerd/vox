@@ -1,0 +1,22 @@
+refactor(style): apply cargo fmt to vox-inference, vox-quantize, and vox-ml-cli
+scale: ~801 lines across 17 files [L]
+
+- `vox-inference/src/qwen_forward.rs`: Reformat `FullAttention` and `LinearAttention` implementations, including `causal_depthwise_conv_silu` and query/key tensor reshaping.
+- `vox-quantize/src/engine.rs`: Reorder imports and reformat tensor insertions in tests.
+- `vox-inference/src/backends/candle_cpu.rs`: Reorder imports and reformat tensor insertions in tests.
+- `vox-quantize/src/recombine.rs`: Reformat `recombine` function signature and tensor insertions in tests.
+- `vox-inference/src/backends/candle_cuda.rs`: Reorder imports, reformat `tracing::warn` message, and reformat tensor insertions in tests.
+- `vox-inference/src/backends/candle_metal.rs`: Reorder imports, reformat `tracing::warn` message, and reformat tensor insertions in tests.
+- `vox-inference/src/generate.rs`: Reorder imports.
+- `vox-quantize/src/policy.rs`: Reorder imports.
+- `vox-ml-cli/src/commands/mens/plugin_heal.rs`: Reorder imports.
+- `vox-quantize/src/read.rs`: Reorder imports.
+- `vox-quantize/src/write.rs`: Reorder imports.
+- `vox-ml-cli/tests/quantize_cli.rs`: Reorder imports.
+- `vox-ml-cli/src/commands/quantize.rs`: Reorder imports.
+- `vox-quantize/src/lib.rs`: Reorder imports.
+- `vox-inference/src/dispatcher.rs`: Reorder imports.
+- `vox-quantize/src/verify.rs`: Reorder imports.
+- `vox-ml-cli/src/commands/mens/populi/train_arm.rs`: Reorder imports.
+
+--- audit: original='style: cargo fmt on vox-inference, vox-quantize, vox-ml-cli (pre-push gate)' | actual=801L across 17 files | derived=full ---
