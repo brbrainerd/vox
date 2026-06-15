@@ -1,0 +1,13 @@
+fix(corpus): repair 9 broken Vox scripts across examples and apps
+scale: ~146 lines across 8 files [M]
+
+- `scripts/perf/test-baseline.vox`: Replaced `str.find` with `.index_of` and updated the caller to match on the `Option[int]` return type.
+- `examples/sandboxes/test_app/src/main.vox`: Converted raw JSX views (`<div>...`) to native Vox builder syntax (e.g., `column`, `heading`, `text`).
+- `apps/vox-mental-tracker/scripts/build.vox`: Replaced `shell_exec` calls with `std.process.run` for external commands.
+- `apps/vox-mental-tracker/scripts/generate-icons.vox`: Replaced `shell_exec` calls with `std.process.run` for `magick` commands and refactored string concatenation for arguments.
+- `apps/vox-mental-tracker/scripts/network_guard_note.vox`: Replaced `println` with `print`.
+- `apps/vox-mental-tracker/scripts/preview_workflow.vox`: Replaced `println` with `print`.
+- `apps/vox-mental-tracker/scripts/release_gates.vox`: Replaced `shell_exec` with `std.process.run_ex` wrapped in a new `run_gate` function, replaced `println` with `print`, and updated environment variable access from `${VAR}` to `"$VAR"`.
+- `apps/vox-mental-tracker/scripts/sign-android.vox`: Replaced `std.env` with a new `env_or_empty` helper using `env.get`, replaced `shell_exec` with `std.process.run_ex`, and refactored command string concatenation into a list of arguments.
+
+--- audit: original='fix(corpus): repair all real .vox script errors (perf, sandbox app, vox-mental-tracker)' | actual=146L across 8 files | derived=full ---
