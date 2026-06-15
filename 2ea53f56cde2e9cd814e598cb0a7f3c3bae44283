@@ -1,0 +1,23 @@
+feat: Refactor MCP tool suite, orchestrator agent lifecycle, and scholarly publication
+scale: ~70897 lines across 350 files [XL]
+
+DIVERGENCE: original subject claimed 'feat: implement comprehensive MCP tool suite, orchestrator agent lifecycle, and scholarly publication pipeline.' but this commit actually changed ~70897 lines across 350 files. Top areas:
+crates: 59922 lines, 271 files
+contracts: 6284 lines, 8 files
+docs: 3850 lines, 46 files
+examples: 526 lines, 11 files
+(root): 232 lines, 7 files
+mens: 83 lines, 6 files
+.vox: 0 lines, 1 files
+
+- `crates/vox-clavis`: Significant refactor of `spec.rs` (5444 lines removed) into new modules for platform, LLM, scholarly registries, and IDs, enhancing specification clarity and modularity.
+- `contracts/clavis`: Refactored `secret-capabilities.v1.json` and `managed-env-names.v1.json` with substantial line changes, indicating updates to contract definitions and environment management.
+- `crates/vox-cli`: Extensive refactor of `mcp_server` tools, including `task_tools`, `lifecycle`, `chat_tools`, `compiler_tools`, `dispatch`, `input_schemas`, `scientia_tools`, and many others, suggesting a complete overhaul of the MCP server's command-line interface and underlying tool integrations.
+- `crates/vox-publisher`: Major refactor of publication pipeline components, including `publication_preflight`, `scientia_evidence`, `submission_package`, and `scholarly_external_jobs`, with many files removed and new modules introduced for `publisher`, `derivation`, `validation`, and `signals`, indicating a significant restructuring of the publication process.
+- `crates/vox-orchestrator`: Substantial refactor of orchestrator components, including `mcp_tools`, `orchestrator/task_dispatch`, `orchestrator/agent_lifecycle`, `persistence_outbox`, and `budget`, with many files removed and new modules introduced for `http_gateway`, `budget`, `lifecycle_ops`, and `persistence/replay`, pointing to a major overhaul of the orchestrator's core logic and agent management.
+- `crates/vox-populi`: Refactor of `mens/tensor/candle_qlora_train/training_loop`, indicating updates to machine learning training processes.
+- `docs/src/archive/plans`: Added numerous new planning documents related to various system improvements and future development, including `coderabbit-voxdb-mens-e2e`, `english_core_latin_alias_refactor`, `react-interop-full-repo-migration-2026`, `react-interop-ssot-convergence-v2`, `scientia_implementation_waves`, `clavis_cloudless_implementation_blueprint`, `build_telemetry_dependency_architecture`, `workspace_artifact_cleanup`, `scientia_novelty_automation`, `scientia_publication-worthiness_research_plan`, and `react_interop_v2_laziness_closure`.
+- `crates/vox-corpus`: Refactored `rust_to_vox.rs` and `corpus/mix/mod.rs`, suggesting updates to corpus processing and mixing logic.
+- Many other smaller files across various crates were touched, indicating a broad-reaching refactor and reorganization effort.
+
+--- audit: original='feat: implement comprehensive MCP tool suite, orchestrator agent lifecycle, and scholarly publication pipeline.' | actual=70897L across 350 files | derived=stat-only ---
