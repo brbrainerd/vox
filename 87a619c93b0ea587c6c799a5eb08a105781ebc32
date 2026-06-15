@@ -1,0 +1,9 @@
+feat(docs): Enhance golden examples and documentation with improved linting and anchor support
+scale: ~328 lines across 34 files [L]
+
+- `crates/vox-doc-pipeline`: Refactored linting logic to introduce new checks for include anchors and whole-file includes, and updated error messages for raw Vox/TSX code blocks. Added new lint types for broken include anchors and whole-file includes with training headers.
+- `examples/golden`: Converted all `// [REGION:...]` and `// [END:...]` comments to `// ANCHOR: ...` and `// ANCHOR_END: ...` for improved documentation generation. Added `// ANCHOR: display` to several golden files to mark sections for display.
+- `docs/src`: Updated various documentation files (`ref-syntax.md`, `ref-decorators.md`, `ref-type-system.md`, `how-to-database.md`, `golden.md`, `tut-ui-integration.md`, `tut-first-app.md`, `why-vox-for-ai.md`, `how-to-ai-agents.md`, `tut-actor-basics.md`, `how-to-deploy.md`, `tut-workflow-durability.md`, `feed.xml`) to align with the new anchor system and improve content.
+- `AGENTS.md`: Minor update.
+
+--- audit: original='feat: add comprehensive golden examples and documentation for Vox syntax, decorators, and core features.' | actual=328L across 34 files | derived=full ---
