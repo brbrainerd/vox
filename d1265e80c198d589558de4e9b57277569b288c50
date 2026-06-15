@@ -1,0 +1,15 @@
+feat(audit): Add `--strict-block-ga` for GA roll-up with snapshot
+scale: ~64 lines across 3 files [M]
+
+- `crates/vox-audit/src/lib.rs`:
+    - Add `ga` module for GA snapshot functionality.
+    - Implement `run_ga_snapshot` function to run all gates, include product binaries, and generate a `GaSnapshot` with `blocked_by_foundation` semantics.
+    - Write the GA snapshot to `contracts/reports/_snapshot/<UTC>.json` if `write_canonical_report` is enabled.
+- `crates/vox-cli/src/commands/audit.rs`:
+    - Add `strict_block_ga` argument to the `AuditArgs` struct.
+    - Integrate `run_ga_snapshot` when `--gate all` and `--strict-block-ga` are used, printing the snapshot and exiting with its status.
+- `crates/vox-audit/src/main.rs`:
+    - Add `strict_block_ga` argument to the `Cli` struct.
+    - Call `run_ga_snapshot` when `CliCommand::All` and `strict_block_ga` are specified, printing the snapshot and setting the process exit code.
+
+--- audit: original='feat(vox-audit): --gate all --strict-block-ga GA roll-up with foundation-blocking _snapshot + product-binary inclusion (CR-F0)' | actual=64L across 3 files | derived=full ---
