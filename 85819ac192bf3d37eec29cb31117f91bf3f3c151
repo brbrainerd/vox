@@ -1,0 +1,8 @@
+docs(audit): delink deleted `route_ir.rs` and `activity.rs` from audit advisory
+scale: ~4 lines across 1 files [XS]
+
+- `docs/src/architecture/codegen-ssot-and-split-brain-audit-2026.md`:
+  - Updated a reference to `RouteIR` to remove a broken link to `codegen_shared/route_ir.rs` and clarify its past location.
+  - Updated a reference to `activity.rs` to remove a broken link to `codegen_ts/activity.rs` and clarify its past location.
+
+--- audit: original='docs: delink deleted route_ir.rs/activity.rs from audit advisory' | actual=4L across 1 files | derived=full ---
