@@ -1,0 +1,21 @@
+feat(vox-vcs): implement core jj operations for VCS backend
+scale: ~613 lines across 2 files [L]
+
+- `crates/vox-vcs/src/jj_backend.rs`:
+    - Implement `VcsBackend` for `JjBackend`, adding support for:
+        - `snapshot`: Capture current state, including a mapping from `ChangeId` to `CommitId`.
+        - `diff`: Generate diffs between changes or the working copy.
+        - `undo`: Revert changes.
+        - `conflicts`: Detect and report conflicts.
+        - `resolve`: Resolve conflicts using specified strategies.
+        - `add_remote`: Register a remote.
+        - `push`: Push changes to a remote.
+    - Initialize `JjBackend` to load existing JJ repositories or create new colocated jj/git repos.
+    - Add `commits` HashMap to `JjState` to track `ChangeId` to `CommitId` mappings.
+    - Introduce `JjBackend::load_or_init` for flexible repository handling.
+    - Add helper functions for converting between `jj_lib` types and `vox-vcs` types.
+    - Integrate `jj_lib`'s conflict resolution and diffing capabilities.
+- `crates/vox-vcs/src/backend.rs`:
+    - Extend `VcsBackend` trait with `add_remote` and `push` methods, providing default `Unavailable` implementations.
+
+--- audit: original='spike(vox-vcs): prove jj operations — load existing repo, undo, diff, conflicts, fetch/push' | actual=613L across 2 files | derived=full ---
