@@ -1,0 +1,20 @@
+feat(arch): Extract `VoxFileRecord` to `vox-shell-stdlib-types` crate
+scale: ~73 lines across 10 files [M]
+
+- **`crates/vox-shell-stdlib-types`**:
+    - New crate created to house `VoxFileRecord` and related file-system types.
+    - `fs_types.rs`: Defines `VoxFileRecord` struct with `Debug`, `Clone`, `PartialEq`, `Eq`, `serde::Serialize`, and `serde::Deserialize` derives.
+    - `lib.rs`: Declares `fs_types` module.
+    - `Cargo.toml`: Configures the new crate with `serde` dependency.
+- **`crates/vox-compiler`**:
+    - `src/eval/shell_stdlib.rs`: Replaced the `InterpFileRecord` struct definition with a type alias to `vox_shell_stdlib_types::fs_types::VoxFileRecord`.
+    - `Cargo.toml`: Added `vox-shell-stdlib-types` as a dependency.
+- **`crates/vox-actor-runtime`**:
+    - `src/builtins/mod.rs`: Removed the duplicate `VoxFileRecord` struct definition and replaced it with a `pub use` re-export from `vox_shell_stdlib_types::fs_types::VoxFileRecord`.
+    - `Cargo.toml`: Added `vox-shell-stdlib-types` as a dependency.
+- **`docs/src/architecture`**:
+    - `layers.toml`: Added `vox-shell-stdlib-types` to L0 with `staleness_exempt = true`.
+    - `where-things-live.md`: Added `vox-shell-stdlib-types` to the list of top-level trees with its description.
+- **`Cargo.toml` (workspace)**: Added `vox-shell-stdlib-types` to the workspace members.
+
+--- audit: original='feat(arch): A-4-rescope — extract vox-shell-stdlib-types (L0) with VoxFileRecord' | actual=73L across 10 files | derived=full ---
