@@ -1,0 +1,10 @@
+feat(gui): route GUI through persistent TCP orchestrator daemon
+scale: ~218 lines across 5 files [M]
+
+- `crates/vox-gui/src/commands/daemon.rs` (new): Introduces `PersistentDaemon::ensure()` to manage a single, long-lived `vox-orchestrator-d` TCP daemon. It resolves the daemon's address from `VOX_ORCHESTRATOR_DAEMON_SOCKET` or defaults to `127.0.0.1:9745`, reuses an existing daemon via `ping()`, or spawns a new one and polls its availability with a 15s deadline. `get_or_try_init` caches the address only on successful initialization.
+- `crates/vox-gui/src/commands/mcp.rs`: Removes `McpToolHost` and its in-process `ServerState`. `invoke_mcp_tool` now uses `PersistentDaemon::ensure()` and dispatches `orch.tool_call` via `OrchDaemonClient` to the persistent daemon.
+- `crates/vox-gui/src/commands/orchestrator.rs`: Updates `spawn_orchestrator_status_stream` and `spawn_agent_event_stream` to take an `Arc<PersistentDaemon>`. These functions now use `OrchDaemonClient::subscribe` and `subscribe_events` over TCP to the persistent daemon, replacing the previous per-call `subscribe_daemon` mechanism. The status stream retains its `to_gui_status` mapping.
+- `crates/vox-gui/src/main.rs`: Manages an `Arc<PersistentDaemon>` and wires both the orchestrator status and agent event streams to use this persistent daemon during application setup.
+- `crates/vox-gui/src/commands/mod.rs`: Adds `daemon` module to the commands.
+
+--- audit: original='@ feat(gui): route the GUI through one persistent TCP orchestrator daemon' | actual=218L across 5 files | derived=full ---
