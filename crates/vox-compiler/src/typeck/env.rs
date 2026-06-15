@@ -101,6 +101,9 @@ pub struct TypeEnv {
     agents: HashMap<String, Vec<AgentHandlerSig>>,
     /// Stack of expected return types for currently checked functions
     return_types: Vec<Ty>,
+    /// Reasons for `@deprecated("reason")` names, keyed by name. Populated only
+    /// for deprecated declarations; read at the usage site to enrich the warning.
+    deprecation_reasons: HashMap<String, String>,
 }
 
 /// Signature of an actor handler.
@@ -128,7 +131,19 @@ impl TypeEnv {
             actors: HashMap::new(),
             agents: HashMap::new(),
             return_types: Vec::new(),
+            deprecation_reasons: HashMap::new(),
         }
+    }
+
+    /// Record the `@deprecated("reason")` text for a name.
+    pub fn set_deprecation_reason(&mut self, name: impl Into<String>, reason: impl Into<String>) {
+        self.deprecation_reasons.insert(name.into(), reason.into());
+    }
+
+    /// Reason recorded for a deprecated name, if any.
+    #[must_use]
+    pub fn deprecation_reason(&self, name: &str) -> Option<&str> {
+        self.deprecation_reasons.get(name).map(String::as_str)
     }
 
     /// Define a local type alias or generic parameter in the current scope.

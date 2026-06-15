@@ -121,6 +121,7 @@ pub(crate) fn endpoint_as_script_fn(ep: &HirEndpointFn) -> HirFn {
         ai_fixture: None,
         embed: None,
         is_deprecated: false,
+        deprecated_reason: None,
         schedule_interval: None,
         durability: None,
         actor_state_fields: vec![],

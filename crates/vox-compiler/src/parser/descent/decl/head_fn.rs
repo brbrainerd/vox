@@ -21,6 +21,7 @@ impl Parser {
         let mut is_versioned = false;
         let mut is_remote = false;
         let mut is_deprecated = false;
+        let mut deprecated_reason: Option<String> = None;
         let mut is_llm = false;
         let mut llm_model = None;
         let mut ai_structured_output_type: Option<String> = None;
@@ -115,6 +116,14 @@ impl Parser {
                 Token::AtDeprecated => {
                     self.advance();
                     is_deprecated = true;
+                    // Optional `("reason")` argument. Bare `@deprecated` is still valid.
+                    if self.eat(&Token::LParen) {
+                        if let Token::StringLit(reason) = self.peek().clone() {
+                            self.advance();
+                            deprecated_reason = Some(reason);
+                        }
+                        let _ = self.expect(&Token::RParen);
+                    }
                 }
                 Token::AtFuzz | Token::AtNative => {
                     self.advance();
@@ -1084,6 +1093,7 @@ impl Parser {
             body,
             is_async: false,
             is_deprecated,
+            deprecated_reason,
             is_pure,
             is_reactive,
             is_versioned,

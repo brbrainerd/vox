@@ -175,9 +175,13 @@ impl<'a> Checker<'a> {
             HirExpr::Ident(name, span) => {
                 if let Some(binding) = self.env.lookup(name) {
                     if binding.is_deprecated {
+                        let message = match self.env.deprecation_reason(name) {
+                            Some(reason) => format!("'{name}' is deprecated: {reason}"),
+                            None => format!("'{name}' is deprecated"),
+                        };
                         self.diags.push(Diagnostic {
                             severity: TypeckSeverity::Warning,
-                            message: format!("'{name}' is deprecated"),
+                            message,
                             span: *span,
                             expected_type: None,
                             found_type: None,
