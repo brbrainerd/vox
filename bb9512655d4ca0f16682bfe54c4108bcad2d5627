@@ -1,0 +1,10 @@
+refactor(plugin-runtime-container): use vox-container-types for type imports
+scale: ~15 lines across 5 files [S]
+
+- `crates/vox-plugin-runtime-container/src/lib.rs`: Changed `ContainerRuntime` import from `vox_container` to `vox_container_types`. Updated `build_opts` initialization for `SkillRuntime` implementations to use `vox_container_types::BuildOpts` instead of `vox_container::BuildOpts`.
+- `crates/vox-plugin-runtime-container/src/docker.rs`: Changed imports for `BuildOpts`, `ContainerRuntime`, and `RunOpts` from `vox_container` to `vox_container_types`.
+- `crates/vox-plugin-runtime-container/src/podman.rs`: Changed imports for `BuildOpts`, `ContainerRuntime`, and `RunOpts` from `vox_container` to `vox_container_types`.
+- `crates/vox-plugin-runtime-container/Cargo.toml`: Added `vox-container-types` as a workspace dependency.
+- `Cargo.lock`: Updated lockfile to reflect the new dependency.
+
+--- audit: original='refactor(plugin-runtime-container): use vox-container-types for type imports (D-9-rescope step 3)' | actual=15L across 5 files | derived=full ---
