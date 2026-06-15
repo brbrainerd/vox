@@ -1,0 +1,10 @@
+feat(vox-telemetry): add ModelCallEvent and cache-token fields
+scale: ~62 lines across 2 files [M]
+
+- `crates/vox-telemetry/src/types.rs`:
+    - Add `ModelCallEvent` struct with fields for model, provider, route profile, token counts (prompt, completion, cache read input, cache creation input), latency, cost, error class, retry attempt, task IDs, trace ID, and caller agent ID.
+    - Add `ModelCallEvent` variant to `TelemetryEvent` enum.
+    - Add a test case `model_call_event_serialize_round_trip` for `ModelCallEvent` serialization.
+- `crates/vox-telemetry/src/lib.rs`: Export `ModelCallEvent`.
+
+--- audit: original='feat(vox-telemetry): add ModelCallEvent variant + cache-token fields' | actual=62L across 2 files | derived=full ---
