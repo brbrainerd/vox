@@ -1,0 +1,12 @@
+feat(docs): rename research documents and update references
+scale: ~51 lines across 7 files [M]
+
+- docs: Rename `cr-f2-arm-parity-reality-2026-06-05.md` to `cr-f2-arm-parity-findings-2026.md` and `v1-foundation-criteria-advisory-2026-06-05.md` to `v1-foundation-criteria-research-2026.md` to conform to mandated naming patterns.
+- docs: Update references to the renamed research documents in `v1-release-criteria.md` and `golden_behavioral_gate.rs` doc comments.
+- docs: Add `description` frontmatter key to `v1-release-criteria.md`.
+- docs: Index the two new research artifacts in `research-index.md`.
+- crates/vox-integration-tests: Modify `golden_behavioral_gate.rs` to panic with the file path if reading a golden fails, instead of silently continuing, ensuring that broken goldens are not skipped.
+- crates/vox-compiler: Change `eval/mod.rs` to capture an empty environment (`Scope::new()`) for imported public functions, preventing an O(2^N) clone blow-up for modules with many intra-project imports.
+- contracts: Add a new `humaneval/2026-06-06.json` report.
+
+--- audit: original='review: address CodeRabbit findings on PR #152' | actual=51L across 7 files | derived=full ---
