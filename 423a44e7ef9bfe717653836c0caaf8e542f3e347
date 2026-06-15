@@ -1,0 +1,16 @@
+docs(how-to): add guide for wiring AI assistants to Vox MCP validator
+scale: ~203 lines across 3 files [M]
+
+- **docs/src/how-to/how-to-mcp-vox-validate.md**: New file added, detailing how to connect AI coding assistants (like Claude Desktop and Cursor) to the Vox MCP validator.
+  - Explains `vox_validate_source`, `vox_validate_file`, and `vox_compiler::ast_inspect` tools, their inputs, and outputs.
+  - Provides configuration snippets and instructions for Claude Desktop (macOS/Windows) and Cursor.
+  - Documents the diagnostic shape (stable `code` and machine-applicable `fixes`).
+  - Includes a canonical iteration loop example with a buggy `<img>` tag.
+  - Lists useful diagnostic code namespaces with "triggered when" explanations.
+  - Offers a comparison table for the three MCP tools.
+  - Adds troubleshooting entries for common failure modes (server not running, empty fixes, bad suggestions).
+  - Cross-links to related documentation and implementation details.
+- **docs/src/feed.xml**: Updated to include the new how-to guide in the documentation feed.
+- **docs/src/SUMMARY.md**: Added a link to the new `how-to-mcp-vox-validate.md` in the documentation summary.
+
+--- audit: original='docs(how-to): wire AI assistants to vox_validate_source MCP' | actual=203L across 3 files | derived=full ---
