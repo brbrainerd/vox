@@ -1,0 +1,24 @@
+feat(gui): Add browser surface, orchestrator tools, and CI smoke tests
+scale: ~5432 lines across 109 files [XL]
+
+- `crates/vox-gui`: Introduce browser preview and agent live-view commands, including a new `browser.rs` module, UI components for `BrowserView.tsx`, and e2e tests for browser surfaces.
+- `crates/vox-plugin-browser`: Enhance browser engine with new CDP protocol commands for device metrics, input, screencasting, and navigation history, along with new `PageSummary` and `PageInfo` structs.
+- `crates/vox-orchestrator-mcp`: Implement browser control locks and new browser tool parameters for actions like clicking, key presses, scrolling, and viewport manipulation.
+- `crates/vox-plugin-mens-candle-cuda`: Refine model checkpointing with `CheckpointSegment` for contiguous transformer layers and introduce `backward_from_cotangent` for custom gradient backpropagation.
+- `patches/qlora-rs-1.0.5`: Add `backward_from_cotangent` function to inject upstream gradients into the autograd graph for segment-wise gradient checkpointing.
+- `docs`: Add new architecture and superpower plans documentation related to Claude code features, semantic test coverage, and Vox GUI browser support.
+- `.github/workflows`: Update CI workflows with a fallback hosted runner.
+- `crates/vox-cli`: Add `gui_smoke` command for CI.
+- `crates/vox-gui/ui`: Update `transport.ts` for browser events, `tsconfig.json`, and `App.tsx`.
+- `crates/vox-gui`: Update `build.rs`, `tauri.conf.json`, `Cargo.toml`, and `main.rs` for Windows manifest embedding, sidecar paths, and icons.
+- `crates/vox-cli-core`: Modify `daemon_ipc/dispatch.rs`.
+- `crates/vox-ml-cli`: Update commands for `schola/train/gpu` and `mens/populi`.
+- `contracts`: Update `catalog.v1.yaml`, `tool-registry.canonical.yaml`, `surface-registry.v1.yaml`, and `surface-ownership.v1.yaml`.
+- `crates/vox-compiler`: Update `typeck/effect_check.rs`.
+- `crates/vox-populi`: Update `mens/tensor/training_config.rs`.
+- `crates/vox-gui/icons`: Add new Android icon assets.
+- `.cargo`: Update `config.toml`.
+- `mens/data`: Update `metadata.json`.
+- `vox-schema.json`: Update schema.
+
+--- audit: original='fix(gui): make Tauri shell launch on Windows and add CI smoke gates' | actual=5432L across 109 files | derived=full ---
