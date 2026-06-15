@@ -1,0 +1,8 @@
+feat(qlora): compute LoRA delta in activation dtype for BF16 safety
+scale: ~48 lines across 1 files [S]
+
+- Introduce `linear_no_bias_t` helper function to apply `x @ w^T` projection, replicating `candle_nn::Linear`'s rank-3 input handling.
+- Modify `QuantizedLinear::forward` to compute the LoRA delta (`x @ A^T @ B^T`) using the activation's dtype (BF16) instead of the LoRA parameters' dtype (F32). This avoids dtype mismatch panics when activations are BF16.
+- Ensure LoRA A/B matrices are cast to the activation dtype for matmul operations, preserving trainable parameters in F32 while allowing BF16 activations.
+
+--- audit: original='fix(qlora): compute LoRA delta in activation dtype (BF16-safe; was F32/BF16 matmul mismatch)' | actual=48L across 1 files | derived=full ---
