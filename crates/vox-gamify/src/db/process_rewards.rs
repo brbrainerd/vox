@@ -118,9 +118,14 @@ pub async fn process_event_rewards(
     let mut leveled_up_info = None;
     let mut final_reward = None;
     {
-        use crate::reward_policy::{apply_policy, base_reward};
+        use crate::reward_policy::apply_policy_cfg;
         use std::sync::{Mutex, OnceLock};
         static SESSION: OnceLock<Mutex<crate::reward_policy::SessionState>> = OnceLock::new();
+        // Load the economy contract once per process; it is the live source of
+        // base rewards and tuning scalars. Missing/invalid file → in-code defaults
+        // (behavior-identical to the shipped contract).
+        static ECONOMY: OnceLock<crate::economy::EconomyConfig> = OnceLock::new();
+        let economy = ECONOMY.get_or_init(crate::economy::resolve_economy);
         let session_lock = SESSION.get_or_init(|| Mutex::new(Default::default()));
         let mode_mult = crate::config_gate::reward_multiplier()
             * crate::config_gate::experiment_reward_multiplier();
@@ -128,8 +133,11 @@ pub async fn process_event_rewards(
         let mut base_rw = None;
         let mut rw = None;
         if let Ok(mut session) = session_lock.try_lock() {
-            let base = base_reward(event_type);
-            let reward = apply_policy(
+            // Base reward sourced from the loaded economy contract (falls through
+            // to the in-code `base_reward` table for events not overridden).
+            let base = economy.base_reward(event_type);
+            let reward = apply_policy_cfg(
+                economy,
                 &base,
                 mode_mult,
                 streak_days,
@@ -154,7 +162,8 @@ pub async fn process_event_rewards(
                 profile.add_crystals(reward.crystals);
                 profile_changed = true;
             }
-            let learn_bonus = crate::reward_policy::learning_mode_crystal_jitter(
+            let learn_bonus = crate::reward_policy::learning_mode_crystal_jitter_cfg(
+                economy,
                 user_id,
                 event_type,
                 reward.crystals,
