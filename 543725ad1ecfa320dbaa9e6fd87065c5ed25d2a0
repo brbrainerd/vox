@@ -1,0 +1,19 @@
+feat(codegen): emit and await async lifecycle hooks in React Native and Web
+scale: ~201 lines across 4 files [M]
+
+- **`crates/vox-codegen/src/codegen_ts/rn/component.rs`**:
+    - Introduced `emit_lifecycle_hooks` to emit `Effect`, `OnMount`, `OnCleanup`, and `Derived` members for React Native.
+    - `Effect`, `OnMount`, and `OnCleanup` are now emitted as `useEffect` calls.
+    - `Derived` members are now emitted as plain `const` declarations, removing the need for `useMemo` import.
+    - Updated `detect_react_hooks` to include `OnCleanup` when determining `useEffect` import.
+    - The `emit_lifecycle_hooks` function uses an async-aware context for endpoint calls and wraps the body in an async IIFE if it contains `await`.
+- **`crates/vox-codegen/tests/rn_lifecycle_test.rs`**:
+    - Added a new test file `rn_lifecycle_test.rs` to verify that React Native components correctly emit `useEffect` for `on mount` hooks.
+    - Tests confirm that `useEffect` is imported and that async endpoint calls within `on mount` are awaited inside an IIFE.
+- **`crates/vox-codegen/src/codegen_ts/reactive.rs`**:
+    - Modified `generate_reactive_component` to use an async-aware context (`view_ctx`) for `Effect`, `OnMount`, and `OnCleanup` bodies.
+    - Applied `wrap_effect_body_if_async` to these bodies to ensure `await` calls are handled correctly within `useEffect`'s synchronous callback.
+- **`crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`**:
+    - Added `wrap_effect_body_if_async` function. This utility wraps a block of statements in a fire-and-forget `void (async () => { ... })()` IIFE if it contains `await`, ensuring `useEffect` callbacks remain synchronous while allowing async operations.
+
+--- audit: original="codegen: emit + await lifecycle hooks (RN was dropping them; web wasn't awaiting)" | actual=201L across 4 files | derived=full ---
