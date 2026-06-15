@@ -1,0 +1,21 @@
+feat(gui): Implement real microphone capture and on-device transcription
+scale: ~483 lines across 7 files [L]
+
+- `crates/vox-gui/src/commands/mic.rs`: New module for microphone capture and transcription.
+  - `start_mic_capture`: Uses `cpal` to capture audio from the default input device, streaming f32 samples to an in-memory buffer on a background thread.
+  - `stop_mic_capture_and_transcribe`: Stops the audio stream, writes captured samples to a 16 kHz mono WAV file using `hound`, and then transcribes the audio using `vox_speech::transcribe_path_detailed`. The temporary WAV file is cleaned up.
+  - Includes `transcribe_audio_file` for testable transcription of existing audio files.
+- `crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx`:
+  - Implements UI logic for the Loquela mic button to toggle recording and transcription.
+  - Calls `start_mic_capture` and `stop_mic_capture_and_transcribe` Tauri commands.
+  - Inserts the refined transcript into the composer.
+  - Adds `recording` and `transcribing` state variables.
+  - Updates `addContextRef` to handle adding context chips.
+- `crates/vox-gui/src/main.rs`:
+  - Registers `MicCaptureState` as managed Tauri state.
+  - Registers `start_mic_capture` and `stop_mic_capture_and_transcribe` as Tauri commands.
+- `crates/vox-gui/src/commands/mod.rs`: Exports the new `mic` module.
+- `crates/vox-gui/Cargo.toml`: Adds `vox-speech` (with `stt-candle` feature), `cpal`, `hound`, and `uuid` dependencies.
+- `Cargo.lock`: Updates dependencies to include new crates.
+
+--- audit: original='feat(gui): real microphone capture + on-device transcription (Loquela mic) (#213)' | actual=483L across 7 files | derived=full ---
