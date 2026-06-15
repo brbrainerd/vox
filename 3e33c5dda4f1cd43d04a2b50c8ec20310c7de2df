@@ -1,0 +1,10 @@
+fix(ci): Update lychee link checker workflow arguments
+scale: ~2 lines across 1 files [XS]
+
+- `.github/workflows/link_checker.yml`:
+    - Increased `max-retries` from 3 to 5.
+    - Increased `retry-wait-time` from 2 to 5.
+    - Added a `--timeout` argument with a value of 40.
+    - Added a new `--exclude` pattern for `^https://slsa\\.dev/how-to/get-started/?$`.
+
+--- audit: original='feat: add GitHub Actions workflow to validate documentation links using lychee' | actual=2L across 1 files | derived=full ---
