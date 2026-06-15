@@ -1,0 +1,12 @@
+build(workspace): consolidate bzip2, zstd, hmac, ignore, crossbeam-queue, and tauri dependencies
+scale: ~28 lines across 7 files [M]
+
+- Promoted `bzip2` (0.6.1), `zstd` (0.13.3), `hmac` (0.12.1), `ignore` (0.4.25), `crossbeam-queue` (0.3.12), and `tauri` (2) to `[workspace.dependencies]` in `Cargo.toml`.
+- Updated `crates/vox-orchestrator-mcp/Cargo.toml` to use `hmac = { workspace = true }`, `ignore = { workspace = true }`, and `crossbeam-queue = { workspace = true }`.
+- Updated `crates/vox-orchestrator/Cargo.toml` to use `hmac = { workspace = true }`, `ignore = { workspace = true }`, and `crossbeam-queue = { workspace = true }`.
+- Updated `crates/vox-codegen/Cargo.toml` to use `bzip2 = { workspace = true }` and `zstd = { workspace = true }`.
+- Updated `crates/vox-compiler/Cargo.toml` to use `bzip2 = { workspace = true }` and `zstd = { workspace = true }`.
+- Updated `crates/vox-gui/Cargo.toml` to use `tauri = { workspace = true }`.
+- Updated `crates/vox-tauri-sherpa/Cargo.toml` to use `tauri = { workspace = true, optional = true }`.
+
+--- audit: original='build(workspace): consolidate bzip2/zstd/hmac/ignore/crossbeam-queue/tauri into workspace.dependencies (B-3-trim)' | actual=28L across 7 files | derived=full ---
