@@ -1,0 +1,15 @@
+feat(coderabbit): add option to push empty baseline for full-repo analysis
+scale: ~89 lines across 3 files [M]
+
+- `crates/vox-cli/src/commands/review/coderabbit/github.rs`:
+  - Modified `push_baseline_from_origin` to accept an `empty` boolean.
+  - If `empty` is true, creates an empty-tree commit descending from `origin/<default_branch>` and pushes it as the baseline.
+  - This allows CodeRabbit to treat all files as new for full-repo reviews.
+- `crates/vox-cli/src/commands/review/coderabbit/semantic_planner.rs`:
+  - Passed `cfg.full_repo` to the `push_baseline_from_origin` function to control the new `empty` parameter.
+- `crates/vox-populi/src/tensor/candle_qlora_train.rs`:
+  - Refactored ETA logging messages to be more concise and informative.
+  - Added tokens per second (tps) to the ETA output.
+  - Changed log output to use `\r` for non-spammy progress updates.
+
+--- audit: original='fix(coderabbit): pass empty boolean to baseline push enabling true full-repo from scratch analysis via origin/main parentage' | actual=89L across 3 files | derived=full ---
