@@ -1,0 +1,29 @@
+feat(deprecated): activate `@deprecated` fn warning and thread optional reason string
+scale: ~724 lines across 24 files [L]
+
+- **`crates/vox-compiler/tests/deprecated_fn_warning.rs`**: Add new end-to-end tests for `@deprecated` functionality, covering parsing of the optional reason, its propagation through lowering, and its surfacing in usage-site warnings. Also includes a regression guard for previously non-firing function deprecation warnings.
+- **`crates/vox-compiler/src/typeck/env.rs`**: Introduce `deprecation_reasons` HashMap to `TypeEnv` to store optional reason strings for deprecated names, and add methods `set_deprecation_reason` and `deprecation_reason` to manage this map.
+- **`crates/vox-compiler/src/parser/descent/decl/head_fn.rs`**: Modify function head parsing to recognize and capture an optional string literal argument for the `@deprecated` decorator, storing it in `deprecated_reason`.
+- **`crates/vox-compiler/src/typeck/checker/expr.rs`**: Update the type checker to include the `deprecated_reason` in the warning message when a deprecated identifier is used, if a reason is provided.
+- **`crates/vox-compiler/src/hir/lower/decl.rs`**: Propagate the `deprecated_reason` from the AST `FnDecl` to the HIR `HirFn` during lowering.
+- **`crates/vox-compiler/src/typeck/registration.rs`**: Register the `is_deprecated` status of `HirFn` correctly and store the `deprecated_reason` in the `TypeEnv` if present.
+- **`crates/vox-compiler/src/hir/nodes/decl.rs`**: Add `deprecated_reason: Option<String>` field to `HirFn` to store the optional deprecation message.
+- **`crates/vox-ast/src/decl/fundecl.rs`**: Add `deprecated_reason: Option<String>` field to `FnDecl` to store the optional deprecation message.
+- **`crates/vox-compiler/src/hir/lower/json_as.rs`**: Initialize `deprecated_reason` to `None` for functions created during JSON lowering.
+- **`crates/vox-codegen/src/codegen_rust/emit/script_db.rs`**: Initialize `deprecated_reason` to `None` for functions created from endpoints.
+- **`crates/vox-compiler/src/hir/lower/expr.rs`**: Initialize `deprecated_reason` to `None` for functions created during expression lowering.
+- **`crates/vox-compiler/src/hir/validate.rs`**: Initialize `deprecated_reason` to `None` in test HIR function builders.
+- **`crates/vox-compiler/src/parser/descent/decl/head.rs`**: Add `deprecated_reason` to the `FnDecl` struct.
+- **`crates/vox-compiler/src/parser/descent/mod.rs`**: Add `deprecated_reason` to the `FnDecl` struct.
+- **`crates/vox-compiler/src/typeck/cuda_gate.rs`**: Add `deprecated_reason` to the `FnDecl` struct.
+- **`crates/vox-compiler/tests/decl_lowering_test.rs`**: Add `deprecated_reason` to the `FnDecl` struct.
+- **`crates/vox-test-harness/src/hir_builders.rs`**: Add `deprecated_reason` to the `HirFn` builder.
+- **`docs/src/reference/ref-decorators.md`**: Update `@deprecated` decorator documentation to reflect the parsing of the optional reason string and the emitted warnings, removing the "Planned — not yet parseable" note.
+- **`docs/superpowers/plans/2026-06-15-deprecated-decorator-reason-threading.md`**: Add a new documentation plan detailing the threading of the `@deprecated("reason")` through the parser and HIR into the warning.
+- **`crates/vox-compiler/src/target.rs`**: Apply `rustfmt` to improve code style.
+- **`contracts/gui/surface-registry.v1.yaml`**: Add a new 'container' CLI group with tier 'none' to the GUI surface registry.
+- **`crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts`**: Regenerate TypeScript bindings for the GUI surface registry to include the new 'container' CLI group.
+- **`contracts/reports/gui-surface-coverage.v1.json`**: Regenerate GUI surface coverage report.
+- **`contracts/reports/gui-surface-registry.v1.json`**: Regenerate GUI surface registry report.
+
+--- audit: original='fix(typeck): activate @deprecated fn warning + thread optional reason string (#309)' | actual=724L across 24 files | derived=full ---
