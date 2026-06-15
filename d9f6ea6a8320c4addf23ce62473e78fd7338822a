@@ -1,0 +1,7 @@
+feat(vox-prereg): add retraction record and emission logic
+scale: ~145 lines across 1 files [M]
+
+- Introduce `retraction.rs` to manage retraction nanopub emission for SCIENTIA Phase 3.
+- Define `RetractionReason` enum to categorize reasons for retraction (DataError, AnalysisError, EthicsViolation, Superseded,
+
+--- audit: original='feat(scientia): retraction record + emission (Phase 3 Task 2)' | actual=145L across 1 files | derived=full ---
