@@ -1,0 +1,7 @@
+docs(generated): regenerate SUMMARY and architecture-index with new SSOT documents
+scale: ~4 lines across 2 files [S]
+
+- docs/src/SUMMARY.md: Added `terminal-exec-policy-ssot.md` and `agent-shell-fluency-eval-design-2026.md` to the generated index.
+- docs/src/architecture/architecture-index.md: Added `terminal-exec-policy-ssot.md` and `agent-shell-fluency-eval-design-2026.md` to the generated index.
+
+--- audit: original='docs(generated): regenerate SUMMARY/architecture-index/feed for new SSOT docs' | actual=4L across 2 files | derived=full ---
