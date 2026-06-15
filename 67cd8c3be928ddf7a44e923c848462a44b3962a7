@@ -1,0 +1,20 @@
+test(coverage): Add behavioral assertions for orchestrator, publisher, and populi
+scale: ~438 lines across 12 files [L]
+
+- `vox-orchestrator`:
+  - `queue/drain.rs`: Add tests for `dequeue` skipping tasks with unmet dependencies, `mark_complete` recording IDs and unblocking dependents, and `mark_complete` rejecting wrong IDs.
+  - `mode.rs`: Add tests for `QualityLevel::to_cost_preference` mapping Balanced/Flash to Economy and Premium to Performance, and `InferenceConfig::is_free_only` reflecting its field.
+  - `config/enums.rs`: Add tests for `ScalingProfile::threshold_multiplier` ordering Aggressive below Conservative, and `ScalingProfile::retirement_multiplier` keeping Aggressive idle agents longest.
+  - `types/tasks.rs`: Add test for `AgentTask::parse_description_hints` correctly separating tool and research hints.
+- `vox-publisher`:
+  - `scholarly/error.rs`: Add tests for `ScholarlyError::Http` `error_class` deriving from status codes (transient for 5xx, rate_limit for 429, fatal for 4xx) and `retryable` being true only for 429/5xx.
+  - `contract.rs`: Add test for `validate_github_repo` rejecting path traversal attempts.
+  - `scientia_prior_art.rs`: Add test for `jaccard_lexical_score` returning 0.0 for empty inputs.
+  - `scientia_evidence/markdown.rs`: Add test for `latex_escape_minimal` escaping special characters.
+  - `submission/arxiv.rs`: Add test for `validate_news_id` rejecting path traversal attempts.
+  - `switching.rs`: Add test for `deep_merge_json` merging nested objects correctly.
+- `vox-populi`:
+  - `transport/auth.rs`: Add tests for `auth_allows_worker_plane`, `auth_allows_deliver`, and `auth_allows_admin_route` enforcing role-based access, and `classify_bearer` matching exact tokens.
+  - `pairing/revocation.rs`: Add tests for `is_revoked` reporting true only for the specified key, `gc` with zero retention evicting all tombstones, and `gc` with long retention keeping fresh tombstones.
+
+--- audit: original='test(coverage): Phase-3 wave 3 — prove 26 frontier symbols (orchestrator/publisher/populi)' | actual=438L across 12 files | derived=full ---
