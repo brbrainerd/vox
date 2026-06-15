@@ -1,0 +1,9 @@
+fix(docs): Update category frontmatter and remove BOMs from architecture docs
+scale: ~807 lines across 4 files [L]
+
+- docs/src/architecture/:
+  - Removed `semantic-coverage-remediation-plan-2026-06-13.md` and `where-things-live.md` (likely moved or deleted, as indicated by full file deletion).
+  - Updated `gui-frontend-design-principles-2026-06-14.md` and `vox-gui-surface-map-2026-06-14.md` to change the `category` frontmatter from "architecture" to "Architecture SSOTs".
+  - Removed leading UTF-8 BOM characters from `semantic-coverage-remediation-plan-2026-06-13.md` and `where-things-live.md` (implied by full file deletion and original message, though not directly visible in diff).
+
+--- audit: original='fix(docs): canonical category frontmatter + strip UTF-8 BOMs (doc-pipeline drift)' | actual=807L across 4 files | derived=full ---
