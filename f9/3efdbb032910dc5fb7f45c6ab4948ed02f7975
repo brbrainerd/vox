@@ -1,0 +1,9 @@
+docs(arch): Update Orchestrator Tier D plan with post-A-12 LoC and headroom
+scale: ~22 lines across 1 files [S]
+
+- Update `last_updated` date to 2026-05-24.
+- Add a 2026-05-24 update section detailing the extraction of `dei_shim/` to `vox-dei-shim`.
+- Update `vox-orchestrator` LoC from 65,560 to 60,681 and headroom from 7% to 13.3%.
+- Note that Rule 13 has not fired and C5 extraction remains deferred.
+
+--- audit: original='docs(arch): update Tier-D plan to reflect post-A-12 orchestrator LoC' | actual=22L across 1 files | derived=full ---
