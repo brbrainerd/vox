@@ -1,0 +1,7 @@
+fix(tests): resolve race conditions in `db_migrate_semantics_test` and `vox-cli-tests`
+scale: ~45 lines across 2 files [S]
+
+- `db_migrate_semantics_test`: Isolate the canonical Codex store per test by setting `VOX_DATA_DIR` to a temporary directory, preventing "File is locked by another process" errors during parallel `nextest` runs.
+- `vox-cli-tests`: Implement a cross-process, directory-based lock (`.npm-install-lock`) with stale-lock stealing in `ensure_node_modules_installed` to serialize `npm install` operations, as `nextest` runs each test in its own process, rendering the in-process `OnceLock` insufficient for concurrent installs into shared directories.
+
+--- audit: original='fix(tests): de-race db-migrate codex store and npm install under nextest' | actual=45L across 2 files | derived=full ---
