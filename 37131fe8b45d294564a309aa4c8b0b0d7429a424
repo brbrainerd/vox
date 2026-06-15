@@ -1,0 +1,12 @@
+feat(compiler): Emit typed routePath builder in routes.manifest.ts
+scale: ~161 lines across 1 files [M]
+
+- `emit_route_manifest_from_web_ir`: Now calls `emit_route_path_builder` to generate the new typed route URL surface.
+- `emit_route_path_builder`: New function that generates TypeScript code for `KnownRoute` and `routePath`.
+  - `KnownRoute`: A union type of all declared route patterns, enabling compile-time typo checking.
+  - `routePath`: A constant object mapping each route pattern to a type-checked builder function.
+  - Builder functions: Accept path parameters as arguments and return the substituted URL string.
+  - Handles flattening of nested route contracts to collect all route patterns.
+  - Returns an empty string if no route paths are found.
+
+--- audit: original='feat(compiler): Phase C part 2 — typed routePath builder in routes.manifest.ts' | actual=161L across 1 files | derived=full ---
