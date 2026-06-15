@@ -1,0 +1,7 @@
+fix(gui): empty fabricated KPI seeds and correct IsolationPanel doc
+scale: ~19 lines across 2 files [S]
+
+- `crates/vox-gui/ui/src/data/initialState.ts`: Emptied the `peers` array and set `budgetBurn` and `mesh` KPI values to zero in `INITIAL_DATA`. This prevents fabricated data from rendering before live orchestrator status arrives.
+- `crates/vox-gui/ui/src/components/surfaces/Repository/IsolationPanel.tsx`: Updated the JSDoc for `unavailableNote` to clarify it's for graceful degradation when the orchestrator daemon is unreachable, rather than an unwired transport.
+
+--- audit: original='fix(gui): empty the fabricated peers/KPI seeds; correct stale IsolationPanel doc (#210)' | actual=19L across 2 files | derived=full ---
