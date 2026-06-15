@@ -1,0 +1,10 @@
+feat(coverage-graph): add semantic test-coverage overlay (Phase 1)
+scale: ~1734 lines across 9 files [XL]
+
+- scripts/coverage-graph/overlay_tests.py: Add script to parse Rust test functions, identify tested symbols, and generate coverage edges (proven/targeted). Includes regex for test attributes, function definitions, assertion macros, and constants for precision filtering (stoplist, name spread).
+- scripts/coverage-graph/test_overlay_tests.py: Add 43 pytest tests for `overlay_tests.py`, covering helper functions like `_strip_label`, `crate_from_source_file`, `extract_body`, `find_assertion_spans`, `in_assertion_context`, and the main `detect_tests` and `run_overlay` logic.
+- graphify-out/COVERAGE_MAP.md: Add generated report detailing per-crate semantic test coverage, including counts for proven, targeted-only, and unproven symbols across 115 crates.
+- scripts/coverage-graph/fixtures/: Add Rust fixture files (`lib.rs`, `integration_test.rs`) and a `fixture_graph.json` to provide sample code and graph data for testing the coverage overlay script.
+- .gitignore: Add entries to ignore generated graph artifacts (`graph.coverage.json`, `graph.full.json`, `graph.json`, and `.log` files) within `graphify-out/`.
+
+--- audit: original='feat(coverage-graph): semantic test-coverage overlay (Phase 1)' | actual=1734L across 9 files | derived=full ---
