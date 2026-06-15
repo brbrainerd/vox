@@ -1,0 +1,7 @@
+fix(goldens): Add inbound links to satisfy web_ir.route.unreachable validator
+scale: ~4 lines across 2 files [S]
+
+- `examples/golden/blog_fullstack.vox`: Modified the `BlogHome` component's view to include an `<a>` tag linking to `/edit`.
+- `examples/golden/web_routing_fullstack.vox`: Modified the `Home` component's view to include an `<a>` tag linking to `/section`.
+
+--- audit: original='fix(goldens): add inbound links to satisfy web_ir.route.unreachable' | actual=4L across 2 files | derived=full ---
