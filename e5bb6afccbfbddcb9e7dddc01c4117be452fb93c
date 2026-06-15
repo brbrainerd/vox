@@ -1,0 +1,12 @@
+docs(audit): record session 10 completions and retire 10 audit items
+scale: ~25 lines across 1 files [S]
+
+- docs/src/architecture/crate-audit-and-plan-2026.md:
+    - Added a new section "7f. Execution log (2026-05-25, session 10 — free-by-default sprint + D-7 Step 2 + retirement pass)" to document the outcomes of session 10.
+    - Recorded the completion of the "F-F sprint" (free-by-default sprint) including changes to `ModelTier` and `CostPreference`, reactivation of `vox-dei-shim/src/selection/`, and model reclassification.
+    - Documented the completion of "D-7-rescope Step 2" for `vox-populi-types L2 crate` (ADR-042, commit a0a236ee44).
+    - Recorded the re-fix for "B-2" where `env-var` pattern replaced `dirs` dependency (commit e83a29e9a8).
+    - Documented the official retirement of "A-9" (fan-in split) with rationale.
+    - Recorded the retirement/closure of 7 previously logged audit items: A-22, B-13, D-17, D-3, D-8, B-1, and B-6, with verification details.
+
+--- audit: original='docs(audit): retire 10 resolved/FP items + record session-10 completions' | actual=25L across 1 files | derived=full ---
