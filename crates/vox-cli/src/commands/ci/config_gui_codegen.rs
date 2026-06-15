@@ -272,4 +272,37 @@ mod tests {
             );
         }
     }
+    #[test]
+    fn ts_index_and_rust_fields_cover_identical_surfaced_keys() {
+        // Both generators must emit exactly the same set of CONFIG_KEYS rows.
+        // Drift between them is impossible as long as both call is_surfaced() on
+        // the same slice — this test pins that invariant.
+        let surfaced: Vec<&str> = CONFIG_KEYS
+            .iter()
+            .filter(|k| is_surfaced(k))
+            .map(|k| k.key)
+            .collect();
+        let ts = render_generated_index_ts(CONFIG_KEYS);
+        let rs = render_generated_fields_rs(CONFIG_KEYS);
+        for key in &surfaced {
+            let id = id_of(key);
+            // TS format: `id: "wasm-skill-fuel"` (kebab id, not raw env key)
+            assert!(
+                ts.contains(&format!("id: {id:?}")),
+                "key {key} (id={id}) missing from generated TS index"
+            );
+            // Rust FIELDS format: `key: "VOX_WASM_SKILL_FUEL"` (raw env key)
+            assert!(
+                rs.contains(key),
+                "key {key} missing from generated Rust FIELDS"
+            );
+        }
+        // Both surfaces must reference the same count of distinct keys.
+        let ts_count = ts.matches("id: \"").count();
+        let rs_count = rs.matches("GeneratedField {").count();
+        assert_eq!(
+            ts_count, rs_count,
+            "TS index has {ts_count} entries but Rust FIELDS has {rs_count} — surfaces diverged"
+        );
+    }
 }
