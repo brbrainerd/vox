@@ -1,0 +1,6 @@
+docs(arch-check): forbid raw `jj` subprocess calls
+scale: ~13 lines across 1 files [S]
+
+- `docs/src/architecture/layers.toml`: Added a new `forbidden_pattern` rule named "raw-jj-exec" to prevent direct `Command::new("jj")` calls within `crates/**/*.rs` files. This rule exempts `crates/vox-cli/src/commands/vcs.rs` for sanctioned `vox vcs` CLI tool usage.
+
+--- audit: original='build(arch-check): forbid raw jj subprocess (exempt the sanctioned vox vcs CLI tool)' | actual=13L across 1 files | derived=full ---
