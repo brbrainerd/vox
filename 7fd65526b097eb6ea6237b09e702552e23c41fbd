@@ -1,0 +1,7 @@
+feat(vox-claim-extractor): add constrained envelope validation to pipeline
+scale: ~10 lines across 2 files [S]
+
+- `crates/vox-claim-extractor/src/pipeline.rs`: Integrate `validate_claim_envelope` into the extraction pipeline to filter `AtomicClaim`s based on constrained envelope validation.
+- `crates/vox-claim-extractor/Cargo.toml`: Add `reqwest` dependency with `json` feature.
+
+--- audit: original='fix(scientia): spec compliance — add reqwest dep + wire constrained envelope validation in pipeline (Phase 1)' | actual=10L across 2 files | derived=full ---
