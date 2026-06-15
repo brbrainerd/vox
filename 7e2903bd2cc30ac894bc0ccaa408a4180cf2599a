@@ -1,0 +1,21 @@
+feat(gui): wire Loquela attach and Memory pin-to-context to shared context set
+scale: ~347 lines across 5 files [L]
+
+- `crates/vox-gui/ui/src/lib/loquelaContext.test.ts`: Add 11 new Vitest unit tests for `contextRefsFromPayload` and `attachItemsFromHits` functions.
+- `crates/vox-gui/ui/src/App.tsx`:
+    - Import `contextRefsFromPayload`.
+    - Refactor `executeWithRun` into `executeIpcWithRun` to handle IPC commands with run tracking, removing the direct `voxTransport.callTool` execution.
+    - Update `handleLoquelaSubmit` to use `contextRefsFromPayload` for resolving the `files` manifest from the submit payload's `context` chips.
+- `crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx`:
+    - Introduce `onAttachContext` prop to allow pinning recall hits to the shared Loquela context.
+    - Implement "Pin all to context" and per-hit pin functionality using `attachItemsFromHits` and `onAttachContext` for file/web locators.
+    - Add state and logic for `recallOn` (auto-recall) preference, including hydration and persistence.
+- `crates/vox-gui/ui/src/lib/loquelaContext.ts`: Add new file defining `ContextRef`, `AttachItem`, `AttachableHit` interfaces and pure helper functions:
+    - `attachItemsFromHits`: Converts recall/search hits into pinnable context items, filtering for 'file' and 'web' locators.
+    - `contextRefsFromPayload`: Resolves the file manifest from a Loquela submit payload, prioritizing explicit files and mapping context chips.
+- `crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx`:
+    - Implement `attachContext` function to prompt for a file path or URL and add it as a context chip to the shared `chips` state.
+    - Wire the Loquela attach (+) button to use the new `attachContext` function, enabling real file/URL context attachment.
+    - Remove `mic` state, explicitly noting microphone capture is not yet wired.
+
+--- audit: original='feat(gui): wire Loquela attach + Memory pin-to-context (real context set) (#208)' | actual=347L across 5 files | derived=full ---
