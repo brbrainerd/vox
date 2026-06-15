@@ -15,16 +15,23 @@ pub struct VisualReviewConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Finding {
+    #[serde(default)]
     pub principle: String,
+    #[serde(default)]
     pub severity: String,
+    #[serde(default)]
     pub region: String,
+    #[serde(default)]
     pub critique: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReviewVerdict {
+    #[serde(default)]
     pub score: u32,
+    #[serde(default)]
     pub verdict: String,
+    #[serde(default)]
     pub findings: Vec<Finding>,
 }
 
@@ -105,5 +112,15 @@ mod tests {
         let s = serde_json::to_string(&idx).unwrap();
         let back: CacheIndex = serde_json::from_str(&s).unwrap();
         assert_eq!(back.entries["dashboard"].score, 82);
+    }
+    #[test]
+    fn verdict_tolerates_missing_finding_fields() {
+        let json = r#"{ "score": 55, "verdict": "fail", "findings": [ { "severity": "high", "region": "top", "critique": "x" } ] }"#;
+        let v: ReviewVerdict = serde_json::from_str(json).unwrap();
+        assert_eq!(v.findings.len(), 1);
+        assert_eq!(v.findings[0].principle, ""); // defaulted, not an error
+        let empty: ReviewVerdict =
+            serde_json::from_str(r#"{ "score": 90, "verdict": "pass" }"#).unwrap();
+        assert!(empty.findings.is_empty());
     }
 }
