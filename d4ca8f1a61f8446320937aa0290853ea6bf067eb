@@ -1,0 +1,10 @@
+docs: update generated documentation files
+scale: ~22 lines across 5 files [S]
+
+- `docs/src/feed.xml`: Regenerated the feed XML, resulting in 10 lines added and 10 lines removed.
+- `docs/src/SUMMARY.md`: Added a new entry to the documentation summary.
+- `docs/src/architecture/architecture-index.md`: Added a new entry to the architecture index.
+- `docs/src/assets/durable_execution_demo.png`: No changes to this binary file.
+- `docs/src/assets/durable_state_loop.webp`: No changes to this binary file.
+
+--- audit: original='chore(docs): re-delete resurrected assets; sync SUMMARY/architecture-index/feed' | actual=22L across 5 files | derived=full ---
