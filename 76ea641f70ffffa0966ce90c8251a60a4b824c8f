@@ -1,0 +1,7 @@
+fix(webhook): WebSocket channel send returns error instead of silent drop
+scale: ~42 lines across 2 files [S]
+
+- `crates/vox-plugin-webhook/src/webhook/channel.rs`: Modified `ChannelManager::send` for `ChannelKind::WebSocket` to return a `WebhookError::Channel` with an informative message instead of silently dropping messages and logging a warning. This change ensures callers are aware of delivery failures for WebSocket channels, which are not yet fully implemented. Added a new test `websocket_channel_send_returns_error_not_silently_dropped` to verify this behavior.
+- `crates/vox-actor-runtime/src/transport.rs`: Added documentation to `StreamTransport` explaining the v1.x codegen wiring steps required for `StreamTransport::WebSocket` to be fully supported.
+
+--- audit: original='fix(webhook): convert WebSocket channel silent-drop to explicit error (STUB-4)' | actual=42L across 2 files | derived=full ---
