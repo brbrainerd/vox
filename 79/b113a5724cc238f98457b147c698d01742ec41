@@ -1,23 +1,23 @@
-feat(orchestrator): add comprehensive testing, schemas, and CUDA kernel patches
+feat(orchestrator): refactor and expand orchestrator, add new tests and schemas
 scale: ~52866 lines across 182 files [XL]
 
-DIVERGENCE: original subject claimed 'chore: add missing workspace tests, schemas, configurations, and patch dependencies' but this commit actually changed ~52866 lines across 182 files. Top areas:
-docs: 24170 lines, 15 files
-patches: 11335 lines, 38 files
-vox-vscode: 7552 lines, 5 files
-crates: 5314 lines, 80 files
-(root): 2348 lines, 9 files
-.opencode: 931 lines, 4 files
-tree-sitter-vox: 513 lines, 7 files
-dist: 512 lines, 17 files
-contracts: 70 lines, 1 files
-populi: 65 lines, 3 files
-packages: 26 lines, 1 files
-script: 24 lines, 1 files
-.vscode: 6 lines, 1 files
-
-- chore(deps): update `vox-vscode` and `.opencode` `package-lock.json` files
-- feat(docs): add new agent documentation, API schemas, and font licenses
-- feat(patches): introduce extensive CUDA kernel patches for `candle-
+- Refactor `vox-orchestrator` with significant changes to `orchestrator.rs`, `task_dispatch.rs`, `accessors.rs`, `types.rs`, `comms.rs`, `queue.rs`, `core.rs`, `scaling.rs`, and `agent_lifecycle.rs`.
+- Add new tests for `vox-orchestrator` including `routing_tests.rs` and `affinity_group_tests.rs`.
+- Introduce extensive new CUDA kernel patches for `candle-kernels-0.9.2`, including `quantized.cu`, `moe/gguf.cuh`, `conv.cu`, `reduce.cu`, `indexing.cu`, `moe/moe_wmma_gguf.cu`, `moe/moe_wmma.cu`, `unary.cu`, `cast.cu`, `cuda_utils.cuh`, `moe/moe_gguf.cu`, `moe/moe_utils.cuh`, `compatibility.cuh`, `binary.cu`, `sort.cu`, `fill.cu`, `build.rs`, `lib.rs`, `ternary.cu`, `binary_op_macros.cuh`, `ffi.rs`, and `affine.cu`.
+- Update `vox-vscode` with new `package-lock.json`, `package.json`, `syntaxes/vox.tmLanguage.json`, and `language-configuration.json`.
+- Add new documentation files under `docs/agents/` including `doc-inventory.json`, `script-registry.json`, `git-concurrency-policy.md`, and `baseline-script-metrics.json`.
+- Add new documentation files under `docs/book/` and `docs/src/` including `fonts/OPEN-SANS-LICENSE.txt`, `api/decorators.json`, `api/keywords.json`, `fonts/SOURCE-CODE-PRO-LICENSE.txt`, and `.well-known/vox-docs.json`.
+- Add new test vectors for `aegis-0.9.8` under `patches/aegis-0.9.8/src/test-vectors/` for `aegis-128l`, `aegis-256`, `aegis-128x4`, `aegismac`, `aegis-256x4`, `aegis-128x2`, and `aegis-256x2`.
+- Add new test files for `vox-db` including `db_research_tests.rs`, `db_connection_tests.rs`, and `migration_tests.rs`.
+- Add new test files for `vox-pm` including `ops_codex_tests.rs`, `ops_agents_tests.rs`, `ops_memory_tests.rs`, and `ops_cas_tests.rs`.
+- Add new corpus test files for `tree-sitter-vox` including `advanced_features.txt`, `types_and_control_flow.txt`, `components.txt`, `actors_and_decorators.txt`, and `functions.txt`.
+- Update `vox-corpus` with changes to `synthetic_gen.rs` and `arca_replay.rs`, and add `preflight.rs`.
+- Update `vox-mcp` with changes to `chat_tools.rs`, `db_tools.rs`, `providers.rs`, `compiler_tools.rs`, and `mod.rs`.
+- Add new configuration files: `.coderabbit-semantic-manifest.json`, `opencode.json`, `vox-agent.json`, and `vox-schema.json`.
+- Update `Cargo.lock` and `Cargo.toml` for `vox-populi`.
+- Add new `package-lock.json` files for `.opencode/plugins/vox-opencode-plugin/`, `.opencode/`, and `tree-sitter-vox/`.
+- Add new schema files: `contracts/cli/command-registry.schema.json` and `populi/schemas/tool_trace_record.schema.json`.
+- Remove various distribution and generated files from `dist/`.
+- Minor changes to `crates/vox-workflow-runtime/src/lib.rs`, `crates/vox-pm/src/store/ops_codex.rs`, `crates/vox-cli/src/commands/workflow.rs`, `crates/vox-dei/src/research/orchestrator.rs`, `crates/vox-runtime/src/llm_result.rs`, `crates/vox-test-harness/src/barriers.rs`, `crates/vox-pm/src/schema/v3.rs`, `crates/vox-orchestrator/src/continuation.rs`, `crates/vox-orchestrator/src/runtime.rs`, `crates/vox-pm/src/store/ops_agents.rs`, `crates/vox-populi/src/tensor/candle_qlora_train.rs`, `crates/vox-cli/src/commands/corpus.rs`, `crates/vox-mcp/tests/tool_dispatch_tests.rs`, `crates/vox-orchestrator/src/events.rs`, `crates/vox-db/src/lib.rs`, `tree-sitter-vox/package.json`, `packages/vox-ui/package.json`, and `script/audit_tests.py`.
 
 --- audit: original='chore: add missing workspace tests, schemas, configurations, and patch dependencies' | actual=52866L across 182 files | derived=stat-only ---
