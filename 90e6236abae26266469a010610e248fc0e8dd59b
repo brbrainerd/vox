@@ -1,0 +1,15 @@
+feat(stdlib): Add `std.regex` with `compile`, `Regex`, and `Match` types
+scale: ~131 lines across 10 files [M]
+
+- **`crates/vox-runtime/src/builtins/mod.rs`**: Introduce `VoxRegex` and `VoxMatch` structs, implementing `matches`, `find`, `find_all` for `VoxRegex`, and `group` for `VoxMatch`. Add `vox_regex_compile` function for pattern compilation.
+- **`examples/golden/regex_stdlib.vox`**: Add a new golden example demonstrating `std.regex.compile`, `Regex.matches`, `Regex.find`, and `Match.group` usage.
+- **`crates/vox-compiler/src/typeck/builtins.rs`**: Define method maps for `Regex` (with `matches`, `find`, `find_all`) and `Match` (with `group`) types for type checking.
+- **`crates/vox-compiler/src/builtin_registry.rs`**: Register the `std.regex` namespace, its `compile` method signature, and map it to the `vox_regex_compile` runtime call.
+- **`crates/vox-compiler/src/typeck/checker/expr_field.rs`**: Add dispatch logic for `StdRegexNs` to resolve `std.regex` methods.
+- **`crates/vox-compiler/src/typeck/checker/expr.rs`**: Include `StdRegexNs` in the list of recognized standard library namespaces.
+- **`docs/superpowers/plans/2026-05-08-language-features-tracker-index.md`**: Update the language features tracker to mark the `regex stdlib` plan as landed.
+- **`docs/superpowers/plans/2026-05-08-language-regex-stdlib.md`**: Amend the regex stdlib plan document with implementation details, noting deferred TS codegen and reference documentation.
+- **`crates/vox-runtime/Cargo.toml`**: Add the `regex` crate dependency to `vox-runtime`.
+- **`Cargo.lock`**: Update lock file to reflect new dependency.
+
+--- audit: original='feat(stdlib): regex via std.regex (plan 5)' | actual=131L across 10 files | derived=full ---
