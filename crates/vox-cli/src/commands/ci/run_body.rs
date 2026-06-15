@@ -67,7 +67,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::PolicyRegistryParity => {
             super::policy_registry::run_parity(&root).map_err(|e| anyhow!(e))
         }
-        CiCmd::ConfigHygiene => super::config_hygiene::run(),
+        CiCmd::ConfigHygiene { update_baseline } => super::config_hygiene::run(update_baseline),
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
         CiCmd::CheckFrozen => vox_cli_ci::frozen_crates::check_frozen_crates(&root),
         CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(&root),

@@ -1,6 +1,7 @@
 //! `vox ci config-hygiene`: machine guardrails that keep config single-homed,
 //! safe-by-default, and never silently inert. Run BEFORE the configurability plan.
 
+use std::collections::BTreeSet;
 use std::path::Path;
 
 /// A single hygiene violation (file:line + message).
@@ -10,6 +11,44 @@ pub struct Violation {
     pub file: String,
     pub line: usize,
     pub message: String,
+}
+
+/// Baseline key for a violation: `check|file` (coarse-but-robust ratchet — new
+/// files/crates introducing the anti-pattern fail; pre-existing dirty files are
+/// grandfathered until the backlog is burned down).
+pub fn baseline_key(v: &Violation) -> String {
+    format!("{}|{}", v.check, v.file.replace('\\', "/"))
+}
+
+/// Return only the violations whose key is NOT in the baseline (the NEW ones).
+pub fn unbaselined<'a>(
+    violations: &'a [Violation],
+    baseline: &BTreeSet<String>,
+) -> Vec<&'a Violation> {
+    violations
+        .iter()
+        .filter(|v| !baseline.contains(&baseline_key(v)))
+        .collect()
+}
+
+/// Path to the grandfathered-violations baseline, relative to repo root.
+const BASELINE_REL_PATH: &str = "contracts/config/config-hygiene-baseline.txt";
+
+/// Load the baseline keys from disk. Non-empty, non-`#` lines are keys. A
+/// missing file yields an empty set (gate then fails on every violation).
+fn load_baseline(root: &Path) -> BTreeSet<String> {
+    let mut set = BTreeSet::new();
+    let path = root.join(BASELINE_REL_PATH);
+    if let Ok(text) = std::fs::read_to_string(&path) {
+        for raw in text.lines() {
+            let line = raw.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            set.insert(line.to_string());
+        }
+    }
+    set
 }
 
 /// Check A: forbid cwd-relative `contracts/...` paths passed to file loaders.
@@ -43,7 +82,12 @@ pub fn check_protected_modules_have_no_env_reads(_source: &str, _file: &str) -> 
 }
 
 /// Run all config-hygiene checks across the workspace.
-pub fn run() -> anyhow::Result<()> {
+///
+/// Uses a baseline ratchet: violations whose `(check, file)` key is already
+/// recorded in `contracts/config/config-hygiene-baseline.txt` are grandfathered,
+/// and the gate fails only on NEW (unbaselined) violations. With
+/// `update_baseline`, regenerate the baseline file from the current tree.
+pub fn run(update_baseline: bool) -> anyhow::Result<()> {
     let root = std::env::current_dir()?;
     let mut violations = Vec::new();
     collect_rs_files(&root.join("crates"), &mut |path, src| {
@@ -58,14 +102,46 @@ pub fn run() -> anyhow::Result<()> {
         violations.extend(check_no_cwd_relative_contract_paths(src, &rel));
         violations.extend(check_protected_modules_have_no_env_reads(src, &rel));
     });
-    if violations.is_empty() {
-        println!("config-hygiene OK: no violations");
+
+    if update_baseline {
+        let keys: BTreeSet<String> = violations.iter().map(baseline_key).collect();
+        let mut out = String::from(
+            "# config-hygiene baseline — grandfathered violations; burn down over time. \
+             Regenerate: vox ci config-hygiene --update-baseline\n",
+        );
+        for key in &keys {
+            out.push_str(key);
+            out.push('\n');
+        }
+        let path = root.join(BASELINE_REL_PATH);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&path, out)?;
+        println!(
+            "config-hygiene: wrote {} grandfathered key(s) to {}",
+            keys.len(),
+            BASELINE_REL_PATH
+        );
         return Ok(());
     }
-    for v in &violations {
+
+    let baseline = load_baseline(&root);
+    let news = unbaselined(&violations, &baseline);
+    let grandfathered = violations.len() - news.len();
+    if news.is_empty() {
+        println!("config-hygiene OK: {grandfathered} grandfathered, 0 new");
+        return Ok(());
+    }
+    for v in &news {
         eprintln!("[{}] {}:{} — {}", v.check, v.file, v.line, v.message);
     }
-    anyhow::bail!("config-hygiene found {} violation(s)", violations.len())
+    anyhow::bail!(
+        "config-hygiene found {} NEW violation(s) ({} grandfathered). \
+         Fix them, or run `vox ci config-hygiene --update-baseline` to grandfather.",
+        news.len(),
+        grandfathered
+    )
 }
 
 fn collect_rs_files(dir: &Path, f: &mut impl FnMut(&Path, &str)) {
@@ -109,5 +185,27 @@ mod tests {
         assert!(check_no_cwd_relative_contract_paths(ok, "x.rs").is_empty());
         let comment = r#"// loads contracts/gamify/economy.v1.yaml at build time"#;
         assert!(check_no_cwd_relative_contract_paths(comment, "x.rs").is_empty());
+    }
+
+    #[test]
+    fn baseline_suppresses_grandfathered_only() {
+        let grand = Violation {
+            check: "no-cwd-relative-contract-path",
+            file: "crates/a.rs".into(),
+            line: 5,
+            message: "x".into(),
+        };
+        let fresh = Violation {
+            check: "no-cwd-relative-contract-path",
+            file: "crates/b.rs".into(),
+            line: 9,
+            message: "x".into(),
+        };
+        let mut base = std::collections::BTreeSet::new();
+        base.insert(baseline_key(&grand));
+        let all = [grand.clone(), fresh.clone()];
+        let news = unbaselined(&all, &base);
+        assert_eq!(news.len(), 1);
+        assert_eq!(news[0].file, "crates/b.rs");
     }
 }

@@ -145,7 +145,11 @@ pub enum CiCmd {
     /// Config hygiene: no cwd-relative contract paths, no env reads in protected
     /// (never-configure) modules. Run before the configurability plan.
     #[command(name = "config-hygiene")]
-    ConfigHygiene,
+    ConfigHygiene {
+        /// Regenerate the grandfathered-violations baseline file.
+        #[arg(long)]
+        update_baseline: bool,
+    },
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
     SsotDrift,
