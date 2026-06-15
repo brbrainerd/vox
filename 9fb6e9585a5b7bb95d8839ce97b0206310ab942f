@@ -1,0 +1,23 @@
+feat(compiler): Add overlay primitives and z-index/position validator
+scale: ~349 lines across 6 files [L]
+
+- `crates/vox-compiler/src/web_ir/validate_overlay.rs`: New module for validating overlay structures.
+  - Checks for duplicate `z` values among siblings within an overlay root, emitting a `web_ir_validate.overlay.duplicate_z` warning.
+  - Checks for duplicate `position` values among siblings within an overlay root, emitting a `web_ir_validate.overlay.position_conflict` warning.
+  - Identifies overlay roots by `data-vox-overlay="true"` and children by `data-vox-z` and `data-vox-pos` attributes.
+- `crates/vox-compiler/src/web_ir/primitives/mod.rs`:
+  - Adds `overlay`, `toast`, `drawer`, and `modal` primitives.
+  - `overlay` maps to a `div` with `relative` positioning and `aria-role="presentation"`.
+  - `toast` and `drawer` map to `div`s with `fixed` positioning, apply `position` and `z` attributes as Tailwind classes, and have `aria-role="alert"` and `aria-role="dialog"` respectively.
+  - `modal` maps to a `div` with `fixed`, `inset-0`, `flex`, `items-center`, `justify-center` classes, and applies `z` as a Tailwind class.
+- `crates/vox-compiler/tests/web_ir_lower_emit_test.rs`:
+  - Adds a test `overlay_primitive_lowers_to_overlay_marker` to verify `overlay` primitive emits `data-vox-overlay="true"` and `toast` emits `data-vox-z` and `data-vox-pos`.
+  - Adds an integration test `overlay_duplicate_z_integration` to confirm duplicate `z` values trigger a diagnostic.
+- `crates/vox-compiler/src/web_ir/lower.rs`:
+  - Extends `PRIMITIVE_CONSUMED_PROPS` with "z" and "position".
+  - Modifies `apply_primitive_emission` to add `data-vox-overlay="true"` to `overlay` elements.
+  - Adds `data-vox-z` and `data-vox-pos` attributes to `toast`, `drawer`, and `modal` elements based on their `z` and `position` props.
+- `crates/vox-compiler/src/web_ir/mod.rs`: Declares the new `validate_overlay` module.
+- `crates/vox-compiler/src/web_ir/validate.rs`: Integrates `validate_overlay` into the full Web IR validation process.
+
+--- audit: original='feat(compiler): TASK-6.4 -- overlay block + z-index DAG validator' | actual=349L across 6 files | derived=full ---
