@@ -1,0 +1,5 @@
+feat(orchestrator-mcp/lifecycle): emit TaskRootSummary on task completion/failure/doubt
+scale: ~48 lines across 1 files [S]
+- `crates/vox-orchestrator-mcp/src/task_tools/lifecycle.rs`: Added `TaskRootSummary` telemetry event emission after the gamification block in `complete_task`, `fail_task`, and `doubt_task` functions. The event includes `task_id`, `trace_id`, `outcome` ("completed", "failed", or "doubted"), and placeholder zero values for `wall_time_ms`, `total_input_tokens`, `total_output_tokens`, and `total_cost_usd`. It also captures `max_span_depth` from the current trace context.
+
+--- audit: original='feat(orchestrator-mcp/C5): emit task_root_summary on complete/fail/doubt' | actual=48L across 1 files | derived=full ---
