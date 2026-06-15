@@ -1,0 +1,8 @@
+refactor(vox-populi): apply cargo fmt and adjust module imports
+scale: ~20 lines across 3 files [S]
+
+- `crates/vox-populi/src/mens/tensor/memory_budget.rs`: Apply `cargo fmt` to reformat multi-line assertions in test cases.
+- `crates/vox-populi/src/mens/tensor/vram_autodetect.rs`: Reformat an `if/else` block into a single line.
+- `crates/vox-populi/src/mens/tensor/mod.rs`: Reorder `pub mod memory_budget;` to group it with other `#[cfg(any(feature = "mens-train", feature = "mens-cloud"))]` modules.
+
+--- audit: original='style(vox-populi): cargo fmt (pre-existing formatting drift, unblocks push)' | actual=20L across 3 files | derived=full ---
