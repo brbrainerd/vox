@@ -1,0 +1,21 @@
+feat(vox-arch-check): add description and where-things-live lints, promote guards
+scale: ~216 lines across 8 files [M]
+
+- **crates/vox-arch-check/src/main.rs**:
+    - Implemented `description_present` lint: flags L1+ library crates with missing or short (`<40 chars`) `Cargo.toml` descriptions.
+    - Implemented `where_things_live_coverage` lint: flags workspace members not listed in `docs/src/architecture/where-things-live.md`.
+    - Updated `docstring` lint to be strict (`error`) for L0-L2 crates.
+    - Updated documentation to reflect the addition of two new rules, increasing the total from five to seven.
+    - Added `description` and `where_things_live` fields to `GuardsConfig` struct.
+    - Added `description_warns` and `where_things_live_warns` fields to `Report` struct.
+- **crates/vox-arch-check/tests/integration.rs**: Added a new integration smoke test to verify `vox-arch-check --warn-only` exits successfully.
+- **docs/src/architecture/layers.toml**:
+    - Promoted `description` guard from `warn` to `error`.
+    - Promoted `where_things_live` guard from `warn` to `error`.
+- **crates/vox-arch-check/tests/fixtures/missing-desc/Cargo.toml**: Added a new fixture crate with a missing `description` for testing the `description_present` lint.
+- **crates/vox-arch-check/tests/fixtures/missing-desc/src/lib.rs**: Added a new fixture crate with a missing `description` for testing the `description_present` lint.
+- **crates/vox-lsp/Cargo.toml**: Updated the `description` field to be more detailed.
+- **crates/vox-scientia-ingest/Cargo.toml**: Updated the `description` field to be more detailed.
+- **Cargo.toml**: Excluded the new `crates/vox-arch-check/tests/fixtures/missing-desc` fixture from workspace members.
+
+--- audit: original='feat(vox-arch-check): add description_present + where_things_live coverage lints' | actual=216L across 8 files | derived=full ---
