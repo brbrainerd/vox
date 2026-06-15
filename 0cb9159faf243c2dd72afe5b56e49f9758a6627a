@@ -1,0 +1,7 @@
+fix(.cargo): Configure CARGO_TARGET_DIR to use `relative = true` for shared target directory
+scale: ~8 lines across 2 files [S]
+
+- .cargo/config.toml: Changed `CARGO_TARGET_DIR` from a plain string `"target"` to `{ value = "target", relative = true }`. This ensures the target directory is resolved relative to the `.cargo/config.toml` file's location, causing all git worktrees to share a single root `target/` directory.
+- docs/agents/governance.md: Updated the "Cargo target isolation" section to explain the use of `relative = true` in `.cargo/config.toml` and its benefit in preventing per-worktree `target/` directory sprawl.
+
+--- audit: original='fix(.cargo): use relative=true for CARGO_TARGET_DIR to stop worktree target sprawl' | actual=8L across 2 files | derived=full ---
