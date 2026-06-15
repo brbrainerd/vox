@@ -1,0 +1,12 @@
+feat(vox-cli): add pre-flight validator for v0.dev TSX output
+scale: ~278 lines across 3 files [L]
+
+- `crates/vox-cli/src/v0_validate.rs`: New module implementing `scan_tsx_violations` to perform regex-based structural checks on raw v0.dev TSX output. This includes checks for:
+  - `v0.a11y.img_missing_alt`: `<img>` tags without `alt=` or `aria-hidden`.
+  - `v0.a11y.interactive_missing_label`: `<button>` or `<a href=>` without accessible names (text content or `aria-label=`).
+  - `v0.style.literal_color`: Hex (`#rrggbb`) and functional (`rgb(...)`, `hsl(...)`) color literals in JSX/inline styles.
+  - `v0.style.literal_dimension`: `px`, `rem`, `em` literals in inline style blocks.
+- `crates/vox-cli/src/commands/island/actions.rs`: Integrate `v0_validate::scan_tsx_violations` into the island generation pipeline. Violations found in the generated TSX are printed as warnings to stderr, but generation continues (non-blocking).
+- `crates/vox-cli/src/lib.rs`: Export the new `v0_validate` module.
+
+--- audit: original='feat(vox-cli): TASK-5.4 v0.dev output pre-flight validator' | actual=278L across 3 files | derived=full ---
