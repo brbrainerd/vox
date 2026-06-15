@@ -1,0 +1,15 @@
+chore(reports): update measured_at timestamps in daily audit artifacts
+scale: ~36 lines across 8 files [M]
+
+- contracts/reports/_snapshot/2026-05-22.json: Updated `measured_at` timestamp.
+- contracts/reports/audit-all/2026-05-22.json: Updated `measured_at` timestamp.
+- contracts/reports/aci-default/2026-05-22.json: Updated `measured_at` timestamp.
+- contracts/reports/corpus-feedback/2026-05-22.json: Updated `measured_at` timestamp.
+- contracts/reports/corpus-feedback/2026-Q2.json: Updated `measured_at` timestamp.
+- contracts/reports/deploy/2026-05-22.json: Updated `measured_at` timestamp.
+- contracts/reports/mens-on-distribution/2026-05-22.json: Updated `measured_at` timestamp.
+- contracts/reports/retirement/2026-05-22.json: Updated `measured_at` timestamp.
+
+The content (pass rates, thresholds) of these daily audit reports remains unchanged; only the `measured_at` timestamps were updated as a result of a `vox audit --gate all --strict-block-ga` run.
+
+--- audit: original='chore(reports): refresh daily artifacts from final fix-all audit pass' | actual=36L across 8 files | derived=full ---
