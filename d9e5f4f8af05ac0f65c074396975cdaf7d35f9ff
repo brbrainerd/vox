@@ -1,0 +1,9 @@
+feat(webhook, policy): implement HttpListener for webhook plugin and remove deprecated policies
+scale: ~1505 lines across 6 files [XL]
+
+- `crates/vox-plugin-webhook`: Implement `HttpListener` trait for `WebhookPlugin`, allowing it to start and stop an HTTP server. Add `HttpListener` to `extension-points` in `Plugin.toml`.
+- `contracts/policy/policy-registry.v1.yaml`: Remove 1442 lines of deprecated policies, including `code-audit/ai-laziness` and `code-audit/arch/empty_body`.
+- `crates/vox-integration-tests`: Update snapshot `greaterfool_parity_gates_test__greaterfool_ref_main_rs_emit.snap` due to changes in the HIR module.
+- `crates/vox-plugin-catalog`: Add `HttpListener` to the `extension-points` for the webhook plugin in `catalog.toml`.
+
+--- audit: original='test(ci): refresh baselines after main merge (policy registry, catalog, snapshots, webhook HttpListener)' | actual=1505L across 6 files | derived=full ---
