@@ -1,0 +1,6 @@
+ci(gitignore): Ignore Rust scratch files at the repository root
+scale: ~2 lines across 1 files [XS]
+
+- gitignore: Add patterns to ignore `*_head.rs` and `*_scratch*.rs` files in the root directory.
+
+--- audit: original='chore(infra): Ignore root-level scratch Rust files' | actual=2L across 1 files | derived=full ---
