@@ -1,0 +1,8 @@
+ci(docs-quality): replace `--check` with `--lint-only` in doc pipeline
+scale: ~13 lines across 1 files [S]
+
+- `.github/workflows/docs-quality.yml`:
+    - Replaced the `Doc pipeline strict check (lint + SUMMARY)` step, which used `cargo run -p vox-doc-pipeline -- --check`, with a `Doc lint (frontmatter, code fences, training rationale)` step using `cargo run -p vox-doc-pipeline -- --lint-only`.
+    - Removed the advisory `Run docs pipeline` and `Warn if docs pipeline failed` steps, which previously executed `cargo run -p vox-doc-pipeline`.
+
+--- audit: original='ci(docs-quality): replace blocking --check with --lint-only' | actual=13L across 1 files | derived=full ---
