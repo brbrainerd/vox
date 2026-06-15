@@ -1,0 +1,9 @@
+feat(wasm): forward tier-gated secrets to WASI sandbox via `--env`
+scale: ~194 lines across 4 files [M]
+
+- `crates/vox-orchestrator/src/a2a/remote_worker.rs`: Modified `run_dispatched_bundle` to gate secrets for WASM bundles. For `BundleKind::Wasm`, it now calls `secret_gate::gate_secrets` with `ExecTier::Sandboxed` to filter secrets based on `declared` and `secret_bag`. The filtered low-value secrets are then passed as explicit `--env KEY=VALUE` arguments to the `vox wasm run` command. The `harden_dispatch_env` function is now called with an empty `secret_env` for WASM, ensuring no secrets are passed via the subprocess environment.
+- `crates/vox-wasm-engine/tests/wasm_env_integration.rs`: Added a new integration test `guest_observes_exactly_the_forwarded_env_vars` to verify that `WasmExecOpts.env` variables are correctly forwarded to the WASI guest. The test uses a WASM module that exits with a code equal to the number of observed environment variables, proving end-to-end forwarding.
+- `crates/vox-cli/src/commands/wasm.rs`: Implemented `parse_env` function to parse repeatable `KEY=VALUE` strings from CLI arguments into `(String, String)` pairs for `WasmExecOpts.env`. This function rejects empty keys or entries without an equals sign. The `run` command now uses this `parse_env` function to populate `WasmExecOpts.env`.
+- `crates/vox-cli/src/cli_args.rs`: Added a new `--env` argument to `WasmRunArgs` to allow passing environment variables to the WASM guest, with a description noting its use for forwarding tier-gated secrets.
+
+--- audit: original='feat(mesh): real secret forwarding into the WASM sandbox tier (gate -> --env -> WASI)' | actual=194L across 4 files | derived=full ---
