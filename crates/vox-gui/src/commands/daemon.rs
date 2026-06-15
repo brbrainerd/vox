@@ -79,9 +79,8 @@ impl PersistentDaemon {
                         })
                     })
                     .unwrap_or_else(|| std::path::PathBuf::from("vox-orchestrator-d"));
-                let daemon_bin =
-                    resolve_or_stage_daemon(&target_sibling, &bin_dir)
-                        .unwrap_or_else(|_| resolve_managed_binary_path("vox-orchestrator-d"));
+                let daemon_bin = resolve_or_stage_daemon(&target_sibling, &bin_dir)
+                    .unwrap_or_else(|_| resolve_managed_binary_path("vox-orchestrator-d"));
                 let child = quiet_command(daemon_bin)
                     .env("VOX_ORCHESTRATOR_DAEMON_SOCKET", &addr)
                     .stdin(Stdio::null())
