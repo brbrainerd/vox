@@ -1,0 +1,7 @@
+fix(plugin-host): make plugin fixtures self-contained workspace roots
+scale: ~12 lines across 2 files [S]
+
+- `crates/vox-plugin-host/tests/fixtures/noop-code/Cargo.toml`: Added an empty `[workspace]` table to make the `noop-code` fixture a self-contained workspace root, ensuring it builds standalone regardless of the checkout location. This resolves issues where `cargo build` from a git worktree would incorrectly resolve the main `Cargo.toml` as the workspace.
+- `crates/vox-plugin-host/tests/fixtures/noop-code-bad-abi/Cargo.toml`: Added an empty `[workspace]` table to make the `noop-code-bad-abi` fixture a self-contained workspace root, ensuring it builds standalone.
+
+--- audit: original='test(plugin-host): make plugin fixtures self-contained workspace roots' | actual=12L across 2 files | derived=full ---
