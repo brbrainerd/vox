@@ -1,0 +1,6 @@
+refactor(audit): format semcov-gates binary output
+scale: ~16 lines across 1 files [S]
+
+- `crates/vox-audit/src/bin/semcov-gates.rs`: Reformatted `println!` and `eprintln!` calls to use multi-line arguments for improved readability.
+
+--- audit: original='style(audit): rustfmt semcov-gates bin (pre-push fmt)' | actual=16L across 1 files | derived=full ---
