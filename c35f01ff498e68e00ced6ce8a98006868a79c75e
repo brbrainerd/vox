@@ -1,0 +1,8 @@
+docs(architecture): update P5.3 plan to clarify future artifact creation
+scale: ~2 lines across 1 files [XS]
+
+- `docs/src/architecture/v1-llm-target-implementation-plan-2026.md`:
+    - Replaced the broken link to `vox-language-surface.v1.json` with backticked text and a note indicating it will be created in P5.3.
+    - Added a similar note for `.well-known/llms.txt` to clarify its future creation in P5.3.
+
+--- audit: original='fix(docs): replace broken-link to planned vox-language-surface.v1.json' | actual=2L across 1 files | derived=full ---
