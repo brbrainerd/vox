@@ -1,0 +1,13 @@
+test(orchestrator): add 11 free-function behavior proofs for Wave 1 semantic coverage
+scale: ~404 lines across 8 files [L]
+
+- `registry_model_resolve`: Add tests for `model_matches_task_strength` covering generalist models and models with empty strength lists.
+- `json_vcs_facade`: Add tests for `workspace_merge_json` with an existing lone workspace and `snapshot_diff_json` for two present snapshots.
+- `context_lifecycle`: Add a test for `merge_provenance_crdt` verifying missing ID backfilling, capture mode, and observed_via unioning.
+- `grounding`: Add tests for `declared_evidence_citations` covering empty input, trimming, deduping, and merging summary markers, and for `lower_contains_ascii_whole_word` covering substring rejection, empty needle, and non-alphanumeric boundaries.
+- `usage_policy`: Add tests for `parse_limit_json` covering invalid/malformed JSON, valid entries with trimming, and u32 clamping.
+- `groups`: Add tests for `repo_relative_glob` covering repo root directory, nested directories, and subdirectories.
+- `entropy_scorer`: Add tests for `semantic_drift_sigma` covering zero drift when text matches baseline.
+- `bootstrap`: Add a test for `inference_predicate` covering the `is_free` model property.
+
+--- audit: original='test(orchestrator): prove 11 verified free-function gaps (Wave 1 batch)' | actual=404L across 8 files | derived=full ---
