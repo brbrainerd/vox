@@ -1,0 +1,11 @@
+feat(stdlib): implement `std.json.parse` and `Json` accessor methods for Rust runtime
+scale: ~122 lines across 3 files [M]
+
+- `crates/vox-runtime/src/builtins/mod.rs`:
+    - Add `VoxJson` struct wrapping `serde_json::Value`.
+    - Implement accessor methods for `VoxJson`: `get_str`, `get_int`, `get_float`, `get_bool`, `get_object`, `get_array`, `is_null`, `length`, `at`, `keys`, `to_string`.
+    - Implement `vox_json_parse` function to parse a string into `Result<VoxJson, String>`.
+- `crates/vox-compiler/src/builtin_registry.rs`: Wire `("json", "parse")` to `vox_runtime::builtins::vox_json_parse` via `std_namespace_runtime_call`.
+- `docs/superpowers/plans/2026-05-08-language-json-stdlib.md`: Update plan document to reflect completion of server-side (Rust) implementation for JSON stdlib, deferring TypeScript codegen.
+
+--- audit: original='feat(stdlib): wire std.json.parse runtime + Json accessor methods' | actual=122L across 3 files | derived=full ---
