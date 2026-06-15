@@ -1,0 +1,10 @@
+feat(stdlib): Add `std.json.parse` and `Json` type signatures
+scale: ~85 lines across 5 files [M]
+
+- typeck/builtins.rs: Register `Json` opaque type with 11 accessor signatures: `get_str`, `get_int`, `get_float`, `get_bool`, `get_object`, `get_array`, `is_null`, `length`, `at`, `keys`, and `to_string`.
+- builtin_registry.rs: Add `std.json.parse(str) -> Result[Json]` to `std_namespace_method_ty`.
+- examples/golden/json_stdlib.vox: Add a new golden example demonstrating `std.json.parse` and nested object access using `Result` pattern matching.
+- docs/superpowers/plans/2026-05-08-language-features-tracker-index.md: Update the status of "JSON parse + access stdlib" to indicate it has landed.
+- docs/superpowers/plans/2026-05-08-language-json-stdlib.md: Add an amendment noting that this commit focuses on the type-system foundation, deferring codegen and app integration.
+
+--- audit: original='feat(stdlib): std.json.parse + Json type signatures (plan 2 foundation)' | actual=85L across 5 files | derived=full ---
