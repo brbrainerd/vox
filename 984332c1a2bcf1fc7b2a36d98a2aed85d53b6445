@@ -1,0 +1,9 @@
+fix(integration-tests): update actor keyword test for successful parsing
+scale: ~10 lines across 1 files [S]
+
+- `crates/vox-integration-tests/tests/chatbot_integration_test.rs`:
+    - Renamed `tombstoned_actor_keyword_produces_parse_error` test to `actor_keyword_parses_successfully`.
+    - Changed the assertion from expecting a parse error (`is_err()`) to expecting a successful parse (`is_ok()`) for the `actor` keyword.
+    - Updated the test's documentation comment to reflect that the `actor` keyword is no longer tombstoned and should parse successfully.
+
+--- audit: original='fix(integration-tests): update tombstoned actor keyword test to match current parser' | actual=10L across 1 files | derived=full ---
