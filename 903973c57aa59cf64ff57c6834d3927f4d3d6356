@@ -1,0 +1,10 @@
+feat(vox-effort-audit): add commit range resolution logic
+scale: ~118 lines across 1 files [M]
+
+- Add `CommitRange` enum to represent different ways of specifying a commit range (refs or duration).
+- Add `RangeError` enum for duration parsing errors.
+- Implement `parse_duration` function to parse human-readable duration strings (e.g., "3d", "2 weeks ago").
+- Add `resolve_commit_range` function to resolve CLI arguments and configuration into a `CommitRange`.
+- Replace placeholder content in `crates/vox-effort-audit/src/range.rs` with the new commit range resolution logic.
+
+--- audit: original='feat(vox-effort-audit): commit-range resolution (A6)' | actual=118L across 1 files | derived=full ---
