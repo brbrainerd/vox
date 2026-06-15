@@ -1,0 +1,6 @@
+chore(deps): update Cargo.lock for workspace dependencies
+scale: ~342 lines across 1 files [L]
+
+- Update `Cargo.lock` to reflect the current state of workspace dependencies, adding 342 lines.
+
+--- audit: original='chore: update Cargo.lock to match workspace dependencies' | actual=342L across 1 files | derived=full ---
