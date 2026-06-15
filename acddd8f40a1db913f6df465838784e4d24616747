@@ -1,0 +1,9 @@
+refactor(hir, codegen, docs): remove `HirRoute` and update HTTP client dependencies
+scale: ~75 lines across 4 files [M]
+
+- refactor(hir): Remove `HirRoute` struct and all references to it from `HirModule` and `SemanticHirModule` in `crates/vox-compiler/src/hir/nodes/decl.rs`.
+- refactor(codegen): Replace `vox-reqwest-defaults` with `vox-http-client` in `crates/vox-codegen/src/codegen_rust/emit/mod.rs`.
+- docs(architecture): Update `AGENTS.md` with new deprecation annotations for Capacitor-related symbols and add a deprecation marker syntax.
+- docs(architecture): Remove `vox-http-envelope` from `layers.toml` and add `kind = "plugin"` to `vox-tauri-sherpa`.
+
+--- audit: original='refactor: resolve outstanding architectural governance and structural warnings across the workspace' | actual=75L across 4 files | derived=full ---
