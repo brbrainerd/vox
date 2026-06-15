@@ -1,0 +1,10 @@
+feat(gui): Add Scientia dashboard and decorator registry
+scale: ~259 lines across 5 files [L]
+
+- **crates/vox-gui/ui/src/components/surfaces/Scientia/ScientiaDashboard.tsx**: New component `ScientiaDashboard` created to display read-only Scientia command outputs. It executes `scientia retrieval-status`, `scientia publication-discovery-scan`, and `scientia capability-list` commands via `invoke('execute_command')` and renders their exit code and output in individual cards.
+- **crates/vox-gui/ui/src/components/surfaces/decoratorRegistry.ts**: New file `decoratorRegistry.ts` introduced, defining `SurfaceDecoratorProps` and `surfaceDecorators` map. It registers `ScientiaDashboard` as the decorator for the 'scientia' surface key.
+- **crates/vox-gui/ui/src/App.tsx**: Modified `App.tsx` to include 'scientia' in the `View` type. The `renderView` function now checks `surfaceDecorators` before its internal switch statement, allowing decorated views to override default rendering.
+- **crates/vox-gui/ui/src/components/layout/Sidebar.tsx**: Added a new navigation item for 'Scientia' to the sidebar, linking to the 'scientia' view.
+- **docs/superpowers/specs/2026-06-01-sp4-scientia-decorator-design.md**: New design specification document detailing the implementation of the Scientia decorator and the decorator registry, including scope decisions and future upgrade paths.
+
+--- audit: original='feat(gui): Scientia decorator + decorator registry (SP-4)' | actual=259L across 5 files | derived=full ---
