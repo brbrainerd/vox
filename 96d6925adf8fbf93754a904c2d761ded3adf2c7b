@@ -1,0 +1,20 @@
+style(vox-effort-route): apply rustfmt to S2 crate + CLI subcommand
+scale: ~292 lines across 15 files [L]
+
+- `crates/vox-effort-route/src/cluster.rs`: Reformatted struct fields, function arguments, and conditional statements.
+- `crates/vox-effort-route/src/route/mod.rs`: Reordered module imports, reformatted chained method calls, and error handling.
+- `crates/vox-effort-route/src/config.rs`: Reformatted default function definitions for configuration values.
+- `crates/vox-effort-route/src/load.rs`: Reordered `use` statements, reformatted error enum variants, and conditional statements in `read` function.
+- `crates/vox-effort-route/src/bucket.rs`: Reformatted struct fields and chained method calls in `group` function, and `assert_eq!` in tests.
+- `crates/vox-effort-route/src/pipeline.rs`: Reformatted `JsonlWriter::create` call and `assert_eq!` in tests.
+- `crates/vox-effort-route/src/route/prompt.rs`: Reformatted `format!` macro calls and function signature.
+- `crates/vox-effort-route/src/emit/markdown.rs`: Reformatted function arguments.
+- `crates/vox-cli/src/commands/audit_route.rs`: Reformatted `format!` macro calls.
+- `crates/vox-effort-route/src/emit/jsonl.rs`: Reformatted `format!` macro calls.
+- `crates/vox-effort-route/src/lib.rs`: Reformatted `use` statements.
+- `crates/vox-effort-route/src/emit/artifacts.rs`: Reformatted `format!` macro calls.
+- `crates/vox-effort-route/src/route/verify.rs`: Reformatted `format!` macro calls.
+- `crates/vox-effort-route/tests/e2e.rs`: Reformatted `assert_eq!` macro call.
+- `crates/vox-effort-route/src/emit/mod.rs`: Reformatted `use` statements.
+
+--- audit: original='style(vox-effort-route): apply rustfmt to S2 crate + CLI subcommand' | actual=292L across 15 files | derived=full ---
