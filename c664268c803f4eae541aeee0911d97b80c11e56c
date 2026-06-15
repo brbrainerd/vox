@@ -1,0 +1,17 @@
+feat(populi): introduce hardware probe pipeline and concrete implementations
+scale: ~433 lines across 8 files [L]
+
+- `crates/vox-populi/src/mens/hardware/pipeline.rs`: Add new `ProbePipeline` struct to manage and execute a sequence of `HardwareProbe`s, collecting a `ProbeReport`. Includes methods for building an empty pipeline, adding probes, and running the pipeline.
+- `crates/vox-populi/src/mens/hardware/tests.rs`: Add new asynchronous tests for `ProbePipeline` behavior, covering scenarios like returning the first found device, skipping `NoDevice` probes, handling failures, all-fail scenarios, and `NotApplicable` probes.
+- `crates/vox-populi/src/mens/hardware/mod.rs`:
+    - Integrate `ProbePipeline` by replacing the sequential `probe_internal()` logic with a pipeline composition.
+    - Introduce `probe_with_report()` public accessor to run the default platform pipeline and return a full `ProbeReport`.
+    - Remove old sequential probing logic for DXGI, DRM, Metal, and WGPU.
+    - Add `pipeline` module to `mod.rs`.
+- `crates/vox-populi/src/mens/hardware/nvml.rs`: Implement `NvmlProbe` struct which conforms to the `HardwareProbe` trait, encapsulating NVML-based hardware detection.
+- `crates/vox-populi/src/mens/hardware/linux_drm.rs`: Implement `LinuxDrmProbe` struct which conforms to the `HardwareProbe` trait, encapsulating Linux DRM-based hardware detection.
+- `crates/vox-populi/src/mens/hardware/macos_metal.rs`: Implement `MacosMetalProbe` struct which conforms to the `HardwareProbe` trait, encapsulating macOS Metal-based hardware detection.
+- `crates/vox-populi/src/mens/hardware/wgpu_probe.rs`: Implement `WgpuProbe` struct which conforms to the `HardwareProbe` trait, encapsulating wgpu-based hardware detection.
+- `crates/vox-populi/src/mens/hardware/win_dxgi.rs`: Implement `WinDxgiProbe` struct which conforms to the `HardwareProbe` trait, encapsulating Windows DXGI-based hardware detection.
+
+--- audit: original='feat(populi): pipeline behavior tests, concrete probe impls, default_for_platform, route probe_internal() through pipeline' | actual=433L across 8 files | derived=full ---
