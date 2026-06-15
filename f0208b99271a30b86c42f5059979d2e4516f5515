@@ -1,0 +1,7 @@
+refactor(coolify-eval): reformat code for readability
+scale: ~20 lines across 2 files [S]
+
+- `crates/vox-cli/src/commands/ci/coolify_eval.rs`: Apply rustfmt to improve code readability, primarily by breaking long lines in `base_url`, `discover` (version and applications API calls), and `discover` (fqdn extraction).
+- `crates/vox-cli/src/commands/ci/mod.rs`: Reorder module imports alphabetically.
+
+--- audit: original='chore: rustfmt coolify-eval module' | actual=20L across 2 files | derived=full ---
