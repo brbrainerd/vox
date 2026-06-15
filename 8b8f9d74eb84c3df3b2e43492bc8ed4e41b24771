@@ -1,0 +1,7 @@
+docs(architecture): add vox-gui harness build-out plan and update capability audit
+scale: ~190 lines across 2 files [M]
+
+- docs/src/architecture/vox-gui-harness-buildout-plan-2026.md: Add new document outlining a three-track plan for evolving the `vox-gui` into a full agentic code harness. This plan details tasks for the stateful core, CLI-derived command surface, and design/UX, serving as a successor to the GUI capability audit.
+- docs/src/architecture/vox-gui-capability-audit-2026.md: Update the document to include a "Successor" section, linking to the newly created `vox-gui-harness-buildout-plan-2026.md` and confirming the completion of the `vox-dashboard` to `vox-gui` migration.
+
+--- audit: original='@ docs(gui): add vox-gui harness build-out plan (3 tracks, stateful-core first)' | actual=190L across 2 files | derived=full ---
