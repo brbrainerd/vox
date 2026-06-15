@@ -1,0 +1,9 @@
+docs(reports): Add initial reached-vs-proven coverage report
+scale: ~80 lines across 1 files [M]
+
+- Add `contracts/reports/reached-vs-proven-2026-06-14.md` detailing the results of Phase 0 of the coverage initiative.
+- The report annotates 26,323 code symbols with `llvm-cov` reached status.
+- It identifies 3 symbols in `vox-plugin-sdk` as "reached-not-proven" (executed but lacking asserted behavior).
+- The report notes that most crates show 0 reached symbols due to the exclusion of `vox-corpus`, `vox-compiler`, and `vox-config` from the local run.
+
+--- audit: original='chore(coverage): Phase 0 — ingest reached layer; 26323 symbols annotated, 3 reached-not-proven' | actual=80L across 1 files | derived=full ---
