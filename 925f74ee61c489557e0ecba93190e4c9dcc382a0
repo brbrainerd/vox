@@ -1,0 +1,15 @@
+refactor(orchestrator): transition to `std::sync::RwLock` for core memory state
+scale: ~17363 lines across 398 files [XL]
+
+- refactor(vox-orchestrator): Replaced `tokio::sync::RwLock` fields with `std::sync::RwLock` in `Orchestrator`, `MessageBus`, and accessors. Replaced `tokio_read`/`tokio_write` calls with `sync_lock::rw_read`/`rw_write` for panic resilience. Stripped lingering async lock semantics (`.await`) and removed orphaned `sync_lock::tokio_read` utilities.
+- feat(vox-compiler): Introduced a new `codegen_ts/reactive.rs` module for generating reactive components. Updated `codegen_ts/component.rs` to use a `BTreeSet` for tracking React hooks and added a `REACT_HOOK_REGISTRY`.
+- feat(vox-doc-pipeline): Enhanced `main.rs` to include documentation linting capabilities (code-fence balance, frontmatter presence, generic descriptions) and added new CLI options (`--check`, `--lint-only`).
+- refactor(vox-cli): Refactored the `populi/pipeline.rs` command to support configurable pipeline stages, dry-run, and curriculum options.
+- docs: Updated numerous documentation files across `how-to`, `explanation`, `reference`, `api`, and `tutorials` directories, including `SUMMARY.md`, `feed.xml`, and `index.md`. Many files saw significant additions or deletions, likely due to content updates, restructuring, and linting.
+- chore(vox-compiler): Updated `parser.rs` and `hir.rs` with minor additions.
+- chore(vox-mcp): Modified `vcs_tools.rs` and `llm_bridge/model_route_policy.rs`.
+- chore(vox-db): Adjusted `project_store.rs`, `store/ops_agents.rs`, and `store/ops_memory.rs`.
+- chore(tools): Updated `dashboard/app.js` and added new Python scripts (`fix_docs.py`, `fix_links.py`, `final_fix.py`, `generate_summary.py`) for documentation maintenance.
+- chore(examples): Added `STYLE.md` and `reactive_counter.vox`.
+
+--- audit: original='refactor(orchestrator): transition to std::sync::RwLock for core memory state' | actual=17363L across 398 files | derived=sampled ---
