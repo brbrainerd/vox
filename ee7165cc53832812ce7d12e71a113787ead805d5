@@ -1,0 +1,6 @@
+fix(workflow-runtime): gate `D_5S` import behind `cfg(test)`
+scale: ~1 lines across 1 files [XS]
+
+- `crates/vox-workflow-runtime/src/file_journal.rs`: Added `#[cfg(test)]` attribute to the import of `vox_config::timeouts::D_5S`.
+
+--- audit: original='fix(workflow-runtime): gate test-only D_5S import behind cfg(test) (pre-existing clippy lint)' | actual=1L across 1 files | derived=full ---
