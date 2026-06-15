@@ -1,0 +1,13 @@
+docs: regenerate docs, sync ignore files, and update archived frontmatter
+scale: ~346 lines across 8 files [L]
+
+- docs/src/feed.xml: Regenerated to reflect updated content.
+- docs/src/SUMMARY.md: Regenerated to reflect updated content.
+- docs/src/archive/phase5-react-interop-spec-2026.md: Updated frontmatter to change `status` from "roadmap" to "deprecated", add `archived_date: 2026-05-03`, and set `training_eligible` to `false`.
+- docs/src/archive/how-to-islands-and-pages.md: Updated frontmatter to change `category` from "archive" to "how-to", `status` from "archived" to "deprecated", and add `archived_date: 2026-05-03`.
+- .aiexclude: Removed `islands/` entry and updated comment regarding regeneration.
+- .aiignore: Removed `islands/` entry and updated comment regarding regeneration.
+- .cursorignore: Removed `islands/` entry and updated comment regarding regeneration.
+- docs/src/architecture/architecture-index.md: Removed a line, likely due to content regeneration.
+
+--- audit: original='chore(docs): regenerate doc-pipeline, sync ignore files, fix archive frontmatter' | actual=346L across 8 files | derived=full ---
