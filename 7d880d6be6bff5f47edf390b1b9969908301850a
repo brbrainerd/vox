@@ -1,0 +1,15 @@
+feat(scientia): Implement `vox-inspect-bridge` crate for Phase 5 features
+scale: ~624 lines across 9 files [L]
+
+- `crates/vox-inspect-bridge`: New crate providing components for UK AISI Inspect task adaptation, novelty scoring, conflict detection, and timestamp-aware filtering.
+- `crates/vox-inspect-bridge/src/novelty.rs`: Add `AtomicNoveltyScorer` for atomic-NEI novelty assessment of `NoveltyEvidenceBundle`s, including `NoveltyVerdict` and `NoveltyConfig` types.
+- `crates/vox-inspect-bridge/src/conflict.rs`: Add `EvidenceConflictDetector` to identify conflicts between supporting and contradicting `PolarizedHit`s, defining `ClaimPolarity` and `EvidenceConflict`.
+- `crates/vox-inspect-bridge/src/inspect_task.rs`: Add `InspectTaskDescriptor` and `InspectSample` for building UK AISI Inspect task JSON descriptors.
+- `crates/vox-inspect-bridge/src/chronofact.rs`: Add `ChronoFilter` for timestamp-aware evidence filtering, restricting hits to those predating a claim's timestamp.
+- `crates/vox-inspect-bridge/src/lib.rs`: Export public modules and types from the new crate.
+- `crates/vox-inspect-bridge/Cargo.toml`: Add new crate manifest, defining dependencies and metadata.
+- `Cargo.toml`: Add `vox-inspect-bridge` to the workspace members.
+- `Cargo.lock`: Update lockfile to include new crate and its dependencies.
+- `docs/src/architecture/scientia-self-publication-finalization-plan-2026.md`: Mark Phase 5 as complete in the strategic plan.
+
+--- audit: original='feat(scientia): Phase 5 complete — vox-inspect-bridge wired, 13/13 tests pass' | actual=624L across 9 files | derived=full ---
