@@ -1,0 +1,6 @@
+fix(mens): make plugin training logs visible by printing to stderr
+scale: ~7 lines across 1 files [XS]
+
+- `crates/vox-plugin-mens-candle-cuda/src/train_log.rs`: Modified `info` and `warn` functions to additionally print messages to `stderr` using `eprintln!`, prefixed with "[mens]" and "[mens][warn]" respectively, to ensure visibility of training progress and diagnostics when the crate is loaded as a dynamic `cdylib` and `tracing` events are not propagated across the DLL boundary.
+
+--- audit: original='fix(mens): make plugin training logs visible (cdylib tracing is dropped)' | actual=7L across 1 files | derived=full ---
