@@ -1,0 +1,6 @@
+ci(cargo): Define `[profile.ci]` in root Cargo.toml
+scale: ~5 lines across 1 files [XS]
+
+- Add a new `[profile.ci]` section to inherit from `release` and configure `lto = "thin"` and `strip = "debuginfo"`.
+
+--- audit: original='fix(ci): define [profile.ci] in root Cargo.toml for build parity' | actual=5L across 1 files | derived=full ---
