@@ -1,0 +1,20 @@
+refactor(fmt): rustfmt workspace after GA boilerplate merge
+scale: ~1477 lines across 57 files [XL]
+
+- crates/vox-compiler: Applied rustfmt to numerous files, including parser descent, type checking, HIR nodes, and test files, to standardize code style.
+- crates/vox-orchestrator-mcp: Formatted ACI envelope and other files, including new functions for ACI side effect tags and execution probes.
+- crates/vox-cli: Formatted CI run body helpers, particularly matrix-related files.
+- crates/vox-actor-runtime: Formatted notify and durable scheduler modules.
+- crates/vox-codegen: Formatted web IR href and layer emit modules.
+- crates/vox-lsp: Formatted lib.rs.
+- crates/vox-orchestrator: Formatted context envelope, agentos intent planner, and mutation classifier.
+- crates/vox-db: Formatted research metrics contract.
+- crates/vox-integration-tests: Formatted agentos ACI bench tests.
+- crates/vox-plugin-mens-candle-cuda: Formatted qlora preflight and weights.
+- crates/vox-search: Formatted semantic FS intent ops.
+- crates/vox-wire-format-validator: Formatted main and expected hash.
+- .github/workflows: Formatted CI and Qwen35 native nightly workflows.
+- docs: Formatted agent script registry and architecture documentation.
+- scripts/ci: Formatted script hygiene.
+
+--- audit: original='chore(fmt): rustfmt workspace after GA boilerplate merge' | actual=1477L across 57 files | derived=full ---
