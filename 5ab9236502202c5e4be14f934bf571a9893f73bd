@@ -1,0 +1,8 @@
+fix(codegen): `.get(i) is Some(x)` now clones the borrow for type correctness
+scale: ~148 lines across 3 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`: Added `normalize_get_vs_some` function to detect `is`/`isnt` comparisons where one operand is `Some(..)` and the other is a `.get(i)` call. If this pattern is found, the `.get(i)` side is wrapped with `.cloned()` to convert `Option<&T>` to `Option<T>`, ensuring type compatibility with `Some(T)`. This normalization is applied to both binary `is` comparisons and `assert(x is y)` statements.
+- `crates/vox-codegen/tests/get_some_eq_emit.rs`: Added new fast emit tests to verify that `get_is_some_clones_the_borrow`, `get_isnt_some_clones_the_borrow`, and `assert_get_is_some_clones_the_borrow` correctly insert `.cloned()` when comparing `.get(i)` with `Some(..)`.
+- `crates/vox-codegen/tests/emit_compile_harness.rs`: Added a new ignored compilation test `get_is_some_compiles` to ensure that generated Rust code for `list.get(i) is Some(..)` and `assert(list.get(i) is Some(..))` statements compiles successfully, validating the type-correctness fix.
+
+--- audit: original='fix(codegen): `.get(i) is Some(x)` clones the borrow (Option<&T> → Option<T>) (#225)' | actual=148L across 3 files | derived=full ---
