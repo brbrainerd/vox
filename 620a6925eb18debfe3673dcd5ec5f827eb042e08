@@ -1,0 +1,19 @@
+feat(vox-gui): implement per-tab PTY session management
+scale: ~247 lines across 5 files [M]
+
+- `crates/vox-gui/src/commands/pty.rs`: New file implementing `PtyManager` (Tauri state) to manage one PTY per tab using `portable-pty`.
+  - `pty_spawn` command: Spawns a new PTY session for a given `tab_id`, `cols`, and `rows`. It streams PTY output as `vox://pty-output` events and signals `vox://pty-exit` on close.
+  - `pty_write` command: Forwards input to a PTY session.
+  - `pty_close` command: Drops a PTY session.
+  - `default_shell` function: Determines the default shell based on the operating system.
+  - `PtyManager` struct: Manages a `HashMap` of `PtySession`s, providing `has` and `count` methods.
+  - `PtySession` struct: Holds the `writer` for a PTY.
+  - `PTY_OUTPUT_EVENT` and `PTY_EXIT_EVENT` constants: Define Tauri event names.
+- `crates/vox-gui/src/main.rs`:
+  - Registers `PtyManager` as a Tauri state.
+  - Adds `pty_spawn`, `pty_write`, and `pty_close` to the list of Tauri commands.
+- `crates/vox-gui/src/commands/mod.rs`: Adds `pty` module to the commands.
+- `crates/vox-gui/Cargo.toml`: Adds `portable-pty` dependency.
+- `Cargo.lock`: Updates dependencies to include `portable-pty` and its transitive dependencies.
+
+--- audit: original='feat(vox-gui): portable-pty per-tab terminal session manager' | actual=247L across 5 files | derived=full ---
