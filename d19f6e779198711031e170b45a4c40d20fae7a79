@@ -1,0 +1,8 @@
+feat(prereg): export Phase 3 modules from `vox-prereg`
+scale: ~8 lines across 1 files [XS]
+
+- Export `living_review` module, including `DoiVersion` and `LivingReviewManifest`.
+- Export `reply_window` module, including `ReplyWindowGate`, `ReplyWindowRecord`, `WindowStatus`, and `ingest_reply`.
+- Export `retraction` module, including `RetractionReason`, `RetractionRecord`, `emit_retraction`, and `mark_crossref_propagated`.
+
+--- audit: original='feat(scientia): export Phase 3 modules from vox-prereg lib (Phase 3 Task 4)' | actual=8L across 1 files | derived=full ---
