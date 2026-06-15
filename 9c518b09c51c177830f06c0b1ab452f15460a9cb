@@ -1,0 +1,6 @@
+build(deps): remove jj-lib from vox-git dependencies in Cargo.lock
+scale: ~1 lines across 1 files [XS]
+
+- Cargo.lock: Removed the `jj-lib` dependency from the `vox-git` package.
+
+--- audit: original='build: update Cargo.lock — drop jj-lib from vox-git deps (T7-rest)' | actual=1L across 1 files | derived=full ---
