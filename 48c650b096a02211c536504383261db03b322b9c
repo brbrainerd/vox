@@ -1,0 +1,14 @@
+feat(journal): extract `vox-journal` crate, integrate into `vox-workflow-runtime`, and expose via Uniffi
+scale: ~1264 lines across 10 files [XL]
+
+- `crates/vox-journal`: New crate created with `FileJournal<E>` for append-only JSON Lines storage, `JournalError` for typed errors, and 5 unit tests.
+- `crates/vox-workflow-runtime`: `FileJournalTracker` refactored to delegate file I/O to `vox-journal::FileJournal<JournalEntry>`, removing 203 lines of manual file handling.
+- `crates/vox-runtime-rn`: Added Uniffi-exported `FileJournalHandle` (wrapping `vox_journal::FileJournal<serde_json::Value>`), `JournalLine` record, `FileJournalError` enum, and `openFileJournal` function.
+- `clients/runtime-rn/src/__generated__/vox_runtime_rn.ts`: Generated TypeScript bindings updated, adding 437 lines for the new file journal surface.
+- `clients/runtime-rn/src/__generated__/vox_runtime_rn-ffi.ts`: Generated FFI bindings updated, adding 12 lines for new journal functions.
+- `clients/runtime-rn/scripts/generate-bindings.mjs`: Modified `generate-bindings.mjs` script to set `cwd: WORKSPACE_ROOT` for `uniffi-bindgen-react-native` invocation.
+- `crates/vox-journal/Cargo.toml`: Added new `Cargo.toml` for `vox-journal` crate.
+- `crates/vox-workflow-runtime/Cargo.toml`: Updated `Cargo.toml` to add `vox-journal` dependency.
+- `crates/vox-runtime-rn/Cargo.toml`: Updated `Cargo.toml` to add `vox-journal` dependency.
+
+--- audit: original='feat(vox-journal): mobile-cross-compileable file journal + uniffi handle' | actual=1264L across 10 files | derived=full ---
