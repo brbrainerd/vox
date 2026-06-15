@@ -1,0 +1,6 @@
+fix(typeck): mark reactive state bindings as mutable
+scale: ~5 lines across 1 files [XS]
+
+- `crates/vox-compiler/src/typeck/checker/mod.rs`: Changed the `Binding` for reactive state variables from immutable (`false`) to mutable (`true`) when defined in the type checker environment.
+
+--- audit: original='fix(typeck): mark reactive state bindings as mutable' | actual=5L across 1 files | derived=full ---
