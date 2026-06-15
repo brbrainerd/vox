@@ -1,0 +1,19 @@
+docs(superpowers): document plan for Vox compiler to own web toolchain
+scale: ~263 lines across 1 files [L]
+
+- Add a detailed plan for "Path C: Vox compiler owns the full web toolchain" to eliminate JS toolchain dependencies for Vox apps.
+- Outline the goal: `vox build` and `vox serve` should produce deployable apps without npm, pnpm, Vite, or esbuild.
+- Describe the new canonical build flow and the reduced `package.json` dependencies.
+- Detail prerequisites, including 4 codegen-TS bugs.
+- Define seven phases (A-G):
+    - A: `--target=browser-esm` for JSX transformation, type-stripping, `.mjs` output, and `index.html` with import map.
+    - B: `vox serve` for static server, file watching, and full reload.
+    - C: Foreign dependency ESM cache and `Vox.toml` `[browser.runtime-deps]`.
+    - D: `--target=browser-bundle` for tree-shaking, mangling, and content-hashing.
+    - E: Source map generation.
+    - F: Migration of `vox-mental-tracker` to drop Vite.
+    - G: Reference documentation and migration guide.
+- Include a wave-based parallelism plan, per-phase verification gates, explicit out-of-scope items (HMR, CSS preprocessing, image transforms), and five open decisions for Phase A.
+- Provide context for agentic workers, including required sub-skills and the current repository state.
+
+--- audit: original='docs(plans): handoff for Path C — Vox compiler owns web toolchain (#79)' | actual=263L across 1 files | derived=full ---
