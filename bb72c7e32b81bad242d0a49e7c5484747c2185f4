@@ -1,0 +1,13 @@
+feat(security): Replace loopback-auto-unauth with localhost token auth
+scale: ~229 lines across 8 files [M]
+
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/token.rs`: Add new module for `DashboardToken` generation and loading. This token is generated on first use, stored in the state directory, and is valid for 30 days.
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/ws.rs`: Modify WebSocket handler to support token-based authentication for loopback connections. The `resolve_access_role` function now accepts an optional `SocketAddr` for peer information.
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/mod.rs`: Integrate `DashboardToken` into `GatewayState`. Update `spawn_http_gateway_if_enabled` to generate or load a `DashboardToken` when the dashboard feature is enabled and the bind host is the default loopback address. This replaces the previous random token generation and temporary file storage.
+- `crates/vox-dashboard/src/transport.ts`: Update dashboard transport to use "token" query parameter instead of "bearer" for authentication and send an auth message over the WebSocket.
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/rpc_tools.rs`: Update `resolve_access_role`, `enforce_auth` calls to pass the peer `SocketAddr` for improved authentication context.
+- `crates/vox-dashboard/src/assets.rs`: Add `Cache-Control: no-store` header for HTML assets and pass the dashboard token to the asset serving function.
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/eval.rs`: Update `resolve_access_role` call to pass the peer `SocketAddr`.
+- `crates/vox-orchestrator/src/mcp_tools/http_gateway/status.rs`: Update `enforce_auth` call to pass the peer `SocketAddr`.
+
+--- audit: original='security: TASK-0.2 — Replace loopback-auto-unauth with localhost token auth' | actual=229L across 8 files | derived=full ---
