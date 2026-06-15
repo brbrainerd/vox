@@ -1,0 +1,9 @@
+refactor(rn-codegen): centralize `@vox/runtime` npm version constant
+scale: ~18 lines across 1 files [S]
+
+- `crates/vox-rn-codegen/src/scaffold.rs`:
+    - Introduced `VOX_RUNTIME_NPM_VERSION` constant to define the `@vox/runtime-*` npm dependency version.
+    - Updated `emit_package_json` to use the new constant for `@vox/runtime-types` and `@vox/runtime-rn` dependencies.
+    - Added a test `runtime_version_is_semver_triple` to ensure the constant adheres to MAJOR.MINOR.PATCH format.
+
+--- audit: original='refactor(rn-codegen): single SSOT const for @vox/runtime npm pin (HC-G06-03)' | actual=18L across 1 files | derived=full ---
