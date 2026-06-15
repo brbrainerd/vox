@@ -1,0 +1,15 @@
+fix(codegen-ts): Correct match arm dispatch for ADT constructors
+scale: ~250 lines across 4 files [L]
+
+- `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs`:
+  - Implemented `HirPattern::Constructor` branch in `emit_hir_expr` for `HirExpr::Match`.
+  - Changed match arm generation for ADTs to dispatch on `_tag` discriminator.
+  - Constructor arms now emit `case "<Name>": { const <field> = (_val as any)._p<i> ?? (_val as any).value; return <body>; }`.
+  - Wildcard patterns now correctly become `default:` in ADT matches.
+  - Added logic to bind constructor fields by destructuring.
+  - Ensured plain literal/ident/tuple matches retain their prior shape.
+- `crates/vox-compiler/tests/bug_a_match_arms_repro.rs`: Added new test fixture to reproduce and verify fix for Bug A (match arms dispatch on `_tag` and bind ctor fields).
+- `crates/vox-compiler/tests/bug_d_imports_repro.rs`: Added new test fixture for Bug D (imports for `@endpoint` fns and `std.*` builtins).
+- `crates/vox-compiler/tests/bug_b_speech_repro.rs`: Added new test fixture for Bug B (`Speech.X` lowering to `mobile.X`).
+
+--- audit: original='fix(codegen-ts): Bug A — match arms dispatch on _tag and bind ctor fields' | actual=250L across 4 files | derived=full ---
