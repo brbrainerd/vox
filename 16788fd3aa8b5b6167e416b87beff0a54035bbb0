@@ -1,0 +1,9 @@
+fix(mens): recalibrate bf16 memory budget to peak VRAM usage
+scale: ~26 lines across 1 files [S]
+
+- `crates/vox-populi/src/mens/tensor/memory_budget.rs`:
+    - Increased `ACT_GIB_PER_KTOK_PER_SQRTB` from `1.6` to `6.5` to reflect measured F32 activation memory usage during bf16 training, which accounts for a significant portion of peak VRAM. This ensures the budget accounts for activations retained across layers for backward passes.
+    - Updated the `RESIDENT_GIB_PER_B_BF16` constant from `2.9` to `2.6` to accurately reflect the sequence-independent resident footprint for bf16 training, based on measured peak VRAM rather than initial readings.
+    - Adjusted comments to reflect the new calibration values and their impact on sequence length selection for different model sizes and GPU VRAM. The budget now prioritizes a safer sequence length (e.g., 3B at ~384 on 16 GiB) to maintain a VRAM margin, preventing OOM errors that occurred with previous, less conservative estimates.
+
+--- audit: original='fix(mens): calibrate bf16 budget to measured PEAK, not initial reading' | actual=26L across 1 files | derived=full ---
