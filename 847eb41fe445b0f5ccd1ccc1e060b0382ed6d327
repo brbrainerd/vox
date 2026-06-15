@@ -1,0 +1,13 @@
+feat(compiler): add `@form` declaration AST, parser, and lexer token
+scale: ~385 lines across 8 files [L]
+
+- `crates/vox-compiler/src/parser/descent/decl/head.rs`: Implement `parse_form_decl` to parse `@form` declarations, including form name, fields, `on_submit`, `success_redirect`, and `error_message`. Add parsing logic for `FormField` with type, label, required/hidden modifiers, default values, and constraints (range, max_len, min_len, pattern, enum, custom).
+- `crates/vox-compiler/tests/form_parse_test.rs`: Add new test file with unit tests for parsing `@form` declarations, covering basic fields, constraints, and modifiers like `required`, `optional`, `hidden`, `default`, `label`, `on_submit`, and `success_redirect`.
+- `crates/vox-compiler/src/ast/decl/form.rs`: Introduce new AST types `FormDecl` for the form declaration itself, `FormField` for individual fields, and `FieldConstraint` enum for field validation rules (Range, MaxLen, MinLen, Pattern, Enum, Custom).
+- `crates/vox-compiler/src/ast/decl/mod.rs`: Export the new `form` module and its types (`FieldConstraint`, `FormDecl`, `FormField`).
+- `crates/vox-compiler/src/ast/decl/types.rs`: Add `Form(FormDecl)` variant to the `Decl` enum and update the `span` method to handle it.
+- `crates/vox-compiler/src/lexer/token.rs`: Add `AtForm` token for the `@form` keyword.
+- `crates/vox-compiler/src/parser/descent/mod.rs`: Dispatch `AtForm` token to `parse_form_decl`.
+- `crates/vox-corpus/src/corpus/extract_vox/part_ast.rs`: Add handling for `Decl::Form` in `decl_kind_and_name` for corpus extraction.
+
+--- audit: original='feat(compiler): @form declaration AST + parser (C1)' | actual=385L across 8 files | derived=full ---
