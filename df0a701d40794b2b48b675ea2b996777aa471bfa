@@ -1,0 +1,7 @@
+fix(orchestrator): make per-request SelectionAxes drive model scoring
+scale: ~108 lines across 2 files [M]
+
+- `crates/vox-orchestrator/src/models/scoring`: Introduced `AxesOverrideGuard` (RAII) and a `thread_local!` `AXES_OVERRIDE` to allow per-request `AutoRoutingPriority` to be set for model scoring. The `auto_score_model` function was updated to use `base_routing_weights()`, which prioritizes the thread-local override over the environment variable `VOX_AUTO_ROUTING_PRIORITY`.
+- `crates/vox-orchestrator/src/models/select`: `select_via_scorer` now uses `AxesOverrideGuard::set` to install the request's `effective_axes` as the scorer's base weights, ensuring that per-task `SelectionAxes` influence model selection. The guard is dropped after scoring.
+
+--- audit: original='@ fix(orchestrator): make per-request SelectionAxes actually drive model scoring' | actual=108L across 2 files | derived=full ---
