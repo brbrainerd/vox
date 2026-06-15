@@ -1,0 +1,7 @@
+feat(vuv): add two forbidden corpus examples for A10 escape-hatch codes
+scale: ~14 lines across 2 files [S]
+
+- examples/forbidden/absolute_in_partition.vox: Add a new forbidden example for `vox/layer/absolute-in-partition` where a panel with `position="absolute"` is placed inside a `row()`.
+- examples/forbidden/raw_class_occlusion.vox: Add a new forbidden example for `vox/layer/raw-class-occlusion` where a panel uses `raw_class` to smuggle `absolute` and `z-index` inside a `column()`.
+
+--- audit: original='test(vuv): forbidden corpus covers all A10 escape-hatch codes' | actual=14L across 2 files | derived=full ---
