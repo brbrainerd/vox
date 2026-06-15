@@ -1,0 +1,7 @@
+docs: Remove `mdbook-linkcheck2` backend configuration and installation
+scale: ~12 lines across 2 files [S]
+
+- `docs/book.toml`: Removed the `[output.linkcheck2]` table and all its associated configuration keys (e.g., `optional`, `warning-policy`, `follow-web-links`, `traverse-parent-modules`, `exclude`, `copy-js`).
+- `.github/workflows/docs-quality.yml`: Removed the `cargo install mdbook-linkcheck2 --locked` step from the documentation quality workflow.
+
+--- audit: original='docs: Remove linkcheck2 backend to restore single-directory mdBook output layout' | actual=12L across 2 files | derived=full ---
