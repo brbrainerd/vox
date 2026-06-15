@@ -1,0 +1,10 @@
+test(vox-codegen): repair pre-existing test drift and update snapshots
+scale: ~66 lines across 16 files [M]
+
+- `crates/vox-codegen/tests/durability_lowering.rs`: Updated `emit_fn` calls from 1-argument to 3-arguments (`emit_fn(func, None, &[])`) and corrected an assertion for actor lowering from `mailbox::spawn` to `vox_actor_runtime::spawn_process` to reflect current codegen.
+- `crates/vox-codegen/tests/ai_structured_output_emit.rs`: Updated `emit_fn` calls from 1-argument to 3-arguments (`emit_fn(f, None, &[])`) across multiple test cases.
+- `crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@*.snap`: Regenerated 10 golden TypeScript snapshots to include the new `stream_fns: []` field, which was missing due to a previous contract emit change.
+- `crates/vox-codegen/tests/snapshots/tauri_convergence_snapshots__tauri_app_main_rs.snap`: Regenerated this snapshot to include `use tauri::Manager;` and `use pkg::*;` lines, which were missing due to previous changes.
+- `crates/vox-codegen/tests/snapshots/tauri_convergence_snapshots__tauri_app_main_rs.snap.new`: Removed this accidentally committed `.snap.new` file.
+
+--- audit: original='test(codegen): repair pre-existing vox-codegen test drift' | actual=66L across 16 files | derived=full ---
