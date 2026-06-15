@@ -1,0 +1,12 @@
+feat(llm): Implement per-provider AIMD concurrency throttling
+scale: ~333 lines across 7 files [L]
+
+- `crates/vox-actor-runtime/src/llm/throttle.rs`: Add new `ProviderThrottle` module for AIMD (Additive Increase, Multiplicative Decrease) concurrency control. This includes `ProviderThrottle` struct with `max_limit`, `current_limit`, `in_flight`, `success_streak`, `cooldown_until`, and `notify` fields. It provides `acquire` (awaiting a free slot and cooldown), `on_success` (incrementing success streak and potentially increasing limit), and `on_rate_limited` (halving limit and setting cooldown) methods. A `Permit` struct is also introduced for RAII-style release of slots.
+- `crates/vox-config/src/config/vox_config.rs`: Add new fields to `VoxConfig`: `llm_max_concurrent_requests` (global ceiling, default 8), `llm_openrouter_max_concurrent` (optional override for OpenRouter), `llm_openai_max_concurrent` (optional override for OpenAI), and `llm_retry_max_attempts` (max retries for 429s, default 4).
+- `crates/vox-config/src/config/impl_ops.rs`: Update `VoxConfig`'s `get`, `set`, and `known_keys` implementations to support the new LLM concurrency and retry configuration fields.
+- `crates/vox-config/src/config/toml_schema.rs`: Introduce `LlmTomlSection` to `VoxToml` for parsing LLM-related configuration from TOML, including `max_concurrent_requests`, `openrouter_max_concurrent`, `openai_max_concurrent`, and `retry_max_attempts`.
+- `crates/vox-config/src/config/persist.rs`: Modify `save_merged_global_config` to persist the new LLM configuration fields into the `[llm]` TOML section, including `max_concurrent_requests`, `openrouter_max_concurrent`, `openai_max_concurrent`, and `retry_max_attempts`.
+- `crates/vox-actor-runtime/src/llm/chat.rs`: Integrate the `ProviderThrottle` into `llm_chat`. Acquire a permit before each LLM HTTP call and release it on drop. Call `throttle.on_rate_limited` if a 429 status is received, parsing `Retry-After` or `X-RateLimit-Reset` headers for cooldown. Call `throttle.on_success` for successful responses.
+- `crates/vox-actor-runtime/src/llm/mod.rs`: Export the new `throttle` module.
+
+--- audit: original='feat(llm): [llm] config section + per-provider AIMD concurrency throttle' | actual=333L across 7 files | derived=full ---
