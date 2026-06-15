@@ -1,0 +1,6 @@
+feat(codegen): Deduplicate React in scaffolded Vite config
+scale: ~4 lines across 1 files [XS]
+
+- `crates/vox-codegen/src/codegen_ts/scaffold.rs`: Added `resolve.dedupe: ["react", "react-dom"]` to the generated `vite.config.ts` to prevent "Invalid hook call" errors caused by duplicate React instances when using external component libraries.
+
+--- audit: original='feat(interop): S3 (partial) — dedupe react in emitted vite config' | actual=4L across 1 files | derived=full ---
