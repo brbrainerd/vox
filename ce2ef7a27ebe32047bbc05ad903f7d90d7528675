@@ -1,0 +1,10 @@
+feat(orchestrator): load donations.vox via vox-mesh-policy with JSON-secret fallback
+scale: ~140 lines across 5 files [M]
+
+- `crates/vox-orchestrator/src/models/scoring.rs`: Modified `auto_score_model` to prioritize loading `WorkerDonationPolicy` from a file specified by `VoxMeshDonationPolicyPath` using `vox_mesh_policy::load_policy`. The existing `VoxMeshDonationPolicyJson` secret is now a fallback.
+- `crates/vox-secrets/src/spec/registry/mesh.rs`: Added a new `SecretSpec` for `VoxMeshDonationPolicyPath`, defining its canonical environment variable `VOX_MESH_DONATION_POLICY_PATH` and description.
+- `crates/vox-secrets/src/spec/ids.rs`: Added `VoxMeshDonationPolicyPath` to the `SecretId` enum.
+- `crates/vox-orchestrator/Cargo.toml`: Added `vox-mesh-policy` as a dependency.
+- `Cargo.lock`: Updated to reflect the new dependency.
+
+--- audit: original='feat(orchestrator): load donations.vox via vox-mesh-policy with JSON-secret fallback (B11)' | actual=140L across 5 files | derived=full ---
