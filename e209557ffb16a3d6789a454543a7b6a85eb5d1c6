@@ -1,0 +1,27 @@
+feat(code-audit): add cross-crate duplicate and catch-all-swallow detectors
+scale: ~1951 lines across 17 files [XL]
+
+- **`crates/vox-code-audit/src/detectors/cross_crate_dup.rs`**: New batch detector identifies functions with byte-identical normalized bodies across different crates, flagging potential split-brain issues. It skips platform-sibling crates and trivial bodies to reduce false positives.
+- **`crates/vox-code-audit/src/detectors/catch_all_swallow.rs`**: New per-file AST detection rule flags `match` expressions where a wildcard arm (`_ =>`) returns a neutral/empty value (e.g., `None`, `Vec::new()`, `Default::default()`) while explicit arms perform real work, indicating a silent value drop.
+- **`crates/vox-code-audit/src/detectors/mod.rs`**: Registered `CatchAllSwallowDetector` and added `cross_crate_dup` and `catch_all_swallow` modules. The total rule count increased from 51 to 52.
+- **`crates/vox-code-audit/src/diagnostics/catalog.rs`**: Added new diagnostic constants `CROSS_CRATE_DUP` and `CATCH_ALL_SWALLOW`.
+- **`crates/vox-code-audit/src/engine.rs`**: Integrated the `detect_cross_crate_dup_in_batch` function to run after the per-file pass, extending the findings with cross-crate duplicate detections.
+- **`crates/vox-code-audit/src/lib.rs`**: Exported `detect_cross_crate_dup_in_batch`.
+- **`docs/superpowers/plans/2026-06-14-guardrail-capability-plan.md`**: Added a new plan document outlining the guardrail capability, including the new detectors as tasks.
+- **`docs/src/contributors/detector-coverage-ledger.md`**: Updated the detector-coverage ledger to include the new `cross-crate-dup` and `catch-all-swallow` detectors, along with their severity and enforcement status.
+- **`docs/superpowers/plans/2026-06-13-history-driven-token-savings.md`**: Added a new plan document detailing history-driven token savings, including strategies for collapsing generated file diffs and eliminating SSOT regen churn.
+- **`crates/vox-cli/src/commands/ci/install_hooks.rs`**: Modified the pre-commit hook to prefer a prebuilt `vox` binary for `ci line-endings` checks, reducing commit latency. Also updated `install_hooks` to resolve the hooks directory using `git rev-parse --git-path hooks` for better worktree compatibility.
+- **`.gitattributes`**: Added `linguist-generated` and `-diff` attributes for several generated files (e.g., `contracts/reports/gui-surface-registry.v1.json`, `SUMMARY.md`, `feed.xml`, `architecture-index.md`) to collapse them in diffs and reduce review token costs.
+- **`AGENTS.md`**: Updated documentation regarding generated file diff-reading discipline and clarified that `research-index.md` is hand-curated. Also documented the no-hand-regen policy due to `ssot-autoregen`.
+- **`lefthook.yml`**: Configured `lefthook` to run `fmt-check` (blocking) and `fmt-fix` (auto-fix and stage) on commit, ensuring consistent code formatting.
+- **`.github/workflows/ci.yml`**:
+    - Added a non-required `ssot-autoregen` job to automatically regenerate drifted SSOT artifacts on PRs, committing results back to the branch.
+    - Extended the `ssot-autoregen` job to cover `plugin-catalog/surface/skill` writers (`plugin_catalog_sync`, `plugin_surface_sync`, `plugin_skill_parity`).
+    - Hardened the `ssot-autoregen` job by pinning `actions/checkout` and `download-artifact` to immutable SHAs, setting `persist-credentials:false`, and pushing via an explicit `x-access-token` URL.
+    - Added a new non-required `toolchain-lint-wave` gate that runs fresh `clippy` and `rustdoc` when `rust-toolchain.toml` changes, addressing lint waves from toolchain bumps.
+    - Improved the `toolchain-lint-wave` gate's robustness by using `grep -qxF` and explicitly unsetting `RUSTC_WRAPPER`.
+- **`.github/workflows/workflow-lint.yml`**: Added a new non-required workflow-lint gate that runs `actionlint` (blocking) and `zizmor` (advisory) on workflow changes to catch bugs and security issues.
+- **`.github/actionlint.yaml`**: Declared self-hosted runner labels to prevent false positives in `actionlint`.
+- **`contracts/reports/gui-surface-registry.v1.json`**: Regenerated this file to fix pre-existing drift related to `view_key tasks` being referenced in `App.tsx`.
+
+--- audit: original='History-driven token savings: memory −29%, generated-diff collapse, ssot-autoregen bot, fmt auto-fix (#288)' | actual=1951L across 17 files | derived=full ---
