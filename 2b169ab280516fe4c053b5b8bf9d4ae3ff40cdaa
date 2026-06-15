@@ -1,0 +1,15 @@
+feat(codegen-ts/rn): custom component refs, mobile-utils auto-emit, IIFE-free handlers
+scale: ~525 lines across 6 files [L]
+
+- `crates/vox-codegen/src/codegen_ts/rn/mobile_utils.rs`: New module to emit `mobile-utils.ts` for the React Native target. This file provides a `mobile` namespace that re-exports `@vox/runtime-rn::voxRuntime` methods, bridging snake_case Vox method names to camelCase JS `voxRuntime` API calls. It also includes logic to detect if any component in the HIR references the `mobile` identifier, used for conditional import generation.
+- `crates/vox-codegen/src/codegen_ts/rn/component.rs`:
+    - Added `RnNode::CustomComponent` variant to handle user-defined components in views. This allows PascalCase tag names (e.g., `<EntryCard>`) and passes through attributes as JSX `{...}` blocks.
+    - Modified `emit_event_handler_with_state` to correctly format event handlers, removing extraneous IIFE wrappers and ensuring a clean arrow function `() => (EXPR)` or `() => { ... }` is produced.
+- `crates/vox-codegen/src/codegen_ts/rn/mod.rs`:
+    - Integrated `mobile_utils` module.
+    - Added logic to conditionally emit `mobile-utils.ts` if the source imports `std.mobile` or if any component uses the `mobile` identifier.
+- `crates/vox-cli-tests/tests/fixtures/mobile_app_complete/main.vox`: New fixture `mobile_app_complete.vox` demonstrating the full set of RN-supported VUV vocabulary, including custom component references, `std.mobile` usage, forms, routes, and mobile primitives.
+- `crates/vox-cli-tests/tests/build_e2e.rs`: Added a new end-to-end test `build_mobile_app_complete_exercises_full_rn_vocabulary` to validate the `mobile_app_complete` fixture. This test asserts correct custom component rendering, auto-import of `mobile-utils`, and IIFE-free event handler generation.
+- `crates/vox-cli-tests/tests/fixtures/mobile_app_complete/expected_files.toml`: Added `expected_files.toml` for the `mobile_app_complete` fixture, specifying the expected output files and asserting the absence of `App.tsx` when routes are declared.
+
+--- audit: original='feat(codegen-ts/rn): custom-component refs, mobile-utils auto-emit, IIFE-free handlers' | actual=525L across 6 files | derived=full ---
