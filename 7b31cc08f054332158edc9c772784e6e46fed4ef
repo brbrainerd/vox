@@ -1,0 +1,13 @@
+fix(orchestrator): log critical DB write failures instead of discarding
+scale: ~151 lines across 7 files [M]
+
+- **`crates/vox-orchestrator/src/services/persistence_obs.rs`**: Added a new module `persistence_obs` with `log_persistence_failure` and `log_persistence_failure_err` functions to emit structured `tracing::error!` logs for persistence failures.
+- **`crates/vox-orchestrator/src/services/reliability.rs`**: Modified six call sites to use `log_persistence_failure` when `record_endpoint_observation`, `record_task_reliability_observation` (for both completed and failed tasks), and `record_observation` return an error, instead of silently discarding the `Result`.
+- **`crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/task_submit.rs`**:
+    - Modified the `begin_reconstruction_campaign` call site to log persistence failures using `log_persistence_failure` and clear `task.campaign_id` if the campaign initialization fails.
+    - Modified the lineage event append call site to log persistence failures using `log_persistence_failure`.
+- **`crates/vox-orchestrator/src/budget/persistence.rs`**: Modified two call sites to use `log_persistence_failure` when `record_exec_timeout` and `record_exec_time` return an error.
+- **`crates/vox-orchestrator/Cargo.toml`**: Added `tracing-test` as a dev-dependency.
+- **`crates/vox-orchestrator/src/services/mod.rs`**: Added `persistence_obs` module to the services.
+
+--- audit: original='fix(orchestrator): stop silently dropping critical DB write results' | actual=151L across 7 files | derived=full ---
