@@ -1,0 +1,10 @@
+docs(arch): add postscript for session handoff state on 2026-05-25
+scale: ~8 lines across 1 files [XS]
+
+- docs/src/architecture/session-handoff-2026-05-25-state-of-the-work.md:
+  - Added a new "Postscript (2026-05-25 ~15:56Z)" section (section 11).
+  - Documented that "Hp-T3 PrioritySource" was committed at `4ea6f8d71c` by parallel agent, resolving the "at risk" warning in section 5 and closing Task #47.
+  - Confirmed that "Phase H surface retirement (task #46)" remains gate-blocked due to the "one minor release" boundary not being met, as the workspace is still `0.5.0` and no semver tags exist.
+  - Stated that there is no actionable open work unless a `v0.6.0` release is tagged or the soak-gate for Phase H retirement is overridden.
+
+--- audit: original='docs(arch): handoff postscript — Hp-T3 landed, Phase H still gated' | actual=8L across 1 files | derived=full ---
