@@ -1,0 +1,16 @@
+feat(corpus): expand plan-fidelity and repair-corpus to 50 items each
+scale: ~4222 lines across 227 files [XL]
+
+- `contracts/eval/plan-fidelity`: Added 45 new plan directories, each containing a `base.vox` and `plan.toml` file, to expand the corpus from 5 to 50 items. These new plans cover:
+    - Wave 1 (single-file, simplest): 8 new plans (006-013)
+    - Wave 2 (multi-file scope, decorator coverage): 28 new plans (014-041)
+    - Wave 3 (cross-cutting effects / workflow / retirement): 9 new plans (042-050)
+- `contracts/eval/repair-corpus`: Added 45 new project directories, each containing a `src/main.vox` file, to expand the corpus from 5 to 50 items. These new projects cover 5 bug classes with 9 new fixtures each:
+    - Type-error (006-014)
+    - Effect-violation (015-023)
+    - Logic (024-032)
+    - Exhaustiveness (033-041)
+    - API-misuse (042-050)
+- Updated `plan-fidelity` and `repair-corpus` manifests to reflect the new counts and status.
+
+--- audit: original='feat(corpus): §4.2 + §4.3 — repair-corpus and plan-fidelity to 50/50' | actual=4222L across 227 files | derived=full ---
