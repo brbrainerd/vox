@@ -1,0 +1,7 @@
+fix(codegen-rust): block-tail expressions now return their value
+scale: ~24 lines across 2 files [S]
+
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr_tail.rs`: Modified `emit_block_tail` to remove the trailing semicolon from the last statement if it's an expression, allowing blocks in expression position (e.g., match arms, if branches) to yield their value instead of `()`. This mirrors the function body tail logic.
+- `contracts/eval/arm-parity-allowlist-script.txt`: Removed `regex_free_functions.vox` from the allowlist, as the codegen fix resolves its previous issue.
+
+--- audit: original='fix(codegen-rust): block-tail expr returns its value -> regex_free_functions GREEN (5/10)' | actual=24L across 2 files | derived=full ---
