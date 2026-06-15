@@ -1,0 +1,12 @@
+docs(plan): mark Phases A, C, E as shipped in Svelte-mineable features plan
+scale: ~10 lines across 1 files [S]
+
+- docs/src/architecture/svelte-mineable-features-implementation-plan-2026.md:
+  - Updated Phase A entry to mark `vox_validate_source` and autofix surfacing as shipped, referencing commit 8ae08edab.
+  - Updated Phase C entry to mark RoutePattern foundation, segment-aware overlap integration, and typed routePath builder as shipped, referencing commits e0dd30fb0 and 5be659ed1.
+  - Updated Phase D entry to reflect ADR-032 as drafted and awaiting acceptance.
+  - Updated Phase E entry to mark `@reactive` decorator, cross-call dependency inference, and end-to-end wiring in reactive emit as shipped, referencing commit 622e96030.
+  - Added a note about the slice-A bypass, indicating that emitting routePath builders directly from route patterns removed the need for url-decl ↔ routes cross-validation, making deferred slice B work no longer needed.
+  - Added a "Shipped this session" section detailing housekeeping tasks: ADR-032 draft, three orphan-snapshot cleanups, two stale-test fixes, inbound-link goldens fix, view_roots setup gap fix, and a contributor doc note on the snapshot-baseline workflow.
+
+--- audit: original='docs(plan): mark Phases A, C (foundation/integration/typed-builder), E shipped' | actual=10L across 1 files | derived=full ---
