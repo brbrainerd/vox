@@ -1,0 +1,12 @@
+docs(roadmap): Mark Phase 5 tasks as complete and update details
+scale: ~14 lines across 1 files [S]
+
+- `docs/src/architecture/gui-native-roadmap-status-2026.md`:
+    - Updated `TASK-5.1` status from `✅ Done` with `HEAD` to `✅ Done` with commit `2aca2730`, and refined its notes.
+    - Updated `TASK-5.2` status from `🔲 Not started` to `✅ Done` with commit `1e0d943d`, and added detailed notes on its functionality and tests.
+    - Updated `TASK-5.3` status from `🔲 Not started` to `✅ Done` with commit `a374627f`, and added detailed notes on its functionality and tests.
+    - Updated `TASK-5.4` status from `🔲 Not started` to `✅ Done` with commit `272b535d`, and added detailed notes on its functionality and tests.
+    - Changed the verdict for Phase 5 from `In progress` to `Complete`.
+    - Updated the "Next" section to indicate Phase 6 is unblocked.
+
+--- audit: original='docs: Phase 5 complete — all four tasks done' | actual=14L across 1 files | derived=full ---
