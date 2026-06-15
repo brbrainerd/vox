@@ -1,0 +1,6 @@
+docs(superpowers): SP-3 Ludus bus wiring design
+scale: ~144 lines across 1 files [M]
+
+- docs/superpowers/specs/2026-06-01-sp3-ludus-bus-wiring-design.md: Add a new design document for SP-3 Ludus Bus Wiring. This document refines the scope of the umbrella SP-3, noting that registering an orphaned `ludus.rs` Tauri command and making `GamifyView` read a live projection are no longer needed. It focuses on the remaining gap: standard commands not emitting reward events. The document details the existing `vox_gamify::event_router::route_event` and `vox_cli_core::gamify_shim::record_cli_event_fire_and_forget` for recording CLI events, and mentions predefined CLI-command event types in `vox_gamify::reward_policy::base_reward` such as `build_completed`, `build_failed`, `check_completed`, `check_failed`, `test_pass`, and `test_fail`.
+
+--- audit: original='docs(spec): SP-3 Ludus bus wiring design' | actual=144L across 1 files | derived=full ---
