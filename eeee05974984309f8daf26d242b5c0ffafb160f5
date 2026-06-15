@@ -1,0 +1,14 @@
+feat(compiler): Generate `useFooStateMachine` React hooks for state machines
+scale: ~83 lines across 5 files [M]
+
+- `crates/vox-compiler/src/codegen_ts/state_machine_emit.rs`:
+    - Added `import { useState, useCallback } from "react";` to the generated `state_machines.ts` file.
+    - Introduced `emit_react_hook` function to generate a `use<Name>StateMachine` React hook for each state machine.
+    - Modified `emit_state_machine_decls` to call `emit_react_hook` after emitting the reducer for each state machine.
+    - The generated hook manages state with `useState` and provides a memoized `send` function that dispatches events to the state machine's reducer.
+- `crates/vox-compiler/tests/snapshots/state_machine_integration_test__door_terminal_state_machine_emit.snap`: Updated snapshot to include the generated `useDoorStateMachine` React hook.
+- `crates/vox-compiler/tests/snapshots/state_machine_integration_test__light_state_machine_ts_emit.snap`: Updated snapshot to include the generated `useLightStateMachine` React hook.
+- `docs/src/architecture/svelte-mineable-features-implementation-plan-2026.md`: Updated Phase G status to "✅ Shipped end-to-end" to reflect the completion of React hook codegen.
+- `docs/src/feed.xml`: Regenerated due to documentation changes.
+
+--- audit: original='feat(compiler): Phase G codegen — useFooStateMachine React hook' | actual=83L across 5 files | derived=full ---
