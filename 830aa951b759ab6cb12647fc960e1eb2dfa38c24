@@ -1,0 +1,7 @@
+docs: regenerate plugin catalog and distribution bundle documentation
+scale: ~0 lines across 2 files [S]
+
+- Regenerated `docs/src/reference/plugin-catalog.generated.md` to reflect recent changes in the plugin catalog, including the addition of a catalog status field, the `vox-mobile` bundle, and the `vox-plugin-mens-candle-metal` plugin.
+- Regenerated `docs/src/reference/distribution-bundles.generated.md`.
+
+--- audit: original='chore(docs): regenerate plugin catalog docs + sync ignore files' | actual=0L across 2 files | derived=full ---
