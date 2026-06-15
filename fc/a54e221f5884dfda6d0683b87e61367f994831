@@ -1,0 +1,6 @@
+docs(scientia): mark Phase 0a as complete in self-publication plan
+scale: ~2 lines across 1 files [XS]
+
+- docs/src/architecture/scientia-self-publication-finalization-plan-2026.md: Appended "— **Complete**" to the entry for "Phase 0a — Phantom-import resolution" in the strategic plan table.
+
+--- audit: original='docs(scientia): mark Phase 0a complete in strategic plan' | actual=2L across 1 files | derived=full ---
