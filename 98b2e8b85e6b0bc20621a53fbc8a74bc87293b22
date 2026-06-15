@@ -1,0 +1,19 @@
+refactor(compiler): remove @island from AST, HIR, lexer, parser, and codegen
+scale: ~838 lines across 34 files [L]
+
+- **AST**: Removed `Decl::Island` variant and `IslandDecl` struct; renamed `IslandProp` to `V0Prop` in `ui.rs`.
+- **Lexer/Parser**: Removed `@island` token, `parse_island`, `parse_island_prop_line`, and deleted island-only parser tests. Updated `head.rs`, `tests.rs`, `mod.rs` in `parser/descent`, and `lexer/cursor.rs`, `lexer/token.rs`.
+- **HIR**: Removed `HirModule.islands`, `HirIsland`, and the `Decl::Island` lowering arm in `lower/mod.rs` and `nodes/decl.rs`.
+- **Web IR**: Removed `DomNode::IslandMount`, `lower_island` function, validation metrics/diagnostics, and the `island_names` parameter threaded through `hir_emit` and `web_ir` lowering. Deleted `codegen_ts/island_emit.rs` entirely. Updated `lower.rs`, `validate.rs`, `mod.rs`, and `emit_tsx.rs`.
+- **Codegen TS**: Removed island-related logic from `hir_emit/mod.rs`, `jsx.rs`, `reactive.rs`, `emitter.rs`, `routes.rs`, `component.rs`, and `mod.rs`.
+- **App Contract**: Removed `AppIslandContract`, `AppIslandPropContract`, and the `islands` field from `app_contract.rs`.
+- **Fmt**: Removed island-related formatting from `printer.rs`.
+- **Language Surface**: Removed island-related definitions from `language_surface.rs`.
+- **Type Check**: Updated `ast_decl_lints.rs`.
+- **AST Eval**: Removed island-related code from `ast_eval.rs`.
+- **Lexer**: Removed island-related code from `compact.rs`.
+- **Vox Corpus**: Removed a `Decl::Island` reference from `corpus/extract_vox/part_ast.rs`.
+- **Vox LSP**: Removed a `Token::AtIsland` reference from `grammar.rs`.
+- **Vox Mens**: Removed a `Token::AtIsland` reference from `training/core.rs`.
+
+--- audit: original='refactor(compiler): remove @island from AST/HIR/lexer/parser/codegen' | actual=838L across 34 files | derived=full ---
