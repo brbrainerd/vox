@@ -1,0 +1,10 @@
+fix(codegen): catch and discard unhandled rejections from fire-and-forget endpoint calls
+scale: ~37 lines across 1 files [S]
+
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`:
+    - Introduced `discarded_endpoint_call_name` to identify explicitly discarded endpoint calls (e.g., `let _ = call()`).
+    - Modified `emit_floating_endpoint_call` to ensure fire-and-forget endpoint calls are always emitted without `await`, even if they are in an `async_fn_names` context, to allow `.catch` to handle rejections.
+    - Updated `emit_hir_expr` to use `discarded_endpoint_call_name` for identifying and wrapping discarded endpoint calls with a `.catch` block to prevent unhandled promise rejections.
+    - Added a new `EmitCtx` field `is_discarded_endpoint_call` to track if the current expression is a discarded endpoint call, influencing how `emit_hir_expr` processes it.
+
+--- audit: original='fix(codegen): catch-guard discarded endpoint calls in handlers (fire-and-forget)' | actual=37L across 1 files | derived=full ---
