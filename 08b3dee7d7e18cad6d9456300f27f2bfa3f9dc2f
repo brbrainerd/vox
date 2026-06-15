@@ -1,0 +1,7 @@
+ci: add os_compat.py portability scanner as non-blocking artifact on ubuntu-latest
+scale: ~0 lines across 0 files [XS]
+
+- Add `os_compat.py` run to the `cross-platform-check.yml` workflow.
+- Upload `os_compat.py` scan results as a non-blocking artifact on the `ubuntu-latest` leg.
+
+--- audit: original='ci: wire os_compat.py portability scanner as non-blocking artifact on ubuntu-latest' | actual=0L across 0 files | derived=full ---
