@@ -1,0 +1,7 @@
+fix(docs): add missing ANCHOR and vox:skip directives
+scale: ~2 lines across 2 files [S]
+
+- examples/golden/ref_actors.vox: Add `// ANCHOR: basic_actor` marker to fix `{{#include}}` directive in `tut-actor-basics.md`.
+- docs/src/how-to/how-to-scale-actors.md: Add `// vox:skip` to the `SessionManager_Login` code block because `state_load`/`state_save` are runtime builtins not visible to the doc-pipeline parser.
+
+--- audit: original='fix(docs): add missing ANCHOR: basic_actor and vox:skip for state_load/state_save' | actual=2L across 2 files | derived=full ---
