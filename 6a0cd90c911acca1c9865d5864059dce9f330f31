@@ -1,0 +1,9 @@
+feat(typeck): surface `@pii` and `@embed` codegen unimplemented diagnostics
+scale: ~75 lines across 4 files [M]
+
+- `crates/vox-compiler/src/typeck/ast_decl_lints.rs`: Add `check_pii_embed_unimplemented` function to lint AST declarations for `@pii` and `@embed` decorators on `FnDecl`s, emitting `vox/codegen/pii-unimplemented` or `vox/codegen/embed-unimplemented` diagnostics if the corresponding Rust codegen runtime is not wired.
+- `crates/vox-compiler/src/typeck/diagnostics.rs`: Define new diagnostic codes `PII_UNIMPLEMENTED` and `EMBED_UNIMPLEMENTED` for codegen-related issues with `@pii` and `@embed` decorators, and add them to `ALL_PHASE_1` codes.
+- `examples/forbidden/embed_on_endpoint_unimplemented.vox`: Add a new forbidden fixture to test the `vox/codegen/embed-unimplemented` diagnostic.
+- `examples/forbidden/pii_on_endpoint_unimplemented.vox`: Add a new forbidden fixture to test the `vox/codegen/pii-unimplemented` diagnostic.
+
+--- audit: original='feat(typeck): Task 4E — @pii and @embed → coded codegen errors instead of silent drop' | actual=75L across 4 files | derived=full ---
