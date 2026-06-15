@@ -1,0 +1,6 @@
+chore(deps): update Cargo.lock after `origin/main` sync
+scale: ~2 lines across 1 files [XS]
+
+- Update `Cargo.lock` to reflect dependency changes from `origin/main`.
+
+--- audit: original='chore: Cargo.lock after origin/main sync' | actual=2L across 1 files | derived=full ---
