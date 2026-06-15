@@ -1,0 +1,16 @@
+feat(audit): implement anti-overclaim machinery with evidence ledger and CI gates
+scale: ~1722 lines across 10 files [XL]
+
+- **crates/vox-arch-check**:
+    - Add `evidence_ledger.rs` to implement Rule 14, which reads `evidence-ledger.v1.json` and verifies artifact paths and freshness.
+    - Integrate Rule 14 into `main.rs`, adding `evidence_findings` to the `Report` struct and introducing a `strict_evidence_ledger` flag.
+    - Update `Cargo.toml` to include new dependencies for `evidence_ledger.rs`.
+- **contracts/reports/evidence-ledger.v1.json**: Add a new file to serve as the canonical map from `claim_id` to `artifact_path`, tracking ~25 claims with `most_recent_run` notes.
+- **scripts/pre-claim.vox**: Add a new VoxScript guard that runs `vox audit --gate all` and `vox audit --strict-block-ga` to prevent premature "closed" claims.
+- **.github/workflows/cr-l-gates.yml**: Add a new CI workflow for nightly and per-PR runs of `vox audit --gate all --strict-block-ga`, uploading snapshots.
+- **docs/superpowers/specs/2026-05-21-v1-honest-completion-plan.md**: Add a new, canonical 11-section plan detailing the "honest completion" strategy, superseding the 2026-05-19 draft.
+- **docs/superpowers/specs/2026-05-19-v1-execution-plan.md**: Update with a supersedence header, marking it as superseded by the 2026-05-21 plan.
+- **docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md**: Rewrite §3 scorecard to include a `claim_id` column, demoting CR-L7/L8 from "CLOSED" to reflect honest status.
+- **docs/src/architecture/v1-release-criteria.md**: Reduce corpus count from 200 to 164 and reconcile gate invocation to `vox audit --gate humaneval`.
+
+--- audit: original='feat(audit): anti-overclaim machinery — evidence ledger, arch-check rule, CI workflow, pre-claim' | actual=1722L across 10 files | derived=full ---
