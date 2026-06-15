@@ -1,0 +1,32 @@
+feat(compiler): Implement typed routes and AI structured output validation
+scale: ~226 lines across 11 files [M]
+
+- **`crates/vox-compiler/src/parser/descent/decl/head.rs`**:
+    - Extend `@ai` decorator parsing to capture `structured_output` type and `max_iterations` arguments.
+    - Handle `Token::TypeIdent` for PascalCase types in `structured_output`.
+- **`crates/vox-compiler/src/ast/decl/fundecl.rs`**:
+    - Add `ai_structured_output_type: Option<String>` and `ai_max_iterations: u32` fields to `FnDecl`.
+- **`crates/vox-compiler/src/hir/nodes/decl.rs`**:
+    - Add `route_ids: Vec<HirRouteId>` to `HirModule` to store typed route information.
+    - Add `ai_structured_output: Option<HirAiStructuredOutput>` to `HirFn` for AI function contract.
+- **`crates/vox-compiler/src/hir/lower/mod.rs`**:
+    - Implement `route_entry_to_route_id` to derive `HirRouteId` from `RouteEntry`, extracting parameters and generating analytics slugs (PascalCase to snake_case).
+    - Populate `hir.route_ids` in `lower_module` when processing `Decl::Routes`.
+- **`crates/vox-compiler/src/hir/lower/decl.rs`**:
+    - Wire lowering of `FnDecl` to `HirFn` to include `ai_structured_output` and `ai_max_iterations`.
+    - Initialize `ai_structured_output` to `None` for non-AI function types.
+- **`crates/vox-compiler/src/typeck/mod.rs`**:
+    - Add `check_ai_return_shape()` call in `typecheck_hir_module` for `@ai` functions to validate structured output types against declared types.
+- **`crates/vox-codegen/src/codegen_ts/emitter.rs`**:
+    - Emit `routes.ts` using `emit_route_id_module()` if `hir.route_ids` is not empty.
+- **`crates/vox-compiler/tests/ga_boilerplate_grafts_test.rs`**:
+    - Add new integration tests for route ID derivation, parameter extraction, and analytics slug accuracy.
+    - Add new integration tests for `@ai` structured output validation, including undeclared types and `max_iterations` parsing.
+- **`crates/vox-compiler/src/parser/descent/mod.rs`**:
+    - Initialize `ai_structured_output_type` to `None` and `ai_max_iterations` to `3` in default `FnDecl` creation.
+- **`crates/vox-integration-tests/tests/metamorphic_axiom_test.rs`**:
+    - Minor update (1 line added), likely related to test setup or boilerplate.
+- **`crates/vox-test-harness/src/hir_builders.rs`**:
+    - Minor update (1 line added), likely related to HIR test builders.
+
+--- audit: original='feat(compiler): GA-09a routes-as-types + GA-21 @ai structured-output validation' | actual=226L across 11 files | derived=full ---
