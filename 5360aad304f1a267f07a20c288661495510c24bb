@@ -1,0 +1,8 @@
+test(codegen_rust): add non-panic regression test for Rust emitter
+scale: ~29 lines across 1 files [S]
+
+- Add `crates/vox-codegen/tests/emit_unsupported_expr_test.rs` to verify the Rust emitter does not panic on a simple function.
+- The test uses `std::panic::catch_unwind` to assert that `emit_fn` completes successfully for a basic function definition.
+- This new test exercises the same code paths that were previously modified to handle frontend-only expressions without panicking.
+
+--- audit: original='test(codegen_rust): add non-panic regression test for frontend expressions in Rust emitter' | actual=29L across 1 files | derived=full ---
