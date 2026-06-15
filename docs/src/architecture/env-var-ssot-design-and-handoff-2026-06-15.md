@@ -22,7 +22,7 @@ have a single source of truth (SSOT) for environment variables:
    `env::var` / `env_var` (config_hygiene.rs:294,301-302). The env-read tracer found
    **~248 real distinct env names**, of which **~65 are non-VOX** — including *every
    bare-named credential read*: `OPENAI_API_KEY`, `VAULT_TOKEN`, `VAULT_ADDR`,
-   `INFISICAL_TOKEN`, `INFISICAL_SERVICE_TOKEN`, `TURSO_URL`, `DB_PASSWORD`,
+   `INFISICAL_TOKEN`, `INFISICAL_SERVICE_TOKEN`, `VOX_DB_URL`, `DB_PASSWORD`,
    `API_KEY`, `OPENROUTER_BASE_URL`, plus standard vars (`HOME`, `PATH`, `RUST_LOG`,
    `CARGO_*`, `XDG_*`, `GITHUB_SHA`). None of these are visible to the gate today.
 
@@ -90,8 +90,8 @@ on so that **all ~450 secret env names appear in the SSOT for free**.
 |---|---|---|---|
 | 1. VOX_* operational knobs | 183 | `VOX_WASM_SKILL_FUEL`, `VOX_MENS_DEFAULT_MODEL` | Yes (if read via one-line `env::var`) |
 | 2. Standard third-party / OS | ~30 | `HOME`, `PATH`, `RUST_LOG`, `CARGO_*`, `XDG_*`, `GITHUB_SHA`, `OTEL_EXPORTER_OTLP_ENDPOINT` | **No** |
-| 3. Secrets/credentials, bare-named | ~16 | `OPENAI_API_KEY`, `VAULT_TOKEN`, `INFISICAL_TOKEN`, `TURSO_URL`, `DB_PASSWORD` | **No** |
-| 3b. VOX-prefixed credentials | (subset of VOX_) | `VOX_IDENTITY_MASTER_PWD`, `VOX_SECRETS_VAULT_TOKEN`, `VOX_TURSO_TOKEN` | Yes by name, but **mis-bucketed** as plain config |
+| 3. Secrets/credentials, bare-named | ~16 | `OPENAI_API_KEY`, `VAULT_TOKEN`, `INFISICAL_TOKEN`, `VOX_DB_URL`, `DB_PASSWORD` | **No** |
+| 3b. VOX-prefixed credentials | (subset of VOX_) | `VOX_IDENTITY_MASTER_PWD`, `VOX_SECRETS_VAULT_TOKEN`, `VOX_DB_TOKEN` | Yes by name, but **mis-bucketed** as plain config |
 | 4. Clavis/secrets-mgr selectors | ~20 | `VOX_SECRETS_BACKEND`, `VOX_SECRETS_PROFILE`, `VOX_CLAVIS_CUTOVER_PHASE` | Yes (VOX-prefixed) |
 
 Totals: **~427** runtime `env::var`/`env::var_os` call sites + **1** `env::vars()` bulk
