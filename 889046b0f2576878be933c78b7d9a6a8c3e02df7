@@ -1,0 +1,9 @@
+docs(superpowers): Add GUI Visual AI Adversarial Review implementation plan
+scale: ~1361 lines across 1 files [XL]
+
+- Add a new document `docs/superpowers/plans/2026-06-15-gui-visual-ai-review.md` detailing the implementation plan for GUI Visual AI Adversarial Review.
+- The plan outlines the goal, architecture (Capture, Change-detection, Review layers), and tech stack for dynamically screenshotting GUI surfaces, content-hashing them, and running AI adversarial design-principles reviews only when appearance changes.
+- It specifies using Playwright for capture, Node crypto for change detection, and Rust (`vox-orchestrator-mcp`, `llm_bridge`, `vox-openai`, `vox-config`) for review.
+- The plan also covers non-gating CI integration, performance budgeting, and leveraging the existing OpenRouter vision pipeline.
+
+--- audit: original='docs(visual-review): add GUI visual AI review implementation plan' | actual=1361L across 1 files | derived=full ---
