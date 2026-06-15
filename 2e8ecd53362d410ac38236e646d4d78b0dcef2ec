@@ -1,0 +1,6 @@
+docs(architecture): update category for skill ecosystem research document
+scale: ~2 lines across 1 files [XS]
+
+- `docs/src/architecture/skill-ecosystem-interop-research-2026-06-12.md`: Changed the document's category from `architecture` to `Architecture SSOTs`.
+
+--- audit: original='fix(docs): skill-ecosystem-interop-research category → Architecture SSOTs' | actual=2L across 1 files | derived=full ---
