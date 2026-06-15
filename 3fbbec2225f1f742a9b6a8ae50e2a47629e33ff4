@@ -1,0 +1,11 @@
+feat(vox-gui): Add Runtime settings section for `~/.vox/config.toml`
+scale: ~800 lines across 6 files [L]
+
+- `crates/vox-gui/src/commands/user_config.rs`: New module introducing Tauri commands `get_user_config`, `set_user_config`, and `reset_user_config` to manage user configuration. It defines `UserConfigFieldDto` for UI representation and handles two config tiers: `VoxConfig`-tier (sectioned fields) and `inference`-tier (flat top-level keys). Includes cache-coherence logic for mixed writes.
+- `crates/vox-config/src/toml_config.rs`: Refactored `set_user_config_value` and `unset_user_config_value` to perform read-modify-write operations on the config file, ensuring sectioned tables are preserved. Added `reload_user_config` to refresh the in-memory cache after `VoxConfig::save()` operations, maintaining cache coherence.
+- `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx`: Added a new `RuntimeConfigSection` component to the Settings UI. This section displays and allows editing of user configuration fields, grouped by "General", "Models & endpoints", "Tuning", and "Training", with save-on-change and per-field reset functionality.
+- `crates/vox-config/src/config/mod.rs`: Added a test-only accessor `persist_test_global_config_path` for the `VoxConfig::save()` file path.
+- `crates/vox-gui/src/main.rs`: Registered the new `user_config` Tauri commands (`get_user_config`, `set_user_config`, `reset_user_config`) with the application.
+- `crates/vox-gui/src/commands/mod.rs`: Exported the new `user_config` module.
+
+--- audit: original='@ feat(vox-gui): Runtime settings section for ~/.vox/config.toml (T2)' | actual=800L across 6 files | derived=full ---
