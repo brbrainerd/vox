@@ -1,0 +1,18 @@
+docs(architecture): update data storage migration backlog and SSOT
+scale: ~130 lines across 3 files [M]
+
+- **docs/src/architecture/data-storage-migration-backlog-2026.md**:
+    - Added an "Execution order (authoritative)" section detailing the phased rollout of data storage migrations (M-00 through M-78), including new phases for "reconcile orchestration surface" (M-75 to M-78).
+    - Clarified the omni-agent's execution logic for migration items.
+- **docs/src/architecture/data-storage-ssot-2026.md**:
+    - Updated the `BASELINE_VERSION` from `57` to `59` in `manifest.rs`, noting recent bumps and the moving target nature of this value.
+    - Removed the "live drift" note regarding `repository_baseline_integer: 54`.
+- **docs/src/architecture/data-storage-lint-and-ci-spec-2026.md**:
+    - Expanded the `version-header-parity` check to include `F76, M-76` and allow `schema_version` or `version` as synonyms for `x-vox-version`.
+    - Added new CI checks:
+        - `domain-format-single` (F16, F75, M-15, M-75) to enforce single file format per domain subdir, with exceptions.
+        - `orchestration-contract-sibling-parity` (F75, M-75) for `orchestration` contracts.
+        - `provider-secret-parity` (F77, M-77) to validate provider secrets.
+        - `retention-policy-coverage` (F78, M-78) to ensure all `CREATE TABLE` statements are covered by a retention policy.
+
+--- audit: original='chore: sync doc pipeline generated changes' | actual=130L across 3 files | derived=full ---
