@@ -1,0 +1,10 @@
+feat(vox-effort-route): emit JSONL, Markdown, and staging artifacts
+scale: ~456 lines across 5 files [L]
+
+- `crates/vox-effort-route/src/emit/markdown.rs`: Add new module for rendering human-readable Markdown reports (`recommendations.md`).
+- `crates/vox-effort-route/src/emit/artifacts.rs`: Add new module for writing draft artifacts to a staging directory.
+- `crates/vox-effort-route/src/emit/jsonl.rs`: Add new module for an append-only JSONL writer (`recommendations.jsonl`), mirroring S1's per-row flush behavior.
+- `crates/vox-effort-route/src/emit/mod.rs`: Update module to declare and re-export `jsonl`, `markdown`, and `artifacts` sub-modules. Introduce `RecommendationRow` struct with `SCHEMA_VERSION` for JSONL output.
+- `crates/vox-effort-route/src/emit/snapshots/vox_effort_route__emit__markdown__tests__report_snapshot.snap`: Add snapshot for Markdown report rendering tests.
+
+--- audit: original='feat(vox-effort-route): emit jsonl + markdown + staging artifacts (C1)' | actual=456L across 5 files | derived=full ---
