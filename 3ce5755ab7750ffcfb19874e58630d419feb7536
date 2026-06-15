@@ -1,0 +1,6 @@
+docs(plan): record Phase M @json_as completion in forward plan (session 11)
+scale: ~28 lines across 1 files [S]
+
+- docs/src/architecture/post-sprint-forward-plan-2026-05-25.md: Add a new section "7. Session-11 (2026-05-25) breadcrumb" documenting the completion of "Phase M — @json_as typed JSON deserialization (Steps 1–6)". This includes the commit hash `8015db773f`, its subject, and a detailed breakdown of changes landed in `crates/vox-compiler/src/hir/lower/json_as.rs`, `crates/vox-compiler/src/hir/lower/mod.rs`, `crates/vox-compiler/src/parser/descent/decl/mid.rs`, `crates/vox-compiler/src/parser/descent/mod.rs`, `crates/vox-compiler/tests/json_as_test.rs`, and `examples/golden/json_as_typed.vox`. It also notes that steps 3-5 (typeck/eval/codegen) required no code and summarizes the post-session state regarding test passes.
+
+--- audit: original='docs(plan): record Phase M @json_as completion in forward plan (session 11)' | actual=28L across 1 files | derived=full ---
