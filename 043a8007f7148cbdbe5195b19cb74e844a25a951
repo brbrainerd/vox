@@ -1,0 +1,17 @@
+fix(clean-room, ts-emit): Improve clean-room workflow and fix TS emit type-checking
+scale: ~101 lines across 5 files [M]
+
+- **.github/workflows/setup-e2e.yml**:
+  - Set `fail-fast: false` for the clean-room matrix to allow all OSes to complete even if one fails.
+  - Increased `timeout` for the Linux idempotency step from 10s to 600s to prevent premature termination of `cargo check --workspace`.
+- **crates/vox-codegen/src/codegen_ts/web_entry.rs**:
+  - Removed redundant `declare props` and `declare setState` from `ErrorBoundary` to resolve TS2416.
+  - Modified `emit_web_app` and `emit_flat_app` to accept a tuple `(root_component_name, root_props_string)` for flat-mounting.
+- **crates/vox-codegen/src/codegen_ts/emitter.rs**:
+  - Modified `generate_with_options` to generate type-appropriate placeholder values for required props when flat-mounting the root component, resolving TS2741.
+- **crates/vox-codegen/src/codegen_ts/component.rs**:
+  - Added `ts_default_value` helper function to provide placeholder values for different TypeScript types.
+- **crates/vox-integration-tests/tests/ts_emit_typecheck_test.rs**:
+  - Added a `vox-runtime-shim.d.ts` file to the emit directory to resolve `@vox/runtime` imports for `tsc`.
+
+--- audit: original='fix(clean-room+ts-emit): finish clean-room matrix + make ts-noemit golden fixtures typecheck' | actual=101L across 5 files | derived=full ---
