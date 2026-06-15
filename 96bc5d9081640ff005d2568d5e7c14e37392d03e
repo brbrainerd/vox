@@ -1,0 +1,5 @@
+docs(readme): update inference module path
+scale: ~2 lines across 1 files [XS]
+- `README.md`: Corrected the path to the `vox-inference` crate from `crates/vox-inference/` to `crates/vox-populi/src/inference/` in the AI/ML Engine section.
+
+--- audit: original='wip: README snapshot' | actual=2L across 1 files | derived=full ---
