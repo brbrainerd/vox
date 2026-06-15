@@ -1,0 +1,12 @@
+feat(gui): add visual-audit harness, collapsible sidebar, and dev-log observability
+scale: ~633 lines across 20 files [L]
+
+- **gui-playwright-smoke:** Integrate a registry-driven visual-audit sweep into CI, asserting no error-boundary trips, uncaught errors, or console errors. Fix a 5173→1420 port bug and four real render bugs (Gamify null crash, Harness/Runs keys, dashboard.spec strict-mode). Filter benign console errors (e.g., favicon 404s) by URL.
+- **Sidebar:** Implement a collapsible sidebar with five icon-distinct sections (Operate, Develop, Knowledge, Compute, System) driven by the surface registry. Display Coverage, and isolate crashes with a new `SurfaceErrorBoundary`.
+- **Dev Observability:** Unify frontend webview console and backend logs into a single `cargo run -p vox-gui` stream using a `tracing_subscriber` and `log_frontend` bridge.
+- **UI Components:** Add `SurfaceErrorBoundary` component to isolate rendering errors. Introduce new icons for branch, puzzle, beaker, brain, and users.
+- **Surface Registry:** Update `surface-registry.v1.yaml` to reflect new sidebar sections and surface organization.
+- **Build System:** Update `ci.yml` to include the new visual-audit harness.
+- **Dependencies:** Update `Cargo.lock` and `Cargo.toml` for new dependencies.
+
+--- audit: original='GUI: visual-audit harness + collapsible sidebar + dev-log observability (#142)' | actual=633L across 20 files | derived=full ---
