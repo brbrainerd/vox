@@ -1,0 +1,8 @@
+feat(mens/hardware): add `HardwareProbe` trait and associated types
+scale: ~46 lines across 3 files [S]
+
+- `crates/vox-populi/src/mens/hardware/probe.rs`: Add new file defining the `HardwareProbe` trait, `ProbeError` enum, `ProbeOutcome` enum, `ProbeAttempt` struct, and `ProbeReport` struct.
+- `crates/vox-populi/src/mens/hardware/mod.rs`: Add `probe` module to the `mens::hardware` module.
+- `crates/vox-populi/Cargo.toml`: Move `async-trait` dependency from `mens-cloud` feature to a direct dependency.
+
+--- audit: original='feat(populi): add HardwareProbe trait and outcome/report types' | actual=46L across 3 files | derived=full ---
