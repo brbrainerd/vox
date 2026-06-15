@@ -1,0 +1,16 @@
+feat(gui): overhaul dock navigation, chat correlation, and CI hardening
+scale: ~37123 lines across 536 files [XL]
+
+- **crates/vox-gui/ui**: Implemented the WS0–WS8 GUI overhaul, including dock shell, surface registry, chat correlation routing, harness redirect, Tauri chat/identity commands, and EmptyState/useFreshness UX. This involved significant changes to `App.tsx`, `Sidebar.tsx`, `TopHud.tsx`, `DockShell.tsx`, `sessionChatStore.ts`, `chatCorrelation.ts`, and new E2E tests.
+- **crates/vox-compiler**: Refactored the parser's declaration handling by splitting `head.rs` into new modules for functions (`head_fn.rs`), imports (`head_import.rs`), components (`head_component.rs`), forms (`head_form.rs`), and types (`head_types.rs`), significantly reducing the size of `head.rs` and improving modularity.
+- **crates/vox-sql**: Added a new crate `vox-sql` for SQL database interactions, including build, DDL, introspection, migration, schema modeling, and type mapping functionalities, along with extensive conformance and migration tests.
+- **crates/vox-codegen**: Introduced new `codegen_ts/reactive` modules for hooks, effects, bindings, and views, while removing the monolithic `codegen_ts/reactive.rs` file. Also added new Rust codegen for `emit_stmt_expr.rs.tmp` and `script_db.rs`, and updated `emit_stmt_expr.rs` and `method_emit.rs`.
+- **crates/vox-cli**: Hardened local pre-push checks by running key gates in-process, bypassing sccache in nested cargo, skipping identical operations-catalog writes, and regenerating doc-inventory. This involved changes to `pre_push.rs`, `guards.rs`, and `pipeline.rs`.
+- **docs/agents**: Updated `doc-inventory.json` with significant additions and deletions, likely reflecting changes in documentation structure or content.
+- **crates/vox-cli-ci**: Added new modules `runner_policy_check.rs`, `dep_sprawl.rs`, and `no_plugin_cdylib_as_compile_dep.rs`, and updated `sync_ignore_files.rs`, indicating enhancements to CI processes and checks.
+- **crates/vox-secrets**: Refactored `registry` by adding `core_ids.rs` and removing `missing.rs`.
+- **.github/workflows/ci.yml**: Updated CI workflow configuration.
+- **Cargo.lock**: Updated dependencies across the project.
+- **.gitignore**: Added `.sccache` and fuzz artifact trees to ignored files.
+
+--- audit: original='feat(gui): dock navigation, chat correlation, and launch CI hardening' | actual=37123L across 536 files | derived=sampled ---
