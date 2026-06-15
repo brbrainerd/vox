@@ -1,0 +1,12 @@
+refactor(vox-package): split types into new `vox-package-types` crate
+scale: ~95 lines across 21 files [L]
+
+- `vox-package-types` crate: New crate created to house pure-data types for manifest, lockfile, package kind, and resolver.
+- `vox-package` crate: Removed type definitions for `deploy_coolify`, `lockfile`, `manifest`, `package_kind`, and `resolver`, and re-exported them from `vox-package-types`. Updated `workspace.rs` to use `vox_package_types::manifest::ManifestError` and `vox_package_types::manifest::VoxManifest`.
+- `Cargo.toml` files: Added `vox-package-types` to the workspace and defined its dependencies. Updated `vox-package` to depend on `vox-package-types`.
+- `Cargo.lock`: Updated to reflect the new crate and dependency changes.
+- `vox-project-scaffold` crate: Updated `src/lib.rs` to use `vox_package_types::VoxManifest::scaffold`.
+- `docs/src/architecture/layers.toml`: Updated layer definitions to reflect the new `vox-package-types` L1 crate and `vox-package` moving to L3.
+- `docs/src/architecture/where-things-live.md`: Updated documentation to include the new `vox-package-types` L1 entry and corrected the `vox-package` L3 entry.
+
+--- audit: original='refactor(vox-package): split into vox-package-types (L1) + vox-package (L3)' | actual=95L across 21 files | derived=full ---
