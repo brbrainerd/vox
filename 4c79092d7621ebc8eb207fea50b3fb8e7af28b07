@@ -1,0 +1,8 @@
+fix(orchestrator): repair three pre-existing broken tests
+scale: ~18 lines across 3 files [S]
+
+- `crates/vox-orchestrator/tests/economy_test.rs`: Adjusted `cost_per_1k`, `cost_per_1k_input`, and `cost_per_1k_output` for a registered paid model in `test_model_selection_preference` to ensure its estimated cost is below the `$5` `max_cost_usd_per_request` safety cap. This allows the test to exercise selection preference rather than being filtered out by the cost-safety guard.
+- `crates/vox-orchestrator/src/models/select.rs`: Corrected the path for `SelectionPolicy` and `PolicyContext` in `select_with_empty_policy_falls_through_to_cascade` test from `super::policy` to the absolute `crate::models::policy` to resolve a compilation error.
+- `crates/vox-orchestrator/tests/bundle_fetch.rs`: Added `exec_source_b64: None`, `exec_source_blake3_hex: None`, `exec_bundle_b64: None`, and `exec_bundle_blake3_hex: None` fields to a `RemoteTaskEnvelope` literal in `envelope_round_trips_with_bundle_ref` to match the updated struct definition.
+
+--- audit: original='fix(orchestrator): repair three pre-existing broken tests' | actual=18L across 3 files | derived=full ---
