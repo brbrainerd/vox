@@ -67,3 +67,8 @@ tokio::task_local! {
 pub fn current_trace_ctx() -> TraceContext {
     TRACE_CTX.try_with(|ctx| ctx.clone()).unwrap_or_default()
 }
+
+/// Retrieve the current trace context, or `None` if no context is active.
+pub fn current_trace_context() -> Option<TraceContext> {
+    TRACE_CTX.try_with(|ctx| ctx.clone()).ok()
+}

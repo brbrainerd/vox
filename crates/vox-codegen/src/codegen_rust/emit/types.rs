@@ -358,6 +358,7 @@ mod tests {
             ai_fixture: None,
             embed: None,
             is_deprecated: false,
+            is_traced: false,
             schedule_interval: None,
             durability: None,
             actor_state_fields: vec![],
