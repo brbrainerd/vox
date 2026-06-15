@@ -57,6 +57,8 @@ pub const HTTP_REQUEST: Duration = D_30S;
 pub const HTTP_REQUEST_LONG: Duration = D_60S;
 /// Bulk / batch HTTP operation ceiling.
 pub const HTTP_REQUEST_BULK: Duration = D_120S;
+/// Browser CDP request deadline (90s — slow headless navigation/screenshot).
+pub const BROWSER_CDP_REQUEST: Duration = Duration::from_secs(90);
 
 // ──────────────────────────────── polling / scheduling ────────────────────────────────
 
@@ -107,5 +109,10 @@ mod tests {
     #[test]
     fn effort_audit_judge_timeout_is_60s() {
         assert_eq!(EFFORT_AUDIT_JUDGE_TIMEOUT, Duration::from_secs(60));
+    }
+
+    #[test]
+    fn browser_cdp_request_is_90s() {
+        assert_eq!(BROWSER_CDP_REQUEST, Duration::from_secs(90));
     }
 }
