@@ -1,0 +1,7 @@
+chore(reports): refresh daily artifact timestamps and update deploy report note
+scale: ~42 lines across 8 files [M]
+
+- contracts/reports: Updated `measured_at` timestamps in all daily reports for 2026-05-22 and the 2026-Q2 corpus-feedback report.
+- contracts/reports/deploy: Updated the `note` field to reflect a change in the total time for the new+deploy+doctor trio from 0.01s to 0.02s.
+
+--- audit: original='chore(reports): refresh daily artifacts from CR-A1 pass 3+4 verification' | actual=42L across 8 files | derived=full ---
