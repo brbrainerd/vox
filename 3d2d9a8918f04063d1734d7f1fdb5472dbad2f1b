@@ -1,0 +1,10 @@
+fix(contract): enforce ContractIR/HIR endpoint alignment and add interleaved-kind test
+scale: ~47 lines across 1 files [S]
+
+- `crates/vox-compiler/src/app_contract.rs`:
+    - Replaced `debug_assert!` on `zip` length with a release-active `assert_eq!(ep.name, hir_fn.name)` inside the loop to ensure `ContractIR` and `HIR` endpoints remain aligned by name, preventing silent mis-pairing in release builds if `contract_ir::project` were to filter or reorder.
+    - Added a comment explaining that `ep.params` is lossy `WireType` and the human-readable signature is derived from `HIR` types.
+    - Imported `ContractEndpointKind` and replaced verbose `crate::contract_ir::ContractEndpointKind` paths with the shorter form in `match` arms.
+    - Added a new characterization test `project_app_contract_interleaved_kinds_preserve_identity` to verify that interleaved endpoint kinds (`@server`, `@mutation`, `@query`, `@server`) are correctly projected into their respective lists with accurate names and `route_path`s.
+
+--- audit: original='fix(contract): enforce ContractIr/HIR endpoint alignment in release + interleaved-kind test' | actual=47L across 1 files | derived=full ---
