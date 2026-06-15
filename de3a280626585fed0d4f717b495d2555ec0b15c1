@@ -1,0 +1,12 @@
+feat(scientia): implement deterministic publication autofill with provenance
+scale: ~739 lines across 8 files [L]
+
+- `crates/vox-publisher/src/scientia_autofill.rs`: Add new module for deterministic archive-metadata autofill. This module provides a pure planner that fills only missing fields in a `PublicationManifest`, never overwriting existing values. Each filled field includes an `autofill:<rule>` origin provenance. It defines `UserIdentityView`, `PlannedFill`, and `AutofillPlan` structs, and includes functions for parsing the `scientia.*` block, planning autofills for various fields (date, license, authors, ORCID, code repository, title-derived keywords, abstract), and applying these fills. It also includes logic for detecting repository license and git remote URL.
+- `crates/vox-cli/src/commands/db/publication/discovery.rs`: Implement `detect_repo_license` to identify SPDX licenses from repository LICENSE files and `git_remote_origin` to retrieve the git remote URL.
+- `crates/vox-cli-core/src/scientia.rs`: Add `PublicationAutofill` subcommand to `ScientiaCmd` enum, allowing users to plan and optionally apply autofills for publication metadata.
+- `crates/vox-cli/src/commands/db_cli/publication_subcommands.rs`: Add `PublicationAutofill` subcommand to `DbCliPublication` enum, mirroring the `vox-cli-core` definition.
+- `crates/vox-cli/src/commands/scientia.rs`: Integrate the new `PublicationAutofill` command into the `run` function, mapping it to the corresponding `DbCliPublication` variant.
+- `crates/vox-cli/src/commands/db_cli/mod.rs`: Add a handler for the `PublicationAutofill` command in the `run` function, calling `db::publication_autofill`.
+- `crates/vox-publisher/src/lib.rs`: Export the new `scientia_autofill` module.
+
+--- audit: original='feat(scientia): deterministic publication-autofill with field provenance' | actual=739L across 8 files | derived=full ---
