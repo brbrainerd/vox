@@ -1,0 +1,12 @@
+feat(corpus): Differentiate endpoint labels and update golden expectations
+scale: ~18 lines across 2 files [S]
+
+- `crates/vox-corpus/src/corpus/extract_vox/part_ast.rs`:
+  - Modified `decl_kind_and_name` to emit kind-specific labels for `EndpointDecl` nodes.
+  - `EndpointKind::Query` now maps to "query", `EndpointKind::Mutation` to "mutation", and `EndpointKind::Server` to "server_fn".
+  - Previously, all `EndpointDecl` nodes were labeled as "endpoint".
+- `contracts/mens/golden_decl_expectations.yaml`:
+  - Removed "actor", "http_route", and "agent" from `required_decl_kinds`.
+  - Added comments explaining the exclusion of these kinds due to being tombstoned or grammar-pending.
+
+--- audit: original='fix(corpus): emit kind-specific labels for endpoint decls, trim tombstoned from expectations' | actual=18L across 2 files | derived=full ---
