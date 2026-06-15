@@ -1,0 +1,11 @@
+feat(codegen): rewrite positional endpoint calls to named-object form
+scale: ~269 lines across 6 files [L]
+
+- `crates/vox-codegen/src/codegen_ts/rn/component.rs`: Modified `emit_hir_expr_inline_with_state` to accept and use `endpoint_params` for rewriting positional endpoint calls. Updated `emit_hir_expr_inline` to pass an empty `HashMap` for `endpoint_params`.
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`: Added `endpoint_params` field to `EmitCtx` to store endpoint function names and their parameter names. Added `with_endpoints` and `with_async_and_endpoints` constructors to `EmitCtx` to initialize `endpoint_params`.
+- `crates/vox-codegen/tests/component_import_refs_test.rs`: Added two new regression tests: `multi_arg_endpoint_call_is_rewritten_to_named_object` to verify positional calls are rewritten, and `zero_arg_endpoint_call_stays_bare` to ensure zero-argument calls are not wrapped.
+- `crates/vox-codegen/src/web_ir/lower.rs`: Added `endpoint_params` field to `DomArena` and initialized it. Modified `fold_primitive_web_ir_element` to accept and pass `endpoint_params` to the `EmitCtx`.
+- `crates/vox-codegen/src/codegen_ts/reactive.rs`: Populated `endpoint_params` map from `hir.endpoint_fns` and passed it to `EmitCtx::with_endpoints` and `EmitCtx::with_async_and_endpoints` for reactive component generation.
+- `crates/vox-codegen/src/codegen_ts/rn/mod.rs`: Changed `endpoint_names` to `endpoint_params` (a `HashMap`) and passed it to `component::emit_rn_component`.
+
+--- audit: original='codegen: rewrite positional endpoint calls to vox-client named-object form' | actual=269L across 6 files | derived=full ---
