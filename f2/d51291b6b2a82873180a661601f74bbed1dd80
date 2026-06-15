@@ -1,0 +1,7 @@
+refactor(rustfmt): format `agentskills_compliance` and `skills_tools`
+scale: ~32 lines across 2 files [S]
+
+- `crates/vox-orchestrator-mcp/src/skills_tools.rs`: Reformatted the `discover_external_skills` chain to improve readability.
+- `crates/vox-cli/src/commands/ci/agentskills_compliance.rs`: Reformatted the error message for missing `description` field.
+
+--- audit: original='chore: rustfmt agentskills_compliance + skills_tools' | actual=32L across 2 files | derived=full ---
