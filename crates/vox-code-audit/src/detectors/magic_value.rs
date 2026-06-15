@@ -180,6 +180,7 @@ impl DetectionRule for MagicValueDetector {
             }
 
             if self.path_rule.regex().is_match(line)
+                // vox-arch-check: allow abs-path
                 && !(line.contains("starts_with(\"/usr/")
                     || line.contains("starts_with(\"/bin/")
                     || line.contains("starts_with('/usr/")

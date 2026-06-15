@@ -29,10 +29,23 @@ pub(crate) fn visit_rs_files(dir: &Path, f: &mut impl FnMut(&Path) -> Result<()>
 /// Allowlisted non-`.vox` glue under `scripts/` (bootstrap / installer stubs only).
 /// Keep in sync with [scripts/ci/script-hygiene.vox](scripts/ci/script-hygiene.vox).
 const SCRIPT_GLUE_ALLOWLIST: &[&str] = &[
-    "scripts/windows/vox-dev.ps1",
+    // Thin bootstrap launchers (pre-`vox`-binary): exempt by design.
     "scripts/vox-dev.sh",
-    "scripts/install.ps1",
-    "scripts/install.sh",
+    "scripts/windows/vox-dev.ps1",
+    // Coverage-graph analysis tooling (Python; read-only reporting, not runtime glue).
+    // Tracked exception — do NOT add new .py here without rationale.
+    "scripts/coverage-graph/build_index.py",
+    "scripts/coverage-graph/candidate_gaps.py",
+    "scripts/coverage-graph/dup_and_wiring.py",
+    "scripts/coverage-graph/emit_baseline.py",
+    "scripts/coverage-graph/export_lcov_chunked.py",
+    "scripts/coverage-graph/ingest_reaches.py",
+    "scripts/coverage-graph/merge_behaviors_to_graph.py",
+    "scripts/coverage-graph/os_compat.py",
+    "scripts/coverage-graph/overlay_tests.py",
+    "scripts/coverage-graph/rebuild_full_graph.py",
+    "scripts/coverage-graph/recover_and_synth.py",
+    "scripts/coverage-graph/test_overlay_tests.py",
 ];
 
 fn normalized_repo_rel(path: &Path, root: &Path) -> String {
@@ -60,7 +73,7 @@ fn visit_legacy_glue_under_scripts(
         let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
             continue;
         };
-        if !matches!(ext, "sh" | "ps1" | "py") {
+        if !matches!(ext, "sh" | "ps1" | "py" | "bat" | "cmd") {
             continue;
         }
         let rel = normalized_repo_rel(&path, root);

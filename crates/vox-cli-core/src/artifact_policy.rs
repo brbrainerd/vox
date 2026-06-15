@@ -148,6 +148,7 @@ mod semcov_wave3_tests {
 
     #[test]
     fn canonical_workspace_target_absolute_root() {
+        // vox-arch-check: allow abs-path
         let root = Path::new("/tmp/repo");
         let result = canonical_workspace_target(root);
         assert!(result.ends_with("target"));

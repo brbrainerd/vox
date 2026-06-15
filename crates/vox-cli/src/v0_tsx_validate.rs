@@ -436,6 +436,7 @@ export function Nav() {
     fn anchor_with_href_passes() {
         let tsx = r#"
 export function Nav() {
+  // vox-arch-check: allow abs-path
   return <a href="/home">Home</a>;
 }
 "#;

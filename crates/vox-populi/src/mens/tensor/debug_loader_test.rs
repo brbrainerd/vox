@@ -5,6 +5,7 @@ mod tests {
 
     #[test]
     fn debug_loader() {
+        // vox-arch-check: allow abs-path
         let p = PathBuf::from(r"C:\Users\Owner\vox\target\dogfood\train.jsonl");
         println!("DEBUG: Loading from {}", p.display());
         if !p.exists() {

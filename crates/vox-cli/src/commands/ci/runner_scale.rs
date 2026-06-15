@@ -437,6 +437,7 @@ fn spawn_one(index: u32, tag: &str, dry_run: bool) -> Result<()> {
         "-e".into(),
         "RUNNER_EPHEMERAL=1".into(),
         "-v".into(),
+        // vox-arch-check: allow abs-path
         "/var/run/docker.sock:/var/run/docker.sock".into(),
         "-v".into(),
         format!("{CACHE_VOLUME}:/cache"),

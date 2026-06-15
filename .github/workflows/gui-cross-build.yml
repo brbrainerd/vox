@@ -1,0 +1,102 @@
+name: GUI Cross-Platform Build (Win/macOS/Ubuntu)
+
+on:
+  pull_request:
+    paths:
+      - 'crates/vox-gui/**'
+      - '.github/workflows/gui-cross-build.yml'
+  merge_group:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  gui-cross-build:
+    name: GUI Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            sidecar_src: target/x86_64-pc-windows-msvc/release/vox.exe
+            sidecar_dst: target/x86_64-pc-windows-msvc/release/vox-x86_64-pc-windows-msvc.exe
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            sidecar_src: target/aarch64-apple-darwin/release/vox
+            sidecar_dst: target/aarch64-apple-darwin/release/vox-aarch64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            sidecar_src: target/x86_64-unknown-linux-gnu/release/vox
+            sidecar_dst: target/x86_64-unknown-linux-gnu/release/vox-x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.os }}
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+      CARGO_INCREMENTAL: "0"
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-gui-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-gui-
+
+      - name: Install WebKitGTK (Ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: crates/vox-gui/ui/pnpm-lock.yaml
+
+      - name: GUI frontend build (pnpm)
+        run: |
+          cd crates/vox-gui/ui
+          pnpm install --prefer-offline
+          pnpm run build
+
+      - name: Build vox CLI sidecar (release)
+        run: cargo build -p vox-cli --release --target ${{ matrix.target }}
+
+      - name: Stage Tauri external sidecar (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Copy-Item ${{ matrix.sidecar_src }} ${{ matrix.sidecar_dst }} -Force
+
+      - name: Stage Tauri external sidecar (Unix)
+        if: runner.os != 'Windows'
+        run: cp ${{ matrix.sidecar_src }} ${{ matrix.sidecar_dst }}
+
+      - name: Build vox-gui (Tauri)
+        run: cargo build -p vox-gui
+
+      - name: sccache stats
+        if: always()
+        run: sccache --show-stats

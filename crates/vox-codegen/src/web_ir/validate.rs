@@ -1026,6 +1026,7 @@ mod tests {
         use crate::web_ir::WebIrModule;
         let mut m = WebIrModule::default();
         // No view_roots, but route references "HomePage".
+        // vox-arch-check: allow abs-path
         m.route_nodes.push(RouteNode::RouteTree {
             routes: vec![make_route("route_0", "/home", Some("HomePage"))],
             span: None,

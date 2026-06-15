@@ -10,6 +10,8 @@ use std::process::Command;
 const EXT_LF: &[&str] = &[
     "rs", "toml", "lock", "md", "yml", "yaml", "json", "ts", "tsx", "js", "jsx", "mjs", "mts",
     "py", "vox", "gd", "css", "html", "svg", "sh",
+    // Golden / snapshot / fixture formats (were undeclared → CRLF-on-Windows risk).
+    "snap", "txt", "jsonl", "sql", "xml",
 ];
 
 /// Run the line-ending check. Forward-only: only files changed since merge-base unless `all` is set.

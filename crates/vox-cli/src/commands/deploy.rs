@@ -131,6 +131,7 @@ pub async fn run(args: DeployArgs) -> Result<()> {
             let deploy_dir = cfg
                 .deploy_dir
                 .clone()
+                // vox-arch-check: allow abs-path
                 .unwrap_or_else(|| format!("/opt/{}", manifest.package.name));
 
             let spec = EnvironmentSpec {

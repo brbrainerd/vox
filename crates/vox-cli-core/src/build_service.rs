@@ -502,6 +502,7 @@ mod semcov_wave3_tests {
     #[test]
     fn cargo_request_check_sets_command_and_derives_build_dir() {
         let cwd = PathBuf::from("/proj");
+        // vox-arch-check: allow abs-path
         let td = PathBuf::from("/tmp/target");
         let req = CargoRequest::check(cwd.clone(), Some(td.clone()));
         assert_eq!(req.command, "check");
@@ -523,6 +524,7 @@ mod semcov_wave3_tests {
     #[test]
     fn cargo_request_test_sets_command_and_passes_args() {
         let cwd = PathBuf::from("/proj");
+        // vox-arch-check: allow abs-path
         let td = PathBuf::from("/tmp/target");
         let args = vec!["--lib".to_string(), "--no-fail-fast".to_string()];
         let req = CargoRequest::test(cwd.clone(), Some(td.clone()), args.clone());
@@ -542,6 +544,7 @@ mod semcov_wave3_tests {
     #[test]
     fn cargo_request_run_sets_command_and_env() {
         let cwd = PathBuf::from("/proj");
+        // vox-arch-check: allow abs-path
         let td = PathBuf::from("/tmp/target");
         let env = vec![("VOX_PORT".to_string(), "3000".to_string())];
         let req = CargoRequest::run(

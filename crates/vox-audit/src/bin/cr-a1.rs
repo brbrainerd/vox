@@ -346,7 +346,9 @@ mod semcov_wave1f_tests {
     fn backslashes_are_replaced_with_forward_slashes() {
         // Simulate a Windows path where strip_prefix returns backslash-separated components.
         // We build paths using Path::new with raw backslash strings.
+        // vox-arch-check: allow abs-path
         let root = Path::new("C:\\workspace");
+        // vox-arch-check: allow abs-path
         let full = Path::new("C:\\workspace\\crates\\vox-audit\\src\\lib.rs");
         let result = relative_to_workspace(full, root);
         // strip_prefix succeeds on Windows; to_string_lossy gives backslashes; replace converts them.

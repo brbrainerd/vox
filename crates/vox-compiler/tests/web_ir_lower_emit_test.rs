@@ -1599,6 +1599,7 @@ fn web_ir_validate_route_missing_component_is_error() {
     let mut m = WebIrModule::default();
     m.route_nodes.push(route_tree(vec![route_contract(
         "r1",
+        // vox-arch-check: allow abs-path
         "/home",
         Some("Home"),
     )]));
@@ -1615,8 +1616,10 @@ fn web_ir_validate_route_missing_component_is_error() {
 #[test]
 fn web_ir_validate_route_component_exists_is_ok() {
     let mut m = WebIrModule::default();
+    // vox-arch-check: allow abs-path
     m.route_nodes.push(route_tree(vec![route_contract(
         "r1",
+        // vox-arch-check: allow abs-path
         "/home",
         Some("Home"),
     )]));
@@ -1633,6 +1636,7 @@ fn web_ir_validate_route_component_exists_is_ok() {
 #[test]
 fn web_ir_validate_route_broken_link_is_error() {
     let mut m = WebIrModule::default();
+    // vox-arch-check: allow abs-path
     m.route_nodes
         .push(route_tree(vec![route_contract("r1", "/home", None)]));
     m.dom_nodes.push(link_element(0, "/nonexistent"));
@@ -1651,8 +1655,10 @@ fn web_ir_validate_route_broken_link_is_error() {
 #[test]
 fn web_ir_validate_route_matching_link_is_ok() {
     let mut m = WebIrModule::default();
+    // vox-arch-check: allow abs-path
     m.route_nodes
         .push(route_tree(vec![route_contract("r1", "/home", None)]));
+    // vox-arch-check: allow abs-path
     m.dom_nodes.push(link_element(0, "/home"));
     m.view_roots.push(("Home".to_string(), DomNodeId(0)));
     let diags = validate_web_ir(&m);

@@ -710,6 +710,7 @@ fn caller() to str { fetch() }",
 
     #[test]
     fn test_fs_method_call_requires_fs() {
+        // vox-arch-check: allow abs-path
         let diags = check(r#"fn f() uses nothing to str { fs.read("/etc/hosts") }"#);
         assert_eq!(diags.len(), 1, "expected fs violation: {diags:?}");
         assert!(

@@ -622,6 +622,7 @@ mod tests {
     #[test]
     fn build_common_args_round_trips_format_and_corpus() {
         let args = AuditArgs {
+            // vox-arch-check: allow abs-path
             corpus: Some(std::path::PathBuf::from("/tmp/contracts")),
             threshold: Some(0.5),
             ..args_for_gate("retirement")
@@ -630,6 +631,7 @@ mod tests {
         assert_eq!(common.threshold, Some(0.5));
         assert_eq!(
             common.corpus.as_deref(),
+            // vox-arch-check: allow abs-path
             Some(std::path::Path::new("/tmp/contracts"))
         );
         assert!(

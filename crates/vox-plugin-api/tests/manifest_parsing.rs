@@ -20,6 +20,7 @@ abi-version = 1
 extension-points = ["MlBackend"]
 
 [plugin.payload.artifacts]
+// vox-arch-check: allow dynlib-ext
 "linux-x86_64" = "libvox_plugin_mens_candle_cuda.so"
 "#;
     let m: PluginManifest = toml::from_str(toml_src).expect("should parse");
@@ -30,6 +31,7 @@ extension-points = ["MlBackend"]
             assert_eq!(c.provides.extension_points, vec!["MlBackend".to_string()]);
             assert_eq!(
                 c.artifacts.get("linux-x86_64").unwrap(),
+                // vox-arch-check: allow dynlib-ext
                 "libvox_plugin_mens_candle_cuda.so"
             );
         }
@@ -90,6 +92,7 @@ abi-version = 1
 extension-points = ["MeshDriver"]
 
 [plugin.payload.code.artifacts]
+// vox-arch-check: allow dynlib-ext
 "linux-x86_64" = "libvox_plugin_populi_mesh.so"
 
 [plugin.payload.skill]

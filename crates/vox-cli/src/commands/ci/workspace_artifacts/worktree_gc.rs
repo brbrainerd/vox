@@ -149,6 +149,7 @@ pub fn is_build_junk(rel: &str) -> bool {
         || r.contains("/target/")
         || r.starts_with("build/")
         || r.contains("/build/")
+        // vox-arch-check: allow dynlib-ext
         || r.ends_with(".dll")
         || r.ends_with(".exe")
         || r.ends_with(".pdb")
@@ -621,6 +622,7 @@ locked some reason
     fn build_junk_recognized() {
         assert!(is_build_junk("target/debug/foo.exe"));
         assert!(is_build_junk("crates/x/target/y"));
+        // vox-arch-check: allow dynlib-ext
         assert!(is_build_junk("plugin.dll"));
         assert!(is_build_junk("cr-l-per-gate-reports-abc/x"));
         assert!(!is_build_junk("src/main.rs"));

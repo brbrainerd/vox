@@ -72,6 +72,7 @@ fn transcribe_microphone_derives_speech_and_microphone() {
 
 #[test]
 fn file_transcribe_derives_speech_only() {
+    // vox-arch-check: allow abs-path
     let hir = lower_src("fn note() -> Result[str] { Speech.transcribe(\"/tmp/a.wav\") }");
     let r = project_required_capabilities(&hir);
     assert!(r.capability_ids.iter().any(|c| c == "speech"), "{r:?}");
@@ -81,6 +82,7 @@ fn file_transcribe_derives_speech_only() {
 #[test]
 fn fs_read_in_body_maps_fs_read() {
     let src = r#"
+// vox-arch-check: allow abs-path
 fn read_hosts() uses fs to str {
     return fs.read("/etc/hosts")
 }

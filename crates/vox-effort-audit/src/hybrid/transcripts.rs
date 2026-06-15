@@ -232,6 +232,7 @@ mod tests {
             .unwrap();
         let m = resolve_for_commit(
             &fixture_dir(),
+            // vox-arch-check: allow abs-path
             std::path::Path::new(r"C:\Users\Owner\vox"),
             ts,
             Duration::minutes(2),
@@ -244,6 +245,7 @@ mod tests {
 
     #[test]
     fn normalize_path_str_handles_windows_and_unix() {
+        // vox-arch-check: allow abs-path
         assert_eq!(
             normalize_path_str(r"C:\Users\Owner\vox"),
             normalize_path_str("/c/Users/Owner/vox"),

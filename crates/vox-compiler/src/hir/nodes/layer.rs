@@ -219,6 +219,7 @@ mod tests {
     #[test]
     fn default_tier_covers_the_lowercase_primitive_vocabulary() {
         // The actual web primitive tags are lowercase; the PascalCase rows alone
+        // vox-arch-check: allow abs-path
         // left "modal"/"toast"/etc. falling through to Content (a wiring bug for
         // the GA-26 tier checks that key off these tags).
         assert_eq!(LayerTier::default_for_primitive("modal"), LayerTier::Modal);

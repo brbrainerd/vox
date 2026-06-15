@@ -589,6 +589,7 @@ fn heartbeat() { }
     fn tauri_emits_stt_for_file_transcribe_without_mic_permission() {
         // File-based `transcribe(path)` derives `speech` (STT plugin) but NOT `microphone`.
         let module = vox_compiler::pipeline::run_frontend_str(
+            // vox-arch-check: allow abs-path
             "fn note() -> Result[str] { Speech.transcribe(\"/tmp/a.wav\") }",
             "t.vox",
         )

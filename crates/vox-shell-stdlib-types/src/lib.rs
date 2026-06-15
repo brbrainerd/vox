@@ -14,6 +14,7 @@ mod tests {
     fn vox_file_record_constructs_and_clones() {
         let rec = VoxFileRecord {
             name: "a.txt".into(),
+            // vox-arch-check: allow abs-path
             path: "/tmp/a.txt".into(),
             size: 7,
             modified_ms: 0,

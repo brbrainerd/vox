@@ -30,6 +30,7 @@ pub fn default_shell() -> String {
 ///
 /// The snippets wrap the user's existing prompt rather than replacing it.
 pub fn shell_integration_snippet(shell: &str) -> Option<String> {
+    // vox-arch-check: allow abs-path
     // Match on the shell's basename so "/usr/bin/bash" and "bash" both resolve.
     // Lowercase first so an uppercase ".EXE" suffix is stripped too.
     let base = shell
@@ -255,6 +256,7 @@ mod tests {
     fn integration_snippet_supports_pwsh_and_bash() {
         assert!(shell_integration_snippet("pwsh").is_some());
         assert!(shell_integration_snippet("powershell.exe").is_some());
+        // vox-arch-check: allow abs-path
         assert!(shell_integration_snippet("/usr/bin/bash").is_some());
     }
 

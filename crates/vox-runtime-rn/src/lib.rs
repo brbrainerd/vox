@@ -344,6 +344,7 @@ mod tests {
 
     #[test]
     fn vox_config_round_trips_through_mirror() {
+        // vox-arch-check: allow abs-path
         let inner = InnerConfig::mobile(std::path::PathBuf::from("/tmp/vox-rt-rn-test"));
         let mirror: VoxConfig = inner.clone().into();
         let back: InnerConfig = mirror.into();
@@ -353,6 +354,7 @@ mod tests {
     #[test]
     fn handle_exposes_profile_and_dirs() {
         let cfg = VoxConfig {
+            // vox-arch-check: allow abs-path
             data_dir: "/tmp/d".to_string(),
             model_dir: "/tmp/m".to_string(),
             log_level: "info".to_string(),
@@ -360,7 +362,9 @@ mod tests {
         };
         let h = VoxRuntimeHandle::new(cfg);
         assert_eq!(h.profile(), RuntimeProfile::Mobile);
+        // vox-arch-check: allow abs-path
         assert_eq!(h.data_dir(), "/tmp/d");
+        // vox-arch-check: allow abs-path
         assert_eq!(h.model_dir(), "/tmp/m");
         assert!(h.requires_suspend_hooks());
     }
@@ -368,6 +372,7 @@ mod tests {
     #[test]
     fn handle_desktop_does_not_require_suspend_hooks() {
         let cfg = VoxConfig {
+            // vox-arch-check: allow abs-path
             data_dir: "/tmp/d".to_string(),
             model_dir: "/tmp/m".to_string(),
             log_level: "info".to_string(),
@@ -387,6 +392,7 @@ mod tests {
 
     #[test]
     fn default_mobile_config_uses_provided_root() {
+        // vox-arch-check: allow abs-path
         let cfg = default_mobile_config("/var/mobile/Documents".to_string());
         assert_eq!(cfg.profile, RuntimeProfile::Mobile);
         // Path separator is platform-dependent; we assert on the typed
@@ -396,10 +402,12 @@ mod tests {
         let model_back: std::path::PathBuf = cfg.model_dir.into();
         assert_eq!(
             data_back,
+            // vox-arch-check: allow abs-path
             std::path::PathBuf::from("/var/mobile/Documents/data")
         );
         assert_eq!(
             model_back,
+            // vox-arch-check: allow abs-path
             std::path::PathBuf::from("/var/mobile/Documents/models")
         );
     }
@@ -407,6 +415,7 @@ mod tests {
     #[test]
     fn log_method_does_not_panic_on_any_level() {
         let cfg = VoxConfig {
+            // vox-arch-check: allow abs-path
             data_dir: "/tmp/d".to_string(),
             model_dir: "/tmp/m".to_string(),
             log_level: "info".to_string(),

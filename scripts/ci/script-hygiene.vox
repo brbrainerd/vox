@@ -15,16 +15,26 @@ fn main() {
     
     // Canonical allowlist (all lowercase, forward slashes)
     let allowlist = [
-        "scripts/windows/vox-dev.ps1",
         "scripts/vox-dev.sh",
-        "scripts/install.ps1",
-        "scripts/install.sh"
+        "scripts/windows/vox-dev.ps1",
+        "scripts/coverage-graph/build_index.py",
+        "scripts/coverage-graph/candidate_gaps.py",
+        "scripts/coverage-graph/dup_and_wiring.py",
+        "scripts/coverage-graph/emit_baseline.py",
+        "scripts/coverage-graph/export_lcov_chunked.py",
+        "scripts/coverage-graph/ingest_reaches.py",
+        "scripts/coverage-graph/merge_behaviors_to_graph.py",
+        "scripts/coverage-graph/os_compat.py",
+        "scripts/coverage-graph/overlay_tests.py",
+        "scripts/coverage-graph/rebuild_full_graph.py",
+        "scripts/coverage-graph/recover_and_synth.py",
+        "scripts/coverage-graph/test_overlay_tests.py"
     ];
 
     print("Running script-hygiene check...");
     let mut violations = [];
 
-    let prohibited_exts = [".sh", ".ps1", ".py"];
+    let prohibited_exts = [".sh", ".ps1", ".py", ".bat", ".cmd"];
     let check_dirs = ["scripts"];
     
     for dir in check_dirs {

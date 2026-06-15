@@ -192,6 +192,7 @@ fn all_golden_fixtures_emit_valid_typescript() {
 
     // For Windows .cmd files we must invoke via cmd.exe.
     let output = if cfg!(target_os = "windows") && tsc_bin.extension().is_some_and(|e| e == "cmd") {
+        // vox-arch-check: allow shell-spawn
         Command::new("cmd")
             .arg("/C")
             .arg(&tsc_bin)

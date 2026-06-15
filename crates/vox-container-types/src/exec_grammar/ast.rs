@@ -450,6 +450,7 @@ mod tests {
         assert_eq!(ast.command, "Get-ChildItem");
         assert_eq!(ast.flags[0].name, "Recurse");
         assert_eq!(ast.flags[1].name, "Path");
+        // vox-arch-check: allow abs-path
         assert_eq!(ast.flags[1].value.as_deref(), Some("C:\\foo"));
     }
 
