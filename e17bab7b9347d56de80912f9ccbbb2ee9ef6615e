@@ -1,0 +1,8 @@
+feat(audit): Integrate @test execution into plan fidelity scoring
+scale: ~985 lines across 14 files [L]
+
+- `crates/vox-audit`: Modified `plan_fidelity` subcommand to execute `@test` blocks in generated source after `vox check` passes. This adds a new failure mode for semantic plan misunderstandings, distinguishing it from compile errors. The system prompt was updated to reflect this dual scoring mechanism.
+- `contracts/reports`: Added new daily audit reports for `_snapshot`, `audit-all`, `humaneval`, `plan-fidelity`, `repair-corpus`, `spec-to-app`, `corpus-feedback`, `deploy`, `mens-on-distribution`, `aci-default`, and `retirement`. These reports reflect the updated scoring methodology.
+- `contracts/reports`: Updated `corpus-feedback/2026-Q2.json` and `evidence-ledger.v1.json` with minor changes.
+
+--- audit: original='feat(audit): CR-L4 test-execution feedback — 60% → 70%' | actual=985L across 14 files | derived=full ---
