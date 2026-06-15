@@ -1,0 +1,7 @@
+fix(vox-codegen): make script-defined helper functions public in lib.rs
+scale: ~34 lines across 2 files [S]
+
+- `crates/vox-codegen/src/codegen_rust/pipeline.rs`: In `generate_script`, explicitly set `is_pub = true` for all functions in the module before emitting `src/lib.rs`. This ensures that helper functions defined in a script are public in the generated `vox-script` library, allowing the thin binary's `main.rs` to import and call them via a glob import.
+- `crates/vox-codegen/tests/null_and_namespace_lowering.rs`: Added a new test `script_lib_functions_are_pub_for_bin_visibility` to verify that script-defined helper functions are emitted as `pub fn` in the generated `lib.rs` for script mode.
+
+--- audit: original='fix(vox-codegen): make script-defined helper functions pub so the bin can call them' | actual=34L across 2 files | derived=full ---
