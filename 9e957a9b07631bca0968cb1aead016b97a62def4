@@ -1,0 +1,6 @@
+fix(orchestrator): replace unwrap with expect for mention regex initialization
+scale: ~3 lines across 1 files [XS]
+
+- `crates/vox-orchestrator`: Replaced `.unwrap()` with `.expect()` for the `MENTION_RE` `LazyLock` initialization to provide a more descriptive error message if the regex pattern is invalid.
+
+--- audit: original='fix(hygiene): diagnostic expect on mention regex LazyLock (FIX-H-03)' | actual=3L across 1 files | derived=full ---
