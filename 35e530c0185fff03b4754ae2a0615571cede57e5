@@ -1,0 +1,6 @@
+docs(gitignore): exclude compiled plugin binaries from audit tree
+scale: ~5 lines across 1 files [XS]
+
+- Add new glob rules to `.gitignore` to prevent tracking of `vox_plugin_*.dll`, `vox_plugin_*.so`, and `vox_plugin_*.dylib` files generated within `/.vox/audit/**/` directories during full-runtime audit runs.
+
+--- audit: original='chore(gitignore): exclude compiled plugin DLL/SO from .vox/audit tree' | actual=5L across 1 files | derived=full ---
