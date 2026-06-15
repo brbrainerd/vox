@@ -1,0 +1,7 @@
+docs(superpowers): add wiring remediation plan; ignore graphify output
+scale: ~360 lines across 2 files [L]
+
+- Add `docs/superpowers/plans/2026-06-07-wiring-remediation.md` detailing a plan to connect or retire unconnected features identified by a `/graphify` wiring audit, including four independent workstreams (Mesh/Distributed, Scientia, GUI-Gate, Speech) and decisions for 18 findings.
+- Update `.gitignore` to ignore the `graphify-out/` directory.
+
+--- audit: original='docs: add wiring remediation plan; ignore graphify-out' | actual=360L across 2 files | derived=full ---
