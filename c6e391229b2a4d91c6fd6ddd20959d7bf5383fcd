@@ -1,0 +1,8 @@
+docs(pipeline): regenerate documentation after audit doc rename
+scale: ~28 lines across 3 files [S]
+
+- docs/src/feed.xml: Updated the feed to reflect the new audit document filename.
+- docs/src/SUMMARY.md: Updated the table of contents to reference the new audit document filename.
+- docs/src/architecture/architecture-index.md: Updated the architecture index to reference the new audit document filename.
+
+--- audit: original='fix(docs): regenerate doc pipeline after audit doc rename' | actual=28L across 3 files | derived=full ---
