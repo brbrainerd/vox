@@ -1,0 +1,12 @@
+docs(arch): detail naming and anti-entanglement guard design
+scale: ~140 lines across 1 files [M]
+
+- Introduce `docs/src/architecture/2026-05-08-naming-and-guards-design.md` to document the second half of the 2026-05-08 reorg.
+- Explain the problem of LLM navigation latency due to confusing crate names and the tendency for dependency entanglement.
+- Outline three main goals: self-documenting crate names, drift detection via CI, and a flat lookup table for code placement.
+- Describe "Track A" which involves renaming 8 crates to improve self-documentation for LLM tool calls.
+- Mention "Track B" for extending `vox-arch-check` with fan-in tracking, LoC budget, orphan detection, edge-flux logging, and `lib.rs` docstring linting.
+- Refer to "Track C" for a flat `where-things-live.md` lookup, a `lib.rs` docstring sweep, and pointers for CLAUDE/AGENTS.
+- Detail the phasing of these tracks: P-A1 (4 cheap renames), P-A2 (3 moderate renames), P-A3 (vox-runtime rename), P-B (guards), and P-C (docs).
+
+--- audit: original='docs(arch): naming + anti-entanglement guards design (Track A/B/C)' | actual=140L across 1 files | derived=full ---
