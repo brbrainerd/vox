@@ -1,0 +1,13 @@
+test(web-ir): re-enable all `web_ir_lower_emit` tests and update snapshots
+scale: ~214 lines across 3 files [M]
+
+- `crates/vox-compiler/tests/web_ir_lower_emit_test.rs`:
+  - Re-enabled all previously ignored `web_ir_lower_emit` tests by removing `#[ignore]` attributes.
+  - Updated module documentation to reflect the completion of the burndown and re-enabled tests.
+  - Removed the `primitives_unknown_html_tags_pass_through_unchanged` test, as the view parser no longer supports unknown tags.
+- `crates/vox-compiler/tests/snapshots/web_ir_lower_emit_test__nested_route_manifest_with_pending_loader_notfound_error.snap`:
+  - Added a new snapshot for a nested route manifest, demonstrating the new per-route loader contract validation including `loader`, `pendingComponent`, and `errorComponent`.
+- `crates/vox-compiler/tests/snapshots/web_ir_lower_emit_test__counter_view_tsx_webir_emit.snap`:
+  - Updated the snapshot for `counter_view_tsx_webir_emit` to reflect a change in string interpolation for the count display.
+
+--- audit: original='test(web-ir): re-enable the full web_ir_lower_emit ignore cohort (76/76 green)' | actual=214L across 3 files | derived=full ---
