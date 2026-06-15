@@ -1,0 +1,32 @@
+fix(ci+gui+orchestrator): register new crates, refine cdylib rule, improve routing priority and GUI
+scale: ~376 lines across 29 files [L]
+
+- **ci**:
+    - Register `vox-runtime`, `vox-journal`, and `vox-runtime-rn` in `layers.toml` and `where-things-live.md`.
+    - Refine `vox-arch-check` Rule 14: only pure `cdylib` crates are considered dynamically-loaded plugins; dual `rlib`/`cdylib` mobile crates are now legitimately linkable.
+    - Add `expo.dev/settings/access-tokens` to `.lycheeignore` due to 307 redirect.
+- **orchestrator**:
+    - Implement thread-safe routing priority: replace unsafe `set_var` with `install_base_routing_priority` process-global function.
+    - Add `AutoRoutingPriority::parse_csv` for thread-safe parsing of routing priority strings.
+    - Add comprehensive unit tests for `RoutingProfile` and `AutoRoutingPriority` parsing.
+    - Update `base_routing_weights` to use the process-global base priority if no thread-local override is active.
+- **gui**:
+    - **PriorityChainEditor**: Implement monotonic write-id for `setSelectionPolicy` to prevent older writes from clobbering newer state; revert to last-confirmed state on write failure.
+    - **SettingsView**: Debounce the "Routing weights saved" toast message to avoid spamming during slider adjustments.
+    - **SkillsPluginsView**: Add a placeholder for skills.
+- **mcp**:
+    - Update input schemas to require `source|script`, `id|path`, and `outcome|decision`.
+    - `daemon_extra`: Error on unknown approval outcomes instead of silently rejecting.
+    - `server_state`: Use `resolve_plugins_root` for `server_state`.
+- **cli**:
+    - Remove dead throwaway-registry block from `eval.rs`.
+    - Update `env-vars.v1.yaml` contract to include `VOX_POPULI_PERSIST_LOCAL_REGISTRY`.
+- **secrets**:
+    - `auth_json`: Add warning on keyring delete failure (tracing dependency).
+- **db**:
+    - `hitl_approvals`: Improve documentation accuracy.
+    - `manifest`: Add comment for `BASELINE_VERSION`.
+- **daemon**:
+    - Kill orphaned/timed-out child processes in `vox-gui` daemon.
+
+--- audit: original='fix(ci+review): register new crates in arch SSOT, refine cdylib rule, address CodeRabbit' | actual=376L across 29 files | derived=full ---
