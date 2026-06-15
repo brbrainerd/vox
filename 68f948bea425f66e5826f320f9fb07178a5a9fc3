@@ -1,0 +1,21 @@
+docs(fableforge-impl): update implementation notes and schema verification
+scale: ~152 lines across 4 files [M]
+
+- **cascade-delete.ts**:
+    - Updated `generatedAssets` R2 asset key collection to use `assetKey` instead of `storageKey`.
+    - Revised `CASCADE_TABLES` to explicitly list tables and their specific index names for deletion, replacing a generic list.
+    - Added verification notes for schema index names.
+- **generation-orchestrator.ts**:
+    - Added a `SCHEMA ADDITION REQUIRED` section detailing the `selectedProvider` field for `gameDrafts`.
+    - Clarified the `T-004` fix regarding `processBeatJob` and `LLM_MODELS.gpt4o`.
+- **publish-gate.ts**:
+    - Added a `SCHEMA ADDITIONS REQUIRED` section detailing `coverImageKey` and `contentRating` fields for `gameDrafts`.
+- **HANDOFF.md**:
+    - Updated the "Step 1: Verify these 15 claims" table.
+    - Corrected claim #2 regarding `by_game` index names.
+    - Corrected claim #9 regarding `generatedAssets` `storageKey` field.
+    - Removed claims #1, #4, #5, #6, #7, #8, #10, #11, #12, #13, #14, #15.
+    - Added new claims #1, #2, #3, #4, #5, #6, #7, #8, #9, #10, #11, #12, #13, #14, #15.
+    - Updated the "File to update if wrong" column for several claims.
+
+--- audit: original='chore(fableforge): housekeeping for fableforge implementation notes' | actual=152L across 4 files | derived=full ---
