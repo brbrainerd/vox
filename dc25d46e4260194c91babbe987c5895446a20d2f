@@ -1,0 +1,26 @@
+feat(catalog): add status field to entries and update catalog content
+scale: ~114 lines across 4 files [M]
+
+- **`schema.rs`**:
+    - Added `CatalogStatus` enum (`Alpha`, `Beta`, `Stable`, `Deprecated`).
+    - Added `status: CatalogStatus` field (default `Stable`) to `PluginCatalogEntry` and `BundleEntry` structs.
+- **`catalog.toml`**:
+    - Added `status` field to all existing plugin and bundle entries.
+    - Set `status` to `alpha` for `cloud`, `populi-mesh`, `browser`, `runtime-container`, `publication`.
+    - Set `status` to `beta` for `mens-candle-cuda`, `mens-candle-metal`, `oratio`, `runtime-wasm`.
+    - Set `status` to `stable` for `nvml-probe`, `webhook`, `skill-compiler`, `skill-executor`, `skill-planner`, `skill-memory`.
+    - Set `status` to `deprecated` for `skill-v0`.
+    - Added new `vox-mobile` bundle with `alpha` status.
+    - Added section comments for improved readability.
+- **`catalog_load.rs`**:
+    - Renamed `catalog_has_all_nine_code_plugins` to `catalog_has_all_code_and_composite_plugins`.
+    - Updated the expected list of code/composite plugins to reflect removals (`tensor-burn-wgpu`, `oratio-mic`, `script-execution`, `execution-api`, `stub-check`) and additions (`nvml-probe`, `mens-candle-metal`, `webhook`, `browser`, `runtime-wasm`, `runtime-container`, `publication`).
+    - Renamed `catalog_has_all_eight_bundles` to `catalog_has_all_bundles`.
+    - Updated the expected list of bundles to include `vox-ml-metal` and `vox-mobile`.
+    - Added `status_field_is_present_on_entries` smoke test to verify the presence and default value of the `status` field.
+- **`bundle_resolution.rs`**:
+    - Renamed `vox_fullstack_resolves_to_eight_skills` to `vox_fullstack_resolves_to_nine_plugins`.
+    - Corrected the expected plugin count for `vox-fullstack` from 8 to 9, explicitly including `runtime-wasm`.
+    - Updated comment for `vox_ml_resolves_through_extends_chain` to reflect the new `vox-fullstack` plugin count.
+
+--- audit: original='feat(D-13): catalog status field + vox-mobile bundle + test refresh' | actual=114L across 4 files | derived=full ---
