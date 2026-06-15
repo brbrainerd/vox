@@ -1,0 +1,21 @@
+feat(scientia): implement self-publication pipeline with 8 new crates and 11 CLI commands
+scale: ~13481 lines across 95 files [XL]
+
+- feat(vox-scientia-producers): Add 8 new signal producers for commit graph, bench history, Socrates telemetry, doc corpus, test corpus, ADR emergence, API surface, and dependency adoption.
+- feat(vox-replay-runner): Introduce sandboxed re-execution of RO-Crate `mainEntity` with output hash comparison for artifact replayability measurement.
+- feat(vox-manuscript-scaffold): Implement IMRaD safe-slots renderer, enforcing no auto-prose in specific sections.
+- feat(vox-manuscript-latex): Add markdown to LaTeX renderer, producing arXiv-bundle-ready `.tar.gz` files.
+- feat(vox-critic-gate): Implement gate evaluator with `ApproverRole`, `ModelFingerprint` collision checks, and `VenueCriticPolicy` enforcement.
+- feat(vox-class-routing): Add per-`FindingClass` venue routing, reply window, and negative result quota defaults.
+- feat(vox-findings-site): Implement server-rendered HTML for findings pages with Highwire meta tags, version history, and verified claims.
+- feat(vox-scientia-dashboard): Add JSON builders for API endpoints and WebSocket topics, including stall detection.
+- feat(vox-cli): Introduce 11 new `scientia` subcommands for scouting, replay execution, claim extraction, manuscript drafting, LaTeX rendering, arXiv bundling, critic gate checks, approvals, venue recommendations, finding page rendering, and dashboard snapshots.
+- feat(vox-publisher): Integrate claim extraction and verifier output into `WorthinessInputs`, add `FigureProvenance` to `MainEntity`, and update `publication_approvals` schema for critic data.
+- feat(vox-db): Add new `scientia_finding_candidates` table and update `publication_approvals` with critic-related columns, incrementing `BASELINE_VERSION` to 66.
+- feat(docs): Add extensive documentation for the Scientia self-publication gap map and detailed phase plans (A-H).
+- fix(Cargo.toml): Update `zeroize` to include `derive` feature and pin `deadpool` to `0.12` with `rt_tokio_1` feature to resolve runtime issues.
+- fix(vox-cli): Correct `&Path` vs `PathBuf` mismatch in `dev_loop_audit.rs` test fixture.
+- refactor(vox-scientia): Update RO-Crate metadata structure.
+- chore(crates): Add new `Cargo.toml` files for the 8 new crates.
+
+--- audit: original='feat(scientia): self-publication stack — 8 new crates + 7 integration wirings' | actual=13481L across 95 files | derived=sampled ---
