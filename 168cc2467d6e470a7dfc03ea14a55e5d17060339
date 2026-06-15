@@ -1,0 +1,10 @@
+docs(architecture): update GUI-native roadmap status for TASK-6.5 completion
+scale: ~6 lines across 1 files [XS]
+
+- docs/src/architecture/gui-native-roadmap-status-2026.md:
+  - Updated the status of `TASK-6.5 — Contrast ratio along ancestor chain` from "🔲 Not started" to "✅ Done".
+  - Added a detailed description of `TASK-6.5` implementation, including its integration with `validate_a11y_with_registry()`, DFS traversal, surface context tracking, contrast ratio thresholds (3:1, 4.5:1), and unit test count.
+  - Changed the "Phase 6 verdict" from "4 complete, 1 not started" to "5 complete, 0 not started" and declared Phase 6 as "complete".
+  - Updated the "Immediate Next Tasks" to reflect Phase 6 completion, changing the next task from `TASK-6.5` to `TASK-7.x`.
+
+--- audit: original='docs: update GUI-native roadmap status for TASK-6.5' | actual=6L across 1 files | derived=full ---
