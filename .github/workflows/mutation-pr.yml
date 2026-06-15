@@ -3,6 +3,7 @@
 name: Mutation (PR, vox-compiler + vox-codegen)
 
 on:
+  merge_group:
   pull_request:
     paths:
       - "crates/vox-compiler/**"
@@ -20,6 +21,8 @@ env:
 jobs:
   cargo-mutants:
     name: cargo-mutants (${{ matrix.crate }})
+    # Tier: heavy (self-hosted). merge_group + 'full-ci' label only; skip routine PR pushes.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     runs-on: [self-hosted, linux, x64]
     # Hard gate: mutation survivors on vox-compiler or vox-codegen mean tests
     # exist but don't catch the mutations — the test suite is decorative, not
