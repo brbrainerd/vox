@@ -1,0 +1,29 @@
+feat(ci): add test inventory, runtime reports, and governance gates
+scale: ~3799 lines across 35 files [XL]
+
+- Add `ci test-inventory` command to generate JSON/Markdown reports of workspace test inventory, including counts for unit, integration, bench, and ignored tests, and identify crates with zero or inline-only tests.
+- Add `ci test-runtime-report` command to parse JUnit XML and emit JSON/Markdown summaries of slow tests and retry/flaky candidates.
+- Add `ci test-governance` command with subcommands `ignored-test-age`, `flake-budget`, and `runtime-regress` to enforce CI policies based on test inventory and runtime reports.
+- Introduce `command_registry_handler_needles` module for command registration.
+- Refactor `ci retired_symbol_check` to use `ScanCfg` for conditional line skipping in Rust and Markdown files, and add `PathBuf` to `RetiredSymbolCheckOpts`.
+- Remove `sqlite_quote_ident`, `sqlite_pragma_i64`, `sqlite_pragma_text`, and `pick_time_audit_column` from `db local`, replacing them with `format_research_metric_time`.
+- Extend `ci pre_push` with new checks for CI enums and retired symbols.
+- Update `ci gui_smoke` to use `TestRuntimeReport` and `TestInventoryReport` for smoke tests.
+- Modify `ci operations_catalog` to include new CI command enums.
+- Add `docs_deprecated_command_guard` command to CI.
+- Add `ci cmd_enums` module to define CI-related enums like `GovernanceGateMode`.
+- Add `ci run_body` for CI run body logic.
+- Add `ci data_storage_guard` for data storage related guards.
+- Remove `guards` module from `ci run_body_helpers`.
+- Add `test` command.
+- Update `bundle` and `run` commands.
+- Update `review coderabbit ingest` and `review coderabbit semantic_planner` modules.
+- Update `workflow preview` and `workflow drain` modules.
+- Update `dispatch preview` module.
+- Update `runtime dev dev` module.
+- Update `diagnostics doctor common` module.
+- Update `dei_daemon` module.
+- Update `ci command_compliance validators` and `ci command_compliance docs_sync` modules.
+- Add integration tests for `ci ignored-test-age`, `flake-budget`, `runtime-regress`, `test_inventory_smoke`, and `ci_pre_push`.
+
+--- audit: original='feat(cli-ci): test inventory, runtime reports, governance gates' | actual=3799L across 35 files | derived=full ---
