@@ -1,0 +1,14 @@
+feat(share): add localhost.run backend and Cloudflare fallback
+scale: ~296 lines across 9 files [L]
+
+- `crates/vox-share/src/backends/localhost_run.rs`: Add new `LocalhostRunBackend` for creating SSH tunnels via `localhost.run`. This backend uses the system's `ssh` client, spawns `ssh -R` commands, and parses the tunnel URL from stdout.
+- `crates/vox-share/tests/localhost_run_backend_test.rs`: Add tests for `LocalhostRunBackend`, including checking its `kind()` and preflight behavior when `ssh` is unavailable.
+- `crates/vox-share/src/coordinator.rs`: Implement a fallback mechanism in `ShareSession::start`. If the `CloudflareBackend` fails and `allow_fallback` is true, it now attempts to start a tunnel using `LocalhostRunBackend`.
+- `crates/vox-share/tests/fallback_test.rs`: Add new tests to verify the fallback chain, specifically that `allow_fallback` works with `LanBackend` and does not affect non-Cloudflare backends.
+- `crates/vox-cli/src/commands/share.rs`: Update the `share` command to set `allow_fallback` to `true` when the chosen backend is `CloudflareBackend`, enabling the new fallback logic.
+- `crates/vox-share/src/backends/mod.rs`: Export the new `localhost_run` module.
+- `crates/vox-share/Cargo.toml`: Add `which` dependency for detecting the `ssh` executable.
+- `crates/vox-share/tests/coordinator_test.rs`: Update `ShareConfig` in a test to include the new `allow_fallback` field.
+- `Cargo.lock`: Update lockfile for new dependency.
+
+--- audit: original='feat(share): localhost.run backend + Cloudflare fallback chain (S3)' | actual=296L across 9 files | derived=full ---
