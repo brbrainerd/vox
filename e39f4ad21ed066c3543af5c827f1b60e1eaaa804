@@ -1,0 +1,6 @@
+docs(quantize): Add SP-2 Task 0 extraction map for Qwen forward
+scale: ~89 lines across 1 files [M]
+
+- docs/superpowers/specs/2026-05-31-vox-quantize-inference-design.md: Document the SP-2 Task 0 extraction map for Qwen forward, detailing the investigation into running quantized inference. It proposes duplicating a quantized-only forward inside `vox-inference` using `candle::quantized::QMatMul` as the viable option, rejecting extraction of existing `qlora-rs` based structs due to their training/LoRA specific nature.
+
+--- audit: original='docs(quantize): SP-2 Task 0 extraction map for Qwen forward' | actual=89L across 1 files | derived=full ---
