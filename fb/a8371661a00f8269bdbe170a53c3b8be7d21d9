@@ -1,0 +1,18 @@
+feat(vox-code-audit): Add import cycle detection rule (J.19 CR-L gate)
+scale: ~548 lines across 5 files [L]
+
+- `crates/vox-code-audit/src/detectors/import_cycles.rs`: Add `ImportCyclesDetector` (ID `import/cycle`, diagnostic `vox/import/cycle`) as the 51st built-in rule.
+  - `detect()` method identifies direct self-imports (e.g., `import "./a.vox"` in `a.vox`) at Error severity.
+  - `detect_import_cycles_in_batch(files)` public function builds a directed import graph from a `SourceFile` slice, uses iterative DFS to find back edges, and emits a `Finding` for each import line closing a cycle. Handles mutual cycles, chains, and ignores diamond graphs.
+  - `extract_vox_imports` helper function extracts relative import paths from Vox files.
+- `crates/vox-code-audit/src/detectors/mod.rs`:
+  - Register `ImportCyclesDetector` in `all_rules()`.
+  - Update `rule_count()` from 50 to 51.
+  - Add module-level documentation for `import_cycles`.
+- `crates/vox-code-audit/src/diagnostics/catalog.rs`:
+  - Add `IMPORT_CYCLE` constant (`"vox/import/cycle"`) to the diagnostic catalog.
+  - Include `IMPORT_CYCLE` in `ALL_KNOWN_IDS`.
+- `crates/vox-code-audit/src/lib.rs`: Export `detect_import_cycles_in_batch` and `extract_vox_imports` from the crate root.
+- `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md`: Mark Phase J.19 as complete, detailing the implementation of the import cycle detector.
+
+--- audit: original='feat(vox-code-audit): Phase J.19 — import_cycles CR-L gate (rule 51)' | actual=548L across 5 files | derived=full ---
