@@ -1,0 +1,7 @@
+docs(architecture): add unified task hopper research document and index entry
+scale: ~805 lines across 2 files [L]
+
+- docs/src/architecture/unified-task-hopper-research-2026.md: Add new 804-line research document detailing the "Unified Task Hopper" proposal. This document audits the concept of a single developer-facing task intake against existing systems, proposes three design options (recommending Option A), discusses version control implications, telemetry-driven priority learning, and developer override contracts. It also outlines non-goals and open questions.
+- docs/src/architecture/research-index.md: Add a new entry for "Unified Task Hopper — Research, Design Space, and Recommendation (2026-05-09)" under the "Audits & Assessments" section, including a detailed summary of the document's contents.
+
+--- audit: original='docs(architecture): add unified task hopper research & design-space doc' | actual=805L across 2 files | derived=full ---
