@@ -1,0 +1,8 @@
+fix(qlora): implement global gradient clipping
+scale: ~133 lines across 1 files [M]
+
+- `training.rs`: Implemented `clip_grad_norm` function to apply global L2 norm gradient clipping.
+- `training.rs`: Modified `AdamW` optimizer steps to call `clip_grad_norm` using the configured `max_grad_norm`, replacing the previous no-op placeholder.
+- `training.rs`: Added necessary `candle_core::Var` and `candle_core::backprop::GradStore` imports.
+
+--- audit: original='fix(qlora): implement gradient clipping (was a silent no-op)' | actual=133L across 1 files | derived=full ---
