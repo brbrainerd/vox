@@ -1,0 +1,13 @@
+ci(hosted): Enable sccache with GHA cache backend on `gate` and `cross-check` workflows
+scale: ~32 lines across 2 files [S]
+
+- .github/workflows/cross-platform-check.yml:
+    - Added `RUSTC_WRAPPER`, `SCCACHE_GHA_ENABLED`, and `CARGO_INCREMENTAL` environment variables to enable sccache.
+    - Integrated `mozilla-actions/sccache-action@v0.0.9` to install sccache.
+    - Added a step to display sccache statistics using `sccache --show-stats`.
+- .github/workflows/ci-fallback-hosted.yml:
+    - Added `RUSTC_WRAPPER`, `SCCACHE_GHA_ENABLED`, and `CARGO_INCREMENTAL` environment variables to enable sccache.
+    - Integrated `mozilla-actions/sccache-action@v0.0.9` to install sccache.
+    - Added a step to display sccache statistics using `sccache --show-stats`.
+
+--- audit: original='ci(hosted): enable sccache with GHA cache backend on gate and cross-check' | actual=32L across 2 files | derived=full ---
