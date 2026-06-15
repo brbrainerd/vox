@@ -1,0 +1,7 @@
+feat(scripts/show): add `cross-post.vox` for multi-platform content fanout
+scale: ~221 lines across 2 files [M]
+
+- `scripts/show/cross-post.vox`: Add new Vox program that takes a canonical episode description (Markdown) and generates platform-specific drafts for YouTube, X, Reddit (r/programming, r/programminglanguages), Hacker News, Discord, and a newsletter. It parses LLM output into separate files based on "=== platform-name ===" sections.
+- `scripts/show/README.md`: Update the script table to include `cross-post.vox` and its inputs (`RAW_NERVE_EPISODE_MD`) and optional environment variables (`RAW_NERVE_DRAFTS_DIR`, `RAW_NERVE_PLAYGROUND_URL`, `RAW_NERVE_YOUTUBE_URL`).
+
+--- audit: original='feat(scripts/show): add cross-post.vox for launch-week platform fanout' | actual=221L across 2 files | derived=full ---
