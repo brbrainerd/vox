@@ -1,0 +1,20 @@
+feat(typeck): Add `chars()`, `ord()`, `chr()`, and `bytes()` for string manipulation
+scale: ~363 lines across 19 files [L]
+
+- **`crates/vox-compiler/src/typeck/builtins.rs`**:
+    - Added `chars()` method to `Str` type, returning `list[str]` for character iteration.
+    - Added `ord()` method to `Str` type, returning `int` for Unicode code point.
+    - Added `bytes()` method to `Str` type, returning `list[int]` for UTF-8 byte values.
+    - Added global builtin function `chr(n: int)` returning `str` for a Unicode code point.
+- **`examples/golden/str_utils.vox`**:
+    - Updated golden example to demonstrate new `chars()`, `ord()`, and `chr()` methods.
+    - Changed `syntax_version` from "0.5.0" to "0.6.0".
+    - Updated `constructs` list to include `chars`, `ord`, and `chr`.
+    - Updated `last_validated` date.
+    - Modified training prompt to reflect new methods.
+- **`contracts/eval/humaneval-vox/problems/*`**:
+    - Refactored 8 HumanEval-Vox problems (004, 005, 006, 011, 021, 024, 031, 045) to use the new `chars()` and `ord()` methods, replacing manual `char_at` iteration and `find_in` helper functions. This significantly reduced code size and complexity in these problem solutions.
+- **`contracts/eval/humaneval-vox/manifest.v1.yaml`**:
+    - Regenerated `corpus_hash` due to changes in problem files.
+
+--- audit: original='feat(typeck): add chars(), ord(), chr(), bytes() to string type' | actual=363L across 19 files | derived=full ---
