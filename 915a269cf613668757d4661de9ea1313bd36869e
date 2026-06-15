@@ -1,0 +1,22 @@
+fix(typeck): validate declared fg/bg pairs for contrast, not light-vs-dark
+scale: ~248 lines across 7 files [M]
+
+- `crates/vox-compiler/src/typeck/contrast.rs`:
+    - Refactored `check_tokens` to first validate hex color parsing for all tokens.
+    - Modified `check_tokens` to iterate through color tokens and call `check_color_pair` only for tokens with a `pair_bg` defined.
+    - Renamed `check_color_token` to `check_color_pair` and updated its logic to:
+        - Resolve the named background token from the `pair_bg` field.
+        - Calculate WCAG contrast ratios for both light foreground on light background and dark foreground on dark background.
+        - Emit `vox/tokens/contrast-violation` diagnostics if either ratio is below AA 4.5:1.
+        - Emit `vox/tokens/dangling-pair` diagnostics if a `pair_bg` references a non-existent token.
+    - Removed the previous logic that compared a token's own light and dark variants for contrast.
+- `crates/vox-compiler/tests/ga_boilerplate_grafts_test.rs`:
+    - Updated `tokens_contrast_violation_produces_diagnostic` test to use the new `on:` syntax and verify a `contrast-violation` for a gray-on-white pair.
+    - Added `tokens_unpaired_close_variants_are_not_flagged` test to ensure tokens without an `on:` declaration are not checked for contrast, preventing false positives.
+- `crates/vox-compiler/src/parser/descent/decl/head.rs`: Added parsing logic for an optional `on: <bg-token>` clause in `@tokens color` declarations, storing the background token name in `pair_bg`.
+- `examples/forbidden/tokens_low_contrast_pair.vox`: Added a new forbidden fixture demonstrating a `vox/tokens/contrast-violation` with the new `on:` syntax.
+- `crates/vox-ast/src/decl/ui.rs`: Added `pair_bg: Option<String>` field to `AstColorToken` to store the name of the background token for contrast checking.
+- `crates/vox-compiler/src/hir/nodes/tokens.rs`: Added `pair_bg: Option<String>` field to `HirColorToken` to carry the background token name through the HIR.
+- `crates/vox-compiler/src/hir/lower/mod.rs`: Updated the lowering logic to transfer the `pair_bg` field from `AstColorToken` to `HirColorToken`.
+
+--- audit: original='fix(typeck): @tokens contrast validates declared fg/bg pairs, not light-vs-dark' | actual=248L across 7 files | derived=full ---
