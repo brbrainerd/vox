@@ -1,0 +1,9 @@
+fix(deps): bump react from 19.2.4 to 19.2.7 and @types/react from 19.2.14 to 19.2.16
+scale: ~116 lines across 3 files [M]
+
+- Bumped `react` from `^19.2.4` to `^19.2.7` in `apps/experimental/visualizer/package.json`.
+- Bumped `@types/react` from `^19.2.14` to `^19.2.16` in `apps/experimental/visualizer/package.json`.
+- Updated `apps/experimental/visualizer/pnpm-lock.yaml` to reflect dependency changes.
+- Updated `apps/experimental/visualizer/package-lock.json` to reflect dependency changes.
+
+--- audit: original='chore(deps): bump react and @types/react (#116)' | actual=116L across 3 files | derived=full ---
