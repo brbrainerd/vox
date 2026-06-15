@@ -163,6 +163,9 @@ pub enum CiCmd {
         /// Drift gate: fail if the generated TS differs from CONFIG_KEYS (do not write).
         #[arg(long)]
         check: bool,
+        /// Also generate/check the Rust FIELDS catalog (generated_fields.rs).
+        #[arg(long)]
+        fields: bool,
     },
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
