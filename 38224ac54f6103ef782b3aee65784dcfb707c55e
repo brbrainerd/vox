@@ -1,0 +1,10 @@
+docs(roadmap): Mark TASK-6.4 as complete and update Phase 6 status
+scale: ~6 lines across 1 files [XS]
+
+- `docs/src/architecture/gui-native-roadmap-status-2026.md`:
+    - Updated the status of `TASK-6.4 — Overlay block + z-index DAG validator` from "Not started" to "Done".
+    - Added commit hash `9fb6e958` and a detailed description of the changes for `TASK-6.4`, including the primitives involved, validator warnings, marker attributes, and test counts.
+    - Updated the "Phase 6 verdict" from "3 complete, 2 not started" to "4 complete, 1 not started".
+    - Changed the "Immediate Next Tasks" from `TASK-6.4` to `TASK-6.5`.
+
+--- audit: original='docs: update roadmap — TASK-6.4 complete, Phase 6 at 4/5' | actual=6L across 1 files | derived=full ---
