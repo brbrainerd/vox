@@ -1,0 +1,12 @@
+fix(codegen): improve web router, RN loops, form numerics, and env handling
+scale: ~124 lines across 9 files [M]
+
+- **codegen-web**: The emitted router's link interception now bails on any URL scheme (e.g., `mailto:`, `tel:`, `sms:`, `blob:`) in addition to `http:`/`https:`, `//`, and `#`, ensuring non-path links are handled by the browser. The generic 404 view now uses the neutral `vox-not-found` class instead of `mh-root`.
+- **codegen-rn**: A `for` loop body that lowers to multiple sibling nodes is now wrapped in a keyed `<View>` component, as bare multi-node `.map(...)` returns are invalid JSX.
+- **vox-client (RN)**: `VoxRuntimeError` is now explicitly imported when a module contains only unsupported `@query`/`@mutation` endpoints, ensuring the error symbol resolves even when the full on-device preamble is skipped.
+- **@form**: Empty numeric fields (`NaN`) are coerced to `undefined` before building submit arguments, preventing optional numerics from being forwarded as `NaN`/`null` and potentially breaking endpoint validation.
+- **env policy**: The `VOX_WEB_NO_EMIT_ENTRY` environment variable is now resolved through the dedicated `web_migration_env` module, which is re-exported as `emitter::no_emit_entry_from_env`, centralizing its handling instead of ad-hoc `std::env::var` reads in `emitter.rs` and `build.rs`.
+- **ci**: The `mobile-eas-build.yml` workflow now gates the `eas-build` job on `github.event_name == 'workflow_dispatch'` and checks for the `EXPO_TOKEN` secret within a step guard, as GitHub rejects `secrets` in job-level `if:` conditions.
+- **docs**: The "Web Bootstrap Emission — Migration Plan (2026)" has been registered in `research-index.md`.
+
+--- audit: original='fix(codegen): address CodeRabbit review on PR #97' | actual=124L across 9 files | derived=full ---
