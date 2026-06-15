@@ -1,0 +1,12 @@
+feat(vox-orchestrator): wire vox-prereg for research campaign preregistration gate
+scale: ~169 lines across 7 files [M]
+
+- `crates/vox-orchestrator/src/research_gate.rs`: Added a new module `research_gate` to integrate `vox-prereg` for campaign pre-registration checks, including a `check_campaign_prereg` function that delegates to `PreregGate::check_campaign`.
+- `crates/vox-orchestrator/tests/research_gate.rs`: Added 84 lines of integration tests for the new `research_gate` module, verifying refusal conditions for missing preregistration or signatures.
+- `crates/vox-orchestrator/src/lib.rs`: Declared the new `research_gate` module as public.
+- `crates/vox-orchestrator/Cargo.toml`: Added `vox-prereg` and `vox-research-events` as dependencies.
+- `crates/vox-publisher/src/scientia_scholarly.rs`: Added a new module `scientia_scholarly` that re-exports types from `vox-claim-extractor`, `vox-inspect-bridge`, `vox-nanopub`, and `vox-ro-crate` when the `scholarly-external-jobs` feature is enabled.
+- `crates/vox-publisher/src/lib.rs`: Declared the new `scientia_scholarly` module as public.
+- `crates/vox-publisher/Cargo.toml`: Added `vox-claim-extractor`, `vox-inspect-bridge`, `vox-nanopub`, and `vox-ro-crate` as optional dependencies, and updated the `scholarly-external-jobs` feature to include them.
+
+--- audit: original='feat(vox-orchestrator): wire vox-prereg preregistration gate' | actual=169L across 7 files | derived=full ---
