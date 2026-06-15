@@ -1,0 +1,9 @@
+refactor(cli): Replace hardcoded registry URL with constant in commands
+scale: ~10 lines across 4 files [S]
+
+- `crates/vox-cli/src/commands/diagnostics/tools/search.rs`: Replaced hardcoded registry URL with `crate::commands::pm_lifecycle::DEFAULT_REGISTRY_BASE`.
+- `crates/vox-cli/src/commands/info.rs`: Replaced hardcoded registry URL with `super::pm_lifecycle::DEFAULT_REGISTRY_BASE`.
+- `crates/vox-cli/src/commands/publish.rs`: Replaced hardcoded registry URL with `super::pm_lifecycle::DEFAULT_REGISTRY_BASE`.
+- `crates/vox-cli/src/commands/search.rs`: Replaced hardcoded registry URL with `super::pm_lifecycle::DEFAULT_REGISTRY_BASE`.
+
+--- audit: original='refactor(config): de-literalize low-severity lt-cli findings' | actual=10L across 4 files | derived=full ---
