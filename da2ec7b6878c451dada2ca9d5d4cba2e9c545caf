@@ -1,0 +1,10 @@
+feat(cli): add free-tier model explanation to `vox model explain`
+scale: ~124 lines across 1 files [M]
+
+- `crates/vox-cli/src/commands/model/explain.rs`:
+    - Added `free_tier`, `latency_critical`, and `fim` boolean arguments to `ExplainArgs`.
+    - Implemented `render_free_tier` helper function to rank free models using `FreeTierRouter` and return model IDs with their rationales.
+    - Integrated free-tier model explanation into the `run` function, displaying ranked free-tier candidates and their rationales when `--free-tier` is enabled.
+    - Constructed a `FreeTierRouteRequest` based on the new command-line arguments (`fim`, `latency_critical`) and existing task category.
+
+--- audit: original='feat(models): surface free-tier selection rationale in `vox model explain --free-tier` (A2 Slice 1)' | actual=124L across 1 files | derived=full ---
