@@ -8,13 +8,21 @@ authors.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+[features]
+# One feature per SQL engine. Default = libSQL (turso); postgres/mysql pull their
+# own sqlx wire-protocol driver only when explicitly enabled.
+default = ["libsql"]
+libsql = ["dep:turso", "dep:vox-db"]
+postgres = ["dep:sqlx", "sqlx/postgres"]
+mysql = ["dep:sqlx", "sqlx/mysql"]
+
 [dependencies]
 async-trait = { workspace = true }
-vox-db = { workspace = true }
+vox-db = { workspace = true, optional = true }
 vox-secrets = { workspace = true }
 vox-ast = { workspace = true }
-turso = { workspace = true }
-sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "postgres", "mysql"] }
+turso = { workspace = true, optional = true }
+sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio"], optional = true }
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["sync"] }
 
