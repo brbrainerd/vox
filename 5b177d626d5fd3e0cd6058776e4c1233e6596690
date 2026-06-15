@@ -1,0 +1,16 @@
+feat(cli, vscode): add `vox snapshot orphans`, `vox test --watch`, and `tdd` snippet
+scale: ~341 lines across 11 files [L]
+
+- `crates/vox-cli/src/commands/snapshot.rs`: New command `vox snapshot orphans` to detect and optionally delete `.snap` files whose corresponding test function no longer exists.
+- `crates/vox-cli/src/commands/test.rs`: Add `run_watch` function and integrate `watch` argument to re-run tests on `.vox` file changes using `notify` crate.
+- `crates/vox-cli/src/cli_args.rs`: Add `watch` boolean argument to `TestArgs` for the `vox test` command.
+- `crates/vox-cli/src/lib.rs`: Add `Snapshot` subcommand to the main CLI enum.
+- `crates/vox-cli/src/cli_dispatch/mod.rs`: Dispatch `Cli::Snapshot` to `commands::snapshot::run`.
+- `crates/vox-cli/src/commands/mod.rs`: Declare `snapshot` module.
+- `crates/vox-cli/src/main.rs`: Update CLI usage documentation to include `vox test --watch` and `vox snapshot orphans [--clean]`.
+- `crates/vox-cli/src/compilerd.rs`: Set `watch` to `false` when handling test requests from the compiler daemon.
+- `vox-vscode/snippets/tdd.json`: New VS Code snippet `tdd` to scaffold a paired `fn` and `@test` block.
+- `vox-vscode/package.json`: Register the new `tdd.json` snippet for the `vox` language.
+- `docs/src/contributors/coding-agents.md`: Add `vox snapshot orphans` to the pre-commit victory checklist (Tier 7b).
+
+--- audit: original='feat(tdd): wave-1 friction reducers — snippet, watch, snapshot orphans' | actual=341L across 11 files | derived=full ---
