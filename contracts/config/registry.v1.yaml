@@ -90,3 +90,739 @@ knobs:
     status: active
     default_value: "512"
     since: "2026-06-15"
+
+  # ── orchestrator/lifecycle ────────────────────────────────────────────────
+  - name: orchestrator_enabled
+    env_var: VOX_ORCHESTRATOR_ENABLED
+    description: Master on/off switch for the multi-agent orchestrator.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "true"
+    since: "2026-06-15"
+
+  - name: orchestrator_max_agents
+    env_var: VOX_ORCHESTRATOR_MAX_AGENTS
+    description: Hard ceiling on concurrent orchestrated agents.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "8"
+    since: "2026-06-15"
+
+  - name: orchestrator_min_agents
+    env_var: VOX_ORCHESTRATOR_MIN_AGENTS
+    description: Minimum number of live agents before scale-down is blocked.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "1"
+    since: "2026-06-15"
+
+  - name: orchestrator_fallback_single
+    env_var: VOX_ORCHESTRATOR_FALLBACK_SINGLE
+    description: Fall back to single-agent mode when multi-agent orchestration fails to start.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "true"
+    since: "2026-06-15"
+
+  - name: orchestrator_lock_timeout_ms
+    env_var: VOX_ORCHESTRATOR_LOCK_TIMEOUT_MS
+    description: Timeout in ms before an orchestrator state lock is considered stale and forcibly released.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "30000"
+    since: "2026-06-15"
+
+  - name: orchestrator_toestub_gate
+    env_var: VOX_ORCHESTRATOR_TOESTUB_GATE
+    description: Enable the toestub debug/inspection gate for orchestrator sessions.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_max_debug_iterations
+    env_var: VOX_ORCHESTRATOR_MAX_DEBUG_ITERATIONS
+    description: Maximum debug-iteration loops before the orchestrator aborts a stuck agent.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "5"
+    since: "2026-06-15"
+
+  # ── orchestrator/scaling ──────────────────────────────────────────────────
+  - name: orchestrator_scaling_enabled
+    env_var: VOX_ORCHESTRATOR_SCALING_ENABLED
+    description: Enable dynamic agent pool scaling based on queue depth.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_scaling_threshold
+    env_var: VOX_ORCHESTRATOR_SCALING_THRESHOLD
+    description: Queue depth that triggers a scale-up decision.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "5"
+    since: "2026-06-15"
+
+  - name: orchestrator_idle_retirement_ms
+    env_var: VOX_ORCHESTRATOR_IDLE_RETIREMENT_MS
+    description: How long (ms) an idle agent lives before being retired by the scaler.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "300000"
+    since: "2026-06-15"
+
+  - name: orchestrator_scaling_cooldown_ms
+    env_var: VOX_ORCHESTRATOR_SCALING_COOLDOWN_MS
+    description: Minimum interval (ms) between successive scale-up or scale-down decisions.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "5000"
+    since: "2026-06-15"
+
+  - name: orchestrator_max_spawn_per_tick
+    env_var: VOX_ORCHESTRATOR_MAX_SPAWN_PER_TICK
+    description: Maximum number of new agents that may be spawned in a single scaling tick.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "5"
+    since: "2026-06-15"
+
+  - name: orchestrator_scaling_lookback
+    env_var: VOX_ORCHESTRATOR_SCALING_LOOKBACK
+    description: Number of ticks included in the rolling queue-depth window used for scale decisions.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "5"
+    since: "2026-06-15"
+
+  - name: orchestrator_scaling_profile
+    env_var: VOX_ORCHESTRATOR_SCALING_PROFILE
+    description: "Scaling aggressiveness preset: conservative | balanced | aggressive."
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "balanced"
+    since: "2026-06-15"
+
+  - name: orchestrator_cost_preference
+    env_var: VOX_ORCHESTRATOR_COST_PREFERENCE
+    description: "Model-selection cost preference: economy (default) or performance."
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "economy"
+    since: "2026-06-15"
+
+  - name: orchestrator_urgent_rebalance_threshold
+    env_var: VOX_ORCHESTRATOR_URGENT_REBALANCE_THRESHOLD
+    description: Queue depth at which an immediate (non-cooldown) rebalance is triggered.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "3"
+    since: "2026-06-15"
+
+  - name: orchestrator_resource_weight
+    env_var: VOX_ORCHESTRATOR_RESOURCE_WEIGHT
+    description: Weight applied to the composite resource-utilisation score in routing decisions.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "0.3"
+    since: "2026-06-15"
+
+  - name: orchestrator_resource_cpu_mult
+    env_var: VOX_ORCHESTRATOR_RESOURCE_CPU_MULT
+    description: Multiplier applied to the CPU-utilisation component of the resource score.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "0.7"
+    since: "2026-06-15"
+
+  - name: orchestrator_resource_mem_mult
+    env_var: VOX_ORCHESTRATOR_RESOURCE_MEM_MULT
+    description: Multiplier applied to the memory-utilisation component of the resource score.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "0.3"
+    since: "2026-06-15"
+
+  - name: orchestrator_resource_exponent
+    env_var: VOX_ORCHESTRATOR_RESOURCE_EXPONENT
+    description: Exponent applied to the combined resource score (>1 super-linear, <1 sub-linear).
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "1.0"
+    since: "2026-06-15"
+
+  # ── orchestrator/migration ────────────────────────────────────────────────
+  - name: orchestrator_migration_v2_enabled
+    env_var: VOX_ORCHESTRATOR_MIGRATION_V2_ENABLED
+    description: Enable the v2 orchestration code path (migration gate).
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_migration_legacy_fallback
+    env_var: VOX_ORCHESTRATOR_MIGRATION_LEGACY_FALLBACK
+    description: Allow fallback to the legacy orchestration path when v2 errors.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "true"
+    since: "2026-06-15"
+
+  # ── orchestrator/planning ─────────────────────────────────────────────────
+  - name: orchestrator_planning_enabled
+    env_var: VOX_ORCHESTRATOR_PLANNING_ENABLED
+    description: Enable the task-planning subsystem inside the orchestrator.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_planning_router_enabled
+    env_var: VOX_ORCHESTRATOR_PLANNING_ROUTER_ENABLED
+    description: Route tasks through the planning layer before agent dispatch.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_planning_replan_enabled
+    env_var: VOX_ORCHESTRATOR_PLANNING_REPLAN_ENABLED
+    description: Allow the orchestrator to re-plan mid-task when progress stalls.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_planning_workflow_handoff_enabled
+    env_var: VOX_ORCHESTRATOR_PLANNING_WORKFLOW_HANDOFF_ENABLED
+    description: Enable workflow-level handoff signals between planning stages.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_planning_shadow_mode
+    env_var: VOX_ORCHESTRATOR_PLANNING_SHADOW_MODE
+    description: Run the planner in shadow mode (decisions logged but not applied).
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_planning_auto_mode_enabled
+    env_var: VOX_ORCHESTRATOR_PLANNING_AUTO_MODE_ENABLED
+    description: Allow the orchestrator to autonomously select planning depth.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_planning_rollout_percent
+    env_var: VOX_ORCHESTRATOR_PLANNING_ROLLOUT_PERCENT
+    description: Percentage (0–100) of sessions that use the planning subsystem during gradual rollout.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "0"
+    since: "2026-06-15"
+
+  - name: orchestrator_research_model_enabled
+    env_var: VOX_ORCHESTRATOR_RESEARCH_MODEL_ENABLED
+    description: Enable the dedicated research-model routing path inside the orchestrator.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  # ── orchestrator/quality-gates ────────────────────────────────────────────
+  - name: orchestrator_plan_adequacy_shadow
+    env_var: VOX_ORCHESTRATOR_PLAN_ADEQUACY_SHADOW
+    description: Run the plan-adequacy gate in shadow mode (evaluate but never block).
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_plan_adequacy_enforce
+    env_var: VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE
+    description: Enforce the plan-adequacy gate (block execution on low-adequacy plans).
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_context_lifecycle_shadow
+    env_var: VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_SHADOW
+    description: Run context-lifecycle enforcement in shadow/observe mode.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_context_lifecycle_enforce
+    env_var: VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_ENFORCE
+    description: Enforce context-lifecycle policy (reject out-of-lifecycle operations).
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_completion_grounding_shadow
+    env_var: VOX_ORCHESTRATOR_COMPLETION_GROUNDING_SHADOW
+    description: Run completion-grounding checks in shadow mode.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_completion_grounding_enforce
+    env_var: VOX_ORCHESTRATOR_COMPLETION_GROUNDING_ENFORCE
+    description: Enforce completion-grounding checks (block ungrounded completions).
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_completion_markdown_link_audit_enabled
+    env_var: VOX_ORCHESTRATOR_COMPLETION_MARKDOWN_LINK_AUDIT_ENABLED
+    description: Audit markdown links in agent completions for broken/unresolved references.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "true"
+    since: "2026-06-15"
+
+  # ── orchestrator/attention ────────────────────────────────────────────────
+  - name: orchestrator_attention_enabled
+    env_var: VOX_ORCHESTRATOR_ATTENTION_ENABLED
+    description: Enable the attention-budget subsystem for session cost accounting.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "true"
+    since: "2026-06-15"
+
+  - name: orchestrator_attention_budget_ms
+    env_var: VOX_ORCHESTRATOR_ATTENTION_BUDGET_MS
+    description: Per-session attention budget in ms (1 hr default).
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "3600000"
+    since: "2026-06-15"
+
+  - name: orchestrator_attention_alert_threshold
+    env_var: VOX_ORCHESTRATOR_ATTENTION_ALERT_THRESHOLD
+    description: Fraction of budget consumed (0.0–1.0) that triggers an AttentionHigh signal.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "0.7"
+    since: "2026-06-15"
+
+  - name: orchestrator_attention_interrupt_cost_ms
+    env_var: VOX_ORCHESTRATOR_ATTENTION_INTERRUPT_COST_MS
+    description: Estimated attention cost in ms charged per mid-session interrupt.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "23250"
+    since: "2026-06-15"
+
+  - name: orchestrator_attention_trust_routing_weight
+    env_var: VOX_ORCHESTRATOR_ATTENTION_TRUST_ROUTING_WEIGHT
+    description: Weight given to attention-trust score when selecting agents for routing.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "2.0"
+    since: "2026-06-15"
+
+  # ── orchestrator/trust ────────────────────────────────────────────────────
+  - name: orchestrator_trust_ewma_alpha
+    env_var: VOX_ORCHESTRATOR_TRUST_EWMA_ALPHA
+    description: EWMA smoothing factor for per-agent trust score updates.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "0.1"
+    since: "2026-06-15"
+
+  - name: orchestrator_trust_provisional_threshold
+    env_var: VOX_ORCHESTRATOR_TRUST_PROVISIONAL_THRESHOLD
+    description: Minimum completed tasks before an agent leaves provisional trust status.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "5"
+    since: "2026-06-15"
+
+  - name: orchestrator_trust_trusted_threshold
+    env_var: VOX_ORCHESTRATOR_TRUST_TRUSTED_THRESHOLD
+    description: Completed-task count at which an agent reaches fully-trusted status.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "20"
+    since: "2026-06-15"
+
+  - name: orchestrator_trust_auto_approve_min
+    env_var: VOX_ORCHESTRATOR_TRUST_AUTO_APPROVE_MIN
+    description: Minimum trust score (0.0–1.0) required for auto-approve without human review.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "0.85"
+    since: "2026-06-15"
+
+  - name: orchestrator_trust_gate_relax_enabled
+    env_var: VOX_ORCHESTRATOR_TRUST_GATE_RELAX_ENABLED
+    description: Allow relaxing trust-gate checks for agents that exceed the reliability threshold.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_trust_gate_relax_min_reliability
+    env_var: VOX_ORCHESTRATOR_TRUST_GATE_RELAX_MIN_RELIABILITY
+    description: Minimum reliability score (0.0–1.0) needed to be eligible for trust-gate relaxation.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "0.85"
+    since: "2026-06-15"
+
+  # ── orchestrator/exec-time ────────────────────────────────────────────────
+  - name: orchestrator_exec_time_budget_enabled
+    env_var: VOX_ORCHESTRATOR_EXEC_TIME_BUDGET_ENABLED
+    description: Enable per-tool execution-time budget learning and enforcement.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "true"
+    since: "2026-06-15"
+
+  - name: orchestrator_exec_time_safety_multiplier
+    env_var: VOX_ORCHESTRATOR_EXEC_TIME_SAFETY_MULTIPLIER
+    description: Safety multiplier applied to the P90 execution time when deriving the recommended budget.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "2.0"
+    since: "2026-06-15"
+
+  - name: orchestrator_exec_time_timeout_rate_alert
+    env_var: VOX_ORCHESTRATOR_EXEC_TIME_TIMEOUT_RATE_ALERT
+    description: Fraction of tool invocations that time out before an alert is raised.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "0.20"
+    since: "2026-06-15"
+
+  - name: orchestrator_exec_time_default_budget_ms
+    env_var: VOX_ORCHESTRATOR_EXEC_TIME_DEFAULT_BUDGET_MS
+    description: Default execution-time budget (ms) used when no historical data is available.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "30000"
+    since: "2026-06-15"
+
+  - name: orchestrator_exec_time_history_window_days
+    env_var: VOX_ORCHESTRATOR_EXEC_TIME_HISTORY_WINDOW_DAYS
+    description: Number of days of execution-time history retained for budget calibration.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "30"
+    since: "2026-06-15"
+
+  # ── orchestrator/agentos ──────────────────────────────────────────────────
+  - name: orchestrator_agentos_aci_envelope_enabled
+    env_var: VOX_ORCHESTRATOR_AGENTOS_ACI_ENVELOPE_ENABLED
+    description: Wrap agent completions in the ACI (Agent Completion Interface) envelope format.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "true"
+    since: "2026-06-15"
+
+  - name: orchestrator_agentos_guardrail_kernel_enabled
+    env_var: VOX_ORCHESTRATOR_AGENTOS_GUARDRAIL_KERNEL_ENABLED
+    description: Enable the AgentOS guardrail kernel for runtime policy enforcement.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_agentos_checkpoint_hints_enabled
+    env_var: VOX_ORCHESTRATOR_AGENTOS_CHECKPOINT_HINTS_ENABLED
+    description: Emit checkpoint hints that agents may use to save and resume long-running tasks.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  # ── orchestrator/socrates ─────────────────────────────────────────────────
+  - name: orchestrator_socrates_gate_shadow
+    env_var: VOX_ORCHESTRATOR_SOCRATES_GATE_SHADOW
+    description: Run the Socrates quality gate in shadow mode (evaluate but never block).
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_socrates_gate_enforce
+    env_var: VOX_ORCHESTRATOR_SOCRATES_GATE_ENFORCE
+    description: Enforce Socrates quality gate (block low-quality completions).
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_socrates_reputation_routing
+    env_var: VOX_ORCHESTRATOR_SOCRATES_REPUTATION_ROUTING
+    description: Factor Socrates reputation scores into agent routing decisions.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_socrates_reputation_weight
+    env_var: VOX_ORCHESTRATOR_SOCRATES_REPUTATION_WEIGHT
+    description: Weight of the Socrates reputation component in the routing score.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "1.0"
+    since: "2026-06-15"
+
+  - name: orchestrator_max_socrates_debug_iterations
+    env_var: VOX_ORCHESTRATOR_MAX_SOCRATES_DEBUG_ITERATIONS
+    description: Maximum Socrates-driven debug iterations before the gate gives up.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "3"
+    since: "2026-06-15"
+
+  - name: orchestrator_max_toestub_debug_iterations
+    env_var: VOX_ORCHESTRATOR_MAX_TOESTUB_DEBUG_ITERATIONS
+    description: Maximum toestub debug-loop iterations before the orchestrator aborts.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "3"
+    since: "2026-06-15"
+
+  # ── orchestrator/tier-gate ────────────────────────────────────────────────
+  - name: orchestrator_tier_gate_entropy_threshold
+    env_var: VOX_ORCHESTRATOR_TIER_GATE_ENTROPY_THRESHOLD
+    description: Entropy threshold below which the tier gate auto-approves without LLM review.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "1.0"
+    since: "2026-06-15"
+
+  - name: orchestrator_tier_gate_min_observations
+    env_var: VOX_ORCHESTRATOR_TIER_GATE_MIN_OBSERVATIONS
+    description: Minimum observations required before entropy-based auto-approve is eligible.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "10"
+    since: "2026-06-15"
+
+  # ── orchestrator/interruption-calibration ─────────────────────────────────
+  - name: orchestrator_interruption_cal_plan_gain
+    env_var: VOX_ORCHESTRATOR_INTERRUPTION_CAL_PLAN_GAIN
+    description: Gain offset (bits) added to the plan-review interruption benefit signal.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "0.0"
+    since: "2026-06-15"
+
+  - name: orchestrator_interruption_cal_a2a_gain
+    env_var: VOX_ORCHESTRATOR_INTERRUPTION_CAL_A2A_GAIN
+    description: Gain offset (bits) added to the A2A-escalation interruption benefit signal.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "0.0"
+    since: "2026-06-15"
+
+  - name: orchestrator_interruption_cal_backlog_penalty
+    env_var: VOX_ORCHESTRATOR_INTERRUPTION_CAL_BACKLOG_PENALTY
+    description: Cost penalty per backlog item applied to interruption cost modelling.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "0.0"
+    since: "2026-06-15"
+
+  # ── orchestrator/tlx ─────────────────────────────────────────────────────
+  - name: orchestrator_tlx_mental
+    env_var: VOX_ORCHESTRATOR_TLX_MENTAL
+    description: NASA-TLX mental demand weight used in agent workload scoring.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "1.0"
+    since: "2026-06-15"
+
+  - name: orchestrator_tlx_temporal
+    env_var: VOX_ORCHESTRATOR_TLX_TEMPORAL
+    description: NASA-TLX temporal pressure weight used in agent workload scoring.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "1.0"
+    since: "2026-06-15"
+
+  - name: orchestrator_tlx_frustration
+    env_var: VOX_ORCHESTRATOR_TLX_FRUSTRATION
+    description: NASA-TLX frustration weight used in agent workload scoring.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "1.0"
+    since: "2026-06-15"
+
+  - name: orchestrator_tlx_trust_discount
+    env_var: VOX_ORCHESTRATOR_TLX_TRUST_DISCOUNT
+    description: Trust-based discount applied to TLX workload score for high-reliability agents.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "0.0"
+    since: "2026-06-15"
+
+  # ── orchestrator/repo-shard ───────────────────────────────────────────────
+  - name: orchestrator_repo_shard_specialization_weight
+    env_var: VOX_ORCHESTRATOR_REPO_SHARD_SPECIALIZATION_WEIGHT
+    description: Routing bonus weight for agents specialised in the target repo shard.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "1.5"
+    since: "2026-06-15"
+
+  - name: orchestrator_repo_shard_validation_failure_penalty
+    env_var: VOX_ORCHESTRATOR_REPO_SHARD_VALIDATION_FAILURE_PENALTY
+    description: Penalty multiplier applied per recent shard-validation failure when routing.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "0.8"
+    since: "2026-06-15"
+
+  - name: orchestrator_repo_reduce_conflict_cooldown_penalty
+    env_var: VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_PENALTY
+    description: Penalty applied to reducer placement while an agent is in conflict-cooldown.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "2.5"
+    since: "2026-06-15"
+
+  - name: orchestrator_repo_reduce_conflict_cooldown_ms
+    env_var: VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_MS
+    description: Duration (ms) of the reducer conflict cooldown window.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "300000"
+    since: "2026-06-15"
+
+  # ── orchestrator/mesh ─────────────────────────────────────────────────────
+  - name: orchestrator_mesh_control_url
+    env_var: VOX_ORCHESTRATOR_MESH_CONTROL_URL
+    description: Override URL for the Populi mesh control plane API.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: null
+    since: "2026-06-15"
+
+  - name: orchestrator_populi_inference_base_url
+    env_var: VOX_ORCHESTRATOR_POPULI_INFERENCE_BASE_URL
+    description: Override base URL for Populi mesh inference requests.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: null
+    since: "2026-06-15"
+
+  - name: orchestrator_mesh_poll_interval_secs
+    env_var: VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS
+    description: Interval (s) between Populi mesh control-plane polls.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "30"
+    since: "2026-06-15"
+
+  - name: orchestrator_mesh_http_timeout_ms
+    env_var: VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS
+    description: HTTP timeout (ms) for mesh federation requests.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "10000"
+    since: "2026-06-15"
+
+  - name: orchestrator_mesh_routing_experimental
+    env_var: VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL
+    description: Enable experimental mesh-based task routing.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_mesh_rebalance_on_remote_schedulable_drop
+    env_var: VOX_ORCHESTRATOR_MESH_REBALANCE_ON_REMOTE_SCHEDULABLE_DROP
+    description: Trigger a local rebalance when a remote schedulable agent drops from the mesh.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_mesh_replay_queued_routes_on_remote_schedulable_drop
+    env_var: VOX_ORCHESTRATOR_MESH_REPLAY_QUEUED_ROUTES_ON_REMOTE_SCHEDULABLE_DROP
+    description: Replay queued routes when a remote schedulable agent drops from the mesh.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_mesh_training_routing_experimental
+    env_var: VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL
+    description: Enable experimental mesh routing for training tasks.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_mesh_training_budget_pressure
+    env_var: VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE
+    description: Soft budget-pressure scalar (0.0–1.0) applied to expensive training placements.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "0.0"
+    since: "2026-06-15"
+
+  - name: orchestrator_mesh_remote_execute_experimental
+    env_var: VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_EXPERIMENTAL
+    description: Enable experimental remote-execution via the mesh.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  - name: orchestrator_mesh_remote_result_poll_interval_secs
+    env_var: VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_POLL_INTERVAL_SECS
+    description: Interval (s) between polls for remote-execution results.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "5"
+    since: "2026-06-15"
+
+  - name: orchestrator_mesh_remote_result_max_messages_per_poll
+    env_var: VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_MAX_MESSAGES_PER_POLL
+    description: Maximum result messages consumed per remote-result poll cycle.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "64"
+    since: "2026-06-15"
+
+  - name: orchestrator_mesh_remote_worker_poll_interval_secs
+    env_var: VOX_ORCHESTRATOR_MESH_REMOTE_WORKER_POLL_INTERVAL_SECS
+    description: Interval (s) between polls for available remote worker capacity.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "5"
+    since: "2026-06-15"
+
+  - name: orchestrator_mesh_remote_lease_gating_enabled
+    env_var: VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATING_ENABLED
+    description: Gate remote task execution behind lease acquisition to prevent double-dispatch.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
+
+  # ── orchestrator/chatml ───────────────────────────────────────────────────
+  - name: orchestrator_chatml_strict
+    env_var: VOX_ORCHESTRATOR_CHATML_STRICT
+    description: Enforce strict ChatML message formatting; reject malformed role sequences.
+    owner_crate: vox-orchestrator
+    status: active
+    default_value: "false"
+    since: "2026-06-15"
