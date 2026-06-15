@@ -1,0 +1,9 @@
+feat(telemetry): emit `orch.cache.miss` events from vox-orchestrator-mcp
+scale: ~122 lines across 4 files [M]
+
+- `crates/vox-orchestrator-mcp/tests/telemetry_cache_miss.rs`: Add a new integration test to verify `orch.cache.miss` events are emitted when `cache_read_input_tokens` is `None` or `Some(0)`, and not emitted for positive values.
+- `crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs`: Change `emit_cache_miss_if_applicable` from `pub(crate)` to `pub` to allow re-exporting.
+- `crates/vox-orchestrator-mcp/src/llm_bridge/mod.rs`: Re-export `emit_cache_miss_if_applicable` from the `llm_bridge` module.
+- `contracts/telemetry/events.v1.yaml`: Move `orch.cache.miss` from `blind_spots` to `metric_types`, adding a detailed description, constant, owner crate, and sensitivity.
+
+--- audit: original='feat(telemetry): wire orch.cache.miss events from vox-orchestrator-mcp' | actual=122L across 4 files | derived=full ---
