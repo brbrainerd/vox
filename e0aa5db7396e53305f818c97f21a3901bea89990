@@ -1,0 +1,8 @@
+docs(cli-vox-deploy): add frontmatter and tag dry-run fence with `text`
+scale: ~11 lines across 1 files [S]
+
+- `docs/src/reference/cli-vox-deploy.md`:
+  - Added YAML frontmatter with `title`, `description`, `category`, `status`, `last_updated`, and `schema_type` fields.
+  - Changed the language tag of a code fence from implicit to `text` for dry-run output.
+
+--- audit: original='docs(cli-vox-deploy): add frontmatter and tag dry-run fence with text' | actual=11L across 1 files | derived=full ---
