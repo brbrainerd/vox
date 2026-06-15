@@ -1,0 +1,12 @@
+docs(coverage): update semantic coverage status for 2026-06-15
+scale: ~24 lines across 1 files [S]
+
+- `docs/src/architecture/semantic-coverage-status-2026-06-15.md`:
+    - Updated the count of covered structural pipeline-gap patterns from 5 of 7 to 6 of 7.
+    - Added pattern #6 to the list of covered patterns.
+    - Clarified that pattern #2 (doc-drift) is the only remaining item and is not a coverage gap.
+    - Noted that the lowering match in `hir/lower/mod.rs` was made exhaustive, turning un-lowered `Decl` variants into compile errors.
+    - Updated the evidence for pattern #6 to include `crates/vox-cli/tests/behavioral_stdout_interp.rs`.
+    - Removed the mention of "CI-ratchet plan + blocker" as it's no longer relevant to the coverage status.
+
+--- audit: original='docs(coverage): pattern #6 + exhaustive-match done (6 of 7); CI-ratchet plan + blocker' | actual=24L across 1 files | derived=full ---
