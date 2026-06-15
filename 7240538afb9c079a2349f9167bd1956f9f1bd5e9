@@ -1,0 +1,8 @@
+fix(ci): Exclude bot-blocked URLs from lychee and format vox-webhook
+scale: ~18 lines across 3 files [S]
+
+- ci: Add `biggo.com`, `blog.streamlit.io`, and `acm.org` to `.lycheeignore` to prevent CI failures from timeouts or 403 errors for valid links.
+- crates/vox-webhook/src/bridge.rs: Apply rustfmt to `WebhookOrchestratorBridge::new` function signature.
+- crates/vox-webhook/src/lib.rs: Reorder `sink` module declaration to maintain alphabetical order after formatting.
+
+--- audit: original='fix(ci): rustfmt vox-webhook + exclude bot-blocked URLs from lychee' | actual=18L across 3 files | derived=full ---
