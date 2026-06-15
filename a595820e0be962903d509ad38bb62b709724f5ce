@@ -1,0 +1,12 @@
+feat(mesh): display resource summary card in GUI settings
+scale: ~55 lines across 2 files [M]
+
+- `crates/vox-orchestrator-mcp/src/populi_tools.rs`:
+  - Added `cpu_usage_pct` and `memory_free_bytes` fields to the `summarize_node` output for `vox_mesh_nodes` MCP tool.
+  - Added a test case to verify `cpu_usage_pct` and `memory_free_bytes` are exposed by `summarize_node`.
+- `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx`:
+  - Extended `MeshNode` interface to include `cpu_usage_pct`, `memory_free_bytes`, `gpu_total_count`, and `gpu_allocatable_count`.
+  - Implemented `aggregateMeshResources` function to calculate `readyCount`, `total`, `gpusFree`, `ramFreeGib`, `cpuAvg`, and `hasMetrics` from a list of `MeshNode`s.
+  - Added a resource summary card to the Mesh Peers section, displaying nodes ready, GPUs free, RAM free, and average CPU usage, using the aggregated data.
+
+--- audit: original='feat: mesh resource summary card — nodes/GPUs/RAM/CPU at a glance (K3)' | actual=55L across 2 files | derived=full ---
