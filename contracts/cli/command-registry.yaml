@@ -406,6 +406,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - config-hygiene
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: commands::ci::config_hygiene
+- surface: vox-cli
+  path:
+  - ci
   - contracts-index
   status: active
   latin_ns: null

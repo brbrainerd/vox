@@ -60,6 +60,38 @@ pub fn check_protected_modules_have_no_env_reads(source: &str, file: &str) -> Ve
     hits
 }
 
+/// Check C (advisory): detect pub fn from_env_values / from_env / from_contract_file
+/// that appear likely to be declared-but-unwired. Advisory: prints warnings, does not fail.
+pub fn check_declared_but_unwired(source: &str, file: &str) -> Vec<Violation> {
+    let patterns = [
+        "pub fn from_env_values",
+        "pub fn from_env(",
+        "pub fn from_contract_file",
+    ];
+    let mut hits = Vec::new();
+    for (i, raw) in source.lines().enumerate() {
+        let trimmed = raw.trim_start();
+        if trimmed.starts_with("//") {
+            continue;
+        }
+        for pat in &patterns {
+            if raw.contains(pat) {
+                hits.push(Violation {
+                    check: "declared-but-unwired-advisory",
+                    file: file.to_string(),
+                    line: i + 1,
+                    message: format!(
+                        "pub env-resolver '{}' — verify it has a non-test caller; \
+                         if not, remove it or wire it up (config-guardrails §3.3)",
+                        pat.trim()
+                    ),
+                });
+            }
+        }
+    }
+    hits
+}
+
 /// Run all config-hygiene checks across the workspace.
 pub fn run() -> anyhow::Result<()> {
     let root = std::env::current_dir()?;
@@ -78,12 +110,36 @@ pub fn run() -> anyhow::Result<()> {
     });
     if violations.is_empty() {
         println!("config-hygiene OK: no violations");
-        return Ok(());
+    } else {
+        for v in &violations {
+            eprintln!("[{}] {}:{} — {}", v.check, v.file, v.line, v.message);
+        }
     }
-    for v in &violations {
-        eprintln!("[{}] {}:{} — {}", v.check, v.file, v.line, v.message);
+
+    // Advisory check C: declared-but-unwired (non-blocking)
+    let mut advisories = Vec::new();
+    collect_rs_files(&root.join("crates"), &mut |path, src| {
+        let rel = path
+            .strip_prefix(&root)
+            .unwrap_or(path)
+            .display()
+            .to_string();
+        if rel.contains("config_hygiene") {
+            return;
+        }
+        advisories.extend(check_declared_but_unwired(src, &rel));
+    });
+    if !advisories.is_empty() {
+        eprintln!("config-hygiene advisory (non-blocking):");
+        for v in &advisories {
+            eprintln!("  [{}] {}:{} — {}", v.check, v.file, v.line, v.message);
+        }
     }
-    anyhow::bail!("config-hygiene found {} violation(s)", violations.len())
+
+    if !violations.is_empty() {
+        anyhow::bail!("config-hygiene found {} violation(s)", violations.len());
+    }
+    Ok(())
 }
 
 fn collect_rs_files(dir: &std::path::Path, f: &mut impl FnMut(&std::path::Path, &str)) {
@@ -141,6 +197,14 @@ mod tests {
             check_protected_modules_have_no_env_reads(src, "crates/vox-config/src/tests/mod.rs")
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn check_c_flags_declared_but_unwired_resolver() {
+        let src = "    pub fn from_env_values(daily: Option<&str>) -> Self { todo!() }";
+        let v = check_declared_but_unwired(src, "crates/vox-scaling-policy/src/cost_defense.rs");
+        assert_eq!(v.len(), 1);
+        assert_eq!(v[0].check, "declared-but-unwired-advisory");
     }
 
     #[test]
