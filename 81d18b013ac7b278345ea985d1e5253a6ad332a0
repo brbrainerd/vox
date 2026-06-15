@@ -1,0 +1,10 @@
+feat(parser,dashboard): Migrate speak.vox to view-call form; fix multi-line arg parsing
+scale: ~125 lines across 2 files [M]
+
+- `crates/vox-dashboard/app/src/tabs/speak.vox`:
+  - Rewrote `ChatMessage` component to use the new VUV trailing-block syntax for `view` and typed style kwargs.
+  - Updated `TASK-7.2` reference to include `VUV-6`.
+- `crates/vox-compiler/src/parser/descent/expr/pratt_match.rs`:
+  - Modified `parse_args` to call `skip_newlines()` before parsing arguments and after consuming commas, enabling multi-line argument lists.
+
+--- audit: original='feat(parser,dashboard): VUV-6 partial — migrate speak.vox to view-call form' | actual=125L across 2 files | derived=full ---
