@@ -1,0 +1,9 @@
+feat(cli): register `container` subcommand and dispatch its actions
+scale: ~32 lines across 4 files [S]
+
+- `crates/vox-cli/src/commands/container.rs`: Refactored `ContainerAction::Run` to destructure resource limit fields (`cpus`, `memory`, `pids_limit`) directly, removing the `..Default::default()` spread. Also, simplified `detect_runtime` calls by removing redundant line breaks.
+- `crates/vox-cli/src/lib.rs`: Added a new `Container` variant to the `Cli` enum, enabling the `vox container` subcommand with a nested `ContainerAction` for build/run operations.
+- `crates/vox-cli/src/cli_dispatch/mod.rs`: Integrated the new `Container` CLI variant into the command dispatch logic, routing `vox container` commands to `crate::commands::container::run`.
+- `crates/vox-cli/src/commands/mod.rs`: Declared the `container` module, providing a description for the new `vox container` CLI endpoint.
+
+--- audit: original='feat(cli): register container subcommand so resource-limit flags are reachable (HC-G07-05 follow-up)' | actual=32L across 4 files | derived=full ---
