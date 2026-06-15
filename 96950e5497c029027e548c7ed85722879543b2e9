@@ -1,0 +1,14 @@
+docs(specs): Propose implementation plan for two-parameter `Result[T, E]`
+scale: ~212 lines across 1 files [M]
+
+- **docs/superpowers/specs/2026-05-18-result-two-param-design.md**: Add a new specification document outlining a phased implementation plan for introducing a two-parameter `Result[T, E]` type.
+    - Details the motivation for the change, addressing current limitations where `Result[T]` loses error type information.
+    - Provides surface examples demonstrating the target syntax and capabilities, including ADT error types and exhaustive `match` patterns.
+    - Describes the current state of `Result` implementation across lowering paths, `VoxValue` carrier, constructor coercion, and pattern matching.
+    - Proposes specific changes to `Ty`, `VoxValue`, constructors, and pattern matching.
+    - Includes a migration shim strategy to ensure `Result[T]` continues to compile by defaulting `E` to `Str`.
+    - Outlines a four-phase rollout plan (type-level, runtime, pattern-match, fixtures) with estimated timelines and acceptance criteria.
+    - Identifies potential risks such as snapshot-test drift, missed match arms, `?` operator threading, and forward compatibility of diagnostic envelopes.
+    - Concludes with an approval gate for the proposed shape, phasing, and budget.
+
+--- audit: original='docs(specs): implementation plan — two-parameter Result[T, E]' | actual=212L across 1 files | derived=full ---
