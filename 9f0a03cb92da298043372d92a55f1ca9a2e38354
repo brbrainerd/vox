@@ -1,0 +1,8 @@
+docs(architecture): add semantic coverage remediation plan v2
+scale: ~410 lines across 1 files [L]
+
+- Add a new architecture document `docs/src/architecture/semantic-coverage-remediation-plan-2026-06-13.md` detailing a remediation plan for semantic test coverage.
+- The plan includes a fidelity audit of the coverage map, a corrected symbol universe, a per-symbol verification protocol, worked test examples, analyzer fixes, and a CI ratchet design.
+- The document is self-contained and designed for agentic workers, providing guidance on using specific superpowers for implementation.
+
+--- audit: original='docs(coverage): audited semantic-coverage remediation plan v2' | actual=410L across 1 files | derived=full ---
