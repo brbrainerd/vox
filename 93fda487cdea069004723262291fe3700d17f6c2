@@ -1,0 +1,6 @@
+chore(deps): update Cargo.lock for `scientia` crate
+scale: ~6 lines across 1 files [XS]
+
+- Update `Cargo.lock` to reflect changes in the `scientia` crate's dependencies.
+
+--- audit: original='chore: update Cargo.lock for SCIENTIA crate wiring' | actual=6L across 1 files | derived=full ---
