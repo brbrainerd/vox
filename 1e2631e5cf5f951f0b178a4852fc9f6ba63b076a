@@ -1,0 +1,11 @@
+feat(ci): emit BuildSummaryEvent after successful `cargo build`
+scale: ~19 lines across 1 files [S]
+
+- `crates/vox-cli/src/commands/ci/build_timings.rs`:
+  - Added telemetry emission for `BuildSummaryEvent` after a successful `cargo build` run.
+  - The event captures `build_id`, `outcome` ("success"), `wall_time_ms`, `crates_compiled`, `error_count` (0), and `invocation_context` ("local").
+  - `build_id` is derived from the current system time in milliseconds since the Unix epoch.
+  - `crates_compiled` is calculated as `(crate_count - fresh_count).max(0)`.
+  - This telemetry is gated by the `VOX_TELEMETRY` master switch via the global recorder.
+
+--- audit: original='feat(vox-cli): emit BuildSummaryEvent from build-timings' | actual=19L across 1 files | derived=full ---
