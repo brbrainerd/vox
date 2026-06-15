@@ -1,0 +1,8 @@
+refactor(deploy-codegen): migrate to vox-container-types
+scale: ~27 lines across 3 files [S]
+
+- `crates/vox-deploy-codegen/Cargo.toml`: Replaced the `vox-container` dependency with `vox-container-types`.
+- `crates/vox-deploy-codegen/src/lib.rs`: Updated the re-export of `BuildOpts` and `ContainerRuntime` to use `vox_container_types` instead of `vox_container`.
+- `Cargo.lock`: Updated dependencies to reflect the change from `vox-container` to `vox-container-types`.
+
+--- audit: original='refactor(deploy-codegen): migrate to vox-container-types (D-9-rescope step 2)' | actual=27L across 3 files | derived=full ---
