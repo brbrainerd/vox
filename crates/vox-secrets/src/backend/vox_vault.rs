@@ -24,6 +24,11 @@ use crate::spec::{SecretId, SecretSpec};
 
 const WRAP_NONCE_LEN: usize = 12;
 
+/// Default number of prior secret versions retained before older rows are pruned.
+/// Single source for the depth used by the convenience write paths
+/// ([`VoxCloudBackend::write_secret`] and [`crate::store_secret`]).
+pub const DEFAULT_HISTORY_DEPTH: u32 = 10;
+
 #[derive(Debug, Clone)]
 pub struct CloudlessSecretRecord {
     pub account_id: String,
@@ -105,7 +110,15 @@ impl VoxCloudBackend {
     }
 
     pub fn write_secret(&self, key: &str, plaintext: &str) -> Result<(), SecretError> {
-        self.write_secret_v2(key, plaintext, None, "create", Some("cli-set"), "cli", 10)
+        self.write_secret_v2(
+            key,
+            plaintext,
+            None,
+            "create",
+            Some("cli-set"),
+            "cli",
+            DEFAULT_HISTORY_DEPTH,
+        )
     }
 
     pub fn write_secret_v2(

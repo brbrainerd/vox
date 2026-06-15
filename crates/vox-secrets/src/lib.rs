@@ -245,7 +245,7 @@ pub fn store_secret(
         "create",
         Some("programmatic-store"),
         "process",
-        10,
+        backend::vox_vault::DEFAULT_HISTORY_DEPTH,
     )
 }
 
