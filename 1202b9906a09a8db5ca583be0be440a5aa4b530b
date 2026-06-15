@@ -1,0 +1,11 @@
+docs(plan): Plugin SDK + ABI sync implementation plan
+scale: ~235 lines across 1 files [M]
+
+- Add `docs/superpowers/plans/2026-06-06-plugin-sdk-and-abi-sync.md` detailing a plan for a `vox-plugin-sdk` crate.
+- The plan outlines a macro-driven SDK (`#[vox_plugin]`) designed to stay in sync with Vox language evolution without rewrites.
+- Key mechanisms include deriving the SDK from `vox-plugin-api` extension traits, versioning the SDK to the ABI, and replacing exact ABI checks with a `[MIN, MAX]` range.
+- The plan leverages existing SSOT→sync→ssot-drift machinery with a generated `extension-points.v1.yaml` and CI gates.
+- Six phases are defined: SP-1 macro, SP-2 CI gates, SP-4 ABI ranges, SP-3 surface SSOT, SP-5 scaffold, and SP-6 manifest codegen.
+- Includes a maintenance playbook and risk assessment.
+
+--- audit: original='docs(plan): Plugin SDK + ABI sync implementation plan (#182)' | actual=235L across 1 files | derived=full ---
