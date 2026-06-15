@@ -1,0 +1,33 @@
+feat(pm, ci): Add provenance verification, new commands, and update Dockerfile
+scale: ~54303 lines across 138 files [XL]
+
+DIVERGENCE: original subject claimed 'feat(dependencies, ci): add new packages and enhance Dockerfile for reproducibility' but this commit actually changed ~54303 lines across 138 files. Top areas:
+contracts: 25577 lines, 4 files
+artifacts: 15167 lines, 1 files
+docs: 6694 lines, 23 files
+crates: 6594 lines, 105 files
+(root): 233 lines, 3 files
+.github: 33 lines, 1 files
+docker: 5 lines, 1 files
+
+- `contracts/reports`: Update scaling audit findings and add new promotion metrics and board for toestub remediation.
+- `artifacts`: Update toestub crates audit JSON.
+- `docs`: Update agent inventory, add new how-to guides for Rust crate imports and PM migration, and update CLI, API, and architecture documentation.
+- `crates/vox-cli`: Introduce new commands for `toolchain_upgrade`, `repo_upgrade`, `pm_lifecycle`, `pm/verify`, `sync`, `lock`, `upgrade`, and `ci/pm_provenance`. Refactor existing commands, update CLI arguments, and add new integration tests.
+- `crates/vox-mcp`: Add new chat tools for `plan_loop`, `plan_gap`, and `params`. Update existing chat tools and server components.
+- `Cargo.lock`: Update dependencies, including new `vox-checksum-manifest` and `vox-install-policy` packages.
+- `crates/vox-container`: Refactor Python Dockerfile generation, environment handling, and project setup.
+- `crates/vox-compiler`: Update parser descent, type checking registration and diagnostics, codegen for Rust, and HIR validation. Add new Rust import diagnostics tests.
+- `crates/vox-orchestrator`: Update planning schedule and synthesizer, and task dispatch.
+- `crates/vox-checksum-manifest`: Add new crate for checksum manifest functionality.
+- `crates/vox-install-policy`: Add new crate for install policy functionality.
+- `crates/vox-db`: Update store operations for planning, questioning, and codex metrics. Add new schema cutover and schema contract tests.
+- `.github/workflows`: Add new GitHub Actions workflow for PM provenance verification.
+- `crates/vox-pm`: Update lockfile handling.
+- `crates/vox-bootstrap`: Refactor engine installation.
+- `Dockerfile`: Update to use `cargo build --locked` for improved reproducibility.
+- `contracts/cli`: Update command registry.
+- `crates/vox-socrates-policy`: Remove crate.
+- `Cargo.toml`: Add new `vox-checksum-manifest` and `vox-install-policy` dependencies.
+
+--- audit: original='feat(dependencies, ci): add new packages and enhance Dockerfile for reproducibility' | actual=54303L across 138 files | derived=stat-only ---
