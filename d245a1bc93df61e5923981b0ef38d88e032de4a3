@@ -1,0 +1,6 @@
+docs: remove duplicate entry from SUMMARY.md
+scale: ~1 lines across 1 files [XS]
+
+- `docs/src/SUMMARY.md`: Removed a duplicate "GUI Native Roadmap" entry that was re-introduced during a merge, keeping the alphabetically correct entry.
+
+--- audit: original='fix(docs): dedupe SUMMARY.md gui-native-roadmap entry' | actual=1L across 1 files | derived=full ---
