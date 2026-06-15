@@ -1,0 +1,19 @@
+feat(golden): Add behavioral @test coverage to 9 golden files
+scale: ~174 lines across 11 files [M]
+
+- **examples/golden/nested_types.vox**: Added `@test` functions `test_parse_scores`, `test_safe_head`, and `test_first_score` to cover `parse_scores`, `safe_head`, and `first_score` functions.
+- **examples/golden/control_flow_if.vox**: Added `@test` functions `test_classify_score`, `test_access_level`, `test_shipping_cost`, and `test_is_valid_username` to cover respective functions.
+- **examples/golden/regex_stdlib.vox**: Added `@test` functions `test_extract_mood` and `test_is_phone` to cover `extract_mood` and `is_phone` functions.
+- **examples/golden/struct_types.vox**: Added `@test` functions `test_origin`, `test_translate`, and `test_consume` to cover `origin`, `translate`, and `consume` functions.
+- **examples/golden/match_arm_stmts.vox**: Added `@test` functions `test_classify` and `test_early_exit` to cover `classify` and `early_exit` functions. Specifically, `test_classify` now includes an assertion for `classify(404)` which previously failed due to an interpreter bug.
+- **examples/golden/getting_started.vox**: Added `@test` function `test_order` to cover the `order` function.
+- **examples/golden/type_system.vox**: Added `@test` function `test_serialize_app_result` to cover the `serialize_app_result` function.
+- **examples/golden/counter_actor.vox**: Added `@test` function `test_counter_increment` to cover the `CounterActor_Increment` function.
+- **examples/golden/hello.vox**: Added `@test` function `test_hello` to cover the `hello` function.
+- **CUsersOwnerAppDataLocalTemptest_classify.vox**: Added a new temporary golden file `test_classify.vox` containing the `classify` function and a `main` function to print its results. This file was likely used for debugging the interpreter fix.
+
+fix(interp): Prevent double-wrapping of `_Return` values in `HirStmt::Return`
+
+- **crates/vox-compiler/src/eval/stmt.rs**: Modified `eval_stmt` to check if the value being returned by `HirStmt::Return` is already a `_Return` sentinel. If it is, the value is propagated as-is to prevent double-wrapping (e.g., `_Return(_Return(..))`), which caused `_Return` values to leak to callers when an inner `return` or `?` produced an early-return sentinel within a returned expression. This fixes a bug surfaced by `classify(404)` in `match_arm_stmts.vox`.
+
+--- audit: original='test(golden): coverage batch 2 (9 goldens) + fix _Return-from-match interp bug (#223)' | actual=174L across 11 files | derived=full ---
