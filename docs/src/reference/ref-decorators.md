@@ -84,6 +84,36 @@ fn hourly_task() {
   - Bare: `@deprecated fn old() to int { return 0 }` → warning: `'old' is deprecated`
   - With reason: `@deprecated("Use new_function instead") fn old() to int { return 0 }` → warning: `'old' is deprecated: Use new_function instead`
 
+## Observability
+
+### `@traced`
+- **Goal**: Emit a distributed tracing span around a function's execution.
+- **Effect**: The Rust codegen prepends `#[tracing::instrument(skip_all, name = "fn_name", fields(trace_id = tracing::field::Empty))]` to the generated function and injects a body statement that records the active `trace_id` from `vox_telemetry::current_trace_context()` onto the span when a trace context is present.
+- **Backend**: Uses the [`tracing`](https://docs.rs/tracing) crate. A future OpenTelemetry exporter can subscribe to `tracing` spans without any change to decorated source code.
+- **Usage**:
+
+```vox
+@traced
+fn process_order(order_id: str) to str {
+    return "ok"
+}
+```
+
+The emitted Rust contains:
+
+```rust
+#[tracing::instrument(skip_all, name = "process_order", fields(trace_id = tracing::field::Empty))]
+fn process_order(order_id: String) -> String {
+    if let Some(__tc) = vox_telemetry::current_trace_context() {
+        tracing::Span::current().record("trace_id", tracing::field::display(&__tc.trace_id));
+    }
+    // …body…
+}
+```
+
+> [!NOTE]
+> `@traced` on **endpoints / activities / workflows** is planned (TRACE-D P8) but not yet wired — those declaration kinds still hard-code `is_traced: false`. Plain `fn` declarations are fully supported.
+
 ## Data Modeling
 
 ### `@table`

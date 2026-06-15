@@ -277,6 +277,12 @@ pub fn emit_fn(
     } else {
         ""
     };
+    if func.is_traced {
+        out.push_str(&format!(
+            "#[tracing::instrument(skip_all, name = \"{}\", fields(trace_id = tracing::field::Empty))]\n",
+            func.name.replace("::", "_")
+        ));
+    }
     out.push_str(&format!(
         "{}{}fn {}(",
         pub_kw,
@@ -304,6 +310,12 @@ pub fn emit_fn(
         out.push_str(&format!("-> {} ", emit_type(ret)));
     }
     out.push_str("{\n");
+    if func.is_traced {
+        out.push_str(
+            "if let Some(__tc) = vox_telemetry::current_trace_context() { \
+             tracing::Span::current().record(\"trace_id\", tracing::field::display(&__tc.trace_id)); }\n",
+        );
+    }
     if func.is_llm {
         super::ai_fixture::emit_llm_function_body(&mut out, func);
     } else {

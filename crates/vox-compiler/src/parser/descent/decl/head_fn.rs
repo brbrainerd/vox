@@ -17,6 +17,7 @@ impl Parser {
         let mut invariants = Vec::new();
         let mut is_mobile_native = false;
         let mut is_pure = false;
+        let mut is_traced = false;
         let mut is_reactive = false;
         let mut is_versioned = false;
         let mut is_remote = false;
@@ -100,6 +101,10 @@ impl Parser {
                 Token::AtPure => {
                     self.advance();
                     is_pure = true;
+                }
+                Token::AtTraced => {
+                    self.advance();
+                    is_traced = true;
                 }
                 Token::AtReactive => {
                     self.advance();
@@ -1130,7 +1135,7 @@ impl Parser {
                 source_field: embed_source_field.unwrap_or_default(),
                 span: sp,
             }),
-            is_traced: false,
+            is_traced,
             is_pub,
             is_auth_exempt,
             auth_provider,

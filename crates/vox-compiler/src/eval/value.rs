@@ -43,6 +43,9 @@ pub enum VoxValue {
         /// `@versioned`/`@tracked` — when true, the interpreter records one
         /// `repo.snapshot()` checkpoint on this function's successful return.
         is_versioned: bool,
+        /// `@traced` — when true, the interpreter opens a `tracing` span for
+        /// the duration of this function call.
+        is_traced: bool,
     },
     Option(core::option::Option<Box<VoxValue>>),
     /// `Result[T, E]`. The Err side carries a real `VoxValue` (was `String`) so

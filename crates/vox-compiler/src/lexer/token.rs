@@ -192,6 +192,8 @@ pub enum Token {
     AtFuzz,
     #[token("@pure")]
     AtPure,
+    #[token("@traced")]
+    AtTraced,
     /// `@reactive` — opt-in marker on a free `fn` declaring that its body's
     /// reactive-binding reads should be tracked across calls by the auto-dep
     /// inference pass (Phase E of the Svelte-mineable features plan).
@@ -601,6 +603,7 @@ impl std::fmt::Display for Token {
             Token::AtForall => write!(f, "@forall"),
             Token::AtFuzz => write!(f, "@fuzz"),
             Token::AtPure => write!(f, "@pure"),
+            Token::AtTraced => write!(f, "@traced"),
             Token::AtReactive => write!(f, "@reactive"),
             Token::AtVersioned => write!(f, "@versioned"),
             Token::AtTracked => write!(f, "@tracked"),

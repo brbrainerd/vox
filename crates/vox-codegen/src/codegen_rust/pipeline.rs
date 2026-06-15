@@ -127,6 +127,21 @@ pub fn generate_script_with_target(
         String::new()
     };
 
+    // `@traced` functions emit `vox_telemetry::current_trace_context()` directly;
+    // vox-actor-runtime re-exports the span helpers but NOT the `vox_telemetry` crate
+    // itself (E0433 without this dep).
+    let has_traced =
+        module.functions.iter().any(|f| f.is_traced) || module.tests.iter().any(|f| f.is_traced);
+    let vox_telemetry_dep = if has_traced {
+        let vox_telemetry_path = runtime_path
+            .and_then(|p| p.parent())
+            .map(|p| manifest_dependency_path(&p.join("vox-telemetry")))
+            .unwrap_or_else(|| "../vox-telemetry".to_string());
+        format!("vox-telemetry = {{ path = \"{vox_telemetry_path}\" }}\n")
+    } else {
+        String::new()
+    };
+
     // ── WASI feature guardrail ──────────────────────────────────────────────
     // Jai-inspired: fail loudly and immediately with a clear diagnostic
     // rather than emitting broken code that produces confusing linker errors
@@ -203,9 +218,10 @@ tracing = "0.1"
 rust_decimal = "1.36"
 regex = "1"
 vox-actor-runtime = {{ path = "{runtime_path_str}" }}
-{vox_db_dep}{turso_dep}{rust_import_deps}{aegis_patch_section}"#,
+{vox_telemetry_dep}{vox_db_dep}{turso_dep}{rust_import_deps}{aegis_patch_section}"#,
             package_name = package_name,
             runtime_path_str = runtime_path_str,
+            vox_telemetry_dep = vox_telemetry_dep,
             vox_db_dep = vox_db_dep,
             turso_dep = turso_dep,
             rust_import_deps = rust_import_deps,

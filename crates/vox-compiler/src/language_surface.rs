@@ -88,6 +88,10 @@ pub const LSP_DECORATOR_DOCS: &[(&str, &str)] = &[
         "Marks a function as side-effect free (optimization / tooling contracts).",
     ),
     (
+        "@traced",
+        "Emits a tracing span around the function body, seeded with the active trace-id from the distributed trace context.",
+    ),
+    (
         "@scheduled",
         "Declares a periodic job with an interval or cron string before `fn`.",
     ),
@@ -183,6 +187,7 @@ pub const LEXER_DECORATORS: &[&str] = &[
     "@tool",
     "@resource",
     "@pure",
+    "@traced",
     "@require",
     "@scheduled",
     "@ensure",

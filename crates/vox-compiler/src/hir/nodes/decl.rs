@@ -387,6 +387,9 @@ pub struct HirFn {
     /// Optional reason string from `@deprecated("reason")`. `None` for the bare form.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deprecated_reason: Option<String>,
+    /// `@traced` — emits a `tracing` span around the function body (TRACE-D).
+    #[serde(default)]
+    pub is_traced: bool,
     /// `@scheduled("…")` interval/cron string when this item was lowered from [`crate::ast::decl::Decl::Scheduled`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub schedule_interval: Option<String>,
