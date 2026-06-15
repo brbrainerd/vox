@@ -1,0 +1,10 @@
+feat(tracker): add push notification receiver wiring
+scale: ~14 lines across 1 files [S]
+
+- `main.vox`:
+    - Added `store_push_token` endpoint to record push tokens.
+    - Added `handle_push_payload` endpoint to handle push notification payloads.
+    - Added `handle_push_tap` endpoint to handle push notification taps.
+    - Configured `@push` decorator to use these new endpoints for `on_register`, `on_notification`, and `on_action` events.
+
+--- audit: original='feat(tracker): push notification receiver wiring via @push' | actual=14L across 1 files | derived=full ---
