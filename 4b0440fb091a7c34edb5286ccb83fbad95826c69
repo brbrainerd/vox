@@ -1,0 +1,6 @@
+docs(SUMMARY): Add token-system.md to documentation summary
+scale: ~1 lines across 1 files [XS]
+
+- `docs/src/SUMMARY.md`: Added an entry for `token-system.md` to ensure all documentation files are listed, unblocking the pre-push hook's documentation pipeline check.
+
+--- audit: original='fix(docs): add token-system.md to SUMMARY.md to unblock pre-push hook' | actual=1L across 1 files | derived=full ---
