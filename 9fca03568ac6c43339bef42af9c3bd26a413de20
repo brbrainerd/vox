@@ -1,0 +1,31 @@
+feat(arch): Extract plugin types, fix host-db inversion, gate daemon
+scale: ~726 lines across 20 files [L]
+
+- **`vox-plugin-types` crate:**
+    - Created new L1 leaf crate `vox-plugin-types`.
+    - Moved `PluginManifest`, `CodePayload`, `SkillPayload` and related types from `vox-plugin-api/src/manifest.rs` to `vox-plugin-types/src/plugin_manifest.rs`.
+    - Moved `SkillManifest`, `SkillCategory`, `SkillPermission` and related types from `vox-plugin-host/src/skill_manifest.rs` to `vox-plugin-types/src/skill_manifest.rs`.
+    - Added `PluginStateBackend` trait, `PluginStateSkillEntry`, and `PluginStateError` to `vox-plugin-types/src/state_backend.rs`.
+- **`vox-plugin-api` crate:**
+    - `src/manifest.rs` was refactored to re-export types from `vox-plugin-types`.
+    - Updated `Cargo.toml` to depend on `vox-plugin-types`.
+- **`vox-plugin-host` crate:**
+    - `src/skill_manifest.rs` was refactored to re-export types from `vox-plugin-types`.
+    - `src/skill_registry.rs` was updated to hold `Arc<dyn PluginStateBackend>` instead of `Arc<vox_db::VoxDb>`, fixing a layering inversion.
+    - Removed `vox-db` dependency from `Cargo.toml`.
+- **`vox-db` crate:**
+    - Added `plugin_state_backend.rs` to implement the `PluginStateBackend` trait for `VoxDb`.
+    - Updated `Cargo.toml` to depend on `vox-plugin-types`.
+- **`vox-orchestrator` crate:**
+    - Added `required-features = ["mcp-native"]` to the `[[bin]]` section in `Cargo.toml` to gate the daemon binary.
+- **`vox-mens` crate:**
+    - `src/commands/ai/train.rs` updated to replace a reference to a non-existent `crate::training::native` module with a stable bail-out pointing to the `candle-cuda` plugin path.
+- **`vox-plugin-api` tests:**
+    - `tests/mesh_driver_compile.rs` assertion for `MESH_DRIVER_REVISION` was bumped from 1 to 2.
+- **Documentation:**
+    - `docs/src/architecture/layers.toml` was updated to remove the `vox-plugin-host` → `vox-db` inversion entry.
+    - `docs/src/architecture/build-time-log.md` was updated with build-time performance wins.
+- **Root `Cargo.toml` and `Cargo.lock`:**
+    - Updated to reflect new crate `vox-plugin-types` and dependency changes.
+
+--- audit: original='feat(arch): Phase 1 — L0 type cleanup + plugin-host inversion fix + daemon gate' | actual=726L across 20 files | derived=full ---
