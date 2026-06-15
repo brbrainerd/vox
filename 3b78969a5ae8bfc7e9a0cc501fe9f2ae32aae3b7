@@ -1,0 +1,9 @@
+docs(superpowers): correct broken relative links in orchestrator companion audit spec
+scale: ~10 lines across 1 files [S]
+
+- docs/superpowers/specs/2026-05-01-orchestrator-companion-audit-design.md:
+  - Updated two relative links to `model-orchestration-ssot-audit-2026.md` from `../` to `../../src/architecture/`.
+  - Updated two relative links to `nextgen-orchestrator-research-2026.md` from `../` to `../../src/architecture/`.
+- Fixes check-links CI failure on PR #54.
+
+--- audit: original='fix(docs): correct broken relative links in companion audit spec' | actual=10L across 1 files | derived=full ---
