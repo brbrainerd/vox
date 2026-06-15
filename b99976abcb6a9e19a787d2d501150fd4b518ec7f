@@ -1,0 +1,6 @@
+docs(architecture): document skill interop module locations
+scale: ~5 lines across 1 files [XS]
+
+- `docs/src/architecture/where-things-live.md`: Add entries for skill interop related modules, including `skill_parser`, `external_skills` discovery, `skill_search_roots`, `skill_catalog` prompt disclosure, and `install_external_skills`.
+
+--- audit: original='docs(arch): where-things-live rows for skill interop modules' | actual=5L across 1 files | derived=full ---
