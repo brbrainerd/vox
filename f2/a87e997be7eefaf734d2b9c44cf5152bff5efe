@@ -1,0 +1,11 @@
+feat(vox-telemetry): add audit.route.* event types and structs for effort-route S2
+scale: ~150 lines across 2 files [M]
+
+- `crates/vox-telemetry/src/types.rs`:
+    - Added `METRIC_TYPE_AUDIT_ROUTE_RUN_STARTED`, `METRIC_TYPE_AUDIT_ROUTE_CLUSTER_DECIDED`, `METRIC_TYPE_AUDIT_ROUTE_RUN_COMPLETED`, and `METRIC_TYPE_AUDIT_ROUTE_RUN_FAILED` constants.
+    - Defined new structs: `AuditRouteRunStartedEvent`, `AuditRouteClusterDecidedEvent`, `AuditRouteRunCompletedEvent`, and `AuditRouteRunFailedEvent` to represent telemetry events for the `vox audit effort-route` S2 process.
+- `crates/vox-telemetry/src/lib.rs`:
+    - Exported the new `AuditRouteClusterDecidedEvent`, `AuditRouteRunCompletedEvent`, `AuditRouteRunFailedEvent`, `AuditRouteRunStartedEvent` structs.
+    - Exported the new `METRIC_TYPE_AUDIT_ROUTE_CLUSTER_DECIDED`, `METRIC_TYPE_AUDIT_ROUTE_RUN_COMPLETED`, `METRIC_TYPE_AUDIT_ROUTE_RUN_FAILED`, and `METRIC_TYPE_AUDIT_ROUTE_RUN_STARTED` constants.
+
+--- audit: original='feat(vox-telemetry): add audit.route.* event types (D1)' | actual=150L across 2 files | derived=full ---
