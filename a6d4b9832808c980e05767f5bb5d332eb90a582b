@@ -1,0 +1,6 @@
+chore(deps): Remove unused uuid and thiserror dependencies from vox-research-events
+scale: ~2 lines across 1 files [XS]
+
+- Removed `uuid` and `thiserror` from `crates/vox-research-events/Cargo.toml` as they were not used in the crate's source code.
+
+--- audit: original='chore(scientia): remove unused uuid/thiserror deps from vox-research-events' | actual=2L across 1 files | derived=full ---
