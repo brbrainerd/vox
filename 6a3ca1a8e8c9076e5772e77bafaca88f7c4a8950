@@ -1,0 +1,12 @@
+feat(wasm): add `vox wasm run` command for raw WASI module execution
+scale: ~180 lines across 7 files [M]
+
+- `crates/vox-cli/src/commands/wasm.rs`: Added new `wasm.rs` module to implement the `vox wasm run` command, which executes precompiled WASI modules using `vox-wasm-engine`. Includes `parse_preopens` function for handling host/guest directory mappings.
+- `crates/vox-orchestrator/src/a2a/remote_worker.rs`: Updated `run_dispatched_bundle` to use the new `vox wasm run` command for WASM module execution, replacing the previously invalid `vox run --mode script --isolation wasm` invocation. Removed outdated comments about the WASM execution gap.
+- `crates/vox-cli/src/cli_args.rs`: Introduced `WasmRunArgs` struct to define command-line arguments for `vox wasm run`, including file path, fuel limit, read-only/read-write preopens, and guest arguments.
+- `crates/vox-populi/src/transport/handlers/dispatch.rs`: Modified `execute_on_worker` to shell out to `vox wasm run` for WASM bundle execution, correcting the previous invalid command.
+- `crates/vox-cli/src/lib.rs`: Added `Wasm` subcommand to the main `Cli` enum, enabling the new `vox wasm` command.
+- `crates/vox-cli/src/cli_dispatch/mod.rs`: Integrated the dispatch logic for the new `Cli::Wasm` command.
+- `crates/vox-cli/src/commands/mod.rs`: Declared the new `wasm` module within the `commands` module.
+
+--- audit: original='feat(wasm): real raw-.wasm runner `vox wasm run`; fix the 3 broken --isolation sites' | actual=180L across 7 files | derived=full ---
