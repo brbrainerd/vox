@@ -249,6 +249,15 @@ pub(crate) fn parse_raw(raw: &str) -> Result<ExecAst, super::ParseError> {
                     let rest: String = body_chars.collect();
                     if rest.chars().all(|c| c.is_ascii_lowercase()) {
                         // POSIX bundled lowercase flags: `-rf`, `-abc` → one flag each.
+                        // For long-word lowercase flags like `-recurse`, also emit the
+                        // full body so policy checkers can match PowerShell-style params
+                        // case-insensitively (e.g. blocking "Recurse" catches "-recurse").
+                        if body.len() > 2 {
+                            flags.push(Flag {
+                                name: body.to_owned(),
+                                value: None,
+                            });
+                        }
                         flags.push(Flag {
                             name: first.to_string(),
                             value: None,
