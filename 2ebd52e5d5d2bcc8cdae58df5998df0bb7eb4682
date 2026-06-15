@@ -1,0 +1,13 @@
+feat(orchestrator/a2a): add trace propagation fields to RemoteTaskEnvelope
+scale: ~79 lines across 3 files [M]
+
+- `crates/vox-orchestrator/src/a2a/envelope.rs`:
+    - Added `parent_task_id: Option<u64>`, `caller_agent_id: Option<String>`, `trace_id: Option<String>`, and `span_depth: Option<u16>` fields to `RemoteTaskEnvelope` for A2A call-tree tracing.
+    - These fields are `Option` and use `serde(default, skip_serializing_if = "Option::is_none")` for backward compatibility.
+    - Added unit tests to ensure legacy JSON without these fields deserializes correctly and that an envelope with populated fields round-trips successfully.
+- `crates/vox-orchestrator/src/orchestrator/task_dispatch/submit/task_submit.rs`:
+    - Initialized the new trace propagation fields to `None` when constructing `RemoteTaskEnvelope` instances in `Orchestrator::submit_task` and `Orchestrator::relay_task`.
+- `crates/vox-orchestrator/src/orchestrator/tests/populi_single_owner.rs`:
+    - Initialized the new trace propagation fields to `None` when constructing `RemoteTaskEnvelope` instances in `remote_worker_tick_once_seeds_context_and_attaches_socrates_when_task_a` and `remote_worker_tick_once_accepts_object_context_envelope_payload` tests.
+
+--- audit: original='feat(orchestrator/C1): add trace propagation fields to RemoteTaskEnvelope' | actual=79L across 3 files | derived=full ---
