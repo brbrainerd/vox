@@ -1,0 +1,6 @@
+docs(where-things-live): remove `vox-mesh-policy` from Planned section
+scale: ~1 lines across 1 files [XS]
+
+- `docs/src/architecture/where-things-live.md`: Removed the `vox-mesh-policy` entry from the "Planned" section of the "Where Things Live" architecture document, as it now exists at `crates/vox-mesh-policy/`.
+
+--- audit: original='docs(where-things-live): C-1 remove vox-mesh-policy from Planned section' | actual=1L across 1 files | derived=full ---
