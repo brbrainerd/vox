@@ -1,0 +1,11 @@
+fix(vox-cli): update @query to @endpoint syntax, add 'bapp' alias, update mcp_tools path
+scale: ~33 lines across 6 files [M]
+
+- `crates/vox-cli/src/commands/db/mod.rs`: Updated test source strings from `@query` to `@endpoint(kind: query)` as the parser no longer accepts the old annotation.
+- `crates/vox-cli/src/commands/ci/command_compliance/validators.rs`: Added "bapp" to `SKIP_ALIASES` to prevent it from being flagged by `latin_alias_parity_with_catalog` as it's a shorthand for "bundle-app" and not a Latin command name.
+- `crates/vox-cli/src/commands/ci/command_compliance/mod.rs`: Updated paths for `mcp_mod`, `mcp_dispatch`, and `mcp_tool_aliases` from `crates/vox-orchestrator/src/mcp_tools/` to `crates/vox-orchestrator-mcp/src/` following crate extraction.
+- `crates/vox-cli/src/commands/ci/command_compliance/tests.rs`: Updated paths within `mcp_extract_matches_workspace_vox_orchestrator_mcp_tools_mod_rs` test to reflect the new `vox-orchestrator-mcp` crate structure and changed `mod.rs` to `lib.rs` for the main module.
+- `vox-vscode/scripts/check-mcp-tool-parity.mjs`: Updated the `rustAliasesPath` to `crates/vox-orchestrator-mcp/src/tool_aliases.rs` to reflect the new crate location.
+- `crates/vox-cli/tests/fixtures/command_catalog_paths_baseline.txt`: Regenerated the baseline file due to the path changes.
+
+--- audit: original='fix(vox-cli): update @query→@endpoint syntax, add bapp alias, update mcp_tools path' | actual=33L across 6 files | derived=full ---
