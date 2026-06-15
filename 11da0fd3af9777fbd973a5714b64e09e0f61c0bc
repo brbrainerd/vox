@@ -1,0 +1,15 @@
+feat(scrape): add static scraping builtins and Net capability
+scale: ~445 lines across 10 files [L]
+
+- **`crates/vox-actor-runtime/src/builtins/mod.rs`**: Implemented `scrape_extract_text` for readability-style text extraction from HTML. Added new `vox_scrape_fetch`, `vox_scrape_fetch_html`, `vox_scrape_select`, and `vox_scrape_select_attr` builtins for static scraping, reusing the HTTP facade and `scraper` crate.
+- **`crates/vox-compiler/src/builtin_registry.rs`**: Registered the new `Scrape.fetch`, `Scrape.fetch_html`, `Scrape.select`, and `Scrape.select_attr` builtins, specifying their signatures and runtime symbols.
+- **`crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`**: Updated `try_emit_namespace_call` to include "Scrape" in the list of modules that use `emit_openclaw_or_browser_registry_call`. Added `scrape_emit_tests` module with unit tests to verify `Scrape` builtins are lowered to runtime symbols without WASM guards.
+- **`crates/vox-compiler/src/typeck/builtins.rs`**: Defined the "ScrapeModule" type and added its methods (`fetch`, `fetch_html`, `select`, `select_attr`) to the type checker's method map.
+- **`examples/golden/scrape_demo.vox`**: Added a new example demonstrating the usage of `Scrape.fetch` for readability text and `Scrape.fetch_html` with `Scrape.select_attr` for extracting link hrefs.
+- **`crates/vox-compiler/src/typeck/effect_check.rs`**: Mapped "Scrape" to the `HirCapability::Net` capability, aligning it with "Browser" and "OpenClaw" for governance.
+- **`docs/src/architecture/vox-native-scraping-scoping-2026-06-03.md`**: Added a new architecture document detailing the scoping and handoff for native scraping and browser automation in Vox, outlining existing capabilities and future recommendations.
+- **`crates/vox-actor-runtime/Cargo.toml`**: Added `scraper` and `html5ever` dependencies.
+- **`Cargo.lock`**: Updated lock file to reflect new dependencies.
+- **`docs/src/architecture/where-things-live.md`**: Updated the architecture document to include the new scraping scoping document.
+
+--- audit: original='feat(scrape): native Scrape.* stdlib builtins (static fetch + CSS extract) (#135)' | actual=445L across 10 files | derived=full ---
