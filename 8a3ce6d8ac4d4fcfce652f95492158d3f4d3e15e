@@ -1,0 +1,8 @@
+feat(vox-mental-tracker): implement clinician export pipeline
+scale: ~241 lines across 3 files [M]
+
+- `apps/vox-mental-tracker/src/ts/export_pipeline.ts`: Add `buildExportBundle` function to generate a deterministic bundle containing CSV, JSON, and HTML for clinician-shareable exports. This function composes `resolveCorrections`, `buildHealthCsv`, `sha256Hex`, `buildJsonBundle`, and `renderClinicalHtml`.
+- `apps/vox-mental-tracker/tests/export_pipeline.test.ts`: Add 7 new Vitest cases to test the `buildExportBundle` function, verifying bundle determinism, order-independence of inputs, hash drift on row-set changes, correction-chain collapse, HTML content, and empty-state handling.
+- `apps/vox-mental-tracker/docs/architecture/data-model-ssot.md`: Update documentation to describe the new clinician export pipeline in `src/ts/export_pipeline.ts`, detailing its composition and outputs.
+
+--- audit: original='feat(vox-mental-tracker): clinician export pipeline (Phase 4 part A)' | actual=241L across 3 files | derived=full ---
