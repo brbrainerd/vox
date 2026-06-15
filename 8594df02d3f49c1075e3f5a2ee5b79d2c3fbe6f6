@@ -1,0 +1,7 @@
+docs(architecture): add training_rationale to data storage roadmap documents
+scale: ~2 lines across 2 files [S]
+
+- docs/src/architecture/data-storage-migration-backlog-2026.md: Add `training_rationale` field with value "Backlog for the data storage migration"
+- docs/src/architecture/data-storage-ssot-2026.md: Add `training_rationale` field with value "Single source of truth for data storage architecture"
+
+--- audit: original='chore: add training_rationale to roadmap docs' | actual=2L across 2 files | derived=full ---
