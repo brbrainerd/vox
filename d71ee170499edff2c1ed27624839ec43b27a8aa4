@@ -1,0 +1,12 @@
+docs(roadmap): update GUI Native Roadmap 2026 status for Phase 6
+scale: ~20 lines across 1 files [S]
+
+- `docs/src/architecture/gui-native-roadmap-status-2026.md`:
+    - Renamed section "Phases 6–8" to "Phase 6 — GUI Primitive Authoring Surface".
+    - Added a detailed table for Phase 6 tasks, including status, priority, and notes.
+    - Marked TASK-6.1 ("Semantic primitive set") as complete, noting its implementation details and testing.
+    - Marked TASK-6.2, TASK-6.3, TASK-6.4, and TASK-6.5 as "Not started".
+    - Added a "Phase 6 verdict" summarizing 1 task complete and 4 not started.
+    - Renamed the subsequent section to "Phases 7–8" and updated its dependency note to Phase 6.
+
+--- audit: original='docs: update roadmap status — TASK-6.1 complete, Phase 6 table added' | actual=20L across 1 files | derived=full ---
