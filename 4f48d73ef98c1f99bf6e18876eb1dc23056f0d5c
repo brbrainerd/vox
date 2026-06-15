@@ -1,0 +1,6 @@
+feat(docker): Add Coolify deployment for Vox Eval Sandbox
+scale: ~0 lines across 1 files [XS]
+
+- `vox-eval.compose.yml`: Add new Docker Compose file for deploying the Vox Eval Sandbox to Coolify. This defines a service named `eval` that builds from the current context, runs the `vox mcp` command, and configures environment variables for HTTP gateway settings (binding to 0.0.0.0, enabling public eval, trusting X-Forwarded-For, requiring forwarded HTTPS, and setting a bearer token). It also exposes port 3921 and includes Traefik labels for Coolify routing.
+
+--- audit: original='fix(docker): Move compose file to repo root to fix Coolify parsing' | actual=0L across 1 files | derived=full ---
