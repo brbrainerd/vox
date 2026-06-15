@@ -1,0 +1,11 @@
+feat(docs): archive Q1 2026 research and introduce v1.0-RC1 architecture
+scale: ~2866 lines across 288 files [XL]
+
+- docs/src/archive/research-2026-q1: Added 38 new research documents, including comprehensive audit findings, crate reorganization, and various SSOTs for Q1 2026. Many existing research documents were also updated.
+- docs/src/architecture: Replaced `comprehensive-audit-findings-2026.md` with an updated `comprehensive-audit-v2-2026.md` and added `v1-core-ssot.md`.
+- crates/vox-cli: Modified CI documentation checks to conditionally process `orphan-surface-inventory.md` and updated `DOCS_SSOT_FILES` constants, removing numerous architecture-related paths.
+- crates/vox-mens: Updated feature flag for `IngestWorkflows` command from `dei` to `mens-dei`.
+- contracts/documentation: Removed `canonical-map.v1.yaml`.
+- CHANGELOG.md: Updated with new entries.
+
+--- audit: original='chore: stabilize v1.0-RC1 (SSOT, archive metadata, v1-core-ssot)' | actual=2866L across 288 files | derived=full ---
