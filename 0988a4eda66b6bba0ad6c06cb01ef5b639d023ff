@@ -1,0 +1,8 @@
+docs(arch): Update frontmatter category and status in session handoff document
+scale: ~4 lines across 1 files [XS]
+
+- docs/src/architecture/session-handoff-2026-05-25-state-of-the-work.md:
+  - Changed `category` from "Session handoffs" to "Architecture SSOTs"
+  - Changed `status` from "active" to "current"
+
+--- audit: original='docs(arch): fix handoff frontmatter — canonical category + status' | actual=4L across 1 files | derived=full ---
