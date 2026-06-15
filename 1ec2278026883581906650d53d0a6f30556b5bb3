@@ -1,0 +1,6 @@
+docs(query-all-guard): allowlist `crates/vox-cli/tests/` from `query-all-guard`
+scale: ~1 lines across 1 files [XS]
+
+- docs/agents/query-all-allowlist.txt: Added `crates/vox-cli/tests/` to the allowlist for the `query-all-guard` detector. This prevents false positives from test fixtures containing `query_all()` strings, which are not actual calls to the `query_all` method.
+
+--- audit: original='fix(ci): allowlist crates/vox-cli/tests/ from query-all-guard' | actual=1L across 1 files | derived=full ---
