@@ -1,0 +1,10 @@
+fix(vox-arch-check): Correct Rule 13 line counting for `git cat-file --batch`
+scale: ~46 lines across 1 files [S]
+
+- `crates/vox-arch-check/src/main.rs`:
+    - Extracted `count_lines_in_bytes` helper function to accurately count lines in a byte slice, matching `str::lines().count()` semantics (splitting on `\n` or `\r\n` and not adding an empty line for a trailing newline).
+    - Updated `git_loc_at_tag_batch` to use `count_lines_in_bytes` when calculating lines of code from `git cat-file --batch` output.
+    - Added a unit test for `count_lines_in_bytes` to verify its behavior across empty, trailing newline, and CRLF cases, ensuring consistency with `str::lines().count()`.
+    - Removed previous newline counting logic that diverged from `str::lines().count()` for files without a trailing newline.
+
+--- audit: original='fix(vox-arch-check): Rule 13 line count must match str::lines() semantics' | actual=46L across 1 files | derived=full ---
