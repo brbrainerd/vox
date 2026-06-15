@@ -1,0 +1,13 @@
+feat(ssot): add vox_tool_search capability and classify repl as tier none
+scale: ~214 lines across 10 files [M]
+
+- contracts/capability/capability-registry.yaml: Added a new capability `mcp.vox_tool_search` with title "Tool Search" and a description for searching the MCP tool registry.
+- contracts/gui/surface-registry.v1.yaml: Added a new surface entry for `cli_group: repl` with `representation_tier: none`.
+- contracts/mcp/http-read-role-governance.yaml: Added `vox_tool_search` to the list of `read_role_tools`.
+- contracts/capability/model-manifest.generated.json: Updated the generated model manifest.
+- contracts/reports/operations-catalog-inventory.v1.json: Updated operation counts, incrementing `catalog_operations`, `mcp_only_operations`, and `mcp_tool_count` by 1.
+- crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts: Regenerated the TypeScript surface registry.
+- contracts/reports/gui-surface-coverage.v1.json: Regenerated the GUI surface coverage report.
+- contracts/reports/gui-surface-registry.v1.json: Regenerated the GUI surface registry report.
+
+--- audit: original='chore(ssot): sync capability/surface-registry/catalog artifacts for vox_tool_search' | actual=214L across 10 files | derived=full ---
