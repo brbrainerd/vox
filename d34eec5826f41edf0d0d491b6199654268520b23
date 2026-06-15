@@ -1,0 +1,6 @@
+docs(plan): golden corpus & compiler reality implementation
+scale: ~478 lines across 1 files [L]
+
+- docs/superpowers/plans/2026-06-02-vox-golden-corpus-and-compiler-reality.md: Add a new plan document outlining the "Vox Golden Corpus & Compiler-Reality Implementation Plan". This plan details a nine-track approach to make every Vox `.vox` "doc-box"/golden file compile and produce verified output, close interpreter/codegen/typecheck tier-divergences, and fill language-coverage gaps. It describes the goal, architecture (behavioral-verification substrate, verified compiler tier-divergences, golden corpus repair/extension, HumanEval integrity, doctest discipline, and remaining `.vox` trees), and tech stack. The plan includes a running execution log for work landed in this session (Tracks B, C2, E, F, G, A5, I1, hakari) and the corrected scope for the spec-gated remainder (B5 db-query-plan typing, C1 Result[T,E], Track D).
+
+--- audit: original='@ docs(plan): golden-corpus & compiler-reality plan + execution log' | actual=478L across 1 files | derived=full ---
