@@ -1,0 +1,69 @@
+feat(sql): multi-engine app-plane interop via vox-sql
+scale: ~6002 lines across 86 files [XL]
+
+- **crates/vox-sql**: New crate for SQL backend abstraction, DDL generation, introspection, and migration.
+  - Implements `AnySqlBackend` for Libsql, Postgres, and MySQL.
+  - Provides `SqlDialect` for backend-specific SQL generation (placeholders, quoting, upsert, return clauses).
+  - Introduces `ddl` module for generating `CREATE TABLE`, `CREATE INDEX`, `ALTER TABLE ADD COLUMN` statements.
+  - Adds `introspect` module for querying live database schemas into `IntrospectedSchema` and `IntrospectedTable`.
+  - Includes `migrate` module to generate `MigrationAction`s (CreateTable, AddColumn, CreateIndex, ManualDropColumn/Table) by comparing declared and live schemas.
+  - Defines `schema_model` for representing introspected database structures.
+  - Implements `type_map` for mapping Vox types to SQL types.
+  - Adds `build` module for SQL query building utilities.
+  - Includes extensive tests for live backends, conformance, DDL, and introspection.
+- **crates/vox-cli**:
+  - `db verify`: New command to compare declared `@table` surfaces with live database schemas, reporting findings.
+  - `db introspect`: New command to introspect a live database schema.
+  - `db_cli`: Core subcommands for database operations.
+  - `ci/run_body_helpers/guards.rs`: Modified guards for CI runs.
+  - `db/local.rs`: Updated local database commands.
+  - `ci/run_body.rs`: Updated CI run body.
+  - `db/query_plans.rs`: Added query plan command.
+  - `db/mod.rs`: Updated database command module.
+- **crates/vox-codegen**:
+  - `codegen_rust/emit/tables/codegen.rs`: Significantly refactored to support multi-engine SQL generation.
+    - Added `to_snake_case` for table/field naming.
+    - Implemented `table_live_name` for external tables.
+    - Added `escape_single_quoted_sql_literal`.
+    - Introduced `sql_dialect_from_urls` to determine dialect based on `VOX_APP_DB_URL` or `VOX_DB_URL`.
+  - `codegen_rust/emit/method_emit.rs`: Updated to use `SqlDialect` for generating backend-agnostic SQL queries.
+    - Added `dialect_for_backend_kind` and `dialect_from_urls`.
+    - `db_query_sql_dialect` now resolves dialect from `VOX_APP_DB_URL` or `VOX_DB_URL`.
+  - `codegen_rust/emit/http.rs`: Minor updates.
+  - `codegen_rust/emit/mod.rs`: Minor updates.
+  - `codegen_ts/openapi_emit.rs`: Minor updates.
+  - `codegen_rust/emit/tables/projections.rs`: Added.
+  - New tests for `emit_main_includes_durable_boot` and `tauri_convergence_snapshots`.
+- **crates/vox-secrets**:
+  - `spec/registry/core_ids.rs`: New file defining core `SecretId`s, including `VOX_APP_DB_URL`.
+  - `spec/registry/missing.rs`: Removed.
+  - `spec/registry/platform.rs`: Updated platform secrets.
+  - `spec/ids.rs`: Updated secret IDs.
+  - `spec/mod.rs`: Minor updates.
+  - `lib.rs`: Minor updates.
+- **crates/vox-db**:
+  - `codex_chat.rs`: New file, likely related to Codex chat integration.
+  - `schema_extensions.rs`: Significant reduction in size, likely refactored into `vox-sql`.
+  - `store/ops_review.rs`: Reduced in size.
+  - `ddl/emit.rs`: Reduced in size, likely refactored into `vox-sql`.
+  - `schema/pragmas.rs`: Minor updates.
+  - `ddl/diff.rs`: Minor updates.
+  - `schema_digest/helpers.rs`: Minor updates.
+  - New test `arca_compiler_table_parity.rs`.
+- **crates/vox-compiler**:
+  - `typeck/registration.rs`: Minor updates.
+  - `parser/descent/decl/mid.rs`: Minor updates.
+  - `typeck/ast_decl_lints.rs`: Minor updates.
+  - `typeck/builtins.rs`: Reduced in size.
+  - `typeck/unify.rs`: Minor updates.
+  - `typeck/checker/expr.rs`: Minor updates.
+  - `eval/db.rs`: Minor updates.
+  - `hir/lower/mod.rs`: Added.
+  - `hir/nodes/decl.rs`: Added.
+  - `hir/lower/expr.rs`: Added.
+  - `hir/lower/expr_db.rs`: Added.
+  - `hir/nodes/stmt_expr.rs`: Minor updates.
+  - `hir/validate.rs`: Minor updates.
+  - `hir/lower/decl.rs`: Added.
+
+--- audit: original='feat(sql): multi-engine app-plane interop via vox-sql' | actual=6002L across 86 files | derived=full ---
