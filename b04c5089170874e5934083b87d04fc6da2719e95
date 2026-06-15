@@ -1,0 +1,9 @@
+docs: update README and landing page for grammar and layout changes
+scale: ~264 lines across 4 files [L]
+
+- docs/src/feed.xml: Regenerate feed.xml.
+- docs/src/index.mdx: Update `last_updated` date, revise "Vox collapses the common cases" paragraph, change "Four Core Pillars" to "Five Core Pillars", and update descriptions for Pillar 1 and Pillar 2.
+- README.md: Update `TaskPage` component example to use Vox GUI primitives instead of JSX, and revise the "Pillar 4: Durable State & Agent Interoperability" section to reflect current `@durable` syntax and agent interoperability details.
+- docs/src/SUMMARY.md: Regenerate SUMMARY.md.
+
+--- audit: original='docs: align README and landing with grammar SSOT and MCP layout' | actual=264L across 4 files | derived=full ---
