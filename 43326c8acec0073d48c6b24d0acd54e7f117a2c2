@@ -1,0 +1,14 @@
+feat(vox-audit): register CR-F1 behavioral goldens as first foundation gate
+scale: ~427 lines across 5 files [L]
+
+- `crates/vox-audit/src/ga.rs`: Add new module for GA roll-up logic, including `GateRow` and `GaSnapshot` structs for tracking gate status and overall GA verdict.
+- `crates/vox-audit/src/subcommands/behavioral_goldens.rs`: Add new subcommand for the CR-F1 behavioral goldens gate, which runs `examples/golden/*.vox` files with `// EXPECT:` assertions. Includes `vox_bin` helper and `parse_expect` function.
+- `crates/vox-audit/src/lib.rs`:
+    - Add `F1BehavioralGoldens` to `CrlGate` enum with description.
+    - Update `CrlGate::thing_name`, `CrlGate::is_foundation`, `CrlGate::tier`, and `CrlGate::all` to include the new gate.
+    - Register `BehavioralGoldensSubcommand` in the `registry` function.
+    - Update the assertion for the number of registered gates.
+- `crates/vox-audit/src/main.rs`: Add `BehavioralGoldens` to `CliCommand` enum and its `to_gate_name` mapping.
+- `crates/vox-audit/src/subcommands/mod.rs`: Add `behavioral_goldens` module.
+
+--- audit: original='feat(vox-audit): register CR-F1 behavioral-goldens as first foundation gate' | actual=427L across 5 files | derived=full ---
