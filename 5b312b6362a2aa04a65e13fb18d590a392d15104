@@ -1,0 +1,29 @@
+chore(deps): Update Rust toolchain to 1.96, gix to 0.84, wasmtime to 45, RustCrypto digest to 0.11, and TypeScript to 6
+scale: ~2797 lines across 39 files [XL]
+
+- **Rust Toolchain:** Updated `rust-toolchain.toml` from 1.92 to 1.96.
+- **`gix`:** Upgraded `gix` from 0.70 to 0.84, resolving a prior conflict with `jj-lib`.
+  - Re-enabled the "sha1" feature for `gix` in `vox-git/Cargo.toml`.
+  - Adapted `vox-effort-audit/src/walk.rs` to `gix-object` 0.61 API changes, handling `CommitRef::time()` and `author()` returning `Result`.
+- **`jj-lib`:** Updated `jj-lib` from 0.27 to 0.42 in `crates/vox-orchestrator/src/jj_backend.rs`, aligning with `gix ^0.84`.
+- **`self_update`:** Upgraded `self_update` from 0.43 to 0.44.
+- **`rcgen`:** Updated `rcgen` from 0.13 to 0.14, pinning `default-features=false` and `ring` to avoid `aws-lc-rs`.
+- **`wasmtime`:** Upgraded `wasmtime` from 42 to 45.0.1.
+- **RustCrypto `digest`:** Updated `digest` to 0.11, `sha2` to 0.11, `sha3` to 0.12, and `hmac` to 0.13.
+  - Replaced `format!("{:x}", hasher.finalize())` with `hex::encode(...)` across 18 sites in `vox-arch-check`, `vox-cli`, `vox-codegen`, `vox-db`, `vox-drift-check`, `vox-grammar-export`, `vox-orchestrator-queue`, `vox-orchestrator`, and `vox-publisher` due to `Array` no longer implementing `LowerHex`.
+  - Added `KeyInit` to `hmac` imports in `crates/vox-orchestrator/src/context_envelope.rs` and `crates/vox-codegen/src/web_ir/paginated_emit.rs`.
+  - Added `hex` dependency to `vox-arch-check`, `vox-cli`, `vox-codegen`, `vox-db`, `vox-drift-check`, `vox-grammar-export`, `vox-effort-audit`, `vox-git`, and `vox-publisher`.
+- **TypeScript:** Bumped `vox-vscode`'s TypeScript toolchain from 5 to 6 and `@types/node` from 22 to 24.
+  - Regenerated `apps/editor/vox-vscode/src/core/mcpToolRegistry.generated.ts`.
+- **Clippy Lints:** Addressed new Rust 1.96 clippy lints:
+  - Replaced `unnecessary_sort_by` with `sort_by_key(Reverse(..))` in `vox-arch-check/src/cache.rs`, `vox-effort-audit/src/walk.rs`, and `vox-audit`.
+  - Fixed `explicit_auto_deref` in `vox-compiler/builtin_registry`.
+  - Removed unused import `dequantize_nf4` in `patches/qlora-rs-1.0.5/src/qlora.rs`.
+  - Allowed `single_match` and `let_unit_value` in `crates/vox-integration-tests/tests/actor_dispatch_e2e_test.rs` to preserve codegen output.
+- **Documentation:**
+  - Added `docs/src/architecture/vcs-as-vox-language-feature-jujutsu-2026.md` detailing VCS as a Vox language feature.
+  - Updated `docs/superpowers/plans/2026-06-05-dependency-currency-upgrade-handoff.md` to reflect completed dependency upgrades and defer `rand` to 0.9.
+  - Corrected `category: architecture` to "Architecture SSOTs" in `docs/src/architecture/vcs-as-vox-language-feature-jujutsu-2026.md`.
+- **Formatting:** Ran `rustfmt` on `vox-arch-check` after clippy changes.
+
+--- audit: original='deps: Rust 1.96 toolchain + gix 0.84 / wasmtime 45 / RustCrypto digest 0.11 / TS6 (#155)' | actual=2797L across 39 files | derived=full ---
