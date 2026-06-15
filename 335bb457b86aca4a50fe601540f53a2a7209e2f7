@@ -1,0 +1,12 @@
+docs: update forward plan and LLM-target audit for `explain_url` completion
+scale: ~33 lines across 2 files [S]
+
+- docs/src/architecture/post-sprint-forward-plan-2026-05-25.md:
+    - Added entries for commits `c8945f60e9` and `bca186355c` to the "Commits added after Hp-T3" list.
+    - Added a new section "Phase 2 LLM-target gap (explain_url)" detailing the inclusion of `explain_url: Option<String>` in `VoxCompilerDiagnosticPayload`, its population logic, URL format, and closure of the `explain_url` requirement.
+    - Updated the "CR-L status" heading to "CR-L status after session-15 (including continuation):".
+- docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md:
+    - Updated the "Coverage assessment" section to explicitly list both `excerpt` and `explain_url` as completed items for the 2026-05-25 update (session-15).
+    - Clarified the remaining gaps from Phase 2 Task 5 to include `minimal_repro`, `rationale`, `confidence`, and `alternatives`.
+
+--- audit: original='docs: record explain_url completion in forward plan and LLM-target audit' | actual=33L across 2 files | derived=full ---
