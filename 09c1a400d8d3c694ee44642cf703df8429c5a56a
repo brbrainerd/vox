@@ -1,0 +1,14 @@
+feat(orchestrator): implement structured real-time agent event bus and orchestrator infrastructure
+scale: ~512 lines across 34 files [L]
+
+- `crates/vox-orchestrator`: Implemented emergency stop functionality, added `JjBridge` for CLI-based Jujutsu operations (snapshot flush, revert), updated `jj-lib` pinned version to 0.39.0, and added lineage event recording for task delegations.
+- `crates/vox-mcp`: Introduced new DEI tools for `attention_summary` and `handoff_lineage`, including new parameters.
+- `crates/vox-db`: Added functionality to list orchestration lineage events, including filtering by kind.
+- `vox-vscode/webview-ui`: Enhanced the UnifiedDashboard with a new section for recent budget spend details and a "Recent Agent Activity" section.
+- `vox-vscode`: Updated `SidebarProvider` and `webviewMessages` to support new dashboard features and agent event handling.
+- `crates/vox-ludus`: Modified AI client constructor and transport for improved agent interaction.
+- `crates/vox-cli`: Added new DEI command and updated CLI dispatch.
+- `contracts/mcp`: Updated the tool registry canonical YAML.
+- Many smaller changes across `crates/vox-orchestrator` and `crates/vox-mcp` for event handling, configuration, and type definitions related to the new event bus and orchestrator features.
+
+--- audit: original='feat: implement structured real-time agent event bus and orchestrator infrastructure' | actual=512L across 34 files | derived=full ---
