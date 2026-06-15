@@ -1,0 +1,15 @@
+docs(architecture): Add v1.0 readiness snapshot for 2026-05-22
+scale: ~261 lines across 1 files [L]
+
+- Add `docs/src/architecture/2026-05-22-v1-readiness-snapshot.md` detailing the measured state of v1.0 release criteria gates.
+- Document the status of CR-L, CR-P, CR-E, CR-A, and CR-D gates, citing on-disk artifacts.
+- Highlight that the Block-GA umbrella exits successfully and all five block-GA criteria (CR-L0, L5, L6, L7, L8) are met.
+- Note that two LLM-panel gates (CR-L1 humaneval, CR-L3 repair-corpus) are met.
+- Identify three gates (CR-A1 cyclomatic, CR-D3 CLI examples, CR-L4 plan-fidelity) as measured-sub-bar with evidence.
+- Describe CR-L2 as probe-only due to a `BackendUnavailable` error with remediation.
+- List three gates (CR-P1, CR-P2, CR-E2) as infra-pending.
+- Include OpenRouter spend and catalog four proven engineering patterns.
+- Document honest gaps surfaced, such as malformed JSON schema files and an empirical finding for CR-L4.
+- Provide a "reproduction commands" appendix for verification.
+
+--- audit: original='docs(architecture): 2026-05-22 v1.0 readiness snapshot' | actual=261L across 1 files | derived=full ---
