@@ -1,0 +1,19 @@
+docs(json-ergonomics): Update RFC idioms to compile against live API
+scale: ~724 lines across 2 files [L]
+- docs/src/architecture/json-ergonomics-rfc-2026-05-23.md: Rewrote five JSON-ergonomics RFC idiom snippets to be self-contained, compilable Vox functions. Each now parses a `payload_json: str` and returns a typed result, replacing the `// vox:skip` directives and `data` binding.
+  - `extract_kind`: Changed from `let kind = data.get(...)` to `fn extract_kind(payload_json: str) to Option[str]`.
+  - `first_product_name`: Changed from `let name = data.pointer(...)` to `fn first_product_name(payload_json: str) to str`, ensuring single-line match arm for method chaining.
+  - `has_action`: Changed from `if data.has("action") { ... }` to `fn has_action(payload_json: str) to bool`.
+  - Array walk: Changed to use `.map()` for `product_names` function, aligning with `json_stdlib.vox`.
+  - Match-on-parse: Added `classify_input` function with `Error(msg) => "..." + msg` pattern.
+- crates/vox-compiler/src/typeck/builtins.rs: Rebased the `typeck/builtins.rs` file to incorporate rich JSON methods and comprehensive `Vec`, `Map`, `Option`, and `Str` method coverage from the `main` branch.
+  - Updated `Ok` and `Error` constructors to reflect the two-parameter `Ty::Result[T, E]` generic shape, specifically widening `Ty::Result(Box::new(X))` to `Ty::Result(Box::new(X), Box::new(Ty::Str))` for compatibility.
+  - Removed the `Err` alias for `Error`.
+  - Added `Json` methods: `get`, `at`, `pointer`, `as_str`, `as_int`, `as_float`, `as_bool`, `as_array`, `as_object`, `is_null`, `has`, `length`, `keys`, `to_string`.
+  - Added `Vec` methods: `get`, `len`, `is_empty`, `contains`, `map`, `filter`, `fold`, `join`, `to_string`.
+  - Added `Map` methods: `get`, `len`, `is_empty`, `contains_key`, `keys`, `values`, `to_string`.
+  - Added `Option` methods: `is_some`, `is_none`, `unwrap`, `unwrap_or`, `and_then`, `map`, `filter`, `or_else`, `flatten`.
+  - Added `Str` methods: `len`, `is_empty`, `contains`, `starts_with`, `ends_with`, `find`, `rfind`, `replace`, `trim`, `to_lowercase`, `to_uppercase`, `split`, `join`, `parse_int`, `parse_float`, `to_bytes`.
+  - Modified the `Ty::Result(_)` match arm to `Ty::Result(_, _)`.
+
+--- audit: original='docs(json-ergonomics) + typeck(builtins): RFC idioms compile against live API' | actual=724L across 2 files | derived=full ---
