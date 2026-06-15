@@ -1,0 +1,8 @@
+feat(dashboard): add `WorkflowDebugger` component for visualizing workflow activity
+scale: ~36 lines across 1 files [S]
+
+- Add `WorkflowDebugger` component to `crates/vox-dashboard/app/src/surfaces/workflow_debugger.vox`.
+- The component displays a timeline of workflow activities, subscribes to `vox.workflow.activity` WebSocket events, and allows clicking spans to view journal entries.
+- It integrates with `JournalDrawer` and `OplogScrubber` components.
+
+--- audit: original='feat(dashboard): workflow visual debugger over live span feed (P4-T8)' | actual=36L across 1 files | derived=full ---
