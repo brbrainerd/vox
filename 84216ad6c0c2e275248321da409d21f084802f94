@@ -1,0 +1,14 @@
+feat(wire-format): GA-02 — SSOT machine-checked via Contract IR
+scale: ~809 lines across 15 files [L]
+
+- contract_ir: Add `wire_type_to_ts()` and `wire_type_to_zod()` as the single authoritative WireType→TS and WireType→Zod mapping functions. All emitters now delegate here instead of hand-rolling rules. Add new tests for these functions.
+- vox_client.rs: Route through `contract_ir::project()` instead of walking HIR directly. This fixes `Option[T]` parameters emitting correctly as `param?: T` (was missing the optional flag) and `List[T]` return types emitting as `readonly T[]` (capital "List" was falling through to Unknown).
+- adt.rs: Remove `map_type_to_ts()` and `map_type_to_zod()` as their functionality is now handled by `contract_ir::wire_type_to_ts()` and `contract_ir::wire_type_to_zod()`.
+- zod_emit.rs: Delegate `wire_zod()` to `contract_ir::wire_type_to_zod()`, removing the last duplicate WireType→Zod rule outside `contract_ir`.
+- contract_ir/project.rs: Fix "List" (capital) not matching array projection (only "list"/"Vec"/"Array" were handled).
+- vox-wire-format-validator: New crate with blake3 SSOT drift detection. `cargo run -p vox-wire-format-validator` exits 1 with `vox/wire-format/spec-drift` diagnostic if `docs/src/architecture/wire-format-v1-ssot.md` has changed without an IR update. The `--update` flag rewrites `src/expected_hash.rs` with the new blake3 hash.
+- golden: Add `wire_format_round_trip.vox` to cover `dec`→`string`, `Option[T]`→optional, `List[T]`→`readonly T[]`, and Ref types. Update `golden_ts_test__golden_ts_emit` snapshot.
+- examples.ssot.v1.yaml: Register `examples/golden-ts/` which was orphaned since the directory was added without updating the SSOT gate.
+- axum_emit_contract_test__mutation_with_schema_main_rs_emit.snap: Update snapshot due to changes in contract IR projection.
+
+--- audit: original='feat(wire-format): GA-02 — wire-format SSOT machine-checked via Contract IR' | actual=809L across 15 files | derived=full ---
