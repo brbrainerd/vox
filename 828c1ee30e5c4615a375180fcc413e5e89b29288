@@ -1,0 +1,8 @@
+feat(training): Add agent logging and refactor runtime handling
+scale: ~199 lines across 3 files [M]
+
+- `crates/vox-populi/src/mens/tensor/candle_qlora_train/training_loop.rs`: Introduce `agent_ndjson` function for structured logging to a debug file, including session, hypothesis, location, message, and data. Add `candle_row_finite_scan_f32` to check for non-finite values in Candle tensors.
+- `crates/vox-clavis/src/backend/vox_vault.rs`: Refactor `VoxCloudBackend` to use a new `run_clavis_future` helper function for executing asynchronous operations, removing direct `tokio::runtime` creation in multiple places.
+- `mens/runs/latest/training-preflight.json`: Update `contract_digest` value.
+
+--- audit: original='wip: coderabbit safeguard snapshot' | actual=199L across 3 files | derived=full ---
