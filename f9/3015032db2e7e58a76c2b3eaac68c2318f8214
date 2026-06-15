@@ -1,0 +1,6 @@
+refactor(deps): narrow tokio features
+scale: ~2 lines across 1 files [XS]
+
+- Updated `Cargo.toml` to replace the `tokio` crate's `full` feature with a specific set of features: `rt`, `macros`, `sync`, `time`, `net`, `process`, `io-util`, and `rt-multi-thread`.
+
+--- audit: original='refactor(core): narrow tokio dependencies' | actual=2L across 1 files | derived=full ---
