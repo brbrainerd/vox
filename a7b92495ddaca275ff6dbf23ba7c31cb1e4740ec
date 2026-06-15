@@ -1,0 +1,9 @@
+feat(orchestrator-queue): Implement Ed25519 signing and verification for op-log entries
+scale: ~234 lines across 4 files [M]
+
+- `crates/vox-orchestrator-queue/src/oplog/sign.rs`: Added a new module for Ed25519 signing and verification. This includes `KeyRing` for managing local and peer keys, `SignError` enum for error handling, and functions `sign_entry` and `verify_entry` to sign and verify `OperationEntry` instances. The canonical payload for signing is defined as `blake3(op_id_be || predecessor_hash_bytes || description_blake3)`.
+- `crates/vox-orchestrator-queue/tests/sign_verify.rs`: Added new tests to cover the Ed25519 signing and verification functionality. Tests confirm successful round-trip signing and verification, and that tampered payloads or unsigned entries fail verification.
+- `crates/vox-orchestrator-queue/src/oplog/mod.rs`: Updated to expose the new `sign` module.
+- `crates/vox-orchestrator-queue/Cargo.toml`: Added a dependency on `vox-crypto` to support cryptographic operations.
+
+--- audit: original='feat(orchestrator-queue): Ed25519-sign every op-log entry and capability mint (P3-T2)' | actual=234L across 4 files | derived=full ---
