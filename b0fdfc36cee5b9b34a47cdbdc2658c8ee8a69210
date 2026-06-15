@@ -1,0 +1,12 @@
+feat(ci): add CR-L6 retirement contract check, update HumanEval corpus
+scale: ~86 lines across 7 files [M]
+
+- `crates/vox-cli/src/commands/ci/retirement_audit.rs`: Add a new check to `retirement_audit` to verify the presence and non-empty YAML content of `contracts/retirement/retired-surfaces.v1.yaml` (CR-L6 contract presence check).
+- `crates/vox-orchestrator/src/config/orchestrator_fields.rs`: Flip the default value for `agentos_aci_envelope_enabled` from `false` to `true` in `orchestrator_fields.rs` and update its doc comment to reflect the change for v0.6 (CR-L5).
+- `crates/vox-audit/src/subcommands/aci_default.rs`: Update test comments in `aci_default.rs` to reflect the workspace is now v0.6.0 and `agentos_aci_envelope_enabled` defaults to `true`.
+- `crates/vox-ml-cli/src/commands/ai/workflow.rs`: Fix the `commands::build::run` call in `workflow.rs` by adding `RustAppShell::default()` as an 8th argument and switch `build_service` and `cli_args` usage to `vox_cli_core::`.
+- `crates/vox-cli/src/lib.rs`: Re-export `vox_codegen::codegen_rust::RustAppShell` from `vox-cli/src/lib.rs` to allow callers driving the build pipeline to avoid a direct `vox-codegen` dependency.
+- `contracts/eval/humaneval-vox/manifest.v1.yaml`: Update the `corpus_hash` in `humaneval-vox/manifest.v1.yaml` to reflect the real hash for the 164-problem HumanEval-Vox corpus.
+- `contracts/reports/humaneval/2026-05-27.json`: Add a new HumanEval report `2026-05-27.json` with a corpus size of 164 problems and a 100% pass rate.
+
+--- audit: original='fix(v0.6): CR-L5 serde default flip, retirement-audit CR-L6 wiring, humaneval corpus hash, A-5 arity fix' | actual=86L across 7 files | derived=full ---
