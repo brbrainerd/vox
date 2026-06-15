@@ -1,0 +1,24 @@
+fix(dashboard): Restore compilable app.vox; regenerate all dashboard TSX
+scale: ~1057 lines across 17 files [XL]
+
+- `crates/vox-dashboard/app/src/app.vox`: Consolidated all tab components (ChatMessage, ComposerPanel, DiagnosticRow, DiagnosticsPanel, MeshLegend, NodeBadge, PipelineStage, PipelineView, TaskDispatch, WorkflowScrubber) inline, replacing invalid `use tabs::*` imports. This restores a compilable state for the Vox app.
+- `crates/vox-dashboard/app/src/generated/ForgeTab.tsx`: Removed inline component definitions (PipelineStage, PipelineView) as they are now defined in `app.vox` and generated as separate files.
+- `crates/vox-dashboard/app/src/generated/CommandTab.tsx`: Removed inline component definitions (DiagnosticRow, DiagnosticsPanel) as they are now defined in `app.vox` and generated as separate files.
+- `crates/vox-dashboard/app/src/generated/NetworkTab.tsx`: Removed inline component definitions (NodeBadge, MeshLegend) as they are now defined in `app.vox` and generated as separate files. Updated to import MeshLegend from its new generated file.
+- `crates/vox-dashboard/app/src/generated/SpeakTab.tsx`: Removed inline component definitions (ChatMessage, ComposerPanel) as they are now defined in `app.vox` and generated as separate files. Updated to import ChatMessage and ComposerPanel from their new generated files.
+- `crates/vox-dashboard/app/src/generated/WorkflowScrubber.tsx`: Added new generated file for the WorkflowScrubber component.
+- `crates/vox-dashboard/app/src/generated/PipelineStage.tsx`: Added new generated file for the PipelineStage component.
+- `crates/vox-dashboard/app/src/generated/MeshLegend.tsx`: Added new generated file for the MeshLegend component.
+- `crates/vox-dashboard/app/src/generated/DiagnosticRow.tsx`: Added new generated file for the DiagnosticRow component.
+- `crates/vox-dashboard/app/src/generated/TaskDispatch.tsx`: Added new generated file for the TaskDispatch component.
+- `crates/vox-dashboard/app/src/generated/ComposerPanel.tsx`: Added new generated file for the ComposerPanel component.
+- `crates/vox-dashboard/app/src/generated/NodeBadge.tsx`: Added new generated file for the NodeBadge component.
+- `crates/vox-dashboard/app/src/generated/ChatMessage.tsx`: Added new generated file for the ChatMessage component.
+- `crates/vox-dashboard/app/src/generated/DiagnosticsPanel.tsx`: Added new generated file for the DiagnosticsPanel component.
+- `crates/vox-dashboard/app/src/generated/App.tsx`: Removed this stale generated file.
+- `crates/vox-dashboard/app/src/generated/routes.manifest.ts`: Added new generated file exporting `VoxRoute[]`.
+- `crates/vox-dashboard/app/src/generated/PipelineView.tsx`: Added new generated file for the PipelineView component.
+- Rebuilt vox CLI from HEAD (v0.5.0+build.359) to incorporate the TASK-7.1 ternary codegen fix (HirExpr::If IIFE → nested ternary).
+- All generated/*.tsx files were re-emitted by the compiler, now splitting sub-components into separate files with correct cross-file imports.
+
+--- audit: original='fix(task-7.2): restore compilable app.vox; regenerate all dashboard TSX from compiler' | actual=1057L across 17 files | derived=full ---
