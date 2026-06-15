@@ -1,0 +1,9 @@
+fix(mens): Correct VRAM budget precedence for training sizing
+scale: ~190 lines across 4 files [M]
+
+- `crates/vox-ml-cli/src/commands/mens/populi/train_arm.rs`: Refactored the logic for resolving `effective_seq_len`, `effective_batch_size`, and `effective_grad_accum` during training. Introduced a new `resolve_training_sizing` function to correctly apply precedence: CLI flags/domain profiles > VRAM budget overrides > generic preset defaults. This ensures VRAM budget settings override generic presets but yield to explicit user or domain-specific configurations.
+- `crates/vox-ml-cli/src/commands/mens/populi/gpu_tests_body.rs`: Updated `probe_runs_without_gpu` and `probe_verbose_runs_without_gpu` tests to use `tokio::runtime::Runtime::block_on` for calling the async `probe::run_probe` function. Also added a `false` argument to `status::run_status` calls in `status_missing_dir_reports_gracefully` and `status_json_missing_dir` tests.
+- `crates/vox-ml-cli/Cargo.toml`: Added `safetensors` as a dependency, specifically for use in `populi/gpu_tests_body.rs` when running tests with the `gpu` feature.
+- `Cargo.lock`: Updated to reflect the new `safetensors` dependency.
+
+--- audit: original='fix(mens): VRAM budget overrides generic preset sizing (correct precedence)' | actual=190L across 4 files | derived=full ---
