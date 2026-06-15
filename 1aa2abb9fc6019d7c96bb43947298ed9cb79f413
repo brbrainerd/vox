@@ -1,0 +1,16 @@
+feat(populi): durable MeshStore with VoxDb and InMemory backends
+scale: ~1580 lines across 11 files [XL]
+
+- **crates/vox-populi/src/transport/store/voxdb.rs**: Add `VoxDbMeshStore` for Turso-backed durable storage of A2A messages, execution leases, and dispatch results, including `store_span!` for observability and `LockContention` error handling.
+- **crates/vox-populi/src/transport/store/mod.rs**: Introduce `MeshStore` trait with 12 async operations for A2A inbox, exec leases, and dispatch results, along with `MeshStoreError`, `A2APage`, `A2AAck`, and `IntegrityReport` types. This module also re-exports `InMemoryMeshStore` and `VoxDbMeshStore`.
+- **crates/vox-populi/src/transport/store/tests.rs**: Add 8 unit tests for `InMemoryMeshStore` covering A2A round-trip, acknowledgment, pagination, lease lifecycle, dispatch get/put, integrity deduplication, and `load_all`.
+- **crates/vox-populi/src/transport/store/in_memory.rs**: Implement `InMemoryMeshStore` using `Mutex` for testing and migration staging, including a `with_data()` constructor for seeding.
+- **crates/vox-populi/src/transport/store.rs**: Remove the old flat `store.rs` module, replaced by the new `store/` directory structure.
+- **crates/vox-db/src/schema/domains/vox_mesh.rs**: Update `SCHEMA_VOX_MESH` to include new tables: `mesh_a2a_messages`, `mesh_exec_leases`, and `mesh_dispatch_results` for the Populi mesh durable store.
+- **crates/vox-db/src/schema/manifest.rs**: Bump `BASELINE_VERSION` from 59 to 60 to reflect the new `vox_mesh` schema.
+- **crates/vox-populi/src/transport/mod.rs**: Update `PopuliTransportState` to include a `mesh_store` field, add `with_mesh_store()` builder, and implement `init_from_mesh_store()` for async warm-up.
+- **crates/vox-mens/src/commands/populi_cli.rs**: Modify the `Serve` arm to clone `VoxDb`, create `VoxDbMeshStore`, and warm caches on startup.
+- **crates/vox-populi/Cargo.toml**: Add `turso` as an optional dependency under the `transport` feature.
+- **Cargo.lock**: Update dependencies to reflect changes in `crates/vox-populi/Cargo.toml`.
+
+--- audit: original='feat(populi): durable MeshStore — VoxDb backend, InMemory impl, write-through wiring' | actual=1580L across 11 files | derived=full ---
