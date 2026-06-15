@@ -1,0 +1,10 @@
+feat(vox-compiler/typeck): Add `filter`, `update`, and `first` methods to `@table` builtin
+scale: ~24 lines across 1 files [S]
+
+- `crates/vox-compiler/src/typeck/builtins.rs`:
+    - Added `filter` method with signature `({ field: value, ... }) -> Result[List[Row]]`.
+    - Added `update` method with signature `(id: int, { field: value, ... }) -> Result[Unit]`.
+    - Added `first` method with signature `() -> Result[Option[Row]]`.
+    - These methods are resolved for `Ty::Table` types, using the table's row type for outputs and column-shape record for inputs.
+
+--- audit: original='feat(vox-compiler/typeck): @table methods filter / update / first' | actual=24L across 1 files | derived=full ---
