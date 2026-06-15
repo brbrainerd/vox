@@ -1,0 +1,8 @@
+feat(codegen-ts): detect async calls in nested expressions and chains
+scale: ~332 lines across 3 files [L]
+
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`: Replaced the shallow `stmt_calls_async_fn` with a new recursive `async_walker` module to detect `@endpoint` calls nested within `let` bindings, assignments, or method chains. This ensures correct async handler emission and `await` injection. Added logic to wrap `await` expressions in parentheses when they are the direct receiver of a method call (e.g., `(await fetch_user()).trim()`).
+- `crates/vox-codegen/src/codegen_ts/hir_emit/async_walker.rs`: Added a new module containing `stmt_has_async_call` and `expr_has_async_call` functions. These functions recursively walk HIR statement and expression trees, respectively, to identify calls to specified async functions, while respecting lambda boundaries.
+- `apps/vox-mental-tracker/tests/e2e/voice_flow.spec.ts`: Re-enabled and updated assertions for the `parse` and `save` buttons in the `voice_flow` E2E test. The test now verifies that `p.kind` and `p.payload` are correctly resolved after an async `parse_voice` call, and that the `save` button increments the counter, reflecting the improved async handling in the codegen.
+
+--- audit: original='fix(codegen-ts): recursive async-call detection covers method/let/index chains' | actual=332L across 3 files | derived=full ---
