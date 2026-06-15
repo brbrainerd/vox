@@ -1,0 +1,12 @@
+feat(compiler): Implement `@json_as` typed JSON deserialization (Phase M)
+scale: ~1504 lines across 7 files [XL]
+
+- hir/lower/json_as.rs (new): Implements full HIR synthesis for `@json_as` annotated types, generating `<T>_from_json` and `<T>_to_json` functions. Supports required scalars, `Option[T]` fields, `Json` fields, various naming conventions (camelCase, PascalCase, kebab-case), `@field_name` overrides, `defaults: true`, and tagged-enum ADTs. Includes 12 unit tests.
+- hir/lower/mod.rs: Wires `json_as::synthesise_json_as_fns` into the `TypeDef` arm of the lowering process, collecting generated functions into the module's function list.
+- parser/descent/decl/mid.rs: Completes Phase M Step 1 by adding `parse_json_as_field_attrs()` to handle `@field_name`, `@default`, and `@skip_if_none` per-field attributes. Also adds support for brace-body variants in ADTs (e.g., `| Search { query: str }`).
+- parser/descent/mod.rs: Adds `Token::AtJsonAs` to the set of tokens recognized at a declaration position, allowing top-level `@json_as` annotations to be parsed correctly.
+- tests/json_as_test.rs (new): Adds 13 integration tests covering required fields, `Option` fields, `to_json` round-tripping, `@field_name` overrides, camelCase naming, `defaults: true`, and negative cases for unannotated types.
+- examples/golden/json_as_typed.vox (new): Provides a golden example demonstrating basic structs, camelCase naming, `@field_name` overrides, `defaults: true`, and end-to-end functionality of `@json_as`.
+- Cargo.lock: Updated due to new dependencies or changes in existing ones.
+
+--- audit: original='feat(compiler): Phase M @json_as typed JSON deserialization (Steps 1-6)' | actual=1504L across 7 files | derived=full ---
