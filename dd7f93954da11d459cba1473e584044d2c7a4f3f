@@ -1,0 +1,12 @@
+refactor(coderabbit): improve semantic planner and ingest pipeline code clarity
+scale: ~130 lines across 7 files [M]
+
+- `crates/vox-cli/src/commands/review/coderabbit/github/reviews/baseline.rs`: Refactored `git init` and `git config` commands in tests for improved readability by adding explicit `assert!` blocks.
+- `crates/vox-cli/src/commands/review/coderabbit/ingest.rs`: Reformatted `finding_identity` function and `eprintln!` calls for better readability, and reordered `use` statements.
+- `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/submit.rs`: Reordered `use` statements and reformatted `summarize_ignored_reasons` and `maybe_write_ignored_paths_json` functions for improved readability.
+- `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/mod.rs`: Reformatted `allow_markdown_prefix_rescues_md_and_txt` test case for better readability.
+- `crates/vox-cli/src/commands/build.rs`: Updated the regex for verifying TypeScript relative imports to be more robust, specifically targeting `import` and `export` statements.
+- `crates/vox-cli/src/commands/review/coderabbit/semantic_planner/groups.rs`: Reformatted comments for `.md` and `.txt` extensions in `IGNORED_EXTENSIONS` for better alignment.
+- `docs/src/architecture/coderabbit-review-coverage-ssot.md`: Added a new bullet point clarifying the use of `allow_markdown_prefixes` in `Vox.toml` and command-line options for managing ignored paths.
+
+--- audit: original='feat: implement CodeRabbit semantic review planner and VoxDB-backed ingest pipeline' | actual=130L across 7 files | derived=full ---
