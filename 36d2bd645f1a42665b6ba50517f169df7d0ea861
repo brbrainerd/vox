@@ -1,0 +1,6 @@
+refactor(vox-audit): replace modulo operator with `is_multiple_of` for even checks
+scale: ~4 lines across 1 files [XS]
+
+- `crates/vox-audit/src/subcommands/regression_budget.rs`: Replaced `slashes % 2 == 0` with `slashes.is_multiple_of(2)` in `strip_line_comment` and `strip_string_literals` functions.
+
+--- audit: original='fix(vox-audit): clippy 1.96 manual_is_multiple_of in regression_budget' | actual=4L across 1 files | derived=full ---
