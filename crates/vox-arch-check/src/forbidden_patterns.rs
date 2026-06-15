@@ -322,4 +322,24 @@ mod tests {
         let hits = scan(dir.path(), &abs_path_rule(), &crate::built_in_walk_prune_names()).unwrap();
         assert_eq!(hits.len(), 1);
     }
+
+    fn dynlib_ext_rule() -> ForbiddenPatternRule {
+        ForbiddenPatternRule {
+            name: "no-hardcoded-dynlib-ext".into(),
+            // A quoted filename ending in a platform-specific shared-lib suffix.
+            pattern: r#""[^"]*\.(so|dll|dylib)""#.into(),
+            file_glob: "crates/**/*.rs".into(),
+            exempt_files: vec![],
+            allow_annotation: Some("// vox-arch-check: allow dynlib-ext".into()),
+            reason: "Shared-lib suffix differs per OS (.so/.dll/.dylib); derive it from target, do not hardcode.".into(),
+        }
+    }
+
+    #[test]
+    fn hardcoded_so_suffix_is_flagged() {
+        let dir = tempfile::tempdir().unwrap();
+        write_fixture(&dir, "crates/x/src/e.rs", "let lib = \"libfoo.so\";");
+        let hits = scan(dir.path(), &dynlib_ext_rule(), &crate::built_in_walk_prune_names()).unwrap();
+        assert_eq!(hits.len(), 1);
+    }
 }

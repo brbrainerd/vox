@@ -409,6 +409,13 @@ file_glob        = "crates/**/*.rs"
 allow_annotation = "// vox-arch-check: allow abs-path"
 reason           = "Hardcoded absolute paths break across OSes; use std::env::temp_dir()/dirs/Path::join."
 
+[[forbidden_pattern]]
+name             = "no-hardcoded-dynlib-ext"
+pattern          = '"[^"]*\.(so|dll|dylib)"'
+file_glob        = "crates/**/*.rs"
+allow_annotation = "// vox-arch-check: allow dynlib-ext"
+reason           = "Shared-lib suffix differs per OS (.so/.dll/.dylib); derive it from target, do not hardcode."
+
 # ── Planned crates (in-flight design docs; not yet on disk) ──────────────────
 # Rule 12 (WTL parity check) consults this table before flagging a
 # where-things-live.md reference as a ghost.  Each entry must point to the
