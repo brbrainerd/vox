@@ -636,7 +636,15 @@ impl LowerCtx {
                     hir.functions.push(f);
                     hir.agent_defs.push(HirAgentDef { fn_name, span });
                 }
-                _ => {
+                // EXHAUSTIVE on purpose: `HttpRoute` is currently the only `Decl`
+                // variant with no HIR lowering. Listing it explicitly (instead of a
+                // `_ =>` catch-all) makes the compiler reject any NEW un-lowered variant
+                // at build time, rather than letting it silently drop into a
+                // `lower_warnings` string at runtime — the pipeline-gap this guards.
+                // A new un-lowered variant should be added to this arm (preserving the
+                // legacy_ast_nodes + warning contract) only after deliberately deciding
+                // it has no HIR representation.
+                Decl::HttpRoute(_) => {
                     // vox.lower.unlowered_decl: this declaration kind has no HIR lowering arm.
                     // It is kept in `legacy_ast_nodes` for forward-compatibility, but emit a
                     // warning so developers notice gaps during development.
