@@ -1,0 +1,6 @@
+fix(codegen-rust): add rust_decimal and regex dependencies to script template
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-codegen/src/codegen_rust/pipeline.rs`: Added `rust_decimal = "1.36"` and `regex = "1"` to the `Cargo.toml` template for script-mode compilation.
+
+--- audit: original='fix(codegen-rust): add rust_decimal/regex deps to script template (CR-F2 #2)' | actual=2L across 1 files | derived=full ---
