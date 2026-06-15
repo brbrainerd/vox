@@ -1,0 +1,12 @@
+docs: update references and add note in Coolify and Contracts READMEs
+scale: ~12 lines across 2 files [S]
+
+- infra/coolify/README.md:
+    - Add a note about architecture references pointing to archived research docs.
+    - Update the link for `deployment-compose-ssot.md` to point to its archived location (`../../docs/src/archive/research-2026-q1/deployment-compose-ssot.md`).
+    - Update the link for `codex-baas.md` to point to its archived location (`../../docs/src/archive/research-2026-q1/codex-baas.md`).
+- contracts/README.md:
+    - Update the description for `codex-api.openapi.yaml` to reference `vox ci check-codex-ssot` instead of `scripts/check_codex_ssot.sh`.
+    - Update the SSOT guard reference for the Codex HTTP API to `vox ci check-codex-ssot` and clarify that shell delegate scripts have been removed.
+
+--- audit: original='docs: repair archived-doc refs in infra/coolify and contracts READMEs' | actual=12L across 2 files | derived=full ---
