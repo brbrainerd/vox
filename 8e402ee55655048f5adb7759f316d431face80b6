@@ -1,0 +1,8 @@
+feat(humaneval): execute tests behaviorally; regenerate held-out; remove orphan dirs
+scale: ~5270 lines across 495 files [XL]
+
+- `crates/vox-audit/src/subcommands/humaneval.rs`: Modified the HumanEval subcommand to execute `tests.vox` files behaviorally using `vox run --mode interp` in addition to `vox check`. `reference.vox` files are still only typechecked. This ensures that false oracles or stubbed references fail behaviorally.
+- `contracts/eval/humaneval-vox/held-out.v1.json`: Regenerated the held-out manifest, reducing the number of held-out problems from 44 to 31 and updating SHA256 hashes.
+- `contracts/eval/humaneval-vox/problems/*`: Removed 164 orphan problem directories and their associated `tests.vox`, `reference.vox`, and `spec.toml` files, totaling 492 files. These directories were not referenced in the manifest and were causing issues with scans.
+
+--- audit: original='@ feat(humaneval): execute tests.vox behaviorally; regen held-out; remove 164 orphan dirs' | actual=5270L across 495 files | derived=full ---
