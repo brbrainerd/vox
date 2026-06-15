@@ -1,0 +1,9 @@
+feat(codegen-rn): emit `<Switch>` for boolean `@form` fields
+scale: ~115 lines across 3 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/rn/form.rs`:
+  - Replaced a `TODO` comment for boolean fields with code to emit a React Native `<Switch>` component within a `<View>` with a `<Text>` label.
+  - Added a new public function `form_renders_switch` to determine if a form contains any visible boolean fields.
+  - Introduced a new `switch_row` style for the `<Switch>` component.
+
+--- audit: original='feat(codegen-rn): emit <Switch> for boolean @form fields' | actual=115L across 3 files | derived=full ---
