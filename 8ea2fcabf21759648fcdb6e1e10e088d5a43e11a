@@ -1,0 +1,9 @@
+refactor(vox-compiler): extract primitive tags to lowering_shared
+scale: ~61 lines across 4 files [M]
+
+- `crates/vox-compiler/src/lowering_shared/primitive_tags.rs`: New module created to define `PRIMITIVE_TAGS` constant (20 entries) and `is_primitive` function for identifying Vox GUI semantic primitives.
+- `crates/vox-compiler/src/web_ir/primitives/mod.rs`: Removed the local `is_primitive` function and replaced it with a `pub use` re-export from `crate::lowering_shared::primitive_tags::is_primitive` for back-compatibility.
+- `crates/vox-compiler/src/parser/descent/expr/pratt_match.rs`: Updated parser logic to use `crate::lowering_shared::primitive_tags::is_primitive` instead of `crate::web_ir::primitives::is_primitive` for view-call disambiguation.
+- `crates/vox-compiler/src/lowering_shared/mod.rs`: Added `pub mod primitive_tags;` to expose the new module.
+
+--- audit: original='refactor(vox-compiler): extract primitive_tags to lowering_shared' | actual=61L across 4 files | derived=full ---
