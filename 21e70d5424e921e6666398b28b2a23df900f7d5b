@@ -1,0 +1,6 @@
+ci(lychee): ignore more flaky external links due to timeouts
+scale: ~11 lines across 1 files [S]
+
+- lycheeignore: Added new entries to ignore URLs from `infoq.com`, `incidentdatabase.ai`, `wayland.app`, `streamlit.io`, `jj-vcs.github.io`, `pijul.com`, and `localhost.run` due to intermittent timeouts in CI.
+
+--- audit: original='ci(links): ignore more flaky-timeout citation hosts in check-links' | actual=11L across 1 files | derived=full ---
