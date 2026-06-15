@@ -1,0 +1,6 @@
+fix(orchestrator): add missing `traceparent: None` to `A2ADeliverRequest` constructors
+scale: ~4 lines across 1 files [XS]
+
+- `crates/vox-orchestrator/src/orchestrator/tests/populi_single_owner.rs`: Added `traceparent: None` to four `A2ADeliverRequest` constructors within test functions to resolve a compilation error (E0063) when building with the `populi-transport` feature.
+
+--- audit: original='fix(mesh): add missing traceparent: None in orchestrator single-owner tests' | actual=4L across 1 files | derived=full ---
