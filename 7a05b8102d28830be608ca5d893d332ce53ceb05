@@ -1,0 +1,58 @@
+feat(gui): self-surfacing coverage gate, Scientia, gamify, search, and backend
+scale: ~13109 lines across 113 files [XL]
+
+- **gui**:
+    - Implement self-surfacing coverage gate with a new `surface-registry.v1.yaml` contract and schema.
+    - Drive sidebar navigation from the generated surface registry.
+    - Add an in-product surface coverage view (`CoverageView.tsx`).
+    - Implement gamification surfaces: typed profile HUD (`LudusHud.tsx`), live notifications, and settings.
+    - Introduce Scientia pipeline UI with timeline (`PipelineTimeline.tsx`), research surface (`ResearchView.tsx`), and publication board (`PublicationsView.tsx`).
+    - Wire unified `vox-search` surface, including a Tauri command (`search.rs`), `SearchView.tsx` decorator, and surface-registry entry.
+    - Add missing `Icon.plus`, `Icon.link`, `Icon.chevronUp`, and `Icon.chevronDown` to `Icons.tsx` to fix app-blanking crashes.
+    - Implement empty states for Dashboard streams, alerts, agents, and Research sessions.
+    - Apply visual audit polish to `TopHud.tsx` overlap, settings units, memory count, publications scroll, and numeric guards.
+    - Implement live-refresh for the Scientia dashboard with a 10s interval and in-flight guard.
+    - Implement live Scientia-queue push bridge by polling the DB and emitting `vox://scientia-queue` on change.
+    - Implement gamify leaderboard, companions, and quests surfaces with typed Tauri commands and server-generated mood SVGs.
+    - Implement publication-lifecycle drill-down and venue routing in `PublicationsView.tsx`.
+    - Refactor `App.tsx` to use the new surface registry and remove old dashboard components.
+    - Update `CommandPalette.tsx` and `MemoryView.tsx` to integrate with the new search functionality.
+    - Add `tsconfig.json` and a typecheck gate (`tsc --noEmit`) to the build process, fixing type errors and deleting orphaned code.
+    - Remove numerous old GUI components: `claude-dashboard/`, `ContextExplorer.tsx`, `AgentFlow.tsx`, `AttentionPanel.tsx`, `SuperpowersCatalog.tsx`, `IntentionMatrix.tsx`, `WidgetContainer.tsx`, `CodeBlock.tsx`, `AppShellLive.tsx`, `AstView.tsx`.
+- **ci**:
+    - Add `gui-surface-registry` check subcommand (`gui_surface_registry.rs`) to enumerate, backfill, enforce, and generate TypeScript.
+    - Register and dispatch `gui-surface-registry`, and add it to `ssot-drift`.
+    - Regenerate `gui-surface-coverage` after adding `gui-surface-registry` subcommand, gamify commands, and backend commands.
+    - Add a `pre-push` hook (`pre_push.rs`) for PR review discipline.
+    - Backfill 'component' CLI group in the surface registry.
+    - Update `ci.yml` and `release-gui.yml` for the new typecheck gate.
+- **research**:
+    - Add typed `ResearchStage` enum and per-stage session status (`types.rs`).
+    - Implement `research run --async` execution via a persistent daemon (research.run RPC).
+- **scientia**:
+    - Implement cost-rollup DB producer (`scientia_cost.rs`) and `vox scientia cost` CLI.
+    - Add live `/api/v2/scientia/{queue,cost}` REST routes (`dashboard_api.rs`, `scientia_feed.rs`, `ws.rs`).
+    - Implement `scientia.queue.changed` WS topic and DB-driven poller.
+    - Implement real cost category split via `pipeline_phase` telemetry, updating `agent_telemetry_flat` and `scientia_phase_handlers.rs`.
+    - Surface `LlmResponse.cost_usd` and wire critic-phase cost emit.
+    - Fix `scientia_cost_raw_this_quarter` to return a 3-tuple and apply phase costs consistently.
+- **search**:
+    - Add typed `UnifiedHit` facade on `SearchExecution` (`unified.rs`).
+    - Implement full search features: highlights, facets, filters, pagination, scope-to-corpora, open-locator, and palette/memory integration (`execution.rs`).
+- **docs**:
+    - Add plans for GUI gamification, self-surfacing gate, and Scientia pipeline UI.
+    - Document GUI/Scientia coverage audit and Track A/B/C implementation plans.
+    - Add structured full-search design specification.
+    - Add `vox-gui-visual-audit-2026-06-03.md` handoff document.
+    - Document audit-grounded scope for outstanding Scientia/GUI features.
+    - Mark the four Scientia/GUI features as implemented.
+    - Add codebase-wide PR review discipline to `AGENTS.md`.
+    - Add scoping handoff for native scraping/browser automation.
+- **test**:
+    - Add `selection_rationale` to `trace_propagation` `ModelCallEvent` literal.
+    - Add full-surface visual-audit screenshot harness (`screenshots.spec.ts`) and fix handoff.
+    - Add `scientia_cost_phase_tests.rs`.
+    - Add tests for `ludus.ts` and `pipeline.ts`.
+- **chore**:
+
+--- audit: original='feat(gui): self-surfacing coverage gate + Scientia/gamify/search surfaces + backend + polish (#136)' | actual=13109L across 113 files | derived=sampled ---
