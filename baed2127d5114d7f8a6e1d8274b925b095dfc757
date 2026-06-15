@@ -1,0 +1,15 @@
+feat(codegen): emit value-semantic list `.push` as a value-returning block
+scale: ~85 lines across 3 files [M]
+
+- `crates/vox-codegen/src/codegen_rust/emit/method_emit.rs`:
+  - Added `try_emit_list_method` to handle value-semantic list methods.
+  - Implemented special emission for the `push` method: it now generates a Rust block `({ let mut __lst = <recv>; __lst.push(<arg>); __lst })` to clone, push, and return the updated list, aligning with Vox's value-semantic behavior.
+  - Integrated `try_emit_list_method` into the `emit_method_call` function, prioritizing it before the generic method call emission.
+- `crates/vox-codegen/tests/list_method_emit.rs`:
+  - Added a new test file to verify the correct emission of list methods.
+  - Included `push_emits_value_returning_block_not_unit` test to assert that `xs.push(y)` emits a value-returning block.
+  - Added `non_push_method_is_unaffected` test to ensure other list methods like `len()` are not affected by the `push` emission logic.
+- `crates/vox-codegen/tests/emit_compile_harness.rs`:
+  - Added `list_push_compiles` integration test to confirm that the generated Rust code for value-semantic list `.push` compiles successfully.
+
+--- audit: original='fix(codegen): value-semantic list `.push` (returns new list, not ()) (#226)' | actual=85L across 3 files | derived=full ---
