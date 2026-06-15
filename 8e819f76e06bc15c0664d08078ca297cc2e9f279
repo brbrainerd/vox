@@ -1,0 +1,9 @@
+refactor(cli): migrate build_service and artifact_policy to vox-cli-core
+scale: ~8 lines across 4 files [S]
+
+- `crates/vox-cli/src/lib.rs`: Replaced direct module imports for `build_service` and `artifact_policy` with `pub use` statements re-exporting them from `vox_cli_core`.
+- `crates/vox-cli-core/src/artifact_policy.rs`: Added the `artifact_policy.rs` file, containing `ArtifactClass`, `TargetLane` enums, and functions for resolving artifact paths like `canonical_workspace_target`, `transient_lane_roots`, `ci_nested_target`, and `gate_isolated_target`.
+- `crates/vox-cli-core/src/lib.rs`: Added `pub mod artifact_policy;` and `pub mod build_service;` to expose these modules.
+- `crates/vox-cli-core/src/build_service.rs`: Added the `build_service.rs` file, containing the `cargo_spawn_log` module for telemetry and the `run_cargo` function for orchestrating Cargo commands.
+
+--- audit: original='refactor(cli): migrate build_service + artifact_policy to vox-cli-core (A-5)' | actual=8L across 4 files | derived=full ---
