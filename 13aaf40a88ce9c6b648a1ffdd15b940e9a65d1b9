@@ -1,0 +1,14 @@
+refactor(populi): split handlers.rs into focused submodules
+scale: ~3588 lines across 7 files [XL]
+
+- `crates/vox-populi/src/transport/handlers.rs`: Deleted the monolithic 1751-line file.
+- `crates/vox-populi/src/transport/handlers/a2a.rs`: Added 650 lines for A2A message handlers (deliver, inbox, ack, lease-renew, admin quarantine/maintenance), including `claim_policy_allows_worker` and `a2a_inbox_limit`.
+- `crates/vox-populi/src/transport/handlers/dispatch.rs`: Added 423 lines for script dispatch handlers (`dispatch_script`, `dispatch_results_poll`, `queue_stats`, `execute_on_worker`).
+- `crates/vox-populi/src/transport/handlers/nodes.rs`: Added 409 lines for node registry handlers (health, list, join, heartbeat, leave, bootstrap) and shared write-through store helpers (`store_put_a2a`, `store_put_exec_lease`, `store_revoke_exec_lease`, `store_ack_a2a`, `registry_sweep_maintenance`).
+- `crates/vox-populi/src/transport/handlers/leases.rs`: Added 241 lines for remote execution lease handlers (grant, renew, release, list, admin revoke).
+- `crates/vox-populi/src/transport/handlers/federation.rs`: Added 85 lines for federation handlers (directory listing and announcement).
+- `crates/vox-populi/src/transport/handlers/mod.rs`: Added 29 lines to declare the new submodules.
+
+This refactoring replaces the single `handlers.rs` file with a directory containing five focused modules: `nodes` (registry + shared helpers), `leases` (exec-lease CRUD), `a2a` (deliver/inbox/ack/lease-renew/admin ops), `dispatch` (script dispatch, results poll, queue stats, worker execute), and `federation` (directory + announce). No behavior changes were introduced; `router.rs` and the top-level `mod.rs` remain unchanged. `cargo check` and `cargo test` both pass.
+
+--- audit: original='refactor(populi): MESH-001 — split handlers.rs into focused submodules' | actual=3588L across 7 files | derived=full ---
