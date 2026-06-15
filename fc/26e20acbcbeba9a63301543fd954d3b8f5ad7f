@@ -1,0 +1,11 @@
+docs(agents): mandate local CI pre-push with `act` or native tools
+scale: ~21 lines across 1 files [S]
+
+- **AGENTS.md**: Added a new section detailing the requirement to run CI locally before pushing to GitHub.
+  - Explained that GitHub CI is slow and consumes runner minutes.
+  - Provided instructions for `vox ci pre-push --act` to run GitHub workflow jobs in Docker using `nektos/act`, catching container/runner-specific failures.
+  - Described `vox ci pre-push --full` for a faster, native inner loop.
+  - Advised per-job spot-checks for targeted failure debugging.
+  - Emphasized pushing only when local gates are green and treating GitHub-only failures as environment differences to reproduce locally.
+
+--- audit: original='docs(agents): require running CI locally first (Docker/act), not GitHub' | actual=21L across 1 files | derived=full ---
