@@ -1,0 +1,17 @@
+feat(infra): add Populi environment containers and update gitignore
+scale: ~5041 lines across 37 files [XL]
+
+- infra/containers: Add `Dockerfile.populi`, `populi-entrypoint.sh`, `vox-entrypoint.sh`, and `vox-compose-populi-environment.block.yaml` for Populi environment infrastructure.
+- .gitignore: Add entries for `.vox_gamify.db` and `stub_check_results.json` to exclude temporary artifacts.
+- tools/dashboard: Delete `app.js`, `index.css`, and `index.html`, removing the Vox Dashboard.
+- .opencode/plugins/vox-opencode-plugin: Delete `package-lock.json`, `src/index.ts`, `README.md`, and `tsconfig.json`, removing the Vox OpenCode plugin.
+- .opencode: Delete `package-lock.json` and `tsconfig.json`.
+- .opencode/scripts: Delete `spawn-agents.ts`, `status.ts`, `review.ts`, and `check-versions.ts`, removing OpenCode scripts.
+- .opencode/skills: Delete `testing-patterns.md`, `error-handling.md`, `vox-pipeline.md`, `vox-orchestrator/SKILL.md`, `vox-pipeline/SKILL.md`, and `vox-testing/SKILL.md`, removing OpenCode skill definitions.
+- .opencode: Delete `README.md` and `opencode.json`.
+- scripts: Delete `mcp_registry_fill_product_lanes.py`, `extract_mcp_tool_registry.py`, `toestub_self_apply.sh`, `check_codex_ssot.sh`, `check_docs_ssot.sh`, `mens_release_gate.sh`, and `build_vox.bat`, removing various utility scripts.
+- stub_check_results.json: Delete stub check results.
+- stub_check_results2.json: Delete additional stub check results.
+- Cargo.toml: Delete `Cargo.toml`.
+
+--- audit: original='feat: add container infrastructure for Populi environment and update gitignore to exclude temporary artifacts' | actual=5041L across 37 files | derived=full ---
