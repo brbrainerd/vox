@@ -1,0 +1,17 @@
+feat(audit): add strict-block-ga, panel guard, and --llm-panel CLI flag
+scale: ~311 lines across 4 files [L]
+
+- `crates/vox-audit/src/lib.rs`:
+  - Add `same_day_canonical_with_panel` function to preserve LLM panel results in canonical reports.
+  - Add `strict_block_ga_violations` function to filter outcomes based on block-GA gates.
+  - Add `write_aggregate_snapshot` function to write a combined audit report snapshot.
+- `crates/vox-cli/src/commands/audit.rs`:
+  - Add `--llm-panel <YAML>` CLI argument to `AuditArgs` for specifying LLM panel configuration.
+  - Add `--strict-block-ga` CLI argument to `AuditArgs` for enforcing block-GA gate compliance.
+  - Implement logic in `run_cr_l_gate` to write aggregate snapshots and check for `strict_block_ga` violations.
+- `crates/vox-audit/src/subcommands/mod.rs`: Add `spec_to_app_panel` module.
+- `crates/vox-audit/Cargo.toml`:
+  - Add `vox-project-scaffold`, `vox-deploy-codegen`, `vox-container`, `vox-package`, and `tempfile` dependencies.
+  - Add `cr-e1`, `cr-a1`, `cr-d3`, `cr-a4`, and `cr-a2` as binary targets.
+
+--- audit: original='feat(audit): umbrella infra — strict-block-ga + snapshot + shared evidence guard + --llm-panel CLI flag' | actual=311L across 4 files | derived=full ---
