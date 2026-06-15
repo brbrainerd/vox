@@ -1,0 +1,8 @@
+docs(arch): log session 4 of crate-audit-and-plan execution
+scale: ~15 lines across 1 files [S]
+
+- docs/src/architecture/crate-audit-and-plan-2026.md: Added a new section "7d. Execution log (2026-05-24, session 4)" detailing the continuation of Phase 2.
+  - Documented the completion of task A-5 (build_service migration), which involved moving `build_service.rs` and `artifact_policy.rs` from `crates/vox-cli/src/` to `crates/vox-cli-core/src/`, updating `lib.rs` files for both crates, and fixing a visibility issue for `transient_lane_roots`.
+  - Documented the completion of task B-3-trim (bzip2/zstd), which involved adding `bzip2 = "0.6.1"` and `zstd = "0.12.0"` to `workspace.dependencies` in `Cargo.toml`.
+
+--- audit: original='docs(arch): log session 4 of crate-audit-and-plan execution' | actual=15L across 1 files | derived=full ---
