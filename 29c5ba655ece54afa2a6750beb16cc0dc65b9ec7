@@ -1,0 +1,15 @@
+test(orchestrator,db): add 12 free-function tests for Wave 1 Batch 2
+scale: ~304 lines across 10 files [L]
+
+- `vox-orchestrator/src/catalog_classifier.rs`: Adds `classify_models_tags_uptime_and_long_context` test for `classify_models`.
+- `vox-db/src/retrieval.rs`: Adds two tests for `normalized_query_tokens` covering splitting, lowercasing, and special character preservation.
+- `vox-db/src/project_store.rs`: Adds `open_project_db_at_root_creates_dot_vox_store_under_given_root` test for `open_project_db_at_root`.
+- `vox-orchestrator/src/groups.rs`: Adds `auto_assign_groups_one_group_per_crate_dir` and `auto_assign_groups_missing_crates_dir_is_empty` tests for `auto_assign_groups`.
+- `vox-db/src/toestub_store.rs`: Adds `ensure_tables_is_idempotent_and_creates_usable_tables` test for `ensure_tables`.
+- `vox-orchestrator/src/populi_remote.rs`: Adds `lease_claimer_node_id_always_orch_prefixed_and_nonempty` test for `lease_claimer_node_id`.
+- `vox-orchestrator/src/route_policy.rs`: Adds `local_http_providers_match_only_local_lanes` and `local_http_providers_classified_true_others_false` tests for `is_local_http_provider`.
+- `vox-orchestrator/src/state.rs`: Adds `chrono_iso_now_returns_parseable_positive_epoch_seconds` test for `chrono_iso_now`.
+- `vox-db/src/connect_policy.rs`: Adds `format_degraded_optional_connect_returns_empty_string_for_none` and `format_degraded_optional_connect_formats_some_value` tests for `format_degraded_optional_connect`.
+- `vox-db/src/config.rs`: Adds `resolve_canonical_config_prefers_env_over_default` test for `resolve_canonical_config`.
+
+--- audit: original='test(orchestrator,db): prove 12 verified free-function gaps (Wave 1 batch 2)' | actual=304L across 10 files | derived=full ---
