@@ -1,0 +1,7 @@
+fix(deps): bump @xyflow/react to 12.11.0 in /apps/editor/vox-vscode
+scale: ~28 lines across 2 files [S]
+
+- Updated `@xyflow/react` from `^12.10.1` to `^12.11.0` in `package.json`.
+- Updated `package-lock.json` to reflect the new dependency version.
+
+--- audit: original='chore(deps): bump @xyflow/react in /apps/editor/vox-vscode (#112)' | actual=28L across 2 files | derived=full ---
