@@ -10,6 +10,24 @@ use vox_db::{RetrievalEvidenceSource, RetrievalResult, VoxDb, fuse_hybrid_result
 
 use crate::embeddings::EmbeddingService;
 
+/// Temporal-decay half-life (days) for memory-doc recency weighting.
+const MEMORY_DECAY_HALF_LIFE_DAYS: f64 = 180.0;
+/// Minimum retained weight after temporal decay (decay floor).
+const MEMORY_DECAY_FLOOR: f64 = 0.1;
+/// Over-fetch factor: BM25 candidates pulled before vector re-ranking/fusion.
+const HYBRID_CANDIDATE_OVERFETCH: usize = 4;
+
+/// Per-document-status rank boost applied in memory BM25 ranking.
+fn status_boost(status: &str) -> f64 {
+    match status {
+        "current" => 1.2,
+        "experimental" => 0.8,
+        "research" | "roadmap" => 0.6,
+        "legacy" | "deprecated" => 0.2,
+        _ => 1.0,
+    }
+}
+
 fn unix_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -343,22 +361,18 @@ impl MemorySearchEngine {
             }
             if score > 0.0 {
                 // Apply status boost
-                let status_multiplier = match doc.status.as_str() {
-                    "current" => 1.2,
-                    "experimental" => 0.8,
-                    "research" | "roadmap" => 0.6,
-                    "legacy" | "deprecated" => 0.2,
-                    _ => 1.0,
-                };
+                let status_multiplier = status_boost(doc.status.as_str());
 
-                // Apply temporal decay (half-life of ~180 days)
+                // Apply temporal decay
                 let now = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs();
                 let age_seconds = now.saturating_sub(doc.last_updated_unix);
                 let age_days = (age_seconds as f64) / 86400.0;
-                let decay = f64::exp(-age_days * std::f64::consts::LN_2 / 180.0).clamp(0.1, 1.0);
+                let decay =
+                    f64::exp(-age_days * std::f64::consts::LN_2 / MEMORY_DECAY_HALF_LIFE_DAYS)
+                        .clamp(MEMORY_DECAY_FLOOR, 1.0);
 
                 score = score * status_multiplier * decay;
                 scores.push((i, score));
@@ -447,7 +461,7 @@ impl MemorySearchEngine {
         vector_fusion_weight: f32,
     ) -> Vec<HybridSearchHit> {
         let query_tokens = tokenize(query);
-        let bm25_take = limit.saturating_mul(4).max(limit);
+        let bm25_take = limit.saturating_mul(HYBRID_CANDIDATE_OVERFETCH).max(limit);
         let ranked = self.bm25_ranked_indices(query, bm25_take);
         let bm25_candidates = ranked.len();
         let ts = unix_ms();

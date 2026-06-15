@@ -14,6 +14,10 @@ use vox_search::{
 use super::super::provider::ProviderRegistry;
 use super::super::types::{ResearchHit, ResearchPlan, ResearchQuery, ResearchScope};
 
+/// Evidence-quality target for the CRAG multi-hop stop condition; the partner of
+/// the env-tunable `web_search_max_hops`. Gathering stops early once quality clears this bar.
+const CRAG_STOP_QUALITY: f64 = 0.75;
+
 fn hybrid_from_research(hit: &ResearchHit) -> HybridSearchHit {
     HybridSearchHit {
         path: hit.url.clone(),
@@ -209,7 +213,7 @@ pub(super) async fn gather_web_hits_for_plan(
     while rounds_done < max_hops.saturating_sub(1) {
         let hop_remaining = max_hops.saturating_sub(rounds_done + 1);
         let quality = avg_score(&all_hits);
-        if !CragRouter::should_continue(quality, 0.75, hop_remaining) {
+        if !CragRouter::should_continue(quality, CRAG_STOP_QUALITY, hop_remaining) {
             break;
         }
 
