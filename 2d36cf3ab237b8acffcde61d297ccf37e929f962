@@ -1,0 +1,31 @@
+chore(git): remove numerous scratch and build artifacts from tracking and extend .gitignore
+scale: ~57273 lines across 108 files [XL]
+
+DIVERGENCE: original subject claimed 'chore: remove scratch files from tracking, extend .gitignore' but this commit actually changed ~57273 lines across 108 files. Top areas:
+docs: 24108 lines, 14 files
+(root): 21490 lines, 50 files
+vox-vscode: 7552 lines, 5 files
+dist: 1859 lines, 3 files
+.opencode: 931 lines, 4 files
+patches: 589 lines, 11 files
+tree-sitter-vox: 513 lines, 7 files
+contracts: 70 lines, 1 files
+populi: 65 lines, 3 files
+crates: 64 lines, 8 files
+packages: 26 lines, 1 files
+.vscode: 6 lines, 1 files
+
+- Removed a large number of temporary and build-related files from Git tracking.
+- Updated `.gitignore` to prevent future tracking of these files.
+- Cleared various output files from `docs/agents/`, `docs/book/`, `docs/src/`, and `docs/ci/build-timings/`.
+- Deleted numerous `package-lock.json` files from `vox-vscode/`, `dist/app/`, `.opencode/plugins/vox-opencode-plugin/`, `.opencode/`, `tree-sitter-vox/`.
+- Removed various temporary text and JSON files from the root directory, including `data_temp.jsonl`, `build_out.txt`, `pm_out.txt`, `test_out.txt`, `.tmp_errors.txt`, `docs_errors.txt`, `sql_dump.txt`, `raw_err.json`, `clippy_output.json`, `raw_err2.json`, `test_output.txt`, `cli_full_err.txt`, `opencode.json`, `vox-agent.json`, `cli.err`, `temp_help2.txt`, `vox_cli_out.txt`, `err2.txt`, `build_cli.txt`, `err3.txt`, `populi.err`, `error_output.txt`, `temp_help.txt`, `synthetic_search.jsonl`, `build_error.txt`, `build_error_2.txt`, `final_check2.txt`, `final_check_3.txt`, `temp_output.txt`, `error_capture.txt`, `final.txt`, `check_results.txt`, `out.txt`, `temp_build.txt`, `pm_errors.json`, `skills.err`, `vox-schema.json`, `check_err.txt`, `compile_errors.txt`, `dump.txt`, `error_ws.txt`, `error.txt`, `build_corpus.txt`, `check_err.json`, `check_errors.txt`, `test_nvcc.txt`.
+- Removed various test vector files from `patches/aegis-0.9.8/src/test-vectors/`.
+- Deleted several corpus files from `tree-sitter-vox/test/corpus/`.
+- Removed configuration and schema files from `vox-vscode/`, `contracts/cli/`, `populi/schemas/`, `packages/vox-ui/`, `dist/app/`, `.opencode/`, `.vscode/`.
+- Removed various `package.json` and `tsconfig.json` files.
+- Deleted sample JSON files from `crates/vox-mesh/` and `crates/vox-populi/tests/fixtures/`.
+- Removed `.cargo_vcs_info.json` files from `patches/aegis-0.9.8/` and `patches/qlora-rs-1.0.5/`.
+- Removed `build_vox.bat` and `rustc.err` from `crates/vox-lsp/`.
+
+--- audit: original='chore: remove scratch files from tracking, extend .gitignore' | actual=57273L across 108 files | derived=stat-only ---
