@@ -1,0 +1,12 @@
+feat(compiler): Implement Phase D codegen for `.vox.ui` reactive modules
+scale: ~368 lines across 7 files [L]
+
+- **`crates/vox-compiler/src/codegen_ts/reactive_module_emit.rs`**: New module for emitting TypeScript code for reactive modules. It generates a `<Name>Provider.tsx` file for each `HirReactiveModule`, containing a React `Context`, a `Provider` component that manages state, derived values, effects, on-mount, and on-cleanup logic, and a `use<Name>()` hook. It includes a `pascalize_module_name` helper for naming and handles empty module names by falling back to indexed names.
+- **`crates/vox-compiler/src/hir/lower/mod.rs`**: Implemented lowering for `Decl::ReactiveModule` AST nodes into `HirReactiveModule` HIR nodes. This reuses the existing `HirReactiveMember` enum for state, derived, effect, on-mount, and on-cleanup members, mirroring how in-component reactive members are lowered.
+- **`crates/vox-compiler/src/hir/nodes/decl.rs`**: Added `HirReactiveModule` struct to represent reactive modules in HIR, including `name`, `members` (a vector of `HirReactiveMember`), and `span`. Also added a `reactive_modules: Vec<HirReactiveModule>` field to `HirModule`.
+- **`crates/vox-compiler/src/codegen_ts/emitter.rs`**: Integrated `emit_reactive_modules` into the `generate_with_options` function to include the generated `<Name>Provider.tsx` files in the compiler's output.
+- **`crates/vox-compiler/src/codegen_ts/mod.rs`**: Declared the new `reactive_module_emit` module.
+- **`docs/src/architecture/svelte-mineable-features-implementation-plan-2026.md`**: Updated the status of Phase D for `.vox.ui` modules to "✅ Shipped end-to-end."
+- **`docs/src/feed.xml`**: Updated feed XML.
+
+--- audit: original='feat(compiler): Phase D codegen — .vox.ui reactive modules emit provider+hook' | actual=368L across 7 files | derived=full ---
