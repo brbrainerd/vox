@@ -1,0 +1,7 @@
+docs(arch): update crate audit log and `where-things-live` table
+scale: ~16 lines across 2 files [S]
+
+- `docs/src/architecture/crate-audit-and-plan-2026.md`: Add a new "Execution log" section for 2026-05-24 (session 3), detailing the completion of Phase 1 tasks D-1 and B-10-rescope, and the start of Phase 2. This includes notes on moving `vox-plugin-noop-skill` to a fixture, updating paths, removing a catalog entry, and adding optional `drift-typescript` features to `vox-drift-check`.
+- `docs/src/architecture/where-things-live.md`: Update the entry for the no-op skill to reflect its new location at `crates/vox-plugin-host/tests/fixtures/noop-skill/` and clarify its role as a fixture rather than a workspace crate.
+
+--- audit: original='docs(arch): minor housekeeping — crate-audit + where-things-live' | actual=16L across 2 files | derived=full ---
