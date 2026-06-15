@@ -1,0 +1,15 @@
+feat(vox-quantize): scaffold new L2 crate for post-training quantization
+scale: ~68 lines across 10 files [M]
+
+- `crates/vox-quantize/Cargo.toml`: Added new crate with dependencies for `candle-core`, `safetensors`, `vox-hf-layout`, `serde`, `anyhow`, `thiserror`, `tracing`, and `workspace-hack`. Defined `cuda` and `metal` features.
+- `crates/vox-quantize/src/lib.rs`: Created main library file with module declarations for `error`, `device`, `policy`, `read`, `engine`, `verify`, and `write`. Includes a module-level documentation comment.
+- `crates/vox-quantize/src/device.rs`: Added placeholder module file.
+- `crates/vox-quantize/src/engine.rs`: Added placeholder module file.
+- `crates/vox-quantize/src/error.rs`: Added placeholder module file.
+- `crates/vox-quantize/src/policy.rs`: Added placeholder module file.
+- `crates/vox-quantize/src/read.rs`: Added placeholder module file.
+- `crates/vox-quantize/src/verify.rs`: Added placeholder module file.
+- `crates/vox-quantize/src/write.rs`: Added placeholder module file.
+- `Cargo.lock`: Updated to include new `vox-quantize` crate and its dependencies.
+
+--- audit: original='feat(quantize): scaffold vox-quantize L2 crate' | actual=68L across 10 files | derived=full ---
