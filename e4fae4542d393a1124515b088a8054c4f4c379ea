@@ -1,0 +1,18 @@
+chore(gui): reconcile vox-dashboard migration to vox-gui
+scale: ~222 lines across 13 files [M]
+
+- scripts/check_dashboard_ssot.vox: delete obsolete CI script for vox-dashboard SSoT checks.
+- .github/workflows/ssot-drift.yml: remove `check-dashboard-ssot` CI job.
+- contracts/documentation/link-allowlist.v1.yaml: update reasons for vox-dashboard links from "planned-crate" to "retired-crate" and repoint to vox-gui migration.
+- contracts/frontend/surface-ownership.v1.yaml: mark `vox-dashboard` as `retired`, repoint its path to `crates/vox-gui`, update its role, and add ADR-037 as a source of truth.
+- contracts/config/env-vars.v1.yaml: repoint `VOX_CONFIG_DIR` and `VOX_DASHBOARD_ASSET_DIR` owner_crate from `vox-dashboard` to `vox-cli`.
+- contracts/frontend/dependency-policy.v1.yaml: update `vox-dashboard` package.json path to `crates/vox-gui/ui/package.json`.
+- crates/vox-audit/src/lib.rs: update doc comment reference from `vox-dashboard` audit panel to `vox-gui` audit panel.
+- crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs: remove `crates/vox-dashboard/` from secret-guard allowlist prefixes.
+- docs/src/architecture/layers.toml: remove `vox-dashboard` entry.
+- Cargo.toml: remove dangling `vox-dashboard` workspace path dependency.
+- contracts/reports/scripts-pass-baseline.txt: remove `scripts/check_dashboard_ssot.vox` from baseline.
+- docs/agents/workflow-script-allowlist.txt: remove `scripts/check_dashboard_ssot.vox` from allowlist.
+- docs/src/architecture/where-things-live.md: remove `vox-dashboard` entry from planned crates table.
+
+--- audit: original='@ chore(gui): complete vox-dashboard -> vox-gui migration reconciliation' | actual=222L across 13 files | derived=full ---
