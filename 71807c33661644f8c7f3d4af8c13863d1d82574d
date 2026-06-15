@@ -1,0 +1,8 @@
+feat(orchestrator): add pre-dispatch token budget check
+scale: ~57 lines across 2 files [M]
+
+- `BudgetManager`: Added `would_exceed_token_budget` method to check if an estimated token amount would exceed an agent's budget.
+- `BudgetManager`: Added unit tests for `would_exceed_token_budget` covering cases where the budget is exceeded, there is room, and no budget is set.
+- `Orchestrator`: Integrated a pre-dispatch token estimation check into `process_task_submission_logic`. Tasks are now rejected if their estimated token cost (description length / 4 + files * 200) would exceed the agent's remaining budget.
+
+--- audit: original='feat(orchestrator): add pre-dispatch token estimation budget check (M7)' | actual=57L across 2 files | derived=full ---
