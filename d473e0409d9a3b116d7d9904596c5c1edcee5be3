@@ -1,0 +1,10 @@
+docs(agents): Add Agent Skills policy for use, discovery, and SSOT
+scale: ~16 lines across 1 files [S]
+
+- **AGENTS.md**: Added a new section "Agent Skills (Required, SSOT)" detailing the policy for using, discovering, and managing agent skills.
+  - Specified that Vox skills use the `agentskills.io` `SKILL.md` format.
+  - Outlined the process for using skills based on description matching via `vox skill list` and `vox skill search`.
+  - Defined the single format and single source of truth (SSOT) for skills, including YAML frontmatter, `vox-*` metadata keys, and specific parser, types, and registry crates.
+  - Described automatic skill discovery from various roots (workspace, home directory, vendored bundle) without manual registration.
+
+--- audit: original='docs(agents): Agent Skills policy — use, discover, search via SSOT' | actual=16L across 1 files | derived=full ---
