@@ -1,0 +1,11 @@
+fix(codegen-rn): marshal numeric form fields for React Native TextInput
+scale: ~34 lines across 1 files [S]
+
+- `crates/vox-codegen/src/codegen_ts/rn/form.rs`:
+    - Modified the generated React Native form code to correctly handle numeric fields bound to `useState<number>` with `<TextInput>`.
+    - For numeric fields, the `value` prop of `<TextInput>` now explicitly stringifies the number (`String(n ?? "")`).
+    - The `onChangeText` prop for numeric fields now parses the input string to a number (`(text) => set_n(Number(text))`).
+    - The required field validation for numeric fields now uses `Number.isNaN(n)` as the empty check, aligning with `number` type semantics.
+    - String fields remain unchanged, using `n ?? ""` for `value` and `(text) => set_n(text)` for `onChangeText`, and `n === ""` for required checks.
+
+--- audit: original='fix(codegen-rn): marshal numeric @form fields across <TextInput>' | actual=34L across 1 files | derived=full ---
