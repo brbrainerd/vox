@@ -1,0 +1,13 @@
+fix(vox-gui): replace hardcoded brass color with CSS variable
+scale: ~14 lines across 3 files [S]
+
+- **crates/vox-gui/ui/src/components/surfaces/Flow/AgentFlow.tsx**:
+    - Replaced the hardcoded hex color `#d4af37` with `rgb(var(--brass))` for the `Executing` status in the `AgentFlow` component.
+    - Updated `stopColor` values in the `ag-edge-grad` and `ag-root-glow` SVG gradients from `#d4af37` to `rgb(var(--brass) / <alpha>)`.
+- **crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx**:
+    - Changed the default `accent` prop value in `MiniSlider` from `#d4af37` to `rgb(var(--brass))`.
+    - Updated the `accent` prop for the "Budget" `MiniSlider` instance from `#d4af37` to `rgb(var(--brass))`.
+- **crates/vox-gui/ui/src/components/surfaces/Memory/MemoryView.tsx**:
+    - Replaced the hardcoded hex color `#d4af37` with `rgb(var(--brass))` for the `hot` state in the `Sparkline` component.
+
+--- audit: original='fix(vox-gui): swap 3 missed accent fills to themed --brass var' | actual=14L across 3 files | derived=full ---
