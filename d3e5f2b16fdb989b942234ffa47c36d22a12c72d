@@ -1,0 +1,9 @@
+feat(populi): add QLoRA training monitoring and debugging scripts
+scale: ~160 lines across 4 files [M]
+
+- `scripts/telemetry_watch.ps1`: Add a new PowerShell script to monitor QLoRA training by tailing `telemetry.jsonl` and `train.err.log`, displaying progress, errors, and telemetry data like loss, learning rate, and GPU memory usage.
+- `crates/vox-populi/src/tensor/debug_loader_test.rs`: Add a new test file containing a `debug_loader` test function to load training data from a specified JSONL file, print loading progress, and debug parsing errors by manually inspecting lines if no pairs are loaded.
+- `debug_load.rs`: Add a new Rust script to debug loading training data from a specified JSONL file, reporting success/failure and the number of loaded pairs, with a fallback to load all pairs with rating >= 0 if the initial load yields no pairs.
+- `launch_train.bat`: Add a new batch script to launch QLoRA training, initializing MSVC environment variables, setting `VOX_TRAIN_SKIP_CORPUS_MIX=1`, and running `cargo run` with specific features, backend, tokenizer, preset, model, data directory, and output directory.
+
+--- audit: original='feat(populi): add QLoRA training monitoring and debugging scripts' | actual=160L across 4 files | derived=full ---
