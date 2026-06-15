@@ -1,0 +1,32 @@
+fix(docs): improve animation loop and remove unused assets
+scale: ~136 lines across 4 files [M]
+
+- **docs/src/assets/durable_state_animation.html**:
+    - Adjusted keyframe timings for `nx-wf`, `nx-va`, `nx-w1`, `nx-w2`, `nx-portal`, `trk-w1`, `trk-w2`, `trk-spine`, and `pkt-out` animations to ensure a seamless loop.
+    - Specifically, the final keyframe for most animations was shifted from 95% or 100% to 93-95% to create a "settle tail" between 95-100%, returning elements to their 0% state.
+    - Added comments explaining the loop-seam policy.
+    - Corrected `nx-w1` animation to return to `brightness(1)` at 100% instead of remaining `grayscale(1)`.
+    - Modified `nx-w1l` animation to reset border color and content at 100%.
+    - Updated `nx-w2` animation to return to `brightness(1)` at 100% instead of `grayscale(1)`.
+    - Changed `nx-w2l` animation to reset border color and content at 100%.
+    - Adjusted `nx-portal` animation to ensure the portal is idle at 100%.
+    - Modified `trk-w1` animation to return to `brightness(0.5)` at 100% instead of `red-dashed`.
+    - Changed `trk-w2` animation to return to `transparent` at 100% instead of `dim`.
+    - Updated `trk-spine` animation to return to `brightness(0.5)` at 100% instead of `violet`.
+    - Adjusted `pkt-out` animation to ensure it is `transparent` at 100%.
+- **docs/src/assets/template_durable.html**:
+    - Applied the same keyframe timing adjustments and loop-seam policy as `durable_state_animation.html` to ensure the animation loops smoothly.
+    - Updated comments to reflect the new loop-seam policy.
+    - Corrected `nx-w1` animation to return to `brightness(1)` at 100%.
+    - Modified `nx-w1l` animation to reset border color and content at 100%.
+    - Updated `nx-w2` animation to return to `brightness(1)` at 100%.
+    - Changed `nx-w2l` animation to reset border color and content at 100%.
+    - Adjusted `nx-portal` animation to ensure the portal is idle at 100%.
+    - Modified `trk-w1` animation to return to `brightness(0.5)` at 100%.
+    - Changed `trk-w2` animation to return to `transparent` at 100%.
+    - Updated `trk-spine` animation to return to `brightness(0.5)` at 100%.
+    - Adjusted `pkt-out` animation to ensure it is `transparent` at 100%.
+- **docs/src/assets/durable_execution_demo.png**: Deleted.
+- **docs/src/assets/durable_state_loop.webp**: Deleted.
+
+--- audit: original='fix(docs): make durable animation truly loopable; drop unused assets' | actual=136L across 4 files | derived=full ---
