@@ -1,0 +1,13 @@
+refactor(vox-vcs): simplify diff, export VcsError, drop unused deps
+scale: ~26 lines across 3 files [S]
+
+- `crates/vox-vcs/src/cas_fallback.rs`:
+  - Simplified the `diff` implementation to always return an empty `Diff` since `CasFallback` lacks a content store.
+  - Added a note explaining that `next_id` is not decremented on undo, preserving the monotonic nature of change IDs.
+- `crates/vox-vcs/src/lib.rs`:
+  - Exported `VcsError` from the `backend` module.
+  - Updated the test `detect_defaults_to_cas` to use `VcsBackendKind::Cas` instead of `VcsBackendKind::Jj`.
+- `crates/vox-vcs/Cargo.toml`:
+  - Removed unused `serde_json`, `tracing`, and `tempfile` dependencies.
+
+--- audit: original='refactor(vox-vcs): honest diff, undo-id note, drop unused deps, export VcsError' | actual=26L across 3 files | derived=full ---
