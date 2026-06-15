@@ -1,0 +1,7 @@
+docs(rules): Land .cursor/rules/data-storage-policy.mdc
+scale: ~0 lines across 0 files [XS]
+- The file is already present and compliant with data-storage-lint-and-ci-spec-2026.md.
+- SSOT-findings: F58
+- Verification: 'cat .cursor/rules/data-storage-policy.mdc' is non-empty.
+
+--- audit: original='M-02: Land .cursor/rules/data-storage-policy.mdc' | actual=0L across 0 files | derived=full ---
