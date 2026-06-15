@@ -1,0 +1,6 @@
+fix(ci): pre-create mutants-out parent directory in mutation-pr workflow
+scale: ~1 lines across 1 files [XS]
+
+- `.github/workflows/mutation-pr.yml`: Added `mkdir -p mutants-out/${{ matrix.crate }}` before running `cargo mutants` to ensure the output directory exists, preventing "No such file or directory" errors when `cargo-mutants` attempts to create nested output paths.
+
+--- audit: original='fix(ci): pre-create mutants-out parent dir in mutation-pr workflow' | actual=1L across 1 files | derived=full ---
