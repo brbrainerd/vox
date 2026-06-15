@@ -1,0 +1,12 @@
+feat(orchestrator): Emit tracing spans for remote worker message processing
+scale: ~454 lines across 1 files [L]
+
+- **`crates/vox-orchestrator/src/a2a/remote_worker.rs`**:
+    - Extracted per-message processing logic from `run_remote_worker_tick` into a new `process_one_envelope` asynchronous function.
+    - Instrumented `process_one_envelope` with a `tracing::info_span` that includes `vox.mesh.trace_id` (parsed from the W3C `traceparent` header of `A2AStoredMessage`) and `exec_lease_id` as fields.
+    - Modified `run_remote_worker_tick` to build the tracing span and call `process_one_envelope` using `.instrument(span).await`, ensuring the span guard does not cross await points in the outer loop.
+    - Changed `continue` statements within the extracted helper function to `return`.
+    - Corrected `node_id.clone()` to `node_id.to_string()` for a parameter expecting `&str`.
+    - Added `use tracing::Instrument as _;` for the `instrument` trait.
+
+--- audit: original='feat(orchestrator): W5 — emit tracing spans in remote worker tick' | actual=454L across 1 files | derived=full ---
