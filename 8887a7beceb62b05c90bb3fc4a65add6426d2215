@@ -1,0 +1,9 @@
+ci: fix retired-symbol false positives and regenerate CLI docs
+scale: ~139 lines across 4 files [M]
+
+- `crates/vox-cli/src/commands/ci/retired_symbol_check.rs`: Add `is_historical_or_audit_doc` function to exclude specific historical and audit documentation paths from retired symbol checks. This includes `docs/superpowers/specs/**`, `docs/superpowers/plans/**`, `docs/src/architecture/history/**`, date-stamped architectural snapshots (e.g., `2025-*.md`, `2026-*.md`), and files with specific history-doc suffixes (e.g., `-findings-2026.md`, `-audit-2026.md`).
+- `crates/vox-cli/src/commands/ci/docs_deprecated_command_guard.rs`: Modify `scan_file` to use `contains_bare_parity_test` when checking for `parity_test` in `vox-compiler` lines. This ensures only the standalone token `parity_test` is flagged, avoiding false positives for `projection_parity_test`, `voxdb_schema_hir_parity_test`, and `rust_ecosystem_support_parity_test`. Add `contains_bare_parity_test` helper function to perform a left-word boundary check.
+- `docs/src/reference/cli-command-surface.generated.md`: Regenerate the CLI command surface documentation.
+- `docs/src/reference/mens-train-defaults.generated.md`: Regenerate the mens train defaults documentation.
+
+--- audit: original='ci: fix retired-symbol false positives + regen CLI command surface' | actual=139L across 4 files | derived=full ---
