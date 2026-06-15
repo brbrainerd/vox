@@ -1,0 +1,20 @@
+feat(proximity): implement semantic split-brain detection
+scale: ~31117 lines across 231 files [XL]
+
+- docs(architecture): Add `research-semantic-proximity-split-brain-2026.md` detailing research on semantic proximity split-brain detection.
+- docs(architecture): Add `comprehensive-audit-findings-2026.md` documenting audit findings.
+- docs(reference): Update `ref-syntax.md` with 25 additions and 19 deletions, likely related to syntax references.
+- docs(scripts): Remove `seo_postprocess.py`, `lychee_icons.py`, `audit_scanner.py`, and `syntax_healer.py`.
+- contracts(proximity): Add `retired-surfaces.v1.json` and `retired-surfaces.schema.json`.
+- crates(vox-orchestrator): Add `mcp_tools/visus_tools.rs`.
+- crates(vox-search): Add `symbol_proximity.rs`.
+- crates(vox-corpus): Add `synthetic_gen/kch_anticonflation.rs`.
+- crates(vox-compiler): Modify `web_ir/lower.rs` (114 additions, 2 deletions), `web_ir/validate.rs` (50 additions, 2 deletions), and `codegen_ts/emitter.rs` (40 additions, 2 deletions).
+- crates(vox-clavis): Remove `src/modify_specs.py`.
+- patches(aegis-0.9.8): Remove all files under `patches/aegis-0.9.8/src/c/` including Rust FFI wrappers for AEGIS ciphers (`aegis128x2.rs`, `aegis128x4.rs`, `aegis256x2.rs`, `aegis256x4.rs`, `aegis128l.rs`, `aegis256.rs`, and `raf/*.rs`).
+- patches(aegis-0.9.8): Remove all files under `patches/aegis-0.9.8/src/c/libaegis/` including C source files, headers, build configurations, and test files for various AEGIS implementations (e.g., `aegis128x4_common.h`, `raf_test.zig`, `aegis128x4.c`, `aegis_raf.h`, `CMakeLists.txt`, `build.zig`, `.clang-format`, `.gitignore`, `README.md`, `test/benchmark.zig`, `test/kdf_test.zig`, `test/main.zig`, `common/*.c`, `common/*.h`, `raf/*.c`, `raf/*.h`, `raf/raf_variant.h`, `include/*.h`, `implementations.h`, and `.github/workflows/*.yml`).
+- patches(aegis-0.9.8): Remove all test vector JSON files and the `gen.py` script from `patches/aegis-0.9.8/src/test-vectors/`.
+- patches(aegis-0.9.8): Modify `build.rs` (1 addition, 96 deletions).
+- scripts(ci): Remove `patch_catalog.py`.
+
+--- audit: original='feat(proximity): implement semantic split-brain detection' | actual=31117L across 231 files | derived=sampled ---
