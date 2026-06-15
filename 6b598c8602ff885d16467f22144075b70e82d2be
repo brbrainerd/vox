@@ -1,0 +1,8 @@
+feat(vox-mental-tracker): Implement TS materializer with correction-chain resolution
+scale: ~302 lines across 3 files [L]
+
+- **apps/vox-mental-tracker/src/ts/materializer.ts**: Added `resolveCorrections` to collapse `correction_of` chains, exposing `effective_event_id`. Implemented `groupByDay` for deterministic UTC date bucketing and `weeklyAggregate` for total and per-kind counts within a configurable window. `is_backdated` is now computed via `export_contract.isBackdated` and propagated.
+- **apps/vox-mental-tracker/tests/materializer.test.ts**: Added 11 new Vitest cases to test `resolveCorrections`, `groupByDay`, and `weeklyAggregate` for order-independence, chain collapse, orphan correction handling, window filtering, and ensuring corrected-away events drop from aggregates.
+- **apps/vox-mental-tracker/docs/architecture/data-model-ssot.md**: Updated documentation to name `src/ts/materializer.ts` as the authority for derived state, detailing its functions for correction chains, `is_backdated` computation, and window aggregation. Noted that Vox-side wiring is blocked on compiler row projection.
+
+--- audit: original='feat(vox-mental-tracker): TS materializer with correction-chain resolution' | actual=302L across 3 files | derived=full ---
