@@ -1,0 +1,9 @@
+ci(github-actions): Enable merge_group trigger for CI workflow
+scale: ~12 lines across 1 files [S]
+
+- **.github/workflows/ci.yml**:
+    - Added `merge_group` as a trigger event for the CI workflow.
+    - Modified the path-filter logic to always run all checks for `merge_group` events, similar to `push` events, to ensure full validation on merge queue batches.
+    - Added comments explaining the purpose of enabling `merge_group` and the path-filter change.
+
+--- audit: original='ci: run gate on merge_group (enable GitHub merge queue; fixes cancel-thrash root cause)' | actual=12L across 1 files | derived=full ---
