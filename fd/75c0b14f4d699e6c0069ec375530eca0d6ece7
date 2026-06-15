@@ -1,0 +1,10 @@
+refactor(orchestrator): encode doom-loop threshold as f64 bits
+scale: ~23 lines across 1 files [S]
+
+- `crates/vox-orchestrator/src/budget/mod.rs`:
+    - Changed `doom_loop_threshold_usd` from storing micro-dollars (u64) to storing the f64 representation of USD directly using `f64::to_bits()`.
+    - Updated the default value initialization for `doom_loop_threshold_usd` from `2_000_000u64` to `2.00f64.to_bits()`.
+    - Modified `doom_loop_cost_check` to retrieve the threshold using `f64::from_bits()` instead of dividing a micro-dollar value.
+    - Updated the documentation for `doom_loop_threshold_usd` to reflect that it stores the USD value via `f64::to_bits()`.
+
+--- audit: original='refactor(orchestrator): unify doom-loop threshold encoding with drift sibling (review followup)' | actual=23L across 1 files | derived=full ---
