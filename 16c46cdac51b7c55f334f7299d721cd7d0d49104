@@ -1,0 +1,8 @@
+test(ir-emission): ignore `@scheduled` IR test due to ADR-028
+scale: ~18 lines across 3 files [S]
+
+- `crates/vox-compiler/tests/ir_emission_test.rs`: Added `#[ignore]` attribute with an explanation to `test_ir_emission_includes_scheduled_jobs_in_web_ir`. The test now includes a detailed comment explaining why it's ignored (ADR-028 reserving `@scheduled`) and when it should be re-enabled.
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__island_mount_ast_z.snap.new`: Added a new snapshot file for `reactive_smoke_test__island_mount_ast_z`.
+- `.claude/settings.local.json`: Added three new Bash commands to the `commands` array: `grep "FAILED$"`, `awk -F'::' '{print $1}' /tmp/failing.txt`, and `awk '{print $2}'`.
+
+--- audit: original='test(ir-emission): ignore @scheduled IR test (ADR-028 reserved-keyword)' | actual=18L across 3 files | derived=full ---
