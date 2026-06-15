@@ -17,6 +17,10 @@
 
 use vox_compiler::hir::HirModule;
 
+/// SSOT for the generated `@vox/runtime-*` npm dependency pin emitted into
+/// scaffolded React-Native projects. Bump in lockstep with the published runtime.
+pub const VOX_RUNTIME_NPM_VERSION: &str = "0.6.0";
+
 /// Emit the Expo project skeleton. When `has_routes` is true the package.json
 /// `main` field points at `expo-router/entry` and the flat App.tsx is omitted
 /// (Expo Router uses file-system routing under `app/`); when false the legacy
@@ -213,15 +217,16 @@ fn emit_package_json(name: &str, has_routes: bool) -> String {
     "react-native": "0.76.9",
     "react-native-safe-area-context": "4.12.0",
     "zod": "^3.23.8",
-    "@vox/runtime-types": "0.6.0",
-    "@vox/runtime-rn": "0.6.0"{router_dep}
+    "@vox/runtime-types": "{rt}",
+    "@vox/runtime-rn": "{rt}"{router_dep}
   }},
   "devDependencies": {{
     "@types/react": "~18.3.0",
     "typescript": "~5.6.0"
   }}
 }}
-"#
+"#,
+        rt = VOX_RUNTIME_NPM_VERSION,
     )
 }
 
@@ -268,6 +273,13 @@ mod tests {
         // npm package name must be the slug, never the display name.
         let pkg = file(&files, "package.json");
         assert!(pkg.contains("\"name\": \"vox-mental-tracker\""));
+    }
+
+    #[test]
+    fn runtime_version_is_semver_triple() {
+        let parts: Vec<&str> = VOX_RUNTIME_NPM_VERSION.split('.').collect();
+        assert_eq!(parts.len(), 3, "expected MAJOR.MINOR.PATCH");
+        assert!(parts.iter().all(|p| p.parse::<u32>().is_ok()));
     }
 
     #[test]
