@@ -1,0 +1,9 @@
+docs(vuv): add VUV Naming Policy (2026) document
+scale: ~64 lines across 4 files [M]
+
+- docs/src/architecture/vuv-naming-policy-2026.md: Add new document detailing the VUV Naming Policy for 2026, covering the three-step lifecycle for public Vox identifiers (announce, alias, remove), the `vox migrate` codemod, the `contracts/naming/renames.v1.json` registry, and enforcement against silent renames.
+- docs/src/feed.xml: Update feed to include the new VUV Naming Policy document.
+- docs/src/SUMMARY.md: Add "VUV Naming Policy (2026)" to the documentation summary.
+- docs/src/architecture/architecture-index.md: Add link to the new VUV Naming Policy document in the architecture index.
+
+--- audit: original='docs(vuv): add naming policy doc (VUV-9 task 1)' | actual=64L across 4 files | derived=full ---
