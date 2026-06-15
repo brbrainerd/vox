@@ -1,0 +1,12 @@
+feat(vox-gui/mesh): add accessibility improvements and unit tests
+scale: ~91 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Mesh`:
+    - Add a new test file `MeshView.test.tsx` to cover rendering, button types, and table header scopes.
+    - Improve accessibility of `MeshView.tsx` by:
+        - Adding `type="button"` to the refresh button.
+        - Adding `aria-hidden="true"` to the refresh icon.
+        - Adding `aria-label`, `aria-live`, and `aria-busy` attributes to the `Glass` component wrapping the node table.
+        - Adding `scope="col"` to all table header cells.
+
+--- audit: original='feat(vox-gui/wave5): MeshView a11y + checklist (Wave 5)' | actual=91L across 2 files | derived=full ---
