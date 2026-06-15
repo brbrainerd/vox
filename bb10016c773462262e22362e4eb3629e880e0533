@@ -1,0 +1,9 @@
+fix: address CodeRabbit review feedback on PR #90
+scale: ~46 lines across 4 files [S]
+
+- **contracts/scientia/distribution.schema.json**: Corrected the `$id` field from `https://vox/contracts/scientia/distribution.schema.json` to `https://voxlang.org/contracts/scientia/distribution.schema.json` to ensure proper data-storage-guard and canonical resolution.
+- **crates/vox-cli/src/commands/ci/command_compliance/validators.rs**: Added a new validation check to explicitly fail if `README.md` contains the legacy domain `https://vox-lang.org`, preventing accidental regression of the domain migration.
+- **docs/src/archive/research-2026-q1/scientia-community-publishing-playbook-2026.md**: Reverted changes to this archived document, restoring `vox-lang.org` in a contrast-by-example paragraph. This prevents a self-contradicting tautology caused by a workspace-wide URL migration regex.
+- **scripts/show/topic-suggest.vox**: Introduced a `relative_to_iso` helper function to convert relative date strings (e.g., "7 days ago") to ISO-8601 format (YYYY-MM-DD) for use with `gh issue list --search` and `gh pr list --search`. The script now uses the relative form for `git log` and the ISO form for `gh` commands, gracefully skipping `gh` searches if date conversion fails.
+
+--- audit: original='fix: address CodeRabbit review feedback on PR #90' | actual=46L across 4 files | derived=full ---
