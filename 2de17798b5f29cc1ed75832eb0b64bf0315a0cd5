@@ -1,0 +1,17 @@
+refactor(dashboard): rename components and update references, remove island concept
+scale: ~31 lines across 11 files [M]
+
+- **crates/vox-dashboard/src/components/islands/ to shell/:** Renamed the directory from `islands/` to `shell/`.
+- **crates/vox-dashboard/src/components/islands/SpeakIsland.tsx to SpeakPanel.tsx:** Renamed the component file and its internal component name.
+- **crates/vox-dashboard/src/App.tsx:** Updated the import path for `AppShellLive` to reflect the directory rename.
+- **crates/vox-dashboard/src/components/shell/AppShellLive.tsx:** Updated the import path for `SpeakPanel` to reflect the component rename.
+- **crates/vox-dashboard/app/src/app.vox:** Rewrote stale "@island" comment annotations to "Vox transport hook" and "NetworkGraph React component".
+- **crates/vox-dashboard/app/src/tabs/command.vox:** Rewrote stale "@island" comment annotations to "Vox transport hook".
+- **crates/vox-dashboard/app/src/tabs/network.vox:** Rewrote stale "@island" comment annotations to "NetworkGraph React component".
+- **crates/vox-dashboard/app/src/tabs/speak.vox:** Rewrote stale "@island" comment annotations to "Vox transport hook" and "Vox transport bridge".
+- **crates/vox-dashboard/app/src/tabs/forge.vox:** Rewrote stale "@island" comment annotations to "Vox transport bridge".
+- **crates/vox-dashboard/app/src/generated/NetworkTab.tsx:** Updated the string literal to reflect the change from "@island NetworkGraph" to "NetworkGraph React component".
+- **crates/vox-dashboard/app/src/generated/TaskDispatch.tsx:** Updated the string literal to reflect the change from "@island" to "Vox transport hook".
+- **crates/vox-dashboard/app/src/generated/vox-app-contract.json:** Removed the obsolete "islands" array.
+
+--- audit: original='refactor(dashboard): remove island references from dashboard shell and .vox sources' | actual=31L across 11 files | derived=full ---
