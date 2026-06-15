@@ -1,0 +1,13 @@
+feat(scientia): implement model scoreboard rollup and add Vox automation stubs
+scale: ~102 lines across 8 files [M]
+
+- **`crates/vox-db/src/research_pipeline.rs`**: Implemented `VoxDb::rollup_model_scoreboard_with_scientia`, which upserts model profile metrics into `scientia_model_profile_learning` using a running average calculation with `ON CONFLICT` clause.
+- **`crates/vox-db/tests/scientia_pipeline_methods.rs`**: Added a new test `rollup_model_scoreboard_updates_running_average` to verify the running average calculation and upsert logic of `rollup_model_scoreboard_with_scientia`.
+- **`crates/vox-db/src/codex_legacy.rs`**: Updated `LEGACY_EXPORT_TABLES` to include several new `scientia_` tables: `scientia_claim_verdicts`, `scientia_claims`, `scientia_model_profile_learning`, `scientia_prereg`, `scientia_provider_runs`, `scientia_publication_attempts`, `scientia_research_sessions`, and `scientia_training_pairs`.
+- **`scripts/scientia/probe-run.vox`**: Added a new stub `.vox` script for a "SCIENTIA probe runner" (Phase 9).
+- **`scripts/scientia/atlas-draft.vox`**: Added a new stub `.vox` script for "SCIENTIA atlas draft" (Phase 9).
+- **`scripts/scientia/atlas-publish.vox`**: Added a new stub `.vox` script for "SCIENTIA atlas publish" (Phase 9).
+- **`scripts/scientia/profile-rollup.vox`**: Added a new stub `.vox` script for "SCIENTIA profile rollup" (Phase 9).
+- **`docs/src/architecture/scientia-self-publication-finalization-plan-2026.md`**: Marked "Phase 6 — Provider observability ledger + Mesh Integration" as complete, including specific references to the implemented `rollup_model_scoreboard_with_scientia` and the new `.vox` automation scripts.
+
+--- audit: original='feat(scientia): rollup_model_scoreboard_with_scientia + .vox automation stubs + Phase 6 Complete' | actual=102L across 8 files | derived=full ---
