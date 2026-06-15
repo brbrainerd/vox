@@ -1,0 +1,6 @@
+docs(scientia): mark Phase 0f as complete in self-publication finalization plan
+scale: ~2 lines across 1 files [XS]
+
+- docs/src/architecture/scientia-self-publication-finalization-plan-2026.md: Updated the description for Phase 0f from "(TBD — vox-arch-check rules)" to "5 SCIENTIA crates registered in layers.toml (Phase 1–5 prep) — **Complete**"
+
+--- audit: original='docs(scientia): mark Phase 0f complete in strategic plan' | actual=2L across 1 files | derived=full ---
