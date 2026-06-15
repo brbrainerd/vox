@@ -1,0 +1,14 @@
+feat(ci): implement persistent runners with idle reaping
+scale: ~346 lines across 1 files [L]
+
+- **crates/vox-cli/src/commands/ci/runner_scale.rs**:
+    - Replaced the ephemeral, one-shot runner model with a persistent runner model.
+    - Persistent runners keep their container alive and handle multiple jobs, maintaining a warm `target/` directory for Rust builds.
+    - Implemented idle reaping logic to scale down the runner pool: runners idle for longer than `IDLE_REAP_SECS` (30 minutes) are terminated.
+    - Introduced a small JSON state file to track runner idle durations across scaling ticks.
+    - Updated documentation to reflect the new persistent runner and idle-reap model, including the benefits of a warm `target/` directory and GitHub's native job distribution.
+    - Removed references to `runner-preflight` and the previous ephemeral runner scaling strategy.
+    - Changed the default container prefix for runners to `vox-runner-auto-*`.
+    - Added unit tests for the idle/scale logic (5 new tests).
+
+--- audit: original='feat(ci): persistent runners + idle-reap (replace one-shot ephemeral) (#167)' | actual=346L across 1 files | derived=full ---
