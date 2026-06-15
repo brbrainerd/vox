@@ -1,0 +1,6 @@
+docs(backlog): mark M-10 as landed in data storage migration backlog
+scale: ~2 lines across 1 files [XS]
+
+- Add a "Landed" note with commit hash and date to the M-10 section of the `data-storage-migration-backlog-2026.md` document.
+
+--- audit: original='M-10: chore(backlog): mark M-10 landed' | actual=2L across 1 files | derived=full ---
