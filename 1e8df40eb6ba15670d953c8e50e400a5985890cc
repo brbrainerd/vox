@@ -1,0 +1,21 @@
+feat(dashboard): type transport events, refactor backoff, fix TS errors
+scale: ~278 lines across 5 files [L]
+
+- `transport.ts`:
+  - Added typed overloads for `on`/`emit` methods using `VoxTransportEventMap`, allowing callers to receive `ConnectionStatusPayload` and `AuthStatusEvent` without `as` casts.
+  - Replaced ad-hoc `if/else` backoff logic with a single `Math.min(250 * 2^n, 30_000)` expression.
+  - Narrowed `any` parameters to `unknown` and strengthened `callTool` return type to `Promise<unknown>`.
+  - Explicitly set `useVoxTransport` return type to `VoxTransport`.
+  - Initial `authStatus` emit now uses `satisfies AuthStatusEvent`.
+- `types.ts`:
+  - Exported new types: `ConnectionStatusPayload` (discriminated union), `AuthStatusEvent`, `VoxTransportEventMap`.
+  - Exported existing types previously used internally: `ChatSessionMeta`, `ComposerState`, `ComposerDraft`, `WorkspaceInspectorState`, `ActiveEditorState`, `LastPlanState`, `AttentionStatusPayload`, `AttentionAlert`.
+- `components/ContextExplorer.tsx`:
+  - Corrected import path for `types.ts` from `../../../src/types` to `../types`.
+  - Added optional chaining (`?.`) to `inspector?.openFiles`, `inspector?.activeEditor?.diagnostics`, and `inspector?.contextKeys` to guard against `undefined` values.
+- `components/AttentionPanel.tsx`:
+  - Corrected import path for `types.ts` from `../../../src/types` to `../types`.
+- `components/UnifiedDashboard.tsx`:
+  - Renamed `alert` prop to `_alert` when passing to `AttentionPanel` to match its prop name.
+
+--- audit: original='feat(dashboard): TASK-0.6 — typed transport events, clean backoff, fix TS module errors' | actual=278L across 5 files | derived=full ---
