@@ -1,0 +1,15 @@
+feat(gui): add archive panel with completeness meter, autofill, and deposit status
+scale: ~767 lines across 11 files [L]
+
+- **crates/vox-gui/src/commands/scientia_review.rs**: Add new Tauri commands `get_completion_report`, `run_autofill`, and `get_archive_status` to surface the Track B archive pipeline for metadata completeness, deterministic autofill, and deposit status.
+- **crates/vox-gui/ui/src/components/surfaces/Scientia/ArchivePanel.tsx**: Introduce `ArchivePanel` React component to display metadata completeness (meter, missing checklist, provenance chips), provide one-click autofill, and show deposit status (Zenodo DOI/state, SWHID/task).
+- **crates/vox-gui/ui/src/components/surfaces/Scientia/ArchivePanel.test.tsx**: Add Vitest tests for the `ArchivePanel` component, including mocking API calls for completion reports and autofill results.
+- **crates/vox-gui/ui/src/components/surfaces/Scientia/archiveApi.ts**: Define TypeScript interfaces and wrapper functions for the new Tauri commands related to the archive panel.
+- **crates/vox-gui/src/main.rs**: Register the new `get_completion_report`, `run_autofill`, and `get_archive_status` commands with the Tauri application.
+- **crates/vox-gui/ui/src/App.tsx**: Update the `View` type and initial view logic to include `archive-panel` as a valid view.
+- **crates/vox-gui/ui/src/components/layout/Sidebar.tsx**: Add 'archive-panel' to the 'knowledge' section of the sidebar navigation.
+- **crates/vox-gui/ui/src/components/surfaces/decoratorRegistry.ts**: Register the `ArchivePanel` component in the `surfaceDecorators` map.
+- **contracts/gui/surface-registry.v1.yaml**: Add `archive-panel` to the GUI surface registry.
+- **crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts**: Regenerate the surface registry to include the new `archive-panel`.
+
+--- audit: original='feat(gui): archive panel — completeness meter, one-click autofill, deposit status' | actual=767L across 11 files | derived=full ---
