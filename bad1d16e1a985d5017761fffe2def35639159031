@@ -1,0 +1,19 @@
+feat(db): audit — policy enforcement, L0 types, typed IDs, serde uniformity
+scale: ~4961 lines across 64 files [XL]
+
+- **docs/superpowers/plans**: Added extensive documentation (2319+ lines) detailing the DB audit, including a baseline, types move list, and follow-up plans, establishing a comprehensive record of the audit process.
+- **crates/vox-cli**: Introduced new CI checks for `db-schema-coverage`, `policy-allowlist-parity`, `string-id-lint`, and `row-serde-lint` to enforce data policy and type safety.
+- **crates/vox-db-types**:
+    - Established `vox-db-types` as an L0 types crate by implementing `Serialize`/`Deserialize` for all 82 row types, ensuring serde uniformity.
+    - Introduced `Db<Entity>Id` newtypes in `src/ids.rs` and migrated all stringly-typed `*_id` fields in `rows_extended.rs` to these newtypes, improving type safety.
+    - Added `serde_uniformity.rs` integration tests to validate `Serialize`/`Deserialize` implementation across all row types.
+    - Moved `exec_time` and `circuit` related types into `vox-db-types` from `vox-db`.
+- **docs/agents**: Updated `turso-import-allowlist.txt` and `database-nomenclature.md` to reflect new policy enforcement.
+- **contracts**: Updated `catalog.v1.yaml` and `data-storage-policy.v1.yaml` to include new policy definitions and allowed crates.
+- **docs/src/adr**: Updated ADR-004 and `where-things-live.md` to reflect changes in data architecture and ownership.
+- **crates/vox-db**: Refactored `exec_time_telemetry.rs`, `ops_build.rs`, `circuit_breaker.rs`, and `workspace_journey_store.rs` to align with the new `vox-db-types` structure and policy.
+- **.claude/settings.local.json**: Updated Claude settings.
+- **scripts**: Added `extract_table_names.vox` script for schema analysis.
+- **crates/vox-orchestrator**: Minor updates to persistence and observer modules.
+
+--- audit: original='feat(db): audit — policy enforcement, L0 types, typed IDs, serde uniformity' | actual=4961L across 64 files | derived=full ---
