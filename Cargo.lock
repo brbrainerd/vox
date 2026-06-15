@@ -14582,6 +14582,7 @@ dependencies = [
  "vox-config",
  "vox-http-client",
  "vox-jsonschema-util",
+ "vox-llm-egress",
  "vox-orchestrator-types",
  "vox-rule-pack",
  "vox-scaling-policy",
