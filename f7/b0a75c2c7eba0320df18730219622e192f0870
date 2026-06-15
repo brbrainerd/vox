@@ -1,0 +1,12 @@
+feat(identity): add X25519 key derivation for per-pairing JWE
+scale: ~83 lines across 2 files [M]
+
+- `crates/vox-identity/src/pairing_x25519.rs`: Add new module `pairing_x25519` containing the `PairingKey` struct.
+  - `PairingKey` wraps `vox_crypto`'s `EncryptionSecretKey` for ECDH-based JWE key derivation.
+  - Implement `PairingKey::generate()` to produce a fresh X25519 keypair.
+  - Implement `PairingKey::from_bytes()` to reconstruct a key from secret key bytes.
+  - Implement `PairingKey::shared_secret()` to perform Diffie-Hellman with a peer's public key, returning a 32-byte shared secret.
+  - Include three inline tests: ECDH symmetry, distinct pairings yielding distinct secrets, and `pubkey_bytes` having a length of 32.
+- `crates/vox-identity/src/lib.rs`: Export the new `pairing_x25519` module and `PairingKey` struct.
+
+--- audit: original='feat(identity): per-pairing X25519 key derivation [P5-T10]' | actual=83L across 2 files | derived=full ---
