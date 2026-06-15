@@ -1,0 +1,12 @@
+feat(vox-orchestrator): add `vox-orchestrator-core` as boundary marker crate
+scale: ~74 lines across 7 files [M]
+
+- `crates/vox-orchestrator-core/src/lib.rs`: Add new file with documentation explaining the intent of `vox-orchestrator-core` as a boundary marker for the core router/dispatcher logic, detailing why full extraction is currently blocked, and outlining the path to full extraction.
+- `crates/vox-orchestrator-core/Cargo.toml`: Add new Cargo.toml for `vox-orchestrator-core` crate, including package metadata and workspace dependencies.
+- `Cargo.toml`: Add `vox-orchestrator-core` to the workspace members.
+- `Cargo.lock`: Update lock file to include `vox-orchestrator-core`.
+- `docs/src/architecture/layers.toml`: Add `vox-orchestrator-core` with `layer = 3`, `kind = "boundary-marker"`, and `max_loc = 20_000`. Adjust `vox-orchestrator`'s `max_loc` from 60_000 to 55_000.
+- `docs/src/architecture/where-things-live.md`: Add a new row for `vox-orchestrator-core` describing its purpose as a boundary marker. Update the description for `vox-orchestrator` to reflect the new `vox-orchestrator-core` crate.
+- `crates/vox-orchestrator/Cargo.toml`: Update the `description` field to mention `vox-orchestrator-core` as the location of the core router.
+
+--- audit: original='refactor(vox-orchestrator): extract vox-orchestrator-core (boundary marker)' | actual=74L across 7 files | derived=full ---
