@@ -1,0 +1,15 @@
+feat(mens): allow `VOX_MENS_DEFAULT_MODEL` to override default model ID
+scale: ~64 lines across 7 files [M]
+
+- `crates/vox-populi/src/mens/mod.rs`:
+  - Added `resolve_default_model_id` and `default_model_id` functions to resolve the default model ID from an environment variable `VOX_MENS_DEFAULT_MODEL` or fall back to `DEFAULT_MODEL_ID`.
+  - Added unit tests for `resolve_default_model_id`.
+  - Updated the documentation for `DEFAULT_MODEL_ID` to mention the environment variable override.
+- `crates/vox-ml-cli/src/commands/mens/populi/train_arm.rs`: Replaced direct usage of `vox_populi::mens::DEFAULT_MODEL_ID` with `vox_populi::mens::default_model_id()` for model ID resolution.
+- `crates/vox-ml-cli/src/commands/schola/train/run_train.rs`: Replaced direct usage of `vox_populi::mens::DEFAULT_MODEL_ID` with `vox_populi::mens::default_model_id()` for model ID resolution.
+- `crates/vox-populi/src/mens/cloud/mod.rs`: Replaced direct usage of `crate::mens::DEFAULT_MODEL_ID` with `crate::mens::default_model_id()` in `CloudJobSpec::new_train` and `CloudJobSpec::new_serve`.
+- `crates/vox-ml-cli/src/commands/mens/populi/dispatch.rs`: Replaced direct usage of `vox_populi::mens::DEFAULT_MODEL_ID` with `vox_populi::mens::default_model_id()` for model ID resolution.
+- `crates/vox-ml-cli/src/commands/ai/train.rs`: Replaced direct usage of `vox_populi::mens::DEFAULT_MODEL_ID` with `vox_populi::mens::default_model_id()` for model ID resolution.
+- `crates/vox-populi/src/mens/cloud/resolver.rs`: Replaced direct usage of `crate::mens::DEFAULT_MODEL_ID` with `crate::mens::default_model_id()` in `build_train_spec`.
+
+--- audit: original='feat(mens): resolve default model id from VOX_MENS_DEFAULT_MODEL (HC-G08-01)' | actual=64L across 7 files | derived=full ---
