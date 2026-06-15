@@ -1,0 +1,7 @@
+feat(audit): add silent-drop gate baseline and regenerator
+scale: ~4795 lines across 2 files [XL]
+
+- `contracts/toestub/silent-drop-baseline.v1.json`: Add a new baseline file containing 4710 suppression entries for `vox/catch-all-swallow` and `arch/cross-crate-dup` findings, effectively grandfathering existing instances to enable a "no-new-findings" gate.
+- `crates/vox-audit/tests/regen_silent_drop_baseline.rs`: Add a new ignored test to regenerate the `silent-drop-baseline.v1.json` file, allowing for easy updates as findings are fixed or accepted.
+
+--- audit: original='feat(audit): grandfather baseline for the silent-drop gate (Task 2.6 activation)' | actual=4795L across 2 files | derived=full ---
