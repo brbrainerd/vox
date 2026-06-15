@@ -1,0 +1,9 @@
+feat(compiler,orchestrator,docs): add fragments and reactive modules to HIR, enforce runtime cap, update ADRs
+scale: ~42 lines across 4 files [S]
+
+- `crates/vox-orchestrator/src/mcp_tools/code_validator.rs`: Add `MAX_VALIDATE_SOURCE_BYTES` constant and enforce a 131,072-byte runtime cap on `validate_source` input, returning an error if exceeded. This mirrors the `schemars` `maxLength` constraint but correctly counts bytes instead of Unicode code points.
+- `crates/vox-compiler/src/hir/nodes/decl.rs`: Add `fragments` (Vec<HirFragmentDecl>) and `reactive_modules` (Vec<HirReactiveModule>) fields to `SemanticHirModule` and clone them in its `from_hir_module` implementation.
+- `docs/src/adr/032-vox-ui-reactive-modules.md`: Rewrite the "Status" section to reflect that Phase D has shipped, detailing the four commits that implemented it. Also, add a "Remaining sub-slices" section.
+- `docs/src/adr/033-typed-fragment-primitive.md`: Rewrite the "Status" section to reflect that Phase F has shipped, detailing the two commits that implemented it, and update the note about the Phase 6 primitive surface.
+
+--- audit: original='fix(review): address CodeRabbit feedback round 2 on PR #63' | actual=42L across 4 files | derived=full ---
