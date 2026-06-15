@@ -1,0 +1,15 @@
+feat(vox-vcs): scaffold crate with VcsBackend trait and in-memory CasFallback
+scale: ~827 lines across 10 files [L]
+
+- `crates/vox-vcs`: New crate introduced, defining the `VcsBackend` trait, `VcsError` enum, `VcsBackendKind` enum, and a `detect` function.
+- `crates/vox-vcs/src/types.rs`: New file defining core VCS types: `ChangeId`, `Change`, `Diff`, `Conflict`, and `ResolveStrategy`.
+- `crates/vox-vcs/src/cas_fallback.rs`: New file implementing `CasFallback`, an in-memory `VcsBackend` for basic snapshot, changes, diff, undo, conflicts, and resolve operations.
+- `crates/vox-vcs/src/lib.rs`: New crate root, exporting modules and types, and including a test for `detect` defaulting to `VcsBackendKind::Cas`.
+- `crates/vox-vcs/Cargo.toml`: New Cargo.toml for `vox-vcs`, setting up dependencies on `serde`, `thiserror`, and `workspace-hack`.
+- `Cargo.toml`: Added `vox-vcs` to the workspace members.
+- `Cargo.lock`: Updated dependencies to include `vox-vcs` and its transitive dependencies.
+- `docs/src/architecture/where-things-live.md`: Added `vox-vcs` to the list of top-level trees with its description.
+- `docs/src/architecture/layers.toml`: Added `vox-vcs` to layer 3 with `max_loc` and `orphan_exempt` attributes. Added a new `forbidden_pattern` for `jj-lib-confined` to restrict `jj_lib::` calls to `crates/vox-vcs/src/jj_backend.rs`. Removed a stale exemption path for `crates/vox-vcs-git/src/git_exec.rs`.
+- `docs/superpowers/plans/2026-06-05-jj-first-class-p2-jj-engine-and-dead-code-removal.md`: New documentation file outlining the implementation plan for integrating `jj-lib 0.42` as the `JjBackend`.
+
+--- audit: original='jj-first-class P0: vox-vcs foundation crate + jj-lib 0.42 (#159)' | actual=827L across 10 files | derived=full ---
