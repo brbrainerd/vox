@@ -1,0 +1,13 @@
+feat(vox-git): add audited read-only git execution helper
+scale: ~132 lines across 2 files [M]
+
+- `crates/vox-git/src/read_cmd.rs`: Add new module `read_cmd` containing `read_only` function and `GitReadError` enum.
+  - `read_only` executes `git -C <repo> <args...>` for read-only subcommands.
+  - It includes a `READ_ONLY` allowlist for subcommands like `show`, `diff`, `log`, `rev-parse`, `status`, `cat-file`, and `ls-files`.
+  - `GitReadError` defines error types for disallowed subcommands, spawn failures, and non-zero exits.
+  - The function returns `stdout` as a lossy UTF-8 string.
+- `crates/vox-git/src/lib.rs`:
+  - Declare `read_cmd` as a public module.
+  - Export `GitReadError` and `read_only` from the crate root.
+
+--- audit: original='feat(vox-git): add audited read-only git exec helper' | actual=132L across 2 files | derived=full ---
