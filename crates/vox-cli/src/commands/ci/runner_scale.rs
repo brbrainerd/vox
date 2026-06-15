@@ -830,6 +830,122 @@ pub fn run_scale(apply: bool) -> Result<()> {
     Ok(())
 }
 
+/// Parse the epoch timestamp and per-tick index from a managed container name
+/// of the form `vox-runner-auto-<hex_epoch>-<index>`.
+///
+/// Returns `(epoch_secs, index)` on success; the index is parsed as `u32`.
+pub fn parse_runner_tag(name: &str) -> Option<(i64, u32)> {
+    let tail = name.strip_prefix(MANAGED_PREFIX)?;
+    let (hex_epoch, index_str) = tail.rsplit_once('-')?;
+    let epoch = i64::from_str_radix(hex_epoch, 16).ok()?;
+    let index = index_str.parse::<u32>().ok()?;
+    Some((epoch, index))
+}
+
+/// Build a human-readable status table from live runner rows + containers.
+///
+/// `rows` = GitHub runner API rows; `running` / `exited` = docker container
+/// name lists; `demand` = queued job count; `history_tail` = last N lines of
+/// the decision log (newest-last); `now` = unix seconds.
+pub fn format_status_table(
+    rows: &[RunnerRow],
+    running: &[String],
+    exited: &[String],
+    demand: u32,
+    history_tail: &[String],
+    now: i64,
+) -> String {
+    let mut out = String::new();
+
+    out.push_str("=== CI Runner Fleet Status ===\n");
+    out.push_str(&format!("  queued jobs : {demand}\n"));
+    out.push_str(&format!("  timestamp   : {now}\n\n"));
+
+    // Per-runner table.
+    out.push_str("  CONTAINER                        GH-STATUS  BUSY  AGE(s)\n");
+    out.push_str("  ─────────────────────────────────────────────────────────\n");
+
+    let running_set: HashSet<&str> = running.iter().map(String::as_str).collect();
+    let exited_set: HashSet<&str> = exited.iter().map(String::as_str).collect();
+
+    // Show all managed containers first (running + exited), then any orphaned
+    // GitHub registrations with no container.
+    let mut shown: HashSet<String> = HashSet::new();
+
+    for name in running.iter().chain(exited.iter()) {
+        if !name.starts_with(MANAGED_PREFIX) {
+            continue;
+        }
+        shown.insert(name.clone());
+        let gh_row = rows.iter().find(|(n, _, _)| n == name);
+        let (gh_status, busy) = gh_row
+            .map(|(_, s, b)| (s.as_str(), *b))
+            .unwrap_or(("—", false));
+        let container_state = if running_set.contains(name.as_str()) {
+            "running"
+        } else if exited_set.contains(name.as_str()) {
+            "exited"
+        } else {
+            "—"
+        };
+        let age = parse_runner_tag(name)
+            .map(|(epoch, _)| format!("{}", now - epoch))
+            .unwrap_or_else(|| "?".to_string());
+        out.push_str(&format!(
+            "  {name:<32} {gh_status:<10} {busy:<5} {container_state} age={age}\n"
+        ));
+    }
+
+    // Orphaned GitHub registrations (no container).
+    for (name, status, busy) in rows {
+        if !name.starts_with(MANAGED_PREFIX) || shown.contains(name) {
+            continue;
+        }
+        let age = parse_runner_tag(name)
+            .map(|(epoch, _)| format!("{}", now - epoch))
+            .unwrap_or_else(|| "?".to_string());
+        out.push_str(&format!(
+            "  {name:<32} {status:<10} {busy:<5} (no container) age={age}\n"
+        ));
+    }
+
+    // Decision log tail.
+    if !history_tail.is_empty() {
+        out.push_str("\n=== Recent decisions (newest last) ===\n");
+        for line in history_tail {
+            out.push_str(&format!("  {line}\n"));
+        }
+    }
+
+    out
+}
+
+/// `vox ci runner-status` — print per-runner state, queue depth, and recent
+/// decision-log entries. Read-only; never mutates fleet state.
+pub fn run_status() -> Result<()> {
+    let now = now_secs();
+    let rows = runner_rows().unwrap_or_default();
+    let running = managed_containers("running");
+    let exited = managed_containers("exited");
+    let demand = query_queued_job_demand(max_runners()).unwrap_or(0);
+
+    // Read the last 10 lines of the history file for display.
+    let history_raw = std::fs::read_to_string(history_path()).unwrap_or_default();
+    let history_tail: Vec<String> = history_raw
+        .lines()
+        .rev()
+        .take(10)
+        .map(String::from)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+
+    let table = format_status_table(&rows, &running, &exited, demand, &history_tail, now);
+    print!("{table}");
+    Ok(())
+}
+
 /// `vox ci runner-preflight` — error if no online self-hosted runner.
 pub fn run_preflight() -> Result<()> {
     let online = online_runner_count().unwrap_or(0);
@@ -1100,5 +1216,40 @@ mod tests {
         // Under-cap: content unchanged.
         let small = "a\nb\n";
         assert_eq!(rotate_keep_tail(small, 10), small);
+    }
+
+    #[test]
+    fn parse_runner_tag_decodes_epoch_and_index() {
+        // A canonical managed container name: prefix + hex_epoch + "-" + index
+        let epoch_hex = format!("{:x}", 1_718_000_000i64); // example unix ts
+        let name = format!("vox-runner-auto-{epoch_hex}-3");
+        let (epoch, index) = parse_runner_tag(&name).expect("should parse");
+        assert_eq!(epoch, 1_718_000_000);
+        assert_eq!(index, 3);
+
+        // Unmanaged names must return None.
+        assert!(parse_runner_tag("vox-runner-1").is_none());
+        assert!(parse_runner_tag("other-container").is_none());
+    }
+
+    #[test]
+    fn format_status_table_lists_each_runner_with_state() {
+        let rows: Vec<RunnerRow> = vec![
+            ("vox-runner-auto-abc-0".into(), "online".into(), true),
+            ("vox-runner-auto-abc-1".into(), "online".into(), false),
+        ];
+        let running = vec![
+            "vox-runner-auto-abc-0".to_string(),
+            "vox-runner-auto-abc-1".to_string(),
+        ];
+        let exited: Vec<String> = vec![];
+        let now = i64::from_str_radix("abc", 16).unwrap() + 100;
+        let table = format_status_table(&rows, &running, &exited, 2, &[], now);
+
+        // Both containers must appear.
+        assert!(table.contains("vox-runner-auto-abc-0"), "missing runner 0");
+        assert!(table.contains("vox-runner-auto-abc-1"), "missing runner 1");
+        // Queue depth shown.
+        assert!(table.contains("queued jobs"), "missing queue depth");
     }
 }
