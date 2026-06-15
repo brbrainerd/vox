@@ -1,0 +1,7 @@
+feat(audit): implement `run_silent_drop_gate` for `catch-all-swallow` and `cross-crate-dup`
+scale: ~78 lines across 2 files [M]
+
+- `crates/vox-audit/src/core_gates.rs`: Add `run_silent_drop_gate` function to execute a silent-drop gate. This gate runs only the `catch-all-swallow` and `cross-crate-dup` detectors, filters findings to these specific rule IDs, and fails if any findings remain after applying an optional baseline. The severity of findings remains `Info`.
+- `crates/vox-audit/tests/silent_drop_gate.rs`: Add new integration tests for `run_silent_drop_gate`. These tests verify that the gate correctly fires on code containing a `catch-all-swallow` pattern and remains silent on clean code.
+
+--- audit: original='feat(audit): run_silent_drop_gate — gate catch_all_swallow + cross_crate_dup (R9, Task 2.6 core)' | actual=78L across 2 files | derived=full ---
