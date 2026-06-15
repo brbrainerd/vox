@@ -1,0 +1,8 @@
+feat(compiler): add DiagnosticExcerpt to LLM diagnostic payload
+scale: ~205 lines across 3 files [M]
+
+- `vox-compiler`: Introduce `DiagnosticExcerpt` struct to embed source code snippets in diagnostics for LLM consumption. This includes a `from_source` constructor to extract lines with context and updates `VoxCompilerDiagnosticPayload` to include an optional `excerpt` field, preserving wire compatibility.
+- `vox-compiler/tests`: Update two golden snapshot tests to reflect the new `excerpt` field in diagnostic payloads.
+- `vox-cli/tests`: Update one golden snapshot test to reflect the new `excerpt` field in diagnostic payloads.
+
+--- audit: original='feat(compiler): add DiagnosticExcerpt to --for-llm payload (Phase 2 LLM-target gap)' | actual=205L across 3 files | derived=full ---
