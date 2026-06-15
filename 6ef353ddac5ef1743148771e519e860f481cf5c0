@@ -1,0 +1,15 @@
+feat(parser): Parse `@auth` decorator `provider` and `roles` arguments
+scale: ~141 lines across 2 files [M]
+
+- `crates/vox-compiler/src/parser/descent/decl/head_fn.rs`:
+    - Modified `parse_fn_decl` to parse `provider: "..."` and `roles: [...]` arguments within the `@auth` decorator.
+    - Replaced `skip_paren_args_inner()` with a loop to explicitly parse key-value pairs for `provider` (string or identifier) and `roles` (array of strings).
+    - Stored parsed `provider` value in `FnDecl::auth_provider` and `roles` in `FnDecl::roles`.
+    - Added `auth_roles: Vec<String>` field to `FnDecl` to store parsed roles.
+- `crates/vox-compiler/tests/auth_decorator_test.rs`: Added new test file with four unit tests for `@auth` decorator argument parsing:
+    - `auth_provider_is_parsed`: Verifies `auth_provider` is correctly parsed from `@auth(provider: "clerk")`.
+    - `auth_roles_are_parsed`: Verifies `roles` are correctly parsed from `@auth(roles: ["admin", "editor"])`.
+    - `auth_provider_and_roles_are_parsed`: Verifies both `provider` and `roles` are parsed when present.
+    - `auth_with_no_args_is_parsed`: Verifies `@auth` without arguments still sets the presence marker.
+
+--- audit: original='feat(parser): Task 4B — parse @auth provider/roles args into FnDecl fields' | actual=141L across 2 files | derived=full ---
