@@ -1,0 +1,29 @@
+feat(corpus): add 9 new goldens, update 48 with frontmatter, fix 2 typecheck breaks
+scale: ~1019 lines across 71 files [XL]
+
+- **New Goldens:**
+    - `adt_multi_field.vox`: Demonstrates ADT multi-field constructors and destructuring match.
+    - `closures_hof.vox`: Introduces closures and higher-order functions.
+    - `env_and_path.vox`: Shows `std.env` for environment variables and `std.path` for path utilities.
+    - `process_run.vox`: Illustrates running external processes.
+    - `range_and_indexing.vox`: Covers range loops and list/dict index operations.
+    - `regex_free_functions.vox`: Provides examples of regex free functions.
+    - `string_interpolation.vox`: Explores string interpolation and method chaining.
+    - `tuple_destructure.vox`: Details tuple construction, destructuring, and indexed iteration.
+    - `while_loop_algorithms.vox`: Showcases while loops and infinite loop+break patterns.
+- **`iot_telemetry.vox`:**
+    - Fixed typecheck break by removing redundant explicit `id` PK.
+    - De-stubbed `iot_telemetry 42.0` mock into a real match-on-Result average.
+- **`crud_api.vox`:**
+    - Fixed typecheck break by removing redundant explicit `id` PK.
+- **Frontmatter Updates:**
+    - Added `difficulty` frontmatter to approximately 48 golden files.
+    - Added full frontmatter to approximately 12 golden files that previously lacked it.
+    - Replaced stale `@endpoint` with `@mutation` in constructs lists.
+- **`db_native_ir.vox` and `index_showcase.vox`:**
+    - Removed stale `// vox:skip` markers, enabling full validation for all 71 goldens.
+- **Minor Updates:**
+    - `auth_patterns.vox`, `background_jobs.vox`, `getting_started.vox`: Minor additions.
+    - `agent_pipeline.vox`, `agentos_std_surface.vox`, `ai_fixtures/*`, `blog_fullstack.vox`, `checkout_workflow.vox`, `clean_build_stdlib_reference.vox`, `config_deploy.vox`, `control_flow_if.vox`, `counter_actor.vox`, `dashboard_ui.vox`, `db_advanced_queries.vox`, `durable_workflow_real.vox`, `error_propagation.vox`, `format_conversion.vox`, `hello.vox`, `http_error_mapping.vox`, `inventory_rosetta_core.vox`, `inventory_rosetta_platform.vox`, `io_polymorphic.vox`, `json_stdlib.vox`, `match_arm_stmts.vox`, `mcp_tools.vox`, `multi_tenancy.vox`, `nested_types.vox`, `option_type.vox`, `pagination.vox`, `ref_effects.vox`, `regex_stdlib.vox`, `saga_compensation.vox`, `scheduled_tick.vox`, `str_utils.vox`, `struct_types.vox`, `structured_shell_listings.vox`, `tabular_subprocess.vox`, `test_suite.vox`, `ts_source_ffi.vox`, `type_system.vox`, `web_routing_fullstack.vox`, `std_http_wrappers.vox`, `decimal_math.vox`, `json_as_typed.vox`, `mesh/noop.vox`, `mobile_camera.vox`, `mobile_test.vox`, `reactive_counter.vox`, `ref_actors.vox`, `ref_agents.vox`, `ref_orchestrator.vox`, `ref_syntax.vox`, `ref_types.vox`: Added frontmatter and/or minor content updates.
+
+--- audit: original='@ feat(corpus): typecheck-clean 71-golden corpus + 9 new goldens for untrained features' | actual=1019L across 71 files | derived=full ---
