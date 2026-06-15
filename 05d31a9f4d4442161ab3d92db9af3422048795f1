@@ -1,0 +1,6 @@
+fix(webhook): update route parameter syntax for Axum 0.7
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-plugin-webhook/src/webhook/router.rs`: Changed the `/webhooks/:source` route to `/webhooks/{source}` to use the Axum 0.7+ path capture syntax.
+
+--- audit: original='fix(webhook): use axum 0.7 capture syntax for the /webhooks/{source} route' | actual=2L across 1 files | derived=full ---
