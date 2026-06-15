@@ -1,0 +1,21 @@
+feat(typeck): error on HTTP/security decorators on bare functions
+scale: ~488 lines across 24 files [L]
+
+- feat(typeck): Add `TYPECK_DECORATOR_REQUIRES_ENDPOINT` diagnostic for `@webhook`, `@cors`, `@rate_limit`, `@pii`, or `@layer` decorators applied to `Decl::Function` (bare functions) that are not endpoints or components. These were previously silently dropped during HIR lowering.
+- feat(typeck): Add `MENS_DECORATOR_UNIMPLEMENTED` diagnostic for `@inference` and `@training_step` decorators on functions, and `@distributed_train` on workflows, which are currently no-ops in Rust codegen.
+- feat(typeck): Register `TYPECK_DECORATOR_REQUIRES_ENDPOINT` and `MENS_DECORATOR_UNIMPLEMENTED` in `ALL_COMPILER_DIAGNOSTIC_CODES`.
+- feat(cli): Add `--app-name` and `--app-id` arguments to `vox build` for customizing mobile scaffold display name and reverse-DNS identifier.
+- feat(codegen-ts): Add `app_name` and `app_id` fields to `CodegenOptions` to pass mobile app customization.
+- feat(rn-codegen): Update `emit_expo_scaffold` to accept `app_name` and `app_id` for customizing `app.json` and `package.json`.
+- fix(cli): Pass `app_name` and `app_id` from `build` command to codegen.
+- docs(mobile): Update `apps/vox-mental-tracker/docs/how-to/build-android.md` with new `app-id` and `app-name` flags.
+- chore(mobile): Update `apps/vox-mental-tracker/package.json` and `README.md` to reflect changes.
+- chore(docs): Update `docs/src/architecture/mobile-phase2-completion-scoping-2026-06-12.md`.
+- test(fixtures): Add `webhook_on_bare_fn.vox` and `inference_decorator_unimplemented.vox` to forbidden corpus.
+- test(fixtures): Add `examples.ssot.v1.yaml` entry for new forbidden examples.
+- chore(cli): Update various `cli` commands (`bundle`, `emit/client`, `lanes`, `run`, `test`) to pass `None` for new `app_name` and `app_id` parameters.
+- chore(integration-tests): Update `playwright_golden_route_test.rs` and `web_vite_smoke_test.rs`.
+- chore(ml-cli): Update `commands/ai/workflow.rs`.
+- chore(mental-tracker): Update `scripts/build.vox`.
+
+--- audit: original='fix(typeck): error on HTTP/security decorators applied to bare fn instead of silently dropping' | actual=488L across 24 files | derived=full ---
