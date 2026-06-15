@@ -1,0 +1,8 @@
+docs(superpowers): add pipeline-gap adversarial review remediation plan
+scale: ~273 lines across 1 files [L]
+
+- Add a new document detailing a remediation plan for issues found during an adversarial review of the `pipeline-gap` branch.
+- The plan outlines fixes for dead/uncompilable features, correctness bugs, and test hardening.
+- It specifies conventions for testing and linting, and categorizes findings into tiers.
+
+--- audit: original='docs: add adversarial-review remediation plan (2026-06-14)' | actual=273L across 1 files | derived=full ---
