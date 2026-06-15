@@ -1,0 +1,14 @@
+docs(architecture): add full-app implementation roadmap for mental health tracker
+scale: ~195 lines across 1 files [M]
+
+- Add `docs/src/architecture/mental-tracker-full-app-roadmap-2026.md` detailing the full-app implementation roadmap for the Vox mental-health tracker.
+- The roadmap covers:
+    - Calendar implementation using `react-native-big-calendar` with React interop.
+    - CategoryDef registry and `record_deletion` tombstone over a single append-only `HealthEventLog`.
+    - Slider, bottom-sheet, and in-app-toast as VUV primitives with web parity.
+    - Slice 0..5 build order.
+- Includes resolved decisions for:
+    - Dev Client target to enable native modules.
+    - Slider last-value defaulting with per-category opt-out (`CategoryDef.default_to_last`).
+
+--- audit: original='docs: full-app implementation roadmap (mental tracker) + 2 locked decisions' | actual=195L across 1 files | derived=full ---
