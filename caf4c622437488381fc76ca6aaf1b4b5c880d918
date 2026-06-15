@@ -1,0 +1,6 @@
+fix(codegen-rust): emit bare name for nullary variant patterns
+scale: ~23 lines across 1 files [S]
+
+- `crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`: Modified `emit_pattern` to emit the bare name for nullary variant patterns (e.g., `None`) instead of `Name()`. This prevents `E0532 expected tuple variant, found unit variant` errors when matching against unit enum variants.
+
+--- audit: original='fix(codegen-rust): nullary variant patterns emit bare name (CR-F2 #3)' | actual=23L across 1 files | derived=full ---
