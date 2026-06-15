@@ -21,6 +21,8 @@ jobs:
             target: x86_64-pc-windows-msvc
           - os: macos-latest
             target: aarch64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
     env:
       # Shared compile cache via the GitHub Actions cache service (see
@@ -72,3 +74,20 @@ jobs:
       - name: sccache stats
         if: always()
         run: sccache --show-stats
+
+      # Non-blocking portability report — only on Linux, always exits 0.
+      - name: Run portability scanner (os_compat.py)
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        run: |
+          mkdir -p graphify-out
+          python scripts/coverage-graph/os_compat.py
+        working-directory: ${{ github.workspace }}
+
+      - name: Upload portability report
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: os-compat-report
+          path: graphify-out/OS_COMPATIBILITY.md
+          if-no-files-found: warn
