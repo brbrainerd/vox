@@ -1,0 +1,11 @@
+fix(vox-effort-audit): tighten parse_duration to require digit-only prefixes
+scale: ~53 lines across 1 files [M]
+
+- `crates/vox-effort-audit/src/range.rs`:
+    - Modified `parse_duration` to explicitly check if the prefix of a compact duration string (e.g., "123d") consists solely of ASCII digits before parsing.
+    - Previously, `strip_suffix` was used, and the `parse::<i64>` call would implicitly reject non-numeric prefixes, but this was deemed brittle.
+    - The new logic uses `strip_suffix` followed by `chars().all(|c| c.is_ascii_digit())` for "d", "h", and "w" suffixes.
+    - Updated the function's doc comment to clarify that the compact form requires an all-digit prefix and explicitly states that refs like `feature-2d` or `abc123d` will not parse as durations.
+    - Added new test cases in `test_parse_duration` for `feature-2d`, `abc123d`, `abc123h`, and `abc123w` to ensure they correctly return `Err(RangeError::InvalidDuration)`.
+
+--- audit: original='fix(vox-effort-audit): tighten parse_duration to digits+suffix only' | actual=53L across 1 files | derived=full ---
