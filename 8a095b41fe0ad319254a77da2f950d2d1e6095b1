@@ -1,0 +1,44 @@
+feat(compiler): introduce pipeline parity with Target enum and feature matrix
+scale: ~1410 lines across 12 files [XL]
+
+- **`crates/vox-compiler/src/target.rs`**:
+    - Added `Target` enum as the single source of truth for backend targets (`Interpreter`, `RustAxum`, `RustTauri`, `TypeScript`).
+    - Made `Target` non-exhaustive to enforce updates when new targets are added.
+    - Implemented `id()` and `from_id()` for canonical target identifiers.
+    - Added `all_contains_every_variant` test to guard `Target::ALL` constant.
+- **`crates/vox-compiler/src/feature_matrix.rs`**:
+    - Added `feature_matrix.rs` as the single source of truth for feature-target support.
+    - Defined `Support` enum (`Implemented`, `Unsupported(&'static str)`) for feature status.
+    - Implemented `unsupported_diagnostic` function to retrieve diagnostic codes and messages.
+    - Ensured exhaustive matching for `Feature` and `Target` variants to prevent silent omissions.
+    - Registered 3 new parity diagnostic codes.
+- **`crates/vox-compiler/src/eval/expr.rs`**:
+    - Modified `eval_expr` to use `unsupported_diagnostic` from `feature_matrix.rs` for unsupported expressions.
+    - Split `Jsx | JsxSelfClosing | JsxFragment` match arm into three distinct arms for precise diagnostics.
+    - Updated error messages for `Jsx`, `JsxSelfClosing`, `JsxFragment`, `WorkflowVersion`, and `Spawn` to reflect parity diagnostics.
+- **`crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs`**:
+    - Updated `emit_expr_with` to use `unsupported_diagnostic` for `Jsx`, `JsxSelfClosing`, `JsxFragment`, `AsyncView`, `With`, `WorkflowVersion`, and `Spawn` expressions.
+    - Replaced hardcoded `compile_error!` messages with messages derived from the feature matrix.
+- **`crates/vox-codegen-ts/src/hir_emit/mod.rs`**:
+    - Changed `HirExpr::WorkflowVersion` emission from `String::new()` to `(undefined satisfies never)` for TypeScript type-checking errors.
+    - Updated `emit_hir_expr` to use `unsupported_diagnostic` for `WorkflowVersion` and `Spawn`.
+    - Corrected `With` row in `feature_matrix.rs` to mark all targets as `Unsupported`.
+- **`crates/vox-cli/src/commands/compile.rs`**:
+    - Refactored `compile_kind_to_target` and `target_to_rust_app_shell` functions to use the `Target` enum.
+    - Replaced single-hop `_ => AxumLocalServer` with two fully-enumerated matches.
+- **`crates/vox-compiler/tests/parity_grep_gate.rs`**:
+    - Added a CI grep-gate test to prevent silent `_ => String::new()` or `_ => "".to_string()` in emitter files.
+    - Implemented `strip_test_blocks` using brace-counting to correctly exclude test code.
+- **`crates/vox-compiler/tests/feature_matrix_parity_test.rs`**:
+    - Added empirical parity smoke tests (Task 8) to verify diagnostic codes from the feature matrix.
+    - Introduced tests for `jsx_interp_errors_with_frontend_only_code`, `workflow_version_ts_emits_type_error`, `jsx_ts_emits_implemented`, and `spawn_ts_emits_unsupported`.
+- **`.github/workflows/ci.yml`**:
+    - Added "Pipeline parity grep-gate" and "feature_matrix_parity_test" steps to CI workflow.
+- **`crates/vox-compiler/src/typeck/diagnostics.rs`**:
+    - Registered new diagnostic codes related to pipeline parity.
+- **`crates/vox-compiler/src/lib.rs`**:
+    - Exported `feature_matrix` and `target` modules.
+- **`crates/vox-compiler/Cargo.toml`**:
+    - Added `feature_matrix` and `target` modules.
+
+--- audit: original='feat(compiler): pipeline-parity Wave 1 — Target enum + Feature×Target matrix + gate (#308)' | actual=1410L across 12 files | derived=full ---
