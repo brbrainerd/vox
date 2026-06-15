@@ -1,0 +1,14 @@
+refactor(effort-audit,effort-route): Replace direct `git` calls with `vox-git::read_only`
+scale: ~73 lines across 6 files [M]
+
+- refactor(vox-effort-audit):
+  - Replaced `std::process::Command::new("git")` calls for `git diff --numstat` and `git show` with `vox_git::read_only` in `src/walk.rs`.
+  - Updated error handling for `git numstat` to directly use the error from `vox_git::read_only`.
+  - Added `vox-git` dependency to `Cargo.toml`.
+- refactor(vox-effort-route):
+  - Replaced `std::process::Command::new("git")` calls for `git show` with `vox_git::read_only` in `src/route/mod.rs`.
+  - Added `vox-git` dependency to `Cargo.toml`.
+- docs(architecture): Added `crates/vox-git/src/read_cmd.rs` and `crates/vox-effort-audit/tests/support/mod.rs` to `layers.toml` exempt_files.
+- chore: Updated `Cargo.lock` to reflect new dependencies.
+
+--- audit: original='refactor(effort-audit,effort-route): route git diff/show through vox-git' | actual=73L across 6 files | derived=full ---
