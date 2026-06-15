@@ -36,7 +36,7 @@ training_eligible: false
 
 ## What is NOT started (the exigent core)
 
-The whole point of the initiative was to close **structural pipeline-gap patterns** — places where a construct is silently dropped between stages. As of 2026-06-15, **5 of 7 are now covered** (#1, #3, #4, #5, #7) by dedicated tests in `crates/vox-compiler/src/semcov_struct_pipeline_tests.rs`, `crates/vox-compiler/tests/decl_lowering_test.rs`, and `crates/vox-cli/tests/effort_pricing_parity.rs`; #2 is doc-drift (deferred) and #6 (stdout harness) remains.
+The whole point of the initiative was to close **structural pipeline-gap patterns** — places where a construct is silently dropped between stages. As of 2026-06-15, **6 of 7 are now covered** (#1, #3, #4, #5, #6, #7) by dedicated tests in `crates/vox-compiler/src/semcov_struct_pipeline_tests.rs`, `crates/vox-compiler/tests/decl_lowering_test.rs`, `crates/vox-cli/tests/effort_pricing_parity.rs`, and `crates/vox-cli/tests/behavioral_stdout_interp.rs`. Only #2 (doc-drift) remains, and it is not a coverage gap. The lowering match was also made **exhaustive** (`hir/lower/mod.rs`): a new un-lowered `Decl` variant is now a compile error, not a silent runtime warning.
 
 | # | Pattern | Coverage | Evidence |
 |---|---------|----------|----------|
@@ -45,7 +45,7 @@ The whole point of the initiative was to close **structural pipeline-gap pattern
 | 3 | Context-dependent silent drop | ✅ **DONE** | `semcov_struct_pipeline_tests`: `@pure` must survive identically on a free fn (→`hir.functions`) and an `@example`-wrapped fn (→`hir.examples`), asserted as a parity relationship. (Investigation falsified 5 drop hypotheses — pipeline is robust here; this is a pin-current guard.) |
 | 4 | Dead emitters (value produced, never consumed) | ✅ **DONE** (and *disproven* as dead) | `decl_lowering_test`: investigation found `hir.lower_warnings` is NOT dead — `typecheck_hir_module` drains it into coded diagnostics. The test pins that producer→consumer wiring (RED if the drain loop is deleted). Real follow-ups surfaced: `@traced` IS a uniformly dead decorator (no `HirFn` field consumes it); make `hir/lower/mod.rs` match exhaustive so a new un-lowered variant is a compile error. |
 | 5 | Half-wired `when {}` blocks | ✅ **DONE** | `semcov_struct_pipeline_tests`: a `when src { fetching… empty… error e… ok x… }` lowers to `HirExpr::AsyncView` with all four arms surviving (`missing_arms()` empty) and bindings intact. |
-| 6 | Structural-only goldens (runtime output unasserted) | **NONE** (biggest remaining) | Still no `stdout`/behavioral-output assertions; needs a harness that compiles a `.vox` program and asserts observable output. |
+| 6 | Structural-only goldens (runtime output unasserted) | ✅ **DONE** | `behavioral_stdout_interp.rs`: runs a real `.vox` program via `vox run --mode interp` and asserts the `print` builtin's token reaches **process stdout** — the first true observable-output assertion in the suite. Used `CARGO_BIN_EXE_vox` for a hermetic build. |
 | 7 | Split-brain (duplicated logic diverged across crates) | ✅ **DONE** | `effort_pricing_parity.rs`: asserts the byte-identical `ModelRates::cost_usd` copies in `vox-effort-audit` and `vox-effort-route` agree across a direction-sensitive matrix; fails on any divergence. |
 
 - **Headline bug — `top-level let → Decl::Const → catch-all → value vanishes`: now regression-guarded.** The fix already existed in `hir/lower/mod.rs` (Const is lowered into `hir.consts`); the test pins it so it cannot silently regress.
@@ -83,15 +83,15 @@ These 6 crates account for **~3,043** of the 5,793 reached-but-unproven symbols 
 
 ## Prioritized next actions
 
-**Progress since first draft (2026-06-15):**
-- ✅ **Reach reproducibility unblocked.** Fixed the `peft-rs` candle-0.10 exit-101 compile error and established a repeatable local profile path (profraw batch-merge). Reach is now a real 5,793, not a directional estimate. *Remaining:* wire it into CI as a gate.
-- ✅ **Structural patterns #1, #5, #7 now have real tests** (committed): headline `let`→`Decl::Const` catch-all survival, `when{}` four-arm survival, and `ModelRates::cost_usd` cross-crate split-brain parity.
+**Done (2026-06-15):**
+- ✅ **Reach reproducibility unblocked** — fixed the `peft-rs` candle-0.10 exit-101 error; reach is now a real **5,793** from a 1.19M-line-execution run (profraw batch-merge).
+- ✅ **Structural patterns #1, #3, #4, #5, #6, #7 covered** — headline `let`→`Decl::Const` survival, `@pure` context parity, `lower_warnings` producer→consumer wiring, `when{}` four-arm survival, **stdout behavioral golden**, and cross-crate `cost_usd` split-brain parity.
+- ✅ **Lowering match made exhaustive** — new un-lowered `Decl` variants are now compile errors.
 
 Remaining, in priority order:
-1. **Land the reach run as a CI gate** — *lever: turns the reproducible local number into an enforced ratchet.* Port the profraw-merge/chunked-export path (now proven locally) into CI on Linux (no arg limits) and fail when reached-but-unproven rises.
-2. **Finish the structural-pattern tests #3, #4, #6** — *lever: closes the actual initiative.* #3 context-dependent drop, #4 dead-emitter (`lower_warnings` consumption), #6 the stdout-golden harness. (#1/#5/#7 done.)
-3. **Stand up the behavioral-output (stdout) golden harness** (pattern #6) — *lever: the missing capability behind "structural-only goldens"; compile a `.vox` program and assert observable output.*
-4. **Attack `vox-codegen` (358 unproven, 80 proven)** — *lever: worst proven-ratio + home of patterns #2/#5/#6.*
-5. **Then grind `vox-compiler` (699) + `vox-orchestrator` (666) + `vox-code-audit` (571)** — *lever: largest raw reduction of the reached-but-unproven set.*
-6. **Audit and downgrade the weak-test tail** — *lever: stops apparent coverage from inflating.* Replace `assert_ne!`-on-derived-discriminant and self-literal tests, add known-answer vectors for every hash (not just SHA3), correct overstated `// Catches:` comments.
-7. **Wire `catch_all_swallow` / `cross_crate_dup` into the gate with fixtures** — *lever: converts the structural patterns from "detectable" to "regression-guarded."*
+1. **Land the reach run as a CI ratchet — DECISION-GATED.** CI already runs `cargo llvm-cov report --lcov` on Linux (no chunking needed). The blocker is **graph provenance**: `ingest_reaches.py` needs the Phase-1/2 `proves`-edge graph, which is ~109 MB, gitignored, and **not reproducible in CI** (Phase 2 is throttled LLM extraction). The only path is committing a **pruned snapshot** (id/label/source_file/source_location/file_type/_origin + `proves` links) — measured at **~32 MB raw (~5–6 MB gzipped)**. That blob commit **plus** editing `.github/workflows` are hard-to-reverse, repo-affecting changes that need explicit sign-off. *Recommendation:* gzip-commit the pruned snapshot under `contracts/reports/`, add `reached_not_proven` to `semantic-coverage.v1.json` as the baseline, and add a Linux CI step `lcov × snapshot → ingest → fail if rises`.
+2. **Pattern #2 (`@deprecated("reason")`) doc-drift** — small: either make the parser accept the arg or fix the docs; not a coverage gap.
+3. **Three real follow-ups surfaced by the design passes** (small, high-signal): `@traced` is a *uniformly dead* decorator (set on `FnDecl`, no `HirFn` field consumes it — decide: wire it or remove the dead set path); `@pure`-before-`@example`/`@test` is a parse error (decorator-order asymmetry); both warrant their own tickets.
+4. **Grind the reached-but-unproven set** by leverage: `vox-codegen` (358, worst ratio) → `vox-compiler` (699) → `vox-orchestrator` (666) → `vox-code-audit` (571).
+5. **Audit and downgrade the weak-test tail** — replace `assert_ne!`-on-derived-discriminant and self-literal tests, add known-answer vectors for every hash (not just SHA3), correct overstated `// Catches:` comments.
+6. **Wire `catch_all_swallow` / `cross_crate_dup` into the gate with fixtures** — converts the structural detectors from "detectable" to "regression-guarded."
