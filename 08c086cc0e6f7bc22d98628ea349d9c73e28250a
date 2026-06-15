@@ -1,0 +1,19 @@
+feat(vox-cli): add project-scope repair command `vox repair --project`
+scale: ~265 lines across 2 files [L]
+
+- `crates/vox-cli/src/commands/repair.rs`:
+    - Implemented `run_project` function to orchestrate project-level repair:
+        - Walks a specified `project_root` for `.vox` files, skipping common ignored directories (e.g., `target`, `node_modules`, `.git`).
+        - For each `.vox` file, it runs the existing single-file repair logic if diagnostics are found.
+        - Aggregates per-file outcomes (clean, repaired, residual, infra_error) into a `ProjectRepairReport`.
+        - Serializes the report to JSON if `--json` is specified, otherwise outputs a human-readable summary.
+        - Returns a non-zero exit code if any files have residual errors or infra_errors.
+    - Modified the main `run` function to dispatch to `run_project` if the `--project` argument is provided.
+    - Introduced `ProjectFileOutcome` and `ProjectRepairReport` structs for structured reporting.
+    - Added new unit tests for project-scope repair: `run_project_on_clean_tempdir_returns_ok_zero_repaired`, `run_project_skipped_dirs_are_not_walked`, and `run_project_with_missing_root_bails`.
+- `crates/vox-cli/src/cli_args.rs`:
+    - Updated `RepairArgs` to make `file` optional and mutually exclusive with `project`.
+    - Added a `project` option (`--project [PATH]`) for project-scope repair, defaulting to `.` if no path is provided.
+    - Added a `json` flag (`--json`) to enable structured JSON output for project-scope reports.
+
+--- audit: original='feat(vox-cli): vox repair --project [PATH] for CR-L3 project scope' | actual=265L across 2 files | derived=full ---
