@@ -1,0 +1,6 @@
+docs(plugin-catalog): regenerate plugin catalog for ssot-drift push gate
+scale: ~0 lines across 1 files [XS]
+
+- docs/src/reference/plugin-catalog.generated.md: Regenerated the plugin catalog.
+
+--- audit: original='chore(docs): regenerate plugin catalog for ssot-drift push gate' | actual=0L across 1 files | derived=full ---
