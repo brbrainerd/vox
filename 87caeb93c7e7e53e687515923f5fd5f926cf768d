@@ -1,0 +1,8 @@
+docs(architecture): add semantic-gap audit, implementation plan, and AI laziness remediation docs
+scale: ~842 lines across 3 files [L]
+
+- Add `docs/src/architecture/semantic-gap-implementation-plan-2026.md` detailing a TDD-style plan to remediate 7 high-confidence semantic gaps and 1 low-severity plan-doc fix, grouped into three batches (B, A, C) for independent shipping.
+- Add `docs/src/architecture/semantic-gap-audit-2026.md` documenting the findings of a deep audit using four methods (plan-vs-code reconciliation, name/contract drift, silent-failure patterns, trait-impl skeletons) to identify LLM-laziness, resulting in 7 high-confidence findings and 1 meta-finding.
+- Add `docs/src/architecture/ai-laziness-remediation-plan-2026.md` outlining the findings and pivot from an initial AI-laziness audit, explaining why no Phase 1 work was shipped due to poor signal-to-noise and redirecting future effort.
+
+--- audit: original='docs(architecture): add semantic-gap audit + implementation plan + lessons doc' | actual=842L across 3 files | derived=full ---
