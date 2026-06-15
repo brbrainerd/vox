@@ -1,0 +1,17 @@
+feat(mcp): Implement comprehensive MCP toolset and orchestrator infrastructure
+scale: ~31713 lines across 333 files [XL]
+
+- refactor(vox-orchestrator): Introduce a new `mcp_tools` module, migrating and creating numerous tool handlers for task management, chat planning, dispatch, and compilation. This includes `task_tools.rs`, `chat_tools/plan.rs`, `dispatch.rs`, and `compiler_tools.rs`, among many others, significantly expanding the MCP's capabilities.
+- feat(vox-orchestrator): Add new modules for various MCP tools, including `task_tools`, `chat_tools`, `dispatch`, `compiler_tools`, `input_schemas`, `chat_socrates_meta`, `scientia_tools`, `openclaw_tools`, `oratio_tools`, `news_tools`, `trust_tools`, `db_tools`, `vcs_tools`, `codex_tools`, `attention_policy`, `browser_tools`, `repo_index`, `introspection_tools`, `repo_catalog_tools`, `speech_pipeline_tools`, `questioning_tools`, `workspace_path`, `benchmark_tools`, `text_normalization`, `code_validator`, `git_tools`, `persistence_tools`, `training_tools`, `clavis_tools`, `toestub_tools`, `exec_time_tools`, `project_init_tools`, `reliability_tools`, `scope_guard`, `session_identity`, `gamify_tools`, `http_gateway`, and `memory_tools`.
+- chore(vox-mcp): Remove numerous test files related to tool dispatch, optimizations, HTTP gateway, and integration, indicating a significant refactoring or relocation of testing infrastructure.
+- docs(architecture): Update and add new architectural documentation, including `clavis-implementation-plan-2026.md`, `agentic-control-surface-research-2026.md`, `toestub-line-limit-mens-research-2026.md`, and `dependency-sprawl-research-2026.md`.
+- refactor(vox-clavis): Modify `backend/vox_vault.rs`, `spec.rs`, `lib.rs`, `redact.rs`, `backend/mod.rs`, `resolver.rs`, and `tests.rs`, suggesting updates to the Clavis backend, specifications, and testing.
+- refactor(vox-cli): Update CLI commands, specifically `corpus/generate.rs`, `mcp_server/server/lifecycle.rs`, `corpus/mod.rs`, `ci/kill_stuck_tests.rs`, `clavis.rs`, `ci/install_hooks.rs`, `diagnostics/doctor/mod.rs`, and `mens/pipeline.rs`, indicating expanded CLI support for new MCP features.
+- refactor(vox-corpus): Modify `corpus/mix/mod.rs`, `ast_mutator.rs`, `rust_to_vox.rs`, `flywheel.rs`, and `research_gen.rs`, suggesting changes to corpus management and generation.
+- chore(Cargo): Update `Cargo.lock` and `Cargo.toml` files across the workspace to reflect new dependencies and package structures.
+- feat(vox-orchestrator): Introduce a new `services/flywheel.rs` module.
+- feat(vox-eval): Add a new `src/lib.rs` module.
+- chore(scripts): Add `generate_bench_scaffold.py` and remove several PowerShell scripts related to agents, terminal, and Windows utilities.
+- chore(mens): Modify `config/mix.yaml`.
+
+--- audit: original='feat: implement comprehensive MCP toolset and orchestrator infrastructure with expanded CLI command support' | actual=31713L across 333 files | derived=sampled ---
