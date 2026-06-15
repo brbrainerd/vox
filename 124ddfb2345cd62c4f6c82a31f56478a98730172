@@ -1,0 +1,20 @@
+feat(corpus,cli): Implement AST mutator, DPO conversion, and collateral damage evaluation
+scale: ~1398 lines across 15 files [XL]
+
+- docs(architecture): Add `clavis-implementation-plan-2026.md` detailing a new architecture plan.
+- docs(architecture): Add `clavis-secrets-env-research-2026.md` for research environment secrets.
+- docs(architecture): Update `research-index.md` with minor changes.
+- crates(vox-corpus): Add `ast_mutator.rs` to mutate AST nodes with semantic layout variations for data augmentation, including variable renaming.
+- crates(vox-corpus): Enhance `research_gen.rs` with additional names, actions, and versions for generating research chains.
+- crates(vox-corpus): Add `ast_mutator` module to `lib.rs`.
+- crates(vox-cli): Introduce `mens/eval_collateral.rs` for evaluating collateral damage against a baseline.
+- crates(vox-cli): Add `mens/pipeline.rs` to auto-promote models to flywheel if curriculum mode is enabled and gates pass, including directory copying.
+- crates(vox-cli): Add `mens/mod.rs` with minor changes.
+- crates(vox-cli): Add `mens/populi/dispatch.rs` with minor changes.
+- crates(vox-cli): Add `mens/populi/mens_tail_subcommands.rs` to include `eval-collateral-damage` subcommand.
+- crates(vox-cli): Update `corpus/generate.rs` to apply the AST-aware mutator hook before building training records and add `heal-to-dpo` functionality to convert `heal_pairs.jsonl` into DPO preference pairs.
+- crates(vox-cli): Extend `corpus/mod.rs` to include the `HealToDpo` subcommand.
+- mens(config): Add `mix-research-expert.yaml` configuration file.
+- mens(config): Update `mix-vox-lang.yaml` configuration file.
+
+--- audit: original='feat: implement native Rust corpus training pipeline and research generation tools in vox-cli' | actual=1398L across 15 files | derived=full ---
