@@ -29,7 +29,7 @@ async fn main() {
         now_iso: now,
         do_ai,
     };
-    let report = run(&args);
+    let report = run(&args).await;
     match write_report(Path::new(&report_dir), &date, &report) {
         Ok(p) => eprintln!("gui-visual-review: wrote {}", p.display()),
         Err(e) => eprintln!("::warning::gui-visual-review: report write failed: {e}"),
