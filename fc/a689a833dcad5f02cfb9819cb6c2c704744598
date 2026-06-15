@@ -1,0 +1,19 @@
+feat(eval+typeck): add Map support, 20+ stdlib methods, fix list.pop() semantics
+scale: ~509 lines across 4 files [L]
+
+- **eval/builtins.rs**:
+    - Implement runtime logic for new `List` methods: `index`/`find_index`, `count`, `extend`, `remove`, `remove_at`, `zip`, `enumerate`, `slice_list`.
+    - Implement runtime logic for new `String` methods: `count`, `is_alpha`, `is_digit`, `is_alnum`, `is_upper`, `is_lower`.
+    - Implement runtime logic for `Map` methods: `get`, `get_or`, `contains_key`, `has_key`, `has`, `len`, `is_empty`, `keys`, `values`, `items`/`entries`, `insert`/`set`, `remove`/`delete`, `update`.
+- **typeck/builtins.rs**:
+    - Add type signatures for all new `List` methods.
+    - Add type signatures for all new `String` methods.
+    - Add type signatures for all new `Map` methods, including handling `GenericParam` bindings for `Map[K,V]`.
+- **eval/stmt.rs**:
+    - Introduce `apply_pop_side_effect` helper to correctly update the receiver variable for `list.pop()` calls in `HirStmt::Let`, `Assign`, and `Expr` contexts. This ensures the list variable is shortened after `pop()` returns the element.
+    - Implement auto-reassignment for `Map` mutating methods (`insert`, `remove`, `update`) when called on a named variable.
+- **eval/expr.rs**:
+    - Implement runtime support for `Map` subscript read (`dict["key"]`) and write (`dict["key"] = val`).
+    - Implement runtime logic for closure-based `List` sorting methods: `sorted_by_key`/`sort_by_key` and `sorted_by`/`sort_by`.
+
+--- audit: original='feat(eval+typeck): pop() fix, dict/Map support, 20+ new stdlib methods' | actual=509L across 4 files | derived=full ---
