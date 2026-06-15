@@ -1,0 +1,14 @@
+feat(compiler,populi,ci): add syntax-k telemetry and Qwen3.5 native support
+scale: ~45071 lines across 67 files [XL]
+
+- `crates/vox-compiler`: Add new `syntax_k` module for Kolmogorov-style complexity estimators, including compression-based proxies and NCD calculations. Introduce `SyntaxKEvent` for telemetry payloads and update `Cargo.toml` to include `bzip2`, `flate2`, and `sha3` dependencies. Add new test `web_ir_lower_emit.rs` and update `golden_vox_examples.rs`.
+- `crates/vox-populi`: Introduce native Qwen3.5 model support in `candle_model_qwen.rs` with new `Qwen35LinearAttention` and `Qwen35Model` structures. Enhance `candle_inference_serve.rs` to support `InferenceModel` and `InferenceCache` enums for Qwen2 and Qwen3.5. Update `candle_qlora_train/mod.rs` with `TrainGraphModel` for Qwen2/Qwen3.5 and `Qwen35CutoverMode`. Modify `hf_load.rs` to include `HfArchitecture::Qwen35` and update `HfTransformerLayout` with Qwen3.5 specific fields. Update `qlora_preflight.rs` to include Qwen3.5 specific embedding keys and add warnings for missing Qwen3.5 rope keys. Many smaller files related to `mens/tensor` were updated to support Qwen3.5.
+- `contracts`: Add new JSON schemas for `syntax-k-event.schema.json`, `benchmark-matrix.json`, and `benchmark-matrix.schema.json`. Update `index.yaml`.
+- `.github/workflows`: Add new `qwen35-native-nightly.yml` workflow and update `ci.yml`.
+- `crates/vox-cli`: Add `benchmark_telemetry.rs` and update `commands/mens/pipeline.rs` to support new telemetry features. Add `commands/ci/eval_matrix.rs` and `commands/mens/populi/train_arm.rs`.
+- `crates/vox-db`: Add `syntax_k_telemetry.rs` for storing syntax-k events.
+- `docs`: Add new documentation for `syntax-k-complexity.md` and `qwen35-multimodal-phase2-backlog.md`. Update `mens-training.md` and `how-to-train-mens-4080.md`.
+- `mens/runs`: Add numerous new `qwen35_qlora_smoke` and `qwen35_qlora_smoke35` related files, including `checkpoint_state.json`, `training_manifest.json`, `eval_results.json`, and `training-preflight.json`.
+- `scripts`: Add `gates.yaml` and update `dogfood_qlora_cuda.ps1`.
+
+--- audit: original='feat(compiler, ci, contracts): add syntax-k telemetry support and enhance CI workflows' | actual=45071L across 67 files | derived=sampled ---
