@@ -1,0 +1,21 @@
+refactor(speech): rename `vox-oratio` to `vox-speech` and `vox-plugin-oratio` to `vox-plugin-speech`
+scale: ~886 lines across 118 files [XL]
+
+- Renamed `vox-oratio` crate to `vox-speech` and `vox-plugin-oratio` to `vox-plugin-speech` by moving directories and updating `name=` fields in `Cargo.toml` and `Plugin.toml`.
+- Updated `Cargo.lock` to reflect crate name changes.
+- Modified `vox-orchestrator-mcp` to use `vox_speech::` paths instead of `vox_oratio::` in `oratio_tools.rs` and `speech_pipeline_tools.rs`.
+- Updated `vox-ml-cli` to use `vox_speech::` paths in `oratio_cmd.rs`.
+- Changed `vox-integration-tests` to import from `vox_speech::` in `speech_pipeline_stage_probe_test.rs`.
+- Created `crates/vox-plugin-speech/src/oratio_internals/mod.rs` to mirror internal types from `vox-speech`.
+- Updated `vox-cli` to set the canonical command name to "speech" with "oratio" as a visible alias, and adjusted CI checks for this change.
+- Modified `vox-codegen` to update crate paths from `vox-oratio` to `vox-speech` in generated `Cargo.toml` files.
+- Updated various contract files (`capability-registry.yaml`, `command-registry.yaml`, `env-vars.v1.yaml`, `model-manifest.generated.json`, `operations/catalog.v1.yaml`, `rust/ecosystem-support.yaml`) to reflect the new crate names.
+- Adjusted `docs/src/architecture/layers.toml` and `docs/src/architecture/where-things-live.md` to use the new crate names.
+- Updated numerous audit and report files (`contracts/reports/scaling-audit/`, `contracts/reports/toestub-remediation/`) to reflect the crate name changes, including `git mv` and `INDEX` updates.
+- Updated `crates/vox-plugin-speech/Plugin.toml` and `Cargo.toml` to reflect the new crate name.
+- Updated `crates/vox-speech/Cargo.toml` to reflect the new crate name.
+- Removed `vox-oratio` entry from the nomenclature guard allowlist in `crates/vox-cli/src/commands/ci/nomenclature_guard.rs`.
+- Updated `crates/vox-gui/ui/src/generated/surfaceRegistry.generated.ts` with new surface registry information.
+- Removed many `vox-speech` and `vox-plugin-speech` source files that were likely part of a prior `git mv` operation, indicating a full rename of the crate's contents.
+
+--- audit: original='refactor(speech): rename vox-oratio -> vox-speech, vox-plugin-oratio -> vox-plugin-speech (crates + CLI) (#173)' | actual=886L across 118 files | derived=full ---
