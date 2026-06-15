@@ -1,0 +1,8 @@
+feat(dashboard): Add live mesh topology canvas and privacy badge components
+scale: ~284 lines across 3 files [L]
+
+- `crates/vox-dashboard/app/src/interop/ForceGraph.tsx`: Add `ForceGraph` React interop wrapper with type stubs for `GraphNode` and `GraphLink`, and a canvas-based fallback renderer. Defines status color mapping for nodes.
+- `crates/vox-dashboard/app/src/lib/mesh_topology.vox`: Implement `MeshTopologyCanvas` VUV component that fetches mesh nodes and edges from `/api/v2/mesh/nodes` and `/api/v2/mesh/edges` every 5 seconds, and updates instantly via `MeshTopologyChanged` WebSocket events. It maps API data to `ForceGraph` props and handles node clicks.
+- `crates/vox-dashboard/app/src/lib/privacy_badge.vox`: Implement `PrivacyBadge` VUV component to display a privacy class (public, private, confidential) with corresponding color coding and text label.
+
+--- audit: original='feat(dashboard): live topology canvas with health colors + privacy badge (P4-T4, P4-T10)' | actual=284L across 3 files | derived=full ---
