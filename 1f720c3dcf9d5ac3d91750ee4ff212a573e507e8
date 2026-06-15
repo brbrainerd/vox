@@ -1,0 +1,18 @@
+refactor: Consolidate hand-rolled code, replace archived `serde_yaml`
+scale: ~1562 lines across 39 files [XL]
+
+- `chore(actor-runtime)`: Delete `rate_limit.rs` (65 LoC), which was never declared or compiled, as codegen directly emits `governor::RateLimiter`.
+- `refactor(audit)`: Replace hand-rolled `TcpStream` HTTP probes in `cr-p1.rs` (89 LoC removed) and `cr-p2.rs` (63 LoC removed) with `reqwest::blocking`. This fixes "malformed url" for HTTPS and IPv6 parsing, and explicitly disables redirects.
+- `refactor(gamify)`: Consolidate `Retry-After` parsing in `ai/client/transport.rs` (66 LoC removed) to `vox_http_client::parse_retry_after` and reuse `vox_openai::sse::Utf8LineBuffer` for Ollama NDJSON parsing.
+- `chore(cli)`: Delete `render.rs` (394 LoC), which was dead code and never wired up.
+- `refactor(orchestrator, ml-cli)`: Replace hand-rolled date math in `memory/time.rs` (73 LoC removed) and `populi_attest.rs` (58 LoC removed) with `chrono::Utc` for `YYYY-MM-DD` and `HH:MM:SS` formatting, and ISO-8601.
+- `refactor`: Replace 6 hand-rolled Levenshtein distance implementations in `vox-cli` (diagnostics, speech_runtime_suite), `vox-compiler` (tokens), `vox-db` (error_enrichment), `vox-search` (symbol_proximity), and `vox-populi` (estimator) with `strsim::levenshtein` and `normalized_levenshtein`.
+- `refactor(cli)`: Migrate `debug.rs` `which_vox_dap` to `which::which` (9 LoC removed) and `fmt.rs` `atomic_write_file` to `tempfile::NamedTempFile::persist` (24 LoC removed) for cross-platform atomic writes.
+- `refactor(arch-check)`: Replace hand-rolled directory walker in `main.rs` (15 LoC removed) with `walkdir` and `filter_entry`.
+- `refactor(audit)`: Collapse `regression_budget` `walk_files` (14 LoC removed) onto `walkdir`.
+- `refactor(cli)`: Consolidate 9 hand-rolled `fs::read_dir` walkers in `attention_ledger_parity`, `canonical_docs`, `command_compliance/validators`, `db_schema_coverage`, `retired_symbol_check`, `row_serde_lint`, `string_id_lint`, and `migrate` onto `walkdir`.
+- `deps`: Replace archived `serde_yaml` (0.9) with the maintained `serde_yaml_ng` (0.10) fork, using a Cargo package-rename for API compatibility across 28 consumer crates with zero source changes.
+- `docs(architecture)`: Update `crate-consolidation-and-dependency-currency-audit-2026-06-12.md` to reflect executed audit waves for consolidation, `chrono`, `strsim`, `which`, `tempfile`, `walkdir`, and `serde_yaml_ng`.
+- `style`: Rustfmt the files affected by `walkdir` migrations.
+
+--- audit: original='Crate consolidation: delete ~840 LoC of hand-rolled code, retire archived serde_yaml (#265)' | actual=1562L across 39 files | derived=full ---
