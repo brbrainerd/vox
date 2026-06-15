@@ -1,0 +1,6 @@
+ci(cross-check): Exclude `vox-gui` from cross-platform `cargo check`
+scale: ~7 lines across 1 files [XS]
+
+- `.github/workflows/cross-platform-check.yml`: Modified the `cargo check` command to exclude the `vox-gui` crate. This prevents build failures during the cross-compile sanity check, as `vox-gui`'s Tauri build requires a pre-built frontend (`ui/dist`) which is not generated in this workflow.
+
+--- audit: original='ci(cross-check): exclude vox-gui Tauri bin from cross-compile sanity check' | actual=7L across 1 files | derived=full ---
