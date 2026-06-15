@@ -1,0 +1,10 @@
+refactor(codegen-web): retire `main.tsx`/`App.tsx` scaffold; `--scaffold` → `--emit-config`
+scale: ~108 lines across 5 files [M]
+
+- `crates/vox-codegen/src/codegen_ts/scaffold.rs`: Renamed `react_interop_scaffold_files` to `web_config_files` and removed `main.tsx` and `App.tsx` from the scaffolded files, now only emitting toolchain config files. Updated comments to reflect that app bootstrap is now emitted on every build.
+- `crates/vox-compiler/tests/scaffold_idempotent_test.rs`: Updated the idempotency test to seed `vite.config.ts` instead of `App.tsx`, reflecting that `App.tsx` is no longer scaffolded.
+- `crates/vox-cli/src/cli_args.rs`: Renamed the `--scaffold` CLI argument to `--emit-config`, retaining `--scaffold` as a deprecated visible alias. Updated the help text to clarify that it now emits only toolchain config files and not `main.tsx`/`App.tsx`.
+- `crates/vox-cli/src/commands/build.rs`: Updated comments to reflect the `--emit-config` flag and the change in scaffolded files.
+- `docs/src/architecture/web-bootstrap-emission-migration-2026.md`: Marked Stage 5 of the migration as complete, detailing the retirement of `scaffold.rs` bootstrap, the renaming of `--scaffold` to `--emit-config`, and the folding of hand-written glue into emitted defaults. Added a note about Tauri not requiring changes.
+
+--- audit: original='refactor(codegen-web): retire main.tsx/App.tsx scaffold; --scaffold → --emit-config' | actual=108L across 5 files | derived=full ---
