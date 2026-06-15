@@ -1,0 +1,9 @@
+feat(publisher): Add OSF v2 ScholarlyAdapter and CrossrefDeposit adapter kind
+scale: ~203 lines across 4 files [M]
+
+- `crates/vox-publisher/src/scholarly/osf.rs`: Add a new OSF (Open Science Framework) v2 REST adapter for creating nodes (preprint projects). This includes `OsfAdapter` struct, `osf_from_secrets` function, and `osf_node_create_body` for JSON payload construction.
+- `crates/vox-publisher/src/scholarly/mod.rs`: Integrate the new `Osf` and `CrossrefDeposit` scholarly adapter kinds. This involves adding `osf` and `crossref_deposit` modules, and updating `submit_for_adapter_normalized` and `submit_with_adapter` to handle these new kinds, including checks for global live disabling.
+- `crates/vox-config/src/scholarly.rs`: Extend `ScholarlyAdapterKind` enum with `Osf` and `CrossrefDeposit` variants, and update `scholarly_adapter_from_env` to parse these new adapter kinds from environment variables.
+- `crates/vox-publisher/Cargo.toml`: Enable the `multipart` feature for the `reqwest` dependency, which is likely required for file uploads in the new adapters.
+
+--- audit: original='feat(scientia): Phase 8 — OSF v2 ScholarlyAdapter + Osf adapter kind' | actual=203L across 4 files | derived=full ---
