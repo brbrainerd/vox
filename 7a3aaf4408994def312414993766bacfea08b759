@@ -1,0 +1,6 @@
+fix(interp): improve diagnostic for native-only namespaces
+scale: ~19 lines across 1 files [S]
+
+- `crates/vox-compiler/src/eval/expr.rs`: Added a check within `eval_expr` for method calls on `Scrape` or `Browser` namespaces. If detected while in interpreter mode, it now returns an `AssertionFailed` error with a specific message indicating that these namespaces are native-codegen-only and require `--mode script`. This prevents a confusing `UndefinedVariable` error.
+
+--- audit: original='fix(interp): clear diagnostic for native-only namespaces (CR-F4)' | actual=19L across 1 files | derived=full ---
