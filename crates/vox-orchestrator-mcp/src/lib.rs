@@ -98,6 +98,8 @@ pub mod training_tools;
 pub mod trust_tools;
 /// Snapshot / oplog / workspace orchestrator VCS tools.
 pub mod vcs_tools;
+/// GUI visual AI adversarial review (advisory; never gates CI).
+pub mod visus_review;
 /// GUI Visual Intelligence tools.
 pub mod visus_tools;
 /// Workspace-relative path resolution (repo root joining, in-repo canonical checks).
