@@ -1,0 +1,20 @@
+fix(ci): address CodeRabbit feedback on PR #66
+scale: ~200 lines across 9 files [M]
+
+- `crates/vox-cli/src/commands/ci/pre_push.rs`:
+  - Refactored `Step.run` signature to return `Result<()>` instead of `std::io::Result<std::process::ExitStatus>` for better error propagation.
+  - Introduced `cargo_status` helper function to run `cargo` commands and bail on non-zero exit.
+  - Modified `changed_dirs_under_crates` to return `Result` and include a `HEAD~1` fallback for shallow clones or missing `origin/main`.
+  - Changed `step_toestub_changed` to treat `diff-base` failure as a hard error.
+  - Used `PathBuf::from("crates").join(name)` for constructing crate paths instead of `format!()`.
+  - Added `anyhow` to imports.
+- `crates/vox-cli/src/commands/ci/install_hooks.rs`: Removed `"$@"` from the generated `pre-push` hook to prevent `clap` from rejecting pushes due to unexpected positional arguments from Git.
+- `crates/vox-cli/src/commands/ci/cmd_enums.rs`: Clarified the help text for the `--full` argument in `ci pre-push` to specify it runs `cargo nextest run --workspace --no-fail-fast`.
+- `.github/workflows/ci.yml`: Removed the `docker` label from `setup`, `guards-fast`, `lints`, `compiler-gates`, `tests`, `audits`, and `ci-summary` jobs, moving them to `[self-hosted, linux, x64]` runners.
+- `contracts/operations/catalog.v1.yaml`: Added a `ci.pre-push` entry to the catalog.
+- `contracts/cli/command-registry.yaml`: Added a `ci.pre-push` entry to the command registry and removed two `publication-discovery-publish-rss` entries.
+- `docs/src/contributors/local-ci-pre-push.md`: Added `status: "current"` frontmatter.
+- `docs/superpowers/plans/2026-05-03-local-ci-pre-push-and-job-split.md`: Added `status: "current"` frontmatter.
+- `docs/src/reference/cli-command-surface.generated.md`: Regenerated to reflect new CLI commands.
+
+--- audit: original='fix(ci): address CodeRabbit feedback on PR #66' | actual=200L across 9 files | derived=full ---
