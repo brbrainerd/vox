@@ -1,0 +1,15 @@
+feat(vox-gamify): Implement DB-backed discovery exposure ledger
+scale: ~167 lines across 3 files [M]
+
+- `crates/vox-gamify/src/discovery/ledger.rs`: Add new module `ledger` for managing discovery exposure states in the `discovery_state` table.
+  - Define `DiscoveryRow` struct to represent a materialized ledger row with fields like `seen_count`, `used_count`, `last_seen_ms`, `last_used_ms`, `dwell_ms_total`, `fsrs_stability`, `fsrs_difficulty`, and `fsrs_due_ms`.
+  - Implement `get` function to fetch a `DiscoveryRow` for a given user and action ID.
+  - Implement `record` function to upsert seen/used exposures into `discovery_state`, update counts, timestamps, dwell time, and advance the FSRS memory state based on `Recall` (Seen or Used).
+  - Implement `due_action_ids` function to return action IDs that are overdue for resurfacing based on `fsrs_due_ms`.
+  - The module mirrors the connection and breaker pattern found in `crates/vox-gamify/src/db/counters.rs`.
+- `crates/vox-gamify/tests/discovery_ledger_tests.rs`: Add two integration tests for the `ledger` module.
+  - `record_seen_then_used_accumulates`: Tests that `record` correctly accumulates seen and used counts, dwell time, and updates FSRS due time.
+  - `due_query_returns_overdue_items`: Tests that `due_action_ids` correctly identifies and returns overdue items.
+- `crates/vox-gamify/src/discovery/mod.rs`: Add `pub mod ledger;` to expose the new `ledger` module.
+
+--- audit: original='feat(vox-gamify): DB-backed discovery exposure ledger' | actual=167L across 3 files | derived=full ---
