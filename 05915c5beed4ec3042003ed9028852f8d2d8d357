@@ -1,0 +1,15 @@
+feat(interp): execute fused db query chains with `where`, `select`, `order_by`, `limit`
+scale: ~337 lines across 10 files [L]
+
+- `crates/vox-compiler/src/eval/db.rs`: Refactored `matches_object` into `eval_predicate` to use flattened `predicate_args` from `HirDbQueryPlan` for `where` clause evaluation, enabling fused query chains. Introduced `take` helper for advancing predicate argument cursor. Removed `matches_object` function.
+- `crates/vox-compiler/tests/interpreter_db_test.rs`: Added new test cases `fused_predicate_chain_filters_then_projects` and `fused_where_order_by_limit_compose` to verify correct behavior of fused query chains. Modified `fused_predicate_chain_fails_loudly_not_silently` to reflect the new correct filtering behavior.
+- `docs/superpowers/specs/2026-06-03-interpreter-db-execution-design.md`: Updated documentation to reflect the new interpreter design for fused query chains.
+- `examples/golden/db_operations.vox`: Updated section 6 to demonstrate correct filtering and composition of fused query chains (`where` with `select`, `order_by`, `limit`) and added new test cases `fused_query_chains_filter_correctly`.
+- `crates/vox-compiler/src/hir/nodes/stmt_expr.rs`: Modified `HirDbQueryPlan` to include `predicate_args: Vec<HirArg>` and `limit_value: Option<Box<HirExpr>>` to carry predicate comparison values and limit expressions on the plan. Removed `PartialEq`/`Eq` derives due to `HirExpr` fields.
+- `crates/vox-compiler/src/hir/lower/expr_db.rs`: Updated `make_db_plan_from_chain` to populate the new `predicate_args` and `limit_value` fields in `HirDbQueryPlan` from `DbQueryChain`. Clarified comments regarding `DbQueryChain::args`.
+- `crates/vox-compiler/src/hir/lower/expr.rs`: Initialized `predicate_args` and `limit_value` fields for `HirDbQueryPlan` in various plan construction sites (e.g., `db.table.insert`, `db.table.filter`, `db.table.find_by_id`).
+- `crates/vox-cli/src/commands/db/mod.rs`: Initialized new `predicate_args` and `limit_value` fields in `HirDbQueryPlan` for test cases.
+- `crates/vox-cli/src/commands/db/query_plans.rs`: Initialized new `predicate_args` and `limit_value` fields in `HirDbQueryPlan` for fallback plan creation.
+- `crates/vox-codegen/src/codegen_rust/emit/tables/projections.rs`: Initialized new `predicate_args` and `limit_value` fields in `HirDbQueryPlan` for test cases.
+
+--- audit: original='feat(interp): execute fused db query chains (where + select/order_by/limit)' | actual=337L across 10 files | derived=full ---
