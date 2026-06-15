@@ -1,0 +1,8 @@
+docs(frontmatter): update metadata and pre-push CI docs
+scale: ~48 lines across 6 files [M]
+
+- docs/src/contributors: Update `local-ci-pre-push.md` with current date, add canonical tier table and budget thresholds, and revise CI profile descriptions for clarity and updated wall-clock targets.
+- docs/src/architecture: Update frontmatter for `mobile-rn-expo-architecture-and-migration-2026.md` and `mobile-target-evaluation-2026.md` to set `status` to `research`, add `category: "Architecture SSOTs"`, include `description`, and update `last_updated` date.
+- crates/vox-arch-check: Add `#[cfg(test)]` attribute to the `scan` function in `forbidden_patterns.rs` and update its comment to reflect it's a test-only wrapper.
+
+--- audit: original='chore(snapshot+frontmatter): fix doc-pipeline lint to unblock main push' | actual=48L across 6 files | derived=full ---
