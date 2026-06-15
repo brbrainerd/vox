@@ -1,0 +1,11 @@
+feat(codegen-ts): add component names to library package.json exports
+scale: ~69 lines across 3 files [M]
+
+- `library_package_emit.rs`:
+  - Added `component_names: Vec<String>` to `LibraryPackageConfig`.
+  - Modified `emit_library_package_json` to add entries to the `exports` map for each component name, mapping `./components/<Name>` to `./components/<Name>.tsx`.
+  - Updated `any_export()` to return true if `component_names` is not empty.
+- `emitter.rs`: Populated `component_names` in `LibraryPackageConfig` from `hir.components`.
+- `library_exports_test.rs`: Added new tests for component name exports in `package.json`.
+
+--- audit: original='feat(codegen-ts): Task 8H — reverse exports: component names in library package.json' | actual=69L across 3 files | derived=full ---
