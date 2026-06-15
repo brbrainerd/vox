@@ -1,0 +1,9 @@
+feat(gui): Add Scientia Claims ledger surface
+scale: ~159 lines across 4 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/ClaimsView.tsx`: Add new `ClaimsView` component for displaying Scientia claims. This component allows users to enter a publication ID, then either "Extract" claims (running `vox scientia publication-extract-claims`) or "Load" claims (parsing JSON from `vox scientia claims`). It renders each atomic claim with a verdict badge (Supported, Contested, Contradicted, Abstain/none), confidence, numeric flag, and verifier model. It includes state management for publication ID, claims data, and busy status, and uses `invoke` for command execution.
+- `crates/vox-gui/ui/src/components/surfaces/decoratorRegistry.ts`: Register the new `ClaimsView` component under the `claims` key in `surfaceDecorators`.
+- `crates/vox-gui/ui/src/App.tsx`: Add `claims` to the `View` union type, enabling navigation to the new claims surface.
+- `crates/vox-gui/ui/src/components/layout/Sidebar.tsx`: Add a new navigation item for "Claims" to the sidebar, linking to the `claims` view and using an `Icon.matrix` icon.
+
+--- audit: original='feat(gui): Scientia Claims ledger surface (stage 3)' | actual=159L across 4 files | derived=full ---
