@@ -1,0 +1,24 @@
+refactor(repo): recluster GUI apps, tests, examples, and docs
+scale: ~368 lines across 224 files [XL]
+
+- **apps/editor/vox-vscode**: Moved the `vox-vscode` extension into `apps/editor/vox-vscode/`.
+- **apps/interop/marquee_app**: Added `src/vox-types.ts` to provide runtime shims for Vox built-in types (`list<T>`, `Result<T, E>`) and Zod schemas for `@table` types.
+- **apps/vox-mental-tracker**: Updated a reference path in `src/runtime.ts` from `docs/superpowers/plans/2026-05-08-codegen-ts-bugs-blocking-tracker.md` to `docs/superpowers/plans/language/2026-05-08-codegen-ts-bugs-blocking-tracker.md`.
+- **.github/workflows**: Updated CI workflow files (`ci.yml`, `docs-quality.yml`) to reflect new paths.
+- **biome.json**: Updated Biome configuration.
+- **contracts**: Updated paths in `documentation/canonical-map.v1.yaml`, `frontend/dependency-policy.v1.yaml`, `frontend/surface-ownership.v1.yaml`, `ci/check-targets.v1.yaml`, and `review/coderabbit-semantic-groups.v1.yaml`.
+- **crates/vox-cli**: Updated paths in `src/commands/ci/command_compliance/mcp_wiring.rs`, `src/commands/review/coderabbit/semantic_planner/groups.rs`, `src/commands/review/coderabbit/semantic_planner/mod.rs`, and `src/commands/review/coderabbit/stack_planner/heuristics.rs` to reflect the new `vox-vscode` location.
+- **crates/vox-code-audit**: Updated exclude path in `src/scanner.rs` for `vox-vscode/out/`.
+- **crates/vox-compiler**: Updated references to documentation plans in test files (`bug_a_match_arms_repro.rs`, `bug_b_speech_repro.rs`, `bug_d_imports_repro.rs`, `bug_handler_lambda_repro.rs`) to reflect new `docs/superpowers/plans` subdirectories.
+- **crates/vox-doc-inventory**: Updated `iter_repo_files` in `src/walk.rs` to include the new `apps/editor/vox-vscode` path.
+- **crates/vox-grammar-export**: Updated the path to `vox.tmLanguage.json` in `src/ssot_markdown.rs`.
+- **crates/vox-orchestrator**: Updated a reference path in `src/lib.rs` from `docs/superpowers/plans/2026-05-08-orchestrator-master-plan.md` to `docs/superpowers/plans/orchestrator/2026-05-08-orchestrator-master-plan.md`.
+- **docs**:
+    - Reorganized `docs/superpowers/plans` into domain-specific subdirectories (e.g., `data-audit`, `handoff`, `language`, `mental-tracker`, `orchestrator`, `scientia`, `tooling`).
+    - Added new architecture research index and "where things live" documents.
+    - Updated numerous internal references across various documentation files to reflect the new `docs/superpowers/plans` structure and the `vox-vscode` relocation.
+    - Updated `docs-astro/src/plugins/vox-grammar.mjs`.
+- **scripts**: Updated `scripts/generate-grammars.vox` to reflect the new `vox-vscode` path.
+- **.vox/store.db**: Untracked `.vox/store.db` (runtime DB; remains gitignored locally).
+
+--- audit: original='refactor(repo): cluster GUI surfaces and superpowers plans + reference sweep' | actual=368L across 224 files | derived=full ---
