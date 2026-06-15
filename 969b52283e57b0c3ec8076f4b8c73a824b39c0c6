@@ -1,0 +1,15 @@
+fix(vox-vcs): improve `JjActor` robustness, shutdown, and testability
+scale: ~193 lines across 2 files [M]
+
+- **`jj_actor.rs`**:
+    - **Panic Containment**: Wrapped `block_on` calls in `std::panic::catch_unwind` to prevent actor termination on panicking `jj-lib` operations. Panics now return `Err(VcsError::Unavailable)`.
+    - **Startup Timeout**: `JjActor::spawn` now uses `recv_timeout(30s)` for initial backend opening, providing distinct "open failed" and "open timed out" messages. Added doc comment advising `spawn_blocking` from async contexts.
+    - **Shutdown**: Added a `shutdown()` method to `JjActorHandle` to gracefully terminate the actor thread.
+    - **Visibility**: `Command` and `JjActor` are now `pub(crate)`.
+    - **Testability**: Added a `TestPanic` command variant for testing panic containment.
+    - **Test Improvements**: De-raced `actor_dead_thread_returns_err` test using a bounded polling loop and 10s timeout. Added `actor_survives_panicking_operation` test to verify actor resilience after a panic.
+- **`lib.rs`**:
+    - **Visibility**: `jj_actor` module is now `pub(crate)`.
+    - **Exports**: Removed public re-export of `JjActor`, only `JjActorHandle` is exported.
+
+--- audit: original='fix(vox-vcs): jj-actor panic containment, startup timeout, clean shutdown, de-raced test' | actual=193L across 2 files | derived=full ---
