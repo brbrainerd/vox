@@ -626,6 +626,24 @@ curated:
   - ci
   - config-hygiene
   parameters: null
+- id: cli.ci.config-registry-parity
+  title: Ci Config-registry-parity
+  description_human: Every operational VOX_* env knob read in code must be in the config registry.
+  description_model: null
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - config-registry-parity
+  parameters: null
 - id: cli.ci.contracts-index
   title: Ci Contracts-index
   description_human: null

@@ -14,6 +14,7 @@
 // commands::check
 // commands::ci
 // commands::ci::config_hygiene
+// commands::ci::config_registry_parity
 // commands::codex
 // commands::db_cli
 // commands::memory_cli

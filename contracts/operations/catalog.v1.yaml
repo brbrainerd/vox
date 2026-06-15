@@ -2139,6 +2139,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.config-registry-parity
+  title: Ci Config-registry-parity
+  description: CLI operation `vox ci config-registry-parity`
+  description_human: "Every operational VOX_* env knob read in code must be in the config registry."
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - config-registry-parity
+    status: active
+    latin_ns: null
+    handler_rust: commands::ci::config_registry_parity
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.completion-audit
   title: Ci Completion-audit
   description: CLI operation `vox ci completion-audit`
