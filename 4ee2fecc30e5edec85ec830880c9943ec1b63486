@@ -1,0 +1,6 @@
+feat(claude): add new tools to settings.local.json
+scale: ~6 lines across 1 files [XS]
+
+- `.claude/settings.local.json`: Added `Bash(grep -v "^warning\\|^  -->\\|^   \\||$")`, `Bash(echo "EXIT:$?")`, `WebSearch`, and `Bash(xargs wc *)` to the list of allowed tools.
+
+--- audit: original='chore: resolve stale merge conflict (plugin crates removed, permissions union)' | actual=6L across 1 files | derived=full ---
