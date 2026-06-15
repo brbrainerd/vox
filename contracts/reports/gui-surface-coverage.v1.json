@@ -122,7 +122,6 @@
     "ci attention-config-parity",
     "ci attention-event-ledger-parity",
     "ci backend-tests",
-    "ci bom-check",
     "ci build-docs",
     "ci build-timings",
     "ci canonical-map-verify",
