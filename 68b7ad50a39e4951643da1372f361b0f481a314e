@@ -1,0 +1,30 @@
+fix(compiler): Add Fragment and ReactiveModule printing, refine validation patterns
+scale: ~150 lines across 13 files [M]
+
+- **compiler/fmt**:
+    - Added `print_fragment_decl` and `print_reactive_module_decl` to `Printer` to correctly pretty-print `Fragment` and `ReactiveModule` declarations, preventing their silent omission by the catch-all `_ => {}` arm.
+    - Modified `Printer::print_decl` to dispatch to the new `print_fragment_decl` and `print_reactive_module_decl` methods for `Decl::Fragment` and `Decl::ReactiveModule` variants.
+- **orchestrator/validation**:
+    - **`code_validator.rs`**:
+        - Refined `pre_validation_guard` patterns to reduce false positives:
+            - Removed `// TODO` from the lazy-generation guard.
+            - Anchored "macro " and "operator " checks to the start of trimmed lines to avoid triggering on comments or string literals.
+        - Updated `parse_fix` to use `u32::try_from(...).ok()?` for converting `u64` line/column numbers to `u32`, preventing silent truncation of potentially corrupt JSON ranges.
+    - **`params.rs`**: Added a `max = 131_072` (128 KiB) length constraint to `ValidateSourceParams.source` to prevent excessively large payloads.
+- **compiler/hir**:
+    - **`decl.rs`**: Corrected indentation for `is_reactive: false` in `LowerCtx::lower_component_decl`.
+    - **`nodes/decl.rs`**: Added `fragments` and `reactive_modules` to `HirModule::field_ownership_map`.
+- **compiler/codegen**:
+    - **`route_manifest.rs`**: Collapsed redundant `if/else` logic in `emit_route_path_builder` that emitted the same format string in both branches.
+- **compiler/parser**:
+    - **`descent/decl/head.rs`**: Removed redundant `use` statements for `Token` and `ParseError*` which were already imported at module scope.
+- **compiler/tests**:
+    - **`web_ir_lower_emit_test.rs`**: Modified `link_element` test helper to accept an explicit `id` parameter instead of hardcoding `DomNodeId(0)`, and updated its two call sites.
+- **docs**:
+    - **`adr/032-vox-ui-reactive-modules.md`**: Added `training_eligible: true` to frontmatter.
+    - **`adr/033-typed-fragment-primitive.md`**: Added `training_eligible: true` to frontmatter.
+    - **`contributors/contribution-loop.md`**: Updated the link to `.github/workflows/ci.yml` to a GitHub permalink.
+    - **`how-to/how-to-mcp-vox-validate.md`**: Added `status: "current"` to frontmatter.
+    - **`feed.xml`**: Updated generated feed.
+
+--- audit: original='fix(review): address CodeRabbit feedback on PR #63' | actual=150L across 13 files | derived=full ---
