@@ -1,0 +1,13 @@
+feat(workspace): migrate voxup, vox-scientia, vox-populi to workspace dependencies
+scale: ~115 lines across 8 files [M]
+
+- `crates/voxup/Cargo.toml`: Migrated 11 hand-pinned dependency versions to use workspace dependencies (clap, reqwest, tokio, serde, serde_json, serde_yaml, tracing, tracing-subscriber, anyhow, dirs, url).
+- `crates/voxup/src/install.rs`: Replaced `directories::UserDirs` with `dirs::home_dir()` for determining the home directory.
+- `crates/vox-populi/Cargo.toml`: Replaced `mockito = "1"` with `wiremock = { workspace = true }` in dev-dependencies.
+- `crates/vox-populi/tests/github_attestation.rs`: Rewrote `device_flow_round_trip_with_mock` and `counterparty_fetches_and_verifies_manifest` async test functions to use `wiremock`'s `MockServer`, `Mock`, and `ResponseTemplate` API, replacing `mockito`.
+- `crates/vox-scientia/Cargo.toml`: Migrated `url = "2"` to `url = { workspace = true }`.
+- `Cargo.toml`: Added `url = "2"` to workspace dependencies.
+- `crates/vox-scientia/src/class_routing/routing.rs`: Corrected module path from `super::defaults` to `super::super::defaults` in a test.
+- `crates/vox-db/tests/serde_uniformity.rs`: Added missing `use vox_db_types::*;` and `use vox_db_types::store_types::*;` imports.
+
+--- audit: original='build(deps): B-2/B-6/B-3-trim — voxup workspace migration, mockito→wiremock, url workspace dep' | actual=115L across 8 files | derived=full ---
