@@ -264,6 +264,32 @@ fn current_unix_ms() -> u64 {
         .unwrap_or(0)
 }
 
+/// Copy `src` into `dest_dir` (preserving file name) when the destination is
+/// missing or older than `src`. Returns the staged path.
+///
+/// This is the key daemon-lifecycle fix: long-lived managed daemons must run
+/// from `~/.vox/bin`, not from `target/debug/`. A running daemon exe holds an
+/// open file handle on Windows, preventing `cargo build` from relinking the
+/// binary (os error 5). Staging into a stable directory breaks the coupling.
+pub fn stage_binary(src: &std::path::Path, dest_dir: &std::path::Path) -> std::io::Result<PathBuf> {
+    let name = src
+        .file_name()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "source has no file name"))?;
+    let dest = dest_dir.join(name);
+    std::fs::create_dir_all(dest_dir)?;
+    let needs_copy = match (std::fs::metadata(&dest), std::fs::metadata(src)) {
+        (Ok(d), Ok(s)) => match (d.modified(), s.modified()) {
+            (Ok(dm), Ok(sm)) => sm > dm,
+            _ => true,
+        },
+        _ => true, // dest missing
+    };
+    if needs_copy {
+        std::fs::copy(src, &dest)?;
+    }
+    Ok(dest)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -276,5 +302,34 @@ mod tests {
     #[test]
     fn process_is_running_zero_false() {
         assert!(!process_is_running(0));
+    }
+}
+
+#[cfg(test)]
+mod stage_tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn stage_copies_when_dest_missing_or_older() {
+        let tmp = std::env::temp_dir().join(format!("vox-stage-{}", std::process::id()));
+        let src_dir = tmp.join("target").join("debug");
+        let dst_dir = tmp.join("home").join(".vox").join("bin");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&dst_dir).unwrap();
+        let src = src_dir.join("vox-demo-d");
+        let mut f = std::fs::File::create(&src).unwrap();
+        f.write_all(b"binary-v1").unwrap();
+        drop(f);
+
+        let staged = stage_binary(&src, &dst_dir).unwrap();
+        assert_eq!(staged, dst_dir.join("vox-demo-d"));
+        assert_eq!(std::fs::read(&staged).unwrap(), b"binary-v1");
+
+        // Second call with same (not newer) source should succeed (idempotent).
+        let staged2 = stage_binary(&src, &dst_dir).unwrap();
+        assert_eq!(staged2, staged);
+
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
