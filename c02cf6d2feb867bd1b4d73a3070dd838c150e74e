@@ -1,0 +1,13 @@
+feat(interop): Support named, namespace, and aliased React imports
+scale: ~735 lines across 11 files [L]
+
+- **docs**: Add new architecture documentation for external frontend interop phase 5 component interop sub-spec S2, and update the overall plan.
+- **parser**: Refactor `try_parse_react_component_import` to handle `import react { A, B as C } from "<spec>"` and `import react * as Ns from "<spec>"`, in addition to the existing `import react X from "<spec>"`.
+- **codegen**: Introduce `emit_react_es_import_lines` to generate ES import statements for React imports, grouping named imports per specifier and ensuring deterministic output.
+- **tests**: Add new parser tests for React named, namespace, and default import syntax, verifying correct lowering and import kind assignment.
+- **hir**: Modify `HirImport` to include an optional `es_import_kind` field. The lowerer now expands named imports into multiple `HirImport` entries, preserving the original imported name for aliases.
+- **ast**: Introduce `ReactBinding` enum (Default, Named, Namespace) and `ReactNamedImport` struct to represent the different forms of React component imports. Update `ImportPathKind::ReactComponent` to use `ReactBinding`.
+- **formatter**: Update the printer to correctly format the new React import syntax, including named and namespace imports with aliases.
+- **config**: Update `.claude/settings.local.json` with a new `model_name`.
+
+--- audit: original='feat(interop): S1 — named/namespace/aliased react import forms' | actual=735L across 11 files | derived=full ---
