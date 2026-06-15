@@ -1,0 +1,8 @@
+fix(codegen-ts): JSON-escape string literals in emitted TypeScript
+scale: ~51 lines across 3 files [M]
+
+- `crates/vox-compiler/src/codegen_ts/hir_emit/compat.rs`: Added `ts_string_literal` helper function using `serde_json::to_string` to correctly escape string literals for TypeScript output, including inner double quotes, backslashes, and control characters. Added unit tests for this function.
+- `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs`: Updated `emit_hir_expr` and `emit_hir_pattern` to use the new `compat::ts_string_literal` helper for `HirExpr::StringLit` and `HirExpr::DecimalLit` instead of naive string formatting.
+- `crates/vox-compiler/src/codegen_ts/jsx.rs`: Updated `emit_jsx_attr_value` and `emit_expr` to use `ts_string_literal` for `Expr::StringLit` and `Expr::DecimalLit` to ensure proper escaping in JSX attribute values and expressions.
+
+--- audit: original='fix(codegen-ts): JSON-escape string literals so embedded quotes parse' | actual=51L across 3 files | derived=full ---
