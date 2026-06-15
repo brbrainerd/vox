@@ -1,0 +1,12 @@
+docs(arch): update finalization pass for T-FIN-2/3 resolution and HEAD
+scale: ~23 lines across 1 files [S]
+
+- Update `docs/src/architecture/session-handoff-2026-05-25-finalization-pass.md`:
+    - Update `HEAD` value from `fd3713519c` to `13020e9729` in the "Ground Truth" table, noting that T-FIN-2 and T-FIN-3 have landed.
+    - Revise the `cargo test --workspace` entry to reflect "0 failures" and a targeted recheck at `13020e9729`, replacing the previous `590 test groups OK, 0 failures` at `fd3713519c`.
+    - Remove the "T-FIN-2" and "T-FIN-3" entries from the "Small items surfaced by this finalization pass" table, indicating their completion.
+    - Add a "Status" column to the "Small items surfaced by this finalization pass" table.
+    - Remove the introductory paragraph for "Small items surfaced by this finalization pass" that discussed tracking items outside the task system.
+    - Update the "T-FIN-1" entry to reflect its status as the only remaining open item.
+
+--- audit: original='docs(arch): update finalization-pass handoff — T-FIN-2/3 resolved, HEAD updated' | actual=23L across 1 files | derived=full ---
