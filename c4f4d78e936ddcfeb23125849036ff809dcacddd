@@ -1,0 +1,15 @@
+feat(tdd): enforce test-first policy with pre-commit hook and documentation
+scale: ~42 lines across 3 files [S]
+
+- **AGENTS.md**: Added a new "Test-First Policy" section, making it a normative, cross-tool requirement for all coding agents and human contributors.
+  - Specifies that new `pub fn` in Rust and new `fn` in `examples/golden/**/*.vox` files must have a failing test written first.
+  - Explains the policy's rationale, linking it to the MENS `r_test` reward.
+  - Details the `skeleton/untested-pub-api` and `skeleton/no-test-for-pub-fn` detectors and provides override syntax.
+- **lefthook.yml**: Added a `tdd-guard` pre-commit hook.
+  - Runs `toestub . --rules skeleton --min-severity warning --mode enforce-strict` to check for test-first violations.
+  - Scoped to `crates/**/*.rs` and `examples/golden/**/*.vox` files.
+  - Provides `fail_text` directing users to `AGENTS.md §Test-First Policy` for guidance.
+- **crates/vox-code-audit/src/detectors/untested_pub_api.rs**: Changed the `UntestedPubApiDetector` severity from `Info` to `Warning`.
+  - Updated the doc comment to explain that `Warning` severity is non-blocking in default CI (`legacy` mode) but will block local commits via the `tdd-guard` pre-commit hook in `enforce-strict` mode.
+
+--- audit: original='feat(tdd): test-first policy enforcement — AGENTS.md clause + lefthook guard + severity bump' | actual=42L across 3 files | derived=full ---
