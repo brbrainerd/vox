@@ -1,0 +1,10 @@
+feat(cli): wire real model pricing into vox audit effort
+scale: ~49 lines across 1 files [S]
+
+- `crates/vox-cli/src/commands/audit_effort.rs`:
+    - Added a `rates_for` function to look up the resolved judge model's per-1k-token pricing from the `vox-orchestrator::models::ModelRegistry` cache.
+    - This function returns `ModelRates` with `known = true` if costs are found, otherwise `ModelRates::default()` (`known = false`) to represent unknown pricing.
+    - Modified the `run` function to capture the resolved judge model ID and pass the `ModelRates` obtained from `rates_for` into `pipeline::run_with_overrides`.
+    - Removed the hardcoded `ModelRates::default()` from the `pipeline::run_with_overrides` call.
+
+--- audit: original='feat(cli): wire real model pricing into vox audit effort' | actual=49L across 1 files | derived=full ---
