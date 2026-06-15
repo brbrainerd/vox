@@ -1,0 +1,14 @@
+docs(orchestrator): Add Stage 1 & 2 security and crash-prevention implementation plan
+scale: ~664 lines across 1 files [L]
+
+- Add a new plan document detailing 7 validated fixes for P0/P1 panics and security gaps across the orchestrator's gateway, runtime, grounding, and daemon surfaces.
+- The plan outlines specific fixes for:
+    - `FIX-K-06`: `constant_time_eq` u8-truncation bug in `mcp_tools/http_gateway/mod.rs`.
+    - `FIX-K-03`: Adding a 64 KiB size guard on `EvalRequest.code` in `mcp_tools/http_gateway/eval.rs`.
+    - `FIX-K-05`: Removing query-param token fallback in `mcp_tools/http_gateway/ws.rs`.
+    - `FIX-B-02`: Replacing `.unwrap()` on UUID split in `runtime.rs`.
+    - `FIX-E-01`: Hardening char-boundary `.expect()` in `grounding.rs`.
+    - `FIX-H-03`: Adding a message to regex `.unwrap()` in `mcp_tools/chat_tools/chat/mentions.rs`.
+    - `FIX-O-03`: Replacing session-manager `panic!` with `?` in `bin/vox_orchestrator_d.rs`.
+
+--- audit: original='plan(orchestrator): Stage 1+2 security+crash-prevention implementation plan' | actual=664L across 1 files | derived=full ---
