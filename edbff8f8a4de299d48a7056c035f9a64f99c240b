@@ -1,0 +1,18 @@
+docs: update feed.xml and SUMMARY.md
+scale: ~23 lines across 2 files [S]
+
+- `docs/src/feed.xml`:
+    - Updated the `updated` timestamp to `2026-04-18T00:00:00Z`.
+    - Changed the `id` to `https://example.com/blog/feed.xml`.
+    - Modified the `link` href to `https://example.com/blog/`.
+    - Updated the `title` to "My Blog".
+    - Changed the `author` name to "John Doe".
+    - Updated the `entry` `id` to `https://example.com/blog/post-1`.
+    - Modified the `entry` `link` href to `https://example.com/blog/post-1`.
+    - Updated the `entry` `title` to "My First Post".
+    - Changed the `entry` `updated` timestamp to `2026-04-18T00:00:00Z`.
+    - Modified the `entry` `summary` to "This is my first post.".
+    - Updated the `entry` `content` to "This is the content of my first post.".
+- `docs/src/SUMMARY.md`: Added a new entry for "My First Post".
+
+--- audit: original='Update SUMMARY.md and feed.xml' | actual=23L across 2 files | derived=full ---
