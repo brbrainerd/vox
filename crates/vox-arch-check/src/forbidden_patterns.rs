@@ -253,4 +253,45 @@ mod tests {
         let hits = scan(dir.path(), &rule, &crate::built_in_walk_prune_names()).unwrap();
         assert_eq!(hits.len(), 2);
     }
+
+    fn shell_spawn_rule() -> ForbiddenPatternRule {
+        ForbiddenPatternRule {
+            name: "no-hardcoded-shell-spawn".into(),
+            pattern: r#"Command::new\(\s*"(cmd|cmd\.exe|powershell|pwsh|sh|bash)""#.into(),
+            file_glob: "crates/**/*.rs".into(),
+            exempt_files: vec![
+                "crates/vox-cli-core/src/fs_utils.rs".into(),
+                "crates/vox-cli/src/fs_utils.rs".into(),
+                "crates/vox-scientia/src/replay/sandbox.rs".into(),
+                "crates/vox-ml-cli/src/commands/mens/plugin_heal.rs".into(),
+            ],
+            allow_annotation: Some("// vox-arch-check: allow shell-spawn".into()),
+            reason: "Shell/PowerShell spawns must be cfg(windows)-gated or resolved via which::which(pwsh|powershell).".into(),
+        }
+    }
+
+    #[test]
+    fn hardcoded_pwsh_spawn_is_flagged() {
+        let dir = tempfile::tempdir().unwrap();
+        write_fixture(
+            &dir,
+            "crates/x/src/a.rs",
+            "fn f() { let _ = Command::new(\"pwsh\"); }",
+        );
+        let hits = scan(dir.path(), &shell_spawn_rule(), &crate::built_in_walk_prune_names()).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].rule, "no-hardcoded-shell-spawn");
+    }
+
+    #[test]
+    fn annotated_shell_spawn_is_suppressed() {
+        let dir = tempfile::tempdir().unwrap();
+        write_fixture(
+            &dir,
+            "crates/x/src/b.rs",
+            "// vox-arch-check: allow shell-spawn\nlet _ = Command::new(\"cmd\");\n",
+        );
+        let hits = scan(dir.path(), &shell_spawn_rule(), &crate::built_in_walk_prune_names()).unwrap();
+        assert_eq!(hits.len(), 0);
+    }
 }
