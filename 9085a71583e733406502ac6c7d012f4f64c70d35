@@ -1,0 +1,4 @@
+ci(
+scale: ~281 lines across 7 files [L]
+
+--- audit: original='ci+docs: EAS Build runner, Expo-Go bundle shim, emulator-run proof' | actual=281L across 7 files | derived=full ---
