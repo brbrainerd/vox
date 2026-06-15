@@ -1,0 +1,5 @@
+feat(website): Add CNAME file for custom domain
+scale: ~1 lines across 1 files [XS]
+- Add `CNAME` file to configure the custom domain `vox-lang.org`.
+
+--- audit: original='Create CNAME' | actual=1L across 1 files | derived=full ---
