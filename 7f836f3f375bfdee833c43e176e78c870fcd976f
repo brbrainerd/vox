@@ -1,0 +1,11 @@
+feat(models): implement evidence-driven eligibility for auto-discovered models
+scale: ~207 lines across 3 files [M]
+
+- `crates/vox-orchestrator/src/models/discovery_pipeline.rs`: Add new module `discovery_pipeline` with `resolve_eligibility` and `pending_eval_candidates` functions.
+  - `resolve_eligibility`: Determines model confidence (Provisional, Shadowed, Confirmed) based on `model_scoreboard` evidence (successful calls, p50 latency, quality) or falls back to a pricing-source heuristic if no scoreboard data exists.
+  - `pending_eval_candidates`: Identifies models that have been discovered but are unconfirmed and lack scoreboard data, providing a backlog for evaluation.
+  - Includes `base_confidence_from_pricing` to derive confidence purely from the pricing source as a fallback.
+- `crates/vox-orchestrator/src/models/select.rs`: Refactor `confidence_state_for_model` to delegate eligibility resolution to `discovery_pipeline::resolve_eligibility` when no scoreboard data is available, replacing the previous hard-coded pricing-source logic.
+- `crates/vox-orchestrator/src/models/mod.rs`: Add `discovery_pipeline` module to the `models` module.
+
+--- audit: original='feat(models): evidence-driven eligibility for auto-discovered models' | actual=207L across 3 files | derived=full ---
