@@ -1,0 +1,13 @@
+feat(cli): implement `vox share` subcommand for public URL tunneling
+scale: ~214 lines across 8 files [M]
+
+- `crates/vox-cli/src/commands/share.rs`: Implemented the `vox share` subcommand, replacing the old Arca marketplace stub. This new command provides a public-URL tunnel for Vox apps, initially supporting only the LAN backend. It defines `ShareArgs` for `backend`, `port`, `duration`, and `dev` flags, and includes `parse_duration` utility.
+- `crates/vox-cli/tests/share_cli_test.rs`: Added new smoke tests for the `vox share` CLI subcommand, verifying that `vox share --help` lists the subcommand and the `--backend` flag.
+- `crates/vox-cli/src/lib.rs`: Updated the `Cli::Share` enum variant to use `ShareArgs` directly instead of a subcommand, and changed its description to reflect the new public URL tunnel functionality.
+- `crates/vox-cli/src/cli_dispatch/mod.rs`: Modified the dispatch logic for `Cli::Share` to call the new `crate::commands::share::run` function with the `args`.
+- `crates/vox-cli/src/commands/mod.rs`: Added `pub mod share;` to expose the new `share` module.
+- `Cargo.toml`: Added `vox-share` to the workspace dependencies.
+- `crates/vox-cli/Cargo.toml`: Added `vox-share` as a dependency for `vox-cli`.
+- `Cargo.lock`: Updated to reflect the new `vox-share` dependency.
+
+--- audit: original='feat(cli): vox share subcommand skeleton (S1 task 6)' | actual=214L across 8 files | derived=full ---
