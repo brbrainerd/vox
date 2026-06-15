@@ -1,0 +1,9 @@
+feat(interop): S6 — add `vox component <name>` for shadcn/ui vendor mode
+scale: ~413 lines across 4 files [L]
+
+- crates/vox-cli/src/commands/add_component.rs: New module implementing the `vox component <name>` command. It fetches shadcn/ui components from `ui.shadcn.com`, resolves `registryDependencies` transitively, and writes component source files to the project based on `components.json` aliases. Includes network-free `plan_files` for alias-aware placement, RSC `"use client"` injection, and content alias rewriting, and an async `run` function for fetching, transitive resolution, and disk writing.
+- crates/vox-cli/src/lib.rs: Added a new `Cli::Component` variant to the CLI enum, enabling the `vox component <name>` command with a `name` argument for the component.
+- crates/vox-cli/src/cli_dispatch/mod.rs: Added a dispatch arm to handle the new `Cli::Component` variant, calling `crate::commands::add_component::run`.
+- crates/vox-cli/src/commands/mod.rs: Declared the new `add_component` module, making it publicly accessible within the `commands` module.
+
+--- audit: original='feat(interop): S6 — shadcn/ui vendor mode (`vox component <name>`)' | actual=413L across 4 files | derived=full ---
