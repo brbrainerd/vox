@@ -1,0 +1,48 @@
+feat(gitlab): deprecate GitLab forge support and remove CI mirror
+scale: ~15499 lines across 42 files [XL]
+
+- **.gitlab-ci.yml**: Deleted the GitLab CI configuration file.
+- **crates/vox-forge**:
+    - `src/lib.rs`: Updated documentation to declare GitLab as deprecated and no longer supported.
+    - `src/gitlab.rs`: Added a deprecation warning to the module documentation and a runtime warning when `GitLabProvider` is constructed.
+    - `src/provider.rs`: Updated documentation for `GitForgeProvider` to note GitLab deprecation.
+    - `Cargo.toml`: Modified feature flags (likely related to `gitlab` feature).
+- **crates/vox-plugin-webhook**:
+    - `src/webhook/bridge.rs`: Added a runtime warning for GitLab webhook events and updated routing rules documentation to reflect GitLab deprecation.
+    - `src/webhook/router.rs`: Added new router logic (likely related to handling deprecated GitLab events).
+    - `Cargo.toml`, `Plugin.toml`, `src/webhook/handler.rs`: Minor changes (likely related to webhook event handling or configuration).
+- **crates/vox-secrets/src/spec/registry/platform.rs**: Demoted `GITLAB_TOKEN` to a deprecated alias of `FORGE_TOKEN` and updated remediation message.
+- **crates/vox-cli**:
+    - `src/cli_args.rs`: Deprecated `Gitlab` as an `UpgradeReleaseProvider` option, updated `--repo` description to remove GitLab, and deprecated `--gitlab-host` argument.
+    - `src/commands/toolchain_upgrade.rs`: Added a warning when `--provider gitlab` is selected for toolchain upgrades.
+    - `src/commands/ci/run_body_helpers/grammar.rs`: Removed the `GrammarDriftEmit::Gitlab` variant and its associated logic for writing `drift.env`.
+    - `src/commands/ci/cmd_enums.rs`: Removed the `Gitlab` variant from `GrammarDriftEmit` and updated the description for `RepoGuards` to remove GitLab parity reference.
+    - `src/commands/review/coderabbit/github/api.rs`: Removed `GITLAB_TOKEN` from the list of forge tokens to check.
+    - `src/commands/ci/cmd_enums.rs`, `src/commands/ci/run_body_helpers/grammar.rs`: Removed GitLab-specific grammar drift emission logic.
+    - `src/commands/ci/run_body_helpers/grammar.rs`: Removed `GrammarDriftEmit::Gitlab` variant.
+- **crates/vox-git/src/lib.rs**: Updated diagram to reflect GitLab deprecation.
+- **scripts/arch-check.vox**: Updated comments to reflect the retirement of `.gitlab-ci.yml`.
+- **.github/workflows/ml_data_extraction.yml**: Modified workflow (likely removing GitLab-specific comments or configurations).
+- **.cursor/rules/ci-runner-convention.mdc**: Minor change (likely removing GitLab-specific references).
+- **contracts/secrets**:
+    - `managed-env-names.v1.json`, `secret-capabilities.v1.json`, `managed-env-names.md`: Updated secret definitions (likely related to `GITLAB_TOKEN` deprecation).
+- **contracts/config/env-vars.v1.yaml**: Minor change (likely related to environment variable configuration).
+- **contracts/review/coderabbit-semantic-groups.v1.yaml**: Deleted file (likely removing GitLab-specific CodeRabbit configurations).
+- **docs/src/architecture**:
+    - `data-storage-lint-and-ci-spec-2026.md`: Updated documentation (likely removing GitLab-specific references).
+    - `data-storage-migration-backlog-2026.md`: Updated documentation (likely removing GitLab-specific references).
+    - `web-app-archetype-coverage-2026.md`, `where-things-live.md`, `crate-classification-2026-05-08.md`: Minor changes (likely removing GitLab-specific references).
+- **docs/src/ci**:
+    - `alternatives-and-local-mirroring.md`: Updated documentation (likely removing GitLab-specific content).
+    - `workflow-enumeration.md`: Updated documentation (likely removing GitLab-specific content).
+    - `rcicd-coverage-cost-matrix-2026.md`, `runner-contract.md`: Minor changes (likely removing GitLab-specific references).
+- **docs/src/reference**:
+    - `env-vars.md`: Updated documentation (likely removing GitLab-specific environment variables).
+    - `cli.md`: Updated documentation (likely reflecting CLI changes related to GitLab deprecation).
+    - `deployment-compose.md`: Minor change (likely removing GitLab-specific deployment information).
+    - `distribution-bundles.generated.md`: Regenerated documentation (likely reflecting changes due to GitLab deprecation).
+- **docs/agents/doc-inventory.json**: Updated documentation inventory (reflecting removed/deprecated GitLab content).
+- **crates/vox-ml-cli/src/commands/mens/populi/action_populi_enum.rs**: Minor change (likely unrelated to GitLab, or a very minor cleanup).
+- **crates/vox-plugin-catalog/catalog.toml**: Minor change (likely unrelated to GitLab, or a very minor cleanup).
+
+--- audit: original='chore(gitlab): complete GitLab retirement — delete CI mirror, deprecate forge' | actual=15499L across 42 files | derived=sampled ---
