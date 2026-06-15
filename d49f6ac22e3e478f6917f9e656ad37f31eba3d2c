@@ -1,0 +1,15 @@
+feat(scientia): add 8 new tables for research sessions, claims, and verification
+scale: ~106 lines across 2 files [M]
+
+- `crates/vox-db/src/schema/domains/scientia.rs`: Added DDL for 8 new tables:
+  - `scientia_research_sessions`: Tracks research sessions for the SCIENTIA pipeline.
+  - `scientia_claims`: Stores atomic claims extracted from T1 aggregates.
+  - `scientia_claim_verdicts`: Records verification verdicts for claims.
+  - `scientia_prereg`: Stores pre-registration data.
+  - `scientia_publication_attempts`: Tracks attempts to publish findings.
+  - `scientia_model_profile_learning`: Stores data related to model profile learning.
+  - `scientia_provider_runs`: Records provider run data.
+  - `scientia_training_pairs`: Stores training pair data.
+- `crates/vox-db/src/schema/manifest.rs`: Bumped `BASELINE_VERSION` from 60 to 61.
+
+--- audit: original='feat(scientia): add 7 SCIENTIA DB tables to schema domain (Phase 0d)' | actual=106L across 2 files | derived=full ---
