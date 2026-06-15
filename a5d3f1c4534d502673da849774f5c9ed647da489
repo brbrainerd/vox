@@ -1,0 +1,7 @@
+fix(docker): Optimize build for memory-constrained VPS
+scale: ~12 lines across 2 files [S]
+
+- `Dockerfile`: Limits `cargo build` to a single job (`-j 1`) to reduce memory usage during compilation.
+- `.dockerignore`: Adds a new file to exclude various build artifacts, development files, and documentation from the Docker build context, reducing the size of the context sent to the Docker daemon.
+
+--- audit: original='fix(docker): Optimize build for memory-constrained VPS by limiting jobs and excluding context' | actual=12L across 2 files | derived=full ---
