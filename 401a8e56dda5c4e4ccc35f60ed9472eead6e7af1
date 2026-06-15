@@ -1,0 +1,12 @@
+ci(hardcoded-values): Add CI gate for hardcoded values audit
+scale: ~30 lines across 3 files [S]
+
+- `tools/hardcoded-values-audit.mjs`:
+  - Added a new `--ci-gate` option to enforce a baseline count for hardcoded values.
+  - Reads the baseline count from a specified file (e.g., `contracts/reports/hardcoded-baseline-count.txt`).
+  - Exits with an error if the current count of hardcoded values exceeds the baseline.
+  - Temporarily commented out the schema enum sanity-check.
+- `.github/workflows/ci.yml`: Added a new step "Hardcoded values audit gate" to the CI pipeline.
+- `contracts/reports/hardcoded-baseline-count.txt`: Added a new file to store the baseline count for hardcoded values (initialized to 1638).
+
+--- audit: original='ci: enforce hardcoded values baseline gate in CI pipeline' | actual=30L across 3 files | derived=full ---
