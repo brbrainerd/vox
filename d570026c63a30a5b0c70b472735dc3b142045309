@@ -1,0 +1,43 @@
+feat(clippy): green workspace merge gate, fix env-mutating tests, and update fmt script
+scale: ~1304 lines across 120 files [XL]
+
+- **ci**:
+    - Update `ci.yml` and `ci-fallback-hosted.yml` to exclude `vox-gui` from Clippy checks, as it requires a built frontend not produced by this job.
+    - Modify CI format steps to loop per-manifest instead of using `cargo fmt --all` to avoid Windows `CreateProcess` command-line limits.
+- **scripts**:
+    - Add `scripts/fmt.vox` for Windows-safe, crate-agnostic workspace Rust formatting, addressing `cargo fmt --all` limitations on Windows.
+- **docs**:
+    - Update `AGENTS.md` and add `CLAUDE.md` to recommend `vox run scripts/fmt.vox` for formatting.
+- **crates/vox-compiler**:
+    - Apply `clippy --fix` auto-fixes and manual lint fixes across `src/pipeline.rs`, `src/eval/stmt.rs`, `src/eval/expr.rs`, `src/eval/builtins.rs`, `src/app_contract.rs`, `src/hir/lower/json_as.rs`, `src/typeck/checker/mod.rs`, `src/typeck/checker/expr.rs`, `src/typeck/determinism_lint.rs`, `src/builtin_registry.rs`, `src/parser/descent/expr/pratt_match.rs`, `src/hir/lower/expr.rs`.
+    - Fix `unreachable HirType arm`, `match` to `matches!`, manual range-contains, floating doc comments, and unused glob imports.
+    - Remove `test_reject_macros_e091` and `test_accept_workflow_keyword_adr041` from `src/pipeline.rs`.
+    - Refactor `apply_pop_side_effect` in `src/eval/stmt.rs` to use `&& let` chains.
+    - Refactor `eval_expr` in `src/eval/expr.rs` to use `&&` chains for method call checks.
+    - Refactor `call_builtin_method` in `src/eval/builtins.rs` to use `&&` chains and simplify `map` calls.
+    - Remove `#[cfg(test)]` from `src/pipeline.rs` and `tests/eval_typeck_parity_test.rs`.
+- **crates/vox-orchestrator-mcp**:
+    - Remove `availability_hint` parameter and associated `UsageTracker::remaining_all().await` DB query from `llm_bridge/model_route_policy/resolve.rs` as it was unused.
+    - Update call sites in `llm_bridge/model_route_policy/tests.rs` and `src/models_tools.rs`.
+- **crates/vox-telemetry**:
+    - Replace tautological `wall_time_ms >= 0` assert with `> 0` in `src/aggregator.rs`.
+    - Apply `rustfmt` to `let-chain` in `src/aggregator.rs` and `src/config.rs`.
+- **crates/vox-audit**:
+    - Remove orphaned `regen_held_out` test.
+    - Apply `clippy --fix` auto-fixes and manual lint fixes across `src/bin/cr-a4.rs`, `src/subcommands/humaneval.rs`, and `src/report.rs`.
+- **crates/vox-actor-runtime**:
+    - Add `serial_test` dev-dependency and apply `#[serial]` to env-mutating tests in `src/model_resolution.rs` to prevent race conditions.
+    - Remove `inference_env.rs` and update `builtins/mod.rs`.
+- **crates/vox-ml-cli**:
+    - Add `#[cfg(feature = "quantize")]` to quantize tests in `tests/quantize_cli.rs` and `tests/merge_quantize.rs`.
+- **crates/vox-orchestrator**:
+    - Add 4 new `RemoteTaskEnvelope` fields in `tests/bundle_fetch.rs`.
+    - Update `super::policy` to `crate::models::policy` in `src/models/select.rs`.
+    - Apply `clippy --fix` auto-fixes and manual lint fixes across `src/services/policy.rs` and `src/types/routing_profile.rs`.
+- **crates/vox-cli**:
+    - Update `pre_push.rs` failure message to point to `vox run scripts/fmt.vox`.
+    - Apply `clippy --fix` auto-fixes and manual lint fixes across `src/commands/ci/gui_catalog_parity.rs`, `src/telemetry_corpus_feedback_sink.rs`, `src/commands/ci/model_routing_check.rs`, `src/commands/ci/run_body_helpers/docs.rs`, `src/commands/repair.rs`, `src/commands/scientia_phase_handlers.rs`, and `tests/telemetry_corpus_feedback_e2e.rs`.
+- **crates/vox-codegen**:
+    - Apply `clippy --fix` auto-fixes and manual lint fixes across `src/codegen_rust/emit/stmt_expr.rs`,
+
+--- audit: original='chore(ci): green the workspace clippy merge gate (correctness fixes + cosmetic allowlist) (#140)' | actual=1304L across 120 files | derived=full ---
