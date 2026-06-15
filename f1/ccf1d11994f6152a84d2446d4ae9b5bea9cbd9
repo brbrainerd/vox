@@ -1,0 +1,9 @@
+docs(orchestrator): add Block 1 reliability implementation plan
+scale: ~772 lines across 1 files [L]
+
+- Add a new document `docs/superpowers/plans/2026-05-02-orchestrator-reliability-block1.md` outlining the implementation plan for Block 1 orchestrator reliability.
+- The plan details addressing four remaining reliability gaps: HTTP client timeout, cost-without-progress doom-loop detection, pre-dispatch token estimation, and Anthropic native capability-gap guard with retry routing.
+- It specifies that changes are confined to `crates/vox-orchestrator`, touching the budget/gate layer and the LLM bridge.
+- Includes pre-flight verification steps for existing fixes (FIX-J-01, FIX-K-02, M10).
+
+--- audit: original='docs(plans): add Block 1 orchestrator reliability implementation plan' | actual=772L across 1 files | derived=full ---
