@@ -1,0 +1,6 @@
+fix(semcov-gates): accept `&Path` in `baseline_if_exists` for clippy
+scale: ~4 lines across 1 files [XS]
+
+- `crates/vox-audit/src/bin/semcov-gates.rs`: Changed the `baseline_if_exists` function signature to accept `&Path` instead of `&PathBuf` for the `root` parameter, and added `Path` to the `std::path` import.
+
+--- audit: original='fix(clippy): take &Path not &PathBuf in semcov-gates baseline helper' | actual=4L across 1 files | derived=full ---
