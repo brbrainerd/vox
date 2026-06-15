@@ -1,0 +1,10 @@
+refactor(vox-compiler): move CSS allowlist to lowering_shared
+scale: ~12 lines across 5 files [S]
+
+- crates/vox-compiler/src/lib.rs: Add `lowering_shared` module to the crate root. Reorder `ast_eval` re-export.
+- crates/vox-compiler/src/lowering_shared/mod.rs: New file, declares `css_props` module.
+- crates/vox-compiler/src/lowering_shared/css_props.rs: New file, contains `ALLOWED_CSS_PROPERTIES` static array and `is_allowed_css_property` function. This content was moved from `codegen_shared`.
+- crates/vox-compiler/src/web_ir/validate.rs: Update `validate_styles_with_registry` to import `is_allowed_css_property` from `lowering_shared::css_props`.
+- crates/vox-compiler/src/codegen_shared/mod.rs: Remove `css_property_allowlist` module.
+
+--- audit: original='refactor(vox-compiler): move CSS allowlist to lowering_shared (cycle 2 fix)' | actual=12L across 5 files | derived=full ---
