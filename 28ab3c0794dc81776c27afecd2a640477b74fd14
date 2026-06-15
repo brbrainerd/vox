@@ -1,0 +1,8 @@
+feat(llm): integrate `vox-code-audit` lint findings into `vox check --for-llm` output
+scale: ~284 lines across 3 files [L]
+
+- `crates/vox-cli/tests/check_for_llm_envelope.rs`: Add two new tests, conditionally compiled with `#[cfg(feature = "stub-check")]`, to verify that `lint_findings` are populated for an `AuthEndpointDetector` violation and empty for clean files.
+- `crates/vox-cli/src/pipeline.rs`: Introduce `LintFindingPayload` struct to represent lint findings with fields like `rule_id`, `severity`, `message`, `line`, `column`, `rationale`, `confidence`, `suggestion`, `alternatives`, and `explain_url`. Add a `lint_findings: Vec<LintFindingPayload>` field to `CheckForLlmEnvelope`, which is populated under `#[cfg(feature = "stub-check")]` and skipped during serialization if empty.
+- `crates/vox-code-audit/src/engine.rs`: Implement `ToestubEngine::check_source_file()`, a new public method that runs all configured lint rules on a single `SourceFile` without a directory scan, telemetry, or suppression. It applies severity filtering and deterministic sorting to the findings.
+
+--- audit: original='feat(llm): surface TOESTUB lint findings in vox check --for-llm (Phase 2)' | actual=284L across 3 files | derived=full ---
