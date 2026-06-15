@@ -1,0 +1,8 @@
+chore(docs): update durable animation loop WebP
+scale: ~0 lines across 1 files [XS]
+
+- Replaced `durable_essentialist_loop.webp` with a new 20-second, 25fps WebP animation (960x960).
+- The new animation features a visually seamless loop, addressing previous hard snaps in worker states, portal animations, track stroke flips, and packet-out resets.
+- The file size of the WebP was reduced from 3.2MB to 1.9MB at quality 70.
+
+--- audit: original='chore(docs): re-record durable animation loop with seamless tail' | actual=0L across 1 files | derived=full ---
