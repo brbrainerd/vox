@@ -1,0 +1,8 @@
+chore(coverage): lower semantic coverage ratchet baseline from 5793 to 5268
+scale: ~243 lines across 3 files [M]
+
+- `contracts/reports/reached-vs-proven-2026-06-14.md`: Updated the total count of "reached-but-unproven symbols" from 5793 to 5268 and adjusted individual crate statistics accordingly. The total annotated code symbols changed from 26388 to 26387.
+- `contracts/reports/semantic-coverage-graph.snapshot.json.gz`: Updated the gzipped JSON snapshot of the semantic coverage graph.
+- `contracts/reports/semantic-coverage.v1.json`: Updated the `reached_not_proven` value from 5793 to 5268 in the `overall_stats` section. Also, formatted the `new_detectors` array to be multiline.
+
+--- audit: original='chore(coverage): lower ratchet baseline 5793 -> 5268 after Phase-3 waves 1-3' | actual=243L across 3 files | derived=full ---
