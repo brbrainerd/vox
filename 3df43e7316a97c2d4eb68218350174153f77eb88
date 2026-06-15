@@ -1,0 +1,13 @@
+feat(plugin-host): Parse YAML frontmatter in `parse_skill_md`
+scale: ~183 lines across 2 files [M]
+
+- `crates/vox-plugin-host/src/skill_parser.rs`:
+    - Modified `parse_skill_md` to first attempt parsing frontmatter as TOML, then fall back to YAML.
+    - Introduced `parse_frontmatter` function to handle the TOML-then-YAML parsing logic.
+    - Added `json_to_string` and `json_to_string_list` helper functions to extract string and string list values from `serde_json::Value`.
+    - Updated `vox_str` and `vox_arr` closures to use the new `json_to_string` and `json_to_string_list` helpers for extracting values from the parsed frontmatter.
+    - Changed the default category for skills without a specified category from `Custom("custom")` to `Unknown`.
+    - Refactored frontmatter parsing to normalize through `serde_json::Value`.
+- `crates/vox-plugin-host/Cargo.toml`: Added `serde_yaml` dependency.
+
+--- audit: original='feat(plugin-host): parse spec-compliant YAML SKILL.md frontmatter' | actual=183L across 2 files | derived=full ---
