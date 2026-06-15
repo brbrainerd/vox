@@ -1,0 +1,13 @@
+docs: update internal and external links across documentation
+scale: ~333 lines across 58 files [L]
+
+- docs/src/reference:
+  - Update internal links in `env-vars.md` to reflect `BudgetManager` and `add_questioning_attention_debit_ms` relocation within `vox-orchestrator`.
+  - Correct a broken link to `vox-mcp.md` in `telemetry-implementation-backlog-2026.md` to point to `vox-orchestrator.md`.
+  - Update internal links in `mcp-vox-language-exposure.md` to reflect `dispatch.rs`, `input_schemas.rs`, and `params.rs` relocation within `vox-orchestrator/src/mcp_tools`.
+  - Update internal links in `clavis-cloudless-implementation-catalog.md` and `clavis-implementation-plan-2026.md` to reflect `vox-clavis/src/spec.rs` being renamed to `vox-clavis/src/lib.rs` and `vox-mcp/src/http_gateway.rs` being relocated to `vox-orchestrator/src/mcp_tools/http_gateway.rs`.
+  - Update internal links in `ai-ide-feature-research-findings-2026.md` to reflect `ghost_text.rs`, `task_tools.rs`, and `plan.rs` relocation within `vox-orchestrator/src/mcp_tools`.
+  - Many other documentation files (50+) had internal links updated to reflect the relocation of various modules from `vox-mcp` to `vox-orchestrator/src/mcp_tools` and `vox-clavis/src/spec.rs` to `vox-clavis/src/lib.rs`.
+- .lycheeignore: Remove numerous outdated and resolved external link ignore rules, and add a new rule to ignore LinkedIn URLs due to rate limiting/anti-bot measures.
+
+--- audit: original='docs: structurally repair internal and external 404 links across all documentation' | actual=333L across 58 files | derived=full ---
