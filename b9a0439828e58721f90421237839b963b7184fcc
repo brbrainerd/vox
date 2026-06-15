@@ -1,0 +1,21 @@
+feat(telemetry): persist build telemetry to VoxDB with query surface
+scale: ~464 lines across 16 files [L]
+
+- `crates/vox-cli/src/commands/ci/build_timings.rs`: Add `DependencyShapeSummary` struct and `compute_dependency_shape_summary` function to calculate and serialize dependency graph metrics (workspace crate count, edge count, max fan-in/out, top fan-in/out).
+- `crates/vox-db/src/store/ops_build.rs`: Introduce `BuildDependencyShape` struct for persisting dependency shape summaries, add `query_latest_build_run_id` to retrieve the most recent build run ID, and `insert_build_dependency_shape` to upsert dependency shape payloads.
+- `crates/vox-mcp/src/tools/benchmark_tools.rs`: Extend `BenchmarkListParams` with a `source` field to allow querying different data sources (e.g., `build_health`, `build_regressions`, `build_warnings`, `dependency_shape`) and a `run_id` for specific build runs. Implement logic to fetch and return data based on the `source` parameter.
+- `crates/vox-cli/src/benchmark_telemetry.rs`: Refactor `record_opt_blocking` into `record_opt_with_unit_blocking` to explicitly include `metric_value_unit` and add debug logging for telemetry recording attempts, including `details_bytes`.
+- `crates/vox-cli/src/commands/ci/run_body_helpers/timings.rs`: Update `run_build_timings` to use `record_opt_with_unit_blocking`, converting `total_ms` to `total_seconds` and explicitly setting the unit to "seconds" for `ci_build_timings` benchmark events. Add debug logging for the telemetry recording.
+- `crates/vox-mcp/src/tools/input_schemas.rs`: Update the schema for `vox_benchmark_list` to include `metric_type`, `source` (with new enum values for build-related data), and `run_id`.
+- `crates/vox-db/src/schema/domains/toestub_build.rs`: Add `build_run_dependency_shape` table definition to store dependency shape summaries, including `run_id` and `dependency_json`.
+- `contracts/db/retention-policy.yaml`: Add a retention policy for `build_run_dependency_shape` with a 90-day retention period.
+- `docs/src/reference/telemetry-metric-contract.md`: Add documentation for the `ci_build_timings` metric, specifying its purpose, value, unit, and details.
+- `docs/src/architecture/crate-topology-buckets.md`: Add a new documentation page describing crate topology buckets.
+- `docs/src/architecture/telemetry-retention-sensitivity-ssot.md`: Add a new documentation page detailing telemetry retention sensitivity as a single source of truth.
+- `docs/src/ci/cli-baseline-metrics.md`: Add a new documentation page for CLI baseline metrics.
+- `.github/workflows/ci.yml`: Add `VOX_BENCHMARK_TELEMETRY=1` to the environment variables for the `build-timings` step.
+- `crates/vox-db/src/store/mod.rs`: Export `ops_build` module.
+- `crates/vox-mcp/src/server/lifecycle.rs`: Fix a typo in `VOX_MESH_REGISTRY_PATH` environment variable setting.
+- `crates/vox-mcp/tests/populi_mcp_http_join_startup.rs`: Fix `BudgetManager::new(None)` in a test stub.
+
+--- audit: original='feat(ci): persist build telemetry to VoxDB with query surface' | actual=464L across 16 files | derived=full ---
