@@ -1,0 +1,24 @@
+fix(scripts/show): refactor to use canonical stdlib patterns and environment variables
+scale: ~520 lines across 3 files [L]
+
+- `scripts/show/script.vox`:
+    - Updated `vox:caps` to `process` and `fs`.
+    - Switched from command-line arguments to environment variables (`RAW_NERVE_RECORDING_DIR`, `RAW_NERVE_CTA_TYPE`, `RAW_NERVE_OUT`, `RAW_NERVE_WHISPER_OUT`) for input.
+    - Rewrote prompt construction to use `let mut p = ""` and `p = p + "..."` for multi-line strings.
+    - Replaced `exec()` with `process.run()` and handled its `Option` return type with `is null` / `is not null` and `.unwrap()`.
+    - Changed `println()` to `print()`.
+    - Updated file system operations to `fs.glob()`, `fs.read_file()`, and `fs.write_file()`, handling `Option[str]` returns.
+    - Corrected string emptiness checks from `.len()` to `s isnt ""` / `s is ""`.
+    - Added `import process; import fs; import env;` with semicolons.
+- `scripts/show/topic-suggest.vox`:
+    - Updated `vox:caps` to `process`.
+    - Switched from command-line arguments to environment variable (`RAW_NERVE_SINCE`) for input.
+    - Rewrote prompt construction to use `let mut p = ""` and `p = p + "..."` for multi-line strings.
+    - Added `import process; import env;` with semicolons.
+- `scripts/show/title-workshop.vox`:
+    - Updated `vox:caps` to `process` and `fs`.
+    - Switched from command-line arguments to environment variable (`RAW_NERVE_OUTLINE`) for input.
+    - Rewrote prompt construction to use `let mut p = ""` and `p = p + "..."` for multi-line strings.
+    - Added `import process; import fs; import env;` with semicolons.
+
+--- audit: original='fix(scripts/show): use canonical stdlib patterns; pass vox check' | actual=520L across 3 files | derived=full ---
