@@ -1,0 +1,6 @@
+ci(lychee): ignore openreview.net to prevent 504 flake
+scale: ~1 lines across 1 files [XS]
+
+- `.lycheeignore`: Added `.*openreview.net.*` to ignore list.
+
+--- audit: original='fix(ci): exclude openreview.net from lychee link checker (504 flake)' | actual=1L across 1 files | derived=full ---
