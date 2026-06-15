@@ -1,0 +1,49 @@
+refactor(compiler, cli, deploy): Remove Python glue lane and legacy endpoint decorators
+scale: ~2864 lines across 90 files [XL]
+
+- **compiler**:
+    - Remove `Decl::PyImport`, `PyImportDecl`, `Decl::ServerFn`, `Decl::Query`, `Decl::Mutation`, `ServerFnDecl`, `QueryDecl`, `MutationDecl` AST variants and structs.
+    - Delete `codegen_ts/voxdb.rs` (legacy `voxdb/server` emitter).
+    - Remove `Token::AtServer`, `Token::AtQuery`, `Token::AtMutation` from lexer.
+    - Delete `parse_server_fn`, `parse_query_fn`, `parse_mutation_fn` from parser.
+    - Collapse `ServerFn`, `Query`, `Mutation` HIR lowering arms into a single `Endpoint` arm.
+    - Update `ast_eval`, `fmt` printer, `corpus`, `mens`, `orchestrator` introspection, `mens` taxonomy, `typeck`, and `callable` consumers to reflect AST/HIR changes.
+    - Fix VUV-4 lowering bugs in `web_ir/lower.rs` and `web_ir/primitives/mod.rs`:
+        - Correct `border_x/y/t/b/l/r=true|false` to emit `border-b` or empty string.
+        - Emit `role={"region"}` instead of `role={region}` for `aria_role`.
+        - Prevent duplicate "flex" in `className` arrays for `items` and `justify` kwargs.
+        - Drop universal-style kwargs like `border=false` that resolve to empty class lists from JSX attributes.
+    - Update `web_ir_lower_emit_test.rs` assertions and re-baseline dashboard chrome/composite/surface, runs/forge, and mesh/svg snapshots.
+    - Remove unused `FnDecl` and `Param` imports from `typedef.rs`.
+- **cli**:
+    - Remove `container init` action and associated logic for scanning `@py.import` and generating Python project files.
+    - Remove noop `.clone()` on `&str` in `clavis.rs`.
+- **deploy-codegen**:
+    - Delete `env.rs`, `pyproject.rs`, `python_dockerfile.rs`, `setup.rs`, and `lib.rs` (total ~540 LoC).
+- **integration-tests**:
+    - Delete `venv_detection_test.rs`.
+    - Migrate `greaterfool_reference.vox`, `marquee_app/main.vox`, `test_app/main.vox`, `axum_emit_contract_test.rs`, `db_query_safety_test.rs`, `ir_emission_test.rs` fixtures to `@endpoint(kind: …)`.
+- **populi**:
+    - Delete `lora_estimates.rs` (orphan test).
+- **oratio**:
+    - Remove unused `std::fs`, `std::io`, `std::path` imports from `srt.rs`.
+    - Add missing doc to stub function in `srt.rs`.
+    - Feature-gate `language_hint` parameter in `traits.rs` with `cfg_attr(allow(unused_variables))`.
+- **orchestrator**:
+    - Remove unused `std::str::FromStr` from `registry.rs`.
+    - Add `cfg_attr(allow(unused_mut))` to feature-gated state vars in `a2a_tools.rs`.
+- **corpus**:
+    - Remove `codegen_vox/part_02.rs`, `corpus/extract_vox/mod.rs`, `corpus/extract_vox/part_ast.rs`.
+- **mens**:
+    - Remove `training/core.rs`, `training/taxonomy.rs`.
+- **lsp**:
+    - Remove `grammar.rs`.
+- **docs**:
+    - Update `AGENTS.md` to reflect removal of `@py.import`, `@server`, `@query`, `@mutation`.
+    - Update `frontend-convergence-findings-2026.md` to mark R4, R6, and `py.import` as landed.
+    - Rewrite `how-to/how-to-pytorch.md` as a stub.
+    - Regenerate `SUMMARY.md`, `architecture-index.md`, `feed.xml`.
+- **contracts**:
+    - Update `speech-to-code/vox_grammar_artifact.json` to use `@endpoint` instead of `@server/@query/@mutation`.
+
+--- audit: original='refactor: remove @py.import + deprecated @server/@query/@mutation; fix VUV-4 lowering bugs surfaced by dashboard chrome snapshots' | actual=2864L across 90 files | derived=full ---
