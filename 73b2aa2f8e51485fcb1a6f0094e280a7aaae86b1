@@ -1,0 +1,16 @@
+feat(orchestrator-mcp): add hopper API and integrate InMemoryHopper
+scale: ~173 lines across 2 files [M]
+
+- `crates/vox-orchestrator-mcp/src/http_gateway/dashboard_api.rs`:
+    - Add `HopperSubmitBody` struct for deserializing hopper submission requests.
+    - Implement `post_hopper_submit` handler for `POST /api/v2/hopper/submit` to admit new intake items.
+    - Implement `get_hopper_inbox` handler for `GET /api/v2/hopper/inbox` to retrieve items from the hopper inbox.
+    - Implement `get_hopper_assigned` handler for `GET /api/v2/hopper/assigned` to retrieve assigned hopper items.
+    - Implement `get_hopper_history` handler for `GET /api/v2/hopper/history` to retrieve hopper item history.
+- `crates/vox-orchestrator-mcp/src/http_gateway/mod.rs`:
+    - Add `hopper` field of type `Arc<dyn vox_orchestrator::hopper::HopperIntake>` to `GatewayState`.
+    - Initialize `hopper` with an `InMemoryHopper` instance in `GatewayState::for_test()`, sharing the orchestrator's event bus.
+    - Initialize `hopper` with an `InMemoryHopper` instance in `spawn_http_gateway_if_enabled`, sharing the orchestrator's event bus.
+    - Add new routes for hopper API endpoints: `/api/v2/hopper/submit`, `/api/v2/hopper/inbox`, `/api/v2/hopper/assigned`, and `/api/v2/hopper/history`.
+
+--- audit: original='feat(orchestrator-mcp): wire InMemoryHopper intake + read HTTP surface into the daemon gateway (B3, Hp-T1)' | actual=173L across 2 files | derived=full ---
