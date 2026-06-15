@@ -1,0 +1,8 @@
+docs(arch): update work plans and fix stale links
+scale: ~470 lines across 3 files [L]
+
+- **docs/src/architecture/free-by-default-and-residual-work-plan-2026.md**: Add new comprehensive forward plan for post-audit work, covering 9 independent tracks (F-A through F-I), including the "free by default + Fast/Free tier first-class" directive, model-routing YAML changes, `free_only`/`is_free` call site audit, `dei_shim`/selection re-activation, D-7-rescope NodeRecord topology decision, residual Tier-D plan, and push-to-origin sequence.
+- **docs/src/architecture/deep-research-prior-art-and-vox-roadmap-2026.md**: Update 12 broken links from `crates/vox-orchestrator/src/dei_shim/` to `crates/vox-dei-shim/src/` in the "deep-research-prior-art" document.
+- **docs/src/architecture/2026-05-15-orchestrator-tier-d-plan.md**: Update section 4 to mark `dei_shim/` extraction as COMPLETE (A-12, 2026-05-24), noting its move to `vox-dei-shim` crate and the resulting LoC reduction in `vox-orchestrator`.
+
+--- audit: original='docs(arch): master forward plan + F-B/F-C stale-ref cleanup' | actual=470L across 3 files | derived=full ---
