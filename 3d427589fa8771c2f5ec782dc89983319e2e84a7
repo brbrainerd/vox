@@ -1,0 +1,8 @@
+feat(cli): register StderrDebugSink when VOX_TELEMETRY=debug
+scale: ~19 lines across 1 files [S]
+
+- `crates/vox-cli/src/lib.rs`:
+    - Added `StderrDebugSink` struct which implements `vox_telemetry::TelemetryRecorder` to serialize `TelemetryEvent`s as compact JSON to stderr.
+    - Modified `init_telemetry_sinks` to register `StderrDebugSink` when `TelemetryConfig::from_env().debug_to_stderr` is true.
+
+--- audit: original='feat(cli): register StderrDebugSink when VOX_TELEMETRY=debug (Phase D)' | actual=19L across 1 files | derived=full ---
