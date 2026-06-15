@@ -1,0 +1,11 @@
+fix(docs): update frontmatter status and category values for ADRs and architecture docs
+scale: ~15 lines across 7 files [M]
+
+- docs/src/adr:
+  - Changed `status` from `accepted` to `current` in five ADRs (037-041) to align with canonical status vocabulary.
+  - Added `category: architecture` to `037-tauri-gui-replaces-axum-dashboard.md`.
+- docs/src/architecture:
+  - Changed `status` from `proposed` to `roadmap` in `ai-fixtures-ts-lowering-follow-on-2026.md`.
+  - Changed `category` from `audit` to `contributor` in `rust-warning-audit-backlog-2026.md` to use canonical category vocabulary.
+
+--- audit: original='fix(docs): correct frontmatter status/category values to satisfy vox-doc-pipeline lint' | actual=15L across 7 files | derived=full ---
