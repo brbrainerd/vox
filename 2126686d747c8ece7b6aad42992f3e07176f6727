@@ -1,0 +1,7 @@
+style(codegen): Apply rustfmt wrapping to long lines in tests and emit
+scale: ~14 lines across 2 files [S]
+
+- `crates/vox-codegen/src/codegen_rust/mod.rs`: Apply rustfmt wrapping to long lines in `codegen_rust` tests, specifically for `run_frontend_str` and `Cargo.toml` assertion.
+- `crates/vox-codegen/src/codegen_rust/emit/mod.rs`: Apply rustfmt wrapping to a long line in `emit` module, specifically for the `has_scheduled` check.
+
+--- audit: original='style(codegen): rustfmt wrapping for Phase 1/2 edits' | actual=14L across 2 files | derived=full ---
