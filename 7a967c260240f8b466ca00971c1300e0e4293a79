@@ -1,0 +1,12 @@
+feat(cli): add `vox ci detect-rules-bench` command for F1 scoring
+scale: ~108 lines across 7 files [M]
+
+- `crates/vox-cli/src/commands/ci`:
+    - Added a new subcommand `detect-rules-bench` to `CiCmd` for scoring rule-pack precision/recall/F1 against fixture files.
+    - Implemented the `detect_rules_bench::run` function to handle the logic for loading rules, running benchmarks, and reporting results in table or JSON format.
+    - Integrated the new subcommand into the `run_body.rs` handler.
+    - Added `detect_rules_bench` module to `ci/mod.rs`.
+- `contracts/cli`: Registered the new `vox ci detect-rules-bench` command in `command-registry.yaml`.
+- `crates/vox-cli`: Added `vox-rule-pack` as a dependency in `Cargo.toml` and updated `Cargo.lock`.
+
+--- audit: original='feat(cli): vox ci detect-rules-bench — F1 scorer for rule-pack fixtures' | actual=108L across 7 files | derived=full ---
