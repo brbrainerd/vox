@@ -1,0 +1,40 @@
+feat(cli,db,telemetry): introduce `data-ssot-guards` command and refine DB connection policy
+scale: ~2261 lines across 67 files [XL]
+
+- **cli**: Add new `data-ssot-guards` command to check data and telemetry SSOT drift, including new helpers for its execution.
+- **db**:
+    - Introduce `connect_policy.rs` to define canonical VoxDB connection policies and remediation messages.
+    - Refactor `connect.rs` to replace `DbConfig::resolve_standalone` with `DbConfig::resolve_canonical` for consistent connection handling across various modules.
+    - Add `canonical_store.rs` for canonical store logic.
+    - Update `local_tests.rs` with new tests for legacy chain import and `connect_default_with_training_fallback` recovery.
+    - Modify `socrates_telemetry.rs`, `project_store.rs`, `populi_registry_telemetry.rs`, `syntax_k_telemetry.rs`, `benchmark_telemetry.rs` to use canonical connection methods.
+    - Update `schema_cutover.rs` and `migration.rs` for schema management.
+    - Adjust `config.rs` to support the new canonical resolution.
+    - Update `store/ops_news.rs` and `store/ops_codex/codex_metrics_packages.rs` for store operations.
+    - Add `codex_legacy.rs` for legacy Codex handling.
+    - Update `lib.rs`, `paths.rs`, `store/open.rs`, `schema/domains/publish_cloud.rs` for general DB infrastructure.
+    - Add new migration facade `facade/migrations.rs`.
+    - Update `tests/migration_tests.rs`, `tests/news_approval_tests.rs`, `tests/schema_contract_tests.rs`, `tests/ops_codex_tests.rs` for database testing.
+    - Refine `store/types/error.rs` for error handling.
+- **telemetry**: Update `vox-cli/src/commands/mens/watch_telemetry.rs` to use canonical DB connection.
+- **docs**:
+    - Add new documentation for `voxdb-connect-policy.md`, `voxdb-cutover-runbook.md`, `how-to-voxdb-canonical-store.md`.
+    - Update `doc-inventory.json` to reflect new documentation.
+    - Add `telemetry-metric-contract.md` and `mens-training-data-contract.md`.
+    - Update `SUMMARY.md` and `mens-training.md`.
+    - Adjust `architecture/codex-legacy-migration.md` and `architecture/codex-arca-compatibility-boundaries.md`.
+- **populi**:
+    - Refactor `mens/tensor/candle_qlora_train/training_loop.rs` to introduce `QloraTrainingResume` struct and `apply_checkpoint_resume` function, significantly changing the training loop's structure and reducing argument count.
+    - Update `mens/tensor/candle_model_qwen.rs` to refine RoPE dimension handling in Qwen2Attention.
+    - Adjust `mens/tensor/candle_qlora_train/mod.rs` and `mens/tensor/candle_qlora_train/db_thread.rs` for training loop changes.
+    - Update `mens/cloud/resolver.rs` for cloud resolver.
+    - Add `mens/tensor/candle_qlora_train/finalize.rs`.
+- **tensor**: Enhance `data.rs` with `MalformedJsonlPolicy` for loading JSONL records, allowing skipping or failing on malformed lines.
+- **orchestrator**: Update `services/news.rs` and `tests/news_service_test.rs`.
+- **mcp**: Refactor `src/main.rs` and `src/tools/benchmark_tools.rs`.
+- **compiler**: Adjust `src/codegen_rust/emit/tables/codegen.rs`.
+- **runtime**: Update `src/db.rs`.
+- **contracts**: Add `command-registry.yaml` entry for the new command.
+- **mens**: Update `runs/qwen35_native_final/training_manifest.json` and `runs/qwen35_qlora_smoke35_v4/checkpoint_state.json`.
+
+--- audit: original='feat(cli, telemetry, db): introduce data-ssot-guards command and update database connection methods' | actual=2261L across 67 files | derived=full ---
