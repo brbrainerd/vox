@@ -1,0 +1,22 @@
+feat: Initialize project with Rust workspace, npm packages, and build artifacts
+scale: ~629065 lines across 22170 files [XL]
+
+DIVERGENCE: original subject claimed 'docs: Initialize project documentation and configuration' but this commit actually changed ~629065 lines across 22170 files. Top areas:
+dist: 508447 lines, 2459 files
+target: 88964 lines, 19530 files
+tree-sitter-vox: 14927 lines, 70 files
+crates: 13345 lines, 88 files
+(root): 3089 lines, 15 files
+examples: 293 lines, 8 files
+
+- **dist/app**: Added a large number of npm packages and their build artifacts, including `rollup`, `react-dom`, `csstype`, `@babel/parser`, `typescript`, `vite`, `react`, `esbuild`, `json5`, `semver`, `browserslist`, `source-map-js`, `picomatch`, `@vitejs/plugin-react`, `react-refresh`, `fdir`, `postcss`, `electron-to-chromium`, and `@babel` related packages. This likely represents the initial setup of a frontend application.
+- **target**: Added numerous build artifacts for Rust projects, including `typenum` and `libsqlite3-sys`, indicating initial compilation and dependency resolution.
+- **tree-sitter-vox/tree-sitter-vox/node_modules/nan**: Added `nan` module files, likely a dependency for `tree-sitter-vox`.
+- **Cargo.lock**: Initialized the Rust dependency lock file.
+- **crates/vox-codegen-rust**: Added `emit.rs`, suggesting initial code generation logic.
+- **crates/vox-typeck**: Added `check.rs`, indicating initial type checking implementation.
+- **crates/vox-parser**: Added `parser.rs`, suggesting initial parsing logic.
+- **crates/vox-pm**: Added `store.rs`, indicating initial package management storage.
+- **target/generated**: Added `Cargo.lock` and other generated files, indicating a build process.
+
+--- audit: original='docs: Initialize project documentation and configuration' | actual=629065L across 22170 files | derived=stat-only ---
