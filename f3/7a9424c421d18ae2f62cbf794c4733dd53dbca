@@ -1,0 +1,7 @@
+ci(tracker): Add Android E2E workflow and script
+scale: ~34 lines across 2 files [S]
+
+- **.github/workflows/mobile-e2e-android.yml**: New GitHub Actions workflow `Mobile E2E - Android` added. This workflow runs on `push` and `pull_request` events, uses `macos-13` runner, sets up Node.js 20, Java 17, installs pnpm dependencies, builds the web app, syncs Android, and runs E2E tests on an Android emulator (API level 33, Google APIs, x86_64).
+- **apps/vox-mental-tracker/package.json**: Added a new `e2e:android` script to run Playwright tests specifically for the Android project.
+
+--- audit: original='ci(tracker): Android emulator E2E lane' | actual=34L across 2 files | derived=full ---
