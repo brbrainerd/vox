@@ -1,0 +1,9 @@
+docs(how-to): add frontmatter to populi-quickstart.md and regenerate docs
+scale: ~424 lines across 4 files [L]
+
+- docs/src/how-to/populi-quickstart.md: Added YAML frontmatter including title, description, category, last_updated, and training_eligible fields.
+- docs/src/SUMMARY.md: Regenerated to include updated metadata.
+- docs/src/architecture/architecture-index.md: Regenerated to reflect content changes.
+- docs/src/feed.xml: Regenerated to reflect content changes.
+
+--- audit: original='chore(docs): add frontmatter to populi-quickstart.md, regenerate SUMMARY' | actual=424L across 4 files | derived=full ---
