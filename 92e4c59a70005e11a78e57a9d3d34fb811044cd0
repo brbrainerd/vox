@@ -1,0 +1,42 @@
+feat(vox-compiler): introduce two-parameter Result[T, E] type
+scale: ~404 lines across 14 files [L]
+
+- **typeck/ty.rs**:
+  - `Ty::Result` now stores two `Box<Ty>` for `ok` and `err` types.
+  - Signature display for `Result` omits the error type when it's `Ty::Str` for backward compatibility.
+- **typeck/builtins.rs**:
+  - `Ok` and `Error` constructors are now polymorphic over two generic parameters (`Ty::GenericParam(0)` for `T` and `Ty::GenericParam(1)` for `E`).
+  - `Err` is registered as an alias for `Error`.
+  - Updated `Ok` and `Error` definitions to use the two-parameter `Result` type.
+- **typeck/infer.rs**:
+  - `lower_ast_ty` now handles `Result[T, E]` with two arguments, defaulting `E` to `Ty::Str` if only one argument is provided.
+  - `infer_expr` for `Result` types now unifies both the `ok` and `err` sides.
+- **typeck/unify.rs**:
+  - `resolve` and `instantiate_inner` methods for `Ty::Result` now process both the `ok` and `err` type parameters.
+  - The `occurs_check` method for `Ty::Result` now walks both type parameters.
+  - The `unify` method for `Ty::Result` now unifies both the `ok` and `err` sides.
+- **typeck/ast_decl_lints.rs**:
+  - Updated `lower_ast_ty` calls to pass two arguments for `Ty::Result` where appropriate, defaulting the error type to `Ty::Str`.
+- **typeck/registration.rs**:
+  - Updated `lower_ast_ty` calls to pass two arguments for `Ty::Result` where appropriate, defaulting the error type to `Ty::Str`.
+- **typeck/checker/expr_ops.rs**:
+  - Updated `lower_ast_ty` calls to pass two arguments for `Ty::Result` where appropriate, defaulting the error type to `Ty::Str`.
+- **typeck/checker/expr.rs**:
+  - Updated `lower_ast_ty` calls to pass two arguments for `Ty::Result` where appropriate, defaulting the error type to `Ty::Str`.
+- **eval/value.rs**:
+  - `VoxValue::Result` now holds `Result<Box<VoxValue>, Box<VoxValue>>`, allowing for arbitrary `VoxValue` as the error payload.
+- **eval/builtins.rs**:
+  - All `Err`-constructing sites now wrap their payload as `Box::new(VoxValue::Str(...))` instead of directly using `String`.
+- **eval/expr.rs**:
+  - The `Err`/`Error` specialization case no longer coerces the payload to `String` via `vox_value_display`, storing the `VoxValue` directly.
+- **eval/stmt.rs**:
+  - The `Err` arm of pattern matches now unboxes the payload as a full `VoxValue`.
+- **builtin_registry.rs**:
+  - Updated various `builtin_entry_result_ty` and `std_namespace_method_ty` calls to use the two-parameter `Ty::Result`, defaulting the error type to `Ty::Str`.
+- **apps/marquee/todo-auth/src/main.vox**:
+  - Introduced a `TodoError` ADT (`TitleEmpty`, `TitleTooLong`, `EmptyId`).
+  - `add_todo` and `complete_todo` endpoint signatures updated from `Result[str]` to `Result[str, TodoError]`.
+  - `add_todo` and `complete_todo` now return typed `TodoError` variants instead of string literals.
+  - Added two new `@test` functions to verify end-to-end ADT pattern matching on `Error` variants.
+
+--- audit: original='feat(vox-compiler): two-parameter Result[T, E] across type and runtime' | actual=404L across 14 files | derived=full ---
