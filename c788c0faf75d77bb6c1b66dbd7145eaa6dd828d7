@@ -1,0 +1,16 @@
+feat(vox-gui/discovery-review): Improve accessibility for Wave 4
+scale: ~60 lines across 2 files [M]
+
+- `DiscoveryReview.tsx`:
+  - Added `type="button"` to all nine interactive buttons for explicit semantic meaning.
+  - Implemented `aria-pressed` attribute for queue selection items to indicate their toggle state.
+  - Set `aria-live="polite"` on the awaiting-review queue container to announce dynamic content changes to screen readers.
+  - Added an `useEffect` hook to allow closing the nanopublish confirmation overlay with the Escape key.
+  - Added `role="dialog"` and `aria-modal="true"` to the nanopublish confirmation overlay for proper modal semantics.
+  - Implemented a click-outside-to-close mechanism for the nanopublish confirmation overlay.
+  - Added `aria-hidden="true"` to decorative glyphs (✓✗⏸✦⬆★) to prevent them from being read by screen readers.
+- `DiscoveryReview.test.tsx`:
+  - Added a test to verify that all buttons have `type="button"`.
+  - Added a test to confirm the awaiting-review queue has `aria-live="polite"`.
+
+--- audit: original='feat(vox-gui/wave4): DiscoveryReview a11y + checklist (Wave 4)' | actual=60L across 2 files | derived=full ---
