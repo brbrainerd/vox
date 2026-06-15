@@ -1,0 +1,9 @@
+fix(orchestrator, gui, actor-runtime): resolve three bugs from adversarial review
+scale: ~90 lines across 4 files [M]
+
+- `crates/vox-orchestrator/src/services/scaling.rs`: Modified the local-resource guard in `ScalingService` to only block scale-up actions when a host is saturated (CPU/memory). Previously, it would return `NoOp`, suppressing scale-down of idle agents. Now, a `scale_up_blocked` flag is set, allowing scale-down to proceed.
+- `crates/vox-gui/ui/src/components/surfaces/Settings/SettingsView.tsx`: Enhanced deep-linking from omni-search for the Settings view. The `vox_settings_seed` from local storage is now consumed not only on component mount but also when a `vox-settings-seed` window event is dispatched, ensuring deep-linking works even if the Settings surface is already active.
+- `crates/vox-actor-runtime/src/llm/throttle.rs`: Fixed a lost-wakeup race in `ProviderThrottle::acquire()`. The `Notify::notified()` future is now registered *before* the admission check, preventing a permit dropped between the load and the `.await` from causing a hang.
+- `crates/vox-gui/ui/src/components/layout/CommandPalette.tsx`: Dispatches a `vox-settings-seed` window event after navigating to the settings view via omni-search, ensuring the `SettingsView` consumes the deep-link seed even if it's already mounted.
+
+--- audit: original='fix: three bugs from final adversarial code review' | actual=90L across 4 files | derived=full ---
