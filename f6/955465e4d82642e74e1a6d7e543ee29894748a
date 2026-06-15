@@ -1,0 +1,19 @@
+feat(ci,tooling): compile matrix, iOS e2e, tdd-guard, toolchain 1.92.0, hardcoded values audit
+scale: ~1686 lines across 14 files [XL]
+
+- .github/workflows/compile-matrix.yml: Add new CI workflow for multi-platform compile verification across desktop/server/wasm targets.
+- .github/workflows/mobile-e2e-ios.yml: Add new iOS end-to-end test runner workflow.
+- .github/workflows/setup-e2e.yml: Add new shared e2e environment setup workflow.
+- .github/workflows/ci.yml: Update CI workflow to remove individual SSOT checks, add `cargo-audit`, `cargo-shear`, `cargo-outdated` checks, and consolidate SSOT checks into `ssot-drift`.
+- .github/workflows/docs-quality.yml: Update docs-quality workflow to use `setup-e2e` and `docs-reality-audit-cycle`.
+- .github/workflows/mobile-e2e-android.yml: Update Android e2e workflow to use `setup-e2e`.
+- .github/workflows/deploy-hetzner.yml: Update deploy workflow to use `setup-e2e` and remove `install-rust-toolchain` step.
+- .github/workflows/release-installers.yml: Update release installers workflow to use `setup-e2e`.
+- lefthook.yml: Add `tdd-guard` pre-commit hook to block commits introducing public functions without adjacent `#[test]`.
+- rust-toolchain.toml: Update Rust toolchain to 1.92.0 and add `wasm32-wasip1` target.
+- scripts/docs-reality-audit-cycle.vox: Add new script to verify documentation artifacts and refresh metrics.
+- scripts/clean-build-artifacts.vox: Refactor script to use `vox:caps`, support dry-runs, explicit execution, and scan nested crate targets.
+- scripts/setup.vox: Enhance setup script with checks for Rust toolchain, WASM target, Node.js, and pnpm.
+- tools/hardcoded-values-audit.mjs: Add new machine audit tool to regenerate hardcoded-value audit artifacts.
+
+--- audit: original='feat(ci,tooling): compile-matrix, iOS e2e, setup-e2e workflows; tdd-guard hook; toolchain 1.92.0' | actual=1686L across 14 files | derived=full ---
