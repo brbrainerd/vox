@@ -1,0 +1,19 @@
+feat(compiler): Implement `@embed` decorator parsing, lowering, and validation
+scale: ~219 lines across 15 files [M]
+
+- **`crates/vox-compiler/src/parser/descent/decl/head.rs`**: Added parsing logic for the `@embed(model, dimensions, source_field)` decorator on function declarations, extracting `model`, `dimensions`, `source_field`, and `span`.
+- **`crates/vox-compiler/src/ast/decl/embed_decorator.rs`**: Introduced a new AST node `AstEmbedSpec` to represent the parsed `@embed` decorator.
+- **`crates/vox-compiler/src/ast/decl/fundecl.rs`**: Added an `embed` field of type `Option<AstEmbedSpec>` to `FnDecl` to store the parsed decorator.
+- **`crates/vox-compiler/src/ast/decl/mod.rs`**: Added a new module `embed_decorator` for the `@embed` decorator AST.
+- **`crates/vox-compiler/src/hir/nodes/decl.rs`**: Added an `embed` field of type `Option<HirEmbedDecl>` to `HirFn` to store the lowered decorator information.
+- **`crates/vox-compiler/src/hir/lower/decl.rs`**: Implemented lowering of `AstEmbedSpec` from `FnDecl` to `HirEmbedDecl` within `HirFn`.
+- **`crates/vox-compiler/src/typeck/boilerplate_grafts.rs`**: Added a `check_embed_dimensions` function to validate that `@embed` decorators do not specify `dimensions: 0`, emitting a `vox/embed/zero-dimensions` error if found.
+- **`crates/vox-compiler/src/typeck/mod.rs`**: Integrated the `check_embed_dimensions` validation into the `typecheck_hir_module` process.
+- **`crates/vox-compiler/tests/ga_boilerplate_grafts_test.rs`**: Added new integration tests to verify correct parsing of `@embed` decorator arguments and to confirm the `vox/embed/zero-dimensions` warning for zero dimensions.
+- **`crates/vox-codegen/tests/snapshots/golden_ts_test__golden_ts_emit@routes_with_loader.snap`**: Updated snapshot to reflect changes, likely due to the new decorator.
+- **`crates/vox-integration-tests/tests/pipeline/includes/snapshots/pipeline_test__blog_fullstack_client_ts.snap`**: Updated snapshot, likely reflecting changes in client-side TS generation.
+- **`crates/vox-cli/tests/migrate_codemod_test.rs`**: Fixed calls to `RenameRegistry::from_str` by changing them to `RenameRegistry::parse_json`.
+- **`crates/vox-test-harness/src/hir_builders.rs`**: Extended `HirFn` harness fields, likely to include the new `embed` field.
+- **`crates/vox-integration-tests/tests/metamorphic_axiom_test.rs`**: Added a new integration test, likely related to the `@embed` functionality.
+
+--- audit: original='feat(compiler): GA-24 @embed parsing, validation, and snapshots' | actual=219L across 15 files | derived=full ---
