@@ -1,0 +1,9 @@
+feat(orchestrator): improve WASM bundle testing and document execution gap
+scale: ~78 lines across 2 files [M]
+
+- refactor(remote_worker): `wasm_bundle_executes_under_isolation_when_supported` now synthesizes a real WASI module using `wat::parse_str` to genuinely test isolated execution, rather than a minimal header.
+- docs(remote_worker): Added a "KNOWN GAP" section to `run_dispatched_bundle` explaining that `--isolation` is for `vox script` not `vox run`, causing WASM bundle execution to fail safely until a raw `.wasm` runner is implemented.
+- chore(remote_worker): Applied `#[serial(vox_spawn)]` to four vox-spawning tests to prevent transient parallel-subprocess-spawn failures.
+- chore(Cargo): Added `wat` crate as a dev-dependency for WASI module synthesis in tests.
+
+--- audit: original='test(mesh): real-WASI-module bundle probe + serialize vox-spawning tests; document WASM-invocation gap' | actual=78L across 2 files | derived=full ---
