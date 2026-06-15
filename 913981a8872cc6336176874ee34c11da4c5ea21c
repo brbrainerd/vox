@@ -1,0 +1,10 @@
+docs(golden): exclude training metadata from displayed examples
+scale: ~16 lines across 5 files [S]
+
+- docs/src/examples/golden.md: Updated four `{{#include}}` directives to use the `:display` anchor, preventing training metadata from being rendered.
+- examples/golden/mesh/noop.vox: Added `// ANCHOR: display` and `// ANCHOR_END: display` around the main function.
+- examples/golden/mobile_test.vox: Added `// ANCHOR: display` and `// ANCHOR_END: display` around the component definition.
+- examples/golden/reactive_counter.vox: Added `// ANCHOR: display` and `// ANCHOR_END: display` around the component definition.
+- examples/golden/std_http_wrappers.vox: Added `// ANCHOR: display` and `// ANCHOR_END: display` around the main function.
+
+--- audit: original='docs(golden): add display anchors so golden.md excludes training metadata' | actual=16L across 5 files | derived=full ---
