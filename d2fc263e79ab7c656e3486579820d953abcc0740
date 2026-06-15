@@ -1,0 +1,6 @@
+feat(tracker-ios): Implement on-device STT using Apple Speech Framework
+scale: ~137 lines across 3 files [M]
+
+- `AppleSpeechBackend.swift`: Add new file for `AppleSpeechBackend` class, providing on-device speech-
+
+--- audit: original='feat(tracker-ios): on-device STT via Apple Speech Framework' | actual=137L across 3 files | derived=full ---
