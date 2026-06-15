@@ -1,0 +1,10 @@
+feat(vox-gui/scientia): add accessibility and checklist to DiscoveryReviewView
+scale: ~61 lines across 2 files [M]
+
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/DiscoveryReviewView.test.tsx`: Add new test file for `DiscoveryReviewView` component, including tests for button `type="button"` attribute and `aria-live` list rendering of claims.
+- `crates/vox-gui/ui/src/components/surfaces/Scientia/DiscoveryReviewView.tsx`:
+    - Set `type="button"` for the "Load claims" button and the "Approve" button within the claim review section.
+    - Add `role="list"` and `aria-live="polite"` attributes to the container displaying the list of claims.
+    - Add `role="listitem"` to each individual claim item within the list.
+
+--- audit: original='feat(vox-gui/wave4): DiscoveryReviewView a11y + checklist (Wave 4)' | actual=61L across 2 files | derived=full ---
