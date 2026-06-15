@@ -1,0 +1,6 @@
+feat(parser,typeck,codegen-ts): Add `@tokens on:` parsing, improve type lowering, and implement `@public` XOR `@auth` check
+scale: ~125 lines across 10 files [M]
+
+- **typeck/ast_decl_lints**: Implemented a new lint (P8-J) to detect and report an error when both `@public` and `@auth` decorators are applied to the same function,
+
+--- audit: original='feat(parser,typeck,codegen-ts): Tasks 8I+8J — @tokens on: parsing, HirType→TS Function/Tuple/Unit, reactive Stmt emit, state_deps Try/AsyncView walk, @public XOR @auth typeck rule' | actual=125L across 10 files | derived=full ---
