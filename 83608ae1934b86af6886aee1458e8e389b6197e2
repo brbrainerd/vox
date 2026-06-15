@@ -1,0 +1,9 @@
+feat(repair): include explain_url in LLM repair prompt
+scale: ~10 lines across 1 files [S]
+
+- `crates/vox-cli/src/commands/repair.rs`:
+    - Added `explain_url: Option<String>` field to `DiagnosticPayload` struct, deserializing it with `#[serde(default)]`.
+    - Appended the `explain_url` to the `error_summary` string in the LLM repair prompt if available.
+    - Updated string formatting for hints to use f-strings.
+
+--- audit: original='feat(repair): include explain_url in LLM repair prompt when available' | actual=10L across 1 files | derived=full ---
