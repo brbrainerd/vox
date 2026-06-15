@@ -1,0 +1,12 @@
+feat(orchestrator): add cost progress tracking and doom-loop detection to BudgetManager
+scale: ~97 lines across 1 files [M]
+
+- Introduce `CostProgressState` struct to track `cost_since_last_completion` for each agent.
+- Add `cost_progress` HashMap and `doom_loop_threshold_usd` to `BudgetManager`.
+- Initialize `doom_loop_threshold_usd` to $2.00 in `BudgetManager::new`.
+- Implement `record_cost_progress` method to accumulate cost for an agent.
+- Implement `record_task_completion` method to reset an agent's cost progress.
+- Implement `check_doom_loop` method to determine if an agent has exceeded the doom-loop cost threshold.
+- Implement `set_doom_loop_cost_threshold` method to configure the doom-loop threshold.
+
+--- audit: original='feat(orchestrator): add cost-progress doom-loop state to BudgetManager (FIX-11)' | actual=97L across 1 files | derived=full ---
