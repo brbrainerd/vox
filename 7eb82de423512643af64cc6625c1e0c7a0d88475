@@ -1,0 +1,6 @@
+fix(codegen): align list-HOF fold emit test with into_iter value semantics
+scale: ~2 lines across 1 files [XS]
+
+- `crates/vox-codegen/tests/list_hof_emit_test.rs`: Updated the assertion in `list_map_filter_fold_and_sorted_by_key_emit` to expect `.into_iter().fold(` instead of `.iter().fold(`, correcting the test to match the actual emitted code for list higher-order functions.
+
+--- audit: original='fix(codegen): align list-HOF fold emit test with into_iter value semantics (#102) (#285)' | actual=2L across 1 files | derived=full ---
