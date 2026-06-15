@@ -1,0 +1,10 @@
+feat(dashboard): port tab components from .vox to generated TSX
+scale: ~540 lines across 5 files [L]
+
+- `crates/vox-dashboard/app/src/generated/CommandTab.tsx`: Add `DiagnosticRow`, `DiagnosticsPanel`, `TaskDispatch` components, and `DiagnosticViewState` type, implementing the CommandTab UI.
+- `crates/vox-dashboard/app/src/generated/ForgeTab.tsx`: Add `PipelineStage`, `PipelineView`, `WorkflowScrubber` components, and `ScrubberState`, `PipelinePhase` types, implementing the ForgeTab UI.
+- `crates/vox-dashboard/app/src/generated/NetworkTab.tsx`: Add `NodeBadge`, `MeshLegend` components, and `MeshViewState` type, implementing the NetworkTab UI.
+- `crates/vox-dashboard/app/src/generated/SpeakTab.tsx`: Add `ChatMessage`, `ComposerPanel` components, and `ChatSessionState` type, implementing the SpeakTab UI.
+- `crates/vox-dashboard/app/src/app.vox`: Remove stub `SpeakTab`, `CommandTab`, `NetworkTab`, `ForgeTab` definitions and add `use tabs::*` imports to resolve components from the `tabs/` directory.
+
+--- audit: original='feat(task-7.2): port tab components from .vox sources to generated/ TSX' | actual=540L across 5 files | derived=full ---
